@@ -9,51 +9,37 @@ import (
 // ============================================================================
 // Assignment Helpers
 // ============================================================================
-//
-// This file contains helpers for evaluating assignment statements directly
-// in the evaluator, reducing adapter dependency.
-// ============================================================================
 
-// ReferenceValueAccessor is an interface for values that can be dereferenced and assigned.
-// This allows the evaluator to work with ReferenceValue without importing the interp package.
+// ReferenceValueAccessor allows dereferencing and assignment to var parameters.
 type ReferenceValueAccessor interface {
-	// Dereference returns the current value of the referenced variable.
 	Dereference() (Value, error)
-	// Assign sets the value of the referenced variable.
 	Assign(value Value) error
 }
 
-// SubrangeValueAccessor is an interface for subrange values.
+// SubrangeValueAccessor validates and assigns subrange values.
 type SubrangeValueAccessor interface {
-	// ValidateAndSet validates that the value is in range and sets it.
 	ValidateAndSet(intValue int) error
-	// GetValue returns the current integer value.
 	GetValue() int
-	// GetTypeName returns the subrange type name.
 	GetTypeName() string
 }
 
-// Note: ExternalVarAccessor is defined in evaluator.go
-
-// cloneIfCopyable returns a defensive copy for values that implement CopyableValue.
-// DWScript static arrays have value semantics, so assignments should duplicate
-// their backing storage to avoid accidental aliasing between variables.
+// cloneIfCopyable returns a defensive copy for static arrays (value semantics).
 // Dynamic arrays keep reference semantics.
 func cloneIfCopyable(val Value) Value {
 	if val == nil {
 		return nil
 	}
 
-	// Dynamic arrays should keep reference semantics (DWScript behavior).
+	// Dynamic arrays keep reference semantics
 	if arr, ok := val.(*runtime.ArrayValue); ok {
 		if arr.ArrayType == nil || arr.ArrayType.IsDynamic() {
 			return val
 		}
 	}
 
+	// Clone copyable values (static arrays)
 	if copyable, ok := val.(runtime.CopyableValue); ok {
 		if copied := copyable.Copy(); copied != nil {
-			// Copy() returns interface{}, cast to Value
 			return copied.(Value)
 		}
 	}
@@ -62,17 +48,7 @@ func cloneIfCopyable(val Value) Value {
 }
 
 // evalSimpleAssignmentDirect handles simple variable assignment: x := value
-//
-// This handles the simplest cases directly:
-// - Regular variable assignment with matching types
-// - Var parameter (ReferenceValue) write-through
-// - Subrange value validation
-// - Basic type compatibility (same type or simple conversion)
-//
-// For complex cases (interface wrapping, object ref counting, property assignment,
-// Self/class context, etc.), it delegates to the adapter.
-//
-// Returns the assigned value on success, or an error Value.
+// Handles regular variables, var parameters, subranges, interface/object ref counting.
 func (e *Evaluator) evalSimpleAssignmentDirect(
 	target *ast.Identifier,
 	value Value,
@@ -81,38 +57,23 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 ) Value {
 	targetName := target.Value
 
-	// Get existing value to check for special types
 	existingValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// Task 3.2.11i: Handle implicit Self context for field/property/class var assignment
-		//
-		// When a variable is not in ctx.Env(), it could be:
-		// 1. An instance field: Self.Field := value (implicit Self in method)
-		// 2. A class variable: TClass.ClassVar := value (via Self or static context)
-		// 3. A property: Self.PropName := value (property setter)
-		// 4. A true undefined variable (error case)
-		//
-		// Pattern: Same as VisitIdentifier (visitor_expressions_identifiers.go:66-156)
-
-		// Check if we're in an instance method context (Self is bound)
+		// Not in environment - check implicit Self context (fields/properties/class vars)
 		if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
 			if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
 				if objVal, ok := selfVal.(ObjectValue); ok {
-					// Check for instance field
+					// Try instance field
 					if fieldValue := objVal.GetField(targetName); fieldValue != nil {
-						// Direct field assignment via ObjectInstance.SetField
 						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
 							objInst.SetField(targetName, value)
 							return value
 						}
-						// Shouldn't happen - ObjectValue with fields should be ObjectInstance
 						return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)
 					}
 
-					// Check for class variable
+					// Try class variable
 					if _, found := objVal.GetClassVar(targetName); found {
-						// Use ClassMetaValue interface to set class variable
-						// Get the class info from the object
 						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
 							classInfo := objInst.Class
 							if classMetaVal, ok := classInfo.(ClassMetaValue); ok {
@@ -125,9 +86,8 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 						return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
 					}
 
-					// Check for property
+					// Try property
 					if objVal.HasProperty(targetName) {
-						// Use WriteProperty with callback pattern
 						return objVal.WriteProperty(targetName, value, func(propInfo any, val Value) Value {
 							return e.executePropertyWrite(selfVal, propInfo, val, target, ctx)
 						})
@@ -136,11 +96,10 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 			}
 		}
 
-		// Check if we're in a class method context (__CurrentClass__ is bound)
+		// Check class method context (__CurrentClass__)
 		if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
 			if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
 				if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
-					// Check for class variable
 					if _, found := classMetaVal.GetClassVar(targetName); found {
 						if classMetaVal.SetClassVar(targetName, value) {
 							return value
@@ -151,23 +110,20 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 			}
 		}
 
-		// Not in environment, not a Self field/property/class var, not a class context variable
 		return e.newError(target, "undefined variable '%s'", targetName)
 	}
 
-	// Cast to Value interface
 	existingVal, ok := existingValRaw.(Value)
 	if !ok {
-		// Not a Value - this is an internal error
 		return e.newError(target, "variable '%s' has invalid type (not a Value)", targetName)
 	}
 
-	// Check if target is a var parameter (ReferenceValue)
+	// Var parameter (ReferenceValue)
 	if refVal, isRef := existingVal.(ReferenceValueAccessor); isRef {
 		return e.evalReferenceAssignment(refVal, value, target, stmt, ctx)
 	}
 
-	// Check for external variable
+	// External variable
 	if existingVal.Type() == "EXTERNAL_VAR" {
 		if extVar, ok := existingVal.(ExternalVarAccessor); ok {
 			return e.newError(target, "unsupported external variable assignment: %s", extVar.ExternalVarName())
@@ -175,66 +131,52 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		return e.newError(target, "unsupported external variable assignment")
 	}
 
-	// Check if assigning to a subrange variable
+	// Subrange validation
 	if subrangeVal, isSubrange := existingVal.(SubrangeValueAccessor); isSubrange {
 		return e.evalSubrangeAssignment(subrangeVal, value, target)
 	}
 
-	// Task 3.5.41a: Assigning to interface variable - native ref counting
-	// Handle interface variable assignment with proper ref counting
+	// Interface variable - ref counting
 	if ifaceInst, isIface := existingVal.(*runtime.InterfaceInstance); isIface {
 		refMgr := ctx.RefCountManager()
-
-		// Release old interface reference (decrements ref count, may invoke destructor)
 		refMgr.ReleaseInterface(ifaceInst)
 
-		// Wrap new value in interface (increments ref count automatically)
+		// Wrap new value in interface
 		if objInst, ok := value.(*runtime.ObjectInstance); ok {
-			// Assigning object to interface - wrap it
 			value = refMgr.WrapInInterface(ifaceInst.Interface, objInst)
 		} else if srcIface, isSrcIface := value.(*runtime.InterfaceInstance); isSrcIface {
-			// Interface-to-interface assignment - wrap underlying object
 			value = refMgr.WrapInInterface(ifaceInst.Interface, srcIface.Object)
 		} else if _, isNil := value.(*runtime.NilValue); isNil {
-			// Assigning nil - create interface with nil object (no ref count needed)
 			value = &runtime.InterfaceInstance{
 				Interface: ifaceInst.Interface,
 				Object:    nil,
 			}
 		}
 
-		// Update variable with wrapped value
 		e.SetVar(ctx, targetName, value)
 		return value
 	}
 
-	// Task 3.5.41b: Assigning to object variable - native ref counting
-	// Handle object variable assignment with proper ref counting
+	// Object variable - ref counting
 	if objInst, isObj := existingVal.(*runtime.ObjectInstance); isObj {
 		refMgr := ctx.RefCountManager()
 
 		if _, isNil := value.(*runtime.NilValue); isNil {
-			// Setting to nil - release old object
 			refMgr.ReleaseObject(objInst)
 		} else if newObj, isNewObj := value.(*runtime.ObjectInstance); isNewObj {
-			// Replacing with new object
 			if objInst != newObj {
-				// Different objects - release old, increment new
 				refMgr.ReleaseObject(objInst)
 				refMgr.IncrementRef(newObj)
 			}
-			// Same instance: no ref count change
 		} else {
-			// Replacing object with non-object - release old
 			refMgr.ReleaseObject(objInst)
 		}
 
-		// Update variable
 		e.SetVar(ctx, targetName, value)
 		return value
 	}
 
-	// Try implicit conversion if types don't match
+	// Implicit type conversion
 	if value != nil {
 		targetType := existingVal.Type()
 		sourceType := value.Type()
@@ -244,15 +186,13 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 			}
 		}
 
-		// Box value if target is a Variant
+		// Box value if target is Variant
 		if targetType == "VARIANT" && sourceType != "VARIANT" {
 			value = runtime.BoxVariant(value)
 		}
 	}
 
-	// Ensure value semantics for types that support copying (e.g., static arrays)
-	// Exception: when assigning directly from an indexed expression (e.g., row := matrix[i])
-	// we keep the reference so mutations write back into the parent container.
+	// Clone copyable values (static arrays), except indexed expressions (keep reference for write-back)
 	if stmt == nil {
 		value = cloneIfCopyable(value)
 	} else {
@@ -261,48 +201,33 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		}
 	}
 
-	// Task 3.5.41c: Assigning object VALUE - native ref counting
-	// When assigning an object VALUE, increment ref count for the new reference
-	// Exception: interface variables handle wrapping separately (don't double-increment)
+	// Object value - increment ref count (interfaces handle wrapping separately)
 	if newObj, isNewObj := value.(*runtime.ObjectInstance); isNewObj {
-		// Check if target is NOT an interface (interface wrapping increments separately)
 		if _, isIface := existingVal.(*runtime.InterfaceInstance); !isIface {
 			refMgr := ctx.RefCountManager()
 			refMgr.IncrementRef(newObj)
 		}
 	}
 
-	// Task 3.5.41d: Interface VALUE assignment is handled by line 127 migration
-	// The WrapInInterface method automatically increments ref count
-	// This delegation is redundant - removed in Task 3.5.41
-
-	// Task 3.5.41e: Handle function pointer ref counting
-	// Only method pointers (with SelfObject) need ref counting
-	// Simple function pointers can be handled natively
-	if value != nil {
-		valueType := value.Type()
-		if valueType == "METHOD_POINTER" {
-			// Method pointer with SelfObject - increment ref count
-			refMgr := ctx.RefCountManager()
-			if funcPtr, isFuncPtr := value.(*runtime.FunctionPointerValue); isFuncPtr {
-				if funcPtr.SelfObject != nil {
-					refMgr.IncrementRef(funcPtr.SelfObject)
-				}
+	// Method pointer - increment ref count for SelfObject
+	if value != nil && value.Type() == "METHOD_POINTER" {
+		refMgr := ctx.RefCountManager()
+		if funcPtr, isFuncPtr := value.(*runtime.FunctionPointerValue); isFuncPtr {
+			if funcPtr.SelfObject != nil {
+				refMgr.IncrementRef(funcPtr.SelfObject)
 			}
 		}
-		// FUNCTION_POINTER and LAMBDA can be handled natively (no ref counting needed)
 	}
 
-	// Simple case: update the variable in the environment
+	// Update variable
 	if e.SetVar(ctx, targetName, value) {
 		return value
 	}
 
-	// Set failed - return error
 	return e.newError(target, "undefined variable: %s", targetName)
 }
 
-// evalReferenceAssignment handles assignment through a var parameter (ReferenceValue).
+// evalReferenceAssignment handles assignment through a var parameter.
 func (e *Evaluator) evalReferenceAssignment(
 	refVal ReferenceValueAccessor,
 	value Value,
@@ -310,16 +235,12 @@ func (e *Evaluator) evalReferenceAssignment(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
-	// Get current value to check type compatibility
 	currentVal, err := refVal.Dereference()
 	if err != nil {
 		return e.newError(target, "%s", err.Error())
 	}
 
-	// Task 3.5.41f: Var parameter to interface/object - native ref counting
-	// When assigning through a var parameter that references an interface/object:
-	// - Release old interface/object reference
-	// - Increment ref count for new reference
+	// Interface/object var parameter - ref counting
 	if currentVal.Type() == "INTERFACE" || currentVal.Type() == "OBJECT" {
 		refMgr := ctx.RefCountManager()
 
@@ -335,7 +256,6 @@ func (e *Evaluator) evalReferenceAssignment(
 			refMgr.IncrementRef(value)
 		}
 
-		// Write through the reference
 		if err := refVal.Assign(value); err != nil {
 			return e.newError(target, "%s", err.Error())
 		}
@@ -343,7 +263,7 @@ func (e *Evaluator) evalReferenceAssignment(
 		return value
 	}
 
-	// Try implicit conversion if types don't match
+	// Implicit type conversion
 	targetType := currentVal.Type()
 	sourceType := value.Type()
 	if targetType != sourceType {
@@ -352,20 +272,14 @@ func (e *Evaluator) evalReferenceAssignment(
 		}
 	}
 
-	// Box value if target is a Variant
+	// Box value if target is Variant
 	if targetType == "VARIANT" && sourceType != "VARIANT" {
 		value = runtime.BoxVariant(value)
 	}
 
-	// Ensure value semantics for copyable types
+	// Clone copyable values
 	value = cloneIfCopyable(value)
 
-	// Task 3.5.41f: Assigning object/interface VALUE through var parameter
-	// This case is already handled by the first check above (line 261)
-	// When the value is an object/interface, the IncrementRef call handles it
-	// No additional delegation needed
-
-	// Write through the reference
 	if err := refVal.Assign(value); err != nil {
 		return e.newError(target, "%s", err.Error())
 	}
@@ -373,7 +287,7 @@ func (e *Evaluator) evalReferenceAssignment(
 	return value
 }
 
-// evalSubrangeAssignment handles assignment to a subrange variable.
+// evalSubrangeAssignment validates and assigns to a subrange variable.
 func (e *Evaluator) evalSubrangeAssignment(
 	subrangeVal SubrangeValueAccessor,
 	value Value,
@@ -400,16 +314,8 @@ func (e *Evaluator) evalSubrangeAssignment(
 	return value
 }
 
-// evalCompoundIdentifierAssignment handles compound assignment operators (+=, -=, *=, /=)
-// for simple identifier targets.
-//
-// This handles the compound assignment flow:
-// 1. Read current value from environment
-// 2. Evaluate the right-hand side expression
-// 3. Apply the compound operation (handled by applyCompoundOperation in compound_ops.go)
-// 4. Write the result back to the environment
-//
-// For complex targets (var parameters, objects needing ref counting), delegates to adapter.
+// evalCompoundIdentifierAssignment handles compound assignment (+=, -=, *=, /=).
+// Read current value, evaluate RHS, apply operation, write result back.
 func (e *Evaluator) evalCompoundIdentifierAssignment(
 	target *ast.Identifier,
 	stmt *ast.AssignmentStatement,
@@ -417,26 +323,14 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 ) Value {
 	targetName := target.Value
 
-	// Get current value from environment
 	currentValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// Task 3.2.11i: Handle implicit Self context for compound assignment
-		//
-		// When a variable is not in ctx.Env(), compound assignment (+=, -=, etc.) could target:
-		// 1. An instance field: Self.Field += 1 (implicit Self in method)
-		// 2. A class variable: TClass.ClassVar += 1 (static variable)
-		// 3. A property: Self.PropName += 1 (property getter + setter)
-		// 4. A true undefined variable (error case)
-		//
-		// Pattern: Read current value, apply operation, write back
-
-		// Check if we're in an instance method context (Self is bound)
+		// Not in environment - check implicit Self context
 		if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
 			if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
 				if objVal, ok := selfVal.(ObjectValue); ok {
-					// Check for instance field
+					// Try instance field
 					if fieldValue := objVal.GetField(targetName); fieldValue != nil {
-						// Evaluate RHS
 						rightVal := e.Eval(stmt.Value, ctx)
 						if isError(rightVal) {
 							return rightVal
@@ -456,21 +350,18 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 						return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)
 					}
 
-					// Check for class variable
+					// Try class variable
 					if classVarValue, found := objVal.GetClassVar(targetName); found {
-						// Evaluate RHS
 						rightVal := e.Eval(stmt.Value, ctx)
 						if isError(rightVal) {
 							return rightVal
 						}
 
-						// Apply compound operation
 						result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target)
 						if isError(result) {
 							return result
 						}
 
-						// Write back to class variable
 						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
 							classInfo := objInst.Class
 							if classMetaVal, ok := classInfo.(ClassMetaValue); ok {
@@ -483,9 +374,8 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 						return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
 					}
 
-					// Check for property (read-modify-write pattern)
+					// Try property (read-modify-write)
 					if objVal.HasProperty(targetName) {
-						// Read current property value
 						currentPropValue := objVal.ReadProperty(targetName, func(propInfo any) Value {
 							return e.executePropertyRead(selfVal, propInfo, target, ctx)
 						})
@@ -514,7 +404,7 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 			}
 		}
 
-		// Check if we're in a class method context (__CurrentClass__ is bound)
+		// Check class method context (__CurrentClass__)
 		if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
 			if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
 				if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
@@ -542,14 +432,11 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 			}
 		}
 
-		// Not in environment, not a Self field/property/class var, not a class context variable
 		return e.newError(target, "undefined variable '%s'", targetName)
 	}
 
-	// Cast to Value interface
 	currentVal, ok := currentValRaw.(Value)
 	if !ok {
-		// Not a Value - this is an internal error
 		return e.newError(target, "variable '%s' has invalid type (not a Value)", targetName)
 	}
 

@@ -10,16 +10,11 @@ import (
 )
 
 // VirtualMethodEntry tracks virtual method dispatch information.
-// Task 9.14: Support for virtual/override/reintroduce semantics
 type VirtualMethodEntry struct {
-	// IntroducedBy is the class that first declared this method as virtual
-	IntroducedBy *ClassInfo
-	// Implementation is the method declaration to actually call for this class
-	Implementation *ast.FunctionDecl
-	// IsVirtual indicates if this method participates in virtual dispatch
-	IsVirtual bool
-	// IsReintroduced indicates if this method breaks the virtual dispatch chain
-	IsReintroduced bool
+	IntroducedBy   *ClassInfo         // Class that first declared this method as virtual
+	Implementation *ast.FunctionDecl  // Method declaration to call for this class
+	IsVirtual      bool               // Participates in virtual dispatch
+	IsReintroduced bool               // Breaks the virtual dispatch chain
 }
 
 // ClassInfo represents runtime class metadata.
@@ -27,17 +22,10 @@ type VirtualMethodEntry struct {
 // parent class, and constructor/destructor.
 
 type ClassInfo struct {
-	// === AST-Free Metadata ===
-
-	// Metadata contains AST-free runtime metadata for this class.
-	// Populated during class declaration evaluation.
-	// Phase 9: Enables method calls via MethodID without AST access.
+	// Metadata contains AST-free runtime metadata for this class
 	Metadata *runtime.ClassMetadata
 
-	// === Legacy AST Fields (to be deprecated) ===
-	// These fields are maintained for backward compatibility during migration.
-	// New code should use Metadata instead.
-
+	// Legacy AST fields maintained for backward compatibility
 	Constants            map[string]*ast.ConstDecl
 	ClassVars            map[string]Value
 	ConstructorOverloads map[string][]*ast.FunctionDecl
@@ -255,7 +243,6 @@ func (c *ClassInfo) GetInterfaces() []*runtime.InterfaceInfo {
 }
 
 // IsAbstract returns true if this class is declared as abstract.
-// Task 3.5.22k: Added for CreateObject migration to evaluator.
 func (c *ClassInfo) IsAbstract() bool {
 	if c == nil {
 		return false
@@ -264,7 +251,6 @@ func (c *ClassInfo) IsAbstract() bool {
 }
 
 // IsExternal returns true if this class is declared as external.
-// Task 3.5.22k: Added for CreateObject migration to evaluator.
 func (c *ClassInfo) IsExternal() bool {
 	if c == nil {
 		return false
@@ -273,7 +259,6 @@ func (c *ClassInfo) IsExternal() bool {
 }
 
 // GetConstructor returns a constructor declaration by name (case-insensitive).
-// Task 3.5.22k: Added for CreateObject migration to evaluator.
 func (c *ClassInfo) GetConstructor(name string) *ast.FunctionDecl {
 	if c == nil {
 		return nil
@@ -286,7 +271,6 @@ func (c *ClassInfo) GetConstructor(name string) *ast.FunctionDecl {
 }
 
 // GetFieldTypesMap returns the field name to type mapping for this class.
-// Task 3.5.22k: Added for CreateObject migration to evaluator.
 func (c *ClassInfo) GetFieldTypesMap() map[string]any {
 	if c == nil {
 		return nil
@@ -301,16 +285,6 @@ func (c *ClassInfo) GetFieldTypesMap() map[string]any {
 
 // === End IClassInfo Interface Implementation ===
 
-// ============================================================================
-// ObjectInstance - Moved to runtime package
-// ============================================================================
-// Task 3.5.17: ObjectInstance has been moved to internal/interp/runtime/object.go
-// A type alias is provided in internal/interp/value.go for backward compatibility.
-//
-// ObjectInstance now uses runtime.IClassInfo interface instead of *ClassInfo
-// to avoid circular import dependencies.
-// ============================================================================
-
 // lookupNestedClass returns a nested class by short name (case-insensitive).
 func (c *ClassInfo) lookupNestedClass(name string) *ClassInfo {
 	if c == nil {
@@ -322,20 +296,12 @@ func (c *ClassInfo) lookupNestedClass(name string) *ClassInfo {
 	return nil
 }
 
-// ============================================================================
-// ClassInfo Helper Methods
-// ============================================================================
-
 // lookupMethod searches for a method in the class hierarchy.
-// It starts with the current class and walks up the parent chain.
-// Returns the first method found, or nil if not found.
-//
-// Task 3.5.40: Uses ClassMetadata for AST-free method lookup.
-// During migration, falls back to legacy Methods map if metadata is unavailable.
+// Walks up the parent chain, returning the first method found or nil.
 func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 	normalizedName := ident.Normalize(name)
 
-	// Task 3.5.40: Try metadata first (AST-free path)
+	// Try metadata first (AST-free path)
 	if c.Metadata != nil {
 		if _, exists := c.Metadata.Methods[normalizedName]; exists {
 			// Extract AST node from metadata for backward compatibility
@@ -427,8 +393,7 @@ func (c *ClassInfo) lookupClassVar(name string) (Value, *ClassInfo) {
 }
 
 // setClassVar sets a class variable value in the class hierarchy.
-// Task 3.2.11a: Added for static class variable assignment.
-// Returns true if the variable was found and set, false if not found.
+// Returns true if found and set, false otherwise.
 func (c *ClassInfo) setClassVar(name string, value Value) bool {
 	// Check current class with case-insensitive match
 	for varName := range c.ClassVars {
@@ -448,7 +413,6 @@ func (c *ClassInfo) setClassVar(name string, value Value) bool {
 }
 
 // hasClassVar checks if a class variable exists in the class hierarchy.
-// Task 3.2.11a: Added for static class variable assignment validation.
 func (c *ClassInfo) hasClassVar(name string) bool {
 	_, owningClass := c.lookupClassVar(name)
 	return owningClass != nil
@@ -556,7 +520,6 @@ func (c *ClassValue) String() string {
 }
 
 // GetClassName returns the class name.
-// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) GetClassName() string {
 	if c == nil || c.ClassInfo == nil {
 		return ""
@@ -565,15 +528,12 @@ func (c *ClassValue) GetClassName() string {
 }
 
 // GetClassType returns the class type (metaclass) as a ClassValue.
-// Task 3.5.157: Implements evaluator.ClassMetaValue interface.
-// For ClassValue, this returns itself since it already represents the class type.
+// For ClassValue, this returns itself.
 func (c *ClassValue) GetClassType() Value {
 	return c
 }
 
 // GetClassVar retrieves a class variable value by name from the class hierarchy.
-// Returns the value and true if found, nil and false otherwise.
-// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) GetClassVar(name string) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -586,8 +546,6 @@ func (c *ClassValue) GetClassVar(name string) (Value, bool) {
 }
 
 // GetClassConstant retrieves a class constant value by name from the class hierarchy.
-// Returns the value and true if found, nil and false otherwise.
-// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) GetClassConstant(name string) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -607,7 +565,6 @@ func (c *ClassValue) GetClassConstant(name string) (Value, bool) {
 }
 
 // HasClassMethod checks if a class method with the given name exists.
-// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) HasClassMethod(name string) bool {
 	if c == nil || c.ClassInfo == nil {
 		return false
@@ -630,7 +587,6 @@ func (c *ClassValue) HasClassMethod(name string) bool {
 }
 
 // HasConstructor checks if a constructor with the given name exists.
-// Task 3.5.88: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) HasConstructor(name string) bool {
 	if c == nil || c.ClassInfo == nil {
 		return false
@@ -639,7 +595,6 @@ func (c *ClassValue) HasConstructor(name string) bool {
 }
 
 // InvokeParameterlessClassMethod invokes a parameterless class method.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -667,7 +622,6 @@ func (c *ClassValue) InvokeParameterlessClassMethod(name string, executor func(m
 }
 
 // CreateClassMethodPointer creates a function pointer for a class method with parameters.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -695,7 +649,6 @@ func (c *ClassValue) CreateClassMethodPointer(name string, creator func(methodDe
 }
 
 // InvokeConstructor invokes a constructor.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -719,7 +672,6 @@ func (c *ClassValue) InvokeConstructor(name string, executor func(methodDecl any
 }
 
 // GetNestedClass returns a nested class by name.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) GetNestedClass(name string) Value {
 	if c == nil || c.ClassInfo == nil {
 		return nil
@@ -732,7 +684,6 @@ func (c *ClassValue) GetNestedClass(name string) Value {
 }
 
 // ReadClassProperty reads a class property value using the executor callback.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -746,7 +697,6 @@ func (c *ClassValue) ReadClassProperty(name string, executor func(propInfo any) 
 }
 
 // GetClassInfo returns the underlying ClassInfo.
-// Task 3.2.10: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) GetClassInfo() any {
 	if c == nil {
 		return nil
@@ -780,7 +730,6 @@ func (c *ClassValue) IsAssignableTo(targetClass *ClassInfo) bool {
 }
 
 // SetClassVar sets a class variable by name in the hierarchy.
-// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) SetClassVar(name string, value Value) bool {
 	if c == nil || c.ClassInfo == nil {
 		return false
@@ -789,7 +738,6 @@ func (c *ClassValue) SetClassVar(name string, value Value) bool {
 }
 
 // HasClassVar checks if a class variable exists in the hierarchy.
-// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) HasClassVar(name string) bool {
 	if c == nil || c.ClassInfo == nil {
 		return false
@@ -798,7 +746,6 @@ func (c *ClassValue) HasClassVar(name string) bool {
 }
 
 // WriteClassProperty writes to a class property using the executor callback.
-// Task 3.2.11a: Implements evaluator.ClassMetaValue interface.
 func (c *ClassValue) WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -823,14 +770,7 @@ func AsClassValue(v Value) (*ClassValue, bool) {
 }
 
 // buildVirtualMethodTable builds the virtual method table for this class.
-// Task 9.14: This implements proper virtual/override/reintroduce semantics.
-//
-// The VMT tracks which method implementation should be called for each virtual method.
-// Rules:
-//   - Virtual methods start a dispatch chain (added to VMT)
-//   - Override continues the chain (updates the VMT entry to point to new implementation)
-//   - Reintroduce does NOT update parent's VMT entry - parent's virtual method stays in VMT
-//     (the reintroduced method is static and doesn't participate in virtual dispatch)
+// Implements virtual/override/reintroduce semantics for method dispatch.
 func (c *ClassInfo) buildVirtualMethodTable() {
 	// First, copy parent's VMT if we have a parent
 	// This inherits all virtual methods from the parent
@@ -936,11 +876,7 @@ func methodSignature(method *ast.FunctionDecl) string {
 }
 
 // GetClassConstant looks up a class constant by name in the class hierarchy.
-// Task 3.5.32: Implements runtime.ClassConstantProvider interface for property reads.
-// Returns the pre-evaluated constant value and true if found, nil and false otherwise.
-//
-// Note: This only returns constants that have been pre-evaluated and stored in ConstantValues.
-// Lazy evaluation of constant expressions is handled separately by the interpreter.
+// Returns pre-evaluated constant values only.
 func (c *ClassInfo) GetClassConstant(name string) (Value, bool) {
 	if c == nil {
 		return nil, false

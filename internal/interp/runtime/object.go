@@ -10,34 +10,17 @@ import (
 )
 
 // ObjectInstance represents a runtime instance of a class.
-// It implements the Value interface so it can be used as a runtime value.
-//
-// Task 3.5.17: Moved from internal/interp/class.go to runtime package.
-// Uses IClassInfo interface instead of *ClassInfo to avoid circular import.
+// Uses IClassInfo interface to avoid circular imports.
 type ObjectInstance struct {
-	// Class points to the class metadata (via interface to avoid circular import)
-	Class IClassInfo
-
-	// Fields maps field names to their runtime values
-	Fields map[string]Value
-
-	// RefCount tracks interface references to this object for lifetime management
-	// Task 9.1.5: Objects held by interfaces use reference counting
-	// - Starts at 0 when object is created; incremented when assigned to variable or interface
-	// - Increments when assigned to another variable or interface
-	// - Decrements when variable is reassigned, set to nil, or goes out of scope
-	// - Destructor called when RefCount reaches 0
-	RefCount int
-
-	// Destroyed indicates whether the object's destructor has completed.
-	// DestroyCallDepth tracks nested Destroy calls during inherited dispatch.
-	Destroyed        bool
-	DestroyCallDepth int
+	Class            IClassInfo            // Class metadata
+	Fields           map[string]Value      // Field name to value mapping
+	RefCount         int                   // Interface reference count
+	Destroyed        bool                  // Destructor completed
+	DestroyCallDepth int                   // Nested Destroy call tracking
 }
 
 // NewObjectInstance creates a new object instance of the given class.
-// Field values are initialized as an empty map.
-// Task 9.1.5: RefCount starts at 0; incremented when assigned to variable or interface
+// RefCount starts at 0 and is incremented when assigned to variables or interfaces.
 func NewObjectInstance(class IClassInfo) *ObjectInstance {
 	return &ObjectInstance{
 		Class:    class,
@@ -165,8 +148,6 @@ func (o *ObjectInstance) LookupProperty(name string) *PropertyDescriptor {
 }
 
 // GetDefaultProperty returns the default property for this object's class, if any.
-// Task 3.5.99a: Implements PropertyAccessor interface.
-// Returns a PropertyDescriptor wrapping types.PropertyInfo, or nil if no default property exists.
 func (o *ObjectInstance) GetDefaultProperty() *PropertyDescriptor {
 	if o.Class == nil {
 		return nil
@@ -210,7 +191,6 @@ func (o *ObjectInstance) String() string {
 // needing an adapter.
 
 // ClassName returns the class name of this object instance.
-// Task 3.5.72: Implements evaluator.ObjectValue interface.
 func (o *ObjectInstance) ClassName() string {
 	if o == nil || o.Class == nil {
 		return ""
@@ -219,11 +199,6 @@ func (o *ObjectInstance) ClassName() string {
 }
 
 // GetClassType returns the class type (metaclass) for this object instance.
-// Task 3.5.156: Implements evaluator.ObjectValue interface.
-//
-// Note: This returns a Value that should be a ClassValue. However, ClassValue
-// is defined in interp package, so we can't construct it here. The calling code
-// in interp package must handle this conversion.
 func (o *ObjectInstance) GetClassType() Value {
 	if o == nil || o.Class == nil {
 		return nil
@@ -251,8 +226,6 @@ func (c *classTypeProxy) String() string {
 }
 
 // HasProperty checks if this object's class has a property with the given name.
-// The check includes the entire class hierarchy.
-// Task 3.5.72: Implements evaluator.ObjectValue interface.
 func (o *ObjectInstance) HasProperty(name string) bool {
 	if o == nil || o.Class == nil {
 		return false
@@ -261,7 +234,6 @@ func (o *ObjectInstance) HasProperty(name string) bool {
 }
 
 // HasMethod checks if this object's class has a method with the given name.
-// Task 3.5.72: Implements evaluator.ObjectValue interface.
 func (o *ObjectInstance) HasMethod(name string) bool {
 	if o == nil || o.Class == nil {
 		return false
@@ -275,8 +247,6 @@ func (o *ObjectInstance) HasMethod(name string) bool {
 }
 
 // GetMethodDecl retrieves a method declaration by name from the class hierarchy.
-// Task 3.5.33: Implements evaluator.ObjectValue interface for indexed property execution.
-// Returns the method declaration (*ast.FunctionDecl passed as any) or nil if not found.
 func (o *ObjectInstance) GetMethodDecl(name string) any {
 	if o == nil || o.Class == nil {
 		return nil
@@ -288,9 +258,7 @@ func (o *ObjectInstance) GetMethodDecl(name string) any {
 	return method
 }
 
-// GetClassVar retrieves a class variable value by name from this object's class hierarchy.
-// Returns the value and true if found, nil and false otherwise.
-// Task 3.5.86: Implements evaluator.ObjectValue interface for direct class variable access.
+// GetClassVar retrieves a class variable value by name from the class hierarchy.
 func (o *ObjectInstance) GetClassVar(name string) (Value, bool) {
 	if o == nil || o.Class == nil {
 		return nil, false
@@ -302,10 +270,7 @@ func (o *ObjectInstance) GetClassVar(name string) (Value, bool) {
 	return value, true
 }
 
-// CallInheritedMethod calls a method from the parent class.
-// Task 3.5.114: Implements evaluator.ObjectValue interface for direct inherited method calls.
-// The methodExecutor callback is used to execute the method once resolved.
-// Returns an error value if the class has no parent or the method is not found.
+// CallInheritedMethod calls a method from the parent class using the provided executor callback.
 func (o *ObjectInstance) CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value {
 	// Validate object state
 	if o == nil || o.Class == nil {
@@ -334,9 +299,7 @@ func (o *ObjectInstance) CallInheritedMethod(methodName string, args []Value, me
 	return methodExecutor(method, args)
 }
 
-// ReadProperty reads a property value from this object.
-// Task 3.5.116: Enables direct property access without adapter.
-// The propertyExecutor callback handles interpreter-dependent execution.
+// ReadProperty reads a property value using the provided executor callback.
 func (o *ObjectInstance) ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value {
 	// Validate object state
 	if o == nil || o.Class == nil {
@@ -355,8 +318,6 @@ func (o *ObjectInstance) ReadProperty(propName string, propertyExecutor func(pro
 }
 
 // ReadIndexedProperty reads an indexed property value using the provided executor callback.
-// Task 3.5.117: Enables direct indexed property access without going through adapter.
-// The propInfo is already resolved by PropertyAccessor.LookupProperty or GetDefaultProperty.
 func (o *ObjectInstance) ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value {
 	// Validate object state
 	if o == nil || o.Class == nil {
@@ -368,9 +329,7 @@ func (o *ObjectInstance) ReadIndexedProperty(propInfo any, indices []Value, prop
 	return propertyExecutor(propInfo, indices)
 }
 
-// WriteProperty writes a property value to this object.
-// Task 3.5.35: Enables direct property write without adapter.
-// The propertyExecutor callback handles interpreter-dependent execution.
+// WriteProperty writes a property value using the provided executor callback.
 func (o *ObjectInstance) WriteProperty(propName string, value Value, propertyExecutor func(propInfo any, value Value) Value) Value {
 	// Validate object state
 	if o == nil || o.Class == nil {
@@ -389,8 +348,6 @@ func (o *ObjectInstance) WriteProperty(propName string, value Value, propertyExe
 }
 
 // WriteIndexedProperty writes an indexed property value using the provided executor callback.
-// Task 3.5.35: Enables direct indexed property write without going through adapter.
-// The propInfo is already resolved by PropertyAccessor.LookupProperty or GetDefaultProperty.
 func (o *ObjectInstance) WriteIndexedProperty(propInfo any, indices []Value, value Value, propertyExecutor func(propInfo any, indices []Value, value Value) Value) Value {
 	// Validate object state
 	if o == nil || o.Class == nil {
@@ -403,9 +360,7 @@ func (o *ObjectInstance) WriteIndexedProperty(propInfo any, indices []Value, val
 }
 
 // InvokeParameterlessMethod invokes a method if it has zero parameters.
-// Task 3.5.119: Implements evaluator.ObjectValue interface.
-// Returns (result, true) if method exists and has 0 parameters,
-// or (nil, false) if method has parameters (caller should create method pointer).
+// Returns (result, true) if successful, or (nil, false) if method has parameters.
 func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
 	methodExecutor func(methodDecl any) Value) (Value, bool) {
 	if o == nil || o.Class == nil {
@@ -431,9 +386,7 @@ func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
 }
 
 // CreateMethodPointer creates a method pointer for a method with parameters.
-// Task 3.5.120: Implements evaluator.ObjectValue interface.
-// Returns (pointer, true) if method exists and has parameters,
-// or (nil, false) if method doesn't exist or has no parameters.
+// Returns (pointer, true) if successful, or (nil, false) if method has no parameters.
 func (o *ObjectInstance) CreateMethodPointer(methodName string,
 	pointerCreator func(methodDecl any) Value) (Value, bool) {
 	if o == nil || o.Class == nil {
@@ -516,17 +469,7 @@ func newError(format string, args ...interface{}) Value {
 	return &ErrorValue{Message: fmt.Sprintf(format, args...)}
 }
 
-// ============================================================================
-// Task 3.5.32: ClassMetaProvider and FieldBinder interface implementations
-// ============================================================================
-
 // GetClassConstantBySpec looks up a class constant by name in the class hierarchy.
-// Task 3.5.32: Implements evaluator.ClassMetaProvider interface for property reads.
-// Returns the constant value and true if found, nil and false otherwise.
-//
-// Note: This does NOT handle lazy evaluation of constant expressions.
-// Lazy evaluation requires access to the Interpreter and must be done via a callback.
-// For now, only pre-evaluated constants (stored in class info) are returned.
 func (o *ObjectInstance) GetClassConstantBySpec(name string) (Value, bool) {
 	if o == nil || o.Class == nil {
 		return nil, false
@@ -541,8 +484,6 @@ func (o *ObjectInstance) GetClassConstantBySpec(name string) (Value, bool) {
 }
 
 // BindFieldsToEnvironment iterates over all object fields and calls the binder function.
-// Task 3.5.32: Implements evaluator.FieldBinder interface for expression-backed properties.
-// This allows property expressions like (FWidth * FHeight) to access fields directly.
 func (o *ObjectInstance) BindFieldsToEnvironment(binder func(name string, value Value)) {
 	if o == nil || o.Fields == nil {
 		return

@@ -9,51 +9,9 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// type_resolution_helpers.go
-//
-// This file provides type resolution helpers for the evaluator.
-// Task 3.5.139a: Initial implementation with primitive types.
-//
-// These helpers enable the evaluator to resolve type names to their
-// corresponding types.Type instances without delegating to the adapter.
-// This is essential for array type resolution and other type operations.
-
 // resolveTypeName resolves a type name string to a types.Type.
-//
-// Task 3.5.139a: Initial implementation handles primitive types:
-//   - Integer, Float, String, Boolean
-//   - Variant, Const (deprecated, mapped to Variant)
-//   - TDateTime, Nil, Void
-//
-// Task 3.5.139b: Extended to handle registered types:
-//   - Enum types (from TypeSystem) - migrated in Task 3.5.143b
-//   - Record types (from environment "__record_type_" prefix)
-//   - Class types (from TypeSystem)
-//   - Interface types (from TypeSystem)
-//   - Subrange types (from environment "__subrange_type_" prefix)
-//
-// Task 3.5.139c: Extended to handle array types:
-//   - Named array types (from TypeSystem.LookupArrayType)
-//
-// Task 3.5.139d: Extended to handle inline array types:
-//   - Inline array syntax ("array of Type", "array[low..high] of Type")
-//   - Nested arrays via recursive resolution
-//
-// Parameters:
-//   - typeName: The name of the type to resolve (case-insensitive)
-//   - ctx: ExecutionContext for environment access (used in future tasks)
-//
-// Returns:
-//   - The resolved types.Type
-//   - An error if the type cannot be resolved
-//
-// Examples:
-//
-//	resolveTypeName("Integer", ctx) → types.INTEGER, nil
-//	resolveTypeName("float", ctx)   → types.FLOAT, nil
-//	resolveTypeName("STRING", ctx)  → types.STRING, nil
-//	resolveTypeName("Variant", ctx) → types.VARIANT, nil
-//	resolveTypeName("Unknown", ctx) → nil, error
+// Handles primitives (Integer, Float, String, Boolean, Variant, TDateTime, Nil, Void),
+// registered types (enums, records, classes, interfaces), and inline array types.
 func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (types.Type, error) {
 	// Strip parent qualification from class type strings like "TSub(TBase)"
 	// This enables proper resolution using the declared class name.
@@ -66,7 +24,7 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 	// DWScript (like Pascal) is case-insensitive for all identifiers
 	normalizedName := ident.Normalize(cleanTypeName)
 
-	// Task 3.5.139a: Handle primitive types
+	// Handle primitive types
 	switch normalizedName {
 	case "integer":
 		return types.INTEGER, nil
@@ -84,8 +42,7 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 		return types.VARIANT, nil
 
 	case "const":
-		// Task 3.5.139a: "Const" is deprecated, redirect to Variant
-		// This matches the interpreter's behavior (record.go:562-565)
+		// "Const" is deprecated, redirect to Variant
 		return types.VARIANT, nil
 
 	case "tdatetime":
@@ -98,9 +55,7 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 		return types.VOID, nil
 
 	default:
-		// Task 3.5.139b: Handle registered types (enums, records, classes, interfaces, subranges)
-
-		// Try enum type via TypeSystem (Task 3.5.143b)
+		// Try enum type via TypeSystem
 		// Check if typeSystem is initialized (defensive programming for tests)
 		if e.typeSystem != nil {
 			if enumMetadata := e.typeSystem.LookupEnumMetadata(cleanTypeName); enumMetadata != nil {
@@ -150,68 +105,42 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 			return types.NewInterfaceType(cleanTypeName), nil
 		}
 
-		// Task 3.5.139c: Try array type via TypeSystem
+		// Try array type via TypeSystem
 		if e.typeSystem != nil {
 			if arrayType := e.typeSystem.LookupArrayType(cleanTypeName); arrayType != nil {
 				return arrayType, nil
 			}
 		}
 
-		// Task 3.5.139d: Try inline array type parsing
-		// Check if this is an inline array type like "array of T" or "array[low..high] of T"
+		// Try inline array type parsing
 		if strings.HasPrefix(ident.Normalize(cleanTypeName), "array") {
 			if arrayType := e.parseInlineArrayType(cleanTypeName, ctx); arrayType != nil {
 				return arrayType, nil
 			}
 		}
 
-		// Task 3.5.182: Use TypeSystem for subrange type lookup
+		// Use TypeSystem for subrange type lookup
 		if e.typeSystem != nil {
 			if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
 				return subrangeType, nil
 			}
 		}
 
-		// Task 9.x: Function/method pointer types registered in the type system
+		// Function/method pointer types registered in the type system
 		if e.typeSystem != nil {
 			if funcPtrType := e.typeSystem.LookupFunctionPointerType(cleanTypeName); funcPtrType != nil {
 				return funcPtrType, nil
 			}
 		}
 
-		// Task 3.5.139c: Will add array type lookups
-		// Task 3.5.139c: Will add type alias lookups (if needed)
 
 		// Unknown type
 		return nil, fmt.Errorf("unknown type: %s", typeName)
 	}
 }
 
-// parseInlineArrayType parses a DWScript inline array type signature (static or dynamic)
-// from a string, extracting bounds and element type information.
-//
-// Task 3.5.139d: Helper method for parsing inline array syntax.
-//
-// Supported formats:
-//   - "array of Type" → dynamic array
-//   - "array[low..high] of Type" → static array with bounds
-//
-// The element type can be any resolvable type, including nested arrays.
-// For example: "array of array of Integer" creates a 2D dynamic array.
-//
-// Parameters:
-//   - signature: The array type signature string (case-insensitive)
-//   - ctx: ExecutionContext for type resolution
-//
-// Returns:
-//   - *types.ArrayType if parsing succeeds
-//   - nil if the signature doesn't match expected format or element type cannot be resolved
-//
-// Examples:
-//
-//	parseInlineArrayType("array of Integer", ctx) → DynamicArrayType with Integer elements
-//	parseInlineArrayType("array[0..9] of String", ctx) → StaticArrayType[0..9] with String elements
-//	parseInlineArrayType("array of array of Float", ctx) → DynamicArrayType of DynamicArrayType of Float
+// parseInlineArrayType parses inline array type signatures like "array of Type" or "array[low..high] of Type".
+// Supports nested arrays and both static and dynamic array syntax.
 func (e *Evaluator) parseInlineArrayType(signature string, ctx *ExecutionContext) *types.ArrayType {
 	var lowBound, highBound *int
 
@@ -265,10 +194,7 @@ func (e *Evaluator) parseInlineArrayType(signature string, ctx *ExecutionContext
 	// Extract element type name (from original signature to preserve case)
 	elementTypeName := strings.TrimSpace(signature[4:]) // Skip " of "
 
-	// Resolve element type recursively
-	// Task 3.5.139d: Use resolveTypeName which handles all type categories
-	// For nested arrays like "array of array of Integer", this will recursively
-	// call parseInlineArrayType via resolveTypeName
+	// Resolve element type recursively (handles nested arrays)
 	elementType, err := e.resolveTypeName(elementTypeName, ctx)
 	if err != nil || elementType == nil {
 		return nil
@@ -282,28 +208,7 @@ func (e *Evaluator) parseInlineArrayType(signature string, ctx *ExecutionContext
 }
 
 // resolveArrayTypeNode resolves an ArrayTypeNode directly from the AST.
-// This avoids string conversion issues with parentheses in bound expressions like (-5).
-//
-// Task 3.5.139e: Helper method for resolving AST ArrayTypeNode.
-//
-// Handles:
-//   - Dynamic arrays (no bounds)
-//   - Static arrays with integer literal bounds
-//   - Ordinal-indexed arrays (enum, boolean, subrange)
-//   - Nested arrays (recursive resolution)
-//
-// Parameters:
-//   - arrayNode: The AST ArrayTypeNode to resolve
-//   - ctx: ExecutionContext for type resolution
-//
-// Returns:
-//   - *types.ArrayType if resolution succeeds
-//   - nil if the node cannot be resolved or element type is invalid
-//
-// Examples:
-//
-//	resolveArrayTypeNode(ArrayTypeNode{ElementType: "Integer", IsDynamic: true}) → DynamicArrayType
-//	resolveArrayTypeNode(ArrayTypeNode{LowBound: 0, HighBound: 9, ElementType: "String"}) → StaticArrayType[0..9]
+// Handles dynamic, static, ordinal-indexed, and nested arrays.
 func (e *Evaluator) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode, ctx *ExecutionContext) *types.ArrayType {
 	if arrayNode == nil {
 		return nil
@@ -356,8 +261,6 @@ func (e *Evaluator) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode, ctx *Exec
 	}
 
 	// Static array - extract bounds from AST
-	// Task 3.5.139e: Handle IntegerLiteral bounds directly (most common case)
-	// For more complex expressions (like -5), use UnaryExpression with IntegerLiteral
 
 	// Extract low bound
 	var lowBoundValue int
