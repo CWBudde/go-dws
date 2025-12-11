@@ -92,7 +92,6 @@ type Analyzer struct {
 	inClassMethod        bool                                  // Inside class method
 	inPropertyExpr       bool                                  // Inside property expression
 	inFinallyBlock       bool                                  // Inside finally block
-	experimentalPasses   bool                                  // Enable experimental passes
 	inExceptionHandler   bool                                  // Inside try/except block
 }
 
@@ -136,14 +135,6 @@ func NewAnalyzer() *Analyzer {
 	a.symbols.DefineConst("Null", types.VARIANT, nil)
 	a.symbols.DefineConst("Unassigned", types.VARIANT, nil)
 
-	return a
-}
-
-// NewAnalyzerWithExperimentalPasses creates a new semantic analyzer with experimental
-// multi-pass analysis enabled. Use NewAnalyzer() for normal usage.
-func NewAnalyzerWithExperimentalPasses() *Analyzer {
-	a := NewAnalyzer()
-	a.experimentalPasses = true
 	return a
 }
 
@@ -292,24 +283,6 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 
 	a.validateForwardDeclarations()
 
-	// Run experimental multi-pass analysis if enabled
-	if a.experimentalPasses {
-		ctx := a.createPassContext()
-
-		pass2 := NewTypeResolutionPass()
-		if err := pass2.Run(program, ctx); err != nil {
-			return err
-		}
-
-		pass3 := NewValidationPass()
-		if err := pass3.Run(program, ctx); err != nil {
-			return err
-		}
-
-		a.syncFromPassContext(ctx)
-		a.mergePassErrors(ctx)
-	}
-
 	// Return errors if any (hints and warnings don't prevent success)
 	hasActualErrors := false
 	for _, err := range a.errors {
@@ -340,71 +313,6 @@ func (a *Analyzer) validateForwardDeclarations() {
 			}
 		}
 	}
-}
-
-// createPassContext creates a PassContext from the Analyzer's current state.
-func (a *Analyzer) createPassContext() *PassContext {
-	return &PassContext{
-		Symbols:            a.symbols,
-		TypeRegistry:       a.typeRegistry,
-		GlobalOperators:    a.globalOperators,
-		ConversionRegistry: a.conversionRegistry,
-		SemanticInfo:       a.semanticInfo,
-		BuiltinChecker:     a,
-		UnitSymbols:        a.unitSymbols,
-		Helpers:            a.helpers,
-		Subranges:          a.subranges,
-		FunctionPointers:   a.functionPointers,
-		Errors:             make([]string, 0),
-		StructuredErrors:   make([]*SemanticError, 0),
-		ScopeStack:         []*Scope{NewScope(ScopeGlobal, nil)},
-		CurrentFunction:    a.currentFunction,
-		CurrentClass:       a.currentClass,
-		CurrentRecord:      a.currentRecord,
-		CurrentProperty:    a.currentProperty,
-		SourceCode:         a.sourceCode,
-		SourceFile:         a.sourceFile,
-		LoopDepth:          a.loopDepth,
-		InExceptionHandler: a.inExceptionHandler,
-		InFinallyBlock:     a.inFinallyBlock,
-		InLoop:             a.inLoop,
-		InLambda:           a.inLambda,
-		InClassMethod:      a.inClassMethod,
-		InPropertyExpr:     a.inPropertyExpr,
-	}
-}
-
-// AnalyzeBuiltin implements the BuiltinChecker interface.
-func (a *Analyzer) AnalyzeBuiltin(name string, args []ast.Expression, callExpr *ast.CallExpression) (types.Type, bool) {
-	return a.analyzeBuiltinFunction(name, args, callExpr)
-}
-
-// IsBuiltinFunction implements the BuiltinChecker interface.
-func (a *Analyzer) IsBuiltinFunction(name string) (types.Type, bool) {
-	return a.getBuiltinReturnType(name)
-}
-
-// syncFromPassContext syncs state from PassContext back to Analyzer.
-func (a *Analyzer) syncFromPassContext(ctx *PassContext) {
-	if funcDecl, ok := ctx.CurrentFunction.(*ast.FunctionDecl); ok {
-		a.currentFunction = funcDecl
-	}
-	a.currentClass = ctx.CurrentClass
-	a.currentRecord = ctx.CurrentRecord
-	a.currentProperty = ctx.CurrentProperty
-	a.loopDepth = ctx.LoopDepth
-	a.inExceptionHandler = ctx.InExceptionHandler
-	a.inFinallyBlock = ctx.InFinallyBlock
-	a.inLoop = ctx.InLoop
-	a.inLambda = ctx.InLambda
-	a.inClassMethod = ctx.InClassMethod
-	a.inPropertyExpr = ctx.InPropertyExpr
-}
-
-// mergePassErrors merges errors from PassContext into Analyzer.
-func (a *Analyzer) mergePassErrors(ctx *PassContext) {
-	a.errors = append(a.errors, ctx.Errors...)
-	a.structuredErrors = append(a.structuredErrors, ctx.StructuredErrors...)
 }
 
 // Errors returns all accumulated semantic errors
