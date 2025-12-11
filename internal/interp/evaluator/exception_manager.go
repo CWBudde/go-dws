@@ -7,9 +7,6 @@ import (
 // ExceptionManager handles exception creation, propagation, and cleanup.
 // This interface encapsulates exception handling logic without exposing
 // the full interpreter internals.
-//
-// Task 3.4.5: Extracted from monolithic InterpreterAdapter (67 methods)
-// to create focused interface for exception management.
 type ExceptionManager interface {
 	// ===== Exception Creation (2 methods) =====
 

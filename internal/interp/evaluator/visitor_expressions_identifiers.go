@@ -295,18 +295,6 @@ func (e *Evaluator) VisitEnumLiteral(node *ast.EnumLiteral, ctx *ExecutionContex
 }
 
 // invokeParameterlessUserFunction invokes a parameterless user function.
-//
-// This is a SUBSET of callUserFunction that:
-// - Uses evaluator's stack-based environment model (PushEnv/PopEnv)
-// - Skips argument validation and parameter binding (no parameters)
-// - Defers complex features with TODO markers
-//
-// Deferred to future tasks:
-// - TODO(3.5.142a): Preconditions (requires contracts.go migration)
-// - TODO(3.5.142b): Postconditions + old values (requires contracts.go migration)
-// - TODO(3.5.142c): Interface cleanup (requires interface.go migration)
-// - TODO(3.5.142d): Advanced Result init (records, interfaces, subranges)
-// - TODO(3.5.142e): Function name alias to Result (requires ReferenceValue)
 func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node ast.Node, ctx *ExecutionContext) Value {
 	// 1. Create new enclosed environment (evaluator-native stack pattern)
 	ctx.PushEnv()

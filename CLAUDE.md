@@ -168,29 +168,26 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - Integer, Float, String, Boolean, Array, Record, Enum, Class types
   - Type checking and conversion
 
-- `internal/interp/` - AST Interpreter/runtime (Phase 3.5 refactored architecture)
-  - **Architecture**: Split into thin orchestrator (Interpreter) + evaluation engine (Evaluator)
-  - **Interpreter** (`interpreter.go`): Thin orchestrator that manages global state and delegates evaluation
-    - Maintains compatibility with existing API
-    - Provides adapter interface for gradual migration
-    - Manages global registries (functions, classes, records, operators)
-  - **Evaluator** (`evaluator/`): Visitor-pattern based evaluation engine
-    - `evaluator.go`: Core evaluator with visitor pattern infrastructure
-    - `visitor_expressions.go`: Expression evaluation (48+ visitor methods)
-    - `visitor_statements.go`: Statement evaluation (control flow, loops, etc.)
-    - `visitor_declarations.go`: Declaration evaluation (functions, classes, types)
-    - `visitor_literals.go`: Literal value creation
-    - `binary_ops.go`: Binary operation implementations (arithmetic, comparison, boolean, string)
-    - `context.go`: ExecutionContext for managing environment and call stack
-    - `callstack.go`: Call stack management with recursion depth tracking
-    - Performance: ~70 ns/op for binary operations, 0 allocations for literals (see `docs/evaluator-performance-report.md`)
+- `internal/interp/` - AST Interpreter/runtime (Phase 3 refactored architecture)
+  - **Architecture**: Thin orchestrator (Interpreter) + evaluation engine (Evaluator) with focused interfaces
+  - **Interpreter** (`interpreter.go`): Thin coordinator with 14 fields (target: 5)
+    - Owns output, exception state, type system, evaluator, config
+    - Delegates evaluation to Evaluator via 4 focused interfaces
+  - **Evaluator** (`evaluator/`): Visitor-pattern evaluation engine
+    - `evaluator.go`: Core evaluator, owns ExecutionContext with environment & call stack
+    - `visitor_*.go`: 48+ visitor methods for expressions, statements, declarations, literals
+    - `binary_ops.go`: Binary operations (~70 ns/op, 3 allocations)
+    - **Focused Interfaces** (68 methods total, replaces 140-line monolithic adapter):
+      - `OOPEngine` (20 methods): Runtime OOP operations (method dispatch, constructors, operators)
+      - `DeclHandler` (38 methods): Type declarations (classes, interfaces, helpers)
+      - `ExceptionManager` (6 methods): Exception creation, contracts, cleanup
+      - `CoreEvaluator` (4 methods): Cross-cutting concerns (EvalNode fallback, helper properties)
   - **Type System** (`types/`): Centralized type registry
-    - `type_system.go`: Manages classes, records, interfaces, functions, helpers
-    - `function_registry.go`: Function overload resolution and registration
-  - **Runtime** (`runtime/`): Runtime value types
-    - Integer, Float, String, Boolean, Array, Record, Class instance values
-    - Environment/symbol table management
-  - Built-in function implementations
+    - Manages classes, records, interfaces, functions, helpers, operators
+    - Function overload resolution and registration
+  - **Runtime** (`runtime/`): Runtime value types and environment
+    - Values: Integer, Float, String, Boolean, Array, Record, Class instances
+    - Environment: Single canonical environment (unified from dual i.env/ctx.env)
 
 - `internal/bytecode/` - Bytecode VM (5-6x faster than AST interpreter)
   - `compiler.go`: AST-to-bytecode compiler with optimizations
@@ -260,21 +257,22 @@ go run cmd/gen-visitor/main.go
 go generate ./pkg/ast
 ```
 
-**Evaluator Visitor Pattern** (Phase 3.5): The interpreter's evaluation logic uses a visitor pattern for cleaner code organization and better maintainability.
+**Evaluator Visitor Pattern** (Phase 3): The interpreter's evaluation logic uses a visitor pattern for cleaner code organization and better maintainability.
 
 - **Visitor Methods**: Each AST node type has a corresponding `Visit*` method in the Evaluator
   - Example: `VisitBinaryExpression(node *ast.BinaryExpression, ctx *ExecutionContext) Value`
-  - All visitor methods take a node and an ExecutionContext, return a Value
+  - 48+ visitor methods handle expressions, statements, declarations, literals
 
 - **ExecutionContext**: Encapsulates evaluation state
-  - Environment (variable bindings)
-  - Call stack (for recursion tracking)
-  - Control flow state (break, continue, return, exit)
+  - Environment: Single canonical environment (variable bindings, nested scopes)
+  - Call stack: Recursion tracking with depth limit (default: 1024)
+  - Control flow state: break, continue, return, exit
   - Exception handling state
 
-- **Adapter Pattern**: Temporary bridge between Interpreter and Evaluator during migration
-  - `InterpreterAdapter` interface allows Evaluator to call back to Interpreter
-  - Will be removed in Phase 3.5.37 (blocked on AST-free runtime types)
+- **Focused Interfaces** (Phase 3.4): Evaluator delegates to Interpreter via 4 focused interfaces
+  - Replaced 140-line monolithic `InterpreterAdapter` with specialized concerns
+  - OOPEngine, DeclHandler, ExceptionManager, CoreEvaluator (68 methods total)
+  - Each interface mockable independently, clear single responsibility
 
 - **Performance**: Zero overhead vs switch-based approach
   - Literals: 0.3-0.6 ns/op (compiler-optimized, 0 allocations)

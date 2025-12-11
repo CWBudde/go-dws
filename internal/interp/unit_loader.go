@@ -66,7 +66,6 @@ func (i *Interpreter) SetUnitRegistry(registry *units.UnitRegistry) {
 
 // SetSource sets the source code and filename for enhanced error messages.
 // Allows runtime errors to display source code snippets.
-// Task 3.3.4: Now only updates evaluator's config (Interpreter no longer stores these fields).
 func (i *Interpreter) SetSource(source, filename string) {
 	if i.evaluatorInstance != nil {
 		cfg := i.evaluatorInstance.Config()

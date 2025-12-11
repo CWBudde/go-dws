@@ -13,8 +13,8 @@ import (
 // in the interpreter's environment.
 type RecordTypeValue struct {
 	RecordType *types.RecordType
-	FieldDecls map[string]*ast.FieldDecl // Field declarations (for initializers) - Task 9.5
-	Metadata   *runtime.RecordMetadata   // Runtime metadata (methods, constants, etc.) - Task 3.5.42
+	FieldDecls map[string]*ast.FieldDecl // Field declarations (for initializers)
+	Metadata   *runtime.RecordMetadata   // Runtime metadata (methods, constants, etc.)
 
 	// Deprecated: Use Metadata.Methods instead. Will be removed in Phase 3.5.44.
 	// Kept temporarily for backward compatibility during migration.
@@ -23,8 +23,8 @@ type RecordTypeValue struct {
 	ClassMethods         map[string]*ast.FunctionDecl   // Alias for StaticMethods (for compatibility)
 	MethodOverloads      map[string][]*ast.FunctionDecl // Instance method overloads
 	ClassMethodOverloads map[string][]*ast.FunctionDecl // Static method overloads
-	Constants            map[string]Value               // Record constants (evaluated at declaration) - Task 9.12.2
-	ClassVars            map[string]Value               // Class variables (shared across all instances) - Task 9.12.2
+	Constants            map[string]Value               // Record constants (evaluated at declaration)
+	ClassVars            map[string]Value               // Class variables (shared across all instances)
 }
 
 // Type returns "RECORD_TYPE".

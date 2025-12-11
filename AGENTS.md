@@ -169,10 +169,12 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - Integer, Float, String, Boolean, Array, Record, Enum, Class types
   - Type checking and conversion
 
-- `internal/interp/` - AST Interpreter/runtime
-  - Executes the AST via tree-walking
-  - Environment/symbol table management
-  - Built-in function implementations
+- `internal/interp/` - AST Interpreter/runtime (Phase 3 refactored)
+  - **Interpreter** (`interpreter.go`): Thin coordinator (14 fields, target: 5)
+  - **Evaluator** (`evaluator/`): Visitor-pattern evaluation engine (48+ visitor methods)
+  - **Focused Interfaces**: OOPEngine, DeclHandler, ExceptionManager, CoreEvaluator (68 methods)
+  - **Runtime** (`runtime/`): Values, Environment (single canonical, unified from dual i.env/ctx.env)
+  - **Type System** (`types/`): Centralized registry for classes, records, interfaces, functions, helpers
 
 - `internal/bytecode/` - Bytecode VM (5-6x faster than AST interpreter)
   - `compiler.go`: AST-to-bytecode compiler with optimizations

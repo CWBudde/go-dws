@@ -21,14 +21,10 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		return e.newError(node, "index expression missing base")
 	}
 
-	// Task 3.5.99g: Check if this is indexed property access via MemberAccessExpression
-	// obj.Property[index1, index2, ...] should be flattened and passed to the property getter
-	// We only flatten indices if the base is a MemberAccessExpression (property access)
-	// For regular array access like arr[i][j], we process each level separately
+	// Collect indices - flatten for property access, not for regular arrays
 	base, indices := CollectIndices(node)
 
 	// Check if this is indexed property access: obj.Property[index1, index2, ...]
-	// Only flatten indices for property access, not for regular arrays
 	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
 		// Evaluate the object being accessed
 		objVal := e.Eval(memberAccess.Object, ctx)
@@ -36,7 +32,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			return objVal
 		}
 
-		// Task 3.5.99g: Handle interface indexed property access
+		// Handle interface indexed property access
 		if intfInst, ok := objVal.(InterfaceInstanceValue); ok {
 			underlying := intfInst.GetUnderlyingObjectValue()
 			if underlying == nil {
@@ -55,8 +51,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 						}
 					}
 
-					// Call indexed property getter on the underlying object
-					// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
+					// Call indexed property getter on underlying object
 					if underlying.Type() == "OBJECT" {
 						if objVal, ok := underlying.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
@@ -72,7 +67,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			objVal = underlying
 		}
 
-		// Task 3.5.99g: Handle object indexed property access
+		// Handle object indexed property access
 		if objVal.Type() == "OBJECT" {
 			if accessor, ok := objVal.(PropertyAccessor); ok {
 				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
@@ -86,8 +81,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 					}
 
 					// Call indexed property getter via ObjectValue interface
-					// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
-					if ov, ok := objVal.(ObjectValue); ok {
+						if ov, ok := objVal.(ObjectValue); ok {
 						return ov.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
 							return e.executeIndexedPropertyRead(objVal, pi, idx, node, ctx)
 						})
@@ -96,7 +90,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			}
 		}
 
-		// Task 3.5.99g: Handle record indexed property access
+		// Handle record indexed property access
 		if objVal.Type() == "RECORD" {
 			if accessor, ok := objVal.(PropertyAccessor); ok {
 				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil {
@@ -109,8 +103,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 						}
 					}
 
-					// Task 3.5.118: Use RecordInstanceValue interface with callback pattern
-					recVal, ok := objVal.(RecordInstanceValue)
+						recVal, ok := objVal.(RecordInstanceValue)
 					if !ok {
 						return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
 					}
@@ -146,17 +139,15 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	// Unwrap variants for indexing
 	leftVal = unwrapVariant(leftVal)
 
-	// Handle JSON indexing directly - Task 3.5.99b
+	// Handle JSON indexing
 	if leftVal.Type() == "JSON" {
 		return e.indexJSON(leftVal, indexVal, node)
 	}
 
-	// Task 3.5.99c: Handle object default property access
+	// Handle object default property access
 	if leftVal.Type() == "OBJECT" {
 		if accessor, ok := leftVal.(PropertyAccessor); ok {
 			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-				// Task 3.5.117: Use ObjectValue.ReadIndexedProperty with callback
-				// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
 				if objVal, ok := leftVal.(ObjectValue); ok {
 					return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
 						return e.executeIndexedPropertyRead(leftVal, pi, idx, node, ctx)
@@ -166,7 +157,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		}
 	}
 
-	// Task 3.5.99d: Handle interface default property access
+	// Handle interface default property access
 	if leftVal.Type() == "INTERFACE" {
 		// Unwrap interface to get underlying object
 		if ifaceVal, ok := leftVal.(InterfaceInstanceValue); ok {
@@ -180,9 +171,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 				if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil && defaultProp.IsIndexed {
 					// The property is defined on the interface, but we need the underlying object for execution
 					if underlying.Type() == "OBJECT" {
-						// Task 3.5.117: Use ObjectValue.ReadIndexedProperty with callback
-						// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
-						if objVal, ok := underlying.(ObjectValue); ok {
+										if objVal, ok := underlying.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
 								return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
 							})
@@ -198,9 +187,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			if leftVal.Type() == "OBJECT" {
 				if accessor, ok := leftVal.(PropertyAccessor); ok {
 					if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-						// Task 3.5.117: Use ObjectValue.ReadIndexedProperty with callback
-						// Task 3.5.33: Use evaluator's executeIndexedPropertyRead instead of adapter
-						if objVal, ok := leftVal.(ObjectValue); ok {
+										if objVal, ok := leftVal.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
 								return e.executeIndexedPropertyRead(leftVal, pi, idx, node, ctx)
 							})
@@ -211,12 +198,11 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		}
 	}
 
-	// Task 3.5.99e: Handle record default property access
+	// Handle record default property access
 	if leftVal.Type() == "RECORD" {
 		// Check if record has a default property
 		if accessor, ok := leftVal.(PropertyAccessor); ok {
 			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-				// Task 3.5.118: Use RecordInstanceValue interface with callback pattern
 				recVal, ok := leftVal.(RecordInstanceValue)
 				if !ok {
 					return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
@@ -248,42 +234,9 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	return e.newError(node, "cannot index type %s", leftVal.Type())
 }
 
-// VisitRecordLiteralExpression evaluates a record literal expression.
-// Handles typed and anonymous record literals with field initialization and default values.
-// Task 3.5.40: Full migration from Interpreter.evalRecordLiteral()
+// VisitRecordLiteralExpression evaluates record literal expressions like TMyRecord(Field1: 1, Field2: 'hello').
+// Handles typed and anonymous literals with field initialization and default values.
 func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpression, ctx *ExecutionContext) Value {
-	// Task 3.5.40: Record literal evaluation with field initialization
-	//
-	// Record literal syntax:
-	// - Typed: TMyRecord(Field1: 1, Field2: 'hello')
-	// - Anonymous: (Field1: 1, Field2: 'hello') - requires type context
-	//
-	// Type determination:
-	// - Explicit type name in literal -> use that type
-	// - Anonymous literal -> requires type context (set by variable/const declaration)
-	//
-	// Field initialization:
-	// - Evaluate field value expressions
-	// - Validate fields exist in record type
-	// - Initialize missing fields with field initializers or zero values
-	// - Handle nested records recursively
-	// - Handle interface-typed fields specially
-	//
-	// Positional field initialization:
-	// - Not yet supported (requires field.Name == nil)
-	// - Returns error if attempted
-	//
-	// Field validation:
-	// - All specified fields must exist in record type
-	// - Field names are case-insensitive
-	// - Duplicate field names not allowed (parser enforces)
-	//
-	// Default value initialization:
-	// - Missing fields get field initializers if defined
-	// - Otherwise get zero values for their types
-	// - Nested records initialized recursively
-	// - Interface fields get nil InterfaceInstance
-
 	if node == nil {
 		return e.newError(node, "nil record literal")
 	}
@@ -302,7 +255,6 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 	}
 
 	// Look up record type via TypeSystem
-	// Task 3.5.128e: Direct TypeSystem lookup, cast to access FieldDecls
 	recordTypeAny := e.typeSystem.LookupRecord(recordTypeName)
 	if recordTypeAny == nil {
 		return e.newError(node, "unknown record type '%s'", recordTypeName)
@@ -364,7 +316,6 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 	}
 
 	// Create field initializer callback for runtime constructor
-	// Task 3.5.128e: NO ADAPTER - evaluates field initializers directly
 	initializer := func(fieldName string, fieldType types.Type) runtime.Value {
 		// Check if field was provided in literal (case-insensitive lookup)
 		for providedName, val := range fieldValues {
@@ -394,7 +345,6 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 	}
 
 	// Create record using runtime constructor with initializer callback
-	// Task 3.5.128e: Direct runtime call, no adapter needed
 	recordValue := runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
 
 	return recordValue

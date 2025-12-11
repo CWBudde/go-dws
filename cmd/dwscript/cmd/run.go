@@ -151,7 +151,7 @@ func runScript(_ *cobra.Command, args []string) error {
 	// Skip type checking if units are used, since symbols from units
 	// aren't available until runtime
 	var semanticInfo *ast.SemanticInfo
-	var semanticHelpers map[string][]*types.HelperType // Task 3.8.6.3: Capture helpers for transfer
+	var semanticHelpers map[string][]*types.HelperType
 	if typeCheck && !hasUnits {
 		analyzer := semantic.NewAnalyzer()
 		// Set source code for rich error messages
@@ -176,7 +176,7 @@ func runScript(_ *cobra.Command, args []string) error {
 		}
 		// Capture semantic info to pass to interpreter
 		semanticInfo = analyzer.GetSemanticInfo()
-		// Task 3.8.6.3: Capture helpers for transfer to interpreter
+		// Capture helpers for transfer to interpreter
 		semanticHelpers = analyzer.GetHelpers()
 	} else if verbose && hasUnits {
 		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
@@ -214,7 +214,7 @@ func runScript(_ *cobra.Command, args []string) error {
 		interpreter.SetSemanticInfo(semanticInfo)
 	}
 
-	// Task 3.8.6.3: Transfer helpers from semantic analyzer to interpreter
+	// Transfer helpers from semantic analyzer to interpreter
 	if semanticHelpers != nil {
 		interpreter.TransferHelpersFromSemanticAnalysis(semanticHelpers)
 	}
@@ -283,7 +283,6 @@ func runScript(_ *cobra.Command, args []string) error {
 	if exc := interpreter.GetException(); exc != nil {
 		// Format and print unhandled exception with position (if available) and stack trace
 		// DWScript format: "Runtime Error: <Message> [line: N, column: M]"
-		// Task 3.5.18: Use Metadata.Name instead of ClassInfo.Name
 		excClassName := "Exception"
 		if exc.Metadata != nil {
 			excClassName = exc.Metadata.Name

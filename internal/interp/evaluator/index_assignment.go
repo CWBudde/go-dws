@@ -179,7 +179,7 @@ func (e *Evaluator) evalStringCharAssignment(
 
 // evalIndexedPropertyAssignment handles indexed property assignment: obj.Prop[i] := value
 //
-// This follows the pattern from executeRecordPropertyWrite (task 3.2.11d):
+// This follows the pattern from executeRecordPropertyWrite:
 // 1. Evaluate the base object (obj.Prop) to get the property metadata
 // 2. Extract the property setter method reference
 // 3. Build argument list: [indices..., value]

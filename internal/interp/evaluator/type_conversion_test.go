@@ -437,7 +437,7 @@ func (m *mockConversionAdapter) CallExternalFunction(funcName string, argExprs [
 }
 func (m *mockConversionAdapter) LookupClassByName(name string) ClassMetaValue { return nil }
 
-// Stub implementations for new ClassMetaValue methods - these are added in Task 3.2.10
+// Stub implementations for new ClassMetaValue methods
 // and called via ClassMetaValue interface, not via adapter.
 // (no additional adapter methods needed)
 
