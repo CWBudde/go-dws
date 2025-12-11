@@ -265,9 +265,6 @@ func TestAssignmentIntegration(t *testing.T) {
 // TestAssignment_NoAdapterEvalNodeCalls verifies that assignment files have zero
 // adapter.EvalNode() calls, proving circular callbacks are eliminated.
 func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
-	// This test verifies the key success criterion for task 3.2.11:
-	// No adapter.EvalNode() calls in assignment-related files.
-
 	// Setup with fail-fast adapter
 	typeSystem := interptypes.NewTypeSystem()
 	refCountMgr := runtime.NewRefCountManager()
