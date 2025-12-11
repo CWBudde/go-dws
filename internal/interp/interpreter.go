@@ -125,14 +125,8 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		classes:   make(map[string]*ClassInfo),
 		records:   make(map[string]*RecordTypeValue),
 
-		globalOperators:      newRuntimeOperatorRegistry(),
-		helpers:              make(map[string][]*HelperInfo),
-		classTypeIDRegistry:  make(map[string]int), // Task 9.25: RTTI type ID registry
-		recordTypeIDRegistry: make(map[string]int), // Task 9.25: RTTI type ID registry
-		enumTypeIDRegistry:   make(map[string]int), // Task 9.25: RTTI type ID registry
-		nextClassTypeID:      1000,                 // Task 9.25: Start class IDs at 1000
-		nextRecordTypeID:     200000,               // Task 9.25: Start record IDs at 200000
-		nextEnumTypeID:       300000,               // Task 9.25: Start enum IDs at 300000
+		globalOperators: newRuntimeOperatorRegistry(),
+		helpers:         make(map[string][]*HelperInfo),
 	}
 
 	// Task 3.8.1: Extract external functions and recursion depth from options using interface
