@@ -15,15 +15,35 @@ import (
 // - Float operations: += -= *= /= between floats and integers (with implicit conversion)
 // - String concatenation: += for strings
 // - Variant operations: delegates to evalVariantBinaryOp
-// - Class operator overloads: detected and delegated to adapter (not yet migrated)
+// - Class operator overloads: uses adapter.TryBinaryOperator (Task 3.2.11k)
 func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value, node ast.Node) Value {
-	// Task 9.14: Check for class operator overrides first
-	// Class operator overloads are complex (method dispatch, hierarchy search)
-	// and haven't been migrated yet - delegate to adapter for objects
+	// Task 3.2.11k: Check for class operator overloads first
+	// Use existing TryBinaryOperator infrastructure from 3.2.10
 	leftType := left.Type()
 	if strings.HasPrefix(leftType, "OBJECT[") {
-		// Delegate entire compound operation to adapter for objects
-		return e.adapter.EvalNode(node)
+		// Try operator overload - convert compound op to binary op
+		var binaryOp string
+		switch op {
+		case token.PLUS_ASSIGN:
+			binaryOp = "+"
+		case token.MINUS_ASSIGN:
+			binaryOp = "-"
+		case token.TIMES_ASSIGN:
+			binaryOp = "*"
+		case token.DIVIDE_ASSIGN:
+			binaryOp = "/"
+		default:
+			return e.newError(node, "unknown compound operator: %v", op)
+		}
+
+		// Try to find operator overload on the object
+		if e.adapter != nil {
+			if result, found := e.adapter.TryBinaryOperator(binaryOp, left, right, node); found {
+				return result
+			}
+		}
+
+		// No overload found, fall through to standard operations
 	}
 
 	switch op {

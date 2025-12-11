@@ -398,12 +398,17 @@ then removing the `adapter.EvalNode()` fallback.
     - All tests pass (385 passed, 842 failed baseline unchanged)
     - **Impact**: visitor_statements.go now has ZERO adapter.EvalNode() calls
 
-  - [ ] **3.2.11k** Migrate object operator overloads (~1h)
-    - Eliminate fallback at compound_ops.go:26
-    - Objects with operator overloads (e.g., `+=` override) need method dispatch
-    - Use existing method dispatch infrastructure from 3.2.10
-    - Pattern: Look up operator method, invoke if found, else apply standard operation
-    - Test: Operator overload tests
+  - [x] **3.2.11k** Migrate object operator overloads ✅ **DONE** (2025-12-11, ~0.25h actual)
+    - **Goal**: Eliminate fallback at compound_ops.go:26
+    - **Pattern**: Use existing TryBinaryOperator infrastructure from adapter
+    - **Implementation**:
+      1. Convert compound operator to binary operator (`+=` → `+`, `-=` → `-`, etc.)
+      2. Try `adapter.TryBinaryOperator(binaryOp, left, right, node)` for OBJECT types
+      3. If overload found, return result; otherwise fall through to standard operations
+    - **No delegation**: Uses focused `TryBinaryOperator` method, not `EvalNode` ✅
+    - **Result**: Eliminated adapter.EvalNode() call (1 call → 0 calls)
+    - All tests pass (385 passed, 842 failed baseline unchanged)
+    - **Impact**: compound_ops.go now has ZERO adapter.EvalNode() calls
 
   - [ ] **3.2.11l** Integration testing & cleanup (~1h)
     - Run full test suite: `just test`
