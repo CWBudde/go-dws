@@ -371,13 +371,19 @@ then removing the `adapter.EvalNode()` fallback.
     - **Result**: Eliminated BOTH adapter.EvalNode() calls at lines 76, 82 (2 calls → 0 calls)
     - All tests pass (385 passed, 842 failed baseline unchanged)
 
-  - [ ] **3.2.11i** Migrate implicit Self assignment (~1.5h)
-    - Eliminate fallbacks at assignment_helpers.go:105, 391
-    - When variable not in env, check for implicit Self context
-    - Use existing `ctx.Env().Get("Self")` pattern
-    - If Self exists and is object, assign to Self.fieldName
-    - Also handle class variable context via `__CurrentClass__`
-    - Test: Method body assignment tests
+  - [x] **3.2.11i** Migrate implicit Self assignment ✅ **DONE** (2025-12-11, ~1.5h actual)
+    - **Goal**: Eliminate fallbacks at assignment_helpers.go:105, 391 (lines changed during implementation)
+    - **Pattern**: Mirrored VisitIdentifier's Self context handling (visitor_expressions_identifiers.go:66-156)
+    - **Implementation**:
+      1. **Simple assignment**: Check Self context → field → class var → property
+      2. **Compound assignment**: Read current value → apply operation → write back
+      3. **Class method context**: Support `__CurrentClass__` for static class variable assignment
+    - **Instance fields**: Direct `ObjectInstance.SetField()` for field assignment
+    - **Class variables**: Use `ClassMetaValue.SetClassVar()` (returns bool, not error)
+    - **Properties**: Use `ObjectValue.WriteProperty()` with callback pattern
+    - **Result**: Eliminated BOTH adapter.EvalNode() calls (2 calls → 0 calls)
+    - All tests pass (385 passed, 842 failed baseline unchanged)
+    - **Impact**: assignment_helpers.go now has ZERO adapter.EvalNode() calls
 
   - [ ] **3.2.11j** Migrate compound member/index assignment (~1.5h)
     - Eliminate fallbacks at visitor_statements.go:318, 334

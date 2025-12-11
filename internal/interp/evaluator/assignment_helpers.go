@@ -84,25 +84,75 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 	// Get existing value to check for special types
 	existingValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// ARCHITECTURAL BOUNDARY: Self/class context is owned by interpreter.
+		// Task 3.2.11i: Handle implicit Self context for field/property/class var assignment
 		//
 		// When a variable is not in ctx.Env(), it could be:
 		// 1. An instance field: Self.Field := value (implicit Self in method)
-		// 2. A class variable: TClass.ClassVar := value (static variable)
+		// 2. A class variable: TClass.ClassVar := value (via Self or static context)
 		// 3. A property: Self.PropName := value (property setter)
+		// 4. A true undefined variable (error case)
 		//
-		// The interpreter owns the logic to distinguish these cases:
-		// - env.Get("Self") → extract ObjectInstance → check field/property/class var
-		// - env.Get("__CurrentClass__") → extract ClassInfo → check class var
-		// - Requires ClassInfo.ClassVars, obj.Class.LookupField(), evalPropertyWrite()
-		//
-		// This delegation is intentional and represents a clean separation of concerns:
-		// - Evaluator: Executes AST nodes, manages expressions/statements
-		// - Interpreter: Manages OOP semantics (classes, fields, properties, Self context)
-		//
-		// See docs/evaluator-architecture.md for full architectural rationale.
-		// Task 3.5.43: Decided to keep this call as essential architectural boundary.
-		return e.adapter.EvalNode(stmt)
+		// Pattern: Same as VisitIdentifier (visitor_expressions_identifiers.go:66-156)
+
+		// Check if we're in an instance method context (Self is bound)
+		if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
+			if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
+				if objVal, ok := selfVal.(ObjectValue); ok {
+					// Check for instance field
+					if fieldValue := objVal.GetField(targetName); fieldValue != nil {
+						// Direct field assignment via ObjectInstance.SetField
+						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
+							objInst.SetField(targetName, value)
+							return value
+						}
+						// Shouldn't happen - ObjectValue with fields should be ObjectInstance
+						return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)
+					}
+
+					// Check for class variable
+					if _, found := objVal.GetClassVar(targetName); found {
+						// Use ClassMetaValue interface to set class variable
+						// Get the class info from the object
+						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
+							classInfo := objInst.Class
+							if classMetaVal, ok := classInfo.(ClassMetaValue); ok {
+								if classMetaVal.SetClassVar(targetName, value) {
+									return value
+								}
+								return e.newError(target, "failed to set class variable '%s'", targetName)
+							}
+						}
+						return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
+					}
+
+					// Check for property
+					if objVal.HasProperty(targetName) {
+						// Use WriteProperty with callback pattern
+						return objVal.WriteProperty(targetName, value, func(propInfo any, val Value) Value {
+							return e.executePropertyWrite(selfVal, propInfo, val, target, ctx)
+						})
+					}
+				}
+			}
+		}
+
+		// Check if we're in a class method context (__CurrentClass__ is bound)
+		if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
+			if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
+				if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
+					// Check for class variable
+					if _, found := classMetaVal.GetClassVar(targetName); found {
+						if classMetaVal.SetClassVar(targetName, value) {
+							return value
+						}
+						return e.newError(target, "failed to set class variable '%s'", targetName)
+					}
+				}
+			}
+		}
+
+		// Not in environment, not a Self field/property/class var, not a class context variable
+		return e.newError(target, "undefined variable '%s'", targetName)
 	}
 
 	// Cast to Value interface
@@ -370,25 +420,130 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 	// Get current value from environment
 	currentValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// ARCHITECTURAL BOUNDARY: Self/class context is owned by interpreter.
+		// Task 3.2.11i: Handle implicit Self context for compound assignment
 		//
 		// When a variable is not in ctx.Env(), compound assignment (+=, -=, etc.) could target:
 		// 1. An instance field: Self.Field += 1 (implicit Self in method)
 		// 2. A class variable: TClass.ClassVar += 1 (static variable)
 		// 3. A property: Self.PropName += 1 (property getter + setter)
+		// 4. A true undefined variable (error case)
 		//
-		// The interpreter owns the logic to distinguish these cases:
-		// - env.Get("Self") → extract ObjectInstance → check field/property/class var
-		// - env.Get("__CurrentClass__") → extract ClassInfo → check class var
-		// - Requires ClassInfo.ClassVars, obj.Class.LookupField(), evalPropertyWrite()
-		//
-		// This delegation is intentional and represents a clean separation of concerns:
-		// - Evaluator: Executes AST nodes, manages expressions/statements
-		// - Interpreter: Manages OOP semantics (classes, fields, properties, Self context)
-		//
-		// See docs/evaluator-architecture.md for full architectural rationale.
-		// Task 3.5.43: Decided to keep this call as essential architectural boundary.
-		return e.adapter.EvalNode(stmt)
+		// Pattern: Read current value, apply operation, write back
+
+		// Check if we're in an instance method context (Self is bound)
+		if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
+			if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
+				if objVal, ok := selfVal.(ObjectValue); ok {
+					// Check for instance field
+					if fieldValue := objVal.GetField(targetName); fieldValue != nil {
+						// Evaluate RHS
+						rightVal := e.Eval(stmt.Value, ctx)
+						if isError(rightVal) {
+							return rightVal
+						}
+
+						// Apply compound operation
+						result := e.applyCompoundOperation(stmt.Operator, fieldValue, rightVal, target)
+						if isError(result) {
+							return result
+						}
+
+						// Write back to field
+						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
+							objInst.SetField(targetName, result)
+							return result
+						}
+						return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)
+					}
+
+					// Check for class variable
+					if classVarValue, found := objVal.GetClassVar(targetName); found {
+						// Evaluate RHS
+						rightVal := e.Eval(stmt.Value, ctx)
+						if isError(rightVal) {
+							return rightVal
+						}
+
+						// Apply compound operation
+						result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target)
+						if isError(result) {
+							return result
+						}
+
+						// Write back to class variable
+						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
+							classInfo := objInst.Class
+							if classMetaVal, ok := classInfo.(ClassMetaValue); ok {
+								if classMetaVal.SetClassVar(targetName, result) {
+									return result
+								}
+								return e.newError(target, "failed to set class variable '%s'", targetName)
+							}
+						}
+						return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
+					}
+
+					// Check for property (read-modify-write pattern)
+					if objVal.HasProperty(targetName) {
+						// Read current property value
+						currentPropValue := objVal.ReadProperty(targetName, func(propInfo any) Value {
+							return e.executePropertyRead(selfVal, propInfo, target, ctx)
+						})
+						if isError(currentPropValue) {
+							return currentPropValue
+						}
+
+						// Evaluate RHS
+						rightVal := e.Eval(stmt.Value, ctx)
+						if isError(rightVal) {
+							return rightVal
+						}
+
+						// Apply compound operation
+						result := e.applyCompoundOperation(stmt.Operator, currentPropValue, rightVal, target)
+						if isError(result) {
+							return result
+						}
+
+						// Write back to property
+						return objVal.WriteProperty(targetName, result, func(propInfo any, val Value) Value {
+							return e.executePropertyWrite(selfVal, propInfo, val, target, ctx)
+						})
+					}
+				}
+			}
+		}
+
+		// Check if we're in a class method context (__CurrentClass__ is bound)
+		if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
+			if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
+				if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
+					// Check for class variable
+					if classVarValue, found := classMetaVal.GetClassVar(targetName); found {
+						// Evaluate RHS
+						rightVal := e.Eval(stmt.Value, ctx)
+						if isError(rightVal) {
+							return rightVal
+						}
+
+						// Apply compound operation
+						result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target)
+						if isError(result) {
+							return result
+						}
+
+						// Write back to class variable
+						if classMetaVal.SetClassVar(targetName, result) {
+							return result
+						}
+						return e.newError(target, "failed to set class variable '%s'", targetName)
+					}
+				}
+			}
+		}
+
+		// Not in environment, not a Self field/property/class var, not a class context variable
+		return e.newError(target, "undefined variable '%s'", targetName)
 	}
 
 	// Cast to Value interface
