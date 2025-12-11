@@ -94,7 +94,7 @@ func TestClassWithDuplicateFieldNames(t *testing.T) {
 			Name: Integer;
 		end;
 	`
-	expectError(t, input, "duplicate field 'Name'")
+	expectError(t, input, "Name \"Name\" already exists")
 }
 
 func TestClassRedeclaration(t *testing.T) {
@@ -222,7 +222,7 @@ func TestNewExpressionWithConstructor(t *testing.T) {
 
 func TestNewExpressionUndefinedClass(t *testing.T) {
 	input := `var obj := TUndefined.Create();`
-	expectError(t, input, "undefined class 'TUndefined'")
+	expectError(t, input, "Unknown name \"TUndefined\"")
 }
 
 func TestNewExpressionWrongConstructorArgs(t *testing.T) {
@@ -286,12 +286,12 @@ func TestNewKeywordWithException(t *testing.T) {
 
 func TestNewKeywordWithUndefinedClass(t *testing.T) {
 	input := `var obj := new TUndefined();`
-	expectError(t, input, "undefined class 'TUndefined'")
+	expectError(t, input, "Unknown name \"TUndefined\"")
 }
 
 func TestNewKeywordWithNonClassType(t *testing.T) {
 	input := `var x := new Integer();`
-	expectError(t, input, "undefined class 'Integer'")
+	expectError(t, input, "Unknown name \"Integer\"")
 }
 
 func TestNewKeywordConstructorArgMismatch(t *testing.T) {
@@ -595,7 +595,7 @@ func TestDuplicateClassVariable(t *testing.T) {
 			class var Count: Integer;
 		end;
 	`
-	expectError(t, input, "duplicate class variable 'Count'")
+	expectError(t, input, "Name \"Count\" already exists")
 }
 
 func TestClassVariableAndInstanceField(t *testing.T) {
@@ -995,7 +995,7 @@ func TestDuplicateForwardClassDeclaration(t *testing.T) {
 		type TChild = class;
 		type TChild = class;
 	`
-	expectError(t, input, "class 'TChild' already forward declared")
+	expectError(t, input, "Class \"TChild\" already defined")
 }
 
 func TestForwardDeclarationThenFullImplementation(t *testing.T) {

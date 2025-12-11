@@ -107,7 +107,7 @@ func TestProcedureCall(t *testing.T) {
 
 func TestUndefinedFunction(t *testing.T) {
 	input := `var x := DoSomething(42);`
-	expectError(t, input, "undefined function")
+	expectError(t, input, "Unknown name")
 }
 
 func TestFunctionCallWrongArgumentCount(t *testing.T) {

@@ -177,8 +177,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 				selected, err := ResolveOverload(candidates, argTypes)
 				if err != nil {
-					a.addError("no matching overload for method '%s' with these arguments at %s",
-						funcIdent.Value, expr.Token.Pos.String())
+					a.addError("%s", errors.FormatNoOverloadError(funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column))
 					return nil
 				}
 
@@ -214,8 +213,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 				selected, err := ResolveOverload(candidates, argTypes)
 				if err != nil {
-					a.addError("no matching overload for class method '%s' with these arguments at %s",
-						funcIdent.Value, expr.Token.Pos.String())
+					a.addError("%s", errors.FormatNoOverloadError(funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column))
 					return nil
 				}
 
@@ -476,8 +474,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 		selected, err := ResolveOverload(candidates, argTypes)
 		if err != nil {
-			a.addError("Syntax Error: There is no overloaded version of \"%s\" that can be called with these arguments [line: %d, column: %d]",
-				funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column)
+			a.addError("%s", errors.FormatNoOverloadError(funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column))
 			return nil
 		}
 
@@ -891,8 +888,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 
 	selected, err := ResolveOverload(candidates, argTypes)
 	if err != nil {
-		a.addError("no matching overload for '%s.%s' with %d arguments at %s",
-			recordType.Name, methodName, len(argTypes), expr.Token.Pos.String())
+		a.addError("%s", errors.FormatNoOverloadError(methodName, expr.Token.Pos.Line, expr.Token.Pos.Column))
 		return nil
 	}
 
