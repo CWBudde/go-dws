@@ -49,9 +49,45 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 4: Decompose God Objects Into Handlers
 
-**Goal**: Decompose two god objects (Interpreter: 434 methods, Evaluator: 341 methods) into focused handler components with single responsibility. NOT just moving methods between god objects.
+**Status**: ⏸️ **DEFERRED INDEFINITELY** | **Priority**: Low | **Estimated**: 10-12 weeks
 
-**Status**: 📋 Planned | **Priority**: P1 | **Estimated**: 8-10 weeks
+### Why This Work Is Deferred
+
+After critical review, we recognized this is **decomposition theater**—shuffling methods between objects without solving real problems.
+
+**The Pattern We Were Repeating**:
+
+```text
+Interpreter (434 methods) → "too big, extract Evaluator"
+Evaluator (341 methods)   → "too big, extract Handlers"
+Handlers (30 methods)     → "too big, extract SubHandlers?"
+```
+
+**Reality Check**:
+
+- CPython's ceval.c: ~7,000 lines with massive switch statement
+- V8, JVM, .NET: all have similar complexity for full language support
+- DWScript is a **full Object Pascal implementation**—775 methods may be appropriate
+
+**What Phase 3 Actually Achieved** (these are real improvements):
+
+- ✅ Single canonical environment (eliminated sync bugs)
+- ✅ Clean package boundaries (no circular imports)
+- ✅ Interface-based design (testable, mockable)
+- ✅ Visitor pattern for extensibility
+- ✅ 386 unit tests passing
+
+**Better Use of Time**: Fix the 841 failing fixture tests instead of spending 10-12 weeks on architectural shuffling.
+
+**When to Revisit**: Only if we encounter actual problems (bugs, performance issues, unmaintainable code) that decomposition would solve. Not for aesthetic "clean code" reasons.
+
+---
+
+### Archived Plan (For Reference)
+
+The detailed plan below is preserved for reference if we ever need it, but is not currently prioritized.
+
+**Original Goal**: Decompose two god objects (Interpreter: 434 methods, Evaluator: 341 methods) into focused handler components with single responsibility.
 
 **Current State** (Post-Phase 3):
 
