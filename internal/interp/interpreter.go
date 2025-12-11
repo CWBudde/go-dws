@@ -39,38 +39,32 @@ type PropertyEvalContext = evaluator.PropertyEvalContext
 // The evaluator field contains the evaluation logic and dependencies.
 // Eventually, most of the fields below will be removed and accessed via the evaluator.
 type Interpreter struct {
-	currentNode          ast.Node
-	output               io.Writer
-	helpers              map[string][]*HelperInfo
-	enumTypeIDRegistry   map[string]int
-	exception            *runtime.ExceptionValue
-	handlerException     *runtime.ExceptionValue
-	semanticInfo         *pkgast.SemanticInfo
-	unitRegistry         *units.UnitRegistry
-	propContext          *PropertyEvalContext
-	typeSystem           *interptypes.TypeSystem
-	methodRegistry       *runtime.MethodRegistry
-	recordTypeIDRegistry map[string]int
-	records              map[string]*RecordTypeValue
-	functions            map[string][]*ast.FunctionDecl
-	globalOperators      *runtimeOperatorRegistry
-	evaluatorInstance    *evaluator.Evaluator
-	classes              map[string]*ClassInfo
-	classTypeIDRegistry  map[string]int
-	initializedUnits     map[string]bool
-	externalFunctions    *ExternalFunctionRegistry
-	rand                 *rand.Rand
-	ctx                  *evaluator.ExecutionContext
-	sourceCode           string
-	sourceFile           string
-	oldValuesStack       []map[string]Value
-	loadedUnits          []string
-	callStack            errors.StackTrace
-	nextEnumTypeID       int
-	randSeed             int64
-	nextRecordTypeID     int
-	maxRecursionDepth    int
-	nextClassTypeID      int
+	currentNode       ast.Node
+	output            io.Writer
+	helpers           map[string][]*HelperInfo
+	exception         *runtime.ExceptionValue
+	handlerException  *runtime.ExceptionValue
+	semanticInfo      *pkgast.SemanticInfo
+	unitRegistry      *units.UnitRegistry
+	propContext       *PropertyEvalContext
+	typeSystem        *interptypes.TypeSystem
+	methodRegistry    *runtime.MethodRegistry
+	records           map[string]*RecordTypeValue
+	functions         map[string][]*ast.FunctionDecl
+	globalOperators   *runtimeOperatorRegistry
+	evaluatorInstance *evaluator.Evaluator
+	classes           map[string]*ClassInfo
+	initializedUnits  map[string]bool
+	externalFunctions *ExternalFunctionRegistry
+	rand              *rand.Rand
+	ctx               *evaluator.ExecutionContext
+	sourceCode        string
+	sourceFile        string
+	oldValuesStack    []map[string]Value
+	loadedUnits       []string
+	callStack         errors.StackTrace
+	randSeed          int64
+	maxRecursionDepth int
 }
 
 // New creates a new Interpreter with a fresh global environment.

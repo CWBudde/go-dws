@@ -363,10 +363,19 @@ func (e *Evaluator) ExecuteUserFunction(
 
 	// Create new context with function environment
 	funcCtx := &ExecutionContext{
-		env:            funcEnv,
-		callStack:      ctx.callStack,
-		controlFlow:    ctx.controlFlow,
-		oldValuesStack: ctx.oldValuesStack,
+		env:               funcEnv,
+		exception:         ctx.exception,
+		handlerException:  ctx.handlerException,
+		callStack:         ctx.callStack,
+		controlFlow:       ctx.controlFlow,
+		propContext:       ctx.propContext,
+		arrayTypeContext:  ctx.arrayTypeContext,
+		evaluator:         ctx.evaluator,
+		recordTypeContext: ctx.recordTypeContext,
+		envStack:          ctx.envStack,
+		oldValuesStack:    ctx.oldValuesStack,
+		exceptionGetter:   ctx.exceptionGetter,
+		exceptionSetter:   ctx.exceptionSetter,
 	}
 
 	// Check recursion depth
@@ -447,6 +456,32 @@ func (e *Evaluator) ExecuteUserFunction(
 	// If exit was called, clear the signal (don't propagate to caller)
 	if funcCtx.ControlFlow().IsExit() {
 		funcCtx.ControlFlow().Clear()
+	}
+
+	// Ensure var (ByRef) parameters are written back to the caller even when the
+	// interpreter-backed body execution doesn't propagate assignments.
+	for idx, param := range fn.Parameters {
+		if !param.ByRef || idx >= len(args) {
+			continue
+		}
+
+		// Only attempt write-back when the original argument is a reference.
+		refArg, ok := args[idx].(ReferenceAccessor)
+		if !ok {
+			continue
+		}
+
+		// Fetch the current value of the parameter from the function environment.
+		if paramVal, exists := funcEnv.Get(param.Name.Value); exists {
+			switch v := paramVal.(type) {
+			case ReferenceAccessor:
+				if cur, err := v.Dereference(); err == nil {
+					_ = refArg.Assign(cur)
+				}
+			case Value:
+				_ = refArg.Assign(v)
+			}
+		}
 	}
 
 	// Task 3.5.144b.8: Extract return value
