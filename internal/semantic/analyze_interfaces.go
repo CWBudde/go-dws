@@ -87,8 +87,7 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 
 	// Check if method already exists in this interface
 	if _, exists := iface.Methods[methodKey]; exists {
-		a.addError("interface method '%s' already declared in interface '%s' at %s",
-			methodName, iface.Name, method.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(methodName, method.Token.Pos.Line, method.Token.Pos.Column))
 		return
 	}
 
@@ -96,8 +95,7 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	if iface.Parent != nil {
 		parentMethods := types.GetAllInterfaceMethods(iface.Parent)
 		if _, exists := parentMethods[methodKey]; exists {
-			a.addError("interface method '%s' already declared in interface '%s' at %s",
-				methodName, iface.Name, method.Token.Pos.String())
+			a.addError("%s", errors.FormatNameAlreadyExists(methodName, method.Token.Pos.Line, method.Token.Pos.Column))
 			return
 		}
 	}
