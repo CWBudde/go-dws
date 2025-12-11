@@ -174,8 +174,8 @@ func (i *Interpreter) evalLambdaExpression(expr *ast.LambdaExpression) Value {
 	// The semantic analyzer already computed the type during type checking
 	var pointerType *types.FunctionPointerType
 	var typeAnnot *ast.TypeAnnotation
-	if i.semanticInfo != nil {
-		typeAnnot = i.semanticInfo.GetType(expr)
+	if i.evaluatorInstance.SemanticInfo() != nil {
+		typeAnnot = i.evaluatorInstance.SemanticInfo().GetType(expr)
 	}
 	if typeAnnot != nil {
 		// Extract the type information from the annotation

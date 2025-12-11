@@ -239,9 +239,9 @@ func extractSimpleTypeName(typeName string) string {
 // evalBuiltinHelperMethod executes a built-in helper method implementation identified by spec.
 func (i *Interpreter) evalBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node) Value {
 	// Ensure CurrentNode points to the helper invocation for accurate error reporting
-	prevNode := i.currentNode
-	i.currentNode = node
-	defer func() { i.currentNode = prevNode }()
+	prevNode := i.evaluatorInstance.CurrentNode()
+	i.evaluatorInstance.SetCurrentNode(node)
+	defer func() { i.evaluatorInstance.SetCurrentNode(prevNode) }()
 
 	switch spec {
 	case "__integer_tostring":

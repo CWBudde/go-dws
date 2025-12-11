@@ -42,8 +42,8 @@ func (i *Interpreter) callDWScriptFunction(
 	// 2. Save current interpreter state for re-entrancy
 	// When Go calls back into DWScript, we need to preserve the current node
 	// so that error messages show the correct location
-	savedNode := i.currentNode
-	defer func() { i.currentNode = savedNode }()
+	savedNode := i.evaluatorInstance.CurrentNode()
+	defer func() { i.evaluatorInstance.SetCurrentNode(savedNode) }()
 
 	// 3. Call the DWScript function
 	// Use existing callLambda or callFunctionPointer infrastructure

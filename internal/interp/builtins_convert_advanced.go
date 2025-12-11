@@ -11,13 +11,13 @@ import (
 // HexToInt(hexa: String): Integer
 func (i *Interpreter) builtinHexToInt(args []Value) Value {
 	if len(args) != 1 {
-		return i.newErrorWithLocation(i.currentNode, "HexToInt() expects exactly 1 argument, got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "HexToInt() expects exactly 1 argument, got %d", len(args))
 	}
 
 	// Argument must be a string
 	strVal, ok := args[0].(*StringValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "HexToInt() expects string argument, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "HexToInt() expects string argument, got %s", args[0].Type())
 	}
 
 	// Clean the hex string - remove $ or 0x prefix if present
@@ -31,8 +31,8 @@ func (i *Interpreter) builtinHexToInt(args []Value) Value {
 	if err != nil {
 		// Raise an exception that can be caught by try/except
 		msg := fmt.Sprintf("'%s' is not a valid hexadecimal number", strVal.Value)
-		if i.currentNode != nil {
-			pos := i.currentNode.Pos()
+		if i.evaluatorInstance.CurrentNode() != nil {
+			pos := i.evaluatorInstance.CurrentNode().Pos()
 			i.raiseException("EConvertError", msg, &pos)
 		} else {
 			i.raiseException("EConvertError", msg, nil)
@@ -48,13 +48,13 @@ func (i *Interpreter) builtinHexToInt(args []Value) Value {
 // BinToInt(binary: String): Integer
 func (i *Interpreter) builtinBinToInt(args []Value) Value {
 	if len(args) != 1 {
-		return i.newErrorWithLocation(i.currentNode, "BinToInt() expects exactly 1 argument, got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "BinToInt() expects exactly 1 argument, got %d", len(args))
 	}
 
 	// Argument must be a string
 	strVal, ok := args[0].(*StringValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "BinToInt() expects string argument, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "BinToInt() expects string argument, got %s", args[0].Type())
 	}
 
 	// Clean the binary string - remove % or 0b prefix if present
@@ -66,7 +66,7 @@ func (i *Interpreter) builtinBinToInt(args []Value) Value {
 	// Parse as binary (base 2)
 	intValue, err := strconv.ParseInt(s, 2, 64)
 	if err != nil {
-		return i.newErrorWithLocation(i.currentNode, "'%s' is not a valid binary number", strVal.Value)
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "'%s' is not a valid binary number", strVal.Value)
 	}
 
 	return &IntegerValue{Value: intValue}
@@ -77,7 +77,7 @@ func (i *Interpreter) builtinBinToInt(args []Value) Value {
 // VarToIntDef(v: Variant, default: Integer): Integer
 func (i *Interpreter) builtinVarToIntDef(args []Value) Value {
 	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "VarToIntDef() expects exactly 2 arguments, got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "VarToIntDef() expects exactly 2 arguments, got %d", len(args))
 	}
 
 	// First argument: value to convert (can be any type)
@@ -86,7 +86,7 @@ func (i *Interpreter) builtinVarToIntDef(args []Value) Value {
 	// Second argument must be an integer (the default value)
 	defaultVal, ok := args[1].(*IntegerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "VarToIntDef() expects integer as second argument, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "VarToIntDef() expects integer as second argument, got %s", args[1].Type())
 	}
 
 	// Try to convert the value to an integer
@@ -124,7 +124,7 @@ func (i *Interpreter) builtinVarToIntDef(args []Value) Value {
 // VarToFloatDef(v: Variant, default: Float): Float
 func (i *Interpreter) builtinVarToFloatDef(args []Value) Value {
 	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "VarToFloatDef() expects exactly 2 arguments, got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "VarToFloatDef() expects exactly 2 arguments, got %d", len(args))
 	}
 
 	// First argument: value to convert (can be any type)
@@ -133,7 +133,7 @@ func (i *Interpreter) builtinVarToFloatDef(args []Value) Value {
 	// Second argument must be a float (the default value)
 	defaultVal, ok := args[1].(*FloatValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "VarToFloatDef() expects float as second argument, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "VarToFloatDef() expects float as second argument, got %s", args[1].Type())
 	}
 
 	// Try to convert the value to a float

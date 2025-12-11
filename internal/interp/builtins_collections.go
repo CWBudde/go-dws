@@ -20,19 +20,19 @@ import (
 func (i *Interpreter) builtinMap(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "Map() expects 2 arguments (array, lambda), got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Map() expects 2 arguments (array, lambda), got %d", len(args))
 	}
 
 	// First argument must be an array
 	arrayVal, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Map() first argument must be an array, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Map() first argument must be an array, got %s", args[0].Type())
 	}
 
 	// Second argument must be a function pointer (lambda)
 	lambdaVal, ok := args[1].(*FunctionPointerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Map() second argument must be a lambda/function, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Map() second argument must be a lambda/function, got %s", args[1].Type())
 	}
 
 	// Create result array with same capacity
@@ -42,7 +42,7 @@ func (i *Interpreter) builtinMap(args []Value) Value {
 	for idx, element := range arrayVal.Elements {
 		// Call the lambda with the current element
 		callArgs := []Value{element}
-		result := i.callFunctionPointer(lambdaVal, callArgs, i.currentNode)
+		result := i.callFunctionPointer(lambdaVal, callArgs, i.evaluatorInstance.CurrentNode())
 
 		// Check for errors
 		if isError(result) {
@@ -76,19 +76,19 @@ func (i *Interpreter) builtinMap(args []Value) Value {
 func (i *Interpreter) builtinFilter(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "Filter() expects 2 arguments (array, predicate), got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Filter() expects 2 arguments (array, predicate), got %d", len(args))
 	}
 
 	// First argument must be an array
 	arrayVal, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Filter() first argument must be an array, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Filter() first argument must be an array, got %s", args[0].Type())
 	}
 
 	// Second argument must be a function pointer (lambda)
 	predicateVal, ok := args[1].(*FunctionPointerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Filter() second argument must be a lambda/function, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Filter() second argument must be a lambda/function, got %s", args[1].Type())
 	}
 
 	// Create result array (will grow as needed)
@@ -98,7 +98,7 @@ func (i *Interpreter) builtinFilter(args []Value) Value {
 	for _, element := range arrayVal.Elements {
 		// Call the predicate with the current element
 		callArgs := []Value{element}
-		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+		result := i.callFunctionPointer(predicateVal, callArgs, i.evaluatorInstance.CurrentNode())
 
 		// Check for errors
 		if isError(result) {
@@ -107,13 +107,13 @@ func (i *Interpreter) builtinFilter(args []Value) Value {
 
 		// Check for nil result
 		if result == nil {
-			return i.newErrorWithLocation(i.currentNode, "Filter() predicate returned nil")
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Filter() predicate returned nil")
 		}
 
 		// Predicate must return boolean
 		boolResult, ok := result.(*BooleanValue)
 		if !ok {
-			return i.newErrorWithLocation(i.currentNode, "Filter() predicate must return Boolean, got %s", result.Type())
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Filter() predicate must return Boolean, got %s", result.Type())
 		}
 
 		// If predicate is true, keep this element
@@ -146,19 +146,19 @@ func (i *Interpreter) builtinFilter(args []Value) Value {
 func (i *Interpreter) builtinReduce(args []Value) Value {
 	// Validate argument count
 	if len(args) != 3 {
-		return i.newErrorWithLocation(i.currentNode, "Reduce() expects 3 arguments (array, lambda, initial), got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Reduce() expects 3 arguments (array, lambda, initial), got %d", len(args))
 	}
 
 	// First argument must be an array
 	arrayVal, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Reduce() first argument must be an array, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Reduce() first argument must be an array, got %s", args[0].Type())
 	}
 
 	// Second argument must be a function pointer (lambda)
 	lambdaVal, ok := args[1].(*FunctionPointerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Reduce() second argument must be a lambda/function, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Reduce() second argument must be a lambda/function, got %s", args[1].Type())
 	}
 
 	// Third argument is the initial accumulator value
@@ -168,7 +168,7 @@ func (i *Interpreter) builtinReduce(args []Value) Value {
 	for _, element := range arrayVal.Elements {
 		// Call the lambda with (accumulator, element)
 		callArgs := []Value{accumulator, element}
-		result := i.callFunctionPointer(lambdaVal, callArgs, i.currentNode)
+		result := i.callFunctionPointer(lambdaVal, callArgs, i.evaluatorInstance.CurrentNode())
 
 		// Check for errors
 		if isError(result) {
@@ -199,26 +199,26 @@ func (i *Interpreter) builtinReduce(args []Value) Value {
 func (i *Interpreter) builtinForEach(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "ForEach() expects 2 arguments (array, lambda), got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "ForEach() expects 2 arguments (array, lambda), got %d", len(args))
 	}
 
 	// First argument must be an array
 	arrayVal, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "ForEach() first argument must be an array, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "ForEach() first argument must be an array, got %s", args[0].Type())
 	}
 
 	// Second argument must be a function pointer (lambda)
 	lambdaVal, ok := args[1].(*FunctionPointerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "ForEach() second argument must be a lambda/function, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "ForEach() second argument must be a lambda/function, got %s", args[1].Type())
 	}
 
 	// Execute lambda for each element
 	for _, element := range arrayVal.Elements {
 		// Call the lambda with the current element
 		callArgs := []Value{element}
-		result := i.callFunctionPointer(lambdaVal, callArgs, i.currentNode)
+		result := i.callFunctionPointer(lambdaVal, callArgs, i.evaluatorInstance.CurrentNode())
 
 		// Check for errors
 		if isError(result) {
@@ -251,26 +251,26 @@ func (i *Interpreter) builtinForEach(args []Value) Value {
 func (i *Interpreter) builtinEvery(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "Every() expects 2 arguments (array, predicate), got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Every() expects 2 arguments (array, predicate), got %d", len(args))
 	}
 
 	// First argument must be an array
 	arrayVal, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Every() first argument must be an array, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Every() first argument must be an array, got %s", args[0].Type())
 	}
 
 	// Second argument must be a function pointer (lambda)
 	predicateVal, ok := args[1].(*FunctionPointerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Every() second argument must be a lambda/function, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Every() second argument must be a lambda/function, got %s", args[1].Type())
 	}
 
 	// Apply predicate to each element, short-circuit on first false
 	for _, element := range arrayVal.Elements {
 		// Call the predicate with the current element
 		callArgs := []Value{element}
-		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+		result := i.callFunctionPointer(predicateVal, callArgs, i.evaluatorInstance.CurrentNode())
 
 		// Check for errors
 		if isError(result) {
@@ -284,13 +284,13 @@ func (i *Interpreter) builtinEvery(args []Value) Value {
 
 		// Check for nil result
 		if result == nil {
-			return i.newErrorWithLocation(i.currentNode, "Every() predicate returned nil")
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Every() predicate returned nil")
 		}
 
 		// Predicate must return boolean
 		boolResult, ok := result.(*BooleanValue)
 		if !ok {
-			return i.newErrorWithLocation(i.currentNode, "Every() predicate must return Boolean, got %s", result.Type())
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Every() predicate must return Boolean, got %s", result.Type())
 		}
 
 		// If predicate is false, return false immediately (short-circuit)
@@ -319,26 +319,26 @@ func (i *Interpreter) builtinEvery(args []Value) Value {
 func (i *Interpreter) builtinSome(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "Some() expects 2 arguments (array, predicate), got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Some() expects 2 arguments (array, predicate), got %d", len(args))
 	}
 
 	// First argument must be an array
 	arrayVal, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Some() first argument must be an array, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Some() first argument must be an array, got %s", args[0].Type())
 	}
 
 	// Second argument must be a function pointer (lambda)
 	predicateVal, ok := args[1].(*FunctionPointerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Some() second argument must be a lambda/function, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Some() second argument must be a lambda/function, got %s", args[1].Type())
 	}
 
 	// Apply predicate to each element, short-circuit on first true
 	for _, element := range arrayVal.Elements {
 		// Call the predicate with the current element
 		callArgs := []Value{element}
-		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+		result := i.callFunctionPointer(predicateVal, callArgs, i.evaluatorInstance.CurrentNode())
 
 		// Check for errors
 		if isError(result) {
@@ -352,13 +352,13 @@ func (i *Interpreter) builtinSome(args []Value) Value {
 
 		// Check for nil result
 		if result == nil {
-			return i.newErrorWithLocation(i.currentNode, "Some() predicate returned nil")
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Some() predicate returned nil")
 		}
 
 		// Predicate must return boolean
 		boolResult, ok := result.(*BooleanValue)
 		if !ok {
-			return i.newErrorWithLocation(i.currentNode, "Some() predicate must return Boolean, got %s", result.Type())
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Some() predicate must return Boolean, got %s", result.Type())
 		}
 
 		// If predicate is true, return true immediately (short-circuit)
@@ -387,26 +387,26 @@ func (i *Interpreter) builtinSome(args []Value) Value {
 func (i *Interpreter) builtinFind(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "Find() expects 2 arguments (array, predicate), got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Find() expects 2 arguments (array, predicate), got %d", len(args))
 	}
 
 	// First argument must be an array
 	arrayVal, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Find() first argument must be an array, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Find() first argument must be an array, got %s", args[0].Type())
 	}
 
 	// Second argument must be a function pointer (lambda)
 	predicateVal, ok := args[1].(*FunctionPointerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Find() second argument must be a lambda/function, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Find() second argument must be a lambda/function, got %s", args[1].Type())
 	}
 
 	// Apply predicate to each element
 	for _, element := range arrayVal.Elements {
 		// Call the predicate with the current element
 		callArgs := []Value{element}
-		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+		result := i.callFunctionPointer(predicateVal, callArgs, i.evaluatorInstance.CurrentNode())
 
 		// Check for errors
 		if isError(result) {
@@ -420,13 +420,13 @@ func (i *Interpreter) builtinFind(args []Value) Value {
 
 		// Check for nil result
 		if result == nil {
-			return i.newErrorWithLocation(i.currentNode, "Find() predicate returned nil")
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Find() predicate returned nil")
 		}
 
 		// Predicate must return boolean
 		boolResult, ok := result.(*BooleanValue)
 		if !ok {
-			return i.newErrorWithLocation(i.currentNode, "Find() predicate must return Boolean, got %s", result.Type())
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Find() predicate must return Boolean, got %s", result.Type())
 		}
 
 		// If predicate is true, return this element
@@ -455,26 +455,26 @@ func (i *Interpreter) builtinFind(args []Value) Value {
 func (i *Interpreter) builtinFindIndex(args []Value) Value {
 	// Validate argument count
 	if len(args) != 2 {
-		return i.newErrorWithLocation(i.currentNode, "FindIndex() expects 2 arguments (array, predicate), got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "FindIndex() expects 2 arguments (array, predicate), got %d", len(args))
 	}
 
 	// First argument must be an array
 	arrayVal, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "FindIndex() first argument must be an array, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "FindIndex() first argument must be an array, got %s", args[0].Type())
 	}
 
 	// Second argument must be a function pointer (lambda)
 	predicateVal, ok := args[1].(*FunctionPointerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "FindIndex() second argument must be a lambda/function, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "FindIndex() second argument must be a lambda/function, got %s", args[1].Type())
 	}
 
 	// Apply predicate to each element
 	for idx, element := range arrayVal.Elements {
 		// Call the predicate with the current element
 		callArgs := []Value{element}
-		result := i.callFunctionPointer(predicateVal, callArgs, i.currentNode)
+		result := i.callFunctionPointer(predicateVal, callArgs, i.evaluatorInstance.CurrentNode())
 
 		// Check for errors
 		if isError(result) {
@@ -488,13 +488,13 @@ func (i *Interpreter) builtinFindIndex(args []Value) Value {
 
 		// Check for nil result
 		if result == nil {
-			return i.newErrorWithLocation(i.currentNode, "FindIndex() predicate returned nil")
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "FindIndex() predicate returned nil")
 		}
 
 		// Predicate must return boolean
 		boolResult, ok := result.(*BooleanValue)
 		if !ok {
-			return i.newErrorWithLocation(i.currentNode, "FindIndex() predicate must return Boolean, got %s", result.Type())
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "FindIndex() predicate must return Boolean, got %s", result.Type())
 		}
 
 		// If predicate is true, return this index (adjusted for array's low bound)
@@ -530,25 +530,25 @@ func (i *Interpreter) builtinFindIndex(args []Value) Value {
 func (i *Interpreter) builtinSlice(args []Value) Value {
 	// Validate argument count
 	if len(args) != 3 {
-		return i.newErrorWithLocation(i.currentNode, "Slice() expects 3 arguments (array, start, end), got %d", len(args))
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Slice() expects 3 arguments (array, start, end), got %d", len(args))
 	}
 
 	// First argument must be an array
 	arrayVal, ok := args[0].(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Slice() first argument must be an array, got %s", args[0].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Slice() first argument must be an array, got %s", args[0].Type())
 	}
 
 	// Second argument must be an integer (start index)
 	startVal, ok := args[1].(*IntegerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Slice() second argument (start) must be an Integer, got %s", args[1].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Slice() second argument (start) must be an Integer, got %s", args[1].Type())
 	}
 
 	// Third argument must be an integer (end index)
 	endVal, ok := args[2].(*IntegerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "Slice() third argument (end) must be an Integer, got %s", args[2].Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Slice() third argument (end) must be an Integer, got %s", args[2].Type())
 	}
 
 	// Delegate to standalone helper function

@@ -21,32 +21,31 @@ var _ builtins.Context = (*Interpreter)(nil)
 
 // NewError creates an error value with location from the current node.
 func (i *Interpreter) NewError(format string, args ...interface{}) builtins.Value {
-	return i.newErrorWithLocation(i.currentNode, format, args...)
+	return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), format, args...)
 }
 
 // CurrentNode returns the AST node currently being evaluated.
 // This implements the builtins.Context interface.
 func (i *Interpreter) CurrentNode() ast.Node {
-	return i.currentNode
+	return i.evaluatorInstance.CurrentNode()
 }
 
 // RandSource returns the random number generator for built-in functions.
 // This implements the builtins.Context interface.
 func (i *Interpreter) RandSource() *rand.Rand {
-	return i.rand
+	return i.evaluatorInstance.Random()
 }
 
 // GetRandSeed returns the current random number generator seed value.
 // This implements the builtins.Context interface.
 func (i *Interpreter) GetRandSeed() int64 {
-	return i.randSeed
+	return i.evaluatorInstance.RandomSeed()
 }
 
 // SetRandSeed sets the random number generator seed.
 // This implements the builtins.Context interface.
 func (i *Interpreter) SetRandSeed(seed int64) {
-	i.randSeed = seed
-	i.rand = rand.New(rand.NewSource(seed))
+	i.evaluatorInstance.SetRandomSeed(seed)
 }
 
 // UnwrapVariant returns the underlying value if input is a Variant.
@@ -398,7 +397,7 @@ func (i *Interpreter) SetArrayLength(array builtins.Value, newLength int) error 
 func (i *Interpreter) ArrayCopy(array builtins.Value) builtins.Value {
 	arrayVal, ok := array.(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "ArrayCopy() expects array, got %s", array.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "ArrayCopy() expects array, got %s", array.Type())
 	}
 
 	return i.builtinArrayCopy(arrayVal)
@@ -408,7 +407,7 @@ func (i *Interpreter) ArrayCopy(array builtins.Value) builtins.Value {
 func (i *Interpreter) ArrayReverse(array builtins.Value) builtins.Value {
 	arrayVal, ok := array.(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "ArrayReverse() expects array, got %s", array.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "ArrayReverse() expects array, got %s", array.Type())
 	}
 	return i.builtinArrayReverse(arrayVal)
 }
@@ -417,7 +416,7 @@ func (i *Interpreter) ArrayReverse(array builtins.Value) builtins.Value {
 func (i *Interpreter) ArraySort(array builtins.Value) builtins.Value {
 	arrayVal, ok := array.(*ArrayValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "ArraySort() expects array, got %s", array.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "ArraySort() expects array, got %s", array.Type())
 	}
 
 	return i.builtinArraySort(arrayVal)
@@ -427,9 +426,9 @@ func (i *Interpreter) ArraySort(array builtins.Value) builtins.Value {
 func (i *Interpreter) EvalFunctionPointer(funcPtr builtins.Value, args []builtins.Value) builtins.Value {
 	lambdaVal, ok := funcPtr.(*FunctionPointerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "EvalFunctionPointer() expects function pointer, got %s", funcPtr.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "EvalFunctionPointer() expects function pointer, got %s", funcPtr.Type())
 	}
-	return i.callFunctionPointer(lambdaVal, args, i.currentNode)
+	return i.callFunctionPointer(lambdaVal, args, i.evaluatorInstance.CurrentNode())
 }
 
 // GetCallStackString returns a formatted string representation of the current call stack.
@@ -512,8 +511,8 @@ func (i *Interpreter) RaiseException(className, message string, pos any) {
 // RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
 func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
 	var message string
-	if i.currentNode != nil {
-		pos := i.currentNode.Pos()
+	if i.evaluatorInstance.CurrentNode() != nil {
+		pos := i.evaluatorInstance.CurrentNode().Pos()
 		message = fmt.Sprintf("Assertion failed [line: %d, column: %d]", pos.Line, pos.Column)
 	} else {
 		message = "Assertion failed"
@@ -937,7 +936,7 @@ func (i *Interpreter) ConcatStrings(args []builtins.Value) builtins.Value {
 	for idx, arg := range args {
 		strVal, ok := arg.(*StringValue)
 		if !ok {
-			return i.newErrorWithLocation(i.currentNode, "Concat() expects string as argument %d, got %s", idx+1, arg.Type())
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "Concat() expects string as argument %d, got %s", idx+1, arg.Type())
 		}
 		result.WriteString(strVal.Value)
 	}

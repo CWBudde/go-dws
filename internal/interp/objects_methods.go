@@ -806,11 +806,11 @@ func (i *Interpreter) unwrapInterfaceInstance(objVal Value, mc *ast.MethodCallEx
 
 // initializeTypedNilValue initializes typed nil values when possible.
 func (i *Interpreter) initializeTypedNilValue(objVal Value, mc *ast.MethodCallExpression) Value {
-	if objVal == nil || objVal.Type() != "NIL" || i.semanticInfo == nil {
+	if objVal == nil || objVal.Type() != "NIL" || i.evaluatorInstance.SemanticInfo() == nil {
 		return objVal
 	}
 
-	objType := i.semanticInfo.GetType(mc.Object)
+	objType := i.evaluatorInstance.SemanticInfo().GetType(mc.Object)
 	if objType == nil {
 		return objVal
 	}

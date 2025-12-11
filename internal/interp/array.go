@@ -493,8 +493,8 @@ func (i *Interpreter) evalArrayLiteral(lit *ast.ArrayLiteralExpression) Value {
 
 	// If semantic analysis annotated this literal as a set (array literal used for set context),
 	// evaluate it via set literal handling so empty set assignments work.
-	if i.semanticInfo != nil {
-		if typeAnnot := i.semanticInfo.GetType(lit); typeAnnot != nil && typeAnnot.Name != "" {
+	if i.evaluatorInstance.SemanticInfo() != nil {
+		if typeAnnot := i.evaluatorInstance.SemanticInfo().GetType(lit); typeAnnot != nil && typeAnnot.Name != "" {
 			var resolved types.Type
 			if typeVal, err := i.resolveType(typeAnnot.Name); err == nil {
 				resolved = typeVal
@@ -523,7 +523,7 @@ func (i *Interpreter) evalArrayLiteral(lit *ast.ArrayLiteralExpression) Value {
 				}
 
 				// Propagate the type annotation so evalSetLiteral can infer element type.
-				i.semanticInfo.SetType(setLit, typeAnnot)
+				i.evaluatorInstance.SemanticInfo().SetType(setLit, typeAnnot)
 				return i.evalSetLiteral(setLit)
 			}
 		}
@@ -604,8 +604,8 @@ func (i *Interpreter) evalArrayLiteral(lit *ast.ArrayLiteralExpression) Value {
 // arrayTypeFromLiteral resolves the array type for a literal using its type annotation, if available.
 func (i *Interpreter) arrayTypeFromLiteral(lit *ast.ArrayLiteralExpression) (*types.ArrayType, Value) {
 	var typeAnnot *ast.TypeAnnotation
-	if i.semanticInfo != nil {
-		typeAnnot = i.semanticInfo.GetType(lit)
+	if i.evaluatorInstance.SemanticInfo() != nil {
+		typeAnnot = i.evaluatorInstance.SemanticInfo().GetType(lit)
 	}
 	if typeAnnot == nil || typeAnnot.Name == "" {
 		return nil, nil
@@ -804,28 +804,28 @@ func (i *Interpreter) evalArrayLiteralWithExpected(lit *ast.ArrayLiteralExpressi
 	}
 
 	// Ensure semanticInfo exists for type annotation
-	wasNil := i.semanticInfo == nil
+	wasNil := i.evaluatorInstance.SemanticInfo() == nil
 	if wasNil {
-		i.semanticInfo = ast.NewSemanticInfo()
+		i.evaluatorInstance.SetSemanticInfo(ast.NewSemanticInfo())
 	}
 
 	// Temporarily set type annotation for evaluation
-	prevType := i.semanticInfo.GetType(lit)
+	prevType := i.evaluatorInstance.SemanticInfo().GetType(lit)
 	annotation := &ast.TypeAnnotation{Token: lit.Token, Name: expected.String()}
-	i.semanticInfo.SetType(lit, annotation)
+	i.evaluatorInstance.SemanticInfo().SetType(lit, annotation)
 
 	result := i.evalArrayLiteral(lit)
 
 	// Restore previous type
 	if prevType != nil {
-		i.semanticInfo.SetType(lit, prevType)
+		i.evaluatorInstance.SemanticInfo().SetType(lit, prevType)
 	} else {
-		i.semanticInfo.ClearType(lit)
+		i.evaluatorInstance.SemanticInfo().ClearType(lit)
 	}
 
 	// Clean up semanticInfo if we created it
 	if wasNil {
-		i.semanticInfo = nil
+		i.evaluatorInstance.SetSemanticInfo(nil)
 	}
 
 	return result

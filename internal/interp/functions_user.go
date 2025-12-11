@@ -45,11 +45,11 @@ func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args
 	// already pushes to ctx.callStack (the context's CallStack abstraction).
 	// The i.callStack field is used by Interpreter.GetCallStackArray().
 	var pos *lexer.Position
-	if i.currentNode != nil {
-		nodePos := i.currentNode.Pos()
+	if i.evaluatorInstance.CurrentNode() != nil {
+		nodePos := i.evaluatorInstance.CurrentNode().Pos()
 		pos = &nodePos
 	}
-	frame := errors.NewStackFrame(fn.Name.Value, i.sourceFile, pos)
+	frame := errors.NewStackFrame(fn.Name.Value, i.evaluatorInstance.SourceFile(), pos)
 	i.callStack = append(i.callStack, frame)
 	defer func() {
 		if len(i.callStack) > 0 {

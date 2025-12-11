@@ -58,7 +58,7 @@ func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	case "Slice":
 		return i.builtinSlice(args)
 	default:
-		return i.newErrorWithLocation(i.currentNode, "undefined function: %s", name)
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "undefined function: %s", name)
 	}
 }
 
@@ -85,5 +85,5 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 	if fn, ok := builtins.VarParamFunctions[name]; ok {
 		return fn(i, args)
 	}
-	return i.newErrorWithLocation(i.currentNode, "undefined var-param function: %s", name)
+	return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "undefined var-param function: %s", name)
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"math/rand"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
@@ -39,11 +38,9 @@ type PropertyEvalContext = evaluator.PropertyEvalContext
 // The evaluator field contains the evaluation logic and dependencies.
 // Eventually, most of the fields below will be removed and accessed via the evaluator.
 type Interpreter struct {
-	currentNode       ast.Node
 	output            io.Writer
 	exception         *runtime.ExceptionValue
 	handlerException  *runtime.ExceptionValue
-	semanticInfo      *pkgast.SemanticInfo
 	unitRegistry      *units.UnitRegistry
 	propContext       *PropertyEvalContext
 	typeSystem        *interptypes.TypeSystem
@@ -54,14 +51,10 @@ type Interpreter struct {
 	classes           map[string]*ClassInfo
 	initializedUnits  map[string]bool
 	externalFunctions *ExternalFunctionRegistry
-	rand              *rand.Rand
 	ctx               *evaluator.ExecutionContext
-	sourceCode        string
-	sourceFile        string
 	oldValuesStack    []map[string]Value
 	loadedUnits       []string
 	callStack         errors.StackTrace
-	randSeed          int64
 	maxRecursionDepth int
 }
 
@@ -76,10 +69,6 @@ func New(output io.Writer) *Interpreter {
 // Task 3.8.1: Uses Options interface to avoid circular dependency and remove reflection hack.
 func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	env := NewEnvironment()
-	// Initialize random number generator with a default seed
-	// Randomize() can be called to re-seed with current time
-	const defaultSeed = int64(1)
-	source := rand.NewSource(defaultSeed)
 
 	// Phase 3.4.1: Initialize TypeSystem
 	// The TypeSystem is the new centralized type registry that manages all type information
@@ -103,8 +92,6 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 	interp := &Interpreter{
 		output:            output,
-		rand:              rand.New(source),
-		randSeed:          defaultSeed,
 		loadedUnits:       make([]string, 0),
 		initializedUnits:  make(map[string]bool),
 		maxRecursionDepth: DefaultMaxRecursionDepth,
@@ -183,12 +170,13 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	refCountMgr := runtime.NewRefCountManager()
 
 	// Create evaluator instance
+	// Task 3.3.4: semanticInfo is nil initially, set via SetSemanticInfo if needed
 	interp.evaluatorInstance = evaluator.NewEvaluator(
 		ts,
 		output,
 		evalConfig,
 		nil, // unitRegistry is set later via SetUnitRegistry if needed
-		interp.semanticInfo,
+		nil, // semanticInfo is set later via SetSemanticInfo if needed
 		refCountMgr, // Task 3.5.41: Pass RefCountManager to evaluator
 	)
 
@@ -252,10 +240,9 @@ func (i *Interpreter) GetException() *runtime.ExceptionValue {
 
 // SetSemanticInfo sets the semantic metadata table for this interpreter.
 // The semantic info contains type annotations and symbol resolutions from analysis.
+// SetSemanticInfo sets the semantic analysis metadata.
+// Task 3.3.4: Now only updates evaluator (Interpreter no longer stores this field).
 func (i *Interpreter) SetSemanticInfo(info *pkgast.SemanticInfo) {
-	i.semanticInfo = info
-
-	// Phase 3.5.1: Also update the evaluator's semantic info
 	if i.evaluatorInstance != nil {
 		i.evaluatorInstance.SetSemanticInfo(info)
 	}
@@ -353,17 +340,17 @@ func (i *Interpreter) PushScope() func() {
 // Phase 3.3.3: Delegates to ExecutionContext's CallStack.
 func (i *Interpreter) pushCallStack(functionName string) {
 	var pos *lexer.Position
-	if i.currentNode != nil {
-		nodePos := i.currentNode.Pos()
+	if i.evaluatorInstance.CurrentNode() != nil {
+		nodePos := i.evaluatorInstance.CurrentNode().Pos()
 		pos = &nodePos
 	}
 	// Also push to the old callStack field for backward compatibility
-	frame := errors.NewStackFrame(functionName, i.sourceFile, pos)
+	frame := errors.NewStackFrame(functionName, i.evaluatorInstance.SourceFile(), pos)
 	i.callStack = append(i.callStack, frame)
 
 	// Phase 3.3.3: Also push to context's CallStack
 	// Ignore errors here for backward compatibility; callers should check WillOverflow first
-	_ = i.ctx.GetCallStack().Push(functionName, i.sourceFile, pos)
+	_ = i.ctx.GetCallStack().Push(functionName, i.evaluatorInstance.SourceFile(), pos)
 }
 
 // popCallStack removes the most recent frame from the call stack.
@@ -390,8 +377,8 @@ func (i *Interpreter) evalViaEvaluator(node ast.Node) Value {
 // Eval evaluates an AST node and returns its value.
 // This is the main entry point for the interpreter.
 func (i *Interpreter) Eval(node ast.Node) Value {
-	// Track the current node for error reporting
-	i.currentNode = node
+	// Track the current node for error reporting (Task 3.3.4: now in evaluator)
+	i.evaluatorInstance.SetCurrentNode(node)
 
 	switch node := node.(type) {
 	// Program - KEEP: orchestrates exception flow via i.exception

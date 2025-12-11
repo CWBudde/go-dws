@@ -23,8 +23,8 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 	// Task 9.156: Check if this SetLiteral should be treated as an array (array of const)
 	// This happens when semantic analyzer determined it's used in array context
 	var typeAnnot *ast.TypeAnnotation
-	if i.semanticInfo != nil {
-		typeAnnot = i.semanticInfo.GetType(literal)
+	if i.evaluatorInstance.SemanticInfo() != nil {
+		typeAnnot = i.evaluatorInstance.SemanticInfo().GetType(literal)
 	}
 	if typeAnnot != nil && typeAnnot.Name != "" {
 		// Check if the type is an array type
@@ -39,8 +39,8 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 					Elements: literal.Elements,
 				}
 				// Copy type annotation to array literal in semanticInfo
-				if i.semanticInfo != nil {
-					i.semanticInfo.SetType(arrayLit, typeAnnot)
+				if i.evaluatorInstance.SemanticInfo() != nil {
+					i.evaluatorInstance.SemanticInfo().SetType(arrayLit, typeAnnot)
 				}
 				return i.evalArrayLiteral(arrayLit)
 			}

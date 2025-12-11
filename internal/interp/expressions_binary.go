@@ -17,11 +17,11 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 	// Safe type assertions with error handling
 	leftInt, ok := left.(*IntegerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "expected integer, got %s", left.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "expected integer, got %s", left.Type())
 	}
 	rightInt, ok := right.(*IntegerValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "expected integer, got %s", right.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "expected integer, got %s", right.Type())
 	}
 
 	leftVal := leftInt.Value
@@ -38,7 +38,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		if rightVal == 0 {
 			// Enhanced error with operand values
 			return i.NewRuntimeError(
-				i.currentNode,
+				i.evaluatorInstance.CurrentNode(),
 				"division_by_zero",
 				"Division by zero",
 				map[string]string{
@@ -54,7 +54,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		if rightVal == 0 {
 			// Enhanced error with operand values
 			return i.NewRuntimeError(
-				i.currentNode,
+				i.evaluatorInstance.CurrentNode(),
 				"division_by_zero",
 				"Division by zero",
 				map[string]string{
@@ -68,7 +68,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		if rightVal == 0 {
 			// Enhanced error with operand values
 			return i.NewRuntimeError(
-				i.currentNode,
+				i.evaluatorInstance.CurrentNode(),
 				"modulo_by_zero",
 				"Division by zero",
 				map[string]string{
@@ -80,19 +80,19 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 		return &IntegerValue{Value: leftVal % rightVal}
 	case "shl":
 		if rightVal < 0 {
-			return i.newErrorWithLocation(i.currentNode, "negative shift amount")
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "negative shift amount")
 		}
 		// Shift left - multiply by 2^rightVal
 		return &IntegerValue{Value: leftVal << uint(rightVal)}
 	case "shr":
 		if rightVal < 0 {
-			return i.newErrorWithLocation(i.currentNode, "negative shift amount")
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "negative shift amount")
 		}
 		// Shift right - divide by 2^rightVal (logical shift)
 		return &IntegerValue{Value: leftVal >> uint(rightVal)}
 	case "sar":
 		if rightVal < 0 {
-			return i.newErrorWithLocation(i.currentNode, "negative shift amount")
+			return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "negative shift amount")
 		}
 		// Arithmetic shift right - sign-preserving shift
 		// In Go, >> on signed integers is already arithmetic (sign-preserving)
@@ -119,7 +119,7 @@ func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {
 	case ">=":
 		return &BooleanValue{Value: leftVal >= rightVal}
 	default:
-		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
+		return i.newTypeError(i.evaluatorInstance.CurrentNode(), "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
 }
 
@@ -139,7 +139,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 	case *IntegerValue:
 		leftVal = float64(v.Value)
 	default:
-		return i.newTypeError(i.currentNode, "type error in float operation: expected FLOAT or INTEGER, got %s", left.Type())
+		return i.newTypeError(i.evaluatorInstance.CurrentNode(), "type error in float operation: expected FLOAT or INTEGER, got %s", left.Type())
 	}
 
 	// Convert right operand to float
@@ -149,7 +149,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 	case *IntegerValue:
 		rightVal = float64(v.Value)
 	default:
-		return i.newTypeError(i.currentNode, "type error in float operation: expected FLOAT or INTEGER, got %s", right.Type())
+		return i.newTypeError(i.evaluatorInstance.CurrentNode(), "type error in float operation: expected FLOAT or INTEGER, got %s", right.Type())
 	}
 
 	switch op {
@@ -185,7 +185,7 @@ func (i *Interpreter) evalFloatBinaryOp(op string, left, right Value) Value {
 	case ">=":
 		return &BooleanValue{Value: leftVal >= rightVal}
 	default:
-		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
+		return i.newTypeError(i.evaluatorInstance.CurrentNode(), "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
 }
 
@@ -198,11 +198,11 @@ func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
 	// Safe type assertions with error handling
 	leftStr, ok := left.(*StringValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "expected string, got %s", left.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "expected string, got %s", left.Type())
 	}
 	rightStr, ok := right.(*StringValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "expected string, got %s", right.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "expected string, got %s", right.Type())
 	}
 
 	leftVal := leftStr.Value
@@ -224,7 +224,7 @@ func (i *Interpreter) evalStringBinaryOp(op string, left, right Value) Value {
 	case ">=":
 		return &BooleanValue{Value: leftVal >= rightVal}
 	default:
-		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
+		return i.newTypeError(i.evaluatorInstance.CurrentNode(), "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
 }
 
@@ -237,11 +237,11 @@ func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
 	// Safe type assertions with error handling
 	leftBool, ok := left.(*BooleanValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "expected boolean, got %s", left.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "expected boolean, got %s", left.Type())
 	}
 	rightBool, ok := right.(*BooleanValue)
 	if !ok {
-		return i.newErrorWithLocation(i.currentNode, "expected boolean, got %s", right.Type())
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "expected boolean, got %s", right.Type())
 	}
 
 	leftVal := leftBool.Value
@@ -259,6 +259,6 @@ func (i *Interpreter) evalBooleanBinaryOp(op string, left, right Value) Value {
 	case "<>":
 		return &BooleanValue{Value: leftVal != rightVal}
 	default:
-		return i.newTypeError(i.currentNode, "unknown operator: %s %s %s", left.Type(), op, right.Type())
+		return i.newTypeError(i.evaluatorInstance.CurrentNode(), "unknown operator: %s %s %s", left.Type(), op, right.Type())
 	}
 }
