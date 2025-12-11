@@ -249,17 +249,22 @@ From `interpreter.go:41-75`:
   - Removed fields from Interpreter struct (24 → 18 fields)
   - **Commit**: `0d737ba5` - refactor(task-3.3.4): migrate execution state fields to Evaluator
 
-- [ ] **3.3.5** Move unit system to Evaluator (2h)
-  - `unitRegistry` → Evaluator.unitRegistry
-  - `initializedUnits` → Evaluator.initializedUnits
-  - `loadedUnits` → Evaluator.loadedUnits
-  - Update `unit_loader.go` to use Evaluator fields
-  - Update adapter callbacks that access unit state
+- [x] **3.3.5** Move unit system to Evaluator (2h) ✅ **COMPLETE** (2025-12-11)
+  - Migrated 3 fields: `unitRegistry`, `initializedUnits`, `loadedUnits`
+  - Updated 31 usages across 6 files
+  - `unitRegistry` → `evaluator.UnitRegistry()` / `SetUnitRegistry()` (24 uses)
+  - `initializedUnits` → `evaluator.InitializedUnits()` map accessor (2 uses)
+  - `loadedUnits` → `evaluator.LoadedUnits()` / `AddLoadedUnit()` (5 uses)
+  - Removed fields from Interpreter struct (18 → 15 fields)
+  - All unit tests pass
 
-- [ ] **3.3.6** Move FFI registry to Evaluator (1h)
-  - `externalFunctions` → Evaluator.externalFunctions
-  - Update FFI call sites
-  - Update `RegisterExternalFunction()` method
+- [x] **3.3.6** Move FFI registry to Evaluator (1h) ✅ **COMPLETE** (2025-12-11)
+  - Migrated 1 field: `externalFunctions`
+  - Updated 6 usages across 3 files with type assertions
+  - Added type assertion pattern: `registry, ok := evaluator.ExternalFunctions().(*ExternalFunctionRegistry)`
+  - Moved initialization to after evaluator creation
+  - Removed field from Interpreter struct (15 → 14 fields)
+  - All unit tests pass
 
 - [ ] **3.3.7** Delete fields migrated by 3.1 (1h)
   - After 3.1 completes, delete: `env`, `callStack`, `oldValuesStack`, `propContext`

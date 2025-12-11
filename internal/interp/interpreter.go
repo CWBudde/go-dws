@@ -47,7 +47,6 @@ type Interpreter struct {
 	functions         map[string][]*ast.FunctionDecl
 	evaluatorInstance *evaluator.Evaluator
 	classes           map[string]*ClassInfo
-	externalFunctions *ExternalFunctionRegistry
 	ctx               *evaluator.ExecutionContext
 	oldValuesStack    []map[string]Value
 	callStack         errors.StackTrace
@@ -105,23 +104,13 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		records:   make(map[string]*RecordTypeValue),
 	}
 
-	// Task 3.8.1: Extract external functions and recursion depth from options using interface
+	// Task 3.8.1: Extract recursion depth from options using interface
 	// This replaces the reflection hack with a clean interface-based approach
 	if opts != nil {
-		// Extract ExternalFunctions
-		if registry := opts.GetExternalFunctions(); registry != nil {
-			interp.externalFunctions = registry
-		}
-
 		// Extract MaxRecursionDepth
 		if depth := opts.GetMaxRecursionDepth(); depth > 0 {
 			interp.maxRecursionDepth = depth
 		}
-	}
-
-	// Ensure we have a registry even if not provided
-	if interp.externalFunctions == nil {
-		interp.externalFunctions = NewExternalFunctionRegistry()
 	}
 
 	// Phase 3.3.1/3.3.3: Initialize execution context with call stack overflow detection
@@ -174,16 +163,22 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		refCountMgr, // Task 3.5.41: Pass RefCountManager to evaluator
 	)
 
+	// Task 3.3.6: Initialize external functions registry in evaluator
+	// Extract from options if provided, otherwise create new registry
+	if opts != nil {
+		if registry := opts.GetExternalFunctions(); registry != nil {
+			interp.evaluatorInstance.SetExternalFunctions(registry)
+		}
+	}
+	if interp.evaluatorInstance.ExternalFunctions() == nil {
+		interp.evaluatorInstance.SetExternalFunctions(NewExternalFunctionRegistry())
+	}
+
 	// Task 3.5.41: Register destructor callback for RefCountManager
 	// This callback is invoked when an object's reference count reaches 0
 	refCountMgr.SetDestructorCallback(func(obj *runtime.ObjectInstance) error {
 		return interp.runDestructorForRefCount(obj)
 	})
-
-	// Set external functions if available
-	if interp.externalFunctions != nil {
-		interp.evaluatorInstance.SetExternalFunctions(interp.externalFunctions)
-	}
 
 	// Set the adapter so the evaluator can delegate back to the interpreter during migration
 	interp.evaluatorInstance.SetAdapter(interp)

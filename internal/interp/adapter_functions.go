@@ -303,11 +303,17 @@ func (i *Interpreter) DispatchRecordStaticMethod(recordTypeName string, callExpr
 // This encapsulates the logic from evalCallExpression lines 393-439.
 func (i *Interpreter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) evaluator.Value {
 	// Check if this is an external function with var parameters
-	if i.externalFunctions == nil {
+	if i.evaluatorInstance.ExternalFunctions() == nil {
 		return i.newErrorWithLocation(node, "external function registry not initialized")
 	}
 
-	extFunc, ok := i.externalFunctions.Get(funcName)
+	// Type-assert to concrete type to access Get method
+	registry, ok := i.evaluatorInstance.ExternalFunctions().(*ExternalFunctionRegistry)
+	if !ok {
+		return i.newErrorWithLocation(node, "external function registry type mismatch")
+	}
+
+	extFunc, ok := registry.Get(funcName)
 	if !ok {
 		return i.newErrorWithLocation(node, "external function '%s' not found", funcName)
 	}

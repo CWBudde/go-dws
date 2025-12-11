@@ -392,10 +392,12 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 
 	// Check if this is an external function with var parameters
 	// We need to check BEFORE evaluating args to create ReferenceValues
-	if i.externalFunctions != nil {
-		if extFunc, ok := i.externalFunctions.Get(funcName.Value); ok {
-			varParams := extFunc.Wrapper.GetVarParams()
-			paramTypes := extFunc.Wrapper.GetParamTypes()
+	if i.evaluatorInstance.ExternalFunctions() != nil {
+		// Type-assert to concrete type to access Get method
+		if registry, ok := i.evaluatorInstance.ExternalFunctions().(*ExternalFunctionRegistry); ok {
+			if extFunc, ok := registry.Get(funcName.Value); ok {
+				varParams := extFunc.Wrapper.GetVarParams()
+				paramTypes := extFunc.Wrapper.GetParamTypes()
 
 			// Prepare arguments - create ReferenceValues for var parameters
 			args := make([]Value, len(expr.Arguments))
@@ -435,6 +437,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 			}
 
 			return i.callExternalFunction(extFunc, args)
+			}
 		}
 	}
 

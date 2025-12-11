@@ -10,9 +10,12 @@ import (
 // and routes to the appropriate built-in implementation or external Go function.
 func (i *Interpreter) callBuiltin(name string, args []Value) Value {
 	// Check for external Go functions first
-	if i.externalFunctions != nil {
-		if extFunc, ok := i.externalFunctions.Get(name); ok {
-			return i.callExternalFunction(extFunc, args)
+	if i.evaluatorInstance.ExternalFunctions() != nil {
+		// Type-assert to concrete type to access Get method
+		if registry, ok := i.evaluatorInstance.ExternalFunctions().(*ExternalFunctionRegistry); ok {
+			if extFunc, ok := registry.Get(name); ok {
+				return i.callExternalFunction(extFunc, args)
+			}
 		}
 	}
 
