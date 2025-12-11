@@ -452,11 +452,9 @@ func (u *UnassignedValue) Copy() Value {
 // ============================================================================
 // FunctionPointerValue - Runtime representation for function/method pointers
 // ============================================================================
-// Task 3.7.7: Moved from internal/interp/value.go to consolidate runtime types.
 
 // FunctionPointerValue represents a function or procedure pointer in DWScript.
-// Task 9.164: Create runtime representation for function pointers.
-// Task 9.221: Extended to support lambda expressions/anonymous methods.
+// Supports function pointers, method pointers, and lambda expressions.
 //
 // Function pointers store a reference to a callable function/procedure along with
 // its closure environment. Method pointers additionally capture the Self object.
@@ -586,7 +584,6 @@ func (f *FunctionPointerValue) String() string {
 // ============================================================================
 // ErrorValue - Runtime representation for error values
 // ============================================================================
-// Task 3.7.7: Simple error value type for builtin functions.
 
 // ErrorValue represents an error runtime value returned by builtin functions.
 type ErrorValue struct {

@@ -123,14 +123,6 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 	return nil
 }
 
-// ===== Type Checking and Casting =====
-
-// Task 3.5.29: GetClassMetadataFromValue REMOVED - use evaluator.getClassMetadataFromValue() helper
-// Replacement: evaluator uses ObjectValue.ClassName() + TypeSystem.LookupClass() + GetMetadata()
-//
-// Task 3.5.29: CheckType REMOVED - zero callers
-// Note: CheckType was already migrated away in earlier phases
-//
 // CastType performs type casting (implements 'as' operator).
 //
 // Handles the following cases:
@@ -322,17 +314,6 @@ func (i *Interpreter) RaiseTypeCastException(message string, node ast.Node) {
 	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
 	i.raiseException("Exception", fullMessage, &pos)
 }
-
-// ===== Metaclass Operations =====
-
-// Task 3.5.27: CreateClassValue REMOVED - zero callers
-// Task 3.5.27: GetClassName(obj) REMOVED - zero callers (use ObjectValue.ClassName())
-// Task 3.5.27: GetClassType(obj) REMOVED - zero callers (use ObjectValue.GetClassType())
-// Task 3.5.27: GetClassNameFromClassInfo REMOVED - zero callers
-// Task 3.5.27: GetClassTypeFromClassInfo REMOVED - zero callers
-// Task 3.5.27: GetClassVariableFromClassInfo REMOVED - zero callers
-
-// ===== Class Lookup =====
 
 // LookupClassByName finds a class by name and returns it as ClassMetaValue.
 // Used for typed nil class variable access.

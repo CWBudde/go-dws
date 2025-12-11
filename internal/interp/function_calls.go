@@ -219,7 +219,6 @@ func (i *Interpreter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcN
 }
 
 // DispatchRecordStaticMethod dispatches a static method call on a record type.
-// Task 3.5.146: Simpler adapter method that takes record type name directly.
 // The evaluator already verified that the record type exists and has the static method
 // via the RecordTypeMetaValue interface.
 func (i *Interpreter) DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
@@ -245,8 +244,6 @@ func (i *Interpreter) DispatchRecordStaticMethod(recordTypeName string, callExpr
 }
 
 // CallExternalFunction calls an external (Go) function with var parameter support.
-// Task 3.2.9: Adapter method to handle external function dispatch from evaluator.
-// This encapsulates the logic from evalCallExpression lines 393-439.
 func (i *Interpreter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) evaluator.Value {
 	// Check if this is an external function with var parameters
 	if i.evaluatorInstance.ExternalFunctions() == nil {
@@ -307,11 +304,12 @@ func (i *Interpreter) CallExternalFunction(funcName string, argExprs []ast.Expre
 	return i.callExternalFunction(extFunc, args)
 }
 
-// ===== Task 3.5.7: Function Declaration Methods =====
+// ============================================================================
+// Function Declaration Methods
+// ============================================================================
 
 // EvalMethodImplementation handles method implementation registration for classes/records.
-// Task 3.5.7: Delegated from Evaluator.VisitFunctionDecl because it requires ClassInfo
-// internals (VMT rebuild, descendant propagation).
+// Delegated from Evaluator.VisitFunctionDecl because it requires ClassInfo internals.
 func (i *Interpreter) EvalMethodImplementation(fn *ast.FunctionDecl) evaluator.Value {
 	if fn == nil || fn.ClassName == nil {
 		return i.newErrorWithLocation(fn, "EvalMethodImplementation requires a method declaration with ClassName")

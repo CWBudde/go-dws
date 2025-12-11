@@ -595,31 +595,31 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 ---
 
-### 5.1 Circular Import Workarounds
+### 5.1 Circular Import Workarounds ✅ COMPLETE
 
 **Goal**: Resolve circular import issues that forced workarounds in the type system.
 
-**Status**: 📋 Planned | **Effort**: 3-4 days | **Risk**: Medium
+**Status**: ✅ Complete | **Actual Effort**: 30 minutes
 
-**Current Issues**:
+**Resolution**: The TODOs were based on **false assumptions**. Audit revealed:
 
-- `evaluator/type_helpers.go:135-151`: Cannot extract record/enum/set types due to circular imports
-- `runtime/metadata_conversion.go:285`: Cannot import `pkg/ident` without circular dependencies
+- `runtime` package already imports `pkg/ident` (no circular dependency)
+- `evaluator` package already imports `runtime` types directly
+- The "workarounds" were just incomplete implementations, not import constraints
 
-**Tasks**:
+**Changes Made**:
 
-- [ ] **5.1.1** Audit import graph for `internal/interp` packages (2h)
-  - Map dependencies between interp, evaluator, runtime, types packages
-  - Identify specific cycles causing the workarounds
+- [x] **5.1.1** Audit import graph - Found no actual circular imports
+- [x] **5.1.2** Fixed `type_helpers.go` - Implemented actual type extraction:
+  - `getArrayElementTypeFromValue()` now returns `ArrayValue.ArrayType`
+  - `getRecordTypeFromValue()` now returns `RecordValue.RecordType`
+  - `getSetTypeFromValue()` now returns `SetValue.SetType`
+  - `getEnumTypeFromValue()` documents that EnumValue only has TypeName string
+- [x] **5.1.3** Fixed `metadata_conversion.go` - Deleted 18-line duplicate `normalizeIdentifier()`, now uses `ident.Normalize()`
+- [x] **5.1.4** Fixed `method_registry.go` - Added `ident` import, uses `ident.Normalize()`
+- [x] Removed redundant test `TestNormalizeIdentifier` from `metadata_test.go`
 
-- [ ] **5.1.2** Resolve type_helpers.go circular imports (4h)
-  - Move type extraction to appropriate package
-  - Or introduce interface to break cycle
-
-- [ ] **5.1.3** Resolve metadata_conversion.go ident import (2h)
-  - Either move ident usage or restructure dependencies
-
-- [ ] **5.1.4** Verify no new circular imports introduced (1h)
+**Lesson**: Always verify assumptions before planning large refactors. The "circular import" TODOs were stale.
 
 ---
 

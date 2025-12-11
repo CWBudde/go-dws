@@ -92,7 +92,7 @@ func (m *mockContext) ToFloat64(value Value) (float64, bool) {
 	return 0.0, false
 }
 
-// Task 3.7.6 Context methods
+// ParseJSONString parses a JSON string (mock implementation).
 func (m *mockContext) ParseJSONString(jsonStr string) (Value, error) {
 	// Simple mock - not needed for most tests
 	return nil, nil

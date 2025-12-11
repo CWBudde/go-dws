@@ -3,6 +3,8 @@ package runtime
 import (
 	"fmt"
 	"sync"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // MethodID is a unique identifier for a method in the registry.
@@ -70,7 +72,7 @@ func (r *MethodRegistry) RegisterMethod(metadata *MethodMetadata) MethodID {
 	r.methods[id] = metadata
 
 	// Add to name index for debugging/introspection
-	normalizedName := normalizeIdentifier(metadata.Name)
+	normalizedName := ident.Normalize(metadata.Name)
 	r.nameIndex[normalizedName] = append(r.nameIndex[normalizedName], id)
 
 	return id
@@ -96,7 +98,7 @@ func (r *MethodRegistry) GetMethodsByName(name string) []*MethodMetadata {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	normalizedName := normalizeIdentifier(name)
+	normalizedName := ident.Normalize(name)
 	ids := r.nameIndex[normalizedName]
 
 	if len(ids) == 0 {

@@ -518,27 +518,5 @@ func TestAddFieldToClass(t *testing.T) {
 	}
 }
 
-// TestNormalizeIdentifier tests the identifier normalization function.
-func TestNormalizeIdentifier(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"MyClass", "myclass"},
-		{"MYCLASS", "myclass"},
-		{"myclass", "myclass"},
-		{"DoSomething", "dosomething"},
-		{"FMyField", "fmyfield"},
-		{"", ""},
-		{"X", "x"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := normalizeIdentifier(tt.input)
-			if result != tt.expected {
-				t.Errorf("Expected %q, got %q", tt.expected, result)
-			}
-		})
-	}
-}
+// Note: normalizeIdentifier test removed - function replaced by ident.Normalize
+// which has its own tests in pkg/ident/

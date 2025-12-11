@@ -135,7 +135,7 @@ func AddMethodToClass(class *ClassMetadata, method *MethodMetadata, isClassMetho
 		return
 	}
 
-	normalizedName := normalizeIdentifier(method.Name)
+	normalizedName := ident.Normalize(method.Name)
 
 	if isClassMethod {
 		// Class method (static)
@@ -184,7 +184,7 @@ func AddConstructorToClass(class *ClassMetadata, constructor *MethodMetadata) {
 		return
 	}
 
-	normalizedName := normalizeIdentifier(constructor.Name)
+	normalizedName := ident.Normalize(constructor.Name)
 	constructor.IsConstructor = true
 
 	if existing, ok := class.Constructors[normalizedName]; ok {
@@ -217,7 +217,7 @@ func AddFieldToClass(class *ClassMetadata, field *FieldMetadata) {
 		return
 	}
 
-	normalizedName := normalizeIdentifier(field.Name)
+	normalizedName := ident.Normalize(field.Name)
 	class.Fields[normalizedName] = field
 }
 
@@ -227,7 +227,7 @@ func AddMethodToRecord(record *RecordMetadata, method *MethodMetadata, isStatic 
 		return
 	}
 
-	normalizedName := normalizeIdentifier(method.Name)
+	normalizedName := ident.Normalize(method.Name)
 
 	if isStatic {
 		// Static method
@@ -276,25 +276,6 @@ func AddFieldToRecord(record *RecordMetadata, field *FieldMetadata) {
 		return
 	}
 
-	normalizedName := normalizeIdentifier(field.Name)
+	normalizedName := ident.Normalize(field.Name)
 	record.Fields[normalizedName] = field
-}
-
-// normalizeIdentifier converts an identifier to lowercase for case-insensitive lookup.
-// This uses the same normalization as pkg/ident.Normalize.
-//
-// TODO: Once we can import pkg/ident without circular dependencies,
-// replace this with ident.Normalize.
-func normalizeIdentifier(name string) string {
-	// Simple lowercase conversion for now
-	// This matches the behavior of ident.Normalize
-	result := make([]rune, 0, len(name))
-	for _, r := range name {
-		if r >= 'A' && r <= 'Z' {
-			result = append(result, r+('a'-'A'))
-		} else {
-			result = append(result, r)
-		}
-	}
-	return string(result)
 }
