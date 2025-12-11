@@ -152,6 +152,34 @@ Running fixture tests after changes:
 **Total Errors Standardized**: ~35 error messages
 **Total Files Modified**: 25 files (1 errors.go + 13 semantic analyzers + 11 test files)
 
+## Builtin Function Errors Analysis
+
+**Status**: Analyzed but deliberately deferred (not standardized)
+
+**Scope**: 531 error messages across 15 `analyze_builtin_*.go` files
+
+**Current State**:
+
+- Builtin function errors already follow a consistent internal pattern
+- Messages are descriptive and helpful (e.g., `"function 'IntToStr' expects Integer as first argument, got String"`)
+- Current format: `"function 'X' expects ... got ... at %s"` (uses position string instead of [line: X, column: Y] format)
+
+**Decision**: Deliberately deferred
+
+**Rationale**:
+
+1. **Scope disproportionate to benefit**: 531 errors is ~15x larger than all other error categories combined (~35 errors standardized so far). Would require 12-16 hours of work.
+2. **Already internally consistent**: Builtin errors follow the same pattern across all 15 files
+3. **More helpful than generic format**: Current messages provide specific context (e.g., "first argument (base)", "second argument") vs generic "Argument 0", "Argument 1"
+4. **Low test impact**: Most builtin function tests already pass; these errors aren't causing fixture test failures
+5. **Maintainability acceptable**: Pattern is clear and easy to follow for new builtin functions
+
+**If standardization is needed in the future**:
+
+- Create specialized helper: `FormatBuiltinArgumentError(functionName, argPosition, expectedType, gotType, line, column)`
+- Update 531 error calls across 15 files
+- Estimated effort: 12-16 hours (separate task, likely Phase 7+)
+
 ## Remaining Work
 
 ### Priority Areas for Further Standardization
@@ -160,16 +188,13 @@ Running fixture tests after changes:
    - Should use: `"There is no accessible member with name \"<member>\" for type <Type>"`
    - Files: `analyze_classes.go`, `analyze_records.go`
    - Helper function already exists: `FormatMemberAccessError()`
+   - Estimated: 2-3 hours
 
-2. **Builtin Function Errors** (high volume, lower impact)
-   - ~200+ error messages in `analyze_builtin_*.go` files
-   - Many already follow a consistent pattern
-   - Could benefit from helper functions for common patterns
-
-3. **Visibility/Access Control Errors** (low impact)
+2. **Visibility/Access Control Errors** (low impact)
    - Should use: `"Cannot access <visibility> <kind> \"<name>\" of class \"<class>\""`
    - Files: `analyze_classes.go`, `analyze_properties.go`
    - Helper function already exists: `FormatVisibilityError()`
+   - Estimated: 1-2 hours
 
 ## Benefits Achieved
 

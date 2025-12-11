@@ -1,7 +1,7 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/interp/builtins"
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -83,7 +83,7 @@ func (i *Interpreter) callExternalFunction(extFunc *ExternalFunctionValue, args 
 
 // callBuiltinWithVarParam calls a built-in function that requires var parameters.
 // These functions need access to the AST nodes to modify variables in place.
-// The implementations are in internal/interp/builtins/var_param.go.
+// The implementations are in internal/builtins/var_param.go.
 func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression) Value {
 	if fn, ok := builtins.VarParamFunctions[name]; ok {
 		return fn(i, args)

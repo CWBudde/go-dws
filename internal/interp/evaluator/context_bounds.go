@@ -3,7 +3,7 @@ package evaluator
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/builtins"
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 

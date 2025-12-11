@@ -1,7 +1,7 @@
 package evaluator
 
 import (
-	"github.com/cwbudde/go-dws/internal/interp/builtins"
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/interp/builtins"
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )

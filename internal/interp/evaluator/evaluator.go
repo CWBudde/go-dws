@@ -4,7 +4,7 @@ import (
 	"io"
 	"math/rand"
 
-	"github.com/cwbudde/go-dws/internal/interp/builtins"
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"

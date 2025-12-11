@@ -3,8 +3,8 @@ package semantic
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/errors"
-	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
