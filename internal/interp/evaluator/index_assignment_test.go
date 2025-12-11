@@ -43,14 +43,14 @@ func TestMultiIndexedPropertyAssignment(t *testing.T) {
 // TestCollectIndices verifies that multi-index expressions are collected correctly
 func TestCollectIndices(t *testing.T) {
 	tests := []struct {
-		name        string
 		expr        *ast.IndexExpression
+		name        string
 		wantIndices int
 	}{
 		{
 			name: "single index",
 			expr: &ast.IndexExpression{
-				Left: &ast.Identifier{Value: "arr"},
+				Left:  &ast.Identifier{Value: "arr"},
 				Index: &ast.IntegerLiteral{Value: 1},
 			},
 			wantIndices: 1,
@@ -59,7 +59,7 @@ func TestCollectIndices(t *testing.T) {
 			name: "double index",
 			expr: &ast.IndexExpression{
 				Left: &ast.IndexExpression{
-					Left: &ast.Identifier{Value: "arr"},
+					Left:  &ast.Identifier{Value: "arr"},
 					Index: &ast.IntegerLiteral{Value: 1},
 				},
 				Index: &ast.IntegerLiteral{Value: 2},

@@ -144,20 +144,19 @@ type ExceptionSetter func(any)
 //
 // Phase 3.2: Added exception callbacks for syncing with interpreter's i.exception.
 type ExecutionContext struct {
-	env               *runtime.Environment
-	exception         any
 	handlerException  any
+	exception         any
+	arrayTypeContext  *types.ArrayType
 	callStack         *CallStack
 	controlFlow       *ControlFlow
 	propContext       *PropertyEvalContext
-	arrayTypeContext  *types.ArrayType
+	env               *runtime.Environment
 	evaluator         *Evaluator
+	exceptionGetter   ExceptionGetter
+	exceptionSetter   ExceptionSetter
 	recordTypeContext string
 	envStack          []*runtime.Environment
 	oldValuesStack    []map[string]any
-	// Exception callbacks for unified exception handling (Phase 3.2)
-	exceptionGetter ExceptionGetter
-	exceptionSetter ExceptionSetter
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
@@ -396,9 +395,9 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		propContext:       ctx.propContext,
 		recordTypeContext: ctx.recordTypeContext,
 		arrayTypeContext:  ctx.arrayTypeContext,
-		evaluator:         ctx.evaluator,         // Task 3.5.41: Copy evaluator reference
-		exceptionGetter:   ctx.exceptionGetter,   // Phase 3.2: Copy exception callbacks
-		exceptionSetter:   ctx.exceptionSetter,   // Phase 3.2: Copy exception callbacks
+		evaluator:         ctx.evaluator,       // Task 3.5.41: Copy evaluator reference
+		exceptionGetter:   ctx.exceptionGetter, // Phase 3.2: Copy exception callbacks
+		exceptionSetter:   ctx.exceptionSetter, // Phase 3.2: Copy exception callbacks
 	}
 }
 

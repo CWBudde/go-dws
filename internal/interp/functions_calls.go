@@ -399,44 +399,44 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 				varParams := extFunc.Wrapper.GetVarParams()
 				paramTypes := extFunc.Wrapper.GetParamTypes()
 
-			// Prepare arguments - create ReferenceValues for var parameters
-			args := make([]Value, len(expr.Arguments))
-			for idx, arg := range expr.Arguments {
-				isVarParam := idx < len(varParams) && varParams[idx]
+				// Prepare arguments - create ReferenceValues for var parameters
+				args := make([]Value, len(expr.Arguments))
+				for idx, arg := range expr.Arguments {
+					isVarParam := idx < len(varParams) && varParams[idx]
 
-				if isVarParam {
-					// For var parameters, create a reference
-					if argIdent, ok := arg.(*ast.Identifier); ok {
-						if val, exists := i.Env().Get(argIdent.Value); exists {
-							if refVal, isRef := val.(*ReferenceValue); isRef {
-								args[idx] = refVal // Pass through existing reference
+					if isVarParam {
+						// For var parameters, create a reference
+						if argIdent, ok := arg.(*ast.Identifier); ok {
+							if val, exists := i.Env().Get(argIdent.Value); exists {
+								if refVal, isRef := val.(*ReferenceValue); isRef {
+									args[idx] = refVal // Pass through existing reference
+								} else {
+									args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
+								}
 							} else {
 								args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 							}
 						} else {
-							args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
+							return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
 						}
 					} else {
-						return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+						// For regular parameters, evaluate with type context if available
+						var val Value
+						if idx < len(paramTypes) {
+							// Parse the parameter type string and provide context for type inference
+							expectedType, _ := i.parseTypeString(paramTypes[idx])
+							val = i.EvalWithExpectedType(arg, expectedType)
+						} else {
+							val = i.Eval(arg)
+						}
+						if isError(val) {
+							return val
+						}
+						args[idx] = val
 					}
-				} else {
-					// For regular parameters, evaluate with type context if available
-					var val Value
-					if idx < len(paramTypes) {
-						// Parse the parameter type string and provide context for type inference
-						expectedType, _ := i.parseTypeString(paramTypes[idx])
-						val = i.EvalWithExpectedType(arg, expectedType)
-					} else {
-						val = i.Eval(arg)
-					}
-					if isError(val) {
-						return val
-					}
-					args[idx] = val
 				}
-			}
 
-			return i.callExternalFunction(extFunc, args)
+				return i.callExternalFunction(extFunc, args)
 			}
 		}
 	}

@@ -168,8 +168,8 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 		ts,
 		output,
 		evalConfig,
-		nil, // unitRegistry is set later via SetUnitRegistry if needed
-		nil, // semanticInfo is set later via SetSemanticInfo if needed
+		nil,         // unitRegistry is set later via SetUnitRegistry if needed
+		nil,         // semanticInfo is set later via SetSemanticInfo if needed
 		refCountMgr, // Task 3.5.41: Pass RefCountManager to evaluator
 	)
 

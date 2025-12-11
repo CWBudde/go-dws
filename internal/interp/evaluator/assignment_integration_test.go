@@ -301,8 +301,8 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
 	tests := []struct {
-		name string
 		stmt *ast.AssignmentStatement
+		name string
 	}{
 		{
 			name: "simple variable assignment",
@@ -349,7 +349,7 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 			// Define variable if needed
 			e.DefineVar(ctx, "x", &runtime.IntegerValue{Value: 0})
 			e.DefineVar(ctx, "rec", runtime.NewRecordValue(&types.RecordType{
-				Name: "TRec",
+				Name:   "TRec",
 				Fields: map[string]types.Type{"Field": types.INTEGER},
 			}, nil))
 			e.DefineVar(ctx, "arr", &runtime.ArrayValue{

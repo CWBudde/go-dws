@@ -12,25 +12,35 @@ import (
 // MockClassMetaValue implements ClassMetaValue for testing.
 type MockClassMetaValue struct {
 	runtime.NilValue // Embed for Value interface
-	Name string
+	Name             string
 }
 
-func (m *MockClassMetaValue) Type() string { return "CLASSINFO" }
-func (m *MockClassMetaValue) String() string { return "class " + m.Name }
-func (m *MockClassMetaValue) GetClassName() string { return m.Name }
-func (m *MockClassMetaValue) GetClassType() Value { return nil }
-func (m *MockClassMetaValue) GetClassVar(name string) (Value, bool) { return nil, false }
+func (m *MockClassMetaValue) Type() string                               { return "CLASSINFO" }
+func (m *MockClassMetaValue) String() string                             { return "class " + m.Name }
+func (m *MockClassMetaValue) GetClassName() string                       { return m.Name }
+func (m *MockClassMetaValue) GetClassType() Value                        { return nil }
+func (m *MockClassMetaValue) GetClassVar(name string) (Value, bool)      { return nil, false }
 func (m *MockClassMetaValue) GetClassConstant(name string) (Value, bool) { return nil, false }
-func (m *MockClassMetaValue) HasClassMethod(name string) bool { return false }
-func (m *MockClassMetaValue) HasConstructor(name string) bool { return false }
-func (m *MockClassMetaValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool) { return nil, false }
-func (m *MockClassMetaValue) CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool) { return nil, false }
-func (m *MockClassMetaValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) { return nil, false }
+func (m *MockClassMetaValue) HasClassMethod(name string) bool            { return false }
+func (m *MockClassMetaValue) HasConstructor(name string) bool            { return false }
+func (m *MockClassMetaValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool) {
+	return nil, false
+}
+func (m *MockClassMetaValue) CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool) {
+	return nil, false
+}
+func (m *MockClassMetaValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) {
+	return nil, false
+}
 func (m *MockClassMetaValue) GetNestedClass(name string) Value { return nil }
-func (m *MockClassMetaValue) ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool) { return nil, false }
-func (m *MockClassMetaValue) GetClassInfo() any { return nil }
+func (m *MockClassMetaValue) ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool) {
+	return nil, false
+}
+func (m *MockClassMetaValue) GetClassInfo() any                         { return nil }
 func (m *MockClassMetaValue) SetClassVar(name string, value Value) bool { return false }
-func (m *MockClassMetaValue) WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool) { return nil, false }
+func (m *MockClassMetaValue) WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool) {
+	return nil, false
+}
 func (m *MockClassMetaValue) HasClassVar(name string) bool { return false }
 
 // TestMemberAssignment_ErrorCases tests error handling for member assignment.
@@ -39,7 +49,7 @@ func TestMemberAssignment_ErrorCases(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-	
+
 	// Create mock adapter
 	mockAdapter := &mockConversionAdapter{
 		evalNodeFunc: func(node ast.Node) Value {
@@ -64,7 +74,7 @@ func TestMemberAssignment_ErrorCases(t *testing.T) {
 		}
 
 		result := e.Eval(stmt, ctx)
-		
+
 		if !isError(result) {
 			t.Errorf("Expected error value, got %T", result)
 		} else {
@@ -93,7 +103,7 @@ func TestMemberAssignment_ErrorCases(t *testing.T) {
 		}
 
 		result := e.Eval(stmt, ctx)
-		
+
 		if !isError(result) {
 			t.Errorf("Expected error, got %v", result)
 		} else {
@@ -114,7 +124,7 @@ func TestMemberAssignment_AutoInit(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-	
+
 	// Adapter shouldn't be called for native auto-init
 	mockAdapter := &mockConversionAdapter{
 		evalNodeFunc: func(node ast.Node) Value {
@@ -142,7 +152,7 @@ func TestMemberAssignment_AutoInit(t *testing.T) {
 		// 3. Create Array Instance with 1 element (nil)
 		arrayVal := &runtime.ArrayValue{
 			ArrayType: arrayType,
-			Elements:  []runtime.Value{nil}, 
+			Elements:  []runtime.Value{nil},
 		}
 
 		e.DefineVar(ctx, "points", arrayVal)
@@ -170,22 +180,22 @@ func TestMemberAssignment_AutoInit(t *testing.T) {
 		// points[0] should be a RecordValue
 		elem := arrayVal.Elements[0]
 		if elem == nil {
-            t.Logf("Array address: %p", arrayVal)
-            t.Logf("Elements: %v", arrayVal.Elements)
+			t.Logf("Array address: %p", arrayVal)
+			t.Logf("Elements: %v", arrayVal.Elements)
 			t.Fatal("points[0] is still nil")
 		}
-		
+
 		recVal, ok := elem.(*runtime.RecordValue)
 		if !ok {
 			t.Fatalf("points[0] is not a RecordValue, got %T", elem)
 		}
-		
+
 		// Check X field
 		xVal, found := recVal.GetRecordField("X")
 		if !found {
 			t.Fatal("Field X not found in new record")
 		}
-		
+
 		if intVal, ok := xVal.(*runtime.IntegerValue); ok {
 			if intVal.Value != 10 {
 				t.Errorf("Expected X=10, got %d", intVal.Value)
