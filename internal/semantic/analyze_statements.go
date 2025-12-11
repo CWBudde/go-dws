@@ -92,7 +92,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	// Task 9.63: Check each name for duplicates in current scope
 	for _, name := range stmt.Names {
 		if a.symbols.IsDeclaredInCurrentScope(name.Value) {
-			a.addError("variable '%s' already declared at %s", name.Value, stmt.Token.Pos.String())
+			a.addError("%s", errors.FormatNameAlreadyExists(name.Value, stmt.Token.Pos.Line, stmt.Token.Pos.Column))
 			return
 		}
 	}
@@ -164,7 +164,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 
 	// Task 9.63: Add all variables to symbol table with the same type
 	for _, name := range stmt.Names {
-		a.symbols.Define(name.Value, varType)
+		a.symbols.Define(name.Value, varType, name.Token.Pos)
 	}
 }
 
@@ -172,7 +172,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	// Check if constant is already declared in current scope
 	if a.symbols.IsDeclaredInCurrentScope(stmt.Name.Value) {
-		a.addError("constant '%s' already declared at %s", stmt.Name.Value, stmt.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(stmt.Name.Value, stmt.Token.Pos.Line, stmt.Token.Pos.Column))
 		return
 	}
 
@@ -229,7 +229,7 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	}
 
 	// Add constant to symbol table with its compile-time value
-	a.symbols.DefineConst(stmt.Name.Value, constType, constValue)
+	a.symbols.DefineConst(stmt.Name.Value, constType, constValue, stmt.Name.Token.Pos)
 }
 
 // analyzeAssignment analyzes an assignment statement
@@ -777,7 +777,7 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	if startType != nil && types.IsOrdinalType(startType) {
 		loopVarType = startType
 	}
-	a.symbols.Define(stmt.Variable.Value, loopVarType)
+	a.symbols.Define(stmt.Variable.Value, loopVarType, stmt.Variable.Token.Pos)
 
 	// Set loop context before analyzing body
 	oldInLoop := a.inLoop
@@ -859,7 +859,7 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 	}
 
 	// Define loop variable with the element type
-	a.symbols.Define(stmt.Variable.Value, elementType)
+	a.symbols.Define(stmt.Variable.Value, elementType, stmt.Variable.Token.Pos)
 
 	// Set loop context before analyzing body
 	oldInLoop := a.inLoop

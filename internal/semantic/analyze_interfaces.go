@@ -16,7 +16,7 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 
 	// Check if interface is already declared (use lowercase for case-insensitive duplicate check)
 	if a.hasType(interfaceName) {
-		a.addError("interface '%s' already declared at %s", interfaceName, decl.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(interfaceName, decl.Token.Pos.Line, decl.Token.Pos.Column))
 		return
 	}
 

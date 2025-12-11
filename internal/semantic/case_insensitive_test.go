@@ -190,7 +190,7 @@ func TestSymbolTableCaseInsensitivity(t *testing.T) {
 	st := NewSymbolTable()
 
 	// Define a variable with mixed case
-	st.Define("MyVariable", types.INTEGER)
+	st.Define("MyVariable", types.INTEGER, token.Position{})
 
 	// Resolve with different cases
 	testCases := []string{"MyVariable", "myvariable", "MYVARIABLE", "myVARIABLE"}
@@ -362,7 +362,7 @@ func TestSymbolTableOriginalCasingPreserved(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			st := NewSymbolTable()
-			st.Define(tt.definedName, types.INTEGER)
+			st.Define(tt.definedName, types.INTEGER, token.Position{})
 
 			for _, lookup := range tt.lookupNames {
 				sym, ok := st.Resolve(lookup)

@@ -158,7 +158,7 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	// Task 9.60: Pass IsForward to handle forward declarations
 	// DefineOverload handles both single functions and overload sets
 	// Task 9.63: Include position information in error messages
-	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload, decl.IsForward); err != nil {
+	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload, decl.IsForward, decl.Name.Token.Pos); err != nil {
 		a.addError("Syntax Error: %s [line: %d, column: %d]", err.Error(), decl.Token.Pos.Line, decl.Token.Pos.Column)
 		return
 	}
@@ -177,15 +177,16 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	for i, param := range decl.Parameters {
 		// Const parameters are read-only
 		if param.IsConst {
-			a.symbols.DefineReadOnly(param.Name.Value, paramTypes[i])
+			a.symbols.DefineReadOnly(param.Name.Value, paramTypes[i], param.Name.Token.Pos)
 		} else {
-			a.symbols.Define(param.Name.Value, paramTypes[i])
+			a.symbols.Define(param.Name.Value, paramTypes[i], param.Name.Token.Pos)
 		}
 	}
 
 	// For functions (not procedures), add Result variable
+	// Use function name position since Result is implicit
 	if returnType != types.VOID {
-		a.symbols.Define("Result", returnType)
+		a.symbols.Define("Result", returnType, decl.Name.Token.Pos)
 		// Note: In Pascal, you can assign to the function name, but we don't add it
 		// as a separate variable to avoid shadowing the function itself.
 		// Assignments to the function name should be treated as assignments to Result.

@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // TestAnalyzeUnit_BasicInterfaceAndImplementation tests that AnalyzeUnit
@@ -275,7 +276,7 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 	mathUnitSymbols.DefineFunction("Add", &types.FunctionType{
 		Parameters: []types.Type{types.INTEGER, types.INTEGER},
 		ReturnType: types.INTEGER,
-	})
+	}, token.Position{})
 
 	// Create a main unit that uses the Math unit
 	mainUnit := &ast.UnitDeclaration{
@@ -388,13 +389,13 @@ func TestAnalyzeUnit_UsesClauseConflict(t *testing.T) {
 	mathSymbols.DefineFunction("Add", &types.FunctionType{
 		Parameters: []types.Type{types.INTEGER, types.INTEGER},
 		ReturnType: types.INTEGER,
-	})
+	}, token.Position{})
 
 	stringSymbols := NewSymbolTable()
 	stringSymbols.DefineFunction("Add", &types.FunctionType{
 		Parameters: []types.Type{types.STRING, types.STRING},
 		ReturnType: types.STRING,
-	})
+	}, token.Position{})
 
 	// Create a unit that uses both
 	mainUnit := &ast.UnitDeclaration{
@@ -454,13 +455,13 @@ func TestResolveQualifiedSymbol(t *testing.T) {
 	mathSymbols.DefineFunction("Add", &types.FunctionType{
 		Parameters: []types.Type{types.INTEGER, types.INTEGER},
 		ReturnType: types.INTEGER,
-	})
+	}, token.Position{})
 
 	stringSymbols := NewSymbolTable()
 	stringSymbols.DefineFunction("Add", &types.FunctionType{
 		Parameters: []types.Type{types.STRING, types.STRING},
 		ReturnType: types.STRING,
-	})
+	}, token.Position{})
 
 	availableUnits := map[string]*SymbolTable{
 		"math":    mathSymbols,
@@ -677,7 +678,7 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 	baseSymbols.DefineFunction("GetValue", &types.FunctionType{
 		Parameters: []types.Type{},
 		ReturnType: types.INTEGER,
-	})
+	}, token.Position{})
 
 	// Create a dependent unit that uses base
 	dependentUnit := &ast.UnitDeclaration{
@@ -780,13 +781,13 @@ func TestSemanticAnalysis_NamespaceConflictResolution(t *testing.T) {
 	unit1Symbols.DefineFunction("Compute", &types.FunctionType{
 		Parameters: []types.Type{types.INTEGER},
 		ReturnType: types.INTEGER,
-	})
+	}, token.Position{})
 
 	unit2Symbols := NewSymbolTable()
 	unit2Symbols.DefineFunction("Compute", &types.FunctionType{
 		Parameters: []types.Type{types.STRING},
 		ReturnType: types.STRING,
-	})
+	}, token.Position{})
 
 	// Try to create a unit that uses both - should fail
 	conflictingUnit := &ast.UnitDeclaration{

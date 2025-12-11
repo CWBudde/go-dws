@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -47,7 +48,7 @@ func (a *Analyzer) handleExistingClass(
 		a.addHint("Previous declaration of class was \"partial\" at %s", decl.Token.Pos.String())
 		mergingPartialClass = true
 	} else if !existingClass.IsPartial && decl.IsPartial {
-		a.addError("class '%s' already declared as non-partial at %s", className, decl.Token.Pos.String())
+		a.addError("%s", errors.FormatTypeAlreadyDefined(className, "Class", decl.Token.Pos.Line, decl.Token.Pos.Column))
 		return false, false, true
 	} else if existingClass.IsForward && !isForwardDecl {
 		if !a.validateForwardDeclParent(existingClass, decl, className) {
@@ -55,10 +56,10 @@ func (a *Analyzer) handleExistingClass(
 		}
 		resolvingForwardDecl = true
 	} else if existingClass.IsForward && isForwardDecl {
-		a.addError("class '%s' already forward declared at %s", className, decl.Token.Pos.String())
+		a.addError("%s", errors.FormatTypeAlreadyDefined(className, "Class", decl.Token.Pos.Line, decl.Token.Pos.Column))
 		return false, false, true
 	} else {
-		a.addError("class '%s' already declared at %s", className, decl.Token.Pos.String())
+		a.addError("%s", errors.FormatTypeAlreadyDefined(className, "Class", decl.Token.Pos.Line, decl.Token.Pos.Column))
 		return false, false, true
 	}
 
@@ -365,13 +366,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		// Check for duplicate constant names
 		_, existsInClass := classType.Constants[constantName]
 		if existsInClass {
-			a.addError("duplicate constant '%s' in class '%s' at %s",
-				constantName, className, constant.Token.Pos.String())
+			a.addError("%s", errors.FormatNameAlreadyExists(constantName, constant.Token.Pos.Line, constant.Token.Pos.Column))
 			continue
 		}
 		if constantNames[constantName] {
-			a.addError("duplicate constant '%s' in class '%s' at %s",
-				constantName, className, constant.Token.Pos.String())
+			a.addError("%s", errors.FormatNameAlreadyExists(constantName, constant.Token.Pos.Line, constant.Token.Pos.Column))
 			continue
 		}
 		constantNames[constantName] = true
@@ -455,13 +454,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			// When merging partial classes, check if already exists in ClassType
 			_, existsInClass := classType.ClassVars[normalizedFieldName]
 			if existsInClass {
-				a.addError("duplicate class variable '%s' in class '%s' at %s",
-					originalFieldName, className, field.Token.Pos.String())
+				a.addError("%s", errors.FormatNameAlreadyExists(originalFieldName, field.Token.Pos.Line, field.Token.Pos.Column))
 				continue
 			}
 			if classVarNames[normalizedFieldName] {
-				a.addError("duplicate class variable '%s' in class '%s' at %s",
-					originalFieldName, className, field.Token.Pos.String())
+				a.addError("%s", errors.FormatNameAlreadyExists(originalFieldName, field.Token.Pos.Line, field.Token.Pos.Column))
 				continue
 			}
 			classVarNames[normalizedFieldName] = true
@@ -525,13 +522,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				}
 			}
 			if fieldExists {
-				a.addError("duplicate field '%s' in class '%s' at %s",
-					originalFieldName, className, field.Token.Pos.String())
+				a.addError("%s", errors.FormatNameAlreadyExists(originalFieldName, field.Token.Pos.Line, field.Token.Pos.Column))
 				continue
 			}
 			if fieldNames[normalizedFieldName] {
-				a.addError("duplicate field '%s' in class '%s' at %s",
-					originalFieldName, className, field.Token.Pos.String())
+				a.addError("%s", errors.FormatNameAlreadyExists(originalFieldName, field.Token.Pos.Line, field.Token.Pos.Column))
 				continue
 			}
 			fieldNames[normalizedFieldName] = true
@@ -799,7 +794,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	defer func() { a.symbols = oldSymbols }()
 
 	// Bind Self to the record type
-	a.symbols.Define("Self", recordType)
+	a.symbols.Define("Self", recordType, decl.Token.Pos)
 
 	// Bind record fields to scope (accessible without Self prefix)
 	for fieldName, fieldType := range recordType.Fields {
@@ -807,7 +802,8 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 		if originalName == "" {
 			originalName = fieldName
 		}
-		a.symbols.Define(originalName, fieldType)
+		// Use zero position for synthesized field bindings
+		a.symbols.Define(originalName, fieldType, token.Position{})
 	}
 
 	// Bind record properties to scope (accessible without Self prefix)
@@ -817,7 +813,8 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 			if bindName == "" {
 				bindName = propName
 			}
-			a.symbols.Define(bindName, propInfo.Type)
+			// Use zero position for synthesized property bindings
+			a.symbols.Define(bindName, propInfo.Type, token.Position{})
 		}
 	}
 
@@ -828,7 +825,8 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 			if bindName == "" {
 				bindName = constName
 			}
-			a.symbols.Define(bindName, constInfo.Type)
+			// Use zero position for synthesized constant bindings
+			a.symbols.Define(bindName, constInfo.Type, token.Position{})
 		}
 	}
 
@@ -839,7 +837,8 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 			if bindName == "" {
 				bindName = varName
 			}
-			a.symbols.Define(bindName, varType)
+			// Use zero position for synthesized class variable bindings
+			a.symbols.Define(bindName, varType, token.Position{})
 		}
 	}
 
@@ -849,14 +848,16 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 		if bindName == "" {
 			bindName = methodName
 		}
-		a.symbols.DefineFunction(bindName, methodType)
+		// Use zero position for synthesized method bindings
+		a.symbols.DefineFunction(bindName, methodType, token.Position{})
 	}
 	for methodName, methodType := range recordType.ClassMethods {
 		bindName := recordType.ClassMethodNames[methodName]
 		if bindName == "" {
 			bindName = methodName
 		}
-		a.symbols.DefineFunction(bindName, methodType)
+		// Use zero position for synthesized method bindings
+		a.symbols.DefineFunction(bindName, methodType, token.Position{})
 	}
 
 	// Add parameters to scope
@@ -867,7 +868,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 				getTypeExpressionName(param.Type), param.Name.Value, param.Token.Pos.String())
 			continue
 		}
-		a.symbols.Define(param.Name.Value, paramType)
+		a.symbols.Define(param.Name.Value, paramType, param.Name.Token.Pos)
 	}
 
 	// Add Result variable if function has return type
@@ -877,9 +878,10 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 			a.addError("unknown return type '%s' at %s",
 				getTypeExpressionName(decl.ReturnType), decl.Token.Pos.String())
 		} else {
-			a.symbols.Define("Result", returnType)
+			// Use function name position for Result variable
+			a.symbols.Define("Result", returnType, decl.Name.Token.Pos)
 			// Method name is also an alias for Result
-			a.symbols.Define(decl.Name.Value, returnType)
+			a.symbols.Define(decl.Name.Value, returnType, decl.Name.Token.Pos)
 		}
 	}
 
@@ -1178,7 +1180,8 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 
 		// Add class variables to scope
 		for classVarName, classVarType := range classType.ClassVars {
-			a.symbols.Define(classVarName, classVarType)
+			// Use zero position for synthesized class variable bindings
+			a.symbols.Define(classVarName, classVarType, token.Position{})
 		}
 
 		// If class has parent, add parent class variables too
@@ -1187,17 +1190,19 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		}
 	} else {
 		// Instance method - add Self reference to method scope
-		a.symbols.Define("Self", classType)
+		a.symbols.Define("Self", classType, method.Token.Pos)
 
 		// Add class fields to method scope
 		for fieldName, fieldType := range classType.Fields {
-			a.symbols.Define(fieldName, fieldType)
+			// Use zero position for synthesized field bindings
+			a.symbols.Define(fieldName, fieldType, token.Position{})
 		}
 
 		// Add class variables to method scope
 		// Instance methods can also access class variables
 		for classVarName, classVarType := range classType.ClassVars {
-			a.symbols.Define(classVarName, classVarType)
+			// Use zero position for synthesized class variable bindings
+			a.symbols.Define(classVarName, classVarType, token.Position{})
 		}
 
 		// If class has parent, add parent fields and class variables too
@@ -1209,13 +1214,14 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 
 	// Add parameters to method scope (both instance and class methods have parameters)
 	for i, param := range method.Parameters {
-		a.symbols.Define(param.Name.Value, paramTypes[i])
+		a.symbols.Define(param.Name.Value, paramTypes[i], param.Name.Token.Pos)
 	}
 
 	// For methods with return type, add Result variable
 	if returnType != types.VOID {
-		a.symbols.Define("Result", returnType)
-		a.symbols.Define(method.Name.Value, returnType)
+		// Use method name position for Result variable
+		a.symbols.Define("Result", returnType, method.Name.Token.Pos)
+		a.symbols.Define(method.Name.Value, returnType, method.Name.Token.Pos)
 	}
 
 	// Set current function for return statement checking

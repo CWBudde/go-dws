@@ -330,6 +330,70 @@ func FormatParameterError(expectedType, gotType string, line, column int) string
 	return FormatDWScriptError(message, line, column)
 }
 
+// FormatMemberAccessError formats a member access error in DWScript format
+func FormatMemberAccessError(memberName, typeName string, line, column int) string {
+	message := fmt.Sprintf("There is no accessible member with name \"%s\" for type %s", memberName, typeName)
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatDuplicateDeclarationError formats a duplicate declaration error in DWScript format
+func FormatDuplicateDeclarationError(kind, name string, line, column int) string {
+	message := fmt.Sprintf("There is already a %s with name \"%s\"", kind, name)
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatNameAlreadyExists formats a "Name already exists" error in DWScript format
+func FormatNameAlreadyExists(name string, line, column int) string {
+	message := fmt.Sprintf("Name \"%s\" already exists", name)
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatTypeAlreadyDefined formats a type already defined error in DWScript format
+func FormatTypeAlreadyDefined(typeName, kind string, line, column int) string {
+	message := fmt.Sprintf("%s \"%s\" already defined", kind, typeName)
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatDuplicateFieldError formats a duplicate field/member error in DWScript format
+func FormatDuplicateFieldError(fieldName, containerKind, containerName string, line, column int) string {
+	message := fmt.Sprintf("There is already a %s with name \"%s\" in %s \"%s\"", "field", fieldName, containerKind, containerName)
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatNoOverloadError formats an overload resolution error in DWScript format
+func FormatNoOverloadError(functionName string, line, column int) string {
+	message := fmt.Sprintf("There is no overloaded version of \"%s\" that can be called with these arguments", functionName)
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatAbstractClassError formats an abstract class instantiation error in DWScript format
+func FormatAbstractClassError(line, column int) string {
+	return fmt.Sprintf("Error: Trying to create an instance of an abstract class [line: %d, column: %d]", line, column)
+}
+
+// FormatVisibilityError formats a visibility/accessibility error in DWScript format
+func FormatVisibilityError(visibility, kind, memberName, className string, line, column int) string {
+	message := fmt.Sprintf("Cannot access %s %s \"%s\" of class \"%s\"", visibility, kind, memberName, className)
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatIncompatibleTypesError formats a general type incompatibility error in DWScript format
+func FormatIncompatibleTypesError(fromType, toType string, line, column int) string {
+	message := fmt.Sprintf("Incompatible types: Cannot assign \"%s\" to \"%s\"", fromType, toType)
+	return FormatDWScriptError(message, line, column)
+}
+
+// FormatExpectedArgumentCountError formats a function argument count error in DWScript format
+func FormatExpectedArgumentCountError(functionName string, expectedCount, gotCount int, line, column int) string {
+	var message string
+	if expectedCount == 1 {
+		message = fmt.Sprintf("function '%s' expects 1 argument, got %d", functionName, gotCount)
+	} else {
+		message = fmt.Sprintf("function '%s' expects %d arguments, got %d", functionName, expectedCount, gotCount)
+	}
+	return FormatDWScriptError(message, line, column)
+}
+
 // SimplifyTypeName removes parent class information from type names for error messages
 // Converts "ClassName(ParentClass)" to "ClassName" and "array of ClassName(Parent)" to "array of ClassName"
 func SimplifyTypeName(typeName string) string {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Symbol represents a symbol in the symbol table (variable or function)
@@ -18,6 +19,13 @@ type Symbol struct {
 	IsOverloadSet        bool
 	HasOverloadDirective bool
 	IsForward            bool
+
+	// LSP support fields (Task 6.2)
+	DeclPosition       token.Position   // Position where symbol was declared
+	Usages             []token.Position // All usage positions for go-to-reference
+	Documentation      string           // Doc comment text
+	IsDeprecated       bool             // Whether marked as deprecated
+	DeprecationMessage string           // Deprecation warning message
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
@@ -48,43 +56,51 @@ func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
 
 // Define defines a new variable symbol in the current scope
 // DWScript is case-insensitive, handled by ident.Map
-func (st *SymbolTable) Define(name string, typ types.Type) {
+func (st *SymbolTable) Define(name string, typ types.Type, pos token.Position) {
 	st.symbols.Set(name, &Symbol{
-		Name:     name, // Keep original case for error messages
-		Type:     typ,
-		ReadOnly: false,
-		IsConst:  false,
+		Name:         name, // Keep original case for error messages
+		Type:         typ,
+		ReadOnly:     false,
+		IsConst:      false,
+		DeclPosition: pos,
+		Usages:       make([]token.Position, 0),
 	})
 }
 
 // DefineReadOnly defines a new read-only variable symbol in the current scope
-func (st *SymbolTable) DefineReadOnly(name string, typ types.Type) {
+func (st *SymbolTable) DefineReadOnly(name string, typ types.Type, pos token.Position) {
 	st.symbols.Set(name, &Symbol{
-		Name:     name, // Keep original case for error messages
-		Type:     typ,
-		ReadOnly: true,
-		IsConst:  false,
+		Name:         name, // Keep original case for error messages
+		Type:         typ,
+		ReadOnly:     true,
+		IsConst:      false,
+		DeclPosition: pos,
+		Usages:       make([]token.Position, 0),
 	})
 }
 
 // DefineConst defines a new constant symbol in the current scope
-func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{}) {
+func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{}, pos token.Position) {
 	st.symbols.Set(name, &Symbol{
-		Name:     name, // Keep original case for error messages
-		Type:     typ,
-		ReadOnly: true,
-		IsConst:  true,
-		Value:    value,
+		Name:         name, // Keep original case for error messages
+		Type:         typ,
+		ReadOnly:     true,
+		IsConst:      true,
+		Value:        value,
+		DeclPosition: pos,
+		Usages:       make([]token.Position, 0),
 	})
 }
 
 // DefineFunction defines a new function symbol in the current scope
-func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType) {
+func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType, pos token.Position) {
 	st.symbols.Set(name, &Symbol{
-		Name:     name, // Keep original case for error messages
-		Type:     funcType,
-		ReadOnly: false, // Functions are not assignable
-		IsConst:  false,
+		Name:         name, // Keep original case for error messages
+		Type:         funcType,
+		ReadOnly:     false, // Functions are not assignable
+		IsConst:      false,
+		DeclPosition: pos,
+		Usages:       make([]token.Position, 0),
 	})
 }
 
@@ -95,13 +111,14 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType)
 //   - funcType: Function signature
 //   - hasOverloadDirective: Whether the function declaration has the 'overload' directive
 //   - isForward: Whether this is a forward declaration
+//   - pos: Position where the function is declared
 //
 // Returns error if:
 //   - Function exists without overload directive on either declaration
 //   - Exact duplicate signature exists
 //   - Ambiguous overload with default parameters
 //   - Forward declaration doesn't match implementation
-func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType, hasOverloadDirective bool, isForward bool) error {
+func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType, hasOverloadDirective bool, isForward bool, pos token.Position) error {
 	existing, exists := st.symbols.Get(name)
 
 	if !exists {
@@ -115,6 +132,8 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			Overloads:            nil,
 			HasOverloadDirective: hasOverloadDirective,
 			IsForward:            isForward, // Track if this is a forward declaration
+			DeclPosition:         pos,
+			Usages:               make([]token.Position, 0),
 		})
 		return nil
 	}
@@ -355,6 +374,8 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			Overloads:            nil,
 			HasOverloadDirective: hasOverloadDirective,
 			IsForward:            isForward, // Track forward declarations in overload sets
+			DeclPosition:         pos,
+			Usages:               make([]token.Position, 0),
 		})
 	} else {
 		// Convert to overload set (this is the second overload)
@@ -367,6 +388,11 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			Overloads:            nil,
 			HasOverloadDirective: existing.HasOverloadDirective,
 			IsForward:            existing.IsForward, // Preserve forward status
+			DeclPosition:         existing.DeclPosition,
+			Usages:               existing.Usages,
+			Documentation:        existing.Documentation,
+			IsDeprecated:         existing.IsDeprecated,
+			DeprecationMessage:   existing.DeprecationMessage,
 		}
 		secondOverload := &Symbol{
 			Name:                 name,
@@ -377,6 +403,8 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 			Overloads:            nil,
 			HasOverloadDirective: hasOverloadDirective,
 			IsForward:            isForward, // Track forward declarations
+			DeclPosition:         pos,
+			Usages:               make([]token.Position, 0),
 		}
 		existing.IsOverloadSet = true
 		existing.Overloads = []*Symbol{firstOverload, secondOverload}
@@ -597,6 +625,90 @@ func (st *SymbolTable) AllSymbols() map[string]*Symbol {
 	})
 
 	return result
+}
+
+// RecordUsage records a usage of a symbol at the given position.
+// This is used for LSP features like find-references.
+// If the symbol doesn't exist, this is a no-op.
+func (st *SymbolTable) RecordUsage(name string, pos token.Position) {
+	sym, ok := st.symbols.Get(name)
+	if ok {
+		sym.Usages = append(sym.Usages, pos)
+		return
+	}
+
+	// Check outer scope
+	if st.outer != nil {
+		st.outer.RecordUsage(name, pos)
+	}
+}
+
+// FindDefinition finds the definition of a symbol by name.
+// Returns the symbol, its declaration position, and whether it was found.
+// DWScript is case-insensitive, handled by ident.Map.
+func (st *SymbolTable) FindDefinition(name string) (*Symbol, token.Position, bool) {
+	sym, ok := st.symbols.Get(name)
+	if ok {
+		return sym, sym.DeclPosition, true
+	}
+
+	// Check outer scope
+	if st.outer != nil {
+		return st.outer.FindDefinition(name)
+	}
+
+	return nil, token.Position{}, false
+}
+
+// FindReferences returns all usage positions for a given symbol name.
+// Returns nil if the symbol doesn't exist.
+// DWScript is case-insensitive, handled by ident.Map.
+func (st *SymbolTable) FindReferences(name string) []token.Position {
+	sym, ok := st.symbols.Get(name)
+	if ok {
+		// Return a copy to prevent external modification
+		refs := make([]token.Position, len(sym.Usages))
+		copy(refs, sym.Usages)
+		return refs
+	}
+
+	// Check outer scope
+	if st.outer != nil {
+		return st.outer.FindReferences(name)
+	}
+
+	return nil
+}
+
+// UnusedSymbols returns all symbols in the current scope (not outer scopes)
+// that have been declared but never used (Usages is empty).
+// This is useful for detecting unused variables/functions.
+func (st *SymbolTable) UnusedSymbols() []*Symbol {
+	var unused []*Symbol
+
+	st.symbols.Range(func(name string, sym *Symbol) bool {
+		// Check if symbol has no usages
+		if len(sym.Usages) == 0 {
+			// For overload sets, check if any overload has usages
+			if sym.IsOverloadSet {
+				anyUsed := false
+				for _, overload := range sym.Overloads {
+					if len(overload.Usages) > 0 {
+						anyUsed = true
+						break
+					}
+				}
+				if !anyUsed {
+					unused = append(unused, sym)
+				}
+			} else {
+				unused = append(unused, sym)
+			}
+		}
+		return true // continue iteration
+	})
+
+	return unused
 }
 
 // hasDefaultParameters checks if a function signature has any default parameters

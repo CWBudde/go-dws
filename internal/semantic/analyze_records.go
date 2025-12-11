@@ -21,7 +21,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	// Check if record is already declared
 	// Use lowercase for case-insensitive duplicate check
 	if a.hasType(recordName) {
-		a.addError("record type '%s' already declared at %s", recordName, decl.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(recordName, decl.Token.Pos.Line, decl.Token.Pos.Column))
 		return
 	}
 
@@ -39,7 +39,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 		// Check for duplicate field names (case-insensitive)
 		if fieldNames[lowerFieldName] {
-			a.addError("duplicate field '%s' in record '%s' at %s", fieldName, recordName, field.Token.Pos.String())
+			a.addError("%s", errors.FormatNameAlreadyExists(fieldName, field.Token.Pos.Line, field.Token.Pos.Column))
 			continue
 		}
 		fieldNames[lowerFieldName] = true
@@ -90,7 +90,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	// Use lowercase key for case-insensitive lookup
 	a.registerTypeWithPos(recordName, recordType, decl.Token.Pos)
 	// Also register in symbol table as a type
-	a.symbols.Define(recordName, recordType)
+	a.symbols.Define(recordName, recordType, decl.Token.Pos)
 
 	// Process constants
 	for _, constant := range decl.Constants {

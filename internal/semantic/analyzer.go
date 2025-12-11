@@ -128,12 +128,12 @@ func NewAnalyzer() *Analyzer {
 	// Register built-in enum helpers
 	a.initEnumHelpers()
 
-	// Register mathematical constants
-	a.symbols.DefineConst("Pi", types.FLOAT, math.Pi)
+	// Register mathematical constants (builtin - no source position)
+	a.symbols.DefineConst("Pi", types.FLOAT, math.Pi, token.Position{})
 
-	// Register Variant special values
-	a.symbols.DefineConst("Null", types.VARIANT, nil)
-	a.symbols.DefineConst("Unassigned", types.VARIANT, nil)
+	// Register Variant special values (builtin - no source position)
+	a.symbols.DefineConst("Null", types.VARIANT, nil, token.Position{})
+	a.symbols.DefineConst("Unassigned", types.VARIANT, nil, token.Position{})
 
 	return a
 }

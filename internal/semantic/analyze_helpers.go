@@ -111,7 +111,7 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 
 	// Also register the helper type itself in the symbol table
 	// so it can be referenced by name (e.g., TStringHelper.PI)
-	a.symbols.Define(helperName, helperType)
+	a.symbols.Define(helperName, helperType, decl.Token.Pos)
 }
 
 // analyzeHelperMethod analyzes a method in a helper.
@@ -125,8 +125,7 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 
 	// Check for duplicate methods
 	if _, exists := helperType.Methods[methodName]; exists {
-		a.addError("duplicate method '%s' in helper '%s' at %s",
-			methodName, helperName, method.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(methodName, method.Token.Pos.Line, method.Token.Pos.Column))
 		return
 	}
 
@@ -175,8 +174,7 @@ func (a *Analyzer) analyzeHelperProperty(prop *ast.PropertyDecl, helperType *typ
 
 	// Check for duplicate properties
 	if _, exists := helperType.Properties[propName]; exists {
-		a.addError("duplicate property '%s' in helper '%s' at %s",
-			propName, helperName, prop.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(propName, prop.Token.Pos.Line, prop.Token.Pos.Column))
 		return
 	}
 
@@ -208,8 +206,7 @@ func (a *Analyzer) analyzeHelperClassVar(classVar *ast.FieldDecl, helperType *ty
 
 	// Check for duplicate class vars
 	if _, exists := helperType.ClassVars[varName]; exists {
-		a.addError("duplicate class variable '%s' in helper '%s' at %s",
-			varName, helperName, classVar.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(varName, classVar.Token.Pos.Line, classVar.Token.Pos.Column))
 		return
 	}
 
@@ -264,8 +261,7 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 
 	// Check for duplicate class consts
 	if _, exists := helperType.ClassConsts[constName]; exists {
-		a.addError("duplicate class constant '%s' in helper '%s' at %s",
-			constName, helperName, classConst.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(constName, classConst.Token.Pos.Line, classConst.Token.Pos.Column))
 		return
 	}
 

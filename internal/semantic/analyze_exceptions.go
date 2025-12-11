@@ -115,7 +115,7 @@ func (a *Analyzer) analyzeExceptionHandler(handler *ast.ExceptionHandler) {
 
 	// Add exception variable to scope as read-only
 	if handler.Variable != nil {
-		a.symbols.DefineReadOnly(handler.Variable.Value, excType)
+		a.symbols.DefineReadOnly(handler.Variable.Value, excType, handler.Variable.Token.Pos)
 	}
 
 	// Set exception handler context for bare raise validation

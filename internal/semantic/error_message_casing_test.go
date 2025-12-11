@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // TestErrorMessagePreservesOriginalCasing tests that error messages preserve
@@ -445,7 +446,7 @@ func TestSymbolTableErrorCasingPreservation(t *testing.T) {
 	st := NewSymbolTable()
 
 	// Define with specific casing
-	st.Define("MySpecialVariable", nil)
+	st.Define("MySpecialVariable", nil, token.Position{})
 
 	// Try to define again with different casing - error should preserve original
 	// Note: SymbolTable.Define doesn't return errors for duplicates, it overwrites

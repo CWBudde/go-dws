@@ -3,6 +3,7 @@ package semantic
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -176,8 +177,7 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 			return funcPtrType
 		}
 
-		a.addError("undefined function '%s' in address-of expression at %s",
-			funcName, expr.Token.Pos.String())
+		a.addError("%s", errors.FormatUnknownName(funcName, expr.Token.Pos.Line, expr.Token.Pos.Column))
 		return nil
 	}
 

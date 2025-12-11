@@ -444,7 +444,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return castType
 		}
 
-		a.addError("undefined function '%s' at %s", funcIdent.Value, expr.Token.Pos.String())
+		a.addError("%s", errors.FormatUnknownName(funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column))
 		return nil
 	}
 

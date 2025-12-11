@@ -22,7 +22,7 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 	// Check if array type is already declared
 	// Use lowercase for case-insensitive duplicate check
 	if a.hasType(arrayName) {
-		a.addError("type '%s' already declared at %s", arrayName, decl.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(arrayName, decl.Token.Pos.Line, decl.Token.Pos.Column))
 		return
 	}
 

@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -333,16 +334,14 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	if classType.HasConstructor(methodName) {
 		// Task 9.2: Check if trying to instantiate an abstract class via constructor call
 		if classType.IsAbstract {
-			a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
-				expr.Token.Pos.Line, expr.Token.Pos.Column)
+			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
 			return classType
 		}
 
 		// Task 9.2: Check if class has unimplemented abstract methods
 		unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
 		if len(unimplementedMethods) > 0 {
-			a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
-				expr.Token.Pos.Line, expr.Token.Pos.Column)
+			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
 			return classType
 		}
 

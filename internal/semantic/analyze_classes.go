@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -35,22 +36,20 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		if recordType := a.getRecordType(className); recordType != nil {
 			return a.analyzeRecordStaticMethodCallFromNew(expr, recordType)
 		}
-		a.addError("undefined class '%s' at %s", className, expr.Token.Pos.String())
+		a.addError("%s", errors.FormatUnknownName(className, expr.Token.Pos.Line, expr.Token.Pos.Column))
 		return nil
 	}
 
 	// Check if trying to instantiate an abstract class
 	if classType.IsAbstract {
-		a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
-			expr.Token.Pos.Line, expr.Token.Pos.Column)
+		a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
 		return nil
 	}
 
 	// Check for unimplemented abstract methods (inherited but not overridden)
 	unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
 	if len(unimplementedMethods) > 0 {
-		a.addError("Trying to create an instance of an abstract class at [line: %d, column: %d]",
-			expr.Token.Pos.Line, expr.Token.Pos.Column)
+		a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
 		return nil
 	}
 

@@ -119,7 +119,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 				}
 
 				// Add to interface symbol table (exported)
-				interfaceSymbols.DefineFunction(decl.Name.Value, funcType)
+				interfaceSymbols.DefineFunction(decl.Name.Value, funcType, decl.Name.Token.Pos)
 
 			// TODO: Handle other declaration types (type declarations, constants, etc.)
 			default:

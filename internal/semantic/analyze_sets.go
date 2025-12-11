@@ -20,7 +20,7 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 	// Check if set type is already declared
 	// Use lowercase for case-insensitive duplicate check
 	if a.hasType(setName) {
-		a.addError("set type '%s' already declared at %s", setName, decl.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(setName, decl.Token.Pos.Line, decl.Token.Pos.Column))
 		return
 	}
 

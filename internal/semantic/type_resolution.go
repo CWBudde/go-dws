@@ -7,6 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -878,7 +879,8 @@ func (a *Analyzer) addParentFieldsToScope(parent *types.ClassType) {
 			if ok && visibility == int(ast.VisibilityPrivate) {
 				continue
 			}
-			a.symbols.Define(fieldName, fieldType)
+			// Use zero position for synthesized parent field bindings
+			a.symbols.Define(fieldName, fieldType, token.Position{})
 		}
 	}
 
@@ -898,7 +900,8 @@ func (a *Analyzer) addParentClassVarsToScope(parent *types.ClassType) {
 	for classVarName, classVarType := range parent.ClassVars {
 		// Don't override if already defined (shadowing)
 		if !a.symbols.IsDeclaredInCurrentScope(classVarName) {
-			a.symbols.Define(classVarName, classVarType)
+			// Use zero position for synthesized parent class variable bindings
+			a.symbols.Define(classVarName, classVarType, token.Position{})
 		}
 	}
 

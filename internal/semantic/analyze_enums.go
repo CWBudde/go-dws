@@ -4,6 +4,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -21,7 +22,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	// Check if enum is already declared
 	// Use lowercase for case-insensitive duplicate check
 	if a.hasType(enumName) {
-		a.addError("enum type '%s' already declared at %s", enumName, decl.Token.Pos.String())
+		a.addError("%s", errors.FormatNameAlreadyExists(enumName, decl.Token.Pos.Line, decl.Token.Pos.Column))
 		return
 	}
 
@@ -44,8 +45,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 
 		// Check for duplicate value names
 		if usedNames[valueName] {
-			a.addError("duplicate enum value '%s' in enum '%s' at %s",
-				valueName, enumName, decl.Token.Pos.String())
+			a.addError("%s", errors.FormatNameAlreadyExists(valueName, decl.Token.Pos.Line, decl.Token.Pos.Column))
 			continue
 		}
 		usedNames[valueName] = true
@@ -97,14 +97,15 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 			// Store enum values as constants with the enum type and ordinal value
 			// This allows type checking: var color: TColor := Red;
 			// and const array initialization: const arr = (Red, Green, Blue);
-			a.symbols.DefineConst(valueName, enumType, ordinalValue)
+			// Use zero position for enum value constants (builtin-like)
+			a.symbols.DefineConst(valueName, enumType, ordinalValue, token.Position{})
 		}
 	}
 
 	// Register enum type name as an identifier
 	// This allows the type name to be used as a runtime value in expressions
 	// like High(TColor) or Low(TColor)
-	a.symbols.Define(enumName, enumType)
+	a.symbols.Define(enumName, enumType, decl.Token.Pos)
 
 	// Create implicit helper for scoped enum access (TColor.Red)
 	// This enables accessing enum values via the type name while maintaining
