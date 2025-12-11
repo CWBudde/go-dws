@@ -372,9 +372,6 @@ func (m *mockConversionAdapter) CallMemberMethod(callExpr *ast.CallExpression, m
 func (m *mockConversionAdapter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value {
 	return &runtime.NilValue{}
 }
-func (m *mockConversionAdapter) CallUserFunctionWithOverloads(callExpr *ast.CallExpression, funcName *ast.Identifier) Value {
-	return &runtime.NilValue{}
-}
 func (m *mockConversionAdapter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value {
 	return &runtime.NilValue{}
 }

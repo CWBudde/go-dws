@@ -307,7 +307,6 @@ type InterpreterAdapter interface {
 	// ===== Dispatch Methods =====
 
 	CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value
-	CallUserFunctionWithOverloads(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 	CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 	CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 	DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value

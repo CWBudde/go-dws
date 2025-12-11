@@ -341,8 +341,8 @@ func (e *Evaluator) ExecuteUserFunction(
 	}
 
 	// Fill in missing optional arguments with default values
-	// Note: For calls via CallUserFunctionWithOverloads, defaults are already filled
-	// by evaluator.EvaluateDefaultParameters. This code handles other call paths.
+	// Note: Defaults may already be filled by evaluator.EvaluateDefaultParameters
+	// in some call paths. This code handles other paths where defaults aren't filled.
 	if len(args) < len(fn.Parameters) && callbacks.DefaultValueGetter != nil {
 		for idx := len(args); idx < len(fn.Parameters); idx++ {
 			param := fn.Parameters[idx]
