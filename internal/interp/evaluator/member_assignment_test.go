@@ -50,7 +50,7 @@ func TestMemberAssignment_ErrorCases(t *testing.T) {
 			return &runtime.NilValue{}
 		},
 	}
-	e.SetAdapter(mockAdapter)
+	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter, mockAdapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
@@ -122,7 +122,7 @@ func TestMemberAssignment_AutoInit(t *testing.T) {
 			return nil
 		},
 	}
-	e.SetAdapter(mockAdapter)
+	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter, mockAdapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 

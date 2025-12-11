@@ -74,7 +74,7 @@ func TestAssignment_Integration_Task3211(t *testing.T) {
 				return nil, false
 			},
 		}
-		e.SetAdapter(failOnEvalNodeAdapter)
+		e.SetFocusedInterfaces(failOnEvalNodeAdapter, failOnEvalNodeAdapter, failOnEvalNodeAdapter, failOnEvalNodeAdapter)
 
 		ctx := NewExecutionContext(runtime.NewEnvironment())
 
@@ -296,7 +296,7 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 			return nil, false
 		},
 	}
-	e.SetAdapter(strictAdapter)
+	e.SetFocusedInterfaces(strictAdapter, strictAdapter, strictAdapter, strictAdapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
@@ -383,7 +383,7 @@ func TestAssignment_RegressionSuite(t *testing.T) {
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
 	// Minimal adapter for testing
-	e.SetAdapter(&mockIntegrationAdapter{
+	adapter := &mockIntegrationAdapter{
 		evalNodeFunc: func(node ast.Node) Value {
 			return &runtime.NilValue{}
 		},
@@ -406,7 +406,8 @@ func TestAssignment_RegressionSuite(t *testing.T) {
 			}
 			return nil, false
 		},
-	})
+	}
+	e.SetFocusedInterfaces(adapter, adapter, adapter, adapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
