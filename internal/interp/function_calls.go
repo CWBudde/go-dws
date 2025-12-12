@@ -1,7 +1,7 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -9,31 +9,23 @@ import (
 // Function call system adapter methods.
 // These methods implement the InterpreterAdapter interface for function calls.
 
-// convertEvaluatorArgs converts a slice of evaluator.Value to interp.Value.
-// This is used by adapter methods when delegating to internal functions.
-func convertEvaluatorArgs(args []evaluator.Value) []Value {
-	interpArgs := make([]Value, len(args))
-	copy(interpArgs, args)
-	return interpArgs
-}
-
 // CallFunctionPointer executes a function pointer with given arguments.
 // DEPRECATED: Use FunctionPointerCallable.Invoke + ExecuteFunctionPointerCall instead.
-func (i *Interpreter) CallFunctionPointer(funcPtr evaluator.Value, args []evaluator.Value, node ast.Node) evaluator.Value {
+func (i *Interpreter) CallFunctionPointer(funcPtr Value, args []Value, node ast.Node) Value {
 	// Convert evaluator.Value to interp.Value (they're the same interface)
 	fp, ok := funcPtr.(*FunctionPointerValue)
 	if !ok {
 		return i.newErrorWithLocation(node, "invalid function pointer type: expected FunctionPointerValue, got %T", funcPtr)
 	}
 
-	return i.callFunctionPointer(fp, convertEvaluatorArgs(args), node)
+	return i.callFunctionPointer(fp, args, node)
 }
 
 // ExecuteFunctionPointerCall executes a function pointer with the given metadata.
 // Low-level execution method used by FunctionPointerCallable.Invoke callback.
 // Handles the interpreter-dependent parts of function pointer invocation.
-func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPointerMetadata, args []evaluator.Value, node ast.Node) evaluator.Value {
-	interpArgs := convertEvaluatorArgs(args)
+func (i *Interpreter) ExecuteFunctionPointerCall(metadata contracts.FunctionPointerMetadata, args []Value, node ast.Node) Value {
+	interpArgs := args
 
 	// Handle lambda execution
 	if metadata.IsLambda {
@@ -95,8 +87,8 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 }
 
 // CallUserFunction executes a user-defined function.
-func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Value) evaluator.Value {
-	return i.executeUserFunctionViaEvaluator(fn, convertEvaluatorArgs(args))
+func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []Value) Value {
+	return i.executeUserFunctionViaEvaluator(fn, args)
 }
 
 // CallBuiltinFunction REMOVED
@@ -111,7 +103,7 @@ func (i *Interpreter) CallUserFunction(fn *ast.FunctionDecl, args []evaluator.Va
 
 // CallImplicitSelfMethod calls a method on the implicit Self object.
 // Enables evaluator to call implicit Self methods without using EvalNode.
-func (i *Interpreter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
+func (i *Interpreter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value {
 	// This method encapsulates the logic from evalCallExpression lines 267-291
 
 	selfVal, ok := i.Env().Get("Self")
@@ -176,7 +168,7 @@ func (i *Interpreter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcN
 
 // CallRecordStaticMethod calls a static method within a record context.
 // Enables evaluator to call record static methods without using EvalNode.
-func (i *Interpreter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
+func (i *Interpreter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value {
 	// This method encapsulates the logic from evalCallExpression lines 293+
 
 	recordVal, ok := i.Env().Get("__CurrentRecord__")
@@ -220,7 +212,7 @@ func (i *Interpreter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcN
 // DispatchRecordStaticMethod dispatches a static method call on a record type.
 // The evaluator already verified that the record type exists and has the static method
 // via the RecordTypeMetaValue interface.
-func (i *Interpreter) DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) evaluator.Value {
+func (i *Interpreter) DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value {
 	// Create a method call expression: RecordTypeName.MethodName(args)
 	mc := &ast.MethodCallExpression{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -243,7 +235,7 @@ func (i *Interpreter) DispatchRecordStaticMethod(recordTypeName string, callExpr
 }
 
 // CallExternalFunction calls an external (Go) function with var parameter support.
-func (i *Interpreter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) evaluator.Value {
+func (i *Interpreter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value {
 	// Check if this is an external function with var parameters
 	if i.evaluatorInstance.ExternalFunctions() == nil {
 		return i.newErrorWithLocation(node, "external function registry not initialized")
@@ -309,7 +301,7 @@ func (i *Interpreter) CallExternalFunction(funcName string, argExprs []ast.Expre
 
 // EvalMethodImplementation handles method implementation registration for classes/records.
 // Delegated from Evaluator.VisitFunctionDecl because it requires ClassInfo internals.
-func (i *Interpreter) EvalMethodImplementation(fn *ast.FunctionDecl) evaluator.Value {
+func (i *Interpreter) EvalMethodImplementation(fn *ast.FunctionDecl) Value {
 	if fn == nil || fn.ClassName == nil {
 		return i.newErrorWithLocation(fn, "EvalMethodImplementation requires a method declaration with ClassName")
 	}

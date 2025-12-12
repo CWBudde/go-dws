@@ -24,7 +24,17 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		}
 
 		// Class static access: TClass.Variable/Method/Constructor
+		// Check if identifier matches the class currently being declared
 		classInfo := i.resolveClassInfoByName(ident.Value)
+		if classInfo == nil {
+			if currentClassVal, hasCurrentClass := i.Env().Get("__CurrentClass__"); hasCurrentClass {
+				if civ, ok := currentClassVal.(*ClassInfoValue); ok && civ.ClassInfo != nil {
+					if pkgident.Equal(civ.ClassInfo.Name, ident.Value) {
+						classInfo = civ.ClassInfo
+					}
+				}
+			}
+		}
 		if classInfo != nil {
 			memberName := ma.Member.Value
 

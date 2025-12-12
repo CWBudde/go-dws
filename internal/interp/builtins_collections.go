@@ -1,8 +1,6 @@
 package interp
 
-import (
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
-)
+import "github.com/cwbudde/go-dws/internal/interp/runtime"
 
 // builtinMap implements the Map() built-in function.
 //
@@ -552,5 +550,5 @@ func (i *Interpreter) builtinSlice(args []Value) Value {
 	}
 
 	// Delegate to standalone helper function
-	return evaluator.ArrayHelperSlice(arrayVal, startVal.Value, endVal.Value)
+	return runtime.ArrayHelperSlice(arrayVal, startVal.Value, endVal.Value)
 }

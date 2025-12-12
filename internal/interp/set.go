@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -81,8 +81,8 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 			}
 
 			// Extract ordinal values from start and end
-			startOrd, err1 := evaluator.GetOrdinalValue(startVal)
-			endOrd, err2 := evaluator.GetOrdinalValue(endVal)
+			startOrd, err1 := runtime.GetOrdinalValue(startVal)
+			endOrd, err2 := runtime.GetOrdinalValue(endVal)
 
 			if err1 != nil {
 				return &ErrorValue{
@@ -118,7 +118,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 					elementType = enumType
 				} else {
 					// Non-enum ordinal type (Integer, String/Char, Boolean)
-					elementType = evaluator.GetOrdinalType(startVal)
+					elementType = runtime.GetOrdinalType(startVal)
 				}
 			}
 
@@ -163,7 +163,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 			}
 
 			// Extract ordinal value
-			ordinal, err := evaluator.GetOrdinalValue(elemVal)
+			ordinal, err := runtime.GetOrdinalValue(elemVal)
 			if err != nil {
 				return &ErrorValue{
 					Message: fmt.Sprintf("set element must be ordinal type: %s at %s",
@@ -192,7 +192,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 					elementType = enumType
 				} else {
 					// Non-enum ordinal type
-					elementType = evaluator.GetOrdinalType(elemVal)
+					elementType = runtime.GetOrdinalType(elemVal)
 				}
 			} else {
 				// Verify all elements are of the same type
@@ -412,7 +412,7 @@ func (i *Interpreter) evalSetInclude(set *SetValue, element Value) Value {
 	}
 
 	// Extract ordinal value
-	ordinal, err := evaluator.GetOrdinalValue(element)
+	ordinal, err := runtime.GetOrdinalValue(element)
 	if err != nil {
 		return &ErrorValue{
 			Message: fmt.Sprintf("Include requires ordinal value: %s", err.Error()),
@@ -445,7 +445,7 @@ func (i *Interpreter) evalSetExclude(set *SetValue, element Value) Value {
 	}
 
 	// Extract ordinal value
-	ordinal, err := evaluator.GetOrdinalValue(element)
+	ordinal, err := runtime.GetOrdinalValue(element)
 	if err != nil {
 		return &ErrorValue{
 			Message: fmt.Sprintf("Exclude requires ordinal value: %s", err.Error()),

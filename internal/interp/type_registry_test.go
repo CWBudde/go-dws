@@ -202,14 +202,20 @@ func TestInterpreterEvaluatorSharedTypeSystem(t *testing.T) {
 	t.Run("EvaluatorCanSeeTypeSystemClass", func(t *testing.T) {
 		// Get evaluator from interpreter
 		eval := interp.evaluatorInstance
+		evalTS, ok := eval.(interface {
+			TypeSystem() *interptypes.TypeSystem
+		})
+		if !ok {
+			t.Fatalf("evaluator does not expose TypeSystem()")
+		}
 
 		// Evaluator should see the class via its typeSystem reference
-		if !eval.TypeSystem().HasClass("TSharedClass") {
+		if !evalTS.TypeSystem().HasClass("TSharedClass") {
 			t.Error("Evaluator.TypeSystem().HasClass(TSharedClass) = false, want true")
 		}
 
 		// Verify it's the same TypeSystem instance
-		if eval.TypeSystem() != ts {
+		if evalTS.TypeSystem() != ts {
 			t.Error("Evaluator and Interpreter should share the same TypeSystem instance")
 		}
 	})

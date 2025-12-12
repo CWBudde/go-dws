@@ -648,6 +648,12 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 		}
 	}
 
+	// Setup temporary environment for constant evaluation (to allow dependencies)
+	savedEnv := ctx.Env()
+	tempEnv := runtime.NewEnclosedEnvironment(savedEnv)
+	ctx.SetEnv(tempEnv)
+	defer ctx.SetEnv(savedEnv)
+
 	// Evaluate record constants
 	constants := make(map[string]Value)
 	for _, constant := range node.Constants {
@@ -656,6 +662,8 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 		if isError(constValue) {
 			return constValue
 		}
+		// Define in temp env so subsequent constants/class vars can see it
+		tempEnv.Define(constName, constValue)
 		constants[ident.Normalize(constName)] = constValue
 	}
 
@@ -739,7 +747,12 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 	}
 
 	// Register in environment and TypeSystem
-	ctx.Env().Define(recordTypeKey, recordTypeValue)
+	// Use savedEnv because ctx.Env() is currently tempEnv which will be discarded
+	// Register record type under two keys:
+	// 1. Internal key (recordTypeKey = "__record_type_" + normalized name) for legacy/compatibility lookup
+	// 2. Plain record name for direct user access to the type
+	savedEnv.Define(recordTypeKey, recordTypeValue)
+	savedEnv.Define(recordName, recordTypeValue)
 	e.typeSystem.RegisterRecord(recordName, recordTypeValue)
 
 	return &runtime.NilValue{}

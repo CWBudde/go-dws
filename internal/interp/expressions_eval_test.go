@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
@@ -426,7 +426,7 @@ func TestIsFalsey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := evaluator.IsFalsey(tt.value)
+			result := runtime.IsFalsey(tt.value)
 			if result != tt.expected {
 				t.Errorf("Expected IsFalsey(%v) = %v, got %v", tt.value, tt.expected, result)
 			}

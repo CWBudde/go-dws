@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/cwbudde/go-dws/internal/builtins"
+	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -77,39 +78,7 @@ type InterfaceInstanceValue interface {
 }
 
 // ClassMetaValue provides access to class metadata (class references).
-type ClassMetaValue interface {
-	Value
-	GetClassName() string
-	GetClassType() Value
-	GetClassVar(name string) (Value, bool)
-	GetClassConstant(name string) (Value, bool)
-	HasClassMethod(name string) bool
-	HasConstructor(name string) bool
-	// InvokeParameterlessClassMethod invokes a parameterless class method.
-	// Returns (result, true) if method exists and has 0 parameters, (nil, false) otherwise.
-	InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool)
-	// CreateClassMethodPointer creates a function pointer for a class method with parameters.
-	// Returns (pointer, true) if method exists and has parameters, (nil, false) otherwise.
-	CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool)
-	// InvokeConstructor invokes a constructor.
-	// Returns (result, true) if constructor exists, (nil, false) otherwise.
-	InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool)
-	// GetNestedClass returns a nested class by name as ClassMetaValue, nil if not found.
-	GetNestedClass(name string) Value
-	// ReadClassProperty reads a class property value using the executor callback.
-	// Returns (value, true) if class property exists, (nil, false) otherwise.
-	ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool)
-	// GetClassInfo returns the underlying class info for adapter calls.
-	GetClassInfo() any
-	// SetClassVar sets a class variable by name in the hierarchy.
-	// Returns true if variable exists and was set, false if not found.
-	SetClassVar(name string, value Value) bool
-	// WriteClassProperty writes to a class property using the executor callback.
-	// Returns (value, true) if class property exists and is writable, (nil, false) otherwise.
-	WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool)
-	// HasClassVar checks if a class variable exists in the hierarchy.
-	HasClassVar(name string) bool
-}
+type ClassMetaValue = contracts.ClassMetaValue
 
 // TypeCastAccessor wraps objects with their static type from cast expressions.
 // Example: TBase(child).ClassVar accesses TBase's class variable, not TChild's.
@@ -193,13 +162,7 @@ type FunctionPointerCallable interface {
 }
 
 // FunctionPointerMetadata provides execution context for function pointer invocation.
-type FunctionPointerMetadata struct {
-	Lambda     any
-	Function   any
-	Closure    any
-	SelfObject Value
-	IsLambda   bool
-}
+type FunctionPointerMetadata = contracts.FunctionPointerMetadata
 
 // Config holds evaluator configuration options.
 type Config struct {
@@ -218,10 +181,7 @@ func DefaultConfig() *Config {
 }
 
 // ExternalFunctionRegistry manages external Go functions callable from DWScript.
-type ExternalFunctionRegistry interface {
-	// Has checks if an external function with the given name is registered.
-	Has(name string) bool
-}
+type ExternalFunctionRegistry = contracts.ExternalFunctionRegistry
 
 // Evaluator evaluates DWScript AST nodes.
 // Dependencies: type system, runtime services, configuration.
@@ -351,6 +311,15 @@ func (e *Evaluator) SourceFile() string {
 	return e.config.SourceFile
 }
 
+// SetSource sets the source code and filename for enhanced error messages.
+func (e *Evaluator) SetSource(source, filename string) {
+	if e.config == nil {
+		e.config = DefaultConfig()
+	}
+	e.config.SourceCode = source
+	e.config.SourceFile = filename
+}
+
 // UnitRegistry returns the unit registry.
 func (e *Evaluator) UnitRegistry() *units.UnitRegistry {
 	return e.unitRegistry
@@ -452,7 +421,7 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	e.currentContext = ctx
 	defer func() { e.currentContext = nil }()
 
-	ctx.SetEvaluator(e)
+	ctx.SetRefCountManager(e.refCountMgr)
 	e.currentNode = node
 
 	switch n := node.(type) {

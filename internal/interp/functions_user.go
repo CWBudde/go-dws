@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -20,10 +19,6 @@ import (
 // 2. ExecuteUserFunction uses ctx.Env() to create the function's enclosed environment
 // 3. Without sync, ctx.Env() won't see the Self binding set up in i.Env()
 func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args []Value) Value {
-	// Convert []Value to []evaluator.Value (they implement the same interface)
-	evalArgs := make([]evaluator.Value, len(args))
-	copy(evalArgs, args)
-
 	// Create callbacks for interpreter-dependent operations
 	callbacks := i.createUserFunctionCallbacks()
 
@@ -58,7 +53,7 @@ func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args
 	}()
 
 	// Execute via evaluator
-	result, err := i.evaluatorInstance.ExecuteUserFunction(fn, evalArgs, i.ctx, callbacks)
+	result, err := i.evaluatorInstance.ExecuteUserFunction(fn, args, i.ctx, callbacks)
 	if err != nil {
 		// The evaluator returns a specific error message for this case
 		if strings.Contains(err.Error(), "maximum recursion depth exceeded") {

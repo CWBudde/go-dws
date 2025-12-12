@@ -3,7 +3,7 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -14,9 +14,8 @@ import (
 // ===== Object Creation =====
 
 // CreateObject creates a new object instance of the specified class with constructor arguments.
-func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (evaluator.Value, error) {
-	// Convert arguments
-	internalArgs := convertEvaluatorArgs(args)
+func (i *Interpreter) CreateObject(className string, args []Value) (Value, error) {
+	internalArgs := args
 
 	// Look up class via TypeSystem (case-insensitive)
 	classInfoIface := i.typeSystem.LookupClass(className)
@@ -77,10 +76,9 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 }
 
 // ExecuteConstructor executes a constructor method on an already-created object instance.
-func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName string, args []evaluator.Value) error {
-	// Convert arguments
-	internalArgs := convertEvaluatorArgs(args)
-	internalObj := obj.(Value)
+func (i *Interpreter) ExecuteConstructor(obj Value, constructorName string, args []Value) error {
+	internalArgs := args
+	internalObj := obj
 
 	// Get the object's class
 	objectInstance, ok := internalObj.(*ObjectInstance)
@@ -128,9 +126,8 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 // 3. interface → interface: creates new interface wrapper (with implementation check)
 // 4. object → class: validates class hierarchy
 // 5. object → interface: creates interface wrapper (with implementation check)
-func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.Value, error) {
-	// Convert to internal type
-	internalObj := obj.(Value)
+func (i *Interpreter) CastType(obj Value, typeName string) (Value, error) {
+	internalObj := obj
 	targetLower := ident.Normalize(typeName)
 
 	// Variant-specific casting to primitive types
@@ -267,9 +264,8 @@ func (i *Interpreter) CastType(obj evaluator.Value, typeName string) (evaluator.
 }
 
 // CastToClass performs class type casting for TypeName(expr) expressions.
-func (i *Interpreter) CastToClass(val evaluator.Value, className string, node ast.Expression) evaluator.Value {
-	// Convert to internal type
-	internalVal := val.(Value)
+func (i *Interpreter) CastToClass(val Value, className string, node ast.Expression) Value {
+	internalVal := val
 
 	// Look up the class
 	classInfo := i.lookupClassInfo(className)
@@ -283,9 +279,8 @@ func (i *Interpreter) CastToClass(val evaluator.Value, className string, node as
 
 // CreateTypeCastWrapper creates a TypeCastValue wrapper.
 // Returns the TypeCastValue wrapper or nil if class not found.
-func (i *Interpreter) CreateTypeCastWrapper(className string, obj evaluator.Value) evaluator.Value {
-	// Convert to internal type
-	internalObj := obj.(Value)
+func (i *Interpreter) CreateTypeCastWrapper(className string, obj Value) Value {
+	internalObj := obj
 
 	// Look up the class
 	classInfo := i.lookupClassInfo(className)
@@ -309,7 +304,7 @@ func (i *Interpreter) RaiseTypeCastException(message string, node ast.Node) {
 
 // LookupClassByName finds a class by name and returns it as ClassMetaValue.
 // Used for typed nil class variable access.
-func (i *Interpreter) LookupClassByName(name string) evaluator.ClassMetaValue {
+func (i *Interpreter) LookupClassByName(name string) contracts.ClassMetaValue {
 	classInfo := i.resolveClassInfoByName(name)
 	if classInfo == nil {
 		return nil

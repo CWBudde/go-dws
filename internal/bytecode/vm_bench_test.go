@@ -3,7 +3,7 @@ package bytecode
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/interp"
+	"github.com/cwbudde/go-dws/internal/interp/runner"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -139,7 +139,7 @@ func BenchmarkVMVsInterpreter_CountLoop(b *testing.B) {
 
 	b.Run("interp", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			interpreter := interp.New(nil)
+			interpreter := runner.New(nil)
 			interpreter.Eval(program)
 		}
 	})

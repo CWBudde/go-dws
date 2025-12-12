@@ -300,8 +300,7 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 	}
 }
 
-// evaluateConstantFunction evaluates a compile-time constant function call.
-// like High(), Log2(), Floor().
+// evaluateConstantFunction evaluates a compile-time constant function call like High(), Log2(), or Floor().
 func (a *Analyzer) evaluateConstantFunction(call *ast.CallExpression) (interface{}, error) {
 	if call == nil || call.Function == nil {
 		return nil, fmt.Errorf("nil function call")

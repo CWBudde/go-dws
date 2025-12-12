@@ -16,10 +16,19 @@ import (
 	"github.com/gkampitakis/go-snaps/snaps"
 )
 
-// TestDWScriptFixtures runs all DWScript test fixtures from the reference repository
-// using go-snaps for snapshot testing. This provides comprehensive coverage of
-// DWScript language features based on the original test suite.
+// TestDWScriptFixtures runs the comprehensive DWScript test suite (~2,100 tests).
+// This provides complete coverage of DWScript language features based on the original
+// test suite from the reference implementation.
+//
+// The test suite uses go-snaps for snapshot testing and includes 64 test categories
+// covering all major language features. See testdata/fixtures/README.md for details.
+//
+// Note: This test suite runs by default as part of the regular test suite to ensure
+// full language compatibility. Individual categories can be run with:
+//
+//	go test -v ./internal/interp -run TestDWScriptFixtures/CategoryName
 func TestDWScriptFixtures(t *testing.T) {
+
 	// Define test categories and their expected behavior
 	// Includes all 64 test categories from the original DWScript test suite
 	testCategories := []struct {

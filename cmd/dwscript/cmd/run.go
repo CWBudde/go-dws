@@ -8,6 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp"
+	"github.com/cwbudde/go-dws/internal/interp/runner"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
@@ -204,7 +205,7 @@ func runScript(_ *cobra.Command, args []string) error {
 	opts := &simpleOptions{
 		MaxRecursionDepth: maxRecursion,
 	}
-	interpreter := interp.NewWithOptions(os.Stdout, opts)
+	interpreter := runner.NewWithOptions(os.Stdout, opts)
 
 	// Set source code for enhanced runtime error messages
 	interpreter.SetSource(input, filename)

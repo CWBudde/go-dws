@@ -315,6 +315,42 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		return e.newError(node, "member '%s' not found in class '%s'", memberName, classMetaVal.GetClassName())
 
+	case "RECORD_TYPE":
+		// Static record access: constants, class vars, static methods
+		recTypeVal, ok := obj.(*RecordTypeValue)
+		if !ok {
+			return e.newError(node, "internal error: RECORD_TYPE value is not *RecordTypeValue")
+		}
+
+		normalizedMember := ident.Normalize(memberName)
+
+		// Constants
+		if val, found := recTypeVal.Constants[normalizedMember]; found {
+			return val
+		}
+
+		// Class variables
+		if val, found := recTypeVal.ClassVars[normalizedMember]; found {
+			return val
+		}
+
+		// Static methods (Class Methods)
+		if recTypeVal.HasStaticMethod(memberName) {
+			// Try parameterless auto-invoke first
+			// Create synthetic method call
+			methodCall := &ast.MethodCallExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{Token: node.Token},
+				},
+				Object:    node.Object,
+				Method:    node.Member,
+				Arguments: []ast.Expression{},
+			}
+			return e.VisitMethodCallExpression(methodCall, ctx)
+		}
+
+		return e.newError(node, "member '%s' not found in record type '%s'", memberName, recTypeVal.GetRecordTypeName())
+
 	case "TYPE_CAST":
 		// Type cast: use static type for class var lookup (TBase(child).ClassVar)
 		typeCastVal, ok := obj.(TypeCastAccessor)

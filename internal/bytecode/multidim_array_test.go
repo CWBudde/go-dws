@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/bytecode"
-	"github.com/cwbudde/go-dws/internal/interp"
+	"github.com/cwbudde/go-dws/internal/interp/runner"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -41,7 +41,7 @@ func NewTestProgram(t *testing.T, source string) *ast.Program {
 func NewTestASTInterpreter(t *testing.T, program *ast.Program) string {
 	t.Helper()
 	var buf bytes.Buffer
-	interp := interp.New(&buf)
+	interp := runner.New(&buf)
 	result := interp.Eval(program)
 	if result != nil && result.Type() == "ERROR" {
 		t.Fatalf("AST interpreter error: %v", result)

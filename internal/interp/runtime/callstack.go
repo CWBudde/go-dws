@@ -1,4 +1,4 @@
-package evaluator
+package runtime
 
 import (
 	"fmt"
@@ -15,10 +15,10 @@ type CallStack struct {
 }
 
 // NewCallStack creates a new call stack with the given maximum depth.
-// If maxDepth is 0 or negative, DefaultMaxRecursionDepth (1024) is used.
+// If maxDepth is 0 or negative, a default of 1024 is used.
 func NewCallStack(maxDepth int) *CallStack {
 	if maxDepth <= 0 {
-		maxDepth = 1024 // DefaultMaxRecursionDepth
+		maxDepth = 1024
 	}
 	return &CallStack{
 		frames:   errors.NewStackTrace(),

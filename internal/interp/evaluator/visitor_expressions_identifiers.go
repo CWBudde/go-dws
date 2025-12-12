@@ -239,6 +239,19 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		return createFunctionPointerFromDecl(fn, ctx.Env())
 	}
 
+	// Check if identifier matches the class currently being declared.
+	// This enables self-referential access like TMyClass.MyConst within class var initializers,
+	// before the class is registered in the type system.
+	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
+		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
+			if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
+				if ident.Equal(classMetaVal.GetClassName(), node.Value) {
+					return classInfoVal
+				}
+			}
+		}
+	}
+
 	// Check if this identifier is a class name (metaclass reference)
 	if e.typeSystem.HasClass(node.Value) {
 		classVal, err := e.typeSystem.CreateClassValue(node.Value)

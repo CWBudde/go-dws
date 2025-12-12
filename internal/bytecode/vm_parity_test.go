@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/bytecode"
-	"github.com/cwbudde/go-dws/internal/interp"
+	"github.com/cwbudde/go-dws/internal/interp/runner"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 )
@@ -220,7 +220,7 @@ func runWithInterpreter(t *testing.T, source string) string {
 		t.Fatalf("Parser errors: %v", p.Errors())
 	}
 
-	interpreter := interp.New(&output)
+	interpreter := runner.New(&output)
 	result := interpreter.Eval(program)
 
 	if result != nil && result.Type() == "ERROR" {
@@ -329,7 +329,7 @@ func BenchmarkVMVsInterpreter(b *testing.B) {
 	b.Run("AST Interpreter", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			var output bytes.Buffer
-			interpreter := interp.New(&output)
+			interpreter := runner.New(&output)
 			_ = interpreter.Eval(program)
 		}
 	})
