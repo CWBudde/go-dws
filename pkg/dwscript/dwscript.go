@@ -144,7 +144,7 @@ func (e *Engine) Compile(source string) (*Program, error) {
 	return &Program{
 		ast:           program,
 		analyzer:      analyzer,
-		semanticInfo:  semanticInfo, // Task 9.18
+		semanticInfo:  semanticInfo,
 		options:       e.options,
 		bytecodeChunk: chunk,
 	}, nil
@@ -343,7 +343,6 @@ func (e *Engine) Run(program *Program) (*Result, error) {
 func (e *Engine) runInterpreter(program *Program, output io.Writer) (*Result, error) {
 	e.options.ExternalFunctions = e.externalFunctions
 	interpreter := interp.NewWithOptions(output, &e.options)
-	// Task 9.18: Pass semantic info to interpreter
 	if program.semanticInfo != nil {
 		interpreter.SetSemanticInfo(program.semanticInfo)
 	}
@@ -432,7 +431,7 @@ func (e *Engine) Eval(source string) (*Result, error) {
 type Program struct {
 	ast           *ast.Program
 	analyzer      *semantic.Analyzer
-	semanticInfo  *ast.SemanticInfo // Task 9.18: Type metadata from semantic analysis
+	semanticInfo  *ast.SemanticInfo
 	bytecodeChunk *bytecode.Chunk
 	options       Options
 }
@@ -468,7 +467,6 @@ func (p *Program) ensureBytecodeChunk() (*bytecode.Chunk, error) {
 	}
 
 	compiler := bytecode.NewCompiler("dwscript")
-	// Task 9.18: Pass semantic info to bytecode compiler
 	if p.semanticInfo != nil {
 		compiler.SetSemanticInfo(p.semanticInfo)
 	}
