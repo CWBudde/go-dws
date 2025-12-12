@@ -81,7 +81,6 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 // In DWScript, assigning to the function name sets the return value (alias for Result).
 func (i *Interpreter) createFunctionNameAliasCallback() evaluator.FunctionNameAliasFunc {
 	return func(funcName string, funcEnv *runtime.Environment) evaluator.Value {
-		// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
 		return &ReferenceValue{Env: funcEnv, VarName: "Result"}
 	}
 }
@@ -109,7 +108,6 @@ func (i *Interpreter) createInterfaceRefCounterCallback() evaluator.IncrementInt
 // Cleans up interface/object references when function scope ends.
 func (i *Interpreter) createInterfaceCleanupCallback() evaluator.CleanupInterfaceReferencesFunc {
 	return func(env *runtime.Environment) {
-		// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
 		savedEnv := i.Env()
 		i.SetEnvironment(env)
 		i.cleanupInterfaceReferences(i.Env())
@@ -121,7 +119,6 @@ func (i *Interpreter) createInterfaceCleanupCallback() evaluator.CleanupInterfac
 // Syncs i.Env() with funcEnv so interpreter callbacks use the correct scope.
 func (i *Interpreter) createEnvSyncerCallback() evaluator.EnvSyncerFunc {
 	return func(funcEnv *runtime.Environment) func() {
-		// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
 		savedEnv := i.Env()
 		i.SetEnvironment(funcEnv)
 

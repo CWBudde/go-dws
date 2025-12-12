@@ -58,7 +58,6 @@ func (i *Interpreter) LoadUnit(name string, searchPaths []string) (*units.Unit, 
 //	registry := units.NewUnitRegistry([]string{"./lib", "./units"})
 //	interp.SetUnitRegistry(registry)
 func (i *Interpreter) SetUnitRegistry(registry *units.UnitRegistry) {
-	// Phase 3.3.5: Unit registry now lives in Evaluator
 	if i.evaluatorInstance != nil {
 		i.evaluatorInstance.SetUnitRegistry(registry)
 	}

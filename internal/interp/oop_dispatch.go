@@ -363,7 +363,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		if method == nil && rtv != nil {
 			if classMethod, exists := rtv.ClassMethods[ident.Normalize(methodName)]; exists {
 				// Static method - no Self, just constants and class vars
-				// Phase 3.1.4: unified scope management
 				defer i.PushScope()()
 
 				// Bind __CurrentRecord__ for record context

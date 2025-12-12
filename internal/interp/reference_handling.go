@@ -12,9 +12,6 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// Phase 3.5.4 - Phase 2D: Pointer, reference, and operator adapter methods
-// These methods implement the InterpreterAdapter interface for references and operators.
-
 // ===== Function Pointers =====
 
 // CreateFunctionPointer creates a function pointer value from a function declaration.
@@ -44,8 +41,6 @@ func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any
 	function := overloads[0]
 
 	// Convert closure to Environment
-	// Handle both direct *Environment and *EnvironmentAdapter (from evaluator)
-	// Phase 3.1.3: Direct runtime.Environment - no adapter unwrapping needed
 	var env *Environment
 	if closure != nil {
 		if envVal, ok := closure.(*Environment); ok {

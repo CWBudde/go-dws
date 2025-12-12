@@ -20,7 +20,7 @@ type Symbol struct {
 	HasOverloadDirective bool
 	IsForward            bool
 
-	// LSP support fields (Task 6.2)
+	// LSP support fields
 	DeclPosition       token.Position   // Position where symbol was declared
 	Usages             []token.Position // All usage positions for go-to-reference
 	Documentation      string           // Doc comment text
@@ -145,7 +145,6 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		}
 	}
 
-	// Task 9.60: Handle forward declarations
 	// If existing is a forward declaration and current is an implementation,
 	// replace the forward with the implementation
 	if !existing.IsOverloadSet && existing.IsForward && !isForward {
@@ -185,9 +184,7 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 	// Note: We allow multiple forward declarations with different signatures (overloads)
 	// The duplicate forward check is handled below in the duplicate signature check
 
-	// Task 9.58: Validate overload directive consistency
-	// Task 9.60: Skip this check if current is an implementation (not forward) - it might be replacing a forward
-	// We'll check this later after we determine if it's a forward+impl pair
+	// Validate overload directive consistency. Skip if current is implementation (might be replacing forward)
 	// If an existing function has the overload directive, or we're adding one with it,
 	// then all must have it (with exception: implementations can omit it if forwards have it)
 	if !isForward {
@@ -217,7 +214,6 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		} else {
 			// Not an overload set yet - check if first has directive but second doesn't
 			if existing.HasOverloadDirective && !hasOverloadDirective {
-				// Task 9.63: Match DWScript error message format exactly
 				// Use the function kind from the EXISTING (first) function
 				existingFuncType := existing.Type.(*types.FunctionType)
 				return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
@@ -234,7 +230,6 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		// Current is a forward - check all existing overloads for directive consistency
 		for _, overload := range existing.Overloads {
 			if overload.HasOverloadDirective && !hasOverloadDirective {
-				// Task 9.63: Match DWScript error message format exactly
 				// Use the function kind from the FIRST overload in the set
 				firstFuncType := existing.Overloads[0].Type.(*types.FunctionType)
 				return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
@@ -244,7 +239,6 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 	} else {
 		// Second overload (both forwards) - both first and second must have directive (or neither, for now)
 		if existing.HasOverloadDirective && !hasOverloadDirective {
-			// Task 9.63: Match DWScript error message format exactly
 			// Use the function kind from the EXISTING (first) function
 			existingFuncType := existing.Type.(*types.FunctionType)
 			return fmt.Errorf("Overloaded %s \"%s\" must be marked with the \"overload\" directive",
@@ -258,9 +252,7 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 		}
 	}
 
-	// Task 9.59: Check for duplicate signature in existing overloads
-	// Task 9.60: Handle forward declarations in overload sets
-	// Task 9.62: Functions with same parameters but different return types are AMBIGUOUS
+	// Check for duplicate signature in existing overloads
 	if existing.IsOverloadSet {
 		for i, overload := range existing.Overloads {
 			existingFunc := overload.Type.(*types.FunctionType)

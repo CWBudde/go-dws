@@ -304,7 +304,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		classInfo.Constants[constDecl.Name.Value] = constDecl
 
 		// Evaluate with previously defined constants in scope
-		// Phase 3.1.4: unified scope management
 		var constValue Value
 		func() {
 			defer i.PushScope()()

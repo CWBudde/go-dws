@@ -286,7 +286,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 	}
 
-	// Check method visibility - Task 9.16.1
+	// Check method visibility
 	if methodOwner != nil && len(overloads) > 0 {
 		// Use lowercase key for case-insensitive lookup
 		visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(methodName)]

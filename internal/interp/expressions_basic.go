@@ -7,19 +7,9 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// evalIdentifier looks up an identifier in the environment.
-// Phase 3.9: Delegates to evaluator's canonical implementation.
-func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
-	return i.evaluatorInstance.VisitIdentifier(node, i.ctx)
-}
-
 // evalAddressOfExpression evaluates an address-of expression (@Function).
-// Implement address-of operator evaluation to create function pointers.
-//
-// This creates a FunctionPointerValue that wraps the target function/procedure.
-// For methods, it also captures the Self object to create a method pointer.
+// Creates a FunctionPointerValue, capturing Self for method pointers.
 func (i *Interpreter) evalAddressOfExpression(expr *ast.AddressOfExpression) Value {
-	// The operator should be an identifier (function/procedure name) or member access (for methods)
 	switch operand := expr.Operator.(type) {
 	case *ast.Identifier:
 		// Regular function/procedure pointer: @FunctionName

@@ -60,7 +60,6 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	// Call constructor if it exists
 	constructorNameLower := ident.Normalize("Create")
 	if constructor, exists := classInfo.Constructors[constructorNameLower]; exists {
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 		i.Env().Define("Self", obj)
 
