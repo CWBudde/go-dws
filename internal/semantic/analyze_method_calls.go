@@ -17,12 +17,10 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 
 	methodName := expr.Method.Value
-	// Task 9.16.2.9: Normalize method name to lowercase for case-insensitive lookup
 	methodNameLower := ident.Normalize(methodName)
 
-	// Task 9.7: Handle metaclass type (class of T) for constructor calls
-	// When we have TExample.CreateWith(...), TExample has type ClassOfType(TExample)
-	// We need to unwrap to ClassType(TExample) to look up constructors
+	// Handle metaclass type (class of T) for constructor calls.
+	// When we have TExample.CreateWith(...), unwrap ClassOfType to ClassType for constructor lookup.
 	if metaclassType, ok := objectType.(*types.ClassOfType); ok {
 		if metaclassType.ClassType != nil {
 			objectType = metaclassType.ClassType
@@ -71,7 +69,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Check if object is a class type
 	classType, ok := objectType.(*types.ClassType)
 	if !ok {
-		// Task 9.7: Check if object is a record type with methods
+		// Check if object is a record type with methods
 		if recordType, isRecord := objectType.(*types.RecordType); isRecord {
 			// First check for class methods (static methods) with overload support
 			classOverloads := recordType.GetClassMethodOverloads(methodNameLower)
@@ -180,7 +178,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			}
 		}
 
-		// Task 9.83: For non-class, non-record types, check if helpers provide this method
+		// Check if helpers provide this method for non-class, non-record types
 		_, helperMethod := a.hasHelperMethod(objectType, methodName)
 		if helperMethod == nil {
 			a.addError("method call on type %s requires a helper, got no helper with method '%s' at %s",
@@ -218,7 +216,6 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check argument types
 		for i, arg := range expr.Arguments {
-			// Task 9.218: Guard against nil Parameters (properties have no parameters)
 			var expectedType types.Type
 			if helperMethod.Parameters != nil && i < len(helperMethod.Parameters) {
 				expectedType = helperMethod.Parameters[i]
@@ -241,7 +238,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		return types.STRING
 	}
 
-	// Task 9.61: Check if method is overloaded
+	// Check if method is overloaded
 	var methodType *types.FunctionType
 	methodOwner := a.getMethodOwner(classType, methodName)
 	overloads := a.getMethodOverloadsInHierarchy(methodName, classType)
@@ -329,13 +326,13 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 
 	if classType.HasConstructor(methodName) {
-		// Task 9.2: Check if trying to instantiate an abstract class via constructor call
+		// Check if trying to instantiate an abstract class via constructor call
 		if classType.IsAbstract {
 			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
 			return classType
 		}
 
-		// Task 9.2: Check if class has unimplemented abstract methods
+		// Check if class has unimplemented abstract methods
 		unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
 		if len(unimplementedMethods) > 0 {
 			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))

@@ -625,7 +625,6 @@ end
 }
 
 // TestBuiltinInsert_EdgeCases tests Insert() with edge cases and boundary conditions.
-// Task 9.45: Insert() edge case tests
 func TestBuiltinInsert_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -708,7 +707,6 @@ end
 }
 
 // TestBuiltinInsert_InExpressions tests using Insert() in various contexts.
-// Task 9.45: Insert() expression tests
 func TestBuiltinInsert_InExpressions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -757,7 +755,6 @@ end
 }
 
 // TestBuiltinInsert_ErrorCases tests error handling for Insert().
-// Task 9.45: Insert() error tests
 func TestBuiltinInsert_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -857,8 +854,7 @@ end
 }
 
 // TestBuiltinDelete_StringMode_BasicUsage tests Delete() for strings with basic operations.
-// Delete(s, pos, count) - deletes count characters from s starting at 1-based position
-// Task 9.45: Delete() string tests
+// Delete(s, pos, count) - deletes count characters from s starting at 1-based position.
 func TestBuiltinDelete_StringMode_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -951,7 +947,6 @@ end
 }
 
 // TestBuiltinDelete_StringMode_EdgeCases tests Delete() for strings with edge cases.
-// Task 9.45: Delete() string edge case tests
 func TestBuiltinDelete_StringMode_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1067,7 +1062,6 @@ end
 }
 
 // TestBuiltinDelete_StringMode_InExpressions tests using Delete() in various contexts.
-// Task 9.45: Delete() string expression tests
 func TestBuiltinDelete_StringMode_InExpressions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1116,7 +1110,6 @@ end
 }
 
 // TestBuiltinDelete_StringMode_ErrorCases tests error handling for Delete() string mode.
-// Task 9.45: Delete() string error tests
 func TestBuiltinDelete_StringMode_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -1215,7 +1208,6 @@ end
 }
 
 // TestBuiltinInsertAndDelete_Combined tests Insert() and Delete() used together.
-// Task 9.45: Combined Insert() and Delete() tests
 func TestBuiltinInsertAndDelete_Combined(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1279,13 +1271,8 @@ end
 }
 
 // ============================================================================
-// Task 9.47: Tests for StringReplace() string function
+// Tests for StringReplace() and Format() string functions
 // ============================================================================
-
-// TestBuiltinStringReplace_BasicUsage tests StringReplace() with basic string replacements.
-// StringReplace(str, old, new) - replaces all occurrences of old with new
-// StringReplace(str, old, new, count) - replaces count occurrences (count=-1 means all)
-// Task 9.47: StringReplace() basic tests
 
 func TestBuiltinFormat_BasicUsage(t *testing.T) {
 	tests := []struct {
@@ -1393,7 +1380,6 @@ end
 }
 
 // TestBuiltinFormat_EdgeCases tests Format() with edge cases.
-// Task 9.50: Format() edge case tests
 func TestBuiltinFormat_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1521,7 +1507,6 @@ end
 }
 
 // TestBuiltinFormat_InExpressions tests using Format() in various contexts.
-// Task 9.50: Format() expression tests
 func TestBuiltinFormat_InExpressions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1589,7 +1574,6 @@ end
 }
 
 // TestBuiltinFormat_ErrorCases tests error handling for Format().
-// Task 9.50: Format() error tests
 func TestBuiltinFormat_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name  string

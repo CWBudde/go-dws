@@ -11,9 +11,6 @@ import (
 // IntRange represents an integer range for lazy set storage.
 // Used by SetValue to efficiently represent large contiguous ranges
 // without allocating individual elements.
-//
-// Phase 3.5.4 - Type Migration: Migrated from internal/interp to runtime/
-// to enable evaluator package to work with set values directly.
 type IntRange struct {
 	Start int
 	End   int
@@ -22,16 +19,10 @@ type IntRange struct {
 // SetValue represents a set value in DWScript.
 // Sets are collections of enumerated values or integers with set operations.
 //
-// Phase 3.5.4 - Type Migration: Migrated from internal/interp to runtime/
-// to enable evaluator package to work with set values directly.
-//
 // Storage Strategy:
 //   - Small sets (< 64 elements): Bitmask in Elements field
 //   - Large sets: Map storage in MapStore field
 //   - Contiguous ranges: Lazy storage in Ranges field
-//
-// Example: type TColors = set of TColor;
-// Task 9.8: Supports both bitmask and map storage.
 type SetValue struct {
 	SetType  *types.SetType // The set type metadata
 	MapStore map[int]bool   // Map storage for large sets
@@ -46,7 +37,6 @@ func (s *SetValue) Type() string {
 
 // String returns the string representation of the set.
 // Format: [element1, element2, ...] or [] for empty set
-// Task 9.8: Works with both bitmask and map storage.
 func (s *SetValue) String() string {
 	// Quick check for empty set (both storage types)
 	if s.SetType.StorageKind == types.SetStorageBitmask && s.Elements == 0 {
@@ -58,7 +48,6 @@ func (s *SetValue) String() string {
 
 	var elements []string
 
-	// Task 9.226: Handle different element types for display
 	if s.SetType != nil && s.SetType.ElementType != nil {
 		// For enum sets, show enum names in order
 		if enumType, ok := s.SetType.ElementType.(*types.EnumType); ok {
@@ -127,8 +116,7 @@ func (s *SetValue) Ordinals() []int {
 }
 
 // HasElement checks if an element with the given ordinal value is in the set.
-// Task 9.8: Supports both bitmask and map storage.
-// Also checks lazy ranges for large integer ranges.
+// Checks both lazy ranges and configured storage backend (bitmask or map).
 func (s *SetValue) HasElement(ordinal int) bool {
 	if ordinal < 0 {
 		return false // Negative ordinals are invalid
@@ -167,8 +155,7 @@ func (s *SetValue) HasElement(ordinal int) bool {
 }
 
 // AddElement adds an element with the given ordinal value to the set.
-// This mutates the set in place (used for Include).
-// Task 9.8: Supports both bitmask and map storage.
+// This mutates the set in place.
 func (s *SetValue) AddElement(ordinal int) {
 	if ordinal < 0 {
 		return // Negative ordinals are invalid
@@ -189,8 +176,7 @@ func (s *SetValue) AddElement(ordinal int) {
 }
 
 // RemoveElement removes an element with the given ordinal value from the set.
-// This mutates the set in place (used for Exclude).
-// Task 9.8: Supports both bitmask and map storage.
+// This mutates the set in place.
 func (s *SetValue) RemoveElement(ordinal int) {
 	if ordinal < 0 {
 		return // Negative ordinals are invalid
@@ -211,7 +197,6 @@ func (s *SetValue) RemoveElement(ordinal int) {
 }
 
 // NewSetValue creates a new empty SetValue with the given set type.
-// Task 9.8: Initializes the appropriate storage backend (bitmask or map).
 func NewSetValue(setType *types.SetType) *SetValue {
 	sv := &SetValue{
 		SetType:  setType,

@@ -10,64 +10,30 @@ import (
 // importing the interpreter package. Destructor invocation uses a callback
 // pattern to avoid circular imports.
 type RefCountManager interface {
-	// IncrementRef increments the reference count for an object.
-	// Called when:
-	// - Creating a new variable reference to an object
-	// - Assigning interface to interface (copies reference)
-	// - Creating method pointers with SelfObject
-	// - Returning interfaces from functions
-	//
-	// Returns the same value for chaining (v = mgr.IncrementRef(v))
+	// IncrementRef increments the reference count for an object or interface.
+	// Returns the same value for chaining.
 	IncrementRef(val Value) Value
 
-	// DecrementRef decrements the reference count for an object.
-	// If the reference count reaches 0, invokes the destructor callback.
-	// Called when:
-	// - Reassigning object variable (old object released)
-	// - Setting object variable to nil
-	// - Reassigning interface variable (old interface released)
-	//
-	// Returns nil (indicating the old reference is gone)
+	// DecrementRef decrements the reference count and invokes the destructor
+	// callback when the count reaches 0. Returns nil.
 	DecrementRef(val Value) Value
 
-	// ReleaseObject combines decrement + potential destructor call.
-	// Convenience method for: if obj != nil { DecrementRef(obj) }
-	//
-	// Used in assignment operations where the old value is being replaced.
+	// ReleaseObject decrements the reference count if the object is not nil.
 	ReleaseObject(obj *ObjectInstance)
 
-	// ReleaseInterface decrements ref count on the underlying object.
-	// Handles nil checks and unwraps the InterfaceInstance.
-	//
-	// Used when reassigning interface variables or releasing temporary interfaces.
+	// ReleaseInterface decrements the reference count on the interface's underlying object.
 	ReleaseInterface(intf *InterfaceInstance)
 
 	// WrapInInterface creates an InterfaceInstance and increments ref count.
-	// Task 9.16.2: Wrapping objects in interfaces increments ref count.
-	//
 	// Returns a new InterfaceInstance wrapping the object.
 	WrapInInterface(iface InterfaceInfo, obj *ObjectInstance) *InterfaceInstance
 
-	// SetDestructorCallback registers the callback for destructor invocation.
-	// The callback is invoked when RefCount reaches 0.
-	//
-	// Signature: func(obj *ObjectInstance) error
-	// The callback should:
-	//   1. Look up the "Destroy" method in obj.Class
-	//   2. Execute the destructor in the interpreter
-	//   3. Return any error from destructor execution
+	// SetDestructorCallback registers the callback invoked when RefCount reaches 0.
 	SetDestructorCallback(callback DestructorCallback)
 }
 
 // DestructorCallback is invoked when an object's reference count reaches 0.
-//
-// The callback receives the object and should:
-//  1. Check if obj.Destroyed is true (skip if already destroyed)
-//  2. Look up the "Destroy" method in obj.Class
-//  3. Mark obj.Destroyed = true BEFORE execution (prevent recursion)
-//  4. Execute the destructor method
-//  5. Reset obj.RefCount = 0 after completion
-//  6. Return any error from execution
+// The implementation should look up and execute the "Destroy" method if it exists.
 type DestructorCallback func(obj *ObjectInstance) error
 
 // defaultRefCountManager implements RefCountManager with callback-based destructors.
@@ -119,13 +85,12 @@ func (m *defaultRefCountManager) DecrementRef(val Value) Value {
 		return nil
 	}
 
-	// Decrement reference count
 	obj.RefCount--
 	if obj.RefCount < 0 {
 		obj.RefCount = 0
 	}
 
-	// Invoke destructor if ref count reaches 0
+	// Invoke destructor when ref count reaches 0
 	if obj.RefCount <= 0 {
 		m.mu.RLock()
 		callback := m.destructorCallback
@@ -156,17 +121,13 @@ func (m *defaultRefCountManager) ReleaseInterface(intf *InterfaceInstance) {
 
 // WrapInInterface creates an InterfaceInstance and increments the object's ref count.
 func (m *defaultRefCountManager) WrapInInterface(iface InterfaceInfo, obj *ObjectInstance) *InterfaceInstance {
-	// Create interface instance
 	intf := &InterfaceInstance{
 		Interface: iface,
 		Object:    obj,
 	}
-
-	// Increment ref count (interface takes ownership)
 	if obj != nil {
 		obj.RefCount++
 	}
-
 	return intf
 }
 

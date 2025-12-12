@@ -478,7 +478,6 @@ type FunctionPointerValue struct {
 }
 
 // Type returns "FUNCTION_POINTER", "METHOD_POINTER", or "LAMBDA" (closure).
-// Task 9.221: Updated to distinguish lambdas.
 func (f *FunctionPointerValue) Type() string {
 	if f.SelfObject != nil {
 		return "METHOD_POINTER"
@@ -545,8 +544,7 @@ func (f *FunctionPointerValue) GetSelfObject() Value {
 }
 
 // String returns the string representation of the function pointer.
-// Format: @FunctionName, @Object.MethodName, or <lambda> for closures
-// Task 9.221: Updated to handle lambdas.
+// Format: @FunctionName, @Object.MethodName, or <lambda> for closures.
 func (f *FunctionPointerValue) String() string {
 	// Lambda closures (check legacy field first for backward compatibility)
 	if f.Lambda != nil {

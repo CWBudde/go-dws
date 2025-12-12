@@ -361,8 +361,7 @@ end
 }
 
 // TestBuiltinTrim_BasicUsage tests Trim() with basic string operations.
-// Trim(str) - removes leading and trailing whitespace
-// Task 9.42: Tests for Trim() function
+// Trim(str) - removes leading and trailing whitespace.
 func TestBuiltinTrim_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -492,8 +491,7 @@ end
 }
 
 // TestBuiltinTrimLeft_BasicUsage tests TrimLeft() with basic string operations.
-// TrimLeft(str) - removes leading whitespace only
-// Task 9.42: Tests for TrimLeft() function
+// TrimLeft(str) - removes leading whitespace only.
 func TestBuiltinTrimLeft_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -603,8 +601,7 @@ end
 }
 
 // TestBuiltinTrimRight_BasicUsage tests TrimRight() with basic string operations.
-// TrimRight(str) - removes trailing whitespace only
-// Task 9.42: Tests for TrimRight() function
+// TrimRight(str) - removes trailing whitespace only.
 func TestBuiltinTrimRight_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -714,7 +711,6 @@ end
 }
 
 // TestBuiltinTrim_InExpressions tests using Trim functions in expressions.
-// Task 9.42: Tests for Trim() in expressions
 func TestBuiltinTrim_InExpressions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -786,7 +782,6 @@ end
 }
 
 // TestBuiltinTrim_ErrorCases tests error handling for Trim functions.
-// Task 9.42: Error handling tests
 func TestBuiltinTrim_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -892,13 +887,11 @@ end
 }
 
 // ============================================================================
-// Task 9.46: Tests for StringReplace() string function
+// Tests for StringReplace() string function
 // ============================================================================
 
 // TestBuiltinStringReplace_BasicUsage tests StringReplace() with basic string replacements.
-// StringReplace(source, oldPattern, newPattern) - replaces all occurrences of oldPattern with newPattern in source
-// Task 9.46: StringReplace() tests
-
+// StringReplace(source, oldPattern, newPattern) - replaces all occurrences.
 func TestBuiltinStringReplace_BasicUsage(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1006,7 +999,6 @@ end
 }
 
 // TestBuiltinStringReplace_EdgeCases tests StringReplace() with edge cases.
-// Task 9.47: StringReplace() edge case tests
 func TestBuiltinStringReplace_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1131,7 +1123,6 @@ end
 }
 
 // TestBuiltinStringReplace_InExpressions tests using StringReplace() in various contexts.
-// Task 9.47: StringReplace() expression tests
 func TestBuiltinStringReplace_InExpressions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1204,7 +1195,6 @@ end
 }
 
 // TestBuiltinStringReplace_ErrorCases tests error handling for StringReplace().
-// Task 9.47: StringReplace() error tests
 func TestBuiltinStringReplace_ErrorCases(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -1292,11 +1282,11 @@ end
 }
 
 // ============================================================================
-// Task 9.48: Tests for ASCIIUpperCase() string function
+// Tests for ASCIIUpperCase() string function
 // ============================================================================
 
 // TestBuiltinASCIIUpperCase tests the ASCIIUpperCase() built-in function.
-// ASCIIUpperCase(str) - converts ASCII characters to uppercase (non-ASCII unchanged)
+// Converts ASCII characters to uppercase (non-ASCII unchanged).
 func TestBuiltinASCIIUpperCase(t *testing.T) {
 	tests := []struct {
 		name     string

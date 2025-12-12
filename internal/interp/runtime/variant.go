@@ -5,20 +5,8 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
-// VariantValue represents a Variant value in DWScript (Task 9.4).
-//
-// Variant is DWScript's dynamic type that can hold any value.
-// Similar to Delphi's Variant type or Go's interface{}.
-//
-// When a variable is declared as Variant:
-//
-//	var v: Variant := 42;
-//	// Creates: VariantValue{Value: IntegerValue{42}, ActualType: INTEGER}
-//
-//	v := 'hello';
-//	// Creates: VariantValue{Value: StringValue{'hello'}, ActualType: STRING}
-//
-// See reference/dwscript-original/Source/dwsVariantFunctions.pas
+// VariantValue represents a Variant value in DWScript.
+// Variant is DWScript's dynamic type that can hold any value at runtime.
 type VariantValue struct {
 	Value      Value      // The wrapped runtime value
 	ActualType types.Type // The actual type of the wrapped value (for type checking)
@@ -29,8 +17,7 @@ func (v *VariantValue) Type() string {
 	return "VARIANT"
 }
 
-// String returns the string representation by delegating to the wrapped value.
-// This allows Variant values to be printed naturally.
+// String returns the string representation of the wrapped value.
 func (v *VariantValue) String() string {
 	if v.Value == nil {
 		return "Unassigned" // Similar to Delphi's unassigned variant
@@ -43,10 +30,7 @@ func (v *VariantValue) GetVariantValue() Value {
 	return v.Value
 }
 
-// UnwrapVariant returns the underlying wrapped value.
-// This method implements the runtime.VariantWrapper interface, allowing
-// the evaluator package to unwrap variants without circular dependencies.
-// Returns UnassignedValue if the variant is nil/uninitialized.
+// UnwrapVariant returns the underlying wrapped value or UnassignedValue if nil.
 func (v *VariantValue) UnwrapVariant() Value {
 	if v.Value == nil {
 		return &UnassignedValue{}
@@ -60,14 +44,7 @@ func (v *VariantValue) IsUninitialized() bool {
 }
 
 // BoxVariant wraps any Value in a VariantValue for dynamic typing.
-//
-// Boxing preserves the original value and tracks its type for later unboxing.
 // Prevents double-wrapping - if the value is already a Variant, returns it as-is.
-//
-// Examples:
-//   - BoxVariant(&IntegerValue{42}) → VariantValue{Value: IntegerValue{42}, ActualType: INTEGER}
-//   - BoxVariant(&StringValue{"hello"}) → VariantValue{Value: StringValue{"hello"}, ActualType: STRING}
-//   - BoxVariant(nil) → VariantValue{Value: nil, ActualType: nil}
 func BoxVariant(value Value) *VariantValue {
 	if value == nil {
 		return &VariantValue{Value: nil, ActualType: nil}
@@ -92,11 +69,9 @@ func BoxVariant(value Value) *VariantValue {
 	case "NIL":
 		actualType = nil // nil has no type
 	case "NULL":
-		actualType = nil // Task 9.4.1: Null has no specific type
+		actualType = nil
 	case "UNASSIGNED":
-		actualType = nil // Task 9.4.1: Unassigned has no specific type
-	// Complex types (arrays, records, objects) will be added as needed
-	// For now, we store nil for ActualType and rely on Value.Type()
+		actualType = nil
 	default:
 		actualType = nil
 	}
