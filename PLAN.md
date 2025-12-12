@@ -669,11 +669,11 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
   - `operators.go:119`
   - Check full class hierarchy, not just direct parent
 
-- [ ] **5.3.2** Implement interface inheritance for `is` checks (3h)
+- [x] **5.3.2** Implement interface inheritance for `is` checks (3h)
   - `evaluator/visitor_expressions_types.go:220`
   - Walk interface parent chain
 
-- [ ] **5.3.3** Add type coercion to enum constant evaluation (3h)
+- [x] **5.3.3** Add type coercion to enum constant evaluation (3h)
   - `enum.go:41`
   - Handle integer-to-enum coercion in constant expressions
 

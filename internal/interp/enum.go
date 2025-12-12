@@ -37,8 +37,7 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 
 		// Check ValueExpr first (constant expressions)
 		if enumValue.ValueExpr != nil {
-			// Evaluate constant expression
-			// TODO: This needs proper constant expression evaluation with type coercion
+			// Evaluate constant expression and coerce to an ordinal
 			val := i.Eval(enumValue.ValueExpr)
 			if isError(val) {
 				return &ErrorValue{
@@ -46,23 +45,10 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 				}
 			}
 
-			// Try to extract ordinal value - support Integer and String (Chr() result)
-			switch v := val.(type) {
-			case *IntegerValue:
-				ordinalValue = int(v.Value)
-			case *StringValue:
-				// Chr() returns a string - use ordinal of first character
-				if len(v.Value) > 0 {
-					ordinalValue = int(v.Value[0])
-				} else {
-					return &ErrorValue{
-						Message: fmt.Sprintf("enum '%s' value '%s': empty string not valid for enum value", enumName, valueName),
-					}
-				}
-			default:
-				return &ErrorValue{
-					Message: fmt.Sprintf("enum '%s' value '%s': expected integer or string constant, got %s", enumName, valueName, val.Type()),
-				}
+			var errVal *ErrorValue
+			ordinalValue, errVal = i.extractEnumOrdinal(val, enumName, valueName)
+			if errVal != nil {
+				return errVal
 			}
 
 			if decl.Flags {
@@ -232,4 +218,53 @@ func (i *Interpreter) evalEnumLiteral(literal *ast.EnumLiteral) Value {
 	}
 
 	return enumVal
+}
+
+// extractEnumOrdinal coerces a value produced by an enum ValueExpr into an ordinal integer.
+// Supports integers, enums, booleans, single-character strings, subrange values, and
+// registered implicit conversions to Integer.
+func (i *Interpreter) extractEnumOrdinal(val Value, enumName, valueName string) (int, *ErrorValue) {
+	// Unwrap variant containers first
+	val = unwrapVariant(val)
+
+	switch v := val.(type) {
+	case *IntegerValue:
+		return int(v.Value), nil
+	case *EnumValue:
+		return v.OrdinalValue, nil
+	case *BooleanValue:
+		if v.Value {
+			return 1, nil
+		}
+		return 0, nil
+	case *StringValue:
+		runes := []rune(v.Value)
+		if len(runes) == 0 {
+			return 0, &ErrorValue{
+				Message: fmt.Sprintf("enum '%s' value '%s': empty string not valid for enum value", enumName, valueName),
+			}
+		}
+		if len(runes) > 1 {
+			return 0, &ErrorValue{
+				Message: fmt.Sprintf("enum '%s' value '%s': string '%s' must be a single character", enumName, valueName, v.Value),
+			}
+		}
+		return int(runes[0]), nil
+	case *SubrangeValue:
+		return v.Value, nil
+	}
+
+	// Try implicit conversions registered in the type system (e.g., Enum → Integer)
+	if converted, ok := i.tryImplicitConversion(val, "Integer"); ok {
+		if errVal, isErr := converted.(*ErrorValue); isErr {
+			return 0, errVal
+		}
+		if intVal, ok := converted.(*IntegerValue); ok {
+			return int(intVal.Value), nil
+		}
+	}
+
+	return 0, &ErrorValue{
+		Message: fmt.Sprintf("enum '%s' value '%s': expected ordinal constant, got %s", enumName, valueName, val.Type()),
+	}
 }

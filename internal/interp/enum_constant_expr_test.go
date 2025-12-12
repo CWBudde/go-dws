@@ -58,6 +58,28 @@ func TestEnumConstantExpressionEvaluation(t *testing.T) {
 			`,
 			expect: "-5\n-4\n",
 		},
+		{
+			name: "Enum value used as ordinal source",
+			input: `
+				type TBase = (BaseA = 10, BaseB, BaseC);
+				type TDerived = (First = BaseB, Second);
+
+				PrintLn(Ord(First));   // Should print 11
+				PrintLn(Ord(Second));  // Should print 12
+			`,
+			expect: "11\n12\n",
+		},
+		{
+			name: "Boolean constant expression",
+			input: `
+				type TBoolEnum = (FalseVal = False, TrueVal = True, Next);
+
+				PrintLn(Ord(FalseVal));    // Should print 0
+				PrintLn(Ord(TrueVal));     // Should print 1
+				PrintLn(Ord(Next));   // Should print 2
+			`,
+			expect: "0\n1\n2\n",
+		},
 	}
 
 	for _, tt := range tests {
