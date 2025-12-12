@@ -121,17 +121,19 @@ func (e *Engine) Compile(source string) (*Program, error) {
 				Errors: errors,
 			}
 		}
-		// Task 9.18: Get semantic info from analyzer
+		// Get semantic info from analyzer
 		semanticInfo = analyzer.GetSemanticInfo()
 	}
 
 	var chunk *bytecode.Chunk
 	if e.options.CompileMode == CompileModeBytecode {
 		bc := bytecode.NewCompiler("dwscript")
-		// Task 9.18: Pass semantic info to bytecode compiler
+
+		// Pass semantic info to bytecode compiler
 		if semanticInfo != nil {
 			bc.SetSemanticInfo(semanticInfo)
 		}
+
 		var err error
 		chunk, err = bc.Compile(program)
 		if err != nil {

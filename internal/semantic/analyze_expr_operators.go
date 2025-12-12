@@ -39,7 +39,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		return nil
 	}
 
-	// Handle ClassName identifier in method contexts (built-in property returning String)
+	// Built-in ClassName property
 	if ident.Equal(identifier.Value, "ClassName") && a.currentClass != nil {
 		if identifier.Value != "ClassName" {
 			a.addCaseMismatchHint(identifier.Value, "ClassName", identifier.Token.Pos)
@@ -47,7 +47,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		return types.STRING
 	}
 
-	// Handle ClassType identifier in method contexts (built-in metaclass reference)
+	// Built-in ClassType metaclass reference
 	if ident.Equal(identifier.Value, "ClassType") && a.currentClass != nil {
 		if identifier.Value != "ClassType" {
 			a.addCaseMismatchHint(identifier.Value, "ClassType", identifier.Token.Pos)
@@ -57,10 +57,8 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 
 	sym, ok := a.symbols.Resolve(identifier.Value)
 	if !ok {
-		// When a class name is used as an identifier, treat it as a metaclass reference
+		// Class name as identifier -> metaclass reference
 		if classType := a.getClassType(identifier.Value); classType != nil {
-			// Return ClassOfType (metaclass) instead of ClassType
-			// This allows: var meta: class of TBase; meta := TBase;
 			return &types.ClassOfType{ClassType: classType}
 		}
 		if a.currentClass != nil && !a.inClassMethod {
@@ -81,19 +79,14 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 				return fieldType
 			}
 
-			// Check if identifier is a property of the current class (implicit Self)
-			// DWScript is case-insensitive, so we need to search all properties
-			// Also search parent class hierarchy
+			// Check property in current class and parent hierarchy
 			for class := a.currentClass; class != nil; class = class.Parent {
 				for propName, propInfo := range class.Properties {
 					if ident.Equal(propName, identifier.Value) {
-						// Check for circular reference in property expressions
 						if a.inPropertyExpr && ident.Equal(propName, a.currentProperty) {
 							a.addError("property '%s' cannot be read-accessed at %s", identifier.Value, identifier.Token.Pos.String())
 							return nil
 						}
-
-						// For write-only properties, check if read access is defined
 						if propInfo.ReadKind == types.PropAccessNone {
 							a.addError("property '%s' is write-only at %s", identifier.Value, identifier.Token.Pos.String())
 							return nil
@@ -103,10 +96,9 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 				}
 			}
 
-			// Check if identifier refers to a method of the current class (allows method pointers)
+			// Check methods in current class
 			methodType, found := a.currentClass.GetMethod(identifier.Value)
 			if found {
-				// Check method visibility
 				methodOwner := a.getMethodOwner(a.currentClass, identifier.Value)
 				if methodOwner != nil {
 					visibility, hasVisibility := methodOwner.MethodVisibility[identifier.Value]
@@ -117,19 +109,14 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 						return nil
 					}
 				}
-				// In DWScript/Pascal, parameterless methods can be called without parentheses
-				// When referenced as an identifier, they should be treated as implicit calls
+				// Parameterless methods: implicit call returning method's return type
 				if len(methodType.Parameters) == 0 {
-					// Implicit call - return the method's return type
 					if methodType.ReturnType == nil {
-						// Procedure (no return value)
 						return types.VOID
 					}
 					return methodType.ReturnType
 				}
-
-				// Methods with parameters cannot be called without parentheses
-				// Return a method pointer type for deferred invocation
+				// Methods with parameters: return method pointer type
 				return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 			}
 		}
@@ -174,26 +161,15 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	}
 
 	// Handle function/procedure references
-	// Inside function's own body: function name is alias for Result variable
-	// Outside function body: convert to function pointer type
 	if funcType, ok := sym.Type.(*types.FunctionType); ok {
+		// Inside function's own body: name is alias for Result
 		if a.currentFunction != nil && ident.Equal(a.currentFunction.Name.Value, identifier.Value) {
-			// Inside the function's own body - function name is an alias for Result
-
-			// Procedures (no return type) don't have a Result variable
-			// Return nil to trigger "unknown name" error for reads
 			if funcType.IsProcedure() {
 				return nil
 			}
-
-			// For functions with return types, return the return type
-			// This allows: GetValue := GetValue + 1
 			return funcType.ReturnType
 		}
-
-		// Outside the function body - convert to function pointer type (existing behavior)
-		// This allows functions to be passed as arguments to higher-order functions.
-		// Example: PrintLn(First(Second)) where Second is a function
+		// Outside function body: convert to function pointer type
 		returnType := funcType.ReturnType
 		if funcType.IsProcedure() {
 			returnType = nil
@@ -384,7 +360,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 	// Handle comparison operators
 	if operator == "=" || operator == "<>" || operator == "<" || operator == ">" || operator == "<=" || operator == ">=" {
-		// Task 9.4.1: Allow Variant to be compared with any type
+		// Variant can be compared with any type
 		leftIsVariant := leftType == types.VARIANT
 		rightIsVariant := rightType == types.VARIANT
 
@@ -405,8 +381,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 				}
 			}
 		} else {
-			// For ordering, types must be orderable
-			// Task 9.4.1: Allow Variant in ordering comparisons
+			// For ordering, types must be orderable (Variant allowed)
 			if !leftIsVariant && !rightIsVariant {
 				if !types.IsOrderedType(leftType) || !types.IsOrderedType(rightType) {
 					a.addError("operator %s requires ordered types, got %s and %s at %s",
@@ -427,7 +402,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 	// Handle logical/bitwise operators (and, or, xor)
 	// These operators work on Boolean (logical), Integer (bitwise), and Enum types
 	if operator == "and" || operator == "or" || operator == "xor" {
-		// Task 9.4.2: Allow Variant in logical/bitwise operations
+		// Variant allowed in logical/bitwise operations
 		leftIsVariant := leftType == types.VARIANT
 		rightIsVariant := rightType == types.VARIANT
 
@@ -444,8 +419,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return types.INTEGER
 		}
 
-		// Task 1.6: Allow boolean operations on enum types (especially flags enums)
-		// Check if both operands are the same enum type
+		// Boolean operations on enum types (especially flags enums)
 		leftEnum, leftIsEnum := leftType.(*types.EnumType)
 		rightEnum, rightIsEnum := rightType.(*types.EnumType)
 		if leftIsEnum && rightIsEnum {
@@ -543,7 +517,7 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 
 	// Handle negation
 	if operator == "-" || operator == "+" {
-		// Task 9.4.2: Allow Variant in unary numeric operations
+		// Variant allowed in unary numeric operations
 		if operandType == types.VARIANT {
 			return types.VARIANT
 		}
@@ -556,8 +530,7 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 		return operandType
 	}
 
-	// Handle logical/bitwise not
-	// In DWScript, 'not' works on Boolean (logical NOT), Integer (bitwise NOT), and Variant
+	// Handle logical/bitwise not (Boolean, Integer, Variant)
 	if operator == "not" {
 		if operandType.Equals(types.BOOLEAN) {
 			return types.BOOLEAN
@@ -565,7 +538,6 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 		if operandType.Equals(types.INTEGER) {
 			return types.INTEGER
 		}
-		// Task 9.35: Support Variant→Boolean implicit conversion in not operator
 		if operandType.Equals(types.VARIANT) {
 			return types.VARIANT
 		}
@@ -577,6 +549,3 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 	a.addError("unknown unary operator: %s at %s", operator, expr.Token.Pos.String())
 	return nil
 }
-
-// analyzeCallExpression analyzes a function call and returns its type
-// Task 9.161: Semantic analysis for inherited keyword
