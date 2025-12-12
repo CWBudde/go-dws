@@ -8,9 +8,7 @@ import (
 
 // EnumValue represents an enumerated value in DWScript.
 // Enums are named constants with associated ordinal values.
-//
-// Phase 3.5.4 - Type Migration: Migrated from internal/interp to runtime/
-// to enable evaluator package to work with enum values directly.
+// Enables evaluator package to work with enum values directly.
 //
 // Example: type TColor = (Red, Green, Blue);
 // - TypeName: "TColor"

@@ -12,7 +12,7 @@ import (
 // ExceptionValue represents an exception object at runtime.
 // It holds the exception class type, the message, position, and the call stack at the point of raise.
 type ExceptionValue struct {
-	ClassInfo any             // Deprecated: Use Metadata instead. Will be removed in Phase 3.5.44.
+	ClassInfo any             // Deprecated: Use Metadata instead.
 	Metadata  *ClassMetadata  // AST-free class metadata
 	Instance  *ObjectInstance // Exception object instance
 	Position  *lexer.Position // Position where the exception was raised (for error reporting)
@@ -29,8 +29,6 @@ func (e *ExceptionValue) Type() string {
 	}
 	// Fallback to ClassInfo for backward compatibility
 	if e.ClassInfo != nil {
-		// During migration, ClassInfo may be set - extract name if possible
-		// This is a temporary workaround until Phase 3.5.44
 		return "EXCEPTION"
 	}
 	return "EXCEPTION"
@@ -47,7 +45,6 @@ func (e *ExceptionValue) GetInstance() interface{} {
 
 // Inspect returns a string representation of the exception.
 func (e *ExceptionValue) Inspect() string {
-	// Phase 3.5.44: Add nil check to prevent panic
 	if e == nil {
 		return "EXCEPTION: <nil>"
 	}

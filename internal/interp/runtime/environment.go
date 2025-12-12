@@ -46,11 +46,8 @@ func NewEnclosedEnvironment(outer *Environment) *Environment {
 	}
 }
 
-// NewEnclosed creates a new enclosed environment with this environment as the parent.
-// This method is used by EnvironmentAdapter to break the circular import dependency.
-// It allows the evaluator package to create proper scopes without needing to import interp.
-//
-// Phase 3.5.4 - Phase 2D: Added to fix loop variable scoping in evaluator.
+// NewEnclosed creates a new enclosed environment. This breaks the circular import dependency
+// and allows the evaluator package to create proper scopes without importing interp.
 func (e *Environment) NewEnclosed() interface{} {
 	return NewEnclosedEnvironment(e)
 }

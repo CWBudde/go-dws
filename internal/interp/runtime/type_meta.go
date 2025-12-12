@@ -8,10 +8,7 @@ import (
 )
 
 // TypeMetaValue represents a type reference in DWScript.
-// This is used for type-as-value scenarios where a type itself is passed as a runtime value.
-//
-// Phase 3.5.4 - Type Migration: Migrated from internal/interp to runtime/
-// to enable evaluator package to work with type metadata directly.
+// Used for type-as-value scenarios where a type itself is passed as a runtime value.
 //
 // Examples:
 //   - Low(Integer) where `Integer` is a TypeMetaValue wrapping types.INTEGER

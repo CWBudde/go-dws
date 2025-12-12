@@ -9,8 +9,8 @@ import (
 // Value Object Pooling
 // ============================================================================
 //
-// Phase 3.2.3: Implement object pooling for frequently allocated value types
-// to reduce garbage collection pressure and improve performance.
+// Object pooling for frequently allocated value types reduces garbage collection
+// pressure and improves performance.
 //
 // Pooled types: IntegerValue, FloatValue (most commonly allocated)
 // BooleanValue uses singletons instead (only two possible values)

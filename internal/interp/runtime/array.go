@@ -8,9 +8,7 @@ import (
 
 // ArrayValue represents an array value in DWScript.
 // DWScript supports both static arrays (with fixed bounds) and dynamic arrays (resizable).
-//
-// Phase 3.5.4 - Type Migration: Migrated from internal/interp to runtime/
-// to enable evaluator package to work with array values directly.
+// Enables evaluator package to work with array values directly.
 //
 // Examples:
 //   - Static: array[1..10] of Integer
@@ -75,8 +73,6 @@ func (a *ArrayValue) ArrayTypeString() string {
 // This allows the interp package to provide custom initialization logic
 // for complex element types (records, nested arrays, etc.) without creating
 // circular dependencies.
-//
-// Phase 3.5.4: Used to break circular dependency between runtime and interp packages.
 type ArrayElementInitializer func(elementType types.Type, index int) Value
 
 // NewArrayValue creates a new ArrayValue with the given array type.

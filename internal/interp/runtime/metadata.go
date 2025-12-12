@@ -66,19 +66,19 @@ func (v MethodVisibility) String() string {
 //
 // Design rationale:
 //   - Stores only information needed at runtime (signature, flags, visibility)
-//   - Executable body can be AST (Phase 9), bytecode ID (Phase 10+), or native func
+//   - Executable body can be AST, bytecode ID, or native function
 //   - Reduces memory overhead compared to full AST nodes
 //   - Enables serialization for bytecode cache
 type MethodMetadata struct {
 	ReturnType     types.Type           // Resolved return type (nil for procedures)
-	Body           ast.Statement        // AST statement block to execute (Phase 9)
+	Body           ast.Statement        // AST statement block to execute
 	PreConditions  *ast.PreConditions   // Assertions checked before execution
 	PostConditions *ast.PostConditions  // Assertions checked after execution
 	NativeFunc     func(args []any) any // Built-in function implementation
 	Name           string               // Method/function name
 	ReturnTypeName string               // String representation of return type
 	Parameters     []ParameterMetadata  // Method parameters
-	BytecodeID     int                  // ID of compiled bytecode (Phase 10+)
+	BytecodeID     int                  // ID of compiled bytecode if pre-compiled
 	ID             MethodID             // Unique method identifier in registry
 	Visibility     MethodVisibility     // Access control level
 	IsVirtual      bool                 // Uses virtual dispatch

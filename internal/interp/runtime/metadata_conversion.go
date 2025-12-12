@@ -6,12 +6,8 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// MethodMetadataFromAST converts an AST function declaration to MethodMetadata.
-// This is used during the migration period to convert existing AST-based code
-// to use the new metadata structures.
-//
-// Phase 9: Creates MethodMetadata with AST Body, PreConditions, PostConditions.
-// Phase 10+: Will pre-compile Body/conditions to bytecode.
+// MethodMetadataFromAST converts an AST function declaration to metadata.
+// Creates MethodMetadata with AST Body, PreConditions, and PostConditions.
 func MethodMetadataFromAST(fn *ast.FunctionDecl) *MethodMetadata {
 	if fn == nil {
 		return nil
