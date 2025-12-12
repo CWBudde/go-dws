@@ -7,9 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// TestInlineFunctionPointerInParameter tests parsing function declarations
-// with inline function pointer type parameters.
-// Task 9.44: Inline function pointer types in parameters
+// TestInlineFunctionPointerInParameter tests parsing inline function pointer types in parameters.
 func TestInlineFunctionPointerInParameter(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -82,9 +80,7 @@ func TestInlineFunctionPointerInParameter(t *testing.T) {
 	}
 }
 
-// TestArrayTypeInParameter tests parsing function declarations
-// with array type parameters.
-// Task 9.47: array of Type in function parameters
+// TestArrayTypeInParameter tests parsing array types in function parameters.
 func TestArrayTypeInParameter(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -157,9 +153,7 @@ func TestArrayTypeInParameter(t *testing.T) {
 	}
 }
 
-// TestInlineFunctionPointerInVariable tests parsing variable declarations
-// with inline function pointer types.
-// Task 9.45: Inline function pointer types in variable declarations
+// TestInlineFunctionPointerInVariable tests parsing inline function pointer types in variable declarations.
 func TestInlineFunctionPointerInVariable(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -231,9 +225,7 @@ func TestInlineFunctionPointerInVariable(t *testing.T) {
 	}
 }
 
-// TestArrayTypeInVariable tests parsing variable declarations
-// with array types.
-// Task 9.46: array of Type in variable declarations
+// TestArrayTypeInVariable tests parsing array types in variable declarations.
 func TestArrayTypeInVariable(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -305,8 +297,7 @@ func TestArrayTypeInVariable(t *testing.T) {
 	}
 }
 
-// TestArrayReturnTypes tests parsing function declarations with inline array return types.
-// Task 9.59: Support inline array types in function return types
+// TestArrayReturnTypes tests parsing inline array types in function return types.
 func TestArrayReturnTypes(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -402,9 +393,7 @@ func TestArrayReturnTypes(t *testing.T) {
 	}
 }
 
-// TestComplexReturnTypes tests parsing function declarations with complex return types
-// combining arrays and function pointers.
-// Task 9.59: Support complex inline types in function return types
+// TestComplexReturnTypes tests parsing complex inline types (arrays and function pointers) in return types.
 func TestComplexReturnTypes(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -476,8 +465,7 @@ func TestComplexReturnTypes(t *testing.T) {
 	}
 }
 
-// TestMetaclassTypeDeclaration tests parsing metaclass type declarations.
-// Task 9.73.4: Parser support for metaclass type aliases
+// TestMetaclassTypeDeclaration tests parsing metaclass type aliases.
 func TestMetaclassTypeDeclaration(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -567,7 +555,6 @@ func TestMetaclassTypeDeclaration(t *testing.T) {
 }
 
 // TestMetaclassVariableDeclaration tests parsing variable declarations with metaclass types.
-// Task 9.73.4: Parser support for metaclass variables
 func TestMetaclassVariableDeclaration(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -642,7 +629,6 @@ func TestMetaclassVariableDeclaration(t *testing.T) {
 }
 
 // TestEnumIndexedArrayType tests parsing enum-indexed arrays.
-// Task 9.21.1: Support enum-indexed arrays
 func TestEnumIndexedArrayType(t *testing.T) {
 	tests := []struct {
 		name         string

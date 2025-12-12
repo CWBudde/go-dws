@@ -32,8 +32,7 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Typ
 		return a.resolveArrayTypeNode(arrayNode)
 	}
 
-	// Handle ClassOfTypeNode directly
-	// Task 9.71: Support metaclass type resolution
+	// Handle ClassOfTypeNode directly (metaclass type resolution)
 	if classOfNode, ok := typeExpr.(*ast.ClassOfTypeNode); ok {
 		return a.resolveClassOfTypeNode(classOfNode)
 	}
@@ -96,8 +95,7 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 			return nil, fmt.Errorf("set element type must be ordinal, got %s", elementType.String())
 		}
 
-		// Cache inline set types by their normalized signature to keep lookups consistent
-		// Task 6.1.1.3: Use TypeRegistry for set type caching
+		// Cache inline set types by their normalized signature
 		if cached := a.getSetType(lowerName); cached != nil {
 			return cached, nil
 		}
@@ -108,16 +106,14 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	}
 
 	// Normalize type name for case-insensitive lookup
-	// DWScript is case-insensitive, so "integer", "Integer", and "INTEGER" should all work
 	normalizedName := ident.Normalize(typeName)
 
-	// Try basic types first (TypeFromString now handles case-insensitivity)
+	// Try basic types first (TypeFromString handles case-insensitivity)
 	basicType, err := types.TypeFromString(typeName)
 	if err == nil {
 		return basicType, nil
 	}
 
-	// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 	// Try user-defined types (classes, interfaces, enums, records, sets, arrays, aliases)
 	if userType, found := a.lookupType(typeName); found {
 		return userType, nil
@@ -387,9 +383,8 @@ func (a *Analyzer) resolveInlineArrayType(signature string) (types.Type, error) 
 	return types.NewDynamicArrayType(elementType), nil
 }
 
-// resolveArrayTypeNode resolves an ArrayTypeNode directly from the AST.
-// This avoids string conversion issues with parentheses in bound expressions.
-// Task: Fix negative array bounds like array[-5..5]
+// resolveArrayTypeNode resolves an ArrayTypeNode directly from the AST
+// (avoids string conversion issues with parentheses and negative bounds).
 func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Type, error) {
 	if arrayNode == nil {
 		return nil, fmt.Errorf("nil array type node")
@@ -419,8 +414,7 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 		return types.NewDynamicArrayType(elementType), nil
 	}
 
-	// Check if enum/ordinal-indexed array
-	// Task 9.21.1: Handle enum-indexed arrays (extended to all bounded ordinals)
+	// Handle enum/ordinal-indexed arrays (extended to all bounded ordinals)
 	if arrayNode.IsEnumIndexed() {
 		// Resolve the index type
 		indexTypeName := getTypeExpressionName(arrayNode.IndexType)
@@ -477,7 +471,6 @@ func (a *Analyzer) resolveSetTypeNode(setNode *ast.SetTypeNode) (types.Type, err
 	setType := types.NewSetType(elementType)
 
 	// Cache inline set types by their string representation for consistent reuse
-	// Task 6.1.1.3: Use TypeRegistry for set type caching
 	normalizedName := ident.Normalize(setNode.String())
 	if !a.hasType(normalizedName) {
 		a.registerType(normalizedName, setType)
@@ -669,7 +662,7 @@ func (a *Analyzer) hasConstructorWithName(constructorName string, parent *types.
 
 // getMethodOverloadsInHierarchy collects all method overloads from the class hierarchy
 // Returns all overload variants for the given method name, searching up the inheritance chain
-// Task 9.68: Also includes constructor overloads when the method name is a constructor
+// getMethodOverloadsInHierarchy also includes constructor overloads when the method name is a constructor.
 func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *types.ClassType) []*types.MethodInfo {
 	if classType == nil {
 		return nil
@@ -677,9 +670,7 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 
 	var result []*types.MethodInfo
 
-	// Task 9.68: Check if this is a constructor call (class static method call)
-	// Constructors are stored separately in ConstructorOverloads
-	// Task 9.19: Perform case-insensitive constructor lookup
+	// Check if this is a constructor call (case-insensitive), stored separately in ConstructorOverloads
 	var constructorOverloads []*types.MethodInfo
 	for ctorName, overloads := range classType.ConstructorOverloads {
 		if ident.Equal(ctorName, methodName) {
@@ -687,12 +678,10 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 		}
 	}
 	if len(constructorOverloads) > 0 {
-		// This is a constructor - include constructor overloads
 		result = append(result, constructorOverloads...)
 
-		// Task 9.68: Add implicit parameterless constructor if not already present
-		// DWScript allows calling constructors with no arguments even if only
-		// parameterized constructors are declared
+		// Add implicit parameterless constructor if not already present
+		// (DWScript allows calling constructors with no arguments)
 		hasParameterlessConstructor := false
 		for _, ctor := range constructorOverloads {
 			if len(ctor.Signature.Parameters) == 0 {
@@ -714,25 +703,19 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 	overloads := classType.GetMethodOverloads(methodName)
 	result = append(result, overloads...)
 
-	// Recursively collect from parent (only if not hidden/overridden in current class)
-	// Task 9.21.6: Fix overload resolution - child methods hide parent methods with same signature
-	// In DWScript, when a child class defines a method with the same signature as a parent method,
-	// it hides/shadows the parent method (regardless of override keyword).
-	// We only want to include parent methods with DIFFERENT signatures (true overloads).
+	// Recursively collect from parent (child methods hide parent methods with same signature)
+	// In DWScript, child methods shadow parent methods regardless of override keyword.
+	// Only include parent methods with different signatures (true overloads).
 	if classType.Parent != nil {
 		parentOverloads := a.getMethodOverloadsInHierarchy(methodName, classType.Parent)
 		for _, parentOverload := range parentOverloads {
-			// Check if this parent method is hidden by a child method with the same signature
 			hidden := false
 			for _, currentOverload := range overloads {
-				// A child method hides a parent method if they have the same signature
-				// (regardless of whether override keyword is used)
 				if a.methodSignaturesMatch(currentOverload.Signature, parentOverload.Signature) {
 					hidden = true
 					break
 				}
 			}
-			// Only add parent method if it has a different signature (true overload)
 			if !hidden {
 				result = append(result, parentOverload)
 			}
@@ -764,8 +747,8 @@ func (a *Analyzer) methodSignaturesMatch(sig1, sig2 *types.FunctionType) bool {
 	return true
 }
 
-// parametersMatch checks if two function signatures have the same parameters (ignoring return type)
-// Task 9.62: Used to detect ambiguous overloads where parameters match but return types differ
+// parametersMatch checks if two function signatures have the same parameters (ignoring return type).
+// Used to detect ambiguous overloads where parameters match but return types differ.
 func (a *Analyzer) parametersMatch(sig1, sig2 *types.FunctionType) bool {
 	// Check parameter count
 	if len(sig1.Parameters) != len(sig2.Parameters) {
@@ -796,9 +779,7 @@ func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) [
 
 	// Check which ones are not implemented in this class
 	for methodName := range abstractMethods {
-		// Check if this class has its own implementation of the method
-		// We need to check the method is defined in THIS class specifically, not inherited
-		// Task 9.16.1: methodName is already lowercase from AbstractMethods map
+		// Check if this class has its own implementation (methodName already lowercase from AbstractMethods map)
 		lowerMethodName := ident.Normalize(methodName)
 		hasOwnMethod := len(classType.MethodOverloads[lowerMethodName]) > 0
 
@@ -807,15 +788,13 @@ func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) [
 			unimplemented = append(unimplemented, methodName)
 		} else {
 			// Method is defined in this class
-			// Task 9.2: Check if it's marked with reintroduce - if so, it doesn't implement the parent abstract method
 			if isReintroduce, exists := classType.ReintroduceMethods[lowerMethodName]; exists && isReintroduce {
-				// Method reintroduces (hides) parent method without implementing it
+				// Reintroduced method doesn't implement the parent abstract method
 				unimplemented = append(unimplemented, methodName)
 			} else if isAbstract, exists := classType.AbstractMethods[lowerMethodName]; exists && isAbstract {
 				// Still abstract in this class - not implemented
 				unimplemented = append(unimplemented, methodName)
 			}
-			// Otherwise, method is implemented (exists, is not abstract, and does not reintroduce)
 		}
 	}
 
@@ -955,7 +934,7 @@ func (a *Analyzer) getMethodOwner(class *types.ClassType, methodName string) *ty
 		return nil
 	}
 
-	// Task 9.16.1: Use overload system instead of deprecated Methods map
+	// Check method overloads (normalized for case-insensitivity)
 	methodKey := ident.Normalize(methodName)
 	if _, found := class.MethodOverloads[methodKey]; found {
 		return class
@@ -1016,9 +995,7 @@ func (a *Analyzer) findClassConstantWithVisibility(startClass *types.ClassType, 
 // resolveClassOfTypeNode resolves a ClassOfTypeNode to a ClassOfType.
 //
 // A metaclass type "class of TMyClass" is a type that holds a reference to
-// a class type itself, not an instance.
-//
-// Task 9.71: Metaclass type resolution
+// a class type itself, not an instance (metaclass type resolution).
 func (a *Analyzer) resolveClassOfTypeNode(classOfNode *ast.ClassOfTypeNode) (types.Type, error) {
 	if classOfNode == nil {
 		return nil, fmt.Errorf("nil class of type node")

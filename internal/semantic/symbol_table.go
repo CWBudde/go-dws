@@ -105,19 +105,8 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType,
 }
 
 // DefineOverload defines a new function overload or adds to an existing overload set.
-//
-// Parameters:
-//   - name: Function name
-//   - funcType: Function signature
-//   - hasOverloadDirective: Whether the function declaration has the 'overload' directive
-//   - isForward: Whether this is a forward declaration
-//   - pos: Position where the function is declared
-//
-// Returns error if:
-//   - Function exists without overload directive on either declaration
-//   - Exact duplicate signature exists
-//   - Ambiguous overload with default parameters
-//   - Forward declaration doesn't match implementation
+// Returns error if function exists without overload directive, has duplicate signature,
+// is ambiguous with default parameters, or forward declaration doesn't match implementation.
 func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType, hasOverloadDirective bool, isForward bool, pos token.Position) error {
 	existing, exists := st.symbols.Get(name)
 
@@ -256,31 +245,20 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 	if existing.IsOverloadSet {
 		for i, overload := range existing.Overloads {
 			existingFunc := overload.Type.(*types.FunctionType)
-			// Check if signatures are equal (same parameters)
 			if SignaturesEqual(existingFunc, funcType) {
-				// Signatures match - check if return types also match
 				if existingFunc.ReturnType.Equals(funcType.ReturnType) {
-					// Signatures and return types match - check default parameters
-					// Rule: If existing has defaults but new doesn't, it's a duplicate (new is redundant)
-					//       If existing doesn't have defaults but new does, it's ambiguous (new expands but creates ambiguity)
 					hasDefaults1 := hasDefaultParameters(existingFunc)
 					hasDefaults2 := hasDefaultParameters(funcType)
 
-					// Task 9.60: Check if this is a forward + implementation pair
+					// Forward + implementation pair: check if default parameters match
 					if overload.IsForward && !isForward {
-						// Implementation following forward declaration in overload set
-						// Check if default parameters match (they must for forward replacement)
 						if !defaultParametersMatch(existingFunc, funcType) {
-							// Signatures match but default params don't - treat as different overload
-							// Continue to next overload instead of replacing
 							continue
 						}
-						// Validate overload directive consistency
-						// Forward can have 'overload' and implementation can omit it (DWScript allows this)
+						// Forward can have 'overload'; implementation can omit it
 						if !overload.HasOverloadDirective && hasOverloadDirective {
 							return fmt.Errorf("implementation has 'overload' directive but forward declaration does not for '%s'", name)
 						}
-						// Replace the forward with the implementation
 						existing.Overloads[i].IsForward = false
 						existing.Overloads[i].Type = funcType
 						return nil
@@ -291,24 +269,14 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 						return fmt.Errorf("duplicate forward declaration for '%s'", name)
 					}
 
-					// If existing has defaults but new doesn't, it's a duplicate (new is completely redundant)
-					// If new has defaults but existing doesn't, skip duplicate check - ambiguity check will catch it
 					if hasDefaults1 && !hasDefaults2 {
-						// Task 9.63: True duplicate - use DWScript error message format
 						return fmt.Errorf("There is already a method with name \"%s\"", name)
 					} else if !hasDefaults1 && hasDefaults2 {
-						// New adds default parameters - this will be caught by ambiguity check
-						// Continue to next overload
 						continue
+					} else if defaultParametersMatch(existingFunc, funcType) {
+						return fmt.Errorf("There is already a method with name \"%s\"", name)
 					} else {
-						// Both have defaults or neither has defaults - check if they match exactly
-						if defaultParametersMatch(existingFunc, funcType) {
-							// Exact match - true duplicate
-							return fmt.Errorf("There is already a method with name \"%s\"", name)
-						} else {
-							// Different default values - will be caught by ambiguity check
-							continue
-						}
+						continue
 					}
 				}
 				// Signatures match but return types differ - this is a valid overload
@@ -329,7 +297,6 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 				hasDefaults2 := hasDefaultParameters(funcType)
 
 				if hasDefaults1 && !hasDefaults2 {
-					// Task 9.63: True duplicate - use DWScript error message format
 					return fmt.Errorf("There is already a method with name \"%s\"", name)
 				} else if !hasDefaults1 && hasDefaults2 {
 					// New adds default parameters - this will be caught by ambiguity check
@@ -343,13 +310,11 @@ func (st *SymbolTable) DefineOverload(name string, funcType *types.FunctionType,
 					// Different default values - will be caught by ambiguity check
 				}
 			}
-			// Signatures match but return types differ - this is a valid overload
-			// (procedures vs functions, or functions with different return types)
-			// Continue to allow this overload
+			// Return types differ - valid overload (procedures vs functions)
 		}
 	}
 
-	// Task 9.62: Check for ambiguous overloads (especially with default parameters)
+	// Check for ambiguous overloads with default parameters
 	if err := st.checkAmbiguousOverload(name, funcType, existing); err != nil {
 		return err
 	}
@@ -414,8 +379,8 @@ func getFunctionKind(funcType *types.FunctionType) string {
 	return "function"
 }
 
-// checkAmbiguousOverload checks if a new overload would be ambiguous with existing overloads
-// Task 9.62: Detect ambiguous overloads, especially with default parameters
+// checkAmbiguousOverload checks if a new overload would be ambiguous with existing overloads,
+// especially with default parameters.
 func (st *SymbolTable) checkAmbiguousOverload(name string, newSig *types.FunctionType, existing *Symbol) error {
 	// Get all existing signatures
 	var existingSigs []*types.FunctionType
@@ -538,12 +503,8 @@ func max(a, b int) int {
 	return b
 }
 
-// GetOverloadSet retrieves all overloads for a given function name.
-//
-// Returns:
-//   - For overloaded functions: slice of all overload symbols
-//   - For non-overloaded functions: single-element slice
-//   - For non-existent functions: nil
+// GetOverloadSet retrieves all overloads for a function name.
+// Returns slice of all overload symbols, single-element slice for non-overloaded functions, or nil.
 func (st *SymbolTable) GetOverloadSet(name string) []*Symbol {
 	sym, ok := st.symbols.Get(name)
 	if !ok {
@@ -562,126 +523,87 @@ func (st *SymbolTable) GetOverloadSet(name string) []*Symbol {
 	return []*Symbol{sym}
 }
 
-// Resolve looks up a symbol by name in the current and outer scopes
-// DWScript is case-insensitive, handled by ident.Map
+// Resolve looks up a symbol by name in the current and outer scopes (case-insensitive).
 func (st *SymbolTable) Resolve(name string) (*Symbol, bool) {
-	// Check current scope (case-insensitive via ident.Map)
 	sym, ok := st.symbols.Get(name)
 	if ok {
 		return sym, true
 	}
-
-	// Check outer scope
 	if st.outer != nil {
 		return st.outer.Resolve(name)
 	}
-
 	return nil, false
 }
 
-// IsDeclaredInCurrentScope checks if a symbol is declared in the current scope
-// (not in any parent scope). Case-insensitive via ident.Map.
+// IsDeclaredInCurrentScope checks if a symbol is declared in the current scope (case-insensitive).
 func (st *SymbolTable) IsDeclaredInCurrentScope(name string) bool {
 	return st.symbols.Has(name)
 }
 
-// PushScope creates a new nested scope
-func (st *SymbolTable) PushScope() {
-	// The Analyzer will manage this by creating a new SymbolTable
-	// This is a helper method for clarity
-}
+// PushScope creates a new nested scope (managed by Analyzer).
+func (st *SymbolTable) PushScope() {}
 
-// PopScope returns to the parent scope
-func (st *SymbolTable) PopScope() {
-	// The Analyzer will manage this by using the outer reference
-	// This is a helper method for clarity
-}
+// PopScope returns to the parent scope (managed by Analyzer).
+func (st *SymbolTable) PopScope() {}
 
-// AllSymbols returns all symbols in the current scope and all outer scopes.
-// Used for symbol extraction for LSP features (Task 10.15).
-// Keys in the returned map are normalized (lowercase).
+// AllSymbols returns all symbols in the current and outer scopes (keys normalized).
 func (st *SymbolTable) AllSymbols() map[string]*Symbol {
 	result := make(map[string]*Symbol)
-
-	// Collect symbols from outer scopes first (so current scope can override)
 	if st.outer != nil {
 		for name, sym := range st.outer.AllSymbols() {
 			result[name] = sym
 		}
 	}
-
-	// Add symbols from current scope (overrides outer symbols with same name)
 	st.symbols.Range(func(name string, sym *Symbol) bool {
 		result[ident.Normalize(name)] = sym
-		return true // continue iteration
+		return true
 	})
-
 	return result
 }
 
-// RecordUsage records a usage of a symbol at the given position.
-// This is used for LSP features like find-references.
-// If the symbol doesn't exist, this is a no-op.
+// RecordUsage records a usage of a symbol at the given position (for LSP find-references).
 func (st *SymbolTable) RecordUsage(name string, pos token.Position) {
 	sym, ok := st.symbols.Get(name)
 	if ok {
 		sym.Usages = append(sym.Usages, pos)
 		return
 	}
-
-	// Check outer scope
 	if st.outer != nil {
 		st.outer.RecordUsage(name, pos)
 	}
 }
 
-// FindDefinition finds the definition of a symbol by name.
-// Returns the symbol, its declaration position, and whether it was found.
-// DWScript is case-insensitive, handled by ident.Map.
+// FindDefinition finds the definition of a symbol by name (case-insensitive).
 func (st *SymbolTable) FindDefinition(name string) (*Symbol, token.Position, bool) {
 	sym, ok := st.symbols.Get(name)
 	if ok {
 		return sym, sym.DeclPosition, true
 	}
-
-	// Check outer scope
 	if st.outer != nil {
 		return st.outer.FindDefinition(name)
 	}
-
 	return nil, token.Position{}, false
 }
 
-// FindReferences returns all usage positions for a given symbol name.
-// Returns nil if the symbol doesn't exist.
-// DWScript is case-insensitive, handled by ident.Map.
+// FindReferences returns all usage positions for a given symbol name (case-insensitive).
 func (st *SymbolTable) FindReferences(name string) []token.Position {
 	sym, ok := st.symbols.Get(name)
 	if ok {
-		// Return a copy to prevent external modification
 		refs := make([]token.Position, len(sym.Usages))
 		copy(refs, sym.Usages)
 		return refs
 	}
-
-	// Check outer scope
 	if st.outer != nil {
 		return st.outer.FindReferences(name)
 	}
-
 	return nil
 }
 
-// UnusedSymbols returns all symbols in the current scope (not outer scopes)
-// that have been declared but never used (Usages is empty).
-// This is useful for detecting unused variables/functions.
+// UnusedSymbols returns all declared but unused symbols in the current scope.
 func (st *SymbolTable) UnusedSymbols() []*Symbol {
 	var unused []*Symbol
-
 	st.symbols.Range(func(name string, sym *Symbol) bool {
-		// Check if symbol has no usages
 		if len(sym.Usages) == 0 {
-			// For overload sets, check if any overload has usages
 			if sym.IsOverloadSet {
 				anyUsed := false
 				for _, overload := range sym.Overloads {
@@ -697,9 +619,8 @@ func (st *SymbolTable) UnusedSymbols() []*Symbol {
 				unused = append(unused, sym)
 			}
 		}
-		return true // continue iteration
+		return true
 	})
-
 	return unused
 }
 
@@ -717,24 +638,17 @@ func hasDefaultParameters(sig *types.FunctionType) bool {
 }
 
 // defaultParametersMatch checks if two function signatures have matching default parameters.
-// This is used for forward declaration matching - forwards and implementations must match exactly.
-// Task 9.64: Default parameters affect forward declaration matching
+// Used for forward declaration matching - forwards and implementations must match exactly.
 func defaultParametersMatch(sig1, sig2 *types.FunctionType) bool {
-	// Both must have same number of parameters (already checked by SignaturesEqual)
 	if len(sig1.Parameters) != len(sig2.Parameters) {
 		return false
 	}
-
-	// Check each parameter's default value presence
 	for i := 0; i < len(sig1.Parameters); i++ {
 		has1 := i < len(sig1.DefaultValues) && sig1.DefaultValues[i] != nil
 		has2 := i < len(sig2.DefaultValues) && sig2.DefaultValues[i] != nil
-
-		// Both must have or not have a default value
 		if has1 != has2 {
 			return false
 		}
 	}
-
 	return true
 }
