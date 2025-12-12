@@ -40,6 +40,7 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 				OperandTypes:  entry.OperandTypes,
 				SelfIndex:     entry.SelfIndex,
 				IsClassMethod: entry.IsClassMethod,
+				TypeSystem:    i.typeSystem,
 			}
 			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 		}
@@ -58,6 +59,7 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 				OperandTypes:  entry.OperandTypes,
 				SelfIndex:     entry.SelfIndex,
 				IsClassMethod: entry.IsClassMethod,
+				TypeSystem:    i.typeSystem,
 			}
 			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 		}
@@ -71,6 +73,7 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 			OperandTypes:  entry.OperandTypes,
 			SelfIndex:     entry.SelfIndex,
 			IsClassMethod: entry.IsClassMethod,
+			TypeSystem:    i.typeSystem,
 		}
 		return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 	}
@@ -108,6 +111,7 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 				OperandTypes:  entry.OperandTypes,
 				SelfIndex:     entry.SelfIndex,
 				IsClassMethod: entry.IsClassMethod,
+				TypeSystem:    i.typeSystem,
 			}
 			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 		}
@@ -122,6 +126,7 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 			OperandTypes:  entry.OperandTypes,
 			SelfIndex:     entry.SelfIndex,
 			IsClassMethod: entry.IsClassMethod,
+			TypeSystem:    i.typeSystem,
 		}
 		return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 	}

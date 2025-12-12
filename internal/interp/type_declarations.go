@@ -638,6 +638,7 @@ func (i *Interpreter) RegisterClassOperator(classInfo interface{}, opDecl *ast.O
 		Class:         ci,
 		IsClassMethod: isClassMethod,
 		SelfIndex:     selfIndex,
+		TypeSystem:    i.typeSystem,
 	}
 
 	if err := ci.Operators.register(entry); err != nil {

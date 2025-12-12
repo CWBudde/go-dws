@@ -62,6 +62,48 @@ end
 	}
 }
 
+func TestClassOperatorAcceptsSubclassOperands(t *testing.T) {
+	input := `
+type TParent = class
+  Name: String;
+  constructor Create(n: String);
+  function Combine(other: TParent): TParent;
+  class operator + (TParent, TParent) : TParent uses Combine;
+end;
+
+type TChild = class(TParent)
+end;
+
+constructor TParent.Create(n: String);
+begin
+  Name := n;
+end;
+
+function TParent.Combine(other: TParent): TParent;
+begin
+  Result := TParent.Create(Name + '+' + other.Name);
+end;
+
+var left: TChild;
+var right: TChild;
+var combined: TParent;
+begin
+  left := TChild.Create('Left');
+  right := TChild.Create('Right');
+  left.Name := 'Left';
+  right.Name := 'Right';
+  combined := left + right;
+  PrintLn(combined.Name);
+end
+`
+
+	_, output := testEvalWithOutput(input)
+
+	if output != "Left+Right\n" {
+		t.Fatalf("unexpected output: %s", output)
+	}
+}
+
 func TestClassOperatorIn(t *testing.T) {
 	input := `
 		type TMyRange = class

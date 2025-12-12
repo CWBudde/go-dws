@@ -15,6 +15,7 @@ type runtimeOperatorEntry struct {
 	OperandTypes  []string
 	SelfIndex     int
 	IsClassMethod bool
+	TypeSystem    *interptypes.TypeSystem
 }
 
 type runtimeOperatorRegistry struct {
@@ -76,7 +77,7 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 
 		allCompatible := true
 		for i := range operandTypes {
-			if !areRuntimeTypesCompatibleForOperator(operandTypes[i], entry.OperandTypes[i], entry.Class) {
+			if !areRuntimeTypesCompatibleForOperator(operandTypes[i], entry.OperandTypes[i], entry.Class, entry.TypeSystem) {
 				allCompatible = false
 				break
 			}
@@ -92,7 +93,7 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 
 // areRuntimeTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
 // This supports inheritance: a subclass instance can be used where parent class is expected.
-func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, declaredClass *ClassInfo) bool {
+func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, _ *ClassInfo, typeSystem *interptypes.TypeSystem) bool {
 	normalizedActual := ident.Normalize(actualType)
 	normalizedDeclared := ident.Normalize(declaredType)
 
@@ -116,16 +117,9 @@ func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, decla
 	actualClassName := strings.TrimPrefix(normalizedActual, "class:")
 	declaredClassName := strings.TrimPrefix(normalizedDeclared, "class:")
 
-	// TODO: Full inheritance checking is not yet implemented here
-	// The function currently only does simple name comparison because we don't have
-	// easy access to the actual class hierarchy from the runtime type strings.
-	// The full inheritance check is handled in tryCallClassOperator which walks up
-	// the parent class chain. The declaredClass parameter is kept for future enhancement
-	// when we refactor to pass full ClassInfo objects instead of type strings.
-	if declaredClass != nil {
-		if ident.Normalize(declaredClass.Name) == declaredClassName {
-			return true
-		}
+	// Use TypeSystem when available for full inheritance checks
+	if typeSystem != nil && typeSystem.IsClassDescendantOf(actualClassName, declaredClassName) {
+		return true
 	}
 
 	return actualClassName == declaredClassName
