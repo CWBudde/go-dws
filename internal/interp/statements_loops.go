@@ -125,8 +125,8 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 		return newError("for loop end value must be ordinal, got %s", endVal.Type())
 	}
 
-	// Task 9.154: Evaluate step expression if present
-	stepValue := int64(1) // Default step value
+	// Evaluate step expression if present (default: 1)
+	stepValue := int64(1)
 	if stmt.Step != nil {
 		stepVal := i.Eval(stmt.Step)
 		if isError(stepVal) {
@@ -191,9 +191,8 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 		return newError("for loop start value must be ordinal, got %s", startVal.Type())
 	}
 
-	// Execute the loop based on direction
+	// Execute the loop based on direction (ascending with step)
 	if stmt.Direction == ast.ForTo {
-		// Task 9.155: Ascending loop with step support
 		for current := int64(startOrd); current <= int64(endOrd); current += stepValue {
 			// Set the loop variable to the current value
 			i.Env().Define(loopVarName, makeLoopValue(current))
@@ -221,7 +220,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 			}
 		}
 	} else {
-		// Task 9.155: Descending loop with step support
+		// Descending loop with step support
 		for current := int64(startOrd); current >= int64(endOrd); current -= stepValue {
 			// Set the loop variable to the current value
 			i.Env().Define(loopVarName, makeLoopValue(current))
@@ -310,7 +309,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			return newError("invalid set type for iteration")
 		}
 
-		// Task 9.226: Handle iteration over different set element types
+		// Iterate over different set element types
 		elementType := col.SetType.ElementType
 		ordinals := col.Ordinals()
 
@@ -423,10 +422,7 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 		}
 
 	case *TypeMetaValue:
-		// Task 9.213: Iterate over enum type values
-		// When iterating over an enum type directly (e.g., for var e in TColor do),
-		// we iterate over all values of the enum type in declaration order.
-		// This is similar to set iteration but without checking membership.
+		// Iterate over enum type values (e.g., for var e in TColor do)
 		enumType, ok := col.TypeInfo.(*types.EnumType)
 		if !ok {
 			return newError("for-in loop: can only iterate over enum types, got %s", col.TypeName)
@@ -514,16 +510,8 @@ func (i *Interpreter) evalExitStatement(stmt *ast.ExitStatement) Value {
 }
 
 // evalReturnStatement handles return statements in lambda expressions.
-// Task 9.222: Return statements are used in shorthand lambda syntax.
-//
 // In shorthand lambda syntax, the parser creates a return statement:
-//
-//	lambda(x) => x * 2
-//
-// becomes:
-//
-//	lambda(x) begin return x * 2; end
-//
+// lambda(x) => x * 2 becomes lambda(x) begin return x * 2; end
 // The return value is assigned to the Result variable if it exists.
 func (i *Interpreter) evalReturnStatement(stmt *ast.ReturnStatement) Value {
 	// Evaluate the return value

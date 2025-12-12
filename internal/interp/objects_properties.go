@@ -56,8 +56,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 	switch propInfo.ReadKind {
 	case types.PropAccessField:
 		// Field, constant, class var, or method access - check at runtime which it is
-		// Task 9.17: Check in order: class vars → constants → instance fields
-		// This matches the semantic analyzer's lookup order
+		// Lookup order: class vars → constants → instance fields
 
 		// 1. Try as a class variable (case-insensitive)
 		if classVarValue, ownerClass := obj.Class.LookupClassVar(propInfo.ReadSpec); ownerClass != nil {

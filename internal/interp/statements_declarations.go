@@ -40,8 +40,7 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 		return newError("uncaught exception: %s", exc.Inspect())
 	}
 
-	// Task 9.1.5/PR#142: Clean up interface and object references when program ends
-	// This ensures destructors are called for global objects and interface-held objects
+	// Clean up interface and object references (destructors called for global objects)
 	i.cleanupInterfaceReferences(i.Env())
 
 	return result
@@ -154,7 +153,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				}
 			}
 
-			// Task 9.227: Box value if target type is Variant
+			// Box value if target type is Variant
 			if ident.Equal(typeName, "Variant") {
 				value = BoxVariant(value)
 			}
@@ -175,7 +174,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 					value = &NilValue{}
 				}
 			} else if strings.HasPrefix(typeName, "set of ") {
-				// Task 9.214: Inline set types like "set of TColor"
+				// Handle inline set types (e.g., "set of TColor")
 				setType := i.parseInlineSetType(typeName)
 				if setType != nil {
 					value = NewSetValue(setType)
@@ -185,8 +184,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 			} else if typeVal, ok := i.Env().Get("__record_type_" + ident.Normalize(typeName)); ok {
 				// Check if this is a record type
 				if rtv, ok := typeVal.(*RecordTypeValue); ok {
-					// Initialize with empty record value
-					// Task 9.7e1: Use createRecordValue for proper nested record initialization
+					// Initialize with empty record value (proper nested record initialization)
 					value = i.createRecordValue(rtv.RecordType)
 				} else {
 					value = &NilValue{}
@@ -223,11 +221,10 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 						case "boolean":
 							value = &BooleanValue{Value: false}
 						case "variant":
-							// Task 9.227: Initialize Variant with nil/unassigned value
+							// Initialize Variant with nil/unassigned value
 							value = &VariantValue{Value: nil, ActualType: nil}
 						default:
-							// Task 9.5.4: Check if this is a class type and create a typed nil value
-							// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
+							// Check if this is a class type and create a typed nil value
 							if _, exists := i.classes[ident.Normalize(typeName)]; exists {
 								value = &NilValue{ClassType: typeName}
 							} else {
@@ -318,7 +315,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 		return &NilValue{}
 	}
 
-	// Task 9.214: Check for inline set types
+	// Check for inline set types (e.g., "set of TColor")
 	if strings.HasPrefix(typeName, "set of ") {
 		setType := i.parseInlineSetType(typeName)
 		if setType != nil {
@@ -330,7 +327,7 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	// Check if this is a record type
 	if typeVal, ok := i.Env().Get("__record_type_" + ident.Normalize(typeName)); ok {
 		if rtv, ok := typeVal.(*RecordTypeValue); ok {
-			// Task 9.7e1: Use createRecordValue for proper nested record initialization
+			// Use createRecordValue for proper nested record initialization
 			return i.createRecordValue(rtv.RecordType)
 		}
 	}
@@ -367,11 +364,10 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	case "boolean":
 		return &BooleanValue{Value: false}
 	case "variant":
-		// Task 9.227: Initialize Variant with nil/unassigned value
+		// Initialize Variant with nil/unassigned value
 		return &VariantValue{Value: nil, ActualType: nil}
 	default:
-		// Task 9.5.4: Check if this is a class type and create a typed nil value
-		// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
+		// Check if this is a class type and create a typed nil value
 		if _, exists := i.classes[ident.Normalize(typeName)]; exists {
 			return &NilValue{ClassType: typeName}
 		}
@@ -392,7 +388,7 @@ func (i *Interpreter) evalConstDecl(stmt *ast.ConstDecl) Value {
 	// Evaluate the constant value
 	var value Value
 
-	// Task 9.177: Special handling for anonymous record literals - they need type context
+	// Special handling for anonymous record literals (needs type context)
 	if recordLit, ok := stmt.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
 		// Anonymous record literal needs explicit type
 		if stmt.Type == nil {

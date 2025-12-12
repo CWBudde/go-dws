@@ -9,12 +9,10 @@ import (
 // It looks up the class or record, creates an instance, initializes fields, and calls the constructor.
 func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// Look up class in registry (case-insensitive)
-	// Task 9.82: Case-insensitive class lookup (DWScript is case-insensitive)
 	className := ne.ClassName.Value
 	classInfo := i.resolveClassInfoByName(className)
 
-	// Task 9.38: Also check if this is a record type with static methods
-	// The parser creates NewExpression for TType.Create(...) syntax
+	// Check if this is a record type with static methods
 	if classInfo == nil {
 		// Check if this is a record type
 		recordTypeKey := "__record_type_" + ident.Normalize(className)
@@ -61,9 +59,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 	// Create new object instance
 	obj := NewObjectInstance(classInfo)
 
-	// Task 9.5: Initialize all fields with field initializers or default values
-	// Task 9.6: Create temporary environment with class constants for field initializer evaluation
-	// Phase 3.1.4: unified scope management
+	// Initialize all fields with field initializers or default values
 	defer i.PushScope()()
 	// Add class constants to the temporary environment
 	for constName, constValue := range classInfo.ConstantValues {
@@ -88,10 +84,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		obj.SetField(fieldName, fieldValue)
 	}
 
-	// Special handling for Exception.Create
-	// Exception constructors are built-in and take predefined arguments.
-	// NewExpression always implies Create constructor in DWScript.
-	// Task 9.XX: Only apply hardcoded logic if no custom constructor exists
+	// Special handling for exception classes
 	if i.isExceptionClass(classInfo) {
 		// EHost.Create(cls, msg) - first argument is exception class name, second is message.
 		// Keep this special case for EHost with 2 arguments
@@ -124,19 +117,12 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		// This allows custom constructors while preserving backward compatibility
 	}
 
-	// Task 9.68: Resolve constructor overload based on arguments
-	// Check for constructor overloads first (supports both TClass.Create and new TClass)
+	// Resolve constructor overload based on arguments
 	var constructor *ast.FunctionDecl
-	// Task 9.3: Use default constructor if specified, otherwise fall back to "Create"
 	constructorName := i.getDefaultConstructorName(classInfo)
-
-	// Task 9.4: Get all constructor overloads from class hierarchy (case-insensitive lookup)
-	// This ensures inherited virtual constructors are properly found
 	constructorOverloads := i.getMethodOverloadsInHierarchy(classInfo, constructorName, false)
 
-	// Task 9.68: Special handling for implicit parameterless constructor
-	// If calling with 0 arguments and no parameterless constructor exists,
-	// allow it (just initialize fields with default values)
+	// Allow parameterless instantiation even if no explicit constructor exists
 	if len(ne.Arguments) == 0 && len(constructorOverloads) > 0 {
 		hasParameterlessConstructor := false
 		for _, ctor := range constructorOverloads {
@@ -217,7 +203,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 			i.Env().Define(constructor.Name.Value, obj)
 		}
 
-		// Task 9.73: Bind __CurrentClass__ so ClassName can be accessed in constructor
+		// Bind __CurrentClass__ for ClassName access in constructor
 		i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
 		// Execute constructor body
@@ -242,9 +228,7 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 }
 
 // getDefaultConstructorName returns the name of the default constructor for a class.
-// It checks the class hierarchy for a constructor marked as 'default'.
-// Falls back to "Create" if no default constructor is found.
-// Task 9.3: Support for default constructors
+// It checks the class hierarchy for a constructor marked as 'default', falling back to "Create".
 func (i *Interpreter) getDefaultConstructorName(class *ClassInfo) string {
 	// Check current class and parents for default constructor
 	for current := class; current != nil; current = current.Parent {

@@ -93,8 +93,7 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 		helperInfo.ParentHelper = foundParent
 	}
 
-	// Register methods
-	// Task 9.16.2: Normalize method names for case-insensitive lookup
+	// Register methods (case-insensitive lookup)
 	for _, method := range decl.Methods {
 		helperInfo.Methods[ident.Normalize(method.Name.Value)] = method
 	}
@@ -228,7 +227,7 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 			method.Name.Value, len(method.Parameters), len(args))
 	}
 
-	// Create method environment - Phase 3.1.4: unified scope management
+	// Create method environment with scope management
 	defer i.PushScope()()
 
 	// Bind Self to the target value (the value being extended)
@@ -305,8 +304,7 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 			}
 		}
 
-		// Otherwise, try as a method (getter)
-		// Task 9.16.2: Method names are case-insensitive
+		// Otherwise, try as a method (getter - case-insensitive)
 		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
 
 		// Search for the getter method in the owner helper's inheritance chain
@@ -324,8 +322,7 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 			propInfo.Name, propInfo.ReadSpec)
 
 	case types.PropAccessMethod:
-		// Call getter method
-		// Task 9.16.2: Method names are case-insensitive
+		// Call getter method (case-insensitive)
 		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
 
 		// Search for the getter method in the owner helper's inheritance chain
@@ -429,7 +426,7 @@ func (i *Interpreter) initArrayHelpers() {
 		BuiltinMethods: make(map[string]string),
 	}
 
-	// Register .Length property
+	// Array properties: Length, High, Low, Count
 	arrayHelper.Properties["Length"] = &types.PropertyInfo{
 		Name:      "Length",
 		Type:      types.INTEGER,
@@ -438,7 +435,6 @@ func (i *Interpreter) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register .High property
 	arrayHelper.Properties["High"] = &types.PropertyInfo{
 		Name:      "High",
 		Type:      types.INTEGER,
@@ -447,7 +443,6 @@ func (i *Interpreter) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register .Low property
 	arrayHelper.Properties["Low"] = &types.PropertyInfo{
 		Name:      "Low",
 		Type:      types.INTEGER,
@@ -456,7 +451,6 @@ func (i *Interpreter) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.34: Register .Count property (alias for .Length)
 	arrayHelper.Properties["Count"] = &types.PropertyInfo{
 		Name:      "Count",
 		Type:      types.INTEGER,
@@ -465,30 +459,13 @@ func (i *Interpreter) initArrayHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Register .Add() method for dynamic arrays
-	// This allows: arr.Add(value) syntax
+	// Array methods: Add, Delete, IndexOf, SetLength, Swap, Push, Pop
 	arrayHelper.BuiltinMethods["add"] = "__array_add"
-
-	// Task 9.34: Register .Delete() method for dynamic arrays
 	arrayHelper.BuiltinMethods["delete"] = "__array_delete"
-
-	// Task 9.34: Register .IndexOf() method for dynamic arrays
 	arrayHelper.BuiltinMethods["indexof"] = "__array_indexof"
-
-	// Register .SetLength() method for dynamic arrays
-	// This allows: arr.SetLength(newLength) syntax
 	arrayHelper.BuiltinMethods["setlength"] = "__array_setlength"
-
-	// Task 9.8: Register .Swap() method for arrays
-	// This allows: arr.Swap(i, j) syntax
 	arrayHelper.BuiltinMethods["swap"] = "__array_swap"
-
-	// Task 9.8: Register .Push() method for dynamic arrays (alias for Add)
-	// This allows: arr.Push(value) syntax
 	arrayHelper.BuiltinMethods["push"] = "__array_push"
-
-	// Task 9.8: Register .Pop() method for dynamic arrays
-	// This allows: arr.Pop() syntax - removes and returns last element
 	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
 
 	// Register helper for array type
@@ -510,7 +487,6 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		ReadSpec:  "__integer_tostring",
 		WriteKind: types.PropAccessNone,
 	}
-	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
 	intHelper.Methods["tostring"] = nil
 	intHelper.BuiltinMethods["tostring"] = "__integer_tostring"
 	intHelper.Methods["tohexstring"] = nil
@@ -526,7 +502,6 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		ReadSpec:  "__float_tostring_default",
 		WriteKind: types.PropAccessNone,
 	}
-	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
 	floatHelper.Methods["tostring"] = nil
 	floatHelper.BuiltinMethods["tostring"] = "__float_tostring_prec"
 	register("Float", floatHelper)
@@ -540,7 +515,6 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		ReadSpec:  "__boolean_tostring",
 		WriteKind: types.PropAccessNone,
 	}
-	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
 	boolHelper.Methods["tostring"] = nil
 	boolHelper.BuiltinMethods["tostring"] = "__boolean_tostring"
 	register("Boolean", boolHelper)
@@ -554,7 +528,7 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		ReadSpec:  "__string_length",
 		WriteKind: types.PropAccessNone,
 	}
-	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
+	// Case conversion and matching methods
 	stringHelper.Methods["toupper"] = nil
 	stringHelper.BuiltinMethods["toupper"] = "__string_toupper"
 	stringHelper.Methods["tolower"] = nil
@@ -585,7 +559,6 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Task 9.23: Additional string helper methods
 	// Conversion methods
 	stringHelper.Methods["tointeger"] = nil
 	stringHelper.BuiltinMethods["tointeger"] = "__string_tointeger"
@@ -612,14 +585,13 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	stringHelper.Methods["after"] = nil
 	stringHelper.BuiltinMethods["after"] = "__string_after"
 
-	// Modification methods
+	// Modification methods (also available as properties)
 	stringHelper.Methods["trim"] = nil
 	stringHelper.BuiltinMethods["trim"] = "__string_trim"
 	stringHelper.Methods["trimleft"] = nil
 	stringHelper.BuiltinMethods["trimleft"] = "__string_trimleft"
 	stringHelper.Methods["trimright"] = nil
 	stringHelper.BuiltinMethods["trimright"] = "__string_trimright"
-	// Property-style access for Trim helpers (no parentheses)
 	stringHelper.Properties["trim"] = &types.PropertyInfo{
 		Name:      "Trim",
 		Type:      types.STRING,
@@ -642,7 +614,7 @@ func (i *Interpreter) initIntrinsicHelpers() {
 		WriteKind: types.PropAccessNone,
 	}
 
-	// Split/join methods
+	// Split/join and encoding methods
 	stringHelper.Methods["split"] = nil
 	stringHelper.BuiltinMethods["split"] = "__string_split"
 	stringHelper.Methods["tojson"] = nil
@@ -674,7 +646,6 @@ func (i *Interpreter) initIntrinsicHelpers() {
 	// String dynamic array helper
 	stringArrayType := types.NewDynamicArrayType(types.STRING)
 	stringArrayHelper := NewHelperInfo("__TStringDynArrayIntrinsicHelper", stringArrayType, true)
-	// Task 9.16.2: Method names are case-insensitive, use lowercase keys
 	stringArrayHelper.Methods["join"] = nil
 	stringArrayHelper.BuiltinMethods["join"] = "__string_array_join"
 	register(stringArrayType.String(), stringArrayHelper)

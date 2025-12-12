@@ -12,9 +12,7 @@ import (
 // ============================================================================
 
 func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
-	// Task 9.133: Handle built-in type names as type meta-values
-	// These identifiers represent type names that can be used as runtime values
-	// (e.g., High(Integer), Low(Boolean))
+	// Handle built-in type names as type meta-values (e.g., High(Integer), Low(Boolean))
 	switch identifier.Value {
 	case "Integer":
 		return types.INTEGER
@@ -31,11 +29,8 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		return enumType
 	}
 
-	// Handle built-in ExceptObject variable
-	// ExceptObject is a global variable that holds the current exception (or nil)
+	// Handle built-in ExceptObject variable (holds current exception or nil)
 	if identifier.Value == "ExceptObject" {
-		// ExceptObject is always of type Exception (the base exception class)
-		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
 		if exceptionClass := a.getClassType("Exception"); exceptionClass != nil {
 			return exceptionClass
 		}
@@ -44,9 +39,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		return nil
 	}
 
-	// Task 9.6: Handle ClassName identifier in method contexts
-	// ClassName is a built-in property available on all objects (inherited from TObject)
-	// When used as an identifier, it returns the class name as a String
+	// Handle ClassName identifier in method contexts (built-in property returning String)
 	if ident.Equal(identifier.Value, "ClassName") && a.currentClass != nil {
 		if identifier.Value != "ClassName" {
 			a.addCaseMismatchHint(identifier.Value, "ClassName", identifier.Token.Pos)
@@ -54,8 +47,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		return types.STRING
 	}
 
-	// Task 9.7: Handle ClassType identifier in method contexts
-	// ClassType is a built-in property that returns the metaclass reference
+	// Handle ClassType identifier in method contexts (built-in metaclass reference)
 	if ident.Equal(identifier.Value, "ClassType") && a.currentClass != nil {
 		if identifier.Value != "ClassType" {
 			a.addCaseMismatchHint(identifier.Value, "ClassType", identifier.Token.Pos)
@@ -65,17 +57,14 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 
 	sym, ok := a.symbols.Resolve(identifier.Value)
 	if !ok {
-		// Task 9.73.5: When a class name is used as an identifier in expressions,
-		// it should be treated as a metaclass reference (class of ClassName)
-		// Task 6.1.1.3: Use TypeRegistry for unified type lookup
+		// When a class name is used as an identifier, treat it as a metaclass reference
 		if classType := a.getClassType(identifier.Value); classType != nil {
 			// Return ClassOfType (metaclass) instead of ClassType
 			// This allows: var meta: class of TBase; meta := TBase;
 			return &types.ClassOfType{ClassType: classType}
 		}
 		if a.currentClass != nil && !a.inClassMethod {
-			// Task 9.32b/9.32c: Check if identifier is a field of the current class (implicit Self, includes inherited)
-			// NOTE: This only applies to instance methods, NOT class methods (static methods)
+			// Check if identifier is a field of the current class (implicit Self, instance methods only)
 			if fieldType, exists := a.currentClass.GetField(identifier.Value); exists {
 				// Check field visibility
 				fieldOwner := a.getFieldOwner(a.currentClass, identifier.Value)
@@ -98,7 +87,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			for class := a.currentClass; class != nil; class = class.Parent {
 				for propName, propInfo := range class.Properties {
 					if ident.Equal(propName, identifier.Value) {
-						// Task 9.49: Check for circular reference in property expressions
+						// Check for circular reference in property expressions
 						if a.inPropertyExpr && ident.Equal(propName, a.currentProperty) {
 							a.addError("property '%s' cannot be read-accessed at %s", identifier.Value, identifier.Token.Pos.String())
 							return nil
@@ -114,8 +103,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 				}
 			}
 
-			// Task 9.173: Check if identifier refers to a method of the current class
-			// This allows method pointers to be passed as function arguments
+			// Check if identifier refers to a method of the current class (allows method pointers)
 			methodType, found := a.currentClass.GetMethod(identifier.Value)
 			if found {
 				// Check method visibility
@@ -146,25 +134,20 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			}
 		}
 
-		// Task 9.2: Check if identifier is a class constant (accessible from both instance and class methods)
-		// Class constants should be accessible from anywhere within the class, unlike fields which are
-		// only accessible from instance methods (not class methods)
+		// Check if identifier is a class constant (accessible from both instance and class methods)
 		if a.currentClass != nil {
 			if constType := a.findClassConstantWithVisibility(a.currentClass, identifier.Value, identifier.Token.Pos.String()); constType != nil {
 				return constType
 			}
 		}
 
-		// Task 9.132: Check if this is a built-in function used without parentheses
-		// In DWScript, built-in functions like PrintLn can be called without parentheses
-		// The semantic analyzer should allow this and treat them as procedure calls
+		// Check if this is a built-in function used without parentheses
 		if a.isBuiltinFunction(identifier.Value) {
 			// Emit casing hint for built-ins when pedantic hints are enabled
 			if declName := a.builtinDeclarationName(identifier.Value); declName != "" && declName != identifier.Value {
 				a.addCaseMismatchHint(identifier.Value, declName, identifier.Token.Pos)
 			}
-			// Task: Check if this builtin can be used as a function reference (for Map, Filter, etc.)
-			// If so, return its function pointer type instead of VOID
+			// Check if builtin can be used as a function reference (for Map, Filter, etc.)
 			if funcPtrType := a.getBuiltinFunctionPointerType(identifier.Value); funcPtrType != nil {
 				// Store the function pointer type in semantic info so the evaluator knows
 				// to create a FunctionPointerValue instead of auto-invoking
@@ -190,13 +173,10 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		a.addCaseMismatchHint(identifier.Value, sym.Name, identifier.Token.Pos)
 	}
 
-	// Task 9.228 + Function Name Alias: Handle function/procedure references
-	// When a function is referenced as a value (not called), there are two cases:
-	// 1. Inside the function's own body: function name is an alias for Result variable
-	// 2. Outside the function body: convert to function pointer type
+	// Handle function/procedure references
+	// Inside function's own body: function name is alias for Result variable
+	// Outside function body: convert to function pointer type
 	if funcType, ok := sym.Type.(*types.FunctionType); ok {
-		// Check if we're inside the function's own body (function name = Result alias)
-		// In DWScript, the function name can be used as an alias for the Result variable
 		if a.currentFunction != nil && ident.Equal(a.currentFunction.Name.Value, identifier.Value) {
 			// Inside the function's own body - function name is an alias for Result
 
@@ -263,9 +243,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		return nil
 	}
 
-	// Task 9.226: Special handling for IN operator
-	// For the IN operator, analyze the right operand with expected set type context
-	// so that array literals like [1, 2, 3] can be converted to set literals
+	// Special handling for IN operator (allows array-to-set literal conversion)
 	var leftType, rightType types.Type
 	if operator == "in" {
 		// Analyze left operand first to infer the set element type
@@ -336,13 +314,13 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return leftSetType
 		}
 
-		// Task 9.4.2: Check if either operand is Variant
+		// Check if either operand is Variant
 		leftIsVariant := leftType == types.VARIANT
 		rightIsVariant := rightType == types.VARIANT
 
 		// Special case: + can also concatenate strings
 		if operator == "+" && (leftType.Equals(types.STRING) || rightType.Equals(types.STRING)) {
-			// Task 9.4.2: Allow Variant in string concatenation
+			// Allow Variant in string concatenation
 			if !leftIsVariant && !rightIsVariant {
 				// String concatenation
 				if !leftType.Equals(types.STRING) || !rightType.Equals(types.STRING) {
@@ -358,8 +336,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return types.STRING
 		}
 
-		// Numeric arithmetic
-		// Task 9.4.2: Allow Variant in numeric operations
+		// Numeric arithmetic (allow Variant in numeric operations)
 		if !leftIsVariant && !rightIsVariant {
 			if !types.IsNumericType(leftType) || !types.IsNumericType(rightType) {
 				a.addError("arithmetic operator %s requires numeric operands, got %s and %s at %s",
@@ -368,17 +345,15 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			}
 		}
 
-		// Type promotion: Integer + Float -> Float
-		// Task 9.4.2: If Variant is involved, return Variant
+		// Type promotion: Integer + Float -> Float (return Variant if either operand is Variant)
 		if leftIsVariant || rightIsVariant {
 			return types.VARIANT
 		}
 		return types.PromoteTypes(leftType, rightType)
 	}
 
-	// Handle integer division and modulo
+	// Handle integer division and modulo (allow Variant in div/mod operations)
 	if operator == "div" || operator == "mod" {
-		// Task 9.4.2: Allow Variant in div/mod operations
 		leftIsVariant := leftType == types.VARIANT
 		rightIsVariant := rightType == types.VARIANT
 
