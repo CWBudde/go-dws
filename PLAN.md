@@ -781,167 +781,46 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 ---
 
-## Phase 6: Semantic Analyzer Improvements
+## Phase 6: Semantic Analyzer Improvements ✅ **COMPLETED**
 
-**Status**: Partial - cleanup and focused improvements needed
+**Status**: Complete | **Fixture Tests**: 386/1,227 passing (31.5%)
 
 **Goal**: Improve maintainability and prepare for LSP support without over-engineering.
 
-**Current Test Status**: 386/1,227 fixture tests passing (31.5%)
+**What Was Done**:
 
-**Total Estimate**: 22-34 hours (3-4 days)
+1. **Removed Experimental Multi-Pass Architecture** (Task 6.1)
+   - Deleted 8,062 lines of unused experimental code (~153KB)
+   - Removed `declaration_pass.go`, `type_resolution_pass.go`, `validation_pass.go`, `contract_pass.go`
+   - Experiment added 17% MORE code instead of simplifying
+   - Original analyzer already handled forward declarations and circular inheritance correctly
 
-**Recommended Order**: 6.1 → 6.3 → 6.2 → 6.4
+2. **Enhanced Symbol Table for LSP Support** (Task 6.2)
+   - Added 5 new fields: `DeclPosition`, `Usages`, `Documentation`, `IsDeprecated`, `DeprecationMessage`
+   - Implemented 4 LSP query methods: `FindDefinition()`, `FindReferences()`, `UnusedSymbols()`, `RecordUsage()`
+   - Updated 39 call sites across 14 files to pass position information
+   - Created comprehensive test suite with 16 test functions
+   - See [docs/task-6.2-summary.md](docs/task-6.2-summary.md)
 
----
+3. **Standardized Error Messages** (Task 6.3)
+   - Standardized 4 major error categories (~35 messages) using DWScript-compatible format:
+     - Undefined symbols: `"Unknown name \"X\""`
+     - Abstract class errors: `"Trying to create an instance of an abstract class"`
+     - Duplicate declarations: `"Name \"X\" already exists"`
+     - Overload resolution: `"There is no overloaded version of \"X\" that can be called with these arguments"`
+   - Added 10 helper functions to `internal/errors/errors.go`
+   - Updated 13 semantic analyzer files and 11 test files
+   - Deliberately deferred 531 builtin function errors (already internally consistent)
+   - See [docs/task-6.3-summary.md](docs/task-6.3-summary.md)
 
-### Deprecated: Multi-Pass Architecture Experiment
+4. **Shared Builtin Registry** (Task 6.4)
+   - Moved `internal/interp/builtins/` (47 files) → `internal/builtins/` for shared access
+   - Updated 12 interpreter import paths
+   - Semantic analyzer references registry for documentation but keeps detailed analyzers for validation
+   - Registry not used for arity checking (detailed analyzers provide better error messages)
+   - All tests pass with no regressions
 
-A multi-pass architecture was explored but **deprecated** after analysis showed:
-
-- Added 17% MORE code (~4,331 lines) instead of simplifying
-- Duplicated existing logic rather than replacing it
-- The problems it aimed to solve (forward declarations, circular dependencies) were already handled by the existing analyzer via `IsForward` flags and `hasCircularInheritance()` tracking
-- ~153KB of experimental code that ran only in 3 test files
-
----
-
-### Task 6.1: Remove Experimental Multi-Pass Code [CLEANUP] ✅ **COMPLETED**
-
-**Estimate**: 2-4 hours | **Priority**: High | **Benefit**: -153KB dead code
-
-Delete the unused experimental pass infrastructure (~153KB):
-
-- [x] **6.1.1** Delete `internal/semantic/declaration_pass.go` (14KB)
-- [x] **6.1.2** Delete `internal/semantic/type_resolution_pass.go` (18KB)
-- [x] **6.1.3** Delete `internal/semantic/validation_pass.go` (104KB)
-- [x] **6.1.4** Delete `internal/semantic/contract_pass.go` (17KB)
-- [x] **6.1.5** Delete `internal/semantic/pass_context.go` (10KB)
-- [x] **6.1.6** Delete `internal/semantic/pass.go` (2KB)
-- [x] **6.1.7** Delete `internal/semantic/passes/` directory
-- [x] **6.1.8** Delete `internal/semantic/*_experimental_test.go` files
-- [x] **6.1.9** Remove from `analyzer.go`: `experimentalPasses` flag, `NewAnalyzerWithExperimentalPasses()`, `createPassContext()`, `syncFromPassContext()`, `mergePassErrors()`
-- [x] **6.1.10** Run tests to verify nothing breaks
-
-**Result**: Successfully removed 8,062 lines of experimental code. All semantic analyzer tests pass. Fixture test pass rate unchanged (386/1,227 = 31.5%).
-
----
-
-### Task 6.2: Enhance Symbol Table for LSP Support [ENHANCEMENT] ✅ **COMPLETED**
-
-**Estimate**: 8-12 hours | **Priority**: P1 | **Benefit**: IDE features (go-to-definition, find-references)
-
-Enhance `SymbolTable` to track positions and usages:
-
-- [x] **6.2.1** Add `DeclPosition token.Position` field to Symbol struct
-- [x] **6.2.2** Add `Usages []token.Position` slice for reference tracking
-- [x] **6.2.3** Add `Documentation string` field for doc comments
-- [x] **6.2.4** Add `IsDeprecated bool` and `DeprecationMessage string` fields
-- [x] **6.2.5** Update all `Define*` methods to accept position parameter
-- [x] **6.2.6** In `Resolve()`, record usage position when symbol found
-- [x] **6.2.7** Add `RecordUsage(name string, pos token.Position)` method
-- [x] **6.2.8** Implement `FindDefinition(name string) (*Symbol, token.Position, bool)`
-- [x] **6.2.9** Implement `FindReferences(name string) []token.Position`
-- [x] **6.2.10** Implement `UnusedSymbols() []*Symbol`
-- [x] **6.2.11** Update `internal/semantic/analyzer.go` to pass positions
-- [x] **6.2.12** Update all `analyze_*.go` files to pass positions when defining/resolving
-- [x] **6.2.13** Write unit tests for LSP query methods
-
-**Result**: Successfully enhanced symbol table with LSP support. Added 5 new fields to Symbol struct, implemented 4 new query methods, updated 39 call sites across 14 files, and created comprehensive test suite with 16 test functions. All tests pass. See [docs/task-6.2-summary.md](docs/task-6.2-summary.md) for details.
-
-**Files modified**:
-
-- `internal/semantic/symbol_table.go` - Enhanced Symbol struct, added LSP methods
-- `internal/semantic/analyzer.go` - Updated builtin constant definitions
-- `internal/semantic/analyze_*.go` - Updated 32 Define* call sites
-- `internal/semantic/*_test.go` - Updated 7 test call sites
-- `internal/semantic/symbol_table_lsp_test.go` - New comprehensive test suite
-
----
-
-### Task 6.3: Standardize Error Messages [QUALITY] ✅ **COMPLETED**
-
-**Estimate**: 4-6 hours | **Actual**: ~6 hours | **Priority**: P2 | **Benefit**: Test compatibility, maintainability
-
-Successfully standardized major error categories across the semantic analyzer:
-
-- [x] **6.3.1** Audit all `addError()` calls across semantic analyzer
-- [x] **6.3.2** Compare error messages against DWScript originals
-- [x] **6.3.3** Categorize errors: type mismatch, undefined symbol, duplicate declaration, etc.
-- [x] **6.3.4** Add helper functions to `internal/errors/errors.go` (10 new functions)
-- [x] **6.3.5** Standardize format for undefined symbol errors (3 locations)
-- [x] **6.3.6** Standardize format for abstract class errors (4 locations)
-- [x] **6.3.7** Standardize format for duplicate declaration errors (~21 locations)
-- [x] **6.3.8** Standardize format for overload resolution errors (7 locations)
-- [x] **6.3.9** Analyze builtin function errors (531 locations) - **Deliberately deferred**
-- [x] **6.3.10** Verify no regressions in test suite
-
-**Result**: Standardized 4 major error categories (~35 error messages) across 13 semantic analyzer files using DWScript-compatible format. Added 10 helper functions to `internal/errors/errors.go`. Updated 11 test files to match new error formats. All semantic analyzer tests pass. Fixture test pass rate remains 386/1,227 (31.5%) - no regressions.
-
-**Error categories completed**:
-
-1. ✅ Undefined symbol errors (3 locations) - `"Unknown name \"X\""`
-2. ✅ Abstract class errors (4 locations) - `"Trying to create an instance of an abstract class"`
-3. ✅ Duplicate declaration errors (21 locations) - `"Name \"X\" already exists"`, `"Class \"X\" already defined"`
-4. ✅ Overload resolution errors (7 locations) - `"There is no overloaded version of \"X\" that can be called with these arguments"`
-
-**Builtin function errors (6.3.9)**: Analyzed 531 error messages across 15 `analyze_builtin_*.go` files. **Deliberately deferred** standardization because:
-
-- Scope disproportionate to benefit (531 errors vs 35 standardized so far)
-- Already internally consistent across all builtin files
-- Current descriptive messages more helpful than generic format
-- Would require 12-16 hours of work (separate future task)
-
-See [docs/task-6.3-summary.md](docs/task-6.3-summary.md) for full details and rationale.
-
-**Files modified**:
-
-- `internal/errors/errors.go` - Added 10 helper functions (+72 lines)
-- `internal/semantic/analyze_*.go` - 13 files updated with standardized errors
-- `internal/semantic/*_test.go` - 11 test files updated to match new error formats
-
----
-
-### Task 6.4: Share Builtin Registry Between Interpreter and Analyzer [REFACTOR]
-
-**Estimate**: 8-12 hours | **Priority**: P2 | **Benefit**: Single source of truth for builtin signatures
-
-**Approach**: Move `internal/interp/builtins/` to `internal/builtins/` and share between interpreter and semantic analyzer. The registry already has complete `FunctionSignature` definitions with type information.
-
-**Strategy**:
-
-- Semantic analyzer uses registry for basic validation (existence, arity checks)
-- Keep current detailed `analyze*` methods for complex polymorphic behavior (e.g., `Abs`, `Copy`, `Min`)
-- Single-step migration: move package + update all imports at once
-
-**Tasks**:
-
-- [ ] **6.4.1** Move `internal/interp/builtins/` → `internal/builtins/` (47 files)
-- [ ] **6.4.2** Update all interpreter imports: `internal/interp/builtins` → `internal/builtins`
-- [ ] **6.4.3** Add builtin registry field to `Analyzer` struct
-- [ ] **6.4.4** Initialize registry in `NewAnalyzer()` with `builtins.DefaultRegistry`
-- [ ] **6.4.5** Update `analyzeBuiltinFunction()` to check registry first for existence
-- [ ] **6.4.6** Add basic arity validation using `FunctionSignature.MinArgs/MaxArgs`
-- [ ] **6.4.7** Keep all current `analyze*` methods for detailed type checking
-- [ ] **6.4.8** Run interpreter tests to verify no regressions from package move
-- [ ] **6.4.9** Run semantic analyzer tests to verify registry integration
-- [ ] **6.4.10** Run fixture tests to verify end-to-end compatibility
-
-**Files to move**:
-
-- `internal/interp/builtins/*.go` (47 files) → `internal/builtins/*.go`
-
-**Files to modify** (interpreter imports):
-
-- `internal/interp/interpreter.go`
-- `internal/interp/evaluator/*.go` (files that import builtins)
-- `internal/bytecode/compiler.go` (if it uses builtins)
-- `internal/bytecode/vm.go` (if it uses builtins)
-
-**Files to modify** (semantic analyzer):
-
-- `internal/semantic/analyzer.go` - Add registry field, initialize in `NewAnalyzer()`
-- `internal/semantic/analyze_builtin_functions.go` - Add registry existence/arity checks
+**Key Decision**: Multi-pass architecture was **deprecated** after analysis showed it duplicated existing functionality. The original single-pass analyzer with `IsForward` flags and circular inheritance tracking already solved the problems the multi-pass attempted to address.
 
 ---
 
