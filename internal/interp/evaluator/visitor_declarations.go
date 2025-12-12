@@ -748,6 +748,9 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 
 	// Register in environment and TypeSystem
 	// Use savedEnv because ctx.Env() is currently tempEnv which will be discarded
+	// Register record type under two keys:
+	// 1. Internal key (recordTypeKey = "__record_type_" + normalized name) for legacy/compatibility lookup
+	// 2. Plain record name for direct user access to the type
 	savedEnv.Define(recordTypeKey, recordTypeValue)
 	savedEnv.Define(recordName, recordTypeValue)
 	e.typeSystem.RegisterRecord(recordName, recordTypeValue)

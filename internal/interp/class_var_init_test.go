@@ -52,19 +52,18 @@ PrintLn(TBase.Name);
 `,
 			expected: "Hello\n",
 		},
-		// TODO: Support expressions with class constants
-		// {
-		// 	name: "class var with expression initialization",
-		// 	input: `
-		// type TBase = class
-		// 	class const C = 10;
-		// 	class var Value: Integer := 5 + C;
-		// end;
-		//
-		// PrintLn(IntToStr(TBase.Value));
-		// `,
-		// 	expected: "15\n",
-		// },
+		{
+			name: "class var with unqualified constant expression",
+			input: `
+type TBase = class
+	class const C = 10;
+	class var Value: Integer := 5 + C;
+end;
+
+PrintLn(IntToStr(TBase.Value));
+`,
+			expected: "15\n",
+		},
 		{
 			name: "class var with type inference",
 			input: `
@@ -202,6 +201,18 @@ end;
 PrintLn(IntToStr(TBase.Result));
 `,
 			expected: "30\n",
+		},
+		{
+			name: "class var using ClassName.ConstantName syntax",
+			input: `
+type TBase = class
+	class const C = 10;
+	class var Value: Integer := 5 + TBase.C;
+end;
+
+PrintLn(IntToStr(TBase.Value));
+`,
+			expected: "15\n",
 		},
 	}
 

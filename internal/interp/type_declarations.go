@@ -354,10 +354,18 @@ func (i *Interpreter) ClassHasNoParent(classInfo interface{}) bool {
 	return ci.Parent == nil
 }
 
-// DefineCurrentClassMarker defines a marker for the class being declared (for nested types).
+// DefineCurrentClassMarker defines a marker for the class being declared.
+// This enables self-referential access like TMyClass.MyConst within class var initializers.
 func (i *Interpreter) DefineCurrentClassMarker(env interface{}, classInfo interface{}) {
-	// Placeholder: nested class resolution to be implemented later
-	_ = classInfo
+	runtimeEnv, ok := env.(*runtime.Environment)
+	if !ok {
+		return
+	}
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	runtimeEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: ci})
 }
 
 // SetClassParent sets the parent class and copies all inherited members.

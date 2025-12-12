@@ -338,11 +338,36 @@ func (ctx *ExecutionContext) GetOldValue(name string) (any, bool) {
 	return val, ok
 }
 
-// Clone creates a shallow copy of the execution context.
-// Note: The environment, call stack, and control flow are shared references.
+// Clone creates a shallow copy of the execution context for nested function scopes.
+//
+// SHARED REFERENCES (intentional for preserving execution state):
+//   - callStack: Shared to track nested function calls across scopes
+//   - controlFlow: Shared to propagate control flow signals (break, continue, exit, return)
+//   - refCountManager: Shared for consistent reference counting
+//   - env: Shared initially (caller must swap with SetEnv for function scope)
+//   - propContext: Shared for property evaluation chain tracking
+//   - arrayTypeContext, recordTypeContext: Shared for type context
+//   - exceptionGetter, exceptionSetter: Shared for exception propagation
+//   - exception, handlerException: Shared exception state
+//
+// COPIED REFERENCES:
+//   - envStack: Slice is copied to prevent corruption during push/pop
+//   - oldValuesStack: Slice is copied to prevent postcondition stack corruption
+//
+// WARNING: This method assumes single-threaded execution. The shared mutable state
+// (callStack, controlFlow, propContext) would cause race conditions if cloned contexts
+// are used concurrently. Cloned contexts are designed to be short-lived within a
+// single function call scope.
+//
+// Contract: The cloned context is used for nested function calls and should not be
+// retained after the function returns. The caller is responsible for swapping the
+// environment via SetEnv() to establish the function's lexical scope.
 func (ctx *ExecutionContext) Clone() *ExecutionContext {
 	envStackCopy := make([]*Environment, len(ctx.envStack))
 	copy(envStackCopy, ctx.envStack)
+
+	oldValuesStackCopy := make([]map[string]any, len(ctx.oldValuesStack))
+	copy(oldValuesStackCopy, ctx.oldValuesStack)
 
 	return &ExecutionContext{
 		env:               ctx.env,
@@ -351,7 +376,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		controlFlow:       ctx.controlFlow,
 		exception:         ctx.exception,
 		handlerException:  ctx.handlerException,
-		oldValuesStack:    ctx.oldValuesStack,
+		oldValuesStack:    oldValuesStackCopy,
 		propContext:       ctx.propContext,
 		recordTypeContext: ctx.recordTypeContext,
 		arrayTypeContext:  ctx.arrayTypeContext,

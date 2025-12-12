@@ -332,6 +332,12 @@ func (i *Interpreter) CallMethod(obj Value, methodName string, args []Value, nod
 				return i.raiseMaxRecursionExceeded()
 			}
 
+			// Validate argument count
+			if len(internalArgs) != len(classMethod.Parameters) {
+				return newError("wrong number of arguments for static method '%s.%s': expected %d, got %d",
+					recTypeVal.GetRecordTypeName(), methodName, len(classMethod.Parameters), len(internalArgs))
+			}
+
 			// Push to call stack
 			fullMethodName := recTypeVal.GetRecordTypeName() + "." + methodName
 			i.pushCallStack(fullMethodName)
