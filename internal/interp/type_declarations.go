@@ -297,7 +297,7 @@ func (i *Interpreter) ExecuteRecordPropertyRead(record evaluator.Value, propInfo
 
 // NewClassInfoAdapter creates a new ClassInfo with the given name.
 func (i *Interpreter) NewClassInfoAdapter(name string) interface{} {
-	return NewClassInfo(name, i.typeSystem)
+	return NewClassInfo(name)
 }
 
 // CastToClassInfo attempts to cast interface{} to *ClassInfo.

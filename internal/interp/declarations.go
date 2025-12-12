@@ -187,7 +187,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	case exists:
 		return i.newErrorWithLocation(cd, "class '%s' already declared", className)
 	default:
-		classInfo = NewClassInfo(className, i.typeSystem)
+		classInfo = NewClassInfo(className)
 	}
 
 	// Set flags

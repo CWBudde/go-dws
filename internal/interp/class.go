@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -56,7 +55,7 @@ type ClassInfo struct {
 
 // NewClassInfo creates a new ClassInfo with the given name.
 // Fields, Methods, ClassVars, ClassMethods, and Properties maps are initialized as empty.
-func NewClassInfo(name string, typeSystem *interptypes.TypeSystem) *ClassInfo {
+func NewClassInfo(name string) *ClassInfo {
 	return &ClassInfo{
 		Name:                 name,
 		Parent:               nil,
@@ -70,7 +69,7 @@ func NewClassInfo(name string, typeSystem *interptypes.TypeSystem) *ClassInfo {
 		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
 		ClassMethods:         make(map[string]*ast.FunctionDecl),
 		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
-		Operators:            newRuntimeOperatorRegistry(typeSystem),
+		Operators:            newRuntimeOperatorRegistry(),
 		Constructors:         make(map[string]*ast.FunctionDecl),
 		ConstructorOverloads: make(map[string][]*ast.FunctionDecl),
 		Properties:           make(map[string]*types.PropertyInfo),

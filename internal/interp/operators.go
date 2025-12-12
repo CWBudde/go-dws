@@ -18,14 +18,12 @@ type runtimeOperatorEntry struct {
 }
 
 type runtimeOperatorRegistry struct {
-	entries    map[string][]*runtimeOperatorEntry
-	typeSystem *interptypes.TypeSystem
+	entries map[string][]*runtimeOperatorEntry
 }
 
-func newRuntimeOperatorRegistry(typeSystem *interptypes.TypeSystem) *runtimeOperatorRegistry {
+func newRuntimeOperatorRegistry() *runtimeOperatorRegistry {
 	return &runtimeOperatorRegistry{
-		entries:    make(map[string][]*runtimeOperatorEntry),
-		typeSystem: typeSystem,
+		entries: make(map[string][]*runtimeOperatorEntry),
 	}
 }
 
@@ -45,9 +43,9 @@ func (r *runtimeOperatorRegistry) register(entry *runtimeOperatorEntry) error {
 
 func (r *runtimeOperatorRegistry) clone() *runtimeOperatorRegistry {
 	if r == nil {
-		return newRuntimeOperatorRegistry(nil) // Should not happen in practice if typeSystem is always set
+		return newRuntimeOperatorRegistry()
 	}
-	clone := newRuntimeOperatorRegistry(r.typeSystem)
+	clone := newRuntimeOperatorRegistry()
 	for op, list := range r.entries {
 		copied := make([]*runtimeOperatorEntry, len(list))
 		copy(copied, list)
@@ -78,7 +76,7 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 
 		allCompatible := true
 		for i := range operandTypes {
-			if !areRuntimeTypesCompatibleForOperator(r.typeSystem, operandTypes[i], entry.OperandTypes[i], entry.Class) {
+			if !areRuntimeTypesCompatibleForOperator(operandTypes[i], entry.OperandTypes[i], entry.Class) {
 				allCompatible = false
 				break
 			}
@@ -94,7 +92,7 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 
 // areRuntimeTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
 // This supports inheritance: a subclass instance can be used where parent class is expected.
-func areRuntimeTypesCompatibleForOperator(typeSystem *interptypes.TypeSystem, actualType, declaredType string, declaredClass *ClassInfo) bool {
+func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, declaredClass *ClassInfo) bool {
 	normalizedActual := ident.Normalize(actualType)
 	normalizedDeclared := ident.Normalize(declaredType)
 
@@ -118,23 +116,18 @@ func areRuntimeTypesCompatibleForOperator(typeSystem *interptypes.TypeSystem, ac
 	actualClassName := strings.TrimPrefix(normalizedActual, "class:")
 	declaredClassName := strings.TrimPrefix(normalizedDeclared, "class:")
 
-	// If we have a typeSystem, perform full inheritance checking
-	if typeSystem != nil {
-		actualClassInfoAny := typeSystem.LookupClass(actualClassName)
-		declaredClassInfoAny := typeSystem.LookupClass(declaredClassName)
-
-		if actualClassInfoAny != nil && declaredClassInfoAny != nil {
-			actualClassInfo, okActual := actualClassInfoAny.(*ClassInfo)
-			declaredClassInfo, okDeclared := declaredClassInfoAny.(*ClassInfo)
-
-			if okActual && okDeclared {
-				// actualClassInfo must inherit from declaredClassInfo
-				return actualClassInfo.InheritsFrom(declaredClassInfo.Name)
-			}
+	// TODO: Full inheritance checking is not yet implemented here
+	// The function currently only does simple name comparison because we don't have
+	// easy access to the actual class hierarchy from the runtime type strings.
+	// The full inheritance check is handled in tryCallClassOperator which walks up
+	// the parent class chain. The declaredClass parameter is kept for future enhancement
+	// when we refactor to pass full ClassInfo objects instead of type strings.
+	if declaredClass != nil {
+		if ident.Normalize(declaredClass.Name) == declaredClassName {
+			return true
 		}
 	}
 
-	// Fallback to simple name comparison if typeSystem is nil or classes not found
 	return actualClassName == declaredClassName
 }
 

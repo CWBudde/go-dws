@@ -5,7 +5,6 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
-	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -14,7 +13,8 @@ import (
 // ============================================================================
 
 func TestClassInfoCreation(t *testing.T) {
-	classInfo := NewClassInfo("TPoint", interptypes.NewTypeSystem())
+	// Create a simple class: TPoint with X, Y fields
+	classInfo := NewClassInfo("TPoint")
 
 	if classInfo.Name != "TPoint" {
 		t.Errorf("classInfo.Name = %s, want TPoint", classInfo.Name)
@@ -42,7 +42,7 @@ func TestClassInfoAddField(t *testing.T) {
 }
 
 func TestClassInfoAddMethod(t *testing.T) {
-	classInfo := NewClassInfo("TCounter", interptypes.NewTypeSystem())
+	classInfo := NewClassInfo("TCounter")
 
 	// Create a simple method AST node
 	method := &ast.FunctionDecl{
@@ -106,7 +106,7 @@ func TestObjectInstanceInitializeFields(t *testing.T) {
 
 func TestMethodLookupBasic(t *testing.T) {
 	// Create class with method
-	classInfo := NewClassInfo("TCounter", interptypes.NewTypeSystem())
+	classInfo := NewClassInfo("TCounter")
 
 	method := &ast.FunctionDecl{
 		Name: &ast.Identifier{
@@ -136,7 +136,7 @@ func TestMethodLookupBasic(t *testing.T) {
 
 func TestMethodLookupWithInheritance(t *testing.T) {
 	// Create parent class with method
-	parent := NewClassInfo("TObject", interptypes.NewTypeSystem())
+	parent := NewClassInfo("TObject")
 	parentMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
@@ -149,7 +149,7 @@ func TestMethodLookupWithInheritance(t *testing.T) {
 	parent.GetMethodsMap()["tostring"] = parentMethod
 
 	// Create child class
-	child := NewClassInfo("TPerson", interptypes.NewTypeSystem())
+	child := NewClassInfo("TPerson")
 	child.Parent = parent
 
 	// Create object of child class
@@ -166,9 +166,10 @@ func TestMethodLookupWithInheritance(t *testing.T) {
 		t.Error("Found method should be 'ToString' from parent")
 	}
 }
+
 func TestMethodOverriding(t *testing.T) {
 	// Create parent class with method
-	parent := NewClassInfo("TObject", interptypes.NewTypeSystem())
+	parent := NewClassInfo("TObject")
 	parentMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
@@ -182,7 +183,7 @@ func TestMethodOverriding(t *testing.T) {
 	parent.GetMethodsMap()["tostring"] = parentMethod
 
 	// Create child class that overrides the method
-	child := NewClassInfo("TPerson", interptypes.NewTypeSystem())
+	child := NewClassInfo("TPerson")
 	child.Parent = parent
 
 	childMethod := &ast.FunctionDecl{
@@ -218,7 +219,7 @@ func TestMethodOverriding(t *testing.T) {
 }
 
 func TestMethodLookupNotFound(t *testing.T) {
-	classInfo := NewClassInfo("TPoint", interptypes.NewTypeSystem())
+	classInfo := NewClassInfo("TPoint")
 	obj := NewObjectInstance(classInfo)
 
 	method := obj.GetMethod("NonExistent")
@@ -233,7 +234,7 @@ func TestMethodLookupNotFound(t *testing.T) {
 // ============================================================================
 
 func TestObjectValue(t *testing.T) {
-	classInfo := NewClassInfo("TPoint", interptypes.NewTypeSystem())
+	classInfo := NewClassInfo("TPoint")
 	obj := NewObjectInstance(classInfo)
 
 	// ObjectInstance should implement Value interface

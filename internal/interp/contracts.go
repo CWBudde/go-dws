@@ -2,7 +2,6 @@ package interp
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -18,7 +17,7 @@ func (i *Interpreter) raiseException(className, message string, pos *lexer.Posit
 		if !ok {
 			// This shouldn't happen, but handle it gracefully
 			i.exception = &runtime.ExceptionValue{
-				ClassInfo: NewClassInfo(className, interptypes.NewTypeSystem()),
+				ClassInfo: NewClassInfo(className),
 				Instance:  nil,
 				Message:   message,
 				Position:  pos,

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
-	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -134,7 +133,7 @@ func TestInterfaceInstanceCreation(t *testing.T) {
 	interfaceInfo := NewInterfaceInfo("IMyInterface")
 
 	// Create a class that implements the interface
-	classInfo := NewClassInfo("TMyClass", interptypes.NewTypeSystem())
+	classInfo := NewClassInfo("TMyClass")
 
 	// Create an object instance
 	obj := NewObjectInstance(classInfo)
@@ -156,7 +155,7 @@ func TestInterfaceInstanceImplementsValue(t *testing.T) {
 	interfaceInfo := NewInterfaceInfo("IMyInterface")
 
 	// Create a class and object
-	classInfo := NewClassInfo("TMyClass", interptypes.NewTypeSystem())
+	classInfo := NewClassInfo("TMyClass")
 	obj := NewObjectInstance(classInfo)
 
 	// Create an interface instance
@@ -182,7 +181,7 @@ func TestInterfaceInstanceGetUnderlyingObject(t *testing.T) {
 	interfaceInfo := NewInterfaceInfo("IMyInterface")
 
 	// Create a class and object
-	classInfo := NewClassInfo("TMyClass", interptypes.NewTypeSystem())
+	classInfo := NewClassInfo("TMyClass")
 	// Field defined as "x" (lowercase) but accessed as "X" (uppercase)
 	// to verify case-insensitive field access via normalization
 	// Note: Skipping field registration since Fields now expects *ast.FieldDecl
