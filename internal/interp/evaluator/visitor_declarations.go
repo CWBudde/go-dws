@@ -122,7 +122,118 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		e.declHandler.AddInterfaceToClass(classInfo, iface, ifaceName)
 	}
 
-	// TODO: Constants, fields, nested types
+	// Evaluate class constants (sequentially to allow dependencies)
+	classConstValues := e.declHandler.GetClassConstantValues(classInfo)
+	if classConstValues == nil {
+		classConstValues = make(map[string]Value)
+	}
+
+	evalWithClassConsts := func(expr ast.Expression) Value {
+		savedEnv := ctx.Env()
+		tempEnv := runtime.NewEnclosedEnvironment(savedEnv)
+		for name, val := range classConstValues {
+			tempEnv.Define(name, val)
+		}
+		ctx.SetEnv(tempEnv)
+		defer ctx.SetEnv(savedEnv)
+		return e.Eval(expr, ctx)
+	}
+
+	for _, constDecl := range node.Constants {
+		if constDecl == nil {
+			continue
+		}
+		constVal := evalWithClassConsts(constDecl.Value)
+		if isError(constVal) {
+			return constVal
+		}
+		classConstValues[constDecl.Name.Value] = constVal
+		e.declHandler.AddClassConstant(classInfo, constDecl, constVal)
+	}
+
+	// Inherit parent constants for field initializers
+	if parentClass != nil {
+		e.declHandler.InheritClassConstants(classInfo, parentClass)
+	}
+
+	// Refresh constants after inheritance
+	classConstValues = e.declHandler.GetClassConstantValues(classInfo)
+	if classConstValues == nil {
+		classConstValues = make(map[string]Value)
+	}
+
+	// Process nested types before fields so they can be referenced
+	for _, nested := range node.NestedTypes {
+		switch n := nested.(type) {
+		case *ast.ClassDecl:
+			if n.EnclosingClass == nil {
+				n.EnclosingClass = &ast.Identifier{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: node.Name.Token},
+					},
+					Value: className,
+				}
+			}
+			if result := e.Eval(n, ctx); isError(result) {
+				return result
+			}
+			if nestedInfo := e.typeSystem.LookupClass(e.fullClassNameFromDecl(n)); nestedInfo != nil {
+				e.declHandler.AddNestedClass(classInfo, n.Name.Value, nestedInfo)
+			}
+		default:
+			if result := e.Eval(n, ctx); isError(result) {
+				return result
+			}
+		}
+	}
+
+	// Process fields and class variables
+	for _, field := range node.Fields {
+		fieldName := field.Name.Value
+		var fieldType types.Type
+		var cachedInit Value
+
+		switch {
+		case field.Type != nil:
+			var err error
+			typeName := field.Type.String()
+			fieldType, err = e.resolveTypeName(typeName, ctx)
+			if err != nil || fieldType == nil {
+				return e.newError(node, "unknown or invalid type for field '%s' in class '%s'", fieldName, className)
+			}
+		case field.InitValue != nil:
+			initVal := evalWithClassConsts(field.InitValue)
+			if isError(initVal) {
+				return initVal
+			}
+			cachedInit = initVal
+			fieldType = e.getValueType(initVal)
+			if fieldType == nil {
+				return e.newError(node, "cannot infer type for field '%s' in class '%s'", fieldName, className)
+			}
+		default:
+			return e.newError(node, "field '%s' in class '%s' must have either a type or initializer", fieldName, className)
+		}
+
+		if field.IsClassVar {
+			var varValue Value
+			if cachedInit != nil {
+				varValue = cachedInit
+			} else if field.InitValue != nil {
+				varValue = evalWithClassConsts(field.InitValue)
+				if isError(varValue) {
+					return varValue
+				}
+			} else {
+				varValue = e.GetDefaultValue(fieldType)
+			}
+
+			e.declHandler.AddClassVar(classInfo, fieldName, varValue)
+			continue
+		}
+
+		e.declHandler.AddClassField(classInfo, field, fieldType)
+	}
 
 	// Add methods (overrides parent methods if same name, supports overloading)
 	for _, method := range node.Methods {

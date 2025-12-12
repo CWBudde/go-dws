@@ -81,7 +81,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 					}
 
 					// Call indexed property getter via ObjectValue interface
-						if ov, ok := objVal.(ObjectValue); ok {
+					if ov, ok := objVal.(ObjectValue); ok {
 						return ov.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
 							return e.executeIndexedPropertyRead(objVal, pi, idx, node, ctx)
 						})
@@ -103,7 +103,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 						}
 					}
 
-						recVal, ok := objVal.(RecordInstanceValue)
+					recVal, ok := objVal.(RecordInstanceValue)
 					if !ok {
 						return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
 					}
@@ -171,7 +171,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 				if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil && defaultProp.IsIndexed {
 					// The property is defined on the interface, but we need the underlying object for execution
 					if underlying.Type() == "OBJECT" {
-										if objVal, ok := underlying.(ObjectValue); ok {
+						if objVal, ok := underlying.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
 								return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
 							})
@@ -187,7 +187,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			if leftVal.Type() == "OBJECT" {
 				if accessor, ok := leftVal.(PropertyAccessor); ok {
 					if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-										if objVal, ok := leftVal.(ObjectValue); ok {
+						if objVal, ok := leftVal.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
 								return e.executeIndexedPropertyRead(leftVal, pi, idx, node, ctx)
 							})

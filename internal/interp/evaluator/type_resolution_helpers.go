@@ -133,7 +133,6 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 			}
 		}
 
-
 		// Unknown type
 		return nil, fmt.Errorf("unknown type: %s", typeName)
 	}

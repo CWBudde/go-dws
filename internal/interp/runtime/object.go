@@ -12,11 +12,11 @@ import (
 // ObjectInstance represents a runtime instance of a class.
 // Uses IClassInfo interface to avoid circular imports.
 type ObjectInstance struct {
-	Class            IClassInfo            // Class metadata
-	Fields           map[string]Value      // Field name to value mapping
-	RefCount         int                   // Interface reference count
-	Destroyed        bool                  // Destructor completed
-	DestroyCallDepth int                   // Nested Destroy call tracking
+	Class            IClassInfo       // Class metadata
+	Fields           map[string]Value // Field name to value mapping
+	RefCount         int              // Interface reference count
+	Destroyed        bool             // Destructor completed
+	DestroyCallDepth int              // Nested Destroy call tracking
 }
 
 // NewObjectInstance creates a new object instance of the given class.

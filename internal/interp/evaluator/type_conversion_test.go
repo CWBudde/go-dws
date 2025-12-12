@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -423,6 +424,18 @@ func (m *mockConversionAdapter) InheritDestructorIfMissing(classInfo interface{}
 func (m *mockConversionAdapter) InheritParentProperties(classInfo interface{})                      {}
 func (m *mockConversionAdapter) BuildVirtualMethodTable(classInfo interface{})                      {}
 func (m *mockConversionAdapter) RegisterClassInTypeSystem(classInfo interface{}, parentName string) {}
+func (m *mockConversionAdapter) AddClassConstant(classInfo interface{}, constDecl *ast.ConstDecl, value Value) {
+}
+func (m *mockConversionAdapter) GetClassConstantValues(classInfo interface{}) map[string]Value {
+	return nil
+}
+func (m *mockConversionAdapter) InheritClassConstants(classInfo interface{}, parentClass interface{}) {
+}
+func (m *mockConversionAdapter) AddClassField(classInfo interface{}, fieldDecl *ast.FieldDecl, fieldType types.Type) {
+}
+func (m *mockConversionAdapter) AddClassVar(classInfo interface{}, name string, value Value) {}
+func (m *mockConversionAdapter) AddNestedClass(parentClass interface{}, nestedName string, nestedClass interface{}) {
+}
 func (m *mockConversionAdapter) EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
 	return &runtime.NilValue{}
 }

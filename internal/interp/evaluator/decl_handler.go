@@ -1,13 +1,14 @@
 package evaluator
 
 import (
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // DeclHandler handles type declaration processing (classes, interfaces, helpers).
 // Encapsulates logic for building type metadata, virtual method tables, and inheritance hierarchies.
 type DeclHandler interface {
-	// ===== Class Declaration (21 methods) =====
+	// ===== Class Declaration (27 methods) =====
 	// All methods used by: visitor_declarations.go (single caller each)
 
 	// NewClassInfoAdapter creates a new class metadata object.
@@ -77,6 +78,24 @@ type DeclHandler interface {
 
 	// RegisterClassInTypeSystem registers class in global type system.
 	RegisterClassInTypeSystem(classInfo any, parentName string)
+
+	// AddClassConstant registers a class constant and its evaluated value.
+	AddClassConstant(classInfo any, constDecl *ast.ConstDecl, value Value)
+
+	// GetClassConstantValues returns evaluated class constants (name -> value).
+	GetClassConstantValues(classInfo any) map[string]Value
+
+	// InheritClassConstants copies constants from the parent class if missing.
+	InheritClassConstants(classInfo any, parentClass any)
+
+	// AddClassField registers an instance field with its resolved type.
+	AddClassField(classInfo any, fieldDecl *ast.FieldDecl, fieldType types.Type)
+
+	// AddClassVar registers a class variable (static field) with its value.
+	AddClassVar(classInfo any, name string, value Value)
+
+	// AddNestedClass registers a nested class reference on the parent.
+	AddNestedClass(parentClass any, nestedName string, nestedClass any)
 
 	// ===== Interface Declaration (7 methods) =====
 	// All methods used by: visitor_declarations.go (single caller each)

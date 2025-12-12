@@ -736,6 +736,122 @@ func (i *Interpreter) RegisterClassInTypeSystem(classInfo interface{}, parentNam
 	i.typeSystem.RegisterClassWithParent(ci.Name, ci, parentName)
 }
 
+// AddClassConstant registers a class constant and its evaluated value.
+func (i *Interpreter) AddClassConstant(classInfo interface{}, constDecl *ast.ConstDecl, value evaluator.Value) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok || constDecl == nil {
+		return
+	}
+
+	ci.Constants[constDecl.Name.Value] = constDecl
+	if val, ok := value.(Value); ok {
+		ci.ConstantValues[constDecl.Name.Value] = val
+	}
+
+	if ci.Metadata != nil {
+		if ci.Metadata.Constants == nil {
+			ci.Metadata.Constants = make(map[string]any)
+		}
+		ci.Metadata.Constants[constDecl.Name.Value] = value
+	}
+}
+
+// GetClassConstantValues returns a copy of evaluated class constants.
+func (i *Interpreter) GetClassConstantValues(classInfo interface{}) map[string]evaluator.Value {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return nil
+	}
+
+	result := make(map[string]evaluator.Value, len(ci.ConstantValues))
+	for name, val := range ci.ConstantValues {
+		result[name] = val
+	}
+	return result
+}
+
+// InheritClassConstants copies constants from the parent class if missing.
+func (i *Interpreter) InheritClassConstants(classInfo interface{}, parentClass interface{}) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+
+	parent, ok := parentClass.(*ClassInfo)
+	if !ok || parent == nil {
+		return
+	}
+
+	for name, decl := range parent.Constants {
+		if _, exists := ci.Constants[name]; !exists {
+			ci.Constants[name] = decl
+		}
+	}
+
+	for name, val := range parent.ConstantValues {
+		if _, exists := ci.ConstantValues[name]; !exists {
+			ci.ConstantValues[name] = val
+		}
+	}
+
+	if parent.Metadata != nil && parent.Metadata.Constants != nil {
+		if ci.Metadata.Constants == nil {
+			ci.Metadata.Constants = make(map[string]any)
+		}
+		for name, val := range parent.Metadata.Constants {
+			if _, exists := ci.Metadata.Constants[name]; !exists {
+				ci.Metadata.Constants[name] = val
+			}
+		}
+	}
+}
+
+// AddClassField registers an instance field with its resolved type.
+func (i *Interpreter) AddClassField(classInfo interface{}, fieldDecl *ast.FieldDecl, fieldType types.Type) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok || fieldDecl == nil {
+		return
+	}
+
+	ci.Fields[fieldDecl.Name.Value] = fieldType
+	ci.FieldDecls[fieldDecl.Name.Value] = fieldDecl
+
+	fieldMeta := runtime.FieldMetadataFromAST(fieldDecl)
+	fieldMeta.Type = fieldType
+	runtime.AddFieldToClass(ci.Metadata, fieldMeta)
+}
+
+// AddClassVar registers a class variable (static field) with its value.
+func (i *Interpreter) AddClassVar(classInfo interface{}, name string, value evaluator.Value) {
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+
+	if val, ok := value.(Value); ok {
+		ci.ClassVars[name] = val
+	}
+
+	if ci.Metadata != nil {
+		if ci.Metadata.ClassVars == nil {
+			ci.Metadata.ClassVars = make(map[string]any)
+		}
+		ci.Metadata.ClassVars[name] = value
+	}
+}
+
+// AddNestedClass registers a nested class reference on the parent.
+func (i *Interpreter) AddNestedClass(parentClass interface{}, nestedName string, nestedClass interface{}) {
+	parent, ok := parentClass.(*ClassInfo)
+	if !ok || parent == nil {
+		return
+	}
+
+	if nested, ok := nestedClass.(*ClassInfo); ok {
+		parent.NestedClasses[ident.Normalize(nestedName)] = nested
+	}
+}
+
 // ===== Helper Property Adapter =====
 
 // EvalBuiltinHelperProperty evaluates a built-in helper property.

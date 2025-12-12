@@ -11,10 +11,10 @@ import (
 
 // VirtualMethodEntry tracks virtual method dispatch information.
 type VirtualMethodEntry struct {
-	IntroducedBy   *ClassInfo         // Class that first declared this method as virtual
-	Implementation *ast.FunctionDecl  // Method declaration to call for this class
-	IsVirtual      bool               // Participates in virtual dispatch
-	IsReintroduced bool               // Breaks the virtual dispatch chain
+	IntroducedBy   *ClassInfo        // Class that first declared this method as virtual
+	Implementation *ast.FunctionDecl // Method declaration to call for this class
+	IsVirtual      bool              // Participates in virtual dispatch
+	IsReintroduced bool              // Breaks the virtual dispatch chain
 }
 
 // ClassInfo represents runtime class metadata.
