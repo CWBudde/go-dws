@@ -212,17 +212,54 @@ func (e *Evaluator) classImplementsInterface(classMeta *runtime.ClassMetadata, i
 		return false
 	}
 
+	// Resolve target interface info for inheritance checks (may be nil if not registered yet)
+	var targetInterface runtime.IInterfaceInfo
+	if ifaceAny := e.typeSystem.LookupInterface(interfaceName); ifaceAny != nil {
+		if ifaceInfo, ok := ifaceAny.(runtime.IInterfaceInfo); ok {
+			targetInterface = ifaceInfo
+		}
+	}
+
 	// Check if this class explicitly declares the interface
 	for _, ifaceName := range classMeta.Interfaces {
 		if ident.Equal(ifaceName, interfaceName) {
 			return true
 		}
-		// TODO: Check interface inheritance when that's implemented
+
+		// Check interface inheritance: implemented interface can satisfy parent interfaces
+		if targetInterface != nil && e.interfaceInheritsFrom(ifaceName, targetInterface) {
+			return true
+		}
 	}
 
 	// Check parent class (interfaces are inherited)
 	if classMeta.Parent != nil {
 		return e.classImplementsInterface(classMeta.Parent, interfaceName)
+	}
+
+	return false
+}
+
+// interfaceInheritsFrom checks if the interface identified by sourceName inherits from targetIface.
+func (e *Evaluator) interfaceInheritsFrom(sourceName string, targetIface runtime.IInterfaceInfo) bool {
+	if targetIface == nil || e.typeSystem == nil {
+		return false
+	}
+
+	ifaceAny := e.typeSystem.LookupInterface(sourceName)
+	if ifaceAny == nil {
+		return false
+	}
+
+	ifaceInfo, ok := ifaceAny.(runtime.IInterfaceInfo)
+	if !ok || ifaceInfo == nil {
+		return false
+	}
+
+	for current := ifaceInfo; current != nil; current = current.GetParent() {
+		if current == targetIface || ident.Equal(current.GetName(), targetIface.GetName()) {
+			return true
+		}
 	}
 
 	return false

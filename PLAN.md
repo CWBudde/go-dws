@@ -665,7 +665,7 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 **Tasks**:
 
-- [ ] **5.3.1** Implement full inheritance checking for `is` operator (4h)
+ - [x] **5.3.1** Implement full inheritance checking for `is` operator (4h)
   - `operators.go:119`
   - Check full class hierarchy, not just direct parent
 

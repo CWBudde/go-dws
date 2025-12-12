@@ -342,6 +342,35 @@ func TestEvalAsExpressionInterfaceToInterface(t *testing.T) {
 	}
 }
 
+func TestEvalIsExpressionInterfaceInheritance(t *testing.T) {
+	input := `
+		type IBase = interface
+			procedure Base;
+		end;
+		type IChild = interface(IBase)
+			procedure Child;
+		end;
+		type TTest = class(IChild)
+			procedure Base;
+			procedure Child;
+		end;
+		procedure TTest.Base;
+		begin
+		end;
+		procedure TTest.Child;
+		begin
+		end;
+		var obj: TTest := TTest.Create;
+		PrintLn(obj is IChild);
+		PrintLn(obj is IBase);
+	`
+
+	_, output := testEvalEdgeCase(input, t)
+	if !strings.Contains(output, "True\nTrue") {
+		t.Errorf("Expected both interface checks to be True, got %q", output)
+	}
+}
+
 // TestEvalImplementsWithClassValue tests 'implements' with class type value
 func TestEvalImplementsWithClassValue(t *testing.T) {
 	input := `
