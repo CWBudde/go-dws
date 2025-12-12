@@ -134,8 +134,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		propInfo.IndexValueType = types.INTEGER
 	}
 
-	// Task 9.49: Register property stub before validating specs
-	// This allows circular reference detection in property expressions
+	// Register property stub before validating specs (allows circular reference detection)
 	classType.Properties[propName] = propInfo
 
 	// Validate read specifier
@@ -184,8 +183,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	if ident, ok := prop.ReadSpec.(*ast.Identifier); ok {
 		readSpecName := ident.Value
 
-		// Task 9.17: Check class-level members first (class vars, then constants)
-		// This ensures class-level storage takes precedence over instance fields
+		// Check class-level members first: class vars, then constants, then instance fields
 
 		// 1. Check if it's a class variable (only for class properties)
 		if fieldType, found := classType.ClassVars[pkgident.Normalize(readSpecName)]; found {
@@ -236,7 +234,6 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		// If method, verify method exists with correct signature
 		if methodType, found := classType.GetMethod(pkgident.Normalize(readSpecName)); found {
 			// For class properties, verify the method is a class method
-			// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
 			if propInfo.IsClassProperty {
 				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
 				if !isClassMethod {
@@ -246,7 +243,6 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				}
 			} else {
 				// For instance properties, verify the method is NOT a class method
-				// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
 				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
 				if isClassMethod {
 					a.addError("instance property '%s' read method '%s' cannot be a class method at %s",
@@ -388,7 +384,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		return
 	}
 
-	// Task 9.17: Check if it's a constant (constants are read-only, so error if used as write spec)
+	// Check if it's a constant (constants are read-only, so error if used as write spec)
 	if _, constantFound := a.getConstantType(classType, writeSpecName); constantFound {
 		a.addError("property '%s' write specifier '%s' is a constant and cannot be written to at %s",
 			propName, writeSpecName, prop.Token.Pos.String())
@@ -398,7 +394,6 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	// If method, verify method exists with correct signature
 	if methodType, found := classType.GetMethod(pkgident.Normalize(writeSpecName)); found {
 		// For class properties, verify the method is a class method
-		// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
 		if propInfo.IsClassProperty {
 			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(writeSpecName)]
 			if !isClassMethod {
@@ -408,7 +403,6 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			}
 		} else {
 			// For instance properties, verify the method is NOT a class method
-			// Task 9.16.1: Use lowercase key since ClassMethodFlags now uses lowercase keys
 			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(writeSpecName)]
 			if isClassMethod {
 				a.addError("instance property '%s' write method '%s' cannot be a class method at %s",
@@ -469,9 +463,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		propName, writeSpecName, classType.Name, prop.Token.Pos.String())
 }
 
-// getConstantType retrieves the type of a constant from a class.
-// It searches the class and its ancestors for the constant and returns its type.
-// Task 9.17: Helper for property expression validation
+// getConstantType looks up a constant in a class or its ancestors.
 func (a *Analyzer) getConstantType(classType *types.ClassType, constantName string) (types.Type, bool) {
 	if classType == nil {
 		return nil, false

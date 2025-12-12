@@ -18,10 +18,6 @@ import (
 //
 // This unified parser enables inline type syntax in parameters and variables
 // without requiring type aliases.
-//
-// Task 9.49: Created to support inline type expressions
-// PRE: cursor is first token of type (IDENT, CONST, FUNCTION, PROCEDURE, ARRAY, SET, CLASS)
-// POST: cursor is last token of type expression
 func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -83,16 +79,9 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 // detectFunctionPointerFullSyntax determines if we have full syntax (with parameter names)
 // or shorthand syntax (types only) WITHOUT advancing the parser state.
 //
-// This method is called when curToken is LPAREN and peekToken is the first token inside.
-//
 // Returns:
 //   - true for full syntax: "x: Type" or "x, y: Type"
 //   - false for shorthand: "Type" or "Type1, Type2"
-//
-// Strategy: Use lexer.Peek() to look ahead without modifying state.
-// Task 12.3.4: Refactored to use Peek() instead of creating temporary lexer
-// PRE: cursor is LPAREN
-// POST: cursor is LPAREN (unchanged)
 func (p *Parser) detectFunctionPointerFullSyntax() bool {
 	// Use Peek() to look ahead through tokens
 	// Peek(0) gives the token after peekToken
@@ -123,18 +112,12 @@ func (p *Parser) detectFunctionPointerFullSyntax() bool {
 	}
 }
 
-// This is the reusable version extracted from parseFunctionPointerTypeDeclaration.
-//
 // Syntax:
 //
 //	function(param1: Type1, param2: Type2, ...): ReturnType
 //	procedure(param1: Type1, param2: Type2, ...)
 //	function(...): ReturnType of object
 //	procedure(...) of object
-//
-// Task 9.50: Refactored from parseFunctionPointerTypeDeclaration
-// PRE: cursor is FUNCTION or PROCEDURE
-// POST: cursor is last token of function pointer type (OBJECT, return type, or RPAREN)
 func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -267,29 +250,10 @@ type dimensionPair struct {
 // Supports both dynamic and static arrays:
 //   - Dynamic: array of ElementType
 //   - Static: array[low..high] of ElementType
-//
-// ElementType can be any type expression:
-//   - Simple type: array of Integer
-//   - Array type: array of array of String (nested)
-//   - Function pointer: array of function(x: Integer): Boolean
-//   - Static nested: array[1..5] of array[1..10] of Integer
-//
-// Task 9.51: Created to support array of Type syntax
-// Task 9.54: Extended to support static array bounds
-// Task 9.212: Extended to support comma-separated multidimensional arrays
-//
-// Supports both single and multi-dimensional syntax:
-//   - array[0..10] of Integer         (single dimension)
-//   - array[0..1, 0..2] of Integer    (2D, comma-separated)
-//   - array[1..3, 1..4, 1..5] of Float (3D, comma-separated)
+//   - Multidimensional: array[0..1, 0..2] of Integer
 //
 // Multi-dimensional arrays are desugared into nested array types:
-//
-//	array[0..1, 0..2] of Integer
-//	→ array[0..1] of array[0..2] of Integer
-//
-// PRE: cursor is ARRAY
-// POST: cursor is last token of element type
+//   array[0..1, 0..2] of Integer → array[0..1] of array[0..2] of Integer
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -466,18 +430,8 @@ func parseInt(s string) (int, error) {
 	return int(val), nil
 }
 
-// parseArrayBound parses an array bound expression.
-// Array bounds can be:
-// - Integer literals: 10, -5
-// - Constant identifiers: size, maxIndex
-// - Constant expressions: size - 1, maxIndex + 10
-//
-// Current token should be at the start of the bound expression.
-// Returns the parsed expression or nil on error.
-//
-// Task 9.205: Changed to return ast.Expression instead of int to support const expressions
-// PRE: cursor is first token of bound expression
-// POST: cursor is last token of bound expression
+// parseArrayBound parses an array bound expression (integer literals,
+// identifiers, or constant expressions like size - 1).
 func (p *Parser) parseArrayBound() ast.Expression {
 	// Parse as a general expression
 	// This handles:
@@ -489,12 +443,7 @@ func (p *Parser) parseArrayBound() ast.Expression {
 }
 
 // parseArrayBoundsFromCurrent parses array dimensions starting from the current token.
-// It expects to be positioned at the low bound of the first dimension.
 // Returns a slice of dimension pairs (low, high) or nil on error.
-//
-// This helper function extracts the common array bound parsing logic to avoid duplication.
-// PRE: cursor is first token of low bound expression
-// POST: cursor is last token of last dimension's high bound
 func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 	var dimensions []dimensionPair
 
@@ -522,7 +471,6 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 	dimensions = append(dimensions, dimensionPair{lowBound, highBound})
 
 	// Parse additional dimensions (comma-separated)
-	// Task 9.212: Support multidimensional arrays like array[0..1, 0..2]
 	for p.peekTokenIs(lexer.COMMA) {
 		p.nextToken() // consume comma
 		p.nextToken() // move to next low bound
@@ -550,20 +498,8 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 	return dimensions
 }
 
-// Syntax:
-//
-//	class of ClassName
-//
-// Examples:
-//
-//	class of TMyClass
-//	class of TObject
-//
-// Current token should be CLASS.
-//
-// Task 9.70: Parse metaclass type syntax
-// PRE: cursor is CLASS
-// POST: cursor is class type IDENT
+// Syntax: class of ClassName
+// Examples: class of TMyClass, class of TObject
 func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()

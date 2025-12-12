@@ -89,7 +89,6 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 
 // analyzeVarDecl analyzes a variable declaration
 func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
-	// Task 9.63: Check each name for duplicates in current scope
 	for _, name := range stmt.Names {
 		if a.symbols.IsDeclaredInCurrentScope(name.Value) {
 			a.addError("%s", errors.FormatNameAlreadyExists(name.Value, stmt.Token.Pos.Line, stmt.Token.Pos.Column))
@@ -142,7 +141,6 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		} else {
 			// Check that initializer type is compatible with declared type
 			if !a.canAssign(initType, varType) {
-				// Task 9.110: Use structured error for type mismatch
 				a.addStructuredError(NewTypeMismatch(
 					stmt.Token.Pos,
 					firstName, // Variable name
@@ -162,7 +160,6 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		return
 	}
 
-	// Task 9.63: Add all variables to symbol table with the same type
 	for _, name := range stmt.Names {
 		a.symbols.Define(name.Value, varType, name.Token.Pos)
 	}
@@ -209,7 +206,6 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	} else {
 		// Check that value type is compatible with declared type
 		if !a.canAssign(valueType, constType) {
-			// Task 9.110: Use structured error for type mismatch
 			a.addStructuredError(NewTypeMismatch(
 				stmt.Token.Pos,
 				stmt.Name.Value, // Constant name
@@ -220,7 +216,6 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 		}
 	}
 
-	// Task 9.205: Evaluate the constant value at compile time
 	constValue, err := a.evaluateConstant(stmt.Value)
 	if err != nil {
 		a.addError("constant '%s' value must be a compile-time constant at %s: %v",
@@ -276,7 +271,6 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		sym, ok := a.symbols.Resolve(target.Value)
 
-		// Task 9.32b/9.32c: If variable not found, check for implicit Self field/property
 		if !ok && a.currentClass != nil {
 			// Check if it's a field of the current class (case-insensitive)
 			if fieldType, exists := a.currentClass.GetField(target.Value); exists {
@@ -329,7 +323,6 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 		if !ok {
-			// Task 9.110: Use structured error for undefined variable
 			a.addStructuredError(NewUndefinedVariable(stmt.Token.Pos, target.Value))
 			return
 		}
@@ -347,7 +340,6 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// For compound assignments with class operators, we need to analyze the value
 		// without type context first, because the operator signature (not the target type)
 		// defines what types are acceptable. For example: TTest += array of const
-		// Task 9.17.11b: Fix array of const in class operators
 		var valueType types.Type
 		if isCompound {
 			// Special case: empty array literals need context
@@ -472,7 +464,6 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 // isCompoundOperatorValid checks if a compound operator is valid for the given types.
 // Returns (valid, usesClassOperator) where usesClassOperator is true if a class operator was found.
 func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, valueType types.Type, pos lexer.Position) (bool, bool) {
-	// Task 9.14: Check if there's a class operator override for this compound assignment
 	// Convert lexer.TokenType to operator symbol string
 	opSymbol := compoundOperatorToSymbol(op)
 	if opSymbol == "" {
@@ -733,7 +724,6 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 			endType.String(), stmt.Token.Pos.String())
 	}
 
-	// Task 9.152: Analyze step expression if present
 	if stmt.Step != nil {
 		stepType := a.analyzeExpression(stmt.Step)
 
@@ -821,7 +811,6 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 			elementType = types.STRING
 
 		case *types.EnumType:
-			// Task 9.213: Enum types are enumerable
 			// When iterating over an enum type directly (e.g., for var e in TColor do),
 			// we iterate over all values of the enum type
 			// The element type is the enum type itself
@@ -839,7 +828,6 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 			case *types.StringType:
 				elementType = types.STRING
 			case *types.EnumType:
-				// Task 9.213: Aliased enum types are also enumerable
 				elementType = ut
 			default:
 				a.addError("for-in collection type %s (alias of %s) is not enumerable at %s",

@@ -158,23 +158,13 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 
 // analyzeLambdaExpressionWithContext analyzes a lambda expression with expected function pointer type.
 // This enables parameter type inference from the context where the lambda is used.
-//
-// Task 9.19: Parameter type inference from context.
-// Examples:
-//   - var f: TFunc := lambda(x) => x * 2  (x type inferred from TFunc)
-//   - Apply(5, lambda(n) => n * 2)        (n type inferred from Apply's signature)
-//   - return lambda(x) => x * 2           (x type inferred from function return type)
-//
-// The function validates that:
-//   - Parameter count matches expected type
-//   - Explicit parameter types are compatible with expected types
-//   - Inferred parameter types are used for untyped parameters
+// The function validates parameter count and type compatibility.
 func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression, expectedFuncType *types.FunctionPointerType) types.Type {
 	if expr == nil || expectedFuncType == nil {
 		return nil
 	}
 
-	// Task 9.19.3: Validate parameter count compatibility
+	// Validate parameter count compatibility
 	if len(expr.Parameters) != len(expectedFuncType.Parameters) {
 		a.addError("lambda has %d %s but expected function type has %d %s at %s",
 			len(expr.Parameters), pluralizeParam(len(expr.Parameters)),
@@ -183,7 +173,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 		return nil
 	}
 
-	// Task 9.216: Check for duplicate parameter names
+	// Check for duplicate parameter names
 	paramNames := make(map[string]bool)
 	for _, param := range expr.Parameters {
 		if paramNames[param.Name.Value] {
@@ -194,7 +184,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 		paramNames[param.Name.Value] = true
 	}
 
-	// Task 9.19.3: Infer types for untyped parameters, validate explicit types
+	// Infer types for untyped parameters, validate explicit types
 	paramTypes := make([]types.Type, 0, len(expr.Parameters))
 
 	for i, param := range expr.Parameters {
@@ -234,7 +224,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	// Now we have all parameter types (either inferred or explicit)
 	// Continue with standard lambda analysis
 
-	// Task 9.216: Create new scope for lambda body
+	// Create new scope for lambda body
 	oldSymbols := a.symbols
 	lambdaScope := NewEnclosedSymbolTable(oldSymbols)
 	a.symbols = lambdaScope
@@ -250,7 +240,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	a.inLambda = true
 	defer func() { a.inLambda = previousInLambda }()
 
-	// Task 9.216: Determine or infer return type
+	// Determine or infer return type
 	var returnType types.Type
 	if expr.ReturnType != nil {
 		// Explicit return type specified
@@ -309,7 +299,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 		a.analyzeBlock(expr.Body)
 	}
 
-	// Task 9.217: Perform closure capture analysis
+	// Perform closure capture analysis
 	capturedVars := a.analyzeCapturedVariables(expr.Body, lambdaScope, oldSymbols)
 	expr.CapturedVars = capturedVars
 
@@ -329,15 +319,8 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	return funcPtrType
 }
 
-// inferReturnTypeFromBody attempts to infer the return type from a lambda body.
-// It walks through the body statements looking for return statements and Result assignments.
-//
-// Task 9.216: Inference strategy:
-//   - If body contains explicit return statements, infer from their expressions
-//   - If body contains Result assignments, infer from the assigned values
-//   - If shorthand lambda (single expression), infer from that expression
-//   - If no returns/Result assignments found, infer as procedure (VOID)
-//   - If multiple return statements with conflicting types, report error
+// inferReturnTypeFromBody attempts to infer the return type from a lambda body
+// by walking through statements looking for return statements and Result assignments.
 func (a *Analyzer) inferReturnTypeFromBody(body *ast.BlockStatement) types.Type {
 	if body == nil || len(body.Statements) == 0 {
 		// Empty body - treat as procedure
@@ -431,14 +414,6 @@ func (a *Analyzer) inferReturnTypeFromBody(body *ast.BlockStatement) types.Type 
 // ============================================================================
 
 // analyzeCapturedVariables identifies variables from outer scopes used in the lambda body.
-// Task 9.217: Closure capture analysis
-//
-// Strategy:
-//   - Walk through all identifiers in the lambda body
-//   - Check if they're defined in the lambda scope (parameters or locals)
-//   - If not, check if they're in an outer scope
-//   - If yes, add them to the captured variables list
-//   - Validate that captured variables are accessible
 func (a *Analyzer) analyzeCapturedVariables(body *ast.BlockStatement, lambdaScope, outerScope *SymbolTable) []string {
 	if body == nil {
 		return nil

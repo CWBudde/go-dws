@@ -66,8 +66,7 @@ func (a *Analyzer) validateMethodSignature(implDecl *ast.FunctionDecl, declaredT
 	return nil
 }
 
-// validateVirtualOverride validates virtual/override method declarations
-// Task 9.4.1: Updated to support virtual/override on constructors
+// validateVirtualOverride validates virtual/override method declarations.
 func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *types.ClassType, methodType *types.FunctionType) {
 	methodName := method.Name.Value
 	isConstructor := method.IsConstructor
@@ -79,7 +78,7 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 			return
 		}
 
-		// Task 9.4.1: Find matching overload in parent class hierarchy (check both methods and constructors)
+		// Find matching overload in parent class hierarchy
 		var parentOverload *types.MethodInfo
 		if isConstructor {
 			parentOverload = a.findMatchingConstructorInParent(methodName, methodType, classType.Parent)
@@ -113,7 +112,6 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 			return
 		}
 
-		// Task 9.61.4: Add hint if override is part of an overload set but doesn't have overload directive
 		// Check if there are other overloads of this method/constructor in the current class
 		var currentOverloads []*types.MethodInfo
 		if isConstructor {
@@ -129,16 +127,12 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 	}
 
 	// Warn if redefining virtual method without override or reintroduce keyword
-	// Note: Constructors can be marked as virtual, so this check applies to both methods and constructors
-	// Task 9.6: Check class metadata instead of AST node, since implementations don't have override keyword
-	// Task 9.16.1: Use lowercase key for case-insensitive lookups
-	// Task 9.2: Allow reintroduce keyword to explicitly hide virtual parent methods (check class metadata, not AST)
 	methodNameLower := ident.Normalize(methodName)
 	isOverrideInClass := classType.OverrideMethods[methodNameLower]
 	isVirtualInClass := classType.VirtualMethods[methodNameLower]
 	isReintroduceInClass := classType.ReintroduceMethods[methodNameLower]
 	if !isOverrideInClass && !isVirtualInClass && !isReintroduceInClass && classType.Parent != nil {
-		// Task 9.4.1: Check if any parent overload with matching signature is virtual
+		// Check if any parent overload with matching signature is virtual
 		var parentOverload *types.MethodInfo
 		if isConstructor {
 			parentOverload = a.findMatchingConstructorInParent(methodName, methodType, classType.Parent)
