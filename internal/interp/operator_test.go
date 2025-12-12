@@ -104,6 +104,215 @@ end
 	}
 }
 
+// TestClassOperatorMultiLevelInheritance tests that operators work with grandchild classes
+func TestClassOperatorMultiLevelInheritance(t *testing.T) {
+	input := `
+type TGrandParent = class
+  Value: Integer;
+  constructor Create(v: Integer);
+  function Add(other: TGrandParent): TGrandParent;
+  class operator + (TGrandParent, TGrandParent) : TGrandParent uses Add;
+end;
+
+type TParent = class(TGrandParent)
+end;
+
+type TChild = class(TParent)
+end;
+
+constructor TGrandParent.Create(v: Integer);
+begin
+  Value := v;
+end;
+
+function TGrandParent.Add(other: TGrandParent): TGrandParent;
+begin
+  Result := TGrandParent.Create(Value + other.Value);
+end;
+
+var a: TGrandParent;
+var b: TParent;
+var c: TChild;
+var result: TGrandParent;
+begin
+  a := TGrandParent.Create(10);
+  b := TParent.Create(20);
+  c := TChild.Create(30);
+
+  // Test all combinations: grandparent + parent, grandparent + child, parent + child
+  result := a + b;
+  PrintLn(result.Value);
+
+  result := a + c;
+  PrintLn(result.Value);
+
+  result := b + c;
+  PrintLn(result.Value);
+end
+`
+
+	_, output := testEvalWithOutput(input)
+
+	expected := "30\n40\n50\n"
+	if output != expected {
+		t.Fatalf("unexpected output: got %q, want %q", output, expected)
+	}
+}
+
+// TestClassOperatorMixedParentChild tests operator with one parent and one child operand
+func TestClassOperatorMixedParentChild(t *testing.T) {
+	input := `
+type TBase = class
+  ID: String;
+  constructor Create(id: String);
+  function Merge(other: TBase): TBase;
+  class operator & (TBase, TBase) : TBase uses Merge;
+end;
+
+type TDerived = class(TBase)
+  Extra: String;
+end;
+
+constructor TBase.Create(id: String);
+begin
+  ID := id;
+end;
+
+function TBase.Merge(other: TBase): TBase;
+begin
+  Result := TBase.Create(ID + '&' + other.ID);
+end;
+
+var parent: TBase;
+var child: TDerived;
+var result: TBase;
+begin
+  parent := TBase.Create('P');
+  child := TDerived.Create('C');
+  child.Extra := 'extra';
+
+  // Parent & Child (should work due to inheritance)
+  result := parent & child;
+  PrintLn(result.ID);
+
+  // Child & Parent (reversed operands)
+  result := child & parent;
+  PrintLn(result.ID);
+end
+`
+
+	_, output := testEvalWithOutput(input)
+
+	expected := "P&C\nC&P\n"
+	if output != expected {
+		t.Fatalf("unexpected output: got %q, want %q", output, expected)
+	}
+}
+
+// TestClassOperatorUnrelatedClassesFail tests that operators fail with unrelated classes
+func TestClassOperatorUnrelatedClassesFail(t *testing.T) {
+	input := `
+type TClassA = class
+  Value: Integer;
+  constructor Create(v: Integer);
+  function Combine(other: TClassA): TClassA;
+  class operator + (TClassA, TClassA) : TClassA uses Combine;
+end;
+
+type TClassB = class
+  Value: Integer;
+  constructor Create(v: Integer);
+end;
+
+constructor TClassA.Create(v: Integer);
+begin
+  Value := v;
+end;
+
+function TClassA.Combine(other: TClassA): TClassA;
+begin
+  Result := TClassA.Create(Value + other.Value);
+end;
+
+constructor TClassB.Create(v: Integer);
+begin
+  Value := v;
+end;
+
+var a: TClassA;
+var b: TClassB;
+var result: TClassA;
+begin
+  a := TClassA.Create(10);
+  b := TClassB.Create(20);
+
+  // This should fail: TClassB is not related to TClassA
+  result := a + b;
+  PrintLn(result.Value);
+end
+`
+
+	result, _ := testEvalWithOutput(input)
+
+	if !isError(result) {
+		t.Fatal("expected error when using operator with unrelated classes, got success")
+	}
+
+	errMsg := result.String()
+	if !strings.Contains(errMsg, "operator") && !strings.Contains(errMsg, "type") {
+		t.Fatalf("expected error message about operator/type mismatch, got: %s", errMsg)
+	}
+}
+
+// TestClassOperatorDeepHierarchy tests operator resolution with deeper inheritance chains
+func TestClassOperatorDeepHierarchy(t *testing.T) {
+	input := `
+type TLevel0 = class
+  Depth: Integer;
+  constructor Create(d: Integer);
+  function Combine(other: TLevel0): TLevel0;
+  class operator * (TLevel0, TLevel0) : TLevel0 uses Combine;
+end;
+
+type TLevel1 = class(TLevel0)
+end;
+
+type TLevel2 = class(TLevel1)
+end;
+
+type TLevel3 = class(TLevel2)
+end;
+
+constructor TLevel0.Create(d: Integer);
+begin
+  Depth := d;
+end;
+
+function TLevel0.Combine(other: TLevel0): TLevel0;
+begin
+  Result := TLevel0.Create(Depth * other.Depth);
+end;
+
+var deepest: TLevel3;
+var mid: TLevel2;
+var result: TLevel0;
+begin
+  deepest := TLevel3.Create(5);
+  mid := TLevel2.Create(3);
+
+  // Operator defined on TLevel0 should work with TLevel3 and TLevel2
+  result := deepest * mid;
+  PrintLn(result.Depth);
+end
+`
+
+	_, output := testEvalWithOutput(input)
+
+	if output != "15\n" {
+		t.Fatalf("unexpected output: got %q, want %q", output, "15\n")
+	}
+}
+
 func TestClassOperatorIn(t *testing.T) {
 	input := `
 		type TMyRange = class

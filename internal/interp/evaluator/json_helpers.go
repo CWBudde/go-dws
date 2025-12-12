@@ -173,13 +173,12 @@ func JSONValueToValue(jv *jsonvalue.Value) Value {
 	}
 }
 
-// createJSONValueViaReflection creates a JSONValue struct using reflection
-// to avoid importing the parent interp package.
+// createJSONValueViaReflection wraps a jsonvalue.Value in a runtime.JSONValue.
 func createJSONValueViaReflection(jv *jsonvalue.Value) Value {
-	// We need to return something that has Type() == "JSON"
-	// This is a placeholder - the actual JSONValue creation will happen in the adapter
-	// For now, return a runtime value that indicates this is JSON
-	return &runtime.NilValue{} // TODO: This needs proper handling
+	if jv == nil {
+		return &runtime.NilValue{}
+	}
+	return runtime.NewJSONValue(jv)
 }
 
 // ValueToJSONValue converts a DWScript runtime Value to a jsonvalue.Value.
