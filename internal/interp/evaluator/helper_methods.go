@@ -64,7 +64,17 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 		if helpers := e.typeSystem.LookupHelpers(specific); helpers != nil {
 			combined = append(combined, convertToHelperInfoSlice(helpers)...)
 		}
-		// TODO: For static arrays, also try dynamic equivalent
+		if arrayVal, ok := v.(*runtime.ArrayValue); ok {
+			if arrayVal.ArrayType != nil && arrayVal.ArrayType.IsStatic() {
+				// For static arrays, also try the dynamic array equivalent
+				dynArrayType := types.NewDynamicArrayType(arrayVal.ArrayType.ElementType)
+				dynSpecific := ident.Normalize(dynArrayType.String())
+				if helpers := e.typeSystem.LookupHelpers(dynSpecific); helpers != nil {
+					combined = append(combined, convertToHelperInfoSlice(helpers)...)
+				}
+			}
+		}
+
 		if helpers := e.typeSystem.LookupHelpers("array"); helpers != nil {
 			combined = append(combined, convertToHelperInfoSlice(helpers)...)
 		}

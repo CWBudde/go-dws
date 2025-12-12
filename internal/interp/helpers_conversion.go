@@ -98,9 +98,24 @@ func (i *Interpreter) resolveTypeFromExpression(typeExpr ast.TypeExpression) typ
 
 	// For function pointer types, we need full type information
 	// For now, return a generic function type placeholder
-	if _, ok := typeExpr.(*ast.FunctionPointerTypeNode); ok {
-		// TODO: Properly construct function pointer type
-		return types.NewFunctionType([]types.Type{}, nil)
+	if fpt, ok := typeExpr.(*ast.FunctionPointerTypeNode); ok {
+		paramTypes := make([]types.Type, len(fpt.Parameters))
+		for idx, p := range fpt.Parameters {
+			paramTypes[idx] = i.resolveTypeFromExpression(p.Type)
+			if paramTypes[idx] == nil {
+				return nil
+			}
+		}
+
+		var returnType types.Type
+		if fpt.ReturnType != nil {
+			returnType = i.resolveTypeFromExpression(fpt.ReturnType)
+			if returnType == nil {
+				return nil
+			}
+		}
+
+		return types.NewFunctionType(paramTypes, returnType)
 	}
 
 	return nil

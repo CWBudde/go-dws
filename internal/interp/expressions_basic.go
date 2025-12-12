@@ -220,13 +220,16 @@ func (i *Interpreter) getFunctionPointerTypeFromAnnotation(typeAnnotation *ast.T
 		return nil
 	}
 
-	// For lambda expressions, the semantic analyzer stores a FunctionPointerType
-	// in the Type field. We need to reconstruct it from the annotation.
-	// For now, we'll use the type name to determine if it's a function pointer
+	// The semantic analyzer stores the function pointer signature as a string in the name.
+	// We parse this string to reconstruct the type.
+	typ, err := i.resolveInlineFunctionPointerType(typeAnnotation.Name)
+	if err != nil {
+		return nil
+	}
 
-	// TODO: This is a simplified implementation. In a full implementation,
-	// the semantic analyzer should provide a way to get the computed type directly.
-	// For now, return nil to trigger the fallback in evalLambdaExpression
+	if fpType, ok := typ.(*types.FunctionPointerType); ok {
+		return fpType
+	}
 
 	return nil
 }
