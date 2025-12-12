@@ -15,7 +15,6 @@ type runtimeOperatorEntry struct {
 	OperandTypes  []string
 	SelfIndex     int
 	IsClassMethod bool
-	TypeSystem    *interptypes.TypeSystem
 }
 
 type runtimeOperatorRegistry struct {
@@ -55,7 +54,7 @@ func (r *runtimeOperatorRegistry) clone() *runtimeOperatorRegistry {
 	return clone
 }
 
-func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string) (*runtimeOperatorEntry, bool) {
+func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string, typeSystem *interptypes.TypeSystem) (*runtimeOperatorEntry, bool) {
 	if r == nil {
 		return nil, false
 	}
@@ -77,7 +76,7 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 
 		allCompatible := true
 		for i := range operandTypes {
-			if !areRuntimeTypesCompatibleForOperator(operandTypes[i], entry.OperandTypes[i], entry.Class, entry.TypeSystem) {
+			if !areRuntimeTypesCompatibleForOperator(operandTypes[i], entry.OperandTypes[i], typeSystem) {
 				allCompatible = false
 				break
 			}
@@ -93,7 +92,7 @@ func (r *runtimeOperatorRegistry) lookup(operator string, operandTypes []string)
 
 // areRuntimeTypesCompatibleForOperator checks if actualType can be used where declaredType is expected.
 // This supports inheritance: a subclass instance can be used where parent class is expected.
-func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, _ *ClassInfo, typeSystem *interptypes.TypeSystem) bool {
+func areRuntimeTypesCompatibleForOperator(actualType, declaredType string, typeSystem *interptypes.TypeSystem) bool {
 	normalizedActual := ident.Normalize(actualType)
 	normalizedDeclared := ident.Normalize(declaredType)
 

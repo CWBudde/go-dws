@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -210,11 +211,14 @@ func (c *ClassInfo) GetVirtualMethodTable() map[string]*runtime.VirtualMethodEnt
 }
 
 // LookupOperator finds an operator overload
+// Note: This method doesn't support inheritance checking because it can't access typeSystem
+// (interface constraint). Use lookupOperator directly when inheritance checking is needed.
 func (c *ClassInfo) LookupOperator(operator string, operandTypes []string) (*runtime.OperatorEntry, bool) {
 	if c == nil || c.Operators == nil {
 		return nil, false
 	}
-	entry, found := c.lookupOperator(operator, operandTypes)
+	// Use nil typeSystem for exact match only (no inheritance checking)
+	entry, found := c.lookupOperator(operator, operandTypes, nil)
 	if !found || entry == nil {
 		return nil, false
 	}
@@ -438,17 +442,17 @@ func (c *ClassInfo) getDefaultProperty() *types.PropertyInfo {
 }
 
 // lookupOperator searches for a class operator in the hierarchy.
-func (c *ClassInfo) lookupOperator(operator string, operandTypes []string) (*runtimeOperatorEntry, bool) {
+func (c *ClassInfo) lookupOperator(operator string, operandTypes []string, typeSystem *interptypes.TypeSystem) (*runtimeOperatorEntry, bool) {
 	if c == nil {
 		return nil, false
 	}
 	if c.Operators != nil {
-		if entry, ok := c.Operators.lookup(operator, operandTypes); ok {
+		if entry, ok := c.Operators.lookup(operator, operandTypes, typeSystem); ok {
 			return entry, true
 		}
 	}
 	if c.Parent != nil {
-		return c.Parent.lookupOperator(operator, operandTypes)
+		return c.Parent.lookupOperator(operator, operandTypes, typeSystem)
 	}
 	return nil, false
 }

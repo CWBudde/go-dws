@@ -879,7 +879,6 @@ func (i *Interpreter) registerClassOperator(classInfo *ClassInfo, opDecl *ast.Op
 		Class:         classInfo,
 		IsClassMethod: isClassMethod,
 		SelfIndex:     selfIndex,
-		TypeSystem:    i.typeSystem,
 	}
 
 	if err := classInfo.Operators.register(entry); err != nil {

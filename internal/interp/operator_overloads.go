@@ -27,41 +27,19 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 	operandTypes := []string{valueTypeKey(left), valueTypeKey(right)}
 
 	if obj, ok := left.(*ObjectInstance); ok {
-		if entry, found := obj.Class.LookupOperator(operator, operandTypes); found {
-			// Convert runtime.OperatorEntry to runtimeOperatorEntry
-			concreteClass, ok := entry.Class.(*ClassInfo)
-			if !ok {
-				return i.newErrorWithLocation(node, "invalid class type for operator"), true
+		// Try to get concrete ClassInfo for direct lookup with inheritance support
+		if concreteClass, ok := obj.Class.(*ClassInfo); ok {
+			if entry, found := concreteClass.lookupOperator(operator, operandTypes, i.typeSystem); found {
+				return i.invokeRuntimeOperator(entry, operands, node), true
 			}
-			runtimeEntry := &runtimeOperatorEntry{
-				Class:         concreteClass,
-				Operator:      entry.Operator,
-				BindingName:   entry.BindingName,
-				OperandTypes:  entry.OperandTypes,
-				SelfIndex:     entry.SelfIndex,
-				IsClassMethod: entry.IsClassMethod,
-				TypeSystem:    i.typeSystem,
-			}
-			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 		}
 	}
 	if obj, ok := right.(*ObjectInstance); ok {
-		if entry, found := obj.Class.LookupOperator(operator, operandTypes); found {
-			// Convert runtime.OperatorEntry to runtimeOperatorEntry
-			concreteClass, ok := entry.Class.(*ClassInfo)
-			if !ok {
-				return i.newErrorWithLocation(node, "invalid class type for operator"), true
+		// Try to get concrete ClassInfo for direct lookup with inheritance support
+		if concreteClass, ok := obj.Class.(*ClassInfo); ok {
+			if entry, found := concreteClass.lookupOperator(operator, operandTypes, i.typeSystem); found {
+				return i.invokeRuntimeOperator(entry, operands, node), true
 			}
-			runtimeEntry := &runtimeOperatorEntry{
-				Class:         concreteClass,
-				Operator:      entry.Operator,
-				BindingName:   entry.BindingName,
-				OperandTypes:  entry.OperandTypes,
-				SelfIndex:     entry.SelfIndex,
-				IsClassMethod: entry.IsClassMethod,
-				TypeSystem:    i.typeSystem,
-			}
-			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 		}
 	}
 	if entry, found := i.typeSystem.Operators().Lookup(operator, operandTypes); found {
@@ -73,7 +51,6 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 			OperandTypes:  entry.OperandTypes,
 			SelfIndex:     entry.SelfIndex,
 			IsClassMethod: entry.IsClassMethod,
-			TypeSystem:    i.typeSystem,
 		}
 		return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 	}
@@ -98,22 +75,11 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 	operandTypes := []string{valueTypeKey(operand)}
 
 	if obj, ok := operand.(*ObjectInstance); ok {
-		if entry, found := obj.Class.LookupOperator(operator, operandTypes); found {
-			// Convert runtime.OperatorEntry to runtimeOperatorEntry
-			concreteClass, ok := entry.Class.(*ClassInfo)
-			if !ok {
-				return i.newErrorWithLocation(node, "invalid class type for operator"), true
+		// Try to get concrete ClassInfo for direct lookup with inheritance support
+		if concreteClass, ok := obj.Class.(*ClassInfo); ok {
+			if entry, found := concreteClass.lookupOperator(operator, operandTypes, i.typeSystem); found {
+				return i.invokeRuntimeOperator(entry, operands, node), true
 			}
-			runtimeEntry := &runtimeOperatorEntry{
-				Class:         concreteClass,
-				Operator:      entry.Operator,
-				BindingName:   entry.BindingName,
-				OperandTypes:  entry.OperandTypes,
-				SelfIndex:     entry.SelfIndex,
-				IsClassMethod: entry.IsClassMethod,
-				TypeSystem:    i.typeSystem,
-			}
-			return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 		}
 	}
 
@@ -126,7 +92,6 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 			OperandTypes:  entry.OperandTypes,
 			SelfIndex:     entry.SelfIndex,
 			IsClassMethod: entry.IsClassMethod,
-			TypeSystem:    i.typeSystem,
 		}
 		return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 	}

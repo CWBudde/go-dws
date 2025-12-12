@@ -318,7 +318,7 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 			argTypes[idx+1] = valueTypeKey(arg) // Use valueTypeKey for consistent type keys
 		}
 
-		opEntry, found := class.Operators.lookup(opSymbol, argTypes)
+		opEntry, found := class.Operators.lookup(opSymbol, argTypes, i.typeSystem)
 		if !found {
 			continue
 		}

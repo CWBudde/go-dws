@@ -166,7 +166,7 @@ type TBase = class
   ID: String;
   constructor Create(id: String);
   function Merge(other: TBase): TBase;
-  class operator & (TBase, TBase) : TBase uses Merge;
+  class operator + (TBase, TBase) : TBase uses Merge;
 end;
 
 type TDerived = class(TBase)
@@ -180,7 +180,7 @@ end;
 
 function TBase.Merge(other: TBase): TBase;
 begin
-  Result := TBase.Create(ID + '&' + other.ID);
+  Result := TBase.Create(ID + '-' + other.ID);
 end;
 
 var parent: TBase;
@@ -191,19 +191,19 @@ begin
   child := TDerived.Create('C');
   child.Extra := 'extra';
 
-  // Parent & Child (should work due to inheritance)
-  result := parent & child;
+  // Parent + Child (should work due to inheritance)
+  result := parent + child;
   PrintLn(result.ID);
 
-  // Child & Parent (reversed operands)
-  result := child & parent;
+  // Child + Parent (reversed operands)
+  result := child + parent;
   PrintLn(result.ID);
 end
 `
 
 	_, output := testEvalWithOutput(input)
 
-	expected := "P&C\nC&P\n"
+	expected := "P-C\nC-P\n"
 	if output != expected {
 		t.Fatalf("unexpected output: got %q, want %q", output, expected)
 	}
