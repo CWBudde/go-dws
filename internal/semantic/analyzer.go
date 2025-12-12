@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -74,6 +75,7 @@ type Analyzer struct {
 	symbols              *SymbolTable                          // Symbol table
 	globalOperators      *types.OperatorRegistry               // Operator overload registry
 	conversionRegistry   *types.ConversionRegistry             // Type conversion registry
+	builtinRegistry      *builtins.Registry                    // Builtin function registry
 	semanticInfo         *ast.SemanticInfo                     // AST annotations
 	unitSymbols          map[string]*SymbolTable               // Unit symbol tables
 	currentNestedTypes   map[string]string                     // Nested type tracking
@@ -108,6 +110,7 @@ func NewAnalyzer() *Analyzer {
 		helpers:            make(map[string][]*types.HelperType),
 		globalOperators:    types.NewOperatorRegistry(),
 		conversionRegistry: types.NewConversionRegistry(),
+		builtinRegistry:    builtins.DefaultRegistry,
 		semanticInfo:       ast.NewSemanticInfo(),
 		nestedTypeAliases:  make(map[string]map[string]string),
 		hintsLevel:         HintsLevelPedantic,

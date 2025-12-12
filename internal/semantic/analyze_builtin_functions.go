@@ -17,13 +17,25 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// Normalize function name to lowercase for case-insensitive matching
 	lowerName := ident.Normalize(name)
 
+	// CHECK REGISTRY FOR EXISTENCE
+	// Note: Some builtins (Inc, Dec, Swap, Default, etc.) are not in the registry
+	// because they need special AST-level handling or aren't implemented yet in the runtime.
+	// We still have detailed analyzers for these in the switch below.
+	//
+	// We do NOT perform arity validation here because:
+	// 1. Many functions have optional parameters with complex rules
+	// 2. The detailed analyzers below provide better error messages
+	// 3. Registry signatures may be out of sync with actual semantic rules
+	// The registry is used primarily by the interpreter for runtime validation.
+
 	// Emit a hint when the case of a built-in differs from its declaration.
 	if lowerName == "assigned" && name != "Assigned" {
 		pos := callExpr.Function.Pos()
 		a.addCaseMismatchHint(name, "Assigned", pos)
 	}
 
-	// Dispatch to specific analyzer based on function name
+	// Dispatch to detailed type-checking methods
+	// This handles ALL builtins, including those not in the registry
 	switch lowerName {
 	// I/O Functions
 	case "println", "print":
