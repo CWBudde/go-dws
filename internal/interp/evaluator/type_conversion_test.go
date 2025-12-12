@@ -219,8 +219,6 @@ func TestConversionCallbacks_NilHandling(t *testing.T) {
 	})
 }
 
-// Phase 3.1.3: Use real runtime.Environment instead of mock
-
 // mockConversionAdapter is a minimal mock for testing conversion function execution.
 type mockConversionAdapter struct {
 	evalNodeFunc func(node ast.Node) Value

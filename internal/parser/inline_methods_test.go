@@ -7,8 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// TestInlineMethodInClass tests parsing of inline method implementations
-// within a class declaration (Phase 9.9).
+// TestInlineMethodInClass tests parsing of inline method implementations within a class declaration.
 func TestInlineMethodInClass(t *testing.T) {
 	input := `type
    TObj = class

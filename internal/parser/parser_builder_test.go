@@ -7,7 +7,6 @@ import (
 )
 
 // TestDefaultConfig verifies that DefaultConfig returns expected default values.
-// Task 2.7.9: UseCursor field removed - parser is now cursor-only.
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
 
@@ -31,12 +30,10 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 // TestParserBuilderWithCursorMode tests that cursor mode is always enabled.
-// Task 2.7.9: Parser is now cursor-only. WithCursorMode method removed.
 func TestParserBuilderWithCursorMode(t *testing.T) {
 	input := "var x: Integer := 42;"
 	l := lexer.New(input)
 
-	// Task 2.7.9: Cursor mode is always on
 	p := NewParserBuilder(l).Build()
 
 	if p.cursor == nil {
@@ -101,7 +98,6 @@ func TestParserBuilderWithMaxRecursionDepth(t *testing.T) {
 }
 
 // TestParserBuilderWithConfig tests the WithConfig builder method.
-// Task 2.7.9: UseCursor field removed - parser is now cursor-only.
 func TestParserBuilderWithConfig(t *testing.T) {
 	input := "var x: Integer := 42;"
 	l := lexer.New(input)
@@ -127,7 +123,6 @@ func TestParserBuilderWithConfig(t *testing.T) {
 }
 
 // TestParserBuilderChaining tests that builder methods can be chained.
-// Task 2.7.9: WithCursorMode removed - parser is now cursor-only.
 func TestParserBuilderChaining(t *testing.T) {
 	input := "var x: Integer := 42;"
 	l := lexer.New(input)
@@ -139,7 +134,6 @@ func TestParserBuilderChaining(t *testing.T) {
 		WithMaxRecursionDepth(2048).
 		Build()
 
-	// Task 2.7.9: Cursor is always initialized
 	if p.cursor == nil {
 		t.Errorf("Cursor not initialized - parser should always use cursor mode")
 	}
@@ -166,7 +160,6 @@ func TestParserBuilderMustBuild(t *testing.T) {
 
 // TestParserBuilderTraditionalModeTokenInitialization verifies that the parser
 // correctly initializes curToken and peekToken by reading two tokens.
-// Task 2.7.9: "Traditional mode" naming kept for compatibility, but parser is now cursor-only.
 func TestParserBuilderTraditionalModeTokenInitialization(t *testing.T) {
 	input := "x := 1;"
 	l := lexer.New(input)
@@ -190,7 +183,6 @@ func TestParserBuilderTraditionalModeTokenInitialization(t *testing.T) {
 // TestParserBuilderCursorModeTokenInitialization verifies that the parser
 // correctly initializes curToken and peekToken without advancing past the first token.
 // This test specifically addresses the bug reported in PR #202.
-// Task 2.7.9: Parser is now cursor-only - WithCursorMode removed.
 func TestParserBuilderCursorModeTokenInitialization(t *testing.T) {
 	input := "x := 1;"
 	l := lexer.New(input)

@@ -97,9 +97,9 @@ func TestValidTypeUsage(t *testing.T) {
 	}
 }
 
-// TestPhase6Summary runs a summary of Phase 6 completion
+// TestPhase6Summary runs a summary of type system and semantic analysis completion
 func TestPhase6Summary(_ *testing.T) {
-	fmt.Println("\n=== Phase 6 (Type System & Semantic Analysis) Summary ===")
+	fmt.Println("\n=== Type System & Semantic Analysis Summary ===")
 
 	// Count type error test files
 	typeErrorDir := filepath.Join("..", "..", "..", "testdata", "type_errors")
@@ -124,7 +124,7 @@ func TestPhase6Summary(_ *testing.T) {
 	fmt.Printf("✅ Type error test files: %d\n", errorCount)
 	fmt.Printf("✅ Valid type test files: %d\n", validCount)
 	fmt.Printf("✅ Total integration test files: %d\n", errorCount+validCount)
-	fmt.Println("\nPhase 6 items 6.50-6.54 COMPLETED:")
+	fmt.Println("\nCompletion status:")
 	fmt.Println("  6.50 ✅ Created comprehensive type error test scripts")
 	fmt.Println("  6.51 ✅ Verified all errors are caught by semantic analyzer")
 	fmt.Println("  6.52 ✅ Created test scripts with valid type usage")

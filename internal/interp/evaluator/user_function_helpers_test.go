@@ -281,7 +281,6 @@ func TestEvaluateDefaultParameters_NoParameters(t *testing.T) {
 // =============================================================================
 
 // testEnv is a simple mock environment for testing parameter binding.
-// Phase 3.1.3: Use real runtime.Environment instead of mock
 
 // mockRefValue is a simple mock for reference values in tests.
 // It's used to simulate var parameter references without needing runtime.ReferenceValue.

@@ -6,7 +6,7 @@ import (
 )
 
 // ============================================================================
-// Encoding/Escaping Built-in Function Analysis (Phase 9.17.6)
+// Encoding/Escaping Built-in Function Analysis
 // ============================================================================
 
 // analyzeStrToHtml analyzes the StrToHtml built-in function.

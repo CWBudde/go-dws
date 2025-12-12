@@ -15,7 +15,6 @@ import (
 
 // evaluateConstant evaluates a compile-time constant expression.
 // Returns the constant value and an error if the expression is not a constant.
-// Task 9.205: Used for const declarations to store compile-time values.
 func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 	if expr == nil {
 		return nil, fmt.Errorf("nil expression")
@@ -35,7 +34,6 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		return e.Value, nil
 
 	case *ast.CharLiteral:
-		// Task 9.10.3: Support character literals in const expressions
 		// Convert rune to string (single character)
 		return string(e.Value), nil
 
@@ -72,7 +70,7 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 			return nil, err
 		}
 
-		// Task 9.10.2: Support string concatenation in const expressions
+		
 		// Check if either operand is a string and operator is '+'
 		leftStr, leftIsStr := leftVal.(string)
 		rightStr, rightIsStr := rightVal.(string)
@@ -149,11 +147,11 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		return int(result), nil
 
 	case *ast.CallExpression:
-		// Task 9.38: Support compile-time evaluation of built-in functions
+		
 		return a.evaluateConstantFunction(e)
 
 	case *ast.RecordLiteralExpression:
-		// Task 9.25: Support record literals in const declarations
+		
 		// Evaluate all field values recursively to ensure they're constants
 		constFields := make(map[string]interface{})
 		for _, field := range e.Fields {
@@ -185,8 +183,6 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 
 // evaluateConstantInt evaluates a compile-time constant integer expression.
 // Returns the integer value and an error if the expression is not a constant.
-// Task 9.98: Used for subrange bound evaluation.
-// Task 9.205: Extended to handle identifiers (const references) and binary expressions.
 func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 	if expr == nil {
 		return 0, fmt.Errorf("nil expression")
@@ -285,7 +281,7 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 		}
 
 	case *ast.CallExpression:
-		// Task 9.38: Support compile-time evaluation of built-in functions
+		
 		val, err := a.evaluateConstantFunction(e)
 		if err != nil {
 			return 0, err
@@ -306,7 +302,7 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 }
 
 // evaluateConstantFunction evaluates a compile-time constant function call.
-// Task 9.38: Support compile-time evaluation of built-in functions like High(), Log2(), Floor().
+ like High(), Log2(), Floor().
 func (a *Analyzer) evaluateConstantFunction(call *ast.CallExpression) (interface{}, error) {
 	if call == nil || call.Function == nil {
 		return nil, fmt.Errorf("nil function call")
@@ -341,7 +337,6 @@ func (a *Analyzer) evaluateConstantFunction(call *ast.CallExpression) (interface
 	case "chr":
 		return a.evaluateConstantChr(call.Arguments)
 	default:
-		// Task 9.15.6: Check if this is a type cast (e.g., TEnum(1), Integer(x))
 		// Type casts with exactly one argument can be compile-time constants
 		if len(call.Arguments) == 1 {
 			if castValue := a.evaluateConstantTypeCast(funcName, call.Arguments[0]); castValue != nil {
@@ -588,7 +583,6 @@ func (a *Analyzer) evaluateConstantChr(args []ast.Expression) (interface{}, erro
 }
 
 // evaluateConstantTypeCast evaluates a type cast expression at compile time.
-// Task 9.15.6: Support enum type casts in const declarations like const c = TEnum(1);
 // Returns nil if the type cast cannot be evaluated at compile time.
 func (a *Analyzer) evaluateConstantTypeCast(typeName string, arg ast.Expression) interface{} {
 	// Try to resolve the type
@@ -667,7 +661,6 @@ func (a *Analyzer) evaluateConstantTypeCast(typeName string, arg ast.Expression)
 // analyzeTypeDeclaration analyzes a type declaration statement
 // Handles type aliases: type TUserID = Integer;
 // Handles subrange types: type TDigit = 0..9;
-// Task 9.159: Handles function pointer types: type TFunc = function(x: Integer): Boolean;
 func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 	if decl == nil {
 		return
@@ -679,13 +672,13 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 		return
 	}
 
-	// Task 9.159: Handle function pointer types
+	// Handle function pointer types
 	if decl.FunctionPointerType != nil {
 		a.analyzeFunctionPointerTypeDeclaration(decl)
 		return
 	}
 
-	// Task 9.98: Handle subrange types
+	// Handle subrange types
 	if decl.IsSubrange {
 		// Evaluate low bound (must be compile-time constant)
 		lowBound, err := a.evaluateConstantInt(decl.LowBound)
@@ -703,14 +696,12 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 			return
 		}
 
-		// Task 9.98: Validate low <= high
 		if lowBound > highBound {
 			a.addError("subrange low bound (%d) cannot be greater than high bound (%d) at %s",
 				lowBound, highBound, decl.Token.Pos.String())
 			return
 		}
 
-		// Task 9.98: Create SubrangeType and register in type environment
 		subrangeType := &types.SubrangeType{
 			BaseType:  types.INTEGER, // Subranges are currently based on Integer
 			Name:      decl.Name.Value,
@@ -743,7 +734,6 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 		}
 
 		// Use lowercase key for case-insensitive lookup
-		// Task 6.1.1.3: Use TypeRegistry for type registration
 		a.registerTypeWithPos(decl.Name.Value, typeAlias, decl.Token.Pos)
 	}
 }

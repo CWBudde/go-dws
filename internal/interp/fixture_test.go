@@ -74,7 +74,7 @@ func TestDWScriptFixtures(t *testing.T) {
 			path:         "../../testdata/fixtures/OverloadsPass",
 			expectErrors: false,
 			description:  "Function/method overloading (39 tests)",
-			skip:         false, // Enabled for Phase 9 Stage 6 testing
+			skip:         false,
 		},
 		{
 			name:         "OperatorOverloadPass",

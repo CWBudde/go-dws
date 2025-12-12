@@ -7,12 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/parser"
 )
 
-// ============================================================================
-// Task 9.163: Function Pointer Semantic Analysis Tests
-// ============================================================================
-
 // TestFunctionPointerTypeDeclaration tests valid function pointer type declarations.
-// Task 9.163: Test valid type declarations
 func TestFunctionPointerTypeDeclaration(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -78,7 +73,6 @@ func TestFunctionPointerTypeDeclaration(t *testing.T) {
 }
 
 // TestFunctionPointerTypeDeclarationErrors tests invalid function pointer type declarations.
-// Task 9.163: Test invalid type declarations
 func TestFunctionPointerTypeDeclarationErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -132,7 +126,6 @@ func TestFunctionPointerTypeDeclarationErrors(t *testing.T) {
 }
 
 // TestAddressOfExpression tests valid address-of expressions.
-// Task 9.163: Test address-of expression analysis
 func TestAddressOfExpression(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -192,7 +185,6 @@ func TestAddressOfExpression(t *testing.T) {
 }
 
 // TestAddressOfExpressionErrors tests invalid address-of expressions.
-// Task 9.163: Test address-of expression validation
 func TestAddressOfExpressionErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -249,7 +241,6 @@ func TestAddressOfExpressionErrors(t *testing.T) {
 }
 
 // TestFunctionPointerAssignment tests function pointer assignment compatibility.
-// Task 9.163: Test assignment validation
 func TestFunctionPointerAssignment(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -309,7 +300,6 @@ func TestFunctionPointerAssignment(t *testing.T) {
 }
 
 // TestFunctionPointerAssignmentErrors tests incompatible function pointer assignments.
-// Task 9.163: Test assignment validation errors
 func TestFunctionPointerAssignmentErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -405,7 +395,6 @@ func TestFunctionPointerAssignmentErrors(t *testing.T) {
 }
 
 // TestFunctionPointerCall tests valid function pointer calls.
-// Task 9.163: Test function pointer call validation
 func TestFunctionPointerCall(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -485,7 +474,6 @@ func TestFunctionPointerCall(t *testing.T) {
 }
 
 // TestFunctionPointerCallErrors tests invalid function pointer calls.
-// Task 9.163: Test function pointer call validation errors
 func TestFunctionPointerCallErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -554,7 +542,6 @@ func TestFunctionPointerCallErrors(t *testing.T) {
 }
 
 // TestFunctionPointerTypeInference tests that function pointer types are correctly inferred.
-// Task 9.163: Test type inference
 func TestFunctionPointerTypeInference(t *testing.T) {
 	input := `
 		function Multiply(a, b: Integer): Integer;
@@ -598,7 +585,6 @@ func TestFunctionPointerTypeInference(t *testing.T) {
 }
 
 // TestMultipleFunctionPointerTypes tests using multiple function pointer types.
-// Task 9.163: Test multiple function pointer type declarations
 func TestMultipleFunctionPointerTypes(t *testing.T) {
 	input := `
 		type TComparator = function(a, b: Integer): Integer;
@@ -658,7 +644,6 @@ func TestMultipleFunctionPointerTypes(t *testing.T) {
 }
 
 // TestFunctionPointerVarDeclaration tests declaring variables with function pointer types.
-// Task 9.163: Test variable declarations with function pointer types
 func TestFunctionPointerVarDeclaration(t *testing.T) {
 	input := `
 		type TFunc = function(x: Integer): Integer;
@@ -698,12 +683,10 @@ func TestFunctionPointerVarDeclaration(t *testing.T) {
 }
 
 // ============================================================================
-// Task 9.228: Implicit Function-to-Function-Pointer Conversion Tests
 // ============================================================================
 
 // TestImplicitFunctionToPointerConversion tests that functions are implicitly
 // converted to function pointers when used as values (without @ operator).
-// Task 9.228: Test implicit conversion for higher-order functions
 func TestImplicitFunctionToPointerConversion(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -840,7 +823,6 @@ func TestImplicitFunctionToPointerConversion(t *testing.T) {
 
 // TestImplicitFunctionToPointerConversionErrors tests error cases where
 // implicit conversion should fail due to signature mismatches.
-// Task 9.228: Test that type checking still works with implicit conversion
 func TestImplicitFunctionToPointerConversionErrors(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -964,7 +946,6 @@ func TestImplicitFunctionToPointerConversionErrors(t *testing.T) {
 
 // TestBothExplicitAndImplicitConversion tests that both @ operator and implicit
 // conversion work correctly in the same program.
-// Task 9.228: Test backward compatibility with @ operator
 func TestBothExplicitAndImplicitConversion(t *testing.T) {
 	input := `
 		type TBinaryOp = function(x, y: Integer): Integer;

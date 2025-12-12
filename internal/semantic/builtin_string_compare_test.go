@@ -5,7 +5,7 @@ import (
 )
 
 // ============================================================================
-// String Comparison Functions Tests (Phase 9.17.4)
+// String Comparison Functions Tests
 // ============================================================================
 
 // SameText function tests

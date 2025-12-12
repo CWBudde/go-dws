@@ -410,7 +410,7 @@ func (c *Compiler) initBuiltins() {
 	c.addBuiltinGlobal("SetRandSeed")
 	c.addBuiltinGlobal("Randomize")
 
-	// Advanced Math Functions (Phase 9.23)
+	// Advanced Math Functions
 	c.addBuiltinGlobal("Factorial")
 	c.addBuiltinGlobal("Gcd")
 	c.addBuiltinGlobal("Lcm")

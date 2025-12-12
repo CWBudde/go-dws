@@ -181,7 +181,6 @@ func NewExecutionContextWithMaxDepth(env *runtime.Environment, maxDepth int) *Ex
 // NewExecutionContextWithCallbacks creates a new execution context with exception callbacks.
 // This allows the interpreter to provide its own exception storage (i.exception) while
 // the evaluator uses ctx.Exception()/SetException() seamlessly.
-// Phase 3.2: Enables unified exception handling between interpreter and evaluator.
 func NewExecutionContextWithCallbacks(env *runtime.Environment, maxDepth int, getter ExceptionGetter, setter ExceptionSetter) *ExecutionContext {
 	return &ExecutionContext{
 		env:             env,

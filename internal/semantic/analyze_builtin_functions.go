@@ -213,7 +213,7 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	case "strisascii":
 		return a.analyzeStrIsASCII(args, callExpr), true
 
-	// Encoding/Escaping Functions (Phase 9.17.6)
+	// Encoding/Escaping Functions
 	case "strtohtml":
 		return a.analyzeStrToHtml(args, callExpr), true
 	case "strtohtmlattribute":
@@ -337,7 +337,7 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	case "divmod":
 		return a.analyzeDivMod(args, callExpr), true
 
-	// Math Functions - Advanced (Phase 9.23)
+	// Math Functions - Advanced
 	case "factorial":
 		return a.analyzeFactorial(args, callExpr), true
 	case "gcd":

@@ -230,8 +230,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 		// Check if function has zero parameters - auto-invoke
 		if len(fn.Parameters) == 0 {
-			// Delegate to adapter for proper exception handling (Phase 3.9.3)
-			// The evaluator's invokeParameterlessUserFunction has exception handling issues
+		// Delegate to adapter for proper exception handling
 			return e.oopEngine.CallUserFunction(fn, []Value{})
 		}
 

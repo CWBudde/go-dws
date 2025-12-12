@@ -7,8 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// TestShortFormClassDeclaration tests parsing of short-form class declarations
-// (Phase 9.10.1): type TChild = class(TParent);
+// TestShortFormClassDeclaration tests parsing of short-form class declarations.
 func TestShortFormClassDeclaration(t *testing.T) {
 	input := `type
    TBase = class
@@ -207,8 +206,7 @@ func TestShortFormClassNoParent(t *testing.T) {
 	}
 }
 
-// TestTypeAliasToClass tests parsing of type aliases to class types
-// (Phase 9.10.2): type TAlias = TClassName;
+// TestTypeAliasToClass tests parsing of type aliases to class types.
 func TestTypeAliasToClass(t *testing.T) {
 	input := `type
    TBase = class

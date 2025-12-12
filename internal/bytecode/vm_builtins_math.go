@@ -352,7 +352,7 @@ func builtinRandomize(vm *VM, args []Value) (Value, error) {
 }
 
 // ============================================================================
-// Advanced Math Functions (Phase 9.23)
+// Advanced Math Functions
 // ============================================================================
 
 // builtinFactorial implements the Factorial() built-in function.

@@ -10,7 +10,6 @@ import (
 
 // TestErrorMessageCasing tests that error messages preserve the original
 // user-provided casing instead of showing normalized (lowercased) identifiers.
-// This is a regression test for the bug fixed in Phase 1 of NORMALIZE.md.
 func TestErrorMessageCasing(t *testing.T) {
 	tests := []struct {
 		name          string

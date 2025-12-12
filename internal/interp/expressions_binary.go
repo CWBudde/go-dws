@@ -7,7 +7,6 @@ import (
 
 // expressions_binary.go contains legacy binary operation helpers.
 // These are still used by variant_ops.go for type-specific operations.
-// All top-level binary expression evaluation has been delegated to the evaluator (Phase 3.8.3).
 
 // evalIntegerBinaryOp evaluates binary operations on integers.
 func (i *Interpreter) evalIntegerBinaryOp(op string, left, right Value) Value {

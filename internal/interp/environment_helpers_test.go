@@ -21,7 +21,7 @@ func TestSetEnvironment(t *testing.T) {
 		t.Error("i.Env() not updated to newEnv")
 	}
 
-	// Verify i.ctx.Env() is synced (no adapter needed in Phase 3.1.3)
+	// Verify i.ctx.Env() is synced
 	ctxEnv := i.ctx.Env()
 	if ctxEnv != newEnv {
 		t.Error("i.ctx.Env() not synced with i.Env()")
@@ -68,7 +68,7 @@ func TestPushEnvironment(t *testing.T) {
 		t.Error("new environment not enclosed by original")
 	}
 
-	// Verify i.ctx.Env() is synced (Phase 3.1.3: direct runtime.Environment)
+	// Verify i.ctx.Env() is synced
 	ctxEnv := i.ctx.Env()
 	if ctxEnv != newEnv {
 		t.Error("i.ctx.Env() not synced with new environment")
@@ -112,7 +112,7 @@ func TestRestoreEnvironment(t *testing.T) {
 		t.Error("i.Env() not restored to original")
 	}
 
-	// Verify i.ctx.Env() is synced (Phase 3.1.3: direct runtime.Environment)
+	// Verify i.ctx.Env() is synced
 	ctxEnv := i.ctx.Env()
 	if ctxEnv != originalEnv {
 		t.Error("i.ctx.Env() not synced with restored environment")

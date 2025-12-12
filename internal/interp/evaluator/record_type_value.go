@@ -16,8 +16,7 @@ type RecordTypeValue struct {
 	FieldDecls map[string]*ast.FieldDecl // Field declarations (for initializers)
 	Metadata   *runtime.RecordMetadata   // Runtime metadata (methods, constants, etc.)
 
-	// Deprecated: Use Metadata.Methods instead. Will be removed in Phase 3.5.44.
-	// Kept temporarily for backward compatibility during migration.
+	// Deprecated: Use Metadata.Methods instead.
 	Methods              map[string]*ast.FunctionDecl   // Instance methods: Method name -> AST declaration
 	StaticMethods        map[string]*ast.FunctionDecl   // Static methods: Method name -> AST declaration (class function/procedure)
 	ClassMethods         map[string]*ast.FunctionDecl   // Alias for StaticMethods (for compatibility)
