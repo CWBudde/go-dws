@@ -26,7 +26,7 @@ type ExceptionValue = runtime.ExceptionValue
 func (i *Interpreter) registerBuiltinExceptions() {
 	// Register TObject as the root base class for all classes
 	// This is required for DWScript compatibility - all classes ultimately inherit from TObject
-	objectClass := NewClassInfo("TObject")
+	objectClass := NewClassInfo("TObject", i.typeSystem)
 	objectClass.Parent = nil // Root of the class hierarchy
 	objectClass.IsAbstractFlag = false
 	objectClass.IsExternalFlag = false
@@ -117,7 +117,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	i.typeSystem.RegisterClass("TObject", objectClass)
 
 	// Register Exception base class
-	exceptionClass := NewClassInfo("Exception")
+	exceptionClass := NewClassInfo("Exception", i.typeSystem)
 	exceptionClass.Parent = objectClass // Exception inherits from TObject
 	exceptionClass.Fields["Message"] = types.STRING
 	exceptionClass.IsAbstractFlag = false
@@ -156,7 +156,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	}
 
 	for _, excName := range standardExceptions {
-		excClass := NewClassInfo(excName)
+		excClass := NewClassInfo(excName, i.typeSystem)
 		excClass.Parent = exceptionClass
 		excClass.Fields["Message"] = types.STRING
 		excClass.IsAbstractFlag = false
@@ -185,7 +185,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	}
 
 	// Register EHost exception wrapper for host runtime errors.
-	eHostClass := NewClassInfo("EHost")
+	eHostClass := NewClassInfo("EHost", i.typeSystem)
 	eHostClass.Parent = exceptionClass
 	eHostClass.Fields["Message"] = types.STRING
 	eHostClass.Fields["ExceptionClass"] = types.STRING

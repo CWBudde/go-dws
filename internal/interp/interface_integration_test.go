@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -304,8 +305,8 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 			},
 		}
 
-		// Create class that implements interface
-		class := NewClassInfo("TTest")
+		        // Create class that implements interface
+		class := NewClassInfo("TTest", interptypes.NewTypeSystem())
 		class.Methods["doit"] = &ast.FunctionDecl{
 			Name: &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
@@ -337,7 +338,7 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("InterfaceToObject", func(t *testing.T) {
 		// Create interface and class
 		iface := NewInterfaceInfo("ITest")
-		class := NewClassInfo("TTest")
+		class := NewClassInfo("TTest", interptypes.NewTypeSystem())
 		class.GetMethodsMap()["doit"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DoIt"}}
 		// Register field so SetField uses normalized metadata/legacy paths
 		// Note: Skipping field registration since Fields now expects *ast.FieldDecl
@@ -438,7 +439,7 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		iface := NewInterfaceInfo("IResource")
 		iface.Methods[strings.ToLower("Release")] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
 
-		class := NewClassInfo("TResource")
+		class := NewClassInfo("TResource", interptypes.NewTypeSystem())
 		class.Methods["release"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
 
 		interp.typeSystem.RegisterInterface("iresource", iface)
@@ -468,7 +469,7 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 
 		// Create interface and object
 		iface := NewInterfaceInfo("ITest")
-		class := NewClassInfo("TTest")
+		class := NewClassInfo("TTest", interptypes.NewTypeSystem())
 		obj := NewObjectInstance(class)
 		ifaceInstance := NewInterfaceInstance(iface, obj)
 
@@ -509,7 +510,7 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 	t.Run("MultipleReferences", func(t *testing.T) {
 		// Create interface and object
 		iface := NewInterfaceInfo("IShared")
-		class := NewClassInfo("TShared")
+		class := NewClassInfo("TShared", interptypes.NewTypeSystem())
 		obj := NewObjectInstance(class)
 		obj.SetField("Counter", &IntegerValue{Value: 0})
 

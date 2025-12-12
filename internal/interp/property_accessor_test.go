@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // TestPropertyAccessor_ObjectInstance tests that ObjectInstance implements PropertyAccessor.
 func TestPropertyAccessor_ObjectInstance(t *testing.T) {
 	// Create a class with a property
-	class := NewClassInfo("TestClass")
+	class := NewClassInfo("TestClass", interptypes.NewTypeSystem())
 	class.Properties["TestProp"] = &types.PropertyInfo{
 		Name:      "TestProp",
 		IsIndexed: false,
@@ -79,7 +80,7 @@ func TestPropertyAccessor_InterfaceInstance(t *testing.T) {
 	}
 
 	// Create a class that implements the interface
-	class := NewClassInfo("TestClass")
+	class := NewClassInfo("TestClass", interptypes.NewTypeSystem())
 	class.Interfaces = append(class.Interfaces, iface)
 
 	// Create an interface instance
@@ -172,7 +173,7 @@ func TestPropertyAccessor_RecordValue(t *testing.T) {
 // TestPropertyAccessor_CaseInsensitive tests that property lookup is case-insensitive.
 func TestPropertyAccessor_CaseInsensitive(t *testing.T) {
 	// Create a class with a property
-	class := NewClassInfo("TestClass")
+	class := NewClassInfo("TestClass", interptypes.NewTypeSystem())
 	class.Properties["myproperty"] = &types.PropertyInfo{
 		Name:      "MyProperty",
 		IsIndexed: false,
