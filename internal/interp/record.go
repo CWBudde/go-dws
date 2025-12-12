@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// RecordTypeValue is defined in the evaluator package.
-type RecordTypeValue = evaluator.RecordTypeValue
+// RecordTypeValue is a runtime-level "type meta value" for records.
+type RecordTypeValue = runtime.RecordTypeValue
 
 // ============================================================================
 // Helper Functions

@@ -2,7 +2,7 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 
 // builtinArrayCopy creates a deep copy of an array.
@@ -11,7 +11,7 @@ import (
 // For static arrays: copies elements to new array
 // For arrays of objects: shallow copy references (as per spec)
 func (i *Interpreter) builtinArrayCopy(arr *ArrayValue) Value {
-	return evaluator.ArrayHelperCopy(arr)
+	return runtime.ArrayHelperCopy(arr)
 }
 
 // builtinArrayIndexOf searches an array for a value and returns its 0-based index.
@@ -20,7 +20,7 @@ func (i *Interpreter) builtinArrayCopy(arr *ArrayValue) Value {
 // Returns -1 if not found or invalid startIndex
 // Uses 0-based indexing (standard for dynamic arrays in Pascal/Delphi)
 func (i *Interpreter) builtinArrayIndexOf(arr *ArrayValue, value Value, startIndex int) Value {
-	return evaluator.ArrayHelperIndexOf(arr, value, startIndex)
+	return runtime.ArrayHelperIndexOf(arr, value, startIndex)
 }
 
 // builtinArrayReverse reverses an array in place.
@@ -29,7 +29,7 @@ func (i *Interpreter) builtinArrayIndexOf(arr *ArrayValue, value Value, startInd
 // Swaps elements from both ends moving inward
 // Returns nil
 func (i *Interpreter) builtinArrayReverse(arr *ArrayValue) Value {
-	return evaluator.ArrayHelperReverse(arr)
+	return runtime.ArrayHelperReverse(arr)
 }
 
 // builtinArraySort sorts an array in place using default comparison.
@@ -38,5 +38,5 @@ func (i *Interpreter) builtinArrayReverse(arr *ArrayValue) Value {
 // Uses Go's sort.Slice() for efficient sorting
 // Returns nil
 func (i *Interpreter) builtinArraySort(arr *ArrayValue) Value {
-	return evaluator.ArrayHelperSort(arr)
+	return runtime.ArrayHelperSort(arr)
 }

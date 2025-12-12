@@ -1,7 +1,6 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 )
@@ -9,18 +8,18 @@ import (
 // ============================================================================
 // VarType Constants
 // ============================================================================
-// These constants are re-exported from evaluator for compatibility.
+// These constants are re-exported from runtime for compatibility.
 
 const (
-	varEmpty   = evaluator.VarEmpty
-	varNull    = evaluator.VarNull
-	varInteger = evaluator.VarInteger
-	varDouble  = evaluator.VarDouble
-	varBoolean = evaluator.VarBoolean
-	varInt64   = evaluator.VarInt64
-	varString  = evaluator.VarString
-	varArray   = evaluator.VarArray
-	varJSON    = evaluator.VarJSON
+	varEmpty   = runtime.VarEmpty
+	varNull    = runtime.VarNull
+	varInteger = runtime.VarInteger
+	varDouble  = runtime.VarDouble
+	varBoolean = runtime.VarBoolean
+	varInt64   = runtime.VarInt64
+	varString  = runtime.VarString
+	varArray   = runtime.VarArray
+	varJSON    = runtime.VarJSON
 )
 
 // ============================================================================
@@ -29,39 +28,12 @@ const (
 
 // jsonValueToValue converts a jsonvalue.Value to a DWScript runtime Value.
 func jsonValueToValue(jv *jsonvalue.Value) Value {
-	if jv == nil {
-		return &NilValue{}
-	}
-
-	// For arrays and objects, wrap in JSONValue to preserve reference semantics
-	kind := jv.Kind()
-	if kind == jsonvalue.KindArray || kind == jsonvalue.KindObject {
-		return &JSONValue{Value: jv}
-	}
-
-	// For primitives, delegate to evaluator helper
-	result := evaluator.JSONValueToValue(jv)
-
-	// Convert runtime types back to interp types
-	switch v := result.(type) {
-	case *NilValue:
-		return v
-	case *BooleanValue:
-		return v
-	case *IntegerValue:
-		return v
-	case *FloatValue:
-		return v
-	case *StringValue:
-		return v
-	default:
-		return &NilValue{}
-	}
+	return runtime.JSONValueToValue(jv)
 }
 
 // valueToJSONValue converts a DWScript runtime Value to a jsonvalue.Value.
 func valueToJSONValue(val Value) *jsonvalue.Value {
-	return evaluator.ValueToJSONValue(val)
+	return runtime.ValueToJSONValue(val)
 }
 
 // jsonValueToVariant wraps a jsonvalue.Value in a VariantValue.
@@ -88,7 +60,7 @@ func variantToJSONValue(variant *VariantValue) *jsonvalue.Value {
 
 // jsonKindToVarType maps a jsonvalue.Kind to a VarType code.
 func jsonKindToVarType(kind jsonvalue.Kind) int64 {
-	return evaluator.JSONKindToVarType(kind)
+	return runtime.JSONKindToVarType(kind)
 }
 
 // ============================================================================
@@ -98,5 +70,5 @@ func jsonKindToVarType(kind jsonvalue.Kind) int64 {
 // parseJSONString parses a JSON string and returns a jsonvalue.Value.
 // This is the core JSON parsing function used by ParseJSON and related functions.
 func parseJSONString(jsonStr string) (*jsonvalue.Value, error) {
-	return evaluator.ParseJSONString(jsonStr)
+	return runtime.ParseJSONString(jsonStr)
 }

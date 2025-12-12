@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/errors"
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -15,7 +14,7 @@ import (
 // ===== Function Pointers =====
 
 // CreateFunctionPointer creates a function pointer value from a function declaration.
-func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) evaluator.Value {
+func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) Value {
 	// Convert closure to Environment
 	var env *Environment
 	if closure != nil {
@@ -29,7 +28,7 @@ func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) e
 }
 
 // CreateFunctionPointerFromName creates a function pointer for a named function.
-func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any) (evaluator.Value, error) {
+func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any) (Value, error) {
 	// Look up the function in the function registry (case-insensitive)
 	overloads, exists := i.functions[ident.Normalize(funcName)]
 	if !exists || len(overloads) == 0 {
@@ -142,7 +141,7 @@ func (i *Interpreter) CreateExceptionDirect(classMetadata any, message string, p
 // WrapObjectInException wraps an existing ObjectInstance in an ExceptionValue.
 //
 // The evaluator handles nil checking and validation, this just wraps a valid object.
-func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any, callStack any) any {
+func (i *Interpreter) WrapObjectInException(objInstance Value, pos any, callStack any) any {
 	// Convert position
 	var position *lexer.Position
 	if pos != nil {
@@ -199,7 +198,7 @@ func (i *Interpreter) WrapObjectInException(objInstance evaluator.Value, pos any
 // ===== Binary Operator Adapters =====
 
 // CreateBoundMethodPointer creates a FunctionPointerValue for a method bound to an object.
-func (i *Interpreter) CreateBoundMethodPointer(obj evaluator.Value, methodDecl any) evaluator.Value {
+func (i *Interpreter) CreateBoundMethodPointer(obj Value, methodDecl any) Value {
 	method := methodDecl.(*ast.FunctionDecl)
 	objInst := obj.(*ObjectInstance)
 

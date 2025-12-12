@@ -7,14 +7,12 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-
-	pkgast "github.com/cwbudde/go-dws/pkg/ast" // SemanticInfo (type annotations)
 )
 
 // DefaultMaxRecursionDepth is the default maximum recursion depth for function calls.
@@ -24,8 +22,7 @@ import (
 const DefaultMaxRecursionDepth = 1024
 
 // PropertyEvalContext tracks the state during property getter/setter evaluation.
-// Deprecated: Use evaluator.PropertyEvalContext instead. This is kept for backward compatibility.
-type PropertyEvalContext = evaluator.PropertyEvalContext
+type PropertyEvalContext = runtime.PropertyEvalContext
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 // Thin orchestrator delegating evaluation logic to the Evaluator.
@@ -38,160 +35,92 @@ type Interpreter struct {
 	methodRegistry    *runtime.MethodRegistry
 	records           map[string]*RecordTypeValue
 	functions         map[string][]*ast.FunctionDecl
-	evaluatorInstance *evaluator.Evaluator
+	evaluatorInstance contracts.Evaluator
 	classes           map[string]*ClassInfo
-	ctx               *evaluator.ExecutionContext
+	ctx               *runtime.ExecutionContext
 	oldValuesStack    []map[string]Value
 	callStack         errors.StackTrace
 	maxRecursionDepth int
 }
 
-// Ensure Interpreter implements the four focused interfaces.
-var (
-	_ evaluator.OOPEngine        = (*Interpreter)(nil)
-	_ evaluator.DeclHandler      = (*Interpreter)(nil)
-	_ evaluator.ExceptionManager = (*Interpreter)(nil)
-	_ evaluator.CoreEvaluator    = (*Interpreter)(nil)
-)
-
-// New creates a new Interpreter with a fresh global environment.
-// The output writer is where built-in functions like PrintLn will write.
-func New(output io.Writer) *Interpreter {
-	return NewWithOptions(output, nil)
-}
-
-// NewWithOptions creates a new Interpreter with options.
-// If options is nil, default options are used.
-func NewWithOptions(output io.Writer, opts Options) *Interpreter {
-	env := NewEnvironment()
-
-	// Initialize TypeSystem - centralized type registry for classes, records, interfaces, functions, helpers, operators
-	ts := interptypes.NewTypeSystem()
-
-	// Initialize ClassValueFactory to enable evaluator to create ClassValue
-	ts.ClassValueFactory = func(classInfo interptypes.ClassInfo) any {
-		if ci, ok := classInfo.(*ClassInfo); ok {
-			return &ClassValue{ClassInfo: ci}
-		}
-		return nil
-	}
-
+// NewWithDeps creates an Interpreter with its core dependencies provided by a higher-level runner.
+// This avoids `internal/interp` importing `internal/interp/evaluator`.
+func NewWithDeps(
+	output io.Writer,
+	opts Options,
+	env *runtime.Environment,
+	typeSystem *interptypes.TypeSystem,
+	eval contracts.Evaluator,
+	refCountMgr runtime.RefCountManager,
+) *Interpreter {
 	interp := &Interpreter{
 		output:            output,
 		maxRecursionDepth: DefaultMaxRecursionDepth,
-		callStack:         errors.NewStackTrace(), // Initialize stack trace
-
-		// TypeSystem (new centralized type registry)
-		// This is the modern API - use this for new code
-		typeSystem: ts,
-
-		// MethodRegistry for AST-free method storage
-		methodRegistry: runtime.NewMethodRegistry(),
-
-		// Legacy fields for backward compatibility (will be removed after typeSystem migration)
-		functions: make(map[string][]*ast.FunctionDecl), // Supports overloading
-		classes:   make(map[string]*ClassInfo),
-		records:   make(map[string]*RecordTypeValue),
+		callStack:         errors.NewStackTrace(),
+		typeSystem:        typeSystem,
+		methodRegistry:    runtime.NewMethodRegistry(),
+		functions:         make(map[string][]*ast.FunctionDecl),
+		classes:           make(map[string]*ClassInfo),
+		records:           make(map[string]*RecordTypeValue),
+		evaluatorInstance: eval,
 	}
 
-	// Extract recursion depth from options if provided
 	if opts != nil {
-		// Extract MaxRecursionDepth
 		if depth := opts.GetMaxRecursionDepth(); depth > 0 {
 			interp.maxRecursionDepth = depth
 		}
 	}
 
-	// Initialize execution context with call stack overflow detection.
-	// Note: Getter must return untyped nil when no exception, to avoid Go's interface nil gotcha.
-	interp.ctx = evaluator.NewExecutionContextWithCallbacks(
+	interp.ctx = runtime.NewExecutionContextWithCallbacks(
 		env,
 		interp.maxRecursionDepth,
-		func() any { // getter: read from i.exception
+		func() any {
 			if interp.exception == nil {
-				return nil // Return untyped nil, not typed nil pointer
+				return nil
 			}
 			return interp.exception
 		},
-		func(exc any) { // setter: write to i.exception
+		func(exc any) {
 			if exc == nil {
 				interp.exception = nil
-			} else if excVal, ok := exc.(*runtime.ExceptionValue); ok {
+				return
+			}
+			if excVal, ok := exc.(*runtime.ExceptionValue); ok {
 				interp.exception = excVal
 			}
 		},
 	)
+	interp.ctx.SetRefCountManager(refCountMgr)
 
-	// Initialize Evaluator with evaluation logic and dependencies
-	evalConfig := &evaluator.Config{
-		MaxRecursionDepth: interp.maxRecursionDepth,
-		SourceCode:        "",
-		SourceFile:        "",
-	}
-
-	// Create RefCountManager for object lifecycle management
-	refCountMgr := runtime.NewRefCountManager()
-
-	// Create evaluator instance (semanticInfo is set later via SetSemanticInfo if needed)
-	interp.evaluatorInstance = evaluator.NewEvaluator(
-		ts,
-		output,
-		evalConfig,
-		nil,         // unitRegistry is set later via SetUnitRegistry if needed
-		nil,         // semanticInfo is set later via SetSemanticInfo if needed
-		refCountMgr, // Pass RefCountManager to evaluator
-	)
-
-	// Initialize external functions registry in evaluator
-	if opts != nil {
-		if registry := opts.GetExternalFunctions(); registry != nil {
-			interp.evaluatorInstance.SetExternalFunctions(registry)
+	if interp.evaluatorInstance != nil {
+		if opts != nil {
+			if registry := opts.GetExternalFunctions(); registry != nil {
+				interp.evaluatorInstance.SetExternalFunctions(registry)
+			}
+		}
+		if interp.evaluatorInstance.ExternalFunctions() == nil {
+			interp.evaluatorInstance.SetExternalFunctions(NewExternalFunctionRegistry())
 		}
 	}
-	if interp.evaluatorInstance.ExternalFunctions() == nil {
-		interp.evaluatorInstance.SetExternalFunctions(NewExternalFunctionRegistry())
-	}
 
-	// Register destructor callback - invoked when reference count reaches 0
 	refCountMgr.SetDestructorCallback(func(obj *runtime.ObjectInstance) error {
 		return interp.runDestructorForRefCount(obj)
 	})
 
-	// Set focused interfaces so evaluator can delegate to interpreter
-	interp.evaluatorInstance.SetFocusedInterfaces(interp, interp, interp, interp)
-
-	// Register built-in exception classes
 	interp.registerBuiltinExceptions()
-
-	// Register built-in interfaces
 	interp.registerBuiltinInterfaces()
-
-	// Register built-in array helpers
 	interp.initArrayHelpers()
-
-	// Register built-in helpers for primitive types
 	interp.initIntrinsicHelpers()
-
-	// Register built-in enum helpers
 	interp.initEnumHelpers()
 
-	// Initialize ExceptObject to nil
-	// ExceptObject is a built-in global variable that holds the current exception
 	env.Define("ExceptObject", &NilValue{})
-
-	// Register built-in type meta-values
-	// These allow type names to be used as runtime values, e.g., High(Integer)
 	env.Define("Integer", NewTypeMetaValue(types.INTEGER, "Integer"))
 	env.Define("Float", NewTypeMetaValue(types.FLOAT, "Float"))
 	env.Define("String", NewTypeMetaValue(types.STRING, "String"))
 	env.Define("Boolean", NewTypeMetaValue(types.BOOLEAN, "Boolean"))
-
-	// Register mathematical constants
 	env.Define("PI", &FloatValue{Value: math.Pi})
 	env.Define("NaN", &FloatValue{Value: math.NaN()})
 	env.Define("Infinity", &FloatValue{Value: math.Inf(1)})
-
-	// Register Variant special values
 	env.Define("Null", NewNullValue())
 	env.Define("Unassigned", NewUnassignedValue())
 
@@ -206,22 +135,19 @@ func (i *Interpreter) GetException() *runtime.ExceptionValue {
 
 // SetSemanticInfo sets the semantic metadata table for this interpreter.
 // The semantic info contains type annotations and symbol resolutions from analysis.
-func (i *Interpreter) SetSemanticInfo(info *pkgast.SemanticInfo) {
+func (i *Interpreter) SetSemanticInfo(info *ast.SemanticInfo) {
 	if i.evaluatorInstance != nil {
 		i.evaluatorInstance.SetSemanticInfo(info)
 	}
 }
 
 // GetEvaluator returns the evaluator instance.
-func (i *Interpreter) GetEvaluator() *evaluator.Evaluator {
+func (i *Interpreter) GetEvaluator() contracts.Evaluator {
 	return i.evaluatorInstance
 }
 
-// EvalNode implements the evaluator.CoreEvaluator interface.
-// Allows Evaluator to delegate back to Interpreter for OOP operations.
-func (i *Interpreter) EvalNode(node ast.Node) evaluator.Value {
-	// Delegate to the legacy Eval method
-	// The cast is safe because our Value type matches evaluator.Value interface
+// EvalNode provides a minimal evaluation hook for cross-cutting concerns.
+func (i *Interpreter) EvalNode(node ast.Node) Value {
 	return i.Eval(node)
 }
 

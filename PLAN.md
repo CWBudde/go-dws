@@ -665,7 +665,7 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 
 **Tasks**:
 
- - [x] **5.3.1** Implement full inheritance checking for `is` operator (4h)
+- [x] **5.3.1** Implement full inheritance checking for `is` operator (4h)
   - `operators.go:119`
   - Check full class hierarchy, not just direct parent
 
@@ -677,9 +677,23 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
   - `enum.go:41`
   - Handle integer-to-enum coercion in constant expressions
 
-- [ ] **5.3.4** Complete record declaration handling (4h)
-  - `evaluator/visitor_declarations.go:125`
-  - Add constants, fields, nested types support
+- [x] **5.3.4** Complete record declaration handling (4h)
+  - **Primary files**: `internal/interp/evaluator/visitor_declarations.go` (record decl eval), plus any member-lookup code paths needed for `TRecord.Const` / `TRecord.ClassVar`
+  - **Goal**: bring runtime behavior for record declarations in line with DWScript expectations (fields + const/class var + methods/properties).
+  - **Subtasks**:
+    - [x] **5.3.4.1** Audit current `VisitRecordDecl` behavior vs failing fixture(s) / missing runtime behavior (30m)
+    - [x] **5.3.4.2** Record constants: evaluate sequentially with earlier record constants visible to later constant initializers (1h)
+    - [x] **5.3.4.3** Record “static” members: ensure `TRecord.<Const|ClassVar|ClassMethod>` lookup is supported consistently and case-insensitively (1h)
+    - [x] **5.3.4.4** Record fields metadata: ensure all fields are registered with correct case-insensitive mapping and are available for typed record literals and field access (30m)
+    - [x] **5.3.4.5** Add/extend interpreter tests covering record declaration features (1h)
+      - constants (including const depends-on-const)
+      - class var initialization and access
+      - method/class method dispatch (if already supported for records)
+      - property read/write bindings (if already supported for records)
+      - case-insensitivity checks (e.g. `tpoint.origin` vs `TPoint.Origin`)
+  - **Acceptance criteria**:
+    - New/updated tests pass (add targeted coverage in `internal/interp/*_test.go`)
+    - At least one fixture previously failing due to record declaration behavior now passes (or is explicitly re-scoped to a later phase if it requires missing features outside Phase 5)
 
 - [ ] **5.3.5** Support class constant expressions in field initializers (4h)
   - `class_var_init_test.go:55`

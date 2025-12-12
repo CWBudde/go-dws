@@ -67,9 +67,7 @@ func (i *Interpreter) SetUnitRegistry(registry *units.UnitRegistry) {
 // Allows runtime errors to display source code snippets.
 func (i *Interpreter) SetSource(source, filename string) {
 	if i.evaluatorInstance != nil {
-		cfg := i.evaluatorInstance.Config()
-		cfg.SourceCode = source
-		cfg.SourceFile = filename
+		i.evaluatorInstance.SetSource(source, filename)
 	}
 }
 

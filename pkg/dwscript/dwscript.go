@@ -26,6 +26,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/interp"
+	"github.com/cwbudde/go-dws/internal/interp/runner"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
@@ -342,7 +343,7 @@ func (e *Engine) Run(program *Program) (*Result, error) {
 
 func (e *Engine) runInterpreter(program *Program, output io.Writer) (*Result, error) {
 	e.options.ExternalFunctions = e.externalFunctions
-	interpreter := interp.NewWithOptions(output, &e.options)
+	interpreter := runner.NewWithOptions(output, &e.options)
 	if program.semanticInfo != nil {
 		interpreter.SetSemanticInfo(program.semanticInfo)
 	}

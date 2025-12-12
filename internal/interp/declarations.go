@@ -31,6 +31,16 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 		}
 
 		recordInfo, isRecord := i.records[ident.Normalize(typeName)]
+		// If not found in legacy map, check TypeSystem (source of truth)
+		if !isRecord && i.typeSystem != nil {
+			if r := i.typeSystem.LookupRecord(typeName); r != nil {
+				if rtv, ok := r.(*runtime.RecordTypeValue); ok {
+					recordInfo = rtv
+					isRecord = true
+				}
+			}
+		}
+
 		if isRecord {
 			i.evalRecordMethodImplementation(fn, recordInfo)
 			return &NilValue{}

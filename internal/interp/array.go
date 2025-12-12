@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/astutil"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -87,7 +87,7 @@ func (i *Interpreter) evalIndexExpression(expr *ast.IndexExpression) Value {
 	// Check if this might be a multi-index property access
 	// We only flatten indices if the base is a MemberAccessExpression (property access)
 	// For regular array access like arr[i][j], we process each level separately
-	base, indices := evaluator.CollectIndices(expr)
+	base, indices := astutil.CollectIndices(expr)
 
 	// Check if this is indexed property access: obj.Property[index1, index2, ...]
 	// Only flatten indices for property access, not for regular arrays

@@ -1,14 +1,13 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // GetZeroValueForType returns the zero/default value for a given type.
-func (i *Interpreter) GetZeroValueForType(typeInfo any) evaluator.Value {
+func (i *Interpreter) GetZeroValueForType(typeInfo any) Value {
 	t, ok := typeInfo.(types.Type)
 	if !ok {
 		return &NilValue{}

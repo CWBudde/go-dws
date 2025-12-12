@@ -3,14 +3,14 @@ package interp
 import (
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // createUserFunctionCallbacks creates the callback struct for ExecuteUserFunction.
-func (i *Interpreter) createUserFunctionCallbacks() *evaluator.UserFunctionCallbacks {
-	return &evaluator.UserFunctionCallbacks{
+func (i *Interpreter) createUserFunctionCallbacks() *contracts.UserFunctionCallbacks {
+	return &contracts.UserFunctionCallbacks{
 		ImplicitConversion:   i.createImplicitConversionCallback(),
 		DefaultValueGetter:   i.createDefaultValueGetterCallback(),
 		FunctionNameAlias:    i.createFunctionNameAliasCallback(),
@@ -22,17 +22,17 @@ func (i *Interpreter) createUserFunctionCallbacks() *evaluator.UserFunctionCallb
 }
 
 // createImplicitConversionCallback creates the parameter type conversion callback.
-func (i *Interpreter) createImplicitConversionCallback() evaluator.ImplicitConversionFunc {
-	return func(value evaluator.Value, targetTypeName string) (evaluator.Value, bool) {
+func (i *Interpreter) createImplicitConversionCallback() contracts.ImplicitConversionFunc {
+	return func(value Value, targetTypeName string) (Value, bool) {
 		return i.tryImplicitConversion(value, targetTypeName)
 	}
 }
 
 // createDefaultValueGetterCallback creates the return type default value callback.
-func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueFunc {
-	return func(returnTypeName string) evaluator.Value {
+func (i *Interpreter) createDefaultValueGetterCallback() contracts.DefaultValueFunc {
+	return func(returnTypeName string) Value {
 		lowerReturnType := ident.Normalize(returnTypeName)
-		var defaultValue evaluator.Value
+		var defaultValue Value
 
 		// Basic type defaults
 		switch lowerReturnType {
@@ -79,23 +79,23 @@ func (i *Interpreter) createDefaultValueGetterCallback() evaluator.DefaultValueF
 
 // createFunctionNameAliasCallback creates the function name alias callback.
 // In DWScript, assigning to the function name sets the return value (alias for Result).
-func (i *Interpreter) createFunctionNameAliasCallback() evaluator.FunctionNameAliasFunc {
-	return func(funcName string, funcEnv *runtime.Environment) evaluator.Value {
+func (i *Interpreter) createFunctionNameAliasCallback() contracts.FunctionNameAliasFunc {
+	return func(funcName string, funcEnv *runtime.Environment) Value {
 		return &ReferenceValue{Env: funcEnv, VarName: "Result"}
 	}
 }
 
 // createReturnValueConverterCallback creates the return value conversion callback.
-func (i *Interpreter) createReturnValueConverterCallback() evaluator.TryImplicitConversionReturnFunc {
-	return func(returnValue evaluator.Value, expectedReturnType string) (evaluator.Value, bool) {
+func (i *Interpreter) createReturnValueConverterCallback() contracts.TryImplicitConversionReturnFunc {
+	return func(returnValue Value, expectedReturnType string) (Value, bool) {
 		return i.tryImplicitConversion(returnValue, expectedReturnType)
 	}
 }
 
 // createInterfaceRefCounterCallback creates the interface ref count increment callback.
 // Increments ref count when returning an interface for the caller's reference.
-func (i *Interpreter) createInterfaceRefCounterCallback() evaluator.IncrementInterfaceRefCountFunc {
-	return func(returnValue evaluator.Value) {
+func (i *Interpreter) createInterfaceRefCounterCallback() contracts.IncrementInterfaceRefCountFunc {
+	return func(returnValue Value) {
 		if intfInst, isIntf := returnValue.(*InterfaceInstance); isIntf {
 			if intfInst.Object != nil {
 				i.evaluatorInstance.RefCountManager().IncrementRef(intfInst.Object)
@@ -106,7 +106,7 @@ func (i *Interpreter) createInterfaceRefCounterCallback() evaluator.IncrementInt
 
 // createInterfaceCleanupCallback creates the interface/object cleanup callback.
 // Cleans up interface/object references when function scope ends.
-func (i *Interpreter) createInterfaceCleanupCallback() evaluator.CleanupInterfaceReferencesFunc {
+func (i *Interpreter) createInterfaceCleanupCallback() contracts.CleanupInterfaceReferencesFunc {
 	return func(env *runtime.Environment) {
 		savedEnv := i.Env()
 		i.SetEnvironment(env)
@@ -117,7 +117,7 @@ func (i *Interpreter) createInterfaceCleanupCallback() evaluator.CleanupInterfac
 
 // createEnvSyncerCallback creates the environment synchronization callback.
 // Syncs i.Env() with funcEnv so interpreter callbacks use the correct scope.
-func (i *Interpreter) createEnvSyncerCallback() evaluator.EnvSyncerFunc {
+func (i *Interpreter) createEnvSyncerCallback() contracts.EnvSyncerFunc {
 	return func(funcEnv *runtime.Environment) func() {
 		savedEnv := i.Env()
 		i.SetEnvironment(funcEnv)

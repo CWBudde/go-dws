@@ -1,15 +1,7 @@
-//go:build ignore
-// +build ignore
-
-package evaluator
+package runtime
 
 import (
-	"fmt"
-	"io"
-	"math/rand"
-
 	"github.com/cwbudde/go-dws/internal/errors"
-	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -25,7 +17,7 @@ const (
 	FlowContinue
 	// FlowExit indicates an exit statement was executed.
 	FlowExit
-	// FlowReturn indicates a return statement was executed (reserved for future use).
+	// FlowReturn indicates a return statement was executed.
 	FlowReturn
 )
 
@@ -48,8 +40,6 @@ func (k ControlFlowKind) String() string {
 }
 
 // ControlFlow manages control flow signals (break, continue, exit, return).
-// It replaces the boolean flags (breakSignal, continueSignal, exitSignal)
-// with a single explicit state value for cleaner control flow handling.
 type ControlFlow struct {
 	kind ControlFlowKind
 }
@@ -124,9 +114,7 @@ type PropertyEvalContext struct {
 
 // NewPropertyEvalContext creates a new PropertyEvalContext.
 func NewPropertyEvalContext() *PropertyEvalContext {
-	return &PropertyEvalContext{
-		PropertyChain: make([]string, 0),
-	}
+	return &PropertyEvalContext{PropertyChain: make([]string, 0)}
 }
 
 // ExceptionGetter is a callback to read the current exception from external storage.
@@ -138,8 +126,8 @@ type ExceptionGetter func() any
 type ExceptionSetter func(any)
 
 // ExecutionContext holds all execution state for script evaluation.
-// Uses concrete *runtime.Environment and supports exception callbacks
-// for syncing with the interpreter's exception state.
+//
+//nolint:govet // Keep layout stable and readable; alignment optimization is not worth the churn here.
 type ExecutionContext struct {
 	handlerException  any
 	exception         any
@@ -147,22 +135,22 @@ type ExecutionContext struct {
 	callStack         *CallStack
 	controlFlow       *ControlFlow
 	propContext       *PropertyEvalContext
-	env               *runtime.Environment
-	evaluator         *Evaluator
+	env               *Environment
 	exceptionGetter   ExceptionGetter
 	exceptionSetter   ExceptionSetter
 	recordTypeContext string
-	envStack          []*runtime.Environment
+	envStack          []*Environment
 	oldValuesStack    []map[string]any
+	refCountManager   RefCountManager
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
 // The call stack is created with the default maximum depth (1024).
-func NewExecutionContext(env *runtime.Environment) *ExecutionContext {
+func NewExecutionContext(env *Environment) *ExecutionContext {
 	return &ExecutionContext{
 		env:            env,
-		envStack:       make([]*runtime.Environment, 0),
-		callStack:      NewCallStack(0), // 0 uses default max depth (1024)
+		envStack:       make([]*Environment, 0),
+		callStack:      NewCallStack(0),
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
 		oldValuesStack: make([]map[string]any, 0),
@@ -170,70 +158,58 @@ func NewExecutionContext(env *runtime.Environment) *ExecutionContext {
 }
 
 // NewExecutionContextWithMaxDepth creates a new execution context with a custom max call stack depth.
-func NewExecutionContextWithMaxDepth(env *runtime.Environment, maxDepth int) *ExecutionContext {
+func NewExecutionContextWithMaxDepth(env *Environment, maxDepth int) *ExecutionContext {
 	return &ExecutionContext{
 		env:            env,
-		envStack:       make([]*runtime.Environment, 0),
+		envStack:       make([]*Environment, 0),
 		callStack:      NewCallStack(maxDepth),
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
-		oldValuesStack: make([]map[string]interface{}, 0),
+		oldValuesStack: make([]map[string]any, 0),
 	}
 }
 
 // NewExecutionContextWithCallbacks creates a new execution context with exception callbacks.
-// This allows the interpreter to provide its own exception storage (i.exception) while
-// the evaluator uses ctx.Exception()/SetException() seamlessly.
-func NewExecutionContextWithCallbacks(env *runtime.Environment, maxDepth int, getter ExceptionGetter, setter ExceptionSetter) *ExecutionContext {
+func NewExecutionContextWithCallbacks(env *Environment, maxDepth int, getter ExceptionGetter, setter ExceptionSetter) *ExecutionContext {
 	return &ExecutionContext{
 		env:             env,
-		envStack:        make([]*runtime.Environment, 0),
+		envStack:        make([]*Environment, 0),
 		callStack:       NewCallStack(maxDepth),
 		controlFlow:     NewControlFlow(),
 		propContext:     NewPropertyEvalContext(),
-		oldValuesStack:  make([]map[string]interface{}, 0),
+		oldValuesStack:  make([]map[string]any, 0),
 		exceptionGetter: getter,
 		exceptionSetter: setter,
 	}
 }
 
 // Env returns the current runtime environment.
-func (ctx *ExecutionContext) Env() *runtime.Environment {
+func (ctx *ExecutionContext) Env() *Environment {
 	return ctx.env
 }
 
 // SetEnv updates the runtime environment.
-func (ctx *ExecutionContext) SetEnv(env *runtime.Environment) {
+func (ctx *ExecutionContext) SetEnv(env *Environment) {
 	ctx.env = env
 }
 
 // PushEnv creates a new enclosed environment and pushes the current environment onto the stack.
 // Used for entering a new scope (loops, blocks, try-except handlers).
-// Returns the new environment.
-func (ctx *ExecutionContext) PushEnv() *runtime.Environment {
-	// Save the current environment on the stack
+func (ctx *ExecutionContext) PushEnv() *Environment {
 	ctx.envStack = append(ctx.envStack, ctx.env)
-
-	// Create a new enclosed environment
-	newEnv := runtime.NewEnclosedEnvironment(ctx.env)
+	newEnv := NewEnclosedEnvironment(ctx.env)
 	ctx.env = newEnv
-
 	return newEnv
 }
 
 // PopEnv restores the previous environment from the stack.
 // Used for exiting a scope (loops, blocks, try-except handlers).
-// Returns the restored environment, or current if stack is empty.
-func (ctx *ExecutionContext) PopEnv() *runtime.Environment {
+func (ctx *ExecutionContext) PopEnv() *Environment {
 	if len(ctx.envStack) == 0 {
-		// Stack is empty - already at root, nothing to pop
 		return ctx.env
 	}
-
-	// Pop the last environment from the stack
 	ctx.env = ctx.envStack[len(ctx.envStack)-1]
 	ctx.envStack = ctx.envStack[:len(ctx.envStack)-1]
-
 	return ctx.env
 }
 
@@ -243,27 +219,28 @@ func (ctx *ExecutionContext) GetCallStack() *CallStack {
 }
 
 // CallStack returns a copy of the current call stack frames.
+//
 // Deprecated: Use GetCallStack() for full CallStack API access.
 func (ctx *ExecutionContext) CallStack() errors.StackTrace {
 	return ctx.callStack.Frames()
 }
 
 // PushCallStack adds a new frame to the call stack.
-// Returns an error if the stack would overflow.
+//
 // Deprecated: Use GetCallStack().Push() for better error handling.
 func (ctx *ExecutionContext) PushCallStack(frame errors.StackFrame) {
-	// For backward compatibility, we ignore the error
-	// Real code should use GetCallStack().Push() for proper error handling
-	_ = ctx.callStack.Push(frame.FunctionName, frame.FileName, frame.Position)
+	_ = ctx.callStack.Push(frame.FunctionName, frame.FileName, frame.Position) //nolint:errcheck // Deprecated wrapper
 }
 
 // PopCallStack removes the most recent frame from the call stack.
+//
 // Deprecated: Use GetCallStack().Pop() instead.
 func (ctx *ExecutionContext) PopCallStack() {
 	ctx.callStack.Pop()
 }
 
 // CallStackDepth returns the current depth of the call stack.
+//
 // Deprecated: Use GetCallStack().Depth() instead.
 func (ctx *ExecutionContext) CallStackDepth() int {
 	return ctx.callStack.Depth()
@@ -275,7 +252,7 @@ func (ctx *ExecutionContext) ControlFlow() *ControlFlow {
 }
 
 // Exception returns the current active exception.
-func (ctx *ExecutionContext) Exception() interface{} {
+func (ctx *ExecutionContext) Exception() any {
 	if ctx.exceptionGetter != nil {
 		return ctx.exceptionGetter()
 	}
@@ -283,7 +260,7 @@ func (ctx *ExecutionContext) Exception() interface{} {
 }
 
 // SetException sets the current active exception.
-func (ctx *ExecutionContext) SetException(exc interface{}) {
+func (ctx *ExecutionContext) SetException(exc any) {
 	if ctx.exceptionSetter != nil {
 		ctx.exceptionSetter(exc)
 		return
@@ -292,12 +269,12 @@ func (ctx *ExecutionContext) SetException(exc interface{}) {
 }
 
 // HandlerException returns the exception being handled in a try-except block.
-func (ctx *ExecutionContext) HandlerException() interface{} {
+func (ctx *ExecutionContext) HandlerException() any {
 	return ctx.handlerException
 }
 
 // SetHandlerException sets the exception being handled.
-func (ctx *ExecutionContext) SetHandlerException(exc interface{}) {
+func (ctx *ExecutionContext) SetHandlerException(exc any) {
 	ctx.handlerException = exc
 }
 
@@ -307,7 +284,6 @@ func (ctx *ExecutionContext) PropContext() *PropertyEvalContext {
 }
 
 // RecordTypeContext returns the current record type context for anonymous record literals.
-// This allows passing type information to record literal evaluation without mutating the AST.
 func (ctx *ExecutionContext) RecordTypeContext() string {
 	return ctx.recordTypeContext
 }
@@ -338,12 +314,12 @@ func (ctx *ExecutionContext) ClearArrayTypeContext() {
 }
 
 // PushOldValues saves the current variable values before entering a new scope.
-func (ctx *ExecutionContext) PushOldValues(oldValues map[string]interface{}) {
+func (ctx *ExecutionContext) PushOldValues(oldValues map[string]any) {
 	ctx.oldValuesStack = append(ctx.oldValuesStack, oldValues)
 }
 
 // PopOldValues restores the previous variable values when exiting a scope.
-func (ctx *ExecutionContext) PopOldValues() map[string]interface{} {
+func (ctx *ExecutionContext) PopOldValues() map[string]any {
 	if len(ctx.oldValuesStack) == 0 {
 		return nil
 	}
@@ -353,9 +329,7 @@ func (ctx *ExecutionContext) PopOldValues() map[string]interface{} {
 }
 
 // GetOldValue retrieves an old value by name from the current old values map.
-// This is used for 'old' expressions in postconditions.
-// Returns the value and true if found, nil and false otherwise.
-func (ctx *ExecutionContext) GetOldValue(name string) (interface{}, bool) {
+func (ctx *ExecutionContext) GetOldValue(name string) (any, bool) {
 	if len(ctx.oldValuesStack) == 0 {
 		return nil, false
 	}
@@ -365,11 +339,9 @@ func (ctx *ExecutionContext) GetOldValue(name string) (interface{}, bool) {
 }
 
 // Clone creates a shallow copy of the execution context.
-// This is useful when you need to fork execution (e.g., for parallel evaluation).
 // Note: The environment, call stack, and control flow are shared references.
 func (ctx *ExecutionContext) Clone() *ExecutionContext {
-	// Clone the envStack slice
-	envStackCopy := make([]*runtime.Environment, len(ctx.envStack))
+	envStackCopy := make([]*Environment, len(ctx.envStack))
 	copy(envStackCopy, ctx.envStack)
 
 	return &ExecutionContext{
@@ -383,187 +355,31 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		propContext:       ctx.propContext,
 		recordTypeContext: ctx.recordTypeContext,
 		arrayTypeContext:  ctx.arrayTypeContext,
-		evaluator:         ctx.evaluator,
 		exceptionGetter:   ctx.exceptionGetter,
 		exceptionSetter:   ctx.exceptionSetter,
+		refCountManager:   ctx.refCountManager,
 	}
 }
 
 // Reset clears the execution context state for reuse.
-// This is useful when you want to reset the context without creating a new one.
 func (ctx *ExecutionContext) Reset() {
-	ctx.envStack = make([]*runtime.Environment, 0)
+	ctx.envStack = make([]*Environment, 0)
 	ctx.callStack.Clear()
 	ctx.controlFlow.Clear()
 	ctx.exception = nil
 	ctx.handlerException = nil
-	ctx.oldValuesStack = make([]map[string]interface{}, 0)
+	ctx.oldValuesStack = make([]map[string]any, 0)
 	ctx.propContext = NewPropertyEvalContext()
+	ctx.recordTypeContext = ""
+	ctx.arrayTypeContext = nil
 }
 
-// SetEvaluator sets the evaluator reference in the execution context.
-// Enables access to RefCountManager from assignment helpers.
-func (ctx *ExecutionContext) SetEvaluator(evaluator *Evaluator) {
-	ctx.evaluator = evaluator
+// SetRefCountManager attaches a RefCountManager used by assignment helpers.
+func (ctx *ExecutionContext) SetRefCountManager(mgr RefCountManager) {
+	ctx.refCountManager = mgr
 }
 
-// RefCountManager returns the reference counting manager from the evaluator.
-// Enables assignment helpers to manage object lifecycles.
-func (ctx *ExecutionContext) RefCountManager() runtime.RefCountManager {
-	if ctx.evaluator != nil {
-		return ctx.evaluator.RefCountManager()
-	}
-	return nil
-}
-
-// ============================================================================
-// Context Interface Implementation
-// ============================================================================
-
-// ============================================================================
-// Error & Core State Methods
-// ============================================================================
-
-// NewError creates an error value with location information from the current node.
-func (e *Evaluator) NewError(format string, args ...interface{}) Value {
-	return e.newError(e.currentNode, format, args...)
-}
-
-// Note: CurrentNode() is already implemented in evaluator.go:1053
-
-// RandSource returns the random number generator for built-in functions.
-func (e *Evaluator) RandSource() *rand.Rand {
-	return e.rand
-}
-
-// ============================================================================
-// Random Number Methods
-// ============================================================================
-
-// GetRandSeed returns the current random number generator seed value.
-func (e *Evaluator) GetRandSeed() int64 {
-	return e.randSeed
-}
-
-// SetRandSeed sets the random number generator seed.
-func (e *Evaluator) SetRandSeed(seed int64) {
-	e.randSeed = seed
-	e.rand.Seed(seed)
-}
-
-// ============================================================================
-// I/O Methods
-// ============================================================================
-
-// Write outputs a string to the configured output writer without a newline.
-func (e *Evaluator) Write(s string) {
-	if e.output != nil {
-		io.WriteString(e.output, s)
-	}
-}
-
-// WriteLine outputs a string to the configured output writer with a newline.
-func (e *Evaluator) WriteLine(s string) {
-	if e.output != nil {
-		fmt.Fprintln(e.output, s)
-	}
-}
-
-// ============================================================================
-// Value Inspection Method
-// ============================================================================
-
-// IsAssigned checks if a Variant value has been assigned (is not uninitialized).
-func (e *Evaluator) IsAssigned(value Value) bool {
-	// Check if it's nil
-	if value == nil {
-		return false
-	}
-
-	// Check if it's an InterfaceInstance
-	if intfVal, ok := value.(*runtime.InterfaceInstance); ok {
-		// Interface is assigned if its Object field is not nil
-		return intfVal.Object != nil
-	}
-
-	// Check if it's a VariantWrapper (runtime.VariantWrapper interface)
-	if wrapper, ok := value.(runtime.VariantWrapper); ok {
-		unwrapped := wrapper.UnwrapVariant()
-		// Uninitialized variants unwrap to nil
-		return unwrapped != nil
-	}
-
-	// Non-variant values are always considered assigned
-	return true
-}
-
-// ============================================================================
-// Call Stack Methods
-// ============================================================================
-
-// GetCallStackString returns a formatted string representation of the current call stack.
-func (e *Evaluator) GetCallStackString() string {
-	if e.currentContext == nil {
-		return ""
-	}
-	return e.currentContext.GetCallStack().String()
-}
-
-// GetCallStackArray returns the current call stack as an array of records.
-func (e *Evaluator) GetCallStackArray() Value {
-	// Handle nil context
-	if e.currentContext == nil {
-		return &runtime.ArrayValue{
-			Elements:  []runtime.Value{},
-			ArrayType: types.NewDynamicArrayType(types.VARIANT),
-		}
-	}
-
-	// Get frames from call stack
-	frames := e.currentContext.GetCallStack().Frames()
-	elements := make([]runtime.Value, len(frames))
-
-	for idx, frame := range frames {
-		// Create a record with FunctionName, Line, Column fields
-		fields := make(map[string]runtime.Value)
-		fields["FunctionName"] = &runtime.StringValue{Value: frame.FunctionName}
-
-		// Extract line and column from Position
-		if frame.Position != nil {
-			fields["Line"] = &runtime.IntegerValue{Value: int64(frame.Position.Line)}
-			fields["Column"] = &runtime.IntegerValue{Value: int64(frame.Position.Column)}
-		} else {
-			fields["Line"] = &runtime.IntegerValue{Value: 0}
-			fields["Column"] = &runtime.IntegerValue{Value: 0}
-		}
-
-		elements[idx] = &runtime.RecordValue{
-			Fields:     fields,
-			RecordType: nil, // Anonymous record (no type metadata needed)
-		}
-	}
-
-	// Create and return the array
-	return &runtime.ArrayValue{
-		Elements:  elements,
-		ArrayType: types.NewDynamicArrayType(types.VARIANT),
-	}
-}
-
-// ============================================================================
-// Exception Raising Methods
-// ============================================================================
-
-// RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
-func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
-	e.exceptionMgr.RaiseAssertionFailed(customMessage)
-}
-
-// ============================================================================
-// Function Pointer Execution
-// ============================================================================
-
-// EvalFunctionPointer executes a function pointer with given arguments.
-func (e *Evaluator) EvalFunctionPointer(funcPtr Value, args []Value) Value {
-	return e.oopEngine.CallFunctionPointer(funcPtr, args, e.currentNode)
+// RefCountManager returns the attached reference counting manager (if any).
+func (ctx *ExecutionContext) RefCountManager() RefCountManager {
+	return ctx.refCountManager
 }

@@ -3,7 +3,7 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/astutil"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -686,7 +686,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 // evalIndexAssignment handles array index assignment: arr[i] := value
 func (i *Interpreter) evalIndexAssignment(target *ast.IndexExpression, value Value, stmt *ast.AssignmentStatement) Value {
 	// Check for multi-index property write (only for property access, not regular arrays)
-	base, indices := evaluator.CollectIndices(target)
+	base, indices := astutil.CollectIndices(target)
 
 	// Handle indexed property write: obj.Property[index1, index2, ...] := value
 	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {

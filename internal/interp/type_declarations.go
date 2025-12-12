@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -156,16 +155,16 @@ func (i *Interpreter) AddHelperProperty(helper interface{}, prop *ast.PropertyDe
 }
 
 // AddHelperClassVar adds a class variable to the helper.
-func (i *Interpreter) AddHelperClassVar(helper interface{}, name string, value evaluator.Value) {
+func (i *Interpreter) AddHelperClassVar(helper interface{}, name string, value Value) {
 	if h, ok := helper.(*HelperInfo); ok {
-		h.ClassVars[ident.Normalize(name)] = value.(Value)
+		h.ClassVars[ident.Normalize(name)] = value
 	}
 }
 
 // AddHelperClassConst adds a class constant to the helper.
-func (i *Interpreter) AddHelperClassConst(helper interface{}, name string, value evaluator.Value) {
+func (i *Interpreter) AddHelperClassConst(helper interface{}, name string, value Value) {
 	if h, ok := helper.(*HelperInfo); ok {
-		h.ClassConsts[ident.Normalize(name)] = value.(Value)
+		h.ClassConsts[ident.Normalize(name)] = value
 	}
 }
 
@@ -179,7 +178,7 @@ func (i *Interpreter) RegisterHelperLegacy(typeName string, helper interface{}) 
 // ===== Type System Adapters =====
 
 // WrapInSubrange wraps an integer value in a subrange type with validation.
-func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName string, node ast.Node) (evaluator.Value, error) {
+func (i *Interpreter) WrapInSubrange(value Value, subrangeTypeName string, node ast.Node) (Value, error) {
 	subrangeType := i.typeSystem.LookupSubrangeType(subrangeTypeName)
 	if subrangeType == nil {
 		return nil, fmt.Errorf("subrange type '%s' not found", subrangeTypeName)
@@ -207,7 +206,7 @@ func (i *Interpreter) WrapInSubrange(value evaluator.Value, subrangeTypeName str
 }
 
 // WrapInInterface wraps an object value in an interface instance.
-func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName string, node ast.Node) (evaluator.Value, error) {
+func (i *Interpreter) WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error) {
 	ifaceInfo := i.lookupInterfaceInfo(interfaceName)
 	if ifaceInfo == nil {
 		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
@@ -239,7 +238,7 @@ func (i *Interpreter) WrapInInterface(value evaluator.Value, interfaceName strin
 }
 
 // ExecuteRecordPropertyRead executes a record property getter method.
-func (i *Interpreter) ExecuteRecordPropertyRead(record evaluator.Value, propInfoAny any, indices []evaluator.Value, node any) evaluator.Value {
+func (i *Interpreter) ExecuteRecordPropertyRead(record Value, propInfoAny any, indices []Value, node any) Value {
 	recordVal, ok := record.(*RecordValue)
 	if !ok {
 		return &ErrorValue{Message: "ExecuteRecordPropertyRead expects RecordValue"}
@@ -736,7 +735,7 @@ func (i *Interpreter) RegisterClassInTypeSystem(classInfo interface{}, parentNam
 }
 
 // AddClassConstant registers a class constant and its evaluated value.
-func (i *Interpreter) AddClassConstant(classInfo interface{}, constDecl *ast.ConstDecl, value evaluator.Value) {
+func (i *Interpreter) AddClassConstant(classInfo interface{}, constDecl *ast.ConstDecl, value Value) {
 	ci, ok := classInfo.(*ClassInfo)
 	if !ok || constDecl == nil {
 		return
@@ -756,13 +755,13 @@ func (i *Interpreter) AddClassConstant(classInfo interface{}, constDecl *ast.Con
 }
 
 // GetClassConstantValues returns a copy of evaluated class constants.
-func (i *Interpreter) GetClassConstantValues(classInfo interface{}) map[string]evaluator.Value {
+func (i *Interpreter) GetClassConstantValues(classInfo interface{}) map[string]Value {
 	ci, ok := classInfo.(*ClassInfo)
 	if !ok {
 		return nil
 	}
 
-	result := make(map[string]evaluator.Value, len(ci.ConstantValues))
+	result := make(map[string]Value, len(ci.ConstantValues))
 	for name, val := range ci.ConstantValues {
 		result[name] = val
 	}
@@ -821,7 +820,7 @@ func (i *Interpreter) AddClassField(classInfo interface{}, fieldDecl *ast.FieldD
 }
 
 // AddClassVar registers a class variable (static field) with its value.
-func (i *Interpreter) AddClassVar(classInfo interface{}, name string, value evaluator.Value) {
+func (i *Interpreter) AddClassVar(classInfo interface{}, name string, value Value) {
 	ci, ok := classInfo.(*ClassInfo)
 	if !ok {
 		return
@@ -854,7 +853,7 @@ func (i *Interpreter) AddNestedClass(parentClass interface{}, nestedName string,
 // ===== Helper Property Adapter =====
 
 // EvalBuiltinHelperProperty evaluates a built-in helper property.
-func (i *Interpreter) EvalBuiltinHelperProperty(propSpec string, selfValue evaluator.Value, node ast.Node) evaluator.Value {
+func (i *Interpreter) EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
 	val, ok := selfValue.(Value)
 	if !ok {
 		return i.newErrorWithLocation(node, "invalid value type for built-in property")
@@ -865,7 +864,7 @@ func (i *Interpreter) EvalBuiltinHelperProperty(propSpec string, selfValue evalu
 // ===== Class Property Adapter =====
 
 // EvalClassPropertyRead evaluates a class property read operation.
-func (i *Interpreter) EvalClassPropertyRead(classInfoAny any, propInfoAny any, node ast.Node) evaluator.Value {
+func (i *Interpreter) EvalClassPropertyRead(classInfoAny any, propInfoAny any, node ast.Node) Value {
 	classInfo, ok := classInfoAny.(*ClassInfo)
 	if !ok {
 		return i.newErrorWithLocation(node, "invalid class info type for class property read")
@@ -878,7 +877,7 @@ func (i *Interpreter) EvalClassPropertyRead(classInfoAny any, propInfoAny any, n
 }
 
 // EvalClassPropertyWrite evaluates a class property write operation.
-func (i *Interpreter) EvalClassPropertyWrite(classInfoAny any, propInfoAny any, value evaluator.Value, node ast.Node) evaluator.Value {
+func (i *Interpreter) EvalClassPropertyWrite(classInfoAny any, propInfoAny any, value Value, node ast.Node) Value {
 	classInfo, ok := classInfoAny.(*ClassInfo)
 	if !ok {
 		return i.newErrorWithLocation(node, "invalid class info type for class property write")

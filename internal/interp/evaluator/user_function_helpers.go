@@ -3,6 +3,7 @@ package evaluator
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -63,7 +64,7 @@ func (e *Evaluator) EvaluateDefaultParameters(
 }
 
 // ImplicitConversionFunc is a callback type for implicit type conversion.
-type ImplicitConversionFunc func(value Value, targetTypeName string) (Value, bool)
+type ImplicitConversionFunc = contracts.ImplicitConversionFunc
 
 // BindFunctionParameters binds function parameters to arguments with implicit conversion.
 // Var (ByRef) parameters skip conversion to preserve ReferenceValue.
@@ -100,11 +101,11 @@ func (e *Evaluator) BindFunctionParameters(
 }
 
 // DefaultValueFunc is a callback type for getting the default value for a return type.
-type DefaultValueFunc func(returnTypeName string) Value
+type DefaultValueFunc = contracts.DefaultValueFunc
 
 // FunctionNameAliasFunc is a callback type for creating the function name alias.
 // In DWScript, assigning to either Result or the function name sets the return value.
-type FunctionNameAliasFunc func(funcName string, funcEnv *runtime.Environment) Value
+type FunctionNameAliasFunc = contracts.FunctionNameAliasFunc
 
 // InitializeResultVariable initializes the Result variable for functions (not procedures).
 // Creates function name alias to point to Result.
@@ -171,27 +172,19 @@ func (e *Evaluator) CaptureOldValues(
 }
 
 // CleanupInterfaceReferencesFunc is a callback type for cleaning up interface references.
-type CleanupInterfaceReferencesFunc func(env *runtime.Environment)
+type CleanupInterfaceReferencesFunc = contracts.CleanupInterfaceReferencesFunc
 
 // TryImplicitConversionReturnFunc is a callback type for implicit return type conversion.
-type TryImplicitConversionReturnFunc func(returnValue Value, expectedReturnType string) (Value, bool)
+type TryImplicitConversionReturnFunc = contracts.TryImplicitConversionReturnFunc
 
 // IncrementInterfaceRefCountFunc is a callback type for incrementing interface reference counts.
-type IncrementInterfaceRefCountFunc func(returnValue Value)
+type IncrementInterfaceRefCountFunc = contracts.IncrementInterfaceRefCountFunc
 
 // EnvSyncerFunc syncs interpreter's environment with evaluator's function environment.
-type EnvSyncerFunc func(funcEnv *runtime.Environment) func()
+type EnvSyncerFunc = contracts.EnvSyncerFunc
 
 // UserFunctionCallbacks holds all callback functions needed for user function execution.
-type UserFunctionCallbacks struct {
-	ImplicitConversion   ImplicitConversionFunc
-	DefaultValueGetter   DefaultValueFunc
-	FunctionNameAlias    FunctionNameAliasFunc
-	ReturnValueConverter TryImplicitConversionReturnFunc
-	InterfaceRefCounter  IncrementInterfaceRefCountFunc
-	InterfaceCleanup     CleanupInterfaceReferencesFunc
-	EnvSyncer            EnvSyncerFunc
-}
+type UserFunctionCallbacks = contracts.UserFunctionCallbacks
 
 // ExecuteUserFunction executes a user-defined function with all necessary setup and cleanup.
 // Handles parameter binding, result initialization, preconditions, body execution,
@@ -239,22 +232,11 @@ func (e *Evaluator) ExecuteUserFunction(
 	// Create new environment for function scope
 	funcEnv := runtime.NewEnclosedEnvironment(ctx.Env())
 
-	// Create new context with function environment
-	funcCtx := &ExecutionContext{
-		env:               funcEnv,
-		exception:         ctx.exception,
-		handlerException:  ctx.handlerException,
-		callStack:         ctx.callStack,
-		controlFlow:       ctx.controlFlow,
-		propContext:       ctx.propContext,
-		arrayTypeContext:  ctx.arrayTypeContext,
-		evaluator:         ctx.evaluator,
-		recordTypeContext: ctx.recordTypeContext,
-		envStack:          ctx.envStack,
-		oldValuesStack:    ctx.oldValuesStack,
-		exceptionGetter:   ctx.exceptionGetter,
-		exceptionSetter:   ctx.exceptionSetter,
-	}
+	// Create new context with function environment.
+	// Clone preserves shared execution state (call stack, control flow, exception callbacks)
+	// while allowing the environment to be swapped for the function scope.
+	funcCtx := ctx.Clone()
+	funcCtx.SetEnv(funcEnv)
 
 	// Check recursion depth
 	if funcCtx.GetCallStack().WillOverflow() {
@@ -361,15 +343,9 @@ func (e *Evaluator) ExecuteUserFunction(
 	var returnValue Value
 	if fn.ReturnType != nil {
 		// Get Result from function environment
-		resultValInterface, resultOk := funcEnv.Get("Result")
-		// Debug: Check what we got
+		resultVal, resultOk := funcEnv.Get("Result")
 		if resultOk {
-			// Convert interface{} to Value
-			if val, ok := resultValInterface.(Value); ok {
-				returnValue = val
-			} else {
-				returnValue = &runtime.NilValue{}
-			}
+			returnValue = resultVal
 		} else {
 			returnValue = &runtime.NilValue{}
 		}

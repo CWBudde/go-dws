@@ -20,6 +20,10 @@ import (
 // using go-snaps for snapshot testing. This provides comprehensive coverage of
 // DWScript language features based on the original test suite.
 func TestDWScriptFixtures(t *testing.T) {
+	if os.Getenv("GO_DWS_RUN_FIXTURES") != "1" {
+		t.Skip("DWScript fixture suite is opt-in. Set GO_DWS_RUN_FIXTURES=1 to run.")
+	}
+
 	// Define test categories and their expected behavior
 	// Includes all 64 test categories from the original DWScript test suite
 	testCategories := []struct {

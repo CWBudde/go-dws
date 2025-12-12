@@ -3,7 +3,7 @@ package interp
 import (
 	"testing"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -26,7 +26,7 @@ func TestPropertyAccessor_ObjectInstance(t *testing.T) {
 	obj := NewObjectInstance(class)
 
 	// Verify it implements PropertyAccessor
-	var accessor evaluator.PropertyAccessor = obj
+	var accessor runtime.PropertyAccessor = obj
 
 	// Test LookupProperty
 	desc := accessor.LookupProperty("TestProp")
@@ -87,7 +87,7 @@ func TestPropertyAccessor_InterfaceInstance(t *testing.T) {
 	intfInst := NewInterfaceInstance(iface, obj)
 
 	// Verify it implements PropertyAccessor
-	var accessor evaluator.PropertyAccessor = intfInst
+	var accessor runtime.PropertyAccessor = intfInst
 
 	// Test LookupProperty
 	desc := accessor.LookupProperty("TestProp")
@@ -136,7 +136,7 @@ func TestPropertyAccessor_RecordValue(t *testing.T) {
 	}
 
 	// Verify it implements PropertyAccessor
-	var accessor evaluator.PropertyAccessor = record
+	var accessor runtime.PropertyAccessor = record
 
 	// Test LookupProperty
 	desc := accessor.LookupProperty("TestProp")
@@ -180,7 +180,7 @@ func TestPropertyAccessor_CaseInsensitive(t *testing.T) {
 	}
 
 	obj := NewObjectInstance(class)
-	var accessor evaluator.PropertyAccessor = obj
+	var accessor runtime.PropertyAccessor = obj
 
 	// Test various case variations
 	testCases := []string{"MyProperty", "myproperty", "MYPROPERTY", "myProperty", "MyPrOpErTy"}

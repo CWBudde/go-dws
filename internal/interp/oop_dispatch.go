@@ -3,7 +3,7 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/evaluator"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -11,7 +11,7 @@ import (
 // ===== Method and Qualified Call Methods =====
 
 // CallQualifiedOrConstructor calls a unit-qualified function or class constructor.
-func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) evaluator.Value {
+func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value {
 	// This method encapsulates the complex logic from evalCallExpression lines 122-201
 
 	// Check if the left side is a unit identifier (for qualified access: UnitName.FunctionName)
@@ -92,10 +92,9 @@ func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, m
 
 // CallMethod calls a method on objects (record, interface, or object instance).
 // This is the primary adapter method for method dispatch from the evaluator.
-func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []evaluator.Value, node ast.Node) evaluator.Value {
-	// Convert to internal types
-	internalObj := obj.(Value)
-	internalArgs := convertEvaluatorArgs(args)
+func (i *Interpreter) CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value {
+	internalObj := obj
+	internalArgs := args
 
 	// Handle CLASS_INFO values (class method calls)
 	// Pattern: ClassInfoValue.Method() where Self is already a ClassInfoValue
@@ -309,6 +308,61 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		return newInstance
 	}
 
+	// Handle RECORD_TYPE values (static record method calls)
+	// Pattern: TRecord.Method(args)
+	if recTypeVal, ok := internalObj.(*runtime.RecordTypeValue); ok {
+		methodNameLower := ident.Normalize(methodName)
+
+		// Check for static method (ClassMethods in RecordTypeValue)
+		// Note: We use the primary map for now; overloads handled if multiple exist
+		if classMethod, exists := recTypeVal.ClassMethods[methodNameLower]; exists {
+			// Execute static method
+			defer i.PushScope()()
+
+			// Bind constants and class variables
+			for constName, constValue := range recTypeVal.Constants {
+				i.Env().Define(constName, constValue)
+			}
+			for varName, varValue := range recTypeVal.ClassVars {
+				i.Env().Define(varName, varValue)
+			}
+
+			// Check recursion depth
+			if i.ctx.GetCallStack().WillOverflow() {
+				return i.raiseMaxRecursionExceeded()
+			}
+
+			// Push to call stack
+			fullMethodName := recTypeVal.GetRecordTypeName() + "." + methodName
+			i.pushCallStack(fullMethodName)
+			defer i.popCallStack()
+
+			// Bind parameters
+			for idx, param := range classMethod.Parameters {
+				arg := internalArgs[idx]
+				if param.Type != nil {
+					paramTypeName := param.Type.String()
+					if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+						arg = converted
+					}
+				}
+				i.Env().Define(param.Name.Value, arg)
+			}
+
+			// Initialize Result for functions
+			if classMethod.ReturnType != nil {
+				returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
+				defaultVal := i.getDefaultValue(returnType)
+				i.Env().Define("Result", defaultVal)
+				i.Env().Define(classMethod.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
+			}
+
+			return i.executeUserFunctionViaEvaluator(classMethod, internalArgs)
+		}
+
+		return newError("static method '%s' not found in record type '%s'", methodName, recTypeVal.GetRecordTypeName())
+	}
+
 	// Handle INTERFACE values (interface method calls)
 	// Pattern: intf.Method(args) where intf is an interface instance
 	if intfInst, ok := internalObj.(*InterfaceInstance); ok {
@@ -475,10 +529,9 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 }
 
 // CallInheritedMethod executes an inherited (parent) method with the given arguments.
-func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string, args []evaluator.Value) evaluator.Value {
-	// Convert to internal types
-	internalObj := obj.(Value)
-	internalArgs := convertEvaluatorArgs(args)
+func (i *Interpreter) CallInheritedMethod(obj Value, methodName string, args []Value) Value {
+	internalObj := obj
+	internalArgs := args
 
 	// Get object instance
 	objVal, ok := internalObj.(*ObjectInstance)
@@ -517,16 +570,15 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 }
 
 // ExecuteMethodWithSelf executes a method with Self bound to the given object.
-func (i *Interpreter) ExecuteMethodWithSelf(self evaluator.Value, methodDecl any, args []evaluator.Value) evaluator.Value {
+func (i *Interpreter) ExecuteMethodWithSelf(self Value, methodDecl any, args []Value) Value {
 	// Type-assert method declaration
 	method, ok := methodDecl.(*ast.FunctionDecl)
 	if !ok {
 		return newError("invalid method declaration type")
 	}
 
-	// Convert to internal types
-	internalSelf := self.(Value)
-	internalArgs := convertEvaluatorArgs(args)
+	internalSelf := self
+	internalArgs := args
 
 	// Call the method using existing infrastructure
 	defer i.PushScope()()
