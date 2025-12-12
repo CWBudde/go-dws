@@ -64,13 +64,10 @@ func isTruthy(val Value) bool {
 	case *BooleanValue:
 		return v.Value
 	case *VariantValue:
-		// Task 9.35: Variant→Boolean coercion
-		// Unwrap the variant and check the underlying value
+		// Variant→Boolean coercion: unassigned → false
 		if v.Value == nil {
-			// Unassigned variant → false
 			return false
 		}
-		// Recursively check the wrapped value
 		return variantToBool(v.Value)
 	default:
 		// In DWScript, only booleans and variants can be used in conditions
@@ -80,8 +77,8 @@ func isTruthy(val Value) bool {
 	}
 }
 
-// variantToBool converts a variant's wrapped value to boolean following DWScript semantics.
-// Task 9.35: empty/nil/zero → false, otherwise → true
+// variantToBool converts a variant's wrapped value to boolean.
+// DWScript semantics: empty/nil/zero → false, otherwise → true
 func variantToBool(val Value) bool {
 	if val == nil {
 		return false
@@ -308,12 +305,10 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 			continue
 		}
 
-		// Find the operator entry that matches
 		// Convert arg values to type strings for lookup using valueTypeKey
-		// to match the format used during operator registration
-		// Task 9.14: When searching parent classes, use the parent class name for matching
+		// When searching parent classes, use the parent class name for matching
 		argTypes := make([]string, len(args)+1)           // +1 for the class instance itself
-		argTypes[0] = NormalizeTypeAnnotation(class.Name) // Use the current class being searched, not objInst.Class
+		argTypes[0] = NormalizeTypeAnnotation(class.Name) // Use the current class being searched
 		for idx, arg := range args {
 			argTypes[idx+1] = valueTypeKey(arg) // Use valueTypeKey for consistent type keys
 		}
@@ -327,7 +322,7 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 		var method *ast.FunctionDecl
 		var exists bool
 
-		// Task 9.16.2: Method names are case-insensitive, normalize to lowercase
+		// Method names are case-insensitive
 		normalizedBindingName := strings.ToLower(opEntry.BindingName)
 
 		if opEntry.IsClassMethod {
@@ -342,7 +337,6 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 		}
 
 		// Call the method with Self bound
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind Self to the object instance
@@ -353,8 +347,7 @@ func (i *Interpreter) tryCallClassOperator(objInst *ObjectInstance, opSymbol str
 			if idx < len(args) {
 				argValue := args[idx]
 
-				// Task 9.24.2: Convert array arguments to array of Variant if parameter is array of const
-				// P1: Resolve type aliases before checking (e.g., "toa" -> "array of const")
+				// Convert array arguments to array of Variant if parameter is array of const
 				if param.Type != nil {
 					typeName := param.Type.String()
 					// Resolve potential type aliases (same pattern as registerClassOperator)

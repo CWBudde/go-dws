@@ -183,7 +183,6 @@ func (i *Interpreter) evalNewExpression(ne *ast.NewExpression) Value {
 		}
 
 		// Create method environment with Self bound to object
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind Self to the object

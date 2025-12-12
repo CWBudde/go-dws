@@ -329,8 +329,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 	// Try each handler in order
 	for _, handler := range clause.Handlers {
 		if i.matchesExceptionType(exc, handler.ExceptionType) {
-			// Create new scope for exception variable - Phase 3.1.4: unified scope management
-			// Note: Using explicit cleanup because we need precise control over scope lifecycle
+			// Create new scope for exception variable (explicit cleanup for precise scope control)
 			cleanup := i.PushScope()
 
 			// Bind exception variable

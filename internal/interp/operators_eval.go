@@ -63,7 +63,6 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 		return i.newErrorWithLocation(node, "method '%s' expects %d arguments, got %d", methodName, len(method.Parameters), len(args))
 	}
 
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	i.Env().Define("Self", obj)
@@ -113,7 +112,6 @@ func (i *Interpreter) invokeClassOperatorMethod(classInfo *ClassInfo, methodName
 		return i.newErrorWithLocation(node, "class method '%s' expects %d arguments, got %d", methodName, len(method.Parameters), len(args))
 	}
 
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})

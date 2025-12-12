@@ -5,7 +5,6 @@ import (
 )
 
 // variant_ops.go contains Variant-specific binary operations.
-// Extracted from expressions_binary.go as part of Phase 3.8.4.2.
 
 // evalVariantBinaryOp evaluates binary operations on Variant values.
 //
@@ -15,10 +14,8 @@ import (
 //   - Support string concatenation with + operator
 //   - Raise runtime error if types are incompatible
 func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast.Node) Value {
-	// Task 9.4.3: Check if either operand is an uninitialized Variant (before unwrapping)
-	// An uninitialized variant is a VariantValue with Value == nil.
-	// After unwrapping via unwrapVariant(), this nil becomes an UnassignedValue object.
-	// This is distinct from a VariantValue explicitly containing an UnassignedValue/NullValue/NilValue.
+	// Check if either operand is an uninitialized Variant (before unwrapping).
+	// An uninitialized variant (Value == nil) is distinct from explicitly assigned Null/Unassigned.
 	leftUnassignedVariant := false
 	rightUnassignedVariant := false
 	if leftVar, ok := left.(*VariantValue); ok && leftVar.Value == nil {
@@ -32,7 +29,7 @@ func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast
 	leftVal := unwrapVariant(left)
 	rightVal := unwrapVariant(right)
 
-	// Task 9.4.1: Check for Null/Unassigned/Nil values (after unwrapping)
+	// Check for Null/Unassigned/Nil values (after unwrapping)
 	_, leftIsNil := leftVal.(*NilValue)
 	_, rightIsNil := rightVal.(*NilValue)
 	_, leftIsNull := leftVal.(*NullValue)
@@ -43,13 +40,9 @@ func (i *Interpreter) evalVariantBinaryOp(op string, left, right Value, node ast
 	leftIsNullish := leftIsNil || leftIsNull || leftIsUnassigned
 	rightIsNullish := rightIsNil || rightIsNull || rightIsUnassigned
 
-	// For comparison operators
-	// Task 9.4.3: Complex comparison semantics for Null/Unassigned variants:
-	// - Uninitialized variant (VariantValue with Value==nil): equals falsey values (0, false, '', etc.)
-	//   and also equals other nullish values (Unassigned, Null, Nil).
-	// - Explicit Unassigned/Null/Nil value: only equals other nullish values (Unassigned, Null, Nil),
-	//   does NOT equal falsey values.
-	//   Example: var v: Variant; (uninitialized) will equal 0, but var v: Variant := Unassigned; (explicitly assigned) will NOT equal 0.
+	// Comparison semantics for Null/Unassigned variants:
+	// - Uninitialized variant (Value==nil): equals falsey values and other nullish values
+	// - Explicit Unassigned/Null/Nil: only equals other nullish values, NOT falsey values
 	if op == "=" || op == "<>" {
 		// Case 1: Both are nullish (Null/nil/Unassigned) or unassigned variants -> equal
 		if (leftIsNullish || leftUnassignedVariant) && (rightIsNullish || rightUnassignedVariant) {
@@ -156,11 +149,7 @@ func (i *Interpreter) convertToString(val Value) string {
 
 // isFalsey checks if a value is considered "falsey" (default/zero value for its type).
 // Falsey values: 0 (integer), 0.0 (float), "" (empty string), false (boolean), nil, empty arrays.
-//
-// NOTE: This is a legacy version kept for compatibility with variant_ops.go.
-// New code should use evaluator.IsFalsey() instead.
 func isFalsey(val Value) bool {
-	// Task 9.4.4: Handle nil (from unassigned variants)
 	if val == nil {
 		return true
 	}
@@ -177,16 +166,13 @@ func isFalsey(val Value) bool {
 	case *NilValue:
 		return true
 	case *NullValue:
-		// Task 9.4.1: Null is always falsey
 		return true
 	case *UnassignedValue:
-		// Task 9.4.1: Unassigned is always falsey
 		return true
 	case *ArrayValue:
 		return len(v.Elements) == 0
 	case *VariantValue:
-		// Task 9.4.4: Unwrap variant and check inner value
-		// If variant.Value is nil, the nil check above will return true
+		// Unwrap variant and check inner value
 		return isFalsey(v.Value)
 	default:
 		// Other types (objects, classes, etc.) are truthy if non-nil

@@ -20,8 +20,8 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		return &ErrorValue{Message: "nil set literal"}
 	}
 
-	// Task 9.156: Check if this SetLiteral should be treated as an array (array of const)
-	// This happens when semantic analyzer determined it's used in array context
+	// Check if this SetLiteral should be treated as an array (array of const)
+	// when semantic analyzer determined it's used in array context
 	var typeAnnot *ast.TypeAnnotation
 	if i.evaluatorInstance.SemanticInfo() != nil {
 		typeAnnot = i.evaluatorInstance.SemanticInfo().GetType(literal)
@@ -60,8 +60,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		}
 	}
 
-	// Task 9.8/9.226: Evaluate all elements and determine the ordinal type
-	// Use a temporary map to collect ordinals, then populate the correct storage
+	// Evaluate all elements and determine the ordinal type
 	var elementType types.Type
 	var enumType *types.EnumType   // For enum-specific handling
 	ordinals := make(map[int]bool) // Temporary collection of ordinals
@@ -244,7 +243,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		}
 	}
 
-	// Task 9.8/9.226: Create the SetType (automatically selects storage strategy)
+	// Create the SetType (automatically selects storage strategy)
 	var setType *types.SetType
 	if annotatedSetType != nil {
 		setType = annotatedSetType
@@ -252,7 +251,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 		setType = types.NewSetType(elementType)
 	}
 
-	// Task 9.8: Create SetValue and populate the correct storage backend
+	// Create SetValue and populate the correct storage backend
 	setValue := NewSetValue(setType)
 
 	// Populate storage based on strategy
@@ -288,7 +287,7 @@ func (i *Interpreter) evalSetLiteral(literal *ast.SetLiteral) Value {
 
 // evalBinarySetOperation evaluates binary operations on sets.
 // Supported operations: + (union), - (difference), * (intersection)
-// Task 9.8: Supports both bitmask and map storage.
+// Supports both bitmask and map storage.
 func (i *Interpreter) evalBinarySetOperation(left, right *SetValue, operator string) Value {
 	if left == nil || right == nil {
 		return &ErrorValue{Message: "nil set operand"}
@@ -376,7 +375,6 @@ func (i *Interpreter) evalBinarySetOperation(left, right *SetValue, operator str
 
 // evalSetMembership evaluates the 'in' operator for sets.
 // Returns true if the element is in the set, false otherwise.
-// Task 9.226: Generalized to accept any ordinal value.
 func (i *Interpreter) evalSetMembership(element Value, ordinal int, set *SetValue) Value {
 	if element == nil || set == nil {
 		return &ErrorValue{Message: "nil operand in membership test"}
@@ -408,7 +406,6 @@ func (i *Interpreter) evalSetMembership(element Value, ordinal int, set *SetValu
 
 // evalSetInclude implements the Include method for sets.
 // This mutates the set by adding the element.
-// Task 9.226: Generalized to accept any ordinal value.
 func (i *Interpreter) evalSetInclude(set *SetValue, element Value) Value {
 	if set == nil || element == nil {
 		return &ErrorValue{Message: "nil operand in Include"}
@@ -442,7 +439,6 @@ func (i *Interpreter) evalSetInclude(set *SetValue, element Value) Value {
 
 // evalSetExclude implements the Exclude method for sets.
 // This mutates the set by removing the element.
-// Task 9.226: Generalized to accept any ordinal value.
 func (i *Interpreter) evalSetExclude(set *SetValue, element Value) Value {
 	if set == nil || element == nil {
 		return &ErrorValue{Message: "nil operand in Exclude"}

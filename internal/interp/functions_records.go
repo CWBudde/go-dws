@@ -71,11 +71,8 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 			methodName, len(method.Parameters), len(args))
 	}
 
-	// Create method environment with Self bound to the record
-	// IMPORTANT: Records are value types, so we need to work with a copy
-	// For mutating methods, we'll need to copy back changes to the original
-	// Phase 3.1.4: unified scope management
-	// Note: Using explicit cleanup instead of defer because we need to write to outer scope after pop
+	// Create method environment with Self bound to the record.
+	// Records are value types, so we work with a copy (explicit cleanup for outer scope write).
 	cleanup := i.PushScope()
 
 	// Make a copy of the record for the method execution
@@ -323,7 +320,6 @@ func (i *Interpreter) callRecordStaticMethod(rtv *RecordTypeValue, method *ast.F
 	}
 
 	// Create method environment (NO Self binding for static methods)
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	// Check recursion depth before pushing to call stack

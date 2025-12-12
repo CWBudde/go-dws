@@ -6,7 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// Phase 3.5.4 - Phase 2A: Function call system adapter methods
+// Function call system adapter methods.
 // These methods implement the InterpreterAdapter interface for function calls.
 
 // convertEvaluatorArgs converts a slice of evaluator.Value to interp.Value.
@@ -63,7 +63,6 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata evaluator.FunctionPoin
 	// before calling ExecuteUserFunction. The function's enclosed environment
 	// will inherit Self from this wrapper.
 	if metadata.SelfObject != nil {
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind Self to the captured object

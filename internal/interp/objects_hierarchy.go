@@ -801,7 +801,6 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 		}
 
 		// Create method environment
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		i.Env().Define("Self", obj)
@@ -892,7 +891,6 @@ func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string
 	}
 
 	// Evaluate constant in temporary environment with other evaluated constants
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	for constName, constVal := range ownerClass.ConstantValues {

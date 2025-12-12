@@ -64,7 +64,6 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// 2. Try as a constant (case-insensitive, with lazy evaluation)
-		// Note: getClassConstant doesn't currently use the ma parameter for error reporting
 		concreteClass, ok := obj.Class.(*ClassInfo)
 		if ok {
 			if constValue := i.getClassConstant(concreteClass, propInfo.ReadSpec, nil); constValue != nil {
@@ -108,7 +107,6 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Call the getter method
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind Self to the object
@@ -191,9 +189,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 				propInfo.Name, propInfo.ReadSpec, len(method.Parameters), len(indexArgs))
 		}
 
-		// Call the getter method with no arguments
-		// Create method environment with Self bound to object
-		// Phase 3.1.4: unified scope management
+		// Call the getter method
 		defer i.PushScope()()
 
 		// Bind Self to the object
@@ -207,7 +203,6 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// For functions, initialize the Result variable
-		// Task 9.221: Use appropriate default value based on return type
 		if method.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
@@ -216,7 +211,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 			i.Env().Define(method.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
 		}
 
-		// Task 9.32c: Set flag to indicate we're inside a property getter
+		// Set flag to indicate we're inside a property getter
 		savedInGetter := i.propContext.InPropertyGetter
 		i.propContext.InPropertyGetter = true
 		defer func() {
@@ -255,7 +250,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		return returnValue
 
 	case types.PropAccessExpression:
-		// Task 9.3c: Expression access - evaluate expression in context of object
+		// Expression access - evaluate expression in context of object
 		// Retrieve the AST expression from PropertyInfo
 		if propInfo.ReadExpr == nil {
 			return i.newErrorWithLocation(node, "property '%s' has expression-based getter but no expression stored", propInfo.Name)
@@ -273,7 +268,6 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// Create new environment with Self bound to object
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind Self to the object instance
@@ -296,7 +290,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 }
 
 // evalClassPropertyRead evaluates a class property read operation: TClass.PropertyName
-// Task 9.13: Handles reading class (static) properties.
+// Handles reading class (static) properties.
 func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *types.PropertyInfo, node ast.Node) Value {
 	// Indexed properties must be accessed with index syntax
 	if propInfo.IsIndexed {
@@ -318,7 +312,6 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		}
 
 		// Call the class method getter
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind all class variables to environment so they can be accessed directly
@@ -374,7 +367,6 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 		}
 
 		// Create method environment (no Self binding for class methods)
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind all class variables to environment so they can be accessed directly
@@ -428,7 +420,7 @@ func (i *Interpreter) evalClassPropertyRead(classInfo *ClassInfo, propInfo *type
 }
 
 // evalClassPropertyWrite evaluates a class property write operation: TClass.PropertyName := value
-// Task 9.14: Handles writing to class (static) properties.
+// Handles writing to class (static) properties.
 func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *types.PropertyInfo, value Value, node ast.Node) Value {
 	// Indexed properties must be written with index syntax
 	if propInfo.IsIndexed {
@@ -456,7 +448,6 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 		}
 
 		// Call the class method setter
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind all class variables to environment so they can be accessed directly
@@ -489,7 +480,6 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 		}
 
 		// Create method environment (no Self binding for class methods)
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind all class variables to environment so they can be accessed directly
@@ -520,7 +510,6 @@ func (i *Interpreter) evalClassPropertyWrite(classInfo *ClassInfo, propInfo *typ
 }
 
 // evalIndexedPropertyRead evaluates an indexed property read operation: obj.Property[index]
-// Support indexed property reads end-to-end.
 // Calls the property getter method with index parameter(s).
 func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *types.PropertyInfo, indices []Value, node ast.Node) Value {
 	// Note: PropAccessKind is set to PropAccessField at registration time for both fields and methods
@@ -546,7 +535,6 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 				propInfo.Name, propInfo.ReadSpec, len(method.Parameters), len(indices))
 		}
 
-		// Create method environment - Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind Self to the object
@@ -560,7 +548,6 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 		}
 
 		// For functions, initialize the Result variable
-		// Task 9.221: Use appropriate default value based on return type
 		if method.ReturnType != nil {
 			returnType := i.resolveTypeFromAnnotation(method.ReturnType)
 			defaultVal := i.getDefaultValue(returnType)
@@ -610,7 +597,6 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 }
 
 // evalIndexedPropertyWrite evaluates an indexed property write operation: obj.Property[index] := value
-// Task 9.2b: Support indexed property writes.
 // Calls the property setter method with index parameter(s) followed by the value.
 func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *types.PropertyInfo, indices []Value, value Value, node ast.Node) Value {
 	// Note: PropAccessKind is set to PropAccessField at registration time for both fields and methods
@@ -636,7 +622,6 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 				propInfo.Name, propInfo.WriteSpec, expectedParamCount, len(method.Parameters))
 		}
 
-		// Create method environment - Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind Self to the object
@@ -673,21 +658,21 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 // evalPropertyWrite evaluates a property write access.
 // Handles field-backed and method-backed property setters.
 func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.PropertyInfo, value Value, node ast.Node) Value {
-	// Task 9.32c: Initialize property evaluation context if needed
+	// Initialize property evaluation context if needed
 	if i.propContext == nil {
 		i.propContext = &PropertyEvalContext{
 			PropertyChain: make([]string, 0),
 		}
 	}
 
-	// Task 9.32c: Check for circular property references
+	// Check for circular property references
 	for _, prop := range i.propContext.PropertyChain {
 		if prop == propInfo.Name {
 			return i.newErrorWithLocation(node, "circular property reference detected: %s", propInfo.Name)
 		}
 	}
 
-	// Task 9.32c: Push property onto chain
+	// Push property onto chain
 	i.propContext.PropertyChain = append(i.propContext.PropertyChain, propInfo.Name)
 	defer func() {
 		// Pop property from chain when done
@@ -729,7 +714,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 				propInfo.Name, propInfo.WriteSpec, len(method.Parameters), len(indexArgs))
 		}
 
-		// Call the setter method with the value as argument - Phase 3.1.4: unified scope management
+		// Call the setter method with the value as argument
 		defer i.PushScope()()
 
 		// Bind Self to the object
@@ -746,7 +731,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 			i.Env().Define(paramName, value)
 		}
 
-		// Task 9.32c: Set flag to indicate we're inside a property setter
+		// Set flag to indicate we're inside a property setter
 		savedInSetter := i.propContext.InPropertySetter
 		i.propContext.InPropertySetter = true
 		defer func() {
@@ -776,7 +761,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 		}
 
 		// Call the setter method with the value as argument
-		// Create method environment with Self bound to object - Phase 3.1.4: unified scope management
+		// Create method environment with Self bound to object
 		defer i.PushScope()()
 
 		// Bind Self to the object
@@ -792,7 +777,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 			i.Env().Define(method.Parameters[len(method.Parameters)-1].Name.Value, value)
 		}
 
-		// Task 9.32c: Set flag to indicate we're inside a property setter
+		// Set flag to indicate we're inside a property setter
 		savedInSetter := i.propContext.InPropertySetter
 		i.propContext.InPropertySetter = true
 		defer func() {

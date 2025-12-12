@@ -97,7 +97,6 @@ func (i *Interpreter) executeClassMethod(
 			mc.Method.Value, len(classMethod.Parameters), len(args))
 	}
 
-	// Create method environment - Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	// Check recursion depth before pushing to call stack
@@ -446,7 +445,6 @@ func (i *Interpreter) executeVirtualConstructor(
 	actualConstructor := i.findActualConstructor(concreteClass, mc.Method.Value, method)
 
 	newObj := NewObjectInstance(obj.Class)
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	i.Env().Define("Self", newObj)
 	i.bindClassConstantsToEnv(concreteClass)
@@ -499,7 +497,6 @@ func (i *Interpreter) executeResolvedMethod(
 	args []Value,
 	mc *ast.MethodCallExpression,
 ) Value {
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	if i.ctx.GetCallStack().WillOverflow() {
@@ -696,7 +693,6 @@ func (i *Interpreter) getDefaultValueForType(fieldType types.Type) Value {
 
 // executeConstructorBody executes the constructor body with the given instance and arguments.
 func (i *Interpreter) executeConstructorBody(runtimeClass *ClassInfo, constructor *ast.FunctionDecl, instance *ObjectInstance, args []Value) Value {
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	i.Env().Define("Self", instance)
 	i.bindClassConstantsToEnv(runtimeClass)
@@ -1010,7 +1006,6 @@ func (i *Interpreter) tryImplicitConstructor(
 	}
 
 	obj := NewObjectInstance(classInfo)
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	for constName, constValue := range classInfo.ConstantValues {
 		i.Env().Define(constName, constValue)
@@ -1085,7 +1080,6 @@ func (i *Interpreter) executeInstanceMethodOnClassName(
 func (i *Interpreter) createInstanceWithFieldInit(classInfo *ClassInfo) (*ObjectInstance, Value) {
 	obj := NewObjectInstance(classInfo)
 
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	for constName, constValue := range classInfo.ConstantValues {
 		i.Env().Define(constName, constValue)
@@ -1116,7 +1110,6 @@ func (i *Interpreter) evaluateFieldInitValue(classInfo *ClassInfo, fieldName str
 
 // executeMethodOnInstance executes a method on an existing instance with the given arguments.
 func (i *Interpreter) executeMethodOnInstance(classInfo *ClassInfo, method *ast.FunctionDecl, obj *ObjectInstance, args []Value) Value {
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	i.Env().Define("Self", obj)
 	i.bindClassConstantsToEnv(classInfo)

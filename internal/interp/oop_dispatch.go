@@ -139,7 +139,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		}
 
 		// Execute class method with Self bound to ClassInfoValue
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Check recursion depth
@@ -252,7 +251,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 			var defaultValue Value
 			if fieldDecl, hasDecl := runtimeClass.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
 				// Use field initializer
-				// Phase 3.1.4: unified scope management
 				func() {
 					defer i.PushScope()()
 					for constName, constValue := range runtimeClass.ConstantValues {
@@ -270,7 +268,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		}
 
 		// Execute constructor
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Check recursion depth
@@ -342,7 +339,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		}
 
 		// Call the method with Self bound to the underlying object (not the interface)
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 		i.Env().Define("Self", objVal)
 
@@ -404,7 +400,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 		recordCopy := recVal.Copy()
 
 		// Create method environment
-		// Phase 3.1.4: unified scope management
 		defer i.PushScope()()
 
 		// Bind Self to the record copy
@@ -472,7 +467,6 @@ func (i *Interpreter) CallMethod(obj evaluator.Value, methodName string, args []
 	}
 
 	// Call the method using existing infrastructure
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	i.Env().Define("Self", objVal)
 
@@ -515,7 +509,6 @@ func (i *Interpreter) CallInheritedMethod(obj evaluator.Value, methodName string
 	}
 
 	// Call the method using existing infrastructure
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	i.Env().Define("Self", objVal)
 
@@ -537,7 +530,6 @@ func (i *Interpreter) ExecuteMethodWithSelf(self evaluator.Value, methodDecl any
 	internalArgs := convertEvaluatorArgs(args)
 
 	// Call the method using existing infrastructure
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	i.Env().Define("Self", internalSelf)
 

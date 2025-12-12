@@ -209,7 +209,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Provide current class context for nested type resolution
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
@@ -381,7 +380,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			}
 		case field.InitValue != nil:
 			// Infer type from init value
-			// Phase 3.1.4: unified scope management
 			var initVal Value
 			func() {
 				defer i.PushScope()()
@@ -414,7 +412,6 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 				if cachedInitValue != nil {
 					classVarValue = cachedInitValue
 				} else {
-					// Phase 3.1.4: unified scope management
 					var val Value
 					func() {
 						defer i.PushScope()()

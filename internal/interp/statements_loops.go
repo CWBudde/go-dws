@@ -148,7 +148,6 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 
 	// Create a new enclosed environment for the loop variable
 	// This ensures the loop variable is scoped to the loop body
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	// Define the loop variable in the loop environment
@@ -266,7 +265,6 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 
 	// Create a new enclosed environment for the loop variable
 	// This ensures the loop variable is scoped to the loop body
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	loopVarName := stmt.Variable.Value

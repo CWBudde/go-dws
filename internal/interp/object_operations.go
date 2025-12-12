@@ -8,7 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// Phase 3.5.4 - Phase 2C: Object operations and type casting adapter methods
+// Object operations and type casting adapter methods.
 // These methods implement the InterpreterAdapter interface for object operations.
 
 // ===== Object Creation =====
@@ -42,7 +42,6 @@ func (i *Interpreter) CreateObject(className string, args []evaluator.Value) (ev
 	obj := NewObjectInstance(classInfo)
 
 	// Initialize fields with default values
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 
 	for fieldName, fieldType := range classInfo.Fields {
@@ -109,7 +108,6 @@ func (i *Interpreter) ExecuteConstructor(obj evaluator.Value, constructorName st
 	}
 
 	// Execute constructor in a new environment with Self bound
-	// Phase 3.1.4: unified scope management
 	defer i.PushScope()()
 	i.Env().Define("Self", objectInstance)
 
