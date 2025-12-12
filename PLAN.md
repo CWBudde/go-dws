@@ -735,7 +735,7 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
 - [ ] **5.5.3** Add verification for function-to-unit mapping (2h)
 
 ---
-Task 
+
 ### 5.6 Miscellaneous Cleanup
 
 **Goal**: Address remaining small TODOs.

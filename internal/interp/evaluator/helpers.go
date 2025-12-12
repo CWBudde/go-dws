@@ -80,9 +80,6 @@ func VariantToBool(val Value) bool {
 // IsInRange checks if value is within the range [start, end] inclusive.
 // Supports Integer, Float, String (character), and Enum values.
 func IsInRange(value, start, end Value) bool {
-	// Unwrap VariantValue if present - delegated to later migration
-	// For now, assume values are not wrapped in Variant
-
 	// Handle nil values (uninitialized variants)
 	if value == nil || start == nil || end == nil {
 		return false // Cannot perform range check with uninitialized variants
@@ -123,7 +120,7 @@ func IsInRange(value, start, end Value) bool {
 
 	default:
 		// For EnumValue and other types, check by type name
-		// Phase 3.5.4.41: Enum range checking delegated to later migration
+		// TODO: Implement enum range checking
 		return false
 	}
 

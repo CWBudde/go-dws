@@ -17,8 +17,6 @@ import (
 //
 // Supports format verbs: %s, %d, %f, %v, %x, %X, %o, %%
 // Supports width/precision modifiers: %5d, %.2f, %8.2f
-//
-// Phase 3.5.143 - Phase IV: Complex Methods
 // ============================================================================
 
 // FormatString formats a string using Go fmt.Sprintf semantics with DWScript values.

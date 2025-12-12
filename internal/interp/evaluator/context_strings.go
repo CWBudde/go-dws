@@ -15,8 +15,6 @@ import (
 // - ConcatStrings(): Concatenate multiple string values
 //
 // Used by the polymorphic Concat() built-in function for string operations.
-//
-// Phase 3.5.143 - Phase IV: Complex Methods
 // ============================================================================
 
 // ConcatStrings concatenates multiple string values into a single string.

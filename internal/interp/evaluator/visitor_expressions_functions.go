@@ -384,8 +384,7 @@ func (e *Evaluator) callExternalFunction(
 	ctx *ExecutionContext,
 	node ast.Node,
 ) Value {
-	// For now, delegate to adapter which has full access to external function infrastructure
-	// TODO: Move external function handling completely into evaluator in Phase 3.2.9.1
+	// Delegate to adapter which has full access to external function infrastructure
 	return e.oopEngine.CallExternalFunction(funcName, argExprs, node)
 }
 

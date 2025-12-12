@@ -73,8 +73,7 @@
 //   - Virtual method dispatch
 //   - Constructor chains
 //
-// Phase 16 (Tasks 3.5.111-3.5.114) extended CallMethod in interpreter.go to handle
-// all value types. The next step is to migrate this logic into the evaluator package
+// Future improvement: Migrate CallMethod logic into the evaluator package
 // to eliminate the adapter dependency entirely.
 //
 // ## Helper-Based Dispatch

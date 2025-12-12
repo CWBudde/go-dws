@@ -87,7 +87,6 @@ func (cf *ControlFlow) SetExit() {
 }
 
 // SetReturn signals that a return statement was executed.
-// This is reserved for future use in Phase 3.3.2.
 func (cf *ControlFlow) SetReturn() {
 	cf.kind = FlowReturn
 }
@@ -135,14 +134,9 @@ type ExceptionGetter func() any
 // Used to sync exception state between interpreter and evaluator.
 type ExceptionSetter func(any)
 
-// ExecutionContext holds all execution state that was previously scattered
-// throughout the Interpreter struct. This separation makes the execution
-// state explicit and easier to manage.
-//
-// Phase 3.1.3: Now uses concrete *runtime.Environment instead of interface.
-// This eliminates the need for EnvironmentAdapter.
-//
-// Phase 3.2: Added exception callbacks for syncing with interpreter's i.exception.
+// ExecutionContext holds all execution state for script evaluation.
+// Uses concrete *runtime.Environment and supports exception callbacks
+// for syncing with the interpreter's exception state.
 type ExecutionContext struct {
 	handlerException  any
 	exception         any
@@ -212,11 +206,8 @@ func (ctx *ExecutionContext) SetEnv(env *runtime.Environment) {
 }
 
 // PushEnv creates a new enclosed environment and pushes the current environment onto the stack.
-// This is used for entering a new scope (loops, blocks, try-except handlers).
-// The current environment is saved on the stack, and a new enclosed environment becomes current.
-// Returns the new environment for convenience.
-//
-// Phase 3.5.4 - Phase 2D: Environment Scoping infrastructure.
+// Used for entering a new scope (loops, blocks, try-except handlers).
+// Returns the new environment.
 func (ctx *ExecutionContext) PushEnv() *runtime.Environment {
 	// Save the current environment on the stack
 	ctx.envStack = append(ctx.envStack, ctx.env)
@@ -229,10 +220,8 @@ func (ctx *ExecutionContext) PushEnv() *runtime.Environment {
 }
 
 // PopEnv restores the previous environment from the stack.
-// This is used for exiting a scope (loops, blocks, try-except handlers).
-// Returns the restored environment, or the current environment if the stack is empty.
-//
-// Phase 3.5.4 - Phase 2D: Environment Scoping infrastructure.
+// Used for exiting a scope (loops, blocks, try-except handlers).
+// Returns the restored environment, or current if stack is empty.
 func (ctx *ExecutionContext) PopEnv() *runtime.Environment {
 	if len(ctx.envStack) == 0 {
 		// Stack is empty - already at root, nothing to pop
@@ -247,7 +236,6 @@ func (ctx *ExecutionContext) PopEnv() *runtime.Environment {
 }
 
 // GetCallStack returns the CallStack instance for direct access.
-// Phase 3.3.3: Provides access to the CallStack abstraction.
 func (ctx *ExecutionContext) GetCallStack() *CallStack {
 	return ctx.callStack
 }
@@ -285,7 +273,6 @@ func (ctx *ExecutionContext) ControlFlow() *ControlFlow {
 }
 
 // Exception returns the current active exception.
-// If exception callbacks are configured (Phase 3.2), uses external storage.
 func (ctx *ExecutionContext) Exception() interface{} {
 	if ctx.exceptionGetter != nil {
 		return ctx.exceptionGetter()
@@ -294,7 +281,6 @@ func (ctx *ExecutionContext) Exception() interface{} {
 }
 
 // SetException sets the current active exception.
-// If exception callbacks are configured (Phase 3.2), uses external storage.
 func (ctx *ExecutionContext) SetException(exc interface{}) {
 	if ctx.exceptionSetter != nil {
 		ctx.exceptionSetter(exc)
@@ -428,46 +414,22 @@ func (ctx *ExecutionContext) RefCountManager() runtime.RefCountManager {
 	return nil
 }
 
-// Package-level documentation
-// This package provides execution context management for the DWScript interpreter.
-// The ExecutionContext separates execution state from the Interpreter struct,
-// improving maintainability and making execution state explicit.
-//
-// Phase 3.3.1: Extract execution state from Interpreter into ExecutionContext.
-// Phase 3.3.2: Implement explicit control flow handling with ControlFlow type.
-// Phase 3.3.3: Create CallStack abstraction with stack overflow detection.
-
 // ============================================================================
 // Context Interface Implementation
 // ============================================================================
-//
-// This section implements the builtins.Context interface methods for the Evaluator.
-// These methods provide core functionality for built-in functions:
-// - Error creation with location information
-// - Current AST node access
-// - Random number generation
-// - I/O operations
-// - Value inspection
-// ============================================================================
 
 // ============================================================================
-// Core State & Error Methods
+// Error & Core State Methods
 // ============================================================================
 
 // NewError creates an error value with location information from the current node.
-// It formats the message using fmt.Sprintf semantics.
-//
-// This implements the builtins.Context interface method NewError().
 func (e *Evaluator) NewError(format string, args ...interface{}) Value {
 	return e.newError(e.currentNode, format, args...)
 }
 
 // Note: CurrentNode() is already implemented in evaluator.go:1053
 
-// RandSource returns the random number generator for built-in functions
-// like Random(), RandomInt(), and RandG().
-//
-// This implements the builtins.Context interface method RandSource().
+// RandSource returns the random number generator for built-in functions.
 func (e *Evaluator) RandSource() *rand.Rand {
 	return e.rand
 }
@@ -477,17 +439,11 @@ func (e *Evaluator) RandSource() *rand.Rand {
 // ============================================================================
 
 // GetRandSeed returns the current random number generator seed value.
-// Used by the RandSeed() built-in function.
-//
-// This implements the builtins.Context interface method GetRandSeed().
 func (e *Evaluator) GetRandSeed() int64 {
 	return e.randSeed
 }
 
 // SetRandSeed sets the random number generator seed.
-// Used by the SetRandSeed() and Randomize() built-in functions.
-//
-// This implements the builtins.Context interface method SetRandSeed().
 func (e *Evaluator) SetRandSeed(seed int64) {
 	e.randSeed = seed
 	e.rand.Seed(seed)
@@ -498,9 +454,6 @@ func (e *Evaluator) SetRandSeed(seed int64) {
 // ============================================================================
 
 // Write outputs a string to the configured output writer without a newline.
-// Used by the Print() built-in function.
-//
-// This implements the builtins.Context interface method Write().
 func (e *Evaluator) Write(s string) {
 	if e.output != nil {
 		io.WriteString(e.output, s)
@@ -508,9 +461,6 @@ func (e *Evaluator) Write(s string) {
 }
 
 // WriteLine outputs a string to the configured output writer with a newline.
-// Used by the PrintLn() built-in function.
-//
-// This implements the builtins.Context interface method WriteLine().
 func (e *Evaluator) WriteLine(s string) {
 	if e.output != nil {
 		fmt.Fprintln(e.output, s)
@@ -522,9 +472,6 @@ func (e *Evaluator) WriteLine(s string) {
 // ============================================================================
 
 // IsAssigned checks if a Variant value has been assigned (is not uninitialized).
-// Returns true if the value is assigned, false if it's an uninitialized Variant.
-//
-// This implements the builtins.Context interface method IsAssigned().
 func (e *Evaluator) IsAssigned(value Value) bool {
 	// Check if it's nil
 	if value == nil {
@@ -553,7 +500,6 @@ func (e *Evaluator) IsAssigned(value Value) bool {
 // ============================================================================
 
 // GetCallStackString returns a formatted string representation of the current call stack.
-// This implements the builtins.Context interface.
 func (e *Evaluator) GetCallStackString() string {
 	if e.currentContext == nil {
 		return ""
@@ -562,7 +508,6 @@ func (e *Evaluator) GetCallStackString() string {
 }
 
 // GetCallStackArray returns the current call stack as an array of records.
-// This implements the builtins.Context interface.
 func (e *Evaluator) GetCallStackArray() Value {
 	// Handle nil context
 	if e.currentContext == nil {
@@ -608,27 +553,15 @@ func (e *Evaluator) GetCallStackArray() Value {
 // ============================================================================
 
 // RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
-// The exception includes position information from the current node.
-// This implements the builtins.Context interface.
 func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
-	// Delegate to the adapter since exception handling is still in the Interpreter.
-	// The adapter will create the EAssertionFailed exception instance with proper
-	// position information and custom message, then store it in i.exception.
 	e.exceptionMgr.RaiseAssertionFailed(customMessage)
 }
 
 // ============================================================================
-// Function Pointer Delegation
+// Function Pointer Execution
 // ============================================================================
 
 // EvalFunctionPointer executes a function pointer with given arguments.
-//
-// IMPORTANT: This method delegates to the adapter (not migrated to Evaluator).
-// This is the ONLY Context method that still uses adapter delegation.
-//
-// This implements the builtins.Context interface by delegating to the adapter's
-// CallFunctionPointer method.
 func (e *Evaluator) EvalFunctionPointer(funcPtr Value, args []Value) Value {
-	// Delegate to adapter.CallFunctionPointer with current node for error reporting
 	return e.oopEngine.CallFunctionPointer(funcPtr, args, e.currentNode)
 }
