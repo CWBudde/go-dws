@@ -70,7 +70,6 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 			return nil, err
 		}
 
-		
 		// Check if either operand is a string and operator is '+'
 		leftStr, leftIsStr := leftVal.(string)
 		rightStr, rightIsStr := rightVal.(string)
@@ -147,11 +146,11 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		return int(result), nil
 
 	case *ast.CallExpression:
-		
+
 		return a.evaluateConstantFunction(e)
 
 	case *ast.RecordLiteralExpression:
-		
+
 		// Evaluate all field values recursively to ensure they're constants
 		constFields := make(map[string]interface{})
 		for _, field := range e.Fields {
@@ -281,7 +280,7 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 		}
 
 	case *ast.CallExpression:
-		
+
 		val, err := a.evaluateConstantFunction(e)
 		if err != nil {
 			return 0, err
@@ -302,7 +301,7 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 }
 
 // evaluateConstantFunction evaluates a compile-time constant function call.
- like High(), Log2(), Floor().
+// like High(), Log2(), Floor().
 func (a *Analyzer) evaluateConstantFunction(call *ast.CallExpression) (interface{}, error) {
 	if call == nil || call.Function == nil {
 		return nil, fmt.Errorf("nil function call")
