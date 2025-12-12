@@ -695,7 +695,7 @@ Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Ev
     - New/updated tests pass (add targeted coverage in `internal/interp/*_test.go`)
     - At least one fixture previously failing due to record declaration behavior now passes (or is explicitly re-scoped to a later phase if it requires missing features outside Phase 5)
 
-- [ ] **5.3.5** Support class constant expressions in field initializers (4h)
+- [x] **5.3.5** Support class constant expressions in field initializers (4h)
   - `class_var_init_test.go:55`
   - Allow `ClassName.ConstantName` in initializers
 
