@@ -118,9 +118,10 @@ If a change only moves methods between types/files without deleting indirection,
   - Capture the current failing unit tests + failing fixture scripts (names + error signatures)
   - Add a short note in `docs/` with the baseline counts so we can track progress
 
-- [ ] **4.0.2** Fix class/static identifier resolution in evaluator path (timeboxed)
-  - Ensure class/type declarations reliably register a runtime class meta binding visible to evaluator identifier lookup
-  - Regression target: unit tests around global usage like `TCounter.Count := ...` (e.g. `TestClassVariable`)
+- [x] **4.0.2** Fix class/static identifier resolution in evaluator path (timeboxed)
+  - ✅ Ensure class declarations register a runtime class meta binding in the outer scope (so `TCounter` resolves at runtime)
+  - ✅ Fix implicit `Self`-field lvalue resolution for nested-class scenarios (e.g. `Inner.Value := ...` inside methods)
+  - Regression targets now passing: `TestClassVariable`, `TestNestedClassInstantiation`
 
 - [ ] **4.0.3** Fix record literal type-context propagation (timeboxed)
   - Ensure `RecordTypeContext` is set/pushed for contexts where DWScript infers record literal type
