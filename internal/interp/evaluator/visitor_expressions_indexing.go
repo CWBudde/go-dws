@@ -305,6 +305,12 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 
 		fieldName := field.Name.Value
 
+		// Validate that the field exists in the record type
+		fieldNameNorm := ident.Normalize(fieldName)
+		if !recordType.HasField(fieldNameNorm) {
+			return e.newError(node, "field '%s' does not exist in record type '%s'", fieldName, recordTypeName)
+		}
+
 		// Evaluate the field value expression
 		fieldValue := e.Eval(field.Value, ctx)
 		if isError(fieldValue) {

@@ -316,21 +316,29 @@ The issue had two parts:
 
 **Impact**: Interface indexed property setters now correctly modify the underlying object. Test interface_properties now passing (32 of 33 interface tests passing)
 
-- [ ] **4.0.12** Fix implicit property access with context regressions (timeboxed)
+- [x] **4.0.12** Fix implicit property access with context regressions (timeboxed) ✅ **COMPLETED**
 
-  - Fix Self-field property access in implicit context
+  - ✅ Implicit Self-field property access now working correctly
   - **Regression targets**:
-    - `TestImplicitSelfPropertyAccessWithContext` - implicit Self property access
+    - ✅ `TestImplicitSelfPropertyAccessWithContext` - now passing
 
-**Root cause**: TBD - likely related to context propagation in property reads
+**Resolution**: This issue was resolved by task 4.0.5's fix to property descriptor ReadSpec/WriteSpec handling. The property access kind determination changes in `determinePropertyAccessKind()` properly distinguish field-backed vs method-backed properties, which fixed implicit Self property access in context.
 
-- [ ] **4.0.13** Fix record literal error handling and type context (timeboxed)
+- [x] **4.0.13** Fix record literal error handling and type context (timeboxed) ✅ **COMPLETED**
 
-  - Fix record literal type detection and error reporting
+  - ✅ Fixed record literal validation to detect unknown fields
   - **Regression targets**:
-    - `TestEvalRecordLiteral_UnknownField_Error` - error detection for unknown fields
+    - ✅ `TestEvalRecordLiteral_UnknownField_Error` - now passing
 
-**Root cause**: May be related to 4.0.3 record literal type context changes
+**Root cause identified**: The `VisitRecordLiteralExpression` function was evaluating all fields from the record literal and storing them in `fieldValues`, but never validated that each field actually exists in the record type. Unknown fields were silently ignored instead of producing an error.
+
+**Changes made**:
+
+1. `internal/interp/evaluator/visitor_expressions_indexing.go:308-312`: Added field existence validation before evaluating field values
+   - Check `recordType.HasField(fieldNameNorm)` for each field in the literal
+   - Return error "field 'X' does not exist in record type 'Y'" if field not found
+
+**Impact**: Record literals now properly validate field names. Test count reduced from 5 failing to 4 failing tests.
 
 - [ ] **4.0.14** Fix record function return type initialization (timeboxed)
 
