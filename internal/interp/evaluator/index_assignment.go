@@ -246,9 +246,19 @@ func (e *Evaluator) evalIndexedPropertyAssignment(
 	}
 
 	// Look up the setter method declaration
-	objVal, ok := baseObj.(ObjectValue)
-	if !ok {
-		return e.newError(stmt, "property '%s' setter cannot be executed on non-object", propName)
+	// Handle interfaces - get the underlying object
+	var objVal ObjectValue
+	if ifaceInst, isIface := baseObj.(*runtime.InterfaceInstance); isIface {
+		if ifaceInst.Object == nil {
+			return e.newError(stmt, "property '%s' setter cannot be executed on nil interface", propName)
+		}
+		objVal = ifaceInst.Object
+	} else {
+		var ok bool
+		objVal, ok = baseObj.(ObjectValue)
+		if !ok {
+			return e.newError(stmt, "property '%s' setter cannot be executed on non-object", propName)
+		}
 	}
 
 	methodDecl := objVal.GetMethodDecl(propDesc.WriteSpec)
@@ -320,9 +330,19 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 	}
 
 	// Look up the setter method declaration
-	objVal, ok := obj.(ObjectValue)
-	if !ok {
-		return e.newError(stmt, "default property setter cannot be executed on non-object")
+	// Handle interfaces - get the underlying object
+	var objVal ObjectValue
+	if ifaceInst, isIface := obj.(*runtime.InterfaceInstance); isIface {
+		if ifaceInst.Object == nil {
+			return e.newError(stmt, "default property setter cannot be executed on nil interface")
+		}
+		objVal = ifaceInst.Object
+	} else {
+		var ok bool
+		objVal, ok = obj.(ObjectValue)
+		if !ok {
+			return e.newError(stmt, "default property setter cannot be executed on non-object")
+		}
 	}
 
 	methodDecl := objVal.GetMethodDecl(propDesc.WriteSpec)

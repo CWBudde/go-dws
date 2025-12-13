@@ -145,6 +145,16 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		objVal = underlying
 	}
 
+	// NATIVE: Type cast unwrapping - get wrapped value
+	if typeCastVal, ok := objVal.(TypeCastAccessor); ok {
+		wrapped := typeCastVal.GetWrappedValue()
+		if wrapped == nil {
+			return e.newError(stmt, "cannot assign to member of nil cast value")
+		}
+		// Route to wrapped object
+		objVal = wrapped
+	}
+
 	// NATIVE: Object field/property assignment
 	if objValIface, ok := objVal.(ObjectValue); ok {
 		// Check if this is a property (has priority over fields)

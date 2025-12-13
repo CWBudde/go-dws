@@ -150,7 +150,14 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		if objInst, ok := value.(*runtime.ObjectInstance); ok {
 			value = refMgr.WrapInInterface(ifaceInst.Interface, objInst)
 		} else if srcIface, isSrcIface := value.(*runtime.InterfaceInstance); isSrcIface {
-			value = refMgr.WrapInInterface(ifaceInst.Interface, srcIface.Object)
+			// Task 4.0.10: When assigning an interface to an interface variable,
+			// just reuse the source interface WITHOUT incrementing refcount.
+			// The source already has the correct refcount, and we're just storing
+			// a reference to it. Incrementing here would cause a refcount leak.
+			value = &runtime.InterfaceInstance{
+				Interface: ifaceInst.Interface,
+				Object:    srcIface.Object,
+			}
 		} else if _, isNil := value.(*runtime.NilValue); isNil {
 			value = &runtime.InterfaceInstance{
 				Interface: ifaceInst.Interface,
@@ -158,6 +165,17 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 			}
 		}
 
+		e.SetVar(ctx, targetName, value)
+		return value
+	}
+
+	// Assigning interface to non-interface variable (e.g. Result initialized as NilValue)
+	// This handles the case where the variable wasn't properly initialized as InterfaceInstance
+	if _, isSrcIface := value.(*runtime.InterfaceInstance); isSrcIface {
+		// Task 4.0.10: Do NOT increment refcount here.
+		// The source interface already has the correct refcount.
+		// We're just storing a reference to the same interface instance.
+		// Incrementing here would cause a refcount leak.
 		e.SetVar(ctx, targetName, value)
 		return value
 	}
