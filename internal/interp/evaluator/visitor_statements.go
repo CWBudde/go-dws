@@ -1107,7 +1107,23 @@ func (e *Evaluator) VisitContinueStatement(node *ast.ContinueStatement, ctx *Exe
 func (e *Evaluator) VisitExitStatement(node *ast.ExitStatement, ctx *ExecutionContext) Value {
 	ctx.ControlFlow().SetExit()
 	if node.ReturnValue != nil {
+		// Set record type context if returning anonymous record literal
+		contextSet := false
+		if returnType := ctx.GetCurrentFunctionReturnType(); returnType != "" {
+			if recordLit, ok := node.ReturnValue.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+				if e.typeSystem.HasRecord(returnType) {
+					ctx.SetRecordTypeContext(returnType)
+					contextSet = true
+				}
+			}
+		}
+
 		value := e.Eval(node.ReturnValue, ctx)
+
+		if contextSet {
+			ctx.ClearRecordTypeContext()
+		}
+
 		if isError(value) {
 			return value
 		}
@@ -1128,7 +1144,23 @@ func (e *Evaluator) VisitReturnStatement(node *ast.ReturnStatement, ctx *Executi
 	// Evaluate the return value
 	var returnVal Value
 	if node.ReturnValue != nil {
+		// Set record type context if returning anonymous record literal
+		contextSet := false
+		if returnType := ctx.GetCurrentFunctionReturnType(); returnType != "" {
+			if recordLit, ok := node.ReturnValue.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+				if e.typeSystem.HasRecord(returnType) {
+					ctx.SetRecordTypeContext(returnType)
+					contextSet = true
+				}
+			}
+		}
+
 		returnVal = e.Eval(node.ReturnValue, ctx)
+
+		if contextSet {
+			ctx.ClearRecordTypeContext()
+		}
+
 		if isError(returnVal) {
 			return returnVal
 		}

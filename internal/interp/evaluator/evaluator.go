@@ -488,9 +488,6 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.EnumLiteral:
 		return e.VisitEnumLiteral(n, ctx)
 	case *ast.RecordLiteralExpression:
-		if e.coreEvaluator != nil {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitRecordLiteralExpression(n, ctx)
 	case *ast.SetLiteral:
 		return e.VisitSetLiteral(n, ctx)

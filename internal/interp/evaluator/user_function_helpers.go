@@ -238,6 +238,12 @@ func (e *Evaluator) ExecuteUserFunction(
 	funcCtx := ctx.Clone()
 	funcCtx.SetEnv(funcEnv)
 
+	// Set return type context for return/exit statements
+	if fn.ReturnType != nil {
+		returnTypeName := fn.ReturnType.String()
+		funcCtx.SetCurrentFunctionReturnType(returnTypeName)
+	}
+
 	// Check recursion depth
 	if funcCtx.GetCallStack().WillOverflow() {
 		return nil, fmt.Errorf("maximum recursion depth exceeded")
@@ -385,6 +391,9 @@ func (e *Evaluator) ExecuteUserFunction(
 	if callbacks.InterfaceCleanup != nil {
 		callbacks.InterfaceCleanup(funcEnv)
 	}
+
+	// Clear return type context
+	funcCtx.ClearCurrentFunctionReturnType()
 
 	// Environment is automatically restored by using funcCtx instead of modifying e.ctx
 
