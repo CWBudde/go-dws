@@ -189,6 +189,13 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 				} else {
 					value = &NilValue{}
 				}
+			} else if setTypeVal, ok := i.Env().Get("__set_type_" + ident.Normalize(typeName)); ok {
+				// Check if this is a named set type (registered during type section evaluation)
+				if stv, ok := setTypeVal.(interface{ GetSetType() *types.SetType }); ok {
+					value = NewSetValue(stv.GetSetType())
+				} else {
+					value = &NilValue{}
+				}
 			} else {
 				// Check if this is an array type
 				if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {
@@ -305,10 +312,11 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	typeName := typeExpr.String()
+	lowerTypeName := ident.Normalize(typeName)
 
 	// Check for inline array types from string (fallback for older code)
-	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
-		arrayType := i.parseInlineArrayType(typeName)
+	if strings.HasPrefix(lowerTypeName, "array of ") || strings.HasPrefix(lowerTypeName, "array[") {
+		arrayType := i.parseInlineArrayType(lowerTypeName)
 		if arrayType != nil {
 			return NewArrayValue(arrayType)
 		}
@@ -316,8 +324,8 @@ func (i *Interpreter) createZeroValue(typeExpr ast.TypeExpression) Value {
 	}
 
 	// Check for inline set types (e.g., "set of TColor")
-	if strings.HasPrefix(typeName, "set of ") {
-		setType := i.parseInlineSetType(typeName)
+	if strings.HasPrefix(lowerTypeName, "set of ") {
+		setType := i.parseInlineSetType(lowerTypeName)
 		if setType != nil {
 			return NewSetValue(setType)
 		}

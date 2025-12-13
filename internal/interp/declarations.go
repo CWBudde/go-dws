@@ -185,6 +185,7 @@ func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recor
 
 // evalClassDeclaration builds ClassInfo from AST, registers it, and handles inheritance.
 func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
+	outerEnv := i.Env()
 	className := i.fullClassNameFromDecl(cd)
 
 	// Handle partial class merging
@@ -219,6 +220,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Provide current class context for nested type resolution
+	// NOTE: We keep a reference to the outer environment so we can bind the
+	// class name into the surrounding scope (not just the temporary class scope).
 	defer i.PushScope()()
 	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
@@ -606,6 +609,14 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		parentName2 = classInfo.Parent.Name
 	}
 	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentName2)
+
+	// Bind the class name in the surrounding scope so identifier resolution can
+	// treat `TMyClass` as a metaclass value.
+	//
+	// This is intentionally written to the outer env (not the temporary class
+	// scope created by PushScope), otherwise it would be popped at the end of
+	// this declaration.
+	outerEnv.Define(classInfo.Name, &ClassValue{ClassInfo: classInfo})
 
 	return &NilValue{}
 }

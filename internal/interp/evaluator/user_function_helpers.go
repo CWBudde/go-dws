@@ -294,8 +294,10 @@ func (e *Evaluator) ExecuteUserFunction(
 		restoreEnv = callbacks.EnvSyncer(funcEnv)
 	}
 
-	// Execute function body via EvalNode (full language feature support)
-	_ = e.coreEvaluator.EvalNode(fn.Body)
+	// Execute function body through the evaluator.
+	// Any remaining not-yet-migrated constructs may still fall back to coreEvaluator
+	// from within Evaluator.Eval, but this avoids an unconditional EvalNode ping-pong.
+	_ = e.Eval(fn.Body, funcCtx)
 
 	// Restore interpreter's environment after body execution
 	if restoreEnv != nil {

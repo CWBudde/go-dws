@@ -169,7 +169,6 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 		// Type conversions and wrapping if explicit type declared
 		if node.Type != nil {
 			typeName := node.Type.String()
-
 			if e.typeSystem.HasSubrangeType(typeName) {
 				wrappedVal, err := e.oopEngine.WrapInSubrange(value, typeName, node)
 				if err != nil {
@@ -273,6 +272,36 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 	case *ast.Identifier:
 		if isCompound {
 			return e.evalCompoundIdentifierAssignment(target, node, ctx)
+		}
+
+		// Disambiguation for `[...]` literals: in DWScript, brackets can represent sets.
+		// If the target is a set type, evaluate any bracket literal as a set literal.
+		if arrLit, ok := node.Value.(*ast.ArrayLiteralExpression); ok {
+			if expectedSetType := e.getSetTypeFromTarget(target, ctx); expectedSetType != nil {
+				setLit := &ast.SetLiteral{
+					Elements:            arrLit.Elements,
+					TypedExpressionBase: arrLit.TypedExpressionBase,
+				}
+
+				// Provide type information for empty `[]` inference.
+				if e.semanticInfo != nil {
+					typeName := expectedSetType.String()
+					if targetAnnot := e.semanticInfo.GetType(target); targetAnnot != nil && targetAnnot.Name != "" {
+						typeName = targetAnnot.Name
+					}
+					e.semanticInfo.SetType(setLit, &ast.TypeAnnotation{Token: setLit.Token, Name: typeName})
+					defer e.semanticInfo.ClearType(setLit)
+				}
+
+				value := e.evalSetLiteralDirect(setLit, ctx)
+				if isError(value) {
+					return value
+				}
+				if ctx.Exception() != nil {
+					return &runtime.NilValue{}
+				}
+				return e.evalSimpleAssignmentDirect(target, value, node, ctx)
+			}
 		}
 
 		// Context inference for array literals

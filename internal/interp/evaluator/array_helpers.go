@@ -72,6 +72,27 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 		return e.newError(node, "nil array literal")
 	}
 
+	// Disambiguation: `[...]` can represent a set literal when semantic analysis expects a SET.
+	// Some contexts (notably empty literals `[]`) otherwise look like an empty array literal.
+	if e.semanticInfo != nil {
+		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
+			if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
+				if _, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
+					setLit := &ast.SetLiteral{
+						Elements:            node.Elements,
+						TypedExpressionBase: node.TypedExpressionBase,
+					}
+
+					// Preserve the type annotation for set inference (esp. for empty `[]`).
+					e.semanticInfo.SetType(setLit, typeAnnot)
+					defer e.semanticInfo.ClearType(setLit)
+
+					return e.evalSetLiteralDirect(setLit, ctx)
+				}
+			}
+		}
+	}
+
 	// Use context type if available
 	if ctx.ArrayTypeContext() != nil {
 		return e.evalArrayLiteralWithExpectedType(node, ctx.ArrayTypeContext(), ctx)
@@ -214,24 +235,9 @@ func (e *Evaluator) evalArrayLiteralWithExpectedType(node *ast.ArrayLiteralExpre
 		return e.evalArrayLiteralDirect(node, ctx)
 	}
 
-	if e.semanticInfo == nil {
-		return e.evalArrayLiteralWithType(node, expected, ctx)
-	}
-
-	// Temporarily set type annotation
-	prevType := e.semanticInfo.GetType(node)
-	annotation := &ast.TypeAnnotation{Token: node.Token, Name: expected.String()}
-	e.semanticInfo.SetType(node, annotation)
-
-	result := e.evalArrayLiteralDirect(node, ctx)
-
-	if prevType != nil {
-		e.semanticInfo.SetType(node, prevType)
-	} else {
-		e.semanticInfo.ClearType(node)
-	}
-
-	return result
+	// Avoid recursion: evalArrayLiteralDirect consults ctx.ArrayTypeContext(), which in assignment
+	// contexts often points back to the same expected type. Evaluate directly with the expected type.
+	return e.evalArrayLiteralWithType(node, expected, ctx)
 }
 
 // evalArrayLiteralWithType evaluates array literal with known type (when semanticInfo unavailable).

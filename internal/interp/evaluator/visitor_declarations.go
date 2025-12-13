@@ -1110,8 +1110,25 @@ func (e *Evaluator) evalTypeAlias(node *ast.TypeDeclaration, ctx *ExecutionConte
 
 // VisitSetDecl evaluates a set declaration.
 func (e *Evaluator) VisitSetDecl(node *ast.SetDecl, ctx *ExecutionContext) Value {
-	// Set type already registered by semantic analyzer.
-	// No runtime action needed - just return nil to indicate success.
+	if node == nil || node.Name == nil {
+		return e.newError(node, "invalid set declaration")
+	}
+	if node.ElementType == nil {
+		return e.newError(node, "set '%s' missing element type", node.Name.Value)
+	}
+
+	// Register named set types in the runtime environment so later phases (var init,
+	// empty set literals, etc.) can resolve them.
+	elemType, err := e.ResolveTypeWithContext(node.ElementType.String(), ctx)
+	if err != nil {
+		return e.newError(node, "unknown set element type '%s'", node.ElementType.String())
+	}
+
+	setType := types.NewSetType(elemType)
+	ctx.Env().Define("__set_type_"+ident.Normalize(node.Name.Value), &runtime.SetTypeValue{
+		Name:    node.Name.Value,
+		SetType: setType,
+	})
 	return nil
 }
 

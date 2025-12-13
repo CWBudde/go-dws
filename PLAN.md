@@ -47,541 +47,262 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-## Phase 4: Decompose God Objects Into Handlers
+## Phase 4: Remove Indirection (Callbacks/Adapters)
 
-**Status**: ⏸️ **DEFERRED INDEFINITELY** | **Priority**: Low | **Estimated**: 10-12 weeks
+**Status**: 📋 Planned | **Priority**: Medium | **Estimated**: 2-4 weeks (incremental)
 
-### Why This Work Is Deferred
+### Why This Phase Exists (and what it is NOT)
 
-After critical review, we recognized this is **decomposition theater**—shuffling methods between objects without solving real problems.
-
-**The Pattern We Were Repeating**:
-
-```text
-Interpreter (434 methods) → "too big, extract Evaluator"
-Evaluator (341 methods)   → "too big, extract Handlers"
-Handlers (30 methods)     → "too big, extract SubHandlers?"
-```
-
-**Reality Check**:
-
-- CPython's ceval.c: ~7,000 lines with massive switch statement
-- V8, JVM, .NET: all have similar complexity for full language support
-- DWScript is a **full Object Pascal implementation**—775 methods may be appropriate
-
-**What Phase 3 Actually Achieved** (these are real improvements):
-
-- ✅ Single canonical environment (eliminated sync bugs)
-- ✅ Clean package boundaries (no circular imports)
-- ✅ Interface-based design (testable, mockable)
-- ✅ Visitor pattern for extensibility
-- ✅ 386 unit tests passing
-
-**Better Use of Time**: Fix the 841 failing fixture tests instead of spending 10-12 weeks on architectural shuffling.
-
-**When to Revisit**: Only if we encounter actual problems (bugs, performance issues, unmaintainable code) that decomposition would solve. Not for aesthetic "clean code" reasons.
-
----
-
-### Archived Plan (For Reference)
-
-The detailed plan below is preserved for reference if we ever need it, but is not currently prioritized.
-
-**Original Goal**: Decompose two god objects (Interpreter: 434 methods, Evaluator: 341 methods) into focused handler components with single responsibility.
-
-**Current State** (Post-Phase 3):
-
-| Component | Fields | Methods | Switch Cases | LOC |
-|-----------|--------|---------|--------------|-----|
-| Interpreter | 14 | 434 | 59 | 24,744 |
-| Evaluator | 17 | 341 | ~60 | 19,096 |
-| **Total** | 31 | **775** | ~119 | 43,840 |
-
-**⚠️ Anti-Pattern to Avoid**: Moving 400+ methods from Interpreter to Evaluator would create a 700+ method mega god object. This shifts the problem, doesn't solve it.
-
-**Target Architecture** (Handler Decomposition):
+We explicitly defer **decomposition theater** (splitting into many handler objects just to reduce method counts).
+That pattern tends to repeat endlessly:
 
 ```text
-Interpreter (API facade, ~20 methods)
-└── Evaluator (thin dispatcher, ~40 methods)
-    ├── ArrayHandler (27 methods)
-    ├── BinaryOpHandler (17 methods)
-    ├── StatementHandler (25 methods)
-    ├── DeclarationHandler (20 methods)
-    ├── VarParamHandler (15 methods)
-    ├── PropertyHandler (15 methods)
-    ├── TypeHandler (20 methods)
-    ├── MethodDispatcher (15 methods)
-    ├── ExceptionHandler (10 methods)
-    └── OOPHandler (30 methods)
+Interpreter → "too big"
+Evaluator   → "too big"
+Handlers    → "too big"
 ```
 
-**Target Metrics**:
+**This Phase is not about aesthetics.** It is about deleting *real* complexity:
 
-| Component | Fields | Methods | Max Methods/Handler |
-|-----------|--------|---------|---------------------|
-| Interpreter | 5 | ~20 | - |
-| Evaluator | 10 | ~40 | - |
-| Handlers (10) | 3-5 each | ~250 total | 30 max |
-| **Total** | ~55 | **~310** | - |
+- Removing bidirectional callback cycles (Evaluator → Interpreter → Evaluator)
+- Deleting adapter indirection (`adapter_*.go`) and focused-interface plumbing
+- Establishing a single execution entry point (one dispatch path)
 
-**Key Principles**:
+This work is allowed even when fixture conformance is the top priority, because it directly improves:
 
-1. **Single Responsibility**: Each handler does ONE thing well
-2. **Max 30 methods per component**: If more, split it
-3. **Interface-based**: Each handler has an interface for testability
-4. **No circular dependencies**: Handlers don't call each other directly
-5. **State ownership**: Each handler owns its relevant state
+- Debuggability (fewer “ping-pong” call stacks)
+- Correctness (fewer state handoffs)
+- Performance (fewer interface calls and round-trips)
 
----
+### Guardrails (Anti-Theatre Rules)
 
-### 4.0 Extract Handlers from Evaluator (CRITICAL - Prevents Mega God Object)
+Every PR in Phase 4 must satisfy at least one of these measurable outcomes:
 
-**Goal**: Before moving anything from Interpreter, decompose existing Evaluator (341 methods) into focused handlers
+- Deletes a callback interface or reduces its method surface
+- Deletes an `adapter_*.go` file or removes significant logic from it
+- Deletes a dispatch hop (e.g., Interpreter switch case → Evaluator switch case)
+- Removes duplicated runtime state ownership
 
-**Status**: 📋 Planned | **Effort**: 2-3 weeks | **Risk**: Medium | **Priority**: MUST DO FIRST
+If a change only moves methods between types/files without deleting indirection, it is out of scope.
 
-**Why This Must Come First**: If we move Interpreter's methods to Evaluator before extracting handlers, we create a 700+ method mega god object that's even harder to decompose.
+### Success Criteria (Phase-Level)
 
-**Current Evaluator Method Distribution** (341 methods across 50 files):
+- ✅ Single dispatch point for evaluation (Interpreter delegates; no 59-case Eval switch)
+- ✅ No callback calls from Evaluator back into Interpreter for core execution
+- ✅ Focused interfaces + `SetFocusedInterfaces()` removed
+- ✅ `adapter_*.go` indirection removed (or reduced to thin shims only, temporarily)
+ ✅ `adapter_*.go` indirection removed (or reduced to thin shims only, temporarily)
 
-| File | Methods | Target Handler |
-|------|---------|----------------|
-| array_helpers.go | 27 | ArrayHandler |
-| visitor_statements.go | 25 | StatementHandler |
-| binary_ops.go | 17 | BinaryOpHandler |
-| visitor_declarations.go | 16 | DeclarationHandler |
-| var_params.go | 15 | VarParamHandler |
-| property_read/write.go | 15 | PropertyHandler |
-| type_*.go | 20 | TypeHandler |
-| compound_*.go | 10 | CompoundOpHandler |
-| helper_methods.go | 10 | HelperHandler |
-| method_dispatch.go | 4 | MethodDispatcher |
-| evaluator.go (core) | 32 | Evaluator (keep) |
+### 4.0 Stabilization Prerequisites (Make Tests Green Again)
+
+**Goal**: Restore a clean baseline (**0 failing tests**) before continuing Task 4.1 migrations.
+
+**Why this exists**: Recent incremental migrations in/around evaluator execution exposed several independent correctness gaps (not a single root cause). Continuing to delete indirection while correctness is unstable makes diagnosis harder and tends to cause “ping-pong” regressions.
+
+**Rules**:
+
+- No new Task 4.1 migration work until Phase 4.0 is complete.
+- Fix issues **one cluster at a time**, with a small repro test per cluster.
+- If a fix requires a behavior revert, prefer a surgical revert (smallest surface) over forward-migrating more code.
+
+**Current failure clusters (observed)**:
+
+- Class/static identifier resolution (e.g. `undefined variable: TCounter`)
+- Record literal type context (e.g. “record literal requires explicit type name or type context”)
+- Indexed/default properties & metadata (e.g. “invalid property metadata …”, “cannot index type OBJECT”)
+- Runtime instantiation/nil semantics (e.g. “Object not instantiated”)
 
 **Tasks**:
 
-- [ ] **4.0.1** Design handler interfaces (4h)
-  - Define interface for each handler type
-  - Establish dependency rules (who can call whom)
-  - Document state ownership per handler
+- [ ] **4.0.1** Establish a stable failing-test baseline (1h)
+  - Capture the current failing unit tests + failing fixture scripts (names + error signatures)
+  - Add a short note in `docs/` with the baseline counts so we can track progress
 
-- [ ] **4.0.2** Extract ArrayHandler (6h)
-  - Create `ArrayHandler` struct with 27 methods from array_helpers.go
-  - Create `ArrayHandler` interface
-  - Evaluator holds `arrayHandler ArrayHandler` field
-  - Update all `e.ArrayXxx()` calls to `e.arrayHandler.Xxx()`
+- [ ] **4.0.2** Fix class/static identifier resolution in evaluator path (timeboxed)
+  - Ensure class/type declarations reliably register a runtime class meta binding visible to evaluator identifier lookup
+  - Regression target: unit tests around global usage like `TCounter.Count := ...` (e.g. `TestClassVariable`)
 
-- [ ] **4.0.3** Extract BinaryOpHandler (4h)
-  - Create `BinaryOpHandler` struct with 17 methods from binary_ops.go
-  - Include compound_ops.go (8 methods)
-  - Total: ~25 methods in BinaryOpHandler
+- [ ] **4.0.3** Fix record literal type-context propagation (timeboxed)
+  - Ensure `RecordTypeContext` is set/pushed for contexts where DWScript infers record literal type
+  - Regression target: record-literal tests that currently error with missing type context
 
-- [ ] **4.0.4** Extract StatementHandler (6h)
-  - Create `StatementHandler` struct with 25 methods from visitor_statements.go
-  - Handles: if, while, for, case, try, break, continue, return, etc.
+- [ ] **4.0.4** Fix indexed/default property metadata + indexing dispatch (timeboxed)
+  - Ensure property metadata and index-arg plumbing is consistent between legacy and evaluator execution
+  - Regression target: tests failing with “invalid property metadata …” and “cannot index type OBJECT”
 
-- [ ] **4.0.5** Extract DeclarationHandler (6h)
-  - Create `DeclarationHandler` struct with 16 methods from visitor_declarations.go
-  - Handles: class, interface, record, enum, helper declarations
+- [ ] **4.0.5** Fix “Object not instantiated” regressions (timeboxed)
+  - Identify the top call-sites producing this in unit tests/fixtures and correct nil/constructor semantics
 
-- [ ] **4.0.6** Extract TypeHandler (6h)
-  - Combine: type_resolution.go (9), type_casts.go (8), type_conversion.go (5)
-  - Total: ~22 methods in TypeHandler
+**Exit Criteria**:
 
-- [ ] **4.0.7** Extract PropertyHandler (4h)
-  - Combine: property_read.go (8), property_write.go (7)
-  - Total: ~15 methods in PropertyHandler
-
-- [ ] **4.0.8** Extract VarParamHandler (4h)
-  - Create handler with 15 methods from var_params.go
-  - Handles: var parameters, out parameters, lazy evaluation
-
-- [ ] **4.0.9** Verify Evaluator is now thin (2h)
-  - Evaluator should have ~40 methods (dispatch + setup)
-  - Each handler has ≤30 methods
-  - All tests pass
-
-**Success Criteria**:
-
-- ✅ Evaluator reduced from 341 to ~40 methods
-- ✅ 8-10 handlers with ≤30 methods each
-- ✅ Each handler has interface for testability
-- ✅ No handler depends on another handler directly
-- ✅ All existing tests pass
+- ✅ `go test ./...` is green (0 failing tests)
+- ✅ No new fixture failures introduced by the Phase 4.0 fixes
 
 ---
 
 ### 4.1 Unify Eval() Dispatch (Single Entry Point)
 
-**Goal**: Move all 59 switch cases from Interpreter.Eval() to Evaluator.Eval()
+---
 
-**Status**: 📋 Planned | **Effort**: 1 week | **Risk**: Medium
+### 4.1 Unify Eval() Dispatch (Single Entry Point)
+
+**Goal**: Eliminate the split-brain dispatch path and make evaluation go through a single entry point.
 
 **Current Flow**:
 
 ```text
-User → Interpreter.Eval() [59-case switch] → some cases → Evaluator.Eval() [60-case switch]
+User → Interpreter.Eval() [switch] → sometimes → Evaluator.Eval() [switch]
 ```
 
 **Target Flow**:
 
 ```text
-User → Interpreter.Eval() → Evaluator.Eval() [60-case switch] → done
+User → Interpreter.Eval() → Evaluator.Eval() [single dispatch]
 ```
 
 **Tasks**:
 
-- [ ] **4.1.1** Audit remaining 38 Interpreter switch cases (2h)
-  - List each case and its dependencies (state, registries, callbacks)
+- [ ] **4.1.1** Audit remaining Interpreter switch cases (2h)
+  - List each case and the dependency blocking direct delegation
   - Categorize by migration difficulty: Easy/Medium/Hard
-  - Identify state dependencies blocking migration
 
-- [ ] **4.1.2** Move statement cases to Evaluator (8h)
-  - VarDeclStatement, ConstDecl, BlockStatement
-  - IfStatement, WhileStatement, RepeatStatement, ForStatement, ForInStatement
-  - CaseStatement, TryStatement, RaiseStatement
-  - BreakStatement, ContinueStatement, ExitStatement, ReturnStatement
-  - Requires: control flow state in ExecutionContext (done)
+- [ ] **4.1.2** Move statement/declaration stragglers to Evaluator (timeboxed, 1-2 PRs)
+  - Goal is to delete the Interpreter switch, not “perfect architecture”
 
-- [ ] **4.1.3** Move declaration cases to Evaluator (8h)
-  - FunctionDecl, ClassDeclaration, InterfaceDeclaration
-  - RecordDeclaration, EnumDeclaration, HelperDeclaration
-  - Requires: type registries accessible from Evaluator
-
-- [ ] **4.1.4** Move remaining expression cases to Evaluator (4h)
-  - Any expressions still handled by Interpreter
-  - Should be minimal after Phase 3.2
-
-- [ ] **4.1.5** Delete Interpreter.Eval() switch (2h)
-  - Replace with single delegation: `return i.evaluator.Eval(node, ctx)`
-  - Update all direct Interpreter.Eval() callers
-
-- [ ] **4.1.6** Verify and test (2h)
-  - All unit tests pass
-  - No new fixture test failures
-  - Measure: Interpreter switch cases = 0
+- [ ] **4.1.3** Replace Interpreter.Eval() with a thin delegation (2h)
+  - `return i.evaluator.Eval(node, ctx)`
 
 **Success Criteria**:
 
 - ✅ Interpreter.Eval() has no switch statement
-- ✅ Single dispatch point in Evaluator.Eval()
-- ✅ All tests pass
+- ✅ All unit tests pass
 
 ---
 
-### 4.2 Eliminate State Duplication
+### 4.2 Eliminate State Duplication (Single Owner = ExecutionContext)
 
-**Goal**: Single owner for all runtime state (ExecutionContext)
-
-**Status**: 📋 Planned | **Effort**: 1 week | **Risk**: Medium
-
-**Current Duplicated State**:
-
-| Field | Interpreter | ExecutionContext | Owner Should Be |
-|-------|-------------|------------------|-----------------|
-| handlerException | ✅ | ✅ | ExecutionContext |
-| propContext | ✅ | ✅ | ExecutionContext |
-| callStack | ✅ | ✅ | ExecutionContext |
-| oldValuesStack | ✅ | ✅ | ExecutionContext |
+**Goal**: Ensure all runtime execution state has one canonical owner.
 
 **Tasks**:
 
-- [ ] **4.2.1** Audit state usage patterns (3h)
-  - For each duplicated field, count usages in Interpreter vs ExecutionContext
-  - Identify which component actually "owns" each field
-  - Document sync patterns (if any)
-
-- [ ] **4.2.2** Migrate handlerException to ExecutionContext (4h)
-  - Move field ownership to ExecutionContext
-  - Update Interpreter to use ctx.HandlerException()
-  - Update all 5 usages in exceptions.go
-
-- [ ] **4.2.3** Migrate propContext to ExecutionContext (4h)
-  - Move field ownership to ExecutionContext
-  - Update Interpreter to use ctx.PropContext()
-  - Update all 28 usages
-
-- [ ] **4.2.4** Verify callStack ownership (2h)
-  - ExecutionContext already has CallStack
-  - Remove Interpreter.callStack field
-  - Update Interpreter to use ctx.CallStack()
-
-- [ ] **4.2.5** Verify oldValuesStack ownership (2h)
-  - ExecutionContext already has oldValuesStack
-  - Remove Interpreter.oldValuesStack field
-  - Update 2 usages
-
-- [ ] **4.2.6** Delete Interpreter.ctx proxy field (1h)
-  - Interpreter should not hold ctx directly
-  - Pass ctx through method parameters
-
-- [ ] **4.2.7** Verify no duplicate state (1h)
-  - `grep` for duplicated field names
-  - Confirm single owner for each piece of state
+- [ ] **4.2.1** Audit duplicated state usage (3h)
+- [ ] **4.2.2** Remove duplicate Interpreter-owned execution state (timeboxed)
+  - Prefer: ctx accessors and passing ctx explicitly
 
 **Success Criteria**:
 
-- ✅ Each state field has exactly one owner
-- ✅ No sync logic between Interpreter and ExecutionContext
-- ✅ Interpreter fields reduced from 14 to 9
+- ✅ No “sync” logic between Interpreter and ExecutionContext
 
 ---
 
-### 4.3 Move OOP Implementation to OOPHandler
+### 4.3 Remove OOP Callbacks (OOPEngine)
 
-**Goal**: Eliminate OOPEngine callbacks by moving logic to dedicated OOPHandler (not Evaluator directly)
+**Goal**: Remove the Evaluator → OOPEngine → Interpreter → Evaluator round-trip for method dispatch.
 
-**Status**: 📋 Planned | **Effort**: 2 weeks | **Risk**: High
+**Notes**:
 
-**Current State**: 36 OOPEngine callback calls from Evaluator to Interpreter
-
-**Problem**: Every method call requires:
-
-```text
-Evaluator → OOPEngine.CallMethod() → Interpreter.CallMethod() → back to Evaluator
-```
-
-**Target**: Method dispatch happens entirely in Evaluator
+- This is high-impact and high-risk. Do it incrementally and start with the highest-traffic calls.
 
 **Tasks**:
 
-- [ ] **4.3.1** Audit OOPEngine methods by usage (4h)
-  - Count callers for each of 20 OOPEngine methods
-  - Identify high-traffic methods (ExecuteMethodWithSelf: 10 calls, CallMethod: 2)
-  - Plan migration order: high-usage first
-
-- [ ] **4.3.2** Move method dispatch to Evaluator (12h)
-  - Migrate CallMethod, CallInheritedMethod, ExecuteMethodWithSelf
-  - Requires: ClassInfo, MethodDecl accessible from Evaluator
-  - Requires: TypeSystem accessible from Evaluator (already done)
-
-- [ ] **4.3.3** Move constructor execution to Evaluator (8h)
-  - Migrate ExecuteConstructor
-  - Requires: class metadata lookup from TypeSystem
-
-- [ ] **4.3.4** Move function pointer calls to Evaluator (6h)
-  - Migrate CallFunctionPointer, CallUserFunction, ExecuteFunctionPointerCall
-  - Migrate CreateBoundMethodPointer
-
-- [ ] **4.3.5** Move type operations to Evaluator (4h)
-  - Migrate CreateTypeCastWrapper, WrapInSubrange, WrapInInterface
-
-- [ ] **4.3.6** Move operator overloading to Evaluator (4h)
-  - Migrate TryBinaryOperator, TryUnaryOperator
-  - Requires: operator registry accessible from Evaluator
-
-- [ ] **4.3.7** Delete OOPEngine interface (2h)
-  - Remove oopEngine field from Evaluator
-  - Remove SetFocusedInterfaces() OOPEngine parameter
-  - Update interpreter.go
-
-- [ ] **4.3.8** Delete adapter_methods.go (1h)
-  - Move remaining logic to Evaluator
-  - Delete 547 LOC file
+- [ ] **4.3.1** Audit OOPEngine by usage (4h)
+- [ ] **4.3.2** Move method dispatch to Evaluator (timeboxed, multiple PRs)
+- [ ] **4.3.3** Delete OOPEngine interface once unused (2h)
 
 **Success Criteria**:
 
-- ✅ OOPEngine interface deleted
 - ✅ 0 OOPEngine callback calls
-- ✅ Method dispatch entirely in Evaluator
+- ✅ OOPEngine interface deleted
 
 ---
 
-### 4.4 Move Declaration Handling to DeclarationHandler
+### 4.4 Remove Declaration Callbacks (DeclHandler)
 
-**Goal**: Eliminate DeclHandler callbacks by moving logic to dedicated DeclarationHandler
-
-**Status**: 📋 Planned | **Effort**: 1.5 weeks | **Risk**: High
-
-**Current State**: 41 DeclHandler callback calls from Evaluator to Interpreter
+**Goal**: Remove the Evaluator → DeclHandler → Interpreter round-trip for type/member declaration handling.
 
 **Tasks**:
 
 - [ ] **4.4.1** Audit DeclHandler methods (3h)
-  - 38 methods, all single-caller in visitor_declarations.go
-  - Group by: class (21), interface (7), helper (9), misc (1)
-
-- [ ] **4.4.2** Move class declaration to Evaluator (12h)
-  - Migrate 21 class-related methods
-  - Move ClassInfo creation/management to Evaluator or TypeSystem
-  - Requires: ClassRegistry accessible from Evaluator
-
-- [ ] **4.4.3** Move interface declaration to Evaluator (6h)
-  - Migrate 7 interface-related methods
-  - Move InterfaceInfo to TypeSystem
-
-- [ ] **4.4.4** Move helper declaration to Evaluator (6h)
-  - Migrate 9 helper-related methods
-  - Helpers already in TypeSystem
-
-- [ ] **4.4.5** Delete DeclHandler interface (2h)
-  - Remove declHandler field from Evaluator
-  - Update SetFocusedInterfaces()
-
-- [ ] **4.4.6** Delete adapter_types.go (1h)
-  - Move remaining logic to Evaluator
-  - Delete 777 LOC file
+- [ ] **4.4.2** Move declaration logic behind a single owner (Evaluator/TypeSystem as appropriate)
+- [ ] **4.4.3** Delete DeclHandler interface once unused (2h)
 
 **Success Criteria**:
 
-- ✅ DeclHandler interface deleted
 - ✅ 0 DeclHandler callback calls
-- ✅ Type declarations handled entirely in Evaluator
+- ✅ DeclHandler interface deleted
 
 ---
 
-### 4.5 Move Exception Handling to ExceptionHandler
+### 4.5 Remove Exception Callbacks (ExceptionManager)
 
-**Goal**: Eliminate ExceptionManager callbacks by moving logic to dedicated ExceptionHandler
+**Goal**: Make exception creation/raising self-contained (low surface area, low risk).
 
-**Status**: 📋 Planned | **Effort**: 3 days | **Risk**: Low
-
-**Current State**: 6 ExceptionManager callback calls
+**Why First**: Small surface, easy win, reduces “special case” callback plumbing.
 
 **Tasks**:
 
-- [ ] **4.5.1** Move exception creation to Evaluator (4h)
-  - CreateExceptionDirect, WrapObjectInException
-  - Requires: ExceptionValue creation in runtime package
-
-- [ ] **4.5.2** Move contract exceptions to Evaluator (2h)
-  - CreateContractException
-  - Used for require/ensure/invariant
-
-- [ ] **4.5.3** Move runtime exceptions to Evaluator (2h)
-  - RaiseTypeCastException, RaiseAssertionFailed
-
-- [ ] **4.5.4** Move cleanup to Evaluator (2h)
-  - CleanupInterfaceReferences
-
-- [ ] **4.5.5** Delete ExceptionManager interface (1h)
+- [ ] **4.5.1** Move exception creation + raising to Evaluator/runtime (timeboxed)
+- [ ] **4.5.2** Delete ExceptionManager interface (1h)
 
 **Success Criteria**:
 
 - ✅ ExceptionManager interface deleted
-- ✅ Exception handling self-contained in Evaluator
 
 ---
 
-### 4.6 Eliminate CoreEvaluator and Remaining Adapters
+### 4.6 Delete CoreEvaluator and Adapter Indirection
 
-**Goal**: Delete all adapter indirection
+**Goal**: Delete the remaining adapter surface and any “fallback” EvalNode callbacks.
 
-**Status**: 📋 Planned | **Effort**: 1 week | **Risk**: Medium
-
-**Current State**: 18 CoreEvaluator callback calls, 2,433 LOC adapter files
+**Principle**: Each removed callback must be replaced by direct Evaluator ownership, not by a new handler layer.
 
 **Tasks**:
 
-- [ ] **4.6.1** Eliminate EvalNode callbacks (8h)
-  - Currently 6 uses of EvalNode fallback
-  - Each callback is a failure to migrate logic to Evaluator
-  - Move remaining OOP operations to Evaluator
-
-- [ ] **4.6.2** Move EvalBuiltinHelperProperty to Evaluator (4h)
-  - 4 uses in helper_methods.go
-  - Move built-in helper logic (Length, Low, High) to Evaluator
-
-- [ ] **4.6.3** Move class property operations to Evaluator (4h)
-  - EvalClassPropertyRead, EvalClassPropertyWrite
-  - 1 use each in property_read.go, property_write.go
-
-- [ ] **4.6.4** Delete CoreEvaluator interface (1h)
-
-- [ ] **4.6.5** Delete remaining adapter files (4h)
-  - adapter_functions.go (337 LOC)
-  - adapter_objects.go (345 LOC)
-  - adapter_operators.go (130 LOC)
-  - adapter_references.go (225 LOC)
-  - adapter_values.go (72 LOC)
-  - Move any surviving logic to Evaluator
-
-- [ ] **4.6.6** Update Interpreter to be thin facade (2h)
-  - Remove SetFocusedInterfaces() entirely
-  - Interpreter only holds: evaluator, config, output, typeSystem, exception
+- [ ] **4.6.1** Eliminate EvalNode fallbacks (timeboxed)
+- [ ] **4.6.2** Delete CoreEvaluator interface once unused (1h)
+- [ ] **4.6.3** Delete or collapse `adapter_*.go` files (timeboxed)
 
 **Success Criteria**:
 
-- ✅ All 4 focused interfaces deleted
-- ✅ All adapter_*.go files deleted (-2,433 LOC)
 - ✅ 0 callback calls from Evaluator to Interpreter
+- ✅ adapter files removed (or reduced to thin temporary shims only)
 
 ---
 
-### 4.7 Final Cleanup and Verification
+### 4.7 Verification and Metrics
 
-**Goal**: Verify architecture meets targets
-
-**Status**: 📋 Planned | **Effort**: 3 days | **Risk**: Low
+**Goal**: Prevent regression and ensure Phase 4 changes stay “real”.
 
 **Tasks**:
 
-- [ ] **4.7.1** Extract OOPHandler from Interpreter (12h)
-  - Create `OOPHandler` struct with ~30 methods from Interpreter's OOP logic
-  - Move: method dispatch, constructor execution, operator overloading
-  - This is where Interpreter's 434 methods go - NOT into Evaluator directly
+- [ ] **4.7.1** Keep/extend architecture boundary tests
+- [ ] **4.7.2** Track removal metrics (interfaces/adapters/switch hops)
+- [ ] **4.7.3** Run unit tests and (optionally) fixtures
 
-- [ ] **4.7.2** Extract remaining handlers from Interpreter (8h)
-  - BuiltinHandler: built-in function implementations
-  - UnitHandler: unit loading/initialization
-  - Identify and delete dead code (likely 100+ methods)
+---
 
-- [ ] **4.7.3** Reduce Interpreter to API facade (4h)
-  - Target: ~20 public API methods only
-  - Fields: evaluator, config, output, typeSystem, exception (5 total)
-  - All logic delegated to handlers
+### Archived (Decomposition-Heavy Draft)
 
-- [ ] **4.7.4** Measure final metrics (2h)
-  - Interpreter: 5 fields, ~20 methods
-  - Evaluator: ~40 methods (dispatcher only)
-  - Handlers: 8-12 handlers, ≤30 methods each
-  - Total methods: ~310 (down from 775)
-
-- [ ] **4.7.5** Run full test suite (2h)
-  - All unit tests pass
-  - No new fixture test failures
-  - Performance benchmarks (no regression)
-
-- [ ] **4.7.6** Update documentation (2h)
-  - CLAUDE.md: accurate handler-based architecture
-  - AGENTS.md: accurate handler-based architecture
-  - Create docs/phase4-summary.md
-
-**Success Criteria**:
-
-| Metric | Phase 3 End | Phase 4 Target | Verified |
-|--------|-------------|----------------|----------|
-| Interpreter fields | 14 | 5 | ☐ |
-| Interpreter methods | 434 | ~20 | ☐ |
-| Interpreter switch cases | 59 | 0 | ☐ |
-| Evaluator methods | 341 | ~40 | ☐ |
-| Handler count | 0 | 8-12 | ☐ |
-| Max methods/handler | - | ≤30 | ☐ |
-| Total methods | 775 | ~310 | ☐ |
-| Callback interfaces | 4 | 0 | ☐ |
-| adapter_*.go LOC | 2,433 | 0 | ☐ |
+The handler-decomposition plan is preserved in Git history and can be restored if a concrete pain point justifies it.
+It is intentionally *not* the default plan, because it optimizes for “smaller types” instead of “less indirection”.
 
 ---
 
 ### Phase 4 Effort Summary
 
-| Task | Effort | Dependencies |
-|------|--------|--------------|
-| **4.0 Extract Handlers (FIRST)** | 2-3 weeks | None |
-| 4.1 Unify Eval() Dispatch | 1 week | 4.0 |
-| 4.2 Eliminate State Duplication | 1 week | 4.0 |
-| 4.3 Move OOP to Handlers | 2 weeks | 4.0, 4.1, 4.2 |
-| 4.4 Move Declarations to Handlers | 1.5 weeks | 4.0, 4.1, 4.2 |
-| 4.5 Move Exceptions to Handlers | 3 days | 4.0, 4.1 |
-| 4.6 Delete Adapters | 1 week | 4.3, 4.4, 4.5 |
-| 4.7 Final Cleanup & Interpreter Decomposition | 1 week | 4.6 |
+This phase is designed to be done in small, reversible PRs.
 
-**Total Estimated Effort**: 10-12 weeks
+| Task | Effort | Notes |
+|------|--------|-------|
+| 4.1 Unify Eval() Dispatch | ~1 week | Enables deletion of many adapters later |
+| 4.5 Remove Exception Callbacks | ~1-2 days | Low risk, good early win |
+| 4.6 Delete CoreEvaluator/adapters | ~1 week | Highest payoff, keep it timeboxed |
+| 4.3 Remove OOP Callbacks | ~1-2 weeks | High risk, do incrementally |
+| 4.4 Remove Decl Callbacks | ~1 week | High risk, do incrementally |
+| 4.2 State Ownership Cleanup | ~2-4 days | Opportunistic as you delete callbacks |
+| 4.7 Verification/Metrics | ongoing | Keep guardrails in place |
 
-**Recommended Order**: **4.0** → 4.1 → 4.2 → 4.5 → 4.3 → 4.4 → 4.6 → 4.7
-
-**Critical Path**: Task 4.0 (handler extraction) MUST come first to avoid creating a mega god object
+**Recommended Order**: 4.1 → 4.5 → 4.6 → (4.3 + 4.4) → 4.2 → 4.7
 
 ---
 

@@ -30,6 +30,21 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 		return e.newError(node, "nil set literal")
 	}
 
+	// If semantic analysis provided a set type annotation, capture it for inference.
+	var annotatedSetType *types.SetType
+	if e.semanticInfo != nil {
+		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
+			if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
+				if setType, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
+					annotatedSetType = setType
+				}
+			}
+			if annotatedSetType == nil {
+				annotatedSetType = e.parseInlineSetType(typeAnnot.Name, ctx)
+			}
+		}
+	}
+
 	// Check if this SetLiteral should be treated as an array (array of const)
 	// This happens when semantic analyzer determined it's used in array context
 	if e.semanticInfo != nil {
@@ -71,13 +86,29 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 		}
 	}
 
-	// Handle empty set - if no element type determined, we can't infer it
+	// If we couldn't determine element type from elements, fall back to annotated type.
+	if elementType == nil && annotatedSetType != nil {
+		elementType = annotatedSetType.ElementType
+	}
+
+	// Handle empty set - if no element type determined, we can't infer it.
 	if elementType == nil && len(node.Elements) == 0 {
+		if annotatedSetType != nil {
+			return runtime.NewSetValue(annotatedSetType)
+		}
 		return e.newError(node, "cannot infer type for empty set literal")
 	}
 
+	if annotatedSetType != nil && elementType != nil && !annotatedSetType.ElementType.Equals(elementType) {
+		return e.newError(node, "type mismatch in set literal: expected set of %s, got set of %s",
+			annotatedSetType.ElementType.String(), elementType.String())
+	}
+
 	// Create the SetType (automatically selects storage strategy)
-	setType := types.NewSetType(elementType)
+	setType := annotatedSetType
+	if setType == nil {
+		setType = types.NewSetType(elementType)
+	}
 
 	// Create SetValue and populate the correct storage backend
 	setValue := runtime.NewSetValue(setType)
