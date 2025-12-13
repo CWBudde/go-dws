@@ -185,6 +185,7 @@ func (i *Interpreter) evalRecordMethodImplementation(fn *ast.FunctionDecl, recor
 
 // evalClassDeclaration builds ClassInfo from AST, registers it, and handles inheritance.
 func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
+	outerEnv := i.Env()
 	className := i.fullClassNameFromDecl(cd)
 
 	// Handle partial class merging
@@ -219,6 +220,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 
 	// Provide current class context for nested type resolution
+	// NOTE: We keep a reference to the outer environment so we can bind the
+	// class name into the surrounding scope (not just the temporary class scope).
 	defer i.PushScope()()
 	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: classInfo})
 
@@ -573,7 +576,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			continue
 		}
 
-		propInfo := i.convertPropertyDecl(propDecl)
+		propInfo := i.convertPropertyDecl(classInfo, propDecl)
 		if propInfo != nil {
 			classInfo.Properties[propDecl.Name.Value] = propInfo
 		}
@@ -607,11 +610,20 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	}
 	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentName2)
 
+	// Bind the class name in the surrounding scope so identifier resolution can
+	// treat `TMyClass` as a metaclass value.
+	//
+	// This is intentionally written to the outer env (not the temporary class
+	// scope created by PushScope), otherwise it would be popped at the end of
+	// this declaration.
+	outerEnv.Define(classInfo.Name, &ClassValue{ClassInfo: classInfo})
+
 	return &NilValue{}
 }
 
 // convertPropertyDecl converts AST property to PropertyInfo for runtime access.
-func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.PropertyInfo {
+// classInfo is used to determine if a property spec is a field or method.
+func (i *Interpreter) convertPropertyDecl(classInfo *ClassInfo, propDecl *ast.PropertyDecl) *types.PropertyInfo {
 	// Resolve property type
 	var propType types.Type
 	switch propDecl.Type.String() {
@@ -665,7 +677,7 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 	if propDecl.WriteSpec != nil {
 		if ident, ok := propDecl.WriteSpec.(*ast.Identifier); ok {
 			propInfo.WriteSpec = ident.Value
-			propInfo.WriteKind = types.PropAccessField
+			propInfo.WriteKind = i.determinePropertyAccessKind(classInfo, ident.Value)
 		} else {
 			propInfo.WriteKind = types.PropAccessNone
 		}
@@ -674,6 +686,50 @@ func (i *Interpreter) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Pro
 	}
 
 	return propInfo
+}
+
+// determinePropertyAccessKind determines whether a property spec name refers to a field, class var, or method.
+func (i *Interpreter) determinePropertyAccessKind(classInfo *ClassInfo, specName string) types.PropAccessKind {
+	if classInfo == nil {
+		// For interfaces or when no class context, treat as method (conservative default)
+		return types.PropAccessMethod
+	}
+
+	normalizedName := ident.Normalize(specName)
+
+	// Check if it's a field in this class or any parent
+	// Fields may be stored with original case or normalized key (inconsistency in codebase)
+	current := classInfo
+	for current != nil {
+		// Try normalized key first
+		if _, isField := current.Fields[normalizedName]; isField {
+			return types.PropAccessField
+		}
+		// Try original case (fields are sometimes stored with original case)
+		if _, isField := current.Fields[specName]; isField {
+			return types.PropAccessField
+		}
+		// Check for class variables (used in class properties)
+		if _, isClassVar := current.ClassVars[specName]; isClassVar {
+			return types.PropAccessField
+		}
+		current = current.Parent
+	}
+
+	// Check if it's a method (including class methods) in this class or any parent
+	current = classInfo
+	for current != nil {
+		if _, isMethod := current.Methods[normalizedName]; isMethod {
+			return types.PropAccessMethod
+		}
+		if _, isClassMethod := current.ClassMethods[normalizedName]; isClassMethod {
+			return types.PropAccessMethod
+		}
+		current = current.Parent
+	}
+
+	// Neither field nor method found - return None (error will be caught elsewhere)
+	return types.PropAccessNone
 }
 
 // evalInterfaceDeclaration builds InterfaceInfo from AST and registers it.
@@ -709,7 +765,7 @@ func (i *Interpreter) evalInterfaceDeclaration(id *ast.InterfaceDecl) Value {
 		if propDecl == nil {
 			continue
 		}
-		if propInfo := i.convertPropertyDecl(propDecl); propInfo != nil {
+		if propInfo := i.convertPropertyDecl(nil, propDecl); propInfo != nil {
 			interfaceInfo.Properties[ident.Normalize(propDecl.Name.Value)] = propInfo
 		}
 	}

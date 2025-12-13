@@ -152,8 +152,30 @@ func (c *ClassInfo) FieldExists(normalizedName string) bool {
 	if c == nil {
 		return false
 	}
-	_, exists := c.Fields[normalizedName]
-	return exists
+
+	nameNorm := ident.Normalize(normalizedName)
+
+	// Prefer AST-free metadata (normalized keys) when available.
+	if c.Metadata != nil && c.Metadata.Fields != nil {
+		if _, ok := c.Metadata.Fields[nameNorm]; ok {
+			return true
+		}
+	}
+
+	// Legacy fallback: support both normalized and original-cased keys.
+	if _, ok := c.Fields[nameNorm]; ok {
+		return true
+	}
+	if _, ok := c.Fields[normalizedName]; ok {
+		return true
+	}
+	for k := range c.Fields {
+		if ident.Equal(k, normalizedName) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // GetFieldsMap returns the legacy field declarations map

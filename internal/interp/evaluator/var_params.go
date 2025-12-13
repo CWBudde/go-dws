@@ -7,6 +7,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file provides helpers for evaluating lvalue expressions (expressions that
@@ -56,6 +57,40 @@ func (e *Evaluator) evaluateLValueIdentifier(target *ast.Identifier, ctx *Execut
 	// Get current value
 	currentVal, exists := e.GetVar(ctx, varName)
 	if !exists {
+		// Not in environment - check implicit Self context (fields) so member assignment
+		// like `Inner.Value := ...` works inside instance methods.
+		if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
+			if selfVal, ok := selfRaw.(Value); ok {
+				// Object instance fields
+				if selfVal.Type() == "OBJECT" {
+					if objVal, ok := selfVal.(ObjectValue); ok {
+						fieldVal := objVal.GetField(varName)
+						fieldExists := fieldVal != nil
+						if !fieldExists {
+							// Field may exist but be unset; consult class metadata.
+							if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
+								if objInst.Class != nil && objInst.Class.FieldExists(ident.Normalize(varName)) {
+									fieldExists = true
+									fieldVal = &runtime.NilValue{}
+								}
+							}
+						}
+
+						if fieldExists {
+							assignFunc := func(value Value) error {
+								if setter, ok := selfVal.(ObjectFieldSetter); ok {
+									setter.SetField(varName, value)
+									return nil
+								}
+								return fmt.Errorf("object does not support field assignment")
+							}
+							return fieldVal, assignFunc, nil
+						}
+					}
+				}
+			}
+		}
+
 		return nil, nil, fmt.Errorf("undefined variable: %s", varName)
 	}
 

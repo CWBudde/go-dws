@@ -569,7 +569,7 @@ func (i *Interpreter) AddClassProperty(classInfo interface{}, propDecl *ast.Prop
 		return false
 	}
 
-	propInfo := i.convertPropertyDecl(propDecl)
+	propInfo := i.convertPropertyDecl(ci, propDecl)
 	if propInfo != nil {
 		ci.Properties[propDecl.Name.Value] = propInfo
 		return true

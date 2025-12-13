@@ -71,7 +71,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 
 	// Check for interface-based indexed properties or object with default indexed property
 	// Both INTERFACE and OBJECT types may have default indexed properties
-	if strings.HasPrefix(arrayVal.Type(), "INTERFACE") || strings.HasPrefix(arrayVal.Type(), "OBJECT[") {
+	if strings.HasPrefix(arrayVal.Type(), "INTERFACE") || arrayVal.Type() == "OBJECT" {
 		// Handle default property assignment using PropertyAccessor interface
 		// Pattern: Same as 3.2.11g but lookup default property instead of named property
 		return e.evalDefaultPropertyAssignment(arrayVal, indexVal, value, stmt, ctx)
@@ -240,15 +240,30 @@ func (e *Evaluator) evalIndexedPropertyAssignment(
 		return e.newError(stmt, "property '%s' is not an indexed property", propName)
 	}
 
-	// Get the underlying PropertyInfo for setter access
-	propInfo, ok := propDesc.Impl.(*runtime.PropertyInfo)
-	if !ok {
-		return e.newError(stmt, "invalid property metadata for '%s'", propName)
+	// Check if property has write access
+	if propDesc.WriteSpec == "" {
+		return e.newError(stmt, "property '%s' is read-only", propName)
 	}
 
-	// Check if property has write access
-	if propInfo.WriteSpec == "" {
-		return e.newError(stmt, "property '%s' is read-only", propName)
+	// Look up the setter method declaration
+	// Handle interfaces - get the underlying object
+	var objVal ObjectValue
+	if ifaceInst, isIface := baseObj.(*runtime.InterfaceInstance); isIface {
+		if ifaceInst.Object == nil {
+			return e.newError(stmt, "property '%s' setter cannot be executed on nil interface", propName)
+		}
+		objVal = ifaceInst.Object
+	} else {
+		var ok bool
+		objVal, ok = baseObj.(ObjectValue)
+		if !ok {
+			return e.newError(stmt, "property '%s' setter cannot be executed on non-object", propName)
+		}
+	}
+
+	methodDecl := objVal.GetMethodDecl(propDesc.WriteSpec)
+	if methodDecl == nil {
+		return e.newError(stmt, "indexed property '%s' setter method '%s' not found", propName, propDesc.WriteSpec)
 	}
 
 	// Build argument list for setter: [indices..., value]
@@ -259,7 +274,8 @@ func (e *Evaluator) evalIndexedPropertyAssignment(
 	// Execute setter method via general OOP facility (adapter.ExecuteMethodWithSelf)
 	// This delegates to the interpreter for method execution, but it's a general
 	// method dispatch mechanism, not a property-specific adapter interface
-	result := e.oopEngine.ExecuteMethodWithSelf(baseObj, propInfo.WriteSpec, args)
+	// Use objVal (unwrapped object) instead of baseObj (which might be an interface wrapper)
+	result := e.oopEngine.ExecuteMethodWithSelf(objVal, methodDecl, args)
 
 	// Check for errors from method execution
 	if isError(result) {
@@ -309,15 +325,30 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 		return e.newError(stmt, "default property on %s is not an indexed property", obj.Type())
 	}
 
-	// Get the underlying PropertyInfo for setter access
-	propInfo, ok := propDesc.Impl.(*runtime.PropertyInfo)
-	if !ok {
-		return e.newError(stmt, "invalid default property metadata for %s", obj.Type())
+	// Check if property has write access
+	if propDesc.WriteSpec == "" {
+		return e.newError(stmt, "default property on %s is read-only", obj.Type())
 	}
 
-	// Check if property has write access
-	if propInfo.WriteSpec == "" {
-		return e.newError(stmt, "default property on %s is read-only", obj.Type())
+	// Look up the setter method declaration
+	// Handle interfaces - get the underlying object
+	var objVal ObjectValue
+	if ifaceInst, isIface := obj.(*runtime.InterfaceInstance); isIface {
+		if ifaceInst.Object == nil {
+			return e.newError(stmt, "default property setter cannot be executed on nil interface")
+		}
+		objVal = ifaceInst.Object
+	} else {
+		var ok bool
+		objVal, ok = obj.(ObjectValue)
+		if !ok {
+			return e.newError(stmt, "default property setter cannot be executed on non-object")
+		}
+	}
+
+	methodDecl := objVal.GetMethodDecl(propDesc.WriteSpec)
+	if methodDecl == nil {
+		return e.newError(stmt, "default property setter method '%s' not found", propDesc.WriteSpec)
 	}
 
 	// Build argument list for setter: [index, value]
@@ -327,7 +358,8 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 	// Execute setter method via general OOP facility (adapter.ExecuteMethodWithSelf)
 	// This delegates to the interpreter for method execution, but it's a general
 	// method dispatch mechanism, not a property-specific adapter interface
-	result := e.oopEngine.ExecuteMethodWithSelf(obj, propInfo.WriteSpec, args)
+	// Use objVal (unwrapped object) instead of obj (which might be an interface wrapper)
+	result := e.oopEngine.ExecuteMethodWithSelf(objVal, methodDecl, args)
 
 	// Check for errors from method execution
 	if isError(result) {

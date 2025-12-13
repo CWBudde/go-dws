@@ -7,8 +7,10 @@ package runtime
 // This allows runtime types to implement PropertyAccessor without depending
 // on the evaluator package. The evaluator imports runtime and uses this type.
 type PropertyDescriptor struct {
-	Impl      any    // Implementation reference (types.PropertyInfo)
+	Impl      any    // Implementation reference (types.PropertyInfo, types.RecordPropertyInfo, or runtime.PropertyInfo)
 	Name      string // Property name
+	ReadSpec  string // Field name or getter method name
+	WriteSpec string // Field name or setter method name
 	IsIndexed bool   // True if indexed property
 	IsDefault bool   // True if default property
 }

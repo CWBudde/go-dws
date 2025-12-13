@@ -129,19 +129,20 @@ type ExceptionSetter func(any)
 //
 //nolint:govet // Keep layout stable and readable; alignment optimization is not worth the churn here.
 type ExecutionContext struct {
-	handlerException  any
-	exception         any
-	arrayTypeContext  *types.ArrayType
-	callStack         *CallStack
-	controlFlow       *ControlFlow
-	propContext       *PropertyEvalContext
-	env               *Environment
-	exceptionGetter   ExceptionGetter
-	exceptionSetter   ExceptionSetter
-	recordTypeContext string
-	envStack          []*Environment
-	oldValuesStack    []map[string]any
-	refCountManager   RefCountManager
+	handlerException         any
+	exception                any
+	arrayTypeContext         *types.ArrayType
+	callStack                *CallStack
+	controlFlow              *ControlFlow
+	propContext              *PropertyEvalContext
+	env                      *Environment
+	exceptionGetter          ExceptionGetter
+	exceptionSetter          ExceptionSetter
+	recordTypeContext        string
+	currentFunctionReturnType string
+	envStack                 []*Environment
+	oldValuesStack           []map[string]any
+	refCountManager          RefCountManager
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
@@ -298,6 +299,21 @@ func (ctx *ExecutionContext) ClearRecordTypeContext() {
 	ctx.recordTypeContext = ""
 }
 
+// GetCurrentFunctionReturnType returns the expected return type for the current function.
+func (ctx *ExecutionContext) GetCurrentFunctionReturnType() string {
+	return ctx.currentFunctionReturnType
+}
+
+// SetCurrentFunctionReturnType sets the expected return type for the current function.
+func (ctx *ExecutionContext) SetCurrentFunctionReturnType(typeName string) {
+	ctx.currentFunctionReturnType = typeName
+}
+
+// ClearCurrentFunctionReturnType clears the expected return type.
+func (ctx *ExecutionContext) ClearCurrentFunctionReturnType() {
+	ctx.currentFunctionReturnType = ""
+}
+
 // ArrayTypeContext returns the current array type context for array literal evaluation.
 func (ctx *ExecutionContext) ArrayTypeContext() *types.ArrayType {
 	return ctx.arrayTypeContext
@@ -370,19 +386,20 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 	copy(oldValuesStackCopy, ctx.oldValuesStack)
 
 	return &ExecutionContext{
-		env:               ctx.env,
-		envStack:          envStackCopy,
-		callStack:         ctx.callStack,
-		controlFlow:       ctx.controlFlow,
-		exception:         ctx.exception,
-		handlerException:  ctx.handlerException,
-		oldValuesStack:    oldValuesStackCopy,
-		propContext:       ctx.propContext,
-		recordTypeContext: ctx.recordTypeContext,
-		arrayTypeContext:  ctx.arrayTypeContext,
-		exceptionGetter:   ctx.exceptionGetter,
-		exceptionSetter:   ctx.exceptionSetter,
-		refCountManager:   ctx.refCountManager,
+		env:                       ctx.env,
+		envStack:                  envStackCopy,
+		callStack:                 ctx.callStack,
+		controlFlow:               ctx.controlFlow,
+		exception:                 ctx.exception,
+		handlerException:          ctx.handlerException,
+		oldValuesStack:            oldValuesStackCopy,
+		propContext:               ctx.propContext,
+		recordTypeContext:         ctx.recordTypeContext,
+		currentFunctionReturnType: ctx.currentFunctionReturnType,
+		arrayTypeContext:          ctx.arrayTypeContext,
+		exceptionGetter:           ctx.exceptionGetter,
+		exceptionSetter:           ctx.exceptionSetter,
+		refCountManager:           ctx.refCountManager,
 	}
 }
 
@@ -396,6 +413,7 @@ func (ctx *ExecutionContext) Reset() {
 	ctx.oldValuesStack = make([]map[string]any, 0)
 	ctx.propContext = NewPropertyEvalContext()
 	ctx.recordTypeContext = ""
+	ctx.currentFunctionReturnType = ""
 	ctx.arrayTypeContext = nil
 }
 

@@ -169,7 +169,6 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 		// Type conversions and wrapping if explicit type declared
 		if node.Type != nil {
 			typeName := node.Type.String()
-
 			if e.typeSystem.HasSubrangeType(typeName) {
 				wrappedVal, err := e.oopEngine.WrapInSubrange(value, typeName, node)
 				if err != nil {
@@ -275,6 +274,36 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			return e.evalCompoundIdentifierAssignment(target, node, ctx)
 		}
 
+		// Disambiguation for `[...]` literals: in DWScript, brackets can represent sets.
+		// If the target is a set type, evaluate any bracket literal as a set literal.
+		if arrLit, ok := node.Value.(*ast.ArrayLiteralExpression); ok {
+			if expectedSetType := e.getSetTypeFromTarget(target, ctx); expectedSetType != nil {
+				setLit := &ast.SetLiteral{
+					Elements:            arrLit.Elements,
+					TypedExpressionBase: arrLit.TypedExpressionBase,
+				}
+
+				// Provide type information for empty `[]` inference.
+				if e.semanticInfo != nil {
+					typeName := expectedSetType.String()
+					if targetAnnot := e.semanticInfo.GetType(target); targetAnnot != nil && targetAnnot.Name != "" {
+						typeName = targetAnnot.Name
+					}
+					e.semanticInfo.SetType(setLit, &ast.TypeAnnotation{Token: setLit.Token, Name: typeName})
+					defer e.semanticInfo.ClearType(setLit)
+				}
+
+				value := e.evalSetLiteralDirect(setLit, ctx)
+				if isError(value) {
+					return value
+				}
+				if ctx.Exception() != nil {
+					return &runtime.NilValue{}
+				}
+				return e.evalSimpleAssignmentDirect(target, value, node, ctx)
+			}
+		}
+
 		// Context inference for array literals
 		if _, isArrayLit := node.Value.(*ast.ArrayLiteralExpression); isArrayLit {
 			if expectedType := e.getArrayTypeFromTarget(target, ctx); expectedType != nil {
@@ -301,14 +330,8 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 		}
 
 		// Records have value semantics - copy when assigning
-		if value != nil && value.Type() == "RECORD" {
-			if copyable, ok := value.(runtime.CopyableValue); ok {
-				if copied := copyable.Copy(); copied != nil {
-					if copiedValue, ok := copied.(Value); ok {
-						value = copiedValue
-					}
-				}
-			}
+		if record, ok := value.(*runtime.RecordValue); ok {
+			value = record.Copy()
 		}
 
 		return e.evalSimpleAssignmentDirect(target, value, node, ctx)
@@ -1078,7 +1101,23 @@ func (e *Evaluator) VisitContinueStatement(node *ast.ContinueStatement, ctx *Exe
 func (e *Evaluator) VisitExitStatement(node *ast.ExitStatement, ctx *ExecutionContext) Value {
 	ctx.ControlFlow().SetExit()
 	if node.ReturnValue != nil {
+		// Set record type context if returning anonymous record literal
+		contextSet := false
+		if returnType := ctx.GetCurrentFunctionReturnType(); returnType != "" {
+			if recordLit, ok := node.ReturnValue.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+				if e.typeSystem.HasRecord(returnType) {
+					ctx.SetRecordTypeContext(returnType)
+					contextSet = true
+				}
+			}
+		}
+
 		value := e.Eval(node.ReturnValue, ctx)
+
+		if contextSet {
+			ctx.ClearRecordTypeContext()
+		}
+
 		if isError(value) {
 			return value
 		}
@@ -1099,7 +1138,23 @@ func (e *Evaluator) VisitReturnStatement(node *ast.ReturnStatement, ctx *Executi
 	// Evaluate the return value
 	var returnVal Value
 	if node.ReturnValue != nil {
+		// Set record type context if returning anonymous record literal
+		contextSet := false
+		if returnType := ctx.GetCurrentFunctionReturnType(); returnType != "" {
+			if recordLit, ok := node.ReturnValue.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+				if e.typeSystem.HasRecord(returnType) {
+					ctx.SetRecordTypeContext(returnType)
+					contextSet = true
+				}
+			}
+		}
+
 		returnVal = e.Eval(node.ReturnValue, ctx)
+
+		if contextSet {
+			ctx.ClearRecordTypeContext()
+		}
+
 		if isError(returnVal) {
 			return returnVal
 		}

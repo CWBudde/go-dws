@@ -148,93 +148,18 @@ func (i *Interpreter) GetEvaluator() contracts.Evaluator {
 
 // EvalNode provides a minimal evaluation hook for cross-cutting concerns.
 func (i *Interpreter) EvalNode(node ast.Node) Value {
-	return i.Eval(node)
+	// IMPORTANT:
+	// This is a CoreEvaluator callback used by the evaluator for not-yet-migrated
+	// operations. It must NOT call i.Eval() (which delegates to the evaluator),
+	// otherwise we'd recurse forever. Use the legacy path instead.
+	return i.evalLegacy(node)
 }
 
-// GetCallStack returns a copy of the current call stack.
-// Returns stack frames in the order they were called (oldest to newest).
-func (i *Interpreter) GetCallStack() errors.StackTrace {
-	// Return a copy to prevent external modification
-	stack := make(errors.StackTrace, len(i.callStack))
-	copy(stack, i.callStack)
-	return stack
-}
-
-// ===== Environment Management Helpers =====
-
-// Env returns the current environment from the ExecutionContext.
-func (i *Interpreter) Env() *Environment {
-	return i.ctx.Env()
-}
-
-// SetEnvironment switches the ExecutionContext to use a different environment.
-// Used for lambda closure evaluation and environment switching.
-func (i *Interpreter) SetEnvironment(env *Environment) {
-	i.ctx.SetEnv(env)
-}
-
-// PushEnvironment creates a new enclosed environment with the given parent,
-// then updates the ExecutionContext to use it. Returns the new environment.
-func (i *Interpreter) PushEnvironment(parent *Environment) *Environment {
-	newEnv := NewEnclosedEnvironment(parent)
-	i.SetEnvironment(newEnv)
-	return newEnv
-}
-
-// RestoreEnvironment restores a previously saved environment to the ExecutionContext.
-func (i *Interpreter) RestoreEnvironment(saved *Environment) {
-	i.SetEnvironment(saved)
-}
-
-// PushScope creates a new enclosed environment scope using the context's stack.
-// Returns a cleanup function that should be deferred to restore the previous scope.
-//
-// Usage:
-//
-//	defer i.PushScope()()
-//	i.Env().Define("x", value)
-//	result := i.Eval(body)
-func (i *Interpreter) PushScope() func() {
-	i.ctx.PushEnv()
-	return func() {
-		i.ctx.PopEnv()
-	}
-}
-
-// pushCallStack adds a new frame to the call stack with the given function name.
-func (i *Interpreter) pushCallStack(functionName string) {
-	var pos *lexer.Position
-	if i.evaluatorInstance.CurrentNode() != nil {
-		nodePos := i.evaluatorInstance.CurrentNode().Pos()
-		pos = &nodePos
-	}
-	frame := errors.NewStackFrame(functionName, i.evaluatorInstance.SourceFile(), pos)
-	i.callStack = append(i.callStack, frame)
-	_ = i.ctx.GetCallStack().Push(functionName, i.evaluatorInstance.SourceFile(), pos)
-}
-
-// popCallStack removes the most recent frame from the call stack.
-func (i *Interpreter) popCallStack() {
-	if len(i.callStack) > 0 {
-		i.callStack = i.callStack[:len(i.callStack)-1]
-	}
-	i.ctx.GetCallStack().Pop()
-}
-
-// evalViaEvaluator delegates evaluation to the evaluator and converts runtime.ErrorValue to interp.ErrorValue.
-// This ensures type compatibility for tests and existing code that expect interp.ErrorValue.
-func (i *Interpreter) evalViaEvaluator(node ast.Node) Value {
-	result := i.evaluatorInstance.Eval(node, i.ctx)
-	// Convert runtime.ErrorValue to interp.ErrorValue for type compatibility
-	if runtimeErr, ok := result.(*runtime.ErrorValue); ok {
-		return &ErrorValue{Message: runtimeErr.Message}
-	}
-	return result
-}
-
-// Eval evaluates an AST node and returns its value.
-// Main entry point for the interpreter.
-func (i *Interpreter) Eval(node ast.Node) Value {
+// evalLegacy contains the prior interpreter-side dispatch for statements/
+// declarations and any remaining expression cases that still rely on interpreter
+// state. It exists to support evaluator->CoreEvaluator callbacks while keeping
+// Interpreter.Eval() unified.
+func (i *Interpreter) evalLegacy(node ast.Node) Value {
 	i.evaluatorInstance.SetCurrentNode(node)
 
 	switch node := node.(type) {
@@ -491,6 +416,94 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 	default:
 		return newError("unknown node type: %T", node)
 	}
+}
+
+// GetCallStack returns a copy of the current call stack.
+// Returns stack frames in the order they were called (oldest to newest).
+func (i *Interpreter) GetCallStack() errors.StackTrace {
+	// Return a copy to prevent external modification
+	stack := make(errors.StackTrace, len(i.callStack))
+	copy(stack, i.callStack)
+	return stack
+}
+
+// ===== Environment Management Helpers =====
+
+// Env returns the current environment from the ExecutionContext.
+func (i *Interpreter) Env() *Environment {
+	return i.ctx.Env()
+}
+
+// SetEnvironment switches the ExecutionContext to use a different environment.
+// Used for lambda closure evaluation and environment switching.
+func (i *Interpreter) SetEnvironment(env *Environment) {
+	i.ctx.SetEnv(env)
+}
+
+// PushEnvironment creates a new enclosed environment with the given parent,
+// then updates the ExecutionContext to use it. Returns the new environment.
+func (i *Interpreter) PushEnvironment(parent *Environment) *Environment {
+	newEnv := NewEnclosedEnvironment(parent)
+	i.SetEnvironment(newEnv)
+	return newEnv
+}
+
+// RestoreEnvironment restores a previously saved environment to the ExecutionContext.
+func (i *Interpreter) RestoreEnvironment(saved *Environment) {
+	i.SetEnvironment(saved)
+}
+
+// PushScope creates a new enclosed environment scope using the context's stack.
+// Returns a cleanup function that should be deferred to restore the previous scope.
+//
+// Usage:
+//
+//	defer i.PushScope()()
+//	i.Env().Define("x", value)
+//	result := i.Eval(body)
+func (i *Interpreter) PushScope() func() {
+	i.ctx.PushEnv()
+	return func() {
+		i.ctx.PopEnv()
+	}
+}
+
+// pushCallStack adds a new frame to the call stack with the given function name.
+func (i *Interpreter) pushCallStack(functionName string) {
+	var pos *lexer.Position
+	if i.evaluatorInstance.CurrentNode() != nil {
+		nodePos := i.evaluatorInstance.CurrentNode().Pos()
+		pos = &nodePos
+	}
+	frame := errors.NewStackFrame(functionName, i.evaluatorInstance.SourceFile(), pos)
+	i.callStack = append(i.callStack, frame)
+	_ = i.ctx.GetCallStack().Push(functionName, i.evaluatorInstance.SourceFile(), pos)
+}
+
+// popCallStack removes the most recent frame from the call stack.
+func (i *Interpreter) popCallStack() {
+	if len(i.callStack) > 0 {
+		i.callStack = i.callStack[:len(i.callStack)-1]
+	}
+	i.ctx.GetCallStack().Pop()
+}
+
+// evalViaEvaluator delegates evaluation to the evaluator and converts runtime.ErrorValue to interp.ErrorValue.
+// This ensures type compatibility for tests and existing code that expect interp.ErrorValue.
+func (i *Interpreter) evalViaEvaluator(node ast.Node) Value {
+	result := i.evaluatorInstance.Eval(node, i.ctx)
+	// Convert runtime.ErrorValue to interp.ErrorValue for type compatibility
+	if runtimeErr, ok := result.(*runtime.ErrorValue); ok {
+		return &ErrorValue{Message: runtimeErr.Message}
+	}
+	return result
+}
+
+// Eval evaluates an AST node and returns its value.
+// Main entry point for the interpreter.
+func (i *Interpreter) Eval(node ast.Node) Value {
+	i.evaluatorInstance.SetCurrentNode(node)
+	return i.evalViaEvaluator(node)
 }
 
 // EvalWithExpectedType evaluates a node with an expected type for better type inference.

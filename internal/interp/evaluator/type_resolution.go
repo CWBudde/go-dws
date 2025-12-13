@@ -293,8 +293,17 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 		return e.resolveInlineArrayTypeWithContext(typeName, ctx)
 	}
 
-	// Step 2: Normalize for case-insensitive lookup
+	// Step 2: Handle inline set types (e.g., "set of TColor")
+	// Use case-insensitive prefix matching to respect DWScript semantics.
 	lowerTypeName := ident.Normalize(typeName)
+	if strings.HasPrefix(lowerTypeName, "set of ") {
+		elementTypeName := strings.TrimSpace(lowerTypeName[len("set of "):])
+		elementType, err := e.ResolveTypeWithContext(elementTypeName, ctx)
+		if err != nil {
+			return nil, fmt.Errorf("invalid set element type: %w", err)
+		}
+		return types.NewSetType(elementType), nil
+	}
 
 	// Step 3: Check built-in types
 	switch lowerTypeName {
@@ -331,6 +340,13 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 	if recordTypeVal, ok := ctx.Env().Get("__record_type_" + lowerTypeName); ok {
 		if rtv, ok := recordTypeVal.(interface{ GetRecordType() *types.RecordType }); ok {
 			return rtv.GetRecordType(), nil
+		}
+	}
+
+	// Step 6b: Check named set types in environment
+	if setTypeVal, ok := ctx.Env().Get("__set_type_" + lowerTypeName); ok {
+		if stv, ok := setTypeVal.(interface{ GetSetType() *types.SetType }); ok {
+			return stv.GetSetType(), nil
 		}
 	}
 

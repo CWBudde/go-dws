@@ -144,8 +144,25 @@ func (e *Evaluator) ResolveOverloadFast(
 			// PrepareUserFunctionArgs will wrap them later
 			argValues[idx] = nil
 		} else {
+			// Set record type context if argument is anonymous record literal
+			contextSet := false
+			if idx < len(fn.Parameters) && fn.Parameters[idx].Type != nil {
+				paramType := fn.Parameters[idx].Type.String()
+				if recordLit, ok := argExpr.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+					if e.typeSystem.HasRecord(paramType) {
+						ctx.SetRecordTypeContext(paramType)
+						contextSet = true
+					}
+				}
+			}
+
 			// Evaluate non-lazy parameters
 			val := e.Eval(argExpr, ctx)
+
+			if contextSet {
+				ctx.ClearRecordTypeContext()
+			}
+
 			if isError(val) {
 				return nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)
 			}
@@ -176,6 +193,9 @@ func (e *Evaluator) ResolveOverloadMultiple(
 	argValues := make([]Value, len(argExprs))
 
 	for idx, argExpr := range argExprs {
+		// For overload resolution, we need to determine the best matching function
+		// first, but we don't know parameter types yet. We evaluate without context
+		// initially to determine types.
 		val := e.Eval(argExpr, ctx)
 		if isError(val) {
 			return nil, nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)

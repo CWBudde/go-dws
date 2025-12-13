@@ -238,6 +238,12 @@ func (e *Evaluator) ExecuteUserFunction(
 	funcCtx := ctx.Clone()
 	funcCtx.SetEnv(funcEnv)
 
+	// Set return type context for return/exit statements
+	if fn.ReturnType != nil {
+		returnTypeName := fn.ReturnType.String()
+		funcCtx.SetCurrentFunctionReturnType(returnTypeName)
+	}
+
 	// Check recursion depth
 	if funcCtx.GetCallStack().WillOverflow() {
 		return nil, fmt.Errorf("maximum recursion depth exceeded")
@@ -260,6 +266,20 @@ func (e *Evaluator) ExecuteUserFunction(
 	if err := e.InitializeResultVariable(fn, funcCtx, callbacks.DefaultValueGetter, callbacks.FunctionNameAlias); err != nil {
 		return nil, err
 	}
+
+	// Sync interpreter's environment before preconditions/body execution
+	// This ensures that when evaluator falls back to interpreter via EvalNode,
+	// the interpreter uses the correct function-scoped environment.
+	var restoreEnv func()
+	if callbacks.EnvSyncer != nil {
+		restoreEnv = callbacks.EnvSyncer(funcEnv)
+	}
+	defer func() {
+		// Restore interpreter's environment after function completes
+		if restoreEnv != nil {
+			restoreEnv()
+		}
+	}()
 
 	// Check preconditions before executing function body
 	if fn.PreConditions != nil {
@@ -288,19 +308,10 @@ func (e *Evaluator) ExecuteUserFunction(
 		return nil, fmt.Errorf("function '%s' has no body", fn.Name.Value)
 	}
 
-	// Sync interpreter's environment before body execution
-	var restoreEnv func()
-	if callbacks.EnvSyncer != nil {
-		restoreEnv = callbacks.EnvSyncer(funcEnv)
-	}
-
-	// Execute function body via EvalNode (full language feature support)
-	_ = e.coreEvaluator.EvalNode(fn.Body)
-
-	// Restore interpreter's environment after body execution
-	if restoreEnv != nil {
-		restoreEnv()
-	}
+	// Execute function body through the evaluator.
+	// Any remaining not-yet-migrated constructs may still fall back to coreEvaluator
+	// from within Evaluator.Eval, but this avoids an unconditional EvalNode ping-pong.
+	_ = e.Eval(fn.Body, funcCtx)
 
 	// If exception was raised, propagate it to caller's context
 	if funcCtx.Exception() != nil {
@@ -351,6 +362,10 @@ func (e *Evaluator) ExecuteUserFunction(
 		}
 
 		// Increment ref count for interface return values (if callback provided)
+		// NOTE (Task 4.0.10): This ensures the caller gets a proper reference.
+		// When Result := IntfRef is executed, both hold references.
+		// Function cleanup will release IntfRef, so we need this increment
+		// to maintain the reference for the return value.
 		if callbacks.InterfaceRefCounter != nil {
 			callbacks.InterfaceRefCounter(returnValue)
 		}
@@ -383,6 +398,9 @@ func (e *Evaluator) ExecuteUserFunction(
 	if callbacks.InterfaceCleanup != nil {
 		callbacks.InterfaceCleanup(funcEnv)
 	}
+
+	// Clear return type context
+	funcCtx.ClearCurrentFunctionReturnType()
 
 	// Environment is automatically restored by using funcCtx instead of modifying e.ctx
 

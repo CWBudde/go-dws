@@ -379,16 +379,24 @@ func (i *Interpreter) ReleaseInterfaceReference(intfInst *InterfaceInstance) Val
 }
 
 // cleanupInterfaceReferences releases all interface and object references when a scope ends.
+// Task 4.0.10: Skip "Result" variable - it's returned to caller and shouldn't be released here.
 func (i *Interpreter) cleanupInterfaceReferences(env *Environment) {
 	if env == nil {
 		return
 	}
 
 	// Iterate through all variables in the environment
-	env.Range(func(_ string, value Value) bool {
+	env.Range(func(name string, value Value) bool {
 		// Skip ReferenceValue entries (like function name aliases)
 		if _, isRef := value.(*ReferenceValue); isRef {
 			return true // continue
+		}
+
+		// Task 4.0.10: Skip "Result" variable during function cleanup.
+		// Result is the return value and will be managed by the caller.
+		// Releasing it here would cause premature destructor calls.
+		if name == "Result" {
+			return true // continue (skip)
 		}
 
 		if intfInst, ok := value.(*InterfaceInstance); ok {

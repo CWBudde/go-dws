@@ -70,6 +70,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 				if fieldValue := objVal.GetField(node.Value); fieldValue != nil {
 					return fieldValue
 				}
+				// If the field exists but hasn't been set yet, DWScript semantics treat
+				// it as nil (not an undefined identifier).
+				if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
+					if objInst.Class != nil && objInst.Class.FieldExists(ident.Normalize(node.Value)) {
+						return &runtime.NilValue{}
+					}
+				}
 
 				// Check for class variable
 				if classVarValue, found := objVal.GetClassVar(node.Value); found {
@@ -183,6 +190,11 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 				if classVarValue, found := classMetaVal.GetClassVar(node.Value); found {
 					return classVarValue
 				}
+
+				// Check for nested class (e.g. `new TInner` inside outer class scope)
+				if nested := classMetaVal.GetNestedClass(node.Value); nested != nil {
+					return nested
+				}
 			}
 		}
 	}
@@ -230,7 +242,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 		// Check if function has zero parameters - auto-invoke
 		if len(fn.Parameters) == 0 {
-		// Delegate to adapter for proper exception handling
+			// Delegate to adapter for proper exception handling
 			return e.oopEngine.CallUserFunction(fn, []Value{})
 		}
 
@@ -263,6 +275,17 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			return val
 		}
 		return e.newError(node, "internal error: ClassValueFactory returned non-Value type")
+	}
+
+	// Fallback: class might exist in the legacy interpreter class table but not
+	// (yet) be visible through TypeSystem lookup.
+	//
+	// This keeps evaluator identifier resolution compatible with legacy declaration
+	// ordering until Phase 4.0 stabilizes class/type binding.
+	if e.oopEngine != nil {
+		if classMeta := e.oopEngine.LookupClassByName(node.Value); classMeta != nil {
+			return classMeta
+		}
 	}
 
 	// Final check: check for built-in functions or return undefined error

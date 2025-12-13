@@ -6,7 +6,9 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ConversionCallbacks holds the callbacks needed for executing conversion functions.
@@ -68,9 +70,9 @@ func (e *Evaluator) ExecuteConversionFunction(
 	userCallbacks := &UserFunctionCallbacks{
 		// DefaultValueGetter returns the default for the return type
 		DefaultValueGetter: func(returnTypeName string) Value {
-			// For conversion functions, we typically expect a value to be returned
-			// The default is nil, which will be overwritten by the function body
-			return &runtime.NilValue{}
+			// For conversion functions, we need to create proper instances for record types
+			// so that the function body can assign fields to Result
+			return e.getDefaultValueForTypeName(returnTypeName)
 		},
 	}
 
@@ -279,4 +281,66 @@ func isErrorValue(val Value) bool {
 		return false
 	}
 	return val.Type() == "ERROR"
+}
+
+// getDefaultValueForTypeName returns the default value for a type given its name.
+// This wraps the visitor_statements.go logic for creating default values by type name.
+func (e *Evaluator) getDefaultValueForTypeName(typeName string) Value {
+	// For record type lookup, just use simple case-insensitive normalization
+	// Don't use NormalizeTypeAnnotation which adds "class:" prefix
+	normalizedName := ident.Normalize(typeName)
+
+	// Check for record types - need to create actual instances for conversion functions
+	if e.typeSystem.HasRecord(normalizedName) {
+		recordTypeAny := e.typeSystem.LookupRecord(normalizedName)
+		if recordTypeAny == nil {
+			return &runtime.NilValue{}
+		}
+
+		// Type-assert to access RecordType and Metadata
+		type recordTypeAccess interface {
+			GetRecordType() *types.RecordType
+			GetMetadata() any
+		}
+
+		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
+		if !ok {
+			return &runtime.NilValue{}
+		}
+
+		recordType := recordTypeAccessor.GetRecordType()
+		if recordType == nil {
+			return &runtime.NilValue{}
+		}
+
+		// Extract Metadata (may be nil)
+		var metadata *runtime.RecordMetadata
+		if mdAny := recordTypeAccessor.GetMetadata(); mdAny != nil {
+			if md, ok := mdAny.(*runtime.RecordMetadata); ok {
+				metadata = md
+			}
+		}
+
+		// Create record with zero-initialized fields (no field initializers for conversion functions)
+		initializer := func(fieldName string, fieldType types.Type) runtime.Value {
+			return e.getZeroValueForType(fieldType)
+		}
+
+		return runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
+	}
+
+	// For other types, return simple zero values
+	switch typeName {
+	case "integer":
+		return &runtime.IntegerValue{Value: 0}
+	case "float":
+		return &runtime.FloatValue{Value: 0.0}
+	case "string":
+		return &runtime.StringValue{Value: ""}
+	case "boolean":
+		return &runtime.BooleanValue{Value: false}
+	default:
+		// Classes, interfaces, and unknown types default to nil
+		return &runtime.NilValue{}
+	}
 }

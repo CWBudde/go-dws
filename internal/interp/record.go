@@ -203,9 +203,10 @@ func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Va
 // resolveType resolves a type name to a types.Type.
 // Handles built-in types, inline arrays, and custom types (enums, records, classes, etc.).
 func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
-	// Check for inline array types first
-	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
-		arrayType := i.parseInlineArrayType(typeName)
+	// Check for inline array types first (case-insensitive)
+	lowerOrig := ident.Normalize(typeName)
+	if strings.HasPrefix(lowerOrig, "array of ") || strings.HasPrefix(lowerOrig, "array[") {
+		arrayType := i.parseInlineArrayType(lowerOrig)
 		if arrayType != nil {
 			return arrayType, nil
 		}
@@ -213,7 +214,7 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 	}
 
 	// Inline function/method pointer types
-	if lowerOrig := ident.Normalize(typeName); strings.HasPrefix(lowerOrig, "function(") || strings.HasPrefix(lowerOrig, "procedure(") {
+	if strings.HasPrefix(lowerOrig, "function(") || strings.HasPrefix(lowerOrig, "procedure(") {
 		if funcPtrType, err := i.resolveInlineFunctionPointerType(typeName); err == nil {
 			return funcPtrType, nil
 		}

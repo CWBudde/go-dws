@@ -75,12 +75,17 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 					// Try class variable
 					if _, found := objVal.GetClassVar(targetName); found {
 						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
-							classInfo := objInst.Class
-							if classMetaVal, ok := classInfo.(ClassMetaValue); ok {
-								if classMetaVal.SetClassVar(targetName, value) {
-									return value
+							className := ""
+							if objInst.Class != nil {
+								className = objInst.Class.GetName()
+							}
+							if className != "" {
+								if classMetaVal := e.oopEngine.LookupClassByName(className); classMetaVal != nil {
+									if classMetaVal.SetClassVar(targetName, value) {
+										return value
+									}
+									return e.newError(target, "failed to set class variable '%s'", targetName)
 								}
-								return e.newError(target, "failed to set class variable '%s'", targetName)
 							}
 						}
 						return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
@@ -126,9 +131,9 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 	// External variable
 	if existingVal.Type() == "EXTERNAL_VAR" {
 		if extVar, ok := existingVal.(ExternalVarAccessor); ok {
-			return e.newError(target, "unsupported external variable assignment: %s", extVar.ExternalVarName())
+			return e.newError(target, "Unsupported external variable assignment: %s", extVar.ExternalVarName())
 		}
-		return e.newError(target, "unsupported external variable assignment")
+		return e.newError(target, "Unsupported external variable assignment")
 	}
 
 	// Subrange validation
@@ -145,7 +150,14 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		if objInst, ok := value.(*runtime.ObjectInstance); ok {
 			value = refMgr.WrapInInterface(ifaceInst.Interface, objInst)
 		} else if srcIface, isSrcIface := value.(*runtime.InterfaceInstance); isSrcIface {
-			value = refMgr.WrapInInterface(ifaceInst.Interface, srcIface.Object)
+			// Task 4.0.10: When assigning an interface to an interface variable,
+			// just reuse the source interface WITHOUT incrementing refcount.
+			// The source already has the correct refcount, and we're just storing
+			// a reference to it. Incrementing here would cause a refcount leak.
+			value = &runtime.InterfaceInstance{
+				Interface: ifaceInst.Interface,
+				Object:    srcIface.Object,
+			}
 		} else if _, isNil := value.(*runtime.NilValue); isNil {
 			value = &runtime.InterfaceInstance{
 				Interface: ifaceInst.Interface,
@@ -153,6 +165,17 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 			}
 		}
 
+		e.SetVar(ctx, targetName, value)
+		return value
+	}
+
+	// Assigning interface to non-interface variable (e.g. Result initialized as NilValue)
+	// This handles the case where the variable wasn't properly initialized as InterfaceInstance
+	if _, isSrcIface := value.(*runtime.InterfaceInstance); isSrcIface {
+		// Task 4.0.10: Do NOT increment refcount here.
+		// The source interface already has the correct refcount.
+		// We're just storing a reference to the same interface instance.
+		// Incrementing here would cause a refcount leak.
 		e.SetVar(ctx, targetName, value)
 		return value
 	}
@@ -512,12 +535,109 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 func (e *Evaluator) getArrayTypeFromTarget(target *ast.Identifier, ctx *ExecutionContext) *types.ArrayType {
 	existingVal, exists := ctx.Env().Get(target.Value)
 	if !exists {
-		return nil
+		existingVal = nil
 	}
 	// runtime.ArrayValue has ArrayType directly accessible
 	if arrVal, ok := existingVal.(*runtime.ArrayValue); ok {
 		return arrVal.ArrayType
 	}
+
+	// Last resort: resolve the identifier through evaluator lookup (can differ from raw Env().Get
+	// when name resolution involves aliases, special contexts, or wrapper values).
+	if target != nil {
+		resolved := e.VisitIdentifier(target, ctx)
+		if arrVal, ok := resolved.(*runtime.ArrayValue); ok {
+			return arrVal.ArrayType
+		}
+		if typeStringer, ok := resolved.(interface{ ArrayTypeString() string }); ok {
+			typeName := typeStringer.ArrayTypeString()
+			if typeName != "" && typeName != "array" {
+				resolvedType, err := e.ResolveTypeWithContext(typeName, ctx)
+				if err == nil {
+					if arrType, ok := resolvedType.(*types.ArrayType); ok {
+						return arrType
+					}
+					if underlying := types.GetUnderlyingType(resolvedType); underlying != nil {
+						if arrType, ok := underlying.(*types.ArrayType); ok {
+							return arrType
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback: infer from an array value that exposes its type string.
+	// This helps when the runtime value isn't a *runtime.ArrayValue (e.g. wrappers)
+	// or when ArrayType metadata wasn't populated but the type string is available.
+	if typeStringer, ok := existingVal.(interface{ ArrayTypeString() string }); ok {
+		typeName := typeStringer.ArrayTypeString()
+		if typeName != "" && typeName != "array" {
+			resolved, err := e.ResolveTypeWithContext(typeName, ctx)
+			if err == nil {
+				if arrType, ok := resolved.(*types.ArrayType); ok {
+					return arrType
+				}
+				if underlying := types.GetUnderlyingType(resolved); underlying != nil {
+					if arrType, ok := underlying.(*types.ArrayType); ok {
+						return arrType
+					}
+				}
+			}
+		}
+	}
+
+	// If the variable isn't currently holding an ArrayValue (e.g. uninitialized),
+	// fall back to semantic type information for the identifier.
+	if e.semanticInfo != nil {
+		typeAnnot := e.semanticInfo.GetType(target)
+		if typeAnnot != nil && typeAnnot.Name != "" {
+			resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx)
+			if err == nil {
+				if arrType, ok := resolved.(*types.ArrayType); ok {
+					return arrType
+				}
+				if underlying := types.GetUnderlyingType(resolved); underlying != nil {
+					if arrType, ok := underlying.(*types.ArrayType); ok {
+						return arrType
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// getSetTypeFromTarget extracts SetType from the target variable.
+// This enables context inference for set literals during assignment:
+// var s: set of TEnum; s := []; // Literal adopts s's type
+//
+// Returns nil if the set type cannot be determined.
+func (e *Evaluator) getSetTypeFromTarget(target *ast.Identifier, ctx *ExecutionContext) *types.SetType {
+	existingVal, exists := ctx.Env().Get(target.Value)
+	if exists {
+		if setVal, ok := existingVal.(*runtime.SetValue); ok {
+			return setVal.SetType
+		}
+	}
+
+	if target != nil {
+		resolved := e.VisitIdentifier(target, ctx)
+		if setVal, ok := resolved.(*runtime.SetValue); ok {
+			return setVal.SetType
+		}
+	}
+
+	if e.semanticInfo != nil {
+		if typeAnnot := e.semanticInfo.GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
+			if resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
+				if setType, ok := types.GetUnderlyingType(resolved).(*types.SetType); ok {
+					return setType
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
