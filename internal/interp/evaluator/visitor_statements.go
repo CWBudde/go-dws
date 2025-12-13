@@ -330,14 +330,8 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 		}
 
 		// Records have value semantics - copy when assigning
-		if value != nil && value.Type() == "RECORD" {
-			if copyable, ok := value.(runtime.CopyableValue); ok {
-				if copied := copyable.Copy(); copied != nil {
-					if copiedValue, ok := copied.(Value); ok {
-						value = copiedValue
-					}
-				}
-			}
+		if record, ok := value.(*runtime.RecordValue); ok {
+			value = record.Copy()
 		}
 
 		return e.evalSimpleAssignmentDirect(target, value, node, ctx)
