@@ -340,14 +340,28 @@ The issue had two parts:
 
 **Impact**: Record literals now properly validate field names. Test count reduced from 5 failing to 4 failing tests.
 
-- [ ] **4.0.14** Fix record function return type initialization (timeboxed)
+- [x] **4.0.14** Fix record function return type initialization (timeboxed) ✅ **COMPLETED**
 
-  - Fix record return values from functions and implicit conversions
+  - ✅ Fixed function-name to Result mapping for member assignment on records
   - **Regression targets**:
-    - `TestRecordReturnTypeInitialization/Record_return_via_implicit_conversion` - Object not instantiated
-    - `TestRecordReturnTypeInitialization/Record_return_assigned_to_function_name` - returning 0 instead of value
+    - ✅ `TestRecordReturnTypeInitialization/Record_return_via_implicit_conversion` - now passing (fixed by 4.0.7)
+    - ✅ `TestRecordReturnTypeInitialization/Record_return_assigned_to_function_name` - now passing
+    - ✅ All 5 TestRecordReturnTypeInitialization subtests passing
 
-**Root cause**: May be related to constructor invocation for record return types
+**Root cause identified**: When assigning to a record field via function name (e.g., `GetValue.N := 70` where GetValue is the function name), the `evalMemberAssignmentDirect` function received a ReferenceValue (the function-name alias to Result) but didn't dereference it before attempting member assignment. The code path for `GetValue.N := value` was:
+
+1. Resolve `GetValue` → ReferenceValue (alias to Result)
+2. Try to assign to field N of ReferenceValue → FAIL (ReferenceValue doesn't have fields)
+
+The fix ensures ReferenceValue is dereferenced to get the actual RecordValue before performing member assignment.
+
+**Changes made**:
+
+1. `internal/interp/evaluator/member_assignment.go:74-82`: Added ReferenceValue dereferencing before member assignment
+   - Check if objVal is ReferenceAccessor and dereference it
+   - This allows `FunctionName.Field := value` to work when FunctionName is an alias to Result
+
+**Impact**: Function-name to Result aliasing now works correctly for record return types. Test count reduced from 4 failing to 3 failing tests.
 
 - [ ] **4.0.15** Fix compound assignment operators on class instances (timeboxed)
 

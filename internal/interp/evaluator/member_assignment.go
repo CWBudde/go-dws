@@ -71,6 +71,16 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		return &runtime.NilValue{}
 	}
 
+	// Dereference ReferenceValue (e.g. function name alias to Result)
+	// This allows `GetValue.N := 70` to work when GetValue is a ReferenceValue pointing to Result
+	if refVal, isRef := objVal.(ReferenceAccessor); isRef {
+		deref, err := refVal.Dereference()
+		if err != nil {
+			return e.newError(stmt, "failed to dereference: %s", err.Error())
+		}
+		objVal = deref
+	}
+
 	// NATIVE: Nil value handling (auto-initialization)
 	if objVal == nil || objVal.Type() == "NIL" {
 		// Only attempt auto-initialization if we have a setter (LValue)
