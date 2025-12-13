@@ -274,7 +274,8 @@ func (e *Evaluator) evalIndexedPropertyAssignment(
 	// Execute setter method via general OOP facility (adapter.ExecuteMethodWithSelf)
 	// This delegates to the interpreter for method execution, but it's a general
 	// method dispatch mechanism, not a property-specific adapter interface
-	result := e.oopEngine.ExecuteMethodWithSelf(baseObj, methodDecl, args)
+	// Use objVal (unwrapped object) instead of baseObj (which might be an interface wrapper)
+	result := e.oopEngine.ExecuteMethodWithSelf(objVal, methodDecl, args)
 
 	// Check for errors from method execution
 	if isError(result) {
@@ -357,7 +358,8 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 	// Execute setter method via general OOP facility (adapter.ExecuteMethodWithSelf)
 	// This delegates to the interpreter for method execution, but it's a general
 	// method dispatch mechanism, not a property-specific adapter interface
-	result := e.oopEngine.ExecuteMethodWithSelf(obj, methodDecl, args)
+	// Use objVal (unwrapped object) instead of obj (which might be an interface wrapper)
+	result := e.oopEngine.ExecuteMethodWithSelf(objVal, methodDecl, args)
 
 	// Check for errors from method execution
 	if isError(result) {

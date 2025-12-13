@@ -301,20 +301,20 @@ The issue had two parts:
 
 **Impact**: interface_lifetime_scope_ex2 test now passing (31 of 33 interface tests passing)
 
-- [ ] **4.0.11** Fix interface property getter and output (timeboxed)
+- [x] **4.0.11** Fix interface property getter and output (timeboxed) ✅ **COMPLETED**
 
-  - Fix interface properties producing empty output instead of expected values
+  - ✅ Fixed interface indexed property setters to execute on underlying object instead of interface wrapper
   - **Regression target**:
-    - `TestInterfaceReferenceTests/interface_properties` - empty output (setter works but getter issue)
+    - ✅ `TestInterfaceReferenceTests/interface_properties` - now producing correct output
 
-**Observed behavior**: Property setters execute without error after unwrapping fix, but program produces no output at all (expected: "Hello World\nBye Test\n")
+**Root cause identified**: In `index_assignment.go`, both named indexed property setters and default indexed property setters were unwrapping the interface to get the underlying object (`objVal`) on lines 251-262 and 336-347, but then still passing the interface wrapper (`baseObj`/`obj`) to `ExecuteMethodWithSelf`. This caused the setter to execute on a different object instance than the getter, so field changes were not visible.
 
-**Areas to investigate**:
+**Changes made**:
 
-- Interface property getter path (does it properly unwrap interface to get underlying object?)
-- Output/PrintLn handling in the test script
-- Whether there's a silent error being swallowed
-- Property read operations on interface instances
+1. `internal/interp/evaluator/index_assignment.go:278`: Changed `ExecuteMethodWithSelf(baseObj, ...)` to `ExecuteMethodWithSelf(objVal, ...)` for named indexed properties
+2. `internal/interp/evaluator/index_assignment.go:362`: Changed `ExecuteMethodWithSelf(obj, ...)` to `ExecuteMethodWithSelf(objVal, ...)` for default indexed properties
+
+**Impact**: Interface indexed property setters now correctly modify the underlying object. Test interface_properties now passing (32 of 33 interface tests passing)
 
 - [ ] **4.0.12** Fix implicit property access with context regressions (timeboxed)
 
