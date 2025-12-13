@@ -400,10 +400,11 @@ func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) (*types.Prop
 	}
 
 	// Determine read access (field, method, or expression)
+	// For interfaces, treat as method since interfaces don't have fields
 	if propDecl.ReadSpec != nil {
 		if ident, ok := propDecl.ReadSpec.(*ast.Identifier); ok {
 			propInfo.ReadSpec = ident.Value
-			propInfo.ReadKind = types.PropAccessField // Runtime checks both fields and methods
+			propInfo.ReadKind = types.PropAccessMethod
 		} else {
 			propInfo.ReadKind = types.PropAccessExpression
 			propInfo.ReadSpec = propDecl.ReadSpec.String()
@@ -414,10 +415,11 @@ func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) (*types.Prop
 	}
 
 	// Determine write access (field or method)
+	// For interfaces, treat as method since interfaces don't have fields
 	if propDecl.WriteSpec != nil {
 		if ident, ok := propDecl.WriteSpec.(*ast.Identifier); ok {
 			propInfo.WriteSpec = ident.Value
-			propInfo.WriteKind = types.PropAccessField // Runtime checks both fields and methods
+			propInfo.WriteKind = types.PropAccessMethod
 		} else {
 			propInfo.WriteKind = types.PropAccessNone
 		}
