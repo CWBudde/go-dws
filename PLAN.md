@@ -112,6 +112,20 @@ If a change only moves methods between types/files without deleting indirection,
 - Indexed/default properties & metadata (e.g. “invalid property metadata …”, “cannot index type OBJECT”)
 - Runtime instantiation/nil semantics (e.g. “Object not instantiated”)
 
+**Notes from the earlier full failing run (for prioritization, not for perfection)**:
+
+- The failures were not dominated by a single root cause; they clustered strongly by feature area.
+- Representative error signatures (approx. counts observed in one full run):
+  - “record literal requires explicit type name or type context” (~14)
+  - “Object not instantiated” (~10)
+  - “invalid property metadata …” (~8)
+  - “cannot index type OBJECT” (~5)
+  - “undefined variable: TCounter / TTest / TExample / TConfig …” (several)
+- The “undefined variable” cluster was a mix of:
+  - Missing class-meta bindings for class names at runtime (fixed in 4.0.2)
+  - Missing implicit Self-field lvalue handling in member-assignment paths (fixed in 4.0.2; nested class repro)
+- The remaining biggest clusters after 4.0.2 are record-literal type context and property/index dispatch.
+
 **Tasks**:
 
 - [ ] **4.0.1** Establish a stable failing-test baseline (1h)
@@ -127,21 +141,29 @@ If a change only moves methods between types/files without deleting indirection,
   - Ensure `RecordTypeContext` is set/pushed for contexts where DWScript infers record literal type
   - Regression target: record-literal tests that currently error with missing type context
 
+  Quick triage notes:
+  - Most reports came from anonymous record literals used in assignments/initializers/arguments where the type should be inferred from the target.
+  - Verify the evaluator covers *all* “expected-type” contexts (not just var decl + direct assignment): e.g. call arguments, return statements, array/record element assignment, and constructor args.
+
 - [ ] **4.0.4** Fix indexed/default property metadata + indexing dispatch (timeboxed)
   - Ensure property metadata and index-arg plumbing is consistent between legacy and evaluator execution
   - Regression target: tests failing with “invalid property metadata …” and “cannot index type OBJECT”
 
+  Quick triage notes:
+  - “cannot index type OBJECT” strongly suggests default-property/index routing is bypassing property dispatch and falling back to raw indexing.
+  - “invalid property metadata …” suggests mismatched property descriptor shapes between runtime metadata vs legacy `types.PropertyInfo` in some access paths.
+
 - [ ] **4.0.5** Fix “Object not instantiated” regressions (timeboxed)
   - Identify the top call-sites producing this in unit tests/fixtures and correct nil/constructor semantics
+
+  Quick triage notes:
+  - This often shows up when nil receivers hit method/property paths that should short-circuit consistently (especially through interfaces/type-casts).
+  - Triage by first-occurrence stack and keep fixes local (avoid changing broad semantics until repros are isolated).
 
 **Exit Criteria**:
 
 - ✅ `go test ./...` is green (0 failing tests)
 - ✅ No new fixture failures introduced by the Phase 4.0 fixes
-
----
-
-### 4.1 Unify Eval() Dispatch (Single Entry Point)
 
 ---
 
