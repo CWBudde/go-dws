@@ -116,6 +116,8 @@ func (ii *InterfaceInstance) LookupProperty(name string) *PropertyDescriptor {
 
 	return &PropertyDescriptor{
 		Name:      propInfo.Name,
+		ReadSpec:  propInfo.ReadSpec,
+		WriteSpec: propInfo.WriteSpec,
 		IsIndexed: propInfo.IsIndexed,
 		IsDefault: propInfo.IsDefault,
 		Impl:      propInfo, // Store the original PropertyInfo for later use
@@ -136,6 +138,8 @@ func (ii *InterfaceInstance) GetDefaultProperty() *PropertyDescriptor {
 
 	return &PropertyDescriptor{
 		Name:      propInfo.Name,
+		ReadSpec:  propInfo.ReadSpec,
+		WriteSpec: propInfo.WriteSpec,
 		IsIndexed: propInfo.IsIndexed,
 		IsDefault: propInfo.IsDefault,
 		Impl:      propInfo, // Store the original PropertyInfo for later use

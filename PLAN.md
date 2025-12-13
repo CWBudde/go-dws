@@ -137,7 +137,7 @@ If a change only moves methods between types/files without deleting indirection,
   - ✅ Fix implicit `Self`-field lvalue resolution for nested-class scenarios (e.g. `Inner.Value := ...` inside methods)
   - Regression targets now passing: `TestClassVariable`, `TestNestedClassInstantiation`
 
-- [ ] **4.0.3** Fix record literal type-context propagation (timeboxed)
+- [x] **4.0.3** Fix record literal type-context propagation (timeboxed)
   - Ensure `RecordTypeContext` is set/pushed for contexts where DWScript infers record literal type
   - Regression target: record-literal tests that currently error with missing type context
 

@@ -244,6 +244,8 @@ func (r *RecordValue) LookupProperty(name string) *PropertyDescriptor {
 
 	return &PropertyDescriptor{
 		Name:      propInfo.Name,
+		ReadSpec:  propInfo.ReadField,
+		WriteSpec: propInfo.WriteField,
 		IsIndexed: false, // RecordPropertyInfo doesn't have IsIndexed field, records use simple field-based properties
 		IsDefault: propInfo.IsDefault,
 		Impl:      propInfo, // Store the original RecordPropertyInfo for later use
@@ -262,6 +264,8 @@ func (r *RecordValue) GetDefaultProperty() *PropertyDescriptor {
 		if propInfo.IsDefault {
 			return &PropertyDescriptor{
 				Name:      propInfo.Name,
+				ReadSpec:  propInfo.ReadField,
+				WriteSpec: propInfo.WriteField,
 				IsIndexed: false, // RecordPropertyInfo doesn't have IsIndexed field
 				IsDefault: true,
 				Impl:      propInfo, // Store the original RecordPropertyInfo for later use

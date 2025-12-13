@@ -141,6 +141,8 @@ func (o *ObjectInstance) LookupProperty(name string) *PropertyDescriptor {
 
 	return &PropertyDescriptor{
 		Name:      propInfo.Name,
+		ReadSpec:  propInfo.ReadSpec,
+		WriteSpec: propInfo.WriteSpec,
 		IsIndexed: propInfo.IsIndexed,
 		IsDefault: propInfo.IsDefault,
 		Impl:      propInfo.Impl, // Store the original PropertyInfo for later use
@@ -160,6 +162,8 @@ func (o *ObjectInstance) GetDefaultProperty() *PropertyDescriptor {
 
 	return &PropertyDescriptor{
 		Name:      propInfo.Name,
+		ReadSpec:  propInfo.ReadSpec,
+		WriteSpec: propInfo.WriteSpec,
 		IsIndexed: propInfo.IsIndexed,
 		IsDefault: propInfo.IsDefault,
 		Impl:      propInfo.Impl, // Store the original PropertyInfo for later use
