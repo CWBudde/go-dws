@@ -265,6 +265,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		if result != nil {
 			return result
 		}
+		// Check if an exception was raised during type cast (e.g., invalid downcast)
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
 	}
 
 	// Standard built-in functions
@@ -330,6 +334,17 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 			varName := argIdent.Value
 			capturedEnv := ctx.Env()
 
+			// Check if the variable is already a reference (var parameter passed through)
+			// This is critical for nested var param calls like IncrementTwice(n) where n is already a var param
+			if val, exists := capturedEnv.Get(varName); exists {
+				if refVal, isRef := val.(ReferenceAccessor); isRef {
+					// Already a reference - pass it through to preserve the chain to the original variable
+					args[idx] = refVal.(Value)
+					continue
+				}
+			}
+
+			// Regular variable - create a new reference
 			var getter runtime.GetterCallback = func() (runtime.Value, error) {
 				val, found := capturedEnv.Get(varName)
 				if !found {

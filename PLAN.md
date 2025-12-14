@@ -139,7 +139,7 @@ If a change only moves methods between types/files without deleting indirection,
 
 **Goal**: Eliminate evaluator callbacks to interpreter by removing focused interface dependencies.
 
-**Status**: 🟢 In Progress (4/30 callbacks removed, empirically tested)
+**Status**: 🟢 In Progress (11/30 callbacks removed)
 
 **Current Flow**:
 
@@ -186,21 +186,60 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
   - BreakStatement, ContinueStatement, ExitStatement, ReturnStatement
   - Tests pass ✅
 
-- [ ] **4.1.3** Fix builtins.Context type assertion bug (30 min) **← NEXT**
-  - Replace `e.coreEvaluator.(builtins.Context).Method()` with `e.Method()`
-  - Files: context_bounds.go (GetLowBound, GetHighBound), context_enums.go (5 methods)
-  - Expected: 7 more callbacks eliminated
+- [x] **4.1.3** Fix builtins.Context type assertion bug ✅
+  - Rewrote context_bounds.go and context_enums.go to be self-contained
+  - Fixed jsonvalue.Kind import (was incorrectly using runtime.JSONKind)
+  - Updated tests to verify actual functionality instead of delegation
+  - 7 callbacks eliminated
 
-- [ ] **4.1.4** Migrate loop statements (2 hours)
-  - IfStatement, WhileStatement, RepeatStatement, ForStatement, ForInStatement
-  - Remove `if e.coreEvaluator != nil && !e.selfContainedMode` checks
-  - Verify exception state in ExecutionContext is sufficient
-  - Expected: 5 more callbacks eliminated
+- [~] **4.1.4** Migrate loop statements (PARTIAL - 3/5 done, 2 blocked)
+  - [x] IfStatement - migrated, callback removed ✅
+  - [x] WhileStatement - migrated, callback removed ✅
+  - [x] RepeatStatement - migrated, callback removed ✅
+  - [ ] ForStatement - **BLOCKED** (see 4.1.4a)
+  - [ ] ForInStatement - **BLOCKED** (see 4.1.4b)
 
-- [ ] **4.1.5** Migrate simple statements (4 hours)
-  - ExpressionStatement, VarDeclStatement, ConstDecl, CaseStatement
-  - Mixed complexity - some may require 4.3/4.4/4.5 first
-  - Expected: 2-4 callbacks eliminated (defer hard cases)
+- [ ] **4.1.4a** ForStatement environment sync issue
+  **Problem**: When for loop body contains a method call (`Result.Add(i * 10)`):
+  1. Loop runs in evaluator, creates scope via `ctx.PushEnv()`
+  2. Loop variable `i` defined in this scope
+  3. Method call has callback guard → goes to interpreter's `evalMethodCall`
+  4. Interpreter evaluates args via `i.Eval(arg)` → uses `i.ctx`
+  5. **BUG**: `i.ctx.Env()` should be synced, but argument `i` resolves to 0
+
+  **Root cause**: Environment chain mismatch when interpreter evaluates expressions
+  that were created in evaluator's pushed scope. The `i.ctx` is shared, but
+  identifier resolution in method argument evaluation doesn't traverse the
+  pushed environment correctly.
+
+  **Fix approach**: Either (a) ensure interpreter syncs env before `evalMethodCall`,
+  or (b) migrate `MethodCallExpression` handling to evaluator first (4.3 prerequisite).
+
+  **Failing test**: `TestArrayReturnViaFunctionPointer` (arr values are 0 instead of 10,20,30)
+
+- [ ] **4.1.4b** ForInStatement environment sync issue (same root cause as 4.1.4a)
+
+- [~] **4.1.5** Migrate simple statements (PARTIAL)
+  - [ ] ExpressionStatement - **BLOCKED** (same env sync issue as 4.1.4a)
+  - [ ] VarDeclStatement - needs investigation
+  - [ ] ConstDecl - needs investigation
+  - [ ] CaseStatement - needs investigation
+
+- [x] **4.1.6** Fix var param nested calls (DONE)
+  **Problem**: `IncrementTwice(n)` where `n` is already a var param failed.
+  **Root cause**: `PrepareUserFunctionArgs` created new ReferenceValue instead
+  of passing through existing reference.
+  **Fix**: Check if variable is already ReferenceValue and pass through.
+
+- [x] **4.1.7** Fix type cast exception propagation (DONE)
+  **Problem**: Invalid class downcast raised exception but returned nil,
+  which `VisitCallExpression` interpreted as "not a type cast" → "function not found".
+  **Fix**: Added `if ctx.Exception() != nil { return &runtime.NilValue{} }` check.
+
+- [x] **4.1.8** Fix ClassMetadata extraction in type casts (DONE)
+  **Problem**: `isClassHierarchyCompatible` expected `*runtime.ClassMetadata`
+  but `e.typeSystem.LookupClass()` returns `*interp.ClassInfo`.
+  **Fix**: Extract ClassMetadata via `GetMetadata()` interface method.
 
 **Success Criteria**:
 

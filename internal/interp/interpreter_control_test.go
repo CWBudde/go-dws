@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -389,8 +390,9 @@ func TestForStatementStepErrors(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected ErrorValue, got %T", result)
 			}
-			if errVal.Message != tt.expectedError {
-				t.Errorf("wrong error message.\nexpected=%q\ngot=%q", tt.expectedError, errVal.Message)
+			// Use Contains since evaluator adds position info to error messages
+			if !strings.Contains(errVal.Message, tt.expectedError) {
+				t.Errorf("wrong error message.\nexpected to contain=%q\ngot=%q", tt.expectedError, errVal.Message)
 			}
 		})
 	}

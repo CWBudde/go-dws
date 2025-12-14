@@ -355,10 +355,24 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 		return e.newError(node, "cannot extract class metadata from object")
 	}
 
-	// Get the target class metadata
-	targetClassMeta := e.typeSystem.LookupClass(className)
-	if targetClassMeta == nil {
+	// Get the target class info from TypeSystem
+	targetClassInfo := e.typeSystem.LookupClass(className)
+	if targetClassInfo == nil {
 		return e.newError(node, "class '%s' not found", className)
+	}
+
+	// Extract ClassMetadata from ClassInfo if necessary
+	// ClassInfo (from interp package) wraps ClassMetadata (from runtime package)
+	var targetClassMeta *runtime.ClassMetadata
+	if metadataProvider, ok := targetClassInfo.(interface{ GetMetadata() *runtime.ClassMetadata }); ok {
+		targetClassMeta = metadataProvider.GetMetadata()
+	} else {
+		// Try direct type assertion for *runtime.ClassMetadata
+		if meta, ok := targetClassInfo.(*runtime.ClassMetadata); ok {
+			targetClassMeta = meta
+		} else {
+			return e.newError(node, "could not extract class metadata for '%s'", className)
+		}
 	}
 
 	// Check if the object's class is compatible with the target class

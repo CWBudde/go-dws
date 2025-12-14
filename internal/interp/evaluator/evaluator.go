@@ -515,9 +515,6 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.ArrayLiteralExpression:
 		return e.VisitArrayLiteralExpression(n, ctx)
 	case *ast.IndexExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitIndexExpression(n, ctx)
 	case *ast.NewArrayExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
@@ -551,6 +548,7 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.EmptyStatement:
 		return e.VisitEmptyStatement(n, ctx)
 	case *ast.ExpressionStatement:
+		// TODO disable
 		if e.coreEvaluator != nil && !e.selfContainedMode {
 			return e.coreEvaluator.EvalNode(n)
 		}
@@ -570,26 +568,19 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.BlockStatement:
 		return e.VisitBlockStatement(n, ctx)
 	case *ast.IfStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitIfStatement(n, ctx)
 	case *ast.WhileStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitWhileStatement(n, ctx)
 	case *ast.RepeatStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitRepeatStatement(n, ctx)
 	case *ast.ForStatement:
+		// TODO disable
 		if e.coreEvaluator != nil && !e.selfContainedMode {
 			return e.coreEvaluator.EvalNode(n)
 		}
 		return e.VisitForStatement(n, ctx)
 	case *ast.ForInStatement:
+		// TODO disable
 		if e.coreEvaluator != nil && !e.selfContainedMode {
 			return e.coreEvaluator.EvalNode(n)
 		}

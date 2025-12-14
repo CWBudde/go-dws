@@ -1,8 +1,11 @@
 package evaluator
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/jsonvalue"
 )
 
 // ============================================================================
@@ -15,69 +18,177 @@ import (
 // - GetEnumSuccessor(): Get next enum value in sequence
 // - GetEnumPredecessor(): Get previous enum value in sequence
 // - GetJSONVarType(): Get VarType code for JSON values
+// - GetEnumMetadata(): Get enum type metadata by type name
 //
-// These methods use the builtins.Context interface which the Interpreter
-// already implements in builtins_context.go. We cast the adapter to
-// builtins.Context to access these methods without duplicating code.
+// These implementations are self-contained and do not require callbacks
+// to the interpreter.
 // ============================================================================
+
+// VarType constants matching DWScript's VarType values.
+const (
+	varEmpty = 0
+)
 
 // GetEnumOrdinal returns the ordinal value of an enum Value.
 // This implements the builtins.Context interface.
 func (e *Evaluator) GetEnumOrdinal(value Value) (int64, bool) {
-	// Cast adapter to builtins.Context to access the existing implementation.
-	// The Interpreter implements builtins.Context with these methods.
-	ctx, ok := e.coreEvaluator.(builtins.Context)
-	if !ok {
-		return 0, false
+	if enumVal, ok := value.(*runtime.EnumValue); ok {
+		return int64(enumVal.OrdinalValue), true
 	}
-	// Convert evaluator.Value to runtime.Value (which is builtins.Value)
-	return ctx.GetEnumOrdinal(runtime.Value(value))
+	return 0, false
 }
 
 // GetEnumSuccessor returns the successor of an enum value.
 // This implements the builtins.Context interface.
 func (e *Evaluator) GetEnumSuccessor(enumVal Value) (Value, error) {
-	// Cast adapter to builtins.Context to access the existing implementation
-	ctx, ok := e.coreEvaluator.(builtins.Context)
+	val, ok := enumVal.(*runtime.EnumValue)
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
 	}
-	// Convert evaluator.Value to runtime.Value (which is builtins.Value)
-	return ctx.GetEnumSuccessor(runtime.Value(enumVal))
+
+	// Get enum type metadata via TypeSystem
+	enumMetadata := e.typeSystem.LookupEnumMetadata(val.TypeName)
+	if enumMetadata == nil {
+		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
+	}
+
+	etv, ok := enumMetadata.(EnumTypeValueAccessor)
+	if !ok {
+		return nil, fmt.Errorf("invalid enum type metadata for %s", val.TypeName)
+	}
+	enumType := etv.GetEnumType()
+
+	// Find current position
+	currentPos := -1
+	for idx, name := range enumType.OrderedNames {
+		if name == val.ValueName {
+			currentPos = idx
+			break
+		}
+	}
+
+	if currentPos == -1 {
+		return nil, fmt.Errorf("enum value '%s' not found in type '%s'", val.ValueName, val.TypeName)
+	}
+
+	// Check if we can increment (not at the end)
+	if currentPos >= len(enumType.OrderedNames)-1 {
+		return nil, fmt.Errorf("cannot get successor of maximum enum value")
+	}
+
+	// Get next value
+	nextValueName := enumType.OrderedNames[currentPos+1]
+	return &runtime.EnumValue{
+		TypeName:     val.TypeName,
+		ValueName:    nextValueName,
+		OrdinalValue: enumType.Values[nextValueName],
+	}, nil
 }
 
 // GetEnumPredecessor returns the predecessor of an enum value.
 // This implements the builtins.Context interface.
 func (e *Evaluator) GetEnumPredecessor(enumVal Value) (Value, error) {
-	// Cast adapter to builtins.Context to access the existing implementation
-	ctx, ok := e.coreEvaluator.(builtins.Context)
+	val, ok := enumVal.(*runtime.EnumValue)
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("expected EnumValue, got %T", enumVal)
 	}
-	// Convert evaluator.Value to runtime.Value (which is builtins.Value)
-	return ctx.GetEnumPredecessor(runtime.Value(enumVal))
+
+	// Get enum type metadata via TypeSystem
+	enumMetadata := e.typeSystem.LookupEnumMetadata(val.TypeName)
+	if enumMetadata == nil {
+		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
+	}
+
+	etv, ok := enumMetadata.(EnumTypeValueAccessor)
+	if !ok {
+		return nil, fmt.Errorf("invalid enum type metadata for %s", val.TypeName)
+	}
+	enumType := etv.GetEnumType()
+
+	// Find current position
+	currentPos := -1
+	for idx, name := range enumType.OrderedNames {
+		if name == val.ValueName {
+			currentPos = idx
+			break
+		}
+	}
+
+	if currentPos == -1 {
+		return nil, fmt.Errorf("enum value '%s' not found in type '%s'", val.ValueName, val.TypeName)
+	}
+
+	// Check if we can decrement (not at the beginning)
+	if currentPos <= 0 {
+		return nil, fmt.Errorf("cannot get predecessor of minimum enum value")
+	}
+
+	// Get previous value
+	prevValueName := enumType.OrderedNames[currentPos-1]
+	return &runtime.EnumValue{
+		TypeName:     val.TypeName,
+		ValueName:    prevValueName,
+		OrdinalValue: enumType.Values[prevValueName],
+	}, nil
 }
 
 // GetJSONVarType returns the VarType code for a JSON value based on its kind.
 // This implements the builtins.Context interface.
 func (e *Evaluator) GetJSONVarType(value Value) (int64, bool) {
-	// Cast adapter to builtins.Context to access the existing implementation
-	ctx, ok := e.coreEvaluator.(builtins.Context)
+	jsonVal, ok := value.(*runtime.JSONValue)
 	if !ok {
 		return 0, false
 	}
-	// Convert evaluator.Value to runtime.Value (which is builtins.Value)
-	return ctx.GetJSONVarType(runtime.Value(value))
+
+	// Return VarType code based on JSON kind
+	if jsonVal.Value == nil {
+		return varEmpty, true
+	}
+	return jsonKindToVarType(jsonVal.Value.Kind()), true
+}
+
+// jsonKindToVarType converts a JSON kind to its VarType code.
+func jsonKindToVarType(kind jsonvalue.Kind) int64 {
+	// VarType values matching DWScript conventions
+	const (
+		varNull    = 1
+		varBoolean = 11
+		varInteger = 3
+		varDouble  = 5
+		varString  = 8
+		varArray   = 8204 // vArray + vVariant
+		varObject  = 9    // Similar to vDispatch
+	)
+
+	switch kind {
+	case jsonvalue.KindNull:
+		return varNull
+	case jsonvalue.KindBoolean:
+		return varBoolean
+	case jsonvalue.KindNumber, jsonvalue.KindInt64:
+		// Check if it's an integer or float
+		return varDouble // Default to double for JSON numbers
+	case jsonvalue.KindString:
+		return varString
+	case jsonvalue.KindArray:
+		return varArray
+	case jsonvalue.KindObject:
+		return varObject
+	default:
+		return varEmpty
+	}
 }
 
 // GetEnumMetadata retrieves enum type metadata by type name.
 // This implements the builtins.Context interface.
 // Used by Succ/Pred builtins to navigate enum ordinals.
 func (e *Evaluator) GetEnumMetadata(typeName string) builtins.Value {
-	// Cast adapter to builtins.Context to access the existing implementation
-	ctx, ok := e.coreEvaluator.(builtins.Context)
-	if !ok {
+	metadata := e.typeSystem.LookupEnumMetadata(typeName)
+	if metadata == nil {
 		return nil
 	}
-	return ctx.GetEnumMetadata(typeName)
+	if val, ok := metadata.(builtins.Value); ok {
+		return val
+	}
+	return nil
 }
