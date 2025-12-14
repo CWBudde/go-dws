@@ -129,20 +129,20 @@ type ExceptionSetter func(any)
 //
 //nolint:govet // Keep layout stable and readable; alignment optimization is not worth the churn here.
 type ExecutionContext struct {
-	handlerException         any
-	exception                any
-	arrayTypeContext         *types.ArrayType
-	callStack                *CallStack
-	controlFlow              *ControlFlow
-	propContext              *PropertyEvalContext
-	env                      *Environment
-	exceptionGetter          ExceptionGetter
-	exceptionSetter          ExceptionSetter
-	recordTypeContext        string
+	handlerException          any
+	exception                 any
+	arrayTypeContext          *types.ArrayType
+	callStack                 *CallStack
+	controlFlow               *ControlFlow
+	propContext               *PropertyEvalContext
+	env                       *Environment
+	exceptionGetter           ExceptionGetter
+	exceptionSetter           ExceptionSetter
+	recordTypeContext         string
 	currentFunctionReturnType string
-	envStack                 []*Environment
-	oldValuesStack           []map[string]any
-	refCountManager          RefCountManager
+	envStack                  []*Environment
+	oldValuesStack            []map[string]any
+	refCountManager           RefCountManager
 }
 
 // NewExecutionContext creates a new execution context with the given environment.

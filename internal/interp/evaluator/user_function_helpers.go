@@ -267,17 +267,30 @@ func (e *Evaluator) ExecuteUserFunction(
 		return nil, err
 	}
 
-	// Sync interpreter's environment before preconditions/body execution
+	// Sync interpreter's environment before preconditions/body execution.
 	// This ensures that when evaluator falls back to interpreter via EvalNode,
 	// the interpreter uses the correct function-scoped environment.
+	//
+	// When EnvSyncer is nil (evaluator-only call path, e.g., TryImplicitConversion),
+	// enter self-contained mode to disable interpreter fallbacks entirely.
+	// This prevents environment mismatch bugs where the evaluator would otherwise
+	// fall back to interpreter operations that use the wrong (caller's) environment.
 	var restoreEnv func()
+	var restoreSelfContained func()
 	if callbacks.EnvSyncer != nil {
 		restoreEnv = callbacks.EnvSyncer(funcEnv)
+	} else {
+		// No EnvSyncer means we can't sync with interpreter - run in self-contained mode
+		restoreSelfContained = e.EnterSelfContainedMode()
 	}
 	defer func() {
 		// Restore interpreter's environment after function completes
 		if restoreEnv != nil {
 			restoreEnv()
+		}
+		// Restore coreEvaluator if we were in self-contained mode
+		if restoreSelfContained != nil {
+			restoreSelfContained()
 		}
 	}()
 

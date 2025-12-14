@@ -98,6 +98,11 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 	var returnValue Value = &NilValue{}
 	if method.ReturnType != nil {
 		returnValue = i.extractReturnValue(method, i.Env())
+	} else {
+		// For procedures (no return type), return the modified self object
+		// This is essential for compound assignment operators (+=, -=, etc.)
+		// where the procedure modifies self in place
+		returnValue = obj
 	}
 
 	return returnValue

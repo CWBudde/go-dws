@@ -20,8 +20,31 @@ func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value
 	// Check for class operator overloads first
 	// Use existing TryBinaryOperator infrastructure
 	leftType := left.Type()
-	if strings.HasPrefix(leftType, "OBJECT[") {
-		// Try operator overload - convert compound op to binary op
+	if leftType == "OBJECT" || strings.HasPrefix(leftType, "OBJECT[") {
+		// Try operator overload - first try the compound operator directly
+		var compoundOpSymbol string
+		switch op {
+		case token.PLUS_ASSIGN:
+			compoundOpSymbol = "+="
+		case token.MINUS_ASSIGN:
+			compoundOpSymbol = "-="
+		case token.TIMES_ASSIGN:
+			compoundOpSymbol = "*="
+		case token.DIVIDE_ASSIGN:
+			compoundOpSymbol = "/="
+		default:
+			return e.newError(node, "unknown compound operator: %v", op)
+		}
+
+		// Try to find compound operator overload on the object (e.g., +=, -=, *=, /=)
+		if e.oopEngine != nil {
+			if result, found := e.oopEngine.TryBinaryOperator(compoundOpSymbol, left, right, node); found {
+				return result
+			}
+		}
+
+		// If no compound operator found, try the corresponding binary operator (e.g., +, -, *, /)
+		// This allows compound assignment to fall back to the binary operator if needed
 		var binaryOp string
 		switch op {
 		case token.PLUS_ASSIGN:
@@ -32,11 +55,8 @@ func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value
 			binaryOp = "*"
 		case token.DIVIDE_ASSIGN:
 			binaryOp = "/"
-		default:
-			return e.newError(node, "unknown compound operator: %v", op)
 		}
 
-		// Try to find operator overload on the object
 		if e.oopEngine != nil {
 			if result, found := e.oopEngine.TryBinaryOperator(binaryOp, left, right, node); found {
 				return result

@@ -363,13 +363,87 @@ The fix ensures ReferenceValue is dereferenced to get the actual RecordValue bef
 
 **Impact**: Function-name to Result aliasing now works correctly for record return types. Test count reduced from 4 failing to 3 failing tests.
 
-- [ ] **4.0.15** Fix compound assignment operators on class instances (timeboxed)
+- [x] **4.0.15** Fix compound assignment operators on class instances (timeboxed) ✅ **COMPLETED**
 
-  - Fix compound assignment (+=, -=, etc.) with overloaded operators on classes
-  - **Regression targets**:
-    - `TestCompoundAssignmentClassOperator` - compound assignment with operator overload
+  - ✅ Fixed compound assignment (+=, -=, etc.) with overloaded operators on classes
+  - **Regression target**:
+    - ✅ `TestCompoundAssignmentClassOperator` - compound assignment with operator overload now passing
 
-**Root cause**: TBD - need to examine test
+**Root cause identified**: Two separate issues prevented compound assignment operators from working with class instances:
+
+1. **Type check was too restrictive**: The code only checked for `OBJECT[ClassName]` prefix but `ObjectInstance.Type()` returns just `"OBJECT"`, not `"OBJECT[...]"`.
+2. **Operator lookup mismatch**: Compound operators were registered with their full symbol (e.g., `+=`) but the lookup was converting them to binary operators (e.g., `+`). The code needed to try the compound operator first, then fall back to the binary operator.
+3. **Procedure return value**: When a compound operator method is a procedure (no return type), it returns nil instead of the modified object. For compound assignment to work, procedures must return the `self` object.
+
+**Changes made**:
+
+1. `internal/interp/evaluator/compound_ops.go:23`: Changed condition from `strings.HasPrefix(leftType, "OBJECT[")` to `leftType == "OBJECT" || strings.HasPrefix(leftType, "OBJECT[")`
+2. `internal/interp/evaluator/compound_ops.go:24-64`: Added logic to try compound operator lookup first (e.g., `+=`), then fall back to binary operator (e.g., `+`)
+3. `internal/interp/operators_eval.go:101-108`: Modified `invokeInstanceOperatorMethod` to return `obj` (self) when method is a procedure (no return type)
+
+**Impact**: All compound assignment tests passing, including `TestCompoundAssignmentClassOperator`. No regressions introduced (two pre-existing test failures from task 4.0.7 remain: `TestConversionChainMaxDepth` and `TestImplicitRecord2`).
+
+- [ ] **4.0.16** Fix conversion chain value propagation (timeboxed)
+
+  - Fix multi-step conversion chains to properly propagate values through each step
+  - **Regression target**:
+    - `TestConversionChainMaxDepth` - currently returns "1\n" instead of "13\n"
+
+**Root cause**: TBD - likely issue with how conversion chain applies sequential transformations. The chain should apply: Integer(10) -> TStep1(V:11) -> TStep2(V:12) -> TStep3(V:13), but seems to only apply the first step.
+
+- [ ] **4.0.17** Fix implicit conversion return value handling (timeboxed) ⚠️ **IN PROGRESS - INVESTIGATION**
+
+  - Fix implicit conversion operators to properly return converted values
+  - **Regression target**:
+    - `TestImplicitRecord2` - currently returns "21\nnil\n133\nTFoo(x: 10, y: 123)\n" instead of "21\n21\n133\n133\n"
+
+**Root cause IDENTIFIED**: Environment context mismatch during user-defined conversion function execution.
+
+The implicit conversion IS being called, but the conversion function body cannot access its parameters. Detailed investigation revealed:
+
+1. **Symptom**: When `i := F` executes (F is TFoo, i is Integer), the implicit conversion function `OperImpFooInt(aFoo: TFoo): Integer` is invoked, but inside the function, the parameter `aFoo` cannot be resolved, causing "undefined variable: aFoo" error.
+
+2. **Parameter binding works**: Debug output confirms `aFoo` is correctly bound to the function's environment (`funcEnv` at address 0xc000125840).
+
+3. **Lookup uses wrong environment**: When evaluating `aFoo.X + aFoo.Y` inside the conversion function, the evaluator uses a DIFFERENT environment (0xc000125580 - the caller's environment) instead of the function's environment.
+
+4. **Environment pointer tracking**:
+   ```
+   [DEBUG] funcCtx.Env() = 0xc000125840  (function environment - aFoo defined here)
+   [DEBUG] About to evaluate body, funcCtx.Env() = 0xc000125840
+   [DEBUG] VisitIdentifier looking up 'aFoo' in env = 0xc000125580  ← WRONG!
+   ```
+
+5. **Call chain analysis**:
+   - `ExecuteUserFunction` creates `funcCtx` with `funcEnv` (0xc000125840)
+   - Calls `e.Eval(fn.Body, funcCtx)` - CORRECT context passed
+   - `Eval` sets `e.currentContext = funcCtx` - CORRECT
+   - But when `VisitIdentifier` is called during expression evaluation, `ctx.Env()` returns the OUTER environment (0xc000125580)
+
+6. **Eval sequence shows context swap**:
+   ```
+   [DEBUG Eval] Setting currentContext to ctx (env=0xc00003d880)  ← function env
+   [DEBUG Eval] Setting currentContext to ctx (env=0xc00003d880)  ← still function env
+   [DEBUG Eval] Setting currentContext to ctx (env=0xc00003d5c0)  ← SWITCHED to outer env!
+   [DEBUG VisitIdentifier] Looking up 'aFoo' in environment (env=0xc00003d5c0)  ← FAILS
+   ```
+
+**Suspected root cause**: Somewhere in the evaluation chain between `e.Eval(fn.Body, funcCtx)` and the actual identifier lookup, a visitor method is calling `e.Eval()` with the OUTER context instead of the function's context. This happens despite all visitor methods (`VisitBinaryExpression`, `VisitMemberAccessExpression`, `VisitAssignmentStatement`) correctly passing their `ctx` parameter to nested `e.Eval` calls.
+
+**Possible causes to investigate**:
+1. **Evaluator state corruption**: `e.currentContext` might be getting corrupted or reset unexpectedly
+2. **Context cloning bug**: `ExecutionContext.Clone()` might be sharing state incorrectly
+3. **Hidden callback path**: Some code path might be falling back to interpreter via `EvalNode` callback, which uses interpreter's environment (not synced for evaluator-only conversion execution)
+4. **Missing EnvSyncer**: `ExecuteConversionFunctionSimple` does NOT provide an `EnvSyncer` callback (which would sync interpreter environment), unlike normal function calls from interpreter
+
+**Why this is blocking**: The evaluator is trying to be self-contained but lacks proper environment management for user-defined conversion functions executed from within the evaluator (not via interpreter).
+
+**Recommended fix approaches**:
+1. **Short-term workaround**: Route implicit conversions through interpreter path (which provides EnvSyncer) instead of pure evaluator path
+2. **Medium-term fix**: Add environment syncing mechanism to evaluator or ensure evaluator never falls back to interpreter
+3. **Long-term fix**: Complete Phase 4.1-4.6 to eliminate all interpreter callbacks, making evaluator fully self-contained
+
+**Status**: Deep investigation completed, root cause identified but fix requires architectural decision on evaluator independence vs. interpreter integration during transition phase.
 
 **Exit Criteria**:
 
