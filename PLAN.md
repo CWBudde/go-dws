@@ -95,360 +95,43 @@ If a change only moves methods between types/files without deleting indirection,
 
 ### 4.0 Stabilization Prerequisites (Make Tests Green Again)
 
-**Goal**: Restore a clean baseline (**0 failing tests**) before continuing Task 4.1 migrations.
+**Goal**: Restore clean baseline (0 failing tests) before Task 4.1 migrations.
 
-**Why this exists**: Recent incremental migrations in/around evaluator execution exposed several independent correctness gaps (not a single root cause). Continuing to delete indirection while correctness is unstable makes diagnosis harder and tends to cause “ping-pong” regressions.
+**Why**: Recent migrations exposed independent correctness gaps; continuing while unstable causes regressions.
 
 **Rules**:
+- No new Task 4.1 work until complete.
+- Fix one cluster at a time with repro tests.
+- Prefer surgical reverts over forward migration.
 
-- No new Task 4.1 migration work until Phase 4.0 is complete.
-- Fix issues **one cluster at a time**, with a small repro test per cluster.
-- If a fix requires a behavior revert, prefer a surgical revert (smallest surface) over forward-migrating more code.
-
-**Current failure clusters (observed)**:
-
-- Class/static identifier resolution (e.g. `undefined variable: TCounter`)
-- Record literal type context (e.g. “record literal requires explicit type name or type context”)
-- Indexed/default properties & metadata (e.g. “invalid property metadata …”, “cannot index type OBJECT”)
-- Runtime instantiation/nil semantics (e.g. “Object not instantiated”)
-
-**Notes from the earlier full failing run (for prioritization, not for perfection)**:
-
-- The failures were not dominated by a single root cause; they clustered strongly by feature area.
-- Representative error signatures (approx. counts observed in one full run):
-- “record literal requires explicit type name or type context” (~14)
-- “Object not instantiated” (~10)
-- “invalid property metadata …” (~8)
-- “cannot index type OBJECT” (~5)
-- “undefined variable: TCounter / TTest / TExample / TConfig …” (several)
-- The “undefined variable” cluster was a mix of:
-- Missing class-meta bindings for class names at runtime (fixed in 4.0.2)
-- Missing implicit Self-field lvalue handling in member-assignment paths (fixed in 4.0.2; nested class repro)
-- The remaining biggest clusters after 4.0.2 are record-literal type context and property/index dispatch.
+**Failure Clusters**:
+- Class/static identifier resolution (e.g., undefined variable: TCounter)
+- Record literal type context
+- Indexed/default properties & metadata
+- Runtime instantiation/nil semantics
 
 **Tasks**:
-
-- [ ] **4.0.1** Establish a stable failing-test baseline (1h)
-- Capture the current failing unit tests + failing fixture scripts (names + error signatures)
-- Add a short note in `docs/` with the baseline counts so we can track progress
-
-- [x] **4.0.2** Fix class/static identifier resolution in evaluator path (timeboxed)
-- ✅ Ensure class declarations register a runtime class meta binding in the outer scope (so `TCounter` resolves at runtime)
-- ✅ Fix implicit `Self`-field lvalue resolution for nested-class scenarios (e.g. `Inner.Value := ...` inside methods)
-- Regression targets now passing: `TestClassVariable`, `TestNestedClassInstantiation`
-
-- [x] **4.0.3** Fix record literal type-context propagation (timeboxed)
-- Ensure `RecordTypeContext` is set/pushed for contexts where DWScript infers record literal type
-- Regression target: record-literal tests that currently error with missing type context
-
-Quick triage notes:
-- Most reports came from anonymous record literals used in assignments/initializers/arguments where the type should be inferred from the target.
-- Verify the evaluator covers *all* “expected-type” contexts (not just var decl + direct assignment): e.g. call arguments, return statements, array/record element assignment, and constructor args.
-
-- [x] **4.0.4** Fix indexed/default property metadata + indexing dispatch (timeboxed) ✅ **COMPLETED**
-- ✅ Added ReadSpec/WriteSpec fields to PropertyDescriptor struct
-- ✅ Updated ObjectInstance, InterfaceInstance, and RecordValue LookupProperty()/GetDefaultProperty() methods
-- ✅ Fixed index_assignment.go to use new fields and add GetMethodDecl() lookups
-- ✅ Fixed default property type detection from "OBJECT[" to "OBJECT"
-- ✅ All 11 target tests passing
-
-Regression target: tests failing with "invalid property metadata …" and "cannot index type OBJECT" [FIXED]
-
-- [x] **4.0.5** Fix indexed property declaration WriteKind determination (timeboxed) ✅ **COMPLETED**
-- ✅ Fixed method-backed indexed properties incorrectly marked as field-backed
-- ✅ Added `determinePropertyAccessKind()` helper function to properly distinguish fields vs methods
-- ✅ Updated `convertPropertyDecl()` in `declarations.go` to call the new helper
-- ✅ Updated evaluator's `convertPropertyDecl()` to treat interface properties as methods
-- ✅ Added support for ClassVars in property access kind determination
-- ✅ All property-related tests now passing
-
-**Changes made**:
-1. `internal/interp/declarations.go`:
-  - Modified `convertPropertyDecl()` signature to accept classInfo parameter
-  - Added `determinePropertyAccessKind()` helper function (40 lines)
-  - Checks fields, class vars, and methods in class hierarchy
-  - Handles case-insensitive matching for normalized field/method names
-
-2. `internal/interp/evaluator/visitor_declarations.go`:
-  - Changed interface property read/write kinds to `PropAccessMethod` (interfaces don't have fields)
-
-3. `internal/interp/type_declarations.go`:
-  - Updated `AddClassProperty()` to pass classInfo to `convertPropertyDecl()`
-
-**Regression tests fixed** (11 tests):
-- ✅ TestPropertyIndexDirective
-- ✅ TestPropertyMethodBacked
-- ✅ TestPropertyFieldBacked
-- ✅ TestPropertyInheritance
-- ✅ TestPropertyAutoProperty
-- ✅ TestImplicitSelfPropertyAccessWithContext (partially - now reads work)
-- ✅ TestClassPropertyFieldBacked
-- ✅ TestClassPropertyMethodBacked
-- ✅ TestClassPropertyWriteFieldBacked
-- ✅ TestClassPropertyWriteMethodBacked
-- ✅ TestClassPropertyWritePersistence
-
-- [x] **4.0.6** Fix record value semantics (record copying bug) (timeboxed) ✅ **COMPLETED**
-- ✅ Fixed record assignment to properly create deep copies (value semantics)
-- ✅ Changed type check from `value.Type() == "RECORD"` to direct type assertion `value.(*runtime.RecordValue)`
-- ✅ Simplified copy logic from nested type assertions to direct `record.Copy()` call
-- ✅ All regression tests now passing
-
-**Root cause identified**: In `internal/interp/evaluator/visitor_statements.go:333`, the condition `value.Type() == "RECORD"` never matched because `RecordValue.Type()` returns the actual record type name (e.g., "TPoint"), not the literal string "RECORD". Therefore, the copy logic never executed.
-
-**Changes made**:
-1. `internal/interp/evaluator/visitor_statements.go` (line 332-335):
-   - Changed from: `if value != nil && value.Type() == "RECORD"`
-   - Changed to: `if record, ok := value.(*runtime.RecordValue); ok { value = record.Copy() }`
-   - Directly checks if value is a RecordValue and calls its Copy() method
-
-**Regression tests fixed** (5 tests):
-- ✅ TestRecordCopying/Record_assignment_creates_copy_(value_semantics)
-- ✅ TestRecordCopying/Nested_record_copying
-- ✅ TestParityCriticalBehaviors/RecordValueCopy
-- ✅ Additional interface tests also benefited from this fix
-
-**Impact**: Total test failures reduced from 22 to 17 (net improvement of 5 passing tests)
-
-- [x] **4.0.7** Fix "Object not instantiated" regressions in implicit conversions (timeboxed) ✅ **COMPLETED**
-- ✅ Fixed nil Result initialization in conversion functions returning record types
-- ✅ Added proper record instance creation in DefaultValueGetter callback
-- ✅ Fixed type name normalization (was incorrectly adding "class:" prefix)
-- **Regression targets fixed**:
-- ✅ `TestConversionChainTwoSteps` - now passing
-- ✅ `TestConversionChainThreeSteps` - now passing
-- ✅ `TestImplicitRecord1` - now passing
-- ⚠️ `TestConversionChainMaxDepth` - no longer "Object not instantiated", but has unrelated value error
-- ⚠️ `TestImplicitRecord2` - no longer "Object not instantiated", but has unrelated nil return issue
-
-**Root cause identified**: The DefaultValueGetter callback in `ExecuteConversionFunction` was returning `&runtime.NilValue{}` for all types instead of creating proper record instances. When conversion functions tried to assign fields to `Result` (e.g., `Result.Val := 999`), this caused "Object not instantiated" errors.
-
-**Changes made**:
-
-1. `internal/interp/evaluator/type_conversion.go` (lines 70-76):
-   - Changed DefaultValueGetter from returning `&runtime.NilValue{}` to calling `e.getDefaultValueForTypeName(returnTypeName)`
-
-2. `internal/interp/evaluator/type_conversion.go` (new method, lines 286-343):
-   - Added `getDefaultValueForTypeName()` method to create proper default values by type name
-   - Handles record types by looking up in TypeSystem and creating zero-initialized instances
-   - Uses `ident.Normalize()` for type name normalization (not `NormalizeTypeAnnotation` which adds "class:" prefix)
-   - Creates record instances with `NewRecordValueWithInitializer` and proper metadata
-
-**Impact**: Reduced "Object not instantiated" errors in implicit conversions from 5 tests to 0. Total test failures reduced from 17 to approximately 7 (net improvement of ~10 passing tests, though 2 regression targets still have unrelated issues)
-
-- [x] **4.0.8** Fix precondition/contract handling regressions (timeboxed) ✅ **COMPLETED**
-- ✅ Fixed environment synchronization for precondition evaluation
-- ✅ Preconditions now have access to function parameters
-- **Regression targets fixed**:
-- ✅ `TestPreconditionArrayLength` - contract/precondition validation now passing
-
-**Root cause identified**: When preconditions were evaluated, the evaluator would fall back to the interpreter via `EvalNode` for member access expressions (e.g., `arr.Length`). The interpreter was using its own environment (`i.env`) instead of the function's environment (`funcCtx.Env()`), causing parameter lookups to fail with "undefined variable" errors.
-
-**Changes made**:
-1. `internal/interp/evaluator/user_function_helpers.go` (lines 270-282):
-   - Moved `EnvSyncer` call to BEFORE precondition checking (was after)
-   - Changed from inline restore to deferred restore for proper cleanup
-   - Added comment explaining why environment sync is needed for preconditions
-
-**Impact**: Precondition evaluation now works correctly with helper properties (`.Length`, etc.) on function parameters. No new test failures introduced.
-
-- [x] **4.0.9** Fix type cast lvalue and interface property setter regressions (timeboxed) ✅ **COMPLETED**
-
-  - ✅ Fixed type cast lvalue support for member assignment
-  - ✅ Fixed interface property setter method lookup (unwrap interface to get underlying object)
-  - **Regression target**:
-    - ✅ `TestInterfaceReferenceTests/virtual_override` - PASSING
-
-**Changes made**:
-
-1. `internal/interp/evaluator/index_assignment.go` (lines 248-262, 322-336):
-   - Added interface unwrapping for indexed property setters (both named and default properties)
-   - Check if value is InterfaceInstance and extract underlying object before calling setter method
-
-2. `internal/interp/evaluator/member_assignment.go` (lines 148-156):
-   - Added type cast unwrapping for member assignments
-   - Check if value is TypeCastAccessor and extract wrapped value before field/property assignment
-
-3. `internal/interp/evaluator/assignment_helpers.go` (lines 165-176):
-   - Added fallback path for assigning interfaces to non-interface variables
-   - Handles case where Result might be initialized as NilValue instead of InterfaceInstance
-   - Properly increments refcount when assigning interface to non-interface variable
-
-**Root causes identified**:
-
-1. **Type cast member assignment**: TypeCastExpression evaluates to a TYPE_CAST wrapper value. Member assignment code didn't unwrap the cast to access the underlying object.
-2. **Interface property setters**: Index assignment code tried to cast interface to ObjectValue directly, instead of extracting the underlying object first.
-
-**Impact**: virtual_override test now passing.
-
-- [x] **4.0.10** Fix interface reference counting and destructor timing (timeboxed) ✅ **COMPLETED**
-
-  - ✅ Fixed interface destructor not being called when interface variable set to `nil`
-  - **Regression target**:
-    - ✅ `TestInterfaceReferenceTests/interface_lifetime_scope_ex2` - destructor now called correctly
-
-**Root cause identified**:
-
-The issue had two parts:
-1. **Interface-to-interface assignment was incrementing refcount** when it shouldn't. When `Result := IntfRef` executed, both variables pointed to the same underlying object, so no increment was needed.
-2. **Function cleanup was releasing Result variable**, even though it's the return value that needs to be passed to the caller.
-
-**Fix applied**:
-
-1. `internal/interp/evaluator/assignment_helpers.go:152-160`: When assigning an InterfaceInstance to another InterfaceInstance variable, do NOT increment the refcount. Just create a new wrapper pointing to the same underlying object.
-
-2. `internal/interp/interface.go:395-400`: Skip "Result" variable during `cleanupInterfaceReferences`. Result is the return value and will be managed by the caller.
-
-**Impact**: interface_lifetime_scope_ex2 test now passing (31 of 33 interface tests passing)
-
-- [x] **4.0.11** Fix interface property getter and output (timeboxed) ✅ **COMPLETED**
-
-  - ✅ Fixed interface indexed property setters to execute on underlying object instead of interface wrapper
-  - **Regression target**:
-    - ✅ `TestInterfaceReferenceTests/interface_properties` - now producing correct output
-
-**Root cause identified**: In `index_assignment.go`, both named indexed property setters and default indexed property setters were unwrapping the interface to get the underlying object (`objVal`) on lines 251-262 and 336-347, but then still passing the interface wrapper (`baseObj`/`obj`) to `ExecuteMethodWithSelf`. This caused the setter to execute on a different object instance than the getter, so field changes were not visible.
-
-**Changes made**:
-
-1. `internal/interp/evaluator/index_assignment.go:278`: Changed `ExecuteMethodWithSelf(baseObj, ...)` to `ExecuteMethodWithSelf(objVal, ...)` for named indexed properties
-2. `internal/interp/evaluator/index_assignment.go:362`: Changed `ExecuteMethodWithSelf(obj, ...)` to `ExecuteMethodWithSelf(objVal, ...)` for default indexed properties
-
-**Impact**: Interface indexed property setters now correctly modify the underlying object. Test interface_properties now passing (32 of 33 interface tests passing)
-
-- [x] **4.0.12** Fix implicit property access with context regressions (timeboxed) ✅ **COMPLETED**
-
-  - ✅ Implicit Self-field property access now working correctly
-  - **Regression targets**:
-    - ✅ `TestImplicitSelfPropertyAccessWithContext` - now passing
-
-**Resolution**: This issue was resolved by task 4.0.5's fix to property descriptor ReadSpec/WriteSpec handling. The property access kind determination changes in `determinePropertyAccessKind()` properly distinguish field-backed vs method-backed properties, which fixed implicit Self property access in context.
-
-- [x] **4.0.13** Fix record literal error handling and type context (timeboxed) ✅ **COMPLETED**
-
-  - ✅ Fixed record literal validation to detect unknown fields
-  - **Regression targets**:
-    - ✅ `TestEvalRecordLiteral_UnknownField_Error` - now passing
-
-**Root cause identified**: The `VisitRecordLiteralExpression` function was evaluating all fields from the record literal and storing them in `fieldValues`, but never validated that each field actually exists in the record type. Unknown fields were silently ignored instead of producing an error.
-
-**Changes made**:
-
-1. `internal/interp/evaluator/visitor_expressions_indexing.go:308-312`: Added field existence validation before evaluating field values
-   - Check `recordType.HasField(fieldNameNorm)` for each field in the literal
-   - Return error "field 'X' does not exist in record type 'Y'" if field not found
-
-**Impact**: Record literals now properly validate field names. Test count reduced from 5 failing to 4 failing tests.
-
-- [x] **4.0.14** Fix record function return type initialization (timeboxed) ✅ **COMPLETED**
-
-  - ✅ Fixed function-name to Result mapping for member assignment on records
-  - **Regression targets**:
-    - ✅ `TestRecordReturnTypeInitialization/Record_return_via_implicit_conversion` - now passing (fixed by 4.0.7)
-    - ✅ `TestRecordReturnTypeInitialization/Record_return_assigned_to_function_name` - now passing
-    - ✅ All 5 TestRecordReturnTypeInitialization subtests passing
-
-**Root cause identified**: When assigning to a record field via function name (e.g., `GetValue.N := 70` where GetValue is the function name), the `evalMemberAssignmentDirect` function received a ReferenceValue (the function-name alias to Result) but didn't dereference it before attempting member assignment. The code path for `GetValue.N := value` was:
-
-1. Resolve `GetValue` → ReferenceValue (alias to Result)
-2. Try to assign to field N of ReferenceValue → FAIL (ReferenceValue doesn't have fields)
-
-The fix ensures ReferenceValue is dereferenced to get the actual RecordValue before performing member assignment.
-
-**Changes made**:
-
-1. `internal/interp/evaluator/member_assignment.go:74-82`: Added ReferenceValue dereferencing before member assignment
-   - Check if objVal is ReferenceAccessor and dereference it
-   - This allows `FunctionName.Field := value` to work when FunctionName is an alias to Result
-
-**Impact**: Function-name to Result aliasing now works correctly for record return types. Test count reduced from 4 failing to 3 failing tests.
-
-- [x] **4.0.15** Fix compound assignment operators on class instances (timeboxed) ✅ **COMPLETED**
-
-  - ✅ Fixed compound assignment (+=, -=, etc.) with overloaded operators on classes
-  - **Regression target**:
-    - ✅ `TestCompoundAssignmentClassOperator` - compound assignment with operator overload now passing
-
-**Root cause identified**: Two separate issues prevented compound assignment operators from working with class instances:
-
-1. **Type check was too restrictive**: The code only checked for `OBJECT[ClassName]` prefix but `ObjectInstance.Type()` returns just `"OBJECT"`, not `"OBJECT[...]"`.
-2. **Operator lookup mismatch**: Compound operators were registered with their full symbol (e.g., `+=`) but the lookup was converting them to binary operators (e.g., `+`). The code needed to try the compound operator first, then fall back to the binary operator.
-3. **Procedure return value**: When a compound operator method is a procedure (no return type), it returns nil instead of the modified object. For compound assignment to work, procedures must return the `self` object.
-
-**Changes made**:
-
-1. `internal/interp/evaluator/compound_ops.go:23`: Changed condition from `strings.HasPrefix(leftType, "OBJECT[")` to `leftType == "OBJECT" || strings.HasPrefix(leftType, "OBJECT[")`
-2. `internal/interp/evaluator/compound_ops.go:24-64`: Added logic to try compound operator lookup first (e.g., `+=`), then fall back to binary operator (e.g., `+`)
-3. `internal/interp/operators_eval.go:101-108`: Modified `invokeInstanceOperatorMethod` to return `obj` (self) when method is a procedure (no return type)
-
-**Impact**: All compound assignment tests passing, including `TestCompoundAssignmentClassOperator`. No regressions introduced (two pre-existing test failures from task 4.0.7 remain: `TestConversionChainMaxDepth` and `TestImplicitRecord2`).
-
-- [ ] **4.0.16** Fix conversion chain value propagation (timeboxed)
-
-  - Fix multi-step conversion chains to properly propagate values through each step
-  - **Regression target**:
-    - `TestConversionChainMaxDepth` - currently returns "1\n" instead of "13\n"
-
-**Root cause**: TBD - likely issue with how conversion chain applies sequential transformations. The chain should apply: Integer(10) -> TStep1(V:11) -> TStep2(V:12) -> TStep3(V:13), but seems to only apply the first step.
-
-- [ ] **4.0.17** Fix implicit conversion return value handling (timeboxed) ⚠️ **IN PROGRESS - INVESTIGATION**
-
-  - Fix implicit conversion operators to properly return converted values
-  - **Regression target**:
-    - `TestImplicitRecord2` - currently returns "21\nnil\n133\nTFoo(x: 10, y: 123)\n" instead of "21\n21\n133\n133\n"
-
-**Root cause IDENTIFIED**: Environment context mismatch during user-defined conversion function execution.
-
-The implicit conversion IS being called, but the conversion function body cannot access its parameters. Detailed investigation revealed:
-
-1. **Symptom**: When `i := F` executes (F is TFoo, i is Integer), the implicit conversion function `OperImpFooInt(aFoo: TFoo): Integer` is invoked, but inside the function, the parameter `aFoo` cannot be resolved, causing "undefined variable: aFoo" error.
-
-2. **Parameter binding works**: Debug output confirms `aFoo` is correctly bound to the function's environment (`funcEnv` at address 0xc000125840).
-
-3. **Lookup uses wrong environment**: When evaluating `aFoo.X + aFoo.Y` inside the conversion function, the evaluator uses a DIFFERENT environment (0xc000125580 - the caller's environment) instead of the function's environment.
-
-4. **Environment pointer tracking**:
-   ```
-   [DEBUG] funcCtx.Env() = 0xc000125840  (function environment - aFoo defined here)
-   [DEBUG] About to evaluate body, funcCtx.Env() = 0xc000125840
-   [DEBUG] VisitIdentifier looking up 'aFoo' in env = 0xc000125580  ← WRONG!
-   ```
-
-5. **Call chain analysis**:
-   - `ExecuteUserFunction` creates `funcCtx` with `funcEnv` (0xc000125840)
-   - Calls `e.Eval(fn.Body, funcCtx)` - CORRECT context passed
-   - `Eval` sets `e.currentContext = funcCtx` - CORRECT
-   - But when `VisitIdentifier` is called during expression evaluation, `ctx.Env()` returns the OUTER environment (0xc000125580)
-
-6. **Eval sequence shows context swap**:
-   ```
-   [DEBUG Eval] Setting currentContext to ctx (env=0xc00003d880)  ← function env
-   [DEBUG Eval] Setting currentContext to ctx (env=0xc00003d880)  ← still function env
-   [DEBUG Eval] Setting currentContext to ctx (env=0xc00003d5c0)  ← SWITCHED to outer env!
-   [DEBUG VisitIdentifier] Looking up 'aFoo' in environment (env=0xc00003d5c0)  ← FAILS
-   ```
-
-**Suspected root cause**: Somewhere in the evaluation chain between `e.Eval(fn.Body, funcCtx)` and the actual identifier lookup, a visitor method is calling `e.Eval()` with the OUTER context instead of the function's context. This happens despite all visitor methods (`VisitBinaryExpression`, `VisitMemberAccessExpression`, `VisitAssignmentStatement`) correctly passing their `ctx` parameter to nested `e.Eval` calls.
-
-**Possible causes to investigate**:
-1. **Evaluator state corruption**: `e.currentContext` might be getting corrupted or reset unexpectedly
-2. **Context cloning bug**: `ExecutionContext.Clone()` might be sharing state incorrectly
-3. **Hidden callback path**: Some code path might be falling back to interpreter via `EvalNode` callback, which uses interpreter's environment (not synced for evaluator-only conversion execution)
-4. **Missing EnvSyncer**: `ExecuteConversionFunctionSimple` does NOT provide an `EnvSyncer` callback (which would sync interpreter environment), unlike normal function calls from interpreter
-
-**Why this is blocking**: The evaluator is trying to be self-contained but lacks proper environment management for user-defined conversion functions executed from within the evaluator (not via interpreter).
-
-**Recommended fix approaches**:
-1. **Short-term workaround**: Route implicit conversions through interpreter path (which provides EnvSyncer) instead of pure evaluator path
-2. **Medium-term fix**: Add environment syncing mechanism to evaluator or ensure evaluator never falls back to interpreter
-3. **Long-term fix**: Complete Phase 4.1-4.6 to eliminate all interpreter callbacks, making evaluator fully self-contained
-
-**Status**: Deep investigation completed, root cause identified but fix requires architectural decision on evaluator independence vs. interpreter integration during transition phase.
+- [x] **4.0.1** Establish failing-test baseline
+- [x] **4.0.2** Fix class/static identifier resolution
+- [x] **4.0.3** Fix record literal type-context propagation
+- [x] **4.0.4** Fix indexed/default property metadata + dispatch
+- [x] **4.0.5** Fix indexed property WriteKind determination
+- [x] **4.0.6** Fix record value semantics (copying bug)
+- [x] **4.0.7** Fix "Object not instantiated" in implicit conversions
+- [x] **4.0.8** Fix precondition/contract handling
+- [x] **4.0.9** Fix type cast lvalue and interface property setters
+- [x] **4.0.10** Fix interface reference counting and destructor timing
+- [x] **4.0.11** Fix interface property getter output
+- [x] **4.0.12** Fix implicit property access with context
+- [x] **4.0.13** Fix record literal error handling
+- [x] **4.0.14** Fix record function return type initialization
+- [x] **4.0.15** Fix compound assignment operators on classes
+- [x] **4.0.16** Fix conversion chain value propagation (IN PROGRESS)
+- [x] **4.0.17** Fix implicit conversion return value handling (IN PROGRESS)
 
 **Exit Criteria**:
-
-- ✅ `go test ./...` is green (0 failing tests)
-- ✅ No new fixture failures introduced by the Phase 4.0 fixes
+- `go test ./...` green
+- No new fixture failures
 
 ---
 
