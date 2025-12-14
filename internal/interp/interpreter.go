@@ -255,22 +255,6 @@ func (i *Interpreter) evalLegacy(node ast.Node) Value {
 	case *ast.RaiseStatement:
 		return i.evalRaiseStatement(node)
 
-	case *ast.BreakStatement:
-		// KEEP: Control flow needs interpreter handling
-		return i.evalBreakStatement(node)
-
-	case *ast.ContinueStatement:
-		// KEEP: Control flow needs interpreter handling
-		return i.evalContinueStatement(node)
-
-	case *ast.ExitStatement:
-		// KEEP: Control flow needs interpreter handling
-		return i.evalExitStatement(node)
-
-	case *ast.ReturnStatement:
-		// KEEP: Control flow needs interpreter handling
-		return i.evalReturnStatement(node)
-
 	case *ast.UsesClause:
 		// Uses clauses are processed before execution by the CLI/loader
 		return nil

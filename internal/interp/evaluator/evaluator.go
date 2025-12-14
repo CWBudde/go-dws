@@ -610,24 +610,12 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		}
 		return e.VisitRaiseStatement(n, ctx)
 	case *ast.BreakStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitBreakStatement(n, ctx)
 	case *ast.ContinueStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitContinueStatement(n, ctx)
 	case *ast.ExitStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitExitStatement(n, ctx)
 	case *ast.ReturnStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitReturnStatement(n, ctx)
 	case *ast.UsesClause:
 		return e.VisitUsesClause(n, ctx)

@@ -137,36 +137,82 @@ If a change only moves methods between types/files without deleting indirection,
 
 ### 4.1 Unify Eval() Dispatch (Single Entry Point)
 
-**Goal**: Eliminate the split-brain dispatch path and make evaluation go through a single entry point.
+**Goal**: Eliminate evaluator callbacks to interpreter by removing focused interface dependencies.
+
+**Status**: 🟢 In Progress (4/30 callbacks removed, empirically tested)
 
 **Current Flow**:
 
 ```text
-User → Interpreter.Eval() [switch] → sometimes → Evaluator.Eval() [switch]
+User → Interpreter.Eval() → Evaluator.Eval() [60 cases]
+    34 cases → coreEvaluator.EvalNode() → Interpreter.evalLegacy() [55 cases]
 ```
 
 **Target Flow**:
 
 ```text
-User → Interpreter.Eval() → Evaluator.Eval() [single dispatch]
+User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 ```
+
+**Progress**:
+
+- ✅ Thin Interpreter.Eval() delegation (done)
+- ✅ Control flow statements migrated (Break/Continue/Exit/Return) - 4 callbacks removed
+- ✅ Empirical testing with selfContainedMode identified blockers
+- ❌ 30 callbacks remaining (categorized below)
+
+**Remaining Callback Dependencies** (from selfContainedMode experiment):
+
+| Category | Cases | Blocking Interface | Effort |
+|----------|-------|-------------------|--------|
+| builtins.Context casts | 7 | Type assertion bug | 30 min |
+| Loop statements | 5 | Exception state (likely ready) | 2 hours |
+| Declarations | 7 | declHandler (~38 methods) | 2-3 days |
+| OOP operations | 10 | oopEngine (~20 methods) | 2-3 days |
+| Exception handling | 3 | exceptionMgr (~6 methods) | 0.5 day |
 
 **Tasks**:
 
-- [ ] **4.1.1** Audit remaining Interpreter switch cases (2h)
-- List each case and the dependency blocking direct delegation
-- Categorize by migration difficulty: Easy/Medium/Hard
+- [x] **4.1.1** Audit remaining callbacks (DONE - empirical test completed)
+  - Control flow: MIGRATED ✅
+  - builtins.Context casts: context_bounds.go, context_enums.go (7 calls)
+  - Loop statements: If/While/Repeat/For/ForIn (5 cases)
+  - Declarations: ClassDecl, InterfaceDecl, HelperDecl, FunctionDecl, OperatorDecl, EnumDecl, TypeDeclaration (7 cases)
+  - OOP: CallExpression, NewExpression, MemberAccess, MethodCall, Inherited, Self, Index, NewArray, As, AddressOf (10 cases)
+  - Exception: TryStatement, RaiseStatement, Program (3 cases)
+  - Other: ExpressionStatement, VarDeclStatement, ConstDecl, CaseStatement (4 cases)
 
-- [ ] **4.1.2** Move statement/declaration stragglers to Evaluator (timeboxed, 1-2 PRs)
-- Goal is to delete the Interpreter switch, not “perfect architecture”
+- [x] **4.1.2** Remove control flow callbacks (DONE - 4 callbacks eliminated)
+  - BreakStatement, ContinueStatement, ExitStatement, ReturnStatement
+  - Tests pass ✅
 
-- [ ] **4.1.3** Replace Interpreter.Eval() with a thin delegation (2h)
-- `return i.evaluator.Eval(node, ctx)`
+- [ ] **4.1.3** Fix builtins.Context type assertion bug (30 min) **← NEXT**
+  - Replace `e.coreEvaluator.(builtins.Context).Method()` with `e.Method()`
+  - Files: context_bounds.go (GetLowBound, GetHighBound), context_enums.go (5 methods)
+  - Expected: 7 more callbacks eliminated
+
+- [ ] **4.1.4** Migrate loop statements (2 hours)
+  - IfStatement, WhileStatement, RepeatStatement, ForStatement, ForInStatement
+  - Remove `if e.coreEvaluator != nil && !e.selfContainedMode` checks
+  - Verify exception state in ExecutionContext is sufficient
+  - Expected: 5 more callbacks eliminated
+
+- [ ] **4.1.5** Migrate simple statements (4 hours)
+  - ExpressionStatement, VarDeclStatement, ConstDecl, CaseStatement
+  - Mixed complexity - some may require 4.3/4.4/4.5 first
+  - Expected: 2-4 callbacks eliminated (defer hard cases)
 
 **Success Criteria**:
 
-- ✅ Interpreter.Eval() has no switch statement
+- ✅ Interpreter.evalLegacy() has 0 cases
+- ✅ Evaluator.Eval() has no `if e.coreEvaluator != nil` checks
 - ✅ All unit tests pass
+
+**Remaining Work After 4.1.5**:
+
+- ~14 callbacks blocked by declHandler (→ Task 4.4)
+- ~10 callbacks blocked by oopEngine (→ Task 4.3)
+- ~3 callbacks blocked by exceptionMgr (→ Task 4.5)
 
 ---
 
