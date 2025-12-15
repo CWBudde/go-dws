@@ -108,21 +108,11 @@ func TestRecordType(t *testing.T) {
 			"Y": INTEGER,
 		}
 		rt := NewRecordType("TPoint", fields)
-		if rt.String() != "TPoint" {
-			t.Errorf("String() = %v, want TPoint", rt.String())
-		}
-		if !rt.HasField("X") {
-			t.Error("Should have field X")
-		}
-		if !rt.HasField("Y") {
-			t.Error("Should have field Y")
-		}
-		if rt.HasField("Z") {
-			t.Error("Should not have field Z")
-		}
-		if rt.GetFieldType("X") != INTEGER {
-			t.Error("Field X should be Integer")
-		}
+		assertStringEquals(t, rt.String(), "TPoint", "String()")
+		assertHasField(t, rt, "X", true)
+		assertHasField(t, rt, "Y", true)
+		assertHasField(t, rt, "Z", false)
+		assertTypeEquals(t, rt.GetFieldType("X"), INTEGER, "GetFieldType(X)")
 	})
 
 	t.Run("Anonymous record", func(t *testing.T) {
@@ -215,38 +205,20 @@ func TestRecordTypeWithMethods(t *testing.T) {
 		rt.Methods["setposition"] = NewProcedureType([]Type{INTEGER, INTEGER})
 
 		// Test HasMethod
-		if !rt.HasMethod("GetDistance") {
-			t.Error("Should have method GetDistance")
-		}
-		if !rt.HasMethod("SetPosition") {
-			t.Error("Should have method SetPosition")
-		}
-		if rt.HasMethod("NonExistent") {
-			t.Error("Should not have method NonExistent")
-		}
+		assertHasMethod(t, rt, "GetDistance", true)
+		assertHasMethod(t, rt, "SetPosition", true)
+		assertHasMethod(t, rt, "NonExistent", false)
 
 		// Test GetMethod
 		method := rt.GetMethod("GetDistance")
-		if method == nil {
-			t.Error("GetMethod should return method type")
-		}
-		if method != nil && !method.IsFunction() {
-			t.Error("GetDistance should be a function")
-		}
+		assertMethodType(t, method, true, "GetDistance")
 
 		method = rt.GetMethod("SetPosition")
-		if method == nil {
-			t.Error("GetMethod should return method type")
-		}
-		if method != nil && !method.IsProcedure() {
-			t.Error("SetPosition should be a procedure")
-		}
+		assertMethodType(t, method, false, "SetPosition")
 
 		// Test GetMethod for non-existent method
 		method = rt.GetMethod("NonExistent")
-		if method != nil {
-			t.Error("GetMethod should return nil for non-existent method")
-		}
+		assertBoolCondition(t, method == nil, "GetMethod should return nil for non-existent method")
 	})
 
 	t.Run("Record without methods", func(t *testing.T) {
@@ -257,12 +229,8 @@ func TestRecordTypeWithMethods(t *testing.T) {
 		rt := NewRecordType("TPoint", fields)
 
 		// Methods map should be initialized but empty
-		if rt.Methods == nil {
-			t.Error("Methods map should be initialized")
-		}
-		if rt.HasMethod("AnyMethod") {
-			t.Error("Empty record should not have any methods")
-		}
+		assertBoolCondition(t, rt.Methods != nil, "Methods map should be initialized")
+		assertHasMethod(t, rt, "AnyMethod", false)
 	})
 }
 
@@ -290,30 +258,17 @@ func TestRecordTypeWithProperties(t *testing.T) {
 		}
 
 		// Test HasProperty
-		if !rt.HasProperty("X") {
-			t.Error("Should have property X")
-		}
-		if !rt.HasProperty("Y") {
-			t.Error("Should have property Y")
-		}
-		if rt.HasProperty("Z") {
-			t.Error("Should not have property Z")
-		}
+		assertHasProperty(t, rt, "X", true)
+		assertHasProperty(t, rt, "Y", true)
+		assertHasProperty(t, rt, "Z", false)
 
 		// Test GetProperty
 		prop := rt.GetProperty("X")
-		if prop == nil {
-			t.Error("GetProperty should return property info")
-		}
-		if prop != nil && prop.Type != INTEGER {
-			t.Error("Property X should be Integer type")
-		}
+		assertPropertyType(t, prop, INTEGER, "Property X")
 
 		// Test GetProperty for non-existent property
 		prop = rt.GetProperty("Z")
-		if prop != nil {
-			t.Error("GetProperty should return nil for non-existent property")
-		}
+		assertBoolCondition(t, prop == nil, "GetProperty should return nil for non-existent property")
 	})
 
 	t.Run("Record without properties", func(t *testing.T) {
@@ -324,12 +279,8 @@ func TestRecordTypeWithProperties(t *testing.T) {
 		rt := NewRecordType("TPoint", fields)
 
 		// Properties map should be initialized but empty
-		if rt.Properties == nil {
-			t.Error("Properties map should be initialized")
-		}
-		if rt.HasProperty("AnyProperty") {
-			t.Error("Empty record should not have any properties")
-		}
+		assertBoolCondition(t, rt.Properties != nil, "Properties map should be initialized")
+		assertHasProperty(t, rt, "AnyProperty", false)
 	})
 }
 
@@ -369,13 +320,8 @@ func TestTypeAlias(t *testing.T) {
 			AliasedType: INTEGER,
 		}
 
-		if !myInt.Equals(INTEGER) {
-			t.Error("Type alias should equal its underlying type")
-		}
-
-		if !INTEGER.Equals(myInt) {
-			t.Error("Underlying type should equal type alias (symmetric)")
-		}
+		assertTypesEqual(t, myInt, INTEGER, true, "Type alias should equal its underlying type")
+		assertTypesEqual(t, INTEGER, myInt, true, "Underlying type should equal type alias (symmetric)")
 	})
 
 	t.Run("Alias inequality with different types", func(t *testing.T) {
@@ -386,17 +332,9 @@ func TestTypeAlias(t *testing.T) {
 			AliasedType: INTEGER,
 		}
 
-		if myInt.Equals(STRING) {
-			t.Error("Integer alias should not equal STRING")
-		}
-
-		if myInt.Equals(FLOAT) {
-			t.Error("Integer alias should not equal FLOAT")
-		}
-
-		if myInt.Equals(BOOLEAN) {
-			t.Error("Integer alias should not equal BOOLEAN")
-		}
+		assertTypesEqual(t, myInt, STRING, false, "Integer alias should not equal STRING")
+		assertTypesEqual(t, myInt, FLOAT, false, "Integer alias should not equal FLOAT")
+		assertTypesEqual(t, myInt, BOOLEAN, false, "Integer alias should not equal BOOLEAN")
 
 		// type MyString = String;
 		// MyString should NOT equal MyInt
@@ -405,9 +343,7 @@ func TestTypeAlias(t *testing.T) {
 			AliasedType: STRING,
 		}
 
-		if myInt.Equals(myString) {
-			t.Error("Integer alias should not equal String alias")
-		}
+		assertTypesEqual(t, myInt, myString, false, "Integer alias should not equal String alias")
 	})
 
 	t.Run("Multiple aliases to same type are equal", func(t *testing.T) {
@@ -424,9 +360,7 @@ func TestTypeAlias(t *testing.T) {
 			AliasedType: INTEGER,
 		}
 
-		if !userID.Equals(itemID) {
-			t.Error("Two aliases to the same type should be equal")
-		}
+		assertTypesEqual(t, userID, itemID, true, "Two aliases to the same type should be equal")
 	})
 
 	t.Run("Nested aliases", func(t *testing.T) {
@@ -444,29 +378,19 @@ func TestTypeAlias(t *testing.T) {
 		}
 
 		// B.String() should return "B"
-		if aliasB.String() != "B" {
-			t.Errorf("String() = %v, want B", aliasB.String())
-		}
+		assertStringEquals(t, aliasB.String(), "B", "String()")
 
 		// B.TypeKind() should return "INTEGER" (resolved through chain)
-		if aliasB.TypeKind() != "INTEGER" {
-			t.Errorf("TypeKind() = %v, want INTEGER", aliasB.TypeKind())
-		}
+		assertStringEquals(t, aliasB.TypeKind(), "INTEGER", "TypeKind()")
 
 		// B should equal Integer
-		if !aliasB.Equals(INTEGER) {
-			t.Error("Nested alias should equal ultimate underlying type (Integer)")
-		}
+		assertTypesEqual(t, aliasB, INTEGER, true, "Nested alias should equal ultimate underlying type (Integer)")
 
 		// B should equal A
-		if !aliasB.Equals(aliasA) {
-			t.Error("Nested alias should equal intermediate alias")
-		}
+		assertTypesEqual(t, aliasB, aliasA, true, "Nested alias should equal intermediate alias")
 
 		// A should equal B (symmetric)
-		if !aliasA.Equals(aliasB) {
-			t.Error("Alias equality should be symmetric")
-		}
+		assertTypesEqual(t, aliasA, aliasB, true, "Alias equality should be symmetric")
 	})
 
 	t.Run("Triple nested aliases", func(t *testing.T) {
@@ -489,23 +413,14 @@ func TestTypeAlias(t *testing.T) {
 		}
 
 		// C.TypeKind() should resolve through entire chain
-		if aliasC.TypeKind() != "INTEGER" {
-			t.Errorf("TypeKind() = %v, want INTEGER", aliasC.TypeKind())
-		}
+		assertStringEquals(t, aliasC.TypeKind(), "INTEGER", "TypeKind()")
 
 		// C should equal Integer
-		if !aliasC.Equals(INTEGER) {
-			t.Error("Triple nested alias should equal ultimate underlying type")
-		}
+		assertTypesEqual(t, aliasC, INTEGER, true, "Triple nested alias should equal ultimate underlying type")
 
 		// C should equal A and B
-		if !aliasC.Equals(aliasA) {
-			t.Error("Triple nested alias should equal first alias in chain")
-		}
-
-		if !aliasC.Equals(aliasB) {
-			t.Error("Triple nested alias should equal second alias in chain")
-		}
+		assertTypesEqual(t, aliasC, aliasA, true, "Triple nested alias should equal first alias in chain")
+		assertTypesEqual(t, aliasC, aliasB, true, "Triple nested alias should equal second alias in chain")
 	})
 
 	t.Run("Alias to different basic types", func(t *testing.T) {
@@ -585,21 +500,15 @@ func TestTypeAlias(t *testing.T) {
 
 		// Should not equal function type
 		funcType := NewFunctionType([]Type{}, INTEGER)
-		if myInt.Equals(funcType) {
-			t.Error("Integer alias should not equal function type")
-		}
+		assertTypesEqual(t, myInt, funcType, false, "Integer alias should not equal function type")
 
 		// Should not equal array type
 		arrayType := NewDynamicArrayType(INTEGER)
-		if myInt.Equals(arrayType) {
-			t.Error("Integer alias should not equal array type")
-		}
+		assertTypesEqual(t, myInt, arrayType, false, "Integer alias should not equal array type")
 
 		// Should not equal class type
 		classType := NewClassType("TMyClass", nil)
-		if myInt.Equals(classType) {
-			t.Error("Integer alias should not equal class type")
-		}
+		assertTypesEqual(t, myInt, classType, false, "Integer alias should not equal class type")
 	})
 }
 
@@ -914,4 +823,107 @@ func findSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// assertStringEquals checks if a string matches expected value
+func assertStringEquals(t *testing.T, got, want, context string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s = %v, want %v", context, got, want)
+	}
+}
+
+// assertTypeEquals checks if two types are equal
+func assertTypeEquals(t *testing.T, got, want Type, context string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s = %v, want %v", context, got, want)
+	}
+}
+
+// assertHasField checks if a record has a field
+func assertHasField(t *testing.T, rt *RecordType, fieldName string, shouldHave bool) {
+	t.Helper()
+	has := rt.HasField(fieldName)
+	if has != shouldHave {
+		if shouldHave {
+			t.Errorf("Should have field %s", fieldName)
+		} else {
+			t.Errorf("Should not have field %s", fieldName)
+		}
+	}
+}
+
+// assertHasMethod checks if a record has a method
+func assertHasMethod(t *testing.T, rt *RecordType, methodName string, shouldHave bool) {
+	t.Helper()
+	has := rt.HasMethod(methodName)
+	if has != shouldHave {
+		if shouldHave {
+			t.Errorf("Should have method %s", methodName)
+		} else {
+			t.Errorf("Should not have method %s", methodName)
+		}
+	}
+}
+
+// assertHasProperty checks if a record has a property
+func assertHasProperty(t *testing.T, rt *RecordType, propName string, shouldHave bool) {
+	t.Helper()
+	has := rt.HasProperty(propName)
+	if has != shouldHave {
+		if shouldHave {
+			t.Errorf("Should have property %s", propName)
+		} else {
+			t.Errorf("Should not have property %s", propName)
+		}
+	}
+}
+
+// assertMethodType checks if a method has expected function/procedure type
+func assertMethodType(t *testing.T, method *FunctionType, isFunction bool, context string) {
+	t.Helper()
+	if method == nil {
+		t.Errorf("%s: method should not be nil", context)
+		return
+	}
+	if isFunction && !method.IsFunction() {
+		t.Errorf("%s should be a function", context)
+	}
+	if !isFunction && !method.IsProcedure() {
+		t.Errorf("%s should be a procedure", context)
+	}
+}
+
+// assertPropertyType checks if a property has expected type
+func assertPropertyType(t *testing.T, prop *RecordPropertyInfo, expectedType Type, context string) {
+	t.Helper()
+	if prop == nil {
+		t.Errorf("%s: property should not be nil", context)
+		return
+	}
+	if prop.Type != expectedType {
+		t.Errorf("%s should be %v type, got %v", context, expectedType, prop.Type)
+	}
+}
+
+// assertTypesEqual checks if two types are equal using Equals method
+func assertTypesEqual(t *testing.T, a, b Type, shouldBeEqual bool, context string) {
+	t.Helper()
+	result := a.Equals(b)
+	if result != shouldBeEqual {
+		if shouldBeEqual {
+			t.Errorf("%s: types should be equal", context)
+		} else {
+			t.Errorf("%s: types should not be equal", context)
+		}
+	}
+}
+
+// assertBoolCondition checks a boolean condition with custom error message
+func assertBoolCondition(t *testing.T, condition bool, errorMsg string) {
+	t.Helper()
+	if !condition {
+		t.Error(errorMsg)
+	}
 }
