@@ -63,7 +63,9 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 	cursor = cursor.Advance() // move to SEMICOLON
 	p.cursor = cursor
 
-	return builder.Finish(recordDecl).(*ast.RecordDecl)
+	decl, _ := builder.Finish(recordDecl).(*ast.RecordDecl)
+
+	return decl
 }
 
 // This helper function extracts the common record body parsing logic used by both
@@ -198,8 +200,6 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 // PRE: cursor is field name IDENT
 // POST: cursor is SEMICOLON
 func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.FieldDecl {
-	cursor := p.cursor
-
 	// Use IdentifierList combinator to parse comma-separated field names
 	fieldNames := p.IdentifierList(IdentifierListConfig{
 		ErrorContext:      "record field declaration",
@@ -209,7 +209,7 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		return nil
 	}
 
-	cursor = p.cursor // Update cursor after IdentifierList
+	cursor := p.cursor // Update cursor after IdentifierList
 	var fieldType ast.TypeExpression
 	var initValue ast.Expression
 
@@ -252,8 +252,6 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		if fieldType == nil {
 			return nil
 		}
-
-		cursor = p.cursor // Update cursor after parseTypeExpression
 
 		// Parse optional field initializer
 		initValue = p.parseFieldInitializer(fieldNames)

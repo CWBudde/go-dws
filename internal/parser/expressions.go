@@ -196,13 +196,13 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 
 // parseExpressionList parses a comma-separated list of expressions.
 // PRE: cursor is before the list (at opening delimiter)
-// POST: cursor is at terminator (closing delimiter)
-func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
+// POST: cursor is at terminator (RPAREN)
+func (p *Parser) parseExpressionList() []ast.Expression {
 	list := []ast.Expression{}
 
 	// Check for empty list
 	nextToken := p.cursor.Peek(1)
-	if nextToken.Type == end {
+	if nextToken.Type == lexer.RPAREN {
 		p.cursor = p.cursor.Advance() // consume terminator
 		return list
 	}
@@ -221,7 +221,7 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 		nextToken = p.cursor.Peek(1)
 
 		// Check for terminator
-		if nextToken.Type == end {
+		if nextToken.Type == lexer.RPAREN {
 			p.cursor = p.cursor.Advance() // consume terminator
 			break
 		}
@@ -232,7 +232,7 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 
 			// Check for trailing comma before terminator
 			nextToken = p.cursor.Peek(1)
-			if nextToken.Type == end {
+			if nextToken.Type == lexer.RPAREN {
 				p.cursor = p.cursor.Advance() // consume terminator
 				break
 			}
@@ -248,7 +248,7 @@ func (p *Parser) parseExpressionList(end lexer.TokenType) []ast.Expression {
 		} else {
 			// Unexpected token - no separator found
 			// Add error and break
-			p.addError(fmt.Sprintf("expected ',' or '%s', got %s", end, nextToken.Type), ErrUnexpectedToken)
+			p.addError(fmt.Sprintf("expected ',' or ')', got %s", nextToken.Type), ErrUnexpectedToken)
 			break
 		}
 	}

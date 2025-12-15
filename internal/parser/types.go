@@ -43,7 +43,8 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 			Name:   qualifiedName,
 			EndPos: p.endPosFromToken(endToken),
 		}
-		return builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
+		result, _ := builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
+		return result
 
 	case lexer.CONST:
 		// Special case: "const" can be used as a type in "array of const"
@@ -52,7 +53,8 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 			Name:  "const",
 		}
 		// EndPos is after the const token
-		return builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
+		result, _ := builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
+		return result
 
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		// Inline function or procedure pointer type
@@ -232,13 +234,16 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 		p.cursor = cursor
 		funcPtrType.OfObject = true
 		// EndPos is after "object" token
-		return builder.Finish(funcPtrType).(*ast.FunctionPointerTypeNode)
+		result, _ := builder.Finish(funcPtrType).(*ast.FunctionPointerTypeNode)
+		return result
 	} else if funcPtrType.ReturnType != nil {
 		// EndPos is after return type for functions
-		return builder.FinishWithNode(funcPtrType, funcPtrType.ReturnType).(*ast.FunctionPointerTypeNode)
+		result, _ := builder.FinishWithNode(funcPtrType, funcPtrType.ReturnType).(*ast.FunctionPointerTypeNode)
+		return result
 	} else {
 		// EndPos is after closing paren (if present) or function/procedure keyword
-		return builder.FinishWithToken(funcPtrType, endToken).(*ast.FunctionPointerTypeNode)
+		result, _ := builder.FinishWithToken(funcPtrType, endToken).(*ast.FunctionPointerTypeNode)
+		return result
 	}
 }
 
@@ -387,7 +392,8 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			HighBound:   nil,
 		}
 		// EndPos is after element type
-		return builder.FinishWithNode(arrayNode, elementType).(*ast.ArrayTypeNode)
+		result, _ := builder.FinishWithNode(arrayNode, elementType).(*ast.ArrayTypeNode)
+		return result
 	}
 
 	// If no dimensions, return simple dynamic array
@@ -399,7 +405,8 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			HighBound:   nil,
 		}
 		// EndPos is after element type
-		return builder.FinishWithNode(arrayNode, elementType).(*ast.ArrayTypeNode)
+		result, _ := builder.FinishWithNode(arrayNode, elementType).(*ast.ArrayTypeNode)
+		return result
 	}
 
 	// Build nested array types from innermost to outermost
@@ -531,5 +538,6 @@ func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 	}
 
 	// EndPos is after the class type
-	return builder.FinishWithNode(classOfNode, classType).(*ast.ClassOfTypeNode)
+	result, _ := builder.FinishWithNode(classOfNode, classType).(*ast.ClassOfTypeNode)
+	return result
 }

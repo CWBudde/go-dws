@@ -182,13 +182,11 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 
 			// Parse field declarations (can be comma-separated)
 			fields := p.parseFieldDeclarations(currentVisibility)
-			if fields != nil {
-				for _, field := range fields {
-					field.IsClassVar = true
-					helperDecl.ClassVars = append(helperDecl.ClassVars, field)
-					if currentSection != nil {
-						*currentSection = append(*currentSection, field)
-					}
+			for _, field := range fields {
+				field.IsClassVar = true
+				helperDecl.ClassVars = append(helperDecl.ClassVars, field)
+				if currentSection != nil {
+					*currentSection = append(*currentSection, field)
 				}
 			}
 			cursor = p.cursor.Advance()
@@ -244,5 +242,7 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lex
 	cursor = cursor.Advance() // move to SEMICOLON
 	p.cursor = cursor
 
-	return builder.Finish(helperDecl).(*ast.HelperDecl)
+	decl, _ := builder.Finish(helperDecl).(*ast.HelperDecl)
+
+	return decl
 }

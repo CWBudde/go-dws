@@ -329,7 +329,7 @@ func TestPropertyDefault(t *testing.T) {
 	}
 
 	// Default properties must be indexed
-	if prop.IndexParams == nil || len(prop.IndexParams) == 0 {
+	if len(prop.IndexParams) == 0 {
 		t.Error("Default property must have index parameters")
 	}
 }

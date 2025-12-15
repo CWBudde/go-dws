@@ -483,7 +483,9 @@ func (p *Parser) ParseProgram() *ast.Program {
 		p.nextToken()
 	}
 
-	return builder.Finish(program).(*ast.Program)
+	result, _ := builder.Finish(program).(*ast.Program)
+
+	return result
 }
 
 // isVarDeclBlock checks if a BlockStatement wraps var declarations (VAR token, not BEGIN).

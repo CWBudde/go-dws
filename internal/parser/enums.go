@@ -141,5 +141,6 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 	p.cursor = cursor
 
 	// End position is at the semicolon
-	return builder.Finish(enumDecl).(*ast.EnumDecl)
+	decl := builder.Finish(enumDecl).(*ast.EnumDecl)
+	return decl
 }

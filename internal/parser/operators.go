@@ -103,7 +103,8 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	cursor = cursor.Advance() // move to ';'
 
 	p.cursor = cursor
-	return builder.Finish(decl).(*ast.OperatorDecl)
+	decl, _ = builder.Finish(decl).(*ast.OperatorDecl)
+	return decl
 }
 
 // parseClassOperatorDeclaration parses a class operator declared within a class body.
@@ -216,7 +217,8 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 	cursor = cursor.Advance() // move to ';'
 
 	p.cursor = cursor
-	return builder.Finish(decl).(*ast.OperatorDecl)
+	decl, _ = builder.Finish(decl).(*ast.OperatorDecl)
+	return decl
 }
 
 // parseOperatorOperandTypes parses the operand type list inside parentheses.

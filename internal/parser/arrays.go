@@ -116,7 +116,8 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	// Advance to RBRACK
 	p.cursor = p.cursor.Advance()
 
-	return builder.FinishWithToken(result, p.cursor.Current()).(*ast.IndexExpression)
+	expr := builder.FinishWithToken(result, p.cursor.Current()).(ast.Expression)
+	return expr
 }
 
 // Parses array literal expressions: [expr1, expr2, expr3]

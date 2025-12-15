@@ -203,14 +203,17 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.SEMICOLON {
 		p.cursor = p.cursor.Advance()
-		return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ExpressionStatement)
+		expr, _ := builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ExpressionStatement)
+		return expr
 	}
 
 	// End at expression or current token
 	if stmt.Expression != nil {
-		return builder.FinishWithNode(stmt, stmt.Expression).(*ast.ExpressionStatement)
+		expr, _ := builder.FinishWithNode(stmt, stmt.Expression).(*ast.ExpressionStatement)
+		return expr
 	}
-	return builder.FinishWithToken(stmt, startToken).(*ast.ExpressionStatement)
+	expr, _ := builder.FinishWithToken(stmt, startToken).(*ast.ExpressionStatement)
+	return expr
 }
 
 func (p *Parser) parseAssignmentStatement(builder *NodeBuilder, left ast.Expression) ast.Statement {
@@ -237,14 +240,17 @@ func (p *Parser) parseAssignmentStatement(builder *NodeBuilder, left ast.Express
 		nextToken := p.cursor.Peek(1)
 		if nextToken.Type == lexer.SEMICOLON {
 			p.cursor = p.cursor.Advance()
-			return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
+			stmt, _ := builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
+			return stmt
 		}
 
 		// End at value expression or current token
 		if stmt.Value != nil {
-			return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
+			stmt, _ := builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
+			return stmt
 		}
-		return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
+		stmt, _ = builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
+		return stmt
 
 	default:
 		// Invalid assignment target - use structured error
@@ -271,14 +277,17 @@ func (p *Parser) parseExpressionStatementFromExpression(builder *NodeBuilder, st
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.SEMICOLON {
 		p.cursor = p.cursor.Advance()
-		return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ExpressionStatement)
+		result, _ := builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ExpressionStatement)
+		return result
 	}
 
 	// End at expression or start token
 	if expr != nil {
-		return builder.FinishWithNode(stmt, expr).(*ast.ExpressionStatement)
+		result, _ := builder.FinishWithNode(stmt, expr).(*ast.ExpressionStatement)
+		return result
 	}
-	return builder.FinishWithToken(stmt, startToken).(*ast.ExpressionStatement)
+	result, _ := builder.FinishWithToken(stmt, startToken).(*ast.ExpressionStatement)
+	return result
 }
 
 // parseAssignmentOrExpression determines if we have an assignment or expression statement.
@@ -360,7 +369,9 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		p.synchronize([]lexer.TokenType{lexer.END, lexer.ENSURE})
 	}
 
-	return builder.FinishWithToken(block, p.cursor.Current()).(*ast.BlockStatement)
+	stmt, _ := builder.FinishWithToken(block, p.cursor.Current()).(*ast.BlockStatement)
+
+	return stmt
 }
 
 // ============================================================================
@@ -710,5 +721,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		return stmt
 	}
 
-	return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.VarDeclStatement)
+	stmt, _ = builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.VarDeclStatement)
+
+	return stmt
 }

@@ -410,7 +410,8 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	// Check if this is a forward declaration (no body)
 	nextTok := cursor.Peek(1)
 	if fn.IsForward || (nextTok.Type != lexer.BEGIN && nextTok.Type != lexer.VAR && nextTok.Type != lexer.CONST && nextTok.Type != lexer.REQUIRE) {
-		return builder.Finish(fn).(*ast.FunctionDecl)
+		decl, _ := builder.Finish(fn).(*ast.FunctionDecl)
+		return decl
 	}
 
 	// Parse local variable/constant declarations
@@ -479,12 +480,15 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 		fn.PostConditions = p.parsePostConditions()
 		if fn.PostConditions != nil {
-			return builder.FinishWithNode(fn, fn.PostConditions).(*ast.FunctionDecl)
+			decl, _ := builder.FinishWithNode(fn, fn.PostConditions).(*ast.FunctionDecl)
+			return decl
 		} else {
-			return builder.Finish(fn).(*ast.FunctionDecl)
+			decl, _ := builder.Finish(fn).(*ast.FunctionDecl)
+			return decl
 		}
 	} else {
-		return builder.Finish(fn).(*ast.FunctionDecl)
+		decl, _ := builder.Finish(fn).(*ast.FunctionDecl)
+		return decl
 	}
 }
 
@@ -688,8 +692,8 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 			return nil
 		}
 
-		// Update cursor after default value parsing
-		cursor = p.cursor
+		// Cursor is already updated by parseExpression
+		_ = p.cursor
 	}
 
 	// Create parameter nodes for each name

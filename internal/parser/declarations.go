@@ -227,12 +227,15 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 	if nextToken.Type == lexer.SEMICOLON {
 		p.cursor = p.cursor.Advance() // move to semicolon
 		// End position is at the semicolon
-		return builder.Finish(stmt).(*ast.ConstDecl)
+		decl := builder.Finish(stmt).(*ast.ConstDecl)
+		return decl
 	} else if stmt.Value != nil {
 		// No semicolon - end position is after the value expression
-		return builder.FinishWithNode(stmt, stmt.Value).(*ast.ConstDecl)
+		decl := builder.FinishWithNode(stmt, stmt.Value).(*ast.ConstDecl)
+		return decl
 	} else {
 		// Fallback - use current token
-		return builder.Finish(stmt).(*ast.ConstDecl)
+		decl := builder.Finish(stmt).(*ast.ConstDecl)
+		return decl
 	}
 }

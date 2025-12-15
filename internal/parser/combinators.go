@@ -756,7 +756,9 @@ func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement
 		}
 	}
 
-	return builder.Finish(block).(*ast.BlockStatement)
+	stmt := builder.Finish(block).(*ast.BlockStatement)
+
+	return stmt
 }
 
 // ParameterGroupConfig configures the ParameterGroup combinator.

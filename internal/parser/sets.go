@@ -130,5 +130,7 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 		ElementType: elementType,
 	}
 
-	return builder.FinishWithNode(setTypeNode, elementType).(*ast.SetTypeNode)
+	result, _ := builder.FinishWithNode(setTypeNode, elementType).(*ast.SetTypeNode)
+
+	return result
 }

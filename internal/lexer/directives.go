@@ -342,6 +342,8 @@ func (l *Lexer) handleConstOther() {
 
 // evalIfExpression evaluates a $if compiler directive expression.
 // Supports: defined(NAME), integer constants, comparisons, and/or/not operators.
+//
+//nolint:gocyclo // Lexer complexity is acceptable for expression parsing
 func (l *Lexer) evalIfExpression(expr string) bool {
 	tokens := lexIfExpression(expr)
 	pos := Position{}
@@ -599,7 +601,8 @@ func lexIfLessThan(reader *strings.Reader) ifToken {
 	if next == '=' {
 		return ifToken{typ: ifTokLte}
 	}
-	_ = reader.UnreadRune()
+	// Safe to ignore error: we just successfully read a rune
+	_ = reader.UnreadRune() //nolint:errcheck
 
 	return ifToken{typ: ifTokLt}
 }
@@ -613,7 +616,8 @@ func lexIfGreaterThan(reader *strings.Reader) ifToken {
 	if next == '=' {
 		return ifToken{typ: ifTokGte}
 	}
-	_ = reader.UnreadRune()
+	// Safe to ignore error: we just successfully read a rune
+	_ = reader.UnreadRune() //nolint:errcheck
 
 	return ifToken{typ: ifTokGt}
 }
@@ -639,7 +643,8 @@ func lexIfNumber(first rune, reader *strings.Reader) ifToken {
 		r, _, err := reader.ReadRune()
 		if err != nil || !isDigit(r) {
 			if err == nil {
-				_ = reader.UnreadRune()
+				// Safe to ignore error: we just successfully read a rune
+				_ = reader.UnreadRune() //nolint:errcheck
 			}
 			break
 		}
@@ -656,7 +661,8 @@ func lexIfIdentOrKeyword(first rune, reader *strings.Reader) ifToken {
 		r, _, err := reader.ReadRune()
 		if err != nil || (!isLetter(r) && !isDigit(r)) {
 			if err == nil {
-				_ = reader.UnreadRune()
+				// Safe to ignore error: we just successfully read a rune
+				_ = reader.UnreadRune() //nolint:errcheck
 			}
 			break
 		}

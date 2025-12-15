@@ -1172,6 +1172,8 @@ func (l *Lexer) handleLeftParen(pos Position) Token {
 
 // nextTokenInternal generates the next token from the input.
 // This is the internal tokenization logic, called by both NextToken() and Peek().
+//
+//nolint:gocyclo // Lexer complexity is acceptable for token dispatching
 func (l *Lexer) nextTokenInternal() Token {
 	for {
 		l.skipWhitespace()

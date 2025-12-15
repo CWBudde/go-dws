@@ -85,7 +85,9 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 		return nil
 	}
 
-	return builder.Finish(unitDecl).(*ast.UnitDeclaration)
+	decl, _ := builder.Finish(unitDecl).(*ast.UnitDeclaration)
+
+	return decl
 }
 
 // parseUsesClause parses a uses statement.
@@ -186,7 +188,8 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 	p.cursor = p.cursor.Advance() // move to semicolon
 
 	// Cursor is now on semicolon as expected by POST condition
-	return builder.Finish(usesClause).(*ast.UsesClause)
+	result, _ := builder.Finish(usesClause).(*ast.UsesClause)
+	return result
 }
 
 // parseInterfaceSection parses the interface section of a unit.

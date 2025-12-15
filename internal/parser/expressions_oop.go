@@ -72,7 +72,7 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 			inheritedExpr.IsCall = true
 
 			// Parse arguments
-			inheritedExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
+			inheritedExpr.Arguments = p.parseExpressionList()
 			// Set end position after closing parenthesis (cursor is now at RPAREN)
 			return builder.Finish(inheritedExpr).(ast.Expression)
 		} else {
@@ -178,7 +178,7 @@ func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Id
 	p.cursor = p.cursor.Advance()
 
 	// Parse constructor arguments
-	newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
+	newExpr.Arguments = p.parseExpressionList()
 
 	return newExpr
 }

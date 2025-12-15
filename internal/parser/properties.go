@@ -211,7 +211,9 @@ parseDirectives:
 		}
 	}
 
-	return builder.Finish(prop).(*ast.PropertyDecl)
+	decl, _ := builder.Finish(prop).(*ast.PropertyDecl)
+
+	return decl
 }
 
 // parseIndexedPropertyParameterGroup parses a group of indexed property parameters with the same type.

@@ -49,10 +49,12 @@ func (p *Parser) parseCondition() *ast.Condition {
 			Value: msgToken.Literal,
 		}
 		// EndPos is the end of the message string literal
-		return builder.Finish(condition).(*ast.Condition)
+		result := builder.Finish(condition).(*ast.Condition)
+		return result
 	} else {
 		// EndPos is the end of the test expression
-		return builder.FinishWithNode(condition, testExpr).(*ast.Condition)
+		result := builder.FinishWithNode(condition, testExpr).(*ast.Condition)
+		return result
 	}
 }
 
@@ -154,7 +156,8 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 
 	// EndPos is the end of the last condition
 	if len(conditions) > 0 {
-		return builder.FinishWithNode(preConditions, conditions[len(conditions)-1]).(*ast.PreConditions)
+		result := builder.FinishWithNode(preConditions, conditions[len(conditions)-1]).(*ast.PreConditions)
+		return result
 	}
 
 	return preConditions
@@ -223,7 +226,8 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 
 	// EndPos is the end of the last condition
 	if len(conditions) > 0 {
-		return builder.FinishWithNode(postConditions, conditions[len(conditions)-1]).(*ast.PostConditions)
+		result := builder.FinishWithNode(postConditions, conditions[len(conditions)-1]).(*ast.PostConditions)
+		return result
 	}
 
 	return postConditions
@@ -283,7 +287,8 @@ func (p *Parser) parseInvariantClause() *ast.InvariantClause {
 
 	// EndPos is the end of the last condition
 	if len(conditions) > 0 {
-		return builder.FinishWithNode(invariantClause, conditions[len(conditions)-1]).(*ast.InvariantClause)
+		result := builder.FinishWithNode(invariantClause, conditions[len(conditions)-1]).(*ast.InvariantClause)
+		return result
 	}
 
 	return invariantClause

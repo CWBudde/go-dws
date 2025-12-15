@@ -114,7 +114,8 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.SEMICOLON || isImplicitSemicolon(nextToken.Type) {
 		// Bare raise - re-raise current exception
-		return builder.FinishWithToken(stmt, raiseToken).(*ast.RaiseStatement)
+		stmt := builder.FinishWithToken(stmt, raiseToken).(*ast.RaiseStatement)
+		return stmt
 	}
 
 	// Parse the exception expression
@@ -136,7 +137,8 @@ func (p *Parser) parseRaiseStatement() *ast.RaiseStatement {
 	}
 
 	// End position is after the exception expression
-	return builder.FinishWithNode(stmt, stmt.Exception).(*ast.RaiseStatement)
+	stmt = builder.FinishWithNode(stmt, stmt.Exception).(*ast.RaiseStatement)
+	return stmt
 }
 
 // Syntax:
@@ -228,7 +230,8 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 	}
 
 	// End position is at the 'end' keyword
-	return builder.FinishWithToken(stmt, currentToken).(*ast.TryStatement)
+	stmt = builder.FinishWithToken(stmt, currentToken).(*ast.TryStatement)
+	return stmt
 }
 
 // PRE: cursor is on first statement token
@@ -401,13 +404,16 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 
 	// Set EndPos based on what was parsed last
 	if clause.ElseBlock != nil {
-		return builder.FinishWithNode(clause, clause.ElseBlock).(*ast.ExceptClause)
+		result := builder.FinishWithNode(clause, clause.ElseBlock).(*ast.ExceptClause)
+		return result
 	} else if len(clause.Handlers) > 0 {
 		lastHandler := clause.Handlers[len(clause.Handlers)-1]
-		return builder.FinishWithNode(clause, lastHandler).(*ast.ExceptClause)
+		result := builder.FinishWithNode(clause, lastHandler).(*ast.ExceptClause)
+		return result
 	} else {
 		// No handlers or else block - use current position
-		return builder.FinishWithToken(clause, p.cursor.Current()).(*ast.ExceptClause)
+		result := builder.FinishWithToken(clause, p.cursor.Current()).(*ast.ExceptClause)
+		return result
 	}
 }
 
@@ -533,7 +539,8 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	p.cursor = p.cursor.Advance()
 
 	// Set EndPos to the end of the statement
-	return builder.FinishWithNode(handler, handler.Statement).(*ast.ExceptionHandler)
+	result := builder.FinishWithNode(handler, handler.Statement).(*ast.ExceptionHandler)
+	return result
 }
 
 // Syntax: finally <statements> end

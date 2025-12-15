@@ -90,7 +90,7 @@ func BenchmarkCursor_MarkResetTo(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		mark := cursor.Mark()
 		c := cursor.Advance().Advance().Advance()
-		c = c.ResetTo(mark)
+		_ = c.ResetTo(mark)
 	}
 }
 
@@ -177,7 +177,7 @@ func BenchmarkCursor_Expect(b *testing.B) {
 		c := cursor
 		c, _ = c.Expect(token.VAR)
 		c, _ = c.Expect(token.IDENT)
-		c, _ = c.Expect(token.COLON)
+		_, _ = c.Expect(token.COLON)
 	}
 }
 
@@ -191,7 +191,7 @@ func BenchmarkCursor_Skip(b *testing.B) {
 		c := cursor
 		c, _ = c.Skip(token.VAR)
 		c, _ = c.Skip(token.IDENT)
-		c, _ = c.Skip(token.COLON)
+		_, _ = c.Skip(token.COLON)
 	}
 }
 
@@ -232,7 +232,7 @@ func BenchmarkCursor_NavigationPattern(b *testing.B) {
 			cursor = cursor.Advance()
 			if cursor.PeekIs(1, token.COLON) {
 				cursor = cursor.Advance()
-				cursor = cursor.Advance()
+				_ = cursor.Advance()
 			}
 		}
 	}
@@ -277,7 +277,7 @@ func BenchmarkCursor_BacktrackingScenario(b *testing.B) {
 		cursor = cursor.Advance().Advance()
 
 		// Backtrack
-		cursor = cursor.ResetTo(mark2)
+		_ = cursor.ResetTo(mark2)
 	}
 }
 

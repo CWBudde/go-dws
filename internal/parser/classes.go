@@ -293,9 +293,8 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 	} else if cursor.Current().Type == lexer.IDENT {
 		// Unexpected identifier in class body - likely a field missing its type declaration
 		p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
-	} else {
-		// Unknown token in class body, skip it
 	}
+	// Unknown tokens in class body are silently skipped (handled by caller's advance)
 
 	return p.cursor
 }
@@ -349,7 +348,8 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		p.cursor = cursor
 		// Do NOT initialize the slices - leave them as nil so semantic analyzer
 		// can detect this as a forward declaration
-		return builder.Finish(classDecl).(*ast.ClassDecl)
+		decl := builder.Finish(classDecl).(*ast.ClassDecl)
+		return decl
 	}
 
 	// Parse class body (fields and methods) until 'end'
@@ -418,7 +418,9 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	cursor = cursor.Advance() // move to SEMICOLON
 	p.cursor = cursor
 
-	return builder.Finish(classDecl).(*ast.ClassDecl)
+	decl := builder.Finish(classDecl).(*ast.ClassDecl)
+
+	return decl
 }
 
 // appendNestedType flattens nested type declarations and annotates nested classes
@@ -489,7 +491,6 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 		if fieldType == nil {
 			return nil
 		}
-		cursor = p.cursor
 
 		// Parse optional field initializer after type
 		initValue = p.parseFieldInitializer(fieldNames)
@@ -597,9 +598,11 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 			}
 
 			// Parse arguments - cursor will be at RPAREN after parseExpressionList
-			newExpr.Arguments = p.parseExpressionList(lexer.RPAREN)
+			newExpr.Arguments = p.parseExpressionList()
 
-			return builder.Finish(newExpr).(*ast.NewExpression)
+			expr := builder.Finish(newExpr).(*ast.NewExpression)
+
+			return expr
 		}
 
 		// Regular method call: obj.Method()
@@ -617,9 +620,11 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		}
 
 		// Parse arguments - cursor will be at RPAREN after parseExpressionList
-		methodCall.Arguments = p.parseExpressionList(lexer.RPAREN)
+		methodCall.Arguments = p.parseExpressionList()
 
-		return builder.Finish(methodCall).(*ast.MethodCallExpression)
+		expr := builder.Finish(methodCall).(*ast.MethodCallExpression)
+
+		return expr
 	}
 
 	// Otherwise, this is simple member access: obj.field
@@ -633,7 +638,9 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		Member: memberName,
 	}
 
-	return builder.FinishWithNode(memberAccess, memberName).(*ast.MemberAccessExpression)
+	expr := builder.FinishWithNode(memberAccess, memberName).(*ast.MemberAccessExpression)
+
+	return expr
 }
 
 // Syntax: const Name = Value; or const Name: Type = Value;
@@ -721,5 +728,7 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 		IsClassConst: isClassConst,
 	}
 
-	return builder.Finish(constant).(*ast.ConstDecl)
+	decl := builder.Finish(constant).(*ast.ConstDecl)
+
+	return decl
 }

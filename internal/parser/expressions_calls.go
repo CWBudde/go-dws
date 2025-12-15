@@ -30,7 +30,7 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 		Function: function,
 	}
 
-	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
+	exp.Arguments = p.parseExpressionList()
 	return builder.Finish(exp).(ast.Expression) // cursor is now at RPAREN
 }
 
@@ -82,7 +82,8 @@ func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
 		Function:  typeName,
 		Arguments: []ast.Expression{},
 	}
-	return builder.Finish(exp).(*ast.CallExpression)
+	expr, _ := builder.Finish(exp).(*ast.CallExpression)
+	return expr
 }
 
 // parseCallWithExpressionList parses a function call using the expression list parser.
@@ -102,10 +103,11 @@ func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.Call
 	}
 
 	// Parse argument list using cursor version
-	exp.Arguments = p.parseExpressionList(lexer.RPAREN)
+	exp.Arguments = p.parseExpressionList()
 
 	// Set end position to RPAREN
-	return builder.Finish(exp).(*ast.CallExpression)
+	expr, _ := builder.Finish(exp).(*ast.CallExpression)
+	return expr
 }
 
 // buildRecordLiteral creates a record literal expression from field initializers.

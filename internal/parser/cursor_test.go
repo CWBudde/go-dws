@@ -199,7 +199,7 @@ func TestTokenCursor_Advance(t *testing.T) {
 // TestTokenCursor_AdvanceN tests the AdvanceN() method
 func TestTokenCursor_AdvanceN(t *testing.T) {
 	source := "var x := 42;"
-	cursor := newCursorFromSource(source)
+	_ = newCursorFromSource(source)
 
 	tests := []struct {
 		name     string
@@ -231,7 +231,7 @@ func TestTokenCursor_AdvanceN(t *testing.T) {
 	}
 
 	// Test advancing past EOF
-	cursor = newCursorFromSource(source)
+	cursor := newCursorFromSource(source)
 	cursor = cursor.AdvanceN(100)
 	if cursor.Current().Type != token.EOF {
 		t.Errorf("AdvanceN(100) should stop at EOF, got %v", cursor.Current().Type)

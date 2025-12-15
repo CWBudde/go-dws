@@ -138,11 +138,13 @@ func (p *Parser) parseIfExpression() ast.Expression {
 			p.addError("expected expression after 'else'", ErrInvalidSyntax)
 			return nil
 		}
-		return builder.FinishWithNode(expr, expr.Alternative).(*ast.IfExpression)
+		expr := builder.FinishWithNode(expr, expr.Alternative).(*ast.IfExpression)
+		return expr
 	}
 
 	// No else branch - end at consequence
-	return builder.FinishWithNode(expr, expr.Consequence).(*ast.IfExpression)
+	expr = builder.FinishWithNode(expr, expr.Consequence).(*ast.IfExpression)
+	return expr
 }
 
 // ============================================================================
@@ -250,11 +252,13 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 			p.synchronize([]lexer.TokenType{lexer.END})
 			return nil
 		}
-		return builder.FinishWithNode(stmt, stmt.Alternative).(*ast.IfStatement)
+		stmt := builder.FinishWithNode(stmt, stmt.Alternative).(*ast.IfStatement)
+		return stmt
 	}
 
 	// No else branch - end at consequence
-	return builder.FinishWithNode(stmt, stmt.Consequence).(*ast.IfStatement)
+	stmt = builder.FinishWithNode(stmt, stmt.Consequence).(*ast.IfStatement)
+	return stmt
 }
 
 // Syntax: while <condition> do <statement>
@@ -337,7 +341,9 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 		return nil
 	}
 
-	return builder.FinishWithNode(stmt, stmt.Body).(*ast.WhileStatement)
+	stmt = builder.FinishWithNode(stmt, stmt.Body).(*ast.WhileStatement)
+
+	return stmt
 }
 
 // Syntax: repeat <statements> until <condition>
@@ -416,7 +422,9 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 		return nil
 	}
 
-	return builder.FinishWithNode(stmt, stmt.Condition).(*ast.RepeatStatement)
+	stmt = builder.FinishWithNode(stmt, stmt.Condition).(*ast.RepeatStatement)
+
+	return stmt
 }
 
 // ============================================================================
@@ -437,11 +445,13 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.SEMICOLON {
 		p.cursor = p.cursor.Advance() // move to semicolon
-		return builder.Finish(stmt).(*ast.BreakStatement)
+		stmt := builder.Finish(stmt).(*ast.BreakStatement)
+		return stmt
 	}
 
 	if isImplicitSemicolon(nextToken.Type) {
-		return builder.Finish(stmt).(*ast.BreakStatement)
+		stmt := builder.Finish(stmt).(*ast.BreakStatement)
+		return stmt
 	}
 
 	// Use structured error
@@ -473,11 +483,13 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.SEMICOLON {
 		p.cursor = p.cursor.Advance() // move to semicolon
-		return builder.Finish(stmt).(*ast.ContinueStatement)
+		stmt := builder.Finish(stmt).(*ast.ContinueStatement)
+		return stmt
 	}
 
 	if isImplicitSemicolon(nextToken.Type) {
-		return builder.Finish(stmt).(*ast.ContinueStatement)
+		stmt := builder.Finish(stmt).(*ast.ContinueStatement)
+		return stmt
 	}
 
 	// Use structured error
@@ -570,11 +582,13 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type == lexer.SEMICOLON {
 		p.cursor = p.cursor.Advance() // move to semicolon
-		return builder.Finish(stmt).(*ast.ExitStatement)
+		stmt := builder.Finish(stmt).(*ast.ExitStatement)
+		return stmt
 	}
 
 	if isImplicitSemicolon(nextToken.Type) {
-		return builder.Finish(stmt).(*ast.ExitStatement)
+		stmt := builder.Finish(stmt).(*ast.ExitStatement)
+		return stmt
 	}
 
 	// Use structured error
@@ -796,7 +810,9 @@ func (p *Parser) parseForStatement() ast.Statement {
 		return nil
 	}
 
-	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForStatement)
+	stmt = builder.FinishWithNode(stmt, stmt.Body).(*ast.ForStatement)
+
+	return stmt
 }
 
 // Syntax: for [var] <variable> in <expression> do <statement>
@@ -885,7 +901,9 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 		return nil
 	}
 
-	return builder.FinishWithNode(stmt, stmt.Body).(*ast.ForInStatement)
+	stmt = builder.FinishWithNode(stmt, stmt.Body).(*ast.ForInStatement)
+
+	return stmt
 }
 
 // If the value is followed by '..' it creates a RangeExpression, otherwise returns the value as-is.
@@ -1188,5 +1206,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 		return nil
 	}
 
-	return builder.Finish(stmt).(*ast.CaseStatement)
+	stmt = builder.Finish(stmt).(*ast.CaseStatement)
+
+	return stmt
 }

@@ -91,7 +91,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 	builder := p.StartNode()
 
 	// Parse the type name identifier
-	nameIdent := p.parseTypeNameIdentifier(typeToken)
+	nameIdent := p.parseTypeNameIdentifier()
 	if nameIdent == nil {
 		return nil
 	}
@@ -151,7 +151,8 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 			LowBound:   lowBound,
 			HighBound:  highBound,
 		}
-		return builder.Finish(typeDecl).(*ast.TypeDeclaration)
+		decl, _ := builder.Finish(typeDecl).(*ast.TypeDeclaration)
+		return decl
 	}
 
 	// Type alias: type TUserID = Integer;
@@ -181,7 +182,8 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 			IsAlias:     true,
 			AliasedType: aliasedType,
 		}
-		return builder.Finish(typeDecl).(*ast.TypeDeclaration)
+		decl, _ := builder.Finish(typeDecl).(*ast.TypeDeclaration)
+		return decl
 	}
 
 	// For other type declarations (class, interface, enum, etc.), handle each type
@@ -193,7 +195,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 //
 // PRE: cursor is at TYPE token or identifier
 // POST: cursor is at the identifier token
-func (p *Parser) parseTypeNameIdentifier(typeToken lexer.Token) *ast.Identifier {
+func (p *Parser) parseTypeNameIdentifier() *ast.Identifier {
 	cursor := p.cursor
 
 	// Check if we're already at the identifier (type section continuation)
@@ -257,7 +259,8 @@ func (p *Parser) parseClassTypeKind(nameIdent *ast.Identifier, typeToken lexer.T
 			IsAlias:     true,
 			AliasedType: classOfType,
 		}
-		return builder.Finish(typeDecl).(*ast.TypeDeclaration)
+		decl, _ := builder.Finish(typeDecl).(*ast.TypeDeclaration)
+		return decl
 	}
 	// Check if followed by 'partial': type TMyClass = class partial ... end;
 	if cursor.Peek(1).Type == lexer.PARTIAL {
@@ -498,7 +501,8 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 		FunctionPointerType: funcPtrType,
 		IsFunctionPointer:   true,
 	}
-	return builder.Finish(typeDecl).(*ast.TypeDeclaration)
+	decl, _ := builder.Finish(typeDecl).(*ast.TypeDeclaration)
+	return decl
 }
 
 // Called after 'type Name = interface' has already been parsed.
@@ -568,7 +572,8 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 	if cursor.Peek(1).Type == lexer.SEMICOLON {
 		cursor = cursor.Advance() // move to semicolon
 		p.cursor = cursor
-		return builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
+		decl, _ := builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
+		return decl
 	}
 
 	// Parse interface body (method declarations) until 'end'
@@ -625,7 +630,9 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 	cursor = cursor.Advance() // move to SEMICOLON
 	p.cursor = cursor
 
-	return builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
+	decl, _ := builder.Finish(interfaceDecl).(*ast.InterfaceDecl)
+
+	return decl
 }
 
 // Syntax: procedure MethodName(params); or function MethodName(params): ReturnType;
