@@ -498,7 +498,7 @@ func (ctx *constPropContext) handleConstantLoad(inst Instruction, op OpCode, lin
 
 // handleLocalVar processes local variable load and store operations, tracking known constant values.
 func (ctx *constPropContext) handleLocalVar(inst Instruction, op OpCode, line, orig int) {
-	slot := uint16(inst.B())
+	slot := inst.B()
 
 	if op == OpLoadLocal {
 		if state, ok := ctx.locals[slot]; ok && state.known {

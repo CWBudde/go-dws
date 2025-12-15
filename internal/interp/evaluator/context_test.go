@@ -688,7 +688,7 @@ func TestExecutionContext_GetOldValue(t *testing.T) {
 	}
 
 	// Should not get from previous frame
-	val, ok = ctx.GetOldValue("x")
+	_, ok = ctx.GetOldValue("x")
 	if ok {
 		t.Errorf("GetOldValue(\"x\") should not find value from previous frame")
 	}

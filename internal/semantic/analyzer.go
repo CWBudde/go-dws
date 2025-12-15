@@ -535,7 +535,9 @@ func (a *Analyzer) isFunctionPointerVariantCompatible(from, to *types.FunctionPo
 
 		// If target expects Variant, any concrete type is acceptable
 		if toParam.Equals(types.VARIANT) {
-			hasVariantUsage = true
+			if !hasVariantUsage {
+				hasVariantUsage = true
+			}
 			continue
 		}
 

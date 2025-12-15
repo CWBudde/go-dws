@@ -279,7 +279,7 @@ func (i *Interpreter) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) *types.
 
 		var err error
 		elementType, err = i.resolveType(elementTypeName)
-		if err != nil || elementType == nil {
+		if err != nil {
 			return nil
 		}
 	}

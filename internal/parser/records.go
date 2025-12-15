@@ -46,7 +46,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 	currentVisibility := ast.VisibilityPublic
 
 	// Parse record body using shared helper
-	currentVisibility = p.parseRecordBody(recordDecl, currentVisibility)
+	p.parseRecordBody(recordDecl, currentVisibility)
 	cursor = p.cursor
 
 	// Expect 'end' keyword

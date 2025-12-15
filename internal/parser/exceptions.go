@@ -351,9 +351,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 				ExceptionType: nil,         // Catches all exception types
 				Statement:     bareBlock,
 			}
-			if bareBlock != nil {
-				bareHandler = handlerBuilder.FinishWithNode(bareHandler, bareBlock).(*ast.ExceptionHandler)
-			}
+			bareHandler = handlerBuilder.FinishWithNode(bareHandler, bareBlock).(*ast.ExceptionHandler)
 			clause.Handlers = append(clause.Handlers, bareHandler)
 		}
 	}

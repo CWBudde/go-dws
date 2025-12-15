@@ -95,7 +95,7 @@ func (i *Interpreter) invokeInstanceOperatorMethod(obj *ObjectInstance, methodNa
 		return result
 	}
 
-	var returnValue Value = &NilValue{}
+	var returnValue Value
 	if method.ReturnType != nil {
 		returnValue = i.extractReturnValue(method, i.Env())
 	} else {

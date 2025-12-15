@@ -217,6 +217,9 @@ func TestFindReferencesReturnsACopy(t *testing.T) {
 
 	// Modify the returned slice
 	refs = append(refs, token.Position{Line: 99, Column: 99, Offset: 999})
+	if len(refs) != 2 {
+		t.Errorf("Expected 2 references after local append, got %d", len(refs))
+	}
 
 	// Get references again - should not include the modification
 	refs2 := st.FindReferences("myVar")

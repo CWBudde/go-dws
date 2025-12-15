@@ -86,11 +86,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		lambdaExpr.IsShorthand = true
 
 		// Set end position based on expression
-		if expr != nil {
-			return builder.FinishWithNode(lambdaExpr, expr).(ast.Expression)
-		} else {
-			return builder.Finish(lambdaExpr).(ast.Expression)
-		}
+		return builder.FinishWithNode(lambdaExpr, expr).(ast.Expression)
 
 	case lexer.BEGIN:
 		// Full syntax: lambda(x: Integer) begin ... end

@@ -176,10 +176,11 @@ func (i *Interpreter) evalTypeDeclaration(decl *ast.TypeDeclaration) Value {
 		case *ast.ArrayTypeNode:
 			// Inline array types (array of Integer, array[1..10] of String)
 			// Need to resolve and store these so helpers can target array type aliases
-			aliasedType = i.resolveArrayTypeNode(t)
-			if aliasedType == nil {
+			resolvedArray := i.resolveArrayTypeNode(t)
+			if resolvedArray == nil {
 				return &ErrorValue{Message: fmt.Sprintf("cannot resolve array type in alias '%s'", decl.Name.Value)}
 			}
+			aliasedType = resolvedArray
 		case *ast.FunctionPointerTypeNode:
 			// Function pointer types - already handled earlier in this function
 			return &NilValue{}
