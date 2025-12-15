@@ -192,9 +192,7 @@ func (e *Evaluator) validateStaticArraySize(arrayType *types.ArrayType, elementC
 // buildRuntimeArray creates a runtime ArrayValue from coerced elements.
 func (e *Evaluator) buildRuntimeArray(arrayType *types.ArrayType, coercedElements []Value) Value {
 	runtimeElements := make([]runtime.Value, len(coercedElements))
-	for i, elem := range coercedElements {
-		runtimeElements[i] = elem
-	}
+	copy(runtimeElements, coercedElements)
 	return &runtime.ArrayValue{ArrayType: arrayType, Elements: runtimeElements}
 }
 
@@ -280,9 +278,7 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 	}
 
 	runtimeElements := make([]runtime.Value, len(coercedElements))
-	for i, elem := range coercedElements {
-		runtimeElements[i] = elem
-	}
+	copy(runtimeElements, coercedElements)
 	return &runtime.ArrayValue{ArrayType: arrayType, Elements: runtimeElements}
 }
 
