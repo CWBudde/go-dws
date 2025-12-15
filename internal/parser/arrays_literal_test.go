@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -12,166 +13,124 @@ import (
 // ============================================================================
 
 func TestParseArrayTypeDeclaration(t *testing.T) {
-	t.Run("Static array with bounds", func(t *testing.T) {
-		input := `type TMyArray = array[1..10] of Integer;`
+	tests := []struct {
+		checkStmt func(t *testing.T, stmt ast.Statement)
+		name      string
+		input     string
+	}{
+		{
+			name:  "Static array with bounds",
+			input: `type TMyArray = array[1..10] of Integer;`,
+			checkStmt: func(t *testing.T, stmt ast.Statement) {
+				// For now, array type declarations might be parsed differently
+				// We need to determine the AST structure for type declarations
+				t.Logf("Statement type: %T", stmt)
+			},
+		},
+		{
+			name:  "Dynamic array without bounds",
+			input: `type TStringArray = array of String;`,
+			checkStmt: func(t *testing.T, stmt ast.Statement) {
+				// No extra checks needed beyond successful parsing
+			},
+		},
+		{
+			name:  "Array of custom type",
+			input: `type TPersonArray = array[0..99] of TPerson;`,
+			checkStmt: func(t *testing.T, stmt ast.Statement) {
+				// No extra checks needed beyond successful parsing
+			},
+		},
+		{
+			name:  "Nested dynamic arrays - 2D",
+			input: `type Matrix = array of array of Float;`,
+			checkStmt: func(t *testing.T, stmt ast.Statement) {
+				arrayDecl, ok := stmt.(*ast.ArrayDecl)
+				if !ok {
+					t.Fatalf("statement is not *ast.ArrayDecl, got %T", stmt)
+				}
 
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+				if arrayDecl.Name.Value != "Matrix" {
+					t.Errorf("arrayDecl.Name.Value = %s, want 'Matrix'", arrayDecl.Name.Value)
+				}
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
+				expectedType := "array of Float"
+				if arrayDecl.ArrayType.ElementType.String() != expectedType {
+					t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
+						arrayDecl.ArrayType.ElementType.String(), expectedType)
+				}
+			},
+		},
+		{
+			name:  "Nested dynamic arrays - 3D",
+			input: `type Tensor = array of array of array of Integer;`,
+			checkStmt: func(t *testing.T, stmt ast.Statement) {
+				arrayDecl, ok := stmt.(*ast.ArrayDecl)
+				if !ok {
+					t.Fatalf("statement is not *ast.ArrayDecl, got %T", stmt)
+				}
 
-		stmt := program.Statements[0]
-		// For now, array type declarations might be parsed differently
-		// We need to determine the AST structure for type declarations
-		t.Logf("Statement type: %T", stmt)
-	})
+				if arrayDecl.Name.Value != "Tensor" {
+					t.Errorf("arrayDecl.Name.Value = %s, want 'Tensor'", arrayDecl.Name.Value)
+				}
 
-	t.Run("Dynamic array without bounds", func(t *testing.T) {
-		input := `type TStringArray = array of String;`
+				expectedType := "array of array of Integer"
+				if arrayDecl.ArrayType.ElementType.String() != expectedType {
+					t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
+						arrayDecl.ArrayType.ElementType.String(), expectedType)
+				}
+			},
+		},
+		{
+			name:  "Nested static arrays",
+			input: `type Grid = array[1..10] of array[1..20] of Boolean;`,
+			checkStmt: func(t *testing.T, stmt ast.Statement) {
+				arrayDecl, ok := stmt.(*ast.ArrayDecl)
+				if !ok {
+					t.Fatalf("statement is not *ast.ArrayDecl, got %T", stmt)
+				}
 
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+				if arrayDecl.Name.Value != "Grid" {
+					t.Errorf("arrayDecl.Name.Value = %s, want 'Grid'", arrayDecl.Name.Value)
+				}
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
-	})
+				expectedType := "array[1..20] of Boolean"
+				if arrayDecl.ArrayType.ElementType.String() != expectedType {
+					t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
+						arrayDecl.ArrayType.ElementType.String(), expectedType)
+				}
+			},
+		},
+		{
+			name:  "Mixed static and dynamic nested arrays",
+			input: `type MixedArray = array of array[0..99] of String;`,
+			checkStmt: func(t *testing.T, stmt ast.Statement) {
+				arrayDecl, ok := stmt.(*ast.ArrayDecl)
+				if !ok {
+					t.Fatalf("statement is not *ast.ArrayDecl, got %T", stmt)
+				}
 
-	t.Run("Array of custom type", func(t *testing.T) {
-		input := `type TPersonArray = array[0..99] of TPerson;`
+				if arrayDecl.Name.Value != "MixedArray" {
+					t.Errorf("arrayDecl.Name.Value = %s, want 'MixedArray'", arrayDecl.Name.Value)
+				}
 
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+				expectedType := "array[0..99] of String"
+				if arrayDecl.ArrayType.ElementType.String() != expectedType {
+					t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
+						arrayDecl.ArrayType.ElementType.String(), expectedType)
+				}
+			},
+		},
+	}
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
-	})
-
-	// Test nested array type declarations (array of array)
-	t.Run("Nested dynamic arrays - 2D", func(t *testing.T) {
-		input := `type Matrix = array of array of Float;`
-
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
-
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
-
-		arrayDecl, ok := program.Statements[0].(*ast.ArrayDecl)
-		if !ok {
-			t.Fatalf("statement is not *ast.ArrayDecl, got %T", program.Statements[0])
-		}
-
-		if arrayDecl.Name.Value != "Matrix" {
-			t.Errorf("arrayDecl.Name.Value = %s, want 'Matrix'", arrayDecl.Name.Value)
-		}
-
-		// Verify the element type string representation
-		expectedType := "array of Float"
-		if arrayDecl.ArrayType.ElementType.String() != expectedType {
-			t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
-				arrayDecl.ArrayType.ElementType.String(), expectedType)
-		}
-	})
-
-	t.Run("Nested dynamic arrays - 3D", func(t *testing.T) {
-		input := `type Tensor = array of array of array of Integer;`
-
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
-
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
-
-		arrayDecl, ok := program.Statements[0].(*ast.ArrayDecl)
-		if !ok {
-			t.Fatalf("statement is not *ast.ArrayDecl, got %T", program.Statements[0])
-		}
-
-		if arrayDecl.Name.Value != "Tensor" {
-			t.Errorf("arrayDecl.Name.Value = %s, want 'Tensor'", arrayDecl.Name.Value)
-		}
-
-		// Verify the element type string representation for 3D array
-		expectedType := "array of array of Integer"
-		if arrayDecl.ArrayType.ElementType.String() != expectedType {
-			t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
-				arrayDecl.ArrayType.ElementType.String(), expectedType)
-		}
-	})
-
-	t.Run("Nested static arrays", func(t *testing.T) {
-		input := `type Grid = array[1..10] of array[1..20] of Boolean;`
-
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
-
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
-
-		arrayDecl, ok := program.Statements[0].(*ast.ArrayDecl)
-		if !ok {
-			t.Fatalf("statement is not *ast.ArrayDecl, got %T", program.Statements[0])
-		}
-
-		if arrayDecl.Name.Value != "Grid" {
-			t.Errorf("arrayDecl.Name.Value = %s, want 'Grid'", arrayDecl.Name.Value)
-		}
-
-		// Verify the element type string representation for nested static arrays
-		expectedType := "array[1..20] of Boolean"
-		if arrayDecl.ArrayType.ElementType.String() != expectedType {
-			t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
-				arrayDecl.ArrayType.ElementType.String(), expectedType)
-		}
-	})
-
-	t.Run("Mixed static and dynamic nested arrays", func(t *testing.T) {
-		input := `type MixedArray = array of array[0..99] of String;`
-
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
-
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
-
-		arrayDecl, ok := program.Statements[0].(*ast.ArrayDecl)
-		if !ok {
-			t.Fatalf("statement is not *ast.ArrayDecl, got %T", program.Statements[0])
-		}
-
-		if arrayDecl.Name.Value != "MixedArray" {
-			t.Errorf("arrayDecl.Name.Value = %s, want 'MixedArray'", arrayDecl.Name.Value)
-		}
-
-		// Verify the element type string representation
-		expectedType := "array[0..99] of String"
-		if arrayDecl.ArrayType.ElementType.String() != expectedType {
-			t.Errorf("arrayDecl.ArrayType.ElementType.String() = %s, want %s",
-				arrayDecl.ArrayType.ElementType.String(), expectedType)
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stmt := helperParseAndGetStatement(t, tt.input)
+			if tt.checkStmt != nil {
+				tt.checkStmt(t, stmt)
+			}
+		})
+	}
 }
 
 // ============================================================================
@@ -295,18 +254,11 @@ func TestParseArrayLiteral(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.input)
-			p := New(l)
-			program := p.ParseProgram()
-			checkParserErrors(t, p)
+			stmt := helperParseAndGetStatement(t, tt.input)
 
-			if len(program.Statements) != 1 {
-				t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-			}
-
-			varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
+			varDecl, ok := stmt.(*ast.VarDeclStatement)
 			if !ok {
-				t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
+				t.Fatalf("statement is not *ast.VarDeclStatement, got %T", stmt)
 			}
 
 			arrayLit, ok := varDecl.Value.(*ast.ArrayLiteralExpression)
@@ -326,51 +278,46 @@ func TestParseArrayLiteral(t *testing.T) {
 }
 
 func TestParseArrayLiteralErrors(t *testing.T) {
-	t.Run("MissingCommaBetweenElements", func(t *testing.T) {
-		input := `var arr := [1 2, 3];`
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name:          "MissingCommaBetweenElements",
+			input:         `var arr := [1 2, 3];`,
+			expectedError: "expected ',' or ']'",
+		},
+		{
+			name:          "UnclosedBracket",
+			input:         `var arr := [1, 2, 3;`,
+			expectedError: "expected ',' or ']'",
+		},
+	}
 
-		l := lexer.New(input)
-		p := New(l)
-		_ = p.ParseProgram()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			_ = p.ParseProgram()
 
-		if len(p.Errors()) == 0 {
-			t.Fatalf("expected parser errors, got none")
-		}
-
-		found := false
-		for _, err := range p.Errors() {
-			if contains(err, "expected ',' or ']'") {
-				found = true
-				break
+			if len(p.Errors()) == 0 {
+				t.Fatalf("expected parser errors, got none")
 			}
-		}
-		if !found {
-			t.Fatalf("expected error about missing comma, errors: %v", p.Errors())
-		}
-	})
 
-	t.Run("UnclosedBracket", func(t *testing.T) {
-		input := `var arr := [1, 2, 3;`
-
-		l := lexer.New(input)
-		p := New(l)
-		_ = p.ParseProgram()
-
-		if len(p.Errors()) == 0 {
-			t.Fatalf("expected parser errors, got none")
-		}
-
-		found := false
-		for _, err := range p.Errors() {
-			if contains(err, "expected ',' or ']'") {
-				found = true
-				break
+			found := false
+			for _, err := range p.Errors() {
+				// Using strings.Contains instead of 'contains' helper
+				if strings.Contains(err.Error(), tt.expectedError) {
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			t.Fatalf("expected error about missing closing bracket, errors: %v", p.Errors())
-		}
-	})
+			if !found {
+				t.Fatalf("expected error containing %q, got: %v", tt.expectedError, p.Errors())
+			}
+		})
+	}
 }
 
 // ============================================================================
@@ -503,31 +450,24 @@ func TestParseParenthesizedArrayLiteral(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.input)
-			p := New(l)
-			program := p.ParseProgram()
-			checkParserErrors(t, p)
-
-			if len(program.Statements) != 1 {
-				t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-			}
+			stmt := helperParseAndGetStatement(t, tt.input)
 
 			var arrayLit *ast.ArrayLiteralExpression
-			switch stmt := program.Statements[0].(type) {
+			switch s := stmt.(type) {
 			case *ast.VarDeclStatement:
 				var ok bool
-				arrayLit, ok = stmt.Value.(*ast.ArrayLiteralExpression)
+				arrayLit, ok = s.Value.(*ast.ArrayLiteralExpression)
 				if !ok {
-					t.Fatalf("VarDecl Value is not *ast.ArrayLiteralExpression, got %T", stmt.Value)
+					t.Fatalf("VarDecl Value is not *ast.ArrayLiteralExpression, got %T", s.Value)
 				}
 			case *ast.ConstDecl:
 				var ok bool
-				arrayLit, ok = stmt.Value.(*ast.ArrayLiteralExpression)
+				arrayLit, ok = s.Value.(*ast.ArrayLiteralExpression)
 				if !ok {
-					t.Fatalf("ConstDecl Value is not *ast.ArrayLiteralExpression, got %T", stmt.Value)
+					t.Fatalf("ConstDecl Value is not *ast.ArrayLiteralExpression, got %T", s.Value)
 				}
 			default:
-				t.Fatalf("statement is not VarDeclStatement or ConstDecl, got %T", program.Statements[0])
+				t.Fatalf("statement is not VarDeclStatement or ConstDecl, got %T", stmt)
 			}
 
 			if len(arrayLit.Elements) != tt.wantElements {
@@ -542,61 +482,58 @@ func TestParseParenthesizedArrayLiteral(t *testing.T) {
 }
 
 func TestParenthesizedArrayLiteralEdgeCases(t *testing.T) {
-	t.Run("SingleElementIsGroupedExpression", func(t *testing.T) {
-		// A single element in parentheses should be treated as a grouped expression,
-		// not an array literal with one element
-		input := `var x := (42);`
+	tests := []struct {
+		checkStmt func(t *testing.T, stmt ast.Statement)
+		name      string
+		input     string
+	}{
+		{
+			name:  "SingleElementIsGroupedExpression",
+			input: `var x := (42);`,
+			checkStmt: func(t *testing.T, stmt ast.Statement) {
+				varDecl, ok := stmt.(*ast.VarDeclStatement)
+				if !ok {
+					t.Fatalf("statement is not *ast.VarDeclStatement, got %T", stmt)
+				}
 
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+				// Should be IntegerLiteral (unwrapped), not ArrayLiteralExpression
+				intLit, ok := varDecl.Value.(*ast.IntegerLiteral)
+				if !ok {
+					t.Fatalf("Value should be *ast.IntegerLiteral (grouped expression unwrapped), got %T", varDecl.Value)
+				}
+				if intLit.Value != 42 {
+					t.Fatalf("value = %d, want 42", intLit.Value)
+				}
+			},
+		},
+		{
+			name:  "RecordLiteralStillWorks",
+			input: `var p := (X: 10, Y: 20);`,
+			checkStmt: func(t *testing.T, stmt ast.Statement) {
+				varDecl, ok := stmt.(*ast.VarDeclStatement)
+				if !ok {
+					t.Fatalf("statement is not *ast.VarDeclStatement, got %T", stmt)
+				}
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
+				recordLit, ok := varDecl.Value.(*ast.RecordLiteralExpression)
+				if !ok {
+					t.Fatalf("Value should be *ast.RecordLiteralExpression, got %T", varDecl.Value)
+				}
+				if len(recordLit.Fields) != 2 {
+					t.Fatalf("len(Fields) = %d, want 2", len(recordLit.Fields))
+				}
+			},
+		},
+	}
 
-		varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
-		if !ok {
-			t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
-		}
-
-		// Should be IntegerLiteral (unwrapped), not ArrayLiteralExpression
-		intLit, ok := varDecl.Value.(*ast.IntegerLiteral)
-		if !ok {
-			t.Fatalf("Value should be *ast.IntegerLiteral (grouped expression unwrapped), got %T", varDecl.Value)
-		}
-		if intLit.Value != 42 {
-			t.Fatalf("value = %d, want 42", intLit.Value)
-		}
-	})
-
-	t.Run("RecordLiteralStillWorks", func(t *testing.T) {
-		// Record literals should still be parsed correctly
-		input := `var p := (X: 10, Y: 20);`
-
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
-
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
-
-		varDecl, ok := program.Statements[0].(*ast.VarDeclStatement)
-		if !ok {
-			t.Fatalf("statement is not *ast.VarDeclStatement, got %T", program.Statements[0])
-		}
-
-		recordLit, ok := varDecl.Value.(*ast.RecordLiteralExpression)
-		if !ok {
-			t.Fatalf("Value should be *ast.RecordLiteralExpression, got %T", varDecl.Value)
-		}
-		if len(recordLit.Fields) != 2 {
-			t.Fatalf("len(Fields) = %d, want 2", len(recordLit.Fields))
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stmt := helperParseAndGetStatement(t, tt.input)
+			if tt.checkStmt != nil {
+				tt.checkStmt(t, stmt)
+			}
+		})
+	}
 }
 
 // ============================================================================
@@ -607,99 +544,106 @@ func TestParseMultiDimensionalArrayTypes(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        string
-		expectedType string // Expected desugared type string
+		expectedType string // Expected desugared type string. If empty, just verify parsing.
+		isConstDecl  bool   // true if checking ConstDecl, false if just checking parsing (e.g. TypeDecl)
 	}{
 		{
 			name:         "2D array in const declaration",
 			input:        `const X: array[0..1, 0..2] of Integer = [[1, 2, 3], [4, 5, 6]];`,
 			expectedType: "array[0..1] of array[0..2] of Integer",
+			isConstDecl:  true,
 		},
 		{
 			name:         "3D array in const declaration",
 			input:        `const cube: array[1..2, 1..3, 1..4] of Float = [[[0.0]]];`,
 			expectedType: "array[1..2] of array[1..3] of array[1..4] of Float",
+			isConstDecl:  true,
 		},
 		{
 			name:         "2D array with expression bounds",
 			input:        `const DIGITS = 10; const arr: array[0..1, 0..2*DIGITS] of Integer = [[0], [1]];`,
 			expectedType: "array[0..1] of array[0..(2 * DIGITS)] of Integer",
+			isConstDecl:  true,
 		},
 		{
 			name:         "Nested arrays (already supported)",
 			input:        `const matrix: array of array of Integer = [[1, 2], [3, 4]];`,
 			expectedType: "array of array of Integer",
+			isConstDecl:  true,
+		},
+		{
+			name:        "2D array in type declaration",
+			input:       `type TMatrix = array[0..9, 0..9] of Integer;`,
+			isConstDecl: false,
+		},
+		{
+			name:        "3D array in type declaration",
+			input:       `type TCube = array[1..3, 1..4, 1..5] of Float;`,
+			isConstDecl: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.input)
-			p := New(l)
-			program := p.ParseProgram()
-			checkParserErrors(t, p)
+			// Special handling for DIGITS case where we have multiple statements
+			var program *ast.Program
+			if strings.Contains(tt.input, "const DIGITS = 10;") {
+				l := lexer.New(tt.input)
+				p := New(l)
+				program = p.ParseProgram()
+				checkParserErrors(t, p)
+			} else {
+				// For normal cases, use helper which asserts 1 statement
+				stmt := helperParseAndGetStatement(t, tt.input)
+				program = &ast.Program{Statements: []ast.Statement{stmt}}
+			}
 
-			// Find the const declaration (may not be first if we have preliminary consts like DIGITS)
-			var constStmt *ast.ConstDecl
-			for _, stmt := range program.Statements {
-				if cs, ok := stmt.(*ast.ConstDecl); ok {
-					// Skip DIGITS constant
-					if cs.Name.Value != "DIGITS" {
-						constStmt = cs
-						break
+			if tt.isConstDecl {
+				// Find the const declaration
+				var constStmt *ast.ConstDecl
+				for _, stmt := range program.Statements {
+					if cs, ok := stmt.(*ast.ConstDecl); ok {
+						// Skip DIGITS constant if present
+						if cs.Name.Value != "DIGITS" {
+							constStmt = cs
+							break
+						}
 					}
 				}
-			}
 
-			if constStmt == nil {
-				t.Fatalf("No const declaration found (other than DIGITS)")
-			}
+				if constStmt == nil {
+					t.Fatalf("No const declaration found (other than DIGITS)")
+				}
 
-			// Check the type string matches expected desugared form
-			if constStmt.Type == nil {
-				t.Fatalf("constStmt.Type is nil")
-			}
+				if constStmt.Type == nil {
+					t.Fatalf("constStmt.Type is nil")
+				}
 
-			typeName := constStmt.Type.String()
-			if typeName != tt.expectedType {
-				t.Errorf("type = %q, want %q", typeName, tt.expectedType)
+				typeName := constStmt.Type.String()
+				if typeName != tt.expectedType {
+					t.Errorf("type = %q, want %q", typeName, tt.expectedType)
+				}
+			} else {
+				// Just verify it parsed (already done by helperParseAndGetStatement)
+				// and maybe log the statement type
+				t.Logf("Successfully parsed: %T", program.Statements[0])
 			}
 		})
 	}
+}
 
-	t.Run("2D array in type declaration", func(t *testing.T) {
-		input := `type TMatrix = array[0..9, 0..9] of Integer;`
+// helperParseAndGetStatement parses a program and returns the first statement.
+// It asserts that there are no errors and exactly one statement.
+func helperParseAndGetStatement(t *testing.T, input string) ast.Statement {
+	t.Helper()
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
 
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+	}
 
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
-
-		// Check what type this actually is
-		stmt := program.Statements[0]
-		t.Logf("Statement type: %T", stmt)
-
-		// Based on existing tests, type declarations should produce something
-		// Let's just verify it parses without errors for now
-		// The exact AST structure for type decls will be verified by running the full test suite
-	})
-
-	t.Run("3D array in type declaration", func(t *testing.T) {
-		input := `type TCube = array[1..3, 1..4, 1..5] of Float;`
-
-		l := lexer.New(input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
-
-		if len(program.Statements) != 1 {
-			t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
-		}
-
-		// Just verify it parses without errors
-		t.Logf("Successfully parsed 3D array type declaration")
-	})
+	return program.Statements[0]
 }

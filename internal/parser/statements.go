@@ -35,6 +35,36 @@ func (p *Parser) parseDefaultStatementCase(currentToken lexer.Token) ast.Stateme
 	return p.parseExpressionStatement()
 }
 
+func (p *Parser) parseClassStatement() ast.Statement {
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.FUNCTION || nextToken.Type == lexer.PROCEDURE || nextToken.Type == lexer.METHOD {
+		p.cursor = p.cursor.Advance() // move to function/procedure/method token
+		fn := p.parseFunctionDeclaration()
+		if fn != nil {
+			fn.IsClassMethod = true
+		}
+		return fn
+	}
+	p.addError("expected 'function', 'procedure', or 'method' after 'class'", ErrUnexpectedToken)
+	return nil
+}
+
+func (p *Parser) parseConstructorStatement() ast.Statement {
+	method := p.parseFunctionDeclaration()
+	if method != nil {
+		method.IsConstructor = true
+	}
+	return method
+}
+
+func (p *Parser) parseDestructorStatement() ast.Statement {
+	method := p.parseFunctionDeclaration()
+	if method != nil {
+		method.IsDestructor = true
+	}
+	return method
+}
+
 func (p *Parser) parseStatement() ast.Statement {
 	// As we implement each statement cursor handler, they'll be added here
 
@@ -90,31 +120,13 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseOperatorDeclaration()
 
 	case lexer.CLASS:
-		nextToken := p.cursor.Peek(1)
-		if nextToken.Type == lexer.FUNCTION || nextToken.Type == lexer.PROCEDURE || nextToken.Type == lexer.METHOD {
-			p.cursor = p.cursor.Advance() // move to function/procedure/method token
-			fn := p.parseFunctionDeclaration()
-			if fn != nil {
-				fn.IsClassMethod = true
-			}
-			return fn
-		}
-		p.addError("expected 'function', 'procedure', or 'method' after 'class'", ErrUnexpectedToken)
-		return nil
+		return p.parseClassStatement()
 
 	case lexer.CONSTRUCTOR:
-		method := p.parseFunctionDeclaration()
-		if method != nil {
-			method.IsConstructor = true
-		}
-		return method
+		return p.parseConstructorStatement()
 
 	case lexer.DESTRUCTOR:
-		method := p.parseFunctionDeclaration()
-		if method != nil {
-			method.IsDestructor = true
-		}
-		return method
+		return p.parseDestructorStatement()
 
 	case lexer.TYPE:
 		return p.parseTypeDeclaration()
@@ -658,7 +670,7 @@ func (p *Parser) expectSemicolon(context string) bool {
 		currentToken := p.cursor.Current()
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after " + context).
+			WithMessage("expected ';' after "+context).
 			WithPosition(currentToken.Pos, currentToken.Length()).
 			WithExpectedString("';'").
 			WithActual(nextToken.Type, nextToken.Literal).
