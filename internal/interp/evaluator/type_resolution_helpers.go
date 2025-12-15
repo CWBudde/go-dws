@@ -233,7 +233,7 @@ func (e *Evaluator) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode, ctx *Exec
 
 		var err error
 		elementType, err = e.resolveTypeName(elementTypeName, ctx)
-		if err != nil || elementType == nil {
+		if err != nil {
 			return nil
 		}
 	}

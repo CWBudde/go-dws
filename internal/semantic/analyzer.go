@@ -526,7 +526,7 @@ func (a *Analyzer) isFunctionPointerVariantCompatible(from, to *types.FunctionPo
 
 	// Track whether target has ANY Variant usage (parameter or return)
 	// This function is specifically for Variant-based compatibility, not general assignability
-	hasVariantUsage := false
+	var hasVariantUsage bool
 
 	// Check each parameter
 	for i := range from.Parameters {
