@@ -337,9 +337,9 @@ func TestDeclPositionTracking(t *testing.T) {
 	st := NewSymbolTable()
 
 	tests := []struct {
+		varType  types.Type
 		name     string
 		varName  string
-		varType  types.Type
 		declPos  token.Position
 		readonly bool
 		isConst  bool

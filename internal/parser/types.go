@@ -253,7 +253,8 @@ type dimensionPair struct {
 //   - Multidimensional: array[0..1, 0..2] of Integer
 //
 // Multi-dimensional arrays are desugared into nested array types:
-//   array[0..1, 0..2] of Integer → array[0..1] of array[0..2] of Integer
+//
+//	array[0..1, 0..2] of Integer → array[0..1] of array[0..2] of Integer
 func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	cursor := p.cursor
 	builder := p.StartNode()

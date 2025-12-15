@@ -8,8 +8,8 @@ import "github.com/cwbudde/go-dws/internal/types"
 //
 // Stored under: __set_type_<name> (normalized).
 type SetTypeValue struct {
-	Name    string
 	SetType *types.SetType
+	Name    string
 }
 
 func (s *SetTypeValue) Type() string { return "SET_TYPE" }

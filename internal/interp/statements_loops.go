@@ -8,6 +8,30 @@ import (
 
 // This file contains loop statement evaluation (while, repeat, for, for-in, break, continue, exit, return).
 
+// executeLoopIteration evaluates the loop body and handles control flow signals.
+// Returns (result, shouldStop). shouldStop is true if the loop should terminate (break, exit, error).
+func (i *Interpreter) executeLoopIteration(body ast.Node) (Value, bool) {
+	result := i.Eval(body)
+	if isError(result) {
+		return result, true
+	}
+
+	cf := i.ctx.ControlFlow()
+	if cf.IsBreak() {
+		cf.Clear()
+		return result, true
+	}
+	if cf.IsContinue() {
+		cf.Clear()
+		return result, false
+	}
+	if cf.IsExit() {
+		// Don't clear the signal - let the function handle it
+		return result, true
+	}
+	return result, false
+}
+
 // evalWhileStatement evaluates a while loop.
 // It repeatedly evaluates the condition and executes the body while the condition is true.
 func (i *Interpreter) evalWhileStatement(stmt *ast.WhileStatement) Value {
@@ -26,24 +50,9 @@ func (i *Interpreter) evalWhileStatement(stmt *ast.WhileStatement) Value {
 		}
 
 		// Execute the body
-		result = i.Eval(stmt.Body)
-		if isError(result) {
-			return result
-		}
-
-		// Handle control flow signals
-		cf := i.ctx.ControlFlow()
-		if cf.IsBreak() {
-			cf.Clear()
-			break
-		}
-		if cf.IsContinue() {
-			cf.Clear()
-			continue
-		}
-		// Handle exit signal (exit from function while in loop)
-		if cf.IsExit() {
-			// Don't clear the signal - let the function handle it
+		res, stop := i.executeLoopIteration(stmt.Body)
+		result = res
+		if stop {
 			break
 		}
 	}
@@ -60,24 +69,9 @@ func (i *Interpreter) evalRepeatStatement(stmt *ast.RepeatStatement) Value {
 
 	for {
 		// Execute the body first (repeat-until always executes at least once)
-		result = i.Eval(stmt.Body)
-		if isError(result) {
-			return result
-		}
-
-		// Handle control flow signals
-		cf := i.ctx.ControlFlow()
-		if cf.IsBreak() {
-			cf.Clear()
-			break
-		}
-		if cf.IsContinue() {
-			cf.Clear()
-			// Continue to condition check
-		}
-		// Handle exit signal (exit from function while in loop)
-		if cf.IsExit() {
-			// Don't clear the signal - let the function handle it
+		res, stop := i.executeLoopIteration(stmt.Body)
+		result = res
+		if stop {
 			break
 		}
 
@@ -125,25 +119,14 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 		return newError("for loop end value must be ordinal, got %s", endVal.Type())
 	}
 
-	// Evaluate step expression if present (default: 1)
-	stepValue := int64(1)
-	if stmt.Step != nil {
-		stepVal := i.Eval(stmt.Step)
-		if isError(stepVal) {
-			return stepVal
-		}
+	stepValue, errVal := i.getForLoopStep(stmt.Step)
+	if errVal != nil {
+		return errVal
+	}
 
-		stepOrd, err := runtime.GetOrdinalValue(stepVal)
-		if err != nil {
-			return newError("for loop step value must be ordinal, got %s", stepVal.Type())
-		}
-
-		// Validate step value is strictly positive
-		if stepOrd <= 0 {
-			return newError("FOR loop STEP should be strictly positive: %d", stepOrd)
-		}
-
-		stepValue = int64(stepOrd)
+	makeLoopValue, errVal := i.createLoopValueFactory(startVal)
+	if errVal != nil {
+		return errVal
 	}
 
 	// Create a new enclosed environment for the loop variable
@@ -153,8 +136,62 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 	// Define the loop variable in the loop environment
 	loopVarName := stmt.Variable.Value
 
-	// Helper to rebuild loop variable values with the correct runtime type
-	var makeLoopValue func(int64) Value
+	// Execute the loop based on direction (ascending with step)
+	if stmt.Direction == ast.ForTo {
+		for current := int64(startOrd); current <= int64(endOrd); current += stepValue {
+			// Set the loop variable to the current value
+			i.Env().Define(loopVarName, makeLoopValue(current))
+
+			// Execute the body
+			res, stop := i.executeLoopIteration(stmt.Body)
+			result = res
+			if stop {
+				break
+			}
+		}
+	} else {
+		// Descending loop with step support
+		for current := int64(startOrd); current >= int64(endOrd); current -= stepValue {
+			// Set the loop variable to the current value
+			i.Env().Define(loopVarName, makeLoopValue(current))
+
+			// Execute the body
+			res, stop := i.executeLoopIteration(stmt.Body)
+			result = res
+			if stop {
+				break
+			}
+		}
+	}
+
+	return result
+}
+
+func (i *Interpreter) getForLoopStep(stepExpr ast.Expression) (int64, Value) {
+	// Evaluate step expression if present (default: 1)
+	if stepExpr == nil {
+		return 1, nil
+	}
+
+	stepVal := i.Eval(stepExpr)
+	if isError(stepVal) {
+		return 0, stepVal
+	}
+
+	stepOrd, err := runtime.GetOrdinalValue(stepVal)
+	if err != nil {
+		return 0, newError("for loop step value must be ordinal, got %s", stepVal.Type())
+	}
+
+	// Validate step value is strictly positive
+	if stepOrd <= 0 {
+		return 0, newError("FOR loop STEP should be strictly positive: %d", stepOrd)
+	}
+
+	return int64(stepOrd), nil
+}
+
+func (i *Interpreter) createLoopValueFactory(startVal Value) (func(int64) Value, Value) {
 	switch v := startVal.(type) {
 	case *EnumValue:
 		// Look up enum metadata to preserve type name and optional value names via TypeSystem
@@ -169,7 +206,7 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 			return nil
 		}(v.TypeName)
 
-		makeLoopValue = func(ord int64) Value {
+		return func(ord int64) Value {
 			valueName := ""
 			if enumType != nil {
 				valueName = enumType.GetEnumName(int(ord))
@@ -179,84 +216,22 @@ func (i *Interpreter) evalForStatement(stmt *ast.ForStatement) Value {
 				ValueName:    valueName,
 				OrdinalValue: int(ord),
 			}
-		}
+		}, nil
 	case *IntegerValue:
-		makeLoopValue = func(ord int64) Value { return &IntegerValue{Value: ord} }
+		return func(ord int64) Value { return &IntegerValue{Value: ord} }, nil
 	case *BooleanValue:
-		makeLoopValue = func(ord int64) Value { return &BooleanValue{Value: ord != 0} }
+		return func(ord int64) Value { return &BooleanValue{Value: ord != 0} }, nil
 	case *StringValue:
-		makeLoopValue = func(ord int64) Value { return &StringValue{Value: string(rune(ord))} }
+		return func(ord int64) Value { return &StringValue{Value: string(rune(ord))} }, nil
 	default:
-		return newError("for loop start value must be ordinal, got %s", startVal.Type())
+		return nil, newError("for loop start value must be ordinal, got %s", startVal.Type())
 	}
-
-	// Execute the loop based on direction (ascending with step)
-	if stmt.Direction == ast.ForTo {
-		for current := int64(startOrd); current <= int64(endOrd); current += stepValue {
-			// Set the loop variable to the current value
-			i.Env().Define(loopVarName, makeLoopValue(current))
-
-			// Execute the body
-			result = i.Eval(stmt.Body)
-			if isError(result) {
-				return result
-			}
-
-			// Handle control flow signals
-			cf := i.ctx.ControlFlow()
-			if cf.IsBreak() {
-				cf.Clear()
-				break
-			}
-			if cf.IsContinue() {
-				cf.Clear()
-				continue
-			}
-			// Handle exit signal (exit from function while in loop)
-			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
-				break
-			}
-		}
-	} else {
-		// Descending loop with step support
-		for current := int64(startOrd); current >= int64(endOrd); current -= stepValue {
-			// Set the loop variable to the current value
-			i.Env().Define(loopVarName, makeLoopValue(current))
-
-			// Execute the body
-			result = i.Eval(stmt.Body)
-			if isError(result) {
-				return result
-			}
-
-			// Handle control flow signals
-			cf := i.ctx.ControlFlow()
-			if cf.IsBreak() {
-				cf.Clear()
-				break
-			}
-			if cf.IsContinue() {
-				cf.Clear()
-				continue
-			}
-			// Handle exit signal (exit from function while in loop)
-			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
-				break
-			}
-		}
-	}
-
-	return result
 }
 
 // evalForInStatement evaluates a for-in loop statement.
 // It iterates over the elements of a collection (array, set, or string).
 // The loop variable is assigned each element in turn, and the body is executed.
 func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
-	var result Value = &NilValue{}
-
 	// Evaluate the collection expression
 	collectionVal := i.Eval(stmt.Collection)
 	if isError(collectionVal) {
@@ -272,169 +247,57 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 	// Type-switch on the collection type to determine iteration strategy
 	switch col := collectionVal.(type) {
 	case *ArrayValue:
-		// Iterate over array elements
-		for _, element := range col.Elements {
-			// Assign the current element to the loop variable
-			i.Env().Define(loopVarName, element)
-
-			// Execute the body
-			result = i.Eval(stmt.Body)
-			if isError(result) {
-				return result
-			}
-
-			// Handle control flow signals (break, continue, exit)
-			cf := i.ctx.ControlFlow()
-			if cf.IsBreak() {
-				cf.Clear()
-				break
-			}
-			if cf.IsContinue() {
-				cf.Clear()
-				continue
-			}
-			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
-				break
-			}
-		}
-
+		return i.evalForInArray(col, loopVarName, stmt.Body)
 	case *SetValue:
-		// Iterate over set elements
-		// Sets contain enum values; we iterate through the enum's ordered names
-		// and check which ones are present in the set
-		if col.SetType == nil || col.SetType.ElementType == nil {
-			return newError("invalid set type for iteration")
-		}
-
-		// Iterate over different set element types
-		elementType := col.SetType.ElementType
-		ordinals := col.Ordinals()
-
-		// For enum sets, iterate through all ordinals present
-		if enumType, ok := elementType.(*types.EnumType); ok {
-			for _, ordinal := range ordinals {
-				// Create an enum value for this element
-				enumVal := &EnumValue{
-					TypeName:     enumType.Name,
-					ValueName:    enumType.GetEnumName(ordinal),
-					OrdinalValue: ordinal,
-				}
-
-				// Assign the enum value to the loop variable
-				i.Env().Define(loopVarName, enumVal)
-
-				// Execute the body
-				result = i.Eval(stmt.Body)
-				if isError(result) {
-					return result
-				}
-
-				// Handle control flow signals (break, continue, exit)
-				cf := i.ctx.ControlFlow()
-				if cf.IsBreak() {
-					cf.Clear()
-					break
-				}
-				if cf.IsContinue() {
-					cf.Clear()
-					continue
-				}
-				if cf.IsExit() {
-					// Don't clear the signal - let the function handle it
-					break
-				}
-			}
-		} else {
-			// For non-enum sets (Integer, String, Boolean), iterate over ordinal values
-			for _, ordinal := range ordinals {
-				var loopVal Value
-				switch elementType.TypeKind() {
-				case "INTEGER", "SUBRANGE":
-					loopVal = &IntegerValue{Value: int64(ordinal)}
-				case "STRING":
-					loopVal = &StringValue{Value: string(rune(ordinal))}
-				case "BOOLEAN":
-					loopVal = &BooleanValue{Value: ordinal != 0}
-				default:
-					return newError("for-in loop: cannot iterate over set of %s", elementType.String())
-				}
-
-				i.Env().Define(loopVarName, loopVal)
-
-				// Execute the body
-				result = i.Eval(stmt.Body)
-				if isError(result) {
-					return result
-				}
-
-				// Handle control flow signals (break, continue, exit)
-				cf := i.ctx.ControlFlow()
-				if cf.IsBreak() {
-					cf.Clear()
-					break
-				}
-				if cf.IsContinue() {
-					cf.Clear()
-					continue
-				}
-				if cf.IsExit() {
-					// Don't clear the signal - let the function handle it
-					break
-				}
-			}
-		}
-
+		return i.evalForInSet(col, loopVarName, stmt.Body)
 	case *StringValue:
-		// Iterate over string characters
-		// Each character becomes a single-character string
-		// Use runes to handle UTF-8 correctly
-		runes := []rune(col.Value)
-		for idx := 0; idx < len(runes); idx++ {
-			// Create a single-character string for this iteration
-			charVal := &StringValue{Value: string(runes[idx])}
-
-			// Assign the character to the loop variable
-			i.Env().Define(loopVarName, charVal)
-
-			// Execute the body
-			result = i.Eval(stmt.Body)
-			if isError(result) {
-				return result
-			}
-
-			// Handle control flow signals (break, continue, exit)
-			cf := i.ctx.ControlFlow()
-			if cf.IsBreak() {
-				cf.Clear()
-				break
-			}
-			if cf.IsContinue() {
-				cf.Clear()
-				continue
-			}
-			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
-				break
-			}
-		}
-
+		return i.evalForInString(col, loopVarName, stmt.Body)
 	case *TypeMetaValue:
-		// Iterate over enum type values (e.g., for var e in TColor do)
-		enumType, ok := col.TypeInfo.(*types.EnumType)
-		if !ok {
-			return newError("for-in loop: can only iterate over enum types, got %s", col.TypeName)
-		}
+		return i.evalForInTypeMeta(col, loopVarName, stmt.Body)
+	default:
+		// If we reach here, the semantic analyzer missed something
+		// This is defensive programming
+		return newError("for-in loop: cannot iterate over %s", collectionVal.Type())
+	}
+}
 
-		// Iterate through enum ordinal range (inclusive)
-		// DWScript iterates over the full range from min to max, not just declared values
-		// This allows constructs like: enum (Low = 2, High = 1000) to iterate 2..1000
-		for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal++ {
-			valueName := enumType.GetEnumName(ordinal)
+func (i *Interpreter) evalForInArray(col *ArrayValue, loopVarName string, body ast.Node) Value {
+	var result Value = &NilValue{}
+	// Iterate over array elements
+	for _, element := range col.Elements {
+		// Assign the current element to the loop variable
+		i.Env().Define(loopVarName, element)
+
+		// Execute the body
+		res, stop := i.executeLoopIteration(body)
+		result = res
+		if stop {
+			break
+		}
+	}
+	return result
+}
+
+func (i *Interpreter) evalForInSet(col *SetValue, loopVarName string, body ast.Node) Value {
+	// Iterate over set elements
+	// Sets contain enum values; we iterate through the enum's ordered names
+	// and check which ones are present in the set
+	if col.SetType == nil || col.SetType.ElementType == nil {
+		return newError("invalid set type for iteration")
+	}
+
+	// Iterate over different set element types
+	elementType := col.SetType.ElementType
+	ordinals := col.Ordinals()
+	var result Value = &NilValue{}
+
+	// For enum sets, iterate through all ordinals present
+	if enumType, ok := elementType.(*types.EnumType); ok {
+		for _, ordinal := range ordinals {
 			// Create an enum value for this element
 			enumVal := &EnumValue{
 				TypeName:     enumType.Name,
-				ValueName:    valueName,
+				ValueName:    enumType.GetEnumName(ordinal),
 				OrdinalValue: ordinal,
 			}
 
@@ -442,98 +305,92 @@ func (i *Interpreter) evalForInStatement(stmt *ast.ForInStatement) Value {
 			i.Env().Define(loopVarName, enumVal)
 
 			// Execute the body
-			result = i.Eval(stmt.Body)
-			if isError(result) {
-				return result
-			}
-
-			// Handle control flow signals (break, continue, exit)
-			cf := i.ctx.ControlFlow()
-			if cf.IsBreak() {
-				cf.Clear()
-				break
-			}
-			if cf.IsContinue() {
-				cf.Clear()
-				continue
-			}
-			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
+			res, stop := i.executeLoopIteration(body)
+			result = res
+			if stop {
 				break
 			}
 		}
+	} else {
+		// For non-enum sets (Integer, String, Boolean), iterate over ordinal values
+		for _, ordinal := range ordinals {
+			var loopVal Value
+			switch elementType.TypeKind() {
+			case "INTEGER", "SUBRANGE":
+				loopVal = &IntegerValue{Value: int64(ordinal)}
+			case "STRING":
+				loopVal = &StringValue{Value: string(rune(ordinal))}
+			case "BOOLEAN":
+				loopVal = &BooleanValue{Value: ordinal != 0}
+			default:
+				return newError("for-in loop: cannot iterate over set of %s", elementType.String())
+			}
 
-	default:
-		// If we reach here, the semantic analyzer missed something
-		// This is defensive programming
-		return newError("for-in loop: cannot iterate over %s", collectionVal.Type())
+			i.Env().Define(loopVarName, loopVal)
+
+			// Execute the body
+			res, stop := i.executeLoopIteration(body)
+			result = res
+			if stop {
+				break
+			}
+		}
 	}
-
 	return result
 }
 
-// evalBreakStatement evaluates a break statement
-// Sets the break signal to exit the innermost loop.
-func (i *Interpreter) evalBreakStatement(_ *ast.BreakStatement) Value {
-	i.ctx.ControlFlow().SetBreak()
-	return &NilValue{}
+func (i *Interpreter) evalForInString(col *StringValue, loopVarName string, body ast.Node) Value {
+	// Iterate over string characters
+	// Each character becomes a single-character string
+	// Use runes to handle UTF-8 correctly
+	runes := []rune(col.Value)
+	var result Value = &NilValue{}
+	for idx := 0; idx < len(runes); idx++ {
+		// Create a single-character string for this iteration
+		charVal := &StringValue{Value: string(runes[idx])}
+
+		// Assign the character to the loop variable
+		i.Env().Define(loopVarName, charVal)
+
+		// Execute the body
+		res, stop := i.executeLoopIteration(body)
+		result = res
+		if stop {
+			break
+		}
+	}
+	return result
 }
 
-// evalContinueStatement evaluates a continue statement
-// Sets the continue signal to skip to the next iteration of the innermost loop.
-func (i *Interpreter) evalContinueStatement(_ *ast.ContinueStatement) Value {
-	i.ctx.ControlFlow().SetContinue()
-	return &NilValue{}
-}
-
-// evalExitStatement evaluates an exit statement
-// Sets the exit signal to exit the current function.
-// If at program level, sets exit signal to terminate the program.
-func (i *Interpreter) evalExitStatement(stmt *ast.ExitStatement) Value {
-	i.ctx.ControlFlow().SetExit()
-	if stmt.ReturnValue != nil {
-		value := i.Eval(stmt.ReturnValue)
-		if isError(value) {
-			return value
-		}
-
-		// Assign evaluated value to Result if it exists
-		if _, exists := i.Env().Get("Result"); exists {
-			i.Env().Set("Result", value)
-		}
-		return value
-	}
-	// No explicit return value; function will rely on Result or default
-	return &NilValue{}
-}
-
-// evalReturnStatement handles return statements in lambda expressions.
-// In shorthand lambda syntax, the parser creates a return statement:
-// lambda(x) => x * 2 becomes lambda(x) begin return x * 2; end
-// The return value is assigned to the Result variable if it exists.
-func (i *Interpreter) evalReturnStatement(stmt *ast.ReturnStatement) Value {
-	// Evaluate the return value
-	var returnVal Value
-	if stmt.ReturnValue != nil {
-		returnVal = i.Eval(stmt.ReturnValue)
-		if isError(returnVal) {
-			return returnVal
-		}
-		if returnVal == nil {
-			return i.newErrorWithLocation(stmt, "return expression evaluated to nil")
-		}
-	} else {
-		returnVal = &NilValue{}
+func (i *Interpreter) evalForInTypeMeta(col *TypeMetaValue, loopVarName string, body ast.Node) Value {
+	// Iterate over enum type values (e.g., for var e in TColor do)
+	enumType, ok := col.TypeInfo.(*types.EnumType)
+	if !ok {
+		return newError("for-in loop: can only iterate over enum types, got %s", col.TypeName)
 	}
 
-	// Assign to Result variable if it exists (for functions)
-	// This allows the function to return the value
-	if _, exists := i.Env().Get("Result"); exists {
-		i.Env().Set("Result", returnVal)
+	var result Value = &NilValue{}
+	// Iterate through enum ordinal range (inclusive)
+	// DWScript iterates over the full range from min to max, not just declared values
+	// This allows constructs like: enum (Low = 2, High = 1000) to iterate 2..1000
+	for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal++ {
+		valueName := enumType.GetEnumName(ordinal)
+		// Create an enum value for this element
+		enumVal := &EnumValue{
+			TypeName:     enumType.Name,
+			ValueName:    valueName,
+			OrdinalValue: ordinal,
+		}
+
+		// Assign the enum value to the loop variable
+		i.Env().Define(loopVarName, enumVal)
+
+		// Execute the body
+		res, stop := i.executeLoopIteration(body)
+		result = res
+		if stop {
+			break
+		}
 	}
-
-	// Set exit signal to indicate early return
-	i.ctx.ControlFlow().SetExit()
-
-	return returnVal
+	return result
 }

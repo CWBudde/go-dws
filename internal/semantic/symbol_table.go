@@ -13,19 +13,17 @@ type Symbol struct {
 	Type                 types.Type
 	Value                interface{}
 	Name                 string
+	DeprecationMessage   string
+	Documentation        string
 	Overloads            []*Symbol
-	ReadOnly             bool
-	IsConst              bool
-	IsOverloadSet        bool
-	HasOverloadDirective bool
+	Usages               []token.Position
+	DeclPosition         token.Position
 	IsForward            bool
-
-	// LSP support fields
-	DeclPosition       token.Position   // Position where symbol was declared
-	Usages             []token.Position // All usage positions for go-to-reference
-	Documentation      string           // Doc comment text
-	IsDeprecated       bool             // Whether marked as deprecated
-	DeprecationMessage string           // Deprecation warning message
+	HasOverloadDirective bool
+	IsOverloadSet        bool
+	IsConst              bool
+	IsDeprecated         bool
+	ReadOnly             bool
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
