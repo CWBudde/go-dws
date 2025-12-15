@@ -7,21 +7,111 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
+// testCase holds test parameters for function pointer type declaration tests.
+type testCase struct {
+	name            string
+	input           string
+	expectedName    string
+	returnTypeName  string
+	firstParamName  string
+	firstParamType  string
+	paramCount      int
+	isFunction      bool
+	hasReturnType   bool
+	ofObject        bool
+	firstParamByRef bool
+}
+
+// parseFunctionPointerTypeDecl parses the input and returns the type declaration.
+func parseFunctionPointerTypeDecl(t *testing.T, input string) *ast.TypeDeclaration {
+	t.Helper()
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d",
+			len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.TypeDeclaration)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.TypeDeclaration. got=%T",
+			program.Statements[0])
+	}
+
+	if !stmt.IsFunctionPointer {
+		t.Fatalf("expected IsFunctionPointer to be true, got false")
+	}
+
+	return stmt
+}
+
+// checkFunctionPointerType verifies the function pointer type matches expectations.
+func checkFunctionPointerType(t *testing.T, funcPtrType *ast.FunctionPointerTypeNode, tc testCase) {
+	t.Helper()
+
+	// Check if it's a function or procedure
+	isFunc := funcPtrType.ReturnType != nil
+	if isFunc != tc.isFunction {
+		t.Errorf("expected isFunction=%v, got=%v", tc.isFunction, isFunc)
+	}
+
+	// Check parameter count
+	if len(funcPtrType.Parameters) != tc.paramCount {
+		t.Errorf("expected %d parameters, got %d", tc.paramCount, len(funcPtrType.Parameters))
+	}
+
+	// Check return type
+	checkReturnType(t, funcPtrType.ReturnType, tc.hasReturnType, tc.returnTypeName)
+
+	// Check of object clause
+	if funcPtrType.OfObject != tc.ofObject {
+		t.Errorf("expected OfObject=%v, got=%v", tc.ofObject, funcPtrType.OfObject)
+	}
+
+	// Check first parameter if present
+	if tc.paramCount > 0 && tc.firstParamName != "" {
+		checkFirstParameter(t, funcPtrType.Parameters[0], tc)
+	}
+}
+
+// checkReturnType verifies the return type matches expectations.
+func checkReturnType(t *testing.T, returnType ast.TypeExpression, hasReturnType bool, returnTypeName string) {
+	t.Helper()
+
+	if hasReturnType {
+		if returnType == nil {
+			t.Errorf("expected return type, got nil")
+		} else if returnType.String() != returnTypeName {
+			t.Errorf("expected return type %q, got %q", returnTypeName, returnType.String())
+		}
+	} else {
+		if returnType != nil {
+			t.Errorf("expected no return type, got %v", returnType)
+		}
+	}
+}
+
+// checkFirstParameter verifies the first parameter matches expectations.
+func checkFirstParameter(t *testing.T, param *ast.Parameter, tc testCase) {
+	t.Helper()
+
+	if param.Name.Value != tc.firstParamName {
+		t.Errorf("expected first param name %q, got %q", tc.firstParamName, param.Name.Value)
+	}
+	if param.Type.String() != tc.firstParamType {
+		t.Errorf("expected first param type %q, got %q", tc.firstParamType, param.Type.String())
+	}
+	if param.ByRef != tc.firstParamByRef {
+		t.Errorf("expected first param ByRef=%v, got=%v", tc.firstParamByRef, param.ByRef)
+	}
+}
+
 // TestParseFunctionPointerTypeDeclarations tests parsing of function pointer type declarations.
 func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
-	tests := []struct {
-		name            string
-		input           string
-		expectedName    string
-		returnTypeName  string
-		firstParamName  string
-		firstParamType  string
-		paramCount      int
-		isFunction      bool
-		hasReturnType   bool
-		ofObject        bool
-		firstParamByRef bool
-	}{
+	tests := []testCase{
 		{
 			name:            "simple function pointer with one parameter",
 			input:           "type TFunc = function(x: Integer): Boolean;",
@@ -148,25 +238,7 @@ func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := lexer.New(tt.input)
-			p := New(l)
-			program := p.ParseProgram()
-			checkParserErrors(t, p)
-
-			if len(program.Statements) != 1 {
-				t.Fatalf("program.Statements does not contain 1 statement. got=%d",
-					len(program.Statements))
-			}
-
-			stmt, ok := program.Statements[0].(*ast.TypeDeclaration)
-			if !ok {
-				t.Fatalf("program.Statements[0] is not *ast.TypeDeclaration. got=%T",
-					program.Statements[0])
-			}
-
-			if !stmt.IsFunctionPointer {
-				t.Fatalf("expected IsFunctionPointer to be true, got false")
-			}
+			stmt := parseFunctionPointerTypeDecl(t, tt.input)
 
 			if stmt.Name.Value != tt.expectedName {
 				t.Errorf("expected type name %q, got %q", tt.expectedName, stmt.Name.Value)
@@ -176,50 +248,7 @@ func TestParseFunctionPointerTypeDeclarations(t *testing.T) {
 				t.Fatalf("FunctionPointerType is nil")
 			}
 
-			funcPtrType := stmt.FunctionPointerType
-
-			// Check if it's a function or procedure
-			isFunc := funcPtrType.ReturnType != nil
-			if isFunc != tt.isFunction {
-				t.Errorf("expected isFunction=%v, got=%v", tt.isFunction, isFunc)
-			}
-
-			// Check parameter count
-			if len(funcPtrType.Parameters) != tt.paramCount {
-				t.Errorf("expected %d parameters, got %d", tt.paramCount, len(funcPtrType.Parameters))
-			}
-
-			// Check return type
-			if tt.hasReturnType {
-				if funcPtrType.ReturnType == nil {
-					t.Errorf("expected return type, got nil")
-				} else if funcPtrType.ReturnType.String() != tt.returnTypeName {
-					t.Errorf("expected return type %q, got %q", tt.returnTypeName, funcPtrType.ReturnType.String())
-				}
-			} else {
-				if funcPtrType.ReturnType != nil {
-					t.Errorf("expected no return type, got %v", funcPtrType.ReturnType)
-				}
-			}
-
-			// Check of object clause
-			if funcPtrType.OfObject != tt.ofObject {
-				t.Errorf("expected OfObject=%v, got=%v", tt.ofObject, funcPtrType.OfObject)
-			}
-
-			// Check first parameter if present
-			if tt.paramCount > 0 && tt.firstParamName != "" {
-				firstParam := funcPtrType.Parameters[0]
-				if firstParam.Name.Value != tt.firstParamName {
-					t.Errorf("expected first param name %q, got %q", tt.firstParamName, firstParam.Name.Value)
-				}
-				if firstParam.Type.String() != tt.firstParamType {
-					t.Errorf("expected first param type %q, got %q", tt.firstParamType, firstParam.Type.String())
-				}
-				if firstParam.ByRef != tt.firstParamByRef {
-					t.Errorf("expected first param ByRef=%v, got=%v", tt.firstParamByRef, firstParam.ByRef)
-				}
-			}
+			checkFunctionPointerType(t, stmt.FunctionPointerType, tt)
 		})
 	}
 }
