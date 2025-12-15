@@ -147,11 +147,24 @@ func (i *Interpreter) GetEvaluator() contracts.Evaluator {
 }
 
 // EvalNode provides a minimal evaluation hook for cross-cutting concerns.
-func (i *Interpreter) EvalNode(node ast.Node) Value {
+// The ctx parameter ensures the interpreter uses the correct environment,
+// especially when callbacks occur from within scopes that pushed new environments
+// (e.g., for loops).
+func (i *Interpreter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value {
 	// IMPORTANT:
 	// This is a CoreEvaluator callback used by the evaluator for not-yet-migrated
 	// operations. It must NOT call i.Eval() (which delegates to the evaluator),
 	// otherwise we'd recurse forever. Use the legacy path instead.
+
+	// Sync the interpreter's context environment with the evaluator's context.
+	// This ensures that variables defined in nested scopes (like for loop variables)
+	// are visible when the interpreter evaluates expressions.
+	savedEnv := i.ctx.Env()
+	if ctx != nil && ctx.Env() != savedEnv {
+		i.ctx.SetEnv(ctx.Env())
+		defer i.ctx.SetEnv(savedEnv)
+	}
+
 	return i.evalLegacy(node)
 }
 

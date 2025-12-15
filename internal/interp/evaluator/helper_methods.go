@@ -247,7 +247,7 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 	}
 
 	// Unhandled - delegate to adapter
-	return e.coreEvaluator.EvalNode(node)
+	return e.coreEvaluator.EvalNode(node, ctx)
 }
 
 // CallASTHelperMethod executes a user-defined helper method (with AST body).

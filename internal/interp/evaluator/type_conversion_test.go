@@ -224,7 +224,7 @@ type mockConversionAdapter struct {
 	evalNodeFunc func(node ast.Node) Value
 }
 
-func (m *mockConversionAdapter) EvalNode(node ast.Node) Value {
+func (m *mockConversionAdapter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value {
 	if m.evalNodeFunc != nil {
 		return m.evalNodeFunc(node)
 	}

@@ -471,39 +471,39 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitUnaryExpression(n, ctx)
 	case *ast.AddressOfExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitAddressOfExpression(n, ctx)
 	case *ast.GroupedExpression:
 		return e.VisitGroupedExpression(n, ctx)
 	case *ast.CallExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitCallExpression(n, ctx)
 	case *ast.NewExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitNewExpression(n, ctx)
 	case *ast.MemberAccessExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitMemberAccessExpression(n, ctx)
 	case *ast.MethodCallExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitMethodCallExpression(n, ctx)
 	case *ast.InheritedExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitInheritedExpression(n, ctx)
 	case *ast.SelfExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitSelfExpression(n, ctx)
 	case *ast.EnumLiteral:
@@ -518,7 +518,7 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitIndexExpression(n, ctx)
 	case *ast.NewArrayExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitNewArrayExpression(n, ctx)
 	case *ast.LambdaExpression:
@@ -527,7 +527,7 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitIsExpression(n, ctx)
 	case *ast.AsExpression:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitAsExpression(n, ctx)
 	case *ast.ImplementsExpression:
@@ -542,7 +542,7 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	// Statements
 	case *ast.Program:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitProgram(n, ctx)
 	case *ast.EmptyStatement:
@@ -550,17 +550,17 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.ExpressionStatement:
 		// TODO disable
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitExpressionStatement(n, ctx)
 	case *ast.VarDeclStatement:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitVarDeclStatement(n, ctx)
 	case *ast.ConstDecl:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitConstDecl(n, ctx)
 	case *ast.AssignmentStatement:
@@ -574,30 +574,26 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.RepeatStatement:
 		return e.VisitRepeatStatement(n, ctx)
 	case *ast.ForStatement:
-		// TODO disable
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
-		}
 		return e.VisitForStatement(n, ctx)
 	case *ast.ForInStatement:
 		// TODO disable
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitForInStatement(n, ctx)
 	case *ast.CaseStatement:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitCaseStatement(n, ctx)
 	case *ast.TryStatement:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitTryStatement(n, ctx)
 	case *ast.RaiseStatement:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitRaiseStatement(n, ctx)
 	case *ast.BreakStatement:
@@ -614,27 +610,27 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	// Declarations
 	case *ast.FunctionDecl:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitFunctionDecl(n, ctx)
 	case *ast.ClassDecl:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitClassDecl(n, ctx)
 	case *ast.InterfaceDecl:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitInterfaceDecl(n, ctx)
 	case *ast.OperatorDecl:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitOperatorDecl(n, ctx)
 	case *ast.EnumDecl:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitEnumDecl(n, ctx)
 	case *ast.SetDecl:
@@ -643,20 +639,20 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitRecordDecl(n, ctx)
 	case *ast.HelperDecl:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitHelperDecl(n, ctx)
 	case *ast.ArrayDecl:
 		return e.VisitArrayDecl(n, ctx)
 	case *ast.TypeDeclaration:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n)
+			return e.coreEvaluator.EvalNode(n, ctx)
 		}
 		return e.VisitTypeDeclaration(n, ctx)
 
 	default:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(node)
+			return e.coreEvaluator.EvalNode(node, ctx)
 		}
 		panic("Evaluator.Eval: unknown node type and no coreEvaluator available")
 	}

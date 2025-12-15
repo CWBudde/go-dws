@@ -188,7 +188,7 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 	// If the value still reports TYPE_CAST, delegate to the legacy adapter which
 	// knows how to handle TypeCastValue wrappers.
 	if obj != nil && obj.Type() == "TYPE_CAST" {
-		return e.coreEvaluator.EvalNode(node)
+		return e.coreEvaluator.EvalNode(node, ctx)
 	}
 
 	normalizedMethod := ident.Normalize(methodName)
@@ -246,7 +246,7 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 
 		// No handler found - delegate to adapter as last resort
 		savedCtxEnv := ctx.Env()
-		result := e.coreEvaluator.EvalNode(node)
+		result := e.coreEvaluator.EvalNode(node, ctx)
 		ctx.SetEnv(savedCtxEnv)
 		return result
 	}

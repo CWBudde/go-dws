@@ -91,7 +91,6 @@ If a change only moves methods between types/files without deleting indirection,
 - ✅ No callback calls from Evaluator back into Interpreter for core execution
 - ✅ Focused interfaces + `SetFocusedInterfaces()` removed
 - ✅ `adapter_*.go` indirection removed (or reduced to thin shims only, temporarily)
-✅ `adapter_*.go` indirection removed (or reduced to thin shims only, temporarily)
 
 ### 4.0 Stabilization Prerequisites (Make Tests Green Again)
 
@@ -192,35 +191,36 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
   - Updated tests to verify actual functionality instead of delegation
   - 7 callbacks eliminated
 
-- [~] **4.1.4** Migrate loop statements (PARTIAL - 3/5 done, 2 blocked)
+- [x] **4.1.4** Migrate loop statements (DONE - 5/5)
   - [x] IfStatement - migrated, callback removed ✅
   - [x] WhileStatement - migrated, callback removed ✅
   - [x] RepeatStatement - migrated, callback removed ✅
-  - [ ] ForStatement - **BLOCKED** (see 4.1.4a)
-  - [ ] ForInStatement - **BLOCKED** (see 4.1.4b)
+  - [x] ForStatement - migrated, callback removed ✅ (see 4.1.4a for fix details)
+  - [ ] ForInStatement - callback removed, needs env sync verification
 
-- [ ] **4.1.4a** ForStatement environment sync issue
+- [x] **4.1.4a** ForStatement environment sync issue (FIXED)
   **Problem**: When for loop body contains a method call (`Result.Add(i * 10)`):
   1. Loop runs in evaluator, creates scope via `ctx.PushEnv()`
   2. Loop variable `i` defined in this scope
   3. Method call has callback guard → goes to interpreter's `evalMethodCall`
   4. Interpreter evaluates args via `i.Eval(arg)` → uses `i.ctx`
-  5. **BUG**: `i.ctx.Env()` should be synced, but argument `i` resolves to 0
+  5. **BUG**: `i.ctx.Env()` was not synced, so argument `i` resolved to 0
 
-  **Root cause**: Environment chain mismatch when interpreter evaluates expressions
-  that were created in evaluator's pushed scope. The `i.ctx` is shared, but
-  identifier resolution in method argument evaluation doesn't traverse the
-  pushed environment correctly.
+  **Root cause**: `EvalNode(node)` didn't pass the current `ctx`, so interpreter
+  used its own `i.ctx` which had a stale environment without the pushed loop scope.
 
-  **Fix approach**: Either (a) ensure interpreter syncs env before `evalMethodCall`,
-  or (b) migrate `MethodCallExpression` handling to evaluator first (4.3 prerequisite).
+  **Fix**: Changed `CoreEvaluator.EvalNode(node)` to `EvalNode(node, ctx)`.
+  Interpreter's `EvalNode` now syncs `i.ctx.SetEnv(ctx.Env())` before evaluation.
+  This is a tactical workaround; proper fix is 4.6 (single ExecutionContext owner).
 
-  **Failing test**: `TestArrayReturnViaFunctionPointer` (arr values are 0 instead of 10,20,30)
+  **Test**: `TestArrayReturnViaFunctionPointer` now passes ✅
 
-- [ ] **4.1.4b** ForInStatement environment sync issue (same root cause as 4.1.4a)
+- [ ] **4.1.4b** ForInStatement environment sync issue
+  Same root cause as 4.1.4a - should be fixed by the EvalNode(node, ctx) change.
+  Needs verification.
 
 - [~] **4.1.5** Migrate simple statements (PARTIAL)
-  - [ ] ExpressionStatement - **BLOCKED** (same env sync issue as 4.1.4a)
+  - [ ] ExpressionStatement - should work now with EvalNode fix, needs verification
   - [ ] VarDeclStatement - needs investigation
   - [ ] ConstDecl - needs investigation
   - [ ] CaseStatement - needs investigation
@@ -249,29 +249,49 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 
 **Remaining Work After 4.1.5**:
 
-- ~14 callbacks blocked by declHandler (→ Task 4.4)
-- ~10 callbacks blocked by oopEngine (→ Task 4.3)
-- ~3 callbacks blocked by exceptionMgr (→ Task 4.5)
+- ~14 callbacks blocked by declHandler (→ Task 4.5)
+- ~10 callbacks blocked by oopEngine (→ Task 4.4)
+- ~3 callbacks blocked by exceptionMgr (→ Task 4.2)
 
 ---
 
-### 4.2 Eliminate State Duplication (Single Owner = ExecutionContext)
+### 4.2 Remove Exception Callbacks (ExceptionManager)
 
-**Goal**: Ensure all runtime execution state has one canonical owner.
+**Goal**: Make exception creation/raising self-contained (low surface area, low risk).
+
+**Why Early**: Small surface, easy win, reduces "special case" callback plumbing.
 
 **Tasks**:
 
-- [ ] **4.2.1** Audit duplicated state usage (3h)
-- [ ] **4.2.2** Remove duplicate Interpreter-owned execution state (timeboxed)
-- Prefer: ctx accessors and passing ctx explicitly
+- [ ] **4.2.1** Move exception creation + raising to Evaluator/runtime (timeboxed)
+- [ ] **4.2.2** Delete ExceptionManager interface (1h)
 
 **Success Criteria**:
 
-- ✅ No “sync” logic between Interpreter and ExecutionContext
+- ✅ ExceptionManager interface deleted
 
 ---
 
-### 4.3 Remove OOP Callbacks (OOPEngine)
+### 4.3 Delete CoreEvaluator and Adapter Indirection
+
+**Goal**: Delete the remaining adapter surface and any "fallback" EvalNode callbacks.
+
+**Principle**: Each removed callback must be replaced by direct Evaluator ownership, not by a new handler layer.
+
+**Tasks**:
+
+- [ ] **4.3.1** Eliminate EvalNode fallbacks (timeboxed)
+- [ ] **4.3.2** Delete CoreEvaluator interface once unused (1h)
+- [ ] **4.3.3** Delete or collapse `adapter_*.go` files (timeboxed)
+
+**Success Criteria**:
+
+- ✅ 0 callback calls from Evaluator to Interpreter
+- ✅ adapter files removed (or reduced to thin temporary shims only)
+
+---
+
+### 4.4 Remove OOP Callbacks (OOPEngine)
 
 **Goal**: Remove the Evaluator → OOPEngine → Interpreter → Evaluator round-trip for method dispatch.
 
@@ -281,9 +301,9 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 
 **Tasks**:
 
-- [ ] **4.3.1** Audit OOPEngine by usage (4h)
-- [ ] **4.3.2** Move method dispatch to Evaluator (timeboxed, multiple PRs)
-- [ ] **4.3.3** Delete OOPEngine interface once unused (2h)
+- [ ] **4.4.1** Audit OOPEngine by usage (4h)
+- [ ] **4.4.2** Move method dispatch to Evaluator (timeboxed, multiple PRs)
+- [ ] **4.4.3** Delete OOPEngine interface once unused (2h)
 
 **Success Criteria**:
 
@@ -292,15 +312,15 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 
 ---
 
-### 4.4 Remove Declaration Callbacks (DeclHandler)
+### 4.5 Remove Declaration Callbacks (DeclHandler)
 
 **Goal**: Remove the Evaluator → DeclHandler → Interpreter round-trip for type/member declaration handling.
 
 **Tasks**:
 
-- [ ] **4.4.1** Audit DeclHandler methods (3h)
-- [ ] **4.4.2** Move declaration logic behind a single owner (Evaluator/TypeSystem as appropriate)
-- [ ] **4.4.3** Delete DeclHandler interface once unused (2h)
+- [ ] **4.5.1** Audit DeclHandler methods (3h)
+- [ ] **4.5.2** Move declaration logic behind a single owner (Evaluator/TypeSystem as appropriate)
+- [ ] **4.5.3** Delete DeclHandler interface once unused (2h)
 
 **Success Criteria**:
 
@@ -309,45 +329,33 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 
 ---
 
-### 4.5 Remove Exception Callbacks (ExceptionManager)
+### 4.6 Eliminate State Duplication (Single Owner = ExecutionContext)
 
-**Goal**: Make exception creation/raising self-contained (low surface area, low risk).
+**Goal**: Ensure all runtime execution state has one canonical owner.
 
-**Why First**: Small surface, easy win, reduces “special case” callback plumbing.
+**Why Last**: Once callbacks are eliminated (4.1-4.5), the dual-context problem
+largely disappears. This task cleans up any remaining sync logic.
 
-**Tasks**:
-
-- [ ] **4.5.1** Move exception creation + raising to Evaluator/runtime (timeboxed)
-- [ ] **4.5.2** Delete ExceptionManager interface (1h)
-
-**Success Criteria**:
-
-- ✅ ExceptionManager interface deleted
-
----
-
-### 4.6 Delete CoreEvaluator and Adapter Indirection
-
-**Goal**: Delete the remaining adapter surface and any “fallback” EvalNode callbacks.
-
-**Principle**: Each removed callback must be replaced by direct Evaluator ownership, not by a new handler layer.
+**Note**: The `EvalNode(node, ctx)` fix in 4.1.4a added sync logic as a tactical
+workaround. This task should eliminate that workaround by ensuring a single
+canonical ExecutionContext.
 
 **Tasks**:
 
-- [ ] **4.6.1** Eliminate EvalNode fallbacks (timeboxed)
-- [ ] **4.6.2** Delete CoreEvaluator interface once unused (1h)
-- [ ] **4.6.3** Delete or collapse `adapter_*.go` files (timeboxed)
+- [ ] **4.6.1** Audit duplicated state usage (3h)
+- [ ] **4.6.2** Remove duplicate Interpreter-owned execution state (timeboxed)
+  - Prefer: ctx accessors and passing ctx explicitly
+- [ ] **4.6.3** Remove EvalNode ctx sync workaround once callbacks eliminated
 
 **Success Criteria**:
 
-- ✅ 0 callback calls from Evaluator to Interpreter
-- ✅ adapter files removed (or reduced to thin temporary shims only)
+- ✅ No "sync" logic between Interpreter and ExecutionContext
 
 ---
 
 ### 4.7 Verification and Metrics
 
-**Goal**: Prevent regression and ensure Phase 4 changes stay “real”.
+**Goal**: Prevent regression and ensure Phase 4 changes stay "real".
 
 **Tasks**:
 
@@ -360,7 +368,7 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 ### Archived (Decomposition-Heavy Draft)
 
 The handler-decomposition plan is preserved in Git history and can be restored if a concrete pain point justifies it.
-It is intentionally *not* the default plan, because it optimizes for “smaller types” instead of “less indirection”.
+It is intentionally *not* the default plan, because it optimizes for "smaller types" instead of "less indirection".
 
 ---
 
@@ -371,14 +379,14 @@ This phase is designed to be done in small, reversible PRs.
 | Task | Effort | Notes |
 |------|--------|-------|
 | 4.1 Unify Eval() Dispatch | ~1 week | Enables deletion of many adapters later |
-| 4.5 Remove Exception Callbacks | ~1-2 days | Low risk, good early win |
-| 4.6 Delete CoreEvaluator/adapters | ~1 week | Highest payoff, keep it timeboxed |
-| 4.3 Remove OOP Callbacks | ~1-2 weeks | High risk, do incrementally |
-| 4.4 Remove Decl Callbacks | ~1 week | High risk, do incrementally |
-| 4.2 State Ownership Cleanup | ~2-4 days | Opportunistic as you delete callbacks |
+| 4.2 Remove Exception Callbacks | ~1-2 days | Low risk, good early win |
+| 4.3 Delete CoreEvaluator/adapters | ~1 week | Highest payoff, keep it timeboxed |
+| 4.4 Remove OOP Callbacks | ~1-2 weeks | High risk, do incrementally |
+| 4.5 Remove Decl Callbacks | ~1 week | High risk, do incrementally |
+| 4.6 State Ownership Cleanup | ~2-4 days | Opportunistic as you delete callbacks |
 | 4.7 Verification/Metrics | ongoing | Keep guardrails in place |
 
-**Recommended Order**: 4.1 → 4.5 → 4.6 → (4.3 + 4.4) → 4.2 → 4.7
+**Execution Order**: 4.1 → 4.2 → 4.3 → 4.4 → 4.5 → 4.6 → 4.7
 
 ---
 

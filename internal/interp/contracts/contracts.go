@@ -80,7 +80,9 @@ type Evaluator interface {
 type CoreEvaluator interface {
 	// EvalNode evaluates an AST node via interpreter for OOP operations.
 	// Fallback for operations not yet migrated to evaluator.
-	EvalNode(node ast.Node) Value
+	// The ctx parameter ensures the interpreter uses the correct environment
+	// (e.g., when callbacks occur from within a for loop that pushed a new scope).
+	EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value
 
 	// EvalBuiltinHelperProperty evaluates a built-in helper property (Length, Low, High, etc).
 	EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value

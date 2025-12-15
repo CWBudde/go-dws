@@ -18,11 +18,11 @@ type mockIntegrationAdapter struct {
 	tryBinaryOperatorFunc     func(operator string, left, right Value, node ast.Node) (Value, bool)
 }
 
-func (m *mockIntegrationAdapter) EvalNode(node ast.Node) Value {
+func (m *mockIntegrationAdapter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value {
 	if m.evalNodeFunc != nil {
 		return m.evalNodeFunc(node)
 	}
-	return m.mockConversionAdapter.EvalNode(node)
+	return m.mockConversionAdapter.EvalNode(node, ctx)
 }
 
 func (m *mockIntegrationAdapter) ExecuteMethodWithSelf(self Value, methodDecl any, args []Value) Value {
