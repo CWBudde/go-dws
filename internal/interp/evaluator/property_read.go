@@ -63,7 +63,7 @@ func (e *Evaluator) executePropertyRead(obj Value, propInfo any, node ast.Node, 
 		return e.executeMethodBackedPropertyRead(obj, objVal, pInfo, node, ctx)
 
 	case types.PropAccessExpression:
-		return e.executeExpressionBackedPropertyRead(obj, objVal, pInfo, node, ctx)
+		return e.executeExpressionBackedPropertyRead(obj, pInfo, node, ctx)
 
 	default:
 		return e.newError(node, "property '%s' has no read access", pInfo.Name)
@@ -166,7 +166,7 @@ func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, p
 
 // executeExpressionBackedPropertyRead handles PropAccessExpression property reads.
 // Evaluates the property expression with Self bound to the object and fields accessible.
-func (e *Evaluator) executeExpressionBackedPropertyRead(obj Value, objVal ObjectValue, pInfo *types.PropertyInfo, node ast.Node, ctx *ExecutionContext) Value {
+func (e *Evaluator) executeExpressionBackedPropertyRead(obj Value, pInfo *types.PropertyInfo, node ast.Node, ctx *ExecutionContext) Value {
 	// Retrieve the AST expression from PropertyInfo
 	if pInfo.ReadExpr == nil {
 		return e.newError(node, "property '%s' has expression-based getter but no expression stored", pInfo.Name)

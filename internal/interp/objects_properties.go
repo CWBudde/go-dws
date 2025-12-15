@@ -66,7 +66,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		// 2. Try as a constant (case-insensitive, with lazy evaluation)
 		concreteClass, ok := obj.Class.(*ClassInfo)
 		if ok {
-			if constValue := i.getClassConstant(concreteClass, propInfo.ReadSpec, nil); constValue != nil {
+			if constValue := i.getClassConstant(concreteClass, propInfo.ReadSpec); constValue != nil {
 				return constValue
 			}
 		}

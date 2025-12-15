@@ -352,7 +352,7 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 
 // evalHelperPropertyWrite evaluates a helper property write access
 func (i *Interpreter) evalHelperPropertyWrite(helper *HelperInfo, propInfo *types.PropertyInfo,
-	selfValue Value, newValue Value, stmt ast.Node, target *ast.MemberAccessExpression) Value {
+	selfValue Value, newValue Value, stmt ast.Node) Value {
 
 	switch propInfo.WriteKind {
 	case types.PropAccessField:

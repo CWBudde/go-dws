@@ -351,7 +351,7 @@ func (e *Evaluator) builtinInc(args []ast.Expression, ctx *ExecutionContext) Val
 		}
 
 		// Get the enum type metadata
-		enumType, err := e.lookupEnumType(val.TypeName, ctx)
+		enumType, err := e.lookupEnumType(val.TypeName)
 		if err != nil {
 			return e.newError(nil, "enum type metadata not found for %s", val.TypeName)
 		}
@@ -457,7 +457,7 @@ func (e *Evaluator) builtinDec(args []ast.Expression, ctx *ExecutionContext) Val
 		}
 
 		// Get the enum type metadata
-		enumType, err := e.lookupEnumType(val.TypeName, ctx)
+		enumType, err := e.lookupEnumType(val.TypeName)
 		if err != nil {
 			return e.newError(nil, "enum type metadata not found for %s", val.TypeName)
 		}

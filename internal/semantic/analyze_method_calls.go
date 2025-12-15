@@ -126,7 +126,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			method := recordType.GetMethod(methodNameLower)
 			if method == nil {
 				// Method not found in record, check if a helper provides it
-				_, helperMethod := a.hasHelperMethod(objectType, methodName)
+				helperMethod := a.hasHelperMethod(objectType, methodName)
 				if helperMethod == nil {
 					a.addError("method '%s' not found in record type '%s' at %s",
 						methodName, recordType.Name, expr.Token.Pos.String())
@@ -183,7 +183,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		// Check if helpers provide this method for non-class, non-record types
-		_, helperMethod := a.hasHelperMethod(objectType, methodName)
+		helperMethod := a.hasHelperMethod(objectType, methodName)
 		if helperMethod == nil {
 			a.addError("method call on type %s requires a helper, got no helper with method '%s' at %s",
 				objectType.String(), methodName, expr.Token.Pos.String())
@@ -285,7 +285,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		methodType = overloads[0].Signature
 	} else {
 		// Method not found - check helpers
-		_, helperMethod := a.hasHelperMethod(objectType, methodName)
+		helperMethod := a.hasHelperMethod(objectType, methodName)
 		if helperMethod != nil {
 			methodType = helperMethod
 		} else {

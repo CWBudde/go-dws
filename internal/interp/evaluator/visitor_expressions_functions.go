@@ -251,12 +251,12 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// External (Go) functions with potential var parameters
 	if e.externalFunctions != nil && e.externalFunctions.Has(funcName.Value) {
-		return e.callExternalFunction(funcName.Value, node.Arguments, ctx, node)
+		return e.callExternalFunction(funcName.Value, node.Arguments, node)
 	}
 
 	// Default(TypeName) - expects unevaluated type identifier
 	if funcNameLower == "default" && len(node.Arguments) == 1 {
-		return e.builtinDefault(node.Arguments, ctx)
+		return e.builtinDefault(node.Arguments)
 	}
 
 	// Type casts: TypeName(expression) for single-argument calls
@@ -396,7 +396,6 @@ func (e *Evaluator) wrapLazyArg(arg ast.Expression, ctx *ExecutionContext, eval 
 func (e *Evaluator) callExternalFunction(
 	funcName string,
 	argExprs []ast.Expression,
-	ctx *ExecutionContext,
 	node ast.Node,
 ) Value {
 	// Delegate to adapter which has full access to external function infrastructure

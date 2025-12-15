@@ -466,6 +466,8 @@ func typeToString(expr ast.Expr) string {
 }
 
 // generateVisitorCode generates the complete visitor code
+//
+//nolint:unparam // error return kept for consistency with common generator pattern
 func generateVisitorCode(nodes []*NodeInfo) ([]byte, error) {
 	var buf bytes.Buffer
 
@@ -503,9 +505,7 @@ func Walk(v Visitor, node Node) {
 
 	// Generate walk functions for each node
 	for _, node := range nodes {
-		if err := generateWalkFunction(&buf, node); err != nil {
-			return nil, err
-		}
+		generateWalkFunction(&buf, node)
 	}
 
 	// NOTE: All helper types implement Node interface, so they are
@@ -564,7 +564,7 @@ func sortFieldsByOrder(fields []*FieldInfo) []*FieldInfo {
 }
 
 // generateWalkFunction generates a walk function for a specific node type
-func generateWalkFunction(buf *bytes.Buffer, node *NodeInfo) error {
+func generateWalkFunction(buf *bytes.Buffer, node *NodeInfo) {
 	fmt.Fprintf(buf, "// walk%s walks a %s node\n", node.Name, node.Name)
 	fmt.Fprintf(buf, "func walk%s(n *%s, v Visitor) {\n", node.Name, node.Name)
 
@@ -641,5 +641,4 @@ func generateWalkFunction(buf *bytes.Buffer, node *NodeInfo) error {
 	}
 
 	buf.WriteString("}\n\n")
-	return nil
 }

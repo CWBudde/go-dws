@@ -362,12 +362,12 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 	}
 
 	// Check if a helper provides this member
-	_, helperMethod := a.hasHelperMethod(objType, fieldName)
+	helperMethod := a.hasHelperMethod(objType, fieldName)
 	if helperMethod != nil {
 		return helperMethod
 	}
 
-	_, helperProp := a.hasHelperProperty(objType, fieldName)
+	helperProp := a.hasHelperProperty(objType, fieldName)
 	if helperProp != nil {
 		return helperProp.Type
 	}

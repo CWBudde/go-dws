@@ -74,7 +74,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 	if strings.HasPrefix(arrayVal.Type(), "INTERFACE") || arrayVal.Type() == "OBJECT" {
 		// Handle default property assignment using PropertyAccessor interface
 		// Pattern: Same as 3.2.11g but lookup default property instead of named property
-		return e.evalDefaultPropertyAssignment(arrayVal, indexVal, value, stmt, ctx)
+		return e.evalDefaultPropertyAssignment(arrayVal, indexVal, value, stmt)
 	}
 
 	// Extract integer index
@@ -306,7 +306,6 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 	indexVal Value,
 	value Value,
 	stmt *ast.AssignmentStatement,
-	ctx *ExecutionContext,
 ) Value {
 	// Check if object implements PropertyAccessor interface
 	accessor, ok := obj.(runtime.PropertyAccessor)

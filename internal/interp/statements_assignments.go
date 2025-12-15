@@ -651,7 +651,7 @@ func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, v
 		// Try helper properties first
 		helper, helperProp := i.findHelperProperty(objVal, target.Member.Value)
 		if helperProp != nil && helperProp.WriteKind != types.PropAccessNone {
-			return i.evalHelperPropertyWrite(helper, helperProp, objVal, value, stmt, target)
+			return i.evalHelperPropertyWrite(helper, helperProp, objVal, value, stmt)
 		}
 
 		// Try helper class variables

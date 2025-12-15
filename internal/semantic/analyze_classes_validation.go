@@ -194,7 +194,7 @@ func (a *Analyzer) checkVisibility(memberClass *types.ClassType, visibility int,
 // 1. Abstract methods can only exist in abstract classes
 // 2. Concrete classes must implement all inherited abstract methods
 // 3. Abstract methods are implicitly virtual
-func (a *Analyzer) validateAbstractClass(classType *types.ClassType, decl *ast.ClassDecl) {
+func (a *Analyzer) validateAbstractClass(classType *types.ClassType) {
 	// Rule 1: Classes with abstract methods are implicitly abstract
 	// If a class has abstract methods, mark it as abstract automatically
 	hasAbstractMethods := false

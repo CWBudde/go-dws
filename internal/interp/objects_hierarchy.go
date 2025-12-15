@@ -50,7 +50,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 			if classVarValue, ownerClass := classInfo.lookupClassVar(memberName); ownerClass != nil {
 				return classVarValue
 			}
-			if constValue := i.getClassConstant(classInfo, memberName, ma); constValue != nil {
+			if constValue := i.getClassConstant(classInfo, memberName); constValue != nil {
 				return constValue
 			}
 			if propInfo := classInfo.lookupProperty(memberName); propInfo != nil {
@@ -345,7 +345,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		if classVarValue, ownerClass := classInfo.lookupClassVar(memberName); ownerClass != nil {
 			return classVarValue
 		}
-		if constValue := i.getClassConstant(classInfo, memberName, ma); constValue != nil {
+		if constValue := i.getClassConstant(classInfo, memberName); constValue != nil {
 			return constValue
 		}
 		if propInfo := classInfo.lookupProperty(memberName); propInfo != nil {
@@ -614,7 +614,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 		if !ok {
 			return i.newErrorWithLocation(ma, "object has invalid class type")
 		}
-		if constValue := i.getClassConstant(concreteClass, memberName, ma); constValue != nil {
+		if constValue := i.getClassConstant(concreteClass, memberName); constValue != nil {
 			return constValue
 		}
 
@@ -890,7 +890,7 @@ func (i *Interpreter) evalInheritedExpression(ie *ast.InheritedExpression) Value
 
 // getClassConstant retrieves and caches a class constant value by name.
 // Evaluates lazily on first access and supports inheritance.
-func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string, ma *ast.MemberAccessExpression) Value {
+func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string) Value {
 	constDecl, ownerClass := classInfo.lookupConstant(constantName)
 	if constDecl == nil {
 		return nil

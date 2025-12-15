@@ -218,6 +218,8 @@ func (a *Analyzer) analyzeOdd(args []ast.Expression, callExpr *ast.CallExpressio
 
 // analyzeDivMod analyzes the DivMod built-in procedure.
 // DivMod(dividend, divisor: Integer; var quotient, remainder: Integer)
+//
+//nolint:unparam // returns nil for procedures (void functions)
 func (a *Analyzer) analyzeDivMod(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 4 {
 		a.addError("function 'DivMod' expects 4 arguments, got %d at %s",

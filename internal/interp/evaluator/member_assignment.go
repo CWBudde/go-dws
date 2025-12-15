@@ -129,7 +129,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 				propInfo := recVal.LookupProperty(fieldName)
 				if propInfo != nil && propInfo.Impl != nil {
 					if recordPropInfo, ok := propInfo.Impl.(*types.RecordPropertyInfo); ok {
-						return e.executeRecordPropertyWrite(objVal, recordPropInfo, value, stmt, ctx)
+						return e.executeRecordPropertyWrite(objVal, recordPropInfo, value, stmt)
 					}
 				}
 			}

@@ -40,7 +40,7 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 				}
 			}
 			if annotatedSetType == nil {
-				annotatedSetType = e.parseInlineSetType(typeAnnot.Name, ctx)
+				annotatedSetType = e.parseInlineSetType(typeAnnot.Name)
 			}
 		}
 	}
@@ -173,7 +173,7 @@ func (e *Evaluator) evalSetRangeElement(
 	if *elementType == nil {
 		if enumVal, isEnum := startVal.(*runtime.EnumValue); isEnum {
 			// Get enum type from environment
-			et, err := e.lookupEnumType(enumVal.TypeName, ctx)
+			et, err := e.lookupEnumType(enumVal.TypeName)
 			if err != nil {
 				return e.newError(rangeExpr, "%s", err.Error())
 			}
@@ -239,7 +239,7 @@ func (e *Evaluator) evalSetSimpleElement(
 	if *elementType == nil {
 		if enumVal, isEnum := elemVal.(*runtime.EnumValue); isEnum {
 			// Get enum type from environment
-			et, lookupErr := e.lookupEnumType(enumVal.TypeName, ctx)
+			et, lookupErr := e.lookupEnumType(enumVal.TypeName)
 			if lookupErr != nil {
 				return e.newError(elem, "%s", lookupErr.Error())
 			}
@@ -270,7 +270,7 @@ func (e *Evaluator) evalSetSimpleElement(
 }
 
 // lookupEnumType looks up an enum type by name from the TypeSystem.
-func (e *Evaluator) lookupEnumType(typeName string, ctx *ExecutionContext) (*types.EnumType, error) {
+func (e *Evaluator) lookupEnumType(typeName string) (*types.EnumType, error) {
 	// Enum types are stored in TypeSystem
 	// LookupEnumMetadata is case-insensitive by default
 	enumMetadata := e.typeSystem.LookupEnumMetadata(typeName)
@@ -289,7 +289,7 @@ func (e *Evaluator) lookupEnumType(typeName string, ctx *ExecutionContext) (*typ
 
 // parseInlineSetType parses inline set type syntax like "set of TEnumType".
 // Returns the SetType, or nil if the string doesn't match the expected format.
-func (e *Evaluator) parseInlineSetType(signature string, ctx *ExecutionContext) *types.SetType {
+func (e *Evaluator) parseInlineSetType(signature string) *types.SetType {
 	// Check for "set of " prefix (case-sensitive per DWScript spec)
 	if !strings.HasPrefix(signature, "set of ") {
 		return nil
@@ -302,7 +302,7 @@ func (e *Evaluator) parseInlineSetType(signature string, ctx *ExecutionContext) 
 	}
 
 	// Look up the enum type using existing helper
-	enumType, err := e.lookupEnumType(enumTypeName, ctx)
+	enumType, err := e.lookupEnumType(enumTypeName)
 	if err != nil {
 		return nil
 	}

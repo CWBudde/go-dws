@@ -233,12 +233,12 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		}
 
 		// Check helpers (prefer properties before methods for property-style access)
-		_, helperProp := a.hasHelperProperty(objectType, memberName)
+		helperProp := a.hasHelperProperty(objectType, memberName)
 		if helperProp != nil {
 			return helperProp.Type
 		}
 
-		_, helperMethod := a.hasHelperMethod(objectType, memberName)
+		helperMethod := a.hasHelperMethod(objectType, memberName)
 		if helperMethod != nil {
 			if len(helperMethod.Parameters) == 0 {
 				return helperMethod.ReturnType
@@ -371,7 +371,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	// Check helpers for methods
-	_, helperMethod := a.hasHelperMethod(objectType, memberName)
+	helperMethod := a.hasHelperMethod(objectType, memberName)
 	if helperMethod != nil {
 		if len(helperMethod.Parameters) == 0 {
 			return helperMethod.ReturnType
@@ -380,7 +380,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	// Check helpers for properties
-	_, helperProp := a.hasHelperProperty(objectType, memberName)
+	helperProp := a.hasHelperProperty(objectType, memberName)
 	if helperProp != nil {
 		return helperProp.Type
 	}

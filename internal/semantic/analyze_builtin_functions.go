@@ -39,7 +39,7 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	switch lowerName {
 	// I/O Functions
 	case "println", "print":
-		return a.analyzePrintLn(args, callExpr), true
+		return a.analyzePrintLn(args), true
 
 	// Type Conversion
 	case "ord", "integer":
@@ -856,7 +856,7 @@ func (a *Analyzer) getBuiltinReturnType(name string) (types.Type, bool) {
 
 // analyzePrintLn analyzes the PrintLn/Print built-in function.
 // These functions accept any number of arguments of any type and return void.
-func (a *Analyzer) analyzePrintLn(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+func (a *Analyzer) analyzePrintLn(args []ast.Expression) types.Type {
 	// Analyze arguments for side effects (but accept any type)
 	for _, arg := range args {
 		a.analyzeExpression(arg)

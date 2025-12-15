@@ -354,7 +354,7 @@ func (p *Parser) parseTypeKind(nameIdent *ast.Identifier, typeToken lexer.Token,
 		// type THelper = helper for TypeName ... end;
 		cursor = cursor.Advance() // move to HELPER
 		p.cursor = cursor
-		return p.parseHelperDeclaration(nameIdent, typeToken, false)
+		return p.parseHelperDeclaration(nameIdent, false)
 	}
 
 	// Unknown type declaration

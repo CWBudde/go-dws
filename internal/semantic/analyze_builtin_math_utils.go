@@ -138,6 +138,8 @@ func (a *Analyzer) analyzeAssigned(args []ast.Expression, callExpr *ast.CallExpr
 
 // analyzeSwap analyzes the Swap built-in function.
 // Swap takes 2 var arguments and swaps their values.
+//
+//nolint:unparam // returns nil for procedures (void functions)
 func (a *Analyzer) analyzeSwap(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 2 {
 		a.addError("function 'Swap' expects 2 arguments, got %d at %s",
@@ -193,6 +195,8 @@ func (a *Analyzer) analyzeRandomInt(args []ast.Expression, callExpr *ast.CallExp
 
 // analyzeRandomize analyzes the Randomize built-in procedure.
 // Randomize takes no arguments and returns nothing (nil/void).
+//
+//nolint:unparam // returns nil for procedures (void functions)
 func (a *Analyzer) analyzeRandomize(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 0 {
 		a.addError("function 'Randomize' expects no arguments, got %d at %s",
@@ -203,6 +207,8 @@ func (a *Analyzer) analyzeRandomize(args []ast.Expression, callExpr *ast.CallExp
 
 // analyzeSetRandSeed analyzes the SetRandSeed built-in function.
 // SetRandSeed takes 1 Integer argument and sets the random seed.
+//
+//nolint:unparam // returns nil for procedures (void functions)
 func (a *Analyzer) analyzeSetRandSeed(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
 		a.addError("function 'SetRandSeed' expects 1 argument, got %d at %s",

@@ -1214,7 +1214,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	}
 
 	if strings.HasPrefix(typeName, "set of ") {
-		setType := e.parseInlineSetType(typeName, ctx)
+		setType := e.parseInlineSetType(typeName)
 		if setType == nil {
 			return &runtime.NilValue{}
 		}

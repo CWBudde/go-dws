@@ -24,7 +24,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 	if cursor.Peek(1).Type == lexer.HELPER {
 		cursor = cursor.Advance() // move to HELPER
 		p.cursor = cursor
-		return p.parseHelperDeclaration(nameIdent, typeToken, true)
+		return p.parseHelperDeclaration(nameIdent, true)
 	}
 
 	// It's a regular record declaration - advance to first token inside record

@@ -287,6 +287,8 @@ func (d *Disassembler) simpleInstruction(inst Instruction) {
 }
 
 // constantInstruction prints an instruction that references the constant pool.
+//
+//nolint:unparam // offset kept for consistency with other instruction methods
 func (d *Disassembler) constantInstruction(inst Instruction, offset int) {
 	op := inst.OpCode()
 	var constIndex int

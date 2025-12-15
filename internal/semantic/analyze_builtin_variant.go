@@ -137,11 +137,13 @@ func (a *Analyzer) analyzeVarAsType(args []ast.Expression, callExpr *ast.CallExp
 
 // ensureVariantArgument verifies that the provided expression is of Variant type.
 // Some built-ins (like VarType) permit string literals for comparison purposes.
-func (a *Analyzer) ensureVariantArgument(expr ast.Expression, funcName string, callExpr *ast.CallExpression, allowStringLiteral bool) types.Type {
+//
+//nolint:unparam // return value used for side effects, consistency with other analyzers
+func (a *Analyzer) ensureVariantArgument(expr ast.Expression, funcName string, callExpr *ast.CallExpression, allowStringLiteral bool) {
 	if allowStringLiteral {
 		if _, ok := expr.(*ast.StringLiteral); ok {
 			// Allow string literals (e.g., VarType('string')) for type comparisons
-			return types.STRING
+			return
 		}
 	}
 
@@ -150,5 +152,4 @@ func (a *Analyzer) ensureVariantArgument(expr ast.Expression, funcName string, c
 		a.addError("function '%s' expects Variant argument, got %s at %s",
 			funcName, argType.String(), callExpr.Token.Pos.String())
 	}
-	return argType
 }

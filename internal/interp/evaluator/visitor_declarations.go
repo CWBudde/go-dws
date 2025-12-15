@@ -345,10 +345,7 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 		if propDecl == nil {
 			continue
 		}
-		propInfo, err := e.convertPropertyDecl(propDecl)
-		if err != nil {
-			return e.newError(propDecl, "%v", err)
-		}
+		propInfo := e.convertPropertyDecl(propDecl)
 		if propInfo != nil {
 			e.declHandler.AddInterfaceProperty(interfaceInfo, ident.Normalize(propDecl.Name.Value), propInfo)
 		}
@@ -361,7 +358,7 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 
 // Converts AST property declaration to PropertyInfo for runtime access.
 // Used by interface, class, and record evaluation.
-func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) (*types.PropertyInfo, error) {
+func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.PropertyInfo {
 	// Resolve property type
 	var propType types.Type
 	switch propDecl.Type.String() {
@@ -427,7 +424,7 @@ func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) (*types.Prop
 		propInfo.WriteKind = types.PropAccessNone
 	}
 
-	return propInfo, nil
+	return propInfo
 }
 
 // Checks for circular interface inheritance to prevent infinite loops.

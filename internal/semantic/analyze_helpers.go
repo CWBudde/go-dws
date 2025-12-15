@@ -335,11 +335,11 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 }
 
 // hasHelperMethod checks if any helper for the given type defines the specified method.
-// Returns the helper type and method if found.
-func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) (*types.HelperType, *types.FunctionType) {
+// Returns the method if found (helper type not used by callers).
+func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) *types.FunctionType {
 	helpers := a.getHelpersForType(typ)
 	if helpers == nil {
-		return nil, nil
+		return nil
 	}
 
 	// Check helpers in reverse order (user-defined take precedence over built-ins)
@@ -360,33 +360,33 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) (*types.He
 					specialized.LazyParams = method.LazyParams
 					specialized.IsVariadic = method.IsVariadic
 					specialized.VariadicType = method.VariadicType
-					return helper, specialized
+					return specialized
 				}
 			}
-			return helper, method
+			return method
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
 // hasHelperProperty checks if any helper for the given type defines the specified property.
-// Returns the helper type and property if found.
-func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) (*types.HelperType, *types.PropertyInfo) {
+// Returns the property if found (helper type not used by callers).
+func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) *types.PropertyInfo {
 	helpers := a.getHelpersForType(typ)
 	if helpers == nil {
-		return nil, nil
+		return nil
 	}
 
 	// Check helpers in reverse order (user-defined take precedence over built-ins)
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if prop := findPropertyCaseInsensitive(helper.Properties, propName); prop != nil {
-			return helper, prop
+			return prop
 		}
 	}
 
-	return nil, nil
+	return nil
 }
 
 // hasHelperClassVar checks if any helper for the given type defines the specified class variable.

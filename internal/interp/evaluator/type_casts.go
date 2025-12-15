@@ -266,7 +266,7 @@ func (e *Evaluator) castToEnum(val Value, targetEnum *types.EnumType, typeName s
 // builtinDefault handles the Default() built-in function which expects an unevaluated type identifier.
 // Default(Integer) should pass "Integer" as a string, not evaluate it as a variable.
 // Returns the default/zero value for the specified type, or nil if not a valid type.
-func (e *Evaluator) builtinDefault(args []ast.Expression, ctx *ExecutionContext) Value {
+func (e *Evaluator) builtinDefault(args []ast.Expression) Value {
 	// Check argument count
 	if len(args) != 1 {
 		return &runtime.ErrorValue{Message: "Default() expects exactly one argument"}

@@ -169,7 +169,7 @@ func (e *Evaluator) executePropertySetterMethod(obj Value, objVal ObjectValue, p
 //   - value: The value to assign to the property
 //   - node: AST node for error reporting
 //   - ctx: Execution context for environment and call stack
-func (e *Evaluator) executeRecordPropertyWrite(record Value, propInfo *types.RecordPropertyInfo, value Value, node ast.Node, ctx *ExecutionContext) Value {
+func (e *Evaluator) executeRecordPropertyWrite(record Value, propInfo *types.RecordPropertyInfo, value Value, node ast.Node) Value {
 	// Check if property has write access
 	if propInfo.WriteField == "" {
 		return e.newError(node, "property '%s' is read-only", propInfo.Name)
@@ -184,7 +184,7 @@ func (e *Evaluator) executeRecordPropertyWrite(record Value, propInfo *types.Rec
 	// Check if WriteField is a method or a field
 	// Try as method first
 	if recVal.HasRecordMethod(propInfo.WriteField) {
-		return e.executeRecordPropertySetterMethod(record, recVal, propInfo, value, node, ctx)
+		return e.executeRecordPropertySetterMethod(record, recVal, propInfo, value, node)
 	}
 
 	// Field-backed property - direct field assignment
@@ -206,7 +206,7 @@ func (e *Evaluator) executeRecordFieldBackedPropertyWrite(recVal *runtime.Record
 
 // executeRecordPropertySetterMethod handles method-backed record property writes.
 // Executes the setter method specified by WriteField.
-func (e *Evaluator) executeRecordPropertySetterMethod(record Value, recVal *runtime.RecordValue, propInfo *types.RecordPropertyInfo, value Value, node ast.Node, ctx *ExecutionContext) Value {
+func (e *Evaluator) executeRecordPropertySetterMethod(record Value, recVal *runtime.RecordValue, propInfo *types.RecordPropertyInfo, value Value, node ast.Node) Value {
 	methodName := propInfo.WriteField
 
 	// Get the setter method declaration

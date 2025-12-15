@@ -71,7 +71,7 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 
 	// Dispatch to specialized handlers for special value types
 	if refVal, isRef := existingVal.(ReferenceValueAccessor); isRef {
-		return e.evalReferenceAssignment(refVal, value, target, stmt, ctx)
+		return e.evalReferenceAssignment(refVal, value, target, ctx)
 	}
 	if existingVal.Type() == "EXTERNAL_VAR" {
 		return e.errorForExternalVar(existingVal, target)
@@ -340,7 +340,6 @@ func (e *Evaluator) evalReferenceAssignment(
 	refVal ReferenceValueAccessor,
 	value Value,
 	target *ast.Identifier,
-	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
 	currentVal, err := refVal.Dereference()

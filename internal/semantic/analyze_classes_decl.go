@@ -529,7 +529,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	if len(decl.Interfaces) > 0 {
 		a.validateInterfaceImplementation(classType, decl)
 	}
-	a.validateAbstractClass(classType, decl)
+	a.validateAbstractClass(classType)
 }
 
 // analyzeMethodImplementation analyzes an out-of-line method implementation.
@@ -561,12 +561,12 @@ func (a *Analyzer) analyzeClassMethodImplementation(decl *ast.FunctionDecl, clas
 	if decl.IsConstructor {
 		overloads := classType.GetConstructorOverloads(methodName)
 		if len(overloads) > 0 {
-			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads, className)
+			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads)
 		}
 	} else {
 		overloads := classType.GetMethodOverloads(methodName)
 		if len(overloads) > 0 {
-			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads, className)
+			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads)
 		} else {
 			declaredMethod, methodExists = classType.Methods[methodName]
 		}
@@ -618,14 +618,14 @@ func (a *Analyzer) analyzeRecordMethodImplementation(decl *ast.FunctionDecl, rec
 	if decl.IsClassMethod {
 		overloads := recordType.GetClassMethodOverloads(lowerMethodName)
 		if len(overloads) > 0 {
-			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads, recordName)
+			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads)
 		} else {
 			declaredMethod, methodExists = recordType.ClassMethods[lowerMethodName]
 		}
 	} else {
 		overloads := recordType.GetMethodOverloads(lowerMethodName)
 		if len(overloads) > 0 {
-			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads, recordName)
+			declaredMethod, methodExists = a.findMatchingOverloadForImplementation(decl, overloads)
 		} else {
 			declaredMethod, methodExists = recordType.Methods[lowerMethodName]
 		}
@@ -713,7 +713,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 }
 
 // findMatchingOverloadForImplementation finds the declared overload matching an implementation's signature.
-func (a *Analyzer) findMatchingOverloadForImplementation(implDecl *ast.FunctionDecl, overloads []*types.MethodInfo, className string) (*types.FunctionType, bool) {
+func (a *Analyzer) findMatchingOverloadForImplementation(implDecl *ast.FunctionDecl, overloads []*types.MethodInfo) (*types.FunctionType, bool) {
 	implParamCount := len(implDecl.Parameters)
 
 	// Filter overloads by parameter count.

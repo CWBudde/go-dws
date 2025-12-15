@@ -821,6 +821,8 @@ func runeLength(s string) int {
 // runeAt returns the rune at the given 1-based index in the string.
 // Returns the rune and true if the index is valid, or 0 and false otherwise.
 // DWScript uses 1-based indexing, so index 1 returns the first character.
+//
+//nolint:unparam // index varies in other packages (e.g., internal/interp/array.go)
 func runeAt(s string, index int) (rune, bool) {
 	if index < 1 {
 		return 0, false

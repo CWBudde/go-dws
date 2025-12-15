@@ -452,6 +452,8 @@ func extractDateComponents(dt float64) (year, month, day int) {
 }
 
 // extractTimeComponents extracts hour, minute, second, millisecond from a TDateTime value.
+//
+//nolint:unparam // millisecond is used by some callers
 func extractTimeComponents(dt float64) (hour, minute, second, millisecond int) {
 	t := delphiDateTimeToGoTime(dt)
 	return t.Hour(), t.Minute(), t.Second(), t.Nanosecond() / 1000000
