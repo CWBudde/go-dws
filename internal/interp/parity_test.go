@@ -49,29 +49,6 @@ func runParityTest(t *testing.T, name string, input string, expected string) {
 	})
 }
 
-// runParityTestContains is a helper that checks output contains expected substring
-func runParityTestContains(t *testing.T, name string, input string, expected string) {
-	t.Helper()
-	t.Run(name, func(t *testing.T) {
-		l := lexer.New(input)
-		p := parser.New(l)
-		program := p.ParseProgram()
-
-		if len(p.Errors()) > 0 {
-			t.Fatalf("parser errors: %v", p.Errors())
-		}
-
-		var buf bytes.Buffer
-		interp := New(&buf)
-		interp.Eval(program)
-
-		output := buf.String()
-		if !strings.Contains(output, expected) {
-			t.Errorf("expected output to contain %q, got %q", expected, output)
-		}
-	})
-}
-
 // ============================================================================
 // 1. Exception Handling Parity Tests
 // ============================================================================

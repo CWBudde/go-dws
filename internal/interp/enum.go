@@ -181,45 +181,6 @@ func (e *EnumTypeValue) GetEnumType() *types.EnumType {
 // Enum Literal Evaluation
 // ============================================================================
 
-// evalEnumLiteral evaluates an enum literal expression.
-// Examples: Red, TColor.Green
-func (i *Interpreter) evalEnumLiteral(literal *ast.EnumLiteral) Value {
-	if literal == nil {
-		return &ErrorValue{Message: "nil enum literal"}
-	}
-
-	// For scoped references (e.g., TColor.Red), the semantic analyzer
-	// should have already validated that the enum type exists and the
-	// value is valid. We just need to look up the value.
-
-	valueName := literal.ValueName
-
-	// Look up the value in the environment
-	val, ok := i.Env().Get(valueName)
-	if !ok {
-		return &ErrorValue{
-			Message: fmt.Sprintf("undefined enum value '%s'", valueName),
-		}
-	}
-
-	// Verify it's an enum value
-	enumVal, ok := val.(*EnumValue)
-	if !ok {
-		return &ErrorValue{
-			Message: fmt.Sprintf("'%s' is not an enum value (got %s)", valueName, val.Type()),
-		}
-	}
-
-	// If it's a scoped reference, verify the type matches
-	if literal.EnumName != "" && enumVal.TypeName != literal.EnumName {
-		return &ErrorValue{
-			Message: fmt.Sprintf("enum value '%s' does not belong to type '%s'", valueName, literal.EnumName),
-		}
-	}
-
-	return enumVal
-}
-
 // extractEnumOrdinal coerces a value produced by an enum ValueExpr into an ordinal integer.
 // Supports integers, enums, booleans, single-character strings, subrange values, and
 // registered implicit conversions to Integer.

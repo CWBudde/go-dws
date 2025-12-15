@@ -46,29 +46,6 @@ func runeReplace(s string, index int, replacement rune) (string, bool) {
 	return string(runes), true
 }
 
-// runeSliceFrom returns a substring starting from a 1-based position and taking count characters.
-// This is commonly used in DWScript's Copy function: Copy(str, start, count)
-func runeSliceFrom(s string, start, count int) string {
-	if start < 1 || count <= 0 {
-		return ""
-	}
-
-	runes := []rune(s)
-	length := len(runes)
-
-	startIdx := start - 1 // Convert to 0-based
-	if startIdx >= length {
-		return ""
-	}
-
-	endIdx := startIdx + count
-	if endIdx > length {
-		endIdx = length
-	}
-
-	return string(runes[startIdx:endIdx])
-}
-
 // runeDelete removes count characters starting from a 1-based position.
 // This is used for DWScript's Delete procedure.
 func runeDelete(s string, pos, count int) string {

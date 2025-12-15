@@ -432,11 +432,6 @@ func (e *Evaluator) SetVar(ctx *ExecutionContext, name string, value Value) bool
 	return ctx.Env().Set(name, value) == nil
 }
 
-// raiseMaxRecursionExceeded raises a max recursion exception.
-func (e *Evaluator) raiseMaxRecursionExceeded(node ast.Node) Value {
-	return e.newError(node, "maximum recursion depth exceeded")
-}
-
 // Eval evaluates an AST node using the visitor pattern.
 func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	e.currentContext = ctx

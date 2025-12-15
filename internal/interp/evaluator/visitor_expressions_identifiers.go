@@ -337,7 +337,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 
 	// 2. Check recursion depth
 	if ctx.GetCallStack().WillOverflow() {
-		return e.raiseMaxRecursionExceeded(node)
+		return e.newError(node, "maximum recursion depth exceeded")
 	}
 
 	// 3. Push function name onto call stack for stack traces
