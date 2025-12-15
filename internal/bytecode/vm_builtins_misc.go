@@ -17,16 +17,16 @@ func builtinPrintLn(vm *VM, args []Value) (Value, error) {
 	if vm.output != nil {
 		for i, arg := range args {
 			if i > 0 {
-				fmt.Fprint(vm.output, " ")
+				_, _ = fmt.Fprint(vm.output, " ")
 			}
 			// Unquote strings for output
 			if arg.IsString() {
-				fmt.Fprint(vm.output, arg.AsString())
+				_, _ = fmt.Fprint(vm.output, arg.AsString())
 			} else {
-				fmt.Fprint(vm.output, arg.String())
+				_, _ = fmt.Fprint(vm.output, arg.String())
 			}
 		}
-		fmt.Fprintln(vm.output)
+		_, _ = fmt.Fprintln(vm.output)
 	}
 	return NilValue(), nil
 }
@@ -35,13 +35,13 @@ func builtinPrint(vm *VM, args []Value) (Value, error) {
 	if vm.output != nil {
 		for i, arg := range args {
 			if i > 0 {
-				fmt.Fprint(vm.output, " ")
+				_, _ = fmt.Fprint(vm.output, " ")
 			}
 			// Unquote strings for output
 			if arg.IsString() {
-				fmt.Fprint(vm.output, arg.AsString())
+				_, _ = fmt.Fprint(vm.output, arg.AsString())
 			} else {
-				fmt.Fprint(vm.output, arg.String())
+				_, _ = fmt.Fprint(vm.output, arg.String())
 			}
 		}
 	}

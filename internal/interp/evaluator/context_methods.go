@@ -39,14 +39,14 @@ func (e *Evaluator) SetRandSeed(seed int64) {
 // Write outputs a string to the configured output writer without a newline.
 func (e *Evaluator) Write(s string) {
 	if e.output != nil {
-		io.WriteString(e.output, s)
+		_, _ = io.WriteString(e.output, s)
 	}
 }
 
 // WriteLine outputs a string to the configured output writer with a newline.
 func (e *Evaluator) WriteLine(s string) {
 	if e.output != nil {
-		fmt.Fprintln(e.output, s)
+		_, _ = fmt.Fprintln(e.output, s)
 	}
 }
 

@@ -275,31 +275,41 @@ func (v Value) IsVariant() bool {
 // Type conversion methods
 func (v Value) AsBool() bool {
 	if v.Type == ValueBool {
-		return v.Data.(bool)
+		if b, ok := v.Data.(bool); ok {
+			return b
+		}
 	}
 	return false
 }
 
 func (v Value) AsInt() int64 {
 	if v.Type == ValueInt {
-		return v.Data.(int64)
+		if i, ok := v.Data.(int64); ok {
+			return i
+		}
 	}
 	return 0
 }
 
 func (v Value) AsFloat() float64 {
 	if v.Type == ValueFloat {
-		return v.Data.(float64)
+		if f, ok := v.Data.(float64); ok {
+			return f
+		}
 	}
 	if v.Type == ValueInt {
-		return float64(v.Data.(int64))
+		if i, ok := v.Data.(int64); ok {
+			return float64(i)
+		}
 	}
 	return 0.0
 }
 
 func (v Value) AsString() string {
 	if v.Type == ValueString {
-		return v.Data.(string)
+		if s, ok := v.Data.(string); ok {
+			return s
+		}
 	}
 	return ""
 }
@@ -378,16 +388,25 @@ func (v Value) String() string {
 	case ValueNil:
 		return "nil"
 	case ValueBool:
-		if v.Data.(bool) {
+		if b, ok := v.Data.(bool); ok && b {
 			return "true"
 		}
 		return "false"
 	case ValueInt:
-		return fmt.Sprintf("%d", v.Data.(int64))
+		if i, ok := v.Data.(int64); ok {
+			return fmt.Sprintf("%d", i)
+		}
+		return "0"
 	case ValueFloat:
-		return fmt.Sprintf("%g", v.Data.(float64))
+		if f, ok := v.Data.(float64); ok {
+			return fmt.Sprintf("%g", f)
+		}
+		return "0"
 	case ValueString:
-		return fmt.Sprintf("%q", v.Data.(string))
+		if s, ok := v.Data.(string); ok {
+			return fmt.Sprintf("%q", s)
+		}
+		return "\"\""
 	case ValueArray:
 		if arr := v.AsArray(); arr != nil {
 			return arr.String()
@@ -923,13 +942,33 @@ func (c *Chunk) valuesEqual(a, b Value) bool {
 	case ValueNil:
 		return true
 	case ValueBool:
-		return a.Data.(bool) == b.Data.(bool)
+		if va, ok := a.Data.(bool); ok {
+			if vb, ok := b.Data.(bool); ok {
+				return va == vb
+			}
+		}
+		return false
 	case ValueInt:
-		return a.Data.(int64) == b.Data.(int64)
+		if va, ok := a.Data.(int64); ok {
+			if vb, ok := b.Data.(int64); ok {
+				return va == vb
+			}
+		}
+		return false
 	case ValueFloat:
-		return a.Data.(float64) == b.Data.(float64)
+		if va, ok := a.Data.(float64); ok {
+			if vb, ok := b.Data.(float64); ok {
+				return va == vb
+			}
+		}
+		return false
 	case ValueString:
-		return a.Data.(string) == b.Data.(string)
+		if va, ok := a.Data.(string); ok {
+			if vb, ok := b.Data.(string); ok {
+				return va == vb
+			}
+		}
+		return false
 	default:
 		// For complex types (arrays, objects), don't deduplicate
 		return false

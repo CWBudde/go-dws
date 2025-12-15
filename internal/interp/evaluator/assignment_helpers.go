@@ -40,7 +40,9 @@ func cloneIfCopyable(val Value) Value {
 	// Clone copyable values (static arrays)
 	if copyable, ok := val.(runtime.CopyableValue); ok {
 		if copied := copyable.Copy(); copied != nil {
-			return copied.(Value)
+			if v, ok := copied.(Value); ok {
+				return v
+			}
 		}
 	}
 
@@ -59,63 +61,7 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 
 	existingValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// Not in environment - check implicit Self context (fields/properties/class vars)
-		if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
-			if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
-				if objVal, ok := selfVal.(ObjectValue); ok {
-					// Try instance field
-					if fieldValue := objVal.GetField(targetName); fieldValue != nil {
-						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
-							objInst.SetField(targetName, value)
-							return value
-						}
-						return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)
-					}
-
-					// Try class variable
-					if _, found := objVal.GetClassVar(targetName); found {
-						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
-							className := ""
-							if objInst.Class != nil {
-								className = objInst.Class.GetName()
-							}
-							if className != "" {
-								if classMetaVal := e.oopEngine.LookupClassByName(className); classMetaVal != nil {
-									if classMetaVal.SetClassVar(targetName, value) {
-										return value
-									}
-									return e.newError(target, "failed to set class variable '%s'", targetName)
-								}
-							}
-						}
-						return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
-					}
-
-					// Try property
-					if objVal.HasProperty(targetName) {
-						return objVal.WriteProperty(targetName, value, func(propInfo any, val Value) Value {
-							return e.executePropertyWrite(selfVal, propInfo, val, target, ctx)
-						})
-					}
-				}
-			}
-		}
-
-		// Check class method context (__CurrentClass__)
-		if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
-			if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-				if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
-					if _, found := classMetaVal.GetClassVar(targetName); found {
-						if classMetaVal.SetClassVar(targetName, value) {
-							return value
-						}
-						return e.newError(target, "failed to set class variable '%s'", targetName)
-					}
-				}
-			}
-		}
-
-		return e.newError(target, "undefined variable '%s'", targetName)
+		return e.assignToImplicitTarget(target, targetName, value, ctx)
 	}
 
 	existingVal, ok := existingValRaw.(Value)
@@ -123,131 +69,270 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		return e.newError(target, "variable '%s' has invalid type (not a Value)", targetName)
 	}
 
-	// Var parameter (ReferenceValue)
+	// Dispatch to specialized handlers for special value types
 	if refVal, isRef := existingVal.(ReferenceValueAccessor); isRef {
 		return e.evalReferenceAssignment(refVal, value, target, stmt, ctx)
 	}
-
-	// External variable
 	if existingVal.Type() == "EXTERNAL_VAR" {
-		if extVar, ok := existingVal.(ExternalVarAccessor); ok {
-			return e.newError(target, "Unsupported external variable assignment: %s", extVar.ExternalVarName())
-		}
-		return e.newError(target, "Unsupported external variable assignment")
+		return e.errorForExternalVar(existingVal, target)
 	}
-
-	// Subrange validation
 	if subrangeVal, isSubrange := existingVal.(SubrangeValueAccessor); isSubrange {
 		return e.evalSubrangeAssignment(subrangeVal, value, target)
 	}
-
-	// Interface variable - ref counting
 	if ifaceInst, isIface := existingVal.(*runtime.InterfaceInstance); isIface {
-		refMgr := ctx.RefCountManager()
-		refMgr.ReleaseInterface(ifaceInst)
-
-		// Wrap new value in interface
-		if objInst, ok := value.(*runtime.ObjectInstance); ok {
-			value = refMgr.WrapInInterface(ifaceInst.Interface, objInst)
-		} else if srcIface, isSrcIface := value.(*runtime.InterfaceInstance); isSrcIface {
-			// Task 4.0.10: When assigning an interface to an interface variable,
-			// just reuse the source interface WITHOUT incrementing refcount.
-			// The source already has the correct refcount, and we're just storing
-			// a reference to it. Incrementing here would cause a refcount leak.
-			value = &runtime.InterfaceInstance{
-				Interface: ifaceInst.Interface,
-				Object:    srcIface.Object,
-			}
-		} else if _, isNil := value.(*runtime.NilValue); isNil {
-			value = &runtime.InterfaceInstance{
-				Interface: ifaceInst.Interface,
-				Object:    nil,
-			}
-		}
-
-		e.SetVar(ctx, targetName, value)
-		return value
+		return e.assignToInterfaceVar(ifaceInst, value, targetName, ctx)
 	}
-
-	// Assigning interface to non-interface variable (e.g. Result initialized as NilValue)
-	// This handles the case where the variable wasn't properly initialized as InterfaceInstance
 	if _, isSrcIface := value.(*runtime.InterfaceInstance); isSrcIface {
-		// Task 4.0.10: Do NOT increment refcount here.
-		// The source interface already has the correct refcount.
-		// We're just storing a reference to the same interface instance.
-		// Incrementing here would cause a refcount leak.
+		// Assigning interface to non-interface variable
 		e.SetVar(ctx, targetName, value)
 		return value
 	}
-
-	// Object variable - ref counting
 	if objInst, isObj := existingVal.(*runtime.ObjectInstance); isObj {
-		refMgr := ctx.RefCountManager()
-
-		if _, isNil := value.(*runtime.NilValue); isNil {
-			refMgr.ReleaseObject(objInst)
-		} else if newObj, isNewObj := value.(*runtime.ObjectInstance); isNewObj {
-			if objInst != newObj {
-				refMgr.ReleaseObject(objInst)
-				refMgr.IncrementRef(newObj)
-			}
-		} else {
-			refMgr.ReleaseObject(objInst)
-		}
-
-		e.SetVar(ctx, targetName, value)
-		return value
+		return e.assignToObjectVar(objInst, value, targetName, ctx)
 	}
 
-	// Implicit type conversion
-	if value != nil {
-		targetType := existingVal.Type()
-		sourceType := value.Type()
-		if targetType != sourceType {
-			if converted, ok := e.TryImplicitConversion(value, targetType, ctx); ok {
-				value = converted
-			}
-		}
+	// Regular variable assignment with type conversion and cloning
+	value = e.prepareValueForAssignment(existingVal, value, stmt, ctx)
 
-		// Box value if target is Variant
-		if targetType == "VARIANT" && sourceType != "VARIANT" {
-			value = runtime.BoxVariant(value)
-		}
-	}
-
-	// Clone copyable values (static arrays), except indexed expressions (keep reference for write-back)
-	if stmt == nil {
-		value = cloneIfCopyable(value)
-	} else {
-		if _, isIndexExpr := stmt.Value.(*ast.IndexExpression); !isIndexExpr {
-			value = cloneIfCopyable(value)
-		}
-	}
-
-	// Object value - increment ref count (interfaces handle wrapping separately)
-	if newObj, isNewObj := value.(*runtime.ObjectInstance); isNewObj {
-		if _, isIface := existingVal.(*runtime.InterfaceInstance); !isIface {
-			refMgr := ctx.RefCountManager()
-			refMgr.IncrementRef(newObj)
-		}
-	}
-
-	// Method pointer - increment ref count for SelfObject
-	if value != nil && value.Type() == "METHOD_POINTER" {
-		refMgr := ctx.RefCountManager()
-		if funcPtr, isFuncPtr := value.(*runtime.FunctionPointerValue); isFuncPtr {
-			if funcPtr.SelfObject != nil {
-				refMgr.IncrementRef(funcPtr.SelfObject)
-			}
-		}
-	}
-
-	// Update variable
 	if e.SetVar(ctx, targetName, value) {
 		return value
 	}
-
 	return e.newError(target, "undefined variable: %s", targetName)
+}
+
+// assignToImplicitTarget handles assignment when the target is not in the environment.
+// Checks Self context (fields/properties/class vars) and __CurrentClass__ context.
+func (e *Evaluator) assignToImplicitTarget(
+	target *ast.Identifier,
+	targetName string,
+	value Value,
+	ctx *ExecutionContext,
+) Value {
+	// Check Self context for fields, class vars, properties
+	if selfRaw, ok := ctx.Env().Get("Self"); ok {
+		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
+			if result := e.assignToSelfMember(target, targetName, value, selfVal, ctx); result != nil {
+				return result
+			}
+		}
+	}
+
+	// Check __CurrentClass__ for class variables in class methods
+	if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
+		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
+			if result := e.assignToCurrentClassVar(target, targetName, value, classInfoVal); result != nil {
+				return result
+			}
+		}
+	}
+
+	return e.newError(target, "undefined variable '%s'", targetName)
+}
+
+// assignToSelfMember tries to assign to a field, class var, or property of Self.
+// Returns nil if targetName is not a member of Self.
+func (e *Evaluator) assignToSelfMember(
+	target *ast.Identifier,
+	targetName string,
+	value Value,
+	selfVal Value,
+	ctx *ExecutionContext,
+) Value {
+	objVal, ok := selfVal.(ObjectValue)
+	if !ok {
+		return nil
+	}
+
+	// Try instance field
+	if objVal.GetField(targetName) != nil {
+		if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
+			objInst.SetField(targetName, value)
+			return value
+		}
+		return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)
+	}
+
+	// Try class variable
+	if _, found := objVal.GetClassVar(targetName); found {
+		return e.assignToClassVarViaSelf(target, targetName, value, selfVal)
+	}
+
+	// Try property
+	if objVal.HasProperty(targetName) {
+		return objVal.WriteProperty(targetName, value, func(propInfo any, val Value) Value {
+			return e.executePropertyWrite(selfVal, propInfo, val, target, ctx)
+		})
+	}
+
+	return nil
+}
+
+// assignToClassVarViaSelf assigns to a class variable accessed through Self.
+func (e *Evaluator) assignToClassVarViaSelf(
+	target *ast.Identifier,
+	targetName string,
+	value Value,
+	selfVal Value,
+) Value {
+	objInst, ok := selfVal.(*runtime.ObjectInstance)
+	if !ok || objInst.Class == nil {
+		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
+	}
+
+	className := objInst.Class.GetName()
+	if className == "" {
+		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
+	}
+
+	classMetaVal := e.oopEngine.LookupClassByName(className)
+	if classMetaVal == nil {
+		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
+	}
+
+	if classMetaVal.SetClassVar(targetName, value) {
+		return value
+	}
+	return e.newError(target, "failed to set class variable '%s'", targetName)
+}
+
+// assignToCurrentClassVar assigns to a class variable in __CurrentClass__ context.
+// Returns nil if targetName is not a class variable.
+func (e *Evaluator) assignToCurrentClassVar(
+	target *ast.Identifier,
+	targetName string,
+	value Value,
+	classInfoVal Value,
+) Value {
+	classMetaVal, ok := classInfoVal.(ClassMetaValue)
+	if !ok {
+		return nil
+	}
+
+	if _, found := classMetaVal.GetClassVar(targetName); !found {
+		return nil
+	}
+
+	if classMetaVal.SetClassVar(targetName, value) {
+		return value
+	}
+	return e.newError(target, "failed to set class variable '%s'", targetName)
+}
+
+// errorForExternalVar returns an error for unsupported external variable assignment.
+func (e *Evaluator) errorForExternalVar(existingVal Value, target *ast.Identifier) Value {
+	if extVar, ok := existingVal.(ExternalVarAccessor); ok {
+		return e.newError(target, "Unsupported external variable assignment: %s", extVar.ExternalVarName())
+	}
+	return e.newError(target, "Unsupported external variable assignment")
+}
+
+// assignToInterfaceVar handles assignment to an interface variable with ref counting.
+func (e *Evaluator) assignToInterfaceVar(
+	ifaceInst *runtime.InterfaceInstance,
+	value Value,
+	targetName string,
+	ctx *ExecutionContext,
+) Value {
+	refMgr := ctx.RefCountManager()
+	refMgr.ReleaseInterface(ifaceInst)
+
+	// Wrap new value in interface based on its type
+	switch v := value.(type) {
+	case *runtime.ObjectInstance:
+		value = refMgr.WrapInInterface(ifaceInst.Interface, v)
+	case *runtime.InterfaceInstance:
+		// Reuse source interface WITHOUT incrementing refcount
+		value = &runtime.InterfaceInstance{
+			Interface: ifaceInst.Interface,
+			Object:    v.Object,
+		}
+	case *runtime.NilValue:
+		value = &runtime.InterfaceInstance{
+			Interface: ifaceInst.Interface,
+			Object:    nil,
+		}
+	}
+
+	e.SetVar(ctx, targetName, value)
+	return value
+}
+
+// assignToObjectVar handles assignment to an object variable with ref counting.
+func (e *Evaluator) assignToObjectVar(
+	objInst *runtime.ObjectInstance,
+	value Value,
+	targetName string,
+	ctx *ExecutionContext,
+) Value {
+	refMgr := ctx.RefCountManager()
+
+	switch v := value.(type) {
+	case *runtime.NilValue:
+		refMgr.ReleaseObject(objInst)
+	case *runtime.ObjectInstance:
+		if objInst != v {
+			refMgr.ReleaseObject(objInst)
+			refMgr.IncrementRef(v)
+		}
+	default:
+		refMgr.ReleaseObject(objInst)
+	}
+
+	e.SetVar(ctx, targetName, value)
+	return value
+}
+
+// prepareValueForAssignment applies type conversion, variant boxing, cloning, and ref counting.
+func (e *Evaluator) prepareValueForAssignment(
+	existingVal Value,
+	value Value,
+	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
+) Value {
+	if value == nil {
+		return value
+	}
+
+	targetType := existingVal.Type()
+	sourceType := value.Type()
+
+	// Implicit type conversion
+	if targetType != sourceType {
+		if converted, ok := e.TryImplicitConversion(value, targetType, ctx); ok {
+			value = converted
+		}
+	}
+
+	// Box value if target is Variant
+	if targetType == "VARIANT" && sourceType != "VARIANT" {
+		value = runtime.BoxVariant(value)
+	}
+
+	// Clone copyable values (static arrays), except indexed expressions
+	shouldClone := stmt == nil
+	if stmt != nil {
+		_, isIndexExpr := stmt.Value.(*ast.IndexExpression)
+		shouldClone = !isIndexExpr
+	}
+	if shouldClone {
+		value = cloneIfCopyable(value)
+	}
+
+	// Increment ref count for new objects (interfaces handle this separately)
+	if newObj, isNewObj := value.(*runtime.ObjectInstance); isNewObj {
+		if _, isIface := existingVal.(*runtime.InterfaceInstance); !isIface {
+			ctx.RefCountManager().IncrementRef(newObj)
+		}
+	}
+
+	// Increment ref count for method pointer's SelfObject
+	if value.Type() == "METHOD_POINTER" {
+		if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok && funcPtr.SelfObject != nil {
+			ctx.RefCountManager().IncrementRef(funcPtr.SelfObject)
+		}
+	}
+
+	return value
 }
 
 // evalReferenceAssignment handles assignment through a var parameter.
@@ -347,113 +432,7 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 
 	currentValRaw, exists := ctx.Env().Get(targetName)
 	if !exists {
-		// Not in environment - check implicit Self context
-		if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
-			if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
-				if objVal, ok := selfVal.(ObjectValue); ok {
-					// Try instance field
-					if fieldValue := objVal.GetField(targetName); fieldValue != nil {
-						rightVal := e.Eval(stmt.Value, ctx)
-						if isError(rightVal) {
-							return rightVal
-						}
-
-						// Apply compound operation
-						result := e.applyCompoundOperation(stmt.Operator, fieldValue, rightVal, target)
-						if isError(result) {
-							return result
-						}
-
-						// Write back to field
-						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
-							objInst.SetField(targetName, result)
-							return result
-						}
-						return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)
-					}
-
-					// Try class variable
-					if classVarValue, found := objVal.GetClassVar(targetName); found {
-						rightVal := e.Eval(stmt.Value, ctx)
-						if isError(rightVal) {
-							return rightVal
-						}
-
-						result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target)
-						if isError(result) {
-							return result
-						}
-
-						if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
-							classInfo := objInst.Class
-							if classMetaVal, ok := classInfo.(ClassMetaValue); ok {
-								if classMetaVal.SetClassVar(targetName, result) {
-									return result
-								}
-								return e.newError(target, "failed to set class variable '%s'", targetName)
-							}
-						}
-						return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
-					}
-
-					// Try property (read-modify-write)
-					if objVal.HasProperty(targetName) {
-						currentPropValue := objVal.ReadProperty(targetName, func(propInfo any) Value {
-							return e.executePropertyRead(selfVal, propInfo, target, ctx)
-						})
-						if isError(currentPropValue) {
-							return currentPropValue
-						}
-
-						// Evaluate RHS
-						rightVal := e.Eval(stmt.Value, ctx)
-						if isError(rightVal) {
-							return rightVal
-						}
-
-						// Apply compound operation
-						result := e.applyCompoundOperation(stmt.Operator, currentPropValue, rightVal, target)
-						if isError(result) {
-							return result
-						}
-
-						// Write back to property
-						return objVal.WriteProperty(targetName, result, func(propInfo any, val Value) Value {
-							return e.executePropertyWrite(selfVal, propInfo, val, target, ctx)
-						})
-					}
-				}
-			}
-		}
-
-		// Check class method context (__CurrentClass__)
-		if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
-			if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-				if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
-					// Check for class variable
-					if classVarValue, found := classMetaVal.GetClassVar(targetName); found {
-						rightVal := e.Eval(stmt.Value, ctx)
-						if isError(rightVal) {
-							return rightVal
-						}
-
-						// Apply compound operation
-						result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target)
-						if isError(result) {
-							return result
-						}
-
-						// Write back to class variable
-						if classMetaVal.SetClassVar(targetName, result) {
-							return result
-						}
-						return e.newError(target, "failed to set class variable '%s'", targetName)
-					}
-				}
-			}
-		}
-
-		return e.newError(target, "undefined variable '%s'", targetName)
+		return e.compoundAssignToImplicitTarget(target, targetName, stmt, ctx)
 	}
 
 	currentVal, ok := currentValRaw.(Value)
@@ -461,38 +440,12 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 		return e.newError(target, "variable '%s' has invalid type (not a Value)", targetName)
 	}
 
-	// Var parameter - read-modify-write
+	// Var parameter - read-modify-write through reference
 	if refVal, isRef := currentVal.(ReferenceValueAccessor); isRef {
-		// Dereference to get the actual value
-		derefVal, err := refVal.Dereference()
-		if err != nil {
-			return e.newError(target, "%s", err.Error())
-		}
-
-		// Evaluate the RHS
-		rightVal := e.Eval(stmt.Value, ctx)
-		if isError(rightVal) {
-			return rightVal
-		}
-		if ctx.Exception() != nil {
-			return &runtime.NilValue{}
-		}
-
-		// Apply the compound operation
-		result := e.applyCompoundOperation(stmt.Operator, derefVal, rightVal, stmt)
-		if isError(result) {
-			return result
-		}
-
-		// Write back through the reference
-		if err := refVal.Assign(result); err != nil {
-			return e.newError(target, "%s", err.Error())
-		}
-
-		return result
+		return e.compoundAssignToReference(refVal, target, stmt, ctx)
 	}
 
-	// Regular variable
+	// Regular variable - read-modify-write
 	rightVal := e.Eval(stmt.Value, ctx)
 	if isError(rightVal) {
 		return rightVal
@@ -501,19 +454,230 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 		return &runtime.NilValue{}
 	}
 
-	// Apply the compound operation
 	result := e.applyCompoundOperation(stmt.Operator, currentVal, rightVal, stmt)
 	if isError(result) {
 		return result
 	}
 
-	// Write the result back to the environment
 	if e.SetVar(ctx, targetName, result) {
 		return result
 	}
-
-	// Set failed - return error
 	return e.newError(target, "undefined variable: %s", targetName)
+}
+
+// compoundAssignToImplicitTarget handles compound assignment when target is not in environment.
+func (e *Evaluator) compoundAssignToImplicitTarget(
+	target *ast.Identifier,
+	targetName string,
+	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
+) Value {
+	// Check Self context
+	if selfRaw, ok := ctx.Env().Get("Self"); ok {
+		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
+			if result := e.compoundAssignToSelfMember(target, targetName, stmt, selfVal, ctx); result != nil {
+				return result
+			}
+		}
+	}
+
+	// Check __CurrentClass__ context
+	if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
+		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
+			if result := e.compoundAssignToCurrentClassVar(target, targetName, stmt, classInfoVal); result != nil {
+				return result
+			}
+		}
+	}
+
+	return e.newError(target, "undefined variable '%s'", targetName)
+}
+
+// compoundAssignToSelfMember handles compound assignment to Self's field, class var, or property.
+func (e *Evaluator) compoundAssignToSelfMember(
+	target *ast.Identifier,
+	targetName string,
+	stmt *ast.AssignmentStatement,
+	selfVal Value,
+	ctx *ExecutionContext,
+) Value {
+	objVal, ok := selfVal.(ObjectValue)
+	if !ok {
+		return nil
+	}
+
+	// Try instance field
+	if fieldValue := objVal.GetField(targetName); fieldValue != nil {
+		return e.compoundAssignToField(target, targetName, stmt, fieldValue, selfVal, ctx)
+	}
+
+	// Try class variable
+	if classVarValue, found := objVal.GetClassVar(targetName); found {
+		return e.compoundAssignToClassVarViaSelf(target, targetName, stmt, classVarValue, selfVal, ctx)
+	}
+
+	// Try property
+	if objVal.HasProperty(targetName) {
+		return e.compoundAssignToProperty(target, targetName, stmt, objVal, selfVal, ctx)
+	}
+
+	return nil
+}
+
+// compoundAssignToField handles compound assignment to an object field.
+func (e *Evaluator) compoundAssignToField(
+	target *ast.Identifier,
+	targetName string,
+	stmt *ast.AssignmentStatement,
+	fieldValue Value,
+	selfVal Value,
+	ctx *ExecutionContext,
+) Value {
+	rightVal := e.Eval(stmt.Value, ctx)
+	if isError(rightVal) {
+		return rightVal
+	}
+
+	result := e.applyCompoundOperation(stmt.Operator, fieldValue, rightVal, target)
+	if isError(result) {
+		return result
+	}
+
+	if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
+		objInst.SetField(targetName, result)
+		return result
+	}
+	return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)
+}
+
+// compoundAssignToClassVarViaSelf handles compound assignment to a class variable via Self.
+func (e *Evaluator) compoundAssignToClassVarViaSelf(
+	target *ast.Identifier,
+	targetName string,
+	stmt *ast.AssignmentStatement,
+	classVarValue Value,
+	selfVal Value,
+	ctx *ExecutionContext,
+) Value {
+	rightVal := e.Eval(stmt.Value, ctx)
+	if isError(rightVal) {
+		return rightVal
+	}
+
+	result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target)
+	if isError(result) {
+		return result
+	}
+
+	objInst, ok := selfVal.(*runtime.ObjectInstance)
+	if !ok {
+		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
+	}
+
+	classMetaVal, ok := objInst.Class.(ClassMetaValue)
+	if !ok {
+		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
+	}
+
+	if classMetaVal.SetClassVar(targetName, result) {
+		return result
+	}
+	return e.newError(target, "failed to set class variable '%s'", targetName)
+}
+
+// compoundAssignToProperty handles compound assignment to a property (read-modify-write).
+func (e *Evaluator) compoundAssignToProperty(
+	target *ast.Identifier,
+	targetName string,
+	stmt *ast.AssignmentStatement,
+	objVal ObjectValue,
+	selfVal Value,
+	ctx *ExecutionContext,
+) Value {
+	currentPropValue := objVal.ReadProperty(targetName, func(propInfo any) Value {
+		return e.executePropertyRead(selfVal, propInfo, target, ctx)
+	})
+	if isError(currentPropValue) {
+		return currentPropValue
+	}
+
+	rightVal := e.Eval(stmt.Value, ctx)
+	if isError(rightVal) {
+		return rightVal
+	}
+
+	result := e.applyCompoundOperation(stmt.Operator, currentPropValue, rightVal, target)
+	if isError(result) {
+		return result
+	}
+
+	return objVal.WriteProperty(targetName, result, func(propInfo any, val Value) Value {
+		return e.executePropertyWrite(selfVal, propInfo, val, target, ctx)
+	})
+}
+
+// compoundAssignToCurrentClassVar handles compound assignment in __CurrentClass__ context.
+func (e *Evaluator) compoundAssignToCurrentClassVar(
+	target *ast.Identifier,
+	targetName string,
+	stmt *ast.AssignmentStatement,
+	classInfoVal Value,
+) Value {
+	classMetaVal, ok := classInfoVal.(ClassMetaValue)
+	if !ok {
+		return nil
+	}
+
+	classVarValue, found := classMetaVal.GetClassVar(targetName)
+	if !found {
+		return nil
+	}
+
+	rightVal := e.Eval(stmt.Value, nil) // Note: ctx not needed for class var eval
+	if isError(rightVal) {
+		return rightVal
+	}
+
+	result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target)
+	if isError(result) {
+		return result
+	}
+
+	if classMetaVal.SetClassVar(targetName, result) {
+		return result
+	}
+	return e.newError(target, "failed to set class variable '%s'", targetName)
+}
+
+// compoundAssignToReference handles compound assignment through a var parameter.
+func (e *Evaluator) compoundAssignToReference(
+	refVal ReferenceValueAccessor,
+	target *ast.Identifier,
+	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
+) Value {
+	derefVal, err := refVal.Dereference()
+	if err != nil {
+		return e.newError(target, "%s", err.Error())
+	}
+
+	rightVal := e.Eval(stmt.Value, ctx)
+	if isError(rightVal) {
+		return rightVal
+	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
+
+	result := e.applyCompoundOperation(stmt.Operator, derefVal, rightVal, stmt)
+	if isError(result) {
+		return result
+	}
+
+	if err := refVal.Assign(result); err != nil {
+		return e.newError(target, "%s", err.Error())
+	}
+	return result
 }
 
 // ============================================================================
@@ -533,76 +697,84 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 // - Target variable is not an ArrayValue
 // - Target variable has no type information
 func (e *Evaluator) getArrayTypeFromTarget(target *ast.Identifier, ctx *ExecutionContext) *types.ArrayType {
-	existingVal, exists := ctx.Env().Get(target.Value)
-	if !exists {
-		existingVal = nil
-	}
-	// runtime.ArrayValue has ArrayType directly accessible
+	existingVal, _ := ctx.Env().Get(target.Value)
+
+	// Direct ArrayValue check
 	if arrVal, ok := existingVal.(*runtime.ArrayValue); ok {
 		return arrVal.ArrayType
 	}
 
-	// Last resort: resolve the identifier through evaluator lookup (can differ from raw Env().Get
-	// when name resolution involves aliases, special contexts, or wrapper values).
-	if target != nil {
-		resolved := e.VisitIdentifier(target, ctx)
-		if arrVal, ok := resolved.(*runtime.ArrayValue); ok {
-			return arrVal.ArrayType
-		}
-		if typeStringer, ok := resolved.(interface{ ArrayTypeString() string }); ok {
-			typeName := typeStringer.ArrayTypeString()
-			if typeName != "" && typeName != "array" {
-				resolvedType, err := e.ResolveTypeWithContext(typeName, ctx)
-				if err == nil {
-					if arrType, ok := resolvedType.(*types.ArrayType); ok {
-						return arrType
-					}
-					if underlying := types.GetUnderlyingType(resolvedType); underlying != nil {
-						if arrType, ok := underlying.(*types.ArrayType); ok {
-							return arrType
-						}
-					}
-				}
-			}
-		}
+	// Try evaluator lookup (handles aliases, special contexts, wrappers)
+	if arrType := e.resolveArrayTypeFromIdentifier(target, ctx); arrType != nil {
+		return arrType
 	}
 
-	// Fallback: infer from an array value that exposes its type string.
-	// This helps when the runtime value isn't a *runtime.ArrayValue (e.g. wrappers)
-	// or when ArrayType metadata wasn't populated but the type string is available.
-	if typeStringer, ok := existingVal.(interface{ ArrayTypeString() string }); ok {
-		typeName := typeStringer.ArrayTypeString()
-		if typeName != "" && typeName != "array" {
-			resolved, err := e.ResolveTypeWithContext(typeName, ctx)
-			if err == nil {
-				if arrType, ok := resolved.(*types.ArrayType); ok {
-					return arrType
-				}
-				if underlying := types.GetUnderlyingType(resolved); underlying != nil {
-					if arrType, ok := underlying.(*types.ArrayType); ok {
-						return arrType
-					}
-				}
-			}
-		}
+	// Try type string from value
+	if arrType := e.resolveArrayTypeFromTypeStringer(existingVal, ctx); arrType != nil {
+		return arrType
 	}
 
-	// If the variable isn't currently holding an ArrayValue (e.g. uninitialized),
-	// fall back to semantic type information for the identifier.
-	if e.semanticInfo != nil {
-		typeAnnot := e.semanticInfo.GetType(target)
-		if typeAnnot != nil && typeAnnot.Name != "" {
-			resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx)
-			if err == nil {
-				if arrType, ok := resolved.(*types.ArrayType); ok {
-					return arrType
-				}
-				if underlying := types.GetUnderlyingType(resolved); underlying != nil {
-					if arrType, ok := underlying.(*types.ArrayType); ok {
-						return arrType
-					}
-				}
-			}
+	// Fall back to semantic type information
+	return e.resolveArrayTypeFromSemanticInfo(target, ctx)
+}
+
+// resolveArrayTypeFromIdentifier resolves array type by evaluating the identifier.
+func (e *Evaluator) resolveArrayTypeFromIdentifier(target *ast.Identifier, ctx *ExecutionContext) *types.ArrayType {
+	if target == nil {
+		return nil
+	}
+
+	resolved := e.VisitIdentifier(target, ctx)
+	if arrVal, ok := resolved.(*runtime.ArrayValue); ok {
+		return arrVal.ArrayType
+	}
+
+	if typeStringer, ok := resolved.(interface{ ArrayTypeString() string }); ok {
+		return e.resolveArrayTypeFromTypeName(typeStringer.ArrayTypeString(), ctx)
+	}
+	return nil
+}
+
+// resolveArrayTypeFromTypeStringer extracts array type from a value with ArrayTypeString method.
+func (e *Evaluator) resolveArrayTypeFromTypeStringer(val any, ctx *ExecutionContext) *types.ArrayType {
+	if typeStringer, ok := val.(interface{ ArrayTypeString() string }); ok {
+		return e.resolveArrayTypeFromTypeName(typeStringer.ArrayTypeString(), ctx)
+	}
+	return nil
+}
+
+// resolveArrayTypeFromSemanticInfo gets array type from semantic analysis info.
+func (e *Evaluator) resolveArrayTypeFromSemanticInfo(target *ast.Identifier, ctx *ExecutionContext) *types.ArrayType {
+	if e.semanticInfo == nil {
+		return nil
+	}
+
+	typeAnnot := e.semanticInfo.GetType(target)
+	if typeAnnot == nil || typeAnnot.Name == "" {
+		return nil
+	}
+
+	return e.resolveArrayTypeFromTypeName(typeAnnot.Name, ctx)
+}
+
+// resolveArrayTypeFromTypeName resolves a type name to ArrayType.
+func (e *Evaluator) resolveArrayTypeFromTypeName(typeName string, ctx *ExecutionContext) *types.ArrayType {
+	if typeName == "" || typeName == "array" {
+		return nil
+	}
+
+	resolved, err := e.ResolveTypeWithContext(typeName, ctx)
+	if err != nil {
+		return nil
+	}
+
+	if arrType, ok := resolved.(*types.ArrayType); ok {
+		return arrType
+	}
+
+	if underlying := types.GetUnderlyingType(resolved); underlying != nil {
+		if arrType, ok := underlying.(*types.ArrayType); ok {
+			return arrType
 		}
 	}
 	return nil
@@ -655,20 +827,14 @@ func (e *Evaluator) getSetTypeFromTarget(target *ast.Identifier, ctx *ExecutionC
 // - Type name is not a registered record type
 func (e *Evaluator) getRecordTypeNameFromTarget(target *ast.Identifier, ctx *ExecutionContext) string {
 	existingVal, exists := ctx.Env().Get(target.Value)
-	if !exists {
+	if !exists || existingVal == nil {
 		return ""
 	}
-	if existingVal == nil {
-		return ""
-	}
+
 	// RecordValue.Type() returns record type name or "RECORD" for anonymous
-	// We use the Value interface which is available
-	if v, ok := existingVal.(Value); ok {
-		typeName := v.Type()
-		// Only return named record types, not generic "RECORD"
-		if typeName != "" && typeName != "RECORD" && e.typeSystem.HasRecord(typeName) {
-			return typeName
-		}
+	typeName := existingVal.Type()
+	if typeName != "" && typeName != "RECORD" && e.typeSystem.HasRecord(typeName) {
+		return typeName
 	}
 	return ""
 }

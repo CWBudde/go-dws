@@ -382,71 +382,99 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 	if types.IsCompatible(from, to) {
 		return true
 	}
+	if a.canAssignNil(from, to) {
+		return true
+	}
+	if a.canAssignMetaclass(from, to) {
+		return true
+	}
+	if a.canAssignClass(from, to) {
+		return true
+	}
+	if a.canAssignInterface(from, to) {
+		return true
+	}
+	if a.canAssignSubrange(from, to) {
+		return true
+	}
+	if a.canAssignVariant(from, to) {
+		return true
+	}
+	if a.canAssignEnumToInteger(from, to) {
+		return true
+	}
+	if a.canAssignPointer(from, to) {
+		return true
+	}
+	if sig, ok := a.conversionRegistry.FindImplicit(from, to); ok && sig != nil {
+		return true
+	}
+	return false
+}
 
-	// Allow nil assignment to/from class, interface, and metaclass types
-	if from.TypeKind() == "NIL" && to.TypeKind() == "CLASS" {
-		return true
-	}
-	if from.TypeKind() == "CLASS" && to.TypeKind() == "NIL" {
-		return true
-	}
-	if from.TypeKind() == "NIL" && to.TypeKind() == "INTERFACE" {
-		return true
-	}
-	if from.TypeKind() == "INTERFACE" && to.TypeKind() == "NIL" {
-		return true
-	}
-	if from.TypeKind() == "NIL" && to.TypeKind() == "CLASSOF" {
-		return true
-	}
-	if from.TypeKind() == "CLASSOF" && to.TypeKind() == "NIL" {
-		return true
-	}
+// canAssignNil checks if nil can be assigned to/from the target type.
+func (a *Analyzer) canAssignNil(from, to types.Type) bool {
+	fromKind := from.TypeKind()
+	toKind := to.TypeKind()
 
-	// Handle metaclass to metaclass assignment
+	if fromKind == "NIL" {
+		return toKind == "CLASS" || toKind == "INTERFACE" || toKind == "CLASSOF"
+	}
+	if toKind == "NIL" {
+		return fromKind == "CLASS" || fromKind == "INTERFACE" || fromKind == "CLASSOF"
+	}
+	return false
+}
+
+// canAssignMetaclass checks metaclass-to-metaclass assignment compatibility.
+func (a *Analyzer) canAssignMetaclass(from, to types.Type) bool {
 	fromResolved := types.GetUnderlyingType(from)
 	toResolved := types.GetUnderlyingType(to)
 
-	if fromMetaclass, ok := fromResolved.(*types.ClassOfType); ok {
-		if toMetaclass, ok := toResolved.(*types.ClassOfType); ok {
-			// Check if the underlying class types are compatible
-			fromClass := fromMetaclass.ClassType
-			toClass := toMetaclass.ClassType
-			if fromClass.Equals(toClass) || a.isDescendantOf(fromClass, toClass) {
-				return true
-			}
-		}
+	fromMetaclass, fromOk := fromResolved.(*types.ClassOfType)
+	toMetaclass, toOk := toResolved.(*types.ClassOfType)
+
+	if !fromOk || !toOk {
+		return false
 	}
 
-	// Handle class type assignments
-	if fromClass, ok := from.(*types.ClassType); ok {
-		if toMetaclass, ok := to.(*types.ClassOfType); ok {
-			if fromClass.Equals(toMetaclass.ClassType) || a.isDescendantOf(fromClass, toMetaclass.ClassType) {
-				return true
-			}
-		}
-		if toClass, ok := to.(*types.ClassType); ok {
-			if fromClass.Equals(toClass) || a.isDescendantOf(fromClass, toClass) {
-				return true
-			}
-		}
-		if toInterface, ok := to.(*types.InterfaceType); ok {
-			if fromClass.ImplementsInterface(toInterface) {
-				return true
-			}
-		}
+	fromClass := fromMetaclass.ClassType
+	toClass := toMetaclass.ClassType
+	return fromClass.Equals(toClass) || a.isDescendantOf(fromClass, toClass)
+}
+
+// canAssignClass checks class type assignment compatibility.
+func (a *Analyzer) canAssignClass(from, to types.Type) bool {
+	fromClass, ok := from.(*types.ClassType)
+	if !ok {
+		return false
 	}
 
-	// Handle interface assignments
-	if fromInterface, ok := from.(*types.InterfaceType); ok {
-		if toInterface, ok := to.(*types.InterfaceType); ok {
-			if fromInterface.Equals(toInterface) || fromInterface.InheritsFrom(toInterface) {
-				return true
-			}
-		}
+	if toMetaclass, ok := to.(*types.ClassOfType); ok {
+		return fromClass.Equals(toMetaclass.ClassType) || a.isDescendantOf(fromClass, toMetaclass.ClassType)
 	}
+	if toClass, ok := to.(*types.ClassType); ok {
+		return fromClass.Equals(toClass) || a.isDescendantOf(fromClass, toClass)
+	}
+	if toInterface, ok := to.(*types.InterfaceType); ok {
+		return fromClass.ImplementsInterface(toInterface)
+	}
+	return false
+}
 
-	// Handle subrange type assignments
+// canAssignInterface checks interface assignment compatibility.
+func (a *Analyzer) canAssignInterface(from, to types.Type) bool {
+	fromInterface, fromOk := from.(*types.InterfaceType)
+	toInterface, toOk := to.(*types.InterfaceType)
+
+	if !fromOk || !toOk {
+		return false
+	}
+	return fromInterface.Equals(toInterface) || fromInterface.InheritsFrom(toInterface)
+}
+
+// canAssignSubrange checks subrange type assignment compatibility.
+func (a *Analyzer) canAssignSubrange(from, to types.Type) bool {
 	if fromSubrange, ok := from.(*types.SubrangeType); ok {
 		if fromSubrange.BaseType.Equals(to) {
 			return true
@@ -457,52 +485,59 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 			return true
 		}
 	}
+	return false
+}
 
+// canAssignVariant checks Variant type assignment rules.
+func (a *Analyzer) canAssignVariant(from, to types.Type) bool {
 	toUnderlying := types.GetUnderlyingType(to)
 	fromUnderlying := types.GetUnderlyingType(from)
 
-	// Variant assignment rules
+	// Anything can be assigned to Variant
 	if toUnderlying.TypeKind() == "VARIANT" {
 		return true
 	}
-	if fromUnderlying.TypeKind() == "VARIANT" && toUnderlying.TypeKind() == "VARIANT" {
-		return true
-	}
+	// Variant can be assigned to anything
 	if fromUnderlying.TypeKind() == "VARIANT" {
 		return true
 	}
+	return false
+}
 
-	// Allow implicit enum-to-integer conversion
-	if fromUnderlying.TypeKind() == "ENUM" && toUnderlying.Equals(types.INTEGER) {
-		return true
+// canAssignEnumToInteger checks implicit enum-to-integer conversion.
+func (a *Analyzer) canAssignEnumToInteger(from, to types.Type) bool {
+	fromUnderlying := types.GetUnderlyingType(from)
+	toUnderlying := types.GetUnderlyingType(to)
+
+	return fromUnderlying.TypeKind() == "ENUM" && toUnderlying.Equals(types.INTEGER)
+}
+
+// canAssignPointer checks function and method pointer assignment compatibility.
+func (a *Analyzer) canAssignPointer(from, to types.Type) bool {
+	toUnderlying := types.GetUnderlyingType(to)
+	fromUnderlying := types.GetUnderlyingType(from)
+
+	toKind := toUnderlying.TypeKind()
+	if toKind != "FUNCTION_POINTER" && toKind != "METHOD_POINTER" {
+		return false
 	}
 
-	// Handle function and method pointer assignments
-	if toUnderlying.TypeKind() == "FUNCTION_POINTER" || toUnderlying.TypeKind() == "METHOD_POINTER" {
-		if fromMethodPtr, ok := fromUnderlying.(*types.MethodPointerType); ok {
-			return fromMethodPtr.IsCompatibleWith(toUnderlying)
-		}
-		if toFuncPtr, ok := toUnderlying.(*types.FunctionPointerType); ok {
-			// First try exact compatibility
-			if toFuncPtr.IsCompatibleWith(fromUnderlying) {
-				return true
-			}
-			// Task: For helper methods like Map that use Variant parameters,
-			// allow function pointers with compatible concrete types.
-			// E.g., function(Integer): String should be assignable to function(Variant): Variant
-			if fromFuncPtr, ok := fromUnderlying.(*types.FunctionPointerType); ok {
-				if a.isFunctionPointerVariantCompatible(fromFuncPtr, toFuncPtr) {
-					return true
-				}
-			}
-			return false
-		}
-		if toMethodPtr, ok := toUnderlying.(*types.MethodPointerType); ok {
-			return toMethodPtr.IsCompatibleWith(fromUnderlying)
-		}
+	if fromMethodPtr, ok := fromUnderlying.(*types.MethodPointerType); ok {
+		return fromMethodPtr.IsCompatibleWith(toUnderlying)
 	}
-	if sig, ok := a.conversionRegistry.FindImplicit(from, to); ok && sig != nil {
-		return true
+	if toFuncPtr, ok := toUnderlying.(*types.FunctionPointerType); ok {
+		if toFuncPtr.IsCompatibleWith(fromUnderlying) {
+			return true
+		}
+		// For helper methods like Map that use Variant parameters,
+		// allow function pointers with compatible concrete types.
+		if fromFuncPtr, ok := fromUnderlying.(*types.FunctionPointerType); ok {
+			return a.isFunctionPointerVariantCompatible(fromFuncPtr, toFuncPtr)
+		}
+		return false
+	}
+	if toMethodPtr, ok := toUnderlying.(*types.MethodPointerType); ok {
+		return toMethodPtr.IsCompatibleWith(fromUnderlying)
 	}
 	return false
 }
@@ -749,7 +784,11 @@ func (a *Analyzer) getInterfaceType(name string) *types.InterfaceType {
 	if !ok {
 		return nil
 	}
-	interfaceType, _ := typ.(*types.InterfaceType)
+	interfaceType, ok := typ.(*types.InterfaceType)
+	if !ok {
+		// This should not happen if typ was correctly resolved as an interface type
+		return nil
+	}
 	return interfaceType
 }
 
@@ -762,7 +801,11 @@ func (a *Analyzer) getEnumType(name string) *types.EnumType {
 	if aliasType, ok := typ.(*types.TypeAlias); ok {
 		typ = types.GetUnderlyingType(aliasType)
 	}
-	enumType, _ := typ.(*types.EnumType)
+	enumType, ok := typ.(*types.EnumType)
+	if !ok {
+		// This should not happen if typ was correctly resolved as an enum type
+		return nil
+	}
 	return enumType
 }
 
@@ -771,7 +814,11 @@ func (a *Analyzer) getRecordType(name string) *types.RecordType {
 	if !ok {
 		return nil
 	}
-	recordType, _ := typ.(*types.RecordType)
+	recordType, ok := typ.(*types.RecordType)
+	if !ok {
+		// This should not happen if typ was correctly resolved as a record type
+		return nil
+	}
 	return recordType
 }
 
@@ -780,7 +827,11 @@ func (a *Analyzer) getSetType(name string) *types.SetType {
 	if !ok {
 		return nil
 	}
-	setType, _ := typ.(*types.SetType)
+	setType, ok := typ.(*types.SetType)
+	if !ok {
+		// This should not happen if typ was correctly resolved as a set type
+		return nil
+	}
 	return setType
 }
 
@@ -789,7 +840,11 @@ func (a *Analyzer) getArrayType(name string) *types.ArrayType {
 	if !ok {
 		return nil
 	}
-	arrayType, _ := typ.(*types.ArrayType)
+	arrayType, ok := typ.(*types.ArrayType)
+	if !ok {
+		// This should not happen if typ was correctly resolved as an array type
+		return nil
+	}
 	return arrayType
 }
 

@@ -495,7 +495,10 @@ func (s *Serializer) writeValue(w io.Writer, val Value) error {
 
 	case ValueFunction:
 		// Serialize function object
-		fn := val.Data.(*FunctionObject)
+		fn, ok := val.Data.(*FunctionObject)
+		if !ok {
+			return fmt.Errorf("invalid data for ValueFunction")
+		}
 		if err := s.writeString(w, fn.Name); err != nil {
 			return err
 		}
@@ -531,7 +534,11 @@ func (s *Serializer) writeValue(w io.Writer, val Value) error {
 
 	case ValueBuiltin:
 		// Serialize builtin name
-		return s.writeString(w, val.Data.(string))
+		name, ok := val.Data.(string)
+		if !ok {
+			return fmt.Errorf("invalid data for ValueBuiltin")
+		}
+		return s.writeString(w, name)
 
 	case ValueArray, ValueObject, ValueRecord, ValueClosure, ValueVariant:
 		// These types cannot be serialized as constants

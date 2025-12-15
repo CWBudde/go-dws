@@ -99,7 +99,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 					return nil
 				}
 
-				methodType := selected.Type.(*types.FunctionType)
+				methodType, ok := selected.Type.(*types.FunctionType)
+				if !ok {
+					a.addError("internal error: expected function type for selected record static method, but got %T", selected.Type)
+					return nil
+				}
 
 				// Validate argument types (for better error messages)
 				for i, arg := range expr.Arguments {
@@ -270,7 +274,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 
-		methodType = selected.Type.(*types.FunctionType)
+		var ok bool
+		methodType, ok = selected.Type.(*types.FunctionType)
+		if !ok {
+			a.addError("internal error: expected function type for selected overloaded method, but got %T", selected.Type)
+			return nil
+		}
 	} else if len(overloads) == 1 {
 		// Single method (not overloaded)
 		methodType = overloads[0].Signature

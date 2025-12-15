@@ -68,7 +68,10 @@ func lexScript(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("either provide a file path or use -e flag for inline code")
 	}
 
-	verbose, _ := cmd.Flags().GetBool("verbose")
+	verbose, err := cmd.Flags().GetBool("verbose")
+	if err != nil {
+		return err
+	}
 
 	if verbose {
 		fmt.Printf("Tokenizing: %s\n", filename)

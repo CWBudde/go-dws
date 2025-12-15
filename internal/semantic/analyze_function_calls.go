@@ -217,7 +217,11 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					return nil
 				}
 
-				methodType := selected.Type.(*types.FunctionType)
+				methodType, ok := selected.Type.(*types.FunctionType)
+				if !ok {
+					a.addError("internal error: expected function type for selected record class method, but got %T", selected.Type)
+					return nil
+				}
 				for i, arg := range expr.Arguments {
 					if i >= len(methodType.Parameters) {
 						break
@@ -673,7 +677,12 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 			return classType
 		}
 
-		selectedSignature = selected.Type.(*types.FunctionType)
+		var ok bool
+		selectedSignature, ok = selected.Type.(*types.FunctionType)
+		if !ok {
+			a.addError("internal error: expected function type for selected constructor, but got %T", selected.Type)
+			return classType
+		}
 		for _, overload := range constructorOverloads {
 			if overload.Signature == selectedSignature {
 				selectedConstructor = overload
@@ -892,7 +901,11 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 		return nil
 	}
 
-	funcType := selected.Type.(*types.FunctionType)
+	funcType, ok := selected.Type.(*types.FunctionType)
+	if !ok {
+		a.addError("internal error: expected function type for selected record static method, but got %T", selected.Type)
+		return nil
+	}
 
 	// Validate argument types
 	for i, arg := range expr.Arguments {

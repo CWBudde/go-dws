@@ -1,3 +1,4 @@
+//nolint:errcheck
 package bytecode
 
 import (
@@ -6,6 +7,13 @@ import (
 	"strings"
 )
 
+// Package bytecode provides bytecode compilation and execution for DWScript.
+//
+// Note: This file intentionally ignores errcheck linting for fmt.Fprintf calls.
+// Errors from writing to diagnostic output (stdout/stderr) are non-critical and
+// typically unrecoverable in a disassembler context. The disassembler is a debugging
+// tool where I/O failures are extremely rare and there's no meaningful recovery action.
+//
 // Disassembler provides human-readable bytecode disassembly for debugging.
 type Disassembler struct {
 	writer io.Writer

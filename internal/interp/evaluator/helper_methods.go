@@ -171,7 +171,11 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if spec, ownerHelperAny, ok := helper.GetBuiltinMethodAny(methodName); ok {
-			ownerHelper, _ := ownerHelperAny.(HelperInfo)
+			ownerHelper, ok := ownerHelperAny.(HelperInfo)
+			if !ok {
+				// Should not happen if registered correctly
+				return nil
+			}
 			return &HelperMethodResult{
 				OwnerHelper: ownerHelper,
 				Method:      nil,
@@ -444,7 +448,10 @@ func (e *Evaluator) FindHelperProperty(val Value, propName string) (HelperInfo, 
 		if propInfo, ownerHelperAny, found := helper.GetPropertyAny(propName); found && propInfo != nil {
 			pInfo, ok := propInfo.(*types.PropertyInfo)
 			if ok {
-				ownerHelper, _ := ownerHelperAny.(HelperInfo)
+				ownerHelper, ok := ownerHelperAny.(HelperInfo)
+				if !ok {
+					return nil, nil
+				}
 				return ownerHelper, pInfo
 			}
 		}
@@ -473,7 +480,11 @@ func (e *Evaluator) executeHelperPropertyRead(
 		// Otherwise try as getter method
 		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
 		if method, methodOwnerAny, ok := helper.GetMethodAny(normalizedReadSpec); ok {
-			methodOwner, _ := methodOwnerAny.(HelperInfo)
+			methodOwner, ok := methodOwnerAny.(HelperInfo)
+			if !ok {
+				// Should not happen
+				return e.newError(node, "invalid helper method owner")
+			}
 			var builtinSpec string
 			if methodOwner != nil {
 				if spec, _, ok := methodOwner.GetBuiltinMethodAny(normalizedReadSpec); ok {
@@ -493,7 +504,11 @@ func (e *Evaluator) executeHelperPropertyRead(
 	case types.PropAccessMethod:
 		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
 		if method, methodOwnerAny, ok := helper.GetMethodAny(normalizedReadSpec); ok {
-			methodOwner, _ := methodOwnerAny.(HelperInfo)
+			methodOwner, ok := methodOwnerAny.(HelperInfo)
+			if !ok {
+				// Should not happen
+				return e.newError(node, "invalid helper method owner")
+			}
 			var builtinSpec string
 			if methodOwner != nil {
 				if spec, _, ok := methodOwner.GetBuiltinMethodAny(normalizedReadSpec); ok {

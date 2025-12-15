@@ -132,7 +132,12 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 			return classType
 		}
 
-		selectedSignature = selected.Type.(*types.FunctionType)
+		var ok bool
+		selectedSignature, ok = selected.Type.(*types.FunctionType)
+		if !ok {
+			a.addError("internal error: expected function type for selected constructor, but got %T", selected.Type)
+			return classType
+		}
 		for _, overload := range matchingCountConstructors {
 			if overload.Signature == selectedSignature {
 				selectedConstructor = overload
@@ -424,7 +429,11 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 		return nil
 	}
 
-	funcType := selected.Type.(*types.FunctionType)
+	funcType, ok := selected.Type.(*types.FunctionType)
+	if !ok {
+		a.addError("internal error: expected function type for selected record method, but got %T", selected.Type)
+		return nil
+	}
 	for i, arg := range expr.Arguments {
 		if i >= len(funcType.Parameters) {
 			break

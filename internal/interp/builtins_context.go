@@ -324,7 +324,7 @@ func (i *Interpreter) CreateVariantArray(values []builtins.Value) builtins.Value
 // Write writes a string to the output without a newline.
 func (i *Interpreter) Write(s string) {
 	if i.output != nil {
-		i.output.Write([]byte(s))
+		_, _ = i.output.Write([]byte(s))
 	}
 }
 
@@ -332,7 +332,7 @@ func (i *Interpreter) Write(s string) {
 
 func (i *Interpreter) WriteLine(s string) {
 	if i.output != nil {
-		i.output.Write([]byte(s + "\n"))
+		_, _ = i.output.Write([]byte(s + "\n"))
 	}
 }
 
