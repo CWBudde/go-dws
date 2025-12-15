@@ -65,6 +65,7 @@ func (p *Parser) parseDestructorStatement() ast.Statement {
 	return method
 }
 
+//nolint:gocyclo // Statement dispatcher with many statement types
 func (p *Parser) parseStatement() ast.Statement {
 	// As we implement each statement cursor handler, they'll be added here
 

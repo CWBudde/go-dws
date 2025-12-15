@@ -949,6 +949,167 @@ func (p *Parser) parseCaseValueOrRange(value ast.Expression) ast.Expression {
 	return value
 }
 
+// parseCaseBranch parses a single case branch: value1, value2, value3: statement
+// PRE: cursor is at first value token
+// POST: cursor is at the last token of the branch statement
+func (p *Parser) parseCaseBranch() *ast.CaseBranch {
+	// Save the token of the first value for position tracking
+	firstValueToken := p.cursor.Current()
+	branch := &ast.CaseBranch{
+		Token:  firstValueToken,
+		Values: []ast.Expression{},
+	}
+
+	// Parse first value or range
+	value := p.parseExpression(LOWEST)
+	if value == nil {
+		currentToken := p.cursor.Current()
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidExpression).
+			WithMessage("expected value in case branch").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithSuggestion("provide a value or range to match").
+			WithParsePhase("case branch").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// Check for range operator and create RangeExpression if needed
+	valueOrRange := p.parseCaseValueOrRange(value)
+	if valueOrRange == nil {
+		return nil
+	}
+	branch.Values = append(branch.Values, valueOrRange)
+
+	// Parse additional comma-separated values/ranges
+	for {
+		nextToken := p.cursor.Peek(1)
+		if nextToken.Type != lexer.COMMA {
+			break
+		}
+
+		p.cursor = p.cursor.Advance() // move to comma
+		p.cursor = p.cursor.Advance() // move to next value
+
+		value := p.parseExpression(LOWEST)
+		if value == nil {
+			currentToken := p.cursor.Current()
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidExpression).
+				WithMessage("expected value after comma in case branch").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithSuggestion("provide a value or range to match").
+				WithParsePhase("case branch").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
+
+		// Check for range operator and create RangeExpression if needed
+		valueOrRange := p.parseCaseValueOrRange(value)
+		if valueOrRange == nil {
+			return nil
+		}
+		branch.Values = append(branch.Values, valueOrRange)
+	}
+
+	// Expect ':' after value(s)
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.COLON {
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrMissingColon).
+			WithMessage("expected ':' after case value").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithExpectedString("':'").
+			WithActual(nextToken.Type, nextToken.Literal).
+			WithSuggestion("add ':' before the branch statement").
+			WithParsePhase("case branch").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	p.cursor = p.cursor.Advance() // move to ':'
+
+	// Parse the statement for this branch
+	p.cursor = p.cursor.Advance()
+	branch.Statement = p.parseStatement()
+
+	if branch.Statement == nil {
+		currentToken := p.cursor.Current()
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("expected statement after ':' in case branch").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithSuggestion("add a statement for this case").
+			WithParsePhase("case branch").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+
+	// Set EndPos to the end of the statement
+	if branch.Statement != nil {
+		branch.EndPos = branch.Statement.End()
+	}
+
+	return branch
+}
+
+// parseCaseElseClause parses the else clause of a case statement
+// PRE: cursor is at ELSE token
+// POST: cursor is at the token before END
+func (p *Parser) parseCaseElseClause() ast.Statement {
+	p.cursor = p.cursor.Advance() // move past 'else'
+
+	// Parse multiple statements until 'end' is encountered
+	// DWScript allows multiple statements in else clause without begin-end
+	block := &ast.BlockStatement{
+		BaseNode:   ast.BaseNode{Token: p.cursor.Current()},
+		Statements: []ast.Statement{},
+	}
+
+	for p.cursor.Current().Type != lexer.END && p.cursor.Current().Type != lexer.EOF {
+		// Skip semicolons
+		if p.cursor.Current().Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+			continue
+		}
+
+		elseStmt := p.parseStatement()
+		if elseStmt != nil {
+			block.Statements = append(block.Statements, elseStmt)
+		}
+
+		p.cursor = p.cursor.Advance()
+
+		// Skip any semicolons after the statement
+		for p.cursor.Current().Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+		}
+	}
+
+	// If only one statement, use it directly; otherwise use the block
+	if len(block.Statements) == 1 {
+		return block.Statements[0]
+	} else if len(block.Statements) > 1 {
+		return block
+	}
+
+	// Empty else clause
+	currentToken := p.cursor.Current()
+	err := NewStructuredError(ErrKindInvalid).
+		WithCode(ErrInvalidSyntax).
+		WithMessage("expected statement after 'else' in case statement").
+		WithPosition(currentToken.Pos, currentToken.Length()).
+		WithSuggestion("add a statement for the else branch").
+		WithParsePhase("case else").
+		Build()
+	p.addStructuredError(err)
+	return nil
+}
+
 // Syntax: case <expression> of <value>: <statement>; ... [else <statement>;] end;
 // PRE: cursor is on CASE token
 // POST: cursor is on END token
@@ -1018,113 +1179,10 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 			continue
 		}
 
-		// Save the token of the first value for position tracking
-		firstValueToken := p.cursor.Current()
-		branch := &ast.CaseBranch{
-			Token: firstValueToken, // First value token for position tracking
-		}
-
-		// Parse comma-separated value list (with range support)
-		branch.Values = []ast.Expression{}
-
-		// Parse first value or range
-		value := p.parseExpression(LOWEST)
-		if value == nil {
-			// Use structured error
-			currentToken := p.cursor.Current()
-			err := NewStructuredError(ErrKindInvalid).
-				WithCode(ErrInvalidExpression).
-				WithMessage("expected value in case branch").
-				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithSuggestion("provide a value or range to match").
-				WithParsePhase("case branch").
-				Build()
-			p.addStructuredError(err)
+		branch := p.parseCaseBranch()
+		if branch == nil {
 			return nil
 		}
-
-		// Check for range operator and create RangeExpression if needed
-		valueOrRange := p.parseCaseValueOrRange(value)
-		if valueOrRange == nil {
-			return nil
-		}
-		branch.Values = append(branch.Values, valueOrRange)
-
-		// Parse additional comma-separated values/ranges
-		for {
-			nextToken = p.cursor.Peek(1)
-			if nextToken.Type != lexer.COMMA {
-				break
-			}
-
-			p.cursor = p.cursor.Advance() // move to comma
-			p.cursor = p.cursor.Advance() // move to next value
-
-			value := p.parseExpression(LOWEST)
-			if value == nil {
-				// Use structured error
-				currentToken := p.cursor.Current()
-				err := NewStructuredError(ErrKindInvalid).
-					WithCode(ErrInvalidExpression).
-					WithMessage("expected value after comma in case branch").
-					WithPosition(currentToken.Pos, currentToken.Length()).
-					WithSuggestion("provide a value or range to match").
-					WithParsePhase("case branch").
-					Build()
-				p.addStructuredError(err)
-				return nil
-			}
-
-			// Check for range operator and create RangeExpression if needed
-			valueOrRange := p.parseCaseValueOrRange(value)
-			if valueOrRange == nil {
-				return nil
-			}
-			branch.Values = append(branch.Values, valueOrRange)
-		}
-
-		// Expect ':' after value(s)
-		nextToken = p.cursor.Peek(1)
-		if nextToken.Type != lexer.COLON {
-			// Use structured error
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrMissingColon).
-				WithMessage("expected ':' after case value").
-				WithPosition(nextToken.Pos, nextToken.Length()).
-				WithExpectedString("':'").
-				WithActual(nextToken.Type, nextToken.Literal).
-				WithSuggestion("add ':' before the branch statement").
-				WithParsePhase("case branch").
-				Build()
-			p.addStructuredError(err)
-			return nil
-		}
-
-		p.cursor = p.cursor.Advance() // move to ':'
-
-		// Parse the statement for this branch
-		p.cursor = p.cursor.Advance()
-		branch.Statement = p.parseStatement()
-
-		if branch.Statement == nil {
-			// Use structured error
-			currentToken := p.cursor.Current()
-			err := NewStructuredError(ErrKindInvalid).
-				WithCode(ErrInvalidSyntax).
-				WithMessage("expected statement after ':' in case branch").
-				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithSuggestion("add a statement for this case").
-				WithParsePhase("case branch").
-				Build()
-			p.addStructuredError(err)
-			return nil
-		}
-
-		// Set EndPos to the end of the statement
-		if branch.Statement != nil {
-			branch.EndPos = branch.Statement.End()
-		}
-
 		stmt.Cases = append(stmt.Cases, branch)
 
 		// Move to next token (could be semicolon, else, or end)
@@ -1138,51 +1196,8 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 
 	// Check for optional 'else' branch
 	if p.cursor.Current().Type == lexer.ELSE {
-		p.cursor = p.cursor.Advance() // move past 'else'
-
-		// Parse multiple statements until 'end' is encountered (like repeat-until)
-		// DWScript allows multiple statements in else clause without begin-end
-		block := &ast.BlockStatement{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-		}
-		block.Statements = []ast.Statement{}
-
-		for p.cursor.Current().Type != lexer.END && p.cursor.Current().Type != lexer.EOF {
-			// Skip semicolons
-			if p.cursor.Current().Type == lexer.SEMICOLON {
-				p.cursor = p.cursor.Advance()
-				continue
-			}
-
-			elseStmt := p.parseStatement()
-			if elseStmt != nil {
-				block.Statements = append(block.Statements, elseStmt)
-			}
-
-			p.cursor = p.cursor.Advance()
-
-			// Skip any semicolons after the statement
-			for p.cursor.Current().Type == lexer.SEMICOLON {
-				p.cursor = p.cursor.Advance()
-			}
-		}
-
-		// If only one statement, use it directly; otherwise use the block
-		if len(block.Statements) == 1 {
-			stmt.Else = block.Statements[0]
-		} else if len(block.Statements) > 1 {
-			stmt.Else = block
-		} else {
-			// Use structured error
-			currentToken := p.cursor.Current()
-			err := NewStructuredError(ErrKindInvalid).
-				WithCode(ErrInvalidSyntax).
-				WithMessage("expected statement after 'else' in case statement").
-				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithSuggestion("add a statement for the else branch").
-				WithParsePhase("case else").
-				Build()
-			p.addStructuredError(err)
+		stmt.Else = p.parseCaseElseClause()
+		if stmt.Else == nil {
 			return nil
 		}
 	}

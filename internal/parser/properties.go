@@ -19,6 +19,8 @@ import (
 //
 // PRE: cursor is PROPERTY
 // POST: cursor is SEMICOLON
+//
+//nolint:gocyclo // Property parser handling multiple directives and indexed params
 func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	builder := p.StartNode()
 	propToken := p.cursor.Current() // 'property' token

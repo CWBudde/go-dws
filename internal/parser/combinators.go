@@ -650,6 +650,8 @@ type StatementBlockConfig struct {
 //	    ContextName: "begin block",
 //	    RequireClose: true,
 //	})
+//
+//nolint:gocyclo // Statement block combinator with error recovery
 func (p *Parser) StatementBlock(config StatementBlockConfig) *ast.BlockStatement {
 	builder := p.StartNode()
 
@@ -785,6 +787,8 @@ type ParameterGroupConfig struct {
 //	    AllowDefaults: false,
 //	    ErrorContext: "function parameter",
 //	})
+//
+//nolint:gocyclo // Parameter combinator handling multiple modifiers
 func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 	params := []*ast.Parameter{}
 

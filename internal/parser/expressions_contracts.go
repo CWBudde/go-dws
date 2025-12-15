@@ -238,6 +238,8 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 // Returns an InvariantClause node containing all parsed conditions.
 // PRE: cursor is INVARIANTS
 // POST: cursor is last token of last condition
+//
+//nolint:gocyclo // Contract parser handling multiple assertion types
 func (p *Parser) parseInvariantClause() *ast.InvariantClause {
 	builder := p.StartNode()
 

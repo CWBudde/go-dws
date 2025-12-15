@@ -512,6 +512,8 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 // Current token should be 'interface'.
 // PRE: cursor is INTERFACE
 // POST: cursor is SEMICOLON
+//
+//nolint:gocyclo // Interface body parser handling multiple member types
 func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.InterfaceDecl {
 	builder := p.StartNode()
 	cursor := p.cursor

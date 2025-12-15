@@ -263,6 +263,8 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 //
 // PRE: cursor is LPAREN
 // POST: cursor is RPAREN
+//
+//nolint:gocyclo // Grouped expression parser handling multiple constructs
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	lparenToken := p.cursor.Current()
 

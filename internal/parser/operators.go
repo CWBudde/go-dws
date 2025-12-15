@@ -118,6 +118,8 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 
 // PRE: cursor is OPERATOR
 // POST: cursor is SEMICOLON
+//
+//nolint:gocyclo // Operator parser handling multiple operator types
 func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibility ast.Visibility) *ast.OperatorDecl {
 	builder := p.StartNode()
 	cursor := p.cursor

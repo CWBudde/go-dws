@@ -37,6 +37,8 @@ import (
 //
 // PRE: cursor is HELPER
 // POST: cursor is SEMICOLON
+//
+//nolint:gocyclo // Parser functions handling complex language constructs have inherent complexity
 func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, isRecordHelper bool) *ast.HelperDecl {
 	builder := p.StartNode()
 	cursor := p.cursor

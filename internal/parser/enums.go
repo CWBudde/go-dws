@@ -25,6 +25,8 @@ import (
 //
 // PRE: cursor is LPAREN (or after ENUM/FLAGS, will advance to LPAREN)
 // POST: cursor is SEMICOLON
+//
+//nolint:gocyclo // Enum parser handling values and explicit indices
 func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token, scoped bool, flags bool) *ast.EnumDecl {
 	builder := p.StartNode()
 	cursor := p.cursor

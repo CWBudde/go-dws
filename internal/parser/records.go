@@ -72,6 +72,8 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 // parseRecordOrHelperDeclaration and parseRecordDeclaration.
 // PRE: cursor is positioned at the first token inside the record body
 // POST: cursor is positioned at END keyword
+//
+//nolint:gocyclo // Record body parser handling multiple member types
 func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility ast.Visibility) ast.Visibility {
 	cursor := p.cursor
 
@@ -291,6 +293,8 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 // Note: This is different from class properties (parsePropertyDeclaration)
 // PRE: cursor is PROPERTY
 // POST: cursor is SEMICOLON
+//
+//nolint:gocyclo // Property parser handling multiple directives
 func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	cursor := p.cursor
 	propToken := cursor.Current() // 'property' token

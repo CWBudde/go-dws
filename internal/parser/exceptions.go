@@ -283,6 +283,8 @@ func (p *Parser) parseBlockStatementForTry() *ast.BlockStatement {
 //
 // PRE: cursor is on EXCEPT token
 // POST: cursor is on token before FINALLY or END
+//
+//nolint:gocyclo // Exception handler parser with multiple clauses
 func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	builder := p.StartNode()
 	exceptToken := p.cursor.Current() // Save 'except' token before moving past it

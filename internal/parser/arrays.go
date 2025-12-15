@@ -306,6 +306,8 @@ func shouldParseAsSetLiteral(elements []ast.Expression) bool {
 
 // PRE: cursor is on ARRAY token
 // POST: cursor is on SEMICOLON token
+//
+//nolint:gocyclo // Array parser handling static/dynamic and dimensions
 func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.ArrayDecl {
 	cursor := p.cursor
 

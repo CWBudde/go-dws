@@ -234,7 +234,10 @@ func (p *Parser) parseClassLevelMember(cursor *TokenCursor, classDecl *ast.Class
 
 // parseInstanceLevelMember parses instance-level members (regular fields, methods, properties, etc.).
 func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.ClassDecl, currentVisibility ast.Visibility) *TokenCursor {
-	if cursor.Current().Type == lexer.CONST {
+	currentType := cursor.Current().Type
+
+	switch currentType {
+	case lexer.CONST:
 		// Regular class constant: const Name = Value;
 		cursor = cursor.Advance() // move past 'const'
 		p.cursor = cursor
@@ -242,59 +245,71 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 		if constant != nil {
 			classDecl.Constants = append(classDecl.Constants, constant)
 		}
-	} else if cursor.Current().Type == lexer.IDENT && (cursor.Peek(1).Type == lexer.COLON || cursor.Peek(1).Type == lexer.COMMA || cursor.Peek(1).Type == lexer.ASSIGN || cursor.Peek(1).Type == lexer.EQ) {
-		// This is a regular instance field declaration (may be comma-separated)
-		// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
-		fields := p.parseFieldDeclarations(currentVisibility)
-		for _, field := range fields {
-			if field != nil {
-				classDecl.Fields = append(classDecl.Fields, field)
-			}
-		}
-	} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
-		// This is a regular instance method declaration
+
+	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
+		// Regular instance method declaration
 		method := p.parseFunctionDeclaration()
 		if method != nil {
 			method.Visibility = currentVisibility
 			classDecl.Methods = append(classDecl.Methods, method)
 		}
-	} else if cursor.Current().Type == lexer.CONSTRUCTOR {
-		// This is a constructor declaration
+
+	case lexer.CONSTRUCTOR:
+		// Constructor declaration
 		method := p.parseFunctionDeclaration()
 		if method != nil {
 			method.IsConstructor = true
 			method.Visibility = currentVisibility
 			classDecl.Methods = append(classDecl.Methods, method)
 		}
-	} else if cursor.Current().Type == lexer.DESTRUCTOR {
-		// This is a destructor declaration
+
+	case lexer.DESTRUCTOR:
+		// Destructor declaration
 		method := p.parseFunctionDeclaration()
 		if method != nil {
 			method.IsDestructor = true
 			method.Visibility = currentVisibility
 			classDecl.Methods = append(classDecl.Methods, method)
 		}
-	} else if cursor.Current().Type == lexer.PROPERTY {
-		// This is a property declaration
+
+	case lexer.PROPERTY:
+		// Property declaration
 		property := p.parsePropertyDeclaration()
 		if property != nil {
 			// Note: We could track visibility here if needed
 			// For now, properties are parsed without explicit visibility tracking
 			classDecl.Properties = append(classDecl.Properties, property)
 		}
-	} else if cursor.Current().Type == lexer.INVARIANTS {
-		// This is an invariant clause
+
+	case lexer.INVARIANTS:
+		// Invariant clause
 		p.cursor = cursor // sync cursor before calling parser function
 		if classDecl.Invariants != nil {
 			p.addError("class already has invariants defined", ErrInvalidSyntax)
 		} else {
 			classDecl.Invariants = p.parseInvariantClause()
 		}
-	} else if cursor.Current().Type == lexer.IDENT {
-		// Unexpected identifier in class body - likely a field missing its type declaration
-		p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
+
+	case lexer.IDENT:
+		// Check if this is a field declaration or an error
+		nextType := cursor.Peek(1).Type
+		if nextType == lexer.COLON || nextType == lexer.COMMA || nextType == lexer.ASSIGN || nextType == lexer.EQ {
+			// Regular instance field declaration (may be comma-separated)
+			// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
+			fields := p.parseFieldDeclarations(currentVisibility)
+			for _, field := range fields {
+				if field != nil {
+					classDecl.Fields = append(classDecl.Fields, field)
+				}
+			}
+		} else {
+			// Unexpected identifier in class body - likely a field missing its type declaration
+			p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
+		}
+
+	default:
+		// Unknown tokens in class body are silently skipped (handled by caller's advance)
 	}
-	// Unknown tokens in class body are silently skipped (handled by caller's advance)
 
 	return p.cursor
 }
