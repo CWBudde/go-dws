@@ -201,6 +201,74 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	return builder.FinishWithToken(stmt, startToken).(*ast.ExpressionStatement)
 }
 
+func (p *Parser) parseAssignmentStatement(builder *NodeBuilder, left ast.Expression) ast.Statement {
+	p.cursor = p.cursor.Advance() // Move to assignment operator
+	assignOp := p.cursor.Current().Type
+
+	// Determine what kind of assignment this is
+	switch leftExpr := left.(type) {
+	case *ast.Identifier, *ast.MemberAccessExpression, *ast.IndexExpression:
+		// Valid assignment targets
+		stmt := &ast.AssignmentStatement{
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
+			Target:   leftExpr,
+			Operator: assignOp,
+		}
+
+		// Move to value expression
+		p.cursor = p.cursor.Advance()
+
+		// Parse value expression
+		stmt.Value = p.parseExpression(ASSIGN)
+
+		// Optional semicolon
+		nextToken := p.cursor.Peek(1)
+		if nextToken.Type == lexer.SEMICOLON {
+			p.cursor = p.cursor.Advance()
+			return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
+		}
+
+		// End at value expression or current token
+		if stmt.Value != nil {
+			return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
+		}
+		return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
+
+	default:
+		// Invalid assignment target - use structured error
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("invalid assignment target").
+			WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+			WithSuggestion("assignment target must be a variable, field access, or array element").
+			WithNote("Valid: x := 10, obj.field := 20, arr[i] := 30").
+			WithParsePhase("assignment statement").
+			Build()
+		p.addStructuredError(err)
+		return nil
+	}
+}
+
+func (p *Parser) parseExpressionStatementFromExpression(builder *NodeBuilder, startToken lexer.Token, expr ast.Expression) ast.Statement {
+	stmt := &ast.ExpressionStatement{
+		BaseNode:   ast.BaseNode{Token: startToken},
+		Expression: expr,
+	}
+
+	// Optional semicolon
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.Advance()
+		return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ExpressionStatement)
+	}
+
+	// End at expression or start token
+	if expr != nil {
+		return builder.FinishWithNode(stmt, expr).(*ast.ExpressionStatement)
+	}
+	return builder.FinishWithToken(stmt, startToken).(*ast.ExpressionStatement)
+}
+
 // parseAssignmentOrExpression determines if we have an assignment or expression statement.
 // This handles both simple assignments (x := value), compound assignments (x += value),
 // and member assignments (obj.field := value, arr[i] := value).
@@ -208,80 +276,16 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 // POST: cursor is on last token of statement (possibly SEMICOLON)
 func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 	builder := p.StartNode()
-
 	startToken := p.cursor.Current()
 
-	// Parse the left side as an expression (could be identifier, member access, or index)
+	// Parse the left side as an expression
 	left := p.parseExpression(LOWEST)
 
-	// Check if next token is assignment (simple or compound)
-	nextToken := p.cursor.Peek(1)
-	if isAssignmentOperator(nextToken.Type) {
-		p.cursor = p.cursor.Advance() // Move to assignment operator
-		assignOp := p.cursor.Current().Type
-
-		// Determine what kind of assignment this is
-		switch leftExpr := left.(type) {
-		case *ast.Identifier, *ast.MemberAccessExpression, *ast.IndexExpression:
-			// Valid assignment targets
-			stmt := &ast.AssignmentStatement{
-				BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-				Target:   leftExpr,
-				Operator: assignOp,
-			}
-
-			// Move to value expression
-			p.cursor = p.cursor.Advance()
-
-			// Parse value expression
-			stmt.Value = p.parseExpression(ASSIGN)
-
-			// Optional semicolon
-			nextToken := p.cursor.Peek(1)
-			if nextToken.Type == lexer.SEMICOLON {
-				p.cursor = p.cursor.Advance()
-				return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
-			}
-
-			// End at value expression or current token
-			if stmt.Value != nil {
-				return builder.FinishWithNode(stmt, stmt.Value).(*ast.AssignmentStatement)
-			}
-			return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.AssignmentStatement)
-
-		default:
-			// Invalid assignment target - use structured error
-			err := NewStructuredError(ErrKindInvalid).
-				WithCode(ErrInvalidSyntax).
-				WithMessage("invalid assignment target").
-				WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
-				WithSuggestion("assignment target must be a variable, field access, or array element").
-				WithNote("Valid: x := 10, obj.field := 20, arr[i] := 30").
-				WithParsePhase("assignment statement").
-				Build()
-			p.addStructuredError(err)
-			return nil
-		}
+	if isAssignmentOperator(p.cursor.Peek(1).Type) {
+		return p.parseAssignmentStatement(builder, left)
 	}
 
-	// Not an assignment, treat as expression statement
-	stmt := &ast.ExpressionStatement{
-		BaseNode:   ast.BaseNode{Token: startToken},
-		Expression: left,
-	}
-
-	// Optional semicolon
-	nextToken = p.cursor.Peek(1)
-	if nextToken.Type == lexer.SEMICOLON {
-		p.cursor = p.cursor.Advance()
-		return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ExpressionStatement)
-	}
-
-	// End at expression or start token
-	if left != nil {
-		return builder.FinishWithNode(stmt, left).(*ast.ExpressionStatement)
-	}
-	return builder.FinishWithToken(stmt, startToken).(*ast.ExpressionStatement)
+	return p.parseExpressionStatementFromExpression(builder, startToken, left)
 }
 
 // ============================================================================
@@ -460,58 +464,10 @@ func (p *Parser) parseVarDeclaration() ast.Statement {
 	}
 }
 
-// Assumes we're already positioned at the identifier (or just before it).
-// PRE: cursor is on VAR or variable name IDENT
-// POST: cursor is on SEMICOLON
-func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
-	builder := p.StartNode()
-	stmt := &ast.VarDeclStatement{}
-
-	// Check if we're already at the identifier (var section continuation)
-	// or if we need to advance to it (after 'var' keyword)
-	currentToken := p.cursor.Current()
-	if currentToken.Type == lexer.VAR {
-		stmt.Token = currentToken
-		// After 'var' keyword, expect identifier next
-		p.cursor = p.cursor.Advance()
-		currentToken = p.cursor.Current()
-		if !p.isIdentifierToken(currentToken.Type) {
-			// Use structured error
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrExpectedIdent).
-				WithMessage("expected identifier in var declaration").
-				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithExpectedString("variable name").
-				WithActual(currentToken.Type, currentToken.Literal).
-				WithSuggestion("provide a variable name after 'var'").
-				WithParsePhase("variable declaration").
-				Build()
-			p.addStructuredError(err)
-			return nil
-		}
-	} else if !p.isIdentifierToken(currentToken.Type) {
-		// Should already be at an identifier
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrExpectedIdent).
-			WithMessage("expected identifier in var declaration").
-			WithPosition(currentToken.Pos, currentToken.Length()).
-			WithExpectedString("variable name").
-			WithActual(currentToken.Type, currentToken.Literal).
-			WithSuggestion("provide a variable name after 'var'").
-			WithParsePhase("variable declaration").
-			Build()
-		p.addStructuredError(err)
-		return nil
-	} else {
-		stmt.Token = currentToken
-	}
-
-	// Collect comma-separated identifiers
-	// Parse pattern: IDENT (, IDENT)* : TYPE [:= VALUE]
-	stmt.Names = []*ast.Identifier{}
+func (p *Parser) parseVarIdentifierList() ([]*ast.Identifier, bool) {
+	var names []*ast.Identifier
 	for {
-		currentToken = p.cursor.Current()
+		currentToken := p.cursor.Current()
 		if !p.isIdentifierToken(currentToken.Type) {
 			// Use structured error
 			err := NewStructuredError(ErrKindMissing).
@@ -524,10 +480,10 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 				WithParsePhase("variable declaration").
 				Build()
 			p.addStructuredError(err)
-			return nil
+			return nil, false
 		}
 
-		stmt.Names = append(stmt.Names, &ast.Identifier{
+		names = append(names, &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
 					Token: currentToken,
@@ -554,7 +510,7 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 					WithParsePhase("variable declaration").
 					Build()
 				p.addStructuredError(err)
-				return nil
+				return nil, false
 			}
 			continue
 		}
@@ -562,82 +518,81 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 		// No more names, break to parse type
 		break
 	}
+	return names, true
+}
 
-	// Parse optional type annotation
-	nextToken := p.cursor.Peek(1)
-	if nextToken.Type == lexer.COLON {
-		p.cursor = p.cursor.Advance() // move to ':'
-
-		// Parse type expression (can be simple type, function pointer, or array type)
-		p.cursor = p.cursor.Advance() // move to type expression
-
-		typeExpr := p.parseTypeExpression()
-
-		if typeExpr == nil {
+func (p *Parser) validateAndAdvanceVarToken(stmt *ast.VarDeclStatement) bool {
+	currentToken := p.cursor.Current()
+	if currentToken.Type == lexer.VAR {
+		stmt.Token = currentToken
+		// After 'var' keyword, expect identifier next
+		p.cursor = p.cursor.Advance()
+		currentToken = p.cursor.Current()
+		if !p.isIdentifierToken(currentToken.Type) {
 			// Use structured error
-			currentToken = p.cursor.Current()
 			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrExpectedType).
-				WithMessage("expected type expression after ':' in var declaration").
+				WithCode(ErrExpectedIdent).
+				WithMessage("expected identifier in var declaration").
 				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithExpectedString("type name").
-				WithSuggestion("specify the variable type, like 'Integer' or 'String'").
-				WithParsePhase("variable declaration type").
+				WithExpectedString("variable name").
+				WithActual(currentToken.Type, currentToken.Literal).
+				WithSuggestion("provide a variable name after 'var'").
+				WithParsePhase("variable declaration").
 				Build()
 			p.addStructuredError(err)
-			return stmt
+			return false
 		}
-
-		// Directly assign the type expression without creating synthetic wrappers
-		stmt.Type = typeExpr
-	}
-
-	nextToken = p.cursor.Peek(1)
-	if stmt.Type != nil {
-		if nextToken.Type == lexer.ASSIGN || nextToken.Type == lexer.EQ {
-			if len(stmt.Names) > 1 {
-				// Use structured error
-				err := NewStructuredError(ErrKindInvalid).
-					WithCode(ErrInvalidSyntax).
-					WithMessage("cannot use initializer with multiple variable names").
-					WithPosition(nextToken.Pos, nextToken.Length()).
-					WithSuggestion("declare variables separately or use the same value for all").
-					WithNote("DWScript requires: var x, y: Integer (no initializer) or var x: Integer := 10").
-					WithParsePhase("variable declaration").
-					Build()
-				p.addStructuredError(err)
-				return stmt
-			}
-
-			p.cursor = p.cursor.Advance() // move to assignment operator
-			p.cursor = p.cursor.Advance() // move to value expression
-			stmt.Value = p.parseExpression(ASSIGN)
-		}
+	} else if !p.isIdentifierToken(currentToken.Type) {
+		// Should already be at an identifier
+		// Use structured error
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrExpectedIdent).
+			WithMessage("expected identifier in var declaration").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithExpectedString("variable name").
+			WithActual(currentToken.Type, currentToken.Literal).
+			WithSuggestion("provide a variable name after 'var'").
+			WithParsePhase("variable declaration").
+			Build()
+		p.addStructuredError(err)
+		return false
 	} else {
-		if nextToken.Type == lexer.ASSIGN || nextToken.Type == lexer.EQ {
-			if len(stmt.Names) > 1 {
-				// Use structured error
-				err := NewStructuredError(ErrKindInvalid).
-					WithCode(ErrInvalidSyntax).
-					WithMessage("cannot use initializer with multiple variable names").
-					WithPosition(nextToken.Pos, nextToken.Length()).
-					WithSuggestion("declare variables separately when using initializers").
-					WithNote("DWScript requires separate declarations with initializers").
-					WithParsePhase("variable declaration").
-					Build()
-				p.addStructuredError(err)
-				return stmt
-			}
+		stmt.Token = currentToken
+	}
+	return true
+}
 
-			p.cursor = p.cursor.Advance() // move to assignment operator
-			stmt.Inferred = true
-			p.cursor = p.cursor.Advance() // move to value expression
-			stmt.Value = p.parseExpression(ASSIGN)
-		} else {
-			nextToken = p.cursor.Peek(1)
+func (p *Parser) parseVarType(stmt *ast.VarDeclStatement) {
+	if p.cursor.Peek(1).Type != lexer.COLON {
+		return
+	}
+	p.cursor = p.cursor.Advance() // move to ':'
+	p.cursor = p.cursor.Advance() // move to type expression
+
+	typeExpr := p.parseTypeExpression()
+	if typeExpr == nil {
+		currentToken := p.cursor.Current()
+		err := NewStructuredError(ErrKindMissing).
+			WithCode(ErrExpectedType).
+			WithMessage("expected type expression after ':' in var declaration").
+			WithPosition(currentToken.Pos, currentToken.Length()).
+			WithExpectedString("type name").
+			WithSuggestion("specify the variable type, like 'Integer' or 'String'").
+			WithParsePhase("variable declaration type").
+			Build()
+		p.addStructuredError(err)
+		return
+	}
+	stmt.Type = typeExpr
+}
+
+func (p *Parser) parseVarValue(stmt *ast.VarDeclStatement) {
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.ASSIGN && nextToken.Type != lexer.EQ {
+		if stmt.Type == nil {
+			// No type and no value, this is an error
 			if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.EXTERNAL {
-				// Use structured error
-				currentToken = p.cursor.Current()
+				currentToken := p.cursor.Current()
 				err := NewStructuredError(ErrKindInvalid).
 					WithCode(ErrInvalidSyntax).
 					WithMessage("variable declaration requires a type or initializer").
@@ -648,7 +603,6 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 					Build()
 				p.addStructuredError(err)
 			} else {
-				// Use structured error
 				err := NewStructuredError(ErrKindMissing).
 					WithCode(ErrMissingColon).
 					WithMessage("expected ':', ':=' or '=' in variable declaration").
@@ -661,41 +615,88 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 				p.addStructuredError(err)
 			}
 		}
+		return // No value to parse
 	}
 
-	// Check for 'external' keyword
-	nextToken = p.cursor.Peek(1)
-	if nextToken.Type == lexer.EXTERNAL {
+	if len(stmt.Names) > 1 {
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrInvalidSyntax).
+			WithMessage("cannot use initializer with multiple variable names").
+			WithPosition(nextToken.Pos, nextToken.Length()).
+			WithSuggestion("declare variables separately or use the same value for all").
+			WithNote("DWScript requires: var x, y: Integer (no initializer) or var x: Integer := 10").
+			WithParsePhase("variable declaration").
+			Build()
+		p.addStructuredError(err)
+		return
+	}
+
+	p.cursor = p.cursor.Advance() // move to assignment operator
+	if stmt.Type == nil {
+		stmt.Inferred = true
+	}
+	p.cursor = p.cursor.Advance() // move to value expression
+	stmt.Value = p.parseExpression(ASSIGN)
+}
+
+func (p *Parser) parseVarExternalClause(stmt *ast.VarDeclStatement) {
+	if p.cursor.Peek(1).Type == lexer.EXTERNAL {
 		p.cursor = p.cursor.Advance() // move to 'external'
 		stmt.IsExternal = true
 
-		// Check for optional external name: external 'customName'
-		nextToken = p.cursor.Peek(1)
-		if nextToken.Type == lexer.STRING {
+		if p.cursor.Peek(1).Type == lexer.STRING {
 			p.cursor = p.cursor.Advance() // move to string literal
 			stmt.ExternalName = p.cursor.Current().Literal
 		}
 	}
+}
 
-	// Expect semicolon
-	nextToken = p.cursor.Peek(1)
+func (p *Parser) expectSemicolon(context string) bool {
+	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.SEMICOLON {
 		// Use structured error
-		currentToken = p.cursor.Current()
+		currentToken := p.cursor.Current()
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after variable declaration").
+			WithMessage("expected ';' after " + context).
 			WithPosition(currentToken.Pos, currentToken.Length()).
 			WithExpectedString("';'").
 			WithActual(nextToken.Type, nextToken.Literal).
 			WithSuggestion("add ';' at the end of the declaration").
-			WithParsePhase("variable declaration").
+			WithParsePhase(context).
 			Build()
 		p.addStructuredError(err)
-		return stmt
+		return false
 	}
 
 	p.cursor = p.cursor.Advance() // move to semicolon
+	return true
+}
+
+// Assumes we're already positioned at the identifier (or just before it).
+// PRE: cursor is on VAR or variable name IDENT
+// POST: cursor is on SEMICOLON
+func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
+	builder := p.StartNode()
+	stmt := &ast.VarDeclStatement{}
+
+	if !p.validateAndAdvanceVarToken(stmt) {
+		return nil
+	}
+
+	var ok bool
+	stmt.Names, ok = p.parseVarIdentifierList()
+	if !ok {
+		return nil
+	}
+
+	p.parseVarType(stmt)
+	p.parseVarValue(stmt)
+	p.parseVarExternalClause(stmt)
+
+	if !p.expectSemicolon("variable declaration") {
+		return stmt
+	}
 
 	return builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.VarDeclStatement)
 }
