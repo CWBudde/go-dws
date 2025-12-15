@@ -5,6 +5,52 @@ import (
 	"testing"
 )
 
+// Test helpers to reduce cyclomatic complexity
+
+// expectAnalysisError runs analysis expecting an error containing all specified keywords
+func expectAnalysisError(t *testing.T, input string, keywords ...string) {
+	t.Helper()
+	analyzer, err := analyzeSource(t, input)
+	if err == nil {
+		t.Errorf("Expected error containing keywords %v, but got no error", keywords)
+		return
+	}
+
+	if !hasErrorWithKeywords(analyzer.Errors(), keywords...) {
+		t.Errorf("Expected error containing keywords %v, got: %v", keywords, analyzer.Errors())
+	}
+}
+
+// expectNoError runs analysis expecting success
+func expectNoError(t *testing.T, input string) {
+	t.Helper()
+	_, err := analyzeSource(t, input)
+	if err != nil {
+		t.Errorf("Expected no errors, got: %v", err)
+	}
+}
+
+// hasErrorWithKeywords checks if any error message contains all specified keywords
+func hasErrorWithKeywords(errors []string, keywords ...string) bool {
+	for _, errMsg := range errors {
+		if containsAllKeywords(errMsg, keywords...) {
+			return true
+		}
+	}
+	return false
+}
+
+// containsAllKeywords checks if a string contains all specified keywords (case-insensitive)
+func containsAllKeywords(s string, keywords ...string) bool {
+	lowerMsg := strings.ToLower(s)
+	for _, keyword := range keywords {
+		if !strings.Contains(lowerMsg, strings.ToLower(keyword)) {
+			return false
+		}
+	}
+	return true
+}
+
 // ============================================================================
 // Inherited Expression Semantic Tests
 // ============================================================================
@@ -30,10 +76,7 @@ begin
 	result := inherited GetValue() + 5;
 end;
 `
-		_, err := analyzeSource(t, input)
-		if err != nil {
-			t.Errorf("Expected no errors for valid inherited usage, got: %v", err)
-		}
+		expectNoError(t, input)
 	})
 
 	t.Run("bare inherited in method", func(t *testing.T) {
@@ -57,10 +100,7 @@ begin
 	PrintLn('Child');
 end;
 `
-		_, err := analyzeSource(t, input)
-		if err != nil {
-			t.Errorf("Expected no errors for bare inherited, got: %v", err)
-		}
+		expectNoError(t, input)
 	})
 
 	t.Run("inherited with arguments", func(t *testing.T) {
@@ -83,10 +123,7 @@ begin
 	result := inherited Add(a, b) * 2;
 end;
 `
-		_, err := analyzeSource(t, input)
-		if err != nil {
-			t.Errorf("Expected no errors for inherited with arguments, got: %v", err)
-		}
+		expectNoError(t, input)
 	})
 
 	t.Run("inherited property access", func(t *testing.T) {
@@ -107,10 +144,7 @@ begin
 	result := inherited Value;
 end;
 `
-		_, err := analyzeSource(t, input)
-		if err != nil {
-			t.Errorf("Expected no errors for inherited property access, got: %v", err)
-		}
+		expectNoError(t, input)
 	})
 }
 
@@ -121,23 +155,7 @@ begin
 	inherited DoSomething;
 end.
 `
-		analyzer, err := analyzeSource(t, input)
-		if err == nil {
-			t.Error("Expected error for inherited outside class method")
-			return
-		}
-
-		errors := analyzer.Errors()
-		found := false
-		for _, errMsg := range errors {
-			if strings.Contains(errMsg, "inherited") && strings.Contains(errMsg, "class method") {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected error about inherited outside class method, got: %v", errors)
-		}
+		expectAnalysisError(t, input, "inherited", "class method")
 	})
 
 	t.Run("inherited in class with no parent", func(t *testing.T) {
@@ -151,23 +169,7 @@ begin
 	inherited DoSomething;  // Error: TBase has no parent (except TObject)
 end;
 `
-		analyzer, err := analyzeSource(t, input)
-		if err == nil {
-			t.Error("Expected error for inherited in class with no parent")
-			return
-		}
-
-		errors := analyzer.Errors()
-		found := false
-		for _, errMsg := range errors {
-			if strings.Contains(errMsg, "no parent") || strings.Contains(errMsg, "has no parent class") {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected error about no parent class, got: %v", errors)
-		}
+		expectAnalysisError(t, input, "parent")
 	})
 
 	t.Run("bare inherited outside method context", func(t *testing.T) {
@@ -189,23 +191,7 @@ begin
 	inherited;  // Error: bare inherited needs method context
 end.
 `
-		analyzer, err := analyzeSource(t, input)
-		if err == nil {
-			t.Error("Expected error for bare inherited outside method")
-			return
-		}
-
-		errors := analyzer.Errors()
-		found := false
-		for _, errMsg := range errors {
-			if strings.Contains(errMsg, "inherited") && strings.Contains(errMsg, "class method") {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected error about inherited outside class method, got: %v", errors)
-		}
+		expectAnalysisError(t, input, "inherited", "class method")
 	})
 
 	t.Run("inherited method not found in parent", func(t *testing.T) {
@@ -234,23 +220,7 @@ begin
 	inherited NonExistent;  // Error: NonExistent not in parent
 end;
 `
-		analyzer, err := analyzeSource(t, input)
-		if err == nil {
-			t.Error("Expected error for inherited method not found")
-			return
-		}
-
-		errors := analyzer.Errors()
-		found := false
-		for _, errMsg := range errors {
-			if strings.Contains(errMsg, "not found") && (strings.Contains(errMsg, "NonExistent") || strings.Contains(errMsg, "parent")) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected error about method not found in parent, got: %v", errors)
-		}
+		expectAnalysisError(t, input, "not found")
 	})
 
 	t.Run("inherited with wrong number of arguments", func(t *testing.T) {
@@ -273,23 +243,7 @@ begin
 	result := inherited Add(a);  // Error: wrong number of arguments
 end;
 `
-		analyzer, err := analyzeSource(t, input)
-		if err == nil {
-			t.Error("Expected error for wrong number of arguments")
-			return
-		}
-
-		errors := analyzer.Errors()
-		found := false
-		for _, errMsg := range errors {
-			if strings.Contains(errMsg, "wrong number") || strings.Contains(errMsg, "expected") {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected error about wrong number of arguments, got: %v", errors)
-		}
+		expectAnalysisError(t, input, "expected")
 	})
 
 	t.Run("inherited with wrong argument types", func(t *testing.T) {
@@ -312,23 +266,7 @@ begin
 	result := inherited Process('string');  // Error: wrong type
 end;
 `
-		analyzer, err := analyzeSource(t, input)
-		if err == nil {
-			t.Error("Expected error for wrong argument type")
-			return
-		}
-
-		errors := analyzer.Errors()
-		found := false
-		for _, errMsg := range errors {
-			if strings.Contains(errMsg, "type") && (strings.Contains(errMsg, "expected") || strings.Contains(errMsg, "argument")) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected error about wrong argument type, got: %v", errors)
-		}
+		expectAnalysisError(t, input, "type")
 	})
 
 	t.Run("cannot call property as method", func(t *testing.T) {
@@ -347,23 +285,7 @@ begin
 	result := inherited Value(10);  // Error: cannot call property
 end;
 `
-		analyzer, err := analyzeSource(t, input)
-		if err == nil {
-			t.Error("Expected error for calling property as method")
-			return
-		}
-
-		errors := analyzer.Errors()
-		found := false
-		for _, errMsg := range errors {
-			if strings.Contains(errMsg, "property") && strings.Contains(errMsg, "call") {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected error about calling property as method, got: %v", errors)
-		}
+		expectAnalysisError(t, input, "property", "call")
 	})
 
 	t.Run("cannot call field as method", func(t *testing.T) {
@@ -381,23 +303,7 @@ begin
 	result := inherited Value(10);  // Error: cannot call field
 end;
 `
-		analyzer, err := analyzeSource(t, input)
-		if err == nil {
-			t.Error("Expected error for calling field as method")
-			return
-		}
-
-		errors := analyzer.Errors()
-		found := false
-		for _, errMsg := range errors {
-			if strings.Contains(errMsg, "field") && strings.Contains(errMsg, "call") {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected error about calling field as method, got: %v", errors)
-		}
+		expectAnalysisError(t, input, "field", "call")
 	})
 }
 
@@ -423,10 +329,7 @@ begin
 	PrintLn('Child Create');
 end;
 `
-		_, err := analyzeSource(t, input)
-		if err != nil {
-			t.Errorf("Expected no errors for inherited in constructor, got: %v", err)
-		}
+		expectNoError(t, input)
 	})
 
 	t.Run("inherited field access", func(t *testing.T) {
@@ -445,10 +348,7 @@ begin
 	result := inherited Value;
 end;
 `
-		_, err := analyzeSource(t, input)
-		if err != nil {
-			t.Errorf("Expected no errors for inherited field access, got: %v", err)
-		}
+		expectNoError(t, input)
 	})
 
 	t.Run("multiple inheritance levels", func(t *testing.T) {
@@ -480,9 +380,6 @@ begin
 	result := inherited GetValue() + 1;  // Calls TMiddle.GetValue
 end;
 `
-		_, err := analyzeSource(t, input)
-		if err != nil {
-			t.Errorf("Expected no errors for multiple inheritance levels, got: %v", err)
-		}
+		expectNoError(t, input)
 	})
 }
