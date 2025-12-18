@@ -190,10 +190,9 @@ type Evaluator struct {
 	output            io.Writer
 	externalFunctions ExternalFunctionRegistry
 	currentNode       ast.Node
-	oopEngine         OOPEngine        // Runtime OOP operations
-	declHandler       DeclHandler      // Declaration processing
-	exceptionMgr      ExceptionManager // Exception handling
-	coreEvaluator     CoreEvaluator    // Cross-cutting concerns
+	oopEngine         OOPEngine   // Runtime OOP operations
+	declHandler       DeclHandler // Declaration processing
+	coreEvaluator     CoreEvaluator
 	refCountMgr       runtime.RefCountManager
 	config            *Config
 	rand              *rand.Rand
@@ -371,18 +370,17 @@ func (e *Evaluator) SetCurrentNode(node ast.Node) {
 	e.currentNode = node
 }
 
-// SetFocusedInterfaces sets the four focused interfaces for the evaluator.
-// Typically passes the same interpreter instance for all four interfaces.
+// SetFocusedInterfaces sets the focused interfaces for the evaluator.
+// Typically passes the same interpreter instance for all three interfaces.
 // Can be set independently for testing or custom implementations.
+// Note: ExceptionManager was removed in Task 4.2 - exception handling is now self-contained.
 func (e *Evaluator) SetFocusedInterfaces(
 	oopEngine OOPEngine,
 	declHandler DeclHandler,
-	exceptionMgr ExceptionManager,
 	coreEvaluator CoreEvaluator,
 ) {
 	e.oopEngine = oopEngine
 	e.declHandler = declHandler
-	e.exceptionMgr = exceptionMgr
 	e.coreEvaluator = coreEvaluator
 }
 
@@ -554,9 +552,6 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		}
 		return e.VisitVarDeclStatement(n, ctx)
 	case *ast.ConstDecl:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitConstDecl(n, ctx)
 	case *ast.AssignmentStatement:
 		return e.VisitAssignmentStatement(n, ctx)
@@ -571,15 +566,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.ForStatement:
 		return e.VisitForStatement(n, ctx)
 	case *ast.ForInStatement:
-		// TODO disable
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitForInStatement(n, ctx)
 	case *ast.CaseStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitCaseStatement(n, ctx)
 	case *ast.TryStatement:
 		if e.coreEvaluator != nil && !e.selfContainedMode {
@@ -658,15 +646,82 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 // ============================================================================
 
 // createException creates an exception with resolved class metadata.
+// Self-contained: no longer delegates to ExceptionManager.
 func (e *Evaluator) createException(className, message string, pos *lexer.Position, ctx *ExecutionContext) any {
 	excClass := e.typeSystem.LookupClass(className)
 	if excClass == nil {
 		excClass = e.typeSystem.LookupClass("Exception")
 	}
-	return e.exceptionMgr.CreateExceptionDirect(excClass, message, pos, ctx.CallStack())
+
+	// Get metadata and create instance
+	var metadata *runtime.ClassMetadata
+	var instance *runtime.ObjectInstance
+	if excClass != nil {
+		// Type assert to IClassInfo to access GetMetadata()
+		if classInfo, ok := excClass.(runtime.IClassInfo); ok {
+			metadata = classInfo.GetMetadata()
+			instance = runtime.NewObjectInstance(classInfo)
+			instance.SetField("Message", &runtime.StringValue{Value: message})
+		}
+	}
+
+	return runtime.NewException(metadata, instance, message, pos, ctx.CallStack())
 }
 
 // wrapObjectAsException wraps an existing ObjectInstance as an exception.
+// Self-contained: no longer delegates to ExceptionManager.
 func (e *Evaluator) wrapObjectAsException(obj Value, pos *lexer.Position, ctx *ExecutionContext) any {
-	return e.exceptionMgr.WrapObjectInException(obj, pos, ctx.CallStack())
+	// Cast to ObjectInstance
+	objInst, ok := obj.(*runtime.ObjectInstance)
+	if !ok {
+		// Create a simple exception if not an ObjectInstance
+		return runtime.NewException(nil, nil, "Invalid exception object", pos, ctx.CallStack())
+	}
+
+	// Extract message from the object's Message field
+	message := ""
+	if msgVal := objInst.GetField("Message"); msgVal != nil {
+		if strVal, ok := msgVal.(*runtime.StringValue); ok {
+			message = strVal.Value
+		}
+	}
+
+	return runtime.NewExceptionFromObject(objInst, message, pos, ctx.CallStack())
+}
+
+// cleanupInterfaceReferences releases all interface and object references when a scope ends.
+// Self-contained: no longer delegates to ExceptionManager.
+func (e *Evaluator) cleanupInterfaceReferences(env *runtime.Environment) {
+	if env == nil || e.refCountMgr == nil {
+		return
+	}
+
+	// Iterate through all variables in the environment
+	env.Range(func(name string, value Value) bool {
+		// Skip ReferenceValue entries (like function name aliases)
+		if _, isRef := value.(*runtime.ReferenceValue); isRef {
+			return true // continue
+		}
+
+		// Skip "Result" variable during function cleanup.
+		// Result is the return value and will be managed by the caller.
+		// Releasing it here would cause premature destructor calls.
+		if name == "Result" {
+			return true // continue (skip)
+		}
+
+		// Release interface references
+		if intfInst, ok := value.(*runtime.InterfaceInstance); ok {
+			e.refCountMgr.ReleaseInterface(intfInst)
+		} else if objInst, ok := value.(*runtime.ObjectInstance); ok {
+			// Release object references
+			e.refCountMgr.ReleaseObject(objInst)
+		} else if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok {
+			// Clean up method pointers that hold object references
+			if objInst, isObj := funcPtr.SelfObject.(*runtime.ObjectInstance); isObj {
+				e.refCountMgr.ReleaseObject(objInst)
+			}
+		}
+		return true // continue
+	})
 }

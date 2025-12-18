@@ -236,6 +236,36 @@ func TestArrayReturnViaOverloadedFunction(t *testing.T) {
 	}
 }
 
+// TestForInStatementEnvSync verifies task 4.1.4b: ForInStatement passes correct
+// environment to method calls, ensuring loop variables are visible.
+// This is the same pattern as TestArrayReturnViaFunctionPointer but with for-in loop.
+func TestForInStatementEnvSync(t *testing.T) {
+	input := `
+		type TIntArray = array of Integer;
+
+		function CreateArrayFromForIn(): TIntArray;
+		begin
+			for item in [10, 20, 30] do
+				Result.Add(item * 2);
+		end;
+
+		var arr := CreateArrayFromForIn();
+		PrintLn(Length(arr));
+		PrintLn(arr[0]);
+		PrintLn(arr[1]);
+		PrintLn(arr[2]);
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	expected := "3\n20\n40\n60\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
 // TestInlineArrayOfRecordReturnType tests array of record return types.
 func TestInlineArrayOfRecordReturnType(t *testing.T) {
 	// Note: Using separate record variables to avoid record reference aliasing issue

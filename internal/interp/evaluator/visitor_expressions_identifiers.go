@@ -460,9 +460,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 	// and calling destructors when reference count reaches zero.
 	// Note: Cleanup happens via defer in PushEnv/PopEnv, but for now we call explicitly
 	// before PopEnv to ensure cleanup happens even if function returns early.
-	if e.exceptionMgr != nil {
-		e.exceptionMgr.CleanupInterfaceReferences(ctx.Env())
-	}
+	e.cleanupInterfaceReferences(ctx.Env())
 
 	return resultValue
 }

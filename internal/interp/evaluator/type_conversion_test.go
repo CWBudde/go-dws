@@ -92,7 +92,7 @@ func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
 			return &runtime.NilValue{}
 		},
 	}
-	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter, mockAdapter)
+	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter)
 
 	// Create execution context with a proper environment
 	env := runtime.NewEnvironment()
@@ -170,7 +170,7 @@ func TestConversionCallbacks_NilHandling(t *testing.T) {
 			return &runtime.NilValue{}
 		},
 	}
-	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter, mockAdapter)
+	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter)
 
 	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)

@@ -119,15 +119,11 @@ type OOPEngine interface {
 	LookupClassByName(name string) ClassMetaValue
 }
 
-// ExceptionManager handles exception creation, propagation, and cleanup.
-type ExceptionManager interface {
-	CreateExceptionDirect(classMetadata any, message string, pos any, callStack any) any
-	WrapObjectInException(objInstance Value, pos any, callStack any) any
-	CreateContractException(className, message string, node ast.Node, classMetadata interface{}, callStack interface{}) interface{}
-	RaiseTypeCastException(message string, node ast.Node)
-	RaiseAssertionFailed(customMessage string)
-	CleanupInterfaceReferences(env interface{})
-}
+// ExceptionManager was removed in Task 4.2.
+// Exception handling is now self-contained in the evaluator using:
+// - runtime.NewException() for creating exceptions
+// - runtime.NewExceptionFromObject() for wrapping objects as exceptions
+// - RefCountManager.ReleaseInterface/ReleaseObject for cleanup
 
 // DeclHandler handles type declaration processing (classes, interfaces, helpers).
 type DeclHandler interface {

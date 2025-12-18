@@ -381,7 +381,7 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 		// Cast failed - raise exception
 		message := fmt.Sprintf("Cannot cast instance of type \"%s\" to class \"%s\"",
 			objClassMeta.Name, className)
-		e.exceptionMgr.RaiseTypeCastException(message, node)
+		e.raiseTypeCastException(message, node)
 		return nil
 	}
 
@@ -392,4 +392,35 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 		return e.newError(node, "failed to create type cast wrapper for class '%s'", className)
 	}
 	return wrapper
+}
+
+// raiseTypeCastException raises an exception for invalid type casts.
+// Self-contained: no longer delegates to ExceptionManager.
+func (e *Evaluator) raiseTypeCastException(message string, node ast.Node) {
+	ctx := e.currentContext
+	if ctx == nil {
+		return // No context available, cannot raise exception
+	}
+
+	// Get position from node
+	pos := node.Pos()
+	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
+
+	// Look up Exception class
+	excClass := e.typeSystem.LookupClass("Exception")
+
+	// Get metadata and create instance
+	var metadata *runtime.ClassMetadata
+	var instance *runtime.ObjectInstance
+	if excClass != nil {
+		if classInfo, ok := excClass.(runtime.IClassInfo); ok {
+			metadata = classInfo.GetMetadata()
+			instance = runtime.NewObjectInstance(classInfo)
+			instance.SetField("Message", &runtime.StringValue{Value: fullMessage})
+		}
+	}
+
+	// Create and set exception
+	exc := runtime.NewException(metadata, instance, fullMessage, &pos, ctx.CallStack())
+	ctx.SetException(exc)
 }

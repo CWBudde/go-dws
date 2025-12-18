@@ -758,18 +758,19 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 		}
 
 	case *runtime.TypeMetaValue:
-		// Iterate over enum type values in declaration order
+		// Iterate over enum type values by ordinal range (min to max)
+		// DWScript iterates over the full range from min to max, not just declared values
 		enumType, ok := col.TypeInfo.(*types.EnumType)
 		if !ok {
 			return e.newError(node, "for-in loop: can only iterate over enum types, got %s", col.TypeName)
 		}
 
-		for _, name := range enumType.OrderedNames {
-			ordinal := enumType.Values[name]
+		for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal++ {
+			valueName := enumType.GetEnumName(ordinal)
 			// Create an enum value for this element
 			enumVal := &runtime.EnumValue{
 				TypeName:     enumType.Name,
-				ValueName:    name,
+				ValueName:    valueName,
 				OrdinalValue: ordinal,
 			}
 

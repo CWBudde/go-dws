@@ -215,15 +215,16 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 
   **Test**: `TestArrayReturnViaFunctionPointer` now passes ✅
 
-- [ ] **4.1.4b** ForInStatement environment sync issue
-  Same root cause as 4.1.4a - should be fixed by the EvalNode(node, ctx) change.
-  Needs verification.
+- [x] **4.1.4b** ForInStatement environment sync issue (VERIFIED)
+  Callback guard removed. Environment sync works via EvalNode(node, ctx) fix from 4.1.4a.
+  Also fixed evaluator's enum iteration to use ordinal range (MinOrdinal..MaxOrdinal).
+  **Test**: `TestForInStatementEnvSync` verifies method calls with loop variables.
 
-- [~] **4.1.5** Migrate simple statements (PARTIAL)
-  - [ ] ExpressionStatement - should work now with EvalNode fix, needs verification
-  - [ ] VarDeclStatement - needs investigation
-  - [ ] ConstDecl - needs investigation
-  - [ ] CaseStatement - needs investigation
+- [~] **4.1.5** Migrate simple statements (PARTIAL - 2/4 done)
+  - [ ] ExpressionStatement - blocked by oopEngine.ExecuteFunctionPointerCall (→ Task 4.4)
+  - [ ] VarDeclStatement - blocked by oopEngine.WrapInSubrange/WrapInInterface (→ Task 4.4)
+  - [x] ConstDecl - callback guard removed ✅
+  - [x] CaseStatement - callback guard removed ✅
 
 - [x] **4.1.6** Fix var param nested calls (DONE)
   **Problem**: `IncrementTwice(n)` where `n` is already a var param failed.
@@ -255,7 +256,7 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 
 ---
 
-### 4.2 Remove Exception Callbacks (ExceptionManager)
+### 4.2 Remove Exception Callbacks (ExceptionManager) ✅ **COMPLETED**
 
 **Goal**: Make exception creation/raising self-contained (low surface area, low risk).
 
@@ -263,12 +264,24 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 
 **Tasks**:
 
-- [ ] **4.2.1** Move exception creation + raising to Evaluator/runtime (timeboxed)
-- [ ] **4.2.2** Delete ExceptionManager interface (1h)
+- [x] **4.2.1** Move exception creation + raising to Evaluator/runtime ✅
+  - `createException()` now uses `runtime.NewException()` directly
+  - `wrapObjectAsException()` now uses `runtime.NewExceptionFromObject()` directly
+  - `raiseContractException()` now creates exceptions inline
+  - `raiseTypeCastException()` added to evaluator (self-contained)
+  - `RaiseAssertionFailed()` now creates exceptions inline
+  - `cleanupInterfaceReferences()` now uses `RefCountManager.ReleaseInterface/ReleaseObject`
+- [x] **4.2.2** Delete ExceptionManager interface ✅
+  - Removed `exceptionMgr` field from Evaluator struct
+  - Updated `SetFocusedInterfaces()` to take 3 parameters (was 4)
+  - Removed `ExceptionManager` type alias from `focused_interfaces.go`
+  - Removed `ExceptionManager` interface from `contracts.go`
 
 **Success Criteria**:
 
 - ✅ ExceptionManager interface deleted
+- ✅ All 6 callback call sites migrated to self-contained implementations
+- ✅ All tests pass
 
 ---
 
@@ -278,16 +291,67 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 
 **Principle**: Each removed callback must be replaced by direct Evaluator ownership, not by a new handler layer.
 
+**Current State**:
+
+- CoreEvaluator interface (4 methods) in `contracts.go:78-95`
+- 22 EvalNode fallbacks in `evaluator.go` Eval() switch
+- 3 EvalNode calls in other files (method_dispatch.go, helper_methods.go)
+- 6 other CoreEvaluator method calls (EvalBuiltinHelperProperty, EvalClassPropertyRead/Write)
+
 **Tasks**:
 
-- [ ] **4.3.1** Eliminate EvalNode fallbacks (timeboxed)
-- [ ] **4.3.2** Delete CoreEvaluator interface once unused (1h)
-- [ ] **4.3.3** Delete or collapse `adapter_*.go` files (timeboxed)
+- [ ] **4.3.1** Eliminate EvalNode fallbacks in evaluator.go
+  - [ ] **4.3.1.1** Remove statement fallbacks (Program, ExpressionStatement, VarDeclStatement, TryStatement, RaiseStatement) - 5 cases
+  - [ ] **4.3.1.2** Remove declaration fallbacks (FunctionDecl, ClassDecl, InterfaceDecl, OperatorDecl, EnumDecl, HelperDecl, TypeDeclaration) - 7 cases
+  - [ ] **4.3.1.3** Remove expression fallbacks (AddressOf, Call, New, MemberAccess, MethodCall, Inherited, Self, NewArray, As) - 9 cases
+  - [ ] **4.3.1.4** Remove default case fallback - replace with improved panic message
+- [ ] **4.3.2** Eliminate EvalNode fallbacks in other files
+  - [ ] **4.3.2.1** Remove method_dispatch.go EvalNode calls (TYPE_CAST handling, unknown type fallback)
+  - [ ] **4.3.2.2** Remove helper_methods.go EvalNode call (unhandled builtin spec)
+- [ ] **4.3.3** Migrate non-EvalNode CoreEvaluator methods
+  - [ ] **4.3.3.1** Migrate EvalBuiltinHelperProperty calls (4 calls in helper_methods.go) - inline array/enum/string property logic
+  - [ ] **4.3.3.2** Migrate EvalClassPropertyRead (visitor_expressions_members.go) - inline class property read
+  - [ ] **4.3.3.3** Migrate EvalClassPropertyWrite (member_assignment.go) - inline class property write
+- [ ] **4.3.4** Delete CoreEvaluator interface
+  - [ ] **4.3.4.1** Remove coreEvaluator field from Evaluator struct
+  - [ ] **4.3.4.2** Update SetFocusedInterfaces() to 2 params (was 3)
+  - [ ] **4.3.4.3** Remove CoreEvaluator type alias from focused_interfaces.go
+  - [ ] **4.3.4.4** Delete CoreEvaluator interface from contracts.go
+  - [ ] **4.3.4.5** Update all callers (runner.go, test files)
+  - [ ] **4.3.4.6** Remove selfContainedMode field and EnterSelfContainedMode()
+- [ ] **4.3.5** Verify no adapter indirection remains
+
+**Critical Files**:
+
+- `internal/interp/evaluator/evaluator.go` - Eval() switch with 22 fallbacks
+- `internal/interp/evaluator/helper_methods.go` - 4 EvalBuiltinHelperProperty + 1 EvalNode
+- `internal/interp/evaluator/method_dispatch.go` - 2 EvalNode fallbacks
+- `internal/interp/evaluator/visitor_expressions_members.go` - 1 EvalClassPropertyRead
+- `internal/interp/evaluator/member_assignment.go` - 1 EvalClassPropertyWrite
+- `internal/interp/contracts/contracts.go` - CoreEvaluator interface definition
+
+4.3.1.1 → 4.3.1.2 → 4.3.1.3 → 4.3.1.4  (evaluator.go guards)
+                                    ↓
+                              4.3.1.5 (method_dispatch.go)
+                                    ↓
+                              4.3.1.6 (helper_methods.go EvalNode)
+                                    ↓
+                    ┌───────────────┴───────────────┐
+                    ↓                               ↓
+             4.3.1.7 (BuiltinHelper)        4.3.1.8 (ClassProperty)
+                    ↓                               ↓
+                    └───────────────┬───────────────┘
+                                    ↓
+                              4.3.2 (Delete interface)
+                                    ↓
+                              4.3.3 (Verify)
 
 **Success Criteria**:
 
-- ✅ 0 callback calls from Evaluator to Interpreter
-- ✅ adapter files removed (or reduced to thin temporary shims only)
+- ✅ 0 callback calls from Evaluator to Interpreter via CoreEvaluator
+- ✅ CoreEvaluator interface deleted
+- ✅ SetFocusedInterfaces() reduced to 2 parameters
+- ✅ All tests pass
 
 ---
 

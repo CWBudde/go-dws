@@ -4,26 +4,44 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// raiseContractException creates an exception and sets it in the context via adapter.
+// raiseContractException creates an exception and sets it in the context.
+// Self-contained: no longer delegates to ExceptionManager.
 func (e *Evaluator) raiseContractException(className, message string, node ast.Node, ctx *ExecutionContext) {
 	// Get call stack for exception
 	callStack := ctx.CallStack()
 
 	// Look up exception class via TypeSystem (case-insensitive)
-	classMetadata := e.typeSystem.LookupClass(className)
+	excClass := e.typeSystem.LookupClass(className)
 
 	// If class not found, try to fall back to base Exception class
-	if classMetadata == nil && className != "Exception" {
-		classMetadata = e.typeSystem.LookupClass("Exception")
+	if excClass == nil && className != "Exception" {
+		excClass = e.typeSystem.LookupClass("Exception")
 	}
 
-	// Use adapter bridge constructor to create exception (avoids import cycle)
-	exc := e.exceptionMgr.CreateContractException(className, message, node, classMetadata, callStack)
+	// Get position from node
+	var pos *lexer.Position
+	if node != nil {
+		nodePos := node.Pos()
+		pos = &nodePos
+	}
 
-	// Set exception in context
+	// Get metadata and create instance
+	var metadata *runtime.ClassMetadata
+	var instance *runtime.ObjectInstance
+	if excClass != nil {
+		if classInfo, ok := excClass.(runtime.IClassInfo); ok {
+			metadata = classInfo.GetMetadata()
+			instance = runtime.NewObjectInstance(classInfo)
+			instance.SetField("Message", &runtime.StringValue{Value: message})
+		}
+	}
+
+	// Create and set exception
+	exc := runtime.NewException(metadata, instance, message, pos, callStack)
 	ctx.SetException(exc)
 }
 

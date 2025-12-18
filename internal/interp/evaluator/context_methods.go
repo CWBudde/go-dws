@@ -113,8 +113,48 @@ func (e *Evaluator) GetCallStackArray() Value {
 }
 
 // RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
+// Self-contained: no longer delegates to ExceptionManager.
 func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
-	e.exceptionMgr.RaiseAssertionFailed(customMessage)
+	ctx := e.currentContext
+	if ctx == nil {
+		return // No context available, cannot raise exception
+	}
+
+	// Build message with position info if available
+	var message string
+	if e.currentNode != nil {
+		pos := e.currentNode.Pos()
+		message = fmt.Sprintf("Assertion failed [line: %d, column: %d]", pos.Line, pos.Column)
+	} else {
+		message = "Assertion failed"
+	}
+
+	// Append custom message if provided
+	if customMessage != "" {
+		message = message + " : " + customMessage
+	}
+
+	// Look up EAssertionFailed class
+	excClass := e.typeSystem.LookupClass("EAssertionFailed")
+	if excClass == nil {
+		// Fallback to base Exception if class not found
+		excClass = e.typeSystem.LookupClass("Exception")
+	}
+
+	// Get metadata and create instance
+	var metadata *runtime.ClassMetadata
+	var instance *runtime.ObjectInstance
+	if excClass != nil {
+		if classInfo, ok := excClass.(runtime.IClassInfo); ok {
+			metadata = classInfo.GetMetadata()
+			instance = runtime.NewObjectInstance(classInfo)
+			instance.SetField("Message", &runtime.StringValue{Value: message})
+		}
+	}
+
+	// Create and set exception
+	exc := runtime.NewException(metadata, instance, message, nil, ctx.CallStack())
+	ctx.SetException(exc)
 }
 
 // EvalFunctionPointer executes a function pointer with given arguments.

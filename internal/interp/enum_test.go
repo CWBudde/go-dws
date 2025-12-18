@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -448,9 +449,10 @@ func TestForInEnumType_ErrorCase(t *testing.T) {
 		t.Fatal("expected error result, got nil")
 	}
 	if err, ok := result.(*ErrorValue); ok {
-		expected := "for-in loop: can only iterate over enum types, got Integer"
-		if err.Message != expected {
-			t.Errorf("expected error %q, got %q", expected, err.Message)
+		// Error message may include position info, so check for prefix
+		expectedPrefix := "for-in loop: can only iterate over enum types, got Integer"
+		if !strings.HasPrefix(err.Message, expectedPrefix) {
+			t.Errorf("expected error starting with %q, got %q", expectedPrefix, err.Message)
 		}
 	} else {
 		t.Errorf("expected ErrorValue, got %T", result)

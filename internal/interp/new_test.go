@@ -53,8 +53,9 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 	interpreter := NewWithDeps(output, opts, env, ts, eval, refCountMgr)
 
-	// Allow evaluator to delegate OO/decl/exception helpers back to interpreter.
-	eval.SetFocusedInterfaces(interpreter, interpreter, interpreter, interpreter)
+	// Allow evaluator to delegate OO/decl helpers back to interpreter.
+	// Note: ExceptionManager was removed in Task 4.2 - exception handling is now self-contained.
+	eval.SetFocusedInterfaces(interpreter, interpreter, interpreter)
 
 	return interpreter
 }
