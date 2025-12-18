@@ -301,7 +301,7 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
 **Tasks**:
 
 - [ ] **4.3.1** Eliminate EvalNode fallbacks in evaluator.go
-  - [ ] **4.3.1.1** Remove statement fallbacks (Program, ExpressionStatement, VarDeclStatement, TryStatement, RaiseStatement) - 5 cases
+  - [x] **4.3.1.1** Remove statement fallbacks (Program, ExpressionStatement, VarDeclStatement, TryStatement, RaiseStatement) - 5 cases
   - [ ] **4.3.1.2** Remove declaration fallbacks (FunctionDecl, ClassDecl, InterfaceDecl, OperatorDecl, EnumDecl, HelperDecl, TypeDeclaration) - 7 cases
   - [ ] **4.3.1.3** Remove expression fallbacks (AddressOf, Call, New, MemberAccess, MethodCall, Inherited, Self, NewArray, As) - 9 cases
   - [ ] **4.3.1.4** Remove default case fallback - replace with improved panic message

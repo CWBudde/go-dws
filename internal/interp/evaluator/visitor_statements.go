@@ -199,7 +199,12 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 		var nameValue Value
 
 		if node.Value != nil {
-			nameValue = value
+			// Clone copyable values (arrays, records) unless it's an index expression
+			if _, isIndexExpr := node.Value.(*ast.IndexExpression); isIndexExpr {
+				nameValue = value
+			} else {
+				nameValue = cloneIfCopyable(value)
+			}
 
 			if node.Type != nil {
 				typeName := node.Type.String()
@@ -1199,7 +1204,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
 		arrayType := e.resolveArrayTypeNode(arrayNode, ctx)
 		if arrayType != nil {
-			return &runtime.ArrayValue{ArrayType: arrayType, Elements: []runtime.Value{}}
+			return e.createArrayZeroValue(arrayType)
 		}
 		return &runtime.NilValue{}
 	}
@@ -1209,7 +1214,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
 		arrayType := e.parseInlineArrayType(typeName, ctx)
 		if arrayType != nil {
-			return &runtime.ArrayValue{ArrayType: arrayType, Elements: []runtime.Value{}}
+			return e.createArrayZeroValue(arrayType)
 		}
 		return &runtime.NilValue{}
 	}
@@ -1292,7 +1297,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		if arrayType == nil {
 			return &runtime.NilValue{}
 		}
-		return runtime.NewArrayValue(arrayType, nil)
+		return e.createArrayZeroValue(arrayType)
 	}
 
 	if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
@@ -1325,11 +1330,54 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	case "boolean":
 		return &runtime.BooleanValue{Value: false}
 	case "variant":
-		return runtime.BoxVariant(&runtime.NilValue{})
+		// Unassigned variant has Value: nil (not NilValue)
+		return &runtime.VariantValue{Value: nil, ActualType: nil}
 	default:
 		if e.typeSystem.HasClass(typeName) {
 			return &runtime.NilValue{ClassType: typeName}
 		}
 		return &runtime.NilValue{}
 	}
+}
+
+// createArrayZeroValue creates a properly initialized array value.
+// For static arrays, it pre-allocates elements and initializes nested arrays/records.
+// For dynamic arrays, it creates an empty array.
+func (e *Evaluator) createArrayZeroValue(arrayType *types.ArrayType) Value {
+	initializer := func(elementType types.Type, index int) runtime.Value {
+		if nestedArrayType, ok := elementType.(*types.ArrayType); ok {
+			return e.createArrayZeroValue(nestedArrayType)
+		}
+		if recordType, ok := elementType.(*types.RecordType); ok {
+			return e.createRecordZeroValue(recordType)
+		}
+		// For basic types, return nil - runtime will use zero values
+		return nil
+	}
+	return runtime.NewArrayValue(arrayType, initializer)
+}
+
+// createRecordZeroValue creates a properly initialized record value.
+func (e *Evaluator) createRecordZeroValue(recordType *types.RecordType) Value {
+	// Look up metadata from TypeSystem if available
+	var metadata *runtime.RecordMetadata
+	if recordTypeAny := e.typeSystem.LookupRecord(recordType.Name); recordTypeAny != nil {
+		type hasMetadata interface {
+			GetMetadata() any
+		}
+		if hm, ok := recordTypeAny.(hasMetadata); ok {
+			if mdAny := hm.GetMetadata(); mdAny != nil {
+				if md, ok := mdAny.(*runtime.RecordMetadata); ok {
+					metadata = md
+				}
+			}
+		}
+	}
+
+	// Create field initializer for nested types
+	initializer := func(fieldName string, fieldType types.Type) runtime.Value {
+		return e.getZeroValueForType(fieldType)
+	}
+
+	return runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
 }

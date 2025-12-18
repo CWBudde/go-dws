@@ -534,22 +534,12 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 
 	// Statements
 	case *ast.Program:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitProgram(n, ctx)
 	case *ast.EmptyStatement:
 		return e.VisitEmptyStatement(n, ctx)
 	case *ast.ExpressionStatement:
-		// TODO disable
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitExpressionStatement(n, ctx)
 	case *ast.VarDeclStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitVarDeclStatement(n, ctx)
 	case *ast.ConstDecl:
 		return e.VisitConstDecl(n, ctx)
@@ -570,14 +560,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.CaseStatement:
 		return e.VisitCaseStatement(n, ctx)
 	case *ast.TryStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitTryStatement(n, ctx)
 	case *ast.RaiseStatement:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitRaiseStatement(n, ctx)
 	case *ast.BreakStatement:
 		return e.VisitBreakStatement(n, ctx)

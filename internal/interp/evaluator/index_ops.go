@@ -121,8 +121,19 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 		}
 		return &runtime.NilValue{}
 	case "INTERFACE":
-		// InterfaceInstance is in interp package, so we return nil here
-		// The adapter will handle interface field initialization if needed
+		// Create a proper InterfaceInstance with nil object for uninitialized interface fields.
+		// This preserves the interface type information needed for proper error messages.
+		if ifaceType, ok := t.(*types.InterfaceType); ok {
+			ifaceName := ifaceType.Name
+			if ifaceName != "" {
+				if ifaceInfoAny := e.typeSystem.LookupInterface(ifaceName); ifaceInfoAny != nil {
+					if ifaceInfo, ok := ifaceInfoAny.(runtime.IInterfaceInfo); ok {
+						return runtime.NewInterfaceInstance(ifaceInfo, nil)
+					}
+				}
+			}
+		}
+		// Fallback to NilValue if interface info not found
 		return &runtime.NilValue{}
 	case "CLASS":
 		// Class fields initialize as nil
