@@ -305,10 +305,10 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
   - [ ] **4.3.1.2** Remove declaration fallbacks (7 cases) - **Each must be fixed BEFORE removing fallback**
     - [x] **4.3.1.2.1** FunctionDecl - Add DeclHandler.RegisterGlobalFunction() to dual-register in i.functions map
     - [x] **4.3.1.2.2** ClassDecl - Add DeclHandler.DefineClassInEnv() to bind class name in environment
-    - [ ] **4.3.1.2.3** InterfaceDecl - Verify VisitInterfaceDecl is complete
-    - [ ] **4.3.1.2.4** OperatorDecl - Verify VisitOperatorDecl is complete (likely delegates to DeclHandler)
-    - [ ] **4.3.1.2.5** EnumDecl - Add ValueExpr evaluation support + delegate to interpreter via evalViaEvaluator
-    - [ ] **4.3.1.2.6** HelperDecl - Verify VisitHelperDecl is complete (likely delegates to DeclHandler)
+    - [x] **4.3.1.2.3** InterfaceDecl - Verify VisitInterfaceDecl is complete
+    - [x] **4.3.1.2.4** OperatorDecl - Verify VisitOperatorDecl is complete (likely delegates to DeclHandler)
+    - [x] **4.3.1.2.5** EnumDecl - Add ValueExpr evaluation support + delegate to interpreter via evalViaEvaluator
+    - [x] **4.3.1.2.6** HelperDecl - Verify VisitHelperDecl is complete (likely delegates to DeclHandler)
     - [ ] **4.3.1.2.7** TypeDeclaration - Verify VisitTypeDeclaration is complete
   - [ ] **4.3.1.3** Remove expression fallbacks (AddressOf, Call, New, MemberAccess, MethodCall, Inherited, Self, NewArray, As) - 9 cases
   - [ ] **4.3.1.4** Remove default case fallback - replace with improved panic message

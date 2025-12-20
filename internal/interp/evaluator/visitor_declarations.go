@@ -525,7 +525,35 @@ func (e *Evaluator) VisitEnumDecl(node *ast.EnumDecl, ctx *ExecutionContext) Val
 		valueName := enumValue.Name
 		var ordinalValue int
 
-		if enumValue.Value != nil {
+		if enumValue.ValueExpr != nil {
+			val := e.Eval(enumValue.ValueExpr, ctx)
+			if isError(val) {
+				return e.newError(node, "enum '%s' value '%s': %v", enumName, valueName, val)
+			}
+
+			var errVal Value
+			ordinalValue, errVal = e.extractEnumOrdinal(val, enumName, valueName, node, ctx)
+			if errVal != nil {
+				return errVal
+			}
+
+			if node.Flags {
+				// Validate power of 2 for flags
+				if ordinalValue <= 0 || (ordinalValue&(ordinalValue-1)) != 0 {
+					return e.newError(node, "enum '%s' value '%s' (%d) must be a power of 2 for flags enum",
+						enumName, valueName, ordinalValue)
+				}
+				// Update bit position
+				for bitPos := 0; bitPos < 64; bitPos++ {
+					if (1 << bitPos) == ordinalValue {
+						flagBitPosition = bitPos + 1
+						break
+					}
+				}
+			} else {
+				currentOrdinal = ordinalValue + 1
+			}
+		} else if enumValue.Value != nil {
 			ordinalValue = *enumValue.Value
 			if node.Flags {
 				// Validate power of 2 for flags
@@ -592,6 +620,43 @@ func (e *Evaluator) VisitEnumDecl(node *ast.EnumDecl, ctx *ExecutionContext) Val
 	ctx.Env().Define(enumName, typeMetaValue)
 
 	return &runtime.NilValue{}
+}
+
+// extractEnumOrdinal coerces a value produced by an enum ValueExpr into an ordinal integer.
+func (e *Evaluator) extractEnumOrdinal(val Value, enumName, valueName string, node ast.Node, ctx *ExecutionContext) (int, Value) {
+	val = e.UnwrapVariant(val)
+
+	switch v := val.(type) {
+	case *runtime.IntegerValue:
+		return int(v.Value), nil
+	case *runtime.EnumValue:
+		return v.OrdinalValue, nil
+	case *runtime.BooleanValue:
+		if v.Value {
+			return 1, nil
+		}
+		return 0, nil
+	case *runtime.StringValue:
+		runes := []rune(v.Value)
+		if len(runes) == 0 {
+			return 0, e.newError(node, "enum '%s' value '%s': empty string not valid for enum value", enumName, valueName)
+		}
+		if len(runes) > 1 {
+			return 0, e.newError(node, "enum '%s' value '%s': string '%s' must be a single character", enumName, valueName, v.Value)
+		}
+		return int(runes[0]), nil
+	case *runtime.SubrangeValue:
+		return v.GetValue(), nil
+	}
+
+	if converted, ok := e.TryImplicitConversion(val, "Integer", ctx); ok {
+		if isError(converted) {
+			return 0, converted
+		}
+		return e.extractEnumOrdinal(converted, enumName, valueName, node, ctx)
+	}
+
+	return 0, e.newError(node, "enum '%s' value '%s': value of type %s is not an ordinal type", enumName, valueName, val.Type())
 }
 
 // VisitRecordDecl evaluates a record declaration.
