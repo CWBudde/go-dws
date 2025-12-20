@@ -289,6 +289,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	// Build VMT and register in TypeSystem
 	e.declHandler.BuildVirtualMethodTable(classInfo)
 	e.declHandler.RegisterClassInTypeSystem(classInfo, parentClassName)
+	e.declHandler.DefineClassInEnv(savedEnv, classInfo)
 
 	return &runtime.NilValue{}
 }

@@ -131,6 +131,7 @@ type DeclHandler interface {
 	NewClassInfoAdapter(name string) any
 	CastToClassInfo(class any) (any, bool)
 	IsClassPartial(classInfo any) bool
+	DefineClassInEnv(env any, classInfo any)
 	SetClassPartial(classInfo any, isPartial bool)
 	SetClassAbstract(classInfo any, isAbstract bool)
 	SetClassExternal(classInfo any, isExternal bool, externalName string)

@@ -354,6 +354,19 @@ func (i *Interpreter) ClassHasNoParent(classInfo interface{}) bool {
 	return ci.Parent == nil
 }
 
+// DefineClassInEnv binds the class name as a metaclass value in the given environment.
+func (i *Interpreter) DefineClassInEnv(env interface{}, classInfo interface{}) {
+	runtimeEnv, ok := env.(*runtime.Environment)
+	if !ok {
+		return
+	}
+	ci, ok := classInfo.(*ClassInfo)
+	if !ok {
+		return
+	}
+	runtimeEnv.Define(ci.Name, &ClassValue{ClassInfo: ci})
+}
+
 // DefineCurrentClassMarker defines a marker for the class being declared.
 // This enables self-referential access like TMyClass.MyConst within class var initializers.
 func (i *Interpreter) DefineCurrentClassMarker(env interface{}, classInfo interface{}) {

@@ -396,6 +396,8 @@ func (m *mockConversionAdapter) SetClassAbstract(classInfo interface{}, isAbstra
 func (m *mockConversionAdapter) SetClassExternal(classInfo interface{}, isExternal bool, externalName string) {
 }
 func (m *mockConversionAdapter) ClassHasNoParent(classInfo interface{}) bool { return true }
+func (m *mockConversionAdapter) DefineClassInEnv(env interface{}, classInfo interface{}) {
+}
 func (m *mockConversionAdapter) DefineCurrentClassMarker(env interface{}, classInfo interface{}) {
 }
 func (m *mockConversionAdapter) SetClassParent(classInfo interface{}, parentClass interface{}) {}
