@@ -309,7 +309,7 @@ User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
     - [x] **4.3.1.2.4** OperatorDecl - Verify VisitOperatorDecl is complete (likely delegates to DeclHandler)
     - [x] **4.3.1.2.5** EnumDecl - Add ValueExpr evaluation support + delegate to interpreter via evalViaEvaluator
     - [x] **4.3.1.2.6** HelperDecl - Verify VisitHelperDecl is complete (likely delegates to DeclHandler)
-    - [ ] **4.3.1.2.7** TypeDeclaration - Verify VisitTypeDeclaration is complete
+    - [x] **4.3.1.2.7** TypeDeclaration - Verify VisitTypeDeclaration is complete
   - [ ] **4.3.1.3** Remove expression fallbacks (AddressOf, Call, New, MemberAccess, MethodCall, Inherited, Self, NewArray, As) - 9 cases
   - [ ] **4.3.1.4** Remove default case fallback - replace with improved panic message
 - [ ] **4.3.2** Eliminate EvalNode fallbacks in other files

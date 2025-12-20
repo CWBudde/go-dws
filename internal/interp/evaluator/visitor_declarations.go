@@ -1145,30 +1145,62 @@ func (e *Evaluator) evalFunctionPointerType(node *ast.TypeDeclaration, ctx *Exec
 // Evaluates type alias (type TUserID = Integer).
 func (e *Evaluator) evalTypeAlias(node *ast.TypeDeclaration, ctx *ExecutionContext) Value {
 	// Skip inline/complex types (handled by semantic analyzer)
-	switch node.AliasedType.(type) {
-	case *ast.ClassOfTypeNode, *ast.SetTypeNode, *ast.ArrayTypeNode, *ast.FunctionPointerTypeNode:
+	var (
+		aliasedType types.Type
+		resolveErr  error
+	)
+
+	switch t := node.AliasedType.(type) {
+	case *ast.ClassOfTypeNode:
+		baseClassName := ""
+		if t.ClassType != nil {
+			baseClassName = t.ClassType.String()
+		}
+		if baseClassName == "" || !e.typeSystem.HasClass(baseClassName) {
+			return e.newError(node, "unknown type '%s' in type alias", baseClassName)
+		}
+		classType := types.NewClassType(baseClassName, nil)
+		aliasedType = types.NewClassOfType(classType)
+	case *ast.SetTypeNode:
+		// Set types handled by semantic analyzer.
 		return &runtime.NilValue{}
-	}
-
-	// Skip TypeAnnotation with InlineType
-	if typeAnnot, ok := node.AliasedType.(*ast.TypeAnnotation); ok && typeAnnot.InlineType != nil {
+	case *ast.ArrayTypeNode:
+		resolvedArray := e.resolveArrayTypeNode(t, ctx)
+		if resolvedArray == nil {
+			return e.newError(node, "cannot resolve array type in alias '%s'", node.Name.Value)
+		}
+		aliasedType = resolvedArray
+	case *ast.FunctionPointerTypeNode:
+		// Function pointer types handled elsewhere.
 		return &runtime.NilValue{}
+	default:
+		if typeAnnot, ok := node.AliasedType.(*ast.TypeAnnotation); ok && typeAnnot.InlineType != nil {
+			return &runtime.NilValue{}
+		}
+
+		aliasedType, resolveErr = e.resolveTypeName(node.AliasedType.String(), ctx)
+		if resolveErr != nil {
+			return e.newError(node, "unknown type '%s' in type alias", node.AliasedType.String())
+		}
 	}
 
-	// Resolve simple named type
-	aliasedType, err := e.resolveTypeName(node.AliasedType.String(), ctx)
-	if err != nil {
-		return e.newError(node, "unknown type '%s' in type alias", node.AliasedType.String())
-	}
-
-	// Create and register type alias
+	// Create and register type alias.
 	typeAlias := &runtime.TypeAliasValue{
 		Name:        node.Name.Value,
 		AliasedType: aliasedType,
 	}
 
+	// If alias targets an enum, register the alias for scoped enum lookups.
+	if enumType, ok := aliasedType.(*types.EnumType); ok {
+		e.typeSystem.RegisterEnumType(node.Name.Value, runtime.NewEnumTypeValue(enumType))
+	}
+
 	typeKey := "__type_alias_" + ident.Normalize(node.Name.Value)
 	ctx.Env().Define(typeKey, typeAlias)
+	ctx.Env().Define(node.Name.Value, &runtime.TypeMetaValue{
+		TypeInfo: aliasedType,
+		TypeName: node.Name.Value,
+	})
 
 	return &runtime.NilValue{}
 }
