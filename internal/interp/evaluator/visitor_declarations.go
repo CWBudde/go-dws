@@ -26,7 +26,7 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 	}
 
 	// Register global function (handles forward declarations and implementations)
-	e.typeSystem.RegisterFunctionOrReplace(node.Name.Value, node)
+	e.declHandler.RegisterGlobalFunction(node)
 
 	return &runtime.NilValue{}
 }

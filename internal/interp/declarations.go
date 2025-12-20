@@ -17,6 +17,24 @@ func (i *Interpreter) fullClassNameFromDecl(cd *ast.ClassDecl) string {
 	return cd.Name.Value
 }
 
+// RegisterGlobalFunction registers a global function in the type system and legacy map.
+func (i *Interpreter) RegisterGlobalFunction(fn *ast.FunctionDecl) {
+	if fn == nil {
+		return
+	}
+
+	i.typeSystem.RegisterFunctionOrReplace(fn.Name.Value, fn)
+	funcName := ident.Normalize(fn.Name.Value)
+
+	// Implementations (with body) replace forward declarations; declarations are appended.
+	if fn.Body != nil {
+		existingOverloads := i.functions[funcName]
+		i.functions[funcName] = i.replaceMethodInOverloadList(existingOverloads, fn)
+	} else {
+		i.functions[funcName] = append(i.functions[funcName], fn)
+	}
+}
+
 // evalFunctionDeclaration registers a function in the registry without executing it.
 // For methods (fn.ClassName != nil), updates the class/record method maps.
 func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
@@ -49,17 +67,8 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 		return i.newErrorWithLocation(fn, "type '%s' not found for method '%s'", typeName, fn.Name.Value)
 	}
 
-	// Register global function in TypeSystem and legacy map
-	i.typeSystem.RegisterFunctionOrReplace(fn.Name.Value, fn)
-	funcName := ident.Normalize(fn.Name.Value)
-
-	// Implementations (with body) replace forward declarations; declarations are appended
-	if fn.Body != nil {
-		existingOverloads := i.functions[funcName]
-		i.functions[funcName] = i.replaceMethodInOverloadList(existingOverloads, fn)
-	} else {
-		i.functions[funcName] = append(i.functions[funcName], fn)
-	}
+	// Register global function in TypeSystem and legacy map.
+	i.RegisterGlobalFunction(fn)
 
 	return &NilValue{}
 }

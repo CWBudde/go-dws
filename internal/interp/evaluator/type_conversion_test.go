@@ -241,6 +241,7 @@ func (m *mockConversionAdapter) CallUserFunction(fn *ast.FunctionDecl, args []Va
 func (m *mockConversionAdapter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	return nil, false
 }
+func (m *mockConversionAdapter) RegisterGlobalFunction(fn *ast.FunctionDecl) {}
 func (m *mockConversionAdapter) EvalMethodImplementation(fn *ast.FunctionDecl) Value {
 	return &runtime.NilValue{}
 }

@@ -127,6 +127,7 @@ type OOPEngine interface {
 
 // DeclHandler handles type declaration processing (classes, interfaces, helpers).
 type DeclHandler interface {
+	RegisterGlobalFunction(fn *ast.FunctionDecl)
 	NewClassInfoAdapter(name string) any
 	CastToClassInfo(class any) (any, bool)
 	IsClassPartial(classInfo any) bool
