@@ -94,14 +94,65 @@ func (i *Interpreter) ExecuteConstructor(obj Value, constructorName string, args
 		return fmt.Errorf("class information is not a ClassInfo")
 	}
 
-	constructorNameNorm := ident.Normalize(constructorName)
-	constructor, exists := concreteClass.Constructors[constructorNameNorm]
-	if !exists {
-		if len(internalArgs) > 0 {
+	var (
+		constructor     *ast.FunctionDecl
+		foundCandidate  bool
+		constructorNameNorm = ident.Normalize(constructorName)
+	)
+
+	for name, overloads := range concreteClass.ConstructorOverloads {
+		if !ident.Equal(name, constructorName) || len(overloads) == 0 {
+			continue
+		}
+		foundCandidate = true
+		for _, candidate := range overloads {
+			if len(candidate.Parameters) == len(internalArgs) {
+				constructor = candidate
+				break
+			}
+		}
+		if constructor != nil {
+			break
+		}
+	}
+
+	if constructor == nil {
+		if ctor, exists := concreteClass.Constructors[constructorNameNorm]; exists {
+			constructor = ctor
+			foundCandidate = true
+		} else {
+			for name, ctor := range concreteClass.Constructors {
+				if ident.Equal(name, constructorName) {
+					constructor = ctor
+					foundCandidate = true
+					break
+				}
+			}
+		}
+	}
+
+	if constructor == nil {
+		if len(internalArgs) == 0 {
+			return nil
+		}
+		if i.isExceptionClass(concreteClass) && len(internalArgs) == 1 {
+			msgVal := internalArgs[0]
+			if strVal, ok := msgVal.(*StringValue); ok {
+				objectInstance.SetField("Message", &StringValue{Value: strVal.Value})
+			} else {
+				objectInstance.SetField("Message", &StringValue{Value: msgVal.String()})
+			}
+			return nil
+		}
+		if foundCandidate {
 			return fmt.Errorf("no constructor '%s' found for class '%s' with %d arguments", constructorName, classInfo.GetName(), len(internalArgs))
 		}
-		// No constructor and no args - OK
-		return nil
+		return fmt.Errorf("no constructor found for class '%s' with %d arguments", classInfo.GetName(), len(internalArgs))
+	}
+
+	if len(constructor.Parameters) != len(internalArgs) {
+		return fmt.Errorf("wrong number of arguments for constructor '%s': expected %d, got %d",
+			constructorName, len(constructor.Parameters), len(internalArgs))
 	}
 
 	// Execute constructor in a new environment with Self bound

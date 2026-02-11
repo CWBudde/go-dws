@@ -40,6 +40,32 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		return e.newError(node, "method call missing method")
 	}
 
+	if identObj, ok := node.Object.(*ast.Identifier); ok {
+		if _, exists := ctx.Env().Get(identObj.Value); !exists {
+			unitExists := false
+			if e.unitRegistry != nil {
+				_, unitExists = e.unitRegistry.GetUnit(identObj.Value)
+			}
+			if unitExists || e.typeSystem.HasClass(identObj.Value) {
+				memberAccess := &ast.MemberAccessExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: node.Token},
+					},
+					Object: identObj,
+					Member: node.Method,
+				}
+				callExpr := &ast.CallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: node.Token},
+					},
+					Function:  memberAccess,
+					Arguments: node.Arguments,
+				}
+				return e.oopEngine.CallQualifiedOrConstructor(callExpr, memberAccess)
+			}
+		}
+	}
+
 	// Evaluate the object first
 	obj := e.Eval(node.Object, ctx)
 	if isError(obj) {

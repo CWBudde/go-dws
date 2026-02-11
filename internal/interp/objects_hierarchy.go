@@ -571,7 +571,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	memberName := ma.Member.Value
 
 	if obj.Destroyed {
-		message := fmt.Sprintf("Object already destroyed [line: %d, column: %d]", ma.Token.Pos.Line, ma.Token.Pos.Column)
+		message := fmt.Sprintf("Object already destroyed [line: %d, column: %d]", ma.Token.Pos.Line, ma.Token.Pos.Column+1)
 		i.raiseException("Exception", message, &ma.Token.Pos)
 		return &NilValue{}
 	}

@@ -432,11 +432,15 @@ func (e *Evaluator) SetVar(ctx *ExecutionContext, name string, value Value) bool
 
 // Eval evaluates an AST node using the visitor pattern.
 func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
+	previousContext := e.currentContext
 	e.currentContext = ctx
-	defer func() { e.currentContext = nil }()
+	defer func() { e.currentContext = previousContext }()
+
+	previousNode := e.currentNode
+	e.currentNode = node
+	defer func() { e.currentNode = previousNode }()
 
 	ctx.SetRefCountManager(e.refCountMgr)
-	e.currentNode = node
 
 	switch n := node.(type) {
 	// Literals
@@ -463,41 +467,20 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.UnaryExpression:
 		return e.VisitUnaryExpression(n, ctx)
 	case *ast.AddressOfExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitAddressOfExpression(n, ctx)
 	case *ast.GroupedExpression:
 		return e.VisitGroupedExpression(n, ctx)
 	case *ast.CallExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitCallExpression(n, ctx)
 	case *ast.NewExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitNewExpression(n, ctx)
 	case *ast.MemberAccessExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitMemberAccessExpression(n, ctx)
 	case *ast.MethodCallExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitMethodCallExpression(n, ctx)
 	case *ast.InheritedExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitInheritedExpression(n, ctx)
 	case *ast.SelfExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitSelfExpression(n, ctx)
 	case *ast.EnumLiteral:
 		return e.VisitEnumLiteral(n, ctx)
@@ -510,18 +493,12 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.IndexExpression:
 		return e.VisitIndexExpression(n, ctx)
 	case *ast.NewArrayExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitNewArrayExpression(n, ctx)
 	case *ast.LambdaExpression:
 		return e.VisitLambdaExpression(n, ctx)
 	case *ast.IsExpression:
 		return e.VisitIsExpression(n, ctx)
 	case *ast.AsExpression:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitAsExpression(n, ctx)
 	case *ast.ImplementsExpression:
 		return e.VisitImplementsExpression(n, ctx)

@@ -23,26 +23,26 @@ func (e *Evaluator) evaluateDimensions(dimensions []ast.Expression, ctx *Executi
 
 	dimSizes := make([]int, len(dimensions))
 
-	for i, dimExpr := range dimensions {
+	for idx, dimExpr := range dimensions {
 		dimValue := e.Eval(dimExpr, ctx)
 		if isError(dimValue) {
 			return nil, dimValue
 		}
 
 		if dimValue.Type() != "INTEGER" {
-			return nil, e.newError(node, "dimension %d: expected Integer, got %s", i, dimValue.Type())
+			return nil, e.newError(node, "array dimension must be an integer, got %s", dimValue.Type())
 		}
 
 		dimSize, err := e.extractIntegerValue(dimValue)
 		if err != nil {
-			return nil, e.newError(node, "dimension %d: %v", i, err)
+			return nil, e.newError(node, "dimension %d: %v", idx, err)
 		}
 
 		if dimSize <= 0 {
-			return nil, e.newError(node, "dimension %d: array size must be positive, got %d", i, dimSize)
+			return nil, e.newError(node, "array dimension must be positive, got %d", dimSize)
 		}
 
-		dimSizes[i] = dimSize
+		dimSizes[idx] = dimSize
 	}
 
 	return dimSizes, nil

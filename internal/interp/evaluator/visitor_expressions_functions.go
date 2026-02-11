@@ -111,6 +111,32 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Member access calls: obj.Method(), UnitName.Func(), TClass.Create()
 	if memberAccess, ok := node.Function.(*ast.MemberAccessExpression); ok {
+		if identNode, ok := memberAccess.Object.(*ast.Identifier); ok {
+			if _, exists := ctx.Env().Get(identNode.Value); !exists {
+				// Unit-qualified function call
+				if e.unitRegistry != nil {
+					if _, exists := e.unitRegistry.GetUnit(identNode.Value); exists {
+						return e.oopEngine.CallQualifiedOrConstructor(node, memberAccess)
+					}
+				}
+
+				// Class constructor or static method
+				if e.typeSystem.HasClass(identNode.Value) {
+					mc := &ast.MethodCallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{
+								Token: node.Token,
+							},
+						},
+						Object:    identNode,
+						Method:    memberAccess.Member,
+						Arguments: node.Arguments,
+					}
+					return e.VisitMethodCallExpression(mc, ctx)
+				}
+			}
+		}
+
 		objVal := e.Eval(memberAccess.Object, ctx)
 		if isError(objVal) {
 			return objVal
@@ -140,29 +166,6 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			}
 
 			return e.DispatchMethodCall(objVal, memberAccess.Member.Value, args, mc, ctx)
-		}
-
-		// Unit-qualified functions or class constructors
-		if identNode, ok := memberAccess.Object.(*ast.Identifier); ok {
-			// Class constructor or static method
-			if e.typeSystem.HasClass(identNode.Value) {
-				mc := &ast.MethodCallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: node.Token,
-						},
-					},
-					Object:    identNode,
-					Method:    memberAccess.Member,
-					Arguments: node.Arguments,
-				}
-				return e.VisitMethodCallExpression(mc, ctx)
-			}
-
-			// Unit-qualified function call
-			if e.unitRegistry != nil {
-				return e.oopEngine.CallQualifiedOrConstructor(node, memberAccess)
-			}
 		}
 
 		return e.newError(node, "cannot call member expression that is not a method or unit-qualified function")
@@ -299,7 +302,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	}
 
 	// Not found in any registry or context
-	return e.newError(node, "function '%s' not found", funcName.Value)
+	return e.newError(node, "undefined function: %s", funcName.Value)
 }
 
 // PrepareUserFunctionArgs prepares arguments for user function invocation.
@@ -421,7 +424,32 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	// Look up class in type system
 	classInfoAny := e.typeSystem.LookupClass(className)
 	if classInfoAny == nil {
-		return e.newError(node, "class '%s' not found", className)
+		// Try nested class lookup from current context.
+		if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
+			if classMeta, ok := currentClassRaw.(ClassMetaValue); ok {
+				if nested := classMeta.GetNestedClass(className); nested != nil {
+					if nestedMeta, ok := nested.(ClassMetaValue); ok {
+						classInfoAny = nestedMeta.GetClassInfo()
+					}
+				}
+			}
+		}
+		if classInfoAny == nil {
+			if selfRaw, ok := ctx.Env().Get("Self"); ok {
+				if objVal, ok := selfRaw.(ObjectValue); ok {
+					if classMeta, ok := objVal.GetClassType().(ClassMetaValue); ok {
+						if nested := classMeta.GetNestedClass(className); nested != nil {
+							if nestedMeta, ok := nested.(ClassMetaValue); ok {
+								classInfoAny = nestedMeta.GetClassInfo()
+							}
+						}
+					}
+				}
+			}
+		}
+		if classInfoAny == nil {
+			return e.newError(node, "class '%s' not found", className)
+		}
 	}
 
 	classInfo, ok := classInfoAny.(runtime.IClassInfo)
@@ -470,6 +498,23 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		if err != nil {
 			return e.newError(node, "constructor failed: %v", err)
 		}
+	} else if len(args) == 1 && e.typeSystem.IsClassDescendantOf(className, "Exception") {
+		if strVal, ok := args[0].(*runtime.StringValue); ok {
+			obj.SetField("Message", &runtime.StringValue{Value: strVal.Value})
+		} else {
+			obj.SetField("Message", &runtime.StringValue{Value: args[0].String()})
+		}
+	} else if len(args) == 2 && e.typeSystem.IsClassDescendantOf(className, "EHost") {
+		excClass := args[0].String()
+		if strVal, ok := args[0].(*runtime.StringValue); ok {
+			excClass = strVal.Value
+		}
+		message := args[1].String()
+		if strVal, ok := args[1].(*runtime.StringValue); ok {
+			message = strVal.Value
+		}
+		obj.SetField("ExceptionClass", &runtime.StringValue{Value: excClass})
+		obj.SetField("Message", &runtime.StringValue{Value: message})
 	} else if len(args) > 0 {
 		return e.newError(node, "no constructor found for class '%s' with %d arguments", className, len(args))
 	}

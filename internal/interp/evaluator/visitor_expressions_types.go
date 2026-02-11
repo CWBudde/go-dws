@@ -105,9 +105,8 @@ func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionCont
 	// - object-to-interface casting (wrapping)
 	result, err := e.castType(left, targetTypeName, node)
 	if err != nil {
-		// Cast failed - return error that should be raised as exception
-		// The error message from castType includes the specific failure reason
-		return e.newError(node, "%s", err.Error())
+		e.raiseTypeCastException(err.Error(), node)
+		return nil
 	}
 
 	return result
@@ -417,9 +416,12 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 			}
 
 			// Check if the underlying object's class is compatible with the target class
-			targetClassMeta := e.typeSystem.LookupClass(typeName)
+			targetClassMeta, err := e.lookupClassMetadataByName(typeName)
+			if err != nil {
+				return nil, err
+			}
 			if !e.isClassHierarchyCompatible(underlyingClassMeta, targetClassMeta) {
-				return nil, fmt.Errorf("cannot cast interface of '%s' to class '%s'", underlyingClassMeta.Name, typeName)
+				return nil, fmt.Errorf("Cannot cast interface of '%s' to class '%s'", underlyingClassMeta.Name, typeName)
 			}
 
 			// Cast is valid - return the underlying object
@@ -445,7 +447,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 			}
 
 			if !e.classImplementsInterface(underlyingClassMeta, typeName) {
-				return nil, fmt.Errorf("cannot cast interface of '%s' to interface '%s'", underlyingClassMeta.Name, typeName)
+				return nil, fmt.Errorf("Cannot cast interface of \"%s\" to interface \"%s\"", underlyingClassMeta.Name, typeName)
 			}
 
 			// Create and return new interface instance
@@ -473,9 +475,12 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 		}
 
 		// Validate that the object's actual runtime type is compatible with the target
-		targetClassMeta := e.typeSystem.LookupClass(typeName)
+		targetClassMeta, err := e.lookupClassMetadataByName(typeName)
+		if err != nil {
+			return nil, err
+		}
 		if !e.isClassHierarchyCompatible(objClassMeta, targetClassMeta) {
-			return nil, fmt.Errorf("instance of type '%s' cannot be cast to class '%s'", objClassMeta.Name, typeName)
+			return nil, fmt.Errorf("instance of type \"%s\" cannot be cast to class \"%s\"", objClassMeta.Name, typeName)
 		}
 
 		// Cast is valid - return the same object
@@ -492,7 +497,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 
 		// Validate that the object's class implements the interface
 		if !e.classImplementsInterface(objClassMeta, typeName) {
-			return nil, fmt.Errorf("class '%s' does not implement interface '%s'", objClassMeta.Name, typeName)
+			return nil, fmt.Errorf("Class \"%s\" does not implement interface \"%s\"", objClassMeta.Name, typeName)
 		}
 
 		// Create and return the interface instance
@@ -535,6 +540,25 @@ func (e *Evaluator) isClassHierarchyCompatible(sourceClass, targetClass interfac
 	}
 
 	return false
+}
+
+func (e *Evaluator) lookupClassMetadataByName(className string) (*runtime.ClassMetadata, error) {
+	classInfo := e.typeSystem.LookupClass(className)
+	if classInfo == nil {
+		return nil, fmt.Errorf("class '%s' not found", className)
+	}
+
+	if metadataProvider, ok := classInfo.(interface{ GetMetadata() *runtime.ClassMetadata }); ok {
+		if meta := metadataProvider.GetMetadata(); meta != nil {
+			return meta, nil
+		}
+	}
+
+	if meta, ok := classInfo.(*runtime.ClassMetadata); ok {
+		return meta, nil
+	}
+
+	return nil, fmt.Errorf("could not extract class metadata for '%s'", className)
 }
 
 // createInterfaceWrapper creates an InterfaceInstance wrapper for the given interface name and object.

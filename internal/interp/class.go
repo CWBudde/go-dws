@@ -191,6 +191,16 @@ func (c *ClassInfo) GetMethodsMap() map[string]*ast.FunctionDecl {
 	if c == nil {
 		return nil
 	}
+	if len(c.MethodOverloads) > 0 {
+		for name, overloads := range c.MethodOverloads {
+			if len(overloads) == 0 {
+				continue
+			}
+			if _, exists := c.Methods[name]; !exists {
+				c.Methods[name] = overloads[0]
+			}
+		}
+	}
 	return c.Methods
 }
 
@@ -344,6 +354,11 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 	// This is needed during migration when metadata exists but method isn't in Metadata.Methods
 	if method, exists := c.Methods[normalizedName]; exists {
 		return method
+	}
+
+	// Fallback to overload list when Methods map is empty or incomplete.
+	if overloads, exists := c.MethodOverloads[normalizedName]; exists && len(overloads) > 0 {
+		return overloads[0]
 	}
 
 	// Check parent class (recursive)

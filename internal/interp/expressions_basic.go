@@ -18,7 +18,22 @@ func (i *Interpreter) evalAddressOfExpression(expr *ast.AddressOfExpression) Val
 	case *ast.MemberAccessExpression:
 		// Method pointer: @object.MethodName
 		// First evaluate the object
-		objectVal := i.Eval(operand.Object)
+		// DEBUG: remove after investigating method pointer failures.
+		var objectVal Value
+		if identExpr, ok := operand.Object.(*ast.Identifier); ok {
+			if rawVal, exists := i.Env().Get(identExpr.Value); exists {
+				if refVal, ok := rawVal.(*ReferenceValue); ok {
+					if deref, err := refVal.Dereference(); err == nil {
+						objectVal = deref
+					}
+				} else if val, ok := rawVal.(Value); ok {
+					objectVal = val
+				}
+			}
+		}
+		if objectVal == nil {
+			objectVal = i.Eval(operand.Object)
+		}
 		if isError(objectVal) {
 			return objectVal
 		}
@@ -47,8 +62,33 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 			return i.newRuntimeError(nil, "method pointer requires an object instance, got %s", selfObject.Type())
 		}
 
-		// Look up the method in the class hierarchy
-		function = obj.Class.LookupMethod(name)
+		// Look up the method in the class hierarchy (prefer overloads map for accuracy)
+		if classInfo, ok := obj.Class.(*ClassInfo); ok {
+			if overloads := i.getMethodOverloadsInHierarchy(classInfo, name, false); len(overloads) > 0 {
+				function = overloads[0]
+			} else if overloads := i.getMethodOverloadsInHierarchy(classInfo, name, true); len(overloads) > 0 {
+				function = overloads[0]
+			}
+		}
+		if function == nil {
+			if methods := obj.Class.GetMethodsMap(); methods != nil {
+				if method, ok := methods[ident.Normalize(name)]; ok {
+					function = method
+				}
+			}
+		}
+		if function == nil {
+			if classInfo := i.resolveClassInfoByName(obj.Class.GetName()); classInfo != nil {
+				if overloads := i.getMethodOverloadsInHierarchy(classInfo, name, false); len(overloads) > 0 {
+					function = overloads[0]
+				} else if overloads := i.getMethodOverloadsInHierarchy(classInfo, name, true); len(overloads) > 0 {
+					function = overloads[0]
+				}
+			}
+		}
+		if function == nil {
+			function = obj.Class.LookupMethod(name)
+		}
 		if function == nil {
 			return i.newUndefinedError(nil, "undefined method: %s.%s", obj.Class.GetName(), name)
 		}

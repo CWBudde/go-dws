@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -249,10 +250,13 @@ func (e *Evaluator) ExecuteUserFunction(
 		return nil, fmt.Errorf("maximum recursion depth exceeded")
 	}
 
-	// Push function name onto call stack
-	// Note: CallStack.Push requires (functionName, sourceFile, pos)
-	// For now, use empty string and nil for sourceFile and pos
-	if err := funcCtx.GetCallStack().Push(fn.Name.Value, "", nil); err != nil {
+	// Push function name onto call stack with call-site position when available.
+	var pos *lexer.Position
+	if e.currentNode != nil {
+		nodePos := e.currentNode.Pos()
+		pos = &nodePos
+	}
+	if err := funcCtx.GetCallStack().Push(fn.Name.Value, e.config.SourceFile, pos); err != nil {
 		return nil, err
 	}
 	defer funcCtx.GetCallStack().Pop()

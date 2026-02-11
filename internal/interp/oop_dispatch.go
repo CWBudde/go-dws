@@ -1,8 +1,6 @@
 package interp
 
 import (
-	"fmt"
-
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -110,99 +108,12 @@ func (i *Interpreter) CallMethod(obj Value, methodName string, args []Value, nod
 			return newError("class method '%s' not found in class '%s'", methodName, classInfo.Name)
 		}
 
-		// Create a synthetic MethodCallExpression for overload resolution
-		// We need this to support overloaded methods with different parameter types
-		argExprs := make([]ast.Expression, len(internalArgs))
-		for idx := range internalArgs {
-			// We don't have actual expressions, so we pass nil
-			// The overload resolver will fall back to argument count matching
-			argExprs[idx] = nil
+		classMethod, err := i.resolveMethodOverloadWithArgs(classInfo.Name, methodName, classMethodOverloads, internalArgs)
+		if err != nil {
+			return newError("%s", err.Error())
 		}
 
-		// Simple case: single overload or select by argument count
-		var classMethod *ast.FunctionDecl
-		if len(classMethodOverloads) == 1 {
-			classMethod = classMethodOverloads[0]
-		} else {
-			// Find matching overload by argument count
-			for _, m := range classMethodOverloads {
-				if len(m.Parameters) == len(internalArgs) {
-					classMethod = m
-					break
-				}
-			}
-			if classMethod == nil {
-				return newError("no matching overload for class method '%s' in class '%s' with %d arguments",
-					methodName, classInfo.Name, len(internalArgs))
-			}
-		}
-
-		// Execute class method with Self bound to ClassInfoValue
-		defer i.PushScope()()
-
-		// Check recursion depth
-		if i.ctx.GetCallStack().WillOverflow() {
-			return i.raiseMaxRecursionExceeded()
-		}
-
-		// Push to call stack
-		fullMethodName := classInfo.Name + "." + methodName
-		i.pushCallStack(fullMethodName)
-		defer i.popCallStack()
-
-		// Bind Self to ClassInfoValue for class methods
-		i.Env().Define("Self", classInfoVal)
-		i.Env().Define("__CurrentClass__", classInfoVal)
-
-		// Add class constants
-		i.bindClassConstantsToEnv(classInfo)
-
-		// Bind parameters with implicit conversion
-		for idx, param := range classMethod.Parameters {
-			arg := internalArgs[idx]
-			if param.Type != nil {
-				paramTypeName := param.Type.String()
-				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
-					arg = converted
-				}
-			}
-			i.Env().Define(param.Name.Value, arg)
-		}
-
-		// Initialize Result for functions
-		if classMethod.ReturnType != nil {
-			returnType := i.resolveTypeFromAnnotation(classMethod.ReturnType)
-			defaultVal := i.getDefaultValue(returnType)
-			i.Env().Define("Result", defaultVal)
-			i.Env().Define(classMethod.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
-		}
-
-		// Execute method body
-		result := i.Eval(classMethod.Body)
-		if isError(result) {
-			return result
-		}
-
-		// Extract return value
-		var returnValue Value
-		if classMethod.ReturnType != nil {
-			resultVal, resultOk := i.Env().Get("Result")
-			methodNameVal, methodNameOk := i.Env().Get(classMethod.Name.Value)
-
-			if resultOk && resultVal.Type() != "NIL" {
-				returnValue = resultVal
-			} else if methodNameOk && methodNameVal.Type() != "NIL" {
-				returnValue = methodNameVal
-			} else if resultOk {
-				returnValue = resultVal
-			} else {
-				returnValue = &NilValue{}
-			}
-		} else {
-			returnValue = &NilValue{}
-		}
-
-		return returnValue
+		return i.executeResolvedMethodWithArgs(nil, classInfo, classMethod, true, internalArgs, node)
 	}
 
 	// Handle ClassValue (metaclass) constructor calls
@@ -213,99 +124,105 @@ func (i *Interpreter) CallMethod(obj Value, methodName string, args []Value, nod
 			return newError("invalid class reference")
 		}
 
-		// Look up constructor in the runtime class
-		constructorOverloads := i.getMethodOverloadsInHierarchy(runtimeClass, methodName, false)
-		if len(constructorOverloads) == 0 {
-			return newError("constructor '%s' not found in class '%s'", methodName, runtimeClass.Name)
-		}
-
-		// Simple overload resolution by argument count
-		var constructor *ast.FunctionDecl
-		if len(constructorOverloads) == 1 {
-			constructor = constructorOverloads[0]
-		} else {
-			for _, c := range constructorOverloads {
-				if len(c.Parameters) == len(internalArgs) {
-					constructor = c
-					break
-				}
+		// Constructors take precedence if declared for this class hierarchy.
+		if runtimeClass.HasConstructor(methodName) || ident.Equal(methodName, "Create") {
+			constructorOverloads := i.getMethodOverloadsInHierarchy(runtimeClass, methodName, false)
+			if len(constructorOverloads) == 0 {
+				return newError("constructor '%s' not found in class '%s'", methodName, runtimeClass.Name)
 			}
-			if constructor == nil {
-				return newError("no matching overload for constructor '%s' in class '%s' with %d arguments",
-					methodName, runtimeClass.Name, len(internalArgs))
+
+			constructor, errVal := i.resolveMethodOverloadWithArgs(runtimeClass.Name, methodName, constructorOverloads, internalArgs)
+			if errVal != nil {
+				return newError("%s", errVal.Error())
 			}
-		}
 
-		// Check argument count
-		if len(internalArgs) != len(constructor.Parameters) {
-			return newError("wrong number of arguments for constructor '%s': expected %d, got %d",
-				methodName, len(constructor.Parameters), len(internalArgs))
-		}
+			// Check argument count
+			if len(internalArgs) != len(constructor.Parameters) {
+				return newError("wrong number of arguments for constructor '%s': expected %d, got %d",
+					methodName, len(constructor.Parameters), len(internalArgs))
+			}
 
-		// Create new instance of the runtime class
-		newInstance := NewObjectInstance(runtimeClass)
+			// Create new instance of the runtime class
+			newInstance := NewObjectInstance(runtimeClass)
 
-		// Initialize all fields with default values
-		for fieldName, fieldType := range runtimeClass.Fields {
-			var defaultValue Value
-			if fieldDecl, hasDecl := runtimeClass.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-				// Use field initializer
-				func() {
-					defer i.PushScope()()
-					for constName, constValue := range runtimeClass.ConstantValues {
-						i.Env().Define(constName, constValue)
+			// Initialize all fields with default values
+			for fieldName, fieldType := range runtimeClass.Fields {
+				var defaultValue Value
+				if fieldDecl, hasDecl := runtimeClass.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+					// Use field initializer
+					func() {
+						defer i.PushScope()()
+						for constName, constValue := range runtimeClass.ConstantValues {
+							i.Env().Define(constName, constValue)
+						}
+						defaultValue = i.Eval(fieldDecl.InitValue)
+					}()
+					if isError(defaultValue) {
+						return defaultValue
 					}
-					defaultValue = i.Eval(fieldDecl.InitValue)
-				}()
-				if isError(defaultValue) {
-					return defaultValue
+				} else {
+					defaultValue = getZeroValueForType(fieldType, nil)
 				}
-			} else {
-				defaultValue = getZeroValueForType(fieldType, nil)
+				newInstance.SetField(fieldName, defaultValue)
 			}
-			newInstance.SetField(fieldName, defaultValue)
-		}
 
-		// Execute constructor
-		defer i.PushScope()()
+			// Execute constructor
+			defer i.PushScope()()
 
-		// Check recursion depth
-		if i.ctx.GetCallStack().WillOverflow() {
-			return i.raiseMaxRecursionExceeded()
-		}
+			// Check recursion depth
+			if i.ctx.GetCallStack().WillOverflow() {
+				return i.raiseMaxRecursionExceeded()
+			}
 
-		// Push to call stack
-		fullMethodName := runtimeClass.Name + "." + methodName
-		i.pushCallStack(fullMethodName)
-		defer i.popCallStack()
+			// Push to call stack
+			fullMethodName := runtimeClass.Name + "." + methodName
+			i.pushCallStack(fullMethodName)
+			defer i.popCallStack()
 
-		// Bind Self to the new instance
-		i.Env().Define("Self", newInstance)
-		i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
+			// Bind Self to the new instance
+			i.Env().Define("Self", newInstance)
+			i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: runtimeClass})
 
-		// Add class constants
-		i.bindClassConstantsToEnv(runtimeClass)
+			// Add class constants
+			i.bindClassConstantsToEnv(runtimeClass)
 
-		// Bind constructor parameters with implicit conversion
-		for idx, param := range constructor.Parameters {
-			arg := internalArgs[idx]
-			if param.Type != nil {
-				paramTypeName := param.Type.String()
-				if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
-					arg = converted
+			// Bind constructor parameters with implicit conversion
+			for idx, param := range constructor.Parameters {
+				arg := internalArgs[idx]
+				if param.Type != nil {
+					paramTypeName := param.Type.String()
+					if converted, ok := i.tryImplicitConversion(arg, paramTypeName); ok {
+						arg = converted
+					}
 				}
+				i.Env().Define(param.Name.Value, arg)
 			}
-			i.Env().Define(param.Name.Value, arg)
+
+			if constructor.Body == nil {
+				return i.newErrorWithLocation(node, "function '%s' has no body", constructor.Name.Value)
+			}
+
+			// Execute constructor body
+			result := i.Eval(constructor.Body)
+			if isError(result) {
+				return result
+			}
+
+			// Constructors return the new instance (Result is Self)
+			return newInstance
 		}
 
-		// Execute constructor body
-		result := i.Eval(constructor.Body)
-		if isError(result) {
-			return result
+		// Class methods on class references
+		classMethodOverloads := i.getMethodOverloadsInHierarchy(runtimeClass, methodName, true)
+		if len(classMethodOverloads) > 0 {
+			classMethod, errVal := i.resolveMethodOverloadWithArgs(runtimeClass.Name, methodName, classMethodOverloads, internalArgs)
+			if errVal != nil {
+				return newError("%s", errVal.Error())
+			}
+			return i.executeResolvedMethodWithArgs(nil, runtimeClass, classMethod, true, internalArgs, node)
 		}
 
-		// Constructors return the new instance (Result is Self)
-		return newInstance
+		return newError("method '%s' not found in class '%s'", methodName, runtimeClass.Name)
 	}
 
 	// Handle RECORD_TYPE values (static record method calls)
@@ -313,9 +230,13 @@ func (i *Interpreter) CallMethod(obj Value, methodName string, args []Value, nod
 	if recTypeVal, ok := internalObj.(*runtime.RecordTypeValue); ok {
 		methodNameLower := ident.Normalize(methodName)
 
-		// Check for static method (ClassMethods in RecordTypeValue)
-		// Note: We use the primary map for now; overloads handled if multiple exist
-		if classMethod, exists := recTypeVal.ClassMethods[methodNameLower]; exists {
+		// Check for static method (ClassMethodOverloads in RecordTypeValue)
+		if overloads, exists := recTypeVal.ClassMethodOverloads[methodNameLower]; exists && len(overloads) > 0 {
+			classMethod, errVal := i.resolveMethodOverloadWithArgs(recTypeVal.GetRecordTypeName(), methodName, overloads, internalArgs)
+			if errVal != nil {
+				return newError("%s", errVal.Error())
+			}
+
 			// Execute static method
 			defer i.PushScope()()
 
@@ -392,19 +313,31 @@ func (i *Interpreter) CallMethod(obj Value, methodName string, args []Value, nod
 			return newError("object has no class information")
 		}
 
-		// Find method (case-insensitive)
-		method := classInfo.LookupMethod(methodName)
-		if method == nil {
+		concreteClass, ok := classInfo.(*ClassInfo)
+		if !ok {
+			return newError("object has invalid class information")
+		}
+
+		methodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, methodName, false)
+		classMethodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, methodName, true)
+		if len(methodOverloads) == 0 && len(classMethodOverloads) == 0 {
 			return newError("method '%s' not found in class '%s'", methodName, classInfo.GetName())
 		}
 
-		// Call the method with Self bound to the underlying object (not the interface)
-		defer i.PushScope()()
-		i.Env().Define("Self", objVal)
+		var method *ast.FunctionDecl
+		var err error
+		var isClassMethod bool
+		if len(methodOverloads) > 0 {
+			method, err = i.resolveMethodOverloadWithArgs(concreteClass.Name, methodName, methodOverloads, internalArgs)
+		} else {
+			method, err = i.resolveMethodOverloadWithArgs(concreteClass.Name, methodName, classMethodOverloads, internalArgs)
+			isClassMethod = true
+		}
+		if err != nil {
+			return newError("%s", err.Error())
+		}
 
-		result := i.executeUserFunctionViaEvaluator(method, internalArgs)
-
-		return result
+		return i.executeResolvedMethodWithArgs(objVal, concreteClass, method, isClassMethod, internalArgs, node)
 	}
 
 	// Handle RECORD values (record method calls)
@@ -506,32 +439,13 @@ func (i *Interpreter) CallMethod(obj Value, methodName string, args []Value, nod
 		return result
 	}
 
-	// Original OBJECT handling
+	// OBJECT handling
 	objVal, ok := internalObj.(*ObjectInstance)
 	if !ok {
-		panic(fmt.Sprintf("not an object: %s", internalObj.Type()))
+		return i.newErrorWithLocation(node, "not an object: %s", internalObj.Type())
 	}
 
-	// Get class info
-	classInfo := objVal.Class
-	if classInfo == nil {
-		panic("object has no class information")
-	}
-
-	// Find method (case-insensitive) using the existing helper
-	method := classInfo.LookupMethod(methodName)
-	if method == nil {
-		// Neither class method found - panic
-		panic(fmt.Sprintf("method '%s' not found in class '%s'", methodName, classInfo.GetName()))
-	}
-
-	// Call the method using existing infrastructure
-	defer i.PushScope()()
-	i.Env().Define("Self", objVal)
-
-	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
-
-	return result
+	return i.executeObjectInstanceMethodWithArgs(objVal, methodName, internalArgs, node)
 }
 
 // CallInheritedMethod executes an inherited (parent) method with the given arguments.
@@ -586,11 +500,28 @@ func (i *Interpreter) ExecuteMethodWithSelf(self Value, methodDecl any, args []V
 	internalSelf := self
 	internalArgs := args
 
-	// Call the method using existing infrastructure
-	defer i.PushScope()()
-	i.Env().Define("Self", internalSelf)
+	// Determine class context
+	var concreteClass *ClassInfo
+	switch val := internalSelf.(type) {
+	case *ObjectInstance:
+		concreteClass, _ = val.Class.(*ClassInfo)
+	case *ClassInfoValue:
+		concreteClass = val.ClassInfo
+	case *ClassValue:
+		concreteClass = val.ClassInfo
+	}
 
-	result := i.executeUserFunctionViaEvaluator(method, internalArgs)
+	if concreteClass == nil {
+		return newError("method execution requires class context")
+	}
 
-	return result
+	// Ensure argument count matches
+	if len(internalArgs) != len(method.Parameters) {
+		return newError("wrong number of arguments for method '%s': expected %d, got %d",
+			method.Name.Value, len(method.Parameters), len(internalArgs))
+	}
+
+	// Use the same setup as regular method execution
+	objInst, _ := internalSelf.(*ObjectInstance)
+	return i.executeResolvedMethodWithArgs(objInst, concreteClass, method, method.IsClassMethod, internalArgs, nil)
 }

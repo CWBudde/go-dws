@@ -68,7 +68,7 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 			exprPos := node.Expression.Pos()
 			lineMarker := fmt.Sprintf("line %d", exprPos.Line)
 			loc := fmt.Sprintf("at line %d, column: %d", exprPos.Line, exprPos.Column+2)
-			if !strings.Contains(errVal.Message, lineMarker) {
+			if !strings.Contains(errVal.Message, "line:") && !strings.Contains(errVal.Message, lineMarker) {
 				errVal.Message = errVal.Message + "\n " + loc
 			}
 		}
@@ -125,36 +125,51 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 
 	// Evaluate initializer if present
 	if node.Value != nil {
-		if arrayLit, ok := node.Value.(*ast.ArrayLiteralExpression); ok {
-			if node.Type != nil {
+		if node.Type != nil {
+			if resolvedType, err := e.ResolveTypeFromAnnotation(node.Type); err == nil && resolvedType != nil {
+				if resolvedType.TypeKind() == "FUNCTION_POINTER" || resolvedType.TypeKind() == "METHOD_POINTER" {
+					if memberAccess, ok := node.Value.(*ast.MemberAccessExpression); ok {
+						value = e.buildMethodPointerFromMemberAccess(memberAccess, ctx)
+						if isError(value) {
+							return value
+						}
+					}
+				}
+			}
+		}
+
+		if value == nil {
+			if arrayLit, ok := node.Value.(*ast.ArrayLiteralExpression); ok {
+				if node.Type != nil {
+					typeName := node.Type.String()
+					resolvedType, err := e.resolveTypeName(typeName, ctx)
+					if err != nil {
+						return e.newError(node, "failed to resolve array type '%s': %v", typeName, err)
+					}
+					arrayType, ok := resolvedType.(*types.ArrayType)
+					if !ok {
+						return e.newError(node, "expected array type, got %s", resolvedType.String())
+					}
+					value = e.evalArrayLiteralWithExpectedType(arrayLit, arrayType, ctx)
+				} else {
+					value = e.Eval(node.Value, ctx)
+				}
+			} else if recordLit, ok := node.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+				if node.Type == nil {
+					return e.newError(node, "anonymous record literal requires explicit type annotation")
+				}
 				typeName := node.Type.String()
-				resolvedType, err := e.resolveTypeName(typeName, ctx)
-				if err != nil {
-					return e.newError(node, "failed to resolve array type '%s': %v", typeName, err)
+
+				if !e.typeSystem.HasRecord(typeName) {
+					return e.newError(node, "unknown type '%s'", typeName)
 				}
-				arrayType, ok := resolvedType.(*types.ArrayType)
-				if !ok {
-					return e.newError(node, "expected array type, got %s", resolvedType.String())
-				}
-				value = e.evalArrayLiteralWithExpectedType(arrayLit, arrayType, ctx)
+
+				ctx.SetRecordTypeContext(typeName)
+				value = e.Eval(recordLit, ctx)
+				ctx.ClearRecordTypeContext()
 			} else {
 				value = e.Eval(node.Value, ctx)
 			}
-		} else if recordLit, ok := node.Value.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
-			if node.Type == nil {
-				return e.newError(node, "anonymous record literal requires explicit type annotation")
-			}
-			typeName := node.Type.String()
-
-			if !e.typeSystem.HasRecord(typeName) {
-				return e.newError(node, "unknown type '%s'", typeName)
-			}
-
-			ctx.SetRecordTypeContext(typeName)
-			value = e.Eval(recordLit, ctx)
-			ctx.ClearRecordTypeContext()
-		} else {
-			value = e.Eval(node.Value, ctx)
 		}
 
 		if isError(value) {
@@ -325,7 +340,19 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			}
 		}
 
-		value := e.Eval(node.Value, ctx)
+		var value Value
+		if memberAccess, ok := node.Value.(*ast.MemberAccessExpression); ok {
+			expectedTypeKind := e.expectedTypeKindForIdentifier(target, ctx)
+			if expectedTypeKind == "FUNCTION_POINTER" || expectedTypeKind == "METHOD_POINTER" {
+				value = e.buildMethodPointerFromMemberAccess(memberAccess, ctx)
+				if isError(value) {
+					return value
+				}
+			}
+		}
+		if value == nil {
+			value = e.Eval(node.Value, ctx)
+		}
 		if isError(value) {
 			return value
 		}

@@ -87,8 +87,15 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		e.SetVar(ctx, targetName, value)
 		return value
 	}
+
+	if nilVal, ok := value.(*runtime.NilValue); ok && nilVal.ClassType == "" {
+		if className := e.resolveClassTypeForAssignment(target, existingVal, ctx); className != "" {
+			value = &runtime.NilValue{ClassType: className}
+		}
+	}
+
 	if objInst, isObj := existingVal.(*runtime.ObjectInstance); isObj {
-		return e.assignToObjectVar(objInst, value, targetName, ctx)
+		return e.assignToObjectVar(objInst, value, target, targetName, ctx)
 	}
 
 	// Regular variable assignment with type conversion and cloning
@@ -98,6 +105,67 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 		return value
 	}
 	return e.newError(target, "undefined variable: %s", targetName)
+}
+
+func (e *Evaluator) expectedTypeKindForIdentifier(target *ast.Identifier, ctx *ExecutionContext) string {
+	if target == nil || e.semanticInfo == nil {
+		return ""
+	}
+
+	if typeAnnot := e.semanticInfo.GetType(target); typeAnnot != nil {
+		if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
+			return resolvedType.TypeKind()
+		}
+	}
+
+	return ""
+}
+
+func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
+	if expr == nil || expr.Object == nil || expr.Member == nil {
+		return nil
+	}
+
+	objVal := e.Eval(expr.Object, ctx)
+	if isError(objVal) {
+		return objVal
+	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
+
+	memberName := expr.Member.Value
+
+	switch objVal.Type() {
+	case "OBJECT":
+		if obj, ok := objVal.(ObjectValue); ok {
+			if !obj.HasMethod(memberName) {
+				return e.newError(expr, "method '%s' not found", memberName)
+			}
+			if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
+				return e.oopEngine.CreateBoundMethodPointer(objVal, methodDecl)
+			}
+		}
+		return e.newError(expr, "method '%s' not found", memberName)
+	case "INTERFACE":
+		if ifaceVal, ok := objVal.(InterfaceInstanceValue); ok {
+			if !ifaceVal.HasInterfaceMethod(memberName) {
+				return e.newError(expr, "method '%s' not found", memberName)
+			}
+			underlying := ifaceVal.GetUnderlyingObjectValue()
+			if underlying == nil {
+				return e.newError(expr, "Interface is nil")
+			}
+			if obj, ok := underlying.(ObjectValue); ok {
+				if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
+					return e.oopEngine.CreateBoundMethodPointer(underlying, methodDecl)
+				}
+			}
+		}
+		return e.newError(expr, "method '%s' not found", memberName)
+	default:
+		return e.newError(expr, "method '%s' not found", memberName)
+	}
 }
 
 // assignToImplicitTarget handles assignment when the target is not in the environment.
@@ -261,6 +329,7 @@ func (e *Evaluator) assignToInterfaceVar(
 func (e *Evaluator) assignToObjectVar(
 	objInst *runtime.ObjectInstance,
 	value Value,
+	target *ast.Identifier,
 	targetName string,
 	ctx *ExecutionContext,
 ) Value {
@@ -268,6 +337,11 @@ func (e *Evaluator) assignToObjectVar(
 
 	switch v := value.(type) {
 	case *runtime.NilValue:
+		if v.ClassType == "" {
+			if className := e.resolveClassTypeForAssignment(target, objInst, ctx); className != "" {
+				value = &runtime.NilValue{ClassType: className}
+			}
+		}
 		refMgr.ReleaseObject(objInst)
 	case *runtime.ObjectInstance:
 		if objInst != v {
@@ -777,6 +851,36 @@ func (e *Evaluator) resolveArrayTypeFromTypeName(typeName string, ctx *Execution
 		}
 	}
 	return nil
+}
+
+func (e *Evaluator) resolveClassTypeForAssignment(target *ast.Identifier, existingVal Value, ctx *ExecutionContext) string {
+	if target != nil && e.semanticInfo != nil {
+		if typeAnnot := e.semanticInfo.GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
+			if e.typeSystem.HasClass(typeAnnot.Name) {
+				return typeAnnot.Name
+			}
+			if resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
+				if classType, ok := types.GetUnderlyingType(resolved).(*types.ClassType); ok && classType != nil {
+					if classType.Name != "" {
+						return classType.Name
+					}
+				}
+			}
+		}
+	}
+
+	switch existing := existingVal.(type) {
+	case *runtime.NilValue:
+		if existing.ClassType != "" {
+			return existing.ClassType
+		}
+	case *runtime.ObjectInstance:
+		if existing.Class != nil {
+			return existing.Class.GetName()
+		}
+	}
+
+	return ""
 }
 
 // getSetTypeFromTarget extracts SetType from the target variable.

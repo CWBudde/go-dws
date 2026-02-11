@@ -97,8 +97,10 @@ package evaluator
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -206,6 +208,9 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		return e.dispatchEnumTypeMetaMethod(obj, normalizedMethod, methodName, args, node)
 
 	case "NIL":
+		if normalizedMethod == "free" {
+			return obj
+		}
 		// Nil object error - consistent behavior
 		return e.newError(node, "Object not instantiated")
 
@@ -221,16 +226,14 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 	// ============================================================
 
 	case "OBJECT", "INTERFACE", "CLASSINFO", "CLASS", "RECORD":
-		helperResult := e.FindHelperMethod(obj, methodName)
-		if helperResult != nil {
-			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
-		}
-
 		// No helper method - delegate to adapter for class/instance method handling
 		// These types require full environment setup (Self binding, call stack)
 		savedCtxEnv := ctx.Env()
 		result := e.oopEngine.CallMethod(obj, methodName, args, node)
 		ctx.SetEnv(savedCtxEnv)
+		if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil && shouldFallbackToHelper(result) {
+			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
+		}
 		return result
 
 	// ============================================================
@@ -250,6 +253,59 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		ctx.SetEnv(savedCtxEnv)
 		return result
 	}
+}
+
+func (e *Evaluator) callClassConstructor(classMeta ClassMetaValue, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
+	classInfoAny := classMeta.GetClassInfo()
+	classInfo, ok := classInfoAny.(runtime.IClassInfo)
+	if !ok || classInfo == nil {
+		return e.newError(node, "invalid class reference")
+	}
+
+	obj := runtime.NewObjectInstance(classInfo)
+
+	fieldTypes := classInfo.GetFieldTypesMap()
+	fieldDecls := classInfo.GetFieldsMap()
+	for fieldName, fieldTypeAny := range fieldTypes {
+		var fieldValue Value
+		if fieldDecl, hasDecl := fieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
+			fieldValue = e.Eval(fieldDecl.InitValue, ctx)
+			if isError(fieldValue) {
+				return e.newError(node, "failed to initialize field '%s': %v", fieldName, fieldValue)
+			}
+		} else {
+			if fieldType, ok := fieldTypeAny.(types.Type); ok {
+				fieldValue = e.getZeroValueForType(fieldType)
+			} else {
+				fieldValue = &runtime.NilValue{}
+			}
+		}
+		obj.SetField(fieldName, fieldValue)
+	}
+
+	if err := e.oopEngine.ExecuteConstructor(obj, methodName, args); err != nil {
+		return e.newError(node, "constructor failed: %v", err)
+	}
+
+	return obj
+}
+
+func (e *Evaluator) callClassMethod(classMeta ClassMetaValue, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
+	if len(args) == 0 {
+		if result, invoked := classMeta.InvokeParameterlessClassMethod(methodName, func(methodDecl any) Value {
+			return e.oopEngine.ExecuteMethodWithSelf(classMeta.(Value), methodDecl, nil)
+		}); invoked {
+			return result
+		}
+	}
+
+	if ptr, ok := classMeta.CreateClassMethodPointer(methodName, func(methodDecl any) Value {
+		return e.createFunctionPointerFromDecl(methodDecl, classMeta.(Value), ctx)
+	}); ok {
+		return e.oopEngine.CallFunctionPointer(ptr, args, node)
+	}
+
+	return e.newError(node, "class method '%s' not found", methodName)
 }
 
 // dispatchSetMethod handles method calls on SET values.
@@ -346,4 +402,12 @@ func (e *Evaluator) dispatchHelperMethod(obj Value, methodName string, args []Va
 	}
 
 	return e.CallHelperMethod(helperResult, obj, args, node, ctx)
+}
+
+func shouldFallbackToHelper(result Value) bool {
+	if !isError(result) {
+		return false
+	}
+	msg := strings.ToLower(result.String())
+	return strings.Contains(msg, "method") && strings.Contains(msg, "not found")
 }

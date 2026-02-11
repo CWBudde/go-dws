@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -190,11 +191,62 @@ func (i *Interpreter) resolveMethodOverload(className, methodName string, overlo
 	return nil, fmt.Errorf("internal error: resolved overload not found in candidate list")
 }
 
+// resolveMethodOverloadWithArgs resolves method overloads using pre-evaluated argument values.
+// This avoids re-evaluating arguments when the caller already has runtime values.
+func (i *Interpreter) resolveMethodOverloadWithArgs(className, methodName string, overloads []*ast.FunctionDecl, args []Value) (*ast.FunctionDecl, error) {
+	// If only one overload, use it (fast path)
+	if len(overloads) == 1 {
+		return overloads[0], nil
+	}
+
+	// Derive argument types from runtime values
+	argTypes := make([]types.Type, len(args))
+	for idx, arg := range args {
+		argTypes[idx] = i.getValueType(arg)
+	}
+
+	// Convert method declarations to semantic symbols for resolution
+	candidates := make([]*semantic.Symbol, len(overloads))
+	for idx, method := range overloads {
+		methodType := i.extractFunctionType(method)
+		if methodType == nil {
+			return nil, fmt.Errorf("unable to extract method type for overload %d of '%s.%s'", idx+1, className, methodName)
+		}
+
+		candidates[idx] = &semantic.Symbol{
+			Name:                 method.Name.Value,
+			Type:                 methodType,
+			HasOverloadDirective: method.IsOverload,
+		}
+	}
+
+	// Use semantic analyzer's overload resolution
+	selected, err := semantic.ResolveOverload(candidates, argTypes)
+	if err != nil {
+		return nil, fmt.Errorf("there is no overloaded version of \"%s.%s\" that can be called with these arguments", className, methodName)
+	}
+
+	// Find which method declaration corresponds to the selected symbol
+	selectedType, ok := selected.Type.(*types.FunctionType)
+	if !ok {
+		return nil, fmt.Errorf("internal error: selected overload has non-function type")
+	}
+	for _, method := range overloads {
+		methodType := i.extractFunctionType(method)
+		if methodType != nil && semantic.SignaturesEqual(methodType, selectedType) &&
+			methodType.ReturnType.Equals(selectedType.ReturnType) {
+			return method, nil
+		}
+	}
+
+	return nil, fmt.Errorf("internal error: resolved overload not found in candidate list")
+}
+
 // getMethodOverloadsInHierarchy collects all overloads of a method from the class hierarchy.
 func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, methodName string, isClassMethod bool) []*ast.FunctionDecl {
 	// Check for constructors first (only when isClassMethod = false)
 	if !isClassMethod {
-		if ctorOverloads := i.findConstructorOverloads(classInfo, methodName); len(ctorOverloads) > 0 {
+		if ctorOverloads := i.getConstructorOverloadsInHierarchy(classInfo, methodName); len(ctorOverloads) > 0 {
 			return ctorOverloads
 		}
 	}
@@ -210,11 +262,27 @@ func (i *Interpreter) getMethodOverloadsInHierarchy(classInfo *ClassInfo, method
 	return result
 }
 
-// findConstructorOverloads finds constructor overloads matching the given name.
-func (i *Interpreter) findConstructorOverloads(classInfo *ClassInfo, methodName string) []*ast.FunctionDecl {
+// getConstructorOverloadsInHierarchy collects constructor overloads from the class hierarchy.
+func (i *Interpreter) getConstructorOverloadsInHierarchy(classInfo *ClassInfo, methodName string) []*ast.FunctionDecl {
+	var result []*ast.FunctionDecl
+	for classInfo != nil {
+		overloads := i.getConstructorOverloadsForClass(classInfo, methodName)
+		result = i.addNonHiddenOverloads(result, overloads)
+		classInfo = classInfo.Parent
+	}
+	return result
+}
+
+// getConstructorOverloadsForClass gets constructor overloads for a single class level.
+func (i *Interpreter) getConstructorOverloadsForClass(classInfo *ClassInfo, methodName string) []*ast.FunctionDecl {
 	for ctorName, constructorOverloads := range classInfo.ConstructorOverloads {
 		if pkgident.Equal(ctorName, methodName) && len(constructorOverloads) > 0 {
 			return constructorOverloads
+		}
+	}
+	for ctorName, constructor := range classInfo.Constructors {
+		if pkgident.Equal(ctorName, methodName) && constructor != nil {
+			return []*ast.FunctionDecl{constructor}
 		}
 	}
 	return nil
@@ -267,7 +335,7 @@ func (i *Interpreter) isMethodHidden(candidate *ast.FunctionDecl, existing []*as
 func (i *Interpreter) executeObjectInstanceMethod(obj *ObjectInstance, methodNameLower string, mc *ast.MethodCallExpression) Value {
 	// Prevent method calls on destroyed instances
 	if obj.Destroyed {
-		message := fmt.Sprintf("Object already destroyed [line: %d, column: %d]", mc.Token.Pos.Line, mc.Token.Pos.Column)
+		message := fmt.Sprintf("Object already destroyed [line: %d, column: %d]", mc.Token.Pos.Line, mc.Token.Pos.Column+1)
 		i.raiseException("Exception", message, &mc.Token.Pos)
 		return &NilValue{}
 	}
@@ -322,6 +390,56 @@ func (i *Interpreter) executeObjectInstanceMethod(obj *ObjectInstance, methodNam
 	}
 
 	return i.executeResolvedMethod(obj, concreteClass, method, isClassMethod, args, mc)
+}
+
+// executeObjectInstanceMethodWithArgs executes a method call on an object using pre-evaluated arguments.
+func (i *Interpreter) executeObjectInstanceMethodWithArgs(obj *ObjectInstance, methodName string, args []Value, node ast.Node) Value {
+	if obj.Destroyed {
+		var pos lexer.Position
+		if node != nil {
+			pos = node.Pos()
+			message := fmt.Sprintf("Object already destroyed [line: %d, column: %d]", pos.Line, pos.Column+1)
+			i.raiseException("Exception", message, &pos)
+		}
+		return &NilValue{}
+	}
+
+	methodNameLower := pkgident.Normalize(methodName)
+
+	// TObject.Free delegates to Destroy and is available on all classes
+	if methodNameLower == "free" {
+		if len(args) != 0 {
+			return i.newErrorWithLocation(node, "wrong number of arguments for method '%s': expected %d, got %d",
+				"Free", 0, len(args))
+		}
+		return i.runDestructor(obj, obj.Class.LookupMethod("Destroy"), node)
+	}
+
+	concreteClass, ok := obj.Class.(*ClassInfo)
+	if !ok {
+		return i.newErrorWithLocation(node, "object has invalid class type")
+	}
+
+	method, isClassMethod, err := i.resolveObjectMethodWithArgs(obj, concreteClass, methodName, args)
+	if err != nil {
+		return i.newErrorWithLocation(node, "%s", err.Error())
+	}
+	if method == nil {
+		return i.newErrorWithLocation(node, "method '%s' not found in class '%s'", methodName, obj.Class.GetName())
+	}
+
+	if method.IsDestructor {
+		return i.runDestructor(obj, method, node)
+	}
+
+	if method.IsConstructor {
+		if mc, ok := node.(*ast.MethodCallExpression); ok {
+			return i.executeVirtualConstructor(obj, concreteClass, method, args, mc)
+		}
+		return i.newErrorWithLocation(node, "constructor '%s' requires a method call expression", methodName)
+	}
+
+	return i.executeResolvedMethodWithArgs(obj, concreteClass, method, isClassMethod, args, node)
 }
 
 // resolveObjectMethod resolves the method to call on an object instance.
@@ -404,6 +522,75 @@ func (i *Interpreter) resolveStaticClassMethod(
 		}
 	}
 	return topMostMethod
+}
+
+// resolveStaticClassMethodWithArgs finds the top-most declaration for non-virtual class methods
+// using pre-evaluated arguments for overload resolution.
+func (i *Interpreter) resolveStaticClassMethodWithArgs(
+	method *ast.FunctionDecl,
+	concreteClass *ClassInfo,
+	methodName string,
+	args []Value,
+) *ast.FunctionDecl {
+	if method == nil || method.IsVirtual || method.IsOverride {
+		return method
+	}
+
+	topMostMethod := method
+	for currentClass := concreteClass.Parent; currentClass != nil; currentClass = currentClass.Parent {
+		var parentClassMethodOverloads []*ast.FunctionDecl
+		for name, methods := range currentClass.ClassMethodOverloads {
+			if pkgident.Equal(name, methodName) {
+				parentClassMethodOverloads = methods
+				break
+			}
+		}
+
+		if len(parentClassMethodOverloads) > 0 {
+			parentMethod, parentErr := i.resolveMethodOverloadWithArgs(currentClass.Name, methodName, parentClassMethodOverloads, args)
+			if parentErr == nil && parentMethod != nil {
+				topMostMethod = parentMethod
+			}
+		}
+	}
+	return topMostMethod
+}
+
+// resolveObjectMethodWithArgs resolves the method to call on an object instance using pre-evaluated args.
+func (i *Interpreter) resolveObjectMethodWithArgs(
+	obj *ObjectInstance,
+	concreteClass *ClassInfo,
+	methodName string,
+	args []Value,
+) (*ast.FunctionDecl, bool, error) {
+	methodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, methodName, false)
+	classMethodOverloads := i.getMethodOverloadsInHierarchy(concreteClass, methodName, true)
+
+	var method *ast.FunctionDecl
+	var err error
+	var isClassMethod bool
+
+	// Try instance methods first
+	if len(methodOverloads) > 0 {
+		method, err = i.resolveMethodOverloadWithArgs(obj.Class.GetName(), methodName, methodOverloads, args)
+		if err != nil {
+			return nil, false, err
+		}
+		method = i.resolveVirtualMethod(method, concreteClass)
+	}
+
+	// If no instance method found, try class methods
+	if method == nil && len(classMethodOverloads) > 0 {
+		method, err = i.resolveMethodOverloadWithArgs(obj.Class.GetName(), methodName, classMethodOverloads, args)
+		if err != nil {
+			return nil, false, err
+		}
+		isClassMethod = true
+		method = i.resolveStaticClassMethodWithArgs(method, concreteClass, methodName, args)
+		method = i.resolveVirtualMethod(method, concreteClass)
+	}
+
+	return method, isClassMethod, nil
 }
 
 // tryObjectHelperMethod tries to call a helper method on an object.
@@ -517,6 +704,56 @@ func (i *Interpreter) executeResolvedMethod(
 	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
 	i.bindClassConstantsToEnv(concreteClass)
 
+	i.bindMethodParameters(i.Env(), method.Parameters, args)
+
+	if method.ReturnType != nil {
+		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
+		defaultVal := i.getDefaultValue(returnType)
+		i.Env().Define("Result", defaultVal)
+		i.Env().Define(method.Name.Value, &ReferenceValue{Env: i.Env(), VarName: "Result"})
+	}
+
+	result := i.Eval(method.Body)
+	if isError(result) {
+		return result
+	}
+
+	return i.extractMethodReturnValue(method)
+}
+
+// executeResolvedMethodWithArgs executes a resolved method using pre-evaluated arguments.
+func (i *Interpreter) executeResolvedMethodWithArgs(
+	obj *ObjectInstance,
+	concreteClass *ClassInfo,
+	method *ast.FunctionDecl,
+	isClassMethod bool,
+	args []Value,
+	node ast.Node,
+) Value {
+	if len(args) != len(method.Parameters) {
+		return i.newErrorWithLocation(node, "wrong number of arguments for method '%s': expected %d, got %d",
+			method.Name.Value, len(method.Parameters), len(args))
+	}
+
+	defer i.PushScope()()
+
+	if i.ctx.GetCallStack().WillOverflow() {
+		return i.raiseMaxRecursionExceeded()
+	}
+
+	fullMethodName := concreteClass.Name + "." + method.Name.Value
+	i.pushCallStack(fullMethodName)
+	defer i.popCallStack()
+
+	if isClassMethod {
+		i.Env().Define("Self", &ClassInfoValue{ClassInfo: concreteClass})
+	} else {
+		i.Env().Define("Self", obj)
+	}
+
+	methodOwner := i.findMethodOwner(concreteClass, method, isClassMethod)
+	i.Env().Define("__CurrentClass__", &ClassInfoValue{ClassInfo: methodOwner})
+	i.bindClassConstantsToEnv(concreteClass)
 	i.bindMethodParameters(i.Env(), method.Parameters, args)
 
 	if method.ReturnType != nil {

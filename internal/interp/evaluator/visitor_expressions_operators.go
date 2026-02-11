@@ -204,6 +204,11 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 			}); created {
 				return methodPtr
 			}
+
+			if methodDecl := objVal.GetMethodDecl(methodName); methodDecl != nil {
+				return e.oopEngine.CreateBoundMethodPointer(objectVal, methodDecl)
+			}
+
 			// Method not found
 			return e.newError(node, "undefined method: %s.%s", objVal.ClassName(), methodName)
 		}

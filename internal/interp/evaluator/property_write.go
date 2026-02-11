@@ -23,7 +23,7 @@ import (
 //   - ctx: Execution context for environment and call stack
 func (e *Evaluator) executePropertyWrite(obj Value, propInfo any, value Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Type assert propInfo to *types.PropertyInfo
-	pInfo, ok := propInfo.(*types.PropertyInfo)
+	pInfo, ok := unwrapPropertyInfo(propInfo)
 	if !ok {
 		return e.newError(node, "invalid property info type")
 	}

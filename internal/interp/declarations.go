@@ -95,6 +95,7 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 		overloads := classInfo.ConstructorOverloads[normalizedCtorName]
 		classInfo.ConstructorOverloads[normalizedCtorName] = i.replaceMethodInOverloadList(overloads, fn)
 		classInfo.Constructor = fn
+		i.propagateConstructorImplementationToDescendants(classInfo, fn)
 	}
 
 	if fn.IsDestructor {
@@ -152,6 +153,44 @@ func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *Cl
 				}
 				classInfo.Methods[normalizedMethodName] = fn
 			}
+		}
+	}
+}
+
+// propagateConstructorImplementationToDescendants updates inherited constructor overloads
+// when the base class implementation becomes available.
+func (i *Interpreter) propagateConstructorImplementationToDescendants(parentClass *ClassInfo, fn *ast.FunctionDecl) {
+	normalizedCtorName := ident.Normalize(fn.Name.Value)
+
+	for _, classInfo := range i.classes {
+		if !i.isDescendantOf(classInfo, parentClass) {
+			continue
+		}
+
+		// Update Constructors map if it still references the parent's declaration.
+		if ctor, ok := classInfo.Constructors[normalizedCtorName]; ok && ctor != nil {
+			if ctor.ClassName != nil && ident.Equal(ctor.ClassName.Value, classInfo.Name) {
+				continue
+			}
+			if parametersMatch(ctor.Parameters, fn.Parameters) {
+				classInfo.Constructors[normalizedCtorName] = fn
+			}
+		}
+
+		// Update overload lists, but only for inherited constructor entries.
+		if overloads, ok := classInfo.ConstructorOverloads[normalizedCtorName]; ok {
+			for idx, decl := range overloads {
+				if decl == nil {
+					continue
+				}
+				if decl.ClassName != nil && ident.Equal(decl.ClassName.Value, classInfo.Name) {
+					continue
+				}
+				if parametersMatch(decl.Parameters, fn.Parameters) {
+					overloads[idx] = fn
+				}
+			}
+			classInfo.ConstructorOverloads[normalizedCtorName] = overloads
 		}
 	}
 }

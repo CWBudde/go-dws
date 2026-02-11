@@ -404,6 +404,9 @@ func (e *Evaluator) raiseTypeCastException(message string, node ast.Node) {
 
 	// Get position from node
 	pos := node.Pos()
+	if asExpr, ok := node.(*ast.AsExpression); ok {
+		pos = asExpr.Token.Pos
+	}
 	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
 
 	// Look up Exception class

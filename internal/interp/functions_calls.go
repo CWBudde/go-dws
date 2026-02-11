@@ -78,6 +78,28 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 
 	// Check if this is a unit-qualified function call (UnitName.FunctionName) or record method call
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		// Handle unit/class/record identifiers without evaluating them as variables first
+		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
+			mc := &ast.MethodCallExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{Token: expr.Token},
+				},
+				Object:    memberAccess.Object,
+				Method:    memberAccess.Member,
+				Arguments: expr.Arguments,
+			}
+
+			if result := i.tryUnitQualifiedCall(ident, mc); result != nil {
+				return result
+			}
+			if result := i.tryClassNameMethodCall(ident, mc); result != nil {
+				return result
+			}
+			if result := i.tryRecordTypeMethodCall(ident, mc); result != nil {
+				return result
+			}
+		}
+
 		// First, evaluate the object part to see what we're dealing with
 		objVal := i.Eval(memberAccess.Object)
 		if isError(objVal) {

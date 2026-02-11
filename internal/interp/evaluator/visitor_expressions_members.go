@@ -38,9 +38,36 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return e.newError(node, "member access missing member")
 	}
 
+	expectedTypeKind := ""
+	if e.semanticInfo != nil {
+		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil {
+			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
+				expectedTypeKind = resolvedType.TypeKind()
+			}
+		}
+	}
+	wantMethodPointer := expectedTypeKind == "FUNCTION_POINTER" || expectedTypeKind == "METHOD_POINTER"
+
+	// Unit-qualified access (UnitName.Symbol) should not evaluate the unit identifier.
+	if identObj, ok := node.Object.(*ast.Identifier); ok {
+		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.unitRegistry != nil {
+			if _, exists := e.unitRegistry.GetUnit(identObj.Value); exists {
+				if valRaw, ok := ctx.Env().Get(node.Member.Value); ok {
+					if val, ok := valRaw.(Value); ok {
+						return val
+					}
+				}
+				return e.newError(node, "qualified name '%s.%s' cannot be used as a value (functions must be called)", identObj.Value, node.Member.Value)
+			}
+		}
+	}
+
 	obj := e.Eval(node.Object, ctx)
 	if isError(obj) {
 		return obj
+	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
 	}
 
 	memberName := node.Member.Value
@@ -70,13 +97,29 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return e.newError(node, "property access on records not supported")
 		}
 
+		// Helper properties
+		if helper, propInfo := e.FindHelperProperty(obj, memberName); propInfo != nil {
+			return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
+		}
+
+		// Helper methods (parameterless auto-invoke)
+		helperResult := e.FindHelperMethod(obj, memberName)
+		if helperResult != nil {
+			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+			}
+			if helperResult.BuiltinSpec != "" {
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+			}
+		}
+
 		return e.newError(node, "field '%s' not found in record '%s'", memberName, recVal.GetRecordTypeName())
 	}
 
 	// Route based on object type
 	switch obj.Type() {
 	case "OBJECT":
-		// Object instance: Properties -> Fields -> Class Variables -> Helpers -> Methods
+		// Object instance: Properties -> Fields -> Class Variables/Constants -> Methods -> Helpers
 		objVal, ok := obj.(ObjectValue)
 		if !ok {
 			return e.newError(node, "internal error: OBJECT value does not implement ObjectValue interface")
@@ -106,7 +149,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
 					return e.executePropertyRead(obj, propInfo, node, ctx)
 				})
-				if propValue != nil && propValue.Type() != "ERROR" {
+				if propValue != nil {
 					return propValue
 				}
 			}
@@ -122,13 +165,22 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return classVarValue
 		}
 
-		// Helper properties
-		if helper, propInfo := e.FindHelperProperty(obj, memberName); propInfo != nil {
-			return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
+		// Class constant access
+		if classMetaVal, ok := obj.(ClassMetaProvider); ok {
+			if constValue, found := classMetaVal.GetClassConstantBySpec(memberName); found {
+				return constValue
+			}
 		}
 
 		// Method access: auto-invoke if parameterless, else return function pointer
 		if objVal.HasMethod(memberName) {
+			if wantMethodPointer {
+				if methodDecl := objVal.GetMethodDecl(memberName); methodDecl != nil {
+					return e.oopEngine.CreateBoundMethodPointer(obj, methodDecl)
+				}
+				return e.newError(node, "method '%s' not found", memberName)
+			}
+
 			// Try parameterless auto-invoke first
 			result, invoked := objVal.InvokeParameterlessMethod(memberName, func(methodDecl any) Value {
 				// Create synthetic method call
@@ -155,6 +207,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
+		// Helper properties
+		if helper, propInfo := e.FindHelperProperty(obj, memberName); propInfo != nil {
+			return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
+		}
+
 		// Helper methods (parameterless auto-invoke)
 		helperResult := e.FindHelperMethod(obj, memberName)
 		if helperResult != nil {
@@ -166,7 +223,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
-		return e.newError(node, "member '%s' not found on object of class '%s'", memberName, objVal.ClassName())
+		return e.newError(node, "field '%s' not found in class '%s'", memberName, objVal.ClassName())
 
 	case "INTERFACE":
 		// Interface instance: verify member exists, access underlying object
@@ -177,26 +234,29 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		underlying := ifaceVal.GetUnderlyingObjectValue()
 		if underlying == nil {
-			return e.newError(node, "Interface is nil")
+			return e.newError(node.Member, "Interface is nil")
 		}
 
-		// Property access via underlying object
-		if ifaceVal.HasInterfaceProperty(memberName) {
-			if objVal, ok := underlying.(ObjectValue); ok {
-				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
-					return e.executePropertyRead(underlying, propInfo, node, ctx)
-				})
-				if propValue != nil && propValue.Type() != "ERROR" {
-					return propValue
+		// Property access via interface metadata
+		if accessor, ok := obj.(PropertyAccessor); ok {
+			if propDesc := accessor.LookupProperty(memberName); propDesc != nil {
+				if objVal, ok := underlying.(ObjectValue); ok {
+					return e.executePropertyRead(objVal, propDesc.Impl, node, ctx)
 				}
-				return e.newError(node, "failed to read property '%s' on interface '%s': %v", memberName, ifaceVal.InterfaceName(), propValue)
+				return e.newError(node, "internal error: interface underlying value does not implement ObjectValue")
 			}
-			return e.newError(node, "internal error: interface underlying value does not implement ObjectValue")
 		}
 
 		// Method access via underlying object
 		if ifaceVal.HasInterfaceMethod(memberName) {
 			if objVal, ok := underlying.(ObjectValue); ok {
+				if wantMethodPointer {
+					if methodDecl := objVal.GetMethodDecl(memberName); methodDecl != nil {
+						return e.oopEngine.CreateBoundMethodPointer(underlying, methodDecl)
+					}
+					return e.newError(node, "method '%s' not found", memberName)
+				}
+
 				// Try parameterless auto-invoke first
 				result, invoked := objVal.InvokeParameterlessMethod(memberName, func(methodDecl any) Value {
 					// Create synthetic method call - use original node.Object (the interface expression)
@@ -259,6 +319,20 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return e.coreEvaluator.EvalClassPropertyRead(classMetaVal.GetClassInfo(), propInfo, node)
 		}); found {
 			return result
+		}
+
+		// Instance properties backed by class vars/consts accessed via class name
+		if classInfo, ok := classMetaVal.GetClassInfo().(runtime.IClassInfo); ok {
+			if propDesc := classInfo.LookupProperty(memberName); propDesc != nil {
+				if propInfo, ok := propDesc.Impl.(*types.PropertyInfo); ok && !propInfo.IsClassProperty && propInfo.ReadKind == types.PropAccessField {
+					if val, found := classMetaVal.GetClassVar(propInfo.ReadSpec); found {
+						return val
+					}
+					if val, found := classMetaVal.GetClassConstant(propInfo.ReadSpec); found {
+						return val
+					}
+				}
+			}
 		}
 
 		// Constructors: auto-invoke without parentheses
@@ -366,6 +440,21 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Field and property access on wrapped object
 		wrappedValue := typeCastVal.GetWrappedValue()
 		if objVal, ok := wrappedValue.(ObjectValue); ok {
+			if ident.Equal(memberName, "ClassName") {
+				return &runtime.StringValue{Value: objVal.ClassName()}
+			}
+			if ident.Equal(memberName, "ClassType") {
+				className := objVal.ClassName()
+				classVal, err := e.typeSystem.CreateClassValue(className)
+				if err != nil {
+					return e.newError(node, "%s", err.Error())
+				}
+				if val, ok := classVal.(Value); ok {
+					return val
+				}
+				return e.newError(node, "internal error: ClassValue conversion failed")
+			}
+
 			if fieldValue := objVal.GetField(memberName); fieldValue != nil {
 				return fieldValue
 			}
@@ -528,17 +617,6 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	default:
 		// Other types (STRING, INTEGER, FLOAT, BOOLEAN, ARRAY): check helpers
 
-		// Helper methods (parameterless auto-invoke)
-		helperResult := e.FindHelperMethod(obj, memberName)
-		if helperResult != nil {
-			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
-				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
-			}
-			if helperResult.BuiltinSpec != "" {
-				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
-			}
-		}
-
 		// Helper properties
 		helpers := e.getHelpersForValue(obj)
 		for idx := len(helpers) - 1; idx >= 0; idx-- {
@@ -549,6 +627,17 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 					ownerHelper, _ := ownerHelperAny.(HelperInfo)
 					return e.executeHelperPropertyRead(ownerHelper, pInfo, obj, node, ctx)
 				}
+			}
+		}
+
+		// Helper methods (parameterless auto-invoke)
+		helperResult := e.FindHelperMethod(obj, memberName)
+		if helperResult != nil {
+			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+			}
+			if helperResult.BuiltinSpec != "" {
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 			}
 		}
 

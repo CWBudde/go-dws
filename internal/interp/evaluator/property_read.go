@@ -8,6 +8,28 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
+func unwrapPropertyInfo(propInfo any) (*types.PropertyInfo, bool) {
+	switch info := propInfo.(type) {
+	case *types.PropertyInfo:
+		return info, true
+	case *runtime.PropertyInfo:
+		if impl, ok := info.Impl.(*types.PropertyInfo); ok {
+			return impl, true
+		}
+	case *runtime.PropertyDescriptor:
+		if impl, ok := info.Impl.(*types.PropertyInfo); ok {
+			return impl, true
+		}
+		if wrapped, ok := info.Impl.(*runtime.PropertyInfo); ok {
+			if impl, ok := wrapped.Impl.(*types.PropertyInfo); ok {
+				return impl, true
+			}
+		}
+	}
+
+	return nil, false
+}
+
 // executePropertyRead handles property getter execution for ObjectValue.ReadProperty callback.
 //
 // This method handles three property access kinds:
@@ -25,7 +47,7 @@ import (
 //   - ctx: Execution context for environment and call stack
 func (e *Evaluator) executePropertyRead(obj Value, propInfo any, node ast.Node, ctx *ExecutionContext) Value {
 	// Type assert propInfo to *types.PropertyInfo
-	pInfo, ok := propInfo.(*types.PropertyInfo)
+	pInfo, ok := unwrapPropertyInfo(propInfo)
 	if !ok {
 		return e.newError(node, "invalid property info type")
 	}
@@ -119,6 +141,12 @@ func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, p
 		return e.newError(node, "indexed property '%s' requires index arguments (e.g., obj.%s[index])", pInfo.Name, pInfo.Name)
 	}
 
+	// Build implicit index directive arguments (if any)
+	indexArgs, err := e.buildIndexDirectiveArgs(pInfo)
+	if err != nil {
+		return e.newError(node, "%s", err.Error())
+	}
+
 	// Look up the getter method via ObjectValue interface
 	methodName := pInfo.ReadSpec
 
@@ -127,10 +155,28 @@ func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, p
 		return e.newError(node, "property '%s' read specifier '%s' not found as field, constant, class var, or method", pInfo.Name, pInfo.ReadSpec)
 	}
 
-	// Build implicit index directive arguments (if any)
-	indexArgs, err := e.buildIndexDirectiveArgs(pInfo)
-	if err != nil {
-		return e.newError(node, "%s", err.Error())
+	if len(indexArgs) > 0 {
+		methodDecl := objVal.GetMethodDecl(methodName)
+		if methodDecl == nil {
+			return e.newError(node, "property '%s' getter method '%s' not found", pInfo.Name, methodName)
+		}
+		method, ok := methodDecl.(*ast.FunctionDecl)
+		if !ok {
+			return e.newError(node, "property '%s' getter is not a valid method", pInfo.Name)
+		}
+		if len(method.Parameters) != len(indexArgs) {
+			return e.newError(node, "property '%s' getter method '%s' expects %d parameter(s), but index directive supplies %d",
+				pInfo.Name, pInfo.ReadSpec, len(method.Parameters), len(indexArgs))
+		}
+
+		propCtx := ctx.PropContext()
+		savedInGetter := propCtx.InPropertyGetter
+		propCtx.InPropertyGetter = true
+		defer func() {
+			propCtx.InPropertyGetter = savedInGetter
+		}()
+
+		return e.oopEngine.ExecuteMethodWithSelf(obj, methodDecl, indexArgs)
 	}
 
 	// Set flag to indicate we're inside a property getter
@@ -255,7 +301,7 @@ type FieldBinder interface {
 //   - ctx: Execution context for environment and call stack
 func (e *Evaluator) executeIndexedPropertyRead(obj Value, propInfo any, indices []Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Type assert propInfo to *types.PropertyInfo
-	pInfo, ok := propInfo.(*types.PropertyInfo)
+	pInfo, ok := unwrapPropertyInfo(propInfo)
 	if !ok {
 		return e.newError(node, "invalid property info type")
 	}

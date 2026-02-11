@@ -147,6 +147,16 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 
 	// NATIVE: Interface unwrapping - get underlying object
 	if intfInst, ok := objVal.(InterfaceInstanceValue); ok {
+		if accessor, ok := objVal.(PropertyAccessor); ok {
+			if propDesc := accessor.LookupProperty(fieldName); propDesc != nil {
+				underlying := intfInst.GetUnderlyingObjectValue()
+				if underlying == nil {
+					return e.newError(stmt, "cannot assign to member of nil interface")
+				}
+				return e.executePropertyWrite(underlying, propDesc.Impl, value, stmt, ctx)
+			}
+		}
+
 		underlying := intfInst.GetUnderlyingObjectValue()
 		if underlying == nil {
 			return e.newError(stmt, "cannot assign to member of nil interface")
