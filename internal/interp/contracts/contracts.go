@@ -4,7 +4,6 @@ import (
 	"math/rand"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -50,12 +49,30 @@ type ExternalFunctionRegistry interface {
 	Has(name string) bool
 }
 
+// EngineState holds interpreter-runtime state that must not be owned by both
+// interpreter and evaluator independently.
+type EngineState struct {
+	SourceCode        string
+	SourceFile        string
+	ExternalFunctions ExternalFunctionRegistry
+	UnitRegistry      *units.UnitRegistry
+	InitializedUnits  map[string]bool
+	SemanticInfo      *ast.SemanticInfo
+	RefCountManager   runtime.RefCountManager
+	MethodRegistry    *runtime.MethodRegistry
+	Random            *rand.Rand
+	LoadedUnits       []string
+	RandomSeed        int64
+}
+
 // Evaluator is the minimal API the interpreter needs from the evaluator.
 // This interface exists to avoid `internal/interp` importing `internal/interp/evaluator`.
 type Evaluator interface {
 	Eval(node ast.Node, ctx *runtime.ExecutionContext) Value
 	ExecuteUserFunction(fn *ast.FunctionDecl, args []Value, ctx *runtime.ExecutionContext, callbacks *UserFunctionCallbacks) (Value, error)
 	CurrentNode() ast.Node
+	CurrentContext() *runtime.ExecutionContext
+	EngineState() *EngineState
 	SetCurrentNode(node ast.Node)
 	SemanticInfo() *ast.SemanticInfo
 	SetSemanticInfo(info *ast.SemanticInfo)
@@ -103,7 +120,6 @@ type OOPEngine interface {
 	CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
 	ExecuteConstructor(obj Value, constructorName string, args []Value) error
 	CallFunctionPointer(funcPtr Value, args []Value, node ast.Node) Value
-	CallUserFunction(fn *ast.FunctionDecl, args []Value) Value
 	ExecuteFunctionPointerCall(metadata FunctionPointerMetadata, args []Value, node ast.Node) Value
 	CreateBoundMethodPointer(obj Value, methodDecl any) Value
 	CreateTypeCastWrapper(className string, obj Value) Value
@@ -127,55 +143,7 @@ type OOPEngine interface {
 
 // DeclHandler handles type declaration processing (classes, interfaces, helpers).
 type DeclHandler interface {
-	RegisterGlobalFunction(fn *ast.FunctionDecl)
 	NewClassInfoAdapter(name string) any
-	CastToClassInfo(class any) (any, bool)
-	IsClassPartial(classInfo any) bool
-	DefineClassInEnv(env any, classInfo any)
-	SetClassPartial(classInfo any, isPartial bool)
-	SetClassAbstract(classInfo any, isAbstract bool)
-	SetClassExternal(classInfo any, isExternal bool, externalName string)
-	ClassHasNoParent(classInfo any) bool
-	DefineCurrentClassMarker(env any, classInfo any)
-	SetClassParent(classInfo any, parentClass any)
-	AddInterfaceToClass(classInfo any, interfaceInfo any, interfaceName string)
-	AddClassMethod(classInfo any, method *ast.FunctionDecl, className string) bool
-	SynthesizeDefaultConstructor(classInfo any)
-	AddClassProperty(classInfo any, propDecl *ast.PropertyDecl) bool
-	RegisterClassOperator(classInfo any, opDecl *ast.OperatorDecl) Value
-	LookupClassMethod(classInfo any, methodName string, isClassMethod bool) (any, bool)
-	SetClassConstructor(classInfo any, constructor any)
-	SetClassDestructor(classInfo any, destructor any)
-	InheritDestructorIfMissing(classInfo any)
-	InheritParentProperties(classInfo any)
-	BuildVirtualMethodTable(classInfo any)
-	RegisterClassInTypeSystem(classInfo any, parentName string)
-	AddClassConstant(classInfo any, constDecl *ast.ConstDecl, value Value)
-	GetClassConstantValues(classInfo any) map[string]Value
-	InheritClassConstants(classInfo any, parentClass any)
-	AddClassField(classInfo any, fieldDecl *ast.FieldDecl, fieldType types.Type)
-	AddClassVar(classInfo any, name string, value Value)
-	AddNestedClass(parentClass any, nestedName string, nestedClass any)
-
-	NewInterfaceInfoAdapter(name string) any
-	CastToInterfaceInfo(iface any) (any, bool)
-	SetInterfaceParent(iface any, parent any)
-	GetInterfaceName(iface any) string
-	GetInterfaceParent(iface any) any
-	AddInterfaceMethod(iface any, normalizedName string, method *ast.FunctionDecl)
-	AddInterfaceProperty(iface any, normalizedName string, propInfo any)
-
-	CreateHelperInfo(name string, targetType any, isRecordHelper bool) any
-	SetHelperParent(helper any, parent any)
-	VerifyHelperTargetTypeMatch(parent any, targetType any) bool
-	GetHelperName(helper any) string
-	AddHelperMethod(helper any, normalizedName string, method *ast.FunctionDecl)
-	AddHelperProperty(helper any, prop *ast.PropertyDecl, propType any)
-	AddHelperClassVar(helper any, name string, value Value)
-	AddHelperClassConst(helper any, name string, value Value)
-	RegisterHelperLegacy(typeName string, helper any)
-
-	EvalMethodImplementation(fn *ast.FunctionDecl) Value
 }
 
 // User function execution callbacks.
@@ -185,7 +153,6 @@ type FunctionNameAliasFunc func(funcName string, funcEnv *runtime.Environment) V
 type CleanupInterfaceReferencesFunc func(env *runtime.Environment)
 type TryImplicitConversionReturnFunc func(returnValue Value, expectedReturnType string) (Value, bool)
 type IncrementInterfaceRefCountFunc func(returnValue Value)
-type EnvSyncerFunc func(funcEnv *runtime.Environment) func()
 
 type UserFunctionCallbacks struct {
 	ImplicitConversion   ImplicitConversionFunc
@@ -194,5 +161,4 @@ type UserFunctionCallbacks struct {
 	ReturnValueConverter TryImplicitConversionReturnFunc
 	InterfaceRefCounter  IncrementInterfaceRefCountFunc
 	InterfaceCleanup     CleanupInterfaceReferencesFunc
-	EnvSyncer            EnvSyncerFunc
 }

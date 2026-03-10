@@ -4,9 +4,7 @@ import (
 	"fmt"
 	goruntime "runtime"
 
-	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // raiseGoErrorAsException converts a Go error returned from host code into a DWScript exception.
@@ -20,19 +18,15 @@ func (i *Interpreter) raiseGoErrorAsException(err error) {
 	goType := fmt.Sprintf("%T", err)
 
 	// Capture current DWScript call stack for diagnostics.
-	callStack := make(errors.StackTrace, len(i.callStack))
-	copy(callStack, i.callStack)
+	callStack := i.callStackTrace()
 
-	// Look up EHost class; fall back to basic Exception if it is unavailable.
-	// PR #147: Use normalized key for O(1) case-insensitive lookup
-	hostClass, ok := i.classes[ident.Normalize("EHost")]
-	if !ok {
-		if baseClass, exists := i.classes[ident.Normalize("Exception")]; exists {
-			hostClass = baseClass
-		} else {
-			// As a last resort, leave exception unset.
-			return
-		}
+	hostClass := i.lookupRegisteredClassInfo("EHost")
+	if hostClass == nil {
+		hostClass = i.lookupRegisteredClassInfo("Exception")
+	}
+	if hostClass == nil {
+		// As a last resort, leave exception unset.
+		return
 	}
 
 	instance := NewObjectInstance(hostClass)
@@ -46,14 +40,14 @@ func (i *Interpreter) raiseGoErrorAsException(err error) {
 	}
 
 	// Position is nil for FFI errors (they don't originate from DWScript source)
-	i.exception = &runtime.ExceptionValue{
+	i.setExceptionValue(&runtime.ExceptionValue{
 		Metadata:  hostClass.Metadata,
 		ClassInfo: hostClass,
 		Instance:  instance,
 		Message:   message,
 		Position:  nil,
 		CallStack: callStack,
-	}
+	})
 }
 
 // handleExternalCallResult provides a shared path for external call wrappers to marshal Go errors.
@@ -102,18 +96,14 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 	}
 
 	// Capture current DWScript call stack.
-	callStack := make(errors.StackTrace, len(i.callStack))
-	copy(callStack, i.callStack)
+	callStack := i.callStackTrace()
 
-	// Reuse exception creation logic.
-	// PR #147: Use normalized key for O(1) case-insensitive lookup
-	hostClass, ok := i.classes[ident.Normalize("EHost")]
-	if !ok {
-		if baseClass, exists := i.classes[ident.Normalize("Exception")]; exists {
-			hostClass = baseClass
-		} else {
-			return
-		}
+	hostClass := i.lookupRegisteredClassInfo("EHost")
+	if hostClass == nil {
+		hostClass = i.lookupRegisteredClassInfo("Exception")
+	}
+	if hostClass == nil {
+		return
 	}
 
 	instance := NewObjectInstance(hostClass)
@@ -124,14 +114,14 @@ func (i *Interpreter) raiseGoPanicAsException(panicValue interface{}) {
 	}
 
 	// Position is nil for FFI errors (they don't originate from DWScript source)
-	i.exception = &runtime.ExceptionValue{
+	i.setExceptionValue(&runtime.ExceptionValue{
 		Metadata:  hostClass.Metadata,
 		ClassInfo: hostClass,
 		Instance:  instance,
 		Message:   message,
 		Position:  nil,
 		CallStack: callStack,
-	}
+	})
 }
 
 // callExternalFunctionSafe executes a host function capturing panics and converting them into exceptions.

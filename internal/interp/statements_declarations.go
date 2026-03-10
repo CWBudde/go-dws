@@ -23,7 +23,7 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 		}
 
 		// Check if exception is active - if so, unwind the stack
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			break
 		}
 
@@ -35,8 +35,8 @@ func (i *Interpreter) evalProgram(program *ast.Program) Value {
 	}
 
 	// If there's an uncaught exception, convert it to an error
-	if i.exception != nil {
-		exc := i.exception
+	if i.exceptionValue() != nil {
+		exc := i.exceptionValue()
 		return newError("uncaught exception: %s", exc.Inspect())
 	}
 
@@ -62,7 +62,7 @@ func (i *Interpreter) evalVarDeclStatement(stmt *ast.VarDeclStatement) Value {
 		}
 
 		// This is important for operations that raise exceptions (like invalid casts)
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			return nil
 		}
 		value = val
@@ -347,7 +347,7 @@ func (i *Interpreter) createBasicZeroValue(typeName string) Value {
 		return &VariantValue{Value: nil, ActualType: nil}
 	default:
 		// Check if this is a class type and create a typed nil value
-		if _, exists := i.classes[ident.Normalize(typeName)]; exists {
+		if i.lookupRegisteredClassInfo(typeName) != nil {
 			return &NilValue{ClassType: typeName}
 		}
 		return &NilValue{}

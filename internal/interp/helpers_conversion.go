@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/builtins"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -176,6 +177,9 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 		if typeAlias, ok := typeAliasVal.(*TypeAliasValue); ok {
 			return typeAlias.AliasedType
 		}
+		if typeAlias, ok := typeAliasVal.(*runtime.TypeAliasValue); ok {
+			return typeAlias.AliasedType
+		}
 	}
 
 	// Type not found
@@ -190,11 +194,7 @@ func (i *Interpreter) resolveClassInfoByName(name string) *ClassInfo {
 		}
 	}
 
-	if classInfo, ok := i.classes[ident.Normalize(name)]; ok {
-		return classInfo
-	}
-
-	return nil
+	return i.lookupRegisteredClassInfo(name)
 }
 
 // currentClassContext inspects the execution environment to find the current class scope.

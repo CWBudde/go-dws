@@ -114,8 +114,8 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		if identNode, ok := memberAccess.Object.(*ast.Identifier); ok {
 			if _, exists := ctx.Env().Get(identNode.Value); !exists {
 				// Unit-qualified function call
-				if e.unitRegistry != nil {
-					if _, exists := e.unitRegistry.GetUnit(identNode.Value); exists {
+				if e.UnitRegistry() != nil {
+					if _, exists := e.UnitRegistry().GetUnit(identNode.Value); exists {
 						return e.oopEngine.CallQualifiedOrConstructor(node, memberAccess)
 					}
 				}
@@ -204,8 +204,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			return e.newError(node, "%s", err.Error())
 		}
 
-		// Execute the function via adapter
-		return e.oopEngine.CallUserFunction(fn, args)
+		return e.ExecuteUserFunctionDirect(fn, args, ctx)
 	}
 
 	// Record static method calls (when inside record method context)
@@ -253,7 +252,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	}
 
 	// External (Go) functions with potential var parameters
-	if e.externalFunctions != nil && e.externalFunctions.Has(funcName.Value) {
+	if e.ExternalFunctions() != nil && e.ExternalFunctions().Has(funcName.Value) {
 		return e.callExternalFunction(funcName.Value, node.Arguments, node)
 	}
 

@@ -11,12 +11,13 @@ import (
 )
 
 // TestInterpDoesNotImportEvaluator verifies the architectural boundary:
-// internal/interp must not import internal/interp/evaluator (except in test files and wiring).
+// internal/interp must not import internal/interp/evaluator except for the
+// canonical construction entry point and test files.
 //
 // This boundary exists to enable dependency inversion:
 // - interp depends on contracts (interfaces)
 // - evaluator implements those interfaces
-// - runner wires them together
+// - interp/new.go owns canonical runtime construction during Phase 4
 //
 // See docs/architecture/interp-evaluator-boundary.md for rationale.
 func TestInterpDoesNotImportEvaluator(t *testing.T) {
@@ -46,8 +47,8 @@ func TestInterpDoesNotImportEvaluator(t *testing.T) {
 			return nil
 		}
 
-		// Allow wiring layer to import evaluator.
-		if path == filepath.Join("runner", "runner.go") || strings.HasPrefix(path, "runner"+string(filepath.Separator)) {
+		// Allow canonical construction entry points to import evaluator.
+		if path == "new.go" || path == filepath.Join("runner", "runner.go") || strings.HasPrefix(path, "runner"+string(filepath.Separator)) {
 			return nil
 		}
 
@@ -65,8 +66,8 @@ func TestInterpDoesNotImportEvaluator(t *testing.T) {
 			importPath := strings.Trim(imp.Path.Value, `"`)
 			if importPath == forbidden {
 				t.Errorf("%s imports %s - violates interp/evaluator boundary.\n"+
-					"Allowed only in runner/** and *_test.go.\n"+
-					"Use contracts interfaces instead, or move wiring to runner.\n"+
+					"Allowed only in new.go, runner/**, and *_test.go.\n"+
+					"Use contracts interfaces for all non-construction code.\n"+
 					"See docs/architecture/interp-evaluator-boundary.md",
 					path, forbidden)
 			}

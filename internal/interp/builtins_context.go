@@ -33,19 +33,19 @@ func (i *Interpreter) CurrentNode() ast.Node {
 // RandSource returns the random number generator for built-in functions.
 // This implements the builtins.Context interface.
 func (i *Interpreter) RandSource() *rand.Rand {
-	return i.evaluatorInstance.Random()
+	return i.randomSource()
 }
 
 // GetRandSeed returns the current random number generator seed value.
 // This implements the builtins.Context interface.
 func (i *Interpreter) GetRandSeed() int64 {
-	return i.evaluatorInstance.RandomSeed()
+	return i.randomSeed()
 }
 
 // SetRandSeed sets the random number generator seed.
 // This implements the builtins.Context interface.
 func (i *Interpreter) SetRandSeed(seed int64) {
-	i.evaluatorInstance.SetRandomSeed(seed)
+	i.setRandomSeed(seed)
 }
 
 // UnwrapVariant returns the underlying value if input is a Variant.
@@ -433,14 +433,15 @@ func (i *Interpreter) EvalFunctionPointer(funcPtr builtins.Value, args []builtin
 
 // GetCallStackString returns a formatted string representation of the current call stack.
 func (i *Interpreter) GetCallStackString() string {
-	return i.callStack.String()
+	return i.callStackTrace().String()
 }
 
 // GetCallStackArray returns the current call stack as an array of records.
 func (i *Interpreter) GetCallStackArray() builtins.Value {
-	elements := make([]Value, len(i.callStack))
+	callStack := i.callStackTrace()
+	elements := make([]Value, len(callStack))
 
-	for idx, frame := range i.callStack {
+	for idx, frame := range callStack {
 		fields := make(map[string]Value)
 		fields["FunctionName"] = &StringValue{Value: frame.FunctionName}
 		if frame.Position != nil {
@@ -523,10 +524,10 @@ func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
 		message = message + " : " + customMessage
 	}
 
-	assertClass, ok := i.classes[strings.ToLower("EAssertionFailed")]
-	if !ok {
+	assertClass := i.lookupRegisteredClassInfo("EAssertionFailed")
+	if assertClass == nil {
 		// Fallback if class not found
-		i.exception = &runtime.ExceptionValue{Message: message}
+		i.setExceptionValue(&runtime.ExceptionValue{Message: message})
 		return
 	}
 
@@ -537,12 +538,12 @@ func (i *Interpreter) RaiseAssertionFailed(customMessage string) {
 	instance.SetField("Message", &StringValue{Value: message})
 
 	// Create exception value and set it
-	i.exception = &runtime.ExceptionValue{
+	i.setExceptionValue(&runtime.ExceptionValue{
 		Metadata:  assertClass.Metadata,
 		ClassInfo: assertClass,
 		Message:   message,
 		Instance:  instance,
-	}
+	})
 }
 
 // CreateContractException creates an exception value for contract violations.

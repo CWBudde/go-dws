@@ -224,7 +224,7 @@ func (i *Interpreter) builtinForEach(args []Value) Value {
 		}
 
 		// Check if exception was raised
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			return &NilValue{} // Exception propagation
 		}
 	}
@@ -276,7 +276,7 @@ func (i *Interpreter) builtinEvery(args []Value) Value {
 		}
 
 		// Check if exception was raised
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			return &BooleanValue{Value: false}
 		}
 
@@ -344,7 +344,7 @@ func (i *Interpreter) builtinSome(args []Value) Value {
 		}
 
 		// Check if exception was raised
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			return &BooleanValue{Value: false}
 		}
 
@@ -412,7 +412,7 @@ func (i *Interpreter) builtinFind(args []Value) Value {
 		}
 
 		// Check if exception was raised
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			return &NilValue{}
 		}
 
@@ -480,7 +480,7 @@ func (i *Interpreter) builtinFindIndex(args []Value) Value {
 		}
 
 		// Check if exception was raised
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			return &IntegerValue{Value: -1}
 		}
 

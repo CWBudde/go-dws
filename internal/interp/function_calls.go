@@ -2,6 +2,7 @@ package interp
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/contracts"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -60,17 +61,8 @@ func (i *Interpreter) ExecuteFunctionPointerCall(metadata contracts.FunctionPoin
 		// Bind Self to the captured object
 		i.Env().Define("Self", metadata.SelfObject)
 
-		// Sync i.ctx.Env() with i.Env() before calling ExecuteUserFunction.
-		// ExecuteUserFunction creates its function environment from ctx.Env(), so we need
-		// ctx.Env() to see the Self binding we just set up in i.Env().
-		// Note: PushScope already synced i.ctx.env, but we save it here for clarity
-		savedCtxEnv := i.ctx.Env()
-
 		// Call the function via ExecuteUserFunction
 		result, err := i.evaluatorInstance.ExecuteUserFunction(fn, args, i.ctx, callbacks)
-
-		// Restore context environment
-		i.ctx.SetEnv(savedCtxEnv)
 
 		if err != nil {
 			return i.newErrorWithLocation(node, "%s", err.Error())
@@ -237,16 +229,11 @@ func (i *Interpreter) DispatchRecordStaticMethod(recordTypeName string, callExpr
 // CallExternalFunction calls an external (Go) function with var parameter support.
 func (i *Interpreter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value {
 	// Check if this is an external function with var parameters
-	if i.evaluatorInstance.ExternalFunctions() == nil {
+	if i.externalFunctions() == nil {
 		return i.newErrorWithLocation(node, "external function registry not initialized")
 	}
 
-	// Type-assert to concrete type to access Get method
-	registry, ok := i.evaluatorInstance.ExternalFunctions().(*ExternalFunctionRegistry)
-	if !ok {
-		return i.newErrorWithLocation(node, "external function registry type mismatch")
-	}
-
+	registry := i.externalFunctions()
 	extFunc, ok := registry.Get(funcName)
 	if !ok {
 		return i.newErrorWithLocation(node, "external function '%s' not found", funcName)
@@ -309,17 +296,19 @@ func (i *Interpreter) EvalMethodImplementation(fn *ast.FunctionDecl) Value {
 	typeName := fn.ClassName.Value
 
 	// Check if class first (case-insensitive lookup)
-	classInfo, isClass := i.classes[ident.Normalize(typeName)]
-	if isClass {
+	classInfo := i.lookupRegisteredClassInfo(typeName)
+	if classInfo != nil {
 		i.evalClassMethodImplementation(fn, classInfo)
 		return &NilValue{}
 	}
 
-	// Check if record (case-insensitive lookup)
-	recordInfo, isRecord := i.records[ident.Normalize(typeName)]
-	if isRecord {
-		i.evalRecordMethodImplementation(fn, recordInfo)
-		return &NilValue{}
+	if i.typeSystem != nil {
+		if recordInfoAny := i.typeSystem.LookupRecord(typeName); recordInfoAny != nil {
+			if recordInfo, ok := recordInfoAny.(*runtime.RecordTypeValue); ok {
+				i.evalRecordMethodImplementation(fn, recordInfo)
+				return &NilValue{}
+			}
+		}
 	}
 
 	return i.newErrorWithLocation(fn, "type '%s' not found for method '%s'", typeName, fn.Name.Value)

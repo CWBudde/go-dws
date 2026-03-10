@@ -304,13 +304,13 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 				}
 
 				// Provide type information for empty `[]` inference.
-				if e.semanticInfo != nil {
+				if e.SemanticInfo() != nil {
 					typeName := expectedSetType.String()
-					if targetAnnot := e.semanticInfo.GetType(target); targetAnnot != nil && targetAnnot.Name != "" {
+					if targetAnnot := e.SemanticInfo().GetType(target); targetAnnot != nil && targetAnnot.Name != "" {
 						typeName = targetAnnot.Name
 					}
-					e.semanticInfo.SetType(setLit, &ast.TypeAnnotation{Token: setLit.Token, Name: typeName})
-					defer e.semanticInfo.ClearType(setLit)
+					e.SemanticInfo().SetType(setLit, &ast.TypeAnnotation{Token: setLit.Token, Name: typeName})
+					defer e.SemanticInfo().ClearType(setLit)
 				}
 
 				value := e.evalSetLiteralDirect(setLit, ctx)

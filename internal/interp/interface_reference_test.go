@@ -292,10 +292,7 @@ func TestInterfaceImplementation(t *testing.T) {
 	}
 
 	// Verify class was registered
-	class, exists := interp.classes["tmyclass"]
-	if !exists {
-		t.Fatal("TMyClass should be registered")
-	}
+	class := mustLookupTestClass(t, interp, "TMyClass")
 
 	// Verify class implements interface
 	if !classImplementsInterface(class, iface) {
@@ -351,7 +348,7 @@ func TestInterfaceMultipleImplementation(t *testing.T) {
 	}
 
 	// Verify class implements both interfaces
-	class := interp.classes["timpab"]
+	class := mustLookupTestClass(t, interp, "TImpAB")
 	if !classImplementsInterface(class, ifaceA) {
 		t.Error("TImpAB should implement IIntfA")
 	}

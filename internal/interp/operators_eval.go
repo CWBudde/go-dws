@@ -42,8 +42,8 @@ func (i *Interpreter) invokeRuntimeOperator(entry *runtimeOperatorEntry, operand
 }
 
 func (i *Interpreter) invokeGlobalOperator(entry *runtimeOperatorEntry, operands []Value, node ast.Node) Value {
-	overloads, exists := i.functions[entry.BindingName]
-	if !exists || len(overloads) == 0 {
+	overloads := i.globalFunctionOverloads(entry.BindingName)
+	if len(overloads) == 0 {
 		return i.newErrorWithLocation(node, "operator binding '%s' not found", entry.BindingName)
 	}
 	fn := overloads[0]
@@ -208,8 +208,8 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 	entry, found := i.typeSystem.Conversions().FindImplicit(normalizedSource, normalizedTarget)
 	if found {
 		// Look up the conversion function
-		overloads, exists := i.functions[entry.BindingName]
-		if !exists || len(overloads) == 0 {
+		overloads := i.globalFunctionOverloads(entry.BindingName)
+		if len(overloads) == 0 {
 			// This should not happen if semantic analysis passed
 			return value, false
 		}
@@ -257,8 +257,8 @@ func (i *Interpreter) tryImplicitConversion(value Value, targetTypeName string) 
 		}
 
 		// Look up the conversion function
-		overloads, exists := i.functions[stepEntry.BindingName]
-		if !exists || len(overloads) == 0 {
+		overloads := i.globalFunctionOverloads(stepEntry.BindingName)
+		if len(overloads) == 0 {
 			return value, false
 		}
 		fn := overloads[0]

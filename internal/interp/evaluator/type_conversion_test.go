@@ -241,10 +241,6 @@ func (m *mockConversionAdapter) CallUserFunction(fn *ast.FunctionDecl, args []Va
 func (m *mockConversionAdapter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
 	return nil, false
 }
-func (m *mockConversionAdapter) RegisterGlobalFunction(fn *ast.FunctionDecl) {}
-func (m *mockConversionAdapter) EvalMethodImplementation(fn *ast.FunctionDecl) Value {
-	return &runtime.NilValue{}
-}
 func (m *mockConversionAdapter) TryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool) {
 	return nil, false
 }
@@ -274,8 +270,7 @@ func (m *mockConversionAdapter) AddHelperProperty(helper interface{}, prop *ast.
 func (m *mockConversionAdapter) AddHelperClassVar(helper interface{}, name string, value Value) {}
 func (m *mockConversionAdapter) AddHelperClassConst(helper interface{}, name string, value Value) {
 }
-func (m *mockConversionAdapter) RegisterHelperLegacy(typeName string, helper interface{}) {}
-func (m *mockConversionAdapter) NewInterfaceInfoAdapter(name string) interface{}          { return nil }
+func (m *mockConversionAdapter) NewInterfaceInfoAdapter(name string) interface{} { return nil }
 func (m *mockConversionAdapter) CastToInterfaceInfo(iface interface{}) (interface{}, bool) {
 	return nil, false
 }
@@ -396,10 +391,6 @@ func (m *mockConversionAdapter) SetClassAbstract(classInfo interface{}, isAbstra
 func (m *mockConversionAdapter) SetClassExternal(classInfo interface{}, isExternal bool, externalName string) {
 }
 func (m *mockConversionAdapter) ClassHasNoParent(classInfo interface{}) bool { return true }
-func (m *mockConversionAdapter) DefineClassInEnv(env interface{}, classInfo interface{}) {
-}
-func (m *mockConversionAdapter) DefineCurrentClassMarker(env interface{}, classInfo interface{}) {
-}
 func (m *mockConversionAdapter) SetClassParent(classInfo interface{}, parentClass interface{}) {}
 func (m *mockConversionAdapter) AddInterfaceToClass(classInfo interface{}, interfaceInfo interface{}, interfaceName string) {
 }
@@ -424,7 +415,6 @@ func (m *mockConversionAdapter) SetClassDestructor(classInfo interface{}, destru
 func (m *mockConversionAdapter) InheritDestructorIfMissing(classInfo interface{})                   {}
 func (m *mockConversionAdapter) InheritParentProperties(classInfo interface{})                      {}
 func (m *mockConversionAdapter) BuildVirtualMethodTable(classInfo interface{})                      {}
-func (m *mockConversionAdapter) RegisterClassInTypeSystem(classInfo interface{}, parentName string) {}
 func (m *mockConversionAdapter) AddClassConstant(classInfo interface{}, constDecl *ast.ConstDecl, value Value) {
 }
 func (m *mockConversionAdapter) GetClassConstantValues(classInfo interface{}) map[string]Value {

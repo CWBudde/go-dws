@@ -25,7 +25,7 @@ func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
 		}
 
 		// Check if exception is active - if so, unwind the stack
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			return nil
 		}
 
@@ -413,7 +413,7 @@ func (i *Interpreter) executeOperatorMethod(class *ClassInfo, opEntry *runtimeOp
 	i.Eval(method.Body)
 
 	// Check for errors after method execution
-	if i.exception != nil {
+	if i.exceptionValue() != nil {
 		return &NilValue{} // Exception is active, return value doesn't matter
 	}
 

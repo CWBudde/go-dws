@@ -2,7 +2,6 @@ package interp
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -11,167 +10,9 @@ import (
 // Interface Runtime Metadata
 // ============================================================================
 
-// InterfaceInfo represents runtime interface metadata: methods, parent interface,
-// and properties. Implements runtime.IInterfaceInfo to avoid circular imports.
-type InterfaceInfo struct {
-	Parent     *InterfaceInfo
-	Methods    map[string]*ast.FunctionDecl
-	Properties map[string]*types.PropertyInfo
-	Name       string
-}
+type InterfaceInfo = runtime.MutableInterfaceInfo
 
-// Ensure InterfaceInfo implements runtime.IInterfaceInfo at compile time.
-var _ runtime.IInterfaceInfo = (*InterfaceInfo)(nil)
-
-// NewInterfaceInfo creates a new InterfaceInfo with the given name.
-// Methods map is initialized as empty.
-func NewInterfaceInfo(name string) *InterfaceInfo {
-	return &InterfaceInfo{
-		Name:       name,
-		Parent:     nil,
-		Methods:    make(map[string]*ast.FunctionDecl),
-		Properties: make(map[string]*types.PropertyInfo),
-	}
-}
-
-// GetName returns the interface name.
-func (ii *InterfaceInfo) GetName() string {
-	return ii.Name
-}
-
-// GetParent returns the parent interface, or nil if this is a root interface.
-func (ii *InterfaceInfo) GetParent() runtime.IInterfaceInfo {
-	if ii.Parent == nil {
-		return nil
-	}
-	return ii.Parent
-}
-
-// GetMethod looks up a method by name, searching the interface hierarchy.
-// Returns nil if the method is not found.
-func (ii *InterfaceInfo) GetMethod(name string) any {
-	normalizedName := ident.Normalize(name)
-
-	// Check this interface's methods first
-	if method, exists := ii.Methods[normalizedName]; exists {
-		return method
-	}
-
-	// Check parent interface if present
-	if ii.Parent != nil {
-		return ii.Parent.GetMethod(name)
-	}
-
-	// Method not found
-	return nil
-}
-
-// HasMethod checks if this interface (or any parent) has a method with the given name.
-func (ii *InterfaceInfo) HasMethod(name string) bool {
-	return ii.GetMethod(name) != nil
-}
-
-// GetProperty looks up a property by name, searching the interface hierarchy.
-func (ii *InterfaceInfo) GetProperty(name string) *runtime.PropertyInfo {
-	normalized := ident.Normalize(name)
-
-	if prop, exists := ii.Properties[normalized]; exists {
-		// Convert types.PropertyInfo to runtime.PropertyInfo
-		return &runtime.PropertyInfo{
-			Name:      prop.Name,
-			IsIndexed: prop.IsIndexed,
-			IsDefault: prop.IsDefault,
-			ReadSpec:  prop.ReadSpec,
-			WriteSpec: prop.WriteSpec,
-			Impl:      prop, // Store original for backward compatibility
-		}
-	}
-
-	if ii.Parent != nil {
-		return ii.Parent.GetProperty(name)
-	}
-
-	return nil
-}
-
-// HasProperty checks if the interface (or any parent) declares a property.
-func (ii *InterfaceInfo) HasProperty(name string) bool {
-	return ii.GetProperty(name) != nil
-}
-
-// GetDefaultProperty returns the default property from the interface hierarchy, if any.
-func (ii *InterfaceInfo) GetDefaultProperty() *runtime.PropertyInfo {
-	for _, prop := range ii.AllProperties() {
-		if prop.IsDefault {
-			return prop
-		}
-	}
-	return nil
-}
-
-// AllMethods returns all methods including inherited ones from parent interfaces.
-func (ii *InterfaceInfo) AllMethods() map[string]any {
-	result := make(map[string]any)
-
-	// Add parent methods first (so child methods can override)
-	if ii.Parent != nil {
-		for name, method := range ii.Parent.AllMethods() {
-			result[name] = method
-		}
-	}
-
-	// Add this interface's methods
-	for name, method := range ii.Methods {
-		result[name] = method
-	}
-
-	return result
-}
-
-// allMethodsDecl is an internal helper that returns methods as map[string]*ast.FunctionDecl.
-// Used by existing code that needs the concrete type.
-func (ii *InterfaceInfo) allMethodsDecl() map[string]*ast.FunctionDecl {
-	result := make(map[string]*ast.FunctionDecl)
-
-	// Add parent methods first (so child methods can override)
-	if ii.Parent != nil {
-		for name, method := range ii.Parent.allMethodsDecl() {
-			result[name] = method
-		}
-	}
-
-	// Add this interface's methods
-	for name, method := range ii.Methods {
-		result[name] = method
-	}
-
-	return result
-}
-
-// AllProperties returns all properties from this interface and its parents.
-func (ii *InterfaceInfo) AllProperties() map[string]*runtime.PropertyInfo {
-	result := make(map[string]*runtime.PropertyInfo)
-
-	if ii.Parent != nil {
-		for name, prop := range ii.Parent.AllProperties() {
-			result[name] = prop
-		}
-	}
-
-	for name, prop := range ii.Properties {
-		// Convert types.PropertyInfo to runtime.PropertyInfo
-		result[name] = &runtime.PropertyInfo{
-			Name:      prop.Name,
-			IsIndexed: prop.IsIndexed,
-			IsDefault: prop.IsDefault,
-			ReadSpec:  prop.ReadSpec,
-			WriteSpec: prop.WriteSpec,
-			Impl:      prop,
-		}
-	}
-
-	return result
-}
+var NewInterfaceInfo = runtime.NewMutableInterfaceInfo
 
 // ============================================================================
 // Interface Instance
@@ -263,7 +104,7 @@ func interfaceInheritsFrom(sourceIface *InterfaceInfo, targetIface *InterfaceInf
 // interfaceIsCompatible checks if one interface is compatible with another.
 // An interface is compatible if it implements all methods of the target interface.
 func interfaceIsCompatible(source *InterfaceInfo, target *InterfaceInfo) bool {
-	targetMethods := target.allMethodsDecl()
+	targetMethods := target.AllMethods()
 
 	// Check that the source interface has each required method
 	for methodName := range targetMethods {
@@ -364,7 +205,7 @@ func (i *Interpreter) callDestructorIfNeeded(obj *ObjectInstance) {
 		return // Prevent recursion if destructor clears a reference to itself
 	}
 
-	i.evaluatorInstance.RefCountManager().DecrementRef(obj)
+	i.refCountManager().DecrementRef(obj)
 }
 
 // ReleaseInterfaceReference decrements the reference count and calls the destructor if needed.

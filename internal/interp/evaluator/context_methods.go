@@ -22,18 +22,18 @@ func (e *Evaluator) NewError(format string, args ...interface{}) Value {
 
 // RandSource returns the random number generator for built-in functions.
 func (e *Evaluator) RandSource() *rand.Rand {
-	return e.rand
+	return e.engineState.Random
 }
 
 // GetRandSeed returns the current random number generator seed value.
 func (e *Evaluator) GetRandSeed() int64 {
-	return e.randSeed
+	return e.engineState.RandomSeed
 }
 
 // SetRandSeed sets the random number generator seed.
 func (e *Evaluator) SetRandSeed(seed int64) {
-	e.randSeed = seed
-	e.rand.Seed(seed)
+	e.engineState.RandomSeed = seed
+	e.engineState.Random.Seed(seed)
 }
 
 // Write outputs a string to the configured output writer without a newline.

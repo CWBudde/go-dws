@@ -208,8 +208,8 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// case we should return a function pointer even for parameterless functions
 	// instead of auto-invoking them.
 	var expectedTypeKind string
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil {
 			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
 				expectedTypeKind = resolvedType.TypeKind()
 			}
@@ -243,7 +243,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		// Check if function has zero parameters - auto-invoke
 		if len(fn.Parameters) == 0 {
 			// Delegate to adapter for proper exception handling
-			return e.oopEngine.CallUserFunction(fn, []Value{})
+			return e.ExecuteUserFunctionDirect(fn, []Value{}, ctx)
 		}
 
 		// Function has parameters - create function pointer

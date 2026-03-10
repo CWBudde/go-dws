@@ -1039,11 +1039,11 @@ func (i *Interpreter) unwrapInterfaceInstance(objVal Value, mc *ast.MethodCallEx
 
 // initializeTypedNilValue initializes typed nil values when possible.
 func (i *Interpreter) initializeTypedNilValue(objVal Value, mc *ast.MethodCallExpression) Value {
-	if objVal == nil || objVal.Type() != "NIL" || i.evaluatorInstance.SemanticInfo() == nil {
+	if objVal == nil || objVal.Type() != "NIL" || i.semanticInfo() == nil {
 		return objVal
 	}
 
-	objType := i.evaluatorInstance.SemanticInfo().GetType(mc.Object)
+	objType := i.semanticInfo().GetType(mc.Object)
 	if objType == nil {
 		return objVal
 	}
@@ -1158,10 +1158,10 @@ func (i *Interpreter) tryEnumTypeMethodCall(objVal Value, mc *ast.MethodCallExpr
 // tryUnitQualifiedCall attempts to call a unit-qualified function.
 // Returns nil if the identifier is not a unit name.
 func (i *Interpreter) tryUnitQualifiedCall(ident *ast.Identifier, mc *ast.MethodCallExpression) Value {
-	if i.evaluatorInstance.UnitRegistry() == nil {
+	if i.unitRegistry() == nil {
 		return nil
 	}
-	if _, exists := i.evaluatorInstance.UnitRegistry().GetUnit(ident.Value); !exists {
+	if _, exists := i.unitRegistry().GetUnit(ident.Value); !exists {
 		return nil
 	}
 

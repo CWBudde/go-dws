@@ -17,7 +17,6 @@ func (i *Interpreter) createUserFunctionCallbacks() *contracts.UserFunctionCallb
 		ReturnValueConverter: i.createReturnValueConverterCallback(),
 		InterfaceRefCounter:  i.createInterfaceRefCounterCallback(),
 		InterfaceCleanup:     i.createInterfaceCleanupCallback(),
-		EnvSyncer:            i.createEnvSyncerCallback(),
 	}
 }
 
@@ -98,7 +97,7 @@ func (i *Interpreter) createInterfaceRefCounterCallback() contracts.IncrementInt
 	return func(returnValue Value) {
 		if intfInst, isIntf := returnValue.(*InterfaceInstance); isIntf {
 			if intfInst.Object != nil {
-				i.evaluatorInstance.RefCountManager().IncrementRef(intfInst.Object)
+				i.refCountManager().IncrementRef(intfInst.Object)
 			}
 		}
 	}
@@ -112,18 +111,5 @@ func (i *Interpreter) createInterfaceCleanupCallback() contracts.CleanupInterfac
 		i.SetEnvironment(env)
 		i.cleanupInterfaceReferences(i.Env())
 		i.RestoreEnvironment(savedEnv)
-	}
-}
-
-// createEnvSyncerCallback creates the environment synchronization callback.
-// Syncs i.Env() with funcEnv so interpreter callbacks use the correct scope.
-func (i *Interpreter) createEnvSyncerCallback() contracts.EnvSyncerFunc {
-	return func(funcEnv *runtime.Environment) func() {
-		savedEnv := i.Env()
-		i.SetEnvironment(funcEnv)
-
-		return func() {
-			i.RestoreEnvironment(savedEnv)
-		}
 	}
 }

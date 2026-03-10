@@ -15,8 +15,8 @@ func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, m
 	// Check if the left side is a unit identifier (for qualified access: UnitName.FunctionName)
 	if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
 		// This could be a unit-qualified call: UnitName.FunctionName()
-		if i.evaluatorInstance.UnitRegistry() != nil {
-			if _, exists := i.evaluatorInstance.UnitRegistry().GetUnit(unitIdent.Value); exists {
+		if i.unitRegistry() != nil {
+			if _, exists := i.unitRegistry().GetUnit(unitIdent.Value); exists {
 				// Resolve the qualified function
 				fn, err := i.ResolveQualifiedFunction(unitIdent.Value, memberAccess.Member.Value)
 				if err == nil {
@@ -62,13 +62,7 @@ func (i *Interpreter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, m
 		}
 
 		// Check if this is a class constructor call (TClass.Create(...))
-		var classInfo *ClassInfo
-		for className, class := range i.classes {
-			if ident.Equal(className, unitIdent.Value) {
-				classInfo = class
-				break
-			}
-		}
+		classInfo := i.lookupRegisteredClassInfo(unitIdent.Value)
 		if classInfo != nil {
 			// This is a class constructor/method call - convert to MethodCallExpression
 			mc := &ast.MethodCallExpression{

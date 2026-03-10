@@ -8,19 +8,23 @@ import (
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 )
 
-// New creates a fully-wired Interpreter for tests.
+// New creates the interpreter runtime engine with a fully wired internal evaluator.
 //
-// Production code should use internal/interp/runner (or pkg/dwscript), but many
-// internal/interp package tests rely on a convenient constructor.
+// During Phase 4, Interpreter remains the surviving public engine type while the
+// evaluator is treated as an internal implementation detail behind it.
 func New(output io.Writer) *Interpreter {
 	return NewWithOptions(output, nil)
 }
 
-// NewWithOptions creates a fully-wired Interpreter for tests with options.
+// NewWithOptions creates the interpreter runtime engine with a fully wired
+// internal evaluator and the provided options.
 func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	env := NewEnvironment()
 
 	ts := interptypes.NewTypeSystem()
+	ts.ClassInfoFactory = func(className string) any {
+		return NewClassInfo(className)
+	}
 	ts.ClassValueFactory = func(classInfo interptypes.ClassInfo) any {
 		if ci, ok := classInfo.(*ClassInfo); ok {
 			return &ClassValue{ClassInfo: ci}
@@ -53,9 +57,10 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 	interpreter := NewWithDeps(output, opts, env, ts, eval, refCountMgr)
 
-	// Allow evaluator to delegate OO/decl helpers back to interpreter.
-	// Note: ExceptionManager was removed in Task 4.2 - exception handling is now self-contained.
-	eval.SetFocusedInterfaces(interpreter, interpreter, interpreter)
+	// Transitional Phase 4 bridge: evaluator still relies on interpreter-owned
+	// runtime dispatch and fallback surfaces. Declaration callbacks are no longer
+	// part of production construction.
+	eval.SetRuntimeBridge(interpreter, interpreter)
 
 	return interpreter
 }

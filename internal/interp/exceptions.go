@@ -2,9 +2,7 @@ package interp
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -112,8 +110,6 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	objectClass.buildVirtualMethodTable()
 
 	// Use lowercase key for O(1) case-insensitive lookup
-	i.classes[strings.ToLower("TObject")] = objectClass
-	// Also register in TypeSystem for shared access
 	i.typeSystem.RegisterClass("TObject", objectClass)
 
 	// Register Exception base class
@@ -140,8 +136,6 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	exceptionClass.Constructors["Create"] = nil
 
 	// Use lowercase key for O(1) case-insensitive lookup
-	i.classes[strings.ToLower("Exception")] = exceptionClass
-	// Also register in TypeSystem for shared access
 	i.typeSystem.RegisterClassWithParent("Exception", exceptionClass, "TObject")
 
 	// Register standard exception types
@@ -179,8 +173,6 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		excClass.Constructors["Create"] = nil
 
 		// Use lowercase key for O(1) case-insensitive lookup
-		i.classes[strings.ToLower(excName)] = excClass
-		// Also register in TypeSystem for shared access
 		i.typeSystem.RegisterClassWithParent(excName, excClass, "Exception")
 	}
 
@@ -216,8 +208,6 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	eHostClass.Constructors["Create"] = nil
 
 	// Use lowercase key for O(1) case-insensitive lookup
-	i.classes[strings.ToLower("EHost")] = eHostClass
-	// Also register in TypeSystem for shared access
 	i.typeSystem.RegisterClassWithParent("EHost", eHostClass, "Exception")
 }
 
@@ -225,22 +215,26 @@ func (i *Interpreter) registerBuiltinExceptions() {
 // maximum recursion depth is exceeded. This prevents infinite recursion and
 // stack overflow errors.
 func (i *Interpreter) raiseMaxRecursionExceeded() Value {
+	return i.raiseMaxRecursionExceededInContext(i.ctx)
+}
+
+func (i *Interpreter) raiseMaxRecursionExceededInContext(ctx *runtime.ExecutionContext) Value {
+	if ctx == nil {
+		ctx = i.ctx
+	}
+
 	message := fmt.Sprintf("Maximal recursion exceeded (%d)", i.maxRecursionDepth)
 
 	// Capture current call stack
-	callStack := make(errors.StackTrace, len(i.callStack))
-	copy(callStack, i.callStack)
+	callStack := ctx.CallStack()
 
-	// Look up EScriptStackOverflow class (use lowercase key for case-insensitive lookup)
-	stackOverflowClass, ok := i.classes[strings.ToLower("EScriptStackOverflow")]
-	if !ok {
-		// Fall back to Exception if EScriptStackOverflow isn't registered
-		if baseClass, exists := i.classes[strings.ToLower("Exception")]; exists {
-			stackOverflowClass = baseClass
-		} else {
-			// As a last resort, return NilValue without setting exception
-			return &NilValue{}
-		}
+	stackOverflowClass := i.lookupRegisteredClassInfo("EScriptStackOverflow")
+	if stackOverflowClass == nil {
+		stackOverflowClass = i.lookupRegisteredClassInfo("Exception")
+	}
+	if stackOverflowClass == nil {
+		// As a last resort, return NilValue without setting exception
+		return &NilValue{}
 	}
 
 	// Create exception instance
@@ -248,14 +242,14 @@ func (i *Interpreter) raiseMaxRecursionExceeded() Value {
 	instance.SetField("Message", &StringValue{Value: message})
 
 	// Set the exception (Position is nil for internally-raised exceptions like recursion overflow)
-	i.exception = &runtime.ExceptionValue{
+	ctx.SetException(&runtime.ExceptionValue{
 		Metadata:  stackOverflowClass.Metadata,
 		Instance:  instance,
 		Message:   message,
 		Position:  nil,
 		CallStack: callStack,
 		ClassInfo: stackOverflowClass, // Deprecated: backward compatibility
-	}
+	})
 
 	return &NilValue{}
 }
@@ -270,7 +264,7 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 	if stmt.FinallyClause != nil {
 		defer func() {
 			// Save the current exception state
-			savedExc := i.exception
+			savedExc := i.exceptionValue()
 
 			// Set ExceptObject to the current exception in finally block
 			oldExceptObject, _ := i.Env().Get("ExceptObject")
@@ -279,15 +273,15 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 			}
 
 			// Clear exception so finally block can execute
-			i.exception = nil
+			i.clearException()
 			// Execute finally block
 			i.evalBlockStatement(stmt.FinallyClause.Block)
 
 			// If finally raised a new exception, keep it (replaces original)
 			// If finally completed normally, restore the original exception
-			if i.exception == nil {
+			if i.exceptionValue() == nil {
 				// Finally completed normally, restore original exception
-				i.exception = savedExc
+				i.setExceptionValue(savedExc)
 			}
 			// else: finally raised an exception, keep it (it replaces the original)
 
@@ -300,7 +294,7 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 	i.evalBlockStatement(stmt.TryBlock)
 
 	// If an exception occurred, try to handle it
-	if i.exception != nil {
+	if i.exceptionValue() != nil {
 		if stmt.ExceptClause != nil {
 			i.evalExceptClause(stmt.ExceptClause)
 		}
@@ -312,17 +306,17 @@ func (i *Interpreter) evalTryStatement(stmt *ast.TryStatement) Value {
 
 // evalExceptClause evaluates an except clause.
 func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
-	if i.exception == nil {
+	if i.exceptionValue() == nil {
 		// No exception to handle
 		return
 	}
 
 	// Save the current exception
-	exc := i.exception
+	exc := i.exceptionValue()
 
 	// If no handlers, this is a bare except - catches all
 	if len(clause.Handlers) == 0 {
-		i.exception = nil // Clear the exception
+		i.clearException() // Clear the exception
 		return
 	}
 
@@ -339,10 +333,10 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			}
 
 			// Save the current handlerException (for nested handlers)
-			savedHandlerException := i.handlerException
+			savedHandlerException := i.handlerExceptionValue()
 
 			// Save exception for bare raise to access
-			i.handlerException = exc
+			i.setHandlerException(exc)
 
 			// Set ExceptObject to the current exception
 			// Save old ExceptObject value to restore later
@@ -350,7 +344,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			i.Env().Set("ExceptObject", exc.Instance)
 
 			// Temporarily clear exception to allow handler to execute
-			i.exception = nil
+			i.clearException()
 
 			// Execute handler statement
 			// Use Eval directly, not evalStatement
@@ -361,7 +355,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 			// - If i.exception is not nil, handler raised/re-raised
 
 			// Restore handler exception context (for nested handlers)
-			i.handlerException = savedHandlerException
+			i.setHandlerException(savedHandlerException)
 
 			// Restore ExceptObject
 			i.Env().Set("ExceptObject", oldExceptObject)
@@ -379,7 +373,7 @@ func (i *Interpreter) evalExceptClause(clause *ast.ExceptClause) {
 	// No handler matched - execute else block if present
 	if clause.ElseBlock != nil {
 		// Clear the exception before executing else block
-		i.exception = nil
+		i.clearException()
 		i.evalBlockStatement(clause.ElseBlock)
 	}
 	// If no else block, exception remains active and will propagate
@@ -430,9 +424,9 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	// Bare raise - re-raise current exception
 	if stmt.Exception == nil {
 		// Use the exception saved by evalExceptClause
-		if i.handlerException != nil {
+		if i.handlerExceptionValue() != nil {
 			// Re-raise the exception
-			i.exception = i.handlerException
+			i.setExceptionValue(i.handlerExceptionValue())
 			return nil
 		}
 
@@ -471,8 +465,7 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	}
 
 	// Capture current call stack (make a copy to avoid slice aliasing)
-	callStack := make(errors.StackTrace, len(i.callStack))
-	copy(callStack, i.callStack)
+	callStack := i.callStackTrace()
 
 	// Capture position of the raise statement
 	pos := stmt.Token.Pos
@@ -480,24 +473,24 @@ func (i *Interpreter) evalRaiseStatement(stmt *ast.RaiseStatement) Value {
 	// Need concrete ClassInfo for ClassInfo field
 	concreteClass, ok := classInfo.(*ClassInfo)
 	if !ok {
-		i.exception = &runtime.ExceptionValue{
+		i.setExceptionValue(&runtime.ExceptionValue{
 			Metadata:  classInfo.GetMetadata(),
 			Message:   message,
 			Instance:  obj,
 			Position:  &pos,
 			CallStack: callStack,
-		}
+		})
 		return nil
 	}
 
-	i.exception = &runtime.ExceptionValue{
+	i.setExceptionValue(&runtime.ExceptionValue{
 		Metadata:  classInfo.GetMetadata(),
 		Message:   message,
 		Instance:  obj,
 		Position:  &pos,
 		CallStack: callStack,
 		ClassInfo: concreteClass, // Deprecated: backward compatibility
-	}
+	})
 
 	return nil
 }

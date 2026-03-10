@@ -161,6 +161,32 @@ func TestClassHierarchy(t *testing.T) {
 	}
 }
 
+func TestTypeSystem_NewClassInfo(t *testing.T) {
+	ts := NewTypeSystem()
+
+	if _, err := ts.NewClassInfo("NoFactory"); err == nil {
+		t.Fatal("NewClassInfo() without ClassInfoFactory should fail")
+	}
+
+	expected := &mockClassInfo{Name: "Constructed"}
+	ts.ClassInfoFactory = func(className string) ClassInfo {
+		return &mockClassInfo{Name: className}
+	}
+
+	result, err := ts.NewClassInfo(expected.Name)
+	if err != nil {
+		t.Fatalf("NewClassInfo() returned error: %v", err)
+	}
+
+	classInfo, ok := result.(*mockClassInfo)
+	if !ok {
+		t.Fatalf("NewClassInfo() returned %T, want *mockClassInfo", result)
+	}
+	if classInfo.Name != expected.Name {
+		t.Fatalf("NewClassInfo().Name = %q, want %q", classInfo.Name, expected.Name)
+	}
+}
+
 // TestRecordRegistry tests record registration and lookup.
 func TestRecordRegistry(t *testing.T) {
 	ts := NewTypeSystem()

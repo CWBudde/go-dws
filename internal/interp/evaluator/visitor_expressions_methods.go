@@ -43,8 +43,8 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	if identObj, ok := node.Object.(*ast.Identifier); ok {
 		if _, exists := ctx.Env().Get(identObj.Value); !exists {
 			unitExists := false
-			if e.unitRegistry != nil {
-				_, unitExists = e.unitRegistry.GetUnit(identObj.Value)
+			if e.UnitRegistry() != nil {
+				_, unitExists = e.UnitRegistry().GetUnit(identObj.Value)
 			}
 			if unitExists || e.typeSystem.HasClass(identObj.Value) {
 				memberAccess := &ast.MemberAccessExpression{

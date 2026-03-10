@@ -39,8 +39,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	}
 
 	expectedTypeKind := ""
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil {
 			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
 				expectedTypeKind = resolvedType.TypeKind()
 			}
@@ -50,8 +50,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 	// Unit-qualified access (UnitName.Symbol) should not evaluate the unit identifier.
 	if identObj, ok := node.Object.(*ast.Identifier); ok {
-		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.unitRegistry != nil {
-			if _, exists := e.unitRegistry.GetUnit(identObj.Value); exists {
+		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.UnitRegistry() != nil {
+			if _, exists := e.UnitRegistry().GetUnit(identObj.Value); exists {
 				if valRaw, ok := ctx.Env().Get(node.Member.Value); ok {
 					if val, ok := valRaw.(Value); ok {
 						return val

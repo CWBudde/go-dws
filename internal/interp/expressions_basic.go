@@ -95,8 +95,8 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 	} else {
 		// Look up the function in the function registry
 		// DWScript is case-insensitive, so normalize the function name
-		overloads, exists := i.functions[ident.Normalize(name)]
-		if !exists || len(overloads) == 0 {
+		overloads := i.globalFunctionOverloads(name)
+		if len(overloads) == 0 {
 			// Built-in function pointer
 			if _, ok := builtins.DefaultRegistry.Lookup(name); ok {
 				var pointerType *types.FunctionPointerType

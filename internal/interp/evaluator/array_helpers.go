@@ -74,8 +74,8 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 
 	// Disambiguation: `[...]` can represent a set literal when semantic analysis expects a SET.
 	// Some contexts (notably empty literals `[]`) otherwise look like an empty array literal.
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
 			if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
 				if _, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
 					setLit := &ast.SetLiteral{
@@ -84,8 +84,8 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 					}
 
 					// Preserve the type annotation for set inference (esp. for empty `[]`).
-					e.semanticInfo.SetType(setLit, typeAnnot)
-					defer e.semanticInfo.ClearType(setLit)
+					e.SemanticInfo().SetType(setLit, typeAnnot)
+					defer e.SemanticInfo().ClearType(setLit)
 
 					return e.evalSetLiteralDirect(setLit, ctx)
 				}
@@ -198,11 +198,11 @@ func (e *Evaluator) buildRuntimeArray(arrayType *types.ArrayType, coercedElement
 
 // getArrayTypeFromAnnotation retrieves the array type from semantic info.
 func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) *types.ArrayType {
-	if e.semanticInfo == nil {
+	if e.SemanticInfo() == nil {
 		return nil
 	}
 
-	typeAnnot := e.semanticInfo.GetType(node)
+	typeAnnot := e.SemanticInfo().GetType(node)
 	if typeAnnot == nil || typeAnnot.Name == "" {
 		return nil
 	}

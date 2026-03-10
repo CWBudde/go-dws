@@ -22,11 +22,29 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 
 	// Method implementations require ClassInfo internals (VMT rebuild, etc.)
 	if node.ClassName != nil {
-		return e.declHandler.EvalMethodImplementation(node)
+		typeName := node.ClassName.Value
+
+		if classInfoAny := e.typeSystem.LookupClass(typeName); classInfoAny != nil {
+			if classInfo, ok := classInfoAny.(classDeclarationInfo); ok {
+				classInfo.RegisterMethodImplementation(node, e.typeSystem.AllClasses())
+				return &runtime.NilValue{}
+			}
+			return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
+		}
+
+		if recordInfoAny := e.typeSystem.LookupRecord(typeName); recordInfoAny != nil {
+			if recordInfo, ok := recordInfoAny.(*runtime.RecordTypeValue); ok {
+				recordInfo.RegisterMethodImplementation(node)
+				return &runtime.NilValue{}
+			}
+			return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
+		}
+
+		return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
 	}
 
-	// Register global function (handles forward declarations and implementations)
-	e.declHandler.RegisterGlobalFunction(node)
+	// Register global function in the canonical function registry.
+	e.typeSystem.RegisterFunctionOrReplace(node.Name.Value, node)
 
 	return &runtime.NilValue{}
 }
@@ -39,6 +57,36 @@ func (e *Evaluator) fullClassNameFromDecl(cd *ast.ClassDecl) string {
 	return cd.Name.Value
 }
 
+type classDeclarationInfo interface {
+	IsPartialClass() bool
+	SetPartialClass(isPartial bool)
+	SetAbstractClass(isAbstract bool)
+	SetExternalClass(isExternal bool, externalName string)
+	DefineCurrentClassMarker(env *runtime.Environment)
+	HasNoParentClass() bool
+	SetParentClass(parent any)
+	AddImplementedInterface(iface any, ifaceName string)
+	AddConstantValue(constDecl *ast.ConstDecl, value Value)
+	ConstantValuesCopy() map[string]Value
+	InheritConstantValuesFrom(parent any)
+	AddNestedClassRef(nestedName string, nestedClass any)
+	AddFieldDeclaration(fieldDecl *ast.FieldDecl, fieldType types.Type)
+	AddClassVarValue(name string, value Value)
+	AddMethodDeclaration(method *ast.FunctionDecl, className string, registry *runtime.MethodRegistry) bool
+	LookupDeclaredMethod(methodName string, isClassMethod bool) (*ast.FunctionDecl, bool)
+	SetConstructorDecl(constructor *ast.FunctionDecl)
+	SetDestructorDecl(destructor *ast.FunctionDecl)
+	InheritDestructorMetadataIfMissing()
+	SynthesizeImplicitDefaultConstructor()
+	SetPropertyInfo(name string, propInfo *types.PropertyInfo)
+	InheritParentPropertyInfos()
+	RegisterOperatorBinding(operatorSymbol, bindingName string, operandTypes []string) error
+	BuildVirtualMethodTableDirect()
+	RegisterInTypeSystem(ts any, parentName string)
+	DefineInEnv(env *runtime.Environment)
+	RegisterMethodImplementation(fn *ast.FunctionDecl, allClasses map[string]interptypes.ClassInfo)
+}
+
 // VisitClassDecl evaluates a class declaration.
 // Handles: partial classes, inheritance, interfaces, methods, properties, operators, VMT.
 func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) Value {
@@ -49,39 +97,47 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	className := e.fullClassNameFromDecl(node)
 
 	// Handle partial class merging or create new class
-	var classInfo interface{}
+	var classInfo classDeclarationInfo
 	existingClass := e.typeSystem.LookupClass(className)
 
 	if existingClass != nil {
-		ci, ok := e.declHandler.CastToClassInfo(existingClass)
+		ci, ok := existingClass.(classDeclarationInfo)
 		if !ok {
 			return e.newError(node, "internal error: invalid class type for '%s'", className)
 		}
 
-		existingPartial := e.declHandler.IsClassPartial(ci)
+		existingPartial := ci.IsPartialClass()
 		if existingPartial && node.IsPartial {
 			classInfo = ci
 		} else {
 			return e.newError(node, "class '%s' already declared", className)
 		}
 	} else {
-		classInfo = e.declHandler.NewClassInfoAdapter(className)
+		rawClassInfo, err := e.typeSystem.NewClassInfo(className)
+		if err != nil {
+			return e.newError(node, "internal error: %s", err.Error())
+		}
+		ci, ok := rawClassInfo.(classDeclarationInfo)
+		if !ok {
+			return e.newError(node, "internal error: invalid class type for '%s'", className)
+		}
+		classInfo = ci
 	}
 
 	// Set class flags
 	if node.IsPartial {
-		e.declHandler.SetClassPartial(classInfo, true)
+		classInfo.SetPartialClass(true)
 	}
 	if node.IsAbstract {
-		e.declHandler.SetClassAbstract(classInfo, true)
+		classInfo.SetAbstractClass(true)
 	}
 	if node.IsExternal {
-		e.declHandler.SetClassExternal(classInfo, true, node.ExternalName)
+		classInfo.SetExternalClass(true, node.ExternalName)
 	}
 
 	// Setup temporary environment for nested class context
 	tempEnv := runtime.NewEnclosedEnvironment(ctx.Env())
-	e.declHandler.DefineCurrentClassMarker(tempEnv, classInfo)
+	classInfo.DefineCurrentClassMarker(tempEnv)
 	savedEnv := ctx.Env()
 	ctx.SetEnv(tempEnv)
 	defer ctx.SetEnv(savedEnv)
@@ -107,8 +163,8 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	}
 
 	// Set parent reference and inherit members
-	if parentClass != nil && e.declHandler.ClassHasNoParent(classInfo) {
-		e.declHandler.SetClassParent(classInfo, parentClass)
+	if parentClass != nil && classInfo.HasNoParentClass() {
+		classInfo.SetParentClass(parentClass)
 	}
 
 	// Process implemented interfaces
@@ -119,11 +175,11 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 			return e.newError(node, "interface '%s' not found", ifaceName)
 		}
 
-		e.declHandler.AddInterfaceToClass(classInfo, iface, ifaceName)
+		classInfo.AddImplementedInterface(iface, ifaceName)
 	}
 
 	// Evaluate class constants (sequentially to allow dependencies)
-	classConstValues := e.declHandler.GetClassConstantValues(classInfo)
+	classConstValues := classInfo.ConstantValuesCopy()
 	if classConstValues == nil {
 		classConstValues = make(map[string]Value)
 	}
@@ -148,16 +204,16 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 			return constVal
 		}
 		classConstValues[constDecl.Name.Value] = constVal
-		e.declHandler.AddClassConstant(classInfo, constDecl, constVal)
+		classInfo.AddConstantValue(constDecl, constVal)
 	}
 
 	// Inherit parent constants for field initializers
 	if parentClass != nil {
-		e.declHandler.InheritClassConstants(classInfo, parentClass)
+		classInfo.InheritConstantValuesFrom(parentClass)
 	}
 
 	// Refresh constants after inheritance
-	classConstValues = e.declHandler.GetClassConstantValues(classInfo)
+	classConstValues = classInfo.ConstantValuesCopy()
 	if classConstValues == nil {
 		classConstValues = make(map[string]Value)
 	}
@@ -178,7 +234,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 				return result
 			}
 			if nestedInfo := e.typeSystem.LookupClass(e.fullClassNameFromDecl(n)); nestedInfo != nil {
-				e.declHandler.AddNestedClass(classInfo, n.Name.Value, nestedInfo)
+				classInfo.AddNestedClassRef(n.Name.Value, nestedInfo)
 			}
 		default:
 			if result := e.Eval(n, ctx); isError(result) {
@@ -228,68 +284,85 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 				varValue = e.GetDefaultValue(fieldType)
 			}
 
-			e.declHandler.AddClassVar(classInfo, fieldName, varValue)
+			classInfo.AddClassVarValue(fieldName, varValue)
 			continue
 		}
 
-		e.declHandler.AddClassField(classInfo, field, fieldType)
+		classInfo.AddFieldDeclaration(field, fieldType)
 	}
 
 	// Add methods (overrides parent methods if same name, supports overloading)
 	for _, method := range node.Methods {
-		if !e.declHandler.AddClassMethod(classInfo, method, className) {
+		if !classInfo.AddMethodDeclaration(method, className, e.EngineState().MethodRegistry) {
 			return e.newError(method, "failed to add method '%s' to class '%s'", method.Name.Value, className)
 		}
 	}
 
 	// Process explicit constructor
 	if node.Constructor != nil {
-		if !e.declHandler.AddClassMethod(classInfo, node.Constructor, className) {
+		if !classInfo.AddMethodDeclaration(node.Constructor, className, e.EngineState().MethodRegistry) {
 			return e.newError(node.Constructor, "failed to add constructor to class '%s'", className)
 		}
 	}
 
 	// Identify constructor ("Create") and destructor ("Destroy")
-	if constructor, exists := e.declHandler.LookupClassMethod(classInfo, "create", false); exists {
-		e.declHandler.SetClassConstructor(classInfo, constructor)
+	if constructor, exists := classInfo.LookupDeclaredMethod("create", false); exists {
+		classInfo.SetConstructorDecl(constructor)
 	}
-	if destructor, exists := e.declHandler.LookupClassMethod(classInfo, "destroy", false); exists {
-		e.declHandler.SetClassDestructor(classInfo, destructor)
+	if destructor, exists := classInfo.LookupDeclaredMethod("destroy", false); exists {
+		classInfo.SetDestructorDecl(destructor)
 	}
 
 	// Inherit destructor from parent if missing
-	e.declHandler.InheritDestructorIfMissing(classInfo)
+	classInfo.InheritDestructorMetadataIfMissing()
 
 	// Synthesize default constructor if any constructor uses 'overload'
-	e.declHandler.SynthesizeDefaultConstructor(classInfo)
+	classInfo.SynthesizeImplicitDefaultConstructor()
 
 	// Register properties (after fields/methods so they can reference them)
 	for _, propDecl := range node.Properties {
 		if propDecl == nil {
 			continue
 		}
-		if !e.declHandler.AddClassProperty(classInfo, propDecl) {
+		propInfo := e.convertPropertyDecl(propDecl)
+		if propInfo == nil {
 			return e.newError(propDecl, "failed to add property '%s' to class '%s'", propDecl.Name.Value, className)
 		}
+		classInfo.SetPropertyInfo(propDecl.Name.Value, propInfo)
 	}
 
 	// Inherit parent properties
-	e.declHandler.InheritParentProperties(classInfo)
+	classInfo.InheritParentPropertyInfos()
 
 	// Register class operators
 	for _, opDecl := range node.Operators {
 		if opDecl == nil {
 			continue
 		}
-		if errVal := e.declHandler.RegisterClassOperator(classInfo, opDecl); isError(errVal) {
-			return errVal
+		if opDecl.Binding == nil {
+			return e.newError(opDecl, "class operator '%s' missing binding", opDecl.OperatorSymbol)
+		}
+
+		operandTypes := make([]string, 0, len(opDecl.OperandTypes))
+		for _, operand := range opDecl.OperandTypes {
+			typeName := operand.String()
+			resolvedType, err := e.resolveTypeName(typeName, ctx)
+			if err == nil && resolvedType != nil {
+				operandTypes = append(operandTypes, resolvedType.String())
+			} else {
+				operandTypes = append(operandTypes, typeName)
+			}
+		}
+
+		if err := classInfo.RegisterOperatorBinding(opDecl.OperatorSymbol, opDecl.Binding.Value, operandTypes); err != nil {
+			return e.newError(opDecl, "%s", err.Error())
 		}
 	}
 
 	// Build VMT and register in TypeSystem
-	e.declHandler.BuildVirtualMethodTable(classInfo)
-	e.declHandler.RegisterClassInTypeSystem(classInfo, parentClassName)
-	e.declHandler.DefineClassInEnv(savedEnv, classInfo)
+	classInfo.BuildVirtualMethodTableDirect()
+	classInfo.RegisterInTypeSystem(e.typeSystem, parentClassName)
+	classInfo.DefineInEnv(savedEnv)
 
 	return &runtime.NilValue{}
 }
@@ -302,7 +375,7 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 	}
 
 	interfaceName := node.Name.Value
-	interfaceInfo := e.declHandler.NewInterfaceInfoAdapter(interfaceName)
+	interfaceInfo := runtime.NewMutableInterfaceInfo(interfaceName)
 
 	// Resolve parent interface
 	if node.Parent != nil {
@@ -313,12 +386,12 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 			return e.newError(node.Parent, "parent interface '%s' not found", parentName)
 		}
 
-		parentInfo, ok := e.declHandler.CastToInterfaceInfo(parentInterface)
+		parentInfo, ok := parentInterface.(*runtime.MutableInterfaceInfo)
 		if !ok {
 			return e.newError(node.Parent, "invalid parent interface '%s'", parentName)
 		}
 
-		e.declHandler.SetInterfaceParent(interfaceInfo, parentInfo)
+		interfaceInfo.Parent = parentInfo
 
 		if e.hasCircularInterfaceInheritance(interfaceInfo) {
 			return e.newError(node.Parent,
@@ -338,7 +411,7 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 			Body:       nil,
 		}
 
-		e.declHandler.AddInterfaceMethod(interfaceInfo, ident.Normalize(methodDecl.Name.Value), funcDecl)
+		interfaceInfo.Methods[ident.Normalize(methodDecl.Name.Value)] = funcDecl
 	}
 
 	// Register interface properties
@@ -348,7 +421,7 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 		}
 		propInfo := e.convertPropertyDecl(propDecl)
 		if propInfo != nil {
-			e.declHandler.AddInterfaceProperty(interfaceInfo, ident.Normalize(propDecl.Name.Value), propInfo)
+			interfaceInfo.Properties[ident.Normalize(propDecl.Name.Value)] = propInfo
 		}
 	}
 
@@ -429,17 +502,17 @@ func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Prope
 }
 
 // Checks for circular interface inheritance to prevent infinite loops.
-func (e *Evaluator) hasCircularInterfaceInheritance(iface any) bool {
+func (e *Evaluator) hasCircularInterfaceInheritance(iface *runtime.MutableInterfaceInfo) bool {
 	seen := make(map[string]bool)
 	current := iface
 
 	for current != nil {
-		normalizedName := ident.Normalize(e.declHandler.GetInterfaceName(current))
+		normalizedName := ident.Normalize(current.Name)
 		if seen[normalizedName] {
 			return true
 		}
 		seen[normalizedName] = true
-		current = e.declHandler.GetInterfaceParent(current)
+		current = current.Parent
 	}
 
 	return false
@@ -837,20 +910,17 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 			node.ForType.String(), node.Name.Value)
 	}
 
-	helperInfo := e.declHandler.CreateHelperInfo(node.Name.Value, targetType, node.IsRecordHelper)
-	if helperInfo == nil {
-		return e.newError(node, "failed to create helper info for '%s'", node.Name.Value)
-	}
+	helperInfo := runtime.NewMutableHelperInfo(node.Name.Value, targetType, node.IsRecordHelper)
 
 	// Resolve parent helper
 	if node.ParentHelper != nil {
 		parentHelperName := node.ParentHelper.Value
 
-		var foundParent interface{}
+		var foundParent *runtime.MutableHelperInfo
 		for _, helpers := range e.typeSystem.AllHelpers() {
 			for _, helper := range helpers {
-				if ident.Equal(e.declHandler.GetHelperName(helper), parentHelperName) {
-					foundParent = helper
+				if helperInfoAny, ok := helper.(*runtime.MutableHelperInfo); ok && ident.Equal(helperInfoAny.Name, parentHelperName) {
+					foundParent = helperInfoAny
 					break
 				}
 			}
@@ -865,18 +935,18 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 				parentHelperName, node.Name.Value)
 		}
 
-		if !e.declHandler.VerifyHelperTargetTypeMatch(foundParent, targetType) {
+		if !foundParent.TargetType.Equals(targetType) {
 			return e.newError(node.ParentHelper,
 				"parent helper '%s' extends different type than child helper '%s'",
 				parentHelperName, node.Name.Value)
 		}
 
-		e.declHandler.SetHelperParent(helperInfo, foundParent)
+		helperInfo.ParentHelper = foundParent
 	}
 
 	// Register methods
 	for _, method := range node.Methods {
-		e.declHandler.AddHelperMethod(helperInfo, ident.Normalize(method.Name.Value), method)
+		helperInfo.Methods[ident.Normalize(method.Name.Value)] = method
 	}
 
 	// Register properties
@@ -886,7 +956,20 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 			return e.newError(prop, "unknown type '%s' for property '%s'",
 				prop.Type.String(), prop.Name.Value)
 		}
-		e.declHandler.AddHelperProperty(helperInfo, prop, propType)
+		propInfo := &types.PropertyInfo{Name: prop.Name.Value, Type: propType}
+		if prop.ReadSpec != nil {
+			if identExpr, ok := prop.ReadSpec.(*ast.Identifier); ok {
+				propInfo.ReadKind = types.PropAccessMethod
+				propInfo.ReadSpec = identExpr.Value
+			}
+		}
+		if prop.WriteSpec != nil {
+			if identExpr, ok := prop.WriteSpec.(*ast.Identifier); ok {
+				propInfo.WriteKind = types.PropAccessMethod
+				propInfo.WriteSpec = identExpr.Value
+			}
+		}
+		helperInfo.Properties[prop.Name.Value] = propInfo
 	}
 
 	// Initialize class variables
@@ -942,7 +1025,7 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 			initialValue = e.GetDefaultValue(varType)
 		}
 
-		e.declHandler.AddHelperClassVar(helperInfo, classVar.Name.Value, initialValue)
+		helperInfo.ClassVars[ident.Normalize(classVar.Name.Value)] = initialValue
 	}
 
 	// Evaluate class constants
@@ -951,19 +1034,17 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 		if isError(constValue) {
 			return constValue
 		}
-		e.declHandler.AddHelperClassConst(helperInfo, classConst.Name.Value, constValue)
+		helperInfo.ClassConsts[ident.Normalize(classConst.Name.Value)] = constValue
 	}
 
 	// Register helper in TypeSystem
 	typeName := ident.Normalize(targetType.String())
 	e.typeSystem.RegisterHelper(typeName, helperInfo)
-	e.declHandler.RegisterHelperLegacy(typeName, helperInfo)
 
 	// Also register by simple type name
 	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))
 	if simpleTypeName != typeName {
 		e.typeSystem.RegisterHelper(simpleTypeName, helperInfo)
-		e.declHandler.RegisterHelperLegacy(simpleTypeName, helperInfo)
 	}
 
 	// Expose helper name for static access (THelper.Member)

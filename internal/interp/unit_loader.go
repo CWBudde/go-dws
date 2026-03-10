@@ -5,7 +5,6 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // LoadUnit loads a DWScript unit by name, using the interpreter's unit registry.
@@ -33,12 +32,12 @@ import (
 //	// Now MathUtils functions are available
 func (i *Interpreter) LoadUnit(name string, searchPaths []string) (*units.Unit, error) {
 	// Ensure unit registry is initialized
-	if i.evaluatorInstance.UnitRegistry() == nil {
+	if i.unitRegistry() == nil {
 		return nil, fmt.Errorf("unit registry not initialized - call SetUnitRegistry first")
 	}
 
 	// Delegate to the registry to handle file search, parsing, and dependency loading
-	unit, err := i.evaluatorInstance.UnitRegistry().LoadUnit(name, searchPaths)
+	unit, err := i.unitRegistry().LoadUnit(name, searchPaths)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load unit '%s': %w", name, err)
 	}
@@ -58,50 +57,47 @@ func (i *Interpreter) LoadUnit(name string, searchPaths []string) (*units.Unit, 
 //	registry := units.NewUnitRegistry([]string{"./lib", "./units"})
 //	interp.SetUnitRegistry(registry)
 func (i *Interpreter) SetUnitRegistry(registry *units.UnitRegistry) {
-	if i.evaluatorInstance != nil {
-		i.evaluatorInstance.SetUnitRegistry(registry)
-	}
+	i.engineState.UnitRegistry = registry
 }
 
 // SetSource sets the source code and filename for enhanced error messages.
 // Allows runtime errors to display source code snippets.
 func (i *Interpreter) SetSource(source, filename string) {
-	if i.evaluatorInstance != nil {
-		i.evaluatorInstance.SetSource(source, filename)
-	}
+	i.engineState.SourceCode = source
+	i.engineState.SourceFile = filename
 }
 
 // GetUnitRegistry returns the interpreter's unit registry.
 // Returns nil if no registry has been set.
 func (i *Interpreter) GetUnitRegistry() *units.UnitRegistry {
-	return i.evaluatorInstance.UnitRegistry()
+	return i.unitRegistry()
 }
 
 // trackLoadedUnit records that a unit has been loaded.
 // This maintains the load order for proper initialization/finalization sequencing.
 func (i *Interpreter) trackLoadedUnit(name string) {
 	// Check if already tracked (avoid duplicates)
-	for _, loaded := range i.evaluatorInstance.LoadedUnits() {
+	for _, loaded := range i.loadedUnits() {
 		if loaded == name {
 			return
 		}
 	}
-	i.evaluatorInstance.AddLoadedUnit(name)
+	i.addLoadedUnit(name)
 }
 
 // IsUnitLoaded checks if a unit has been loaded by name.
 // The check is case-insensitive (as DWScript is case-insensitive).
 func (i *Interpreter) IsUnitLoaded(name string) bool {
-	if i.evaluatorInstance.UnitRegistry() == nil {
+	if i.unitRegistry() == nil {
 		return false
 	}
-	_, exists := i.evaluatorInstance.UnitRegistry().GetUnit(name)
+	_, exists := i.unitRegistry().GetUnit(name)
 	return exists
 }
 
 // ListLoadedUnits returns the names of all loaded units in load order.
 func (i *Interpreter) ListLoadedUnits() []string {
-	loadedUnits := i.evaluatorInstance.LoadedUnits()
+	loadedUnits := i.loadedUnits()
 	result := make([]string, len(loadedUnits))
 	copy(result, loadedUnits)
 	return result
@@ -125,13 +121,13 @@ func (i *Interpreter) ListLoadedUnits() []string {
 //	  2. Unit B initialized
 //	  3. Unit C initialized
 func (i *Interpreter) InitializeUnits() error {
-	if i.evaluatorInstance.UnitRegistry() == nil {
+	if i.unitRegistry() == nil {
 		// No units to initialize
 		return nil
 	}
 
 	// Compute the initialization order using topological sort
-	order, err := i.evaluatorInstance.UnitRegistry().ComputeInitializationOrder()
+	order, err := i.unitRegistry().ComputeInitializationOrder()
 	if err != nil {
 		return fmt.Errorf("failed to compute initialization order: %w", err)
 	}
@@ -139,12 +135,12 @@ func (i *Interpreter) InitializeUnits() error {
 	// Initialize each unit in dependency order
 	for _, unitName := range order {
 		// Skip if already initialized
-		if i.evaluatorInstance.InitializedUnits()[unitName] {
+		if i.initializedUnits()[unitName] {
 			continue
 		}
 
 		// Get the unit from the registry
-		unit, exists := i.evaluatorInstance.UnitRegistry().GetUnit(unitName)
+		unit, exists := i.unitRegistry().GetUnit(unitName)
 		if !exists {
 			return fmt.Errorf("unit '%s' not found in registry", unitName)
 		}
@@ -155,8 +151,8 @@ func (i *Interpreter) InitializeUnits() error {
 			result := i.Eval(unit.InitializationSection)
 
 			// Check if initialization raised an exception
-			if i.exception != nil {
-				return fmt.Errorf("exception in initialization of unit '%s': %v", unitName, i.exception)
+			if i.exceptionValue() != nil {
+				return fmt.Errorf("exception in initialization of unit '%s': %v", unitName, i.exceptionValue())
 			}
 
 			// Check for errors (though Eval typically returns error values, not Go errors)
@@ -166,7 +162,7 @@ func (i *Interpreter) InitializeUnits() error {
 		}
 
 		// Mark as initialized
-		i.evaluatorInstance.InitializedUnits()[unitName] = true
+		i.initializedUnits()[unitName] = true
 	}
 
 	return nil
@@ -187,16 +183,16 @@ func (i *Interpreter) InitializeUnits() error {
 //
 //	If initialization order was [A, B, C], finalization order is [C, B, A]
 func (i *Interpreter) FinalizeUnits() error {
-	if i.evaluatorInstance.UnitRegistry() == nil {
+	if i.unitRegistry() == nil {
 		// No units to finalize
 		return nil
 	}
 
 	// Get initialization order
-	order, err := i.evaluatorInstance.UnitRegistry().ComputeInitializationOrder()
+	order, err := i.unitRegistry().ComputeInitializationOrder()
 	if err != nil {
 		// If we can't compute order, finalize in reverse load order
-		order = i.evaluatorInstance.LoadedUnits()
+		order = i.loadedUnits()
 	}
 
 	var firstError error
@@ -206,7 +202,7 @@ func (i *Interpreter) FinalizeUnits() error {
 		unitName := order[idx]
 
 		// Get the unit from the registry
-		unit, exists := i.evaluatorInstance.UnitRegistry().GetUnit(unitName)
+		unit, exists := i.unitRegistry().GetUnit(unitName)
 		if !exists {
 			// Unit was unloaded or not found - skip
 			continue
@@ -218,12 +214,12 @@ func (i *Interpreter) FinalizeUnits() error {
 			result := i.Eval(unit.FinalizationSection)
 
 			// Capture errors but continue finalizing other units
-			if i.exception != nil {
+			if i.exceptionValue() != nil {
 				if firstError == nil {
-					firstError = fmt.Errorf("exception in finalization of unit '%s': %v", unitName, i.exception)
+					firstError = fmt.Errorf("exception in finalization of unit '%s': %v", unitName, i.exceptionValue())
 				}
 				// Clear the exception to allow other finalizations to proceed
-				i.exception = nil
+				i.clearException()
 			}
 
 			if errVal, ok := result.(*ErrorValue); ok {
@@ -276,8 +272,8 @@ func (i *Interpreter) ImportUnitSymbols(unit *units.Unit) error {
 		_ = i.Eval(stmt)
 
 		// Check for errors during symbol import
-		if i.exception != nil {
-			return fmt.Errorf("exception while importing symbols from unit '%s': %v", unit.Name, i.exception)
+		if i.exceptionValue() != nil {
+			return fmt.Errorf("exception while importing symbols from unit '%s': %v", unit.Name, i.exceptionValue())
 		}
 	}
 
@@ -295,8 +291,8 @@ func (i *Interpreter) ImportUnitSymbols(unit *units.Unit) error {
 			_ = i.Eval(stmt)
 
 			// Check for errors
-			if i.exception != nil {
-				return fmt.Errorf("exception while importing implementations from unit '%s': %v", unit.Name, i.exception)
+			if i.exceptionValue() != nil {
+				return fmt.Errorf("exception while importing implementations from unit '%s': %v", unit.Name, i.exceptionValue())
 			}
 		}
 	}
@@ -317,12 +313,12 @@ func (i *Interpreter) ImportUnitSymbols(unit *units.Unit) error {
 //   - The function is not found in the unit's interface
 //   - The unit has no exported functions
 func (i *Interpreter) ResolveQualifiedFunction(unitName, functionName string) (*ast.FunctionDecl, error) {
-	if i.evaluatorInstance.UnitRegistry() == nil {
+	if i.unitRegistry() == nil {
 		return nil, fmt.Errorf("unit registry not initialized")
 	}
 
 	// Get the unit from the registry
-	_, exists := i.evaluatorInstance.UnitRegistry().GetUnit(unitName)
+	_, exists := i.unitRegistry().GetUnit(unitName)
 	if !exists {
 		return nil, fmt.Errorf("unit '%s' not loaded", unitName)
 	}
@@ -333,7 +329,7 @@ func (i *Interpreter) ResolveQualifiedFunction(unitName, functionName string) (*
 	// (see tasks 9.108-9.110 where unit parsing is improved)
 	// For now, we assume the function was imported and is available globally.
 	// DWScript is case-insensitive, so normalize the function name
-	if overloads, ok := i.functions[ident.Normalize(functionName)]; ok && len(overloads) > 0 {
+	if overloads := i.globalFunctionOverloads(functionName); len(overloads) > 0 {
 		// TODO: Verify this function actually belongs to this unit once we have proper
 		fn := overloads[0]
 		// unit-scoped symbol tables
@@ -348,12 +344,12 @@ func (i *Interpreter) ResolveQualifiedFunction(unitName, functionName string) (*
 //
 // Returns the value and nil on success, or nil and an error if not found.
 func (i *Interpreter) ResolveQualifiedVariable(unitName, variableName string) (Value, error) {
-	if i.evaluatorInstance.UnitRegistry() == nil {
+	if i.unitRegistry() == nil {
 		return nil, fmt.Errorf("unit registry not initialized")
 	}
 
 	// Get the unit from the registry
-	_, exists := i.evaluatorInstance.UnitRegistry().GetUnit(unitName)
+	_, exists := i.unitRegistry().GetUnit(unitName)
 	if !exists {
 		return nil, fmt.Errorf("unit '%s' not loaded", unitName)
 	}

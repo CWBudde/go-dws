@@ -117,14 +117,6 @@ func NewPropertyEvalContext() *PropertyEvalContext {
 	return &PropertyEvalContext{PropertyChain: make([]string, 0)}
 }
 
-// ExceptionGetter is a callback to read the current exception from external storage.
-// Used to sync exception state between interpreter and evaluator.
-type ExceptionGetter func() any
-
-// ExceptionSetter is a callback to write an exception to external storage.
-// Used to sync exception state between interpreter and evaluator.
-type ExceptionSetter func(any)
-
 // ExecutionContext holds all execution state for script evaluation.
 //
 //nolint:govet // Keep layout stable and readable; alignment optimization is not worth the churn here.
@@ -136,8 +128,6 @@ type ExecutionContext struct {
 	controlFlow               *ControlFlow
 	propContext               *PropertyEvalContext
 	env                       *Environment
-	exceptionGetter           ExceptionGetter
-	exceptionSetter           ExceptionSetter
 	recordTypeContext         string
 	currentFunctionReturnType string
 	envStack                  []*Environment
@@ -167,20 +157,6 @@ func NewExecutionContextWithMaxDepth(env *Environment, maxDepth int) *ExecutionC
 		controlFlow:    NewControlFlow(),
 		propContext:    NewPropertyEvalContext(),
 		oldValuesStack: make([]map[string]any, 0),
-	}
-}
-
-// NewExecutionContextWithCallbacks creates a new execution context with exception callbacks.
-func NewExecutionContextWithCallbacks(env *Environment, maxDepth int, getter ExceptionGetter, setter ExceptionSetter) *ExecutionContext {
-	return &ExecutionContext{
-		env:             env,
-		envStack:        make([]*Environment, 0),
-		callStack:       NewCallStack(maxDepth),
-		controlFlow:     NewControlFlow(),
-		propContext:     NewPropertyEvalContext(),
-		oldValuesStack:  make([]map[string]any, 0),
-		exceptionGetter: getter,
-		exceptionSetter: setter,
 	}
 }
 
@@ -254,18 +230,11 @@ func (ctx *ExecutionContext) ControlFlow() *ControlFlow {
 
 // Exception returns the current active exception.
 func (ctx *ExecutionContext) Exception() any {
-	if ctx.exceptionGetter != nil {
-		return ctx.exceptionGetter()
-	}
 	return ctx.exception
 }
 
 // SetException sets the current active exception.
 func (ctx *ExecutionContext) SetException(exc any) {
-	if ctx.exceptionSetter != nil {
-		ctx.exceptionSetter(exc)
-		return
-	}
 	ctx.exception = exc
 }
 
@@ -282,6 +251,11 @@ func (ctx *ExecutionContext) SetHandlerException(exc any) {
 // PropContext returns the property evaluation context.
 func (ctx *ExecutionContext) PropContext() *PropertyEvalContext {
 	return ctx.propContext
+}
+
+// SetPropContext updates the property evaluation context pointer.
+func (ctx *ExecutionContext) SetPropContext(propCtx *PropertyEvalContext) {
+	ctx.propContext = propCtx
 }
 
 // RecordTypeContext returns the current record type context for anonymous record literals.
@@ -363,7 +337,6 @@ func (ctx *ExecutionContext) GetOldValue(name string) (any, bool) {
 //   - env: Shared initially (caller must swap with SetEnv for function scope)
 //   - propContext: Shared for property evaluation chain tracking
 //   - arrayTypeContext, recordTypeContext: Shared for type context
-//   - exceptionGetter, exceptionSetter: Shared for exception propagation
 //   - exception, handlerException: Shared exception state
 //
 // COPIED REFERENCES:
@@ -397,8 +370,6 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		recordTypeContext:         ctx.recordTypeContext,
 		currentFunctionReturnType: ctx.currentFunctionReturnType,
 		arrayTypeContext:          ctx.arrayTypeContext,
-		exceptionGetter:           ctx.exceptionGetter,
-		exceptionSetter:           ctx.exceptionSetter,
 		refCountManager:           ctx.refCountManager,
 	}
 }

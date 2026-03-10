@@ -40,8 +40,8 @@ func runLambdaTest(t *testing.T, input string) (Value, *Interpreter) {
 	result := interp.Eval(program)
 
 	// Check for runtime errors/exceptions
-	if interp.exception != nil {
-		t.Logf("Runtime exception occurred: %v", interp.exception)
+	if interp.GetException() != nil {
+		t.Logf("Runtime exception occurred: %v", interp.GetException())
 	}
 
 	// Log output for debugging
@@ -887,8 +887,8 @@ func TestReduceMax(t *testing.T) {
 	}
 
 	// Check for exceptions first
-	if interp.exception != nil {
-		t.Fatalf("Unexpected exception: %v", interp.exception)
+	if interp.GetException() != nil {
+		t.Fatalf("Unexpected exception: %v", interp.GetException())
 	}
 
 	maxVal, ok := interp.Env().Get("maximum")
@@ -948,8 +948,8 @@ func TestForEachWithOutput(t *testing.T) {
 
 	// Check output (via interp.output buffer if needed)
 	// For now, just verify it doesn't error
-	if interp.exception != nil {
-		t.Errorf("Unexpected exception: %v", interp.exception)
+	if interp.GetException() != nil {
+		t.Errorf("Unexpected exception: %v", interp.GetException())
 	}
 }
 

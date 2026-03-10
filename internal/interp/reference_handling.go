@@ -8,7 +8,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ===== Function Pointers =====
@@ -30,8 +29,8 @@ func (i *Interpreter) CreateFunctionPointer(fn *ast.FunctionDecl, closure any) V
 // CreateFunctionPointerFromName creates a function pointer for a named function.
 func (i *Interpreter) CreateFunctionPointerFromName(funcName string, closure any) (Value, error) {
 	// Look up the function in the function registry (case-insensitive)
-	overloads, exists := i.functions[ident.Normalize(funcName)]
-	if !exists || len(overloads) == 0 {
+	overloads := i.globalFunctionOverloads(funcName)
+	if len(overloads) == 0 {
 		return nil, fmt.Errorf("undefined function or procedure: %s", funcName)
 	}
 
@@ -102,14 +101,13 @@ func (i *Interpreter) CreateExceptionDirect(classMetadata any, message string, p
 	var excClass *ClassInfo
 	if classMetadata != nil {
 		if meta, ok := classMetadata.(*runtime.ClassMetadata); ok {
-			// Look up ClassInfo using normalized name
-			excClass = i.classes[ident.Normalize(meta.Name)]
+			excClass = i.lookupRegisteredClassInfo(meta.Name)
 		}
 	}
 
 	// Fallback to base Exception if class not found
 	if excClass == nil {
-		excClass = i.classes[ident.Normalize("Exception")]
+		excClass = i.lookupRegisteredClassInfo("Exception")
 	}
 
 	// Create instance with Message field

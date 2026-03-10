@@ -275,6 +275,9 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 		if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
 			return tav.AliasedType, nil
 		}
+		if tav, ok := typeAliasVal.(*runtime.TypeAliasValue); ok {
+			return tav.AliasedType, nil
+		}
 	}
 
 	if subrangeType := i.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {

@@ -86,95 +86,6 @@ func (i *Interpreter) AddInterfaceProperty(iface interface{}, normalizedName str
 	}
 }
 
-// ===== Helper Declaration Adapters =====
-
-// CreateHelperInfo creates a new HelperInfo for the given target type.
-func (i *Interpreter) CreateHelperInfo(name string, targetType any, isRecordHelper bool) interface{} {
-	if tt, ok := targetType.(types.Type); ok {
-		return NewHelperInfo(name, tt, isRecordHelper)
-	}
-	return nil
-}
-
-// SetHelperParent sets the parent helper for inheritance chain.
-func (i *Interpreter) SetHelperParent(helper interface{}, parent interface{}) {
-	if h, ok := helper.(*HelperInfo); ok {
-		if p, ok := parent.(*HelperInfo); ok {
-			h.ParentHelper = p
-		}
-	}
-}
-
-// VerifyHelperTargetTypeMatch checks if parent's target type matches.
-func (i *Interpreter) VerifyHelperTargetTypeMatch(parent interface{}, targetType any) bool {
-	if p, ok := parent.(*HelperInfo); ok {
-		if tt, ok := targetType.(types.Type); ok {
-			return p.TargetType.Equals(tt)
-		}
-	}
-	return false
-}
-
-// GetHelperName returns the name of a helper.
-func (i *Interpreter) GetHelperName(helper interface{}) string {
-	if h, ok := helper.(*HelperInfo); ok {
-		return h.Name
-	}
-	return ""
-}
-
-// AddHelperMethod registers a method in the helper.
-func (i *Interpreter) AddHelperMethod(helper interface{}, normalizedName string, method *ast.FunctionDecl) {
-	if h, ok := helper.(*HelperInfo); ok {
-		h.Methods[normalizedName] = method
-	}
-}
-
-// AddHelperProperty registers a property in the helper with read/write accessors.
-func (i *Interpreter) AddHelperProperty(helper interface{}, prop *ast.PropertyDecl, propType any) {
-	h, ok := helper.(*HelperInfo)
-	if !ok {
-		return
-	}
-	pt, _ := propType.(types.Type)
-	propInfo := &types.PropertyInfo{Name: prop.Name.Value, Type: pt}
-
-	if prop.ReadSpec != nil {
-		if identExpr, ok := prop.ReadSpec.(*ast.Identifier); ok {
-			propInfo.ReadKind = types.PropAccessMethod
-			propInfo.ReadSpec = identExpr.Value
-		}
-	}
-	if prop.WriteSpec != nil {
-		if identExpr, ok := prop.WriteSpec.(*ast.Identifier); ok {
-			propInfo.WriteKind = types.PropAccessMethod
-			propInfo.WriteSpec = identExpr.Value
-		}
-	}
-	h.Properties[prop.Name.Value] = propInfo
-}
-
-// AddHelperClassVar adds a class variable to the helper.
-func (i *Interpreter) AddHelperClassVar(helper interface{}, name string, value Value) {
-	if h, ok := helper.(*HelperInfo); ok {
-		h.ClassVars[ident.Normalize(name)] = value
-	}
-}
-
-// AddHelperClassConst adds a class constant to the helper.
-func (i *Interpreter) AddHelperClassConst(helper interface{}, name string, value Value) {
-	if h, ok := helper.(*HelperInfo); ok {
-		h.ClassConsts[ident.Normalize(name)] = value
-	}
-}
-
-// RegisterHelperLegacy registers the helper in the legacy i.helpers map.
-func (i *Interpreter) RegisterHelperLegacy(typeName string, helper interface{}) {
-	if h, ok := helper.(*HelperInfo); ok {
-		i.typeSystem.RegisterHelper(typeName, h)
-	}
-}
-
 // ===== Type System Adapters =====
 
 // WrapInSubrange wraps an integer value in a subrange type with validation.
@@ -352,33 +263,6 @@ func (i *Interpreter) ClassHasNoParent(classInfo interface{}) bool {
 		return false
 	}
 	return ci.Parent == nil
-}
-
-// DefineClassInEnv binds the class name as a metaclass value in the given environment.
-func (i *Interpreter) DefineClassInEnv(env interface{}, classInfo interface{}) {
-	runtimeEnv, ok := env.(*runtime.Environment)
-	if !ok {
-		return
-	}
-	ci, ok := classInfo.(*ClassInfo)
-	if !ok {
-		return
-	}
-	runtimeEnv.Define(ci.Name, &ClassValue{ClassInfo: ci})
-}
-
-// DefineCurrentClassMarker defines a marker for the class being declared.
-// This enables self-referential access like TMyClass.MyConst within class var initializers.
-func (i *Interpreter) DefineCurrentClassMarker(env interface{}, classInfo interface{}) {
-	runtimeEnv, ok := env.(*runtime.Environment)
-	if !ok {
-		return
-	}
-	ci, ok := classInfo.(*ClassInfo)
-	if !ok {
-		return
-	}
-	runtimeEnv.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: ci})
 }
 
 // SetClassParent sets the parent class and copies all inherited members.
@@ -744,15 +628,6 @@ func (i *Interpreter) BuildVirtualMethodTable(classInfo interface{}) {
 		return
 	}
 	ci.buildVirtualMethodTable()
-}
-
-// RegisterClassInTypeSystem registers a class in the TypeSystem.
-func (i *Interpreter) RegisterClassInTypeSystem(classInfo interface{}, parentName string) {
-	ci, ok := classInfo.(*ClassInfo)
-	if !ok {
-		return
-	}
-	i.typeSystem.RegisterClassWithParent(ci.Name, ci, parentName)
 }
 
 // AddClassConstant registers a class constant and its evaluated value.

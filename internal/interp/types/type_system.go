@@ -33,6 +33,7 @@ type TypeSystem struct {
 	classRegistry        *ClassRegistry                      // Class registry
 	recordTypeIDs        *ident.Map[int]                     // RTTI record type IDs
 	enumTypeIDs          *ident.Map[int]                     // RTTI enum type IDs
+	ClassInfoFactory     func(className string) ClassInfo    // Factory for concrete ClassInfo allocation
 	ClassValueFactory    func(classInfo ClassInfo) any       // Factory for ClassValue creation
 	nextRecordTypeID     int                                 // Next available record type ID
 	nextEnumTypeID       int                                 // Next available enum type ID
@@ -76,6 +77,11 @@ func (ts *TypeSystem) RegisterClassWithParent(name string, class ClassInfo, pare
 	ts.classRegistry.RegisterWithParent(name, class, parentName)
 }
 
+// UnregisterClass removes a class from the type system.
+func (ts *TypeSystem) UnregisterClass(name string) {
+	ts.classRegistry.Unregister(name)
+}
+
 // LookupClass returns the ClassInfo for the given name.
 // The lookup is case-insensitive. Returns nil if not found.
 func (ts *TypeSystem) LookupClass(name string) ClassInfo {
@@ -97,6 +103,16 @@ func (ts *TypeSystem) CreateClassValue(className string) (any, error) {
 		return nil, fmt.Errorf("ClassValueFactory not initialized")
 	}
 	return ts.ClassValueFactory(classInfo), nil
+}
+
+// NewClassInfo allocates a new concrete class info value using the configured factory.
+// This keeps class allocation on the canonical type-system boundary without requiring
+// evaluator code to depend on the interp package directly.
+func (ts *TypeSystem) NewClassInfo(className string) (ClassInfo, error) {
+	if ts.ClassInfoFactory == nil {
+		return nil, fmt.Errorf("ClassInfoFactory not initialized")
+	}
+	return ts.ClassInfoFactory(className), nil
 }
 
 // HasClass checks if a class with the given name exists.

@@ -210,10 +210,10 @@ func (i *Interpreter) NewRuntimeError(node ast.Node, errorType, message string, 
 		Pos:        pos,
 		Expression: expr,
 		Values:     values,
-		SourceCode: i.evaluatorInstance.SourceCode(),
-		SourceFile: i.evaluatorInstance.SourceFile(),
+		SourceCode: i.sourceCode(),
+		SourceFile: i.sourceFile(),
 		ErrorType:  errorType,
-		CallStack:  i.callStack,
+		CallStack:  i.callStackTrace(),
 	}
 }
 

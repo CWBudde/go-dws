@@ -14,8 +14,8 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	// Check for static access patterns (TClass.Member, UnitName.Symbol, TEnum.Value)
 	if ident, ok := ma.Object.(*ast.Identifier); ok {
 		// Unit-qualified access: UnitName.Symbol
-		if i.evaluatorInstance.UnitRegistry() != nil {
-			if _, exists := i.evaluatorInstance.UnitRegistry().GetUnit(ident.Value); exists {
+		if i.unitRegistry() != nil {
+			if _, exists := i.unitRegistry().GetUnit(ident.Value); exists {
 				if val, err := i.ResolveQualifiedVariable(ident.Value, ma.Member.Value); err == nil {
 					return val
 				}
@@ -210,7 +210,7 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 	if isError(objVal) {
 		return objVal
 	}
-	if i.exception != nil {
+	if i.exceptionValue() != nil {
 		return nil
 	}
 
@@ -504,12 +504,9 @@ func (i *Interpreter) evalMemberAccess(ma *ast.MemberAccessExpression) Value {
 				return classVarValue
 			}
 		} else if isNilValue && nilVal.ClassType != "" {
-			for registeredClassName, classInfo := range i.classes {
-				if pkgident.Equal(registeredClassName, nilVal.ClassType) {
-					if classVarValue, ownerClass := classInfo.lookupClassVar(memberName); ownerClass != nil {
-						return classVarValue
-					}
-					break
+			if classInfo := i.lookupRegisteredClassInfo(nilVal.ClassType); classInfo != nil {
+				if classVarValue, ownerClass := classInfo.lookupClassVar(memberName); ownerClass != nil {
+					return classVarValue
 				}
 			}
 		}

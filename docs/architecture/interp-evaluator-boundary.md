@@ -1,8 +1,9 @@
 # Interpreter/Evaluator boundary (why `contracts` exists)
 
-This repo intentionally enforces a *one-way dependency* rule:
+This repo intentionally enforces a *mostly one-way dependency* rule:
 
-- `internal/interp` must **not** import `internal/interp/evaluator`.
+- `internal/interp` must **not** import `internal/interp/evaluator` in runtime logic.
+- The only production exception is canonical runtime construction in [`internal/interp/new.go`](../../internal/interp/new.go).
 
 At the same time, the evaluator still needs to invoke interpreter-owned behavior (OO dispatch, declaration side-effects, exception construction, etc.). In Go, doing that naively tends to create either:
 
@@ -24,8 +25,9 @@ Conceptually:
 Allowed imports:
 
 - `internal/interp` → `internal/interp/contracts`, `internal/interp/runtime`
+- `internal/interp/new.go` → `internal/interp/evaluator` (construction only)
 - `internal/interp/evaluator` → `internal/interp/contracts`, `internal/interp/runtime`
-- `internal/interp/runner` → `internal/interp` **and** `internal/interp/evaluator` (wiring only)
+- `internal/interp/runner` → `internal/interp` (delegation only)
 
 Not allowed:
 
@@ -42,22 +44,22 @@ Keeping these in `contracts` prevents `runtime` from turning into a “catch-all
 
 ## Where construction/wiring happens
 
-Construction is centralized in a wiring package so that `internal/interp` stays evaluator-free:
+Construction is centralized behind a single bootstrap entry point:
 
-- `internal/interp/runner` creates:
+- `internal/interp/new.go` creates:
   - `runtime.Environment`
   - `typesystem`
   - `evaluator.Evaluator`
   - and then calls `interp.NewWithDeps(...)`
 
-This is the only place that should import both interpreter and evaluator in production code.
+`internal/interp/runner` now delegates to that constructor. Runtime logic outside the
+bootstrap path should still remain evaluator-free.
 
 ### Tests
 
-Some `internal/interp` package tests rely on `interp.New(...)`. To preserve that convenience without breaking the layering rule:
-
-- a test-only constructor may live in `internal/interp/*_test.go` and import evaluator
-- production code should use `internal/interp/runner` (or `pkg/dwscript`)
+Some `internal/interp` package tests rely on `interp.New(...)`. That constructor is now
+the same production bootstrap path used by `runner`, so tests and production enter the
+runtime through the same engine-construction API.
 
 ## Practical rule of thumb
 
@@ -65,11 +67,12 @@ When you feel tempted to add `import ".../internal/interp/evaluator"` inside `in
 
 1. Ask: “Is this a *runtime primitive*?” → move/alias into `runtime`.
 2. Ask: “Is this a *cross-layer capability*?” → express it as a narrow interface in `contracts`.
-3. Wire it in `runner`.
+3. If it is construction-only glue, confine it to `internal/interp/new.go`.
+4. Otherwise, keep it out of `internal/interp`.
 
 ## How to verify the boundary
 
 Quick checks:
 
 - `go test ./...`
-- `grep -R "internal/interp/evaluator" internal/interp/*.go internal/interp/**/*.go` should only match wiring/test-only files.
+- `grep -R "internal/interp/evaluator" internal/interp/*.go internal/interp/**/*.go` should only match `new.go`, evaluator files, runner files, and test-only files.

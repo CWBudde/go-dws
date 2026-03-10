@@ -17,10 +17,6 @@ type ConversionCallbacks struct {
 	// ImplicitConversion is used for parameter type conversion during the function call.
 	// Can be nil if no parameter conversion is needed.
 	ImplicitConversion ImplicitConversionFunc
-
-	// EnvSyncer syncs the interpreter's environment with the function environment.
-	// This is required for proper function body execution.
-	EnvSyncer EnvSyncerFunc
 }
 
 // ExecuteConversionFunction executes a user-defined conversion function with a single argument.
@@ -81,9 +77,6 @@ func (e *Evaluator) ExecuteConversionFunction(
 		if callbacks.ImplicitConversion != nil {
 			userCallbacks.ImplicitConversion = callbacks.ImplicitConversion
 		}
-		if callbacks.EnvSyncer != nil {
-			userCallbacks.EnvSyncer = callbacks.EnvSyncer
-		}
 	}
 
 	// Execute the conversion function
@@ -123,7 +116,6 @@ func (e *Evaluator) ExecuteConversionFunctionSimple(
 
 	callbacks := &ConversionCallbacks{
 		ImplicitConversion: implicitConversion,
-		// EnvSyncer is nil - ExecuteUserFunction uses adapter.EvalNode which handles env
 	}
 
 	return e.ExecuteConversionFunction(fn, arg, ctx, callbacks)

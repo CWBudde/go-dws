@@ -494,7 +494,7 @@ func TestCompleteInterfaceWorkflow(t *testing.T) {
 	interp.evalClassDeclaration(classDecl)
 
 	// Step 3: Create an object instance
-	classInfo := interp.classes["tcounter"]
+	classInfo := mustLookupTestClass(t, interp, "TCounter")
 	obj := NewObjectInstance(classInfo)
 	obj.SetField("FValue", &IntegerValue{Value: 42})
 
@@ -572,7 +572,7 @@ func TestInterfaceVariable(t *testing.T) {
 	interp.evalClassDeclaration(classDecl)
 
 	// Create object and cast to interface
-	obj := NewObjectInstance(interp.classes["tdocument"])
+	obj := NewObjectInstance(mustLookupTestClass(t, interp, "TDocument"))
 	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("iprintable"), obj)
 
 	// Store in environment as a variable
@@ -638,7 +638,7 @@ func TestObjectToInterface(t *testing.T) {
 	interp.evalClassDeclaration(classDecl)
 
 	// Test successful cast
-	obj := NewObjectInstance(interp.classes["trectangle"])
+	obj := NewObjectInstance(mustLookupTestClass(t, interp, "TRectangle"))
 	ifaceInfo := interp.lookupInterfaceInfo("idrawable")
 
 	if !classImplementsInterface(obj.Class.(*ClassInfo), ifaceInfo) {
@@ -666,7 +666,7 @@ func TestObjectToInterface(t *testing.T) {
 	}
 	interp.evalClassDeclaration(incompatibleClass)
 
-	objIncompatible := NewObjectInstance(interp.classes["tpoint"])
+	objIncompatible := NewObjectInstance(mustLookupTestClass(t, interp, "TPoint"))
 	if classImplementsInterface(objIncompatible.Class.(*ClassInfo), ifaceInfo) {
 		t.Error("TPoint should NOT implement IDrawable (missing methods)")
 	}
@@ -719,7 +719,7 @@ func TestInterfaceMethodCall(t *testing.T) {
 	interp.evalClassDeclaration(classDecl)
 
 	// Create interface instance
-	obj := NewObjectInstance(interp.classes["tcalculator"])
+	obj := NewObjectInstance(mustLookupTestClass(t, interp, "TCalculator"))
 	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("icalculator"), obj)
 
 	// Verify method can be found through interface
@@ -804,7 +804,7 @@ func TestInterfaceInheritance(t *testing.T) {
 	interp.evalClassDeclaration(classDecl)
 
 	// Test that class implements derived interface
-	obj := NewObjectInstance(interp.classes["timplementation"])
+	obj := NewObjectInstance(mustLookupTestClass(t, interp, "TImplementation"))
 	derivedIface := interp.lookupInterfaceInfo("iderived")
 
 	if !classImplementsInterface(obj.Class.(*ClassInfo), derivedIface) {
@@ -879,7 +879,7 @@ func TestMultipleInterfaces(t *testing.T) {
 	interp.evalClassDeclaration(classDecl)
 
 	// Test that class implements both interfaces
-	obj := NewObjectInstance(interp.classes["tfile"])
+	obj := NewObjectInstance(mustLookupTestClass(t, interp, "TFile"))
 
 	if !classImplementsInterface(obj.Class.(*ClassInfo), interp.lookupInterfaceInfo("ireadable")) {
 		t.Error("TFile should implement IReadable")
@@ -1017,7 +1017,7 @@ func TestInterfaceToObject(t *testing.T) {
 	interp.evalClassDeclaration(classDecl)
 
 	// Create object and interface instance
-	obj := NewObjectInstance(interp.classes["tcircle"])
+	obj := NewObjectInstance(mustLookupTestClass(t, interp, "TCircle"))
 	obj.SetField("Radius", &IntegerValue{Value: 10})
 
 	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("ishape"), obj)
@@ -1077,7 +1077,7 @@ func TestInterfaceLifetime(t *testing.T) {
 	interp.evalClassDeclaration(classDecl)
 
 	// Test 1: Interface holds reference to object
-	obj := NewObjectInstance(interp.classes["tresource"])
+	obj := NewObjectInstance(mustLookupTestClass(t, interp, "TResource"))
 	ifaceInstance := NewInterfaceInstance(interp.lookupInterfaceInfo("iresource"), obj)
 
 	// Object should be accessible through interface
@@ -1177,7 +1177,7 @@ func TestInterfacePolymorphism(t *testing.T) {
 	}
 	interp.evalClassDeclaration(classDecl)
 
-	obj := NewObjectInstance(interp.classes["tsportscar"])
+	obj := NewObjectInstance(mustLookupTestClass(t, interp, "TSportsCar"))
 
 	// Test 1: Variable of type IVehicle can hold ICar instance
 	carIface := NewInterfaceInstance(interp.lookupInterfaceInfo("icar"), obj)

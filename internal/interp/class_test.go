@@ -451,10 +451,7 @@ func TestClassMetadataPopulation(t *testing.T) {
 	}
 
 	// Lookup the class
-	classInfo := interp.classes["tpoint"]
-	if classInfo == nil {
-		t.Fatal("Expected class TPoint to be registered")
-	}
+	classInfo := mustLookupTestClass(t, interp, "TPoint")
 
 	// Check that Metadata is initialized
 	if classInfo.Metadata == nil {
@@ -542,10 +539,7 @@ func TestClassMetadataInheritance(t *testing.T) {
 	}
 
 	// Check TDerived metadata
-	derived := interp.classes["tderived"]
-	if derived == nil {
-		t.Fatal("Expected class TDerived to be registered")
-	}
+	derived := mustLookupTestClass(t, interp, "TDerived")
 
 	// Check parent metadata reference
 	if derived.Metadata.Parent == nil {
@@ -557,10 +551,7 @@ func TestClassMetadataInheritance(t *testing.T) {
 	}
 
 	// The parent metadata should be the base class's metadata
-	base := interp.classes["tbase"]
-	if base == nil {
-		t.Fatal("Expected class TBase to be registered")
-	}
+	base := mustLookupTestClass(t, interp, "TBase")
 
 	if derived.Metadata.Parent != base.Metadata {
 		t.Error("Expected TDerived metadata parent to reference TBase metadata")
@@ -596,20 +587,14 @@ func TestClassMetadataFlags(t *testing.T) {
 	}
 
 	// Check abstract flag
-	abstract := interp.classes["tabstract"]
-	if abstract == nil {
-		t.Fatal("Expected class TAbstract to be registered")
-	}
+	abstract := mustLookupTestClass(t, interp, "TAbstract")
 
 	if !abstract.Metadata.IsAbstract {
 		t.Error("Expected TAbstract metadata IsAbstract to be true")
 	}
 
 	// Check partial flag
-	partial := interp.classes["tpartial"]
-	if partial == nil {
-		t.Fatal("Expected class TPartial to be registered")
-	}
+	partial := mustLookupTestClass(t, interp, "TPartial")
 
 	if !partial.Metadata.IsPartial {
 		t.Error("Expected TPartial metadata IsPartial to be true")

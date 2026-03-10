@@ -108,11 +108,11 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 }
 
 func (e *Evaluator) expectedTypeKindForIdentifier(target *ast.Identifier, ctx *ExecutionContext) string {
-	if target == nil || e.semanticInfo == nil {
+	if target == nil || e.SemanticInfo() == nil {
 		return ""
 	}
 
-	if typeAnnot := e.semanticInfo.GetType(target); typeAnnot != nil {
+	if typeAnnot := e.SemanticInfo().GetType(target); typeAnnot != nil {
 		if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
 			return resolvedType.TypeKind()
 		}
@@ -818,11 +818,11 @@ func (e *Evaluator) resolveArrayTypeFromTypeStringer(val any, ctx *ExecutionCont
 
 // resolveArrayTypeFromSemanticInfo gets array type from semantic analysis info.
 func (e *Evaluator) resolveArrayTypeFromSemanticInfo(target *ast.Identifier, ctx *ExecutionContext) *types.ArrayType {
-	if e.semanticInfo == nil {
+	if e.SemanticInfo() == nil {
 		return nil
 	}
 
-	typeAnnot := e.semanticInfo.GetType(target)
+	typeAnnot := e.SemanticInfo().GetType(target)
 	if typeAnnot == nil || typeAnnot.Name == "" {
 		return nil
 	}
@@ -854,8 +854,8 @@ func (e *Evaluator) resolveArrayTypeFromTypeName(typeName string, ctx *Execution
 }
 
 func (e *Evaluator) resolveClassTypeForAssignment(target *ast.Identifier, existingVal Value, ctx *ExecutionContext) string {
-	if target != nil && e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
+	if target != nil && e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
 			if e.typeSystem.HasClass(typeAnnot.Name) {
 				return typeAnnot.Name
 			}
@@ -903,8 +903,8 @@ func (e *Evaluator) getSetTypeFromTarget(target *ast.Identifier, ctx *ExecutionC
 		}
 	}
 
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
 			if resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
 				if setType, ok := types.GetUnderlyingType(resolved).(*types.SetType); ok {
 					return setType

@@ -260,3 +260,8 @@ func (r *ClassRegistry) GetDepth(name string) int {
 func (r *ClassRegistry) Clear() {
 	r.classes.Clear()
 }
+
+// Unregister removes a class from the registry by name.
+func (r *ClassRegistry) Unregister(name string) {
+	r.classes.Delete(name)
+}

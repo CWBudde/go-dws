@@ -188,21 +188,13 @@ type ExternalFunctionRegistry = contracts.ExternalFunctionRegistry
 // Execution state is in ExecutionContext (stateless evaluator).
 type Evaluator struct {
 	output            io.Writer
-	externalFunctions ExternalFunctionRegistry
 	currentNode       ast.Node
 	oopEngine         OOPEngine   // Runtime OOP operations
-	declHandler       DeclHandler // Declaration processing
 	coreEvaluator     CoreEvaluator
-	refCountMgr       runtime.RefCountManager
 	config            *Config
-	rand              *rand.Rand
-	unitRegistry      *units.UnitRegistry
-	initializedUnits  map[string]bool
-	semanticInfo      *ast.SemanticInfo
 	currentContext    *ExecutionContext
 	typeSystem        *interptypes.TypeSystem
-	loadedUnits       []string
-	randSeed          int64
+	engineState       *contracts.EngineState
 	selfContainedMode bool // When true, Eval() won't fall back to coreEvaluator
 }
 
@@ -224,18 +216,25 @@ func NewEvaluator(
 
 	const defaultSeed = int64(1)
 	source := rand.NewSource(defaultSeed)
+	state := &contracts.EngineState{
+		SourceCode:        config.SourceCode,
+		SourceFile:        config.SourceFile,
+		ExternalFunctions: nil,
+		UnitRegistry:      unitRegistry,
+		InitializedUnits:  make(map[string]bool),
+		SemanticInfo:      semanticInfo,
+		RefCountManager:   refCountMgr,
+		MethodRegistry:    runtime.NewMethodRegistry(),
+		Random:            rand.New(source),
+		LoadedUnits:       make([]string, 0),
+		RandomSeed:        defaultSeed,
+	}
 
 	return &Evaluator{
-		typeSystem:       typeSystem,
-		output:           output,
-		rand:             rand.New(source),
-		randSeed:         defaultSeed,
-		config:           config,
-		unitRegistry:     unitRegistry,
-		initializedUnits: make(map[string]bool),
-		loadedUnits:      make([]string, 0),
-		semanticInfo:     semanticInfo,
-		refCountMgr:      refCountMgr,
+		typeSystem:  typeSystem,
+		output:      output,
+		config:      config,
+		engineState: state,
 	}
 }
 
@@ -261,29 +260,29 @@ func (e *Evaluator) SetOutput(w io.Writer) {
 
 // Random returns the random number generator.
 func (e *Evaluator) Random() *rand.Rand {
-	return e.rand
+	return e.engineState.Random
 }
 
 // RandomSeed returns the current random seed.
 func (e *Evaluator) RandomSeed() int64 {
-	return e.randSeed
+	return e.engineState.RandomSeed
 }
 
 // SetRandomSeed sets the random seed and reinitializes the generator.
 func (e *Evaluator) SetRandomSeed(seed int64) {
-	e.randSeed = seed
+	e.engineState.RandomSeed = seed
 	source := rand.NewSource(seed)
-	e.rand = rand.New(source)
+	e.engineState.Random = rand.New(source)
 }
 
 // ExternalFunctions returns the external function registry.
 func (e *Evaluator) ExternalFunctions() ExternalFunctionRegistry {
-	return e.externalFunctions
+	return e.engineState.ExternalFunctions
 }
 
 // SetExternalFunctions sets the external function registry.
 func (e *Evaluator) SetExternalFunctions(reg ExternalFunctionRegistry) {
-	e.externalFunctions = reg
+	e.engineState.ExternalFunctions = reg
 }
 
 // Config returns the configuration.
@@ -303,61 +302,58 @@ func (e *Evaluator) MaxRecursionDepth() int {
 
 // SourceCode returns the source code being executed.
 func (e *Evaluator) SourceCode() string {
-	return e.config.SourceCode
+	return e.engineState.SourceCode
 }
 
 // SourceFile returns the source file path.
 func (e *Evaluator) SourceFile() string {
-	return e.config.SourceFile
+	return e.engineState.SourceFile
 }
 
 // SetSource sets the source code and filename for enhanced error messages.
 func (e *Evaluator) SetSource(source, filename string) {
-	if e.config == nil {
-		e.config = DefaultConfig()
-	}
-	e.config.SourceCode = source
-	e.config.SourceFile = filename
+	e.engineState.SourceCode = source
+	e.engineState.SourceFile = filename
 }
 
 // UnitRegistry returns the unit registry.
 func (e *Evaluator) UnitRegistry() *units.UnitRegistry {
-	return e.unitRegistry
+	return e.engineState.UnitRegistry
 }
 
 // SetUnitRegistry sets the unit registry.
 func (e *Evaluator) SetUnitRegistry(registry *units.UnitRegistry) {
-	e.unitRegistry = registry
+	e.engineState.UnitRegistry = registry
 }
 
 // InitializedUnits returns the map of initialized units.
 func (e *Evaluator) InitializedUnits() map[string]bool {
-	return e.initializedUnits
+	return e.engineState.InitializedUnits
 }
 
 // LoadedUnits returns the list of loaded units.
 func (e *Evaluator) LoadedUnits() []string {
-	return e.loadedUnits
+	return e.engineState.LoadedUnits
 }
 
 // AddLoadedUnit adds a unit to the list of loaded units.
 func (e *Evaluator) AddLoadedUnit(unitName string) {
-	e.loadedUnits = append(e.loadedUnits, unitName)
+	e.engineState.LoadedUnits = append(e.engineState.LoadedUnits, unitName)
 }
 
 // SemanticInfo returns the semantic analysis metadata.
 func (e *Evaluator) SemanticInfo() *ast.SemanticInfo {
-	return e.semanticInfo
+	return e.engineState.SemanticInfo
 }
 
 // SetSemanticInfo sets the semantic analysis metadata.
 func (e *Evaluator) SetSemanticInfo(info *ast.SemanticInfo) {
-	e.semanticInfo = info
+	e.engineState.SemanticInfo = info
 }
 
 // RefCountManager returns the reference counting manager.
 func (e *Evaluator) RefCountManager() runtime.RefCountManager {
-	return e.refCountMgr
+	return e.engineState.RefCountManager
 }
 
 // CurrentNode returns the current AST node being evaluated (for error reporting).
@@ -365,33 +361,46 @@ func (e *Evaluator) CurrentNode() ast.Node {
 	return e.currentNode
 }
 
+// CurrentContext returns the active execution context for the current evaluation.
+func (e *Evaluator) CurrentContext() *ExecutionContext {
+	return e.currentContext
+}
+
+// EngineState returns the shared runtime engine state.
+func (e *Evaluator) EngineState() *contracts.EngineState {
+	return e.engineState
+}
+
 // SetCurrentNode sets the current AST node being evaluated (for error reporting).
 func (e *Evaluator) SetCurrentNode(node ast.Node) {
 	e.currentNode = node
 }
 
-// SetFocusedInterfaces sets the focused interfaces for the evaluator.
-// Typically passes the same interpreter instance for all three interfaces.
-// Can be set independently for testing or custom implementations.
-// Note: ExceptionManager was removed in Task 4.2 - exception handling is now self-contained.
-func (e *Evaluator) SetFocusedInterfaces(
-	oopEngine OOPEngine,
-	declHandler DeclHandler,
-	coreEvaluator CoreEvaluator,
-) {
+// SetRuntimeBridge wires the remaining runtime bridges the evaluator still needs
+// during the Phase 4 collapse. Production construction should use this narrower
+// bridge instead of SetFocusedInterfaces.
+func (e *Evaluator) SetRuntimeBridge(oopEngine OOPEngine, coreEvaluator CoreEvaluator) {
 	e.oopEngine = oopEngine
-	e.declHandler = declHandler
 	e.coreEvaluator = coreEvaluator
 }
 
+// SetFocusedInterfaces is a compatibility/testing shim for the legacy Phase 4
+// bridge API. The declaration handler argument is ignored because declaration
+// processing no longer depends on that callback seam.
+func (e *Evaluator) SetFocusedInterfaces(
+	oopEngine OOPEngine,
+	_ DeclHandler,
+	coreEvaluator CoreEvaluator,
+) {
+	e.SetRuntimeBridge(oopEngine, coreEvaluator)
+}
+
 // EnterSelfContainedMode temporarily disables interpreter fallbacks in Eval().
-// Use this when executing user functions without EnvSyncer (evaluator-only mode).
+// Use this when evaluation must stay entirely inside evaluator-owned visitors.
 // Returns a restore function that MUST be called (typically via defer).
 //
 // When selfContainedMode is true, Eval() handles all AST nodes directly
-// without falling back to the interpreter. This is essential for conversion
-// functions executed from within TryImplicitConversion, where there's no
-// EnvSyncer to synchronize the interpreter's environment.
+// without falling back to the interpreter.
 //
 // Note: coreEvaluator remains available for direct calls from visitor methods
 // (e.g., method_dispatch.go, helper_methods.go) - only Eval() skips fallbacks.
@@ -440,7 +449,9 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	e.currentNode = node
 	defer func() { e.currentNode = previousNode }()
 
-	ctx.SetRefCountManager(e.refCountMgr)
+	if ctx != nil && e.engineState != nil {
+		ctx.SetRefCountManager(e.engineState.RefCountManager)
+	}
 
 	switch n := node.(type) {
 	// Literals
@@ -568,14 +579,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		}
 		return e.VisitInterfaceDecl(n, ctx)
 	case *ast.OperatorDecl:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitOperatorDecl(n, ctx)
 	case *ast.EnumDecl:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitEnumDecl(n, ctx)
 	case *ast.SetDecl:
 		return e.VisitSetDecl(n, ctx)
@@ -589,9 +594,6 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.ArrayDecl:
 		return e.VisitArrayDecl(n, ctx)
 	case *ast.TypeDeclaration:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitTypeDeclaration(n, ctx)
 
 	default:
@@ -653,7 +655,7 @@ func (e *Evaluator) wrapObjectAsException(obj Value, pos *lexer.Position, ctx *E
 // cleanupInterfaceReferences releases all interface and object references when a scope ends.
 // Self-contained: no longer delegates to ExceptionManager.
 func (e *Evaluator) cleanupInterfaceReferences(env *runtime.Environment) {
-	if env == nil || e.refCountMgr == nil {
+	if env == nil || e.engineState.RefCountManager == nil {
 		return
 	}
 
@@ -673,14 +675,14 @@ func (e *Evaluator) cleanupInterfaceReferences(env *runtime.Environment) {
 
 		// Release interface references
 		if intfInst, ok := value.(*runtime.InterfaceInstance); ok {
-			e.refCountMgr.ReleaseInterface(intfInst)
+			e.engineState.RefCountManager.ReleaseInterface(intfInst)
 		} else if objInst, ok := value.(*runtime.ObjectInstance); ok {
 			// Release object references
-			e.refCountMgr.ReleaseObject(objInst)
+			e.engineState.RefCountManager.ReleaseObject(objInst)
 		} else if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok {
 			// Clean up method pointers that hold object references
 			if objInst, isObj := funcPtr.SelfObject.(*runtime.ObjectInstance); isObj {
-				e.refCountMgr.ReleaseObject(objInst)
+				e.engineState.RefCountManager.ReleaseObject(objInst)
 			}
 		}
 		return true // continue

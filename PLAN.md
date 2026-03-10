@@ -49,23 +49,23 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 4: Collapse To A Single Execution Engine
 
-**Status**: 📋 Planned | **Priority**: High | **Estimated**: 3-5 weeks (incremental)
+**Status**: 🚧 In Progress | **Priority**: High | **Estimated Remaining**: 2-4 weeks (incremental)
 
 ### Why This Phase Exists
 
-The core problem is no longer "too many methods." The problem is **split ownership**.
+The core problem is **split ownership**, not raw method count.
 
-Right now the runtime still behaves like it has two execution cores:
+The runtime still behaves like it has two execution cores:
 
 ```text
-runner wires:
+construction:
   Interpreter + Evaluator
 
-execution does:
+execution:
   Evaluator → callback interface → Interpreter → Evaluator
 ```
 
-That split causes the same complexity to reappear under different names:
+That shape keeps recreating the same complexity under new names:
 
 ```text
 Interpreter → "too big"
@@ -74,31 +74,29 @@ Handlers    → "too big"
 Adapters    → "too big"
 ```
 
-This phase changes the architecture, not just the packaging:
+Phase 4 is about deleting that split, not just moving code around.
 
-- One execution engine owns runtime semantics
-- `ExecutionContext` owns per-run execution state
-- `runtime` owns values and metadata containers
-- Internal callback interfaces are deleted, not replaced with new wrappers
+### Current Branch Snapshot
 
-### Architectural Decision
+Work completed so far has materially changed the runtime:
 
-**Target architecture**:
+- `go test ./...` is green again
+- `ExecutionContext` now owns per-run mutable state
+- `Interpreter` is the chosen surviving public engine facade
+- `runner` now delegates construction through one interpreter entry point
+- declaration ownership has moved significantly toward `runtime` + `TypeSystem`
+- direct user-function execution no longer round-trips through the old OOP callback path
 
-- **Single execution engine**: one concrete owner for evaluation, dispatch, declarations, function execution, and runtime orchestration
-- **No internal callback interfaces**: delete `CoreEvaluator`, `OOPEngine`, `DeclHandler`, and `SetFocusedInterfaces()`
-- **Single state owner**: `ExecutionContext` is the canonical owner of env stack, control flow, exceptions, call stack, and transient evaluation context
-- **File decomposition only**: complexity may be split across files, but not across mutually-calling runtime peers
+What still keeps Phase 4 open:
 
-**Non-goals**:
+- `CoreEvaluator`, `OOPEngine`, and `DeclHandler` still exist in `contracts`
+- evaluator visitors still call back into interpreter-owned behavior
+- `Interpreter.evalLegacy()` is still the fallback owner for several semantics
+- several tests still validate behavior via adapter injection rather than the final boundary
 
-- Splitting the current logic into more handlers "for cleanliness"
-- Replacing callback interfaces with new service objects that preserve the same round-trip
-- Perfect metadata cleanup before ownership is fixed
+### Target Architecture
 
-### Chosen Shape
-
-To avoid going in circles, the codebase should converge on this shape:
+The codebase should converge on this shape:
 
 ```text
 Runner → Engine.Eval(node, ctx)
@@ -114,44 +112,31 @@ Not this:
 Runner → Interpreter ↔ Evaluator ↔ Handler/Adapter ↔ Interpreter
 ```
 
-### Guardrails (Anti-Theatre Rules)
+### Guardrails
 
-Every PR in Phase 4 must satisfy at least one of these measurable outcomes:
+Every PR in Phase 4 must satisfy at least one measurable outcome:
 
-- Deletes a callback interface or reduces its method surface
-- Deletes a dispatch hop
-- Removes duplicated runtime state ownership
-- Removes a constructor/wiring path that creates two runtime peers
-- Converts callback-driven logic into direct engine ownership
+- deletes a callback interface or reduces its method surface
+- deletes a dispatch hop
+- removes duplicated runtime state ownership
+- removes a constructor/wiring path that creates two runtime peers
+- converts callback-driven logic into direct engine ownership
 
 If a change only renames, moves, or re-groups methods without removing indirection or ownership splits, it is out of scope.
 
-### Success Criteria (Phase-Level)
+### Phase Complete When
 
-- ✅ Exactly one execution engine remains in the interpreter runtime
-- ✅ `ExecutionContext` is the only owner of per-run execution state
-- ✅ `CoreEvaluator`, `OOPEngine`, `DeclHandler`, and `SetFocusedInterfaces()` are deleted
-- ✅ No evaluator → interpreter or interpreter → evaluator callback path remains
-- ✅ `runner` constructs one engine, not two peers plus glue
+- [ ] exactly one concrete execution engine remains in the interpreter runtime
+- [ ] `ExecutionContext` is the only owner of per-run execution state
+- [ ] `CoreEvaluator`, `OOPEngine`, `DeclHandler`, and `SetFocusedInterfaces()` are deleted
+- [ ] no evaluator → interpreter or interpreter → evaluator callback path remains
+- [ ] `runner` constructs one engine, not two peers plus glue
 
-### 4.0 Stabilization Prerequisites (Make Tests Green Again)
+### 4.0 Stabilize The Baseline
 
-**Goal**: Restore a clean baseline before structural work continues.
+**Goal**: Restore a trustworthy green baseline before structural work continues.
 
-**Why**: Architecture work on top of a moving red baseline creates false regressions and encourages workaround-driven design.
-
-**Rules**:
-
-- No new structural migration while baseline correctness is unclear
-- Fix one failure cluster at a time with repro tests
-- Prefer surgical fixes or temporary rollback over layering on more indirection
-
-**Failure Clusters**:
-
-- Class/static identifier resolution (e.g. undefined variable: `TCounter`)
-- Record literal type context
-- Indexed/default properties & metadata
-- Runtime instantiation/nil semantics
+**Status**: ✅ Complete
 
 **Tasks**:
 
@@ -176,88 +161,164 @@ If a change only renames, moves, or re-groups methods without removing indirecti
 **Exit Criteria**:
 
 - `go test ./...` green
-- No new fixture failures
+- no new fixture failures
 
 ---
 
-### 4.1 Make State Ownership Real First
+### 4.1 Make State Ownership Real
 
-**Goal**: Remove the root cause of the callback churn: duplicated ownership of execution state.
+**Goal**: Remove duplicated ownership of execution state.
 
-**Why First**:
-
-The current environment-sync workaround proved the real problem:
-
-```text
-Evaluator pushes scope in ctx
-Interpreter executes fallback using its own state
-Sync bug appears
-```
-
-This is not a "loop migration" bug. It is a split-engine bug.
+**Status**: ✅ Complete
 
 **Principle**:
 
 - `ExecutionContext` owns all per-run mutable state
-- The engine reads/writes that state directly
-- No callback should be needed just to see the "real" environment or exception
+- the engine reads/writes that state directly
+- no callback should be needed just to see the "real" environment or exception
 
 **Tasks**:
 
-- [ ] **4.1.1** Audit all duplicated execution state
+- [x] **4.1.1** Audit all duplicated execution state
   - `exception`
   - `handlerException`
   - `propContext`
   - `callStack`
   - `oldValuesStack`
   - environment stack / env sync paths
-- [ ] **4.1.2** Move duplicated per-run state behind `ExecutionContext`
-- [ ] **4.1.3** Remove exception getter/setter callback plumbing from `ExecutionContext`
-- [ ] **4.1.4** Delete env-sync workaround paths introduced for callback fallback
-- [ ] **4.1.5** Add explicit engine/context boundary documentation
+- [x] **4.1.2** Move duplicated per-run state behind `ExecutionContext`
+- [x] **4.1.3** Remove exception getter/setter callback plumbing from `ExecutionContext`
+- [x] **4.1.4** Delete env-sync workaround paths introduced for callback fallback
+- [x] **4.1.5** Add explicit engine/context boundary documentation
+  - See [docs/phase-4.1-boundary.md](docs/phase-4.1-boundary.md)
 
 **Success Criteria**:
 
-- ✅ No "sync interpreter state into ctx" logic remains
+- ✅ no "sync interpreter state into ctx" logic remains
 - ✅ `ExecutionContext` is the single source of truth for per-run state
-- ✅ Per-run state is not duplicated on multiple runtime peers
+- ✅ per-run state is not duplicated on multiple runtime peers
 
 ---
 
-### 4.2 Collapse To One Engine
+### 4.2 Bring Declaration Ownership Under Canonical Runtime Types
 
-**Goal**: Stop wiring two runtime peers together.
+**Goal**: Make declaration processing mutate `runtime` / `TypeSystem` directly instead of preserving callback-owned mirrors.
 
-**Decision**:
+**Status**: ✅ Complete
 
-Keep one execution engine as the owner of runtime behavior. The current split between `Interpreter` and `Evaluator` must end. The surviving engine may reuse existing visitor code and file layout, but there must be only one concrete runtime owner.
+**Why this moved earlier**:
 
-**Implementation rule**:
-
-- Keep or rename whichever top-level type is pragmatically easiest
-- Do not preserve both as cooperating peers
-- Package/file structure may stay incremental during migration
+This work has already happened in the branch and should be reflected as completed groundwork, not hidden behind a future "callback deletion" bucket.
 
 **Tasks**:
 
-- [ ] **4.2.1** Choose the surviving engine type explicitly in code/docs
-- [ ] **4.2.2** Change `runner` to construct one engine, not interpreter + evaluator + glue
-- [ ] **4.2.3** Remove `SetFocusedInterfaces()` wiring from runtime construction
-- [ ] **4.2.4** Move any still-split configuration/state onto the surviving engine
-- [ ] **4.2.5** Reduce the non-surviving peer to a temporary shim only if needed
-- [ ] **4.2.6** Delete the shim once call sites are moved
+- [x] **4.2.1** Audit declaration data ownership
+  - classes, interfaces, helpers, global functions, records, and method implementations
+- [x] **4.2.2** Move self-contained declaration nodes off `CoreEvaluator.EvalNode`
+  - `OperatorDecl`, `EnumDecl`, and `TypeDeclaration` now execute through evaluator-native visitors
+- [x] **4.2.3** Move interface declaration mutation under direct engine ownership
+  - concrete interface metadata now lives in `runtime`
+- [x] **4.2.4** Move helper declaration mutation under direct engine ownership
+  - concrete helper metadata now lives in `runtime`
+- [x] **4.2.5** Move class metadata mutation under direct engine ownership
+  - flags, parent linkage, constants, fields, class vars, nested classes, property storage, VMT build, and registration now execute directly on `ClassInfo`
+- [x] **4.2.6** Make method implementation registration direct
+  - evaluator now registers class and record method implementations directly
+- [x] **4.2.7** Make global function registration `TypeSystem`-owned
+- [x] **4.2.8** Remove record/function mirror registries where `TypeSystem` is already canonical
+- [x] **4.2.9** Ensure environment binding for declarations is direct, not adapter-mediated
+- [x] **4.2.10** Centralize low-risk class reads behind one lookup boundary
+  - class casts, default typed-nil creation, exception lookup, and metadata-to-class resolution now use a shared class lookup helper
+- [x] **4.2.11** Move legacy class declaration lookup and descendant propagation onto the canonical class registry
+- [x] **4.2.12** Remove the remaining `i.classes` compatibility mirror
+  - interpreter class lookup now resolves through the canonical registry helper instead of raw interpreter-owned class maps
+- [x] **4.2.13** Remove the last declaration-time class allocation adapter
+  - evaluator class declaration allocation now goes through `TypeSystem.ClassInfoFactory`
+  - `DeclHandler.NewClassInfoAdapter` is no longer used by declaration processing
 
 **Success Criteria**:
 
-- ✅ `runner` creates one engine
-- ✅ No runtime peer is required only to call back into the other
-- ✅ Engine entry point is singular and direct
+- [x] declaration processing has one primary runtime owner
+- [x] record/function registration is no longer mirrored across peer objects
+- [x] class registration no longer depends on `i.classes`
+- [x] declaration processing no longer depends on `DeclHandler`
 
 ---
 
-### 4.3 Delete Internal Callback Interfaces
+### 4.3 Collapse Construction And Shared Engine State
 
-**Goal**: Delete internal callback interfaces as a consequence of single ownership.
+**Goal**: Stop wiring two runtime peers together during construction.
+
+**Status**: 🚧 In progress
+
+**Decision**:
+
+`Interpreter` is the surviving public engine facade during the collapse. The evaluator may remain as an internal implementation detail temporarily, but not as an independently wired peer.
+
+**Tasks**:
+
+- [x] **4.3.1** Choose the surviving engine type explicitly in code/docs
+- [x] **4.3.2** Change `runner` to construct one engine entry point
+- [x] **4.3.3** Remove direct `runner` wiring of evaluator/interpreter glue
+- [x] **4.3.4** Move shared runtime metadata/config behind shared engine state
+  - source file/source code
+  - semantic info
+  - unit registry + loaded/initialized unit state
+  - external function registry
+  - RNG seed/source
+  - refcount manager handle
+- [x] **4.3.5** Remove constructor-time `SetFocusedInterfaces()` wiring
+- [x] **4.3.6** Narrow production construction to only the remaining runtime bridges
+  - production bootstrap now wires OOP + fallback bridges explicitly
+  - declaration wiring is no longer part of runtime construction
+- [ ] **4.3.6** Remove remaining evaluator-owned config/state that is not visitor-local
+- [ ] **4.3.7** Reduce the non-surviving peer to a thin internal shim only where temporarily unavoidable
+- [ ] **4.3.8** Delete the shim once call sites are moved
+
+**Success Criteria**:
+
+- [x] `runner` creates one public engine entry point
+- [x] no constructor-time callback wiring remains
+- [ ] the non-surviving peer no longer owns meaningful runtime state
+
+---
+
+### 4.4 Move Execution Semantics Off Callback Round-Trips
+
+**Goal**: Consolidate runtime semantics under direct engine-owned paths before deleting the callback interfaces.
+
+**Status**: 🚧 In progress
+
+**Tasks already completed**:
+
+- [x] **4.4.1** Remove the `CallUserFunction` round-trip for direct user function calls
+- [x] **4.4.2** Make exception creation/cleanup evaluator-owned instead of using the old exception callback surface
+- [x] **4.4.3** Keep assignment statements on evaluator-owned paths instead of bouncing through `EvalNode`
+
+**Next tasks**:
+
+- [ ] **4.4.4** Normalize remaining call execution under one path
+  - function pointers, implicit self calls, record static calls, and external functions
+- [ ] **4.4.5** Normalize method/property dispatch under one path
+  - bound method pointers, property getters/setters, inherited dispatch, indexed/default properties
+- [ ] **4.4.6** Normalize constructor/destructor execution under one path
+- [ ] **4.4.7** Normalize casts, wrappers, and operator overload dispatch under one path
+- [ ] **4.4.8** Normalize builtin helper/property access and class property read/write under one path
+- [ ] **4.4.9** Remove remaining `EvalNode()` fallback branches from evaluator dispatch
+- [ ] **4.4.10** Remove remaining direct `oopEngine` / `coreEvaluator` usage from visitor/helper files
+
+**Success Criteria**:
+
+- [ ] one dispatch path exists per language feature category
+- [ ] no "fallback to legacy path" branch remains in the core evaluator/interpreter flow
+
+---
+
+### 4.5 Delete Callback Surfaces
+
+**Goal**: Delete the callback interfaces once the surviving execution paths no longer need them.
+
+**Status**: 📋 Next major milestone
 
 **Current callback surfaces to remove**:
 
@@ -266,142 +327,80 @@ Keep one execution engine as the owner of runtime behavior. The current split be
 - `DeclHandler`
 - `SetFocusedInterfaces()`
 
-**Principle**:
-
-If logic still needs one of these interfaces, the ownership collapse is not complete yet.
-
 **Tasks**:
 
-- [ ] **4.3.1** Delete `CoreEvaluator`
-  - Remove `EvalNode()` fallbacks
-  - Remove `EvalBuiltinHelperProperty`
-  - Remove class property read/write callback helpers
-- [ ] **4.3.2** Delete `OOPEngine`
-  - Move method dispatch, constructor dispatch, property execution, function pointer execution, operator dispatch, and cast wrapping under direct engine ownership
-- [ ] **4.3.3** Delete `DeclHandler`
-  - Move class/interface/helper/function declaration mutation under direct engine ownership
-- [ ] **4.3.4** Delete `focused_interfaces.go`
-- [ ] **4.3.5** Delete `SetFocusedInterfaces()` and all test/runtime uses
-- [ ] **4.3.6** Delete any remaining adapter-style bridge files that only preserve the old split
+- [ ] **4.5.1** Delete `CoreEvaluator`
+  - remove `EvalNode()` fallbacks
+  - remove `EvalBuiltinHelperProperty`
+  - remove class property read/write callback helpers
+- [ ] **4.5.2** Delete `OOPEngine`
+  - move method dispatch, constructor dispatch, property execution, function pointer execution, operator dispatch, and cast wrapping under direct ownership
+- [ ] **4.5.3** Delete `DeclHandler`
+- [ ] **4.5.4** Delete `SetFocusedInterfaces()` and all runtime uses
+- [ ] **4.5.5** Replace adapter-based tests with direct engine tests where those adapters only exist to model the old split
+- [ ] **4.5.6** Delete any remaining bridge files that only preserve the old interpreter/evaluator seam
 
 **Success Criteria**:
 
-- ✅ 0 internal callback interfaces remain
-- ✅ No test uses mock adapters for core execution paths
-- ✅ No runtime code depends on callback injection to reach core semantics
+- [ ] zero internal callback interfaces remain
+- [ ] no runtime code depends on callback injection to reach core semantics
+- [ ] no tests require mock adapters for the final architecture boundary
 
 ---
 
-### 4.4 Bring Execution Semantics Under Direct Ownership
+### 4.6 Remove Remaining Mirror Metadata And Hybrid Ownership
 
-**Goal**: Replace callback-shaped execution with direct engine methods.
+**Goal**: Finish the cleanup exposed by the ownership collapse.
 
-**Why this is a separate task**:
-
-Deleting interfaces is easy. Deleting the *need* for interfaces requires consolidating the semantics that currently live behind them.
-
-**Work areas**:
-
-- Function/method call execution
-- Method dispatch and overload resolution
-- Constructors/destructors
-- Property read/write execution
-- Type casts and wrappers
-- Record static dispatch
-- External function calls
-- Builtin helper property evaluation
+**Status**: 📋 After callback deletion begins
 
 **Tasks**:
 
-- [ ] **4.4.1** Normalize call execution under one path
-- [ ] **4.4.2** Normalize method/property dispatch under one path
-- [ ] **4.4.3** Normalize constructor/destructor execution under one path
-- [ ] **4.4.4** Normalize builtin helper/property access under one path
-- [ ] **4.4.5** Remove remaining "fallback to legacy path" branches
+- [ ] **4.6.1** Remove the remaining `i.classes` compatibility mirror and convert remaining call sites to canonical registry APIs
+- [ ] **4.6.2** Audit hybrid metadata types
+  - `ClassInfo`, interfaces, helpers, record metadata
+- [ ] **4.6.3** Remove duplication that no longer serves a compatibility need
+- [ ] **4.6.4** Keep AST-bearing references only where execution genuinely requires them
+- [ ] **4.6.5** Move toward runtime-native metadata where it reduces branching and proxy behavior
 
 **Success Criteria**:
 
-- ✅ One dispatch path per language feature category
-- ✅ No "temporary fallback" branches remain in the engine core
+- [ ] metadata cleanup follows ownership cleanup instead of blocking it
+- [ ] bridge/proxy code shrinks as a result
 
 ---
 
-### 4.5 Bring Declaration Semantics Under Direct Ownership
-
-**Goal**: Make declarations mutate one canonical runtime/type model directly.
-
-**Current problem**:
-
-Declaration visitors already do real work, but the mutation path is still fractured across a large callback surface. That preserves the old split even after visitor migration.
-
-**Tasks**:
-
-- [ ] **4.5.1** Audit declaration data ownership
-  - classes
-  - interfaces
-  - helpers
-  - global functions
-  - records / record static members
-- [ ] **4.5.2** Move class/interface/helper mutation under direct engine methods
-- [ ] **4.5.3** Stop dual-registering data in multiple engine-owned maps where one owner is enough
-- [ ] **4.5.4** Make method implementation registration direct
-- [ ] **4.5.5** Ensure environment binding for declarations is direct, not adapter-mediated
-
-**Success Criteria**:
-
-- ✅ Declaration processing has one runtime owner
-- ✅ No declaration callback API remains
-- ✅ Type/member registration is not mirrored across peer objects
-
----
-
-### 4.6 Reduce Hybrid Metadata Opportunistically
-
-**Goal**: Clean up metadata/data duplication that becomes obvious once ownership is fixed.
-
-**Important**:
-
-This is not a prerequisite for the ownership collapse. It is follow-on cleanup.
-
-Examples:
-
-- `ClassInfo` currently mixes AST-bearing fields with runtime metadata
-- interface/helper/class metadata still carries some legacy duplication
-- some runtime values still require bridge/proxy behavior because metadata is not fully normalized
-
-**Tasks**:
-
-- [ ] **4.6.1** Audit hybrid metadata types (`ClassInfo`, interfaces, helpers, record metadata)
-- [ ] **4.6.2** Remove duplication that no longer serves a compatibility need
-- [ ] **4.6.3** Keep AST-bearing references only where execution genuinely requires them
-- [ ] **4.6.4** Move toward runtime-native metadata where it reduces branching
-
-**Success Criteria**:
-
-- ✅ Metadata cleanup follows ownership cleanup instead of blocking it
-- ✅ Bridge/proxy code shrinks as a result
-
----
-
-### 4.7 Verification and Metrics
+### 4.7 Verification And Metrics
 
 **Goal**: Prove the new architecture is simpler in reality, not just in description.
+
+**Status**: 🔄 Ongoing
 
 **Tasks**:
 
 - [ ] **4.7.1** Add architecture boundary tests
-  - runner constructs one engine
+  - runner constructs one engine entry point
   - no callback interface wiring
-  - no env sync workaround paths
-- [ ] **4.7.2** Track removal metrics
+  - no env-sync workaround paths
+- [ ] **4.7.2** Add regression tests for the migrated execution clusters
+  - assignment paths
+  - user-function execution
+  - declaration ownership
+- [ ] **4.7.3** Track removal metrics
   - callback interfaces deleted
   - dispatch hops deleted
   - duplicated state fields deleted
   - shim/adapter files deleted
-- [ ] **4.7.3** Run unit tests and fixture subsets after each structural milestone
-- [ ] **4.7.4** Keep a short migration note in docs describing the final engine/context/runtime boundary
+- [ ] **4.7.4** Run unit tests and fixture subsets after each structural milestone
+- [ ] **4.7.5** Keep a short migration note in docs describing the final engine/context/runtime boundary
 
 ---
+
+### Execution Order From Here
+
+The remaining work should proceed in this order:
+
+`4.3 Collapse construction/state` → `4.4 finish moving execution semantics` → `4.5 delete callback surfaces` → `4.6 remove remaining mirrors/metadata cleanup` → `4.7 verification and metrics`
 
 ### Archived Direction
 
@@ -413,20 +412,18 @@ The project should not optimize for "smaller types" if that preserves split owne
 
 ### Phase 4 Effort Summary
 
-This phase should still be done in small, reversible PRs, but the order changes:
-
-| Task | Effort | Notes |
+| Area | Status | Notes |
 |------|--------|-------|
-| 4.0 Stabilization | ongoing until green | Keep baseline trustworthy |
-| 4.1 State ownership first | ~3-5 days | Prerequisite for real simplification |
-| 4.2 Collapse to one engine | ~1 week | Removes the split-brain architecture |
-| 4.3 Delete callback interfaces | ~3-5 days | Consequence of 4.1/4.2 |
-| 4.4 Direct execution semantics | ~1-2 weeks | High-risk core runtime work |
-| 4.5 Direct declaration semantics | ~1 week | High-risk metadata mutation work |
-| 4.6 Metadata cleanup | ~2-4 days | Opportunistic, after ownership is fixed |
+| 4.0 Stabilization | complete | Green baseline restored |
+| 4.1 State ownership | complete | `ExecutionContext` is now the per-run state owner |
+| 4.2 Declaration ownership | complete | Class allocation and registration now sit on canonical runtime/type-system boundaries |
+| 4.3 Construction collapse | in progress | Main remaining item is removing constructor-time callback wiring |
+| 4.4 Execution semantics | in progress | Biggest remaining technical risk |
+| 4.5 Callback deletion | next | Depends on 4.3/4.4 |
+| 4.6 Mirror/metadata cleanup | later | Should follow ownership cleanup |
 | 4.7 Verification/metrics | ongoing | Prevent regression into indirection |
 
-**Execution Order**: 4.0 → 4.1 → 4.2 → 4.3 → 4.4 → 4.5 → 4.6 → 4.7
+**Practical read**: Phase 4 is no longer "planned". The baseline, state ownership, and declaration-ownership work are done. The critical remaining work is collapsing runtime wiring, migrating the last callback-shaped execution paths, and then deleting the callback surfaces entirely.
 
 ---
 

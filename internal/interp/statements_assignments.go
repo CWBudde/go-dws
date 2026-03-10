@@ -46,7 +46,7 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 		if isError(rhsValue) {
 			return rhsValue
 		}
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			return &NilValue{}
 		}
 		value = i.applyCompoundOperation(stmt.Operator, currentValue, rhsValue, stmt)
@@ -95,7 +95,7 @@ func (i *Interpreter) evalAssignmentStatement(stmt *ast.AssignmentStatement) Val
 		if isError(value) {
 			return value
 		}
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			return &NilValue{}
 		}
 		// Records have value semantics - copy when assigning
@@ -292,7 +292,7 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 			}
 			if intfInst, isIntf := value.(*InterfaceInstance); isIntf {
 				if intfInst.Object != nil {
-					i.evaluatorInstance.RefCountManager().IncrementRef(intfInst.Object)
+					i.refCountManager().IncrementRef(intfInst.Object)
 				}
 			}
 
@@ -352,14 +352,14 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 			} else if newObj, isNewObj := value.(*ObjectInstance); isNewObj {
 				if objInst != newObj {
 					i.callDestructorIfNeeded(objInst)
-					i.evaluatorInstance.RefCountManager().IncrementRef(newObj)
+					i.refCountManager().IncrementRef(newObj)
 				}
 			}
 		} else {
 			// Increment ref count for new object (unless target is interface)
 			if newObj, isNewObj := value.(*ObjectInstance); isNewObj {
 				if _, isIface := existingVal.(*InterfaceInstance); !isIface {
-					i.evaluatorInstance.RefCountManager().IncrementRef(newObj)
+					i.refCountManager().IncrementRef(newObj)
 				}
 			}
 		}
@@ -375,7 +375,7 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 			} else if srcIface, isSrcIface := value.(*InterfaceInstance); isSrcIface {
 				// Copy semantics: both variables hold references
 				if srcIface.Object != nil {
-					i.evaluatorInstance.RefCountManager().IncrementRef(srcIface.Object)
+					i.refCountManager().IncrementRef(srcIface.Object)
 				}
 				value = &InterfaceInstance{Interface: ifaceInst.Interface, Object: srcIface.Object}
 				if shouldReleaseInterfaceSource(stmt, i.Env()) {
@@ -388,7 +388,7 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 	// Increment ref count for function pointers holding object references
 	if funcPtr, isFuncPtr := value.(*FunctionPointerValue); isFuncPtr {
 		if objInst, isObj := funcPtr.SelfObject.(*ObjectInstance); isObj {
-			i.evaluatorInstance.RefCountManager().IncrementRef(objInst)
+			i.refCountManager().IncrementRef(objInst)
 		}
 	}
 
@@ -542,13 +542,7 @@ func shouldReleaseInterfaceSource(stmt *ast.AssignmentStatement, env *Environmen
 func (i *Interpreter) evalMemberAssignment(target *ast.MemberAccessExpression, value Value, stmt *ast.AssignmentStatement) Value {
 	// Check for static class member assignment (TClass.Variable or TClass.Property)
 	if targetIdent, ok := target.Object.(*ast.Identifier); ok {
-		var classInfo *ClassInfo
-		for className, class := range i.classes {
-			if ident.Equal(className, targetIdent.Value) {
-				classInfo = class
-				break
-			}
-		}
+		classInfo := i.lookupRegisteredClassInfo(targetIdent.Value)
 		if classInfo != nil {
 			memberName := target.Member.Value
 			// Class properties take precedence

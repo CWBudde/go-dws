@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -10,32 +11,9 @@ import (
 // Helper Declaration, Validation, and Execution Infrastructure
 // ============================================================================
 
-// HelperInfo stores runtime information about a helper type
-type HelperInfo struct {
-	TargetType     types.Type
-	ParentHelper   *HelperInfo
-	Methods        map[string]*ast.FunctionDecl
-	Properties     map[string]*types.PropertyInfo
-	ClassVars      map[string]Value
-	ClassConsts    map[string]Value
-	BuiltinMethods map[string]string
-	Name           string
-	IsRecordHelper bool
-}
+type HelperInfo = runtime.MutableHelperInfo
 
-// NewHelperInfo creates a new HelperInfo
-func NewHelperInfo(name string, targetType types.Type, isRecordHelper bool) *HelperInfo {
-	return &HelperInfo{
-		Name:           name,
-		TargetType:     targetType,
-		Methods:        make(map[string]*ast.FunctionDecl),
-		Properties:     make(map[string]*types.PropertyInfo),
-		ClassVars:      make(map[string]Value),
-		ClassConsts:    make(map[string]Value),
-		BuiltinMethods: make(map[string]string),
-		IsRecordHelper: isRecordHelper,
-	}
-}
+var NewHelperInfo = runtime.NewMutableHelperInfo
 
 // ============================================================================
 // Helper Declaration and Validation

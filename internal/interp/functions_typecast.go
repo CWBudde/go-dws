@@ -577,12 +577,7 @@ func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
 
 // lookupClassInfo looks up a class by name (case-insensitive)
 func (i *Interpreter) lookupClassInfo(name string) *ClassInfo {
-	for className, classInfo := range i.classes {
-		if pkgident.Equal(className, name) {
-			return classInfo
-		}
-	}
-	return nil
+	return i.lookupRegisteredClassInfo(name)
 }
 
 // castToInteger converts a value to Integer

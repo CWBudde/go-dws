@@ -28,18 +28,11 @@ type PropertyEvalContext = runtime.PropertyEvalContext
 // Thin orchestrator delegating evaluation logic to the Evaluator.
 type Interpreter struct {
 	output            io.Writer
-	exception         *runtime.ExceptionValue
-	handlerException  *runtime.ExceptionValue
-	propContext       *PropertyEvalContext
+	engineState       *contracts.EngineState
 	typeSystem        *interptypes.TypeSystem
 	methodRegistry    *runtime.MethodRegistry
-	records           map[string]*RecordTypeValue
-	functions         map[string][]*ast.FunctionDecl
 	evaluatorInstance contracts.Evaluator
-	classes           map[string]*ClassInfo
 	ctx               *runtime.ExecutionContext
-	oldValuesStack    []map[string]Value
-	callStack         errors.StackTrace
 	maxRecursionDepth int
 }
 
@@ -56,14 +49,12 @@ func NewWithDeps(
 	interp := &Interpreter{
 		output:            output,
 		maxRecursionDepth: DefaultMaxRecursionDepth,
-		callStack:         errors.NewStackTrace(),
+		engineState:       eval.EngineState(),
 		typeSystem:        typeSystem,
 		methodRegistry:    runtime.NewMethodRegistry(),
-		functions:         make(map[string][]*ast.FunctionDecl),
-		classes:           make(map[string]*ClassInfo),
-		records:           make(map[string]*RecordTypeValue),
 		evaluatorInstance: eval,
 	}
+	interp.engineState.MethodRegistry = interp.methodRegistry
 
 	if opts != nil {
 		if depth := opts.GetMaxRecursionDepth(); depth > 0 {
@@ -71,35 +62,17 @@ func NewWithDeps(
 		}
 	}
 
-	interp.ctx = runtime.NewExecutionContextWithCallbacks(
-		env,
-		interp.maxRecursionDepth,
-		func() any {
-			if interp.exception == nil {
-				return nil
-			}
-			return interp.exception
-		},
-		func(exc any) {
-			if exc == nil {
-				interp.exception = nil
-				return
-			}
-			if excVal, ok := exc.(*runtime.ExceptionValue); ok {
-				interp.exception = excVal
-			}
-		},
-	)
+	interp.ctx = runtime.NewExecutionContextWithMaxDepth(env, interp.maxRecursionDepth)
 	interp.ctx.SetRefCountManager(refCountMgr)
 
 	if interp.evaluatorInstance != nil {
 		if opts != nil {
 			if registry := opts.GetExternalFunctions(); registry != nil {
-				interp.evaluatorInstance.SetExternalFunctions(registry)
+				interp.engineState.ExternalFunctions = registry
 			}
 		}
-		if interp.evaluatorInstance.ExternalFunctions() == nil {
-			interp.evaluatorInstance.SetExternalFunctions(NewExternalFunctionRegistry())
+		if interp.engineState.ExternalFunctions == nil {
+			interp.engineState.ExternalFunctions = NewExternalFunctionRegistry()
 		}
 	}
 
@@ -130,15 +103,14 @@ func NewWithDeps(
 // GetException returns the current active exception, or nil if none.
 // This is used by the CLI to detect and report unhandled exceptions.
 func (i *Interpreter) GetException() *runtime.ExceptionValue {
-	return i.exception
+	exc, _ := i.ctx.Exception().(*runtime.ExceptionValue)
+	return exc
 }
 
 // SetSemanticInfo sets the semantic metadata table for this interpreter.
 // The semantic info contains type annotations and symbol resolutions from analysis.
 func (i *Interpreter) SetSemanticInfo(info *ast.SemanticInfo) {
-	if i.evaluatorInstance != nil {
-		i.evaluatorInstance.SetSemanticInfo(info)
-	}
+	i.engineState.SemanticInfo = info
 }
 
 // GetEvaluator returns the evaluator instance.
@@ -155,14 +127,10 @@ func (i *Interpreter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Val
 	// This is a CoreEvaluator callback used by the evaluator for not-yet-migrated
 	// operations. It must NOT call i.Eval() (which delegates to the evaluator),
 	// otherwise we'd recurse forever. Use the legacy path instead.
-
-	// Sync the interpreter's context environment with the evaluator's context.
-	// This ensures that variables defined in nested scopes (like for loop variables)
-	// are visible when the interpreter evaluates expressions.
-	savedEnv := i.ctx.Env()
-	if ctx != nil && ctx.Env() != savedEnv {
-		i.ctx.SetEnv(ctx.Env())
-		defer i.ctx.SetEnv(savedEnv)
+	if ctx != nil && ctx != i.ctx {
+		savedCtx := i.ctx
+		i.ctx = ctx
+		defer func() { i.ctx = savedCtx }()
 	}
 
 	return i.evalLegacy(node)
@@ -418,10 +386,7 @@ func (i *Interpreter) evalLegacy(node ast.Node) Value {
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {
-	// Return a copy to prevent external modification
-	stack := make(errors.StackTrace, len(i.callStack))
-	copy(stack, i.callStack)
-	return stack
+	return i.ctx.CallStack()
 }
 
 // ===== Environment Management Helpers =====
@@ -472,16 +437,11 @@ func (i *Interpreter) pushCallStack(functionName string) {
 		nodePos := i.evaluatorInstance.CurrentNode().Pos()
 		pos = &nodePos
 	}
-	frame := errors.NewStackFrame(functionName, i.evaluatorInstance.SourceFile(), pos)
-	i.callStack = append(i.callStack, frame)
-	_ = i.ctx.GetCallStack().Push(functionName, i.evaluatorInstance.SourceFile(), pos)
+	_ = i.ctx.GetCallStack().Push(functionName, i.sourceFile(), pos)
 }
 
 // popCallStack removes the most recent frame from the call stack.
 func (i *Interpreter) popCallStack() {
-	if len(i.callStack) > 0 {
-		i.callStack = i.callStack[:len(i.callStack)-1]
-	}
 	i.ctx.GetCallStack().Pop()
 }
 

@@ -149,8 +149,8 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		// Check if the left side is a unit identifier (for qualified access: UnitName.FunctionName)
 		if unitIdent, ok := memberAccess.Object.(*ast.Identifier); ok {
 			// This could be a unit-qualified call: UnitName.FunctionName()
-			if i.evaluatorInstance.UnitRegistry() != nil {
-				if _, exists := i.evaluatorInstance.UnitRegistry().GetUnit(unitIdent.Value); exists {
+			if i.unitRegistry() != nil {
+				if _, exists := i.unitRegistry().GetUnit(unitIdent.Value); exists {
 					// Resolve the qualified function
 					fn, err := i.ResolveQualifiedFunction(unitIdent.Value, memberAccess.Member.Value)
 					if err == nil {
@@ -200,13 +200,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		// When calling TObj.Create(args), the parser creates CallExpression with MemberAccessExpression
 		if ident, ok := memberAccess.Object.(*ast.Identifier); ok {
 			// Check if this identifier refers to a class (case-insensitive)
-			var classInfo *ClassInfo
-			for className, class := range i.classes {
-				if pkgident.Equal(className, ident.Value) {
-					classInfo = class
-					break
-				}
-			}
+			classInfo := i.lookupRegisteredClassInfo(ident.Value)
 			if classInfo != nil {
 				// This is a class constructor/method call - convert to MethodCallExpression
 				mc := &ast.MethodCallExpression{
@@ -286,9 +280,8 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	funcName := expr.Function.(*ast.Identifier)
 
 	// Check if it's a user-defined function first
-	// DWScript is case-insensitive, so normalize the function name to lowercase
 	funcNameLower := pkgident.Normalize(funcName.Value)
-	if overloads, exists := i.functions[funcNameLower]; exists && len(overloads) > 0 {
+	if overloads := i.globalFunctionOverloads(funcName.Value); len(overloads) > 0 {
 		// Resolve overload based on argument types and get cached evaluated arguments
 		fn, cachedArgs, err := i.resolveOverload(funcNameLower, overloads, expr.Arguments)
 		if err != nil {
@@ -414,52 +407,49 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 
 	// Check if this is an external function with var parameters
 	// We need to check BEFORE evaluating args to create ReferenceValues
-	if i.evaluatorInstance.ExternalFunctions() != nil {
-		// Type-assert to concrete type to access Get method
-		if registry, ok := i.evaluatorInstance.ExternalFunctions().(*ExternalFunctionRegistry); ok {
-			if extFunc, ok := registry.Get(funcName.Value); ok {
-				varParams := extFunc.Wrapper.GetVarParams()
-				paramTypes := extFunc.Wrapper.GetParamTypes()
+	if registry := i.externalFunctions(); registry != nil {
+		if extFunc, ok := registry.Get(funcName.Value); ok {
+			varParams := extFunc.Wrapper.GetVarParams()
+			paramTypes := extFunc.Wrapper.GetParamTypes()
 
-				// Prepare arguments - create ReferenceValues for var parameters
-				args := make([]Value, len(expr.Arguments))
-				for idx, arg := range expr.Arguments {
-					isVarParam := idx < len(varParams) && varParams[idx]
+			// Prepare arguments - create ReferenceValues for var parameters
+			args := make([]Value, len(expr.Arguments))
+			for idx, arg := range expr.Arguments {
+				isVarParam := idx < len(varParams) && varParams[idx]
 
-					if isVarParam {
-						// For var parameters, create a reference
-						if argIdent, ok := arg.(*ast.Identifier); ok {
-							if val, exists := i.Env().Get(argIdent.Value); exists {
-								if refVal, isRef := val.(*ReferenceValue); isRef {
-									args[idx] = refVal // Pass through existing reference
-								} else {
-									args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
-								}
+				if isVarParam {
+					// For var parameters, create a reference
+					if argIdent, ok := arg.(*ast.Identifier); ok {
+						if val, exists := i.Env().Get(argIdent.Value); exists {
+							if refVal, isRef := val.(*ReferenceValue); isRef {
+								args[idx] = refVal // Pass through existing reference
 							} else {
 								args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 							}
 						} else {
-							return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
+							args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
 						}
 					} else {
-						// For regular parameters, evaluate with type context if available
-						var val Value
-						if idx < len(paramTypes) {
-							// Parse the parameter type string and provide context for type inference
-							expectedType, _ := i.parseTypeString(paramTypes[idx])
-							val = i.EvalWithExpectedType(arg, expectedType)
-						} else {
-							val = i.Eval(arg)
-						}
-						if isError(val) {
-							return val
-						}
-						args[idx] = val
+						return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
 					}
+				} else {
+					// For regular parameters, evaluate with type context if available
+					var val Value
+					if idx < len(paramTypes) {
+						// Parse the parameter type string and provide context for type inference
+						expectedType, _ := i.parseTypeString(paramTypes[idx])
+						val = i.EvalWithExpectedType(arg, expectedType)
+					} else {
+						val = i.Eval(arg)
+					}
+					if isError(val) {
+						return val
+					}
+					args[idx] = val
 				}
-
-				return i.callExternalFunction(extFunc, args)
 			}
+
+			return i.callExternalFunction(extFunc, args)
 		}
 	}
 
@@ -475,7 +465,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 	// Check if this is a type cast (TypeName(expression))
 	// Type casts look like function calls but the "function" name is actually a type name
 	if len(expr.Arguments) == 1 {
-		if castValue := i.evalTypeCast(funcName.Value, expr.Arguments[0]); castValue != nil || i.exception != nil {
+		if castValue := i.evalTypeCast(funcName.Value, expr.Arguments[0]); castValue != nil || i.exceptionValue() != nil {
 			return castValue
 		}
 	}
@@ -488,7 +478,7 @@ func (i *Interpreter) evalCallExpression(expr *ast.CallExpression) Value {
 		if isError(val) {
 			return val
 		}
-		if i.exception != nil {
+		if i.exceptionValue() != nil {
 			// Exception raised while evaluating arguments - skip function execution
 			return &NilValue{}
 		}

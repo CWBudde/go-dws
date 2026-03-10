@@ -32,8 +32,8 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 
 	// If semantic analysis provided a set type annotation, capture it for inference.
 	var annotatedSetType *types.SetType
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
 			if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
 				if setType, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
 					annotatedSetType = setType
@@ -47,8 +47,8 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 
 	// Check if this SetLiteral should be treated as an array (array of const)
 	// This happens when semantic analyzer determined it's used in array context
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
 			resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx)
 			if err == nil {
 				if arrayType, isArray := resolvedType.(*types.ArrayType); isArray {

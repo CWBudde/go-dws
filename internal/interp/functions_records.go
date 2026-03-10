@@ -186,7 +186,7 @@ func (i *Interpreter) evalRecordMethodCall(recVal *RecordValue, memberAccess *as
 	}
 
 	// If an exception was raised during method execution, propagate it immediately
-	if i.exception != nil {
+	if i.exceptionValue() != nil {
 		cleanup()
 		return &NilValue{}
 	}
