@@ -271,9 +271,9 @@ This work has already happened in the branch and should be reflected as complete
 - [x] **4.3.6** Narrow production construction to only the remaining runtime bridges
   - production bootstrap now wires OOP + fallback bridges explicitly
   - declaration wiring is no longer part of runtime construction
-- [ ] **4.3.6** Remove remaining evaluator-owned config/state that is not visitor-local
-- [ ] **4.3.7** Reduce the non-surviving peer to a thin internal shim only where temporarily unavoidable
-- [ ] **4.3.8** Delete the shim once call sites are moved
+- [ ] **4.3.7** Remove remaining evaluator-owned config/state that is not visitor-local
+- [ ] **4.3.8** Reduce the non-surviving peer to a thin internal shim only where temporarily unavoidable
+- [ ] **4.3.9** Delete the shim once call sites are moved
 
 **Success Criteria**:
 
