@@ -61,6 +61,9 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		if classType := a.getClassType(identifier.Value); classType != nil {
 			return &types.ClassOfType{ClassType: classType}
 		}
+		if interfaceType := a.getInterfaceType(identifier.Value); interfaceType != nil {
+			return interfaceType
+		}
 		if a.currentClass != nil && !a.inClassMethod {
 			// Check if identifier is a field of the current class (implicit Self, instance methods only)
 			if fieldType, exists := a.currentClass.GetField(identifier.Value); exists {

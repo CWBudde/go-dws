@@ -156,41 +156,57 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, isRecordHelpe
 			continue
 		}
 
-		// Check for 'class const' declarations
-		if cursor.Current().Type == lexer.CLASS && cursor.Peek(1).Type == lexer.CONST {
-			cursor = cursor.Advance() // Move to CONST
+		if cursor.Current().Type == lexer.CLASS {
+			cursor = cursor.Advance() // Move past CLASS.
 			p.cursor = cursor
-			classConstStmt := p.parseConstDeclaration()
-			addConstToHelper(classConstStmt)
-			cursor = p.cursor.Advance()
-			p.cursor = cursor
-			continue
+
+			switch cursor.Current().Type {
+			case lexer.CONST:
+				classConstStmt := p.parseConstDeclaration()
+				addConstToHelper(classConstStmt)
+				cursor = p.cursor.Advance()
+				p.cursor = cursor
+				continue
+			case lexer.VAR:
+				cursor = cursor.Advance() // Move to identifier.
+				p.cursor = cursor
+
+				// Parse field declarations (can be comma-separated).
+				fields := p.parseFieldDeclarations(currentVisibility)
+				for _, field := range fields {
+					field.IsClassVar = true
+					helperDecl.ClassVars = append(helperDecl.ClassVars, field)
+					if currentSection != nil {
+						*currentSection = append(*currentSection, field)
+					}
+				}
+				cursor = p.cursor.Advance()
+				p.cursor = cursor
+				continue
+			case lexer.FUNCTION, lexer.PROCEDURE:
+				method := p.parseFunctionDeclaration()
+				if method != nil {
+					method.IsClassMethod = true
+					helperDecl.Methods = append(helperDecl.Methods, method)
+					if currentSection != nil {
+						*currentSection = append(*currentSection, method)
+					}
+				}
+				cursor = p.cursor.Advance()
+				p.cursor = cursor
+				continue
+			default:
+				p.addError("expected 'var', 'const', 'function' or 'procedure' after 'class' keyword in helper", ErrUnexpectedToken)
+				cursor = cursor.Advance()
+				p.cursor = cursor
+				continue
+			}
 		}
 
 		// Allow plain const declarations (treated as class consts for helpers)
 		if cursor.Current().Type == lexer.CONST {
 			constStmt := p.parseConstDeclaration()
 			addConstToHelper(constStmt)
-			cursor = p.cursor.Advance()
-			p.cursor = cursor
-			continue
-		}
-
-		// Check for 'class var' declarations
-		if cursor.Current().Type == lexer.CLASS && cursor.Peek(1).Type == lexer.VAR {
-			cursor = cursor.Advance() // Move to VAR
-			cursor = cursor.Advance() // Move to identifier
-			p.cursor = cursor
-
-			// Parse field declarations (can be comma-separated)
-			fields := p.parseFieldDeclarations(currentVisibility)
-			for _, field := range fields {
-				field.IsClassVar = true
-				helperDecl.ClassVars = append(helperDecl.ClassVars, field)
-				if currentSection != nil {
-					*currentSection = append(*currentSection, field)
-				}
-			}
 			cursor = p.cursor.Advance()
 			p.cursor = cursor
 			continue

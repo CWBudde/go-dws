@@ -103,6 +103,8 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 
 	case ObjectValue:
 		typeName = v.ClassName()
+	case *runtime.InterfaceInstance:
+		typeName = v.InterfaceName()
 	case RecordInstanceValue:
 		typeName = v.GetRecordTypeName()
 	case *runtime.IntegerValue:
@@ -113,6 +115,14 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 		typeName = "String"
 	case *runtime.BooleanValue:
 		typeName = "Boolean"
+	case *runtime.TypeMetaValue:
+		if v.TypeName != "" {
+			typeName = v.TypeName
+		} else if v.TypeInfo != nil {
+			typeName = v.TypeInfo.String()
+		} else {
+			typeName = v.Type()
+		}
 	default:
 		typeName = v.Type()
 	}

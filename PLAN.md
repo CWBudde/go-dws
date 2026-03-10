@@ -483,6 +483,71 @@ The project should not optimize for "smaller types" if that preserves split owne
 
 ---
 
+### 4.9 Remove Residual Split Execution Ownership
+
+**Goal**: Finish the ownership cleanup that Phase 4 intended by eliminating duplicated AST-execution semantics that still live in `internal/interp` after the callback seam was removed.
+
+**Status**: 📋 Planned
+
+**Why this needs its own follow-up**:
+
+Phase 4 successfully removed the old callback bridge and centralized production execution through the evaluator, but it did not fully eliminate interpreter-side duplicate AST evaluators. Some statement/control-flow logic still exists in `internal/interp` as dead or semi-dead shadow implementations, while the active evaluator path owns the real execution semantics.
+
+That leftover duplication is now an architectural risk:
+
+- correctness can silently diverge between the active evaluator path and stale interpreter-side copies
+- fixture failures can expose evaluator regressions that the older interpreter helpers already solved
+- boundary tests currently protect imports and deleted callback surfaces, but not single ownership of AST semantics
+
+**Concrete symptoms already observed**:
+
+- interpreter-side `for` loop logic still models DWScript ordinal loop semantics correctly
+- evaluator-side `VisitForStatement` regressed to integer-only loop bounds/step handling
+- several interpreter-side statement evaluators remain in tree even though normal runtime entry goes through `Evaluator.Eval`
+
+**Tasks**:
+
+- [ ] **4.9.1** Inventory all remaining interpreter-side AST execution helpers and classify each as `delete`, `migrate`, or `keep`
+  - cover statement, expression, declaration, exception, and control-flow helpers in `internal/interp`
+  - distinguish dead duplicates from still-live shell responsibilities
+- [ ] **4.9.2** Delete dead duplicate statement/control-flow evaluators that overlap evaluator-owned semantics
+  - expected targets include interpreter-side `Program`, `Block`, `If`, `Case`, `While`, `Repeat`, `For`, `ForIn`, `Try`, `Raise`, `VarDecl`, `ConstDecl`, and assignment evaluators once no live call sites remain
+- [ ] **4.9.3** Migrate any still-live special-case AST execution that belongs in the evaluator
+  - remove interpreter-only semantic islands such as expected-type expression evaluation paths where practical
+  - keep only true engine-shell responsibilities in `internal/interp`
+- [ ] **4.9.4** Unify loop semantics under shared ordinal-aware helpers
+  - `for` loop execution must treat DWScript ordinals canonically across evaluator/runtime paths
+  - eliminate semantic drift between interpreter leftovers and evaluator visitors
+- [ ] **4.9.5** Add regression protection for single ownership of AST execution
+  - extend architecture tests so they fail when evaluator-owned statement semantics reappear as interpreter-side duplicate evaluators
+  - add fixture/unit coverage for ordinal `for` loops, enum loop variables, and enum-valued `step`
+- [ ] **4.9.6** Re-audit runtime metadata escape hatches exposed by this cleanup
+  - continue removing `GetFieldsMap` / `GetMethodsMap` / similar migration-only fallbacks where canonical metadata is now sufficient
+- [ ] **4.9.7** Decide and document which remaining `interp` ↔ `evaluator` seams are intentional steady-state boundaries versus temporary migration residue
+  - cover the narrow evaluator shim, external-function dispatch hooks, user-function callback plumbing, and the remaining `contracts` package surface
+  - audit each `contracts` type and classify it as either a justified neutral coordination type or migration residue to remove/move
+  - if a seam is permanent, document why it belongs at the engine shell boundary
+  - if a seam is temporary, move it under an explicit removal task instead of leaving it implicit
+- [ ] **4.9.8** Close or explicitly retain the remaining narrow evaluator shim
+  - resolve the unfinished `4.3.9` outcome instead of leaving it open indefinitely
+  - either delete the shim after moving the last call sites or document the shim as the intended long-term shell/core boundary
+- [ ] **4.9.9** Define and enforce the allowed responsibilities of `internal/interp` after cleanup
+  - interpreter shell responsibilities should be explicit: bootstrap, engine-facing API, unit integration, external integration, and other narrowly justified orchestration only
+  - evaluator-owned AST semantics must not reappear in `internal/interp`
+
+**Success Criteria**:
+
+- [ ] evaluator is the sole owner of AST execution semantics for production statement/expression/declaration execution
+- [ ] `internal/interp` no longer contains dead shadow evaluators for nodes already owned by evaluator visitors
+- [ ] loop/control-flow semantics are defined in one active implementation only
+- [ ] architecture tests enforce single ownership, not just import boundaries and deleted callback interfaces
+- [ ] residual runtime metadata compatibility APIs shrink further as a consequence of the cleanup
+- [ ] remaining `interp` ↔ `evaluator` seams are intentional, documented, and regression-tested
+- [ ] the allowed long-term responsibilities of `internal/interp` are explicit enough that future work does not recreate split execution ownership
+- [ ] `internal/interp/contracts` contains only explicitly justified neutral coordination types, not leftover adapter-shaped migration residue
+
+---
+
 ### Phase 4 Effort Summary
 
 | Area | Status | Notes |
@@ -496,8 +561,9 @@ The project should not optimize for "smaller types" if that preserves split owne
 | 4.6 Mirror/metadata cleanup | complete | Remaining mirror/metadata cleanup landed after callback deletion |
 | 4.7 Verification/metrics | complete | Boundary tests, regression tests, and verification note added |
 | 4.8 Refinement | complete | Post-migration tightening landed after Phase 4 completion |
+| 4.9 Residual execution ownership cleanup | planned | Remove dead interpreter-side shadow evaluators and enforce evaluator-only AST semantics |
 
-**Practical read**: Phase 4 is complete. Phase 4.8 is a follow-up refinement pass for tightening and simplifying the finished architecture, not for completing missing migration work.
+**Practical read**: The core Phase 4 bridge-removal work is complete. Phase 4.8 tightened the finished architecture, and 4.9 captures the remaining ownership mismatch that still lets duplicated interpreter-side AST semantics drift away from the active evaluator path.
 
 ---
 

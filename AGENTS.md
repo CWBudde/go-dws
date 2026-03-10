@@ -169,13 +169,17 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - Integer, Float, String, Boolean, Array, Record, Enum, Class types
   - Type checking and conversion
 
-- `internal/interp/` - AST interpreter/runtime engine (Phase 4 complete)
-  - **Interpreter** (`interpreter.go`): Engine facade and bootstrap/orchestration shell
-  - **Evaluator** (`evaluator/`): Visitor-pattern execution engine for AST semantics
-  - **Runtime** (`runtime/`): Values, environment, execution context, call stack, and runtime metadata
-  - **Type System** (`types/`): Centralized registry for classes, records, interfaces, functions, and helpers
-  - **Contracts** (`contracts/`): Narrow neutral cross-package coordination types
-  - See `docs/architecture/interp-evaluator-steady-state.md` for the current boundary
+- `internal/interp/` - AST interpreter/runtime engine
+  - **Interpreter** (`interpreter.go`): engine facade and bootstrap/orchestration shell
+    - owns construction, engine-facing API, unit integration, and runtime orchestration
+    - production entry should flow through the evaluator for AST execution
+  - **Evaluator** (`evaluator/`): visitor-pattern execution core for AST semantics
+    - owns expression, statement, declaration, call, property, and dispatch semantics
+  - **Runtime** (`runtime/`): values, environment, execution context, call stack, and runtime metadata
+  - **Type System** (`types/`): centralized registry for classes, records, interfaces, functions, and helpers
+  - **Contracts** (`contracts/`): narrow neutral cross-package coordination types
+  - See `docs/architecture/interp-evaluator-steady-state.md` for the current steady-state boundary
+  - See `PLAN.md` Phase `4.9` for the remaining cleanup: interpreter-side shadow evaluators still exist and should be deleted or migrated rather than extended
 
 - `internal/bytecode/` - Bytecode VM (5-6x faster than AST interpreter)
   - `compiler.go`: AST-to-bytecode compiler with optimizations
@@ -244,6 +248,15 @@ go run cmd/gen-visitor/main.go
 # or
 go generate ./pkg/ast
 ```
+
+**Interpreter Architecture Guardrails**:
+
+- `ExecutionContext` is the canonical owner of per-run mutable state.
+- Production bootstrap is centralized in `internal/interp/new.go`.
+- `internal/interp` must not import `internal/interp/evaluator` outside construction and tests.
+- New AST execution semantics belong in `internal/interp/evaluator`, not in new `Interpreter.eval*` helpers.
+- When touching old interpreter-side evaluators in `internal/interp`, assume they may be residual migration code. Prefer deleting or migrating them into evaluator-owned paths rather than fixing them in place unless the helper is still a deliberate engine-shell responsibility.
+- Runtime metadata should prefer typed runtime structures over AST-shaped compatibility maps where possible.
 
 **Symbol Tables**: Will use nested scope chain for variable/function resolution (Stage 5).
 

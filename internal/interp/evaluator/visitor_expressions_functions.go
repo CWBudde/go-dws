@@ -292,7 +292,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// Implicit Self method calls (checked after built-ins to avoid shadowing)
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
 		if selfVal, ok := selfRaw.(Value); ok {
-			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
+			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" || selfVal.Type() == "INTERFACE" {
 				return e.executeImplicitSelfCall(node, funcName, ctx)
 			}
 			if _, isRecord := selfVal.(*runtime.RecordValue); isRecord {

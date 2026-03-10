@@ -269,6 +269,18 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		return e.newError(node, "internal error: ClassValueFactory returned non-Value type")
 	}
 
+	// Interface type names can be used as type-meta values for helper class members.
+	if ifaceAny := e.typeSystem.LookupInterface(node.Value); ifaceAny != nil {
+		resolvedType, err := e.ResolveType(node.Value)
+		if err != nil {
+			return e.newError(node, "unknown interface type '%s': %v", node.Value, err)
+		}
+		return &runtime.TypeMetaValue{
+			TypeInfo: resolvedType,
+			TypeName: resolvedType.String(),
+		}
+	}
+
 	// Final check: check for built-in functions or return undefined error
 	if e.FunctionRegistry().IsBuiltin(node.Value) {
 		// If the semantic type expects a function/method pointer, return a builtin function pointer
