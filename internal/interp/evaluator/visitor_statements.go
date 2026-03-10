@@ -1257,7 +1257,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		// Type-assert to access RecordType, Metadata, and FieldDecls
 		type recordTypeAccess interface {
 			GetRecordType() *types.RecordType
-			GetMetadata() any
+			GetMetadata() *runtime.RecordMetadata
 		}
 
 		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
@@ -1270,13 +1270,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 			return &runtime.NilValue{}
 		}
 
-		// Extract Metadata (may be nil)
-		var metadata *runtime.RecordMetadata
-		if mdAny := recordTypeAccessor.GetMetadata(); mdAny != nil {
-			if md, ok := mdAny.(*runtime.RecordMetadata); ok {
-				metadata = md
-			}
-		}
+		metadata := recordTypeAccessor.GetMetadata()
 
 		// Extract FieldDecls for field initializer evaluation
 		var fieldDecls map[string]*ast.FieldDecl
@@ -1379,20 +1373,7 @@ func (e *Evaluator) createArrayZeroValue(arrayType *types.ArrayType) Value {
 
 // createRecordZeroValue creates a properly initialized record value.
 func (e *Evaluator) createRecordZeroValue(recordType *types.RecordType) Value {
-	// Look up metadata from TypeSystem if available
-	var metadata *runtime.RecordMetadata
-	if recordTypeAny := e.typeSystem.LookupRecord(recordType.Name); recordTypeAny != nil {
-		type hasMetadata interface {
-			GetMetadata() any
-		}
-		if hm, ok := recordTypeAny.(hasMetadata); ok {
-			if mdAny := hm.GetMetadata(); mdAny != nil {
-				if md, ok := mdAny.(*runtime.RecordMetadata); ok {
-					metadata = md
-				}
-			}
-		}
-	}
+	metadata := e.typeSystem.LookupRecordMetadata(recordType.Name)
 
 	// Create field initializer for nested types
 	initializer := func(fieldName string, fieldType types.Type) runtime.Value {

@@ -52,21 +52,19 @@ type ExternalFunctionRegistry interface {
 // EngineState holds interpreter-runtime state that must not be owned by both
 // interpreter and evaluator independently.
 type EngineState struct {
-	SourceCode        string
-	SourceFile        string
-	ExternalFunctions ExternalFunctionRegistry
-	UnitRegistry      *units.UnitRegistry
-	InitializedUnits  map[string]bool
-	SemanticInfo      *ast.SemanticInfo
-	RefCountManager   runtime.RefCountManager
-	MethodRegistry    *runtime.MethodRegistry
-	Random            *rand.Rand
-	LoadedUnits       []string
-	RandomSeed        int64
-	MaxRecursionDepth int
-	// ExternalFunctionCaller is a callback for dispatching external (Go-registered) functions.
-	// Set by the interpreter during initialization. Nil if no external functions are registered.
+	ExternalFunctions      ExternalFunctionRegistry
+	RefCountManager        runtime.RefCountManager
+	UnitRegistry           *units.UnitRegistry
+	InitializedUnits       map[string]bool
+	SemanticInfo           *ast.SemanticInfo
+	MethodRegistry         *runtime.MethodRegistry
+	Random                 *rand.Rand
 	ExternalFunctionCaller func(funcName string, argExprs []ast.Expression, node ast.Node) Value
+	SourceCode             string
+	SourceFile             string
+	LoadedUnits            []string
+	RandomSeed             int64
+	MaxRecursionDepth      int
 }
 
 // Evaluator is the minimal API the interpreter needs from the evaluator.

@@ -264,7 +264,7 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 	// This is safe because TypeSystem stores *RecordTypeValue
 	type recordTypeAccess interface {
 		GetRecordType() *types.RecordType
-		GetMetadata() any
+		GetMetadata() *runtime.RecordMetadata
 	}
 
 	recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
@@ -277,13 +277,7 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 		return e.newError(node, "failed to extract record type for '%s'", recordTypeName)
 	}
 
-	// Extract Metadata (may be nil)
-	var metadata *runtime.RecordMetadata
-	if mdAny := recordTypeAccessor.GetMetadata(); mdAny != nil {
-		if md, ok := mdAny.(*runtime.RecordMetadata); ok {
-			metadata = md
-		}
-	}
+	metadata := recordTypeAccessor.GetMetadata()
 
 	// Extract FieldDecls using struct field access
 	// Since we know the concrete type is *RecordTypeValue from interp package

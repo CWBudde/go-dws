@@ -4,7 +4,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // evalAddressOfExpression evaluates an address-of expression (@Function).
@@ -71,11 +70,7 @@ func (i *Interpreter) evalFunctionPointer(name string, selfObject Value, _ ast.N
 			}
 		}
 		if function == nil {
-			if methods := obj.Class.GetMethodsMap(); methods != nil {
-				if method, ok := methods[ident.Normalize(name)]; ok {
-					function = method
-				}
-			}
+			function = obj.Class.LookupMethod(name)
 		}
 		if function == nil {
 			if classInfo := i.resolveClassInfoByName(obj.Class.GetName()); classInfo != nil {

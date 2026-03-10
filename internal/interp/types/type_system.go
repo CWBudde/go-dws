@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	coretypes "github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -188,17 +189,16 @@ func (ts *TypeSystem) AllRecords() map[string]RecordTypeValue {
 	return result
 }
 
-// LookupRecordMetadata returns the RecordMetadata for the given record name.
+// LookupRecordMetadata returns the runtime RecordMetadata for the given record name.
 // Returns nil if the record doesn't exist or has no metadata.
-func (ts *TypeSystem) LookupRecordMetadata(name string) any {
+func (ts *TypeSystem) LookupRecordMetadata(name string) *runtime.RecordMetadata {
 	recordTypeValue := ts.LookupRecord(name)
 	if recordTypeValue == nil {
 		return nil
 	}
 
-	// Use interface to extract metadata (avoids circular import)
 	type hasMetadata interface {
-		GetMetadata() any
+		GetMetadata() *runtime.RecordMetadata
 	}
 
 	if hm, ok := recordTypeValue.(hasMetadata); ok {

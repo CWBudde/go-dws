@@ -11,9 +11,9 @@ import (
 
 // MockClassMetaValue implements ClassMetaValue for testing.
 type MockClassMetaValue struct {
-	runtime.NilValue // Embed for Value interface
-	Name             string
-	Nested           map[string]Value
+	Nested map[string]Value
+	runtime.NilValue
+	Name string
 }
 
 func (m *MockClassMetaValue) Type() string                               { return "CLASSINFO" }
@@ -50,8 +50,8 @@ func (m *MockClassMetaValue) WriteClassProperty(name string, value Value, execut
 func (m *MockClassMetaValue) HasClassVar(name string) bool { return false }
 
 type mockObjectValue struct {
-	runtime.NilValue
 	classType Value
+	runtime.NilValue
 }
 
 func (m *mockObjectValue) ClassName() string { return "TOuter" }

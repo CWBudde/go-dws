@@ -242,12 +242,7 @@ func (o *ObjectInstance) HasMethod(name string) bool {
 	if o == nil || o.Class == nil {
 		return false
 	}
-	methods := o.Class.GetMethodsMap()
-	if methods == nil {
-		return false
-	}
-	_, exists := methods[ident.Normalize(name)]
-	return exists
+	return o.Class.LookupMethod(name) != nil
 }
 
 // GetMethodDecl retrieves a method declaration by name from the class hierarchy.
@@ -287,15 +282,8 @@ func (o *ObjectInstance) CallInheritedMethod(methodName string, args []Value, me
 		return newError("class '%s' has no parent class", o.Class.GetName())
 	}
 
-	// Find method in parent (case-insensitive)
-	methodNameLower := ident.Normalize(methodName)
-	methods := parentInfo.GetMethodsMap()
-	if methods == nil {
-		return newError("parent class '%s' has no methods", parentInfo.GetName())
-	}
-
-	method, exists := methods[methodNameLower]
-	if !exists {
+	method := parentInfo.LookupMethod(methodName)
+	if method == nil {
 		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.GetName())
 	}
 
@@ -371,13 +359,8 @@ func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
 		return nil, false
 	}
 
-	methods := o.Class.GetMethodsMap()
-	if methods == nil {
-		return nil, false
-	}
-
-	method, exists := methods[ident.Normalize(methodName)]
-	if !exists {
+	method := o.Class.LookupMethod(methodName)
+	if method == nil {
 		return nil, false // Method not found
 	}
 
@@ -397,13 +380,8 @@ func (o *ObjectInstance) CreateMethodPointer(methodName string,
 		return nil, false
 	}
 
-	methods := o.Class.GetMethodsMap()
-	if methods == nil {
-		return nil, false
-	}
-
-	method, exists := methods[ident.Normalize(methodName)]
-	if !exists {
+	method := o.Class.LookupMethod(methodName)
+	if method == nil {
 		return nil, false // Method not found
 	}
 

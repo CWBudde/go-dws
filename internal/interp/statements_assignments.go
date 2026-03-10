@@ -409,9 +409,8 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 				obj.SetField(target.Value, value)
 				return value
 			}
-			// Fallback: AST-based FieldsMap
-			fields := obj.Class.GetFieldsMap()
-			if fields != nil && fields[target.Value] != nil {
+			// Legacy fallback: non-AST existence check for classes still relying on FieldExists.
+			if obj.Class.FieldExists(target.Value) {
 				obj.SetField(target.Value, value)
 				return value
 			}
@@ -431,7 +430,7 @@ func (i *Interpreter) evalSimpleAssignment(target *ast.Identifier, value Value, 
 				}
 				// Field-backed properties: write field directly
 				if propInfo.WriteKind == types.PropAccessField {
-					if fields != nil && fields[propInfo.WriteSpec] != nil {
+					if obj.Class.FieldExists(propInfo.WriteSpec) {
 						obj.SetField(propInfo.WriteSpec, value)
 						return value
 					}

@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -12,12 +13,12 @@ type mockClassInfo struct {
 }
 
 type mockRecordTypeValue struct {
-	Metadata any
+	Metadata *runtime.RecordMetadata
 	Name     string
 }
 
 // GetMetadata implements the interface expected by LookupRecordMetadata.
-func (m *mockRecordTypeValue) GetMetadata() any {
+func (m *mockRecordTypeValue) GetMetadata() *runtime.RecordMetadata {
 	return m.Metadata
 }
 
@@ -224,7 +225,7 @@ func TestRecordRegistry(t *testing.T) {
 	}
 
 	// Test LookupRecordMetadata
-	mockMetadata := "test-metadata-value"
+	mockMetadata := runtime.NewRecordMetadata("RecordWithMetadata", nil)
 	recordWithMetadata := &mockRecordTypeValue{
 		Name:     "RecordWithMetadata",
 		Metadata: mockMetadata,
@@ -235,13 +236,13 @@ func TestRecordRegistry(t *testing.T) {
 	if retrievedMetadata == nil {
 		t.Error("LookupRecordMetadata returned nil for record with metadata")
 	}
-	if retrievedMetadata.(string) != mockMetadata {
+	if retrievedMetadata != mockMetadata {
 		t.Errorf("LookupRecordMetadata returned %v, want %v", retrievedMetadata, mockMetadata)
 	}
 
 	// Test case-insensitive metadata lookup
 	retrievedMetadata = ts.LookupRecordMetadata("recordwithmetadata")
-	if retrievedMetadata.(string) != mockMetadata {
+	if retrievedMetadata != mockMetadata {
 		t.Error("LookupRecordMetadata failed case-insensitive lookup")
 	}
 

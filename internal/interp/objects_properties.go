@@ -65,8 +65,7 @@ func (i *Interpreter) evalPropertyRead(obj *ObjectInstance, propInfo *types.Prop
 		}
 
 		// 3. Try as an instance field
-		fields := obj.Class.GetFieldsMap()
-		if fields != nil && fields[propInfo.ReadSpec] != nil {
+		if obj.Class.FieldExists(propInfo.ReadSpec) {
 			if propInfo.HasIndexValue {
 				return i.newErrorWithLocation(node, "property '%s' uses an index directive and cannot be field-backed", propInfo.Name)
 			}
@@ -510,8 +509,7 @@ func (i *Interpreter) evalIndexedPropertyRead(obj *ObjectInstance, propInfo *typ
 	switch propInfo.ReadKind {
 	case types.PropAccessField, types.PropAccessMethod:
 		// Check if it's actually a field (not allowed for indexed properties)
-		fields := obj.Class.GetFieldsMap()
-		if fields != nil && fields[propInfo.ReadSpec] != nil {
+		if obj.Class.FieldExists(propInfo.ReadSpec) {
 			return i.newErrorWithLocation(node, "indexed property '%s' requires a getter method, not a field", propInfo.Name)
 		}
 
@@ -597,8 +595,7 @@ func (i *Interpreter) evalIndexedPropertyWrite(obj *ObjectInstance, propInfo *ty
 	switch propInfo.WriteKind {
 	case types.PropAccessField, types.PropAccessMethod:
 		// Check if it's actually a field (not allowed for indexed properties)
-		fields := obj.Class.GetFieldsMap()
-		if fields != nil && fields[propInfo.WriteSpec] != nil {
+		if obj.Class.FieldExists(propInfo.WriteSpec) {
 			return i.newErrorWithLocation(node, "indexed property '%s' requires a setter method, not a field", propInfo.Name)
 		}
 
@@ -675,8 +672,7 @@ func (i *Interpreter) evalPropertyWrite(obj *ObjectInstance, propInfo *types.Pro
 	case types.PropAccessField:
 		// Field or method access - check at runtime which it is
 		// First try as a field
-		fields := obj.Class.GetFieldsMap()
-		if fields != nil && fields[propInfo.WriteSpec] != nil {
+		if obj.Class.FieldExists(propInfo.WriteSpec) {
 			if propInfo.HasIndexValue {
 				return i.newErrorWithLocation(node, "property '%s' uses an index directive and cannot be field-backed", propInfo.Name)
 			}

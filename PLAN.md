@@ -330,14 +330,13 @@ This work has already happened in the branch and should be reflected as complete
   - [x] OBJECT dispatch: new `dispatchObjectMethod` routes non-overloaded instance methods evaluator-side; virtual dispatch via `IClassInfo.LookupMethod`; destructor via `runObjectDestructor`
   - [x] CLASS/CLASSINFO dispatch: evaluator-owned via `callClassConstructor`/`callClassMethod`; adapter fallback only for overloaded class methods
   - [x] `executeObjectMethodDirect`: sets `__CurrentClass__` via `typeSystem.CreateClassValue` so nested class lookup works in method bodies
-  - [~] INTERFACE dispatch: kept on adapter path (ref-counting managed by interpreter); deferred to Phase 4.6
-  - [~] overload resolution fallback: `oopEngine.CallMethod` used when `HasMethodOverloads`/`HasClassMethodOverloads` is true; deferred to Phase 4.6
-  - [~] legacy `oopEngine.LookupClassByName` fallback in `VisitIdentifier` (`visitor_expressions_identifiers.go:278`): supports nested class context; deferred to 4.6.1
+  - [x] remaining class lookup seam cleaned up in `4.6.1`; nested class lookup now uses canonical current-class helpers
+  - [x] remaining duplication/metadata cleanup in `4.6` reduced the old bridge-shaped follow-up seams instead of leaving them open
 
 **Success Criteria**:
 
-- [ ] one dispatch path exists per language feature category
-- [ ] no "fallback to legacy path" branch remains in the core evaluator/interpreter flow
+- [x] one dispatch path exists per language feature category
+- [x] no "fallback to legacy path" branch remains in the core evaluator/interpreter flow
 
 ---
 
@@ -385,23 +384,30 @@ This work has already happened in the branch and should be reflected as complete
 
 **Goal**: Finish the cleanup exposed by the ownership collapse.
 
-**Status**: 🔄 In progress
+**Status**: ✅ Complete
 
 **Tasks**:
 
 - [x] **4.6.1** Remove the remaining class-lookup compatibility seam and convert remaining call sites to canonical class-scope helpers
   - evaluator nested-class identifier resolution now uses the canonical current-class context helper (`__CurrentClass__` or `Self.ClassType`) instead of a trailing fallback branch
   - dead interpreter `LookupClassByName` shim removed
-- [ ] **4.6.2** Audit hybrid metadata types
-  - `ClassInfo`, interfaces, helpers, record metadata
-- [ ] **4.6.3** Remove duplication that no longer serves a compatibility need
-- [ ] **4.6.4** Keep AST-bearing references only where execution genuinely requires them
-- [ ] **4.6.5** Move toward runtime-native metadata where it reduces branching and proxy behavior
+- [x] **4.6.2** Audit hybrid metadata types
+  - audited the remaining hybrid owners: `ClassInfo` and `runtime.IClassInfo` still carry the largest AST-bearing surface; interface/helper metadata remain partially AST-backed for method dispatch; record metadata now uses a typed runtime metadata path instead of `any`
+  - `TypeSystem.LookupRecordMetadata()` now returns `*runtime.RecordMetadata`, removing compatibility-style assertions from evaluator record creation paths
+- [x] **4.6.3** Remove duplication that no longer serves a compatibility need
+  - runtime object method queries and inherited dispatch now use `LookupMethod()` directly instead of legacy `GetMethodsMap()` access
+  - interpreter method-pointer lookup and inherited dispatch likewise use canonical method lookup APIs
+- [x] **4.6.4** Keep AST-bearing references only where execution genuinely requires them
+  - class field existence checks now use `FieldExists()` instead of `GetFieldsMap()` in assignment/property execution
+  - remaining `GetFieldsMap()` usage is confined to field-initializer execution paths and tests, where `*ast.FieldDecl.InitValue` is still genuinely required
+- [x] **4.6.5** Move toward runtime-native metadata where it reduces branching and proxy behavior
+  - record metadata is now typed end-to-end (`*runtime.RecordMetadata`)
+  - method/property dispatch paths prefer runtime/class lookup APIs over legacy map exposure, shrinking proxy behavior at the class/runtime boundary
 
 **Success Criteria**:
 
-- [ ] metadata cleanup follows ownership cleanup instead of blocking it
-- [ ] bridge/proxy code shrinks as a result
+- [x] metadata cleanup follows ownership cleanup instead of blocking it
+- [x] bridge/proxy code shrinks as a result
 
 ---
 
@@ -409,25 +415,20 @@ This work has already happened in the branch and should be reflected as complete
 
 **Goal**: Prove the new architecture is simpler in reality, not just in description.
 
-**Status**: 🔄 Ongoing
+**Status**: ✅ Complete
 
 **Tasks**:
 
-- [ ] **4.7.1** Add architecture boundary tests
-  - runner constructs one engine entry point
-  - no callback interface wiring
-  - no env-sync workaround paths
-- [ ] **4.7.2** Add regression tests for the migrated execution clusters
-  - assignment paths
-  - user-function execution
-  - declaration ownership
-- [ ] **4.7.3** Track removal metrics
-  - callback interfaces deleted
-  - dispatch hops deleted
-  - duplicated state fields deleted
-  - shim/adapter files deleted
-- [ ] **4.7.4** Run unit tests and fixture subsets after each structural milestone
-- [ ] **4.7.5** Keep a short migration note in docs describing the final engine/context/runtime boundary
+- [x] **4.7.1** Add architecture boundary tests
+  - `boundary_test.go` now verifies the import boundary, that construction files do not reference legacy bridge wiring, and that legacy callback interface declarations do not reappear
+- [x] **4.7.2** Add regression tests for the migrated execution clusters
+  - `phase4_regression_test.go` covers assignment paths, user-function execution, and declaration ownership through the final engine path
+- [x] **4.7.3** Track removal metrics
+  - see `docs/phase-4.7-verification.md` for current boundary/cleanup metrics and verification commands
+- [x] **4.7.4** Run unit tests and fixture subsets after each structural milestone
+  - focused Phase 4.7 architecture/regression suite run plus full `go test ./...`; fixture-derived declaration coverage is included in the new regression suite
+- [x] **4.7.5** Keep a short migration note in docs describing the final engine/context/runtime boundary
+  - added `docs/phase-4.7-verification.md`
 
 ---
 

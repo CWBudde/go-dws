@@ -466,11 +466,8 @@ func (i *Interpreter) CallInheritedMethod(obj Value, methodName string, args []V
 
 	parentInfo := classInfo.GetParent()
 
-	// Find method in parent (case-insensitive)
-	methodNameLower := ident.Normalize(methodName)
-	methods := parentInfo.GetMethodsMap()
-	method, exists := methods[methodNameLower]
-	if !exists {
+	method := parentInfo.LookupMethod(methodName)
+	if method == nil {
 		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.GetName())
 	}
 

@@ -34,7 +34,7 @@ func (r *RecordTypeValue) String() string {
 
 func (r *RecordTypeValue) GetRecordType() *types.RecordType { return r.RecordType }
 
-func (r *RecordTypeValue) GetMetadata() any { return r.Metadata }
+func (r *RecordTypeValue) GetMetadata() *RecordMetadata { return r.Metadata }
 
 func (r *RecordTypeValue) GetFieldDecls() map[string]*ast.FieldDecl { return r.FieldDecls }
 

@@ -292,7 +292,7 @@ func (e *Evaluator) getDefaultValueForTypeName(typeName string) Value {
 		// Type-assert to access RecordType and Metadata
 		type recordTypeAccess interface {
 			GetRecordType() *types.RecordType
-			GetMetadata() any
+			GetMetadata() *runtime.RecordMetadata
 		}
 
 		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
@@ -305,13 +305,7 @@ func (e *Evaluator) getDefaultValueForTypeName(typeName string) Value {
 			return &runtime.NilValue{}
 		}
 
-		// Extract Metadata (may be nil)
-		var metadata *runtime.RecordMetadata
-		if mdAny := recordTypeAccessor.GetMetadata(); mdAny != nil {
-			if md, ok := mdAny.(*runtime.RecordMetadata); ok {
-				metadata = md
-			}
-		}
+		metadata := recordTypeAccessor.GetMetadata()
 
 		// Create record with zero-initialized fields (no field initializers for conversion functions)
 		initializer := func(fieldName string, fieldType types.Type) runtime.Value {

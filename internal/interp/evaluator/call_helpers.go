@@ -80,7 +80,7 @@ func (e *Evaluator) executeLambdaDirect(
 	}
 
 	if lambda.ReturnType != nil || lambda.IsShorthand {
-		var resultValue Value = e.nilValue()
+		var resultValue = e.nilValue()
 		if lambda.ReturnType != nil {
 			returnType, err := e.ResolveTypeFromAnnotation(lambda.ReturnType)
 			if err != nil {
