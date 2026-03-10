@@ -5,6 +5,8 @@ import (
 
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/semantic"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -260,22 +262,148 @@ func (e *Evaluator) dispatchInterfaceMethodDirect(intfInst *runtime.InterfaceIns
 	return e.newError(node, "method '%s' not found in class '%s'", methodName, classInfo.GetName())
 }
 
+// runtimeValueType converts a runtime Value to a types.Type for overload resolution.
+func (e *Evaluator) runtimeValueType(val Value) types.Type {
+	switch v := val.(type) {
+	case *runtime.IntegerValue:
+		return types.INTEGER
+	case *runtime.FloatValue:
+		return types.FLOAT
+	case *runtime.StringValue:
+		return types.STRING
+	case *runtime.BooleanValue:
+		return types.BOOLEAN
+	case *runtime.NilValue:
+		return types.NIL
+	case *runtime.VariantValue:
+		return types.VARIANT
+	case *runtime.EnumValue:
+		return types.INTEGER // Enums are ordinal / integer-compatible
+	case *runtime.ArrayValue:
+		if v.ArrayType != nil {
+			return v.ArrayType
+		}
+		return types.NIL
+	case *runtime.ObjectInstance:
+		if v.Class != nil && e.typeSystem != nil {
+			// Try to find the class type in the type system
+			if classInfoAny := e.typeSystem.LookupClass(v.Class.GetName()); classInfoAny != nil {
+				if ct, ok := classInfoAny.(types.Type); ok {
+					return ct
+				}
+			}
+			// Return a simple class type by name
+			return types.NewClassType(v.Class.GetName(), nil)
+		}
+		return types.NIL
+	case *runtime.RecordValue:
+		if v.RecordType != nil {
+			return v.RecordType
+		}
+		return types.NIL
+	default:
+		return types.NIL
+	}
+}
+
+// extractMethodType extracts a types.FunctionType from an *ast.FunctionDecl.
+// Returns nil if the type cannot be determined.
+func (e *Evaluator) extractMethodType(method *ast.FunctionDecl) *types.FunctionType {
+	ctx := e.currentContext
+	paramTypes := make([]types.Type, len(method.Parameters))
+	paramNames := make([]string, len(method.Parameters))
+	lazyParams := make([]bool, len(method.Parameters))
+	varParams := make([]bool, len(method.Parameters))
+	constParams := make([]bool, len(method.Parameters))
+	defaultValues := make([]interface{}, len(method.Parameters))
+
+	for idx, param := range method.Parameters {
+		if param.Type == nil {
+			return nil
+		}
+		pt, err := e.resolveTypeName(param.Type.String(), ctx)
+		if err != nil {
+			return nil
+		}
+		paramTypes[idx] = pt
+		paramNames[idx] = param.Name.Value
+		lazyParams[idx] = param.IsLazy
+		varParams[idx] = param.ByRef
+		constParams[idx] = param.IsConst
+		defaultValues[idx] = param.DefaultValue
+	}
+
+	var returnType types.Type = types.VOID
+	if method.ReturnType != nil {
+		rt, err := e.resolveTypeName(method.ReturnType.String(), ctx)
+		if err == nil {
+			returnType = rt
+		}
+	}
+
+	return types.NewFunctionTypeWithMetadata(
+		paramTypes, paramNames, defaultValues,
+		lazyParams, varParams, constParams,
+		returnType,
+	)
+}
+
 // selectOverload picks the best matching overload for the given arguments.
-// Uses arg-count matching (fast path). Returns an error if no match found.
+// Uses semantic overload resolution with type-based matching, falling back to arg-count.
 func (e *Evaluator) selectOverload(className, methodName string, overloads []*ast.FunctionDecl, args []Value) (*ast.FunctionDecl, error) {
 	if len(overloads) == 1 {
 		return overloads[0], nil
 	}
-	// Try exact arg-count match first
+
+	// Build argument types
+	argTypes := make([]types.Type, len(args))
+	for i, arg := range args {
+		argTypes[i] = e.runtimeValueType(arg)
+	}
+
+	// Build candidates for semantic resolution
+	candidates := make([]*semantic.Symbol, 0, len(overloads))
+	candidateDecls := make([]*ast.FunctionDecl, 0, len(overloads))
+	for _, method := range overloads {
+		methodType := e.extractMethodType(method)
+		if methodType == nil {
+			continue
+		}
+		candidates = append(candidates, &semantic.Symbol{
+			Name:                 method.Name.Value,
+			Type:                 methodType,
+			HasOverloadDirective: method.IsOverload,
+		})
+		candidateDecls = append(candidateDecls, method)
+	}
+
+	if len(candidates) > 0 {
+		selected, err := semantic.ResolveOverload(candidates, argTypes)
+		if err == nil {
+			selectedType, ok := selected.Type.(*types.FunctionType)
+			if ok {
+				for i, candidate := range candidates {
+					if ct, ok := candidate.Type.(*types.FunctionType); ok {
+						if semantic.SignaturesEqual(ct, selectedType) &&
+							ct.ReturnType.Equals(selectedType.ReturnType) {
+							return candidateDecls[i], nil
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Fall back to arg-count match
 	for _, candidate := range overloads {
 		if len(candidate.Parameters) == len(args) {
 			return candidate, nil
 		}
 	}
-	// Check if any overload accepts default parameters that cover the given count
+
+	// Check with default parameters
 	for _, candidate := range overloads {
 		if len(args) <= len(candidate.Parameters) {
-			// Count required params
 			required := 0
 			for _, p := range candidate.Parameters {
 				if p.DefaultValue == nil {
@@ -287,7 +415,8 @@ func (e *Evaluator) selectOverload(className, methodName string, overloads []*as
 			}
 		}
 	}
-	// Fall back to first overload
+
+	// Last resort: return first overload
 	return overloads[0], nil
 }
 
@@ -313,44 +442,148 @@ func (e *Evaluator) dispatchClassMethodOverloaded(classMeta ClassMetaValue, clas
 // Operator Overloading
 // ============================================================================
 
+// operatorTypeKey converts a runtime value to the normalized type key used in
+// the operator registry. Must match the key format produced by the interp package's
+// valueTypeKey() function and NormalizeTypeAnnotation().
+func operatorTypeKey(val Value) string {
+	if val == nil {
+		return "nil"
+	}
+	switch v := val.(type) {
+	case *runtime.ObjectInstance:
+		if v.Class != nil {
+			return "class:" + ident.Normalize(v.Class.GetName())
+		}
+		return "class:"
+	case *runtime.RecordValue:
+		// Records use "class:<name>" format to match interp package's valueTypeKey()
+		if v.RecordType != nil && v.RecordType.Name != "" {
+			return "class:" + ident.Normalize(v.RecordType.Name)
+		}
+		return "record"
+	case *runtime.ArrayValue:
+		if v.ArrayType != nil && v.ArrayType.ElementType != nil {
+			return "array of " + ident.Normalize(v.ArrayType.ElementType.String())
+		}
+		return "array"
+	default:
+		// Normalize: "STRING" -> "string", "INTEGER" -> "integer", etc.
+		return ident.Normalize(val.Type())
+	}
+}
+
 // evalTryBinaryOperator attempts to find and invoke a binary operator overload.
 // Self-contained: replaces e.oopEngine.TryBinaryOperator.
 func (e *Evaluator) evalTryBinaryOperator(operator string, left, right Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
-	operandTypes := []string{left.Type(), right.Type()}
+	if e.typeSystem == nil {
+		return nil, false
+	}
 	operands := []Value{left, right}
 
-	// Check left operand's class operators
+	// Check left operand's class operators (with inheritance fallback)
 	if obj, ok := left.(*runtime.ObjectInstance); ok {
-		if entry, found := obj.Class.LookupOperator(operator, operandTypes); found {
-			return e.invokeRuntimeOperatorEntry(entry, operands, node, ctx), true
+		if result, found := e.lookupClassOperator(operator, obj.Class, operands, node, ctx); found {
+			return result, true
 		}
 	}
-	// Check right operand's class operators
+	// Check right operand's class operators (with inheritance fallback)
 	if obj, ok := right.(*runtime.ObjectInstance); ok {
-		if entry, found := obj.Class.LookupOperator(operator, operandTypes); found {
-			return e.invokeRuntimeOperatorEntry(entry, operands, node, ctx), true
+		if result, found := e.lookupClassOperator(operator, obj.Class, operands, node, ctx); found {
+			return result, true
 		}
 	}
-	// Check global operator registry
-	if entry, found := e.typeSystem.Operators().Lookup(operator, operandTypes); found {
-		return e.invokeGlobalOperatorEntry(entry, operands, node, ctx), true
+	// Check global operator registry (with inheritance-compatible type keys)
+	if result, found := e.lookupGlobalOperator(operator, operands, node, ctx); found {
+		return result, true
 	}
 	return nil, false
+}
+
+// lookupClassOperator looks up an operator in the class hierarchy, trying parent type keys.
+func (e *Evaluator) lookupClassOperator(operator string, classInfo runtime.IClassInfo, operands []Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+	if classInfo == nil {
+		return nil, false
+	}
+	// Try with actual types first, then walk up both operand class hierarchies
+	// Build the type key combinations to try
+	leftTypeKeys := classTypeKeyChain(operands[0])
+	rightTypeKeys := classTypeKeyChain(operands[1])
+
+	// Try all combinations of type keys (actual types first, then parent types)
+	for _, leftKey := range leftTypeKeys {
+		for _, rightKey := range rightTypeKeys {
+			operandTypes := []string{leftKey, rightKey}
+			// Check in the class and its ancestors
+			for current := classInfo; current != nil; current = current.GetParent() {
+				if entry, found := current.LookupOperator(operator, operandTypes); found {
+					return e.invokeRuntimeOperatorEntry(entry, operands, node, ctx), true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
+// lookupGlobalOperator looks up a global operator with inheritance-compatible type keys.
+func (e *Evaluator) lookupGlobalOperator(operator string, operands []Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+	if ops := e.typeSystem.Operators(); ops != nil {
+		leftTypeKeys := classTypeKeyChain(operands[0])
+		rightTypeKeys := classTypeKeyChain(operands[1])
+
+		for _, leftKey := range leftTypeKeys {
+			for _, rightKey := range rightTypeKeys {
+				operandTypes := []string{leftKey, rightKey}
+				if entry, found := ops.Lookup(operator, operandTypes); found {
+					return e.invokeGlobalOperatorEntry(entry, operands, node, ctx), true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
+// classTypeKeyChain returns the normalized type key for a value, plus parent class keys.
+// For objects: ["class:tchild", "class:tparent", ...up to root]
+// For other types: just [normalizedKey]
+func classTypeKeyChain(val Value) []string {
+	if obj, ok := val.(*runtime.ObjectInstance); ok && obj.Class != nil {
+		var keys []string
+		for current := obj.Class; current != nil; current = current.GetParent() {
+			keys = append(keys, "class:"+ident.Normalize(current.GetName()))
+		}
+		return keys
+	}
+	return []string{operatorTypeKey(val)}
 }
 
 // evalTryUnaryOperator attempts to find and invoke a unary operator overload.
 // Self-contained: replaces e.oopEngine.TryUnaryOperator.
 func (e *Evaluator) evalTryUnaryOperator(operator string, operand Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
-	operandTypes := []string{operand.Type()}
-	operands := []Value{operand}
+	if e.typeSystem == nil {
+		return nil, false
+	}
 
+	// For object operands, try class-level operator with inheritance
 	if obj, ok := operand.(*runtime.ObjectInstance); ok {
-		if entry, found := obj.Class.LookupOperator(operator, operandTypes); found {
-			return e.invokeRuntimeOperatorEntry(entry, operands, node, ctx), true
+		typeKeys := classTypeKeyChain(operand)
+		operands := []Value{operand}
+		for _, typeKey := range typeKeys {
+			operandTypes := []string{typeKey}
+			for current := obj.Class; current != nil; current = current.GetParent() {
+				if entry, found := current.LookupOperator(operator, operandTypes); found {
+					return e.invokeRuntimeOperatorEntry(entry, operands, node, ctx), true
+				}
+			}
 		}
 	}
-	if entry, found := e.typeSystem.Operators().Lookup(operator, operandTypes); found {
-		return e.invokeGlobalOperatorEntry(entry, operands, node, ctx), true
+
+	// Check global operator registry
+	operandTypes := []string{operatorTypeKey(operand)}
+	operands := []Value{operand}
+	if ops := e.typeSystem.Operators(); ops != nil {
+		if entry, found := ops.Lookup(operator, operandTypes); found {
+			return e.invokeGlobalOperatorEntry(entry, operands, node, ctx), true
+		}
 	}
 	return nil, false
 }
@@ -397,7 +630,13 @@ func (e *Evaluator) invokeRuntimeOperatorEntry(entry *runtime.OperatorEntry, ope
 		if method == nil {
 			return e.newError(node, "operator method '%s' not found", entry.BindingName)
 		}
-		return e.executeObjectMethodDirect(obj, method, args, node, ctx)
+		result := e.executeObjectMethodDirect(obj, method, args, node, ctx)
+		// For procedures (no return type), return self so compound assignment
+		// like 't += x' doesn't overwrite t with nil.
+		if method.ReturnType == nil {
+			return selfVal
+		}
+		return result
 	}
 
 	// Global operator — no class
@@ -411,6 +650,9 @@ func (e *Evaluator) invokeGlobalOperatorEntry(entry *interptypes.OperatorEntry, 
 
 // invokeGlobalOperatorByBindingName invokes a global function by its binding name.
 func (e *Evaluator) invokeGlobalOperatorByBindingName(bindingName string, operands []Value, node ast.Node, ctx *ExecutionContext) Value {
+	if e.typeSystem == nil {
+		return e.newError(node, "type system not initialized")
+	}
 	normalizedName := ident.Normalize(bindingName)
 	overloads := e.typeSystem.LookupFunctions(normalizedName)
 	if len(overloads) == 0 {

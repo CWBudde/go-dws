@@ -345,7 +345,7 @@ This work has already happened in the branch and should be reflected as complete
 
 **Goal**: Delete the callback interfaces once the surviving execution paths no longer need them.
 
-**Status**: 🔄 In progress (4.5.1, 4.5.3 done; 4.5.2 is the main remaining task)
+**Status**: 🔄 Nearly complete (4.5.1–4.5.4 done; 4.5.5–4.5.6 cleanup remaining)
 
 **Current callback surfaces to remove**:
 
@@ -358,8 +358,12 @@ This work has already happened in the branch and should be reflected as complete
 
 - [x] **4.5.1** Delete `CoreEvaluator`
   - interface deleted from contracts.go; `coreEvaluator` field removed from Evaluator; `SetRuntimeBridge` simplified to 1 parameter
-- [ ] **4.5.2** Delete `OOPEngine`
-  - move method dispatch, constructor dispatch, property execution, function pointer execution, operator dispatch, and cast wrapping under direct ownership
+- [x] **4.5.2** Delete `OOPEngine`
+  - `OOPEngine` interface deleted from contracts.go and focused_interfaces.go; `oopEngine` field and `SetRuntimeBridge` removed from Evaluator
+  - New evaluator-owned implementations in `runtime_ops.go`: `wrapInSubrange`, `wrapInInterface`, `createTypeCastValue`, `executeConstructorForObject`, `dispatchObjectMethodOverloaded`, `dispatchInterfaceMethodDirect`, `dispatchClassMethodOverloaded`, `evalTryBinaryOperator`, `evalTryUnaryOperator`
+  - `IClassInfo` extended with `GetMethodOverloads`, `GetClassMethodOverloads`, `GetConstructorOverloads`
+  - `ExternalFunctionCaller` callback wired via `EngineState` to break circular dependency
+  - All 15 `e.oopEngine.XXX()` call sites replaced with evaluator-owned code
 - [x] **4.5.3** Delete `DeclHandler`
   - interface deleted from contracts.go; `SetFocusedInterfaces` simplified to 1 parameter (OOPEngine only); `panicDeclHandler` test removed
 - [x] **4.5.4** Delete `SetFocusedInterfaces()` and all runtime uses
@@ -369,9 +373,9 @@ This work has already happened in the branch and should be reflected as complete
 
 **Success Criteria**:
 
-- [ ] zero internal callback interfaces remain
-- [ ] no runtime code depends on callback injection to reach core semantics
-- [ ] no tests require mock adapters for the final architecture boundary
+- [x] zero internal callback interfaces remain (CoreEvaluator, DeclHandler, OOPEngine all deleted)
+- [x] no runtime code depends on callback injection to reach core semantics
+- [ ] no tests require mock adapters for the final architecture boundary (4.5.5)
 
 ---
 

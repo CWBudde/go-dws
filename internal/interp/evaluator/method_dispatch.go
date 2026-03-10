@@ -399,7 +399,7 @@ func (e *Evaluator) dispatchHelperMethod(obj Value, methodName string, args []Va
 //  2. Free/destructor alias
 //  3. Method lookup via class hierarchy (virtual dispatch via most-derived-first search)
 //  4. Explicit destructor call (IsDestructor flag)
-//  5. Argument-count check — falls back to oopEngine for overload resolution
+//  5. Overload check — delegates to evaluator-owned overload resolver
 //  6. Class method (static) lookup
 //  7. Helper method fallback
 func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {

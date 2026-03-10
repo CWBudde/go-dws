@@ -50,18 +50,6 @@ func TestMemberAssignment_ErrorCases(t *testing.T) {
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
-	// Create mock adapter
-	mockAdapter := &mockConversionAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			// Check if it's the specific fallback case we want to catch
-			if _, ok := node.(*ast.AssignmentStatement); ok {
-				return e.newError(node, "fallback adapter called")
-			}
-			return &runtime.NilValue{}
-		},
-	}
-	e.SetRuntimeBridge(mockAdapter)
-
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
 	t.Run("assignment to unsupported type", func(t *testing.T) {
@@ -124,15 +112,6 @@ func TestMemberAssignment_AutoInit(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-
-	// Adapter shouldn't be called for native auto-init
-	mockAdapter := &mockConversionAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			t.Fatal("EvalNode should not be called for auto-initialization")
-			return nil
-		},
-	}
-	e.SetRuntimeBridge(mockAdapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 

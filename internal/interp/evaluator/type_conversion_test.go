@@ -84,16 +84,6 @@ func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
-	// Create a mock adapter that simulates function execution
-	mockAdapter := &mockConversionAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			// Simulate setting Result in the function body
-			// This would normally be done by the function body itself
-			return &runtime.NilValue{}
-		},
-	}
-	e.SetRuntimeBridge(mockAdapter)
-
 	// Create execution context with a proper environment
 	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
@@ -163,14 +153,6 @@ func TestConversionCallbacks_NilHandling(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-
-	// Set up a mock adapter
-	mockAdapter := &mockConversionAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			return &runtime.NilValue{}
-		},
-	}
-	e.SetRuntimeBridge(mockAdapter)
 
 	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)

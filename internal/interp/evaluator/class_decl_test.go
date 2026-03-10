@@ -109,7 +109,6 @@ func TestVisitClassDecl_UsesTypeSystemFactoryInsteadOfDeclHandler(t *testing.T) 
 
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-	e.SetRuntimeBridge(nil)
 
 	ctx := runtime.NewExecutionContext(runtime.NewEnvironment())
 	node := &ast.ClassDecl{

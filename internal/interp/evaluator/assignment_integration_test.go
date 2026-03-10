@@ -48,34 +48,6 @@ func TestAssignmentIntegration(t *testing.T) {
 		refCountMgr := runtime.NewRefCountManager()
 		e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
-		// Mock adapter that fails if EvalNode is called on AssignmentStatement
-		// This ensures we've eliminated all circular callbacks
-		failOnEvalNodeAdapter := &mockIntegrationAdapter{
-			evalNodeFunc: func(node ast.Node) Value {
-				if _, ok := node.(*ast.AssignmentStatement); ok {
-					t.Fatalf("FAIL: adapter.EvalNode() called on AssignmentStatement - circular callback detected!")
-				}
-				// Allow other node types for complex operations
-				return &runtime.NilValue{}
-			},
-			executeMethodWithSelfFunc: func(self Value, methodDecl any, args []Value) Value {
-				// Mock property setter execution
-				return &runtime.NilValue{}
-			},
-			tryBinaryOperatorFunc: func(operator string, left, right Value, node ast.Node) (Value, bool) {
-				// Mock operator overload - just return sum for testing
-				if operator == "+" {
-					if lInt, ok := left.(*runtime.IntegerValue); ok {
-						if rInt, ok := right.(*runtime.IntegerValue); ok {
-							return &runtime.IntegerValue{Value: lInt.Value + rInt.Value}, true
-						}
-					}
-				}
-				return nil, false
-			},
-		}
-		e.SetRuntimeBridge(failOnEvalNodeAdapter)
-
 		ctx := NewExecutionContext(runtime.NewEnvironment())
 
 		// Static class variable assignment
@@ -270,24 +242,6 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
-	evalNodeCallCount := 0
-	strictAdapter := &mockIntegrationAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			evalNodeCallCount++
-			if _, ok := node.(*ast.AssignmentStatement); ok {
-				t.Errorf("adapter.EvalNode() called %d times on AssignmentStatement", evalNodeCallCount)
-			}
-			return &runtime.NilValue{}
-		},
-		executeMethodWithSelfFunc: func(self Value, methodDecl any, args []Value) Value {
-			return &runtime.NilValue{}
-		},
-		tryBinaryOperatorFunc: func(operator string, left, right Value, node ast.Node) (Value, bool) {
-			return nil, false
-		},
-	}
-	e.SetRuntimeBridge(strictAdapter)
-
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
 	tests := []struct {
@@ -333,9 +287,6 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Reset counter
-			evalNodeCallCount = 0
-
 			// Define variable if needed
 			e.DefineVar(ctx, "x", &runtime.IntegerValue{Value: 0})
 			e.DefineVar(ctx, "rec", runtime.NewRecordValue(&types.RecordType{
@@ -361,8 +312,6 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 		})
 	}
 
-	// Final verification: evalNodeCallCount should be 0 for AssignmentStatement nodes
-	t.Logf("Total adapter.EvalNode() calls: %d (should be 0 for AssignmentStatement)", evalNodeCallCount)
 }
 
 // TestAssignment_RegressionSuite runs a suite of regression tests to ensure
@@ -373,32 +322,6 @@ func TestAssignment_RegressionSuite(t *testing.T) {
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
 	// Minimal adapter for testing
-	adapter := &mockIntegrationAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			return &runtime.NilValue{}
-		},
-		executeMethodWithSelfFunc: func(self Value, methodDecl any, args []Value) Value {
-			return &runtime.NilValue{}
-		},
-		tryBinaryOperatorFunc: func(operator string, left, right Value, node ast.Node) (Value, bool) {
-			// Simple arithmetic for testing
-			if lInt, ok := left.(*runtime.IntegerValue); ok {
-				if rInt, ok := right.(*runtime.IntegerValue); ok {
-					switch operator {
-					case "+":
-						return &runtime.IntegerValue{Value: lInt.Value + rInt.Value}, true
-					case "-":
-						return &runtime.IntegerValue{Value: lInt.Value - rInt.Value}, true
-					case "*":
-						return &runtime.IntegerValue{Value: lInt.Value * rInt.Value}, true
-					}
-				}
-			}
-			return nil, false
-		},
-	}
-	e.SetRuntimeBridge(adapter)
-
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
 	t.Run("simple variable assignment", func(t *testing.T) {
