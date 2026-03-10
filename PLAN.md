@@ -47,74 +47,119 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
-## Phase 4: Remove Indirection (Callbacks/Adapters)
+## Phase 4: Collapse To A Single Execution Engine
 
-**Status**: 📋 Planned | **Priority**: Medium | **Estimated**: 2-4 weeks (incremental)
+**Status**: 📋 Planned | **Priority**: High | **Estimated**: 3-5 weeks (incremental)
 
-### Why This Phase Exists (and what it is NOT)
+### Why This Phase Exists
 
-We explicitly defer **decomposition theater** (splitting into many handler objects just to reduce method counts).
-That pattern tends to repeat endlessly:
+The core problem is no longer "too many methods." The problem is **split ownership**.
+
+Right now the runtime still behaves like it has two execution cores:
+
+```text
+runner wires:
+  Interpreter + Evaluator
+
+execution does:
+  Evaluator → callback interface → Interpreter → Evaluator
+```
+
+That split causes the same complexity to reappear under different names:
 
 ```text
 Interpreter → "too big"
 Evaluator   → "too big"
 Handlers    → "too big"
+Adapters    → "too big"
 ```
 
-**This Phase is not about aesthetics.** It is about deleting *real* complexity:
+This phase changes the architecture, not just the packaging:
 
-- Removing bidirectional callback cycles (Evaluator → Interpreter → Evaluator)
-- Deleting adapter indirection (`adapter_*.go`) and focused-interface plumbing
-- Establishing a single execution entry point (one dispatch path)
+- One execution engine owns runtime semantics
+- `ExecutionContext` owns per-run execution state
+- `runtime` owns values and metadata containers
+- Internal callback interfaces are deleted, not replaced with new wrappers
 
-This work is allowed even when fixture conformance is the top priority, because it directly improves:
+### Architectural Decision
 
-- Debuggability (fewer “ping-pong” call stacks)
-- Correctness (fewer state handoffs)
-- Performance (fewer interface calls and round-trips)
+**Target architecture**:
+
+- **Single execution engine**: one concrete owner for evaluation, dispatch, declarations, function execution, and runtime orchestration
+- **No internal callback interfaces**: delete `CoreEvaluator`, `OOPEngine`, `DeclHandler`, and `SetFocusedInterfaces()`
+- **Single state owner**: `ExecutionContext` is the canonical owner of env stack, control flow, exceptions, call stack, and transient evaluation context
+- **File decomposition only**: complexity may be split across files, but not across mutually-calling runtime peers
+
+**Non-goals**:
+
+- Splitting the current logic into more handlers "for cleanliness"
+- Replacing callback interfaces with new service objects that preserve the same round-trip
+- Perfect metadata cleanup before ownership is fixed
+
+### Chosen Shape
+
+To avoid going in circles, the codebase should converge on this shape:
+
+```text
+Runner → Engine.Eval(node, ctx)
+                 ↓
+        direct methods / direct helpers
+                 ↓
+        runtime values + metadata + type system
+```
+
+Not this:
+
+```text
+Runner → Interpreter ↔ Evaluator ↔ Handler/Adapter ↔ Interpreter
+```
 
 ### Guardrails (Anti-Theatre Rules)
 
 Every PR in Phase 4 must satisfy at least one of these measurable outcomes:
 
 - Deletes a callback interface or reduces its method surface
-- Deletes an `adapter_*.go` file or removes significant logic from it
-- Deletes a dispatch hop (e.g., Interpreter switch case → Evaluator switch case)
+- Deletes a dispatch hop
 - Removes duplicated runtime state ownership
+- Removes a constructor/wiring path that creates two runtime peers
+- Converts callback-driven logic into direct engine ownership
 
-If a change only moves methods between types/files without deleting indirection, it is out of scope.
+If a change only renames, moves, or re-groups methods without removing indirection or ownership splits, it is out of scope.
 
 ### Success Criteria (Phase-Level)
 
-- ✅ Single dispatch point for evaluation (Interpreter delegates; no 59-case Eval switch)
-- ✅ No callback calls from Evaluator back into Interpreter for core execution
-- ✅ Focused interfaces + `SetFocusedInterfaces()` removed
-- ✅ `adapter_*.go` indirection removed (or reduced to thin shims only, temporarily)
+- ✅ Exactly one execution engine remains in the interpreter runtime
+- ✅ `ExecutionContext` is the only owner of per-run execution state
+- ✅ `CoreEvaluator`, `OOPEngine`, `DeclHandler`, and `SetFocusedInterfaces()` are deleted
+- ✅ No evaluator → interpreter or interpreter → evaluator callback path remains
+- ✅ `runner` constructs one engine, not two peers plus glue
 
 ### 4.0 Stabilization Prerequisites (Make Tests Green Again)
 
-**Goal**: Restore clean baseline (0 failing tests) before Task 4.1 migrations.
+**Goal**: Restore a clean baseline before structural work continues.
 
-**Why**: Recent migrations exposed independent correctness gaps; continuing while unstable causes regressions.
+**Why**: Architecture work on top of a moving red baseline creates false regressions and encourages workaround-driven design.
 
 **Rules**:
-- No new Task 4.1 work until complete.
-- Fix one cluster at a time with repro tests.
-- Prefer surgical reverts over forward migration.
+
+- No new structural migration while baseline correctness is unclear
+- Fix one failure cluster at a time with repro tests
+- Prefer surgical fixes or temporary rollback over layering on more indirection
 
 **Failure Clusters**:
-- Class/static identifier resolution (e.g., undefined variable: TCounter)
+
+- Class/static identifier resolution (e.g. undefined variable: `TCounter`)
 - Record literal type context
 - Indexed/default properties & metadata
 - Runtime instantiation/nil semantics
 
 **Tasks**:
+
 - [x] **4.0.1** Establish failing-test baseline
 - [x] **4.0.2** Fix class/static identifier resolution
 - [x] **4.0.3** Fix record literal type-context propagation
 - [x] **4.0.4** Fix indexed/default property metadata + dispatch
-- [x] **4.0.5** Fix indexed property WriteKind determination
+- [x] **4.0.5** Fix indexed property `WriteKind` determination
 - [x] **4.0.6** Fix record value semantics (copying bug)
 - [x] **4.0.7** Fix "Object not instantiated" in implicit conversions
 - [x] **4.0.8** Fix precondition/contract handling
@@ -125,339 +170,263 @@ If a change only moves methods between types/files without deleting indirection,
 - [x] **4.0.13** Fix record literal error handling
 - [x] **4.0.14** Fix record function return type initialization
 - [x] **4.0.15** Fix compound assignment operators on classes
-- [x] **4.0.16** Fix conversion chain value propagation (IN PROGRESS)
-- [x] **4.0.17** Fix implicit conversion return value handling (IN PROGRESS)
+- [x] **4.0.16** Fix conversion chain value propagation
+- [x] **4.0.17** Fix implicit conversion return value handling
 
 **Exit Criteria**:
+
 - `go test ./...` green
 - No new fixture failures
 
 ---
 
-### 4.1 Unify Eval() Dispatch (Single Entry Point)
+### 4.1 Make State Ownership Real First
 
-**Goal**: Eliminate evaluator callbacks to interpreter by removing focused interface dependencies.
+**Goal**: Remove the root cause of the callback churn: duplicated ownership of execution state.
 
-**Status**: 🟢 In Progress (11/30 callbacks removed)
+**Why First**:
 
-**Current Flow**:
-
-```text
-User → Interpreter.Eval() → Evaluator.Eval() [60 cases]
-    34 cases → coreEvaluator.EvalNode() → Interpreter.evalLegacy() [55 cases]
-```
-
-**Target Flow**:
+The current environment-sync workaround proved the real problem:
 
 ```text
-User → Interpreter.Eval() → Evaluator.Eval() [60 cases, all direct]
+Evaluator pushes scope in ctx
+Interpreter executes fallback using its own state
+Sync bug appears
 ```
 
-**Progress**:
+This is not a "loop migration" bug. It is a split-engine bug.
 
-- ✅ Thin Interpreter.Eval() delegation (done)
-- ✅ Control flow statements migrated (Break/Continue/Exit/Return) - 4 callbacks removed
-- ✅ Empirical testing with selfContainedMode identified blockers
-- ❌ 30 callbacks remaining (categorized below)
+**Principle**:
 
-**Remaining Callback Dependencies** (from selfContainedMode experiment):
-
-| Category | Cases | Blocking Interface | Effort |
-|----------|-------|-------------------|--------|
-| builtins.Context casts | 7 | Type assertion bug | 30 min |
-| Loop statements | 5 | Exception state (likely ready) | 2 hours |
-| Declarations | 7 | declHandler (~38 methods) | 2-3 days |
-| OOP operations | 10 | oopEngine (~20 methods) | 2-3 days |
-| Exception handling | 3 | exceptionMgr (~6 methods) | 0.5 day |
+- `ExecutionContext` owns all per-run mutable state
+- The engine reads/writes that state directly
+- No callback should be needed just to see the "real" environment or exception
 
 **Tasks**:
 
-- [x] **4.1.1** Audit remaining callbacks (DONE - empirical test completed)
-  - Control flow: MIGRATED ✅
-  - builtins.Context casts: context_bounds.go, context_enums.go (7 calls)
-  - Loop statements: If/While/Repeat/For/ForIn (5 cases)
-  - Declarations: ClassDecl, InterfaceDecl, HelperDecl, FunctionDecl, OperatorDecl, EnumDecl, TypeDeclaration (7 cases)
-  - OOP: CallExpression, NewExpression, MemberAccess, MethodCall, Inherited, Self, Index, NewArray, As, AddressOf (10 cases)
-  - Exception: TryStatement, RaiseStatement, Program (3 cases)
-  - Other: ExpressionStatement, VarDeclStatement, ConstDecl, CaseStatement (4 cases)
-
-- [x] **4.1.2** Remove control flow callbacks (DONE - 4 callbacks eliminated)
-  - BreakStatement, ContinueStatement, ExitStatement, ReturnStatement
-  - Tests pass ✅
-
-- [x] **4.1.3** Fix builtins.Context type assertion bug ✅
-  - Rewrote context_bounds.go and context_enums.go to be self-contained
-  - Fixed jsonvalue.Kind import (was incorrectly using runtime.JSONKind)
-  - Updated tests to verify actual functionality instead of delegation
-  - 7 callbacks eliminated
-
-- [x] **4.1.4** Migrate loop statements (DONE - 5/5)
-  - [x] IfStatement - migrated, callback removed ✅
-  - [x] WhileStatement - migrated, callback removed ✅
-  - [x] RepeatStatement - migrated, callback removed ✅
-  - [x] ForStatement - migrated, callback removed ✅ (see 4.1.4a for fix details)
-  - [ ] ForInStatement - callback removed, needs env sync verification
-
-- [x] **4.1.4a** ForStatement environment sync issue (FIXED)
-  **Problem**: When for loop body contains a method call (`Result.Add(i * 10)`):
-  1. Loop runs in evaluator, creates scope via `ctx.PushEnv()`
-  2. Loop variable `i` defined in this scope
-  3. Method call has callback guard → goes to interpreter's `evalMethodCall`
-  4. Interpreter evaluates args via `i.Eval(arg)` → uses `i.ctx`
-  5. **BUG**: `i.ctx.Env()` was not synced, so argument `i` resolved to 0
-
-  **Root cause**: `EvalNode(node)` didn't pass the current `ctx`, so interpreter
-  used its own `i.ctx` which had a stale environment without the pushed loop scope.
-
-  **Fix**: Changed `CoreEvaluator.EvalNode(node)` to `EvalNode(node, ctx)`.
-  Interpreter's `EvalNode` now syncs `i.ctx.SetEnv(ctx.Env())` before evaluation.
-  This is a tactical workaround; proper fix is 4.6 (single ExecutionContext owner).
-
-  **Test**: `TestArrayReturnViaFunctionPointer` now passes ✅
-
-- [x] **4.1.4b** ForInStatement environment sync issue (VERIFIED)
-  Callback guard removed. Environment sync works via EvalNode(node, ctx) fix from 4.1.4a.
-  Also fixed evaluator's enum iteration to use ordinal range (MinOrdinal..MaxOrdinal).
-  **Test**: `TestForInStatementEnvSync` verifies method calls with loop variables.
-
-- [~] **4.1.5** Migrate simple statements (PARTIAL - 2/4 done)
-  - [ ] ExpressionStatement - blocked by oopEngine.ExecuteFunctionPointerCall (→ Task 4.4)
-  - [ ] VarDeclStatement - blocked by oopEngine.WrapInSubrange/WrapInInterface (→ Task 4.4)
-  - [x] ConstDecl - callback guard removed ✅
-  - [x] CaseStatement - callback guard removed ✅
-
-- [x] **4.1.6** Fix var param nested calls (DONE)
-  **Problem**: `IncrementTwice(n)` where `n` is already a var param failed.
-  **Root cause**: `PrepareUserFunctionArgs` created new ReferenceValue instead
-  of passing through existing reference.
-  **Fix**: Check if variable is already ReferenceValue and pass through.
-
-- [x] **4.1.7** Fix type cast exception propagation (DONE)
-  **Problem**: Invalid class downcast raised exception but returned nil,
-  which `VisitCallExpression` interpreted as "not a type cast" → "function not found".
-  **Fix**: Added `if ctx.Exception() != nil { return &runtime.NilValue{} }` check.
-
-- [x] **4.1.8** Fix ClassMetadata extraction in type casts (DONE)
-  **Problem**: `isClassHierarchyCompatible` expected `*runtime.ClassMetadata`
-  but `e.typeSystem.LookupClass()` returns `*interp.ClassInfo`.
-  **Fix**: Extract ClassMetadata via `GetMetadata()` interface method.
+- [ ] **4.1.1** Audit all duplicated execution state
+  - `exception`
+  - `handlerException`
+  - `propContext`
+  - `callStack`
+  - `oldValuesStack`
+  - environment stack / env sync paths
+- [ ] **4.1.2** Move duplicated per-run state behind `ExecutionContext`
+- [ ] **4.1.3** Remove exception getter/setter callback plumbing from `ExecutionContext`
+- [ ] **4.1.4** Delete env-sync workaround paths introduced for callback fallback
+- [ ] **4.1.5** Add explicit engine/context boundary documentation
 
 **Success Criteria**:
 
-- ✅ Interpreter.evalLegacy() has 0 cases
-- ✅ Evaluator.Eval() has no `if e.coreEvaluator != nil` checks
-- ✅ All unit tests pass
-
-**Remaining Work After 4.1.5**:
-
-- ~14 callbacks blocked by declHandler (→ Task 4.5)
-- ~10 callbacks blocked by oopEngine (→ Task 4.4)
-- ~3 callbacks blocked by exceptionMgr (→ Task 4.2)
+- ✅ No "sync interpreter state into ctx" logic remains
+- ✅ `ExecutionContext` is the single source of truth for per-run state
+- ✅ Per-run state is not duplicated on multiple runtime peers
 
 ---
 
-### 4.2 Remove Exception Callbacks (ExceptionManager) ✅ **COMPLETED**
+### 4.2 Collapse To One Engine
 
-**Goal**: Make exception creation/raising self-contained (low surface area, low risk).
+**Goal**: Stop wiring two runtime peers together.
 
-**Why Early**: Small surface, easy win, reduces "special case" callback plumbing.
+**Decision**:
+
+Keep one execution engine as the owner of runtime behavior. The current split between `Interpreter` and `Evaluator` must end. The surviving engine may reuse existing visitor code and file layout, but there must be only one concrete runtime owner.
+
+**Implementation rule**:
+
+- Keep or rename whichever top-level type is pragmatically easiest
+- Do not preserve both as cooperating peers
+- Package/file structure may stay incremental during migration
 
 **Tasks**:
 
-- [x] **4.2.1** Move exception creation + raising to Evaluator/runtime ✅
-  - `createException()` now uses `runtime.NewException()` directly
-  - `wrapObjectAsException()` now uses `runtime.NewExceptionFromObject()` directly
-  - `raiseContractException()` now creates exceptions inline
-  - `raiseTypeCastException()` added to evaluator (self-contained)
-  - `RaiseAssertionFailed()` now creates exceptions inline
-  - `cleanupInterfaceReferences()` now uses `RefCountManager.ReleaseInterface/ReleaseObject`
-- [x] **4.2.2** Delete ExceptionManager interface ✅
-  - Removed `exceptionMgr` field from Evaluator struct
-  - Updated `SetFocusedInterfaces()` to take 3 parameters (was 4)
-  - Removed `ExceptionManager` type alias from `focused_interfaces.go`
-  - Removed `ExceptionManager` interface from `contracts.go`
+- [ ] **4.2.1** Choose the surviving engine type explicitly in code/docs
+- [ ] **4.2.2** Change `runner` to construct one engine, not interpreter + evaluator + glue
+- [ ] **4.2.3** Remove `SetFocusedInterfaces()` wiring from runtime construction
+- [ ] **4.2.4** Move any still-split configuration/state onto the surviving engine
+- [ ] **4.2.5** Reduce the non-surviving peer to a temporary shim only if needed
+- [ ] **4.2.6** Delete the shim once call sites are moved
 
 **Success Criteria**:
 
-- ✅ ExceptionManager interface deleted
-- ✅ All 6 callback call sites migrated to self-contained implementations
-- ✅ All tests pass
+- ✅ `runner` creates one engine
+- ✅ No runtime peer is required only to call back into the other
+- ✅ Engine entry point is singular and direct
 
 ---
 
-### 4.3 Delete CoreEvaluator and Adapter Indirection
+### 4.3 Delete Internal Callback Interfaces
 
-**Goal**: Delete the remaining adapter surface and any "fallback" EvalNode callbacks.
+**Goal**: Delete internal callback interfaces as a consequence of single ownership.
 
-**Principle**: Each removed callback must be replaced by direct Evaluator ownership, not by a new handler layer.
+**Current callback surfaces to remove**:
 
-**Current State**:
+- `CoreEvaluator`
+- `OOPEngine`
+- `DeclHandler`
+- `SetFocusedInterfaces()`
 
-- CoreEvaluator interface (4 methods) in `contracts.go:78-95`
-- 22 EvalNode fallbacks in `evaluator.go` Eval() switch
-- 3 EvalNode calls in other files (method_dispatch.go, helper_methods.go)
-- 6 other CoreEvaluator method calls (EvalBuiltinHelperProperty, EvalClassPropertyRead/Write)
+**Principle**:
+
+If logic still needs one of these interfaces, the ownership collapse is not complete yet.
 
 **Tasks**:
 
-- [ ] **4.3.1** Eliminate EvalNode fallbacks in evaluator.go
-  - [x] **4.3.1.1** Remove statement fallbacks (Program, ExpressionStatement, VarDeclStatement, TryStatement, RaiseStatement) - 5 cases
-- [x] **4.3.1.2** Remove declaration fallbacks (7 cases) - **Each must be fixed BEFORE removing fallback**
-    - [x] **4.3.1.2.1** FunctionDecl - Add DeclHandler.RegisterGlobalFunction() to dual-register in i.functions map
-    - [x] **4.3.1.2.2** ClassDecl - Add DeclHandler.DefineClassInEnv() to bind class name in environment
-    - [x] **4.3.1.2.3** InterfaceDecl - Verify VisitInterfaceDecl is complete
-    - [x] **4.3.1.2.4** OperatorDecl - Verify VisitOperatorDecl is complete (likely delegates to DeclHandler)
-    - [x] **4.3.1.2.5** EnumDecl - Add ValueExpr evaluation support + delegate to interpreter via evalViaEvaluator
-    - [x] **4.3.1.2.6** HelperDecl - Verify VisitHelperDecl is complete (likely delegates to DeclHandler)
-    - [x] **4.3.1.2.7** TypeDeclaration - Verify VisitTypeDeclaration is complete
-  - [ ] **4.3.1.3** Remove expression fallbacks (AddressOf, Call, New, MemberAccess, MethodCall, Inherited, Self, NewArray, As) - 9 cases
-  - [ ] **4.3.1.4** Remove default case fallback - replace with improved panic message
-- [ ] **4.3.2** Eliminate EvalNode fallbacks in other files
-  - [ ] **4.3.2.1** Remove method_dispatch.go EvalNode calls (TYPE_CAST handling, unknown type fallback)
-  - [ ] **4.3.2.2** Remove helper_methods.go EvalNode call (unhandled builtin spec)
-- [ ] **4.3.3** Migrate non-EvalNode CoreEvaluator methods
-  - [ ] **4.3.3.1** Migrate EvalBuiltinHelperProperty calls (4 calls in helper_methods.go) - inline array/enum/string property logic
-  - [ ] **4.3.3.2** Migrate EvalClassPropertyRead (visitor_expressions_members.go) - inline class property read
-  - [ ] **4.3.3.3** Migrate EvalClassPropertyWrite (member_assignment.go) - inline class property write
-- [ ] **4.3.4** Delete CoreEvaluator interface
-  - [ ] **4.3.4.1** Remove coreEvaluator field from Evaluator struct
-  - [ ] **4.3.4.2** Update SetFocusedInterfaces() to 2 params (was 3)
-  - [ ] **4.3.4.3** Remove CoreEvaluator type alias from focused_interfaces.go
-  - [ ] **4.3.4.4** Delete CoreEvaluator interface from contracts.go
-  - [ ] **4.3.4.5** Update all callers (runner.go, test files)
-  - [ ] **4.3.4.6** Remove selfContainedMode field and EnterSelfContainedMode()
-- [ ] **4.3.5** Verify no adapter indirection remains
-
-**Critical Files**:
-
-- `internal/interp/evaluator/evaluator.go` - Eval() switch with 22 fallbacks
-- `internal/interp/evaluator/helper_methods.go` - 4 EvalBuiltinHelperProperty + 1 EvalNode
-- `internal/interp/evaluator/method_dispatch.go` - 2 EvalNode fallbacks
-- `internal/interp/evaluator/visitor_expressions_members.go` - 1 EvalClassPropertyRead
-- `internal/interp/evaluator/member_assignment.go` - 1 EvalClassPropertyWrite
-- `internal/interp/contracts/contracts.go` - CoreEvaluator interface definition
-
-4.3.1.1 → 4.3.1.2 → 4.3.1.3 → 4.3.1.4  (evaluator.go guards)
-                                    ↓
-                              4.3.1.5 (method_dispatch.go)
-                                    ↓
-                              4.3.1.6 (helper_methods.go EvalNode)
-                                    ↓
-                    ┌───────────────┴───────────────┐
-                    ↓                               ↓
-             4.3.1.7 (BuiltinHelper)        4.3.1.8 (ClassProperty)
-                    ↓                               ↓
-                    └───────────────┬───────────────┘
-                                    ↓
-                              4.3.2 (Delete interface)
-                                    ↓
-                              4.3.3 (Verify)
+- [ ] **4.3.1** Delete `CoreEvaluator`
+  - Remove `EvalNode()` fallbacks
+  - Remove `EvalBuiltinHelperProperty`
+  - Remove class property read/write callback helpers
+- [ ] **4.3.2** Delete `OOPEngine`
+  - Move method dispatch, constructor dispatch, property execution, function pointer execution, operator dispatch, and cast wrapping under direct engine ownership
+- [ ] **4.3.3** Delete `DeclHandler`
+  - Move class/interface/helper/function declaration mutation under direct engine ownership
+- [ ] **4.3.4** Delete `focused_interfaces.go`
+- [ ] **4.3.5** Delete `SetFocusedInterfaces()` and all test/runtime uses
+- [ ] **4.3.6** Delete any remaining adapter-style bridge files that only preserve the old split
 
 **Success Criteria**:
 
-- ✅ 0 callback calls from Evaluator to Interpreter via CoreEvaluator
-- ✅ CoreEvaluator interface deleted
-- ✅ SetFocusedInterfaces() reduced to 2 parameters
-- ✅ All tests pass
+- ✅ 0 internal callback interfaces remain
+- ✅ No test uses mock adapters for core execution paths
+- ✅ No runtime code depends on callback injection to reach core semantics
 
 ---
 
-### 4.4 Remove OOP Callbacks (OOPEngine)
+### 4.4 Bring Execution Semantics Under Direct Ownership
 
-**Goal**: Remove the Evaluator → OOPEngine → Interpreter → Evaluator round-trip for method dispatch.
+**Goal**: Replace callback-shaped execution with direct engine methods.
 
-**Notes**:
+**Why this is a separate task**:
 
-- This is high-impact and high-risk. Do it incrementally and start with the highest-traffic calls.
+Deleting interfaces is easy. Deleting the *need* for interfaces requires consolidating the semantics that currently live behind them.
+
+**Work areas**:
+
+- Function/method call execution
+- Method dispatch and overload resolution
+- Constructors/destructors
+- Property read/write execution
+- Type casts and wrappers
+- Record static dispatch
+- External function calls
+- Builtin helper property evaluation
 
 **Tasks**:
 
-- [ ] **4.4.1** Audit OOPEngine by usage (4h)
-- [ ] **4.4.2** Move method dispatch to Evaluator (timeboxed, multiple PRs)
-- [ ] **4.4.3** Delete OOPEngine interface once unused (2h)
+- [ ] **4.4.1** Normalize call execution under one path
+- [ ] **4.4.2** Normalize method/property dispatch under one path
+- [ ] **4.4.3** Normalize constructor/destructor execution under one path
+- [ ] **4.4.4** Normalize builtin helper/property access under one path
+- [ ] **4.4.5** Remove remaining "fallback to legacy path" branches
 
 **Success Criteria**:
 
-- ✅ 0 OOPEngine callback calls
-- ✅ OOPEngine interface deleted
+- ✅ One dispatch path per language feature category
+- ✅ No "temporary fallback" branches remain in the engine core
 
 ---
 
-### 4.5 Remove Declaration Callbacks (DeclHandler)
+### 4.5 Bring Declaration Semantics Under Direct Ownership
 
-**Goal**: Remove the Evaluator → DeclHandler → Interpreter round-trip for type/member declaration handling.
+**Goal**: Make declarations mutate one canonical runtime/type model directly.
+
+**Current problem**:
+
+Declaration visitors already do real work, but the mutation path is still fractured across a large callback surface. That preserves the old split even after visitor migration.
 
 **Tasks**:
 
-- [ ] **4.5.1** Audit DeclHandler methods (3h)
-- [ ] **4.5.2** Move declaration logic behind a single owner (Evaluator/TypeSystem as appropriate)
-- [ ] **4.5.3** Delete DeclHandler interface once unused (2h)
+- [ ] **4.5.1** Audit declaration data ownership
+  - classes
+  - interfaces
+  - helpers
+  - global functions
+  - records / record static members
+- [ ] **4.5.2** Move class/interface/helper mutation under direct engine methods
+- [ ] **4.5.3** Stop dual-registering data in multiple engine-owned maps where one owner is enough
+- [ ] **4.5.4** Make method implementation registration direct
+- [ ] **4.5.5** Ensure environment binding for declarations is direct, not adapter-mediated
 
 **Success Criteria**:
 
-- ✅ 0 DeclHandler callback calls
-- ✅ DeclHandler interface deleted
+- ✅ Declaration processing has one runtime owner
+- ✅ No declaration callback API remains
+- ✅ Type/member registration is not mirrored across peer objects
 
 ---
 
-### 4.6 Eliminate State Duplication (Single Owner = ExecutionContext)
+### 4.6 Reduce Hybrid Metadata Opportunistically
 
-**Goal**: Ensure all runtime execution state has one canonical owner.
+**Goal**: Clean up metadata/data duplication that becomes obvious once ownership is fixed.
 
-**Why Last**: Once callbacks are eliminated (4.1-4.5), the dual-context problem
-largely disappears. This task cleans up any remaining sync logic.
+**Important**:
 
-**Note**: The `EvalNode(node, ctx)` fix in 4.1.4a added sync logic as a tactical
-workaround. This task should eliminate that workaround by ensuring a single
-canonical ExecutionContext.
+This is not a prerequisite for the ownership collapse. It is follow-on cleanup.
+
+Examples:
+
+- `ClassInfo` currently mixes AST-bearing fields with runtime metadata
+- interface/helper/class metadata still carries some legacy duplication
+- some runtime values still require bridge/proxy behavior because metadata is not fully normalized
 
 **Tasks**:
 
-- [ ] **4.6.1** Audit duplicated state usage (3h)
-- [ ] **4.6.2** Remove duplicate Interpreter-owned execution state (timeboxed)
-  - Prefer: ctx accessors and passing ctx explicitly
-- [ ] **4.6.3** Remove EvalNode ctx sync workaround once callbacks eliminated
+- [ ] **4.6.1** Audit hybrid metadata types (`ClassInfo`, interfaces, helpers, record metadata)
+- [ ] **4.6.2** Remove duplication that no longer serves a compatibility need
+- [ ] **4.6.3** Keep AST-bearing references only where execution genuinely requires them
+- [ ] **4.6.4** Move toward runtime-native metadata where it reduces branching
 
 **Success Criteria**:
 
-- ✅ No "sync" logic between Interpreter and ExecutionContext
+- ✅ Metadata cleanup follows ownership cleanup instead of blocking it
+- ✅ Bridge/proxy code shrinks as a result
 
 ---
 
 ### 4.7 Verification and Metrics
 
-**Goal**: Prevent regression and ensure Phase 4 changes stay "real".
+**Goal**: Prove the new architecture is simpler in reality, not just in description.
 
 **Tasks**:
 
-- [ ] **4.7.1** Keep/extend architecture boundary tests
-- [ ] **4.7.2** Track removal metrics (interfaces/adapters/switch hops)
-- [ ] **4.7.3** Run unit tests and (optionally) fixtures
+- [ ] **4.7.1** Add architecture boundary tests
+  - runner constructs one engine
+  - no callback interface wiring
+  - no env sync workaround paths
+- [ ] **4.7.2** Track removal metrics
+  - callback interfaces deleted
+  - dispatch hops deleted
+  - duplicated state fields deleted
+  - shim/adapter files deleted
+- [ ] **4.7.3** Run unit tests and fixture subsets after each structural milestone
+- [ ] **4.7.4** Keep a short migration note in docs describing the final engine/context/runtime boundary
 
 ---
 
-### Archived (Decomposition-Heavy Draft)
+### Archived Direction
 
-The handler-decomposition plan is preserved in Git history and can be restored if a concrete pain point justifies it.
-It is intentionally *not* the default plan, because it optimizes for "smaller types" instead of "less indirection".
+The older callback-removal plan is preserved in Git history for reference, but it is no longer the architectural target.
+
+The project should not optimize for "smaller types" if that preserves split ownership.
 
 ---
 
 ### Phase 4 Effort Summary
 
-This phase is designed to be done in small, reversible PRs.
+This phase should still be done in small, reversible PRs, but the order changes:
 
 | Task | Effort | Notes |
 |------|--------|-------|
-| 4.1 Unify Eval() Dispatch | ~1 week | Enables deletion of many adapters later |
-| 4.2 Remove Exception Callbacks | ~1-2 days | Low risk, good early win |
-| 4.3 Delete CoreEvaluator/adapters | ~1 week | Highest payoff, keep it timeboxed |
-| 4.4 Remove OOP Callbacks | ~1-2 weeks | High risk, do incrementally |
-| 4.5 Remove Decl Callbacks | ~1 week | High risk, do incrementally |
-| 4.6 State Ownership Cleanup | ~2-4 days | Opportunistic as you delete callbacks |
-| 4.7 Verification/Metrics | ongoing | Keep guardrails in place |
+| 4.0 Stabilization | ongoing until green | Keep baseline trustworthy |
+| 4.1 State ownership first | ~3-5 days | Prerequisite for real simplification |
+| 4.2 Collapse to one engine | ~1 week | Removes the split-brain architecture |
+| 4.3 Delete callback interfaces | ~3-5 days | Consequence of 4.1/4.2 |
+| 4.4 Direct execution semantics | ~1-2 weeks | High-risk core runtime work |
+| 4.5 Direct declaration semantics | ~1 week | High-risk metadata mutation work |
+| 4.6 Metadata cleanup | ~2-4 days | Opportunistic, after ownership is fixed |
+| 4.7 Verification/metrics | ongoing | Prevent regression into indirection |
 
-**Execution Order**: 4.1 → 4.2 → 4.3 → 4.4 → 4.5 → 4.6 → 4.7
+**Execution Order**: 4.0 → 4.1 → 4.2 → 4.3 → 4.4 → 4.5 → 4.6 → 4.7
 
 ---
 
