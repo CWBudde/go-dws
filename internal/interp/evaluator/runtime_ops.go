@@ -3,8 +3,8 @@ package evaluator
 import (
 	"fmt"
 
-	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -91,7 +91,7 @@ type interp_TypeCastValue struct {
 }
 
 func (t *interp_TypeCastValue) Type() string   { return "TYPE_CAST" }
-func (t *interp_TypeCastValue) String() string  { return t.Object.String() }
+func (t *interp_TypeCastValue) String() string { return t.Object.String() }
 
 // GetStaticTypeName returns the static type name.
 func (t *interp_TypeCastValue) GetStaticTypeName() string {
@@ -673,39 +673,4 @@ func (e *Evaluator) callExternalFunctionViaEngineState(funcName string, argExprs
 		return e.newError(node, "external function '%s' not available (no caller registered)", funcName)
 	}
 	return e.engineState.ExternalFunctionCaller(funcName, argExprs, node)
-}
-
-// ============================================================================
-// Class Identifier Lookup Fallback
-// ============================================================================
-
-// lookupClassByNameFallback tries to find a class via Self's class type (for nested class access).
-// Self-contained: replaces e.oopEngine.LookupClassByName.
-func (e *Evaluator) lookupClassByNameFallback(name string, ctx *ExecutionContext) ClassMetaValue {
-	if ctx == nil {
-		return nil
-	}
-	// Try Self's class for nested class access
-	if selfRaw, ok := ctx.Env().Get("Self"); ok {
-		if objVal, ok := selfRaw.(ObjectValue); ok {
-			if classMeta, ok := objVal.GetClassType().(ClassMetaValue); ok {
-				if nested := classMeta.GetNestedClass(name); nested != nil {
-					if nestedMeta, ok := nested.(ClassMetaValue); ok {
-						return nestedMeta
-					}
-				}
-			}
-		}
-	}
-	// Also check the __CurrentClass__ context variable
-	if ccRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
-		if cm, ok := ccRaw.(ClassMetaValue); ok {
-			if nested := cm.GetNestedClass(name); nested != nil {
-				if nestedMeta, ok := nested.(ClassMetaValue); ok {
-					return nestedMeta
-				}
-			}
-		}
-	}
-	return nil
 }

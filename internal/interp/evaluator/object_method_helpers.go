@@ -102,20 +102,36 @@ func currentClassMetaValue(ctx *ExecutionContext) (Value, ClassMetaValue, bool) 
 		return nil, nil, false
 	}
 
-	currentClassRaw, ok := ctx.Env().Get("__CurrentClass__")
-	if !ok {
+	if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
+		if classValue, classMeta, ok := classMetaValueFromRaw(currentClassRaw); ok {
+			return classValue, classMeta, true
+		}
+	}
+
+	if selfRaw, ok := ctx.Env().Get("Self"); ok {
+		if classValue, classMeta, ok := classMetaValueFromRaw(selfRaw); ok {
+			return classValue, classMeta, true
+		}
+	}
+
+	return nil, nil, false
+}
+
+func classMetaValueFromRaw(raw any) (Value, ClassMetaValue, bool) {
+	classValue, ok := raw.(Value)
+	if !ok || classValue == nil {
 		return nil, nil, false
 	}
 
-	classValue, ok := currentClassRaw.(Value)
-	if !ok {
-		return nil, nil, false
+	if classMeta, ok := raw.(ClassMetaValue); ok && classMeta != nil {
+		return classValue, classMeta, true
 	}
 
-	classMeta, ok := currentClassRaw.(ClassMetaValue)
-	if !ok || classMeta == nil {
-		return nil, nil, false
+	if obj, ok := raw.(ObjectValue); ok {
+		if classMeta, ok := obj.GetClassType().(ClassMetaValue); ok && classMeta != nil {
+			return classValue, classMeta, true
+		}
 	}
 
-	return classValue, classMeta, true
+	return nil, nil, false
 }

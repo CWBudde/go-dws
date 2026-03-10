@@ -13,6 +13,7 @@ import (
 type MockClassMetaValue struct {
 	runtime.NilValue // Embed for Value interface
 	Name             string
+	Nested           map[string]Value
 }
 
 func (m *MockClassMetaValue) Type() string                               { return "CLASSINFO" }
@@ -32,7 +33,12 @@ func (m *MockClassMetaValue) CreateClassMethodPointer(name string, creator func(
 func (m *MockClassMetaValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) {
 	return nil, false
 }
-func (m *MockClassMetaValue) GetNestedClass(name string) Value { return nil }
+func (m *MockClassMetaValue) GetNestedClass(name string) Value {
+	if m == nil || m.Nested == nil {
+		return nil
+	}
+	return m.Nested[name]
+}
 func (m *MockClassMetaValue) ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool) {
 	return nil, false
 }
@@ -42,6 +48,46 @@ func (m *MockClassMetaValue) WriteClassProperty(name string, value Value, execut
 	return nil, false
 }
 func (m *MockClassMetaValue) HasClassVar(name string) bool { return false }
+
+type mockObjectValue struct {
+	runtime.NilValue
+	classType Value
+}
+
+func (m *mockObjectValue) ClassName() string { return "TOuter" }
+func (m *mockObjectValue) GetClassType() Value {
+	return m.classType
+}
+func (m *mockObjectValue) HasProperty(name string) bool { return false }
+func (m *mockObjectValue) HasMethod(name string) bool   { return false }
+func (m *mockObjectValue) GetMethodDecl(name string) any {
+	return nil
+}
+func (m *mockObjectValue) GetField(name string) Value { return nil }
+func (m *mockObjectValue) GetClassVar(name string) (Value, bool) {
+	return nil, false
+}
+func (m *mockObjectValue) CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) WriteProperty(propName string, value Value, propertyExecutor func(propInfo any, value Value) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) WriteIndexedProperty(propInfo any, indices []Value, value Value, propertyExecutor func(propInfo any, indices []Value, value Value) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) InvokeParameterlessMethod(methodName string, methodExecutor func(methodDecl any) Value) (Value, bool) {
+	return nil, false
+}
+func (m *mockObjectValue) CreateMethodPointer(methodName string, pointerCreator func(methodDecl any) Value) (Value, bool) {
+	return nil, false
+}
 
 // TestMemberAssignment_ErrorCases tests error handling for member assignment.
 func TestMemberAssignment_ErrorCases(t *testing.T) {
@@ -104,6 +150,30 @@ func TestMemberAssignment_ErrorCases(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestVisitIdentifier_NestedClassFromSelfClassContext(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
+
+	ctx := NewExecutionContext(runtime.NewEnvironment())
+	inner := &MockClassMetaValue{Name: "TInner"}
+	outer := &MockClassMetaValue{
+		Name:   "TOuter",
+		Nested: map[string]Value{"TInner": inner},
+	}
+	ctx.Env().Define("Self", &mockObjectValue{classType: outer})
+
+	result := e.VisitIdentifier(&ast.Identifier{Value: "TInner"}, ctx)
+
+	classMeta, ok := result.(ClassMetaValue)
+	if !ok {
+		t.Fatalf("expected nested class meta value, got %T", result)
+	}
+	if classMeta.GetClassName() != "TInner" {
+		t.Fatalf("expected nested class TInner, got %q", classMeta.GetClassName())
+	}
 }
 
 // TestMemberAssignment_AutoInit tests nil record array element auto-initialization.

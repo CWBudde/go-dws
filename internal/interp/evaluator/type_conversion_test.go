@@ -5,7 +5,6 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -76,9 +75,9 @@ func TestExecuteConversionFunction_Validation(t *testing.T) {
 	})
 }
 
-// TestExecuteConversionFunction_WithMockAdapter tests conversion function execution
-// with a mock adapter that handles the actual function body execution.
-func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
+// TestExecuteConversionFunction_DirectExecution verifies conversion functions run
+// through the evaluator boundary without adapter scaffolding.
+func TestExecuteConversionFunction_DirectExecution(t *testing.T) {
 	// Create evaluator with minimal setup
 	typeSystem := interptypes.NewTypeSystem()
 	refCountMgr := runtime.NewRefCountManager()
@@ -88,8 +87,7 @@ func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
 	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
 
-	t.Run("valid conversion function structure", func(t *testing.T) {
-		// Create a conversion function: function IntToStr(value: Integer): String
+	t.Run("returns assigned Result", func(t *testing.T) {
 		fn := &ast.FunctionDecl{
 			Name: &ast.Identifier{Value: "IntToStr"},
 			Parameters: []*ast.Parameter{
@@ -99,10 +97,14 @@ func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
 				},
 			},
 			ReturnType: &ast.TypeAnnotation{Name: "String"},
-			Body:       &ast.BlockStatement{Statements: []ast.Statement{}},
+			Body: &ast.BlockStatement{Statements: []ast.Statement{
+				&ast.AssignmentStatement{
+					Target: &ast.Identifier{Value: "Result"},
+					Value:  &ast.StringLiteral{Value: "42"},
+				},
+			}},
 		}
 
-		// Execute the conversion function
 		result, err := e.ExecuteConversionFunction(
 			fn,
 			&runtime.IntegerValue{Value: 42},
@@ -110,14 +112,15 @@ func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
 			nil, // No callbacks needed for this test
 		)
 
-		// We expect an error because the mock adapter doesn't actually set Result
-		// But the function structure validation should pass
 		if err != nil {
-			// If we get an error about function body, that's expected for this minimal test
-			// The key is that validation passed
-			t.Logf("Got expected error (mock adapter limitation): %v", err)
-		} else if result == nil {
-			t.Error("result should not be nil")
+			t.Fatalf("ExecuteConversionFunction failed: %v", err)
+		}
+		strVal, ok := result.(*runtime.StringValue)
+		if !ok {
+			t.Fatalf("expected StringValue, got %T", result)
+		}
+		if strVal.Value != "42" {
+			t.Fatalf("expected Result to be %q, got %q", "42", strVal.Value)
 		}
 	})
 }
@@ -163,260 +166,50 @@ func TestConversionCallbacks_NilHandling(t *testing.T) {
 			{Name: &ast.Identifier{Value: "value"}},
 		},
 		ReturnType: &ast.TypeAnnotation{Name: "String"},
-		Body:       &ast.BlockStatement{Statements: []ast.Statement{}},
+		Body: &ast.BlockStatement{Statements: []ast.Statement{
+			&ast.AssignmentStatement{
+				Target: &ast.Identifier{Value: "Result"},
+				Value:  &ast.StringLiteral{Value: "ok"},
+			},
+		}},
 	}
 
 	t.Run("nil ConversionCallbacks", func(t *testing.T) {
-		// Should not panic with nil callbacks
-		_, err := e.ExecuteConversionFunction(fn, &runtime.IntegerValue{Value: 1}, ctx, nil)
+		result, err := e.ExecuteConversionFunction(fn, &runtime.IntegerValue{Value: 1}, ctx, nil)
 		if err != nil {
-			// Error about function body is acceptable
-			t.Logf("Got expected error: %v", err)
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if strVal, ok := result.(*runtime.StringValue); !ok || strVal.Value != "ok" {
+			t.Fatalf("expected conversion result %q, got %#v", "ok", result)
 		}
 	})
 
 	t.Run("empty ConversionCallbacks", func(t *testing.T) {
-		// Should not panic with empty callbacks
 		callbacks := &ConversionCallbacks{}
-		_, err := e.ExecuteConversionFunction(fn, &runtime.IntegerValue{Value: 1}, ctx, callbacks)
+		result, err := e.ExecuteConversionFunction(fn, &runtime.IntegerValue{Value: 1}, ctx, callbacks)
 		if err != nil {
-			// Error about function body is acceptable
-			t.Logf("Got expected error: %v", err)
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if strVal, ok := result.(*runtime.StringValue); !ok || strVal.Value != "ok" {
+			t.Fatalf("expected conversion result %q, got %#v", "ok", result)
 		}
 	})
 
 	t.Run("partial ConversionCallbacks", func(t *testing.T) {
-		// Should not panic with partial callbacks
 		callbacks := &ConversionCallbacks{
 			ImplicitConversion: func(value Value, targetTypeName string) (Value, bool) {
 				return value, false
 			},
-			// EnvSyncer is nil
 		}
-		_, err := e.ExecuteConversionFunction(fn, &runtime.IntegerValue{Value: 1}, ctx, callbacks)
+		result, err := e.ExecuteConversionFunction(fn, &runtime.IntegerValue{Value: 1}, ctx, callbacks)
 		if err != nil {
-			// Error about function body is acceptable
-			t.Logf("Got expected error: %v", err)
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if strVal, ok := result.(*runtime.StringValue); !ok || strVal.Value != "ok" {
+			t.Fatalf("expected conversion result %q, got %#v", "ok", result)
 		}
 	})
 }
-
-// mockConversionAdapter is a minimal mock for testing conversion function execution.
-type mockConversionAdapter struct {
-	evalNodeFunc func(node ast.Node) Value
-}
-
-func (m *mockConversionAdapter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value {
-	if m.evalNodeFunc != nil {
-		return m.evalNodeFunc(node)
-	}
-	return &runtime.NilValue{}
-}
-
-// Implement all required InterpreterAdapter methods with minimal stubs
-func (m *mockConversionAdapter) CallFunctionPointer(funcPtr Value, args []Value, node ast.Node) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) CallUserFunction(fn *ast.FunctionDecl, args []Value) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) LookupFunction(name string) ([]*ast.FunctionDecl, bool) {
-	return nil, false
-}
-func (m *mockConversionAdapter) TryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool) {
-	return nil, false
-}
-func (m *mockConversionAdapter) TryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
-	return nil, false
-}
-func (m *mockConversionAdapter) LookupClass(name string) (any, bool) { return nil, false }
-func (m *mockConversionAdapter) ResolveClassInfoByName(name string) interface{} {
-	return nil
-}
-func (m *mockConversionAdapter) GetClassNameFromInfo(classInfo interface{}) string { return "" }
-func (m *mockConversionAdapter) LookupRecord(name string) (any, bool)              { return nil, false }
-func (m *mockConversionAdapter) LookupInterface(name string) (any, bool)           { return nil, false }
-func (m *mockConversionAdapter) LookupHelpers(typeName string) []any               { return nil }
-func (m *mockConversionAdapter) CreateHelperInfo(name string, targetType any, isRecordHelper bool) interface{} {
-	return nil
-}
-func (m *mockConversionAdapter) SetHelperParent(helper interface{}, parent interface{}) {}
-func (m *mockConversionAdapter) VerifyHelperTargetTypeMatch(parent interface{}, targetType any) bool {
-	return false
-}
-func (m *mockConversionAdapter) GetHelperName(helper interface{}) string { return "" }
-func (m *mockConversionAdapter) AddHelperMethod(helper interface{}, normalizedName string, method *ast.FunctionDecl) {
-}
-func (m *mockConversionAdapter) AddHelperProperty(helper interface{}, prop *ast.PropertyDecl, propType any) {
-}
-func (m *mockConversionAdapter) AddHelperClassVar(helper interface{}, name string, value Value) {}
-func (m *mockConversionAdapter) AddHelperClassConst(helper interface{}, name string, value Value) {
-}
-func (m *mockConversionAdapter) NewInterfaceInfoAdapter(name string) interface{} { return nil }
-func (m *mockConversionAdapter) CastToInterfaceInfo(iface interface{}) (interface{}, bool) {
-	return nil, false
-}
-func (m *mockConversionAdapter) SetInterfaceParent(iface interface{}, parent interface{}) {}
-func (m *mockConversionAdapter) GetInterfaceName(iface interface{}) string                { return "" }
-func (m *mockConversionAdapter) GetInterfaceParent(iface interface{}) interface{}         { return nil }
-func (m *mockConversionAdapter) AddInterfaceMethod(iface interface{}, normalizedName string, method *ast.FunctionDecl) {
-}
-func (m *mockConversionAdapter) AddInterfaceProperty(iface interface{}, normalizedName string, propInfo any) {
-}
-func (m *mockConversionAdapter) GetOperatorRegistry() any          { return nil }
-func (m *mockConversionAdapter) GetEnumTypeID(enumName string) int { return 0 }
-
-func (m *mockConversionAdapter) CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) CallInheritedMethod(obj Value, methodName string, args []Value) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) ExecuteMethodWithSelf(self Value, methodDecl any, args []Value) Value {
-	return &runtime.NilValue{}
-}
-
-func (m *mockConversionAdapter) ExecuteConstructor(obj Value, constructorName string, args []Value) error {
-	return nil
-}
-
-func (m *mockConversionAdapter) CreateTypeCastWrapper(className string, obj Value) Value { return nil }
-func (m *mockConversionAdapter) RaiseTypeCastException(message string, node ast.Node)    {}
-func (m *mockConversionAdapter) RaiseAssertionFailed(customMessage string)               {}
-func (m *mockConversionAdapter) CreateContractException(className, message string, node ast.Node, classMetadata interface{}, callStack interface{}) interface{} {
-	return nil
-}
-func (m *mockConversionAdapter) CleanupInterfaceReferences(env interface{}) {}
-func (m *mockConversionAdapter) CreateClassValue(className string) (Value, error) {
-	return &runtime.NilValue{}, nil
-}
-func (m *mockConversionAdapter) CreateLambda(lambda *ast.LambdaExpression, closure any) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) CreateMethodPointer(obj Value, methodName string, closure any) (Value, error) {
-	return &runtime.NilValue{}, nil
-}
-func (m *mockConversionAdapter) ExecuteFunctionPointerCall(metadata FunctionPointerMetadata, args []Value, node ast.Node) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) CreateExceptionDirect(classMetadata any, message string, pos any, callStack any) any {
-	return nil
-}
-func (m *mockConversionAdapter) WrapObjectInException(objInstance Value, pos any, callStack any) any {
-	return nil
-}
-func (m *mockConversionAdapter) EvalVariantBinaryOp(op string, left, right Value, node ast.Node) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) EvalInOperator(value, container Value, node ast.Node) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) EvalEqualityComparison(op string, left, right Value, node ast.Node) Value {
-	return &runtime.NilValue{}
-}
-
-func (m *mockConversionAdapter) WrapInSubrange(value Value, subrangeTypeName string, node ast.Node) (Value, error) {
-	return value, nil
-}
-func (m *mockConversionAdapter) WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error) {
-	return value, nil
-}
-
-func (m *mockConversionAdapter) IsMethodParameterless(obj Value, methodName string) bool {
-	return false
-}
-func (m *mockConversionAdapter) CreateMethodCall(obj Value, methodName string, node any) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) CreateMethodPointerFromObject(obj Value, methodName string) (Value, error) {
-	return nil, nil
-}
-func (m *mockConversionAdapter) CreateBoundMethodPointer(obj Value, methodDecl any) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) GetClassName(obj Value) string                    { return "" }
-func (m *mockConversionAdapter) GetClassType(obj Value) Value                     { return &runtime.NilValue{} }
-func (m *mockConversionAdapter) GetClassNameFromClassInfo(classInfo Value) string { return "" }
-func (m *mockConversionAdapter) GetClassTypeFromClassInfo(classInfo Value) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) GetClassVariableFromClassInfo(classInfo Value, varName string) (Value, bool) {
-	return nil, false
-}
-func (m *mockConversionAdapter) CallMemberMethod(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression, objVal Value) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value {
-	return &runtime.NilValue{}
-}
-
-func (m *mockConversionAdapter) ExecuteRecordPropertyRead(record Value, propInfo any, indices []Value, node any) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) NewClassInfoAdapter(name string) interface{} { return nil }
-func (m *mockConversionAdapter) CastToClassInfo(class interface{}) (interface{}, bool) {
-	return nil, false
-}
-func (m *mockConversionAdapter) RegisterClassEarly(name string, classInfo interface{})   {}
-func (m *mockConversionAdapter) IsClassPartial(classInfo interface{}) bool               { return false }
-func (m *mockConversionAdapter) SetClassPartial(classInfo interface{}, isPartial bool)   {}
-func (m *mockConversionAdapter) SetClassAbstract(classInfo interface{}, isAbstract bool) {}
-func (m *mockConversionAdapter) SetClassExternal(classInfo interface{}, isExternal bool, externalName string) {
-}
-func (m *mockConversionAdapter) ClassHasNoParent(classInfo interface{}) bool                   { return true }
-func (m *mockConversionAdapter) SetClassParent(classInfo interface{}, parentClass interface{}) {}
-func (m *mockConversionAdapter) AddInterfaceToClass(classInfo interface{}, interfaceInfo interface{}, interfaceName string) {
-}
-func (m *mockConversionAdapter) AddClassMethod(classInfo interface{}, method *ast.FunctionDecl, className string) bool {
-	return false
-}
-func (m *mockConversionAdapter) CreateMethodMetadata(method *ast.FunctionDecl) interface{} {
-	return nil
-}
-func (m *mockConversionAdapter) SynthesizeDefaultConstructor(classInfo interface{}) {}
-func (m *mockConversionAdapter) AddClassProperty(classInfo interface{}, propDecl *ast.PropertyDecl) bool {
-	return false
-}
-func (m *mockConversionAdapter) RegisterClassOperator(classInfo interface{}, opDecl *ast.OperatorDecl) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) LookupClassMethod(classInfo interface{}, methodName string, isClassMethod bool) (interface{}, bool) {
-	return nil, false
-}
-func (m *mockConversionAdapter) SetClassConstructor(classInfo interface{}, constructor interface{}) {}
-func (m *mockConversionAdapter) SetClassDestructor(classInfo interface{}, destructor interface{})   {}
-func (m *mockConversionAdapter) InheritDestructorIfMissing(classInfo interface{})                   {}
-func (m *mockConversionAdapter) InheritParentProperties(classInfo interface{})                      {}
-func (m *mockConversionAdapter) BuildVirtualMethodTable(classInfo interface{})                      {}
-func (m *mockConversionAdapter) AddClassConstant(classInfo interface{}, constDecl *ast.ConstDecl, value Value) {
-}
-func (m *mockConversionAdapter) GetClassConstantValues(classInfo interface{}) map[string]Value {
-	return nil
-}
-func (m *mockConversionAdapter) InheritClassConstants(classInfo interface{}, parentClass interface{}) {
-}
-func (m *mockConversionAdapter) AddClassField(classInfo interface{}, fieldDecl *ast.FieldDecl, fieldType types.Type) {
-}
-func (m *mockConversionAdapter) AddClassVar(classInfo interface{}, name string, value Value) {}
-func (m *mockConversionAdapter) AddNestedClass(parentClass interface{}, nestedName string, nestedClass interface{}) {
-}
-func (m *mockConversionAdapter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) LookupClassByName(name string) ClassMetaValue { return nil }
-
-// Stub implementations for new ClassMetaValue methods
-// and called via ClassMetaValue interface, not via adapter.
-// (no additional adapter methods needed)
 
 // TestTryImplicitConversion_NilValue tests nil value handling.
 func TestTryImplicitConversion_NilValue(t *testing.T) {

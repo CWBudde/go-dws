@@ -3,7 +3,6 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -351,14 +350,4 @@ func (i *Interpreter) RaiseTypeCastException(message string, node ast.Node) {
 	pos := node.Pos()
 	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
 	i.raiseException("Exception", fullMessage, &pos)
-}
-
-// LookupClassByName finds a class by name and returns it as ClassMetaValue.
-// Used for typed nil class variable access.
-func (i *Interpreter) LookupClassByName(name string) contracts.ClassMetaValue {
-	classInfo := i.resolveClassInfoByName(name)
-	if classInfo == nil {
-		return nil
-	}
-	return &ClassInfoValue{ClassInfo: classInfo}
 }

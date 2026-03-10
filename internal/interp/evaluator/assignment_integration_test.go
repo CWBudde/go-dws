@@ -10,35 +10,6 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
-// mockIntegrationAdapter extends mockConversionAdapter for integration tests
-type mockIntegrationAdapter struct {
-	mockConversionAdapter
-	evalNodeFunc              func(node ast.Node) Value
-	executeMethodWithSelfFunc func(self Value, methodDecl any, args []Value) Value
-	tryBinaryOperatorFunc     func(operator string, left, right Value, node ast.Node) (Value, bool)
-}
-
-func (m *mockIntegrationAdapter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value {
-	if m.evalNodeFunc != nil {
-		return m.evalNodeFunc(node)
-	}
-	return m.mockConversionAdapter.EvalNode(node, ctx)
-}
-
-func (m *mockIntegrationAdapter) ExecuteMethodWithSelf(self Value, methodDecl any, args []Value) Value {
-	if m.executeMethodWithSelfFunc != nil {
-		return m.executeMethodWithSelfFunc(self, methodDecl, args)
-	}
-	return m.mockConversionAdapter.ExecuteMethodWithSelf(self, methodDecl, args)
-}
-
-func (m *mockIntegrationAdapter) TryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool) {
-	if m.tryBinaryOperatorFunc != nil {
-		return m.tryBinaryOperatorFunc(operator, left, right, node)
-	}
-	return m.mockConversionAdapter.TryBinaryOperator(operator, left, right, node)
-}
-
 // TestAssignmentIntegration is a comprehensive integration test that verifies
 // all assignment types work correctly without circular adapter callbacks.
 func TestAssignmentIntegration(t *testing.T) {
@@ -230,7 +201,7 @@ func TestAssignmentIntegration(t *testing.T) {
 			}
 		})
 
-		// Object operator overloads - tested via tryBinaryOperatorFunc mock above
+		// Object operator overloads are covered by dedicated operator tests.
 	})
 }
 
@@ -298,16 +269,16 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 				Elements:  []runtime.Value{&runtime.IntegerValue{Value: 0}},
 			})
 
-			// Execute - should not call adapter.EvalNode on AssignmentStatement
+			// Execute through the final evaluator boundary.
 			result := e.Eval(tt.stmt, ctx)
 
-			// Check result is not a circular callback error
+			// Assignment-specific regressions should surface as ordinary runtime errors,
+			// not legacy callback sentinels.
 			if isError(result) {
 				errVal := result.(*runtime.ErrorValue)
 				if errVal.Message == "fallback adapter called" {
-					t.Fatalf("Circular callback detected: %s", errVal.Message)
+					t.Fatalf("legacy callback sentinel leaked into assignment path: %s", errVal.Message)
 				}
-				// Other errors are fine (expected for undefined variables, etc.)
 			}
 		})
 	}

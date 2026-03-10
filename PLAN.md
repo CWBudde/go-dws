@@ -345,7 +345,7 @@ This work has already happened in the branch and should be reflected as complete
 
 **Goal**: Delete the callback interfaces once the surviving execution paths no longer need them.
 
-**Status**: 🔄 Nearly complete (4.5.1–4.5.4 done; 4.5.5–4.5.6 cleanup remaining)
+**Status**: ✅ Complete
 
 **Current callback surfaces to remove**:
 
@@ -368,14 +368,16 @@ This work has already happened in the branch and should be reflected as complete
   - interface deleted from contracts.go; `SetFocusedInterfaces` simplified to 1 parameter (OOPEngine only); `panicDeclHandler` test removed
 - [x] **4.5.4** Delete `SetFocusedInterfaces()` and all runtime uses
   - all 8 call sites in test files replaced with `SetRuntimeBridge`; method deleted from evaluator
-- [ ] **4.5.5** Replace adapter-based tests with direct engine tests where those adapters only exist to model the old split
-- [ ] **4.5.6** Delete any remaining bridge files that only preserve the old interpreter/evaluator seam
+- [x] **4.5.5** Replace adapter-based tests with direct engine tests where those adapters only exist to model the old split
+  - adapter-shaped conversion/integration test scaffolding removed; tests now execute through the direct evaluator/engine boundary
+- [x] **4.5.6** Delete any remaining bridge files that only preserve the old interpreter/evaluator seam
+  - dead tombstone file `internal/interp/evaluator/focused_interfaces.go` deleted; no remaining bridge-only evaluator files left from the old split
 
 **Success Criteria**:
 
 - [x] zero internal callback interfaces remain (CoreEvaluator, DeclHandler, OOPEngine all deleted)
 - [x] no runtime code depends on callback injection to reach core semantics
-- [ ] no tests require mock adapters for the final architecture boundary (4.5.5)
+- [x] no tests require mock adapters for the final architecture boundary (4.5.5)
 
 ---
 
@@ -383,11 +385,13 @@ This work has already happened in the branch and should be reflected as complete
 
 **Goal**: Finish the cleanup exposed by the ownership collapse.
 
-**Status**: 📋 After callback deletion begins
+**Status**: 🔄 In progress
 
 **Tasks**:
 
-- [ ] **4.6.1** Remove the remaining `i.classes` compatibility mirror and convert remaining call sites to canonical registry APIs
+- [x] **4.6.1** Remove the remaining class-lookup compatibility seam and convert remaining call sites to canonical class-scope helpers
+  - evaluator nested-class identifier resolution now uses the canonical current-class context helper (`__CurrentClass__` or `Self.ClassType`) instead of a trailing fallback branch
+  - dead interpreter `LookupClassByName` shim removed
 - [ ] **4.6.2** Audit hybrid metadata types
   - `ClassInfo`, interfaces, helpers, record metadata
 - [ ] **4.6.3** Remove duplication that no longer serves a compatibility need

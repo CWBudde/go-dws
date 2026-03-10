@@ -269,13 +269,6 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		return e.newError(node, "internal error: ClassValueFactory returned non-Value type")
 	}
 
-	// Fallback: check for nested class access via Self or __CurrentClass__.
-	// This handles cases where a class name is used inside a method body to
-	// refer to a nested class defined within the current class hierarchy.
-	if classMeta := e.lookupClassByNameFallback(node.Value, ctx); classMeta != nil {
-		return classMeta
-	}
-
 	// Final check: check for built-in functions or return undefined error
 	if e.FunctionRegistry().IsBuiltin(node.Value) {
 		// If the semantic type expects a function/method pointer, return a builtin function pointer

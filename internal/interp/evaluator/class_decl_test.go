@@ -9,7 +9,6 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-
 type testClassDeclarationInfo struct {
 	parent     any
 	properties map[string]*types.PropertyInfo
