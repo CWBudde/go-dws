@@ -96,7 +96,7 @@
 package evaluator
 
 import (
-	"reflect"
+	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -150,50 +150,24 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 			return e.newError(node, "method call on nil value")
 		}
 	} else if obj.Type() == "TYPE_CAST" {
-		// Fallback for values that report TYPE_CAST but don't satisfy TypeCastAccessor
-		// (defensive for legacy type aliases during migration).
-		if wrapper, ok := obj.(interface{ GetWrappedValue() Value }); ok {
-			obj = wrapper.GetWrappedValue()
-			if obj == nil {
-				return e.newError(node, "method call on nil value")
-			}
-		} else {
-			if method := reflect.ValueOf(obj).MethodByName("GetWrappedValue"); method.IsValid() && method.Type().NumIn() == 0 {
-				results := method.Call(nil)
-				if len(results) == 1 {
-					if wrapped, ok := results[0].Interface().(Value); ok {
-						obj = wrapped
-						if obj == nil {
-							return e.newError(node, "method call on nil value")
-						}
-					}
-				}
-			}
-			// Last resort: try to read an Object field directly (TypeCastValue stores wrapped value here).
-			val := reflect.ValueOf(obj)
-			if val.Kind() == reflect.Ptr {
-				val = val.Elem()
-			}
-			if val.IsValid() {
-				if field := val.FieldByName("Object"); field.IsValid() && field.CanInterface() {
-					if wrapped, ok := field.Interface().(Value); ok {
-						obj = wrapped
-						if obj == nil {
-							return e.newError(node, "method call on nil value")
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// If the value still reports TYPE_CAST, delegate to the legacy adapter which
-	// knows how to handle TypeCastValue wrappers.
-	if obj != nil && obj.Type() == "TYPE_CAST" {
-		return e.coreEvaluator.EvalNode(node, ctx)
+		return e.newError(node, "internal error: TYPE_CAST value does not implement TypeCastAccessor interface")
 	}
 
 	normalizedMethod := ident.Normalize(methodName)
+
+	if recordType, ok := obj.(*RecordTypeValue); ok {
+		return e.callRecordStaticMethod(recordType, methodName, args, node, ctx)
+	}
+
+	if recordVal, ok := obj.(RecordInstanceValue); ok {
+		if methodDecl, found := recordVal.GetRecordMethod(methodName); found {
+			return e.callRecordMethod(recordVal, methodDecl, args, node, ctx)
+		}
+		if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
+			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
+		}
+		return e.newError(node, "method '%s' not found for type '%s'", methodName, obj.Type())
+	}
 
 	// Route based on object type
 	switch obj.Type() {
@@ -222,19 +196,38 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		return e.dispatchHelperMethod(obj, methodName, args, node, ctx)
 
 	// ============================================================
-	// Adapter-based dispatch (complex types requiring environment setup)
+	// Evaluator-owned dispatch for OOP types
 	// ============================================================
 
-	case "OBJECT", "INTERFACE", "CLASSINFO", "CLASS", "RECORD":
-		// No helper method - delegate to adapter for class/instance method handling
-		// These types require full environment setup (Self binding, call stack)
-		savedCtxEnv := ctx.Env()
-		result := e.oopEngine.CallMethod(obj, methodName, args, node)
-		ctx.SetEnv(savedCtxEnv)
+	case "OBJECT":
+		return e.dispatchObjectMethod(obj, methodName, args, node, ctx)
+
+	case "INTERFACE":
+		intfInst, ok := obj.(*runtime.InterfaceInstance)
+		if !ok {
+			return e.newError(node, "internal error: INTERFACE value is not *runtime.InterfaceInstance")
+		}
+		result := e.dispatchInterfaceMethodDirect(intfInst, methodName, args, node, ctx)
 		if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil && shouldFallbackToHelper(result) {
 			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
 		}
 		return result
+
+	case "CLASS", "CLASSINFO":
+		classMeta, ok := obj.(ClassMetaValue)
+		if !ok {
+			return e.newError(node, "internal error: %s value does not implement ClassMetaValue", obj.Type())
+		}
+		// Handle overloaded class methods via evaluator-owned dispatch
+		if classInfo, ok := classMeta.GetClassInfo().(runtime.IClassInfo); ok {
+			if !classMeta.HasConstructor(methodName) && classInfo.HasClassMethodOverloads(methodName) {
+				return e.dispatchClassMethodOverloaded(classMeta, classInfo, methodName, args, node, ctx)
+			}
+		}
+		if classMeta.HasConstructor(methodName) {
+			return e.callClassConstructor(classMeta, methodName, args, node, ctx)
+		}
+		return e.callClassMethod(classMeta, methodName, args, node, ctx)
 
 	// ============================================================
 	// Unknown type - try helper method or error
@@ -246,12 +239,7 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		if helperResult != nil {
 			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
 		}
-
-		// No handler found - delegate to adapter as last resort
-		savedCtxEnv := ctx.Env()
-		result := e.coreEvaluator.EvalNode(node, ctx)
-		ctx.SetEnv(savedCtxEnv)
-		return result
+		return e.newError(node, "method '%s' not found for type '%s'", methodName, obj.Type())
 	}
 }
 
@@ -283,7 +271,7 @@ func (e *Evaluator) callClassConstructor(classMeta ClassMetaValue, methodName st
 		obj.SetField(fieldName, fieldValue)
 	}
 
-	if err := e.oopEngine.ExecuteConstructor(obj, methodName, args); err != nil {
+	if err := e.executeConstructorForObject(obj, methodName, args, node, ctx); err != nil {
 		return e.newError(node, "constructor failed: %v", err)
 	}
 
@@ -293,16 +281,16 @@ func (e *Evaluator) callClassConstructor(classMeta ClassMetaValue, methodName st
 func (e *Evaluator) callClassMethod(classMeta ClassMetaValue, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) == 0 {
 		if result, invoked := classMeta.InvokeParameterlessClassMethod(methodName, func(methodDecl any) Value {
-			return e.oopEngine.ExecuteMethodWithSelf(classMeta.(Value), methodDecl, nil)
+			return e.executeClassMethodDirect(classMeta, methodDecl, nil, node, ctx)
 		}); invoked {
 			return result
 		}
 	}
 
-	if ptr, ok := classMeta.CreateClassMethodPointer(methodName, func(methodDecl any) Value {
-		return e.createFunctionPointerFromDecl(methodDecl, classMeta.(Value), ctx)
+	if result, ok := classMeta.CreateClassMethodPointer(methodName, func(methodDecl any) Value {
+		return e.executeClassMethodDirect(classMeta, methodDecl, args, node, ctx)
 	}); ok {
-		return e.oopEngine.CallFunctionPointer(ptr, args, node)
+		return result
 	}
 
 	return e.newError(node, "class method '%s' not found", methodName)
@@ -402,6 +390,100 @@ func (e *Evaluator) dispatchHelperMethod(obj Value, methodName string, args []Va
 	}
 
 	return e.CallHelperMethod(helperResult, obj, args, node, ctx)
+}
+
+// dispatchObjectMethod handles method calls on OBJECT instance values.
+//
+// Dispatch order:
+//  1. Destroyed-object guard (raises Exception)
+//  2. Free/destructor alias
+//  3. Method lookup via class hierarchy (virtual dispatch via most-derived-first search)
+//  4. Explicit destructor call (IsDestructor flag)
+//  5. Argument-count check — falls back to oopEngine for overload resolution
+//  6. Class method (static) lookup
+//  7. Helper method fallback
+func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
+	objInst, ok := obj.(*runtime.ObjectInstance)
+	if !ok {
+		return e.newError(node, "internal error: OBJECT value is not *runtime.ObjectInstance")
+	}
+
+	if objInst.Destroyed {
+		pos := node.Pos()
+		message := fmt.Sprintf("Object already destroyed [line: %d, column: %d]", pos.Line, pos.Column+1)
+		exc := e.createException("Exception", message, &pos, ctx)
+		ctx.SetException(exc)
+		return e.nilValue()
+	}
+
+	classInfo := objInst.Class
+	if classInfo == nil {
+		return e.newError(node, "object has no class information")
+	}
+
+	normalizedName := ident.Normalize(methodName)
+
+	// Free is a universal TObject method that delegates to Destroy
+	if normalizedName == "free" {
+		if len(args) != 0 {
+			return e.newError(node, "Free takes no arguments")
+		}
+		return e.runObjectDestructor(objInst, classInfo.LookupMethod("Destroy"), node, ctx)
+	}
+
+	// Dispatch to evaluator-owned overload resolver when the method has overloads.
+	if classInfo.HasMethodOverloads(methodName) {
+		return e.dispatchObjectMethodOverloaded(objInst, methodName, args, node, ctx)
+	}
+
+	// Single-method dispatch: look up via class hierarchy (most-derived first —
+	// this is virtual dispatch without overload ambiguity).
+	method := classInfo.LookupMethod(methodName)
+	if method != nil {
+		if method.IsDestructor {
+			return e.runObjectDestructor(objInst, method, node, ctx)
+		}
+		return e.executeObjectMethodDirect(obj, method, args, node, ctx)
+	}
+
+	// Try class (static) method
+	if classMethod := classInfo.LookupClassMethod(methodName); classMethod != nil {
+		return e.executeObjectMethodDirect(obj, classMethod, args, node, ctx)
+	}
+
+	// Helper method fallback (type helpers extend built-in and user-defined types)
+	if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
+		return e.CallHelperMethod(helperResult, obj, args, node, ctx)
+	}
+
+	return e.newError(node, "method '%s' not found in class '%s'", methodName, classInfo.GetName())
+}
+
+// runObjectDestructor executes an object's destructor and marks the object as destroyed.
+func (e *Evaluator) runObjectDestructor(obj *runtime.ObjectInstance, destructor *ast.FunctionDecl, node ast.Node, ctx *ExecutionContext) Value {
+	if obj == nil {
+		return e.nilValue()
+	}
+	if obj.Destroyed {
+		return e.nilValue()
+	}
+
+	if destructor == nil {
+		obj.Destroyed = true
+		obj.RefCount = 0
+		return e.nilValue()
+	}
+
+	obj.DestroyCallDepth++
+	defer func() {
+		obj.DestroyCallDepth--
+		if obj.DestroyCallDepth == 0 {
+			obj.Destroyed = true
+			obj.RefCount = 0
+		}
+	}()
+
+	return e.executeObjectMethodDirect(obj, destructor, nil, node, ctx)
 }
 
 func shouldFallbackToHelper(result Value) bool {

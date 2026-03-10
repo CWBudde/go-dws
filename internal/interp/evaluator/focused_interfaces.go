@@ -1,25 +1,9 @@
 package evaluator
 
-import "github.com/cwbudde/go-dws/internal/interp/contracts"
-
-// Focused interfaces are defined in contracts package to avoid import cycles.
-// These aliases maintain backward compatibility for evaluator-internal usage.
+// Focused interfaces were defined in the contracts package to avoid import cycles.
 //
-// See contracts package for full interface documentation.
-// See PLAN.md Phase 4 for the plan to eliminate these callback interfaces.
-//
-// Note: ExceptionManager was removed in Task 4.2 - exception handling is now self-contained.
-
-type (
-	// OOPEngine handles runtime OOP operations (method dispatch, constructors, operators).
-	// 20 methods, ~37 callback calls from evaluator.
-	OOPEngine = contracts.OOPEngine
-
-	// DeclHandler handles type declaration processing (classes, interfaces, helpers).
-	// 38 methods, ~41 callback calls from evaluator.
-	DeclHandler = contracts.DeclHandler
-
-	// CoreEvaluator provides fallback evaluation for cross-cutting concerns.
-	// 4 methods, ~18 callback calls from evaluator.
-	CoreEvaluator = contracts.CoreEvaluator
-)
+// All focused interfaces have been eliminated:
+//   - ExceptionManager was removed in Task 4.2 - exception handling is self-contained.
+//   - CoreEvaluator was removed in Task 4.5.1 - EvalNode fallback is no longer used.
+//   - DeclHandler was removed in Task 4.5.3 - declaration processing is self-contained.
+//   - OOPEngine was removed in Task 4.5.2 - OOP dispatch is self-contained.

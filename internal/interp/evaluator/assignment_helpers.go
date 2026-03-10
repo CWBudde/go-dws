@@ -143,7 +143,7 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 				return e.newError(expr, "method '%s' not found", memberName)
 			}
 			if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
-				return e.oopEngine.CreateBoundMethodPointer(objVal, methodDecl)
+				return e.createFunctionPointerFromDecl(methodDecl, objVal, ctx)
 			}
 		}
 		return e.newError(expr, "method '%s' not found", memberName)
@@ -158,7 +158,7 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 			}
 			if obj, ok := underlying.(ObjectValue); ok {
 				if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
-					return e.oopEngine.CreateBoundMethodPointer(underlying, methodDecl)
+					return e.createFunctionPointerFromDecl(methodDecl, underlying, ctx)
 				}
 			}
 		}
@@ -186,11 +186,9 @@ func (e *Evaluator) assignToImplicitTarget(
 	}
 
 	// Check __CurrentClass__ for class variables in class methods
-	if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
-		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-			if result := e.assignToCurrentClassVar(target, targetName, value, classInfoVal); result != nil {
-				return result
-			}
+	if classValue, _, ok := currentClassMetaValue(ctx); ok {
+		if result := e.assignToCurrentClassVar(target, targetName, value, classValue); result != nil {
+			return result
 		}
 	}
 
@@ -252,8 +250,12 @@ func (e *Evaluator) assignToClassVarViaSelf(
 		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
 	}
 
-	classMetaVal := e.oopEngine.LookupClassByName(className)
-	if classMetaVal == nil {
+	cv, err := e.typeSystem.CreateClassValue(className)
+	if err != nil || cv == nil {
+		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
+	}
+	classMetaVal, ok := cv.(ClassMetaValue)
+	if !ok {
 		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
 	}
 
@@ -555,11 +557,9 @@ func (e *Evaluator) compoundAssignToImplicitTarget(
 	}
 
 	// Check __CurrentClass__ context
-	if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
-		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-			if result := e.compoundAssignToCurrentClassVar(target, targetName, stmt, classInfoVal); result != nil {
-				return result
-			}
+	if classValue, _, ok := currentClassMetaValue(ctx); ok {
+		if result := e.compoundAssignToCurrentClassVar(target, targetName, stmt, classValue); result != nil {
+			return result
 		}
 	}
 

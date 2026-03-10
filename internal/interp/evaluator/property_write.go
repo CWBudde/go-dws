@@ -12,8 +12,7 @@ import (
 // - PropAccessField: Direct field assignment
 // - PropAccessMethod: Setter method call
 //
-// For method-based setters, we reuse the adapter's ExecuteMethodWithSelf callback
-// to avoid duplicating method execution logic.
+// Method-based setters execute through evaluator-owned object/record method execution.
 //
 // Parameters:
 //   - obj: The object to write the property to (implements ObjectValue)
@@ -101,8 +100,6 @@ func (e *Evaluator) executeMethodBackedPropertyWrite(obj Value, objVal ObjectVal
 
 // executePropertySetterMethod executes a property setter method.
 // Used by PropAccessMethod for property writes.
-//
-// This reuses the adapter's ExecuteMethodWithSelf to avoid duplicating method execution logic.
 func (e *Evaluator) executePropertySetterMethod(obj Value, objVal ObjectValue, pInfo *types.PropertyInfo, value Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Look up the setter method via ObjectValue interface
 	methodName := pInfo.WriteSpec
@@ -149,9 +146,10 @@ func (e *Evaluator) executePropertySetterMethod(obj Value, objVal ObjectValue, p
 		propCtx.InPropertySetter = savedInSetter
 	}()
 
-	// Execute the method with Self bound and arguments via adapter
-	// The adapter's ExecuteMethodWithSelf handles environment setup, Self binding, etc.
-	e.oopEngine.ExecuteMethodWithSelf(obj, methodDecl, allArgs)
+	result := e.executeObjectMethodDirect(obj, methodDecl, allArgs, node, ctx)
+	if isError(result) {
+		return result
+	}
 
 	// Return the assigned value
 	return value
@@ -169,7 +167,7 @@ func (e *Evaluator) executePropertySetterMethod(obj Value, objVal ObjectValue, p
 //   - value: The value to assign to the property
 //   - node: AST node for error reporting
 //   - ctx: Execution context for environment and call stack
-func (e *Evaluator) executeRecordPropertyWrite(record Value, propInfo *types.RecordPropertyInfo, value Value, node ast.Node) Value {
+func (e *Evaluator) executeRecordPropertyWrite(record Value, propInfo *types.RecordPropertyInfo, value Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Check if property has write access
 	if propInfo.WriteField == "" {
 		return e.newError(node, "property '%s' is read-only", propInfo.Name)
@@ -184,7 +182,7 @@ func (e *Evaluator) executeRecordPropertyWrite(record Value, propInfo *types.Rec
 	// Check if WriteField is a method or a field
 	// Try as method first
 	if recVal.HasRecordMethod(propInfo.WriteField) {
-		return e.executeRecordPropertySetterMethod(record, recVal, propInfo, value, node)
+		return e.executeRecordPropertySetterMethod(record, recVal, propInfo, value, node, ctx)
 	}
 
 	// Field-backed property - direct field assignment
@@ -206,7 +204,7 @@ func (e *Evaluator) executeRecordFieldBackedPropertyWrite(recVal *runtime.Record
 
 // executeRecordPropertySetterMethod handles method-backed record property writes.
 // Executes the setter method specified by WriteField.
-func (e *Evaluator) executeRecordPropertySetterMethod(record Value, recVal *runtime.RecordValue, propInfo *types.RecordPropertyInfo, value Value, node ast.Node) Value {
+func (e *Evaluator) executeRecordPropertySetterMethod(record Value, recVal *runtime.RecordValue, propInfo *types.RecordPropertyInfo, value Value, node ast.Node, ctx *ExecutionContext) Value {
 	methodName := propInfo.WriteField
 
 	// Get the setter method declaration
@@ -224,9 +222,10 @@ func (e *Evaluator) executeRecordPropertySetterMethod(record Value, recVal *runt
 			propInfo.Name, methodName, len(methodDecl.Parameters), len(args))
 	}
 
-	// Execute the method with Self bound via adapter
-	// The adapter's ExecuteMethodWithSelf handles environment setup, Self binding, etc.
-	e.oopEngine.ExecuteMethodWithSelf(record, methodDecl, args)
+	result := e.callRecordMethod(record.(RecordInstanceValue), methodDecl, args, node, ctx)
+	if isError(result) {
+		return result
+	}
 
 	// Return the assigned value
 	return value

@@ -79,6 +79,7 @@ type classDeclarationInfo interface {
 	InheritDestructorMetadataIfMissing()
 	SynthesizeImplicitDefaultConstructor()
 	SetPropertyInfo(name string, propInfo *types.PropertyInfo)
+	DeterminePropertyAccessKind(specName string) types.PropAccessKind
 	InheritParentPropertyInfos()
 	RegisterOperatorBinding(operatorSymbol, bindingName string, operandTypes []string) error
 	BuildVirtualMethodTableDirect()
@@ -324,7 +325,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		if propDecl == nil {
 			continue
 		}
-		propInfo := e.convertPropertyDecl(propDecl)
+		propInfo := e.convertPropertyDecl(classInfo, propDecl, ctx)
 		if propInfo == nil {
 			return e.newError(propDecl, "failed to add property '%s' to class '%s'", propDecl.Name.Value, className)
 		}
@@ -419,7 +420,7 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 		if propDecl == nil {
 			continue
 		}
-		propInfo := e.convertPropertyDecl(propDecl)
+		propInfo := e.convertPropertyDecl(nil, propDecl, ctx)
 		if propInfo != nil {
 			interfaceInfo.Properties[ident.Normalize(propDecl.Name.Value)] = propInfo
 		}
@@ -432,25 +433,10 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 
 // Converts AST property declaration to PropertyInfo for runtime access.
 // Used by interface, class, and record evaluation.
-func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.PropertyInfo {
-	// Resolve property type
-	var propType types.Type
-	switch propDecl.Type.String() {
-	case "Integer":
-		propType = types.INTEGER
-	case "Float":
-		propType = types.FLOAT
-	case "String":
-		propType = types.STRING
-	case "Boolean":
-		propType = types.BOOLEAN
-	default:
-		className := propDecl.Type.String()
-		if e.typeSystem.HasClass(className) {
-			propType = types.NewClassType(className, nil)
-		} else {
-			propType = types.NIL
-		}
+func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl *ast.PropertyDecl, ctx *ExecutionContext) *types.PropertyInfo {
+	propType, err := e.ResolveTypeWithContext(propDecl.Type.String(), ctx)
+	if err != nil || propType == nil {
+		propType = types.NIL
 	}
 
 	propInfo := &types.PropertyInfo{
@@ -471,11 +457,16 @@ func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Prope
 	}
 
 	// Determine read access (field, method, or expression)
-	// For interfaces, treat as method since interfaces don't have fields
 	if propDecl.ReadSpec != nil {
 		if ident, ok := propDecl.ReadSpec.(*ast.Identifier); ok {
 			propInfo.ReadSpec = ident.Value
-			propInfo.ReadKind = types.PropAccessMethod
+			if classInfo == nil {
+				propInfo.ReadKind = types.PropAccessMethod
+			} else {
+				// Match interpreter behavior: read specs on classes are treated as
+				// field-like first, with runtime fallback to constant/class-var/method.
+				propInfo.ReadKind = types.PropAccessField
+			}
 		} else {
 			propInfo.ReadKind = types.PropAccessExpression
 			propInfo.ReadSpec = propDecl.ReadSpec.String()
@@ -485,12 +476,10 @@ func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Prope
 		propInfo.ReadKind = types.PropAccessNone
 	}
 
-	// Determine write access (field or method)
-	// For interfaces, treat as method since interfaces don't have fields
 	if propDecl.WriteSpec != nil {
 		if ident, ok := propDecl.WriteSpec.(*ast.Identifier); ok {
 			propInfo.WriteSpec = ident.Value
-			propInfo.WriteKind = types.PropAccessMethod
+			propInfo.WriteKind = e.determinePropertyAccessKind(classInfo, ident.Value)
 		} else {
 			propInfo.WriteKind = types.PropAccessNone
 		}
@@ -499,6 +488,13 @@ func (e *Evaluator) convertPropertyDecl(propDecl *ast.PropertyDecl) *types.Prope
 	}
 
 	return propInfo
+}
+
+func (e *Evaluator) determinePropertyAccessKind(classInfo classDeclarationInfo, specName string) types.PropAccessKind {
+	if classInfo == nil {
+		return types.PropAccessMethod
+	}
+	return classInfo.DeterminePropertyAccessKind(specName)
 }
 
 // Checks for circular interface inheritance to prevent infinite loops.

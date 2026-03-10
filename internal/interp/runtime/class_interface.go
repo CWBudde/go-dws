@@ -38,6 +38,12 @@ type IClassInfo interface {
 	// Name comparison is case-insensitive.
 	LookupMethod(name string) *ast.FunctionDecl
 
+	// LookupClassMethod finds a class/static method by name in the class hierarchy.
+	// Searches the current class first, then walks up the parent chain.
+	// Returns the method declaration or nil if not found.
+	// Name comparison is case-insensitive.
+	LookupClassMethod(name string) *ast.FunctionDecl
+
 	// LookupProperty finds a property by name in the class hierarchy.
 	// Searches the current class first, then walks up the parent chain.
 	// Returns property metadata or nil if not found.
@@ -89,6 +95,28 @@ type IClassInfo interface {
 	// GetConstructor returns a constructor declaration by name (case-insensitive).
 	// Returns nil if no constructor with that name exists.
 	GetConstructor(name string) *ast.FunctionDecl
+
+	// HasMethodOverloads returns true if the class or any ancestor declares more
+	// than one instance method with the given name (i.e., the method is overloaded).
+	// Used by the evaluator to decide whether to use direct dispatch or fall back
+	// to the adapter for full overload resolution.
+	HasMethodOverloads(name string) bool
+
+	// HasClassMethodOverloads returns true if the class or any ancestor declares
+	// more than one class (static) method with the given name.
+	HasClassMethodOverloads(name string) bool
+
+	// GetMethodOverloads returns all overloads (across the class hierarchy) for the
+	// given instance method name. The name comparison is case-insensitive.
+	GetMethodOverloads(name string) []*ast.FunctionDecl
+
+	// GetClassMethodOverloads returns all overloads (across the class hierarchy) for
+	// the given class (static) method name. The name comparison is case-insensitive.
+	GetClassMethodOverloads(name string) []*ast.FunctionDecl
+
+	// GetConstructorOverloads returns all overloads (across the class hierarchy) for
+	// the given constructor name. The name comparison is case-insensitive.
+	GetConstructorOverloads(name string) []*ast.FunctionDecl
 
 	// GetFieldTypesMap returns the field name to type mapping for this class.
 	// Used for field initialization during object creation.

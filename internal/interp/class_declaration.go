@@ -18,12 +18,18 @@ func (c *ClassInfo) IsPartialClass() bool {
 func (c *ClassInfo) SetPartialClass(isPartial bool) {
 	if c != nil {
 		c.IsPartial = isPartial
+		if c.Metadata != nil {
+			c.Metadata.IsPartial = isPartial
+		}
 	}
 }
 
 func (c *ClassInfo) SetAbstractClass(isAbstract bool) {
 	if c != nil {
 		c.IsAbstractFlag = isAbstract
+		if c.Metadata != nil {
+			c.Metadata.IsAbstract = isAbstract
+		}
 	}
 }
 
@@ -33,6 +39,10 @@ func (c *ClassInfo) SetExternalClass(isExternal bool, externalName string) {
 	}
 	c.IsExternalFlag = isExternal
 	c.ExternalName = externalName
+	if c.Metadata != nil {
+		c.Metadata.IsExternal = isExternal
+		c.Metadata.ExternalName = externalName
+	}
 }
 
 func (c *ClassInfo) HasNoParentClass() bool {
@@ -253,6 +263,39 @@ func (c *ClassInfo) SetPropertyInfo(name string, propInfo *types.PropertyInfo) {
 	if c != nil && propInfo != nil {
 		c.Properties[name] = propInfo
 	}
+}
+
+func (c *ClassInfo) DeterminePropertyAccessKind(specName string) types.PropAccessKind {
+	if c == nil {
+		return types.PropAccessMethod
+	}
+
+	normalizedName := ident.Normalize(specName)
+	for current := c; current != nil; current = current.Parent {
+		if _, isField := current.Fields[normalizedName]; isField {
+			return types.PropAccessField
+		}
+		if _, isField := current.Fields[specName]; isField {
+			return types.PropAccessField
+		}
+		if _, isClassVar := current.ClassVars[specName]; isClassVar {
+			return types.PropAccessField
+		}
+		if _, isClassVar := current.ClassVars[normalizedName]; isClassVar {
+			return types.PropAccessField
+		}
+	}
+
+	for current := c; current != nil; current = current.Parent {
+		if _, isMethod := current.Methods[normalizedName]; isMethod {
+			return types.PropAccessMethod
+		}
+		if _, isClassMethod := current.ClassMethods[normalizedName]; isClassMethod {
+			return types.PropAccessMethod
+		}
+	}
+
+	return types.PropAccessNone
 }
 
 func (c *ClassInfo) AddMethodDeclaration(method *ast.FunctionDecl, className string, registry *runtime.MethodRegistry) bool {

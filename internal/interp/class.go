@@ -115,6 +115,25 @@ func (c *ClassInfo) LookupMethod(name string) *ast.FunctionDecl {
 	return c.lookupMethod(name)
 }
 
+// LookupClassMethod finds a class/static method by name in the class hierarchy.
+func (c *ClassInfo) LookupClassMethod(name string) *ast.FunctionDecl {
+	if c == nil {
+		return nil
+	}
+
+	normalizedName := ident.Normalize(name)
+	for current := c; current != nil; current = current.Parent {
+		if method, exists := current.ClassMethods[normalizedName]; exists {
+			return method
+		}
+		if overloads, exists := current.ClassMethodOverloads[normalizedName]; exists && len(overloads) > 0 {
+			return overloads[0]
+		}
+	}
+
+	return nil
+}
+
 // LookupProperty finds a property by name in the class hierarchy
 func (c *ClassInfo) LookupProperty(name string) *runtime.PropertyInfo {
 	propInfo := c.lookupProperty(name)
@@ -304,6 +323,64 @@ func (c *ClassInfo) GetConstructor(name string) *ast.FunctionDecl {
 		return ctor
 	}
 	return nil
+}
+
+// HasMethodOverloads returns true if the class or any ancestor declares more than
+// one instance method with the given name (i.e., the method is overloaded).
+func (c *ClassInfo) HasMethodOverloads(name string) bool {
+	normalizedName := ident.Normalize(name)
+	total := 0
+	for current := c; current != nil; current = current.Parent {
+		total += len(current.MethodOverloads[normalizedName])
+		if total > 1 {
+			return true
+		}
+	}
+	return false
+}
+
+// HasClassMethodOverloads returns true if the class or any ancestor declares more
+// than one class (static) method with the given name.
+func (c *ClassInfo) HasClassMethodOverloads(name string) bool {
+	normalizedName := ident.Normalize(name)
+	total := 0
+	for current := c; current != nil; current = current.Parent {
+		total += len(current.ClassMethodOverloads[normalizedName])
+		if total > 1 {
+			return true
+		}
+	}
+	return false
+}
+
+// GetMethodOverloads returns all instance method overloads across the class hierarchy.
+func (c *ClassInfo) GetMethodOverloads(name string) []*ast.FunctionDecl {
+	normalizedName := ident.Normalize(name)
+	var result []*ast.FunctionDecl
+	for current := c; current != nil; current = current.Parent {
+		result = append(result, current.MethodOverloads[normalizedName]...)
+	}
+	return result
+}
+
+// GetClassMethodOverloads returns all class (static) method overloads across the class hierarchy.
+func (c *ClassInfo) GetClassMethodOverloads(name string) []*ast.FunctionDecl {
+	normalizedName := ident.Normalize(name)
+	var result []*ast.FunctionDecl
+	for current := c; current != nil; current = current.Parent {
+		result = append(result, current.ClassMethodOverloads[normalizedName]...)
+	}
+	return result
+}
+
+// GetConstructorOverloads returns all constructor overloads across the class hierarchy.
+func (c *ClassInfo) GetConstructorOverloads(name string) []*ast.FunctionDecl {
+	normalizedName := ident.Normalize(name)
+	var result []*ast.FunctionDecl
+	for current := c; current != nil; current = current.Parent {
+		result = append(result, current.ConstructorOverloads[normalizedName]...)
+	}
+	return result
 }
 
 // GetFieldTypesMap returns the field name to type mapping for this class.

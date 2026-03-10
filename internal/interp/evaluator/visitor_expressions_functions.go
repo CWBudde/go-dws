@@ -36,7 +36,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 							return fallbackArgs[i]
 						}
 					}
-					return e.oopEngine.CallFunctionPointer(val, fallbackArgs, node)
+					return e.executeFunctionPointerDirect(val, fallbackArgs, node, ctx)
 				}
 
 				// Get function declaration for parameter metadata
@@ -96,15 +96,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 					}
 				}
 
-				// Build metadata and execute via adapter
-				metadata := FunctionPointerMetadata{
-					IsLambda:   funcPtr.IsLambda(),
-					Lambda:     funcPtr.GetLambdaExpr(),
-					Function:   funcPtr.GetFunctionDecl(),
-					Closure:    funcPtr.GetClosure(),
-					SelfObject: funcPtr.GetSelfObject(),
-				}
-				return e.oopEngine.ExecuteFunctionPointerCall(metadata, args, node)
+				return e.executeFunctionPointerDirect(val, args, node, ctx)
 			}
 		}
 	}
@@ -116,7 +108,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 				// Unit-qualified function call
 				if e.UnitRegistry() != nil {
 					if _, exists := e.UnitRegistry().GetUnit(identNode.Value); exists {
-						return e.oopEngine.CallQualifiedOrConstructor(node, memberAccess)
+						return e.executeQualifiedFunctionCall(identNode.Value, memberAccess.Member, node.Arguments, node, ctx)
 					}
 				}
 
@@ -213,10 +205,20 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			if recordVal.Type() == "RECORD_TYPE" {
 				if rtmv, ok := recordVal.(RecordTypeMetaValue); ok {
 					if rtmv.HasStaticMethod(funcName.Value) {
-						return e.oopEngine.DispatchRecordStaticMethod(rtmv.GetRecordTypeName(), node, funcName)
+						recordType, ok := recordVal.(*RecordTypeValue)
+						if !ok {
+							return e.newError(node, "__CurrentRecord__ is not a record type value")
+						}
+						recordArgs := make([]Value, len(node.Arguments))
+						for i, arg := range node.Arguments {
+							val := e.Eval(arg, ctx)
+							if isError(val) {
+								return val
+							}
+							recordArgs[i] = val
+						}
+						return e.callRecordStaticMethod(recordType, funcName.Value, recordArgs, node, ctx)
 					}
-				} else {
-					return e.oopEngine.CallRecordStaticMethod(node, funcName)
 				}
 			}
 		}
@@ -292,10 +294,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
 		if selfVal, ok := selfRaw.(Value); ok {
 			if selfVal.Type() == "OBJECT" || selfVal.Type() == "CLASS" {
-				return e.oopEngine.CallImplicitSelfMethod(node, funcName)
+				return e.executeImplicitSelfCall(node, funcName, ctx)
 			}
 			if _, isRecord := selfVal.(*runtime.RecordValue); isRecord {
-				return e.oopEngine.CallImplicitSelfMethod(node, funcName)
+				return e.executeImplicitSelfCall(node, funcName, ctx)
 			}
 		}
 	}
@@ -393,15 +395,13 @@ func (e *Evaluator) wrapLazyArg(arg ast.Expression, ctx *ExecutionContext, eval 
 }
 
 // callExternalFunction handles external (Go) function dispatch with var parameter support.
-// For now, delegates to the adapter to handle external functions properly.
-// This will be fully migrated in a future phase when we eliminate the adapter.
+// Delegates to the ExternalFunctionCaller callback wired in EngineState.
 func (e *Evaluator) callExternalFunction(
 	funcName string,
 	argExprs []ast.Expression,
 	node ast.Node,
 ) Value {
-	// Delegate to adapter which has full access to external function infrastructure
-	return e.oopEngine.CallExternalFunction(funcName, argExprs, node)
+	return e.callExternalFunctionViaEngineState(funcName, argExprs, node)
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
@@ -493,8 +493,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	// Execute constructor
 	constructor := classInfo.GetConstructor("Create")
 	if constructor != nil {
-		err := e.oopEngine.ExecuteConstructor(obj, "Create", args)
-		if err != nil {
+		if err := e.executeConstructorForObject(obj, "Create", args, node, ctx); err != nil {
 			return e.newError(node, "constructor failed: %v", err)
 		}
 	} else if len(args) == 1 && e.typeSystem.IsClassDescendantOf(className, "Exception") {

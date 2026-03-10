@@ -9,20 +9,15 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-type panicDeclHandler struct{}
-
-func (panicDeclHandler) NewClassInfoAdapter(name string) any {
-	panic("NewClassInfoAdapter should not be called")
-}
 
 type testClassDeclarationInfo struct {
-	name       string
 	parent     any
-	isPartial  bool
 	properties map[string]*types.PropertyInfo
 	classVars  map[string]Value
 	constants  map[string]Value
 	fields     map[string]types.Type
+	name       string
+	isPartial  bool
 }
 
 func newTestClassDeclarationInfo(name string) *testClassDeclarationInfo {
@@ -39,7 +34,7 @@ func (c *testClassDeclarationInfo) IsPartialClass() bool { return c.isPartial }
 func (c *testClassDeclarationInfo) SetPartialClass(isPartial bool) {
 	c.isPartial = isPartial
 }
-func (c *testClassDeclarationInfo) SetAbstractClass(isAbstract bool) {}
+func (c *testClassDeclarationInfo) SetAbstractClass(isAbstract bool)                      {}
 func (c *testClassDeclarationInfo) SetExternalClass(isExternal bool, externalName string) {}
 func (c *testClassDeclarationInfo) DefineCurrentClassMarker(env *runtime.Environment) {
 	env.Define("__CurrentClass__", nil)
@@ -59,7 +54,7 @@ func (c *testClassDeclarationInfo) ConstantValuesCopy() map[string]Value {
 	}
 	return out
 }
-func (c *testClassDeclarationInfo) InheritConstantValuesFrom(parent any) {}
+func (c *testClassDeclarationInfo) InheritConstantValuesFrom(parent any)                 {}
 func (c *testClassDeclarationInfo) AddNestedClassRef(nestedName string, nestedClass any) {}
 func (c *testClassDeclarationInfo) AddFieldDeclaration(fieldDecl *ast.FieldDecl, fieldType types.Type) {
 	c.fields[fieldDecl.Name.Value] = fieldType
@@ -74,11 +69,14 @@ func (c *testClassDeclarationInfo) LookupDeclaredMethod(methodName string, isCla
 	return nil, false
 }
 func (c *testClassDeclarationInfo) SetConstructorDecl(constructor *ast.FunctionDecl) {}
-func (c *testClassDeclarationInfo) SetDestructorDecl(destructor *ast.FunctionDecl) {}
-func (c *testClassDeclarationInfo) InheritDestructorMetadataIfMissing()     {}
-func (c *testClassDeclarationInfo) SynthesizeImplicitDefaultConstructor()    {}
+func (c *testClassDeclarationInfo) SetDestructorDecl(destructor *ast.FunctionDecl)   {}
+func (c *testClassDeclarationInfo) InheritDestructorMetadataIfMissing()              {}
+func (c *testClassDeclarationInfo) SynthesizeImplicitDefaultConstructor()            {}
 func (c *testClassDeclarationInfo) SetPropertyInfo(name string, propInfo *types.PropertyInfo) {
 	c.properties[name] = propInfo
+}
+func (c *testClassDeclarationInfo) DeterminePropertyAccessKind(specName string) types.PropAccessKind {
+	return types.PropAccessMethod
 }
 func (c *testClassDeclarationInfo) InheritParentPropertyInfos() {}
 func (c *testClassDeclarationInfo) RegisterOperatorBinding(operatorSymbol, bindingName string, operandTypes []string) error {
@@ -111,7 +109,7 @@ func TestVisitClassDecl_UsesTypeSystemFactoryInsteadOfDeclHandler(t *testing.T) 
 
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-	e.SetFocusedInterfaces(nil, panicDeclHandler{}, nil)
+	e.SetRuntimeBridge(nil)
 
 	ctx := runtime.NewExecutionContext(runtime.NewEnvironment())
 	node := &ast.ClassDecl{

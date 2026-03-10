@@ -223,7 +223,7 @@ func (i *Interpreter) raiseMaxRecursionExceededInContext(ctx *runtime.ExecutionC
 		ctx = i.ctx
 	}
 
-	message := fmt.Sprintf("Maximal recursion exceeded (%d)", i.maxRecursionDepth)
+	message := fmt.Sprintf("Maximal recursion exceeded (%d)", i.engineState.MaxRecursionDepth)
 
 	// Capture current call stack
 	callStack := ctx.CallStack()

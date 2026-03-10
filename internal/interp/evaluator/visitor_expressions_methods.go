@@ -46,22 +46,8 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 			if e.UnitRegistry() != nil {
 				_, unitExists = e.UnitRegistry().GetUnit(identObj.Value)
 			}
-			if unitExists || e.typeSystem.HasClass(identObj.Value) {
-				memberAccess := &ast.MemberAccessExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: node.Token},
-					},
-					Object: identObj,
-					Member: node.Method,
-				}
-				callExpr := &ast.CallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: node.Token},
-					},
-					Function:  memberAccess,
-					Arguments: node.Arguments,
-				}
-				return e.oopEngine.CallQualifiedOrConstructor(callExpr, memberAccess)
+			if unitExists {
+				return e.executeQualifiedFunctionCall(identObj.Value, node.Method, node.Arguments, node, ctx)
 			}
 		}
 	}
@@ -145,20 +131,5 @@ func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx 
 		args[i] = val
 	}
 
-	// Use ObjectValue interface for parent class method lookup
-	// Then delegate method execution to adapter.ExecuteMethodWithSelf
-	objVal, ok := self.(ObjectValue)
-	if !ok {
-		// Fallback to adapter for non-ObjectValue types
-		return e.oopEngine.CallInheritedMethod(self, methodName, args)
-	}
-
-	// Create method executor callback that delegates to adapter
-	methodExecutor := func(methodDecl any, methodArgs []Value) Value {
-		return e.oopEngine.ExecuteMethodWithSelf(self, methodDecl, methodArgs)
-	}
-
-	// Call inherited method via ObjectValue interface
-	// This performs parent class lookup directly on the object
-	return objVal.CallInheritedMethod(methodName, args, methodExecutor)
+	return e.executeInheritedCallDirect(self, methodName, args, node, ctx)
 }

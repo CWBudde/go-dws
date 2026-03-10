@@ -228,7 +228,8 @@ func (e *Evaluator) CallHelperMethod(
 }
 
 // CallBuiltinHelperMethod executes a builtin helper method.
-// Tries type-specific helpers in order; unhandled specs fall through to adapter.
+// Tries type-specific helpers in order; unhandled specs are treated as missing
+// evaluator support rather than bouncing through the legacy path.
 func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Try each helper type in order
 	if result := e.evalStringHelper(spec, selfValue, args, node); result != nil {
@@ -250,8 +251,7 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 		return result
 	}
 
-	// Unhandled - delegate to adapter
-	return e.coreEvaluator.EvalNode(node, ctx)
+	return e.newError(node, "unknown built-in helper method '%s'", spec)
 }
 
 // CallASTHelperMethod executes a user-defined helper method (with AST body).
@@ -543,7 +543,7 @@ func (e *Evaluator) evalBuiltinHelperProperty(propSpec string, selfValue Value, 
 		if _, ok := selfValue.(ArrayAccessor); !ok {
 			return e.newError(node, "built-in property '%s' can only be used on arrays", propSpec)
 		}
-		return e.coreEvaluator.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+		return e.evalArrayHelper(propSpec, selfValue, nil, node)
 
 	case "__enum_value":
 		enumVal, ok := selfValue.(EnumAccessor)
@@ -553,15 +553,27 @@ func (e *Evaluator) evalBuiltinHelperProperty(propSpec string, selfValue Value, 
 		return &runtime.IntegerValue{Value: int64(enumVal.GetOrdinal())}
 
 	case "__enum_name", "__enum_qualifiedname":
-		return e.coreEvaluator.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+		return e.evalEnumHelper(propSpec, selfValue, nil, node)
 
 	case "__string_length":
 		if _, ok := selfValue.(StringValue); !ok {
 			return e.newError(node, "String.Length property requires string receiver")
 		}
-		return e.coreEvaluator.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+		return e.evalStringHelper(propSpec, selfValue, nil, node)
+
+	case "__string_isascii", "__string_trim", "__string_trimleft", "__string_trimright":
+		return e.evalStringHelper(propSpec, selfValue, nil, node)
+
+	case "__integer_tostring":
+		return e.evalIntegerHelper(propSpec, selfValue, nil, node)
+
+	case "__float_tostring_default":
+		return e.evalFloatHelper(propSpec, selfValue, nil, node)
+
+	case "__boolean_tostring":
+		return e.evalBooleanHelper(propSpec, selfValue, nil, node)
 
 	default:
-		return e.coreEvaluator.EvalBuiltinHelperProperty(propSpec, selfValue, node)
+		return e.newError(node, "unknown built-in property '%s'", propSpec)
 	}
 }

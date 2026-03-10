@@ -24,6 +24,15 @@ const DefaultMaxRecursionDepth = 1024
 // PropertyEvalContext tracks the state during property getter/setter evaluation.
 type PropertyEvalContext = runtime.PropertyEvalContext
 
+type evaluatorShim interface {
+	Eval(node ast.Node, ctx *runtime.ExecutionContext) Value
+	ExecuteUserFunction(fn *ast.FunctionDecl, args []Value, ctx *runtime.ExecutionContext, callbacks *contracts.UserFunctionCallbacks) (Value, error)
+	CurrentNode() ast.Node
+	CurrentContext() *runtime.ExecutionContext
+	EngineState() *contracts.EngineState
+	SetCurrentNode(node ast.Node)
+}
+
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 // Thin orchestrator delegating evaluation logic to the Evaluator.
 type Interpreter struct {
@@ -31,9 +40,8 @@ type Interpreter struct {
 	engineState       *contracts.EngineState
 	typeSystem        *interptypes.TypeSystem
 	methodRegistry    *runtime.MethodRegistry
-	evaluatorInstance contracts.Evaluator
+	evaluatorInstance evaluatorShim
 	ctx               *runtime.ExecutionContext
-	maxRecursionDepth int
 }
 
 // NewWithDeps creates an Interpreter with its core dependencies provided by a higher-level runner.
@@ -43,12 +51,11 @@ func NewWithDeps(
 	opts Options,
 	env *runtime.Environment,
 	typeSystem *interptypes.TypeSystem,
-	eval contracts.Evaluator,
+	eval evaluatorShim,
 	refCountMgr runtime.RefCountManager,
 ) *Interpreter {
 	interp := &Interpreter{
 		output:            output,
-		maxRecursionDepth: DefaultMaxRecursionDepth,
 		engineState:       eval.EngineState(),
 		typeSystem:        typeSystem,
 		methodRegistry:    runtime.NewMethodRegistry(),
@@ -58,11 +65,14 @@ func NewWithDeps(
 
 	if opts != nil {
 		if depth := opts.GetMaxRecursionDepth(); depth > 0 {
-			interp.maxRecursionDepth = depth
+			interp.engineState.MaxRecursionDepth = depth
 		}
 	}
+	if interp.engineState.MaxRecursionDepth <= 0 {
+		interp.engineState.MaxRecursionDepth = DefaultMaxRecursionDepth
+	}
 
-	interp.ctx = runtime.NewExecutionContextWithMaxDepth(env, interp.maxRecursionDepth)
+	interp.ctx = runtime.NewExecutionContextWithMaxDepth(env, interp.engineState.MaxRecursionDepth)
 	interp.ctx.SetRefCountManager(refCountMgr)
 
 	if interp.evaluatorInstance != nil {
@@ -113,20 +123,10 @@ func (i *Interpreter) SetSemanticInfo(info *ast.SemanticInfo) {
 	i.engineState.SemanticInfo = info
 }
 
-// GetEvaluator returns the evaluator instance.
-func (i *Interpreter) GetEvaluator() contracts.Evaluator {
-	return i.evaluatorInstance
-}
-
-// EvalNode provides a minimal evaluation hook for cross-cutting concerns.
-// The ctx parameter ensures the interpreter uses the correct environment,
-// especially when callbacks occur from within scopes that pushed new environments
-// (e.g., for loops).
+// EvalNode evaluates a node using the legacy interpreter path.
+// No longer used as a CoreEvaluator callback (interface deleted in 4.5.1).
+// Kept for potential internal use; may be removed in Phase 4.6.
 func (i *Interpreter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value {
-	// IMPORTANT:
-	// This is a CoreEvaluator callback used by the evaluator for not-yet-migrated
-	// operations. It must NOT call i.Eval() (which delegates to the evaluator),
-	// otherwise we'd recurse forever. Use the legacy path instead.
 	if ctx != nil && ctx != i.ctx {
 		savedCtx := i.ctx
 		i.ctx = ctx
@@ -136,10 +136,8 @@ func (i *Interpreter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Val
 	return i.evalLegacy(node)
 }
 
-// evalLegacy contains the prior interpreter-side dispatch for statements/
-// declarations and any remaining expression cases that still rely on interpreter
-// state. It exists to support evaluator->CoreEvaluator callbacks while keeping
-// Interpreter.Eval() unified.
+// evalLegacy contains the interpreter-side dispatch for statements and
+// declarations that still rely on interpreter state.
 func (i *Interpreter) evalLegacy(node ast.Node) Value {
 	i.evaluatorInstance.SetCurrentNode(node)
 

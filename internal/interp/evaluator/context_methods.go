@@ -159,5 +159,5 @@ func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 
 // EvalFunctionPointer executes a function pointer with given arguments.
 func (e *Evaluator) EvalFunctionPointer(funcPtr Value, args []Value) Value {
-	return e.oopEngine.CallFunctionPointer(funcPtr, args, e.currentNode)
+	return e.executeFunctionPointerDirect(funcPtr, args, e.currentNode, e.currentContext)
 }

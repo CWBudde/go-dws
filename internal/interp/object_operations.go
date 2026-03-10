@@ -95,8 +95,8 @@ func (i *Interpreter) ExecuteConstructor(obj Value, constructorName string, args
 	}
 
 	var (
-		constructor     *ast.FunctionDecl
-		foundCandidate  bool
+		constructor         *ast.FunctionDecl
+		foundCandidate      bool
 		constructorNameNorm = ident.Normalize(constructorName)
 	)
 

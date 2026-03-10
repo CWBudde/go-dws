@@ -74,7 +74,7 @@ func TestAssignmentIntegration(t *testing.T) {
 				return nil, false
 			},
 		}
-		e.SetFocusedInterfaces(failOnEvalNodeAdapter, failOnEvalNodeAdapter, failOnEvalNodeAdapter)
+		e.SetRuntimeBridge(failOnEvalNodeAdapter)
 
 		ctx := NewExecutionContext(runtime.NewEnvironment())
 
@@ -286,7 +286,7 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 			return nil, false
 		},
 	}
-	e.SetFocusedInterfaces(strictAdapter, strictAdapter, strictAdapter)
+	e.SetRuntimeBridge(strictAdapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
@@ -397,7 +397,7 @@ func TestAssignment_RegressionSuite(t *testing.T) {
 			return nil, false
 		},
 	}
-	e.SetFocusedInterfaces(adapter, adapter, adapter)
+	e.SetRuntimeBridge(adapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 

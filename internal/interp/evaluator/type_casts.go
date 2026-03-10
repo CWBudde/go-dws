@@ -337,7 +337,7 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 	if _, isNil := val.(*runtime.NilValue); isNil {
 		// Wrap nil in TypeCastValue to preserve static type information
 		// This allows TBase(nilChild).ClassVar to access TBase's class variable
-		wrapper := e.oopEngine.CreateTypeCastWrapper(className, val)
+		wrapper := e.createTypeCastValue(className, val)
 		if wrapper == nil {
 			return e.newError(node, "class '%s' not found", className)
 		}
@@ -387,11 +387,12 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 
 	// Cast is valid - return a TypeCastValue that preserves the static type
 	// This is crucial for class variable access: TBase(child).ClassVar should access TBase's class variable
-	wrapper := e.oopEngine.CreateTypeCastWrapper(className, val)
-	if wrapper == nil {
-		return e.newError(node, "failed to create type cast wrapper for class '%s'", className)
+	// We already have targetClassInfo from the lookup above; use it directly.
+	classInfoIface, ok := targetClassInfo.(runtime.IClassInfo)
+	if !ok {
+		return e.newError(node, "class '%s' has invalid type for type cast", className)
 	}
-	return wrapper
+	return &interp_TypeCastValue{Object: val, StaticType: classInfoIface}
 }
 
 // raiseTypeCastException raises an exception for invalid type casts.

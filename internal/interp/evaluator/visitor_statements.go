@@ -84,14 +84,7 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 				ctx.SetException(exc)
 				return &runtime.NilValue{}
 			}
-			metadata := FunctionPointerMetadata{
-				IsLambda:   funcPtr.IsLambda(),
-				Lambda:     funcPtr.GetLambdaExpr(),
-				Function:   funcPtr.GetFunctionDecl(),
-				Closure:    funcPtr.GetClosure(),
-				SelfObject: funcPtr.GetSelfObject(),
-			}
-			return e.oopEngine.ExecuteFunctionPointerCall(metadata, []Value{}, node)
+			return e.executeFunctionPointerDirect(val, []Value{}, node, ctx)
 		}
 	}
 
@@ -185,7 +178,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 		if node.Type != nil {
 			typeName := node.Type.String()
 			if e.typeSystem.HasSubrangeType(typeName) {
-				wrappedVal, err := e.oopEngine.WrapInSubrange(value, typeName, node)
+				wrappedVal, err := e.wrapInSubrange(value, typeName, node)
 				if err != nil {
 					return e.newError(node, "%v", err)
 				}
@@ -225,7 +218,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				typeName := node.Type.String()
 				if e.typeSystem.HasInterface(typeName) {
 					if value.Type() != "INTERFACE" {
-						wrapped, err := e.oopEngine.WrapInInterface(value, typeName, node)
+						wrapped, err := e.wrapInInterface(value, typeName, node)
 						if err != nil {
 							return e.newError(node, "%v", err)
 						}

@@ -166,8 +166,6 @@ type FunctionPointerMetadata = contracts.FunctionPointerMetadata
 
 // Config holds evaluator configuration options.
 type Config struct {
-	SourceCode        string
-	SourceFile        string
 	MaxRecursionDepth int
 }
 
@@ -175,8 +173,6 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		MaxRecursionDepth: 1024,
-		SourceCode:        "",
-		SourceFile:        "",
 	}
 }
 
@@ -189,13 +185,11 @@ type ExternalFunctionRegistry = contracts.ExternalFunctionRegistry
 type Evaluator struct {
 	output            io.Writer
 	currentNode       ast.Node
-	oopEngine         OOPEngine   // Runtime OOP operations
-	coreEvaluator     CoreEvaluator
 	config            *Config
 	currentContext    *ExecutionContext
 	typeSystem        *interptypes.TypeSystem
 	engineState       *contracts.EngineState
-	selfContainedMode bool // When true, Eval() won't fall back to coreEvaluator
+	selfContainedMode bool
 }
 
 // Ensure Evaluator implements builtins.Context interface.
@@ -217,8 +211,8 @@ func NewEvaluator(
 	const defaultSeed = int64(1)
 	source := rand.NewSource(defaultSeed)
 	state := &contracts.EngineState{
-		SourceCode:        config.SourceCode,
-		SourceFile:        config.SourceFile,
+		SourceCode:        "",
+		SourceFile:        "",
 		ExternalFunctions: nil,
 		UnitRegistry:      unitRegistry,
 		InitializedUnits:  make(map[string]bool),
@@ -228,6 +222,7 @@ func NewEvaluator(
 		Random:            rand.New(source),
 		LoadedUnits:       make([]string, 0),
 		RandomSeed:        defaultSeed,
+		MaxRecursionDepth: config.MaxRecursionDepth,
 	}
 
 	return &Evaluator{
@@ -287,17 +282,23 @@ func (e *Evaluator) SetExternalFunctions(reg ExternalFunctionRegistry) {
 
 // Config returns the configuration.
 func (e *Evaluator) Config() *Config {
-	return e.config
+	return &Config{
+		MaxRecursionDepth: e.engineState.MaxRecursionDepth,
+	}
 }
 
 // SetConfig sets the configuration.
 func (e *Evaluator) SetConfig(cfg *Config) {
+	if cfg == nil {
+		cfg = DefaultConfig()
+	}
 	e.config = cfg
+	e.engineState.MaxRecursionDepth = cfg.MaxRecursionDepth
 }
 
 // MaxRecursionDepth returns the maximum recursion depth.
 func (e *Evaluator) MaxRecursionDepth() int {
-	return e.config.MaxRecursionDepth
+	return e.engineState.MaxRecursionDepth
 }
 
 // SourceCode returns the source code being executed.
@@ -376,34 +377,9 @@ func (e *Evaluator) SetCurrentNode(node ast.Node) {
 	e.currentNode = node
 }
 
-// SetRuntimeBridge wires the remaining runtime bridges the evaluator still needs
-// during the Phase 4 collapse. Production construction should use this narrower
-// bridge instead of SetFocusedInterfaces.
-func (e *Evaluator) SetRuntimeBridge(oopEngine OOPEngine, coreEvaluator CoreEvaluator) {
-	e.oopEngine = oopEngine
-	e.coreEvaluator = coreEvaluator
-}
-
-// SetFocusedInterfaces is a compatibility/testing shim for the legacy Phase 4
-// bridge API. The declaration handler argument is ignored because declaration
-// processing no longer depends on that callback seam.
-func (e *Evaluator) SetFocusedInterfaces(
-	oopEngine OOPEngine,
-	_ DeclHandler,
-	coreEvaluator CoreEvaluator,
-) {
-	e.SetRuntimeBridge(oopEngine, coreEvaluator)
-}
-
-// EnterSelfContainedMode temporarily disables interpreter fallbacks in Eval().
-// Use this when evaluation must stay entirely inside evaluator-owned visitors.
-// Returns a restore function that MUST be called (typically via defer).
-//
-// When selfContainedMode is true, Eval() handles all AST nodes directly
-// without falling back to the interpreter.
-//
-// Note: coreEvaluator remains available for direct calls from visitor methods
-// (e.g., method_dispatch.go, helper_methods.go) - only Eval() skips fallbacks.
+// EnterSelfContainedMode temporarily ensures Eval() stays inside evaluator-owned
+// visitors without any interpreter fallback. Returns a restore function that
+// MUST be called (typically via defer).
 func (e *Evaluator) EnterSelfContainedMode() func() {
 	wasSelfContained := e.selfContainedMode
 	e.selfContainedMode = true
@@ -564,19 +540,10 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 
 	// Declarations
 	case *ast.FunctionDecl:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitFunctionDecl(n, ctx)
 	case *ast.ClassDecl:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitClassDecl(n, ctx)
 	case *ast.InterfaceDecl:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitInterfaceDecl(n, ctx)
 	case *ast.OperatorDecl:
 		return e.VisitOperatorDecl(n, ctx)
@@ -587,9 +554,6 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	case *ast.RecordDecl:
 		return e.VisitRecordDecl(n, ctx)
 	case *ast.HelperDecl:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(n, ctx)
-		}
 		return e.VisitHelperDecl(n, ctx)
 	case *ast.ArrayDecl:
 		return e.VisitArrayDecl(n, ctx)
@@ -597,10 +561,7 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitTypeDeclaration(n, ctx)
 
 	default:
-		if e.coreEvaluator != nil && !e.selfContainedMode {
-			return e.coreEvaluator.EvalNode(node, ctx)
-		}
-		panic("Evaluator.Eval: unknown node type and no coreEvaluator available")
+		panic("Evaluator.Eval: unknown node type")
 	}
 }
 

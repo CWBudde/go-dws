@@ -176,7 +176,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		if objVal.HasMethod(memberName) {
 			if wantMethodPointer {
 				if methodDecl := objVal.GetMethodDecl(memberName); methodDecl != nil {
-					return e.oopEngine.CreateBoundMethodPointer(obj, methodDecl)
+					return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
 				}
 				return e.newError(node, "method '%s' not found", memberName)
 			}
@@ -252,7 +252,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			if objVal, ok := underlying.(ObjectValue); ok {
 				if wantMethodPointer {
 					if methodDecl := objVal.GetMethodDecl(memberName); methodDecl != nil {
-						return e.oopEngine.CreateBoundMethodPointer(underlying, methodDecl)
+						return e.createFunctionPointerFromDecl(methodDecl, underlying, ctx)
 					}
 					return e.newError(node, "method '%s' not found", memberName)
 				}
@@ -316,7 +316,15 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		// Class properties (class property Counter: Integer read FCounter)
 		if result, found := classMetaVal.ReadClassProperty(memberName, func(propInfo any) Value {
-			return e.coreEvaluator.EvalClassPropertyRead(classMetaVal.GetClassInfo(), propInfo, node)
+			classInfo, ok := classMetaVal.GetClassInfo().(runtime.IClassInfo)
+			if !ok {
+				return e.newError(node, "invalid class info type for class property read")
+			}
+			typedPropInfo, ok := propInfo.(*types.PropertyInfo)
+			if !ok {
+				return e.newError(node, "invalid property info type for class property read")
+			}
+			return e.evalClassPropertyRead(classInfo, typedPropInfo, node, ctx)
 		}); found {
 			return result
 		}
@@ -358,16 +366,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		if classMetaVal.HasClassMethod(memberName) {
 			// Try parameterless auto-invoke
 			result, invoked := classMetaVal.InvokeParameterlessClassMethod(memberName, func(methodDecl any) Value {
-				// Create synthetic method call and route to VisitMethodCallExpression
-				methodCall := &ast.MethodCallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: node.Token},
-					},
-					Object:    node.Object,
-					Method:    node.Member,
-					Arguments: []ast.Expression{},
-				}
-				return e.VisitMethodCallExpression(methodCall, ctx)
+				return e.executeClassMethodDirect(classMetaVal, methodDecl, nil, node, ctx)
 			})
 			if invoked {
 				return result
@@ -566,10 +565,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		}
 
 		// Look up class and access class variable
-		classMetaVal := e.oopEngine.LookupClassByName(typedClassName)
-		if classMetaVal != nil {
-			if classVarValue, found := classMetaVal.GetClassVar(memberName); found {
-				return classVarValue
+		if cv, err := e.typeSystem.CreateClassValue(typedClassName); err == nil && cv != nil {
+			if classMetaVal, ok := cv.(ClassMetaValue); ok {
+				if classVarValue, found := classMetaVal.GetClassVar(memberName); found {
+					return classVarValue
+				}
 			}
 		}
 

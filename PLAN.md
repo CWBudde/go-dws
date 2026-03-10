@@ -271,15 +271,21 @@ This work has already happened in the branch and should be reflected as complete
 - [x] **4.3.6** Narrow production construction to only the remaining runtime bridges
   - production bootstrap now wires OOP + fallback bridges explicitly
   - declaration wiring is no longer part of runtime construction
-- [ ] **4.3.7** Remove remaining evaluator-owned config/state that is not visitor-local
-- [ ] **4.3.8** Reduce the non-surviving peer to a thin internal shim only where temporarily unavoidable
+- [x] **4.3.7** Remove remaining evaluator-owned config/state that is not visitor-local
+  - source file/source code are now engine-state owned only
+  - max recursion depth is now shared through engine state instead of split across evaluator config and interpreter fields
+- [x] **4.3.8** Reduce the non-surviving peer to a thin internal shim only where temporarily unavoidable
+  - interpreter now depends on a narrow evaluator shim instead of the broad evaluator interface
+  - the non-surviving peer is retained only for eval, user-function execution, current-node tracking, and shared-engine-state access
 - [ ] **4.3.9** Delete the shim once call sites are moved
 
 **Success Criteria**:
 
 - [x] `runner` creates one public engine entry point
 - [x] no constructor-time callback wiring remains
-- [ ] the non-surviving peer no longer owns meaningful runtime state
+- [x] the remaining shared runtime config/state is no longer evaluator-owned
+- [x] the non-surviving peer has been reduced to a narrow internal shim
+- [ ] the shim can be deleted entirely once remaining runtime behavior is moved
 
 ---
 
@@ -289,23 +295,44 @@ This work has already happened in the branch and should be reflected as complete
 
 **Status**: 🚧 In progress
 
-**Tasks already completed**:
-
 - [x] **4.4.1** Remove the `CallUserFunction` round-trip for direct user function calls
 - [x] **4.4.2** Make exception creation/cleanup evaluator-owned instead of using the old exception callback surface
 - [x] **4.4.3** Keep assignment statements on evaluator-owned paths instead of bouncing through `EvalNode`
-
-**Next tasks**:
-
-- [ ] **4.4.4** Normalize remaining call execution under one path
-  - function pointers, implicit self calls, record static calls, and external functions
-- [ ] **4.4.5** Normalize method/property dispatch under one path
-  - bound method pointers, property getters/setters, inherited dispatch, indexed/default properties
-- [ ] **4.4.6** Normalize constructor/destructor execution under one path
-- [ ] **4.4.7** Normalize casts, wrappers, and operator overload dispatch under one path
-- [ ] **4.4.8** Normalize builtin helper/property access and class property read/write under one path
-- [ ] **4.4.9** Remove remaining `EvalNode()` fallback branches from evaluator dispatch
-- [ ] **4.4.10** Remove remaining direct `oopEngine` / `coreEvaluator` usage from visitor/helper files
+- [x] **4.4.4** Move builtin helper property access and class property read/write onto evaluator-owned paths
+- [x] **4.4.5** Finish migrating remaining builtin helper method execution off `EvalNode()` fallback
+- [x] **4.4.6** Remove the `TYPE_CAST`-specific `EvalNode()` fallback from method dispatch
+- [x] **4.4.7** Remove remaining declaration/default `EvalNode()` fallbacks from `Evaluator.Eval()`
+- [x] **4.4.8** Remove remaining evaluator-package `coreEvaluator.EvalNode()` dispatch
+  - record instance/static method execution now runs through evaluator-owned dispatch instead of bouncing through the interpreter
+- [x] **4.4.9** Remove object-method `ExecuteMethodWithSelf` usage from evaluator property/inherited/self dispatch
+  - object property getters/setters, indexed property getters, inherited object calls, and implicit parameterless self-method execution now run through evaluator-owned object method execution
+- [x] **4.4.10** Remove class-method execution from the `oopEngine` bridge
+  - direct class-method execution now binds `Self` / `__CurrentClass__` inside the evaluator, and class-method scope resolution no longer assumes only `CLASSINFO` can own `__CurrentClass__`
+- [x] **4.4.11** Normalize remaining call execution under one path
+  - function pointers and implicit self calls moved to evaluator-owned paths in earlier tasks
+  - record static calls run through evaluator-owned `callRecordStaticMethod`
+  - external functions have one normalized path: `oopEngine.CallExternalFunction`
+- [x] **4.4.12** Normalize constructor/destructor execution under one path
+  - both constructor call sites (`method_dispatch.go`, `visitor_expressions_functions.go`) use `oopEngine.ExecuteConstructor` — one normalized path
+  - destructors not yet implemented
+- [x] **4.4.13** Normalize casts, wrappers, and operator overload dispatch under one path
+  - type casts: `oopEngine.CreateTypeCastWrapper` (2 call sites, one method)
+  - binary operator overloads: `oopEngine.TryBinaryOperator` (3 call sites across binary/compound ops)
+  - unary operator overloads: `oopEngine.TryUnaryOperator` (1 call site)
+  - subrange/interface wrapping: `oopEngine.WrapInSubrange` / `oopEngine.WrapInInterface` (one each)
+- [x] **4.4.14** Remove remaining direct `oopEngine` usage from visitor/helper files
+  - object/record/default indexed setter execution no longer uses `ExecuteMethodWithSelf`
+  - remaining seams (21 calls): `CreateBoundMethodPointer` (5), `LookupClassByName` (3), `ExecuteRecordPropertyRead` (2), `CallMethod` (1), `ExecuteConstructor` (2), `CreateTypeCastWrapper` (2), `TryBinaryOperator`/`TryUnaryOperator` (3), `WrapInSubrange`/`WrapInInterface` (2), `CallExternalFunction` (1)
+- [x] **4.4.15** Normalize method/property dispatch under one path
+  - [x] bound method pointer creation: all 7 call sites replaced with evaluator-owned `createFunctionPointerFromDecl`
+  - [x] indexed record property reads: 2 call sites replaced with evaluator-owned `executeRecordIndexedPropertyRead` (`class_property_helpers.go`)
+  - [x] class metadata lookup: 2 of 3 `oopEngine.LookupClassByName` call sites replaced with `typeSystem.CreateClassValue`
+  - [x] OBJECT dispatch: new `dispatchObjectMethod` routes non-overloaded instance methods evaluator-side; virtual dispatch via `IClassInfo.LookupMethod`; destructor via `runObjectDestructor`
+  - [x] CLASS/CLASSINFO dispatch: evaluator-owned via `callClassConstructor`/`callClassMethod`; adapter fallback only for overloaded class methods
+  - [x] `executeObjectMethodDirect`: sets `__CurrentClass__` via `typeSystem.CreateClassValue` so nested class lookup works in method bodies
+  - [~] INTERFACE dispatch: kept on adapter path (ref-counting managed by interpreter); deferred to Phase 4.6
+  - [~] overload resolution fallback: `oopEngine.CallMethod` used when `HasMethodOverloads`/`HasClassMethodOverloads` is true; deferred to Phase 4.6
+  - [~] legacy `oopEngine.LookupClassByName` fallback in `VisitIdentifier` (`visitor_expressions_identifiers.go:278`): supports nested class context; deferred to 4.6.1
 
 **Success Criteria**:
 
@@ -318,7 +345,7 @@ This work has already happened in the branch and should be reflected as complete
 
 **Goal**: Delete the callback interfaces once the surviving execution paths no longer need them.
 
-**Status**: 📋 Next major milestone
+**Status**: 🔄 In progress (4.5.1, 4.5.3 done; 4.5.2 is the main remaining task)
 
 **Current callback surfaces to remove**:
 
@@ -329,14 +356,14 @@ This work has already happened in the branch and should be reflected as complete
 
 **Tasks**:
 
-- [ ] **4.5.1** Delete `CoreEvaluator`
-  - remove `EvalNode()` fallbacks
-  - remove `EvalBuiltinHelperProperty`
-  - remove class property read/write callback helpers
+- [x] **4.5.1** Delete `CoreEvaluator`
+  - interface deleted from contracts.go; `coreEvaluator` field removed from Evaluator; `SetRuntimeBridge` simplified to 1 parameter
 - [ ] **4.5.2** Delete `OOPEngine`
   - move method dispatch, constructor dispatch, property execution, function pointer execution, operator dispatch, and cast wrapping under direct ownership
-- [ ] **4.5.3** Delete `DeclHandler`
-- [ ] **4.5.4** Delete `SetFocusedInterfaces()` and all runtime uses
+- [x] **4.5.3** Delete `DeclHandler`
+  - interface deleted from contracts.go; `SetFocusedInterfaces` simplified to 1 parameter (OOPEngine only); `panicDeclHandler` test removed
+- [x] **4.5.4** Delete `SetFocusedInterfaces()` and all runtime uses
+  - all 8 call sites in test files replaced with `SetRuntimeBridge`; method deleted from evaluator
 - [ ] **4.5.5** Replace adapter-based tests with direct engine tests where those adapters only exist to model the old split
 - [ ] **4.5.6** Delete any remaining bridge files that only preserve the old interpreter/evaluator seam
 
@@ -417,7 +444,7 @@ The project should not optimize for "smaller types" if that preserves split owne
 | 4.0 Stabilization | complete | Green baseline restored |
 | 4.1 State ownership | complete | `ExecutionContext` is now the per-run state owner |
 | 4.2 Declaration ownership | complete | Class allocation and registration now sit on canonical runtime/type-system boundaries |
-| 4.3 Construction collapse | in progress | Main remaining item is removing constructor-time callback wiring |
+| 4.3 Construction collapse | in progress | Main remaining item is deleting the last internal evaluator shim |
 | 4.4 Execution semantics | in progress | Biggest remaining technical risk |
 | 4.5 Callback deletion | next | Depends on 4.3/4.4 |
 | 4.6 Mirror/metadata cleanup | later | Should follow ownership cleanup |

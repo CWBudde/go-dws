@@ -63,6 +63,10 @@ type EngineState struct {
 	Random            *rand.Rand
 	LoadedUnits       []string
 	RandomSeed        int64
+	MaxRecursionDepth int
+	// ExternalFunctionCaller is a callback for dispatching external (Go-registered) functions.
+	// Set by the interpreter during initialization. Nil if no external functions are registered.
+	ExternalFunctionCaller func(funcName string, argExprs []ast.Expression, node ast.Node) Value
 }
 
 // Evaluator is the minimal API the interpreter needs from the evaluator.
@@ -92,59 +96,15 @@ type Evaluator interface {
 	SetRandomSeed(seed int64)
 }
 
-// CoreEvaluator provides fallback evaluation for cross-cutting concerns.
-// May be eliminated in future by migrating remaining OOP logic to evaluator.
-type CoreEvaluator interface {
-	// EvalNode evaluates an AST node via interpreter for OOP operations.
-	// Fallback for operations not yet migrated to evaluator.
-	// The ctx parameter ensures the interpreter uses the correct environment
-	// (e.g., when callbacks occur from within a for loop that pushed a new scope).
-	EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value
-
-	// EvalBuiltinHelperProperty evaluates a built-in helper property (Length, Low, High, etc).
-	EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value
-
-	// EvalClassPropertyRead evaluates a class property read (static properties).
-	EvalClassPropertyRead(classInfo any, propInfo any, node ast.Node) Value
-
-	// EvalClassPropertyWrite evaluates a class property write (static properties).
-	EvalClassPropertyWrite(classInfo any, propInfo any, value Value, node ast.Node) Value
-}
-
-// OOPEngine handles runtime object-oriented programming operations.
-// Encapsulates method dispatch, constructors, type operations, and operator overloading.
-type OOPEngine interface {
-	CallMethod(obj Value, methodName string, args []Value, node ast.Node) Value
-	CallInheritedMethod(obj Value, methodName string, args []Value) Value
-	ExecuteMethodWithSelf(self Value, methodDecl any, args []Value) Value
-	CallImplicitSelfMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
-	ExecuteConstructor(obj Value, constructorName string, args []Value) error
-	CallFunctionPointer(funcPtr Value, args []Value, node ast.Node) Value
-	ExecuteFunctionPointerCall(metadata FunctionPointerMetadata, args []Value, node ast.Node) Value
-	CreateBoundMethodPointer(obj Value, methodDecl any) Value
-	CreateTypeCastWrapper(className string, obj Value) Value
-	WrapInSubrange(value Value, subrangeTypeName string, node ast.Node) (Value, error)
-	WrapInInterface(value Value, interfaceName string, node ast.Node) (Value, error)
-	CallQualifiedOrConstructor(callExpr *ast.CallExpression, memberAccess *ast.MemberAccessExpression) Value
-	CallRecordStaticMethod(callExpr *ast.CallExpression, funcName *ast.Identifier) Value
-	DispatchRecordStaticMethod(recordTypeName string, callExpr *ast.CallExpression, funcName *ast.Identifier) Value
-	ExecuteRecordPropertyRead(record Value, propInfo any, indices []Value, node any) Value
-	CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value
-	TryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool)
-	TryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool)
-	LookupClassByName(name string) ClassMetaValue
-}
-
 // ExceptionManager was removed in Task 4.2.
 // Exception handling is now self-contained in the evaluator using:
 // - runtime.NewException() for creating exceptions
 // - runtime.NewExceptionFromObject() for wrapping objects as exceptions
 // - RefCountManager.ReleaseInterface/ReleaseObject for cleanup
 
-// DeclHandler handles type declaration processing (classes, interfaces, helpers).
-type DeclHandler interface {
-	NewClassInfoAdapter(name string) any
-}
+// DeclHandler was removed in Task 4.5.3.
+// Declaration processing is now self-contained in the evaluator using
+// the TypeSystem and ClassInfoFactory directly.
 
 // User function execution callbacks.
 type ImplicitConversionFunc func(value Value, targetTypeName string) (Value, bool)

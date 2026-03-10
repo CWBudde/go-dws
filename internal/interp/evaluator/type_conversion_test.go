@@ -92,7 +92,7 @@ func TestExecuteConversionFunction_WithMockAdapter(t *testing.T) {
 			return &runtime.NilValue{}
 		},
 	}
-	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter)
+	e.SetRuntimeBridge(mockAdapter)
 
 	// Create execution context with a proper environment
 	env := runtime.NewEnvironment()
@@ -170,7 +170,7 @@ func TestConversionCallbacks_NilHandling(t *testing.T) {
 			return &runtime.NilValue{}
 		},
 	}
-	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter)
+	e.SetRuntimeBridge(mockAdapter)
 
 	env := runtime.NewEnvironment()
 	ctx := NewExecutionContext(env)
@@ -390,7 +390,7 @@ func (m *mockConversionAdapter) SetClassPartial(classInfo interface{}, isPartial
 func (m *mockConversionAdapter) SetClassAbstract(classInfo interface{}, isAbstract bool) {}
 func (m *mockConversionAdapter) SetClassExternal(classInfo interface{}, isExternal bool, externalName string) {
 }
-func (m *mockConversionAdapter) ClassHasNoParent(classInfo interface{}) bool { return true }
+func (m *mockConversionAdapter) ClassHasNoParent(classInfo interface{}) bool                   { return true }
 func (m *mockConversionAdapter) SetClassParent(classInfo interface{}, parentClass interface{}) {}
 func (m *mockConversionAdapter) AddInterfaceToClass(classInfo interface{}, interfaceInfo interface{}, interfaceName string) {
 }
@@ -426,15 +426,6 @@ func (m *mockConversionAdapter) AddClassField(classInfo interface{}, fieldDecl *
 }
 func (m *mockConversionAdapter) AddClassVar(classInfo interface{}, name string, value Value) {}
 func (m *mockConversionAdapter) AddNestedClass(parentClass interface{}, nestedName string, nestedClass interface{}) {
-}
-func (m *mockConversionAdapter) EvalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) EvalClassPropertyRead(classInfo any, propInfo any, node ast.Node) Value {
-	return &runtime.NilValue{}
-}
-func (m *mockConversionAdapter) EvalClassPropertyWrite(classInfoAny any, propInfoAny any, value Value, node ast.Node) Value {
-	return &runtime.NilValue{}
 }
 func (m *mockConversionAdapter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value {
 	return &runtime.NilValue{}

@@ -12,11 +12,14 @@ type mockClassInfo struct {
 	name string
 }
 
-func (m *mockClassInfo) GetName() string                                { return m.name }
-func (m *mockClassInfo) GetMetadata() *ClassMetadata                    { return nil }
-func (m *mockClassInfo) GetFieldsMap() map[string]*ast.FieldDecl        { return nil }
-func (m *mockClassInfo) GetMethodsMap() map[string]*ast.FunctionDecl    { return nil }
-func (m *mockClassInfo) LookupMethod(name string) *ast.FunctionDecl     { return nil }
+func (m *mockClassInfo) GetName() string                             { return m.name }
+func (m *mockClassInfo) GetMetadata() *ClassMetadata                 { return nil }
+func (m *mockClassInfo) GetFieldsMap() map[string]*ast.FieldDecl     { return nil }
+func (m *mockClassInfo) GetMethodsMap() map[string]*ast.FunctionDecl { return nil }
+func (m *mockClassInfo) LookupMethod(name string) *ast.FunctionDecl  { return nil }
+func (m *mockClassInfo) LookupClassMethod(name string) *ast.FunctionDecl {
+	return nil
+}
 func (m *mockClassInfo) LookupProperty(name string) *PropertyInfo       { return nil }
 func (m *mockClassInfo) LookupClassVar(name string) (Value, IClassInfo) { return nil, nil }
 func (m *mockClassInfo) LookupOperator(op string, types []string) (*OperatorEntry, bool) {
@@ -32,6 +35,11 @@ func (m *mockClassInfo) GetVirtualMethodTable() map[string]*VirtualMethodEntry {
 func (m *mockClassInfo) GetConstructor(name string) *ast.FunctionDecl          { return nil }
 func (m *mockClassInfo) GetFieldTypesMap() map[string]any                      { return nil }
 func (m *mockClassInfo) GetInterfaces() []*InterfaceInfo                       { return nil }
+func (m *mockClassInfo) HasMethodOverloads(name string) bool                   { return false }
+func (m *mockClassInfo) HasClassMethodOverloads(name string) bool              { return false }
+func (m *mockClassInfo) GetMethodOverloads(name string) []*ast.FunctionDecl      { return nil }
+func (m *mockClassInfo) GetClassMethodOverloads(name string) []*ast.FunctionDecl { return nil }
+func (m *mockClassInfo) GetConstructorOverloads(name string) []*ast.FunctionDecl { return nil }
 
 // mockInterfaceInfo is a minimal IInterfaceInfo implementation for testing
 type mockInterfaceInfo struct {

@@ -69,6 +69,16 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 
 		// Environment-based lookups (records, type aliases, subranges)
 		if ctx.Env() != nil {
+			// Try nested class type in current class context.
+			if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
+				if currentClass, ok := currentClassRaw.(ClassMetaValue); ok && currentClass != nil {
+					if nestedVal := currentClass.GetNestedClass(cleanTypeName); nestedVal != nil {
+						if nestedClass, ok := nestedVal.(ClassMetaValue); ok {
+							return types.NewClassType(nestedClass.GetClassName(), nil), nil
+						}
+					}
+				}
+			}
 
 			// Try record type (stored in environment with "__record_type_" prefix)
 			if recordTypeVal, ok := ctx.Env().Get("__record_type_" + normalizedName); ok {

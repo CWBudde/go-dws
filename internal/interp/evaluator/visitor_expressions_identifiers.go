@@ -102,13 +102,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasMethod(node.Value) {
 				// Use InvokeParameterlessMethod with callback pattern
 				if result, invoked := objVal.InvokeParameterlessMethod(node.Value, func(methodDecl any) Value {
-					return e.oopEngine.ExecuteMethodWithSelf(selfVal, methodDecl, []Value{})
+					return e.executeObjectMethodDirect(selfVal, methodDecl, nil, node, ctx)
 				}); invoked {
 					return result
 				}
 				// Use CreateMethodPointer with callback pattern
 				if methodPtr, created := objVal.CreateMethodPointer(node.Value, func(methodDecl any) Value {
-					return e.oopEngine.CreateBoundMethodPointer(selfVal, methodDecl)
+					return e.createFunctionPointerFromDecl(methodDecl, selfVal, ctx)
 				}); created {
 					return methodPtr
 				}
@@ -157,45 +157,41 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 					Function:  node,
 					Arguments: nil,
 				}
-				return e.oopEngine.CallImplicitSelfMethod(callExpr, node)
+				return e.executeImplicitSelfCall(callExpr, node, ctx)
 			}
 		}
 	}
 
 	// Check if we're in a class method context (__CurrentClass__ is bound)
 	// Identifiers can refer to ClassName, ClassType, or class variables
-	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
-		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-			if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
-				// Check for ClassName identifier (case-insensitive)
-				if ident.Equal(node.Value, "ClassName") {
-					return &runtime.StringValue{Value: classMetaVal.GetClassName()}
-				}
+	if _, classMetaVal, hasCurrentClass := currentClassMetaValue(ctx); hasCurrentClass {
+		// Check for ClassName identifier (case-insensitive)
+		if ident.Equal(node.Value, "ClassName") {
+			return &runtime.StringValue{Value: classMetaVal.GetClassName()}
+		}
 
-				// Check for ClassType identifier (case-insensitive)
-				if ident.Equal(node.Value, "ClassType") {
-					// GetClassType() returns classTypeProxy, convert to ClassValue
-					className := classMetaVal.GetClassName()
-					classVal, err := e.typeSystem.CreateClassValue(className)
-					if err != nil {
-						return e.newError(node, "%s", err.Error())
-					}
-					if val, ok := classVal.(Value); ok {
-						return val
-					}
-					return e.newError(node, "internal error: ClassValue conversion failed")
-				}
-
-				// Check for class variable
-				if classVarValue, found := classMetaVal.GetClassVar(node.Value); found {
-					return classVarValue
-				}
-
-				// Check for nested class (e.g. `new TInner` inside outer class scope)
-				if nested := classMetaVal.GetNestedClass(node.Value); nested != nil {
-					return nested
-				}
+		// Check for ClassType identifier (case-insensitive)
+		if ident.Equal(node.Value, "ClassType") {
+			// GetClassType() returns classTypeProxy, convert to ClassValue
+			className := classMetaVal.GetClassName()
+			classVal, err := e.typeSystem.CreateClassValue(className)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
 			}
+			if val, ok := classVal.(Value); ok {
+				return val
+			}
+			return e.newError(node, "internal error: ClassValue conversion failed")
+		}
+
+		// Check for class variable
+		if classVarValue, found := classMetaVal.GetClassVar(node.Value); found {
+			return classVarValue
+		}
+
+		// Check for nested class (e.g. `new TInner` inside outer class scope)
+		if nested := classMetaVal.GetNestedClass(node.Value); nested != nil {
+			return nested
 		}
 	}
 
@@ -254,13 +250,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Check if identifier matches the class currently being declared.
 	// This enables self-referential access like TMyClass.MyConst within class var initializers,
 	// before the class is registered in the type system.
-	if currentClassRaw, hasCurrentClass := ctx.Env().Get("__CurrentClass__"); hasCurrentClass {
-		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-			if classMetaVal, ok := classInfoVal.(ClassMetaValue); ok {
-				if ident.Equal(classMetaVal.GetClassName(), node.Value) {
-					return classInfoVal
-				}
-			}
+	if classValue, classMetaVal, hasCurrentClass := currentClassMetaValue(ctx); hasCurrentClass {
+		if ident.Equal(classMetaVal.GetClassName(), node.Value) {
+			return classValue
 		}
 	}
 
@@ -277,15 +269,11 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		return e.newError(node, "internal error: ClassValueFactory returned non-Value type")
 	}
 
-	// Fallback: class might exist in the legacy interpreter class table but not
-	// (yet) be visible through TypeSystem lookup.
-	//
-	// This keeps evaluator identifier resolution compatible with legacy declaration
-	// ordering until Phase 4.0 stabilizes class/type binding.
-	if e.oopEngine != nil {
-		if classMeta := e.oopEngine.LookupClassByName(node.Value); classMeta != nil {
-			return classMeta
-		}
+	// Fallback: check for nested class access via Self or __CurrentClass__.
+	// This handles cases where a class name is used inside a method body to
+	// refer to a nested class defined within the current class hierarchy.
+	if classMeta := e.lookupClassByNameFallback(node.Value, ctx); classMeta != nil {
+		return classMeta
 	}
 
 	// Final check: check for built-in functions or return undefined error
@@ -343,7 +331,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 	// 3. Push function name onto call stack for stack traces
 	funcName := fn.Name.Value
 	pos := node.Pos()
-	if err := ctx.GetCallStack().Push(funcName, e.config.SourceFile, &pos); err != nil {
+	if err := ctx.GetCallStack().Push(funcName, e.SourceFile(), &pos); err != nil {
 		return e.newError(node, "recursion depth exceeded calling '%s'", funcName)
 	}
 	defer ctx.GetCallStack().Pop()

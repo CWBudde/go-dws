@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // New creates the interpreter runtime engine with a fully wired internal evaluator.
@@ -41,8 +42,6 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 	evalConfig := &evaluator.Config{
 		MaxRecursionDepth: maxRecursionDepth,
-		SourceCode:        "",
-		SourceFile:        "",
 	}
 
 	refCountMgr := runtime.NewRefCountManager()
@@ -57,10 +56,11 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 	interpreter := NewWithDeps(output, opts, env, ts, eval, refCountMgr)
 
-	// Transitional Phase 4 bridge: evaluator still relies on interpreter-owned
-	// runtime dispatch and fallback surfaces. Declaration callbacks are no longer
-	// part of production construction.
-	eval.SetRuntimeBridge(interpreter, interpreter)
+	// Wire the ExternalFunctionCaller callback so the evaluator can dispatch external
+	// (Go-registered) functions without holding a reference to the interpreter.
+	eval.EngineState().ExternalFunctionCaller = func(funcName string, argExprs []ast.Expression, node ast.Node) Value {
+		return interpreter.CallExternalFunction(funcName, argExprs, node)
+	}
 
 	return interpreter
 }

@@ -306,7 +306,7 @@ func (e *Evaluator) ExecuteUserFunction(
 		nodePos := e.currentNode.Pos()
 		pos = &nodePos
 	}
-	if err := funcCtx.GetCallStack().Push(fn.Name.Value, e.config.SourceFile, pos); err != nil {
+	if err := funcCtx.GetCallStack().Push(fn.Name.Value, e.SourceFile(), pos); err != nil {
 		return nil, err
 	}
 	defer funcCtx.GetCallStack().Pop()
@@ -349,8 +349,8 @@ func (e *Evaluator) ExecuteUserFunction(
 	}
 
 	// Execute function body through the evaluator.
-	// Any remaining not-yet-migrated constructs may still fall back to coreEvaluator
-	// from within Evaluator.Eval, but this avoids an unconditional EvalNode ping-pong.
+	// This now stays on evaluator-owned execution paths instead of unconditionally
+	// round-tripping through interpreter EvalNode dispatch.
 	_ = e.Eval(fn.Body, funcCtx)
 
 	// If exception was raised, propagate it to caller's context
