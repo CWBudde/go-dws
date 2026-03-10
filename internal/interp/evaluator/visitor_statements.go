@@ -53,6 +53,42 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 	return result
 }
 
+// VisitUnitDeclaration evaluates a DWScript unit as a top-level compilation target.
+// Runtime execution processes interface declarations, then implementation declarations,
+// then the initialization section. Finalization is deferred to unit shutdown handling.
+func (e *Evaluator) VisitUnitDeclaration(node *ast.UnitDeclaration, ctx *ExecutionContext) Value {
+	var result Value = &runtime.NilValue{}
+
+	sections := []*ast.BlockStatement{
+		node.InterfaceSection,
+		node.ImplementationSection,
+		node.InitSection,
+	}
+
+	for _, section := range sections {
+		if section == nil {
+			continue
+		}
+
+		result = e.Eval(section, ctx)
+		if isError(result) {
+			return result
+		}
+		if ctx.Exception() != nil {
+			return result
+		}
+		if ctx.ControlFlow().IsExit() {
+			ctx.ControlFlow().Clear()
+			return result
+		}
+		if ctx.ControlFlow().IsActive() {
+			return result
+		}
+	}
+
+	return result
+}
+
 // VisitEmptyStatement performs no operation for explicit empty statements (a lone semicolon).
 func (e *Evaluator) VisitEmptyStatement(_ *ast.EmptyStatement, _ *ExecutionContext) Value {
 	return &runtime.NilValue{}

@@ -499,6 +499,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	// Statements
 	case *ast.Program:
 		return e.VisitProgram(n, ctx)
+	case *ast.UnitDeclaration:
+		return e.VisitUnitDeclaration(n, ctx)
 	case *ast.EmptyStatement:
 		return e.VisitEmptyStatement(n, ctx)
 	case *ast.ExpressionStatement:
