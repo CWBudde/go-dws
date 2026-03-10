@@ -49,7 +49,7 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ## Phase 4: Collapse To A Single Execution Engine
 
-**Status**: 🚧 In Progress | **Priority**: High | **Estimated Remaining**: 2-4 weeks (incremental)
+**Status**: ✅ Complete | **Priority**: High | **Completed**: 2026-03-10
 
 ### Why This Phase Exists
 
@@ -87,12 +87,13 @@ Work completed so far has materially changed the runtime:
 - declaration ownership has moved significantly toward `runtime` + `TypeSystem`
 - direct user-function execution no longer round-trips through the old OOP callback path
 
-What still keeps Phase 4 open:
+What Phase 4 delivered:
 
-- `CoreEvaluator`, `OOPEngine`, and `DeclHandler` still exist in `contracts`
-- evaluator visitors still call back into interpreter-owned behavior
-- `Interpreter.evalLegacy()` is still the fallback owner for several semantics
-- several tests still validate behavior via adapter injection rather than the final boundary
+- callback-style execution interfaces and bridge-only files are deleted
+- evaluator-owned execution no longer round-trips through interpreter callbacks
+- `ExecutionContext` is the canonical per-run mutable state owner
+- production construction is centralized in one bootstrap path
+- boundary and regression tests now protect the finished architecture
 
 ### Target Architecture
 
@@ -126,11 +127,11 @@ If a change only renames, moves, or re-groups methods without removing indirecti
 
 ### Phase Complete When
 
-- [ ] exactly one concrete execution engine remains in the interpreter runtime
-- [ ] `ExecutionContext` is the only owner of per-run execution state
-- [ ] `CoreEvaluator`, `OOPEngine`, `DeclHandler`, and `SetFocusedInterfaces()` are deleted
-- [ ] no evaluator → interpreter or interpreter → evaluator callback path remains
-- [ ] `runner` constructs one engine, not two peers plus glue
+- [x] exactly one concrete execution engine remains in the interpreter runtime
+- [x] `ExecutionContext` is the only owner of per-run execution state
+- [x] `CoreEvaluator`, `OOPEngine`, `DeclHandler`, and `SetFocusedInterfaces()` are deleted
+- [x] no evaluator → interpreter or interpreter → evaluator callback path remains
+- [x] `runner` constructs one engine, not two peers plus glue
 
 ### 4.0 Stabilize The Baseline
 
@@ -434,9 +435,45 @@ This work has already happened in the branch and should be reflected as complete
 
 ### Execution Order From Here
 
-The remaining work should proceed in this order:
+The Phase 4 work proceeded in this order:
 
 `4.3 Collapse construction/state` → `4.4 finish moving execution semantics` → `4.5 delete callback surfaces` → `4.6 remove remaining mirrors/metadata cleanup` → `4.7 verification and metrics`
+
+---
+
+### 4.8 Post-Phase-4 Refinement
+
+**Goal**: Tighten the final architecture now that the Phase 4 migration is complete, without reopening the completed ownership/callback split.
+
+**Status**: ✅ Complete
+
+**Tasks**:
+
+- [x] **4.8.1** Remove stale comments and historical callback-era wording
+  - rewritten code/docs that still described deleted callback surfaces as current architecture
+  - historical docs now clearly mark themselves as migration snapshots rather than the final steady state
+- [x] **4.8.2** Reduce remaining interpreter-side legacy dispatch
+  - audited `interpreter.go` and adjacent legacy helpers
+  - removed the dead `EvalNode()` and `evalLegacy()` interpreter dispatch entry points
+  - the surviving interpreter-side execution now remains only behind directly called interpreter helpers rather than a central unused legacy dispatcher
+- [x] **4.8.3** Continue shrinking AST-bearing runtime metadata
+  - evaluator object construction now initializes fields from `runtime.ClassMetadata.Fields` / `runtime.FieldMetadata`
+  - production evaluator constructor paths no longer depend on `GetFieldsMap()` / `GetFieldTypesMap()` compatibility lookups
+  - the remaining AST-bearing class metadata is now concentrated in paths that still genuinely need declaration bodies rather than default-value materialization
+- [x] **4.8.4** Narrow the neutral `contracts` boundary further where possible
+  - audited `internal/interp/contracts` after Phase 4 completion
+  - removed the dead `contracts.Evaluator` interface; `interpreter.go` already relies on its narrower local shim
+- [x] **4.8.5** Strengthen long-term regression protection
+  - expanded the Phase 4 regression suite with end-to-end coverage for runtime-metadata-based object field initialization, evaluator-owned call execution, and inherited virtual dispatch
+  - the added tests exercise the final engine boundary instead of compatibility seams or adapter-style test doubles
+
+**Success Criteria**:
+
+- [x] no major code comment or doc still describes the deleted callback boundary as the intended architecture
+- [x] interpreter-only legacy dispatch is smaller and more explicit than at Phase 4 completion
+- [x] runtime/class/helper metadata uses fewer AST-backed escape hatches
+- [x] the remaining `contracts` package surface is clearly justified by actual cross-package needs
+- [x] regression coverage is stronger for the final post-Phase-4 architecture
 
 ### Archived Direction
 
@@ -453,13 +490,14 @@ The project should not optimize for "smaller types" if that preserves split owne
 | 4.0 Stabilization | complete | Green baseline restored |
 | 4.1 State ownership | complete | `ExecutionContext` is now the per-run state owner |
 | 4.2 Declaration ownership | complete | Class allocation and registration now sit on canonical runtime/type-system boundaries |
-| 4.3 Construction collapse | in progress | Main remaining item is deleting the last internal evaluator shim |
-| 4.4 Execution semantics | in progress | Biggest remaining technical risk |
-| 4.5 Callback deletion | next | Depends on 4.3/4.4 |
-| 4.6 Mirror/metadata cleanup | later | Should follow ownership cleanup |
-| 4.7 Verification/metrics | ongoing | Prevent regression into indirection |
+| 4.3 Construction collapse | complete | Production construction is centralized and narrowed |
+| 4.4 Execution semantics | complete | Evaluator-owned execution paths are normalized |
+| 4.5 Callback deletion | complete | Old callback surfaces and bridge files are gone |
+| 4.6 Mirror/metadata cleanup | complete | Remaining mirror/metadata cleanup landed after callback deletion |
+| 4.7 Verification/metrics | complete | Boundary tests, regression tests, and verification note added |
+| 4.8 Refinement | complete | Post-migration tightening landed after Phase 4 completion |
 
-**Practical read**: Phase 4 is no longer "planned". The baseline, state ownership, and declaration-ownership work are done. The critical remaining work is collapsing runtime wiring, migrating the last callback-shaped execution paths, and then deleting the callback surfaces entirely.
+**Practical read**: Phase 4 is complete. Phase 4.8 is a follow-up refinement pass for tightening and simplifying the finished architecture, not for completing missing migration work.
 
 ---
 

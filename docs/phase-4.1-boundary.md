@@ -24,8 +24,14 @@ Phase 4.1 establishes the runtime ownership boundary that Phase 4 depends on.
 - env-sync callbacks used only to keep interpreter fallback paths coherent
 - duplicated interpreter-owned copies of per-run state
 
-## Remaining Transitional Seam
+## Final Phase 4 Outcome
 
-`SetFocusedInterfaces()` still exists because Phase 4.3 has not deleted the
-legacy callback surfaces yet. That seam is now isolated behind interpreter
-construction rather than spread across runtime entry points.
+The transitional callback seam described during Phase 4.1 no longer exists:
+
+- `SetFocusedInterfaces()` is gone
+- the focused callback interfaces are gone
+- `ExecutionContext` remained the canonical per-run state owner through the rest of Phase 4
+
+This note is kept as the early-boundary snapshot that Phase 4 built on, not as
+the final architecture description. For the final post-Phase-4 state, see
+`docs/phase-4.7-verification.md`.

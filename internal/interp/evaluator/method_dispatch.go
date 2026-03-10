@@ -100,7 +100,6 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -251,24 +250,8 @@ func (e *Evaluator) callClassConstructor(classMeta ClassMetaValue, methodName st
 	}
 
 	obj := runtime.NewObjectInstance(classInfo)
-
-	fieldTypes := classInfo.GetFieldTypesMap()
-	fieldDecls := classInfo.GetFieldsMap()
-	for fieldName, fieldTypeAny := range fieldTypes {
-		var fieldValue Value
-		if fieldDecl, hasDecl := fieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-			fieldValue = e.Eval(fieldDecl.InitValue, ctx)
-			if isError(fieldValue) {
-				return e.newError(node, "failed to initialize field '%s': %v", fieldName, fieldValue)
-			}
-		} else {
-			if fieldType, ok := fieldTypeAny.(types.Type); ok {
-				fieldValue = e.getZeroValueForType(fieldType)
-			} else {
-				fieldValue = &runtime.NilValue{}
-			}
-		}
-		obj.SetField(fieldName, fieldValue)
+	if initErr := e.initializeObjectFields(classInfo, obj, node, ctx); initErr != nil {
+		return initErr
 	}
 
 	if err := e.executeConstructorForObject(obj, methodName, args, node, ctx); err != nil {

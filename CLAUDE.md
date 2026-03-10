@@ -168,26 +168,23 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - Integer, Float, String, Boolean, Array, Record, Enum, Class types
   - Type checking and conversion
 
-- `internal/interp/` - AST Interpreter/runtime (Phase 3 refactored architecture)
-  - **Architecture**: Thin orchestrator (Interpreter) + evaluation engine (Evaluator) with focused interfaces
-  - **Interpreter** (`interpreter.go`): Thin coordinator with 14 fields (target: 5)
-    - Owns output, exception state, type system, evaluator, config
-    - Delegates evaluation to Evaluator via 4 focused interfaces
+- `internal/interp/` - AST interpreter/runtime engine (Phase 4 steady state)
+  - **Architecture**: Engine shell (`interp`) + execution core (`evaluator`) + primitive layer (`runtime`)
+  - **Interpreter** (`interpreter.go`): Engine facade and orchestration shell
+    - Owns bootstrap-facing state, output, units, and engine integration
+    - Enters runtime execution through the evaluator rather than callback interfaces
   - **Evaluator** (`evaluator/`): Visitor-pattern evaluation engine
-    - `evaluator.go`: Core evaluator, owns ExecutionContext with environment & call stack
-    - `visitor_*.go`: 48+ visitor methods for expressions, statements, declarations, literals
-    - `binary_ops.go`: Binary operations (~70 ns/op, 3 allocations)
-    - **Focused Interfaces** (68 methods total, replaces 140-line monolithic adapter):
-      - `OOPEngine` (20 methods): Runtime OOP operations (method dispatch, constructors, operators)
-      - `DeclHandler` (38 methods): Type declarations (classes, interfaces, helpers)
-      - `ExceptionManager` (6 methods): Exception creation, contracts, cleanup
-      - `CoreEvaluator` (4 methods): Cross-cutting concerns (EvalNode fallback, helper properties)
+    - `evaluator.go`: Core evaluator using `ExecutionContext` as the per-run state owner
+    - `visitor_*.go`: visitor methods for expressions, statements, declarations, and literals
+    - `binary_ops.go`: Binary operations and operator helpers
   - **Type System** (`types/`): Centralized type registry
-    - Manages classes, records, interfaces, functions, helpers, operators
+    - Manages classes, records, interfaces, functions, helpers, and operators
     - Function overload resolution and registration
-  - **Runtime** (`runtime/`): Runtime value types and environment
+  - **Runtime** (`runtime/`): Runtime value types, environment, call stack, and metadata
     - Values: Integer, Float, String, Boolean, Array, Record, Class instances
-    - Environment: Single canonical environment (unified from dual i.env/ctx.env)
+    - Environment: Single canonical environment
+  - **Contracts** (`contracts/`): Narrow neutral cross-package coordination types
+  - See `docs/architecture/interp-evaluator-steady-state.md` for the current boundary
 
 - `internal/bytecode/` - Bytecode VM (5-6x faster than AST interpreter)
   - `compiler.go`: AST-to-bytecode compiler with optimizations
@@ -269,10 +266,10 @@ go generate ./pkg/ast
   - Control flow state: break, continue, return, exit
   - Exception handling state
 
-- **Focused Interfaces** (Phase 3.4): Evaluator delegates to Interpreter via 4 focused interfaces
-  - Replaced 140-line monolithic `InterpreterAdapter` with specialized concerns
-  - OOPEngine, DeclHandler, ExceptionManager, CoreEvaluator (68 methods total)
-  - Each interface mockable independently, clear single responsibility
+- **Phase 4 Steady State**: Evaluator is now the runtime execution core
+  - Phase 4 removed the callback-style focused interfaces from the live runtime path
+  - `interp` remains the engine/bootstrap shell, `evaluator` owns AST execution, and `runtime` owns execution primitives
+  - See `docs/architecture/interp-evaluator-steady-state.md` for the current boundary
 
 - **Performance**: Zero overhead vs switch-based approach
   - Literals: 0.3-0.6 ns/op (compiler-optimized, 0 allocations)

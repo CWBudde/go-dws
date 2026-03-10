@@ -5,7 +5,6 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -467,27 +466,8 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	// Create object instance
 	obj := runtime.NewObjectInstance(classInfo)
 
-	// Initialize fields
-	fieldTypes := classInfo.GetFieldTypesMap()
-	fieldDecls := classInfo.GetFieldsMap()
-
-	for fieldName, fieldTypeAny := range fieldTypes {
-		var fieldValue Value
-		if fieldDecl, hasDecl := fieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-			// Use field initializer
-			fieldValue = e.Eval(fieldDecl.InitValue, ctx)
-			if isError(fieldValue) {
-				return e.newError(node, "failed to initialize field '%s': %v", fieldName, fieldValue)
-			}
-		} else {
-			// Use zero value for type
-			if fieldType, ok := fieldTypeAny.(types.Type); ok {
-				fieldValue = e.getZeroValueForType(fieldType)
-			} else {
-				fieldValue = &runtime.NilValue{}
-			}
-		}
-		obj.SetField(fieldName, fieldValue)
+	if initErr := e.initializeObjectFields(classInfo, obj, node, ctx); initErr != nil {
+		return initErr
 	}
 
 	// Execute constructor

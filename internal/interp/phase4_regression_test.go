@@ -116,3 +116,108 @@ PrintLn(o.Inner.Value);`
 		t.Fatalf("wrong output. expected=%q got=%q", "ok", got)
 	}
 }
+
+func TestPhase4Regression_RuntimeMetadataInitializationCluster(t *testing.T) {
+	input := `
+type TBase = class
+	BaseName: String = 'base';
+	BaseValue: Integer = 10;
+end;
+
+type TChild = class(TBase)
+	ChildName: String = 'child';
+	ChildValue: Integer = 20;
+	Flag: Boolean;
+end;
+
+var obj := TChild.Create;
+PrintLn(obj.BaseName);
+PrintLn(obj.BaseValue);
+PrintLn(obj.ChildName);
+PrintLn(obj.ChildValue);
+PrintLn(obj.Flag);
+`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %s", result)
+	}
+
+	expected := "base\n10\nchild\n20\nFalse\n"
+	if output != expected {
+		t.Fatalf("wrong output. expected=%q got=%q", expected, output)
+	}
+}
+
+func TestPhase4Regression_CallLayerCluster(t *testing.T) {
+	input := `
+type TCounter = class
+	Value: Integer;
+	function Next: Integer;
+	function RunWithOffset(offset: Integer): Integer;
+end;
+
+function TCounter.Next: Integer;
+begin
+	Inc(Value);
+	Result := Value;
+end;
+
+function TCounter.RunWithOffset(offset: Integer): Integer;
+var apply := lambda(x: Integer): Integer => x + offset + Value;
+begin
+	Result := apply(5);
+end;
+
+var obj := TCounter.Create;
+obj.Value := 10;
+var nextPtr := @obj.Next;
+PrintLn(nextPtr());
+PrintLn(obj.RunWithOffset(3));
+`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %s", result)
+	}
+
+	expected := "11\n19\n"
+	if output != expected {
+		t.Fatalf("wrong output. expected=%q got=%q", expected, output)
+	}
+}
+
+func TestPhase4Regression_InheritedDispatchCluster(t *testing.T) {
+	input := `
+type TBase = class
+	function Describe: String; virtual;
+end;
+
+function TBase.Describe: String;
+begin
+	Result := 'base';
+end;
+
+type TChild = class(TBase)
+	function Describe: String; override;
+end;
+
+function TChild.Describe: String;
+begin
+	Result := inherited Describe + '-child';
+end;
+
+var obj: TBase := TChild.Create;
+PrintLn(obj.Describe);
+`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %s", result)
+	}
+
+	expected := "base-child\n"
+	if output != expected {
+		t.Fatalf("wrong output. expected=%q got=%q", expected, output)
+	}
+}

@@ -67,42 +67,9 @@ type EngineState struct {
 	MaxRecursionDepth      int
 }
 
-// Evaluator is the minimal API the interpreter needs from the evaluator.
-// This interface exists to avoid `internal/interp` importing `internal/interp/evaluator`.
-type Evaluator interface {
-	Eval(node ast.Node, ctx *runtime.ExecutionContext) Value
-	ExecuteUserFunction(fn *ast.FunctionDecl, args []Value, ctx *runtime.ExecutionContext, callbacks *UserFunctionCallbacks) (Value, error)
-	CurrentNode() ast.Node
-	CurrentContext() *runtime.ExecutionContext
-	EngineState() *EngineState
-	SetCurrentNode(node ast.Node)
-	SemanticInfo() *ast.SemanticInfo
-	SetSemanticInfo(info *ast.SemanticInfo)
-	SetSource(source, filename string)
-	SourceCode() string
-	SourceFile() string
-	UnitRegistry() *units.UnitRegistry
-	SetUnitRegistry(registry *units.UnitRegistry)
-	LoadedUnits() []string
-	AddLoadedUnit(unitName string)
-	InitializedUnits() map[string]bool
-	ExternalFunctions() ExternalFunctionRegistry
-	SetExternalFunctions(reg ExternalFunctionRegistry)
-	RefCountManager() runtime.RefCountManager
-	Random() *rand.Rand
-	RandomSeed() int64
-	SetRandomSeed(seed int64)
-}
-
-// ExceptionManager was removed in Task 4.2.
-// Exception handling is now self-contained in the evaluator using:
-// - runtime.NewException() for creating exceptions
-// - runtime.NewExceptionFromObject() for wrapping objects as exceptions
-// - RefCountManager.ReleaseInterface/ReleaseObject for cleanup
-
-// DeclHandler was removed in Task 4.5.3.
-// Declaration processing is now self-contained in the evaluator using
-// the TypeSystem and ClassInfoFactory directly.
+// The old callback-style focused interfaces were removed during Phase 4.
+// This package now remains as a small neutral home for cross-package runtime
+// state and callback types that still make sense after the split cleanup.
 
 // User function execution callbacks.
 type ImplicitConversionFunc func(value Value, targetTypeName string) (Value, bool)

@@ -1,24 +1,28 @@
-# Interpreter/Evaluator boundary (why `contracts` exists)
+# Interpreter/Evaluator boundary (current state)
+
+This file describes the package boundary rule. For the steady-state runtime
+ownership model after Phase 4, see
+[`interp-evaluator-steady-state.md`](./interp-evaluator-steady-state.md).
 
 This repo intentionally enforces a *mostly one-way dependency* rule:
 
 - `internal/interp` must **not** import `internal/interp/evaluator` in runtime logic.
 - The only production exception is canonical runtime construction in [`internal/interp/new.go`](../../internal/interp/new.go).
 
-At the same time, the evaluator still needs to invoke interpreter-owned behavior (OO dispatch, declaration side-effects, exception construction, etc.). In Go, doing that naively tends to create either:
+Phase 4 removed the old callback-style focused interfaces, but the repo still
+needs a clean package boundary so `interp` does not regress into importing
+`evaluator` throughout runtime logic.
 
-- an import cycle (`interp` ↔ `evaluator`), or
-- a layering regression (interpreter imports evaluator “just for a few types”).
+## Why `internal/interp/contracts` still exists
 
-## The solution: dependency inversion via `internal/interp/contracts`
+`internal/interp/contracts` is now a small *neutral* package for the remaining
+cross-package coordination types that do not belong in either `interp` or
+`runtime`:
 
-`internal/interp/contracts` is a small *neutral* package containing the interfaces and callback types used across the boundary.
-
-Conceptually:
-
-- The evaluator depends on *interfaces* (what it needs done).
-- The interpreter implements those interfaces (how it’s done).
-- A wiring package connects the concrete interpreter to the concrete evaluator.
+- shared engine state
+- neutral runtime-facing value/meta interfaces such as `ClassMetaValue`
+- user-function callback types
+- the external-function dispatch hook carried in `EngineState`
 
 ### Dependency directions
 
@@ -35,10 +39,10 @@ Not allowed:
 
 ## Why not put these interfaces into `runtime`?
 
-`runtime` is intended to hold shared *execution primitives* (values, env, execution context, helpers). The boundary interfaces are *coordination/policy*:
-
-- they define what the evaluator is allowed to ask the interpreter to do
-- they define the minimal API the interpreter needs from the evaluator
+`runtime` is intended to hold shared *execution primitives* (values, env,
+execution context, helpers). `contracts` is narrower: it holds coordination
+types that would otherwise force `interp` and `evaluator` to import each other
+or would make `runtime` a catch-all package.
 
 Keeping these in `contracts` prevents `runtime` from turning into a “catch-all” package and makes cross-layer coupling explicit.
 
@@ -52,8 +56,8 @@ Construction is centralized behind a single bootstrap entry point:
   - `evaluator.Evaluator`
   - and then calls `interp.NewWithDeps(...)`
 
-`internal/interp/runner` now delegates to that constructor. Runtime logic outside the
-bootstrap path should still remain evaluator-free.
+`internal/interp/runner` now delegates to that constructor. Runtime logic
+outside the bootstrap path should remain evaluator-free.
 
 ### Tests
 
@@ -66,7 +70,7 @@ runtime through the same engine-construction API.
 When you feel tempted to add `import ".../internal/interp/evaluator"` inside `internal/interp`:
 
 1. Ask: “Is this a *runtime primitive*?” → move/alias into `runtime`.
-2. Ask: “Is this a *cross-layer capability*?” → express it as a narrow interface in `contracts`.
+2. Ask: “Is this a *cross-package coordination type*?” → consider `contracts`.
 3. If it is construction-only glue, confine it to `internal/interp/new.go`.
 4. Otherwise, keep it out of `internal/interp`.
 
