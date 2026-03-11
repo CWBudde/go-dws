@@ -1,7 +1,6 @@
 package interp
 
 import (
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -73,24 +72,4 @@ func (i *Interpreter) getClassConstant(classInfo *ClassInfo, constantName string
 
 	ownerClass.ConstantValues[constantName] = constValue
 	return constValue
-}
-
-// canAccessInstancePropertyViaClass checks if an instance property can be accessed
-// via the class (TClass.PropertyName) when the read spec is a class variable or constant.
-func (i *Interpreter) canAccessInstancePropertyViaClass(classInfo *ClassInfo, propInfo *types.PropertyInfo, ma *ast.MemberAccessExpression) Value {
-	if propInfo.ReadKind != types.PropAccessField {
-		return nil
-	}
-
-	if _, ownerClass := classInfo.lookupClassVar(propInfo.ReadSpec); ownerClass != nil {
-		tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
-		return i.evalPropertyRead(tempObj, propInfo, ma)
-	}
-
-	if _, ownerClass := classInfo.lookupConstant(propInfo.ReadSpec); ownerClass != nil {
-		tempObj := &ObjectInstance{Class: classInfo, Fields: make(map[string]Value)}
-		return i.evalPropertyRead(tempObj, propInfo, ma)
-	}
-
-	return nil
 }
