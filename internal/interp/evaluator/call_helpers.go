@@ -203,8 +203,8 @@ func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, ar
 	}
 
 	if classMeta, ok := self.(ClassMetaValue); ok {
-		classInfo, ok := classMeta.GetClassInfo().(runtime.IClassInfo)
-		if !ok || classInfo == nil || classInfo.GetParent() == nil {
+		classInfo := classMeta.GetClassInfo()
+		if classInfo == nil || classInfo.GetParent() == nil {
 			return e.newError(node, "class '%s' has no parent class", classMeta.GetClassName())
 		}
 		methodDecl := classInfo.GetParent().LookupClassMethod(methodName)

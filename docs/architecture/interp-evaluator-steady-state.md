@@ -21,6 +21,8 @@ including the remaining seam decisions recorded in `phase-4.10.2`.
   - narrow neutral coordination layer
   - exists only for cross-package types that do not belong in `runtime`
   - should not grow into a migration holding area
+  - after `4.11`, it is reduced to `Value`, `ClassMetaValue`,
+    `ExternalFunctionRegistry`, and `EngineState`
 
 ## Ownership rules
 
@@ -73,6 +75,7 @@ in `phase-4.10.5-interp-allowed-responsibilities.md`.
 - that shim must not grow back into a semantic bridge.
 - `contracts.UserFunctionCallbacks` is temporary migration residue, not a
   target steady-state seam.
+  - update: removed from `contracts` during `4.11`
 
 ## What is intentionally gone
 

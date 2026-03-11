@@ -218,7 +218,7 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 			return e.newError(node, "internal error: %s value does not implement ClassMetaValue", obj.Type())
 		}
 		// Handle overloaded class methods via evaluator-owned dispatch
-		if classInfo, ok := classMeta.GetClassInfo().(runtime.IClassInfo); ok {
+		if classInfo := classMeta.GetClassInfo(); classInfo != nil {
 			if !classMeta.HasConstructor(methodName) && classInfo.HasClassMethodOverloads(methodName) {
 				return e.dispatchClassMethodOverloaded(classMeta, classInfo, methodName, args, node, ctx)
 			}
@@ -243,9 +243,8 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 }
 
 func (e *Evaluator) callClassConstructor(classMeta ClassMetaValue, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
-	classInfoAny := classMeta.GetClassInfo()
-	classInfo, ok := classInfoAny.(runtime.IClassInfo)
-	if !ok || classInfo == nil {
+	classInfo := classMeta.GetClassInfo()
+	if classInfo == nil {
 		return e.newError(node, "invalid class reference")
 	}
 

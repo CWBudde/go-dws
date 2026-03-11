@@ -42,7 +42,7 @@ func (m *MockClassMetaValue) GetNestedClass(name string) Value {
 func (m *MockClassMetaValue) ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool) {
 	return nil, false
 }
-func (m *MockClassMetaValue) GetClassInfo() any                         { return nil }
+func (m *MockClassMetaValue) GetClassInfo() runtime.IClassInfo          { return nil }
 func (m *MockClassMetaValue) SetClassVar(name string, value Value) bool { return false }
 func (m *MockClassMetaValue) WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool) {
 	return nil, false

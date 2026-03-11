@@ -3,7 +3,6 @@ package evaluator
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -65,7 +64,7 @@ func (e *Evaluator) EvaluateDefaultParameters(
 }
 
 // ImplicitConversionFunc is a callback type for implicit type conversion.
-type ImplicitConversionFunc = contracts.ImplicitConversionFunc
+type ImplicitConversionFunc func(value Value, targetTypeName string) (Value, bool)
 
 // BindFunctionParameters binds function parameters to arguments with implicit conversion.
 // Var (ByRef) parameters skip conversion to preserve ReferenceValue.
@@ -102,11 +101,11 @@ func (e *Evaluator) BindFunctionParameters(
 }
 
 // DefaultValueFunc is a callback type for getting the default value for a return type.
-type DefaultValueFunc = contracts.DefaultValueFunc
+type DefaultValueFunc func(returnTypeName string) Value
 
 // FunctionNameAliasFunc is a callback type for creating the function name alias.
 // In DWScript, assigning to either Result or the function name sets the return value.
-type FunctionNameAliasFunc = contracts.FunctionNameAliasFunc
+type FunctionNameAliasFunc func(funcName string, funcEnv *runtime.Environment) Value
 
 // InitializeResultVariable initializes the Result variable for functions (not procedures).
 // Creates function name alias to point to Result.
@@ -173,16 +172,23 @@ func (e *Evaluator) CaptureOldValues(
 }
 
 // CleanupInterfaceReferencesFunc is a callback type for cleaning up interface references.
-type CleanupInterfaceReferencesFunc = contracts.CleanupInterfaceReferencesFunc
+type CleanupInterfaceReferencesFunc func(env *runtime.Environment)
 
 // TryImplicitConversionReturnFunc is a callback type for implicit return type conversion.
-type TryImplicitConversionReturnFunc = contracts.TryImplicitConversionReturnFunc
+type TryImplicitConversionReturnFunc func(returnValue Value, expectedReturnType string) (Value, bool)
 
 // IncrementInterfaceRefCountFunc is a callback type for incrementing interface reference counts.
-type IncrementInterfaceRefCountFunc = contracts.IncrementInterfaceRefCountFunc
+type IncrementInterfaceRefCountFunc func(returnValue Value)
 
 // UserFunctionCallbacks holds all callback functions needed for user function execution.
-type UserFunctionCallbacks = contracts.UserFunctionCallbacks
+type UserFunctionCallbacks struct {
+	ImplicitConversion   ImplicitConversionFunc
+	DefaultValueGetter   DefaultValueFunc
+	FunctionNameAlias    FunctionNameAliasFunc
+	ReturnValueConverter TryImplicitConversionReturnFunc
+	InterfaceRefCounter  IncrementInterfaceRefCountFunc
+	InterfaceCleanup     CleanupInterfaceReferencesFunc
+}
 
 func (e *Evaluator) defaultUserFunctionCallbacks(ctx *ExecutionContext) *UserFunctionCallbacks {
 	return &UserFunctionCallbacks{

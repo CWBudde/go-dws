@@ -60,16 +60,6 @@ type IClassInfo interface {
 	// The normalizedName parameter should already be normalized via ident.Normalize().
 	FieldExists(normalizedName string) bool
 
-	// GetFieldsMap returns the legacy field map for direct field access.
-	// Used during migration period. Returns map[string]*ast.FieldDecl.
-	// In the future, this will be replaced by metadata-only field access.
-	GetFieldsMap() map[string]*ast.FieldDecl
-
-	// GetMethodsMap returns the legacy method map for direct method access.
-	// Used during migration period. Returns map[string]*ast.FunctionDecl.
-	// In the future, this will be replaced by metadata-only method access.
-	GetMethodsMap() map[string]*ast.FunctionDecl
-
 	// LookupClassVar retrieves a class variable by name (case-insensitive).
 	// Returns the value and the owning class (may be a parent class).
 	// Returns (nil, nil) if the class variable is not found.

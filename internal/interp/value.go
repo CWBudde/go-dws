@@ -453,7 +453,7 @@ func (c *ClassInfoValue) ReadClassProperty(name string, executor func(propInfo a
 }
 
 // GetClassInfo returns the underlying ClassInfo.
-func (c *ClassInfoValue) GetClassInfo() any {
+func (c *ClassInfoValue) GetClassInfo() runtime.IClassInfo {
 	if c == nil {
 		return nil
 	}

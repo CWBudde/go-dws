@@ -161,9 +161,6 @@ type FunctionPointerCallable interface {
 	GetSelfObject() Value
 }
 
-// FunctionPointerMetadata provides execution context for function pointer invocation.
-type FunctionPointerMetadata = contracts.FunctionPointerMetadata
-
 // Config holds evaluator configuration options.
 type Config struct {
 	MaxRecursionDepth int

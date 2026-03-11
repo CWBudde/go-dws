@@ -209,9 +209,9 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 
 			// Check for Class Property
 			result, ok := classMeta.WriteClassProperty(fieldName, value, func(propInfo any, val Value) Value {
-				classInfo, ok := classMeta.GetClassInfo().(runtime.IClassInfo)
-				if !ok {
-					return e.newError(stmt, "invalid class info type for class property write")
+				classInfo := classMeta.GetClassInfo()
+				if classInfo == nil {
+					return e.newError(stmt, "class metadata unavailable for class property write")
 				}
 				typedPropInfo, ok := propInfo.(*types.PropertyInfo)
 				if !ok {

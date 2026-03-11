@@ -27,21 +27,10 @@ type ClassMetaValue interface {
 	InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool)
 	GetNestedClass(name string) Value
 	ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool)
-	GetClassInfo() any
+	GetClassInfo() runtime.IClassInfo
 	SetClassVar(name string, value Value) bool
 	WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool)
 	HasClassVar(name string) bool
-}
-
-// FunctionPointerMetadata provides execution context for function pointer invocation.
-// Kept in a neutral package so both evaluator and interpreter can reference it
-// without importing each other.
-type FunctionPointerMetadata struct {
-	Lambda     any
-	Function   any
-	Closure    any
-	SelfObject Value
-	IsLambda   bool
 }
 
 // ExternalFunctionRegistry manages external Go functions callable from DWScript.
@@ -68,22 +57,5 @@ type EngineState struct {
 }
 
 // The old callback-style focused interfaces were removed during Phase 4.
-// This package now remains as a small neutral home for cross-package runtime
-// state and callback types that still make sense after the split cleanup.
-
-// User function execution callbacks.
-type ImplicitConversionFunc func(value Value, targetTypeName string) (Value, bool)
-type DefaultValueFunc func(returnTypeName string) Value
-type FunctionNameAliasFunc func(funcName string, funcEnv *runtime.Environment) Value
-type CleanupInterfaceReferencesFunc func(env *runtime.Environment)
-type TryImplicitConversionReturnFunc func(returnValue Value, expectedReturnType string) (Value, bool)
-type IncrementInterfaceRefCountFunc func(returnValue Value)
-
-type UserFunctionCallbacks struct {
-	ImplicitConversion   ImplicitConversionFunc
-	DefaultValueGetter   DefaultValueFunc
-	FunctionNameAlias    FunctionNameAliasFunc
-	ReturnValueConverter TryImplicitConversionReturnFunc
-	InterfaceRefCounter  IncrementInterfaceRefCountFunc
-	InterfaceCleanup     CleanupInterfaceReferencesFunc
-}
+// This package now remains as a small neutral home for shared engine state and
+// a minimal set of cross-package coordination types only.

@@ -316,9 +316,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		// Class properties (class property Counter: Integer read FCounter)
 		if result, found := classMetaVal.ReadClassProperty(memberName, func(propInfo any) Value {
-			classInfo, ok := classMetaVal.GetClassInfo().(runtime.IClassInfo)
-			if !ok {
-				return e.newError(node, "invalid class info type for class property read")
+			classInfo := classMetaVal.GetClassInfo()
+			if classInfo == nil {
+				return e.newError(node, "class metadata unavailable for class property read")
 			}
 			typedPropInfo, ok := propInfo.(*types.PropertyInfo)
 			if !ok {
@@ -330,7 +330,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		}
 
 		// Instance properties backed by class vars/consts accessed via class name
-		if classInfo, ok := classMetaVal.GetClassInfo().(runtime.IClassInfo); ok {
+		if classInfo := classMetaVal.GetClassInfo(); classInfo != nil {
 			if propDesc := classInfo.LookupProperty(memberName); propDesc != nil {
 				if propInfo, ok := propDesc.Impl.(*types.PropertyInfo); ok && !propInfo.IsClassProperty && propInfo.ReadKind == types.PropAccessField {
 					if val, found := classMetaVal.GetClassVar(propInfo.ReadSpec); found {

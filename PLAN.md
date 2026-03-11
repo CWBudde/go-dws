@@ -599,21 +599,26 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 
 **Goal**: Shrink the remaining migration-era neutral/boundary surfaces so the final architecture no longer depends on adapter-shaped residue.
 
-**Status**: 📋 Planned
+**Status**: ✅ Complete
 
 **Tasks**:
 
-- [ ] **4.11.1** Re-audit runtime metadata escape hatches exposed by the 4.9 cleanup
+- [x] **4.11.1** Re-audit runtime metadata escape hatches exposed by the 4.9 cleanup
   - continue removing `GetFieldsMap` / `GetMethodsMap` / similar migration-only fallbacks where canonical metadata is now sufficient
-- [ ] **4.11.2** Audit the remaining `contracts` package surface
+  - `runtime.IClassInfo` no longer requires legacy `GetFieldsMap` / `GetMethodsMap`
+  - `ClassMetaValue.GetClassInfo()` now returns `runtime.IClassInfo` instead of `any`
+- [x] **4.11.2** Audit the remaining `contracts` package surface
   - classify each `contracts` type as either a justified neutral coordination type or migration residue to remove/move
-- [ ] **4.11.3** Remove or narrow adapter-shaped residue that remains in neutral boundaries
+  - documented in `docs/architecture/phase-4.11-neutral-boundary-audit.md`
+- [x] **4.11.3** Remove or narrow adapter-shaped residue that remains in neutral boundaries
   - keep `contracts` small and explicitly justified rather than letting it become a migration holding area
+  - removed evaluator-only user-function callback types from `contracts`
+  - removed dead `FunctionPointerMetadata`
 
 **Success Criteria**:
 
-- [ ] residual runtime metadata compatibility APIs shrink further as a consequence of the cleanup
-- [ ] `internal/interp/contracts` contains only explicitly justified neutral coordination types, not leftover adapter-shaped migration residue
+- [x] residual runtime metadata compatibility APIs shrink further as a consequence of the cleanup
+- [x] `internal/interp/contracts` contains only explicitly justified neutral coordination types, not leftover adapter-shaped migration residue
 
 ---
 
@@ -631,10 +636,10 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 | 4.7 Verification/metrics | complete | Boundary tests, regression tests, and verification note added |
 | 4.8 Refinement | complete | Post-migration tightening landed after Phase 4 completion |
 | 4.9 Residual execution ownership cleanup | complete | Removed dead shadow execution, migrated typed-literal islands, unified ordinal loop semantics, and added ownership guards |
-| 4.10 Remaining seam clarification | planned | Close the remaining live ownership gaps and define the final shell/core boundary |
-| 4.11 Neutral boundary finalization | planned | Shrink contracts/metadata escape hatches to justified end-state boundaries |
+| 4.10 Remaining seam clarification | complete | Closed the remaining live ownership gaps and defined the final shell/core boundary |
+| 4.11 Neutral boundary finalization | complete | Shrunk contracts/metadata escape hatches to justified end-state boundaries |
 
-**Practical read**: The core Phase 4 bridge-removal work is complete. Phase 4.8 tightened the finished architecture, 4.9 completed the dead-shadow cleanup plus the known live semantic-island fixes, and 4.10-4.11 now cover the remaining live ownership seams and the final shell/contracts/metadata end-state decisions.
+**Practical read**: The core Phase 4 bridge-removal work is complete. Phase 4.8 tightened the finished architecture, 4.9 completed the dead-shadow cleanup plus the known live semantic-island fixes, 4.10 closed the remaining live ownership seams, and 4.11 finished the contracts/metadata end-state cleanup.
 
 ---
 

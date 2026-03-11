@@ -12,11 +12,9 @@ type mockClassInfo struct {
 	name string
 }
 
-func (m *mockClassInfo) GetName() string                             { return m.name }
-func (m *mockClassInfo) GetMetadata() *ClassMetadata                 { return nil }
-func (m *mockClassInfo) GetFieldsMap() map[string]*ast.FieldDecl     { return nil }
-func (m *mockClassInfo) GetMethodsMap() map[string]*ast.FunctionDecl { return nil }
-func (m *mockClassInfo) LookupMethod(name string) *ast.FunctionDecl  { return nil }
+func (m *mockClassInfo) GetName() string                            { return m.name }
+func (m *mockClassInfo) GetMetadata() *ClassMetadata                { return nil }
+func (m *mockClassInfo) LookupMethod(name string) *ast.FunctionDecl { return nil }
 func (m *mockClassInfo) LookupClassMethod(name string) *ast.FunctionDecl {
 	return nil
 }

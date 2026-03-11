@@ -76,8 +76,8 @@ func (e *Evaluator) executeClassMethodDirect(
 		return e.newError(node, "invalid class method declaration type")
 	}
 
-	classInfo, ok := classMeta.GetClassInfo().(runtime.IClassInfo)
-	if !ok || classInfo == nil {
+	classInfo := classMeta.GetClassInfo()
+	if classInfo == nil {
 		return e.newError(node, "class method execution requires class context")
 	}
 
