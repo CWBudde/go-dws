@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/types"
-	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -101,40 +100,6 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 		}
 	}
 	return result
-}
-
-// findHelperMethod searches all applicable helpers for a method with the given name
-// and returns the helper that owns the method, method declaration (if any), and builtin specification identifier.
-func (i *Interpreter) findHelperMethod(val Value, methodName string) (*HelperInfo, *ast.FunctionDecl, string) {
-	helpers := i.getHelpersForValue(val)
-	if helpers == nil {
-		return nil, nil, ""
-	}
-
-	// Search helpers in reverse order so later (user-defined) helpers override earlier ones.
-	// For each helper, search the inheritance chain using GetMethod
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
-
-		// Use GetMethod which searches the inheritance chain and returns the owner helper
-		if method, ownerHelper, ok := helper.GetMethod(methodName); ok {
-			// Check if there's a builtin spec as well (search from the owner helper)
-			if spec, _, ok := ownerHelper.GetBuiltinMethod(methodName); ok {
-				return ownerHelper, method, spec
-			}
-			return ownerHelper, method, ""
-		}
-	}
-
-	// If no declared method, check for builtin-only entries
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
-		if spec, ownerHelper, ok := helper.GetBuiltinMethod(methodName); ok {
-			return ownerHelper, nil, spec
-		}
-	}
-
-	return nil, nil, ""
 }
 
 // findHelperProperty searches all applicable helpers for a property with the given name

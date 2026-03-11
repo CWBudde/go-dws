@@ -250,7 +250,7 @@ This work has already happened in the branch and should be reflected as complete
 
 **Goal**: Stop wiring two runtime peers together during construction.
 
-**Status**: 🚧 In progress
+**Status**: ✅ Complete
 
 **Decision**:
 
@@ -539,7 +539,7 @@ That leftover duplication is now an architectural risk:
 
 **Goal**: Close the remaining live ownership gaps by deciding which interp/evaluator seams are intentional shell/core boundaries and moving residual production AST semantics under their final owner.
 
-**Status**: 📋 Planned
+**Status**: 🚧 In progress
 
 **Why this is the next phase**:
 
@@ -550,28 +550,48 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 - [x] **4.10.1** Inventory the remaining live production AST execution paths still owned by `internal/interp`
   - cover class/interface/type/helper/function declaration execution, type-cast/default built-ins, property/method dispatch helpers, and other still-live `Interpreter.eval*` methods
   - classify each as `keep in interp`, `move to evaluator`, or `replace with runtime primitive`
-- [ ] **4.10.2** Decide and document which remaining `interp` ↔ `evaluator` seams are intentional steady-state boundaries versus temporary migration residue
+- [x] **4.10.2** Decide and document which remaining `interp` ↔ `evaluator` seams are intentional steady-state boundaries versus temporary migration residue
   - cover the narrow evaluator shim, external-function dispatch hooks, and user-function callback plumbing
   - if a seam is permanent, document why it belongs at the engine shell boundary
   - if a seam is temporary, move it under an explicit removal task instead of leaving it implicit
-- [ ] **4.10.3** Migrate remaining production AST semantics that do not belong in the interpreter shell
+  - documented in `docs/architecture/phase-4.10.2-seam-decisions.md`
+- [x] **4.10.3** Migrate remaining production AST semantics that do not belong in the interpreter shell
   - move any residual expression/declaration execution that is neither bootstrap nor external-integration orchestration under evaluator/runtime ownership
   - eliminate interpreter-owned production AST execution where the shell is only acting as a semantic executor
-- [ ] **4.10.4** Close or explicitly retain the remaining narrow evaluator shim
+  - progress so far:
+    - built-in helper method/property execution is now evaluator-owned
+    - dead interpreter property/helper execution layers were removed
+    - record instance/static method execution is now evaluator-owned
+    - `objects_methods.go` was removed after the remaining interpreter method-dispatch cluster was confirmed dead
+    - dead interpreter-side expression helpers were removed:
+      - `evalTypeCast`
+      - `evalDefaultFunction`
+      - `evalAsExpression`
+      - dead helper-property read/write evaluators
+  - remaining `Interpreter.eval*` methods are now limited to declaration/bootstrap/orchestration responsibilities rather than production expression/property/method execution
+- [x] **4.10.4** Close or explicitly retain the remaining narrow evaluator shim
   - resolve the unfinished `4.3.9` outcome instead of leaving it open indefinitely
   - either delete the shim after moving the last call sites or document the shim as the intended long-term shell/core boundary
-- [ ] **4.10.5** Define and enforce the allowed responsibilities of `internal/interp` after cleanup
+  - callback-based user-function execution was removed from interpreter-side shim usage
+  - helper builtin execution no longer lives on the shim surface
+  - current-context access was removed from the shim
+  - the remaining shim is explicitly retained as a minimal internal implementation handle
+- [x] **4.10.5** Define and enforce the allowed responsibilities of `internal/interp` after cleanup
   - interpreter shell responsibilities should be explicit: bootstrap, engine-facing API, unit integration, external integration, and other narrowly justified orchestration only
   - evaluator-owned AST semantics must not reappear in `internal/interp`
-- [ ] **4.10.6** Add regression protection for the final steady-state ownership boundary
+  - external-function integration remains shell-owned, but AST-shaped callback round-trips are not part of the intended steady state
+  - documented in `docs/architecture/phase-4.10.5-interp-allowed-responsibilities.md`
+  - the remaining allowed `Interpreter.eval*` surface is now explicit instead of inferred
+- [x] **4.10.6** Add regression protection for the final steady-state ownership boundary
   - extend architecture tests so the allowed remaining `Interpreter.eval*` surface is explicit rather than inferred
   - fail when new production AST semantics are added to `internal/interp` without an allowed-shell justification
+  - `boundary_test.go` now enforces the exact remaining interpreter `eval*` allowlist
 
 **Success Criteria**:
 
-- [ ] evaluator is the sole owner of AST execution semantics for production statement/expression/declaration execution, except for explicitly documented shell-only orchestration
-- [ ] remaining `interp` ↔ `evaluator` seams are intentional, documented, and regression-tested
-- [ ] the allowed long-term responsibilities of `internal/interp` are explicit enough that future work does not recreate split execution ownership
+- [x] evaluator is the sole owner of AST execution semantics for production statement/expression/declaration execution, except for explicitly documented shell-only orchestration
+- [x] remaining `interp` ↔ `evaluator` seams are intentional, documented, and regression-tested
+- [x] the allowed long-term responsibilities of `internal/interp` are explicit enough that future work does not recreate split execution ownership
 
 ---
 

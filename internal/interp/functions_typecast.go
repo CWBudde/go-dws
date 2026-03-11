@@ -512,69 +512,6 @@ func (i *Interpreter) classTypeForName(class *ClassInfo) types.Type {
 	return types.NewClassType(class.Name, parentType)
 }
 
-// evalTypeCast evaluates a type cast expression like Integer(x), Float(y), or TMyClass(obj).
-// Returns the cast value if this is a valid type cast, or nil if not a type cast.
-func (i *Interpreter) evalTypeCast(typeName string, arg ast.Expression) Value {
-	// First check if this is actually a type cast before evaluating the argument
-	// This prevents double evaluation when it's not a type cast
-	isTypeCast := false
-	var enumType *types.EnumType
-	lowerName := pkgident.Normalize(typeName)
-
-	// Check if it's a built-in type
-	switch lowerName {
-	case "integer", "float", "string", "boolean", "variant":
-		isTypeCast = true
-	default:
-		// Check if it's a class/interface type
-		if i.lookupClassInfo(typeName) != nil {
-			isTypeCast = true
-		} else {
-			// Look up the enum type via TypeSystem
-			if enumMetadata := i.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
-				if etv, ok := enumMetadata.(*EnumTypeValue); ok {
-					enumType = etv.EnumType
-					isTypeCast = true
-				}
-			}
-		}
-	}
-
-	// If it's not a type cast, return nil without evaluating
-	if !isTypeCast {
-		return nil
-	}
-
-	// Now evaluate the argument since we know it's a type cast
-	val := i.Eval(arg)
-	if isError(val) {
-		return val
-	}
-
-	// Perform the type cast
-	switch lowerName {
-	case "integer":
-		return i.castToInteger(val)
-	case "float":
-		return i.castToFloat(val)
-	case "string":
-		return i.castToString(val)
-	case "boolean":
-		return i.castToBoolean(val)
-	case "variant":
-		// Variant can accept any value
-		return &VariantValue{Value: val}
-	default:
-		// Check if it's an enum type
-		if enumType != nil {
-			return i.castToEnum(val, enumType, typeName)
-		}
-		// Must be a class/interface type (we already checked above)
-		classInfo := i.lookupClassInfo(typeName)
-		return i.castToClass(val, classInfo, arg)
-	}
-}
-
 // lookupClassInfo looks up a class by name (case-insensitive)
 func (i *Interpreter) lookupClassInfo(name string) *ClassInfo {
 	return i.lookupRegisteredClassInfo(name)
@@ -795,38 +732,5 @@ func (i *Interpreter) castToEnum(val Value, targetEnum *types.EnumType, typeName
 
 	default:
 		return newError("cannot cast %s to enum %s", val.Type(), typeName)
-	}
-}
-
-// evalDefaultFunction handles the Default() built-in function which expects an unevaluated type identifier.
-// Default(Integer) should pass "Integer" as a string, not evaluate it as a variable.
-// Returns the default/zero value for the specified type, or nil if not a valid type.
-func (i *Interpreter) evalDefaultFunction(arg ast.Expression) Value {
-	// The argument should be a type identifier
-	ident, ok := arg.(*ast.Identifier)
-	if !ok {
-		return i.newErrorWithLocation(arg, "Default() expects a type name as argument")
-	}
-
-	typeName := ident.Value
-	lowerName := pkgident.Normalize(typeName)
-
-	// Return default values based on type name
-	switch lowerName {
-	case "integer", "int64", "byte", "word", "cardinal", "smallint", "shortint", "longword":
-		return &IntegerValue{Value: 0}
-	case "float", "double", "single", "extended", "currency":
-		return &FloatValue{Value: 0.0}
-	case "string", "unicodestring", "ansistring":
-		return &StringValue{Value: ""}
-	case "boolean":
-		return &BooleanValue{Value: false}
-	case "variant":
-		return &NilValue{}
-	default:
-		// For class types, records, enums, and other reference/complex types, return nil
-		// Check if it's a valid type by looking it up
-		// For now, return nil (which represents the default value for reference types)
-		return &NilValue{}
 	}
 }

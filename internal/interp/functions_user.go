@@ -1,10 +1,6 @@
 package interp
 
-import (
-	"strings"
-
-	"github.com/cwbudde/go-dws/pkg/ast"
-)
+import "github.com/cwbudde/go-dws/pkg/ast"
 
 // executeUserFunctionViaEvaluator is a wrapper that calls the evaluator's ExecuteUserFunction.
 //
@@ -16,24 +12,7 @@ import (
 // 2. ExecuteUserFunction uses ctx.Env() to create the function's enclosed environment
 // 3. Without sync, ctx.Env() won't see the Self binding set up in i.Env()
 func (i *Interpreter) executeUserFunctionViaEvaluator(fn *ast.FunctionDecl, args []Value) Value {
-	// Create callbacks for interpreter-dependent operations
-	callbacks := i.createUserFunctionCallbacks()
-	ctx := i.ctx
-	if evalCtx := i.evaluatorInstance.CurrentContext(); evalCtx != nil {
-		ctx = evalCtx
-	}
-
-	// Execute via evaluator
-	result, err := i.evaluatorInstance.ExecuteUserFunction(fn, args, ctx, callbacks)
-	if err != nil {
-		// The evaluator returns a specific error message for this case
-		if strings.Contains(err.Error(), "maximum recursion depth exceeded") {
-			return i.raiseMaxRecursionExceededInContext(ctx)
-		}
-		return newError("%s", err.Error())
-	}
-
-	return result
+	return i.evaluatorInstance.ExecuteUserFunctionDirect(fn, args, i.ctx)
 }
 
 // callFunctionPointer calls a function through a function pointer.

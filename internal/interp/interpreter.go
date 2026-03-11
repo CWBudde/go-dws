@@ -24,11 +24,8 @@ type PropertyEvalContext = runtime.PropertyEvalContext
 
 type evaluatorShim interface {
 	Eval(node ast.Node, ctx *runtime.ExecutionContext) Value
-	ExecuteUserFunction(fn *ast.FunctionDecl, args []Value, ctx *runtime.ExecutionContext, callbacks *contracts.UserFunctionCallbacks) (Value, error)
-	CallBuiltinHelperMethod(spec string, selfValue Value, args []Value, node ast.Node, ctx *runtime.ExecutionContext) Value
-	CallBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node, ctx *runtime.ExecutionContext) Value
+	ExecuteUserFunctionDirect(fn *ast.FunctionDecl, args []Value, ctx *runtime.ExecutionContext) Value
 	CurrentNode() ast.Node
-	CurrentContext() *runtime.ExecutionContext
 	EngineState() *contracts.EngineState
 	SetCurrentNode(node ast.Node)
 }

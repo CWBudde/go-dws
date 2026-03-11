@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode"
 )
 
 func readBoundarySource(t *testing.T, path string) string {
@@ -161,6 +162,11 @@ func TestNoInterpreterShadowStatementEvaluatorsRemain(t *testing.T) {
 	t.Parallel()
 
 	forbidden := map[string]string{
+		"evalTypeCast":                    "type-cast execution belongs to evaluator visitors",
+		"evalDefaultFunction":             "Default(...) execution belongs to evaluator visitors",
+		"evalAsExpression":                "'as' expression execution belongs to evaluator visitors",
+		"evalHelperPropertyRead":          "helper property read execution belongs to evaluator visitors",
+		"evalHelperPropertyWrite":         "helper property write execution belongs to evaluator visitors",
 		"evalProgram":                     "program execution belongs to evaluator visitors",
 		"evalBlockStatement":              "block execution belongs to evaluator visitors",
 		"evalExpressionStatement":         "expression-statement execution belongs to evaluator visitors",
@@ -230,11 +236,14 @@ func TestDeletedShadowExecutionFilesDoNotReturn(t *testing.T) {
 
 	deleted := []string{
 		"array.go",
+		"expressions_complex.go",
 		"functions_calls.go",
 		"functions_records.go",
+		"objects_methods.go",
 		"objects_instantiation.go",
 		"objects_properties.go",
 		"oop_dispatch.go",
+		"user_function_callbacks.go",
 		"statements_assignments.go",
 		"statements_declarations.go",
 		"statements_loops.go",
@@ -245,6 +254,89 @@ func TestDeletedShadowExecutionFilesDoNotReturn(t *testing.T) {
 			t.Errorf("%s reappeared; phase 4.9 removed it as dead shadow execution", path)
 		} else if !os.IsNotExist(err) {
 			t.Fatalf("stat %s failed: %v", path, err)
+		}
+	}
+}
+
+func TestInterpreterEvalSurfaceMatchesAllowlist(t *testing.T) {
+	t.Parallel()
+
+	allowed := map[string]string{
+		"evalViaEvaluator":               "internal delegation helper from shell to evaluator",
+		"evalFunctionDeclaration":        "declaration/bootstrap registry mutation",
+		"evalClassMethodImplementation":  "declaration/bootstrap registry mutation",
+		"evalRecordMethodImplementation": "declaration/bootstrap registry mutation",
+		"evalClassDeclaration":           "declaration/bootstrap registry mutation",
+		"evalInterfaceDeclaration":       "declaration/bootstrap registry mutation",
+		"evalOperatorDeclaration":        "declaration/bootstrap registry mutation",
+		"evalHelperDeclaration":          "declaration/bootstrap registry mutation",
+		"evalTypeDeclaration":            "declaration/bootstrap registry mutation",
+		"evalEnumDeclaration":            "declaration/bootstrap registry mutation",
+		"evalIntegerBinaryOp":            "internal runtime helper primitive",
+		"evalFloatBinaryOp":              "internal runtime helper primitive",
+		"evalStringBinaryOp":             "internal runtime helper primitive",
+		"evalBooleanBinaryOp":            "internal runtime helper primitive",
+		"evalBinarySetOperation":         "internal runtime helper primitive",
+		"evalSetMembership":              "internal runtime helper primitive",
+		"evalSetInclude":                 "internal runtime helper primitive",
+		"evalSetExclude":                 "internal runtime helper primitive",
+	}
+
+	found := make(map[string]string)
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*goast.FuncDecl)
+			if !ok || fn.Recv == nil || fn.Name == nil {
+				continue
+			}
+			if fn.Name.Name != "evalViaEvaluator" {
+				if !strings.HasPrefix(fn.Name.Name, "eval") || len(fn.Name.Name) <= 4 || !unicode.IsUpper(rune(fn.Name.Name[4])) {
+					continue
+				}
+			}
+			if len(fn.Recv.List) != 1 {
+				continue
+			}
+
+			star, ok := fn.Recv.List[0].Type.(*goast.StarExpr)
+			if !ok {
+				continue
+			}
+			recvIdent, ok := star.X.(*goast.Ident)
+			if !ok || recvIdent.Name != "Interpreter" {
+				continue
+			}
+
+			reason, ok := allowed[fn.Name.Name]
+			if !ok {
+				t.Errorf("%s defines unexpected Interpreter.%s; add explicit architectural justification before reintroducing interpreter-side eval surface", path, fn.Name.Name)
+				continue
+			}
+			found[fn.Name.Name] = reason
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk failed: %v", err)
+	}
+
+	for name, reason := range allowed {
+		if _, ok := found[name]; !ok {
+			t.Errorf("allowed Interpreter.%s (%s) is missing from the current surface; update this allowlist test if the shell boundary changed intentionally", name, reason)
 		}
 	}
 }
