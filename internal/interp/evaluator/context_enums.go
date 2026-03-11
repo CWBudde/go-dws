@@ -58,17 +58,9 @@ func (e *Evaluator) GetEnumSuccessor(enumVal Value) (Value, error) {
 	}
 	enumType := etv.GetEnumType()
 
-	// Find current position
-	currentPos := -1
-	for idx, name := range enumType.OrderedNames {
-		if name == val.ValueName {
-			currentPos = idx
-			break
-		}
-	}
-
-	if currentPos == -1 {
-		return nil, fmt.Errorf("enum value '%s' not found in type '%s'", val.ValueName, val.TypeName)
+	currentPos, err := runtime.EnumValueIndex(val, enumType)
+	if err != nil {
+		return nil, err
 	}
 
 	// Check if we can increment (not at the end)
@@ -77,12 +69,7 @@ func (e *Evaluator) GetEnumSuccessor(enumVal Value) (Value, error) {
 	}
 
 	// Get next value
-	nextValueName := enumType.OrderedNames[currentPos+1]
-	return &runtime.EnumValue{
-		TypeName:     val.TypeName,
-		ValueName:    nextValueName,
-		OrdinalValue: enumType.Values[nextValueName],
-	}, nil
+	return runtime.EnumValueAtIndex(val.TypeName, enumType, currentPos+1)
 }
 
 // GetEnumPredecessor returns the predecessor of an enum value.
@@ -105,17 +92,9 @@ func (e *Evaluator) GetEnumPredecessor(enumVal Value) (Value, error) {
 	}
 	enumType := etv.GetEnumType()
 
-	// Find current position
-	currentPos := -1
-	for idx, name := range enumType.OrderedNames {
-		if name == val.ValueName {
-			currentPos = idx
-			break
-		}
-	}
-
-	if currentPos == -1 {
-		return nil, fmt.Errorf("enum value '%s' not found in type '%s'", val.ValueName, val.TypeName)
+	currentPos, err := runtime.EnumValueIndex(val, enumType)
+	if err != nil {
+		return nil, err
 	}
 
 	// Check if we can decrement (not at the beginning)
@@ -124,12 +103,7 @@ func (e *Evaluator) GetEnumPredecessor(enumVal Value) (Value, error) {
 	}
 
 	// Get previous value
-	prevValueName := enumType.OrderedNames[currentPos-1]
-	return &runtime.EnumValue{
-		TypeName:     val.TypeName,
-		ValueName:    prevValueName,
-		OrdinalValue: enumType.Values[prevValueName],
-	}, nil
+	return runtime.EnumValueAtIndex(val.TypeName, enumType, currentPos-1)
 }
 
 // GetJSONVarType returns the VarType code for a JSON value based on its kind.

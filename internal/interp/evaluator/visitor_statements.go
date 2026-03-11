@@ -630,9 +630,9 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 
 	if node.Direction == ast.ForTo {
 		for current := startOrdinal; current <= endOrdinal; current += stepOrdinal {
-			currentVal, errVal := e.rebuildForLoopValue(startVal, current)
-			if errVal != nil {
-				return errVal
+			currentVal, err := runtime.RebuildOrdinalValue(startVal, current, e.lookupEnumType)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
 			}
 			ctx.Env().Define(loopVarName, currentVal)
 
@@ -656,9 +656,9 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 		}
 	} else {
 		for current := startOrdinal; current >= endOrdinal; current -= stepOrdinal {
-			currentVal, errVal := e.rebuildForLoopValue(startVal, current)
-			if errVal != nil {
-				return errVal
+			currentVal, err := runtime.RebuildOrdinalValue(startVal, current, e.lookupEnumType)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
 			}
 			ctx.Env().Define(loopVarName, currentVal)
 
@@ -683,48 +683,6 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 	}
 
 	return result
-}
-
-func (e *Evaluator) rebuildForLoopValue(template Value, ordinal int) (Value, Value) {
-	switch v := template.(type) {
-	case *runtime.IntegerValue:
-		return &runtime.IntegerValue{Value: int64(ordinal)}, nil
-	case *runtime.EnumValue:
-		enumMetadata := e.typeSystem.LookupEnumMetadata(v.TypeName)
-		if enumMetadata == nil {
-			return nil, e.newError(nil, "enum type metadata not found for %s", v.TypeName)
-		}
-
-		etv, ok := enumMetadata.(EnumTypeValueAccessor)
-		if !ok {
-			return nil, e.newError(nil, "invalid enum type metadata for %s", v.TypeName)
-		}
-
-		enumType := etv.GetEnumType()
-		valueName := ""
-		for _, name := range enumType.OrderedNames {
-			if enumType.Values[name] == ordinal {
-				valueName = name
-				break
-			}
-		}
-
-		if valueName == "" {
-			valueName = fmt.Sprintf("$%d", ordinal)
-		}
-
-		return &runtime.EnumValue{
-			TypeName:     v.TypeName,
-			ValueName:    valueName,
-			OrdinalValue: ordinal,
-		}, nil
-	case *runtime.StringValue:
-		return &runtime.StringValue{Value: string(rune(ordinal))}, nil
-	case *runtime.BooleanValue:
-		return &runtime.BooleanValue{Value: ordinal != 0}, nil
-	default:
-		return nil, e.newError(nil, "unsupported ordinal loop variable type %s", template.Type())
-	}
 }
 
 // VisitForInStatement evaluates a for-in loop statement.
@@ -860,13 +818,7 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 		}
 
 		for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal++ {
-			valueName := enumType.GetEnumName(ordinal)
-			// Create an enum value for this element
-			enumVal := &runtime.EnumValue{
-				TypeName:     enumType.Name,
-				ValueName:    valueName,
-				OrdinalValue: ordinal,
-			}
+			enumVal := runtime.NewEnumValue(enumType.Name, enumType, ordinal)
 
 			// Assign the enum value to the loop variable
 			ctx.Env().Define(loopVarName, enumVal)

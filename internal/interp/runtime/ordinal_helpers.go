@@ -51,3 +51,34 @@ func GetOrdinalType(val Value) types.Type {
 		return nil
 	}
 }
+
+// EnumTypeResolver resolves enum type metadata by DWScript type name.
+type EnumTypeResolver func(typeName string) (*types.EnumType, error)
+
+// RebuildOrdinalValue recreates a runtime value of the same ordinal kind as the template.
+// This keeps ordinal-to-value reconstruction centralized instead of duplicating it in
+// evaluator execution paths.
+func RebuildOrdinalValue(template Value, ordinal int, resolveEnum EnumTypeResolver) (Value, error) {
+	switch v := template.(type) {
+	case *IntegerValue:
+		return &IntegerValue{Value: int64(ordinal)}, nil
+	case *EnumValue:
+		if resolveEnum == nil {
+			return nil, fmt.Errorf("enum ordinal reconstruction requires enum type resolver")
+		}
+		enumType, err := resolveEnum(v.TypeName)
+		if err != nil {
+			return nil, err
+		}
+		return NewEnumValue(v.TypeName, enumType, ordinal), nil
+	case *StringValue:
+		return &StringValue{Value: string(rune(ordinal))}, nil
+	case *BooleanValue:
+		return &BooleanValue{Value: ordinal != 0}, nil
+	default:
+		if template == nil {
+			return nil, fmt.Errorf("unsupported ordinal loop variable type <nil>")
+		}
+		return nil, fmt.Errorf("unsupported ordinal loop variable type %s", template.Type())
+	}
+}

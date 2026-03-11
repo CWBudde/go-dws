@@ -356,17 +356,9 @@ func (e *Evaluator) builtinInc(args []ast.Expression, ctx *ExecutionContext) Val
 			return e.newError(nil, "enum type metadata not found for %s", val.TypeName)
 		}
 
-		// Find current value's position in OrderedNames
-		currentPos := -1
-		for idx, name := range enumType.OrderedNames {
-			if name == val.ValueName {
-				currentPos = idx
-				break
-			}
-		}
-
-		if currentPos == -1 {
-			return e.newError(nil, "enum value '%s' not found in type '%s'", val.ValueName, val.TypeName)
+		currentPos, err := runtime.EnumValueIndex(val, enumType)
+		if err != nil {
+			return e.newError(nil, "%s", err.Error())
 		}
 
 		// Check if we can increment (not at the end)
@@ -374,15 +366,9 @@ func (e *Evaluator) builtinInc(args []ast.Expression, ctx *ExecutionContext) Val
 			return e.newError(nil, "Inc() cannot increment enum beyond its maximum value")
 		}
 
-		// Get next value
-		nextValueName := enumType.OrderedNames[currentPos+1]
-		nextOrdinal := enumType.Values[nextValueName]
-
-		// Create new enum value
-		newValue = &runtime.EnumValue{
-			TypeName:     val.TypeName,
-			ValueName:    nextValueName,
-			OrdinalValue: nextOrdinal,
+		newValue, err = runtime.EnumValueAtIndex(val.TypeName, enumType, currentPos+1)
+		if err != nil {
+			return e.newError(nil, "%s", err.Error())
 		}
 
 	default:
@@ -462,17 +448,9 @@ func (e *Evaluator) builtinDec(args []ast.Expression, ctx *ExecutionContext) Val
 			return e.newError(nil, "enum type metadata not found for %s", val.TypeName)
 		}
 
-		// Find current value's position in OrderedNames
-		currentPos := -1
-		for idx, name := range enumType.OrderedNames {
-			if name == val.ValueName {
-				currentPos = idx
-				break
-			}
-		}
-
-		if currentPos == -1 {
-			return e.newError(nil, "enum value '%s' not found in type '%s'", val.ValueName, val.TypeName)
+		currentPos, err := runtime.EnumValueIndex(val, enumType)
+		if err != nil {
+			return e.newError(nil, "%s", err.Error())
 		}
 
 		// Check if we can decrement (not at the beginning)
@@ -480,15 +458,9 @@ func (e *Evaluator) builtinDec(args []ast.Expression, ctx *ExecutionContext) Val
 			return e.newError(nil, "Dec() cannot decrement enum below its minimum value")
 		}
 
-		// Get previous value
-		prevValueName := enumType.OrderedNames[currentPos-1]
-		prevOrdinal := enumType.Values[prevValueName]
-
-		// Create new enum value
-		newValue = &runtime.EnumValue{
-			TypeName:     val.TypeName,
-			ValueName:    prevValueName,
-			OrdinalValue: prevOrdinal,
+		newValue, err = runtime.EnumValueAtIndex(val.TypeName, enumType, currentPos-1)
+		if err != nil {
+			return e.newError(nil, "%s", err.Error())
 		}
 
 	default:

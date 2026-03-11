@@ -748,7 +748,7 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 	// Handle set membership
 	if setVal, ok := container.(*runtime.SetValue); ok {
 		// Value must be an ordinal type to be in a set
-		ordinal, err := GetOrdinalValue(value)
+		ordinal, err := runtime.GetOrdinalValue(value)
 		if err != nil {
 			return e.newError(node, "type mismatch: %s", err.Error())
 		}

@@ -296,7 +296,7 @@ func (e *Evaluator) dispatchSetMethod(obj Value, normalizedMethod, methodName st
 		if len(args) != 1 {
 			return e.newError(node, "Include expects 1 argument, got %d", len(args))
 		}
-		ordinal, err := GetOrdinalValue(args[0])
+		ordinal, err := runtime.GetOrdinalValue(args[0])
 		if err != nil {
 			return e.newError(node, "Include requires ordinal value: %s", err.Error())
 		}
@@ -307,7 +307,7 @@ func (e *Evaluator) dispatchSetMethod(obj Value, normalizedMethod, methodName st
 		if len(args) != 1 {
 			return e.newError(node, "Exclude expects 1 argument, got %d", len(args))
 		}
-		ordinal, err := GetOrdinalValue(args[0])
+		ordinal, err := runtime.GetOrdinalValue(args[0])
 		if err != nil {
 			return e.newError(node, "Exclude requires ordinal value: %s", err.Error())
 		}

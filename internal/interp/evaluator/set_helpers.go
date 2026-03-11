@@ -159,8 +159,8 @@ func (e *Evaluator) evalSetRangeElement(
 	}
 
 	// Extract ordinal values
-	startOrd, err1 := GetOrdinalValue(startVal)
-	endOrd, err2 := GetOrdinalValue(endVal)
+	startOrd, err1 := runtime.GetOrdinalValue(startVal)
+	endOrd, err2 := runtime.GetOrdinalValue(endVal)
 
 	if err1 != nil {
 		return e.newError(rangeExpr.Start, "range start must be ordinal type: %s", err1.Error())
@@ -180,7 +180,7 @@ func (e *Evaluator) evalSetRangeElement(
 			*enumType = et
 			*elementType = et
 		} else {
-			*elementType = GetOrdinalType(startVal)
+			*elementType = runtime.GetOrdinalType(startVal)
 		}
 	}
 
@@ -230,7 +230,7 @@ func (e *Evaluator) evalSetSimpleElement(
 	}
 
 	// Extract ordinal value
-	ordinal, err := GetOrdinalValue(elemVal)
+	ordinal, err := runtime.GetOrdinalValue(elemVal)
 	if err != nil {
 		return e.newError(elem, "set element must be ordinal type: %s", err.Error())
 	}
@@ -246,7 +246,7 @@ func (e *Evaluator) evalSetSimpleElement(
 			*enumType = et
 			*elementType = et
 		} else {
-			*elementType = GetOrdinalType(elemVal)
+			*elementType = runtime.GetOrdinalType(elemVal)
 		}
 	} else {
 		// Verify all elements are of the same type

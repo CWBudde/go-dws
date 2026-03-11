@@ -45,12 +45,7 @@ func (e *Evaluator) GetLowBound(value Value) (Value, error) {
 			if len(enumType.OrderedNames) == 0 {
 				return nil, fmt.Errorf("enum type '%s' has no values", typeMetaVal.TypeName)
 			}
-			firstValueName := enumType.OrderedNames[0]
-			return &runtime.EnumValue{
-				TypeName:     typeMetaVal.TypeName,
-				ValueName:    firstValueName,
-				OrdinalValue: enumType.Values[firstValueName],
-			}, nil
+			return runtime.EnumValueAtIndex(typeMetaVal.TypeName, enumType, 0)
 		}
 		return nil, fmt.Errorf("Low() not supported for type %s", typeMetaVal.TypeName)
 	}
@@ -77,12 +72,7 @@ func (e *Evaluator) GetLowBound(value Value) (Value, error) {
 		if len(enumType.OrderedNames) == 0 {
 			return nil, fmt.Errorf("enum type '%s' has no values", enumVal.TypeName)
 		}
-		firstValueName := enumType.OrderedNames[0]
-		return &runtime.EnumValue{
-			TypeName:     enumVal.TypeName,
-			ValueName:    firstValueName,
-			OrdinalValue: enumType.Values[firstValueName],
-		}, nil
+		return runtime.EnumValueAtIndex(enumVal.TypeName, enumType, 0)
 	}
 
 	// Strings are 1-indexed in DWScript
@@ -110,12 +100,7 @@ func (e *Evaluator) GetHighBound(value Value) (Value, error) {
 			if len(enumType.OrderedNames) == 0 {
 				return nil, fmt.Errorf("enum type '%s' has no values", typeMetaVal.TypeName)
 			}
-			lastValueName := enumType.OrderedNames[len(enumType.OrderedNames)-1]
-			return &runtime.EnumValue{
-				TypeName:     typeMetaVal.TypeName,
-				ValueName:    lastValueName,
-				OrdinalValue: enumType.Values[lastValueName],
-			}, nil
+			return runtime.EnumValueAtIndex(typeMetaVal.TypeName, enumType, len(enumType.OrderedNames)-1)
 		}
 		return nil, fmt.Errorf("High() not supported for type %s", typeMetaVal.TypeName)
 	}
@@ -142,12 +127,7 @@ func (e *Evaluator) GetHighBound(value Value) (Value, error) {
 		if len(enumType.OrderedNames) == 0 {
 			return nil, fmt.Errorf("enum type '%s' has no values", enumVal.TypeName)
 		}
-		lastValueName := enumType.OrderedNames[len(enumType.OrderedNames)-1]
-		return &runtime.EnumValue{
-			TypeName:     enumVal.TypeName,
-			ValueName:    lastValueName,
-			OrdinalValue: enumType.Values[lastValueName],
-		}, nil
+		return runtime.EnumValueAtIndex(enumVal.TypeName, enumType, len(enumType.OrderedNames)-1)
 	}
 
 	// Strings: High(s) = Length(s)

@@ -192,7 +192,7 @@ func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionD
 	builtinSpec string, selfValue Value, args []Value, node ast.Node) Value {
 
 	if builtinSpec != "" {
-		return i.evalBuiltinHelperMethod(builtinSpec, selfValue, args, node)
+		return i.evaluatorInstance.CallBuiltinHelperMethod(builtinSpec, selfValue, args, node, i.ctx)
 	}
 
 	if method == nil {
@@ -317,8 +317,7 @@ func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types
 			propInfo.Name, propInfo.ReadSpec)
 
 	case types.PropAccessBuiltin:
-		// Built-in array helper properties
-		return i.evalBuiltinHelperProperty(propInfo.ReadSpec, selfValue, node)
+		return i.evaluatorInstance.CallBuiltinHelperProperty(propInfo.ReadSpec, selfValue, node, i.ctx)
 
 	case types.PropAccessNone:
 		return i.newErrorWithLocation(node, "property '%s' is write-only", propInfo.Name)

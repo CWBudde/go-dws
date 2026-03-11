@@ -356,6 +356,52 @@ func TestForStatementWithStep(t *testing.T) {
 	}
 }
 
+func TestForStatementWithEnumOrdinals(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "Enum ascending loop uses ordinal semantics",
+			input: `
+				type TPrime = (Two = 2, Three = 3, Five = 5);
+				for p := Two to Five do
+					if p in [Two, Three, Five] then
+						PrintLn(Ord(p));
+			`,
+			expected: "2\n3\n5\n",
+		},
+		{
+			name: "Enum loop with enum step",
+			input: `
+				type TEven = (Zero = 0, Two = 2, Four = 4);
+				for e := Zero to Four step Two do
+					PrintLn(Ord(e));
+			`,
+			expected: "0\n2\n4\n",
+		},
+		{
+			name: "Enum descending loop with enum step",
+			input: `
+				type TEven = (Zero = 0, Two = 2, Four = 4);
+				for e := Four downto Zero step Two do
+					PrintLn(Ord(e));
+			`,
+			expected: "4\n2\n0\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutput(tt.input)
+			if output != tt.expected {
+				t.Errorf("wrong output.\nexpected=%q\ngot=%q", tt.expected, output)
+			}
+		})
+	}
+}
+
 // TestForStatementStepErrors tests error handling for invalid step values.
 func TestForStatementStepErrors(t *testing.T) {
 	tests := []struct {

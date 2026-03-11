@@ -487,7 +487,7 @@ The project should not optimize for "smaller types" if that preserves split owne
 
 **Goal**: Finish the core ownership cleanup by removing interpreter-side shadow execution paths and migrating the remaining live semantic islands into evaluator-owned execution.
 
-**Status**: 🚧 In progress
+**Status**: ✅ Complete
 
 **Why this needs its own follow-up**:
 
@@ -519,44 +519,57 @@ That leftover duplication is now an architectural risk:
 - [x] **4.9.4** Migrate still-live special-case AST execution that belongs in the evaluator
   - remove interpreter-only semantic islands such as expected-type array/set literal evaluation paths
   - keep only true engine-shell responsibilities in `internal/interp`
-- [ ] **4.9.5** Unify loop semantics under shared ordinal-aware helpers
+- [x] **4.9.5** Unify loop semantics under shared ordinal-aware helpers
   - `for` loop execution must treat DWScript ordinals canonically across evaluator/runtime paths
   - eliminate semantic drift between interpreter leftovers and evaluator visitors
-- [ ] **4.9.6** Add regression protection for single ownership of AST execution
+- [x] **4.9.6** Add regression protection for single ownership of AST execution
   - extend architecture tests so they fail when evaluator-owned statement semantics reappear as interpreter-side duplicate evaluators
   - add fixture/unit coverage for ordinal `for` loops, enum loop variables, and enum-valued `step`
 
 **Success Criteria**:
 
-- [ ] evaluator is the sole owner of AST execution semantics for production statement/expression/declaration execution
-- [ ] `internal/interp` no longer contains dead shadow evaluators for nodes already owned by evaluator visitors
-- [ ] loop/control-flow semantics are defined in one active implementation only
-- [ ] architecture tests enforce single ownership, not just import boundaries and deleted callback interfaces
-- [ ] interpreter-side typed literal semantics no longer bypass evaluator-owned execution
+- [x] `internal/interp` no longer contains dead shadow evaluators for nodes already owned by evaluator visitors
+- [x] loop/control-flow semantics are defined in one active implementation only
+- [x] architecture tests enforce single ownership, not just import boundaries and deleted callback interfaces
+- [x] interpreter-side typed literal semantics no longer bypass evaluator-owned execution
 
 ---
 
 ### 4.10 Clarify Remaining Interp/Evaluator Seams
 
-**Goal**: Decide which remaining cross-boundary seams are intentional shell/core boundaries and which are unfinished migration residue.
+**Goal**: Close the remaining live ownership gaps by deciding which interp/evaluator seams are intentional shell/core boundaries and moving residual production AST semantics under their final owner.
 
 **Status**: 📋 Planned
 
+**Why this is the next phase**:
+
+Phase 4.9 removed the dead shadow-execution cluster and locked down ownership regressions, but it did not yet make evaluator the sole owner of all production AST execution semantics. What remains is no longer "dead duplicate code"; it is a smaller set of still-live shell/core seams that need explicit end-state decisions and, where appropriate, further migration.
+
 **Tasks**:
 
-- [ ] **4.10.1** Decide and document which remaining `interp` ↔ `evaluator` seams are intentional steady-state boundaries versus temporary migration residue
+- [x] **4.10.1** Inventory the remaining live production AST execution paths still owned by `internal/interp`
+  - cover class/interface/type/helper/function declaration execution, type-cast/default built-ins, property/method dispatch helpers, and other still-live `Interpreter.eval*` methods
+  - classify each as `keep in interp`, `move to evaluator`, or `replace with runtime primitive`
+- [ ] **4.10.2** Decide and document which remaining `interp` ↔ `evaluator` seams are intentional steady-state boundaries versus temporary migration residue
   - cover the narrow evaluator shim, external-function dispatch hooks, and user-function callback plumbing
   - if a seam is permanent, document why it belongs at the engine shell boundary
   - if a seam is temporary, move it under an explicit removal task instead of leaving it implicit
-- [ ] **4.10.2** Close or explicitly retain the remaining narrow evaluator shim
+- [ ] **4.10.3** Migrate remaining production AST semantics that do not belong in the interpreter shell
+  - move any residual expression/declaration execution that is neither bootstrap nor external-integration orchestration under evaluator/runtime ownership
+  - eliminate interpreter-owned production AST execution where the shell is only acting as a semantic executor
+- [ ] **4.10.4** Close or explicitly retain the remaining narrow evaluator shim
   - resolve the unfinished `4.3.9` outcome instead of leaving it open indefinitely
   - either delete the shim after moving the last call sites or document the shim as the intended long-term shell/core boundary
-- [ ] **4.10.3** Define and enforce the allowed responsibilities of `internal/interp` after cleanup
+- [ ] **4.10.5** Define and enforce the allowed responsibilities of `internal/interp` after cleanup
   - interpreter shell responsibilities should be explicit: bootstrap, engine-facing API, unit integration, external integration, and other narrowly justified orchestration only
   - evaluator-owned AST semantics must not reappear in `internal/interp`
+- [ ] **4.10.6** Add regression protection for the final steady-state ownership boundary
+  - extend architecture tests so the allowed remaining `Interpreter.eval*` surface is explicit rather than inferred
+  - fail when new production AST semantics are added to `internal/interp` without an allowed-shell justification
 
 **Success Criteria**:
 
+- [ ] evaluator is the sole owner of AST execution semantics for production statement/expression/declaration execution, except for explicitly documented shell-only orchestration
 - [ ] remaining `interp` ↔ `evaluator` seams are intentional, documented, and regression-tested
 - [ ] the allowed long-term responsibilities of `internal/interp` are explicit enough that future work does not recreate split execution ownership
 
@@ -597,11 +610,11 @@ That leftover duplication is now an architectural risk:
 | 4.6 Mirror/metadata cleanup | complete | Remaining mirror/metadata cleanup landed after callback deletion |
 | 4.7 Verification/metrics | complete | Boundary tests, regression tests, and verification note added |
 | 4.8 Refinement | complete | Post-migration tightening landed after Phase 4 completion |
-| 4.9 Residual execution ownership cleanup | in progress | Remove dead interpreter-side shadow evaluators and migrate live semantic islands |
-| 4.10 Remaining seam clarification | planned | Decide which interp/evaluator seams are permanent shell boundaries |
+| 4.9 Residual execution ownership cleanup | complete | Removed dead shadow execution, migrated typed-literal islands, unified ordinal loop semantics, and added ownership guards |
+| 4.10 Remaining seam clarification | planned | Close the remaining live ownership gaps and define the final shell/core boundary |
 | 4.11 Neutral boundary finalization | planned | Shrink contracts/metadata escape hatches to justified end-state boundaries |
 
-**Practical read**: The core Phase 4 bridge-removal work is complete. Phase 4.8 tightened the finished architecture, 4.9 now covers the full shadow-execution cleanup and semantic migration still needed for evaluator-only execution ownership, and 4.10-4.11 handle the remaining seam/contracts/metadata end-state decisions.
+**Practical read**: The core Phase 4 bridge-removal work is complete. Phase 4.8 tightened the finished architecture, 4.9 completed the dead-shadow cleanup plus the known live semantic-island fixes, and 4.10-4.11 now cover the remaining live ownership seams and the final shell/contracts/metadata end-state decisions.
 
 ---
 

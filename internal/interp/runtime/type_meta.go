@@ -119,11 +119,7 @@ func (t *TypeMetaValue) GetEnumValue(name string) Value {
 	// Look up the value (case-insensitive)
 	for valueName, ordinalValue := range enumType.Values {
 		if ident.Equal(valueName, name) {
-			return &EnumValue{
-				TypeName:     t.TypeName,
-				ValueName:    valueName, // Use the canonical name from the type
-				OrdinalValue: ordinalValue,
-			}
+			return NewEnumValue(t.TypeName, enumType, ordinalValue)
 		}
 	}
 

@@ -264,6 +264,11 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 	return e.newError(node, "unknown built-in helper method '%s'", spec)
 }
 
+// CallBuiltinHelperProperty executes a built-in helper property read.
+func (e *Evaluator) CallBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node, ctx *ExecutionContext) Value {
+	return e.evalBuiltinHelperProperty(propSpec, selfValue, node)
+}
+
 // CallASTHelperMethod executes a user-defined helper method (with AST body).
 // Sets up environment with Self, class vars/consts, parameters, and Result variable.
 func (e *Evaluator) CallASTHelperMethod(

@@ -218,32 +218,8 @@ func (e *Evaluator) castToBoolean(val Value) Value {
 func (e *Evaluator) castToEnum(val Value, targetEnum *types.EnumType, typeName string) Value {
 	switch v := val.(type) {
 	case *runtime.IntegerValue:
-		// Integer → Enum: Create an EnumValue with the integer as ordinal
-		// Find the enum value name for this ordinal (if it exists)
 		ordinal := int(v.Value)
-		var valueName string
-
-		// Look up the name for this ordinal value
-		for name, ord := range targetEnum.Values {
-			if ord == ordinal {
-				valueName = name
-				break
-			}
-		}
-
-		// If no matching name found, create a placeholder name using the ordinal value
-		// (DWScript allows casting any integer to enum, even if not a valid ordinal)
-		if valueName == "" && len(targetEnum.OrderedNames) > 0 {
-			// For out-of-bounds ordinals, we still create an EnumValue
-			// but with a placeholder name (DWScript behavior)
-			valueName = fmt.Sprintf("$%d", ordinal)
-		}
-
-		return &runtime.EnumValue{
-			TypeName:     typeName,
-			ValueName:    valueName,
-			OrdinalValue: ordinal,
-		}
+		return runtime.NewEnumValue(typeName, targetEnum, ordinal)
 
 	case *runtime.EnumValue:
 		// Enum → Enum: Only allow identity cast (same type)
