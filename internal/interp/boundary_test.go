@@ -231,7 +231,9 @@ func TestDeletedShadowExecutionFilesDoNotReturn(t *testing.T) {
 	deleted := []string{
 		"array.go",
 		"functions_calls.go",
+		"functions_records.go",
 		"objects_instantiation.go",
+		"objects_properties.go",
 		"oop_dispatch.go",
 		"statements_assignments.go",
 		"statements_declarations.go",

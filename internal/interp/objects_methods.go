@@ -997,24 +997,23 @@ func (i *Interpreter) trySetValueMethodCall(objVal Value, mc *ast.MethodCallExpr
 	}
 }
 
-// tryRecordValueMethodCall handles method calls on RecordValue.
-// Returns nil if objVal is not a RecordValue.
+// tryRecordValueMethodCall previously executed record methods in the interpreter.
+// Record method execution now lives in evaluator-owned dispatch.
 func (i *Interpreter) tryRecordValueMethodCall(objVal Value, mc *ast.MethodCallExpression) Value {
 	recVal, ok := objVal.(*RecordValue)
 	if !ok {
 		return nil
 	}
 
-	memberAccess := &ast.MemberAccessExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: mc.Token,
-			},
-		},
-		Object: mc.Object,
-		Member: mc.Method,
+	if helper, helperMethod, builtinSpec := i.findHelperMethod(recVal, mc.Method.Value); helperMethod != nil || builtinSpec != "" {
+		args, evalErr := i.evalMethodArguments(mc.Arguments)
+		if evalErr != nil {
+			return evalErr
+		}
+		return i.callHelperMethod(helper, helperMethod, builtinSpec, recVal, args, mc)
 	}
-	return i.evalRecordMethodCall(recVal, memberAccess, mc.Arguments, mc.Object)
+
+	return i.newErrorWithLocation(mc, "record method dispatch is evaluator-owned; legacy interpreter path should not execute")
 }
 
 // unwrapInterfaceInstance unwraps an InterfaceInstance to its underlying object.
@@ -1432,8 +1431,8 @@ func (i *Interpreter) extractNonConstructorReturnValue(method *ast.FunctionDecl)
 	return returnValue
 }
 
-// tryRecordTypeMethodCall attempts to call a static method on a record type.
-// Returns nil if the identifier is not a record type.
+// tryRecordTypeMethodCall previously executed record static methods in the interpreter.
+// Record static method execution now lives in evaluator-owned dispatch.
 func (i *Interpreter) tryRecordTypeMethodCall(ident *ast.Identifier, mc *ast.MethodCallExpression) Value {
 	recordTypeKey := "__record_type_" + pkgident.Normalize(ident.Value)
 	typeVal, ok := i.Env().Get(recordTypeKey)
@@ -1441,31 +1440,11 @@ func (i *Interpreter) tryRecordTypeMethodCall(ident *ast.Identifier, mc *ast.Met
 		return nil
 	}
 
-	rtv, ok := typeVal.(*RecordTypeValue)
-	if !ok {
+	if _, ok := typeVal.(*RecordTypeValue); !ok {
 		return nil
 	}
 
-	methodNameLower := pkgident.Normalize(mc.Method.Value)
-	classMethodOverloads, hasOverloads := rtv.ClassMethodOverloads[methodNameLower]
-
-	if !hasOverloads || len(classMethodOverloads) == 0 {
-		return i.newErrorWithLocation(mc, "static method '%s' not found in record type '%s'", mc.Method.Value, ident.Value)
-	}
-
-	var staticMethod *ast.FunctionDecl
-	var err error
-
-	if len(classMethodOverloads) > 1 {
-		staticMethod, err = i.resolveMethodOverload(rtv.RecordType.Name, mc.Method.Value, classMethodOverloads, mc.Arguments)
-		if err != nil {
-			return i.newErrorWithLocation(mc, "%s", err.Error())
-		}
-	} else {
-		staticMethod = classMethodOverloads[0]
-	}
-
-	return i.callRecordStaticMethod(rtv, staticMethod, mc.Arguments, mc)
+	return i.newErrorWithLocation(mc, "record static method dispatch is evaluator-owned; legacy interpreter path should not execute")
 }
 
 // findMethodOwner returns the class in the hierarchy that declares the given method.
