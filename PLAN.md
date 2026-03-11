@@ -514,7 +514,7 @@ That leftover duplication is now an architectural risk:
 - [x] **4.9.2** Delete dead duplicate statement/control-flow evaluators that overlap evaluator-owned semantics
   - removed the dead interpreter-side statement/declaration/loop execution cluster after confirming production entry flows through evaluator-owned visitors
   - remaining shared helper utilities stay only where still used by live interpreter/runtime code
-- [ ] **4.9.3** Delete the next dead duplicate cluster in expression/call/OOP execution helpers
+- [x] **4.9.3** Delete the next dead duplicate cluster in expression/call/OOP execution helpers
   - expected targets include interpreter-side shadow helpers for calls, member access, method dispatch, helper dispatch, and declaration execution once lingering test-only/internal references are cleaned up
 - [ ] **4.9.4** Migrate still-live special-case AST execution that belongs in the evaluator
   - remove interpreter-only semantic islands such as expected-type array/set literal evaluation paths

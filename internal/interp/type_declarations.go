@@ -148,61 +148,6 @@ func (i *Interpreter) WrapInInterface(value Value, interfaceName string, node as
 	return NewInterfaceInstance(ifaceInfo, objInst), nil
 }
 
-// ExecuteRecordPropertyRead executes a record property getter method.
-func (i *Interpreter) ExecuteRecordPropertyRead(record Value, propInfoAny any, indices []Value, node any) Value {
-	recordVal, ok := record.(*RecordValue)
-	if !ok {
-		return &ErrorValue{Message: "ExecuteRecordPropertyRead expects RecordValue"}
-	}
-	propInfo, ok := propInfoAny.(*types.RecordPropertyInfo)
-	if !ok {
-		return &ErrorValue{Message: "ExecuteRecordPropertyRead expects *types.RecordPropertyInfo"}
-	}
-	indexExpr, ok := node.(*ast.IndexExpression)
-	if !ok {
-		return &ErrorValue{Message: "ExecuteRecordPropertyRead expects *ast.IndexExpression"}
-	}
-	if propInfo.ReadField == "" {
-		return i.newErrorWithLocation(indexExpr, "default property is write-only")
-	}
-
-	getterMethod := GetRecordMethod(recordVal, propInfo.ReadField)
-	if getterMethod == nil {
-		return i.newErrorWithLocation(indexExpr, "default property read accessor '%s' is not a method", propInfo.ReadField)
-	}
-
-	convertedIndices := make([]Value, len(indices))
-	copy(convertedIndices, indices)
-
-	// Create synthetic method call: record.GetterMethod(index)
-	methodCall := &ast.MethodCallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: indexExpr.Token},
-		},
-		Object: indexExpr.Left,
-		Method: &ast.Identifier{
-			Value: propInfo.ReadField,
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: indexExpr.Token},
-			},
-		},
-		Arguments: make([]ast.Expression, len(indices)),
-	}
-
-	// Bind index values as temporary variables
-	for idx := range indices {
-		tempVarName := fmt.Sprintf("__temp_default_index_%d__", idx)
-		methodCall.Arguments[idx] = &ast.Identifier{
-			Value: tempVarName,
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: indexExpr.Token},
-			},
-		}
-		i.Env().Define(tempVarName, convertedIndices[idx])
-	}
-	return i.evalMethodCall(methodCall)
-}
-
 // ===== Class Creation Adapters =====
 
 // NewClassInfoAdapter creates a new ClassInfo with the given name.

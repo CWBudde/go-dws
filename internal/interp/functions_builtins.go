@@ -3,6 +3,7 @@ package interp
 import (
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // callBuiltin dispatches built-in and external functions by name.
@@ -86,4 +87,91 @@ func (i *Interpreter) callBuiltinWithVarParam(name string, args []ast.Expression
 		return fn(i, args)
 	}
 	return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "undefined var-param function: %s", name)
+}
+
+func normalizeBuiltinName(name string) string {
+	lower := ident.Normalize(name)
+
+	canonicalNames := map[string]string{
+		"println": "PrintLn", "print": "Print", "ord": "Ord", "integer": "Integer",
+		"length": "Length", "copy": "Copy", "concat": "Concat", "indexof": "IndexOf",
+		"contains": "Contains", "reverse": "Reverse", "sort": "Sort", "pos": "Pos",
+		"uppercase": "UpperCase", "lowercase": "LowerCase",
+		"asciiuppercase": "ASCIIUpperCase", "asciilowercase": "ASCIILowerCase",
+		"ansiuppercase": "AnsiUpperCase", "ansilowercase": "AnsiLowerCase",
+		"trim": "Trim", "trimleft": "TrimLeft", "trimright": "TrimRight",
+		"stringreplace": "StringReplace", "strreplace": "StrReplace", "strreplacemacros": "StrReplaceMacros",
+		"stringofchar": "StringOfChar", "substr": "SubStr", "substring": "SubString",
+		"leftstr": "LeftStr", "rightstr": "RightStr", "midstr": "MidStr",
+		"strbeginswith": "StrBeginsWith", "strendswith": "StrEndsWith", "strcontains": "StrContains",
+		"posex": "PosEx", "revpos": "RevPos", "strfind": "StrFind",
+		"format": "Format", "abs": "Abs", "min": "Min", "max": "Max",
+		"maxint": "MaxInt", "minint": "MinInt", "sqr": "Sqr", "power": "Power",
+		"sqrt": "Sqrt", "sin": "Sin", "cos": "Cos", "tan": "Tan",
+		"degtorad": "DegToRad", "radtodeg": "RadToDeg", "arcsin": "ArcSin",
+		"arccos": "ArcCos", "arctan": "ArcTan", "arctan2": "ArcTan2",
+		"cotan": "CoTan", "hypot": "Hypot", "sinh": "Sinh", "cosh": "Cosh",
+		"tanh": "Tanh", "arcsinh": "ArcSinh", "arccosh": "ArcCosh", "arctanh": "ArcTanh",
+		"random": "Random", "randomint": "RandomInt", "randomize": "Randomize",
+		"setrandseed": "SetRandSeed", "randseed": "RandSeed", "randg": "RandG",
+		"pi": "Pi", "sign": "Sign", "odd": "Odd",
+		"frac": "Frac", "int": "Int", "log10": "Log10", "logn": "LogN",
+		"infinity": "Infinity", "nan": "NaN", "isfinite": "IsFinite",
+		"isinfinite": "IsInfinite", "intpower": "IntPower", "divmod": "DivMod",
+		"isnan":      "IsNaN",
+		"unsigned32": "Unsigned32", "exp": "Exp", "ln": "Ln", "log2": "Log2",
+		"round": "Round", "trunc": "Trunc", "ceil": "Ceil", "floor": "Floor",
+		"low": "Low", "high": "High", "setlength": "SetLength", "add": "Add",
+		"delete": "Delete", "inttostr": "IntToStr", "inttobin": "IntToBin",
+		"strtoint": "StrToInt", "floattostr": "FloatToStr", "booltostr": "BoolToStr",
+		"strtofloat": "StrToFloat", "strtobool": "StrToBool",
+		"strtointdef": "StrToIntDef", "strtofloatdef": "StrToFloatDef",
+		"chr": "Chr", "charat": "CharAt", "bytesizetostr": "ByteSizeToStr",
+		"gettext": "GetText", "_": "_",
+		"inc": "Inc", "dec": "Dec", "succ": "Succ",
+		"pred": "Pred", "assert": "Assert", "insert": "Insert",
+		"map": "Map", "filter": "Filter", "reduce": "Reduce", "foreach": "ForEach",
+		"now": "Now", "date": "Date", "time": "Time", "utcdatetime": "UTCDateTime",
+		"unixtime": "UnixTime", "unixtimemsec": "UnixTimeMSec",
+		"encodedate": "EncodeDate", "encodetime": "EncodeTime", "encodedatetime": "EncodeDateTime",
+		"decodedate": "DecodeDate", "decodetime": "DecodeTime",
+		"yearof": "YearOf", "monthof": "MonthOf", "dayof": "DayOf",
+		"hourof": "HourOf", "minuteof": "MinuteOf", "secondof": "SecondOf",
+		"dayofweek": "DayOfWeek", "dayoftheweek": "DayOfTheWeek",
+		"dayofyear": "DayOfYear", "weeknumber": "WeekNumber", "yearofweek": "YearOfWeek",
+		"formatdatetime": "FormatDateTime", "datetimetostr": "DateTimeToStr",
+		"datetostr": "DateToStr", "timetostr": "TimeToStr",
+		"datetoiso8601": "DateToISO8601", "datetimetoiso8601": "DateTimeToISO8601",
+		"datetimetorfc822": "DateTimeToRFC822",
+		"strtodate":        "StrToDate", "strtodatetime": "StrToDateTime", "strtotime": "StrToTime",
+		"iso8601todatetime": "ISO8601ToDateTime", "rfc822todatetime": "RFC822ToDateTime",
+		"incyear": "IncYear", "incmonth": "IncMonth", "incday": "IncDay",
+		"inchour": "IncHour", "incminute": "IncMinute", "incsecond": "IncSecond",
+		"daysbetween": "DaysBetween", "hoursbetween": "HoursBetween",
+		"minutesbetween": "MinutesBetween", "secondsbetween": "SecondsBetween",
+		"isleapyear": "IsLeapYear", "swap": "Swap",
+		"firstdayofyear": "FirstDayOfYear", "firstdayofnextyear": "FirstDayOfNextYear",
+		"firstdayofmonth": "FirstDayOfMonth", "firstdayofnextmonth": "FirstDayOfNextMonth",
+		"firstdayofweek":     "FirstDayOfWeek",
+		"unixtimetodatetime": "UnixTimeToDateTime", "datetimetounixtime": "DateTimeToUnixTime",
+		"unixtimemsectodatetime": "UnixTimeMSecToDateTime", "datetimetounixtimemsec": "DateTimeToUnixTimeMSec",
+		"vartype": "VarType", "varisnull": "VarIsNull", "varisempty": "VarIsEmpty",
+		"varisnumeric": "VarIsNumeric", "vartostr": "VarToStr", "vartoint": "VarToInt",
+		"vartofloat": "VarToFloat", "varastype": "VarAsType", "varclear": "VarClear",
+		"parsejson": "ParseJSON", "tojson": "ToJSON", "tojsonformatted": "ToJSONFormatted",
+		"jsonhasfield": "JSONHasField", "jsonkeys": "JSONKeys", "jsonvalues": "JSONValues",
+		"jsonlength":    "JSONLength",
+		"getstacktrace": "GetStackTrace", "getcallstack": "GetCallStack",
+		"sametext": "SameText", "comparetext": "CompareText", "comparestr": "CompareStr",
+		"ansicomparetext": "AnsiCompareText", "ansicomparestr": "AnsiCompareStr",
+		"comparelocalestr": "CompareLocaleStr", "strmatches": "StrMatches",
+		"strisascii": "StrIsASCII",
+		"strtohtml":  "StrToHtml", "strtohtmlattribute": "StrToHtmlAttribute",
+		"strtojson": "StrToJSON", "strtocsstext": "StrToCSSText", "strtoxml": "StrToXML",
+	}
+
+	if canonical, ok := canonicalNames[lower]; ok {
+		return canonical
+	}
+	return name
 }
