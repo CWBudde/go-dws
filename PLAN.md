@@ -516,7 +516,7 @@ That leftover duplication is now an architectural risk:
   - remaining shared helper utilities stay only where still used by live interpreter/runtime code
 - [x] **4.9.3** Delete the next dead duplicate cluster in expression/call/OOP execution helpers
   - expected targets include interpreter-side shadow helpers for calls, member access, method dispatch, helper dispatch, and declaration execution once lingering test-only/internal references are cleaned up
-- [ ] **4.9.4** Migrate still-live special-case AST execution that belongs in the evaluator
+- [x] **4.9.4** Migrate still-live special-case AST execution that belongs in the evaluator
   - remove interpreter-only semantic islands such as expected-type array/set literal evaluation paths
   - keep only true engine-shell responsibilities in `internal/interp`
 - [ ] **4.9.5** Unify loop semantics under shared ordinal-aware helpers

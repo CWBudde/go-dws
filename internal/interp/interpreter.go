@@ -205,13 +205,22 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 // This is primarily used for array literals in function calls where the parameter type is known.
 // If expectedType is nil, this falls back to regular Eval().
 func (i *Interpreter) EvalWithExpectedType(node ast.Node, expectedType types.Type) Value {
-	// Special handling for array literals with expected array type
-	if arrayLit, ok := node.(*ast.ArrayLiteralExpression); ok {
-		if arrayType, ok := expectedType.(*types.ArrayType); ok {
-			return i.evalArrayLiteralWithExpected(arrayLit, arrayType)
-		}
+	i.evaluatorInstance.SetCurrentNode(node)
+
+	if expectedType == nil {
+		return i.evalViaEvaluator(node)
 	}
 
-	// For all other cases, use regular Eval
-	return i.Eval(node)
+	switch typed := types.GetUnderlyingType(expectedType).(type) {
+	case *types.ArrayType:
+		prev := i.ctx.ArrayTypeContext()
+		i.ctx.SetArrayTypeContext(typed)
+		defer i.ctx.SetArrayTypeContext(prev)
+	case *types.RecordType:
+		prev := i.ctx.RecordTypeContext()
+		i.ctx.SetRecordTypeContext(typed.Name)
+		defer i.ctx.SetRecordTypeContext(prev)
+	}
+
+	return i.evalViaEvaluator(node)
 }

@@ -586,46 +586,41 @@ func (e *Evaluator) VisitRepeatStatement(node *ast.RepeatStatement, ctx *Executi
 func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionContext) Value {
 	var result Value = &runtime.NilValue{}
 
-	// Evaluate start value
 	startVal := e.Eval(node.Start, ctx)
 	if isError(startVal) {
 		return startVal
 	}
 
-	// Evaluate end value
 	endVal := e.Eval(node.EndValue, ctx)
 	if isError(endVal) {
 		return endVal
 	}
 
-	// Both start and end must be integers for for loops
-	startInt, ok := startVal.(*runtime.IntegerValue)
-	if !ok {
-		return e.newError(node, "for loop start value must be integer, got %s", startVal.Type())
+	startOrdinal, err := runtime.GetOrdinalValue(startVal)
+	if err != nil {
+		return e.newError(node.Start, "for loop start value must be ordinal, got %s", startVal.Type())
 	}
 
-	endInt, ok := endVal.(*runtime.IntegerValue)
-	if !ok {
-		return e.newError(node, "for loop end value must be integer, got %s", endVal.Type())
+	endOrdinal, err := runtime.GetOrdinalValue(endVal)
+	if err != nil {
+		return e.newError(node.EndValue, "for loop end value must be ordinal, got %s", endVal.Type())
 	}
 
-	stepValue := int64(1) // Default step
+	stepOrdinal := 1
 	if node.Step != nil {
 		stepVal := e.Eval(node.Step, ctx)
 		if isError(stepVal) {
 			return stepVal
 		}
 
-		stepInt, ok := stepVal.(*runtime.IntegerValue)
-		if !ok {
-			return e.newError(node, "for loop step value must be integer, got %s", stepVal.Type())
+		stepOrdinal, err = runtime.GetOrdinalValue(stepVal)
+		if err != nil {
+			return e.newError(node.Step, "for loop step value must be ordinal, got %s", stepVal.Type())
 		}
 
-		if stepInt.Value <= 0 {
-			return e.newError(node, "FOR loop STEP should be strictly positive: %d", stepInt.Value)
+		if stepOrdinal <= 0 {
+			return e.newError(node, "FOR loop STEP should be strictly positive: %d", stepOrdinal)
 		}
-
-		stepValue = stepInt.Value
 	}
 
 	ctx.PushEnv()
@@ -634,18 +629,18 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 	loopVarName := node.Variable.Value
 
 	if node.Direction == ast.ForTo {
-		// Ascending loop with step support
-		for current := startInt.Value; current <= endInt.Value; current += stepValue {
-			// Set the loop variable to the current value
-			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
+		for current := startOrdinal; current <= endOrdinal; current += stepOrdinal {
+			currentVal, errVal := e.rebuildForLoopValue(startVal, current)
+			if errVal != nil {
+				return errVal
+			}
+			ctx.Env().Define(loopVarName, currentVal)
 
-			// Execute the body
 			result = e.Eval(node.Body, ctx)
 			if isError(result) {
 				return result
 			}
 
-			// Handle control flow signals
 			cf := ctx.ControlFlow()
 			if cf.IsBreak() {
 				cf.Clear()
@@ -655,25 +650,23 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 				cf.Clear()
 				continue
 			}
-			// Handle exit signal (exit from function while in loop)
 			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
 				break
 			}
 		}
 	} else {
-		// Descending loop with step support
-		for current := startInt.Value; current >= endInt.Value; current -= stepValue {
-			// Set the loop variable to the current value
-			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
+		for current := startOrdinal; current >= endOrdinal; current -= stepOrdinal {
+			currentVal, errVal := e.rebuildForLoopValue(startVal, current)
+			if errVal != nil {
+				return errVal
+			}
+			ctx.Env().Define(loopVarName, currentVal)
 
-			// Execute the body
 			result = e.Eval(node.Body, ctx)
 			if isError(result) {
 				return result
 			}
 
-			// Handle control flow signals
 			cf := ctx.ControlFlow()
 			if cf.IsBreak() {
 				cf.Clear()
@@ -683,15 +676,55 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 				cf.Clear()
 				continue
 			}
-			// Handle exit signal (exit from function while in loop)
 			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
 				break
 			}
 		}
 	}
 
 	return result
+}
+
+func (e *Evaluator) rebuildForLoopValue(template Value, ordinal int) (Value, Value) {
+	switch v := template.(type) {
+	case *runtime.IntegerValue:
+		return &runtime.IntegerValue{Value: int64(ordinal)}, nil
+	case *runtime.EnumValue:
+		enumMetadata := e.typeSystem.LookupEnumMetadata(v.TypeName)
+		if enumMetadata == nil {
+			return nil, e.newError(nil, "enum type metadata not found for %s", v.TypeName)
+		}
+
+		etv, ok := enumMetadata.(EnumTypeValueAccessor)
+		if !ok {
+			return nil, e.newError(nil, "invalid enum type metadata for %s", v.TypeName)
+		}
+
+		enumType := etv.GetEnumType()
+		valueName := ""
+		for _, name := range enumType.OrderedNames {
+			if enumType.Values[name] == ordinal {
+				valueName = name
+				break
+			}
+		}
+
+		if valueName == "" {
+			valueName = fmt.Sprintf("$%d", ordinal)
+		}
+
+		return &runtime.EnumValue{
+			TypeName:     v.TypeName,
+			ValueName:    valueName,
+			OrdinalValue: ordinal,
+		}, nil
+	case *runtime.StringValue:
+		return &runtime.StringValue{Value: string(rune(ordinal))}, nil
+	case *runtime.BooleanValue:
+		return &runtime.BooleanValue{Value: ordinal != 0}, nil
+	default:
+		return nil, e.newError(nil, "unsupported ordinal loop variable type %s", template.Type())
+	}
 }
 
 // VisitForInStatement evaluates a for-in loop statement.
