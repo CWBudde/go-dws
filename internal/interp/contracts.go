@@ -3,28 +3,24 @@ package interp
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // raiseException raises an exception with the given class name and message.
 func (i *Interpreter) raiseException(className, message string, pos *lexer.Position) {
-	// Get the exception class
-	// PR #147: Use normalized key for O(1) case-insensitive lookup
-	excClass, ok := i.classes[ident.Normalize(className)]
-	if !ok {
-		// Fallback to base Exception if class not found
-		excClass, ok = i.classes[ident.Normalize("Exception")]
-		if !ok {
-			// This shouldn't happen, but handle it gracefully
-			i.exception = &runtime.ExceptionValue{
-				ClassInfo: NewClassInfo(className),
-				Instance:  nil,
-				Message:   message,
-				Position:  pos,
-				CallStack: i.callStack,
-			}
-			return
-		}
+	excClass := i.lookupRegisteredClassInfo(className)
+	if excClass == nil {
+		excClass = i.lookupRegisteredClassInfo("Exception")
+	}
+	if excClass == nil {
+		// This shouldn't happen, but handle it gracefully
+		i.ctx.SetException(&runtime.ExceptionValue{
+			ClassInfo: NewClassInfo(className),
+			Instance:  nil,
+			Message:   message,
+			Position:  pos,
+			CallStack: i.ctx.CallStack(),
+		})
+		return
 	}
 
 	// Create an instance of the exception class
@@ -32,24 +28,24 @@ func (i *Interpreter) raiseException(className, message string, pos *lexer.Posit
 	instance.SetField("Message", &StringValue{Value: message})
 
 	// Set the exception
-	i.exception = &runtime.ExceptionValue{
+	i.ctx.SetException(&runtime.ExceptionValue{
 		ClassInfo: excClass,
 		Instance:  instance,
 		Message:   message,
 		Position:  pos,
-		CallStack: i.callStack,
-	}
+		CallStack: i.ctx.CallStack(),
+	})
 }
 
 // getOldValue retrieves a captured old value by identifier name.
 // Returns the value and true if found, or nil and false if not found.
 func (i *Interpreter) getOldValue(identName string) (Value, bool) {
-	// Check the top of the stack (most recent function call)
-	if len(i.oldValuesStack) > 0 {
-		topMap := i.oldValuesStack[len(i.oldValuesStack)-1]
-		if val, exists := topMap[identName]; exists {
-			return val, true
-		}
+	val, exists := i.ctx.GetOldValue(identName)
+	if !exists {
+		return nil, false
+	}
+	if typedVal, ok := val.(Value); ok {
+		return typedVal, true
 	}
 	return nil, false
 }

@@ -59,10 +59,7 @@ func TestIntegration_InterfaceDeclarationAndUsage(t *testing.T) {
 	}
 
 	// Verify class was registered
-	class, exists := interp.classes["tdocument"]
-	if !exists {
-		t.Fatal("TDocument class should be registered")
-	}
+	class := mustLookupTestClass(t, interp, "TDocument")
 
 	// Verify class implements interface
 	if !classImplementsInterface(class, iface) {
@@ -169,7 +166,7 @@ func TestIntegration_InterfaceInheritanceHierarchy(t *testing.T) {
 	}
 
 	// Verify class implements all levels
-	class := interp.classes["timplementation"]
+	class := mustLookupTestClass(t, interp, "TImplementation")
 	if !classImplementsInterface(class, base) {
 		t.Error("TImplementation should implement IBase")
 	}
@@ -270,7 +267,7 @@ func TestIntegration_ClassImplementingMultipleInterfaces(t *testing.T) {
 	}
 
 	// Verify class implements all three
-	class := interp.classes["tfile"]
+	class := mustLookupTestClass(t, interp, "TFile")
 	if !classImplementsInterface(class, readable) {
 		t.Error("TFile should implement IReadable")
 	}
@@ -442,7 +439,7 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		class.Methods["release"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
 
 		interp.typeSystem.RegisterInterface("iresource", iface)
-		interp.classes["TResource"] = class
+		interp.typeSystem.RegisterClass("TResource", class)
 
 		// Create object and interface instance
 		obj := NewObjectInstance(class)

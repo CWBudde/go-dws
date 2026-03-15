@@ -4,6 +4,13 @@
 **Date**: 2025-12-08
 **Purpose**: Updated audit after Phases 3.9-3.11 consolidation to inform Phase 3.12 migration strategy
 
+> Historical note
+>
+> This audit reflects a pre-Phase-4 migration state where `EvalNode` callbacks
+> were still considered part of the target architecture. That is no longer
+> true after Phase 4. Keep this document as migration history, not as the
+> current architectural recommendation.
+
 ---
 
 ## Executive Summary

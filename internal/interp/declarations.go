@@ -17,24 +17,6 @@ func (i *Interpreter) fullClassNameFromDecl(cd *ast.ClassDecl) string {
 	return cd.Name.Value
 }
 
-// RegisterGlobalFunction registers a global function in the type system and legacy map.
-func (i *Interpreter) RegisterGlobalFunction(fn *ast.FunctionDecl) {
-	if fn == nil {
-		return
-	}
-
-	i.typeSystem.RegisterFunctionOrReplace(fn.Name.Value, fn)
-	funcName := ident.Normalize(fn.Name.Value)
-
-	// Implementations (with body) replace forward declarations; declarations are appended.
-	if fn.Body != nil {
-		existingOverloads := i.functions[funcName]
-		i.functions[funcName] = i.replaceMethodInOverloadList(existingOverloads, fn)
-	} else {
-		i.functions[funcName] = append(i.functions[funcName], fn)
-	}
-}
-
 // evalFunctionDeclaration registers a function in the registry without executing it.
 // For methods (fn.ClassName != nil), updates the class/record method maps.
 func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
@@ -42,33 +24,26 @@ func (i *Interpreter) evalFunctionDeclaration(fn *ast.FunctionDecl) Value {
 	if fn.ClassName != nil {
 		typeName := fn.ClassName.Value
 
-		classInfo, isClass := i.classes[ident.Normalize(typeName)]
-		if isClass {
+		classInfo := i.lookupRegisteredClassInfo(typeName)
+		if classInfo != nil {
 			i.evalClassMethodImplementation(fn, classInfo)
 			return &NilValue{}
 		}
 
-		recordInfo, isRecord := i.records[ident.Normalize(typeName)]
-		// If not found in legacy map, check TypeSystem (source of truth)
-		if !isRecord && i.typeSystem != nil {
-			if r := i.typeSystem.LookupRecord(typeName); r != nil {
-				if rtv, ok := r.(*runtime.RecordTypeValue); ok {
-					recordInfo = rtv
-					isRecord = true
+		if i.typeSystem != nil {
+			if recordInfoAny := i.typeSystem.LookupRecord(typeName); recordInfoAny != nil {
+				if recordInfo, ok := recordInfoAny.(*runtime.RecordTypeValue); ok {
+					i.evalRecordMethodImplementation(fn, recordInfo)
+					return &NilValue{}
 				}
 			}
-		}
-
-		if isRecord {
-			i.evalRecordMethodImplementation(fn, recordInfo)
-			return &NilValue{}
 		}
 
 		return i.newErrorWithLocation(fn, "type '%s' not found for method '%s'", typeName, fn.Name.Value)
 	}
 
-	// Register global function in TypeSystem and legacy map.
-	i.RegisterGlobalFunction(fn)
+	// Register global function in the canonical function registry.
+	i.typeSystem.RegisterFunctionOrReplace(fn.Name.Value, fn)
 
 	return &NilValue{}
 }
@@ -110,7 +85,7 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 
 // rebuildDescendantVMTs rebuilds VMTs for all descendant classes to pick up parent method changes.
 func (i *Interpreter) rebuildDescendantVMTs(parentClass *ClassInfo) {
-	for _, classInfo := range i.classes {
+	for _, classInfo := range i.allRegisteredClassInfos() {
 		if i.isDescendantOf(classInfo, parentClass) {
 			classInfo.buildVirtualMethodTable()
 		}
@@ -132,7 +107,7 @@ func (i *Interpreter) isDescendantOf(childClass, ancestorClass *ClassInfo) bool 
 // propagateMethodImplementationToDescendants updates descendant method maps to latest parent implementation
 // (unless the descendant provides its own override).
 func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *ClassInfo, normalizedMethodName string, fn *ast.FunctionDecl, isClassMethod bool) {
-	for _, classInfo := range i.classes {
+	for _, classInfo := range i.allRegisteredClassInfos() {
 		if !i.isDescendantOf(classInfo, parentClass) {
 			continue
 		}
@@ -162,7 +137,7 @@ func (i *Interpreter) propagateMethodImplementationToDescendants(parentClass *Cl
 func (i *Interpreter) propagateConstructorImplementationToDescendants(parentClass *ClassInfo, fn *ast.FunctionDecl) {
 	normalizedCtorName := ident.Normalize(fn.Name.Value)
 
-	for _, classInfo := range i.classes {
+	for _, classInfo := range i.allRegisteredClassInfos() {
 		if !i.isDescendantOf(classInfo, parentClass) {
 			continue
 		}
@@ -238,7 +213,8 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 
 	// Handle partial class merging
 	var classInfo *ClassInfo
-	existingClass, exists := i.classes[ident.Normalize(className)]
+	existingClass := i.lookupRegisteredClassInfo(className)
+	exists := existingClass != nil
 
 	switch {
 	case exists && existingClass.IsPartial && cd.IsPartial:
@@ -276,15 +252,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 	// Resolve parent class (explicit or implicit TObject)
 	var parentClass *ClassInfo
 	if cd.Parent != nil {
-		var exists bool
-		parentClass, exists = i.classes[ident.Normalize(cd.Parent.Value)]
-		if !exists {
+		parentClass = i.lookupRegisteredClassInfo(cd.Parent.Value)
+		if parentClass == nil {
 			return i.newErrorWithLocation(cd, "parent class '%s' not found", cd.Parent.Value)
 		}
 	} else if !ident.Equal(className, "TObject") && !cd.IsExternal {
-		var exists bool
-		parentClass, exists = i.classes[ident.Normalize("TObject")]
-		if !exists {
+		parentClass = i.lookupRegisteredClassInfo("TObject")
+		if parentClass == nil {
 			return i.newErrorWithLocation(cd, "implicit parent class 'TObject' not found")
 		}
 	}
@@ -396,8 +370,13 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 		}
 	}
 
-	// Register class early for field initializers that may reference the class
-	i.classes[ident.Normalize(classInfo.Name)] = classInfo
+	// Register class early in the canonical registry so field initializers,
+	// nested declarations, and partial merges resolve through one owner.
+	parentNameEarly := ""
+	if classInfo.Parent != nil {
+		parentNameEarly = classInfo.Parent.Name
+	}
+	i.typeSystem.RegisterClassWithParent(classInfo.Name, classInfo, parentNameEarly)
 
 	// Process nested types before fields so they can be referenced
 	for _, nested := range cd.NestedTypes {
@@ -416,7 +395,7 @@ func (i *Interpreter) evalClassDeclaration(cd *ast.ClassDecl) Value {
 			if result := i.evalClassDeclaration(n); isError(result) {
 				return result
 			}
-			if nestedInfo, ok := i.classes[ident.Normalize(i.fullClassNameFromDecl(n))]; ok {
+			if nestedInfo := i.lookupRegisteredClassInfo(i.fullClassNameFromDecl(n)); nestedInfo != nil {
 				classInfo.NestedClasses[ident.Normalize(n.Name.Value)] = nestedInfo
 			}
 		default:

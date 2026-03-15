@@ -739,14 +739,7 @@ func isSimpleType(typeName string) bool {
 // tryBinaryOperator attempts to use custom operator overloading.
 // Returns (result, true) if operator found, or (nil, false) if not found.
 func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool) {
-	// Operator overloading requires access to:
-	// - ObjectInstance.Class.lookupOperator() for instance operators
-	// - globalOperators registry for global operators
-	// These are in interp package - delegate to adapter
-	if e.oopEngine == nil {
-		return nil, false
-	}
-	return e.oopEngine.TryBinaryOperator(operator, left, right, node)
+	return e.evalTryBinaryOperator(operator, left, right, node, e.currentContext)
 }
 
 // evalInOperator evaluates the 'in' operator for membership testing.
@@ -755,7 +748,7 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 	// Handle set membership
 	if setVal, ok := container.(*runtime.SetValue); ok {
 		// Value must be an ordinal type to be in a set
-		ordinal, err := GetOrdinalValue(value)
+		ordinal, err := runtime.GetOrdinalValue(value)
 		if err != nil {
 			return e.newError(node, "type mismatch: %s", err.Error())
 		}
@@ -1045,14 +1038,7 @@ func isNumericTypeName(typeStr string) bool {
 // tryUnaryOperator attempts to use custom operator overloading for unary operators.
 // Returns (result, true) if operator found, or (nil, false) if not found.
 func (e *Evaluator) tryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
-	// Unary operator overloading requires access to:
-	// - ObjectInstance.Class.lookupOperator() for instance operators
-	// - globalOperators registry for global operators
-	// These are in interp package - delegate to adapter
-	if e.oopEngine == nil {
-		return nil, false
-	}
-	return e.oopEngine.TryUnaryOperator(operator, operand, node)
+	return e.evalTryUnaryOperator(operator, operand, node, e.currentContext)
 }
 
 // evalMinusUnaryOp evaluates the unary minus operator (-x).

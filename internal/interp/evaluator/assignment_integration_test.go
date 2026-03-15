@@ -10,35 +10,6 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
-// mockIntegrationAdapter extends mockConversionAdapter for integration tests
-type mockIntegrationAdapter struct {
-	mockConversionAdapter
-	evalNodeFunc              func(node ast.Node) Value
-	executeMethodWithSelfFunc func(self Value, methodDecl any, args []Value) Value
-	tryBinaryOperatorFunc     func(operator string, left, right Value, node ast.Node) (Value, bool)
-}
-
-func (m *mockIntegrationAdapter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value {
-	if m.evalNodeFunc != nil {
-		return m.evalNodeFunc(node)
-	}
-	return m.mockConversionAdapter.EvalNode(node, ctx)
-}
-
-func (m *mockIntegrationAdapter) ExecuteMethodWithSelf(self Value, methodDecl any, args []Value) Value {
-	if m.executeMethodWithSelfFunc != nil {
-		return m.executeMethodWithSelfFunc(self, methodDecl, args)
-	}
-	return m.mockConversionAdapter.ExecuteMethodWithSelf(self, methodDecl, args)
-}
-
-func (m *mockIntegrationAdapter) TryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool) {
-	if m.tryBinaryOperatorFunc != nil {
-		return m.tryBinaryOperatorFunc(operator, left, right, node)
-	}
-	return m.mockConversionAdapter.TryBinaryOperator(operator, left, right, node)
-}
-
 // TestAssignmentIntegration is a comprehensive integration test that verifies
 // all assignment types work correctly without circular adapter callbacks.
 func TestAssignmentIntegration(t *testing.T) {
@@ -47,34 +18,6 @@ func TestAssignmentIntegration(t *testing.T) {
 		typeSystem := interptypes.NewTypeSystem()
 		refCountMgr := runtime.NewRefCountManager()
 		e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-
-		// Mock adapter that fails if EvalNode is called on AssignmentStatement
-		// This ensures we've eliminated all circular callbacks
-		failOnEvalNodeAdapter := &mockIntegrationAdapter{
-			evalNodeFunc: func(node ast.Node) Value {
-				if _, ok := node.(*ast.AssignmentStatement); ok {
-					t.Fatalf("FAIL: adapter.EvalNode() called on AssignmentStatement - circular callback detected!")
-				}
-				// Allow other node types for complex operations
-				return &runtime.NilValue{}
-			},
-			executeMethodWithSelfFunc: func(self Value, methodDecl any, args []Value) Value {
-				// Mock property setter execution
-				return &runtime.NilValue{}
-			},
-			tryBinaryOperatorFunc: func(operator string, left, right Value, node ast.Node) (Value, bool) {
-				// Mock operator overload - just return sum for testing
-				if operator == "+" {
-					if lInt, ok := left.(*runtime.IntegerValue); ok {
-						if rInt, ok := right.(*runtime.IntegerValue); ok {
-							return &runtime.IntegerValue{Value: lInt.Value + rInt.Value}, true
-						}
-					}
-				}
-				return nil, false
-			},
-		}
-		e.SetFocusedInterfaces(failOnEvalNodeAdapter, failOnEvalNodeAdapter, failOnEvalNodeAdapter)
 
 		ctx := NewExecutionContext(runtime.NewEnvironment())
 
@@ -258,7 +201,7 @@ func TestAssignmentIntegration(t *testing.T) {
 			}
 		})
 
-		// Object operator overloads - tested via tryBinaryOperatorFunc mock above
+		// Object operator overloads are covered by dedicated operator tests.
 	})
 }
 
@@ -269,24 +212,6 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-
-	evalNodeCallCount := 0
-	strictAdapter := &mockIntegrationAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			evalNodeCallCount++
-			if _, ok := node.(*ast.AssignmentStatement); ok {
-				t.Errorf("adapter.EvalNode() called %d times on AssignmentStatement", evalNodeCallCount)
-			}
-			return &runtime.NilValue{}
-		},
-		executeMethodWithSelfFunc: func(self Value, methodDecl any, args []Value) Value {
-			return &runtime.NilValue{}
-		},
-		tryBinaryOperatorFunc: func(operator string, left, right Value, node ast.Node) (Value, bool) {
-			return nil, false
-		},
-	}
-	e.SetFocusedInterfaces(strictAdapter, strictAdapter, strictAdapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
@@ -333,9 +258,6 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Reset counter
-			evalNodeCallCount = 0
-
 			// Define variable if needed
 			e.DefineVar(ctx, "x", &runtime.IntegerValue{Value: 0})
 			e.DefineVar(ctx, "rec", runtime.NewRecordValue(&types.RecordType{
@@ -347,22 +269,20 @@ func TestAssignment_NoAdapterEvalNodeCalls(t *testing.T) {
 				Elements:  []runtime.Value{&runtime.IntegerValue{Value: 0}},
 			})
 
-			// Execute - should not call adapter.EvalNode on AssignmentStatement
+			// Execute through the final evaluator boundary.
 			result := e.Eval(tt.stmt, ctx)
 
-			// Check result is not a circular callback error
+			// Assignment-specific regressions should surface as ordinary runtime errors,
+			// not legacy callback sentinels.
 			if isError(result) {
 				errVal := result.(*runtime.ErrorValue)
 				if errVal.Message == "fallback adapter called" {
-					t.Fatalf("Circular callback detected: %s", errVal.Message)
+					t.Fatalf("legacy callback sentinel leaked into assignment path: %s", errVal.Message)
 				}
-				// Other errors are fine (expected for undefined variables, etc.)
 			}
 		})
 	}
 
-	// Final verification: evalNodeCallCount should be 0 for AssignmentStatement nodes
-	t.Logf("Total adapter.EvalNode() calls: %d (should be 0 for AssignmentStatement)", evalNodeCallCount)
 }
 
 // TestAssignment_RegressionSuite runs a suite of regression tests to ensure
@@ -373,32 +293,6 @@ func TestAssignment_RegressionSuite(t *testing.T) {
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 
 	// Minimal adapter for testing
-	adapter := &mockIntegrationAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			return &runtime.NilValue{}
-		},
-		executeMethodWithSelfFunc: func(self Value, methodDecl any, args []Value) Value {
-			return &runtime.NilValue{}
-		},
-		tryBinaryOperatorFunc: func(operator string, left, right Value, node ast.Node) (Value, bool) {
-			// Simple arithmetic for testing
-			if lInt, ok := left.(*runtime.IntegerValue); ok {
-				if rInt, ok := right.(*runtime.IntegerValue); ok {
-					switch operator {
-					case "+":
-						return &runtime.IntegerValue{Value: lInt.Value + rInt.Value}, true
-					case "-":
-						return &runtime.IntegerValue{Value: lInt.Value - rInt.Value}, true
-					case "*":
-						return &runtime.IntegerValue{Value: lInt.Value * rInt.Value}, true
-					}
-				}
-			}
-			return nil, false
-		},
-	}
-	e.SetFocusedInterfaces(adapter, adapter, adapter)
-
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
 	t.Run("simple variable assignment", func(t *testing.T) {

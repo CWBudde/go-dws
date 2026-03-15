@@ -3,6 +3,7 @@ package types
 import (
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -12,12 +13,12 @@ type mockClassInfo struct {
 }
 
 type mockRecordTypeValue struct {
-	Metadata any
+	Metadata *runtime.RecordMetadata
 	Name     string
 }
 
 // GetMetadata implements the interface expected by LookupRecordMetadata.
-func (m *mockRecordTypeValue) GetMetadata() any {
+func (m *mockRecordTypeValue) GetMetadata() *runtime.RecordMetadata {
 	return m.Metadata
 }
 
@@ -161,6 +162,32 @@ func TestClassHierarchy(t *testing.T) {
 	}
 }
 
+func TestTypeSystem_NewClassInfo(t *testing.T) {
+	ts := NewTypeSystem()
+
+	if _, err := ts.NewClassInfo("NoFactory"); err == nil {
+		t.Fatal("NewClassInfo() without ClassInfoFactory should fail")
+	}
+
+	expected := &mockClassInfo{Name: "Constructed"}
+	ts.ClassInfoFactory = func(className string) ClassInfo {
+		return &mockClassInfo{Name: className}
+	}
+
+	result, err := ts.NewClassInfo(expected.Name)
+	if err != nil {
+		t.Fatalf("NewClassInfo() returned error: %v", err)
+	}
+
+	classInfo, ok := result.(*mockClassInfo)
+	if !ok {
+		t.Fatalf("NewClassInfo() returned %T, want *mockClassInfo", result)
+	}
+	if classInfo.Name != expected.Name {
+		t.Fatalf("NewClassInfo().Name = %q, want %q", classInfo.Name, expected.Name)
+	}
+}
+
 // TestRecordRegistry tests record registration and lookup.
 func TestRecordRegistry(t *testing.T) {
 	ts := NewTypeSystem()
@@ -198,7 +225,7 @@ func TestRecordRegistry(t *testing.T) {
 	}
 
 	// Test LookupRecordMetadata
-	mockMetadata := "test-metadata-value"
+	mockMetadata := runtime.NewRecordMetadata("RecordWithMetadata", nil)
 	recordWithMetadata := &mockRecordTypeValue{
 		Name:     "RecordWithMetadata",
 		Metadata: mockMetadata,
@@ -209,13 +236,13 @@ func TestRecordRegistry(t *testing.T) {
 	if retrievedMetadata == nil {
 		t.Error("LookupRecordMetadata returned nil for record with metadata")
 	}
-	if retrievedMetadata.(string) != mockMetadata {
+	if retrievedMetadata != mockMetadata {
 		t.Errorf("LookupRecordMetadata returned %v, want %v", retrievedMetadata, mockMetadata)
 	}
 
 	// Test case-insensitive metadata lookup
 	retrievedMetadata = ts.LookupRecordMetadata("recordwithmetadata")
-	if retrievedMetadata.(string) != mockMetadata {
+	if retrievedMetadata != mockMetadata {
 		t.Error("LookupRecordMetadata failed case-insensitive lookup")
 	}
 

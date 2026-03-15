@@ -39,9 +39,13 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		if !found {
-			a.addError("interface '%s' has no method '%s' at %s",
-				interfaceType.Name, methodName, expr.Token.Pos.String())
-			return nil
+			helperMethod := a.hasHelperMethod(objectType, methodName)
+			if helperMethod == nil {
+				a.addError("interface '%s' has no method '%s' at %s",
+					interfaceType.Name, methodName, expr.Token.Pos.String())
+				return nil
+			}
+			methodType = helperMethod
 		}
 
 		// Validate arguments
@@ -240,6 +244,40 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	if methodName == "ClassName" {
 		// ClassName() returns String
 		return types.STRING
+	}
+
+	// Constructors are stored separately from methods and can be inherited.
+	if constructorType, found := classType.GetConstructor(methodName); found {
+		methodType := constructorType
+
+		if len(expr.Arguments) != len(methodType.Parameters) {
+			a.addError("constructor '%s' of class '%s' expects %d arguments, got %d at %s",
+				methodName, classType.Name, len(methodType.Parameters), len(expr.Arguments),
+				expr.Token.Pos.String())
+			return classType
+		}
+
+		for i, arg := range expr.Arguments {
+			argType := a.analyzeExpression(arg)
+			expectedType := methodType.Parameters[i]
+			if argType != nil && !a.canAssign(argType, expectedType) {
+				a.addError("argument %d to constructor '%s' of class '%s' has type %s, expected %s at %s",
+					i+1, methodName, classType.Name, argType.String(), expectedType.String(),
+					expr.Token.Pos.String())
+			}
+		}
+
+		if classType.IsAbstract {
+			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
+			return classType
+		}
+
+		if unimplementedMethods := a.getUnimplementedAbstractMethods(classType); len(unimplementedMethods) > 0 {
+			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
+			return classType
+		}
+
+		return classType
 	}
 
 	// Check if method is overloaded

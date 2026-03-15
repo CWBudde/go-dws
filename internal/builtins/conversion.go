@@ -35,6 +35,9 @@ func IntToStr(ctx Context, args []Value) Value {
 	if len(args) < 1 || len(args) > 2 {
 		return ctx.NewError("IntToStr() expects 1 or 2 arguments, got %d", len(args))
 	}
+	if args[0] == nil {
+		return ctx.NewError("IntToStr() expects integer argument, got nil")
+	}
 
 	// First argument must be an integer (or subrange/enum)
 	intValue, ok := ctx.ToInt64(args[0])
@@ -47,6 +50,9 @@ func IntToStr(ctx Context, args []Value) Value {
 
 	// If second argument is provided, it specifies the base
 	if len(args) == 2 {
+		if args[1] == nil {
+			return ctx.NewError("IntToStr() expects integer as second argument (base), got nil")
+		}
 		baseValue, ok := ctx.ToInt64(args[1])
 		if !ok {
 			return ctx.NewError("IntToStr() expects integer as second argument (base), got %s", args[1].Type())

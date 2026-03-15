@@ -11,8 +11,9 @@ import (
 
 // MockClassMetaValue implements ClassMetaValue for testing.
 type MockClassMetaValue struct {
-	runtime.NilValue // Embed for Value interface
-	Name             string
+	Nested map[string]Value
+	runtime.NilValue
+	Name string
 }
 
 func (m *MockClassMetaValue) Type() string                               { return "CLASSINFO" }
@@ -32,16 +33,61 @@ func (m *MockClassMetaValue) CreateClassMethodPointer(name string, creator func(
 func (m *MockClassMetaValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) {
 	return nil, false
 }
-func (m *MockClassMetaValue) GetNestedClass(name string) Value { return nil }
+func (m *MockClassMetaValue) GetNestedClass(name string) Value {
+	if m == nil || m.Nested == nil {
+		return nil
+	}
+	return m.Nested[name]
+}
 func (m *MockClassMetaValue) ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool) {
 	return nil, false
 }
-func (m *MockClassMetaValue) GetClassInfo() any                         { return nil }
+func (m *MockClassMetaValue) GetClassInfo() runtime.IClassInfo          { return nil }
 func (m *MockClassMetaValue) SetClassVar(name string, value Value) bool { return false }
 func (m *MockClassMetaValue) WriteClassProperty(name string, value Value, executor func(propInfo any, value Value) Value) (Value, bool) {
 	return nil, false
 }
 func (m *MockClassMetaValue) HasClassVar(name string) bool { return false }
+
+type mockObjectValue struct {
+	classType Value
+	runtime.NilValue
+}
+
+func (m *mockObjectValue) ClassName() string { return "TOuter" }
+func (m *mockObjectValue) GetClassType() Value {
+	return m.classType
+}
+func (m *mockObjectValue) HasProperty(name string) bool { return false }
+func (m *mockObjectValue) HasMethod(name string) bool   { return false }
+func (m *mockObjectValue) GetMethodDecl(name string) any {
+	return nil
+}
+func (m *mockObjectValue) GetField(name string) Value { return nil }
+func (m *mockObjectValue) GetClassVar(name string) (Value, bool) {
+	return nil, false
+}
+func (m *mockObjectValue) CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) ReadIndexedProperty(propInfo any, indices []Value, propertyExecutor func(propInfo any, indices []Value) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) WriteProperty(propName string, value Value, propertyExecutor func(propInfo any, value Value) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) WriteIndexedProperty(propInfo any, indices []Value, value Value, propertyExecutor func(propInfo any, indices []Value, value Value) Value) Value {
+	return nil
+}
+func (m *mockObjectValue) InvokeParameterlessMethod(methodName string, methodExecutor func(methodDecl any) Value) (Value, bool) {
+	return nil, false
+}
+func (m *mockObjectValue) CreateMethodPointer(methodName string, pointerCreator func(methodDecl any) Value) (Value, bool) {
+	return nil, false
+}
 
 // TestMemberAssignment_ErrorCases tests error handling for member assignment.
 func TestMemberAssignment_ErrorCases(t *testing.T) {
@@ -49,18 +95,6 @@ func TestMemberAssignment_ErrorCases(t *testing.T) {
 	typeSystem := interptypes.NewTypeSystem()
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-
-	// Create mock adapter
-	mockAdapter := &mockConversionAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			// Check if it's the specific fallback case we want to catch
-			if _, ok := node.(*ast.AssignmentStatement); ok {
-				return e.newError(node, "fallback adapter called")
-			}
-			return &runtime.NilValue{}
-		},
-	}
-	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 
@@ -118,21 +152,36 @@ func TestMemberAssignment_ErrorCases(t *testing.T) {
 	})
 }
 
+func TestVisitIdentifier_NestedClassFromSelfClassContext(t *testing.T) {
+	typeSystem := interptypes.NewTypeSystem()
+	refCountMgr := runtime.NewRefCountManager()
+	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
+
+	ctx := NewExecutionContext(runtime.NewEnvironment())
+	inner := &MockClassMetaValue{Name: "TInner"}
+	outer := &MockClassMetaValue{
+		Name:   "TOuter",
+		Nested: map[string]Value{"TInner": inner},
+	}
+	ctx.Env().Define("Self", &mockObjectValue{classType: outer})
+
+	result := e.VisitIdentifier(&ast.Identifier{Value: "TInner"}, ctx)
+
+	classMeta, ok := result.(ClassMetaValue)
+	if !ok {
+		t.Fatalf("expected nested class meta value, got %T", result)
+	}
+	if classMeta.GetClassName() != "TInner" {
+		t.Fatalf("expected nested class TInner, got %q", classMeta.GetClassName())
+	}
+}
+
 // TestMemberAssignment_AutoInit tests nil record array element auto-initialization.
 func TestMemberAssignment_AutoInit(t *testing.T) {
 	// Setup
 	typeSystem := interptypes.NewTypeSystem()
 	refCountMgr := runtime.NewRefCountManager()
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
-
-	// Adapter shouldn't be called for native auto-init
-	mockAdapter := &mockConversionAdapter{
-		evalNodeFunc: func(node ast.Node) Value {
-			t.Fatal("EvalNode should not be called for auto-initialization")
-			return nil
-		},
-	}
-	e.SetFocusedInterfaces(mockAdapter, mockAdapter, mockAdapter)
 
 	ctx := NewExecutionContext(runtime.NewEnvironment())
 

@@ -37,8 +37,7 @@ func unwrapPropertyInfo(propInfo any) (*types.PropertyInfo, bool) {
 // - PropAccessMethod: Getter method call
 // - PropAccessExpression: Expression evaluation with Self bound
 //
-// For method-based getters, we reuse the adapter's ExecuteMethodWithSelf callback
-// to avoid duplicating method execution logic.
+// Method-based getters execute through evaluator-owned object method execution.
 //
 // Parameters:
 //   - obj: The object to read the property from (implements ObjectValue)
@@ -133,8 +132,6 @@ func (e *Evaluator) executeMethodBackedPropertyRead(obj Value, objVal ObjectValu
 
 // executePropertyGetterMethod executes a property getter method.
 // Used by both PropAccessField (when falling through to method) and PropAccessMethod.
-//
-// This reuses the adapter's ExecuteMethodWithSelf to avoid duplicating method execution logic.
 func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, pInfo *types.PropertyInfo, node ast.Node, ctx *ExecutionContext) Value {
 	// Indexed properties must be accessed with index syntax
 	if pInfo.IsIndexed {
@@ -176,7 +173,7 @@ func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, p
 			propCtx.InPropertyGetter = savedInGetter
 		}()
 
-		return e.oopEngine.ExecuteMethodWithSelf(obj, methodDecl, indexArgs)
+		return e.executeObjectMethodDirect(obj, methodDecl, indexArgs, node, ctx)
 	}
 
 	// Set flag to indicate we're inside a property getter
@@ -187,8 +184,6 @@ func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, p
 		propCtx.InPropertyGetter = savedInGetter
 	}()
 
-	// Use ObjectValue callback to get method and execute it via adapter
-	// The adapter's ExecuteMethodWithSelf handles environment setup, Self binding, etc.
 	result, invoked := objVal.InvokeParameterlessMethod(methodName, func(methodDecl any) Value {
 		method := methodDecl.(*ast.FunctionDecl)
 
@@ -198,8 +193,7 @@ func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, p
 				pInfo.Name, pInfo.ReadSpec, len(method.Parameters), len(indexArgs))
 		}
 
-		// Execute the method with Self bound and index args via adapter
-		return e.oopEngine.ExecuteMethodWithSelf(obj, methodDecl, indexArgs)
+		return e.executeObjectMethodDirect(obj, methodDecl, indexArgs, node, ctx)
 	})
 
 	if invoked {
@@ -361,7 +355,5 @@ func (e *Evaluator) executeIndexedPropertyGetterMethod(obj Value, objVal ObjectV
 		propCtx.InPropertyGetter = savedInGetter
 	}()
 
-	// Execute the method with Self bound and index arguments via adapter
-	// The adapter's ExecuteMethodWithSelf handles environment setup, Self binding, etc.
-	return e.oopEngine.ExecuteMethodWithSelf(obj, methodDecl, indices)
+	return e.executeObjectMethodDirect(obj, methodDecl, indices, node, ctx)
 }

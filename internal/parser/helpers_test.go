@@ -113,6 +113,17 @@ func TestParseHelperDeclaration(t *testing.T) {
 			classConstCount: 1,
 		},
 		{
+			name: "helper with class procedure",
+			input: `type THelper = helper for Integer
+				class procedure SayHello;
+				begin
+				end;
+			end;`,
+			expectedName:   "THelper",
+			expectedFor:    "Integer",
+			methodCount:    1,
+		},
+		{
 			name: "helper with const without class keyword",
 			input: `type THelper = helper for String
 				const Hello = 'Hello';
@@ -170,6 +181,9 @@ func TestParseHelperDeclaration(t *testing.T) {
 			// Check method count
 			if len(helperDecl.Methods) != tt.methodCount {
 				t.Errorf("Expected %d methods, got %d", tt.methodCount, len(helperDecl.Methods))
+			}
+			if tt.name == "helper with class procedure" && len(helperDecl.Methods) == 1 && !helperDecl.Methods[0].IsClassMethod {
+				t.Error("Expected helper class procedure to set IsClassMethod")
 			}
 
 			// Check property count

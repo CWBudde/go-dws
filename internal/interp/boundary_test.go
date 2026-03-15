@@ -1,6 +1,7 @@
 package interp_test
 
 import (
+	goast "go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -8,15 +9,27 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode"
 )
 
+func readBoundarySource(t *testing.T, path string) string {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s failed: %v", path, err)
+	}
+	return string(content)
+}
+
 // TestInterpDoesNotImportEvaluator verifies the architectural boundary:
-// internal/interp must not import internal/interp/evaluator (except in test files and wiring).
+// internal/interp must not import internal/interp/evaluator except for the
+// canonical construction entry point and test files.
 //
 // This boundary exists to enable dependency inversion:
 // - interp depends on contracts (interfaces)
 // - evaluator implements those interfaces
-// - runner wires them together
+// - interp/new.go owns canonical runtime construction during Phase 4
 //
 // See docs/architecture/interp-evaluator-boundary.md for rationale.
 func TestInterpDoesNotImportEvaluator(t *testing.T) {
@@ -46,8 +59,8 @@ func TestInterpDoesNotImportEvaluator(t *testing.T) {
 			return nil
 		}
 
-		// Allow wiring layer to import evaluator.
-		if path == filepath.Join("runner", "runner.go") || strings.HasPrefix(path, "runner"+string(filepath.Separator)) {
+		// Allow canonical construction entry points to import evaluator.
+		if path == "new.go" || path == filepath.Join("runner", "runner.go") || strings.HasPrefix(path, "runner"+string(filepath.Separator)) {
 			return nil
 		}
 
@@ -65,8 +78,8 @@ func TestInterpDoesNotImportEvaluator(t *testing.T) {
 			importPath := strings.Trim(imp.Path.Value, `"`)
 			if importPath == forbidden {
 				t.Errorf("%s imports %s - violates interp/evaluator boundary.\n"+
-					"Allowed only in runner/** and *_test.go.\n"+
-					"Use contracts interfaces instead, or move wiring to runner.\n"+
+					"Allowed only in new.go, runner/**, and *_test.go.\n"+
+					"Use contracts interfaces for all non-construction code.\n"+
 					"See docs/architecture/interp-evaluator-boundary.md",
 					path, forbidden)
 			}
@@ -76,5 +89,254 @@ func TestInterpDoesNotImportEvaluator(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("walk failed: %v", err)
+	}
+}
+
+func TestConstructionDoesNotReferenceLegacyBridgeWiring(t *testing.T) {
+	t.Parallel()
+
+	checks := []struct {
+		path      string
+		forbidden []string
+	}{
+		{
+			path:      "new.go",
+			forbidden: []string{"SetFocusedInterfaces", "SetRuntimeBridge", "SetEnvironment", "RestoreEnvironment"},
+		},
+		{
+			path:      filepath.Join("runner", "runner.go"),
+			forbidden: []string{"SetFocusedInterfaces", "SetRuntimeBridge", "SetEnvironment", "RestoreEnvironment"},
+		},
+	}
+
+	for _, tc := range checks {
+		source := readBoundarySource(t, tc.path)
+		for _, needle := range tc.forbidden {
+			if strings.Contains(source, needle) {
+				t.Fatalf("%s still references legacy construction wiring %q", tc.path, needle)
+			}
+		}
+	}
+}
+
+func TestNoLegacyCallbackInterfaceDeclarationsRemain(t *testing.T) {
+	t.Parallel()
+
+	type forbiddenDecl struct {
+		needle string
+		label  string
+	}
+
+	forbidden := []forbiddenDecl{
+		{needle: "type CoreEvaluator interface", label: "CoreEvaluator"},
+		{needle: "type OOPEngine interface", label: "OOPEngine"},
+		{needle: "type DeclHandler interface", label: "DeclHandler"},
+		{needle: "func (e *Evaluator) SetFocusedInterfaces(", label: "SetFocusedInterfaces"},
+	}
+
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		source := readBoundarySource(t, path)
+		for _, decl := range forbidden {
+			if strings.Contains(source, decl.needle) {
+				t.Errorf("%s still declares legacy callback surface %s", path, decl.label)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk failed: %v", err)
+	}
+}
+
+func TestNoInterpreterShadowStatementEvaluatorsRemain(t *testing.T) {
+	t.Parallel()
+
+	forbidden := map[string]string{
+		"evalTypeCast":                    "type-cast execution belongs to evaluator visitors",
+		"evalDefaultFunction":             "Default(...) execution belongs to evaluator visitors",
+		"evalAsExpression":                "'as' expression execution belongs to evaluator visitors",
+		"evalHelperPropertyRead":          "helper property read execution belongs to evaluator visitors",
+		"evalHelperPropertyWrite":         "helper property write execution belongs to evaluator visitors",
+		"evalProgram":                     "program execution belongs to evaluator visitors",
+		"evalBlockStatement":              "block execution belongs to evaluator visitors",
+		"evalExpressionStatement":         "expression-statement execution belongs to evaluator visitors",
+		"evalIfStatement":                 "if-statement execution belongs to evaluator visitors",
+		"evalCaseStatement":               "case-statement execution belongs to evaluator visitors",
+		"evalWhileStatement":              "while-loop execution belongs to evaluator visitors",
+		"evalRepeatStatement":             "repeat-loop execution belongs to evaluator visitors",
+		"evalForStatement":                "for-loop execution belongs to evaluator visitors",
+		"evalForInStatement":              "for-in execution belongs to evaluator visitors",
+		"evalVarDeclStatement":            "var declaration execution belongs to evaluator visitors",
+		"evalConstDeclStatement":          "const declaration execution belongs to evaluator visitors",
+		"evalAssignmentStatement":         "assignment execution belongs to evaluator visitors",
+		"evalCompoundAssignmentStatement": "compound assignment execution belongs to evaluator visitors",
+		"evalTryStatement":                "try/except/finally execution belongs to evaluator visitors",
+		"evalRaiseStatement":              "raise execution belongs to evaluator visitors",
+		"evalBreakStatement":              "break control flow belongs to evaluator visitors",
+		"evalContinueStatement":           "continue control flow belongs to evaluator visitors",
+		"evalExitStatement":               "exit control flow belongs to evaluator visitors",
+	}
+
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*goast.FuncDecl)
+			if !ok || fn.Recv == nil || fn.Name == nil {
+				continue
+			}
+			if len(fn.Recv.List) != 1 {
+				continue
+			}
+
+			star, ok := fn.Recv.List[0].Type.(*goast.StarExpr)
+			if !ok {
+				continue
+			}
+			recvIdent, ok := star.X.(*goast.Ident)
+			if !ok || recvIdent.Name != "Interpreter" {
+				continue
+			}
+
+			if reason, forbidden := forbidden[fn.Name.Name]; forbidden {
+				t.Errorf("%s still defines Interpreter.%s; %s", path, fn.Name.Name, reason)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk failed: %v", err)
+	}
+}
+
+func TestDeletedShadowExecutionFilesDoNotReturn(t *testing.T) {
+	t.Parallel()
+
+	deleted := []string{
+		"array.go",
+		"expressions_complex.go",
+		"functions_calls.go",
+		"functions_records.go",
+		"objects_methods.go",
+		"objects_instantiation.go",
+		"objects_properties.go",
+		"oop_dispatch.go",
+		"user_function_callbacks.go",
+		"statements_assignments.go",
+		"statements_declarations.go",
+		"statements_loops.go",
+	}
+
+	for _, path := range deleted {
+		if _, err := os.Stat(path); err == nil {
+			t.Errorf("%s reappeared; phase 4.9 removed it as dead shadow execution", path)
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat %s failed: %v", path, err)
+		}
+	}
+}
+
+func TestInterpreterEvalSurfaceMatchesAllowlist(t *testing.T) {
+	t.Parallel()
+
+	allowed := map[string]string{
+		"evalViaEvaluator":               "internal delegation helper from shell to evaluator",
+		"evalFunctionDeclaration":        "declaration/bootstrap registry mutation",
+		"evalClassMethodImplementation":  "declaration/bootstrap registry mutation",
+		"evalRecordMethodImplementation": "declaration/bootstrap registry mutation",
+		"evalClassDeclaration":           "declaration/bootstrap registry mutation",
+		"evalInterfaceDeclaration":       "declaration/bootstrap registry mutation",
+		"evalOperatorDeclaration":        "declaration/bootstrap registry mutation",
+		"evalHelperDeclaration":          "declaration/bootstrap registry mutation",
+		"evalTypeDeclaration":            "declaration/bootstrap registry mutation",
+		"evalEnumDeclaration":            "declaration/bootstrap registry mutation",
+		"evalIntegerBinaryOp":            "internal runtime helper primitive",
+		"evalFloatBinaryOp":              "internal runtime helper primitive",
+		"evalStringBinaryOp":             "internal runtime helper primitive",
+		"evalBooleanBinaryOp":            "internal runtime helper primitive",
+		"evalBinarySetOperation":         "internal runtime helper primitive",
+		"evalSetMembership":              "internal runtime helper primitive",
+		"evalSetInclude":                 "internal runtime helper primitive",
+		"evalSetExclude":                 "internal runtime helper primitive",
+	}
+
+	found := make(map[string]string)
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*goast.FuncDecl)
+			if !ok || fn.Recv == nil || fn.Name == nil {
+				continue
+			}
+			if fn.Name.Name != "evalViaEvaluator" {
+				if !strings.HasPrefix(fn.Name.Name, "eval") || len(fn.Name.Name) <= 4 || !unicode.IsUpper(rune(fn.Name.Name[4])) {
+					continue
+				}
+			}
+			if len(fn.Recv.List) != 1 {
+				continue
+			}
+
+			star, ok := fn.Recv.List[0].Type.(*goast.StarExpr)
+			if !ok {
+				continue
+			}
+			recvIdent, ok := star.X.(*goast.Ident)
+			if !ok || recvIdent.Name != "Interpreter" {
+				continue
+			}
+
+			reason, ok := allowed[fn.Name.Name]
+			if !ok {
+				t.Errorf("%s defines unexpected Interpreter.%s; add explicit architectural justification before reintroducing interpreter-side eval surface", path, fn.Name.Name)
+				continue
+			}
+			found[fn.Name.Name] = reason
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk failed: %v", err)
+	}
+
+	for name, reason := range allowed {
+		if _, ok := found[name]; !ok {
+			t.Errorf("allowed Interpreter.%s (%s) is missing from the current surface; update this allowlist test if the shell boundary changed intentionally", name, reason)
+		}
 	}
 }

@@ -17,10 +17,6 @@ type ConversionCallbacks struct {
 	// ImplicitConversion is used for parameter type conversion during the function call.
 	// Can be nil if no parameter conversion is needed.
 	ImplicitConversion ImplicitConversionFunc
-
-	// EnvSyncer syncs the interpreter's environment with the function environment.
-	// This is required for proper function body execution.
-	EnvSyncer EnvSyncerFunc
 }
 
 // ExecuteConversionFunction executes a user-defined conversion function with a single argument.
@@ -81,9 +77,6 @@ func (e *Evaluator) ExecuteConversionFunction(
 		if callbacks.ImplicitConversion != nil {
 			userCallbacks.ImplicitConversion = callbacks.ImplicitConversion
 		}
-		if callbacks.EnvSyncer != nil {
-			userCallbacks.EnvSyncer = callbacks.EnvSyncer
-		}
 	}
 
 	// Execute the conversion function
@@ -123,7 +116,6 @@ func (e *Evaluator) ExecuteConversionFunctionSimple(
 
 	callbacks := &ConversionCallbacks{
 		ImplicitConversion: implicitConversion,
-		// EnvSyncer is nil - ExecuteUserFunction uses adapter.EvalNode which handles env
 	}
 
 	return e.ExecuteConversionFunction(fn, arg, ctx, callbacks)
@@ -300,7 +292,7 @@ func (e *Evaluator) getDefaultValueForTypeName(typeName string) Value {
 		// Type-assert to access RecordType and Metadata
 		type recordTypeAccess interface {
 			GetRecordType() *types.RecordType
-			GetMetadata() any
+			GetMetadata() *runtime.RecordMetadata
 		}
 
 		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
@@ -313,13 +305,7 @@ func (e *Evaluator) getDefaultValueForTypeName(typeName string) Value {
 			return &runtime.NilValue{}
 		}
 
-		// Extract Metadata (may be nil)
-		var metadata *runtime.RecordMetadata
-		if mdAny := recordTypeAccessor.GetMetadata(); mdAny != nil {
-			if md, ok := mdAny.(*runtime.RecordMetadata); ok {
-				metadata = md
-			}
-		}
+		metadata := recordTypeAccessor.GetMetadata()
 
 		// Create record with zero-initialized fields (no field initializers for conversion functions)
 		initializer := func(fieldName string, fieldType types.Type) runtime.Value {

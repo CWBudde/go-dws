@@ -7,55 +7,8 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// This file contains control flow statement evaluation (if, case, block).
-
-// evalBlockStatement evaluates a block of statements.
-func (i *Interpreter) evalBlockStatement(block *ast.BlockStatement) Value {
-	if block == nil {
-		return &NilValue{}
-	}
-
-	var result Value
-
-	for _, stmt := range block.Statements {
-		result = i.Eval(stmt)
-
-		if isError(result) {
-			return result
-		}
-
-		// Check if exception is active - if so, unwind the stack
-		if i.exception != nil {
-			return nil
-		}
-
-		// Check for control flow signals and propagate them upward
-		// These signals should propagate up to the appropriate control structure
-		if i.ctx.ControlFlow().IsActive() {
-			return nil // Propagate signal upward by returning early
-		}
-	}
-
-	return result
-}
-
-func (i *Interpreter) evalIfStatement(stmt *ast.IfStatement) Value {
-	// Evaluate the condition
-	condition := i.Eval(stmt.Condition)
-	if isError(condition) {
-		return condition
-	}
-
-	// Convert condition to boolean
-	if isTruthy(condition) {
-		return i.Eval(stmt.Consequence)
-	} else if stmt.Alternative != nil {
-		return i.Eval(stmt.Alternative)
-	}
-
-	// No alternative and condition was false - return nil
-	return &NilValue{}
-}
+// This file contains shared comparison, truthiness, and operator helpers used
+// across the interpreter shell while statement execution lives in evaluator.
 
 // isTruthy determines if a value is considered "true" for conditional logic.
 // DWScript semantics for Variant→Boolean: empty/nil/zero → false, otherwise → true
@@ -102,84 +55,6 @@ func variantToBool(val Value) bool {
 		// For objects, arrays, records, etc: non-nil → true
 		return true
 	}
-}
-
-// evalCaseStatement evaluates a case statement.
-// It evaluates the case expression, then checks each branch in order.
-// The first branch with a matching value has its statement executed.
-// If no branch matches and there's an else clause, it's executed.
-func (i *Interpreter) evalCaseStatement(stmt *ast.CaseStatement) Value {
-	// Evaluate the case expression
-	caseValue := i.Eval(stmt.Expression)
-	if isError(caseValue) {
-		return caseValue
-	}
-
-	// Check each case branch in order
-	for _, branch := range stmt.Cases {
-		match, errVal := i.matchCaseBranch(branch, caseValue)
-		if isError(errVal) {
-			return errVal
-		}
-		if match {
-			// Execute this branch's statement
-			return i.Eval(branch.Statement)
-		}
-	}
-
-	// No branch matched - execute else clause if present
-	if stmt.Else != nil {
-		return i.Eval(stmt.Else)
-	}
-
-	// No match and no else clause - return nil
-	return &NilValue{}
-}
-
-func (i *Interpreter) matchCaseBranch(branch *ast.CaseBranch, caseValue Value) (bool, Value) {
-	// Check each value in this branch
-	for _, branchVal := range branch.Values {
-		match, errVal := i.matchCaseValue(branchVal, caseValue)
-		if isError(errVal) {
-			return false, errVal
-		}
-		if match {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func (i *Interpreter) matchCaseValue(branchVal ast.Expression, caseValue Value) (bool, Value) {
-	// Check if this is a range expression
-	if rangeExpr, isRange := branchVal.(*ast.RangeExpression); isRange {
-		return i.matchCaseRange(rangeExpr, caseValue)
-	}
-
-	// Regular value comparison
-	branchValue := i.Eval(branchVal)
-	if isError(branchValue) {
-		return false, branchValue
-	}
-
-	// Check if values match
-	return i.valuesEqual(caseValue, branchValue), nil
-}
-
-func (i *Interpreter) matchCaseRange(rangeExpr *ast.RangeExpression, caseValue Value) (bool, Value) {
-	// Evaluate start and end of range
-	startValue := i.Eval(rangeExpr.Start)
-	if isError(startValue) {
-		return false, startValue
-	}
-
-	endValue := i.Eval(rangeExpr.RangeEnd)
-	if isError(endValue) {
-		return false, endValue
-	}
-
-	// Check if caseValue is within range [start, end]
-	return i.isInRange(caseValue, startValue, endValue), nil
 }
 
 // valuesEqual compares two values for equality.
@@ -413,7 +288,7 @@ func (i *Interpreter) executeOperatorMethod(class *ClassInfo, opEntry *runtimeOp
 	i.Eval(method.Body)
 
 	// Check for errors after method execution
-	if i.exception != nil {
+	if i.exceptionValue() != nil {
 		return &NilValue{} // Exception is active, return value doesn't matter
 	}
 

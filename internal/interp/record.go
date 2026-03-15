@@ -6,7 +6,6 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
-	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -96,110 +95,6 @@ func (i *Interpreter) createRecordValue(recordType *types.RecordType) Value {
 	return rv
 }
 
-// ============================================================================
-// Record Literal Evaluation
-// ============================================================================
-
-// evalRecordLiteral evaluates a record literal expression.
-// Examples: (X: 10, Y: 20) or TPoint(X: 10, Y: 20)
-func (i *Interpreter) evalRecordLiteral(literal *ast.RecordLiteralExpression) Value {
-	if literal == nil {
-		return &ErrorValue{Message: "nil record literal"}
-	}
-
-	var recordType *types.RecordType
-
-	// Resolve the record type from the literal's type name
-	if literal.TypeName != nil {
-		typeName := literal.TypeName.Value
-		recordTypeKey := "__record_type_" + ident.Normalize(typeName)
-		if typeVal, ok := i.Env().Get(recordTypeKey); ok {
-			if rtv, ok := typeVal.(*RecordTypeValue); ok {
-				recordType = rtv.RecordType
-			}
-		}
-
-		if recordType == nil {
-			return &ErrorValue{Message: fmt.Sprintf("unknown record type '%s'", typeName)}
-		}
-	} else {
-		return &ErrorValue{Message: "record literal requires explicit type name or type context"}
-	}
-
-	// Look up the record type value for field declarations
-	recordTypeKey := "__record_type_" + ident.Normalize(literal.TypeName.Value)
-	var recordTypeValue *RecordTypeValue
-	if typeVal, ok := i.Env().Get(recordTypeKey); ok {
-		recordTypeValue, _ = typeVal.(*RecordTypeValue)
-	}
-
-	// Create the record value
-	recordValue := &RecordValue{
-		RecordType: recordType,
-		Fields:     make(map[string]Value),
-		Metadata:   nil,
-	}
-
-	// Set metadata if available
-	if recordTypeValue != nil {
-		recordValue.Metadata = recordTypeValue.Metadata
-	}
-
-	// Evaluate and assign field values from literal
-	for _, field := range literal.Fields {
-		if field.Name == nil {
-			return &ErrorValue{Message: "positional record field initialization not yet supported"}
-		}
-
-		fieldName := field.Name.Value
-		fieldNameLower := ident.Normalize(fieldName)
-
-		// Verify field exists in record type
-		if _, exists := recordType.Fields[fieldNameLower]; !exists {
-			return &ErrorValue{Message: fmt.Sprintf("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)}
-		}
-
-		// Evaluate the field value expression
-		fieldValue := i.Eval(field.Value)
-		if isError(fieldValue) {
-			return fieldValue
-		}
-
-		recordValue.Fields[fieldNameLower] = fieldValue
-	}
-
-	// Initialize remaining fields with initializers or defaults
-	for fieldName, fieldType := range recordType.Fields {
-		if _, exists := recordValue.Fields[fieldName]; !exists {
-			var fieldValue Value
-
-			// Evaluate field initializer if present
-			if recordTypeValue != nil {
-				if fieldDecl, hasDecl := recordTypeValue.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-					fieldValue = i.Eval(fieldDecl.InitValue)
-					if isError(fieldValue) {
-						return fieldValue
-					}
-				}
-			}
-
-			// Use default value if no initializer
-			if fieldValue == nil {
-				fieldValue = getZeroValueForType(fieldType, nil)
-
-				// Initialize interface fields for nil checking
-				if intfValue := i.initializeInterfaceField(fieldType); intfValue != nil {
-					fieldValue = intfValue
-				}
-			}
-
-			recordValue.Fields[fieldName] = fieldValue
-		}
-	}
-
-	return recordValue
-}
-
 // resolveType resolves a type name to a types.Type.
 // Handles built-in types, inline arrays, and custom types (enums, records, classes, etc.).
 func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
@@ -273,6 +168,9 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 	// Check type aliases
 	if typeAliasVal, ok := i.Env().Get("__type_alias_" + lowerTypeName); ok {
 		if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
+			return tav.AliasedType, nil
+		}
+		if tav, ok := typeAliasVal.(*runtime.TypeAliasValue); ok {
 			return tav.AliasedType, nil
 		}
 	}

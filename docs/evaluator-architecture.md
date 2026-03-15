@@ -4,6 +4,14 @@
 **Task**: 3.5.43 - Documenting architectural boundaries
 **Purpose**: Define evaluator vs interpreter responsibilities and explain why the adapter interface is essential
 
+> Historical note
+>
+> This document captures the pre-Phase-4 architecture and the reasoning that
+> existed before the callback surfaces were removed. It is useful as migration
+> history, but it no longer describes the intended steady state after Phase 4.
+> For the current boundary, see `docs/architecture/interp-evaluator-boundary.md`
+> and `docs/phase-4.7-verification.md`.
+
 ---
 
 ## Table of Contents
@@ -176,48 +184,23 @@ The interpreter owns **OOP semantics and global state management**.
 
 ---
 
-## The Adapter Interface
+## Phase 4 Note
 
-### Purpose
+The callback-style adapter boundary described in older Phase 3 notes is no
+longer part of the runtime architecture. Phase 4 removed the execution
+callbacks and moved the live AST execution paths into the evaluator.
 
-The adapter provides a **callback boundary** between evaluator and interpreter for cases where:
+Current steady state:
 
-1. Evaluator needs interpreter-owned OOP logic
-2. Circular imports must be avoided (evaluator can't import interpreter)
-3. Clean separation of concerns is desired
+- `interp` owns bootstrap, engine assembly, and the public engine facade
+- `evaluator` owns AST execution semantics
+- `runtime` owns execution primitives and per-run state
+- `contracts` holds the small neutral cross-package surface that still makes sense
 
-### Essential Methods (Post-Phase 3.5)
-
-After Phase 3.5 migration, the adapter interface has **~5 essential methods**:
-
-```go
-type InterpreterAdapter interface {
-    // EvalNode evaluates any AST node using the interpreter's full context.
-    // Used for: Self/class context resolution (2 calls in assignment_helpers.go)
-    EvalNode(node ast.Node) Value
-
-    // ExecuteUserFunctionBody executes a user-defined function body.
-    // Used for: Function calls, method invocation
-    ExecuteUserFunctionBody(funcDecl *ast.FunctionDecl, args []Value, ctx *ExecutionContext) Value
-
-    // Additional methods for class/object operations (~3 methods)
-    // - Constructor invocation
-    // - Destructor callbacks
-    // - Class registration
-}
-```
-
-### Adapter is NOT Technical Debt
-
-**Common Misconception**: "Adapter interface is temporary, should be eliminated"
-
-**Reality**: Adapter is a **permanent architectural feature** that provides clean separation:
-
-- Evaluator operates on **local context** (ExecutionContext, Environment)
-- Interpreter operates on **global state** (class registry, Self binding)
-- Adapter bridges these concerns **without violating separation**
-
-**Precedent**: Similar to how RefCountManager provides callback interface for destructors.
+If you need the historical migration rationale, keep reading the older Phase 3
+sections in this document as archival context, not as the current target
+architecture. For the current boundary, see
+[`architecture/interp-evaluator-steady-state.md`](./architecture/interp-evaluator-steady-state.md).
 
 ---
 

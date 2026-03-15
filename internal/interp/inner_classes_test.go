@@ -34,10 +34,7 @@ end;`
 		t.Fatalf("interpreter returned error: %s", val.String())
 	}
 
-	classInfo := interp.classes[ident.Normalize("TOuter")]
-	if classInfo == nil {
-		t.Fatalf("outer class not registered")
-	}
+	classInfo := mustLookupTestClass(t, interp, "TOuter")
 
 	if _, ok := classInfo.NestedClasses[ident.Normalize("TInner")]; !ok {
 		t.Fatalf("nested class not registered on outer class")

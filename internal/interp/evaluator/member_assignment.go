@@ -129,7 +129,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 				propInfo := recVal.LookupProperty(fieldName)
 				if propInfo != nil && propInfo.Impl != nil {
 					if recordPropInfo, ok := propInfo.Impl.(*types.RecordPropertyInfo); ok {
-						return e.executeRecordPropertyWrite(objVal, recordPropInfo, value, stmt)
+						return e.executeRecordPropertyWrite(objVal, recordPropInfo, value, stmt, ctx)
 					}
 				}
 			}
@@ -209,7 +209,15 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 
 			// Check for Class Property
 			result, ok := classMeta.WriteClassProperty(fieldName, value, func(propInfo any, val Value) Value {
-				return e.coreEvaluator.EvalClassPropertyWrite(classMeta.GetClassInfo(), propInfo, val, stmt)
+				classInfo := classMeta.GetClassInfo()
+				if classInfo == nil {
+					return e.newError(stmt, "class metadata unavailable for class property write")
+				}
+				typedPropInfo, ok := propInfo.(*types.PropertyInfo)
+				if !ok {
+					return e.newError(stmt, "invalid property info type for class property write")
+				}
+				return e.evalClassPropertyWrite(classInfo, typedPropInfo, val, stmt, ctx)
 			})
 			if ok {
 				return result

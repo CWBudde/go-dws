@@ -484,9 +484,9 @@ func (e *Evaluator) GetDefaultValue(typ types.Type) Value {
 		}
 		return e.nilValue()
 	case "RECORD":
-		// Records should be initialized with default field values.
-		// For now, return NIL (will be enhanced if needed).
-		return e.nilValue()
+		// Records are value types and must be zero-initialized, especially when
+		// dynamic arrays grow via SetLength and allocate new record elements.
+		return e.getZeroValueForType(typ)
 	case "VARIANT":
 		// Variants default to Unassigned (nil-like)
 		return e.nilValue()

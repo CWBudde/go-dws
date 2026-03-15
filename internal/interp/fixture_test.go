@@ -28,7 +28,6 @@ import (
 //
 //	go test -v ./internal/interp -run TestDWScriptFixtures/CategoryName
 func TestDWScriptFixtures(t *testing.T) {
-
 	t.Skip()
 
 	// Define test categories and their expected behavior

@@ -3,7 +3,6 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -73,100 +72,6 @@ func (i *Interpreter) CreateObject(className string, args []Value) (Value, error
 	}
 
 	return obj, nil
-}
-
-// ExecuteConstructor executes a constructor method on an already-created object instance.
-func (i *Interpreter) ExecuteConstructor(obj Value, constructorName string, args []Value) error {
-	internalArgs := args
-	internalObj := obj
-
-	// Get the object's class
-	objectInstance, ok := internalObj.(*ObjectInstance)
-	if !ok {
-		return fmt.Errorf("value is not an object instance")
-	}
-
-	classInfo := objectInstance.Class
-
-	// Look up constructor - need concrete ClassInfo for Constructors map
-	concreteClass, ok := classInfo.(*ClassInfo)
-	if !ok {
-		return fmt.Errorf("class information is not a ClassInfo")
-	}
-
-	var (
-		constructor     *ast.FunctionDecl
-		foundCandidate  bool
-		constructorNameNorm = ident.Normalize(constructorName)
-	)
-
-	for name, overloads := range concreteClass.ConstructorOverloads {
-		if !ident.Equal(name, constructorName) || len(overloads) == 0 {
-			continue
-		}
-		foundCandidate = true
-		for _, candidate := range overloads {
-			if len(candidate.Parameters) == len(internalArgs) {
-				constructor = candidate
-				break
-			}
-		}
-		if constructor != nil {
-			break
-		}
-	}
-
-	if constructor == nil {
-		if ctor, exists := concreteClass.Constructors[constructorNameNorm]; exists {
-			constructor = ctor
-			foundCandidate = true
-		} else {
-			for name, ctor := range concreteClass.Constructors {
-				if ident.Equal(name, constructorName) {
-					constructor = ctor
-					foundCandidate = true
-					break
-				}
-			}
-		}
-	}
-
-	if constructor == nil {
-		if len(internalArgs) == 0 {
-			return nil
-		}
-		if i.isExceptionClass(concreteClass) && len(internalArgs) == 1 {
-			msgVal := internalArgs[0]
-			if strVal, ok := msgVal.(*StringValue); ok {
-				objectInstance.SetField("Message", &StringValue{Value: strVal.Value})
-			} else {
-				objectInstance.SetField("Message", &StringValue{Value: msgVal.String()})
-			}
-			return nil
-		}
-		if foundCandidate {
-			return fmt.Errorf("no constructor '%s' found for class '%s' with %d arguments", constructorName, classInfo.GetName(), len(internalArgs))
-		}
-		return fmt.Errorf("no constructor found for class '%s' with %d arguments", classInfo.GetName(), len(internalArgs))
-	}
-
-	if len(constructor.Parameters) != len(internalArgs) {
-		return fmt.Errorf("wrong number of arguments for constructor '%s': expected %d, got %d",
-			constructorName, len(constructor.Parameters), len(internalArgs))
-	}
-
-	// Execute constructor in a new environment with Self bound
-	defer i.PushScope()()
-	i.Env().Define("Self", objectInstance)
-
-	result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
-
-	// Propagate constructor errors
-	if isError(result) {
-		return fmt.Errorf("constructor failed: %v", result)
-	}
-
-	return nil
 }
 
 // CastType performs type casting (implements 'as' operator).
@@ -351,14 +256,4 @@ func (i *Interpreter) RaiseTypeCastException(message string, node ast.Node) {
 	pos := node.Pos()
 	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
 	i.raiseException("Exception", fullMessage, &pos)
-}
-
-// LookupClassByName finds a class by name and returns it as ClassMetaValue.
-// Used for typed nil class variable access.
-func (i *Interpreter) LookupClassByName(name string) contracts.ClassMetaValue {
-	classInfo := i.resolveClassInfoByName(name)
-	if classInfo == nil {
-		return nil
-	}
-	return &ClassInfoValue{ClassInfo: classInfo}
 }

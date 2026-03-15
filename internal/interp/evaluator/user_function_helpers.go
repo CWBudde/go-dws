@@ -3,7 +3,6 @@ package evaluator
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -65,7 +64,7 @@ func (e *Evaluator) EvaluateDefaultParameters(
 }
 
 // ImplicitConversionFunc is a callback type for implicit type conversion.
-type ImplicitConversionFunc = contracts.ImplicitConversionFunc
+type ImplicitConversionFunc func(value Value, targetTypeName string) (Value, bool)
 
 // BindFunctionParameters binds function parameters to arguments with implicit conversion.
 // Var (ByRef) parameters skip conversion to preserve ReferenceValue.
@@ -102,11 +101,11 @@ func (e *Evaluator) BindFunctionParameters(
 }
 
 // DefaultValueFunc is a callback type for getting the default value for a return type.
-type DefaultValueFunc = contracts.DefaultValueFunc
+type DefaultValueFunc func(returnTypeName string) Value
 
 // FunctionNameAliasFunc is a callback type for creating the function name alias.
 // In DWScript, assigning to either Result or the function name sets the return value.
-type FunctionNameAliasFunc = contracts.FunctionNameAliasFunc
+type FunctionNameAliasFunc func(funcName string, funcEnv *runtime.Environment) Value
 
 // InitializeResultVariable initializes the Result variable for functions (not procedures).
 // Creates function name alias to point to Result.
@@ -173,19 +172,76 @@ func (e *Evaluator) CaptureOldValues(
 }
 
 // CleanupInterfaceReferencesFunc is a callback type for cleaning up interface references.
-type CleanupInterfaceReferencesFunc = contracts.CleanupInterfaceReferencesFunc
+type CleanupInterfaceReferencesFunc func(env *runtime.Environment)
 
 // TryImplicitConversionReturnFunc is a callback type for implicit return type conversion.
-type TryImplicitConversionReturnFunc = contracts.TryImplicitConversionReturnFunc
+type TryImplicitConversionReturnFunc func(returnValue Value, expectedReturnType string) (Value, bool)
 
 // IncrementInterfaceRefCountFunc is a callback type for incrementing interface reference counts.
-type IncrementInterfaceRefCountFunc = contracts.IncrementInterfaceRefCountFunc
-
-// EnvSyncerFunc syncs interpreter's environment with evaluator's function environment.
-type EnvSyncerFunc = contracts.EnvSyncerFunc
+type IncrementInterfaceRefCountFunc func(returnValue Value)
 
 // UserFunctionCallbacks holds all callback functions needed for user function execution.
-type UserFunctionCallbacks = contracts.UserFunctionCallbacks
+type UserFunctionCallbacks struct {
+	ImplicitConversion   ImplicitConversionFunc
+	DefaultValueGetter   DefaultValueFunc
+	FunctionNameAlias    FunctionNameAliasFunc
+	ReturnValueConverter TryImplicitConversionReturnFunc
+	InterfaceRefCounter  IncrementInterfaceRefCountFunc
+	InterfaceCleanup     CleanupInterfaceReferencesFunc
+}
+
+func (e *Evaluator) defaultUserFunctionCallbacks(ctx *ExecutionContext) *UserFunctionCallbacks {
+	return &UserFunctionCallbacks{
+		ImplicitConversion: func(value Value, targetTypeName string) (Value, bool) {
+			return e.TryImplicitConversion(value, targetTypeName, ctx)
+		},
+		DefaultValueGetter: func(returnTypeName string) Value {
+			return e.createZeroValue(&ast.TypeAnnotation{Name: returnTypeName}, e.currentNode, ctx)
+		},
+		FunctionNameAlias: func(funcName string, funcEnv *runtime.Environment) Value {
+			getter := func() (Value, error) {
+				val, ok := funcEnv.Get("Result")
+				if !ok {
+					return &runtime.NilValue{}, fmt.Errorf("Result variable not found")
+				}
+				return val.(Value), nil
+			}
+			setter := func(val Value) error {
+				return funcEnv.Set("Result", val)
+			}
+			return runtime.NewReferenceValue("Result", getter, setter)
+		},
+		ReturnValueConverter: func(returnValue Value, expectedReturnType string) (Value, bool) {
+			return e.TryImplicitConversion(returnValue, expectedReturnType, ctx)
+		},
+		InterfaceRefCounter: func(returnValue Value) {
+			if intfInst, ok := returnValue.(*runtime.InterfaceInstance); ok && intfInst.Object != nil && e.engineState.RefCountManager != nil {
+				e.engineState.RefCountManager.IncrementRef(intfInst.Object)
+			}
+		},
+		InterfaceCleanup: func(env *runtime.Environment) {
+			e.cleanupInterfaceReferences(env)
+		},
+	}
+}
+
+func (e *Evaluator) raiseRecursionExceeded(ctx *ExecutionContext) Value {
+	message := fmt.Sprintf("Maximal recursion exceeded (%d)", e.MaxRecursionDepth())
+	exc := e.createException("EScriptStackOverflow", message, nil, ctx)
+	ctx.SetException(exc)
+	return &runtime.NilValue{}
+}
+
+func (e *Evaluator) ExecuteUserFunctionDirect(fn *ast.FunctionDecl, args []Value, ctx *ExecutionContext) Value {
+	result, err := e.ExecuteUserFunction(fn, args, ctx, e.defaultUserFunctionCallbacks(ctx))
+	if err != nil {
+		if err.Error() == "maximum recursion depth exceeded" {
+			return e.raiseRecursionExceeded(ctx)
+		}
+		return e.newError(e.currentNode, "%s", err.Error())
+	}
+	return result
+}
 
 // ExecuteUserFunction executes a user-defined function with all necessary setup and cleanup.
 // Handles parameter binding, result initialization, preconditions, body execution,
@@ -234,8 +290,8 @@ func (e *Evaluator) ExecuteUserFunction(
 	funcEnv := runtime.NewEnclosedEnvironment(ctx.Env())
 
 	// Create new context with function environment.
-	// Clone preserves shared execution state (call stack, control flow, exception callbacks)
-	// while allowing the environment to be swapped for the function scope.
+	// Clone preserves shared execution state while allowing the environment
+	// to be swapped for the function scope.
 	funcCtx := ctx.Clone()
 	funcCtx.SetEnv(funcEnv)
 
@@ -256,7 +312,7 @@ func (e *Evaluator) ExecuteUserFunction(
 		nodePos := e.currentNode.Pos()
 		pos = &nodePos
 	}
-	if err := funcCtx.GetCallStack().Push(fn.Name.Value, e.config.SourceFile, pos); err != nil {
+	if err := funcCtx.GetCallStack().Push(fn.Name.Value, e.SourceFile(), pos); err != nil {
 		return nil, err
 	}
 	defer funcCtx.GetCallStack().Pop()
@@ -270,33 +326,6 @@ func (e *Evaluator) ExecuteUserFunction(
 	if err := e.InitializeResultVariable(fn, funcCtx, callbacks.DefaultValueGetter, callbacks.FunctionNameAlias); err != nil {
 		return nil, err
 	}
-
-	// Sync interpreter's environment before preconditions/body execution.
-	// This ensures that when evaluator falls back to interpreter via EvalNode,
-	// the interpreter uses the correct function-scoped environment.
-	//
-	// When EnvSyncer is nil (evaluator-only call path, e.g., TryImplicitConversion),
-	// enter self-contained mode to disable interpreter fallbacks entirely.
-	// This prevents environment mismatch bugs where the evaluator would otherwise
-	// fall back to interpreter operations that use the wrong (caller's) environment.
-	var restoreEnv func()
-	var restoreSelfContained func()
-	if callbacks.EnvSyncer != nil {
-		restoreEnv = callbacks.EnvSyncer(funcEnv)
-	} else {
-		// No EnvSyncer means we can't sync with interpreter - run in self-contained mode
-		restoreSelfContained = e.EnterSelfContainedMode()
-	}
-	defer func() {
-		// Restore interpreter's environment after function completes
-		if restoreEnv != nil {
-			restoreEnv()
-		}
-		// Restore coreEvaluator if we were in self-contained mode
-		if restoreSelfContained != nil {
-			restoreSelfContained()
-		}
-	}()
 
 	// Check preconditions before executing function body
 	if fn.PreConditions != nil {
@@ -326,8 +355,8 @@ func (e *Evaluator) ExecuteUserFunction(
 	}
 
 	// Execute function body through the evaluator.
-	// Any remaining not-yet-migrated constructs may still fall back to coreEvaluator
-	// from within Evaluator.Eval, but this avoids an unconditional EvalNode ping-pong.
+	// This now stays on evaluator-owned execution paths instead of unconditionally
+	// round-tripping through interpreter EvalNode dispatch.
 	_ = e.Eval(fn.Body, funcCtx)
 
 	// If exception was raised, propagate it to caller's context

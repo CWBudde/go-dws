@@ -74,8 +74,8 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 
 	// Disambiguation: `[...]` can represent a set literal when semantic analysis expects a SET.
 	// Some contexts (notably empty literals `[]`) otherwise look like an empty array literal.
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
 			if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
 				if _, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
 					setLit := &ast.SetLiteral{
@@ -84,8 +84,8 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 					}
 
 					// Preserve the type annotation for set inference (esp. for empty `[]`).
-					e.semanticInfo.SetType(setLit, typeAnnot)
-					defer e.semanticInfo.ClearType(setLit)
+					e.SemanticInfo().SetType(setLit, typeAnnot)
+					defer e.SemanticInfo().ClearType(setLit)
 
 					return e.evalSetLiteralDirect(setLit, ctx)
 				}
@@ -198,11 +198,11 @@ func (e *Evaluator) buildRuntimeArray(arrayType *types.ArrayType, coercedElement
 
 // getArrayTypeFromAnnotation retrieves the array type from semantic info.
 func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) *types.ArrayType {
-	if e.semanticInfo == nil {
+	if e.SemanticInfo() == nil {
 		return nil
 	}
 
-	typeAnnot := e.semanticInfo.GetType(node)
+	typeAnnot := e.SemanticInfo().GetType(node)
 	if typeAnnot == nil || typeAnnot.Name == "" {
 		return nil
 	}
@@ -444,10 +444,16 @@ func (e *Evaluator) evalArrayHelper(spec string, selfValue Value, args []Value, 
 		return e.evalArraySwap(selfValue, args, node)
 	case "__array_delete":
 		return e.evalArrayDelete(selfValue, args, node)
+	case "__array_indexof":
+		return e.evalArrayIndexOf(selfValue, args, node)
+	case "__array_setlength":
+		return e.evalArraySetLength(selfValue, args, node)
 	case "__array_join":
 		return e.evalArrayJoinHelper(selfValue, args, node)
 	case "__string_array_join":
 		return e.evalStringArrayJoin(selfValue, args, node)
+	case "__array_map":
+		return e.evalArrayMap(selfValue, args, node)
 	default:
 		return nil
 	}
@@ -663,6 +669,101 @@ func (e *Evaluator) evalArrayDelete(selfValue Value, args []Value, node ast.Node
 	arrVal.Elements = append(arrVal.Elements[:index], arrVal.Elements[endIndex:]...)
 
 	return &runtime.NilValue{}
+}
+
+func (e *Evaluator) evalArrayIndexOf(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) < 1 || len(args) > 2 {
+		return e.newError(node, "Array.IndexOf expects 1 or 2 arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.IndexOf requires array receiver")
+	}
+
+	startIndex := 0
+	if len(args) == 2 {
+		startIndexVal, ok := args[1].(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "Array.IndexOf startIndex must be Integer, got %s", args[1].Type())
+		}
+		startIndex = int(startIndexVal.Value)
+	}
+
+	return runtime.ArrayHelperIndexOf(arrVal, args[0], startIndex)
+}
+
+func (e *Evaluator) evalArraySetLength(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 1 {
+		return e.newError(node, "Array.SetLength expects exactly 1 argument")
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.SetLength requires array receiver")
+	}
+	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
+		return e.newError(node, "SetLength() can only be used with dynamic arrays, not static arrays")
+	}
+
+	newLengthVal, ok := args[0].(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "Array.SetLength expects integer argument, got %s", args[0].Type())
+	}
+
+	newLength := int(newLengthVal.Value)
+	if newLength < 0 {
+		return e.newError(node, "Array.SetLength expects non-negative length, got %d", newLength)
+	}
+
+	currentLength := len(arrVal.Elements)
+	switch {
+	case newLength == currentLength:
+		return &runtime.NilValue{}
+	case newLength < currentLength:
+		arrVal.Elements = arrVal.Elements[:newLength]
+		return &runtime.NilValue{}
+	}
+
+	for idx := currentLength; idx < newLength; idx++ {
+		if arrVal.ArrayType == nil || arrVal.ArrayType.ElementType == nil {
+			arrVal.Elements = append(arrVal.Elements, &runtime.NilValue{})
+			continue
+		}
+		arrVal.Elements = append(arrVal.Elements, e.GetDefaultValue(arrVal.ArrayType.ElementType))
+	}
+
+	return &runtime.NilValue{}
+}
+
+func (e *Evaluator) evalArrayMap(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 1 {
+		return e.newError(node, "Array.Map expects exactly 1 argument")
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Map requires array receiver")
+	}
+
+	funcPtr, ok := args[0].(*runtime.FunctionPointerValue)
+	if !ok {
+		return e.newError(node, "Array.Map expects function pointer as argument, got %s", args[0].Type())
+	}
+
+	resultElements := make([]Value, len(arrVal.Elements))
+	for idx, element := range arrVal.Elements {
+		result := e.EvalFunctionPointer(funcPtr, []Value{element})
+		if isError(result) {
+			return result
+		}
+		resultElements[idx] = result
+	}
+
+	return &runtime.ArrayValue{
+		Elements:  resultElements,
+		ArrayType: arrVal.ArrayType,
+	}
 }
 
 // ============================================================================

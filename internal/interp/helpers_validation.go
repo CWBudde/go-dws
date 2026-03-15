@@ -1,6 +1,7 @@
 package interp
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -10,32 +11,9 @@ import (
 // Helper Declaration, Validation, and Execution Infrastructure
 // ============================================================================
 
-// HelperInfo stores runtime information about a helper type
-type HelperInfo struct {
-	TargetType     types.Type
-	ParentHelper   *HelperInfo
-	Methods        map[string]*ast.FunctionDecl
-	Properties     map[string]*types.PropertyInfo
-	ClassVars      map[string]Value
-	ClassConsts    map[string]Value
-	BuiltinMethods map[string]string
-	Name           string
-	IsRecordHelper bool
-}
+type HelperInfo = runtime.MutableHelperInfo
 
-// NewHelperInfo creates a new HelperInfo
-func NewHelperInfo(name string, targetType types.Type, isRecordHelper bool) *HelperInfo {
-	return &HelperInfo{
-		Name:           name,
-		TargetType:     targetType,
-		Methods:        make(map[string]*ast.FunctionDecl),
-		Properties:     make(map[string]*types.PropertyInfo),
-		ClassVars:      make(map[string]Value),
-		ClassConsts:    make(map[string]Value),
-		BuiltinMethods: make(map[string]string),
-		IsRecordHelper: isRecordHelper,
-	}
-}
+var NewHelperInfo = runtime.NewMutableHelperInfo
 
 // ============================================================================
 // Helper Declaration and Validation
@@ -203,202 +181,6 @@ func (i *Interpreter) evalHelperDeclaration(decl *ast.HelperDecl) Value {
 	i.Env().Define(decl.Name.Value, helperTypeMeta)
 
 	return &NilValue{}
-}
-
-// ============================================================================
-// Helper Execution
-// ============================================================================
-
-// callHelperMethod executes a helper method (user-defined or built-in) on a value
-func (i *Interpreter) callHelperMethod(helper *HelperInfo, method *ast.FunctionDecl,
-	builtinSpec string, selfValue Value, args []Value, node ast.Node) Value {
-
-	if builtinSpec != "" {
-		return i.evalBuiltinHelperMethod(builtinSpec, selfValue, args, node)
-	}
-
-	if method == nil {
-		return i.newErrorWithLocation(node, "helper method not implemented")
-	}
-
-	// Check argument count
-	if len(args) != len(method.Parameters) {
-		return i.newErrorWithLocation(node, "wrong number of arguments for helper method '%s': expected %d, got %d",
-			method.Name.Value, len(method.Parameters), len(args))
-	}
-
-	// Create method environment with scope management
-	defer i.PushScope()()
-
-	// Bind Self to the target value (the value being extended)
-	i.Env().Define("Self", selfValue)
-
-	// Bind helper class vars and consts from entire inheritance chain
-	// Walk from root parent to current helper so child helpers override parents
-	var helperChain []*HelperInfo
-	for h := helper; h != nil; h = h.ParentHelper {
-		helperChain = append([]*HelperInfo{h}, helperChain...)
-	}
-	for _, h := range helperChain {
-		for name, value := range h.ClassVars {
-			i.Env().Define(name, value)
-		}
-		for name, value := range h.ClassConsts {
-			i.Env().Define(name, value)
-		}
-	}
-
-	// Bind method parameters
-	for idx, param := range method.Parameters {
-		i.Env().Define(param.Name.Value, args[idx])
-	}
-
-	// For functions, initialize the Result variable
-	if method.ReturnType != nil {
-		returnType := i.resolveTypeFromAnnotation(method.ReturnType)
-		defaultVal := i.getDefaultValue(returnType)
-		i.Env().Define("Result", defaultVal)
-		i.Env().Define(method.Name.Value, defaultVal)
-	}
-
-	// Execute method body
-	result := i.Eval(method.Body)
-	if isError(result) {
-		return result
-	}
-
-	// Extract return value
-	var returnValue Value
-	if method.ReturnType != nil {
-		resultVal, resultOk := i.Env().Get("Result")
-		methodNameVal, methodNameOk := i.Env().Get(method.Name.Value)
-
-		if resultOk && resultVal.Type() != "NIL" {
-			returnValue = resultVal
-		} else if methodNameOk && methodNameVal.Type() != "NIL" {
-			returnValue = methodNameVal
-		} else if resultOk {
-			returnValue = resultVal
-		} else if methodNameOk {
-			returnValue = methodNameVal
-		} else {
-			returnValue = &NilValue{}
-		}
-	} else {
-		returnValue = &NilValue{}
-	}
-
-	return returnValue
-}
-
-// evalHelperPropertyRead evaluates a helper property read access
-func (i *Interpreter) evalHelperPropertyRead(helper *HelperInfo, propInfo *types.PropertyInfo,
-	selfValue Value, node ast.Node) Value {
-
-	switch propInfo.ReadKind {
-	case types.PropAccessField:
-		// For helpers on records, try to access the field from the record
-		if recordVal, ok := selfValue.(*RecordValue); ok {
-			if fieldValue, exists := recordVal.Fields[propInfo.ReadSpec]; exists {
-				return fieldValue
-			}
-		}
-
-		// Otherwise, try as a method (getter - case-insensitive)
-		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
-
-		// Search for the getter method in the owner helper's inheritance chain
-		if method, methodOwner, ok := helper.GetMethod(normalizedReadSpec); ok {
-			// Get builtin spec if any
-			var builtinSpec string
-			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedReadSpec); ok {
-				builtinSpec = spec
-			}
-			// Call the getter method with no arguments
-			return i.callHelperMethod(methodOwner, method, builtinSpec, selfValue, []Value{}, node)
-		}
-
-		return i.newErrorWithLocation(node, "property '%s' read specifier '%s' not found",
-			propInfo.Name, propInfo.ReadSpec)
-
-	case types.PropAccessMethod:
-		// Call getter method (case-insensitive)
-		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
-
-		// Search for the getter method in the owner helper's inheritance chain
-		if method, methodOwner, ok := helper.GetMethod(normalizedReadSpec); ok {
-			// Get builtin spec if any
-			var builtinSpec string
-			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedReadSpec); ok {
-				builtinSpec = spec
-			}
-			return i.callHelperMethod(methodOwner, method, builtinSpec, selfValue, []Value{}, node)
-		}
-
-		return i.newErrorWithLocation(node, "property '%s' getter method '%s' not found",
-			propInfo.Name, propInfo.ReadSpec)
-
-	case types.PropAccessBuiltin:
-		// Built-in array helper properties
-		return i.evalBuiltinHelperProperty(propInfo.ReadSpec, selfValue, node)
-
-	case types.PropAccessNone:
-		return i.newErrorWithLocation(node, "property '%s' is write-only", propInfo.Name)
-
-	default:
-		return i.newErrorWithLocation(node, "property '%s' has no read access", propInfo.Name)
-	}
-}
-
-// evalHelperPropertyWrite evaluates a helper property write access
-func (i *Interpreter) evalHelperPropertyWrite(helper *HelperInfo, propInfo *types.PropertyInfo,
-	selfValue Value, newValue Value, stmt ast.Node) Value {
-
-	switch propInfo.WriteKind {
-	case types.PropAccessField:
-		// For helpers on records, try to set the field in the record
-		if recordVal, ok := selfValue.(*RecordValue); ok {
-			recordVal.Fields[propInfo.WriteSpec] = newValue
-			return newValue
-		}
-
-		// Otherwise, try as a method (setter)
-		normalizedWriteSpec := ident.Normalize(propInfo.WriteSpec)
-
-		// Search for the setter method in the owner helper's inheritance chain
-		if method, methodOwner, ok := helper.GetMethod(normalizedWriteSpec); ok {
-			var builtinSpec string
-			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedWriteSpec); ok {
-				builtinSpec = spec
-			}
-			return i.callHelperMethod(methodOwner, method, builtinSpec, selfValue, []Value{newValue}, stmt)
-		}
-
-		return i.newErrorWithLocation(stmt, "property '%s' write specifier '%s' not found",
-			propInfo.Name, propInfo.WriteSpec)
-
-	case types.PropAccessMethod:
-		// Call setter method
-		normalizedWriteSpec := ident.Normalize(propInfo.WriteSpec)
-
-		// Search for the setter method in the owner helper's inheritance chain
-		if method, methodOwner, ok := helper.GetMethod(normalizedWriteSpec); ok {
-			var builtinSpec string
-			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedWriteSpec); ok {
-				builtinSpec = spec
-			}
-			return i.callHelperMethod(methodOwner, method, builtinSpec, selfValue, []Value{newValue}, stmt)
-		}
-
-		return i.newErrorWithLocation(stmt, "property '%s' setter method '%s' not found",
-			propInfo.Name, propInfo.WriteSpec)
-
-	case types.PropAccessNone:
-		return i.newErrorWithLocation(stmt, "property '%s' is read-only", propInfo.Name)
-
-	default:
-		return i.newErrorWithLocation(stmt, "property '%s' has no write access", propInfo.Name)
-	}
 }
 
 // ============================================================================

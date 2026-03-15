@@ -37,10 +37,9 @@ func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value
 		}
 
 		// Try to find compound operator overload on the object (e.g., +=, -=, *=, /=)
-		if e.oopEngine != nil {
-			if result, found := e.oopEngine.TryBinaryOperator(compoundOpSymbol, left, right, node); found {
-				return result
-			}
+		ctx := e.currentContext
+		if result, found := e.evalTryBinaryOperator(compoundOpSymbol, left, right, node, ctx); found {
+			return result
 		}
 
 		// If no compound operator found, try the corresponding binary operator (e.g., +, -, *, /)
@@ -57,10 +56,8 @@ func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value
 			binaryOp = "/"
 		}
 
-		if e.oopEngine != nil {
-			if result, found := e.oopEngine.TryBinaryOperator(binaryOp, left, right, node); found {
-				return result
-			}
+		if result, found := e.evalTryBinaryOperator(binaryOp, left, right, node, ctx); found {
+			return result
 		}
 
 		// No overload found, fall through to standard operations

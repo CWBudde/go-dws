@@ -32,8 +32,8 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 
 	// If semantic analysis provided a set type annotation, capture it for inference.
 	var annotatedSetType *types.SetType
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
 			if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
 				if setType, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
 					annotatedSetType = setType
@@ -47,8 +47,8 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 
 	// Check if this SetLiteral should be treated as an array (array of const)
 	// This happens when semantic analyzer determined it's used in array context
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
 			resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx)
 			if err == nil {
 				if arrayType, isArray := resolvedType.(*types.ArrayType); isArray {
@@ -159,8 +159,8 @@ func (e *Evaluator) evalSetRangeElement(
 	}
 
 	// Extract ordinal values
-	startOrd, err1 := GetOrdinalValue(startVal)
-	endOrd, err2 := GetOrdinalValue(endVal)
+	startOrd, err1 := runtime.GetOrdinalValue(startVal)
+	endOrd, err2 := runtime.GetOrdinalValue(endVal)
 
 	if err1 != nil {
 		return e.newError(rangeExpr.Start, "range start must be ordinal type: %s", err1.Error())
@@ -180,7 +180,7 @@ func (e *Evaluator) evalSetRangeElement(
 			*enumType = et
 			*elementType = et
 		} else {
-			*elementType = GetOrdinalType(startVal)
+			*elementType = runtime.GetOrdinalType(startVal)
 		}
 	}
 
@@ -230,7 +230,7 @@ func (e *Evaluator) evalSetSimpleElement(
 	}
 
 	// Extract ordinal value
-	ordinal, err := GetOrdinalValue(elemVal)
+	ordinal, err := runtime.GetOrdinalValue(elemVal)
 	if err != nil {
 		return e.newError(elem, "set element must be ordinal type: %s", err.Error())
 	}
@@ -246,7 +246,7 @@ func (e *Evaluator) evalSetSimpleElement(
 			*enumType = et
 			*elementType = et
 		} else {
-			*elementType = GetOrdinalType(elemVal)
+			*elementType = runtime.GetOrdinalType(elemVal)
 		}
 	} else {
 		// Verify all elements are of the same type

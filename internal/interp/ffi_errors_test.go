@@ -18,19 +18,19 @@ func TestCallExternalFunctionSafeRecoversPanicError(t *testing.T) {
 		panic(errors.New("boom"))
 	})
 
-	if interp.exception == nil {
+	if interp.GetException() == nil {
 		t.Fatalf("expected exception to be raised")
 	}
 
-	if interp.exception.Metadata.Name != "EHost" {
-		t.Fatalf("expected exception class EHost, got %s", interp.exception.Metadata.Name)
+	if interp.GetException().Metadata.Name != "EHost" {
+		t.Fatalf("expected exception class EHost, got %s", interp.GetException().Metadata.Name)
 	}
 
-	if !strings.Contains(interp.exception.Message, "panic: boom") {
-		t.Fatalf("expected panic message, got %q", interp.exception.Message)
+	if !strings.Contains(interp.GetException().Message, "panic: boom") {
+		t.Fatalf("expected panic message, got %q", interp.GetException().Message)
 	}
 
-	if field := interp.exception.Instance.GetField("ExceptionClass"); field != nil {
+	if field := interp.GetException().Instance.GetField("ExceptionClass"); field != nil {
 		if str, isString := field.(*StringValue); !isString || str.Value == "" {
 			t.Fatalf("expected ExceptionClass to contain panic type, got %#v", field)
 		}
@@ -51,12 +51,12 @@ func TestCallExternalFunctionSafePropagatesError(t *testing.T) {
 		t.Fatalf("expected nil result, got %s", result.Type())
 	}
 
-	if interp.exception == nil {
+	if interp.GetException() == nil {
 		t.Fatalf("expected exception to be raised for error path")
 	}
 
-	if !strings.Contains(interp.exception.Message, err.Error()) {
-		t.Fatalf("expected error message to be reflected, got %q", interp.exception.Message)
+	if !strings.Contains(interp.GetException().Message, err.Error()) {
+		t.Fatalf("expected error message to be reflected, got %q", interp.GetException().Message)
 	}
 }
 
@@ -69,16 +69,16 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 		// Simulate what happens when an external function returns an error
 		interp.raiseGoErrorAsException(testErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected exception to be set")
 		}
 
-		if interp.exception.Message != "test error message" {
-			t.Errorf("expected message 'test error message', got %q", interp.exception.Message)
+		if interp.GetException().Message != "test error message" {
+			t.Errorf("expected message 'test error message', got %q", interp.GetException().Message)
 		}
 
-		if interp.exception.Metadata.Name != "EHost" {
-			t.Errorf("expected exception class 'EHost', got %q", interp.exception.Metadata.Name)
+		if interp.GetException().Metadata.Name != "EHost" {
+			t.Errorf("expected exception class 'EHost', got %q", interp.GetException().Metadata.Name)
 		}
 	})
 
@@ -89,7 +89,7 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 		interp.raiseGoErrorAsException(testErr)
 
 		// Verify ExceptionClass field contains the Go type
-		exceptionClassField := interp.exception.Instance.GetField("ExceptionClass")
+		exceptionClassField := interp.GetException().Instance.GetField("ExceptionClass")
 		if exceptionClassField == nil {
 			t.Fatal("expected ExceptionClass field to exist")
 		}
@@ -114,16 +114,16 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 		testErr := errors.New("error in nested call")
 		interp.raiseGoErrorAsException(testErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected exception to be set")
 		}
 
-		if len(interp.exception.CallStack) != 2 {
-			t.Errorf("expected call stack length 2, got %d", len(interp.exception.CallStack))
+		if len(interp.GetException().CallStack) != 2 {
+			t.Errorf("expected call stack length 2, got %d", len(interp.GetException().CallStack))
 		}
 
-		if interp.exception.CallStack[0].FunctionName != "function1" {
-			t.Errorf("expected first call stack entry 'function1', got %q", interp.exception.CallStack[0].FunctionName)
+		if interp.GetException().CallStack[0].FunctionName != "function1" {
+			t.Errorf("expected first call stack entry 'function1', got %q", interp.GetException().CallStack[0].FunctionName)
 		}
 	})
 
@@ -133,7 +133,7 @@ func TestGoErrorToExceptionConversion(t *testing.T) {
 		// Calling with nil error should not set exception
 		interp.raiseGoErrorAsException(nil)
 
-		if interp.exception != nil {
+		if interp.GetException() != nil {
 			t.Error("expected no exception for nil error")
 		}
 	})
@@ -155,28 +155,28 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 		testErr := errors.New("error in nested function")
 		interp.raiseGoErrorAsException(testErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected exception to be raised")
 		}
 
 		// Verify exception message
-		if interp.exception.Message != "error in nested function" {
-			t.Errorf("expected message 'error in nested function', got %q", interp.exception.Message)
+		if interp.GetException().Message != "error in nested function" {
+			t.Errorf("expected message 'error in nested function', got %q", interp.GetException().Message)
 		}
 
 		// Verify call stack is captured with all frames
-		if len(interp.exception.CallStack) != 3 {
-			t.Errorf("expected call stack length 3, got %d", len(interp.exception.CallStack))
+		if len(interp.GetException().CallStack) != 3 {
+			t.Errorf("expected call stack length 3, got %d", len(interp.GetException().CallStack))
 		}
 
 		// Verify call stack frames are correct
 		expectedFrames := []string{"outerDWScriptFunction", "goFunctionA", "innerDWScriptFunction"}
 		for i, expected := range expectedFrames {
-			if i >= len(interp.exception.CallStack) {
+			if i >= len(interp.GetException().CallStack) {
 				break
 			}
-			if interp.exception.CallStack[i].FunctionName != expected {
-				t.Errorf("call stack frame %d: expected %q, got %q", i, expected, interp.exception.CallStack[i].FunctionName)
+			if interp.GetException().CallStack[i].FunctionName != expected {
+				t.Errorf("call stack frame %d: expected %q, got %q", i, expected, interp.GetException().CallStack[i].FunctionName)
 			}
 		}
 	})
@@ -191,33 +191,33 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 		firstErr := errors.New("first error")
 		interp.raiseGoErrorAsException(firstErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected first exception to be set")
 		}
 
-		firstException := interp.exception
+		firstException := interp.GetException()
 		if !strings.Contains(firstException.Message, "first error") {
 			t.Errorf("expected first error message, got %q", firstException.Message)
 		}
 
 		// Clear exception and test second error
-		interp.exception = nil
+		interp.clearException()
 		interp.pushCallStack("level3")
 
 		secondErr := errors.New("second error")
 		interp.raiseGoErrorAsException(secondErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected second exception to be set")
 		}
 
-		if !strings.Contains(interp.exception.Message, "second error") {
-			t.Errorf("expected second error message, got %q", interp.exception.Message)
+		if !strings.Contains(interp.GetException().Message, "second error") {
+			t.Errorf("expected second error message, got %q", interp.GetException().Message)
 		}
 
 		// Call stack should have 3 frames for second error
-		if len(interp.exception.CallStack) != 3 {
-			t.Errorf("expected call stack length 3, got %d", len(interp.exception.CallStack))
+		if len(interp.GetException().CallStack) != 3 {
+			t.Errorf("expected call stack length 3, got %d", len(interp.GetException().CallStack))
 		}
 	})
 
@@ -228,17 +228,17 @@ func TestErrorPropagationNestedCalls(t *testing.T) {
 		testErr := errors.New("top-level error")
 		interp.raiseGoErrorAsException(testErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected exception to be set")
 		}
 
 		// Call stack should be empty but not nil
-		if interp.exception.CallStack == nil {
+		if interp.GetException().CallStack == nil {
 			t.Error("expected call stack to be non-nil even when empty")
 		}
 
-		if len(interp.exception.CallStack) != 0 {
-			t.Errorf("expected empty call stack, got %d frames", len(interp.exception.CallStack))
+		if len(interp.GetException().CallStack) != 0 {
+			t.Errorf("expected empty call stack, got %d frames", len(interp.GetException().CallStack))
 		}
 	})
 }
@@ -249,10 +249,7 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		interp := newTestInterpreter()
 
 		// Verify EHost class exists
-		eHostClass, exists := interp.classes["ehost"]
-		if !exists {
-			t.Fatal("expected EHost class to be registered")
-		}
+		eHostClass := mustLookupTestClass(t, interp, "EHost")
 
 		// Verify EHost inherits from Exception
 		if eHostClass.Parent == nil {
@@ -279,12 +276,12 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 
 		interp.raiseGoErrorAsException(testErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected exception to be set")
 		}
 
 		// Verify ExceptionClass field exists and is populated
-		exceptionClassField := interp.exception.Instance.GetField("ExceptionClass")
+		exceptionClassField := interp.GetException().Instance.GetField("ExceptionClass")
 		if exceptionClassField == nil {
 			t.Fatal("expected ExceptionClass field to exist in EHost exception")
 		}
@@ -310,12 +307,12 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 
 		interp.raiseGoErrorAsException(testErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected exception to be set")
 		}
 
 		// Verify Message field exists
-		messageField := interp.exception.Instance.GetField("Message")
+		messageField := interp.GetException().Instance.GetField("Message")
 		if messageField == nil {
 			t.Fatal("expected Message field to exist in EHost exception")
 		}
@@ -330,8 +327,8 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		}
 
 		// Also verify the exception's Message field
-		if interp.exception.Message != "detailed error message" {
-			t.Errorf("expected exception.Message 'detailed error message', got %q", interp.exception.Message)
+		if interp.GetException().Message != "detailed error message" {
+			t.Errorf("expected exception.Message 'detailed error message', got %q", interp.GetException().Message)
 		}
 	})
 
@@ -354,15 +351,15 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				// Clear previous exception
-				interp.exception = nil
+				interp.clearException()
 
 				interp.raiseGoErrorAsException(tc.err)
 
-				if interp.exception == nil {
+				if interp.GetException() == nil {
 					t.Fatal("expected exception to be set")
 				}
 
-				exceptionClassField := interp.exception.Instance.GetField("ExceptionClass")
+				exceptionClassField := interp.GetException().Instance.GetField("ExceptionClass")
 				if exceptionClassField == nil {
 					t.Fatal("expected ExceptionClass field")
 				}
@@ -379,27 +376,27 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 		interp := newTestInterpreter()
 
 		// Temporarily remove EHost class to test fallback
-		eHostClass := interp.classes["ehost"]
-		delete(interp.classes, "ehost")
+		eHostClass := mustLookupTestClass(t, interp, "EHost")
+		interp.typeSystem.UnregisterClass("EHost")
 		defer func() {
-			interp.classes["ehost"] = eHostClass
+			interp.typeSystem.RegisterClassWithParent("EHost", eHostClass, "Exception")
 		}()
 
 		testErr := errors.New("error without EHost")
 		interp.raiseGoErrorAsException(testErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected exception to be set even without EHost class")
 		}
 
 		// Should fall back to Exception class
-		if interp.exception.Metadata.Name != "Exception" {
-			t.Errorf("expected fallback to 'Exception' class, got %q", interp.exception.Metadata.Name)
+		if interp.GetException().Metadata.Name != "Exception" {
+			t.Errorf("expected fallback to 'Exception' class, got %q", interp.GetException().Metadata.Name)
 		}
 
 		// Message should still be set
-		if interp.exception.Message != "error without EHost" {
-			t.Errorf("expected message to be preserved, got %q", interp.exception.Message)
+		if interp.GetException().Message != "error without EHost" {
+			t.Errorf("expected message to be preserved, got %q", interp.GetException().Message)
 		}
 	})
 
@@ -409,22 +406,22 @@ func TestEHostExceptionSpecificFeatures(t *testing.T) {
 
 		interp.raiseGoErrorAsException(testErr)
 
-		if interp.exception == nil {
+		if interp.GetException() == nil {
 			t.Fatal("expected exception to be set")
 		}
 
 		// Verify exception.Instance is an ObjectInstance
-		if interp.exception.Instance == nil {
+		if interp.GetException().Instance == nil {
 			t.Fatal("expected exception instance to be non-nil")
 		}
 
 		// Verify instance has Class pointing to EHost
-		if interp.exception.Instance.Class.GetName() != "EHost" {
-			t.Errorf("expected instance Class to be 'EHost', got %q", interp.exception.Instance.Class.GetName())
+		if interp.GetException().Instance.Class.GetName() != "EHost" {
+			t.Errorf("expected instance Class to be 'EHost', got %q", interp.GetException().Instance.Class.GetName())
 		}
 
 		// Verify instance has Fields map
-		if interp.exception.Instance.Fields == nil {
+		if interp.GetException().Instance.Fields == nil {
 			t.Fatal("expected instance Fields to be non-nil")
 		}
 	})

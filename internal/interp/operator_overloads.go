@@ -1,6 +1,9 @@
 package interp
 
-import "github.com/cwbudde/go-dws/pkg/ast"
+import (
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
+)
 
 // Operator overloading adapter methods.
 // These methods implement the InterpreterAdapter interface for operator overloading.
@@ -35,15 +38,7 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 		}
 	}
 	if entry, found := i.typeSystem.Operators().Lookup(operator, operandTypes); found {
-		// Convert types.OperatorEntry to runtimeOperatorEntry
-		runtimeEntry := &runtimeOperatorEntry{
-			Class:         entry.Class.(*ClassInfo),
-			Operator:      entry.Operator,
-			BindingName:   entry.BindingName,
-			OperandTypes:  entry.OperandTypes,
-			SelfIndex:     entry.SelfIndex,
-			IsClassMethod: entry.IsClassMethod,
-		}
+		runtimeEntry := runtimeOperatorEntryFromTypeEntry(entry)
 		return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 	}
 	return nil, false
@@ -72,17 +67,29 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 	}
 
 	if entry, found := i.typeSystem.Operators().Lookup(operator, operandTypes); found {
-		// Convert types.OperatorEntry to runtimeOperatorEntry
-		runtimeEntry := &runtimeOperatorEntry{
-			Class:         entry.Class.(*ClassInfo),
-			Operator:      entry.Operator,
-			BindingName:   entry.BindingName,
-			OperandTypes:  entry.OperandTypes,
-			SelfIndex:     entry.SelfIndex,
-			IsClassMethod: entry.IsClassMethod,
-		}
+		runtimeEntry := runtimeOperatorEntryFromTypeEntry(entry)
 		return i.invokeRuntimeOperator(runtimeEntry, operands, node), true
 	}
 
 	return nil, false
+}
+
+func runtimeOperatorEntryFromTypeEntry(entry *interptypes.OperatorEntry) *runtimeOperatorEntry {
+	if entry == nil {
+		return nil
+	}
+
+	var classInfo *ClassInfo
+	if entry.Class != nil {
+		classInfo, _ = entry.Class.(*ClassInfo)
+	}
+
+	return &runtimeOperatorEntry{
+		Class:         classInfo,
+		Operator:      entry.Operator,
+		BindingName:   entry.BindingName,
+		OperandTypes:  entry.OperandTypes,
+		SelfIndex:     entry.SelfIndex,
+		IsClassMethod: entry.IsClassMethod,
+	}
 }

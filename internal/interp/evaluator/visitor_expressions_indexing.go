@@ -108,7 +108,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 						return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
 					}
 					return recVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
-						return e.oopEngine.ExecuteRecordPropertyRead(objVal, pi, idx, node)
+						return e.executeRecordIndexedPropertyRead(objVal, pi, idx, node, ctx)
 					})
 				}
 			}
@@ -208,7 +208,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 					return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
 				}
 				return recVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
-					return e.oopEngine.ExecuteRecordPropertyRead(leftVal, pi, idx, node)
+					return e.executeRecordIndexedPropertyRead(leftVal, pi, idx, node, ctx)
 				})
 			}
 		}
@@ -264,7 +264,7 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 	// This is safe because TypeSystem stores *RecordTypeValue
 	type recordTypeAccess interface {
 		GetRecordType() *types.RecordType
-		GetMetadata() any
+		GetMetadata() *runtime.RecordMetadata
 	}
 
 	recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
@@ -277,13 +277,7 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 		return e.newError(node, "failed to extract record type for '%s'", recordTypeName)
 	}
 
-	// Extract Metadata (may be nil)
-	var metadata *runtime.RecordMetadata
-	if mdAny := recordTypeAccessor.GetMetadata(); mdAny != nil {
-		if md, ok := mdAny.(*runtime.RecordMetadata); ok {
-			metadata = md
-		}
-	}
+	metadata := recordTypeAccessor.GetMetadata()
 
 	// Extract FieldDecls using struct field access
 	// Since we know the concrete type is *RecordTypeValue from interp package

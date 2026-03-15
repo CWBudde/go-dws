@@ -10,8 +10,6 @@ type (
 	ControlFlow         = runtime.ControlFlow
 	ControlFlowKind     = runtime.ControlFlowKind
 	ExecutionContext    = runtime.ExecutionContext
-	ExceptionGetter     = runtime.ExceptionGetter
-	ExceptionSetter     = runtime.ExceptionSetter
 	PropertyEvalContext = runtime.PropertyEvalContext
 )
 
@@ -35,8 +33,4 @@ func NewExecutionContext(env *runtime.Environment) *ExecutionContext {
 
 func NewExecutionContextWithMaxDepth(env *runtime.Environment, maxDepth int) *ExecutionContext {
 	return runtime.NewExecutionContextWithMaxDepth(env, maxDepth)
-}
-
-func NewExecutionContextWithCallbacks(env *runtime.Environment, maxDepth int, getter ExceptionGetter, setter ExceptionSetter) *ExecutionContext {
-	return runtime.NewExecutionContextWithCallbacks(env, maxDepth, getter, setter)
 }

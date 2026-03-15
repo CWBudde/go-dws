@@ -84,8 +84,8 @@ func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionCont
 
 	// No else clause - return default value for the consequence type
 	var typeAnnot *ast.TypeAnnotation
-	if e.semanticInfo != nil {
-		typeAnnot = e.semanticInfo.GetType(node)
+	if e.SemanticInfo() != nil {
+		typeAnnot = e.SemanticInfo().GetType(node)
 	}
 	if typeAnnot == nil {
 		return e.newError(node, "if expression missing type annotation")

@@ -210,6 +210,24 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		if methodType, hasMethod := allMethods[memberName]; hasMethod {
 			return methodType
 		}
+
+		// Interface helpers can add both instance methods and helper class members.
+		if helperMethod := a.hasHelperMethod(objectType, memberName); helperMethod != nil {
+			if len(helperMethod.Parameters) == 0 {
+				return helperMethod.ReturnType
+			}
+			return helperMethod
+		}
+		if helperProp := a.hasHelperProperty(objectType, memberName); helperProp != nil {
+			return helperProp.Type
+		}
+		if _, helperClassVar := a.hasHelperClassVar(objectType, memberName); helperClassVar != nil {
+			return helperClassVar
+		}
+		if _, helperConst := a.hasHelperClassConst(objectType, memberName); helperConst != nil {
+			return objectType
+		}
+
 		a.addError("interface '%s' has no method '%s' at %s",
 			ifaceType.Name, expr.Member.Value, expr.Token.Pos.String())
 		return nil
@@ -317,6 +335,11 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 	// Look up constructor (constructors are stored separately)
 	constructorOverloads := classType.GetConstructorOverloads(memberName)
+	if len(constructorOverloads) == 0 {
+		if ctorType, found := classType.GetConstructor(memberName); found {
+			constructorOverloads = []*types.MethodInfo{{Signature: ctorType}}
+		}
+	}
 	if len(constructorOverloads) > 0 {
 		if memberName == "create" && expr.Member.Value != "Create" {
 			pos := expr.Token.Pos

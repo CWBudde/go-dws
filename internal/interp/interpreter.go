@@ -1,10 +1,8 @@
 package interp
 
 import (
-	"fmt"
 	"io"
 	"math"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/contracts"
@@ -24,23 +22,23 @@ const DefaultMaxRecursionDepth = 1024
 // PropertyEvalContext tracks the state during property getter/setter evaluation.
 type PropertyEvalContext = runtime.PropertyEvalContext
 
+type evaluatorShim interface {
+	Eval(node ast.Node, ctx *runtime.ExecutionContext) Value
+	ExecuteUserFunctionDirect(fn *ast.FunctionDecl, args []Value, ctx *runtime.ExecutionContext) Value
+	CurrentNode() ast.Node
+	EngineState() *contracts.EngineState
+	SetCurrentNode(node ast.Node)
+}
+
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
 // Thin orchestrator delegating evaluation logic to the Evaluator.
 type Interpreter struct {
 	output            io.Writer
-	exception         *runtime.ExceptionValue
-	handlerException  *runtime.ExceptionValue
-	propContext       *PropertyEvalContext
+	engineState       *contracts.EngineState
 	typeSystem        *interptypes.TypeSystem
 	methodRegistry    *runtime.MethodRegistry
-	records           map[string]*RecordTypeValue
-	functions         map[string][]*ast.FunctionDecl
-	evaluatorInstance contracts.Evaluator
-	classes           map[string]*ClassInfo
+	evaluatorInstance evaluatorShim
 	ctx               *runtime.ExecutionContext
-	oldValuesStack    []map[string]Value
-	callStack         errors.StackTrace
-	maxRecursionDepth int
 }
 
 // NewWithDeps creates an Interpreter with its core dependencies provided by a higher-level runner.
@@ -50,56 +48,38 @@ func NewWithDeps(
 	opts Options,
 	env *runtime.Environment,
 	typeSystem *interptypes.TypeSystem,
-	eval contracts.Evaluator,
+	eval evaluatorShim,
 	refCountMgr runtime.RefCountManager,
 ) *Interpreter {
 	interp := &Interpreter{
 		output:            output,
-		maxRecursionDepth: DefaultMaxRecursionDepth,
-		callStack:         errors.NewStackTrace(),
+		engineState:       eval.EngineState(),
 		typeSystem:        typeSystem,
 		methodRegistry:    runtime.NewMethodRegistry(),
-		functions:         make(map[string][]*ast.FunctionDecl),
-		classes:           make(map[string]*ClassInfo),
-		records:           make(map[string]*RecordTypeValue),
 		evaluatorInstance: eval,
 	}
+	interp.engineState.MethodRegistry = interp.methodRegistry
 
 	if opts != nil {
 		if depth := opts.GetMaxRecursionDepth(); depth > 0 {
-			interp.maxRecursionDepth = depth
+			interp.engineState.MaxRecursionDepth = depth
 		}
 	}
+	if interp.engineState.MaxRecursionDepth <= 0 {
+		interp.engineState.MaxRecursionDepth = DefaultMaxRecursionDepth
+	}
 
-	interp.ctx = runtime.NewExecutionContextWithCallbacks(
-		env,
-		interp.maxRecursionDepth,
-		func() any {
-			if interp.exception == nil {
-				return nil
-			}
-			return interp.exception
-		},
-		func(exc any) {
-			if exc == nil {
-				interp.exception = nil
-				return
-			}
-			if excVal, ok := exc.(*runtime.ExceptionValue); ok {
-				interp.exception = excVal
-			}
-		},
-	)
+	interp.ctx = runtime.NewExecutionContextWithMaxDepth(env, interp.engineState.MaxRecursionDepth)
 	interp.ctx.SetRefCountManager(refCountMgr)
 
 	if interp.evaluatorInstance != nil {
 		if opts != nil {
 			if registry := opts.GetExternalFunctions(); registry != nil {
-				interp.evaluatorInstance.SetExternalFunctions(registry)
+				interp.engineState.ExternalFunctions = registry
 			}
 		}
-		if interp.evaluatorInstance.ExternalFunctions() == nil {
-			interp.evaluatorInstance.SetExternalFunctions(NewExternalFunctionRegistry())
+		if interp.engineState.ExternalFunctions == nil {
+			interp.engineState.ExternalFunctions = NewExternalFunctionRegistry()
 		}
 	}
 
@@ -130,298 +110,20 @@ func NewWithDeps(
 // GetException returns the current active exception, or nil if none.
 // This is used by the CLI to detect and report unhandled exceptions.
 func (i *Interpreter) GetException() *runtime.ExceptionValue {
-	return i.exception
+	exc, _ := i.ctx.Exception().(*runtime.ExceptionValue)
+	return exc
 }
 
 // SetSemanticInfo sets the semantic metadata table for this interpreter.
 // The semantic info contains type annotations and symbol resolutions from analysis.
 func (i *Interpreter) SetSemanticInfo(info *ast.SemanticInfo) {
-	if i.evaluatorInstance != nil {
-		i.evaluatorInstance.SetSemanticInfo(info)
-	}
-}
-
-// GetEvaluator returns the evaluator instance.
-func (i *Interpreter) GetEvaluator() contracts.Evaluator {
-	return i.evaluatorInstance
-}
-
-// EvalNode provides a minimal evaluation hook for cross-cutting concerns.
-// The ctx parameter ensures the interpreter uses the correct environment,
-// especially when callbacks occur from within scopes that pushed new environments
-// (e.g., for loops).
-func (i *Interpreter) EvalNode(node ast.Node, ctx *runtime.ExecutionContext) Value {
-	// IMPORTANT:
-	// This is a CoreEvaluator callback used by the evaluator for not-yet-migrated
-	// operations. It must NOT call i.Eval() (which delegates to the evaluator),
-	// otherwise we'd recurse forever. Use the legacy path instead.
-
-	// Sync the interpreter's context environment with the evaluator's context.
-	// This ensures that variables defined in nested scopes (like for loop variables)
-	// are visible when the interpreter evaluates expressions.
-	savedEnv := i.ctx.Env()
-	if ctx != nil && ctx.Env() != savedEnv {
-		i.ctx.SetEnv(ctx.Env())
-		defer i.ctx.SetEnv(savedEnv)
-	}
-
-	return i.evalLegacy(node)
-}
-
-// evalLegacy contains the prior interpreter-side dispatch for statements/
-// declarations and any remaining expression cases that still rely on interpreter
-// state. It exists to support evaluator->CoreEvaluator callbacks while keeping
-// Interpreter.Eval() unified.
-func (i *Interpreter) evalLegacy(node ast.Node) Value {
-	i.evaluatorInstance.SetCurrentNode(node)
-
-	switch node := node.(type) {
-	// Program - KEEP: orchestrates exception flow via i.exception
-	case *ast.Program:
-		return i.evalProgram(node)
-
-	case *ast.EmptyStatement:
-		return i.evalViaEvaluator(node)
-
-	// Statements - KEEP in interpreter: exception/control flow uses i.exception
-	case *ast.ExpressionStatement:
-		// Evaluate the expression
-		val := i.Eval(node.Expression)
-		if isError(val) {
-			// Enrich error with statement location
-			// Prevent duplicate stack traces for the same source line
-			if errVal, ok := val.(*ErrorValue); ok {
-				exprPos := node.Expression.Pos()
-				// Check for both "line N" and "[line: N," formats to handle all cases
-				lineMarker1 := fmt.Sprintf("line %d", exprPos.Line)
-				lineMarker2 := fmt.Sprintf("[line: %d,", exprPos.Line)
-				loc := fmt.Sprintf("at line %d, column: %d", exprPos.Line, exprPos.Column+2)
-				// Don't add stack trace if this line is already present in any format
-				if !strings.Contains(errVal.Message, lineMarker1) && !strings.Contains(errVal.Message, lineMarker2) {
-					errVal.Message = errVal.Message + "\n " + loc
-				}
-			}
-			return val
-		}
-
-		// Auto-invoke parameterless function pointers in statements
-		// Example: var fp := @SomeProc; fp; // auto-invokes SomeProc
-		if funcPtr, isFuncPtr := val.(*FunctionPointerValue); isFuncPtr {
-			// Determine parameter count
-			paramCount := 0
-			if funcPtr.Function != nil {
-				paramCount = len(funcPtr.Function.Parameters)
-			} else if funcPtr.Lambda != nil {
-				paramCount = len(funcPtr.Lambda.Parameters)
-			}
-
-			// If it has zero parameters, auto-invoke it
-			if paramCount == 0 {
-				// Check if the function pointer is nil (not assigned)
-				if funcPtr.Function == nil && funcPtr.Lambda == nil {
-					// Raise an exception that can be caught by try-except
-					i.raiseException("Exception", "Function pointer is nil", &node.Token.Pos)
-					return &NilValue{}
-				}
-				return i.callFunctionPointer(funcPtr, []Value{}, node)
-			}
-		}
-
-		return val
-
-	case *ast.VarDeclStatement:
-		// KEEP: Has complex static array initialization logic
-		return i.evalVarDeclStatement(node)
-
-	case *ast.ConstDecl:
-		// KEEP: May have type-specific initialization
-		return i.evalConstDecl(node)
-
-	case *ast.AssignmentStatement:
-		return i.evalAssignmentStatement(node)
-
-	case *ast.BlockStatement:
-		// KEEP: Block statements need interpreter's control flow handling
-		return i.evalBlockStatement(node)
-
-	case *ast.IfStatement:
-		return i.evalIfStatement(node)
-
-	case *ast.WhileStatement:
-		return i.evalWhileStatement(node)
-
-	case *ast.RepeatStatement:
-		return i.evalRepeatStatement(node)
-
-	case *ast.ForStatement:
-		return i.evalForStatement(node)
-
-	case *ast.ForInStatement:
-		return i.evalForInStatement(node)
-
-	case *ast.CaseStatement:
-		return i.evalCaseStatement(node)
-
-	case *ast.TryStatement:
-		return i.evalTryStatement(node)
-
-	case *ast.RaiseStatement:
-		return i.evalRaiseStatement(node)
-
-	case *ast.UsesClause:
-		// Uses clauses are processed before execution by the CLI/loader
-		return nil
-
-	case *ast.FunctionDecl:
-		// KEEP: Has function registry interactions
-		return i.evalFunctionDeclaration(node)
-
-	case *ast.ClassDecl:
-		// KEEP: Complex type system registration
-		return i.evalClassDeclaration(node)
-
-	case *ast.InterfaceDecl:
-		// KEEP: Interface registration ordering
-		return i.evalInterfaceDeclaration(node)
-
-	case *ast.OperatorDecl:
-		// KEEP: Operator registry interactions
-		return i.evalOperatorDeclaration(node)
-
-	case *ast.EnumDecl:
-		// KEEP: Enum type registration
-		return i.evalEnumDeclaration(node)
-
-	case *ast.SetDecl:
-		// Evaluator now handles this (no adapter fallback needed)
-		return i.evalViaEvaluator(node)
-
-	case *ast.RecordDecl:
-		return i.evalViaEvaluator(node)
-
-	case *ast.HelperDecl:
-		// KEEP: Helper type registration
-		return i.evalHelperDeclaration(node)
-
-	case *ast.ArrayDecl:
-		return i.evalViaEvaluator(node)
-
-	case *ast.TypeDeclaration:
-		// KEEP: Type alias registration
-		return i.evalTypeDeclaration(node)
-
-	// Expressions - Literals (delegate to evaluator)
-	case *ast.IntegerLiteral:
-		return i.evalViaEvaluator(node)
-
-	case *ast.FloatLiteral:
-		return i.evalViaEvaluator(node)
-
-	case *ast.StringLiteral:
-		return i.evalViaEvaluator(node)
-
-	case *ast.BooleanLiteral:
-		return i.evalViaEvaluator(node)
-
-	case *ast.CharLiteral:
-		return i.evalViaEvaluator(node)
-
-	case *ast.NilLiteral:
-		return i.evalViaEvaluator(node)
-
-	case *ast.Identifier:
-		return i.evalViaEvaluator(node)
-
-	case *ast.BinaryExpression:
-		return i.evalViaEvaluator(node)
-
-	case *ast.UnaryExpression:
-		return i.evalViaEvaluator(node)
-
-	case *ast.AddressOfExpression:
-		// KEEP: Method pointer creation requires interpreter state
-		return i.evalAddressOfExpression(node)
-
-	case *ast.GroupedExpression:
-		return i.evalViaEvaluator(node)
-
-	case *ast.CallExpression:
-		return i.evalCallExpression(node)
-
-	case *ast.NewExpression:
-		return i.evalNewExpression(node)
-
-	case *ast.MemberAccessExpression:
-		return i.evalMemberAccess(node)
-
-	case *ast.MethodCallExpression:
-		return i.evalMethodCall(node)
-
-	case *ast.InheritedExpression:
-		return i.evalInheritedExpression(node)
-
-	case *ast.SelfExpression:
-		return i.evalSelfExpression(node)
-
-	case *ast.EnumLiteral:
-		return i.evalViaEvaluator(node)
-
-	case *ast.RecordLiteralExpression:
-		// KEEP: Field validation and type context handling
-		return i.evalRecordLiteral(node)
-
-	case *ast.SetLiteral:
-		return i.evalViaEvaluator(node)
-
-	case *ast.ArrayLiteralExpression:
-		// KEEP: Type context from assignment target
-		return i.evalArrayLiteral(node)
-
-	case *ast.IndexExpression:
-		// KEEP: Has complex property access logic
-		return i.evalIndexExpression(node)
-
-	case *ast.NewArrayExpression:
-		// KEEP: Array creation needs interpreter type lookup
-		return i.evalNewArrayExpression(node)
-
-	case *ast.LambdaExpression:
-		return i.evalViaEvaluator(node)
-
-	case *ast.IsExpression:
-		return i.evalViaEvaluator(node)
-
-	case *ast.AsExpression:
-		// KEEP: Has complex type cast logic that may need interpreter state
-		return i.evalAsExpression(node)
-
-	case *ast.ImplementsExpression:
-		return i.evalViaEvaluator(node)
-
-	case *ast.IfExpression:
-		return i.evalViaEvaluator(node)
-
-	case *ast.OldExpression:
-		// Evaluate 'old' expressions in postconditions
-		identName := node.Identifier.Value
-		oldValue, found := i.getOldValue(identName)
-		if !found {
-			return newError("old value for '%s' not captured (internal error)", identName)
-		}
-		return oldValue
-
-	default:
-		return newError("unknown node type: %T", node)
-	}
+	i.engineState.SemanticInfo = info
 }
 
 // GetCallStack returns a copy of the current call stack.
 // Returns stack frames in the order they were called (oldest to newest).
 func (i *Interpreter) GetCallStack() errors.StackTrace {
-	// Return a copy to prevent external modification
-	stack := make(errors.StackTrace, len(i.callStack))
-	copy(stack, i.callStack)
-	return stack
+	return i.ctx.CallStack()
 }
 
 // ===== Environment Management Helpers =====
@@ -472,16 +174,11 @@ func (i *Interpreter) pushCallStack(functionName string) {
 		nodePos := i.evaluatorInstance.CurrentNode().Pos()
 		pos = &nodePos
 	}
-	frame := errors.NewStackFrame(functionName, i.evaluatorInstance.SourceFile(), pos)
-	i.callStack = append(i.callStack, frame)
-	_ = i.ctx.GetCallStack().Push(functionName, i.evaluatorInstance.SourceFile(), pos)
+	_ = i.ctx.GetCallStack().Push(functionName, i.sourceFile(), pos)
 }
 
 // popCallStack removes the most recent frame from the call stack.
 func (i *Interpreter) popCallStack() {
-	if len(i.callStack) > 0 {
-		i.callStack = i.callStack[:len(i.callStack)-1]
-	}
 	i.ctx.GetCallStack().Pop()
 }
 
@@ -507,13 +204,22 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 // This is primarily used for array literals in function calls where the parameter type is known.
 // If expectedType is nil, this falls back to regular Eval().
 func (i *Interpreter) EvalWithExpectedType(node ast.Node, expectedType types.Type) Value {
-	// Special handling for array literals with expected array type
-	if arrayLit, ok := node.(*ast.ArrayLiteralExpression); ok {
-		if arrayType, ok := expectedType.(*types.ArrayType); ok {
-			return i.evalArrayLiteralWithExpected(arrayLit, arrayType)
-		}
+	i.evaluatorInstance.SetCurrentNode(node)
+
+	if expectedType == nil {
+		return i.evalViaEvaluator(node)
 	}
 
-	// For all other cases, use regular Eval
-	return i.Eval(node)
+	switch typed := types.GetUnderlyingType(expectedType).(type) {
+	case *types.ArrayType:
+		prev := i.ctx.ArrayTypeContext()
+		i.ctx.SetArrayTypeContext(typed)
+		defer i.ctx.SetArrayTypeContext(prev)
+	case *types.RecordType:
+		prev := i.ctx.RecordTypeContext()
+		i.ctx.SetRecordTypeContext(typed.Name)
+		defer i.ctx.SetRecordTypeContext(prev)
+	}
+
+	return i.evalViaEvaluator(node)
 }

@@ -118,14 +118,6 @@ func (i *Interpreter) evalEnumDeclaration(decl *ast.EnumDecl) Value {
 		enumType = types.NewEnumType(enumName, enumValues, orderedNames)
 	}
 
-	// Store enum type in the interpreter's registry (for type resolution)
-	if i.classes == nil {
-		i.classes = make(map[string]*ClassInfo)
-	}
-	// Note: We don't have a dedicated enum registry in the interpreter yet,
-	// so we'll use the environment to store enum types temporarily.
-	// A better approach would be to add an 'enums' map to the Interpreter struct.
-
 	// Register each enum value in the symbol table as a constant
 	// For scoped enums (enum/flags keyword), skip global registration -
 	// values are only accessible via qualified access (Type.Value)

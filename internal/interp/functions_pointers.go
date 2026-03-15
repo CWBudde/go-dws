@@ -165,7 +165,7 @@ func (i *Interpreter) callLambda(lambda *ast.LambdaExpression, closureEnv *Envir
 	}
 
 	// If an exception was raised during lambda execution, propagate it immediately
-	if i.exception != nil {
+	if i.exceptionValue() != nil {
 		i.RestoreEnvironment(savedEnv)
 		return &NilValue{}
 	}

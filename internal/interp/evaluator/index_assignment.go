@@ -74,7 +74,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 	if strings.HasPrefix(arrayVal.Type(), "INTERFACE") || arrayVal.Type() == "OBJECT" {
 		// Handle default property assignment using PropertyAccessor interface
 		// Pattern: Same as 3.2.11g but lookup default property instead of named property
-		return e.evalDefaultPropertyAssignment(arrayVal, indexVal, value, stmt)
+		return e.evalDefaultPropertyAssignment(arrayVal, indexVal, value, stmt, ctx)
 	}
 
 	// Extract integer index
@@ -271,11 +271,7 @@ func (e *Evaluator) evalIndexedPropertyAssignment(
 	args = append(args, indexValues...)
 	args = append(args, value)
 
-	// Execute setter method via general OOP facility (adapter.ExecuteMethodWithSelf)
-	// This delegates to the interpreter for method execution, but it's a general
-	// method dispatch mechanism, not a property-specific adapter interface
-	// Use objVal (unwrapped object) instead of baseObj (which might be an interface wrapper)
-	result := e.oopEngine.ExecuteMethodWithSelf(objVal, methodDecl, args)
+	result := e.executeObjectMethodDirect(objVal, methodDecl, args, stmt, ctx)
 
 	// Check for errors from method execution
 	if isError(result) {
@@ -306,6 +302,7 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 	indexVal Value,
 	value Value,
 	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
 ) Value {
 	// Check if object implements PropertyAccessor interface
 	accessor, ok := obj.(runtime.PropertyAccessor)
@@ -354,11 +351,7 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 	// Note: For default properties, we have a single index (not multi-index like named properties)
 	args := []Value{indexVal, value}
 
-	// Execute setter method via general OOP facility (adapter.ExecuteMethodWithSelf)
-	// This delegates to the interpreter for method execution, but it's a general
-	// method dispatch mechanism, not a property-specific adapter interface
-	// Use objVal (unwrapped object) instead of obj (which might be an interface wrapper)
-	result := e.oopEngine.ExecuteMethodWithSelf(objVal, methodDecl, args)
+	result := e.executeObjectMethodDirect(objVal, methodDecl, args, stmt, ctx)
 
 	// Check for errors from method execution
 	if isError(result) {

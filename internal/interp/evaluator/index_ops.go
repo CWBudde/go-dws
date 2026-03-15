@@ -104,14 +104,7 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 	case "RECORD":
 		// Recursively create nested records with zero-initialized fields
 		if recordType, ok := t.(*types.RecordType); ok {
-			// Look up metadata for nested record (returns any, need type assertion)
-			metadataAny := e.typeSystem.LookupRecordMetadata(recordType.Name)
-			var nestedMetadata *runtime.RecordMetadata
-			if metadataAny != nil {
-				if md, ok := metadataAny.(*runtime.RecordMetadata); ok {
-					nestedMetadata = md
-				}
-			}
+			nestedMetadata := e.typeSystem.LookupRecordMetadata(recordType.Name)
 
 			// Create zero-initialized nested record
 			zeroInit := func(nestedFieldName string, nestedFieldType types.Type) runtime.Value {

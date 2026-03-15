@@ -39,8 +39,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	}
 
 	expectedTypeKind := ""
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(node); typeAnnot != nil {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil {
 			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
 				expectedTypeKind = resolvedType.TypeKind()
 			}
@@ -50,8 +50,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 	// Unit-qualified access (UnitName.Symbol) should not evaluate the unit identifier.
 	if identObj, ok := node.Object.(*ast.Identifier); ok {
-		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.unitRegistry != nil {
-			if _, exists := e.unitRegistry.GetUnit(identObj.Value); exists {
+		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.UnitRegistry() != nil {
+			if _, exists := e.UnitRegistry().GetUnit(identObj.Value); exists {
 				if valRaw, ok := ctx.Env().Get(node.Member.Value); ok {
 					if val, ok := valRaw.(Value); ok {
 						return val
@@ -176,7 +176,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		if objVal.HasMethod(memberName) {
 			if wantMethodPointer {
 				if methodDecl := objVal.GetMethodDecl(memberName); methodDecl != nil {
-					return e.oopEngine.CreateBoundMethodPointer(obj, methodDecl)
+					return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
 				}
 				return e.newError(node, "method '%s' not found", memberName)
 			}
@@ -252,7 +252,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			if objVal, ok := underlying.(ObjectValue); ok {
 				if wantMethodPointer {
 					if methodDecl := objVal.GetMethodDecl(memberName); methodDecl != nil {
-						return e.oopEngine.CreateBoundMethodPointer(underlying, methodDecl)
+						return e.createFunctionPointerFromDecl(methodDecl, underlying, ctx)
 					}
 					return e.newError(node, "method '%s' not found", memberName)
 				}
@@ -316,13 +316,21 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		// Class properties (class property Counter: Integer read FCounter)
 		if result, found := classMetaVal.ReadClassProperty(memberName, func(propInfo any) Value {
-			return e.coreEvaluator.EvalClassPropertyRead(classMetaVal.GetClassInfo(), propInfo, node)
+			classInfo := classMetaVal.GetClassInfo()
+			if classInfo == nil {
+				return e.newError(node, "class metadata unavailable for class property read")
+			}
+			typedPropInfo, ok := propInfo.(*types.PropertyInfo)
+			if !ok {
+				return e.newError(node, "invalid property info type for class property read")
+			}
+			return e.evalClassPropertyRead(classInfo, typedPropInfo, node, ctx)
 		}); found {
 			return result
 		}
 
 		// Instance properties backed by class vars/consts accessed via class name
-		if classInfo, ok := classMetaVal.GetClassInfo().(runtime.IClassInfo); ok {
+		if classInfo := classMetaVal.GetClassInfo(); classInfo != nil {
 			if propDesc := classInfo.LookupProperty(memberName); propDesc != nil {
 				if propInfo, ok := propDesc.Impl.(*types.PropertyInfo); ok && !propInfo.IsClassProperty && propInfo.ReadKind == types.PropAccessField {
 					if val, found := classMetaVal.GetClassVar(propInfo.ReadSpec); found {
@@ -358,16 +366,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		if classMetaVal.HasClassMethod(memberName) {
 			// Try parameterless auto-invoke
 			result, invoked := classMetaVal.InvokeParameterlessClassMethod(memberName, func(methodDecl any) Value {
-				// Create synthetic method call and route to VisitMethodCallExpression
-				methodCall := &ast.MethodCallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: node.Token},
-					},
-					Object:    node.Object,
-					Method:    node.Member,
-					Arguments: []ast.Expression{},
-				}
-				return e.VisitMethodCallExpression(methodCall, ctx)
+				return e.executeClassMethodDirect(classMetaVal, methodDecl, nil, node, ctx)
 			})
 			if invoked {
 				return result
@@ -566,10 +565,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		}
 
 		// Look up class and access class variable
-		classMetaVal := e.oopEngine.LookupClassByName(typedClassName)
-		if classMetaVal != nil {
-			if classVarValue, found := classMetaVal.GetClassVar(memberName); found {
-				return classVarValue
+		if cv, err := e.typeSystem.CreateClassValue(typedClassName); err == nil && cv != nil {
+			if classMetaVal, ok := cv.(ClassMetaValue); ok {
+				if classVarValue, found := classMetaVal.GetClassVar(memberName); found {
+					return classVarValue
+				}
 			}
 		}
 

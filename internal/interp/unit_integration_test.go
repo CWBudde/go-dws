@@ -240,9 +240,8 @@ func TestImportUnitSymbols_WithFunctions(t *testing.T) {
 		t.Fatalf("Failed to import symbols: %v", err)
 	}
 
-	// Verify function was registered
-	// Note: Function names are stored in lowercase (DWScript is case-insensitive)
-	if _, exists := interp.functions["testfunc"]; !exists {
+	// Verify function was registered in the canonical function registry.
+	if !interp.typeSystem.HasFunction("TestFunc") {
 		t.Error("Expected TestFunc to be registered after import")
 	}
 }

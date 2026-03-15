@@ -218,32 +218,8 @@ func (e *Evaluator) castToBoolean(val Value) Value {
 func (e *Evaluator) castToEnum(val Value, targetEnum *types.EnumType, typeName string) Value {
 	switch v := val.(type) {
 	case *runtime.IntegerValue:
-		// Integer → Enum: Create an EnumValue with the integer as ordinal
-		// Find the enum value name for this ordinal (if it exists)
 		ordinal := int(v.Value)
-		var valueName string
-
-		// Look up the name for this ordinal value
-		for name, ord := range targetEnum.Values {
-			if ord == ordinal {
-				valueName = name
-				break
-			}
-		}
-
-		// If no matching name found, create a placeholder name using the ordinal value
-		// (DWScript allows casting any integer to enum, even if not a valid ordinal)
-		if valueName == "" && len(targetEnum.OrderedNames) > 0 {
-			// For out-of-bounds ordinals, we still create an EnumValue
-			// but with a placeholder name (DWScript behavior)
-			valueName = fmt.Sprintf("$%d", ordinal)
-		}
-
-		return &runtime.EnumValue{
-			TypeName:     typeName,
-			ValueName:    valueName,
-			OrdinalValue: ordinal,
-		}
+		return runtime.NewEnumValue(typeName, targetEnum, ordinal)
 
 	case *runtime.EnumValue:
 		// Enum → Enum: Only allow identity cast (same type)
@@ -337,7 +313,7 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 	if _, isNil := val.(*runtime.NilValue); isNil {
 		// Wrap nil in TypeCastValue to preserve static type information
 		// This allows TBase(nilChild).ClassVar to access TBase's class variable
-		wrapper := e.oopEngine.CreateTypeCastWrapper(className, val)
+		wrapper := e.createTypeCastValue(className, val)
 		if wrapper == nil {
 			return e.newError(node, "class '%s' not found", className)
 		}
@@ -387,11 +363,12 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 
 	// Cast is valid - return a TypeCastValue that preserves the static type
 	// This is crucial for class variable access: TBase(child).ClassVar should access TBase's class variable
-	wrapper := e.oopEngine.CreateTypeCastWrapper(className, val)
-	if wrapper == nil {
-		return e.newError(node, "failed to create type cast wrapper for class '%s'", className)
+	// We already have targetClassInfo from the lookup above; use it directly.
+	classInfoIface, ok := targetClassInfo.(runtime.IClassInfo)
+	if !ok {
+		return e.newError(node, "class '%s' has invalid type for type cast", className)
 	}
-	return wrapper
+	return &interp_TypeCastValue{Object: val, StaticType: classInfoIface}
 }
 
 // raiseTypeCastException raises an exception for invalid type casts.

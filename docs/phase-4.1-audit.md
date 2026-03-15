@@ -4,6 +4,12 @@
 **Status**: Empirical testing completed, 4/34 callbacks eliminated
 **Branch**: feat/attempt_on_phase_4
 
+> Historical note
+>
+> This document is an early Phase 4 audit snapshot. The callback counts,
+> focused-interface inventory, and migration estimates here are no longer the
+> current state after Phase 4 completion.
+
 ## Executive Summary
 
 Phase 4.1 aims to eliminate the evaluator→interpreter callback pattern by removing focused interface dependencies. Through empirical testing with `selfContainedMode=true`, we identified exactly which callbacks remain and their blockers.

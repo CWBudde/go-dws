@@ -53,6 +53,42 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 	return result
 }
 
+// VisitUnitDeclaration evaluates a DWScript unit as a top-level compilation target.
+// Runtime execution processes interface declarations, then implementation declarations,
+// then the initialization section. Finalization is deferred to unit shutdown handling.
+func (e *Evaluator) VisitUnitDeclaration(node *ast.UnitDeclaration, ctx *ExecutionContext) Value {
+	var result Value = &runtime.NilValue{}
+
+	sections := []*ast.BlockStatement{
+		node.InterfaceSection,
+		node.ImplementationSection,
+		node.InitSection,
+	}
+
+	for _, section := range sections {
+		if section == nil {
+			continue
+		}
+
+		result = e.Eval(section, ctx)
+		if isError(result) {
+			return result
+		}
+		if ctx.Exception() != nil {
+			return result
+		}
+		if ctx.ControlFlow().IsExit() {
+			ctx.ControlFlow().Clear()
+			return result
+		}
+		if ctx.ControlFlow().IsActive() {
+			return result
+		}
+	}
+
+	return result
+}
+
 // VisitEmptyStatement performs no operation for explicit empty statements (a lone semicolon).
 func (e *Evaluator) VisitEmptyStatement(_ *ast.EmptyStatement, _ *ExecutionContext) Value {
 	return &runtime.NilValue{}
@@ -84,14 +120,7 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 				ctx.SetException(exc)
 				return &runtime.NilValue{}
 			}
-			metadata := FunctionPointerMetadata{
-				IsLambda:   funcPtr.IsLambda(),
-				Lambda:     funcPtr.GetLambdaExpr(),
-				Function:   funcPtr.GetFunctionDecl(),
-				Closure:    funcPtr.GetClosure(),
-				SelfObject: funcPtr.GetSelfObject(),
-			}
-			return e.oopEngine.ExecuteFunctionPointerCall(metadata, []Value{}, node)
+			return e.executeFunctionPointerDirect(val, []Value{}, node, ctx)
 		}
 	}
 
@@ -185,7 +214,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 		if node.Type != nil {
 			typeName := node.Type.String()
 			if e.typeSystem.HasSubrangeType(typeName) {
-				wrappedVal, err := e.oopEngine.WrapInSubrange(value, typeName, node)
+				wrappedVal, err := e.wrapInSubrange(value, typeName, node)
 				if err != nil {
 					return e.newError(node, "%v", err)
 				}
@@ -225,7 +254,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				typeName := node.Type.String()
 				if e.typeSystem.HasInterface(typeName) {
 					if value.Type() != "INTERFACE" {
-						wrapped, err := e.oopEngine.WrapInInterface(value, typeName, node)
+						wrapped, err := e.wrapInInterface(value, typeName, node)
 						if err != nil {
 							return e.newError(node, "%v", err)
 						}
@@ -304,13 +333,13 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 				}
 
 				// Provide type information for empty `[]` inference.
-				if e.semanticInfo != nil {
+				if e.SemanticInfo() != nil {
 					typeName := expectedSetType.String()
-					if targetAnnot := e.semanticInfo.GetType(target); targetAnnot != nil && targetAnnot.Name != "" {
+					if targetAnnot := e.SemanticInfo().GetType(target); targetAnnot != nil && targetAnnot.Name != "" {
 						typeName = targetAnnot.Name
 					}
-					e.semanticInfo.SetType(setLit, &ast.TypeAnnotation{Token: setLit.Token, Name: typeName})
-					defer e.semanticInfo.ClearType(setLit)
+					e.SemanticInfo().SetType(setLit, &ast.TypeAnnotation{Token: setLit.Token, Name: typeName})
+					defer e.SemanticInfo().ClearType(setLit)
 				}
 
 				value := e.evalSetLiteralDirect(setLit, ctx)
@@ -557,46 +586,41 @@ func (e *Evaluator) VisitRepeatStatement(node *ast.RepeatStatement, ctx *Executi
 func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionContext) Value {
 	var result Value = &runtime.NilValue{}
 
-	// Evaluate start value
 	startVal := e.Eval(node.Start, ctx)
 	if isError(startVal) {
 		return startVal
 	}
 
-	// Evaluate end value
 	endVal := e.Eval(node.EndValue, ctx)
 	if isError(endVal) {
 		return endVal
 	}
 
-	// Both start and end must be integers for for loops
-	startInt, ok := startVal.(*runtime.IntegerValue)
-	if !ok {
-		return e.newError(node, "for loop start value must be integer, got %s", startVal.Type())
+	startOrdinal, err := runtime.GetOrdinalValue(startVal)
+	if err != nil {
+		return e.newError(node.Start, "for loop start value must be ordinal, got %s", startVal.Type())
 	}
 
-	endInt, ok := endVal.(*runtime.IntegerValue)
-	if !ok {
-		return e.newError(node, "for loop end value must be integer, got %s", endVal.Type())
+	endOrdinal, err := runtime.GetOrdinalValue(endVal)
+	if err != nil {
+		return e.newError(node.EndValue, "for loop end value must be ordinal, got %s", endVal.Type())
 	}
 
-	stepValue := int64(1) // Default step
+	stepOrdinal := 1
 	if node.Step != nil {
 		stepVal := e.Eval(node.Step, ctx)
 		if isError(stepVal) {
 			return stepVal
 		}
 
-		stepInt, ok := stepVal.(*runtime.IntegerValue)
-		if !ok {
-			return e.newError(node, "for loop step value must be integer, got %s", stepVal.Type())
+		stepOrdinal, err = runtime.GetOrdinalValue(stepVal)
+		if err != nil {
+			return e.newError(node.Step, "for loop step value must be ordinal, got %s", stepVal.Type())
 		}
 
-		if stepInt.Value <= 0 {
-			return e.newError(node, "FOR loop STEP should be strictly positive: %d", stepInt.Value)
+		if stepOrdinal <= 0 {
+			return e.newError(node, "FOR loop STEP should be strictly positive: %d", stepOrdinal)
 		}
-
-		stepValue = stepInt.Value
 	}
 
 	ctx.PushEnv()
@@ -605,18 +629,18 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 	loopVarName := node.Variable.Value
 
 	if node.Direction == ast.ForTo {
-		// Ascending loop with step support
-		for current := startInt.Value; current <= endInt.Value; current += stepValue {
-			// Set the loop variable to the current value
-			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
+		for current := startOrdinal; current <= endOrdinal; current += stepOrdinal {
+			currentVal, err := runtime.RebuildOrdinalValue(startVal, current, e.lookupEnumType)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
+			}
+			ctx.Env().Define(loopVarName, currentVal)
 
-			// Execute the body
 			result = e.Eval(node.Body, ctx)
 			if isError(result) {
 				return result
 			}
 
-			// Handle control flow signals
 			cf := ctx.ControlFlow()
 			if cf.IsBreak() {
 				cf.Clear()
@@ -626,25 +650,23 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 				cf.Clear()
 				continue
 			}
-			// Handle exit signal (exit from function while in loop)
 			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
 				break
 			}
 		}
 	} else {
-		// Descending loop with step support
-		for current := startInt.Value; current >= endInt.Value; current -= stepValue {
-			// Set the loop variable to the current value
-			ctx.Env().Define(loopVarName, &runtime.IntegerValue{Value: current})
+		for current := startOrdinal; current >= endOrdinal; current -= stepOrdinal {
+			currentVal, err := runtime.RebuildOrdinalValue(startVal, current, e.lookupEnumType)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
+			}
+			ctx.Env().Define(loopVarName, currentVal)
 
-			// Execute the body
 			result = e.Eval(node.Body, ctx)
 			if isError(result) {
 				return result
 			}
 
-			// Handle control flow signals
 			cf := ctx.ControlFlow()
 			if cf.IsBreak() {
 				cf.Clear()
@@ -654,9 +676,7 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 				cf.Clear()
 				continue
 			}
-			// Handle exit signal (exit from function while in loop)
 			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
 				break
 			}
 		}
@@ -798,13 +818,7 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 		}
 
 		for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal++ {
-			valueName := enumType.GetEnumName(ordinal)
-			// Create an enum value for this element
-			enumVal := &runtime.EnumValue{
-				TypeName:     enumType.Name,
-				ValueName:    valueName,
-				OrdinalValue: ordinal,
-			}
+			enumVal := runtime.NewEnumValue(enumType.Name, enumType, ordinal)
 
 			// Assign the enum value to the loop variable
 			ctx.Env().Define(loopVarName, enumVal)
@@ -1264,7 +1278,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		// Type-assert to access RecordType, Metadata, and FieldDecls
 		type recordTypeAccess interface {
 			GetRecordType() *types.RecordType
-			GetMetadata() any
+			GetMetadata() *runtime.RecordMetadata
 		}
 
 		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
@@ -1277,13 +1291,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 			return &runtime.NilValue{}
 		}
 
-		// Extract Metadata (may be nil)
-		var metadata *runtime.RecordMetadata
-		if mdAny := recordTypeAccessor.GetMetadata(); mdAny != nil {
-			if md, ok := mdAny.(*runtime.RecordMetadata); ok {
-				metadata = md
-			}
-		}
+		metadata := recordTypeAccessor.GetMetadata()
 
 		// Extract FieldDecls for field initializer evaluation
 		var fieldDecls map[string]*ast.FieldDecl
@@ -1386,20 +1394,7 @@ func (e *Evaluator) createArrayZeroValue(arrayType *types.ArrayType) Value {
 
 // createRecordZeroValue creates a properly initialized record value.
 func (e *Evaluator) createRecordZeroValue(recordType *types.RecordType) Value {
-	// Look up metadata from TypeSystem if available
-	var metadata *runtime.RecordMetadata
-	if recordTypeAny := e.typeSystem.LookupRecord(recordType.Name); recordTypeAny != nil {
-		type hasMetadata interface {
-			GetMetadata() any
-		}
-		if hm, ok := recordTypeAny.(hasMetadata); ok {
-			if mdAny := hm.GetMetadata(); mdAny != nil {
-				if md, ok := mdAny.(*runtime.RecordMetadata); ok {
-					metadata = md
-				}
-			}
-		}
-	}
+	metadata := e.typeSystem.LookupRecordMetadata(recordType.Name)
 
 	// Create field initializer for nested types
 	initializer := func(fieldName string, fieldType types.Type) runtime.Value {

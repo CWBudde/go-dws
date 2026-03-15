@@ -108,11 +108,11 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 }
 
 func (e *Evaluator) expectedTypeKindForIdentifier(target *ast.Identifier, ctx *ExecutionContext) string {
-	if target == nil || e.semanticInfo == nil {
+	if target == nil || e.SemanticInfo() == nil {
 		return ""
 	}
 
-	if typeAnnot := e.semanticInfo.GetType(target); typeAnnot != nil {
+	if typeAnnot := e.SemanticInfo().GetType(target); typeAnnot != nil {
 		if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
 			return resolvedType.TypeKind()
 		}
@@ -143,7 +143,7 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 				return e.newError(expr, "method '%s' not found", memberName)
 			}
 			if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
-				return e.oopEngine.CreateBoundMethodPointer(objVal, methodDecl)
+				return e.createFunctionPointerFromDecl(methodDecl, objVal, ctx)
 			}
 		}
 		return e.newError(expr, "method '%s' not found", memberName)
@@ -158,7 +158,7 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 			}
 			if obj, ok := underlying.(ObjectValue); ok {
 				if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
-					return e.oopEngine.CreateBoundMethodPointer(underlying, methodDecl)
+					return e.createFunctionPointerFromDecl(methodDecl, underlying, ctx)
 				}
 			}
 		}
@@ -186,11 +186,9 @@ func (e *Evaluator) assignToImplicitTarget(
 	}
 
 	// Check __CurrentClass__ for class variables in class methods
-	if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
-		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-			if result := e.assignToCurrentClassVar(target, targetName, value, classInfoVal); result != nil {
-				return result
-			}
+	if classValue, _, ok := currentClassMetaValue(ctx); ok {
+		if result := e.assignToCurrentClassVar(target, targetName, value, classValue); result != nil {
+			return result
 		}
 	}
 
@@ -252,8 +250,12 @@ func (e *Evaluator) assignToClassVarViaSelf(
 		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
 	}
 
-	classMetaVal := e.oopEngine.LookupClassByName(className)
-	if classMetaVal == nil {
+	cv, err := e.typeSystem.CreateClassValue(className)
+	if err != nil || cv == nil {
+		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
+	}
+	classMetaVal, ok := cv.(ClassMetaValue)
+	if !ok {
 		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
 	}
 
@@ -555,11 +557,9 @@ func (e *Evaluator) compoundAssignToImplicitTarget(
 	}
 
 	// Check __CurrentClass__ context
-	if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
-		if classInfoVal, ok := currentClassRaw.(Value); ok && classInfoVal.Type() == "CLASSINFO" {
-			if result := e.compoundAssignToCurrentClassVar(target, targetName, stmt, classInfoVal); result != nil {
-				return result
-			}
+	if classValue, _, ok := currentClassMetaValue(ctx); ok {
+		if result := e.compoundAssignToCurrentClassVar(target, targetName, stmt, classValue); result != nil {
+			return result
 		}
 	}
 
@@ -818,11 +818,11 @@ func (e *Evaluator) resolveArrayTypeFromTypeStringer(val any, ctx *ExecutionCont
 
 // resolveArrayTypeFromSemanticInfo gets array type from semantic analysis info.
 func (e *Evaluator) resolveArrayTypeFromSemanticInfo(target *ast.Identifier, ctx *ExecutionContext) *types.ArrayType {
-	if e.semanticInfo == nil {
+	if e.SemanticInfo() == nil {
 		return nil
 	}
 
-	typeAnnot := e.semanticInfo.GetType(target)
+	typeAnnot := e.SemanticInfo().GetType(target)
 	if typeAnnot == nil || typeAnnot.Name == "" {
 		return nil
 	}
@@ -854,8 +854,8 @@ func (e *Evaluator) resolveArrayTypeFromTypeName(typeName string, ctx *Execution
 }
 
 func (e *Evaluator) resolveClassTypeForAssignment(target *ast.Identifier, existingVal Value, ctx *ExecutionContext) string {
-	if target != nil && e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
+	if target != nil && e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
 			if e.typeSystem.HasClass(typeAnnot.Name) {
 				return typeAnnot.Name
 			}
@@ -903,8 +903,8 @@ func (e *Evaluator) getSetTypeFromTarget(target *ast.Identifier, ctx *ExecutionC
 		}
 	}
 
-	if e.semanticInfo != nil {
-		if typeAnnot := e.semanticInfo.GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
+	if e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
 			if resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
 				if setType, ok := types.GetUnderlyingType(resolved).(*types.SetType); ok {
 					return setType
