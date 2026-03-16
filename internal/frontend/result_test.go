@@ -206,3 +206,55 @@ o.Field:=1;`
 		}
 	}
 }
+
+func TestCompile_RendersStructuredUnknownNameDiagnostics(t *testing.T) {
+	source := `
+Foo();
+`
+
+	result := Compile(source, "unknown_name.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Unknown name "Foo" [line: 2, column: 5]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_RendersStructuredNoOverloadDiagnostics(t *testing.T) {
+	source := `
+function Pick(x: Integer): Integer;
+begin
+	Result := x;
+end;
+
+function Pick(x: String): String;
+begin
+	Result := x;
+end;
+
+Pick(True);
+`
+
+	result := Compile(source, "no_overload.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: There is no overloaded version of "Pick" that can be called with these arguments [line: 12, column: 5]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
