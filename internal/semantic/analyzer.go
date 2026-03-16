@@ -82,6 +82,8 @@ type Analyzer struct {
 	unitSymbols          map[string]*SymbolTable               // Unit symbol tables
 	currentNestedTypes   map[string]string                     // Nested type tracking
 	nestedTypeAliases    map[string]map[string]string          // Nested type aliases
+	forwardMethodPos     map[string]token.Position             // Forward-declared class method positions
+	forwardMethodNames   map[string]string                     // Forward-declared class method original casing
 	currentProperty      string                                // Current property being analyzed
 	sourceFile           string                                // Source file path
 	sourceCode           string                                // Original source text
@@ -115,6 +117,8 @@ func NewAnalyzer() *Analyzer {
 		builtinRegistry:    builtins.DefaultRegistry,
 		semanticInfo:       ast.NewSemanticInfo(),
 		nestedTypeAliases:  make(map[string]map[string]string),
+		forwardMethodPos:   make(map[string]token.Position),
+		forwardMethodNames: make(map[string]string),
 		hintsLevel:         HintsLevelPedantic,
 	}
 
@@ -287,6 +291,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 
 	a.validateForwardDeclarations()
+	a.validateForwardMethods()
 
 	// Return errors if any (hints and warnings don't prevent success)
 	hasActualErrors := false
@@ -316,6 +321,29 @@ func (a *Analyzer) validateForwardDeclarations() {
 				}
 				a.addError("Class \"%s\" isn't defined completely", classType.Name)
 			}
+		}
+	}
+}
+
+func (a *Analyzer) validateForwardMethods() {
+	for _, t := range a.typeRegistry.AllTypes() {
+		classType, ok := t.(*types.ClassType)
+		if !ok || classType == nil {
+			continue
+		}
+		for methodName := range classType.ForwardedMethods {
+			if overloads := classType.GetMethodOverloads(methodName); len(overloads) > 0 {
+				if overloads[0].IsAbstract {
+					continue
+				}
+			}
+			key := ident.Normalize(classType.Name) + "." + ident.Normalize(methodName)
+			pos := a.forwardMethodPos[key]
+			methodDisplayName := a.forwardMethodNames[key]
+			if methodDisplayName == "" {
+				methodDisplayName = methodName
+			}
+			a.addStructuredError(NewMethodNotImplementedError(pos, methodDisplayName, classType.Name))
 		}
 	}
 }

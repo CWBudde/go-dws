@@ -177,6 +177,23 @@ func (p *Parser) isIdentifierToken(t lexer.TokenType) bool {
 	return t == lexer.IDENT || t == lexer.STEP || t == lexer.SELF || t == lexer.HELPER
 }
 
+// isMemberNameToken returns true for tokens that DWScript allows after a dot.
+// This is broader than plain identifiers because keywords may be used as member names.
+func (p *Parser) isMemberNameToken(t lexer.TokenType) bool {
+	if p.isIdentifierToken(t) {
+		return true
+	}
+
+	switch t {
+	case lexer.SEMICOLON, lexer.INT, lexer.FLOAT, lexer.STRING,
+		lexer.LPAREN, lexer.RPAREN, lexer.LBRACK, lexer.RBRACK,
+		lexer.COMMA, lexer.COLON, lexer.DOT, lexer.EOF:
+		return false
+	default:
+		return true
+	}
+}
+
 // expectIdentifier advances if peek token can be used as an identifier.
 func (p *Parser) expectIdentifier() bool {
 	peekType := p.cursor.Peek(1).Type

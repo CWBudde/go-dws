@@ -191,6 +191,12 @@ func sortDiagnostics(diags []Diagnostic) {
 		left := diags[i]
 		right := diags[j]
 
+		leftBucket := diagnosticSortBucket(left)
+		rightBucket := diagnosticSortBucket(right)
+		if leftBucket != rightBucket {
+			return leftBucket < rightBucket
+		}
+
 		if left.Line == 0 && right.Line != 0 {
 			return false
 		}
@@ -208,6 +214,15 @@ func sortDiagnostics(diags []Diagnostic) {
 		}
 		return false
 	})
+}
+
+func diagnosticSortBucket(diag Diagnostic) int {
+	if diag.Phase == PhaseSemantic &&
+		strings.HasPrefix(diag.Message, `Method "`) &&
+		strings.Contains(diag.Message, `" not implemented`) {
+		return 1
+	}
+	return 0
 }
 
 func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {
@@ -350,9 +365,10 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 	filtered := make([]Diagnostic, 0, len(diags))
 	hasEarlierFatal := false
 	nameExpectedByLine := make(map[int]bool)
+	objectReferenceNeededByLine := make(map[int]bool)
 
 	for _, diag := range diags {
-		if shouldDropDiagnostic(diag, hasEarlierFatal, nameExpectedByLine) {
+		if shouldDropDiagnostic(diag, hasEarlierFatal, nameExpectedByLine, objectReferenceNeededByLine) {
 			continue
 		}
 		if diag.Fatal {
@@ -361,14 +377,25 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 		if diag.Message == "Name expected" {
 			nameExpectedByLine[diag.Line] = true
 		}
+		if diag.Message == "Syntax Error: Object reference needed to read/write an object field" {
+			objectReferenceNeededByLine[diag.Line] = true
+		}
 		filtered = append(filtered, diag)
 	}
 
 	return filtered
 }
 
-func shouldDropDiagnostic(diag Diagnostic, hasEarlierFatal bool, nameExpectedByLine map[int]bool) bool {
+func shouldDropDiagnostic(diag Diagnostic, hasEarlierFatal bool, nameExpectedByLine, objectReferenceNeededByLine map[int]bool) bool {
 	if nameExpectedByLine[diag.Line] && diag.Message == "Expression expected before COLON" {
+		return true
+	}
+
+	if strings.Contains(diag.Message, "instance property '") && strings.Contains(diag.Message, "cannot be a class method") {
+		return true
+	}
+
+	if objectReferenceNeededByLine[diag.Line] && diag.Message == "Syntax Error: Class method or constructor expected" {
 		return true
 	}
 

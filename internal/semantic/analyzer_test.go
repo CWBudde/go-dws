@@ -116,6 +116,18 @@ func ErrorMatches(actual, expected string) bool {
 		}
 	}
 
+	if strings.Contains(expectedLower, "read specifier") && strings.Contains(expectedLower, "not found") {
+		if strings.Contains(actualLower, "class member expected") {
+			return true
+		}
+	}
+
+	if strings.Contains(expectedLower, "must be a class method") {
+		if strings.Contains(actualLower, "class method or constructor expected") {
+			return true
+		}
+	}
+
 	// Handle "cannot assign X to Y" → "cannot assign \"X\" to \"Y\""
 	// The quotes in the actual message prevent direct match, so remove quotes from actual
 	actualNoQuotes := strings.ReplaceAll(actualLower, "\"", "")

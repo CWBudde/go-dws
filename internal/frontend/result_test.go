@@ -258,3 +258,28 @@ Pick(True);
 		}
 	}
 }
+
+func TestSortDiagnostics_DeferredMethodNotImplementedComesLast(t *testing.T) {
+	diags := []Diagnostic{
+		{
+			Message:  `Method "SetVal" of class "TMyClass" not implemented`,
+			Phase:    PhaseSemantic,
+			Line:     3,
+			Column:   23,
+			Severity: SeverityError,
+		},
+		{
+			Message:  `Syntax Error: Argument 0 expects type "Integer" instead of "String"`,
+			Phase:    PhaseSemantic,
+			Line:     10,
+			Column:   10,
+			Severity: SeverityError,
+		},
+	}
+
+	sortDiagnostics(diags)
+
+	if diags[0].Line != 10 || diags[1].Line != 3 {
+		t.Fatalf("unexpected order after sort: %+v", diags)
+	}
+}

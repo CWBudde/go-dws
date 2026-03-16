@@ -341,6 +341,14 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	propInfo, propFound := classType.GetProperty(memberName)
 	if propFound {
 		if isMetaclass && !propInfo.IsClassProperty {
+			switch propInfo.ReadKind {
+			case types.PropAccessField:
+				a.addStructuredError(NewObjectReferenceNeededError(expr.Member.Token.Pos))
+			case types.PropAccessMethod:
+				if propInfo.ReadSpec != "" && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(propInfo.ReadSpec)]) {
+					a.addStructuredError(NewPropertyReadShouldBeStaticMethodError(expr.Member.Token.Pos))
+				}
+			}
 			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
 			return nil
 		}

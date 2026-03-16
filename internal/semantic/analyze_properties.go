@@ -231,14 +231,20 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			}
 		}
 
+		if propInfo.IsClassProperty {
+			if _, found := classType.GetField(pkgident.Normalize(readSpecName)); found {
+				a.addStructuredError(NewClassMemberExpectedError(ident.Token.Pos))
+				return
+			}
+		}
+
 		// If method, verify method exists with correct signature
 		if methodType, found := classType.GetMethod(pkgident.Normalize(readSpecName)); found {
 			// For class properties, verify the method is a class method
 			if propInfo.IsClassProperty {
 				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
 				if !isClassMethod {
-					a.addError("class property '%s' read method '%s' must be a class method at %s",
-						propName, readSpecName, prop.Token.Pos.String())
+					a.addStructuredError(NewClassMethodOrConstructorExpectedError(ident.Token.Pos))
 					return
 				}
 			} else {
@@ -384,6 +390,13 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		return
 	}
 
+	if propInfo.IsClassProperty {
+		if _, found := classType.GetField(pkgident.Normalize(writeSpecName)); found {
+			a.addStructuredError(NewClassMemberExpectedError(ident.Token.Pos))
+			return
+		}
+	}
+
 	// Check if it's a constant (constants are read-only, so error if used as write spec)
 	if _, constantFound := a.getConstantType(classType, writeSpecName); constantFound {
 		a.addError("property '%s' write specifier '%s' is a constant and cannot be written to at %s",
@@ -397,16 +410,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		if propInfo.IsClassProperty {
 			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(writeSpecName)]
 			if !isClassMethod {
-				a.addError("class property '%s' write method '%s' must be a class method at %s",
-					propName, writeSpecName, prop.Token.Pos.String())
-				return
-			}
-		} else {
-			// For instance properties, verify the method is NOT a class method
-			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(writeSpecName)]
-			if isClassMethod {
-				a.addError("instance property '%s' write method '%s' cannot be a class method at %s",
-					propName, writeSpecName, prop.Token.Pos.String())
+				a.addStructuredError(NewClassMethodOrConstructorExpectedError(ident.Token.Pos))
 				return
 			}
 		}

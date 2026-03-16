@@ -860,9 +860,9 @@ func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) [
 
 	// Check which ones are not implemented in this class
 	for methodName := range abstractMethods {
-		// Check if this class has its own implementation (methodName already lowercase from AbstractMethods map)
 		lowerMethodName := ident.Normalize(methodName)
-		hasOwnMethod := len(classType.MethodOverloads[lowerMethodName]) > 0
+		methodOwner := a.getMethodOwner(classType, lowerMethodName)
+		hasOwnMethod := methodOwner != nil && methodOwner == classType
 
 		if !hasOwnMethod {
 			// Method not defined in this class at all - inherited but not implemented
@@ -882,36 +882,32 @@ func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) [
 	return unimplemented
 }
 
-// collectAbstractMethods recursively collects all abstract methods from the parent chain
-func (a *Analyzer) collectAbstractMethods(parent *types.ClassType) map[string]bool {
+// collectAbstractMethods recursively collects abstract methods that remain unimplemented
+// at the given point in the inheritance chain.
+func (a *Analyzer) collectAbstractMethods(classType *types.ClassType) map[string]bool {
 	abstractMethods := make(map[string]bool)
 
-	if parent == nil {
+	if classType == nil {
 		return abstractMethods
 	}
 
-	// Add parent's abstract methods
-	for methodName, isAbstract := range parent.AbstractMethods {
-		if isAbstract {
-			abstractMethods[methodName] = true
-		}
+	for methodName := range a.collectAbstractMethods(classType.Parent) {
+		abstractMethods[methodName] = true
 	}
 
-	// Recursively collect from grandparent
-	grandparentAbstract := a.collectAbstractMethods(parent.Parent)
-	for methodName := range grandparentAbstract {
-		// Only add if not already implemented (non-abstract) in parent
-		// Use case-insensitive lookup since DWScript is case-insensitive
-		if _, hasMethod := parent.GetMethod(methodName); hasMethod {
-			// Check if parent still marks it as abstract
-			lowerMethodName := ident.Normalize(methodName)
-			if isAbstract, exists := parent.AbstractMethods[lowerMethodName]; exists && isAbstract {
-				// Still abstract in parent
-				abstractMethods[methodName] = true
-			}
-			// Otherwise parent implemented it, don't add to abstract list
-		} else {
-			// Parent doesn't have this method at all, still abstract
+	for methodName := range classType.MethodOverloads {
+		if isReintroduce, exists := classType.ReintroduceMethods[methodName]; exists && isReintroduce {
+			continue
+		}
+		if isAbstract, exists := classType.AbstractMethods[methodName]; exists && isAbstract {
+			abstractMethods[methodName] = true
+			continue
+		}
+		delete(abstractMethods, methodName)
+	}
+
+	for methodName, isAbstract := range classType.AbstractMethods {
+		if isAbstract {
 			abstractMethods[methodName] = true
 		}
 	}

@@ -433,6 +433,58 @@ func NewClassMethodOrConstructorExpectedError(pos lexer.Position) *SemanticError
 	}
 }
 
+// NewClassMemberExpectedError creates the DWScript class-member diagnostic.
+func NewClassMemberExpectedError(pos lexer.Position) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorInvalidOperation,
+		Message:  "Syntax Error: Class member expected",
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewObjectReferenceNeededError creates the DWScript object-reference-needed diagnostic.
+func NewObjectReferenceNeededError(pos lexer.Position) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorInvalidOperation,
+		Message:  "Syntax Error: Object reference needed to read/write an object field",
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewPropertyReadShouldBeStaticMethodError creates the DWScript static-read diagnostic.
+func NewPropertyReadShouldBeStaticMethodError(pos lexer.Position) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorInvalidOperation,
+		Message:  "Syntax Error: Read access of property should be a static method",
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewPropertyWriteShouldBeStaticMethodError creates the DWScript static-write diagnostic.
+func NewPropertyWriteShouldBeStaticMethodError(pos lexer.Position) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorInvalidOperation,
+		Message:  "Syntax Error: Write access of property should be a static method",
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewMethodNotImplementedError creates the DWScript missing-method-implementation diagnostic.
+func NewMethodNotImplementedError(pos lexer.Position, methodName, className string) *SemanticError {
+	return &SemanticError{
+		Type:         ErrorInvalidOperation,
+		Message:      fmt.Sprintf(`Method "%s" of class "%s" not implemented`, methodName, className),
+		Pos:          pos,
+		Severity:     SeverityError,
+		FunctionName: methodName,
+		ClassName:    className,
+	}
+}
+
 // NewArrayBoundsError creates a DWScript-style array bound diagnostic.
 func NewArrayBoundsError(pos lexer.Position, message string) *SemanticError {
 	return &SemanticError{

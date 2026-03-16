@@ -400,9 +400,11 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if objectType != nil {
 			memberName := ident.Normalize(target.Member.Value)
 			objectTypeResolved := types.GetUnderlyingType(objectType)
+			isMetaclass := false
 
 			// Handle metaclass type
 			if metaclassType, ok := objectTypeResolved.(*types.ClassOfType); ok {
+				isMetaclass = true
 				objectTypeResolved = metaclassType.ClassType
 			}
 
@@ -412,6 +414,33 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					a.addError("cannot assign to constant '%s' at %s",
 						target.Member.Value, stmt.Token.Pos.String())
 					return
+				}
+				if propInfo, found := classType.GetProperty(memberName); found && isMetaclass && !propInfo.IsClassProperty {
+					switch propInfo.WriteKind {
+					case types.PropAccessField:
+						a.addStructuredError(NewObjectReferenceNeededError(target.Member.Token.Pos))
+						return
+					case types.PropAccessMethod:
+						if propInfo.WriteSpec != "" && classType.ClassMethodFlags != nil && classType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)] {
+							valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+							if valueType == nil {
+								return
+							}
+							if !a.canAssign(valueType, propInfo.Type) {
+								pos := target.Member.Token.Pos
+								a.addError("%s", errors.FormatArgumentError(0, propInfo.Type.String(), valueType.String(), pos.Line, pos.Column))
+							}
+							return
+						}
+						if propInfo.WriteSpec != "" && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)]) {
+							a.addStructuredError(NewPropertyWriteShouldBeStaticMethodError(target.Member.Token.Pos))
+						}
+						a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Member.Token.Pos))
+						return
+					default:
+						a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Member.Token.Pos))
+						return
+					}
 				}
 			}
 		}

@@ -140,7 +140,10 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 			} else {
 				// Clear the forward flag since this method implements the interface
 				// Methods implementing interfaces are complete implementations, not forward declarations
+				forwardKey := ident.Normalize(classType.Name) + "." + ident.Normalize(methodName)
 				delete(classType.ForwardedMethods, ident.Normalize(methodName))
+				delete(a.forwardMethodPos, forwardKey)
+				delete(a.forwardMethodNames, forwardKey)
 			}
 		}
 	}

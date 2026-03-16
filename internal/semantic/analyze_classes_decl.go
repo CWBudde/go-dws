@@ -601,7 +601,10 @@ func (a *Analyzer) analyzeClassMethodImplementation(decl *ast.FunctionDecl, clas
 	}
 
 	// Mark the forward-declared method as implemented.
+	forwardKey := ident.Normalize(classType.Name) + "." + ident.Normalize(methodName)
 	delete(classType.ForwardedMethods, ident.Normalize(methodName))
+	delete(a.forwardMethodPos, forwardKey)
+	delete(a.forwardMethodNames, forwardKey)
 
 	// Analyze the method body.
 	a.analyzeMethodDecl(decl, classType)
@@ -906,7 +909,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	}
 
 	if method.Body == nil {
+		forwardKey := ident.Normalize(classType.Name) + "." + ident.Normalize(method.Name.Value)
 		classType.ForwardedMethods[ident.Normalize(method.Name.Value)] = true
+		a.forwardMethodPos[forwardKey] = method.Name.Token.Pos
+		a.forwardMethodNames[forwardKey] = method.Name.Value
 	}
 	methodKey := ident.Normalize(method.Name.Value)
 	if _, exists := classType.MethodVisibility[methodKey]; !exists {

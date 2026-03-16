@@ -625,6 +625,7 @@ func TestClassPropertyErrors(t *testing.T) {
 		name          string
 		input         string
 		expectedError string
+		expectError   bool
 	}{
 		{
 			name: "class property with instance field",
@@ -671,6 +672,7 @@ type TTest = class
 	class property Count: Integer read FCount write SetCount;
 end;`,
 			expectedError: "class property 'Count' write method 'SetCount' must be a class method",
+			expectError:   true,
 		},
 		{
 			name: "instance property write with class method",
@@ -680,7 +682,7 @@ type TTest = class
 	class procedure SetCount(value: Integer); begin end;
 	property Count: Integer read FCount write SetCount;
 end;`,
-			expectedError: "instance property 'Count' write method 'SetCount' cannot be a class method",
+			expectError: false,
 		},
 	}
 
@@ -696,15 +698,23 @@ end;`,
 
 			analyzer := NewAnalyzer()
 			err := analyzer.Analyze(program)
+			expectError := tt.expectError || tt.expectedError != ""
 
-			if err == nil {
-				t.Errorf("expected error containing '%s', got no error", tt.expectedError)
+			if expectError {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got no error", tt.expectedError)
+					return
+				}
+
+				errMsg := err.Error()
+				if !ErrorMatches(errMsg, tt.expectedError) {
+					t.Errorf("expected error containing '%s', got '%s'", tt.expectedError, errMsg)
+				}
 				return
 			}
 
-			errMsg := err.Error()
-			if !ErrorMatches(errMsg, tt.expectedError) {
-				t.Errorf("expected error containing '%s', got '%s'", tt.expectedError, errMsg)
+			if err != nil {
+				t.Errorf("expected no error, got '%v'", err)
 			}
 		})
 	}

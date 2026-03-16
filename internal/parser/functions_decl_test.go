@@ -826,6 +826,26 @@ func TestMethodDeclarations(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:  "procedure implementation with keyword member name",
+			input: "procedure TDummy.Method; begin end;",
+			expected: func(t *testing.T, stmt ast.Statement) {
+				fn, ok := stmt.(*ast.FunctionDecl)
+				if !ok {
+					t.Fatalf("stmt is not *ast.FunctionDecl. got=%T", stmt)
+				}
+				if fn.Name.Value != "Method" {
+					t.Errorf("method name = %q, want %q", fn.Name.Value, "Method")
+				}
+				if fn.ClassName == nil || fn.ClassName.Value != "TDummy" {
+					className := ""
+					if fn.ClassName != nil {
+						className = fn.ClassName.Value
+					}
+					t.Errorf("class name = %q, want %q", className, "TDummy")
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
