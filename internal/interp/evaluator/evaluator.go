@@ -633,18 +633,7 @@ func (e *Evaluator) cleanupInterfaceReferences(env *runtime.Environment) {
 			return true // continue (skip)
 		}
 
-		// Release interface references
-		if intfInst, ok := value.(*runtime.InterfaceInstance); ok {
-			e.engineState.RefCountManager.ReleaseInterface(intfInst)
-		} else if objInst, ok := value.(*runtime.ObjectInstance); ok {
-			// Release object references
-			e.engineState.RefCountManager.ReleaseObject(objInst)
-		} else if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok {
-			// Clean up method pointers that hold object references
-			if objInst, isObj := funcPtr.SelfObject.(*runtime.ObjectInstance); isObj {
-				e.engineState.RefCountManager.ReleaseObject(objInst)
-			}
-		}
+		e.releaseValueForBinding(value)
 		return true // continue
 	})
 }

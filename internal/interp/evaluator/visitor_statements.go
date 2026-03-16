@@ -269,6 +269,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			}
 		}
 
+		nameValue = e.retainValueForBinding(nameValue, ctx)
 		ctx.Env().Define(name.Value, nameValue)
 		lastValue = nameValue
 	}
@@ -307,6 +308,7 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 		return value
 	}
 
+	value = e.retainValueForBinding(value, ctx)
 	ctx.Env().Define(node.Name.Value, value)
 	return value
 }

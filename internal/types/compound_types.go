@@ -19,6 +19,7 @@ import (
 //   - array of String (dynamic, no bounds)
 type ArrayType struct {
 	ElementType Type // Type of elements in the array
+	IndexType   Type // Declared ordinal index type for static ordinal-indexed arrays
 	LowBound    *int // Lower bound (nil for dynamic arrays)
 	HighBound   *int // Upper bound (nil for dynamic arrays)
 }
@@ -46,6 +47,12 @@ func (at *ArrayType) Equals(other Type) bool {
 
 	// Element types must match
 	if !at.ElementType.Equals(otherArray.ElementType) {
+		return false
+	}
+	if (at.IndexType == nil) != (otherArray.IndexType == nil) {
+		return false
+	}
+	if at.IndexType != nil && otherArray.IndexType != nil && !at.IndexType.Equals(otherArray.IndexType) {
 		return false
 	}
 
@@ -95,6 +102,7 @@ func (at *ArrayType) Size() int {
 func NewDynamicArrayType(elementType Type) *ArrayType {
 	return &ArrayType{
 		ElementType: elementType,
+		IndexType:   nil,
 		LowBound:    nil,
 		HighBound:   nil,
 	}
@@ -106,9 +114,17 @@ func NewStaticArrayType(elementType Type, lowBound, highBound int) *ArrayType {
 	high := highBound
 	return &ArrayType{
 		ElementType: elementType,
+		IndexType:   nil,
 		LowBound:    &low,
 		HighBound:   &high,
 	}
+}
+
+// NewStaticArrayTypeWithIndexType creates a new static array type with bounds and preserved ordinal index type.
+func NewStaticArrayTypeWithIndexType(elementType, indexType Type, lowBound, highBound int) *ArrayType {
+	arrayType := NewStaticArrayType(elementType, lowBound, highBound)
+	arrayType.IndexType = indexType
+	return arrayType
 }
 
 // ============================================================================

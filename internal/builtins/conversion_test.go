@@ -247,6 +247,64 @@ func TestStrToFloat(t *testing.T) {
 	}
 }
 
+func TestHexToInt(t *testing.T) {
+	ctx := newMockContext()
+
+	tests := []struct {
+		name     string
+		args     []Value
+		expected int64
+		isError  bool
+	}{
+		{
+			name:     "plain hex",
+			args:     []Value{&runtime.StringValue{Value: "123"}},
+			expected: 291,
+		},
+		{
+			name:     "prefixed hex",
+			args:     []Value{&runtime.StringValue{Value: "$7B"}},
+			expected: 123,
+		},
+		{
+			name:    "invalid hex",
+			args:    []Value{&runtime.StringValue{Value: "xyz"}},
+			isError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := HexToInt(ctx, tt.args)
+			if tt.isError {
+				if result.Type() != "ERROR" {
+					t.Fatalf("expected error, got %T", result)
+				}
+				return
+			}
+			intVal, ok := result.(*runtime.IntegerValue)
+			if !ok {
+				t.Fatalf("expected IntegerValue, got %T", result)
+			}
+			if intVal.Value != tt.expected {
+				t.Fatalf("expected %d, got %d", tt.expected, intVal.Value)
+			}
+		})
+	}
+}
+
+func TestBinToInt(t *testing.T) {
+	ctx := newMockContext()
+	result := BinToInt(ctx, []Value{&runtime.StringValue{Value: "1010"}})
+	intVal, ok := result.(*runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T", result)
+	}
+	if intVal.Value != 10 {
+		t.Fatalf("expected 10, got %d", intVal.Value)
+	}
+}
+
 func TestFloatToStr(t *testing.T) {
 	ctx := newMockContext()
 

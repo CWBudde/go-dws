@@ -167,6 +167,45 @@ PrintLn(outer.GetInnerDouble());
 	}
 }
 
+func TestRecordMethodWithBoundMethodPointerParameter(t *testing.T) {
+	input := `
+type TIntFunc = function: Integer;
+
+type TBox = class
+	Value: Integer;
+	function GetValue: Integer;
+	begin
+		Result := Value;
+	end;
+end;
+
+type TRunner = record
+	function RunTwice(fn: TIntFunc): Integer;
+	begin
+		var localFn := fn;
+		Result := localFn() + localFn();
+	end;
+end;
+
+var box := TBox.Create;
+box.Value := 21;
+var runner: TRunner;
+PrintLn(runner.RunTwice(@box.GetValue));
+`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	if out.String() != "42\n" {
+		t.Fatalf("wrong output. expected=%q, got=%q", "42\n", out.String())
+	}
+}
+
 // TestRecordMethodErrors tests error cases for record method calls
 func TestRecordMethodErrors(t *testing.T) {
 	tests := []struct {

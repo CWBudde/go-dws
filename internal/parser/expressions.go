@@ -7,6 +7,14 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
+func isInvalidExpression(expr ast.Expression) bool {
+	if expr == nil {
+		return true
+	}
+	_, ok := expr.(*ast.InvalidExpression)
+	return ok
+}
+
 // PRE: cursor is first token of expression
 // POST: cursor is last token of expression
 func (p *Parser) parseExpression(precedence int) ast.Expression {
@@ -14,8 +22,15 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	currentToken := p.cursor.Current()
 	prefixFn, ok := p.prefixParseFns[currentToken.Type]
 	if !ok {
-		p.noPrefixParseFnError(currentToken.Type)
-		return nil
+		p.noPrefixParseFnError(currentToken)
+		return &ast.InvalidExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: currentToken,
+				},
+			},
+			Reason: "expression expected",
+		}
 	}
 	leftExp := prefixFn(currentToken)
 

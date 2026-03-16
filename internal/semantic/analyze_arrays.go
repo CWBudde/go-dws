@@ -46,28 +46,15 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 	if arrayType.IsDynamic() {
 		arrType = types.NewDynamicArrayType(elementType)
 	} else {
-		// Evaluate bound expressions at semantic analysis time
-		lowBound, err := a.evaluateConstantInt(arrayType.LowBound)
-		if err != nil {
-			a.addError("array lower bound must be a compile-time constant integer at %s: %v",
-				decl.Token.Pos.String(), err)
+		lowBound, highBound, indexType, ok := a.resolveOrdinalArrayBounds(arrayType.LowBound, arrayType.HighBound)
+		if !ok {
 			return
 		}
-		highBound, err := a.evaluateConstantInt(arrayType.HighBound)
-		if err != nil {
-			a.addError("array upper bound must be a compile-time constant integer at %s: %v",
-				decl.Token.Pos.String(), err)
-			return
+		if indexType != nil && indexType.TypeKind() != "INTEGER" {
+			arrType = types.NewStaticArrayTypeWithIndexType(elementType, indexType, lowBound, highBound)
+		} else {
+			arrType = types.NewStaticArrayType(elementType, lowBound, highBound)
 		}
-
-		// Validate bounds
-		if lowBound > highBound {
-			a.addError("array lower bound (%d) cannot be greater than upper bound (%d) at %s",
-				lowBound, highBound, decl.Token.Pos.String())
-			return
-		}
-
-		arrType = types.NewStaticArrayType(elementType, lowBound, highBound)
 	}
 
 	// Register the array type in the arrays registry
@@ -167,6 +154,21 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 	if indexType == nil {
 		// Error already reported
 		return nil
+	}
+
+	if arrayType.IndexType != nil {
+		if types.GetUnderlyingType(indexType).Equals(types.VARIANT) {
+			return arrayType.ElementType
+		}
+		expectedIndexType := types.GetUnderlyingType(arrayType.IndexType)
+		indexUnderlying := types.GetUnderlyingType(indexType)
+		if !indexUnderlying.Equals(expectedIndexType) {
+			pos := expr.Index.Pos()
+			a.addError("Syntax Error: Array index expected \"%s\" but got \"%s\" [line: %d, column: %d]",
+				expectedIndexType.String(), indexType.String(), pos.Line, pos.Column)
+			return nil
+		}
+		return arrayType.ElementType
 	}
 
 	// Index must be integer or a bounded ordinal (enum, boolean, subrange)

@@ -17,6 +17,8 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 	}
 
 	switch e := expr.(type) {
+	case *ast.InvalidExpression:
+		return nil
 	case *ast.IntegerLiteral:
 		return types.INTEGER
 	case *ast.FloatLiteral:
@@ -202,6 +204,21 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 	case *ast.CallExpression:
 		// Pass expected type for overload resolution
 		return a.analyzeCallExpressionWithContext(e, expectedType)
+	case *ast.Identifier:
+		// In contexts like `x := GetValue;`, DWScript auto-invokes a
+		// parameterless function when the expected type matches its return type.
+		// Keep function-pointer assignment behavior when the expected type is
+		// itself a function/method pointer.
+		if expectedType != nil {
+			expectedUnderlying := types.GetUnderlyingType(expectedType)
+			expectedKind := expectedUnderlying.TypeKind()
+			if expectedKind != "FUNCTION_POINTER" && expectedKind != "METHOD_POINTER" {
+				if implicitType := a.getImplicitCallType(e); implicitType != nil && a.canAssign(implicitType, expectedType) {
+					return implicitType
+				}
+			}
+		}
+		return a.analyzeIdentifier(e)
 	default:
 		return a.analyzeExpression(expr)
 	}

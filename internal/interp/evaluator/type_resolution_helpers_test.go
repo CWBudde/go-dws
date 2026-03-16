@@ -3,6 +3,7 @@ package evaluator
 import (
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -513,6 +514,26 @@ func TestResolveArrayTypeNode(t *testing.T) {
 			expectedType: "array[0..2] of array[0..3] of Integer",
 		},
 		{
+			name: "Static array with constant expression bound",
+			setupNode: func() *ast.ArrayTypeNode {
+				return &ast.ArrayTypeNode{
+					LowBound: &ast.IntegerLiteral{Value: 0},
+					HighBound: &ast.BinaryExpression{
+						Left: &ast.BinaryExpression{
+							Left:     &ast.IntegerLiteral{Value: 10},
+							Operator: "*",
+							Right:    &ast.Identifier{Value: "NumDigits"},
+						},
+						Operator: "div",
+						Right:    &ast.IntegerLiteral{Value: 3},
+					},
+					ElementType: &ast.TypeAnnotation{Name: "Integer"},
+				}
+			},
+			expectNil:    false,
+			expectedType: "array[0..166] of Integer",
+		},
+		{
 			name: "Nil node",
 			setupNode: func() *ast.ArrayTypeNode {
 				return nil
@@ -535,7 +556,8 @@ func TestResolveArrayTypeNode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &Evaluator{}
-			ctx := &ExecutionContext{}
+			ctx := runtime.NewExecutionContext(runtime.NewEnvironment())
+			ctx.Env().Define("NumDigits", &runtime.IntegerValue{Value: 50})
 
 			arrayNode := tt.setupNode()
 			result := e.resolveArrayTypeNode(arrayNode, ctx)

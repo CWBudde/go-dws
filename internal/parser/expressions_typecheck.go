@@ -27,13 +27,14 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	// Save full parser state including errors for clean backtracking
 	state := p.saveState()
 	expression.TargetType = p.parseTypeExpression()
-	if expression.TargetType != nil {
+	if !isInvalidTypeExpression(expression.TargetType) {
 		return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
 	}
 
 	// If type parsing failed, restore full state (errors + cursor) and try as boolean expression
 	// Note: cursor is already positioned at the token after IS from the saved state
 	p.restoreState(state)
+	expression.TargetType = nil
 
 	// Parse as value expression (boolean comparison)
 	// Use EQUALS precedence to prevent consuming following logical operators
@@ -65,7 +66,7 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 
 	// Parse the target type (should be an interface type)
 	expression.TargetType = p.parseTypeExpression()
-	if expression.TargetType == nil {
+	if isInvalidTypeExpression(expression.TargetType) {
 		p.addError("expected type after 'as' operator", ErrExpectedType)
 		return expression
 	}
@@ -93,7 +94,7 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 
 	// Parse the target type (should be an interface type)
 	expression.TargetType = p.parseTypeExpression()
-	if expression.TargetType == nil {
+	if isInvalidTypeExpression(expression.TargetType) {
 		p.addError("expected type after 'implements' operator", ErrExpectedType)
 		return expression
 	}

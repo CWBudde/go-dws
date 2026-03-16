@@ -442,7 +442,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Type cast: TypeName(expression)
-		if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
+		if castType, handled := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); handled {
 			return castType
 		}
 
@@ -537,7 +537,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 			if !ok {
 				// Check type cast before reporting error
-				if castType := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); castType != nil {
+				if castType, handled := a.analyzeTypeCast(funcIdent.Value, expr.Arguments, expr); handled {
 					return castType
 				}
 				a.addError("'%s' is not a function at %s", funcIdent.Value, expr.Token.Pos.String())
@@ -772,15 +772,15 @@ func detectOverloadedCallWithLambdas(args []ast.Expression) (bool, []int) {
 }
 
 // analyzeTypeCast analyzes type cast expressions like Integer(x) or TMyClass(obj).
-// Returns target type if valid, nil otherwise.
-func (a *Analyzer) analyzeTypeCast(typeName string, args []ast.Expression, expr *ast.CallExpression) types.Type {
+// Returns the target type and whether this was handled as a cast attempt.
+func (a *Analyzer) analyzeTypeCast(typeName string, args []ast.Expression, expr *ast.CallExpression) (types.Type, bool) {
 	if len(args) != 1 {
-		return nil
+		return nil, false
 	}
 
 	targetType, err := a.resolveType(typeName)
 	if err != nil {
-		return nil
+		return nil, false
 	}
 
 	if typeAlias, ok := targetType.(*types.TypeAlias); ok {
@@ -789,13 +789,13 @@ func (a *Analyzer) analyzeTypeCast(typeName string, args []ast.Expression, expr 
 
 	argType := a.analyzeExpression(args[0])
 	if argType == nil {
-		return nil
+		return nil, true
 	}
 
-	if !a.isValidCast(argType, targetType, expr.Token.Pos) {
-		return nil
+	if !a.isValidCast(argType, targetType, args[0].Pos()) {
+		return nil, true
 	}
-	return targetType
+	return targetType, true
 }
 
 // isValidCast checks if casting from sourceType to targetType is valid.
@@ -856,6 +856,12 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 	if (sourceIsEnum && targetType == types.INTEGER) ||
 		(sourceType == types.INTEGER && targetIsEnum) {
 		return true
+	}
+
+	if _, isEnum := targetType.(*types.EnumType); isEnum {
+		a.addError("Syntax Error: Cannot cast this type to \"Integer\" [line: %d, column: %d]",
+			pos.Line, pos.Column)
+		return false
 	}
 
 	a.addError("cannot cast %s to %s at %s",

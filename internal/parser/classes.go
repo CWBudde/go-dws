@@ -176,6 +176,9 @@ func (p *Parser) handleVisibilityKeyword(cursor *TokenCursor, currentVisibility 
 	} else if cursor.Current().Type == lexer.PUBLIC {
 		*currentVisibility = ast.VisibilityPublic
 		return true
+	} else if cursor.Current().Type == lexer.PUBLISHED {
+		*currentVisibility = ast.VisibilityPublic
+		return true
 	}
 	return false
 }
@@ -581,8 +584,15 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		memberToken.Type == lexer.LPAREN || memberToken.Type == lexer.RPAREN ||
 		memberToken.Type == lexer.LBRACK || memberToken.Type == lexer.RBRACK ||
 		memberToken.Type == lexer.COMMA || memberToken.Type == lexer.EOF {
-		p.addError("expected identifier after '.'", ErrExpectedIdent)
-		return nil
+		p.addError("Name expected", ErrExpectedIdent)
+		return builder.Finish(&ast.InvalidExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token: dotToken,
+				},
+			},
+			Reason: "name expected after dot",
+		}).(ast.Expression)
 	}
 
 	memberName := &ast.Identifier{

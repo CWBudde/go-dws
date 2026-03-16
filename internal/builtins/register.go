@@ -471,6 +471,10 @@ func RegisterConversionFunctions(r *Registry) {
 	// Hexadecimal conversion
 	r.RegisterWithSignature("IntToHex", IntToHex, CategoryConversion, "Converts integer to hexadecimal string",
 		Sig([]types.Type{I, I}, S))
+	r.RegisterWithSignature("HexToInt", HexToInt, CategoryConversion, "Converts hexadecimal string to integer",
+		Sig([]types.Type{S}, I))
+	r.RegisterWithSignature("BinToInt", BinToInt, CategoryConversion, "Converts binary string to integer",
+		Sig([]types.Type{S}, I))
 	r.RegisterWithSignature("StrToBool", StrToBool, CategoryConversion, "Converts string to boolean",
 		Sig([]types.Type{S}, B))
 	r.RegisterWithSignature("Ord", Ord, CategoryConversion, "Returns ordinal value of enum/boolean/char",
@@ -569,8 +573,12 @@ func RegisterVariantFunctions(r *Registry) {
 		Sig([]types.Type{V}, S))
 	r.RegisterWithSignature("VarToInt", VarToInt, CategoryVariant, "Converts Variant to integer",
 		Sig([]types.Type{V}, I))
+	r.RegisterWithSignature("VarToIntDef", VarToIntDef, CategoryVariant, "Converts Variant to integer with a default value",
+		Sig([]types.Type{V, I}, I))
 	r.RegisterWithSignature("VarToFloat", VarToFloat, CategoryVariant, "Converts Variant to float",
 		Sig([]types.Type{V}, F))
+	r.RegisterWithSignature("VarToFloatDef", VarToFloatDef, CategoryVariant, "Converts Variant to float with a default value",
+		Sig([]types.Type{V, F}, F))
 	r.RegisterWithSignature("VarAsType", VarAsType, CategoryVariant, "Converts Variant to specified type code",
 		Sig([]types.Type{V, I}, V))
 	r.RegisterWithSignature("VarClear", VarClear, CategoryVariant, "Clears Variant to unassigned state",

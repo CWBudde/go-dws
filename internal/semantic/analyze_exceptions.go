@@ -37,6 +37,10 @@ func (a *Analyzer) analyzeRaiseStatement(stmt *ast.RaiseStatement) {
 
 // Analyze try statement
 func (a *Analyzer) analyzeTryStatement(stmt *ast.TryStatement) {
+	if stmt == nil {
+		return
+	}
+
 	// Analyze try block
 	if stmt.TryBlock != nil {
 		a.analyzeBlock(stmt.TryBlock)

@@ -25,10 +25,9 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/bytecode"
+	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/interp/runner"
-	"github.com/cwbudde/go-dws/internal/lexer"
-	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -63,68 +62,20 @@ func New(opts ...Option) (*Engine, error) {
 // This is useful when you want to compile once and run many times,
 // as it avoids re-parsing and re-checking the source code.
 func (e *Engine) Compile(source string) (*Program, error) {
-	// Tokenize
-	l := lexer.New(source)
-
-	// Parse
-	p := parser.New(l)
-	program := p.ParseProgram()
-	if len(p.Errors()) > 0 {
-		// Convert parser errors to public Error type
-		errors := make([]*Error, 0, len(p.Errors()))
-		for _, perr := range p.Errors() {
-			errors = append(errors, &Error{
-				Message:  perr.Message,
-				Line:     perr.Pos.Line,
-				Column:   perr.Pos.Column,
-				Length:   perr.Length,
-				Severity: SeverityError,
-				Code:     perr.Code,
-			})
-		}
-		return nil, &CompileError{
-			Stage:  "parsing",
-			Errors: errors,
-		}
-	}
-
-	// Type check (if enabled)
-	var analyzer *semantic.Analyzer
-	var semanticInfo *ast.SemanticInfo
+	var result *frontend.Result
 	if e.options.TypeCheck {
-		analyzer = semantic.NewAnalyzer()
-		if err := analyzer.Analyze(program); err != nil {
-			// Try to use structured errors first (new system with proper position info)
-			structuredErrs := analyzer.StructuredErrors()
-			var errors []*Error
-
-			if len(structuredErrs) > 0 {
-				// Use structured errors when available
-				errors = make([]*Error, 0, len(structuredErrs))
-				for _, serr := range structuredErrs {
-					errors = append(errors, &Error{
-						Message:  serr.Message,
-						Line:     serr.Pos.Line,
-						Column:   serr.Pos.Column,
-						Length:   0,
-						Severity: SeverityError,
-						Code:     string(serr.Type),
-					})
-				}
-			} else {
-				// Fall back to old-style string errors
-				// Many errors still use the old addError() system
-				errors = convertSemanticError(err)
-			}
-
-			return nil, &CompileError{
-				Stage:  "type checking",
-				Errors: errors,
-			}
-		}
-		// Get semantic info from analyzer
-		semanticInfo = analyzer.GetSemanticInfo()
+		result = frontend.Compile(source, "", semantic.HintsLevelPedantic)
+	} else {
+		result = frontend.Parse(source)
 	}
+
+	if result.HasFatalDiagnostics() {
+		return nil, compileErrorFromFrontend(result)
+	}
+
+	program := result.Program
+	analyzer := result.Analyzer
+	semanticInfo := result.SemanticInfo
 
 	var chunk *bytecode.Chunk
 	if e.options.CompileMode == CompileModeBytecode {
@@ -188,75 +139,59 @@ func (e *Engine) Compile(source string) (*Program, error) {
 //	    }
 //	}
 func (e *Engine) Parse(source string) (*ast.Program, error) {
-	// Tokenize
-	l := lexer.New(source)
-
-	// Parse
-	p := parser.New(l)
-	program := p.ParseProgram()
+	result := frontend.Parse(source)
+	program := result.Program
 
 	// Always return the AST (even if there are errors)
 	// This is the key difference from Compile() - best-effort parsing
 
 	// If there are parse errors, convert them to structured errors
-	if len(p.Errors()) > 0 {
-		errors := make([]*Error, 0, len(p.Errors()))
-		for _, perr := range p.Errors() {
-			errors = append(errors, &Error{
-				Message:  perr.Message,
-				Line:     perr.Pos.Line,
-				Column:   perr.Pos.Column,
-				Length:   perr.Length,
-				Severity: SeverityError,
-				Code:     perr.Code,
-			})
-		}
-
+	if result.HasFatalDiagnosticsInPhase(frontend.PhaseParsing) {
 		// Return both the partial AST and the errors
 		// This allows editors to work with incomplete code
-		return program, &CompileError{
-			Stage:  "parsing",
-			Errors: errors,
-		}
+		return program, compileErrorFromFrontend(result)
 	}
 
 	// No errors - return the complete AST
 	return program, nil
 }
 
-// convertSemanticError converts semantic analysis errors to structured Error objects.
-// It extracts position information from error strings that contain " at line:column" format.
-func convertSemanticError(err error) []*Error {
-	// Check if it's already a semantic.AnalysisError
-	if analysisErr, ok := err.(*semantic.AnalysisError); ok {
-		errors := make([]*Error, 0, len(analysisErr.Errors))
-		for _, errStr := range analysisErr.Errors {
-			// Extract position from error string if present
-			// Format: "error message at line:column"
-			line, column, message := extractPositionFromError(errStr)
-
-			errors = append(errors, &Error{
-				Message:  message,
-				Line:     line,
-				Column:   column,
-				Length:   0,
-				Severity: SeverityError,
-				Code:     "E_SEMANTIC",
-			})
-		}
-		return errors
+func compileErrorFromFrontend(result *frontend.Result) *CompileError {
+	errors := make([]*Error, 0, len(result.Diagnostics))
+	for _, diag := range result.Diagnostics {
+		errors = append(errors, &Error{
+			Message:  diag.Message,
+			Line:     diag.Line,
+			Column:   diag.Column,
+			Length:   diag.Length,
+			Severity: severityFromFrontend(diag.Severity),
+			Code:     diag.Code,
+		})
 	}
 
-	// Fallback: single error
-	return []*Error{
-		{
-			Message:  err.Error(),
-			Line:     0,
-			Column:   0,
-			Length:   0,
-			Severity: SeverityError,
-			Code:     "E_SEMANTIC",
-		},
+	stage := "parsing"
+	if result.HasFatalDiagnosticsInPhase(frontend.PhaseParsing) {
+		stage = "parsing"
+	} else if result.HasFatalDiagnosticsInPhase(frontend.PhaseSemantic) {
+		stage = "type checking"
+	}
+
+	return &CompileError{
+		Stage:  stage,
+		Errors: errors,
+	}
+}
+
+func severityFromFrontend(sev frontend.Severity) ErrorSeverity {
+	switch sev {
+	case frontend.SeverityWarning:
+		return SeverityWarning
+	case frontend.SeverityInfo:
+		return SeverityInfo
+	case frontend.SeverityHint:
+		return SeverityHint
+	default:
+		return SeverityError
 	}
 }
 

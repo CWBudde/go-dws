@@ -622,6 +622,54 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 
 ---
 
+### 4.12 Unify Lifetime And Refcount Semantics
+
+**Goal**: Eliminate lifetime inconsistencies inside the canonical evaluator/runtime path so declaration-time bindings, assignment-time bindings, parameter binding, and scope cleanup all follow one ownership model.
+
+**Status**: ✅ Complete
+
+**Why This Phase Exists**:
+
+Phase 4.9 through 4.11 cleaned up ownership between `interp`, `evaluator`, `runtime`, and `contracts`, but the `yin_yang` fixture exposed a different kind of architectural mismatch: declaration-time bindings and assignment-time bindings still do not retain runtime-owned values the same way.
+
+The current evaluator path increments ownership for object and method-pointer assignments, but `var x := ...` and related environment bindings can still install values without the same retain step. That leaves scope cleanup and method-pointer cleanup operating against an inconsistent reference model, which can destroy live objects too early.
+
+**Tasks**:
+
+- [x] **4.12.1** Inventory the remaining lifetime retain/release paths in the canonical evaluator/runtime flow
+  - audit variable declarations, constant declarations, parameter binding, function returns, method pointers, interfaces, and scope-exit cleanup
+  - classify each path as `consistent`, `needs retain`, `needs release`, or `needs model clarification`
+  - documented in `docs/architecture/phase-4.12.1-lifetime-inventory.md`
+- [x] **4.12.2** Unify declaration-time bindings with assignment-time ownership semantics
+  - ensure `var`/`const` bindings that store objects, interfaces, or method pointers retain them the same way assignment targets do
+  - evaluator-owned declaration bindings now retain runtime-owned values before environment installation
+  - parameter binding and returned values now follow the same ownership model so cleanup does not release unretained method-pointer/object references
+- [x] **4.12.3** Audit scope-exit cleanup against the unified ownership model
+  - verify that function cleanup, block cleanup, and method-pointer cleanup release exactly the references that were retained
+  - remove any remaining asymmetric release-only behavior
+  - explicitly resolve the remaining split between scope-owned bindings and aliased env exposure in pushed evaluator scopes
+  - added ownership-aware pushed-scope binding tracking for direct-eval record/helper/class-property/lambda scopes
+  - scope cleanup now releases only explicitly owned bindings, not aliased record fields or class/helper state
+- [x] **4.12.4** Add regression tests for lifetime-sensitive ownership cases
+  - cover declaration-vs-assignment parity
+  - cover bound method pointers that outlive the binding scope that created them
+  - cover interface/object lifetime interactions across local scopes
+  - added regression coverage for declaration-vs-assignment parity, bound method pointers through record/helper/lambda-adjacent paths, and interface/object lifetime across nested scopes
+- [x] **4.12.5** Restore fixture confidence for lifetime-sensitive demos
+  - use `Algorithms/yin_yang` as the first end-to-end fixture success case
+  - add any other fixture-derived lifetime regressions discovered during the audit
+  - `Algorithms/yin_yang` now passes as the first end-to-end lifetime-sensitive fixture success case
+  - interface lifetime fixtures now pass, including `interface_lifetime`, `interface_lifetime_scope`, `interface_lifetime_scope_ex1`, `interface_lifetime_scope_ex2`, and `interface_lifetime_simple`
+
+**Success Criteria**:
+
+- [x] declaration-time and assignment-time bindings follow one ownership model for objects, interfaces, and method pointers
+- [x] scope-exit cleanup only releases references that were previously retained by the unified model
+- [x] method pointers no longer destroy their bound `Self` object prematurely
+- [x] lifetime-sensitive fixtures like `yin_yang` pass on the canonical evaluator/runtime path
+
+---
+
 ### Phase 4 Effort Summary
 
 | Area | Status | Notes |
@@ -638,12 +686,141 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 | 4.9 Residual execution ownership cleanup | complete | Removed dead shadow execution, migrated typed-literal islands, unified ordinal loop semantics, and added ownership guards |
 | 4.10 Remaining seam clarification | complete | Closed the remaining live ownership gaps and defined the final shell/core boundary |
 | 4.11 Neutral boundary finalization | complete | Shrunk contracts/metadata escape hatches to justified end-state boundaries |
+| 4.12 Lifetime/refcount consistency | complete | Unified evaluator/runtime ownership semantics across declarations, assignments, parameter binding, returns, and pushed-scope cleanup |
 
-**Practical read**: The core Phase 4 bridge-removal work is complete. Phase 4.8 tightened the finished architecture, 4.9 completed the dead-shadow cleanup plus the known live semantic-island fixes, 4.10 closed the remaining live ownership seams, and 4.11 finished the contracts/metadata end-state cleanup.
+**Practical read**: The core Phase 4 bridge-removal work is complete. Phase 4.8 tightened the finished architecture, 4.9 completed the dead-shadow cleanup plus the known live semantic-island fixes, 4.10 closed the remaining live ownership seams, 4.11 finished the contracts/metadata end-state cleanup, and 4.12 completed the evaluator/runtime lifetime consistency pass.
 
 ---
 
-## Phase 5: Interpreter Technical Debt Cleanup
+## Phase 5: Front-End Diagnostics, Recovery, And Compile Gating
+
+**Status**: 📋 Planned | **Priority**: High | **Estimated**: 3-5 weeks
+
+**Goal**: Build a unified compile-front-end diagnostics pipeline so parser, semantic analyzer, and compile gating produce DWScript-compatible diagnostics without leaking invalid programs into runtime execution.
+
+**Why This Phase Exists**:
+
+The current `FailureScripts` mismatch pattern is architectural, not just a pile of isolated bugs:
+
+- parser hot paths return `nil` and leak internal diagnostics such as `no prefix parse function ...`
+- parser recovery is mostly statement-level, so malformed subexpressions/types/member access produce cascades instead of localized syntax errors
+- fixture and compile flows short-circuit on parser errors, so recoverable syntax errors mask later semantic diagnostics
+- semantic diagnostics are still split between structured errors, raw strings, and runtime fallthrough
+- missing compile-time validation often escapes into interpreter/runtime errors instead of stopping at compile time
+
+This phase creates the compiler front-end boundary needed to make fixture work tractable again.
+
+---
+
+### 5.1 Unified Diagnostic Model
+
+**Goal**: Stop treating parser, semantic analyzer, and runtime-facing compile errors as unrelated output streams.
+
+**Tasks**:
+
+- [x] **5.1.1** Introduce a shared front-end diagnostic type
+  - carry severity (`Hint`, `Warning`, `Syntax Error`, `Compile Error`, `Runtime Error`)
+  - carry stable source positions, codes, phase metadata, and fatal/non-fatal state
+  - landed in `internal/frontend/result.go` as `frontend.Diagnostic`
+- [x] **5.1.2** Introduce a compile/front-end result object
+  - collect parser and semantic diagnostics in one ordered stream
+  - expose `HasFatalCompileErrors()` / equivalent gate helpers
+  - landed in `internal/frontend/result.go` as `frontend.Result` with shared parse/compile entry points and fatal-diagnostic gating helpers
+- [x] **5.1.3** Centralize DWScript-compatible diagnostic formatting
+  - route parser/semantic fixture formatting through one boundary
+  - stop leaking internal parser/debug phrasing into fixture output
+  - centralized through `frontend.Diagnostic.Render()` / `DiagnosticStrings()`
+  - parser/semantic conversion for fixtures and public compile APIs now flows through the same front-end boundary
+- [x] **5.1.4** Migrate fixture and compiler-entry consumers to the shared result
+  - `internal/interp/fixture_test.go`
+  - interpreter/program bootstrap paths that currently split parse/semantic/runtime handling
+  - landed for the fixture harness and `pkg/dwscript.Engine.{Compile,Parse}`
+
+---
+
+### 5.2 Recoverable Parser Core
+
+**Goal**: Make Pratt/type/member parsing recover locally enough to preserve AST shape and continue collecting diagnostics.
+
+**Tasks**:
+
+- [x] **5.2.1** Audit parser hot paths that return `nil` without local recovery
+  - `parseExpression`
+  - type-expression parsing
+  - member access parsing
+  - expression/type list parsing
+  - audited and converted the first hot-path cluster in `parseExpression`, `parseTypeExpression`, member access, and array/type declaration parsing
+- [x] **5.2.2** Introduce recoverable malformed/error nodes where needed
+  - preserve parent AST shape for semantic follow-up
+  - keep exact source spans for diagnostics
+  - landed `ast.InvalidExpression` and `ast.InvalidTypeExpression`, with semantic analyzer tolerance for recovered placeholders
+- [x] **5.2.3** Replace raw `no prefix parse function ...` fixture-facing output
+  - keep internal/debug hooks if useful for unit tests
+  - emit localized DWScript-style syntax diagnostics instead
+  - parser core now emits localized `Expression expected` / `Name expected` style diagnostics instead of raw Pratt internals
+- [x] **5.2.4** Add construct-local synchronization rules
+  - member access (`obj.` / `Type.`)
+  - array/type declarations
+  - grouped expressions, calls, and indexing
+  - landed localized recovery for member access and array/type declaration paths, including DWScript-style `"]" expected`, `OF expected`, and `"..\" expected` fixture output
+- [ ] **5.2.5** Revisit unconditional outer parser advancement after failed nested parses
+  - reduce cursor drift and follow-on parser noise
+
+---
+
+### 5.3 Semantic Pass Integration And Compile Gating
+
+**Goal**: Let semantic analysis run whenever the parser has recovered enough structure, and prevent fatal compile diagnostics from becoming runtime behavior.
+
+**Tasks**:
+
+- [ ] **5.3.1** Define when semantic analysis may run on partially recovered AST
+  - document fatal vs recoverable parser states
+- [x] **5.3.2** Gate interpreter execution on fatal compile diagnostics only
+  - recovered syntax + semantic diagnostics should stop runtime cleanly
+  - landed through the shared `internal/frontend` compile boundary and consumer gating in fixture/public compile entry points
+- [ ] **5.3.3** Migrate semantic analyzer toward typed diagnostics
+  - reduce direct `[]string` appends
+  - make structured diagnostics the canonical path
+- [ ] **5.3.4** Move obvious compile-time validation out of runtime fallthrough
+  - abstract class instantiation
+  - invalid member/helper resolution
+  - invalid compile-time type/operator checks that currently surface during execution
+
+---
+
+### 5.4 Failure Fixture Compatibility Sweep
+
+**Goal**: Use the new front-end boundary to collapse `FailureScripts` mismatches by root cause instead of per-fixture patching.
+
+**Tasks**:
+
+- [ ] **5.4.1** Classify current `FailureScripts` failures by diagnostic-pipeline bucket
+  - parser recovery
+  - compile gating
+  - semantic wording/position normalization
+  - true missing feature
+- [ ] **5.4.2** Fix one representative bucket at a time and record the delta
+  - target the highest-volume buckets first
+- [ ] **5.4.3** Add regression tests for mixed diagnostic streams
+  - syntax + semantic errors in the same source file
+  - ensure ordering is stable and DWScript-compatible
+- [ ] **5.4.4** Update docs/phase notes after the first major compatibility jump
+  - include before/after fixture counts and remaining buckets
+
+---
+
+### Phase 5 Success Criteria
+
+- [ ] parser-facing fixtures no longer surface raw internal diagnostics like `no prefix parse function ...`
+- [ ] recoverable parser failures do not automatically suppress later semantic diagnostics
+- [ ] compile-time fatal diagnostics prevent runtime execution through one shared gate
+- [ ] parser and semantic diagnostics flow through one formatting/ordering boundary
+- [ ] `FailureScripts` failures are materially reduced by architectural fixes before feature-by-feature cleanup
+
+---
+
+## Phase 6: Interpreter Technical Debt Cleanup
 
 **Status**: 📋 Planned | **Priority**: Medium | **Estimated**: 2-3 weeks
 
@@ -653,7 +830,7 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 
 ---
 
-### 5.1 Circular Import Workarounds ✅ COMPLETE
+### 6.1 Circular Import Workarounds ✅ COMPLETE
 
 **Goal**: Resolve circular import issues that forced workarounds in the type system.
 
@@ -667,47 +844,47 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 
 **Changes Made**:
 
-- [x] **5.1.1** Audit import graph - Found no actual circular imports
-- [x] **5.1.2** Fixed `type_helpers.go` - Implemented actual type extraction:
+- [x] **6.1.1** Audit import graph - Found no actual circular imports
+- [x] **6.1.2** Fixed `type_helpers.go` - Implemented actual type extraction:
   - `getArrayElementTypeFromValue()` now returns `ArrayValue.ArrayType`
   - `getRecordTypeFromValue()` now returns `RecordValue.RecordType`
   - `getSetTypeFromValue()` now returns `SetValue.SetType`
   - `getEnumTypeFromValue()` documents that EnumValue only has TypeName string
-- [x] **5.1.3** Fixed `metadata_conversion.go` - Deleted 18-line duplicate `normalizeIdentifier()`, now uses `ident.Normalize()`
-- [x] **5.1.4** Fixed `method_registry.go` - Added `ident` import, uses `ident.Normalize()`
+- [x] **6.1.3** Fixed `metadata_conversion.go` - Deleted 18-line duplicate `normalizeIdentifier()`, now uses `ident.Normalize()`
+- [x] **6.1.4** Fixed `method_registry.go` - Added `ident` import, uses `ident.Normalize()`
 - [x] Removed redundant test `TestNormalizeIdentifier` from `metadata_test.go`
 
 **Lesson**: Always verify assumptions before planning large refactors. The "circular import" TODOs were stale.
 
 ---
 
-### 5.2 Incomplete Migration Tasks ✅ REVIEWED - DEFERRED TO PHASE 4
+### 6.2 Incomplete Migration Tasks ✅ REVIEWED - DEFERRED TO PHASE 4
 
 **Goal**: Complete Phase 3 migration leftovers.
 
-**Status**: ✅ Reviewed | **Result**: All items belong in Phase 4, not Phase 5
+**Status**: ✅ Reviewed | **Result**: All items belong in Phase 4, not Phase 6
 
 **Assessment**:
 
-- [x] **5.2.1** `visitor_expressions_functions.go:388` - External function handling
+- [x] **6.2.1** `visitor_expressions_functions.go:388` - External function handling
   - **Decision**: DEFER to Phase 4.3 (Move OOP to Handlers)
   - Requires moving `Interpreter.CallExternalFunction()` and external function registry
   - This is callback elimination work, not simple cleanup
 
-- [x] **5.2.2** `runtime/class_interface.go:176` - `InterfaceInfo` type alias
+- [x] **6.2.2** `runtime/class_interface.go:176` - `InterfaceInfo` type alias
   - **Decision**: NO ACTION NEEDED - alias is correct as-is
   - The alias `InterfaceInfo = IInterfaceInfo` provides Go-idiomatic naming
   - 66 usages of `InterfaceInfo` vs 21 of `IInterfaceInfo` - keeping the alias is right
   - Updated TODO comment to reflect this
 
-- [x] **5.2.3** `class.go:310` - Method lookup returns AST
+- [x] **6.2.3** `class.go:310` - Method lookup returns AST
   - **Decision**: DEFER to Phase 4.3 (Move OOP to Handlers)
   - Requires completing method registry migration
   - Part of the broader "return callable instead of AST" initiative
 
 ---
 
-### 5.3 Feature Implementation Gaps
+### 6.3 Feature Implementation Gaps
 
 **Goal**: Complete partially implemented features causing test failures.
 
@@ -723,27 +900,27 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 
 **Tasks**:
 
-- [x] **5.3.1** Implement full inheritance checking for `is` operator (4h)
+- [x] **6.3.1** Implement full inheritance checking for `is` operator (4h)
   - `operators.go:119`
   - Check full class hierarchy, not just direct parent
 
-- [x] **5.3.2** Implement interface inheritance for `is` checks (3h)
+- [x] **6.3.2** Implement interface inheritance for `is` checks (3h)
   - `evaluator/visitor_expressions_types.go:220`
   - Walk interface parent chain
 
-- [x] **5.3.3** Add type coercion to enum constant evaluation (3h)
+- [x] **6.3.3** Add type coercion to enum constant evaluation (3h)
   - `enum.go:41`
   - Handle integer-to-enum coercion in constant expressions
 
-- [x] **5.3.4** Complete record declaration handling (4h)
+- [x] **6.3.4** Complete record declaration handling (4h)
   - **Primary files**: `internal/interp/evaluator/visitor_declarations.go` (record decl eval), plus any member-lookup code paths needed for `TRecord.Const` / `TRecord.ClassVar`
   - **Goal**: bring runtime behavior for record declarations in line with DWScript expectations (fields + const/class var + methods/properties).
   - **Subtasks**:
-    - [x] **5.3.4.1** Audit current `VisitRecordDecl` behavior vs failing fixture(s) / missing runtime behavior (30m)
-    - [x] **5.3.4.2** Record constants: evaluate sequentially with earlier record constants visible to later constant initializers (1h)
-    - [x] **5.3.4.3** Record “static” members: ensure `TRecord.<Const|ClassVar|ClassMethod>` lookup is supported consistently and case-insensitively (1h)
-    - [x] **5.3.4.4** Record fields metadata: ensure all fields are registered with correct case-insensitive mapping and are available for typed record literals and field access (30m)
-    - [x] **5.3.4.5** Add/extend interpreter tests covering record declaration features (1h)
+    - [x] **6.3.4.1** Audit current `VisitRecordDecl` behavior vs failing fixture(s) / missing runtime behavior (30m)
+    - [x] **6.3.4.2** Record constants: evaluate sequentially with earlier record constants visible to later constant initializers (1h)
+    - [x] **6.3.4.3** Record “static” members: ensure `TRecord.<Const|ClassVar|ClassMethod>` lookup is supported consistently and case-insensitively (1h)
+    - [x] **6.3.4.4** Record fields metadata: ensure all fields are registered with correct case-insensitive mapping and are available for typed record literals and field access (30m)
+    - [x] **6.3.4.5** Add/extend interpreter tests covering record declaration features (1h)
       - constants (including const depends-on-const)
       - class var initialization and access
       - method/class method dispatch (if already supported for records)
@@ -751,15 +928,15 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
       - case-insensitivity checks (e.g. `tpoint.origin` vs `TPoint.Origin`)
   - **Acceptance criteria**:
     - New/updated tests pass (add targeted coverage in `internal/interp/*_test.go`)
-    - At least one fixture previously failing due to record declaration behavior now passes (or is explicitly re-scoped to a later phase if it requires missing features outside Phase 5)
+    - At least one fixture previously failing due to record declaration behavior now passes (or is explicitly re-scoped to a later phase if it requires missing features outside Phase 6)
 
-- [x] **5.3.5** Support class constant expressions in field initializers (4h)
+- [x] **6.3.5** Support class constant expressions in field initializers (4h)
   - `class_var_init_test.go:55`
   - Allow `ClassName.ConstantName` in initializers
 
 ---
 
-### 5.4 Var Parameter and Reference Handling
+### 6.4 Var Parameter and Reference Handling
 
 **Goal**: Fix incomplete var/by-ref parameter support in records.
 
@@ -772,19 +949,19 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 
 **Tasks**:
 
-- [ ] **5.4.1** Implement proper by-ref support for record parameters (6h)
+- [ ] **6.4.1** Implement proper by-ref support for record parameters (6h)
   - Create reference wrapper for record fields
   - Ensure mutations propagate correctly
 
-- [ ] **5.4.2** Implement copy-back semantics for var parameters (4h)
+- [ ] **6.4.2** Implement copy-back semantics for var parameters (4h)
   - Track original locations
   - Copy modified values back after call
 
-- [ ] **5.4.3** Add tests for record var parameters (2h)
+- [ ] **6.4.3** Add tests for record var parameters (2h)
 
 ---
 
-### 5.5 Unit Symbol Table Enhancement
+### 6.5 Unit Symbol Table Enhancement
 
 **Goal**: Improve unit isolation and symbol resolution.
 
@@ -796,19 +973,19 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 
 **Tasks**:
 
-- [ ] **5.5.1** Design per-unit symbol table structure (2h)
+- [ ] **6.5.1** Design per-unit symbol table structure (2h)
   - Each unit owns its symbols
   - Cross-unit references resolved through imports
 
-- [ ] **5.5.2** Implement unit-scoped symbol tables (6h)
+- [ ] **6.5.2** Implement unit-scoped symbol tables (6h)
   - Modify UnitLoader to create isolated tables
   - Update function resolution to check unit ownership
 
-- [ ] **5.5.3** Add verification for function-to-unit mapping (2h)
+- [ ] **6.5.3** Add verification for function-to-unit mapping (2h)
 
 ---
 
-### 5.6 Miscellaneous Cleanup
+### 6.6 Miscellaneous Cleanup
 
 **Goal**: Address remaining small TODOs.
 
@@ -816,44 +993,44 @@ Phase 4.9 removed the dead shadow-execution cluster and locked down ownership re
 
 **Tasks**:
 
-- [ ] **5.6.1** Fix JSON nil handling (2h)
+- [ ] **6.6.1** Fix JSON nil handling (2h)
   - `evaluator/json_helpers.go:182`
   - Return proper null/nil JSON value
 
-- [ ] **5.6.2** Implement static array helper fallback (2h)
+- [ ] **6.6.2** Implement static array helper fallback (2h)
   - `evaluator/helper_methods.go:67`
   - Try dynamic array equivalent for static arrays
 
-- [ ] **5.6.3** Complete function pointer type construction (2h)
+- [ ] **6.6.3** Complete function pointer type construction (2h)
   - `helpers_conversion.go:102`
   - Build proper type metadata for function pointers
 
-- [ ] **5.6.4** Review and update expressions_basic.go:227 (2h)
+- [ ] **6.6.4** Review and update expressions_basic.go:227 (2h)
   - Determine if "simplified implementation" is sufficient
   - Document or complete as needed
 
 ---
 
-### Phase 5 Effort Summary
+### Phase 6 Effort Summary
 
 | Task | Effort | Priority |
 |------|--------|----------|
-| 5.1 Circular Import Workarounds | 3-4 days | High |
-| 5.2 Incomplete Migration | 2-3 days | Medium |
-| 5.3 Feature Implementation Gaps | 1 week | High |
-| 5.4 Var Parameter Handling | 2-3 days | Medium |
-| 5.5 Unit Symbol Tables | 2-3 days | Low |
-| 5.6 Miscellaneous Cleanup | 1-2 days | Low |
+| 6.1 Circular Import Workarounds | 3-4 days | High |
+| 6.2 Incomplete Migration | 2-3 days | Medium |
+| 6.3 Feature Implementation Gaps | 1 week | High |
+| 6.4 Var Parameter Handling | 2-3 days | Medium |
+| 6.5 Unit Symbol Tables | 2-3 days | Low |
+| 6.6 Miscellaneous Cleanup | 1-2 days | Low |
 
 **Total Estimated Effort**: 2-3 weeks
 
-**Recommended Order**: 5.1 → 5.3 → 5.2 → 5.4 → 5.6 → 5.5
+**Recommended Order**: 6.1 → 6.3 → 6.2 → 6.4 → 6.6 → 6.5
 
-**Note**: These tasks can be done incrementally alongside other work. Prioritize 5.1 and 5.3 as they likely impact fixture test pass rates.
+**Note**: These tasks can be done incrementally alongside other work. Prioritize 6.1 and 6.3 as they likely impact fixture test pass rates.
 
 ---
 
-## Phase 6: Semantic Analyzer Improvements ✅ **COMPLETED**
+## Phase 7: Semantic Analyzer Improvements ✅ **COMPLETED**
 
 **Status**: Complete | **Fixture Tests**: 386/1,227 passing (31.5%)
 
@@ -2317,7 +2494,7 @@ type TypeAnnotation struct {
 
 ---
 
-## Phase 13: go-dws API Enhancements for LSP Integration ✅ COMPLETE
+## Phase 14: go-dws API Enhancements for LSP Integration ✅ COMPLETE
 
 **Goal**: Enhanced go-dws library with structured errors, AST access, position metadata, symbol tables, and type information for LSP features.
 
@@ -2325,7 +2502,7 @@ type TypeAnnotation struct {
 
 ---
 
-## Phase 14: Bytecode Compiler & VM Optimizations ✅ MOSTLY COMPLETE
+## Phase 15: Bytecode Compiler & VM Optimizations ✅ MOSTLY COMPLETE
 
 **Status**: Core implementation complete | **Performance**: 5-6x faster than AST interpreter | **Tasks**: 15 complete, 2 pending
 
@@ -2869,7 +3046,7 @@ end;
 
 **Estimated time**: Completed in 12-16 weeks
 
-## Phase 15: Future Bytecode Optimizations (DEFERRED)
+## Phase 16: Future Bytecode Optimizations (DEFERRED)
 
 - [ ] 15.1 Advanced peephole optimizations
   - [ ] Strength reduction (multiplication → shift)
@@ -2893,7 +3070,7 @@ end;
 
 ---
 
-## Phase 16: Performance & Polish
+## Phase 17: Performance & Polish
 
 ### Performance Profiling
 
@@ -2992,7 +3169,7 @@ end;
 
 ---
 
-## Phase 17: Go Source Code Generation & AOT Compilation [RECOMMENDED]
+## Phase 18: Go Source Code Generation & AOT Compilation [RECOMMENDED]
 
 **Status**: Not started | **Priority**: HIGH | **Estimated Time**: 20-28 weeks (code generation) + 9-13 weeks (CLI)
 
@@ -3160,7 +3337,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
 
 **Expected Results**: 10-50x faster than tree-walking interpreter, near-native Go speed
 
-## Phase 18: AOT Compiler CLI (9-13 weeks)
+## Phase 19: AOT Compiler CLI (9-13 weeks)
 
 - [ ] 18.1 Create `dwscript compile` command
   - Add `compile` subcommand to CLI
@@ -3233,7 +3410,7 @@ This phase implements ahead-of-time (AOT) compilation by transpiling DWScript so
 
 ---
 
-## Phase 19: WebAssembly Runtime & Playground ✅ MOSTLY COMPLETE
+## Phase 20: WebAssembly Runtime & Playground ✅ MOSTLY COMPLETE
 
 **Status**: Core implementation complete | **Priority**: HIGH | **Tasks**: 23 complete, 3 pending
 
@@ -3389,7 +3566,7 @@ This phase implements WebAssembly support for running DWScript in browsers, incl
 
 ---
 
-## Phase 20: Community Building & Ecosystem [ONGOING]
+## Phase 21: Community Building & Ecosystem [ONGOING]
 
 **Status**: Ongoing | **Priority**: HIGH | **Estimated Tasks**: ~40
 
@@ -3427,9 +3604,9 @@ This phase focuses on building a sustainable open-source community, maintaining 
   - [ ] Step-through execution
   - [ ] Variable inspection
   - [ ] Stack traces
-- [x] 20.15 WebAssembly Runtime & Playground - **See Phase 14** (mostly complete)
+- [x] 20.15 WebAssembly Runtime & Playground - **See Phase 15** (mostly complete)
 - [x] 20.16 Language Server Protocol (LSP) - **See external repo** https://github.com/cwbudde/go-dws-lsp
-- [ ] 20.17 JavaScript code generation backend - **See Phase 16** (deferred)
+- [ ] 20.17 JavaScript code generation backend - **See Phase 17** (deferred)
 
 ### Phase 20.4: Platform-Specific Enhancements
 
@@ -3484,7 +3661,7 @@ This phase focuses on building a sustainable open-source community, maintaining 
 
 ---
 
-## Phase 21: MIR Foundation [DEFERRED]
+## Phase 22: MIR Foundation [DEFERRED]
 
 **Status**: Not started | **Priority**: MEDIUM | **Estimated Tasks**: 47 (MIR core, lowering, testing)
 
@@ -3496,7 +3673,7 @@ This phase implements a Mid-level Intermediate Representation (MIR) that serves 
 
 **Why MIR?** Clean separation of concerns, multi-backend support, platform-independent optimizations, easier debugging, and future-proofing for additional compilation targets.
 
-**Note**: JavaScript backend is implemented in Phase 16, LLVM backend in Phase 17.
+**Note**: JavaScript backend is implemented in Phase 17, LLVM backend in Phase 17.
 
 ### Phase 21.1: MIR Foundation (30 tasks)
 
@@ -3574,7 +3751,7 @@ This phase implements a Mid-level Intermediate Representation (MIR) that serves 
 
 ---
 
-## Phase 22: JavaScript Backend [DEFERRED]
+## Phase 23: JavaScript Backend [DEFERRED]
 
 **Status**: Not started | **Priority**: MEDIUM | **Estimated Tasks**: 105 (MVP + feature complete)
 
@@ -3586,7 +3763,7 @@ This phase implements a JavaScript code generator that translates MIR to readabl
 
 **Benefits**: Browser execution, npm ecosystem integration, excellent portability, leverages JavaScript JIT compilers
 
-**Dependencies**: Requires Phase 15 (MIR Foundation) to be completed first
+**Dependencies**: Requires Phase 16 (MIR Foundation) to be completed first
 
 ### Phase 22.1: JS Backend MVP (45 tasks)
 
@@ -3743,19 +3920,19 @@ This phase implements a JavaScript code generator that translates MIR to readabl
 
 ---
 
-## Phase 23: LLVM Backend [DEFERRED]
+## Phase 24: LLVM Backend [DEFERRED]
 
 **Status**: Not started | **Priority**: LOW | **Estimated Tasks**: 45
 
 ### Overview
 
-This phase implements an LLVM IR backend for native code compilation, consolidating all LLVM-related work from the original Phase 13 LLVM JIT and AOT sections. This provides maximum performance but adds significant complexity.
+This phase implements an LLVM IR backend for native code compilation, consolidating all LLVM-related work from the original Phase 14 LLVM JIT and AOT sections. This provides maximum performance but adds significant complexity.
 
 **Architecture Flow**: MIR → LLVM IR Emitter → LLVM IR → llc → Native Binary
 
 **Benefits**: Maximum performance (near C/C++ speed), excellent optimization, multi-architecture support
 
-**Dependencies**: Requires Phase 15 (MIR Foundation) to be completed first
+**Dependencies**: Requires Phase 16 (MIR Foundation) to be completed first
 
 **Note**: This phase consolidates LLVM JIT (from old Phase 13.2), LLVM AOT (from old Phase 13.4), and LLVM backend (from old Stage 14.6). Given complexity and maintenance burden, this is marked as DEFERRED with LOW priority. The bytecode VM and Go AOT provide sufficient performance for most use cases.
 
@@ -3823,19 +4000,19 @@ This phase implements an LLVM IR backend for native code compilation, consolidat
 
 ---
 
-## Phase 24: WebAssembly AOT Compilation [RECOMMENDED]
+## Phase 25: WebAssembly AOT Compilation [RECOMMENDED]
 
 **Status**: Not started | **Priority**: MEDIUM-HIGH | **Estimated Tasks**: 5
 
 ### Overview
 
-This phase extends WebAssembly support to generate standalone WASM binaries that can run without JavaScript dependency. This builds on Phase 14 (WASM Runtime & Playground) but focuses on ahead-of-time compilation for server-side and edge deployment.
+This phase extends WebAssembly support to generate standalone WASM binaries that can run without JavaScript dependency. This builds on Phase 15 (WASM Runtime & Playground) but focuses on ahead-of-time compilation for server-side and edge deployment.
 
 **Architecture Flow**: DWScript Source → Go Compiler → WASM Binary → WASI Runtime (wasmtime, wasmer, wazero)
 
 **Benefits**: Portable binaries, server-side execution, edge computing support, sandboxed execution
 
-**Dependencies**: Builds on Phase 14 (WebAssembly Runtime & Playground)
+**Dependencies**: Builds on Phase 15 (WebAssembly Runtime & Playground)
 
 ### Phase 24.1: Standalone WASM Binaries (5 tasks)
 
@@ -3873,7 +4050,7 @@ This phase extends WebAssembly support to generate standalone WASM binaries that
 
 ---
 
-## Phase 25: AST-Driven Formatter 🆕 **PLANNED**
+## Phase 26: AST-Driven Formatter 🆕 **PLANNED**
 
 **Status**: Not started | **Priority**: MEDIUM | **Estimated Tasks**: 30
 
@@ -3975,7 +4152,7 @@ This phase delivers an auto-formatting pipeline that reuses the existing AST and
 
 ---
 
-## Phase 26: Future Enhancements & Experimental Features [LONG-TERM]
+## Phase 27: Future Enhancements & Experimental Features [LONG-TERM]
 
 **Status**: Not started | **Priority**: LOW | **Tasks**: Variable
 
@@ -3985,35 +4162,35 @@ This phase collects experimental, deferred, and long-term enhancement tasks that
 
 **Note**: Tasks in this phase are marked as DEFERRED or OPTIONAL and should only be pursued after core phases are complete and based on user demand.
 
-### Phase 26.1: Plugin-Based JIT [SKIP - Poor Portability]
+### Phase 27.1: Plugin-Based JIT [SKIP - Poor Portability]
 
 **Status**: SKIP RECOMMENDED | **Limitation**: No Windows support, requires Go toolchain at runtime
 
-- [ ] 26.1 Implement Go code generation from AST
+- [ ] 27.1 Implement Go code generation from AST
   - Create `internal/codegen/go_generator.go`
   - Generate Go source code from DWScript AST
   - Map DWScript types to Go types
   - Generate function declarations and calls
   - Handle closures and scoping
 
-- [ ] 26.2 Implement plugin-based JIT
+- [ ] 27.2 Implement plugin-based JIT
   - Use `go build -buildmode=plugin` to compile generated code
   - Load plugin with `plugin.Open()`
   - Look up compiled function with `plugin.Lookup()`
   - Call compiled function from interpreter
   - Cache plugins to disk
 
-- [ ] 26.3 Add hot path detection for plugin JIT
+- [ ] 27.3 Add hot path detection for plugin JIT
   - Track function execution counts
   - Trigger plugin compilation for hot functions
   - Manage plugin lifecycle (loading/unloading)
 
-- [ ] 26.4 Test plugin-based JIT
+- [ ] 27.4 Test plugin-based JIT
   - Run tests on Linux and macOS only
   - Compare performance with bytecode VM
   - Test plugin caching and reuse
 
-- [ ] 26.5 Document plugin approach
+- [ ] 27.5 Document plugin approach
   - Write `docs/plugin-jit.md`
   - Explain platform limitations
   - Provide usage examples
@@ -4021,75 +4198,75 @@ This phase collects experimental, deferred, and long-term enhancement tasks that
 **Expected Results**: 3-5x faster than tree-walking
 **Recommendation**: SKIP - poor portability, requires Go toolchain
 
-### Phase 26.2: Alternative Compiler Targets [EXPERIMENTAL]
+### Phase 27.2: Alternative Compiler Targets [EXPERIMENTAL]
 
-- [ ] 26.6 C code generation backend
+- [ ] 27.6 C code generation backend
   - Transpile DWScript to C
   - Leverage existing C compilers
   - Test on embedded systems
 
-- [ ] 26.7 Rust code generation backend
+- [ ] 27.7 Rust code generation backend
   - Transpile DWScript to Rust
   - Leverage Rust's memory safety
   - Explore performance characteristics
 
-- [ ] 26.8 Python code generation backend
+- [ ] 27.8 Python code generation backend
   - Transpile DWScript to Python
   - Enable rapid prototyping
   - Integration with Python ecosystem
 
-### Phase 26.3: Advanced Optimization Research [EXPERIMENTAL]
+### Phase 27.3: Advanced Optimization Research [EXPERIMENTAL]
 
-- [ ] 26.9 Profile-guided optimization (PGO)
+- [ ] 27.9 Profile-guided optimization (PGO)
   - Collect runtime profiles
   - Use profiles to guide optimizations
   - Measure performance improvements
 
-- [ ] 26.10 Speculative optimization
+- [ ] 27.10 Speculative optimization
   - Type speculation based on runtime behavior
   - Deoptimization on type changes
   - Guard conditions
 
-- [ ] 26.11 Escape analysis
+- [ ] 27.11 Escape analysis
   - Determine when objects can be stack-allocated
   - Reduce GC pressure
   - Improve performance
 
-- [ ] 26.12 Inline caching for dynamic dispatch
+- [ ] 27.12 Inline caching for dynamic dispatch
   - Cache method lookup results
   - Invalidate on class changes
   - Measure performance impact
 
-### Phase 26.4: Language Extensions [EXPERIMENTAL]
+### Phase 27.4: Language Extensions [EXPERIMENTAL]
 
-- [ ] 26.13 Async/await support
+- [ ] 27.13 Async/await support
   - Design async/await syntax for DWScript
   - Implement coroutine-based execution
   - Test with concurrent workloads
 
-- [ ] 26.14 Pattern matching
+- [ ] 27.14 Pattern matching
   - Extend case statements with pattern matching
   - Support destructuring
   - Type narrowing based on patterns
 
-- [ ] 26.15 Macros/metaprogramming
+- [ ] 27.15 Macros/metaprogramming
   - Design macro system
   - Compile-time code generation
   - Template metaprogramming support
 
-### Phase 26.5: Tooling Enhancements [LOW PRIORITY]
+### Phase 27.5: Tooling Enhancements [LOW PRIORITY]
 
-- [ ] 26.16 IDE integration beyond LSP
+- [ ] 27.16 IDE integration beyond LSP
   - IntelliJ IDEA plugin
   - VS Code enhanced extension
   - Sublime Text package
 
-- [ ] 26.17 Package manager
+- [ ] 27.17 Package manager
   - Design package format
   - Implement dependency resolution
   - Create package registry
 
-- [ ] 26.18 Build system integration
+- [ ] 27.18 Build system integration
   - Make/CMake integration
   - Bazel rules
   - Gradle plugin
@@ -4098,55 +4275,57 @@ This phase collects experimental, deferred, and long-term enhancement tasks that
 
 ## Summary
 
-This roadmap now spans **~1000+ bite-sized tasks** across **21 phases**, organized into three tiers: **Core Language** (Phases 1-10), **Execution & Compilation** (Phases 11-18), and **Ecosystem & Tooling** (Phases 19-21).
+This roadmap now spans **~1000+ bite-sized tasks** across **22 phases**, organized into three tiers: **Core Language** (Phases 1-11), **Execution & Compilation** (Phases 12-19), and **Ecosystem & Tooling** (Phases 20-21 plus 27).
 
-### Core Language Implementation (Phases 1-10) ✅ MOSTLY COMPLETE
+### Core Language Implementation (Phases 1-11) ✅ MOSTLY COMPLETE
 
 1. **Phase 1 – Lexer**: ✅ Complete (150+ tokens, 97% coverage)
 2. **Phase 2 – Parser & AST**: ✅ Complete (Pratt parser, comprehensive AST)
 3. **Phase 3 – Statement execution**: ✅ Complete (98.5% coverage)
 4. **Phase 4 – Control flow**: ✅ Complete (if/while/for/case)
-5. **Phase 5 – Functions & scope**: ✅ Complete (91.3% coverage)
-6. **Phase 6 – Type checking**: ✅ Complete (semantic analysis, 88.5% coverage)
-7. **Phase 7 – Object-oriented features**: ✅ Complete (classes, interfaces, inheritance)
-8. **Phase 8 – Extended language features**: ✅ Complete (operators, properties, enums, arrays, exceptions)
-9. **Phase 9 – Feature parity completion**: 🔄 In progress (class methods, constants, type casting)
-10. **Phase 10 – API enhancements for LSP**: ✅ Complete (public AST, structured errors, visitors)
+5. **Phase 5 – Front-end diagnostics & compile gating**: 📋 Planned (unified diagnostics, recoverable parsing, semantic compile gating)
+6. **Phase 6 – Functions & scope**: ✅ Complete (91.3% coverage)
+7. **Phase 7 – Type checking**: ✅ Complete (semantic analysis, 88.5% coverage)
+8. **Phase 8 – Object-oriented features**: ✅ Complete (classes, interfaces, inheritance)
+9. **Phase 9 – Extended language features**: ✅ Complete (operators, properties, enums, arrays, exceptions)
+10. **Phase 10 – Feature parity completion**: 🔄 In progress (class methods, constants, type casting)
+11. **Phase 11 – API enhancements for LSP**: ✅ Complete (public AST, structured errors, visitors)
 
-### Execution & Compilation (Phases 11-18)
+### Execution & Compilation (Phases 12-19)
 
-11. **Phase 11 – Bytecode Compiler & VM**: ✅ MOSTLY COMPLETE (5-6x faster than AST interpreter, 116 opcodes)
-12. **Phase 12 – Performance & Polish**: 🔄 Partial (profiling done, optimizations pending)
-13. **Phase 13 – Go AOT Compilation**: [RECOMMENDED] Transpile to Go, native binaries (10-50x speedup)
-14. **Phase 14 – WebAssembly Runtime & Playground**: ✅ MOSTLY COMPLETE (WASM build, playground, NPM package)
-15. **Phase 15 – MIR Foundation**: [DEFERRED] Mid-level IR for multi-backend support
-16. **Phase 16 – JavaScript Backend**: [DEFERRED] MIR → JavaScript code generation
-17. **Phase 17 – LLVM Backend**: [DEFERRED/LOW PRIORITY] Maximum performance, high complexity
-18. **Phase 18 – WebAssembly AOT**: [RECOMMENDED] Standalone WASM binaries for edge/server deployment
+12. **Phase 12 – Bytecode Compiler & VM**: ✅ MOSTLY COMPLETE (5-6x faster than AST interpreter, 116 opcodes)
+13. **Phase 13 – Performance & Polish**: 🔄 Partial (profiling done, optimizations pending)
+14. **Phase 14 – Go AOT Compilation**: [RECOMMENDED] Transpile to Go, native binaries (10-50x speedup)
+15. **Phase 15 – WebAssembly Runtime & Playground**: ✅ MOSTLY COMPLETE (WASM build, playground, NPM package)
+16. **Phase 16 – MIR Foundation**: [DEFERRED] Mid-level IR for multi-backend support
+17. **Phase 17 – JavaScript Backend**: [DEFERRED] MIR → JavaScript code generation
+18. **Phase 18 – LLVM Backend**: [DEFERRED/LOW PRIORITY] Maximum performance, high complexity
+19. **Phase 19 – WebAssembly AOT**: [RECOMMENDED] Standalone WASM binaries for edge/server deployment
 
-### Ecosystem & Tooling (Phases 19-21)
+### Ecosystem & Tooling (Phases 20-21 plus 27)
 
-19. **Phase 19 – AST-Driven Formatter**: [PLANNED] Auto-formatting for CLI, editors, playground
-20. **Phase 20 – Community & Ecosystem**: [ONGOING] REPL, debugging, security, maintenance
-21. **Phase 26 – Future Enhancements**: [LONG-TERM] Experimental features, alternative targets
+20. **Phase 20 – AST-Driven Formatter**: [PLANNED] Auto-formatting for CLI, editors, playground
+21. **Phase 21 – Community & Ecosystem**: [ONGOING] REPL, debugging, security, maintenance
+22. **Phase 27 – Future Enhancements**: [LONG-TERM] Experimental features, alternative targets
 
 ### Implementation Priorities
 
 **HIGH PRIORITY (Core Functionality)**:
-- Phase 9 (feature parity completion)
-- Phase 12 (performance polish)
-- Phase 13 (Go AOT compilation)
-- Phase 14 remaining tasks (WASM testing)
-- Phase 20 (community building, REPL, debugging)
+- Phase 5 (front-end diagnostics, recovery, and compile gating)
+- Phase 10 (feature parity completion)
+- Phase 13 (performance polish)
+- Phase 14 (Go AOT compilation)
+- Phase 15 remaining tasks (WASM testing)
+- Phase 21 (community building, REPL, debugging)
 
 **MEDIUM PRIORITY (Value-Add Features)**:
-- Phase 18 (WASM AOT)
-- Phase 19 (formatter)
-- Phase 15-16 (MIR + JavaScript backend)
+- Phase 19 (WASM AOT)
+- Phase 20 (formatter)
+- Phase 16-17 (MIR + JavaScript backend)
 
 **LOW PRIORITY (Deferred/Optional)**:
-- Phase 17 (LLVM backend - complex, high maintenance)
-- Phase 21 (experimental features)
+- Phase 18 (LLVM backend - complex, high maintenance)
+- Phase 27 (experimental features)
 
 ### Architecture Summary
 

@@ -224,10 +224,23 @@ func (p *Parser) addStructuredError(structErr *StructuredParserError) {
 	p.errors = append(p.errors, structErr.ToParserError())
 }
 
-// noPrefixParseFnError adds an error for missing prefix parse function.
-func (p *Parser) noPrefixParseFnError(t lexer.TokenType) {
-	msg := fmt.Sprintf("no prefix parse function for %s found", t)
-	p.addError(msg, ErrNoPrefixParse)
+// noPrefixParseFnError adds a localized syntax error for tokens that cannot start an expression.
+func (p *Parser) noPrefixParseFnError(tok lexer.Token) {
+	msg := "Expression expected"
+	code := ErrInvalidExpression
+
+	switch tok.Type {
+	case lexer.EOF, lexer.SEMICOLON, lexer.RPAREN, lexer.RBRACK, lexer.END, lexer.ELSE, lexer.THEN, lexer.DO, lexer.OF:
+		msg = "Expression expected"
+	case lexer.DOT:
+		msg = "Name expected"
+		code = ErrExpectedIdent
+	default:
+		msg = fmt.Sprintf("Expression expected before %s", tok.Type)
+	}
+
+	err := NewParserError(tok.Pos, tok.Length(), msg, code)
+	p.errors = append(p.errors, err)
 }
 
 // registerPrefix registers a prefix parse function for a token type.

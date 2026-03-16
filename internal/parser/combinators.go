@@ -529,7 +529,7 @@ func (p *Parser) OptionalTypeAnnotation() ast.TypeExpression {
 	p.nextToken() // move to type expression
 
 	typeExpr := p.parseTypeExpression()
-	if typeExpr == nil {
+	if isInvalidTypeExpression(typeExpr) {
 		// Error already reported by parseTypeExpression
 		return nil
 	}
@@ -849,7 +849,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 	p.nextToken() // move past COLON to type expression start token
 
 	typeExpr := p.parseTypeExpression()
-	if typeExpr == nil {
+	if isInvalidTypeExpression(typeExpr) {
 		// Error already reported by parseTypeExpression
 		return nil
 	}
@@ -875,7 +875,7 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 		p.nextToken() // move to '='
 		p.nextToken() // move past '='
 		defaultValue = p.parseExpression(LOWEST)
-		if defaultValue == nil {
+		if isInvalidExpression(defaultValue) {
 			curTok := p.cursor.Current()
 
 			err := NewStructuredError(ErrKindMissing).

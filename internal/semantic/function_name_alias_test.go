@@ -172,6 +172,44 @@ end.
 	}
 }
 
+func TestParameterlessFunctionAutoInvokeWithExpectedReturnType(t *testing.T) {
+	source := `
+type
+  IMyInterface = interface
+    procedure A;
+  end;
+
+type
+  TMyImplementation = class(TObject, IMyInterface)
+    procedure A; begin end;
+  end;
+
+function Build: IMyInterface;
+begin
+  Result := TMyImplementation.Create;
+end;
+
+var ref: IMyInterface;
+begin
+  ref := Build;
+end.
+`
+	l := lexer.New(source)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("Parser errors: %v", p.Errors())
+	}
+
+	analyzer := NewAnalyzer()
+	analyzer.Analyze(program)
+
+	if len(analyzer.Errors()) > 0 {
+		t.Fatalf("Expected no semantic errors, got: %v", analyzer.Errors())
+	}
+}
+
 // TestMethodNameAlias tests function name alias in method body
 func TestMethodNameAlias(t *testing.T) {
 	source := `

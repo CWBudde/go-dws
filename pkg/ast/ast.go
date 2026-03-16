@@ -221,6 +221,22 @@ func (ue *UnaryExpression) String() string {
 	return out.String()
 }
 
+// InvalidExpression is a recoverable placeholder used when parsing encounters a
+// malformed subexpression but keeps enough structure to continue parsing.
+type InvalidExpression struct {
+	Reason string
+	TypedExpressionBase
+}
+
+func (ie *InvalidExpression) expressionNode() {}
+
+func (ie *InvalidExpression) String() string {
+	if ie.Reason != "" {
+		return "<invalid:" + ie.Reason + ">"
+	}
+	return "<invalid>"
+}
+
 // GroupedExpression represents an expression wrapped in parentheses.
 type GroupedExpression struct {
 	Expression Expression

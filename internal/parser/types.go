@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -74,8 +75,85 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 
 	default:
 		p.addError("expected type expression, got "+currentToken.Literal, ErrExpectedType)
-		return nil
+		return &ast.InvalidTypeExpression{
+			BaseNode: ast.BaseNode{
+				Token: currentToken,
+			},
+			Reason: "type expected",
+		}
 	}
+}
+
+func isInvalidTypeExpression(typeExpr ast.TypeExpression) bool {
+	if typeExpr == nil {
+		return true
+	}
+	_, ok := typeExpr.(*ast.InvalidTypeExpression)
+	return ok
+}
+
+func invalidTypeExpression(tok lexer.Token, reason string) *ast.InvalidTypeExpression {
+	return &ast.InvalidTypeExpression{
+		BaseNode: ast.BaseNode{
+			Token: tok,
+		},
+		Reason: reason,
+	}
+}
+
+func isTypeExpressionStartToken(t lexer.TokenType) bool {
+	switch t {
+	case lexer.IDENT, lexer.CONST, lexer.FUNCTION, lexer.PROCEDURE, lexer.ARRAY, lexer.SET, lexer.CLASS:
+		return true
+	default:
+		return false
+	}
+}
+
+func isOpenArrayConstType(typeExpr ast.TypeExpression) bool {
+	typeAnnotation, ok := typeExpr.(*ast.TypeAnnotation)
+	return ok && ident.Equal(typeAnnotation.Name, "const")
+}
+
+func (p *Parser) recoverArrayType() {
+	cursor := p.cursor
+
+	for {
+		nextToken := cursor.Peek(1)
+
+		switch nextToken.Type {
+		case lexer.OF:
+			cursor = cursor.Advance()
+			p.cursor = cursor
+
+			if !isTypeExpressionStartToken(cursor.Peek(1).Type) {
+				return
+			}
+
+			cursor = cursor.Advance()
+			p.cursor = cursor
+			_ = p.parseTypeExpression()
+			return
+
+		case lexer.SEMICOLON, lexer.EQ, lexer.ASSIGN, lexer.COMMA, lexer.RPAREN, lexer.EOF:
+			return
+
+		default:
+			cursor = cursor.Advance()
+			p.cursor = cursor
+		}
+	}
+}
+
+func (p *Parser) addPeekTokenError(message string, code string) {
+	peekTok := p.cursor.Peek(1)
+	err := NewParserError(
+		peekTok.Pos,
+		peekTok.Length(),
+		message,
+		code,
+	)
+	p.errors = append(p.errors, err)
 }
 
 // detectFunctionPointerFullSyntax determines if we have full syntax (with parameter names)
@@ -260,7 +338,7 @@ type dimensionPair struct {
 // Multi-dimensional arrays are desugared into nested array types:
 //
 //	array[0..1, 0..2] of Integer → array[0..1] of array[0..2] of Integer
-func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
+func (p *Parser) parseArrayType() ast.TypeExpression {
 	cursor := p.cursor
 	builder := p.StartNode()
 
@@ -305,8 +383,9 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 
 				// Now expect ']'
 				if cursor.Peek(1).Type != lexer.RBRACK {
-					p.addError("expected ']' after array bounds", ErrMissingRBracket)
-					return nil
+					p.addPeekTokenError("\"]\" expected", ErrMissingRBracket)
+					p.recoverArrayType()
+					return invalidTypeExpression(arrayToken, "invalid array type")
 				}
 				cursor = cursor.Advance() // move to ']'
 				p.cursor = cursor
@@ -329,7 +408,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 				// Use structured error for missing closing bracket
 				err := NewStructuredError(ErrKindMissing).
 					WithCode(ErrMissingRBracket).
-					WithMessage("expected ']' after array bounds").
+					WithMessage("\"]\" expected").
 					WithPosition(cursor.Peek(1).Pos, cursor.Peek(1).Length()).
 					WithExpected(lexer.RBRACK).
 					WithActual(cursor.Peek(1).Type, cursor.Peek(1).Literal).
@@ -337,7 +416,8 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 					WithParsePhase("array type bounds").
 					Build()
 				p.addStructuredError(err)
-				return nil
+				p.recoverArrayType()
+				return invalidTypeExpression(arrayToken, "invalid array type")
 			}
 			cursor = cursor.Advance() // move to ']'
 			p.cursor = cursor
@@ -349,7 +429,7 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 		// Use structured error for missing 'of'
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrMissingOf).
-			WithMessage("expected 'of' after array declaration").
+			WithMessage("OF expected").
 			WithPosition(cursor.Peek(1).Pos, cursor.Peek(1).Length()).
 			WithExpected(lexer.OF).
 			WithActual(cursor.Peek(1).Type, cursor.Peek(1).Literal).
@@ -358,7 +438,8 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 			WithParsePhase("array type").
 			Build()
 		p.addStructuredError(err)
-		return nil
+		p.recoverArrayType()
+		return invalidTypeExpression(arrayToken, "invalid array type")
 	}
 	cursor = cursor.Advance() // move to OF
 	p.cursor = cursor
@@ -367,19 +448,32 @@ func (p *Parser) parseArrayType() *ast.ArrayTypeNode {
 	cursor = cursor.Advance() // move to element type
 	p.cursor = cursor
 
+	errorCount := len(p.errors)
 	elementType := p.parseTypeExpression()
-	if elementType == nil {
-		// Use structured error for missing element type
+	if isInvalidTypeExpression(elementType) {
+		if len(p.errors) == errorCount {
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrExpectedType).
+				WithMessage("expected type expression after 'array of'").
+				WithPosition(cursor.Current().Pos, cursor.Current().Length()).
+				WithExpectedString("type name").
+				WithSuggestion("specify the element type, like 'Integer' or 'String'").
+				WithParsePhase("array element type").
+				Build()
+			p.addStructuredError(err)
+		}
+		return invalidTypeExpression(arrayToken, "invalid array type")
+	}
+
+	if len(dimensions) > 0 && isOpenArrayConstType(elementType) {
 		err := NewStructuredError(ErrKindInvalid).
-			WithCode(ErrExpectedType).
-			WithMessage("expected type expression after 'array of'").
-			WithPosition(cursor.Current().Pos, cursor.Current().Length()).
-			WithExpectedString("type name").
-			WithSuggestion("specify the element type, like 'Integer' or 'String'").
-			WithParsePhase("array element type").
+			WithCode(ErrInvalidType).
+			WithMessage("No indices expected for open array").
+			WithPosition(elementType.Pos(), elementType.End().Column-elementType.Pos().Column).
+			WithParsePhase("array type").
 			Build()
 		p.addStructuredError(err)
-		return nil
+		return invalidTypeExpression(arrayToken, "invalid open array type")
 	}
 
 	// If enum-indexed array, return with IndexType
@@ -457,21 +551,30 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 
 	// Parse first dimension
 	lowBound := p.parseArrayBound()
-	if lowBound == nil {
+	if isInvalidExpression(lowBound) {
 		p.addError("invalid array lower bound expression", ErrInvalidExpression)
 		return nil
 	}
 
 	// Expect '..'
-	if !p.expectPeek(lexer.DOTDOT) {
-		p.addError("expected .... in array bounds", ErrUnexpectedToken)
-		return nil
+	if !p.peekTokenIs(lexer.DOTDOT) {
+		p.addPeekTokenError("\"..\" expected", ErrUnexpectedToken)
+		return []dimensionPair{{
+			low:  lowBound,
+			high: &ast.InvalidExpression{
+				Reason: "missing upper array bound",
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{Token: p.cursor.Peek(1)},
+				},
+			},
+		}}
 	}
+	p.nextToken()
 
 	// Parse high bound expression
 	p.nextToken() // move to high bound
 	highBound := p.parseArrayBound()
-	if highBound == nil {
+	if isInvalidExpression(highBound) {
 		p.addError("invalid array upper bound expression", ErrInvalidExpression)
 		return nil
 	}
@@ -483,19 +586,29 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 		p.nextToken() // consume comma
 		p.nextToken() // move to next low bound
 		lowBound := p.parseArrayBound()
-		if lowBound == nil {
+		if isInvalidExpression(lowBound) {
 			p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
 			return nil
 		}
 
-		if !p.expectPeek(lexer.DOTDOT) {
-			p.addError("expected .... in array bounds", ErrUnexpectedToken)
-			return nil
+		if !p.peekTokenIs(lexer.DOTDOT) {
+			p.addPeekTokenError("\"..\" expected", ErrUnexpectedToken)
+			dimensions = append(dimensions, dimensionPair{
+				low:  lowBound,
+				high: &ast.InvalidExpression{
+					Reason: "missing upper array bound",
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: p.cursor.Peek(1)},
+					},
+				},
+			})
+			return dimensions
 		}
+		p.nextToken()
 
 		p.nextToken() // move to high bound
 		highBound := p.parseArrayBound()
-		if highBound == nil {
+		if isInvalidExpression(highBound) {
 			p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
 			return nil
 		}
@@ -527,7 +640,7 @@ func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 	p.cursor = cursor
 
 	classType := p.parseTypeExpression()
-	if classType == nil {
+	if isInvalidTypeExpression(classType) {
 		p.addError("expected class type after 'class of'", ErrExpectedType)
 		return nil
 	}

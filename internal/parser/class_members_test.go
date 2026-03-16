@@ -351,6 +351,38 @@ end;
 	}
 }
 
+func TestClassPublishedSectionIsPublic(t *testing.T) {
+	input := `type
+	TTest = class
+		protected
+			Field: Integer;
+		published
+			procedure Proc;
+	end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d", len(program.Statements))
+	}
+
+	classDecl, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T", program.Statements[0])
+	}
+	if len(classDecl.Methods) != 1 {
+		t.Fatalf("class should contain 1 method. got=%d", len(classDecl.Methods))
+	}
+	if classDecl.Methods[0].Visibility != ast.VisibilityPublic {
+		t.Fatalf("published method visibility = %v, want %v", classDecl.Methods[0].Visibility, ast.VisibilityPublic)
+	}
+}
+
 func TestParseClassWithMultipleInvariants(t *testing.T) {
 	input := `
 type TStack = class

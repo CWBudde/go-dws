@@ -176,6 +176,62 @@ func TestVarIsClear(t *testing.T) {
 	}
 }
 
+func TestVarToIntDef(t *testing.T) {
+	ctx := newMockContext()
+
+	result := VarToIntDef(ctx, []Value{
+		&runtime.StringValue{Value: "42"},
+		&runtime.IntegerValue{Value: 7},
+	})
+	intVal, ok := result.(*runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T", result)
+	}
+	if intVal.Value != 42 {
+		t.Fatalf("expected 42, got %d", intVal.Value)
+	}
+
+	result = VarToIntDef(ctx, []Value{
+		&runtime.StringValue{Value: "bad"},
+		&runtime.IntegerValue{Value: 7},
+	})
+	intVal, ok = result.(*runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected IntegerValue, got %T", result)
+	}
+	if intVal.Value != 7 {
+		t.Fatalf("expected default 7, got %d", intVal.Value)
+	}
+}
+
+func TestVarToFloatDef(t *testing.T) {
+	ctx := newMockContext()
+
+	result := VarToFloatDef(ctx, []Value{
+		&runtime.StringValue{Value: "3.5"},
+		&runtime.FloatValue{Value: 1.25},
+	})
+	floatVal, ok := result.(*runtime.FloatValue)
+	if !ok {
+		t.Fatalf("expected FloatValue, got %T", result)
+	}
+	if floatVal.Value != 3.5 {
+		t.Fatalf("expected 3.5, got %f", floatVal.Value)
+	}
+
+	result = VarToFloatDef(ctx, []Value{
+		&runtime.StringValue{Value: "bad"},
+		&runtime.FloatValue{Value: 1.25},
+	})
+	floatVal, ok = result.(*runtime.FloatValue)
+	if !ok {
+		t.Fatalf("expected FloatValue, got %T", result)
+	}
+	if floatVal.Value != 1.25 {
+		t.Fatalf("expected default 1.25, got %f", floatVal.Value)
+	}
+}
+
 func TestVarIsArray(t *testing.T) {
 	ctx := newMockContext()
 

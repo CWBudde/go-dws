@@ -199,7 +199,7 @@ func (p *Parser) parseFunctionDirectives(fn *ast.FunctionDecl) bool {
 // POST: cursor is at last token of type expression
 func (p *Parser) parseFunctionReturnType() *ast.TypeAnnotation {
 	typeExpr := p.parseTypeExpression()
-	if typeExpr == nil {
+	if isInvalidTypeExpression(typeExpr) {
 		p.addError("expected return type after ':'", ErrExpectedType)
 		return nil
 	}
@@ -602,10 +602,12 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		cursor = cursor.Advance() // move past ':' to type expression
 		p.cursor = cursor
 
+		errorCount := len(p.errors)
 		typeExpr = p.parseTypeExpression()
-		if typeExpr == nil {
-			// Error already reported by parseTypeExpression
-			return nil
+		if isInvalidTypeExpression(typeExpr) {
+			if len(p.errors) == errorCount {
+				return nil
+			}
 		}
 
 		// Update cursor after type parsing
@@ -634,7 +636,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		p.cursor = cursor
 
 		defaultValue = p.parseExpression(LOWEST)
-		if defaultValue == nil {
+		if isInvalidExpression(defaultValue) {
 			err := NewStructuredError(ErrKindMissing).
 				WithCode(ErrInvalidExpression).
 				WithMessage("expected default value expression after '='").
@@ -755,7 +757,7 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 
 		// Parse type expression (could be complex like "array of Integer" or "function(Integer): Integer")
 		typeExpr := p.parseTypeExpression()
-		if typeExpr == nil {
+		if isInvalidTypeExpression(typeExpr) {
 			p.addError("expected type in function pointer parameter list", ErrExpectedType)
 			return nil
 		}

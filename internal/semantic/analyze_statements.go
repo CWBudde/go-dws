@@ -108,6 +108,9 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	if stmt.Type != nil {
 		// Explicit type annotation - resolve the type expression directly
 		varType, err = a.resolveTypeExpression(stmt.Type)
+		if err == nil && varType == nil {
+			return
+		}
 		if err != nil {
 			// Get type name for error message
 			typeName := getTypeExpressionName(stmt.Type)
@@ -121,6 +124,9 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	if stmt.Value != nil {
 		initType := a.analyzeExpressionWithExpectedType(stmt.Value, varType)
 		if initType == nil {
+			if _, invalid := stmt.Value.(*ast.InvalidExpression); invalid {
+				return
+			}
 			if stmt.Type == nil {
 				a.addError("cannot infer type for variable '%s' from initializer at %s",
 					firstName, stmt.Token.Pos.String())
@@ -274,6 +280,18 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if !ok && a.currentClass != nil {
 			// Check if it's a field of the current class (case-insensitive)
 			if fieldType, exists := a.currentClass.GetField(target.Value); exists {
+				fieldOwner := a.getFieldOwner(a.currentClass, target.Value)
+				if fieldOwner != nil {
+					lowerFieldName := ident.Normalize(target.Value)
+					visibility, hasVisibility := fieldOwner.FieldVisibility[lowerFieldName]
+					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, target.Value, "field") {
+						visibilityStr := ast.Visibility(visibility).String()
+						a.addError("cannot access %s field '%s' at %s",
+							visibilityStr, target.Value, target.Token.Pos.String())
+						return
+					}
+				}
+
 				valueType := a.analyzeExpressionWithExpectedType(stmt.Value, fieldType)
 				if valueType == nil {
 					return
@@ -582,6 +600,9 @@ func (a *Analyzer) isConstOrVarDeclBlock(stmt *ast.BlockStatement) bool {
 
 // analyzeIf analyzes an if statement
 func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
+	if stmt == nil {
+		return
+	}
 	// Check condition type
 	condType := a.analyzeExpression(stmt.Condition)
 	if condType != nil && !isBooleanCompatible(condType) {
@@ -605,6 +626,9 @@ func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
 
 // analyzeWhile analyzes a while statement
 func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
+	if stmt == nil {
+		return
+	}
 	// Check condition type
 	condType := a.analyzeExpression(stmt.Condition)
 	if condType != nil && !isBooleanCompatible(condType) {
@@ -654,6 +678,9 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 
 // analyzeRepeat analyzes a repeat-until statement
 func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
+	if stmt == nil {
+		return
+	}
 	// Enter loop for infinite loop detection BEFORE analyzing body
 	// But use condition's position (matches DWScript behavior - reports warning at 'until' keyword)
 	condPos := stmt.Condition.Pos()
@@ -705,6 +732,9 @@ func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
 
 // analyzeFor analyzes a for statement
 func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
+	if stmt == nil {
+		return
+	}
 	// Create a new scope for the loop variable
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
@@ -784,6 +814,9 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 
 // analyzeForIn analyzes a for-in loop statement
 func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
+	if stmt == nil {
+		return
+	}
 	// Create a new scope for the loop variable
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
@@ -864,6 +897,9 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 
 // analyzeCase analyzes a case statement
 func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
+	if stmt == nil {
+		return
+	}
 	// Analyze the case expression
 	caseType := a.analyzeExpression(stmt.Expression)
 

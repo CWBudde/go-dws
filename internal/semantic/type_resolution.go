@@ -3,6 +3,7 @@ package semantic
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -20,6 +21,10 @@ import (
 func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Type, error) {
 	if typeExpr == nil {
 		return nil, fmt.Errorf("nil type expression")
+	}
+
+	if _, ok := typeExpr.(*ast.InvalidTypeExpression); ok {
+		return nil, nil
 	}
 
 	// Handle SetTypeNode directly to validate element type without string round-tripping
@@ -414,6 +419,13 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 		return types.NewDynamicArrayType(elementType), nil
 	}
 
+	if _, invalid := arrayNode.LowBound.(*ast.InvalidExpression); invalid {
+		return nil, nil
+	}
+	if _, invalid := arrayNode.HighBound.(*ast.InvalidExpression); invalid {
+		return nil, nil
+	}
+
 	// Handle enum/ordinal-indexed arrays (extended to all bounded ordinals)
 	if arrayNode.IsEnumIndexed() {
 		// Resolve the index type
@@ -429,26 +441,91 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 			return nil, fmt.Errorf("array index type '%s' must be a bounded ordinal type, got %s", indexTypeName, indexType.TypeKind())
 		}
 
-		return types.NewStaticArrayType(elementType, lowBound, highBound), nil
+		return types.NewStaticArrayTypeWithIndexType(elementType, indexType, lowBound, highBound), nil
 	}
 
 	// Static array - evaluate bounds using evaluateConstantInt
-	lowBound, err := a.evaluateConstantInt(arrayNode.LowBound)
-	if err != nil {
-		return nil, fmt.Errorf("array lower bound must be a compile-time constant: %w", err)
+	lowBound, highBound, indexType, ok := a.resolveOrdinalArrayBounds(arrayNode.LowBound, arrayNode.HighBound)
+	if !ok {
+		return nil, nil
 	}
 
-	highBound, err := a.evaluateConstantInt(arrayNode.HighBound)
-	if err != nil {
-		return nil, fmt.Errorf("array upper bound must be a compile-time constant: %w", err)
+	if indexType != nil && indexType.TypeKind() != "INTEGER" {
+		return types.NewStaticArrayTypeWithIndexType(elementType, indexType, lowBound, highBound), nil
 	}
-
-	// Validate bounds
-	if lowBound > highBound {
-		return nil, fmt.Errorf("array lower bound (%d) cannot be greater than upper bound (%d)", lowBound, highBound)
-	}
-
 	return types.NewStaticArrayType(elementType, lowBound, highBound), nil
+}
+
+func (a *Analyzer) resolveOrdinalArrayBounds(lowExpr, highExpr ast.Expression) (int, int, types.Type, bool) {
+	lowValue, lowType, ok := a.resolveOrdinalArrayBound(lowExpr)
+	if !ok {
+		return 0, 0, nil, false
+	}
+
+	highValue, highType, ok := a.resolveOrdinalArrayBound(highExpr)
+	if !ok {
+		return 0, 0, nil, false
+	}
+
+	if lowType == nil || highType == nil {
+		return 0, 0, nil, false
+	}
+
+	if !lowType.Equals(highType) {
+		pos := highExpr.Pos()
+		a.addError("Syntax Error: Array bounds are of different types [line: %d, column: %d]", pos.Line, pos.Column)
+		return 0, 0, nil, false
+	}
+
+	if lowValue > highValue {
+		pos := highExpr.Pos()
+		if pos.Column > 0 {
+			pos.Column--
+		}
+		a.addError("Syntax Error: Lower bound is greater than upper bound [line: %d, column: %d]", pos.Line, pos.Column)
+		return 0, 0, nil, false
+	}
+
+	return lowValue, highValue, lowType, true
+}
+
+func (a *Analyzer) resolveOrdinalArrayBound(expr ast.Expression) (int, types.Type, bool) {
+	if expr == nil {
+		return 0, nil, false
+	}
+
+	boundType := a.analyzeExpression(expr)
+	if boundType == nil || !types.IsOrdinalType(boundType) {
+		pos := expr.Pos()
+		a.addError("Syntax Error: Bound isn't of an ordinal type [line: %d, column: %d]", pos.Line, pos.Column)
+		return 0, nil, false
+	}
+
+	value, err := a.evaluateConstant(expr)
+	if err != nil {
+		pos := expr.Pos()
+		a.addError("Syntax Error: Bound isn't of an ordinal type [line: %d, column: %d]", pos.Line, pos.Column)
+		return 0, nil, false
+	}
+
+	switch v := value.(type) {
+	case int:
+		return v, boundType, true
+	case bool:
+		if v {
+			return 1, boundType, true
+		}
+		return 0, boundType, true
+	case string:
+		if utf8.RuneCountInString(v) == 1 {
+			r, _ := utf8.DecodeRuneInString(v)
+			return int(r), boundType, true
+		}
+	}
+
+	pos := expr.Pos()
+	a.addError("Syntax Error: Bound isn't of an ordinal type [line: %d, column: %d]", pos.Line, pos.Column)
+	return 0, nil, false
 }
 
 // resolveSetTypeNode resolves a SetTypeNode directly from the AST.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -269,45 +270,43 @@ func (e *Evaluator) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode, ctx *Exec
 		return types.NewStaticArrayType(elementType, low, high)
 	}
 
-	// Static array - extract bounds from AST
-
-	// Extract low bound
-	var lowBoundValue int
-	if intLit, ok := arrayNode.LowBound.(*ast.IntegerLiteral); ok {
-		lowBoundValue = int(intLit.Value)
-	} else if unary, ok := arrayNode.LowBound.(*ast.UnaryExpression); ok {
-		// Handle unary minus for negative bounds like -5
-		if unary.Operator == "-" {
-			if intLit, ok := unary.Right.(*ast.IntegerLiteral); ok {
-				lowBoundValue = -int(intLit.Value)
-			} else {
-				return nil
-			}
-		} else {
-			return nil
-		}
-	} else {
+	// Static array - evaluate constant bound expressions.
+	lowBoundValue, ok := e.resolveStaticArrayBound(arrayNode.LowBound, ctx)
+	if !ok {
 		return nil
 	}
-
-	// Extract high bound
-	var highBoundValue int
-	if intLit, ok := arrayNode.HighBound.(*ast.IntegerLiteral); ok {
-		highBoundValue = int(intLit.Value)
-	} else if unary, ok := arrayNode.HighBound.(*ast.UnaryExpression); ok {
-		// Handle unary minus for negative bounds
-		if unary.Operator == "-" {
-			if intLit, ok := unary.Right.(*ast.IntegerLiteral); ok {
-				highBoundValue = -int(intLit.Value)
-			} else {
-				return nil
-			}
-		} else {
-			return nil
-		}
-	} else {
+	highBoundValue, ok := e.resolveStaticArrayBound(arrayNode.HighBound, ctx)
+	if !ok {
 		return nil
 	}
 
 	return types.NewStaticArrayType(elementType, lowBoundValue, highBoundValue)
+}
+
+func (e *Evaluator) resolveStaticArrayBound(expr ast.Expression, ctx *ExecutionContext) (int, bool) {
+	if expr == nil {
+		return 0, false
+	}
+
+	// Fast paths for simple literal bounds.
+	if intLit, ok := expr.(*ast.IntegerLiteral); ok {
+		return int(intLit.Value), true
+	}
+	if unary, ok := expr.(*ast.UnaryExpression); ok && unary.Operator == "-" {
+		if intLit, ok := unary.Right.(*ast.IntegerLiteral); ok {
+			return -int(intLit.Value), true
+		}
+	}
+
+	value := e.Eval(expr, ctx)
+	if isError(value) {
+		return 0, false
+	}
+
+	intVal, ok := value.(*runtime.IntegerValue)
+	if !ok {
+		return 0, false
+	}
+
+	return int(intVal.Value), true
 }

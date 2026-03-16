@@ -76,6 +76,47 @@ func TestHelperMethodWithParameters(t *testing.T) {
 	}
 }
 
+func TestHelperMethodWithBoundMethodPointerParameter(t *testing.T) {
+	input := `
+		type TIntFunc = function: Integer;
+
+		type TBox = class
+			Value: Integer;
+			function GetValue: Integer;
+			begin
+				Result := Value;
+			end;
+		end;
+
+		type TIntegerHelper = helper for Integer
+			function ApplyTwice(fn: TIntFunc): Integer;
+			begin
+				var localFn := fn;
+				Result := localFn() + localFn() + Self;
+			end;
+		end;
+
+		var box := TBox.Create;
+		begin
+			box.Value := 20;
+			PrintLn((2).ApplyTwice(@box.GetValue));
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "42\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
 func TestHelperMethodOnInteger(t *testing.T) {
 	input := `
 		type TIntegerHelper = helper for Integer

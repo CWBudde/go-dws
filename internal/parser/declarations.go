@@ -167,7 +167,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 
 		typeExpr := p.parseTypeExpression()
 
-		if typeExpr == nil {
+		if isInvalidTypeExpression(typeExpr) {
 			// Use structured error
 			currentToken = p.cursor.Current()
 			err := NewStructuredError(ErrKindMissing).

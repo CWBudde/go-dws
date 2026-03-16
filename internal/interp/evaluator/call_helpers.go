@@ -58,6 +58,8 @@ func (e *Evaluator) executeLambdaDirect(
 	lambdaEnv := runtime.NewEnclosedEnvironment(closureEnv)
 	lambdaCtx := ctx.Clone()
 	lambdaCtx.SetEnv(lambdaEnv)
+	scope := newBindingScope()
+	defer scope.cleanup(e, lambdaEnv)
 
 	if lambdaCtx.GetCallStack().WillOverflow() {
 		return e.raiseRecursionExceeded(ctx)
@@ -76,7 +78,7 @@ func (e *Evaluator) executeLambdaDirect(
 				arg = converted
 			}
 		}
-		lambdaEnv.Define(param.Name.Value, arg)
+		scope.defineOwned(e, lambdaCtx, param.Name.Value, arg)
 	}
 
 	if lambda.ReturnType != nil || lambda.IsShorthand {
@@ -92,7 +94,7 @@ func (e *Evaluator) executeLambdaDirect(
 				resultValue = e.GetDefaultValue(returnType)
 			}
 		}
-		lambdaEnv.Define("Result", resultValue)
+		scope.defineOwned(e, lambdaCtx, "Result", resultValue)
 	}
 
 	bodyResult := e.Eval(lambda.Body, lambdaCtx)
@@ -110,7 +112,7 @@ func (e *Evaluator) executeLambdaDirect(
 	if lambda.ReturnType != nil || lambda.IsShorthand {
 		if resultVal, ok := lambdaEnv.Get("Result"); ok {
 			if value, ok := resultVal.(Value); ok {
-				return value
+				return e.retainValueForBinding(value, lambdaCtx)
 			}
 			return e.newError(node, "lambda Result is not a runtime value")
 		}

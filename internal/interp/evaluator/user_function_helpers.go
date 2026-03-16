@@ -94,6 +94,7 @@ func (e *Evaluator) BindFunctionParameters(
 		// Store the argument in the function's environment
 		// For var parameters, this will be a ReferenceValue
 		// For regular parameters, this will be the actual value (possibly converted)
+		arg = e.retainValueForBinding(arg, ctx)
 		env.Define(param.Name.Value, arg)
 	}
 
@@ -407,15 +408,6 @@ func (e *Evaluator) ExecuteUserFunction(
 			returnValue = &runtime.NilValue{}
 		}
 
-		// Increment ref count for interface return values (if callback provided)
-		// NOTE (Task 4.0.10): This ensures the caller gets a proper reference.
-		// When Result := IntfRef is executed, both hold references.
-		// Function cleanup will release IntfRef, so we need this increment
-		// to maintain the reference for the return value.
-		if callbacks.InterfaceRefCounter != nil {
-			callbacks.InterfaceRefCounter(returnValue)
-		}
-
 		// Apply implicit conversion if return type doesn't match (if callback provided)
 		if callbacks.ReturnValueConverter != nil && returnValue.Type() != "NIL" {
 			expectedReturnType := fn.ReturnType.String()
@@ -423,6 +415,10 @@ func (e *Evaluator) ExecuteUserFunction(
 				returnValue = converted
 			}
 		}
+
+		// Returned runtime-owned values need a caller-owned retain before the
+		// callee environment is cleaned up.
+		returnValue = e.retainValueForBinding(returnValue, funcCtx)
 	} else {
 		// Procedure - no return value
 		returnValue = &runtime.NilValue{}

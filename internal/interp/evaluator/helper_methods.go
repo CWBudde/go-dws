@@ -302,17 +302,19 @@ func (e *Evaluator) CallASTHelperMethod(
 	// Create method environment (enclosed scope)
 	ctx.PushEnv()
 	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
 
 	// Bind Self to the target value (the value being extended)
-	ctx.Env().Define("Self", selfValue)
+	scope.defineExposed(ctx, "Self", selfValue)
 
 	// Bind helper class vars and consts from entire inheritance chain.
 	// Walk from root parent to current helper so child helpers override parents.
-	e.bindHelperChainVarsConsts(helper, ctx)
+	e.bindHelperChainVarsConsts(helper, ctx, scope)
 
 	// Bind method parameters
 	for idx, param := range method.Parameters {
-		ctx.Env().Define(param.Name.Value, args[idx])
+		scope.defineOwned(e, ctx, param.Name.Value, args[idx])
 	}
 
 	// For functions, initialize the Result variable
@@ -322,9 +324,9 @@ func (e *Evaluator) CallASTHelperMethod(
 			return e.newError(node, "failed to resolve return type: %v", err)
 		}
 		defaultVal := e.GetDefaultValue(returnType)
-		ctx.Env().Define("Result", defaultVal)
+		scope.defineOwned(e, ctx, "Result", defaultVal)
 		// Also define method name as alias for Result (Pascal convention)
-		ctx.Env().Define(method.Name.Value, defaultVal)
+		scope.defineExposed(ctx, method.Name.Value, defaultVal)
 	}
 
 	// Execute method body
@@ -335,7 +337,8 @@ func (e *Evaluator) CallASTHelperMethod(
 
 	// Extract return value
 	if method.ReturnType != nil {
-		return e.extractReturnValue(method.Name.Value, ctx)
+		returnValue := e.extractReturnValue(method.Name.Value, ctx)
+		return e.retainValueForBinding(returnValue, ctx)
 	}
 
 	// For procedures, return nil
@@ -344,7 +347,7 @@ func (e *Evaluator) CallASTHelperMethod(
 
 // bindHelperChainVarsConsts binds class vars and consts from the helper inheritance chain.
 // Walks from root to current helper so child definitions override parents.
-func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionContext) {
+func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionContext, scope *bindingScope) {
 	if helper == nil {
 		return
 	}
@@ -384,10 +387,10 @@ func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionC
 			continue
 		}
 		for name, value := range h.GetClassVars() {
-			ctx.Env().Define(name, value)
+			scope.defineExposed(ctx, name, value)
 		}
 		for name, value := range h.GetClassConsts() {
-			ctx.Env().Define(name, value)
+			scope.defineExposed(ctx, name, value)
 		}
 	}
 }

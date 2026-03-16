@@ -88,11 +88,13 @@ func (e *Evaluator) executeClassPropertyMethod(
 ) Value {
 	ctx.PushEnv()
 	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
 
-	e.bindClassVarsForProperty(classInfo, ctx)
+	e.bindClassVarsForProperty(classInfo, ctx, scope)
 
 	if len(args) > 0 && len(method.Parameters) > 0 {
-		ctx.Env().Define(method.Parameters[0].Name.Value, args[0])
+		scope.defineOwned(e, ctx, method.Parameters[0].Name.Value, args[0])
 	}
 
 	if method.ReturnType != nil {
@@ -101,8 +103,8 @@ func (e *Evaluator) executeClassPropertyMethod(
 			return e.newError(node, "failed to resolve return type: %v", err)
 		}
 		defaultVal := e.GetDefaultValue(returnType)
-		ctx.Env().Define("Result", defaultVal)
-		ctx.Env().Define(method.Name.Value, e.newResultAlias(ctx.Env()))
+		scope.defineOwned(e, ctx, "Result", defaultVal)
+		scope.defineExposed(ctx, method.Name.Value, e.newResultAlias(ctx.Env()))
 	}
 
 	result := e.Eval(method.Body, ctx)
@@ -113,7 +115,8 @@ func (e *Evaluator) executeClassPropertyMethod(
 	e.syncClassVarsFromEnv(classInfo, ctx.Env())
 
 	if method.ReturnType != nil {
-		return e.extractReturnValue(method.Name.Value, ctx)
+		returnValue := e.extractReturnValue(method.Name.Value, ctx)
+		return e.retainValueForBinding(returnValue, ctx)
 	}
 
 	if len(args) > 0 {
@@ -122,11 +125,11 @@ func (e *Evaluator) executeClassPropertyMethod(
 	return e.nilValue()
 }
 
-func (e *Evaluator) bindClassVarsForProperty(classInfo runtime.IClassInfo, ctx *ExecutionContext) {
+func (e *Evaluator) bindClassVarsForProperty(classInfo runtime.IClassInfo, ctx *ExecutionContext, scope *bindingScope) {
 	chain := classInfoHierarchy(classInfo)
 	for _, cls := range chain {
 		for name, value := range cls.GetClassVarsMap() {
-			ctx.Env().Define(name, value)
+			scope.defineExposed(ctx, name, value)
 		}
 	}
 }

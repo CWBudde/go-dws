@@ -36,16 +36,18 @@ func (e *Evaluator) callRecordMethod(
 	// 2. Create method environment (child of current context)
 	ctx.PushEnv()
 	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
 
 	// 3. Bind Self to record instance and expose fields directly.
-	ctx.Env().Define("Self", record)
-	e.bindRecordMethodFields(record, ctx)
-	e.bindRecordMethodClassState(record, ctx)
+	scope.defineExposed(ctx, "Self", record)
+	e.bindRecordMethodFields(record, ctx, scope)
+	e.bindRecordMethodClassState(record, ctx, scope)
 
 	// 4. Bind method parameters
 	for i, param := range method.Parameters {
 		paramName := param.Name.Value
-		ctx.Env().Define(paramName, args[i])
+		scope.defineOwned(e, ctx, paramName, args[i])
 	}
 
 	// 5. Initialize Result variable
@@ -56,8 +58,8 @@ func (e *Evaluator) callRecordMethod(
 			return e.newError(node, "failed to resolve return type: %v", err)
 		}
 		defaultVal := e.defaultReturnValue(returnType)
-		ctx.Env().Define("Result", defaultVal)
-		ctx.Env().Define(method.Name.Value, e.newResultAlias(ctx.Env()))
+		scope.defineOwned(e, ctx, "Result", defaultVal)
+		scope.defineExposed(ctx, method.Name.Value, e.newResultAlias(ctx.Env()))
 	}
 
 	// 6. Execute method body in new environment
@@ -78,7 +80,8 @@ func (e *Evaluator) callRecordMethod(
 
 	// 8. Extract Result variable (if method has return type)
 	if method.ReturnType != nil {
-		return e.extractReturnValue(method.Name.Value, ctx)
+		returnValue := e.extractReturnValue(method.Name.Value, ctx)
+		return e.retainValueForBinding(returnValue, ctx)
 	}
 
 	// Procedure (no return type) - return nil
@@ -103,17 +106,19 @@ func (e *Evaluator) callRecordStaticMethod(
 
 	ctx.PushEnv()
 	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
 
-	ctx.Env().Define("__CurrentRecord__", recordType)
+	scope.defineExposed(ctx, "__CurrentRecord__", recordType)
 	for name, value := range recordType.Constants {
-		ctx.Env().Define(name, value)
+		scope.defineExposed(ctx, name, value)
 	}
 	for name, value := range recordType.ClassVars {
-		ctx.Env().Define(name, value)
+		scope.defineExposed(ctx, name, value)
 	}
 
 	for idx, param := range method.Parameters {
-		ctx.Env().Define(param.Name.Value, args[idx])
+		scope.defineOwned(e, ctx, param.Name.Value, args[idx])
 	}
 
 	if method.ReturnType != nil {
@@ -122,8 +127,8 @@ func (e *Evaluator) callRecordStaticMethod(
 			return e.newError(node, "failed to resolve return type: %v", err)
 		}
 		defaultVal := e.defaultReturnValue(returnType)
-		ctx.Env().Define("Result", defaultVal)
-		ctx.Env().Define(method.Name.Value, e.newResultAlias(ctx.Env()))
+		scope.defineOwned(e, ctx, "Result", defaultVal)
+		scope.defineExposed(ctx, method.Name.Value, e.newResultAlias(ctx.Env()))
 	}
 
 	result := e.Eval(method.Body, ctx)
@@ -138,7 +143,8 @@ func (e *Evaluator) callRecordStaticMethod(
 	}
 
 	if method.ReturnType != nil {
-		return e.extractReturnValue(method.Name.Value, ctx)
+		returnValue := e.extractReturnValue(method.Name.Value, ctx)
+		return e.retainValueForBinding(returnValue, ctx)
 	}
 
 	return e.nilValue()
@@ -179,14 +185,14 @@ func (e *Evaluator) defaultReturnValue(returnType types.Type) Value {
 	return e.GetDefaultValue(returnType)
 }
 
-func (e *Evaluator) bindRecordMethodFields(record RecordInstanceValue, ctx *ExecutionContext) {
+func (e *Evaluator) bindRecordMethodFields(record RecordInstanceValue, ctx *ExecutionContext, scope *bindingScope) {
 	recVal, ok := record.(*runtime.RecordValue)
 	if !ok || recVal == nil {
 		return
 	}
 
 	for fieldName, fieldValue := range recVal.Fields {
-		ctx.Env().Define(fieldName, fieldValue)
+		scope.defineExposed(ctx, fieldName, fieldValue)
 	}
 
 	if recVal.RecordType != nil && recVal.RecordType.Properties != nil {
@@ -195,7 +201,7 @@ func (e *Evaluator) bindRecordMethodFields(record RecordInstanceValue, ctx *Exec
 				continue
 			}
 			if fieldValue, exists := recVal.Fields[ident.Normalize(propInfo.ReadField)]; exists {
-				ctx.Env().Define(propName, fieldValue)
+				scope.defineExposed(ctx, propName, fieldValue)
 			}
 		}
 	}
@@ -214,7 +220,7 @@ func (e *Evaluator) syncRecordMethodFields(record RecordInstanceValue, ctx *Exec
 	}
 }
 
-func (e *Evaluator) bindRecordMethodClassState(record RecordInstanceValue, ctx *ExecutionContext) {
+func (e *Evaluator) bindRecordMethodClassState(record RecordInstanceValue, ctx *ExecutionContext, scope *bindingScope) {
 	recVal, ok := record.(*runtime.RecordValue)
 	if !ok || recVal == nil || recVal.RecordType == nil {
 		return
@@ -230,12 +236,12 @@ func (e *Evaluator) bindRecordMethodClassState(record RecordInstanceValue, ctx *
 		return
 	}
 
-	ctx.Env().Define("__CurrentRecord__", recordType)
+	scope.defineExposed(ctx, "__CurrentRecord__", recordType)
 	for name, value := range recordType.Constants {
-		ctx.Env().Define(name, value)
+		scope.defineExposed(ctx, name, value)
 	}
 	for name, value := range recordType.ClassVars {
-		ctx.Env().Define(name, value)
+		scope.defineExposed(ctx, name, value)
 	}
 }
 

@@ -23,6 +23,8 @@ func getTypeExpressionName(typeExpr ast.TypeExpression) string {
 	}
 
 	switch te := typeExpr.(type) {
+	case *ast.InvalidTypeExpression:
+		return ""
 	case *ast.TypeAnnotation:
 		if te == nil {
 			return ""

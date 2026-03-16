@@ -411,6 +411,52 @@ func (e *Evaluator) prepareValueForAssignment(
 	return value
 }
 
+// retainValueForBinding increments ownership for values stored in a named binding.
+// This keeps declaration-time bindings aligned with assignment-time lifetime rules.
+func (e *Evaluator) retainValueForBinding(value Value, ctx *ExecutionContext) Value {
+	if value == nil || ctx == nil || ctx.RefCountManager() == nil {
+		return value
+	}
+
+	if ifaceInst, ok := value.(*runtime.InterfaceInstance); ok {
+		ctx.RefCountManager().IncrementRef(ifaceInst)
+		return value
+	}
+
+	if objInst, ok := value.(*runtime.ObjectInstance); ok {
+		ctx.RefCountManager().IncrementRef(objInst)
+		return value
+	}
+
+	if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok && funcPtr.SelfObject != nil {
+		ctx.RefCountManager().IncrementRef(funcPtr.SelfObject)
+	}
+
+	return value
+}
+
+func (e *Evaluator) releaseValueForBinding(value Value) {
+	if value == nil || e == nil || e.engineState == nil || e.engineState.RefCountManager == nil {
+		return
+	}
+
+	if intfInst, ok := value.(*runtime.InterfaceInstance); ok {
+		e.engineState.RefCountManager.ReleaseInterface(intfInst)
+		return
+	}
+
+	if objInst, ok := value.(*runtime.ObjectInstance); ok {
+		e.engineState.RefCountManager.ReleaseObject(objInst)
+		return
+	}
+
+	if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok {
+		if objInst, isObj := funcPtr.SelfObject.(*runtime.ObjectInstance); isObj {
+			e.engineState.RefCountManager.ReleaseObject(objInst)
+		}
+	}
+}
+
 // evalReferenceAssignment handles assignment through a var parameter.
 func (e *Evaluator) evalReferenceAssignment(
 	refVal ReferenceValueAccessor,

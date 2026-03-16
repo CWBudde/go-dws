@@ -277,6 +277,11 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			return objectType
 		}
 
+		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
+			a.addError("%s", errors.FormatUnknownName(expr.Object.String()+"."+expr.Member.Value, expr.Token.Pos.Line, expr.Token.Pos.Column+1))
+			return nil
+		}
+
 		a.addError("member access on type %s requires a helper, got no helper with member '%s' at %s",
 			objectType.String(), expr.Member.Value, expr.Token.Pos.String())
 		return nil

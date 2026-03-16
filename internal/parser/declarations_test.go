@@ -267,7 +267,7 @@ func TestParseConstDeclarationErrors(t *testing.T) {
 		expectedError string
 	}{
 		{"const PI;", "expected '=' or ':=' after const name"},
-		{"const PI =;", "no prefix parse function for SEMICOLON found"},
+		{"const PI =;", "Expression expected"},
 		{"const = 3.14;", "expected identifier in const declaration"},
 		{"const PI: = 3.14;", "expected type expression"},
 	}

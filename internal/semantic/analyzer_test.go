@@ -70,6 +70,12 @@ func ErrorMatches(actual, expected string) bool {
 		return true
 	}
 
+	if strings.Contains(expectedLower, "array lower bound") && strings.Contains(expectedLower, "cannot be greater than upper bound") {
+		if strings.Contains(actualLower, "lower bound is greater than upper bound") {
+			return true
+		}
+	}
+
 	// Handle "undefined variable 'X'" → "unknown name \"X\""
 	// Also handles just "undefined variable" → "unknown name"
 	if strings.Contains(expectedLower, "undefined variable") {

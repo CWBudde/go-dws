@@ -154,7 +154,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 
 		// Parse element expression
 		elementExpr := p.parseExpression(LOWEST)
-		if elementExpr == nil {
+		if isInvalidExpression(elementExpr) {
 			return nil
 		}
 
@@ -168,7 +168,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 
 			p.cursor = p.cursor.Advance() // move to end expression
 			endExpr := p.parseExpression(LOWEST)
-			if endExpr == nil {
+			if isInvalidExpression(endExpr) {
 				return nil
 			}
 
@@ -332,29 +332,39 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 		p.cursor = cursor
 		lowBound := p.parseExpression(LOWEST)
 		cursor = p.cursor // Update cursor after parseExpression
-		if lowBound == nil {
+		if isInvalidExpression(lowBound) {
 			p.addError("invalid array lower bound expression", ErrInvalidExpression)
 			return nil
 		}
 
 		// Expect '..'
 		if cursor.Peek(1).Type != lexer.DOTDOT {
-			p.addError("expected '..' in array bounds", ErrUnexpectedToken)
-			return nil
-		}
-		cursor = cursor.Advance() // move to '..'
+			p.cursor = cursor
+			p.addPeekTokenError("\"..\" expected", ErrUnexpectedToken)
+			dimensions = append(dimensions, dimensionPair{
+				low: lowBound,
+				high: &ast.InvalidExpression{
+					Reason: "missing upper array bound",
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: cursor.Peek(1)},
+					},
+				},
+			})
+		} else {
+			cursor = cursor.Advance() // move to '..'
 
-		// Parse high bound expression
-		cursor = cursor.Advance() // move to start of expression
-		p.cursor = cursor
-		highBound := p.parseExpression(LOWEST)
-		cursor = p.cursor // Update cursor after parseExpression
-		if highBound == nil {
-			p.addError("invalid array upper bound expression", ErrInvalidExpression)
-			return nil
-		}
+			// Parse high bound expression
+			cursor = cursor.Advance() // move to start of expression
+			p.cursor = cursor
+			highBound := p.parseExpression(LOWEST)
+			cursor = p.cursor // Update cursor after parseExpression
+			if isInvalidExpression(highBound) {
+				p.addError("invalid array upper bound expression", ErrInvalidExpression)
+				return nil
+			}
 
-		dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+			dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+		}
 
 		// Parse additional dimensions (comma-separated)
 		for cursor.Peek(1).Type == lexer.COMMA {
@@ -363,14 +373,24 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 			p.cursor = cursor
 			lowBound := p.parseExpression(LOWEST)
 			cursor = p.cursor // Update cursor after parseExpression
-			if lowBound == nil {
+			if isInvalidExpression(lowBound) {
 				p.addError("invalid array lower bound expression in multi-dimensional array", ErrInvalidExpression)
 				return nil
 			}
 
 			if cursor.Peek(1).Type != lexer.DOTDOT {
-				p.addError("expected '..' in array bounds", ErrUnexpectedToken)
-				return nil
+				p.cursor = cursor
+				p.addPeekTokenError("\"..\" expected", ErrUnexpectedToken)
+				dimensions = append(dimensions, dimensionPair{
+					low: lowBound,
+					high: &ast.InvalidExpression{
+						Reason: "missing upper array bound",
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{Token: cursor.Peek(1)},
+						},
+					},
+				})
+				break
 			}
 			cursor = cursor.Advance() // move to '..'
 
@@ -378,7 +398,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 			p.cursor = cursor
 			highBound := p.parseExpression(LOWEST)
 			cursor = p.cursor // Update cursor after parseExpression
-			if highBound == nil {
+			if isInvalidExpression(highBound) {
 				p.addError("invalid array upper bound expression in multi-dimensional array", ErrInvalidExpression)
 				return nil
 			}
@@ -406,7 +426,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 	p.cursor = cursor
 	elementTypeExpr := p.parseTypeExpression()
 	cursor = p.cursor // Update cursor after parseTypeExpression
-	if elementTypeExpr == nil {
+	if isInvalidTypeExpression(elementTypeExpr) {
 		p.addError("expected type expression after 'array of'", ErrExpectedType)
 		return nil
 	}

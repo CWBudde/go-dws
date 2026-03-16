@@ -10,8 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cwbudde/go-dws/internal/lexer"
-	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/gkampitakis/go-snaps/snaps"
 )
@@ -28,7 +27,6 @@ import (
 //
 //	go test -v ./internal/interp -run TestDWScriptFixtures/CategoryName
 func TestDWScriptFixtures(t *testing.T) {
-	t.Skip()
 
 	// Define test categories and their expected behavior
 	// Includes all 64 test categories from the original DWScript test suite
@@ -606,70 +604,31 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 		hasExpectedFile = true
 	}
 
-	// Parse the source
-	l := lexer.New(source)
-	p := parser.New(l)
-	program := p.ParseProgram()
+	compileResult := frontend.Compile(source, pasFile, hintsLevel)
+	compileErrors := compileResult.DiagnosticStrings()
 
-	// Collect parse errors
-	var parseErrors []string
-	if len(p.Errors()) > 0 {
-		parseErrors = make([]string, len(p.Errors()))
-		for i, err := range p.Errors() {
-			parseErrors[i] = err.Error()
-		}
-	}
-
-	// If we expect errors and got parse errors, this might be a successful failure test
-	if expectErrors && len(parseErrors) > 0 {
+	// If we expect errors and got compile diagnostics, this might be a successful failure test.
+	if expectErrors && len(compileErrors) > 0 {
 		if hasExpectedFile {
-			// Compare parse errors with expected content
-			actualErrors := strings.Join(parseErrors, "\n")
+			actualErrors := strings.Join(compileErrors, "\n")
 			if normalizeOutput(actualErrors) == normalizeOutput(expectedContent) {
 				return testResultPassed
 			} else {
-				t.Errorf("Parse error mismatch for %s:\nExpected:\n%s\nActual:\n%s",
+				t.Errorf("Compile diagnostic mismatch for %s:\nExpected:\n%s\nActual:\n%s",
 					filepath.Base(pasFile), expectedContent, actualErrors)
 				return testResultFailed
 			}
 		}
-		// No expected file but got errors - consider it passed for failure tests
+		// No expected file but got diagnostics - consider it passed for failure tests.
 		return testResultPassed
 	}
 
-	// If we expect errors but got no parse errors, run semantic analysis and try execution
-	if expectErrors && len(parseErrors) == 0 {
-		// Run semantic analysis to catch semantic errors (overload violations, type errors, etc.)
-		analyzer := semantic.NewAnalyzer()
-		analyzer.SetHintsLevel(hintsLevel)
-		analyzer.SetSource(source, pasFile)
-
-		var semanticErrors []string
-		if err := analyzer.Analyze(program); err != nil {
-			semanticErrors = analyzer.Errors()
-		}
-
-		// If we got semantic errors, check them against expected
-		if len(semanticErrors) > 0 {
-			if hasExpectedFile {
-				actualErrors := strings.Join(semanticErrors, "\n")
-				if normalizeOutput(actualErrors) == normalizeOutput(expectedContent) {
-					return testResultPassed
-				} else {
-					t.Errorf("Runtime error mismatch for %s:\nExpected:\n%s\nActual:\n%s",
-						filepath.Base(pasFile), expectedContent, actualErrors)
-					return testResultFailed
-				}
-			}
-			return testResultPassed
-		}
-
-		// No semantic errors, try execution for runtime errors
+	// If we expect errors but got no compile diagnostics, try execution for runtime errors.
+	if expectErrors && len(compileErrors) == 0 {
 		var buf bytes.Buffer
 		interp := New(&buf)
-		// Pass semantic info to interpreter for class variable access
-		if semanticInfo := analyzer.GetSemanticInfo(); semanticInfo != nil {
-			interp.SetSemanticInfo(semanticInfo)
+		if compileResult.SemanticInfo != nil {
+			interp.SetSemanticInfo(compileResult.SemanticInfo)
 		}
 
 		// Execute with timeout to prevent infinite loops from hanging tests
@@ -680,7 +639,7 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 		resultChan := make(chan evalResult, 1)
 
 		go func() {
-			resultChan <- evalResult{value: interp.Eval(program)}
+			resultChan <- evalResult{value: interp.Eval(compileResult.Program)}
 		}()
 
 		var result Value
@@ -718,24 +677,18 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 		return testResultFailed
 	}
 
-	// For success tests, we expect no parse errors
-	if len(parseErrors) > 0 {
-		t.Errorf("Unexpected parse errors for %s: %v", filepath.Base(pasFile), parseErrors)
+	// For success tests, we expect no fatal compile diagnostics.
+	if compileResult.HasFatalDiagnostics() {
+		t.Errorf("Unexpected compile diagnostics for %s: %v", filepath.Base(pasFile), compileErrors)
 		return testResultFailed
 	}
 
-	// Run semantic analysis before execution
-	// This enables proper type checking and disambiguation of array vs set literals
-	analyzer := semantic.NewAnalyzer()
-	analyzer.SetHintsLevel(hintsLevel)
-	analyzer.SetSource(source, pasFile)
-
-	if err := analyzer.Analyze(program); err != nil {
+	if compileResult.Analyzer != nil && !compileResult.SemanticSuccessful {
 		// For success tests, semantic errors are failures
 		// Format errors nicely for debugging
 		var errorMsg strings.Builder
 		errorMsg.WriteString("Semantic analysis failed:\n")
-		for _, semErr := range analyzer.Errors() {
+		for _, semErr := range compileErrors {
 			errorMsg.WriteString("  - ")
 			errorMsg.WriteString(semErr)
 			errorMsg.WriteString("\n")
@@ -747,9 +700,8 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 	// Execute the program with timeout
 	var buf bytes.Buffer
 	interp := New(&buf)
-	// Pass semantic info to interpreter for class variable access
-	if semanticInfo := analyzer.GetSemanticInfo(); semanticInfo != nil {
-		interp.SetSemanticInfo(semanticInfo)
+	if compileResult.SemanticInfo != nil {
+		interp.SetSemanticInfo(compileResult.SemanticInfo)
 	}
 
 	// Execute with timeout to prevent infinite loops from hanging tests
@@ -759,7 +711,7 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 	resultChan := make(chan evalResult, 1)
 
 	go func() {
-		resultChan <- evalResult{value: interp.Eval(program)}
+		resultChan <- evalResult{value: interp.Eval(compileResult.Program)}
 	}()
 
 	var result Value
@@ -799,12 +751,12 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 	// Capture output and prepend any hints from semantic analysis
 	actualOutput := buf.String()
 
-	// Check if there are hints or warnings (but not actual errors) from semantic analysis
-	analyzerErrors := analyzer.Errors()
+	// Check if there are hints or warnings (but not actual errors) from semantic analysis.
 	var hintsAndWarnings []string
-	for _, err := range analyzerErrors {
-		if strings.HasPrefix(err, "Hint:") || strings.HasPrefix(err, "Warning:") {
-			hintsAndWarnings = append(hintsAndWarnings, err)
+	for _, diag := range compileResult.Diagnostics {
+		text := diag.String()
+		if strings.HasPrefix(text, "Hint:") || strings.HasPrefix(text, "Warning:") {
+			hintsAndWarnings = append(hintsAndWarnings, text)
 		}
 	}
 

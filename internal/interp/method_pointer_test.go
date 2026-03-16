@@ -274,6 +274,42 @@ func TestMethodPointer_PassedAsParameter(t *testing.T) {
 	}
 }
 
+func TestMethodPointer_VarDeclarationRetainsSelfObjectAcrossParameterCalls(t *testing.T) {
+	input := `
+		type TColorFunc = function (x : Integer) : Integer;
+
+		type TBoard = class
+			Scale : Integer;
+
+			constructor Create(aScale : Integer);
+			begin
+				Scale := aScale;
+			end;
+
+			function ColorHalf(x : Integer) : Integer;
+			begin
+				if x < Scale then
+					Result := 1
+				else
+					Result := 2;
+			end;
+
+			procedure UseColor(fn : TColorFunc);
+			begin
+				PrintLn(fn(0));
+			end;
+		end;
+
+		var board := new TBoard(2);
+		board.UseColor(board.ColorHalf);
+		board.UseColor(board.ColorHalf);
+	`
+	_, output := testMethodPointerCase(input, t)
+	if !strings.Contains(output, "1\n1") {
+		t.Errorf("Expected output containing 1 then 1, got %q", output)
+	}
+}
+
 // TestMethodPointer_InheritedMethod tests method pointers with inherited methods
 func TestMethodPointer_InheritedMethod(t *testing.T) {
 	input := `
@@ -418,6 +454,33 @@ func TestMethodPointer_ReturnedFromFunction(t *testing.T) {
 	t.Logf("Output: %q", output)
 	if !strings.Contains(output, "123") {
 		t.Errorf("Expected output containing 123, got %q", output)
+	}
+}
+
+func TestMethodPointer_PassedThroughLambdaTwice(t *testing.T) {
+	input := `
+		type TIntFunc = function: Integer;
+
+		type TBox = class
+			Value: Integer;
+			function GetValue: Integer;
+		end;
+		function TBox.GetValue: Integer;
+		begin
+			Result := Value;
+		end;
+
+		var box := TBox.Create;
+		box.Value := 21;
+		var getValue: TIntFunc := @box.GetValue;
+		var runTwice := lambda(fn: TIntFunc): Integer begin
+			Result := fn() + fn();
+		end;
+		PrintLn(runTwice(getValue));
+	`
+	_, output := testMethodPointerCase(input, t)
+	if !strings.Contains(output, "42") {
+		t.Errorf("Expected output containing 42, got %q", output)
 	}
 }
 

@@ -36,7 +36,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "invalid prefix operator",
 			input:         "};",
-			expectedError: "no prefix parse function",
+			expectedError: "Expression expected",
 		},
 		{
 			name:          "missing identifier in var declaration",
@@ -46,7 +46,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing expression in if condition",
 			input:         "if then x := 1;",
-			expectedError: "no prefix parse function",
+			expectedError: "Expression expected",
 		},
 		{
 			name:          "missing then keyword in if",
@@ -81,7 +81,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing expression after case",
 			input:         "case of 1: x := 1; end;",
-			expectedError: "no prefix parse function",
+			expectedError: "Expression expected",
 		},
 		{
 			name:          "missing of keyword in case",

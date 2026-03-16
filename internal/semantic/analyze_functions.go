@@ -69,7 +69,10 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 				param.Name.Value, decl.Name.Value)
 			return
 		}
-		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
+		paramType, err := a.resolveTypeExpression(param.Type)
+		if err == nil && paramType == nil {
+			return
+		}
 		if err != nil {
 			a.addError("unknown parameter type '%s' in function '%s': %v",
 				getTypeExpressionName(param.Type), decl.Name.Value, err)

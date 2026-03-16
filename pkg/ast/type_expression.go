@@ -20,7 +20,24 @@ var (
 	_ TypeExpression = (*ArrayTypeNode)(nil)
 	_ TypeExpression = (*SetTypeNode)(nil)
 	_ TypeExpression = (*ClassOfTypeNode)(nil)
+	_ TypeExpression = (*InvalidTypeExpression)(nil)
 )
+
+// InvalidTypeExpression is a recoverable placeholder used when parsing
+// encounters a malformed type expression but keeps enough structure to continue.
+type InvalidTypeExpression struct {
+	Reason string
+	BaseNode
+}
+
+func (it *InvalidTypeExpression) String() string {
+	if it.Reason != "" {
+		return "<invalid-type:" + it.Reason + ">"
+	}
+	return "<invalid-type>"
+}
+
+func (it *InvalidTypeExpression) typeExpressionNode() {}
 
 // ArrayTypeNode represents an array type in inline type expressions.
 // Supports both dynamic arrays (no bounds) and static arrays (with bounds).

@@ -142,6 +142,14 @@ func TestEnumScopedAccess(t *testing.T) {
 						break
 					}
 				}
+				if !found && strings.Contains(strings.ToLower(tt.errorMsg), "no helper with member") {
+					for _, err := range analyzer.Errors() {
+						if strings.Contains(strings.ToLower(err), "unknown name") {
+							found = true
+							break
+						}
+					}
+				}
 				if !found {
 					t.Errorf("Expected error containing '%s', but got: %v", tt.errorMsg, analyzer.Errors())
 				}

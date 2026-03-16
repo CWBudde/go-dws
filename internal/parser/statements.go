@@ -593,8 +593,13 @@ func (p *Parser) parseVarType(stmt *ast.VarDeclStatement) {
 	p.cursor = p.cursor.Advance() // move to ':'
 	p.cursor = p.cursor.Advance() // move to type expression
 
+	errorCount := len(p.errors)
 	typeExpr := p.parseTypeExpression()
-	if typeExpr == nil {
+	if isInvalidTypeExpression(typeExpr) {
+		if len(p.errors) != errorCount {
+			stmt.Type = typeExpr
+			return
+		}
 		currentToken := p.cursor.Current()
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrExpectedType).
