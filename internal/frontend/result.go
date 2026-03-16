@@ -237,13 +237,14 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 		if err == nil {
 			continue
 		}
+		message, line, column, rendered := normalizeSemanticDiagnostic(err.Error(), err.Message, err.Pos.Line, err.Pos.Column, severityFromSemantic(err.Severity))
 		diag := Diagnostic{
-			Message:  err.Message,
-			Rendered: err.Error(),
+			Message:  message,
+			Rendered: rendered,
 			Code:     string(err.Type),
 			Phase:    PhaseSemantic,
-			Line:     err.Pos.Line,
-			Column:   err.Pos.Column,
+			Line:     line,
+			Column:   column,
 			Severity: severityFromSemantic(err.Severity),
 			Fatal:    err.Severity == semantic.SeverityError,
 		}

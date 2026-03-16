@@ -73,9 +73,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 					lowerFieldName := ident.Normalize(identifier.Value)
 					visibility, hasVisibility := fieldOwner.FieldVisibility[lowerFieldName]
 					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, identifier.Value, "field") {
-						visibilityStr := ast.Visibility(visibility).String()
-						a.addError("cannot access %s field '%s' at %s",
-							visibilityStr, identifier.Value, identifier.Token.Pos.String())
+						a.addStructuredError(NewVisibilityScopeError(identifier.Token.Pos, identifier.Value))
 						return nil
 					}
 				}

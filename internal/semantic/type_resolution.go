@@ -473,7 +473,7 @@ func (a *Analyzer) resolveOrdinalArrayBounds(lowExpr, highExpr ast.Expression) (
 
 	if !lowType.Equals(highType) {
 		pos := highExpr.Pos()
-		a.addError("Syntax Error: Array bounds are of different types [line: %d, column: %d]", pos.Line, pos.Column)
+		a.addStructuredError(NewArrayBoundsError(pos, "Array bounds are of different types"))
 		return 0, 0, nil, false
 	}
 
@@ -482,7 +482,7 @@ func (a *Analyzer) resolveOrdinalArrayBounds(lowExpr, highExpr ast.Expression) (
 		if pos.Column > 0 {
 			pos.Column--
 		}
-		a.addError("Syntax Error: Lower bound is greater than upper bound [line: %d, column: %d]", pos.Line, pos.Column)
+		a.addStructuredError(NewArrayBoundsError(pos, "Lower bound is greater than upper bound"))
 		return 0, 0, nil, false
 	}
 
@@ -497,14 +497,14 @@ func (a *Analyzer) resolveOrdinalArrayBound(expr ast.Expression) (int, types.Typ
 	boundType := a.analyzeExpression(expr)
 	if boundType == nil || !types.IsOrdinalType(boundType) {
 		pos := expr.Pos()
-		a.addError("Syntax Error: Bound isn't of an ordinal type [line: %d, column: %d]", pos.Line, pos.Column)
+		a.addStructuredError(NewArrayBoundsError(pos, "Bound isn't of an ordinal type"))
 		return 0, nil, false
 	}
 
 	value, err := a.evaluateConstant(expr)
 	if err != nil {
 		pos := expr.Pos()
-		a.addError("Syntax Error: Bound isn't of an ordinal type [line: %d, column: %d]", pos.Line, pos.Column)
+		a.addStructuredError(NewArrayBoundsError(pos, "Bound isn't of an ordinal type"))
 		return 0, nil, false
 	}
 
@@ -524,7 +524,7 @@ func (a *Analyzer) resolveOrdinalArrayBound(expr ast.Expression) (int, types.Typ
 	}
 
 	pos := expr.Pos()
-	a.addError("Syntax Error: Bound isn't of an ordinal type [line: %d, column: %d]", pos.Line, pos.Column)
+	a.addStructuredError(NewArrayBoundsError(pos, "Bound isn't of an ordinal type"))
 	return 0, nil, false
 }
 

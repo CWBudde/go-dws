@@ -164,8 +164,7 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		indexUnderlying := types.GetUnderlyingType(indexType)
 		if !indexUnderlying.Equals(expectedIndexType) {
 			pos := expr.Index.Pos()
-			a.addError("Syntax Error: Array index expected \"%s\" but got \"%s\" [line: %d, column: %d]",
-				expectedIndexType.String(), indexType.String(), pos.Line, pos.Column)
+			a.addStructuredError(NewArrayIndexError(pos, expectedIndexType.String(), indexType.String()))
 			return nil
 		}
 		return arrayType.ElementType
@@ -176,7 +175,7 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 	kind := indexUnderlying.TypeKind()
 	if kind != "INTEGER" && kind != "ENUM" && kind != "BOOLEAN" && kind != "SUBRANGE" {
 		pos := expr.Index.Pos()
-		a.addError("%s", errors.FormatArrayIndexError("Integer or ordinal", indexType.String(), pos.Line, pos.Column))
+		a.addStructuredError(NewArrayIndexError(pos, "Integer or ordinal", indexType.String()))
 		return nil
 	}
 

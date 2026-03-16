@@ -285,9 +285,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					lowerFieldName := ident.Normalize(target.Value)
 					visibility, hasVisibility := fieldOwner.FieldVisibility[lowerFieldName]
 					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, target.Value, "field") {
-						visibilityStr := ast.Visibility(visibility).String()
-						a.addError("cannot access %s field '%s' at %s",
-							visibilityStr, target.Value, target.Token.Pos.String())
+						a.addStructuredError(NewVisibilityScopeError(target.Token.Pos, target.Value))
 						return
 					}
 				}

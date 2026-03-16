@@ -87,6 +87,8 @@ const (
 	ErrorAbstractClass     SemanticErrorType = "abstract_class"
 	ErrorInterface         SemanticErrorType = "interface"
 	ErrorGeneric           SemanticErrorType = "generic"
+	ErrorArrayBounds       SemanticErrorType = "array_bounds"
+	ErrorArrayIndex        SemanticErrorType = "array_index"
 
 	// Warnings (non-critical issues that should be addressed)
 	WarningUnusedVariable  SemanticErrorType = "unused_variable"
@@ -373,6 +375,37 @@ func NewGenericError(pos lexer.Position, message string) *SemanticError {
 		Message:  message,
 		Pos:      pos,
 		Severity: SeverityError,
+	}
+}
+
+// NewArrayBoundsError creates a DWScript-style array bound diagnostic.
+func NewArrayBoundsError(pos lexer.Position, message string) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorArrayBounds,
+		Message:  "Syntax Error: " + message,
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewArrayIndexError creates a DWScript-style array index diagnostic.
+func NewArrayIndexError(pos lexer.Position, expected, got string) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorArrayIndex,
+		Message:  fmt.Sprintf("Syntax Error: Array index expected \"%s\" but got \"%s\"", expected, got),
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewVisibilityScopeError creates a DWScript-style visibility diagnostic.
+func NewVisibilityScopeError(pos lexer.Position, member string) *SemanticError {
+	return &SemanticError{
+		Type:         ErrorVisibility,
+		Message:      fmt.Sprintf(`Member symbol "%s" is not visible from this scope`, member),
+		Pos:          pos,
+		Severity:     SeverityError,
+		VariableName: member,
 	}
 }
 
