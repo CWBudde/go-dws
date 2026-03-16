@@ -109,8 +109,7 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			// Check index type
 			indexType := a.analyzeExpression(expr.Index)
 			if indexType != nil && !indexType.Equals(types.INTEGER) {
-				a.addError("string index must be integer, got %s at %s",
-					indexType.String(), expr.Index.Pos().String())
+				a.addStructuredError(NewArrayIndexError(expr.Index.Pos(), "Integer", indexType.String()))
 				return nil
 			}
 			return types.STRING
@@ -144,8 +143,7 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			}
 		}
 
-		a.addError("cannot index non-array type %s at %s",
-			leftType.String(), expr.Token.Pos.String())
+		a.addStructuredError(NewCannotIndexTypeError(expr.Token.Pos, leftType.String()))
 		return nil
 	}
 
@@ -295,8 +293,7 @@ func (a *Analyzer) analyzeNewArrayExpression(expr *ast.NewArrayExpression) types
 
 		// Dimension must be integer
 		if !dimType.Equals(types.INTEGER) {
-			a.addError("array dimension %d must be integer, got %s at %s",
-				i+1, dimType.String(), dimExpr.Pos().String())
+			a.addStructuredError(NewArrayDimensionTypeError(dimExpr.Pos(), i+1, dimType.String()))
 			return nil
 		}
 	}

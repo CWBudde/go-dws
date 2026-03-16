@@ -505,6 +505,33 @@ func NewArrayIndexError(pos lexer.Position, expected, got string) *SemanticError
 	}
 }
 
+// NewCannotIndexTypeError creates a structured non-indexable-type diagnostic.
+func NewCannotIndexTypeError(pos lexer.Position, typeName string) *SemanticError {
+	typeName = errors.SimplifyTypeName(typeName)
+	return &SemanticError{
+		Type:     ErrorArrayIndex,
+		Message:  fmt.Sprintf("cannot index non-array type %s", typeName),
+		Pos:      pos,
+		Severity: SeverityError,
+		TypeName: typeName,
+	}
+}
+
+// NewArrayDimensionTypeError creates a structured array dimension type diagnostic.
+func NewArrayDimensionTypeError(pos lexer.Position, dimension int, got string) *SemanticError {
+	got = errors.SimplifyTypeName(got)
+	return &SemanticError{
+		Type:     ErrorArrayIndex,
+		Message:  fmt.Sprintf("array dimension %d must be integer, got %s", dimension, got),
+		Pos:      pos,
+		Severity: SeverityError,
+		TypeName: got,
+		Context: map[string]interface{}{
+			"dimension": dimension,
+		},
+	}
+}
+
 // NewVisibilityScopeError creates a DWScript-style visibility diagnostic.
 func NewVisibilityScopeError(pos lexer.Position, member string) *SemanticError {
 	return &SemanticError{

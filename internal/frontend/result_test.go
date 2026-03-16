@@ -187,6 +187,36 @@ func TestCompile_AnchorsStructuredArrayBoundErrorsAtDWScriptPositions(t *testing
 	}
 }
 
+func TestCompile_RendersStructuredArrayIndexAndDimensionDiagnostics(t *testing.T) {
+	source := `
+var s: String;
+var x: Integer;
+var arr: array of Integer;
+
+arr := new Integer[3.14];
+
+x := s['hello'];
+x := x[0];
+`
+
+	result := Compile(source, "array_bucket.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: array dimension 1 must be integer, got Float [line: 6, column: 20]`,
+		`Syntax Error: Array index expected "Integer" but got "String" [line: 8, column: 8]`,
+		`Syntax Error: cannot index non-array type Integer [line: 9, column: 7]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestCompile_DedupesStructuredAndLegacySemanticVisibilityErrors(t *testing.T) {
 	source := `
 type
