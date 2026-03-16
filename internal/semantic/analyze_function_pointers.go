@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/builtins"
-	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -143,7 +142,7 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 			return funcPtrType
 		}
 
-		a.addError("%s", errors.FormatUnknownName(funcName, expr.Token.Pos.Line, expr.Token.Pos.Column))
+		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, funcName))
 		return nil
 	}
 

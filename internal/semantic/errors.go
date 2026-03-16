@@ -378,6 +378,28 @@ func NewGenericError(pos lexer.Position, message string) *SemanticError {
 	}
 }
 
+// NewUnknownNameError creates a DWScript-style unknown name diagnostic.
+func NewUnknownNameError(pos lexer.Position, name string) *SemanticError {
+	return &SemanticError{
+		Type:         ErrorGeneric,
+		Message:      fmt.Sprintf(`Unknown name "%s"`, name),
+		Pos:          pos,
+		Severity:     SeverityError,
+		VariableName: name,
+	}
+}
+
+// NewNoOverloadMatchError creates a DWScript-style overload resolution diagnostic.
+func NewNoOverloadMatchError(pos lexer.Position, functionName string) *SemanticError {
+	return &SemanticError{
+		Type:         ErrorArgumentCount,
+		Message:      fmt.Sprintf(`There is no overloaded version of "%s" that can be called with these arguments`, functionName),
+		Pos:          pos,
+		Severity:     SeverityError,
+		FunctionName: functionName,
+	}
+}
+
 // NewArrayBoundsError creates a DWScript-style array bound diagnostic.
 func NewArrayBoundsError(pos lexer.Position, message string) *SemanticError {
 	return &SemanticError{

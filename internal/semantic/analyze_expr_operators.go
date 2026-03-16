@@ -1,7 +1,6 @@
 package semantic
 
 import (
-	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	ident "github.com/cwbudde/go-dws/pkg/ident"
@@ -152,7 +151,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			return types.VOID
 		}
 
-		a.addError("%s", errors.FormatUnknownName(identifier.Value, identifier.Token.Pos.Line, identifier.Token.Pos.Column))
+		a.addStructuredError(NewUnknownNameError(identifier.Token.Pos, identifier.Value))
 		return nil
 	}
 

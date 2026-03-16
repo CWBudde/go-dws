@@ -177,7 +177,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 				selected, err := ResolveOverload(candidates, argTypes)
 				if err != nil {
-					a.addError("%s", errors.FormatNoOverloadError(funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column))
+					a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, funcIdent.Value))
 					return nil
 				}
 
@@ -213,7 +213,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 				selected, err := ResolveOverload(candidates, argTypes)
 				if err != nil {
-					a.addError("%s", errors.FormatNoOverloadError(funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column))
+					a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, funcIdent.Value))
 					return nil
 				}
 
@@ -446,7 +446,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return castType
 		}
 
-		a.addError("%s", errors.FormatUnknownName(funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column))
+		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, funcIdent.Value))
 		return nil
 	}
 
@@ -478,7 +478,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 		selected, err := ResolveOverload(candidates, argTypes)
 		if err != nil {
-			a.addError("%s", errors.FormatNoOverloadError(funcIdent.Value, expr.Token.Pos.Line, expr.Token.Pos.Column))
+			a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, funcIdent.Value))
 			return nil
 		}
 
@@ -903,7 +903,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 
 	selected, err := ResolveOverload(candidates, argTypes)
 	if err != nil {
-		a.addError("%s", errors.FormatNoOverloadError(methodName, expr.Token.Pos.Line, expr.Token.Pos.Column))
+		a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
 		return nil
 	}
 

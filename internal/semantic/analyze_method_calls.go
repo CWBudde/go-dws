@@ -99,7 +99,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				// Resolve overload
 				selected, err := ResolveOverload(candidates, argTypes)
 				if err != nil {
-					a.addError("%s", errors.FormatNoOverloadError(methodName, expr.Token.Pos.Line, expr.Token.Pos.Column))
+					a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
 					return nil
 				}
 
@@ -308,7 +308,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Resolve overload based on argument types
 		selected, err := ResolveOverload(candidates, argTypes)
 		if err != nil {
-			a.addError("%s", errors.FormatNoOverloadError(methodName, expr.Token.Pos.Line, expr.Token.Pos.Column))
+			a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
 			return nil
 		}
 

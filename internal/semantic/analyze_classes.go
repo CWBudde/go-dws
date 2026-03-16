@@ -36,7 +36,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		if recordType := a.getRecordType(className); recordType != nil {
 			return a.analyzeRecordStaticMethodCallFromNew(expr, recordType)
 		}
-		a.addError("%s", errors.FormatUnknownName(className, expr.Token.Pos.Line, expr.Token.Pos.Column))
+		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, className))
 		return nil
 	}
 
@@ -278,7 +278,8 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		}
 
 		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
-			a.addError("%s", errors.FormatUnknownName(expr.Object.String()+"."+expr.Member.Value, expr.Token.Pos.Line, expr.Token.Pos.Column+1))
+			pos := expr.Member.Token.Pos
+			a.addStructuredError(NewUnknownNameError(pos, expr.Object.String()+"."+expr.Member.Value))
 			return nil
 		}
 
@@ -451,7 +452,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 
 	selected, err := ResolveOverload(candidates, argTypes)
 	if err != nil {
-		a.addError("%s", errors.FormatNoOverloadError(methodName, expr.Token.Pos.Line, expr.Token.Pos.Column))
+		a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
 		return nil
 	}
 
