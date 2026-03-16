@@ -457,12 +457,12 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 }
 
 func (a *Analyzer) resolveOrdinalArrayBounds(lowExpr, highExpr ast.Expression) (int, int, types.Type, bool) {
-	lowValue, lowType, ok := a.resolveOrdinalArrayBound(lowExpr)
+	lowValue, lowType, ok := a.resolveOrdinalArrayBound(lowExpr, true)
 	if !ok {
 		return 0, 0, nil, false
 	}
 
-	highValue, highType, ok := a.resolveOrdinalArrayBound(highExpr)
+	highValue, highType, ok := a.resolveOrdinalArrayBound(highExpr, false)
 	if !ok {
 		return 0, 0, nil, false
 	}
@@ -489,21 +489,21 @@ func (a *Analyzer) resolveOrdinalArrayBounds(lowExpr, highExpr ast.Expression) (
 	return lowValue, highValue, lowType, true
 }
 
-func (a *Analyzer) resolveOrdinalArrayBound(expr ast.Expression) (int, types.Type, bool) {
+func (a *Analyzer) resolveOrdinalArrayBound(expr ast.Expression, anchorBefore bool) (int, types.Type, bool) {
 	if expr == nil {
 		return 0, nil, false
 	}
 
 	boundType := a.analyzeExpression(expr)
 	if boundType == nil || !types.IsOrdinalType(boundType) {
-		pos := expr.Pos()
+		pos := arrayBoundErrorPos(expr, anchorBefore)
 		a.addStructuredError(NewArrayBoundsError(pos, "Bound isn't of an ordinal type"))
 		return 0, nil, false
 	}
 
 	value, err := a.evaluateConstant(expr)
 	if err != nil {
-		pos := expr.Pos()
+		pos := arrayBoundErrorPos(expr, anchorBefore)
 		a.addStructuredError(NewArrayBoundsError(pos, "Bound isn't of an ordinal type"))
 		return 0, nil, false
 	}
@@ -523,9 +523,17 @@ func (a *Analyzer) resolveOrdinalArrayBound(expr ast.Expression) (int, types.Typ
 		}
 	}
 
-	pos := expr.Pos()
+	pos := arrayBoundErrorPos(expr, anchorBefore)
 	a.addStructuredError(NewArrayBoundsError(pos, "Bound isn't of an ordinal type"))
 	return 0, nil, false
+}
+
+func arrayBoundErrorPos(expr ast.Expression, anchorBefore bool) token.Position {
+	pos := expr.Pos()
+	if anchorBefore && pos.Column > 0 {
+		pos.Column--
+	}
+	return pos
 }
 
 // resolveSetTypeNode resolves a SetTypeNode directly from the AST.

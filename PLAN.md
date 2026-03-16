@@ -791,26 +791,58 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 - [x] **5.3.3** Gate interpreter execution on fatal compile diagnostics only
   - recovered syntax + semantic diagnostics should stop runtime cleanly
   - landed through the shared `internal/frontend` compile boundary and consumer gating in fixture/public compile entry points
-- [ ] **5.3.4** Convert the highest-volume semantic error families to structured diagnostics
-  - array bounds / index typing
-  - visibility failures
-  - enum/member resolution cases that currently normalize through legacy strings
-- [ ] **5.3.5** Make structured semantic diagnostics the canonical front-end path
-  - reduce direct `[]string` appends in analyzer code paths that feed fixture/public compile output
-  - keep legacy string accumulation only as compatibility fallback where still needed
-- [ ] **5.3.6** Add centralized dedupe/ordering rules for mixed semantic diagnostic sources
-  - structured + legacy semantic errors
-  - recovered parser + semantic error interleaving
-- [ ] **5.3.7** Add regression tests for semantic analysis on recovered AST
+- [ ] **5.3.4** Finish the array/index structured semantic bucket
+  - close the remaining legacy `addError(...)` paths for array bound/index diagnostics
+  - stop relying on front-end string rewriting for this bucket
+- [ ] **5.3.5** Finish the visibility structured semantic bucket
+  - convert the remaining field/method/property visibility failures to structured diagnostics
+  - keep positions anchored on the accessed member token
+- [ ] **5.3.6** Finish the member/helper/class-member structured semantic bucket
+  - convert the remaining inaccessible-member and helper-resolution misses still emitted as raw strings
+  - keep DWScript wording canonical at the semantic source
+- [ ] **5.3.7** Split property declaration diagnostics into structured buckets
+  - class member expected
+  - class method/constructor expected
+  - static read/write accessor requirements
+  - remaining type/signature mismatch diagnostics
+- [ ] **5.3.8** Split property use-site assignment/read diagnostics into structured buckets
+  - metaclass property reads
+  - metaclass property writes
+  - property value type mismatch
+  - read-only/write-only property access
+- [ ] **5.3.9** Make structured semantic diagnostics the canonical front-end path for the migrated buckets
+  - prefer `StructuredErrors()` over legacy `Errors()` where the analyzer already has typed diagnostics
+  - leave legacy string accumulation only as fallback for unmigrated buckets
+- [ ] **5.3.10** Audit and classify the remaining legacy semantic `addError(...)` hotspots
+  - `analyze_properties.go`
+  - `analyze_method_calls.go`
+  - `analyze_function_calls.go`
+  - `analyze_classes.go`
+  - `analyze_statements.go`
+- [ ] **5.3.11** Add centralized dedupe rules for mixed semantic diagnostic sources
+  - structured + legacy semantic duplicates
+  - duplicate visibility/member-access reports from parallel semantic paths
+- [ ] **5.3.12** Add centralized ordering rules for deferred semantic diagnostics
+  - end-of-analysis validation vs use-site diagnostics
+  - recoverable parser diagnostics vs later semantic diagnostics on the same source
+- [ ] **5.3.13** Add regression tests for mixed semantic sources
+  - structured + legacy semantic interleaving
+  - stable DWScript rendering and source positions
+- [ ] **5.3.14** Add regression tests for recovered-AST semantic entry
   - mixed syntax + semantic failures in one source file
-  - stable ordering and DWScript-compatible positions/rendering
-- [ ] **5.3.8** Audit compile-time validation currently leaking into runtime behavior
-  - abstract class instantiation
-  - invalid member/helper resolution
-  - invalid compile-time type/operator checks that currently surface during execution
-- [ ] **5.3.9** Move the first runtime-fallthrough validation bucket back into compile-time diagnostics
-  - land one representative bucket end-to-end through semantic/front-end gating
-- [ ] **5.3.10** Re-run targeted `FailureScripts` slices after each validation bucket moves compile-side
+  - semantic allowed on recoverable parser diagnostics only
+- [ ] **5.3.15** Move abstract-instantiation validation fully compile-side
+  - direct abstract classes
+  - concrete classes with inherited abstract methods
+  - constructors and metaclass creation paths
+- [ ] **5.3.16** Move invalid member/helper resolution fully compile-side
+  - member access on recovered AST
+  - helper lookup failures that still fall through to runtime-style behavior
+  - keyword-as-member parser recovery needed to reach semantic checks
+- [ ] **5.3.17** Move the next compile-time type/operator validation bucket out of runtime
+  - choose one representative runtime-fallthrough family
+  - land it end-to-end through semantic/front-end gating
+- [ ] **5.3.18** Re-run targeted `FailureScripts` slices after each migrated validation bucket
   - confirm runtime mismatches are collapsing for the expected root cause
 
 ---

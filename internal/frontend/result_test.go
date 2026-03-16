@@ -167,6 +167,26 @@ ab1[v]:=1;
 	}
 }
 
+func TestCompile_AnchorsStructuredArrayBoundErrorsAtDWScriptPositions(t *testing.T) {
+	source := `type a = array ['aa'] of String;`
+
+	result := Compile(source, "array_error5.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Bound isn't of an ordinal type [line: 1, column: 16]`,
+		`Syntax Error: ".." expected [line: 1, column: 21]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestCompile_DedupesStructuredAndLegacySemanticVisibilityErrors(t *testing.T) {
 	source := `
 type
