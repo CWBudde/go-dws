@@ -79,11 +79,11 @@ func TestRebuildOrdinalValue(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
 		template Value
-		ordinal  int
+		name     string
 		wantType string
 		wantText string
+		ordinal  int
 	}{
 		{
 			name:     "integer",

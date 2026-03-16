@@ -97,9 +97,9 @@ func TestExtractPosition(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
+		wantMsg  string
 		wantLine int
 		wantCol  int
-		wantMsg  string
 	}{
 		{
 			name:     "dwscript format",

@@ -400,6 +400,39 @@ func NewNoOverloadMatchError(pos lexer.Position, functionName string) *SemanticE
 	}
 }
 
+// NewAccessibleMemberError creates a DWScript-style inaccessible/missing member diagnostic.
+func NewAccessibleMemberError(pos lexer.Position, memberName, typeName string) *SemanticError {
+	typeName = errors.SimplifyTypeName(typeName)
+	return &SemanticError{
+		Type:         ErrorVisibility,
+		Message:      fmt.Sprintf(`There is no accessible member with name "%s" for type %s`, memberName, typeName),
+		Pos:          pos,
+		Severity:     SeverityError,
+		VariableName: memberName,
+		TypeName:     typeName,
+	}
+}
+
+// NewAbstractInstantiationError creates the DWScript abstract-instantiation diagnostic.
+func NewAbstractInstantiationError(pos lexer.Position) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorAbstractClass,
+		Message:  "Error: Trying to create an instance of an abstract class",
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewClassMethodOrConstructorExpectedError creates the DWScript metaclass-access diagnostic.
+func NewClassMethodOrConstructorExpectedError(pos lexer.Position) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorInvalidOperation,
+		Message:  "Syntax Error: Class method or constructor expected",
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
 // NewArrayBoundsError creates a DWScript-style array bound diagnostic.
 func NewArrayBoundsError(pos lexer.Position, message string) *SemanticError {
 	return &SemanticError{

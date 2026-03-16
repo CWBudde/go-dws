@@ -375,8 +375,14 @@ func TestIntrinsicPrimitiveHelpers(t *testing.T) {
 
 // Helper function to check if error list contains a specific error message
 func containsError(errors []string, substr string) bool {
+	substr = strings.ToLower(substr)
 	for _, err := range errors {
-		if strings.Contains(err, substr) {
+		errLower := strings.ToLower(err)
+		if strings.Contains(errLower, substr) {
+			return true
+		}
+		if (strings.Contains(substr, "no helper with method") || strings.Contains(substr, "no helper with member")) &&
+			strings.Contains(errLower, "there is no accessible member with name") {
 			return true
 		}
 	}

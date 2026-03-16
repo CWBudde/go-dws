@@ -119,9 +119,9 @@ func TestParseHelperDeclaration(t *testing.T) {
 				begin
 				end;
 			end;`,
-			expectedName:   "THelper",
-			expectedFor:    "Integer",
-			methodCount:    1,
+			expectedName: "THelper",
+			expectedFor:  "Integer",
+			methodCount:  1,
 		},
 		{
 			name: "helper with const without class keyword",

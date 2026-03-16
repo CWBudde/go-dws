@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -124,13 +125,14 @@ x := TBase.NonExistent;  // Should error
 
 	foundError := false
 	for _, errMsg := range analyzer.Errors() {
-		if contains(errMsg, "has no member") {
+		errMsgLower := strings.ToLower(errMsg)
+		if strings.Contains(errMsgLower, "has no member") || strings.Contains(errMsgLower, "there is no accessible member with name") {
 			foundError = true
 			break
 		}
 	}
 	if !foundError {
-		t.Errorf("expected 'has no member' error, got %v", analyzer.Errors())
+		t.Errorf("expected inaccessible member error, got %v", analyzer.Errors())
 	}
 }
 

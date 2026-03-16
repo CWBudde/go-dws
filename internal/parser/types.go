@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
-	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Type expressions can be:
@@ -560,7 +560,7 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 	if !p.peekTokenIs(lexer.DOTDOT) {
 		p.addPeekTokenError("\"..\" expected", ErrUnexpectedToken)
 		return []dimensionPair{{
-			low:  lowBound,
+			low: lowBound,
 			high: &ast.InvalidExpression{
 				Reason: "missing upper array bound",
 				TypedExpressionBase: ast.TypedExpressionBase{
@@ -594,7 +594,7 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 		if !p.peekTokenIs(lexer.DOTDOT) {
 			p.addPeekTokenError("\"..\" expected", ErrUnexpectedToken)
 			dimensions = append(dimensions, dimensionPair{
-				low:  lowBound,
+				low: lowBound,
 				high: &ast.InvalidExpression{
 					Reason: "missing upper array bound",
 					TypedExpressionBase: ast.TypedExpressionBase{

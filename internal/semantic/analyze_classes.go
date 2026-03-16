@@ -1,10 +1,10 @@
 package semantic
 
 import (
-	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -42,14 +42,14 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 
 	// Check if trying to instantiate an abstract class
 	if classType.IsAbstract {
-		a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
+		a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
 		return nil
 	}
 
 	// Check for unimplemented abstract methods (inherited but not overridden)
 	unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
 	if len(unimplementedMethods) > 0 {
-		a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
+		a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
 		return nil
 	}
 
@@ -233,8 +233,10 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return nil
 	}
 
+	isMetaclass := false
 	// Handle metaclass type (class of T) - convert to base ClassType for constructor/class member access
 	if metaclassType, ok := objectTypeResolved.(*types.ClassOfType); ok {
+		isMetaclass = true
 		baseClass := metaclassType.ClassType
 		if baseClass != nil {
 			objectTypeResolved = baseClass
@@ -253,6 +255,9 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		// Check helpers (prefer properties before methods for property-style access)
 		helperProp := a.hasHelperProperty(objectType, memberName)
 		if helperProp != nil {
+			if enumType, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
+				a.maybeAddUnnamedEnumElementHint(expr.Object, expr.Member.Token.Pos, enumType, memberName)
+			}
 			return helperProp.Type
 		}
 
@@ -279,12 +284,11 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
 			pos := expr.Member.Token.Pos
-			a.addStructuredError(NewUnknownNameError(pos, expr.Object.String()+"."+expr.Member.Value))
+			a.addStructuredError(NewAccessibleMemberError(pos, expr.Member.Value, objectType.String()))
 			return nil
 		}
 
-		a.addError("member access on type %s requires a helper, got no helper with member '%s' at %s",
-			objectType.String(), expr.Member.Value, expr.Token.Pos.String())
+		a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 		return nil
 	}
 
@@ -304,6 +308,10 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up field (including inherited fields)
 	fieldType, found := classType.GetField(memberName)
 	if found {
+		if isMetaclass {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
+			return nil
+		}
 		fieldOwner := a.getFieldOwner(classType, memberName)
 		if fieldOwner != nil {
 			visibility, hasVisibility := fieldOwner.FieldVisibility[memberName]
@@ -322,9 +330,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		if classVarOwner != nil {
 			visibility, hasVisibility := classVarOwner.ClassVarVisibility[memberName]
 			if hasVisibility && !a.checkVisibility(classVarOwner, visibility, memberName, "class variable") {
-				visibilityStr := ast.Visibility(visibility).String()
-				a.addError("cannot access %s class variable '%s' of class '%s' at %s",
-					visibilityStr, expr.Member.Value, classVarOwner.Name, expr.Token.Pos.String())
+				a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 				return nil
 			}
 		}
@@ -334,6 +340,10 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up property (including inherited properties)
 	propInfo, propFound := classType.GetProperty(memberName)
 	if propFound {
+		if isMetaclass && !propInfo.IsClassProperty {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
+			return nil
+		}
 		return propInfo.Type
 	}
 
@@ -359,6 +369,10 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			}
 		}
 		if hasParameterless {
+			if classType.IsAbstract || len(a.getUnimplementedAbstractMethods(classType)) > 0 {
+				a.addStructuredError(NewAbstractInstantiationError(expr.Member.Token.Pos))
+				return classType
+			}
 			return classType
 		}
 		// Constructor has parameters - return method pointer for deferred invocation
@@ -368,9 +382,21 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return types.NewMethodPointerType([]types.Type{}, classType)
 	}
 
+	if isMetaclass && ident.Equal(memberName, "create") {
+		if classType.IsAbstract || len(a.getUnimplementedAbstractMethods(classType)) > 0 {
+			a.addStructuredError(NewAbstractInstantiationError(expr.Member.Token.Pos))
+			return classType
+		}
+		return classType
+	}
+
 	// Look up method (including inherited methods)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
+		if isMetaclass && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(memberName)]) {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
+			return nil
+		}
 		if memberName == "free" && expr.Member.Value != "Free" {
 			pos := expr.Token.Pos
 			pos.Column++
@@ -409,6 +435,9 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Check helpers for properties
 	helperProp := a.hasHelperProperty(objectType, memberName)
 	if helperProp != nil {
+		if enumType, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
+			a.maybeAddUnnamedEnumElementHint(expr.Object, expr.Member.Token.Pos, enumType, memberName)
+		}
 		return helperProp.Type
 	}
 
@@ -417,8 +446,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return constType
 	}
 
-	a.addError("class '%s' has no member '%s' at %s",
-		classType.Name, expr.Member.Value, expr.Token.Pos.String())
+	a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 	return nil
 }
 
@@ -490,4 +518,28 @@ func (a *Analyzer) getDefaultConstructorName(class *types.ClassType) string {
 	}
 	// No default constructor found, use "Create" as fallback
 	return "Create"
+}
+
+func (a *Analyzer) maybeAddUnnamedEnumElementHint(expr ast.Expression, pos token.Position, enumType *types.EnumType, memberName string) {
+	if expr == nil || enumType == nil {
+		return
+	}
+	if memberName != "name" && memberName != "qualifiedname" {
+		return
+	}
+
+	value, err := a.evaluateConstant(expr)
+	if err != nil {
+		return
+	}
+
+	ordinal, ok := value.(int)
+	if !ok {
+		return
+	}
+	if enumType.GetEnumName(ordinal) != "" {
+		return
+	}
+
+	a.addHint("Enumeration element is unnamed or out of range [line: %d, column: %d]", pos.Line, pos.Column)
 }

@@ -851,8 +851,12 @@ func (a *Analyzer) parametersMatch(sig1, sig2 *types.FunctionType) bool {
 func (a *Analyzer) getUnimplementedAbstractMethods(classType *types.ClassType) []string {
 	unimplemented := []string{}
 
-	// Collect all abstract methods from parent chain
-	abstractMethods := a.collectAbstractMethods(classType.Parent)
+	if classType == nil {
+		return unimplemented
+	}
+
+	// Collect abstract methods from this class and its parent chain.
+	abstractMethods := a.collectAbstractMethods(classType)
 
 	// Check which ones are not implemented in this class
 	for methodName := range abstractMethods {

@@ -98,6 +98,24 @@ func ErrorMatches(actual, expected string) bool {
 		return true
 	}
 
+	if strings.Contains(expectedLower, "requires a helper") || strings.Contains(expectedLower, "has no member") || strings.Contains(expectedLower, "has no method") {
+		if strings.Contains(actualLower, "there is no accessible member with name") {
+			return true
+		}
+	}
+
+	if strings.Contains(expectedLower, "cannot call private method") || strings.Contains(expectedLower, "cannot call protected method") {
+		if strings.Contains(actualLower, "there is no accessible member with name") {
+			return true
+		}
+	}
+
+	if strings.Contains(expectedLower, "cannot access private field") || strings.Contains(expectedLower, "cannot access protected field") {
+		if strings.Contains(actualLower, `member symbol "`) && strings.Contains(actualLower, "is not visible from this scope") {
+			return true
+		}
+	}
+
 	// Handle "cannot assign X to Y" → "cannot assign \"X\" to \"Y\""
 	// The quotes in the actual message prevent direct match, so remove quotes from actual
 	actualNoQuotes := strings.ReplaceAll(actualLower, "\"", "")

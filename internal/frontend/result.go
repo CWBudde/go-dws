@@ -403,6 +403,10 @@ func normalizeSemanticDiagnostic(original, message string, line, column int, sev
 		return message, line, column, dwserrors.FormatDWScriptError(renderMessage, line, column)
 	}
 
+	if strings.HasPrefix(message, "Error:") && line > 0 && column > 0 {
+		return message, line, column, fmt.Sprintf("%s [line: %d, column: %d]", message, line, column)
+	}
+
 	if severity == SeverityError && line > 0 && column > 0 && !strings.HasPrefix(message, "Syntax Error:") {
 		return message, line, column, dwserrors.FormatDWScriptError(message, line, column)
 	}

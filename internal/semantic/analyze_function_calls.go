@@ -643,8 +643,19 @@ func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
 func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *types.ClassType, constructorName string) types.Type {
 	constructorOverloads := a.getMethodOverloadsInHierarchy(constructorName, classType)
 	if len(constructorOverloads) == 0 {
-		a.addError("class '%s' has no constructor named '%s' at %s",
-			classType.Name, constructorName, expr.Token.Pos.String())
+		if len(expr.Arguments) > 0 {
+			a.addError("class '%s' has no constructor named '%s' at %s",
+				classType.Name, constructorName, expr.Token.Pos.String())
+			return classType
+		}
+		if classType.IsAbstract {
+			a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
+			return classType
+		}
+		if unimplementedMethods := a.getUnimplementedAbstractMethods(classType); len(unimplementedMethods) > 0 {
+			a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
+			return classType
+		}
 		return classType
 	}
 
@@ -729,6 +740,15 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 				i+1, constructorName, argType.String(), paramType.String(),
 				expr.Token.Pos.String())
 		}
+	}
+
+	if classType.IsAbstract {
+		a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
+		return classType
+	}
+	if unimplementedMethods := a.getUnimplementedAbstractMethods(classType); len(unimplementedMethods) > 0 {
+		a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
+		return classType
 	}
 
 	return classType

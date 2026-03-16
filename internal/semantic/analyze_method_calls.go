@@ -1,7 +1,6 @@
 package semantic
 
 import (
-	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -18,10 +17,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	methodName := expr.Method.Value
 	methodNameLower := ident.Normalize(methodName)
+	isMetaclass := false
 
 	// Handle metaclass type (class of T) for constructor calls.
 	// When we have TExample.CreateWith(...), unwrap ClassOfType to ClassType for constructor lookup.
 	if metaclassType, ok := objectType.(*types.ClassOfType); ok {
+		isMetaclass = true
 		if metaclassType.ClassType != nil {
 			objectType = metaclassType.ClassType
 		}
@@ -41,8 +42,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		if !found {
 			helperMethod := a.hasHelperMethod(objectType, methodName)
 			if helperMethod == nil {
-				a.addError("interface '%s' has no method '%s' at %s",
-					interfaceType.Name, methodName, expr.Token.Pos.String())
+				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 				return nil
 			}
 			methodType = helperMethod
@@ -132,8 +132,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				// Method not found in record, check if a helper provides it
 				helperMethod := a.hasHelperMethod(objectType, methodName)
 				if helperMethod == nil {
-					a.addError("method '%s' not found in record type '%s' at %s",
-						methodName, recordType.Name, expr.Token.Pos.String())
+					a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 					return nil
 				}
 				// Use the helper method
@@ -180,8 +179,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				}
 				return types.VOID
 			default:
-				a.addError("method call on type %s requires a helper, got no helper with method '%s' at %s",
-					objectType.String(), methodName, expr.Token.Pos.String())
+				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 				return nil
 			}
 		}
@@ -189,8 +187,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Check if helpers provide this method for non-class, non-record types
 		helperMethod := a.hasHelperMethod(objectType, methodName)
 		if helperMethod == nil {
-			a.addError("method call on type %s requires a helper, got no helper with method '%s' at %s",
-				objectType.String(), methodName, expr.Token.Pos.String())
+			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return nil
 		}
 
@@ -247,8 +244,39 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 
 	// Constructors are stored separately from methods and can be inherited.
-	if constructorType, found := classType.GetConstructor(methodName); found {
-		methodType := constructorType
+	if constructorOverloads := a.getMethodOverloadsInHierarchy(methodName, classType); len(constructorOverloads) > 0 && classType.HasConstructor(methodName) {
+		var methodType *types.FunctionType
+
+		if len(constructorOverloads) > 1 {
+			argTypes := make([]types.Type, len(expr.Arguments))
+			for i, arg := range expr.Arguments {
+				argType := a.analyzeExpression(arg)
+				if argType == nil {
+					return classType
+				}
+				argTypes[i] = argType
+			}
+
+			candidates := make([]*Symbol, len(constructorOverloads))
+			for i, overload := range constructorOverloads {
+				candidates[i] = &Symbol{Type: overload.Signature}
+			}
+
+			selected, err := ResolveOverload(candidates, argTypes)
+			if err != nil {
+				a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
+				return classType
+			}
+
+			var ok bool
+			methodType, ok = selected.Type.(*types.FunctionType)
+			if !ok {
+				a.addError("internal error: expected function type for selected constructor overload, but got %T", selected.Type)
+				return classType
+			}
+		} else {
+			methodType = constructorOverloads[0].Signature
+		}
 
 		if len(expr.Arguments) != len(methodType.Parameters) {
 			a.addError("constructor '%s' of class '%s' expects %d arguments, got %d at %s",
@@ -268,12 +296,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		if classType.IsAbstract {
-			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
+			a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
 			return classType
 		}
 
 		if unimplementedMethods := a.getUnimplementedAbstractMethods(classType); len(unimplementedMethods) > 0 {
-			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
+			a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
 			return classType
 		}
 
@@ -320,15 +348,22 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 	} else if len(overloads) == 1 {
 		// Single method (not overloaded)
+		if isMetaclass && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(methodName)]) {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
+			return nil
+		}
 		methodType = overloads[0].Signature
 	} else {
 		// Method not found - check helpers
+		if isMetaclass {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
+			return nil
+		}
 		helperMethod := a.hasHelperMethod(objectType, methodName)
 		if helperMethod != nil {
 			methodType = helperMethod
 		} else {
-			a.addError("class '%s' has no method '%s' at %s",
-				classType.Name, methodName, expr.Token.Pos.String())
+			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return nil
 		}
 	}
@@ -338,14 +373,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Use lowercase key for case-insensitive lookup
 		visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(methodName)]
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
-			visibilityStr := ast.Visibility(visibility).String()
 			if methodOwner.HasConstructor(methodName) {
-				a.addError("cannot access %s constructor '%s' of class '%s' at %s",
-					visibilityStr, methodName, methodOwner.Name, expr.Token.Pos.String())
+				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 				return classType
 			}
-			a.addError("cannot call %s method '%s' of class '%s' at %s",
-				visibilityStr, methodName, methodOwner.Name, expr.Token.Pos.String())
+			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return methodType.ReturnType
 		}
 	}
@@ -375,14 +407,14 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	if classType.HasConstructor(methodName) {
 		// Check if trying to instantiate an abstract class via constructor call
 		if classType.IsAbstract {
-			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
+			a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
 			return classType
 		}
 
 		// Check if class has unimplemented abstract methods
 		unimplementedMethods := a.getUnimplementedAbstractMethods(classType)
 		if len(unimplementedMethods) > 0 {
-			a.addError("%s", errors.FormatAbstractClassError(expr.Token.Pos.Line, expr.Token.Pos.Column))
+			a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
 			return classType
 		}
 
