@@ -307,7 +307,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		if fieldOwner != nil {
 			visibility, hasVisibility := fieldOwner.FieldVisibility[memberName]
 			if hasVisibility && !a.checkVisibility(fieldOwner, visibility, memberName, "field") {
-				a.addStructuredError(NewVisibilityScopeError(expr.Token.Pos, expr.Member.Value))
+				a.addStructuredError(NewVisibilityScopeError(expr.Member.Token.Pos, expr.Member.Value))
 				return nil
 			}
 		}

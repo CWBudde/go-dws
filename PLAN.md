@@ -764,7 +764,15 @@ This phase creates the compiler front-end boundary needed to make fixture work t
   - grouped expressions, calls, and indexing
   - landed localized recovery for member access and array/type declaration paths, including DWScript-style `"]" expected`, `OF expected`, and `"..\" expected` fixture output
 - [ ] **5.2.5** Revisit unconditional outer parser advancement after failed nested parses
-  - reduce cursor drift and follow-on parser noise
+  - identify the exact parse loops that still advance unconditionally after recovered child failures
+- [ ] **5.2.6** Add targeted cursor-preservation tests for recovered nested parses
+  - grouped expressions
+  - call/index argument lists
+  - nested type expressions
+- [ ] **5.2.7** Remove or gate remaining unconditional advancement paths
+  - reduce cursor drift and parser follow-on noise without reintroducing infinite loops
+- [ ] **5.2.8** Re-audit parser follow-on diagnostics after cursor-stability fixes
+  - verify that localized syntax errors still win over generic outer-statement fallout
 
 ---
 
@@ -774,18 +782,36 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 
 **Tasks**:
 
-- [ ] **5.3.1** Define when semantic analysis may run on partially recovered AST
-  - document fatal vs recoverable parser states
-- [x] **5.3.2** Gate interpreter execution on fatal compile diagnostics only
+- [x] **5.3.1** Classify parser diagnostics into semantic-blocking vs semantic-recoverable states
+  - define the parser-result contract at the shared front-end boundary
+  - landed in `internal/frontend/result.go` via explicit parser-code classification and `BlocksSemantic` metadata on front-end diagnostics
+- [x] **5.3.2** Document and encode the semantic-entry rules on partially recovered AST
+  - identify which placeholder/error nodes are expected and tolerated by semantic analysis
+  - landed in `internal/frontend/result.go` by gating semantic entry on `Program != nil` and semantic-blocking parser diagnostics, with regression coverage in `internal/frontend/result_test.go`
+- [x] **5.3.3** Gate interpreter execution on fatal compile diagnostics only
   - recovered syntax + semantic diagnostics should stop runtime cleanly
   - landed through the shared `internal/frontend` compile boundary and consumer gating in fixture/public compile entry points
-- [ ] **5.3.3** Migrate semantic analyzer toward typed diagnostics
-  - reduce direct `[]string` appends
-  - make structured diagnostics the canonical path
-- [ ] **5.3.4** Move obvious compile-time validation out of runtime fallthrough
+- [ ] **5.3.4** Convert the highest-volume semantic error families to structured diagnostics
+  - array bounds / index typing
+  - visibility failures
+  - enum/member resolution cases that currently normalize through legacy strings
+- [ ] **5.3.5** Make structured semantic diagnostics the canonical front-end path
+  - reduce direct `[]string` appends in analyzer code paths that feed fixture/public compile output
+  - keep legacy string accumulation only as compatibility fallback where still needed
+- [ ] **5.3.6** Add centralized dedupe/ordering rules for mixed semantic diagnostic sources
+  - structured + legacy semantic errors
+  - recovered parser + semantic error interleaving
+- [ ] **5.3.7** Add regression tests for semantic analysis on recovered AST
+  - mixed syntax + semantic failures in one source file
+  - stable ordering and DWScript-compatible positions/rendering
+- [ ] **5.3.8** Audit compile-time validation currently leaking into runtime behavior
   - abstract class instantiation
   - invalid member/helper resolution
   - invalid compile-time type/operator checks that currently surface during execution
+- [ ] **5.3.9** Move the first runtime-fallthrough validation bucket back into compile-time diagnostics
+  - land one representative bucket end-to-end through semantic/front-end gating
+- [ ] **5.3.10** Re-run targeted `FailureScripts` slices after each validation bucket moves compile-side
+  - confirm runtime mismatches are collapsing for the expected root cause
 
 ---
 

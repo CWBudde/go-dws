@@ -44,6 +44,9 @@ type Diagnostic struct {
 	Length   int
 	Severity Severity
 	Fatal    bool
+	// BlocksSemantic marks parser diagnostics that should stop semantic analysis
+	// because the recovered AST/result is not trustworthy enough to continue.
+	BlocksSemantic bool
 }
 
 // Render returns the centralized rendered form of the diagnostic.
@@ -95,6 +98,28 @@ func (r *Result) HasFatalDiagnosticsInPhase(phase Phase) bool {
 	return false
 }
 
+// HasSemanticBlockingDiagnostics reports whether compilation produced diagnostics
+// that should prevent entering semantic analysis.
+func (r *Result) HasSemanticBlockingDiagnostics() bool {
+	for _, diag := range r.Diagnostics {
+		if diag.BlocksSemantic {
+			return true
+		}
+	}
+	return false
+}
+
+// HasSemanticBlockingDiagnosticsInPhase reports whether a phase produced diagnostics
+// that should prevent entering semantic analysis.
+func (r *Result) HasSemanticBlockingDiagnosticsInPhase(phase Phase) bool {
+	for _, diag := range r.Diagnostics {
+		if diag.Phase == phase && diag.BlocksSemantic {
+			return true
+		}
+	}
+	return false
+}
+
 // DiagnosticStrings returns the rendered diagnostics in emission order.
 func (r *Result) DiagnosticStrings() []string {
 	out := make([]string, 0, len(r.Diagnostics))
@@ -120,6 +145,10 @@ func Parse(source string) *Result {
 // This is the shared compile-front-end boundary for diagnostics collection.
 func Compile(source, filename string, hintsLevel semantic.HintsLevel) *Result {
 	result := Parse(source)
+
+	if result.Program == nil || result.HasSemanticBlockingDiagnosticsInPhase(PhaseParsing) {
+		return result
+	}
 
 	analyzer := semantic.NewAnalyzer()
 	analyzer.SetHintsLevel(hintsLevel)
@@ -189,17 +218,53 @@ func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {
 		}
 		message := normalizeParserDiagnosticMessage(err.Message)
 		diags = append(diags, Diagnostic{
-			Message:  message,
-			Code:     err.Code,
-			Phase:    PhaseParsing,
-			Line:     err.Pos.Line,
-			Column:   err.Pos.Column,
-			Length:   err.Length,
-			Severity: SeverityError,
-			Fatal:    true,
+			Message:        message,
+			Code:           err.Code,
+			Phase:          PhaseParsing,
+			Line:           err.Pos.Line,
+			Column:         err.Pos.Column,
+			Length:         err.Length,
+			Severity:       SeverityError,
+			Fatal:          true,
+			BlocksSemantic: parserDiagnosticBlocksSemantic(err),
 		})
 	}
 	return diags
+}
+
+func parserDiagnosticBlocksSemantic(err *parser.ParserError) bool {
+	if err == nil {
+		return false
+	}
+
+	switch err.Code {
+	case parser.ErrUnexpectedToken,
+		parser.ErrMissingSemicolon,
+		parser.ErrMissingEnd,
+		parser.ErrMissingLParen,
+		parser.ErrMissingRParen,
+		parser.ErrMissingRBracket,
+		parser.ErrMissingRBrace,
+		parser.ErrInvalidExpression,
+		parser.ErrNoPrefixParse,
+		parser.ErrExpectedIdent,
+		parser.ErrExpectedType,
+		parser.ErrExpectedOperator,
+		parser.ErrInvalidSyntax,
+		parser.ErrMissingThen,
+		parser.ErrMissingDo,
+		parser.ErrMissingOf,
+		parser.ErrMissingTo,
+		parser.ErrMissingIn,
+		parser.ErrMissingColon,
+		parser.ErrMissingAssign,
+		parser.ErrInvalidType:
+		return false
+	default:
+		// Unknown parser error codes are treated conservatively until their
+		// recovery semantics are classified explicitly.
+		return true
+	}
 }
 
 var parserBlockContextSuffix = regexp.MustCompile(` \(in .* block starting at line \d+\)$`)
@@ -248,21 +313,16 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 			Severity: severityFromSemantic(err.Severity),
 			Fatal:    err.Severity == semantic.SeverityError,
 		}
-		seen[diag.String()] = struct{}{}
+		seen[diag.Render()] = struct{}{}
 		diags = append(diags, diag)
 	}
 
 	for _, errStr := range analyzer.Errors() {
-		if _, ok := seen[errStr]; ok {
-			continue
-		}
-
 		severity, fatal := inferStringSeverity(errStr)
 		line, column, message := extractPosition(errStr)
 		code := semanticCodeForSeverity(severity)
 		message, line, column, rendered := normalizeSemanticDiagnostic(errStr, message, line, column, severity)
-
-		diags = append(diags, Diagnostic{
+		diag := Diagnostic{
 			Message:  message,
 			Rendered: rendered,
 			Code:     code,
@@ -271,7 +331,12 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 			Column:   column,
 			Severity: severity,
 			Fatal:    fatal,
-		})
+		}
+		if _, ok := seen[diag.Render()]; ok {
+			continue
+		}
+		seen[diag.Render()] = struct{}{}
+		diags = append(diags, diag)
 	}
 
 	return diags
@@ -334,7 +399,8 @@ func normalizeSemanticDiagnostic(original, message string, line, column int, sev
 	}
 
 	if strings.HasPrefix(message, "Syntax Error:") && line > 0 && column > 0 {
-		return message, line, column, original
+		renderMessage := strings.TrimSpace(strings.TrimPrefix(message, "Syntax Error:"))
+		return message, line, column, dwserrors.FormatDWScriptError(renderMessage, line, column)
 	}
 
 	if severity == SeverityError && line > 0 && column > 0 && !strings.HasPrefix(message, "Syntax Error:") {

@@ -3,6 +3,8 @@ package frontend
 import (
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
 )
 
@@ -21,6 +23,9 @@ func TestCompile_CollectsParserDiagnostics(t *testing.T) {
 	if !result.SemanticAttempted {
 		t.Fatal("expected semantic analysis to run on recovered parse output")
 	}
+	if result.HasSemanticBlockingDiagnostics() {
+		t.Fatal("expected recovered parser diagnostics to remain semantic-recoverable")
+	}
 	foundParsing := false
 	for _, diag := range result.Diagnostics {
 		if diag.Phase == PhaseParsing {
@@ -30,6 +35,29 @@ func TestCompile_CollectsParserDiagnostics(t *testing.T) {
 	}
 	if !foundParsing {
 		t.Fatal("expected at least one parsing diagnostic")
+	}
+}
+
+func TestParserDiagnosticBlocksSemantic(t *testing.T) {
+	tests := []struct {
+		name  string
+		code  string
+		block bool
+	}{
+		{name: "recoverable invalid expression", code: parser.ErrInvalidExpression, block: false},
+		{name: "recoverable missing end", code: parser.ErrMissingEnd, block: false},
+		{name: "recoverable expected identifier", code: parser.ErrExpectedIdent, block: false},
+		{name: "unknown parser code blocks", code: "E_UNKNOWN_PARSER_STATE", block: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := parser.NewParserError(lexer.Position{Line: 1, Column: 1}, 1, "test", tt.code)
+			got := parserDiagnosticBlocksSemantic(err)
+			if got != tt.block {
+				t.Fatalf("parserDiagnosticBlocksSemantic(%q) = %v, want %v", tt.code, got, tt.block)
+			}
+		})
 	}
 }
 
@@ -97,5 +125,84 @@ func TestExtractPosition(t *testing.T) {
 					tt.input, line, col, msg, tt.wantLine, tt.wantCol, tt.wantMsg)
 			}
 		})
+	}
+}
+
+func TestCompile_RendersStructuredSemanticSyntaxErrorsInDWScriptFormat(t *testing.T) {
+	source := `
+type TEnum = (eZero, eOne, eTwo);
+
+var ab1 : array [False..True] of Integer;
+var ab2 : array [True..False] of Integer;
+
+var v : Variant;
+
+ab1[1]:=1;
+ab1['1']:=1;
+ab1[True]:=1;
+ab1[Integer(True)]:=1;
+ab1[eZero]:=1;
+ab1[Integer(eZero)]:=1;
+ab1[v]:=1;
+`
+
+	result := Compile(source, "array_index_bool.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Lower bound is greater than upper bound [line: 5, column: 23]`,
+		`Syntax Error: Array index expected "Boolean" but got "Integer" [line: 9, column: 5]`,
+		`Syntax Error: Array index expected "Boolean" but got "String" [line: 10, column: 5]`,
+		`Syntax Error: Array index expected "Boolean" but got "Integer" [line: 12, column: 5]`,
+		`Syntax Error: Array index expected "Boolean" but got "TEnum" [line: 13, column: 5]`,
+		`Syntax Error: Array index expected "Boolean" but got "Integer" [line: 14, column: 5]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_DedupesStructuredAndLegacySemanticVisibilityErrors(t *testing.T) {
+	source := `
+type
+   TTest = class
+      private
+         Field : Integer;
+   end;
+type
+   TSubTest = class (TTest)
+      protected
+         Field2 : Integer;
+         procedure Stuff;
+   end;
+
+procedure TSubTest.Stuff;
+begin
+   Field2:=1;
+   Field:=2;
+end;
+
+var o := TSubTest.Create;
+o.Field:=1;`
+
+	result := Compile(source, "visibility4.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Member symbol "Field" is not visible from this scope [line: 17, column: 4]`,
+		`Syntax Error: Member symbol "Field" is not visible from this scope [line: 21, column: 3]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
