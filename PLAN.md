@@ -763,16 +763,16 @@ This phase creates the compiler front-end boundary needed to make fixture work t
   - array/type declarations
   - grouped expressions, calls, and indexing
   - landed localized recovery for member access and array/type declaration paths, including DWScript-style `"]" expected`, `OF expected`, and `"..\" expected` fixture output
-- [ ] **5.2.5** Revisit unconditional outer parser advancement after failed nested parses
-  - identify the exact parse loops that still advance unconditionally after recovered child failures
-- [ ] **5.2.6** Add targeted cursor-preservation tests for recovered nested parses
-  - grouped expressions
-  - call/index argument lists
-  - nested type expressions
-- [ ] **5.2.7** Remove or gate remaining unconditional advancement paths
-  - reduce cursor drift and parser follow-on noise without reintroducing infinite loops
-- [ ] **5.2.8** Re-audit parser follow-on diagnostics after cursor-stability fixes
-  - verify that localized syntax errors still win over generic outer-statement fallout
+- [x] **5.2.5** Revisit unconditional outer parser advancement after failed nested parses
+  - identified and patched the exact parent loops that assumed recovered children had advanced past separators/terminators:
+    `parseExpressionList`, grouped-expression array literal parsing, index-expression comma handling, argument/field list iteration, and shorthand function-pointer type lists
+- [x] **5.2.6** Add targeted cursor-preservation tests for recovered nested parses
+  - covered grouped expressions, call/index argument lists, and shorthand nested type expressions in `internal/parser/cursor_recovery_test.go`
+- [x] **5.2.7** Remove or gate remaining unconditional advancement paths
+  - parent loops now only treat `current` as a separator/terminator boundary when the nested child is an invalid/recovered node, avoiding cursor drift without breaking valid nested parses
+- [x] **5.2.8** Re-audit parser follow-on diagnostics after cursor-stability fixes
+  - added parser regressions that verify grouped-expression, call-argument, index, and nested-type recovery keep the localized syntax errors instead of falling through to generic outer `expected ';' ...` / `expected ')' ...` diagnostics
+  - tightened `array of` element-type parsing so malformed `array of , ...` emits the contextual `expected type expression after 'array of'` diagnostic rather than the generic nested type-expression fallback
 
 ---
 
@@ -791,50 +791,60 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 - [x] **5.3.3** Gate interpreter execution on fatal compile diagnostics only
   - recovered syntax + semantic diagnostics should stop runtime cleanly
   - landed through the shared `internal/frontend` compile boundary and consumer gating in fixture/public compile entry points
-- [ ] **5.3.4** Finish the array/index structured semantic bucket
-  - close the remaining legacy `addError(...)` paths for array bound/index diagnostics
-  - stop relying on front-end string rewriting for this bucket
-- [ ] **5.3.5** Finish the visibility structured semantic bucket
-  - convert the remaining field/method/property visibility failures to structured diagnostics
-  - keep positions anchored on the accessed member token
-- [ ] **5.3.6** Finish the member/helper/class-member structured semantic bucket
-  - convert the remaining inaccessible-member and helper-resolution misses still emitted as raw strings
-  - keep DWScript wording canonical at the semantic source
-- [ ] **5.3.7** Split property declaration diagnostics into structured buckets
+- [x] **5.3.4** Finish the array/index structured semantic bucket
+  - closed the remaining legacy `addError(...)` paths in semantic array/index analysis, including default indexed property access and explicit indexed property access
+  - array bounds, array indices, non-indexable types, array instantiation dimensions, and indexed-property index mismatches now emit structured semantic diagnostics directly
+  - added front-end regression coverage to verify the canonical rendered diagnostics come from structured semantic errors for the full migrated bucket
+- [x] **5.3.5** Finish the visibility structured semantic bucket
+  - converted field/method/class-variable visibility denials to structured `Member symbol "..." is not visible from this scope` diagnostics emitted at the accessed member token
+  - added frontend regression coverage for field, method, and class-variable visibility to verify the canonical structured path renders directly instead of depending on frontend regex normalization
+- [x] **5.3.6** Finish the member/helper/class-member structured semantic bucket
+  - converted the remaining raw interface/member miss into `There is no accessible member with name "..." for type ...` at the semantic source, completing the canonical member/helper/class-member miss path
+  - added frontend regression coverage for interface misses, helper misses, and missing class members to verify the bucket renders directly from structured semantic diagnostics
+- [x] **5.3.7** Split property declaration diagnostics into structured buckets
   - class member expected
   - class method/constructor expected
   - static read/write accessor requirements
   - remaining type/signature mismatch diagnostics
-- [ ] **5.3.8** Split property use-site assignment/read diagnostics into structured buckets
+  - property declaration validation now emits structured diagnostics for class-member/static-accessor/property-signature failures directly from semantic analysis, with frontend regressions covering the rendered DWScript output
+- [x] **5.3.8** Split property use-site assignment/read diagnostics into structured buckets
   - metaclass property reads
   - metaclass property writes
   - property value type mismatch
   - read-only/write-only property access
-- [ ] **5.3.9** Make structured semantic diagnostics the canonical front-end path for the migrated buckets
+  - property reads/writes now emit structured diagnostics for read-only/write-only access, metaclass instance-property access, and property value mismatches directly from semantic analysis, with frontend regressions covering the rendered DWScript output
+- [x] **5.3.9** Make structured semantic diagnostics the canonical front-end path for the migrated buckets
   - prefer `StructuredErrors()` over legacy `Errors()` where the analyzer already has typed diagnostics
   - leave legacy string accumulation only as fallback for unmigrated buckets
-- [ ] **5.3.10** Audit and classify the remaining legacy semantic `addError(...)` hotspots
+  - frontend semantic collection now drops legacy string entries that are exact mirrors of structured semantic errors before normalization/rendering, keeping the structured path canonical while preserving legacy fallback for unmigrated buckets
+- [x] **5.3.10** Audit and classify the remaining legacy semantic `addError(...)` hotspots
   - `analyze_properties.go`
   - `analyze_method_calls.go`
   - `analyze_function_calls.go`
   - `analyze_classes.go`
   - `analyze_statements.go`
-- [ ] **5.3.11** Add centralized dedupe rules for mixed semantic diagnostic sources
+  - documented the remaining hotspot counts and buckets in `docs/semantic-legacy-hotspots-5.3.10.md`; `analyze_properties.go` now has zero remaining raw call sites, while the active backlog is concentrated in call/constructor validation and general statement semantics
+- [x] **5.3.11** Add centralized dedupe rules for mixed semantic diagnostic sources
   - structured + legacy semantic duplicates
   - duplicate visibility/member-access reports from parallel semantic paths
-- [ ] **5.3.12** Add centralized ordering rules for deferred semantic diagnostics
+  - centralized frontend filtering now replaces/suppresses generic semantic member-access diagnostics when a more specific visibility or object-reference diagnostic exists on the same semantic site, instead of relying on scattered ad hoc checks
+- [x] **5.3.12** Add centralized ordering rules for deferred semantic diagnostics
   - end-of-analysis validation vs use-site diagnostics
   - recoverable parser diagnostics vs later semantic diagnostics on the same source
-- [ ] **5.3.13** Add regression tests for mixed semantic sources
+  - frontend diagnostic sorting now encodes explicit deferred-semantic buckets and parser-before-semantic same-location ordering, rather than depending on incidental enum/string ordering
+- [x] **5.3.13** Add regression tests for mixed semantic sources
   - structured + legacy semantic interleaving
   - stable DWScript rendering and source positions
-- [ ] **5.3.14** Add regression tests for recovered-AST semantic entry
+  - added frontend regressions for mixed structured/legacy semantic rendering plus direct dedupe/replacement tests for member-visibility and object-reference collisions
+- [x] **5.3.14** Add regression tests for recovered-AST semantic entry
   - mixed syntax + semantic failures in one source file
   - semantic allowed on recoverable parser diagnostics only
-- [ ] **5.3.15** Move abstract-instantiation validation fully compile-side
+  - added frontend regressions that verify semantic diagnostics still appear after recoverable parser errors and that semantic is skipped when parser diagnostics are classified as blocking
+- [x] **5.3.15** Move abstract-instantiation validation fully compile-side
   - direct abstract classes
   - concrete classes with inherited abstract methods
   - constructors and metaclass creation paths
+  - frontend regressions now pin compile-side abstract-instantiation diagnostics for `new`, explicit/implicit constructor creation, and incomplete concrete subclasses; semantic regression coverage also exercises metaclass-oriented constructor paths
 - [ ] **5.3.16** Move invalid member/helper resolution fully compile-side
   - member access on recovered AST
   - helper lookup failures that still fall through to runtime-style behavior

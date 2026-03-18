@@ -108,9 +108,18 @@ func ErrorMatches(actual, expected string) bool {
 		if strings.Contains(actualLower, "there is no accessible member with name") {
 			return true
 		}
+		if strings.Contains(actualLower, `member symbol "`) && strings.Contains(actualLower, "is not visible from this scope") {
+			return true
+		}
 	}
 
 	if strings.Contains(expectedLower, "cannot access private field") || strings.Contains(expectedLower, "cannot access protected field") {
+		if strings.Contains(actualLower, `member symbol "`) && strings.Contains(actualLower, "is not visible from this scope") {
+			return true
+		}
+	}
+
+	if strings.Contains(expectedLower, "cannot access private class variable") || strings.Contains(expectedLower, "cannot access protected class variable") {
 		if strings.Contains(actualLower, `member symbol "`) && strings.Contains(actualLower, "is not visible from this scope") {
 			return true
 		}
@@ -121,9 +130,26 @@ func ErrorMatches(actual, expected string) bool {
 			return true
 		}
 	}
+	if strings.Contains(expectedLower, "write specifier") && strings.Contains(expectedLower, "not found") {
+		if strings.Contains(actualLower, "class member expected") {
+			return true
+		}
+	}
 
 	if strings.Contains(expectedLower, "must be a class method") {
 		if strings.Contains(actualLower, "class method or constructor expected") {
+			return true
+		}
+		if strings.Contains(actualLower, "read access of property should be a static method") {
+			return true
+		}
+		if strings.Contains(actualLower, "write access of property should be a static method") {
+			return true
+		}
+	}
+
+	if strings.Contains(expectedLower, "cannot be a class method") {
+		if strings.Contains(actualLower, "cannot be a class method") {
 			return true
 		}
 	}

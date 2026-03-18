@@ -172,6 +172,20 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 
 		items = append(items, item)
 
+		recoveredOnBoundary := isInvalidExpression(item.Value) &&
+			(p.cursor.Current().Type == end || p.cursor.Current().Type == lexer.COMMA || p.cursor.Current().Type == lexer.SEMICOLON)
+		if recoveredOnBoundary {
+			if p.cursor.Current().Type == end {
+				break
+			}
+			if p.cursor.Peek(1).Type == end {
+				p.cursor = p.cursor.Advance()
+				break
+			}
+			p.cursor = p.cursor.Advance()
+			continue
+		}
+
 		// Check if we should continue to next item
 		shouldContinue, ok := p.advanceToNextItem(end)
 		if !ok {

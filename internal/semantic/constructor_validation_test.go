@@ -379,6 +379,24 @@ end;
 	expectError(t, input, "Trying to create an instance of an abstract class")
 }
 
+func TestConstructorAbstractClassMetaclassPaths(t *testing.T) {
+	input := `
+type TAbstract = class abstract
+public
+	function GetValue: Integer; abstract;
+end;
+
+var cls: class of TAbstract;
+var obj: TAbstract;
+begin
+	cls := TAbstract;
+	obj := cls.Create();
+	obj := TAbstract.Create;
+end;
+`
+	expectError(t, input, "Trying to create an instance of an abstract class")
+}
+
 // TestConstructorOverloadWithImplicitConversion tests implicit Integer to Float conversion
 func TestConstructorOverloadWithImplicitConversion(t *testing.T) {
 	input := `

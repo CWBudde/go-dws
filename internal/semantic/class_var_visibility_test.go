@@ -47,7 +47,9 @@ end.
 	// Check that we got the expected error
 	foundPrivateError := false
 	for _, err := range analyzer.Errors() {
-		if (strings.Contains(err, "cannot access private class variable") || strings.Contains(err, "There is no accessible member with name")) &&
+		if (strings.Contains(err, "cannot access private class variable") ||
+			strings.Contains(err, "There is no accessible member with name") ||
+			strings.Contains(err, "is not visible from this scope")) &&
 			(strings.Contains(err, "PrivateVar") || strings.Contains(err, "privatevar")) {
 			foundPrivateError = true
 			break

@@ -145,7 +145,10 @@ func Parse(source string) *Result {
 // This is the shared compile-front-end boundary for diagnostics collection.
 func Compile(source, filename string, hintsLevel semantic.HintsLevel) *Result {
 	result := Parse(source)
+	return compileParsedResult(result, source, filename, hintsLevel)
+}
 
+func compileParsedResult(result *Result, source, filename string, hintsLevel semantic.HintsLevel) *Result {
 	if result.Program == nil || result.HasSemanticBlockingDiagnosticsInPhase(PhaseParsing) {
 		return result
 	}
@@ -191,8 +194,8 @@ func sortDiagnostics(diags []Diagnostic) {
 		left := diags[i]
 		right := diags[j]
 
-		leftBucket := diagnosticSortBucket(left)
-		rightBucket := diagnosticSortBucket(right)
+		leftBucket := diagnosticDeferredBucket(left)
+		rightBucket := diagnosticDeferredBucket(right)
 		if leftBucket != rightBucket {
 			return leftBucket < rightBucket
 		}
@@ -209,20 +212,51 @@ func sortDiagnostics(diags []Diagnostic) {
 		if left.Column != right.Column {
 			return left.Column < right.Column
 		}
-		if left.Phase != right.Phase {
-			return left.Phase < right.Phase
+		leftPhase := diagnosticPhasePriority(left)
+		rightPhase := diagnosticPhasePriority(right)
+		if leftPhase != rightPhase {
+			return leftPhase < rightPhase
+		}
+		leftSpecificity := diagnosticSpecificityPriority(left)
+		rightSpecificity := diagnosticSpecificityPriority(right)
+		if leftSpecificity != rightSpecificity {
+			return leftSpecificity < rightSpecificity
 		}
 		return false
 	})
 }
 
-func diagnosticSortBucket(diag Diagnostic) int {
+func diagnosticDeferredBucket(diag Diagnostic) int {
 	if diag.Phase == PhaseSemantic &&
-		strings.HasPrefix(diag.Message, `Method "`) &&
-		strings.Contains(diag.Message, `" not implemented`) {
+		((strings.HasPrefix(diag.Message, `Method "`) &&
+			strings.Contains(diag.Message, `" not implemented`)) ||
+			(strings.HasPrefix(diag.Message, `Class "`) &&
+				strings.Contains(diag.Message, ` isn't defined completely`))) {
 		return 1
 	}
 	return 0
+}
+
+func diagnosticPhasePriority(diag Diagnostic) int {
+	if diag.Phase == PhaseParsing {
+		return 0
+	}
+	return 1
+}
+
+func diagnosticSpecificityPriority(diag Diagnostic) int {
+	switch {
+	case diag.Message == "Syntax Error: Object reference needed to read/write an object field":
+		return 0
+	case diagnosticVisibleMember.MatchString(diag.Message):
+		return 0
+	case diag.Message == "Syntax Error: Class method or constructor expected":
+		return 1
+	case diagnosticAccessibleMember.MatchString(diag.Message):
+		return 1
+	default:
+		return 0
+	}
 }
 
 func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {
@@ -285,6 +319,8 @@ func parserDiagnosticBlocksSemantic(err *parser.ParserError) bool {
 var parserBlockContextSuffix = regexp.MustCompile(` \(in .* block starting at line \d+\)$`)
 var semanticVisibilityError = regexp.MustCompile(`^cannot (?:access|call) (?:private|protected) (?:field|method|property|class variable) '([^']+)' of class '([^']+)'$`)
 var semanticImplicitVisibilityError = regexp.MustCompile(`^cannot access (?:private|protected) field '([^']+)'$`)
+var diagnosticVisibleMember = regexp.MustCompile(`^Member symbol "([^"]+)" is not visible from this scope$`)
+var diagnosticAccessibleMember = regexp.MustCompile(`^There is no accessible member with name "([^"]+)" for type `)
 
 func normalizeParserDiagnosticMessage(message string) string {
 	message = parserBlockContextSuffix.ReplaceAllString(message, "")
@@ -310,13 +346,17 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 		return nil
 	}
 
-	diags := make([]Diagnostic, 0, len(analyzer.Errors()))
+	structuredErrors := analyzer.StructuredErrors()
+	legacyErrors := analyzer.Errors()
+	diags := make([]Diagnostic, 0, len(structuredErrors)+len(legacyErrors))
 	seen := make(map[string]struct{})
+	structuredLegacyMirrors := make(map[string]struct{}, len(structuredErrors))
 
-	for _, err := range analyzer.StructuredErrors() {
+	for _, err := range structuredErrors {
 		if err == nil {
 			continue
 		}
+		structuredLegacyMirrors[err.Error()] = struct{}{}
 		message, line, column, rendered := normalizeSemanticDiagnostic(err.Error(), err.Message, err.Pos.Line, err.Pos.Column, severityFromSemantic(err.Severity))
 		diag := Diagnostic{
 			Message:  message,
@@ -332,7 +372,10 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 		diags = append(diags, diag)
 	}
 
-	for _, errStr := range analyzer.Errors() {
+	for _, errStr := range legacyErrors {
+		if _, ok := structuredLegacyMirrors[errStr]; ok {
+			continue
+		}
 		severity, fatal := inferStringSeverity(errStr)
 		line, column, message := extractPosition(errStr)
 		code := semanticCodeForSeverity(severity)
@@ -365,11 +408,14 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 	filtered := make([]Diagnostic, 0, len(diags))
 	hasEarlierFatal := false
 	nameExpectedByLine := make(map[int]bool)
-	objectReferenceNeededByLine := make(map[int]bool)
 
 	for _, diag := range diags {
-		if shouldDropDiagnostic(diag, hasEarlierFatal, nameExpectedByLine, objectReferenceNeededByLine) {
+		drop, replaceIdx := classifyDiagnosticForFilter(diag, filtered, hasEarlierFatal, nameExpectedByLine)
+		if drop {
 			continue
+		}
+		if replaceIdx >= 0 {
+			filtered = append(filtered[:replaceIdx], filtered[replaceIdx+1:]...)
 		}
 		if diag.Fatal {
 			hasEarlierFatal = true
@@ -377,37 +423,75 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 		if diag.Message == "Name expected" {
 			nameExpectedByLine[diag.Line] = true
 		}
-		if diag.Message == "Syntax Error: Object reference needed to read/write an object field" {
-			objectReferenceNeededByLine[diag.Line] = true
-		}
 		filtered = append(filtered, diag)
 	}
 
 	return filtered
 }
 
-func shouldDropDiagnostic(diag Diagnostic, hasEarlierFatal bool, nameExpectedByLine, objectReferenceNeededByLine map[int]bool) bool {
+func classifyDiagnosticForFilter(diag Diagnostic, filtered []Diagnostic, hasEarlierFatal bool, nameExpectedByLine map[int]bool) (drop bool, replaceIdx int) {
+	replaceIdx = -1
+
 	if nameExpectedByLine[diag.Line] && diag.Message == "Expression expected before COLON" {
-		return true
+		return true, -1
 	}
 
 	if strings.Contains(diag.Message, "instance property '") && strings.Contains(diag.Message, "cannot be a class method") {
-		return true
+		return true, -1
 	}
 
-	if objectReferenceNeededByLine[diag.Line] && diag.Message == "Syntax Error: Class method or constructor expected" {
-		return true
+	for i, existing := range filtered {
+		if existing.Line != diag.Line || existing.Phase != diag.Phase {
+			continue
+		}
+
+		if existing.Message == "Syntax Error: Object reference needed to read/write an object field" &&
+			diag.Message == "Syntax Error: Class method or constructor expected" {
+			return true, -1
+		}
+		if existing.Message == "Syntax Error: Class method or constructor expected" &&
+			diag.Message == "Syntax Error: Object reference needed to read/write an object field" {
+			return false, i
+		}
+
+		existingVisibleMember, existingIsVisible := visibleMemberName(existing.Message)
+		diagVisibleMember, diagIsVisible := visibleMemberName(diag.Message)
+		existingAccessibleMember, existingIsAccessible := accessibleMemberName(existing.Message)
+		diagAccessibleMember, diagIsAccessible := accessibleMemberName(diag.Message)
+
+		if existingIsVisible && diagIsAccessible && existingVisibleMember == diagAccessibleMember {
+			return true, -1
+		}
+		if existingIsAccessible && diagIsVisible && existingAccessibleMember == diagVisibleMember {
+			return false, i
+		}
 	}
 
 	if !hasEarlierFatal {
-		return false
+		return false, replaceIdx
 	}
 
 	if diag.Phase == PhaseParsing && diag.Message == "expected 'end' to close unit declaration" {
-		return true
+		return true, -1
 	}
 
-	return false
+	return false, replaceIdx
+}
+
+func visibleMemberName(message string) (string, bool) {
+	matches := diagnosticVisibleMember.FindStringSubmatch(message)
+	if len(matches) != 2 {
+		return "", false
+	}
+	return matches[1], true
+}
+
+func accessibleMemberName(message string) (string, bool) {
+	matches := diagnosticAccessibleMember.FindStringSubmatch(message)
+	if len(matches) != 2 {
+		return "", false
+	}
+	return matches[1], true
 }
 
 func normalizeSemanticDiagnostic(original, message string, line, column int, severity Severity) (string, int, int, string) {

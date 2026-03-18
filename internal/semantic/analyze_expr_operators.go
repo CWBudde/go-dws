@@ -88,7 +88,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 							return nil
 						}
 						if propInfo.ReadKind == types.PropAccessNone {
-							a.addError("property '%s' is write-only at %s", identifier.Value, identifier.Token.Pos.String())
+							a.addStructuredError(NewWriteOnlyPropertyError(identifier.Token.Pos, identifier.Value))
 							return nil
 						}
 						return propInfo.Type
@@ -103,9 +103,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 				if methodOwner != nil {
 					visibility, hasVisibility := methodOwner.MethodVisibility[identifier.Value]
 					if hasVisibility && !a.checkVisibility(methodOwner, visibility, identifier.Value, "method") {
-						visibilityStr := ast.Visibility(visibility).String()
-						a.addError("cannot access %s method '%s' of class '%s' at %s",
-							visibilityStr, identifier.Value, methodOwner.Name, identifier.Token.Pos.String())
+						a.addStructuredError(NewVisibilityScopeError(identifier.Token.Pos, identifier.Value))
 						return nil
 					}
 				}

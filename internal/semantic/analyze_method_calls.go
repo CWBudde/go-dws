@@ -373,11 +373,10 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Use lowercase key for case-insensitive lookup
 		visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(methodName)]
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
+			a.addStructuredError(NewVisibilityScopeError(expr.Method.Token.Pos, expr.Method.Value))
 			if methodOwner.HasConstructor(methodName) {
-				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 				return classType
 			}
-			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return methodType.ReturnType
 		}
 	}

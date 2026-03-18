@@ -89,9 +89,8 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			if len(expectedIndexTypes) > 0 {
 				indexType := a.analyzeExpressionWithExpectedType(expr.Index, expectedIndexTypes[0])
 				if indexType != nil && !a.canAssign(indexType, expectedIndexTypes[0]) {
-					a.addError("default property index has type %s, expected %s at %s",
-						indexType.String(), expectedIndexTypes[0].String(), expr.Index.Pos().String())
-					return nil
+					a.addStructuredError(NewArrayIndexError(expr.Index.Pos(), expectedIndexTypes[0].String(), indexType.String()))
+					return defaultProp.Type
 				}
 			} else {
 				a.analyzeExpression(expr.Index)
@@ -209,10 +208,8 @@ func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessEx
 			if len(expectedIndexTypes) > 0 {
 				indexType := a.analyzeExpressionWithExpectedType(expr.Index, expectedIndexTypes[0])
 				if indexType != nil && !a.canAssign(indexType, expectedIndexTypes[0]) {
-					a.addError("property '%s' index has type %s, expected %s at %s",
-						memberAccess.Member.Value, indexType.String(), expectedIndexTypes[0].String(),
-						expr.Index.Pos().String())
-					return nil
+					a.addStructuredError(NewArrayIndexError(expr.Index.Pos(), expectedIndexTypes[0].String(), indexType.String()))
+					return propInfo.Type
 				}
 			} else {
 				a.analyzeExpression(expr.Index)

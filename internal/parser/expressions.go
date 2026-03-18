@@ -15,6 +15,15 @@ func isInvalidExpression(expr ast.Expression) bool {
 	return ok
 }
 
+func tokenTypeIsOneOf(tokenType lexer.TokenType, candidates ...lexer.TokenType) bool {
+	for _, candidate := range candidates {
+		if tokenType == candidate {
+			return true
+		}
+	}
+	return false
+}
+
 // PRE: cursor is first token of expression
 // POST: cursor is last token of expression
 func (p *Parser) parseExpression(precedence int) ast.Expression {
@@ -233,7 +242,30 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 
 	// Parse remaining expressions (separated by commas)
 	for {
+		recoveredOnBoundary := isInvalidExpression(expr) &&
+			tokenTypeIsOneOf(p.cursor.Current().Type, lexer.COMMA, lexer.RPAREN)
 		nextToken = p.cursor.Peek(1)
+
+		// A recovered nested parse can legitimately leave the cursor sitting on
+		// the separator/terminator token instead of the preceding child node.
+		if recoveredOnBoundary && p.cursor.Current().Type == lexer.RPAREN {
+			break
+		}
+		if recoveredOnBoundary && p.cursor.Current().Type == lexer.COMMA {
+			// Check for trailing comma before terminator.
+			if nextToken.Type == lexer.RPAREN {
+				p.cursor = p.cursor.Advance() // consume terminator
+				break
+			}
+
+			// Move from current comma to the next expression.
+			p.cursor = p.cursor.Advance()
+			expr = p.parseExpression(LOWEST)
+			if expr != nil {
+				list = append(list, expr)
+			}
+			continue
+		}
 
 		// Check for terminator
 		if nextToken.Type == lexer.RPAREN {
@@ -260,12 +292,12 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 			if expr != nil {
 				list = append(list, expr)
 			}
-		} else {
-			// Unexpected token - no separator found
-			// Add error and break
-			p.addError(fmt.Sprintf("expected ',' or ')', got %s", nextToken.Type), ErrUnexpectedToken)
-			break
+			continue
 		}
+
+		// Unexpected token - no separator found
+		p.addError(fmt.Sprintf("expected ',' or ')', got %s", nextToken.Type), ErrUnexpectedToken)
+		break
 	}
 
 	return list
@@ -344,13 +376,17 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 
 	// Check if this is an array literal: (expr, expr, ...)
 	nextToken = p.cursor.Peek(1)
-	if nextToken.Type == lexer.COMMA {
+	recoveredOnComma := isInvalidExpression(exp) && p.cursor.Current().Type == lexer.COMMA
+	if recoveredOnComma || nextToken.Type == lexer.COMMA {
 		// Parse array literal inline
 		elements := []ast.Expression{exp}
 
 		// Parse remaining elements
-		for p.cursor.Peek(1).Type == lexer.COMMA {
-			p.cursor = p.cursor.Advance() // move to COMMA
+		for (isInvalidExpression(elements[len(elements)-1]) && p.cursor.Current().Type == lexer.COMMA) ||
+			p.cursor.Peek(1).Type == lexer.COMMA {
+			if p.cursor.Current().Type != lexer.COMMA {
+				p.cursor = p.cursor.Advance() // move to COMMA
+			}
 			p.cursor = p.cursor.Advance() // move to next element or RPAREN
 
 			// Allow trailing comma: (1, 2, )
@@ -374,6 +410,17 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 		}
 
 		// Expect closing paren
+		if isInvalidExpression(elements[len(elements)-1]) && p.cursor.Current().Type == lexer.RPAREN {
+			return &ast.ArrayLiteralExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{
+						Token:  lparenToken,
+						EndPos: p.cursor.Current().End(),
+					},
+				},
+				Elements: elements,
+			}
+		}
 		if p.cursor.Peek(1).Type != lexer.RPAREN {
 			p.addError(fmt.Sprintf("expected ')', got %s", p.cursor.Peek(1).Type), ErrUnexpectedToken)
 			return nil
@@ -393,6 +440,9 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	}
 
 	// Expect closing paren
+	if isInvalidExpression(exp) && p.cursor.Current().Type == lexer.RPAREN {
+		return exp
+	}
 	if nextToken.Type != lexer.RPAREN {
 		p.addError(fmt.Sprintf("expected ')', got %s", nextToken.Type), ErrUnexpectedToken)
 		return nil

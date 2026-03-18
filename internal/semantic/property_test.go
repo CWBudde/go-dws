@@ -944,3 +944,111 @@ end;`,
 		})
 	}
 }
+
+func TestPropertyUseSiteErrors(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedError string
+	}{
+		{
+			name: "member read-only property assignment",
+			input: `
+type
+	TTest = class
+		FValue: Integer;
+		property Value: Integer read FValue;
+	end;
+var
+	o: TTest;
+begin
+	o.Value := 1;
+end;
+`,
+			expectedError: "property 'Value' is read-only",
+		},
+		{
+			name: "member write-only property read",
+			input: `
+type
+	TTest = class
+		procedure SetValue(value: Integer); begin end;
+		property Value: Integer write SetValue;
+	end;
+var
+	o: TTest;
+	x: Integer;
+begin
+	x := o.Value;
+end;
+`,
+			expectedError: "property 'Value' is write-only",
+		},
+		{
+			name: "member property value mismatch",
+			input: `
+type
+	TTest = class
+		FValue: Integer;
+		property Value: Integer read FValue write FValue;
+	end;
+var
+	o: TTest;
+begin
+	o.Value := 'bad';
+end;
+`,
+			expectedError: `Argument 0 expects type "Integer" instead of "String"`,
+		},
+		{
+			name: "metaclass property read needs object reference",
+			input: `
+type
+	TTest = class
+		FValue: Integer;
+		property Value: Integer read FValue;
+	end;
+var
+	x: Integer;
+begin
+	x := TTest.Value;
+end;
+`,
+			expectedError: "Object reference needed to read/write an object field",
+		},
+		{
+			name: "metaclass property write needs object reference",
+			input: `
+type
+	TTest = class
+		FValue: Integer;
+		property Value: Integer read FValue write FValue;
+	end;
+begin
+	TTest.Value := 1;
+end;
+`,
+			expectedError: "Object reference needed to read/write an object field",
+		},
+		{
+			name: "metaclass property write value mismatch",
+			input: `
+type
+	TTest = class
+		class procedure SetValue(value: Integer); begin end;
+		property Value: Integer write SetValue;
+	end;
+begin
+	TTest.Value := 'bad';
+end;
+`,
+			expectedError: `Argument 0 expects type "Integer" instead of "String"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectError(t, tt.input, tt.expectedError)
+		})
+	}
+}

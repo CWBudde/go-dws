@@ -473,6 +473,73 @@ func NewPropertyWriteShouldBeStaticMethodError(pos lexer.Position) *SemanticErro
 	}
 }
 
+// NewReadOnlyPropertyError creates a structured read-only-property diagnostic.
+func NewReadOnlyPropertyError(pos lexer.Position, propertyName string) *SemanticError {
+	return &SemanticError{
+		Type:         ErrorInvalidAssignment,
+		Message:      fmt.Sprintf("property '%s' is read-only", propertyName),
+		Pos:          pos,
+		Severity:     SeverityError,
+		VariableName: propertyName,
+	}
+}
+
+// NewWriteOnlyPropertyError creates a structured write-only-property diagnostic.
+func NewWriteOnlyPropertyError(pos lexer.Position, propertyName string) *SemanticError {
+	return &SemanticError{
+		Type:         ErrorInvalidOperation,
+		Message:      fmt.Sprintf("property '%s' is write-only", propertyName),
+		Pos:          pos,
+		Severity:     SeverityError,
+		VariableName: propertyName,
+	}
+}
+
+// NewPropertyValueTypeMismatchError creates a structured property value type diagnostic.
+func NewPropertyValueTypeMismatchError(pos lexer.Position, expectedType, gotType string) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorTypeMismatch,
+		Message:  fmt.Sprintf(`Argument 0 expects type "%s" instead of "%s"`, errors.SimplifyTypeName(expectedType), errors.SimplifyTypeName(gotType)),
+		Pos:      pos,
+		Severity: SeverityError,
+		TypeName: errors.SimplifyTypeName(expectedType),
+		Context: map[string]interface{}{
+			"expected": errors.SimplifyTypeName(expectedType),
+			"got":      errors.SimplifyTypeName(gotType),
+		},
+	}
+}
+
+// NewPropertyDeclarationError creates a structured property-declaration diagnostic.
+func NewPropertyDeclarationError(pos lexer.Position, message string) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorInvalidOperation,
+		Message:  message,
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewPropertyDeclarationArgumentCountError creates a structured property accessor arity diagnostic.
+func NewPropertyDeclarationArgumentCountError(pos lexer.Position, message string) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorArgumentCount,
+		Message:  message,
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewPropertyDeclarationTypeMismatchError creates a structured property accessor type/signature diagnostic.
+func NewPropertyDeclarationTypeMismatchError(pos lexer.Position, message string) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorTypeMismatch,
+		Message:  message,
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
 // NewMethodNotImplementedError creates the DWScript missing-method-implementation diagnostic.
 func NewMethodNotImplementedError(pos lexer.Position, methodName, className string) *SemanticError {
 	return &SemanticError{

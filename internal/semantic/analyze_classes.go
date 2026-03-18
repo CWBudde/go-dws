@@ -228,8 +228,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			return objectType
 		}
 
-		a.addError("interface '%s' has no method '%s' at %s",
-			ifaceType.Name, expr.Member.Value, expr.Token.Pos.String())
+		a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 		return nil
 	}
 
@@ -330,7 +329,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		if classVarOwner != nil {
 			visibility, hasVisibility := classVarOwner.ClassVarVisibility[memberName]
 			if hasVisibility && !a.checkVisibility(classVarOwner, visibility, memberName, "class variable") {
-				a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
+				a.addStructuredError(NewVisibilityScopeError(expr.Member.Token.Pos, expr.Member.Value))
 				return nil
 			}
 		}
@@ -340,16 +339,24 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up property (including inherited properties)
 	propInfo, propFound := classType.GetProperty(memberName)
 	if propFound {
+		if propInfo.ReadKind == types.PropAccessNone {
+			a.addStructuredError(NewWriteOnlyPropertyError(expr.Member.Token.Pos, expr.Member.Value))
+			return nil
+		}
 		if isMetaclass && !propInfo.IsClassProperty {
 			switch propInfo.ReadKind {
-			case types.PropAccessField:
+			case types.PropAccessField, types.PropAccessExpression, types.PropAccessBuiltin:
 				a.addStructuredError(NewObjectReferenceNeededError(expr.Member.Token.Pos))
+				return nil
 			case types.PropAccessMethod:
 				if propInfo.ReadSpec != "" && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(propInfo.ReadSpec)]) {
 					a.addStructuredError(NewPropertyReadShouldBeStaticMethodError(expr.Member.Token.Pos))
+					return nil
 				}
+				a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
+				return nil
 			}
-			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
+			a.addStructuredError(NewObjectReferenceNeededError(expr.Member.Token.Pos))
 			return nil
 		}
 		return propInfo.Type
@@ -414,9 +421,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		if methodOwner != nil {
 			visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(memberName)]
 			if hasVisibility && !a.checkVisibility(methodOwner, visibility, memberName, "method") {
-				visibilityStr := ast.Visibility(visibility).String()
-				a.addError("cannot call %s method '%s' of class '%s' at %s",
-					visibilityStr, expr.Member.Value, methodOwner.Name, expr.Token.Pos.String())
+				a.addStructuredError(NewVisibilityScopeError(expr.Member.Token.Pos, expr.Member.Value))
 				return nil
 			}
 		}

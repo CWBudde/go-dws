@@ -448,6 +448,19 @@ func (p *Parser) parseArrayType() ast.TypeExpression {
 	cursor = cursor.Advance() // move to element type
 	p.cursor = cursor
 
+	if !isTypeExpressionStartToken(cursor.Current().Type) {
+		err := NewStructuredError(ErrKindInvalid).
+			WithCode(ErrExpectedType).
+			WithMessage("expected type expression after 'array of'").
+			WithPosition(cursor.Current().Pos, cursor.Current().Length()).
+			WithExpectedString("type name").
+			WithSuggestion("specify the element type, like 'Integer' or 'String'").
+			WithParsePhase("array element type").
+			Build()
+		p.addStructuredError(err)
+		return invalidTypeExpression(arrayToken, "invalid array type")
+	}
+
 	errorCount := len(p.errors)
 	elementType := p.parseTypeExpression()
 	if isInvalidTypeExpression(elementType) {

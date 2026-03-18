@@ -120,9 +120,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				if methodOwner != nil {
 					visibility, hasVisibility := methodOwner.MethodVisibility[methodNameLower]
 					if hasVisibility && !a.checkVisibility(methodOwner, visibility, funcIdent.Value, "method") {
-						visibilityStr := ast.Visibility(visibility).String()
-						a.addError("cannot call %s method '%s' of class '%s' at %s",
-							visibilityStr, funcIdent.Value, methodOwner.Name, expr.Token.Pos.String())
+						a.addStructuredError(NewVisibilityScopeError(funcIdent.Token.Pos, funcIdent.Value))
 						return nil
 					}
 				}

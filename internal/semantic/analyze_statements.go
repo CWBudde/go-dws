@@ -313,9 +313,13 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			for class := a.currentClass; class != nil; class = class.Parent {
 				for propName, propInfo := range class.Properties {
 					if ident.Equal(propName, target.Value) {
+						if isCompound && propInfo.ReadKind == types.PropAccessNone {
+							a.addStructuredError(NewWriteOnlyPropertyError(target.Token.Pos, target.Value))
+							return
+						}
 						// Check if property is writable
 						if propInfo.WriteKind == types.PropAccessNone {
-							a.addError("property '%s' is read-only at %s", target.Value, stmt.Token.Pos.String())
+							a.addStructuredError(NewReadOnlyPropertyError(target.Token.Pos, target.Value))
 							return
 						}
 						valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
@@ -329,8 +333,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							}
 						}
 						if !a.canAssign(valueType, propInfo.Type) {
-							pos := stmt.Token.Pos
-							a.addError("%s", errors.FormatCannotAssign(valueType.String(), propInfo.Type.String(), pos.Line, pos.Column))
+							a.addStructuredError(NewPropertyValueTypeMismatchError(target.Token.Pos, propInfo.Type.String(), valueType.String()))
 						}
 						return
 					}
@@ -415,32 +418,61 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 						target.Member.Value, stmt.Token.Pos.String())
 					return
 				}
-				if propInfo, found := classType.GetProperty(memberName); found && isMetaclass && !propInfo.IsClassProperty {
-					switch propInfo.WriteKind {
-					case types.PropAccessField:
-						a.addStructuredError(NewObjectReferenceNeededError(target.Member.Token.Pos))
-						return
-					case types.PropAccessMethod:
-						if propInfo.WriteSpec != "" && classType.ClassMethodFlags != nil && classType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)] {
-							valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
-							if valueType == nil {
-								return
-							}
-							if !a.canAssign(valueType, propInfo.Type) {
-								pos := target.Member.Token.Pos
-								a.addError("%s", errors.FormatArgumentError(0, propInfo.Type.String(), valueType.String(), pos.Line, pos.Column))
-							}
-							return
-						}
-						if propInfo.WriteSpec != "" && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)]) {
-							a.addStructuredError(NewPropertyWriteShouldBeStaticMethodError(target.Member.Token.Pos))
-						}
-						a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Member.Token.Pos))
-						return
-					default:
-						a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Member.Token.Pos))
+				if propInfo, found := classType.GetProperty(memberName); found {
+					if isCompound && propInfo.ReadKind == types.PropAccessNone {
+						a.addStructuredError(NewWriteOnlyPropertyError(target.Member.Token.Pos, target.Member.Value))
 						return
 					}
+					if propInfo.WriteKind == types.PropAccessNone {
+						a.addStructuredError(NewReadOnlyPropertyError(target.Member.Token.Pos, target.Member.Value))
+						return
+					}
+					if isMetaclass && !propInfo.IsClassProperty {
+						switch propInfo.WriteKind {
+						case types.PropAccessField, types.PropAccessExpression, types.PropAccessBuiltin:
+							a.addStructuredError(NewObjectReferenceNeededError(target.Member.Token.Pos))
+							return
+						case types.PropAccessMethod:
+							if propInfo.WriteSpec != "" && classType.ClassMethodFlags != nil && classType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)] {
+								valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+								if valueType == nil {
+									return
+								}
+								if !a.canAssign(valueType, propInfo.Type) {
+									a.addStructuredError(NewPropertyValueTypeMismatchError(target.Member.Token.Pos, propInfo.Type.String(), valueType.String()))
+								}
+								return
+							}
+							if propInfo.WriteSpec != "" && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)]) {
+								a.addStructuredError(NewPropertyWriteShouldBeStaticMethodError(target.Member.Token.Pos))
+								return
+							}
+							a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Member.Token.Pos))
+							return
+						default:
+							a.addStructuredError(NewObjectReferenceNeededError(target.Member.Token.Pos))
+							return
+						}
+					}
+
+					valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+					if valueType == nil {
+						return
+					}
+
+					usesClassOperator := false
+					if isCompound {
+						valid, classOp := a.isCompoundOperatorValid(stmt.Operator, propInfo.Type, valueType, stmt.Token.Pos)
+						if !valid {
+							return
+						}
+						usesClassOperator = classOp
+					}
+
+					if !usesClassOperator && !a.canAssign(valueType, propInfo.Type) {
+						a.addStructuredError(NewPropertyValueTypeMismatchError(target.Member.Token.Pos, propInfo.Type.String(), valueType.String()))
+					}
+					return
 				}
 			}
 		}

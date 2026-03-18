@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strconv"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgident "github.com/cwbudde/go-dws/pkg/ident"
@@ -18,6 +20,10 @@ func pluralizeParam(count int) string {
 	return "parameters"
 }
 
+func formatInt(v int) string {
+	return strconv.Itoa(v)
+}
+
 // analyzePropertyDecl validates a property declaration and registers it in the class metadata.
 func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.ClassType) {
 	propName := prop.Name.Value
@@ -25,8 +31,8 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 	//  Check for duplicate property names within class
 	for existingName := range classType.Properties {
 		if pkgident.Equal(existingName, propName) {
-			a.addError("duplicate property '%s' in class '%s' at %s",
-				propName, classType.Name, prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+				"duplicate property '"+propName+"' in class '"+classType.Name+"'"))
 			return
 		}
 	}
@@ -36,22 +42,22 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		classType.Properties = make(map[string]*types.PropertyInfo)
 	}
 	if _, exists := classType.Properties[propName]; exists {
-		a.addError("duplicate property '%s' in class '%s' at %s",
-			propName, classType.Name, prop.Token.Pos.String())
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"duplicate property '"+propName+"' in class '"+classType.Name+"'"))
 		return
 	}
 
 	// Resolve property type
 	if prop.Type == nil {
-		a.addError("property '%s' missing type annotation in class '%s' at %s",
-			propName, classType.Name, prop.Token.Pos.String())
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"property '"+propName+"' missing type annotation in class '"+classType.Name+"'"))
 		return
 	}
 
 	propType, err := a.resolveType(getTypeExpressionName(prop.Type))
 	if err != nil {
-		a.addError("unknown type '%s' for property '%s' in class '%s' at %s",
-			getTypeExpressionName(prop.Type), propName, classType.Name, prop.Token.Pos.String())
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"unknown type '"+getTypeExpressionName(prop.Type)+"' for property '"+propName+"' in class '"+classType.Name+"'"))
 		return
 	}
 
@@ -61,14 +67,14 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 	if isIndexed {
 		for _, param := range prop.IndexParams {
 			if param.Type == nil {
-				a.addError("index parameter '%s' missing type annotation in property '%s' at %s",
-					param.Name.Value, propName, prop.Token.Pos.String())
+				a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+					"index parameter '"+param.Name.Value+"' missing type annotation in property '"+propName+"'"))
 				return
 			}
 			paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 			if err != nil {
-				a.addError("unknown type '%s' for index parameter '%s' in property '%s' at %s",
-					getTypeExpressionName(param.Type), param.Name.Value, propName, prop.Token.Pos.String())
+				a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+					"unknown type '"+getTypeExpressionName(param.Type)+"' for index parameter '"+param.Name.Value+"' in property '"+propName+"'"))
 				return
 			}
 			indexParamTypes = append(indexParamTypes, paramType)
@@ -80,8 +86,8 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 	var indexLiteralValue int64
 	if prop.IndexValue != nil {
 		if isIndexed {
-			a.addError("property '%s' cannot combine index parameters with an index directive at %s",
-				propName, prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+				"property '"+propName+"' cannot combine index parameters with an index directive"))
 			return
 		}
 
@@ -101,15 +107,15 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 
 		// Currently support integer-typed index directives
 		if !idxType.Equals(types.INTEGER) {
-			a.addError("property '%s' index directive must be an integer literal, got %s at %s",
-				propName, idxType.String(), prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+				"property '"+propName+"' index directive must be an integer literal, got "+idxType.String()))
 			return
 		}
 
 		val, ok := ast.ExtractIntegerLiteral(prop.IndexValue)
 		if !ok {
-			a.addError("property '%s' index directive must be an integer literal at %s",
-				propName, prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+				"property '"+propName+"' index directive must be an integer literal"))
 			return
 		}
 
@@ -151,16 +157,16 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 	if prop.IsDefault {
 		// Default properties must be indexed
 		if !isIndexed {
-			a.addError("default property '%s' must be an indexed property at %s",
-				propName, prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+				"default property '"+propName+"' must be an indexed property"))
 			return
 		}
 
 		// Only one default property per class
 		for existingPropName, existingProp := range classType.Properties {
 			if existingProp.IsDefault && existingPropName != propName {
-				a.addError("class '%s' already has default property '%s'; cannot declare another default property '%s' at %s",
-					classType.Name, existingPropName, propName, prop.Token.Pos.String())
+				a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+					"class '"+classType.Name+"' already has default property '"+existingPropName+"'; cannot declare another default property '"+propName+"'"))
 				return
 			}
 		}
@@ -190,9 +196,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			// Only class properties can read from class variables
 			if propInfo.IsClassProperty {
 				if !propType.Equals(fieldType) {
-					a.addError("property '%s' read class variable '%s' has type %s, expected %s at %s",
-						propName, readSpecName, fieldType.String(), propType.String(),
-						prop.Token.Pos.String())
+					a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+						"property '"+propName+"' read class variable '"+readSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
 					return
 				}
 				propInfo.ReadKind = types.PropAccessField
@@ -205,9 +210,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		// 2. Check if it's a constant
 		if constantType, constantFound := a.getConstantType(classType, readSpecName); constantFound {
 			if !propType.Equals(constantType) {
-				a.addError("property '%s' read constant '%s' has type %s, expected %s at %s",
-					propName, readSpecName, constantType.String(), propType.String(),
-					prop.Token.Pos.String())
+				a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+					"property '"+propName+"' read constant '"+readSpecName+"' has type "+constantType.String()+", expected "+propType.String()))
 				return
 			}
 			propInfo.ReadKind = types.PropAccessField // Constants are treated like fields
@@ -220,9 +224,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			// Instance property can use instance field
 			if fieldType, found := classType.GetField(pkgident.Normalize(readSpecName)); found {
 				if !propType.Equals(fieldType) {
-					a.addError("property '%s' read field '%s' has type %s, expected %s at %s",
-						propName, readSpecName, fieldType.String(), propType.String(),
-						prop.Token.Pos.String())
+					a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+						"property '"+propName+"' read field '"+readSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
 					return
 				}
 				propInfo.ReadKind = types.PropAccessField
@@ -244,15 +247,15 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			if propInfo.IsClassProperty {
 				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
 				if !isClassMethod {
-					a.addStructuredError(NewClassMethodOrConstructorExpectedError(ident.Token.Pos))
+					a.addStructuredError(NewPropertyReadShouldBeStaticMethodError(ident.Token.Pos))
 					return
 				}
 			} else {
 				// For instance properties, verify the method is NOT a class method
 				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
 				if isClassMethod {
-					a.addError("instance property '%s' read method '%s' cannot be a class method at %s",
-						propName, readSpecName, prop.Token.Pos.String())
+					a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+						"instance property '"+propName+"' read method '"+readSpecName+"' cannot be a class method"))
 					return
 				}
 			}
@@ -263,30 +266,28 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 
 			expectedParamCount := len(indexParamTypes)
 			if len(methodType.Parameters) != expectedParamCount {
-				a.addError("property '%s' getter method '%s' has %d %s, expected %d %s at %s",
-					propName, readSpecName, len(methodType.Parameters), pluralizeParam(len(methodType.Parameters)),
-					expectedParamCount, pluralizeParam(expectedParamCount),
-					prop.Token.Pos.String())
+				a.addStructuredError(NewPropertyDeclarationArgumentCountError(prop.Token.Pos,
+					"property '"+propName+"' getter method '"+readSpecName+"' has "+
+						formatInt(len(methodType.Parameters))+" "+pluralizeParam(len(methodType.Parameters))+
+						", expected "+formatInt(expectedParamCount)+" "+pluralizeParam(expectedParamCount)))
 				return
 			}
 
 			// Verify getter signature includes index parameters
 			for i, paramType := range indexParamTypes {
 				if !methodType.Parameters[i].Equals(paramType) {
-					a.addError("property '%s' getter method '%s' parameter %d has type %s, expected %s at %s",
-						propName, readSpecName, i+1,
-						methodType.Parameters[i].String(), paramType.String(),
-						prop.Token.Pos.String())
+					a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+						"property '"+propName+"' getter method '"+readSpecName+"' parameter "+
+							formatInt(i+1)+" has type "+methodType.Parameters[i].String()+", expected "+paramType.String()))
 					return
 				}
 			}
 
 			// Verify return type matches property type
 			if !methodType.ReturnType.Equals(propType) {
-				a.addError("property '%s' getter method '%s' returns %s, expected %s at %s",
-					propName, readSpecName,
-					methodType.ReturnType.String(), propType.String(),
-					prop.Token.Pos.String())
+				a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+					"property '"+propName+"' getter method '"+readSpecName+"' returns "+
+						methodType.ReturnType.String()+", expected "+propType.String()))
 				return
 			}
 
@@ -296,8 +297,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		}
 
 		// Neither field nor method found
-		a.addError("property '%s' read specifier '%s' not found in class '%s' at %s",
-			propName, readSpecName, classType.Name, prop.Token.Pos.String())
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"property '"+propName+"' read specifier '"+readSpecName+"' not found in class '"+classType.Name+"'"))
 		return
 	}
 
@@ -329,9 +330,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 
 	// Validate expression type matches property type
 	if !exprType.Equals(propType) {
-		a.addError("property '%s' read expression has type %s, expected %s at %s",
-			propName, exprType.String(), propType.String(),
-			prop.Token.Pos.String())
+		a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+			"property '"+propName+"' read expression has type "+exprType.String()+", expected "+propType.String()))
 		return
 	}
 
@@ -352,8 +352,8 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	// Write spec must be an identifier (field or method name)
 	ident, ok := prop.WriteSpec.(*ast.Identifier)
 	if !ok {
-		a.addError("property '%s' write specifier must be a field or method name at %s",
-			propName, prop.Token.Pos.String())
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"property '"+propName+"' write specifier must be a field or method name"))
 		return
 	}
 
@@ -368,18 +368,16 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		// Class property must use class variable
 		fieldType, found = classType.ClassVars[pkgident.Normalize(writeSpecName)]
 		if found && !propType.Equals(fieldType) {
-			a.addError("class property '%s' write field '%s' has type %s, expected %s at %s",
-				propName, writeSpecName, fieldType.String(), propType.String(),
-				prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+				"class property '"+propName+"' write field '"+writeSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
 			return
 		}
 	} else {
 		// Instance property can only use instance field
 		fieldType, found = classType.GetField(pkgident.Normalize(writeSpecName))
 		if found && !propType.Equals(fieldType) {
-			a.addError("property '%s' write field '%s' has type %s, expected %s at %s",
-				propName, writeSpecName, fieldType.String(), propType.String(),
-				prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+				"property '"+propName+"' write field '"+writeSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
 			return
 		}
 	}
@@ -399,8 +397,8 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 	// Check if it's a constant (constants are read-only, so error if used as write spec)
 	if _, constantFound := a.getConstantType(classType, writeSpecName); constantFound {
-		a.addError("property '%s' write specifier '%s' is a constant and cannot be written to at %s",
-			propName, writeSpecName, prop.Token.Pos.String())
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"property '"+propName+"' write specifier '"+writeSpecName+"' is a constant and cannot be written to"))
 		return
 	}
 
@@ -410,7 +408,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		if propInfo.IsClassProperty {
 			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(writeSpecName)]
 			if !isClassMethod {
-				a.addStructuredError(NewClassMethodOrConstructorExpectedError(ident.Token.Pos))
+				a.addStructuredError(NewPropertyWriteShouldBeStaticMethodError(ident.Token.Pos))
 				return
 			}
 		}
@@ -421,20 +419,19 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 		expectedParamCount := len(indexParamTypes) + 1 // index params + value param
 		if len(methodType.Parameters) != expectedParamCount {
-			a.addError("property '%s' setter method '%s' has %d %s, expected %d %s at %s",
-				propName, writeSpecName, len(methodType.Parameters), pluralizeParam(len(methodType.Parameters)),
-				expectedParamCount, pluralizeParam(expectedParamCount),
-				prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationArgumentCountError(prop.Token.Pos,
+				"property '"+propName+"' setter method '"+writeSpecName+"' has "+
+					formatInt(len(methodType.Parameters))+" "+pluralizeParam(len(methodType.Parameters))+
+					", expected "+formatInt(expectedParamCount)+" "+pluralizeParam(expectedParamCount)))
 			return
 		}
 
 		// Verify setter signature includes index parameters
 		for i, paramType := range indexParamTypes {
 			if !methodType.Parameters[i].Equals(paramType) {
-				a.addError("property '%s' setter method '%s' parameter %d has type %s, expected %s at %s",
-					propName, writeSpecName, i+1,
-					methodType.Parameters[i].String(), paramType.String(),
-					prop.Token.Pos.String())
+				a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+					"property '"+propName+"' setter method '"+writeSpecName+"' parameter "+
+						formatInt(i+1)+" has type "+methodType.Parameters[i].String()+", expected "+paramType.String()))
 				return
 			}
 		}
@@ -442,18 +439,16 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		// Verify last parameter is the property value with matching type
 		valueParamIndex := len(indexParamTypes)
 		if !methodType.Parameters[valueParamIndex].Equals(propType) {
-			a.addError("property '%s' setter method '%s' value parameter has type %s, expected %s at %s",
-				propName, writeSpecName,
-				methodType.Parameters[valueParamIndex].String(), propType.String(),
-				prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+				"property '"+propName+"' setter method '"+writeSpecName+"' value parameter has type "+
+					methodType.Parameters[valueParamIndex].String()+", expected "+propType.String()))
 			return
 		}
 
 		// Verify return type is void
 		if methodType.ReturnType != types.VOID {
-			a.addError("property '%s' setter method '%s' must return void, not %s at %s",
-				propName, writeSpecName, methodType.ReturnType.String(),
-				prop.Token.Pos.String())
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
+				"property '"+propName+"' setter method '"+writeSpecName+"' must return void, not "+methodType.ReturnType.String()))
 			return
 		}
 
@@ -463,8 +458,8 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	}
 
 	// Neither field nor method found
-	a.addError("property '%s' write specifier '%s' not found in class '%s' at %s",
-		propName, writeSpecName, classType.Name, prop.Token.Pos.String())
+	a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+		"property '"+propName+"' write specifier '"+writeSpecName+"' not found in class '"+classType.Name+"'"))
 }
 
 // getConstantType looks up a constant in a class or its ancestors.

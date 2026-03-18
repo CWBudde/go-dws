@@ -76,12 +76,15 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	// Desugar to nested IndexExpression nodes: ((arr[i])[j])[k]
 	result := indexExpr
 	for {
+		recoveredOnComma := isInvalidExpression(result.Index) && p.cursor.Current().Type == lexer.COMMA
 		nextToken := p.cursor.Peek(1)
-		if nextToken.Type != lexer.COMMA {
+		if !recoveredOnComma && nextToken.Type != lexer.COMMA {
 			break
 		}
 
-		p.cursor = p.cursor.Advance() // consume the comma
+		if !recoveredOnComma {
+			p.cursor = p.cursor.Advance() // consume the comma
+		}
 		p.cursor = p.cursor.Advance() // move to next index expression
 
 		// Create a new IndexExpression with the previous result as the Left
@@ -97,6 +100,10 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 
 	// Expect ']'
 	nextToken := p.cursor.Peek(1)
+	if isInvalidExpression(result.Index) && p.cursor.Current().Type == lexer.RBRACK {
+		expr := builder.FinishWithToken(result, p.cursor.Current()).(ast.Expression)
+		return expr
+	}
 	if nextToken.Type != lexer.RBRACK {
 		// Use structured error for missing closing bracket
 		err := NewStructuredError(ErrKindMissing).

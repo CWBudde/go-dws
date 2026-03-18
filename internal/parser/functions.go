@@ -738,6 +738,7 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 		isConst := false
 		isLazy := false
 		byRef := false
+		paramToken := cursor.Current()
 
 		if cursor.Current().Type == lexer.CONST {
 			isConst = true
@@ -759,7 +760,32 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 		typeExpr := p.parseTypeExpression()
 		if isInvalidTypeExpression(typeExpr) {
 			p.addError("expected type in function pointer parameter list", ErrExpectedType)
-			return nil
+			params = append(params, &ast.Parameter{
+				Token:   paramToken,
+				Name:    nil,
+				Type:    typeExpr,
+				IsLazy:  isLazy,
+				ByRef:   byRef,
+				IsConst: isConst,
+			})
+			cursor = p.cursor
+
+			switch {
+			case cursor.Current().Type == lexer.COMMA || cursor.Current().Type == lexer.SEMICOLON:
+				if cursor.Peek(1).Type == lexer.RPAREN {
+					cursor = cursor.Advance()
+					p.cursor = cursor
+					return params
+				}
+				cursor = cursor.Advance()
+				p.cursor = cursor
+				continue
+			case cursor.Current().Type == lexer.RPAREN:
+				p.cursor = cursor
+				return params
+			default:
+				return params
+			}
 		}
 
 		// Update cursor after type expression parsing
