@@ -8,6 +8,25 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
+func isStaticArraySizeMismatch(expected, got types.Type) bool {
+	expectedArray, ok := types.GetUnderlyingType(expected).(*types.ArrayType)
+	if !ok || !expectedArray.IsStatic() {
+		return false
+	}
+	gotArray, ok := types.GetUnderlyingType(got).(*types.ArrayType)
+	if !ok || !gotArray.IsStatic() {
+		return false
+	}
+	return !expectedArray.Equals(gotArray)
+}
+
+func assignmentMismatchPos(value ast.Expression, fallback lexer.Position, expected, got types.Type) lexer.Position {
+	if isStaticArraySizeMismatch(expected, got) && value != nil {
+		return value.Pos()
+	}
+	return fallback
+}
+
 // ============================================================================
 // Statement Analysis
 // ============================================================================
@@ -114,7 +133,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		if err != nil {
 			// Get type name for error message
 			typeName := getTypeExpressionName(stmt.Type)
-			a.addError("unknown type '%s' at %s", typeName, stmt.Token.Pos.String())
+			a.addError("unknown type '%s' at %s", typeName, stmt.Type.Pos().String())
 			return
 		}
 	}
@@ -122,9 +141,21 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	// If there's an initializer, check its type
 	// Note: Parser already validates that multi-name declarations cannot have initializers
 	if stmt.Value != nil {
+		errorCountBefore := len(a.errors)
+		structuredCountBefore := len(a.structuredErrors)
 		initType := a.analyzeExpressionWithExpectedType(stmt.Value, varType)
 		if initType == nil {
 			if _, invalid := stmt.Value.(*ast.InvalidExpression); invalid {
+				return
+			}
+			if len(a.errors) > errorCountBefore || len(a.structuredErrors) > structuredCountBefore {
+				switch stmt.Value.(type) {
+				case *ast.ArrayLiteralExpression, *ast.RecordLiteralExpression, *ast.SetLiteral:
+				default:
+					return
+				}
+			}
+			if len(a.structuredErrors) > structuredCountBefore {
 				return
 			}
 			if stmt.Type == nil {
@@ -212,9 +243,17 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	} else {
 		// Check that value type is compatible with declared type
 		if !a.canAssign(valueType, constType) {
+			if isStaticArraySizeMismatch(constType, valueType) {
+				a.addStructuredError(NewIncompatibleTypesPairError(
+					stmt.Value.Pos(),
+					semanticTypeNameForDiagnostic(constType),
+					semanticTypeNameForDiagnostic(valueType),
+				))
+				return
+			}
 			a.addStructuredError(NewTypeMismatch(
-				stmt.Token.Pos,
-				stmt.Name.Value, // Constant name
+				stmt.Value.Pos(),
+				"",
 				constType,       // Expected type
 				valueType,       // Got type
 			))
@@ -301,7 +340,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					}
 				}
 				if !a.canAssign(valueType, fieldType) {
-					pos := stmt.Token.Pos
+					pos := assignmentMismatchPos(stmt.Value, stmt.Token.Pos, fieldType, valueType)
 					a.addError("%s", errors.FormatCannotAssign(valueType.String(), fieldType.String(), pos.Line, pos.Column))
 				}
 				return
@@ -391,7 +430,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, sym.Type) {
-			pos := stmt.Token.Pos
+			pos := assignmentMismatchPos(stmt.Value, stmt.Token.Pos, sym.Type, valueType)
 			a.addError("%s", errors.FormatCannotAssign(valueType.String(), sym.Type.String(), pos.Line, pos.Column))
 		}
 

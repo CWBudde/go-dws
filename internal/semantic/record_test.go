@@ -268,7 +268,7 @@ func TestRecordFieldAccessErrors(t *testing.T) {
 				var p: TPoint;
 				var z: Integer := p.Z;
 			`,
-			expectedError: "field 'Z' does not exist",
+			expectedError: `There is no accessible member with name "Z" for type TPoint`,
 		},
 		{
 			name: "field access on non-record type",

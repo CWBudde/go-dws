@@ -45,7 +45,7 @@ func TestVariableDeclarationTypeMismatch(t *testing.T) {
 
 func TestVariableDeclarationNoTypeNoInitializer(t *testing.T) {
 	input := `var x;`
-	expectError(t, input, "variable declaration requires a type or initializer")
+	expectError(t, input, `Colon ":" expected`)
 }
 
 func TestVariableRedeclaration(t *testing.T) {

@@ -184,6 +184,17 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 
 // analyzeMemberAccessExpression analyzes member access on classes, records, interfaces, and helpers.
 func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpression) types.Type {
+	if identExpr, ok := expr.Object.(*ast.Identifier); ok {
+		switch ident.Normalize(identExpr.Value) {
+		case "system", "internal":
+			if sym, err := a.ResolveQualifiedSymbol(identExpr.Value, expr.Member.Value); err == nil && sym != nil {
+				return sym.Type
+			}
+			a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
+			return nil
+		}
+	}
+
 	objectType := a.analyzeExpression(expr.Object)
 	if objectType == nil {
 		return nil
@@ -201,7 +212,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				return classMethod
 			}
 		}
-		return a.analyzeRecordFieldAccess(expr.Object, memberName)
+		return a.analyzeRecordFieldAccess(expr.Object, expr.Member)
 	}
 
 	// Handle interface type method access
@@ -244,6 +255,12 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// If not a class type, check for helpers (String, Integer, Enum types, etc.)
 	classType, ok := objectTypeResolved.(*types.ClassType)
 	if !ok {
+		if arrayType, isArray := objectTypeResolved.(*types.ArrayType); isArray {
+			if result := a.analyzeArrayMemberAccess(expr, arrayType); result != nil {
+				return result
+			}
+		}
+
 		// Handle .Value property on enum types
 		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
 			if memberName == "value" {

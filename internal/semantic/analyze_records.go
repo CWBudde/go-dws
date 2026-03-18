@@ -286,7 +286,13 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 }
 
 // analyzeRecordFieldAccess analyzes access to a record field.
-func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string) types.Type {
+func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Identifier) types.Type {
+	if field == nil {
+		return nil
+	}
+
+	fieldName := field.Value
+
 	// Get the type of the object
 	objType := a.analyzeExpression(obj)
 	if objType == nil {
@@ -372,6 +378,6 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, fieldName string
 		return helperProp.Type
 	}
 
-	a.addError("field '%s' does not exist in record type '%s'", fieldName, recordType.Name)
+	a.addStructuredError(NewAccessibleMemberError(field.Token.Pos, fieldName, recordType.Name))
 	return nil
 }

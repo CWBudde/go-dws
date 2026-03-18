@@ -118,7 +118,7 @@ func TestVarDeclarationTypeInference(t *testing.T) {
 		{
 			name:        "missing type and initializer error",
 			input:       "var x;",
-			expectError: "variable declaration requires a type or initializer",
+			expectError: `Colon ":" expected`,
 		},
 		{
 			name:         "explicit type still supported",
@@ -427,7 +427,7 @@ func TestMultiIdentifierVarDeclarations(t *testing.T) {
 			name:          "reject initializer without type",
 			input:         "var a, b := 5;",
 			expectError:   true,
-			errorContains: "cannot use initializer with multiple variable names",
+			errorContains: `Colon ":" expected`,
 		},
 	}
 

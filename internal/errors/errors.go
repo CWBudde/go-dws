@@ -306,7 +306,10 @@ func FormatIncompatibleTypes(message string, line, column int) string {
 
 // FormatCannotAssign formats a "Cannot assign" error in DWScript format
 func FormatCannotAssign(fromType, toType string, line, column int) string {
-	message := fmt.Sprintf("Cannot assign \"%s\" to \"%s\"", fromType, toType)
+	message := fmt.Sprintf("Cannot assign \"%s\" to \"%s\"",
+		SimplifyTypeName(fromType),
+		SimplifyTypeName(toType),
+	)
 	return FormatIncompatibleTypes(message, line, column)
 }
 
@@ -407,10 +410,11 @@ func SimplifyTypeName(typeName string) string {
 	if strings.HasPrefix(typeName, "array[") {
 		closeBracket := strings.Index(typeName, "] of ")
 		if closeBracket > 0 {
-			prefix := typeName[:closeBracket+5] // Include "] of "
+			prefix := "array " + typeName[len("array"):closeBracket+5] // Include "] of "
 			elementType := typeName[closeBracket+5:]
 			return prefix + SimplifyTypeName(elementType)
 		}
+		return "array " + typeName[len("array"):]
 	}
 
 	// Remove parent class info: "ClassName(ParentClass)" -> "ClassName"

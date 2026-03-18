@@ -845,14 +845,14 @@ This phase creates the compiler front-end boundary needed to make fixture work t
   - concrete classes with inherited abstract methods
   - constructors and metaclass creation paths
   - frontend regressions now pin compile-side abstract-instantiation diagnostics for `new`, explicit/implicit constructor creation, and incomplete concrete subclasses; semantic regression coverage also exercises metaclass-oriented constructor paths
-- [ ] **5.3.16** Move invalid member/helper resolution fully compile-side
+- [x] **5.3.16** Move invalid member/helper resolution fully compile-side
   - member access on recovered AST
   - helper lookup failures that still fall through to runtime-style behavior
   - keyword-as-member parser recovery needed to reach semantic checks
-- [ ] **5.3.17** Move the next compile-time type/operator validation bucket out of runtime
+- [x] **5.3.17** Move the next compile-time type/operator validation bucket out of runtime
   - choose one representative runtime-fallthrough family
   - land it end-to-end through semantic/front-end gating
-- [ ] **5.3.18** Re-run targeted `FailureScripts` slices after each migrated validation bucket
+- [x] **5.3.18** Re-run targeted `FailureScripts` slices after each migrated validation bucket
   - confirm runtime mismatches are collapsing for the expected root cause
 
 ---
@@ -863,14 +863,35 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 
 **Tasks**:
 
-- [ ] **5.4.1** Classify current `FailureScripts` failures by diagnostic-pipeline bucket
+- [x] **5.4.1** Classify current `FailureScripts` failures by diagnostic-pipeline bucket
   - parser recovery
   - compile gating
   - semantic wording/position normalization
   - true missing feature
+  - baseline captured in `docs/failure-scripts-5.4.1.md`: `541` total, `52` passed, `489` failed
+  - first-pass bucket counts: parser recovery `94`, compile gating `16`, semantic wording/position normalization `297`, true missing feature `82`
 - [ ] **5.4.2** Fix one representative bucket at a time and record the delta
   - target the highest-volume buckets first
-- [ ] **5.4.3** Add regression tests for mixed diagnostic streams
+  - track each landed family as a subtask so fixture deltas stay attributable
+  - [x] **5.4.2.1** Normalize operator/initializer semantic wording
+    - replace Go-port operator strings with DWScript-compatible operand diagnostics where the root cause is already compile-time
+    - suppress duplicate `cannot infer type ...` follow-on errors when the initializer already failed semantically
+    - first target fixtures: `invalid_operator`, `use_proc_result1`, `mult_proc`
+    - targeted rerun now passes: `go test ./internal/interp -run 'TestDWScriptFixtures/FailureScripts/(invalid_operator|use_proc_result1|mult_proc)'`
+  - [x] **5.4.2.2** Normalize array helper/member diagnostics
+    - case-mismatch hints for array helper APIs
+    - helper arity/type errors should win over generic inaccessible-member errors
+    - first target fixtures: `array_dyn_remove`, `array_error6`, `array_foreach_error`, `array_move`, `array_sort`
+    - targeted rerun now passes: `go test ./internal/interp -run 'TestDWScriptFixtures/FailureScripts/(array_dyn_remove|array_error6|array_foreach_error|array_move|array_sort)'`
+  - [x] **5.4.2.3** Collapse parser-recovery drift in unit-prefix and incomplete-declaration families
+    - unit prefix dotted-name recovery
+    - incomplete `var` / bracket / block forms should stop cascading into generic downstream errors
+    - targeted rerun now passes: `go test ./internal/interp -run 'TestDWScriptFixtures/FailureScripts/(unit_prefix1|unit_prefix3|unit_prefix4|unit_prefix5|unit_prefix6|unit_prefix7|unit_prefix8|var_incomplete1|var_incomplete2|var_incomplete3|var_incomplete4)'`
+  - [x] **5.4.2.4** Move static-array literal size mismatches fully compile-side
+    - eliminate runtime `array literal has N elements, expected M`
+    - first target fixtures: `array_const_item_count`, `var_static_array`, `array_item_mismatch1`
+    - targeted rerun now passes: `go test ./internal/interp -run 'TestDWScriptFixtures/FailureScripts/(array_const_item_count|array_item_mismatch1|var_static_array)'`
+- [x] **5.4.3** Add regression tests for mixed diagnostic streams
   - syntax + semantic errors in the same source file
   - ensure ordering is stable and DWScript-compatible
 - [ ] **5.4.4** Update docs/phase notes after the first major compatibility jump

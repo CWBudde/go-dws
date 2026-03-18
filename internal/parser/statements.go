@@ -621,24 +621,24 @@ func (p *Parser) parseVarValue(stmt *ast.VarDeclStatement) {
 		if stmt.Type == nil {
 			// No type and no value, this is an error
 			if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.EXTERNAL {
-				currentToken := p.cursor.Current()
-				err := NewStructuredError(ErrKindInvalid).
-					WithCode(ErrInvalidSyntax).
-					WithMessage("variable declaration requires a type or initializer").
-					WithPosition(currentToken.Pos, currentToken.Length()).
-					WithSuggestion("add ': TypeName' or ':= value' after the variable name").
-					WithNote("Examples: 'var x: Integer' or 'var x := 10'").
+				err := NewStructuredError(ErrKindMissing).
+					WithCode(ErrMissingColon).
+					WithMessage(`Colon ":" expected`).
+					WithPosition(nextToken.Pos, nextToken.Length()).
+					WithExpectedString(":").
+					WithActual(nextToken.Type, nextToken.Literal).
+					WithSuggestion("add ':' and a type name after the variable name").
 					WithParsePhase("variable declaration").
 					Build()
 				p.addStructuredError(err)
 			} else {
 				err := NewStructuredError(ErrKindMissing).
 					WithCode(ErrMissingColon).
-					WithMessage("expected ':', ':=' or '=' in variable declaration").
+					WithMessage(`Colon ":" expected`).
 					WithPosition(nextToken.Pos, nextToken.Length()).
-					WithExpectedString("':' or ':='").
+					WithExpectedString(":").
 					WithActual(nextToken.Type, nextToken.Literal).
-					WithSuggestion("add ':' for type declaration or ':=' for type inference").
+					WithSuggestion("add ':' and a type name after the variable name").
 					WithParsePhase("variable declaration").
 					Build()
 				p.addStructuredError(err)
@@ -648,6 +648,20 @@ func (p *Parser) parseVarValue(stmt *ast.VarDeclStatement) {
 	}
 
 	if len(stmt.Names) > 1 {
+		if stmt.Type == nil {
+			err := NewStructuredError(ErrKindMissing).
+				WithCode(ErrMissingColon).
+				WithMessage(`Colon ":" expected`).
+				WithPosition(nextToken.Pos, nextToken.Length()).
+				WithExpectedString(":").
+				WithActual(nextToken.Type, nextToken.Literal).
+				WithSuggestion("declare multiple variables with a shared type before using an initializer").
+				WithParsePhase("variable declaration").
+				Build()
+			p.addStructuredError(err)
+			p.cursor = p.cursor.Advance()
+			return
+		}
 		err := NewStructuredError(ErrKindInvalid).
 			WithCode(ErrInvalidSyntax).
 			WithMessage("cannot use initializer with multiple variable names").
@@ -681,6 +695,10 @@ func (p *Parser) parseVarExternalClause(stmt *ast.VarDeclStatement) {
 }
 
 func (p *Parser) expectSemicolon(context string) bool {
+	if p.cursor.Current().Type == lexer.SEMICOLON {
+		return true
+	}
+
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.SEMICOLON {
 		// Use structured error

@@ -4,11 +4,31 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	ident "github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
 // Expression Analysis
 // ============================================================================
+
+func isProcedureLikeOperandType(t types.Type) bool {
+	if t == nil {
+		return false
+	}
+	if t.Equals(types.VOID) {
+		return true
+	}
+	_, isFuncPtr := types.GetUnderlyingType(t).(*types.FunctionPointerType)
+	return isFuncPtr
+}
+
+func (a *Analyzer) addOperandMismatchError(pos token.Position, leftType, rightType types.Type) {
+	if isProcedureLikeOperandType(leftType) || isProcedureLikeOperandType(rightType) {
+		a.addStructuredError(NewIncompatibleOperandsError(pos))
+		return
+	}
+	a.addStructuredError(NewInvalidOperandsError(pos))
+}
 
 func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	// Handle built-in type names as type meta-values (e.g., High(Integer), Low(Boolean))
@@ -147,6 +167,12 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			// Return Void type for built-in procedures (or appropriate type for functions)
 			// For simplicity, we'll return VOID type which means "any" - the interpreter will handle it
 			return types.VOID
+		}
+
+		switch ident.Normalize(identifier.Value) {
+		case "system", "internal":
+			a.addError(`Dot "." expected at %s`, identifier.End().String())
+			return nil
 		}
 
 		a.addStructuredError(NewUnknownNameError(identifier.Token.Pos, identifier.Value))
@@ -298,8 +324,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			if !leftIsVariant && !rightIsVariant {
 				// String concatenation
 				if !leftType.Equals(types.STRING) || !rightType.Equals(types.STRING) {
-					a.addError("string concatenation requires both operands to be strings at %s",
-						expr.Token.Pos.String())
+					a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
 					return nil
 				}
 			}
@@ -311,10 +336,14 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		}
 
 		// Numeric arithmetic (allow Variant in numeric operations)
+		if (leftIsVariant && rightType.Equals(types.STRING)) || (rightIsVariant && leftType.Equals(types.STRING)) {
+			a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
+			return nil
+		}
+
 		if !leftIsVariant && !rightIsVariant {
 			if !types.IsNumericType(leftType) || !types.IsNumericType(rightType) {
-				a.addError("arithmetic operator %s requires numeric operands, got %s and %s at %s",
-					operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+				a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
 				return nil
 			}
 		}
@@ -333,8 +362,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 		if !leftIsVariant && !rightIsVariant {
 			if !leftType.Equals(types.INTEGER) || !rightType.Equals(types.INTEGER) {
-				a.addError("operator %s requires integer operands, got %s and %s at %s",
-					operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+				a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
 				return nil
 			}
 		}
@@ -349,8 +377,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 	// Handle bitwise shift operators
 	if operator == "shl" || operator == "shr" || operator == "sar" {
 		if !leftType.Equals(types.INTEGER) || !rightType.Equals(types.INTEGER) {
-			a.addError("operator %s requires integer operands, got %s and %s at %s",
-				operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+			a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
 			return nil
 		}
 		return types.INTEGER
@@ -382,8 +409,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			// For ordering, types must be orderable (Variant allowed)
 			if !leftIsVariant && !rightIsVariant {
 				if !types.IsOrderedType(leftType) || !types.IsOrderedType(rightType) {
-					a.addError("operator %s requires ordered types, got %s and %s at %s",
-						operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+					a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
 					return nil
 				}
 				// Types must match (or be compatible)
@@ -431,8 +457,7 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return nil
 		}
 
-		a.addError("operator %s requires both operands to be Boolean, both Integer, or both the same enum type, got %s and %s at %s",
-			operator, leftType.String(), rightType.String(), expr.Token.Pos.String())
+		a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
 		return nil
 	}
 
@@ -479,15 +504,21 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		}
 
 		// Check for array type - allows element membership
-		if _, isArray := rightType.(*types.ArrayType); isArray {
-			// Left operand can be any type - will be checked at runtime
+		if rightArrayType, isArray := rightType.(*types.ArrayType); isArray {
+			elementType := rightArrayType.ElementType
+			if elementType != nil && !elementType.Equals(types.VARIANT) && !leftType.Equals(types.VARIANT) {
+				if !a.canAssign(leftType, elementType) {
+					a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, leftType.String(), elementType.String()))
+					return nil
+				}
+			}
+
 			// 'in' operator returns Boolean
 			return types.BOOLEAN
 		}
 
 		// If none of the above, error
-		a.addError("'in' operator requires set, string, or array as right operand, got %s at %s",
-			rightType.String(), expr.Token.Pos.String())
+		a.addStructuredError(NewIncompatibleOperandsError(expr.Token.Pos))
 		return nil
 	}
 

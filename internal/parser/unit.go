@@ -36,13 +36,10 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 	if !p.expectPeek(lexer.IDENT) {
 		return nil
 	}
-	unitDecl.Name = &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
-		},
-		Value: p.cursor.Current().Literal,
+	unitName, _ := p.parseQualifiedIdentifierAtCurrent()
+	unitDecl.Name = unitName
+	if unitDecl.Name == nil {
+		return nil
 	}
 
 	// Expect semicolon after unit name
@@ -56,6 +53,16 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 	// Parse interface section (optional but common)
 	if p.curTokenIs(lexer.INTERFACE) {
 		unitDecl.InterfaceSection = p.parseInterfaceSection()
+	} else if p.curTokenIs(lexer.USES) {
+		// Recovery: some failure fixtures jump straight into a uses clause after the unit header.
+		unitDecl.InterfaceSection = &ast.BlockStatement{
+			BaseNode:   ast.BaseNode{Token: p.cursor.Current()},
+			Statements: []ast.Statement{},
+		}
+		if usesClause := p.parseUsesClause(); usesClause != nil {
+			unitDecl.InterfaceSection.Statements = append(unitDecl.InterfaceSection.Statements, usesClause)
+		}
+		p.nextToken()
 	}
 
 	// Parse implementation section (optional but common)
@@ -125,15 +132,11 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 	p.cursor = p.cursor.Advance() // move to first unit name
 	currentToken = p.cursor.Current()
 
-	// Add first unit
-	usesClause.Units = append(usesClause.Units, &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: currentToken,
-			},
-		},
-		Value: currentToken.Literal,
-	})
+	firstUnit, _ := p.parseQualifiedIdentifierAtCurrent()
+	if firstUnit == nil {
+		return nil
+	}
+	usesClause.Units = append(usesClause.Units, firstUnit)
 
 	// Parse remaining units (comma-separated)
 	for {
@@ -160,14 +163,11 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 			return nil
 		}
 
-		usesClause.Units = append(usesClause.Units, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: currentToken,
-				},
-			},
-			Value: currentToken.Literal,
-		})
+		unitName, _ := p.parseQualifiedIdentifierAtCurrent()
+		if unitName == nil {
+			return nil
+		}
+		usesClause.Units = append(usesClause.Units, unitName)
 	}
 
 	// Expect semicolon

@@ -125,6 +125,15 @@ func ErrorMatches(actual, expected string) bool {
 		}
 	}
 
+	if strings.Contains(expectedLower, "string concatenation requires both operands to be strings") ||
+		strings.Contains(expectedLower, "requires integer operands") ||
+		strings.Contains(expectedLower, "requires numeric operands") ||
+		strings.Contains(expectedLower, "both integer, or both the same enum type") {
+		if strings.Contains(actualLower, "invalid operands") || strings.Contains(actualLower, "incompatible operands") {
+			return true
+		}
+	}
+
 	if strings.Contains(expectedLower, "read specifier") && strings.Contains(expectedLower, "not found") {
 		if strings.Contains(actualLower, "class member expected") {
 			return true

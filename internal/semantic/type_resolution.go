@@ -113,6 +113,13 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	// Normalize type name for case-insensitive lookup
 	normalizedName := ident.Normalize(typeName)
 
+	if dot := strings.Index(typeName, "."); dot > 0 {
+		unitPrefix := ident.Normalize(typeName[:dot])
+		if unitPrefix == "system" || unitPrefix == "internal" {
+			return a.resolveType(typeName[dot+1:])
+		}
+	}
+
 	// Try basic types first (TypeFromString handles case-insensitivity)
 	basicType, err := types.TypeFromString(typeName)
 	if err == nil {

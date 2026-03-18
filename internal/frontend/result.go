@@ -164,6 +164,7 @@ func compileParsedResult(result *Result, source, filename string, hintsLevel sem
 	result.Diagnostics = append(result.Diagnostics, semanticDiagnostics(analyzer)...)
 	sortDiagnostics(result.Diagnostics)
 	result.Diagnostics = filterDiagnostics(result.Diagnostics)
+	sortDiagnostics(result.Diagnostics)
 	result.SemanticSuccessful = err == nil
 
 	return result
@@ -209,8 +210,26 @@ func sortDiagnostics(diags []Diagnostic) {
 		if left.Line != right.Line {
 			return left.Line < right.Line
 		}
+		if left.Phase == right.Phase && left.Severity != right.Severity {
+			leftNonError := left.Severity != SeverityError
+			rightNonError := right.Severity != SeverityError
+			if leftNonError != rightNonError {
+				return leftNonError
+			}
+		}
+		leftCount := diagnosticArgumentCountPriority(left)
+		rightCount := diagnosticArgumentCountPriority(right)
+		if leftCount != rightCount {
+			return leftCount < rightCount
+		}
 		if left.Column != right.Column {
 			return left.Column < right.Column
+		}
+		if strings.Contains(left.Message, `Unknown name "`) && strings.Contains(right.Message, `";" expected`) {
+			return true
+		}
+		if strings.Contains(right.Message, `Unknown name "`) && strings.Contains(left.Message, `";" expected`) {
+			return false
 		}
 		leftPhase := diagnosticPhasePriority(left)
 		rightPhase := diagnosticPhasePriority(right)
@@ -224,6 +243,18 @@ func sortDiagnostics(diags []Diagnostic) {
 		}
 		return false
 	})
+}
+
+func diagnosticArgumentCountPriority(diag Diagnostic) int {
+	message := strings.TrimPrefix(diag.Message, "Syntax Error: ")
+	switch message {
+	case "More arguments expected",
+		"Too many arguments",
+		"No arguments expected":
+		return 0
+	default:
+		return 1
+	}
 }
 
 func diagnosticDeferredBucket(diag Diagnostic) int {
@@ -336,6 +367,8 @@ func normalizeParserDiagnosticMessage(message string) string {
 		return `"=" expected`
 	case "expected ';' after type declaration":
 		return `";" expected`
+	case "expected ';' after variable declaration":
+		return `";" expected`
 	}
 
 	return message
@@ -408,9 +441,35 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 	filtered := make([]Diagnostic, 0, len(diags))
 	hasEarlierFatal := false
 	nameExpectedByLine := make(map[int]bool)
+	colonExpectedByLine := make(map[int]bool)
+	dotExpectedByLine := make(map[int]bool)
 
 	for _, diag := range diags {
-		drop, replaceIdx := classifyDiagnosticForFilter(diag, filtered, hasEarlierFatal, nameExpectedByLine)
+		if strings.Contains(diag.Message, "Name expected") {
+			nameExpectedByLine[diag.Line] = true
+		}
+		if strings.Contains(diag.Message, `Colon ":" expected`) {
+			colonExpectedByLine[diag.Line] = true
+		}
+		if strings.Contains(diag.Message, `Dot "." expected`) {
+			dotExpectedByLine[diag.Line] = true
+		}
+	}
+
+	for _, diag := range diags {
+		if typeName := unknownTypeName(diag.Message); typeName != "" {
+			for _, existing := range filtered {
+				if existing.Line == diag.Line && strings.Contains(existing.Message, `";" expected`) {
+					diag.Message = `Unknown name "` + typeName + `"`
+					diag.Rendered = dwserrors.FormatDWScriptError(diag.Message, existing.Line, existing.Column)
+					diag.Line = existing.Line
+					diag.Column = existing.Column
+					break
+				}
+			}
+		}
+
+		drop, replaceIdx := classifyDiagnosticForFilter(diag, filtered, hasEarlierFatal, nameExpectedByLine, colonExpectedByLine, dotExpectedByLine)
 		if drop {
 			continue
 		}
@@ -420,19 +479,24 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 		if diag.Fatal {
 			hasEarlierFatal = true
 		}
-		if diag.Message == "Name expected" {
-			nameExpectedByLine[diag.Line] = true
-		}
 		filtered = append(filtered, diag)
 	}
 
 	return filtered
 }
 
-func classifyDiagnosticForFilter(diag Diagnostic, filtered []Diagnostic, hasEarlierFatal bool, nameExpectedByLine map[int]bool) (drop bool, replaceIdx int) {
+func classifyDiagnosticForFilter(diag Diagnostic, filtered []Diagnostic, hasEarlierFatal bool, nameExpectedByLine map[int]bool, colonExpectedByLine map[int]bool, dotExpectedByLine map[int]bool) (drop bool, replaceIdx int) {
 	replaceIdx = -1
 
-	if nameExpectedByLine[diag.Line] && diag.Message == "Expression expected before COLON" {
+	if nameExpectedByLine[diag.Line] && strings.Contains(diag.Message, "Expression expected before COLON") {
+		return true, -1
+	}
+	if colonExpectedByLine[diag.Line] &&
+		(strings.Contains(diag.Message, "variable declaration requires a type or initializer") ||
+			strings.Contains(diag.Message, "must have either a type annotation or an initializer")) {
+		return true, -1
+	}
+	if dotExpectedByLine[diag.Line] && strings.Contains(diag.Message, "already declared") {
 		return true, -1
 	}
 
@@ -476,6 +540,19 @@ func classifyDiagnosticForFilter(diag Diagnostic, filtered []Diagnostic, hasEarl
 	}
 
 	return false, replaceIdx
+}
+
+func unknownTypeName(message string) string {
+	message = strings.TrimPrefix(message, "Syntax Error: ")
+	const prefix = "unknown type '"
+	if !strings.HasPrefix(message, prefix) {
+		return ""
+	}
+	rest := strings.TrimPrefix(message, prefix)
+	if idx := strings.Index(rest, "'"); idx >= 0 {
+		return rest[:idx]
+	}
+	return ""
 }
 
 func visibleMemberName(message string) (string, bool) {

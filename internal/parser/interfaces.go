@@ -161,23 +161,22 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 		return decl
 	}
 
-	// Type alias: type TUserID = Integer;
+	// Type alias: type TUserID = Integer; or type TBase = System.TObject;
 	if nextToken.Type == lexer.IDENT {
 		cursor := p.cursor
 		cursor = cursor.Advance() // move past '=' to type name
 		p.cursor = cursor
-		currentToken := cursor.Current()
-		aliasedType := &ast.TypeAnnotation{
-			Token: currentToken,
-			Name:  currentToken.Literal,
-		}
+		aliasedType := p.parseTypeExpression()
 
 		// Expect semicolon
-		if cursor.Peek(1).Type != lexer.SEMICOLON {
+		if p.cursor.Current().Type == lexer.SEMICOLON {
+			cursor = p.cursor
+		} else if p.cursor.Peek(1).Type != lexer.SEMICOLON {
 			p.addError("expected ';' after type declaration", ErrMissingSemicolon)
 			return nil
+		} else {
+			cursor = p.cursor.Advance() // move to SEMICOLON
 		}
-		cursor = cursor.Advance() // move to SEMICOLON
 		p.cursor = cursor
 
 		typeDecl := &ast.TypeDeclaration{

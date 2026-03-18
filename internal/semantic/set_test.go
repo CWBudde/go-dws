@@ -326,6 +326,13 @@ func TestSetMembership(t *testing.T) {
 					var x: Integer := 1;
 			`,
 		},
+		{
+			name: "in operator with array membership",
+			input: `
+				var ints: array of Integer;
+				var ok: Boolean := 1 in ints;
+			`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -359,7 +366,7 @@ func TestSetMembershipErrors(t *testing.T) {
 				var x: Integer := 42;
 				var result: Boolean := Red in x;
 			`,
-			expectedError: "requires set",
+			expectedError: "Incompatible operands",
 		},
 		{
 			name: "in operator with non-enum left operand",
@@ -371,6 +378,14 @@ func TestSetMembershipErrors(t *testing.T) {
 				var result: Boolean := x in colors;
 			`,
 			expectedError: "type mismatch in 'in' operator",
+		},
+		{
+			name: "in operator with wrong array element type",
+			input: `
+				var ints: array of Integer;
+				var bad: Boolean := 'oops' in ints;
+			`,
+			expectedError: `Incompatible types: "String" and "Integer"`,
 		},
 	}
 

@@ -73,6 +73,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Check if object is a class type
 	classType, ok := objectType.(*types.ClassType)
 	if !ok {
+		if arrayType, isArray := types.GetUnderlyingType(objectType).(*types.ArrayType); isArray {
+			if result := a.analyzeArrayMethodCall(expr, arrayType); result != nil {
+				return result
+			}
+		}
+
 		// Check if object is a record type with methods
 		if recordType, isRecord := objectType.(*types.RecordType); isRecord {
 			// First check for class methods (static methods) with overload support

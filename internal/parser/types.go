@@ -2,7 +2,6 @@ package parser
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -26,23 +25,25 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 
 	switch currentToken.Type {
 	case lexer.IDENT:
-		// Simple or qualified type identifier (supports nested types like TOuter.TInner)
-		parts := []string{currentToken.Literal}
-		endToken := currentToken
-		// Consume dotted identifiers to build a qualified type name
-		for cursor.Peek(1).Type == lexer.DOT && cursor.Peek(2).Type == lexer.IDENT {
-			cursor = cursor.Advance() // move to '.'
-			cursor = cursor.Advance() // move to next ident
-			endToken = cursor.Current()
-			parts = append(parts, endToken.Literal)
+		if isKnownUnitPrefixName(currentToken.Literal) && cursor.Peek(1).Type == lexer.SEMICOLON {
+			cursor = cursor.Advance()
+			p.cursor = cursor
+			p.addParserErrorAt(cursor.Current().Pos, cursor.Current().Length(), `Dot "." expected`, ErrUnexpectedToken)
+			return invalidTypeExpression(currentToken, "qualified type name expected")
 		}
-		p.cursor = cursor
 
-		qualifiedName := strings.Join(parts, ".")
+		// Simple or qualified type identifier (supports nested types like TOuter.TInner)
+		typeIdent, ok := p.parseQualifiedIdentifierAtCurrent()
+		if typeIdent == nil {
+			return invalidTypeExpression(currentToken, "type expected")
+		}
+		if !ok {
+			return invalidTypeExpression(currentToken, "qualified type name incomplete")
+		}
 		typeAnnotation := &ast.TypeAnnotation{
-			Token:  currentToken,
-			Name:   qualifiedName,
-			EndPos: p.endPosFromToken(endToken),
+			Token:  typeIdent.Token,
+			Name:   typeIdent.Value,
+			EndPos: typeIdent.End(),
 		}
 		result, _ := builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
 		return result

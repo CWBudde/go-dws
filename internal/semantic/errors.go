@@ -156,10 +156,16 @@ func (e *SemanticError) ToCompilerError(source, filename string) *errors.Compile
 
 // NewTypeMismatch creates a type mismatch error
 func NewTypeMismatch(pos lexer.Position, varName string, expected, got types.Type) *SemanticError {
-	message := fmt.Sprintf("Cannot assign %s to %s", got.String(), expected.String())
+	message := fmt.Sprintf("Cannot assign %s to %s",
+		semanticTypeNameForDiagnostic(got),
+		semanticTypeNameForDiagnostic(expected),
+	)
 	if varName != "" {
 		message = fmt.Sprintf("Cannot assign %s to %s variable '%s'",
-			got.String(), expected.String(), varName)
+			semanticTypeNameForDiagnostic(got),
+			semanticTypeNameForDiagnostic(expected),
+			varName,
+		)
 	}
 
 	return &SemanticError{
@@ -185,6 +191,26 @@ func NewOperatorTypeMismatch(pos lexer.Position, operator string, left, right ty
 		Severity: SeverityError,
 		Expected: nil,
 		Got:      nil,
+	}
+}
+
+// NewInvalidOperandsError creates the DWScript invalid-operands diagnostic.
+func NewInvalidOperandsError(pos lexer.Position) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorTypeMismatch,
+		Message:  "Syntax Error: Invalid Operands",
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewIncompatibleOperandsError creates the DWScript incompatible-operands diagnostic.
+func NewIncompatibleOperandsError(pos lexer.Position) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorTypeMismatch,
+		Message:  "Syntax Error: Incompatible operands",
+		Pos:      pos,
+		Severity: SeverityError,
 	}
 }
 
@@ -567,6 +593,18 @@ func NewArrayIndexError(pos lexer.Position, expected, got string) *SemanticError
 	return &SemanticError{
 		Type:     ErrorArrayIndex,
 		Message:  fmt.Sprintf("Syntax Error: Array index expected \"%s\" but got \"%s\"", expected, got),
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
+// NewIncompatibleTypesPairError creates a DWScript-style incompatible-types diagnostic.
+func NewIncompatibleTypesPairError(pos lexer.Position, left, right string) *SemanticError {
+	left = semanticDiagnosticTypeName(errors.SimplifyTypeName(left))
+	right = semanticDiagnosticTypeName(errors.SimplifyTypeName(right))
+	return &SemanticError{
+		Type:     ErrorTypeMismatch,
+		Message:  fmt.Sprintf("Syntax Error: Incompatible types: \"%s\" and \"%s\"", left, right),
 		Pos:      pos,
 		Severity: SeverityError,
 	}

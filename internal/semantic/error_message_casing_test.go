@@ -245,11 +245,8 @@ begin
 end;`,
 			expectInErr: "UndefinedMethod",
 		},
-		// NOTE: Record field errors don't preserve original casing yet (known issue)
-		// The error shows 'nonexistentfield' instead of 'NonExistentField'
-		// This is tracked as a potential future improvement
 		{
-			name: "undefined field on record (lowercase expected due to known issue)",
+			name: "undefined field on record",
 			input: `type
     TMyRecord = record
         X: Integer;
@@ -259,7 +256,7 @@ var r: TMyRecord;
 begin
     r.NonExistentField := 42;
 end;`,
-			expectInErr: "nonexistentfield", // Known issue: casing not preserved for record field errors
+			expectInErr: "NonExistentField",
 		},
 	}
 

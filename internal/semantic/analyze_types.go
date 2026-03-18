@@ -3,6 +3,7 @@ package semantic
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -721,7 +722,17 @@ func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
 		aliasedType, err = a.resolveTypeExpression(decl.AliasedType)
 		if err != nil {
 			typeName := getTypeExpressionName(decl.AliasedType)
-			a.addError("unknown type '%s' in type alias at %s", typeName, decl.Token.Pos.String())
+			if strings.Contains(typeName, ".") {
+				pos := decl.AliasedType.Pos()
+				lastDot := strings.LastIndex(typeName, ".")
+				if lastDot >= 0 {
+					pos.Column += lastDot + 1
+					pos.Offset += lastDot + 1
+				}
+				a.addStructuredError(NewUnknownNameError(pos, typeName))
+			} else {
+				a.addError("unknown type '%s' in type alias at %s", typeName, decl.AliasedType.Pos().String())
+			}
 			return
 		}
 

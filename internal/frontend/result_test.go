@@ -218,6 +218,259 @@ x := x[0];
 	}
 }
 
+func TestCompile_RendersStructuredInOperatorArrayMembershipDiagnostics(t *testing.T) {
+	source := `
+var ints: array of Integer;
+var ok: Boolean := 1 in ints;
+var bad: Boolean := 's' in ints;
+`
+
+	result := Compile(source, "in_array_typecheck.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Incompatible types: "String" and "Integer" [line: 4, column: 25]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_RendersStaticArrayLiteralSizeMismatchesCompileSide(t *testing.T) {
+	source := `const a : array [0..2] of Integer = (
+	1,
+	2,
+	3,
+	4
+	);
+
+const b : array [0..2] of Integer = (
+	1,
+	2
+	);`
+
+	result := Compile(source, "array_const_item_count.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Incompatible types: "array [0..2] of Integer" and "array [0..3] of Integer" [line: 1, column: 37]`,
+		`Syntax Error: Incompatible types: "array [0..2] of Integer" and "array [0..1] of Integer" [line: 8, column: 37]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_AnchorsStaticArrayLiteralAssignmentMismatchAtLiteral(t *testing.T) {
+	source := `var xmlWhiteSpace = [' '];
+xmlWhiteSpace := [' ', #9];`
+
+	result := Compile(source, "var_static_array.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Incompatible types: Cannot assign "array [0..1] of String" to "array [0..0] of String" [line: 2, column: 18]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_AnchorsIndexedStaticArrayLiteralMismatchAtAssignment(t *testing.T) {
+	source := `var crafts : array of array [0..19] of Integer;
+begin
+	crafts[0] := [$711E1F88, $711E039F, $0DBF, $0DD6, $099F, $0F7A, $097A];
+end;`
+
+	result := Compile(source, "array_item_mismatch1.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Incompatible types: Cannot assign "array [0..6] of Integer" to "array [0..19] of Integer" [line: 3, column: 12]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_NormalizesOperandDiagnostics(t *testing.T) {
+	source := `
+var v : Variant;
+v := '123' + 123;
+v := 123 + '123';
+`
+
+	result := Compile(source, "operand_normalization.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Invalid Operands [line: 3, column: 12]`,
+		`Syntax Error: Invalid Operands [line: 4, column: 10]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_SuppressesFollowOnInferenceErrorAfterFailedInitializer(t *testing.T) {
+	source := `
+procedure Bug;
+begin
+end;
+
+var i := Bug*Bug;
+`
+
+	result := Compile(source, "failed_initializer_follow_on.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Incompatible operands [line: 6, column: 13]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_NormalizesArrayHelperArityAndAnchorDiagnostics(t *testing.T) {
+	source := `var a : array of Integer;
+
+Print(a.Low(1));
+
+Print(a.setlength(1, 2));
+
+a.Delete;`
+
+	result := Compile(source, "array_helper_arity_bucket.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: No arguments expected [line: 3, column: 14]`,
+		`Hint: "setlength" does not match case of declaration ("SetLength") [line: 5, column: 9]`,
+		`Syntax Error: Too many arguments [line: 5, column: 23]`,
+		`Syntax Error: Expression expected [line: 5, column: 24]`,
+		`Syntax Error: More arguments expected [line: 7, column: 9]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_NormalizesArrayHelperCallbackDiagnostics(t *testing.T) {
+	source := `var a : array of Integer;
+
+a.ForEach(StrToInt);
+
+a.ForEach(IntToStr);
+
+type
+	TRec = record
+		Field : Boolean;
+	end;
+
+var ar : array of TRec;
+ar.Sort(@CompareStr);
+ar.Sort(CompareStr);`
+
+	result := Compile(source, "array_helper_callback_bucket.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: There is no overloaded version of "StrToInt" that can be called with these arguments [line: 3, column: 11]`,
+		`Syntax Error: Incompatible parameter types - "procedure (Integer)" expected (instead of "Integer") [line: 3, column: 11]`,
+		`Syntax Error: Incompatible parameter types - "procedure (Integer)" expected (instead of "function IntToStr(Integer): String") [line: 5, column: 11]`,
+		`Syntax Error: More arguments expected [line: 13, column: 10]`,
+		`Syntax Error: Incompatible types: "function (TRec, TRec): Integer" and "function CompareStr(String, String): Integer" [line: 13, column: 9]`,
+		`Syntax Error: Incompatible parameter types - "function (TRec, TRec): Integer" expected (instead of "nil") [line: 13, column: 9]`,
+		`Syntax Error: More arguments expected [line: 14, column: 9]`,
+		`Syntax Error: Incompatible parameter types - "function (TRec, TRec): Integer" expected (instead of "Integer") [line: 14, column: 9]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_RecoversUnitPrefixFamilies(t *testing.T) {
+	source := `unit Bug.Test;
+
+uses Bug.'123';`
+
+	result := Compile(source, "unit_prefix8.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Name expected [line: 3, column: 10]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_RecoversIncompleteVarDeclarations(t *testing.T) {
+	source := `var a : bug`
+
+	result := Compile(source, "var_incomplete4.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Unknown name "bug" [line: 1, column: 9]`,
+		`Syntax Error: ";" expected [line: 1, column: 9]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestCompile_RendersStructuredIndexedPropertyIndexDiagnostics(t *testing.T) {
 	source := `
 type
@@ -524,6 +777,48 @@ var
 	}
 }
 
+func TestCompile_RendersRecordKeywordMemberMissAfterRecoverableParserError(t *testing.T) {
+	source := `
+type
+TPoint = record
+	X: Integer;
+end;
+
+var
+broken := ;
+p: TPoint;
+a: Integer := p.end;
+`
+
+	result := Compile(source, "record_keyword_member_recovery.pas", semantic.HintsLevelPedantic)
+	if result == nil {
+		t.Fatal("expected non-nil compile result")
+	}
+	if !result.SemanticAttempted {
+		t.Fatal("expected semantic analysis to run after recoverable parser error")
+	}
+
+	got := result.DiagnosticStrings()
+	wantRecordMiss := `Syntax Error: There is no accessible member with name "end" for type TPoint [line: 10, column: 17]`
+	foundParsing := false
+	foundRecordMiss := false
+	for _, diag := range result.Diagnostics {
+		if diag.Phase == PhaseParsing {
+			foundParsing = true
+		}
+		if diag.Render() == wantRecordMiss {
+			foundRecordMiss = true
+		}
+	}
+
+	if !foundParsing {
+		t.Fatalf("expected parsing diagnostic, got: %v", got)
+	}
+	if !foundRecordMiss {
+		t.Fatalf("expected record member miss diagnostic %q, got: %v", wantRecordMiss, got)
+	}
+}
+
 func TestCompile_RendersStructuredUnknownNameDiagnostics(t *testing.T) {
 	source := `
 Foo();
@@ -691,6 +986,56 @@ func TestSortDiagnostics_ParserComesBeforeSemanticAtSameLocation(t *testing.T) {
 	}
 }
 
+func TestSortDiagnostics_SameLineHintComesBeforeSemanticError(t *testing.T) {
+	diags := []Diagnostic{
+		{
+			Message:  `Syntax Error: Incompatible operands`,
+			Phase:    PhaseSemantic,
+			Line:     2,
+			Column:   8,
+			Severity: SeverityError,
+		},
+		{
+			Message:  `Hint: "print" does not match case of declaration ("Print")`,
+			Phase:    PhaseSemantic,
+			Line:     2,
+			Column:   10,
+			Severity: SeverityHint,
+		},
+	}
+
+	sortDiagnostics(diags)
+
+	if diags[0].Severity != SeverityHint || diags[1].Severity != SeverityError {
+		t.Fatalf("unexpected order after sort: %+v", diags)
+	}
+}
+
+func TestSortDiagnostics_ArgumentCountComesBeforeFollowOnTypeError(t *testing.T) {
+	diags := []Diagnostic{
+		{
+			Message:  `Syntax Error: Incompatible parameter types - "function (TRec, TRec): Integer" expected (instead of "nil")`,
+			Phase:    PhaseSemantic,
+			Line:     12,
+			Column:   9,
+			Severity: SeverityError,
+		},
+		{
+			Message:  `Syntax Error: More arguments expected`,
+			Phase:    PhaseSemantic,
+			Line:     12,
+			Column:   10,
+			Severity: SeverityError,
+		},
+	}
+
+	sortDiagnostics(diags)
+
+	if diags[0].Message != `Syntax Error: More arguments expected` {
+		t.Fatalf("unexpected order after sort: %+v", diags)
+	}
+}
+
 func TestFilterDiagnostics_ReplacesGenericMemberMissWithVisibility(t *testing.T) {
 	diags := []Diagnostic{
 		{
@@ -807,18 +1152,46 @@ end;
 		t.Fatal("expected semantic analysis to run after recoverable parser error")
 	}
 
-	foundParsing := false
-	foundSemantic := false
-	for _, diag := range result.Diagnostics {
-		if diag.Phase == PhaseParsing {
-			foundParsing = true
-		}
-		if diag.Phase == PhaseSemantic {
-			foundSemantic = true
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Expression expected [line: 2, column: 15]`,
+		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 5, column: 4]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
 		}
 	}
-	if !foundParsing || !foundSemantic {
-		t.Fatalf("expected both parsing and semantic diagnostics, got: %+v", result.Diagnostics)
+}
+
+func TestCompile_OrdersSameLineRecoverableParserBeforeSemanticDiagnostics(t *testing.T) {
+	source := `var broken := ; var i: Integer; i := 'oops';`
+
+	result := Compile(source, "same_line_recoverable_parser_plus_semantic.pas", semantic.HintsLevelPedantic)
+	if result == nil {
+		t.Fatal("expected non-nil compile result")
+	}
+	if !result.SemanticAttempted {
+		t.Fatal("expected semantic analysis to run after recoverable parser error")
+	}
+
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Expression expected [line: 1, column: 15]`,
+		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 1, column: 35]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
 

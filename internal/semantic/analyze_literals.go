@@ -6,6 +6,28 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
+func arrayLiteralExpectedElementCount(arrayType *types.ArrayType) int {
+	if arrayType == nil || !arrayType.IsStatic() {
+		return -1
+	}
+	if arrayType.IndexType == nil {
+		return arrayType.Size()
+	}
+
+	switch indexType := types.GetUnderlyingType(arrayType.IndexType).(type) {
+	case *types.EnumType:
+		return len(indexType.OrderedNames)
+	case *types.BooleanType:
+		return 2
+	default:
+		if low, high, ok := types.OrdinalBounds(indexType); ok {
+			return high - low + 1
+		}
+	}
+
+	return arrayType.Size()
+}
+
 // ============================================================================
 // Literal Analysis
 // ============================================================================
@@ -129,6 +151,15 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	}
 
 	if expectedArrayType != nil {
+		if expectedArrayType.IsStatic() && len(lit.Elements) != arrayLiteralExpectedElementCount(expectedArrayType) {
+			actualLiteralType := types.NewStaticArrayType(expectedArrayType.ElementType, 0, len(lit.Elements)-1)
+			a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
+				Token: lit.Token,
+				Name:  actualLiteralType.String(),
+			})
+			return actualLiteralType
+		}
+
 		a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
 			Token: lit.Token,
 			Name:  originalExpectedType.String(),
