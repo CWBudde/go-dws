@@ -894,8 +894,9 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 - [x] **5.4.3** Add regression tests for mixed diagnostic streams
   - syntax + semantic errors in the same source file
   - ensure ordering is stable and DWScript-compatible
-- [ ] **5.4.4** Update docs/phase notes after the first major compatibility jump
+- [x] **5.4.4** Update docs/phase notes after the first major compatibility jump
   - include before/after fixture counts and remaining buckets
+  - delta captured in `docs/failure-scripts-5.4.4.md`: `541` total, `76` passed, `465` failed
 
 ---
 
