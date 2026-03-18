@@ -42,6 +42,11 @@ func getTypeExpressionName(typeExpr ast.TypeExpression) string {
 	}
 }
 
+func isStrictTypeAnnotation(typeExpr ast.TypeExpression) bool {
+	typeAnnotation, ok := typeExpr.(*ast.TypeAnnotation)
+	return ok && typeAnnotation.Strict
+}
+
 // ============================================================================
 // Analyzer
 // ============================================================================
@@ -91,6 +96,7 @@ type Analyzer struct {
 	structuredErrors     []*SemanticError                      // Structured error objects
 	loopExitabilityStack []LoopExitability                     // Stack tracking loop exitability
 	errors               []string                              // Error messages (legacy)
+	pendingClassWarnings []*types.ClassType                    // Deferred class-private warnings emitted after analysis
 	loopDepth            int                                   // Loop nesting level
 	hintsLevel           HintsLevel                            // Hints emission level
 	inLoop               bool                                  // Inside loop construct
@@ -119,7 +125,7 @@ func NewAnalyzer() *Analyzer {
 		nestedTypeAliases:  make(map[string]map[string]string),
 		forwardMethodPos:   make(map[string]token.Position),
 		forwardMethodNames: make(map[string]string),
-		hintsLevel:         HintsLevelPedantic,
+		hintsLevel:         HintsLevelNormal,
 	}
 
 	// Register built-in Exception base class
@@ -291,9 +297,6 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 
 	a.validateForwardDeclarations()
-	a.validateForwardMethods()
-
-	// Return errors if any (hints and warnings don't prevent success)
 	hasActualErrors := false
 	for _, err := range a.errors {
 		if !strings.HasPrefix(err, "Hint:") && !strings.HasPrefix(err, "Warning:") {
@@ -301,7 +304,17 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 			break
 		}
 	}
+	if !hasActualErrors {
+		a.validateForwardMethods()
+	}
+	for _, classType := range a.pendingClassWarnings {
+		for _, warning := range a.collectUnusedPrivateClassMemberWarnings(classType) {
+			a.errors = append(a.errors, warning)
+		}
+	}
+	a.pendingClassWarnings = nil
 
+	// Return errors if any (hints and warnings don't prevent success)
 	if hasActualErrors {
 		return &AnalysisError{Errors: a.errors}
 	}
@@ -389,6 +402,18 @@ func (a *Analyzer) addHint(format string, args ...any) {
 
 func (a *Analyzer) addWarning(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf("Warning: "+format, args...))
+}
+
+func (a *Analyzer) warnDeprecatedClassUsage(classType *types.ClassType, pos token.Position) {
+	if classType == nil || !classType.IsDeprecated {
+		return
+	}
+
+	message := fmt.Sprintf(`"%s" has been deprecated`, classType.Name)
+	if classType.DeprecatedMessage != "" {
+		message += fmt.Sprintf(`: %s`, classType.DeprecatedMessage)
+	}
+	a.addWarning("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
 }
 
 func (a *Analyzer) addCaseMismatchHint(actual, declared string, pos token.Position) {

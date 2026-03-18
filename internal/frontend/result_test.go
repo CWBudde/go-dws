@@ -205,7 +205,7 @@ x := x[0];
 	want := []string{
 		`Syntax Error: array dimension 1 must be integer, got Float [line: 6, column: 20]`,
 		`Syntax Error: Array index expected "Integer" but got "String" [line: 8, column: 8]`,
-		`Syntax Error: cannot index non-array type Integer [line: 9, column: 7]`,
+		`Syntax Error: Array expected [line: 9, column: 7]`,
 	}
 
 	if len(got) != len(want) {
@@ -600,7 +600,7 @@ end;
 	result := Compile(source, "property_use_site_bucket.pas", semantic.HintsLevelPedantic)
 	got := result.DiagnosticStrings()
 	want := []string{
-		`Syntax Error: property 'ReadOnlyValue' is read-only [line: 19, column: 9]`,
+		`Syntax Error: Cannot set a value for a read-only property [line: 19, column: 9]`,
 		`Syntax Error: property 'WriteOnlyValue' is write-only [line: 20, column: 14]`,
 		`Syntax Error: Argument 0 expects type "Integer" instead of "String" [line: 21, column: 9]`,
 		`Syntax Error: Object reference needed to read/write an object field [line: 22, column: 15]`,

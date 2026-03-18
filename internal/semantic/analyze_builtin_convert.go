@@ -15,9 +15,11 @@ import (
 // The base parameter is optional and defaults to 10.
 func (a *Analyzer) analyzeIntToStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) < 1 || len(args) > 2 {
-		a.addError("function 'IntToStr' expects 1 or 2 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.STRING
+		if len(args) > 0 {
+			a.addError(`There is no overloaded version of "IntToStr" that can be called with these arguments at %s`,
+				callExpr.Token.Pos.String())
+		}
+		return types.VARIANT
 	}
 	// Analyze the first argument and verify it's Integer or a subrange of Integer
 	argType := a.analyzeExpression(args[0])

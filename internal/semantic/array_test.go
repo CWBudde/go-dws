@@ -213,7 +213,7 @@ func TestArrayIndexingErrors(t *testing.T) {
 				var y: Integer;
 				y := x[0];
 			`,
-			expectedError: "cannot index non-array type",
+			expectedError: "Array expected",
 		},
 		{
 			name: "non-integer index",

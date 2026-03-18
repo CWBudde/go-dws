@@ -412,7 +412,7 @@ func Add(ctx Context, args []Value) Value {
 	}
 
 	// Second argument is the element to add
-	element := args[1]
+	element := runtime.CopyValue(args[1])
 
 	// Append the element to the array
 	arrayVal.Elements = append(arrayVal.Elements, element)
@@ -548,8 +548,10 @@ func ConcatArrays(ctx Context, args []Value) Value {
 			firstArrayType = arrayVal.ArrayType
 		}
 
-		// Append all elements from this array
-		resultElements = append(resultElements, arrayVal.Elements...)
+		// Append copies of all elements from this array
+		for _, elem := range arrayVal.Elements {
+			resultElements = append(resultElements, runtime.CopyValue(elem))
+		}
 	}
 
 	// Create and return new array with concatenated elements
@@ -630,7 +632,9 @@ func Slice(ctx Context, args []Value) Value {
 
 	// Extract the slice
 	resultElements := make([]Value, end-start)
-	copy(resultElements, arrayVal.Elements[start:end])
+	for idx, elem := range arrayVal.Elements[start:end] {
+		resultElements[idx] = runtime.CopyValue(elem)
+	}
 
 	// Create and return new array with sliced elements
 	return &runtime.ArrayValue{

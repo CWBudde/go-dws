@@ -292,6 +292,7 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		Token: exceptToken, // 'except' keyword token
 	}
 	clause.Handlers = []*ast.ExceptionHandler{}
+	hadHandlerError := false
 
 	p.cursor = p.cursor.Advance() // move past 'except'
 
@@ -299,7 +300,9 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 	for p.cursor.Current().Type == lexer.ON {
 		handler := p.parseExceptionHandler()
 		if handler == nil {
-			return nil
+			hadHandlerError = true
+			p.synchronize([]lexer.TokenType{lexer.END, lexer.FINALLY, lexer.ELSE})
+			break
 		}
 		clause.Handlers = append(clause.Handlers, handler)
 
@@ -307,6 +310,18 @@ func (p *Parser) parseExceptClause() *ast.ExceptClause {
 		for p.cursor.Current().Type == lexer.SEMICOLON {
 			p.cursor = p.cursor.Advance()
 		}
+	}
+
+	if hadHandlerError {
+		for p.cursor.Current().Type != lexer.END && p.cursor.Current().Type != lexer.EOF {
+			p.cursor = p.cursor.Advance()
+		}
+		if len(clause.Handlers) > 0 {
+			lastHandler := clause.Handlers[len(clause.Handlers)-1]
+			result := builder.FinishWithNode(clause, lastHandler).(*ast.ExceptClause)
+			return result
+		}
+		return builder.FinishWithToken(clause, p.cursor.Current()).(*ast.ExceptClause)
 	}
 
 	// If no handlers, this is a bare except - parse statements until finally or end
@@ -447,6 +462,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 			WithParsePhase("exception handler").
 			Build()
 		p.addStructuredError(err)
+		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.FINALLY, lexer.ELSE})
 		return nil
 	}
 
@@ -473,6 +489,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 			WithParsePhase("exception handler").
 			Build()
 		p.addStructuredError(err)
+		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.FINALLY, lexer.ELSE})
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to ':'
@@ -492,6 +509,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 			WithParsePhase("exception handler").
 			Build()
 		p.addStructuredError(err)
+		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.FINALLY, lexer.ELSE})
 		return nil
 	}
 
@@ -514,6 +532,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 			WithParsePhase("exception handler").
 			Build()
 		p.addStructuredError(err)
+		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.FINALLY, lexer.ELSE})
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to 'do'

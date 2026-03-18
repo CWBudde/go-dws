@@ -965,7 +965,7 @@ begin
 	o.Value := 1;
 end;
 `,
-			expectedError: "property 'Value' is read-only",
+			expectedError: "Cannot set a value for a read-only property",
 		},
 		{
 			name: "member write-only property read",

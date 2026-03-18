@@ -123,6 +123,7 @@ func (a *Analyzer) createForwardDeclaration(decl *ast.ClassDecl, className strin
 			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 			return
 		}
+		a.warnDeprecatedClassUsage(parentClass, decl.Parent.Token.Pos)
 	}
 
 	classType := types.NewClassType(className, parentClass)
@@ -130,6 +131,8 @@ func (a *Analyzer) createForwardDeclaration(decl *ast.ClassDecl, className strin
 	classType.IsAbstract = decl.IsAbstract
 	classType.IsExternal = decl.IsExternal
 	classType.ExternalName = decl.ExternalName
+	classType.IsDeprecated = decl.IsDeprecated
+	classType.DeprecatedMessage = decl.DeprecatedMessage
 
 	a.registerTypeWithPos(className, classType, decl.Token.Pos)
 }
@@ -193,6 +196,7 @@ func (a *Analyzer) resolveParentClass(decl *ast.ClassDecl, className string) *ty
 			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
 			return nil
 		}
+		a.warnDeprecatedClassUsage(parentClass, decl.Parent.Token.Pos)
 		return parentClass
 	}
 
@@ -338,6 +342,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	a.setupNestedTypes(decl, className)
 	defer func() { a.currentNestedTypes = nil }()
 	a.updateClassFlags(classType, decl, isForwardDecl)
+	classType.IsDeprecated = decl.IsDeprecated
+	classType.DeprecatedMessage = decl.DeprecatedMessage
 	if !a.validateClassInheritance(classType, parentClass, decl, className) {
 		return
 	}
@@ -368,6 +374,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				a.addError("unknown type '%s' for constant '%s' at %s", typeName, constantName, constant.Token.Pos.String())
 				continue
 			}
+			a.warnDeprecatedResolvedType(constant.Type.Pos(), info.explType)
 		}
 		// Register constant with a placeholder type.
 		classType.Constants[constantName] = nil
@@ -387,6 +394,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	previousClass := a.currentClass
 	a.currentClass = classType
 	defer func() { a.currentClass = previousClass }()
+	if !decl.IsPartial {
+		a.queueUnusedPrivateClassMembers(classType)
+	}
 
 	// Second pass: Analyze constant values.
 	for _, info := range constList {
@@ -436,6 +446,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 					a.addError("unknown type '%s' for class var '%s' at %s", typeName, originalFieldName, field.Token.Pos.String())
 					continue
 				}
+				a.warnDeprecatedResolvedType(field.Type.Pos(), resolvedType)
 				fieldType = resolvedType
 			} else if field.InitValue != nil {
 				initType := a.analyzeExpression(field.InitValue)
@@ -481,6 +492,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 					a.addError("unknown type '%s' for field '%s' at %s", typeName, originalFieldName, field.Token.Pos.String())
 					continue
 				}
+				a.warnDeprecatedResolvedType(field.Type.Pos(), resolvedType)
 				fieldType = resolvedType
 			} else if field.InitValue != nil {
 				initType := a.analyzeExpression(field.InitValue)
@@ -497,6 +509,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			a.validateFieldInitializer(field, originalFieldName, fieldType)
 			classType.Fields[originalFieldName] = fieldType
 			classType.FieldVisibility[normalizedFieldName] = int(field.Visibility)
+			classType.SetFieldDeclPosition(originalFieldName, field.Pos())
 		}
 	}
 
@@ -662,6 +675,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	// Bind 'Self', fields, properties, constants, and methods to scope.
 	a.symbols.Define("Self", recordType, decl.Token.Pos)
@@ -692,7 +706,12 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 			a.addError("unknown parameter type '%s' at %s", paramTypeName, param.Token.Pos.String())
 			continue
 		}
-		a.symbols.Define(param.Name.Value, paramType, param.Name.Token.Pos)
+		if param.IsConst {
+			if arrayType, ok := paramType.(*types.ArrayType); ok && arrayType.ElementType == types.VARIANT {
+				paramType = types.ARRAY_OF_CONST
+			}
+		}
+		a.symbols.DefineParameter(param.Name.Value, paramType, param.Name.Token.Pos, false)
 	}
 
 	// Bind 'Result' variable for functions.
@@ -701,7 +720,11 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 		if err != nil {
 			a.addError("unknown return type at %s", decl.Token.Pos.String())
 		} else {
-			a.symbols.Define("Result", returnType, decl.Name.Token.Pos)
+			resultPos := decl.Name.Token.Pos
+			if decl.End().Line != 0 {
+				resultPos = blockEndStart(decl.End())
+			}
+			a.symbols.Define("Result", returnType, resultPos)
 			a.symbols.Define(decl.Name.Value, returnType, decl.Name.Token.Pos)
 		}
 	}
@@ -709,6 +732,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	previousFunc := a.currentFunction
 	a.currentFunction = decl
 	defer func() { a.currentFunction = previousFunc }()
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	if decl.Body != nil {
 		a.analyzeBlock(decl.Body)
@@ -761,10 +785,19 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	if method.CallingConvention != "" {
 		a.addHint("Calling convention \"%s\" is ignored at %s", method.CallingConvention, method.CallingConventionPos.String())
 	}
+	if method.IsStatic && method.Body == nil {
+		pos := method.StaticPos
+		if pos.Line == 0 {
+			pos = method.Token.Pos
+		}
+		a.addError("Syntax Error: Only non-virtual class methods can be marked as static [line: %d, column: %d]",
+			pos.Line, pos.Column)
+	}
 
 	// Process parameters and build metadata.
 	paramTypes := make([]types.Type, 0, len(method.Parameters))
 	paramNames := make([]string, 0, len(method.Parameters))
+	paramTypeNames := make([]string, 0, len(method.Parameters))
 	defaultValues := make([]interface{}, 0, len(method.Parameters))
 	lazyParams := make([]bool, 0, len(method.Parameters))
 	varParams := make([]bool, 0, len(method.Parameters))
@@ -786,8 +819,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			a.addError("unknown parameter type '%s' in method '%s'", paramTypeName, method.Name.Value)
 			return
 		}
+		a.warnDeprecatedResolvedType(param.Type.Pos(), paramType)
 		paramTypes = append(paramTypes, paramType)
 		paramNames = append(paramNames, param.Name.Value)
+		paramTypeNames = append(paramTypeNames, semanticDeclaredTypeName(param.Type, paramType))
 		defaultValues = append(defaultValues, param.DefaultValue)
 		lazyParams = append(lazyParams, param.IsLazy)
 		varParams = append(varParams, param.ByRef)
@@ -823,6 +858,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			a.addError("unknown return type '%s' in method '%s'", getTypeExpressionName(method.ReturnType), method.Name.Value)
 			return
 		}
+		a.warnDeprecatedResolvedType(method.ReturnType.Pos(), returnType)
 	} else if method.IsConstructor {
 		returnType = classType
 	} else {
@@ -845,6 +881,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		funcType = types.NewFunctionTypeWithMetadata(
 			paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType)
 	}
+	funcType.ParamTypeNames = paramTypeNames
 
 	// Create method info and check for duplicate/ambiguous overloads.
 	methodInfo := &types.MethodInfo{
@@ -918,11 +955,13 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	if _, exists := classType.MethodVisibility[methodKey]; !exists {
 		classType.MethodVisibility[methodKey] = int(method.Visibility)
 	}
+	classType.SetMethodDeclPosition(method.Name.Value, method.Name.Token.Pos)
 
 	// Analyze method body in a new scope.
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	if method.IsClassMethod {
 		// Static methods only access class variables.
@@ -949,10 +988,20 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 
 	// Add parameters and 'Result' variable to scope.
 	for i, param := range method.Parameters {
-		a.symbols.Define(param.Name.Value, paramTypes[i], param.Name.Token.Pos)
+		paramType := paramTypes[i]
+		if param.IsConst {
+			if arrayType, ok := paramType.(*types.ArrayType); ok && arrayType.ElementType == types.VARIANT {
+				paramType = types.ARRAY_OF_CONST
+			}
+		}
+		a.symbols.DefineParameter(param.Name.Value, paramType, param.Name.Token.Pos, false)
 	}
 	if returnType != types.VOID {
-		a.symbols.Define("Result", returnType, method.Name.Token.Pos)
+		resultPos := method.Name.Token.Pos
+		if method.End().Line != 0 {
+			resultPos = blockEndStart(method.End())
+		}
+		a.symbols.Define("Result", returnType, resultPos)
 		a.symbols.Define(method.Name.Value, returnType, method.Name.Token.Pos)
 	}
 
@@ -963,6 +1012,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	previousInClassMethod := a.inClassMethod
 	a.inClassMethod = method.IsClassMethod
 	defer func() { a.inClassMethod = previousInClassMethod }()
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	a.validateVirtualOverride(method, classType, funcType)
 

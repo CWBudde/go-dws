@@ -32,6 +32,9 @@ type RecordValue struct {
 	Metadata   *RecordMetadata   // Runtime metadata (methods, constants, etc.)
 }
 
+// Compile-time interface satisfaction check.
+var _ CopyableValue = (*RecordValue)(nil)
+
 // Type returns the record type name (e.g., "TFoo") or "RECORD" if unnamed.
 func (r *RecordValue) Type() string {
 	if r.RecordType != nil && r.RecordType.Name != "" {
@@ -80,7 +83,7 @@ func (r *RecordValue) String() string {
 
 // Copy creates a deep copy of the record value.
 // Records have value semantics in DWScript, so assignment should copy.
-func (r *RecordValue) Copy() *RecordValue {
+func (r *RecordValue) Copy() Value {
 	copiedFields := make(map[string]Value, len(r.Fields))
 
 	// Deep copy all fields

@@ -120,6 +120,12 @@ func SignatureDistance(argTypes []types.Type, signature *types.FunctionType) int
 		}
 
 		// Calculate distance for this argument-parameter pair
+		if i < len(signature.StrictParams) && signature.StrictParams[i] {
+			if !types.IsIdentical(argType, paramType) {
+				return -1
+			}
+			continue
+		}
 		dist := typeDistance(argType, paramType)
 		if dist < 0 {
 			return -1 // Incompatible

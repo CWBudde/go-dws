@@ -503,7 +503,7 @@ func NewPropertyWriteShouldBeStaticMethodError(pos lexer.Position) *SemanticErro
 func NewReadOnlyPropertyError(pos lexer.Position, propertyName string) *SemanticError {
 	return &SemanticError{
 		Type:         ErrorInvalidAssignment,
-		Message:      fmt.Sprintf("property '%s' is read-only", propertyName),
+		Message:      "Syntax Error: Cannot set a value for a read-only property",
 		Pos:          pos,
 		Severity:     SeverityError,
 		VariableName: propertyName,
@@ -612,13 +612,12 @@ func NewIncompatibleTypesPairError(pos lexer.Position, left, right string) *Sema
 
 // NewCannotIndexTypeError creates a structured non-indexable-type diagnostic.
 func NewCannotIndexTypeError(pos lexer.Position, typeName string) *SemanticError {
-	typeName = errors.SimplifyTypeName(typeName)
 	return &SemanticError{
 		Type:     ErrorArrayIndex,
-		Message:  fmt.Sprintf("cannot index non-array type %s", typeName),
+		Message:  "Array expected",
 		Pos:      pos,
 		Severity: SeverityError,
-		TypeName: typeName,
+		TypeName: errors.SimplifyTypeName(typeName),
 	}
 }
 

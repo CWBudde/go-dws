@@ -108,8 +108,10 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			// Check index type
 			indexType := a.analyzeExpression(expr.Index)
 			if indexType != nil && !indexType.Equals(types.INTEGER) {
-				a.addStructuredError(NewArrayIndexError(expr.Index.Pos(), "Integer", indexType.String()))
-				return nil
+				pos := expr.Index.End()
+				pos.Column += 2
+				pos.Offset += 2
+				a.addError("Integer expression expected at %s", pos.String())
 			}
 			return types.STRING
 		}
@@ -153,6 +155,14 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return nil
 	}
 
+	if isZeroArgIntToStrCall(expr.Index) {
+		pos := expr.Index.Pos()
+		a.addError(`There is no overloaded version of "IntToStr" that can be called with these arguments at %s`,
+			pos.String())
+		a.addStructuredError(NewArrayIndexError(pos, "Integer", "Any Type"))
+		return nil
+	}
+
 	if arrayType.IndexType != nil {
 		if types.GetUnderlyingType(indexType).Equals(types.VARIANT) {
 			return arrayType.ElementType
@@ -161,23 +171,60 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		indexUnderlying := types.GetUnderlyingType(indexType)
 		if !indexUnderlying.Equals(expectedIndexType) {
 			pos := expr.Index.Pos()
-			a.addStructuredError(NewArrayIndexError(pos, expectedIndexType.String(), indexType.String()))
+			a.addStructuredError(NewArrayIndexError(pos, expectedIndexType.String(), semanticTypeNameForDiagnostic(indexType)))
 			return nil
 		}
 		return arrayType.ElementType
 	}
 
-	// Index must be integer or a bounded ordinal (enum, boolean, subrange)
+	// Index must be an integer for ordinary arrays. Variants are allowed and
+	// are validated at runtime.
 	indexUnderlying := types.GetUnderlyingType(indexType)
-	kind := indexUnderlying.TypeKind()
-	if kind != "INTEGER" && kind != "ENUM" && kind != "BOOLEAN" && kind != "SUBRANGE" {
+	if !indexUnderlying.Equals(types.VARIANT) && !indexUnderlying.Equals(types.INTEGER) {
 		pos := expr.Index.Pos()
-		a.addStructuredError(NewArrayIndexError(pos, "Integer or ordinal", indexType.String()))
+		a.addStructuredError(NewArrayIndexError(pos, "Integer", semanticTypeNameForDiagnostic(indexType)))
 		return nil
 	}
 
 	// Return the element type of the array
 	return arrayType.ElementType
+}
+
+func isZeroArgIntToStrCall(expr ast.Expression) bool {
+	callExpr, ok := expr.(*ast.CallExpression)
+	if !ok {
+		return false
+	}
+	identExpr, ok := callExpr.Function.(*ast.Identifier)
+	if !ok {
+		return false
+	}
+	return ident.Equal(identExpr.Value, "IntToStr") && len(callExpr.Arguments) == 0
+}
+
+func (a *Analyzer) constantArrayIndex(expr ast.Expression) (int, bool) {
+	if expr == nil {
+		return 0, false
+	}
+	if value, err := a.evaluateConstant(expr); err == nil {
+		switch v := value.(type) {
+		case int:
+			return v, true
+		case bool:
+			if v {
+				return 1, true
+			}
+			return 0, true
+		case string:
+			if len(v) == 1 {
+				return int([]rune(v)[0]), true
+			}
+		}
+	}
+	if value, err := a.evaluateConstantInt(expr); err == nil {
+		return value, true
+	}
+	return 0, false
 }
 
 // analyzeIndexedPropertyAccess handles expressions like obj.Prop[index]

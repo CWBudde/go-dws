@@ -94,7 +94,8 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 	case lexer.STATIC:
 		cursor = cursor.Advance()
 		p.cursor = cursor
-		// static doesn't set a flag, it's just consumed
+		fn.IsStatic = true
+		fn.StaticPos = cursor.Current().Pos
 
 	case lexer.VIRTUAL:
 		cursor = cursor.Advance()
@@ -339,8 +340,15 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 	// Expect semicolon after signature
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after function signature", ErrMissingSemicolon)
-		return nil
+		nextToken := cursor.Peek(1)
+		p.addParserErrorAt(nextToken.Pos, nextToken.Length(), "expected ';' after function signature", ErrMissingSemicolon)
+		for p.cursor.Current().Type != lexer.SEMICOLON &&
+			p.cursor.Current().Type != lexer.END &&
+			p.cursor.Current().Type != lexer.EOF {
+			p.cursor = p.cursor.Advance()
+		}
+		decl, _ := builder.Finish(fn).(*ast.FunctionDecl)
+		return decl
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
 	p.cursor = cursor
@@ -389,6 +397,11 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		} else {
 			fn.Body.Statements = append(fn.Body.Statements, bodyBlock.Statements...)
 		}
+	}
+
+	if cursor.Current().Type == lexer.EOF {
+		decl, _ := builder.Finish(fn).(*ast.FunctionDecl)
+		return decl
 	}
 
 	// Check if we stopped at ENSURE inside the begin...end block

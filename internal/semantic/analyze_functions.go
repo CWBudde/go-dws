@@ -26,10 +26,12 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	// Regular function (not method): resolve parameter and return types
 	paramTypes := make([]types.Type, 0, len(decl.Parameters))
 	paramNames := make([]string, 0, len(decl.Parameters))
+	paramTypeNames := make([]string, 0, len(decl.Parameters))
 	defaultValues := make([]interface{}, 0, len(decl.Parameters))
 	lazyParams := make([]bool, 0, len(decl.Parameters))
 	varParams := make([]bool, 0, len(decl.Parameters))
 	constParams := make([]bool, 0, len(decl.Parameters))
+	strictParams := make([]bool, 0, len(decl.Parameters))
 	foundOptional := false // Track if we've seen an optional parameter
 
 	for _, param := range decl.Parameters {
@@ -78,6 +80,11 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 				getTypeExpressionName(param.Type), decl.Name.Value, err)
 			return
 		}
+		if param.IsConst {
+			if arrayType, ok := paramType.(*types.ArrayType); ok && arrayType.ElementType == types.VARIANT {
+				paramType = types.ARRAY_OF_CONST
+			}
+		}
 
 		// Validate default value type matches parameter type
 		if param.DefaultValue != nil {
@@ -96,10 +103,12 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 
 		paramTypes = append(paramTypes, paramType)
 		paramNames = append(paramNames, param.Name.Value)
+		paramTypeNames = append(paramTypeNames, semanticDeclaredTypeName(param.Type, paramType))
 		defaultValues = append(defaultValues, param.DefaultValue) // Store AST expression (may be nil)
 		lazyParams = append(lazyParams, param.IsLazy)
 		varParams = append(varParams, param.ByRef)
 		constParams = append(constParams, param.IsConst)
+		strictParams = append(strictParams, isStrictTypeAnnotation(param.Type))
 	}
 
 	// Determine return type
@@ -137,6 +146,8 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 			paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType,
 		)
 	}
+	funcType.ParamTypeNames = paramTypeNames
+	funcType.StrictParams = strictParams
 
 	// Register function/overload with position info for error messages
 	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload, decl.IsForward, decl.Name.Token.Pos); err != nil {
@@ -158,20 +169,25 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	for i, param := range decl.Parameters {
 		// Const parameters are read-only
 		if param.IsConst {
-			a.symbols.DefineReadOnly(param.Name.Value, paramTypes[i], param.Name.Token.Pos)
+			a.symbols.DefineParameter(param.Name.Value, paramTypes[i], param.Name.Token.Pos, true)
 		} else {
-			a.symbols.Define(param.Name.Value, paramTypes[i], param.Name.Token.Pos)
+			a.symbols.DefineParameter(param.Name.Value, paramTypes[i], param.Name.Token.Pos, false)
 		}
 	}
 
 	// Add Result variable for functions (not procedures)
 	if returnType != types.VOID {
-		a.symbols.Define("Result", returnType, decl.Name.Token.Pos)
+		resultPos := decl.Name.Token.Pos
+		if decl.End().Line != 0 {
+			resultPos = blockEndStart(decl.End())
+		}
+		a.symbols.Define("Result", returnType, resultPos)
 	}
 
 	previousFunc := a.currentFunction
 	a.currentFunction = decl
 	defer func() { a.currentFunction = previousFunc }()
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	if decl.Body != nil {
 		a.analyzeBlock(decl.Body)

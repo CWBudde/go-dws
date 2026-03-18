@@ -46,6 +46,9 @@ func semanticTypeNameForDiagnostic(t types.Type) string {
 	if t == nil {
 		return "nil"
 	}
+	if t == types.ARRAY_OF_CONST {
+		return "array of const"
+	}
 	if t.Equals(types.NIL) {
 		return "nil"
 	}
@@ -56,6 +59,31 @@ func semanticTypeNameForDiagnostic(t types.Type) string {
 		return semanticFunctionPointerName(fn)
 	}
 	return semanticDiagnosticTypeName(dwserrors.SimplifyTypeName(t.String()))
+}
+
+func semanticDeclaredTypeName(typeExpr ast.TypeExpression, resolved types.Type) string {
+	if resolved == types.ARRAY_OF_CONST {
+		return "array of const"
+	}
+	if typeExpr != nil {
+		if name := getTypeExpressionName(typeExpr); name != "" {
+			return name
+		}
+	}
+	return semanticTypeNameForDiagnostic(resolved)
+}
+
+func semanticFunctionParamTypeName(fn *types.FunctionType, index int, fallback types.Type) string {
+	if fn != nil && index >= 0 && index < len(fn.ParamTypeNames) {
+		if name := fn.ParamTypeNames[index]; name != "" {
+			return name
+		}
+	}
+	return semanticTypeNameForDiagnostic(fallback)
+}
+
+func isArrayOfConstType(t types.Type) bool {
+	return types.GetUnderlyingType(t) == types.ARRAY_OF_CONST
 }
 
 func semanticDiagnosticTypeName(typeName string) string {
@@ -102,6 +130,33 @@ func semanticNamedFunctionPointerName(name string, fn *types.FunctionPointerType
 	for i, param := range fn.Parameters {
 		if i > 0 {
 			result += ", "
+		}
+		result += semanticTypeNameForDiagnostic(param)
+	}
+	result += ")"
+	if fn.IsFunction() && fn.ReturnType != nil {
+		result += ": " + semanticTypeNameForDiagnostic(fn.ReturnType)
+	}
+	return result
+}
+
+func semanticNamedFunctionSignature(name string, fn *types.FunctionType) string {
+	if fn == nil {
+		return name
+	}
+	kind := "function"
+	if fn.IsProcedure() {
+		kind = "procedure"
+	}
+	result := kind + " " + name + "("
+	for i, param := range fn.Parameters {
+		if i > 0 {
+			result += ", "
+		}
+		if i < len(fn.ConstParams) && fn.ConstParams[i] {
+			result += "const "
+		} else if i < len(fn.VarParams) && fn.VarParams[i] {
+			result += "var "
 		}
 		result += semanticTypeNameForDiagnostic(param)
 	}
@@ -286,6 +341,32 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperNoArgs(expr)
 		}
 		return types.INTEGER
+	case "add", "push":
+		if len(expr.Arguments) == 0 {
+			a.addArrayHelperTooFewArgs(expr)
+			return types.VOID
+		}
+		if len(expr.Arguments) > 1 {
+			a.addArrayHelperTooManyArgs(expr)
+		}
+		elementType := arrayType.ElementType
+		arg := expr.Arguments[0]
+		argType := a.analyzeExpression(arg)
+		if argType == nil {
+			return types.VOID
+		}
+		if argArrayType, isArray := types.GetUnderlyingType(argType).(*types.ArrayType); isArray {
+			if !a.canAssign(argType, arrayType) {
+				a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
+			} else if argArrayType.ElementType != nil && elementType != nil && !a.canAssign(argArrayType.ElementType, elementType) {
+				a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
+			}
+			return types.VOID
+		}
+		if elementType != nil && !a.canAssign(argType, elementType) {
+			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
+		}
+		return types.VOID
 	case "setlength":
 		if len(expr.Arguments) == 0 {
 			a.addArrayHelperTooFewArgs(expr)
@@ -403,6 +484,38 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), callbackType, argType)
 		}
 		return types.VOID
+	case "map":
+		if len(expr.Arguments) != 1 {
+			if len(expr.Arguments) < 1 {
+				a.addArrayHelperTooFewArgs(expr)
+			} else {
+				a.addArrayHelperTooManyArgs(expr)
+			}
+			return types.NewDynamicArrayType(arrayType.ElementType)
+		}
+		arg := expr.Arguments[0]
+		argType := a.analyzeExpression(arg)
+		if argType == nil {
+			return types.NewDynamicArrayType(arrayType.ElementType)
+		}
+		expectedType := types.NewFunctionPointerType([]types.Type{arrayType.ElementType}, types.VARIANT)
+		if identExpr, ok := arg.(*ast.Identifier); ok {
+			if sym, exists := a.symbols.Resolve(identExpr.Value); exists {
+				if fnType, ok := sym.Type.(*types.FunctionType); ok && len(fnType.Parameters) == 1 {
+					if fnType.ConstParams != nil && len(fnType.ConstParams) > 0 && fnType.ConstParams[0] {
+						a.addArrayHelperError(identExpr.Token.Pos, `More arguments expected`)
+						a.addArrayHelperParamTypeExpectedText(arg.Pos(),
+							"function ("+semanticTypeNameForDiagnostic(arrayType.ElementType)+"): Any Type",
+							semanticNamedFunctionSignature(identExpr.Value, fnType))
+						return types.NewDynamicArrayType(arrayType.ElementType)
+					}
+				}
+			}
+		}
+		if !a.canAssign(argType, expectedType) {
+			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), expectedType, argType)
+		}
+		return types.NewDynamicArrayType(arrayType.ElementType)
 	case "sort":
 		if len(expr.Arguments) > 1 {
 			a.addArrayHelperTooManyArgs(expr)

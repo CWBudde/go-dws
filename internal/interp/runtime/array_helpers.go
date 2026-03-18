@@ -2,13 +2,15 @@ package runtime
 
 import "sort"
 
-// ArrayHelperCopy creates a shallow copy of an array's elements.
+// ArrayHelperCopy creates a deep copy of an array's elements.
 func ArrayHelperCopy(arr *ArrayValue) Value {
 	newArray := &ArrayValue{
 		ArrayType: arr.ArrayType,
 		Elements:  make([]Value, len(arr.Elements)),
 	}
-	copy(newArray.Elements, arr.Elements)
+	for idx, elem := range arr.Elements {
+		newArray.Elements[idx] = CopyValue(elem)
+	}
 	return newArray
 }
 
@@ -113,7 +115,9 @@ func ArrayHelperSlice(arr *ArrayValue, startIdx, endIdx int64) Value {
 	}
 
 	resultElements := make([]Value, end-start)
-	copy(resultElements, arr.Elements[start:end])
+	for idx, elem := range arr.Elements[start:end] {
+		resultElements[idx] = CopyValue(elem)
+	}
 
 	return &ArrayValue{Elements: resultElements, ArrayType: arr.ArrayType}
 }

@@ -22,6 +22,14 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	cursor := p.cursor
 	builder := p.StartNode()
 	currentToken := cursor.Current()
+	strictPrefix := false
+
+	if currentToken.Type == lexer.TYPE {
+		strictPrefix = true
+		cursor = cursor.Advance()
+		p.cursor = cursor
+		currentToken = cursor.Current()
+	}
 
 	switch currentToken.Type {
 	case lexer.IDENT:
@@ -44,6 +52,7 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 			Token:  typeIdent.Token,
 			Name:   typeIdent.Value,
 			EndPos: typeIdent.End(),
+			Strict: strictPrefix,
 		}
 		result, _ := builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
 		return result
@@ -51,8 +60,9 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	case lexer.CONST:
 		// Special case: "const" can be used as a type in "array of const"
 		typeAnnotation := &ast.TypeAnnotation{
-			Token: currentToken,
-			Name:  "const",
+			Token:  currentToken,
+			Name:   "const",
+			Strict: strictPrefix,
 		}
 		// EndPos is after the const token
 		result, _ := builder.Finish(typeAnnotation).(*ast.TypeAnnotation)

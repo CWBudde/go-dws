@@ -195,6 +195,22 @@ func sortDiagnostics(diags []Diagnostic) {
 		left := diags[i]
 		right := diags[j]
 
+		if left.Severity != SeverityError && right.Severity != SeverityError {
+			return false
+		}
+		if left.Severity != SeverityError && right.Severity == SeverityError {
+			if left.Line == right.Line {
+				return true
+			}
+			return false
+		}
+		if left.Severity == SeverityError && right.Severity != SeverityError {
+			if left.Line == right.Line {
+				return false
+			}
+			return false
+		}
+
 		leftBucket := diagnosticDeferredBucket(left)
 		rightBucket := diagnosticDeferredBucket(right)
 		if leftBucket != rightBucket {
@@ -320,7 +336,6 @@ func parserDiagnosticBlocksSemantic(err *parser.ParserError) bool {
 	switch err.Code {
 	case parser.ErrUnexpectedToken,
 		parser.ErrMissingSemicolon,
-		parser.ErrMissingEnd,
 		parser.ErrMissingLParen,
 		parser.ErrMissingRParen,
 		parser.ErrMissingRBracket,
@@ -340,6 +355,11 @@ func parserDiagnosticBlocksSemantic(err *parser.ParserError) bool {
 		parser.ErrMissingAssign,
 		parser.ErrInvalidType:
 		return false
+	case parser.ErrMissingEnd:
+		if err != nil && strings.Contains(err.Message, "class declaration") {
+			return false
+		}
+		return true
 	default:
 		// Unknown parser error codes are treated conservatively until their
 		// recovery semantics are classified explicitly.
@@ -356,9 +376,25 @@ var diagnosticAccessibleMember = regexp.MustCompile(`^There is no accessible mem
 func normalizeParserDiagnosticMessage(message string) string {
 	message = parserBlockContextSuffix.ReplaceAllString(message, "")
 
+	if strings.HasPrefix(message, "function call must use identifier or member access") {
+		return "Not a method"
+	}
+
 	switch message {
 	case "expected 'do' after while condition":
 		return "DO expected"
+	case "expected 'end' to close block":
+		return "End of block expected"
+	case "expected 'do' after exception type":
+		return "DO expected"
+	case "expected ':' after exception variable":
+		return `Colon ":" expected`
+	case "expected identifier after 'on'":
+		return "Name expected"
+	case "expected ']' to close array index":
+		return `"]" expected`
+	case "expected ';' after function signature":
+		return `";" expected`
 	case "expected identifier in var declaration":
 		return "Name expected"
 	case "expected identifier after 'type'":
@@ -383,32 +419,38 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 	legacyErrors := analyzer.Errors()
 	diags := make([]Diagnostic, 0, len(structuredErrors)+len(legacyErrors))
 	seen := make(map[string]struct{})
-	structuredLegacyMirrors := make(map[string]struct{}, len(structuredErrors))
-
+	structuredByMessage := make(map[string][]*semantic.SemanticError, len(structuredErrors))
 	for _, err := range structuredErrors {
 		if err == nil {
 			continue
 		}
-		structuredLegacyMirrors[err.Error()] = struct{}{}
-		message, line, column, rendered := normalizeSemanticDiagnostic(err.Error(), err.Message, err.Pos.Line, err.Pos.Column, severityFromSemantic(err.Severity))
-		diag := Diagnostic{
-			Message:  message,
-			Rendered: rendered,
-			Code:     string(err.Type),
-			Phase:    PhaseSemantic,
-			Line:     line,
-			Column:   column,
-			Severity: severityFromSemantic(err.Severity),
-			Fatal:    err.Severity == semantic.SeverityError,
-		}
-		seen[diag.Render()] = struct{}{}
-		diags = append(diags, diag)
+		key := err.Error()
+		structuredByMessage[key] = append(structuredByMessage[key], err)
 	}
 
 	for _, errStr := range legacyErrors {
-		if _, ok := structuredLegacyMirrors[errStr]; ok {
+		if candidates := structuredByMessage[errStr]; len(candidates) > 0 {
+			err := candidates[0]
+			structuredByMessage[errStr] = candidates[1:]
+			message, line, column, rendered := normalizeSemanticDiagnostic(err.Error(), err.Message, err.Pos.Line, err.Pos.Column, severityFromSemantic(err.Severity))
+			diag := Diagnostic{
+				Message:  message,
+				Rendered: rendered,
+				Code:     string(err.Type),
+				Phase:    PhaseSemantic,
+				Line:     line,
+				Column:   column,
+				Severity: severityFromSemantic(err.Severity),
+				Fatal:    err.Severity == semantic.SeverityError,
+			}
+			if _, ok := seen[diag.Render()]; ok {
+				continue
+			}
+			seen[diag.Render()] = struct{}{}
+			diags = append(diags, diag)
 			continue
 		}
+
 		severity, fatal := inferStringSeverity(errStr)
 		line, column, message := extractPosition(errStr)
 		code := semanticCodeForSeverity(severity)
@@ -443,9 +485,15 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 	nameExpectedByLine := make(map[int]bool)
 	colonExpectedByLine := make(map[int]bool)
 	dotExpectedByLine := make(map[int]bool)
+	seenNameExpectedColumnByLine := make(map[int]int)
+	hasUnknownName := false
 
 	for _, diag := range diags {
 		if strings.Contains(diag.Message, "Name expected") {
+			if prevCol, ok := seenNameExpectedColumnByLine[diag.Line]; ok && diag.Column > 0 && prevCol > 0 && diag.Column-prevCol <= 8 {
+				continue
+			}
+			seenNameExpectedColumnByLine[diag.Line] = diag.Column
 			nameExpectedByLine[diag.Line] = true
 		}
 		if strings.Contains(diag.Message, `Colon ":" expected`) {
@@ -454,9 +502,10 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 		if strings.Contains(diag.Message, `Dot "." expected`) {
 			dotExpectedByLine[diag.Line] = true
 		}
-	}
+		if strings.Contains(diag.Message, "Unknown name \"") {
+			hasUnknownName = true
+		}
 
-	for _, diag := range diags {
 		if typeName := unknownTypeName(diag.Message); typeName != "" {
 			for _, existing := range filtered {
 				if existing.Line == diag.Line && strings.Contains(existing.Message, `";" expected`) {
@@ -466,6 +515,16 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 					diag.Column = existing.Column
 					break
 				}
+			}
+		}
+
+		if diag.Phase == PhaseParsing && diag.Message == "expected 'end' to close class declaration" && hasUnknownName {
+			continue
+		}
+		if diag.Phase == PhaseParsing && diag.Message == "Expression expected" && len(filtered) > 0 {
+			prev := filtered[len(filtered)-1]
+			if strings.Contains(prev.Message, "Record fields must be declared before record methods") && diag.Line == prev.Line+1 {
+				continue
 			}
 		}
 

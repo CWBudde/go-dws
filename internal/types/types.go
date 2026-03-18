@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Type represents a DWScript type at compile-time.
@@ -457,6 +458,12 @@ type ClassType struct {
 	MethodOverloads      map[string][]*MethodInfo // All overload variants
 	FieldVisibility      map[string]int
 	MethodVisibility     map[string]int
+	FieldDeclPositions   map[string]token.Position
+	MethodDeclPositions  map[string]token.Position
+	FieldDeclNames       map[string]string
+	MethodDeclNames      map[string]string
+	FieldUsages          map[string]bool
+	MethodUsages         map[string]bool
 	VirtualMethods       map[string]bool
 	Parent               *ClassType
 	Properties           map[string]*PropertyInfo
@@ -472,6 +479,8 @@ type ClassType struct {
 	IsExternal           bool
 	IsForward            bool // True if this is a forward declaration only
 	IsPartial            bool // True if this is a partial class
+	IsDeprecated         bool
+	DeprecatedMessage    string
 }
 
 // String returns the string representation of the class type
@@ -575,6 +584,80 @@ func (ct *ClassType) AddMethodOverload(name string, info *MethodInfo) {
 	if len(ct.MethodOverloads[normalizedName]) == 1 {
 		ct.Methods[normalizedName] = info.Signature
 	}
+}
+
+// SetFieldDeclPosition records the source position of a field declaration.
+func (ct *ClassType) SetFieldDeclPosition(name string, pos token.Position) {
+	if ct == nil {
+		return
+	}
+	if ct.FieldDeclPositions == nil {
+		ct.FieldDeclPositions = make(map[string]token.Position)
+	}
+	if ct.FieldDeclNames == nil {
+		ct.FieldDeclNames = make(map[string]string)
+	}
+	normalizedName := ident.Normalize(name)
+	if _, exists := ct.FieldDeclPositions[normalizedName]; !exists {
+		ct.FieldDeclPositions[normalizedName] = pos
+		ct.FieldDeclNames[normalizedName] = name
+	}
+}
+
+// SetMethodDeclPosition records the source position of a method declaration.
+func (ct *ClassType) SetMethodDeclPosition(name string, pos token.Position) {
+	if ct == nil {
+		return
+	}
+	if ct.MethodDeclPositions == nil {
+		ct.MethodDeclPositions = make(map[string]token.Position)
+	}
+	if ct.MethodDeclNames == nil {
+		ct.MethodDeclNames = make(map[string]string)
+	}
+	normalizedName := ident.Normalize(name)
+	if _, exists := ct.MethodDeclPositions[normalizedName]; !exists {
+		ct.MethodDeclPositions[normalizedName] = pos
+		ct.MethodDeclNames[normalizedName] = name
+	}
+}
+
+// MarkFieldUsed marks a field as used.
+func (ct *ClassType) MarkFieldUsed(name string) {
+	if ct == nil {
+		return
+	}
+	if ct.FieldUsages == nil {
+		ct.FieldUsages = make(map[string]bool)
+	}
+	ct.FieldUsages[ident.Normalize(name)] = true
+}
+
+// MarkMethodUsed marks a method as used.
+func (ct *ClassType) MarkMethodUsed(name string) {
+	if ct == nil {
+		return
+	}
+	if ct.MethodUsages == nil {
+		ct.MethodUsages = make(map[string]bool)
+	}
+	ct.MethodUsages[ident.Normalize(name)] = true
+}
+
+// FieldUsed reports whether a field has been marked as used.
+func (ct *ClassType) FieldUsed(name string) bool {
+	if ct == nil {
+		return false
+	}
+	return ct.FieldUsages[ident.Normalize(name)]
+}
+
+// MethodUsed reports whether a method has been marked as used.
+func (ct *ClassType) MethodUsed(name string) bool {
+	if ct == nil {
+		return false
+	}
+	return ct.MethodUsages[ident.Normalize(name)]
 }
 
 // AddConstructorOverload adds a constructor overload to the class
@@ -771,6 +854,12 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		MethodOverloads:      make(map[string][]*MethodInfo),
 		FieldVisibility:      make(map[string]int),
 		MethodVisibility:     make(map[string]int),
+		FieldDeclPositions:   make(map[string]token.Position),
+		MethodDeclPositions:  make(map[string]token.Position),
+		FieldDeclNames:       make(map[string]string),
+		MethodDeclNames:      make(map[string]string),
+		FieldUsages:          make(map[string]bool),
+		MethodUsages:         make(map[string]bool),
 		VirtualMethods:       make(map[string]bool),
 		OverrideMethods:      make(map[string]bool),
 		AbstractMethods:      make(map[string]bool),

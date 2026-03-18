@@ -76,6 +76,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 //nolint:gocyclo // Record body parser handling multiple member types
 func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility ast.Visibility) ast.Visibility {
 	cursor := p.cursor
+	seenMethod := false
 
 	// Parse record body until 'end'
 	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF {
@@ -161,9 +162,17 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 
 		// Check for method declarations (instance methods)
 		if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
+			errorCount := len(p.errors)
 			method := p.parseFunctionDeclaration()
 			if method != nil {
 				recordDecl.Methods = append(recordDecl.Methods, method)
+				seenMethod = true
+			}
+			if len(p.errors) > errorCount && method != nil && method.Body == nil {
+				firstErr := p.errors[errorCount]
+				p.addParserErrorAt(firstErr.Pos, firstErr.Length, "Record fields must be declared before record methods", ErrUnexpectedToken)
+				p.synchronize([]lexer.TokenType{lexer.END, lexer.EOF})
+				return currentVisibility
 			}
 			cursor = p.cursor.Advance()
 			p.cursor = cursor
@@ -182,6 +191,13 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 		}
 
 		// Parse field declaration(s)
+		if seenMethod && cursor.Current().Type == lexer.IDENT {
+			p.addError("Record fields must be declared before record methods", ErrUnexpectedToken)
+			p.synchronize([]lexer.TokenType{lexer.END, lexer.EOF})
+			cursor = p.cursor
+			continue
+		}
+
 		fields := p.parseRecordFieldDeclarations(currentVisibility)
 		if fields != nil {
 			recordDecl.Fields = append(recordDecl.Fields, fields...)

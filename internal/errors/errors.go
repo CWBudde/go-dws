@@ -400,6 +400,9 @@ func FormatExpectedArgumentCountError(functionName string, expectedCount, gotCou
 // SimplifyTypeName removes parent class information from type names for error messages
 // Converts "ClassName(ParentClass)" to "ClassName" and "array of ClassName(Parent)" to "array of ClassName"
 func SimplifyTypeName(typeName string) string {
+	if typeName == "Void" {
+		return "void"
+	}
 	// Handle array types: "array of ClassName(Parent)" -> "array of ClassName"
 	if strings.HasPrefix(typeName, "array of ") {
 		elementType := typeName[9:] // Skip "array of "

@@ -10,6 +10,15 @@ import (
 // Collection Functions Tests
 // =============================================================================
 
+type collectionEvalContext struct {
+	*mockContext
+	result Value
+}
+
+func (c *collectionEvalContext) EvalFunctionPointer(funcPtr Value, args []Value) Value {
+	return c.result
+}
+
 func TestMap(t *testing.T) {
 	ctx := newMockContext()
 
@@ -64,6 +73,56 @@ func TestMap(t *testing.T) {
 	result := Map(ctx, []Value{testArray, mockLambda})
 	if result.Type() == "ERROR" {
 		t.Errorf("Map() with valid arguments returned error: %v", result)
+	}
+}
+
+func TestMap_CopiesMappedRecordResults(t *testing.T) {
+	ctx := &collectionEvalContext{
+		mockContext: newMockContext(),
+		result: &runtime.RecordValue{
+			Fields: map[string]Value{
+				"name": &runtime.StringValue{Value: "mapped"},
+			},
+		},
+	}
+
+	arrayVal := &runtime.ArrayValue{
+		Elements: []Value{
+			&runtime.RecordValue{
+				Fields: map[string]Value{
+					"name": &runtime.StringValue{Value: "input"},
+				},
+			},
+		},
+	}
+
+	result := Map(ctx, []Value{arrayVal, &runtime.FunctionPointerValue{}})
+	if result.Type() == "ERROR" {
+		t.Fatalf("Map() returned error: %v", result)
+	}
+
+	resultArray, ok := result.(*runtime.ArrayValue)
+	if !ok {
+		t.Fatalf("expected ArrayValue, got %T", result)
+	}
+
+	mappedRecord, ok := resultArray.Elements[0].(*runtime.RecordValue)
+	if !ok {
+		t.Fatalf("expected RecordValue element, got %T", resultArray.Elements[0])
+	}
+
+	if mappedRecord == ctx.result {
+		t.Fatal("expected Map() to store a copy of the callback result")
+	}
+
+	ctx.result.(*runtime.RecordValue).Fields["name"] = &runtime.StringValue{Value: "mutated"}
+
+	name, ok := mappedRecord.Fields["name"].(*runtime.StringValue)
+	if !ok {
+		t.Fatalf("mapped record field has type %T, want *runtime.StringValue", mappedRecord.Fields["name"])
+	}
+	if name.Value != "mapped" {
+		t.Fatalf("expected copied mapped record to keep original value, got %q", name.Value)
 	}
 }
 
@@ -418,6 +477,48 @@ func TestFind(t *testing.T) {
 	// Mock should cause error because it doesn't return proper boolean
 	if result.Type() == "ERROR" {
 		return // Expected
+	}
+}
+
+func TestFind_CopiesMatchedRecord(t *testing.T) {
+	ctx := &collectionEvalContext{
+		mockContext: newMockContext(),
+		result:      &runtime.BooleanValue{Value: true},
+	}
+
+	original := &runtime.RecordValue{
+		Fields: map[string]Value{
+			"name": &runtime.StringValue{Value: "original"},
+		},
+	}
+
+	result := Find(ctx, []Value{
+		&runtime.ArrayValue{
+			Elements: []Value{original},
+		},
+		&runtime.FunctionPointerValue{},
+	})
+	if result.Type() == "ERROR" {
+		t.Fatalf("Find() returned error: %v", result)
+	}
+
+	found, ok := result.(*runtime.RecordValue)
+	if !ok {
+		t.Fatalf("expected RecordValue, got %T", result)
+	}
+
+	if found == original {
+		t.Fatal("expected Find() to return a copy of the matched record")
+	}
+
+	original.Fields["name"] = &runtime.StringValue{Value: "mutated"}
+
+	name, ok := found.Fields["name"].(*runtime.StringValue)
+	if !ok {
+		t.Fatalf("found record field has type %T, want *runtime.StringValue", found.Fields["name"])
+	}
+	if name.Value != "original" {
+		t.Fatalf("expected copied found record to keep original value, got %q", name.Value)
 	}
 }
 

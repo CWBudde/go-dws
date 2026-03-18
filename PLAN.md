@@ -660,6 +660,16 @@ The current evaluator path increments ownership for object and method-pointer as
   - add any other fixture-derived lifetime regressions discovered during the audit
   - `Algorithms/yin_yang` now passes as the first end-to-end lifetime-sensitive fixture success case
   - interface lifetime fixtures now pass, including `interface_lifetime`, `interface_lifetime_scope`, `interface_lifetime_scope_ex1`, `interface_lifetime_scope_ex2`, and `interface_lifetime_simple`
+- [x] **4.12.6** Normalize collection copy semantics through the shared `runtime.CopyableValue` contract
+  - replace ad hoc `Copy()` type assertions in collection helpers with the canonical runtime copy helper
+  - ensure record and other value-semantic entries are snapshot before collection storage
+  - closes the `Array.Push` aliasing gap that surfaced in `Algorithms/maze_generation`
+- [x] **4.12.7** Normalize remaining higher-order collection transforms
+  - ensure `Map` and `Find` snapshot value-semantic results before storing or returning them
+  - closes the remaining aliasing gap in array mapping and record-returning search helpers
+- [x] **4.12.8** Normalize array copy helper implementations
+  - ensure evaluator-side `ArrayCopy` snapshots array elements instead of reusing the source backing slice
+  - keeps the evaluator/runtime copy contract aligned for record-bearing arrays
 
 **Success Criteria**:
 
@@ -667,6 +677,7 @@ The current evaluator path increments ownership for object and method-pointer as
 - [x] scope-exit cleanup only releases references that were previously retained by the unified model
 - [x] method pointers no longer destroy their bound `Self` object prematurely
 - [x] lifetime-sensitive fixtures like `yin_yang` pass on the canonical evaluator/runtime path
+- [x] collection helpers use the same copy contract as the rest of the runtime value model
 
 ---
 
@@ -686,7 +697,7 @@ The current evaluator path increments ownership for object and method-pointer as
 | 4.9 Residual execution ownership cleanup | complete | Removed dead shadow execution, migrated typed-literal islands, unified ordinal loop semantics, and added ownership guards |
 | 4.10 Remaining seam clarification | complete | Closed the remaining live ownership gaps and defined the final shell/core boundary |
 | 4.11 Neutral boundary finalization | complete | Shrunk contracts/metadata escape hatches to justified end-state boundaries |
-| 4.12 Lifetime/refcount consistency | complete | Unified evaluator/runtime ownership semantics across declarations, assignments, parameter binding, returns, and pushed-scope cleanup |
+| 4.12 Lifetime/refcount consistency | complete | Unified evaluator/runtime ownership semantics across declarations, assignments, parameter binding, returns, pushed-scope cleanup, and collection copy semantics across push/add/slice/concat/map/find/arraycopy |
 
 **Practical read**: The core Phase 4 bridge-removal work is complete. Phase 4.8 tightened the finished architecture, 4.9 completed the dead-shadow cleanup plus the known live semantic-island fixes, 4.10 closed the remaining live ownership seams, 4.11 finished the contracts/metadata end-state cleanup, and 4.12 completed the evaluator/runtime lifetime consistency pass.
 
@@ -897,6 +908,25 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 - [x] **5.4.4** Update docs/phase notes after the first major compatibility jump
   - include before/after fixture counts and remaining buckets
   - delta captured in `docs/failure-scripts-5.4.4.md`: `541` total, `76` passed, `465` failed
+- [ ] **5.5** Convert the remaining FailureScripts backlog into implementation families
+  - follow the grouped plan in `docs/failure-scripts-next-phase-plan.md`
+  - focus on families that still move many fixtures per change, not one-off fixture patches
+  - [x] **5.5.1** Warning / hint emission and ordering families
+    - empty-block, unused-result, unused-variable, unreachable, contracts warning ordering
+    - use the shared frontend diagnostic boundary instead of interpreter-local warning paths
+  - [x] **5.5.2** Array semantic / diagnostic compatibility families
+    - array bounds, array concat, array index specialization, array-literal element mismatch wording
+    - finish array-related missing-validation families such as `array_dyn_add`, `array_map1`, `array_of_const`
+  - [x] **5.5.3** Parser header / declaration / delimiter recovery families
+    - parameter-list, `case`, `except`, record/method declaration, bracket/paren recovery
+    - ensure recoverable parser errors still preserve the right downstream semantic shape
+  - [ ] **5.5.4** Class / property / static / override / visibility families
+    - static class parsing, override compatibility, deferred class completeness, property DWScript wording
+  - [ ] **5.5.5** Missing-validation sweep (`82` fixtures currently emit no diagnostic)
+    - classify by parser-only, semantic-only, warning-only, and runtime-only missing behavior
+    - prioritize grouped families (`conditionals`, `default_params`, `deprecated`, `enum_flags`, `switch`)
+  - [ ] **5.5.6** Residual runtime-mismatch / compile-gating sweep (`13` fixtures)
+    - convert remaining compile-should-fail/runtime-runs families onto the shared compile gate
 
 ---
 

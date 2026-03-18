@@ -8,6 +8,20 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
+func (a *Analyzer) argumentMatchesParameter(argType, paramType types.Type, strict bool) bool {
+	if strict {
+		return types.IsIdentical(argType, paramType)
+	}
+	return a.canAssign(argType, paramType)
+}
+
+func (a *Analyzer) analyzeArgumentForParameter(arg ast.Expression, paramType types.Type, strict bool) types.Type {
+	if strict {
+		return a.analyzeExpression(arg)
+	}
+	return a.analyzeExpressionWithExpectedType(arg, paramType)
+}
+
 // analyzeCallExpressionWithContext analyzes a call expression with optional expected type.
 // TODO: Use expectedType for overload resolution when implemented.
 func (a *Analyzer) analyzeCallExpressionWithContext(expr *ast.CallExpression, expectedType types.Type) types.Type {
@@ -69,8 +83,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 
 			paramType := funcType.Parameters[i]
-			argType := a.analyzeExpressionWithExpectedType(arg, paramType)
-			if argType != nil && !a.canAssign(argType, paramType) {
+			argType := a.analyzeArgumentForParameter(arg, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i])
+			if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i]) {
 				a.addError("argument %d has type %s, expected %s at %s",
 					i+1, argType.String(), paramType.String(),
 					expr.Token.Pos.String())
@@ -90,13 +104,13 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if funcPtrType := a.analyzeFunctionPointerCall(expr, calleeType); funcPtrType != nil {
 			return funcPtrType
 		}
-		a.addError("function call must use identifier or member access at %s", expr.Token.Pos.String())
+		a.addError("Not a method at %s", expr.Token.Pos.String())
 		return nil
 	}
 
 	funcIdent, ok := expr.Function.(*ast.Identifier)
 	if !ok {
-		a.addError("function call must use identifier or member access at %s", expr.Token.Pos.String())
+		a.addError("Not a method at %s", expr.Token.Pos.String())
 		return nil
 	}
 
@@ -142,8 +156,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					}
 
 					paramType := methodType.Parameters[i]
-					argType := a.analyzeExpressionWithExpectedType(arg, paramType)
-					if argType != nil && !a.canAssign(argType, paramType) {
+					argType := a.analyzeArgumentForParameter(arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
+					if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i]) {
 						a.addError("argument %d has type %s, expected %s at %s",
 							i+1, argType.String(), paramType.String(),
 							expr.Token.Pos.String())
@@ -175,7 +189,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 				selected, err := ResolveOverload(candidates, argTypes)
 				if err != nil {
-					a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, funcIdent.Value))
+					a.addStructuredError(NewNoOverloadMatchError(funcIdent.Token.Pos, funcIdent.Value))
 					return nil
 				}
 
@@ -211,7 +225,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 				selected, err := ResolveOverload(candidates, argTypes)
 				if err != nil {
-					a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, funcIdent.Value))
+					a.addStructuredError(NewNoOverloadMatchError(funcIdent.Token.Pos, funcIdent.Value))
 					return nil
 				}
 
@@ -225,8 +239,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 						break
 					}
 					paramType := methodType.Parameters[i]
-					argType := a.analyzeExpressionWithExpectedType(arg, paramType)
-					if argType != nil && !a.canAssign(argType, paramType) {
+					argType := a.analyzeArgumentForParameter(arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
+					if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i]) {
 						a.addError("argument %d to class method '%s' has type %s, expected %s at %s",
 							i+1, funcIdent.Value, argType.String(), paramType.String(),
 							expr.Token.Pos.String())
@@ -404,6 +418,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Implicit class method call (fallback check)
 		if a.currentClass != nil {
 			if methodType, found := a.currentClass.GetMethod(funcIdent.Value); found {
+				if methodOwner := a.getMethodOwner(a.currentClass, funcIdent.Value); methodOwner != nil {
+					visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(funcIdent.Value)]
+					if hasVisibility && !a.checkVisibility(methodOwner, visibility, funcIdent.Value, "method") {
+						a.addStructuredError(NewVisibilityScopeError(funcIdent.Token.Pos, funcIdent.Value))
+						return nil
+					}
+					a.recordClassMethodUsage(methodOwner, funcIdent.Value)
+				}
 				if len(expr.Arguments) != len(methodType.Parameters) {
 					a.addError("method '%s' expects %d arguments, got %d at %s",
 						funcIdent.Value, len(methodType.Parameters), len(expr.Arguments), expr.Token.Pos.String())
@@ -444,7 +466,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return castType
 		}
 
-		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, funcIdent.Value))
+		a.addStructuredError(NewUnknownNameError(funcIdent.Token.Pos, funcIdent.Value))
 		return nil
 	}
 
@@ -476,7 +498,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 		selected, err := ResolveOverload(candidates, argTypes)
 		if err != nil {
-			a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, funcIdent.Value))
+			a.addStructuredError(NewNoOverloadMatchError(funcIdent.Token.Pos, funcIdent.Value))
 			return nil
 		}
 
@@ -544,6 +566,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 	}
 
+	overloadSet := a.symbols.GetOverloadSet(funcIdent.Value)
+	hasOverloads := sym.IsOverloadSet || len(overloadSet) > 1
+
 	// Check argument count (handles optional parameters)
 	requiredParams := 0
 	for _, defaultVal := range funcType.DefaultValues {
@@ -591,20 +616,45 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				argType = implicitType
 			}
 			if argType != nil && !a.canAssign(argType, expectedType) {
-				pos := expr.Token.Pos
-				a.addError("%s", errors.FormatArgumentError(i, expectedType.String(), argType.String(), pos.Line, pos.Column))
+				pos := arg.Pos()
+				a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
 			}
 		} else {
-			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
+			argType := a.analyzeExpression(arg)
+			if isArrayOfConstType(expectedType) {
+				if _, isLiteral := arg.(*ast.ArrayLiteralExpression); !isLiteral {
+					if argType != nil {
+						pos := expr.Token.Pos
+						a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
+					}
+					continue
+				}
+			}
 			// Allow compatible array types for var parameters
 			if isVar && argType != nil && !a.canAssign(argType, expectedType) {
 				if a.areArrayTypesCompatibleForVarParam(argType, expectedType) {
 					continue
 				}
 			}
-			if argType != nil && !a.canAssign(argType, expectedType) {
-				pos := expr.Token.Pos
-				a.addError("%s", errors.FormatArgumentError(i, expectedType.String(), argType.String(), pos.Line, pos.Column))
+			if argType != nil {
+				if hasOverloads {
+					if !a.canAssign(argType, expectedType) {
+						pos := arg.Pos()
+						a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
+					}
+					continue
+				}
+				if i < len(funcType.StrictParams) && funcType.StrictParams[i] {
+					if !types.IsIdentical(argType, expectedType) {
+						pos := arg.Pos()
+						a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
+					}
+					continue
+				}
+				if !a.canAssign(argType, expectedType) {
+					pos := arg.Pos()
+					a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
+				}
 			}
 		}
 	}
@@ -716,6 +766,7 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 				visibilityStr, constructorName, ownerClass.Name, expr.Token.Pos.String())
 			return classType
 		}
+		a.recordClassMethodUsage(ownerClass, constructorName)
 	}
 
 	// Validate argument count
@@ -732,8 +783,8 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 			break
 		}
 		paramType := selectedSignature.Parameters[i]
-		argType := a.analyzeExpressionWithExpectedType(arg, paramType)
-		if argType != nil && !a.canAssign(argType, paramType) {
+		argType := a.analyzeArgumentForParameter(arg, paramType, i < len(selectedSignature.StrictParams) && selectedSignature.StrictParams[i])
+		if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(selectedSignature.StrictParams) && selectedSignature.StrictParams[i]) {
 			a.addError("argument %d to constructor '%s' has type %s, expected %s at %s",
 				i+1, constructorName, argType.String(), paramType.String(),
 				expr.Token.Pos.String())
@@ -856,8 +907,7 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 			types.IsSubclassOf(targetClass, sourceClass) {
 			return true
 		}
-		a.addError("cannot cast %s to %s: types are not related by inheritance at %s",
-			sourceType.String(), targetType.String(), pos.String())
+		a.addStructuredError(NewIncompatibleTypesPairError(pos, sourceType.String(), targetType.String()))
 		return false
 	}
 
@@ -882,8 +932,7 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 		return false
 	}
 
-	a.addError("cannot cast %s to %s at %s",
-		sourceType.String(), targetType.String(), pos.String())
+	a.addStructuredError(NewIncompatibleTypesPairError(pos, sourceType.String(), targetType.String()))
 	return false
 }
 
@@ -937,8 +986,8 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 			break
 		}
 		paramType := funcType.Parameters[i]
-		argType := a.analyzeExpressionWithExpectedType(arg, paramType)
-		if argType != nil && !a.canAssign(argType, paramType) {
+		argType := a.analyzeArgumentForParameter(arg, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i])
+		if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i]) {
 			a.addError("argument %d to '%s.%s' has type %s, expected %s at %s",
 				i+1, recordType.Name, methodName, argType.String(), paramType.String(),
 				expr.Token.Pos.String())

@@ -63,6 +63,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		if identifier.Value != "ClassName" {
 			a.addCaseMismatchHint(identifier.Value, "ClassName", identifier.Token.Pos)
 		}
+		a.recordSymbolUsage(identifier.Value, identifier.Token.Pos)
 		return types.STRING
 	}
 
@@ -71,6 +72,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		if identifier.Value != "ClassType" {
 			a.addCaseMismatchHint(identifier.Value, "ClassType", identifier.Token.Pos)
 		}
+		a.recordSymbolUsage(identifier.Value, identifier.Token.Pos)
 		return types.NewClassOfType(a.currentClass)
 	}
 
@@ -78,6 +80,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	if !ok {
 		// Class name as identifier -> metaclass reference
 		if classType := a.getClassType(identifier.Value); classType != nil {
+			a.warnDeprecatedClassUsage(classType, identifier.Token.Pos)
 			return &types.ClassOfType{ClassType: classType}
 		}
 		if interfaceType := a.getInterfaceType(identifier.Value); interfaceType != nil {
@@ -95,6 +98,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 						a.addStructuredError(NewVisibilityScopeError(identifier.Token.Pos, identifier.Value))
 						return nil
 					}
+					a.recordClassFieldUsage(fieldOwner, identifier.Value)
 				}
 				return fieldType
 			}
@@ -126,6 +130,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 						a.addStructuredError(NewVisibilityScopeError(identifier.Token.Pos, identifier.Value))
 						return nil
 					}
+					a.recordClassMethodUsage(methodOwner, identifier.Value)
 				}
 				// Parameterless methods: implicit call returning method's return type
 				if len(methodType.Parameters) == 0 {
@@ -183,11 +188,13 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	if sym.Name != "" && sym.Name != identifier.Value && ident.Equal(sym.Name, identifier.Value) {
 		a.addCaseMismatchHint(identifier.Value, sym.Name, identifier.Token.Pos)
 	}
+	a.recordSymbolUsage(sym.Name, identifier.Token.Pos)
 
 	// Handle function/procedure references
 	if funcType, ok := sym.Type.(*types.FunctionType); ok {
 		// Inside function's own body: name is alias for Result
 		if a.currentFunction != nil && ident.Equal(a.currentFunction.Name.Value, identifier.Value) {
+			a.recordSymbolUsage("Result", identifier.Token.Pos)
 			if funcType.IsProcedure() {
 				return nil
 			}
@@ -312,6 +319,35 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 			// Return the set type (union, difference, intersection all return the same set type)
 			return leftSetType
+		}
+
+		// Array concatenation: array + array -> array of common element type
+		leftArrayType, leftIsArray := types.GetUnderlyingType(leftType).(*types.ArrayType)
+		rightArrayType, rightIsArray := types.GetUnderlyingType(rightType).(*types.ArrayType)
+		if leftIsArray || rightIsArray {
+			if operator != "+" {
+				a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
+				return nil
+			}
+			if !leftIsArray || !rightIsArray {
+				a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, leftType.String(), rightType.String()))
+				return nil
+			}
+
+			resultElementType := a.findCommonType(leftArrayType.ElementType, rightArrayType.ElementType)
+			if resultElementType == nil {
+				if leftArrayType.ElementType == types.VARIANT {
+					resultElementType = rightArrayType.ElementType
+				} else if rightArrayType.ElementType == types.VARIANT {
+					resultElementType = leftArrayType.ElementType
+				}
+			}
+			if resultElementType == nil {
+				a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, leftType.String(), rightType.String()))
+				return nil
+			}
+
+			return types.NewDynamicArrayType(resultElementType)
 		}
 
 		// Check if either operand is Variant

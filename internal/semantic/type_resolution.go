@@ -44,7 +44,24 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Typ
 
 	// For other type expressions, fall back to string-based resolution
 	typeName := getTypeExpressionName(typeExpr)
-	return a.resolveType(typeName)
+	resolved, err := a.resolveType(typeName)
+	if err == nil && resolved != nil {
+		a.warnDeprecatedResolvedType(typeExpr.Pos(), resolved)
+	}
+	return resolved, err
+}
+
+func (a *Analyzer) warnDeprecatedResolvedType(pos token.Position, resolved types.Type) {
+	if resolved == nil {
+		return
+	}
+
+	switch t := types.GetUnderlyingType(resolved).(type) {
+	case *types.ClassType:
+		a.warnDeprecatedClassUsage(t, pos)
+	case *types.ClassOfType:
+		a.warnDeprecatedClassUsage(t.ClassType, pos)
+	}
 }
 
 // resolveType resolves a type name to a Type
@@ -110,6 +127,23 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 		return setType, nil
 	}
 
+	// Check for metaclass types: "class of TMyClass"
+	if strings.HasPrefix(lowerName, "class of ") {
+		className := strings.TrimSpace(typeName[len("class of "):])
+		if className == "" {
+			return nil, fmt.Errorf("unknown type: %s", typeName)
+		}
+		classType, err := a.resolveType(className)
+		if err != nil {
+			return nil, fmt.Errorf("unknown class type '%s' in metaclass declaration: %w", className, err)
+		}
+		concreteClassType, ok := classType.(*types.ClassType)
+		if !ok {
+			return nil, fmt.Errorf("'%s' is not a class type, cannot create metaclass 'class of %s'", className, className)
+		}
+		return types.NewClassOfType(concreteClassType), nil
+	}
+
 	// Normalize type name for case-insensitive lookup
 	normalizedName := ident.Normalize(typeName)
 
@@ -134,6 +168,13 @@ func (a *Analyzer) resolveType(typeName string) (types.Type, error) {
 	// Try subrange types
 	if subrangeType, found := a.subranges[normalizedName]; found {
 		return subrangeType, nil
+	}
+
+	if sym, found := a.symbols.Resolve(typeName); found && sym != nil {
+		return nil, fmt.Errorf("%s is not a Type", sym.Name)
+	}
+	if a.isBuiltinFunction(typeName) {
+		return nil, fmt.Errorf("%s is not a Type", typeName)
 	}
 
 	return nil, fmt.Errorf("unknown type: %s", typeName)
@@ -379,6 +420,14 @@ func (a *Analyzer) resolveInlineArrayType(signature string) (types.Type, error) 
 	// Extract element type name
 	elementTypeName := strings.TrimSpace(ofPart[4:]) // Skip " of "
 
+	// Preserve the special "array of const" type as a dedicated singleton.
+	// This keeps open-array parameter semantics distinct from a plain
+	// "array of Variant" variable declaration.
+	if lowBound == nil && highBound == nil && hasOrdinalBounds == false &&
+		ident.Normalize(elementTypeName) == "const" {
+		return types.ARRAY_OF_CONST, nil
+	}
+
 	// Recursively resolve element type (handles nested arrays)
 	elementType, err := a.resolveType(elementTypeName)
 	if err != nil {
@@ -423,6 +472,9 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 
 	// Check if dynamic or static array
 	if arrayNode.IsDynamic() {
+		if ident.Normalize(getTypeExpressionName(arrayNode.ElementType)) == "const" {
+			return types.ARRAY_OF_CONST, nil
+		}
 		return types.NewDynamicArrayType(elementType), nil
 	}
 
@@ -479,7 +531,7 @@ func (a *Analyzer) resolveOrdinalArrayBounds(lowExpr, highExpr ast.Expression) (
 	}
 
 	if !lowType.Equals(highType) {
-		pos := highExpr.Pos()
+		pos := previousColumn(highExpr.Pos())
 		a.addStructuredError(NewArrayBoundsError(pos, "Array bounds are of different types"))
 		return 0, 0, nil, false
 	}

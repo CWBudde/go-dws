@@ -1,6 +1,9 @@
 package semantic
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -21,6 +24,13 @@ func isStaticArraySizeMismatch(expected, got types.Type) bool {
 }
 
 func assignmentMismatchPos(value ast.Expression, fallback lexer.Position, expected, got types.Type) lexer.Position {
+	if value != nil {
+		if _, ok := types.GetUnderlyingType(expected).(*types.ArrayType); ok {
+			if _, ok := types.GetUnderlyingType(got).(*types.ArrayType); ok {
+				return value.Pos()
+			}
+		}
+	}
 	if isStaticArraySizeMismatch(expected, got) && value != nil {
 		return value.Pos()
 	}
@@ -133,14 +143,27 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		if err != nil {
 			// Get type name for error message
 			typeName := getTypeExpressionName(stmt.Type)
-			a.addError("unknown type '%s' at %s", typeName, stmt.Type.Pos().String())
-			return
+			if strings.Contains(err.Error(), "is not a Type") {
+				a.addError("Syntax Error: %s [line: %d, column: %d]", err.Error(), stmt.Type.Pos().Line, stmt.Type.Pos().Column)
+				varType = types.VARIANT
+			} else {
+				a.addError("unknown type '%s' at %s", typeName, stmt.Type.Pos().String())
+				return
+			}
 		}
 	}
 
 	// If there's an initializer, check its type
 	// Note: Parser already validates that multi-name declarations cannot have initializers
-	if stmt.Value != nil {
+	specialMetaValueInit := false
+	if stmt.Type == nil && stmt.Value != nil && a.isTypeMetaValueExpression(stmt.Value) {
+		pos := stmt.Value.End()
+		a.addError("Syntax Error: \"(\" expected [line: %d, column: %d]", pos.Line, pos.Column)
+		varType = types.VARIANT
+		specialMetaValueInit = true
+	}
+
+	if stmt.Value != nil && !specialMetaValueInit {
 		errorCountBefore := len(a.errors)
 		structuredCountBefore := len(a.structuredErrors)
 		initType := a.analyzeExpressionWithExpectedType(stmt.Value, varType)
@@ -254,8 +277,8 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 			a.addStructuredError(NewTypeMismatch(
 				stmt.Value.Pos(),
 				"",
-				constType,       // Expected type
-				valueType,       // Got type
+				constType, // Expected type
+				valueType, // Got type
 			))
 			return
 		}
@@ -291,6 +314,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					target.Value, stmt.Token.Pos.String())
 				return
 			}
+			a.recordSymbolUsage("Result", target.Token.Pos)
 
 			// Get the return type
 			returnType, err := a.resolveType(getTypeExpressionName(a.currentFunction.ReturnType))
@@ -327,6 +351,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 						a.addStructuredError(NewVisibilityScopeError(target.Token.Pos, target.Value))
 						return
 					}
+					a.recordClassFieldUsage(fieldOwner, target.Value)
 				}
 
 				valueType := a.analyzeExpressionWithExpectedType(stmt.Value, fieldType)
@@ -383,6 +408,10 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if !ok {
 			a.addStructuredError(NewUndefinedVariable(stmt.Token.Pos, target.Value))
 			return
+		}
+
+		if ident.Equal(target.Value, "Result") {
+			a.recordSymbolUsage("Result", target.Token.Pos)
 		}
 
 		// Check if variable is read-only
@@ -539,16 +568,35 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, targetType) {
-			pos := stmt.Token.Pos
+			pos := stmt.Value.Pos()
 			a.addError("%s", errors.FormatCannotAssign(valueType.String(), targetType.String(), pos.Line, pos.Column))
 		}
 
 	case *ast.IndexExpression:
 		// Array index assignment: arr[i] := value or arr[i] += value
 		// Analyze the target to ensure it's valid
+		baseType := a.analyzeExpression(target.Left)
+		if isArrayOfConstType(baseType) {
+			a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
+			return
+		}
 		targetType := a.analyzeExpression(target)
 		if targetType == nil {
 			return
+		}
+		if arrayType, ok := types.GetUnderlyingType(baseType).(*types.ArrayType); ok && arrayType.IsStatic() {
+			if idx, ok := a.constantArrayIndex(target.Index); ok {
+				low := *arrayType.LowBound
+				high := *arrayType.HighBound
+				switch {
+				case idx < low:
+					a.addStructuredError(NewArrayBoundsError(previousColumn(target.End()), "Lower bound exceeded! Index "+fmt.Sprint(idx)))
+					return
+				case idx > high:
+					a.addStructuredError(NewArrayBoundsError(previousColumn(target.End()), "Upper bound exceeded! Index "+fmt.Sprint(idx)))
+					return
+				}
+			}
 		}
 
 		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
@@ -637,6 +685,7 @@ func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
 		oldSymbols = a.symbols
 		a.symbols = NewEnclosedSymbolTable(oldSymbols)
 		defer func() { a.symbols = oldSymbols }()
+		defer a.emitUnusedWarningsForCurrentScope()
 	}
 
 	// Analyze each statement in the block
@@ -706,6 +755,12 @@ func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
 	if condType != nil && !isBooleanCompatible(condType) {
 		a.addError("if condition must be boolean, got %s at %s",
 			condType.String(), stmt.Token.Pos.String())
+	}
+
+	// Check for empty then block (hint)
+	if _, isEmpty := stmt.Consequence.(*ast.EmptyStatement); isEmpty {
+		pos := stmt.Consequence.Pos()
+		a.addHint("Empty THEN block [line: %d, column: %d]", pos.Line, pos.Column)
 	}
 
 	// Analyze consequence
@@ -837,6 +892,7 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	// Analyze start and end expressions
 	startType := a.analyzeExpression(stmt.Start)
@@ -895,7 +951,10 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	if startType != nil && types.IsOrdinalType(startType) {
 		loopVarType = startType
 	}
-	a.symbols.Define(stmt.Variable.Value, loopVarType, stmt.Variable.Token.Pos)
+	if !stmt.InlineVar {
+		a.symbols.RecordUsage(stmt.Variable.Value, stmt.Variable.Token.Pos)
+	}
+	a.symbols.DefineLoopVariable(stmt.Variable.Value, loopVarType, stmt.Variable.Token.Pos)
 
 	// Set loop context before analyzing body
 	oldInLoop := a.inLoop
@@ -919,6 +978,7 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	// Analyze collection expression
 	collectionType := a.analyzeExpression(stmt.Collection)
@@ -978,7 +1038,10 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 	}
 
 	// Define loop variable with the element type
-	a.symbols.Define(stmt.Variable.Value, elementType, stmt.Variable.Token.Pos)
+	if !stmt.InlineVar {
+		a.symbols.RecordUsage(stmt.Variable.Value, stmt.Variable.Token.Pos)
+	}
+	a.symbols.DefineLoopVariable(stmt.Variable.Value, elementType, stmt.Variable.Token.Pos)
 
 	// Set loop context before analyzing body
 	oldInLoop := a.inLoop

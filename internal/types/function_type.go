@@ -19,15 +19,17 @@ import (
 // expression for each parameter (nil if required). When a function is called with fewer arguments,
 // the interpreter evaluates the default expressions to fill in missing arguments.
 type FunctionType struct {
-	ReturnType    Type
-	VariadicType  Type
-	Parameters    []Type
-	ParamNames    []string
-	DefaultValues []interface{}
-	LazyParams    []bool
-	VarParams     []bool
-	ConstParams   []bool
-	IsVariadic    bool
+	ReturnType     Type
+	VariadicType   Type
+	Parameters     []Type
+	ParamTypeNames []string
+	ParamNames     []string
+	DefaultValues  []interface{}
+	LazyParams     []bool
+	VarParams      []bool
+	ConstParams    []bool
+	StrictParams   []bool
+	IsVariadic     bool
 }
 
 // String returns a string representation of the function type.
@@ -121,13 +123,15 @@ func (ft *FunctionType) IsFunction() bool {
 // Metadata arrays are initialized to empty (no lazy or var parameters, all parameters required).
 func NewFunctionType(params []Type, returnType Type) *FunctionType {
 	return &FunctionType{
-		Parameters:    params,
-		ReturnType:    returnType,
-		ParamNames:    make([]string, len(params)),
-		DefaultValues: make([]interface{}, len(params)),
-		LazyParams:    make([]bool, len(params)),
-		VarParams:     make([]bool, len(params)),
-		ConstParams:   make([]bool, len(params)),
+		Parameters:     params,
+		ParamTypeNames: make([]string, len(params)),
+		ReturnType:     returnType,
+		ParamNames:     make([]string, len(params)),
+		DefaultValues:  make([]interface{}, len(params)),
+		LazyParams:     make([]bool, len(params)),
+		VarParams:      make([]bool, len(params)),
+		ConstParams:    make([]bool, len(params)),
+		StrictParams:   make([]bool, len(params)),
 	}
 }
 
@@ -135,13 +139,15 @@ func NewFunctionType(params []Type, returnType Type) *FunctionType {
 // Metadata arrays are initialized to empty (no lazy or var parameters, all parameters required).
 func NewProcedureType(params []Type) *FunctionType {
 	return &FunctionType{
-		Parameters:    params,
-		ReturnType:    VOID,
-		ParamNames:    make([]string, len(params)),
-		DefaultValues: make([]interface{}, len(params)),
-		LazyParams:    make([]bool, len(params)),
-		VarParams:     make([]bool, len(params)),
-		ConstParams:   make([]bool, len(params)),
+		Parameters:     params,
+		ParamTypeNames: make([]string, len(params)),
+		ReturnType:     VOID,
+		ParamNames:     make([]string, len(params)),
+		DefaultValues:  make([]interface{}, len(params)),
+		LazyParams:     make([]bool, len(params)),
+		VarParams:      make([]bool, len(params)),
+		ConstParams:    make([]bool, len(params)),
+		StrictParams:   make([]bool, len(params)),
 	}
 }
 
@@ -150,13 +156,15 @@ func NewProcedureType(params []Type) *FunctionType {
 // All arrays (params, names, defaults, lazy, varParams, constParams) must have the same length.
 func NewFunctionTypeWithMetadata(params []Type, names []string, defaults []interface{}, lazy []bool, varParams []bool, constParams []bool, returnType Type) *FunctionType {
 	return &FunctionType{
-		Parameters:    params,
-		ReturnType:    returnType,
-		ParamNames:    names,
-		DefaultValues: defaults,
-		LazyParams:    lazy,
-		VarParams:     varParams,
-		ConstParams:   constParams,
+		Parameters:     params,
+		ParamTypeNames: make([]string, len(params)),
+		ReturnType:     returnType,
+		ParamNames:     names,
+		DefaultValues:  defaults,
+		LazyParams:     lazy,
+		VarParams:      varParams,
+		ConstParams:    constParams,
+		StrictParams:   make([]bool, len(params)),
 	}
 }
 
@@ -167,15 +175,16 @@ func NewFunctionTypeWithMetadata(params []Type, names []string, defaults []inter
 // (String, ...Integer) -> Boolean
 func NewVariadicFunctionType(params []Type, variadicType Type, returnType Type) *FunctionType {
 	return &FunctionType{
-		Parameters:    params,
-		ReturnType:    returnType,
-		ParamNames:    make([]string, len(params)),
-		DefaultValues: make([]interface{}, len(params)),
-		LazyParams:    make([]bool, len(params)),
-		VarParams:     make([]bool, len(params)),
-		ConstParams:   make([]bool, len(params)),
-		IsVariadic:    true,
-		VariadicType:  variadicType,
+		Parameters:     params,
+		ParamTypeNames: make([]string, len(params)),
+		ReturnType:     returnType,
+		ParamNames:     make([]string, len(params)),
+		DefaultValues:  make([]interface{}, len(params)),
+		LazyParams:     make([]bool, len(params)),
+		VarParams:      make([]bool, len(params)),
+		ConstParams:    make([]bool, len(params)),
+		IsVariadic:     true,
+		VariadicType:   variadicType,
 	}
 }
 
@@ -185,14 +194,16 @@ func NewVariadicFunctionType(params []Type, variadicType Type, returnType Type) 
 // All arrays (params, names, defaults, lazy, varParams, constParams) must have the same length.
 func NewVariadicFunctionTypeWithMetadata(params []Type, names []string, defaults []interface{}, lazy []bool, varParams []bool, constParams []bool, variadicType Type, returnType Type) *FunctionType {
 	return &FunctionType{
-		Parameters:    params,
-		ReturnType:    returnType,
-		ParamNames:    names,
-		DefaultValues: defaults,
-		LazyParams:    lazy,
-		VarParams:     varParams,
-		ConstParams:   constParams,
-		IsVariadic:    true,
-		VariadicType:  variadicType,
+		Parameters:     params,
+		ParamTypeNames: make([]string, len(params)),
+		ReturnType:     returnType,
+		ParamNames:     names,
+		DefaultValues:  defaults,
+		LazyParams:     lazy,
+		VarParams:      varParams,
+		ConstParams:    constParams,
+		StrictParams:   make([]bool, len(params)),
+		IsVariadic:     true,
+		VariadicType:   variadicType,
 	}
 }

@@ -10,20 +10,21 @@ import (
 
 // Symbol represents a symbol in the symbol table (variable or function)
 type Symbol struct {
-	Type                 types.Type
-	Value                interface{}
-	Name                 string
-	DeprecationMessage   string
-	Documentation        string
-	Overloads            []*Symbol
-	Usages               []token.Position
-	DeclPosition         token.Position
-	IsForward            bool
-	HasOverloadDirective bool
-	IsOverloadSet        bool
-	IsConst              bool
-	IsDeprecated         bool
-	ReadOnly             bool
+	Type                  types.Type
+	Value                 interface{}
+	Name                  string
+	DeprecationMessage    string
+	Documentation         string
+	Overloads             []*Symbol
+	Usages                []token.Position
+	DeclPosition          token.Position
+	IsForward             bool
+	HasOverloadDirective  bool
+	IsOverloadSet         bool
+	IsConst               bool
+	IsDeprecated          bool
+	ReadOnly              bool
+	SuppressUnusedWarning bool
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
@@ -68,37 +69,67 @@ func (st *SymbolTable) Define(name string, typ types.Type, pos token.Position) {
 // DefineReadOnly defines a new read-only variable symbol in the current scope
 func (st *SymbolTable) DefineReadOnly(name string, typ types.Type, pos token.Position) {
 	st.symbols.Set(name, &Symbol{
-		Name:         name, // Keep original case for error messages
-		Type:         typ,
-		ReadOnly:     true,
-		IsConst:      false,
-		DeclPosition: pos,
-		Usages:       make([]token.Position, 0),
+		Name:                  name, // Keep original case for error messages
+		Type:                  typ,
+		ReadOnly:              true,
+		IsConst:               false,
+		DeclPosition:          pos,
+		Usages:                make([]token.Position, 0),
+		SuppressUnusedWarning: true,
+	})
+}
+
+// DefineParameter defines a new parameter symbol in the current scope.
+func (st *SymbolTable) DefineParameter(name string, typ types.Type, pos token.Position, readOnly bool) {
+	st.symbols.Set(name, &Symbol{
+		Name:                  name,
+		Type:                  typ,
+		ReadOnly:              readOnly,
+		IsConst:               false,
+		DeclPosition:          pos,
+		Usages:                make([]token.Position, 0),
+		SuppressUnusedWarning: true,
+	})
+}
+
+// DefineLoopVariable defines a new loop control variable that should not
+// participate in unused-variable warnings.
+func (st *SymbolTable) DefineLoopVariable(name string, typ types.Type, pos token.Position) {
+	st.symbols.Set(name, &Symbol{
+		Name:                  name,
+		Type:                  typ,
+		ReadOnly:              false,
+		IsConst:               false,
+		DeclPosition:          pos,
+		Usages:                make([]token.Position, 0),
+		SuppressUnusedWarning: true,
 	})
 }
 
 // DefineConst defines a new constant symbol in the current scope
 func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{}, pos token.Position) {
 	st.symbols.Set(name, &Symbol{
-		Name:         name, // Keep original case for error messages
-		Type:         typ,
-		ReadOnly:     true,
-		IsConst:      true,
-		Value:        value,
-		DeclPosition: pos,
-		Usages:       make([]token.Position, 0),
+		Name:                  name, // Keep original case for error messages
+		Type:                  typ,
+		ReadOnly:              true,
+		IsConst:               true,
+		Value:                 value,
+		DeclPosition:          pos,
+		Usages:                make([]token.Position, 0),
+		SuppressUnusedWarning: true,
 	})
 }
 
 // DefineFunction defines a new function symbol in the current scope
 func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType, pos token.Position) {
 	st.symbols.Set(name, &Symbol{
-		Name:         name, // Keep original case for error messages
-		Type:         funcType,
-		ReadOnly:     false, // Functions are not assignable
-		IsConst:      false,
-		DeclPosition: pos,
-		Usages:       make([]token.Position, 0),
+		Name:                  name, // Keep original case for error messages
+		Type:                  funcType,
+		ReadOnly:              false, // Functions are not assignable
+		IsConst:               false,
+		DeclPosition:          pos,
+		Usages:                make([]token.Position, 0),
+		SuppressUnusedWarning: true,
 	})
 }
 

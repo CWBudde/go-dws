@@ -52,8 +52,8 @@ func Map(ctx Context, args []Value) Value {
 			return result
 		}
 
-		// Store the transformed value
-		resultElements[idx] = result
+		// Store a snapshot of the transformed value
+		resultElements[idx] = runtime.CopyValue(result)
 	}
 
 	// Create and return new array with transformed elements
@@ -118,9 +118,9 @@ func Filter(ctx Context, args []Value) Value {
 			return ctx.NewError("Filter() predicate must return Boolean, got %T", result)
 		}
 
-		// If predicate is true, keep this element
+		// If predicate is true, keep a snapshot of this element
 		if boolResult.Value {
-			resultElements = append(resultElements, element)
+			resultElements = append(resultElements, runtime.CopyValue(element))
 		}
 	}
 
@@ -406,9 +406,9 @@ func Find(ctx Context, args []Value) Value {
 			return ctx.NewError("Find() predicate must return Boolean, got %T", result)
 		}
 
-		// If predicate is true, return this element
+		// If predicate is true, return a snapshot of this element
 		if boolResult.Value {
-			return element
+			return runtime.CopyValue(element)
 		}
 	}
 

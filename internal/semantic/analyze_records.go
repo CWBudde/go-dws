@@ -188,6 +188,15 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		methodName := method.Name.Value
 		lowerMethodName := ident.Normalize(methodName)
 
+		if method.IsStatic && method.Body == nil {
+			pos := method.StaticPos
+			if pos.Line == 0 {
+				pos = method.Token.Pos
+			}
+			a.addError("Syntax Error: Only non-virtual class methods can be marked as static [line: %d, column: %d]",
+				pos.Line, pos.Column)
+		}
+
 		// Preserve original casing for later hinting and scope binding
 		if method.IsClassMethod {
 			recordType.ClassMethodNames[lowerMethodName] = methodName

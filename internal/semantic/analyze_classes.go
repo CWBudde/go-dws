@@ -39,6 +39,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, className))
 		return nil
 	}
+	a.warnDeprecatedClassUsage(classType, expr.Token.Pos)
 
 	// Check if trying to instantiate an abstract class
 	if classType.IsAbstract {
@@ -335,6 +336,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				a.addStructuredError(NewVisibilityScopeError(expr.Member.Token.Pos, expr.Member.Value))
 				return nil
 			}
+			a.recordClassFieldUsage(fieldOwner, memberName)
 		}
 		return fieldType
 	}
@@ -368,6 +370,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			case types.PropAccessMethod:
 				if propInfo.ReadSpec != "" && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(propInfo.ReadSpec)]) {
 					a.addStructuredError(NewPropertyReadShouldBeStaticMethodError(expr.Member.Token.Pos))
+					a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
 					return nil
 				}
 				a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
@@ -401,6 +404,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			}
 		}
 		if hasParameterless {
+			a.recordClassMethodUsage(classType, memberName)
 			if classType.IsAbstract || len(a.getUnimplementedAbstractMethods(classType)) > 0 {
 				a.addStructuredError(NewAbstractInstantiationError(expr.Member.Token.Pos))
 				return classType
@@ -441,6 +445,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				a.addStructuredError(NewVisibilityScopeError(expr.Member.Token.Pos, expr.Member.Value))
 				return nil
 			}
+			a.recordClassMethodUsage(methodOwner, memberName)
 		}
 		// Parameterless methods are auto-invoked when accessed without parentheses
 		if len(methodType.Parameters) == 0 {

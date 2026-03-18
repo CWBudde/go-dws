@@ -243,12 +243,15 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 	// Parse remaining expressions (separated by commas)
 	for {
 		recoveredOnBoundary := isInvalidExpression(expr) &&
-			tokenTypeIsOneOf(p.cursor.Current().Type, lexer.COMMA, lexer.RPAREN)
+			tokenTypeIsOneOf(p.cursor.Current().Type, lexer.COMMA, lexer.RPAREN, lexer.END, lexer.EOF)
 		nextToken = p.cursor.Peek(1)
 
 		// A recovered nested parse can legitimately leave the cursor sitting on
 		// the separator/terminator token instead of the preceding child node.
 		if recoveredOnBoundary && p.cursor.Current().Type == lexer.RPAREN {
+			break
+		}
+		if nextToken.Type == lexer.EOF || nextToken.Type == lexer.END {
 			break
 		}
 		if recoveredOnBoundary && p.cursor.Current().Type == lexer.COMMA {
@@ -296,6 +299,10 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 		}
 
 		// Unexpected token - no separator found
+		if nextToken.Type == lexer.RPAREN {
+			p.cursor = p.cursor.Advance() // consume terminator
+			break
+		}
 		p.addError(fmt.Sprintf("expected ',' or ')', got %s", nextToken.Type), ErrUnexpectedToken)
 		break
 	}

@@ -79,9 +79,11 @@ type ClassDecl struct {
 	// (e.g., "type TInner = class ... end;").
 	NestedTypes []Statement
 	BaseNode
-	IsAbstract bool
-	IsExternal bool
-	IsPartial  bool
+	IsAbstract        bool
+	IsExternal        bool
+	IsPartial         bool
+	IsDeprecated      bool
+	DeprecatedMessage string
 }
 
 func (cd *ClassDecl) statementNode() {}
@@ -98,6 +100,14 @@ func (cd *ClassDecl) String() string {
 	// Add modifiers before "class"
 	if cd.IsPartial {
 		out.WriteString("partial ")
+	}
+	if cd.IsDeprecated {
+		out.WriteString(" deprecated")
+		if cd.DeprecatedMessage != "" {
+			out.WriteString(" '")
+			out.WriteString(cd.DeprecatedMessage)
+			out.WriteString("'")
+		}
 	}
 
 	out.WriteString("class")

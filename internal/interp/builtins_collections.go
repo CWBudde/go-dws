@@ -48,7 +48,7 @@ func (i *Interpreter) builtinMap(args []Value) Value {
 		}
 
 		// Store the transformed value
-		resultElements[idx] = result
+		resultElements[idx] = runtime.CopyValue(result)
 	}
 
 	// Create and return new array with transformed elements
@@ -116,7 +116,7 @@ func (i *Interpreter) builtinFilter(args []Value) Value {
 
 		// If predicate is true, keep this element
 		if boolResult.Value {
-			resultElements = append(resultElements, element)
+			resultElements = append(resultElements, runtime.CopyValue(element))
 		}
 	}
 
@@ -429,7 +429,7 @@ func (i *Interpreter) builtinFind(args []Value) Value {
 
 		// If predicate is true, return this element
 		if boolResult.Value {
-			return element
+			return runtime.CopyValue(element)
 		}
 	}
 

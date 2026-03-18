@@ -21,6 +21,9 @@ type ArrayValue struct {
 	Elements  []Value          // The runtime elements (slice)
 }
 
+// Compile-time interface satisfaction check.
+var _ CopyableValue = (*ArrayValue)(nil)
+
 // Type returns "ARRAY".
 func (a *ArrayValue) Type() string {
 	return "ARRAY"
@@ -46,8 +49,9 @@ func (a *ArrayValue) String() string {
 	return "[" + strings.Join(elements, ", ") + "]"
 }
 
-// Copy creates a shallow copy of the array value (new slice, same element references).
-// Arrays have value semantics for assignment, so we need to duplicate the backing slice.
+// Copy creates a deep copy of the array value.
+// Arrays have value semantics for assignment, so we duplicate the backing slice
+// and snapshot any copyable elements.
 func (a *ArrayValue) Copy() Value {
 	if a == nil {
 		return nil
@@ -57,7 +61,9 @@ func (a *ArrayValue) Copy() Value {
 		ArrayType: a.ArrayType,
 		Elements:  make([]Value, len(a.Elements)),
 	}
-	copy(copied.Elements, a.Elements)
+	for idx, elem := range a.Elements {
+		copied.Elements[idx] = CopyValue(elem)
+	}
 	return copied
 }
 

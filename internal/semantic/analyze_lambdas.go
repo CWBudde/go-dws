@@ -82,10 +82,11 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 	lambdaScope := NewEnclosedSymbolTable(oldSymbols)
 	a.symbols = lambdaScope
 	defer func() { a.symbols = oldSymbols }()
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	// Add parameters to lambda scope
 	for i, param := range expr.Parameters {
-		a.symbols.Define(param.Name.Value, paramTypes[i], param.Name.Token.Pos)
+		a.symbols.DefineParameter(param.Name.Value, paramTypes[i], param.Name.Token.Pos, false)
 	}
 
 	// Track that we're in a lambda to allow return statements
@@ -107,8 +108,11 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		}
 		// Add Result variable for lambdas with explicit return type
 		if returnType != types.VOID {
-			// Use lambda token position for Result
-			a.symbols.Define("Result", returnType, expr.Token.Pos)
+			resultPos := expr.Token.Pos
+			if expr.End().Line != 0 {
+				resultPos = blockEndStart(expr.End())
+			}
+			a.symbols.Define("Result", returnType, resultPos)
 		}
 	} else {
 		// No explicit return type - infer from body
@@ -122,8 +126,11 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		// Add Result variable now that we know the type
 		// Note: The body was already analyzed during inference, so we don't need to analyze it again
 		if returnType != types.VOID {
-			// Use lambda token position for Result
-			a.symbols.Define("Result", returnType, expr.Token.Pos)
+			resultPos := expr.Token.Pos
+			if expr.End().Line != 0 {
+				resultPos = blockEndStart(expr.End())
+			}
+			a.symbols.Define("Result", returnType, resultPos)
 		}
 	}
 
@@ -229,10 +236,11 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	lambdaScope := NewEnclosedSymbolTable(oldSymbols)
 	a.symbols = lambdaScope
 	defer func() { a.symbols = oldSymbols }()
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	// Add parameters to lambda scope
 	for i, param := range expr.Parameters {
-		a.symbols.Define(param.Name.Value, paramTypes[i], param.Name.Token.Pos)
+		a.symbols.DefineParameter(param.Name.Value, paramTypes[i], param.Name.Token.Pos, false)
 	}
 
 	// Track that we're in a lambda to allow return statements
@@ -264,8 +272,11 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 
 		// Add Result variable for lambdas with explicit return type
 		if returnType != types.VOID {
-			// Use lambda token position for Result
-			a.symbols.Define("Result", returnType, expr.Token.Pos)
+			resultPos := expr.Token.Pos
+			if expr.End().Line != 0 {
+				resultPos = blockEndStart(expr.End())
+			}
+			a.symbols.Define("Result", returnType, resultPos)
 		}
 	} else {
 		// No explicit return type - infer from body
@@ -288,8 +299,11 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 
 		// Add Result variable now that we know the type
 		if returnType != types.VOID {
-			// Use lambda token position for Result
-			a.symbols.Define("Result", returnType, expr.Token.Pos)
+			resultPos := expr.Token.Pos
+			if expr.Body != nil {
+				resultPos = blockEndStart(expr.Body.End())
+			}
+			a.symbols.Define("Result", returnType, resultPos)
 		}
 	}
 

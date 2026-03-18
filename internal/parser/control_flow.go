@@ -209,28 +209,60 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 
 	// Advance past 'then'
 	p.cursor = p.cursor.Advance()
-
-	// Parse the consequence (then branch)
 	p.cursor = p.cursor.Advance()
-	stmt.Consequence = p.parseStatement()
 
-	if isNilStatement(stmt.Consequence) {
-		// Use structured error for missing statement
-		err := NewStructuredError(ErrKindInvalid).
-			WithCode(ErrInvalidSyntax).
-			WithMessage("expected statement after 'then'").
-			WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
-			WithExpectedString("statement").
-			WithSuggestion("add a statement like a variable assignment or function call").
-			WithParsePhase("if statement consequence").
-			Build()
-		p.addStructuredError(err)
-		// Synchronize to recover
-		p.synchronize([]lexer.TokenType{lexer.ELSE, lexer.END})
-		return nil
+	// Allow empty then branches so the analyzer can emit the DWScript hint
+	// instead of falling back to a syntax error.
+	switch p.cursor.Current().Type {
+	case lexer.SEMICOLON, lexer.ELSE, lexer.END, lexer.EOF:
+		stmt.Consequence = &ast.EmptyStatement{
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
+		}
+	default:
+		// Parse the consequence (then branch)
+		stmt.Consequence = p.parseStatement()
+
+		if isNilStatement(stmt.Consequence) {
+			// Use structured error for missing statement
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("expected statement after 'then'").
+				WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+				WithExpectedString("statement").
+				WithSuggestion("add a statement like a variable assignment or function call").
+				WithParsePhase("if statement consequence").
+				Build()
+			p.addStructuredError(err)
+			// Synchronize to recover
+			p.synchronize([]lexer.TokenType{lexer.ELSE, lexer.END})
+			return nil
+		}
 	}
 
 	// Check for optional 'else' branch
+	if p.cursor.Current().Type == lexer.ELSE {
+		p.cursor = p.cursor.Advance()
+		stmt.Alternative = p.parseStatement()
+
+		if isNilStatement(stmt.Alternative) {
+			// Use structured error for missing else statement
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidSyntax).
+				WithMessage("expected statement after 'else'").
+				WithPosition(p.cursor.Current().Pos, p.cursor.Current().Length()).
+				WithExpectedString("statement").
+				WithSuggestion("add a statement for the else branch").
+				WithParsePhase("if statement alternative").
+				Build()
+			p.addStructuredError(err)
+			// Synchronize to recover
+			p.synchronize([]lexer.TokenType{lexer.END})
+			return nil
+		}
+		stmt := builder.FinishWithNode(stmt, stmt.Alternative).(*ast.IfStatement)
+		return stmt
+	}
+
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type == lexer.ELSE {
 		p.cursor = p.cursor.Advance() // move to 'else'
@@ -1034,6 +1066,11 @@ func (p *Parser) parseCaseBranch() *ast.CaseBranch {
 
 	// Parse the statement for this branch
 	p.cursor = p.cursor.Advance()
+	if p.cursor.Current().Type != lexer.END && p.cursor.Peek(1).Type == lexer.COLON {
+		p.addError(`";" expected`, ErrMissingSemicolon)
+		p.synchronize([]lexer.TokenType{lexer.END, lexer.EOF})
+		return nil
+	}
 	branch.Statement = p.parseStatement()
 
 	if branch.Statement == nil {

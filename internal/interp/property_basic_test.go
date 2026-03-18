@@ -170,7 +170,7 @@ obj.Size := 100;
 
 	errorMsg := result.(*ErrorValue).Message
 	// Check that the error message contains the expected text (it may have location info)
-	expectedError := "property 'Size' is read-only"
+	expectedError := "Cannot set a value for a read-only property"
 	if !strings.Contains(errorMsg, expectedError) {
 		t.Errorf("expected error containing '%s', got '%s'", expectedError, errorMsg)
 	}

@@ -10,6 +10,7 @@ type TypeAnnotation struct {
 	Name       string
 	Token      token.Token
 	EndPos     token.Position
+	Strict     bool
 }
 
 // String returns the string representation of the type annotation

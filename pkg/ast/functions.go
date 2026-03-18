@@ -122,6 +122,7 @@ type FunctionDecl struct {
 	Parameters        []*Parameter
 	BaseNode
 	CallingConventionPos token.Position
+	StaticPos            token.Position
 	Visibility           Visibility
 	IsConstructor        bool
 	IsDestructor         bool
@@ -129,6 +130,7 @@ type FunctionDecl struct {
 	IsOverride           bool
 	IsReintroduce        bool
 	IsAbstract           bool
+	IsStatic             bool
 	IsExternal           bool
 	IsClassMethod        bool
 	IsOverload           bool
@@ -194,6 +196,9 @@ func (fd *FunctionDecl) String() string {
 	}
 	if fd.IsAbstract {
 		modifiers = append(modifiers, "abstract")
+	}
+	if fd.IsStatic {
+		modifiers = append(modifiers, "static")
 	}
 	if fd.IsOverload {
 		modifiers = append(modifiers, "overload")

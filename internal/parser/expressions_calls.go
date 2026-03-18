@@ -30,6 +30,12 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 		Function: function,
 	}
 
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.END ||
+		nextToken.Type == lexer.EOF || nextToken.Type == lexer.RPAREN {
+		return builder.Finish(exp).(ast.Expression)
+	}
+
 	exp.Arguments = p.parseExpressionList()
 	return builder.Finish(exp).(ast.Expression) // cursor is now at RPAREN
 }
@@ -303,6 +309,9 @@ func (p *Parser) advanceToNextItem(end lexer.TokenType) (bool, bool) {
 	// Check if we're at terminator
 	if nextToken.Type == end {
 		p.cursor = p.cursor.Advance() // consume terminator
+		return false, true
+	}
+	if nextToken.Type == lexer.EOF || nextToken.Type == lexer.END {
 		return false, true
 	}
 

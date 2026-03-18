@@ -356,8 +356,7 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 		// Both upcast (child to parent) and downcast (parent to child) are allowed
 		// Downcast safety is checked at runtime
 		if !types.IsClassRelated(classType, classTargetType) {
-			a.addError("cannot cast '%s' to unrelated class '%s' at %s",
-				classType.Name, classTargetType.Name, expr.Token.Pos.String())
+			a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, classType.Name, classTargetType.Name))
 			return nil
 		}
 

@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/cwbudde/go-dws/internal/types"
@@ -60,6 +61,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 			"unknown type '"+getTypeExpressionName(prop.Type)+"' for property '"+propName+"' in class '"+classType.Name+"'"))
 		return
 	}
+	a.warnDeprecatedResolvedType(prop.Type.Pos(), propType)
 
 	// Validate indexed property parameters have valid types
 	isIndexed := prop.IndexParams != nil && len(prop.IndexParams) > 0
@@ -77,6 +79,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 					"unknown type '"+getTypeExpressionName(param.Type)+"' for index parameter '"+param.Name.Value+"' in property '"+propName+"'"))
 				return
 			}
+			a.warnDeprecatedResolvedType(param.Type.Pos(), paramType)
 			indexParamTypes = append(indexParamTypes, paramType)
 		}
 	}
@@ -193,6 +196,15 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 
 		// 1. Check if it's a class variable (only for class properties)
 		if fieldType, found := classType.ClassVars[pkgident.Normalize(readSpecName)]; found {
+			fieldOwner := a.getClassVarOwner(classType, readSpecName)
+			if fieldOwner != nil {
+				visibility, hasVisibility := fieldOwner.ClassVarVisibility[pkgident.Normalize(readSpecName)]
+				if hasVisibility && !a.checkVisibility(fieldOwner, visibility, readSpecName, "class variable") {
+					a.addStructuredError(NewPropertyDeclarationError(ident.Token.Pos,
+						fmt.Sprintf(`Field/method "%s" not found`, readSpecName)))
+					return
+				}
+			}
 			// Only class properties can read from class variables
 			if propInfo.IsClassProperty {
 				if !propType.Equals(fieldType) {
@@ -223,6 +235,15 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		if !propInfo.IsClassProperty {
 			// Instance property can use instance field
 			if fieldType, found := classType.GetField(pkgident.Normalize(readSpecName)); found {
+				fieldOwner := a.getFieldOwner(classType, readSpecName)
+				if fieldOwner != nil {
+					visibility, hasVisibility := fieldOwner.FieldVisibility[pkgident.Normalize(readSpecName)]
+					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, readSpecName, "field") {
+						a.addStructuredError(NewPropertyDeclarationError(ident.Token.Pos,
+							fmt.Sprintf(`Field/method "%s" not found`, readSpecName)))
+						return
+					}
+				}
 				if !propType.Equals(fieldType) {
 					a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
 						"property '"+propName+"' read field '"+readSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
@@ -235,7 +256,17 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		}
 
 		if propInfo.IsClassProperty {
-			if _, found := classType.GetField(pkgident.Normalize(readSpecName)); found {
+			if fieldType, found := classType.GetField(pkgident.Normalize(readSpecName)); found {
+				fieldOwner := a.getFieldOwner(classType, readSpecName)
+				if fieldOwner != nil {
+					visibility, hasVisibility := fieldOwner.FieldVisibility[pkgident.Normalize(readSpecName)]
+					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, readSpecName, "field") {
+						a.addStructuredError(NewPropertyDeclarationError(ident.Token.Pos,
+							fmt.Sprintf(`Field/method "%s" not found`, readSpecName)))
+						return
+					}
+				}
+				_ = fieldType
 				a.addStructuredError(NewClassMemberExpectedError(ident.Token.Pos))
 				return
 			}
@@ -367,6 +398,17 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	if propInfo.IsClassProperty {
 		// Class property must use class variable
 		fieldType, found = classType.ClassVars[pkgident.Normalize(writeSpecName)]
+		if found {
+			fieldOwner := a.getClassVarOwner(classType, writeSpecName)
+			if fieldOwner != nil {
+				visibility, hasVisibility := fieldOwner.ClassVarVisibility[pkgident.Normalize(writeSpecName)]
+				if hasVisibility && !a.checkVisibility(fieldOwner, visibility, writeSpecName, "class variable") {
+					a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+						fmt.Sprintf(`Field/method "%s" not found`, writeSpecName)))
+					return
+				}
+			}
+		}
 		if found && !propType.Equals(fieldType) {
 			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
 				"class property '"+propName+"' write field '"+writeSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
@@ -375,6 +417,17 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	} else {
 		// Instance property can only use instance field
 		fieldType, found = classType.GetField(pkgident.Normalize(writeSpecName))
+		if found {
+			fieldOwner := a.getFieldOwner(classType, writeSpecName)
+			if fieldOwner != nil {
+				visibility, hasVisibility := fieldOwner.FieldVisibility[pkgident.Normalize(writeSpecName)]
+				if hasVisibility && !a.checkVisibility(fieldOwner, visibility, writeSpecName, "field") {
+					a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+						fmt.Sprintf(`Field/method "%s" not found`, writeSpecName)))
+					return
+				}
+			}
+		}
 		if found && !propType.Equals(fieldType) {
 			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
 				"property '"+propName+"' write field '"+writeSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))

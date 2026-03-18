@@ -364,6 +364,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	if cursor.Peek(1).Type == lexer.SEMICOLON {
 		cursor = cursor.Advance() // move to semicolon
 		p.cursor = cursor
+		p.parseClassDeprecatedDirective(classDecl)
 		// Do NOT initialize the slices - leave them as nil so semantic analyzer
 		// can detect this as a forward declaration
 		decl := builder.Finish(classDecl).(*ast.ClassDecl)
@@ -425,7 +426,8 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	// Expect 'end'
 	if cursor.Current().Type != lexer.END {
 		p.addError("expected 'end' to close class declaration", ErrMissingEnd)
-		return nil
+		decl, _ := builder.Finish(classDecl).(*ast.ClassDecl)
+		return decl
 	}
 
 	// Expect terminating semicolon
@@ -435,10 +437,33 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
 	p.cursor = cursor
+	p.parseClassDeprecatedDirective(classDecl)
 
 	decl := builder.Finish(classDecl).(*ast.ClassDecl)
 
 	return decl
+}
+
+// parseClassDeprecatedDirective parses an optional deprecated marker after a class declaration.
+func (p *Parser) parseClassDeprecatedDirective(classDecl *ast.ClassDecl) {
+	nextToken := p.cursor.Peek(1)
+	if nextToken.Type != lexer.DEPRECATED {
+		return
+	}
+
+	p.cursor = p.cursor.Advance() // move to deprecated
+	classDecl.IsDeprecated = true
+
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.STRING {
+		p.cursor = p.cursor.Advance() // move to string
+		classDecl.DeprecatedMessage = p.cursor.Current().Literal
+	}
+
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.Advance() // consume trailing semicolon
+	}
 }
 
 // appendNestedType flattens nested type declarations and annotates nested classes
@@ -583,8 +608,10 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		memberToken.Type == lexer.FLOAT || memberToken.Type == lexer.STRING ||
 		memberToken.Type == lexer.LPAREN || memberToken.Type == lexer.RPAREN ||
 		memberToken.Type == lexer.LBRACK || memberToken.Type == lexer.RBRACK ||
-		memberToken.Type == lexer.COMMA || memberToken.Type == lexer.EOF {
+		memberToken.Type == lexer.COMMA || memberToken.Type == lexer.SLASH ||
+		memberToken.Type == lexer.EOF {
 		p.addError("Name expected", ErrExpectedIdent)
+		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.EOF})
 		return builder.Finish(&ast.InvalidExpression{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{

@@ -530,7 +530,7 @@ func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) V
 		return e.newError(node, "Add() can only be used with dynamic arrays, not static arrays")
 	}
 
-	arrVal.Elements = append(arrVal.Elements, args[0])
+	arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(args[0]))
 
 	return &runtime.NilValue{}
 }
@@ -552,10 +552,8 @@ func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) 
 
 	valueToAdd := args[0]
 
-	// Copy records (value types) to avoid aliasing in collections
-	if copyable, ok := valueToAdd.(interface{ Copy() Value }); ok {
-		valueToAdd = copyable.Copy()
-	}
+	// Copy value-semantic entries before storing them in the collection.
+	valueToAdd = runtime.CopyValue(valueToAdd)
 
 	arrVal.Elements = append(arrVal.Elements, valueToAdd)
 
@@ -757,7 +755,7 @@ func (e *Evaluator) evalArrayMap(selfValue Value, args []Value, node ast.Node) V
 		if isError(result) {
 			return result
 		}
-		resultElements[idx] = result
+		resultElements[idx] = runtime.CopyValue(result)
 	}
 
 	return &runtime.ArrayValue{
@@ -939,13 +937,15 @@ func RecordsEqual(left, right Value) bool {
 }
 
 // ArrayHelperCopy creates a deep copy of an array.
-// For arrays of objects, references are shallow copied (not the objects themselves).
+// Value-semantic elements are copied so the result does not alias the source slice.
 func ArrayHelperCopy(arr *runtime.ArrayValue) Value {
 	newArray := &runtime.ArrayValue{
 		ArrayType: arr.ArrayType,
 		Elements:  make([]runtime.Value, len(arr.Elements)),
 	}
-	copy(newArray.Elements, arr.Elements)
+	for idx, elem := range arr.Elements {
+		newArray.Elements[idx] = runtime.CopyValue(elem)
+	}
 	return newArray
 }
 
@@ -1065,6 +1065,7 @@ func ArrayHelperSort(arr *runtime.ArrayValue) Value {
 }
 
 // ArrayHelperConcatArrays concatenates multiple arrays into a new array.
+// Value-semantic elements are copied before storage to avoid aliasing.
 // The result array type is taken from the first array.
 func ArrayHelperConcatArrays(arrays []*runtime.ArrayValue) Value {
 	// Collect all elements from all arrays
@@ -1077,8 +1078,10 @@ func ArrayHelperConcatArrays(arrays []*runtime.ArrayValue) Value {
 			firstArrayType = arrayVal.ArrayType
 		}
 
-		// Append all elements from this array
-		resultElements = append(resultElements, arrayVal.Elements...)
+		// Append copies of all elements from this array
+		for _, elem := range arrayVal.Elements {
+			resultElements = append(resultElements, runtime.CopyValue(elem))
+		}
 	}
 
 	// Create and return new array with concatenated elements
@@ -1089,6 +1092,7 @@ func ArrayHelperConcatArrays(arrays []*runtime.ArrayValue) Value {
 }
 
 // ArrayHelperSlice extracts a slice from an array.
+// Value-semantic elements are copied before storage to avoid aliasing.
 // Indices are adjusted relative to the array's low bound (e.g., low bound 1: start=1 extracts first element).
 func ArrayHelperSlice(arr *runtime.ArrayValue, startIdx, endIdx int64) Value {
 	// Get the low bound of the array
@@ -1117,7 +1121,9 @@ func ArrayHelperSlice(arr *runtime.ArrayValue, startIdx, endIdx int64) Value {
 
 	// Extract the slice
 	resultElements := make([]runtime.Value, end-start)
-	copy(resultElements, arr.Elements[start:end])
+	for idx, elem := range arr.Elements[start:end] {
+		resultElements[idx] = runtime.CopyValue(elem)
+	}
 
 	// Create and return new array with sliced elements
 	return &runtime.ArrayValue{

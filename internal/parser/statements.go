@@ -365,7 +365,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	// Check for proper block termination
 	currentToken := p.cursor.Current()
 	if currentToken.Type != lexer.END && currentToken.Type != lexer.ENSURE {
-		p.addErrorWithContext("expected 'end' to close block", ErrMissingEnd)
+		p.addParserErrorAt(beginToken.Pos, beginToken.Length(), "expected 'end' to close block", ErrMissingEnd)
 		// Synchronize to recover
 		p.synchronize([]lexer.TokenType{lexer.END, lexer.ENSURE})
 	}
