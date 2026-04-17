@@ -140,3 +140,6 @@ wasm-size file="build/wasm/dist/dwscript.wasm":
 
 # Full WASM build pipeline (build, optimize, show size)
 wasm-all mode="monolithic": (wasm mode) (wasm-optimize "build/wasm/dist/dwscript.wasm") (wasm-size "build/wasm/dist/dwscript.wasm")
+fix:
+    just lint-fix
+    just fmt
