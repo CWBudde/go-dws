@@ -30,6 +30,13 @@ linters:
       min-complexity: 15
     revive:
       confidence: 0.8
+      rules:
+        - name: file-length-limit
+          arguments:
+            - max: 1500
+              skip-comments: false
+              skip-blank-lines: false
+      enable-default-rules: true
   exclusions:
     rules:
       - path: _test\.go
