@@ -62,25 +62,26 @@ is correct. It wires:
 
 This is the intended bootstrap direction and should remain allowed.
 
-### 2. External function integration is a real boundary, but the callback shape is not
+### 2. External function integration is a real boundary with value-level invocation
 
 External Go functions are engine-host integration. That belongs at the shell
 boundary.
 
-However, the current seam is still too interpreter-shaped:
+The final seam keeps AST argument preparation inside the evaluator:
 
-- evaluator calls `EngineState.ExternalFunctionCaller`
-- the callback takes `[]ast.Expression`
-- interpreter then performs the external call path
+- evaluator reads external-function signature metadata from the registry
+- evaluator prepares runtime `[]Value` arguments, including var-parameter references
+- evaluator calls `EngineState.ExternalFunctionCaller` with values only
+- interpreter performs the host invocation and FFI panic/error handling
 
-That means the seam is still AST-shaped and callback-mediated.
+That keeps embedding integration shell-owned without round-tripping AST nodes
+back into interpreter execution code.
 
 Decision:
 
 - keep external-function ownership at the shell/integration boundary
-- remove the AST-shaped callback form during later cleanup
-- final seam should be narrower and centered on registry/invocation primitives,
-  not evaluator round-tripping AST nodes back into interpreter
+- keep argument evaluation and var-parameter preparation evaluator-owned
+- keep the callback value-level and centered on host invocation primitives
 
 ### 3. User-function callbacks are not a justified steady-state boundary
 

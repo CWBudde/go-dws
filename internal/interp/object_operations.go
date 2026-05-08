@@ -7,8 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// Object operations and type casting adapter methods.
-// These methods implement the InterpreterAdapter interface for object operations.
+// Object operations and type-casting helpers used by shell-owned bootstrap paths.
 
 // ===== Object Creation =====
 

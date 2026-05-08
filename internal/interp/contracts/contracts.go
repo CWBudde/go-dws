@@ -36,6 +36,14 @@ type ClassMetaValue interface {
 // ExternalFunctionRegistry manages external Go functions callable from DWScript.
 type ExternalFunctionRegistry interface {
 	Has(name string) bool
+	Signature(name string) (ExternalFunctionSignature, bool)
+}
+
+// ExternalFunctionSignature exposes the metadata evaluator needs to prepare
+// runtime arguments before handing off to the host-function invoker.
+type ExternalFunctionSignature struct {
+	VarParams  []bool
+	ParamTypes []string
 }
 
 // EngineState holds interpreter-runtime state that must not be owned by both
@@ -48,7 +56,7 @@ type EngineState struct {
 	SemanticInfo           *ast.SemanticInfo
 	MethodRegistry         *runtime.MethodRegistry
 	Random                 *rand.Rand
-	ExternalFunctionCaller func(funcName string, argExprs []ast.Expression, node ast.Node) Value
+	ExternalFunctionCaller func(funcName string, args []Value) Value
 	SourceCode             string
 	SourceFile             string
 	LoadedUnits            []string

@@ -6,7 +6,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
-	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // New creates the interpreter runtime engine with a fully wired internal evaluator.
@@ -56,10 +55,9 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 
 	interpreter := NewWithDeps(output, opts, env, ts, eval, refCountMgr)
 
-	// Wire the ExternalFunctionCaller callback so the evaluator can dispatch external
-	// (Go-registered) functions without holding a reference to the interpreter.
-	eval.EngineState().ExternalFunctionCaller = func(funcName string, argExprs []ast.Expression, node ast.Node) Value {
-		return interpreter.CallExternalFunction(funcName, argExprs, node)
+	// Wire host-function invocation after the evaluator has prepared runtime values.
+	eval.EngineState().ExternalFunctionCaller = func(funcName string, args []Value) Value {
+		return interpreter.CallExternalFunction(funcName, args)
 	}
 
 	return interpreter

@@ -665,12 +665,11 @@ func (e *Evaluator) invokeGlobalOperatorByBindingName(bindingName string, operan
 // External Function Dispatch
 // ============================================================================
 
-// callExternalFunctionViaEngineState dispatches an external function via the
-// ExternalFunctionCaller callback wired in EngineState.
-// Self-contained: replaces e.oopEngine.CallExternalFunction.
-func (e *Evaluator) callExternalFunctionViaEngineState(funcName string, argExprs []ast.Expression, node ast.Node) Value {
+// callExternalFunctionViaEngineState dispatches an external function through
+// the value-level host-function callback wired in EngineState.
+func (e *Evaluator) callExternalFunctionViaEngineState(funcName string, args []Value, node ast.Node) Value {
 	if e.engineState == nil || e.engineState.ExternalFunctionCaller == nil {
 		return e.newError(node, "external function '%s' not available (no caller registered)", funcName)
 	}
-	return e.engineState.ExternalFunctionCaller(funcName, argExprs, node)
+	return e.engineState.ExternalFunctionCaller(funcName, args)
 }

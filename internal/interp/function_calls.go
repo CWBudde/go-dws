@@ -2,69 +2,22 @@ package interp
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// CallExternalFunction calls an external (Go) function with var parameter support.
-func (i *Interpreter) CallExternalFunction(funcName string, argExprs []ast.Expression, node ast.Node) Value {
-	// Check if this is an external function with var parameters
+// CallExternalFunction invokes an external Go function with evaluator-prepared arguments.
+func (i *Interpreter) CallExternalFunction(funcName string, args []Value) Value {
 	if i.externalFunctions() == nil {
-		return i.newErrorWithLocation(node, "external function registry not initialized")
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "external function registry not initialized")
 	}
 
 	registry := i.externalFunctions()
 	extFunc, ok := registry.Get(funcName)
 	if !ok {
-		return i.newErrorWithLocation(node, "external function '%s' not found", funcName)
-	}
-
-	varParams := extFunc.Wrapper.GetVarParams()
-	paramTypes := extFunc.Wrapper.GetParamTypes()
-
-	// Prepare arguments - create ReferenceValues for var parameters
-	args := make([]Value, len(argExprs))
-	for idx, arg := range argExprs {
-		isVarParam := idx < len(varParams) && varParams[idx]
-
-		if isVarParam {
-			// For var parameters, create a reference
-			if argIdent, ok := arg.(*ast.Identifier); ok {
-				if val, exists := i.Env().Get(argIdent.Value); exists {
-					if refVal, isRef := val.(*ReferenceValue); isRef {
-						args[idx] = refVal // Pass through existing reference
-					} else {
-						args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
-					}
-				} else {
-					args[idx] = &ReferenceValue{Env: i.Env(), VarName: argIdent.Value}
-				}
-			} else {
-				return i.newErrorWithLocation(arg, "var parameter requires a variable, got %T", arg)
-			}
-		} else {
-			// For regular parameters, evaluate with type context if available
-			var val Value
-			if idx < len(paramTypes) {
-				// Parse the parameter type string and provide context for type inference
-				expectedType, _ := i.parseTypeString(paramTypes[idx])
-				val = i.EvalWithExpectedType(arg, expectedType)
-			} else {
-				val = i.Eval(arg)
-			}
-			if isError(val) {
-				return val
-			}
-			args[idx] = val
-		}
+		return i.newErrorWithLocation(i.evaluatorInstance.CurrentNode(), "external function '%s' not found", funcName)
 	}
 
 	return i.callExternalFunction(extFunc, args)
-}
-
-// parseTypeString parses a type string (e.g. "Integer", "array of String") into a types.Type.
-func (i *Interpreter) parseTypeString(typeStr string) (types.Type, error) {
-	return i.resolveType(typeStr)
 }
 
 // ============================================================================

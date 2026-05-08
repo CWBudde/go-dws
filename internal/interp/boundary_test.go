@@ -158,6 +158,34 @@ func TestNoLegacyCallbackInterfaceDeclarationsRemain(t *testing.T) {
 	}
 }
 
+func TestExternalFunctionDispatchDoesNotRoundTripASTArguments(t *testing.T) {
+	t.Parallel()
+
+	forbiddenByPath := map[string][]string{
+		"contracts/contracts.go": {
+			"ExternalFunctionCaller func(funcName string, argExprs []ast.Expression",
+		},
+		"new.go": {
+			"ExternalFunctionCaller = func(funcName string, argExprs []ast.Expression",
+		},
+		"function_calls.go": {
+			"CallExternalFunction(funcName string, argExprs []ast.Expression",
+		},
+		filepath.Join("evaluator", "runtime_ops.go"): {
+			"callExternalFunctionViaEngineState(funcName string, argExprs []ast.Expression",
+		},
+	}
+
+	for path, forbidden := range forbiddenByPath {
+		source := readBoundarySource(t, path)
+		for _, needle := range forbidden {
+			if strings.Contains(source, needle) {
+				t.Errorf("%s still round-trips external-function AST arguments through the interpreter shell", path)
+			}
+		}
+	}
+}
+
 func TestNoInterpreterShadowStatementEvaluatorsRemain(t *testing.T) {
 	t.Parallel()
 

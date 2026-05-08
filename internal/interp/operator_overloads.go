@@ -5,8 +5,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// Operator overloading adapter methods.
-// These methods implement the InterpreterAdapter interface for operator overloading.
+// Operator overloading helpers used by shell-owned runtime paths.
 
 // TryBinaryOperator attempts to find and invoke a binary operator overload.
 // Returns (result, true) if operator found, or (nil, false) if not found.

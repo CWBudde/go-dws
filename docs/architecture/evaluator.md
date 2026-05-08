@@ -1,8 +1,12 @@
 # Evaluator Architecture - Consolidated Summary
 
 **Created**: 2025-12-04
-**Status**: Current as of Phase 3.5 completion
+**Status**: Historical Phase 3.5 migration snapshot
 **Purpose**: Single authoritative reference for evaluator architecture and migration status
+
+> Historical note: this document predates the Phase 4 execution-engine collapse.
+> For the current shell/core boundary, use
+> [`interp-evaluator-steady-state.md`](interp-evaluator-steady-state.md).
 
 ---
 

@@ -54,6 +54,9 @@ Reason:
 
 These are embedding concerns, not core AST semantics.
 
+For external functions, the evaluator owns signature-aware argument preparation.
+The shell owns only value-level host invocation and FFI panic/error handling.
+
 ### 4. Declaration/bootstrap mutation of registries and metadata
 
 Allowed remaining `Interpreter.eval*` methods in this category:
@@ -77,6 +80,7 @@ or environment exposure during declaration/bootstrap processing.
 
 Examples:
 
+- `evalViaEvaluator`
 - lvalue/reference helpers
 - small value-operation helpers that are not AST traversal entry points
 - call-stack/error-location support used by shell-owned integration paths
@@ -145,12 +149,22 @@ After `4.10.3` and `4.10.4`, the remaining interpreter `eval*` surface is:
 - `evalHelperDeclaration`
 - `evalTypeDeclaration`
 - `evalEnumDeclaration`
+- `evalViaEvaluator`
+- `evalIntegerBinaryOp`
+- `evalFloatBinaryOp`
+- `evalStringBinaryOp`
+- `evalBooleanBinaryOp`
+- `evalBinarySetOperation`
+- `evalSetMembership`
+- `evalSetInclude`
+- `evalSetExclude`
 
-This is the intended allowlist for the shell-owned declaration/bootstrap layer.
+This is the intended allowlist for the shell-owned declaration/bootstrap layer
+plus narrow runtime helper primitives. `boundary_test.go` is the executable
+source of truth for this list.
 
 Everything else should be treated as suspicious by default and either:
 
 - moved to evaluator/runtime
 - justified explicitly as shell orchestration
 - or deleted as residue
-

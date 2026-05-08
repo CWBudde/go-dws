@@ -14,7 +14,8 @@ import (
 
 // VisitFunctionDecl evaluates a function declaration.
 // Global functions are registered in TypeSystem.FunctionRegistry.
-// Method implementations (node.ClassName != nil) are delegated to adapter.
+// Method implementations (node.ClassName != nil) are delegated to shell-owned
+// declaration/bootstrap registration.
 func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionContext) Value {
 	if node == nil {
 		return e.newError(nil, "nil function declaration")

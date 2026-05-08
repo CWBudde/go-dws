@@ -22,7 +22,7 @@ including the remaining seam decisions recorded in `phase-4.10.2`.
   - exists only for cross-package types that do not belong in `runtime`
   - should not grow into a migration holding area
   - after `4.11`, it is reduced to `Value`, `ClassMetaValue`,
-    `ExternalFunctionRegistry`, and `EngineState`
+    `ExternalFunctionRegistry`, `ExternalFunctionSignature`, and `EngineState`
 
 ## Ownership rules
 
@@ -31,8 +31,9 @@ including the remaining seam decisions recorded in `phase-4.10.2`.
 - `internal/interp` must not import `internal/interp/evaluator` outside construction and tests.
 - Runtime execution should not bounce through callback-style interpreter bridges.
 - Runtime metadata should prefer typed runtime structures over AST-shaped compatibility maps where possible.
-- External-function integration may remain shell-owned, but AST-shaped callback
-  round-trips back into interpreter are not part of the desired steady state.
+- External-function integration remains shell-owned for host invocation, but
+  argument preparation is evaluator-owned and the handoff uses runtime values,
+  not AST-shaped callback round-trips.
 - User-function execution policy should be evaluator-native; callback bundles are
   migration residue unless explicitly justified otherwise.
 
@@ -68,7 +69,8 @@ in `phase-4.10.5-interp-allowed-responsibilities.md`.
 
 - `new.go` importing evaluator is intentional bootstrap wiring.
 - shared `EngineState` is intentional neutral coordination state.
-- host external-function integration is an intentional shell concern.
+- host external-function invocation is an intentional shell concern; evaluator
+  owns external-call argument preparation before the value-level handoff.
 - the remaining evaluator shim is an explicitly retained minimal internal
   implementation handle for `Eval`, direct user-function execution, current-node
   reporting, and shared engine state.

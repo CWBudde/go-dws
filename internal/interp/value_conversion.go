@@ -27,9 +27,5 @@ func (i *Interpreter) GetZeroValueForType(typeInfo any) Value {
 }
 
 // ============================================================================
-// Exception Handling and Type Conversion Adapter Methods
+// Exception Handling and Type Conversion Context Methods
 // ============================================================================
-//
-// These methods are implemented in builtins_context.go as part of the
-// builtins.Context interface. They take builtins.Value (runtime.Value) and
-// are used by both the Interpreter and via the adapter bridge to the Evaluator.

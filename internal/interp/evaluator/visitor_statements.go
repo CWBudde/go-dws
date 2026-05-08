@@ -315,7 +315,7 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 
 // VisitAssignmentStatement evaluates an assignment statement.
 // Handles: simple assignment, compound operators, index assignment, member assignment.
-// Complex cases (properties, class variables) delegate to adapter.
+// Complex cases are routed through evaluator-owned helpers and runtime metadata.
 func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx *ExecutionContext) Value {
 	isCompound := node.Operator != token.ASSIGN && node.Operator != token.TokenType(0)
 

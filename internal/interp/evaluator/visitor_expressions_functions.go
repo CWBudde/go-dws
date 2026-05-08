@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -243,7 +244,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// External (Go) functions with potential var parameters
 	if e.ExternalFunctions() != nil && e.ExternalFunctions().Has(funcName.Value) {
-		return e.callExternalFunction(funcName.Value, node.Arguments, node)
+		return e.callExternalFunction(funcName.Value, node.Arguments, node, ctx)
 	}
 
 	// Default(TypeName) - expects unevaluated type identifier
@@ -445,14 +446,73 @@ func (e *Evaluator) wrapLazyArg(arg ast.Expression, ctx *ExecutionContext, eval 
 	})
 }
 
-// callExternalFunction handles external (Go) function dispatch with var parameter support.
-// Delegates to the ExternalFunctionCaller callback wired in EngineState.
+// callExternalFunction prepares runtime arguments for an external Go function,
+// then delegates value-level invocation to the interpreter shell.
 func (e *Evaluator) callExternalFunction(
 	funcName string,
 	argExprs []ast.Expression,
 	node ast.Node,
+	ctx *ExecutionContext,
 ) Value {
-	return e.callExternalFunctionViaEngineState(funcName, argExprs, node)
+	registry := e.ExternalFunctions()
+	if registry == nil {
+		return e.newError(node, "external function registry not initialized")
+	}
+
+	signature, ok := registry.Signature(funcName)
+	if !ok {
+		return e.newError(node, "external function '%s' not found", funcName)
+	}
+
+	args := make([]Value, len(argExprs))
+	for idx, arg := range argExprs {
+		isVarParam := idx < len(signature.VarParams) && signature.VarParams[idx]
+		if isVarParam {
+			ref, err := e.prepareByRefArgument(arg, ctx)
+			if err != nil {
+				return e.newError(arg, "%s", err.Error())
+			}
+			args[idx] = ref
+			continue
+		}
+
+		var val Value
+		if idx < len(signature.ParamTypes) {
+			expectedType, err := e.resolveTypeName(signature.ParamTypes[idx], ctx)
+			if err == nil {
+				val = e.evalWithExpectedType(arg, expectedType, ctx)
+			} else {
+				val = e.Eval(arg, ctx)
+			}
+		} else {
+			val = e.Eval(arg, ctx)
+		}
+		if isError(val) {
+			return val
+		}
+		args[idx] = val
+	}
+
+	return e.callExternalFunctionViaEngineState(funcName, args, node)
+}
+
+func (e *Evaluator) evalWithExpectedType(node ast.Node, expectedType types.Type, ctx *ExecutionContext) Value {
+	if expectedType == nil {
+		return e.Eval(node, ctx)
+	}
+
+	switch typed := types.GetUnderlyingType(expectedType).(type) {
+	case *types.ArrayType:
+		prev := ctx.ArrayTypeContext()
+		ctx.SetArrayTypeContext(typed)
+		defer ctx.SetArrayTypeContext(prev)
+	case *types.RecordType:
+		prev := ctx.RecordTypeContext()
+		ctx.SetRecordTypeContext(typed.Name)
+		defer ctx.SetRecordTypeContext(prev)
+	}
+
+	return e.Eval(node, ctx)
 }
 
 // VisitNewExpression evaluates a 'new' expression (object instantiation).

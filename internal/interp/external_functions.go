@@ -3,6 +3,8 @@ package interp
 import (
 	"fmt"
 	"sync"
+
+	"github.com/cwbudde/go-dws/internal/interp/contracts"
 )
 
 // ExternalFunctionRegistry stores external Go functions registered for DWScript.
@@ -54,6 +56,22 @@ func (r *ExternalFunctionRegistry) Has(name string) bool {
 
 	_, exists := r.functions[name]
 	return exists
+}
+
+// Signature returns metadata needed to prepare arguments for an external function.
+func (r *ExternalFunctionRegistry) Signature(name string) (contracts.ExternalFunctionSignature, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	fn, exists := r.functions[name]
+	if !exists || fn.Wrapper == nil {
+		return contracts.ExternalFunctionSignature{}, false
+	}
+
+	return contracts.ExternalFunctionSignature{
+		VarParams:  fn.Wrapper.GetVarParams(),
+		ParamTypes: fn.Wrapper.GetParamTypes(),
+	}, true
 }
 
 // List returns the names of all registered external functions.

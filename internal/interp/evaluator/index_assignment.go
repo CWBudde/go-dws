@@ -13,22 +13,15 @@ import (
 //
 // Handles array and string index assignment: arr[i] := value, str[i] := char
 //
-// Simple cases (arrays and strings) are handled directly in the evaluator.
-// Complex cases (indexed properties, interfaces) are delegated to the adapter.
+// Array/string cases and supported indexed-property cases are handled directly
+// in the evaluator.
 // ============================================================================
 
 // evalIndexAssignmentDirect handles array/string index assignment directly.
-// Complex cases (indexed properties, interfaces, default properties) are delegated to adapter.
 //
 // Handles:
 // - Array element assignment: arr[i] := value (with bounds checking)
 // - String character mutation: str[i] := 'c' (1-based, rune-aware)
-//
-// Delegates to adapter:
-// - Indexed property writes: obj.Property[i] := value
-// - Interface indexed properties
-// - Object default properties: obj[i] := value (where obj has default indexed property)
-// - Multi-index property access: obj.Prop[x, y] := value
 func (e *Evaluator) evalIndexAssignmentDirect(
 	target *ast.IndexExpression,
 	value Value,

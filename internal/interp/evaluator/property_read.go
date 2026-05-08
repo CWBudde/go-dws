@@ -285,7 +285,7 @@ type FieldBinder interface {
 // - Validates property has a method-backed getter (not field-backed)
 // - Looks up the getter method via ObjectValue interface
 // - Verifies parameter count matches provided indices
-// - Executes the method with Self bound and index parameters via adapter
+// - Executes the method with Self bound and index parameters via evaluator-owned dispatch
 //
 // Parameters:
 //   - obj: The object to read the property from (implements ObjectValue)

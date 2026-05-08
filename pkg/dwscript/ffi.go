@@ -47,6 +47,12 @@ type ExternalFunction interface {
 	Signature() *FunctionSignature
 }
 
+type referenceArg interface {
+	interp.Value
+	Dereference() (interp.Value, error)
+	Assign(interp.Value) error
+}
+
 // RegisterFunction registers a Go function to be callable from DWScript.
 // The function's signature is automatically detected via reflection.
 //
@@ -241,10 +247,10 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 		}
 	}
 
-	// Marshal DWScript values to Go values
-	// Track var parameters (pointers) and their references for updating after the call
+	// Marshal DWScript values to Go values.
+	// Track var parameters and their references for updating after the call.
 	var goArgs []reflect.Value
-	varParamRefs := make([]*interp.ReferenceValue, numParams) // Track ReferenceValues for var params
+	varParamRefs := make([]referenceArg, numParams)
 
 	if w.signature.IsVariadic {
 		// Handle variadic function: pack extra arguments into a slice
@@ -257,9 +263,9 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 			isVarParam := i < len(w.signature.VarParams) && w.signature.VarParams[i]
 
 			if isVarParam {
-				// Handle var parameter (pointer)
-				// Extract the ReferenceValue and dereference it
-				refVal, ok := args[i].(*interp.ReferenceValue)
+				// Handle var parameter (pointer).
+				// Extract the reference and dereference it.
+				refVal, ok := args[i].(referenceArg)
 				if !ok {
 					return nil, fmt.Errorf("var parameter %d must be a reference, got %T", i, args[i])
 				}
@@ -310,8 +316,8 @@ func (w *externalFunctionWrapper) Call(args []interp.Value) (interp.Value, error
 			isVarParam := i < len(w.signature.VarParams) && w.signature.VarParams[i]
 
 			if isVarParam {
-				// Extract the ReferenceValue and dereference it
-				refVal, ok := args[i].(*interp.ReferenceValue)
+				// Extract the reference and dereference it.
+				refVal, ok := args[i].(referenceArg)
 				if !ok {
 					return nil, fmt.Errorf("var parameter %d must be a reference, got %T", i, args[i])
 				}

@@ -14,7 +14,7 @@ import (
 //
 // Handles member assignment: obj.field := value, TClass.Variable := value
 //
-// NATIVE handling (via evaluator, no adapter):
+// Evaluator-owned handling:
 // - Record field assignment via RecordFieldSetter interface
 // - Record property assignment via executeRecordPropertyWrite
 // - Interface unwrapping and routing to underlying object
@@ -22,11 +22,6 @@ import (
 // - Object property assignment via WriteProperty callback pattern
 // - Class/metaclass assignment via ClassMetaValue interface (class vars & properties)
 // - Nil value auto-initialization
-//
-// Delegates to adapter (EvalNode):
-// - Nil auto-initialization fallback (line 105)
-//
-// EvalNode reduction: 6 calls → 1 call (83% reduction)
 // ============================================================================
 
 // evalMemberAssignmentDirect attempts to handle member assignment directly.
@@ -39,9 +34,6 @@ import (
 // - Object property assignment via WriteProperty callback
 // - Class/metaclass assignment via ClassMetaValue interface (class vars & properties)
 // - Nil value auto-initialization
-//
-// Delegates to adapter (EvalNode):
-// - Nil auto-initialization fallback (when no setter available)
 func (e *Evaluator) evalMemberAssignmentDirect(
 	target *ast.MemberAccessExpression,
 	value Value,

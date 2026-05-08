@@ -1,7 +1,11 @@
 # Interpreter Architecture
 
-**Status**: Phase 3.5 Complete - Evaluator Refactoring
+**Status**: Historical Phase 3.5 migration snapshot
 **Last Updated**: 2025-11-22
+
+> Historical note: this document predates the Phase 4 execution-engine collapse.
+> For the current shell/core boundary, use
+> [`interp-evaluator-steady-state.md`](interp-evaluator-steady-state.md).
 
 ## Overview
 
@@ -10,33 +14,33 @@ The DWScript interpreter has undergone a major architectural refactoring (Phase 
 ## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         AST (pkg/ast)                               │
-│  IntegerLiteral, BinaryExpression, IfStatement, FunctionDecl, ...   │
-└────────────────────────────┬────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                         AST (pkg/ast)                             │
+│  IntegerLiteral, BinaryExpression, IfStatement, FunctionDecl, ... │
+└────────────────────────────┬──────────────────────────────────────┘
                              │
                              ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Interpreter (internal/interp)                    │
-│  • Thin orchestrator                                                │
-│  • Maintains global registries (functions, classes, records)         │
-│  • Provides InterpreterAdapter for backward compatibility            │
-│  • Delegates evaluation to Evaluator                                 │
-└────────────────────────────┬────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                    Interpreter (internal/interp)                  │
+│  • Thin orchestrator                                              │
+│  • Maintains global registries (functions, classes, records)      │
+│  • Former migration adapter boundary                              │
+│  • Delegates evaluation to Evaluator                              │
+└────────────────────────────┬──────────────────────────────────────┘
                              │
                              ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│              Evaluator (internal/interp/evaluator)                  │
-│                                                                     │
+┌───────────────────────────────────────────────────────────────────┐
+│              Evaluator (internal/interp/evaluator)                │
+│                                                                   │
 │  ┌─────────────────────────────────────────────────────────────┐  │
-│  │  Visitor Pattern Evaluation                                  │  │
+│  │  Visitor Pattern Evaluation                                 │  │
 │  │  • VisitIntegerLiteral(node, ctx) → Value                   │  │
 │  │  • VisitBinaryExpression(node, ctx) → Value                 │  │
 │  │  • VisitIfStatement(node, ctx) → Value                      │  │
 │  │  • VisitFunctionDecl(node, ctx) → Value                     │  │
 │  │  • ... 48+ visitor methods                                  │  │
 │  └─────────────────────────────────────────────────────────────┘  │
-│                                                                     │
+│                                                                   │
 │  ┌────────────────────┐  ┌────────────────────┐                   │
 │  │  ExecutionContext  │  │    Type System     │                   │
 │  │  • Environment     │  │  • FunctionRegistry│                   │
@@ -44,7 +48,7 @@ The DWScript interpreter has undergone a major architectural refactoring (Phase 
 │  │  • Control Flow    │  │  • RecordRegistry  │                   │
 │  │  • Exceptions      │  │  • InterfaceRegistry│                  │
 │  └────────────────────┘  └────────────────────┘                   │
-└─────────────────────────────────────────────────────────────────────┘
+└───────────────────────────────────────────────────────────────────┘
                              │
                              ↓
 ┌─────────────────────────────────────────────────────────────────────┐
