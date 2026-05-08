@@ -130,9 +130,6 @@ func (e *Evaluator) executeQualifiedFunctionCall(unitName string, member *ast.Id
 
 	overloads := e.typeSystem.LookupQualifiedFunction(unitName, member.Value)
 	if len(overloads) == 0 {
-		overloads = e.typeSystem.LookupFunctions(member.Value)
-	}
-	if len(overloads) == 0 {
 		return e.newError(node, "function '%s' not found in unit '%s'", member.Value, unitName)
 	}
 

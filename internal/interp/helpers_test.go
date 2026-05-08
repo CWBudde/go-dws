@@ -841,6 +841,38 @@ func TestArrayHelperStaticArray(t *testing.T) {
 	}
 }
 
+func TestStaticArrayUsesDynamicArrayAliasHelper(t *testing.T) {
+	input := `
+		type TStringArray = array of String;
+
+		type TStringArrayHelper = helper for TStringArray
+			function FirstText: String;
+			begin
+				Result := Self[1];
+			end;
+		end;
+
+		var staticArr: array[1..2] of String;
+		begin
+			staticArr[1] := 'ok';
+			PrintLn(staticArr.FirstText);
+		end.
+	`
+
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	if isError(result) {
+		t.Fatalf("interpreter error: %s", result.String())
+	}
+
+	expected := "ok\n"
+	if out.String() != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
+	}
+}
+
 func TestArrayHelperInForLoop(t *testing.T) {
 	input := `
 		var arr: array of Integer;

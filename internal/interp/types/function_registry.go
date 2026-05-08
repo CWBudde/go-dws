@@ -104,6 +104,24 @@ func (r *FunctionRegistry) RegisterWithUnit(unitName, functionName string, fn *a
 	r.qualifiedFunctions.Set(qualifiedKey, append(existingQual, entry))
 }
 
+// RegisterOrReplaceWithUnit registers a unit-owned function, replacing any
+// matching declaration-only version for the same unit when an implementation
+// with a body is registered.
+func (r *FunctionRegistry) RegisterOrReplaceWithUnit(unitName, functionName string, fn *ast.FunctionDecl) {
+	if fn == nil {
+		return
+	}
+
+	entry := &FunctionEntry{
+		Decl:     fn,
+		UnitName: unitName,
+		Name:     functionName,
+	}
+
+	r.registerOrReplaceEntry(r.functions, functionName, entry)
+	r.registerOrReplaceEntry(r.qualifiedFunctions, unitName+"."+functionName, entry)
+}
+
 // Lookup returns all overloads for the given function name.
 // The lookup is case-insensitive. Returns nil if no functions found.
 func (r *FunctionRegistry) Lookup(name string) []*ast.FunctionDecl {
@@ -423,6 +441,9 @@ func (r *FunctionRegistry) RegisterOrReplace(name string, fn *ast.FunctionDecl) 
 	// If new function has body, try to replace matching declaration
 	if fn.Body != nil {
 		for idx, e := range existing {
+			if e.UnitName != "" {
+				continue
+			}
 			if parametersMatchFn(e.Decl.Parameters, fn.Parameters) {
 				// Preserve virtual/override/reintroduce/abstract flags from declaration
 				fn.IsVirtual = e.Decl.IsVirtual
@@ -438,6 +459,38 @@ func (r *FunctionRegistry) RegisterOrReplace(name string, fn *ast.FunctionDecl) 
 
 	// No match found or no body, append
 	r.functions.Set(name, append(existing, entry))
+}
+
+func (r *FunctionRegistry) registerOrReplaceEntry(
+	registry *ident.Map[[]*FunctionEntry],
+	name string,
+	entry *FunctionEntry,
+) {
+	existing, ok := registry.Get(name)
+	if !ok {
+		registry.Set(name, []*FunctionEntry{entry})
+		return
+	}
+
+	for idx, candidate := range existing {
+		if !ident.Equal(candidate.UnitName, entry.UnitName) {
+			continue
+		}
+		if !parametersMatchFn(candidate.Decl.Parameters, entry.Decl.Parameters) {
+			continue
+		}
+		if entry.Decl.Body != nil || candidate.Decl.Body == nil || candidate.Decl == entry.Decl {
+			entry.Decl.IsVirtual = candidate.Decl.IsVirtual
+			entry.Decl.IsOverride = candidate.Decl.IsOverride
+			entry.Decl.IsReintroduce = candidate.Decl.IsReintroduce
+			entry.Decl.IsAbstract = candidate.Decl.IsAbstract
+			existing[idx] = entry
+			registry.Set(name, existing)
+			return
+		}
+	}
+
+	registry.Set(name, append(existing, entry))
 }
 
 // parametersMatchFn checks if two parameter lists have matching signatures

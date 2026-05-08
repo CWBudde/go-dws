@@ -60,6 +60,16 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 
 	methodName := node.Method.Value
 
+	if recordVal, ok := obj.(RecordInstanceValue); ok {
+		if methodDecl, found := recordVal.GetRecordMethod(methodName); found {
+			args, err := e.prepareArgsForParameters(methodDecl.Parameters, node.Arguments, ctx)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
+			}
+			return e.callRecordMethod(recordVal, methodDecl, args, node, ctx)
+		}
+	}
+
 	// Evaluate all arguments
 	args := make([]Value, len(node.Arguments))
 	for i, arg := range node.Arguments {

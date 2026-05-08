@@ -94,8 +94,6 @@ func (i *Interpreter) resolveTypeFromExpression(typeExpr ast.TypeExpression) typ
 		return types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
 	}
 
-	// For function pointer types, we need full type information
-	// For now, return a generic function type placeholder
 	if fpt, ok := typeExpr.(*ast.FunctionPointerTypeNode); ok {
 		paramTypes := make([]types.Type, len(fpt.Parameters))
 		for idx, p := range fpt.Parameters {
@@ -113,7 +111,10 @@ func (i *Interpreter) resolveTypeFromExpression(typeExpr ast.TypeExpression) typ
 			}
 		}
 
-		return types.NewFunctionType(paramTypes, returnType)
+		if fpt.OfObject {
+			return types.NewMethodPointerType(paramTypes, returnType)
+		}
+		return types.NewFunctionPointerType(paramTypes, returnType)
 	}
 
 	return nil

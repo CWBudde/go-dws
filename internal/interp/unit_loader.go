@@ -268,8 +268,7 @@ func (i *Interpreter) ImportUnitSymbols(unit *units.Unit) error {
 			continue
 		}
 
-		// Process the declaration
-		_ = i.Eval(stmt)
+		i.importUnitStatement(unit, stmt)
 
 		// Check for errors during symbol import
 		if i.exceptionValue() != nil {
@@ -287,8 +286,7 @@ func (i *Interpreter) ImportUnitSymbols(unit *units.Unit) error {
 				continue
 			}
 
-			// Process implementation (function bodies, private functions, etc.)
-			_ = i.Eval(stmt)
+			i.importUnitStatement(unit, stmt)
 
 			// Check for errors
 			if i.exceptionValue() != nil {
@@ -298,6 +296,18 @@ func (i *Interpreter) ImportUnitSymbols(unit *units.Unit) error {
 	}
 
 	return nil
+}
+
+func (i *Interpreter) importUnitStatement(unit *units.Unit, stmt ast.Statement) {
+	if fn, ok := stmt.(*ast.FunctionDecl); ok && fn.ClassName == nil {
+		unit.RegisterFunction(fn)
+		if fn.Name != nil {
+			i.typeSystem.RegisterFunctionWithUnitOrReplace(unit.Name, fn.Name.Value, fn)
+		}
+		return
+	}
+
+	_ = i.Eval(stmt)
 }
 
 // ResolveQualifiedFunction resolves a qualified function identifier (UnitName.FunctionName)
@@ -318,22 +328,17 @@ func (i *Interpreter) ResolveQualifiedFunction(unitName, functionName string) (*
 	}
 
 	// Get the unit from the registry
-	_, exists := i.unitRegistry().GetUnit(unitName)
+	unit, exists := i.unitRegistry().GetUnit(unitName)
 	if !exists {
 		return nil, fmt.Errorf("unit '%s' not loaded", unitName)
 	}
 
-	// Look up the function in the global function registry
-	// Note: The current implementation stores all functions globally.
-	// TODO: This needs to be enhanced once units properly maintain their own symbol tables
-	// (see tasks 9.108-9.110 where unit parsing is improved)
-	// For now, we assume the function was imported and is available globally.
-	// DWScript is case-insensitive, so normalize the function name
-	if overloads := i.globalFunctionOverloads(functionName); len(overloads) > 0 {
-		// TODO: Verify this function actually belongs to this unit once we have proper
-		fn := overloads[0]
-		// unit-scoped symbol tables
-		return fn, nil
+	if overloads := unit.LookupFunction(functionName); len(overloads) > 0 {
+		return overloads[0], nil
+	}
+
+	if overloads := i.typeSystem.LookupQualifiedFunction(unit.Name, functionName); len(overloads) > 0 {
+		return overloads[0], nil
 	}
 
 	return nil, fmt.Errorf("function '%s' not found in unit '%s'", functionName, unitName)

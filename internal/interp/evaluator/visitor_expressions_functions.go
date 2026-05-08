@@ -112,16 +112,8 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 
 		// Record, interface, or object method calls
-		if objVal.Type() == "RECORD" || objVal.Type() == "INTERFACE" || objVal.Type() == "OBJECT" {
-			args := make([]Value, len(node.Arguments))
-			for i, arg := range node.Arguments {
-				val := e.Eval(arg, ctx)
-				if isError(val) {
-					return val
-				}
-				args[i] = val
-			}
-
+		_, isRecordInstance := objVal.(RecordInstanceValue)
+		if isRecordInstance || objVal.Type() == "INTERFACE" || objVal.Type() == "OBJECT" {
 			// Create synthetic MethodCallExpression for error reporting
 			mc := &ast.MethodCallExpression{
 				TypedExpressionBase: ast.TypedExpressionBase{
@@ -132,6 +124,25 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 				Object:    memberAccess.Object,
 				Method:    memberAccess.Member,
 				Arguments: node.Arguments,
+			}
+
+			if recordVal, ok := objVal.(RecordInstanceValue); ok {
+				if methodDecl, found := recordVal.GetRecordMethod(memberAccess.Member.Value); found {
+					args, err := e.prepareArgsForParameters(methodDecl.Parameters, node.Arguments, ctx)
+					if err != nil {
+						return e.newError(node, "%s", err.Error())
+					}
+					return e.callRecordMethod(recordVal, methodDecl, args, mc, ctx)
+				}
+			}
+
+			args := make([]Value, len(node.Arguments))
+			for i, arg := range node.Arguments {
+				val := e.Eval(arg, ctx)
+				if isError(val) {
+					return val
+				}
+				args[i] = val
 			}
 
 			return e.DispatchMethodCall(objVal, memberAccess.Member.Value, args, mc, ctx)
@@ -322,6 +333,36 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 }
 
 func (e *Evaluator) prepareByRefArgument(arg ast.Expression, ctx *ExecutionContext) (Value, error) {
+	if argIdent, ok := arg.(*ast.Identifier); ok {
+		varName := argIdent.Value
+		capturedEnv := ctx.Env()
+
+		if val, exists := capturedEnv.Get(varName); exists {
+			if refVal, isRef := val.(ReferenceAccessor); isRef {
+				return refVal.(Value), nil
+			}
+		}
+
+		var getter runtime.GetterCallback = func() (runtime.Value, error) {
+			val, found := capturedEnv.Get(varName)
+			if !found {
+				return nil, fmt.Errorf("variable %s not found", varName)
+			}
+			if runtimeVal, ok := val.(runtime.Value); ok {
+				return runtimeVal, nil
+			}
+			return nil, fmt.Errorf("environment value is not a runtime.Value")
+		}
+		var setter runtime.SetterCallback = func(val runtime.Value) error {
+			if err := capturedEnv.Set(varName, val); err != nil {
+				return fmt.Errorf("failed to set variable %s: %w", varName, err)
+			}
+			return nil
+		}
+
+		return runtime.NewReferenceValue(varName, getter, setter), nil
+	}
+
 	current, assign, err := e.EvaluateLValue(arg, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("var parameter requires a variable, got %T", arg)
@@ -351,6 +392,41 @@ func (e *Evaluator) prepareByRefArgument(arg ast.Expression, ctx *ExecutionConte
 	}
 
 	return runtime.NewReferenceValue(arg.String(), getter, setter), nil
+}
+
+func (e *Evaluator) prepareArgsForParameters(
+	parameters []*ast.Parameter,
+	argExprs []ast.Expression,
+	ctx *ExecutionContext,
+) ([]Value, error) {
+	if len(argExprs) != len(parameters) {
+		return nil, fmt.Errorf("wrong number of arguments: expected %d, got %d", len(parameters), len(argExprs))
+	}
+
+	args := make([]Value, len(argExprs))
+	for idx, arg := range argExprs {
+		param := parameters[idx]
+		if param.IsLazy {
+			args[idx] = e.wrapLazyArg(arg, ctx, func(expr ast.Expression) Value {
+				return e.Eval(expr, ctx)
+			})
+			continue
+		}
+		if param.ByRef {
+			ref, err := e.prepareByRefArgument(arg, ctx)
+			if err != nil {
+				return nil, err
+			}
+			args[idx] = ref
+			continue
+		}
+		val := e.Eval(arg, ctx)
+		if isError(val) {
+			return nil, fmt.Errorf("%s", val.String())
+		}
+		args[idx] = val
+	}
+	return args, nil
 }
 
 // wrapLazyArg creates a thunk for lazy parameters.

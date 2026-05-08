@@ -176,7 +176,7 @@ func JSONValueToValue(jv *jsonvalue.Value) Value {
 // createJSONValueViaReflection wraps a jsonvalue.Value in a runtime.JSONValue.
 func createJSONValueViaReflection(jv *jsonvalue.Value) Value {
 	if jv == nil {
-		return &runtime.NilValue{}
+		return runtime.NewJSONValue(jsonvalue.NewNull())
 	}
 	return runtime.NewJSONValue(jv)
 }

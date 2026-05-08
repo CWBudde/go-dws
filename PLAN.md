@@ -1060,7 +1060,7 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 
 **Goal**: Fix incomplete var/by-ref parameter support in records.
 
-**Status**: 📋 Planned | **Effort**: 2-3 days | **Risk**: Medium
+**Status**: ✅ Complete | **Effort**: 2-3 days | **Risk**: Medium
 
 **Current Issues**:
 
@@ -1069,15 +1069,23 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 
 **Tasks**:
 
-- [ ] **6.4.1** Implement proper by-ref support for record parameters (6h)
+- [x] **6.4.1** Implement proper by-ref support for record parameters (6h)
   - Create reference wrapper for record fields
   - Ensure mutations propagate correctly
+  - landed shared by-ref argument preparation through evaluator lvalue handling, so record variables, record fields, and indexed record values can be passed to `var` record parameters
+  - record method calls now prepare record `var` parameters before argument evaluation, preserving by-ref semantics for record methods
 
-- [ ] **6.4.2** Implement copy-back semantics for var parameters (4h)
+- [x] **6.4.2** Implement copy-back semantics for var parameters (4h)
   - Track original locations
   - Copy modified values back after call
+  - identifier references capture the caller environment directly, so record method environment pushes do not redirect copy-back to the callee scope
+  - nested `var` references continue to pass through existing `ReferenceValue` chains
 
-- [ ] **6.4.3** Add tests for record var parameters (2h)
+- [x] **6.4.3** Add tests for record var parameters (2h)
+  - focused coverage exists for record variable copy-back, record array element copy-back, nested record field copy-back, nested array mutation through record parameters, and record method record-parameter copy-back
+  - verification:
+    - `go test -v ./internal/interp -run 'TestVarParam'`
+    - `go test -v ./internal/interp -run 'TestDWScriptFixtures/SimpleScripts/(record_var_param1|record_var_param2)'`
 
 ---
 
@@ -1085,7 +1093,7 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 
 **Goal**: Improve unit isolation and symbol resolution.
 
-**Status**: 📋 Planned | **Effort**: 2-3 days | **Risk**: Low
+**Status**: ✅ Complete | **Effort**: 2-3 days | **Risk**: Low
 
 **Current Issues**:
 - `unit_loader.go:335`: Units don't maintain their own symbol tables
@@ -1093,15 +1101,26 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 
 **Tasks**:
 
-- [ ] **6.5.1** Design per-unit symbol table structure (2h)
+- [x] **6.5.1** Design per-unit symbol table structure (2h)
   - Each unit owns its symbols
   - Cross-unit references resolved through imports
+  - added a case-insensitive `FunctionSymbols` table to `units.Unit`
+  - interface declarations are replaced by matching implementation declarations in the unit-owned table
 
-- [ ] **6.5.2** Implement unit-scoped symbol tables (6h)
+- [x] **6.5.2** Implement unit-scoped symbol tables (6h)
   - Modify UnitLoader to create isolated tables
   - Update function resolution to check unit ownership
+  - unit import now registers plain unit functions through a unit-aware function registry path
+  - qualified interpreter resolution checks the owning unit table / qualified registry instead of the global overload bucket
+  - evaluator qualified calls no longer fall back to unqualified globals
 
-- [ ] **6.5.3** Add verification for function-to-unit mapping (2h)
+- [x] **6.5.3** Add verification for function-to-unit mapping (2h)
+  - added regression coverage for same-name functions across units and rejecting functions owned by a different loaded unit
+  - verification:
+    - `go test -v ./internal/interp -run 'Test(ImportUnitSymbols|ResolveQualifiedFunction|CrossUnitFunctionCall)'`
+    - `go test -v ./internal/interp/types -run 'TestFunctionRegistry'`
+    - `go test ./internal/units`
+    - `go test ./internal/interp/evaluator`
 
 ---
 
@@ -1109,25 +1128,36 @@ This phase creates the compiler front-end boundary needed to make fixture work t
 
 **Goal**: Address remaining small TODOs.
 
-**Status**: 📋 Planned | **Effort**: 1-2 days | **Risk**: Low
+**Status**: ✅ Complete | **Effort**: 1-2 days | **Risk**: Low
 
 **Tasks**:
 
-- [ ] **6.6.1** Fix JSON nil handling (2h)
+- [x] **6.6.1** Fix JSON nil handling (2h)
   - `evaluator/json_helpers.go:182`
   - Return proper null/nil JSON value
+  - nil JSON wrapping now creates a JSON null wrapper instead of a runtime nil value
 
-- [ ] **6.6.2** Implement static array helper fallback (2h)
+- [x] **6.6.2** Implement static array helper fallback (2h)
   - `evaluator/helper_methods.go:67`
   - Try dynamic array equivalent for static arrays
+  - existing static-array fallback is now covered by a regression test using a dynamic-array alias helper against a static-array receiver
 
-- [ ] **6.6.3** Complete function pointer type construction (2h)
+- [x] **6.6.3** Complete function pointer type construction (2h)
   - `helpers_conversion.go:102`
   - Build proper type metadata for function pointers
+  - function pointer type nodes now resolve to `FunctionPointerType`
+  - `of object` function pointer type nodes now resolve to `MethodPointerType`
 
-- [ ] **6.6.4** Review and update expressions_basic.go:227 (2h)
+- [x] **6.6.4** Review and update expressions_basic.go:227 (2h)
   - Determine if "simplified implementation" is sufficient
   - Document or complete as needed
+  - `getTypeByName` now delegates to canonical interpreter type resolution instead of returning `Integer` as a placeholder for unknown names
+
+**Verification**:
+
+- `go test -v ./internal/interp/evaluator -run 'Test(CreateJSONValueViaReflection|ValueToJSON|ResolveTypeName|ResolveArrayTypeNode)'`
+- `go test -v ./internal/interp -run 'Test(JSON|GetTypeByName|ResolveTypeFromExpression|StaticArrayUsesDynamicArrayAliasHelper|ArrayHelper|InlineFunctionPointer|MethodPointer)'`
+- `go test ./internal/types -run 'TestFunctionPointer|TestFunctionType|TestNewFunctionTypeWithMetadata'`
 
 ---
 

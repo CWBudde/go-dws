@@ -19,18 +19,9 @@ func (i *Interpreter) getTypeFromAnnotation(typeExpr ast.TypeExpression) types.T
 
 // getTypeByName looks up a type by name
 func (i *Interpreter) getTypeByName(name string) types.Type {
-	switch name {
-	case "Integer":
-		return &types.IntegerType{}
-	case "Float":
-		return &types.FloatType{}
-	case "String":
-		return &types.StringType{}
-	case "Boolean":
-		return &types.BooleanType{}
-	default:
-		// Try to find in type registry (for custom types)
-		// For now, return integer as placeholder
-		return &types.IntegerType{}
+	typ, err := i.resolveType(name)
+	if err != nil {
+		return nil
 	}
+	return typ
 }

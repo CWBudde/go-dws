@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/jsonvalue"
 )
 
 // ============================================================================
@@ -61,6 +62,21 @@ func TestValueToJSON_Primitives(t *testing.T) {
 				t.Errorf("expected %q, got %q", tt.expected, result)
 			}
 		})
+	}
+}
+
+func TestCreateJSONValueViaReflection_NilReturnsJSONNull(t *testing.T) {
+	result := createJSONValueViaReflection(nil)
+
+	jsonVal, ok := result.(*runtime.JSONValue)
+	if !ok {
+		t.Fatalf("expected nil JSON wrapper to produce JSONValue, got %T", result)
+	}
+	if jsonVal.Value == nil {
+		t.Fatal("expected wrapped json value, got nil")
+	}
+	if jsonVal.Value.Kind() != jsonvalue.KindNull {
+		t.Fatalf("expected JSON null, got %s", jsonVal.Value.Kind())
 	}
 }
 

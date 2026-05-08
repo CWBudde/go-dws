@@ -392,13 +392,20 @@ func TestGetTypeByName(t *testing.T) {
 		{name: "integer type", typeName: "Integer", wantType: "Integer"},
 		{name: "float type", typeName: "Float", wantType: "Float"},
 		{name: "string type", typeName: "String", wantType: "String"},
+		{name: "lowercase string type", typeName: "string", wantType: "String"},
 		{name: "boolean type", typeName: "Boolean", wantType: "Boolean"},
+		{name: "variant type", typeName: "Variant", wantType: "Variant"},
+		{name: "unknown type", typeName: "DoesNotExist", wantType: ""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			typ := interp.getTypeByName(tt.typeName)
-			if typ == nil {
+			if tt.wantType == "" {
+				if typ != nil {
+					t.Errorf("Expected unknown type %s to resolve to nil, got %s", tt.typeName, typ.String())
+				}
+			} else if typ == nil {
 				t.Errorf("Expected type %s, got nil", tt.wantType)
 			} else if typ.String() != tt.wantType {
 				t.Errorf("Expected type %s, got %s", tt.wantType, typ.String())

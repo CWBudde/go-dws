@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/semantic"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 func TestNewUnit(t *testing.T) {
@@ -32,6 +33,10 @@ func TestNewUnit(t *testing.T) {
 
 			if unit.Symbols == nil {
 				t.Error("expected Symbols to be initialized, got nil")
+			}
+
+			if unit.FunctionSymbols == nil {
+				t.Error("expected FunctionSymbols to be initialized, got nil")
 			}
 
 			if unit.Uses == nil {
@@ -173,6 +178,26 @@ func TestUnitSymbols(t *testing.T) {
 	}
 }
 
+func TestUnitFunctionSymbols_RegisterAndReplace(t *testing.T) {
+	unit := NewUnit("TestUnit", "/test.dws")
+	declaration := testUnitFunction("Shared", nil)
+	implementation := testUnitFunction("Shared", &ast.BlockStatement{})
+
+	unit.RegisterFunction(declaration)
+	unit.RegisterFunction(implementation)
+
+	functions := unit.LookupFunction("shared")
+	if len(functions) != 1 {
+		t.Fatalf("expected one function overload, got %d", len(functions))
+	}
+	if functions[0] != implementation {
+		t.Fatalf("expected implementation to replace declaration, got %#v", functions[0])
+	}
+	if !unit.HasFunction("SHARED") {
+		t.Fatal("expected HasFunction to be case-insensitive")
+	}
+}
+
 func TestUnitFields(t *testing.T) {
 	unit := NewUnit("TestUnit", "/test/path.dws")
 
@@ -201,6 +226,17 @@ func TestUnitFields(t *testing.T) {
 			t.Error("expected FinalizationSection to be nil initially")
 		}
 	})
+}
+
+func testUnitFunction(name string, body *ast.BlockStatement) *ast.FunctionDecl {
+	return &ast.FunctionDecl{
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}},
+			Value:               name,
+		},
+		ReturnType: &ast.TypeAnnotation{Name: "Integer"},
+		Body:       body,
+	}
 }
 
 func TestUnitSymbolTable_Integration(t *testing.T) {

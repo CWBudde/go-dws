@@ -306,6 +306,66 @@ func TestResolveQualifiedFunction_FunctionNotFound(t *testing.T) {
 	}
 }
 
+// TestResolveQualifiedFunction_VerifiesUnitOwnership tests that qualified
+// function resolution returns the function owned by the requested unit.
+func TestResolveQualifiedFunction_VerifiesUnitOwnership(t *testing.T) {
+	interp := New(&bytes.Buffer{})
+	registry := units.NewUnitRegistry([]string{"."})
+	interp.SetUnitRegistry(registry)
+
+	unitA := units.NewUnit("UnitA", "/tmp/unita.dws")
+	unitAFunc := unitFunctionDecl("Shared")
+	unitA.InterfaceSection = &ast.BlockStatement{Statements: []ast.Statement{unitAFunc}}
+	registry.RegisterUnit("UnitA", unitA)
+
+	unitB := units.NewUnit("UnitB", "/tmp/unitb.dws")
+	unitBFunc := unitFunctionDecl("Shared")
+	unitB.InterfaceSection = &ast.BlockStatement{Statements: []ast.Statement{unitBFunc}}
+	registry.RegisterUnit("UnitB", unitB)
+
+	if err := interp.ImportUnitSymbols(unitA); err != nil {
+		t.Fatalf("Failed to import UnitA symbols: %v", err)
+	}
+	if err := interp.ImportUnitSymbols(unitB); err != nil {
+		t.Fatalf("Failed to import UnitB symbols: %v", err)
+	}
+
+	resolved, err := interp.ResolveQualifiedFunction("UnitB", "Shared")
+	if err != nil {
+		t.Fatalf("Failed to resolve UnitB.Shared: %v", err)
+	}
+	if resolved != unitBFunc {
+		t.Fatalf("Expected UnitB.Shared to resolve to UnitB function, got %#v", resolved)
+	}
+}
+
+// TestResolveQualifiedFunction_RejectsFunctionFromDifferentUnit tests that a
+// loaded unit without a matching function cannot borrow an unrelated global.
+func TestResolveQualifiedFunction_RejectsFunctionFromDifferentUnit(t *testing.T) {
+	interp := New(&bytes.Buffer{})
+	registry := units.NewUnitRegistry([]string{"."})
+	interp.SetUnitRegistry(registry)
+
+	unitA := units.NewUnit("UnitA", "/tmp/unita.dws")
+	unitA.InterfaceSection = &ast.BlockStatement{Statements: []ast.Statement{unitFunctionDecl("Shared")}}
+	registry.RegisterUnit("UnitA", unitA)
+
+	unitB := units.NewUnit("UnitB", "/tmp/unitb.dws")
+	registry.RegisterUnit("UnitB", unitB)
+
+	if err := interp.ImportUnitSymbols(unitA); err != nil {
+		t.Fatalf("Failed to import UnitA symbols: %v", err)
+	}
+
+	_, err := interp.ResolveQualifiedFunction("UnitB", "Shared")
+	if err == nil {
+		t.Fatal("Expected UnitB.Shared resolution to fail when Shared belongs only to UnitA")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("Expected 'not found' error, got: %v", err)
+	}
+}
+
 // TestCrossUnitFunctionCall_Qualified tests calling a function using qualified name
 func TestCrossUnitFunctionCall_Qualified(t *testing.T) {
 	var output bytes.Buffer
@@ -447,5 +507,19 @@ func TestInitializationFinalizationOrder(t *testing.T) {
 	finalOutput := output.String()
 	if !strings.Contains(finalOutput, "MathUtils unloading") {
 		t.Error("Expected finalization message")
+	}
+}
+
+func unitFunctionDecl(name string) *ast.FunctionDecl {
+	return &ast.FunctionDecl{
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
+		},
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}},
+			Value:               name,
+		},
+		ReturnType: &ast.TypeAnnotation{Name: "Integer"},
+		Body:       &ast.BlockStatement{Statements: []ast.Statement{}},
 	}
 }

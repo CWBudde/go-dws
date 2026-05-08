@@ -396,6 +396,12 @@ func (ts *TypeSystem) RegisterFunctionWithUnit(unitName, functionName string, fn
 	ts.functionRegistry.RegisterWithUnit(unitName, functionName, fn)
 }
 
+// RegisterFunctionWithUnitOrReplace registers a unit-owned function, replacing
+// a matching declaration-only version when an implementation is imported.
+func (ts *TypeSystem) RegisterFunctionWithUnitOrReplace(unitName, functionName string, fn *ast.FunctionDecl) {
+	ts.functionRegistry.RegisterOrReplaceWithUnit(unitName, functionName, fn)
+}
+
 // LookupFunctions returns all overloads for the given function name.
 // Returns nil if no function with that name exists.
 func (ts *TypeSystem) LookupFunctions(name string) []*ast.FunctionDecl {

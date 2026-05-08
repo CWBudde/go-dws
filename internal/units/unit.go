@@ -50,6 +50,11 @@ type Unit struct {
 	// Only symbols defined in the interface section are added to this table.
 	Symbols *semantic.SymbolTable
 
+	// FunctionSymbols contains functions owned by this unit, keyed case-insensitively
+	// by function name. Interface declarations are replaced by matching implementation
+	// declarations when the implementation section is imported.
+	FunctionSymbols *ident.Map[[]*ast.FunctionDecl]
+
 	// Name is the unit's name (case-insensitive in DWScript)
 	Name string
 
@@ -66,10 +71,11 @@ type Unit struct {
 // The name is normalized to lowercase for case-insensitive comparison.
 func NewUnit(name, filePath string) *Unit {
 	return &Unit{
-		Name:     name,
-		FilePath: filePath,
-		Uses:     []string{},
-		Symbols:  semantic.NewSymbolTable(),
+		Name:            name,
+		FilePath:        filePath,
+		Uses:            []string{},
+		Symbols:         semantic.NewSymbolTable(),
+		FunctionSymbols: ident.NewMap[[]*ast.FunctionDecl](),
 	}
 }
 
@@ -88,6 +94,74 @@ func (u *Unit) HasDependency(unitName string) bool {
 		}
 	}
 	return false
+}
+
+// RegisterFunction records a function as owned by this unit.
+// Matching implementation declarations replace their interface declarations.
+func (u *Unit) RegisterFunction(fn *ast.FunctionDecl) {
+	if fn == nil || fn.Name == nil {
+		return
+	}
+	if u.FunctionSymbols == nil {
+		u.FunctionSymbols = ident.NewMap[[]*ast.FunctionDecl]()
+	}
+
+	name := fn.Name.Value
+	existing, ok := u.FunctionSymbols.Get(name)
+	if !ok {
+		u.FunctionSymbols.Set(name, []*ast.FunctionDecl{fn})
+		return
+	}
+
+	for idx, candidate := range existing {
+		if !unitFunctionParametersMatch(candidate.Parameters, fn.Parameters) {
+			continue
+		}
+		if fn.Body != nil || candidate.Body == nil || candidate == fn {
+			existing[idx] = fn
+			u.FunctionSymbols.Set(name, existing)
+			return
+		}
+	}
+
+	u.FunctionSymbols.Set(name, append(existing, fn))
+}
+
+// LookupFunction returns all function overloads owned by this unit.
+func (u *Unit) LookupFunction(name string) []*ast.FunctionDecl {
+	if u.FunctionSymbols == nil {
+		return nil
+	}
+	functions, ok := u.FunctionSymbols.Get(name)
+	if !ok || len(functions) == 0 {
+		return nil
+	}
+	result := make([]*ast.FunctionDecl, len(functions))
+	copy(result, functions)
+	return result
+}
+
+// HasFunction reports whether this unit owns a function with the given name.
+func (u *Unit) HasFunction(name string) bool {
+	return len(u.LookupFunction(name)) > 0
+}
+
+func unitFunctionParametersMatch(left, right []*ast.Parameter) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for idx := range left {
+		if left[idx].Type != nil && right[idx].Type != nil {
+			if left[idx].Type.String() != right[idx].Type.String() {
+				return false
+			}
+			continue
+		}
+		if left[idx].Type != right[idx].Type {
+			return false
+		}
+	}
+	return true
 }
 
 // String returns a string representation of the unit for debugging.
