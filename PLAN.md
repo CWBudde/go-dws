@@ -5,6 +5,30 @@ This document breaks down the ambitious goal of porting DWScript from Delphi to 
 
 ---
 
+## Section X: Old Main Salvage Review
+
+**Status**: Planned | **Priority**: Medium | **Source**: `backup/main-before-revised-phase-4-2026-05-08`
+
+**Goal**: Preserve any useful behavior from the old unrelated `main` history without reintroducing pre-Phase-4 adapter architecture.
+
+**Assessment**:
+
+- Do not restore old-main implementation files wholesale. The old `adapter_*`, `functions_records.go`, `objects_properties.go`, `user_function_callbacks.go`, `statements_*`, and experimental semantic pass files belong to the pre-Phase-4 architecture.
+- The old string and conversion fixes are already present on the new `main`:
+  - `SubString` uses 1-based end-exclusive semantics and clamps starts below 1 in interpreter and bytecode paths.
+  - `StrToInt` reports invalid explicit bases as `Invalid base for string to integer conversion (...)` and keeps detailed 64-bit/base parse errors.
+- The remaining useful old-main material is behavioral intent around environment restoration/synchronization for record methods and property getter/setter execution. These should survive as evaluator/runtime regression tests or small targeted fixes only.
+
+**Tasks**:
+
+- [ ] **X.1** Add focused regression tests for `SubString` and `StrToInt` old-main behavior so the already-ported fixes stay protected.
+- [ ] **X.2** Review old-main record method environment changes from `bbc58f19` against evaluator-owned `record_methods.go`; add tests for record method field sync, class var sync, static method scope restoration, and exception/early-return cleanup.
+- [ ] **X.3** Review old-main property environment changes from `04da5faa` against evaluator-owned `property_read.go` / `property_write.go`; add tests for method-backed getters/setters, expression-backed getters, indexed properties, and class-var synchronization.
+- [ ] **X.4** Review old-main string/conversion commits (`667cc23c`, `f1cb366a`) for missing edge-case tests in `internal/builtins`, `internal/bytecode`, and `internal/semantic`.
+- [ ] **X.5** After the salvage review is complete, document whether `backup/main-before-revised-phase-4-2026-05-08` can be retained only as archival history or deleted.
+
+---
+
 ## Phase 1: Lexer (Tokenization)
 
 **Completed**
