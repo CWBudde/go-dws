@@ -35,6 +35,19 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 	// If base is a MemberAccessExpression, it's an indexed property: obj.Prop[i] := value
 	// or an indexed array/string field: obj.Field[i] := value.
 	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
+		baseObj := e.Eval(memberAccess.Object, ctx)
+		if isError(baseObj) {
+			return baseObj
+		}
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+		if accessor, ok := baseObj.(runtime.PropertyAccessor); ok {
+			if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
+				return e.evalIndexedPropertyAssignmentOnObject(baseObj, memberAccess.Member.Value, indices, value, stmt, ctx)
+			}
+		}
+
 		memberVal := e.Eval(memberAccess, ctx)
 		if isError(memberVal) {
 			return memberVal
@@ -212,11 +225,11 @@ func (e *Evaluator) evalStringCharAssignment(
 // 1. Evaluate the base object (obj.Prop) to get the property metadata
 // 2. Extract the property setter method reference
 // 3. Build argument list: [indices..., value]
-// 4. Execute setter via adapter.ExecuteMethodWithSelf() (general OOP facility)
+// 4. Execute setter through evaluator-owned object method dispatch
 //
 // Supports multi-index properties: obj.Prop[x, y] := value → args = [x, y, value]
 //
-// Uses general-purpose method dispatch instead of property-specific adapter interface.
+// Uses general-purpose method dispatch instead of property-specific callbacks.
 func (e *Evaluator) evalIndexedPropertyAssignment(
 	memberAccess *ast.MemberAccessExpression,
 	indices []ast.Expression,
@@ -238,6 +251,17 @@ func (e *Evaluator) evalIndexedPropertyAssignment(
 	// Get the property name
 	propName := memberAccess.Member.Value
 
+	return e.evalIndexedPropertyAssignmentOnObject(baseObj, propName, indices, value, stmt, ctx)
+}
+
+func (e *Evaluator) evalIndexedPropertyAssignmentOnObject(
+	baseObj Value,
+	propName string,
+	indices []ast.Expression,
+	value Value,
+	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
+) Value {
 	// Evaluate all indices
 	indexValues := make([]Value, 0, len(indices))
 	for _, indexExpr := range indices {
@@ -320,12 +344,12 @@ func (e *Evaluator) evalIndexedPropertyAssignment(
 // 2. Call accessor.GetDefaultProperty() - returns PropertyDescriptor
 // 3. Extract PropertyInfo with setter method reference
 // 4. Build argument list: [index, value]
-// 5. Execute setter via adapter.ExecuteMethodWithSelf() (general OOP facility)
+// 5. Execute setter through evaluator-owned object method dispatch
 //
 // INTERFACE handling: InterfaceInstance.GetDefaultProperty() delegates to underlying interface
 // OBJECT handling: ObjectInstance.GetDefaultProperty() uses IClassInfo.GetDefaultProperty()
 //
-// Uses general-purpose method dispatch instead of property-specific adapter interface.
+// Uses general-purpose method dispatch instead of property-specific callbacks.
 func (e *Evaluator) evalDefaultPropertyAssignment(
 	obj Value,
 	indexVal Value,

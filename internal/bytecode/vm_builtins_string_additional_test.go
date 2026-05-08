@@ -50,6 +50,34 @@ func TestBuiltinStringFunctionsAdditional(t *testing.T) {
 		}
 	})
 
+	t.Run("SubString clamps start below one", func(t *testing.T) {
+		result, err := builtinSubString(vm, []Value{
+			StringValue("Hello"),
+			IntValue(0),
+			IntValue(3),
+		})
+		if err != nil {
+			t.Fatalf("builtinSubString() error = %v", err)
+		}
+		if result.AsString() != "He" {
+			t.Errorf("builtinSubString('Hello', 0, 3) = %v, want 'He'", result.AsString())
+		}
+	})
+
+	t.Run("SubString uses rune indexes", func(t *testing.T) {
+		result, err := builtinSubString(vm, []Value{
+			StringValue("Äbc"),
+			IntValue(1),
+			IntValue(3),
+		})
+		if err != nil {
+			t.Fatalf("builtinSubString() error = %v", err)
+		}
+		if result.AsString() != "Äb" {
+			t.Errorf("builtinSubString('Äbc', 1, 3) = %v, want 'Äb'", result.AsString())
+		}
+	})
+
 	t.Run("LeftStr basic", func(t *testing.T) {
 		result, err := builtinLeftStr(vm, []Value{
 			StringValue("Hello, World!"),

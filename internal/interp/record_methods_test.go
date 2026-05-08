@@ -206,6 +206,99 @@ PrintLn(runner.RunTwice(@box.GetValue));
 	}
 }
 
+func TestRecordMethodEnvironmentSalvage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "record method syncs fields before early exit",
+			input: `
+type TCounter = record
+	Value: Integer;
+	procedure BumpAndExit;
+	begin
+		Value := Value + 1;
+		Exit;
+		Value := 99;
+	end;
+end;
+
+var c: TCounter;
+c.Value := 4;
+c.BumpAndExit();
+PrintLn(c.Value);
+PrintLn('after');
+`,
+			expected: "5\nafter\n",
+		},
+		{
+			name: "record methods sync class vars",
+			input: `
+type TCounter = record
+	Value: Integer;
+	class var Shared: Integer;
+	procedure AddValue;
+	begin
+		Shared := Shared + Value;
+	end;
+	class procedure Add(delta: Integer);
+	begin
+		Shared := Shared + delta;
+	end;
+	class function Current: Integer;
+	begin
+		Result := Shared;
+	end;
+end;
+
+var c: TCounter;
+c.Value := 5;
+c.AddValue();
+TCounter.Add(3);
+PrintLn(TCounter.Current());
+`,
+			expected: "8\n",
+		},
+		{
+			name: "static record method restores caller scope",
+			input: `
+type TCounter = record
+	class procedure PrintLocal;
+	begin
+		var marker := 99;
+		PrintLn(marker);
+	end;
+end;
+
+var marker := 7;
+TCounter.PrintLocal();
+PrintLn(marker);
+`,
+			expected: "99\n7\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out bytes.Buffer
+			interp := New(&out)
+			result := interpret(interp, tt.input)
+
+			if err, ok := result.(*ErrorValue); ok {
+				t.Fatalf("unexpected error: %v", err.Message)
+			}
+			if exc := interp.GetException(); exc != nil {
+				t.Fatalf("unexpected exception: %v", exc.Message)
+			}
+			if out.String() != tt.expected {
+				t.Fatalf("wrong output. expected=%q, got=%q", tt.expected, out.String())
+			}
+		})
+	}
+}
+
 // TestRecordMethodErrors tests error cases for record method calls
 func TestRecordMethodErrors(t *testing.T) {
 	tests := []struct {

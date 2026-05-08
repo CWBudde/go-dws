@@ -128,10 +128,11 @@ func TestStrToInt(t *testing.T) {
 	ctx := newMockContext()
 
 	tests := []struct {
-		name     string
-		args     []Value
-		expected int64
-		isError  bool
+		name          string
+		args          []Value
+		expected      int64
+		isError       bool
+		expectedError string
 	}{
 		{
 			name:     "basic integer",
@@ -154,9 +155,22 @@ func TestStrToInt(t *testing.T) {
 			expected: 255,
 		},
 		{
-			name:    "invalid string",
-			args:    []Value{&runtime.StringValue{Value: "abc"}},
-			isError: true,
+			name:          "invalid string",
+			args:          []Value{&runtime.StringValue{Value: "abc"}},
+			isError:       true,
+			expectedError: `"abc" is not a valid integer value`,
+		},
+		{
+			name:          "invalid base",
+			args:          []Value{&runtime.StringValue{Value: "10"}, &runtime.IntegerValue{Value: 1}},
+			isError:       true,
+			expectedError: "Invalid base for string to integer conversion (1)",
+		},
+		{
+			name:          "invalid string with explicit base",
+			args:          []Value{&runtime.StringValue{Value: "not"}, &runtime.IntegerValue{Value: 16}},
+			isError:       true,
+			expectedError: `"not" is not a valid 64bit integer value in base 16`,
 		},
 		{
 			name:    "wrong argument count",
@@ -172,6 +186,9 @@ func TestStrToInt(t *testing.T) {
 			if tt.isError {
 				if result.Type() != "ERROR" {
 					t.Errorf("expected error, got %v", result)
+				}
+				if tt.expectedError != "" && ctx.lastError != tt.expectedError {
+					t.Errorf("expected error %q, got %q", tt.expectedError, ctx.lastError)
 				}
 				return
 			}

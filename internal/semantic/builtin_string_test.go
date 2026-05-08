@@ -66,6 +66,28 @@ func TestBuiltinCopy_InvalidType(t *testing.T) {
 	expectError(t, input, "string")
 }
 
+// SubString function tests
+func TestBuiltinSubString_Basic(t *testing.T) {
+	input := `
+		var sub := SubString('hello world', 1, 5);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinSubString_InvalidArgCount(t *testing.T) {
+	input := `
+		var sub := SubString('hello', 1);
+	`
+	expectError(t, input, "3 arguments")
+}
+
+func TestBuiltinSubString_InvalidStartType(t *testing.T) {
+	input := `
+		var sub := SubString('hello', '1', 5);
+	`
+	expectError(t, input, "integer")
+}
+
 // Concat function tests
 func TestBuiltinConcat_TwoStrings(t *testing.T) {
 	input := `

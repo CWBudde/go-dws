@@ -71,14 +71,13 @@ func (e *Evaluator) callRecordMethod(
 	e.syncRecordMethodFields(record, ctx)
 	e.syncRecordMethodClassState(record, ctx)
 
-	// 7. Check for early return/exit
-	// Control flow is managed by ExecutionContext.ControlFlow()
+	// Exit only leaves the record method body. Clear it before returning to the caller,
+	// matching user-function and lambda call handling.
 	if ctx.ControlFlow().IsExit() {
-		// Exit propagates up the call stack
-		return e.nilValue()
+		ctx.ControlFlow().Clear()
 	}
 
-	// 8. Extract Result variable (if method has return type)
+	// 7. Extract Result variable (if method has return type)
 	if method.ReturnType != nil {
 		returnValue := e.extractReturnValue(method.Name.Value, ctx)
 		return e.retainValueForBinding(returnValue, ctx)
@@ -140,6 +139,10 @@ func (e *Evaluator) callRecordStaticMethod(
 		if val, ok := ctx.Env().Get(name); ok {
 			recordType.ClassVars[name] = val
 		}
+	}
+
+	if ctx.ControlFlow().IsExit() {
+		ctx.ControlFlow().Clear()
 	}
 
 	if method.ReturnType != nil {

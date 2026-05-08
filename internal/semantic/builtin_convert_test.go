@@ -98,6 +98,20 @@ func TestBuiltinStrToInt_Negative(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
+func TestBuiltinStrToInt_WithBase(t *testing.T) {
+	input := `
+		var n := StrToInt('ff', 16);
+	`
+	expectNoErrors(t, input)
+}
+
+func TestBuiltinStrToInt_InvalidBaseType(t *testing.T) {
+	input := `
+		var n := StrToInt('42', '10');
+	`
+	expectError(t, input, "Integer as second argument")
+}
+
 func TestBuiltinStrToInt_InvalidString(t *testing.T) {
 	// Should analyze without error (runtime check)
 	input := `

@@ -627,6 +627,24 @@ func TestSubString(t *testing.T) {
 			},
 			expected: "Worl",
 		},
+		{
+			name: "start below one clamps to first character",
+			args: []Value{
+				&runtime.StringValue{Value: "Hello"},
+				&runtime.IntegerValue{Value: 0},
+				&runtime.IntegerValue{Value: 3},
+			},
+			expected: "He",
+		},
+		{
+			name: "uses rune indexes",
+			args: []Value{
+				&runtime.StringValue{Value: "Äbc"},
+				&runtime.IntegerValue{Value: 1},
+				&runtime.IntegerValue{Value: 3},
+			},
+			expected: "Äb",
+		},
 	}
 
 	for _, tt := range tests {

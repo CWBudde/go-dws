@@ -20,8 +20,9 @@ func (e *mockErrorValue) String() string { return "ERROR: " + e.Message }
 
 // mockContext implements the Context interface for testing
 type mockContext struct {
-	rng      *rand.Rand
-	randSeed int64
+	rng       *rand.Rand
+	randSeed  int64
+	lastError string
 }
 
 func newMockContext() *mockContext {
@@ -32,7 +33,8 @@ func newMockContext() *mockContext {
 }
 
 func (m *mockContext) NewError(format string, args ...interface{}) Value {
-	return &mockErrorValue{Message: "mock error"}
+	m.lastError = fmt.Sprintf(format, args...)
+	return &mockErrorValue{Message: m.lastError}
 }
 
 func (m *mockContext) CurrentNode() ast.Node {

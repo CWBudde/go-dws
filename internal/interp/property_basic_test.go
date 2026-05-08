@@ -100,6 +100,138 @@ PrintLn(obj.Count);
 	}
 }
 
+func TestPropertyEnvironmentSalvage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "method-backed getter and setter restore caller scope",
+			input: `
+type TBox = class
+	FValue: Integer;
+
+	function GetValue: Integer;
+	begin
+		var marker := 99;
+		Result := FValue;
+	end;
+
+	procedure SetValue(value: Integer);
+	begin
+		var marker := 88;
+		FValue := value;
+	end;
+
+	property Value: Integer read GetValue write SetValue;
+	constructor Create; begin end;
+end;
+
+var marker := 7;
+var box := TBox.Create();
+box.Value := 42;
+PrintLn(box.Value);
+PrintLn(marker);
+`,
+			expected: "42\n7\n",
+		},
+		{
+			name: "expression-backed getter uses instance fields without leaking scope",
+			input: `
+type TBox = class
+	FValue: Integer;
+	property Doubled: Integer read (FValue * 2);
+	constructor Create; begin end;
+end;
+
+var FValue := 100;
+var box := TBox.Create();
+box.FValue := 6;
+PrintLn(box.Doubled);
+PrintLn(FValue);
+`,
+			expected: "12\n100\n",
+		},
+		{
+			name: "indexed getter and setter restore caller scope",
+			input: `
+type TList = class
+	FData: array of String;
+
+	function GetItem(i: Integer): String;
+	begin
+		var marker := 'getter';
+		Result := FData[i];
+	end;
+
+	procedure SetItem(i: Integer; value: String);
+	begin
+		var marker := 'setter';
+		FData[i] := value;
+	end;
+
+	property Items[i: Integer]: String read GetItem write SetItem;
+	constructor Create; begin FData := ['first', 'second', 'third']; end;
+end;
+
+var marker := 'outer';
+var list := TList.Create();
+list.Items[1] := 'middle';
+PrintLn(list.Items[1]);
+PrintLn(marker);
+`,
+			expected: "middle\nouter\n",
+		},
+		{
+			name: "class property methods synchronize class vars and restore caller scope",
+			input: `
+type TConfig = class
+	class var FValue: Integer;
+
+	class function GetValue: Integer;
+	begin
+		var marker := 11;
+		Result := FValue;
+	end;
+
+	class procedure SetValue(value: Integer);
+	begin
+		var marker := 22;
+		FValue := value;
+	end;
+
+	class property Value: Integer read GetValue write SetValue;
+end;
+
+var FValue := 7;
+TConfig.Value := 33;
+PrintLn(TConfig.Value);
+PrintLn(FValue);
+`,
+			expected: "33\n7\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out bytes.Buffer
+			interp := New(&out)
+			result := interpret(interp, tt.input)
+
+			if err, ok := result.(*ErrorValue); ok {
+				t.Fatalf("unexpected error: %v", err.Message)
+			}
+			if exc := interp.GetException(); exc != nil {
+				t.Fatalf("unexpected exception: %v", exc.Message)
+			}
+			if out.String() != tt.expected {
+				t.Fatalf("wrong output. expected=%q, got=%q", tt.expected, out.String())
+			}
+		})
+	}
+}
+
 // TestPropertyReadOnly tests read-only properties
 func TestPropertyReadOnly(t *testing.T) {
 	input := `
