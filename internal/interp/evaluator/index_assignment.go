@@ -40,8 +40,43 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 	base, indices := CollectIndices(target)
 
 	// If base is a MemberAccessExpression, it's an indexed property: obj.Prop[i] := value
-	// Handle directly using general-purpose method dispatch (no adapter fallback)
+	// or an indexed array/string field: obj.Field[i] := value.
 	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
+		memberVal := e.Eval(memberAccess, ctx)
+		if isError(memberVal) {
+			return memberVal
+		}
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+		if refVal, isRef := memberVal.(ReferenceAccessor); isRef {
+			deref, err := refVal.Dereference()
+			if err != nil {
+				return e.newError(stmt, "failed to dereference indexed member: %s", err.Error())
+			}
+			memberVal = deref
+		}
+
+		if len(indices) == 1 {
+			indexVal := e.Eval(indices[0], ctx)
+			if isError(indexVal) {
+				return indexVal
+			}
+			if ctx.Exception() != nil {
+				return &runtime.NilValue{}
+			}
+			index, ok := ExtractIntegerIndex(indexVal)
+			if !ok {
+				return e.newError(stmt, "array index must be an ordinal, got %s", indexVal.Type())
+			}
+			if arrayValue, ok := memberVal.(*runtime.ArrayValue); ok {
+				return e.evalArrayElementAssignment(arrayValue, index, value, stmt)
+			}
+			if strVal, ok := memberVal.(*runtime.StringValue); ok {
+				return e.evalStringCharAssignment(strVal, index, value, stmt)
+			}
+		}
+
 		return e.evalIndexedPropertyAssignment(memberAccess, indices, value, stmt, ctx)
 	}
 
@@ -135,8 +170,9 @@ func (e *Evaluator) evalArrayElementAssignment(
 		return e.newError(stmt, "array index out of bounds: physical index %d, length %d", physicalIndex, len(arrayValue.Elements))
 	}
 
-	// Update the array element
-	arrayValue.Elements[physicalIndex] = value
+	// Update the array element. Record/static-array elements have value
+	// semantics, so store a snapshot instead of aliasing the source value.
+	arrayValue.Elements[physicalIndex] = cloneIfCopyable(value)
 
 	return value
 }

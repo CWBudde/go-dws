@@ -58,33 +58,11 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 							return e.Eval(expr, ctx)
 						})
 					} else if isByRef {
-						// Wrap var parameters in reference with get/set callbacks
-						if argIdent, ok := arg.(*ast.Identifier); ok {
-							varName := argIdent.Value
-							capturedEnv := ctx.Env()
-
-							var getter runtime.GetterCallback = func() (runtime.Value, error) {
-								val, found := capturedEnv.Get(varName)
-								if !found {
-									return nil, fmt.Errorf("referenced variable %s not found", varName)
-								}
-								if runtimeVal, ok := val.(runtime.Value); ok {
-									return runtimeVal, nil
-								}
-								return nil, fmt.Errorf("environment value is not a runtime.Value")
-							}
-
-							var setter runtime.SetterCallback = func(val runtime.Value) error {
-								if err := capturedEnv.Set(varName, val); err != nil {
-									return fmt.Errorf("failed to set variable %s: %w", varName, err)
-								}
-								return nil
-							}
-
-							args[idx] = runtime.NewReferenceValue(varName, getter, setter)
-						} else {
-							return e.newError(arg, "var parameter requires a variable, got %T", arg)
+						ref, err := e.prepareByRefArgument(arg, ctx)
+						if err != nil {
+							return e.newError(arg, "%s", err.Error())
 						}
+						args[idx] = ref
 					} else {
 						// Regular parameters: evaluate immediately
 						argVal := e.Eval(arg, ctx)
@@ -328,45 +306,11 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 			})
 
 		} else if isByRef {
-			// Var parameter: wrap in reference with get/set callbacks
-			argIdent, ok := arg.(*ast.Identifier)
-			if !ok {
-				return nil, fmt.Errorf("var parameter requires a variable, got %T", arg)
+			ref, err := e.prepareByRefArgument(arg, ctx)
+			if err != nil {
+				return nil, err
 			}
-
-			varName := argIdent.Value
-			capturedEnv := ctx.Env()
-
-			// Check if the variable is already a reference (var parameter passed through)
-			// This is critical for nested var param calls like IncrementTwice(n) where n is already a var param
-			if val, exists := capturedEnv.Get(varName); exists {
-				if refVal, isRef := val.(ReferenceAccessor); isRef {
-					// Already a reference - pass it through to preserve the chain to the original variable
-					args[idx] = refVal.(Value)
-					continue
-				}
-			}
-
-			// Regular variable - create a new reference
-			var getter runtime.GetterCallback = func() (runtime.Value, error) {
-				val, found := capturedEnv.Get(varName)
-				if !found {
-					return nil, fmt.Errorf("variable %s not found", varName)
-				}
-				if runtimeVal, ok := val.(runtime.Value); ok {
-					return runtimeVal, nil
-				}
-				return nil, fmt.Errorf("environment value is not a runtime.Value")
-			}
-
-			var setter runtime.SetterCallback = func(val runtime.Value) error {
-				if err := capturedEnv.Set(varName, val); err != nil {
-					return fmt.Errorf("failed to set variable %s: %w", varName, err)
-				}
-				return nil
-			}
-
-			args[idx] = runtime.NewReferenceValue(varName, getter, setter)
+			args[idx] = ref
 
 		} else {
 			// Regular parameter: use cached value
@@ -375,6 +319,38 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 	}
 
 	return args, nil
+}
+
+func (e *Evaluator) prepareByRefArgument(arg ast.Expression, ctx *ExecutionContext) (Value, error) {
+	current, assign, err := e.EvaluateLValue(arg, ctx)
+	if err != nil {
+		return nil, fmt.Errorf("var parameter requires a variable, got %T", arg)
+	}
+
+	if refVal, isRef := current.(ReferenceAccessor); isRef {
+		return refVal.(Value), nil
+	}
+
+	currentValue := current
+	var getter runtime.GetterCallback = func() (runtime.Value, error) {
+		if currentValue == nil {
+			return &runtime.NilValue{}, nil
+		}
+		return currentValue, nil
+	}
+	var setter runtime.SetterCallback = func(val runtime.Value) error {
+		value, ok := val.(Value)
+		if !ok {
+			return fmt.Errorf("var parameter assignment requires runtime value, got %T", val)
+		}
+		if err := assign(value); err != nil {
+			return err
+		}
+		currentValue = value
+		return nil
+	}
+
+	return runtime.NewReferenceValue(arg.String(), getter, setter), nil
 }
 
 // wrapLazyArg creates a thunk for lazy parameters.

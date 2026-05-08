@@ -167,3 +167,180 @@ func TestVarParam_NestedCalls(t *testing.T) {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
 	}
 }
+
+func TestVarParam_RecordVariableCopyBack(t *testing.T) {
+	input := `
+		type TRec = record
+			A, B: Integer;
+		end;
+
+		procedure CopyRec(const src: TRec; var dest: TRec);
+		begin
+			dest := src;
+		end;
+
+		var src: TRec;
+		var dest: TRec;
+		src.A := 7;
+		src.B := 9;
+		CopyRec(src, dest);
+		PrintLn(dest.A);
+		PrintLn(dest.B);
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %s", result)
+	}
+
+	expected := "7\n9\n"
+	if output != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
+	}
+}
+
+func TestVarParam_RecordArrayElementCopyBack(t *testing.T) {
+	input := `
+		type TRec = record
+			A, B: Integer;
+		end;
+
+		procedure CopyRec(const src: TRec; var dest: TRec);
+		begin
+			dest := src;
+		end;
+
+		var src: TRec;
+		src.A := 11;
+		src.B := 13;
+		var values: array [0..1] of TRec;
+		CopyRec(src, values[1]);
+		PrintLn(values[1].A);
+		PrintLn(values[1].B);
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %s", result)
+	}
+
+	expected := "11\n13\n"
+	if output != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
+	}
+}
+
+func TestVarParam_NestedRecordFieldCopyBack(t *testing.T) {
+	input := `
+		type TRec = record
+			A: Integer;
+		end;
+
+		type THolder = record
+			Item: TRec;
+		end;
+
+		procedure SetRec(var dest: TRec; value: Integer);
+		begin
+			dest.A := value;
+		end;
+
+		var holder: THolder;
+		SetRec(holder.Item, 23);
+		PrintLn(holder.Item.A);
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %s", result)
+	}
+
+	expected := "23\n"
+	if output != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
+	}
+}
+
+func TestVarParam_RecordParameterNestedArrayMutationCopiesElements(t *testing.T) {
+	input := `
+		type TRec = record
+			A: Integer;
+			B: String;
+		end;
+
+		type THolder = record
+			Items: array [0..1] of TRec;
+		end;
+
+		procedure Store(var holder: THolder; idx: Integer; item: TRec);
+		begin
+			holder.Items[idx] := item;
+		end;
+
+		procedure CopyHolder(src: THolder; var dest: THolder);
+		begin
+			dest := src;
+		end;
+
+		var item: TRec;
+		item.A := 4;
+		item.B := 'four';
+		var holder: THolder;
+		Store(holder, 0, item);
+		item.A := 99;
+		item.B := 'changed';
+		PrintLn(holder.Items[0].A);
+		PrintLn(holder.Items[0].B);
+		var copied: THolder;
+		CopyHolder(holder, copied);
+		holder.Items[0].A := 77;
+		holder.Items[0].B := 'changed again';
+		PrintLn(copied.Items[0].A);
+		PrintLn(copied.Items[0].B);
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %s", result)
+	}
+
+	expected := "4\nfour\n4\nfour\n"
+	if output != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
+	}
+}
+
+func TestVarParam_RecordMethodRecordParameterCopyBack(t *testing.T) {
+	input := `
+		type TRec = record
+			A: Integer;
+			B: Integer;
+		end;
+
+		type TMutator = record
+			procedure Replace(var dest: TRec; src: TRec);
+			begin
+				dest := src;
+			end;
+		end;
+
+		var src: TRec;
+		src.A := 31;
+		src.B := 37;
+		var dest: TRec;
+		var mutator: TMutator;
+		mutator.Replace(dest, src);
+		PrintLn(dest.A);
+		PrintLn(dest.B);
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("unexpected error: %s", result)
+	}
+
+	expected := "31\n37\n"
+	if output != expected {
+		t.Errorf("wrong output. expected=%q, got=%q", expected, output)
+	}
+}

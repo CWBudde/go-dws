@@ -69,6 +69,13 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	if ctx.Exception() != nil {
 		return &runtime.NilValue{}
 	}
+	if refVal, isRef := obj.(ReferenceAccessor); isRef {
+		deref, err := refVal.Dereference()
+		if err != nil {
+			return e.newError(node, "failed to dereference: %s", err.Error())
+		}
+		obj = deref
+	}
 
 	memberName := node.Member.Value
 

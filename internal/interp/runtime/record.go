@@ -88,13 +88,7 @@ func (r *RecordValue) Copy() Value {
 
 	// Deep copy all fields
 	for name, val := range r.Fields {
-		// Check if the value is also a record that needs copying
-		if recVal, ok := val.(*RecordValue); ok {
-			copiedFields[name] = recVal.Copy()
-		} else {
-			// For basic types (Integer, String, etc.), they're already immutable or copied by value
-			copiedFields[name] = val
-		}
+		copiedFields[name] = CopyValue(val)
 	}
 
 	return &RecordValue{
