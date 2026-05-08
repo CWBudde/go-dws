@@ -348,6 +348,10 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if !ok && a.currentClass != nil {
 			// Check if it's a field of the current class (case-insensitive)
 			if fieldType, exists := a.currentClass.GetField(target.Value); exists {
+				if a.inClassMethod {
+					a.addStructuredError(NewObjectReferenceNeededError(target.Token.Pos))
+					return
+				}
 				fieldOwner := a.getFieldOwner(a.currentClass, target.Value)
 				if fieldOwner != nil {
 					lowerFieldName := ident.Normalize(target.Value)
@@ -382,6 +386,10 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			for class := a.currentClass; class != nil; class = class.Parent {
 				for propName, propInfo := range class.Properties {
 					if ident.Equal(propName, target.Value) {
+						if a.inClassMethod && !propInfo.IsClassProperty {
+							a.addStructuredError(NewObjectReferenceNeededError(target.Token.Pos))
+							return
+						}
 						if isCompound && propInfo.ReadKind == types.PropAccessNone {
 							a.addStructuredError(NewWriteOnlyPropertyError(target.Token.Pos, target.Value))
 							return
@@ -518,6 +526,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							}
 							if propInfo.WriteSpec != "" && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)]) {
 								a.addStructuredError(NewPropertyWriteShouldBeStaticMethodError(target.Member.Token.Pos))
+								a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Member.Token.Pos))
 								return
 							}
 							a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Member.Token.Pos))

@@ -806,7 +806,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	if method.CallingConvention != "" {
 		a.addHint("Calling convention \"%s\" is ignored at %s", method.CallingConvention, method.CallingConventionPos.String())
 	}
-	if method.IsStatic && method.Body == nil {
+	if method.IsStatic && !method.IsClassMethod {
 		pos := method.StaticPos
 		if pos.Line == 0 {
 			pos = method.Token.Pos

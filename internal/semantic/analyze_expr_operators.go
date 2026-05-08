@@ -86,61 +86,78 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		if interfaceType := a.getInterfaceType(identifier.Value); interfaceType != nil {
 			return interfaceType
 		}
-		if a.currentClass != nil && !a.inClassMethod {
-			// Check if identifier is a field of the current class (implicit Self, instance methods only)
-			if fieldType, exists := a.currentClass.GetField(identifier.Value); exists {
-				// Check field visibility
-				fieldOwner := a.getFieldOwner(a.currentClass, identifier.Value)
-				if fieldOwner != nil {
-					lowerFieldName := ident.Normalize(identifier.Value)
-					visibility, hasVisibility := fieldOwner.FieldVisibility[lowerFieldName]
-					if hasVisibility && !a.checkVisibility(fieldOwner, visibility, identifier.Value, "field") {
-						a.addStructuredError(NewVisibilityScopeError(identifier.Token.Pos, identifier.Value))
-						return nil
-					}
-					a.recordClassFieldUsage(fieldOwner, identifier.Value)
+		if a.currentClass != nil {
+			if a.inClassMethod {
+				if _, exists := a.currentClass.GetField(identifier.Value); exists {
+					a.addStructuredError(NewObjectReferenceNeededError(identifier.Token.Pos))
+					return nil
 				}
-				return fieldType
-			}
-
-			// Check property in current class and parent hierarchy
-			for class := a.currentClass; class != nil; class = class.Parent {
-				for propName, propInfo := range class.Properties {
-					if ident.Equal(propName, identifier.Value) {
-						if a.inPropertyExpr && ident.Equal(propName, a.currentProperty) {
-							a.addError("property '%s' cannot be read-accessed at %s", identifier.Value, identifier.Token.Pos.String())
+				for class := a.currentClass; class != nil; class = class.Parent {
+					for propName, propInfo := range class.Properties {
+						if ident.Equal(propName, identifier.Value) && !propInfo.IsClassProperty {
+							a.addStructuredError(NewObjectReferenceNeededError(identifier.Token.Pos))
 							return nil
 						}
-						if propInfo.ReadKind == types.PropAccessNone {
-							a.addStructuredError(NewWriteOnlyPropertyError(identifier.Token.Pos, identifier.Value))
-							return nil
-						}
-						return propInfo.Type
 					}
 				}
 			}
 
-			// Check methods in current class
-			methodType, found := a.currentClass.GetMethod(identifier.Value)
-			if found {
-				methodOwner := a.getMethodOwner(a.currentClass, identifier.Value)
-				if methodOwner != nil {
-					visibility, hasVisibility := methodOwner.MethodVisibility[identifier.Value]
-					if hasVisibility && !a.checkVisibility(methodOwner, visibility, identifier.Value, "method") {
-						a.addStructuredError(NewVisibilityScopeError(identifier.Token.Pos, identifier.Value))
-						return nil
+			if !a.inClassMethod {
+				// Check if identifier is a field of the current class (implicit Self, instance methods only)
+				if fieldType, exists := a.currentClass.GetField(identifier.Value); exists {
+					// Check field visibility
+					fieldOwner := a.getFieldOwner(a.currentClass, identifier.Value)
+					if fieldOwner != nil {
+						lowerFieldName := ident.Normalize(identifier.Value)
+						visibility, hasVisibility := fieldOwner.FieldVisibility[lowerFieldName]
+						if hasVisibility && !a.checkVisibility(fieldOwner, visibility, identifier.Value, "field") {
+							a.addStructuredError(NewVisibilityScopeError(identifier.Token.Pos, identifier.Value))
+							return nil
+						}
+						a.recordClassFieldUsage(fieldOwner, identifier.Value)
 					}
-					a.recordClassMethodUsage(methodOwner, identifier.Value)
+					return fieldType
 				}
-				// Parameterless methods: implicit call returning method's return type
-				if len(methodType.Parameters) == 0 {
-					if methodType.ReturnType == nil {
-						return types.VOID
+
+				// Check property in current class and parent hierarchy
+				for class := a.currentClass; class != nil; class = class.Parent {
+					for propName, propInfo := range class.Properties {
+						if ident.Equal(propName, identifier.Value) {
+							if a.inPropertyExpr && ident.Equal(propName, a.currentProperty) {
+								a.addError("property '%s' cannot be read-accessed at %s", identifier.Value, identifier.Token.Pos.String())
+								return nil
+							}
+							if propInfo.ReadKind == types.PropAccessNone {
+								a.addStructuredError(NewWriteOnlyPropertyError(identifier.Token.Pos, identifier.Value))
+								return nil
+							}
+							return propInfo.Type
+						}
 					}
-					return methodType.ReturnType
 				}
-				// Methods with parameters: return method pointer type
-				return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
+
+				// Check methods in current class
+				methodType, found := a.currentClass.GetMethod(identifier.Value)
+				if found {
+					methodOwner := a.getMethodOwner(a.currentClass, identifier.Value)
+					if methodOwner != nil {
+						visibility, hasVisibility := methodOwner.MethodVisibility[identifier.Value]
+						if hasVisibility && !a.checkVisibility(methodOwner, visibility, identifier.Value, "method") {
+							a.addStructuredError(NewVisibilityScopeError(identifier.Token.Pos, identifier.Value))
+							return nil
+						}
+						a.recordClassMethodUsage(methodOwner, identifier.Value)
+					}
+					// Parameterless methods: implicit call returning method's return type
+					if len(methodType.Parameters) == 0 {
+						if methodType.ReturnType == nil {
+							return types.VOID
+						}
+						return methodType.ReturnType
+					}
+					// Methods with parameters: return method pointer type
+					return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
+				}
 			}
 		}
 

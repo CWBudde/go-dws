@@ -278,7 +278,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			if propInfo.IsClassProperty {
 				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
 				if !isClassMethod {
-					a.addStructuredError(NewPropertyReadShouldBeStaticMethodError(ident.Token.Pos))
+					a.addStructuredError(NewClassMethodOrConstructorExpectedError(ident.Token.Pos))
 					return
 				}
 			} else {
@@ -461,7 +461,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		if propInfo.IsClassProperty {
 			isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(writeSpecName)]
 			if !isClassMethod {
-				a.addStructuredError(NewPropertyWriteShouldBeStaticMethodError(ident.Token.Pos))
+				a.addStructuredError(NewClassMethodOrConstructorExpectedError(ident.Token.Pos))
 				return
 			}
 		}

@@ -188,7 +188,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		methodName := method.Name.Value
 		lowerMethodName := ident.Normalize(methodName)
 
-		if method.IsStatic && method.Body == nil {
+		if method.IsStatic && !method.IsClassMethod {
 			pos := method.StaticPos
 			if pos.Line == 0 {
 				pos = method.Token.Pos

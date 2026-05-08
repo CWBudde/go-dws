@@ -528,8 +528,8 @@ type
 	got := result.DiagnosticStrings()
 	want := []string{
 		`Syntax Error: Class member expected [line: 5, column: 38]`,
-		`Syntax Error: Read access of property should be a static method [line: 10, column: 38]`,
-		`Syntax Error: Write access of property should be a static method [line: 16, column: 51]`,
+		`Syntax Error: Class method or constructor expected [line: 10, column: 38]`,
+		`Syntax Error: Class method or constructor expected [line: 16, column: 51]`,
 	}
 
 	if len(got) != len(want) {
