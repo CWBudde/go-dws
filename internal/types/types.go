@@ -477,6 +477,7 @@ type ClassType struct {
 	Interfaces           []*InterfaceType
 	IsAbstract           bool
 	IsExternal           bool
+	IsStatic             bool
 	IsForward            bool // True if this is a forward declaration only
 	IsPartial            bool // True if this is a partial class
 	IsDeprecated         bool

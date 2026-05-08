@@ -200,6 +200,16 @@ func (a *Analyzer) resolveParentClass(decl *ast.ClassDecl, className string) *ty
 		return parentClass
 	}
 
+	if len(decl.Interfaces) > 0 {
+		parentIdent := decl.Interfaces[0]
+		if parentClass := a.getClassType(parentIdent.Value); parentClass != nil {
+			decl.Parent = parentIdent
+			decl.Interfaces = decl.Interfaces[1:]
+			a.warnDeprecatedClassUsage(parentClass, parentIdent.Token.Pos)
+			return parentClass
+		}
+	}
+
 	// Implicitly inherit from TObject if no explicit parent.
 	if !ident.Equal(className, "TObject") && !decl.IsExternal {
 		parentClass := a.getClassType("TObject")
@@ -237,6 +247,7 @@ func (a *Analyzer) updateClassFlags(classType *types.ClassType, decl *ast.ClassD
 
 	classType.IsAbstract = decl.IsAbstract || classType.IsAbstract
 	classType.IsExternal = decl.IsExternal || classType.IsExternal
+	classType.IsStatic = decl.IsStaticClass || classType.IsStatic
 	if decl.ExternalName != "" {
 		classType.ExternalName = decl.ExternalName
 	}
@@ -262,6 +273,16 @@ func (a *Analyzer) validateClassInheritance(
 				className, parentClass.Name, decl.Token.Pos.String())
 			return false
 		}
+	}
+
+	if classType.IsStatic && parentClass != nil && !parentClass.IsStatic && !ident.Equal(parentClass.Name, "TObject") {
+		pos := decl.Token.Pos
+		if decl.Parent != nil {
+			pos = decl.Parent.Token.Pos
+			pos.Column += len(decl.Parent.Value)
+		}
+		a.addStructuredError(NewStaticClassInheritanceError(pos, parentClass.Name))
+		return false
 	}
 
 	// Check for circular inheritance.

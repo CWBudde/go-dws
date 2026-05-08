@@ -238,6 +238,11 @@ func sortDiagnostics(diags []Diagnostic) {
 		if leftCount != rightCount {
 			return leftCount < rightCount
 		}
+		leftStaticClass, leftIsStaticClass := diagnosticStaticClassPriority(left)
+		rightStaticClass, rightIsStaticClass := diagnosticStaticClassPriority(right)
+		if leftIsStaticClass && rightIsStaticClass && leftStaticClass != rightStaticClass {
+			return leftStaticClass < rightStaticClass
+		}
 		if left.Column != right.Column {
 			return left.Column < right.Column
 		}
@@ -270,6 +275,17 @@ func diagnosticArgumentCountPriority(diag Diagnostic) int {
 		return 0
 	default:
 		return 1
+	}
+}
+
+func diagnosticStaticClassPriority(diag Diagnostic) (int, bool) {
+	switch {
+	case strings.Contains(diag.Message, ` is static, instantiation not allowed`):
+		return 0, true
+	case strings.Contains(diag.Message, ` is static, no instances allowed`):
+		return 1, true
+	default:
+		return 0, false
 	}
 }
 

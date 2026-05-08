@@ -282,6 +282,13 @@ func (p *Parser) parseClassTypeKind(nameIdent *ast.Identifier, typeToken lexer.T
 		}
 		return classDecl
 	}
+	if cursor.Peek(1).Type == lexer.STATIC {
+		classDecl := p.parseClassDeclarationBody(nameIdent)
+		if classDecl != nil {
+			classDecl.IsStaticClass = true
+		}
+		return classDecl
+	}
 	// Regular class declaration: type TMyClass = class ... end;
 	return p.parseClassDeclarationBody(nameIdent)
 }
@@ -316,6 +323,24 @@ func (p *Parser) parseTypeKind(nameIdent *ast.Identifier, typeToken lexer.Token,
 		classDecl := p.parseClassDeclarationBody(nameIdent)
 		if classDecl != nil {
 			classDecl.IsPartial = true
+		}
+		return classDecl
+	case lexer.STATIC:
+		// Static class declaration: type TMyClass = static class ... end;
+		cursor = cursor.Advance() // move to STATIC
+		p.cursor = cursor
+
+		if cursor.Peek(1).Type != lexer.CLASS {
+			p.addError("expected 'class' after 'static'", ErrUnexpectedToken)
+			return nil
+		}
+		cursor = cursor.Advance() // move to CLASS
+		p.cursor = cursor
+
+		classDecl := p.parseClassTypeKind(nameIdent, typeToken)
+		if classDecl, ok := classDecl.(*ast.ClassDecl); ok {
+			classDecl.IsStaticClass = true
+			return classDecl
 		}
 		return classDecl
 	case lexer.CLASS:

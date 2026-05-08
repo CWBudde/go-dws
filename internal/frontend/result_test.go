@@ -601,7 +601,7 @@ end;
 	got := result.DiagnosticStrings()
 	want := []string{
 		`Syntax Error: Cannot set a value for a read-only property [line: 19, column: 9]`,
-		`Syntax Error: property 'WriteOnlyValue' is write-only [line: 20, column: 14]`,
+		`Syntax Error: Cannot read a write only property [line: 20, column: 14]`,
 		`Syntax Error: Argument 0 expects type "Integer" instead of "String" [line: 21, column: 9]`,
 		`Syntax Error: Object reference needed to read/write an object field [line: 22, column: 15]`,
 		`Syntax Error: Object reference needed to read/write an object field [line: 23, column: 10]`,
@@ -615,6 +615,21 @@ end;
 		if got[i] != want[i] {
 			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
 		}
+	}
+}
+
+func TestCompile_RendersNoDefaultClassPropertyDiagnostic(t *testing.T) {
+	source := `type
+	TTest = class
+		Field: Integer;
+	end;
+var i := TTest.Create[1];`
+
+	result := Compile(source, "property_no_default.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := `Syntax Error: Class "TTest" has no default property [line: 5, column: 22]`
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("diagnostics = %v, want [%s]", got, want)
 	}
 }
 
@@ -1032,6 +1047,31 @@ func TestSortDiagnostics_ArgumentCountComesBeforeFollowOnTypeError(t *testing.T)
 	sortDiagnostics(diags)
 
 	if diags[0].Message != `Syntax Error: More arguments expected` {
+		t.Fatalf("unexpected order after sort: %+v", diags)
+	}
+}
+
+func TestSortDiagnostics_StaticClassInstantiationBeforeNoInstances(t *testing.T) {
+	diags := []Diagnostic{
+		{
+			Message:  `Syntax Error: Class "TObj" is static, no instances allowed`,
+			Phase:    PhaseSemantic,
+			Line:     7,
+			Column:   7,
+			Severity: SeverityError,
+		},
+		{
+			Message:  `Syntax Error: Class "TObj" is static, instantiation not allowed`,
+			Phase:    PhaseSemantic,
+			Line:     7,
+			Column:   15,
+			Severity: SeverityError,
+		},
+	}
+
+	sortDiagnostics(diags)
+
+	if diags[0].Message != `Syntax Error: Class "TObj" is static, instantiation not allowed` {
 		t.Fatalf("unexpected order after sort: %+v", diags)
 	}
 }

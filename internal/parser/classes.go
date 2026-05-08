@@ -327,6 +327,12 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		NestedTypes: []ast.Statement{},
 	}
 
+	if cursor.Peek(1).Type == lexer.STATIC {
+		cursor = cursor.Advance() // move to 'static'
+		p.cursor = cursor
+		classDecl.IsStaticClass = true
+	}
+
 	// Check for optional parent class and/or interfaces
 	classDecl.Interfaces = []*ast.Identifier{}
 

@@ -41,6 +41,11 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	}
 	a.warnDeprecatedClassUsage(classType, expr.Token.Pos)
 
+	if classType.IsStatic {
+		a.addStructuredError(NewStaticClassInstantiationError(expr.Pos(), classType.Name))
+		return classType
+	}
+
 	// Check if trying to instantiate an abstract class
 	if classType.IsAbstract {
 		a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
@@ -181,6 +186,16 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	}
 
 	return classType
+}
+
+func constructorCallPosition(expr *ast.CallExpression) token.Position {
+	if expr == nil {
+		return token.Position{}
+	}
+	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok && memberAccess.Member != nil {
+		return memberAccess.Member.Token.Pos
+	}
+	return expr.Pos()
 }
 
 // analyzeMemberAccessExpression analyzes member access on classes, records, interfaces, and helpers.
@@ -405,6 +420,10 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		}
 		if hasParameterless {
 			a.recordClassMethodUsage(classType, memberName)
+			if classType.IsStatic {
+				a.addStructuredError(NewStaticClassInstantiationError(expr.Member.Token.Pos, classType.Name))
+				return classType
+			}
 			if classType.IsAbstract || len(a.getUnimplementedAbstractMethods(classType)) > 0 {
 				a.addStructuredError(NewAbstractInstantiationError(expr.Member.Token.Pos))
 				return classType

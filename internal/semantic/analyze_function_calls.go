@@ -127,8 +127,46 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Check implicit Self method call within a class
 		if a.currentClass != nil {
 			methodNameLower := ident.Normalize(funcIdent.Value)
-			methodType, found := a.currentClass.GetMethod(funcIdent.Value)
-			if found {
+			overloads := a.getMethodOverloadsInHierarchy(methodNameLower, a.currentClass)
+			if len(overloads) > 0 {
+				var selectedMethod *types.MethodInfo
+				if len(overloads) == 1 {
+					selectedMethod = overloads[0]
+				} else {
+					argTypes := make([]types.Type, len(expr.Arguments))
+					for i, arg := range expr.Arguments {
+						argType := a.analyzeExpression(arg)
+						if argType == nil {
+							return nil
+						}
+						argTypes[i] = argType
+					}
+
+					candidates := make([]*Symbol, len(overloads))
+					for i, overload := range overloads {
+						candidates[i] = &Symbol{Type: overload.Signature}
+					}
+					selected, err := ResolveOverload(candidates, argTypes)
+					if err != nil {
+						a.addStructuredError(NewNoOverloadMatchError(funcIdent.Token.Pos, funcIdent.Value))
+						return nil
+					}
+					for i, candidate := range candidates {
+						if candidate == selected {
+							selectedMethod = overloads[i]
+							break
+						}
+					}
+				}
+				if selectedMethod == nil {
+					return nil
+				}
+				if a.inClassMethod && !selectedMethod.IsClassMethod {
+					a.addStructuredError(NewClassMethodOrConstructorExpectedError(funcIdent.Token.Pos))
+					return nil
+				}
+				methodType := selectedMethod.Signature
+
 				// Check visibility
 				methodOwner := a.getMethodOwner(a.currentClass, methodNameLower)
 				if methodOwner != nil {
@@ -689,6 +727,11 @@ func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
 // analyzeConstructorCall analyzes constructor calls like TClass.Create(args).
 // Handles overload resolution, visibility, and argument validation.
 func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *types.ClassType, constructorName string) types.Type {
+	if classType.IsStatic {
+		a.addStructuredError(NewStaticClassInstantiationError(constructorCallPosition(expr), classType.Name))
+		return classType
+	}
+
 	constructorOverloads := a.getMethodOverloadsInHierarchy(constructorName, classType)
 	if len(constructorOverloads) == 0 {
 		if len(expr.Arguments) > 0 {

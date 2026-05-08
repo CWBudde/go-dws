@@ -97,6 +97,8 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			}
 			return defaultProp.Type
 		}
+		a.addStructuredError(NewNoDefaultPropertyError(expr.Token.Pos, classType.Name))
+		return nil
 	}
 
 	// Check if left side is an array type

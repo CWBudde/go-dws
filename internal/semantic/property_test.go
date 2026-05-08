@@ -982,7 +982,7 @@ begin
 	x := o.Value;
 end;
 `,
-			expectedError: "property 'Value' is write-only",
+			expectedError: "Cannot read a write only property",
 		},
 		{
 			name: "member property value mismatch",

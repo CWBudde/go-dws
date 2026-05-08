@@ -449,6 +449,36 @@ func NewAbstractInstantiationError(pos lexer.Position) *SemanticError {
 	}
 }
 
+func NewStaticClassInstantiationError(pos lexer.Position, className string) *SemanticError {
+	return &SemanticError{
+		Type:      ErrorInvalidOperation,
+		Message:   fmt.Sprintf(`Syntax Error: Class "%s" is static, instantiation not allowed`, className),
+		Pos:       pos,
+		Severity:  SeverityError,
+		ClassName: className,
+	}
+}
+
+func NewStaticClassNoInstancesError(pos lexer.Position, className string) *SemanticError {
+	return &SemanticError{
+		Type:      ErrorInvalidOperation,
+		Message:   fmt.Sprintf(`Syntax Error: Class "%s" is static, no instances allowed`, className),
+		Pos:       pos,
+		Severity:  SeverityError,
+		ClassName: className,
+	}
+}
+
+func NewStaticClassInheritanceError(pos lexer.Position, parentName string) *SemanticError {
+	return &SemanticError{
+		Type:      ErrorInheritance,
+		Message:   fmt.Sprintf(`Syntax Error: Class "%s" is not static, cannot inherit as static`, parentName),
+		Pos:       pos,
+		Severity:  SeverityError,
+		ClassName: parentName,
+	}
+}
+
 // NewClassMethodOrConstructorExpectedError creates the DWScript metaclass-access diagnostic.
 func NewClassMethodOrConstructorExpectedError(pos lexer.Position) *SemanticError {
 	return &SemanticError{
@@ -514,10 +544,20 @@ func NewReadOnlyPropertyError(pos lexer.Position, propertyName string) *Semantic
 func NewWriteOnlyPropertyError(pos lexer.Position, propertyName string) *SemanticError {
 	return &SemanticError{
 		Type:         ErrorInvalidOperation,
-		Message:      fmt.Sprintf("property '%s' is write-only", propertyName),
+		Message:      "Syntax Error: Cannot read a write only property",
 		Pos:          pos,
 		Severity:     SeverityError,
 		VariableName: propertyName,
+	}
+}
+
+func NewNoDefaultPropertyError(pos lexer.Position, className string) *SemanticError {
+	return &SemanticError{
+		Type:      ErrorInvalidOperation,
+		Message:   fmt.Sprintf(`Syntax Error: Class "%s" has no default property`, className),
+		Pos:       pos,
+		Severity:  SeverityError,
+		ClassName: className,
 	}
 }
 

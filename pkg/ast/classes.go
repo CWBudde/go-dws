@@ -81,6 +81,7 @@ type ClassDecl struct {
 	BaseNode
 	IsAbstract        bool
 	IsExternal        bool
+	IsStaticClass     bool
 	IsPartial         bool
 	IsDeprecated      bool
 	DeprecatedMessage string
@@ -118,6 +119,9 @@ func (cd *ClassDecl) String() string {
 	}
 	if cd.IsExternal {
 		out.WriteString(" external")
+	}
+	if cd.IsStaticClass {
+		out.WriteString(" static")
 	}
 
 	// Add parent and/or interfaces

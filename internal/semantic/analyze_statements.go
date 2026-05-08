@@ -221,6 +221,11 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	}
 
 	for _, name := range stmt.Names {
+		if classType, ok := types.GetUnderlyingType(varType).(*types.ClassType); ok && classType.IsStatic {
+			pos := name.Token.Pos
+			pos.Column += len(name.Value) + 1
+			a.addStructuredError(NewStaticClassNoInstancesError(pos, classType.Name))
+		}
 		a.symbols.Define(name.Value, varType, name.Token.Pos)
 	}
 }
