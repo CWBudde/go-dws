@@ -188,6 +188,16 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
 			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
 		}
+		if normalizedMethod == "classname" && len(args) == 0 {
+			if meta, ok := obj.(*runtime.TypeMetaValue); ok {
+				if meta.TypeName != "" {
+					return &runtime.StringValue{Value: meta.TypeName}
+				}
+				if meta.TypeInfo != nil {
+					return &runtime.StringValue{Value: meta.TypeInfo.String()}
+				}
+			}
+		}
 		return e.dispatchEnumTypeMetaMethod(obj, normalizedMethod, methodName, args, node)
 
 	case "NIL":

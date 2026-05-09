@@ -107,6 +107,7 @@ func convertHelperTypeToHelperInfoNoParent(semanticHelper *types.HelperType) *He
 	for _, method := range decl.Methods {
 		methodName := ident.Normalize(method.Name.Value)
 		runtimeHelper.Methods[methodName] = method
+		runtimeHelper.MethodOverloads[methodName] = append(runtimeHelper.MethodOverloads[methodName], method)
 	}
 
 	// Transfer properties from types.HelperType

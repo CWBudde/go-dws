@@ -42,11 +42,7 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 		}
 
 		if helperInfo := e.lookupMutableHelper(typeName); helperInfo != nil {
-			helperInfo.Methods[ident.Normalize(node.Name.Value)] = node
-			helperInfo.MethodOverloads[ident.Normalize(node.Name.Value)] = append(
-				helperInfo.MethodOverloads[ident.Normalize(node.Name.Value)],
-				node,
-			)
+			e.registerHelperMethodImplementation(helperInfo, node)
 			return &runtime.NilValue{}
 		}
 
@@ -74,6 +70,48 @@ func (e *Evaluator) lookupMutableHelper(name string) *runtime.MutableHelperInfo 
 	return nil
 }
 
+func (e *Evaluator) registerHelperMethodImplementation(helperInfo *runtime.MutableHelperInfo, node *ast.FunctionDecl) {
+	if helperInfo == nil || node == nil {
+		return
+	}
+
+	methodName := ident.Normalize(node.Name.Value)
+	overloads := helperInfo.MethodOverloads[methodName]
+	for idx, candidate := range overloads {
+		if helperDeclSignaturesEqual(candidate, node) {
+			overloads[idx] = node
+			helperInfo.MethodOverloads[methodName] = overloads
+			helperInfo.Methods[methodName] = node
+			return
+		}
+	}
+
+	helperInfo.Methods[methodName] = node
+	helperInfo.MethodOverloads[methodName] = append(overloads, node)
+}
+
+func helperDeclSignaturesEqual(left, right *ast.FunctionDecl) bool {
+	if left == nil || right == nil {
+		return false
+	}
+	if len(left.Parameters) != len(right.Parameters) {
+		return false
+	}
+	for i := range left.Parameters {
+		if !typeAnnotationsEqual(left.Parameters[i].Type, right.Parameters[i].Type) {
+			return false
+		}
+	}
+	return typeAnnotationsEqual(left.ReturnType, right.ReturnType)
+}
+
+func typeAnnotationsEqual(left, right ast.TypeExpression) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return ident.Equal(left.String(), right.String())
+}
+
 func (e *Evaluator) registerFunctionHelper(node *ast.FunctionDecl, ctx *ExecutionContext) Value {
 	if len(node.Parameters) == 0 || node.Parameters[0].Type == nil {
 		return e.newError(node, "helper function '%s' must declare at least one typed parameter", node.Name.Value)
@@ -91,7 +129,9 @@ func (e *Evaluator) registerFunctionHelper(node *ast.FunctionDecl, ctx *Executio
 	}
 
 	helperInfo := runtime.NewMutableHelperInfo("__"+methodName+"FunctionHelper", targetType, false)
-	helperInfo.Methods[ident.Normalize(methodName)] = node
+	methodKey := ident.Normalize(methodName)
+	helperInfo.Methods[methodKey] = node
+	helperInfo.MethodOverloads[methodKey] = append(helperInfo.MethodOverloads[methodKey], node)
 
 	typeName := ident.Normalize(targetType.String())
 	e.typeSystem.RegisterHelper(typeName, helperInfo)

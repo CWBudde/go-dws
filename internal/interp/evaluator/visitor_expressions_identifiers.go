@@ -195,6 +195,33 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		}
 	}
 
+	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk && !isCurrentHelperMethod(ctx, node.Value) {
+		if selfVal, ok := selfRaw.(Value); ok {
+			if helperResult := e.FindHelperMethod(selfVal, node.Value); helperResult != nil {
+				if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
+					callExpr := &ast.CallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{Token: node.Token},
+						},
+						Function:  node,
+						Arguments: nil,
+					}
+					return e.executeImplicitSelfCall(callExpr, node, ctx)
+				}
+				if helperResult.BuiltinSpec != "" {
+					callExpr := &ast.CallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{Token: node.Token},
+						},
+						Function:  node,
+						Arguments: nil,
+					}
+					return e.executeImplicitSelfCall(callExpr, node, ctx)
+				}
+			}
+		}
+	}
+
 	// Check if this identifier is a user-defined function name
 	// Functions are auto-invoked if they have zero parameters, or converted to function pointers if they have parameters
 	funcNameLower := ident.Normalize(node.Value)

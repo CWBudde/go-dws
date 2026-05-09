@@ -194,6 +194,15 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			return types.VOID
 		}
 
+		if selfType := a.currentImplicitSelfType(); selfType != nil {
+			if methodType := a.resolveHelperMethodForCall(selfType, identifier.Value, nil); methodType != nil && len(methodType.Parameters) == 0 {
+				if methodType.ReturnType == nil {
+					return types.VOID
+				}
+				return methodType.ReturnType
+			}
+		}
+
 		switch ident.Normalize(identifier.Value) {
 		case "system", "internal":
 			a.addError(`Dot "." expected at %s`, identifier.End().String())

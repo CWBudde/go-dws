@@ -176,8 +176,55 @@ func (a *Analyzer) getHelperType(name string) *types.HelperType {
 }
 
 func (a *Analyzer) analyzeHelperMethodImplementation(decl *ast.FunctionDecl, helperType *types.HelperType) {
-	a.analyzeHelperMethod(decl, helperType, helperType.Name)
+	if !a.helperMethodImplementationMatchesDeclaration(decl, helperType) {
+		a.analyzeHelperMethod(decl, helperType, helperType.Name)
+	}
 	a.analyzeHelperMethodBody(decl, helperType)
+}
+
+func (a *Analyzer) helperMethodImplementationMatchesDeclaration(decl *ast.FunctionDecl, helperType *types.HelperType) bool {
+	if decl == nil || helperType == nil {
+		return false
+	}
+	overloads := helperType.MethodOverloads[ident.Normalize(decl.Name.Value)]
+	if len(overloads) == 0 {
+		return false
+	}
+
+	paramTypes := make([]types.Type, 0, len(decl.Parameters))
+	for _, param := range decl.Parameters {
+		paramType, err := a.resolveTypeExpression(param.Type)
+		if err != nil || paramType == nil {
+			return false
+		}
+		paramTypes = append(paramTypes, paramType)
+	}
+
+	var returnType types.Type = types.VOID
+	if decl.ReturnType != nil {
+		resolvedReturn, err := a.resolveTypeExpression(decl.ReturnType)
+		if err != nil || resolvedReturn == nil {
+			return false
+		}
+		returnType = resolvedReturn
+	}
+
+	for _, overload := range overloads {
+		if overload == nil || len(overload.Parameters) != len(paramTypes) {
+			continue
+		}
+		matches := true
+		for i, paramType := range paramTypes {
+			if !types.IsIdentical(overload.Parameters[i], paramType) {
+				matches = false
+				break
+			}
+		}
+		if matches && types.IsIdentical(overload.ReturnType, returnType) {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *types.HelperType) {
@@ -199,8 +246,12 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 			a.symbols.DefineConst(name, typ, nil, token.Position{})
 		}
 	}
-	for name, methodType := range helperType.Methods {
-		a.symbols.DefineFunction(name, methodType, token.Position{})
+	for name, overloads := range helperType.MethodOverloads {
+		for _, methodType := range overloads {
+			if err := a.symbols.DefineOverload(name, methodType, true, false, token.Position{}); err != nil {
+				a.symbols.DefineFunction(name, methodType, token.Position{})
+			}
+		}
 	}
 
 	if classType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.ClassType); ok && !decl.IsClassMethod {
@@ -233,7 +284,6 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 	}
 	if returnType != types.VOID {
 		a.symbols.Define("Result", returnType, decl.Name.Token.Pos)
-		a.symbols.Define(decl.Name.Value, returnType, decl.Name.Token.Pos)
 	}
 
 	prevFunc := a.currentFunction

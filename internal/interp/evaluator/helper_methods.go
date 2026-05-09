@@ -15,6 +15,9 @@ import (
 // HelperInfo represents a helper type declaration at runtime.
 // Uses wrapper methods returning `any` to avoid circular imports with *interp.HelperInfo.
 type HelperInfo interface {
+	GetName() string
+	GetTargetType() types.Type
+
 	// GetMethodAny looks up a method by name in this helper's inheritance chain.
 	// Returns the method declaration, the helper that owns it (as any), and whether it was found.
 	GetMethodAny(name string) (*ast.FunctionDecl, any, bool)
@@ -66,6 +69,81 @@ func helperASTMethodEffectiveParamCount(method *ast.FunctionDecl) int {
 	return count
 }
 
+func helperResultAliasWouldShadowTarget(selfValue Value, name string) bool {
+	if selfValue == nil {
+		return false
+	}
+
+	if objVal, ok := selfValue.(ObjectValue); ok {
+		if ident.Equal(name, "ClassName") || ident.Equal(name, "ClassType") {
+			return true
+		}
+		if objVal.GetField(name) != nil || objVal.HasProperty(name) || objVal.HasMethod(name) {
+			return true
+		}
+		if _, found := objVal.GetClassVar(name); found {
+			return true
+		}
+	}
+
+	if recVal, ok := selfValue.(RecordInstanceValue); ok {
+		if rec, ok := recVal.(*runtime.RecordValue); ok {
+			if _, found := rec.Fields[ident.Normalize(name)]; found {
+				return true
+			}
+		}
+		if recVal.HasRecordMethod(name) || recVal.HasRecordProperty(name) {
+			return true
+		}
+	}
+
+	if _, ok := selfValue.(*runtime.TypeMetaValue); ok {
+		if ident.Equal(name, "ClassName") || ident.Equal(name, "ClassType") {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isCurrentHelperMethod(ctx *ExecutionContext, name string) bool {
+	if ctx == nil || ctx.Env() == nil {
+		return false
+	}
+	raw, ok := ctx.Env().Get("__CurrentHelperMethod__")
+	if !ok {
+		return false
+	}
+	current, ok := raw.(*runtime.StringValue)
+	return ok && ident.Equal(current.Value, name)
+}
+
+func helperIsBuiltin(helper HelperInfo) bool {
+	if helper == nil {
+		return false
+	}
+	name := helper.GetName()
+	return ident.HasSuffix(name, "IntrinsicHelper") || ident.Equal(name, "TArrayHelper")
+}
+
+func orderedHelpersForLookup(helpers []HelperInfo) []HelperInfo {
+	if len(helpers) <= 1 {
+		return helpers
+	}
+	ordered := make([]HelperInfo, 0, len(helpers))
+	for _, helper := range helpers {
+		if !helperIsBuiltin(helper) {
+			ordered = append(ordered, helper)
+		}
+	}
+	for _, helper := range helpers {
+		if helperIsBuiltin(helper) {
+			ordered = append(ordered, helper)
+		}
+	}
+	return ordered
+}
+
 // getHelpersForValue returns all helpers that apply to the given value's type.
 func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 	if e.typeSystem == nil {
@@ -97,6 +175,18 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 		if helpers := e.typeSystem.LookupHelpers("array"); helpers != nil {
 			combined = append(combined, convertToHelperInfoSlice(helpers)...)
 		}
+		for _, helpersAny := range e.typeSystem.AllHelpers() {
+			for _, helper := range convertToHelperInfoSlice(helpersAny) {
+				target := types.GetUnderlyingType(helper.GetTargetType())
+				if _, ok := target.(*types.ArrayType); !ok {
+					continue
+				}
+				if containsHelperInfo(combined, helper) {
+					continue
+				}
+				combined = append(combined, helper)
+			}
+		}
 		return combined
 
 	case EnumAccessor:
@@ -122,6 +212,8 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 
 	case ObjectValue:
 		typeName = v.ClassName()
+	case ClassMetaValue:
+		typeName = v.GetClassName()
 	case *runtime.InterfaceInstance:
 		typeName = v.InterfaceName()
 	case RecordInstanceValue:
@@ -163,9 +255,8 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 		return nil
 	}
 
-	// Search in reverse so later helpers override earlier ones
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
+	// User-declared helpers keep declaration order; built-in helpers are fallback.
+	for _, helper := range orderedHelpersForLookup(helpers) {
 
 		if overloads, ownerHelperAny, ok := helper.GetMethodOverloadsAny(methodName); ok && len(overloads) > 0 {
 			// Resolve owner helper from the returned any type
@@ -199,8 +290,7 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 	}
 
 	// If no declared method, check for builtin-only entries
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
+	for _, helper := range orderedHelpersForLookup(helpers) {
 		if spec, ownerHelperAny, ok := helper.GetBuiltinMethodAny(methodName); ok {
 			ownerHelper, ok := ownerHelperAny.(HelperInfo)
 			if !ok {
@@ -212,6 +302,41 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 				Method:      nil,
 				BuiltinSpec: spec,
 			}
+		}
+	}
+
+	return nil
+}
+
+func (e *Evaluator) findHelperMethodInHelper(helper HelperInfo, methodName string) *HelperMethodResult {
+	if helper == nil {
+		return nil
+	}
+
+	if overloads, ownerHelperAny, ok := helper.GetMethodOverloadsAny(methodName); ok && len(overloads) > 0 {
+		ownerHelper, _ := ownerHelperAny.(HelperInfo)
+		if ownerHelper == nil {
+			ownerHelper = helper
+		}
+		result := &HelperMethodResult{
+			OwnerHelper: ownerHelper,
+			Method:      overloads[len(overloads)-1],
+			Overloads:   overloads,
+		}
+		if spec, _, ok := ownerHelper.GetBuiltinMethodAny(methodName); ok {
+			result.BuiltinSpec = spec
+		}
+		return result
+	}
+
+	if spec, ownerHelperAny, ok := helper.GetBuiltinMethodAny(methodName); ok {
+		ownerHelper, _ := ownerHelperAny.(HelperInfo)
+		if ownerHelper == nil {
+			ownerHelper = helper
+		}
+		return &HelperMethodResult{
+			OwnerHelper: ownerHelper,
+			BuiltinSpec: spec,
 		}
 	}
 
@@ -345,6 +470,7 @@ func (e *Evaluator) CallASTHelperMethod(
 
 	// Bind Self to the target value (the value being extended)
 	scope.defineExposed(ctx, "Self", selfValue)
+	scope.defineExposed(ctx, "__CurrentHelperMethod__", &runtime.StringValue{Value: method.Name.Value})
 	if method.IsHelper && len(method.Parameters) > 0 {
 		scope.defineExposed(ctx, method.Parameters[0].Name.Value, selfValue)
 	}
@@ -374,7 +500,9 @@ func (e *Evaluator) CallASTHelperMethod(
 		defaultVal := e.GetDefaultValue(returnType)
 		scope.defineOwned(e, ctx, "Result", defaultVal)
 		// Also define method name as alias for Result (Pascal convention)
-		scope.defineExposed(ctx, method.Name.Value, defaultVal)
+		if !helperResultAliasWouldShadowTarget(selfValue, method.Name.Value) {
+			scope.defineExposed(ctx, method.Name.Value, defaultVal)
+		}
 	}
 
 	// Execute method body
@@ -495,6 +623,15 @@ func convertToHelperInfoSlice(helpers []any) []HelperInfo {
 	return result
 }
 
+func containsHelperInfo(helpers []HelperInfo, target HelperInfo) bool {
+	for _, helper := range helpers {
+		if helper == target {
+			return true
+		}
+	}
+	return false
+}
+
 // ============================================================================
 // Helper Property Resolution
 // ============================================================================
@@ -506,9 +643,7 @@ func (e *Evaluator) FindHelperProperty(val Value, propName string) (HelperInfo, 
 		return nil, nil
 	}
 
-	// Search helpers in reverse order so later (user-defined) helpers override earlier ones
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
+	for _, helper := range orderedHelpersForLookup(helpers) {
 
 		// Use GetPropertyAny which searches the inheritance chain and returns the owner helper
 		if propInfo, ownerHelperAny, found := helper.GetPropertyAny(propName); found && propInfo != nil {

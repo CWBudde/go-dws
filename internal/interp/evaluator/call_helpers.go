@@ -177,10 +177,16 @@ func (e *Evaluator) executeImplicitSelfCall(node *ast.CallExpression, funcName *
 
 	switch self := selfVal.(type) {
 	case ClassMetaValue:
+		if helperResult := e.FindHelperMethod(selfVal, funcName.Value); helperResult != nil {
+			return e.CallHelperMethod(helperResult, selfVal, args, node, ctx)
+		}
 		return e.callClassMethod(self, funcName.Value, args, node, ctx)
 	case RecordInstanceValue:
 		if methodDecl, found := self.GetRecordMethod(funcName.Value); found {
 			return e.callRecordMethod(self, methodDecl, args, node, ctx)
+		}
+		if helperResult := e.FindHelperMethod(selfVal, funcName.Value); helperResult != nil {
+			return e.CallHelperMethod(helperResult, selfVal, args, node, ctx)
 		}
 		return e.newError(node, "method '%s' not found on Self", funcName.Value)
 	default:

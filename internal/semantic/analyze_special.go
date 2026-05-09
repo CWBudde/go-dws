@@ -190,6 +190,9 @@ func (a *Analyzer) analyzeSelfExpression(se *ast.SelfExpression) types.Type {
 
 	// Class methods (static methods) cannot access Self
 	if a.inClassMethod {
+		if len(a.getHelpersForType(a.currentClass)) > 0 {
+			return a.currentClass
+		}
 		a.addError("'Self' cannot be used in class methods (static methods) at %s", se.Token.Pos.String())
 		return nil
 	}

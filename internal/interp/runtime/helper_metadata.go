@@ -35,6 +35,20 @@ func NewMutableHelperInfo(name string, targetType types.Type, isRecordHelper boo
 	}
 }
 
+func (h *MutableHelperInfo) GetName() string {
+	if h == nil {
+		return ""
+	}
+	return h.Name
+}
+
+func (h *MutableHelperInfo) GetTargetType() types.Type {
+	if h == nil {
+		return nil
+	}
+	return h.TargetType
+}
+
 func (h *MutableHelperInfo) GetMethod(name string) (*ast.FunctionDecl, *MutableHelperInfo, bool) {
 	for key, method := range h.Methods {
 		if ident.Equal(key, name) {
