@@ -131,7 +131,8 @@ func orderedHelpersForLookup(helpers []HelperInfo) []HelperInfo {
 		return helpers
 	}
 	ordered := make([]HelperInfo, 0, len(helpers))
-	for _, helper := range helpers {
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
 		if !helperIsBuiltin(helper) {
 			ordered = append(ordered, helper)
 		}
@@ -312,6 +313,10 @@ func (e *Evaluator) findHelperMethodInHelper(helper HelperInfo, methodName strin
 	if helper == nil {
 		return nil
 	}
+	v := reflect.ValueOf(helper)
+	if (v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface) && v.IsNil() {
+		return nil
+	}
 
 	if overloads, ownerHelperAny, ok := helper.GetMethodOverloadsAny(methodName); ok && len(overloads) > 0 {
 		ownerHelper, _ := ownerHelperAny.(HelperInfo)
@@ -471,6 +476,7 @@ func (e *Evaluator) CallASTHelperMethod(
 	// Bind Self to the target value (the value being extended)
 	scope.defineExposed(ctx, "Self", selfValue)
 	scope.defineExposed(ctx, "__CurrentHelperMethod__", &runtime.StringValue{Value: method.Name.Value})
+	scope.defineExposed(ctx, "__CurrentHelperName__", &runtime.StringValue{Value: helper.GetName()})
 	if method.IsHelper && len(method.Parameters) > 0 {
 		scope.defineExposed(ctx, method.Parameters[0].Name.Value, selfValue)
 	}

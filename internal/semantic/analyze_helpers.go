@@ -288,11 +288,13 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 
 	prevFunc := a.currentFunction
 	prevSelf := a.currentSelfType
+	prevHelper := a.currentHelperType
 	prevClass := a.currentClass
 	prevRecord := a.currentRecord
 	prevInClassMethod := a.inClassMethod
 	a.currentFunction = decl
 	a.currentSelfType = helperType.TargetType
+	a.currentHelperType = helperType
 	a.inClassMethod = decl.IsClassMethod
 	if classType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.ClassType); ok {
 		a.currentClass = classType
@@ -305,6 +307,7 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 	defer func() {
 		a.currentFunction = prevFunc
 		a.currentSelfType = prevSelf
+		a.currentHelperType = prevHelper
 		a.currentClass = prevClass
 		a.currentRecord = prevRecord
 		a.inClassMethod = prevInClassMethod

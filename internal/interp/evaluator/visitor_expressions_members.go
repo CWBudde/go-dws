@@ -459,6 +459,17 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return nestedClass
 		}
 
+		if !isCurrentHelperMethod(ctx, memberName) {
+			if helperResult := e.FindHelperMethod(obj, memberName); helperResult != nil {
+				if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
+					return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+				}
+				if helperResult.BuiltinSpec != "" {
+					return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+				}
+			}
+		}
+
 		return e.newError(node, "member '%s' not found in class '%s'", memberName, classMetaVal.GetClassName())
 
 	case "RECORD_TYPE":
@@ -605,32 +616,18 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			if helper, propInfo := e.FindHelperProperty(obj, memberName); propInfo != nil {
 				return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
 			}
-			helpers := orderedHelpersForLookup(e.getHelpersForValue(obj))
-			for _, helper := range helpers {
-				for name, value := range helper.GetClassConsts() {
-					if ident.Equal(name, memberName) {
-						return value
-					}
-				}
-				for name, value := range helper.GetClassVars() {
-					if ident.Equal(name, memberName) {
-						return value
-					}
-				}
-				if propInfo, ownerHelperAny, found := helper.GetPropertyAny(memberName); found && propInfo != nil {
-					if pInfo, ok := propInfo.(*types.PropertyInfo); ok {
-						ownerHelper, _ := ownerHelperAny.(HelperInfo)
-						return e.executeHelperPropertyRead(ownerHelper, pInfo, obj, node, ctx)
-					}
-				}
-				if !isCurrentHelperMethod(ctx, memberName) {
-					helperResult := e.findHelperMethodInHelper(helper, memberName)
-					if helperResult != nil {
-						if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
-							return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
-						}
-						if helperResult.BuiltinSpec != "" {
-							return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+			if ident.Equal(memberName, "ClassName") || ident.Equal(memberName, "ClassType") {
+				helpers := orderedHelpersForLookup(e.getHelpersForValue(obj))
+				for _, helper := range helpers {
+					if !isCurrentHelperMethod(ctx, memberName) {
+						helperResult := e.findHelperMethodInHelper(helper, memberName)
+						if helperResult != nil {
+							if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
+								return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+							}
+							if helperResult.BuiltinSpec != "" {
+								return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+							}
 						}
 					}
 				}

@@ -2,7 +2,9 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 func (e *Evaluator) executeFunctionPointerDirect(funcPtr Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
@@ -201,6 +203,14 @@ func (e *Evaluator) executeImplicitSelfCall(node *ast.CallExpression, funcName *
 }
 
 func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
+	if helperNameRaw, ok := ctx.Env().Get("__CurrentHelperName__"); ok {
+		if helperName, ok := helperNameRaw.(*runtime.StringValue); ok {
+			if result := e.executeInheritedHelperCallDirect(self, helperName.Value, methodName, args, node, ctx); result != nil {
+				return result
+			}
+		}
+	}
+
 	if objVal, ok := self.(ObjectValue); ok {
 		return objVal.CallInheritedMethod(methodName, args, func(methodDecl any, methodArgs []Value) Value {
 			return e.executeObjectMethodDirect(self, methodDecl, methodArgs, node, ctx)
@@ -220,6 +230,94 @@ func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, ar
 	}
 
 	return e.newError(node, "inherited requires Self to be an object or class instance")
+}
+
+func (e *Evaluator) executeInheritedHelperCallDirect(self Value, helperName, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
+	currentHelper := e.lookupMutableHelper(helperName)
+	if currentHelper == nil {
+		return nil
+	}
+
+	candidates := e.inheritedHelperCandidates(self, currentHelper)
+	for _, helper := range candidates {
+		if helper == nil {
+			continue
+		}
+		if result := e.findHelperMethodInHelper(helper, methodName); result != nil {
+			return e.CallHelperMethod(result, self, args, node, ctx)
+		}
+		if propInfo, ownerHelperAny, found := helper.GetPropertyAny(methodName); found && propInfo != nil {
+			if len(args) > 0 {
+				return e.newError(node, "cannot call property '%s' as a method", methodName)
+			}
+			if pInfo, ok := propInfo.(*types.PropertyInfo); ok {
+				ownerHelper, _ := ownerHelperAny.(HelperInfo)
+				return e.executeHelperPropertyRead(ownerHelper, pInfo, self, node, ctx)
+			}
+		}
+		for name, value := range helper.GetClassConsts() {
+			if ident.Equal(name, methodName) {
+				return value
+			}
+		}
+		for name, value := range helper.GetClassVars() {
+			if ident.Equal(name, methodName) {
+				return value
+			}
+		}
+	}
+
+	if objVal, ok := self.(ObjectValue); ok {
+		if ident.Equal(methodName, "ClassName") && len(args) == 0 {
+			return &runtime.StringValue{Value: objVal.ClassName()}
+		}
+		if ident.Equal(methodName, "ClassType") && len(args) == 0 {
+			classVal, err := e.typeSystem.CreateClassValue(objVal.ClassName())
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
+			}
+			if val, ok := classVal.(Value); ok {
+				return val
+			}
+		}
+	}
+
+	if classMeta, ok := self.(ClassMetaValue); ok {
+		if ident.Equal(methodName, "ClassName") && len(args) == 0 {
+			return &runtime.StringValue{Value: classMeta.GetClassName()}
+		}
+		if ident.Equal(methodName, "ClassType") && len(args) == 0 {
+			return self
+		}
+	}
+
+	return e.newError(node, "method, property, or field '%s' not found for inherited helper lookup", methodName)
+}
+
+func (e *Evaluator) inheritedHelperCandidates(self Value, currentHelper *runtime.MutableHelperInfo) []HelperInfo {
+	seen := make(map[string]bool)
+	var candidates []HelperInfo
+	add := func(helper HelperInfo) {
+		if helper == nil {
+			return
+		}
+		key := ident.Normalize(helper.GetName())
+		if seen[key] || ident.Equal(helper.GetName(), currentHelper.Name) {
+			return
+		}
+		seen[key] = true
+		candidates = append(candidates, helper)
+	}
+
+	if parentAny := currentHelper.GetParentHelperAny(); parentAny != nil {
+		if parent, ok := parentAny.(HelperInfo); ok {
+			add(parent)
+		}
+	}
+	for _, helper := range orderedHelpersForLookup(e.getHelpersForValue(self)) {
+		add(helper)
+	}
+	return candidates
 }
 
 func (e *Evaluator) bindCurrentMethodIfNamed(ctx *ExecutionContext, methodName string) func() {

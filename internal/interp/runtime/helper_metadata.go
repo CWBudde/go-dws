@@ -135,5 +135,8 @@ func (h *MutableHelperInfo) GetPropertyAny(name string) (any, any, bool) {
 }
 
 func (h *MutableHelperInfo) GetParentHelperAny() any {
+	if h == nil || h.ParentHelper == nil {
+		return nil
+	}
 	return h.ParentHelper
 }

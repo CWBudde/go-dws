@@ -436,10 +436,6 @@ func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Va
 		return e.runObjectDestructor(objInst, classInfo.LookupMethod("Destroy"), node, ctx)
 	}
 
-	if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
-		return e.CallHelperMethod(helperResult, obj, args, node, ctx)
-	}
-
 	// Dispatch to evaluator-owned overload resolver when the method has overloads.
 	if classInfo.HasMethodOverloads(methodName) {
 		return e.dispatchObjectMethodOverloaded(objInst, methodName, args, node, ctx)
