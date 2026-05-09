@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -18,7 +19,21 @@ func (e *Evaluator) initializeObjectFields(classInfo runtime.IClassInfo, obj *ru
 
 			var fieldValue Value
 			if fieldMeta.InitValue != nil {
+				prevRecordTypeName := ctx.RecordTypeContext()
+				prevRecordType := ctx.RecordTypeContextType()
+				if recordType, ok := types.GetUnderlyingType(fieldMeta.Type).(*types.RecordType); ok {
+					if recordType.Name != "" {
+						ctx.SetRecordTypeContext(recordType.Name)
+					} else {
+						ctx.SetRecordTypeContextType(recordType)
+					}
+				}
 				fieldValue = e.Eval(fieldMeta.InitValue, ctx)
+				if prevRecordType != nil {
+					ctx.SetRecordTypeContextType(prevRecordType)
+				} else {
+					ctx.SetRecordTypeContext(prevRecordTypeName)
+				}
 				if isError(fieldValue) {
 					return e.newError(node, "failed to initialize field '%s': %v", fieldName, fieldValue)
 				}

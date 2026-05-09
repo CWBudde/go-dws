@@ -49,12 +49,15 @@ func (a *ArrayValue) String() string {
 	return "[" + strings.Join(elements, ", ") + "]"
 }
 
-// Copy creates a deep copy of the array value.
-// Arrays have value semantics for assignment, so we duplicate the backing slice
-// and snapshot any copyable elements.
+// Copy creates the assignment copy for an array value.
+// Static arrays are value types and duplicate their elements. Dynamic arrays
+// have reference semantics, so assignment shares the backing array value.
 func (a *ArrayValue) Copy() Value {
 	if a == nil {
 		return nil
+	}
+	if a.ArrayType != nil && a.ArrayType.IsDynamic() {
+		return a
 	}
 
 	copied := &ArrayValue{

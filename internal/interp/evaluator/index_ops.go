@@ -85,6 +85,7 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 	if t == nil {
 		return &runtime.NilValue{}
 	}
+	t = types.GetUnderlyingType(t)
 
 	switch t.TypeKind() {
 	case "INTEGER":

@@ -23,9 +23,9 @@ func (a *Analyzer) analyzeIntToStr(args []ast.Expression, callExpr *ast.CallExpr
 	}
 	// Analyze the first argument and verify it's Integer or a subrange of Integer
 	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.INTEGER {
+	if argType != nil && types.GetUnderlyingType(argType) != types.INTEGER {
 		// Check if it's a subrange type with Integer base
-		if subrange, ok := argType.(*types.SubrangeType); ok {
+		if subrange, ok := types.GetUnderlyingType(argType).(*types.SubrangeType); ok {
 			if subrange.BaseType != types.INTEGER {
 				a.addError("function 'IntToStr' expects Integer as first argument, got %s at %s",
 					argType.String(), callExpr.Token.Pos.String())
@@ -38,9 +38,9 @@ func (a *Analyzer) analyzeIntToStr(args []ast.Expression, callExpr *ast.CallExpr
 	// Analyze optional second argument (base) - must be Integer
 	if len(args) == 2 {
 		baseType := a.analyzeExpression(args[1])
-		if baseType != nil && baseType != types.INTEGER {
+		if baseType != nil && types.GetUnderlyingType(baseType) != types.INTEGER {
 			// Check if it's a subrange type with Integer base
-			if subrange, ok := baseType.(*types.SubrangeType); ok {
+			if subrange, ok := types.GetUnderlyingType(baseType).(*types.SubrangeType); ok {
 				if subrange.BaseType != types.INTEGER {
 					a.addError("function 'IntToStr' expects Integer as second argument (base), got %s at %s",
 						baseType.String(), callExpr.Token.Pos.String())

@@ -169,6 +169,13 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		errorCountBefore := len(a.errors)
 		structuredCountBefore := len(a.structuredErrors)
 		initType := a.analyzeExpressionWithExpectedType(stmt.Value, varType)
+		if varType == nil {
+			if implicitType := a.getImplicitCallType(stmt.Value); implicitType != nil {
+				initType = implicitType
+			} else if implicitType := implicitCallReturnTypeFromType(initType); implicitType != nil {
+				initType = implicitType
+			}
+		}
 		if initType == nil {
 			if _, invalid := stmt.Value.(*ast.InvalidExpression); invalid {
 				return

@@ -739,6 +739,22 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 	recordName := node.Name.Value
 	fields := make(map[string]types.Type)
 	fieldDecls := make(map[string]*ast.FieldDecl)
+	recordType := types.NewRecordType(recordName, fields)
+	recordTypeKey := "__record_type_" + ident.Normalize(recordName)
+	recordTypeValue := &RecordTypeValue{
+		RecordType:           recordType,
+		FieldDecls:           fieldDecls,
+		Methods:              make(map[string]*ast.FunctionDecl),
+		StaticMethods:        make(map[string]*ast.FunctionDecl),
+		ClassMethods:         make(map[string]*ast.FunctionDecl),
+		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
+		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
+		Constants:            make(map[string]Value),
+		ClassVars:            make(map[string]Value),
+	}
+	ctx.Env().Define(recordTypeKey, recordTypeValue)
+	ctx.Env().Define(recordName, recordTypeValue)
+	e.typeSystem.RegisterRecord(recordName, recordTypeValue)
 
 	// Process fields with type inference support
 	for _, field := range node.Fields {
@@ -747,8 +763,7 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 
 		if field.Type != nil {
 			var err error
-			typeName := field.Type.String()
-			fieldType, err = e.resolveTypeName(typeName, ctx)
+			fieldType, err = e.ResolveTypeFromAnnotation(field.Type)
 			if err != nil || fieldType == nil {
 				return e.newError(node, "unknown or invalid type for field '%s' in record '%s'", fieldName, recordName)
 			}
@@ -765,21 +780,27 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			return e.newError(node, "field '%s' in record '%s' must have either a type or initializer", fieldName, recordName)
 		}
 
-		fields[fieldName] = fieldType
+		recordType.AddField(fieldName, fieldType, field.InitValue != nil)
 		fieldDecls[ident.Normalize(fieldName)] = field
 	}
-
-	recordType := types.NewRecordType(recordName, fields)
 
 	// Separate instance and static methods
 	methods := make(map[string]*ast.FunctionDecl)
 	staticMethods := make(map[string]*ast.FunctionDecl)
+	methodOverloads := make(map[string][]*ast.FunctionDecl)
+	staticMethodOverloads := make(map[string][]*ast.FunctionDecl)
 	for _, method := range node.Methods {
 		methodKey := ident.Normalize(method.Name.Value)
 		if method.IsClassMethod {
-			staticMethods[methodKey] = method
+			if _, exists := staticMethods[methodKey]; !exists {
+				staticMethods[methodKey] = method
+			}
+			staticMethodOverloads[methodKey] = append(staticMethodOverloads[methodKey], method)
 		} else {
-			methods[methodKey] = method
+			if _, exists := methods[methodKey]; !exists {
+				methods[methodKey] = method
+			}
+			methodOverloads[methodKey] = append(methodOverloads[methodKey], method)
 		}
 	}
 
@@ -817,8 +838,7 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			var varType types.Type
 			if classVar.Type != nil {
 				var err error
-				typeName := classVar.Type.String()
-				varType, err = e.resolveTypeName(typeName, ctx)
+				varType, err = e.ResolveTypeFromAnnotation(classVar.Type)
 				if err != nil || varType == nil {
 					return e.newError(node, "unknown type for class variable '%s' in record '%s'", varName, recordName)
 				}
@@ -834,8 +854,7 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 		propName := prop.Name.Value
 		propNameLower := ident.Normalize(propName)
 
-		typeName := prop.Type.String()
-		propType, err := e.resolveTypeName(typeName, ctx)
+		propType, err := e.ResolveTypeFromAnnotation(prop.Type)
 		if err != nil || propType == nil {
 			return e.newError(node, "unknown type for property '%s' in record '%s'", propName, recordName)
 		}
@@ -846,6 +865,7 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			ReadField:  prop.ReadField,
 			WriteField: prop.WriteField,
 			IsDefault:  prop.IsDefault,
+			IsIndexed:  len(prop.IndexParams) > 0,
 		}
 
 		recordType.Properties[propNameLower] = propInfo
@@ -854,31 +874,19 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 	// Build metadata and create record type value
 	metadata := e.buildRecordMetadata(recordName, recordType, methods, staticMethods, constants, classVars)
 
-	recordTypeKey := "__record_type_" + ident.Normalize(recordName)
-	recordTypeValue := &RecordTypeValue{
-		RecordType:           recordType,
-		FieldDecls:           fieldDecls,
-		Metadata:             metadata,
-		Methods:              methods,
-		StaticMethods:        staticMethods,
-		ClassMethods:         make(map[string]*ast.FunctionDecl),
-		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
-		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
-		Constants:            constants,
-		ClassVars:            classVars,
-	}
+	recordTypeValue.FieldDecls = fieldDecls
+	recordTypeValue.Metadata = metadata
+	recordTypeValue.Methods = methods
+	recordTypeValue.StaticMethods = staticMethods
+	recordTypeValue.ClassMethods = make(map[string]*ast.FunctionDecl)
+	recordTypeValue.ClassMethodOverloads = staticMethodOverloads
+	recordTypeValue.MethodOverloads = methodOverloads
+	recordTypeValue.Constants = constants
+	recordTypeValue.ClassVars = classVars
 
 	// Initialize ClassMethods with StaticMethods
 	for k, v := range staticMethods {
 		recordTypeValue.ClassMethods[k] = v
-	}
-
-	// Initialize overload lists
-	for methodName, methodDecl := range methods {
-		recordTypeValue.MethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
-	}
-	for methodName, methodDecl := range staticMethods {
-		recordTypeValue.ClassMethodOverloads[methodName] = []*ast.FunctionDecl{methodDecl}
 	}
 
 	// Register in environment and TypeSystem

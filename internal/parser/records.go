@@ -68,6 +68,50 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 	return decl
 }
 
+func (p *Parser) parseInlineRecordType() ast.TypeExpression {
+	cursor := p.cursor
+	recordToken := cursor.Current()
+
+	if recordToken.Type != lexer.RECORD {
+		p.addError("expected 'record' keyword", ErrUnexpectedToken)
+		return invalidTypeExpression(recordToken, "record type expected")
+	}
+
+	cursor = cursor.Advance()
+	p.cursor = cursor
+
+	recordDecl := &ast.RecordDecl{
+		BaseNode:   ast.BaseNode{Token: recordToken},
+		Name:       &ast.Identifier{Value: ""},
+		Fields:     []*ast.FieldDecl{},
+		Methods:    []*ast.FunctionDecl{},
+		Properties: []ast.RecordPropertyDecl{},
+		Constants:  []*ast.ConstDecl{},
+		ClassVars:  []*ast.FieldDecl{},
+	}
+
+	p.parseRecordBody(recordDecl, ast.VisibilityPublic)
+	cursor = p.cursor
+
+	if cursor.Current().Type != lexer.END {
+		p.addError("expected 'end' to close record type", ErrMissingEnd)
+		return &ast.InvalidTypeExpression{
+			BaseNode: ast.BaseNode{Token: recordToken},
+			Reason:   "unterminated record type",
+		}
+	}
+
+	return &ast.RecordTypeNode{
+		Token:      recordToken,
+		EndPos:     cursor.Current().End(),
+		Fields:     recordDecl.Fields,
+		Methods:    recordDecl.Methods,
+		Properties: recordDecl.Properties,
+		Constants:  recordDecl.Constants,
+		ClassVars:  recordDecl.ClassVars,
+	}
+}
+
 // This helper function extracts the common record body parsing logic used by both
 // parseRecordOrHelperDeclaration and parseRecordDeclaration.
 // PRE: cursor is positioned at the first token inside the record body
@@ -278,12 +322,25 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 
 	// Expect semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
+		if cursor.Peek(1).Type == lexer.END {
+			p.cursor = cursor
+			return fieldsFromRecordFieldNames(fieldNames, fieldType, initValue, visibility)
+		}
 		p.addError("expected ';' after field declaration", ErrMissingSemicolon)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
 	p.cursor = cursor
 
+	return fieldsFromRecordFieldNames(fieldNames, fieldType, initValue, visibility)
+}
+
+func fieldsFromRecordFieldNames(
+	fieldNames []*ast.Identifier,
+	fieldType ast.TypeExpression,
+	initValue ast.Expression,
+	visibility ast.Visibility,
+) []*ast.FieldDecl {
 	// Create a FieldDecl for each field name
 	var fields []*ast.FieldDecl
 	for _, name := range fieldNames {

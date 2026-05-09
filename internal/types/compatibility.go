@@ -92,6 +92,9 @@ func IsCompatible(from, to Type) bool {
 //
 // Returns true if implicit coercion is allowed, false otherwise.
 func CanCoerce(from, to Type) bool {
+	from = GetUnderlyingType(from)
+	to = GetUnderlyingType(to)
+
 	// Same type needs no coercion
 	if from.Equals(to) {
 		return true
@@ -111,6 +114,9 @@ func CanCoerce(from, to Type) bool {
 //
 // Returns true if coercion is needed and allowed, false otherwise.
 func NeedsCoercion(from, to Type) bool {
+	from = GetUnderlyingType(from)
+	to = GetUnderlyingType(to)
+
 	// If types are identical, no coercion needed
 	if from.Equals(to) {
 		return false

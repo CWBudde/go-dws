@@ -154,6 +154,8 @@ func Walk(v Visitor, node Node) {
 		walkRecordDecl(n, v)
 	case *RecordLiteralExpression:
 		walkRecordLiteralExpression(n, v)
+	case *RecordTypeNode:
+		walkRecordTypeNode(n, v)
 
 	// Lambda
 	case *LambdaExpression:
@@ -708,6 +710,25 @@ func walkRecordLiteralExpression(n *RecordLiteralExpression, v Visitor) {
 			Walk(v, field.Name)
 		}
 		Walk(v, field.Value)
+	}
+}
+
+// walkRecordTypeNode walks a RecordTypeNode node
+func walkRecordTypeNode(n *RecordTypeNode, v Visitor) {
+	for _, field := range n.Fields {
+		Walk(v, field)
+	}
+	for _, method := range n.Methods {
+		Walk(v, method)
+	}
+	for i := range n.Properties {
+		Walk(v, &n.Properties[i])
+	}
+	for _, constant := range n.Constants {
+		Walk(v, constant)
+	}
+	for _, classVar := range n.ClassVars {
+		Walk(v, classVar)
 	}
 }
 

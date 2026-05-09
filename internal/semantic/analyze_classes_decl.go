@@ -1018,7 +1018,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		}
 		a.symbols.DefineParameter(param.Name.Value, paramType, param.Name.Token.Pos, false)
 	}
-	if returnType != types.VOID && !method.IsConstructor {
+	if returnType != types.VOID && (!method.IsConstructor || !wasExplicitConstructor) {
 		resultPos := method.Name.Token.Pos
 		if method.End().Line != 0 {
 			resultPos = blockEndStart(method.End())

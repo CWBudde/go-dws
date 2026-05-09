@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -109,6 +110,9 @@ func (e *Evaluator) callRecordStaticMethod(
 	defer scope.cleanup(e, ctx.Env())
 
 	scope.defineExposed(ctx, "__CurrentRecord__", recordType)
+	if recordType.GetRecordTypeName() != "" {
+		scope.defineExposed(ctx, recordType.GetRecordTypeName(), recordType)
+	}
 	for name, value := range recordType.Constants {
 		scope.defineExposed(ctx, name, value)
 	}
@@ -170,15 +174,59 @@ func (e *Evaluator) resolveRecordStaticMethod(
 		return nil, e.newError(node, "static method '%s' not found in record type '%s'", methodName, recordType.GetRecordTypeName())
 	}
 
-	for _, candidate := range overloads {
-		if len(candidate.Parameters) != len(args) {
-			continue
+	if len(overloads) == 1 {
+		candidate := overloads[0]
+		if len(candidate.Parameters) == len(args) {
+			return candidate, nil
 		}
+	} else if candidate := e.resolveRecordMethodOverload(methodName, overloads, args); candidate != nil {
 		return candidate, nil
 	}
 
 	return nil, e.newError(node, "wrong number of arguments for static method '%s.%s'",
 		recordType.GetRecordTypeName(), methodName)
+}
+
+func (e *Evaluator) resolveRecordMethodOverload(methodName string, overloads []*ast.FunctionDecl, args []Value) *ast.FunctionDecl {
+	argTypes := make([]types.Type, len(args))
+	for idx, arg := range args {
+		argTypes[idx] = e.getValueType(arg)
+	}
+
+	candidates := make([]*semantic.Symbol, 0, len(overloads))
+	for _, overload := range overloads {
+		if len(overload.Parameters) != len(args) {
+			continue
+		}
+		funcType := e.extractFunctionType(overload, e.currentContext)
+		if funcType == nil {
+			continue
+		}
+		candidates = append(candidates, &semantic.Symbol{
+			Name:                 overload.Name.Value,
+			Type:                 funcType,
+			HasOverloadDirective: overload.IsOverload,
+		})
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	selected, err := semantic.ResolveOverload(candidates, argTypes)
+	if err != nil {
+		return nil
+	}
+	if selectedType, ok := selected.Type.(*types.FunctionType); ok {
+		for _, overload := range overloads {
+			funcType := e.extractFunctionType(overload, e.currentContext)
+			if funcType != nil && semantic.SignaturesEqual(funcType, selectedType) &&
+				funcType.ReturnType.Equals(selectedType.ReturnType) {
+				return overload
+			}
+		}
+	}
+
+	return nil
 }
 
 func (e *Evaluator) defaultReturnValue(returnType types.Type) Value {
@@ -194,8 +242,15 @@ func (e *Evaluator) bindRecordMethodFields(record RecordInstanceValue, ctx *Exec
 		return
 	}
 
-	for fieldName, fieldValue := range recVal.Fields {
-		scope.defineExposed(ctx, fieldName, fieldValue)
+	for fieldName := range recVal.Fields {
+		normalizedFieldName := fieldName
+		ref := runtime.NewReferenceValue(fieldName, func() (runtime.Value, error) {
+			return recVal.Fields[normalizedFieldName], nil
+		}, func(value runtime.Value) error {
+			recVal.Fields[normalizedFieldName] = value
+			return nil
+		})
+		scope.defineExposed(ctx, fieldName, ref)
 	}
 
 	if recVal.RecordType != nil && recVal.RecordType.Properties != nil {
@@ -203,8 +258,16 @@ func (e *Evaluator) bindRecordMethodFields(record RecordInstanceValue, ctx *Exec
 			if propInfo.ReadField == "" {
 				continue
 			}
-			if fieldValue, exists := recVal.Fields[ident.Normalize(propInfo.ReadField)]; exists {
-				scope.defineExposed(ctx, propName, fieldValue)
+			fieldKey := ident.Normalize(propInfo.ReadField)
+			if _, exists := recVal.Fields[fieldKey]; exists {
+				normalizedFieldName := fieldKey
+				ref := runtime.NewReferenceValue(propName, func() (runtime.Value, error) {
+					return recVal.Fields[normalizedFieldName], nil
+				}, func(value runtime.Value) error {
+					recVal.Fields[normalizedFieldName] = value
+					return nil
+				})
+				scope.defineExposed(ctx, propName, ref)
 			}
 		}
 	}
@@ -218,6 +281,13 @@ func (e *Evaluator) syncRecordMethodFields(record RecordInstanceValue, ctx *Exec
 
 	for fieldName := range recVal.Fields {
 		if value, ok := ctx.Env().Get(fieldName); ok {
+			if ref, isRef := value.(ReferenceAccessor); isRef {
+				deref, err := ref.Dereference()
+				if err == nil {
+					recVal.Fields[fieldName] = deref
+				}
+				continue
+			}
 			recVal.Fields[fieldName] = value
 		}
 	}

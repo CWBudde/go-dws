@@ -91,7 +91,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		}
 
 		// Handle record indexed property access
-		if objVal.Type() == "RECORD" {
+		if recVal, ok := objVal.(RecordInstanceValue); ok {
 			if accessor, ok := objVal.(PropertyAccessor); ok {
 				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil {
 					// Evaluate all indices
@@ -103,10 +103,6 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 						}
 					}
 
-					recVal, ok := objVal.(RecordInstanceValue)
-					if !ok {
-						return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
-					}
 					return recVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
 						return e.executeRecordIndexedPropertyRead(objVal, pi, idx, node, ctx)
 					})
@@ -199,14 +195,10 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	}
 
 	// Handle record default property access
-	if leftVal.Type() == "RECORD" {
+	if recVal, ok := leftVal.(RecordInstanceValue); ok {
 		// Check if record has a default property
 		if accessor, ok := leftVal.(PropertyAccessor); ok {
 			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-				recVal, ok := leftVal.(RecordInstanceValue)
-				if !ok {
-					return e.newError(node, "internal error: RECORD value does not implement RecordInstanceValue interface")
-				}
 				return recVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
 					return e.executeRecordIndexedPropertyRead(leftVal, pi, idx, node, ctx)
 				})
@@ -243,50 +235,56 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 
 	// Determine record type
 	var recordTypeName string
+	var recordType *types.RecordType
+	var metadata *runtime.RecordMetadata
+	var fieldDecls map[string]*ast.FieldDecl
 	switch {
 	case node.TypeName != nil:
 		recordTypeName = node.TypeName.Value
 	case ctx.RecordTypeContext() != "":
 		// Anonymous literal with type context from caller (e.g., var/const declaration)
 		recordTypeName = ctx.RecordTypeContext()
+	case ctx.RecordTypeContextType() != nil:
+		recordType = ctx.RecordTypeContextType()
 	default:
 		// Anonymous literal requires type context (should have been set by caller)
 		return e.newError(node, "record literal requires explicit type name or type context")
 	}
 
-	// Look up record type via TypeSystem
-	recordTypeAny := e.typeSystem.LookupRecord(recordTypeName)
-	if recordTypeAny == nil {
-		return e.newError(node, "unknown record type '%s'", recordTypeName)
-	}
-
-	// Type-assert to access RecordType, Metadata, and FieldDecls
-	// This is safe because TypeSystem stores *RecordTypeValue
-	type recordTypeAccess interface {
-		GetRecordType() *types.RecordType
-		GetMetadata() *runtime.RecordMetadata
-	}
-
-	recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
-	if !ok {
-		return e.newError(node, "failed to access record type '%s'", recordTypeName)
-	}
-
-	recordType := recordTypeAccessor.GetRecordType()
 	if recordType == nil {
-		return e.newError(node, "failed to extract record type for '%s'", recordTypeName)
-	}
+		// Look up record type via TypeSystem
+		recordTypeAny := e.typeSystem.LookupRecord(recordTypeName)
+		if recordTypeAny == nil {
+			return e.newError(node, "unknown record type '%s'", recordTypeName)
+		}
 
-	metadata := recordTypeAccessor.GetMetadata()
+		// Type-assert to access RecordType, Metadata, and FieldDecls
+		// This is safe because TypeSystem stores *RecordTypeValue
+		type recordTypeAccess interface {
+			GetRecordType() *types.RecordType
+			GetMetadata() *runtime.RecordMetadata
+		}
 
-	// Extract FieldDecls using struct field access
-	// Since we know the concrete type is *RecordTypeValue from interp package
-	var fieldDecls map[string]*ast.FieldDecl
-	type hasFieldDecls interface {
-		GetFieldDecls() map[string]*ast.FieldDecl
-	}
-	if rtVal, ok := recordTypeAny.(hasFieldDecls); ok {
-		fieldDecls = rtVal.GetFieldDecls()
+		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
+		if !ok {
+			return e.newError(node, "failed to access record type '%s'", recordTypeName)
+		}
+
+		recordType = recordTypeAccessor.GetRecordType()
+		if recordType == nil {
+			return e.newError(node, "failed to extract record type for '%s'", recordTypeName)
+		}
+
+		metadata = recordTypeAccessor.GetMetadata()
+
+		// Extract FieldDecls using struct field access
+		// Since we know the concrete type is *RecordTypeValue from interp package
+		type hasFieldDecls interface {
+			GetFieldDecls() map[string]*ast.FieldDecl
+		}
+		if rtVal, ok := recordTypeAny.(hasFieldDecls); ok {
+			fieldDecls = rtVal.GetFieldDecls()
+		}
 	}
 
 	// Evaluate field values
@@ -305,8 +303,24 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 			return e.newError(node, "field '%s' does not exist in record type '%s'", fieldName, recordTypeName)
 		}
 
+		expectedFieldType := recordType.Fields[fieldNameNorm]
+		prevRecordTypeName := ctx.RecordTypeContext()
+		prevRecordType := ctx.RecordTypeContextType()
+		if nestedRecordType, ok := types.GetUnderlyingType(expectedFieldType).(*types.RecordType); ok {
+			if nestedRecordType.Name != "" {
+				ctx.SetRecordTypeContext(nestedRecordType.Name)
+			} else {
+				ctx.SetRecordTypeContextType(nestedRecordType)
+			}
+		}
+
 		// Evaluate the field value expression
 		fieldValue := e.Eval(field.Value, ctx)
+		if prevRecordType != nil {
+			ctx.SetRecordTypeContextType(prevRecordType)
+		} else {
+			ctx.SetRecordTypeContext(prevRecordTypeName)
+		}
 		if isError(fieldValue) {
 			return fieldValue
 		}

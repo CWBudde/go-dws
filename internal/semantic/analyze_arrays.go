@@ -110,10 +110,8 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			// Check index type
 			indexType := a.analyzeExpression(expr.Index)
 			if indexType != nil && !indexType.Equals(types.INTEGER) {
-				pos := expr.Index.End()
-				pos.Column += 2
-				pos.Offset += 2
-				a.addError("Integer expression expected at %s", pos.String())
+				a.addStructuredError(NewArrayIndexError(expr.Index.Pos(), "Integer", semanticTypeNameForDiagnostic(indexType)))
+				return nil
 			}
 			return types.STRING
 		}

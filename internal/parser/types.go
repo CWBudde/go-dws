@@ -76,6 +76,9 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 		// Array type: array of ElementType
 		return p.parseArrayType()
 
+	case lexer.RECORD:
+		return p.parseInlineRecordType()
+
 	case lexer.SET:
 		// Set type: set of ElementType
 		return p.parseSetType()
@@ -114,7 +117,7 @@ func invalidTypeExpression(tok lexer.Token, reason string) *ast.InvalidTypeExpre
 
 func isTypeExpressionStartToken(t lexer.TokenType) bool {
 	switch t {
-	case lexer.IDENT, lexer.CONST, lexer.FUNCTION, lexer.PROCEDURE, lexer.ARRAY, lexer.SET, lexer.CLASS:
+	case lexer.IDENT, lexer.CONST, lexer.FUNCTION, lexer.PROCEDURE, lexer.ARRAY, lexer.RECORD, lexer.SET, lexer.CLASS:
 		return true
 	default:
 		return false

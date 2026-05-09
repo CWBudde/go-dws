@@ -162,6 +162,13 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		if methodDecl, found := recordVal.GetRecordMethod(methodName); found {
 			return e.callRecordMethod(recordVal, methodDecl, args, node, ctx)
 		}
+		if rec, ok := obj.(*runtime.RecordValue); ok && rec.RecordType != nil {
+			if recordTypeRaw := e.typeSystem.LookupRecord(rec.RecordType.Name); recordTypeRaw != nil {
+				if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok && recordType.HasStaticMethod(methodName) {
+					return e.callRecordStaticMethod(recordType, methodName, args, node, ctx)
+				}
+			}
+		}
 		if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
 			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
 		}

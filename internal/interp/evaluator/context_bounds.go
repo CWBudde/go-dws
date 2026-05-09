@@ -79,12 +79,6 @@ func (e *Evaluator) GetLowBound(value Value) (Value, error) {
 	if _, ok := value.(*runtime.StringValue); ok {
 		return &runtime.IntegerValue{Value: 1}, nil
 	}
-	if _, ok := value.(*runtime.IntegerValue); ok {
-		return &runtime.IntegerValue{Value: math.MinInt64}, nil
-	}
-	if _, ok := value.(*runtime.BooleanValue); ok {
-		return &runtime.BooleanValue{Value: false}, nil
-	}
 
 	return nil, fmt.Errorf("Low() expects array, enum, string, or type name, got %s", value.Type())
 }
@@ -139,12 +133,6 @@ func (e *Evaluator) GetHighBound(value Value) (Value, error) {
 	// Strings: High(s) = Length(s)
 	if strVal, ok := value.(*runtime.StringValue); ok {
 		return &runtime.IntegerValue{Value: int64(len([]rune(strVal.Value)))}, nil
-	}
-	if _, ok := value.(*runtime.IntegerValue); ok {
-		return &runtime.IntegerValue{Value: math.MaxInt64}, nil
-	}
-	if _, ok := value.(*runtime.BooleanValue); ok {
-		return &runtime.BooleanValue{Value: true}, nil
 	}
 
 	return nil, fmt.Errorf("High() expects array, enum, string, or type name, got %s", value.Type())

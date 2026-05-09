@@ -792,7 +792,7 @@ func (a *Analyzer) areArrayTypesCompatibleForVarParam(argType, paramType types.T
 // validateFieldInitializer validates field initializer type compatibility.
 func (a *Analyzer) validateFieldInitializer(field *ast.FieldDecl, fieldName string, fieldType types.Type) {
 	if field.InitValue != nil {
-		initType := a.analyzeExpression(field.InitValue)
+		initType := a.analyzeExpressionWithExpectedType(field.InitValue, fieldType)
 		if initType != nil && fieldType != nil {
 			if !types.IsAssignableFrom(fieldType, initType) {
 				a.addError("cannot initialize field '%s' of type '%s' with value of type '%s' at %s",

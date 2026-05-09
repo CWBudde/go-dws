@@ -215,6 +215,11 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	if objectType == nil {
 		return nil
 	}
+	if implicitType := a.getImplicitCallType(expr.Object); implicitType != nil {
+		objectType = implicitType
+	} else if implicitType := implicitCallReturnTypeFromType(objectType); implicitType != nil {
+		objectType = implicitType
+	}
 	memberName := ident.Normalize(expr.Member.Value)
 
 	// Resolve type aliases to get the underlying type

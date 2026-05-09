@@ -56,6 +56,10 @@ func (e *Evaluator) IsAssigned(value Value) bool {
 		return false
 	}
 
+	if _, ok := value.(*runtime.NilValue); ok {
+		return false
+	}
+
 	if intfVal, ok := value.(*runtime.InterfaceInstance); ok {
 		return intfVal.Object != nil
 	}

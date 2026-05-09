@@ -148,6 +148,8 @@ func Walk(v Visitor, node Node) {
 		walkRecordLiteralExpression(n, v)
 	case *RecordPropertyDecl:
 		walkRecordPropertyDecl(n, v)
+	case *RecordTypeNode:
+		walkRecordTypeNode(n, v)
 	case *RepeatStatement:
 		walkRepeatStatement(n, v)
 	case *ReturnStatement:
@@ -972,6 +974,33 @@ func walkRecordPropertyDecl(n *RecordPropertyDecl, v Visitor) {
 		Walk(v, n.Name)
 	}
 	for _, item := range n.IndexParams {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+}
+
+// walkRecordTypeNode walks a RecordTypeNode node
+func walkRecordTypeNode(n *RecordTypeNode, v Visitor) {
+	for _, item := range n.Fields {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	for _, item := range n.Methods {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	for i := range n.Properties {
+		Walk(v, &n.Properties[i])
+	}
+	for _, item := range n.Constants {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	for _, item := range n.ClassVars {
 		if item != nil {
 			Walk(v, item)
 		}

@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -29,6 +31,11 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	// Create the record type
 	recordType := types.NewRecordType(recordName, make(map[string]types.Type))
 
+	// Register the record before resolving fields so recursive field types like
+	// `array of TRecord` can resolve to this in-progress type.
+	a.registerTypeWithPos(recordName, recordType, decl.Token.Pos)
+	a.symbols.Define(recordName, recordType, decl.Token.Pos)
+
 	// Validate field declarations
 	// Track field names to detect duplicates
 	fieldNames := make(map[string]bool)
@@ -52,7 +59,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		if field.Type != nil {
 			// Explicit type
 			typeName := getTypeExpressionName(field.Type)
-			fieldType, err = a.resolveType(typeName)
+			fieldType, err = a.resolveTypeExpression(field.Type)
 			if err != nil {
 				a.addError("unknown type '%s' for field '%s' in record '%s' at %s",
 					typeName, fieldName, recordName, field.Token.Pos.String())
@@ -76,22 +83,16 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			continue
 		}
 
-		// Add field to record type (using lowercase key for case-insensitive lookup)
-		recordType.Fields[lowerFieldName] = fieldType
-		// Preserve original casing for hints/error messages
-		recordType.FieldNames[lowerFieldName] = fieldName
-
-		// Track which fields have initializers
-		if field.InitValue != nil {
-			recordType.FieldsWithInit[lowerFieldName] = true
+		if a.recordFieldContainsRecordByValue(fieldType, recordType, make(map[*types.RecordType]bool)) {
+			pos := field.Token.Pos
+			if field.Type != nil {
+				pos = field.Type.End()
+			}
+			a.addStructuredError(NewGenericError(pos, fmt.Sprintf(`Record type "%s" is not fully defined`, recordName)))
 		}
-	}
 
-	// Register the record type early so it's visible in method signatures
-	// Use lowercase key for case-insensitive lookup
-	a.registerTypeWithPos(recordName, recordType, decl.Token.Pos)
-	// Also register in symbol table as a type
-	a.symbols.Define(recordName, recordType, decl.Token.Pos)
+		recordType.AddField(fieldName, fieldType, field.InitValue != nil)
+	}
 
 	// Process constants
 	for _, constant := range decl.Constants {
@@ -108,11 +109,12 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 		// If type is specified, check compatibility
 		var constType types.Type
-		if constant.Type != nil {
-			ct, err := a.resolveType(getTypeExpressionName(constant.Type))
+		constTypeName := getTypeExpressionName(constant.Type)
+		if constant.Type != nil && constTypeName != "" {
+			ct, err := a.resolveType(constTypeName)
 			if err != nil {
 				a.addError("unknown type '%s' for constant '%s' in record '%s' at %s",
-					getTypeExpressionName(constant.Type), constName, recordName, constant.Token.Pos.String())
+					constTypeName, constName, recordName, constant.Token.Pos.String())
 				continue
 			}
 			constType = ct
@@ -149,7 +151,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		// Resolve class variable type
 		if classVar.Type != nil {
 			typeName := getTypeExpressionName(classVar.Type)
-			varType, err = a.resolveType(typeName)
+			varType, err = a.resolveTypeExpression(classVar.Type)
 			if err != nil {
 				a.addError("unknown type '%s' for class variable '%s' in record '%s' at %s",
 					typeName, varName, recordName, classVar.Token.Pos.String())
@@ -271,7 +273,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		lowerPropName := ident.Normalize(propName)
 
 		// Resolve property type
-		propType, err := a.resolveType(getTypeExpressionName(prop.Type))
+		propType, err := a.resolveTypeExpression(prop.Type)
 		if err != nil {
 			a.addError("unknown type '%s' for property '%s' in record '%s' at %s",
 				getTypeExpressionName(prop.Type), propName, recordName, prop.Token.Pos.String())
@@ -285,6 +287,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			ReadField:  prop.ReadField,
 			WriteField: prop.WriteField,
 			IsDefault:  prop.IsDefault,
+			IsIndexed:  len(prop.IndexParams) > 0,
 		}
 
 		// Store with lowercase key for case-insensitive lookup
@@ -292,6 +295,35 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	}
 
 	// Record type already registered above (after fields, before methods)
+}
+
+func (a *Analyzer) recordFieldContainsRecordByValue(fieldType types.Type, target *types.RecordType, seen map[*types.RecordType]bool) bool {
+	if fieldType == nil || target == nil {
+		return false
+	}
+
+	switch t := types.GetUnderlyingType(fieldType).(type) {
+	case *types.RecordType:
+		if t == target || ident.Equal(t.Name, target.Name) {
+			return true
+		}
+		if seen[t] {
+			return false
+		}
+		seen[t] = true
+		for _, nestedFieldType := range t.Fields {
+			if a.recordFieldContainsRecordByValue(nestedFieldType, target, seen) {
+				return true
+			}
+		}
+	case *types.ArrayType:
+		if t.IsDynamic() {
+			return false
+		}
+		return a.recordFieldContainsRecordByValue(t.ElementType, target, seen)
+	}
+
+	return false
 }
 
 // analyzeRecordFieldAccess analyzes access to a record field.
@@ -307,6 +339,12 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	if objType == nil {
 		return nil
 	}
+	if implicitType := a.getImplicitCallType(obj); implicitType != nil {
+		objType = implicitType
+	} else if implicitType := implicitCallReturnTypeFromType(objType); implicitType != nil {
+		objType = implicitType
+	}
+	objType = types.GetUnderlyingType(objType)
 
 	// Check if the type is a record type
 	recordType, ok := objType.(*types.RecordType)
@@ -321,6 +359,10 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	// Check if the field exists
 	fieldType, exists := recordType.Fields[lowerFieldName]
 	if exists {
+		if declaredName := recordType.FieldNames[lowerFieldName]; declaredName != "" &&
+			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
+			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
+		}
 		// TODO: Check visibility rules if needed
 		// For now, we allow all field access
 		return fieldType
@@ -329,18 +371,29 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	// Check if it's a constant
 	constInfo, constExists := recordType.Constants[lowerFieldName]
 	if constExists {
+		if constInfo.Name != "" && constInfo.Name != fieldName && ident.Equal(constInfo.Name, fieldName) {
+			a.addCaseMismatchHint(fieldName, constInfo.Name, field.Token.Pos)
+		}
 		return constInfo.Type
 	}
 
 	// Check if it's a class variable
 	classVarType, classVarExists := recordType.ClassVars[lowerFieldName]
 	if classVarExists {
+		if declaredName := recordType.ClassVarNames[lowerFieldName]; declaredName != "" &&
+			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
+			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
+		}
 		return classVarType
 	}
 
 	// Check if it's an instance method of the record
 	methodType, methodExists := recordType.Methods[lowerFieldName]
 	if methodExists {
+		if declaredName := recordType.MethodNames[lowerFieldName]; declaredName != "" &&
+			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
+			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
+		}
 		// If method is parameterless, it will be auto-invoked by the interpreter
 		// Return the method's return type, not the method type itself
 		if len(methodType.Parameters) == 0 {
@@ -356,6 +409,10 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	// Check if it's a class method (can be called on instances)
 	classMethodType, classMethodExists := recordType.ClassMethods[lowerFieldName]
 	if classMethodExists {
+		if declaredName := recordType.ClassMethodNames[lowerFieldName]; declaredName != "" &&
+			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
+			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
+		}
 		// Class methods can be accessed on instances
 		// If parameterless, will be auto-invoked
 		if len(classMethodType.Parameters) == 0 {
@@ -372,6 +429,9 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	if recordType.Properties != nil {
 		propInfo, propExists := recordType.Properties[lowerFieldName]
 		if propExists {
+			if propInfo.Name != "" && propInfo.Name != fieldName && ident.Equal(propInfo.Name, fieldName) {
+				a.addCaseMismatchHint(fieldName, propInfo.Name, field.Token.Pos)
+			}
 			return propInfo.Type
 		}
 	}

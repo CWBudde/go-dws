@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -188,6 +189,38 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 
 	// NATIVE: Class/metaclass assignment
 	objType := objVal.Type()
+	if objType == "RECORD_TYPE" {
+		recordType, ok := objVal.(*RecordTypeValue)
+		if !ok {
+			return e.newError(stmt, "internal error: RECORD_TYPE value is not *RecordTypeValue")
+		}
+		key := ident.Normalize(fieldName)
+		if _, found := recordType.ClassVars[key]; found {
+			recordType.ClassVars[key] = value
+			if recordType.Metadata != nil {
+				recordType.Metadata.ClassVars[key] = value
+			}
+			return value
+		}
+		if recordType.RecordType != nil && recordType.RecordType.Properties != nil {
+			if propInfo, found := recordType.RecordType.Properties[key]; found {
+				writeKey := ident.Normalize(propInfo.WriteField)
+				if propInfo.WriteField == "" {
+					return e.newError(stmt, readOnlyPropertyWriteMessage)
+				}
+				if _, found := recordType.ClassVars[writeKey]; found {
+					recordType.ClassVars[writeKey] = value
+					if recordType.Metadata != nil {
+						recordType.Metadata.ClassVars[writeKey] = value
+					}
+					return value
+				}
+				return e.newError(stmt, "property '%s' write accessor '%s' not found in record type '%s'",
+					fieldName, propInfo.WriteField, recordType.GetRecordTypeName())
+			}
+		}
+		return e.newError(stmt, "record class member '%s' not found in record '%s'", fieldName, recordType.GetRecordTypeName())
+	}
 	if strings.HasPrefix(objType, "CLASS") || objType == "CLASSINFO" {
 		if classMeta, ok := objVal.(ClassMetaValue); ok {
 			// Check for Class Variable

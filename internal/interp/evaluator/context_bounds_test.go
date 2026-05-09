@@ -211,6 +211,29 @@ func TestGetHighBound_TypeMetaBoolean(t *testing.T) {
 	}
 }
 
+func TestGetLowHighBound_RuntimeScalarValuesUnsupported(t *testing.T) {
+	e := createTestEvaluator()
+
+	tests := []struct {
+		name  string
+		value runtime.Value
+	}{
+		{name: "integer value", value: &runtime.IntegerValue{Value: 42}},
+		{name: "boolean value", value: &runtime.BooleanValue{Value: true}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := e.GetLowBound(tt.value); err == nil {
+				t.Fatal("GetLowBound should reject runtime scalar values")
+			}
+			if _, err := e.GetHighBound(tt.value); err == nil {
+				t.Fatal("GetHighBound should reject runtime scalar values")
+			}
+		})
+	}
+}
+
 // TestGetLowBound_UnsupportedType tests GetLowBound with unsupported type.
 func TestGetLowBound_UnsupportedType(t *testing.T) {
 	e := createTestEvaluator()

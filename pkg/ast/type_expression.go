@@ -20,6 +20,7 @@ var (
 	_ TypeExpression = (*ArrayTypeNode)(nil)
 	_ TypeExpression = (*SetTypeNode)(nil)
 	_ TypeExpression = (*ClassOfTypeNode)(nil)
+	_ TypeExpression = (*RecordTypeNode)(nil)
 	_ TypeExpression = (*InvalidTypeExpression)(nil)
 )
 
@@ -38,6 +39,47 @@ func (it *InvalidTypeExpression) String() string {
 }
 
 func (it *InvalidTypeExpression) typeExpressionNode() {}
+
+// RecordTypeNode represents an inline anonymous record type.
+//
+// Example:
+//
+//	Sub : record
+//	  B : String;
+//	end;
+type RecordTypeNode struct {
+	Fields     []*FieldDecl
+	Methods    []*FunctionDecl
+	Properties []RecordPropertyDecl
+	Constants  []*ConstDecl
+	ClassVars  []*FieldDecl
+	Token      token.Token
+	EndPos     token.Position
+}
+
+func (rt *RecordTypeNode) String() string {
+	if rt == nil {
+		return "record end"
+	}
+	return "record"
+}
+
+func (rt *RecordTypeNode) TokenLiteral() string {
+	return rt.Token.Literal
+}
+
+func (rt *RecordTypeNode) Pos() token.Position {
+	return rt.Token.Pos
+}
+
+func (rt *RecordTypeNode) End() token.Position {
+	if rt.EndPos.Line != 0 {
+		return rt.EndPos
+	}
+	return rt.Token.Pos
+}
+
+func (rt *RecordTypeNode) typeExpressionNode() {}
 
 // ArrayTypeNode represents an array type in inline type expressions.
 // Supports both dynamic arrays (no bounds) and static arrays (with bounds).

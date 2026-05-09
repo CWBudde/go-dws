@@ -604,11 +604,7 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 	}
 
 	loopVarName := node.Variable.Value
-	if node.InlineVar {
-		ctx.Env().Define(loopVarName, startVal)
-	} else if err := ctx.Env().Set(loopVarName, startVal); err != nil {
-		ctx.Env().Define(loopVarName, startVal)
-	}
+	ctx.Env().Define(loopVarName, startVal)
 
 	endVal := e.Eval(node.EndValue, ctx)
 	if isError(endVal) {
@@ -652,11 +648,7 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 			if err != nil {
 				return e.newError(node, "%s", err.Error())
 			}
-			if node.InlineVar {
-				ctx.Env().Define(loopVarName, currentVal)
-			} else if err := ctx.Env().Set(loopVarName, currentVal); err != nil {
-				ctx.Env().Define(loopVarName, currentVal)
-			}
+			ctx.Env().Define(loopVarName, currentVal)
 
 			result = e.Eval(node.Body, ctx)
 			if isError(result) {
@@ -685,11 +677,7 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 			if err != nil {
 				return e.newError(node, "%s", err.Error())
 			}
-			if node.InlineVar {
-				ctx.Env().Define(loopVarName, currentVal)
-			} else if err := ctx.Env().Set(loopVarName, currentVal); err != nil {
-				ctx.Env().Define(loopVarName, currentVal)
-			}
+			ctx.Env().Define(loopVarName, currentVal)
 
 			result = e.Eval(node.Body, ctx)
 			if isError(result) {
@@ -1281,10 +1269,25 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		return &runtime.NilValue{}
 	}
 
+	if annot, ok := typeExpr.(*ast.TypeAnnotation); ok && annot.InlineType != nil {
+		return e.createZeroValue(annot.InlineType, node, ctx)
+	}
+
 	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
 		arrayType := e.resolveArrayTypeNode(arrayNode, ctx)
 		if arrayType != nil {
 			return e.createArrayZeroValue(arrayType)
+		}
+		return &runtime.NilValue{}
+	}
+
+	if recordNode, ok := typeExpr.(*ast.RecordTypeNode); ok {
+		recordType, err := e.resolveRecordTypeNode(recordNode)
+		if err != nil {
+			return e.newError(node, "%s", err.Error())
+		}
+		if rec, ok := recordType.(*types.RecordType); ok {
+			return e.createRecordZeroValue(rec)
 		}
 		return &runtime.NilValue{}
 	}
@@ -1348,8 +1351,22 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 			// Check for field initializer expression in FieldDecls
 			if fieldDecls != nil {
 				if fieldDecl, hasDecl := fieldDecls[fieldNameNorm]; hasDecl && fieldDecl.InitValue != nil {
+					prevRecordTypeName := ctx.RecordTypeContext()
+					prevRecordType := ctx.RecordTypeContextType()
+					if nestedRecordType, ok := types.GetUnderlyingType(fieldType).(*types.RecordType); ok {
+						if nestedRecordType.Name != "" {
+							ctx.SetRecordTypeContext(nestedRecordType.Name)
+						} else {
+							ctx.SetRecordTypeContextType(nestedRecordType)
+						}
+					}
 					// Evaluate the field initializer AST expression directly
 					fieldValue := e.Eval(fieldDecl.InitValue, ctx)
+					if prevRecordType != nil {
+						ctx.SetRecordTypeContextType(prevRecordType)
+					} else {
+						ctx.SetRecordTypeContext(prevRecordTypeName)
+					}
 					if isError(fieldValue) {
 						return fieldValue
 					}

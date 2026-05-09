@@ -100,8 +100,40 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return e.callRecordMethod(recVal, methodDecl, []Value{}, node, ctx)
 		}
 
+		if rec, ok := obj.(*runtime.RecordValue); ok && rec.RecordType != nil {
+			recordTypeRaw := e.typeSystem.LookupRecord(rec.RecordType.Name)
+			if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok {
+				normalizedMember := ident.Normalize(memberName)
+				if val, found := recordType.Constants[normalizedMember]; found {
+					return val
+				}
+				if val, found := recordType.ClassVars[normalizedMember]; found {
+					return val
+				}
+				if recordType.HasStaticMethod(memberName) {
+					methodCall := &ast.MethodCallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{Token: node.Token},
+						},
+						Object:    node.Object,
+						Method:    node.Member,
+						Arguments: []ast.Expression{},
+					}
+					return e.VisitMethodCallExpression(methodCall, ctx)
+				}
+			}
+		}
+
 		if recVal.HasRecordProperty(memberName) {
-			return e.newError(node, "property access on records not supported")
+			if rec, ok := obj.(*runtime.RecordValue); ok {
+				propDesc := rec.LookupProperty(memberName)
+				if propDesc != nil {
+					if propInfo, ok := propDesc.Impl.(*types.RecordPropertyInfo); ok {
+						return e.executeRecordPropertyRead(obj, propInfo, node, ctx)
+					}
+				}
+			}
+			return e.newError(node, "property '%s' not found in record '%s'", memberName, recVal.GetRecordTypeName())
 		}
 
 		// Helper properties
@@ -415,6 +447,15 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Class variables
 		if val, found := recTypeVal.ClassVars[normalizedMember]; found {
 			return val
+		}
+
+		if recTypeVal.RecordType != nil && recTypeVal.RecordType.Properties != nil {
+			if propInfo, found := recTypeVal.RecordType.Properties[normalizedMember]; found {
+				if value, ok := readRecordTypePropertyValue(recTypeVal, propInfo); ok {
+					return value
+				}
+				return e.newError(node, "property '%s' has no readable record type accessor", memberName)
+			}
 		}
 
 		// Static methods (Class Methods)

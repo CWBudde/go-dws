@@ -128,6 +128,7 @@ type ExecutionContext struct {
 	controlFlow               *ControlFlow
 	propContext               *PropertyEvalContext
 	env                       *Environment
+	recordTypeContextType     *types.RecordType
 	recordTypeContext         string
 	currentFunctionReturnType string
 	envStack                  []*Environment
@@ -266,11 +267,24 @@ func (ctx *ExecutionContext) RecordTypeContext() string {
 // SetRecordTypeContext sets the record type context for anonymous record literals.
 func (ctx *ExecutionContext) SetRecordTypeContext(typeName string) {
 	ctx.recordTypeContext = typeName
+	ctx.recordTypeContextType = nil
+}
+
+// RecordTypeContextType returns the current anonymous record type context.
+func (ctx *ExecutionContext) RecordTypeContextType() *types.RecordType {
+	return ctx.recordTypeContextType
+}
+
+// SetRecordTypeContextType sets an anonymous record type context.
+func (ctx *ExecutionContext) SetRecordTypeContextType(recordType *types.RecordType) {
+	ctx.recordTypeContextType = recordType
+	ctx.recordTypeContext = ""
 }
 
 // ClearRecordTypeContext clears the record type context.
 func (ctx *ExecutionContext) ClearRecordTypeContext() {
 	ctx.recordTypeContext = ""
+	ctx.recordTypeContextType = nil
 }
 
 // GetCurrentFunctionReturnType returns the expected return type for the current function.
@@ -367,6 +381,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		handlerException:          ctx.handlerException,
 		oldValuesStack:            oldValuesStackCopy,
 		propContext:               ctx.propContext,
+		recordTypeContextType:     ctx.recordTypeContextType,
 		recordTypeContext:         ctx.recordTypeContext,
 		currentFunctionReturnType: ctx.currentFunctionReturnType,
 		arrayTypeContext:          ctx.arrayTypeContext,
@@ -384,6 +399,7 @@ func (ctx *ExecutionContext) Reset() {
 	ctx.oldValuesStack = make([]map[string]any, 0)
 	ctx.propContext = NewPropertyEvalContext()
 	ctx.recordTypeContext = ""
+	ctx.recordTypeContextType = nil
 	ctx.currentFunctionReturnType = ""
 	ctx.arrayTypeContext = nil
 }

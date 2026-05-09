@@ -89,6 +89,9 @@ func (e *Evaluator) BindFunctionParameters(
 					arg = converted
 				}
 			}
+			if !param.IsConst {
+				arg = runtime.CopyValue(arg)
+			}
 		}
 
 		// Store the argument in the function's environment

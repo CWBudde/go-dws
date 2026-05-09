@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -37,6 +38,10 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Typ
 		return a.resolveArrayTypeNode(arrayNode)
 	}
 
+	if recordNode, ok := typeExpr.(*ast.RecordTypeNode); ok {
+		return a.resolveRecordTypeNode(recordNode)
+	}
+
 	// Handle ClassOfTypeNode directly (metaclass type resolution)
 	if classOfNode, ok := typeExpr.(*ast.ClassOfTypeNode); ok {
 		return a.resolveClassOfTypeNode(classOfNode)
@@ -49,6 +54,52 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Typ
 		a.warnDeprecatedResolvedType(typeExpr.Pos(), resolved)
 	}
 	return resolved, err
+}
+
+func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.Type, error) {
+	recordType := types.NewRecordType("", make(map[string]types.Type))
+
+	for _, field := range recordNode.Fields {
+		fieldName := field.Name.Value
+		fieldKey := ident.Normalize(fieldName)
+		if _, exists := recordType.Fields[fieldKey]; exists {
+			return nil, fmt.Errorf("%s", errors.FormatNameAlreadyExists(fieldName, field.Token.Pos.Line, field.Token.Pos.Column))
+		}
+
+		var fieldType types.Type
+		if field.Type != nil {
+			resolved, err := a.resolveTypeExpression(field.Type)
+			if err != nil {
+				return nil, err
+			}
+			fieldType = resolved
+		} else if field.InitValue != nil {
+			fieldType = a.analyzeExpression(field.InitValue)
+		}
+		if fieldType == nil {
+			return nil, fmt.Errorf("field '%s' in inline record must have either a type or initializer", fieldName)
+		}
+
+		recordType.AddField(fieldName, fieldType, field.InitValue != nil)
+	}
+
+	for _, prop := range recordNode.Properties {
+		propType, err := a.resolveTypeExpression(prop.Type)
+		if err != nil {
+			return nil, err
+		}
+		propKey := ident.Normalize(prop.Name.Value)
+		recordType.Properties[propKey] = &types.RecordPropertyInfo{
+			Name:       prop.Name.Value,
+			Type:       propType,
+			ReadField:  prop.ReadField,
+			WriteField: prop.WriteField,
+			IsDefault:  prop.IsDefault,
+			IsIndexed:  len(prop.IndexParams) > 0,
+		}
+	}
+
+	return recordType, nil
 }
 
 func (a *Analyzer) warnDeprecatedResolvedType(pos token.Position, resolved types.Type) {

@@ -212,7 +212,7 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 
 		// If expectedType is provided, verify it matches
 		if expectedType != nil {
-			if expectedRecordType, ok := expectedType.(*types.RecordType); ok {
+			if expectedRecordType, ok := types.GetUnderlyingType(expectedType).(*types.RecordType); ok {
 				if expectedRecordType.Name != recordType.Name {
 					a.addError("record literal type '%s' does not match expected type '%s'",
 						recordType.Name, expectedRecordType.Name)
@@ -229,7 +229,7 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 		}
 
 		var ok bool
-		recordType, ok = expectedType.(*types.RecordType)
+		recordType, ok = types.GetUnderlyingType(expectedType).(*types.RecordType)
 		if !ok {
 			a.addError("record literal requires a record type, got %s", expectedType.String())
 			return nil
@@ -266,7 +266,7 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 		}
 
 		// Type-check the field value
-		actualType := a.analyzeExpression(field.Value)
+		actualType := a.analyzeExpressionWithExpectedType(field.Value, expectedFieldType)
 		if actualType == nil {
 			continue
 		}

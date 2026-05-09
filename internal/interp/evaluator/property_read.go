@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 func unwrapPropertyInfo(propInfo any) (*types.PropertyInfo, bool) {
@@ -89,6 +90,55 @@ func (e *Evaluator) executePropertyRead(obj Value, propInfo any, node ast.Node, 
 	default:
 		return e.newError(node, "property '%s' has no read access", pInfo.Name)
 	}
+}
+
+func (e *Evaluator) executeRecordPropertyRead(record Value, propInfo *types.RecordPropertyInfo, node ast.Node, ctx *ExecutionContext) Value {
+	if propInfo == nil {
+		return e.newError(node, "invalid record property info")
+	}
+	if propInfo.ReadField == "" {
+		return e.newError(node, "property '%s' is write-only", propInfo.Name)
+	}
+
+	recVal, ok := record.(*runtime.RecordValue)
+	if !ok {
+		return e.newError(node, "cannot read property from non-record value")
+	}
+
+	if fieldValue, found := recVal.GetRecordField(propInfo.ReadField); found {
+		return fieldValue
+	}
+
+	if methodDecl, found := recVal.GetRecordMethod(propInfo.ReadField); found {
+		return e.callRecordMethod(recVal, methodDecl, []Value{}, node, ctx)
+	}
+
+	if recVal.RecordType != nil {
+		if recordTypeRaw := e.typeSystem.LookupRecord(recVal.RecordType.Name); recordTypeRaw != nil {
+			if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok {
+				if value, found := readRecordTypePropertyValue(recordType, propInfo); found {
+					return value
+				}
+			}
+		}
+	}
+
+	return e.newError(node, "property '%s' read accessor '%s' not found in record '%s'",
+		propInfo.Name, propInfo.ReadField, recVal.GetRecordTypeName())
+}
+
+func readRecordTypePropertyValue(recordType *RecordTypeValue, propInfo *types.RecordPropertyInfo) (Value, bool) {
+	if recordType == nil || propInfo == nil || propInfo.ReadField == "" {
+		return nil, false
+	}
+	key := ident.Normalize(propInfo.ReadField)
+	if value, found := recordType.ClassVars[key]; found {
+		return value, true
+	}
+	if value, found := recordType.Constants[key]; found {
+		return value, true
+	}
+	return nil, false
 }
 
 // executeFieldBackedPropertyRead handles PropAccessField property reads.

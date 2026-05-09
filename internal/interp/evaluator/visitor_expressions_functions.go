@@ -112,6 +112,22 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			return objVal
 		}
 
+		if objVal.Type() == "RECORD_TYPE" {
+			recordType, ok := objVal.(*RecordTypeValue)
+			if !ok {
+				return e.newError(node, "record type '%s' has invalid runtime metadata", memberAccess.Object.String())
+			}
+			args := make([]Value, len(node.Arguments))
+			for i, arg := range node.Arguments {
+				val := e.Eval(arg, ctx)
+				if isError(val) {
+					return val
+				}
+				args[i] = val
+			}
+			return e.callRecordStaticMethod(recordType, memberAccess.Member.Value, args, node, ctx)
+		}
+
 		// Record, interface, or object method calls
 		_, isRecordInstance := objVal.(RecordInstanceValue)
 		if isRecordInstance || objVal.Type() == "INTERFACE" || objVal.Type() == "OBJECT" {
@@ -534,6 +550,12 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	// Look up class in type system
 	classInfoAny := e.typeSystem.LookupClass(className)
 	if classInfoAny == nil {
+		if recordTypeRaw := e.typeSystem.LookupRecord(className); recordTypeRaw != nil {
+			if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok && recordType.HasStaticMethod("Create") {
+				return e.callRecordStaticMethod(recordType, "Create", args, node, ctx)
+			}
+		}
+
 		// Try nested class lookup from current context.
 		if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
 			if classMeta, ok := currentClassRaw.(ClassMetaValue); ok {

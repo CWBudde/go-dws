@@ -504,7 +504,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return castType
 		}
 
-		a.addStructuredError(NewUnknownNameError(funcIdent.Token.Pos, funcIdent.Value))
+		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, funcIdent.Value))
 		return nil
 	}
 
@@ -536,7 +536,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 		selected, err := ResolveOverload(candidates, argTypes)
 		if err != nil {
-			a.addStructuredError(NewNoOverloadMatchError(funcIdent.Token.Pos, funcIdent.Value))
+			a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, funcIdent.Value))
 			return nil
 		}
 
@@ -718,6 +718,17 @@ func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
 		return nil
 	}
 
+	if funcType.IsProcedure() {
+		return types.VOID
+	}
+	return funcType.ReturnType
+}
+
+func implicitCallReturnTypeFromType(typ types.Type) types.Type {
+	funcType, ok := types.GetUnderlyingType(typ).(*types.FunctionType)
+	if !ok || len(funcType.Parameters) > 0 {
+		return nil
+	}
 	if funcType.IsProcedure() {
 		return types.VOID
 	}

@@ -117,6 +117,24 @@ func TestRecordErrors(t *testing.T) {
 			`,
 			expectedError: "already exists",
 		},
+		{
+			name: "direct recursive record field",
+			input: `
+				type TRec = record
+					Field: TRec;
+				end;
+			`,
+			expectedError: `Record type "TRec" is not fully defined`,
+		},
+		{
+			name: "recursive record field through static array",
+			input: `
+				type TRec = record
+					Fields: array[0..1] of TRec;
+				end;
+			`,
+			expectedError: `Record type "TRec" is not fully defined`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -124,6 +142,16 @@ func TestRecordErrors(t *testing.T) {
 			expectError(t, tt.input, tt.expectedError)
 		})
 	}
+}
+
+func TestRecordAllowsRecursiveDynamicArrayField(t *testing.T) {
+	input := `
+		type TRec = record
+			Children: array of TRec;
+		end;
+		var r: TRec;
+	`
+	expectNoErrors(t, input)
 }
 
 // Type-check record literals

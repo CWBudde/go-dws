@@ -1096,6 +1096,9 @@ func GetAllInterfaceMethods(iface *InterfaceType) map[string]*FunctionType {
 // - Class to interface (if class implements the interface)
 // - Interface to interface (if source is subinterface of target)
 func IsAssignableFrom(target, source Type) bool {
+	target = GetUnderlyingType(target)
+	source = GetUnderlyingType(source)
+
 	// Exact match
 	if target.Equals(source) {
 		return true

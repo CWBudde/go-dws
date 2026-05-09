@@ -148,6 +148,7 @@ type RecordPropertyInfo struct {
 	ReadField  string // Field name for reading (can be empty for write-only)
 	WriteField string // Field name for writing (can be empty for read-only)
 	IsDefault  bool   // True if this is a default array property
+	IsIndexed  bool   // True if this property has index parameters
 }
 
 // RecordType represents a record (struct) type.
@@ -294,6 +295,29 @@ func (rt *RecordType) GetMethodOverloads(methodName string) []*MethodInfo {
 // GetClassMethodOverloads returns all overload variants for a given class method name
 func (rt *RecordType) GetClassMethodOverloads(methodName string) []*MethodInfo {
 	return rt.ClassMethodOverloads[ident.Normalize(methodName)]
+}
+
+// AddField registers a record field using the same case-insensitive key
+// normalization as NewRecordType.
+func (rt *RecordType) AddField(name string, fieldType Type, hasInitializer bool) {
+	if rt.Fields == nil {
+		rt.Fields = make(map[string]Type)
+	}
+	if rt.FieldNames == nil {
+		rt.FieldNames = make(map[string]string)
+	}
+	if rt.FieldsWithInit == nil {
+		rt.FieldsWithInit = make(map[string]bool)
+	}
+
+	fieldKey := ident.Normalize(name)
+	rt.Fields[fieldKey] = fieldType
+	if _, exists := rt.FieldNames[fieldKey]; !exists {
+		rt.FieldNames[fieldKey] = name
+	}
+	if hasInitializer {
+		rt.FieldsWithInit[fieldKey] = true
+	}
 }
 
 // NewRecordType creates a new record type with the given name and fields

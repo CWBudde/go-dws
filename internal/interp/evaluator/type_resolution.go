@@ -58,6 +58,11 @@ func (e *Evaluator) ResolveType(typeName string) (types.Type, error) {
 	case "const":
 		// "Const" redirects to VARIANT for dynamic typing
 		return types.VARIANT, nil
+	case "tclass":
+		if !e.typeSystem.HasClass("TObject") {
+			return nil, fmt.Errorf("unknown class type 'TObject'")
+		}
+		return types.NewClassOfType(types.NewClassType("TObject", nil)), nil
 	}
 
 	// Step 4: Check named array types via TypeSystem (direct access)
@@ -448,11 +453,89 @@ func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression) (type
 		return nil, nil
 	}
 
+	switch node := typeExpr.(type) {
+	case *ast.TypeAnnotation:
+		if node.InlineType != nil {
+			return e.ResolveTypeFromAnnotation(node.InlineType)
+		}
+	case *ast.ClassOfTypeNode:
+		baseClassName := ""
+		if node.ClassType != nil {
+			baseClassName = node.ClassType.String()
+		}
+		if baseClassName == "" || !e.typeSystem.HasClass(baseClassName) {
+			return nil, fmt.Errorf("unknown class type '%s'", baseClassName)
+		}
+		return types.NewClassOfType(types.NewClassType(baseClassName, nil)), nil
+	case *ast.RecordTypeNode:
+		return e.resolveRecordTypeNode(node)
+	case *ast.ArrayTypeNode:
+		ctx := e.currentContext
+		if ctx == nil {
+			ctx = &ExecutionContext{}
+		}
+		arrayType := e.resolveArrayTypeNode(node, ctx)
+		if arrayType == nil {
+			return nil, fmt.Errorf("invalid array type")
+		}
+		return arrayType, nil
+	}
+
 	// Get the type name string from the expression
 	typeName := typeExpr.String()
 
 	// Delegate to ResolveType which handles all type resolution
 	return e.ResolveType(typeName)
+}
+
+func (e *Evaluator) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.Type, error) {
+	recordType := types.NewRecordType("", make(map[string]types.Type))
+
+	for _, field := range recordNode.Fields {
+		fieldName := field.Name.Value
+		fieldKey := ident.Normalize(fieldName)
+		if _, exists := recordType.Fields[fieldKey]; exists {
+			return nil, fmt.Errorf("field '%s' already exists in inline record", fieldName)
+		}
+
+		var fieldType types.Type
+		if field.Type != nil {
+			resolved, err := e.ResolveTypeFromAnnotation(field.Type)
+			if err != nil {
+				return nil, err
+			}
+			fieldType = resolved
+		} else if field.InitValue != nil {
+			value := e.Eval(field.InitValue, e.currentContext)
+			if isError(value) {
+				return nil, fmt.Errorf("%s", value.String())
+			}
+			fieldType = e.getValueType(value)
+		}
+		if fieldType == nil {
+			return nil, fmt.Errorf("field '%s' in inline record must have either a type or initializer", fieldName)
+		}
+
+		recordType.AddField(fieldName, fieldType, field.InitValue != nil)
+	}
+
+	for _, prop := range recordNode.Properties {
+		propType, err := e.ResolveTypeFromAnnotation(prop.Type)
+		if err != nil {
+			return nil, err
+		}
+		propKey := ident.Normalize(prop.Name.Value)
+		recordType.Properties[propKey] = &types.RecordPropertyInfo{
+			Name:       prop.Name.Value,
+			Type:       propType,
+			ReadField:  prop.ReadField,
+			WriteField: prop.WriteField,
+			IsDefault:  prop.IsDefault,
+			IsIndexed:  len(prop.IndexParams) > 0,
+		}
+	}
+
+	return recordType, nil
 }
 
 // ============================================================================
@@ -465,6 +548,7 @@ func (e *Evaluator) GetDefaultValue(typ types.Type) Value {
 	if typ == nil {
 		return e.nilValue()
 	}
+	typ = types.GetUnderlyingType(typ)
 
 	switch typ.TypeKind() {
 	case "STRING":
