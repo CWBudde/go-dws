@@ -272,6 +272,8 @@ type HelperMetadata struct {
 	BuiltinMethods map[string]string          // Built-in method mappings
 	Name           string                     // Helper name
 	IsRecordHelper bool                       // Record helper vs class helper
+	IsClassHelper  bool                       // Class helper syntax was used
+	IsStrict       bool                       // Strict helper lookup
 }
 
 // NewHelperMetadata creates a new HelperMetadata with initialized maps.

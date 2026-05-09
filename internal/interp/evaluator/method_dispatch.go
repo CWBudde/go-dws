@@ -185,6 +185,9 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		return e.dispatchSetMethod(obj, normalizedMethod, methodName, args, node)
 
 	case "TYPE_META":
+		if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
+			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
+		}
 		return e.dispatchEnumTypeMetaMethod(obj, normalizedMethod, methodName, args, node)
 
 	case "NIL":
@@ -223,6 +226,9 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		classMeta, ok := obj.(ClassMetaValue)
 		if !ok {
 			return e.newError(node, "internal error: %s value does not implement ClassMetaValue", obj.Type())
+		}
+		if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
+			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
 		}
 		// Handle overloaded class methods via evaluator-owned dispatch
 		if classInfo := classMeta.GetClassInfo(); classInfo != nil {
@@ -418,6 +424,10 @@ func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Va
 			return e.newError(node, "Free takes no arguments")
 		}
 		return e.runObjectDestructor(objInst, classInfo.LookupMethod("Destroy"), node, ctx)
+	}
+
+	if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
+		return e.CallHelperMethod(helperResult, obj, args, node, ctx)
 	}
 
 	// Dispatch to evaluator-owned overload resolver when the method has overloads.

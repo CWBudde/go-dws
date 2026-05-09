@@ -344,9 +344,22 @@ func (p *Parser) parseTypeKind(nameIdent *ast.Identifier, typeToken lexer.Token,
 		}
 		return classDecl
 	case lexer.CLASS:
+		if p.cursor.Peek(2).Type == lexer.HELPER {
+			cursor = cursor.Advance() // move to CLASS
+			cursor = cursor.Advance() // move to HELPER
+			p.cursor = cursor
+			return p.parseHelperDeclarationWithOptions(nameIdent, false, true, false)
+		}
 		cursor = cursor.Advance() // move to CLASS
 		p.cursor = cursor
 		return p.parseClassTypeKind(nameIdent, typeToken)
+	case lexer.STRICT:
+		if p.cursor.Peek(2).Type == lexer.HELPER {
+			cursor = cursor.Advance() // move to STRICT
+			cursor = cursor.Advance() // move to HELPER
+			p.cursor = cursor
+			return p.parseHelperDeclarationWithOptions(nameIdent, false, false, true)
+		}
 	case lexer.RECORD:
 		// Could be either:
 		//   - Record declaration: type TPoint = record X, Y: Integer; end;

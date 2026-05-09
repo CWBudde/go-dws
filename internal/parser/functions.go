@@ -139,6 +139,21 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 		p.cursor = cursor
 		fn.IsOverload = true
 
+	case lexer.HELPER:
+		cursor = cursor.Advance()
+		p.cursor = cursor
+		fn.IsHelper = true
+		if p.isIdentifierToken(cursor.Peek(1).Type) {
+			cursor = cursor.Advance()
+			p.cursor = cursor
+			fn.HelperName = &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{Token: cursor.Current()},
+				},
+				Value: cursor.Current().Literal,
+			}
+		}
+
 	case lexer.FORWARD:
 		cursor = cursor.Advance()
 		p.cursor = cursor

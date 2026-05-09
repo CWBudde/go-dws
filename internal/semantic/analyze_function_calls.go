@@ -124,6 +124,10 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return resultType
 		}
 
+		if resultType, handled := a.analyzeImplicitHelperCall(funcIdent.Value, expr.Arguments, expr.Token.Pos); handled {
+			return resultType
+		}
+
 		// Check implicit Self method call within a class
 		if a.currentClass != nil {
 			methodNameLower := ident.Normalize(funcIdent.Value)
@@ -698,6 +702,48 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	}
 
 	return funcType.ReturnType
+}
+
+func (a *Analyzer) currentImplicitSelfType() types.Type {
+	if a.currentSelfType != nil {
+		return a.currentSelfType
+	}
+	if a.currentClass != nil {
+		return a.currentClass
+	}
+	if a.currentRecord != nil {
+		return a.currentRecord
+	}
+	return nil
+}
+
+func (a *Analyzer) analyzeImplicitHelperCall(methodName string, args []ast.Expression, pos token.Position) (types.Type, bool) {
+	selfType := a.currentImplicitSelfType()
+	if selfType == nil {
+		return nil, false
+	}
+
+	methodType := a.resolveHelperMethodForCall(selfType, methodName, args)
+	if methodType == nil {
+		return nil, false
+	}
+
+	if len(args) != len(methodType.Parameters) {
+		a.addError("method '%s' expects %d argument(s), got %d at %s",
+			methodName, len(methodType.Parameters), len(args), pos.String())
+		return methodType.ReturnType
+	}
+
+	for i, arg := range args {
+		paramType := methodType.Parameters[i]
+		argType := a.analyzeArgumentForParameter(arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
+		if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i]) {
+			a.addError("argument %d to method '%s' has type %s, expected %s at %s",
+				i+1, methodName, argType.String(), paramType.String(), pos.String())
+		}
+	}
+
+	return methodType.ReturnType, true
 }
 
 // getImplicitCallType returns the return type when a parameterless function

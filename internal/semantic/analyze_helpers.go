@@ -5,6 +5,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -51,6 +52,8 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 
 	// Create the helper type
 	helperType := types.NewHelperType(helperName, targetType, decl.IsRecordHelper)
+	helperType.IsClassHelper = decl.IsClassHelper
+	helperType.IsStrict = decl.IsStrict
 	helperType.Decl = decl // Store AST declaration for runtime
 
 	// Resolve parent helper if specified
@@ -82,22 +85,17 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 		}
 	}
 
-	// Process methods
+	// First collect the complete helper surface. Bodies are analyzed only after
+	// every member is registered so inline methods can call later helper members.
 	for _, method := range decl.Methods {
 		a.analyzeHelperMethod(method, helperType, helperName)
 	}
-
-	// Process properties
 	for _, prop := range decl.Properties {
 		a.analyzeHelperProperty(prop, helperType, helperName)
 	}
-
-	// Process class variables
 	for _, classVar := range decl.ClassVars {
 		a.analyzeHelperClassVar(classVar, helperType, helperName)
 	}
-
-	// Process class constants
 	for _, classConst := range decl.ClassConsts {
 		a.analyzeHelperClassConst(classConst, helperType, helperName)
 	}
@@ -109,10 +107,160 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
 	}
 	a.helpers[targetTypeName] = append(a.helpers[targetTypeName], helperType)
+	declaredTargetName := ident.Normalize(getTypeExpressionName(decl.ForType))
+	if declaredTargetName != "" && declaredTargetName != targetTypeName {
+		a.helpers[declaredTargetName] = append(a.helpers[declaredTargetName], helperType)
+	}
 
 	// Also register the helper type itself in the symbol table
 	// so it can be referenced by name (e.g., TStringHelper.PI)
 	a.symbols.Define(helperName, helperType, decl.Token.Pos)
+
+	for _, method := range decl.Methods {
+		a.analyzeHelperMethodBody(method, helperType)
+	}
+}
+
+func (a *Analyzer) analyzeFunctionHelperDecl(decl *ast.FunctionDecl, paramTypes []types.Type, returnType types.Type) {
+	if decl == nil {
+		return
+	}
+	if len(paramTypes) == 0 {
+		a.addError("helper function '%s' must declare at least one parameter", decl.Name.Value)
+		return
+	}
+
+	targetType := paramTypes[0]
+	helperName := "__" + decl.Name.Value + "FunctionHelper"
+	if decl.HelperName != nil {
+		helperName = "__" + decl.HelperName.Value + "FunctionHelper"
+	}
+
+	helperType := types.NewHelperType(helperName, targetType, false)
+	helperType.Decl = decl
+
+	methodName := decl.Name.Value
+	if decl.HelperName != nil {
+		methodName = decl.HelperName.Value
+	}
+	methodParams := append([]types.Type(nil), paramTypes[1:]...)
+	var funcType *types.FunctionType
+	if returnType == types.VOID {
+		funcType = types.NewProcedureType(methodParams)
+	} else {
+		funcType = types.NewFunctionType(methodParams, returnType)
+	}
+	helperType.Methods[ident.Normalize(methodName)] = funcType
+
+	targetTypeName := ident.Normalize(targetType.String())
+	if a.helpers[targetTypeName] == nil {
+		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
+	}
+	a.helpers[targetTypeName] = append(a.helpers[targetTypeName], helperType)
+}
+
+func (a *Analyzer) getHelperType(name string) *types.HelperType {
+	if sym, ok := a.symbols.Resolve(name); ok {
+		if helperType, ok := sym.Type.(*types.HelperType); ok {
+			return helperType
+		}
+	}
+	for _, helpers := range a.helpers {
+		for _, helper := range helpers {
+			if ident.Equal(helper.Name, name) {
+				return helper
+			}
+		}
+	}
+	return nil
+}
+
+func (a *Analyzer) analyzeHelperMethodImplementation(decl *ast.FunctionDecl, helperType *types.HelperType) {
+	a.analyzeHelperMethod(decl, helperType, helperType.Name)
+	a.analyzeHelperMethodBody(decl, helperType)
+}
+
+func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *types.HelperType) {
+	if decl == nil || decl.Body == nil || helperType == nil {
+		return
+	}
+
+	oldSymbols := a.symbols
+	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	defer func() { a.symbols = oldSymbols }()
+	defer a.emitUnusedWarningsForCurrentScope()
+
+	a.symbols.Define("Self", helperType.TargetType, decl.Token.Pos)
+	for name, varType := range helperType.ClassVars {
+		a.symbols.Define(name, varType, token.Position{})
+	}
+	for name, constType := range helperType.ClassConsts {
+		if typ, ok := constType.(types.Type); ok {
+			a.symbols.DefineConst(name, typ, nil, token.Position{})
+		}
+	}
+	for name, methodType := range helperType.Methods {
+		a.symbols.DefineFunction(name, methodType, token.Position{})
+	}
+
+	if classType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.ClassType); ok && !decl.IsClassMethod {
+		for fieldName, fieldType := range classType.Fields {
+			a.symbols.Define(fieldName, fieldType, token.Position{})
+		}
+	}
+	if recordType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.RecordType); ok {
+		for fieldName, fieldType := range recordType.Fields {
+			a.symbols.Define(recordType.FieldNames[fieldName], fieldType, token.Position{})
+		}
+	}
+
+	for _, param := range decl.Parameters {
+		if param.Type == nil {
+			continue
+		}
+		paramType, err := a.resolveTypeExpression(param.Type)
+		if err != nil || paramType == nil {
+			continue
+		}
+		a.symbols.DefineParameter(param.Name.Value, paramType, param.Name.Token.Pos, param.IsConst)
+	}
+
+	var returnType types.Type = types.VOID
+	if decl.ReturnType != nil {
+		if resolved, err := a.resolveTypeExpression(decl.ReturnType); err == nil && resolved != nil {
+			returnType = resolved
+		}
+	}
+	if returnType != types.VOID {
+		a.symbols.Define("Result", returnType, decl.Name.Token.Pos)
+		a.symbols.Define(decl.Name.Value, returnType, decl.Name.Token.Pos)
+	}
+
+	prevFunc := a.currentFunction
+	prevSelf := a.currentSelfType
+	prevClass := a.currentClass
+	prevRecord := a.currentRecord
+	prevInClassMethod := a.inClassMethod
+	a.currentFunction = decl
+	a.currentSelfType = helperType.TargetType
+	a.inClassMethod = decl.IsClassMethod
+	if classType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.ClassType); ok {
+		a.currentClass = classType
+		a.currentRecord = nil
+	}
+	if recordType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.RecordType); ok {
+		a.currentRecord = recordType
+		a.currentClass = nil
+	}
+	defer func() {
+		a.currentFunction = prevFunc
+		a.currentSelfType = prevSelf
+		a.currentClass = prevClass
+		a.currentRecord = prevRecord
+		a.inClassMethod = prevInClassMethod
+	}()
+
+	a.analyzeBlock(decl.Body)
 }
 
 // analyzeHelperMethod analyzes a method in a helper.
@@ -124,8 +272,8 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 
 	methodName := method.Name.Value
 
-	// Check for duplicate methods
-	if _, exists := helperType.Methods[methodName]; exists {
+	methodNameLower := ident.Normalize(methodName)
+	if _, exists := helperType.Methods[methodNameLower]; exists && !method.IsOverload {
 		a.addError("%s", errors.FormatNameAlreadyExists(methodName, method.Token.Pos.Line, method.Token.Pos.Column))
 		return
 	}
@@ -161,8 +309,8 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 	}
 
 	// Add method to helper
-	methodNameLower := ident.Normalize(methodName)
 	helperType.Methods[methodNameLower] = funcType
+	helperType.MethodOverloads[methodNameLower] = append(helperType.MethodOverloads[methodNameLower], funcType)
 }
 
 // analyzeHelperProperty analyzes a property in a helper.
@@ -266,15 +414,7 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 		return
 	}
 
-	// Analyze the constant value expression
-	constType := a.analyzeExpression(classConst.Value)
-	if constType == nil {
-		a.addError("invalid constant value for '%s' in helper '%s' at %s",
-			constName, helperName, classConst.Token.Pos.String())
-		return
-	}
-
-	// Type checking: if a type is specified, validate it matches
+	var constType types.Type
 	if classConst.Type != nil {
 		expectedType, err := a.resolveType(getTypeExpressionName(classConst.Type))
 		if err != nil {
@@ -283,9 +423,23 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 			return
 		}
 
+		constType = a.analyzeExpressionWithExpectedType(classConst.Value, expectedType)
+		if constType == nil {
+			a.addError("invalid constant value for '%s' in helper '%s' at %s",
+				constName, helperName, classConst.Token.Pos.String())
+			return
+		}
 		if !a.canAssign(constType, expectedType) {
 			a.addError("constant '%s' type mismatch: cannot assign %s to %s in helper '%s' at %s",
 				constName, constType.String(), expectedType.String(), helperName, classConst.Token.Pos.String())
+			return
+		}
+		constType = expectedType
+	} else {
+		constType = a.analyzeExpression(classConst.Value)
+		if constType == nil {
+			a.addError("invalid constant value for '%s' in helper '%s' at %s",
+				constName, helperName, classConst.Token.Pos.String())
 			return
 		}
 	}
@@ -368,6 +522,58 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) *types.Fun
 	}
 
 	return nil
+}
+
+func (a *Analyzer) resolveHelperMethodForCall(typ types.Type, methodName string, args []ast.Expression) *types.FunctionType {
+	helpers := a.getHelpersForType(typ)
+	if helpers == nil {
+		return nil
+	}
+
+	methodNameLower := ident.Normalize(methodName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		overloads := helper.MethodOverloads[methodNameLower]
+		if len(overloads) == 0 {
+			if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
+				return method
+			}
+			continue
+		}
+		if len(overloads) == 1 {
+			return overloads[0]
+		}
+
+		argTypes := make([]types.Type, len(args))
+		for i, arg := range args {
+			argType := a.analyzeExpression(arg)
+			if argType == nil {
+				return nil
+			}
+			argTypes[i] = argType
+		}
+		candidates := make([]*Symbol, len(overloads))
+		for i, overload := range overloads {
+			candidates[i] = &Symbol{Type: overload}
+		}
+		selected, err := ResolveOverload(candidates, argTypes)
+		if err != nil {
+			a.addStructuredError(NewNoOverloadMatchError(argsPositionFallback(args), methodName))
+			return nil
+		}
+		if methodType, ok := selected.Type.(*types.FunctionType); ok {
+			return methodType
+		}
+	}
+
+	return nil
+}
+
+func argsPositionFallback(args []ast.Expression) token.Position {
+	if len(args) > 0 {
+		return args[0].Pos()
+	}
+	return token.Position{}
 }
 
 // hasHelperProperty checks if any helper for the given type defines the specified property.

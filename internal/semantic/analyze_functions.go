@@ -125,6 +125,11 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 		returnType = types.VOID
 	}
 
+	if decl.IsHelper {
+		a.analyzeFunctionHelperDecl(decl, paramTypes, returnType)
+		return
+	}
+
 	// Create function type with metadata (handles lazy, var, const, defaults)
 	var funcType *types.FunctionType
 	if len(paramTypes) > 0 {

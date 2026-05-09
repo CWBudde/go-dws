@@ -255,6 +255,22 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		return e.newError(stmt, "cannot assign to member of class type value")
 	}
 
+	if helper, propInfo := e.FindHelperProperty(objVal, fieldName); propInfo != nil {
+		return e.executeHelperPropertyWrite(helper, propInfo, objVal, value, stmt, ctx)
+	}
+	if objType == "TYPE_META" {
+		helpers := e.getHelpersForValue(objVal)
+		for idx := len(helpers) - 1; idx >= 0; idx-- {
+			helper := helpers[idx]
+			for name := range helper.GetClassVars() {
+				if ident.Equal(name, fieldName) {
+					helper.GetClassVars()[name] = value
+					return value
+				}
+			}
+		}
+	}
+
 	// Unknown type or unsupported member assignment
 	return e.newError(stmt, "member assignment not supported for type %s", objType)
 }

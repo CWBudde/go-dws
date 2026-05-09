@@ -174,6 +174,9 @@ func (a *Analyzer) analyzeSelfExpression(se *ast.SelfExpression) types.Type {
 		a.addError("'Self' can only be used inside a method at %s", se.Token.Pos.String())
 		return nil
 	}
+	if a.currentSelfType != nil {
+		return a.currentSelfType
+	}
 
 	// Validate that we're in a class or record context
 	if a.currentClass == nil {

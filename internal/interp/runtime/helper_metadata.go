@@ -7,27 +7,31 @@ import (
 )
 
 type MutableHelperInfo struct {
-	TargetType     types.Type
-	ParentHelper   *MutableHelperInfo
-	Methods        map[string]*ast.FunctionDecl
-	Properties     map[string]*types.PropertyInfo
-	ClassVars      map[string]Value
-	ClassConsts    map[string]Value
-	BuiltinMethods map[string]string
-	Name           string
-	IsRecordHelper bool
+	TargetType      types.Type
+	ParentHelper    *MutableHelperInfo
+	Methods         map[string]*ast.FunctionDecl
+	MethodOverloads map[string][]*ast.FunctionDecl
+	Properties      map[string]*types.PropertyInfo
+	ClassVars       map[string]Value
+	ClassConsts     map[string]Value
+	BuiltinMethods  map[string]string
+	Name            string
+	IsRecordHelper  bool
+	IsClassHelper   bool
+	IsStrict        bool
 }
 
 func NewMutableHelperInfo(name string, targetType types.Type, isRecordHelper bool) *MutableHelperInfo {
 	return &MutableHelperInfo{
-		Name:           name,
-		TargetType:     targetType,
-		Methods:        make(map[string]*ast.FunctionDecl),
-		Properties:     make(map[string]*types.PropertyInfo),
-		ClassVars:      make(map[string]Value),
-		ClassConsts:    make(map[string]Value),
-		BuiltinMethods: make(map[string]string),
-		IsRecordHelper: isRecordHelper,
+		Name:            name,
+		TargetType:      targetType,
+		Methods:         make(map[string]*ast.FunctionDecl),
+		MethodOverloads: make(map[string][]*ast.FunctionDecl),
+		Properties:      make(map[string]*types.PropertyInfo),
+		ClassVars:       make(map[string]Value),
+		ClassConsts:     make(map[string]Value),
+		BuiltinMethods:  make(map[string]string),
+		IsRecordHelper:  isRecordHelper,
 	}
 }
 
@@ -37,8 +41,25 @@ func (h *MutableHelperInfo) GetMethod(name string) (*ast.FunctionDecl, *MutableH
 			return method, h, true
 		}
 	}
+	for key, overloads := range h.MethodOverloads {
+		if ident.Equal(key, name) && len(overloads) > 0 {
+			return overloads[len(overloads)-1], h, true
+		}
+	}
 	if h.ParentHelper != nil {
 		return h.ParentHelper.GetMethod(name)
+	}
+	return nil, nil, false
+}
+
+func (h *MutableHelperInfo) GetMethodOverloads(name string) ([]*ast.FunctionDecl, *MutableHelperInfo, bool) {
+	for key, overloads := range h.MethodOverloads {
+		if ident.Equal(key, name) && len(overloads) > 0 {
+			return overloads, h, true
+		}
+	}
+	if method, owner, found := h.GetMethod(name); found {
+		return []*ast.FunctionDecl{method}, owner, true
 	}
 	return nil, nil, false
 }
@@ -82,6 +103,11 @@ func (h *MutableHelperInfo) GetParentHelper() *MutableHelperInfo {
 func (h *MutableHelperInfo) GetMethodAny(name string) (*ast.FunctionDecl, any, bool) {
 	method, owner, found := h.GetMethod(name)
 	return method, owner, found
+}
+
+func (h *MutableHelperInfo) GetMethodOverloadsAny(name string) ([]*ast.FunctionDecl, any, bool) {
+	methods, owner, found := h.GetMethodOverloads(name)
+	return methods, owner, found
 }
 
 func (h *MutableHelperInfo) GetBuiltinMethodAny(name string) (string, any, bool) {

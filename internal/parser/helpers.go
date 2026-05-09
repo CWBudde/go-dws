@@ -40,6 +40,10 @@ import (
 //
 //nolint:gocyclo // Parser functions handling complex language constructs have inherent complexity
 func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, isRecordHelper bool) *ast.HelperDecl {
+	return p.parseHelperDeclarationWithOptions(nameIdent, isRecordHelper, false, false)
+}
+
+func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, isRecordHelper bool, isClassHelper bool, isStrict bool) *ast.HelperDecl {
 	builder := p.StartNode()
 	cursor := p.cursor
 
@@ -55,6 +59,8 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, isRecordHelpe
 		ClassConsts:    []*ast.ConstDecl{},
 		PrivateMembers: []ast.Statement{},
 		PublicMembers:  []ast.Statement{},
+		IsClassHelper:  isClassHelper,
+		IsStrict:       isStrict,
 	}
 
 	// Check for optional parent helper: helper(TParentHelper)
@@ -96,18 +102,15 @@ func (p *Parser) parseHelperDeclaration(nameIdent *ast.Identifier, isRecordHelpe
 	cursor = cursor.Advance() // move to FOR
 	p.cursor = cursor
 
-	// Expect the target type name
-	if cursor.Peek(1).Type != lexer.IDENT {
+	cursor = cursor.Advance() // move to target type expression
+	p.cursor = cursor
+
+	helperDecl.ForType = p.parseTypeExpression()
+	if isInvalidTypeExpression(helperDecl.ForType) {
 		p.addError("expected type name after 'for' in helper declaration", ErrExpectedType)
 		return nil
 	}
-	cursor = cursor.Advance() // move to IDENT
-	p.cursor = cursor
-
-	helperDecl.ForType = &ast.TypeAnnotation{
-		Token: cursor.Current(),
-		Name:  cursor.Current().Literal,
-	}
+	cursor = p.cursor
 
 	// Move to first token inside helper body
 	cursor = cursor.Advance()

@@ -79,6 +79,7 @@ type Analyzer struct {
 	functionPointers      map[string]*types.FunctionPointerType // Function pointer type registry
 	currentFunction       *ast.FunctionDecl                     // Current function being analyzed
 	currentRecord         *types.RecordType                     // Current record being analyzed
+	currentSelfType       types.Type                            // Current helper Self type, when not class/record-owned
 	symbols               *SymbolTable                          // Symbol table
 	globalOperators       *types.OperatorRegistry               // Operator overload registry
 	conversionRegistry    *types.ConversionRegistry             // Type conversion registry

@@ -329,6 +329,28 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return nil
 	}
 
+	// Helpers can override built-in TObject members and can also provide class
+	// members when accessed through a metaclass value (TType.HelperMember).
+	helperLookupType := objectType
+	if isMetaclass {
+		helperLookupType = objectTypeResolved
+	}
+	if helperMethod := a.hasHelperMethod(helperLookupType, memberName); helperMethod != nil {
+		if len(helperMethod.Parameters) == 0 {
+			return helperMethod.ReturnType
+		}
+		return helperMethod
+	}
+	if helperProp := a.hasHelperProperty(helperLookupType, memberName); helperProp != nil {
+		return helperProp.Type
+	}
+	if _, helperClassVar := a.hasHelperClassVar(helperLookupType, memberName); helperClassVar != nil {
+		return helperClassVar
+	}
+	if _, helperConst := a.hasHelperClassConst(helperLookupType, memberName); helperConst != nil {
+		return helperLookupType
+	}
+
 	// Handle built-in properties on all objects (inherited from TObject)
 	if memberName == "classname" {
 		if expr.Member.Value != "ClassName" {

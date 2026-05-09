@@ -582,6 +582,11 @@ func (a *Analyzer) analyzeMethodImplementation(decl *ast.FunctionDecl) {
 		return
 	}
 
+	if helperType := a.getHelperType(typeName); helperType != nil {
+		a.analyzeHelperMethodImplementation(decl, helperType)
+		return
+	}
+
 	a.addError("unknown type '%s' at %s", typeName, decl.Token.Pos.String())
 }
 

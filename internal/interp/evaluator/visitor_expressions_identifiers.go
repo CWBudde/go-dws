@@ -281,6 +281,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		}
 	}
 
+	if resolvedType, err := e.ResolveType(node.Value); err == nil && resolvedType != nil {
+		return &runtime.TypeMetaValue{
+			TypeInfo: resolvedType,
+			TypeName: resolvedType.String(),
+		}
+	}
+
 	// Final check: check for built-in functions or return undefined error
 	if e.FunctionRegistry().IsBuiltin(node.Value) {
 		// If the semantic type expects a function/method pointer, return a builtin function pointer

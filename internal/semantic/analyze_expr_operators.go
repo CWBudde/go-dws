@@ -86,6 +86,9 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		if interfaceType := a.getInterfaceType(identifier.Value); interfaceType != nil {
 			return interfaceType
 		}
+		if resolvedType, err := a.resolveType(identifier.Value); err == nil && resolvedType != nil {
+			return resolvedType
+		}
 		if a.currentClass != nil {
 			if a.inClassMethod {
 				if _, exists := a.currentClass.GetField(identifier.Value); exists {

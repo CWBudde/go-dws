@@ -41,11 +41,65 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 			return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
 		}
 
+		if helperInfo := e.lookupMutableHelper(typeName); helperInfo != nil {
+			helperInfo.Methods[ident.Normalize(node.Name.Value)] = node
+			helperInfo.MethodOverloads[ident.Normalize(node.Name.Value)] = append(
+				helperInfo.MethodOverloads[ident.Normalize(node.Name.Value)],
+				node,
+			)
+			return &runtime.NilValue{}
+		}
+
 		return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
+	}
+
+	if node.IsHelper {
+		return e.registerFunctionHelper(node, ctx)
 	}
 
 	// Register global function in the canonical function registry.
 	e.typeSystem.RegisterFunctionOrReplace(node.Name.Value, node)
+
+	return &runtime.NilValue{}
+}
+
+func (e *Evaluator) lookupMutableHelper(name string) *runtime.MutableHelperInfo {
+	for _, helpers := range e.typeSystem.AllHelpers() {
+		for _, helper := range helpers {
+			if helperInfo, ok := helper.(*runtime.MutableHelperInfo); ok && ident.Equal(helperInfo.Name, name) {
+				return helperInfo
+			}
+		}
+	}
+	return nil
+}
+
+func (e *Evaluator) registerFunctionHelper(node *ast.FunctionDecl, ctx *ExecutionContext) Value {
+	if len(node.Parameters) == 0 || node.Parameters[0].Type == nil {
+		return e.newError(node, "helper function '%s' must declare at least one typed parameter", node.Name.Value)
+	}
+
+	targetType, err := e.ResolveTypeFromAnnotation(node.Parameters[0].Type)
+	if err != nil {
+		return e.newError(node, "unknown target type '%s' for helper function '%s'",
+			node.Parameters[0].Type.String(), node.Name.Value)
+	}
+
+	methodName := node.Name.Value
+	if node.HelperName != nil {
+		methodName = node.HelperName.Value
+	}
+
+	helperInfo := runtime.NewMutableHelperInfo("__"+methodName+"FunctionHelper", targetType, false)
+	helperInfo.Methods[ident.Normalize(methodName)] = node
+
+	typeName := ident.Normalize(targetType.String())
+	e.typeSystem.RegisterHelper(typeName, helperInfo)
+
+	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))
+	if simpleTypeName != typeName {
+		e.typeSystem.RegisterHelper(simpleTypeName, helperInfo)
+	}
 
 	return &runtime.NilValue{}
 }
@@ -916,6 +970,8 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 	}
 
 	helperInfo := runtime.NewMutableHelperInfo(node.Name.Value, targetType, node.IsRecordHelper)
+	helperInfo.IsClassHelper = node.IsClassHelper
+	helperInfo.IsStrict = node.IsStrict
 
 	// Resolve parent helper
 	if node.ParentHelper != nil {
@@ -951,7 +1007,9 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 
 	// Register methods
 	for _, method := range node.Methods {
-		helperInfo.Methods[ident.Normalize(method.Name.Value)] = method
+		methodName := ident.Normalize(method.Name.Value)
+		helperInfo.Methods[methodName] = method
+		helperInfo.MethodOverloads[methodName] = append(helperInfo.MethodOverloads[methodName], method)
 	}
 
 	// Register properties
@@ -1045,6 +1103,10 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 	// Register helper in TypeSystem
 	typeName := ident.Normalize(targetType.String())
 	e.typeSystem.RegisterHelper(typeName, helperInfo)
+	declaredTypeName := ident.Normalize(node.ForType.String())
+	if declaredTypeName != "" && declaredTypeName != typeName {
+		e.typeSystem.RegisterHelper(declaredTypeName, helperInfo)
+	}
 
 	// Also register by simple type name
 	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))

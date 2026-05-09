@@ -19,6 +19,9 @@ type HelperInfo interface {
 	// Returns the method declaration, the helper that owns it (as any), and whether it was found.
 	GetMethodAny(name string) (*ast.FunctionDecl, any, bool)
 
+	// GetMethodOverloadsAny looks up method overloads by name in this helper's inheritance chain.
+	GetMethodOverloadsAny(name string) ([]*ast.FunctionDecl, any, bool)
+
 	// GetBuiltinMethodAny looks up a builtin method spec by name in this helper's inheritance chain.
 	// Returns the builtin spec, the helper that owns it (as any), and whether it was found.
 	GetBuiltinMethodAny(name string) (string, any, bool)
@@ -43,8 +46,24 @@ type HelperMethodResult struct {
 	OwnerHelper HelperInfo
 	// Method is the AST function declaration (nil for builtin-only methods)
 	Method *ast.FunctionDecl
+	// Overloads are candidate AST declarations for overloaded helper methods.
+	Overloads []*ast.FunctionDecl
 	// BuiltinSpec is the builtin method identifier (empty string for AST-only methods)
 	BuiltinSpec string
+}
+
+func helperASTMethodEffectiveParamCount(method *ast.FunctionDecl) int {
+	if method == nil {
+		return 0
+	}
+	count := len(method.Parameters)
+	if method.IsHelper {
+		count--
+	}
+	if count < 0 {
+		return 0
+	}
+	return count
 }
 
 // getHelpersForValue returns all helpers that apply to the given value's type.
@@ -148,7 +167,7 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 
-		if method, ownerHelperAny, ok := helper.GetMethodAny(methodName); ok {
+		if overloads, ownerHelperAny, ok := helper.GetMethodOverloadsAny(methodName); ok && len(overloads) > 0 {
 			// Resolve owner helper from the returned any type
 			var ownerHelper HelperInfo
 			if ownerHelperAny != nil {
@@ -165,13 +184,15 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 			if spec, _, ok := ownerHelper.GetBuiltinMethodAny(methodName); ok {
 				return &HelperMethodResult{
 					OwnerHelper: ownerHelper,
-					Method:      method,
+					Method:      overloads[len(overloads)-1],
+					Overloads:   overloads,
 					BuiltinSpec: spec,
 				}
 			}
 			return &HelperMethodResult{
 				OwnerHelper: ownerHelper,
-				Method:      method,
+				Method:      overloads[len(overloads)-1],
+				Overloads:   overloads,
 				BuiltinSpec: "",
 			}
 		}
@@ -231,6 +252,17 @@ func (e *Evaluator) CallHelperMethod(
 
 	// If it's an AST method, execute it with proper Self binding
 	if result.Method != nil {
+		if len(result.Overloads) > 1 {
+			for _, candidate := range result.Overloads {
+				expected := len(candidate.Parameters)
+				if candidate.IsHelper {
+					expected--
+				}
+				if expected == len(args) {
+					return e.CallASTHelperMethod(result.OwnerHelper, candidate, selfValue, args, node, ctx)
+				}
+			}
+		}
 		return e.CallASTHelperMethod(result.OwnerHelper, result.Method, selfValue, args, node, ctx)
 	}
 
@@ -293,10 +325,16 @@ func (e *Evaluator) CallASTHelperMethod(
 		return e.newError(node, "helper method not found (nil owner)")
 	}
 
-	// Check argument count
-	if len(args) != len(method.Parameters) {
+	expectedArgCount := len(method.Parameters)
+	if method.IsHelper {
+		expectedArgCount--
+	}
+	if expectedArgCount < 0 {
+		expectedArgCount = 0
+	}
+	if len(args) != expectedArgCount {
 		return e.newError(node, "wrong number of arguments for helper method '%s': expected %d, got %d",
-			method.Name.Value, len(method.Parameters), len(args))
+			method.Name.Value, expectedArgCount, len(args))
 	}
 
 	// Create method environment (enclosed scope)
@@ -307,6 +345,9 @@ func (e *Evaluator) CallASTHelperMethod(
 
 	// Bind Self to the target value (the value being extended)
 	scope.defineExposed(ctx, "Self", selfValue)
+	if method.IsHelper && len(method.Parameters) > 0 {
+		scope.defineExposed(ctx, method.Parameters[0].Name.Value, selfValue)
+	}
 
 	// Bind helper class vars and consts from entire inheritance chain.
 	// Walk from root parent to current helper so child helpers override parents.
@@ -314,7 +355,14 @@ func (e *Evaluator) CallASTHelperMethod(
 
 	// Bind method parameters
 	for idx, param := range method.Parameters {
-		scope.defineOwned(e, ctx, param.Name.Value, args[idx])
+		if method.IsHelper && idx == 0 {
+			continue
+		}
+		argIdx := idx
+		if method.IsHelper {
+			argIdx--
+		}
+		scope.defineOwned(e, ctx, param.Name.Value, args[argIdx])
 	}
 
 	// For functions, initialize the Result variable
@@ -552,6 +600,35 @@ func (e *Evaluator) executeHelperPropertyRead(
 	default:
 		return e.newError(node, "property '%s' has no read access", propInfo.Name)
 	}
+}
+
+func (e *Evaluator) executeHelperPropertyWrite(
+	helper HelperInfo,
+	propInfo *types.PropertyInfo,
+	selfValue Value,
+	value Value,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	if propInfo.WriteKind == types.PropAccessNone || propInfo.WriteSpec == "" {
+		return e.newError(node, readOnlyPropertyWriteMessage)
+	}
+
+	normalizedWriteSpec := ident.Normalize(propInfo.WriteSpec)
+	if method, methodOwnerAny, ok := helper.GetMethodAny(normalizedWriteSpec); ok {
+		methodOwner, ok := methodOwnerAny.(HelperInfo)
+		if !ok {
+			return e.newError(node, "invalid helper method owner")
+		}
+		result := &HelperMethodResult{
+			OwnerHelper: methodOwner,
+			Method:      method,
+			Overloads:   []*ast.FunctionDecl{method},
+		}
+		return e.CallHelperMethod(result, selfValue, []Value{value}, node, ctx)
+	}
+
+	return e.newError(node, "property '%s' setter method '%s' not found", propInfo.Name, propInfo.WriteSpec)
 }
 
 // evalBuiltinHelperProperty evaluates a built-in helper property (array, enum, string, etc.).

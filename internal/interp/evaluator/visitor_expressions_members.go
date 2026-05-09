@@ -144,7 +144,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Helper methods (parameterless auto-invoke)
 		helperResult := e.FindHelperMethod(obj, memberName)
 		if helperResult != nil {
-			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+			if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
 				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 			}
 			if helperResult.BuiltinSpec != "" {
@@ -254,7 +254,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Helper methods (parameterless auto-invoke)
 		helperResult := e.FindHelperMethod(obj, memberName)
 		if helperResult != nil {
-			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+			if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
 				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 			}
 			if helperResult.BuiltinSpec != "" {
@@ -551,7 +551,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		if wrappedValue != nil {
 			helperResult := e.FindHelperMethod(wrappedValue, memberName)
 			if helperResult != nil {
-				if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+				if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
 					return e.CallHelperMethod(helperResult, wrappedValue, []Value{}, node, ctx)
 				}
 				if helperResult.BuiltinSpec != "" {
@@ -571,9 +571,26 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		// Non-enum type meta: check helpers
 		if !enumMeta.IsEnumTypeMeta() {
+			if helper, propInfo := e.FindHelperProperty(obj, memberName); propInfo != nil {
+				return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
+			}
+			helpers := e.getHelpersForValue(obj)
+			for idx := len(helpers) - 1; idx >= 0; idx-- {
+				helper := helpers[idx]
+				for name, value := range helper.GetClassConsts() {
+					if ident.Equal(name, memberName) {
+						return value
+					}
+				}
+				for name, value := range helper.GetClassVars() {
+					if ident.Equal(name, memberName) {
+						return value
+					}
+				}
+			}
 			helperResult := e.FindHelperMethod(obj, memberName)
 			if helperResult != nil {
-				if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+				if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
 					return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 				}
 				if helperResult.BuiltinSpec != "" {
@@ -642,7 +659,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Helper methods (.Name, .ToString, etc.)
 		helperResult := e.FindHelperMethod(obj, memberName)
 		if helperResult != nil {
-			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+			if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
 				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 			}
 			if helperResult.BuiltinSpec != "" {
@@ -684,7 +701,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Helper methods (parameterless auto-invoke)
 		helperResult := e.FindHelperMethod(obj, memberName)
 		if helperResult != nil {
-			if helperResult.Method != nil && len(helperResult.Method.Parameters) == 0 {
+			if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
 				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 			}
 			if helperResult.BuiltinSpec != "" {

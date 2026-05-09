@@ -61,6 +61,8 @@ type HelperDecl struct {
 	PublicMembers  []Statement
 	BaseNode
 	IsRecordHelper bool
+	IsClassHelper  bool
+	IsStrict       bool
 }
 
 func (h *HelperDecl) End() token.Position {
@@ -80,6 +82,11 @@ func (hd *HelperDecl) String() string {
 
 	if hd.IsRecordHelper {
 		out.WriteString("record ")
+	} else if hd.IsClassHelper {
+		out.WriteString("class ")
+	}
+	if hd.IsStrict {
+		out.WriteString("strict ")
 	}
 
 	out.WriteString("helper")

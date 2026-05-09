@@ -113,6 +113,7 @@ type FunctionDecl struct {
 	ReturnType        TypeExpression
 	Name              *Identifier
 	ClassName         *Identifier
+	HelperName        *Identifier
 	Body              *BlockStatement
 	PreConditions     *PreConditions
 	PostConditions    *PostConditions
@@ -137,6 +138,7 @@ type FunctionDecl struct {
 	IsForward            bool
 	IsDefault            bool
 	IsDeprecated         bool
+	IsHelper             bool
 }
 
 func (fd *FunctionDecl) statementNode() {}

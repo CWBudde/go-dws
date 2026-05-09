@@ -624,16 +624,19 @@ func NewScopedEnumType(name string, values map[string]int, orderedNames []string
 //	  function ToLower: String;
 //	end;
 type HelperType struct {
-	TargetType     Type
-	Decl           any
-	ParentHelper   *HelperType
-	Methods        map[string]*FunctionType
-	Properties     map[string]*PropertyInfo
-	ClassVars      map[string]Type
-	ClassConsts    map[string]any
-	BuiltinMethods map[string]string
-	Name           string
-	IsRecordHelper bool
+	TargetType      Type
+	Decl            any
+	ParentHelper    *HelperType
+	Methods         map[string]*FunctionType
+	MethodOverloads map[string][]*FunctionType
+	Properties      map[string]*PropertyInfo
+	ClassVars       map[string]Type
+	ClassConsts     map[string]any
+	BuiltinMethods  map[string]string
+	Name            string
+	IsRecordHelper  bool
+	IsClassHelper   bool
+	IsStrict        bool
 }
 
 // String returns the string representation of the helper type
@@ -749,13 +752,14 @@ func (ht *HelperType) GetClassConst(name string) (interface{}, bool) {
 // NewHelperType creates a new helper type.
 func NewHelperType(name string, targetType Type, isRecordHelper bool) *HelperType {
 	return &HelperType{
-		Name:           name,
-		TargetType:     targetType,
-		Methods:        make(map[string]*FunctionType),
-		Properties:     make(map[string]*PropertyInfo),
-		ClassVars:      make(map[string]Type),
-		ClassConsts:    make(map[string]interface{}),
-		BuiltinMethods: make(map[string]string),
-		IsRecordHelper: isRecordHelper,
+		Name:            name,
+		TargetType:      targetType,
+		Methods:         make(map[string]*FunctionType),
+		MethodOverloads: make(map[string][]*FunctionType),
+		Properties:      make(map[string]*PropertyInfo),
+		ClassVars:       make(map[string]Type),
+		ClassConsts:     make(map[string]interface{}),
+		BuiltinMethods:  make(map[string]string),
+		IsRecordHelper:  isRecordHelper,
 	}
 }

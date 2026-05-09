@@ -191,7 +191,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		// Check if helpers provide this method for non-class, non-record types
-		helperMethod := a.hasHelperMethod(objectType, methodName)
+		helperMethod := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments)
 		if helperMethod == nil {
 			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return nil
