@@ -90,6 +90,9 @@ func (p *Parser) parseStatement() ast.Statement {
 	case lexer.WHILE:
 		return p.parseWhileStatement()
 
+	case lexer.WITH:
+		return p.parseWithStatement()
+
 	case lexer.REPEAT:
 		return p.parseRepeatStatement()
 

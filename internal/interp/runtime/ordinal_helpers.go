@@ -10,6 +10,8 @@ import (
 // Ordinal types include: Integer, Enum, String (single rune), Boolean.
 func GetOrdinalValue(val Value) (int, error) {
 	switch v := val.(type) {
+	case VariantWrapper:
+		return GetOrdinalValue(v.UnwrapVariant())
 	case *IntegerValue:
 		return int(v.Value), nil
 	case *EnumValue:
@@ -60,6 +62,12 @@ type EnumTypeResolver func(typeName string) (*types.EnumType, error)
 // evaluator execution paths.
 func RebuildOrdinalValue(template Value, ordinal int, resolveEnum EnumTypeResolver) (Value, error) {
 	switch v := template.(type) {
+	case VariantWrapper:
+		rebuilt, err := RebuildOrdinalValue(v.UnwrapVariant(), ordinal, resolveEnum)
+		if err != nil {
+			return nil, err
+		}
+		return BoxVariant(rebuilt), nil
 	case *IntegerValue:
 		return &IntegerValue{Value: int64(ordinal)}, nil
 	case *EnumValue:

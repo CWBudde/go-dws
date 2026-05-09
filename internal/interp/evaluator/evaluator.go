@@ -514,6 +514,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitIfStatement(n, ctx)
 	case *ast.WhileStatement:
 		return e.VisitWhileStatement(n, ctx)
+	case *ast.WithStatement:
+		return e.VisitWithStatement(n, ctx)
 	case *ast.RepeatStatement:
 		return e.VisitRepeatStatement(n, ctx)
 	case *ast.ForStatement:

@@ -295,7 +295,7 @@ func (e *Evaluator) evalIndexedPropertyAssignmentOnObject(
 
 	// Check if property has write access
 	if propDesc.WriteSpec == "" {
-		return e.newError(stmt, "property '%s' is read-only", propName)
+		return e.newError(stmt, readOnlyPropertyWriteMessage)
 	}
 
 	// Look up the setter method declaration
@@ -376,7 +376,7 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 
 	// Check if property has write access
 	if propDesc.WriteSpec == "" {
-		return e.newError(stmt, "default property on %s is read-only", obj.Type())
+		return e.newError(stmt, readOnlyPropertyWriteMessage)
 	}
 
 	// Look up the setter method declaration

@@ -658,7 +658,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
 			}
 		} else {
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 			if isArrayOfConstType(expectedType) {
 				if _, isLiteral := arg.(*ast.ArrayLiteralExpression); !isLiteral {
 					if argType != nil {

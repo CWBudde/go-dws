@@ -37,7 +37,7 @@ func TestBuiltinLow_String(t *testing.T) {
 
 func TestBuiltinLow_InvalidType(t *testing.T) {
 	input := `
-		var x := 42;
+		var x := 42.0;
 		var lowIndex := Low(x);
 	`
 	expectError(t, input, "array")
@@ -70,7 +70,7 @@ func TestBuiltinHigh_String(t *testing.T) {
 
 func TestBuiltinHigh_InvalidType(t *testing.T) {
 	input := `
-		var x := 42;
+		var x := 42.0;
 		var highIndex := High(x);
 	`
 	expectError(t, input, "array")

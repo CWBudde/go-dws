@@ -346,25 +346,23 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperTooFewArgs(expr)
 			return types.VOID
 		}
-		if len(expr.Arguments) > 1 {
-			a.addArrayHelperTooManyArgs(expr)
-		}
 		elementType := arrayType.ElementType
-		arg := expr.Arguments[0]
-		argType := a.analyzeExpression(arg)
-		if argType == nil {
-			return types.VOID
-		}
-		if argArrayType, isArray := types.GetUnderlyingType(argType).(*types.ArrayType); isArray {
-			if !a.canAssign(argType, arrayType) {
-				a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
-			} else if argArrayType.ElementType != nil && elementType != nil && !a.canAssign(argArrayType.ElementType, elementType) {
+		for _, arg := range expr.Arguments {
+			argType := a.analyzeExpressionWithExpectedType(arg, elementType)
+			if argType == nil {
+				continue
+			}
+			if argArrayType, isArray := types.GetUnderlyingType(argType).(*types.ArrayType); isArray {
+				if !a.canAssign(argType, arrayType) {
+					a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
+				} else if argArrayType.ElementType != nil && elementType != nil && !a.canAssign(argArrayType.ElementType, elementType) {
+					a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
+				}
+				continue
+			}
+			if elementType != nil && !a.canAssign(argType, elementType) {
 				a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
 			}
-			return types.VOID
-		}
-		if elementType != nil && !a.canAssign(argType, elementType) {
-			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
 		}
 		return types.VOID
 	case "setlength":

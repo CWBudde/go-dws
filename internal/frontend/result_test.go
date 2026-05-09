@@ -618,6 +618,41 @@ end;
 	}
 }
 
+func TestCompile_RendersForwardedAccessorMethodsAfterPropertyUseErrors(t *testing.T) {
+	source := `
+type
+	TMyClass = class
+		class procedure SetVal(v: Integer);
+		property Val: Integer write SetVal;
+
+		procedure SetProp(v: Integer);
+		property Prop: Integer write SetProp;
+	end;
+
+TMyClass.Val := 'bad';
+TMyClass.Prop := 123;
+`
+
+	result := Compile(source, "property_error8.pas", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Argument 0 expects type "Integer" instead of "String" [line: 11, column: 10]`,
+		`Syntax Error: Write access of property should be a static method [line: 12, column: 10]`,
+		`Syntax Error: Class method or constructor expected [line: 12, column: 10]`,
+		`Syntax Error: Method "SetVal" of class "TMyClass" not implemented [line: 4, column: 19]`,
+		`Syntax Error: Method "SetProp" of class "TMyClass" not implemented [line: 7, column: 13]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestCompile_RendersNoDefaultClassPropertyDiagnostic(t *testing.T) {
 	source := `type
 	TTest = class
@@ -1196,6 +1231,37 @@ end;
 	want := []string{
 		`Syntax Error: Expression expected [line: 2, column: 15]`,
 		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 5, column: 4]`,
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_CollectsSemanticDiagnosticsAfterMissingEnd(t *testing.T) {
+	source := `
+var i: Integer;
+begin
+	i := 'oops';
+`
+
+	result := Compile(source, "missing_end_plus_semantic.pas", semantic.HintsLevelPedantic)
+	if result == nil {
+		t.Fatal("expected non-nil compile result")
+	}
+	if !result.SemanticAttempted {
+		t.Fatal("expected semantic analysis to run after missing end parser error")
+	}
+
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: End of block expected [line: 3, column: 1]`,
+		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 4, column: 4]`,
 	}
 
 	if len(got) != len(want) {

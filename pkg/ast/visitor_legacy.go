@@ -430,6 +430,9 @@ func walkForStatement(n *ForStatement, v Visitor) {
 func walkForInStatement(n *ForInStatement, v Visitor) {
 	Walk(v, n.Variable)
 	Walk(v, n.Collection)
+	if n.Step != nil {
+		Walk(v, n.Step)
+	}
 	Walk(v, n.Body)
 }
 

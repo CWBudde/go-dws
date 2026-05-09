@@ -41,6 +41,13 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 
 	// Convert uncaught exceptions to errors
 	if ctx.Exception() != nil {
+		if exc, ok := ctx.Exception().(*runtime.ExceptionValue); ok && exc != nil {
+			message := exc.Message
+			if message == "" {
+				message = exc.Inspect()
+			}
+			return &runtime.ErrorValue{Message: message}
+		}
 		type ExceptionInspector interface {
 			Inspect() string
 		}
@@ -588,9 +595,19 @@ func (e *Evaluator) VisitRepeatStatement(node *ast.RepeatStatement, ctx *Executi
 func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionContext) Value {
 	var result Value = &runtime.NilValue{}
 
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+
 	startVal := e.Eval(node.Start, ctx)
 	if isError(startVal) {
 		return startVal
+	}
+
+	loopVarName := node.Variable.Value
+	if node.InlineVar {
+		ctx.Env().Define(loopVarName, startVal)
+	} else if err := ctx.Env().Set(loopVarName, startVal); err != nil {
+		ctx.Env().Define(loopVarName, startVal)
 	}
 
 	endVal := e.Eval(node.EndValue, ctx)
@@ -621,22 +638,25 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 		}
 
 		if stepOrdinal <= 0 {
-			return e.newError(node, "FOR loop STEP should be strictly positive: %d", stepOrdinal)
+			pos := node.Token.Pos
+			message := fmt.Sprintf("FOR loop STEP should be strictly positive: %d [line: %d, column: %d]",
+				stepOrdinal, pos.Line, pos.Column)
+			ctx.SetException(e.createException("Exception", message, &pos, ctx))
+			return &runtime.NilValue{}
 		}
 	}
 
-	ctx.PushEnv()
-	defer ctx.PopEnv()
-
-	loopVarName := node.Variable.Value
-
 	if node.Direction == ast.ForTo {
-		for current := startOrdinal; current <= endOrdinal; current += stepOrdinal {
+		for current := startOrdinal; current <= endOrdinal; {
 			currentVal, err := runtime.RebuildOrdinalValue(startVal, current, e.lookupEnumType)
 			if err != nil {
 				return e.newError(node, "%s", err.Error())
 			}
-			ctx.Env().Define(loopVarName, currentVal)
+			if node.InlineVar {
+				ctx.Env().Define(loopVarName, currentVal)
+			} else if err := ctx.Env().Set(loopVarName, currentVal); err != nil {
+				ctx.Env().Define(loopVarName, currentVal)
+			}
 
 			result = e.Eval(node.Body, ctx)
 			if isError(result) {
@@ -650,19 +670,26 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 			}
 			if cf.IsContinue() {
 				cf.Clear()
-				continue
 			}
 			if cf.IsExit() {
 				break
 			}
+			if current > endOrdinal-stepOrdinal {
+				break
+			}
+			current += stepOrdinal
 		}
 	} else {
-		for current := startOrdinal; current >= endOrdinal; current -= stepOrdinal {
+		for current := startOrdinal; current >= endOrdinal; {
 			currentVal, err := runtime.RebuildOrdinalValue(startVal, current, e.lookupEnumType)
 			if err != nil {
 				return e.newError(node, "%s", err.Error())
 			}
-			ctx.Env().Define(loopVarName, currentVal)
+			if node.InlineVar {
+				ctx.Env().Define(loopVarName, currentVal)
+			} else if err := ctx.Env().Set(loopVarName, currentVal); err != nil {
+				ctx.Env().Define(loopVarName, currentVal)
+			}
 
 			result = e.Eval(node.Body, ctx)
 			if isError(result) {
@@ -676,11 +703,14 @@ func (e *Evaluator) VisitForStatement(node *ast.ForStatement, ctx *ExecutionCont
 			}
 			if cf.IsContinue() {
 				cf.Clear()
-				continue
 			}
 			if cf.IsExit() {
 				break
 			}
+			if current < endOrdinal+stepOrdinal {
+				break
+			}
+			current -= stepOrdinal
 		}
 	}
 
@@ -698,36 +728,79 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 		return collectionVal
 	}
 
+	loopVarName := node.Variable.Value
+	stepOrdinal := 1
+	if node.Step != nil {
+		stepVal := e.Eval(node.Step, ctx)
+		if isError(stepVal) {
+			return stepVal
+		}
+		var err error
+		stepOrdinal, err = runtime.GetOrdinalValue(stepVal)
+		if err != nil {
+			return e.newError(node.Step, "for-in loop step value must be ordinal, got %s", stepVal.Type())
+		}
+		if stepOrdinal <= 0 {
+			pos := node.Token.Pos
+			message := fmt.Sprintf("FOR loop STEP should be strictly positive: %d [line: %d, column: %d]",
+				stepOrdinal, pos.Line, pos.Column)
+			ctx.SetException(e.createException("Exception", message, &pos, ctx))
+			return &runtime.NilValue{}
+		}
+	}
+
+	stringAsOrdinal := false
+	if !node.InlineVar {
+		if current, ok := ctx.Env().Get(loopVarName); ok {
+			if wrapper, ok := current.(runtime.VariantWrapper); ok {
+				current = wrapper.UnwrapVariant()
+			}
+			_, stringAsOrdinal = current.(*runtime.IntegerValue)
+		}
+	}
+
 	ctx.PushEnv()
 	defer ctx.PopEnv()
 
-	loopVarName := node.Variable.Value
+	runBody := func(loopValue Value) (bool, Value) {
+		if node.InlineVar {
+			ctx.Env().Define(loopVarName, loopValue)
+		} else if err := ctx.Env().Set(loopVarName, loopValue); err != nil {
+			ctx.Env().Define(loopVarName, loopValue)
+		}
+
+		result = e.Eval(node.Body, ctx)
+		if isError(result) {
+			return true, result
+		}
+		if ctx.Exception() != nil {
+			return true, result
+		}
+
+		cf := ctx.ControlFlow()
+		if cf.IsBreak() {
+			cf.Clear()
+			return true, result
+		}
+		if cf.IsContinue() {
+			cf.Clear()
+			return false, result
+		}
+		if cf.IsExit() {
+			return true, result
+		}
+		return false, result
+	}
 
 	switch col := collectionVal.(type) {
 	case *runtime.ArrayValue:
 		// Iterate over array elements
-		for _, element := range col.Elements {
-			// Assign the current element to the loop variable
-			ctx.Env().Define(loopVarName, element)
-
-			// Execute the body
-			result = e.Eval(node.Body, ctx)
-			if isError(result) {
-				return result
+		for idx := 0; idx < len(col.Elements); idx += stepOrdinal {
+			stop, val := runBody(runtime.CopyValue(col.Elements[idx]))
+			if isError(val) {
+				return val
 			}
-
-			// Handle control flow signals (break, continue, exit)
-			cf := ctx.ControlFlow()
-			if cf.IsBreak() {
-				cf.Clear()
-				break
-			}
-			if cf.IsContinue() {
-				cf.Clear()
-				continue
-			}
-			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
+			if stop {
 				break
 			}
 		}
@@ -740,10 +813,15 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 		elementType := col.SetType.ElementType
 
 		if enumType, ok := elementType.(*types.EnumType); ok {
+			stepIndex := 0
 			for _, name := range enumType.OrderedNames {
 				ordinal := enumType.Values[name]
 				// Check if this enum value is in the set
 				if col.HasElement(ordinal) {
+					if stepIndex%stepOrdinal != 0 {
+						stepIndex++
+						continue
+					}
 					// Create an enum value for this element
 					enumVal := &runtime.EnumValue{
 						TypeName:     enumType.Name,
@@ -751,27 +829,12 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 						OrdinalValue: ordinal,
 					}
 
-					// Assign the enum value to the loop variable
-					ctx.Env().Define(loopVarName, enumVal)
-
-					// Execute the body
-					result = e.Eval(node.Body, ctx)
-					if isError(result) {
-						return result
+					stop, val := runBody(enumVal)
+					if isError(val) {
+						return val
 					}
-
-					// Handle control flow signals (break, continue, exit)
-					cf := ctx.ControlFlow()
-					if cf.IsBreak() {
-						cf.Clear()
-						break
-					}
-					if cf.IsContinue() {
-						cf.Clear()
-						continue
-					}
-					if cf.IsExit() {
-						// Don't clear the signal - let the function handle it
+					stepIndex++
+					if stop {
 						break
 					}
 				}
@@ -785,28 +848,18 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 	case *runtime.StringValue:
 		// Iterate over string characters as single-character strings
 		runes := []rune(col.Value)
-		for idx := 0; idx < len(runes); idx++ {
-			charVal := &runtime.StringValue{Value: string(runes[idx])}
-			ctx.Env().Define(loopVarName, charVal)
-
-			// Execute the body
-			result = e.Eval(node.Body, ctx)
-			if isError(result) {
-				return result
+		for idx := 0; idx < len(runes); idx += stepOrdinal {
+			var loopValue Value
+			if stringAsOrdinal {
+				loopValue = &runtime.IntegerValue{Value: int64(runes[idx])}
+			} else {
+				loopValue = &runtime.StringValue{Value: string(runes[idx])}
 			}
-
-			// Handle control flow signals (break, continue, exit)
-			cf := ctx.ControlFlow()
-			if cf.IsBreak() {
-				cf.Clear()
-				break
+			stop, val := runBody(loopValue)
+			if isError(val) {
+				return val
 			}
-			if cf.IsContinue() {
-				cf.Clear()
-				continue
-			}
-			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
+			if stop {
 				break
 			}
 		}
@@ -819,30 +872,14 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 			return e.newError(node, "for-in loop: can only iterate over enum types, got %s", col.TypeName)
 		}
 
-		for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal++ {
+		for ordinal := enumType.MinOrdinal(); ordinal <= enumType.MaxOrdinal(); ordinal += stepOrdinal {
 			enumVal := runtime.NewEnumValue(enumType.Name, enumType, ordinal)
 
-			// Assign the enum value to the loop variable
-			ctx.Env().Define(loopVarName, enumVal)
-
-			// Execute the body
-			result = e.Eval(node.Body, ctx)
-			if isError(result) {
-				return result
+			stop, val := runBody(enumVal)
+			if isError(val) {
+				return val
 			}
-
-			// Handle control flow signals (break, continue, exit)
-			cf := ctx.ControlFlow()
-			if cf.IsBreak() {
-				cf.Clear()
-				break
-			}
-			if cf.IsContinue() {
-				cf.Clear()
-				continue
-			}
-			if cf.IsExit() {
-				// Don't clear the signal - let the function handle it
+			if stop {
 				break
 			}
 		}

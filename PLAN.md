@@ -293,7 +293,13 @@ This phase creates the compiler front-end boundary needed to make fixture work t
     - parameter-list, `case`, `except`, record/method declaration, bracket/paren recovery
     - ensure recoverable parser errors still preserve the right downstream semantic shape
   - [ ] **5.5.4** Class / property / static / override / visibility families
-    - static class parsing, override compatibility, deferred class completeness, property DWScript wording
+    - [x] static class parsing and static class instantiation/inheritance diagnostics
+    - [x] static method directive validation for class/record declarations
+    - [x] class-property declaration/use-site diagnostic wording for static accessor mismatches
+    - [x] class-method implicit instance field/property access diagnostics
+    - [x] deferred method-not-implemented diagnostics after property accessor use-site errors
+    - [ ] override / inherited-signature / virtual-overlap diagnostics in DWScript wording
+    - [ ] remaining visibility and class-member lookup specialization
   - [ ] **5.5.5** Missing-validation sweep (`82` fixtures currently emit no diagnostic)
     - classify by parser-only, semantic-only, warning-only, and runtime-only missing behavior
     - prioritize grouped families (`conditionals`, `default_params`, `deprecated`, `enum_flags`, `switch`)

@@ -122,8 +122,8 @@ func TestErrorRecoveryIfStatement(t *testing.T) {
 			else
 				Print('small');
 			`,
-			expectErrors:  1,
-			errorContains: []string{}, // Error detected, context not always present
+			expectErrors:  0,
+			errorContains: []string{},
 		},
 		{
 			name: "multiple if errors",

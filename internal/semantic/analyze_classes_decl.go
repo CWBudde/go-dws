@@ -735,8 +735,9 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 		a.symbols.DefineParameter(param.Name.Value, paramType, param.Name.Token.Pos, false)
 	}
 
-	// Bind 'Result' variable for functions.
-	if decl.ReturnType != nil {
+	// Bind 'Result' variable for functions. Constructors return Self implicitly
+	// but do not expose a Result variable.
+	if decl.ReturnType != nil && !decl.IsConstructor {
 		returnType, err := a.resolveType(getTypeExpressionName(decl.ReturnType))
 		if err != nil {
 			a.addError("unknown return type at %s", decl.Token.Pos.String())
@@ -1017,7 +1018,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		}
 		a.symbols.DefineParameter(param.Name.Value, paramType, param.Name.Token.Pos, false)
 	}
-	if returnType != types.VOID {
+	if returnType != types.VOID && !method.IsConstructor {
 		resultPos := method.Name.Token.Pos
 		if method.End().Line != 0 {
 			resultPos = blockEndStart(method.End())

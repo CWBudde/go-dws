@@ -35,7 +35,7 @@ func (e *Evaluator) executePropertyWrite(obj Value, propInfo any, value Value, n
 
 	// Check if property has write access
 	if pInfo.WriteKind == types.PropAccessNone {
-		return e.newError(node, "property '%s' is read-only", pInfo.Name)
+		return e.newError(node, readOnlyPropertyWriteMessage)
 	}
 
 	// Get property context for circular reference tracking
@@ -170,7 +170,7 @@ func (e *Evaluator) executePropertySetterMethod(obj Value, objVal ObjectValue, p
 func (e *Evaluator) executeRecordPropertyWrite(record Value, propInfo *types.RecordPropertyInfo, value Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Check if property has write access
 	if propInfo.WriteField == "" {
-		return e.newError(node, "property '%s' is read-only", propInfo.Name)
+		return e.newError(node, readOnlyPropertyWriteMessage)
 	}
 
 	// Get RecordValue interface

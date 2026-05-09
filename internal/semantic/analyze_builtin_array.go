@@ -33,6 +33,9 @@ func (a *Analyzer) analyzeLow(args []ast.Expression, callExpr *ast.CallExpressio
 		if argType == types.STRING {
 			return types.INTEGER
 		}
+		if argType == types.INTEGER || argType == types.BOOLEAN {
+			return argType
+		}
 
 		// Handle type meta-values (Integer, Float, Boolean, String)
 		if a.isTypeMetaValueExpression(args[0]) {
@@ -76,6 +79,9 @@ func (a *Analyzer) analyzeHigh(args []ast.Expression, callExpr *ast.CallExpressi
 		}
 		if argType == types.STRING {
 			return types.INTEGER
+		}
+		if argType == types.INTEGER || argType == types.BOOLEAN {
+			return argType
 		}
 		// Handle type meta-values (Integer, Float, Boolean, String)
 		if a.isTypeMetaValueExpression(args[0]) {

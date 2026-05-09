@@ -368,6 +368,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				return result
 			}
 		}
+		if ident.Equal(memberName, "Create") && classMetaVal.GetClassInfo() != nil {
+			return e.callClassConstructor(classMetaVal, memberName, []Value{}, node, ctx)
+		}
 
 		// Class methods: auto-invoke if parameterless, else return function pointer
 		if classMetaVal.HasClassMethod(memberName) {

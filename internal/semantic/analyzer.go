@@ -72,60 +72,62 @@ const (
 
 // Analyzer performs semantic analysis on a DWScript program.
 type Analyzer struct {
-	currentClass         *types.ClassType                      // Current class being analyzed
-	helpers              map[string][]*types.HelperType        // Helper type registry
-	typeRegistry         *TypeRegistry                         // Unified type registry
-	subranges            map[string]*types.SubrangeType        // Subrange type registry
-	functionPointers     map[string]*types.FunctionPointerType // Function pointer type registry
-	currentFunction      *ast.FunctionDecl                     // Current function being analyzed
-	currentRecord        *types.RecordType                     // Current record being analyzed
-	symbols              *SymbolTable                          // Symbol table
-	globalOperators      *types.OperatorRegistry               // Operator overload registry
-	conversionRegistry   *types.ConversionRegistry             // Type conversion registry
-	builtinRegistry      *builtins.Registry                    // Builtin function registry
-	semanticInfo         *ast.SemanticInfo                     // AST annotations
-	unitSymbols          map[string]*SymbolTable               // Unit symbol tables
-	currentNestedTypes   map[string]string                     // Nested type tracking
-	nestedTypeAliases    map[string]map[string]string          // Nested type aliases
-	forwardMethodPos     map[string]token.Position             // Forward-declared class method positions
-	forwardMethodNames   map[string]string                     // Forward-declared class method original casing
-	currentProperty      string                                // Current property being analyzed
-	sourceFile           string                                // Source file path
-	sourceCode           string                                // Original source text
-	loopPosStack         []token.Position                      // Stack tracking loop positions for warnings
-	structuredErrors     []*SemanticError                      // Structured error objects
-	loopExitabilityStack []LoopExitability                     // Stack tracking loop exitability
-	errors               []string                              // Error messages (legacy)
-	pendingClassWarnings []*types.ClassType                    // Deferred class-private warnings emitted after analysis
-	loopDepth            int                                   // Loop nesting level
-	hintsLevel           HintsLevel                            // Hints emission level
-	inLoop               bool                                  // Inside loop construct
-	inLambda             bool                                  // Inside lambda/anonymous function
-	inClassMethod        bool                                  // Inside class method
-	inPropertyExpr       bool                                  // Inside property expression
-	inFinallyBlock       bool                                  // Inside finally block
-	inExceptionHandler   bool                                  // Inside try/except block
+	currentClass          *types.ClassType                      // Current class being analyzed
+	helpers               map[string][]*types.HelperType        // Helper type registry
+	typeRegistry          *TypeRegistry                         // Unified type registry
+	subranges             map[string]*types.SubrangeType        // Subrange type registry
+	functionPointers      map[string]*types.FunctionPointerType // Function pointer type registry
+	currentFunction       *ast.FunctionDecl                     // Current function being analyzed
+	currentRecord         *types.RecordType                     // Current record being analyzed
+	symbols               *SymbolTable                          // Symbol table
+	globalOperators       *types.OperatorRegistry               // Operator overload registry
+	conversionRegistry    *types.ConversionRegistry             // Type conversion registry
+	builtinRegistry       *builtins.Registry                    // Builtin function registry
+	semanticInfo          *ast.SemanticInfo                     // AST annotations
+	unitSymbols           map[string]*SymbolTable               // Unit symbol tables
+	currentNestedTypes    map[string]string                     // Nested type tracking
+	nestedTypeAliases     map[string]map[string]string          // Nested type aliases
+	forwardMethodPos      map[string]token.Position             // Forward-declared class method positions
+	forwardMethodNames    map[string]string                     // Forward-declared class method original casing
+	forwardMethodReported map[string]bool                       // Forward-declared class methods already reported
+	currentProperty       string                                // Current property being analyzed
+	sourceFile            string                                // Source file path
+	sourceCode            string                                // Original source text
+	loopPosStack          []token.Position                      // Stack tracking loop positions for warnings
+	structuredErrors      []*SemanticError                      // Structured error objects
+	loopExitabilityStack  []LoopExitability                     // Stack tracking loop exitability
+	errors                []string                              // Error messages (legacy)
+	pendingClassWarnings  []*types.ClassType                    // Deferred class-private warnings emitted after analysis
+	loopDepth             int                                   // Loop nesting level
+	hintsLevel            HintsLevel                            // Hints emission level
+	inLoop                bool                                  // Inside loop construct
+	inLambda              bool                                  // Inside lambda/anonymous function
+	inClassMethod         bool                                  // Inside class method
+	inPropertyExpr        bool                                  // Inside property expression
+	inFinallyBlock        bool                                  // Inside finally block
+	inExceptionHandler    bool                                  // Inside try/except block
 }
 
 // NewAnalyzer creates a new semantic analyzer
 func NewAnalyzer() *Analyzer {
 	a := &Analyzer{
-		symbols:            NewSymbolTable(),
-		typeRegistry:       NewTypeRegistry(),
-		unitSymbols:        make(map[string]*SymbolTable),
-		errors:             make([]string, 0),
-		structuredErrors:   make([]*SemanticError, 0),
-		subranges:          make(map[string]*types.SubrangeType),
-		functionPointers:   make(map[string]*types.FunctionPointerType),
-		helpers:            make(map[string][]*types.HelperType),
-		globalOperators:    types.NewOperatorRegistry(),
-		conversionRegistry: types.NewConversionRegistry(),
-		builtinRegistry:    builtins.DefaultRegistry,
-		semanticInfo:       ast.NewSemanticInfo(),
-		nestedTypeAliases:  make(map[string]map[string]string),
-		forwardMethodPos:   make(map[string]token.Position),
-		forwardMethodNames: make(map[string]string),
-		hintsLevel:         HintsLevelNormal,
+		symbols:               NewSymbolTable(),
+		typeRegistry:          NewTypeRegistry(),
+		unitSymbols:           make(map[string]*SymbolTable),
+		errors:                make([]string, 0),
+		structuredErrors:      make([]*SemanticError, 0),
+		subranges:             make(map[string]*types.SubrangeType),
+		functionPointers:      make(map[string]*types.FunctionPointerType),
+		helpers:               make(map[string][]*types.HelperType),
+		globalOperators:       types.NewOperatorRegistry(),
+		conversionRegistry:    types.NewConversionRegistry(),
+		builtinRegistry:       builtins.DefaultRegistry,
+		semanticInfo:          ast.NewSemanticInfo(),
+		nestedTypeAliases:     make(map[string]map[string]string),
+		forwardMethodPos:      make(map[string]token.Position),
+		forwardMethodNames:    make(map[string]string),
+		forwardMethodReported: make(map[string]bool),
+		hintsLevel:            HintsLevelNormal,
 	}
 
 	// Register built-in Exception base class
@@ -297,16 +299,13 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 
 	a.validateForwardDeclarations()
-	hasActualErrors := false
-	for _, err := range a.errors {
-		if !strings.HasPrefix(err, "Hint:") && !strings.HasPrefix(err, "Warning:") {
-			hasActualErrors = true
-			break
-		}
-	}
+
+	hasActualErrors := a.hasActualErrors()
 	if !hasActualErrors {
 		a.validateForwardMethods()
+		hasActualErrors = a.hasActualErrors()
 	}
+
 	for _, classType := range a.pendingClassWarnings {
 		for _, warning := range a.collectUnusedPrivateClassMemberWarnings(classType) {
 			a.errors = append(a.errors, warning)
@@ -320,6 +319,15 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 
 	return nil
+}
+
+func (a *Analyzer) hasActualErrors() bool {
+	for _, err := range a.errors {
+		if !strings.HasPrefix(err, "Hint:") && !strings.HasPrefix(err, "Warning:") {
+			return true
+		}
+	}
+	return false
 }
 
 // validateForwardDeclarations ensures all forward-declared types have implementations.
@@ -345,20 +353,35 @@ func (a *Analyzer) validateForwardMethods() {
 			continue
 		}
 		for methodName := range classType.ForwardedMethods {
-			if overloads := classType.GetMethodOverloads(methodName); len(overloads) > 0 {
-				if overloads[0].IsAbstract {
-					continue
-				}
-			}
-			key := ident.Normalize(classType.Name) + "." + ident.Normalize(methodName)
-			pos := a.forwardMethodPos[key]
-			methodDisplayName := a.forwardMethodNames[key]
-			if methodDisplayName == "" {
-				methodDisplayName = methodName
-			}
-			a.addStructuredError(NewMethodNotImplementedError(pos, methodDisplayName, classType.Name))
+			a.addForwardMethodNotImplementedIfForwarded(classType, methodName)
 		}
 	}
+}
+
+func (a *Analyzer) addForwardMethodNotImplementedIfForwarded(classType *types.ClassType, methodName string) {
+	if classType == nil || methodName == "" {
+		return
+	}
+	normalizedMethodName := ident.Normalize(methodName)
+	if !classType.ForwardedMethods[normalizedMethodName] {
+		return
+	}
+	if overloads := classType.GetMethodOverloads(methodName); len(overloads) > 0 {
+		if overloads[0].IsAbstract {
+			return
+		}
+	}
+	key := ident.Normalize(classType.Name) + "." + normalizedMethodName
+	if a.forwardMethodReported[key] {
+		return
+	}
+	pos := a.forwardMethodPos[key]
+	methodDisplayName := a.forwardMethodNames[key]
+	if methodDisplayName == "" {
+		methodDisplayName = methodName
+	}
+	a.addStructuredError(NewMethodNotImplementedError(pos, methodDisplayName, classType.Name))
+	a.forwardMethodReported[key] = true
 }
 
 // Errors returns all accumulated semantic errors

@@ -221,6 +221,7 @@ func (fs *ForStatement) String() string {
 type ForInStatement struct {
 	Collection Expression
 	Body       Statement
+	Step       Expression
 	Variable   *Identifier
 	BaseNode
 	InlineVar bool
@@ -238,6 +239,10 @@ func (fis *ForInStatement) String() string {
 	out.WriteString(fis.Variable.String())
 	out.WriteString(" in ")
 	out.WriteString(fis.Collection.String())
+	if fis.Step != nil {
+		out.WriteString(" step ")
+		out.WriteString(fis.Step.String())
+	}
 	out.WriteString(" do ")
 	out.WriteString(fis.Body.String())
 

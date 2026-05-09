@@ -52,7 +52,7 @@ func (e *Evaluator) evalClassPropertyWrite(
 		return e.newError(node, "indexed class property '%s' requires index arguments", propInfo.Name)
 	}
 	if propInfo.WriteKind == types.PropAccessNone {
-		return e.newError(node, "class property '%s' is read-only", propInfo.Name)
+		return e.newError(node, readOnlyPropertyWriteMessage)
 	}
 
 	switch propInfo.WriteKind {

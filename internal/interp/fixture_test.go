@@ -575,6 +575,17 @@ const (
 	testResultSkipped
 )
 
+func fixtureHintsAndWarnings(compileResult *frontend.Result) []string {
+	var hintsAndWarnings []string
+	for _, diag := range compileResult.Diagnostics {
+		text := diag.String()
+		if strings.HasPrefix(text, "Hint:") || strings.HasPrefix(text, "Warning:") {
+			hintsAndWarnings = append(hintsAndWarnings, text)
+		}
+	}
+	return hintsAndWarnings
+}
+
 // runFixtureTest runs a single fixture test
 func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel semantic.HintsLevel) testResult {
 	// Add panic recovery to identify which test is crashing
@@ -658,7 +669,16 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 				formattedError := formatRuntimeErrorValue(result)
 				actualOutput := formattedError
 				if strings.Contains(expectedContent, "Errors >>>>") {
-					actualOutput = "Errors >>>>\n" + formattedError + "\nResult >>>>\n" + buf.String()
+					var formatted strings.Builder
+					formatted.WriteString("Errors >>>>\n")
+					for _, hint := range fixtureHintsAndWarnings(compileResult) {
+						formatted.WriteString(hint)
+						formatted.WriteString("\n")
+					}
+					formatted.WriteString(formattedError)
+					formatted.WriteString("\nResult >>>>\n")
+					formatted.WriteString(buf.String())
+					actualOutput = formatted.String()
 				}
 
 				if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
@@ -732,7 +752,16 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 			// DWScript fixtures wrap runtime errors in an Errors/Result block
 			actualOutput := formattedError
 			if strings.Contains(expectedContent, "Errors >>>>") {
-				actualOutput = "Errors >>>>\n" + formattedError + "\nResult >>>>\n" + buf.String()
+				var formatted strings.Builder
+				formatted.WriteString("Errors >>>>\n")
+				for _, hint := range fixtureHintsAndWarnings(compileResult) {
+					formatted.WriteString(hint)
+					formatted.WriteString("\n")
+				}
+				formatted.WriteString(formattedError)
+				formatted.WriteString("\nResult >>>>\n")
+				formatted.WriteString(buf.String())
+				actualOutput = formatted.String()
 			}
 
 			if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
@@ -752,13 +781,7 @@ func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel 
 	actualOutput := buf.String()
 
 	// Check if there are hints or warnings (but not actual errors) from semantic analysis.
-	var hintsAndWarnings []string
-	for _, diag := range compileResult.Diagnostics {
-		text := diag.String()
-		if strings.HasPrefix(text, "Hint:") || strings.HasPrefix(text, "Warning:") {
-			hintsAndWarnings = append(hintsAndWarnings, text)
-		}
-	}
+	hintsAndWarnings := fixtureHintsAndWarnings(compileResult)
 
 	// If there are hints or warnings, format output as "Errors >>>>\n<hints/warnings>\nResult >>>>\n<output>"
 	if len(hintsAndWarnings) > 0 {

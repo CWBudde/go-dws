@@ -33,6 +33,9 @@ func GetValueType(val Value) types.Type {
 	if val == nil {
 		return nil
 	}
+	if recVal, ok := val.(*runtime.RecordValue); ok && recVal.RecordType != nil {
+		return recVal.RecordType
+	}
 
 	// Get the type string from the value
 	typeStr := val.Type()

@@ -64,6 +64,8 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeIf(s)
 	case *ast.WhileStatement:
 		a.analyzeWhile(s)
+	case *ast.WithStatement:
+		a.analyzeWith(s)
 	case *ast.RepeatStatement:
 		a.analyzeRepeat(s)
 	case *ast.ForStatement:
@@ -522,11 +524,13 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 								if !a.canAssign(valueType, propInfo.Type) {
 									a.addStructuredError(NewPropertyValueTypeMismatchError(target.Member.Token.Pos, propInfo.Type.String(), valueType.String()))
 								}
+								a.addForwardMethodNotImplementedIfForwarded(classType, propInfo.WriteSpec)
 								return
 							}
 							if propInfo.WriteSpec != "" && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)]) {
 								a.addStructuredError(NewPropertyWriteShouldBeStaticMethodError(target.Member.Token.Pos))
 								a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Member.Token.Pos))
+								a.addForwardMethodNotImplementedIfForwarded(classType, propInfo.WriteSpec)
 								return
 							}
 							a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Member.Token.Pos))
@@ -708,6 +712,22 @@ func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
 	}
 }
 
+func (a *Analyzer) analyzeWith(stmt *ast.WithStatement) {
+	if stmt == nil {
+		return
+	}
+
+	oldSymbols := a.symbols
+	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	defer func() { a.symbols = oldSymbols }()
+	defer a.emitUnusedWarningsForCurrentScope()
+
+	for _, decl := range stmt.Declarations {
+		a.analyzeVarDecl(decl)
+	}
+	a.analyzeStatement(stmt.Body)
+}
+
 // isTypeDeclarationBlock checks if a block statement contains only type declarations
 func (a *Analyzer) isTypeDeclarationBlock(stmt *ast.BlockStatement) bool {
 	if len(stmt.Statements) == 0 {
@@ -840,6 +860,10 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 	}
 
 	// Analyze body
+	if empty, ok := stmt.Body.(*ast.EmptyStatement); ok {
+		a.addHint("Empty FOR loop [line: %d, column: %d]",
+			empty.Token.Pos.Line, empty.Token.Pos.Column)
+	}
 	a.analyzeStatement(stmt.Body)
 }
 
@@ -908,22 +932,34 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	defer func() { a.symbols = oldSymbols }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
-	// Analyze start and end expressions
+	// Analyze start expression first. Inline loop variables are visible to the
+	// end/step expressions with the start expression's type.
 	startType := a.analyzeExpression(stmt.Start)
+	var loopVarType types.Type = types.INTEGER
+	if startType != nil && (types.IsOrdinalType(startType) || types.GetUnderlyingType(startType) == types.VARIANT) {
+		loopVarType = startType
+	}
+	if stmt.InlineVar {
+		a.symbols.DefineLoopVariable(stmt.Variable.Value, loopVarType, stmt.Variable.Token.Pos)
+	}
+
 	endType := a.analyzeExpression(stmt.EndValue)
 
 	// Check that both are ordinal types (Integer or Boolean)
-	if startType != nil && !types.IsOrdinalType(startType) {
+	if startType != nil && !types.IsOrdinalType(startType) && types.GetUnderlyingType(startType) != types.VARIANT {
 		a.addError("for loop start must be ordinal type, got %s at %s",
 			startType.String(), stmt.Token.Pos.String())
 	}
-	if endType != nil && !types.IsOrdinalType(endType) {
+	if endType != nil && !types.IsOrdinalType(endType) && types.GetUnderlyingType(endType) != types.VARIANT {
 		a.addError("for loop end must be ordinal type, got %s at %s",
 			endType.String(), stmt.Token.Pos.String())
 	}
 
 	if stmt.Step != nil {
 		stepType := a.analyzeExpression(stmt.Step)
+		if implicitType := a.getImplicitCallType(stmt.Step); implicitType != nil {
+			stepType = implicitType
+		}
 
 		if stepType != nil {
 			underlyingStep := types.GetUnderlyingType(stepType)
@@ -960,15 +996,10 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 		}
 	}
 
-	// Define loop variable (typically Integer)
-	var loopVarType types.Type = types.INTEGER
-	if startType != nil && types.IsOrdinalType(startType) {
-		loopVarType = startType
-	}
 	if !stmt.InlineVar {
 		a.symbols.RecordUsage(stmt.Variable.Value, stmt.Variable.Token.Pos)
+		a.symbols.DefineLoopVariable(stmt.Variable.Value, loopVarType, stmt.Variable.Token.Pos)
 	}
-	a.symbols.DefineLoopVariable(stmt.Variable.Value, loopVarType, stmt.Variable.Token.Pos)
 
 	// Set loop context before analyzing body
 	oldInLoop := a.inLoop
@@ -980,6 +1011,10 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	}()
 
 	// Analyze body
+	if empty, ok := stmt.Body.(*ast.EmptyStatement); ok {
+		a.addHint("Empty FOR loop [line: %d, column: %d]",
+			empty.Token.Pos.Line, empty.Token.Pos.Column)
+	}
 	a.analyzeStatement(stmt.Body)
 }
 
@@ -994,8 +1029,18 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 	defer func() { a.symbols = oldSymbols }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
+	var existingLoopVarType types.Type
+	if !stmt.InlineVar {
+		if sym, ok := oldSymbols.Resolve(stmt.Variable.Value); ok {
+			existingLoopVarType = sym.Type
+		}
+	}
+
 	// Analyze collection expression
 	collectionType := a.analyzeExpression(stmt.Collection)
+	if implicitType := a.getImplicitCallType(stmt.Collection); implicitType != nil {
+		collectionType = implicitType
+	}
 
 	// Determine the element type and validate the collection is enumerable
 	var elementType types.Type
@@ -1011,9 +1056,13 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 			elementType = ct.ElementType
 
 		case *types.StringType:
-			// Strings are enumerable, iterates character by character
-			// In DWScript, characters are represented as strings
-			elementType = types.STRING
+			// Strings are enumerable. Existing Integer loop variables receive
+			// character ordinals; inline/string loop variables receive characters.
+			if types.GetUnderlyingType(existingLoopVarType) == types.INTEGER {
+				elementType = types.INTEGER
+			} else {
+				elementType = types.STRING
+			}
 
 		case *types.EnumType:
 			// When iterating over an enum type directly (e.g., for var e in TColor do),
@@ -1031,7 +1080,11 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 			case *types.SetType:
 				elementType = ut.ElementType
 			case *types.StringType:
-				elementType = types.STRING
+				if types.GetUnderlyingType(existingLoopVarType) == types.INTEGER {
+					elementType = types.INTEGER
+				} else {
+					elementType = types.STRING
+				}
 			case *types.EnumType:
 				elementType = ut
 			default:
@@ -1054,8 +1107,27 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 	// Define loop variable with the element type
 	if !stmt.InlineVar {
 		a.symbols.RecordUsage(stmt.Variable.Value, stmt.Variable.Token.Pos)
+		if existingLoopVarType != nil && elementType != nil && !a.canAssign(elementType, existingLoopVarType) {
+			a.addError("for-in loop variable %s has type %s, cannot assign %s at %s",
+				stmt.Variable.Value, existingLoopVarType.String(), elementType.String(), stmt.Token.Pos.String())
+		}
 	}
 	a.symbols.DefineLoopVariable(stmt.Variable.Value, elementType, stmt.Variable.Token.Pos)
+
+	if stmt.Step != nil {
+		stepType := a.analyzeExpression(stmt.Step)
+		if implicitType := a.getImplicitCallType(stmt.Step); implicitType != nil {
+			stepType = implicitType
+		}
+		if stepType != nil && types.GetUnderlyingType(stepType) != types.INTEGER {
+			a.addError("for-in loop step must be Integer, got %s at %s",
+				stepType.String(), stmt.Token.Pos.String())
+		}
+		if stepLiteral, ok := stmt.Step.(*ast.IntegerLiteral); ok && stepLiteral.Value <= 0 {
+			a.addError("for-in loop step must be strictly positive, got %d at %s",
+				stepLiteral.Value, stmt.Token.Pos.String())
+		}
+	}
 
 	// Set loop context before analyzing body
 	oldInLoop := a.inLoop

@@ -369,13 +369,9 @@ func parserDiagnosticBlocksSemantic(err *parser.ParserError) bool {
 		parser.ErrMissingIn,
 		parser.ErrMissingColon,
 		parser.ErrMissingAssign,
-		parser.ErrInvalidType:
+		parser.ErrInvalidType,
+		parser.ErrMissingEnd:
 		return false
-	case parser.ErrMissingEnd:
-		if err != nil && strings.Contains(err.Message, "class declaration") {
-			return false
-		}
-		return true
 	default:
 		// Unknown parser error codes are treated conservatively until their
 		// recovery semantics are classified explicitly.

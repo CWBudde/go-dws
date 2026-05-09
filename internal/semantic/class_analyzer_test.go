@@ -679,7 +679,7 @@ func TestClassMethodCannotAccessInstanceField(t *testing.T) {
 		end;
 	`
 	// Class methods should not be able to access instance fields
-	expectError(t, input, "undefined")
+	expectError(t, input, "Object reference needed to read/write an object field")
 }
 
 func TestInstanceMethodCanAccessClassVariable(t *testing.T) {

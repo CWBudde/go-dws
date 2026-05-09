@@ -9,6 +9,8 @@ import (
 
 // This file contains error handling utilities for the evaluator visitor methods.
 
+const readOnlyPropertyWriteMessage = "Cannot set a value for a read-only property"
+
 // newError creates a new error value with optional formatting and location information.
 func (e *Evaluator) newError(node ast.Node, format string, args ...any) Value {
 	message := fmt.Sprintf(format, args...)

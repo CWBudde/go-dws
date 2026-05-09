@@ -104,6 +104,10 @@ func Walk(v Visitor, node Node) {
 		walkInterfaceDecl(n, v)
 	case *InterfaceMethodDecl:
 		walkInterfaceMethodDecl(n, v)
+	case *InvalidExpression:
+		walkInvalidExpression(n, v)
+	case *InvalidTypeExpression:
+		walkInvalidTypeExpression(n, v)
 	case *InvariantClause:
 		walkInvariantClause(n, v)
 	case *IsExpression:
@@ -174,6 +178,8 @@ func Walk(v Visitor, node Node) {
 		walkVarDeclStatement(n, v)
 	case *WhileStatement:
 		walkWhileStatement(n, v)
+	case *WithStatement:
+		walkWithStatement(n, v)
 	}
 }
 
@@ -492,6 +498,9 @@ func walkForInStatement(n *ForInStatement, v Visitor) {
 	if n.Body != nil {
 		Walk(v, n.Body)
 	}
+	if n.Step != nil {
+		Walk(v, n.Step)
+	}
 	if n.Variable != nil {
 		Walk(v, n.Variable)
 	}
@@ -708,6 +717,16 @@ func walkInterfaceMethodDecl(n *InterfaceMethodDecl, v Visitor) {
 	}
 }
 
+// walkInvalidExpression walks a InvalidExpression node
+func walkInvalidExpression(n *InvalidExpression, v Visitor) {
+	// No children to walk
+}
+
+// walkInvalidTypeExpression walks a InvalidTypeExpression node
+func walkInvalidTypeExpression(n *InvalidTypeExpression, v Visitor) {
+	// No children to walk
+}
+
 // walkInvariantClause walks a InvariantClause node
 func walkInvariantClause(n *InvariantClause, v Visitor) {
 	for _, item := range n.Conditions {
@@ -814,8 +833,10 @@ func walkOperatorDecl(n *OperatorDecl, v Visitor) {
 	if n.Binding != nil {
 		Walk(v, n.Binding)
 	}
-	for i := range n.OperandTypes {
-		Walk(v, n.OperandTypes[i])
+	for _, item := range n.OperandTypes {
+		if item != nil {
+			Walk(v, item)
+		}
 	}
 }
 
@@ -1106,5 +1127,17 @@ func walkWhileStatement(n *WhileStatement, v Visitor) {
 	}
 	if n.Body != nil {
 		Walk(v, n.Body)
+	}
+}
+
+// walkWithStatement walks a WithStatement node
+func walkWithStatement(n *WithStatement, v Visitor) {
+	if n.Body != nil {
+		Walk(v, n.Body)
+	}
+	for _, item := range n.Declarations {
+		if item != nil {
+			Walk(v, item)
+		}
 	}
 }

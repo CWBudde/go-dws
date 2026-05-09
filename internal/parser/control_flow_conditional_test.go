@@ -284,6 +284,38 @@ end;`,
 				}
 			},
 		},
+		{
+			name:  "if with empty consequence before else",
+			input: `if x > 10 then else PrintLn('small');`,
+			assertions: func(t *testing.T, stmt *ast.IfStatement) {
+				if !testInfixExpression(t, stmt.Condition, "x", ">", 10) {
+					return
+				}
+				if _, ok := stmt.Consequence.(*ast.EmptyStatement); !ok {
+					t.Fatalf("consequence is not EmptyStatement. got=%T", stmt.Consequence)
+				}
+				if stmt.Alternative == nil {
+					t.Fatal("alternative should not be nil")
+				}
+				alternative, ok := stmt.Alternative.(*ast.ExpressionStatement)
+				if !ok {
+					t.Fatalf("alternative is not ExpressionStatement. got=%T", stmt.Alternative)
+				}
+				call, ok := alternative.Expression.(*ast.CallExpression)
+				if !ok {
+					t.Fatalf("alternative expression is not CallExpression. got=%T", alternative.Expression)
+				}
+				if !testIdentifier(t, call.Function, "PrintLn") {
+					return
+				}
+				if len(call.Arguments) != 1 {
+					t.Fatalf("wrong number of arguments. got=%d", len(call.Arguments))
+				}
+				if !testStringLiteralExpression(t, call.Arguments[0], "small") {
+					return
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

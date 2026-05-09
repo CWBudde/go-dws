@@ -436,9 +436,10 @@ func isNodeType(typeName string) bool {
 func isInterfaceType(typeName string) bool {
 	typeName = strings.TrimPrefix(typeName, "*")
 	interfaceTypes := map[string]bool{
-		"Node":       true,
-		"Expression": true,
-		"Statement":  true,
+		"Node":           true,
+		"Expression":     true,
+		"Statement":      true,
+		"TypeExpression": true,
 	}
 	return interfaceTypes[typeName]
 }

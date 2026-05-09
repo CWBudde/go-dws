@@ -847,7 +847,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 	return stmt
 }
 
-// Syntax: for [var] <variable> in <expression> do <statement>
+// Syntax: for [var] <variable> in <expression> [step <step>] do <statement>
 // PRE: cursor is on variable IDENT, forToken and variable already parsed
 // POST: cursor is on last token of body statement
 func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, inlineVar bool) *ast.ForInStatement {
@@ -894,6 +894,27 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 			Build()
 		p.addStructuredError(err)
 		return nil
+	}
+
+	// Check for optional 'step' keyword
+	nextToken = p.cursor.Peek(1)
+	if nextToken.Type == lexer.STEP {
+		p.cursor = p.cursor.Advance() // move to 'step'
+		p.cursor = p.cursor.Advance() // move to step expression
+		stmt.Step = p.parseExpression(LOWEST)
+
+		if stmt.Step == nil {
+			currentToken := p.cursor.Current()
+			err := NewStructuredError(ErrKindInvalid).
+				WithCode(ErrInvalidExpression).
+				WithMessage("expected expression after 'step'").
+				WithPosition(currentToken.Pos, currentToken.Length()).
+				WithSuggestion("provide a step value for the loop").
+				WithParsePhase("for-in loop step").
+				Build()
+			p.addStructuredError(err)
+			return nil
+		}
 	}
 
 	// Expect 'do' keyword

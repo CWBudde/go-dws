@@ -153,6 +153,15 @@ func (e *Evaluator) evaluateSingleArrayElement(elem ast.Expression, arrayType *t
 				return e.evalArrayLiteralWithExpectedType(elemLit, expectedElemArr, ctx)
 			}
 		}
+		if recordLit, ok := elem.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+			if recordType, ok := types.GetUnderlyingType(arrayType.ElementType).(*types.RecordType); ok {
+				prev := ctx.RecordTypeContext()
+				ctx.SetRecordTypeContext(recordType.Name)
+				val := e.Eval(recordLit, ctx)
+				ctx.SetRecordTypeContext(prev)
+				return val
+			}
+		}
 	}
 
 	return e.Eval(elem, ctx)
@@ -251,6 +260,16 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 		if elemLit, ok := elem.(*ast.ArrayLiteralExpression); ok {
 			if expectedElemArr, ok := arrayType.ElementType.(*types.ArrayType); ok {
 				val = e.evalArrayLiteralWithType(elemLit, expectedElemArr, ctx)
+			}
+		}
+		if val == nil {
+			if recordLit, ok := elem.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
+				if recordType, ok := types.GetUnderlyingType(arrayType.ElementType).(*types.RecordType); ok {
+					prev := ctx.RecordTypeContext()
+					ctx.SetRecordTypeContext(recordType.Name)
+					val = e.Eval(recordLit, ctx)
+					ctx.SetRecordTypeContext(prev)
+				}
 			}
 		}
 
@@ -517,8 +536,8 @@ func (e *Evaluator) evalArrayLow(selfValue Value, args []Value, node ast.Node) V
 
 // evalArrayAdd appends element to dynamic array.
 func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) Value {
-	if len(args) != 1 {
-		return e.newError(node, "Array.Add expects exactly 1 argument")
+	if len(args) == 0 {
+		return e.newError(node, "Array.Add expects at least 1 argument")
 	}
 
 	arrVal, ok := selfValue.(*runtime.ArrayValue)
@@ -530,15 +549,17 @@ func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) V
 		return e.newError(node, "Add() can only be used with dynamic arrays, not static arrays")
 	}
 
-	arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(args[0]))
+	for _, arg := range args {
+		arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(arg))
+	}
 
 	return &runtime.NilValue{}
 }
 
 // evalArrayPush appends element to dynamic array, copying records to avoid aliasing.
 func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) Value {
-	if len(args) != 1 {
-		return e.newError(node, "Array.Push expects exactly 1 argument")
+	if len(args) == 0 {
+		return e.newError(node, "Array.Push expects at least 1 argument")
 	}
 
 	arrVal, ok := selfValue.(*runtime.ArrayValue)
@@ -550,12 +571,9 @@ func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) 
 		return e.newError(node, "Push() can only be used with dynamic arrays, not static arrays")
 	}
 
-	valueToAdd := args[0]
-
-	// Copy value-semantic entries before storing them in the collection.
-	valueToAdd = runtime.CopyValue(valueToAdd)
-
-	arrVal.Elements = append(arrVal.Elements, valueToAdd)
+	for _, arg := range args {
+		arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(arg))
+	}
 
 	return &runtime.NilValue{}
 }
