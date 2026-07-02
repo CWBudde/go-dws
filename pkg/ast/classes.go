@@ -79,10 +79,13 @@ type ClassDecl struct {
 	// (e.g., "type TInner = class ... end;").
 	NestedTypes []Statement
 	BaseNode
-	IsAbstract        bool
-	IsExternal        bool
-	IsStaticClass     bool
-	IsPartial         bool
+	IsAbstract    bool
+	IsExternal    bool
+	IsStaticClass bool
+	IsPartial     bool
+	// IsForward marks a forward class declaration ("type TFoo = class;") whose
+	// full definition appears later. The full declaration completes the placeholder.
+	IsForward         bool
 	IsDeprecated      bool
 	DeprecatedMessage string
 }

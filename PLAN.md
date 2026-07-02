@@ -94,10 +94,14 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
 
 - [ ] **Parse generics.** `type TList<T> = class … end;` and generic methods currently fail at
       the parser (`GenericsPass` = 0/23, entirely parser-blocked).
-- [ ] **Forward class declarations.** `type TChild = class;` then a later full definition must
-      not error with "already declared" (`testdata/fixtures/SimpleScripts/class_forward.pas`).
-- [ ] **Class constants / members via metaclass.** `TBase.c1` for a class const must resolve
-      (`class_const2.pas`); today it errors "no accessible member." (The old plan claimed this done.)
+- [x] **Forward class declarations.** `type TChild = class;` then a later full definition no
+      longer errors "already declared"; the evaluator now registers a placeholder that the full
+      declaration completes. (`class_forward.pas` still needs class-method-via-instance dispatch,
+      tracked in P4.)
+- [x] **Type-inferred class/record constants via metaclass.** `TBase.c1` for `const c1 = 1;`
+      now resolves (`class_const2.pas`). Root cause was a nil-`*TypeAnnotation`-in-interface in
+      the parser making untyped consts look explicitly (empty-)typed. Remaining: helper consts
+      via metaclass (`String.Hello`) still fail at runtime (`HelpersPass/string_consts.pas`) — P4.
 - [ ] **Hint/warning envelope.** Emit DWScript's `Errors >>>>` / `Hint:` output — at minimum
       case-mismatch (`"P1" does not match case of declaration ("p1")`) and unused-var hints —
       by default when a fixture expects it (52 failures; 62/437 SimpleScripts expect it).

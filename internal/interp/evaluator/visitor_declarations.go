@@ -155,6 +155,8 @@ func (e *Evaluator) fullClassNameFromDecl(cd *ast.ClassDecl) string {
 type classDeclarationInfo interface {
 	IsPartialClass() bool
 	SetPartialClass(isPartial bool)
+	IsForwardClass() bool
+	SetForwardClass(isForward bool)
 	SetAbstractClass(isAbstract bool)
 	SetExternalClass(isExternal bool, externalName string)
 	DefineCurrentClassMarker(env *runtime.Environment)
@@ -196,16 +198,42 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	var classInfo classDeclarationInfo
 	existingClass := e.typeSystem.LookupClass(className)
 
+	// Forward declaration ("type TFoo = class;"): register a bare placeholder so
+	// the name resolves as a type, then let the later full definition complete it.
+	if node.IsForward {
+		if existingClass != nil {
+			// Already declared (forward or full) — nothing more to do.
+			return &runtime.NilValue{}
+		}
+		rawClassInfo, err := e.typeSystem.NewClassInfo(className)
+		if err != nil {
+			return e.newError(node, "internal error: %s", err.Error())
+		}
+		ci, ok := rawClassInfo.(classDeclarationInfo)
+		if !ok {
+			return e.newError(node, "internal error: invalid class type for '%s'", className)
+		}
+		ci.SetForwardClass(true)
+		ci.RegisterInTypeSystem(e.typeSystem, "")
+		ci.DefineInEnv(ctx.Env())
+		return &runtime.NilValue{}
+	}
+
 	if existingClass != nil {
 		ci, ok := existingClass.(classDeclarationInfo)
 		if !ok {
 			return e.newError(node, "internal error: invalid class type for '%s'", className)
 		}
 
-		existingPartial := ci.IsPartialClass()
-		if existingPartial && node.IsPartial {
+		switch {
+		case ci.IsForwardClass():
+			// Completing a forward-declared class: reuse the placeholder and let
+			// the code below populate its parent, members, and VMT.
+			ci.SetForwardClass(false)
 			classInfo = ci
-		} else {
+		case ci.IsPartialClass() && node.IsPartial:
+			classInfo = ci
+		default:
 			return e.newError(node, "class '%s' already declared", className)
 		}
 	} else {

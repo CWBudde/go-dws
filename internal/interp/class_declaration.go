@@ -24,6 +24,19 @@ func (c *ClassInfo) SetPartialClass(isPartial bool) {
 	}
 }
 
+// IsForwardClass reports whether this class exists only as a forward-declaration
+// placeholder awaiting its full definition.
+func (c *ClassInfo) IsForwardClass() bool {
+	return c != nil && c.IsForwardDecl
+}
+
+// SetForwardClass marks (or clears) this class as an incomplete forward declaration.
+func (c *ClassInfo) SetForwardClass(isForward bool) {
+	if c != nil {
+		c.IsForwardDecl = isForward
+	}
+}
+
 func (c *ClassInfo) SetAbstractClass(isAbstract bool) {
 	if c != nil {
 		c.IsAbstractFlag = isAbstract
