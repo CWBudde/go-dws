@@ -41,8 +41,15 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 			return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
 		}
 
-		if helperInfo := e.lookupMutableHelper(typeName); helperInfo != nil {
-			e.registerHelperMethodImplementation(helperInfo, node)
+		if helperInfos := e.lookupAllMutableHelpers(typeName); len(helperInfos) > 0 {
+			// The same helper may be registered as more than one runtime instance
+			// (e.g. the semantic-analysis transfer and the evaluator each build one).
+			// Bind the implementation into every instance so the method body is not
+			// left shadowed by the forward declaration in an unpatched copy — which
+			// otherwise surfaces as non-deterministic dispatch depending on map order.
+			for _, helperInfo := range helperInfos {
+				e.registerHelperMethodImplementation(helperInfo, node)
+			}
 			return &runtime.NilValue{}
 		}
 
@@ -68,6 +75,25 @@ func (e *Evaluator) lookupMutableHelper(name string) *runtime.MutableHelperInfo 
 		}
 	}
 	return nil
+}
+
+// lookupAllMutableHelpers returns every distinct MutableHelperInfo instance whose
+// name matches, deduplicated by pointer identity. A helper is registered under
+// several type keys (and sometimes as separate instances by the semantic-transfer
+// and evaluator paths), so callers that mutate helper state must touch all copies.
+func (e *Evaluator) lookupAllMutableHelpers(name string) []*runtime.MutableHelperInfo {
+	var result []*runtime.MutableHelperInfo
+	seen := make(map[*runtime.MutableHelperInfo]bool)
+	for _, helpers := range e.typeSystem.AllHelpers() {
+		for _, helper := range helpers {
+			if helperInfo, ok := helper.(*runtime.MutableHelperInfo); ok &&
+				ident.Equal(helperInfo.Name, name) && !seen[helperInfo] {
+				seen[helperInfo] = true
+				result = append(result, helperInfo)
+			}
+		}
+	}
+	return result
 }
 
 func (e *Evaluator) registerHelperMethodImplementation(helperInfo *runtime.MutableHelperInfo, node *ast.FunctionDecl) {

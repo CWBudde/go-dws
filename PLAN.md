@@ -149,6 +149,16 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
 
 ### P4 — Interpreter logic bugs & panics 🟡
 
+- [x] **Non-deterministic helper-method dispatch.** A type/record helper was registered as two
+      distinct runtime instances (semantic-transfer path + evaluator path); the method
+      *implementation* patched only the instance that Go's randomized map iteration happened to
+      return first, so the other instance kept the empty forward declaration. Dispatch then
+      picked between "runs the body" and "returns a zero value" at random. `VisitFunctionDecl`
+      now binds the implementation into **every** matching helper instance
+      (`lookupAllMutableHelpers`). Fixes 6 previously-flaky HelpersPass fixtures deterministically
+      (`array_length_helper`, `class_helper`, `classname_helper2`, `implicit_self_class_helper`,
+      `implicit_class_self_class_helper`, `implicit_self_record_helper`); HelpersPass 7→13,
+      overall 416→422, and removes a source of measurement noise (P0 concern).
 - [ ] Work the 88 wrong-output fixtures (e.g. `casts_base_types` rounding, `case_variant`).
 - [ ] Work the 68 runtime-panic fixtures (metaclass `ClassName`, class-method dispatch, `class of`).
 - [ ] Post-exception continuation semantics (`assigned.pas` expects execution to continue after a
