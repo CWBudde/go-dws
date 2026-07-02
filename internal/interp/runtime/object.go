@@ -257,6 +257,21 @@ func (o *ObjectInstance) GetMethodDecl(name string) any {
 	return method
 }
 
+// GetClassMethodDecl retrieves a class (static) method declaration by name from
+// the class hierarchy. DWScript permits calling class methods through an
+// instance, so member access on an object falls back to this lookup.
+// Returns *ast.FunctionDecl (as any) or nil if no such class method exists.
+func (o *ObjectInstance) GetClassMethodDecl(name string) any {
+	if o == nil || o.Class == nil {
+		return nil
+	}
+	method := o.Class.LookupClassMethod(name)
+	if method == nil {
+		return nil
+	}
+	return method
+}
+
 // GetClassVar retrieves a class variable value by name from the class hierarchy.
 func (o *ObjectInstance) GetClassVar(name string) (Value, bool) {
 	if o == nil || o.Class == nil {
@@ -283,6 +298,12 @@ func (o *ObjectInstance) CallInheritedMethod(methodName string, args []Value, me
 	}
 
 	method := parentInfo.LookupMethod(methodName)
+	if method == nil {
+		// A class (static) method may be invoked with the instance bound as Self
+		// (DWScript permits calling class methods through an instance). Fall back
+		// to the parent's class-method table so `inherited` resolves it.
+		method = parentInfo.LookupClassMethod(methodName)
+	}
 	if method == nil {
 		return newError("method, property, or field '%s' not found in parent class '%s'", methodName, parentInfo.GetName())
 	}

@@ -26,6 +26,10 @@ type ObjectValue interface {
 	// GetMethodDecl retrieves method declaration by name from the class hierarchy.
 	// Returns *ast.FunctionDecl (passed as any) or nil if not found.
 	GetMethodDecl(name string) any
+	// GetClassMethodDecl retrieves a class (static) method declaration by name.
+	// DWScript allows class methods to be invoked through an instance, so member
+	// access falls back to this. Returns *ast.FunctionDecl (as any) or nil.
+	GetClassMethodDecl(name string) any
 	GetField(name string) Value
 	GetClassVar(name string) (Value, bool)
 	// CallInheritedMethod calls a parent class method.

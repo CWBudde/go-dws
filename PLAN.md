@@ -96,8 +96,15 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       the parser (`GenericsPass` = 0/23, entirely parser-blocked).
 - [x] **Forward class declarations.** `type TChild = class;` then a later full definition no
       longer errors "already declared"; the evaluator now registers a placeholder that the full
-      declaration completes. (`class_forward.pas` still needs class-method-via-instance dispatch,
-      tracked in P4.)
+      declaration completes. (`class_forward.pas` now passes end-to-end after the class-method
+      dispatch fix below.)
+- [x] **Class-method dispatch through an instance.** DWScript permits invoking a `class
+      procedure`/`class function` on an instance (`obj.ClassProc`), by bare name inside another
+      method (`ClassProc;`), and via `inherited` from a class method. All three previously failed
+      with "field/method not found". Added `ObjectValue.GetClassMethodDecl` (backed by
+      `IClassInfo.LookupClassMethod`) and routed member access, bare-identifier auto-invoke, and
+      the `inherited` fallback through the class-method table. Fixes `class_forward.pas`,
+      `class_method2.pas`, `method1.pas` (SimpleScripts 236→239, overall 413→416).
 - [x] **Type-inferred class/record constants via metaclass.** `TBase.c1` for `const c1 = 1;`
       now resolves (`class_const2.pas`). Root cause was a nil-`*TypeAnnotation`-in-interface in
       the parser making untyped consts look explicitly (empty-)typed. Remaining: helper consts
