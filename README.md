@@ -4,7 +4,7 @@ A port of [DWScript](https://github.com/EricGrange/DWScript) (Delphi Web Script)
 
 ## Overview
 
-go-dws is a faithful implementation of the DWScript scripting language in Go, preserving 100% of DWScript's syntax and semantics while leveraging Go's modern language features and ecosystem.
+go-dws is an in-progress port of the DWScript scripting language to Go, leveraging Go's modern language features and ecosystem. Full compatibility with DWScript is the goal, not the current state: the lexer, parser, semantic analyzer, and AST interpreter cover a substantial subset of the language, but many features are still incomplete. See [PLAN.md](PLAN.md) for the measured, per-category compatibility status and roadmap.
 
 **DWScript** is a full-featured Object Pascal-based scripting language featuring:
 
@@ -106,7 +106,7 @@ go build -o bin/dwscript ./cmd/dwscript
 # Tokenize source code
 ./bin/dwscript lex script.dws
 
-# Compile to bytecode (5-6x faster execution)
+# Compile to bytecode (experimental — see note below)
 ./bin/dwscript compile script.dws
 
 # Run precompiled bytecode
@@ -116,16 +116,20 @@ go build -o bin/dwscript ./cmd/dwscript
 ./bin/dwscript version
 ```
 
-### Bytecode Compilation
+### Bytecode Compilation (experimental)
 
-go-dws includes a bytecode compiler that provides 5-6x faster execution compared to the AST interpreter:
+> **Status: experimental and incomplete.** The bytecode compiler/VM does not yet
+> support core constructs such as `for` loops and `case` statements, and runs only a
+> small subset of programs the AST interpreter handles. There is currently **no
+> verified performance advantage** over the AST interpreter — earlier "5–6× faster"
+> claims were not backed by a fair benchmark. Use the AST interpreter (the default
+> `run` command) for real work; the bytecode path is retained for development only.
+> See [PLAN.md](PLAN.md) §P3 for the plan to either rebuild it on the shared runtime
+> or remove it.
 
 ```bash
-# Compile a script to bytecode
+# Compile a script to bytecode (subset of the language only)
 ./bin/dwscript compile script.dws
-
-# Compile with custom output file
-./bin/dwscript compile script.dws -o output.dwc
 
 # Run the compiled bytecode
 ./bin/dwscript run script.dwc
@@ -134,36 +138,18 @@ go-dws includes a bytecode compiler that provides 5-6x faster execution compared
 ./bin/dwscript compile script.dws --disassemble
 ```
 
-The compiled `.dwc` files:
-- Load instantly without parsing
-- Execute 5-6x faster than AST interpretation
-- Include version checking for forward compatibility
-- Are portable across systems with the same architecture
+### Execution Mode
 
-See [docs/bytecode-vm.md](docs/bytecode-vm.md) for detailed information on the bytecode VM and serialization format.
+Use the **AST interpreter** — the default and only fully-supported execution mode:
 
-### Performance Guide
+```bash
+./bin/dwscript run script.dws
+```
 
-**Choosing the Right Execution Mode**:
+**Runtime notes**:
 
-- **Bytecode VM** (5-6x faster): Use for production, CPU-intensive computations, and repeated execution
-  ```bash
-  dwscript compile script.dws && dwscript run script.dwc
-  ```
-
-- **AST Interpreter**: Use for development, debugging, and single-execution scripts
-  ```bash
-  ./bin/dwscript run script.dws
-  ```
-
-**Performance Tips**:
-
-- Compile to bytecode for loops and recursive algorithms (5.6x speedup measured)
-- Use precompiled `.dwc` files to eliminate parsing overhead
-- Small sets (≤64 elements) use optimized bitmask implementation (~4.4 ns/op)
-- Primitive values (Integer, Float, Boolean) are automatically pooled to reduce allocations
-
-For detailed benchmarks and optimization techniques, see [docs/architecture/benchmark_summary.md](docs/architecture/benchmark_summary.md).
+- Small sets (≤64 elements) use an optimized bitmask implementation.
+- Primitive values (Integer, Float, Boolean) are pooled to reduce allocations.
 
 ### Quick Examples
 
@@ -573,11 +559,11 @@ go-dws/
 
 ## Development Roadmap
 
-The project follows a 10-stage incremental development plan covering ~511 tasks. For detailed progress and task breakdown, see [PLAN.md](PLAN.md).
+For the current, measured per-category compatibility status and the prioritized roadmap, see [PLAN.md](PLAN.md). A detailed graded review of the codebase is in [docs/CODEBASE_REVIEW_2026-07.md](docs/CODEBASE_REVIEW_2026-07.md).
 
 ## Design Philosophy
 
-1. **100% Language Compatibility**: Preserve all DWScript syntax and semantics
+1. **Full Language Compatibility (goal)**: Faithfully reproduce DWScript syntax and semantics — the target the project is working toward, tracked by fixture pass rate in [PLAN.md](PLAN.md)
 2. **Incremental Development**: Each stage produces testable, working components
 3. **Idiomatic Go**: Use Go best practices while honoring the original design
 4. **Comprehensive Testing**: Mirror DWScript's extensive test suite
@@ -665,7 +651,7 @@ The platform abstraction layer (`pkg/platform/`) enables DWScript to run seamles
 
 Planned enhancements may include:
 
-- Bytecode compilation for better performance
+- A rebuilt bytecode VM with a verified performance advantage (the current experimental VM does not provide one — see [PLAN.md](PLAN.md) §P3)
 - JIT compilation (if feasible in Go)
 - JavaScript transpilation backend
 - Additional platform targets (mobile, embedded)
