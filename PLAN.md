@@ -131,6 +131,24 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
 
 ### P3 — Delete the dead weight 🟡
 
+- [ ] **Deduplicate helper registration (root fix for a defanged non-determinism smell).** A user
+      helper is registered as **two** distinct `*runtime.MutableHelperInfo` instances — one by
+      `TransferHelpersFromSemanticAnalysis` (`internal/interp/helpers_transfer.go:19`) and one by
+      the evaluator's `VisitHelperDecl` (`internal/interp/evaluator/visitor_declarations.go`).
+      Because the helper registry is slice-valued and `RegisterHelper` **appends** (never
+      overwrites — `internal/interp/types/type_system.go:447`), both survive. This already caused
+      one real bug (method impls patched into only one copy → non-deterministic dispatch, fixed
+      under P4). Three first-match-over-`AllHelpers()` lookups remain that pick one of the two
+      copies by Go map order: `lookupMutableHelper` feeding `executeInheritedHelperCallDirect`
+      (`call_helpers.go:236`), and the parent-helper linkage loops at
+      `visitor_declarations.go:1074` and `helpers_validation.go:44`. They are currently
+      **behavior-neutral** (verified: the whole HelpersPass category is byte-stable across 6×
+      re-runs) only because downstream `inheritedHelperCandidates` rebuilds a name-deduped
+      candidate set — a fragile invariant. The correct fix is to stop creating two instances
+      (make `RegisterHelper` replace a same-name/same-target helper, or have the evaluator reuse
+      the transferred instance), after which all three lookups become trivially single-valued.
+      Two same-name instances are otherwise indistinguishable by any stable key, so per-lookup
+      "deterministic pick" hardening is not a real fix.
 - [ ] **Shadow interpreter:** re-point the tests that call `interp.evalClassDeclaration` /
       `evalIntegerBinaryOp` / `evalEnumDeclaration` / set & operator helpers at the evaluator,
       then delete those bodies (`expressions_binary.go`, `enum.go`, `type_alias.go`, `set.go`
