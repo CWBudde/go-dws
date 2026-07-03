@@ -12,6 +12,9 @@ import (
 // The parser and semantic analyzer work correctly for set type declarations.
 // Re-enable once set union/intersection operations are fully implemented.
 func TestLargeSet(t *testing.T) {
+	t.Skip("no reference .out fixture; set runtime support is incomplete (PLAN.md P4 SetOfPass). " +
+		"Coverage lives in the SetOfPass fixture category instead.")
+
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
 	if err := buildCmd.Run(); err != nil {
@@ -58,6 +61,9 @@ func TestLargeSet(t *testing.T) {
 // The parser and semantic analyzer work correctly for set type declarations.
 // Re-enable once for-in iteration over sets is fully implemented.
 func TestForInSet(t *testing.T) {
+	t.Skip("no reference .out fixture; set runtime support is incomplete (PLAN.md P4 SetOfPass). " +
+		"Coverage lives in the SetOfPass fixture category instead.")
+
 	// Build the binary first
 	buildCmd := exec.Command("go", "build", "-o", "../../bin/dwscript", ".")
 	if err := buildCmd.Run(); err != nil {
