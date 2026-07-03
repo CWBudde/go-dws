@@ -17,6 +17,7 @@ type testClassDeclarationInfo struct {
 	fields     map[string]types.Type
 	name       string
 	isPartial  bool
+	isForward  bool
 }
 
 func newTestClassDeclarationInfo(name string) *testClassDeclarationInfo {
@@ -32,6 +33,10 @@ func newTestClassDeclarationInfo(name string) *testClassDeclarationInfo {
 func (c *testClassDeclarationInfo) IsPartialClass() bool { return c.isPartial }
 func (c *testClassDeclarationInfo) SetPartialClass(isPartial bool) {
 	c.isPartial = isPartial
+}
+func (c *testClassDeclarationInfo) IsForwardClass() bool { return c.isForward }
+func (c *testClassDeclarationInfo) SetForwardClass(isForward bool) {
+	c.isForward = isForward
 }
 func (c *testClassDeclarationInfo) SetAbstractClass(isAbstract bool)                      {}
 func (c *testClassDeclarationInfo) SetExternalClass(isExternal bool, externalName string) {}
