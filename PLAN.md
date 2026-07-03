@@ -109,9 +109,30 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       now resolves (`class_const2.pas`). Root cause was a nil-`*TypeAnnotation`-in-interface in
       the parser making untyped consts look explicitly (empty-)typed. Remaining: helper consts
       via metaclass (`String.Hello`) still fail at runtime (`HelpersPass/string_consts.pas`) — P4.
-- [ ] **Hint/warning envelope.** Emit DWScript's `Errors >>>>` / `Hint:` output — at minimum
-      case-mismatch (`"P1" does not match case of declaration ("p1")`) and unused-var hints —
-      by default when a fixture expects it (52 failures; 62/437 SimpleScripts expect it).
+- [ ] **Hint/warning envelope.** Emit DWScript's test serialization: when compilation produces
+      hints/warnings, wrap output as `Errors >>>>\n<hints>\nResult >>>>\n<program output>`.
+      **Investigated 2026-07 (measured, not shipped).** Findings, so the next attempt starts from
+      fact:
+      - **Scope:** 90 fixtures carry the envelope; **50** already match on the `Result >>>>`
+        section (pure envelope+hints), of which **22 need only case-mismatch hints**. The other 40
+        also have unrelated output bugs.
+      - **Infra is easy:** the analyzer already runs pedantic in `pkg/dwscript` and separates
+        hints via `hasActualErrors()`; a prototype that set `HintsLevelPedantic` in the CLI
+        (`cmd/dwscript/cmd/run.go`) and emitted the wrapper worked. Hints must be **deduplicated**
+        by exact `(message,line,col)` — the analyzer currently emits each case hint ~3× (the
+        identifier is re-analyzed as lvalue/type/member) — and **sorted by (line,col)**.
+      - **Blocker is hint *precision*, not the envelope.** Full pedantic+envelope measured
+        **+17 / −21** (net −4). Regression sources: **unused-var/field warnings** (17, too
+        aggressive), **case hints on builtins** (`println`→`PrintLn`, `PI`→`Pi`; DWScript emits
+        none), and **case hints on user symbols** DWScript does not flag (shadowed locals — e.g.
+        `result` is hinted in `record_result` but must NOT be in `crc32`; local-var declaration
+        casing `Swaps`/`Test`; helper/interface/record members `IncX`/`X`/`vHello`).
+      - **Work order to make it zero-regression:** (1) dedup+sort hints at emission; (2) suppress
+        case hints when the resolved symbol is a builtin; (3) fix user-symbol case detection to use
+        the *actual* in-scope declaration (handles shadowing) and skip member/param kinds DWScript
+        ignores; (4) gate unused-var/field warnings until they match DWScript; (5) emit only behind
+        a `run` flag the fixture harness passes (the `Errors >>>>` wrapper is test-harness framing,
+        not production CLI output). Expected yield once precise: ~22 immediately, up to ~50.
 - [ ] Semantic hardening: analyze **unit function bodies** (`internal/semantic/unit_analyzer.go:158`),
       check **subrange bounds at compile time**, make the analyzer **multi-pass** so forward
       references resolve without explicit `forward`.
