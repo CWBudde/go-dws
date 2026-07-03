@@ -163,6 +163,7 @@ type FunctionPointerCallable interface {
 	GetLambdaExpr() any   // Returns *ast.LambdaExpression (nil for functions)
 	GetClosure() any      // Returns *Environment
 	GetSelfObject() Value
+	GetBuiltinName() string // Returns the built-in function name (empty if not a builtin)
 }
 
 // Config holds evaluator configuration options.
