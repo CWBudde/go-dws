@@ -120,8 +120,11 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 
 	// Auto-invoke parameterless function pointers
 	// Example: var fp := @SomeProc; fp; // auto-invokes SomeProc
+	// Built-in function pointers (IntToStr, etc.) always take arguments, so they
+	// are never auto-invoked here even though their AST-free value reports no
+	// declared parameters.
 	if funcPtr, ok := val.(FunctionPointerCallable); ok {
-		if funcPtr.ParamCount() == 0 {
+		if funcPtr.ParamCount() == 0 && funcPtr.GetBuiltinName() == "" {
 			if funcPtr.IsNil() {
 				exc := e.createException("Exception", "Function pointer is nil", &node.Token.Pos, ctx)
 				ctx.SetException(exc)

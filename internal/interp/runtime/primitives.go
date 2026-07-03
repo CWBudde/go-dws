@@ -507,6 +507,11 @@ func (f *FunctionPointerValue) GetBuiltinName() string {
 // For regular functions, returns the function parameter count.
 // Returns 0 if neither is set.
 func (f *FunctionPointerValue) ParamCount() int {
+	// The declared pointer type is the authoritative signature when available
+	// (notably for built-in function pointers, which carry no AST decl/lambda).
+	if f.PointerType != nil {
+		return len(f.PointerType.Parameters)
+	}
 	if f.Lambda != nil {
 		return len(f.Lambda.Parameters)
 	}
