@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 597 |
-| Failed | 1445 |
+| Passed | 607 |
+| Failed | 1435 |
 | Skipped (no expected .txt) | 0 |
-| **Scored pass rate** | **29%** (597/2042) |
+| **Scored pass rate** | **30%** (607/2042) |
 
 ## Per-category
 
@@ -77,7 +77,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | PropertyExpressionsFail | 10 | 0 | 10 | 0 | 0% |
 | PropertyExpressionsPass | 19 | 0 | 19 | 0 | 0% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
-| SetOfPass | 25 | 4 | 21 | 0 | 16% |
+| SetOfPass | 25 | 14 | 11 | 0 | 56% |
 | SimpleScripts | 442 | 256 | 186 | 0 | 58% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |

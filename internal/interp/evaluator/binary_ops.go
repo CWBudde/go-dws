@@ -811,6 +811,13 @@ func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node)
 			leftSet.SetType.String(), rightSet.SetType.String())
 	}
 
+	// Comparison operators return a Boolean rather than a set:
+	//   = / <>  : equality      <= : subset      >= : superset
+	switch op {
+	case "=", "<>", "<=", ">=":
+		return e.evalSetComparison(op, leftSet, rightSet)
+	}
+
 	// Create result set with same type
 	result := runtime.NewSetValue(leftSet.SetType)
 
@@ -873,6 +880,40 @@ func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node)
 	}
 
 	return result
+}
+
+// evalSetComparison evaluates the Boolean-returning set comparison operators.
+//
+//	=  : the two sets contain exactly the same elements
+//	<> : the two sets differ
+//	<= : left is a subset of right (every element of left is in right)
+//	>= : left is a superset of right (every element of right is in left)
+func (e *Evaluator) evalSetComparison(op string, left, right *runtime.SetValue) Value {
+	leftOrds := left.Ordinals()
+	rightOrds := right.Ordinals()
+
+	subset := func(a, b *runtime.SetValue, aOrds []int) bool {
+		for _, ord := range aOrds {
+			if !b.HasElement(ord) {
+				return false
+			}
+		}
+		return true
+	}
+
+	var result bool
+	switch op {
+	case "=":
+		result = len(leftOrds) == len(rightOrds) && subset(left, right, leftOrds)
+	case "<>":
+		result = !(len(leftOrds) == len(rightOrds) && subset(left, right, leftOrds))
+	case "<=":
+		result = subset(left, right, leftOrds)
+	case ">=":
+		result = subset(right, left, rightOrds)
+	}
+
+	return &runtime.BooleanValue{Value: result}
 }
 
 // evalVariantBinaryOp handles binary operations with Variant operands.

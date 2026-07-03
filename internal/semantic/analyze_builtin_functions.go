@@ -102,6 +102,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeAdd(args, callExpr), true
 	case "delete":
 		return a.analyzeDelete(args, callExpr), true
+	case "include", "exclude":
+		return a.analyzeIncludeExclude(name, args, callExpr), true
 
 	// String Functions
 	case "length":
@@ -595,7 +597,7 @@ func (a *Analyzer) getBuiltinReturnType(name string) (types.Type, bool) {
 		return types.INTEGER, true // For most cases, arrays return Integer bounds
 	case "length":
 		return types.INTEGER, true
-	case "setlength", "add", "delete":
+	case "setlength", "add", "delete", "include", "exclude":
 		return types.VOID, true
 
 	// ========================================================================

@@ -230,6 +230,48 @@ func (a *Analyzer) analyzeDelete(args []ast.Expression, callExpr *ast.CallExpres
 	return types.VOID
 }
 
+// analyzeIncludeExclude analyzes the procedure form of the set builtins
+// Include(setVar, element) and Exclude(setVar, element). Both mutate the set
+// in place and return no value.
+func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	canonical := "Include"
+	if pkgident.Equal(name, "Exclude") {
+		canonical = "Exclude"
+	}
+
+	if len(args) != 2 {
+		a.addError("function '%s' expects 2 arguments, got %d at %s",
+			canonical, len(args), callExpr.Token.Pos.String())
+		return types.VOID
+	}
+
+	if !a.isLValue(args[0]) {
+		a.addError("function '%s' first argument must be a set variable at %s",
+			canonical, callExpr.Token.Pos.String())
+	}
+
+	setArgType := a.analyzeExpression(args[0])
+	elemArgType := a.analyzeExpression(args[1])
+
+	if setArgType == nil {
+		return types.VOID
+	}
+
+	setType, ok := types.GetUnderlyingType(setArgType).(*types.SetType)
+	if !ok {
+		a.addError("function '%s' first argument must be a set, got %s at %s",
+			canonical, setArgType.String(), callExpr.Token.Pos.String())
+		return types.VOID
+	}
+
+	if elemArgType != nil && setType.ElementType != nil && !a.canAssign(elemArgType, setType.ElementType) {
+		a.addError("function '%s' element argument has type %s, expected %s at %s",
+			canonical, elemArgType.String(), setType.ElementType.String(), callExpr.Token.Pos.String())
+	}
+
+	return types.VOID
+}
+
 // isTypeMetaValueExpression checks if the provided expression refers to a type identifier rather than a value.
 func (a *Analyzer) isTypeMetaValueExpression(expr ast.Expression) bool {
 	ident, ok := expr.(*ast.Identifier)

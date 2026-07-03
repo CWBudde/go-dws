@@ -1026,6 +1026,14 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 		return true
 	}
 
+	// Set <-> Integer casts (a set's integer form is its ordinal bitmask)
+	_, sourceIsSet := sourceType.(*types.SetType)
+	_, targetIsSet := targetType.(*types.SetType)
+	if (sourceIsSet && targetType == types.INTEGER) ||
+		(sourceType == types.INTEGER && targetIsSet) {
+		return true
+	}
+
 	if _, isEnum := targetType.(*types.EnumType); isEnum {
 		a.addError("Syntax Error: Cannot cast this type to \"Integer\" [line: %d, column: %d]",
 			pos.Line, pos.Column)
