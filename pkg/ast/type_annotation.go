@@ -9,9 +9,10 @@ type TypeAnnotation struct {
 	InlineType TypeExpression
 	Name       string
 	// TypeArgs holds generic type arguments for a specialized type reference
-	// such as `TTest<Integer, String>`. Nil for ordinary type names. These are
-	// resolved during monomorphization, which rewrites Name to the mangled
-	// specialized name (e.g. "TTest<Integer,String>") and clears this field.
+	// such as `TTest<Integer, String>`. Nil for ordinary type names. When Name
+	// refers to a collected generic template, monomorphization rewrites Name to
+	// the mangled specialized name (e.g. "TTest<Integer,String>") and clears this
+	// field; references whose base is not a known generic template are left as-is.
 	TypeArgs []TypeExpression
 	Token    token.Token
 	EndPos   token.Position
