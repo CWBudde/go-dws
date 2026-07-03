@@ -553,6 +553,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			if helper, propInfo := e.FindHelperProperty(obj, memberName); propInfo != nil {
 				return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
 			}
+			// Helper class consts and class vars accessed through a type's metaclass
+			// (e.g. `String.Hello`, `TMyArray.ByeBye`).
+			if val, found := e.findHelperClassMember(obj, memberName); found {
+				return val
+			}
 			if ident.Equal(memberName, "ClassName") || ident.Equal(memberName, "ClassType") {
 				helpers := orderedHelpersForLookup(e.getHelpersForValue(obj))
 				for _, helper := range helpers {

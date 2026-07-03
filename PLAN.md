@@ -131,8 +131,9 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       `class_method2.pas`, `method1.pas` (SimpleScripts 236→239, overall 413→416).
 - [x] **Type-inferred class/record constants via metaclass.** `TBase.c1` for `const c1 = 1;`
       now resolves (`class_const2.pas`). Root cause was a nil-`*TypeAnnotation`-in-interface in
-      the parser making untyped consts look explicitly (empty-)typed. Remaining: helper consts
-      via metaclass (`String.Hello`) still fail at runtime (`HelpersPass/string_consts.pas`) — P4.
+      the parser making untyped consts look explicitly (empty-)typed. Helper consts/class-vars
+      via metaclass (`String.Hello`, `TMyArray.ByeBye`) now resolve too (fixed under P4 —
+      `HelpersPass/string_consts.pas`, `static_array_helper.pas`).
 - [ ] **Hint/warning envelope.** Emit DWScript's test serialization: when compilation produces
       hints/warnings, wrap output as `Errors >>>>\n<hints>\nResult >>>>\n<program output>`.
       **Investigated 2026-07 (measured, not shipped).** Findings, so the next attempt starts from
@@ -302,6 +303,11 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       func-style casts accept a `class of` target (`analyze_expressions.go`,
       `visitor_expressions_types.go`, `type_casts.go`). Fixes `class_method4`, `class_parent`,
       `class_of_cast`; SimpleScripts 241 → 244, overall 480 → 483 (CLI); no category regressed.
+      (5) **Helper class consts / class vars via a type metaclass** (`String.Hello`,
+      `TMyArray.ByeBye`) now resolve: `findHelperClassMember`
+      (`internal/interp/evaluator/helper_methods.go`) is consulted in the `TYPE_META` member
+      path. Fixes `HelpersPass/string_consts`, `static_array_helper`; HelpersPass 13 → 15,
+      overall 483 → 485 (CLI); no category regressed.
 - [ ] Post-exception continuation semantics (`assigned.pas` expects execution to continue after a
       caught runtime error) and BOM-preserving output.
 - **Exit criteria:** ArrayPass/SetOfPass/HelpersPass/OverloadsPass ≥ 80%.
