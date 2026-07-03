@@ -8,6 +8,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/generics"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
@@ -93,6 +94,10 @@ func compileScript(_ *cobra.Command, args []string) error {
 		fmt.Fprintln(os.Stderr)
 		return fmt.Errorf("parsing failed with %d error(s)", len(p.Errors()))
 	}
+
+	// Monomorphize generic types into concrete specializations before semantic
+	// analysis and bytecode compilation, mirroring the shared frontend pipeline.
+	generics.Monomorphize(program)
 
 	// Extract used units to determine if we need to skip type checking
 	usedUnits := extractUsedUnits(program)

@@ -154,6 +154,7 @@ func (p *Parser) parseIdentifier() ast.Expression {
 	// Recognized only when a balanced `<...>` type-argument list is immediately
 	// followed by '.', which disambiguates it from a chain of '<'/'>' comparisons.
 	if p.looksLikeGenericTypeRef() {
+		mark := p.cursor.Mark()
 		base := &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
@@ -171,6 +172,9 @@ func (p *Parser) parseIdentifier() ast.Expression {
 				TypeArgs: typeArgs,
 			}
 		}
+		// Malformed type-argument list: restore the cursor to the identifier so
+		// we return a plain identifier without leaving the parser desynchronized.
+		p.cursor = p.cursor.ResetTo(mark)
 	}
 
 	return &ast.Identifier{

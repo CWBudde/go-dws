@@ -60,8 +60,14 @@ type monomorphizer struct {
 }
 
 // collectTemplates records every generic template declaration by its base name.
+// Multi-declaration `type` sections are parsed into a BlockStatement, so this
+// recurses into blocks to find templates declared there too.
 func (m *monomorphizer) collectTemplates(stmts []ast.Statement) {
 	for _, stmt := range stmts {
+		if block, ok := stmt.(*ast.BlockStatement); ok {
+			m.collectTemplates(block.Statements)
+			continue
+		}
 		if params := typeParamsOf(stmt); len(params) > 0 {
 			m.templates[ident.Normalize(declName(stmt))] = templateInfo{decl: stmt, params: params}
 		}
@@ -69,15 +75,38 @@ func (m *monomorphizer) collectTemplates(stmts []ast.Statement) {
 }
 
 func (m *monomorphizer) run(prog *ast.Program) {
-	m.out = make([]ast.Statement, 0, len(prog.Statements))
-	for _, stmt := range prog.Statements {
+	prog.Statements = m.rewriteStatements(prog.Statements)
+}
+
+// rewriteStatements processes a statement list: it drops generic template
+// declarations, rewrites generic references in the remaining statements, and
+// inserts each needed specialization immediately before its first use. It
+// recurses into BlockStatements (used for multi-declaration `type` sections) so
+// that templates and uses nested there are handled too. Specializations are
+// appended to m.out, which points at the statement list currently being built —
+// so a specialization is always emitted into the same list as, and before, the
+// statement that first uses it.
+func (m *monomorphizer) rewriteStatements(stmts []ast.Statement) []ast.Statement {
+	saved := m.out
+	m.out = make([]ast.Statement, 0, len(stmts))
+	for _, stmt := range stmts {
 		if isTemplateDecl(stmt) {
 			continue // templates are replaced by their specializations
+		}
+		if block, ok := stmt.(*ast.BlockStatement); ok {
+			block.Statements = m.rewriteStatements(block.Statements)
+			if len(block.Statements) == 0 {
+				continue // the block held only templates
+			}
+			m.out = append(m.out, block)
+			continue
 		}
 		m.rewrite(reflect.ValueOf(stmt))
 		m.out = append(m.out, stmt)
 	}
-	prog.Statements = m.out
+	result := m.out
+	m.out = saved
+	return result
 }
 
 // isTemplate reports whether name refers to a collected generic template.
@@ -98,6 +127,16 @@ func (m *monomorphizer) ensureSpecialized(base string, args []ast.TypeExpression
 	}
 
 	mangled := ast.MangleGenericName(base, args)
+
+	// Reject arity mismatches: a wrong number of type arguments is a
+	// compile-time error in DWScript. We do not emit a specialization, so the
+	// rewritten reference names a type that was never declared and the semantic
+	// analyzer reports it as an unknown type rather than silently producing a
+	// misleading concrete type.
+	if len(args) != len(tpl.params) {
+		return mangled
+	}
+
 	key := ident.Normalize(mangled)
 	if m.emitted[key] {
 		return mangled

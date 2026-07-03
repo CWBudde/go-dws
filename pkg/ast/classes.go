@@ -279,8 +279,10 @@ type NewExpression struct {
 	ClassName *Identifier
 	Arguments []Expression
 	// TypeArgs holds the generic type arguments for `new TTest<Integer>(...)`.
-	// Nil for non-generic instantiations. Resolved during monomorphization,
-	// which rewrites ClassName to the mangled specialized name and clears this.
+	// Nil for non-generic instantiations. When ClassName refers to a collected
+	// generic template, monomorphization rewrites ClassName to the mangled
+	// specialized name and clears this field; if the base is not a known generic
+	// template the reference is left unchanged.
 	TypeArgs []TypeExpression
 	TypedExpressionBase
 }

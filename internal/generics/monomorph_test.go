@@ -132,6 +132,55 @@ var b := new TBox<Integer>;`)
 	}
 }
 
+func TestMonomorphize_TemplateInMultiDeclTypeSection(t *testing.T) {
+	// A multi-declaration `type` section is parsed into a BlockStatement; the
+	// template must still be collected and specialized.
+	prog := parseProgram(t, `type
+  TBox<T> = class Value : T; end;
+  TOther = Integer;
+var b := new TBox<Integer>;`)
+	Monomorphize(prog)
+
+	if findClassDeep(prog.Statements, "TBox<Integer>") == nil {
+		t.Fatalf("expected TBox<Integer> specialization somewhere in the tree; decls: %v", declNames(prog))
+	}
+	// The generic template must not survive anywhere.
+	if findClassDeep(prog.Statements, "TBox") != nil {
+		t.Fatal("generic template TBox should have been removed")
+	}
+}
+
+func TestMonomorphize_ArityMismatch_NotSpecialized(t *testing.T) {
+	// Too many type arguments must not silently produce a concrete class.
+	prog := parseProgram(t, `type TBox<T> = class Value : T; end;
+var b := new TBox<Integer, String>;`)
+	Monomorphize(prog)
+
+	if findClassDeep(prog.Statements, "TBox<Integer,String>") != nil {
+		t.Fatal("arity-mismatched instantiation must not be specialized")
+	}
+	if findClassDeep(prog.Statements, "TBox<Integer>") != nil {
+		t.Fatal("no specialization should be generated for an arity mismatch")
+	}
+}
+
+// findClassDeep locates a class declaration by name, descending into blocks.
+func findClassDeep(stmts []ast.Statement, name string) *ast.ClassDecl {
+	for _, stmt := range stmts {
+		switch s := stmt.(type) {
+		case *ast.ClassDecl:
+			if s.Name != nil && s.Name.Value == name {
+				return s
+			}
+		case *ast.BlockStatement:
+			if c := findClassDeep(s.Statements, name); c != nil {
+				return c
+			}
+		}
+	}
+	return nil
+}
+
 func TestMonomorphize_GenericRecord_TwoParams(t *testing.T) {
 	prog := parseProgram(t, `type TPair<A, B> = record First : A; Second : B; end;
 var p : TPair<Integer, String>;`)
