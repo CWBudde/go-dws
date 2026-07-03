@@ -63,6 +63,9 @@ func (m *mockObjectValue) HasMethod(name string) bool   { return false }
 func (m *mockObjectValue) GetMethodDecl(name string) any {
 	return nil
 }
+func (m *mockObjectValue) GetClassMethodDecl(name string) any {
+	return nil
+}
 func (m *mockObjectValue) GetField(name string) Value { return nil }
 func (m *mockObjectValue) GetClassVar(name string) (Value, bool) {
 	return nil, false

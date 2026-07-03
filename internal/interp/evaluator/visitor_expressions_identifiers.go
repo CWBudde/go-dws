@@ -116,6 +116,23 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 				return e.newError(node, "method '%s' not found", node.Value)
 			}
 
+			// Check for class (static) method invoked by bare name inside an
+			// instance method. DWScript allows this; dispatch through the implicit
+			// Self call path, which resolves class methods and binds the metaclass.
+			if objVal, ok := selfVal.(ObjectValue); ok {
+				if classMethodDecl, ok := objVal.GetClassMethodDecl(node.Value).(*ast.FunctionDecl); ok &&
+					classMethodDecl != nil && len(classMethodDecl.Parameters) == 0 {
+					callExpr := &ast.CallExpression{
+						TypedExpressionBase: ast.TypedExpressionBase{
+							BaseNode: ast.BaseNode{Token: node.Token},
+						},
+						Function:  node,
+						Arguments: nil,
+					}
+					return e.executeImplicitSelfCall(callExpr, node, ctx)
+				}
+			}
+
 			// Check for ClassName special identifier (case-insensitive)
 			if ident.Equal(node.Value, "ClassName") {
 				if objVal, ok := selfVal.(ObjectValue); ok {

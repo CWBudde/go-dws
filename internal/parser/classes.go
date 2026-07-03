@@ -371,6 +371,12 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		cursor = cursor.Advance() // move to semicolon
 		p.cursor = cursor
 		p.parseClassDeprecatedDirective(classDecl)
+		// A bare "class;" with no parent/interfaces is a forward declaration whose
+		// full definition appears later. "class(TParent);" is instead a complete
+		// empty subclass, so it must not be treated as forward.
+		if classDecl.Parent == nil && len(classDecl.Interfaces) == 0 {
+			classDecl.IsForward = true
+		}
 		// Do NOT initialize the slices - leave them as nil so semantic analyzer
 		// can detect this as a forward declaration
 		decl := builder.Finish(classDecl).(*ast.ClassDecl)
@@ -732,7 +738,11 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 	}
 
 	// Check for optional type annotation: const Name: Type = Value;
-	var typeAnnotation *ast.TypeAnnotation
+	// Declared as the TypeExpression interface (not *ast.TypeAnnotation) so that an
+	// absent annotation stays a true nil interface. Assigning a nil *ast.TypeAnnotation
+	// to the interface field would make ConstDecl.Type != nil (nil-pointer-in-interface),
+	// which downstream code misreads as an explicit (empty) type.
+	var typeAnnotation ast.TypeExpression
 	if cursor.Peek(1).Type == lexer.COLON {
 		cursor = cursor.Advance() // move to ':'
 		cursor = cursor.Advance() // move to type

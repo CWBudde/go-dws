@@ -41,8 +41,15 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 			return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
 		}
 
-		if helperInfo := e.lookupMutableHelper(typeName); helperInfo != nil {
-			e.registerHelperMethodImplementation(helperInfo, node)
+		if helperInfos := e.lookupAllMutableHelpers(typeName); len(helperInfos) > 0 {
+			// The same helper may be registered as more than one runtime instance
+			// (e.g. the semantic-analysis transfer and the evaluator each build one).
+			// Bind the implementation into every instance so the method body is not
+			// left shadowed by the forward declaration in an unpatched copy — which
+			// otherwise surfaces as non-deterministic dispatch depending on map order.
+			for _, helperInfo := range helperInfos {
+				e.registerHelperMethodImplementation(helperInfo, node)
+			}
 			return &runtime.NilValue{}
 		}
 
@@ -68,6 +75,25 @@ func (e *Evaluator) lookupMutableHelper(name string) *runtime.MutableHelperInfo 
 		}
 	}
 	return nil
+}
+
+// lookupAllMutableHelpers returns every distinct MutableHelperInfo instance whose
+// name matches, deduplicated by pointer identity. A helper is registered under
+// several type keys (and sometimes as separate instances by the semantic-transfer
+// and evaluator paths), so callers that mutate helper state must touch all copies.
+func (e *Evaluator) lookupAllMutableHelpers(name string) []*runtime.MutableHelperInfo {
+	var result []*runtime.MutableHelperInfo
+	seen := make(map[*runtime.MutableHelperInfo]bool)
+	for _, helpers := range e.typeSystem.AllHelpers() {
+		for _, helper := range helpers {
+			if helperInfo, ok := helper.(*runtime.MutableHelperInfo); ok &&
+				ident.Equal(helperInfo.Name, name) && !seen[helperInfo] {
+				seen[helperInfo] = true
+				result = append(result, helperInfo)
+			}
+		}
+	}
+	return result
 }
 
 func (e *Evaluator) registerHelperMethodImplementation(helperInfo *runtime.MutableHelperInfo, node *ast.FunctionDecl) {
@@ -155,6 +181,8 @@ func (e *Evaluator) fullClassNameFromDecl(cd *ast.ClassDecl) string {
 type classDeclarationInfo interface {
 	IsPartialClass() bool
 	SetPartialClass(isPartial bool)
+	IsForwardClass() bool
+	SetForwardClass(isForward bool)
 	SetAbstractClass(isAbstract bool)
 	SetExternalClass(isExternal bool, externalName string)
 	DefineCurrentClassMarker(env *runtime.Environment)
@@ -196,16 +224,42 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	var classInfo classDeclarationInfo
 	existingClass := e.typeSystem.LookupClass(className)
 
+	// Forward declaration ("type TFoo = class;"): register a bare placeholder so
+	// the name resolves as a type, then let the later full definition complete it.
+	if node.IsForward {
+		if existingClass != nil {
+			// Already declared (forward or full) — nothing more to do.
+			return &runtime.NilValue{}
+		}
+		rawClassInfo, err := e.typeSystem.NewClassInfo(className)
+		if err != nil {
+			return e.newError(node, "internal error: %s", err.Error())
+		}
+		ci, ok := rawClassInfo.(classDeclarationInfo)
+		if !ok {
+			return e.newError(node, "internal error: invalid class type for '%s'", className)
+		}
+		ci.SetForwardClass(true)
+		ci.RegisterInTypeSystem(e.typeSystem, "")
+		ci.DefineInEnv(ctx.Env())
+		return &runtime.NilValue{}
+	}
+
 	if existingClass != nil {
 		ci, ok := existingClass.(classDeclarationInfo)
 		if !ok {
 			return e.newError(node, "internal error: invalid class type for '%s'", className)
 		}
 
-		existingPartial := ci.IsPartialClass()
-		if existingPartial && node.IsPartial {
+		switch {
+		case ci.IsForwardClass():
+			// Completing a forward-declared class: reuse the placeholder and let
+			// the code below populate its parent, members, and VMT.
+			ci.SetForwardClass(false)
 			classInfo = ci
-		} else {
+		case ci.IsPartialClass() && node.IsPartial:
+			classInfo = ci
+		default:
 			return e.newError(node, "class '%s' already declared", className)
 		}
 	} else {

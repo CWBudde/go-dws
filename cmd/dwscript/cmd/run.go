@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/errors"
@@ -26,6 +30,7 @@ var (
 	showUnits    bool
 	maxRecursion int
 	bytecodeMode bool
+	hintsLevel   string
 )
 
 // simpleOptions implements interp.Options for the CLI.
@@ -75,6 +80,67 @@ func init() {
 	runCmd.Flags().BoolVar(&showUnits, "show-units", false, "display unit dependency tree")
 	runCmd.Flags().IntVar(&maxRecursion, "max-recursion", 1024, "maximum recursion depth (default: 1024)")
 	runCmd.Flags().BoolVar(&bytecodeMode, "bytecode", false, "execute via bytecode VM instead of AST interpreter (experimental)")
+	runCmd.Flags().StringVar(&hintsLevel, "hints", "off", "print compiler hints/warnings to stderr, non-fatal: off|normal|strict|pedantic (pedantic includes case-mismatch hints)")
+}
+
+// parseHintsLevel maps the --hints flag to a semantic hint level and whether
+// hint/warning output was requested at all. DWScript is case-insensitive, so
+// these are purely informational — they never affect whether a program compiles.
+func parseHintsLevel(s string) (semantic.HintsLevel, bool) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "", "off", "none", "disabled":
+		return semantic.HintsLevelDisabled, false
+	case "normal", "on":
+		return semantic.HintsLevelNormal, true
+	case "strict":
+		return semantic.HintsLevelStrict, true
+	case "pedantic", "all":
+		return semantic.HintsLevelPedantic, true
+	default:
+		return semantic.HintsLevelNormal, true
+	}
+}
+
+// printHintsAndWarnings writes any hint/warning lines the analyzer accumulated to
+// stderr, deduplicated by exact text and sorted by source position. These are
+// informational only; a program with case mismatches still compiles and runs.
+func printHintsAndWarnings(lines []string) {
+	var out []string
+	seen := make(map[string]bool)
+	for _, e := range lines {
+		if !strings.HasPrefix(e, "Hint:") && !strings.HasPrefix(e, "Warning:") {
+			continue
+		}
+		if seen[e] {
+			continue
+		}
+		seen[e] = true
+		out = append(out, e)
+	}
+	if len(out) == 0 {
+		return
+	}
+	posRe := regexp.MustCompile(`\[line: (\d+), column: (\d+)\]`)
+	lineCol := func(s string) (int, int) {
+		m := posRe.FindStringSubmatch(s)
+		if m == nil {
+			return 1 << 30, 1 << 30
+		}
+		l, _ := strconv.Atoi(m[1])
+		c, _ := strconv.Atoi(m[2])
+		return l, c
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		li, ci := lineCol(out[i])
+		lj, cj := lineCol(out[j])
+		if li != lj {
+			return li < lj
+		}
+		return ci < cj
+	})
+	for _, h := range out {
+		fmt.Fprintln(os.Stderr, h)
+	}
 }
 
 func runScript(_ *cobra.Command, args []string) error {
@@ -158,6 +224,14 @@ func runScript(_ *cobra.Command, args []string) error {
 		// Set source code for rich error messages
 		analyzer.SetSource(input, filename)
 
+		// Optionally surface compiler hints/warnings (--hints). These are
+		// informational: DWScript is case-insensitive, so a case mismatch is a
+		// hint, never a compile error.
+		hintLevel, wantHints := parseHintsLevel(hintsLevel)
+		if wantHints {
+			analyzer.SetHintsLevel(hintLevel)
+		}
+
 		if err := analyzer.Analyze(program); err != nil {
 			// Use structured errors if available, fall back to string errors
 			var compilerErrors []*errors.CompilerError
@@ -175,6 +249,11 @@ func runScript(_ *cobra.Command, args []string) error {
 			fmt.Fprintln(os.Stderr) // Add newline
 			return fmt.Errorf("semantic analysis failed with %d error(s)", len(analyzer.Errors()))
 		}
+		// Surface accumulated hints/warnings to stderr (non-fatal) when requested.
+		if wantHints {
+			printHintsAndWarnings(analyzer.Errors())
+		}
+
 		// Capture semantic info to pass to interpreter
 		semanticInfo = analyzer.GetSemanticInfo()
 		// Capture helpers for transfer to interpreter

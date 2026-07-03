@@ -52,6 +52,9 @@ type ClassInfo struct {
 	IsExternalFlag       bool // Renamed to avoid conflict with IsExternal() method
 	IsAbstractFlag       bool // Renamed to avoid conflict with IsAbstract() method
 	IsPartial            bool
+	// IsForwardDecl marks a class registered only via a forward declaration
+	// ("type TFoo = class;"). It is cleared when the full definition completes it.
+	IsForwardDecl bool
 }
 
 // NewClassInfo creates a new ClassInfo with the given name.

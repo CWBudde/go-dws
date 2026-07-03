@@ -280,6 +280,27 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
+		// Class (static) method accessed through an instance. DWScript allows
+		// class methods to be invoked on instances; dispatch through the method-call
+		// path (which resolves class methods and binds the metaclass as Self).
+		if classMethodDecl, ok := objVal.GetClassMethodDecl(memberName).(*ast.FunctionDecl); ok && classMethodDecl != nil {
+			if wantMethodPointer {
+				return e.createFunctionPointerFromDecl(classMethodDecl, obj, ctx)
+			}
+			if len(classMethodDecl.Parameters) == 0 {
+				methodCall := &ast.MethodCallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{Token: node.Token},
+					},
+					Object:    node.Object,
+					Method:    node.Member,
+					Arguments: []ast.Expression{},
+				}
+				return e.VisitMethodCallExpression(methodCall, ctx)
+			}
+			return e.createFunctionPointerFromDecl(classMethodDecl, obj, ctx)
+		}
+
 		// Helper methods (parameterless auto-invoke)
 		if !isCurrentHelperMethod(ctx, memberName) {
 			helperResult := e.FindHelperMethod(obj, memberName)
