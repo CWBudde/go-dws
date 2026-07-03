@@ -142,6 +142,30 @@ func (e *Evaluator) FormatString(format string, args []Value) (string, error) {
 	return result, nil
 }
 
+// isFormatSpecByte reports whether c is a flags/width/precision byte that may
+// appear between '%' and the verb in a format specifier.
+func isFormatSpecByte(c byte) bool {
+	return (c >= '0' && c <= '9') || c == '.' || c == '+' || c == '-' || c == ' ' || c == '#'
+}
+
+// scanFormatSpec consumes the flags/width/precision run starting at start and
+// returns the index of the verb (or end of string) plus whether an explicit
+// precision ('.') was present.
+func scanFormatSpec(format string, start int) (end int, hasDot bool) {
+	j := start
+	for j < len(format) {
+		c := format[j]
+		if c == '.' {
+			hasDot = true
+		}
+		if !isFormatSpecByte(c) {
+			break
+		}
+		j++
+	}
+	return j, hasDot
+}
+
 // applyDelphiFloatDefault rewrites %f verbs that carry no explicit precision so
 // that they use Delphi's default of 2 decimal places (e.g. "%f" -> "%.2f",
 // "%8f" -> "%8.2f"). Specifiers with an explicit precision ("%.4f") and all
@@ -160,30 +184,16 @@ func applyDelphiFloatDefault(format string) string {
 			i += 2
 			continue
 		}
-		// Scan the flags/width/precision portion of the specifier.
-		j := i + 1
-		hasDot := false
-		for j < len(format) {
-			c := format[j]
-			if c == '.' {
-				hasDot = true
-			}
-			if (c >= '0' && c <= '9') || c == '.' || c == '+' || c == '-' || c == ' ' || c == '#' {
-				j++
-				continue
-			}
-			break
-		}
-		if j < len(format) && format[j] == 'f' && !hasDot {
+		j, hasDot := scanFormatSpec(format, i+1)
+		switch {
+		case j < len(format) && format[j] == 'f' && !hasDot:
 			b.WriteString(format[i:j])
 			b.WriteString(".2f")
 			i = j + 1
-			continue
-		}
-		if j < len(format) {
+		case j < len(format):
 			b.WriteString(format[i : j+1])
 			i = j + 1
-		} else {
+		default:
 			b.WriteString(format[i:])
 			i = len(format)
 		}

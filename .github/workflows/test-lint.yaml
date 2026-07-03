@@ -23,6 +23,15 @@ jobs:
         run: just check-tidy
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        # golangci-lint v2 config (.golangci.yml `version: "2"`) requires the
+        # v7 action, which installs a v2 binary. The v4 action installed v1,
+        # which rejects the v2 config ("v2 config with v1").
+        #
+        # only-new-issues restricts reporting to lines changed in the PR. The
+        # linter was previously never enforced (the v1 binary errored out before
+        # running), so ~780 pre-existing issues exist across the tree; gating on
+        # new issues keeps PRs from adding debt without blocking on the backlog.
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: latest
+          version: v2.5.0
+          only-new-issues: true

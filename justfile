@@ -62,9 +62,13 @@ check-tidy:
     @echo "go.mod and go.sum are tidy!"
 
 # Install development tools
+# golangci-lint is pinned to a versioned install script + matching version tag.
+# The floating `master` install.sh installs whatever is newest and intermittently
+# fails checksum verification in CI; pinning keeps the download reproducible and
+# aligned with the golangci-lint v2 config in .golangci.yml.
 install-tools:
     go install golang.org/x/tools/cmd/goimports@latest
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/v2.5.0/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.5.0
 
 # Install development dependencies (formatters and linters) - alias for install-tools
 setup-deps: install-tools

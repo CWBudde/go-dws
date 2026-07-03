@@ -126,8 +126,11 @@ func printHintsAndWarnings(lines []string) {
 		if m == nil {
 			return 1 << 30, 1 << 30
 		}
-		l, _ := strconv.Atoi(m[1])
-		c, _ := strconv.Atoi(m[2])
+		l, errL := strconv.Atoi(m[1])
+		c, errC := strconv.Atoi(m[2])
+		if errL != nil || errC != nil {
+			return 1 << 30, 1 << 30
+		}
 		return l, c
 	}
 	sort.SliceStable(out, func(i, j int) bool {
