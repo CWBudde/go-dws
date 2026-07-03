@@ -1,570 +1,274 @@
 package interp
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/semantic"
-	"github.com/gkampitakis/go-snaps/snaps"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// TestDWScriptFixtures runs the comprehensive DWScript test suite (~2,100 tests).
-// This provides complete coverage of DWScript language features based on the original
-// test suite from the reference implementation.
+// Paths (relative to this package directory) used by the fixture harness.
+const (
+	fixturesRoot        = "../../testdata/fixtures"
+	fixtureBaselinePath = fixturesRoot + "/baselines.json"
+	fixtureStatusPath   = fixturesRoot + "/TEST_STATUS.md"
+	// Set FIXTURE_UPDATE_BASELINE=1 to regenerate baselines.json and TEST_STATUS.md
+	// from the current pass counts instead of gating against them.
+	fixtureUpdateEnv = "FIXTURE_UPDATE_BASELINE"
+	// fixtureWorkerEnv marks a re-executed test binary as a fixture worker (see
+	// TestFixtureWorkerMain). It is an implementation detail of the sandboxing scheme.
+	fixtureWorkerEnv = "DWS_FIXTURE_WORKER"
+	// fixtureRespSentinel prefixes worker responses on stdout so they can be told apart
+	// from Go's own test-framework chatter.
+	fixtureRespSentinel = "@@DWSFIXTURE@@ "
+	// Per-fixture execution timeout: enough for normal tests, catches infinite loops.
+	fixtureTimeout = 5 * time.Second
+	// How long the parent waits for a worker response before assuming the fixture hung
+	// and killing (then restarting) the worker.
+	fixtureWorkerTimeout = fixtureTimeout + 3*time.Second
+)
+
+// TestDWScriptFixtures runs the comprehensive DWScript test suite (~2,100 tests) and
+// enforces a per-category pass-count baseline so that a green CI run means "the language
+// works", not "the parts we test work" (see PLAN.md §P0).
 //
-// The test suite uses go-snaps for snapshot testing and includes 64 test categories
-// covering all major language features. See testdata/fixtures/README.md for details.
+// Categories are auto-discovered from testdata/fixtures/, so no category can be silently
+// omitted. Every category is exercised on every run; individual fixture failures are
+// recorded but do NOT fail the build. The build fails only when a category's pass count
+// drops below the baseline recorded in testdata/fixtures/baselines.json — i.e. a
+// regression. Improvements are logged with a nudge to raise the baseline.
 //
-// Note: This test suite runs by default as part of the regular test suite to ensure
-// full language compatibility. Individual categories can be run with:
+// Each fixture is executed inside a re-executed worker subprocess (see TestFixtureWorkerMain)
+// so that a runaway loop or a pathological allocation is killed and isolated instead of
+// OOM-ing or hanging the whole test binary.
+//
+// To refresh the baselines and TEST_STATUS.md after intentionally changing behavior:
+//
+//	FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures
+//	# or: just fixture-update
+//
+// Individual categories can still be run with:
 //
 //	go test -v ./internal/interp -run TestDWScriptFixtures/CategoryName
 func TestDWScriptFixtures(t *testing.T) {
+	updateMode := os.Getenv(fixtureUpdateEnv) == "1"
 
-	// Define test categories and their expected behavior
-	// Includes all 64 test categories from the original DWScript test suite
-	testCategories := []struct {
-		name            string
-		path            string
-		description     string
-		expectErrors    bool
-		requiresLibs    bool
-		requiresCodegen bool
-		skip            bool
-		hintsLevel      semantic.HintsLevel
-	}{
-		// Core Language Tests - Pass Cases
-		{
-			name:         "SimpleScripts",
-			path:         "../../testdata/fixtures/SimpleScripts",
-			expectErrors: false,
-			description:  "Basic language features and scripts",
-			skip:         false, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "Algorithms",
-			path:         "../../testdata/fixtures/Algorithms",
-			expectErrors: false,
-			description:  "Algorithm implementations",
-			skip:         false,                     // TODO: Re-enable after implementing missing features
-			hintsLevel:   semantic.HintsLevelNormal, // Algorithms aren't part of DWScript's pedantic harness
-		},
-		{
-			name:         "ArrayPass",
-			path:         "../../testdata/fixtures/ArrayPass",
-			expectErrors: false,
-			description:  "Array operations and features",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "AssociativePass",
-			path:         "../../testdata/fixtures/AssociativePass",
-			expectErrors: false,
-			description:  "Associative arrays/maps",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "SetOfPass",
-			path:         "../../testdata/fixtures/SetOfPass",
-			expectErrors: false,
-			description:  "Set operations",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "OverloadsPass",
-			path:         "../../testdata/fixtures/OverloadsPass",
-			expectErrors: false,
-			description:  "Function/method overloading (39 tests)",
-			skip:         false,
-		},
-		{
-			name:         "OperatorOverloadPass",
-			path:         "../../testdata/fixtures/OperatorOverloadPass",
-			expectErrors: false,
-			description:  "Operator overloading",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "GenericsPass",
-			path:         "../../testdata/fixtures/GenericsPass",
-			expectErrors: false,
-			description:  "Generic types and methods",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "HelpersPass",
-			path:         "../../testdata/fixtures/HelpersPass",
-			expectErrors: false,
-			description:  "Type helpers",
-			skip:         false,
-		},
-		{
-			name:         "LambdaPass",
-			path:         "../../testdata/fixtures/LambdaPass",
-			expectErrors: false,
-			description:  "Lambda expressions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "PropertyExpressionsPass",
-			path:         "../../testdata/fixtures/PropertyExpressionsPass",
-			expectErrors: false,
-			description:  "Property expressions",
-			skip:         true, // Most tests require unimplemented features (const expr, helpers, etc)
-		},
-		{
-			name:         "InterfacesPass",
-			path:         "../../testdata/fixtures/InterfacesPass",
-			expectErrors: false,
-			description:  "Interface declarations and usage",
-			skip:         false,
-		},
-		{
-			name:         "InnerClassesPass",
-			path:         "../../testdata/fixtures/InnerClassesPass",
-			expectErrors: false,
-			description:  "Nested class declarations",
-			skip:         false,
-		},
-
-		// Core Language Tests - Failure Cases
-		{
-			name:         "FailureScripts",
-			path:         "../../testdata/fixtures/FailureScripts",
-			expectErrors: true,
-			description:  "Compilation and runtime errors",
-			skip:         false, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "AssociativeFail",
-			path:         "../../testdata/fixtures/AssociativeFail",
-			expectErrors: true,
-			description:  "Associative array error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "SetOfFail",
-			path:         "../../testdata/fixtures/SetOfFail",
-			expectErrors: true,
-			description:  "Set operation error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "OverloadsFail",
-			path:         "../../testdata/fixtures/OverloadsFail",
-			expectErrors: true,
-			description:  "Overloading error cases",
-			skip:         false, //  Enabled to validate error messages
-		},
-		{
-			name:         "OperatorOverloadFail",
-			path:         "../../testdata/fixtures/OperatorOverloadFail",
-			expectErrors: true,
-			description:  "Operator overload error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "GenericsFail",
-			path:         "../../testdata/fixtures/GenericsFail",
-			expectErrors: true,
-			description:  "Generic type error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "HelpersFail",
-			path:         "../../testdata/fixtures/HelpersFail",
-			expectErrors: true,
-			description:  "Type helper error cases",
-			skip:         false,
-		},
-		{
-			name:         "LambdaFail",
-			path:         "../../testdata/fixtures/LambdaFail",
-			expectErrors: true,
-			description:  "Lambda expression error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "PropertyExpressionsFail",
-			path:         "../../testdata/fixtures/PropertyExpressionsFail",
-			expectErrors: true,
-			description:  "Property expression error cases",
-			skip:         true, // Most tests require unimplemented features (readonly, write expr, etc)
-		},
-		{
-			name:         "InterfacesFail",
-			path:         "../../testdata/fixtures/InterfacesFail",
-			expectErrors: true,
-			description:  "Interface error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "InnerClassesFail",
-			path:         "../../testdata/fixtures/InnerClassesFail",
-			expectErrors: true,
-			description:  "Nested class error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "AttributesFail",
-			path:         "../../testdata/fixtures/AttributesFail",
-			expectErrors: true,
-			description:  "Attribute error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-
-		// Built-in Functions - Pass Cases
-		{
-			name:         "FunctionsMath",
-			path:         "../../testdata/fixtures/FunctionsMath",
-			expectErrors: false,
-			description:  "Mathematical functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "FunctionsMath3D",
-			path:         "../../testdata/fixtures/FunctionsMath3D",
-			expectErrors: false,
-			description:  "3D math functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "FunctionsMathComplex",
-			path:         "../../testdata/fixtures/FunctionsMathComplex",
-			expectErrors: false,
-			description:  "Complex number functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "FunctionsString",
-			path:         "../../testdata/fixtures/FunctionsString",
-			expectErrors: false,
-			description:  "String manipulation functions",
-			skip:         false,
-			hintsLevel:   semantic.HintsLevelNormal, // FunctionsString tests aren't part of DWScript's pedantic harness
-		},
-		{
-			name:         "FunctionsTime",
-			path:         "../../testdata/fixtures/FunctionsTime",
-			expectErrors: false,
-			description:  "Date/time functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "FunctionsByteBuffer",
-			path:         "../../testdata/fixtures/FunctionsByteBuffer",
-			expectErrors: false,
-			description:  "Byte buffer operations",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "FunctionsFile",
-			path:         "../../testdata/fixtures/FunctionsFile",
-			expectErrors: false,
-			description:  "File I/O functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "FunctionsGlobalVars",
-			path:         "../../testdata/fixtures/FunctionsGlobalVars",
-			expectErrors: false,
-			description:  "Global variable functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "FunctionsVariant",
-			path:         "../../testdata/fixtures/FunctionsVariant",
-			expectErrors: false,
-			description:  "Variant type functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "FunctionsRTTI",
-			path:         "../../testdata/fixtures/FunctionsRTTI",
-			expectErrors: false,
-			description:  "Runtime type information functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "FunctionsDebug",
-			path:         "../../testdata/fixtures/FunctionsDebug",
-			expectErrors: false,
-			description:  "Debug/diagnostic functions",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-
-		// Library Tests - Require External Dependencies
-		{
-			name:         "ClassesLib",
-			path:         "../../testdata/fixtures/ClassesLib",
-			expectErrors: false,
-			requiresLibs: true,
-			description:  "Classes library tests",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "JSONConnectorPass",
-			path:         "../../testdata/fixtures/JSONConnectorPass",
-			expectErrors: false,
-			description:  "JSON parsing and generation",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "JSONConnectorFail",
-			path:         "../../testdata/fixtures/JSONConnectorFail",
-			expectErrors: true,
-			description:  "JSON error cases",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "LinqJSON",
-			path:         "../../testdata/fixtures/LinqJSON",
-			expectErrors: false,
-			description:  "LINQ-style JSON queries",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "Linq",
-			path:         "../../testdata/fixtures/Linq",
-			expectErrors: false,
-			description:  "LINQ-style queries",
-			skip:         true, // TODO: Re-enable after implementing missing features
-		},
-		{
-			name:         "DOMParser",
-			path:         "../../testdata/fixtures/DOMParser",
-			expectErrors: false,
-			description:  "XML/DOM parsing",
-			skip:         true,
-		},
-		{
-			name:         "DelegateLib",
-			path:         "../../testdata/fixtures/DelegateLib",
-			expectErrors: false,
-			requiresLibs: true,
-			description:  "Delegate library tests",
-			skip:         true,
-		},
-		{
-			name:         "DataBaseLib",
-			path:         "../../testdata/fixtures/DataBaseLib",
-			expectErrors: false,
-			requiresLibs: true,
-			description:  "Database operations - requires sqlite3.dll",
-			skip:         true,
-		},
-		{
-			name:         "COMConnector",
-			path:         "../../testdata/fixtures/COMConnector",
-			expectErrors: false,
-			requiresLibs: true,
-			description:  "COM interop tests - Windows only",
-			skip:         true,
-		},
-		{
-			name:         "COMConnectorFailure",
-			path:         "../../testdata/fixtures/COMConnectorFailure",
-			expectErrors: true,
-			requiresLibs: true,
-			description:  "COM error cases - Windows only",
-			skip:         true,
-		},
-		{
-			name:         "EncodingLib",
-			path:         "../../testdata/fixtures/EncodingLib",
-			expectErrors: false,
-			description:  "Encoding/decoding functions",
-			skip:         true,
-		},
-		{
-			name:         "CryptoLib",
-			path:         "../../testdata/fixtures/CryptoLib",
-			expectErrors: false,
-			description:  "Cryptographic functions",
-			skip:         true,
-		},
-		{
-			name:         "TabularLib",
-			path:         "../../testdata/fixtures/TabularLib",
-			expectErrors: false,
-			description:  "Tabular data operations",
-			skip:         true,
-		},
-		{
-			name:         "TimeSeriesLib",
-			path:         "../../testdata/fixtures/TimeSeriesLib",
-			expectErrors: false,
-			description:  "Time series data",
-			skip:         true,
-		},
-		{
-			name:         "SystemInfoLib",
-			path:         "../../testdata/fixtures/SystemInfoLib",
-			expectErrors: false,
-			requiresLibs: true,
-			description:  "System information",
-			skip:         true,
-		},
-		{
-			name:         "IniFileLib",
-			path:         "../../testdata/fixtures/IniFileLib",
-			expectErrors: false,
-			description:  "INI file operations",
-			skip:         true,
-		},
-		{
-			name:         "WebLib",
-			path:         "../../testdata/fixtures/WebLib",
-			expectErrors: false,
-			requiresLibs: true,
-			description:  "Web/HTTP operations",
-			skip:         true,
-		},
-		{
-			name:         "GraphicsLib",
-			path:         "../../testdata/fixtures/GraphicsLib",
-			expectErrors: false,
-			requiresLibs: true,
-			description:  "Graphics operations",
-			skip:         true,
-		},
-
-		// Advanced Features
-		{
-			name:         "BigInteger",
-			path:         "../../testdata/fixtures/BigInteger",
-			expectErrors: false,
-			description:  "Arbitrary precision integers",
-			skip:         true,
-		},
-		{
-			name:         "Memory",
-			path:         "../../testdata/fixtures/Memory",
-			expectErrors: false,
-			description:  "Memory management tests",
-			skip:         true,
-		},
-		{
-			name:         "AutoFormat",
-			path:         "../../testdata/fixtures/AutoFormat",
-			expectErrors: false,
-			description:  "Code auto-formatting",
-			skip:         true,
-		},
-
-		/*
-			// Codegen Tests - Require Stage 12 Implementation
-			{
-				name:            "BuildScripts",
-				path:            "../../testdata/fixtures/BuildScripts",
-				expectErrors:    false,
-				requiresCodegen: true,
-				description:     "Build and compilation tests - includes JS transpilation",
-				skip:            true,
-			},
-			{
-				name:            "JSFilterScripts",
-				path:            "../../testdata/fixtures/JSFilterScripts",
-				expectErrors:    false,
-				requiresCodegen: true,
-				description:     "JavaScript filter scripts",
-			},
-			{
-				name:            "JSFilterScriptsFail",
-				path:            "../../testdata/fixtures/JSFilterScriptsFail",
-				expectErrors:    true,
-				requiresCodegen: true,
-				description:     "JavaScript filter error cases (5 .dws files)",
-			},
-			{
-				name:            "HTMLFilterScripts",
-				path:            "../../testdata/fixtures/HTMLFilterScripts",
-				expectErrors:    false,
-				requiresCodegen: true,
-				description:     "HTML filter scripts",
-			},
-		*/
+	categories, err := discoverFixtureCategories(fixturesRoot)
+	if err != nil {
+		t.Fatalf("Failed to discover fixture categories: %v", err)
 	}
 
-	totalTests := 0
-	passedTests := 0
-	failedTests := 0
-	skippedTests := 0
+	baselines := loadFixtureBaselines(t, updateMode)
 
-	for _, category := range testCategories {
+	// Run every fixture across all categories through the worker pool, then tally per category.
+	results := runFixturesInWorkers(t, buildFixtureWorkList(categories))
+
+	outcomes := make([]categoryOutcome, 0, len(categories))
+	totalPassed, totalFailed, totalSkipped, totalTests := 0, 0, 0, 0
+
+	for _, category := range categories {
+		category := category
+		outcome := tallyCategory(category, results)
+
+		totalPassed += outcome.passed
+		totalFailed += outcome.failed
+		totalSkipped += outcome.skipped
+		totalTests += outcome.total
+		outcomes = append(outcomes, outcome)
+
 		t.Run(category.name, func(t *testing.T) {
-			categoryPassed := 0
-			categoryFailed := 0
-			categorySkipped := 0
-
-			// Skip categories marked for temporary skip
-			if category.skip {
-				t.Skipf("Test category %s temporarily skipped", category.name)
-				return
-			}
-
-			// Skip categories that require features not yet implemented
-			if category.requiresCodegen {
-				t.Skipf("Test category %s requires JavaScript codegen (Stage 12) - skipping", category.name)
-				return
-			}
-
-			// Check if the test directory exists
-			if _, err := os.Stat(category.path); os.IsNotExist(err) {
-				t.Skipf("Test category %s not found at %s", category.name, category.path)
-				return
-			}
-
-			// Find all .pas files in the category
-			pasFiles, err := filepath.Glob(filepath.Join(category.path, "*.pas"))
-			if err != nil {
-				t.Fatalf("Failed to find test files in %s: %v", category.path, err)
-			}
-
-			if len(pasFiles) == 0 {
-				t.Skipf("No .pas files found in %s", category.path)
-				return
-			}
-
-			// Run ALL test files (no whitelist filtering - we want to see what fails)
-			for _, pasFile := range pasFiles {
-				testName := strings.TrimSuffix(filepath.Base(pasFile), ".pas")
-				totalTests++
-				hintsLevel := category.hintsLevel
-				if hintsLevel == 0 {
-					hintsLevel = semantic.HintsLevelPedantic
-				}
-
-				t.Run(testName, func(t *testing.T) {
-					result := runFixtureTest(t, pasFile, category.expectErrors, hintsLevel)
-					switch result {
-					case testResultPassed:
-						categoryPassed++
-						passedTests++
-					case testResultFailed:
-						categoryFailed++
-						failedTests++
-					case testResultSkipped:
-						categorySkipped++
-						skippedTests++
-					}
-				})
-			}
-
-			t.Logf("Category %s: %d passed, %d failed, %d skipped (%s)",
-				category.name, categoryPassed, categoryFailed, categorySkipped, category.description)
+			gateCategory(t, outcome, baselines[category.name], updateMode)
 		})
 	}
 
 	t.Logf("Overall: %d passed, %d failed, %d skipped (out of %d total)",
-		passedTests, failedTests, skippedTests, totalTests)
+		totalPassed, totalFailed, totalSkipped, totalTests)
+
+	if updateMode {
+		if err := writeFixtureBaselines(outcomes); err != nil {
+			t.Fatalf("Failed to write %s: %v", fixtureBaselinePath, err)
+		}
+		if err := writeFixtureStatus(outcomes, totalPassed, totalFailed, totalSkipped, totalTests); err != nil {
+			t.Fatalf("Failed to write %s: %v", fixtureStatusPath, err)
+		}
+		t.Logf("Updated %s and %s from current pass counts.", fixtureBaselinePath, fixtureStatusPath)
+	}
+}
+
+// buildFixtureWorkList flattens every category's .pas files into a single ordered work list.
+func buildFixtureWorkList(categories []fixtureCategory) []fixtureRequest {
+	var items []fixtureRequest
+	for _, category := range categories {
+		hintsLevel := category.hintsLevel
+		if hintsLevel == 0 {
+			hintsLevel = semantic.HintsLevelPedantic
+		}
+		pasFiles, _ := filepath.Glob(filepath.Join(category.path, "*.pas"))
+		sort.Strings(pasFiles)
+		for _, pf := range pasFiles {
+			items = append(items, fixtureRequest{
+				Pas:          pf,
+				ExpectErrors: category.expectErrors,
+				Hints:        int(hintsLevel),
+			})
+		}
+	}
+	return items
+}
+
+// tallyCategory aggregates worker results for one category into a categoryOutcome.
+func tallyCategory(category fixtureCategory, results map[string]fixtureResponse) categoryOutcome {
+	outcome := categoryOutcome{category: category}
+	pasFiles, _ := filepath.Glob(filepath.Join(category.path, "*.pas"))
+	sort.Strings(pasFiles)
+	for _, pf := range pasFiles {
+		outcome.total++
+		switch testResult(results[pf].Result) {
+		case testResultPassed:
+			outcome.passed++
+		case testResultSkipped:
+			outcome.skipped++
+		default:
+			outcome.failed++
+			outcome.failNames = append(outcome.failNames, strings.TrimSuffix(filepath.Base(pf), ".pas"))
+		}
+	}
+	return outcome
+}
+
+// gateCategory logs the category result and, outside update mode, fails the build if the
+// pass count dropped below the recorded baseline.
+func gateCategory(t *testing.T, outcome categoryOutcome, baseline int, updateMode bool) {
+	t.Helper()
+	t.Logf("Category %s: %d passed, %d failed, %d skipped (%s)",
+		outcome.category.name, outcome.passed, outcome.failed, outcome.skipped, outcome.category.description)
+
+	if updateMode {
+		return
+	}
+
+	switch {
+	case outcome.passed < baseline:
+		t.Errorf("REGRESSION in %s: %d fixtures pass but baseline is %d (%d newly broken). "+
+			"Sample failures: %s\nIf this drop is intentional run `just fixture-update` to reset the baseline.",
+			outcome.category.name, outcome.passed, baseline, baseline-outcome.passed,
+			sampleFailures(outcome.failNames))
+	case outcome.passed > baseline:
+		t.Logf("IMPROVEMENT in %s: %d fixtures pass (baseline %d). "+
+			"Run `just fixture-update` to raise the baseline and lock in the gain.",
+			outcome.category.name, outcome.passed, baseline)
+	}
+}
+
+// fixtureCategory describes one directory of fixtures under testdata/fixtures.
+type fixtureCategory struct {
+	name         string
+	path         string
+	description  string
+	hintsLevel   semantic.HintsLevel
+	expectErrors bool
+}
+
+// categoryOutcome captures the measured result of running a category.
+type categoryOutcome struct {
+	failNames []string
+	category  fixtureCategory
+	total     int
+	passed    int
+	failed    int
+	skipped   int
+}
+
+// hintsLevelOverrides lists the few categories DWScript does not run under its pedantic
+// hint harness. Everything else defaults to pedantic (matching the reference test runner).
+var hintsLevelOverrides = map[string]semantic.HintsLevel{
+	"Algorithms":      semantic.HintsLevelNormal,
+	"FunctionsString": semantic.HintsLevelNormal,
+}
+
+// categoryDescriptions provides human-readable descriptions for TEST_STATUS.md. Categories
+// without an entry fall back to a generic label; the harness never depends on this map for
+// behavior.
+var categoryDescriptions = map[string]string{
+	"SimpleScripts":    "Basic language features and scripts",
+	"Algorithms":       "Algorithm implementations",
+	"ArrayPass":        "Array operations and features",
+	"AssociativePass":  "Associative arrays/maps",
+	"SetOfPass":        "Set operations",
+	"OverloadsPass":    "Function/method overloading",
+	"GenericsPass":     "Generic types and methods",
+	"HelpersPass":      "Type helpers",
+	"LambdaPass":       "Lambda expressions",
+	"InterfacesPass":   "Interface declarations and usage",
+	"InnerClassesPass": "Nested class declarations",
+	"FailureScripts":   "Compilation and runtime error detection",
+}
+
+// discoverFixtureCategories enumerates every directory under root that contains .pas files.
+// expectErrors is inferred from the category name so error-detection suites are handled
+// correctly without a hand-maintained allow-list.
+func discoverFixtureCategories(root string) ([]fixtureCategory, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+
+	var categories []fixtureCategory
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		dir := filepath.Join(root, name)
+
+		pasFiles, err := filepath.Glob(filepath.Join(dir, "*.pas"))
+		if err != nil {
+			return nil, err
+		}
+		if len(pasFiles) == 0 {
+			continue
+		}
+
+		description := categoryDescriptions[name]
+		if description == "" {
+			description = name + " fixtures"
+		}
+
+		categories = append(categories, fixtureCategory{
+			name:         name,
+			path:         dir,
+			description:  description,
+			expectErrors: isErrorCategory(name),
+			hintsLevel:   hintsLevelOverrides[name],
+		})
+	}
+
+	sort.Slice(categories, func(i, j int) bool { return categories[i].name < categories[j].name })
+	return categories, nil
+}
+
+// isErrorCategory reports whether a category holds error-detection ("*Fail") fixtures whose
+// expected output is a compiler/runtime diagnostic rather than program output.
+func isErrorCategory(name string) bool {
+	switch name {
+	case "FailureScripts", "COMConnectorFailure":
+		return true
+	}
+	return ident.HasSuffix(name, "Fail")
 }
 
 type testResult int
@@ -574,6 +278,211 @@ const (
 	testResultFailed
 	testResultSkipped
 )
+
+// fixtureRequest is one unit of work sent from the parent to a worker subprocess.
+type fixtureRequest struct {
+	Pas          string `json:"pas"`
+	Hints        int    `json:"hints"`
+	ExpectErrors bool   `json:"expect_errors"`
+}
+
+// fixtureResponse is a worker's verdict for a single fixture.
+type fixtureResponse struct {
+	Detail string `json:"detail"`
+	Result int    `json:"result"`
+}
+
+// TestFixtureWorkerMain is the entry point for a re-executed worker subprocess. It is a
+// no-op unless DWS_FIXTURE_WORKER=1 (set only by runFixturesInWorkers). The worker reads
+// fixtureRequest JSON lines from stdin and writes fixtureResponse JSON lines (sentinel-
+// prefixed) to stdout, running each fixture in-process. Because it is a separate process,
+// the parent can kill it if a fixture hangs or blows up memory.
+func TestFixtureWorkerMain(t *testing.T) {
+	if os.Getenv(fixtureWorkerEnv) != "1" {
+		t.Skip("not a fixture worker process")
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	writer := bufio.NewWriter(os.Stdout)
+	for {
+		line, err := reader.ReadBytes('\n')
+		if len(bytes.TrimSpace(line)) > 0 {
+			var req fixtureRequest
+			if jsonErr := json.Unmarshal(line, &req); jsonErr == nil {
+				result, detail := runFixtureTest(req.Pas, req.ExpectErrors, semantic.HintsLevel(req.Hints))
+				payload, _ := json.Marshal(fixtureResponse{Result: int(result), Detail: detail})
+				_, _ = writer.WriteString(fixtureRespSentinel)
+				_, _ = writer.Write(payload)
+				_ = writer.WriteByte('\n')
+				_ = writer.Flush()
+			}
+		}
+		if err != nil {
+			break
+		}
+	}
+}
+
+// runFixturesInWorkers runs every request through a pool of persistent worker subprocesses,
+// each isolating fixtures so hangs/OOMs cannot take down the test binary. Results are keyed
+// by fixture .pas path.
+func runFixturesInWorkers(t *testing.T, items []fixtureRequest) map[string]fixtureResponse {
+	numWorkers := runtime.NumCPU()
+	if numWorkers > 8 {
+		numWorkers = 8
+	}
+	if numWorkers < 1 {
+		numWorkers = 1
+	}
+	if len(items) < numWorkers {
+		numWorkers = len(items)
+	}
+
+	work := make(chan fixtureRequest)
+	results := make(map[string]fixtureResponse, len(items))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w := &fixtureWorker{}
+			defer w.stop()
+			for req := range work {
+				resp := w.run(req)
+				mu.Lock()
+				results[req.Pas] = resp
+				mu.Unlock()
+			}
+		}()
+	}
+
+	for _, it := range items {
+		work <- it
+	}
+	close(work)
+	wg.Wait()
+
+	// Any request without a recorded result (should not happen) counts as failed.
+	for _, it := range items {
+		if _, ok := results[it.Pas]; !ok {
+			results[it.Pas] = fixtureResponse{Result: int(testResultFailed), Detail: "no worker result"}
+		}
+	}
+	return results
+}
+
+// fixtureWorker owns a single re-executed worker subprocess and restarts it whenever a
+// fixture hangs (timeout) or the process dies.
+type fixtureWorker struct {
+	cmd    *exec.Cmd
+	stdin  *bufio.Writer
+	stdinC interface{ Close() error }
+	respCh chan []byte
+	deadCh chan struct{}
+}
+
+// fixtureVerdict is the (result, detail) pair produced when scoring one fixture.
+type fixtureVerdict struct {
+	detail string
+	result testResult
+}
+
+// start (re-)launches the worker subprocess.
+func (w *fixtureWorker) start() error {
+	cmd := exec.Command(os.Args[0], "-test.run=^TestFixtureWorkerMain$", "-test.timeout=0")
+	cmd.Env = append(os.Environ(), fixtureWorkerEnv+"=1")
+	cmd.Stderr = nil
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	w.cmd = cmd
+	w.stdin = bufio.NewWriter(stdin)
+	w.stdinC = stdin
+	w.respCh = make(chan []byte, 1)
+	w.deadCh = make(chan struct{})
+
+	respCh, deadCh := w.respCh, w.deadCh
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		scanner.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, fixtureRespSentinel) {
+				payload := []byte(strings.TrimPrefix(line, fixtureRespSentinel))
+				select {
+				case respCh <- payload:
+				default:
+				}
+			}
+		}
+		close(deadCh)
+	}()
+	return nil
+}
+
+// stop terminates the worker subprocess.
+func (w *fixtureWorker) stop() {
+	if w.cmd == nil {
+		return
+	}
+	if w.stdinC != nil {
+		_ = w.stdinC.Close()
+	}
+	if w.cmd.Process != nil {
+		_ = w.cmd.Process.Kill()
+	}
+	_ = w.cmd.Wait()
+	w.cmd = nil
+}
+
+// run executes one fixture on the worker, transparently starting/restarting the subprocess.
+// A hung fixture is reported as a timeout failure and the worker is recycled.
+func (w *fixtureWorker) run(req fixtureRequest) fixtureResponse {
+	if w.cmd == nil {
+		if err := w.start(); err != nil {
+			return fixtureResponse{Result: int(testResultFailed), Detail: "worker start failed: " + err.Error()}
+		}
+	}
+
+	payload, _ := json.Marshal(req)
+	payload = append(payload, '\n')
+	if _, err := w.stdin.Write(payload); err != nil {
+		w.stop()
+		return fixtureResponse{Result: int(testResultFailed), Detail: "worker write failed: " + err.Error()}
+	}
+	if err := w.stdin.Flush(); err != nil {
+		w.stop()
+		return fixtureResponse{Result: int(testResultFailed), Detail: "worker flush failed: " + err.Error()}
+	}
+
+	select {
+	case line := <-w.respCh:
+		var resp fixtureResponse
+		if err := json.Unmarshal(line, &resp); err != nil {
+			w.stop()
+			return fixtureResponse{Result: int(testResultFailed), Detail: "bad worker response: " + err.Error()}
+		}
+		return resp
+	case <-w.deadCh:
+		w.stop()
+		return fixtureResponse{Result: int(testResultFailed), Detail: "worker crashed (likely out of memory)"}
+	case <-time.After(fixtureWorkerTimeout):
+		w.stop() // recycle: the fixture hung the whole process
+		return fixtureResponse{Result: int(testResultFailed), Detail: "timed out after 5s (likely infinite loop)"}
+	}
+}
 
 func fixtureHintsAndWarnings(compileResult *frontend.Result) []string {
 	var hintsAndWarnings []string
@@ -586,229 +495,229 @@ func fixtureHintsAndWarnings(compileResult *frontend.Result) []string {
 	return hintsAndWarnings
 }
 
-// runFixtureTest runs a single fixture test
-func runFixtureTest(t *testing.T, pasFile string, expectErrors bool, hintsLevel semantic.HintsLevel) testResult {
-	// Add panic recovery to identify which test is crashing
+// runFixtureTest runs a single fixture in-process and returns its result plus, on failure, a
+// short human-readable detail string. It always runs inside a worker subprocess (see
+// TestFixtureWorkerMain), so a panic is recovered here but a hang/OOM is handled by the
+// parent killing the worker.
+func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.HintsLevel) (result testResult, detail string) {
+	// Convert a panic in the evaluator into a recorded failure instead of aborting the run.
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("PANIC in %s: %v\n\nStack trace:\n%s",
-				filepath.Base(pasFile), r, string(debug.Stack()))
+			result = testResultFailed
+			detail = fmt.Sprintf("PANIC: %v\n%s", r, string(debug.Stack()))
 		}
 	}()
 
-	// Log which test is being executed (helpful for debugging)
-	t.Logf("Executing: %s", filepath.Base(pasFile))
-
-	// Read the .pas source file with encoding detection
+	// Read the .pas source file with encoding detection.
 	source, err := detectAndDecodeFile(pasFile)
 	if err != nil {
-		t.Fatalf("Failed to read %s: %v", pasFile, err)
+		return testResultFailed, fmt.Sprintf("failed to read source: %v", err)
 	}
 
-	// Check if there's an expected output/error file
+	// A fixture is only scored when it ships an expected .txt; otherwise it is skipped
+	// (matches scripts/fixture_report.py's NoExp handling).
 	txtFile := strings.TrimSuffix(pasFile, ".pas") + ".txt"
-	var expectedContent string
-	var hasExpectedFile bool
-
-	if content, err := detectAndDecodeFile(txtFile); err == nil {
-		expectedContent = content
-		hasExpectedFile = true
+	expectedContent, err := detectAndDecodeFile(txtFile)
+	if err != nil {
+		return testResultSkipped, ""
 	}
 
 	compileResult := frontend.Compile(source, pasFile, hintsLevel)
-	compileErrors := compileResult.DiagnosticStrings()
 
-	// If we expect errors and got compile diagnostics, this might be a successful failure test.
-	if expectErrors && len(compileErrors) > 0 {
-		if hasExpectedFile {
-			actualErrors := strings.Join(compileErrors, "\n")
-			if normalizeOutput(actualErrors) == normalizeOutput(expectedContent) {
-				return testResultPassed
-			} else {
-				t.Errorf("Compile diagnostic mismatch for %s:\nExpected:\n%s\nActual:\n%s",
-					filepath.Base(pasFile), expectedContent, actualErrors)
-				return testResultFailed
-			}
+	var v fixtureVerdict
+	if expectErrors {
+		v = scoreErrorFixture(compileResult, expectedContent)
+	} else {
+		v = scoreSuccessFixture(compileResult, expectedContent)
+	}
+	return v.result, v.detail
+}
+
+// scoreErrorFixture scores an error-detection ("*Fail") fixture against its expected
+// diagnostic output.
+func scoreErrorFixture(compileResult *frontend.Result, expectedContent string) fixtureVerdict {
+	// Compile-time diagnostics: compare them to the expected error listing.
+	if compileErrors := compileResult.DiagnosticStrings(); len(compileErrors) > 0 {
+		actualErrors := strings.Join(compileErrors, "\n")
+		if normalizeOutput(actualErrors) == normalizeOutput(expectedContent) {
+			return fixtureVerdict{result: testResultPassed}
 		}
-		// No expected file but got diagnostics - consider it passed for failure tests.
-		return testResultPassed
+		return fixtureVerdict{result: testResultFailed, detail: diffDetail(expectedContent, actualErrors)}
 	}
 
-	// If we expect errors but got no compile diagnostics, try execution for runtime errors.
-	if expectErrors && len(compileErrors) == 0 {
-		var buf bytes.Buffer
-		interp := New(&buf)
-		if compileResult.SemanticInfo != nil {
-			interp.SetSemanticInfo(compileResult.SemanticInfo)
-		}
-
-		// Execute with timeout to prevent infinite loops from hanging tests
-		// Timeout is set to 5 seconds - enough for normal tests, catches infinite loops
-		type evalResult struct {
-			value Value
-		}
-		resultChan := make(chan evalResult, 1)
-
-		go func() {
-			resultChan <- evalResult{value: interp.Eval(compileResult.Program)}
-		}()
-
-		var result Value
-		select {
-		case res := <-resultChan:
-			result = res.value
-		case <-time.After(5 * time.Second):
-			// Timeout - likely an infinite loop
-			t.Errorf("Test %s timed out after 5 seconds (likely infinite loop)", filepath.Base(pasFile))
-			return testResultFailed
-		}
-
-		if result != nil && result.Type() == "ERROR" {
-			// Got runtime error as expected
-			if hasExpectedFile {
-				formattedError := formatRuntimeErrorValue(result)
-				actualOutput := formattedError
-				if strings.Contains(expectedContent, "Errors >>>>") {
-					var formatted strings.Builder
-					formatted.WriteString("Errors >>>>\n")
-					for _, hint := range fixtureHintsAndWarnings(compileResult) {
-						formatted.WriteString(hint)
-						formatted.WriteString("\n")
-					}
-					formatted.WriteString(formattedError)
-					formatted.WriteString("\nResult >>>>\n")
-					formatted.WriteString(buf.String())
-					actualOutput = formatted.String()
-				}
-
-				if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
-					return testResultPassed
-				} else {
-					t.Errorf("Runtime error mismatch for %s:\nExpected:\n%s\nActual:\n%s",
-						filepath.Base(pasFile), expectedContent, actualOutput)
-					return testResultFailed
-				}
-			}
-			return testResultPassed
-		}
-
-		// Expected errors but got none - this is a failure
-		t.Errorf("Expected errors for %s but got none", filepath.Base(pasFile))
-		return testResultFailed
+	// Compiled cleanly: the error is expected at runtime.
+	buf, value := evalFixture(compileResult)
+	if value == nil || value.Type() != "ERROR" {
+		return fixtureVerdict{result: testResultFailed, detail: "expected errors but program ran cleanly"}
 	}
+	actualOutput := runtimeErrorOutput(compileResult, value, buf, expectedContent)
+	if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
+		return fixtureVerdict{result: testResultPassed}
+	}
+	return fixtureVerdict{result: testResultFailed, detail: diffDetail(expectedContent, actualOutput)}
+}
 
-	// For success tests, we expect no fatal compile diagnostics.
+// scoreSuccessFixture scores a success fixture against its expected program output.
+func scoreSuccessFixture(compileResult *frontend.Result, expectedContent string) fixtureVerdict {
 	if compileResult.HasFatalDiagnostics() {
-		t.Errorf("Unexpected compile diagnostics for %s: %v", filepath.Base(pasFile), compileErrors)
-		return testResultFailed
+		return fixtureVerdict{result: testResultFailed,
+			detail: "unexpected compile diagnostics:\n" + strings.Join(compileResult.DiagnosticStrings(), "\n")}
 	}
-
 	if compileResult.Analyzer != nil && !compileResult.SemanticSuccessful {
-		// For success tests, semantic errors are failures
-		// Format errors nicely for debugging
-		var errorMsg strings.Builder
-		errorMsg.WriteString("Semantic analysis failed:\n")
-		for _, semErr := range compileErrors {
-			errorMsg.WriteString("  - ")
-			errorMsg.WriteString(semErr)
-			errorMsg.WriteString("\n")
-		}
-		t.Errorf("%s: %s", filepath.Base(pasFile), errorMsg.String())
-		return testResultFailed
+		return fixtureVerdict{result: testResultFailed,
+			detail: "semantic analysis failed:\n" + strings.Join(compileResult.DiagnosticStrings(), "\n")}
 	}
 
-	// Execute the program with timeout
+	buf, value := evalFixture(compileResult)
+	if value != nil && value.Type() == "ERROR" {
+		actualOutput := runtimeErrorOutput(compileResult, value, buf, expectedContent)
+		if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
+			return fixtureVerdict{result: testResultPassed}
+		}
+		return fixtureVerdict{result: testResultFailed, detail: diffDetail(expectedContent, actualOutput)}
+	}
+
+	actualOutput := wrapHintsEnvelope(compileResult, buf.String())
+	if normalizeOutput(actualOutput) != normalizeOutput(expectedContent) {
+		return fixtureVerdict{result: testResultFailed, detail: diffDetail(expectedContent, actualOutput)}
+	}
+	return fixtureVerdict{result: testResultPassed}
+}
+
+// evalFixture compiles-then-evaluates a program in-process, returning the captured output
+// buffer and the resulting value. The worker-subprocess timeout guards against hangs.
+func evalFixture(compileResult *frontend.Result) (*bytes.Buffer, Value) {
 	var buf bytes.Buffer
 	interp := New(&buf)
 	if compileResult.SemanticInfo != nil {
 		interp.SetSemanticInfo(compileResult.SemanticInfo)
 	}
+	return &buf, interp.Eval(compileResult.Program)
+}
 
-	// Execute with timeout to prevent infinite loops from hanging tests
-	type evalResult struct {
-		value Value
+// runtimeErrorOutput formats a runtime error, wrapping it in DWScript's Errors/Result
+// envelope when the expected output uses one.
+func runtimeErrorOutput(compileResult *frontend.Result, result Value, buf *bytes.Buffer, expectedContent string) string {
+	formattedError := formatRuntimeErrorValue(result)
+	if !strings.Contains(expectedContent, "Errors >>>>") {
+		return formattedError
 	}
-	resultChan := make(chan evalResult, 1)
-
-	go func() {
-		resultChan <- evalResult{value: interp.Eval(compileResult.Program)}
-	}()
-
-	var result Value
-	select {
-	case res := <-resultChan:
-		result = res.value
-	case <-time.After(5 * time.Second):
-		// Timeout - likely an infinite loop
-		t.Errorf("Test %s timed out after 5 seconds (likely infinite loop)", filepath.Base(pasFile))
-		return testResultFailed
+	var b strings.Builder
+	b.WriteString("Errors >>>>\n")
+	for _, hint := range fixtureHintsAndWarnings(compileResult) {
+		b.WriteString(hint)
+		b.WriteString("\n")
 	}
+	b.WriteString(formattedError)
+	b.WriteString("\nResult >>>>\n")
+	b.WriteString(buf.String())
+	return b.String()
+}
 
-	// Check for runtime errors
-	if result != nil && result.Type() == "ERROR" {
-		if hasExpectedFile {
-			formattedError := formatRuntimeErrorValue(result)
-
-			// DWScript fixtures wrap runtime errors in an Errors/Result block
-			actualOutput := formattedError
-			if strings.Contains(expectedContent, "Errors >>>>") {
-				var formatted strings.Builder
-				formatted.WriteString("Errors >>>>\n")
-				for _, hint := range fixtureHintsAndWarnings(compileResult) {
-					formatted.WriteString(hint)
-					formatted.WriteString("\n")
-				}
-				formatted.WriteString(formattedError)
-				formatted.WriteString("\nResult >>>>\n")
-				formatted.WriteString(buf.String())
-				actualOutput = formatted.String()
-			}
-
-			if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
-				return testResultPassed
-			}
-
-			t.Errorf("Runtime error mismatch for %s:\nExpected:\n%s\nActual:\n%s",
-				filepath.Base(pasFile), expectedContent, actualOutput)
-			return testResultFailed
-		}
-
-		t.Errorf("Runtime error in %s: %v", filepath.Base(pasFile), result.String())
-		return testResultFailed
-	}
-
-	// Capture output and prepend any hints from semantic analysis
-	actualOutput := buf.String()
-
-	// Check if there are hints or warnings (but not actual errors) from semantic analysis.
+// wrapHintsEnvelope wraps program output in DWScript's Errors/Result envelope when the
+// compilation produced hints or warnings.
+func wrapHintsEnvelope(compileResult *frontend.Result, output string) string {
 	hintsAndWarnings := fixtureHintsAndWarnings(compileResult)
+	if len(hintsAndWarnings) == 0 {
+		return output
+	}
+	var b strings.Builder
+	b.WriteString("Errors >>>>\n")
+	for _, hint := range hintsAndWarnings {
+		b.WriteString(hint)
+		b.WriteString("\n")
+	}
+	b.WriteString("Result >>>>\n")
+	b.WriteString(output)
+	return b.String()
+}
 
-	// If there are hints or warnings, format output as "Errors >>>>\n<hints/warnings>\nResult >>>>\n<output>"
-	if len(hintsAndWarnings) > 0 {
-		var formattedOutput strings.Builder
-		formattedOutput.WriteString("Errors >>>>\n")
-		for _, hint := range hintsAndWarnings {
-			formattedOutput.WriteString(hint)
-			formattedOutput.WriteString("\n")
+// diffDetail renders a compact expected/actual mismatch message for logging.
+func diffDetail(expected, actual string) string {
+	return fmt.Sprintf("output mismatch\n--- expected ---\n%s\n--- actual ---\n%s", expected, actual)
+}
+
+// sampleFailures returns up to 20 failing fixture names for a regression message.
+func sampleFailures(names []string) string {
+	const max = 20
+	if len(names) <= max {
+		return strings.Join(names, ", ")
+	}
+	return strings.Join(names[:max], ", ") + fmt.Sprintf(", … (+%d more)", len(names)-max)
+}
+
+// loadFixtureBaselines reads the per-category baseline pass counts. A missing file is only
+// tolerated in update mode (the very first run that creates it).
+func loadFixtureBaselines(t *testing.T, updateMode bool) map[string]int {
+	data, err := os.ReadFile(fixtureBaselinePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if !updateMode {
+				t.Logf("baseline file %s not found; treating all baselines as 0. "+
+					"Run `just fixture-update` to create it.", fixtureBaselinePath)
+			}
+			return map[string]int{}
 		}
-		formattedOutput.WriteString("Result >>>>\n")
-		formattedOutput.WriteString(actualOutput)
-		actualOutput = formattedOutput.String()
+		t.Fatalf("Failed to read %s: %v", fixtureBaselinePath, err)
 	}
 
-	// Use go-snaps for snapshot testing
-	testName := filepath.Base(pasFile)
-	if hasExpectedFile {
-		// If we have an expected file, compare with it
-		if normalizeOutput(actualOutput) != normalizeOutput(expectedContent) {
-			t.Errorf("Output mismatch for %s:\nExpected:\n%s\nActual:\n%s",
-				testName, expectedContent, actualOutput)
-			return testResultFailed
+	baselines := map[string]int{}
+	if err := json.Unmarshal(data, &baselines); err != nil {
+		t.Fatalf("Failed to parse %s: %v", fixtureBaselinePath, err)
+	}
+	return baselines
+}
+
+// writeFixtureBaselines persists the measured per-category pass counts as the new baseline.
+func writeFixtureBaselines(outcomes []categoryOutcome) error {
+	baselines := make(map[string]int, len(outcomes))
+	for _, o := range outcomes {
+		baselines[o.category.name] = o.passed
+	}
+	data, err := json.MarshalIndent(baselines, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	return os.WriteFile(fixtureBaselinePath, data, 0o644)
+}
+
+// writeFixtureStatus regenerates testdata/fixtures/TEST_STATUS.md from the current run.
+func writeFixtureStatus(outcomes []categoryOutcome, totalPassed, totalFailed, totalSkipped, totalTests int) error {
+	var b strings.Builder
+	b.WriteString("# Test Status Tracking\n\n")
+	b.WriteString("> **Generated file — do not edit by hand.**\n")
+	b.WriteString("> Regenerate with `just fixture-update` " +
+		"(`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).\n\n")
+	fmt.Fprintf(&b, "**Generated**: %s\n\n", time.Now().UTC().Format("2006-01-02"))
+
+	scored := totalPassed + totalFailed
+	pct := 0.0
+	if scored > 0 {
+		pct = 100 * float64(totalPassed) / float64(scored)
+	}
+	b.WriteString("## Overall\n\n")
+	b.WriteString("| Metric | Value |\n|---|---|\n")
+	fmt.Fprintf(&b, "| Categories | %d |\n", len(outcomes))
+	fmt.Fprintf(&b, "| Fixtures (total) | %d |\n", totalTests)
+	fmt.Fprintf(&b, "| Passed | %d |\n", totalPassed)
+	fmt.Fprintf(&b, "| Failed | %d |\n", totalFailed)
+	fmt.Fprintf(&b, "| Skipped (no expected .txt) | %d |\n", totalSkipped)
+	fmt.Fprintf(&b, "| **Scored pass rate** | **%.0f%%** (%d/%d) |\n\n", pct, totalPassed, scored)
+
+	b.WriteString("## Per-category\n\n")
+	b.WriteString("Pass% is over *scored* fixtures (those with an expected `.txt`).\n\n")
+	b.WriteString("| Category | Total | Pass | Fail | Skip | Pass% |\n")
+	b.WriteString("|---|---:|---:|---:|---:|---:|\n")
+	for _, o := range outcomes {
+		catScored := o.passed + o.failed
+		catPct := 0.0
+		if catScored > 0 {
+			catPct = 100 * float64(o.passed) / float64(catScored)
 		}
-	} else {
-		// Use go-snaps snapshot
-		snaps.MatchSnapshot(t, fmt.Sprintf("%s_output", testName), actualOutput)
+		fmt.Fprintf(&b, "| %s | %d | %d | %d | %d | %.0f%% |\n",
+			o.category.name, o.total, o.passed, o.failed, o.skipped, catPct)
 	}
 
-	return testResultPassed
+	return os.WriteFile(fixtureStatusPath, []byte(b.String()), 0o644)
 }

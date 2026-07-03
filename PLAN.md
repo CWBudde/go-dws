@@ -77,18 +77,29 @@ Source → Lexer → Parser → AST → Semantic Analyzer ─┬─→ AST Evalu
 
 ## 3. Roadmap (reprioritized — highest leverage first)
 
-### P0 — Make the harness tell the truth 🔴 *(do this first)*
+### P0 — Make the harness tell the truth ✅ *(done 2026-07-03)*
 
 Goal: a green CI run must mean "the language works," not "the parts we test work."
 
-- [ ] `scripts/fixture_report.py` exists (added in this change) — wire it into `just` and CI.
-- [ ] **Un-skip the 48 skipped categories** in `internal/interp/fixture_test.go`; convert the
-      binary skip into a **per-category expected pass-count baseline** so failures are visible
-      but known gaps don't break the build.
-- [ ] Generate `testdata/fixtures/TEST_STATUS.md` from the harness (it is currently full of
-      `TBD` and was last hand-edited 2025-11-04). Never hand-maintain it again.
-- [ ] CI gate: fail the build if any category's pass count **drops** below its baseline.
-- **Exit criteria:** real per-category numbers are visible in CI on every push.
+- [x] `scripts/fixture_report.py` wired into `just` (`fixture-report`) and CI
+      (`.github/workflows/test-fixtures.yaml`, called from `test.yml`).
+- [x] **Un-skipped all categories** in `internal/interp/fixture_test.go`. The binary `skip`
+      flag is gone; categories are now **auto-discovered** from `testdata/fixtures/` (so none
+      can be silently omitted again) and each is gated against a **per-category pass-count
+      baseline** in `testdata/fixtures/baselines.json`. Individual fixture failures are recorded
+      but do not fail the build — the build fails only when a category drops *below* its
+      baseline. Each fixture runs in a re-executed **worker subprocess pool** (see
+      `TestFixtureWorkerMain`) so a runaway loop or pathological allocation is killed and
+      isolated instead of OOM-ing the whole `go test` process.
+- [x] `testdata/fixtures/TEST_STATUS.md` is now **generated** by the harness in update mode
+      (`just fixture-update`) — never hand-maintained again.
+- [x] CI gate: `go test -race ./...` (via `just test-unit`) runs `TestDWScriptFixtures`, which
+      fails the build if any category's pass count drops below its baseline. Ratchet up with
+      `just fixture-update` after an intentional improvement.
+- **Exit criteria met:** real per-category numbers are visible in CI on every push (the `-v`
+      category logs plus the ground-truth `fixture-report` job). Current Go-harness baseline:
+      **547 / 1,928 scored = 28%** (the harness scores the `*Fail` error-detection suites the
+      CLI-only `fixture_report.py` cannot, e.g. FailureScripts 102/528).
 
 ### P1 — Front-end coverage 🔴 *(attacks the 65% — ~440 fixtures)*
 

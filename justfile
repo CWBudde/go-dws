@@ -45,6 +45,18 @@ test-verbose:
 test-unit:
     go test -v -race ./...
 
+# Enforce the per-category fixture pass-count baselines (regression gate)
+fixture-check:
+    go test ./internal/interp -run TestDWScriptFixtures
+
+# Regenerate testdata/fixtures/baselines.json and TEST_STATUS.md from current pass counts
+fixture-update:
+    FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures
+
+# Print the ground-truth per-category compatibility report (CLI-based, does not skip anything)
+fixture-report *ARGS: build
+    python3 scripts/fixture_report.py {{ARGS}}
+
 # Clean build artifacts
 clean:
     rm -rf bin/

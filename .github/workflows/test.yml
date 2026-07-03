@@ -25,3 +25,6 @@ jobs:
 
   test-unit:
     uses: ./.github/workflows/test-unit.yaml
+
+  test-fixtures:
+    uses: ./.github/workflows/test-fixtures.yaml
