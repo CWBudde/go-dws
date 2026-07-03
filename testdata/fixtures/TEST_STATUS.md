@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 610 |
-| Failed | 1432 |
+| Passed | 612 |
+| Failed | 1430 |
 | Skipped (no expected .txt) | 0 |
-| **Scored pass rate** | **30%** (610/2042) |
+| **Scored pass rate** | **30%** (612/2042) |
 
 ## Per-category
 
@@ -55,7 +55,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | GenericsPass | 23 | 12 | 11 | 0 | 52% |
 | GraphicsLib | 4 | 0 | 4 | 0 | 0% |
 | HelpersFail | 18 | 0 | 18 | 0 | 0% |
-| HelpersPass | 27 | 11 | 16 | 0 | 41% |
+| HelpersPass | 27 | 13 | 14 | 0 | 48% |
 | IniFileLib | 2 | 0 | 2 | 0 | 0% |
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
 | InnerClassesPass | 2 | 0 | 2 | 0 | 0% |

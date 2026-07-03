@@ -642,6 +642,33 @@ func containsHelperInfo(helpers []HelperInfo, target HelperInfo) bool {
 // Helper Property Resolution
 // ============================================================================
 
+// findHelperClassMember searches all applicable helpers for a class constant or
+// class variable with the given name. It is used to resolve helper class members
+// accessed through a type's metaclass value (e.g. `String.Hello`, `TMyArray.ByeBye`).
+// Class constants take precedence over class variables.
+func (e *Evaluator) findHelperClassMember(val Value, name string) (Value, bool) {
+	helpers := e.getHelpersForValue(val)
+	if helpers == nil {
+		return nil, false
+	}
+	for _, helper := range orderedHelpersForLookup(helpers) {
+		if helper == nil {
+			continue
+		}
+		for constName, constVal := range helper.GetClassConsts() {
+			if ident.Equal(constName, name) {
+				return constVal, true
+			}
+		}
+		for varName, varVal := range helper.GetClassVars() {
+			if ident.Equal(varName, name) {
+				return varVal, true
+			}
+		}
+	}
+	return nil, false
+}
+
 // FindHelperProperty searches all applicable helpers for a property with the given name.
 func (e *Evaluator) FindHelperProperty(val Value, propName string) (HelperInfo, *types.PropertyInfo) {
 	helpers := e.getHelpersForValue(val)
