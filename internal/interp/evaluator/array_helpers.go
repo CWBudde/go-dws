@@ -539,6 +539,19 @@ func (e *Evaluator) raiseArrayBoundExceeded(node ast.Node, index int, upper bool
 	return e.nilValue()
 }
 
+// raisePositiveCountExpected sets a catchable exception for a negative count
+// argument, matching DWScript's message format.
+func (e *Evaluator) raisePositiveCountExpected(node ast.Node, count int) Value {
+	ctx := e.currentContext
+	pos := arrayMethodNamePos(node)
+	message := fmt.Sprintf("Positive count expected (got %d) [line: %d, column: %d]", count, pos.Line, pos.Column)
+	if ctx != nil {
+		exc := e.createException("Exception", message, &pos, ctx)
+		ctx.SetException(exc)
+	}
+	return e.nilValue()
+}
+
 // evalArrayMove relocates the element at index `from` to index `to`, shifting the
 // intervening elements. Both indices must be within bounds.
 func (e *Evaluator) evalArrayMove(selfValue Value, args []Value, node ast.Node) Value {
@@ -690,10 +703,13 @@ func (e *Evaluator) evalArrayInsert(selfValue Value, args []Value, node ast.Node
 }
 
 // evalArrayCopyMethod returns a new dynamic array with a copied slice of the
-// receiver: Copy(startIndex [, count]).
+// receiver: Copy, Copy(startIndex), or Copy(startIndex, count). With no
+// arguments the whole array is duplicated. An out-of-range start index raises a
+// catchable bound exception (as DWScript does); a count larger than the number
+// of available elements is clamped, but a negative count is an error.
 func (e *Evaluator) evalArrayCopyMethod(selfValue Value, args []Value, node ast.Node) Value {
-	if len(args) < 1 || len(args) > 2 {
-		return e.newError(node, "Array.Copy expects 1 or 2 arguments, got %d", len(args))
+	if len(args) > 2 {
+		return e.newError(node, "Array.Copy expects at most 2 arguments, got %d", len(args))
 	}
 
 	arrVal, ok := selfValue.(*runtime.ArrayValue)
@@ -701,13 +717,17 @@ func (e *Evaluator) evalArrayCopyMethod(selfValue Value, args []Value, node ast.
 		return e.newError(node, "Array.Copy requires array receiver")
 	}
 
-	startInt, ok := args[0].(*runtime.IntegerValue)
-	if !ok {
-		return e.newError(node, "Array.Copy startIndex must be Integer, got %s", args[0].Type())
-	}
-	start := int(startInt.Value)
-
 	arrayLen := len(arrVal.Elements)
+
+	start := 0
+	if len(args) >= 1 {
+		startInt, ok := args[0].(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "Array.Copy startIndex must be Integer, got %s", args[0].Type())
+		}
+		start = int(startInt.Value)
+	}
+
 	count := arrayLen - start
 	if len(args) == 2 {
 		countInt, ok := args[1].(*runtime.IntegerValue)
@@ -717,26 +737,32 @@ func (e *Evaluator) evalArrayCopyMethod(selfValue Value, args []Value, node ast.
 		count = int(countInt.Value)
 	}
 
-	if start < 0 {
-		start = 0
+	// Validate the start index against the array bounds. A whole-array copy of an
+	// empty array (no explicit start) is permitted and yields an empty array.
+	if len(args) >= 1 || arrayLen > 0 {
+		if start < 0 {
+			return e.raiseArrayBoundExceeded(node, start, false)
+		}
+		if start >= arrayLen {
+			return e.raiseArrayBoundExceeded(node, start, true)
+		}
 	}
-	if start > arrayLen {
-		start = arrayLen
-	}
+
 	if count < 0 {
-		count = 0
+		return e.raisePositiveCountExpected(node, count)
 	}
+
 	end := start + count
 	if end > arrayLen {
 		end = arrayLen
 	}
 
-	resultType := arrVal.ArrayType
-	if resultType != nil && resultType.IsStatic() {
-		resultType = types.NewDynamicArrayType(resultType.ElementType)
+	var elementType types.Type = types.VARIANT
+	if arrVal.ArrayType != nil && arrVal.ArrayType.ElementType != nil {
+		elementType = arrVal.ArrayType.ElementType
 	}
 	newArray := &runtime.ArrayValue{
-		ArrayType: resultType,
+		ArrayType: types.NewDynamicArrayType(elementType),
 		Elements:  make([]Value, 0, end-start),
 	}
 	for idx := start; idx < end; idx++ {
@@ -759,6 +785,10 @@ func (e *Evaluator) evalArrayRemove(selfValue Value, args []Value, node ast.Node
 		return e.newError(node, "Array.Remove requires array receiver")
 	}
 
+	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
+		return e.newError(node, "Remove() can only be used with dynamic arrays, not static arrays")
+	}
+
 	startIndex := 0
 	if len(args) == 2 {
 		startInt, ok := args[1].(*runtime.IntegerValue)
@@ -774,7 +804,10 @@ func (e *Evaluator) evalArrayRemove(selfValue Value, args []Value, node ast.Node
 	target := args[0]
 	for idx := startIndex; idx < len(arrVal.Elements); idx++ {
 		if runtime.ValuesEqual(arrVal.Elements[idx], target) {
-			arrVal.Elements = append(arrVal.Elements[:idx], arrVal.Elements[idx+1:]...)
+			copy(arrVal.Elements[idx:], arrVal.Elements[idx+1:])
+			last := len(arrVal.Elements) - 1
+			arrVal.Elements[last] = nil // release the reference so it can be GC'd
+			arrVal.Elements = arrVal.Elements[:last]
 			return &runtime.IntegerValue{Value: int64(idx)}
 		}
 	}
@@ -884,6 +917,10 @@ func (e *Evaluator) evalArrayClear(selfValue Value, args []Value, node ast.Node)
 		return e.newError(node, "Clear() can only be used with dynamic arrays, not static arrays")
 	}
 
+	// Release element references so they can be GC'd before reslicing to empty.
+	for idx := range arrVal.Elements {
+		arrVal.Elements[idx] = nil
+	}
 	arrVal.Elements = arrVal.Elements[:0]
 	return e.nilValue()
 }

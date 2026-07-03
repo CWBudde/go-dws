@@ -340,7 +340,10 @@ func (a *Analyzer) analyzeArrayMemberAccess(expr *ast.MemberAccessExpression, ar
 		return types.VOID
 	case "peek":
 		return arrayType.ElementType
-	case "delete", "remove", "insert", "move", "swap", "copy", "foreach", "contains", "filter":
+	case "copy":
+		// Copy with no arguments duplicates the whole array.
+		return arrayType
+	case "delete", "remove", "insert", "move", "swap", "foreach", "contains", "filter":
 		a.addArrayHelperTooFewArgs(expr)
 		if memberNameLower == "remove" {
 			return types.INTEGER
@@ -351,7 +354,7 @@ func (a *Analyzer) analyzeArrayMemberAccess(expr *ast.MemberAccessExpression, ar
 		if memberNameLower == "filter" {
 			return types.NewDynamicArrayType(arrayType.ElementType)
 		}
-		if memberNameLower == "copy" || memberNameLower == "swap" {
+		if memberNameLower == "swap" {
 			return arrayType
 		}
 		return types.VOID
@@ -535,14 +538,13 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		}
 		return types.NewDynamicArrayType(arrayType.ElementType)
 	case "copy":
-		if len(expr.Arguments) == 0 {
-			a.addArrayHelperTooFewArgs(expr)
-			return arrayType
-		}
+		// Copy() / Copy(start) / Copy(start, count); zero args copies the whole array.
 		if len(expr.Arguments) > 2 {
 			a.addArrayHelperTooManyArgs(expr)
 		}
-		a.validateArrayIntegerArg(expr.Arguments[0])
+		if len(expr.Arguments) >= 1 {
+			a.validateArrayIntegerArg(expr.Arguments[0])
+		}
 		if len(expr.Arguments) > 1 {
 			a.validateArrayIntegerArg(expr.Arguments[1])
 		}
