@@ -3,6 +3,7 @@ package evaluator
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
@@ -134,8 +135,58 @@ func (e *Evaluator) FormatString(format string, args []Value) (string, error) {
 		}
 	}
 
-	// Format the string
-	result := fmt.Sprintf(format, goArgs...)
+	// Format the string. DWScript follows Delphi's Format, where a %f verb with
+	// no explicit precision defaults to 2 decimal places (Go's fmt defaults to 6).
+	result := fmt.Sprintf(applyDelphiFloatDefault(format), goArgs...)
 
 	return result, nil
+}
+
+// applyDelphiFloatDefault rewrites %f verbs that carry no explicit precision so
+// that they use Delphi's default of 2 decimal places (e.g. "%f" -> "%.2f",
+// "%8f" -> "%8.2f"). Specifiers with an explicit precision ("%.4f") and all
+// other verbs are left untouched. "%%" is preserved as a literal percent.
+func applyDelphiFloatDefault(format string) string {
+	var b strings.Builder
+	i := 0
+	for i < len(format) {
+		if format[i] != '%' {
+			b.WriteByte(format[i])
+			i++
+			continue
+		}
+		if i+1 < len(format) && format[i+1] == '%' {
+			b.WriteString("%%")
+			i += 2
+			continue
+		}
+		// Scan the flags/width/precision portion of the specifier.
+		j := i + 1
+		hasDot := false
+		for j < len(format) {
+			c := format[j]
+			if c == '.' {
+				hasDot = true
+			}
+			if (c >= '0' && c <= '9') || c == '.' || c == '+' || c == '-' || c == ' ' || c == '#' {
+				j++
+				continue
+			}
+			break
+		}
+		if j < len(format) && format[j] == 'f' && !hasDot {
+			b.WriteString(format[i:j])
+			b.WriteString(".2f")
+			i = j + 1
+			continue
+		}
+		if j < len(format) {
+			b.WriteString(format[i : j+1])
+			i = j + 1
+		} else {
+			b.WriteString(format[i:])
+			i = len(format)
+		}
+	}
+	return b.String()
 }
