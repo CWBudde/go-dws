@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	dwserrors "github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/generics"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
@@ -152,6 +153,10 @@ func compileParsedResult(result *Result, source, filename string, hintsLevel sem
 	if result.Program == nil || result.HasSemanticBlockingDiagnosticsInPhase(PhaseParsing) {
 		return result
 	}
+
+	// Monomorphize generic types into concrete specializations before semantic
+	// analysis, so the analyzer and evaluator only ever see ordinary types.
+	generics.Monomorphize(result.Program)
 
 	analyzer := semantic.NewAnalyzer()
 	analyzer.SetHintsLevel(hintsLevel)

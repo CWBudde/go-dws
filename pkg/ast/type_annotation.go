@@ -8,15 +8,23 @@ import "github.com/cwbudde/go-dws/pkg/token"
 type TypeAnnotation struct {
 	InlineType TypeExpression
 	Name       string
-	Token      token.Token
-	EndPos     token.Position
-	Strict     bool
+	// TypeArgs holds generic type arguments for a specialized type reference
+	// such as `TTest<Integer, String>`. Nil for ordinary type names. These are
+	// resolved during monomorphization, which rewrites Name to the mangled
+	// specialized name (e.g. "TTest<Integer,String>") and clears this field.
+	TypeArgs []TypeExpression
+	Token    token.Token
+	EndPos   token.Position
+	Strict   bool
 }
 
 // String returns the string representation of the type annotation
 func (ta *TypeAnnotation) String() string {
 	if ta == nil {
 		return ""
+	}
+	if len(ta.TypeArgs) > 0 {
+		return MangleGenericName(ta.Name, ta.TypeArgs)
 	}
 	return ta.Name
 }
@@ -81,6 +89,9 @@ type TypeDeclaration struct {
 	HighBound           Expression
 	Name                *Identifier
 	FunctionPointerType *FunctionPointerTypeNode
+	// TypeParams holds the generic type-parameter names for a generic alias/array
+	// type (e.g. ["T"] for `type TArr<T> = array of T;`). Empty otherwise.
+	TypeParams []string
 	BaseNode
 	IsAlias           bool
 	IsSubrange        bool

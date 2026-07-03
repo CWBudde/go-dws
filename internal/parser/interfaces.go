@@ -74,9 +74,10 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 		return false
 	}
 
-	// Look ahead to see if the token after the identifier is '='
+	// Look ahead to see if the token after the identifier is '=', or the start
+	// of a generic parameter list (`TFoo<T> = ...`).
 	tokenAfterIdent := p.cursor.Peek(2)
-	return tokenAfterIdent.Type == lexer.EQ
+	return tokenAfterIdent.Type == lexer.EQ || tokenAfterIdent.Type == lexer.LESS
 }
 
 // parseSingleTypeDeclaration parses a single type declaration.
@@ -94,6 +95,15 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 	nameIdent := p.parseTypeNameIdentifier()
 	if nameIdent == nil {
 		return nil
+	}
+
+	// Optional generic type parameters: type TTest<A, B> = ...
+	var typeParams []string
+	if p.cursor.Peek(1).Type == lexer.LESS {
+		typeParams = p.parseTypeParameters()
+		if typeParams == nil {
+			return nil
+		}
 	}
 
 	// Expect '=' after type name
@@ -186,13 +196,78 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 			Name:        nameIdent,
 			IsAlias:     true,
 			AliasedType: aliasedType,
+			TypeParams:  typeParams,
 		}
 		decl, _ := builder.Finish(typeDecl).(*ast.TypeDeclaration)
 		return decl
 	}
 
 	// For other type declarations (class, interface, enum, etc.), handle each type
-	return p.parseTypeKind(nameIdent, typeToken, nextToken)
+	result := p.parseTypeKind(nameIdent, typeToken, nextToken)
+	attachTypeParams(result, typeParams)
+	return result
+}
+
+// attachTypeParams records generic type-parameter names on a parsed type
+// declaration. Only class, record, and alias/array declarations can be generic.
+func attachTypeParams(stmt ast.Statement, params []string) {
+	if len(params) == 0 {
+		return
+	}
+	switch d := stmt.(type) {
+	case *ast.ClassDecl:
+		d.TypeParams = params
+	case *ast.RecordDecl:
+		d.TypeParams = params
+	case *ast.TypeDeclaration:
+		d.TypeParams = params
+	}
+}
+
+// parseTypeParameters parses a generic type-parameter list `<T1, T2, ...>` in a
+// type declaration. Optional constraints (`<T: constraint>`) are parsed and
+// ignored — constraint checking is not yet implemented.
+//
+// PRE:  p.cursor.Peek(1) is LESS ('<').
+// POST: p.cursor is at the closing GREATER ('>').
+//
+// Returns nil (and records an error) on malformed input.
+func (p *Parser) parseTypeParameters() []string {
+	p.cursor = p.cursor.Advance() // move to '<'
+
+	var params []string
+	for {
+		if !p.isIdentifierToken(p.cursor.Peek(1).Type) {
+			p.addPeekTokenError("type parameter name expected", ErrExpectedIdent)
+			return nil
+		}
+		p.cursor = p.cursor.Advance() // move to parameter identifier
+		params = append(params, p.cursor.Current().Literal)
+
+		// Optional constraint: `<T: SomeConstraint>`. Consume the constraint
+		// tokens up to the next ',' or '>' and ignore them.
+		if p.cursor.Peek(1).Type == lexer.COLON {
+			p.cursor = p.cursor.Advance() // consume ':'
+			for {
+				nt := p.cursor.Peek(1).Type
+				if nt == lexer.COMMA || nt == lexer.GREATER || nt == lexer.EOF {
+					break
+				}
+				p.cursor = p.cursor.Advance()
+			}
+		}
+
+		switch p.cursor.Peek(1).Type {
+		case lexer.COMMA:
+			p.cursor = p.cursor.Advance() // consume ','
+		case lexer.GREATER:
+			p.cursor = p.cursor.Advance() // consume '>'
+			return params
+		default:
+			p.addPeekTokenError("\">\" expected in generic type parameter list", ErrUnexpectedToken)
+			return nil
+		}
+	}
 }
 
 // parseTypeNameIdentifier parses the identifier for a type name in a type declaration.

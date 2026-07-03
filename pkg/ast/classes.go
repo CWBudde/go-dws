@@ -88,6 +88,10 @@ type ClassDecl struct {
 	IsForward         bool
 	IsDeprecated      bool
 	DeprecatedMessage string
+	// TypeParams holds the generic type-parameter names for a generic class
+	// (e.g. ["A", "B"] for `type TTest<A,B> = class ... end;`). Empty for
+	// non-generic classes. Generic classes are monomorphized before analysis.
+	TypeParams []string
 }
 
 func (cd *ClassDecl) statementNode() {}
@@ -274,6 +278,10 @@ func (fd *FieldDecl) String() string {
 type NewExpression struct {
 	ClassName *Identifier
 	Arguments []Expression
+	// TypeArgs holds the generic type arguments for `new TTest<Integer>(...)`.
+	// Nil for non-generic instantiations. Resolved during monomorphization,
+	// which rewrites ClassName to the mangled specialized name and clears this.
+	TypeArgs []TypeExpression
 	TypedExpressionBase
 }
 

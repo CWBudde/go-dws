@@ -54,6 +54,14 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 			EndPos: typeIdent.End(),
 			Strict: strictPrefix,
 		}
+		// Generic type arguments: TTest<Integer, String>
+		if p.cursor.Peek(1).Type == lexer.LESS {
+			args := p.parseTypeArguments()
+			if args == nil {
+				return invalidTypeExpression(currentToken, "invalid generic type arguments")
+			}
+			typeAnnotation.TypeArgs = args
+		}
 		result, _ := builder.Finish(typeAnnotation).(*ast.TypeAnnotation)
 		return result
 
@@ -155,6 +163,40 @@ func (p *Parser) recoverArrayType() {
 		default:
 			cursor = cursor.Advance()
 			p.cursor = cursor
+		}
+	}
+}
+
+// parseTypeArguments parses a generic type-argument list `<T1, T2, ...>`, used
+// in type references such as `TTest<Integer, String>`.
+//
+// PRE:  p.cursor.Peek(1) is LESS ('<').
+// POST: p.cursor is at the closing GREATER ('>').
+//
+// Returns nil (and records an error) on malformed input. Adjacent closing
+// brackets in deeply nested generics (`>>`) are not supported, matching the
+// scope of the current generics implementation.
+func (p *Parser) parseTypeArguments() []ast.TypeExpression {
+	p.cursor = p.cursor.Advance() // move to '<'
+
+	var args []ast.TypeExpression
+	for {
+		p.cursor = p.cursor.Advance() // move to first token of the type expression
+		arg := p.parseTypeExpression()
+		if arg == nil {
+			return nil
+		}
+		args = append(args, arg)
+
+		switch p.cursor.Peek(1).Type {
+		case lexer.COMMA:
+			p.cursor = p.cursor.Advance() // consume ','
+		case lexer.GREATER:
+			p.cursor = p.cursor.Advance() // consume '>'
+			return args
+		default:
+			p.addPeekTokenError("\">\" expected in generic type argument list", ErrUnexpectedToken)
+			return nil
 		}
 	}
 }
