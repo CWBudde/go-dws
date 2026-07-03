@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 	pkgident "github.com/cwbudde/go-dws/pkg/ident"
@@ -396,6 +397,29 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 	// Handle nil - nil can be cast to any type
 	if _, isNil := obj.(*runtime.NilValue); isNil {
 		return &runtime.NilValue{}, nil
+	}
+
+	// Handle metaclass ('class of X') casting: casting one class reference to another
+	// metaclass type (e.g. `ClassType as TBaseTemplateClass`). The runtime class is
+	// unchanged; only the static type view changes, so the reference is returned as-is
+	// once the referenced classes are validated to be hierarchy-related.
+	if classMetaVal, ok := obj.(ClassMetaValue); ok {
+		targetClassName := typeName
+		if resolved, rerr := e.ResolveType(typeName); rerr == nil && resolved != nil {
+			if classOf, ok := resolved.(*types.ClassOfType); ok && classOf.ClassType != nil {
+				targetClassName = classOf.ClassType.Name
+			}
+		}
+		if e.typeSystem.HasClass(targetClassName) {
+			sourceMeta, serr := e.lookupClassMetadataByName(classMetaVal.GetClassName())
+			targetMeta, terr := e.lookupClassMetadataByName(targetClassName)
+			if serr == nil && terr == nil {
+				if e.isClassHierarchyCompatible(sourceMeta, targetMeta) || e.isClassHierarchyCompatible(targetMeta, sourceMeta) {
+					return obj, nil
+				}
+				return nil, fmt.Errorf("Cannot cast class '%s' to '%s'", sourceMeta.Name, targetMeta.Name)
+			}
+		}
 	}
 
 	// Handle interface-to-object/interface casting

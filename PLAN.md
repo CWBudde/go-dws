@@ -171,9 +171,26 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         case-mismatch parity** unless the original per-test hint configuration is recovered; the
         non-case parts of the envelope (empty-block, unreachable-code, prefer-ToString) may still
         be worth revisiting individually if a source-level signal exists for them.
-- [ ] Semantic hardening: analyze **unit function bodies** (`internal/semantic/unit_analyzer.go:158`),
-      check **subrange bounds at compile time**, make the analyzer **multi-pass** so forward
-      references resolve without explicit `forward`.
+- [~] Semantic hardening (partially done 2026-07-03).
+      - [x] **Multi-pass analyzer for forward references.** `Analyzer.Analyze`
+        (`internal/semantic/analyzer.go`) is now two-pass: pass 1 registers every top-level
+        regular function's signature (via the new `registerFunctionSignature`, split out of
+        `analyzeFunctionDecl` in `analyze_functions.go`) while analyzing all other declarations
+        in source order; pass 2 analyzes the deferred bodies (`analyzeFunctionBody`). Top-level
+        functions are therefore mutually visible, so mutual recursion and forward calls work
+        without an explicit `forward` declaration. Declaration source-order semantics are
+        preserved (signatures register inline), so nothing that depended on ordering regressed.
+        Genuinely-undefined names still error. Covered by
+        `TestForwardFunctionReferenceWithoutForwardKeyword`.
+      - [x] **Unit function bodies** (`internal/semantic/unit_analyzer.go`): the
+        dependency-aware `AnalyzeUnitWithDependencies` path now analyzes implementation bodies
+        via `analyzeFunctionBody` instead of only checking for their presence. (The production
+        `analyzeUnitDeclaration` path already analyzed bodies.)
+      - [ ] **Subrange bounds at compile time — deferred.** No fixture in the corpus declares a
+        subrange type, and existing `subrange_test.go` asserts out-of-range assignments do *not*
+        error at compile time (runtime-deferred). Zero fixture yield; not pursued.
+      - [ ] Make the analyzer fully **type**-order-independent (class parents/fields declared
+        later without `forward`) — needs a real two-phase class builder; separate follow-up.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴
@@ -272,7 +289,19 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       no category regressed. Remaining fails are separate features (anonymous inline enums in
       `set of (A,B,C)`, array↔set conversion, `set of` record fields, out-of-range diagnostics).
 - [ ] Work the 88 wrong-output fixtures (e.g. `casts_base_types` rounding, `case_variant`).
-- [ ] Work the 68 runtime-panic fixtures (metaclass `ClassName`, class-method dispatch, `class of`).
+- [~] Work the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch, `class of`).
+      **Metaclass member access closed for the common cases (2026-07-03).** (1) Member access on
+      a `class of X` metaclass value (`runtime.TypeMetaValue` wrapping a `*types.ClassOfType`) now
+      resolves class members by delegating to the shared `resolveClassMetaMember` helper
+      (`internal/interp/evaluator/visitor_expressions_members.go`) — fixes `TClass.ClassName` etc.
+      (2) `ClassParent` is now handled both semantically (`analyze_classes.go`) and at runtime
+      (walks `IClassInfo.GetParent`, returns `NilValue` at the root). (3) Class methods reached
+      through a metaclass now resolve **inherited** class methods via
+      `isClassMethodInHierarchy`/overload `IsClassMethod` (`analyze_method_calls.go`,
+      `analyze_classes.go`) instead of the own-class `ClassMethodFlags` map only. (4) `as` and
+      func-style casts accept a `class of` target (`analyze_expressions.go`,
+      `visitor_expressions_types.go`, `type_casts.go`). Fixes `class_method4`, `class_parent`,
+      `class_of_cast`; SimpleScripts 241 → 244, overall 480 → 483 (CLI); no category regressed.
 - [ ] Post-exception continuation semantics (`assigned.pas` expects execution to continue after a
       caught runtime error) and BOM-preserving output.
 - **Exit criteria:** ArrayPass/SetOfPass/HelpersPass/OverloadsPass ≥ 80%.

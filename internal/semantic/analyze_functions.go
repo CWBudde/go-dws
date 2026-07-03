@@ -9,7 +9,12 @@ import (
 // Function Analysis
 // ============================================================================
 
-// analyzeFunctionDecl analyzes a function declaration
+// analyzeFunctionDecl analyzes a function declaration.
+//
+// It is the single-pass entry point (used by nested contexts, unit sections, and
+// the fallback path in Analyze). For top-level program declarations the driver
+// splits this work: registerFunctionSignature runs in an early pass so functions
+// are visible regardless of source order, and analyzeFunctionBody runs afterwards.
 func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	// Check if this is a method implementation (has ClassName)
 	if decl.ClassName != nil {
@@ -17,6 +22,29 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 		return
 	}
 
+	paramTypes, returnType, ok := a.registerFunctionSignature(decl)
+	if !ok {
+		// Registration failed, or the decl was a helper that fully handles itself.
+		return
+	}
+
+	// Skip body analysis for forward declarations
+	if decl.IsForward {
+		return
+	}
+
+	a.analyzeFunctionBody(decl, paramTypes, returnType)
+}
+
+// registerFunctionSignature resolves a regular (non-method) function's parameter
+// and return types and registers its overload in the current symbol table. It does
+// NOT analyze the body. It returns the resolved parameter types, the return type,
+// and ok=true when the signature was registered and a body pass should follow.
+//
+// ok=false means either registration failed (an error was already recorded) or the
+// declaration was a helper function that is fully analyzed by analyzeFunctionHelperDecl;
+// in both cases the caller must not run a body pass.
+func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes []types.Type, returnType types.Type, ok bool) {
 	// Check for unsupported calling conventions and emit hints
 	if decl.CallingConvention != "" {
 		a.addHint("Call convention \"%s\" is not supported and ignored [line: %d, column: %d]",
@@ -24,7 +52,7 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	}
 
 	// Regular function (not method): resolve parameter and return types
-	paramTypes := make([]types.Type, 0, len(decl.Parameters))
+	paramTypes = make([]types.Type, 0, len(decl.Parameters))
 	paramNames := make([]string, 0, len(decl.Parameters))
 	paramTypeNames := make([]string, 0, len(decl.Parameters))
 	defaultValues := make([]interface{}, 0, len(decl.Parameters))
@@ -49,7 +77,7 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 		if exclusiveCount > 1 {
 			a.addError("parameter '%s' cannot have multiple modifiers (lazy/var/const) in function '%s' at %s",
 				param.Name.Value, decl.Name.Value, param.Token.Pos.String())
-			return
+			return nil, nil, false
 		}
 
 		// Optional parameters must come last, without modifiers
@@ -58,27 +86,27 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 			if param.IsLazy || param.ByRef || param.IsConst {
 				a.addError("optional parameter '%s' cannot have lazy, var, or const modifiers in function '%s' at %s",
 					param.Name.Value, decl.Name.Value, param.Token.Pos.String())
-				return
+				return nil, nil, false
 			}
 		} else if foundOptional {
 			a.addError("required parameter '%s' cannot come after optional parameters in function '%s' at %s",
 				param.Name.Value, decl.Name.Value, param.Token.Pos.String())
-			return
+			return nil, nil, false
 		}
 
 		if param.Type == nil {
 			a.addError("parameter '%s' missing type annotation in function '%s'",
 				param.Name.Value, decl.Name.Value)
-			return
+			return nil, nil, false
 		}
 		paramType, err := a.resolveTypeExpression(param.Type)
 		if err == nil && paramType == nil {
-			return
+			return nil, nil, false
 		}
 		if err != nil {
 			a.addError("unknown parameter type '%s' in function '%s': %v",
 				getTypeExpressionName(param.Type), decl.Name.Value, err)
-			return
+			return nil, nil, false
 		}
 		if param.IsConst {
 			if arrayType, ok := paramType.(*types.ArrayType); ok && arrayType.ElementType == types.VARIANT {
@@ -92,12 +120,12 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 			if defaultType == nil {
 				a.addError("invalid default value for parameter '%s' in function '%s'",
 					param.Name.Value, decl.Name.Value)
-				return
+				return nil, nil, false
 			}
 			if !paramType.Equals(defaultType) && !defaultType.Equals(paramType) {
 				a.addError("default value type '%s' does not match parameter type '%s' for parameter '%s' in function '%s'",
 					defaultType.String(), paramType.String(), param.Name.Value, decl.Name.Value)
-				return
+				return nil, nil, false
 			}
 		}
 
@@ -112,22 +140,23 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	}
 
 	// Determine return type
-	var returnType types.Type
 	if decl.ReturnType != nil {
 		var err error
 		returnType, err = a.resolveType(getTypeExpressionName(decl.ReturnType))
 		if err != nil {
 			a.addError("unknown return type '%s' in function '%s': %v",
 				getTypeExpressionName(decl.ReturnType), decl.Name.Value, err)
-			return
+			return nil, nil, false
 		}
 	} else {
 		returnType = types.VOID
 	}
 
 	if decl.IsHelper {
+		// Helper functions are fully analyzed here (signature + body); there is no
+		// separate body pass for them.
 		a.analyzeFunctionHelperDecl(decl, paramTypes, returnType)
-		return
+		return nil, nil, false
 	}
 
 	// Create function type with metadata (handles lazy, var, const, defaults)
@@ -157,14 +186,16 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 	// Register function/overload with position info for error messages
 	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload, decl.IsForward, decl.Name.Token.Pos); err != nil {
 		a.addError("Syntax Error: %s [line: %d, column: %d]", err.Error(), decl.Token.Pos.Line, decl.Token.Pos.Column)
-		return
+		return nil, nil, false
 	}
 
-	// Skip body analysis for forward declarations
-	if decl.IsForward {
-		return
-	}
+	return paramTypes, returnType, true
+}
 
+// analyzeFunctionBody analyzes a regular function's body in a fresh scope, using the
+// parameter and return types already resolved by registerFunctionSignature. Callers
+// must skip forward declarations before invoking this.
+func (a *Analyzer) analyzeFunctionBody(decl *ast.FunctionDecl, paramTypes []types.Type, returnType types.Type) {
 	// Analyze function body in new scope
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)

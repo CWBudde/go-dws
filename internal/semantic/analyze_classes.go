@@ -363,6 +363,16 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	if memberName == "classtype" {
 		return types.NewClassOfType(classType)
 	}
+	if memberName == "classparent" {
+		// ClassParent yields a metaclass reference to the parent class. Statically we
+		// only know the receiver's declared class, so type the result as a metaclass of
+		// that parent (or the class itself for a root class), which stays assignable to
+		// a `class of` variable used to walk the hierarchy at runtime.
+		if classType.Parent != nil {
+			return types.NewClassOfType(classType.Parent)
+		}
+		return types.NewClassOfType(classType)
+	}
 
 	// Look up field (including inherited fields)
 	fieldType, found := classType.GetField(memberName)
@@ -475,7 +485,10 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up method (including inherited methods)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
-		if isMetaclass && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(memberName)]) {
+		// A method accessed through a metaclass value must be a class method. Resolve the
+		// class-method flag across the hierarchy so inherited class methods (absent from
+		// this class's own ClassMethodFlags map) are accepted.
+		if isMetaclass && !a.isClassMethodInHierarchy(classType, memberName) {
 			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
 			return nil
 		}

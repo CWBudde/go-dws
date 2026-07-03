@@ -283,3 +283,57 @@ func TestConstParameterCannotBeModified(t *testing.T) {
 	// through const parameters. For now, we're testing basic assignment.
 	expectNoErrors(t, input) // TODO: Should eventually error when we detect indexed assignment to const
 }
+
+// TestForwardFunctionReferenceWithoutForwardKeyword verifies the analyzer is
+// multi-pass: a top-level function may call another top-level function declared
+// later in the program without an explicit `forward` declaration (DWScript treats
+// top-level functions as mutually visible).
+func TestForwardFunctionReferenceWithoutForwardKeyword(t *testing.T) {
+	t.Run("single forward call", func(t *testing.T) {
+		input := `
+			function First : Integer;
+			begin
+				Result := Second;
+			end;
+
+			function Second : Integer;
+			begin
+				Result := 42;
+			end;
+
+			PrintLn(First);
+		`
+		expectNoErrors(t, input)
+	})
+
+	t.Run("mutual recursion without forward", func(t *testing.T) {
+		input := `
+			function IsOdd(n : Integer) : Boolean;
+			begin
+				if n = 0 then Result := False
+				else Result := IsEven(n - 1);
+			end;
+
+			function IsEven(n : Integer) : Boolean;
+			begin
+				if n = 0 then Result := True
+				else Result := IsOdd(n - 1);
+			end;
+
+			PrintLn(IsEven(10));
+		`
+		expectNoErrors(t, input)
+	})
+
+	t.Run("genuinely undefined name still errors", func(t *testing.T) {
+		input := `
+			function Caller : Integer;
+			begin
+				Result := DoesNotExist;
+			end;
+
+			PrintLn(Caller);
+		`
+		expectError(t, input, "Unknown name")
+	})
+}

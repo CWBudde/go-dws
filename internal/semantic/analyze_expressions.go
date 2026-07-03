@@ -319,15 +319,39 @@ func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
 		return targetType
 	}
 
-	// Target type can be either interface OR class
+	// Target type can be an interface, a class, or a metaclass (`class of X`).
 	targetUnderlying := types.GetUnderlyingType(targetType)
 	interfaceType, isInterface := targetUnderlying.(*types.InterfaceType)
 	classTargetType, isClassTarget := targetUnderlying.(*types.ClassType)
+	classOfTarget, isClassOfTarget := targetUnderlying.(*types.ClassOfType)
 
-	if !isInterface && !isClassTarget {
+	if !isInterface && !isClassTarget && !isClassOfTarget {
 		a.addError("'as' operator requires class or interface type, got %s at %s",
 			targetType.String(), expr.Token.Pos.String())
 		return targetType
+	}
+
+	// Metaclass cast: `classRef as TSomeMetaclass` (e.g. `ClassType as TBaseTemplateClass`).
+	// The left operand must be a class reference; the referenced classes must be related.
+	if isClassOfTarget {
+		if leftType != types.NIL {
+			leftClassOf, leftIsClassOf := types.GetUnderlyingType(leftType).(*types.ClassOfType)
+			if !leftIsClassOf {
+				a.addError("'as' operator requires a class reference for a metaclass cast, got %s at %s",
+					leftType.String(), expr.Token.Pos.String())
+				return nil
+			}
+			if classOfTarget.ClassType != nil && leftClassOf.ClassType != nil &&
+				!types.IsClassRelated(leftClassOf.ClassType, classOfTarget.ClassType) {
+				a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, leftClassOf.ClassType.Name, classOfTarget.ClassType.Name))
+				return nil
+			}
+		}
+		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
+			Token: expr.Token,
+			Name:  targetType.String(),
+		})
+		return classOfTarget
 	}
 
 	// Validate that left type is a class or object
