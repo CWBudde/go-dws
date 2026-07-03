@@ -295,9 +295,48 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		return fmt.Errorf("cannot analyze nil program")
 	}
 
-	// Analyze each statement
+	// Two-pass analysis so top-level functions resolve regardless of source order
+	// (DWScript treats top-level function declarations as mutually visible, so
+	// mutual recursion works without an explicit `forward` declaration).
+	//
+	// Pass 1 walks the program in source order and analyzes every statement as
+	// before, EXCEPT that a regular top-level function has only its signature
+	// registered (its body is deferred). Because signatures are registered in
+	// source order alongside types/consts/vars, existing ordering semantics for
+	// declarations are preserved. Pass 2 then analyzes the deferred bodies, by
+	// which point every top-level function signature is visible.
+	type deferredFunc struct {
+		decl       *ast.FunctionDecl
+		paramTypes []types.Type
+		returnType types.Type
+		analyze    bool // false when registration failed or it is a forward decl
+	}
+	deferred := make(map[*ast.FunctionDecl]deferredFunc)
+
+	// Pass 1: register signatures, analyze non-function declarations and top-level statements.
 	for _, stmt := range program.Statements {
+		if fd, ok := stmt.(*ast.FunctionDecl); ok && fd.ClassName == nil && !fd.IsHelper {
+			paramTypes, returnType, regOK := a.registerFunctionSignature(fd)
+			deferred[fd] = deferredFunc{
+				decl:       fd,
+				paramTypes: paramTypes,
+				returnType: returnType,
+				analyze:    regOK && !fd.IsForward,
+			}
+			continue
+		}
 		a.analyzeStatement(stmt)
+	}
+
+	// Pass 2: analyze deferred function bodies in source order.
+	for _, stmt := range program.Statements {
+		fd, ok := stmt.(*ast.FunctionDecl)
+		if !ok {
+			continue
+		}
+		if df, tracked := deferred[fd]; tracked && df.analyze {
+			a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
+		}
 	}
 
 	a.validateForwardDeclarations()

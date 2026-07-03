@@ -154,11 +154,19 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 					implementedFunctions[normalizedName] = true
 				}
 
-				// Analyze the function implementation
-				// (For now, we just validate the structure; full body analysis comes later)
+				// Analyze the function implementation body so type errors inside unit
+				// functions are reported (mirrors analyzeFunctionBody for the program path).
 				if decl.Body != nil {
-					// TODO: Analyze function body when ready
-					// For now, just verify it's present
+					funcType, err := a.buildFunctionType(decl)
+					if err != nil {
+						a.addError("invalid function signature for '%s': %v", decl.Name.Value, err)
+						continue
+					}
+					returnType := funcType.ReturnType
+					if returnType == nil {
+						returnType = types.VOID
+					}
+					a.analyzeFunctionBody(decl, funcType.Parameters, returnType)
 				}
 
 			default:

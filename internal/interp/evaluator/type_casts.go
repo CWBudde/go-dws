@@ -17,6 +17,7 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 	// First check if this is actually a type cast before evaluating the argument
 	// This prevents double evaluation when it's not a type cast
 	isTypeCast := false
+	classOfTarget := false
 	var enumType *types.EnumType
 	var setType *types.SetType
 	lowerName := pkgident.Normalize(typeName)
@@ -35,6 +36,15 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 				if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
 					enumType = etv.GetEnumType()
 					isTypeCast = true
+				}
+			}
+			// Check if it's a metaclass ('class of X') alias, e.g. TBaseClass(ClassType).
+			if !isTypeCast {
+				if resolved, err := e.ResolveType(typeName); err == nil && resolved != nil {
+					if _, ok := resolved.(*types.ClassOfType); ok {
+						isTypeCast = true
+						classOfTarget = true
+					}
 				}
 			}
 		}
@@ -82,6 +92,14 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		// Check if it's a named set type
 		if setType != nil {
 			return e.castToSet(val, setType, typeName)
+		}
+		// Metaclass ('class of X') cast: a forced reinterpretation of a class
+		// reference, e.g. TBaseClass(ClassType). The runtime class is unchanged.
+		if classOfTarget {
+			if _, ok := val.(ClassMetaValue); ok {
+				return val
+			}
+			return e.newError(argExpr, "cannot cast %s to metaclass '%s'", val.Type(), typeName)
 		}
 		// Must be a class type (we already checked above)
 		return e.castToClassType(val, typeName, argExpr)

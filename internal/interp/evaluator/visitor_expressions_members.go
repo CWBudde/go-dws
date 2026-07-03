@@ -389,115 +389,12 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		fallthrough
 
 	case "CLASSINFO":
-		// Metaclass access: ClassName, ClassType, class vars/consts
+		// Metaclass access: ClassName, ClassParent, ClassType, class vars/consts
 		classMetaVal, ok := obj.(ClassMetaValue)
 		if !ok {
 			return e.newError(node, "internal error: %s value does not implement ClassMetaValue interface", obj.Type())
 		}
-
-		// Built-in properties
-		if ident.Equal(memberName, "ClassName") {
-			return &runtime.StringValue{Value: classMetaVal.GetClassName()}
-		}
-		if ident.Equal(memberName, "ClassType") {
-			return obj
-		}
-
-		// Class variables and constants
-		if val, found := classMetaVal.GetClassVar(memberName); found {
-			return val
-		}
-		if val, found := classMetaVal.GetClassConstant(memberName); found {
-			return val
-		}
-
-		// Class properties (class property Counter: Integer read FCounter)
-		if result, found := classMetaVal.ReadClassProperty(memberName, func(propInfo any) Value {
-			classInfo := classMetaVal.GetClassInfo()
-			if classInfo == nil {
-				return e.newError(node, "class metadata unavailable for class property read")
-			}
-			typedPropInfo, ok := propInfo.(*types.PropertyInfo)
-			if !ok {
-				return e.newError(node, "invalid property info type for class property read")
-			}
-			return e.evalClassPropertyRead(classInfo, typedPropInfo, node, ctx)
-		}); found {
-			return result
-		}
-
-		// Instance properties backed by class vars/consts accessed via class name
-		if classInfo := classMetaVal.GetClassInfo(); classInfo != nil {
-			if propDesc := classInfo.LookupProperty(memberName); propDesc != nil {
-				if propInfo, ok := propDesc.Impl.(*types.PropertyInfo); ok && !propInfo.IsClassProperty && propInfo.ReadKind == types.PropAccessField {
-					if val, found := classMetaVal.GetClassVar(propInfo.ReadSpec); found {
-						return val
-					}
-					if val, found := classMetaVal.GetClassConstant(propInfo.ReadSpec); found {
-						return val
-					}
-				}
-			}
-		}
-
-		// Constructors: auto-invoke without parentheses
-		if classMetaVal.HasConstructor(memberName) {
-			result, invoked := classMetaVal.InvokeConstructor(memberName, func(methodDecl any) Value {
-				// Create synthetic method call and route to VisitMethodCallExpression
-				methodCall := &ast.MethodCallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: node.Token},
-					},
-					Object:    node.Object,
-					Method:    node.Member,
-					Arguments: []ast.Expression{},
-				}
-				return e.VisitMethodCallExpression(methodCall, ctx)
-			})
-			if invoked {
-				return result
-			}
-		}
-		if ident.Equal(memberName, "Create") && classMetaVal.GetClassInfo() != nil {
-			return e.callClassConstructor(classMetaVal, memberName, []Value{}, node, ctx)
-		}
-
-		// Class methods: auto-invoke if parameterless, else return function pointer
-		if classMetaVal.HasClassMethod(memberName) {
-			// Try parameterless auto-invoke
-			result, invoked := classMetaVal.InvokeParameterlessClassMethod(memberName, func(methodDecl any) Value {
-				return e.executeClassMethodDirect(classMetaVal, methodDecl, nil, node, ctx)
-			})
-			if invoked {
-				return result
-			}
-
-			// Return function pointer for class methods with parameters
-			result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
-				return e.createFunctionPointerFromDecl(methodDecl, nil, ctx)
-			})
-			if created {
-				return result
-			}
-		}
-
-		// Nested class access
-		if nestedClass := classMetaVal.GetNestedClass(memberName); nestedClass != nil {
-			return nestedClass
-		}
-
-		if !isCurrentHelperMethod(ctx, memberName) {
-			if helperResult := e.FindHelperMethod(obj, memberName); helperResult != nil {
-				if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
-					return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
-				}
-				if helperResult.BuiltinSpec != "" {
-					return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
-				}
-			}
-		}
-
-		return e.newError(node, "member '%s' not found in class '%s'", memberName, classMetaVal.GetClassName())
+		return e.resolveClassMetaMember(obj, classMetaVal, memberName, node, ctx)
 
 	case "RECORD_TYPE":
 		// Static record access: constants, class vars, static methods
@@ -640,6 +537,19 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		// Non-enum type meta: check helpers
 		if !enumMeta.IsEnumTypeMeta() {
+			// Metaclass reference (e.g. `TClass = class of TObject`): a class-of type
+			// used as a value. Resolve class members (ClassName, ClassParent, ClassType,
+			// class methods/consts) against the referenced class.
+			if tmv, ok := obj.(*runtime.TypeMetaValue); ok {
+				if classOf, ok := tmv.TypeInfo.(*types.ClassOfType); ok && classOf.ClassType != nil {
+					classVal := e.makeClassValue(node, classOf.ClassType.Name)
+					if !isError(classVal) {
+						if classMetaVal, ok := classVal.(ClassMetaValue); ok {
+							return e.resolveClassMetaMember(classVal, classMetaVal, memberName, node, ctx)
+						}
+					}
+				}
+			}
 			if helper, propInfo := e.FindHelperProperty(obj, memberName); propInfo != nil {
 				return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
 			}
@@ -783,6 +693,138 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		return e.newError(node, "member '%s' not found on value of type '%s'", memberName, obj.Type())
 	}
+}
+
+// makeClassValue builds a class (metaclass) reference value for the named class,
+// returning an error value if the class cannot be resolved.
+func (e *Evaluator) makeClassValue(node ast.Node, className string) Value {
+	classValAny, err := e.typeSystem.CreateClassValue(className)
+	if err != nil {
+		return e.newError(node, "%s", err.Error())
+	}
+	if cv, ok := classValAny.(Value); ok && cv != nil {
+		return cv
+	}
+	return e.newError(node, "internal error: class value factory returned non-Value type for '%s'", className)
+}
+
+// resolveClassMetaMember resolves a member access against a class/metaclass value
+// (built-in properties, class vars/consts/properties, constructors, class methods,
+// nested classes, and helpers). It is shared by the CLASS/CLASSINFO member path and
+// by the metaclass (`class of X`) member path.
+func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValue, memberName string, node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
+	// Built-in properties
+	if ident.Equal(memberName, "ClassName") {
+		return &runtime.StringValue{Value: classMetaVal.GetClassName()}
+	}
+	if ident.Equal(memberName, "ClassType") {
+		return obj
+	}
+	if ident.Equal(memberName, "ClassParent") {
+		if classInfo := classMetaVal.GetClassInfo(); classInfo != nil {
+			if parent := classInfo.GetParent(); parent != nil {
+				return e.makeClassValue(node, parent.GetName())
+			}
+		}
+		// Root class (TObject): ClassParent is nil.
+		return &runtime.NilValue{}
+	}
+
+	// Class variables and constants
+	if val, found := classMetaVal.GetClassVar(memberName); found {
+		return val
+	}
+	if val, found := classMetaVal.GetClassConstant(memberName); found {
+		return val
+	}
+
+	// Class properties (class property Counter: Integer read FCounter)
+	if result, found := classMetaVal.ReadClassProperty(memberName, func(propInfo any) Value {
+		classInfo := classMetaVal.GetClassInfo()
+		if classInfo == nil {
+			return e.newError(node, "class metadata unavailable for class property read")
+		}
+		typedPropInfo, ok := propInfo.(*types.PropertyInfo)
+		if !ok {
+			return e.newError(node, "invalid property info type for class property read")
+		}
+		return e.evalClassPropertyRead(classInfo, typedPropInfo, node, ctx)
+	}); found {
+		return result
+	}
+
+	// Instance properties backed by class vars/consts accessed via class name
+	if classInfo := classMetaVal.GetClassInfo(); classInfo != nil {
+		if propDesc := classInfo.LookupProperty(memberName); propDesc != nil {
+			if propInfo, ok := propDesc.Impl.(*types.PropertyInfo); ok && !propInfo.IsClassProperty && propInfo.ReadKind == types.PropAccessField {
+				if val, found := classMetaVal.GetClassVar(propInfo.ReadSpec); found {
+					return val
+				}
+				if val, found := classMetaVal.GetClassConstant(propInfo.ReadSpec); found {
+					return val
+				}
+			}
+		}
+	}
+
+	// Constructors: auto-invoke without parentheses
+	if classMetaVal.HasConstructor(memberName) {
+		result, invoked := classMetaVal.InvokeConstructor(memberName, func(methodDecl any) Value {
+			// Create synthetic method call and route to VisitMethodCallExpression
+			methodCall := &ast.MethodCallExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{Token: node.Token},
+				},
+				Object:    node.Object,
+				Method:    node.Member,
+				Arguments: []ast.Expression{},
+			}
+			return e.VisitMethodCallExpression(methodCall, ctx)
+		})
+		if invoked {
+			return result
+		}
+	}
+	if ident.Equal(memberName, "Create") && classMetaVal.GetClassInfo() != nil {
+		return e.callClassConstructor(classMetaVal, memberName, []Value{}, node, ctx)
+	}
+
+	// Class methods: auto-invoke if parameterless, else return function pointer
+	if classMetaVal.HasClassMethod(memberName) {
+		// Try parameterless auto-invoke
+		result, invoked := classMetaVal.InvokeParameterlessClassMethod(memberName, func(methodDecl any) Value {
+			return e.executeClassMethodDirect(classMetaVal, methodDecl, nil, node, ctx)
+		})
+		if invoked {
+			return result
+		}
+
+		// Return function pointer for class methods with parameters
+		result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
+			return e.createFunctionPointerFromDecl(methodDecl, nil, ctx)
+		})
+		if created {
+			return result
+		}
+	}
+
+	// Nested class access
+	if nestedClass := classMetaVal.GetNestedClass(memberName); nestedClass != nil {
+		return nestedClass
+	}
+
+	if !isCurrentHelperMethod(ctx, memberName) {
+		if helperResult := e.FindHelperMethod(obj, memberName); helperResult != nil {
+			if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+			}
+			if helperResult.BuiltinSpec != "" {
+				return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+			}
+		}
+	}
+
+	return e.newError(node, "member '%s' not found in class '%s'", memberName, classMetaVal.GetClassName())
 }
 
 // classSelfForInstance resolves the class (metaclass) value for an instance, so a class

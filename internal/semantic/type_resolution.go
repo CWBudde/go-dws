@@ -858,6 +858,20 @@ func (a *Analyzer) hasConstructorWithName(constructorName string, parent *types.
 // getMethodOverloadsInHierarchy collects all method overloads from the class hierarchy
 // Returns all overload variants for the given method name, searching up the inheritance chain
 // getMethodOverloadsInHierarchy also includes constructor overloads when the method name is a constructor.
+// isClassMethodInHierarchy reports whether the named method resolves to a class
+// method anywhere in the class's inheritance chain. It is used to validate access
+// through a metaclass value, where inherited class methods are not present in the
+// derived class's own ClassMethodFlags map.
+func (a *Analyzer) isClassMethodInHierarchy(classType *types.ClassType, methodName string) bool {
+	overloads := a.getMethodOverloadsInHierarchy(methodName, classType)
+	for _, overload := range overloads {
+		if overload != nil && overload.IsClassMethod {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *types.ClassType) []*types.MethodInfo {
 	if classType == nil {
 		return nil

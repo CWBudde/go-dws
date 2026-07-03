@@ -353,8 +353,10 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 	} else if len(overloads) == 1 {
-		// Single method (not overloaded)
-		if isMetaclass && (classType.ClassMethodFlags == nil || !classType.ClassMethodFlags[ident.Normalize(methodName)]) {
+		// Single method (not overloaded). A method reached through a metaclass value must
+		// be a class method or constructor. Use the resolved overload's flag so inherited
+		// class methods (not present in this class's own ClassMethodFlags map) are accepted.
+		if isMetaclass && !overloads[0].IsClassMethod {
 			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
 			return nil
 		}
