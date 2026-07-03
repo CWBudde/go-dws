@@ -224,6 +224,31 @@ begin
 end.
 ```
 
+### Compiler Hints & Warnings
+
+DWScript is **case-insensitive**: identifiers, keywords, and member names resolve
+regardless of case, so a program always compiles no matter how its identifiers are
+cased. The compiler can, on request, report *informational* hints and warnings
+(such as an identifier whose casing differs from its declaration). These are never
+fatal and never change execution.
+
+Use `--hints` to print them to **stderr** (program output on stdout is unaffected):
+
+```bash
+# Off by default — no hint/warning output
+./bin/dwscript run script.dws
+
+# Warnings + hints (deduplicated, sorted by source position)
+./bin/dwscript run --hints normal script.dws     # warnings (deprecations, unreachable code, …)
+./bin/dwscript run --hints pedantic script.dws    # also case-mismatch hints
+```
+
+Levels: `off` (default), `normal`, `strict`, `pedantic`. Example output:
+
+```text
+Hint: "printLn" does not match case of declaration ("PrintLn") [line: 3, column: 1]
+```
+
 ## Embedding in Go Applications
 
 go-dws can be used as a library to embed the DWScript interpreter in your Go applications:
