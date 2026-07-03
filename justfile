@@ -55,7 +55,7 @@ fixture-update:
 
 # Print the ground-truth per-category compatibility report (CLI-based, does not skip anything)
 fixture-report *ARGS: build
-    python3 scripts/fixture_report.py {{ARGS}}
+    go run ./cmd/fixture-report {{ARGS}}
 
 # Clean build artifacts
 clean:
