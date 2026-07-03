@@ -255,6 +255,22 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       `BuiltinName` and the executor dispatches through `builtins.DefaultRegistry`. Unblocks
       `a.Map(IntToStr)`-style code. ArrayPass 27→59 (CLI) / baseline 30→64, LambdaPass 0→1,
       overall 434→469 (CLI); no category regressed.
+- [x] **Set operations closed to parity for common cases.** Four independent gaps kept SetOfPass
+      at 16%: (1) `var s : TMySet;` where `TMySet = set of …` left the variable nil (only inline
+      `set of …` annotations were zero-initialized), so `in`/`Include`/`Exclude` all raised "Object
+      not instantiated" — `createZeroValue` now resolves named set types via `__set_type_<name>`
+      and returns an empty `SetValue`. (2) The procedure forms `Include(s, x)` / `Exclude(s, x)`
+      were listed in `isBuiltinFunction` but had no analyzer or evaluator handler (only the method
+      forms `s.Include(x)` existed), so every call was "Unknown name Include" — added
+      `analyzeIncludeExclude` (semantic) and `builtinIncludeExclude` (evaluator, mutates the set
+      lvalue in place). (3) Set comparison operators `=`/`<>`/`<=`(subset)/`>=`(superset) were
+      rejected as "Invalid Operands"/"requires comparable types" — added a set branch to the
+      comparison analyzer (returns Boolean; `<`/`>` remain invalid per DWScript) and
+      `evalSetComparison` in the evaluator. (4) Set↔Integer bitmask casts `Integer(s)` / `TSet(i)`
+      were unhandled — added `castToInteger` SET case, `castToSet`, and the `isValidCast` set/integer
+      branch. **SetOfPass 4 → 14 (16% → 56%)**, overall 470 → 480 (CLI) / scored baseline 597 → 607;
+      no category regressed. Remaining fails are separate features (anonymous inline enums in
+      `set of (A,B,C)`, array↔set conversion, `set of` record fields, out-of-range diagnostics).
 - [ ] Work the 88 wrong-output fixtures (e.g. `casts_base_types` rounding, `case_variant`).
 - [ ] Work the 68 runtime-panic fixtures (metaclass `ClassName`, class-method dispatch, `class of`).
 - [ ] Post-exception continuation semantics (`assigned.pas` expects execution to continue after a

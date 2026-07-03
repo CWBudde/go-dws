@@ -1398,6 +1398,13 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		return runtime.NewSubrangeValueZero(subrangeType)
 	}
 
+	// Named set types (type TMySet = set of TMyEnum;) initialize to an empty set.
+	if setTypeVal, ok := ctx.Env().Get("__set_type_" + ident.Normalize(typeName)); ok {
+		if stv, ok := setTypeVal.(interface{ GetSetType() *types.SetType }); ok {
+			return runtime.NewSetValue(stv.GetSetType())
+		}
+	}
+
 	if e.typeSystem.HasInterface(typeName) {
 		// Lookup interface metadata from TypeSystem
 		ifaceInfoAny := e.typeSystem.LookupInterface(typeName)

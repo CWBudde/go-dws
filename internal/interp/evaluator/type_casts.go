@@ -18,6 +18,7 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 	// This prevents double evaluation when it's not a type cast
 	isTypeCast := false
 	var enumType *types.EnumType
+	var setType *types.SetType
 	lowerName := pkgident.Normalize(typeName)
 
 	// Check if it's a built-in type
@@ -33,6 +34,16 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 			if enumMetadata := e.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
 				if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
 					enumType = etv.GetEnumType()
+					isTypeCast = true
+				}
+			}
+		}
+
+		// Check if it's a named set type (type TSet = set of TEnum;)
+		if !isTypeCast {
+			if setTypeVal, ok := ctx.Env().Get("__set_type_" + lowerName); ok {
+				if stv, ok := setTypeVal.(interface{ GetSetType() *types.SetType }); ok {
+					setType = stv.GetSetType()
 					isTypeCast = true
 				}
 			}
@@ -68,6 +79,10 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		if enumType != nil {
 			return e.castToEnum(val, enumType, typeName)
 		}
+		// Check if it's a named set type
+		if setType != nil {
+			return e.castToSet(val, setType, typeName)
+		}
 		// Must be a class type (we already checked above)
 		return e.castToClassType(val, typeName, argExpr)
 	}
@@ -97,6 +112,16 @@ func (e *Evaluator) castToInteger(val Value) Value {
 	case *runtime.EnumValue:
 		// Cast enum to its ordinal value
 		return &runtime.IntegerValue{Value: int64(v.OrdinalValue)}
+	case *runtime.SetValue:
+		// Cast a set to its integer bitmask representation: bit N is set when
+		// ordinal N is a member of the set.
+		var bits int64
+		for _, ord := range v.Ordinals() {
+			if ord >= 0 && ord < 64 {
+				bits |= 1 << uint(ord)
+			}
+		}
+		return &runtime.IntegerValue{Value: bits}
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
@@ -107,6 +132,34 @@ func (e *Evaluator) castToInteger(val Value) Value {
 	}
 
 	return &runtime.ErrorValue{Message: fmt.Sprintf("cannot cast %s to Integer", val.Type())}
+}
+
+// castToSet converts an integer bitmask to a set of the given type.
+// Each set bit N adds ordinal N to the resulting set. An existing set of the
+// same type is returned unchanged.
+func (e *Evaluator) castToSet(val Value, setType *types.SetType, typeName string) Value {
+	if sv, ok := val.(*runtime.SetValue); ok {
+		return sv
+	}
+
+	intVal, ok := val.(*runtime.IntegerValue)
+	if !ok {
+		if val.Type() == "VARIANT" {
+			if varAccessor, ok := val.(VariantAccessor); ok {
+				return e.castToSet(varAccessor.GetVariantValue(), setType, typeName)
+			}
+		}
+		return &runtime.ErrorValue{Message: fmt.Sprintf("cannot cast %s to set %s", val.Type(), typeName)}
+	}
+
+	result := runtime.NewSetValue(setType)
+	bits := intVal.Value
+	for ord := 0; ord < 64; ord++ {
+		if bits&(1<<uint(ord)) != 0 {
+			result.AddElement(ord)
+		}
+	}
+	return result
 }
 
 // castToFloat converts a value to Float

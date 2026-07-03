@@ -450,6 +450,29 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 	// Handle comparison operators
 	if operator == "=" || operator == "<>" || operator == "<" || operator == ">" || operator == "<=" || operator == ">=" {
+		// Set comparisons: = / <> (equality), <= (subset), >= (superset).
+		// DWScript does not define proper subset/superset (< and >) for sets.
+		leftSetType, leftIsSetCmp := types.GetUnderlyingType(leftType).(*types.SetType)
+		rightSetType, rightIsSetCmp := types.GetUnderlyingType(rightType).(*types.SetType)
+		if leftIsSetCmp || rightIsSetCmp {
+			if !leftIsSetCmp || !rightIsSetCmp {
+				a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
+				return nil
+			}
+			if !leftSetType.ElementType.Equals(rightSetType.ElementType) {
+				a.addError("incompatible types in set comparison: set of %s and set of %s at %s",
+					leftSetType.ElementType.String(), rightSetType.ElementType.String(), expr.Token.Pos.String())
+				return nil
+			}
+			switch operator {
+			case "=", "<>", "<=", ">=":
+				return types.BOOLEAN
+			default:
+				a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
+				return nil
+			}
+		}
+
 		// Variant can be compared with any type
 		leftIsVariant := leftType == types.VARIANT
 		rightIsVariant := rightType == types.VARIANT

@@ -828,6 +828,66 @@ func (e *Evaluator) builtinSwap(args []ast.Expression, ctx *ExecutionContext) Va
 	return &runtime.NilValue{}
 }
 
+// builtinIncludeExclude implements the procedure forms of the set builtins
+// Include(setVar, element) and Exclude(setVar, element). Both mutate the set
+// variable in place: Include adds an element, Exclude removes it.
+func (e *Evaluator) builtinIncludeExclude(op string, args []ast.Expression, ctx *ExecutionContext) Value {
+	canonical := "Include"
+	if op == "exclude" {
+		canonical = "Exclude"
+	}
+
+	if len(args) != 2 {
+		return e.newError(nil, "%s() expects 2 arguments, got %d", canonical, len(args))
+	}
+
+	// Evaluate the set lvalue once so the mutation is written back to the variable.
+	setRaw, assignFunc, err := e.EvaluateLValue(args[0], ctx)
+	if err != nil {
+		return e.newError(nil, "%s() first argument must be a set variable: %s", canonical, err.Error())
+	}
+	if ref, isRef := setRaw.(ReferenceAccessor); isRef {
+		deref, derr := ref.Dereference()
+		if derr != nil {
+			return e.newError(nil, "%s", derr.Error())
+		}
+		setRaw = deref
+	}
+
+	setVal, ok := setRaw.(SetMethodDispatcher)
+	if !ok {
+		gotType := "nil"
+		if setRaw != nil {
+			gotType = setRaw.Type()
+		}
+		return e.newError(nil, "%s() first argument must be a set, got %s", canonical, gotType)
+	}
+
+	elemVal := e.Eval(args[1], ctx)
+	if isError(elemVal) {
+		return elemVal
+	}
+	ordinal, oerr := runtime.GetOrdinalValue(elemVal)
+	if oerr != nil {
+		return e.newError(nil, "%s() requires an ordinal element: %s", canonical, oerr.Error())
+	}
+
+	if op == "exclude" {
+		setVal.RemoveElement(ordinal)
+	} else {
+		setVal.AddElement(ordinal)
+	}
+
+	// Write the mutated set back in case the lvalue holds a value copy.
+	if sv, isValue := setVal.(Value); isValue {
+		if aerr := assignFunc(sv); aerr != nil {
+			return e.newError(nil, "%s() failed to update set variable: %s", canonical, aerr.Error())
+		}
+	}
+
+	return &runtime.NilValue{}
+}
+
 // builtinDivMod implements the DivMod() built-in function.
 // DivMod(dividend, divisor, quotient, remainder) - performs integer division
 // First two arguments are values, last two are var parameters for output.
