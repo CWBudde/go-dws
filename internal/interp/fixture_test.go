@@ -117,9 +117,7 @@ func buildFixtureWorkList(categories []fixtureCategory) []fixtureRequest {
 		if hintsLevel == 0 {
 			hintsLevel = semantic.HintsLevelPedantic
 		}
-		pasFiles, _ := filepath.Glob(filepath.Join(category.path, "*.pas"))
-		sort.Strings(pasFiles)
-		for _, pf := range pasFiles {
+		for _, pf := range category.pasFiles {
 			items = append(items, fixtureRequest{
 				Pas:          pf,
 				ExpectErrors: category.expectErrors,
@@ -133,9 +131,7 @@ func buildFixtureWorkList(categories []fixtureCategory) []fixtureRequest {
 // tallyCategory aggregates worker results for one category into a categoryOutcome.
 func tallyCategory(category fixtureCategory, results map[string]fixtureResponse) categoryOutcome {
 	outcome := categoryOutcome{category: category}
-	pasFiles, _ := filepath.Glob(filepath.Join(category.path, "*.pas"))
-	sort.Strings(pasFiles)
-	for _, pf := range pasFiles {
+	for _, pf := range category.pasFiles {
 		outcome.total++
 		switch testResult(results[pf].Result) {
 		case testResultPassed:
@@ -179,6 +175,7 @@ type fixtureCategory struct {
 	name         string
 	path         string
 	description  string
+	pasFiles     []string
 	hintsLevel   semantic.HintsLevel
 	expectErrors bool
 }
@@ -242,6 +239,7 @@ func discoverFixtureCategories(root string) ([]fixtureCategory, error) {
 		if len(pasFiles) == 0 {
 			continue
 		}
+		sort.Strings(pasFiles)
 
 		description := categoryDescriptions[name]
 		if description == "" {
@@ -252,6 +250,7 @@ func discoverFixtureCategories(root string) ([]fixtureCategory, error) {
 			name:         name,
 			path:         dir,
 			description:  description,
+			pasFiles:     pasFiles,
 			expectErrors: isErrorCategory(name),
 			hintsLevel:   hintsLevelOverrides[name],
 		})
@@ -308,14 +307,20 @@ func TestFixtureWorkerMain(t *testing.T) {
 		line, err := reader.ReadBytes('\n')
 		if len(bytes.TrimSpace(line)) > 0 {
 			var req fixtureRequest
+			var resp fixtureResponse
 			if jsonErr := json.Unmarshal(line, &req); jsonErr == nil {
 				result, detail := runFixtureTest(req.Pas, req.ExpectErrors, semantic.HintsLevel(req.Hints))
-				payload, _ := json.Marshal(fixtureResponse{Result: int(result), Detail: detail})
-				_, _ = writer.WriteString(fixtureRespSentinel)
-				_, _ = writer.Write(payload)
-				_ = writer.WriteByte('\n')
-				_ = writer.Flush()
+				resp = fixtureResponse{Result: int(result), Detail: detail}
+			} else {
+				// Emit an explicit failure instead of staying silent, so the parent fails
+				// fast with a useful reason rather than waiting for the hang timeout.
+				resp = fixtureResponse{Result: int(testResultFailed), Detail: "worker: malformed request JSON: " + jsonErr.Error()}
 			}
+			payload, _ := json.Marshal(resp)
+			_, _ = writer.WriteString(fixtureRespSentinel)
+			_, _ = writer.Write(payload)
+			_ = writer.WriteByte('\n')
+			_ = writer.Flush()
 		}
 		if err != nil {
 			break
@@ -393,7 +398,9 @@ type fixtureVerdict struct {
 func (w *fixtureWorker) start() error {
 	cmd := exec.Command(os.Args[0], "-test.run=^TestFixtureWorkerMain$", "-test.timeout=0")
 	cmd.Env = append(os.Environ(), fixtureWorkerEnv+"=1")
-	cmd.Stderr = nil
+	// Surface worker stderr (panics, runtime diagnostics) to the parent so fixture
+	// regressions stay debuggable. Only stdout carries the sentinel-prefixed protocol.
+	cmd.Stderr = os.Stderr
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -514,12 +521,16 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 		return testResultFailed, fmt.Sprintf("failed to read source: %v", err)
 	}
 
-	// A fixture is only scored when it ships an expected .txt; otherwise it is skipped
-	// (matches scripts/fixture_report.py's NoExp handling).
+	// A fixture is only scored when it ships an expected .txt; a missing file means the
+	// fixture is intentionally not scored (skipped). Any other read/decode error is a real
+	// problem and must fail rather than masquerade as a skip.
 	txtFile := strings.TrimSuffix(pasFile, ".pas") + ".txt"
 	expectedContent, err := detectAndDecodeFile(txtFile)
 	if err != nil {
-		return testResultSkipped, ""
+		if os.IsNotExist(err) {
+			return testResultSkipped, ""
+		}
+		return testResultFailed, fmt.Sprintf("failed to read expected output: %v", err)
 	}
 
 	compileResult := frontend.Compile(source, pasFile, hintsLevel)
@@ -652,9 +663,13 @@ func loadFixtureBaselines(t *testing.T, updateMode bool) map[string]int {
 	data, err := os.ReadFile(fixtureBaselinePath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			// Outside update mode a missing baseline would gate every category against
+			// zero, silently turning the P0 regression gate into a no-op. Fail closed so
+			// a packaging/rename mistake can't disable the gate; only the initial
+			// update-mode run is allowed to proceed without it.
 			if !updateMode {
-				t.Logf("baseline file %s not found; treating all baselines as 0. "+
-					"Run `just fixture-update` to create it.", fixtureBaselinePath)
+				t.Fatalf("baseline file %s not found; the regression gate cannot run. "+
+					"Run `just fixture-update` (FIXTURE_UPDATE_BASELINE=1) to create it.", fixtureBaselinePath)
 			}
 			return map[string]int{}
 		}
