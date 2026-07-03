@@ -284,8 +284,14 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// class methods to be invoked on instances; dispatch through the method-call
 		// path (which resolves class methods and binds the metaclass as Self).
 		if classMethodDecl, ok := objVal.GetClassMethodDecl(memberName).(*ast.FunctionDecl); ok && classMethodDecl != nil {
+			// A class method observes Self as the metaclass, not the instance it was
+			// reached through. Bind the receiver's class value so a class method using
+			// Self (e.g. Self.Create or returning Self) behaves the same as the
+			// TClass.Method() path. The zero-parameter auto-invoke below already routes
+			// through VisitMethodCallExpression, which resolves the class value itself.
+			classSelf := e.classSelfForInstance(objVal, obj)
 			if wantMethodPointer {
-				return e.createFunctionPointerFromDecl(classMethodDecl, obj, ctx)
+				return e.createFunctionPointerFromDecl(classMethodDecl, classSelf, ctx)
 			}
 			if len(classMethodDecl.Parameters) == 0 {
 				methodCall := &ast.MethodCallExpression{
@@ -298,7 +304,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				}
 				return e.VisitMethodCallExpression(methodCall, ctx)
 			}
-			return e.createFunctionPointerFromDecl(classMethodDecl, obj, ctx)
+			return e.createFunctionPointerFromDecl(classMethodDecl, classSelf, ctx)
 		}
 
 		// Helper methods (parameterless auto-invoke)
@@ -777,4 +783,17 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		return e.newError(node, "member '%s' not found on value of type '%s'", memberName, obj.Type())
 	}
+}
+
+// classSelfForInstance resolves the class (metaclass) value for an instance, so a class
+// method reached through that instance binds Self to the class rather than the object.
+// If the class value cannot be resolved it falls back to the instance, preserving the
+// previous behavior instead of failing the member access.
+func (e *Evaluator) classSelfForInstance(objVal ObjectValue, obj Value) Value {
+	if classValAny, err := e.typeSystem.CreateClassValue(objVal.ClassName()); err == nil {
+		if cv, ok := classValAny.(Value); ok && cv != nil {
+			return cv
+		}
+	}
+	return obj
 }

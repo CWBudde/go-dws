@@ -101,6 +101,22 @@ func parseHintsLevel(s string) (semantic.HintsLevel, bool) {
 	}
 }
 
+// realSemanticErrors filters out informational hint/warning lines, leaving only actual
+// semantic errors. With --hints enabled, Analyzer.Errors() mixes Hint:/Warning: lines in
+// with real errors; those are surfaced separately via printHintsAndWarnings and must not be
+// formatted as compiler errors (they carry no line:col and would render at 0:0) or counted
+// toward the error total.
+func realSemanticErrors(lines []string) []string {
+	out := make([]string, 0, len(lines))
+	for _, e := range lines {
+		if strings.HasPrefix(e, "Hint:") || strings.HasPrefix(e, "Warning:") {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
 // printHintsAndWarnings writes any hint/warning lines the analyzer accumulated to
 // stderr, deduplicated by exact text and sorted by source position. These are
 // informational only; a program with case mismatches still compiles and runs.
@@ -233,6 +249,11 @@ func runScript(_ *cobra.Command, args []string) error {
 		}
 
 		if err := analyzer.Analyze(program); err != nil {
+			// Exclude informational hints/warnings so they are neither mis-formatted as
+			// compiler errors nor counted toward the error total (they are printed
+			// separately below when --hints is enabled).
+			realErrors := realSemanticErrors(analyzer.Errors())
+
 			// Use structured errors if available, fall back to string errors
 			var compilerErrors []*errors.CompilerError
 			if len(analyzer.StructuredErrors()) > 0 {
@@ -242,12 +263,12 @@ func runScript(_ *cobra.Command, args []string) error {
 				}
 			} else {
 				// Fall back to string error conversion for backward compatibility
-				compilerErrors = errors.FromStringErrors(analyzer.Errors(), input, filename)
+				compilerErrors = errors.FromStringErrors(realErrors, input, filename)
 			}
 
 			fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, true))
 			fmt.Fprintln(os.Stderr) // Add newline
-			return fmt.Errorf("semantic analysis failed with %d error(s)", len(analyzer.Errors()))
+			return fmt.Errorf("semantic analysis failed with %d error(s)", len(realErrors))
 		}
 		// Surface accumulated hints/warnings to stderr (non-fatal) when requested.
 		if wantHints {
