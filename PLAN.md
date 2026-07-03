@@ -133,6 +133,20 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         ignores; (4) gate unused-var/field warnings until they match DWScript; (5) emit only behind
         a `run` flag the fixture harness passes (the `Errors >>>>` wrapper is test-harness framing,
         not production CLI output). Expected yield once precise: ~22 immediately, up to ~50.
+      - **⚠️ Blocked — not reproducible from sources (concluded 2026-07).** The fixtures encode
+        case hints *inconsistently* with no signal recoverable from the `.pas` source. Proof:
+        `ArrayPass/array_in2.pas` and `Algorithms/hanoi.pas` both call **lowercase `println`**;
+        array_in2's `.txt` emits `"println" does not match … ("PrintLn")` on every line, hanoi's
+        emits **nothing** — and neither source carries a `{$HINTS}`/`{$WARNINGS}` directive or any
+        other differentiator. The original DWScript test runner set hint levels per test
+        (config/harness state), which was lost when the fixtures were captured as source+output
+        pairs. Regressions from enabling pedantic land in *both* hinted and non-hinted categories
+        (11 Algorithms, 5 SimpleScripts, 2 HelpersPass, …), so no global level and no
+        per-category rule can be zero-regression. Case hints are also purely cosmetic — DWScript
+        is case-insensitive, so execution is identical with or without them. **Do not pursue
+        case-mismatch parity** unless the original per-test hint configuration is recovered; the
+        non-case parts of the envelope (empty-block, unreachable-code, prefer-ToString) may still
+        be worth revisiting individually if a source-level signal exists for them.
 - [ ] Semantic hardening: analyze **unit function bodies** (`internal/semantic/unit_analyzer.go:158`),
       check **subrange bounds at compile time**, make the analyzer **multi-pass** so forward
       references resolve without explicit `forward`.
