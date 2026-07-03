@@ -103,8 +103,21 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
 
 ### P1 — Front-end coverage 🔴 *(attacks the 65% — ~440 fixtures)*
 
-- [ ] **Parse generics.** `type TList<T> = class … end;` and generic methods currently fail at
-      the parser (`GenericsPass` = 0/23, entirely parser-blocked).
+- [x] **Generics via monomorphization.** `type TList<T> = class … end;`, `type TRec<A,B> =
+      record … end;`, and generic array aliases now parse and run. The parser accepts generic
+      type-parameter lists on declarations and generic type-argument lists in type annotations,
+      `new` expressions, and expression position (`TTest<Integer>.Method`, disambiguated from
+      comparisons by requiring a trailing `.`). A new pass (`internal/generics`, wired into
+      `frontend.compileParsedResult` and `cmd/dwscript run` before semantic analysis) specializes
+      each template into a concrete declaration by deep-cloning the AST and substituting the type
+      arguments, so the analyzer and evaluator only ever see ordinary concrete types. Specialized
+      classes take the mangled name `TTest<Integer,String>` (matching DWScript's `ClassName`).
+      **`GenericsPass` 0 → 12/23 (52%)**, overall fixtures 547 → 559. Remaining gaps are separate
+      feature dependencies, not generics parsing: generic interfaces (`interface1`), generic
+      `external` classes / function-pointer types (`class_external1`, `external_promise`,
+      `func_ptr1`), external generic method bodies (`function TTest<T>.Foo` — `while`, `repeat`),
+      operator-overload specialization, and dynamic-array method gaps surfaced through `array of T`
+      (`array1`, `tlist1`). Deeply-nested closing `>>` is not yet supported.
 - [x] **Forward class declarations.** `type TChild = class;` then a later full definition no
       longer errors "already declared"; the evaluator now registers a placeholder that the full
       declaration completes. (`class_forward.pas` now passes end-to-end after the class-method

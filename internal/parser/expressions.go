@@ -144,9 +144,35 @@ func (p *Parser) parseNotInIsAs(leftExp ast.Expression) ast.Expression {
 }
 
 // parseIdentifier parses an identifier.
-// POST: cursor is IDENT (unchanged)
+// POST: cursor is IDENT (unchanged), or the closing '>' of a generic type
+// reference such as `TTest<Integer>` when the generic-instantiation pattern is
+// recognized.
 func (p *Parser) parseIdentifier() ast.Expression {
 	currentToken := p.cursor.Current()
+
+	// Generic type reference in expression position: `TTest<Integer>.Method(...)`.
+	// Recognized only when a balanced `<...>` type-argument list is immediately
+	// followed by '.', which disambiguates it from a chain of '<'/'>' comparisons.
+	if p.looksLikeGenericTypeRef() {
+		base := &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token:  currentToken,
+					EndPos: p.endPosFromToken(currentToken),
+				},
+			},
+			Value: currentToken.Literal,
+		}
+		typeArgs := p.parseTypeArguments()
+		if typeArgs != nil {
+			return &ast.GenericTypeRef{
+				BaseNode: ast.BaseNode{Token: currentToken},
+				Base:     base,
+				TypeArgs: typeArgs,
+			}
+		}
+	}
+
 	return &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{
 			BaseNode: ast.BaseNode{
@@ -156,6 +182,35 @@ func (p *Parser) parseIdentifier() ast.Expression {
 		},
 		Value: currentToken.Literal,
 	}
+}
+
+// looksLikeGenericTypeRef performs a non-consuming lookahead to decide whether
+// the current identifier begins a generic type reference `Name<Args>` used in
+// expression position. It returns true only when a balanced angle-bracket group
+// containing solely type-name tokens (identifiers, dots, commas, nested
+// brackets) is immediately followed by a '.', which reliably distinguishes it
+// from a comparison expression like `a < b > c`.
+func (p *Parser) looksLikeGenericTypeRef() bool {
+	if p.cursor.Peek(1).Type != lexer.LESS {
+		return false
+	}
+	depth := 0
+	for i := 1; i <= 64; i++ {
+		switch p.cursor.Peek(i).Type {
+		case lexer.LESS:
+			depth++
+		case lexer.GREATER:
+			depth--
+			if depth == 0 {
+				return p.cursor.Peek(i+1).Type == lexer.DOT
+			}
+		case lexer.IDENT, lexer.COMMA, lexer.DOT:
+			// Allowed inside a type-argument list.
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // parsePrefixExpression parses a prefix (unary) expression: -x, +x, not x

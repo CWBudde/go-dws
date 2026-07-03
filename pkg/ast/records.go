@@ -29,6 +29,10 @@ type RecordDecl struct {
 	Properties []RecordPropertyDecl
 	Constants  []*ConstDecl
 	ClassVars  []*FieldDecl
+	// TypeParams holds the generic type-parameter names for a generic record
+	// (e.g. ["A", "B"] for `type TRec<A,B> = record ... end;`). Empty for
+	// non-generic records. Generic records are monomorphized before analysis.
+	TypeParams []string
 	BaseNode
 }
 

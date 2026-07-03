@@ -136,6 +136,15 @@ func (p *Parser) parseNewExpression() ast.Expression {
 		Value: strings.Join(parts, "."),
 	}
 
+	// Generic instantiation: new TTest<Integer, String>(...)
+	var typeArgs []ast.TypeExpression
+	if p.cursor.Peek(1).Type == lexer.LESS {
+		typeArgs = p.parseTypeArguments()
+		if typeArgs == nil {
+			return nil
+		}
+	}
+
 	// Check what follows: '(' for class, '[' for array, or nothing for zero-arg constructor
 	nextToken = p.cursor.Peek(1)
 	switch nextToken.Type {
@@ -144,7 +153,11 @@ func (p *Parser) parseNewExpression() ast.Expression {
 		return p.parseNewArrayExpression(newToken, typeName)
 	case lexer.LPAREN:
 		// Class instantiation: new ClassName(args)
-		return p.parseNewClassExpression(newToken, typeName)
+		newExpr := p.parseNewClassExpression(newToken, typeName)
+		if ne, ok := newExpr.(*ast.NewExpression); ok {
+			ne.TypeArgs = typeArgs
+		}
+		return newExpr
 	default:
 		// No parentheses - treat as zero-argument constructor
 		// DWScript allows: new TTest (equivalent to new TTest())
@@ -156,6 +169,7 @@ func (p *Parser) parseNewExpression() ast.Expression {
 			},
 			ClassName: typeName,
 			Arguments: []ast.Expression{},
+			TypeArgs:  typeArgs,
 		}
 	}
 }
