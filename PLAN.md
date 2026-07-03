@@ -81,8 +81,8 @@ Source → Lexer → Parser → AST → Semantic Analyzer ─┬─→ AST Evalu
 
 Goal: a green CI run must mean "the language works," not "the parts we test work."
 
-- [x] `scripts/fixture_report.py` wired into `just` (`fixture-report`) and CI
-      (`.github/workflows/test-fixtures.yaml`, called from `test.yml`).
+- [x] Ground-truth CLI report (`cmd/fixture-report`, a pure-Go tool) wired into `just`
+      (`fixture-report`) and CI (`.github/workflows/test-fixtures.yaml`, called from `test.yml`).
 - [x] **Un-skipped all categories** in `internal/interp/fixture_test.go`. The binary `skip`
       flag is gone; categories are now **auto-discovered** from `testdata/fixtures/` (so none
       can be silently omitted again) and each is gated against a **per-category pass-count
@@ -99,7 +99,7 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
 - **Exit criteria met:** real per-category numbers are visible in CI on every push (the `-v`
       category logs plus the ground-truth `fixture-report` job). Current Go-harness baseline:
       **547 / 1,928 scored = 28%** (the harness scores the `*Fail` error-detection suites the
-      CLI-only `fixture_report.py` cannot, e.g. FailureScripts 102/528).
+      CLI-only `cmd/fixture-report` cannot, e.g. FailureScripts 102/528).
 
 ### P1 — Front-end coverage 🔴 *(attacks the 65% — ~440 fixtures)*
 
@@ -249,7 +249,7 @@ compete with core language work:
 
 The port is **v1.0-worthy** when:
 
-1. `scripts/fixture_report.py` reports **≥ 90%** on all non-host-library categories.
+1. `cmd/fixture-report` reports **≥ 90%** on all non-host-library categories.
 2. All `*Fail` suites reproduce DWScript diagnostics (error-detection parity).
 3. There is exactly **one** type representation and **one** evaluator in the tree.
 4. CI fails on any per-category regression.
@@ -263,8 +263,9 @@ Track progress against **fixture pass rate**, not phase checkboxes.
 
 ```bash
 go build -o bin/dwscript ./cmd/dwscript
-python3 scripts/fixture_report.py                 # full per-category table + total
-python3 scripts/fixture_report.py --category SimpleScripts --list-fails
+go run ./cmd/fixture-report                          # full per-category table + total
+go run ./cmd/fixture-report --category SimpleScripts --list-fails
+# or, via just:  just fixture-report
 ```
 
 Every status figure in this document came from that script on the current branch head.

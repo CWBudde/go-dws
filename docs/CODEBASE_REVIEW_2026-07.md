@@ -148,7 +148,7 @@ The library is **not** fundamentally unsound at the execution layer — the eval
 
 ## 8. Reproducing the numbers
 
-The independent harness runs each fixture through the CLI and exact-matches normalized output. To make it permanent, add a `scripts/fixture_report.py` (or a Go test) that:
+The independent harness runs each fixture through the CLI and exact-matches normalized output. This is now implemented as the pure-Go `cmd/fixture-report` tool (`go run ./cmd/fixture-report`, or `just fixture-report`), which:
 1. walks `testdata/fixtures/*/*.pas`,
 2. runs `./bin/dwscript run` with a timeout, decoding output as bytes (some fixtures emit non-UTF-8 / BOM),
 3. normalizes (trim trailing WS per line, strip surrounding blank lines),

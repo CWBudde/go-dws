@@ -16,11 +16,6 @@ jobs:
           go-version: "1.24"
           cache: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
       - name: Build CLI
         run: go build -o bin/dwscript ./cmd/dwscript
 
@@ -28,4 +23,4 @@ jobs:
       # regression gate itself lives in the Go harness (test-unit / TestDWScriptFixtures),
       # which fails the build if any category drops below its baseline.
       - name: Fixture compatibility report
-        run: python3 scripts/fixture_report.py
+        run: go run ./cmd/fixture-report
