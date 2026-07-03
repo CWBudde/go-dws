@@ -8,6 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -473,9 +474,436 @@ func (e *Evaluator) evalArrayHelper(spec string, selfValue Value, args []Value, 
 		return e.evalStringArrayJoin(selfValue, args, node)
 	case "__array_map":
 		return e.evalArrayMap(selfValue, args, node)
+	case "__array_move":
+		return e.evalArrayMove(selfValue, args, node)
+	case "__array_reverse":
+		return e.evalArrayReverse(selfValue, args, node)
+	case "__array_sort":
+		return e.evalArraySortMethod(selfValue, args, node)
+	case "__array_insert":
+		return e.evalArrayInsert(selfValue, args, node)
+	case "__array_copy":
+		return e.evalArrayCopyMethod(selfValue, args, node)
+	case "__array_remove":
+		return e.evalArrayRemove(selfValue, args, node)
+	case "__array_contains":
+		return e.evalArrayContains(selfValue, args, node)
+	case "__array_foreach":
+		return e.evalArrayForEach(selfValue, args, node)
+	case "__array_filter":
+		return e.evalArrayFilter(selfValue, args, node)
+	case "__array_clear":
+		return e.evalArrayClear(selfValue, args, node)
+	case "__array_peek":
+		return e.evalArrayPeek(selfValue, args, node)
 	default:
 		return nil
 	}
+}
+
+// arrayMethodNamePos returns the source position of the method/member name in a
+// helper call, so bound-check exceptions point at the method name (matching
+// DWScript's diagnostics) rather than the receiver expression.
+func arrayMethodNamePos(node ast.Node) token.Position {
+	switch n := node.(type) {
+	case *ast.MethodCallExpression:
+		if n.Method != nil {
+			return n.Method.Token.Pos
+		}
+	case *ast.MemberAccessExpression:
+		if n.Member != nil {
+			return n.Member.Token.Pos
+		}
+	}
+	if node != nil {
+		return node.Pos()
+	}
+	return token.Position{}
+}
+
+// raiseArrayBoundExceeded sets a catchable "bound exceeded" exception, matching
+// DWScript's message format, and returns nil so the surrounding try/except can
+// intercept it.
+func (e *Evaluator) raiseArrayBoundExceeded(node ast.Node, index int, upper bool) Value {
+	ctx := e.currentContext
+	pos := arrayMethodNamePos(node)
+	boundWord := "Lower"
+	if upper {
+		boundWord = "Upper"
+	}
+	message := fmt.Sprintf("%s bound exceeded! Index %d [line: %d, column: %d]", boundWord, index, pos.Line, pos.Column)
+	if ctx != nil {
+		exc := e.createException("Exception", message, &pos, ctx)
+		ctx.SetException(exc)
+	}
+	return e.nilValue()
+}
+
+// evalArrayMove relocates the element at index `from` to index `to`, shifting the
+// intervening elements. Both indices must be within bounds.
+func (e *Evaluator) evalArrayMove(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 2 {
+		return e.newError(node, "Array.Move expects exactly 2 arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Move requires array receiver")
+	}
+
+	fromInt, ok := args[0].(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "Array.Move first argument must be Integer, got %s", args[0].Type())
+	}
+	toInt, ok := args[1].(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "Array.Move second argument must be Integer, got %s", args[1].Type())
+	}
+
+	from := int(fromInt.Value)
+	to := int(toInt.Value)
+	arrayLen := len(arrVal.Elements)
+
+	if from < 0 {
+		return e.raiseArrayBoundExceeded(node, from, false)
+	}
+	if from >= arrayLen {
+		return e.raiseArrayBoundExceeded(node, from, true)
+	}
+	if to < 0 {
+		return e.raiseArrayBoundExceeded(node, to, false)
+	}
+	if to >= arrayLen {
+		return e.raiseArrayBoundExceeded(node, to, true)
+	}
+
+	if from != to {
+		elem := arrVal.Elements[from]
+		arrVal.Elements = append(arrVal.Elements[:from], arrVal.Elements[from+1:]...)
+		// Re-insert at target index (indices stay valid because from and to are
+		// both < arrayLen and we removed exactly one element).
+		arrVal.Elements = append(arrVal.Elements, nil)
+		copy(arrVal.Elements[to+1:], arrVal.Elements[to:])
+		arrVal.Elements[to] = elem
+	}
+
+	return e.nilValue()
+}
+
+// evalArrayReverse reverses the array in place and returns it (enabling chaining).
+func (e *Evaluator) evalArrayReverse(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 0 {
+		return e.newError(node, "Array.Reverse expects no arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Reverse requires array receiver")
+	}
+
+	runtime.ArrayHelperReverse(arrVal)
+	return arrVal
+}
+
+// evalArraySortMethod sorts the array in place, either by natural order (no
+// argument) or by a supplied comparator function, and returns the array.
+func (e *Evaluator) evalArraySortMethod(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) > 1 {
+		return e.newError(node, "Array.Sort expects at most 1 argument, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Sort requires array receiver")
+	}
+
+	if len(args) == 0 {
+		runtime.ArrayHelperSort(arrVal)
+		return arrVal
+	}
+
+	funcPtr, ok := args[0].(*runtime.FunctionPointerValue)
+	if !ok {
+		return e.newError(node, "Array.Sort expects function pointer as argument, got %s", args[0].Type())
+	}
+
+	var sortErr Value
+	sort.SliceStable(arrVal.Elements, func(i, j int) bool {
+		if sortErr != nil {
+			return false
+		}
+		result := e.EvalFunctionPointer(funcPtr, []Value{arrVal.Elements[i], arrVal.Elements[j]})
+		if isError(result) {
+			sortErr = result
+			return false
+		}
+		cmp, ok := result.(*runtime.IntegerValue)
+		if !ok {
+			sortErr = e.newError(node, "Array.Sort comparator must return Integer, got %s", result.Type())
+			return false
+		}
+		return cmp.Value < 0
+	})
+	if sortErr != nil {
+		return sortErr
+	}
+
+	return arrVal
+}
+
+// evalArrayInsert inserts a value at the given index, shifting later elements.
+// The index may range over 0..Length (appending when equal to Length).
+func (e *Evaluator) evalArrayInsert(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 2 {
+		return e.newError(node, "Array.Insert expects exactly 2 arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Insert requires array receiver")
+	}
+
+	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
+		return e.newError(node, "Insert() can only be used with dynamic arrays, not static arrays")
+	}
+
+	indexInt, ok := args[0].(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "Array.Insert index must be Integer, got %s", args[0].Type())
+	}
+	index := int(indexInt.Value)
+	arrayLen := len(arrVal.Elements)
+
+	if index < 0 {
+		return e.raiseArrayBoundExceeded(node, index, false)
+	}
+	if index > arrayLen {
+		return e.raiseArrayBoundExceeded(node, index, true)
+	}
+
+	value := runtime.CopyValue(args[1])
+	arrVal.Elements = append(arrVal.Elements, nil)
+	copy(arrVal.Elements[index+1:], arrVal.Elements[index:])
+	arrVal.Elements[index] = value
+
+	return e.nilValue()
+}
+
+// evalArrayCopyMethod returns a new dynamic array with a copied slice of the
+// receiver: Copy(startIndex [, count]).
+func (e *Evaluator) evalArrayCopyMethod(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) < 1 || len(args) > 2 {
+		return e.newError(node, "Array.Copy expects 1 or 2 arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Copy requires array receiver")
+	}
+
+	startInt, ok := args[0].(*runtime.IntegerValue)
+	if !ok {
+		return e.newError(node, "Array.Copy startIndex must be Integer, got %s", args[0].Type())
+	}
+	start := int(startInt.Value)
+
+	arrayLen := len(arrVal.Elements)
+	count := arrayLen - start
+	if len(args) == 2 {
+		countInt, ok := args[1].(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "Array.Copy count must be Integer, got %s", args[1].Type())
+		}
+		count = int(countInt.Value)
+	}
+
+	if start < 0 {
+		start = 0
+	}
+	if start > arrayLen {
+		start = arrayLen
+	}
+	if count < 0 {
+		count = 0
+	}
+	end := start + count
+	if end > arrayLen {
+		end = arrayLen
+	}
+
+	resultType := arrVal.ArrayType
+	if resultType != nil && resultType.IsStatic() {
+		resultType = types.NewDynamicArrayType(resultType.ElementType)
+	}
+	newArray := &runtime.ArrayValue{
+		ArrayType: resultType,
+		Elements:  make([]Value, 0, end-start),
+	}
+	for idx := start; idx < end; idx++ {
+		newArray.Elements = append(newArray.Elements, runtime.CopyValue(arrVal.Elements[idx]))
+	}
+
+	return newArray
+}
+
+// evalArrayRemove removes the first element equal to the given value at or after
+// the optional startIndex (default 0) and returns that element's index, or -1 if
+// no matching element is found.
+func (e *Evaluator) evalArrayRemove(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) < 1 || len(args) > 2 {
+		return e.newError(node, "Array.Remove expects 1 or 2 arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Remove requires array receiver")
+	}
+
+	startIndex := 0
+	if len(args) == 2 {
+		startInt, ok := args[1].(*runtime.IntegerValue)
+		if !ok {
+			return e.newError(node, "Array.Remove startIndex must be Integer, got %s", args[1].Type())
+		}
+		startIndex = int(startInt.Value)
+	}
+	if startIndex < 0 {
+		startIndex = 0
+	}
+
+	target := args[0]
+	for idx := startIndex; idx < len(arrVal.Elements); idx++ {
+		if runtime.ValuesEqual(arrVal.Elements[idx], target) {
+			arrVal.Elements = append(arrVal.Elements[:idx], arrVal.Elements[idx+1:]...)
+			return &runtime.IntegerValue{Value: int64(idx)}
+		}
+	}
+
+	return &runtime.IntegerValue{Value: -1}
+}
+
+// evalArrayContains reports whether the array holds an element equal to value.
+func (e *Evaluator) evalArrayContains(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 1 {
+		return e.newError(node, "Array.Contains expects exactly 1 argument, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Contains requires array receiver")
+	}
+
+	for _, elem := range arrVal.Elements {
+		if runtime.ValuesEqual(elem, args[0]) {
+			return &runtime.BooleanValue{Value: true}
+		}
+	}
+	return &runtime.BooleanValue{Value: false}
+}
+
+// evalArrayForEach invokes the supplied procedure for each element.
+func (e *Evaluator) evalArrayForEach(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 1 {
+		return e.newError(node, "Array.ForEach expects exactly 1 argument, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.ForEach requires array receiver")
+	}
+
+	funcPtr, ok := args[0].(*runtime.FunctionPointerValue)
+	if !ok {
+		return e.newError(node, "Array.ForEach expects function pointer as argument, got %s", args[0].Type())
+	}
+
+	for _, elem := range arrVal.Elements {
+		result := e.EvalFunctionPointer(funcPtr, []Value{elem})
+		if isError(result) {
+			return result
+		}
+	}
+
+	return e.nilValue()
+}
+
+// evalArrayFilter returns a new dynamic array containing the elements for which
+// the supplied predicate returns True.
+func (e *Evaluator) evalArrayFilter(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 1 {
+		return e.newError(node, "Array.Filter expects exactly 1 argument, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Filter requires array receiver")
+	}
+
+	funcPtr, ok := args[0].(*runtime.FunctionPointerValue)
+	if !ok {
+		return e.newError(node, "Array.Filter expects function pointer as argument, got %s", args[0].Type())
+	}
+
+	var elementType types.Type = types.VARIANT
+	if arrVal.ArrayType != nil && arrVal.ArrayType.ElementType != nil {
+		elementType = arrVal.ArrayType.ElementType
+	}
+	newArray := &runtime.ArrayValue{
+		ArrayType: types.NewDynamicArrayType(elementType),
+		Elements:  make([]Value, 0, len(arrVal.Elements)),
+	}
+	for _, elem := range arrVal.Elements {
+		result := e.EvalFunctionPointer(funcPtr, []Value{elem})
+		if isError(result) {
+			return result
+		}
+		keep, ok := result.(*runtime.BooleanValue)
+		if !ok {
+			return e.newError(node, "Array.Filter predicate must return Boolean, got %s", result.Type())
+		}
+		if keep.Value {
+			newArray.Elements = append(newArray.Elements, runtime.CopyValue(elem))
+		}
+	}
+
+	return newArray
+}
+
+// evalArrayClear empties a dynamic array.
+func (e *Evaluator) evalArrayClear(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 0 {
+		return e.newError(node, "Array.Clear expects no arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Clear requires array receiver")
+	}
+
+	if arrVal.ArrayType != nil && !arrVal.ArrayType.IsDynamic() {
+		return e.newError(node, "Clear() can only be used with dynamic arrays, not static arrays")
+	}
+
+	arrVal.Elements = arrVal.Elements[:0]
+	return e.nilValue()
+}
+
+// evalArrayPeek returns the last element without removing it.
+func (e *Evaluator) evalArrayPeek(selfValue Value, args []Value, node ast.Node) Value {
+	if len(args) != 0 {
+		return e.newError(node, "Array.Peek expects no arguments, got %d", len(args))
+	}
+
+	arrVal, ok := selfValue.(*runtime.ArrayValue)
+	if !ok {
+		return e.newError(node, "Array.Peek requires array receiver")
+	}
+
+	if len(arrVal.Elements) == 0 {
+		return e.newError(node, "Peek() called on empty array")
+	}
+
+	return arrVal.Elements[len(arrVal.Elements)-1]
 }
 
 // ============================================================================
@@ -549,11 +977,39 @@ func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) V
 		return e.newError(node, "Add() can only be used with dynamic arrays, not static arrays")
 	}
 
-	for _, arg := range args {
-		arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(arg))
-	}
+	e.appendArrayArgs(arrVal, args)
 
 	return &runtime.NilValue{}
+}
+
+// appendArrayArgs appends each argument to the array. An argument that is itself
+// an array of the receiver's element type is flattened (DWScript's Add/Push
+// accept either an element or an array of elements).
+func (e *Evaluator) appendArrayArgs(arrVal *runtime.ArrayValue, args []Value) {
+	for _, arg := range args {
+		if arrArg, ok := arg.(*runtime.ArrayValue); ok && e.shouldFlattenArrayArg(arrVal, arrArg) {
+			for _, el := range arrArg.Elements {
+				arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(el))
+			}
+			continue
+		}
+		arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(arg))
+	}
+}
+
+// shouldFlattenArrayArg reports whether an array argument to Add/Push should be
+// flattened into individual elements rather than appended as a single element.
+// It is added as a single element only when the receiver's element type is
+// itself an array compatible with the argument.
+func (e *Evaluator) shouldFlattenArrayArg(receiver, arg *runtime.ArrayValue) bool {
+	if receiver.ArrayType == nil || receiver.ArrayType.ElementType == nil {
+		return true
+	}
+	elemType := receiver.ArrayType.ElementType
+	if arg.ArrayType != nil && (types.IsCompatible(arg.ArrayType, elemType) || types.IsCompatible(elemType, arg.ArrayType)) {
+		return false
+	}
+	return true
 }
 
 // evalArrayPush appends element to dynamic array, copying records to avoid aliasing.
@@ -571,9 +1027,7 @@ func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) 
 		return e.newError(node, "Push() can only be used with dynamic arrays, not static arrays")
 	}
 
-	for _, arg := range args {
-		arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(arg))
-	}
+	e.appendArrayArgs(arrVal, args)
 
 	return &runtime.NilValue{}
 }
@@ -636,7 +1090,7 @@ func (e *Evaluator) evalArraySwap(selfValue Value, args []Value, node ast.Node) 
 
 	arrVal.Elements[iIdx], arrVal.Elements[jIdx] = arrVal.Elements[jIdx], arrVal.Elements[iIdx]
 
-	return &runtime.NilValue{}
+	return arrVal
 }
 
 // evalArrayDelete removes 1 or more elements from a dynamic array.

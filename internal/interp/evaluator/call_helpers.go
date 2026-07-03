@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -25,6 +26,14 @@ func (e *Evaluator) executeFunctionPointerDirect(funcPtr Value, args []Value, no
 			return e.newError(node, "invalid lambda function pointer")
 		}
 		return e.executeLambdaDirect(lambda, closureEnv, args, node, ctx)
+	}
+
+	if builtinName := callable.GetBuiltinName(); builtinName != "" {
+		fn, ok := builtins.DefaultRegistry.Lookup(builtinName)
+		if !ok {
+			return e.newError(node, "unknown built-in function '%s'", builtinName)
+		}
+		return fn(e, args)
 	}
 
 	fn, _ := callable.GetFunctionDecl().(*ast.FunctionDecl)

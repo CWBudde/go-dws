@@ -38,6 +38,26 @@ func arrayHelperCanonicalName(methodName string) string {
 		return "ForEach"
 	case "sort":
 		return "Sort"
+	case "reverse":
+		return "Reverse"
+	case "contains":
+		return "Contains"
+	case "filter":
+		return "Filter"
+	case "clear":
+		return "Clear"
+	case "peek":
+		return "Peek"
+	case "add":
+		return "Add"
+	case "push":
+		return "Push"
+	case "pop":
+		return "Pop"
+	case "map":
+		return "Map"
+	case "join":
+		return "Join"
 	}
 	return methodName
 }
@@ -292,6 +312,11 @@ func (a *Analyzer) validateArrayIntegerArgAt(arg ast.Expression, pos token.Posit
 
 func isArrayNaturallySortable(elementType types.Type) bool {
 	elementType = types.GetUnderlyingType(elementType)
+	if elementType != nil && elementType.TypeKind() == "BOOLEAN" {
+		// Boolean is an ordinal type (False < True) and has a natural sort order,
+		// even though IsOrderedType excludes it for relational-operator purposes.
+		return true
+	}
 	return types.IsOrderedType(elementType)
 }
 
@@ -309,12 +334,24 @@ func (a *Analyzer) analyzeArrayMemberAccess(expr *ast.MemberAccessExpression, ar
 	switch memberNameLower {
 	case "length", "count", "high", "low":
 		return types.INTEGER
-	case "delete", "remove", "insert", "move", "swap", "copy", "foreach":
+	case "reverse":
+		return arrayType
+	case "clear":
+		return types.VOID
+	case "peek":
+		return arrayType.ElementType
+	case "delete", "remove", "insert", "move", "swap", "copy", "foreach", "contains", "filter":
 		a.addArrayHelperTooFewArgs(expr)
 		if memberNameLower == "remove" {
 			return types.INTEGER
 		}
-		if memberNameLower == "copy" {
+		if memberNameLower == "contains" {
+			return types.BOOLEAN
+		}
+		if memberNameLower == "filter" {
+			return types.NewDynamicArrayType(arrayType.ElementType)
+		}
+		if memberNameLower == "copy" || memberNameLower == "swap" {
 			return arrayType
 		}
 		return types.VOID
@@ -432,7 +469,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperParamTypeExpectedAt(expr.Arguments[1].Pos(), arrayType.ElementType, argType)
 		}
 		return types.VOID
-	case "move", "swap":
+	case "move":
 		if len(expr.Arguments) < 2 {
 			a.addArrayHelperTooFewArgs(expr)
 			return types.VOID
@@ -443,6 +480,60 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		a.validateArrayIntegerArg(expr.Arguments[0])
 		a.validateArrayIntegerArg(expr.Arguments[1])
 		return types.VOID
+	case "swap":
+		if len(expr.Arguments) < 2 {
+			a.addArrayHelperTooFewArgs(expr)
+			return arrayType
+		}
+		if len(expr.Arguments) > 2 {
+			a.addArrayHelperTooManyArgs(expr)
+		}
+		a.validateArrayIntegerArg(expr.Arguments[0])
+		a.validateArrayIntegerArg(expr.Arguments[1])
+		return arrayType
+	case "reverse":
+		if len(expr.Arguments) != 0 {
+			a.addArrayHelperNoArgs(expr)
+		}
+		return arrayType
+	case "clear":
+		if len(expr.Arguments) != 0 {
+			a.addArrayHelperNoArgs(expr)
+		}
+		return types.VOID
+	case "peek":
+		if len(expr.Arguments) != 0 {
+			a.addArrayHelperNoArgs(expr)
+		}
+		return arrayType.ElementType
+	case "contains":
+		if len(expr.Arguments) == 0 {
+			a.addArrayHelperTooFewArgs(expr)
+			return types.BOOLEAN
+		}
+		if len(expr.Arguments) > 1 {
+			a.addArrayHelperTooManyArgs(expr)
+		}
+		if argType := a.analyzeExpressionWithExpectedType(expr.Arguments[0], arrayType.ElementType); argType != nil && !a.canAssign(argType, arrayType.ElementType) {
+			a.addArrayHelperParamTypeExpectedAt(expr.Arguments[0].Pos(), arrayType.ElementType, argType)
+		}
+		return types.BOOLEAN
+	case "filter":
+		if len(expr.Arguments) != 1 {
+			if len(expr.Arguments) < 1 {
+				a.addArrayHelperTooFewArgs(expr)
+			} else {
+				a.addArrayHelperTooManyArgs(expr)
+			}
+			return types.NewDynamicArrayType(arrayType.ElementType)
+		}
+		predicateType := types.NewFunctionPointerType([]types.Type{arrayType.ElementType}, types.BOOLEAN)
+		arg := expr.Arguments[0]
+		argType := a.analyzeExpressionWithExpectedType(arg, predicateType)
+		if argType != nil && !a.canAssign(argType, predicateType) {
+			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), predicateType, argType)
+		}
+		return types.NewDynamicArrayType(arrayType.ElementType)
 	case "copy":
 		if len(expr.Arguments) == 0 {
 			a.addArrayHelperTooFewArgs(expr)

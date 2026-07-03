@@ -236,6 +236,25 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       (`array_length_helper`, `class_helper`, `classname_helper2`, `implicit_self_class_helper`,
       `implicit_class_self_class_helper`, `implicit_self_record_helper`); HelpersPass 7→13,
       overall 416→422, and removes a source of measurement noise (P0 concern).
+- [x] **Dynamic-array method coverage.** The dynamic-array helper only implemented
+      `Add/Push/Pop/Swap/Delete/IndexOf/SetLength/Map/Join`; every other DWScript array method
+      was rejected by the analyzer (`Reverse`, `Contains`, `Filter`, `Clear`, `Peek`) or accepted
+      by semantics but unimplemented at runtime ("no helper found" for `Move`, `Sort`, `Insert`,
+      `Copy`, `Remove`, `ForEach`). Added the runtime implementations (`internal/interp/evaluator/
+      array_helpers.go`) and registered them (`helpers_validation.go`), and closed the semantic
+      gaps (`internal/semantic/analyze_array_helpers.go`). Details that matter for parity:
+      `Reverse`/`Swap`/`Sort` return the receiver so they chain (`a.Reverse.Join`); `Add`/`Push`
+      flatten an array argument of the element type (`a.Add(a)`); `Remove(value[, startIndex])`
+      removes the first match at/after `startIndex` and returns its index (−1 if none);
+      `Insert`/`Move` raise catchable `Upper/Lower bound exceeded! Index N` exceptions pointing at
+      the method name; Boolean arrays are treated as naturally sortable.
+- [x] **Built-in functions as function pointers.** Passing a builtin (`IntToStr`, `FloatToStr`,
+      `BoolToStr`, …) to a higher-order method raised "Function pointer is nil": the
+      `FunctionPointerValue.BuiltinName` field was populated but `IsNil()` ignored it and
+      `executeFunctionPointerDirect` had no builtin branch. `IsNil()` now accounts for
+      `BuiltinName` and the executor dispatches through `builtins.DefaultRegistry`. Unblocks
+      `a.Map(IntToStr)`-style code. ArrayPass 27→59 (CLI) / baseline 30→64, LambdaPass 0→1,
+      overall 434→469 (CLI); no category regressed.
 - [ ] Work the 88 wrong-output fixtures (e.g. `casts_base_types` rounding, `case_variant`).
 - [ ] Work the 68 runtime-panic fixtures (metaclass `ClassName`, class-method dispatch, `class of`).
 - [ ] Post-exception continuation semantics (`assigned.pas` expects execution to continue after a

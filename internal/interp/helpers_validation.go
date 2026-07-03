@@ -249,6 +249,17 @@ func (i *Interpreter) initArrayHelpers() {
 	arrayHelper.BuiltinMethods["swap"] = "__array_swap"
 	arrayHelper.BuiltinMethods["push"] = "__array_push"
 	arrayHelper.BuiltinMethods["pop"] = "__array_pop"
+	arrayHelper.BuiltinMethods["move"] = "__array_move"
+	arrayHelper.BuiltinMethods["reverse"] = "__array_reverse"
+	arrayHelper.BuiltinMethods["sort"] = "__array_sort"
+	arrayHelper.BuiltinMethods["insert"] = "__array_insert"
+	arrayHelper.BuiltinMethods["copy"] = "__array_copy"
+	arrayHelper.BuiltinMethods["remove"] = "__array_remove"
+	arrayHelper.BuiltinMethods["contains"] = "__array_contains"
+	arrayHelper.BuiltinMethods["foreach"] = "__array_foreach"
+	arrayHelper.BuiltinMethods["filter"] = "__array_filter"
+	arrayHelper.BuiltinMethods["clear"] = "__array_clear"
+	arrayHelper.BuiltinMethods["peek"] = "__array_peek"
 
 	// Register helper for array type
 	register("array", arrayHelper)

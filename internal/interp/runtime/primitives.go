@@ -493,7 +493,13 @@ func (f *FunctionPointerValue) Type() string {
 // IsNil returns true if this function pointer has no function or lambda assigned.
 // Used to check before invocation to raise appropriate DWScript exceptions.
 func (f *FunctionPointerValue) IsNil() bool {
-	return f.Function == nil && f.Lambda == nil && f.MethodID == InvalidMethodID
+	return f.Function == nil && f.Lambda == nil && f.MethodID == InvalidMethodID && f.BuiltinName == ""
+}
+
+// GetBuiltinName returns the built-in function identifier this pointer refers to,
+// or an empty string for user functions, lambdas, and method pointers.
+func (f *FunctionPointerValue) GetBuiltinName() string {
+	return f.BuiltinName
 }
 
 // ParamCount returns the number of parameters this function pointer expects.
