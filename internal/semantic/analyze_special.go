@@ -62,7 +62,7 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 			if len(ctorOverloads) > 1 {
 				argTypes := make([]types.Type, len(ie.Arguments))
 				for idx, arg := range ie.Arguments {
-					argType := a.analyzeExpression(arg)
+					argType := a.analyzeOverloadArgument(arg)
 					if argType == nil {
 						return types.VOID
 					}

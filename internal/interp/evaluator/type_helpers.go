@@ -88,13 +88,31 @@ func GetValueType(val Value) types.Type {
 		// Set types - use helper to extract the type
 		return getSetTypeFromValue(val)
 
+	case "OBJECT":
+		// Class instances: build the class type with its parent chain so
+		// assignability/overload checks can rank subclass conversions.
+		if obj, ok := val.(*runtime.ObjectInstance); ok && obj.Class != nil {
+			return classTypeFromClassInfo(obj.Class)
+		}
+		return nil
+
 	default:
-		// Check if it's an object (class instance)
-		// Object types have the class name as their Type() string
-		// For now, we'll just return nil for unknown types
-		// In the future, we could look up the class type from the type system
+		// Unknown value types have no static type information.
 		return nil
 	}
+}
+
+// classTypeFromClassInfo builds a types.ClassType (with parent chain) from
+// runtime class info.
+func classTypeFromClassInfo(classInfo runtime.IClassInfo) *types.ClassType {
+	if classInfo == nil {
+		return nil
+	}
+	var parent *types.ClassType
+	if p := classInfo.GetParent(); p != nil {
+		parent = classTypeFromClassInfo(p)
+	}
+	return types.NewClassType(classInfo.GetName(), parent)
 }
 
 // unwrapVariantType unwraps a Variant value to get its actual type.

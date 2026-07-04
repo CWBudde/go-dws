@@ -156,8 +156,22 @@ func (e *Evaluator) ResolveOverloadFast(
 				}
 			}
 
+			// The parameter's own array type (or none) governs array literal
+			// arguments; an enclosing assignment's array context must not leak
+			// into the call (e.g. F('x', [1, 2]) inside a TItemArray literal).
+			prevArrayCtx := ctx.ArrayTypeContext()
+			ctx.ClearArrayTypeContext()
+			if idx < len(fn.Parameters) && fn.Parameters[idx].Type != nil {
+				if paramType, err := e.resolveTypeName(fn.Parameters[idx].Type.String(), ctx); err == nil {
+					if arrType, ok := types.GetUnderlyingType(paramType).(*types.ArrayType); ok {
+						ctx.SetArrayTypeContext(arrType)
+					}
+				}
+			}
+
 			// Evaluate non-lazy parameters
 			val := e.Eval(argExpr, ctx)
+			ctx.SetArrayTypeContext(prevArrayCtx)
 
 			if contextSet {
 				ctx.ClearRecordTypeContext()
@@ -192,17 +206,23 @@ func (e *Evaluator) ResolveOverloadMultiple(
 	argTypes := make([]types.Type, len(argExprs))
 	argValues := make([]Value, len(argExprs))
 
+	// An enclosing array literal/assignment context must not influence the
+	// call's own arguments.
+	prevArrayCtx := ctx.ArrayTypeContext()
+	ctx.ClearArrayTypeContext()
 	for idx, argExpr := range argExprs {
 		// For overload resolution, we need to determine the best matching function
 		// first, but we don't know parameter types yet. We evaluate without context
 		// initially to determine types.
 		val := e.Eval(argExpr, ctx)
 		if isError(val) {
+			ctx.SetArrayTypeContext(prevArrayCtx)
 			return nil, nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)
 		}
 		argTypes[idx] = e.getValueType(val)
 		argValues[idx] = val
 	}
+	ctx.SetArrayTypeContext(prevArrayCtx)
 
 	// 2. Build semantic symbols from overloads
 	candidates := make([]*semantic.Symbol, len(overloads))

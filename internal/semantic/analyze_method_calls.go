@@ -90,7 +90,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				// This is a static method call - resolve overload based on arguments
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
-					argType := a.analyzeExpression(arg)
+					argType := a.analyzeOverloadArgument(arg)
 					if argType == nil {
 						return nil
 					}
@@ -140,7 +140,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			if instanceOverloads := recordType.GetMethodOverloads(methodNameLower); len(instanceOverloads) > 1 {
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
-					argType := a.analyzeExpression(arg)
+					argType := a.analyzeOverloadArgument(arg)
 					if argType == nil {
 						return nil
 					}
@@ -284,7 +284,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		if len(constructorOverloads) > 1 {
 			argTypes := make([]types.Type, len(expr.Arguments))
 			for i, arg := range expr.Arguments {
-				argType := a.analyzeExpression(arg)
+				argType := a.analyzeOverloadArgument(arg)
 				if argType == nil {
 					return classType
 				}
@@ -326,8 +326,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
 			expectedType := methodType.Parameters[i]
+			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 			if argType != nil && !a.canAssign(argType, expectedType) {
 				a.addError("argument %d to constructor '%s' of class '%s' has type %s, expected %s at %s",
 					i+1, methodName, classType.Name, argType.String(), expectedType.String(),
@@ -363,7 +363,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Analyze argument types first
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeOverloadArgument(arg)
 			if argType == nil {
 				return nil // Error already reported
 			}
@@ -390,6 +390,16 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		if !ok {
 			a.addError("internal error: expected function type for selected overloaded method, but got %T", selected.Type)
 			return nil
+		}
+
+		// Re-analyze arguments against the selected signature so literals get
+		// their contextual type annotations (e.g. [o] becomes an array literal
+		// of the parameter's element type instead of a set literal).
+		for i, arg := range expr.Arguments {
+			if i >= len(methodType.Parameters) {
+				break
+			}
+			a.analyzeExpressionWithExpectedType(arg, methodType.Parameters[i])
 		}
 	} else if len(overloads) == 1 {
 		// Single method (not overloaded). A method reached through a metaclass value must

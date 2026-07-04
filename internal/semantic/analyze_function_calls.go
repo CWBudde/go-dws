@@ -139,7 +139,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				} else {
 					argTypes := make([]types.Type, len(expr.Arguments))
 					for i, arg := range expr.Arguments {
-						argType := a.analyzeExpression(arg)
+						argType := a.analyzeOverloadArgument(arg)
 						if argType == nil {
 							return nil
 						}
@@ -217,7 +217,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			if len(overloads) > 0 {
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
-					argType := a.analyzeExpression(arg)
+					argType := a.analyzeOverloadArgument(arg)
 					if argType == nil {
 						return nil
 					}
@@ -253,7 +253,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			if len(overloads) > 0 {
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
-					argType := a.analyzeExpression(arg)
+					argType := a.analyzeOverloadArgument(arg)
 					if argType == nil {
 						return nil
 					}
@@ -534,7 +534,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeOverloadArgument(arg)
 			if argType == nil {
 				return nil
 			}
@@ -570,7 +570,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					}
 					argTypes := make([]types.Type, len(expr.Arguments))
 					for i, arg := range expr.Arguments {
-						argType := a.analyzeExpression(arg)
+						argType := a.analyzeOverloadArgument(arg)
 						if argType == nil {
 							return nil
 						}
@@ -820,7 +820,7 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 	} else {
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeOverloadArgument(arg)
 			if argType == nil {
 				return classType
 			}
@@ -1074,7 +1074,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 	// Resolve overload
 	argTypes := make([]types.Type, len(expr.Arguments))
 	for i, arg := range expr.Arguments {
-		argType := a.analyzeExpression(arg)
+		argType := a.analyzeOverloadArgument(arg)
 		if argType == nil {
 			return nil
 		}

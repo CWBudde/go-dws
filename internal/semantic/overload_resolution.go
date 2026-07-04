@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // SignaturesEqual checks if two function signatures are identical for overload detection.
@@ -162,13 +163,17 @@ func typeDistance(from, to types.Type) int {
 
 	// nil literal is assignable to any reference type (class, interface,
 	// metaclass, function pointer, dynamic array) with a small penalty.
+	// Class-like targets are preferred over arrays/function pointers
+	// (DWScript resolves F(nil) to F(o: TObject) over F(a: TObjectArr)).
 	if from.TypeKind() == "NIL" {
 		switch to.TypeKind() {
-		case "CLASS", "INTERFACE", "CLASSOF", "FUNCTION":
+		case "CLASS", "INTERFACE", "CLASSOF":
 			return 1
+		case "FUNCTION":
+			return 2
 		}
 		if toArray, ok := to.(*types.ArrayType); ok && toArray.IsDynamic() {
-			return 1
+			return 2
 		}
 	}
 
@@ -364,6 +369,17 @@ func ResolveOverload(candidates []*Symbol, argTypes []types.Type) (*Symbol, erro
 	// Ambiguous: multiple equally good matches
 	return nil, fmt.Errorf("ambiguous overload call: %d candidates with equal distance %d for argument types: %s",
 		len(bestMatches), minDist, formatArgTypes(argTypes))
+}
+
+// analyzeOverloadArgument analyzes a call argument for overload resolution.
+// An empty array literal carries no inherent element type; it gets an
+// "array of Variant" placeholder so it can match any array-typed parameter
+// (the winning overload's parameter type then applies at the call).
+func (a *Analyzer) analyzeOverloadArgument(arg ast.Expression) types.Type {
+	if lit, ok := arg.(*ast.ArrayLiteralExpression); ok && len(lit.Elements) == 0 {
+		return types.NewDynamicArrayType(types.VARIANT)
+	}
+	return a.analyzeExpression(arg)
 }
 
 // requiredParamCount returns the number of parameters without default values,

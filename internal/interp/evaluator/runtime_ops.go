@@ -267,6 +267,11 @@ func (e *Evaluator) runtimeValueType(val Value) types.Type {
 	case *runtime.BooleanValue:
 		return types.BOOLEAN
 	case *runtime.NilValue:
+		// Typed nil (e.g. a declared "var o: TObject") matches its static
+		// class exactly, so F(o) prefers F(x: TObject) over array overloads.
+		if v.ClassType != "" {
+			return e.buildClassTypeWithHierarchy(v.ClassType)
+		}
 		return types.NIL
 	case *runtime.VariantValue:
 		return types.VARIANT

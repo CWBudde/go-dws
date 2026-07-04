@@ -134,7 +134,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		// Multiple constructors with same count - resolve by type
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeOverloadArgument(arg)
 			if argType == nil {
 				return classType
 			}
@@ -582,7 +582,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 
 	argTypes := make([]types.Type, len(expr.Arguments))
 	for i, arg := range expr.Arguments {
-		argType := a.analyzeExpression(arg)
+		argType := a.analyzeOverloadArgument(arg)
 		if argType == nil {
 			return nil
 		}

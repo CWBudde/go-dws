@@ -367,6 +367,21 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 		return subrangeType, nil
 	}
 
+	// Step 9: Check class and interface types in TypeSystem. Class type
+	// strings may carry a parent qualification ("TSub(TBase)") - strip it.
+	if e.typeSystem != nil {
+		cleanName := typeName
+		if idx := strings.Index(cleanName, "("); idx != -1 {
+			cleanName = strings.TrimSpace(cleanName[:idx])
+		}
+		if e.typeSystem.HasClass(cleanName) {
+			return e.buildClassTypeWithHierarchy(cleanName), nil
+		}
+		if e.typeSystem.HasInterface(cleanName) {
+			return types.NewInterfaceType(cleanName), nil
+		}
+	}
+
 	// Unknown type
 	return nil, fmt.Errorf("unknown type: %s", typeName)
 }
