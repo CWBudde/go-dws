@@ -186,8 +186,12 @@ func LeastFactor(ctx Context, args []Value) Value {
 
 	n := intVal.Value
 
-	// Handle special cases
-	if n <= 1 {
+	// Handle special cases: DWScript returns 0 for n <= 0 and 1 for n = 1
+	// (see fixture FunctionsMath/least_factor).
+	if n <= 0 {
+		return &runtime.IntegerValue{Value: 0}
+	}
+	if n == 1 {
 		return &runtime.IntegerValue{Value: 1}
 	}
 

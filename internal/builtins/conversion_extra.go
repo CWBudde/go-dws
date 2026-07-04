@@ -129,9 +129,20 @@ func VarToFloatDef(ctx Context, args []Value) Value {
 			return &runtime.FloatValue{Value: 1}
 		}
 		return &runtime.FloatValue{Value: 0}
+	case *runtime.NullValue:
+		// Delphi/DWScript semantics: Null converts to 0, not the default
+		return &runtime.FloatValue{Value: 0}
+	case *runtime.NilValue:
+		return &runtime.FloatValue{Value: 0}
 	case *runtime.StringValue:
 		if floatValue, ok := ctx.ParseFloat(v.Value); ok {
 			return &runtime.FloatValue{Value: floatValue}
+		}
+		// Accept comma as decimal separator (locale-style input like '3,5')
+		if strings.Contains(v.Value, ",") && !strings.Contains(v.Value, ".") {
+			if floatValue, ok := ctx.ParseFloat(strings.ReplaceAll(v.Value, ",", ".")); ok {
+				return &runtime.FloatValue{Value: floatValue}
+			}
 		}
 	}
 

@@ -211,7 +211,7 @@ func TestBuiltinLeastFactor(t *testing.T) {
 		isError  bool
 	}{
 		// Basic cases
-		{"least factor of 0", "PrintLn(LeastFactor(0));", "1\n", false},
+		{"least factor of 0", "PrintLn(LeastFactor(0));", "0\n", false},
 		{"least factor of 1", "PrintLn(LeastFactor(1));", "1\n", false},
 		{"least factor of 2", "PrintLn(LeastFactor(2));", "2\n", false},
 		{"least factor of 15", "PrintLn(LeastFactor(15));", "3\n", false},

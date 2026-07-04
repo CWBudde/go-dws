@@ -149,34 +149,32 @@ func builtinLogN(vm *VM, args []Value) (Value, error) {
 		return NilValue(), vm.runtimeError("LogN expects 2 arguments, got %d", len(args))
 	}
 
-	// First argument (x)
-	var xVal float64
+	// Delphi/DWScript signature: LogN(Base, X) = Log(X) / Log(Base).
+	var baseVal float64
 	if args[0].IsFloat() {
-		xVal = args[0].AsFloat()
+		baseVal = args[0].AsFloat()
 	} else if args[0].IsInt() {
-		xVal = float64(args[0].AsInt())
+		baseVal = float64(args[0].AsInt())
 	} else {
 		return NilValue(), vm.runtimeError("LogN expects Float or Integer as first argument, got %s", args[0].Type.String())
 	}
 
-	// Second argument (base)
-	var baseVal float64
+	var xVal float64
 	if args[1].IsFloat() {
-		baseVal = args[1].AsFloat()
+		xVal = args[1].AsFloat()
 	} else if args[1].IsInt() {
-		baseVal = float64(args[1].AsInt())
+		xVal = float64(args[1].AsInt())
 	} else {
 		return NilValue(), vm.runtimeError("LogN expects Float or Integer as second argument, got %s", args[1].Type.String())
 	}
 
 	if xVal <= 0 {
-		return NilValue(), vm.runtimeError("LogN first argument must be positive, got %f", xVal)
+		return NilValue(), vm.runtimeError("LogN second argument must be positive, got %f", xVal)
 	}
 	if baseVal <= 0 || baseVal == 1 {
 		return NilValue(), vm.runtimeError("LogN base must be positive and not equal to 1, got %f", baseVal)
 	}
 
-	// LogN(x, base) = Log(x) / Log(base)
 	return FloatValue(math.Log(xVal) / math.Log(baseVal)), nil
 }
 
@@ -505,8 +503,11 @@ func builtinLeastFactor(vm *VM, args []Value) (Value, error) {
 
 	n := args[0].AsInt()
 
-	// Handle special cases
-	if n <= 1 {
+	// Handle special cases: DWScript returns 0 for n <= 0 and 1 for n = 1.
+	if n <= 0 {
+		return IntValue(0), nil
+	}
+	if n == 1 {
 		return IntValue(1), nil
 	}
 

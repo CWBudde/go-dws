@@ -664,40 +664,40 @@ func TestLogN(t *testing.T) {
 		{
 			name: "log base 2 of 8",
 			args: []Value{
-				&runtime.IntegerValue{Value: 8},
 				&runtime.IntegerValue{Value: 2},
+				&runtime.IntegerValue{Value: 8},
 			},
 			expected: &runtime.FloatValue{Value: 3.0},
 		},
 		{
 			name: "log base 10 of 100",
 			args: []Value{
-				&runtime.IntegerValue{Value: 100},
 				&runtime.IntegerValue{Value: 10},
+				&runtime.IntegerValue{Value: 100},
 			},
 			expected: &runtime.FloatValue{Value: 2.0},
 		},
 		{
 			name: "negative value",
 			args: []Value{
-				&runtime.IntegerValue{Value: -10},
 				&runtime.IntegerValue{Value: 2},
+				&runtime.IntegerValue{Value: -10},
 			},
 			isError: true,
 		},
 		{
 			name: "negative base",
 			args: []Value{
-				&runtime.IntegerValue{Value: 10},
 				&runtime.IntegerValue{Value: -2},
+				&runtime.IntegerValue{Value: 10},
 			},
 			isError: true,
 		},
 		{
 			name: "base 1",
 			args: []Value{
-				&runtime.IntegerValue{Value: 10},
 				&runtime.IntegerValue{Value: 1},
+				&runtime.IntegerValue{Value: 10},
 			},
 			isError: true,
 		},
@@ -782,7 +782,7 @@ func TestMaxInt(t *testing.T) {
 		{
 			name:     "no arguments - returns constant",
 			args:     []Value{},
-			expected: &runtime.IntegerValue{Value: math.MaxInt64},
+			expected: &runtime.IntegerValue{Value: math.MaxInt32},
 		},
 		{
 			name: "two integers - first larger",

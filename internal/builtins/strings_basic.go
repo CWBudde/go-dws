@@ -890,9 +890,9 @@ func RevPos(ctx Context, args []Value) Value {
 	needle := needleVal.Value
 	haystack := haystackVal.Value
 
-	// Handle empty needle - return len(haystack) + 1 (position after last char)
+	// Handle empty needle - DWScript returns 0 (see fixture FunctionsString/pos_posex)
 	if len(needle) == 0 {
-		return &runtime.IntegerValue{Value: int64(len([]rune(haystack)) + 1)}
+		return &runtime.IntegerValue{Value: 0}
 	}
 
 	// Find the last occurrence using strings.LastIndex
