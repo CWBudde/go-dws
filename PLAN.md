@@ -282,6 +282,29 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       no category regressed. Remaining fails are separate features (anonymous inline enums in
       `set of (A,B,C)`, array↔set conversion, `set of` record fields, out-of-range diagnostics).
 - [ ] Work the 88 wrong-output fixtures (e.g. `casts_base_types` rounding, `case_variant`).
+      **First batch of root causes closed (2026-07-04): 28 fixtures, overall 485 → 513 (CLI).**
+      (1) *Measurement*: the CLI `run` command and `cmd/fixture-report` read files raw while the
+      internal harness BOM-decodes them — extracted `internal/encoding` (UTF-8 BOM / UTF-16 LE/BE /
+      Latin-1 fallback) and wired it into both; closes `char_in`, `unicode_const`, `string_aggregate`,
+      `FunctionsString/case`, `strsplit(2)`, `strjoin`, `strisascii`, `bytesizetostring`,
+      `aes_encryption`, `sparse_matmult`. (2) `Integer(<float>)` casts round half-to-even instead of
+      truncating (`casts_base_types`). (3) `IsInRange` unwraps Variants so `case v of 11..12` matches
+      (`case_variant`). (4) Enum `.Name`/`.QualifiedName` print `?` for unnamed ordinals
+      (`enumerations_names`, `enumerations_qualifiednames`). (5) Builtins aligned with DWScript:
+      `LogN(Base,X)` argument order, niladic `MaxInt` = High(Int32), `LeastFactor(n<=0)=0`,
+      `FindDelimiter` not-found = -1, `RevPos('')=0`, `VarToFloatDef` Null→0 + comma decimals
+      (`FunctionsMath/basic`, `maxint`, `least_factor`, `delimiters`, `pos_posex`, `vartofloat`).
+      (6) Object references compare by identity, not rendered string (`oop_compare`, `array_in`).
+      (7) `str in ['a'..'z', ...]` compares whole strings lexicographically per range
+      (`string_in_op3`). (8) try/finally suspends+re-arms pending Exit so finally blocks run fully
+      and Exit still propagates (`exit_finally`, `exit_finally2`). (9) `IndexOf` clamps negative
+      fromIndex (`indexof_from_static`). (10) Constructor/method `var` params bind by reference when
+      the declaration is unambiguous (`oop_field`). Baselines ratcheted: SimpleScripts 259 → 268,
+      FunctionsMath 21 → 24, FunctionsString 42 → 45, ArrayPass 65 → 67; no category regressed.
+      Remaining wrong-output fails are mostly hint/warning-envelope emission (case-mismatch hints,
+      `Empty THEN block`, deprecation warnings), field shadowing per-class storage (`field_scope`),
+      overload-set resolution across scopes (`OverloadsPass/*`), heredoc/triple-quote lexing, and
+      UTF-16 surrogate iteration (`for_in_str(2)`).
 - [~] Work the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch, `class of`).
       **Metaclass member access closed for the common cases (2026-07-03).** (1) Member access on
       a `class of X` metaclass value (`runtime.TypeMetaValue` wrapping a `*types.ClassOfType`) now
