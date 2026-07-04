@@ -214,6 +214,14 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 			return e.newError(node, "internal error: ClassValue conversion failed")
 		}
+		if ident.Equal(memberName, "ClassParent") {
+			// ClassParent is callable on an instance too; return the parent class
+			// reference, or nil for a root class (TObject).
+			if meta := e.getClassMetadataFromValue(obj); meta != nil && meta.Parent != nil {
+				return e.makeClassValue(node, meta.Parent.Name)
+			}
+			return &runtime.NilValue{}
+		}
 
 		// Property access (with recursion protection)
 		propCtx := ctx.PropContext()
@@ -772,19 +780,13 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 		}
 	}
 
-	// Constructors: auto-invoke without parentheses
+	// Constructors: auto-invoke without parentheses. Construct directly from the
+	// resolved metaclass value rather than re-evaluating node.Object — when this helper
+	// is reached via the `class of X` (TYPE_META) delegation, node.Object evaluates to a
+	// TypeMetaValue, not the class reference, which would break construction.
 	if classMetaVal.HasConstructor(memberName) {
 		result, invoked := classMetaVal.InvokeConstructor(memberName, func(methodDecl any) Value {
-			// Create synthetic method call and route to VisitMethodCallExpression
-			methodCall := &ast.MethodCallExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: node.Token},
-				},
-				Object:    node.Object,
-				Method:    node.Member,
-				Arguments: []ast.Expression{},
-			}
-			return e.VisitMethodCallExpression(methodCall, ctx)
+			return e.callClassConstructor(classMetaVal, memberName, []Value{}, node, ctx)
 		})
 		if invoked {
 			return result
