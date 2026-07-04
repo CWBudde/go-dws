@@ -369,7 +369,7 @@ func (a *Analyzer) analyzeLeftStr(args []ast.Expression, callExpr *ast.CallExpre
 	}
 	// Analyze first argument (string)
 	strType := a.analyzeExpression(args[0])
-	if strType != nil && strType != types.STRING {
+	if strType != nil && strType != types.STRING && !builtinArgIsVariant(strType) {
 		a.addError("function 'LeftStr' expects string as first argument, got %s at %s",
 			strType.String(), callExpr.Token.Pos.String())
 	}

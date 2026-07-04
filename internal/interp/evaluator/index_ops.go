@@ -21,22 +21,29 @@ func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node
 		return e.newError(node, "array has no type information")
 	}
 
-	// Convert logical index to physical index
+	// Convert logical index to physical index.
+	// Read diagnostics point one past the index's closing bracket (DWScript).
 	var physicalIndex int
 	if arr.ArrayType.IsStatic() {
 		// Static array: check bounds and adjust for low bound
 		lowBound := *arr.ArrayType.LowBound
 		highBound := *arr.ArrayType.HighBound
 
-		if index < lowBound || index > highBound {
-			return e.newError(node, "index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)
+		if index < lowBound {
+			return e.raiseIndexBoundExceededAt(node.End(), index, false)
+		}
+		if index > highBound {
+			return e.raiseIndexBoundExceededAt(node.End(), index, true)
 		}
 
 		physicalIndex = index - lowBound
 	} else {
 		// Dynamic array: zero-based indexing
-		if index < 0 || index >= len(arr.Elements) {
-			return e.newError(node, "index out of bounds: %d (array length is %d)", index, len(arr.Elements))
+		if index < 0 {
+			return e.raiseIndexBoundExceededAt(node.End(), index, false)
+		}
+		if index >= len(arr.Elements) {
+			return e.raiseIndexBoundExceededAt(node.End(), index, true)
 		}
 
 		physicalIndex = index

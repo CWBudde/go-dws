@@ -151,21 +151,35 @@ func (e *Evaluator) evalArrayElementAssignment(
 
 	arrayType := arrayValue.ArrayType
 
+	// Point bounds diagnostics at the index expression's closing bracket.
+	diagNode := ast.Node(stmt)
+	if stmt != nil {
+		if target, ok := stmt.Target.(*ast.IndexExpression); ok {
+			diagNode = target
+		}
+	}
+
 	var physicalIndex int
 	if arrayType.IsStatic() {
 		// Static array: check bounds and adjust for low bound
 		lowBound := *arrayType.LowBound
 		highBound := *arrayType.HighBound
 
-		if index < lowBound || index > highBound {
-			return e.newError(stmt, "array index out of bounds: %d (bounds are %d..%d)", index, lowBound, highBound)
+		if index < lowBound {
+			return e.raiseIndexBoundExceeded(diagNode, index, false)
+		}
+		if index > highBound {
+			return e.raiseIndexBoundExceeded(diagNode, index, true)
 		}
 
 		physicalIndex = index - lowBound
 	} else {
 		// Dynamic array: zero-based indexing
-		if index < 0 || index >= len(arrayValue.Elements) {
-			return e.newError(stmt, "array index out of bounds: %d (array length is %d)", index, len(arrayValue.Elements))
+		if index < 0 {
+			return e.raiseIndexBoundExceeded(diagNode, index, false)
+		}
+		if index >= len(arrayValue.Elements) {
+			return e.raiseIndexBoundExceeded(diagNode, index, true)
 		}
 
 		physicalIndex = index

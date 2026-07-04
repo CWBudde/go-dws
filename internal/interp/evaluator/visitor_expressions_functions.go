@@ -332,6 +332,14 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Call built-in function from registry
 	if fn, ok := builtins.DefaultRegistry.Lookup(funcName.Value); ok {
+		// Variant-typed values reach builtins as their dynamic type; coerce
+		// them to the declared parameter types (DWScript variant casts).
+		if errVal := e.coerceBuiltinArgsToSignature(funcName, args, ctx); errVal != nil {
+			return errVal
+		}
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
 		return fn(e, args)
 	}
 
@@ -415,6 +423,24 @@ func (e *Evaluator) prepareByRefArgument(arg ast.Expression, ctx *ExecutionConte
 		return runtime.NewReferenceValue(varName, getter, setter), nil
 	}
 
+	// Array element by reference: bind to (array, index) so later resizes of
+	// the array are observed, with bounds re-checked on every access
+	// (DWScript raises "Upper/Lower bound exceeded!" at access time).
+	if idxExpr, ok := arg.(*ast.IndexExpression); ok {
+		if ref, handled, err := e.prepareArrayElementReference(idxExpr, ctx); handled {
+			return ref, err
+		}
+	}
+
+	// Field of a value that is itself a var parameter (e.g. r.y where r is a
+	// byref array element): chain through the base reference so staleness of
+	// the base is observed on each access.
+	if memberExpr, ok := arg.(*ast.MemberAccessExpression); ok {
+		if ref, handled, err := e.prepareMemberFieldReference(memberExpr, ctx); handled {
+			return ref, err
+		}
+	}
+
 	current, assign, err := e.EvaluateLValue(arg, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("var parameter requires a variable, got %T", arg)
@@ -444,6 +470,195 @@ func (e *Evaluator) prepareByRefArgument(arg ast.Expression, ctx *ExecutionConte
 	}
 
 	return runtime.NewReferenceValue(arg.String(), getter, setter), nil
+}
+
+// raiseBoundExceededError converts a boundExceededError from a stale array
+// element reference into a catchable script exception with the plain message
+// (DWScript omits the source location for var-param bound violations).
+func (e *Evaluator) raiseBoundExceededError(err error, ctx *ExecutionContext) (Value, bool) {
+	be, ok := err.(boundExceededError)
+	if !ok {
+		return nil, false
+	}
+	if ctx == nil {
+		ctx = e.currentContext
+	}
+	if ctx != nil {
+		ctx.SetException(e.createException("Exception", be.msg, nil, ctx))
+	}
+	return e.nilValue(), true
+}
+
+// boundExceededError marks an array-element var-param access whose index is no
+// longer within the (possibly resized) array. Consumers convert it into a
+// catchable DWScript exception with the plain message (no source location).
+type boundExceededError struct{ msg string }
+
+func (b boundExceededError) Error() string { return b.msg }
+
+// arrayElementBounds reports the logical bounds of an array value.
+func arrayElementBounds(arr *runtime.ArrayValue) (low, high int) {
+	if arr.ArrayType != nil && arr.ArrayType.IsStatic() {
+		return *arr.ArrayType.LowBound, *arr.ArrayType.HighBound
+	}
+	return 0, len(arr.Elements) - 1
+}
+
+// arrayElementPhysicalIndex converts a logical index into a physical index,
+// returning a boundExceededError when out of range.
+func arrayElementPhysicalIndex(arr *runtime.ArrayValue, index int) (int, error) {
+	low, high := arrayElementBounds(arr)
+	if index < low {
+		return 0, boundExceededError{msg: fmt.Sprintf("Lower bound exceeded! Index %d", index)}
+	}
+	if index > high || index-low >= len(arr.Elements) {
+		return 0, boundExceededError{msg: fmt.Sprintf("Upper bound exceeded! Index %d", index)}
+	}
+	return index - low, nil
+}
+
+// prepareArrayElementReference binds a var parameter to an array element as a
+// live (array, index) reference. Reads and writes re-check bounds at access
+// time, so resizes of the underlying dynamic array are observed (DWScript
+// raises "Upper/Lower bound exceeded!" on stale accesses). Returns
+// handled=false when the argument is not a plain array element (e.g. string
+// index or default property), letting the generic lvalue path take over.
+func (e *Evaluator) prepareArrayElementReference(idxExpr *ast.IndexExpression, ctx *ExecutionContext) (Value, bool, error) {
+	arrRaw := e.Eval(idxExpr.Left, ctx)
+	if isError(arrRaw) {
+		return nil, false, nil
+	}
+	if ref, isRef := arrRaw.(ReferenceAccessor); isRef {
+		deref, err := ref.Dereference()
+		if err != nil {
+			return nil, false, nil
+		}
+		arrRaw = deref
+	}
+	arr, ok := arrRaw.(*runtime.ArrayValue)
+	if !ok || arr.ArrayType == nil {
+		return nil, false, nil
+	}
+
+	idxVal := e.Eval(idxExpr.Index, ctx)
+	if isError(idxVal) {
+		return nil, false, nil
+	}
+	index, ok := ExtractIntegerIndex(idxVal)
+	if !ok {
+		return nil, false, nil
+	}
+
+	// Bind-time bounds check raises a catchable exception at the call site.
+	if _, err := arrayElementPhysicalIndex(arr, index); err != nil {
+		low, _ := arrayElementBounds(arr)
+		e.raiseIndexBoundExceededAt(idxExpr.End(), index, index >= low)
+		return nil, true, err
+	}
+
+	getter := func() (runtime.Value, error) {
+		phys, err := arrayElementPhysicalIndex(arr, index)
+		if err != nil {
+			return nil, err
+		}
+		el := arr.Elements[phys]
+		if el == nil {
+			return e.getZeroValueForType(arr.ArrayType.ElementType), nil
+		}
+		return el, nil
+	}
+	setter := func(val runtime.Value) error {
+		phys, err := arrayElementPhysicalIndex(arr, index)
+		if err != nil {
+			return err
+		}
+		value, ok := val.(Value)
+		if !ok {
+			return fmt.Errorf("var parameter assignment requires runtime value, got %T", val)
+		}
+		arr.Elements[phys] = value
+		return nil
+	}
+
+	return runtime.NewReferenceValue(idxExpr.String(), getter, setter), true, nil
+}
+
+// prepareMemberFieldReference builds a live reference for obj.field byref
+// arguments whose base is itself a reference (var parameter). Each access
+// re-dereferences the base, so bound violations of a stale base propagate.
+// Returns handled=false when the base is not a reference or the member is not
+// a plain record/object field.
+func (e *Evaluator) prepareMemberFieldReference(memberExpr *ast.MemberAccessExpression, ctx *ExecutionContext) (Value, bool, error) {
+	baseIdent, ok := memberExpr.Object.(*ast.Identifier)
+	if !ok || memberExpr.Member == nil {
+		return nil, false, nil
+	}
+	baseRaw, exists := ctx.Env().Get(baseIdent.Value)
+	if !exists {
+		return nil, false, nil
+	}
+	baseRef, ok := baseRaw.(ReferenceAccessor)
+	if !ok {
+		return nil, false, nil
+	}
+
+	// Only handle plain record/object field access; anything else (properties,
+	// helpers) goes through the generic lvalue path.
+	fieldName := memberExpr.Member.Value
+	if cur, err := baseRef.Dereference(); err == nil {
+		switch base := cur.(type) {
+		case RecordInstanceValue:
+			if _, found := base.GetRecordField(fieldName); !found {
+				return nil, false, nil
+			}
+		case ObjectValue:
+			if base.GetField(fieldName) == nil {
+				return nil, false, nil
+			}
+		default:
+			return nil, false, nil
+		}
+	}
+
+	getter := func() (runtime.Value, error) {
+		cur, err := baseRef.Dereference()
+		if err != nil {
+			return nil, err
+		}
+		switch base := cur.(type) {
+		case RecordInstanceValue:
+			if val, found := base.GetRecordField(fieldName); found {
+				return val, nil
+			}
+		case ObjectValue:
+			if val := base.GetField(fieldName); val != nil {
+				return val, nil
+			}
+		}
+		return nil, fmt.Errorf("field '%s' not found", fieldName)
+	}
+	setter := func(val runtime.Value) error {
+		cur, err := baseRef.Dereference()
+		if err != nil {
+			return err
+		}
+		value, ok := val.(Value)
+		if !ok {
+			return fmt.Errorf("var parameter assignment requires runtime value, got %T", val)
+		}
+		if setterVal, ok := cur.(RecordFieldSetter); ok {
+			if setterVal.SetRecordField(fieldName, value) {
+				return nil
+			}
+		}
+		if setterVal, ok := cur.(ObjectFieldSetter); ok {
+			setterVal.SetField(fieldName, value)
+			return nil
+		}
+		return fmt.Errorf("cannot assign field '%s'", fieldName)
+	}
+
+	return runtime.NewReferenceValue(memberExpr.String(), getter, setter), true, nil
 }
 
 func (e *Evaluator) prepareArgsForParameters(

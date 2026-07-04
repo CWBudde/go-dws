@@ -10,6 +10,12 @@ import (
 // Type Conversion Built-in Function Analysis
 // ============================================================================
 
+// builtinArgIsVariant reports whether the argument type is Variant; builtin
+// conversions accept Variant arguments and cast (or raise) at runtime.
+func builtinArgIsVariant(t types.Type) bool {
+	return t != nil && types.GetUnderlyingType(t).TypeKind() == "VARIANT"
+}
+
 // analyzeIntToStr analyzes the IntToStr built-in function.
 // IntToStr takes one or two arguments (value, [base]) and returns a string.
 // The base parameter is optional and defaults to 10.
@@ -23,7 +29,7 @@ func (a *Analyzer) analyzeIntToStr(args []ast.Expression, callExpr *ast.CallExpr
 	}
 	// Analyze the first argument and verify it's Integer or a subrange of Integer
 	argType := a.analyzeExpression(args[0])
-	if argType != nil && types.GetUnderlyingType(argType) != types.INTEGER {
+	if argType != nil && types.GetUnderlyingType(argType) != types.INTEGER && !builtinArgIsVariant(argType) {
 		// Check if it's a subrange type with Integer base
 		if subrange, ok := types.GetUnderlyingType(argType).(*types.SubrangeType); ok {
 			if subrange.BaseType != types.INTEGER {
@@ -182,7 +188,7 @@ func (a *Analyzer) analyzeBoolToStr(args []ast.Expression, callExpr *ast.CallExp
 	}
 	// Analyze the argument and verify it's Boolean
 	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.BOOLEAN {
+	if argType != nil && argType != types.BOOLEAN && !builtinArgIsVariant(argType) {
 		a.addError("function 'BoolToStr' expects Boolean as argument, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
 	}
@@ -229,7 +235,7 @@ func (a *Analyzer) analyzeFloatToStr(args []ast.Expression, callExpr *ast.CallEx
 	}
 	// Analyze the argument and verify it's numeric
 	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.FLOAT && argType != types.INTEGER {
+	if argType != nil && argType != types.FLOAT && argType != types.INTEGER && !builtinArgIsVariant(argType) {
 		a.addError("function 'FloatToStr' expects Float as argument, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
 	}
