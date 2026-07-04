@@ -94,6 +94,8 @@ type Analyzer struct {
 	forwardMethodReported map[string]bool                       // Forward-declared class methods already reported
 	currentProperty       string                                // Current property being analyzed
 	sourceFile            string                                // Source file path
+	inUnitDecl            bool                                  // Analyzing inside a unit declaration
+	parseHadErrors        bool                                  // Parser reported errors (suppresses some warnings)
 	sourceCode            string                                // Original source text
 	loopPosStack          []token.Position                      // Stack tracking loop positions for warnings
 	structuredErrors      []*SemanticError                      // Structured error objects
@@ -449,6 +451,13 @@ func (a *Analyzer) StructuredErrors() []*SemanticError {
 func (a *Analyzer) SetSource(source, filename string) {
 	a.sourceCode = source
 	a.sourceFile = filename
+}
+
+// SetParseHadErrors tells the analyzer the parser reported errors; some
+// courtesy warnings (e.g. unit-name/file-name mismatch) are then suppressed,
+// matching DWScript, which stops before them on syntax errors.
+func (a *Analyzer) SetParseHadErrors(had bool) {
+	a.parseHadErrors = had
 }
 
 // SetHintsLevel configures which hints should be emitted.

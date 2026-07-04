@@ -1302,6 +1302,12 @@ func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 
 // analyzeUnitDeclaration analyzes a unit declaration
 func (a *Analyzer) analyzeUnitDeclaration(unit *ast.UnitDeclaration) {
+	a.warnUnitNameFileMismatch(unit)
+
+	prevInUnit := a.inUnitDecl
+	a.inUnitDecl = true
+	defer func() { a.inUnitDecl = prevInUnit }()
+
 	// Create a single shared scope for the entire unit that persists across all sections.
 	// This allows initialization/finalization sections to access symbols defined in
 	// interface/implementation sections, which is required by DWScript semantics.

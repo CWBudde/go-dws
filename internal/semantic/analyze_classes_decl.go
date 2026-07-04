@@ -752,6 +752,11 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 				resultPos = blockEndStart(decl.End())
 			}
 			a.symbols.Define("Result", returnType, resultPos)
+			// Inside a unit, an empty implementation body deliberately leaves
+			// Result at its default; do not hint "Result is never used" for it.
+			if a.inUnitDecl && decl.Body != nil && len(decl.Body.Statements) == 0 {
+				a.recordSymbolUsage("Result", resultPos)
+			}
 			a.symbols.Define(decl.Name.Value, returnType, decl.Name.Token.Pos)
 		}
 	}
@@ -1033,6 +1038,11 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			resultPos = blockEndStart(method.End())
 		}
 		a.symbols.Define("Result", returnType, resultPos)
+		// Inside a unit, an empty implementation body deliberately leaves
+		// Result at its default; do not hint "Result is never used" for it.
+		if a.inUnitDecl && method.Body != nil && len(method.Body.Statements) == 0 {
+			a.recordSymbolUsage("Result", resultPos)
+		}
 		a.symbols.Define(method.Name.Value, returnType, method.Name.Token.Pos)
 	}
 
