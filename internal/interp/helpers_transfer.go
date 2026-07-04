@@ -24,6 +24,12 @@ func (i *Interpreter) TransferHelpersFromSemanticAnalysis(semanticHelpers map[st
 	// Initialize maps if needed
 	// First pass: Convert all helpers (without parent references)
 	// This ensures all helpers are registered before we try to link parents
+	//
+	// The same *types.HelperType may appear under several type-name keys in the
+	// semantic map (e.g. resolved and declared target names). Convert each
+	// semantic helper exactly ONCE and register that single runtime instance
+	// under every key, so each user helper is backed by one *HelperInfo.
+	converted := make(map[*types.HelperType]*HelperInfo)
 	helperMap := make(map[string]*HelperInfo) // Map from helper name to runtime info
 
 	for typeName, helperList := range semanticHelpers {
@@ -34,15 +40,21 @@ func (i *Interpreter) TransferHelpersFromSemanticAnalysis(semanticHelpers map[st
 				continue
 			}
 
-			// Convert to runtime HelperInfo (without parent resolution)
-			runtimeHelper := convertHelperTypeToHelperInfoNoParent(semanticHelper)
-			if runtimeHelper == nil {
-				// Conversion failed (shouldn't happen in practice)
-				continue
-			}
+			// Convert to runtime HelperInfo (without parent resolution),
+			// reusing the instance if this helper was already converted
+			// under another type-name key
+			runtimeHelper, alreadyConverted := converted[semanticHelper]
+			if !alreadyConverted {
+				runtimeHelper = convertHelperTypeToHelperInfoNoParent(semanticHelper)
+				if runtimeHelper == nil {
+					// Conversion failed (shouldn't happen in practice)
+					continue
+				}
+				converted[semanticHelper] = runtimeHelper
 
-			// Store in map for parent resolution
-			helperMap[ident.Normalize(semanticHelper.Name)] = runtimeHelper
+				// Store in map for parent resolution
+				helperMap[ident.Normalize(semanticHelper.Name)] = runtimeHelper
+			}
 
 			// Register in TypeSystem
 			if i.typeSystem != nil {
