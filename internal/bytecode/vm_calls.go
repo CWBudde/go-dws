@@ -127,8 +127,13 @@ func (vm *VM) invokeMethod(receiver Value, methodName string, args []Value) erro
 			}
 
 			arrayLen := arr.Length()
+			// DWScript clamps a fromIndex below the low bound to the start of
+			// the array (mirrors runtime.ArrayHelperIndexOf).
+			if startIndex < 0 {
+				startIndex = 0
+			}
 			// PR #78: Allow startIndex == arrayLen (searches 0 elements, returns -1)
-			if startIndex < 0 || startIndex > arrayLen {
+			if startIndex > arrayLen {
 				vm.push(IntValue(-1))
 				return nil
 			}

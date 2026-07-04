@@ -658,8 +658,13 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 
 			// Validate startIndex
 			arrayLen := arr.Length()
+			// DWScript clamps a fromIndex below the low bound to the start of
+			// the array (mirrors runtime.ArrayHelperIndexOf).
+			if startIndex < 0 {
+				startIndex = 0
+			}
 			// Allow startIndex == arrayLen (searches 0 elements, returns -1)
-			if startIndex < 0 || startIndex > arrayLen {
+			if startIndex > arrayLen {
 				vm.push(IntValue(-1))
 			} else {
 				// Search for value
@@ -1252,7 +1257,9 @@ func (vm *VM) Run(chunk *Chunk) (Value, error) {
 				return NilValue(), vm.typeError("FLOAT_TO_INT", "Number", val.Type.String())
 			}
 			f := val.AsFloat()
-			vm.push(IntValue(int64(math.Round(f))))
+			// Integer(<float>) rounds half-to-even, matching the AST evaluator
+			// and DWScript's Round() semantics (Integer(2.5) = 2).
+			vm.push(IntValue(int64(math.RoundToEven(f))))
 		case OpToBool:
 			val, err := vm.pop()
 			if err != nil {

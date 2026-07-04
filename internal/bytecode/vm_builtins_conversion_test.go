@@ -287,6 +287,24 @@ func TestBuiltinConversionFunctionsComprehensive(t *testing.T) {
 		}
 	})
 
+	t.Run("Integer from float rounds half to even", func(t *testing.T) {
+		// Banker's rounding, matching the AST evaluator: Integer(2.5) = 2,
+		// Integer(1.5) = 2.
+		cases := []struct {
+			in   float64
+			want int64
+		}{{2.5, 2}, {1.5, 2}, {0.5, 0}, {-1.5, -2}}
+		for _, c := range cases {
+			result, err := builtinInteger(vm, []Value{FloatValue(c.in)})
+			if err != nil {
+				t.Fatalf("builtinInteger(%v) error = %v", c.in, err)
+			}
+			if result.AsInt() != c.want {
+				t.Errorf("builtinInteger(%v) = %v, want %v", c.in, result.AsInt(), c.want)
+			}
+		}
+	})
+
 	t.Run("Integer from bool true", func(t *testing.T) {
 		result, err := builtinInteger(vm, []Value{BoolValue(true)})
 		if err != nil {
