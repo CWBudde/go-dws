@@ -19,6 +19,11 @@ type ExceptionValue struct {
 	Message   string          // Exception message
 
 	CallStack errors.StackTrace // Stack trace at the point the exception was raised
+
+	// UserRaised marks exceptions raised by an explicit `raise` statement in
+	// script code. DWScript reports these unhandled as
+	// "User defined exception: <message>"; runtime errors keep their message.
+	UserRaised bool
 }
 
 // Type returns the type of this exception value.

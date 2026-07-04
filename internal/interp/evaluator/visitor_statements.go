@@ -46,6 +46,19 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 			if message == "" {
 				message = exc.Inspect()
 			}
+			// Match DWScript's unhandled-exception report: explicit raises are
+			// prefixed "User defined exception:", the raise position is
+			// appended, and each call site is listed labeled by its containing
+			// routine (see StackTrace.DWScriptString).
+			if exc.UserRaised {
+				message = "User defined exception: " + message
+			}
+			if exc.Position != nil && exc.Position.IsValid() && !strings.Contains(message, "[line:") {
+				message = fmt.Sprintf("%s [line: %d, column: %d]", message, exc.Position.Line, exc.Position.Column)
+			}
+			if trace := exc.CallStack.DWScriptString(); trace != "" {
+				message += "\n" + trace
+			}
 			return &runtime.ErrorValue{Message: message}
 		}
 		type ExceptionInspector interface {
@@ -1112,7 +1125,13 @@ func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *Execution
 		return nil
 	}
 
-	excObj := e.createExceptionFromObject(excVal, ctx, node.Pos())
+	// DWScript reports the raise position just past the raised expression
+	// (the parser's position after consuming it).
+	pos := node.Exception.End()
+	excObj := e.createExceptionFromObject(excVal, ctx, &pos)
+	if excValue, ok := excObj.(*runtime.ExceptionValue); ok {
+		excValue.UserRaised = true
+	}
 	ctx.SetException(excObj)
 
 	return nil

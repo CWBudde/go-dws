@@ -194,6 +194,10 @@ func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Id
 	// Parse constructor arguments
 	newExpr.Arguments = p.parseExpressionList()
 
+	// Record the end position (one past the closing parenthesis) so that
+	// End() reflects the whole expression, e.g. for raise-position reporting.
+	newExpr.EndPos = p.endPosFromToken(p.cursor.Current())
+
 	return newExpr
 }
 
