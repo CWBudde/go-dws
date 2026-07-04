@@ -41,6 +41,24 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	}
 	a.warnDeprecatedClassUsage(classType, expr.Token.Pos)
 
+	// Case-mismatch hints for the class name and (for the "TClass.Create(...)"
+	// sugar) the constructor name against their declarations.
+	if expr.ClassName != nil {
+		if classType.Name != expr.ClassName.Value && ident.Equal(classType.Name, expr.ClassName.Value) {
+			a.addCaseMismatchHint(expr.ClassName.Value, classType.Name, expr.ClassName.Token.Pos)
+		}
+		if !ident.Equal(expr.Token.Literal, "new") {
+			// The parser folds "TClass.Create(args)" into a NewExpression only
+			// when the member is spelled exactly "Create"; recover its position
+			// from the class name token (same line, right after the dot).
+			if declared := a.declaredMethodName(classType, "Create"); declared != "" && declared != "Create" {
+				pos := expr.ClassName.Token.Pos
+				pos.Column += len(expr.ClassName.Value) + 1
+				a.addCaseMismatchHint("Create", declared, pos)
+			}
+		}
+	}
+
 	if classType.IsStatic {
 		a.addStructuredError(NewStaticClassInstantiationError(expr.Pos(), classType.Name))
 		return classType
@@ -374,8 +392,23 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return helperLookupType
 	}
 
-	// Handle built-in properties on all objects (inherited from TObject)
+	// Handle built-in properties on all objects (inherited from TObject).
+	// A user-declared method with the same name hides the builtin; when every
+	// user overload needs at least one argument, the parameterless access
+	// still resolves to the builtin (see fixture classname_hide_with_default:
+	// the user's defaulted overload wins).
 	if memberName == "classname" {
+		userOverloads := a.getMethodOverloadsInHierarchy(memberName, classType)
+		for _, overload := range userOverloads {
+			if requiredParamCount(overload.Signature) == 0 {
+				if declared := a.declaredMethodName(classType, memberName); declared != "" && expr.Member.Value != declared {
+					pos := expr.Token.Pos
+					pos.Column++
+					a.addCaseMismatchHint(expr.Member.Value, declared, pos)
+				}
+				return overload.Signature.ReturnType
+			}
+		}
 		if expr.Member.Value != "ClassName" {
 			pos := expr.Token.Pos
 			pos.Column++
@@ -465,10 +498,14 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		}
 	}
 	if len(constructorOverloads) > 0 {
-		if memberName == "create" && expr.Member.Value != "Create" {
+		declaredCtor := a.declaredMethodName(classType, memberName)
+		if declaredCtor == "" && memberName == "create" {
+			declaredCtor = "Create" // built-in TObject constructor
+		}
+		if declaredCtor != "" && expr.Member.Value != declaredCtor {
 			pos := expr.Token.Pos
 			pos.Column++
-			a.addCaseMismatchHint(expr.Member.Value, "Create", pos)
+			a.addCaseMismatchHint(expr.Member.Value, declaredCtor, pos)
 		}
 		// Check if parameterless (auto-invoked when accessed without parentheses)
 		hasParameterless := false

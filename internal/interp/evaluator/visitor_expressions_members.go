@@ -206,8 +206,10 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
-		// Built-in TObject properties (ClassName, ClassType)
-		if ident.Equal(memberName, "ClassName") {
+		// Built-in TObject properties (ClassName, ClassType).
+		// A user-declared ClassName method callable with zero arguments hides
+		// the builtin (falls through to the method auto-invoke below).
+		if ident.Equal(memberName, "ClassName") && !e.userMethodHidesBuiltin(obj, memberName) {
 			return &runtime.StringValue{Value: objVal.ClassName()}
 		}
 		if ident.Equal(memberName, "ClassType") {

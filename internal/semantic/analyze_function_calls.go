@@ -116,11 +116,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 	sym, ok := a.symbols.Resolve(funcIdent.Value)
 	if !ok {
-		// Check built-in functions
-		if resultType, isBuiltin := a.analyzeBuiltinFunction(funcIdent.Value, expr.Arguments, expr); isBuiltin {
+		// Check built-in functions. The callee's case-mismatch hint is emitted
+		// before the arguments are analyzed so hints appear in source order.
+		if a.isBuiltinFunction(funcIdent.Value) {
 			if declName := a.builtinDeclarationName(funcIdent.Value); declName != "" && declName != funcIdent.Value {
 				a.addCaseMismatchHint(funcIdent.Value, declName, funcIdent.Token.Pos)
 			}
+		}
+		if resultType, isBuiltin := a.analyzeBuiltinFunction(funcIdent.Value, expr.Arguments, expr); isBuiltin {
 			return resultType
 		}
 

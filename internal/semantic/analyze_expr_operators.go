@@ -81,6 +81,9 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		// Class name as identifier -> metaclass reference
 		if classType := a.getClassType(identifier.Value); classType != nil {
 			a.warnDeprecatedClassUsage(classType, identifier.Token.Pos)
+			if classType.Name != identifier.Value && ident.Equal(classType.Name, identifier.Value) {
+				a.addCaseMismatchHint(identifier.Value, classType.Name, identifier.Token.Pos)
+			}
 			return &types.ClassOfType{ClassType: classType}
 		}
 		if interfaceType := a.getInterfaceType(identifier.Value); interfaceType != nil {

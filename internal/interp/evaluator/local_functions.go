@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/builtins"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -181,6 +182,38 @@ func (e *Evaluator) maybeCallBuiltinOverload(funcName string, overloads []*ast.F
 		return e.ExecuteUserFunctionDirect(bestUser, prepared, ctx), true
 	}
 	return nil, false
+}
+
+// userMethodHidesBuiltin reports whether the receiver's class declares a
+// method with the given name that can be invoked with zero arguments,
+// hiding the same-named builtin TObject member (e.g. ClassName).
+func (e *Evaluator) userMethodHidesBuiltin(obj Value, memberName string) bool {
+	objInst, ok := obj.(*runtime.ObjectInstance)
+	if !ok || objInst.Class == nil {
+		return false
+	}
+	for _, decl := range objInst.Class.GetMethodOverloads(memberName) {
+		if astCallableWithNoArgs(decl) {
+			return true
+		}
+	}
+	for _, decl := range objInst.Class.GetClassMethodOverloads(memberName) {
+		if astCallableWithNoArgs(decl) {
+			return true
+		}
+	}
+	return false
+}
+
+// astCallableWithNoArgs reports whether a declaration can be called without
+// arguments (no parameters, or all parameters defaulted).
+func astCallableWithNoArgs(decl *ast.FunctionDecl) bool {
+	for _, param := range decl.Parameters {
+		if param.DefaultValue == nil {
+			return false
+		}
+	}
+	return true
 }
 
 // callLocalFunctionSet resolves and invokes a nested function overload set.

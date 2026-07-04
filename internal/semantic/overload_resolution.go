@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // SignaturesEqual checks if two function signatures are identical for overload detection.
@@ -369,6 +370,18 @@ func ResolveOverload(candidates []*Symbol, argTypes []types.Type) (*Symbol, erro
 	// Ambiguous: multiple equally good matches
 	return nil, fmt.Errorf("ambiguous overload call: %d candidates with equal distance %d for argument types: %s",
 		len(bestMatches), minDist, formatArgTypes(argTypes))
+}
+
+// declaredMethodName returns the original-cased declared name of a method or
+// constructor in the class hierarchy, or "" if unknown.
+func (a *Analyzer) declaredMethodName(classType *types.ClassType, name string) string {
+	normalized := ident.Normalize(name)
+	for current := classType; current != nil; current = current.Parent {
+		if declared, ok := current.MethodDeclNames[normalized]; ok {
+			return declared
+		}
+	}
+	return ""
 }
 
 // analyzeOverloadArgument analyzes a call argument for overload resolution.

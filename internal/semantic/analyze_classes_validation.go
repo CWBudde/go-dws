@@ -112,12 +112,15 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 			return
 		}
 
-		// Check if there are other overloads of this method/constructor in the current class
+		// Check if there are other overloads of this method/constructor in the
+		// effective overload set (the class hierarchy: a parent's overloads
+		// count even before the sibling declarations have been analyzed).
 		var currentOverloads []*types.MethodInfo
-		if isConstructor {
-			currentOverloads = classType.GetConstructorOverloads(methodName)
-		} else {
-			currentOverloads = classType.GetMethodOverloads(methodName)
+		for _, overload := range a.getMethodOverloadsInHierarchy(methodName, classType) {
+			if overload.IsSynthesized || overload.IsConstructor != isConstructor {
+				continue
+			}
+			currentOverloads = append(currentOverloads, overload)
 		}
 
 		if len(currentOverloads) > 1 && !method.IsOverload {
