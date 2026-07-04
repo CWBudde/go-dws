@@ -866,6 +866,63 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 	return e.newError(node, "type mismatch: %s in %s", value.Type(), container.Type())
 }
 
+// evalArrayBinaryOp evaluates binary operations on arrays.
+// Supports: + (concatenation into a new dynamic array).
+func (e *Evaluator) evalArrayBinaryOp(op string, left, right Value, node ast.Node) Value {
+	leftArr, leftOk := left.(*runtime.ArrayValue)
+	rightArr, rightOk := right.(*runtime.ArrayValue)
+	if !leftOk || !rightOk {
+		return e.newError(node, "array operations require array operands")
+	}
+
+	if op != "+" {
+		return e.newError(node, "type mismatch: %s %s %s", left.Type(), op, right.Type())
+	}
+
+	result := &runtime.ArrayValue{
+		ArrayType: concatArrayResultType(leftArr.ArrayType, rightArr.ArrayType),
+		Elements:  make([]Value, 0, len(leftArr.Elements)+len(rightArr.Elements)),
+	}
+	for _, el := range leftArr.Elements {
+		result.Elements = append(result.Elements, runtime.CopyValue(el))
+	}
+	for _, el := range rightArr.Elements {
+		result.Elements = append(result.Elements, runtime.CopyValue(el))
+	}
+	return result
+}
+
+// concatArrayResultType determines the element type for an array concatenation.
+// The result is always a dynamic array; when the element types differ the
+// wider/variant one wins, defaulting to Variant for mixed element types.
+func concatArrayResultType(left, right *types.ArrayType) *types.ArrayType {
+	var leftElem, rightElem types.Type
+	if left != nil {
+		leftElem = left.ElementType
+	}
+	if right != nil {
+		rightElem = right.ElementType
+	}
+	switch {
+	case leftElem == nil && rightElem == nil:
+		return types.NewDynamicArrayType(types.VARIANT)
+	case leftElem == nil:
+		return types.NewDynamicArrayType(rightElem)
+	case rightElem == nil:
+		return types.NewDynamicArrayType(leftElem)
+	case leftElem.Equals(rightElem):
+		return types.NewDynamicArrayType(leftElem)
+	case types.GetUnderlyingType(leftElem).TypeKind() == "VARIANT" || types.GetUnderlyingType(rightElem).TypeKind() == "VARIANT":
+		return types.NewDynamicArrayType(types.VARIANT)
+	case types.IsCompatible(rightElem, leftElem):
+		return types.NewDynamicArrayType(leftElem)
+	case types.IsCompatible(leftElem, rightElem):
+		return types.NewDynamicArrayType(rightElem)
+	default:
+		return types.NewDynamicArrayType(types.VARIANT)
+	}
+}
+
 // evalSetBinaryOp evaluates binary operations on sets.
 // Supports: + (union), - (difference), * (intersection).
 func (e *Evaluator) evalSetBinaryOp(op string, left, right Value, node ast.Node) Value {

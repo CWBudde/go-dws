@@ -387,10 +387,10 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 			resultElementType := a.findCommonType(leftArrayType.ElementType, rightArrayType.ElementType)
 			if resultElementType == nil {
-				if leftArrayType.ElementType == types.VARIANT {
-					resultElementType = rightArrayType.ElementType
-				} else if rightArrayType.ElementType == types.VARIANT {
-					resultElementType = leftArrayType.ElementType
+				// Concatenating with an array of Variant yields array of Variant
+				// (a Variant element can hold any value).
+				if leftArrayType.ElementType == types.VARIANT || rightArrayType.ElementType == types.VARIANT {
+					resultElementType = types.VARIANT
 				}
 			}
 			if resultElementType == nil {

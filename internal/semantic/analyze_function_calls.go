@@ -675,9 +675,13 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 			if isArrayOfConstType(expectedType) {
 				if _, isLiteral := arg.(*ast.ArrayLiteralExpression); !isLiteral {
+					// Any array value can be passed to an open "array of const"
+					// parameter; only reject non-array arguments.
 					if argType != nil {
-						pos := expr.Token.Pos
-						a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
+						if _, isArr := types.GetUnderlyingType(argType).(*types.ArrayType); !isArr {
+							pos := expr.Token.Pos
+							a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
+						}
 					}
 					continue
 				}

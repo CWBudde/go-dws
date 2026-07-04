@@ -64,6 +64,16 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	// Empty literal requires explicit context
 	if len(lit.Elements) == 0 {
 		if expectedArrayType == nil {
+			if expectedType == nil {
+				// Empty array constructor without context (e.g. `var a := []`):
+				// infer array of Variant.
+				arrType := types.NewDynamicArrayType(types.VARIANT)
+				a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
+					Token: lit.Token,
+					Name:  arrType.String(),
+				})
+				return arrType
+			}
 			a.addError("cannot infer type for empty array literal at %s", lit.Token.Pos.String())
 			return nil
 		}
@@ -146,9 +156,9 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			continue
 		}
 
-		a.addError("incompatible element types in array literal: %s and %s at %s",
-			underlyingInferred.String(), underlyingCurrent.String(), elem.Pos().String())
-		hasErrors = true
+		// Heterogeneous array constructor (e.g. [1, 'a', 3.14]): widen to
+		// Variant, matching DWScript's array-of-const semantics.
+		inferredElementType = types.VARIANT
 	}
 
 	if hasErrors {
@@ -356,9 +366,17 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 		if expectedSetType != nil {
 			return expectedSetType
 		}
-		// Empty set without context - cannot infer type
-		a.addError("cannot infer type for empty set literal at %s", lit.Token.Pos.String())
-		return nil
+		// An empty bracket literal without context is an empty array
+		// constructor (e.g. `var a := []`); infer array of Variant and
+		// annotate so the interpreter evaluates it as an array.
+		arrType := types.NewDynamicArrayType(types.VARIANT)
+		if a.semanticInfo != nil {
+			a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
+				Token: lit.Token,
+				Name:  arrType.String(),
+			})
+		}
+		return arrType
 	}
 
 	// Analyze all elements and check they are of the same ordinal type
