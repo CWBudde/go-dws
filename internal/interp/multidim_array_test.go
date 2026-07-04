@@ -180,7 +180,7 @@ func TestMultiDimensionalArrayErrors(t *testing.T) {
 				var arr: array of array of Integer;
 				arr := new Integer[3, 0];
 			`,
-			shouldError: true,
+			shouldError: false,
 		},
 		{
 			name: "non-integer dimension",

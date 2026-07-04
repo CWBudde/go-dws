@@ -1321,25 +1321,26 @@ func TestNewArrayExpression_NegativeDimension(t *testing.T) {
 		t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
 	}
 
-	if !strings.Contains(errVal.Message, "must be positive") {
-		t.Errorf("expected error about positive dimension, got: %s", errVal.Message)
+	if !strings.Contains(errVal.Message, "must be non-negative") {
+		t.Errorf("expected error about non-negative dimension, got: %s", errVal.Message)
 	}
 }
 
-// TestNewArrayExpression_ZeroDimension tests error handling for zero dimensions.
+// TestNewArrayExpression_ZeroDimension tests that zero-size dynamic arrays are
+// legal (DWScript allows new Integer[0], yielding an empty array).
 func TestNewArrayExpression_ZeroDimension(t *testing.T) {
 	input := `
 		var arr := new Integer[0];
 	`
 
 	result := testEval(input)
-	errVal, ok := result.(*ErrorValue)
+	arrVal, ok := result.(*ArrayValue)
 	if !ok {
-		t.Fatalf("expected ErrorValue, got %T: %+v", result, result)
+		t.Fatalf("expected ArrayValue, got %T: %+v", result, result)
 	}
 
-	if !strings.Contains(errVal.Message, "must be positive") {
-		t.Errorf("expected error about positive dimension, got: %s", errVal.Message)
+	if len(arrVal.Elements) != 0 {
+		t.Errorf("expected empty array, got %d elements", len(arrVal.Elements))
 	}
 }
 
