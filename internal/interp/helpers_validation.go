@@ -73,6 +73,12 @@ func (i *Interpreter) initArrayHelpers() {
 	}
 
 	// Array methods: Add, Delete, IndexOf, SetLength, Swap, Push, Pop
+	// Length/Count/High/Low are properties, but DWScript also allows the
+	// call form (recs.Length()), so register them as methods too.
+	arrayHelper.BuiltinMethods["length"] = "__array_length"
+	arrayHelper.BuiltinMethods["count"] = "__array_count"
+	arrayHelper.BuiltinMethods["high"] = "__array_high"
+	arrayHelper.BuiltinMethods["low"] = "__array_low"
 	arrayHelper.BuiltinMethods["add"] = "__array_add"
 	arrayHelper.BuiltinMethods["delete"] = "__array_delete"
 	arrayHelper.BuiltinMethods["indexof"] = "__array_indexof"
