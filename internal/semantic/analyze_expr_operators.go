@@ -161,6 +161,12 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 					// Methods with parameters: return method pointer type
 					return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 				}
+
+				// Sibling constructor invoked by bare name from inside a method
+				// body (e.g. "Create;" inside another constructor).
+				if a.currentClass.HasConstructor(identifier.Value) {
+					return types.VOID
+				}
 			}
 		}
 

@@ -94,6 +94,7 @@ func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
 		IsAbstract:           false,
 		IsForwarded:          false,
 		IsClassMethod:        false,
+		IsSynthesized:        true,
 		HasOverloadDirective: false,
 		Visibility:           int(ast.VisibilityPublic), // Public access
 	}
@@ -154,6 +155,7 @@ func (a *Analyzer) synthesizeImplicitParameterlessConstructor(classType *types.C
 				IsAbstract:           false,
 				IsForwarded:          false,
 				IsClassMethod:        false,
+				IsSynthesized:        true,
 				HasOverloadDirective: true,                      // Mark as part of overload set
 				Visibility:           int(ast.VisibilityPublic), // Public access
 			}

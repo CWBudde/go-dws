@@ -826,9 +826,14 @@ func (a *Analyzer) findMatchingConstructorInParent(constructorName string, signa
 		return nil
 	}
 
-	// Check constructor overloads in parent
+	// Check constructor overloads in parent. Compiler-synthesized implicit
+	// constructors are skipped: an override must match a real declaration
+	// (e.g. a grandparent's virtual parameterless constructor).
 	overloads := parent.GetConstructorOverloads(constructorName)
 	for _, overload := range overloads {
+		if overload.IsSynthesized {
+			continue
+		}
 		// For constructors, only compare parameters (not return type)
 		if a.parametersMatch(signature, overload.Signature) {
 			return overload

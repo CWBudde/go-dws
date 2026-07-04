@@ -42,6 +42,9 @@ func (e *Evaluator) executeMethodWithClassInfo(
 
 	ctx.Env().Define("Self", self)
 	ctx.Env().Define("__CurrentMethod__", &runtime.StringValue{Value: method.Name.Value})
+	if defining := definingClassOf(classInfo, method); defining != nil {
+		ctx.Env().Define("__CurrentMethodClass__", &runtime.StringValue{Value: defining.GetName()})
+	}
 	if classVal, err := e.typeSystem.CreateClassValue(classInfo.GetName()); err == nil && classVal != nil {
 		if classMeta, ok := classVal.(ClassMetaValue); ok {
 			ctx.Env().Define("__CurrentClass__", classMeta)
@@ -50,6 +53,34 @@ func (e *Evaluator) executeMethodWithClassInfo(
 	e.bindClassConstantsForMethod(classInfo, ctx)
 
 	return e.ExecuteUserFunctionDirect(method, args, ctx)
+}
+
+// methodDeclOwner is implemented by class infos that can report whether they
+// (and not an ancestor) declare a given method declaration.
+type methodDeclOwner interface {
+	OwnsMethodDecl(fn *ast.FunctionDecl) bool
+}
+
+// definingClassOf walks the class hierarchy to find the class that declares
+// the given method. `inherited` inside the method resolves relative to this
+// class, not the receiver's dynamic class. Method implementations are
+// propagated (pointer-shared) down to descendants during registration, so the
+// HIGHEST ancestor owning the declaration is the true definer.
+func definingClassOf(classInfo runtime.IClassInfo, method *ast.FunctionDecl) runtime.IClassInfo {
+	var defining runtime.IClassInfo
+	for current := classInfo; current != nil; current = current.GetParent() {
+		owner, ok := current.(methodDeclOwner)
+		if !ok {
+			break
+		}
+		if owner.OwnsMethodDecl(method) {
+			defining = current
+		}
+	}
+	if defining == nil {
+		return classInfo
+	}
+	return defining
 }
 
 func (e *Evaluator) classInfoForMethodSelf(self Value) runtime.IClassInfo {
@@ -107,6 +138,9 @@ func (e *Evaluator) executeClassMethodDirect(
 	ctx.Env().Define("Self", classValue)
 	ctx.Env().Define("__CurrentClass__", classValue)
 	ctx.Env().Define("__CurrentMethod__", &runtime.StringValue{Value: method.Name.Value})
+	if defining := definingClassOf(classInfo, method); defining != nil {
+		ctx.Env().Define("__CurrentMethodClass__", &runtime.StringValue{Value: defining.GetName()})
+	}
 	e.bindClassConstantsForMethod(classInfo, ctx)
 
 	return e.ExecuteUserFunctionDirect(method, args, ctx)
