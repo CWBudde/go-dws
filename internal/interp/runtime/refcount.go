@@ -40,6 +40,7 @@ type DestructorCallback func(obj *ObjectInstance) error
 type defaultRefCountManager struct {
 	destructorCallback DestructorCallback
 	mu                 sync.RWMutex // Protects callback
+	refMu              sync.Mutex   // Protects RefCount mutations across goroutines
 }
 
 // NewRefCountManager creates a default reference count manager.
@@ -52,6 +53,9 @@ func (m *defaultRefCountManager) IncrementRef(val Value) Value {
 	if val == nil {
 		return val
 	}
+
+	m.refMu.Lock()
+	defer m.refMu.Unlock()
 
 	switch v := val.(type) {
 	case *ObjectInstance:
@@ -85,13 +89,17 @@ func (m *defaultRefCountManager) DecrementRef(val Value) Value {
 		return nil
 	}
 
+	m.refMu.Lock()
 	obj.RefCount--
 	if obj.RefCount < 0 {
 		obj.RefCount = 0
 	}
+	reachedZero := obj.RefCount <= 0
+	m.refMu.Unlock()
 
-	// Invoke destructor when ref count reaches 0
-	if obj.RefCount <= 0 {
+	// Invoke destructor when ref count reaches 0. The callback runs outside
+	// refMu so a destructor body that releases other references cannot deadlock.
+	if reachedZero {
 		m.mu.RLock()
 		callback := m.destructorCallback
 		m.mu.RUnlock()
@@ -126,7 +134,9 @@ func (m *defaultRefCountManager) WrapInInterface(iface InterfaceInfo, obj *Objec
 		Object:    obj,
 	}
 	if obj != nil {
+		m.refMu.Lock()
 		obj.RefCount++
+		m.refMu.Unlock()
 	}
 	return intf
 }
