@@ -10,6 +10,68 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
+// TestUserHelperReuseWithCaseMismatchedTarget verifies that VisitHelperDecl
+// reuses the semantic-transfer instance even when the helper declaration
+// spells the target type with different casing than the type declaration
+// (DWScript is case-insensitive, but ClassType.Equals compares names
+// case-sensitively). With two instances, the out-of-line method body would be
+// bound into only one of them and dispatch could hit the body-less copy,
+// silently returning zero values.
+func TestUserHelperReuseWithCaseMismatchedTarget(t *testing.T) {
+	source := `
+type
+   TFoo = class
+      x : Integer;
+   end;
+
+type
+   TFooHelper = helper for tfoo
+      function GetX : Integer;
+   end;
+
+function TFooHelper.GetX : Integer;
+begin
+   Result := Self.x + 41;
+end;
+
+var f := TFoo.Create;
+f.x := 1;
+PrintLn(f.GetX);
+`
+
+	compileResult := frontend.Compile(source, "case_mismatch.dws", semantic.HintsLevelDisabled)
+	if compileResult.HasFatalDiagnostics() || !compileResult.SemanticSuccessful {
+		t.Fatalf("compile failed: %v", compileResult.DiagnosticStrings())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	if compileResult.SemanticInfo != nil {
+		interp.SetSemanticInfo(compileResult.SemanticInfo)
+	}
+	interp.TransferHelpersFromSemanticAnalysis(compileResult.Analyzer.GetHelpers())
+
+	if result := interp.Eval(compileResult.Program); result != nil && result.Type() == "ERROR" {
+		t.Fatalf("evaluation failed: %s", result.String())
+	}
+
+	if got, want := buf.String(), "42\n"; got != want {
+		t.Errorf("program output = %q, want %q", got, want)
+	}
+
+	instances := make(map[*runtime.MutableHelperInfo]bool)
+	for _, helpers := range interp.typeSystem.AllHelpers() {
+		for _, helperAny := range helpers {
+			if helperInfo, ok := helperAny.(*runtime.MutableHelperInfo); ok && ident.Equal(helperInfo.Name, "TFooHelper") {
+				instances[helperInfo] = true
+			}
+		}
+	}
+	if len(instances) != 1 {
+		t.Errorf("helper registered as %d distinct MutableHelperInfo instances, want exactly 1", len(instances))
+	}
+}
+
 // TestUserHelperRegisteredAsSingleInstance verifies that a user helper is
 // backed by exactly one *runtime.MutableHelperInfo instance, even when the
 // semantic-transfer path (TransferHelpersFromSemanticAnalysis) and the
