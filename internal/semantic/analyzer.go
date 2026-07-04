@@ -546,7 +546,14 @@ func (a *Analyzer) canAssignNil(from, to types.Type) bool {
 	toKind := to.TypeKind()
 
 	if fromKind == "NIL" {
-		return toKind == "CLASS" || toKind == "INTERFACE" || toKind == "CLASSOF"
+		if toKind == "CLASS" || toKind == "INTERFACE" || toKind == "CLASSOF" {
+			return true
+		}
+		// nil can be assigned to a dynamic array (clears it)
+		if arrType, ok := types.GetUnderlyingType(to).(*types.ArrayType); ok && arrType.IsDynamic() {
+			return true
+		}
+		return false
 	}
 	if toKind == "NIL" {
 		return fromKind == "CLASS" || fromKind == "INTERFACE" || fromKind == "CLASSOF"

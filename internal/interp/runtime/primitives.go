@@ -407,9 +407,9 @@ func (n *NullValue) Type() string {
 	return "NULL"
 }
 
-// String returns "null".
+// String returns "Null" (DWScript's spelling when printing a Null variant).
 func (n *NullValue) String() string {
-	return "null"
+	return "Null"
 }
 
 // Equals checks if another value is also null.

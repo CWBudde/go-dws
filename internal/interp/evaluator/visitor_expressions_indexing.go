@@ -207,9 +207,13 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		// No default property, fall through to normal indexing (which will error)
 	}
 
-	// Index must be an integer or enum for arrays and strings
-	index, ok := ExtractIntegerIndex(indexVal)
+	// Index must be an integer or enum for arrays and strings.
+	// Variant indexes are cast per DWScript rules (may raise).
+	index, ok := e.ExtractIndexWithVariantCast(indexVal, ctx)
 	if !ok {
+		if ctx.Exception() != nil {
+			return e.nilValue()
+		}
 		return e.newError(node, "index must be an ordinal value, got %s", indexVal.Type())
 	}
 

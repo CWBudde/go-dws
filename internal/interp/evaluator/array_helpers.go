@@ -119,8 +119,8 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 		return err
 	}
 
-	// Validate static array size
-	if err := e.validateStaticArraySize(arrayType, len(node.Elements), node); err != nil {
+	// Validate static array size (against expanded element count)
+	if err := e.validateStaticArraySize(arrayType, len(coercedElements), node); err != nil {
 		return err
 	}
 
@@ -128,22 +128,111 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 	return e.buildRuntimeArray(arrayType, coercedElements)
 }
 
-// evaluateArrayElements evaluates all elements in an array literal.
+// evaluateArrayElements evaluates all elements in an array literal, expanding
+// ordinal range elements ([1..3] → 1,2,3; [3..1] → 3,2,1).
 func (e *Evaluator) evaluateArrayElements(node *ast.ArrayLiteralExpression, arrayType *types.ArrayType, ctx *ExecutionContext) ([]Value, []types.Type, Value) {
-	elementCount := len(node.Elements)
-	evaluatedElements := make([]Value, elementCount)
-	elementTypes := make([]types.Type, elementCount)
+	evaluatedElements := make([]Value, 0, len(node.Elements))
+	elementTypes := make([]types.Type, 0, len(node.Elements))
 
-	for idx, elem := range node.Elements {
+	for _, elem := range node.Elements {
+		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
+			expanded, errVal := e.expandArrayRangeElement(rangeExpr, ctx)
+			if errVal != nil {
+				return nil, nil, errVal
+			}
+			for _, val := range expanded {
+				evaluatedElements = append(evaluatedElements, val)
+				elementTypes = append(elementTypes, GetValueType(val))
+			}
+			continue
+		}
+
 		val := e.evaluateSingleArrayElement(elem, arrayType, ctx)
 		if isError(val) {
 			return nil, nil, val
 		}
-		evaluatedElements[idx] = val
-		elementTypes[idx] = GetValueType(val)
+		evaluatedElements = append(evaluatedElements, val)
+		elementTypes = append(elementTypes, GetValueType(val))
 	}
 
 	return evaluatedElements, elementTypes, nil
+}
+
+// expandArrayRangeElement evaluates a range element of an array constructor
+// into its sequence of values. Descending ranges expand in descending order.
+func (e *Evaluator) expandArrayRangeElement(rangeExpr *ast.RangeExpression, ctx *ExecutionContext) ([]Value, Value) {
+	startVal := e.Eval(rangeExpr.Start, ctx)
+	if isError(startVal) {
+		return nil, startVal
+	}
+	endVal := e.Eval(rangeExpr.RangeEnd, ctx)
+	if isError(endVal) {
+		return nil, endVal
+	}
+
+	if startEnum, ok := unwrapVariant(startVal).(*runtime.EnumValue); ok {
+		enumType, err := e.lookupEnumType(startEnum.TypeName)
+		if err != nil {
+			return nil, e.newError(rangeExpr, "%s", err.Error())
+		}
+		endEnum, ok := unwrapVariant(endVal).(*runtime.EnumValue)
+		if !ok {
+			return nil, e.newError(rangeExpr, "range bounds must have the same type")
+		}
+		startIdx, err := runtime.EnumValueIndex(startEnum, enumType)
+		if err != nil {
+			return nil, e.newError(rangeExpr, "%s", err.Error())
+		}
+		endIdx, err := runtime.EnumValueIndex(endEnum, enumType)
+		if err != nil {
+			return nil, e.newError(rangeExpr, "%s", err.Error())
+		}
+		values := make([]Value, 0, absInt(endIdx-startIdx)+1)
+		for idx := startIdx; ; idx += signInt(endIdx - startIdx) {
+			val, err := runtime.EnumValueAtIndex(startEnum.TypeName, enumType, idx)
+			if err != nil {
+				return nil, e.newError(rangeExpr, "%s", err.Error())
+			}
+			values = append(values, val)
+			if idx == endIdx {
+				break
+			}
+		}
+		return values, nil
+	}
+
+	startOrd, err := runtime.GetOrdinalValue(unwrapVariant(startVal))
+	if err != nil {
+		return nil, e.newError(rangeExpr, "range bounds must be ordinal: %s", err.Error())
+	}
+	endOrd, err := runtime.GetOrdinalValue(unwrapVariant(endVal))
+	if err != nil {
+		return nil, e.newError(rangeExpr, "range bounds must be ordinal: %s", err.Error())
+	}
+	values := make([]Value, 0, absInt(endOrd-startOrd)+1)
+	for ord := startOrd; ; ord += signInt(endOrd - startOrd) {
+		values = append(values, &runtime.IntegerValue{Value: int64(ord)})
+		if ord == endOrd {
+			break
+		}
+	}
+	return values, nil
+}
+
+func absInt(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+// signInt returns the iteration step direction for a range (+1, -1, or +1 for
+// single-element ranges so the loop terminates).
+func signInt(n int) int {
+	if n < 0 {
+		return -1
+	}
+	return 1
 }
 
 // evaluateSingleArrayElement evaluates a single array element with optional type context.
@@ -251,11 +340,22 @@ func (e *Evaluator) evalArrayLiteralWithExpectedType(node *ast.ArrayLiteralExpre
 
 // evalArrayLiteralWithType evaluates array literal with known type (when semanticInfo unavailable).
 func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, arrayType *types.ArrayType, ctx *ExecutionContext) Value {
-	elementCount := len(node.Elements)
-	evaluatedElements := make([]Value, elementCount)
-	elementTypes := make([]types.Type, elementCount)
+	evaluatedElements := make([]Value, 0, len(node.Elements))
+	elementTypes := make([]types.Type, 0, len(node.Elements))
 
-	for idx, elem := range node.Elements {
+	for _, elem := range node.Elements {
+		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
+			expanded, errVal := e.expandArrayRangeElement(rangeExpr, ctx)
+			if errVal != nil {
+				return errVal
+			}
+			for _, val := range expanded {
+				evaluatedElements = append(evaluatedElements, val)
+				elementTypes = append(elementTypes, GetValueType(val))
+			}
+			continue
+		}
+
 		var val Value
 
 		// Try nested array evaluation with expected type
@@ -282,8 +382,8 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 		if isError(val) {
 			return val
 		}
-		evaluatedElements[idx] = val
-		elementTypes[idx] = GetValueType(val)
+		evaluatedElements = append(evaluatedElements, val)
+		elementTypes = append(elementTypes, GetValueType(val))
 	}
 
 	coercedElements, errVal := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node)
@@ -293,8 +393,8 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 
 	if arrayType.IsStatic() {
 		expectedSize := arrayType.Size()
-		if elementCount != expectedSize {
-			return e.newError(node, "array literal has %d elements, expected %d", elementCount, expectedSize)
+		if len(evaluatedElements) != expectedSize {
+			return e.newError(node, "array literal has %d elements, expected %d", len(evaluatedElements), expectedSize)
 		}
 	}
 
@@ -390,6 +490,14 @@ func (e *Evaluator) coerceSingleElement(val Value, valueTypes []types.Type, idx 
 	var valType types.Type
 	if idx < len(valueTypes) && valueTypes[idx] != nil {
 		valType = types.GetUnderlyingType(valueTypes[idx])
+	}
+	if valType == nil {
+		// Enum values carry only a type name; resolve it via the type system.
+		if enumVal, ok := unwrapVariant(val).(*runtime.EnumValue); ok {
+			if enumType, err := e.lookupEnumType(enumVal.TypeName); err == nil {
+				valType = enumType
+			}
+		}
 	}
 	if valType == nil {
 		return nil, e.elementError(node, idx, "cannot determine type for array element %d", idx+1)
@@ -1073,14 +1181,41 @@ func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) V
 // an array of the receiver's element type is flattened (DWScript's Add/Push
 // accept either an element or an array of elements).
 func (e *Evaluator) appendArrayArgs(arrVal *runtime.ArrayValue, args []Value) {
+	elemKind := ""
+	if arrVal.ArrayType != nil && arrVal.ArrayType.ElementType != nil {
+		elemKind = types.GetUnderlyingType(arrVal.ArrayType.ElementType).TypeKind()
+	}
+	appendOne := func(v Value) bool {
+		// Coerce Variant values to a basic element type (DWScript variant
+		// casts); a failed cast raises a catchable exception.
+		switch elemKind {
+		case "INTEGER", "FLOAT", "STRING", "BOOLEAN":
+			unwrapped := unwrapVariant(v)
+			converted, errVal := e.coerceValueToKind(unwrapped, elemKind, nil, e.currentContext)
+			if errVal != nil {
+				return false
+			}
+			if converted != nil {
+				v = converted
+			} else {
+				v = unwrapped
+			}
+		}
+		arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(v))
+		return true
+	}
 	for _, arg := range args {
 		if arrArg, ok := arg.(*runtime.ArrayValue); ok && e.shouldFlattenArrayArg(arrVal, arrArg) {
 			for _, el := range arrArg.Elements {
-				arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(el))
+				if !appendOne(el) {
+					return
+				}
 			}
 			continue
 		}
-		arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(arg))
+		if !appendOne(arg) {
+			return
+		}
 	}
 }
 
@@ -1093,6 +1228,12 @@ func (e *Evaluator) shouldFlattenArrayArg(receiver, arg *runtime.ArrayValue) boo
 		return true
 	}
 	elemType := receiver.ArrayType.ElementType
+	// Only an element type that is itself an array can absorb an array
+	// argument as a single element. In particular, `array of Variant`
+	// flattens array arguments (DWScript appends the elements, boxed).
+	if _, elemIsArray := types.GetUnderlyingType(elemType).(*types.ArrayType); !elemIsArray {
+		return true
+	}
 	if arg.ArrayType != nil && (types.IsCompatible(arg.ArrayType, elemType) || types.IsCompatible(elemType, arg.ArrayType)) {
 		return false
 	}
