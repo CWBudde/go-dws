@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -103,6 +104,14 @@ func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionCont
 	case "boolean", "bool":
 		return &runtime.BooleanValue{Value: false}
 	default:
+		// Resolve the annotated type for structured defaults (e.g. empty set).
+		if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
+			if setType, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
+				return runtime.NewSetValue(setType)
+			}
+		} else if setType := e.parseInlineSetType(typeAnnot.Name); setType != nil {
+			return runtime.NewSetValue(setType)
+		}
 		return &runtime.NilValue{}
 	}
 }

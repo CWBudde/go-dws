@@ -218,3 +218,28 @@ func (s *SetValue) GetSetElementTypeName() string {
 	}
 	return s.SetType.ElementType.String()
 }
+
+// Copy returns a deep copy of the set. Sets are value types in DWScript:
+// assignment and parameter passing copy the set contents.
+func (s *SetValue) Copy() Value {
+	if s == nil {
+		return nil
+	}
+	copied := &SetValue{
+		SetType:  s.SetType,
+		Elements: s.Elements,
+	}
+	if s.MapStore != nil {
+		copied.MapStore = make(map[int]bool, len(s.MapStore))
+		for k, v := range s.MapStore {
+			copied.MapStore[k] = v
+		}
+	}
+	if s.Ranges != nil {
+		copied.Ranges = append([]IntRange(nil), s.Ranges...)
+	}
+	return copied
+}
+
+// Compile-time interface satisfaction check.
+var _ CopyableValue = (*SetValue)(nil)

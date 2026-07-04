@@ -346,6 +346,24 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		leftSetType, leftIsSet := leftType.(*types.SetType)
 		rightSetType, rightIsSet := rightType.(*types.SetType)
 
+		// A bracket literal combined with a set operand takes the set's type
+		// (e.g. `s - []`, `[] + s`).
+		if leftIsSet && !rightIsSet && isBracketLiteral(expr.Right) {
+			if t := a.analyzeExpressionWithExpectedType(expr.Right, leftSetType); t != nil {
+				if st, ok := t.(*types.SetType); ok {
+					rightSetType, rightIsSet, rightType = st, true, t
+				}
+			}
+		} else if rightIsSet && !leftIsSet && isBracketLiteral(expr.Left) {
+			if t := a.analyzeExpressionWithExpectedType(expr.Left, rightSetType); t != nil {
+				if st, ok := t.(*types.SetType); ok {
+					leftSetType, leftIsSet, leftType = st, true, t
+				}
+			}
+		}
+		_ = leftType
+		_ = rightType
+
 		if leftIsSet || rightIsSet {
 			// At least one operand is a set, so this should be a set operation
 			if operator == "/" {

@@ -434,6 +434,13 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 	// Empty set literal
 	if len(lit.Elements) == 0 {
 		if expectedSetType != nil {
+			// Annotate so the interpreter can materialize the typed empty set.
+			if a.semanticInfo != nil {
+				a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
+					Token: lit.Token,
+					Name:  expectedSetType.String(),
+				})
+			}
 			return expectedSetType
 		}
 		// An empty bracket literal without context is an empty array

@@ -17,7 +17,7 @@ import (
 
 // PRE: cursor is SET
 // POST: cursor is SEMICOLON
-func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) *ast.SetDecl {
+func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.Token) ast.Statement {
 	setDecl := &ast.SetDecl{
 		BaseNode: ast.BaseNode{Token: typeToken}, // The 'type' token
 		Name:     nameIdent,
@@ -39,6 +39,29 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to 'of'
+
+	// Inline anonymous enum: type TMy = set of (A, B, C);
+	// Desugared into an implicit enum declaration plus the set declaration.
+	if p.cursor.Peek(1).Type == lexer.LPAREN {
+		enumName := &ast.Identifier{
+			Value: "$" + nameIdent.Value + "$InlineEnum",
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: nameIdent.Token},
+			},
+		}
+		enumDecl := p.parseEnumDeclaration(enumName, typeToken, false, false)
+		if enumDecl == nil {
+			return nil
+		}
+		setDecl.ElementType = &ast.TypeAnnotation{
+			Token: enumName.Token,
+			Name:  enumName.Value,
+		}
+		return &ast.BlockStatement{
+			BaseNode:   ast.BaseNode{Token: typeToken},
+			Statements: []ast.Statement{enumDecl, setDecl},
+		}
+	}
 
 	// Expect type identifier
 	nextToken = p.cursor.Peek(1)
