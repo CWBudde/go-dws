@@ -468,6 +468,9 @@ func (e *Evaluator) evalReferenceAssignment(
 ) Value {
 	currentVal, err := refVal.Dereference()
 	if err != nil {
+		if raised, handled := e.raiseBoundExceededError(err, ctx); handled {
+			return raised
+		}
 		return e.newError(target, "%s", err.Error())
 	}
 

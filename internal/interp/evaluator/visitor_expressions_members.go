@@ -72,6 +72,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	if refVal, isRef := obj.(ReferenceAccessor); isRef {
 		deref, err := refVal.Dereference()
 		if err != nil {
+			if raised, handled := e.raiseBoundExceededError(err, ctx); handled {
+				return raised
+			}
 			return e.newError(node, "failed to dereference: %s", err.Error())
 		}
 		obj = deref

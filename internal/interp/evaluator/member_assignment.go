@@ -69,6 +69,9 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	if refVal, isRef := objVal.(ReferenceAccessor); isRef {
 		deref, err := refVal.Dereference()
 		if err != nil {
+			if raised, handled := e.raiseBoundExceededError(err, ctx); handled {
+				return raised
+			}
 			return e.newError(stmt, "failed to dereference: %s", err.Error())
 		}
 		objVal = deref

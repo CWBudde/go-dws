@@ -546,6 +546,48 @@ func (e *Evaluator) raiseArrayBoundExceeded(node ast.Node, index int, upper bool
 	return e.nilValue()
 }
 
+// indexBracketPos returns the position of the closing bracket of an index
+// expression (one column before its end), matching DWScript's bounds
+// diagnostics for a[i] reads and writes.
+func indexBracketPos(node ast.Node) token.Position {
+	if node == nil {
+		return token.Position{}
+	}
+	pos := node.End()
+	if pos.Column > 1 {
+		pos.Column--
+	}
+	return pos
+}
+
+// raiseIndexBoundExceeded sets a catchable "bound exceeded" exception for an
+// out-of-bounds a[i] access, pointing at the closing bracket of the index
+// expression, and returns nil so the surrounding try/except can intercept it.
+func (e *Evaluator) raiseIndexBoundExceeded(node ast.Node, index int, upper bool) Value {
+	return e.raiseIndexBoundExceededAt(indexBracketPos(node), index, upper)
+}
+
+// raiseIndexBoundExceededAt is raiseIndexBoundExceeded with an explicit position.
+func (e *Evaluator) raiseIndexBoundExceededAt(pos token.Position, index int, upper bool) Value {
+	ctx := e.currentContext
+	boundWord := "Lower"
+	if upper {
+		boundWord = "Upper"
+	}
+	message := fmt.Sprintf("%s bound exceeded! Index %d", boundWord, index)
+	if ctx != nil {
+		if routine := currentRoutineName(ctx); routine != "" {
+			message += " in " + routine
+		}
+	}
+	message = fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
+	if ctx != nil {
+		exc := e.createException("Exception", message, &pos, ctx)
+		ctx.SetException(exc)
+	}
+	return e.nilValue()
+}
+
 // raisePositiveCountExpected sets a catchable exception for a negative count
 // argument, matching DWScript's message format.
 func (e *Evaluator) raisePositiveCountExpected(node ast.Node, count int) Value {

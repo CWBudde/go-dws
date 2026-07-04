@@ -57,6 +57,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		if refVal, ok := val.(ReferenceAccessor); ok {
 			actualVal, err := refVal.Dereference()
 			if err != nil {
+				if raised, handled := e.raiseBoundExceededError(err, ctx); handled {
+					return raised
+				}
 				return e.newError(node, "%s", err.Error())
 			}
 			return actualVal
