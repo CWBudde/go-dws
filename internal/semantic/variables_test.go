@@ -55,8 +55,20 @@ func TestVarTypeInferenceArray(t *testing.T) {
 	}
 }
 
-func TestVarTypeInferenceEmptyArrayError(t *testing.T) {
-	expectError(t, "var x = [];", "cannot infer type for variable 'x'")
+func TestVarTypeInferenceEmptyArray(t *testing.T) {
+	// An empty bracket literal without context is an empty array constructor;
+	// DWScript infers a dynamic array of Variant (see ArrayPass/array_initialization1).
+	typ := inferVariableType(t, "var x = [];", "x")
+	arrayType, ok := types.GetUnderlyingType(typ).(*types.ArrayType)
+	if !ok {
+		t.Fatalf("expected array type, got %s", typ.String())
+	}
+	if !arrayType.IsDynamic() {
+		t.Fatalf("expected dynamic array, got %s", typ.String())
+	}
+	if !arrayType.ElementType.Equals(types.VARIANT) {
+		t.Fatalf("expected array of Variant, got array of %s", arrayType.ElementType.String())
+	}
 }
 
 func TestVarTypeInferenceNilInitializerError(t *testing.T) {

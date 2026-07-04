@@ -80,6 +80,10 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 	case left.Type() == "SET" && right.Type() == "SET":
 		return e.evalSetBinaryOp(node.Operator, left, right, node)
 
+	// Array concatenation: array + array -> new dynamic array
+	case left.Type() == "ARRAY" && right.Type() == "ARRAY":
+		return e.evalArrayBinaryOp(node.Operator, left, right, node)
+
 	// Allow string concatenation with RTTI_TYPEINFO
 	case (left.Type() == "STRING" && right.Type() == "RTTI_TYPEINFO") ||
 		(left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):

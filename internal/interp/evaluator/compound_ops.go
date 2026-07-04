@@ -128,6 +128,14 @@ func (e *Evaluator) evalPlusAssign(left, right Value, node ast.Node) Value {
 		}
 		return e.newError(node, "type mismatch: cannot add %s to String", right.Type())
 
+	case *runtime.ArrayValue:
+		// Dynamic array append: a += element or a += [elements].
+		if l.ArrayType != nil && !l.ArrayType.IsDynamic() {
+			return e.newError(node, "operator += not supported for static arrays")
+		}
+		e.appendArrayArgs(l, []Value{right})
+		return l
+
 	default:
 		return e.newError(node, "operator += not supported for type %s", left.Type())
 	}

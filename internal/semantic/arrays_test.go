@@ -56,10 +56,12 @@ func TestArrayLiteralNestedArrays(t *testing.T) {
 }
 
 func TestArrayLiteralEmptyWithoutContext(t *testing.T) {
+	// An empty bracket literal without context is an empty array constructor
+	// (array of Variant); it is not an error.
 	input := `
 		begin
 			[];
 		end.
 	`
-	expectError(t, input, "cannot infer type for empty array literal")
+	expectNoErrors(t, input)
 }

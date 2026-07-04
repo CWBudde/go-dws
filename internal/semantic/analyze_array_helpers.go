@@ -387,17 +387,32 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			return types.VOID
 		}
 		elementType := arrayType.ElementType
+		_, elementIsArray := types.GetUnderlyingType(elementType).(*types.ArrayType)
 		for _, arg := range expr.Arguments {
-			argType := a.analyzeExpressionWithExpectedType(arg, elementType)
+			// Add/Push accept either an element or an array of elements to
+			// append. Bracket literals passed to a non-array element type are
+			// arrays of elements, so analyze them against the receiver type.
+			expected := elementType
+			if !elementIsArray {
+				switch arg.(type) {
+				case *ast.ArrayLiteralExpression, *ast.SetLiteral:
+					expected = arrayType
+				}
+			}
+			argType := a.analyzeExpressionWithExpectedType(arg, expected)
 			if argType == nil {
 				continue
 			}
 			if argArrayType, isArray := types.GetUnderlyingType(argType).(*types.ArrayType); isArray {
-				if !a.canAssign(argType, arrayType) {
-					a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
-				} else if argArrayType.ElementType != nil && elementType != nil && !a.canAssign(argArrayType.ElementType, elementType) {
-					a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
+				// The argument may be a single element (when elements are
+				// themselves arrays) or an array of elements to append.
+				if elementType != nil && a.canAssign(argType, elementType) {
+					continue
 				}
+				if argArrayType.ElementType != nil && elementType != nil && a.canAssign(argArrayType.ElementType, elementType) {
+					continue
+				}
+				a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
 				continue
 			}
 			if elementType != nil && !a.canAssign(argType, elementType) {

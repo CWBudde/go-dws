@@ -457,6 +457,11 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				// Empty array literal - default to array of Variant (array of const)
 				// This will work with any operator that expects an array type
 				valueType = a.analyzeExpressionWithExpectedType(stmt.Value, types.ARRAY_OF_CONST)
+			} else if isBracketLiteral(stmt.Value) && isDynamicArrayType(sym.Type) {
+				// Appending a bracket literal to a dynamic array (a += [1, 2]):
+				// analyze against the target type so the literal is typed (and
+				// annotated) as an array of elements rather than a set.
+				valueType = a.analyzeExpressionWithExpectedType(stmt.Value, sym.Type)
 			} else {
 				// Try to analyze value without expected type for compound assignments
 				// This allows array literals to infer their type naturally
@@ -650,6 +655,22 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 	}
 }
 
+// isBracketLiteral reports whether the expression is a bracket literal
+// ([...]) parsed as either a set or an array literal.
+func isBracketLiteral(expr ast.Expression) bool {
+	switch expr.(type) {
+	case *ast.ArrayLiteralExpression, *ast.SetLiteral:
+		return true
+	}
+	return false
+}
+
+// isDynamicArrayType reports whether the type is (an alias of) a dynamic array.
+func isDynamicArrayType(t types.Type) bool {
+	arrType, ok := types.GetUnderlyingType(t).(*types.ArrayType)
+	return ok && arrType.IsDynamic()
+}
+
 // isCompoundOperatorValid checks if a compound operator is valid for the given types.
 // Returns (valid, usesClassOperator) where usesClassOperator is true if a class operator was found.
 func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, valueType types.Type, pos lexer.Position) (bool, bool) {
@@ -671,6 +692,24 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 		// += works with Integer, Float, String (concatenation), Variant
 		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.STRING) || targetType.Equals(types.VARIANT) {
 			return true, false // Valid but doesn't use class operator
+		}
+		// Dynamic arrays support += as append: the value may be a single
+		// element or an array of elements. Report "uses class operator" so
+		// the caller skips the plain assignability check (element += array).
+		if arrType, ok := types.GetUnderlyingType(targetType).(*types.ArrayType); ok && arrType.IsDynamic() {
+			if a.canAssign(valueType, targetType) {
+				return true, true
+			}
+			if arrType.ElementType != nil && a.canAssign(valueType, arrType.ElementType) {
+				return true, true
+			}
+			if valArr, isArr := types.GetUnderlyingType(valueType).(*types.ArrayType); isArr &&
+				valArr.ElementType != nil && arrType.ElementType != nil &&
+				a.canAssign(valArr.ElementType, arrType.ElementType) {
+				return true, true
+			}
+			a.addError("operator += not supported for type %s at %s", targetType.String(), pos.String())
+			return false, false
 		}
 		a.addError("operator += not supported for type %s at %s", targetType.String(), pos.String())
 		return false, false
