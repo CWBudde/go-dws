@@ -224,6 +224,15 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 
+		// Record the receiver's static type so runtime helper dispatch honors
+		// alias-specific (strict) helpers over the underlying type's helpers.
+		if a.semanticInfo != nil && expr.Method != nil {
+			a.semanticInfo.SetType(expr.Method, &ast.TypeAnnotation{
+				Token: expr.Method.Token,
+				Name:  "__helper_receiver:" + objectType.String(),
+			})
+		}
+
 		// Validate helper method arguments (support optional parameters)
 		// Count required parameters (those without defaults)
 		requiredParams := len(helperMethod.Parameters)

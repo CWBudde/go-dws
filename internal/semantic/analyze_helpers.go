@@ -546,6 +546,18 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 	typeName := ident.Normalize(typ.String())
 	helpers := a.helpers[typeName]
 
+	// Aliases also see the underlying type's helpers (type TMyInteger =
+	// Integer exposes Integer's intrinsics); alias-specific helpers keep
+	// precedence, so the underlying helpers go first.
+	if underlying := types.GetUnderlyingType(typ); underlying != nil && underlying != typ {
+		underlyingName := ident.Normalize(underlying.String())
+		if underlyingName != typeName {
+			if underlyingHelpers := a.helpers[underlyingName]; underlyingHelpers != nil {
+				helpers = append(append([]*types.HelperType(nil), underlyingHelpers...), helpers...)
+			}
+		}
+	}
+
 	// For array types, also include generic array helpers
 	if _, isArray := typ.(*types.ArrayType); isArray {
 		arrayHelpers := a.helpers["array"]
