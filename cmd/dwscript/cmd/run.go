@@ -181,7 +181,9 @@ func runScript(_ *cobra.Command, args []string) error {
 
 		content, err := encoding.DecodeFile(filename)
 		if err != nil {
-			return fmt.Errorf("failed to read file %s: %w", filename, err)
+			// DecodeFile wraps the underlying cause (read failure or a
+			// BOM/UTF-16 decoding error), so it stays visible in the chain.
+			return fmt.Errorf("failed to load script %s: %w", filename, err)
 		}
 		input = content
 	} else {
