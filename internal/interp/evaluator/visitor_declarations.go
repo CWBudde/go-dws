@@ -41,15 +41,11 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 			return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
 		}
 
-		if helperInfos := e.lookupAllMutableHelpers(typeName); len(helperInfos) > 0 {
-			// The same helper may be registered as more than one runtime instance
-			// (e.g. the semantic-analysis transfer and the evaluator each build one).
-			// Bind the implementation into every instance so the method body is not
-			// left shadowed by the forward declaration in an unpatched copy — which
-			// otherwise surfaces as non-deterministic dispatch depending on map order.
-			for _, helperInfo := range helperInfos {
-				e.registerHelperMethodImplementation(helperInfo, node)
-			}
+		if helperInfo := e.lookupMutableHelper(typeName); helperInfo != nil {
+			// Each user helper is backed by exactly one runtime instance
+			// (VisitHelperDecl reuses the semantic-transfer instance), so the
+			// implementation only needs to be bound once.
+			e.registerHelperMethodImplementation(helperInfo, node)
 			return &runtime.NilValue{}
 		}
 
@@ -77,23 +73,27 @@ func (e *Evaluator) lookupMutableHelper(name string) *runtime.MutableHelperInfo 
 	return nil
 }
 
-// lookupAllMutableHelpers returns every distinct MutableHelperInfo instance whose
-// name matches, deduplicated by pointer identity. A helper is registered under
-// several type keys (and sometimes as separate instances by the semantic-transfer
-// and evaluator paths), so callers that mutate helper state must touch all copies.
-func (e *Evaluator) lookupAllMutableHelpers(name string) []*runtime.MutableHelperInfo {
-	var result []*runtime.MutableHelperInfo
-	seen := make(map[*runtime.MutableHelperInfo]bool)
-	for _, helpers := range e.typeSystem.AllHelpers() {
-		for _, helper := range helpers {
-			if helperInfo, ok := helper.(*runtime.MutableHelperInfo); ok &&
-				ident.Equal(helperInfo.Name, name) && !seen[helperInfo] {
-				seen[helperInfo] = true
-				result = append(result, helperInfo)
-			}
+// registerHelperOnce registers helperInfo under typeName unless this exact
+// instance is already registered there (e.g. by the semantic-transfer path,
+// or by a previous evaluation of the same declaration). RegisterHelper
+// appends, so an unconditional call would duplicate the entry.
+func (e *Evaluator) registerHelperOnce(typeName string, helperInfo *runtime.MutableHelperInfo) {
+	for _, existing := range e.typeSystem.LookupHelpers(typeName) {
+		if h, ok := existing.(*runtime.MutableHelperInfo); ok && h == helperInfo {
+			return
 		}
 	}
-	return result
+	e.typeSystem.RegisterHelper(typeName, helperInfo)
+}
+
+// containsFunctionDecl reports whether decls contains decl (pointer identity).
+func containsFunctionDecl(decls []*ast.FunctionDecl, decl *ast.FunctionDecl) bool {
+	for _, d := range decls {
+		if d == decl {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Evaluator) registerHelperMethodImplementation(helperInfo *runtime.MutableHelperInfo, node *ast.FunctionDecl) {
@@ -1063,7 +1063,23 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 			node.ForType.String(), node.Name.Value)
 	}
 
-	helperInfo := runtime.NewMutableHelperInfo(node.Name.Value, targetType, node.IsRecordHelper)
+	// Reuse the instance already registered under this helper's name (created
+	// by TransferHelpersFromSemanticAnalysis when the engine transfers semantic
+	// helpers) so each user helper is backed by exactly ONE
+	// *runtime.MutableHelperInfo. Creating a second instance here would leave
+	// two copies in the slice-valued helper registry, making first-match
+	// lookups depend on map iteration order.
+	helperInfo := e.lookupMutableHelper(node.Name.Value)
+	if helperInfo != nil && helperInfo.TargetType != nil && !helperInfo.TargetType.Equals(targetType) {
+		// Same name but different target type: treat as a distinct helper.
+		helperInfo = nil
+	}
+	if helperInfo == nil {
+		helperInfo = runtime.NewMutableHelperInfo(node.Name.Value, targetType, node.IsRecordHelper)
+	} else {
+		helperInfo.TargetType = targetType
+		helperInfo.IsRecordHelper = node.IsRecordHelper
+	}
 	helperInfo.IsClassHelper = node.IsClassHelper
 	helperInfo.IsStrict = node.IsStrict
 
@@ -1071,19 +1087,7 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 	if node.ParentHelper != nil {
 		parentHelperName := node.ParentHelper.Value
 
-		var foundParent *runtime.MutableHelperInfo
-		for _, helpers := range e.typeSystem.AllHelpers() {
-			for _, helper := range helpers {
-				if helperInfoAny, ok := helper.(*runtime.MutableHelperInfo); ok && ident.Equal(helperInfoAny.Name, parentHelperName) {
-					foundParent = helperInfoAny
-					break
-				}
-			}
-			if foundParent != nil {
-				break
-			}
-		}
-
+		foundParent := e.lookupMutableHelper(parentHelperName)
 		if foundParent == nil {
 			return e.newError(node.ParentHelper,
 				"unknown parent helper '%s' for helper '%s'",
@@ -1099,11 +1103,14 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 		helperInfo.ParentHelper = foundParent
 	}
 
-	// Register methods
+	// Register methods (idempotent: a reused instance already carries the same
+	// declarations from the semantic-transfer path)
 	for _, method := range node.Methods {
 		methodName := ident.Normalize(method.Name.Value)
 		helperInfo.Methods[methodName] = method
-		helperInfo.MethodOverloads[methodName] = append(helperInfo.MethodOverloads[methodName], method)
+		if !containsFunctionDecl(helperInfo.MethodOverloads[methodName], method) {
+			helperInfo.MethodOverloads[methodName] = append(helperInfo.MethodOverloads[methodName], method)
+		}
 	}
 
 	// Register properties
@@ -1126,7 +1133,9 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 				propInfo.WriteSpec = identExpr.Value
 			}
 		}
-		helperInfo.Properties[prop.Name.Value] = propInfo
+		// Key by normalized name so this overwrites the spec-less entry a
+		// reused semantic-transfer instance carries for the same property
+		helperInfo.Properties[ident.Normalize(prop.Name.Value)] = propInfo
 	}
 
 	// Initialize class variables
@@ -1194,18 +1203,19 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 		helperInfo.ClassConsts[ident.Normalize(classConst.Name.Value)] = constValue
 	}
 
-	// Register helper in TypeSystem
+	// Register helper in TypeSystem (skipping keys where this instance is
+	// already present, e.g. from the semantic-transfer path)
 	typeName := ident.Normalize(targetType.String())
-	e.typeSystem.RegisterHelper(typeName, helperInfo)
+	e.registerHelperOnce(typeName, helperInfo)
 	declaredTypeName := ident.Normalize(node.ForType.String())
 	if declaredTypeName != "" && declaredTypeName != typeName {
-		e.typeSystem.RegisterHelper(declaredTypeName, helperInfo)
+		e.registerHelperOnce(declaredTypeName, helperInfo)
 	}
 
 	// Also register by simple type name
 	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))
 	if simpleTypeName != typeName {
-		e.typeSystem.RegisterHelper(simpleTypeName, helperInfo)
+		e.registerHelperOnce(simpleTypeName, helperInfo)
 	}
 
 	// Expose helper name for static access (THelper.Member)
