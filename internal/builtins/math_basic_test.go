@@ -149,6 +149,22 @@ func TestMin(t *testing.T) {
 			},
 			isError: true,
 		},
+		{
+			name: "unassigned variant yields error, not panic",
+			args: []Value{
+				&runtime.VariantValue{},
+				&runtime.IntegerValue{Value: 5},
+			},
+			isError: true,
+		},
+		{
+			name: "variant-wrapped integer participates",
+			args: []Value{
+				&runtime.VariantValue{Value: &runtime.IntegerValue{Value: 3}},
+				&runtime.IntegerValue{Value: 5},
+			},
+			expected: &runtime.IntegerValue{Value: 3},
+		},
 	}
 
 	for _, tt := range tests {
@@ -230,6 +246,22 @@ func TestMax(t *testing.T) {
 				&runtime.StringValue{Value: "hello"},
 			},
 			isError: true,
+		},
+		{
+			name: "unassigned variant yields error, not panic",
+			args: []Value{
+				&runtime.VariantValue{},
+				&runtime.IntegerValue{Value: 5},
+			},
+			isError: true,
+		},
+		{
+			name: "variant-wrapped integer participates",
+			args: []Value{
+				&runtime.VariantValue{Value: &runtime.IntegerValue{Value: 7}},
+				&runtime.IntegerValue{Value: 5},
+			},
+			expected: &runtime.IntegerValue{Value: 7},
 		},
 	}
 

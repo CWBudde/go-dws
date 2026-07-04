@@ -179,10 +179,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				return method.ReturnType
 			}
 
-			// Check argument types
+			// Check argument types (in the context of the selected signature,
+			// so literals such as [] or nil adopt the parameter's type)
 			for i, arg := range expr.Arguments {
-				argType := a.analyzeExpression(arg)
 				expectedType := method.Parameters[i]
+				argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 				if argType != nil && !a.canAssign(argType, expectedType) {
 					a.addError("argument %d to record method '%s' has type %s, expected %s at %s",
 						i+1, methodName, argType.String(), expectedType.String(),

@@ -92,15 +92,15 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 				return nil
 			}
 
-			// Type check each argument
+			// Type check each argument (in the context of the selected
+			// signature, so literals such as [] or nil adopt the parameter's type)
 			for idx, arg := range ie.Arguments {
-				argType := a.analyzeExpression(arg)
+				paramType := ctorType.Parameters[idx]
+				argType := a.analyzeExpressionWithExpectedType(arg, paramType)
 				if argType == nil {
 					// Error already reported
 					continue
 				}
-
-				paramType := ctorType.Parameters[idx]
 				// Check type compatibility
 				if !a.canAssign(argType, paramType) {
 					a.addError("argument %d to inherited constructor '%s' has type %s, expected %s at %s",
