@@ -29,10 +29,11 @@ func BenchmarkSmallSetUnion(b *testing.B) {
 	}
 
 	interp := New(nil)
+	expr := bindSetBinaryExpr(interp, set1, set2, "+")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "+")
+		_ = interp.Eval(expr)
 	}
 }
 
@@ -51,10 +52,11 @@ func BenchmarkSmallSetIntersection(b *testing.B) {
 	}
 
 	interp := New(nil)
+	expr := bindSetBinaryExpr(interp, set1, set2, "*")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "*")
+		_ = interp.Eval(expr)
 	}
 }
 
@@ -73,10 +75,11 @@ func BenchmarkSmallSetDifference(b *testing.B) {
 	}
 
 	interp := New(nil)
+	expr := bindSetBinaryExpr(interp, set1, set2, "-")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "-")
+		_ = interp.Eval(expr)
 	}
 }
 
@@ -159,10 +162,11 @@ func benchmarkLargeSetUnion(b *testing.B, size int) {
 	}
 
 	interp := New(nil)
+	expr := bindSetBinaryExpr(interp, set1, set2, "+")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "+")
+		_ = interp.Eval(expr)
 	}
 }
 
@@ -195,10 +199,11 @@ func benchmarkLargeSetIntersection(b *testing.B, size int) {
 	}
 
 	interp := New(nil)
+	expr := bindSetBinaryExpr(interp, set1, set2, "*")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "*")
+		_ = interp.Eval(expr)
 	}
 }
 
@@ -231,10 +236,11 @@ func benchmarkLargeSetDifference(b *testing.B, size int) {
 	}
 
 	interp := New(nil)
+	expr := bindSetBinaryExpr(interp, set1, set2, "-")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "-")
+		_ = interp.Eval(expr)
 	}
 }
 

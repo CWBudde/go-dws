@@ -325,16 +325,23 @@ func TestEvalSetLiteral_MixedRangeAndElements(t *testing.T) {
 // Set Binary Operations Tests
 // ============================================================================
 
-// evalSetBinaryViaEvaluator routes a set binary operation through the
-// production evaluator path (Interpreter.Eval on a BinaryExpression).
-func evalSetBinaryViaEvaluator(interp *Interpreter, left, right *SetValue, op string) Value {
+// bindSetBinaryExpr defines the operands in the interpreter environment once
+// and returns a reusable BinaryExpression over them. Evaluating the returned
+// node routes through the production evaluator's set binary-op path.
+func bindSetBinaryExpr(interp *Interpreter, left, right *SetValue, op string) *ast.BinaryExpression {
 	interp.Env().Define("__setOpLeft", left)
 	interp.Env().Define("__setOpRight", right)
-	return interp.Eval(&ast.BinaryExpression{
+	return &ast.BinaryExpression{
 		Left:     &ast.Identifier{Value: "__setOpLeft"},
 		Right:    &ast.Identifier{Value: "__setOpRight"},
 		Operator: op,
-	})
+	}
+}
+
+// evalSetBinaryViaEvaluator routes a set binary operation through the
+// production evaluator path (Interpreter.Eval on a BinaryExpression).
+func evalSetBinaryViaEvaluator(interp *Interpreter, left, right *SetValue, op string) Value {
+	return interp.Eval(bindSetBinaryExpr(interp, left, right, op))
 }
 
 // evalSetMembershipViaEvaluator routes an 'in' membership test through the
