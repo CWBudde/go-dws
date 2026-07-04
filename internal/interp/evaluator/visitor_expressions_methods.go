@@ -76,7 +76,15 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	// constructors and methods (e.g. TMyClass.Create(var x); see fixture
 	// oop_field). Overloaded methods keep the plain path: their resolution
 	// happens later during dispatch.
-	if decl := lookupUnambiguousMethodDecl(obj, methodName, len(node.Arguments)); decl != nil {
+	decl := lookupUnambiguousMethodDecl(obj, methodName, len(node.Arguments))
+	if decl == nil {
+		// A nil receiver can still statically dispatch a non-virtual method
+		// (see dispatchMethodOnNilObject); resolve the declaration from the
+		// receiver's static type so var/lazy arguments keep their by-ref
+		// binding on that path too.
+		decl = e.lookupNilReceiverMethodDecl(obj, node, len(node.Arguments))
+	}
+	if decl != nil {
 		args, err := e.prepareArgsForParameters(decl.Parameters, node.Arguments, ctx)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
@@ -128,6 +136,32 @@ func lookupUnambiguousMethodDecl(obj Value, methodName string, argCount int) *as
 	}
 
 	if decl == nil || decl.IsOverload || len(decl.Parameters) != argCount {
+		return nil
+	}
+	if hasVarOrLazyParams(decl) {
+		return decl
+	}
+	return nil
+}
+
+// lookupNilReceiverMethodDecl resolves the declaration for a method call on a
+// nil receiver via the receiver's static type. It mirrors the constraints of
+// lookupUnambiguousMethodDecl (not overloaded, matching arity, has var/lazy
+// parameters) and only returns declarations that the nil-dispatch path can
+// actually execute (non-virtual instance methods).
+func (e *Evaluator) lookupNilReceiverMethodDecl(obj Value, node *ast.MethodCallExpression, argCount int) *ast.FunctionDecl {
+	if obj == nil || obj.Type() != "NIL" {
+		return nil
+	}
+	classInfo := e.staticClassInfoForNilReceiver(obj, node.Object)
+	if classInfo == nil {
+		return nil
+	}
+	decl := classInfo.LookupMethod(node.Method.Value)
+	if decl == nil || !isNonVirtualInstanceMethod(classInfo, decl) {
+		return nil
+	}
+	if decl.IsOverload || len(decl.Parameters) != argCount {
 		return nil
 	}
 	if hasVarOrLazyParams(decl) {
