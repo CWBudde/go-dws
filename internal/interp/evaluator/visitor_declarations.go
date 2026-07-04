@@ -56,6 +56,15 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 		return e.registerFunctionHelper(node, ctx)
 	}
 
+	// Nested function declaration (executing inside another function's body):
+	// keep it scoped to the enclosing call instead of leaking it into the
+	// global registry, where it would permanently shadow same-signature
+	// outer functions.
+	if ctx.GetCallStack().Depth() > 0 {
+		e.defineLocalFunction(node, ctx)
+		return &runtime.NilValue{}
+	}
+
 	// Register global function in the canonical function registry.
 	e.typeSystem.RegisterFunctionOrReplace(node.Name.Value, node)
 

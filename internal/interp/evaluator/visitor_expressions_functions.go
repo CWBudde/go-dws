@@ -21,6 +21,14 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.newError(node, "call expression missing function")
 	}
 
+	// Nested (scoped) function declarations hide all same-named outer
+	// functions and methods for the duration of the enclosing call.
+	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
+		if set := e.lookupLocalFunctions(funcIdent.Value, ctx); set != nil {
+			return e.callLocalFunctionSet(set, node.Arguments, node, ctx)
+		}
+	}
+
 	// Function pointer calls: lambdas, function pointers, method pointers
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
 		if valRaw, exists := ctx.Env().Get(funcIdent.Value); exists {
@@ -195,6 +203,12 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// User-defined functions with overload resolution
 	funcNameLower := ident.Normalize(funcName.Value)
 	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
+		// A user overload set can extend a same-named builtin: the builtin
+		// participates in resolution and wins on a strictly better match
+		// (e.g. IntToStr(Integer) beats a user IntToStr(Variant) overload).
+		if result, handled := e.maybeCallBuiltinOverload(funcNameLower, overloads, node, ctx); handled {
+			return result
+		}
 		// Resolve overload and prepare arguments
 		var fn *ast.FunctionDecl
 		var cachedArgs []Value

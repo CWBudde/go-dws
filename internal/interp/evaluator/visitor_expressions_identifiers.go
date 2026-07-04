@@ -27,6 +27,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		return e.newError(node, "Self has invalid type")
 	}
 
+	// Nested (scoped) function referenced by bare name: auto-invoke the
+	// zero-argument overload (DWScript calls parameterless functions without
+	// parentheses).
+	if set := e.lookupLocalFunctions(node.Value, ctx); set != nil {
+		return e.callLocalFunctionSet(set, nil, node, ctx)
+	}
+
 	// Try to find identifier in current environment (variables, parameters, constants)
 	if valRaw, ok := ctx.Env().Get(node.Value); ok {
 		// Check for nil value (can happen if variable declared but not initialized)

@@ -512,6 +512,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		return nil
 	}
 
+	// The call references the resolved symbol (marks nested/local functions as used).
+	a.recordSymbolUsage(sym.Name, funcIdent.Token.Pos)
+
 	// Resolve overloaded functions
 	var funcType *types.FunctionType
 	if sym.IsOverloadSet {
