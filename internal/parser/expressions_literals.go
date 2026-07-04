@@ -88,12 +88,11 @@ func (p *Parser) parseFloatLiteral() ast.Expression {
 func (p *Parser) parseStringLiteral() ast.Expression {
 	currentToken := p.cursor.Current()
 
-	// The lexer has already processed the string, so we just need to
-	// extract the value without the quotes
+	// The lexer has already processed the string (quote removal and
+	// unescaping of doubled quotes), so the token literal is the final value.
+	// Unescaping again here would corrupt strings whose value legitimately
+	// contains consecutive quotes (e.g. heredoc/triple-quoted strings).
 	value := currentToken.Literal
-
-	// Handle escaped quotes ('' -> ')
-	value = unescapeString(value)
 
 	return &ast.StringLiteral{
 		TypedExpressionBase: ast.TypedExpressionBase{
@@ -104,28 +103,6 @@ func (p *Parser) parseStringLiteral() ast.Expression {
 		},
 		Value: value,
 	}
-}
-
-// unescapeString handles DWScript string escape sequences.
-func unescapeString(s string) string {
-	// Use strings.Builder for efficient string concatenation
-	var result strings.Builder
-	result.Grow(len(s)) // Pre-allocate approximate size
-
-	// Convert to runes to handle UTF-8 correctly
-	runes := []rune(s)
-	i := 0
-	for i < len(runes) {
-		// Check for escaped single quote ('')
-		if i < len(runes)-1 && runes[i] == '\'' && runes[i+1] == '\'' {
-			result.WriteRune('\'')
-			i += 2
-		} else {
-			result.WriteRune(runes[i])
-			i++
-		}
-	}
-	return result.String()
 }
 
 // parseBooleanLiteral parses a boolean literal.
