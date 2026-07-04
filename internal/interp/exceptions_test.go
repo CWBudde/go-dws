@@ -1264,3 +1264,99 @@ func TestPortedBreakInExcept(t *testing.T) {
 		}
 	}
 }
+
+// TestExitInTryFinally verifies that an Exit raised inside a try block
+// survives the finally block: the finally block runs completely (even when it
+// calls functions or has multiple statements), and code after the try/finally
+// is skipped (see fixtures exit_finally, exit_finally2).
+func TestExitInTryFinally(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "exit skips statements after finally",
+			input: `
+function Test : Boolean;
+begin
+   Result := False;
+   try
+      Exit;
+   finally
+      PrintLn('finally');
+   end;
+   Result := True;
+end;
+PrintLn(Test());
+`,
+			expected: "finally\nFalse\n",
+		},
+		{
+			name: "finally with call keeps pending exit",
+			input: `
+function Noop : Integer;
+begin
+   Result := 0;
+end;
+function Test : Boolean;
+begin
+   Result := False;
+   try
+      Exit;
+   finally
+      Noop();
+   end;
+   Result := True;
+end;
+PrintLn(Test());
+`,
+			expected: "False\n",
+		},
+		{
+			name: "all statements of finally run after exit",
+			input: `
+function Hello(doExit : Boolean) : String;
+begin
+   Result := 'duh';
+   try
+      try
+         Result := 'Hello';
+         if doExit then Exit;
+         Result += ' one';
+      finally
+         PrintLn('1st finally');
+      end;
+      Result += ' two';
+   finally
+      PrintLn('2nd finally');
+      Result += ' world';
+   end;
+   Result := 'Bye bye';
+end;
+PrintLn(Hello(True));
+`,
+			expected: "1st finally\n2nd finally\nHello world\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %s", joinParserErrorsNewline(p.Errors()))
+			}
+
+			var buf bytes.Buffer
+			interp := New(&buf)
+			interp.Eval(program)
+
+			if got := buf.String(); got != tt.expected {
+				t.Errorf("expected output %q, got %q", tt.expected, got)
+			}
+		})
+	}
+}

@@ -17,7 +17,12 @@ func ArrayHelperCopy(arr *ArrayValue) Value {
 // ArrayHelperIndexOf searches an array for a value starting from startIndex.
 // Returns the 0-based index (>= 0) or -1 if not found.
 func ArrayHelperIndexOf(arr *ArrayValue, value Value, startIndex int) Value {
-	if startIndex < 0 || startIndex >= len(arr.Elements) {
+	// DWScript clamps a fromIndex below the low bound to the start of the
+	// array (see fixture indexof_from_static: a.IndexOf(1, -5) finds index 1).
+	if startIndex < 0 {
+		startIndex = 0
+	}
+	if startIndex >= len(arr.Elements) {
 		return &IntegerValue{Value: -1}
 	}
 	for idx := startIndex; idx < len(arr.Elements); idx++ {

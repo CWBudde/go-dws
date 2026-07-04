@@ -1383,6 +1383,10 @@ func compareValuesByType(a, b Value) bool {
 		return true
 	case *runtime.RecordValue:
 		return compareRecord(left, b)
+	case *runtime.ObjectInstance:
+		// Object references compare by identity, not by content
+		right, ok := b.(*runtime.ObjectInstance)
+		return ok && left == right
 	default:
 		return a.String() == b.String()
 	}

@@ -93,3 +93,18 @@ func TestArrayHelperCopy_CopiesRecordValues(t *testing.T) {
 		t.Fatalf("expected copied record to preserve original value 1, got %d", start.Value)
 	}
 }
+
+// TestValuesEqual_ObjectIdentity verifies that object instances compare by
+// reference identity, not by rendered content (see fixtures oop_compare,
+// array_in).
+func TestValuesEqual_ObjectIdentity(t *testing.T) {
+	a := &runtime.ObjectInstance{}
+	b := &runtime.ObjectInstance{}
+
+	if !ValuesEqual(a, a) {
+		t.Error("same object instance should be equal to itself")
+	}
+	if ValuesEqual(a, b) {
+		t.Error("distinct object instances must not be equal")
+	}
+}

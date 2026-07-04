@@ -64,6 +64,13 @@ func (cf *ControlFlow) Clear() {
 	cf.kind = FlowNone
 }
 
+// Restore sets the control flow to a previously saved kind. It is used by
+// try/finally handling, which must suspend a pending signal (e.g. Exit)
+// while the finally block runs and re-arm it afterwards.
+func (cf *ControlFlow) Restore(kind ControlFlowKind) {
+	cf.kind = kind
+}
+
 // SetBreak signals that a break statement was executed.
 func (cf *ControlFlow) SetBreak() {
 	cf.kind = FlowBreak

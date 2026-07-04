@@ -638,6 +638,19 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 		return &runtime.BooleanValue{Value: !result}
 	}
 
+	// Handle object instance comparisons: DWScript compares object references
+	// by identity, so two distinct instances are never equal even when all
+	// fields match (see fixture oop_compare).
+	if leftObj, ok := left.(*runtime.ObjectInstance); ok {
+		if rightObj, ok := right.(*runtime.ObjectInstance); ok {
+			result := leftObj == rightObj
+			if op == "=" {
+				return &runtime.BooleanValue{Value: result}
+			}
+			return &runtime.BooleanValue{Value: !result}
+		}
+	}
+
 	// Handle Object comparisons (Type() returns "OBJECT[ClassName]")
 	leftIsObj := len(leftType) > 7 && leftType[:7] == "OBJECT[" && leftType[len(leftType)-1] == ']'
 	rightIsObj := len(rightType) > 7 && rightType[:7] == "OBJECT[" && rightType[len(rightType)-1] == ']'
@@ -740,6 +753,69 @@ func isSimpleType(typeName string) bool {
 // Returns (result, true) if operator found, or (nil, false) if not found.
 func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool) {
 	return e.evalTryBinaryOperator(operator, left, right, node, e.currentContext)
+}
+
+// evalStringInBracketList evaluates 'str in [a..b, c, ...]' with string
+// comparison semantics. DWScript compiles a bracket list on the right of 'in'
+// into ordered comparisons when the left side is a string: ranges match when
+// start <= str <= end lexicographically, single elements match on equality
+// (e.g. 'alpha' in ['a'..'z'] is True, '---' in ['-'] is False).
+// Returns (result, true) when handled, or (nil, false) to fall through to the
+// regular set/array membership path (non-string left side, non-bracket right
+// side, or non-string list elements).
+func (e *Evaluator) evalStringInBracketList(left Value, rightExpr ast.Expression, ctx *ExecutionContext) (Value, bool) {
+	strVal, ok := unwrapVariant(left).(*runtime.StringValue)
+	if !ok {
+		return nil, false
+	}
+
+	var elements []ast.Expression
+	switch lit := rightExpr.(type) {
+	case *ast.SetLiteral:
+		elements = lit.Elements
+	case *ast.ArrayLiteralExpression:
+		elements = lit.Elements
+	default:
+		return nil, false
+	}
+
+	s := strVal.Value
+	matched := false
+	for _, elem := range elements {
+		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
+			startVal := e.Eval(rangeExpr.Start, ctx)
+			if isError(startVal) {
+				return startVal, true
+			}
+			endVal := e.Eval(rangeExpr.RangeEnd, ctx)
+			if isError(endVal) {
+				return endVal, true
+			}
+			startStr, ok1 := unwrapVariant(startVal).(*runtime.StringValue)
+			endStr, ok2 := unwrapVariant(endVal).(*runtime.StringValue)
+			if !ok1 || !ok2 {
+				return nil, false
+			}
+			if s >= startStr.Value && s <= endStr.Value {
+				matched = true
+				break
+			}
+		} else {
+			elemVal := e.Eval(elem, ctx)
+			if isError(elemVal) {
+				return elemVal, true
+			}
+			elemStr, isStr := unwrapVariant(elemVal).(*runtime.StringValue)
+			if !isStr {
+				return nil, false
+			}
+			if s == elemStr.Value {
+				matched = true
+				break
+			}
+		}
+	}
+	return &runtime.BooleanValue{Value: matched}, true
 }
 
 // evalInOperator evaluates the 'in' operator for membership testing.

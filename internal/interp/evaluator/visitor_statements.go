@@ -947,6 +947,15 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 			// Save the current exception state
 			savedExc := ctx.Exception()
 
+			// Save and suspend any pending control-flow signal (Exit/Break/
+			// Continue) so the finally block runs completely. Without this,
+			// an Exit raised in the try block would make the finally block
+			// stop after its first statement, or be swallowed by a function
+			// call inside the finally block (see fixtures exit_finally,
+			// exit_finally2).
+			savedFlow := ctx.ControlFlow().Kind()
+			ctx.ControlFlow().Clear()
+
 			// Set ExceptObject to the current exception in finally block
 			oldExceptObject, _ := ctx.Env().Get("ExceptObject")
 			if savedExc != nil {
@@ -968,6 +977,12 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 				ctx.SetException(savedExc)
 			}
 			// else: finally raised an exception, keep it (it replaces the original)
+
+			// Re-arm the suspended control-flow signal unless the finally
+			// block itself raised a new one (which takes precedence).
+			if !ctx.ControlFlow().IsActive() {
+				ctx.ControlFlow().Restore(savedFlow)
+			}
 
 			// Restore ExceptObject
 			ctx.Env().Set("ExceptObject", oldExceptObject)
