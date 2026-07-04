@@ -21,6 +21,14 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.newError(node, "call expression missing function")
 	}
 
+	// Nested (scoped) function declarations hide all same-named outer
+	// functions and methods for the duration of the enclosing call.
+	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
+		if set := e.lookupLocalFunctions(funcIdent.Value, ctx); set != nil {
+			return e.callLocalFunctionSet(set, node.Arguments, node, ctx)
+		}
+	}
+
 	// Function pointer calls: lambdas, function pointers, method pointers
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
 		if valRaw, exists := ctx.Env().Get(funcIdent.Value); exists {
@@ -144,7 +152,25 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			}
 
 			if recordVal, ok := objVal.(RecordInstanceValue); ok {
-				if methodDecl, found := recordVal.GetRecordMethod(memberAccess.Member.Value); found {
+				methodDecl, found := recordVal.GetRecordMethod(memberAccess.Member.Value)
+				// Overload-aware: pick the best-matching overload for the
+				// provided arguments instead of the first registered one.
+				if rec, ok := objVal.(*runtime.RecordValue); ok {
+					if overloads := rec.GetRecordMethodOverloads(memberAccess.Member.Value); len(overloads) > 1 {
+						argVals := make([]Value, len(node.Arguments))
+						for i, arg := range node.Arguments {
+							val := e.Eval(arg, ctx)
+							if isError(val) {
+								return val
+							}
+							argVals[i] = val
+						}
+						if selected, err := e.selectOverload(rec.GetRecordTypeName(), memberAccess.Member.Value, overloads, argVals); err == nil {
+							return e.callRecordMethod(recordVal, selected, argVals, mc, ctx)
+						}
+					}
+				}
+				if found {
 					args, err := e.prepareArgsForParameters(methodDecl.Parameters, node.Arguments, ctx)
 					if err != nil {
 						return e.newError(node, "%s", err.Error())
@@ -177,6 +203,12 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// User-defined functions with overload resolution
 	funcNameLower := ident.Normalize(funcName.Value)
 	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
+		// A user overload set can extend a same-named builtin: the builtin
+		// participates in resolution and wins on a strictly better match
+		// (e.g. IntToStr(Integer) beats a user IntToStr(Variant) overload).
+		if result, handled := e.maybeCallBuiltinOverload(funcNameLower, overloads, node, ctx); handled {
+			return result
+		}
 		// Resolve overload and prepare arguments
 		var fn *ast.FunctionDecl
 		var cachedArgs []Value
@@ -290,6 +322,12 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			return val
 		}
 		args[idx] = val
+	}
+
+	// If evaluating an argument raised an exception (e.g. a failed type cast
+	// inside the argument list), the call must not run.
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
 	}
 
 	// Call built-in function from registry
@@ -598,6 +636,27 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	classInfo, ok := classInfoAny.(runtime.IClassInfo)
 	if !ok {
 		return e.newError(node, "class '%s' has invalid type", className)
+	}
+
+	// The "TClass.Create(args)" sugar (node token is the class name, not "new")
+	// can resolve to a class method named Create rather than a constructor.
+	if !ident.Equal(node.Token.Literal, "new") {
+		if classOverloads := classInfo.GetClassMethodOverloads("Create"); len(classOverloads) > 0 {
+			if errVal := evalArgsByValue(); errVal != nil {
+				return errVal
+			}
+			merged := append(classInfo.GetConstructorOverloads("Create"), classOverloads...)
+			if selected, err := e.selectOverload(classInfo.GetName(), "Create", merged, args); err == nil &&
+				selected.IsClassMethod && !selected.IsConstructor {
+				classValAny, cvErr := e.typeSystem.CreateClassValue(classInfo.GetName())
+				if cvErr != nil {
+					return e.newError(node, "failed to get class value: %s", cvErr.Error())
+				}
+				if cm, ok := classValAny.(ClassMetaValue); ok {
+					return e.executeClassMethodDirect(cm, selected, args, node, ctx)
+				}
+			}
+		}
 	}
 
 	// Validate class can be instantiated

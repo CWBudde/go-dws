@@ -152,22 +152,14 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	for _, excName := range standardExceptions {
 		excClass := NewClassInfo(excName)
 		excClass.Parent = exceptionClass
-		excClass.Fields["Message"] = types.STRING
 		excClass.IsAbstractFlag = false
 		excClass.IsExternalFlag = false
 
-		// Set parent metadata for hierarchy checks
+		// Set parent metadata for hierarchy checks.
+		// Message is inherited from Exception; redeclaring it here would
+		// create a shadowed field with its own storage slot.
 		excClass.Metadata.Parent = exceptionClass.Metadata
 		excClass.Metadata.ParentName = "Exception"
-
-		// Populate metadata for exception fields
-		messageMeta := &runtime.FieldMetadata{
-			Name:       "Message",
-			TypeName:   "String",
-			Type:       types.STRING,
-			Visibility: runtime.FieldVisibilityPublic,
-		}
-		runtime.AddFieldToClass(excClass.Metadata, messageMeta)
 
 		// Inherit Create constructor
 		excClass.Constructors["Create"] = nil
@@ -179,23 +171,15 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// Register EHost exception wrapper for host runtime errors.
 	eHostClass := NewClassInfo("EHost")
 	eHostClass.Parent = exceptionClass
-	eHostClass.Fields["Message"] = types.STRING
 	eHostClass.Fields["ExceptionClass"] = types.STRING
 	eHostClass.IsAbstractFlag = false
 	eHostClass.IsExternalFlag = false
 
-	// Set parent metadata for hierarchy checks
+	// Set parent metadata for hierarchy checks.
+	// Message is inherited from Exception; redeclaring it here would create a
+	// shadowed field with its own storage slot.
 	eHostClass.Metadata.Parent = exceptionClass.Metadata
 	eHostClass.Metadata.ParentName = "Exception"
-
-	// Populate metadata for EHost fields
-	messageMeta2 := &runtime.FieldMetadata{
-		Name:       "Message",
-		TypeName:   "String",
-		Type:       types.STRING,
-		Visibility: runtime.FieldVisibilityPublic,
-	}
-	runtime.AddFieldToClass(eHostClass.Metadata, messageMeta2)
 
 	exceptionClassMeta := &runtime.FieldMetadata{
 		Name:       "ExceptionClass",

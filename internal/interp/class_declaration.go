@@ -577,10 +577,44 @@ func (c *ClassInfo) propagateConstructorImplementation(allClasses map[string]int
 
 func replaceMethodInOverloadListNoReceiver(list []*ast.FunctionDecl, impl *ast.FunctionDecl) []*ast.FunctionDecl {
 	for idx, decl := range list {
-		if parametersMatch(decl.Parameters, impl.Parameters) {
+		if parameterTypesEqualFold(decl.Parameters, impl.Parameters) {
+			mergeParameterDefaults(impl, decl)
 			list[idx] = impl
 			return list
 		}
 	}
 	return append(list, impl)
+}
+
+// parameterTypesEqualFold compares two parameter lists by declared type name,
+// case-insensitively (DWScript identifiers are case-insensitive, so a
+// declaration using "string" matches an implementation using "String").
+func parameterTypesEqualFold(params1, params2 []*ast.Parameter) bool {
+	if len(params1) != len(params2) {
+		return false
+	}
+	for i := range params1 {
+		if params1[i].Type != nil && params2[i].Type != nil {
+			if !ident.Equal(params1[i].Type.String(), params2[i].Type.String()) {
+				return false
+			}
+		} else if params1[i].Type != params2[i].Type {
+			return false
+		}
+	}
+	return true
+}
+
+// mergeParameterDefaults copies parameter default values from the class
+// declaration into an out-of-line implementation that did not respecify them
+// (DWScript's "default not respecified" rule).
+func mergeParameterDefaults(impl, decl *ast.FunctionDecl) {
+	if impl == nil || decl == nil || len(impl.Parameters) != len(decl.Parameters) {
+		return
+	}
+	for i, declParam := range decl.Parameters {
+		if impl.Parameters[i].DefaultValue == nil && declParam.DefaultValue != nil {
+			impl.Parameters[i].DefaultValue = declParam.DefaultValue
+		}
+	}
 }

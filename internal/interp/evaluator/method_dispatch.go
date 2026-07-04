@@ -148,6 +148,11 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		if obj == nil {
 			return e.newError(node, "method call on nil value")
 		}
+		// Preserve the cast's static type on nil receivers so nil-receiver
+		// dispatch (e.g. TObj(nil).Method) can resolve the method statically.
+		if nilVal, isNil := obj.(*runtime.NilValue); isNil && nilVal.GetTypedClassName() == "" {
+			obj = &runtime.NilValue{ClassType: castVal.GetStaticTypeName()}
+		}
 	} else if obj.Type() == "TYPE_CAST" {
 		return e.newError(node, "internal error: TYPE_CAST value does not implement TypeCastAccessor interface")
 	}
@@ -159,6 +164,14 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 	}
 
 	if recordVal, ok := obj.(RecordInstanceValue); ok {
+		// Overload-aware record instance method dispatch
+		if rec, ok := obj.(*runtime.RecordValue); ok {
+			if overloads := rec.GetRecordMethodOverloads(methodName); len(overloads) > 1 {
+				if selected, err := e.selectOverload(rec.GetRecordTypeName(), methodName, overloads, args); err == nil {
+					return e.callRecordMethod(recordVal, selected, args, node, ctx)
+				}
+			}
+		}
 		if methodDecl, found := recordVal.GetRecordMethod(methodName); found {
 			return e.callRecordMethod(recordVal, methodDecl, args, node, ctx)
 		}
@@ -241,6 +254,20 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		}
 		// Handle overloaded class methods via evaluator-owned dispatch
 		if classInfo := classMeta.GetClassInfo(); classInfo != nil {
+			classOverloads := classInfo.GetClassMethodOverloads(methodName)
+			if classMeta.HasConstructor(methodName) && len(classOverloads) > 0 {
+				// A constructor name shared with class methods: resolve across the
+				// merged overload set and route on what was selected.
+				merged := append(classInfo.GetConstructorOverloads(methodName), classOverloads...)
+				selected, err := e.selectOverload(classInfo.GetName(), methodName, merged, args)
+				if err != nil {
+					return e.newError(node, "%s", err.Error())
+				}
+				if !selected.IsConstructor {
+					return e.executeClassMethodDirect(classMeta, selected, args, node, ctx)
+				}
+				return e.callClassConstructor(classMeta, methodName, args, node, ctx)
+			}
 			if !classMeta.HasConstructor(methodName) && classInfo.HasClassMethodOverloads(methodName) {
 				return e.dispatchClassMethodOverloaded(classMeta, classInfo, methodName, args, node, ctx)
 			}
@@ -277,7 +304,15 @@ func (e *Evaluator) dispatchMethodOnNilObject(obj Value, methodName string, args
 		objectExpr = node.Object
 	}
 	if classInfo := e.staticClassInfoForNilReceiver(obj, objectExpr); classInfo != nil {
-		if method := classInfo.LookupMethod(methodName); method != nil && isNonVirtualInstanceMethod(classInfo, method) {
+		method := classInfo.LookupMethod(methodName)
+		// With overloads, pick the best match for the argument types rather than
+		// whatever LookupMethod happens to return first.
+		if overloads := classInfo.GetMethodOverloads(methodName); len(overloads) > 1 {
+			if selected, err := e.selectOverload(classInfo.GetName(), methodName, overloads, args); err == nil {
+				method = selected
+			}
+		}
+		if method != nil && isNonVirtualInstanceMethod(classInfo, method) {
 			return e.executeMethodWithClassInfo(obj, classInfo, method, args, ctx)
 		}
 	}
@@ -515,8 +550,11 @@ func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Va
 		return e.runObjectDestructor(objInst, classInfo.LookupMethod("Destroy"), node, ctx)
 	}
 
-	// Dispatch to evaluator-owned overload resolver when the method has overloads.
-	if classInfo.HasMethodOverloads(methodName) {
+	// Dispatch to evaluator-owned overload resolver when the method has
+	// overloads. Instance and class (static) methods sharing a name form one
+	// overload set for instance receivers.
+	if classInfo.HasMethodOverloads(methodName) ||
+		(len(classInfo.GetMethodOverloads(methodName))+len(classInfo.GetClassMethodOverloads(methodName)) > 1) {
 		return e.dispatchObjectMethodOverloaded(objInst, methodName, args, node, ctx)
 	}
 

@@ -11,6 +11,13 @@ func (e *Evaluator) initializeObjectFields(classInfo runtime.IClassInfo, obj *ru
 		return nil
 	}
 
+	// Field initializers may reference class constants (e.g. FField := Value
+	// where Value is a class const), so evaluate them in a scope with the
+	// hierarchy's constants bound.
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+	e.bindClassConstantsForMethod(classInfo, ctx)
+
 	for _, meta := range classMetadataHierarchy(classInfo.GetMetadata()) {
 		for fieldName, fieldMeta := range meta.Fields {
 			if fieldMeta == nil {
@@ -43,7 +50,10 @@ func (e *Evaluator) initializeObjectFields(classInfo runtime.IClassInfo, obj *ru
 				fieldValue = &runtime.NilValue{}
 			}
 
-			obj.SetField(fieldName, fieldValue)
+			// Initialize the slot owned by this declaring class so shadowed
+			// fields (subclass redeclaring a parent field name) each get
+			// their own storage.
+			obj.SetFieldFromClass(fieldName, fieldValue, meta.Name)
 		}
 	}
 

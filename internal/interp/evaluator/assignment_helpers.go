@@ -209,10 +209,12 @@ func (e *Evaluator) assignToSelfMember(
 		return nil
 	}
 
-	// Try instance field
-	if objVal.GetField(targetName) != nil {
+	// Try instance field. Bare identifiers resolve in the static scope of the
+	// declaring method's class, which matters for shadowed fields.
+	methodClass := currentMethodClassName(ctx)
+	if getFieldWithStaticClass(objVal, targetName, methodClass) != nil {
 		if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
-			objInst.SetField(targetName, value)
+			objInst.SetFieldFromClass(targetName, value, methodClass)
 			return value
 		}
 		return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)
@@ -625,8 +627,9 @@ func (e *Evaluator) compoundAssignToSelfMember(
 		return nil
 	}
 
-	// Try instance field
-	if fieldValue := objVal.GetField(targetName); fieldValue != nil {
+	// Try instance field (static scope of the declaring method's class,
+	// which matters for shadowed fields)
+	if fieldValue := getFieldWithStaticClass(objVal, targetName, currentMethodClassName(ctx)); fieldValue != nil {
 		return e.compoundAssignToField(target, targetName, stmt, fieldValue, selfVal, ctx)
 	}
 
@@ -663,7 +666,7 @@ func (e *Evaluator) compoundAssignToField(
 	}
 
 	if objInst, ok := selfVal.(*runtime.ObjectInstance); ok {
-		objInst.SetField(targetName, result)
+		objInst.SetFieldFromClass(targetName, result, currentMethodClassName(ctx))
 		return result
 	}
 	return e.newError(target, "cannot assign to field '%s': invalid object type", targetName)

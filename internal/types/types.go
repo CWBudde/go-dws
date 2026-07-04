@@ -430,13 +430,17 @@ type PropertyInfo struct {
 // MethodInfo stores metadata about a single method or overload
 // This allows tracking virtual/override/abstract/overload per method signature
 type MethodInfo struct {
-	Signature            *FunctionType
-	IsVirtual            bool
-	IsOverride           bool
-	IsAbstract           bool
-	IsReintroduce        bool
-	IsForwarded          bool
-	IsClassMethod        bool
+	Signature     *FunctionType
+	IsVirtual     bool
+	IsOverride    bool
+	IsAbstract    bool
+	IsReintroduce bool
+	IsForwarded   bool
+	IsClassMethod bool
+	IsConstructor bool
+	// IsSynthesized marks compiler-generated members (e.g. the implicit
+	// parameterless constructor) that do not correspond to a source declaration.
+	IsSynthesized        bool
 	HasOverloadDirective bool
 	Visibility           int
 }
@@ -664,6 +668,7 @@ func (ct *ClassType) MethodUsed(name string) bool {
 // AddConstructorOverload adds a constructor overload to the class
 // Constructor names are case-insensitive, so we normalize for lookup
 func (ct *ClassType) AddConstructorOverload(name string, info *MethodInfo) {
+	info.IsConstructor = true
 	normalizedName := ident.Normalize(name)
 	ct.ConstructorOverloads[normalizedName] = append(ct.ConstructorOverloads[normalizedName], info)
 

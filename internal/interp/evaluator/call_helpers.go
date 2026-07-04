@@ -191,8 +191,22 @@ func (e *Evaluator) executeImplicitSelfCall(node *ast.CallExpression, funcName *
 		if helperResult := e.FindHelperMethod(selfVal, funcName.Value); helperResult != nil {
 			return e.CallHelperMethod(helperResult, selfVal, args, node, ctx)
 		}
+		// Overload-aware: pick the best class-method overload by argument types.
+		if classInfo := self.GetClassInfo(); classInfo != nil {
+			if overloads := classInfo.GetClassMethodOverloads(funcName.Value); len(overloads) > 1 {
+				return e.dispatchClassMethodOverloaded(self, classInfo, funcName.Value, args, node, ctx)
+			}
+		}
 		return e.callClassMethod(self, funcName.Value, args, node, ctx)
 	case RecordInstanceValue:
+		// Overload-aware record instance dispatch (class + instance methods).
+		if rec, ok := selfVal.(*runtime.RecordValue); ok {
+			if overloads := rec.GetRecordMethodOverloads(funcName.Value); len(overloads) > 1 {
+				if selected, err := e.selectOverload(rec.GetRecordTypeName(), funcName.Value, overloads, args); err == nil {
+					return e.callRecordMethod(self, selected, args, node, ctx)
+				}
+			}
+		}
 		if methodDecl, found := self.GetRecordMethod(funcName.Value); found {
 			return e.callRecordMethod(self, methodDecl, args, node, ctx)
 		}
@@ -221,6 +235,41 @@ func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, ar
 	}
 
 	if objVal, ok := self.(ObjectValue); ok {
+		if obj, ok := self.(*runtime.ObjectInstance); ok && obj.Class != nil {
+			// `inherited` resolves relative to the class that DECLARES the
+			// currently-executing method, not the receiver's dynamic class
+			// (otherwise a parent method calling `inherited` on a subclass
+			// instance would dispatch back to itself).
+			if parent, known := e.inheritedBaseClass(obj.Class, ctx); known {
+				if parent != nil {
+					// Overload-aware inherited dispatch: when the parent's set has
+					// several overloads (constructors included), select by argument
+					// types instead of taking whatever the name lookup returns first.
+					if overloads := parent.GetMethodOverloads(methodName); len(overloads) > 1 {
+						if selected, err := e.selectOverload(parent.GetName(), methodName, overloads, args); err == nil {
+							return e.executeObjectMethodDirect(self, selected, args, node, ctx)
+						}
+					}
+					method := parent.LookupMethod(methodName)
+					if method == nil {
+						method = parent.LookupClassMethod(methodName)
+					}
+					if method != nil {
+						return e.executeObjectMethodDirect(self, method, args, node, ctx)
+					}
+				}
+				// Root class (or member not found up the chain): inherited
+				// Create/Destroy/Free resolve to TObject's built-in no-ops.
+				if ident.Equal(methodName, "Create") || ident.Equal(methodName, "Destroy") || ident.Equal(methodName, "Free") {
+					return &runtime.NilValue{}
+				}
+				parentName := "TObject"
+				if parent != nil {
+					parentName = parent.GetName()
+				}
+				return e.newError(node, "method, property, or field '%s' not found in parent class '%s'", methodName, parentName)
+			}
+		}
 		return objVal.CallInheritedMethod(methodName, args, func(methodDecl any, methodArgs []Value) Value {
 			return e.executeObjectMethodDirect(self, methodDecl, methodArgs, node, ctx)
 		})
@@ -239,6 +288,22 @@ func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, ar
 	}
 
 	return e.newError(node, "inherited requires Self to be an object or class instance")
+}
+
+// inheritedBaseClass returns the class whose members `inherited` should search:
+// the parent of the currently-executing method's defining class (tracked in
+// __CurrentMethodClass__). The second result reports whether the defining
+// class was known; when false, callers fall back to legacy dynamic-parent
+// resolution.
+func (e *Evaluator) inheritedBaseClass(dynamicClass runtime.IClassInfo, ctx *ExecutionContext) (runtime.IClassInfo, bool) {
+	if definingRaw, ok := ctx.Env().Get("__CurrentMethodClass__"); ok {
+		if definingName, ok := definingRaw.(*runtime.StringValue); ok {
+			if defining, ok := e.typeSystem.LookupClass(definingName.Value).(runtime.IClassInfo); ok && defining != nil {
+				return defining.GetParent(), true
+			}
+		}
+	}
+	return nil, false
 }
 
 func (e *Evaluator) executeInheritedHelperCallDirect(self Value, helperName, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {

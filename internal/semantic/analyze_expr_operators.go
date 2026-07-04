@@ -81,6 +81,9 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		// Class name as identifier -> metaclass reference
 		if classType := a.getClassType(identifier.Value); classType != nil {
 			a.warnDeprecatedClassUsage(classType, identifier.Token.Pos)
+			if classType.Name != identifier.Value && ident.Equal(classType.Name, identifier.Value) {
+				a.addCaseMismatchHint(identifier.Value, classType.Name, identifier.Token.Pos)
+			}
 			return &types.ClassOfType{ClassType: classType}
 		}
 		if interfaceType := a.getInterfaceType(identifier.Value); interfaceType != nil {
@@ -161,6 +164,12 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 					// Methods with parameters: return method pointer type
 					return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
 				}
+
+				// Sibling constructor invoked by bare name from inside a method
+				// body (e.g. "Create;" inside another constructor).
+				if a.currentClass.HasConstructor(identifier.Value) {
+					return types.VOID
+				}
 			}
 		}
 
@@ -218,6 +227,19 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		a.addCaseMismatchHint(identifier.Value, sym.Name, identifier.Token.Pos)
 	}
 	a.recordSymbolUsage(sym.Name, identifier.Token.Pos)
+
+	// Annotate identifiers whose declared type is a class so the evaluator can
+	// resolve shadowed fields against the reference's static type (a subclass
+	// redeclaring a parent field name keeps both storage slots; which one an
+	// access sees depends on the static class of the reference).
+	if a.semanticInfo != nil {
+		if classType, ok := types.GetUnderlyingType(sym.Type).(*types.ClassType); ok && classType != nil {
+			a.semanticInfo.SetType(identifier, &ast.TypeAnnotation{
+				Token: identifier.Token,
+				Name:  classType.Name,
+			})
+		}
+	}
 
 	// Handle function/procedure references
 	if funcType, ok := sym.Type.(*types.FunctionType); ok {

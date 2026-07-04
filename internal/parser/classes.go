@@ -296,9 +296,17 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 	case lexer.IDENT:
 		// Check if this is a field declaration or an error
 		nextType := cursor.Peek(1).Type
-		if nextType == lexer.COLON || nextType == lexer.COMMA || nextType == lexer.ASSIGN || nextType == lexer.EQ {
+		if nextType == lexer.EQ {
+			// Bare "Name = Value;" declares a class constant, same as
+			// "const Name = Value;" (DWScript semantics). Field initializers
+			// use ":=" instead.
+			constant := p.parseClassConstantDeclaration(currentVisibility, false)
+			if constant != nil {
+				classDecl.Constants = append(classDecl.Constants, constant)
+			}
+		} else if nextType == lexer.COLON || nextType == lexer.COMMA || nextType == lexer.ASSIGN {
 			// Regular instance field declaration (may be comma-separated)
-			// Supports: FieldName: Type; or FieldName := Value; or FieldName = Value; or FieldName: Type := Value;
+			// Supports: FieldName: Type; or FieldName := Value; or FieldName: Type := Value;
 			fields := p.parseFieldDeclarations(currentVisibility)
 			for _, field := range fields {
 				if field != nil {

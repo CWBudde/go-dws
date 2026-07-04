@@ -38,7 +38,18 @@ func NewObjectInstance(class IClassInfo) *ObjectInstance {
 
 // GetField retrieves the value of a field by name.
 // Returns nil if the field doesn't exist or hasn't been set.
+// Field lookup starts at the object's dynamic class.
 func (o *ObjectInstance) GetField(name string) Value {
+	return o.GetFieldFromClass(name, "")
+}
+
+// GetFieldFromClass retrieves the value of a field by name, starting the
+// lookup at the named class in the object's hierarchy. This implements
+// DWScript field shadowing semantics: when a subclass redeclares a field
+// with the same name as an ancestor's field, both storage slots exist and
+// the one you see depends on the static class of the reference.
+// An empty className (or one not in the hierarchy) starts at the dynamic class.
+func (o *ObjectInstance) GetFieldFromClass(name string, className string) Value {
 	// Guard against nil class
 	if o.Class == nil {
 		return nil
@@ -48,8 +59,9 @@ func (o *ObjectInstance) GetField(name string) Value {
 
 	// Try metadata first (AST-free path), walking up the inheritance chain.
 	// This avoids missing inherited fields when the child class adds its own fields.
-	if fieldMeta := lookupFieldMetadata(o.Class.GetMetadata(), normalizedName); fieldMeta != nil {
-		if val, exists := o.Fields[normalizedName]; exists {
+	if owner, fieldMeta := lookupFieldOwner(o.fieldLookupStart(className), normalizedName); fieldMeta != nil {
+		key := o.fieldSlotKey(owner, normalizedName)
+		if val, exists := o.Fields[key]; exists {
 			return val
 		}
 		if val, exists := o.Fields[name]; exists {
@@ -82,7 +94,16 @@ func (o *ObjectInstance) GetField(name string) Value {
 
 // SetField sets the value of a field by name.
 // The field must be defined in the class's field map.
+// Field lookup starts at the object's dynamic class.
 func (o *ObjectInstance) SetField(name string, value Value) {
+	o.SetFieldFromClass(name, value, "")
+}
+
+// SetFieldFromClass sets the value of a field by name, starting the lookup at
+// the named class in the object's hierarchy (see GetFieldFromClass for the
+// field shadowing semantics). An empty className (or one not in the
+// hierarchy) starts at the dynamic class.
+func (o *ObjectInstance) SetFieldFromClass(name string, value Value, className string) {
 	// Guard against nil class
 	if o.Class == nil {
 		return
@@ -91,8 +112,8 @@ func (o *ObjectInstance) SetField(name string, value Value) {
 	normalizedName := ident.Normalize(name)
 
 	// Try metadata first (AST-free path), walking up the inheritance chain.
-	if lookupFieldMetadata(o.Class.GetMetadata(), normalizedName) != nil {
-		o.Fields[normalizedName] = value
+	if owner, fieldMeta := lookupFieldOwner(o.fieldLookupStart(className), normalizedName); fieldMeta != nil {
+		o.Fields[o.fieldSlotKey(owner, normalizedName)] = value
 		return
 	}
 
@@ -392,12 +413,30 @@ func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
 		return nil, false // Method not found
 	}
 
-	if len(method.Parameters) > 0 {
+	if !callableWithoutArguments(method) {
+		// With overloads, another overload may still be callable with zero
+		// arguments (parameterless or all parameters defaulted).
+		for _, overload := range o.Class.GetMethodOverloads(methodName) {
+			if callableWithoutArguments(overload) {
+				return methodExecutor(overload), true
+			}
+		}
 		return nil, false // Has parameters - caller should create method pointer
 	}
 
 	// Parameterless method - invoke via callback
 	return methodExecutor(method), true
+}
+
+// callableWithoutArguments reports whether a method can be invoked with no
+// arguments: it either has no parameters or every parameter has a default value.
+func callableWithoutArguments(method *ast.FunctionDecl) bool {
+	for _, param := range method.Parameters {
+		if param.DefaultValue == nil {
+			return false
+		}
+	}
+	return true
 }
 
 // CreateMethodPointer creates a method pointer for a method with parameters.
@@ -458,12 +497,57 @@ func AsObject(v Value) (*ObjectInstance, bool) {
 // lookupFieldMetadata searches for a field in the class metadata hierarchy.
 // Returns the metadata for the field if found, or nil otherwise.
 func lookupFieldMetadata(meta *ClassMetadata, normalizedName string) *FieldMetadata {
+	_, field := lookupFieldOwner(meta, normalizedName)
+	return field
+}
+
+// lookupFieldOwner searches for a field in the class metadata hierarchy.
+// Returns the metadata of the class that declares the field (nearest to the
+// starting class) along with the field metadata, or (nil, nil) if not found.
+func lookupFieldOwner(meta *ClassMetadata, normalizedName string) (*ClassMetadata, *FieldMetadata) {
 	for current := meta; current != nil; current = current.Parent {
 		if field, ok := current.Fields[normalizedName]; ok {
-			return field
+			return current, field
 		}
 	}
-	return nil
+	return nil, nil
+}
+
+// fieldLookupStart resolves the class metadata at which a field lookup should
+// start. className selects a class in the object's hierarchy (the static
+// class of the reference); an empty or unknown name starts at the dynamic class.
+func (o *ObjectInstance) fieldLookupStart(className string) *ClassMetadata {
+	dynamic := o.Class.GetMetadata()
+	if className == "" {
+		return dynamic
+	}
+	for current := dynamic; current != nil; current = current.Parent {
+		if ident.Equal(current.Name, className) {
+			return current
+		}
+	}
+	return dynamic
+}
+
+// fieldSlotKey returns the storage key in o.Fields for a field declared by
+// owner. When the field name is declared by more than one class along the
+// object's hierarchy (field shadowing), each declaring class gets its own
+// storage slot, keyed by the declaring class name. Otherwise the plain
+// normalized field name is used (the common case, and the legacy layout).
+func (o *ObjectInstance) fieldSlotKey(owner *ClassMetadata, normalizedName string) string {
+	if owner == nil {
+		return normalizedName
+	}
+	declarations := 0
+	for current := o.Class.GetMetadata(); current != nil; current = current.Parent {
+		if _, ok := current.Fields[normalizedName]; ok {
+			declarations++
+			if declarations > 1 {
+				return ident.Normalize(owner.Name) + "\x00" + normalizedName
+			}
+		}
+	}
+	return normalizedName
 }
 
 // LookupFieldInHierarchy searches for a field in the class metadata hierarchy.

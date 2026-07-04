@@ -134,12 +134,10 @@ func (e *Evaluator) executeConstructorForObject(obj *runtime.ObjectInstance, con
 	if len(overloads) == 1 {
 		constructor = overloads[0]
 	} else if len(overloads) > 1 {
-		// Select by arg count first
-		for _, candidate := range overloads {
-			if len(candidate.Parameters) == len(args) {
-				constructor = candidate
-				break
-			}
+		// Select the best match by argument types (falls back internally to
+		// arg-count and default-parameter matching).
+		if selected, err := e.selectOverload(classInfo.GetName(), constructorName, overloads, args); err == nil {
+			constructor = selected
 		}
 		if constructor == nil {
 			constructor = overloads[0]
@@ -173,22 +171,17 @@ func (e *Evaluator) executeConstructorForObject(obj *runtime.ObjectInstance, con
 func (e *Evaluator) dispatchObjectMethodOverloaded(obj *runtime.ObjectInstance, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	classInfo := obj.Class
 
-	// Try instance method overloads first
+	// Instance and class (static) methods sharing a name form a single
+	// overload set for instance receivers; route on what was selected.
 	overloads := classInfo.GetMethodOverloads(methodName)
-	if len(overloads) > 0 {
-		method, err := e.selectOverload(classInfo.GetName(), methodName, overloads, args)
+	merged := append(append([]*ast.FunctionDecl{}, overloads...), classInfo.GetClassMethodOverloads(methodName)...)
+	if len(merged) > 0 {
+		method, err := e.selectOverload(classInfo.GetName(), methodName, merged, args)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
 		}
-		return e.executeObjectMethodDirect(obj, method, args, node, ctx)
-	}
-
-	// Fall back to class method overloads
-	classOverloads := classInfo.GetClassMethodOverloads(methodName)
-	if len(classOverloads) > 0 {
-		method, err := e.selectOverload(classInfo.GetName(), methodName, classOverloads, args)
-		if err != nil {
-			return e.newError(node, "%s", err.Error())
+		if !method.IsClassMethod {
+			return e.executeObjectMethodDirect(obj, method, args, node, ctx)
 		}
 		classValAny, err2 := e.typeSystem.CreateClassValue(classInfo.GetName())
 		if err2 != nil {
@@ -274,6 +267,11 @@ func (e *Evaluator) runtimeValueType(val Value) types.Type {
 	case *runtime.BooleanValue:
 		return types.BOOLEAN
 	case *runtime.NilValue:
+		// Typed nil (e.g. a declared "var o: TObject") matches its static
+		// class exactly, so F(o) prefers F(x: TObject) over array overloads.
+		if v.ClassType != "" {
+			return e.buildClassTypeWithHierarchy(v.ClassType)
+		}
 		return types.NIL
 	case *runtime.VariantValue:
 		return types.VARIANT
@@ -285,15 +283,10 @@ func (e *Evaluator) runtimeValueType(val Value) types.Type {
 		}
 		return types.NIL
 	case *runtime.ObjectInstance:
-		if v.Class != nil && e.typeSystem != nil {
-			// Try to find the class type in the type system
-			if classInfoAny := e.typeSystem.LookupClass(v.Class.GetName()); classInfoAny != nil {
-				if ct, ok := classInfoAny.(types.Type); ok {
-					return ct
-				}
-			}
-			// Return a simple class type by name
-			return types.NewClassType(v.Class.GetName(), nil)
+		if v.Class != nil {
+			// Build the class type including its parent chain so overload
+			// resolution can rank subclass -> base-class conversions.
+			return e.buildClassTypeWithHierarchy(v.Class.GetName())
 		}
 		return types.NIL
 	case *runtime.RecordValue:
@@ -302,8 +295,31 @@ func (e *Evaluator) runtimeValueType(val Value) types.Type {
 		}
 		return types.NIL
 	default:
+		// Metaclass references (TClass values) participate in overload
+		// resolution as "class of <name>".
+		if cm, ok := val.(ClassMetaValue); ok {
+			classType := e.buildClassTypeWithHierarchy(cm.GetClassName())
+			return types.NewClassOfType(classType)
+		}
 		return types.NIL
 	}
+}
+
+// buildClassTypeWithHierarchy builds a types.ClassType including its parent
+// chain from the runtime type system, so class-distance checks work.
+func (e *Evaluator) buildClassTypeWithHierarchy(className string) *types.ClassType {
+	if e.typeSystem == nil {
+		return types.NewClassType(className, nil)
+	}
+	classInfo, _ := e.typeSystem.LookupClass(className).(runtime.IClassInfo)
+	if classInfo == nil {
+		return types.NewClassType(className, nil)
+	}
+	var parent *types.ClassType
+	if p := classInfo.GetParent(); p != nil {
+		parent = e.buildClassTypeWithHierarchy(p.GetName())
+	}
+	return types.NewClassType(classInfo.GetName(), parent)
 }
 
 // extractMethodType extracts a types.FunctionType from an *ast.FunctionDecl.

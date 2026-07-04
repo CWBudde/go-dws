@@ -80,8 +80,13 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 		unitDecl.FinalSection = p.parseFinalizationSection()
 	}
 
-	// Expect 'end.' to close the unit
+	// Expect 'end.' to close the unit. DWScript tolerates a unit source that
+	// simply ends after its sections (no trailing "end."), so EOF is accepted.
 	if !p.curTokenIs(lexer.END) {
+		if p.curTokenIs(lexer.EOF) {
+			decl, _ := builder.Finish(unitDecl).(*ast.UnitDeclaration)
+			return decl
+		}
 		p.addError("expected 'end' to close unit declaration", ErrMissingEnd)
 		return nil
 	}
@@ -227,6 +232,11 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 
 		stmt := p.parseStatement()
 		if stmt != nil {
+			// Interface-section function declarations have no body: they are
+			// forward declarations implemented in the implementation section.
+			if fn, ok := stmt.(*ast.FunctionDecl); ok && fn.Body == nil {
+				fn.IsForward = true
+			}
 			block.Statements = append(block.Statements, stmt)
 		}
 		p.nextToken()

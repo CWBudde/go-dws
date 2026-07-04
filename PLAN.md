@@ -47,7 +47,8 @@ fixing anything else.
 |---|---|---|
 | SimpleScripts, Algorithms, Math, String, Interfaces, Operators | 🟡 | 54–96% |
 | Arrays | 🟡 | 23% |
-| Sets, Helpers, Overloads | 🟡 | 13–26% |
+| Sets, Helpers | 🟡 | 56% |
+| Overloads | 🟡 | 85% (harness, 2026-07-04) |
 | **Generics, Lambdas, Associative arrays, Property expressions, JSON** | 🔴 | **0%** |
 | **All `*Fail` error-detection suites** | 🔴 | **0%** |
 | Host libraries (DB, Crypto, COM, Web, Graphics) | ⏸️ | 0% (need host bindings; out of core scope) |
@@ -232,10 +233,12 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
 - [x] Move `Evaluator.currentNode` into `ExecutionContext`; remove the double `MethodRegistry`
       allocation (`internal/interp/interpreter.go:61`).
       *(Done: `currentNode` now lives on `runtime.ExecutionContext` (copied on `Clone`, cleared
-      on `Reset`); `Evaluator.CurrentNode`/`SetCurrentNode` delegate to the active context and
-      `Eval` saves/restores the node on the context it runs. `NewWithDeps` reuses the registry
-      the evaluator allocated on `EngineState` instead of allocating a second one, and the
-      redundant `Interpreter.methodRegistry` field is gone; fixture report byte-identical.)*
+      on `Reset`); `Evaluator.CurrentNode`/`SetCurrentNode` delegate to the tracked context,
+      with a nearest-non-nil-context fallback so nil-ctx sub-evaluations keep the old
+      flat-field error-position semantics, and `Eval` saves/restores the node on the context
+      it runs. `NewWithDeps` reuses the registry the evaluator allocated on `EngineState`
+      instead of allocating a second one, and the redundant `Interpreter.methodRegistry`
+      field is gone. Behavior-neutral: full suite, fixture gate, and `-race` all green.)*
 - [ ] Split the evaluator god files (`visitor_statements.go` 1461, `visitor_declarations.go`
       1426, `var_params.go` 1112).
 - [ ] **Bytecode decision:** hide `--bytecode` and `pkg/dwscript.CompileModeBytecode`, delete
@@ -243,6 +246,10 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       delete `internal/bytecode` outright **or** (if a VM is a real goal) rebuild it on the
       shared `internal/builtins` registry and `internal/interp/runtime` values — do not keep
       extending the current fork.
+      **Owner decision 2026-07-04: deferred, leaning keep.** Do not delete `internal/bytecode`;
+      leave it as-is (opt-in, unmaintained) until the owner revisits. The delete-vs-rebuild
+      choice stays open; the honesty sub-items (hiding the flag, removing the speedup claims)
+      may still be done independently if picked up.
 - **Exit criteria:** `deadcode ./cmd/...` reports 0 unreachable funcs in `internal/interp`; no
       public API exposes a non-working execution mode.
 
@@ -317,6 +324,39 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       `Empty THEN block`, deprecation warnings), field shadowing per-class storage (`field_scope`),
       overload-set resolution across scopes (`OverloadsPass/*`), heredoc/triple-quote lexing, and
       UTF-16 surrogate iteration (`for_in_str(2)`).
+      **Second batch closed (2026-07-04): overall CLI 523 → 556 (27% → 29%), harness scored
+      passes 660 → 684.**
+      (11) **Overload-set resolution across scopes** — OverloadsPass **5 → 33/39 (85%, harness;
+      26/39 CLI — 7 of the CLI fails are hint-envelope-only)**, meeting its P4 exit criterion.
+      Root causes: defaulted params optional in matching; nil-arg ranking (class > array/function
+      pointer); metaclass hierarchy distance; Variant boxing ranked below element-wise
+      conversions; non-variadic beats variadic; constructor name merged with same-named class
+      methods (incl. `TClass.Create(args)` sugar); implementations inherit declaration defaults;
+      subclass non-`overload` declarations hide the parent set; overload-aware `inherited`
+      resolved against the executing method's *defining* class; nested functions get an
+      env-scoped `LocalFunctionSet` instead of leaking into the global registry; builtins compete
+      inside user overload sets; record instance/class(static) method sets merge with
+      per-overload visibility; array-literal argument typing (empty `[]`, set-vs-array
+      disambiguation); unit interface declarations act as implicit forwards. Side gains:
+      ArrayPass 67→69, SimpleScripts 272→277 (harness). Remaining 6 are separate features
+      (class operator `=`/`<>` overloading, `@obj.Method` pointers, function-pointer parameter
+      typing in overloads, metaclass `inherited`).
+      (12) **Per-class field storage for shadowed fields** (`field_scope`): `ObjectInstance`
+      keeps one slot per declaring class when a field is redeclared down the hierarchy; reads
+      resolve by static type (member access), executing method's defining class (bare
+      identifiers), or cast target. Builtin exception subclasses no longer artificially
+      redeclare `Message`.
+      (13) **Heredoc strings**: triple-apostrophe (and triple-quote) multi-line strings lex per
+      DWScript rules (opener followed by newline, closing-line indent stripped); fixed a latent
+      parser double-unescape of quoted quotes. Fixes `triple_apos1/2`.
+      (14) Misc: bare `Name = Value;` in a class body is a class const; field initializers can
+      reference class consts; calls skip execution when an argument raised; empty-array
+      `Peek`/`Pop` raise `Upper bound exceeded!` with routine context; unhandled raises print
+      `User defined exception:` with DWScript-style position and caller-labeled stack trace.
+      SimpleScripts 277 → 287 (harness).
+      **UTF-16 surrogate iteration (`for_in_str(2)`) is ⏸️ won't-fix** per the adopted ADR
+      `docs/string-encoding.md` (UTF-8-native strings are an intentional divergence); it would
+      require WTF-8 threading through Ord/Chr/indexing/concat.
 - [~] Work the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch, `class of`).
       **Metaclass member access closed for the common cases (2026-07-03).** (1) Member access on
       a `class of X` metaclass value (`runtime.TypeMetaValue` wrapping a `*types.ClassOfType`) now

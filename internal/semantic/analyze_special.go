@@ -48,38 +48,68 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 	// Check if we're calling a constructor from within a constructor
 	// If we're in a constructor and the member is a constructor in the parent, handle it specially
 	if a.currentFunction != nil && a.currentFunction.IsConstructor {
-		ctorType, ctorFound := parentClass.GetConstructor(memberName)
-		if ctorFound {
-			// This is an inherited constructor call
-			if ie.IsCall || len(ie.Arguments) >= 0 {
-				// Check argument count
-				expectedParams := len(ctorType.Parameters)
-				actualArgs := len(ie.Arguments)
-				if actualArgs != expectedParams {
-					a.addError("wrong number of arguments for inherited constructor '%s': expected %d, got %d at %s",
-						memberName, expectedParams, actualArgs, ie.Token.Pos.String())
-					return nil
+		if _, ctorFound := parentClass.GetConstructor(memberName); ctorFound {
+			// Collect the parent's constructor overload set and resolve against
+			// the provided arguments.
+			var ctorOverloads []*types.MethodInfo
+			for _, overload := range a.getMethodOverloadsInHierarchy(memberName, parentClass) {
+				if overload.IsConstructor {
+					ctorOverloads = append(ctorOverloads, overload)
 				}
-
-				// Type check each argument
-				for idx, arg := range ie.Arguments {
-					argType := a.analyzeExpression(arg)
-					if argType == nil {
-						// Error already reported
-						continue
-					}
-
-					paramType := ctorType.Parameters[idx]
-					// Check type compatibility
-					if !a.canAssign(argType, paramType) {
-						a.addError("argument %d to inherited constructor '%s' has type %s, expected %s at %s",
-							idx+1, memberName, argType.String(), paramType.String(), ie.Token.Pos.String())
-					}
-				}
-
-				// Constructors don't have explicit return types in expressions
-				return types.VOID
 			}
+
+			var ctorType *types.FunctionType
+			if len(ctorOverloads) > 1 {
+				argTypes := make([]types.Type, len(ie.Arguments))
+				for idx, arg := range ie.Arguments {
+					argType := a.analyzeOverloadArgument(arg)
+					if argType == nil {
+						return types.VOID
+					}
+					argTypes[idx] = argType
+				}
+				candidates := make([]*Symbol, len(ctorOverloads))
+				for idx, overload := range ctorOverloads {
+					candidates[idx] = &Symbol{Type: overload.Signature}
+				}
+				selected, err := ResolveOverload(candidates, argTypes)
+				if err != nil {
+					a.addStructuredError(NewNoOverloadMatchError(ie.Token.Pos, memberName))
+					return types.VOID
+				}
+				ctorType = selected.Type.(*types.FunctionType)
+			} else if len(ctorOverloads) == 1 {
+				ctorType = ctorOverloads[0].Signature
+			} else {
+				ctorType, _ = parentClass.GetConstructor(memberName)
+			}
+
+			// Check argument count (defaulted parameters are optional)
+			actualArgs := len(ie.Arguments)
+			if actualArgs > len(ctorType.Parameters) || actualArgs < requiredParamCount(ctorType) {
+				a.addError("wrong number of arguments for inherited constructor '%s': expected %d, got %d at %s",
+					memberName, len(ctorType.Parameters), actualArgs, ie.Token.Pos.String())
+				return nil
+			}
+
+			// Type check each argument (in the context of the selected
+			// signature, so literals such as [] or nil adopt the parameter's type)
+			for idx, arg := range ie.Arguments {
+				paramType := ctorType.Parameters[idx]
+				argType := a.analyzeExpressionWithExpectedType(arg, paramType)
+				if argType == nil {
+					// Error already reported
+					continue
+				}
+				// Check type compatibility
+				if !a.canAssign(argType, paramType) {
+					a.addError("argument %d to inherited constructor '%s' has type %s, expected %s at %s",
+						idx+1, memberName, argType.String(), paramType.String(), ie.Token.Pos.String())
+				}
+			}
+
+			// Constructors don't have explicit return types in expressions
+			return types.VOID
 		}
 	}
 

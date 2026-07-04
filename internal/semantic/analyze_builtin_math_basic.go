@@ -46,6 +46,10 @@ func (a *Analyzer) analyzeMin(args []ast.Expression, callExpr *ast.CallExpressio
 	arg2Type := a.analyzeExpression(args[1])
 
 	if arg1Type != nil && arg2Type != nil {
+		// Variant arguments are coerced at runtime.
+		if arg1Type == types.VARIANT || arg2Type == types.VARIANT {
+			return types.VARIANT
+		}
 		if (arg1Type != types.INTEGER && arg1Type != types.FLOAT) ||
 			(arg2Type != types.INTEGER && arg2Type != types.FLOAT) {
 			a.addError("function 'Min' expects Integer or Float arguments, got %s and %s at %s",
@@ -72,6 +76,10 @@ func (a *Analyzer) analyzeMax(args []ast.Expression, callExpr *ast.CallExpressio
 	arg2Type := a.analyzeExpression(args[1])
 
 	if arg1Type != nil && arg2Type != nil {
+		// Variant arguments are coerced at runtime.
+		if arg1Type == types.VARIANT || arg2Type == types.VARIANT {
+			return types.VARIANT
+		}
 		if (arg1Type != types.INTEGER && arg1Type != types.FLOAT) ||
 			(arg2Type != types.INTEGER && arg2Type != types.FLOAT) {
 			a.addError("function 'Max' expects Integer or Float arguments, got %s and %s at %s",

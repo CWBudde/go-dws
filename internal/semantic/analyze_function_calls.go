@@ -116,11 +116,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 	sym, ok := a.symbols.Resolve(funcIdent.Value)
 	if !ok {
-		// Check built-in functions
-		if resultType, isBuiltin := a.analyzeBuiltinFunction(funcIdent.Value, expr.Arguments, expr); isBuiltin {
+		// Check built-in functions. The callee's case-mismatch hint is emitted
+		// before the arguments are analyzed so hints appear in source order.
+		if a.isBuiltinFunction(funcIdent.Value) {
 			if declName := a.builtinDeclarationName(funcIdent.Value); declName != "" && declName != funcIdent.Value {
 				a.addCaseMismatchHint(funcIdent.Value, declName, funcIdent.Token.Pos)
 			}
+		}
+		if resultType, isBuiltin := a.analyzeBuiltinFunction(funcIdent.Value, expr.Arguments, expr); isBuiltin {
 			return resultType
 		}
 
@@ -139,7 +142,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				} else {
 					argTypes := make([]types.Type, len(expr.Arguments))
 					for i, arg := range expr.Arguments {
-						argType := a.analyzeExpression(arg)
+						argType := a.analyzeOverloadArgument(arg)
 						if argType == nil {
 							return nil
 						}
@@ -171,14 +174,18 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				}
 				methodType := selectedMethod.Signature
 
-				// Check visibility
+				// Check visibility (the selected overload's own visibility governs)
 				methodOwner := a.getMethodOwner(a.currentClass, methodNameLower)
 				if methodOwner != nil {
 					visibility, hasVisibility := methodOwner.MethodVisibility[methodNameLower]
+					if selectedMethod != nil {
+						visibility, hasVisibility = selectedMethod.Visibility, true
+					}
 					if hasVisibility && !a.checkVisibility(methodOwner, visibility, funcIdent.Value, "method") {
 						a.addStructuredError(NewVisibilityScopeError(funcIdent.Token.Pos, funcIdent.Value))
 						return nil
 					}
+					a.recordClassMethodUsage(methodOwner, funcIdent.Value)
 				}
 
 				if len(expr.Arguments) != len(methodType.Parameters) {
@@ -217,7 +224,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			if len(overloads) > 0 {
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
-					argType := a.analyzeExpression(arg)
+					argType := a.analyzeOverloadArgument(arg)
 					if argType == nil {
 						return nil
 					}
@@ -253,7 +260,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			if len(overloads) > 0 {
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
-					argType := a.analyzeExpression(arg)
+					argType := a.analyzeOverloadArgument(arg)
 					if argType == nil {
 						return nil
 					}
@@ -512,6 +519,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		return nil
 	}
 
+	// The call references the resolved symbol (marks nested/local functions as used).
+	a.recordSymbolUsage(sym.Name, funcIdent.Token.Pos)
+
 	// Resolve overloaded functions
 	var funcType *types.FunctionType
 	if sym.IsOverloadSet {
@@ -531,7 +541,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeOverloadArgument(arg)
 			if argType == nil {
 				return nil
 			}
@@ -567,7 +577,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					}
 					argTypes := make([]types.Type, len(expr.Arguments))
 					for i, arg := range expr.Arguments {
-						argType := a.analyzeExpression(arg)
+						argType := a.analyzeOverloadArgument(arg)
 						if argType == nil {
 							return nil
 						}
@@ -817,7 +827,7 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 	} else {
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeOverloadArgument(arg)
 			if argType == nil {
 				return classType
 			}
@@ -999,6 +1009,14 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 		return true
 	}
 
+	// nil can be cast to any reference type: class, interface, metaclass
+	if sourceType.TypeKind() == "NIL" {
+		switch targetType.TypeKind() {
+		case "CLASS", "INTERFACE", "CLASSOF":
+			return true
+		}
+	}
+
 	// Class casts (must be related by inheritance)
 	sourceClass, sourceIsClass := sourceType.(*types.ClassType)
 	targetClass, targetIsClass := targetType.(*types.ClassType)
@@ -1063,7 +1081,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 	// Resolve overload
 	argTypes := make([]types.Type, len(expr.Arguments))
 	for i, arg := range expr.Arguments {
-		argType := a.analyzeExpression(arg)
+		argType := a.analyzeOverloadArgument(arg)
 		if argType == nil {
 			return nil
 		}

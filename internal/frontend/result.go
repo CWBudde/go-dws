@@ -121,6 +121,16 @@ func (r *Result) HasSemanticBlockingDiagnosticsInPhase(phase Phase) bool {
 	return false
 }
 
+// HasDiagnosticsInPhase reports whether any diagnostics were produced in a phase.
+func (r *Result) HasDiagnosticsInPhase(phase Phase) bool {
+	for _, diag := range r.Diagnostics {
+		if diag.Phase == phase {
+			return true
+		}
+	}
+	return false
+}
+
 // DiagnosticStrings returns the rendered diagnostics in emission order.
 func (r *Result) DiagnosticStrings() []string {
 	out := make([]string, 0, len(r.Diagnostics))
@@ -161,6 +171,7 @@ func compileParsedResult(result *Result, source, filename string, hintsLevel sem
 	analyzer := semantic.NewAnalyzer()
 	analyzer.SetHintsLevel(hintsLevel)
 	analyzer.SetSource(source, filename)
+	analyzer.SetParseHadErrors(result.HasDiagnosticsInPhase(PhaseParsing))
 	result.Analyzer = analyzer
 	result.SemanticAttempted = true
 

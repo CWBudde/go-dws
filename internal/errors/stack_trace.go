@@ -47,6 +47,34 @@ func (st StackTrace) String() string {
 	return sb.String()
 }
 
+// DWScriptString renders the trace the way DWScript reports unhandled
+// exceptions: one line per call site (most recent first), labeled with the
+// function CONTAINING the call site rather than the callee. The bottom frame's
+// call site lies in the main program, whose label is empty:
+//
+//	Bar [line: 13, column: 4]   <- Bar's body called the raising function here
+//	Foo [line: 22, column: 10]  <- Foo's body called Bar here
+//	 [line: 30, column: 1]      <- main program called Foo here
+func (st StackTrace) DWScriptString() string {
+	if len(st) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	for i := len(st) - 1; i >= 0; i-- {
+		caller := ""
+		if i > 0 {
+			caller = st[i-1].FunctionName
+		}
+		frame := StackFrame{FunctionName: caller, Position: st[i].Position, FileName: st[i].FileName}
+		sb.WriteString(frame.String())
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+	}
+	return sb.String()
+}
+
 // Reverse returns a new StackTrace with frames in reverse order.
 // This is useful when you need to display the stack with the most recent call first.
 func (st StackTrace) Reverse() StackTrace {

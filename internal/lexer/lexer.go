@@ -841,6 +841,100 @@ func (l *Lexer) readDecimalNumber(startPos int) (TokenType, string) {
 	return tokenType, l.input[startPos:l.position]
 }
 
+// isTripleQuoteStart reports whether the current position starts a heredoc
+// (triple-quoted) string literal: three identical quote characters followed
+// by a line break (optionally preceded by a carriage return).
+// This distinguishes a heredoc opener from literals like ” (empty string)
+// or ”” (a single escaped quote).
+func (l *Lexer) isTripleQuoteStart(quote rune) bool {
+	if l.ch != quote || l.peekChar() != quote || l.peekCharN(2) != quote {
+		return false
+	}
+	next := l.peekCharN(3)
+	return next == '\n' || next == '\r'
+}
+
+// readTripleQuoteString reads a heredoc (triple-quoted) string literal.
+// Syntax (matching DWScript):
+//
+//	'''
+//	   content line(s)
+//	   '''
+//
+// Rules:
+//   - The opening triple quote must be immediately followed by a line break.
+//   - The closing triple quote must be preceded on its line only by whitespace.
+//   - That whitespace defines the indentation stripped from every content line.
+//   - The line break after the opening quotes and the one before the closing
+//     quotes are not part of the string value.
+//   - Content is taken verbatim: quote doubling is not processed inside.
+func (l *Lexer) readTripleQuoteString(quote rune) string {
+	startPos := l.currentPos()
+
+	// Consume the three opening quotes.
+	l.readChar()
+	l.readChar()
+	l.readChar()
+
+	// Consume the mandatory line break (allow \r\n).
+	if l.ch == '\r' {
+		l.readChar()
+	}
+	if l.ch != '\n' {
+		l.addError("line break expected after triple-quote", startPos)
+		return ""
+	}
+	l.line++
+	l.column = 0
+	l.readChar()
+
+	// Collect raw content until the closing triple quote.
+	var raw strings.Builder
+	for {
+		if l.ch == 0 {
+			l.addError("unterminated triple-quoted string literal", startPos)
+			return ""
+		}
+		if l.ch == quote && l.peekChar() == quote && l.peekCharN(2) == quote {
+			// Closing triple quote found.
+			l.readChar()
+			l.readChar()
+			l.readChar()
+			break
+		}
+		if l.ch == '\n' {
+			l.line++
+			l.column = 0
+		}
+		raw.WriteRune(l.ch)
+		l.readChar()
+	}
+
+	// The last raw line (between the final line break and the closing quotes)
+	// defines the indentation; it must contain only whitespace.
+	lines := strings.Split(raw.String(), "\n")
+	indent := lines[len(lines)-1]
+	if strings.TrimLeft(indent, " \t") != "" {
+		l.addError("triple-quote terminator must be preceded only by whitespace", startPos)
+		return ""
+	}
+	contentLines := lines[:len(lines)-1]
+
+	for i, line := range contentLines {
+		line = strings.TrimSuffix(line, "\r")
+		switch {
+		case strings.HasPrefix(line, indent):
+			line = line[len(indent):]
+		case strings.TrimLeft(line, " \t") == "":
+			// Whitespace-only line shorter than the indent becomes empty.
+			line = ""
+		}
+		contentLines[i] = line
+	}
+
+	return strings.Join(contentLines, "\n")
+}
+
 // readString reads a string literal enclosed in single or double quotes.
 // DWScript uses single quotes by default, with " as escape for a single quote.
 // If the string is unterminated, adds an error and returns the partial string.
@@ -968,9 +1062,14 @@ func (l *Lexer) readStringOrCharSequence() string {
 
 		switch l.ch {
 		case '\'', '"':
-			// Read string literal
+			// Read string literal (heredoc/triple-quoted or regular)
 			quote := l.ch
-			literal := l.readString(quote)
+			var literal string
+			if l.isTripleQuoteStart(quote) {
+				literal = l.readTripleQuoteString(quote)
+			} else {
+				literal = l.readString(quote)
+			}
 			builder.WriteString(literal)
 
 		case '#':

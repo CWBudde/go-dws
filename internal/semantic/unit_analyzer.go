@@ -2,11 +2,27 @@ package semantic
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
+
+// warnUnitNameFileMismatch emits DWScript's warning when the declared unit
+// name does not match the source file's base name.
+func (a *Analyzer) warnUnitNameFileMismatch(unit *ast.UnitDeclaration) {
+	if unit == nil || unit.Name == nil || a.sourceFile == "" || a.parseHadErrors {
+		return
+	}
+	base := filepath.Base(a.sourceFile)
+	base = strings.TrimSuffix(base, filepath.Ext(base))
+	if !ident.Equal(unit.Name.Value, base) {
+		a.addWarning("Unit name does not match file name [line: %d, column: %d]",
+			unit.Name.Token.Pos.Line, unit.Name.Token.Pos.Column)
+	}
+}
 
 // AnalyzeUnit performs semantic analysis on a unit declaration without dependencies.
 // For units with uses clauses, use AnalyzeUnitWithDependencies instead.
@@ -36,6 +52,8 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	if unit == nil {
 		return fmt.Errorf("cannot analyze nil unit")
 	}
+
+	a.warnUnitNameFileMismatch(unit)
 
 	// Step 0: Store available units for qualified access (UnitName.Symbol)
 	if availableUnits != nil {

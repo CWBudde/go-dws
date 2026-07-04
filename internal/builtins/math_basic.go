@@ -45,6 +45,14 @@ func Min(ctx Context, args []Value) Value {
 	left := args[0]
 	right := args[1]
 
+	// Variant arguments participate after unwrapping to their runtime value.
+	if lv, ok := left.(*runtime.VariantValue); ok {
+		left = lv.UnwrapVariant()
+	}
+	if rv, ok := right.(*runtime.VariantValue); ok {
+		right = rv.UnwrapVariant()
+	}
+
 	switch l := left.(type) {
 	case *runtime.IntegerValue:
 		// Integer-Integer
@@ -93,6 +101,14 @@ func Max(ctx Context, args []Value) Value {
 
 	left := args[0]
 	right := args[1]
+
+	// Variant arguments participate after unwrapping to their runtime value.
+	if lv, ok := left.(*runtime.VariantValue); ok {
+		left = lv.UnwrapVariant()
+	}
+	if rv, ok := right.(*runtime.VariantValue); ok {
+		right = rv.UnwrapVariant()
+	}
 
 	switch l := left.(type) {
 	case *runtime.IntegerValue:

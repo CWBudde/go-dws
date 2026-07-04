@@ -532,7 +532,13 @@ func (e *Evaluator) raiseArrayBoundExceeded(node ast.Node, index int, upper bool
 	if upper {
 		boundWord = "Upper"
 	}
-	message := fmt.Sprintf("%s bound exceeded! Index %d [line: %d, column: %d]", boundWord, index, pos.Line, pos.Column)
+	message := fmt.Sprintf("%s bound exceeded! Index %d", boundWord, index)
+	if ctx != nil {
+		if routine := currentRoutineName(ctx); routine != "" {
+			message += " in " + routine
+		}
+	}
+	message = fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
 	if ctx != nil {
 		exc := e.createException("Exception", message, &pos, ctx)
 		ctx.SetException(exc)
@@ -938,7 +944,8 @@ func (e *Evaluator) evalArrayPeek(selfValue Value, args []Value, node ast.Node) 
 	}
 
 	if len(arrVal.Elements) == 0 {
-		return e.newError(node, "Peek() called on empty array")
+		// DWScript reports Peek on an empty array as an out-of-bounds access.
+		return e.raiseArrayBoundExceeded(node, 0, true)
 	}
 
 	return arrVal.Elements[len(arrVal.Elements)-1]
@@ -1086,7 +1093,8 @@ func (e *Evaluator) evalArrayPop(selfValue Value, args []Value, node ast.Node) V
 	}
 
 	if len(arrVal.Elements) == 0 {
-		return e.newError(node, "Pop() called on empty array")
+		// DWScript reports Pop on an empty array as an out-of-bounds access.
+		return e.raiseArrayBoundExceeded(node, 0, true)
 	}
 
 	lastElement := arrVal.Elements[len(arrVal.Elements)-1]

@@ -386,6 +386,53 @@ func (c *ClassInfo) GetConstructorOverloads(name string) []*ast.FunctionDecl {
 	return result
 }
 
+// OwnsMethodDecl reports whether this class (not an ancestor) declares the
+// given method/constructor/destructor declaration. Used to determine the
+// defining class of an executing method so `inherited` resolves relative to
+// the declaration site, not the receiver's dynamic class.
+func (c *ClassInfo) OwnsMethodDecl(fn *ast.FunctionDecl) bool {
+	if c == nil || fn == nil {
+		return false
+	}
+	for _, overloads := range c.MethodOverloads {
+		for _, decl := range overloads {
+			if decl == fn {
+				return true
+			}
+		}
+	}
+	for _, overloads := range c.ClassMethodOverloads {
+		for _, decl := range overloads {
+			if decl == fn {
+				return true
+			}
+		}
+	}
+	for _, overloads := range c.ConstructorOverloads {
+		for _, decl := range overloads {
+			if decl == fn {
+				return true
+			}
+		}
+	}
+	for _, decl := range c.Methods {
+		if decl == fn {
+			return true
+		}
+	}
+	for _, decl := range c.ClassMethods {
+		if decl == fn {
+			return true
+		}
+	}
+	for _, decl := range c.Constructors {
+		if decl == fn {
+			return true
+		}
+	}
+	return c.Destructor == fn
+}
+
 // GetFieldTypesMap returns the field name to type mapping for this class.
 func (c *ClassInfo) GetFieldTypesMap() map[string]any {
 	if c == nil {

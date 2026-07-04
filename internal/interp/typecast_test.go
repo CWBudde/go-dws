@@ -469,7 +469,7 @@ end.`
 
 	// Check that the error message mentions the invalid cast
 	errMsg := result.String()
-	if !strings.Contains(errMsg, "invalid cast") && !strings.Contains(errMsg, "cannot be cast") {
+	if !strings.Contains(errMsg, "invalid cast") && !strings.Contains(errMsg, "Cannot cast") {
 		t.Errorf("Expected error about invalid cast, got: %s", errMsg)
 	}
 }

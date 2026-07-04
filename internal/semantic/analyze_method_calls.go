@@ -81,13 +81,16 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check if object is a record type with methods
 		if recordType, isRecord := objectType.(*types.RecordType); isRecord {
-			// First check for class methods (static methods) with overload support
+			// First check for class methods (static methods) with overload support.
+			// On an instance receiver, same-named instance methods join the set.
 			classOverloads := recordType.GetClassMethodOverloads(methodNameLower)
 			if len(classOverloads) > 0 {
+				classOverloads = append(append([]*types.MethodInfo{}, classOverloads...),
+					recordType.GetMethodOverloads(methodNameLower)...)
 				// This is a static method call - resolve overload based on arguments
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
-					argType := a.analyzeExpression(arg)
+					argType := a.analyzeOverloadArgument(arg)
 					if argType == nil {
 						return nil
 					}
@@ -132,8 +135,30 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				return methodType.ReturnType
 			}
 
-			// Check for instance methods
-			method := recordType.GetMethod(methodNameLower)
+			// Check for instance methods (overload-aware)
+			var method *types.FunctionType
+			if instanceOverloads := recordType.GetMethodOverloads(methodNameLower); len(instanceOverloads) > 1 {
+				argTypes := make([]types.Type, len(expr.Arguments))
+				for i, arg := range expr.Arguments {
+					argType := a.analyzeOverloadArgument(arg)
+					if argType == nil {
+						return nil
+					}
+					argTypes[i] = argType
+				}
+				candidates := make([]*Symbol, len(instanceOverloads))
+				for i, overload := range instanceOverloads {
+					candidates[i] = &Symbol{Type: overload.Signature}
+				}
+				selected, err := ResolveOverload(candidates, argTypes)
+				if err != nil {
+					a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
+					return nil
+				}
+				method = selected.Type.(*types.FunctionType)
+			} else {
+				method = recordType.GetMethod(methodNameLower)
+			}
 			if method == nil {
 				// Method not found in record, check if a helper provides it
 				helperMethod := a.hasHelperMethod(objectType, methodName)
@@ -145,18 +170,20 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				method = helperMethod
 			}
 
-			// Validate method arguments
-			if len(expr.Arguments) != len(method.Parameters) {
+			// Validate method arguments (defaulted parameters are optional)
+			if len(expr.Arguments) > len(method.Parameters) ||
+				len(expr.Arguments) < requiredParamCount(method) {
 				a.addError("record method '%s' expects %d arguments, got %d at %s",
 					methodName, len(method.Parameters), len(expr.Arguments),
 					expr.Token.Pos.String())
 				return method.ReturnType
 			}
 
-			// Check argument types
+			// Check argument types (in the context of the selected signature,
+			// so literals such as [] or nil adopt the parameter's type)
 			for i, arg := range expr.Arguments {
-				argType := a.analyzeExpression(arg)
 				expectedType := method.Parameters[i]
+				argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 				if argType != nil && !a.canAssign(argType, expectedType) {
 					a.addError("argument %d to record method '%s' has type %s, expected %s at %s",
 						i+1, methodName, argType.String(), expectedType.String(),
@@ -250,13 +277,15 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 
 	// Constructors are stored separately from methods and can be inherited.
+	// The hierarchy lookup merges constructors with same-named class methods,
+	// so the resolved overload decides whether this call is a construction.
 	if constructorOverloads := a.getMethodOverloadsInHierarchy(methodName, classType); len(constructorOverloads) > 0 && classType.HasConstructor(methodName) {
-		var methodType *types.FunctionType
+		selectedInfo := constructorOverloads[0]
 
 		if len(constructorOverloads) > 1 {
 			argTypes := make([]types.Type, len(expr.Arguments))
 			for i, arg := range expr.Arguments {
-				argType := a.analyzeExpression(arg)
+				argType := a.analyzeOverloadArgument(arg)
 				if argType == nil {
 					return classType
 				}
@@ -274,17 +303,23 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				return classType
 			}
 
-			var ok bool
-			methodType, ok = selected.Type.(*types.FunctionType)
-			if !ok {
-				a.addError("internal error: expected function type for selected constructor overload, but got %T", selected.Type)
+			selectedInfo = nil
+			for i := range candidates {
+				if candidates[i] == selected {
+					selectedInfo = constructorOverloads[i]
+					break
+				}
+			}
+			if selectedInfo == nil {
+				a.addError("internal error: resolved constructor overload not found in candidate list")
 				return classType
 			}
-		} else {
-			methodType = constructorOverloads[0].Signature
 		}
 
-		if len(expr.Arguments) != len(methodType.Parameters) {
+		methodType := selectedInfo.Signature
+
+		if len(expr.Arguments) > len(methodType.Parameters) ||
+			len(expr.Arguments) < requiredParamCount(methodType) {
 			a.addError("constructor '%s' of class '%s' expects %d arguments, got %d at %s",
 				methodName, classType.Name, len(methodType.Parameters), len(expr.Arguments),
 				expr.Token.Pos.String())
@@ -292,13 +327,18 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
 			expectedType := methodType.Parameters[i]
+			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 			if argType != nil && !a.canAssign(argType, expectedType) {
 				a.addError("argument %d to constructor '%s' of class '%s' has type %s, expected %s at %s",
 					i+1, methodName, classType.Name, argType.String(), expectedType.String(),
 					expr.Token.Pos.String())
 			}
+		}
+
+		// Resolved to a same-named class method rather than a constructor.
+		if !selectedInfo.IsConstructor {
+			return methodType.ReturnType
 		}
 
 		if classType.IsAbstract {
@@ -316,6 +356,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	// Check if method is overloaded
 	var methodType *types.FunctionType
+	var selectedOverload *types.MethodInfo
 	methodOwner := a.getMethodOwner(classType, methodName)
 	overloads := a.getMethodOverloadsInHierarchy(methodName, classType)
 
@@ -324,7 +365,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Analyze argument types first
 		argTypes := make([]types.Type, len(expr.Arguments))
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
+			argType := a.analyzeOverloadArgument(arg)
 			if argType == nil {
 				return nil // Error already reported
 			}
@@ -352,6 +393,22 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			a.addError("internal error: expected function type for selected overloaded method, but got %T", selected.Type)
 			return nil
 		}
+		for i := range candidates {
+			if candidates[i] == selected {
+				selectedOverload = overloads[i]
+				break
+			}
+		}
+
+		// Re-analyze arguments against the selected signature so literals get
+		// their contextual type annotations (e.g. [o] becomes an array literal
+		// of the parameter's element type instead of a set literal).
+		for i, arg := range expr.Arguments {
+			if i >= len(methodType.Parameters) {
+				break
+			}
+			a.analyzeExpressionWithExpectedType(arg, methodType.Parameters[i])
+		}
 	} else if len(overloads) == 1 {
 		// Single method (not overloaded). A method reached through a metaclass value must
 		// be a class method or constructor. Use the resolved overload's flag so inherited
@@ -376,10 +433,15 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 	}
 
-	// Check method visibility
+	// Check method visibility. Overloads carry their own visibility, so the
+	// SELECTED overload's visibility governs (overloads of one name can mix
+	// private and public sections).
 	if methodOwner != nil && len(overloads) > 0 {
 		// Use lowercase key for case-insensitive lookup
 		visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(methodName)]
+		if selectedOverload != nil {
+			visibility, hasVisibility = selectedOverload.Visibility, true
+		}
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
 			a.addStructuredError(NewVisibilityScopeError(expr.Method.Token.Pos, expr.Method.Value))
 			if methodOwner.HasConstructor(methodName) {

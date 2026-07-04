@@ -218,6 +218,14 @@ func (a *Analyzer) analyzeFunctionBody(decl *ast.FunctionDecl, paramTypes []type
 			resultPos = blockEndStart(decl.End())
 		}
 		a.symbols.Define("Result", returnType, resultPos)
+		// Inside a unit, an empty implementation body deliberately leaves
+		// Result at its default; do not hint "Result is never used" for it.
+		// DWScript also skips the hint for overloaded functions with real
+		// bodies (see fixture OverloadsPass/arrays).
+		if decl.Body != nil && ((a.inUnitDecl && len(decl.Body.Statements) == 0) ||
+			(decl.IsOverload && len(decl.Body.Statements) > 0)) {
+			a.recordSymbolUsage("Result", resultPos)
+		}
 	}
 
 	previousFunc := a.currentFunction

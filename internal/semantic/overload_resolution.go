@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // SignaturesEqual checks if two function signatures are identical for overload detection.
@@ -91,6 +93,15 @@ func SignatureDistance(argTypes []types.Type, signature *types.FunctionType) int
 	minParams := len(signature.Parameters)
 	if signature.IsVariadic {
 		minParams = len(signature.Parameters) - 1
+	} else if len(signature.DefaultValues) == len(signature.Parameters) {
+		// Parameters with default values are optional: only count required ones.
+		required := 0
+		for _, def := range signature.DefaultValues {
+			if def == nil {
+				required++
+			}
+		}
+		minParams = required
 	}
 
 	// Check argument count compatibility
@@ -151,6 +162,22 @@ func typeDistance(from, to types.Type) int {
 		return 0
 	}
 
+	// nil literal is assignable to any reference type (class, interface,
+	// metaclass, function pointer, dynamic array) with a small penalty.
+	// Class-like targets are preferred over arrays/function pointers
+	// (DWScript resolves F(nil) to F(o: TObject) over F(a: TObjectArr)).
+	if from.TypeKind() == "NIL" {
+		switch to.TypeKind() {
+		case "CLASS", "INTERFACE", "CLASSOF":
+			return 1
+		case "FUNCTION":
+			return 2
+		}
+		if toArray, ok := to.(*types.ArrayType); ok && toArray.IsDynamic() {
+			return 2
+		}
+	}
+
 	// Array compatibility (static vs dynamic, element hierarchy)
 	if fromArray, ok := from.(*types.ArrayType); ok {
 		if toArray, ok := to.(*types.ArrayType); ok {
@@ -162,6 +189,13 @@ func typeDistance(from, to types.Type) int {
 	if fromClass, ok := from.(*types.ClassType); ok {
 		if toClass, ok := to.(*types.ClassType); ok {
 			return classDistance(fromClass, toClass)
+		}
+	}
+
+	// Metaclass compatibility: "class of TDerived" -> "class of TBase"
+	if fromMeta, ok := from.(*types.ClassOfType); ok {
+		if toMeta, ok := to.(*types.ClassOfType); ok {
+			return classDistance(fromMeta.ClassType, toMeta.ClassType)
 		}
 	}
 
@@ -177,9 +211,12 @@ func typeDistance(from, to types.Type) int {
 	// TODO: Implement class hierarchy checking when class types are available
 	// For now, we only support exact matches and basic conversions
 
-	// Variant conversions: any type <-> Variant
+	// Variant conversions: any type <-> Variant. Boxing INTO a Variant
+	// parameter is ranked worse than element-wise/shape conversions so an
+	// "array of Variant" parameter beats a plain "Variant" one for array
+	// arguments (see fixture OverloadsPass/arrays).
 	if toKind == "VARIANT" {
-		return 2 // Any type can be converted to Variant
+		return 4 // Any type can be converted to Variant
 	}
 	if fromKind == "VARIANT" {
 		return 2 // Variant can be converted to any type (runtime checked)
@@ -221,6 +258,12 @@ func arrayDistance(from, to *types.ArrayType) int {
 	elemDist := typeDistance(from.ElementType, to.ElementType)
 	if elemDist < 0 {
 		return -1
+	}
+	// Element-wise Variant boxing is preferred over boxing the whole array
+	// into a plain Variant parameter (which costs 3): cap it at 2 so an
+	// "array of Variant" parameter wins for array arguments.
+	if elemDist > 2 && types.GetUnderlyingType(to.ElementType).TypeKind() == "VARIANT" {
+		elemDist = 2
 	}
 
 	distance := elemDist
@@ -321,9 +364,77 @@ func ResolveOverload(candidates []*Symbol, argTypes []types.Type) (*Symbol, erro
 		return bestMatches[0], nil
 	}
 
+	// Tie-break: a non-variadic exact-arity candidate beats variadic ones
+	// (e.g. F(a, b) beats F(a, b, const rest: array of X) for a 2-arg call).
+	var nonVariadic []*Symbol
+	for _, match := range bestMatches {
+		if ft, ok := match.Type.(*types.FunctionType); ok && !ft.IsVariadic {
+			nonVariadic = append(nonVariadic, match)
+		}
+	}
+	if len(nonVariadic) == 1 {
+		return nonVariadic[0], nil
+	}
+
 	// Ambiguous: multiple equally good matches
 	return nil, fmt.Errorf("ambiguous overload call: %d candidates with equal distance %d for argument types: %s",
 		len(bestMatches), minDist, formatArgTypes(argTypes))
+}
+
+// declaredMethodName returns the original-cased declared name of a method or
+// constructor in the class hierarchy, or "" if unknown.
+func (a *Analyzer) declaredMethodName(classType *types.ClassType, name string) string {
+	normalized := ident.Normalize(name)
+	for current := classType; current != nil; current = current.Parent {
+		if declared, ok := current.MethodDeclNames[normalized]; ok {
+			return declared
+		}
+	}
+	return ""
+}
+
+// analyzeOverloadArgument analyzes a call argument for overload resolution.
+// An empty array literal carries no inherent element type; it gets an
+// "array of Variant" placeholder so it can match any array-typed parameter
+// (the winning overload's parameter type then applies at the call).
+func (a *Analyzer) analyzeOverloadArgument(arg ast.Expression) types.Type {
+	if lit, ok := arg.(*ast.ArrayLiteralExpression); ok && len(lit.Elements) == 0 {
+		return types.NewDynamicArrayType(types.VARIANT)
+	}
+	return a.analyzeExpression(arg)
+}
+
+// requiredParamCount returns the number of parameters without default values,
+// i.e. the minimum number of arguments a call must supply.
+func requiredParamCount(sig *types.FunctionType) int {
+	if len(sig.DefaultValues) != len(sig.Parameters) {
+		return len(sig.Parameters)
+	}
+	required := 0
+	for _, def := range sig.DefaultValues {
+		if def == nil {
+			required++
+		}
+	}
+	return required
+}
+
+// mergeDefaultValues copies parameter default values from a declaration signature
+// into an implementation signature for parameters where the implementation did not
+// respecify them. DWScript allows (and expects) implementations to omit defaults
+// that were declared in the class/interface declaration.
+func mergeDefaultValues(impl, decl *types.FunctionType) {
+	if decl == nil || impl == nil || len(decl.DefaultValues) != len(decl.Parameters) {
+		return
+	}
+	if len(impl.DefaultValues) != len(impl.Parameters) || len(impl.Parameters) != len(decl.Parameters) {
+		return
+	}
+	for i, def := range decl.DefaultValues {
+		if impl.DefaultValues[i] == nil {
+			impl.DefaultValues[i] = def
+		}
+	}
 }
 
 // formatArgTypes formats argument types for error messages
