@@ -498,7 +498,7 @@ func TestClassMetadataPopulation(t *testing.T) {
 			t.Errorf("Method %q has invalid ID (0)", methodName)
 		}
 		// Verify we can retrieve the method by ID
-		retrieved := interp.methodRegistry.GetMethod(method.ID)
+		retrieved := interp.engineState.MethodRegistry.GetMethod(method.ID)
 		if retrieved == nil {
 			t.Errorf("Could not retrieve method %q by ID %d from registry", methodName, method.ID)
 		}

@@ -200,7 +200,7 @@ func (e *Evaluator) defaultUserFunctionCallbacks(ctx *ExecutionContext) *UserFun
 			return e.TryImplicitConversion(value, targetTypeName, ctx)
 		},
 		DefaultValueGetter: func(returnTypeName string) Value {
-			return e.createZeroValue(&ast.TypeAnnotation{Name: returnTypeName}, e.currentNode, ctx)
+			return e.createZeroValue(&ast.TypeAnnotation{Name: returnTypeName}, e.CurrentNode(), ctx)
 		},
 		FunctionNameAlias: func(funcName string, funcEnv *runtime.Environment) Value {
 			getter := func() (Value, error) {
@@ -242,7 +242,7 @@ func (e *Evaluator) ExecuteUserFunctionDirect(fn *ast.FunctionDecl, args []Value
 		if err.Error() == "maximum recursion depth exceeded" {
 			return e.raiseRecursionExceeded(ctx)
 		}
-		return e.newError(e.currentNode, "%s", err.Error())
+		return e.newError(e.CurrentNode(), "%s", err.Error())
 	}
 	return result
 }
@@ -314,8 +314,8 @@ func (e *Evaluator) ExecuteUserFunction(
 	// Methods are qualified with their class name (e.g. "TMyObj.Proc") to match
 	// DWScript's runtime error and stack trace format.
 	var pos *lexer.Position
-	if e.currentNode != nil {
-		nodePos := e.currentNode.Pos()
+	if currentNode := e.CurrentNode(); currentNode != nil {
+		nodePos := currentNode.Pos()
 		pos = &nodePos
 	}
 	frameName := fn.Name.Value

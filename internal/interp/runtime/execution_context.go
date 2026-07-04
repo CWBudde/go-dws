@@ -3,6 +3,7 @@ package runtime
 import (
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ControlFlowKind represents the type of control flow signal.
@@ -130,6 +131,7 @@ func NewPropertyEvalContext() *PropertyEvalContext {
 type ExecutionContext struct {
 	handlerException          any
 	exception                 any
+	currentNode               ast.Node
 	arrayTypeContext          *types.ArrayType
 	callStack                 *CallStack
 	controlFlow               *ControlFlow
@@ -256,6 +258,16 @@ func (ctx *ExecutionContext) SetHandlerException(exc any) {
 	ctx.handlerException = exc
 }
 
+// CurrentNode returns the AST node currently being evaluated (for error reporting).
+func (ctx *ExecutionContext) CurrentNode() ast.Node {
+	return ctx.currentNode
+}
+
+// SetCurrentNode sets the AST node currently being evaluated (for error reporting).
+func (ctx *ExecutionContext) SetCurrentNode(node ast.Node) {
+	ctx.currentNode = node
+}
+
 // PropContext returns the property evaluation context.
 func (ctx *ExecutionContext) PropContext() *PropertyEvalContext {
 	return ctx.propContext
@@ -363,6 +375,8 @@ func (ctx *ExecutionContext) GetOldValue(name string) (any, bool) {
 // COPIED REFERENCES:
 //   - envStack: Slice is copied to prevent corruption during push/pop
 //   - oldValuesStack: Slice is copied to prevent postcondition stack corruption
+//   - currentNode: Copied so the clone starts at the caller's node; updates in the
+//     clone do not leak back to the parent context
 //
 // WARNING: This method assumes single-threaded execution. The shared mutable state
 // (callStack, controlFlow, propContext) would cause race conditions if cloned contexts
@@ -386,6 +400,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		controlFlow:               ctx.controlFlow,
 		exception:                 ctx.exception,
 		handlerException:          ctx.handlerException,
+		currentNode:               ctx.currentNode,
 		oldValuesStack:            oldValuesStackCopy,
 		propContext:               ctx.propContext,
 		recordTypeContextType:     ctx.recordTypeContextType,
@@ -409,6 +424,7 @@ func (ctx *ExecutionContext) Reset() {
 	ctx.recordTypeContextType = nil
 	ctx.currentFunctionReturnType = ""
 	ctx.arrayTypeContext = nil
+	ctx.currentNode = nil
 }
 
 // SetRefCountManager attaches a RefCountManager used by assignment helpers.

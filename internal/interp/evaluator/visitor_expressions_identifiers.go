@@ -67,12 +67,12 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		// A non-virtual method may execute with Self = nil (DWScript allows calling
 		// non-virtual methods on nil references). Implicit-Self member access then
 		// raises "Object not instantiated" at the member's position.
-		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "NIL" {
+		if selfRaw != nil && selfRaw.Type() == "NIL" {
 			if e.identifierIsInstanceMember(node.Value, ctx) {
 				return e.newError(node, "Object not instantiated")
 			}
 		}
-		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
+		if selfVal := selfRaw; selfVal != nil && selfVal.Type() == "OBJECT" {
 			if objVal, ok := selfVal.(ObjectValue); ok {
 				// Check for instance field
 				if fieldValue := objVal.GetField(node.Value); fieldValue != nil {
