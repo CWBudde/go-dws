@@ -437,6 +437,7 @@ type MethodInfo struct {
 	IsReintroduce        bool
 	IsForwarded          bool
 	IsClassMethod        bool
+	IsConstructor        bool
 	HasOverloadDirective bool
 	Visibility           int
 }
@@ -664,6 +665,7 @@ func (ct *ClassType) MethodUsed(name string) bool {
 // AddConstructorOverload adds a constructor overload to the class
 // Constructor names are case-insensitive, so we normalize for lookup
 func (ct *ClassType) AddConstructorOverload(name string, info *MethodInfo) {
+	info.IsConstructor = true
 	normalizedName := ident.Normalize(name)
 	ct.ConstructorOverloads[normalizedName] = append(ct.ConstructorOverloads[normalizedName], info)
 

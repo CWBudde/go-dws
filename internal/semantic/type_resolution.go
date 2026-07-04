@@ -901,11 +901,15 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 		if !hasParameterlessConstructor {
 			// Add implicit parameterless constructor that returns the class type
 			implicitConstructor := &types.MethodInfo{
-				Signature: types.NewFunctionType([]types.Type{}, classType),
+				Signature:     types.NewFunctionType([]types.Type{}, classType),
+				IsConstructor: true,
 			}
 			result = append(result, implicitConstructor)
 		}
-		return result
+		// A constructor name can also be shared by overloaded class methods
+		// (e.g. "constructor Create(i: Integer); overload;" next to
+		// "class procedure Create(b: Boolean); overload;"), so fall through and
+		// merge regular method overloads into the candidate set.
 	}
 
 	// Collect overloads from current class (regular methods)
@@ -915,12 +919,15 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 	// Recursively collect from parent (child methods hide parent methods with same signature)
 	// In DWScript, child methods shadow parent methods regardless of override keyword.
 	// Only include parent methods with different signatures (true overloads).
+	// Constructors participate in the hiding check too: inherited constructor
+	// copies already live in the child's ConstructorOverloads, so the parent's
+	// originals must not be duplicated (they differ only in return type).
 	if classType.Parent != nil {
 		parentOverloads := a.getMethodOverloadsInHierarchy(methodName, classType.Parent)
 		for _, parentOverload := range parentOverloads {
 			hidden := false
-			for _, currentOverload := range overloads {
-				if a.methodSignaturesMatch(currentOverload.Signature, parentOverload.Signature) {
+			for _, currentOverload := range result {
+				if a.parametersMatch(currentOverload.Signature, parentOverload.Signature) {
 					hidden = true
 					break
 				}

@@ -44,6 +44,7 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 				IsReintroduce:        parentCtor.IsReintroduce,
 				IsForwarded:          false,
 				IsClassMethod:        parentCtor.IsClassMethod,
+				IsConstructor:        true,
 				HasOverloadDirective: parentCtor.HasOverloadDirective,
 				Visibility:           parentCtor.Visibility,
 			}

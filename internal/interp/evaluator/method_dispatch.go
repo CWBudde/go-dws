@@ -148,6 +148,11 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		if obj == nil {
 			return e.newError(node, "method call on nil value")
 		}
+		// Preserve the cast's static type on nil receivers so nil-receiver
+		// dispatch (e.g. TObj(nil).Method) can resolve the method statically.
+		if nilVal, isNil := obj.(*runtime.NilValue); isNil && nilVal.GetTypedClassName() == "" {
+			obj = &runtime.NilValue{ClassType: castVal.GetStaticTypeName()}
+		}
 	} else if obj.Type() == "TYPE_CAST" {
 		return e.newError(node, "internal error: TYPE_CAST value does not implement TypeCastAccessor interface")
 	}
@@ -241,6 +246,20 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		}
 		// Handle overloaded class methods via evaluator-owned dispatch
 		if classInfo := classMeta.GetClassInfo(); classInfo != nil {
+			classOverloads := classInfo.GetClassMethodOverloads(methodName)
+			if classMeta.HasConstructor(methodName) && len(classOverloads) > 0 {
+				// A constructor name shared with class methods: resolve across the
+				// merged overload set and route on what was selected.
+				merged := append(classInfo.GetConstructorOverloads(methodName), classOverloads...)
+				selected, err := e.selectOverload(classInfo.GetName(), methodName, merged, args)
+				if err != nil {
+					return e.newError(node, "%s", err.Error())
+				}
+				if !selected.IsConstructor {
+					return e.executeClassMethodDirect(classMeta, selected, args, node, ctx)
+				}
+				return e.callClassConstructor(classMeta, methodName, args, node, ctx)
+			}
 			if !classMeta.HasConstructor(methodName) && classInfo.HasClassMethodOverloads(methodName) {
 				return e.dispatchClassMethodOverloaded(classMeta, classInfo, methodName, args, node, ctx)
 			}
@@ -277,7 +296,15 @@ func (e *Evaluator) dispatchMethodOnNilObject(obj Value, methodName string, args
 		objectExpr = node.Object
 	}
 	if classInfo := e.staticClassInfoForNilReceiver(obj, objectExpr); classInfo != nil {
-		if method := classInfo.LookupMethod(methodName); method != nil && isNonVirtualInstanceMethod(classInfo, method) {
+		method := classInfo.LookupMethod(methodName)
+		// With overloads, pick the best match for the argument types rather than
+		// whatever LookupMethod happens to return first.
+		if overloads := classInfo.GetMethodOverloads(methodName); len(overloads) > 1 {
+			if selected, err := e.selectOverload(classInfo.GetName(), methodName, overloads, args); err == nil {
+				method = selected
+			}
+		}
+		if method != nil && isNonVirtualInstanceMethod(classInfo, method) {
 			return e.executeMethodWithClassInfo(obj, classInfo, method, args, ctx)
 		}
 	}

@@ -578,9 +578,24 @@ func (c *ClassInfo) propagateConstructorImplementation(allClasses map[string]int
 func replaceMethodInOverloadListNoReceiver(list []*ast.FunctionDecl, impl *ast.FunctionDecl) []*ast.FunctionDecl {
 	for idx, decl := range list {
 		if parametersMatch(decl.Parameters, impl.Parameters) {
+			mergeParameterDefaults(impl, decl)
 			list[idx] = impl
 			return list
 		}
 	}
 	return append(list, impl)
+}
+
+// mergeParameterDefaults copies parameter default values from the class
+// declaration into an out-of-line implementation that did not respecify them
+// (DWScript's "default not respecified" rule).
+func mergeParameterDefaults(impl, decl *ast.FunctionDecl) {
+	if impl == nil || decl == nil || len(impl.Parameters) != len(decl.Parameters) {
+		return
+	}
+	for i, declParam := range decl.Parameters {
+		if impl.Parameters[i].DefaultValue == nil && declParam.DefaultValue != nil {
+			impl.Parameters[i].DefaultValue = declParam.DefaultValue
+		}
+	}
 }

@@ -392,12 +392,30 @@ func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
 		return nil, false // Method not found
 	}
 
-	if len(method.Parameters) > 0 {
+	if !callableWithoutArguments(method) {
+		// With overloads, another overload may still be callable with zero
+		// arguments (parameterless or all parameters defaulted).
+		for _, overload := range o.Class.GetMethodOverloads(methodName) {
+			if callableWithoutArguments(overload) {
+				return methodExecutor(overload), true
+			}
+		}
 		return nil, false // Has parameters - caller should create method pointer
 	}
 
 	// Parameterless method - invoke via callback
 	return methodExecutor(method), true
+}
+
+// callableWithoutArguments reports whether a method can be invoked with no
+// arguments: it either has no parameters or every parameter has a default value.
+func callableWithoutArguments(method *ast.FunctionDecl) bool {
+	for _, param := range method.Parameters {
+		if param.DefaultValue == nil {
+			return false
+		}
+	}
+	return true
 }
 
 // CreateMethodPointer creates a method pointer for a method with parameters.

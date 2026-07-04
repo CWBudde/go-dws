@@ -999,6 +999,14 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 		return true
 	}
 
+	// nil can be cast to any reference type: class, interface, metaclass
+	if sourceType.TypeKind() == "NIL" {
+		switch targetType.TypeKind() {
+		case "CLASS", "INTERFACE", "CLASSOF":
+			return true
+		}
+	}
+
 	// Class casts (must be related by inheritance)
 	sourceClass, sourceIsClass := sourceType.(*types.ClassType)
 	targetClass, targetIsClass := targetType.(*types.ClassType)

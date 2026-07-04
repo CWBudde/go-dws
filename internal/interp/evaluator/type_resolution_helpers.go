@@ -102,11 +102,21 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 			}
 		}
 
+		// TClass is the builtin metaclass of TObject
+		if normalizedName == "tclass" {
+			return types.NewClassOfType(e.buildClassTypeWithHierarchy("TObject")), nil
+		}
+
+		// "class of X" metaclass types
+		if rest, found := strings.CutPrefix(normalizedName, "class of "); found {
+			return types.NewClassOfType(e.buildClassTypeWithHierarchy(strings.TrimSpace(rest))), nil
+		}
+
 		// Try class type via TypeSystem
 		if e.typeSystem != nil && e.typeSystem.HasClass(cleanTypeName) {
-			// Use nominal class type for runtime type information
-			// Note: Uses cleanTypeName (without parent qualification) for lookup
-			return types.NewClassType(cleanTypeName, nil), nil
+			// Build the class type with its parent chain so overload resolution
+			// can rank subclass -> base-class conversions.
+			return e.buildClassTypeWithHierarchy(cleanTypeName), nil
 		}
 
 		// Try interface type via TypeSystem

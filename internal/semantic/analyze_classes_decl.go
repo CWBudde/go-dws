@@ -919,6 +919,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		IsReintroduce:        method.IsReintroduce,
 		IsForwarded:          method.Body == nil,
 		IsClassMethod:        method.IsClassMethod,
+		IsConstructor:        method.IsConstructor,
 		HasOverloadDirective: method.IsOverload,
 		Visibility:           int(method.Visibility),
 	}
@@ -934,6 +935,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			// This is an implementation for a forward declaration.
 			if existing.IsForwarded && method.Body != nil {
 				existing.IsForwarded = false
+				// The implementation may omit parameter defaults declared in the
+				// class declaration ("default not respecified"); keep them.
+				mergeDefaultValues(funcType, existing.Signature)
 				existing.Signature = funcType
 				isImplementationOfForward = true
 				break

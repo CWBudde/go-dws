@@ -59,9 +59,22 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		return nil
 	}
 
-	// Get all constructor overloads
+	// Get all constructor overloads. The hierarchy lookup also returns same-named
+	// class methods (a constructor name can be shared with overloaded class
+	// methods); "new" only ever invokes actual constructors, so filter those out.
 	constructorName := a.getDefaultConstructorName(classType)
-	constructorOverloads := a.getMethodOverloadsInHierarchy(constructorName, classType)
+	allOverloads := a.getMethodOverloadsInHierarchy(constructorName, classType)
+	constructorOverloads := make([]*types.MethodInfo, 0, len(allOverloads))
+	for _, overload := range allOverloads {
+		if overload.IsConstructor {
+			constructorOverloads = append(constructorOverloads, overload)
+		}
+	}
+	// The "TClass.Create(args)" sugar can also resolve to a same-named class
+	// method; the literal "new" syntax only ever invokes constructors.
+	if !ident.Equal(expr.Token.Literal, "new") {
+		constructorOverloads = allOverloads
+	}
 
 	if len(constructorOverloads) == 0 {
 		// No explicit constructor - use implicit default constructor (no arguments allowed)
@@ -89,10 +102,14 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	var selectedConstructor *types.MethodInfo
 	var selectedSignature *types.FunctionType
 
-	// Find constructors with matching argument count
+	// Find constructors with matching argument count (params with default
+	// values are optional).
 	matchingCountConstructors := make([]*types.MethodInfo, 0)
 	for _, ctor := range validConstructors {
-		if len(ctor.Signature.Parameters) == len(expr.Arguments) {
+		if len(expr.Arguments) > len(ctor.Signature.Parameters) {
+			continue
+		}
+		if len(expr.Arguments) >= requiredParamCount(ctor.Signature) {
 			matchingCountConstructors = append(matchingCountConstructors, ctor)
 		}
 	}
@@ -183,6 +200,12 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 				i+1, className, argType.String(), paramType.String(),
 				expr.Token.Pos.String())
 		}
+	}
+
+	// "TClass.Create(args)" resolved to a same-named class method, not a
+	// constructor: the expression's type is the method's return type.
+	if selectedConstructor != nil && !selectedConstructor.IsConstructor {
+		return selectedSignature.ReturnType
 	}
 
 	return classType

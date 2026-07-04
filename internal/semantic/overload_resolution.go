@@ -91,6 +91,15 @@ func SignatureDistance(argTypes []types.Type, signature *types.FunctionType) int
 	minParams := len(signature.Parameters)
 	if signature.IsVariadic {
 		minParams = len(signature.Parameters) - 1
+	} else if len(signature.DefaultValues) == len(signature.Parameters) {
+		// Parameters with default values are optional: only count required ones.
+		required := 0
+		for _, def := range signature.DefaultValues {
+			if def == nil {
+				required++
+			}
+		}
+		minParams = required
 	}
 
 	// Check argument count compatibility
@@ -151,6 +160,18 @@ func typeDistance(from, to types.Type) int {
 		return 0
 	}
 
+	// nil literal is assignable to any reference type (class, interface,
+	// metaclass, function pointer, dynamic array) with a small penalty.
+	if from.TypeKind() == "NIL" {
+		switch to.TypeKind() {
+		case "CLASS", "INTERFACE", "CLASSOF", "FUNCTION":
+			return 1
+		}
+		if toArray, ok := to.(*types.ArrayType); ok && toArray.IsDynamic() {
+			return 1
+		}
+	}
+
 	// Array compatibility (static vs dynamic, element hierarchy)
 	if fromArray, ok := from.(*types.ArrayType); ok {
 		if toArray, ok := to.(*types.ArrayType); ok {
@@ -162,6 +183,13 @@ func typeDistance(from, to types.Type) int {
 	if fromClass, ok := from.(*types.ClassType); ok {
 		if toClass, ok := to.(*types.ClassType); ok {
 			return classDistance(fromClass, toClass)
+		}
+	}
+
+	// Metaclass compatibility: "class of TDerived" -> "class of TBase"
+	if fromMeta, ok := from.(*types.ClassOfType); ok {
+		if toMeta, ok := to.(*types.ClassOfType); ok {
+			return classDistance(fromMeta.ClassType, toMeta.ClassType)
 		}
 	}
 
@@ -324,6 +352,39 @@ func ResolveOverload(candidates []*Symbol, argTypes []types.Type) (*Symbol, erro
 	// Ambiguous: multiple equally good matches
 	return nil, fmt.Errorf("ambiguous overload call: %d candidates with equal distance %d for argument types: %s",
 		len(bestMatches), minDist, formatArgTypes(argTypes))
+}
+
+// requiredParamCount returns the number of parameters without default values,
+// i.e. the minimum number of arguments a call must supply.
+func requiredParamCount(sig *types.FunctionType) int {
+	if len(sig.DefaultValues) != len(sig.Parameters) {
+		return len(sig.Parameters)
+	}
+	required := 0
+	for _, def := range sig.DefaultValues {
+		if def == nil {
+			required++
+		}
+	}
+	return required
+}
+
+// mergeDefaultValues copies parameter default values from a declaration signature
+// into an implementation signature for parameters where the implementation did not
+// respecify them. DWScript allows (and expects) implementations to omit defaults
+// that were declared in the class/interface declaration.
+func mergeDefaultValues(impl, decl *types.FunctionType) {
+	if decl == nil || impl == nil || len(decl.DefaultValues) != len(decl.Parameters) {
+		return
+	}
+	if len(impl.DefaultValues) != len(impl.Parameters) || len(impl.Parameters) != len(decl.Parameters) {
+		return
+	}
+	for i, def := range decl.DefaultValues {
+		if impl.DefaultValues[i] == nil {
+			impl.DefaultValues[i] = def
+		}
+	}
 }
 
 // formatArgTypes formats argument types for error messages

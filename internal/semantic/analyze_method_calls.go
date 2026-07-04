@@ -250,8 +250,10 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 
 	// Constructors are stored separately from methods and can be inherited.
+	// The hierarchy lookup merges constructors with same-named class methods,
+	// so the resolved overload decides whether this call is a construction.
 	if constructorOverloads := a.getMethodOverloadsInHierarchy(methodName, classType); len(constructorOverloads) > 0 && classType.HasConstructor(methodName) {
-		var methodType *types.FunctionType
+		selectedInfo := constructorOverloads[0]
 
 		if len(constructorOverloads) > 1 {
 			argTypes := make([]types.Type, len(expr.Arguments))
@@ -274,17 +276,23 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				return classType
 			}
 
-			var ok bool
-			methodType, ok = selected.Type.(*types.FunctionType)
-			if !ok {
-				a.addError("internal error: expected function type for selected constructor overload, but got %T", selected.Type)
+			selectedInfo = nil
+			for i := range candidates {
+				if candidates[i] == selected {
+					selectedInfo = constructorOverloads[i]
+					break
+				}
+			}
+			if selectedInfo == nil {
+				a.addError("internal error: resolved constructor overload not found in candidate list")
 				return classType
 			}
-		} else {
-			methodType = constructorOverloads[0].Signature
 		}
 
-		if len(expr.Arguments) != len(methodType.Parameters) {
+		methodType := selectedInfo.Signature
+
+		if len(expr.Arguments) > len(methodType.Parameters) ||
+			len(expr.Arguments) < requiredParamCount(methodType) {
 			a.addError("constructor '%s' of class '%s' expects %d arguments, got %d at %s",
 				methodName, classType.Name, len(methodType.Parameters), len(expr.Arguments),
 				expr.Token.Pos.String())
@@ -299,6 +307,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 					i+1, methodName, classType.Name, argType.String(), expectedType.String(),
 					expr.Token.Pos.String())
 			}
+		}
+
+		// Resolved to a same-named class method rather than a constructor.
+		if !selectedInfo.IsConstructor {
+			return methodType.ReturnType
 		}
 
 		if classType.IsAbstract {

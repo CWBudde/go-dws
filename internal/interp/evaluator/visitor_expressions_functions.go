@@ -600,6 +600,27 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		return e.newError(node, "class '%s' has invalid type", className)
 	}
 
+	// The "TClass.Create(args)" sugar (node token is the class name, not "new")
+	// can resolve to a class method named Create rather than a constructor.
+	if !ident.Equal(node.Token.Literal, "new") {
+		if classOverloads := classInfo.GetClassMethodOverloads("Create"); len(classOverloads) > 0 {
+			if errVal := evalArgsByValue(); errVal != nil {
+				return errVal
+			}
+			merged := append(classInfo.GetConstructorOverloads("Create"), classOverloads...)
+			if selected, err := e.selectOverload(classInfo.GetName(), "Create", merged, args); err == nil &&
+				selected.IsClassMethod && !selected.IsConstructor {
+				classValAny, cvErr := e.typeSystem.CreateClassValue(classInfo.GetName())
+				if cvErr != nil {
+					return e.newError(node, "failed to get class value: %s", cvErr.Error())
+				}
+				if cm, ok := classValAny.(ClassMetaValue); ok {
+					return e.executeClassMethodDirect(cm, selected, args, node, ctx)
+				}
+			}
+		}
+	}
+
 	// Validate class can be instantiated
 	if classInfo.IsAbstract() {
 		return e.newError(node, "Trying to create an instance of an abstract class")
