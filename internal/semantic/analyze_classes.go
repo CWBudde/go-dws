@@ -341,6 +341,15 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 		helperMethod := a.hasHelperMethod(objectType, memberName)
 		if helperMethod != nil {
+			// Record the receiver's static type so runtime helper dispatch
+			// honors alias-specific (strict) helpers over the underlying
+			// type's helpers.
+			if a.semanticInfo != nil && expr.Member != nil {
+				a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{
+					Token: expr.Member.Token,
+					Name:  "__helper_receiver:" + objectType.String(),
+				})
+			}
 			if len(helperMethod.Parameters) == 0 {
 				return helperMethod.ReturnType
 			}
@@ -377,6 +386,14 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		helperLookupType = objectTypeResolved
 	}
 	if helperMethod := a.hasHelperMethod(helperLookupType, memberName); helperMethod != nil {
+		// Record the receiver's static class so runtime helper dispatch binds
+		// helpers by the declared type (strict helper semantics).
+		if a.semanticInfo != nil && expr.Member != nil {
+			a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{
+				Token: expr.Member.Token,
+				Name:  "__helper_receiver:" + helperLookupType.String(),
+			})
+		}
 		if len(helperMethod.Parameters) == 0 {
 			return helperMethod.ReturnType
 		}

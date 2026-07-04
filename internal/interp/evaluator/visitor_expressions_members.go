@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -81,6 +83,26 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	}
 
 	memberName := node.Member.Value
+
+	// Alias/static-type helper binding: the analyzer records the receiver's
+	// static type when a helper resolved against it (strict helper semantics
+	// dispatch on the declared type, not the dynamic one).
+	if node.Member != nil && e.SemanticInfo() != nil {
+		if annot := e.SemanticInfo().GetType(node.Member); annot != nil && strings.HasPrefix(annot.Name, "__helper_receiver:") {
+			target := strings.TrimPrefix(annot.Name, "__helper_receiver:")
+			if helpersAny := e.typeSystem.LookupHelpers(ident.Normalize(target)); helpersAny != nil {
+				for _, helper := range orderedHelpersForLookup(convertToHelperInfoSlice(helpersAny)) {
+					if helperResult := e.findHelperMethodInHelper(helper, memberName); helperResult != nil {
+						if zeroArg := zeroArgHelperOverload(helperResult); zeroArg != nil && helperResult.BuiltinSpec == "" {
+							callResult := *helperResult
+							callResult.Method = zeroArg
+							return e.CallHelperMethod(&callResult, obj, []Value{}, node, ctx)
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// Record instance check via type assertion (RecordValue.Type() returns specific names like "TPoint")
 	if recVal, ok := obj.(RecordInstanceValue); ok {

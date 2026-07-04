@@ -518,6 +518,22 @@ func (e *Evaluator) dispatchEnumTypeMetaMethod(obj Value, normalizedMethod, meth
 //   - arr.Push(x) - Array helper
 //   - num.ToString() - Integer helper
 func (e *Evaluator) dispatchHelperMethod(obj Value, methodName string, args []Value, node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
+	// The analyzer records the receiver's static type when a helper resolves
+	// against it; prefer helpers registered for that exact (alias) type so
+	// strict helpers dispatch on the declared type rather than the dynamic one.
+	if node != nil && node.Method != nil && e.SemanticInfo() != nil {
+		if annot := e.SemanticInfo().GetType(node.Method); annot != nil && strings.HasPrefix(annot.Name, "__helper_receiver:") {
+			target := strings.TrimPrefix(annot.Name, "__helper_receiver:")
+			if helpersAny := e.typeSystem.LookupHelpers(ident.Normalize(target)); helpersAny != nil {
+				for _, helper := range orderedHelpersForLookup(convertToHelperInfoSlice(helpersAny)) {
+					if result := e.findHelperMethodInHelper(helper, methodName); result != nil {
+						return e.CallHelperMethod(result, obj, args, node, ctx)
+					}
+				}
+			}
+		}
+	}
+
 	helperResult := e.FindHelperMethod(obj, methodName)
 	if helperResult == nil {
 		return e.newError(node, "cannot call method '%s' on type '%s' (no helper found)", methodName, obj.Type())
