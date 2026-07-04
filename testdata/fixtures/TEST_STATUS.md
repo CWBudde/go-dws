@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-07-03
+**Generated**: 2026-07-04
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 612 |
-| Failed | 1430 |
+| Passed | 629 |
+| Failed | 1413 |
 | Skipped (no expected .txt) | 0 |
-| **Scored pass rate** | **30%** (612/2042) |
+| **Scored pass rate** | **31%** (629/2042) |
 
 ## Per-category
 
@@ -23,7 +23,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | Category | Total | Pass | Fail | Skip | Pass% |
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
-| ArrayPass | 115 | 65 | 50 | 0 | 57% |
+| ArrayPass | 115 | 67 | 48 | 0 | 58% |
 | AssociativeFail | 4 | 1 | 3 | 0 | 25% |
 | AssociativePass | 27 | 0 | 27 | 0 | 0% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
@@ -44,11 +44,11 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | FunctionsDebug | 3 | 0 | 3 | 0 | 0% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
 | FunctionsGlobalVars | 16 | 0 | 16 | 0 | 0% |
-| FunctionsMath | 40 | 21 | 19 | 0 | 52% |
+| FunctionsMath | 40 | 24 | 16 | 0 | 60% |
 | FunctionsMath3D | 2 | 0 | 2 | 0 | 0% |
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
 | FunctionsRTTI | 6 | 0 | 6 | 0 | 0% |
-| FunctionsString | 58 | 42 | 16 | 0 | 72% |
+| FunctionsString | 58 | 45 | 13 | 0 | 78% |
 | FunctionsTime | 30 | 1 | 29 | 0 | 3% |
 | FunctionsVariant | 10 | 0 | 10 | 0 | 0% |
 | GenericsFail | 8 | 0 | 8 | 0 | 0% |
@@ -78,7 +78,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | PropertyExpressionsPass | 19 | 0 | 19 | 0 | 0% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
 | SetOfPass | 25 | 14 | 11 | 0 | 56% |
-| SimpleScripts | 442 | 259 | 183 | 0 | 59% |
+| SimpleScripts | 442 | 268 | 174 | 0 | 61% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |
