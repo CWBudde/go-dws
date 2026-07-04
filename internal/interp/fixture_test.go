@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -527,7 +528,9 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 	txtFile := strings.TrimSuffix(pasFile, ".pas") + ".txt"
 	expectedContent, err := detectAndDecodeFile(txtFile)
 	if err != nil {
-		if os.IsNotExist(err) {
+		// errors.Is sees through the %w wrapping added by detectAndDecodeFile;
+		// os.IsNotExist would not and would misreport a missing file as failed.
+		if errors.Is(err, os.ErrNotExist) {
 			return testResultSkipped, ""
 		}
 		return testResultFailed, fmt.Sprintf("failed to read expected output: %v", err)
