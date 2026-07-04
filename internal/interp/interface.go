@@ -136,8 +136,12 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 		destructor = obj.Class.LookupMethod("Destroy")
 	}
 
+	// node != nil marks an explicit Free/Destroy call (refcount cleanup passes nil)
+	explicit := node != nil
+
 	if destructor == nil {
 		obj.Destroyed = true
+		obj.ExplicitlyFreed = obj.ExplicitlyFreed || explicit
 		obj.RefCount = 0
 		return &NilValue{}
 	}
@@ -147,6 +151,7 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 		obj.DestroyCallDepth--
 		if obj.DestroyCallDepth == 0 {
 			obj.Destroyed = true
+			obj.ExplicitlyFreed = obj.ExplicitlyFreed || explicit
 			obj.RefCount = 0
 		}
 	}()

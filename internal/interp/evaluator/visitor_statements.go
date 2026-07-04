@@ -990,7 +990,13 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 	}
 
 	// Execute try block
-	e.Eval(node.TryBlock, ctx)
+	tryResult := e.Eval(node.TryBlock, ctx)
+
+	// Runtime errors (ErrorValue) raised inside the try block are catchable in
+	// DWScript: convert them into a script exception so except handlers see them.
+	if isError(tryResult) && ctx.Exception() == nil {
+		e.raiseErrorValueAsException(tryResult, currentRoutineName(ctx), ctx)
+	}
 
 	// If an exception occurred, try to handle it
 	if ctx.Exception() != nil {
@@ -1096,10 +1102,31 @@ func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *Execution
 		return excVal
 	}
 
+	// Raising a nil exception reference raises "Object not instantiated",
+	// reported just past the raised expression (DWScript reports the parser's
+	// position after consuming the expression).
+	if excVal == nil || excVal.Type() == "NIL" {
+		pos := raisedExpressionEndPos(node.Exception)
+		message := fmt.Sprintf("Object not instantiated [line: %d, column: %d]", pos.Line, pos.Column)
+		ctx.SetException(e.createException("Exception", message, nil, ctx))
+		return nil
+	}
+
 	excObj := e.createExceptionFromObject(excVal, ctx, node.Pos())
 	ctx.SetException(excObj)
 
 	return nil
+}
+
+// raisedExpressionEndPos approximates the source position immediately after a
+// raised expression (identifiers advance by their length; other expressions
+// fall back to their start position).
+func raisedExpressionEndPos(expr ast.Expression) token.Position {
+	pos := expr.Pos()
+	if identExpr, ok := expr.(*ast.Identifier); ok {
+		pos.Column += len(identExpr.Value)
+	}
+	return pos
 }
 
 // matchesExceptionType checks if an exception matches a handler's exception type.

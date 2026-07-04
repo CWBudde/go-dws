@@ -64,6 +64,14 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// When Self is bound, identifiers can refer to instance fields, class variables,
 	// properties, methods (auto-invoked if zero params), or ClassName/ClassType
 	if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
+		// A non-virtual method may execute with Self = nil (DWScript allows calling
+		// non-virtual methods on nil references). Implicit-Self member access then
+		// raises "Object not instantiated" at the member's position.
+		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "NIL" {
+			if e.identifierIsInstanceMember(node.Value, ctx) {
+				return e.newError(node, "Object not instantiated")
+			}
+		}
 		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
 			if objVal, ok := selfVal.(ObjectValue); ok {
 				// Check for instance field

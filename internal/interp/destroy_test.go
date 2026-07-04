@@ -40,7 +40,7 @@ end.
 		t.Fatalf("interpreter error: %s", result.String())
 	}
 
-	expected := "destroy\nObject already destroyed [line: 17, column: 6]\n"
+	expected := "destroy\nObject already destroyed [line: 17, column: 7]\n"
 	if out.String() != expected {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
 	}

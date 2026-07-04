@@ -16,6 +16,7 @@ type ObjectInstance struct {
 	Fields           map[string]Value // Field name to value mapping
 	RefCount         int              // Interface reference count
 	Destroyed        bool             // Destructor completed
+	ExplicitlyFreed  bool             // Destroyed via an explicit Free/Destroy call (not refcount cleanup)
 	DestroyCallDepth int              // Nested Destroy call tracking
 
 	// destructorClaimed marks that a RefCountManager already claimed the
