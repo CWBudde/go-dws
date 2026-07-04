@@ -83,6 +83,11 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 	case "boolean":
 		return e.castToBoolean(val)
 	case "variant":
+		// Sets stored in Variants use their integer bitmask representation
+		// (DWScript: Variant(setA + setB) prints the combined bitmask).
+		if setVal, ok := val.(*runtime.SetValue); ok {
+			return runtime.BoxVariant(e.castToInteger(setVal))
+		}
 		// Variant can accept any value - wrap directly
 		return runtime.BoxVariant(val)
 	default:

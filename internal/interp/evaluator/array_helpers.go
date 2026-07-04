@@ -78,19 +78,24 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 	// Some contexts (notably empty literals `[]`) otherwise look like an empty array literal.
 	if e.SemanticInfo() != nil {
 		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
+			isSetAnnotation := false
 			if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
-				if _, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
-					setLit := &ast.SetLiteral{
-						Elements:            node.Elements,
-						TypedExpressionBase: node.TypedExpressionBase,
-					}
-
-					// Preserve the type annotation for set inference (esp. for empty `[]`).
-					e.SemanticInfo().SetType(setLit, typeAnnot)
-					defer e.SemanticInfo().ClearType(setLit)
-
-					return e.evalSetLiteralDirect(setLit, ctx)
+				_, isSetAnnotation = types.GetUnderlyingType(resolvedType).(*types.SetType)
+			} else if e.parseInlineSetType(typeAnnot.Name) != nil {
+				// Inline "set of X" annotations may not resolve as named types.
+				isSetAnnotation = true
+			}
+			if isSetAnnotation {
+				setLit := &ast.SetLiteral{
+					Elements:            node.Elements,
+					TypedExpressionBase: node.TypedExpressionBase,
 				}
+
+				// Preserve the type annotation for set inference (esp. for empty `[]`).
+				e.SemanticInfo().SetType(setLit, typeAnnot)
+				defer e.SemanticInfo().ClearType(setLit)
+
+				return e.evalSetLiteralDirect(setLit, ctx)
 			}
 		}
 	}
