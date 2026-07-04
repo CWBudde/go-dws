@@ -19,7 +19,7 @@ import (
 // Float, String, Boolean); DWScript applies variant casts at the call
 // boundary. Failed casts raise a catchable exception on ctx and return a nil
 // placeholder value; the caller must check ctx.Exception().
-func (e *Evaluator) coerceBuiltinArgsToSignature(funcName *ast.Identifier, args []Value, ctx *ExecutionContext) Value {
+func (e *Evaluator) coerceBuiltinArgsToSignature(funcName *ast.Identifier, argExprs []ast.Expression, args []Value, ctx *ExecutionContext) Value {
 	sig, ok := builtins.DefaultRegistry.GetSignature(funcName.Value)
 	if !ok || sig == nil {
 		return nil
@@ -28,6 +28,11 @@ func (e *Evaluator) coerceBuiltinArgsToSignature(funcName *ast.Identifier, args 
 	for i := range args {
 		if i >= len(sig.ParamTypes) || sig.ParamTypes[i] == nil {
 			break
+		}
+		// Only apply variant casts to arguments whose static (declared) type
+		// is Variant; other mismatches keep their strict runtime errors.
+		if i >= len(argExprs) || !e.exprIsStaticVariant(argExprs[i]) {
+			continue
 		}
 		paramKind := sig.ParamTypes[i].TypeKind()
 		arg := unwrapVariant(args[i])
@@ -44,6 +49,19 @@ func (e *Evaluator) coerceBuiltinArgsToSignature(funcName *ast.Identifier, args 
 		}
 	}
 	return nil
+}
+
+// exprIsStaticVariant reports whether the semantic analyzer annotated the
+// expression's static type as Variant.
+func (e *Evaluator) exprIsStaticVariant(expr ast.Expression) bool {
+	if e.SemanticInfo() == nil || expr == nil {
+		return false
+	}
+	typeAnnot := e.SemanticInfo().GetType(expr)
+	if typeAnnot == nil {
+		return false
+	}
+	return ident.Equal(typeAnnot.Name, "Variant")
 }
 
 // coerceValueToKind converts a basic runtime value to the given type kind.
