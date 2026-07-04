@@ -86,6 +86,32 @@ func (e *Evaluator) registerHelperOnce(typeName string, helperInfo *runtime.Muta
 	e.typeSystem.RegisterHelper(typeName, helperInfo)
 }
 
+// helperTargetTypesMatch reports whether two helper target types refer to the
+// same type. Beyond structural equality it compares class/interface names
+// case-insensitively: DWScript identifiers are case-insensitive, but
+// ClassType/InterfaceType Equals compares names case-sensitively, and the
+// semantic-transfer instance carries the canonical declared name while the
+// evaluator resolves the annotation's spelling (e.g. "tfoo" vs "TFoo").
+func helperTargetTypesMatch(a, b types.Type) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	if a.Equals(b) {
+		return true
+	}
+	switch at := a.(type) {
+	case *types.ClassType:
+		if bt, ok := b.(*types.ClassType); ok {
+			return ident.Equal(at.Name, bt.Name)
+		}
+	case *types.InterfaceType:
+		if bt, ok := b.(*types.InterfaceType); ok {
+			return ident.Equal(at.Name, bt.Name)
+		}
+	}
+	return false
+}
+
 // containsFunctionDecl reports whether decls contains decl (pointer identity).
 func containsFunctionDecl(decls []*ast.FunctionDecl, decl *ast.FunctionDecl) bool {
 	for _, d := range decls {
@@ -1070,7 +1096,7 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 	// two copies in the slice-valued helper registry, making first-match
 	// lookups depend on map iteration order.
 	helperInfo := e.lookupMutableHelper(node.Name.Value)
-	if helperInfo != nil && helperInfo.TargetType != nil && !helperInfo.TargetType.Equals(targetType) {
+	if helperInfo != nil && helperInfo.TargetType != nil && !helperTargetTypesMatch(helperInfo.TargetType, targetType) {
 		// Same name but different target type: treat as a distinct helper.
 		helperInfo = nil
 	}
@@ -1094,7 +1120,7 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 				parentHelperName, node.Name.Value)
 		}
 
-		if !foundParent.TargetType.Equals(targetType) {
+		if !helperTargetTypesMatch(foundParent.TargetType, targetType) {
 			return e.newError(node.ParentHelper,
 				"parent helper '%s' extends different type than child helper '%s'",
 				parentHelperName, node.Name.Value)
