@@ -536,3 +536,125 @@ func TestOverloadResolutionWithModifiers(t *testing.T) {
 		t.Error("Expected ambiguity error for identical parameter types with different modifiers")
 	}
 }
+
+// TestTypeDistanceReferenceConversions covers nil-literal, metaclass, and
+// Variant-boxing distances used by cross-scope overload resolution (P4).
+func TestTypeDistanceReferenceConversions(t *testing.T) {
+	base := types.NewClassType("TBase", nil)
+	sub := types.NewClassType("TSub", base)
+	dynBase := types.NewDynamicArrayType(base)
+	dynVariant := types.NewDynamicArrayType(types.VARIANT)
+
+	tests := []struct {
+		from     types.Type
+		to       types.Type
+		name     string
+		expected int
+	}{
+		{name: "nil to class", from: types.NIL, to: base, expected: 1},
+		{name: "nil to metaclass", from: types.NIL, to: types.NewClassOfType(base), expected: 1},
+		{name: "nil to dynamic array (worse than class)", from: types.NIL, to: dynBase, expected: 2},
+		{name: "subclass to base class", from: sub, to: base, expected: 1},
+		{name: "metaclass of sub to metaclass of base", from: types.NewClassOfType(sub), to: types.NewClassOfType(base), expected: 1},
+		{name: "variant boxing is worst-ranked", from: types.INTEGER, to: types.VARIANT, expected: 4},
+		{name: "array elem variant conversion capped below boxing", from: types.NewDynamicArrayType(types.INTEGER), to: dynVariant, expected: 2},
+		{name: "array of sub to array of base", from: types.NewDynamicArrayType(sub), to: dynBase, expected: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := typeDistance(tt.from, tt.to); got != tt.expected {
+				t.Errorf("typeDistance(%s, %s) = %d, want %d",
+					tt.from.String(), tt.to.String(), got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestSignatureDistanceDefaultParams verifies parameters with default values
+// are optional during overload resolution.
+func TestSignatureDistanceDefaultParams(t *testing.T) {
+	sig := types.NewFunctionTypeWithMetadata(
+		[]types.Type{types.STRING, types.STRING},
+		[]string{"s1", "s2"},
+		[]interface{}{nil, struct{}{}}, // s2 has a default value
+		[]bool{false, false}, []bool{false, false}, []bool{false, false},
+		types.VOID,
+	)
+
+	tests := []struct {
+		name     string
+		args     []types.Type
+		expected int
+	}{
+		{name: "all args provided", args: []types.Type{types.STRING, types.STRING}, expected: 0},
+		{name: "optional arg omitted", args: []types.Type{types.STRING}, expected: 0},
+		{name: "required arg missing", args: []types.Type{}, expected: -1},
+		{name: "too many args", args: []types.Type{types.STRING, types.STRING, types.STRING}, expected: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SignatureDistance(tt.args, sig); got != tt.expected {
+				t.Errorf("SignatureDistance(%v) = %d, want %d", tt.args, got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestResolveOverloadTieBreaks verifies deterministic tie-breaking rules.
+func TestResolveOverloadTieBreaks(t *testing.T) {
+	t.Run("non-variadic beats variadic on equal distance", func(t *testing.T) {
+		exact := types.NewFunctionType([]types.Type{types.INTEGER, types.STRING}, types.VOID)
+		variadic := types.NewVariadicFunctionType(
+			[]types.Type{types.INTEGER, types.STRING, types.NewDynamicArrayType(types.STRING)},
+			types.STRING, types.VOID)
+
+		candidates := []*Symbol{
+			{Name: "F", Type: variadic},
+			{Name: "F", Type: exact},
+		}
+		selected, err := ResolveOverload(candidates, []types.Type{types.INTEGER, types.STRING})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if selected.Type != exact {
+			t.Errorf("expected the non-variadic overload to win, got %v", selected.Type)
+		}
+	})
+
+	t.Run("nil argument prefers class over dynamic array", func(t *testing.T) {
+		base := types.NewClassType("TBase", nil)
+		classSig := types.NewFunctionType([]types.Type{base}, types.VOID)
+		arraySig := types.NewFunctionType([]types.Type{types.NewDynamicArrayType(base)}, types.VOID)
+
+		candidates := []*Symbol{
+			{Name: "F", Type: arraySig},
+			{Name: "F", Type: classSig},
+		}
+		selected, err := ResolveOverload(candidates, []types.Type{types.NIL})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if selected.Type != classSig {
+			t.Errorf("expected the class-typed overload to win for nil, got %v", selected.Type)
+		}
+	})
+
+	t.Run("array argument prefers array-of-variant over variant boxing", func(t *testing.T) {
+		variantParam := types.NewFunctionType([]types.Type{types.VARIANT}, types.VOID)
+		arrayParam := types.NewFunctionType([]types.Type{types.NewDynamicArrayType(types.VARIANT)}, types.VOID)
+
+		candidates := []*Symbol{
+			{Name: "F", Type: variantParam},
+			{Name: "F", Type: arrayParam},
+		}
+		selected, err := ResolveOverload(candidates, []types.Type{types.NewDynamicArrayType(types.INTEGER)})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if selected.Type != arrayParam {
+			t.Errorf("expected the array-typed overload to win, got %v", selected.Type)
+		}
+	})
+}

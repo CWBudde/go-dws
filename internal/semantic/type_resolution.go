@@ -927,9 +927,25 @@ func (a *Analyzer) getMethodOverloadsInHierarchy(methodName string, classType *t
 	// Constructors participate in the hiding check too: inherited constructor
 	// copies already live in the child's ConstructorOverloads, so the parent's
 	// originals must not be duplicated (they differ only in return type).
+	// A subclass constructor declared WITHOUT the overload directive hides the
+	// parent's entire same-named constructor set (Delphi/DWScript hiding rule).
+	hideParentConstructors := false
+	if len(constructorOverloads) > 0 {
+		hideParentConstructors = true
+		for _, ctor := range constructorOverloads {
+			if ctor.HasOverloadDirective {
+				hideParentConstructors = false
+				break
+			}
+		}
+	}
+
 	if classType.Parent != nil {
 		parentOverloads := a.getMethodOverloadsInHierarchy(methodName, classType.Parent)
 		for _, parentOverload := range parentOverloads {
+			if hideParentConstructors && parentOverload.IsConstructor {
+				continue
+			}
 			hidden := false
 			for _, currentOverload := range result {
 				if a.parametersMatch(currentOverload.Signature, parentOverload.Signature) {

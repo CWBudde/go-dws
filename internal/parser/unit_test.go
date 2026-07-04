@@ -418,10 +418,9 @@ func TestUnitErrorCases(t *testing.T) {
 			name:  "Missing semicolon after unit name",
 			input: `unit MyUnit`,
 		},
-		{
-			name:  "Missing end",
-			input: `unit MyUnit; interface`,
-		},
+		// Note: a unit that simply ends at EOF after its sections (e.g.
+		// "unit MyUnit; interface") is tolerated without a trailing "end.",
+		// matching DWScript's reference fixtures, so it is not an error case.
 		{
 			name:  "Missing dot after end",
 			input: `unit MyUnit; end`,

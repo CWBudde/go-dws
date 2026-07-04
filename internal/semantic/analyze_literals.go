@@ -49,6 +49,11 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	if expectedType != nil {
 		if arr, ok := types.GetUnderlyingType(expectedType).(*types.ArrayType); ok {
 			expectedArrayType = arr
+		} else if types.GetUnderlyingType(expectedType).TypeKind() == "VARIANT" {
+			// An array value can be boxed into a Variant; infer the array's
+			// own type from its elements.
+			expectedType = nil
+			originalExpectedType = nil
 		} else {
 			a.addError("array literal cannot be assigned to non-array type %s at %s",
 				expectedType.String(), lit.Token.Pos.String())

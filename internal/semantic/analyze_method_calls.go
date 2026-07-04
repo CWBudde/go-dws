@@ -355,6 +355,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	// Check if method is overloaded
 	var methodType *types.FunctionType
+	var selectedOverload *types.MethodInfo
 	methodOwner := a.getMethodOwner(classType, methodName)
 	overloads := a.getMethodOverloadsInHierarchy(methodName, classType)
 
@@ -391,6 +392,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			a.addError("internal error: expected function type for selected overloaded method, but got %T", selected.Type)
 			return nil
 		}
+		for i := range candidates {
+			if candidates[i] == selected {
+				selectedOverload = overloads[i]
+				break
+			}
+		}
 
 		// Re-analyze arguments against the selected signature so literals get
 		// their contextual type annotations (e.g. [o] becomes an array literal
@@ -425,10 +432,15 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 	}
 
-	// Check method visibility
+	// Check method visibility. Overloads carry their own visibility, so the
+	// SELECTED overload's visibility governs (overloads of one name can mix
+	// private and public sections).
 	if methodOwner != nil && len(overloads) > 0 {
 		// Use lowercase key for case-insensitive lookup
 		visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(methodName)]
+		if selectedOverload != nil {
+			visibility, hasVisibility = selectedOverload.Visibility, true
+		}
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
 			a.addStructuredError(NewVisibilityScopeError(expr.Method.Token.Pos, expr.Method.Value))
 			if methodOwner.HasConstructor(methodName) {

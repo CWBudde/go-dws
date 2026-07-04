@@ -174,14 +174,18 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				}
 				methodType := selectedMethod.Signature
 
-				// Check visibility
+				// Check visibility (the selected overload's own visibility governs)
 				methodOwner := a.getMethodOwner(a.currentClass, methodNameLower)
 				if methodOwner != nil {
 					visibility, hasVisibility := methodOwner.MethodVisibility[methodNameLower]
+					if selectedMethod != nil {
+						visibility, hasVisibility = selectedMethod.Visibility, true
+					}
 					if hasVisibility && !a.checkVisibility(methodOwner, visibility, funcIdent.Value, "method") {
 						a.addStructuredError(NewVisibilityScopeError(funcIdent.Token.Pos, funcIdent.Value))
 						return nil
 					}
+					a.recordClassMethodUsage(methodOwner, funcIdent.Value)
 				}
 
 				if len(expr.Arguments) != len(methodType.Parameters) {

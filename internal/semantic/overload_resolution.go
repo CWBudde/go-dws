@@ -211,9 +211,12 @@ func typeDistance(from, to types.Type) int {
 	// TODO: Implement class hierarchy checking when class types are available
 	// For now, we only support exact matches and basic conversions
 
-	// Variant conversions: any type <-> Variant
+	// Variant conversions: any type <-> Variant. Boxing INTO a Variant
+	// parameter is ranked worse than element-wise/shape conversions so an
+	// "array of Variant" parameter beats a plain "Variant" one for array
+	// arguments (see fixture OverloadsPass/arrays).
 	if toKind == "VARIANT" {
-		return 2 // Any type can be converted to Variant
+		return 4 // Any type can be converted to Variant
 	}
 	if fromKind == "VARIANT" {
 		return 2 // Variant can be converted to any type (runtime checked)
@@ -255,6 +258,12 @@ func arrayDistance(from, to *types.ArrayType) int {
 	elemDist := typeDistance(from.ElementType, to.ElementType)
 	if elemDist < 0 {
 		return -1
+	}
+	// Element-wise Variant boxing is preferred over boxing the whole array
+	// into a plain Variant parameter (which costs 3): cap it at 2 so an
+	// "array of Variant" parameter wins for array arguments.
+	if elemDist > 2 && types.GetUnderlyingType(to.ElementType).TypeKind() == "VARIANT" {
+		elemDist = 2
 	}
 
 	distance := elemDist
