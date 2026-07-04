@@ -315,6 +315,20 @@ func (e *Evaluator) dispatchMethodOnNilObject(obj Value, methodName string, args
 		if method != nil && isNonVirtualInstanceMethod(classInfo, method) {
 			return e.executeMethodWithClassInfo(obj, classInfo, method, args, ctx)
 		}
+
+		// Helper class methods (class function ... static) resolve statically
+		// and can be invoked on a nil receiver.
+		if method == nil {
+			for info := classInfo; info != nil; info = info.GetParent() {
+				if helpersAny := e.typeSystem.LookupHelpers(info.GetName()); helpersAny != nil {
+					for _, helper := range orderedHelpersForLookup(convertToHelperInfoSlice(helpersAny)) {
+						if result := e.findHelperMethodInHelper(helper, methodName); result != nil {
+							return e.CallHelperMethod(result, obj, args, node, ctx)
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Virtual dispatch (or unknown static type) needs an instance.

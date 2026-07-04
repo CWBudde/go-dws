@@ -130,9 +130,11 @@ func orderedHelpersForLookup(helpers []HelperInfo) []HelperInfo {
 	if len(helpers) <= 1 {
 		return helpers
 	}
+	// User-declared helpers are searched in declaration order (the first
+	// declared helper wins, matching DWScript; see HelpersPass/helper_precedence),
+	// with built-in helpers as fallback.
 	ordered := make([]HelperInfo, 0, len(helpers))
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
+	for _, helper := range helpers {
 		if !helperIsBuiltin(helper) {
 			ordered = append(ordered, helper)
 		}
