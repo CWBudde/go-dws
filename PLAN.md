@@ -226,10 +226,17 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       the transferred instance), after which all three lookups become trivially single-valued.
       Two same-name instances are otherwise indistinguishable by any stable key, so per-lookup
       "deterministic pick" hardening is not a real fix.
-- [ ] **Shadow interpreter:** re-point the tests that call `interp.evalClassDeclaration` /
+- [x] **Shadow interpreter:** re-point the tests that call `interp.evalClassDeclaration` /
       `evalIntegerBinaryOp` / `evalEnumDeclaration` / set & operator helpers at the evaluator,
       then delete those bodies (`expressions_binary.go`, `enum.go`, `type_alias.go`, `set.go`
       operators, `declarations.go` class/interface builders). Mechanical, not a rewrite.
+      *(Done: deleted `expressions_binary.go`, `set.go`, `enum.go`, `type_alias.go` outright,
+      the `declarations.go` class/interface/operator builders, and `evalHelperDeclaration`;
+      `EnumTypeValue`/`TypeAliasValue` are now aliases of the `runtime` structs. Interface
+      tests rewritten to declare via scripts through the production evaluator; set tests
+      re-pointed at the evaluator's binary-op/`in`/`Include`/`Exclude` paths. −27 unreachable
+      funcs (176→149 per `deadcode ./cmd/...` filtered to `internal/interp`), −2,241 net LOC;
+      fixture report byte-identical to main.)*
 - [ ] Move `Evaluator.currentNode` into `ExecutionContext`; remove the double `MethodRegistry`
       allocation (`internal/interp/interpreter.go:61`).
 - [ ] Split the evaluator god files (`visitor_statements.go` 1461, `visitor_declarations.go`

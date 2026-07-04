@@ -32,7 +32,7 @@ func BenchmarkSmallSetUnion(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = interp.evalBinarySetOperation(set1, set2, "+")
+		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "+")
 	}
 }
 
@@ -54,7 +54,7 @@ func BenchmarkSmallSetIntersection(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = interp.evalBinarySetOperation(set1, set2, "*")
+		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "*")
 	}
 }
 
@@ -76,7 +76,7 @@ func BenchmarkSmallSetDifference(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = interp.evalBinarySetOperation(set1, set2, "-")
+		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "-")
 	}
 }
 
@@ -162,7 +162,7 @@ func benchmarkLargeSetUnion(b *testing.B, size int) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = interp.evalBinarySetOperation(set1, set2, "+")
+		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "+")
 	}
 }
 
@@ -198,7 +198,7 @@ func benchmarkLargeSetIntersection(b *testing.B, size int) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = interp.evalBinarySetOperation(set1, set2, "*")
+		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "*")
 	}
 }
 
@@ -234,7 +234,7 @@ func benchmarkLargeSetDifference(b *testing.B, size int) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = interp.evalBinarySetOperation(set1, set2, "-")
+		_ = evalSetBinaryViaEvaluator(interp, set1, set2, "-")
 	}
 }
 

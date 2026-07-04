@@ -325,6 +325,30 @@ func TestEvalSetLiteral_MixedRangeAndElements(t *testing.T) {
 // Set Binary Operations Tests
 // ============================================================================
 
+// evalSetBinaryViaEvaluator routes a set binary operation through the
+// production evaluator path (Interpreter.Eval on a BinaryExpression).
+func evalSetBinaryViaEvaluator(interp *Interpreter, left, right *SetValue, op string) Value {
+	interp.Env().Define("__setOpLeft", left)
+	interp.Env().Define("__setOpRight", right)
+	return interp.Eval(&ast.BinaryExpression{
+		Left:     &ast.Identifier{Value: "__setOpLeft"},
+		Right:    &ast.Identifier{Value: "__setOpRight"},
+		Operator: op,
+	})
+}
+
+// evalSetMembershipViaEvaluator routes an 'in' membership test through the
+// production evaluator path.
+func evalSetMembershipViaEvaluator(interp *Interpreter, element Value, set *SetValue) Value {
+	interp.Env().Define("__setMemberElem", element)
+	interp.Env().Define("__setMemberSet", set)
+	return interp.Eval(&ast.BinaryExpression{
+		Left:     &ast.Identifier{Value: "__setMemberElem"},
+		Right:    &ast.Identifier{Value: "__setMemberSet"},
+		Operator: "in",
+	})
+}
+
 // TestSetUnion tests set union operation (+).
 func TestSetUnion(t *testing.T) {
 	interp, enumType := helperSetupInterpWithColorEnum(t)
@@ -334,12 +358,8 @@ func TestSetUnion(t *testing.T) {
 	set1 := &SetValue{SetType: setType, Elements: 1} // Red (bit 0)
 	set2 := &SetValue{SetType: setType, Elements: 4} // Blue (bit 2)
 
-	// Define them in environment
-	interp.Env().Define("s1", set1)
-	interp.Env().Define("s2", set2)
-
 	// Evaluate: s1 + s2
-	result := interp.evalBinarySetOperation(set1, set2, "+")
+	result := evalSetBinaryViaEvaluator(interp, set1, set2, "+")
 
 	// Verify result is a SetValue
 	setVal, ok := result.(*SetValue)
@@ -362,12 +382,8 @@ func TestSetDifference(t *testing.T) {
 	set1 := &SetValue{SetType: setType, Elements: 7} // All three (bits 0,1,2)
 	set2 := &SetValue{SetType: setType, Elements: 2} // Green (bit 1)
 
-	// Define them in environment
-	interp.Env().Define("s1", set1)
-	interp.Env().Define("s2", set2)
-
 	// Evaluate: s1 - s2
-	result := interp.evalBinarySetOperation(set1, set2, "-")
+	result := evalSetBinaryViaEvaluator(interp, set1, set2, "-")
 
 	// Verify result is a SetValue
 	setVal, ok := result.(*SetValue)
@@ -390,12 +406,8 @@ func TestSetIntersection(t *testing.T) {
 	set1 := &SetValue{SetType: setType, Elements: 3} // Red, Green (bits 0,1)
 	set2 := &SetValue{SetType: setType, Elements: 6} // Green, Blue (bits 1,2)
 
-	// Define them in environment
-	interp.Env().Define("s1", set1)
-	interp.Env().Define("s2", set2)
-
 	// Evaluate: s1 * s2
-	result := interp.evalBinarySetOperation(set1, set2, "*")
+	result := evalSetBinaryViaEvaluator(interp, set1, set2, "*")
 
 	// Verify result is a SetValue
 	setVal, ok := result.(*SetValue)
@@ -423,14 +435,14 @@ func TestSetMembership(t *testing.T) {
 
 	// Test membership for Red (should be in set)
 	redEnum := &EnumValue{TypeName: "TColor", ValueName: "Red", OrdinalValue: 0}
-	result := interp.evalSetMembership(redEnum, 0, set)
+	result := evalSetMembershipViaEvaluator(interp, redEnum, set)
 	if boolVal, ok := result.(*BooleanValue); !ok || !boolVal.Value {
 		t.Error("expected Red to be in set")
 	}
 
 	// Test membership for Green (should NOT be in set)
 	greenEnum := &EnumValue{TypeName: "TColor", ValueName: "Green", OrdinalValue: 1}
-	result = interp.evalSetMembership(greenEnum, 1, set)
+	result = evalSetMembershipViaEvaluator(interp, greenEnum, set)
 	if boolVal, ok := result.(*BooleanValue); !ok || boolVal.Value {
 		t.Error("expected Green to NOT be in set")
 	}
@@ -440,49 +452,37 @@ func TestSetMembership(t *testing.T) {
 // Include/Exclude Methods.
 // ============================================================================
 
-// TestSetInclude tests the Include method.
+// TestSetInclude tests the Include builtin through the production path.
 func TestSetInclude(t *testing.T) {
-	interp, enumType := helperSetupInterpWithColorEnum(t)
-	setType := types.NewSetType(enumType)
+	_, output := testEvalWithOutput(`
+		type TColor = (Red, Green, Blue);
+		var s : set of TColor := [Red];
+		Include(s, Blue);
+		if Red in s then PrintLn('has Red') else PrintLn('no Red');
+		if Green in s then PrintLn('has Green') else PrintLn('no Green');
+		if Blue in s then PrintLn('has Blue') else PrintLn('no Blue');
+	`)
 
-	// Create a set: [Red]
-	set := &SetValue{SetType: setType, Elements: 1} // Red (bit 0)
-
-	// Include Blue
-	blueEnum := &EnumValue{TypeName: "TColor", ValueName: "Blue", OrdinalValue: 2}
-	interp.evalSetInclude(set, blueEnum)
-
-	// Verify Blue is now in the set
-	if !set.HasElement(2) {
-		t.Error("expected Blue to be in set after Include")
-	}
-
-	// Elements should be: Red + Blue = 0b101 = 5
-	if set.Elements != 5 {
-		t.Errorf("expected Elements = 5, got %d", set.Elements)
+	expected := "has Red\nno Green\nhas Blue\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
 	}
 }
 
-// TestSetExclude tests the Exclude method.
+// TestSetExclude tests the Exclude builtin through the production path.
 func TestSetExclude(t *testing.T) {
-	interp, enumType := helperSetupInterpWithColorEnum(t)
-	setType := types.NewSetType(enumType)
+	_, output := testEvalWithOutput(`
+		type TColor = (Red, Green, Blue);
+		var s : set of TColor := [Red, Green, Blue];
+		Exclude(s, Green);
+		if Red in s then PrintLn('has Red') else PrintLn('no Red');
+		if Green in s then PrintLn('has Green') else PrintLn('no Green');
+		if Blue in s then PrintLn('has Blue') else PrintLn('no Blue');
+	`)
 
-	// Create a set: [Red, Green, Blue]
-	set := &SetValue{SetType: setType, Elements: 7} // All three
-
-	// Exclude Green
-	greenEnum := &EnumValue{TypeName: "TColor", ValueName: "Green", OrdinalValue: 1}
-	interp.evalSetExclude(set, greenEnum)
-
-	// Verify Green is no longer in the set
-	if set.HasElement(1) {
-		t.Error("expected Green to NOT be in set after Exclude")
-	}
-
-	// Elements should be: Red + Blue = 0b101 = 5
-	if set.Elements != 5 {
-		t.Errorf("expected Elements = 5, got %d", set.Elements)
+	expected := "has Red\nno Green\nhas Blue\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
 	}
 }
 

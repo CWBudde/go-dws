@@ -291,23 +291,8 @@ func TestInterpreterEvalSurfaceMatchesAllowlist(t *testing.T) {
 
 	allowed := map[string]string{
 		"evalViaEvaluator":               "internal delegation helper from shell to evaluator",
-		"evalFunctionDeclaration":        "declaration/bootstrap registry mutation",
 		"evalClassMethodImplementation":  "declaration/bootstrap registry mutation",
 		"evalRecordMethodImplementation": "declaration/bootstrap registry mutation",
-		"evalClassDeclaration":           "declaration/bootstrap registry mutation",
-		"evalInterfaceDeclaration":       "declaration/bootstrap registry mutation",
-		"evalOperatorDeclaration":        "declaration/bootstrap registry mutation",
-		"evalHelperDeclaration":          "declaration/bootstrap registry mutation",
-		"evalTypeDeclaration":            "declaration/bootstrap registry mutation",
-		"evalEnumDeclaration":            "declaration/bootstrap registry mutation",
-		"evalIntegerBinaryOp":            "internal runtime helper primitive",
-		"evalFloatBinaryOp":              "internal runtime helper primitive",
-		"evalStringBinaryOp":             "internal runtime helper primitive",
-		"evalBooleanBinaryOp":            "internal runtime helper primitive",
-		"evalBinarySetOperation":         "internal runtime helper primitive",
-		"evalSetMembership":              "internal runtime helper primitive",
-		"evalSetInclude":                 "internal runtime helper primitive",
-		"evalSetExclude":                 "internal runtime helper primitive",
 	}
 
 	found := make(map[string]string)
