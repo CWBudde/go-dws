@@ -61,6 +61,23 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	methodName := node.Method.Value
 
 	if recordVal, ok := obj.(RecordInstanceValue); ok {
+		// Overload-aware: pick the best-matching overload for the provided
+		// arguments instead of the first registered one.
+		if rec, ok := obj.(*runtime.RecordValue); ok {
+			if overloads := rec.GetRecordMethodOverloads(methodName); len(overloads) > 1 {
+				argVals := make([]Value, len(node.Arguments))
+				for i, arg := range node.Arguments {
+					val := e.Eval(arg, ctx)
+					if isError(val) {
+						return val
+					}
+					argVals[i] = val
+				}
+				if selected, err := e.selectOverload(rec.GetRecordTypeName(), methodName, overloads, argVals); err == nil {
+					return e.callRecordMethod(recordVal, selected, argVals, node, ctx)
+				}
+			}
+		}
 		if methodDecl, found := recordVal.GetRecordMethod(methodName); found {
 			args, err := e.prepareArgsForParameters(methodDecl.Parameters, node.Arguments, ctx)
 			if err != nil {

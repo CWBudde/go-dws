@@ -144,7 +144,25 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			}
 
 			if recordVal, ok := objVal.(RecordInstanceValue); ok {
-				if methodDecl, found := recordVal.GetRecordMethod(memberAccess.Member.Value); found {
+				methodDecl, found := recordVal.GetRecordMethod(memberAccess.Member.Value)
+				// Overload-aware: pick the best-matching overload for the
+				// provided arguments instead of the first registered one.
+				if rec, ok := objVal.(*runtime.RecordValue); ok {
+					if overloads := rec.GetRecordMethodOverloads(memberAccess.Member.Value); len(overloads) > 1 {
+						argVals := make([]Value, len(node.Arguments))
+						for i, arg := range node.Arguments {
+							val := e.Eval(arg, ctx)
+							if isError(val) {
+								return val
+							}
+							argVals[i] = val
+						}
+						if selected, err := e.selectOverload(rec.GetRecordTypeName(), memberAccess.Member.Value, overloads, argVals); err == nil {
+							return e.callRecordMethod(recordVal, selected, argVals, mc, ctx)
+						}
+					}
+				}
+				if found {
 					args, err := e.prepareArgsForParameters(methodDecl.Parameters, node.Arguments, ctx)
 					if err != nil {
 						return e.newError(node, "%s", err.Error())

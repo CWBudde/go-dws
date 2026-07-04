@@ -1046,7 +1046,7 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 	}
 
 	// Build metadata and create record type value
-	metadata := e.buildRecordMetadata(recordName, recordType, methods, staticMethods, constants, classVars)
+	metadata := e.buildRecordMetadata(recordName, recordType, methods, staticMethods, methodOverloads, staticMethodOverloads, constants, classVars)
 
 	recordTypeValue.FieldDecls = fieldDecls
 	recordTypeValue.Metadata = metadata

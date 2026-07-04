@@ -14,24 +14,39 @@ func (e *Evaluator) buildRecordMetadata(
 	recordType *types.RecordType,
 	methods map[string]*ast.FunctionDecl,
 	staticMethods map[string]*ast.FunctionDecl,
+	methodOverloads map[string][]*ast.FunctionDecl,
+	staticMethodOverloads map[string][]*ast.FunctionDecl,
 	constants map[string]Value,
 	classVars map[string]Value,
 ) *runtime.RecordMetadata {
 	metadata := runtime.NewRecordMetadata(recordName, recordType)
 
-	// Convert instance methods to MethodMetadata
+	// Convert instance methods to MethodMetadata (keeping all overloads)
 	for methodName, methodDecl := range methods {
-		methodMeta := e.buildMethodMetadata(methodDecl)
-		metadata.Methods[methodName] = methodMeta
-		metadata.MethodOverloads[methodName] = []*runtime.MethodMetadata{methodMeta}
+		metadata.Methods[methodName] = e.buildMethodMetadata(methodDecl)
+	}
+	for methodName, decls := range methodOverloads {
+		metas := make([]*runtime.MethodMetadata, 0, len(decls))
+		for _, decl := range decls {
+			metas = append(metas, e.buildMethodMetadata(decl))
+		}
+		metadata.MethodOverloads[methodName] = metas
 	}
 
-	// Convert static methods to MethodMetadata
+	// Convert static methods to MethodMetadata (keeping all overloads)
 	for methodName, methodDecl := range staticMethods {
 		methodMeta := e.buildMethodMetadata(methodDecl)
 		methodMeta.IsClassMethod = true
 		metadata.StaticMethods[methodName] = methodMeta
-		metadata.StaticMethodOverloads[methodName] = []*runtime.MethodMetadata{methodMeta}
+	}
+	for methodName, decls := range staticMethodOverloads {
+		metas := make([]*runtime.MethodMetadata, 0, len(decls))
+		for _, decl := range decls {
+			methodMeta := e.buildMethodMetadata(decl)
+			methodMeta.IsClassMethod = true
+			metas = append(metas, methodMeta)
+		}
+		metadata.StaticMethodOverloads[methodName] = metas
 	}
 
 	// Copy constants and class vars

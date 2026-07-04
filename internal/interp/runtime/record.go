@@ -159,21 +159,44 @@ func (r *RecordValue) GetRecordMethod(name string) (*ast.FunctionDecl, bool) {
 		return nil, false
 	}
 
-	// Reconstruct FunctionDecl from MethodMetadata
-	// The Body field contains the AST statement block
-	if methodMeta.Body == nil {
+	functionDecl := methodMeta.FunctionDecl()
+	if functionDecl == nil {
 		// Native functions may have nil Body - those are handled separately
 		return nil, false
 	}
-	blockBody, ok := methodMeta.Body.(*ast.BlockStatement)
+	return functionDecl, true
+}
+
+// GetRecordMethodOverloads retrieves all overloads of a record instance method.
+func (r *RecordValue) GetRecordMethodOverloads(name string) []*ast.FunctionDecl {
+	if r.Metadata == nil {
+		return nil
+	}
+	metas := r.Metadata.MethodOverloads[ident.Normalize(name)]
+	decls := make([]*ast.FunctionDecl, 0, len(metas))
+	for _, meta := range metas {
+		if decl := meta.FunctionDecl(); decl != nil {
+			decls = append(decls, decl)
+		}
+	}
+	return decls
+}
+
+// FunctionDecl reconstructs an ast.FunctionDecl from method metadata.
+// Returns nil for native methods (no AST body).
+func (m *MethodMetadata) FunctionDecl() *ast.FunctionDecl {
+	if m == nil || m.Body == nil {
+		return nil
+	}
+	blockBody, ok := m.Body.(*ast.BlockStatement)
 	if !ok {
 		// Body must be a BlockStatement for function declarations
-		return nil, false
+		return nil
 	}
 
 	// Reconstruct parameters from metadata
-	params := make([]*ast.Parameter, len(methodMeta.Parameters))
-	for i, paramMeta := range methodMeta.Parameters {
+	params := make([]*ast.Parameter, len(m.Parameters))
+	for i, paramMeta := range m.Parameters {
 		var paramType ast.TypeExpression
 		if paramMeta.TypeName != "" {
 			paramType = &ast.TypeAnnotation{Name: paramMeta.TypeName}
@@ -188,21 +211,19 @@ func (r *RecordValue) GetRecordMethod(name string) (*ast.FunctionDecl, bool) {
 
 	// Reconstruct return type if present
 	var returnType ast.TypeExpression
-	if methodMeta.ReturnTypeName != "" {
-		returnType = &ast.TypeAnnotation{Name: methodMeta.ReturnTypeName}
+	if m.ReturnTypeName != "" {
+		returnType = &ast.TypeAnnotation{Name: m.ReturnTypeName}
 	}
 
-	functionDecl := &ast.FunctionDecl{
-		Name:          &ast.Identifier{Value: methodMeta.Name},
+	return &ast.FunctionDecl{
+		Name:          &ast.Identifier{Value: m.Name},
 		Parameters:    params,
 		ReturnType:    returnType,
 		Body:          blockBody,
-		IsClassMethod: methodMeta.IsClassMethod,
-		IsConstructor: methodMeta.IsConstructor,
-		IsDestructor:  methodMeta.IsDestructor,
+		IsClassMethod: m.IsClassMethod,
+		IsConstructor: m.IsConstructor,
+		IsDestructor:  m.IsDestructor,
 	}
-
-	return functionDecl, true
 }
 
 // HasRecordProperty checks if a property with the given name exists.

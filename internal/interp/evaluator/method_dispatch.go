@@ -164,6 +164,14 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 	}
 
 	if recordVal, ok := obj.(RecordInstanceValue); ok {
+		// Overload-aware record instance method dispatch
+		if rec, ok := obj.(*runtime.RecordValue); ok {
+			if overloads := rec.GetRecordMethodOverloads(methodName); len(overloads) > 1 {
+				if selected, err := e.selectOverload(rec.GetRecordTypeName(), methodName, overloads, args); err == nil {
+					return e.callRecordMethod(recordVal, selected, args, node, ctx)
+				}
+			}
+		}
 		if methodDecl, found := recordVal.GetRecordMethod(methodName); found {
 			return e.callRecordMethod(recordVal, methodDecl, args, node, ctx)
 		}

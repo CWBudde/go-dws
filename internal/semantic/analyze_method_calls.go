@@ -132,8 +132,30 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				return methodType.ReturnType
 			}
 
-			// Check for instance methods
-			method := recordType.GetMethod(methodNameLower)
+			// Check for instance methods (overload-aware)
+			var method *types.FunctionType
+			if instanceOverloads := recordType.GetMethodOverloads(methodNameLower); len(instanceOverloads) > 1 {
+				argTypes := make([]types.Type, len(expr.Arguments))
+				for i, arg := range expr.Arguments {
+					argType := a.analyzeExpression(arg)
+					if argType == nil {
+						return nil
+					}
+					argTypes[i] = argType
+				}
+				candidates := make([]*Symbol, len(instanceOverloads))
+				for i, overload := range instanceOverloads {
+					candidates[i] = &Symbol{Type: overload.Signature}
+				}
+				selected, err := ResolveOverload(candidates, argTypes)
+				if err != nil {
+					a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
+					return nil
+				}
+				method = selected.Type.(*types.FunctionType)
+			} else {
+				method = recordType.GetMethod(methodNameLower)
+			}
 			if method == nil {
 				// Method not found in record, check if a helper provides it
 				helperMethod := a.hasHelperMethod(objectType, methodName)
@@ -145,8 +167,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				method = helperMethod
 			}
 
-			// Validate method arguments
-			if len(expr.Arguments) != len(method.Parameters) {
+			// Validate method arguments (defaulted parameters are optional)
+			if len(expr.Arguments) > len(method.Parameters) ||
+				len(expr.Arguments) < requiredParamCount(method) {
 				a.addError("record method '%s' expects %d arguments, got %d at %s",
 					methodName, len(method.Parameters), len(expr.Arguments),
 					expr.Token.Pos.String())
