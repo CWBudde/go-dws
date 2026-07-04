@@ -546,7 +546,7 @@ func TestConversionChainTwoSteps(t *testing.T) {
 
 		function IntToStr(I: Integer): String;
 		begin
-		  Result := IntToString(I);
+		  Result := I.ToString;
 		end;
 
 		function StrToCustom(S: String): TCustom;
@@ -589,7 +589,7 @@ func TestConversionChainThreeSteps(t *testing.T) {
 
 		function IntToStr(I: Integer): String;
 		begin
-		  Result := IntToString(I);
+		  Result := I.ToString;
 		end;
 
 		function StrToFoo(S: String): TFoo;
@@ -633,7 +633,7 @@ func TestConversionChainNotFound(t *testing.T) {
 
 		function IntToStr(I: Integer): String;
 		begin
-		  Result := IntToString(I);
+		  Result := I.ToString;
 		end;
 
 		operator implicit (Integer): String uses IntToStr;

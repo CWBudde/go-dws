@@ -4,6 +4,29 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 
+// materializeElement returns element, or the element type's zero value when
+// the storage slot has never been written (static arrays allocate nil slots
+// until first assignment). Collection builtins must not pass raw nil slots to
+// user callbacks.
+func materializeElement(arrayVal *runtime.ArrayValue, element Value) Value {
+	if element != nil {
+		return element
+	}
+	if arrayVal.ArrayType != nil && arrayVal.ArrayType.ElementType != nil {
+		switch arrayVal.ArrayType.ElementType.TypeKind() {
+		case "STRING":
+			return &runtime.StringValue{Value: ""}
+		case "INTEGER":
+			return &runtime.IntegerValue{Value: 0}
+		case "FLOAT":
+			return &runtime.FloatValue{Value: 0.0}
+		case "BOOLEAN":
+			return &runtime.BooleanValue{Value: false}
+		}
+	}
+	return &runtime.NilValue{}
+}
+
 // Collection built-in functions for DWScript.
 // This file contains higher-order array functions that work with callbacks:
 // Map, Filter, Reduce, ForEach, Every, Some, Find, FindIndex.
@@ -44,6 +67,7 @@ func Map(ctx Context, args []Value) Value {
 
 	// Apply lambda to each element
 	for idx, element := range arrayVal.Elements {
+		element = materializeElement(arrayVal, element)
 		// Call the lambda with the current element
 		result := ctx.EvalFunctionPointer(lambdaVal, []Value{element})
 
@@ -99,6 +123,7 @@ func Filter(ctx Context, args []Value) Value {
 
 	// Apply predicate to each element
 	for _, element := range arrayVal.Elements {
+		element = materializeElement(arrayVal, element)
 		// Call the predicate with the current element
 		result := ctx.EvalFunctionPointer(predicateVal, []Value{element})
 
@@ -168,6 +193,7 @@ func Reduce(ctx Context, args []Value) Value {
 
 	// Apply lambda to each element with accumulator
 	for _, element := range arrayVal.Elements {
+		element = materializeElement(arrayVal, element)
 		// Call the lambda with (accumulator, element)
 		result := ctx.EvalFunctionPointer(lambdaVal, []Value{accumulator, element})
 
@@ -217,6 +243,7 @@ func ForEach(ctx Context, args []Value) Value {
 
 	// Execute lambda for each element
 	for _, element := range arrayVal.Elements {
+		element = materializeElement(arrayVal, element)
 		// Call the lambda with the current element
 		result := ctx.EvalFunctionPointer(lambdaVal, []Value{element})
 
@@ -263,6 +290,7 @@ func Every(ctx Context, args []Value) Value {
 
 	// Apply predicate to each element, short-circuit on first false
 	for _, element := range arrayVal.Elements {
+		element = materializeElement(arrayVal, element)
 		// Call the predicate with the current element
 		result := ctx.EvalFunctionPointer(predicateVal, []Value{element})
 
@@ -325,6 +353,7 @@ func Some(ctx Context, args []Value) Value {
 
 	// Apply predicate to each element, short-circuit on first true
 	for _, element := range arrayVal.Elements {
+		element = materializeElement(arrayVal, element)
 		// Call the predicate with the current element
 		result := ctx.EvalFunctionPointer(predicateVal, []Value{element})
 
@@ -387,6 +416,7 @@ func Find(ctx Context, args []Value) Value {
 
 	// Apply predicate to each element
 	for _, element := range arrayVal.Elements {
+		element = materializeElement(arrayVal, element)
 		// Call the predicate with the current element
 		result := ctx.EvalFunctionPointer(predicateVal, []Value{element})
 
@@ -449,6 +479,7 @@ func FindIndex(ctx Context, args []Value) Value {
 
 	// Apply predicate to each element
 	for idx, element := range arrayVal.Elements {
+		element = materializeElement(arrayVal, element)
 		// Call the predicate with the current element
 		result := ctx.EvalFunctionPointer(predicateVal, []Value{element})
 
