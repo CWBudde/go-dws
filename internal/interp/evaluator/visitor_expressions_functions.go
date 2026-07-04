@@ -534,14 +534,25 @@ func (e *Evaluator) evalWithExpectedType(node ast.Node, expectedType types.Type,
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
 	className := node.ClassName.Value
 
-	// Evaluate constructor arguments
-	args := make([]Value, len(node.Arguments))
-	for i, arg := range node.Arguments {
-		val := e.Eval(arg, ctx)
-		if isError(val) {
-			return val
+	// evalArgsByValue evaluates the constructor arguments left to right.
+	// Deferred until the constructor declaration is known so that var/lazy
+	// parameters can be wrapped instead (see below).
+	argsEvaluated := false
+	var args []Value
+	evalArgsByValue := func() Value {
+		if argsEvaluated {
+			return nil
 		}
-		args[i] = val
+		argsEvaluated = true
+		args = make([]Value, len(node.Arguments))
+		for i, arg := range node.Arguments {
+			val := e.Eval(arg, ctx)
+			if isError(val) {
+				return val
+			}
+			args[i] = val
+		}
+		return nil
 	}
 
 	// Look up class in type system
@@ -549,6 +560,9 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	if classInfoAny == nil {
 		if recordTypeRaw := e.typeSystem.LookupRecord(className); recordTypeRaw != nil {
 			if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok && recordType.HasStaticMethod("Create") {
+				if errVal := evalArgsByValue(); errVal != nil {
+					return errVal
+				}
 				return e.callRecordStaticMethod(recordType, "Create", args, node, ctx)
 			}
 		}
@@ -594,6 +608,22 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		return e.newError(node, "cannot instantiate external class '%s' - external classes are not supported", className)
 	}
 
+	// Execute constructor: when the declaration is unambiguous and declares
+	// var/lazy parameters, wrap the arguments (by-ref references / lazy
+	// thunks) so writes inside the constructor reach the caller's variable
+	// (see fixture oop_field). Otherwise evaluate them by value.
+	constructor := classInfo.GetConstructor("Create")
+	if constructor != nil && !constructor.IsOverload && len(constructor.Parameters) == len(node.Arguments) && hasVarOrLazyParams(constructor) {
+		preparedArgs, err := e.prepareArgsForParameters(constructor.Parameters, node.Arguments, ctx)
+		if err != nil {
+			return e.newError(node, "%s", err.Error())
+		}
+		args = preparedArgs
+		argsEvaluated = true
+	} else if errVal := evalArgsByValue(); errVal != nil {
+		return errVal
+	}
+
 	// Create object instance
 	obj := runtime.NewObjectInstance(classInfo)
 
@@ -601,8 +631,6 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		return initErr
 	}
 
-	// Execute constructor
-	constructor := classInfo.GetConstructor("Create")
 	if constructor != nil {
 		if err := e.executeConstructorForObject(obj, "Create", args, node, ctx); err != nil {
 			return e.newError(node, "constructor failed: %v", err)
