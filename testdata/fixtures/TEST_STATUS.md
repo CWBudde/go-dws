@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 684 |
-| Failed | 1244 |
+| Passed | 729 |
+| Failed | 1199 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **35%** (684/1928) |
+| **Scored pass rate** | **38%** (729/1928) |
 
 ## Per-category
 
@@ -23,9 +23,9 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | Category | Total | Pass | Fail | Skip | Pass% |
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
-| ArrayPass | 115 | 69 | 46 | 0 | 60% |
+| ArrayPass | 115 | 92 | 23 | 0 | 80% |
 | AssociativeFail | 4 | 1 | 3 | 0 | 25% |
-| AssociativePass | 27 | 0 | 27 | 0 | 0% |
+| AssociativePass | 27 | 3 | 24 | 0 | 11% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
 | AutoFormat | 10 | 0 | 0 | 10 | 0% |
 | BigInteger | 16 | 0 | 16 | 0 | 0% |
@@ -48,14 +48,14 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | FunctionsMath3D | 2 | 0 | 2 | 0 | 0% |
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
 | FunctionsRTTI | 6 | 0 | 6 | 0 | 0% |
-| FunctionsString | 58 | 51 | 7 | 0 | 88% |
+| FunctionsString | 58 | 52 | 6 | 0 | 90% |
 | FunctionsTime | 30 | 1 | 26 | 3 | 4% |
 | FunctionsVariant | 10 | 0 | 9 | 1 | 0% |
 | GenericsFail | 8 | 0 | 8 | 0 | 0% |
-| GenericsPass | 23 | 12 | 11 | 0 | 52% |
+| GenericsPass | 23 | 13 | 10 | 0 | 57% |
 | GraphicsLib | 4 | 0 | 4 | 0 | 0% |
 | HelpersFail | 18 | 0 | 18 | 0 | 0% |
-| HelpersPass | 27 | 13 | 14 | 0 | 48% |
+| HelpersPass | 27 | 22 | 5 | 0 | 81% |
 | IniFileLib | 2 | 0 | 2 | 0 | 0% |
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
 | InnerClassesPass | 2 | 0 | 2 | 0 | 0% |
@@ -77,8 +77,8 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | PropertyExpressionsFail | 10 | 0 | 10 | 0 | 0% |
 | PropertyExpressionsPass | 19 | 0 | 19 | 0 | 0% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
-| SetOfPass | 25 | 14 | 11 | 0 | 56% |
-| SimpleScripts | 442 | 287 | 148 | 7 | 66% |
+| SetOfPass | 25 | 20 | 5 | 0 | 80% |
+| SimpleScripts | 442 | 289 | 146 | 7 | 66% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |
