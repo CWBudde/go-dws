@@ -29,6 +29,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cwbudde/go-dws/internal/encoding"
 )
 
 const fixturesBase = "testdata/fixtures"
@@ -222,11 +224,11 @@ func evaluate(cli string, items []workItem, timeout time.Duration) []result {
 // evaluateOne scores a single fixture.
 func evaluateOne(cli string, it workItem, timeout time.Duration) result {
 	name := strings.TrimSuffix(filepath.Base(it.pasFile), ".pas")
-	expBytes, err := os.ReadFile(it.txtFile)
+	expContent, err := encoding.DecodeFile(it.txtFile)
 	if err != nil {
 		return result{category: it.category, name: name, noExp: true}
 	}
-	expected := normalize(string(expBytes))
+	expected := normalize(expContent)
 	got := normalize(runOne(cli, it.pasFile, timeout))
 	if got == expected {
 		return result{category: it.category, name: name, pass: true}
