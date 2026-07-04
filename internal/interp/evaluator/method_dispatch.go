@@ -491,7 +491,10 @@ func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Va
 		return e.newError(node, "internal error: OBJECT value is not *runtime.ObjectInstance")
 	}
 
-	if objInst.Destroyed {
+	// Only an explicit Free/Destroy makes later method calls an error; objects
+	// reclaimed eagerly by refcount cleanup stay callable (go-dws can release
+	// them earlier than DWScript would), consistent with the member-access path.
+	if objInst.ExplicitlyFreed {
 		return e.newError(methodNameErrorNode(node), "Object already destroyed")
 	}
 

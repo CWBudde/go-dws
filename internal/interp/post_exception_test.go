@@ -99,6 +99,72 @@ PrintLn('after');
 	}
 }
 
+// TestNilReceiverVarParamBindsByRef verifies that a non-virtual method
+// dispatched on a nil receiver still binds var parameters by reference:
+// DWScript resolves parameter modes statically from the receiver's declared
+// type, so a nil Self must not degrade the call to by-value argument passing.
+func TestNilReceiverVarParamBindsByRef(t *testing.T) {
+	input := `
+type TMyObj = class
+   procedure SetX(var x : Integer);
+end;
+procedure TMyObj.SetX(var x : Integer);
+begin
+   x := 42;
+end;
+var o : TMyObj;
+var v := 1;
+o.SetX(v);
+PrintLn(v);
+`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	if !strings.Contains(output, "42") {
+		t.Errorf("expected var parameter write-back through nil dispatch (42), got:\n%s", output)
+	}
+}
+
+// TestRefcountReclaimedObjectMethodCallStillWorks verifies that method calls on
+// an object whose destructor ran through automatic refcount cleanup (not an
+// explicit Free/Destroy) still succeed, consistent with the member-access path:
+// go-dws can reclaim eagerly where DWScript keeps objects alive, so only
+// explicit destruction makes later use an error.
+func TestRefcountReclaimedObjectMethodCallStillWorks(t *testing.T) {
+	input := `
+type TList = class
+   Field : array of String;
+   function GetCount : Integer;
+end;
+function TList.GetCount : Integer;
+begin
+   Result := Field.Length;
+end;
+type TContainer = class
+   A : array of TList;
+end;
+var c := new TContainer;
+var i := new TList;
+i.Field.Add('a', 'b');
+c.A.Add(i);
+i := new TList;
+i.Field.Add('c', 'd', 'e');
+c.A.Add(i);
+for var list in c.A do
+   PrintLn(list.GetCount);
+`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	if !strings.Contains(output, "2") || !strings.Contains(output, "3") {
+		t.Errorf("expected method calls on refcount-reclaimed objects to work (2, 3), got:\n%s", output)
+	}
+}
+
 // TestExplicitlyFreedObjectAccessIsCatchable verifies that accessing a member
 // of an explicitly freed object raises a catchable "Object already destroyed".
 func TestExplicitlyFreedObjectAccessIsCatchable(t *testing.T) {
