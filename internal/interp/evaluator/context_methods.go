@@ -6,6 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -159,6 +160,27 @@ func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 	// Create and set exception
 	exc := runtime.NewException(metadata, instance, message, nil, ctx.CallStack())
 	ctx.SetException(exc)
+}
+
+// RaiseException raises a DWScript exception so try/except blocks can handle it.
+// Implements the builtins.Context raiser interface (mirrors Interpreter.RaiseException),
+// so builtins running on the evaluator context raise catchable exceptions instead of
+// falling back to bare error values.
+func (e *Evaluator) RaiseException(className, message string, pos any) {
+	ctx := e.currentContext
+	if ctx == nil {
+		return // No context available, cannot raise exception
+	}
+
+	var lexerPos *lexer.Position
+	switch p := pos.(type) {
+	case *lexer.Position:
+		lexerPos = p
+	case lexer.Position:
+		lexerPos = &p
+	}
+
+	ctx.SetException(e.createException(className, message, lexerPos, ctx))
 }
 
 // EvalFunctionPointer executes a function pointer with given arguments.

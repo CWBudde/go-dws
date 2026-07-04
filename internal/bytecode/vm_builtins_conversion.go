@@ -130,7 +130,9 @@ func builtinInteger(vm *VM, args []Value) (Value, error) {
 	case ValueInt:
 		return arg, nil
 	case ValueFloat:
-		return IntValue(int64(math.Round(arg.AsFloat()))), nil
+		// Integer(<float>) rounds half-to-even, matching the AST evaluator
+		// and DWScript's Round() semantics (Integer(2.5) = 2).
+		return IntValue(int64(math.RoundToEven(arg.AsFloat()))), nil
 	case ValueBool:
 		if arg.AsBool() {
 			return IntValue(1), nil

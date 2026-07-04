@@ -29,6 +29,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cwbudde/go-dws/internal/encoding"
 )
 
 const fixturesBase = "testdata/fixtures"
@@ -222,11 +224,18 @@ func evaluate(cli string, items []workItem, timeout time.Duration) []result {
 // evaluateOne scores a single fixture.
 func evaluateOne(cli string, it workItem, timeout time.Duration) result {
 	name := strings.TrimSuffix(filepath.Base(it.pasFile), ".pas")
-	expBytes, err := os.ReadFile(it.txtFile)
+	expContent, err := encoding.DecodeFile(it.txtFile)
 	if err != nil {
-		return result{category: it.category, name: name, noExp: true}
+		// Only a missing .txt means "not scored". Any other read/decode error
+		// (e.g. malformed UTF-16) is a real problem and must count as a
+		// failure instead of silently shrinking the scored set.
+		if errors.Is(err, os.ErrNotExist) {
+			return result{category: it.category, name: name, noExp: true}
+		}
+		fmt.Fprintf(os.Stderr, "warning: %s: cannot decode expected output: %v\n", it.txtFile, err)
+		return result{category: it.category, name: name, fail: true}
 	}
-	expected := normalize(string(expBytes))
+	expected := normalize(expContent)
 	got := normalize(runOne(cli, it.pasFile, timeout))
 	if got == expected {
 		return result{category: it.category, name: name, pass: true}

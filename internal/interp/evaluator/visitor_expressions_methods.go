@@ -70,6 +70,28 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		}
 	}
 
+	// When the target method is unambiguous and declares var/lazy parameters,
+	// wrap the corresponding arguments (by-ref references / lazy thunks) so
+	// writes inside the method reach the caller's variable. This covers
+	// constructors and methods (e.g. TMyClass.Create(var x); see fixture
+	// oop_field). Overloaded methods keep the plain path: their resolution
+	// happens later during dispatch.
+	decl := lookupUnambiguousMethodDecl(obj, methodName, len(node.Arguments))
+	if decl == nil {
+		// A nil receiver can still statically dispatch a non-virtual method
+		// (see dispatchMethodOnNilObject); resolve the declaration from the
+		// receiver's static type so var/lazy arguments keep their by-ref
+		// binding on that path too.
+		decl = e.lookupNilReceiverMethodDecl(obj, node, len(node.Arguments))
+	}
+	if decl != nil {
+		args, err := e.prepareArgsForParameters(decl.Parameters, node.Arguments, ctx)
+		if err != nil {
+			return e.newError(node, "%s", err.Error())
+		}
+		return e.DispatchMethodCall(obj, methodName, args, node, ctx)
+	}
+
 	// Evaluate all arguments
 	args := make([]Value, len(node.Arguments))
 	for i, arg := range node.Arguments {
@@ -83,6 +105,80 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	// This provides unified error handling and consistent routing for all value types.
 	// See method_dispatch.go for full documentation of the dispatch architecture.
 	return e.DispatchMethodCall(obj, methodName, args, node, ctx)
+}
+
+// lookupUnambiguousMethodDecl resolves the declaration of a method call target
+// when it can be determined statically: the method is not overloaded and its
+// parameter count matches the call. Returns nil when the declaration cannot be
+// (or does not need to be) resolved; callers then evaluate arguments by value.
+// Only declarations that actually use var/lazy parameters are returned, so the
+// common case keeps the existing evaluation path.
+func lookupUnambiguousMethodDecl(obj Value, methodName string, argCount int) *ast.FunctionDecl {
+	var decl *ast.FunctionDecl
+
+	switch o := obj.(type) {
+	case ObjectValue:
+		if d, ok := o.GetMethodDecl(methodName).(*ast.FunctionDecl); ok && d != nil {
+			decl = d
+		} else if d, ok := o.GetClassMethodDecl(methodName).(*ast.FunctionDecl); ok && d != nil {
+			decl = d
+		}
+	case ClassMetaValue:
+		if classInfo := o.GetClassInfo(); classInfo != nil {
+			decl = classInfo.GetConstructor(methodName)
+			if decl == nil {
+				decl = classInfo.LookupMethod(methodName)
+			}
+			if decl == nil {
+				decl = classInfo.LookupClassMethod(methodName)
+			}
+		}
+	}
+
+	if decl == nil || decl.IsOverload || len(decl.Parameters) != argCount {
+		return nil
+	}
+	if hasVarOrLazyParams(decl) {
+		return decl
+	}
+	return nil
+}
+
+// lookupNilReceiverMethodDecl resolves the declaration for a method call on a
+// nil receiver via the receiver's static type. It mirrors the constraints of
+// lookupUnambiguousMethodDecl (not overloaded, matching arity, has var/lazy
+// parameters) and only returns declarations that the nil-dispatch path can
+// actually execute (non-virtual instance methods).
+func (e *Evaluator) lookupNilReceiverMethodDecl(obj Value, node *ast.MethodCallExpression, argCount int) *ast.FunctionDecl {
+	if obj == nil || obj.Type() != "NIL" {
+		return nil
+	}
+	classInfo := e.staticClassInfoForNilReceiver(obj, node.Object)
+	if classInfo == nil {
+		return nil
+	}
+	decl := classInfo.LookupMethod(node.Method.Value)
+	if decl == nil || !isNonVirtualInstanceMethod(classInfo, decl) {
+		return nil
+	}
+	if decl.IsOverload || len(decl.Parameters) != argCount {
+		return nil
+	}
+	if hasVarOrLazyParams(decl) {
+		return decl
+	}
+	return nil
+}
+
+// hasVarOrLazyParams reports whether a declaration has any var (by-ref) or
+// lazy parameter, i.e. whether argument preparation needs the declaration.
+func hasVarOrLazyParams(decl *ast.FunctionDecl) bool {
+	for _, param := range decl.Parameters {
+		if param.ByRef || param.IsLazy {
+			return true
+		}
+	}
+	return false
 }
 
 // VisitInheritedExpression evaluates an 'inherited' expression.

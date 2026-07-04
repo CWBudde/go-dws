@@ -96,7 +96,7 @@
 package evaluator
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -204,8 +204,7 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		if normalizedMethod == "free" {
 			return obj
 		}
-		// Nil object error - consistent behavior
-		return e.newError(node, "Object not instantiated")
+		return e.dispatchMethodOnNilObject(obj, methodName, args, node, ctx)
 
 	// ============================================================
 	// Helper-based dispatch (builtin/AST helper methods)
@@ -263,6 +262,85 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		}
 		return e.newError(node, "method '%s' not found for type '%s'", methodName, obj.Type())
 	}
+}
+
+// dispatchMethodOnNilObject implements DWScript's nil-receiver call semantics:
+//   - Non-virtual instance methods resolved from the receiver's static type are
+//     executed with Self = nil (the error only surfaces if Self is dereferenced
+//     inside the body).
+//   - Virtual methods, class methods, constructors and destructors require the
+//     instance's dynamic class and raise "Object not instantiated" at the method
+//     name's position.
+func (e *Evaluator) dispatchMethodOnNilObject(obj Value, methodName string, args []Value, node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
+	var objectExpr ast.Expression
+	if node != nil {
+		objectExpr = node.Object
+	}
+	if classInfo := e.staticClassInfoForNilReceiver(obj, objectExpr); classInfo != nil {
+		if method := classInfo.LookupMethod(methodName); method != nil && isNonVirtualInstanceMethod(classInfo, method) {
+			return e.executeMethodWithClassInfo(obj, classInfo, method, args, ctx)
+		}
+	}
+
+	// Virtual dispatch (or unknown static type) needs an instance.
+	return e.newError(methodNameErrorNode(node), "Object not instantiated")
+}
+
+// isNonVirtualInstanceMethod reports whether a method can be invoked on a nil
+// receiver: DWScript statically dispatches non-virtual instance methods, so
+// only virtual methods, class methods, constructors and destructors require an
+// instantiated object at the call site. The class's virtual method table is
+// consulted as well because method lookup may return the implementation
+// declaration, which does not carry the virtual/override flags.
+func isNonVirtualInstanceMethod(classInfo runtime.IClassInfo, method *ast.FunctionDecl) bool {
+	if method.IsVirtual || method.IsOverride || method.IsAbstract ||
+		method.IsClassMethod || method.IsConstructor || method.IsDestructor {
+		return false
+	}
+	if vmt := classInfo.GetVirtualMethodTable(); vmt != nil {
+		sig := ident.Normalize(method.Name.Value) + "_" + strconv.Itoa(len(method.Parameters))
+		if _, isVirtual := vmt[sig]; isVirtual {
+			return false
+		}
+	}
+	return true
+}
+
+// staticClassInfoForNilReceiver resolves the static class of a nil receiver,
+// using the typed nil's class when available and falling back to the semantic
+// analyzer's type annotation for the receiver expression.
+func (e *Evaluator) staticClassInfoForNilReceiver(obj Value, objectExpr ast.Expression) runtime.IClassInfo {
+	className := ""
+	if nilVal, ok := obj.(NilAccessor); ok {
+		className = nilVal.GetTypedClassName()
+	}
+	if className == "" && objectExpr != nil && e.SemanticInfo() != nil {
+		if typeAnnot := e.SemanticInfo().GetType(objectExpr); typeAnnot != nil {
+			className = typeAnnot.Name
+		}
+	}
+	if className == "" {
+		return nil
+	}
+	classInfo, _ := e.typeSystem.LookupClass(className).(runtime.IClassInfo)
+	return classInfo
+}
+
+// methodNameErrorNode picks the AST node whose position DWScript reports for
+// receiver errors (nil or destroyed object): the method/member name identifier
+// when available, otherwise the whole expression.
+func methodNameErrorNode(node ast.Node) ast.Node {
+	switch n := node.(type) {
+	case *ast.MethodCallExpression:
+		if n.Method != nil {
+			return n.Method
+		}
+	case *ast.MemberAccessExpression:
+		if n.Member != nil {
+			return n.Member
+		}
+	}
+	return node
 }
 
 func (e *Evaluator) callClassConstructor(classMeta ClassMetaValue, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
@@ -413,12 +491,11 @@ func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Va
 		return e.newError(node, "internal error: OBJECT value is not *runtime.ObjectInstance")
 	}
 
-	if objInst.Destroyed {
-		pos := node.Pos()
-		message := fmt.Sprintf("Object already destroyed [line: %d, column: %d]", pos.Line, pos.Column+1)
-		exc := e.createException("Exception", message, &pos, ctx)
-		ctx.SetException(exc)
-		return e.nilValue()
+	// Only an explicit Free/Destroy makes later method calls an error; objects
+	// reclaimed eagerly by refcount cleanup stay callable (go-dws can release
+	// them earlier than DWScript would), consistent with the member-access path.
+	if objInst.ExplicitlyFreed {
+		return e.newError(methodNameErrorNode(node), "Object already destroyed")
 	}
 
 	classInfo := objInst.Class
@@ -475,6 +552,7 @@ func (e *Evaluator) runObjectDestructor(obj *runtime.ObjectInstance, destructor 
 
 	if destructor == nil {
 		obj.Destroyed = true
+		obj.ExplicitlyFreed = true
 		obj.RefCount = 0
 		return e.nilValue()
 	}
@@ -484,6 +562,7 @@ func (e *Evaluator) runObjectDestructor(obj *runtime.ObjectInstance, destructor 
 		obj.DestroyCallDepth--
 		if obj.DestroyCallDepth == 0 {
 			obj.Destroyed = true
+			obj.ExplicitlyFreed = true
 			obj.RefCount = 0
 		}
 	}()

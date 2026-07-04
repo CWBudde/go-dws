@@ -176,32 +176,32 @@ func TestBuiltinMathFunctionsAdditional(t *testing.T) {
 	})
 
 	t.Run("LogN base 2 of 8", func(t *testing.T) {
-		result, err := builtinLogN(vm, []Value{FloatValue(8.0), FloatValue(2.0)})
+		result, err := builtinLogN(vm, []Value{FloatValue(2.0), FloatValue(8.0)})
 		if err != nil {
 			t.Fatalf("builtinLogN() error = %v", err)
 		}
 		if result.AsFloat() != 3.0 {
-			t.Errorf("builtinLogN(8, 2) = %v, want 3.0", result.AsFloat())
+			t.Errorf("builtinLogN(2, 8) = %v, want 3.0", result.AsFloat())
 		}
 	})
 
 	t.Run("LogN base 10 of 100", func(t *testing.T) {
-		result, err := builtinLogN(vm, []Value{FloatValue(100.0), FloatValue(10.0)})
+		result, err := builtinLogN(vm, []Value{FloatValue(10.0), FloatValue(100.0)})
 		if err != nil {
 			t.Fatalf("builtinLogN() error = %v", err)
 		}
 		if result.AsFloat() != 2.0 {
-			t.Errorf("builtinLogN(100, 10) = %v, want 2.0", result.AsFloat())
+			t.Errorf("builtinLogN(10, 100) = %v, want 2.0", result.AsFloat())
 		}
 	})
 
 	t.Run("LogN with ints", func(t *testing.T) {
-		result, err := builtinLogN(vm, []Value{IntValue(8), IntValue(2)})
+		result, err := builtinLogN(vm, []Value{IntValue(2), IntValue(8)})
 		if err != nil {
 			t.Fatalf("builtinLogN() error = %v", err)
 		}
 		if result.AsFloat() != 3.0 {
-			t.Errorf("builtinLogN(8, 2) = %v, want 3.0", result.AsFloat())
+			t.Errorf("builtinLogN(2, 8) = %v, want 3.0", result.AsFloat())
 		}
 	})
 

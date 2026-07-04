@@ -947,6 +947,15 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 			// Save the current exception state
 			savedExc := ctx.Exception()
 
+			// Save and suspend any pending control-flow signal (Exit/Break/
+			// Continue) so the finally block runs completely. Without this,
+			// an Exit raised in the try block would make the finally block
+			// stop after its first statement, or be swallowed by a function
+			// call inside the finally block (see fixtures exit_finally,
+			// exit_finally2).
+			savedFlow := ctx.ControlFlow().Kind()
+			ctx.ControlFlow().Clear()
+
 			// Set ExceptObject to the current exception in finally block
 			oldExceptObject, _ := ctx.Env().Get("ExceptObject")
 			if savedExc != nil {
@@ -969,13 +978,25 @@ func (e *Evaluator) VisitTryStatement(node *ast.TryStatement, ctx *ExecutionCont
 			}
 			// else: finally raised an exception, keep it (it replaces the original)
 
+			// Re-arm the suspended control-flow signal unless the finally
+			// block itself raised a new one (which takes precedence).
+			if !ctx.ControlFlow().IsActive() {
+				ctx.ControlFlow().Restore(savedFlow)
+			}
+
 			// Restore ExceptObject
 			ctx.Env().Set("ExceptObject", oldExceptObject)
 		}()
 	}
 
 	// Execute try block
-	e.Eval(node.TryBlock, ctx)
+	tryResult := e.Eval(node.TryBlock, ctx)
+
+	// Runtime errors (ErrorValue) raised inside the try block are catchable in
+	// DWScript: convert them into a script exception so except handlers see them.
+	if isError(tryResult) && ctx.Exception() == nil {
+		e.raiseErrorValueAsException(tryResult, currentRoutineName(ctx), ctx)
+	}
 
 	// If an exception occurred, try to handle it
 	if ctx.Exception() != nil {
@@ -1081,10 +1102,31 @@ func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *Execution
 		return excVal
 	}
 
+	// Raising a nil exception reference raises "Object not instantiated",
+	// reported just past the raised expression (DWScript reports the parser's
+	// position after consuming the expression).
+	if excVal == nil || excVal.Type() == "NIL" {
+		pos := raisedExpressionEndPos(node.Exception)
+		message := fmt.Sprintf("Object not instantiated [line: %d, column: %d]", pos.Line, pos.Column)
+		ctx.SetException(e.createException("Exception", message, nil, ctx))
+		return nil
+	}
+
 	excObj := e.createExceptionFromObject(excVal, ctx, node.Pos())
 	ctx.SetException(excObj)
 
 	return nil
+}
+
+// raisedExpressionEndPos approximates the source position immediately after a
+// raised expression (identifiers advance by their length; other expressions
+// fall back to their start position).
+func raisedExpressionEndPos(expr ast.Expression) token.Position {
+	pos := expr.Pos()
+	if identExpr, ok := expr.(*ast.Identifier); ok {
+		pos.Column += len(identExpr.Value)
+	}
+	return pos
 }
 
 // matchesExceptionType checks if an exception matches a handler's exception type.

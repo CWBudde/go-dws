@@ -105,9 +105,13 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 					}
 				}
 			}
-		} else {
-			// No setter (rvalue), cannot assign to a member of a nil value.
-			return e.newError(stmt, "cannot assign to member of a nil value")
+		}
+
+		// Still nil after any auto-initialization: assigning to an instance
+		// member of a nil reference raises "Object not instantiated" at the
+		// member's position (catchable with try/except).
+		if objVal == nil || objVal.Type() == "NIL" {
+			return e.newError(target.Member, "Object not instantiated")
 		}
 	}
 

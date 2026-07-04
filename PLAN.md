@@ -294,6 +294,29 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       no category regressed. Remaining fails are separate features (anonymous inline enums in
       `set of (A,B,C)`, array↔set conversion, `set of` record fields, out-of-range diagnostics).
 - [ ] Work the 88 wrong-output fixtures (e.g. `casts_base_types` rounding, `case_variant`).
+      **First batch of root causes closed (2026-07-04): 28 fixtures, overall 485 → 513 (CLI).**
+      (1) *Measurement*: the CLI `run` command and `cmd/fixture-report` read files raw while the
+      internal harness BOM-decodes them — extracted `internal/encoding` (UTF-8 BOM / UTF-16 LE/BE /
+      Latin-1 fallback) and wired it into both; closes `char_in`, `unicode_const`, `string_aggregate`,
+      `FunctionsString/case`, `strsplit(2)`, `strjoin`, `strisascii`, `bytesizetostring`,
+      `aes_encryption`, `sparse_matmult`. (2) `Integer(<float>)` casts round half-to-even instead of
+      truncating (`casts_base_types`). (3) `IsInRange` unwraps Variants so `case v of 11..12` matches
+      (`case_variant`). (4) Enum `.Name`/`.QualifiedName` print `?` for unnamed ordinals
+      (`enumerations_names`, `enumerations_qualifiednames`). (5) Builtins aligned with DWScript:
+      `LogN(Base,X)` argument order, niladic `MaxInt` = High(Int32), `LeastFactor(n<=0)=0`,
+      `FindDelimiter` not-found = -1, `RevPos('')=0`, `VarToFloatDef` Null→0 + comma decimals
+      (`FunctionsMath/basic`, `maxint`, `least_factor`, `delimiters`, `pos_posex`, `vartofloat`).
+      (6) Object references compare by identity, not rendered string (`oop_compare`, `array_in`).
+      (7) `str in ['a'..'z', ...]` compares whole strings lexicographically per range
+      (`string_in_op3`). (8) try/finally suspends+re-arms pending Exit so finally blocks run fully
+      and Exit still propagates (`exit_finally`, `exit_finally2`). (9) `IndexOf` clamps negative
+      fromIndex (`indexof_from_static`). (10) Constructor/method `var` params bind by reference when
+      the declaration is unambiguous (`oop_field`). Baselines ratcheted: SimpleScripts 259 → 268,
+      FunctionsMath 21 → 24, FunctionsString 42 → 45, ArrayPass 65 → 67; no category regressed.
+      Remaining wrong-output fails are mostly hint/warning-envelope emission (case-mismatch hints,
+      `Empty THEN block`, deprecation warnings), field shadowing per-class storage (`field_scope`),
+      overload-set resolution across scopes (`OverloadsPass/*`), heredoc/triple-quote lexing, and
+      UTF-16 surrogate iteration (`for_in_str(2)`).
 - [~] Work the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch, `class of`).
       **Metaclass member access closed for the common cases (2026-07-03).** (1) Member access on
       a `class of X` metaclass value (`runtime.TypeMetaValue` wrapping a `*types.ClassOfType`) now
@@ -312,8 +335,26 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       (`internal/interp/evaluator/helper_methods.go`) is consulted in the `TYPE_META` member
       path. Fixes `HelpersPass/string_consts`, `static_array_helper`; HelpersPass 13 → 15,
       overall 483 → 485 (CLI); no category regressed.
-- [ ] Post-exception continuation semantics (`assigned.pas` expects execution to continue after a
-      caught runtime error) and BOM-preserving output.
+- [x] Post-exception continuation semantics (`assigned.pas` expects execution to continue after a
+      caught runtime error) and BOM-preserving output. **(A) Runtime errors are catchable
+      exceptions.** Nil-receiver access (member read/write, method call), explicitly-freed-object
+      access, and `raise nil` now raise `Object not instantiated` / `Object already destroyed` as
+      script exceptions (`try/except` catches them; execution continues) instead of aborting the
+      program. Non-virtual methods still dispatch on a nil receiver (the error only surfaces when
+      the body dereferences `Self`), matching DWScript; the routine name is spliced into the
+      message (`… in TMyObj.Proc [line: …]`) and the position is the member/method identifier.
+      Runtime errors escaping a `try` block or a routine body are converted to catchable
+      exceptions at those boundaries (`visitor_statements.go`, `user_function_helpers.go`);
+      method call stack frames are now class-qualified. Also: `new Integer[0]` is legal (empty
+      array), and collection builtins materialize never-written static-array slots to the element
+      zero value. `RaiseException` is implemented on the evaluator context so builtins
+      (`StrToInt`, etc.) raise catchable exceptions. Fixes SimpleScripts `assigned`, `self`,
+      `destroy`, `raise_nil`, plus 6 FunctionsString exception fixtures. **(B) BOM output** needs
+      no new code: the stacked #342 input decoding already strips BOMs when reading both source
+      and expected `.txt`, so BOM-carrying fixtures (`string_aggregate`, `char_in`,
+      `unicode_const`) match; no fixture requires a BOM to survive to output. Harness baselines:
+      FunctionsString 45 → 51, SimpleScripts 268 → 272; no category regressed; the 11 EncodingLib
+      fixtures from #342 unaffected.
 - **Exit criteria:** ArrayPass/SetOfPass/HelpersPass/OverloadsPass ≥ 80%.
 
 ### Deferred ⏸️ — do not start until core compatibility ≥ 80%

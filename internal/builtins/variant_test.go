@@ -230,6 +230,32 @@ func TestVarToFloatDef(t *testing.T) {
 	if floatVal.Value != 1.25 {
 		t.Fatalf("expected default 1.25, got %f", floatVal.Value)
 	}
+
+	// Null converts to 0 (Delphi semantics), not the default
+	result = VarToFloatDef(ctx, []Value{
+		&runtime.NullValue{},
+		&runtime.FloatValue{Value: 1.25},
+	})
+	floatVal, ok = result.(*runtime.FloatValue)
+	if !ok {
+		t.Fatalf("expected FloatValue, got %T", result)
+	}
+	if floatVal.Value != 0 {
+		t.Fatalf("expected 0 for Null, got %f", floatVal.Value)
+	}
+
+	// Comma decimal separator is accepted for locale-style input
+	result = VarToFloatDef(ctx, []Value{
+		&runtime.StringValue{Value: "3,5"},
+		&runtime.FloatValue{Value: 1.25},
+	})
+	floatVal, ok = result.(*runtime.FloatValue)
+	if !ok {
+		t.Fatalf("expected FloatValue, got %T", result)
+	}
+	if floatVal.Value != 3.5 {
+		t.Fatalf("expected 3.5 for '3,5', got %f", floatVal.Value)
+	}
 }
 
 func TestVarIsArray(t *testing.T) {

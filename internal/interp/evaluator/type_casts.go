@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -112,8 +113,9 @@ func (e *Evaluator) castToInteger(val Value) Value {
 	case *runtime.IntegerValue:
 		return v
 	case *runtime.FloatValue:
-		// DWScript Integer() truncates toward zero
-		return &runtime.IntegerValue{Value: int64(v.Value)}
+		// DWScript Integer() rounds like Round(): half-to-even (banker's rounding),
+		// e.g. Integer(1.5) = 2 and Integer(2.5) = 2 (see fixture casts_base_types).
+		return &runtime.IntegerValue{Value: int64(math.RoundToEven(v.Value))}
 	case *runtime.BooleanValue:
 		if v.Value {
 			return &runtime.IntegerValue{Value: 1}

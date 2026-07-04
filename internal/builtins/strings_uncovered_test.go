@@ -206,7 +206,7 @@ func TestRevPos(t *testing.T) {
 			name:     "empty substring",
 			substr:   "",
 			str:      "Hello",
-			expected: 6, // RevPos returns len(haystack) + 1 for empty needle
+			expected: 0, // DWScript returns 0 for an empty needle
 		},
 	}
 
@@ -450,7 +450,7 @@ func TestFindDelimiter(t *testing.T) {
 			delimiters: "/",
 			str:        "no-delimiters",
 			startPos:   1,
-			expected:   0,
+			expected:   -1, // DWScript's FindDelimiter returns -1 when not found
 		},
 	}
 

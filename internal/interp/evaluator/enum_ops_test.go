@@ -411,3 +411,25 @@ func TestEvalEnumBinaryOpErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestEnumDisplayName verifies that unnamed enum ordinals (empty name or the
+// "$<ordinal>" placeholder produced by out-of-range casts) display as "?".
+func TestEnumDisplayName(t *testing.T) {
+	tests := []struct {
+		name     string
+		enumVal  *runtime.EnumValue
+		expected string
+	}{
+		{"declared name", &runtime.EnumValue{TypeName: "TColor", ValueName: "Red", OrdinalValue: 0}, "Red"},
+		{"empty name", &runtime.EnumValue{TypeName: "TColor", ValueName: "", OrdinalValue: 42}, "?"},
+		{"placeholder name", &runtime.EnumValue{TypeName: "TColor", ValueName: "$9", OrdinalValue: 9}, "?"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := enumDisplayName(tt.enumVal); got != tt.expected {
+				t.Errorf("enumDisplayName() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}

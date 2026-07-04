@@ -39,8 +39,9 @@ func (e *Evaluator) evaluateDimensions(dimensions []ast.Expression, ctx *Executi
 			return nil, e.newError(node, "dimension %d: %v", idx, err)
 		}
 
-		if dimSize <= 0 {
-			return nil, e.newError(node, "array dimension must be positive, got %d", dimSize)
+		// Zero-size dynamic arrays are legal in DWScript (new Integer[0]).
+		if dimSize < 0 {
+			return nil, e.newError(node, "array dimension must be non-negative, got %d", dimSize)
 		}
 
 		dimSizes[idx] = dimSize
@@ -1383,6 +1384,10 @@ func compareValuesByType(a, b Value) bool {
 		return true
 	case *runtime.RecordValue:
 		return compareRecord(left, b)
+	case *runtime.ObjectInstance:
+		// Object references compare by identity, not by content
+		right, ok := b.(*runtime.ObjectInstance)
+		return ok && left == right
 	default:
 		return a.String() == b.String()
 	}

@@ -32,6 +32,16 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 		return e.newError(node.Left, "left operand evaluated to nil")
 	}
 
+	// DWScript's 'in' with a bracket list on the right and a string on the left
+	// compares whole strings against the list (ranges compare lexicographically:
+	// 'alpha' in ['a'..'z'] is True). Intercept before the bracket literal is
+	// converted to a char set, which would lose the range information.
+	if node.Operator == "in" {
+		if result, handled := e.evalStringInBracketList(left, node.Right, ctx); handled {
+			return result
+		}
+	}
+
 	right := e.Eval(node.Right, ctx)
 	if isError(right) {
 		return right

@@ -402,6 +402,30 @@ func TestInvokeMethodArrayIndexOfWithStartDirect(t *testing.T) {
 	}
 }
 
+// TestInvokeMethodArrayIndexOfNegativeStartDirect verifies that a fromIndex
+// below the low bound is clamped to the start of the array (DWScript
+// semantics, mirrors runtime.ArrayHelperIndexOf).
+func TestInvokeMethodArrayIndexOfNegativeStartDirect(t *testing.T) {
+	vm := &VM{}
+	vm.stack = make([]Value, 0, 256)
+
+	arr := NewArrayInstance(nil)
+	arr.Resize(4)
+	for i, v := range []int64{0, 1, 0, 1} {
+		arr.Set(i, IntValue(v))
+	}
+
+	err := vm.invokeMethod(ArrayValue(arr), "IndexOf", []Value{IntValue(1), IntValue(-5)})
+	if err != nil {
+		t.Errorf("invokeMethod(IndexOf with negative start) error = %v", err)
+	}
+
+	result, _ := vm.pop()
+	if result.AsInt() != 1 {
+		t.Errorf("IndexOf(1, -5) = %d, want 1 (negative start clamps to 0)", result.AsInt())
+	}
+}
+
 // TestInvokeMethodArrayDeleteEdgeCases tests edge cases for Array.Delete
 func TestInvokeMethodArrayDeleteEdgeCases(t *testing.T) {
 	tests := []struct {

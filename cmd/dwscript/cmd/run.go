@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/bytecode"
+	"github.com/cwbudde/go-dws/internal/encoding"
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/generics"
 	"github.com/cwbudde/go-dws/internal/interp"
@@ -178,11 +179,13 @@ func runScript(_ *cobra.Command, args []string) error {
 			return runBytecodeFile(filename)
 		}
 
-		content, err := os.ReadFile(filename)
+		content, err := encoding.DecodeFile(filename)
 		if err != nil {
-			return fmt.Errorf("failed to read file %s: %w", filename, err)
+			// DecodeFile wraps the underlying cause (read failure or a
+			// BOM/UTF-16 decoding error), so it stays visible in the chain.
+			return fmt.Errorf("failed to load script %s: %w", filename, err)
 		}
-		input = string(content)
+		input = content
 	} else {
 		return fmt.Errorf("either provide a file path or use -e flag for inline code")
 	}

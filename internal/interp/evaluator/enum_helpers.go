@@ -60,11 +60,18 @@ func (e *Evaluator) evalEnumName(selfValue Value, args []Value, node ast.Node) V
 		return e.newError(node, "Enum.Name property requires enum receiver")
 	}
 
-	// If the enum value doesn't have a name (invalid ordinal), return "?"
-	if enumVal.ValueName == "" {
-		return &runtime.StringValue{Value: "?"}
+	return &runtime.StringValue{Value: enumDisplayName(enumVal)}
+}
+
+// enumDisplayName returns the declared name of an enum value, or "?" when the
+// ordinal has no declared name (DWScript prints "?" for such values). Unnamed
+// ordinals carry either an empty name or a "$<ordinal>" placeholder produced
+// by casts like TEnum(42); '$' can never start a declared identifier.
+func enumDisplayName(enumVal *runtime.EnumValue) string {
+	if enumVal.ValueName == "" || enumVal.ValueName[0] == '$' {
+		return "?"
 	}
-	return &runtime.StringValue{Value: enumVal.ValueName}
+	return enumVal.ValueName
 }
 
 // evalEnumQualifiedName implements Enum.QualifiedName property.
@@ -82,9 +89,5 @@ func (e *Evaluator) evalEnumQualifiedName(selfValue Value, args []Value, node as
 
 	// Return TypeName.ValueName (e.g., "TColor.Red")
 	// If the enum value doesn't have a name (invalid ordinal), return "TypeName.?"
-	valueName := enumVal.ValueName
-	if valueName == "" {
-		valueName = "?"
-	}
-	return &runtime.StringValue{Value: enumVal.TypeName + "." + valueName}
+	return &runtime.StringValue{Value: enumVal.TypeName + "." + enumDisplayName(enumVal)}
 }
