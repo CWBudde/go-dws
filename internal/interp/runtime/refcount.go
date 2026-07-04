@@ -40,6 +40,10 @@ type DestructorCallback func(obj *ObjectInstance) error
 type defaultRefCountManager struct {
 	destructorCallback DestructorCallback
 	mu                 sync.RWMutex // Protects callback
+	// refMu guards RefCount mutations made through this manager's methods.
+	// Code that mutates ObjectInstance.RefCount directly (single-threaded
+	// interpreter paths) is not covered by this lock.
+	refMu sync.Mutex
 }
 
 // NewRefCountManager creates a default reference count manager.
@@ -53,14 +57,19 @@ func (m *defaultRefCountManager) IncrementRef(val Value) Value {
 		return val
 	}
 
+	m.refMu.Lock()
+	defer m.refMu.Unlock()
+
 	switch v := val.(type) {
 	case *ObjectInstance:
 		if v != nil {
 			v.RefCount++
+			v.destructorClaimed = false
 		}
 	case *InterfaceInstance:
 		if v != nil && v.Object != nil {
 			v.Object.RefCount++
+			v.Object.destructorClaimed = false
 		}
 	}
 
@@ -85,13 +94,22 @@ func (m *defaultRefCountManager) DecrementRef(val Value) Value {
 		return nil
 	}
 
+	m.refMu.Lock()
 	obj.RefCount--
 	if obj.RefCount < 0 {
 		obj.RefCount = 0
 	}
+	// Claim the drop to zero exactly once, so concurrent last-releases
+	// cannot both invoke the destructor callback.
+	reachedZero := obj.RefCount <= 0 && !obj.destructorClaimed
+	if reachedZero {
+		obj.destructorClaimed = true
+	}
+	m.refMu.Unlock()
 
-	// Invoke destructor when ref count reaches 0
-	if obj.RefCount <= 0 {
+	// Invoke destructor when ref count reaches 0. The callback runs outside
+	// refMu so a destructor body that releases other references cannot deadlock.
+	if reachedZero {
 		m.mu.RLock()
 		callback := m.destructorCallback
 		m.mu.RUnlock()
@@ -126,7 +144,10 @@ func (m *defaultRefCountManager) WrapInInterface(iface InterfaceInfo, obj *Objec
 		Object:    obj,
 	}
 	if obj != nil {
+		m.refMu.Lock()
 		obj.RefCount++
+		obj.destructorClaimed = false
+		m.refMu.Unlock()
 	}
 	return intf
 }

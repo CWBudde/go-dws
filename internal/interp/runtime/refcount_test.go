@@ -641,6 +641,46 @@ func Test_RefCount_Concurrency(t *testing.T) {
 	}
 }
 
+// Test_RefCount_ConcurrentLastRelease verifies the destructor callback fires
+// exactly once when multiple goroutines release the final references together.
+func Test_RefCount_ConcurrentLastRelease(t *testing.T) {
+	const rounds = 200
+	const releasers = 4
+
+	for round := 0; round < rounds; round++ {
+		mgr := NewRefCountManager()
+
+		callCount := 0
+		var mu sync.Mutex
+		mgr.SetDestructorCallback(func(obj *ObjectInstance) error {
+			mu.Lock()
+			callCount++
+			mu.Unlock()
+			return nil
+		})
+
+		obj := &ObjectInstance{
+			Class:    &mockClassInfo{name: "TestClass"},
+			Fields:   make(map[string]Value),
+			RefCount: releasers,
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(releasers)
+		for i := 0; i < releasers; i++ {
+			go func() {
+				defer wg.Done()
+				mgr.DecrementRef(obj)
+			}()
+		}
+		wg.Wait()
+
+		if callCount != 1 {
+			t.Fatalf("round %d: destructor called %d times, want exactly 1", round, callCount)
+		}
+	}
+}
+
 // Test_RefCount_DestructorCallback_Concurrency tests thread safety of destructor callback
 func Test_RefCount_DestructorCallback_Concurrency(t *testing.T) {
 	mgr := NewRefCountManager()
