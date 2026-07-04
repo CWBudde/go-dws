@@ -324,6 +324,12 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		args[idx] = val
 	}
 
+	// If evaluating an argument raised an exception (e.g. a failed type cast
+	// inside the argument list), the call must not run.
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
+
 	// Call built-in function from registry
 	if fn, ok := builtins.DefaultRegistry.Lookup(funcName.Value); ok {
 		return fn(e, args)

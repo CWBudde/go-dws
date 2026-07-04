@@ -504,7 +504,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 			return nil, err
 		}
 		if !e.isClassHierarchyCompatible(objClassMeta, targetClassMeta) {
-			return nil, fmt.Errorf("instance of type \"%s\" cannot be cast to class \"%s\"", objClassMeta.Name, typeName)
+			return nil, fmt.Errorf("Cannot cast instance of type \"%s\" to class \"%s\"", objClassMeta.Name, typeName)
 		}
 
 		// Cast is valid - return the same object

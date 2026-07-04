@@ -189,7 +189,7 @@ func (i *Interpreter) CastType(obj Value, typeName string) (Value, error) {
 		// Need concrete ClassInfo for isClassCompatible
 		if concreteClass, ok := objVal.Class.(*ClassInfo); ok {
 			if !isClassCompatible(concreteClass, targetClass) {
-				return nil, fmt.Errorf("instance of type '%s' cannot be cast to class '%s'", objVal.Class.GetName(), targetClass.Name)
+				return nil, fmt.Errorf("Cannot cast instance of type \"%s\" to class \"%s\"", objVal.Class.GetName(), targetClass.Name)
 			}
 		} else {
 			return nil, fmt.Errorf("object has invalid class type")
