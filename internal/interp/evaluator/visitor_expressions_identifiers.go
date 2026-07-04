@@ -300,10 +300,15 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			return createFunctionPointerFromDecl(fn, ctx.Env())
 		}
 
-		// Check if function has zero parameters - auto-invoke
-		if len(fn.Parameters) == 0 {
+		// Check if function is callable with no arguments (zero parameters or
+		// all parameters defaulted) - auto-invoke
+		if allParametersHaveDefaults(fn) {
+			args, err := e.EvaluateDefaultParameters(fn, []Value{}, ctx)
+			if err != nil {
+				return e.newError(node, "%s", err.Error())
+			}
 			// Delegate to adapter for proper exception handling
-			return e.ExecuteUserFunctionDirect(fn, []Value{}, ctx)
+			return e.ExecuteUserFunctionDirect(fn, args, ctx)
 		}
 
 		// Function has parameters - create function pointer
@@ -527,4 +532,15 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 	e.cleanupInterfaceReferences(ctx.Env())
 
 	return resultValue
+}
+
+// allParametersHaveDefaults reports whether a function can be invoked with no
+// arguments: it has no parameters, or every parameter has a default value.
+func allParametersHaveDefaults(fn *ast.FunctionDecl) bool {
+	for _, param := range fn.Parameters {
+		if param.DefaultValue == nil {
+			return false
+		}
+	}
+	return true
 }
