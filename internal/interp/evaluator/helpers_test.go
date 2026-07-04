@@ -125,3 +125,52 @@ func TestUnwrapVariant(t *testing.T) {
 		t.Errorf("unwrapVariant of nil variant should return UnassignedValue, got %T", unwrappedNil)
 	}
 }
+
+// TestIsInRange_VariantUnwrap verifies that range checks unwrap Variant-wrapped
+// selectors and bounds (case v of 11..12 with v: Variant, see fixture case_variant).
+func TestIsInRange_VariantUnwrap(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    Value
+		start    Value
+		end      Value
+		expected bool
+	}{
+		{
+			name:     "variant integer inside range",
+			value:    &runtime.VariantValue{Value: &runtime.IntegerValue{Value: 12}},
+			start:    &runtime.IntegerValue{Value: 11},
+			end:      &runtime.IntegerValue{Value: 12},
+			expected: true,
+		},
+		{
+			name:     "variant integer outside range",
+			value:    &runtime.VariantValue{Value: &runtime.IntegerValue{Value: 10}},
+			start:    &runtime.IntegerValue{Value: 11},
+			end:      &runtime.IntegerValue{Value: 12},
+			expected: false,
+		},
+		{
+			name:     "variant bounds",
+			value:    &runtime.IntegerValue{Value: 5},
+			start:    &runtime.VariantValue{Value: &runtime.IntegerValue{Value: 1}},
+			end:      &runtime.VariantValue{Value: &runtime.IntegerValue{Value: 9}},
+			expected: true,
+		},
+		{
+			name:     "variant string in char range",
+			value:    &runtime.VariantValue{Value: &runtime.StringValue{Value: "c"}},
+			start:    &runtime.StringValue{Value: "a"},
+			end:      &runtime.StringValue{Value: "z"},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsInRange(tt.value, tt.start, tt.end); got != tt.expected {
+				t.Errorf("IsInRange() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
