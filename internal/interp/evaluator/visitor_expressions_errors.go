@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -33,4 +34,44 @@ func isError(val Value) bool {
 		return val.Type() == "ERROR"
 	}
 	return false
+}
+
+// spliceRoutineNameIntoError inserts " in <routine>" before the trailing
+// " [line: N, column: M]" location suffix of a runtime error message, matching
+// DWScript's format for runtime errors raised inside a routine, e.g.
+// "Object not instantiated in TMyObj.Proc [line: 11, column: 12]".
+func spliceRoutineNameIntoError(message, routine string) string {
+	if routine == "" {
+		return message
+	}
+	if idx := strings.LastIndex(message, " [line: "); idx >= 0 {
+		return message[:idx] + " in " + routine + message[idx:]
+	}
+	return message + " in " + routine
+}
+
+// raiseErrorValueAsException converts a runtime ErrorValue into a catchable
+// script exception (DWScript runtime errors are catchable with try/except).
+// If routine is non-empty it is spliced into the message before the location
+// suffix ("<msg> in <routine> [line: ...]"), matching DWScript semantics where
+// the message is formed at the raise point inside the routine.
+func (e *Evaluator) raiseErrorValueAsException(errVal Value, routine string, ctx *ExecutionContext) {
+	message := ""
+	if ev, ok := errVal.(*runtime.ErrorValue); ok {
+		message = ev.Message
+	} else if errVal != nil {
+		message = errVal.String()
+	}
+	message = spliceRoutineNameIntoError(message, routine)
+	ctx.SetException(e.createException("Exception", message, nil, ctx))
+}
+
+// currentRoutineName returns the qualified name of the routine currently on
+// top of the call stack, or "" when executing at program level.
+func currentRoutineName(ctx *ExecutionContext) string {
+	frame := ctx.GetCallStack().Current()
+	if frame == nil {
+		return ""
+	}
+	return frame.FunctionName
 }

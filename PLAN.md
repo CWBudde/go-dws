@@ -331,8 +331,26 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       (`internal/interp/evaluator/helper_methods.go`) is consulted in the `TYPE_META` member
       path. Fixes `HelpersPass/string_consts`, `static_array_helper`; HelpersPass 13 → 15,
       overall 483 → 485 (CLI); no category regressed.
-- [ ] Post-exception continuation semantics (`assigned.pas` expects execution to continue after a
-      caught runtime error) and BOM-preserving output.
+- [x] Post-exception continuation semantics (`assigned.pas` expects execution to continue after a
+      caught runtime error) and BOM-preserving output. **(A) Runtime errors are catchable
+      exceptions.** Nil-receiver access (member read/write, method call), explicitly-freed-object
+      access, and `raise nil` now raise `Object not instantiated` / `Object already destroyed` as
+      script exceptions (`try/except` catches them; execution continues) instead of aborting the
+      program. Non-virtual methods still dispatch on a nil receiver (the error only surfaces when
+      the body dereferences `Self`), matching DWScript; the routine name is spliced into the
+      message (`… in TMyObj.Proc [line: …]`) and the position is the member/method identifier.
+      Runtime errors escaping a `try` block or a routine body are converted to catchable
+      exceptions at those boundaries (`visitor_statements.go`, `user_function_helpers.go`);
+      method call stack frames are now class-qualified. Also: `new Integer[0]` is legal (empty
+      array), and collection builtins materialize never-written static-array slots to the element
+      zero value. `RaiseException` is implemented on the evaluator context so builtins
+      (`StrToInt`, etc.) raise catchable exceptions. Fixes SimpleScripts `assigned`, `self`,
+      `destroy`, `raise_nil`, plus 6 FunctionsString exception fixtures. **(B) BOM output** needs
+      no new code: the stacked #342 input decoding already strips BOMs when reading both source
+      and expected `.txt`, so BOM-carrying fixtures (`string_aggregate`, `char_in`,
+      `unicode_const`) match; no fixture requires a BOM to survive to output. Harness baselines:
+      FunctionsString 45 → 51, SimpleScripts 268 → 272; no category regressed; the 11 EncodingLib
+      fixtures from #342 unaffected.
 - **Exit criteria:** ArrayPass/SetOfPass/HelpersPass/OverloadsPass ≥ 80%.
 
 ### Deferred ⏸️ — do not start until core compatibility ≥ 80%
