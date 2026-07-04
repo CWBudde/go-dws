@@ -17,6 +17,12 @@ type ObjectInstance struct {
 	RefCount         int              // Interface reference count
 	Destroyed        bool             // Destructor completed
 	DestroyCallDepth int              // Nested Destroy call tracking
+
+	// destructorClaimed marks that a RefCountManager already claimed the
+	// current drop to zero, so concurrent last-releases fire the destructor
+	// callback exactly once. Reset when the count rises above zero again.
+	// Guarded by the manager's refMu.
+	destructorClaimed bool
 }
 
 // NewObjectInstance creates a new object instance of the given class.
