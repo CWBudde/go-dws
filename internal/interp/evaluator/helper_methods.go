@@ -132,12 +132,28 @@ func orderedHelpersForLookup(helpers []HelperInfo) []HelperInfo {
 	}
 	// User-declared helpers are searched in declaration order (the first
 	// declared helper wins, matching DWScript; see HelpersPass/helper_precedence),
-	// with built-in helpers as fallback.
-	ordered := make([]HelperInfo, 0, len(helpers))
+	// except that a helper inheriting from an earlier one overrides its
+	// ancestor. Built-in helpers are fallback.
+	var user []HelperInfo
 	for _, helper := range helpers {
 		if !helperIsBuiltin(helper) {
-			ordered = append(ordered, helper)
+			user = append(user, helper)
 		}
+	}
+	// Move descendants ahead of their ancestors, keeping declaration order
+	// among unrelated helpers.
+	ordered := make([]HelperInfo, 0, len(helpers))
+	for _, helper := range user {
+		insertAt := len(ordered)
+		for idx, placed := range ordered {
+			if helperDescendsFrom(helper, placed) {
+				insertAt = idx
+				break
+			}
+		}
+		ordered = append(ordered, nil)
+		copy(ordered[insertAt+1:], ordered[insertAt:])
+		ordered[insertAt] = helper
 	}
 	for _, helper := range helpers {
 		if helperIsBuiltin(helper) {
@@ -145,6 +161,26 @@ func orderedHelpersForLookup(helpers []HelperInfo) []HelperInfo {
 		}
 	}
 	return ordered
+}
+
+// helperDescendsFrom reports whether helper inherits (directly or
+// transitively) from ancestor.
+func helperDescendsFrom(helper, ancestor HelperInfo) bool {
+	for cur := helper; cur != nil; {
+		parentAny := cur.GetParentHelperAny()
+		if parentAny == nil {
+			return false
+		}
+		parent, ok := parentAny.(HelperInfo)
+		if !ok {
+			return false
+		}
+		if parent == ancestor {
+			return true
+		}
+		cur = parent
+	}
+	return false
 }
 
 // getHelpersForValue returns all helpers that apply to the given value's type.

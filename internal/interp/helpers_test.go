@@ -279,7 +279,9 @@ func TestHelperPrecedence(t *testing.T) {
 		t.Fatalf("interpreter error: %s", result.String())
 	}
 
-	expected := "H1-x\nH2-x\n"
+	// The first declared helper wins for unrelated helpers, matching DWScript
+	// (see fixture HelpersPass/helper_precedence).
+	expected := "H1-x\nH1-x\n"
 	if out.String() != expected {
 		t.Errorf("wrong output. expected=%q, got=%q", expected, out.String())
 	}

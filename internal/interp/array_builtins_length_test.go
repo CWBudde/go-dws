@@ -903,13 +903,15 @@ end
 			`,
 		},
 		{
+			// Numeric strings now coerce to integer indexes (variant casts),
+			// so use a non-numeric string that fails to cast.
 			name: "Delete() with non-integer index",
 			input: `
 type TDynArray = array of Integer;
 var arr: TDynArray;
 begin
 	Add(arr, 10);
-	Delete(arr, "0");
+	Delete(arr, "abc");
 end
 			`,
 		},

@@ -393,9 +393,11 @@ end
 			`,
 		},
 		{
-			name: "Non-string argument - integer",
+			// Integer arguments now coerce to their string form ("42" parses),
+			// so use a boolean whose coerced form ("True") fails to parse.
+			name: "Non-numeric argument - boolean",
 			input: `
-var x: Integer := 42;
+var x: Boolean := True;
 begin
 	StrToInt(x);
 end
@@ -635,10 +637,12 @@ end
 			`,
 		},
 		{
+			// The precision argument coerces Float→Integer now, so use a
+			// genuine arity error (three arguments).
 			name: "Too many arguments",
 			input: `
 begin
-	FloatToStr(3.14, 2.0);
+	FloatToStr(3.14, 2, 1);
 end
 			`,
 		},
@@ -833,9 +837,11 @@ end
 			`,
 		},
 		{
-			name: "Non-string argument - integer",
+			// Integer arguments now coerce to their string form ("42" parses),
+			// so use a boolean whose coerced form ("True") fails to parse.
+			name: "Non-numeric argument - boolean",
 			input: `
-var x: Integer := 42;
+var x: Boolean := True;
 begin
 	StrToFloat(x);
 end

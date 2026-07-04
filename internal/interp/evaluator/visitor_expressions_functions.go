@@ -334,7 +334,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	if fn, ok := builtins.DefaultRegistry.Lookup(funcName.Value); ok {
 		// Variant-typed values reach builtins as their dynamic type; coerce
 		// them to the declared parameter types (DWScript variant casts).
-		if errVal := e.coerceBuiltinArgsToSignature(funcName, args, ctx); errVal != nil {
+		if errVal := e.coerceBuiltinArgsToSignature(funcName, node.Arguments, args, ctx); errVal != nil {
 			return errVal
 		}
 		if ctx.Exception() != nil {

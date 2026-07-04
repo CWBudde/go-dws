@@ -239,6 +239,14 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 				Name:  classType.Name,
 			})
 		}
+		// Annotate Variant-typed identifiers so the evaluator applies variant
+		// casts at builtin call boundaries (declared type, not dynamic type).
+		if sym.Type != nil && types.GetUnderlyingType(sym.Type).TypeKind() == "VARIANT" {
+			a.semanticInfo.SetType(identifier, &ast.TypeAnnotation{
+				Token: identifier.Token,
+				Name:  "Variant",
+			})
+		}
 	}
 
 	// Handle function/procedure references
