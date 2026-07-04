@@ -1237,7 +1237,20 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 
 	// Evaluate class constants
 	for _, classConst := range node.ClassConsts {
+		// Typed record constants ((x:1; y:2)) need the record type context.
+		var restoreRecordCtx bool
+		if classConst.Type != nil {
+			if resolved, err := e.ResolveTypeWithContext(classConst.Type.String(), ctx); err == nil {
+				if recType, ok := types.GetUnderlyingType(resolved).(*types.RecordType); ok && recType.Name != "" {
+					ctx.SetRecordTypeContext(recType.Name)
+					restoreRecordCtx = true
+				}
+			}
+		}
 		constValue := e.Eval(classConst.Value, ctx)
+		if restoreRecordCtx {
+			ctx.ClearRecordTypeContext()
+		}
 		if isError(constValue) {
 			return constValue
 		}
