@@ -311,12 +311,18 @@ func (e *Evaluator) ExecuteUserFunction(
 	}
 
 	// Push function name onto call stack with call-site position when available.
+	// Methods are qualified with their class name (e.g. "TMyObj.Proc") to match
+	// DWScript's runtime error and stack trace format.
 	var pos *lexer.Position
 	if e.currentNode != nil {
 		nodePos := e.currentNode.Pos()
 		pos = &nodePos
 	}
-	if err := funcCtx.GetCallStack().Push(fn.Name.Value, e.SourceFile(), pos); err != nil {
+	frameName := fn.Name.Value
+	if fn.ClassName != nil && fn.ClassName.Value != "" {
+		frameName = fn.ClassName.Value + "." + frameName
+	}
+	if err := funcCtx.GetCallStack().Push(frameName, e.SourceFile(), pos); err != nil {
 		return nil, err
 	}
 	defer funcCtx.GetCallStack().Pop()
@@ -361,7 +367,13 @@ func (e *Evaluator) ExecuteUserFunction(
 	// Execute function body through the evaluator.
 	// This now stays on evaluator-owned execution paths instead of unconditionally
 	// round-tripping through interpreter EvalNode dispatch.
-	_ = e.Eval(fn.Body, funcCtx)
+	bodyResult := e.Eval(fn.Body, funcCtx)
+
+	// A runtime error raised in the body becomes a catchable script exception,
+	// with the routine name spliced into the message ("<msg> in <routine> [line: ...]").
+	if isError(bodyResult) && funcCtx.Exception() == nil {
+		e.raiseErrorValueAsException(bodyResult, frameName, funcCtx)
+	}
 
 	// If exception was raised, propagate it to caller's context
 	if funcCtx.Exception() != nil {

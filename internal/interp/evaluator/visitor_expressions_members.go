@@ -167,6 +167,14 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return e.newError(node, "internal error: OBJECT value does not implement ObjectValue interface")
 		}
 
+		// Accessing members of an explicitly freed object is a catchable runtime
+		// error, reported at the member's position. Objects reclaimed by the
+		// reference counter are exempt: go-dws releases eagerly in places where
+		// DWScript keeps objects alive, so only explicit Free/Destroy is enforced.
+		if objInst, ok := obj.(*runtime.ObjectInstance); ok && objInst.ExplicitlyFreed {
+			return e.newError(node.Member, "Object already destroyed")
+		}
+
 		helpers := orderedHelpersForLookup(e.getHelpersForValue(obj))
 		for _, helper := range helpers {
 			for name, value := range helper.GetClassConsts() {
@@ -602,32 +610,37 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return e.newError(node, "enum value '%s' not found in enum type", memberName)
 
 	case "NIL":
-		// Typed nil can access class vars, but not instance members
-		nilVal, ok := obj.(NilAccessor)
-		if !ok {
-			return e.newError(node, "Object not instantiated")
-		}
-		typedClassName := nilVal.GetTypedClassName()
-		if typedClassName == "" {
-			return e.newError(node, "Object not instantiated")
-		}
-
 		// nil.Free is allowed (no-op)
 		if ident.Equal(memberName, "Free") {
 			return &runtime.NilValue{}
 		}
 
-		// Look up class and access class variable
-		if cv, err := e.typeSystem.CreateClassValue(typedClassName); err == nil && cv != nil {
-			if classMetaVal, ok := cv.(ClassMetaValue); ok {
-				if classVarValue, found := classMetaVal.GetClassVar(memberName); found {
-					return classVarValue
+		// Typed nil can access class vars, but not instance members
+		if nilVal, ok := obj.(NilAccessor); ok {
+			if typedClassName := nilVal.GetTypedClassName(); typedClassName != "" {
+				// Look up class and access class variable
+				if cv, err := e.typeSystem.CreateClassValue(typedClassName); err == nil && cv != nil {
+					if classMetaVal, ok := cv.(ClassMetaValue); ok {
+						if classVarValue, found := classMetaVal.GetClassVar(memberName); found {
+							return classVarValue
+						}
+					}
 				}
 			}
 		}
 
-		// Instance member access on nil is an error
-		return e.newError(node, "Object not instantiated")
+		// DWScript statically dispatches non-virtual instance methods, so a
+		// parameterless one can be auto-invoked on a nil receiver (the error
+		// only surfaces if the body dereferences Self).
+		if classInfo := e.staticClassInfoForNilReceiver(obj, node.Object); classInfo != nil {
+			if method := classInfo.LookupMethod(memberName); method != nil &&
+				isNonVirtualInstanceMethod(classInfo, method) && len(method.Parameters) == 0 {
+				return e.executeMethodWithClassInfo(obj, classInfo, method, nil, ctx)
+			}
+		}
+
+		// Instance member access on nil is an error, reported at the member's position
+		return e.newError(node.Member, "Object not instantiated")
 
 	case "ENUM":
 		// Enum value properties (.Value, helpers)

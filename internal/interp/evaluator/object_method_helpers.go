@@ -3,6 +3,7 @@ package evaluator
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 func (e *Evaluator) executeObjectMethodDirect(
@@ -22,6 +23,20 @@ func (e *Evaluator) executeObjectMethodDirect(
 		return e.newError(node, "method execution requires class context")
 	}
 
+	return e.executeMethodWithClassInfo(self, classInfo, method, args, ctx)
+}
+
+// executeMethodWithClassInfo executes a method body with an explicitly supplied
+// class context. This allows non-virtual methods to run with a nil Self
+// (DWScript permits calling non-virtual methods on nil references; the class
+// context then comes from the receiver's static type).
+func (e *Evaluator) executeMethodWithClassInfo(
+	self Value,
+	classInfo runtime.IClassInfo,
+	method *ast.FunctionDecl,
+	args []Value,
+	ctx *ExecutionContext,
+) Value {
 	ctx.PushEnv()
 	defer ctx.PopEnv()
 
@@ -95,6 +110,31 @@ func (e *Evaluator) executeClassMethodDirect(
 	e.bindClassConstantsForMethod(classInfo, ctx)
 
 	return e.ExecuteUserFunctionDirect(method, args, ctx)
+}
+
+// identifierIsInstanceMember reports whether name refers to an instance member
+// (field, property, or method) of the class whose method is currently
+// executing. Used to raise "Object not instantiated" when a method body runs
+// with Self = nil and touches instance state.
+func (e *Evaluator) identifierIsInstanceMember(name string, ctx *ExecutionContext) bool {
+	_, classMeta, ok := currentClassMetaValue(ctx)
+	if !ok || classMeta == nil {
+		return false
+	}
+	classInfo := classMeta.GetClassInfo()
+	if classInfo == nil {
+		return false
+	}
+	if classInfo.FieldExists(ident.Normalize(name)) {
+		return true
+	}
+	if classInfo.LookupProperty(name) != nil {
+		return true
+	}
+	if method := classInfo.LookupMethod(name); method != nil && !method.IsClassMethod {
+		return true
+	}
+	return false
 }
 
 func currentClassMetaValue(ctx *ExecutionContext) (Value, ClassMetaValue, bool) {
