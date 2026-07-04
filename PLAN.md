@@ -237,8 +237,13 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       re-pointed at the evaluator's binary-op/`in`/`Include`/`Exclude` paths. −27 unreachable
       funcs (176→149 per `deadcode ./cmd/...` filtered to `internal/interp`), −2,241 net LOC;
       fixture report byte-identical to main.)*
-- [ ] Move `Evaluator.currentNode` into `ExecutionContext`; remove the double `MethodRegistry`
+- [x] Move `Evaluator.currentNode` into `ExecutionContext`; remove the double `MethodRegistry`
       allocation (`internal/interp/interpreter.go:61`).
+      *(Done: `currentNode` now lives on `runtime.ExecutionContext` (copied on `Clone`, cleared
+      on `Reset`); `Evaluator.CurrentNode`/`SetCurrentNode` delegate to the active context and
+      `Eval` saves/restores the node on the context it runs. `NewWithDeps` reuses the registry
+      the evaluator allocated on `EngineState` instead of allocating a second one, and the
+      redundant `Interpreter.methodRegistry` field is gone; fixture report byte-identical.)*
 - [ ] Split the evaluator god files (`visitor_statements.go` 1461, `visitor_declarations.go`
       1426, `var_params.go` 1112).
 - [ ] **Bytecode decision:** hide `--bytecode` and `pkg/dwscript.CompileModeBytecode`, delete

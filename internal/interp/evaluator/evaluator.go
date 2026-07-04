@@ -186,7 +186,6 @@ type ExternalFunctionRegistry = contracts.ExternalFunctionRegistry
 // Execution state is in ExecutionContext (stateless evaluator).
 type Evaluator struct {
 	output            io.Writer
-	currentNode       ast.Node
 	config            *Config
 	currentContext    *ExecutionContext
 	typeSystem        *interptypes.TypeSystem
@@ -360,8 +359,12 @@ func (e *Evaluator) RefCountManager() runtime.RefCountManager {
 }
 
 // CurrentNode returns the current AST node being evaluated (for error reporting).
+// The node is tracked on the active ExecutionContext.
 func (e *Evaluator) CurrentNode() ast.Node {
-	return e.currentNode
+	if e.currentContext == nil {
+		return nil
+	}
+	return e.currentContext.CurrentNode()
 }
 
 // CurrentContext returns the active execution context for the current evaluation.
@@ -375,8 +378,12 @@ func (e *Evaluator) EngineState() *contracts.EngineState {
 }
 
 // SetCurrentNode sets the current AST node being evaluated (for error reporting).
+// The node is tracked on the active ExecutionContext; without an active context
+// the call is a no-op (Eval records the node on its context on entry).
 func (e *Evaluator) SetCurrentNode(node ast.Node) {
-	e.currentNode = node
+	if e.currentContext != nil {
+		e.currentContext.SetCurrentNode(node)
+	}
 }
 
 // EnterSelfContainedMode temporarily ensures Eval() stays inside evaluator-owned
@@ -423,12 +430,14 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	e.currentContext = ctx
 	defer func() { e.currentContext = previousContext }()
 
-	previousNode := e.currentNode
-	e.currentNode = node
-	defer func() { e.currentNode = previousNode }()
+	if ctx != nil {
+		previousNode := ctx.CurrentNode()
+		ctx.SetCurrentNode(node)
+		defer func() { ctx.SetCurrentNode(previousNode) }()
 
-	if ctx != nil && e.engineState != nil {
-		ctx.SetRefCountManager(e.engineState.RefCountManager)
+		if e.engineState != nil {
+			ctx.SetRefCountManager(e.engineState.RefCountManager)
+		}
 	}
 
 	switch n := node.(type) {

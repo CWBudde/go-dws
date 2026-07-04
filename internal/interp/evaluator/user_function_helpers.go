@@ -200,7 +200,7 @@ func (e *Evaluator) defaultUserFunctionCallbacks(ctx *ExecutionContext) *UserFun
 			return e.TryImplicitConversion(value, targetTypeName, ctx)
 		},
 		DefaultValueGetter: func(returnTypeName string) Value {
-			return e.createZeroValue(&ast.TypeAnnotation{Name: returnTypeName}, e.currentNode, ctx)
+			return e.createZeroValue(&ast.TypeAnnotation{Name: returnTypeName}, e.CurrentNode(), ctx)
 		},
 		FunctionNameAlias: func(funcName string, funcEnv *runtime.Environment) Value {
 			getter := func() (Value, error) {
@@ -242,7 +242,7 @@ func (e *Evaluator) ExecuteUserFunctionDirect(fn *ast.FunctionDecl, args []Value
 		if err.Error() == "maximum recursion depth exceeded" {
 			return e.raiseRecursionExceeded(ctx)
 		}
-		return e.newError(e.currentNode, "%s", err.Error())
+		return e.newError(e.CurrentNode(), "%s", err.Error())
 	}
 	return result
 }
@@ -312,8 +312,8 @@ func (e *Evaluator) ExecuteUserFunction(
 
 	// Push function name onto call stack with call-site position when available.
 	var pos *lexer.Position
-	if e.currentNode != nil {
-		nodePos := e.currentNode.Pos()
+	if currentNode := e.CurrentNode(); currentNode != nil {
+		nodePos := currentNode.Pos()
 		pos = &nodePos
 	}
 	if err := funcCtx.GetCallStack().Push(fn.Name.Value, e.SourceFile(), pos); err != nil {
