@@ -237,6 +237,10 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       delete `internal/bytecode` outright **or** (if a VM is a real goal) rebuild it on the
       shared `internal/builtins` registry and `internal/interp/runtime` values — do not keep
       extending the current fork.
+      **Owner decision 2026-07-04: deferred, leaning keep.** Do not delete `internal/bytecode`;
+      leave it as-is (opt-in, unmaintained) until the owner revisits. The delete-vs-rebuild
+      choice stays open; the honesty sub-items (hiding the flag, removing the speedup claims)
+      may still be done independently if picked up.
 - **Exit criteria:** `deadcode ./cmd/...` reports 0 unreachable funcs in `internal/interp`; no
       public API exposes a non-working execution mode.
 
