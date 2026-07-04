@@ -652,7 +652,7 @@ func Test_RefCount_ConcurrentLastRelease(t *testing.T) {
 
 		callCount := 0
 		var mu sync.Mutex
-		mgr.SetDestructorCallback(func(obj *ObjectInstance) error {
+		mgr.SetDestructorCallback(func(_ *ObjectInstance) error {
 			mu.Lock()
 			callCount++
 			mu.Unlock()
