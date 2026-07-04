@@ -439,12 +439,28 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	// Check if a helper provides this member
 	helperMethod := a.hasHelperMethod(objType, fieldName)
 	if helperMethod != nil {
+		// Parameterless helper methods auto-invoke on member access
+		if len(helperMethod.Parameters) == 0 {
+			if helperMethod.ReturnType != nil {
+				return helperMethod.ReturnType
+			}
+			return types.VOID
+		}
 		return helperMethod
 	}
 
 	helperProp := a.hasHelperProperty(objType, fieldName)
 	if helperProp != nil {
 		return helperProp.Type
+	}
+
+	if _, constType := a.hasHelperClassConst(objType, fieldName); constType != nil {
+		if t, ok := constType.(types.Type); ok {
+			return t
+		}
+	}
+	if _, varType := a.hasHelperClassVar(objType, fieldName); varType != nil {
+		return varType
 	}
 
 	a.addStructuredError(NewAccessibleMemberError(field.Token.Pos, fieldName, recordType.Name))

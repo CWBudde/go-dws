@@ -179,6 +179,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
+		// Helper class consts/vars accessed through a record instance
+		if val, found := e.findHelperClassMember(obj, memberName); found {
+			return val
+		}
+
 		return e.newError(node, "field '%s' not found in record '%s'", memberName, recVal.GetRecordTypeName())
 	}
 
@@ -481,6 +486,29 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				Arguments: []ast.Expression{},
 			}
 			return e.VisitMethodCallExpression(methodCall, ctx)
+		}
+
+		// Helper class consts/vars/methods declared for the record type
+		if helpersAny := e.typeSystem.LookupHelpers(ident.Normalize(recTypeVal.GetRecordTypeName())); helpersAny != nil {
+			for _, helper := range orderedHelpersForLookup(convertToHelperInfoSlice(helpersAny)) {
+				for name, v := range helper.GetClassConsts() {
+					if ident.Equal(name, memberName) {
+						return v
+					}
+				}
+				for name, v := range helper.GetClassVars() {
+					if ident.Equal(name, memberName) {
+						return v
+					}
+				}
+				if helperResult := e.findHelperMethodInHelper(helper, memberName); helperResult != nil {
+					if zeroArg := zeroArgHelperOverload(helperResult); zeroArg != nil && helperResult.BuiltinSpec == "" {
+						callResult := *helperResult
+						callResult.Method = zeroArg
+						return e.CallHelperMethod(&callResult, obj, []Value{}, node, ctx)
+					}
+				}
+			}
 		}
 
 		return e.newError(node, "member '%s' not found in record type '%s'", memberName, recTypeVal.GetRecordTypeName())
