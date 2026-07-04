@@ -598,6 +598,36 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 					}
 				}
 			}
+			// Helper type referenced by name (e.g. TStringHelper.CountIt):
+			// resolve class members against the helper itself. The type-meta
+			// resolves to the helper's target type, so prefer the source
+			// identifier for the helper name.
+			helperName := ""
+			if objIdent, ok := node.Object.(*ast.Identifier); ok {
+				helperName = objIdent.Value
+			} else if tmv, ok := obj.(*runtime.TypeMetaValue); ok {
+				helperName = tmv.TypeName
+			}
+			if helperName != "" {
+				if h := e.lookupMutableHelper(helperName); h != nil {
+					if helperResult := e.findHelperMethodInHelper(h, memberName); helperResult != nil {
+						if (helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0) ||
+							(helperResult.Method == nil && helperResult.BuiltinSpec != "") {
+							return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+						}
+					}
+					for name, v := range h.GetClassConsts() {
+						if ident.Equal(name, memberName) {
+							return v
+						}
+					}
+					for name, v := range h.GetClassVars() {
+						if ident.Equal(name, memberName) {
+							return v
+						}
+					}
+				}
+			}
 			return e.newError(node, "member '%s' not found on value of type '%s'", memberName, obj.Type())
 		}
 

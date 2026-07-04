@@ -601,13 +601,24 @@ func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionC
 		h = parent
 	}
 
-	// Bind vars and consts (root first, so children override)
+	// Bind vars and consts (root first, so children override).
+	// Class vars bind as references into the helper's storage so mutations
+	// are shared across calls (including nested helper method calls).
 	for _, h := range helperChain {
 		if h == nil {
 			continue
 		}
-		for name, value := range h.GetClassVars() {
-			scope.defineExposed(ctx, name, value)
+		classVars := h.GetClassVars()
+		for name := range classVars {
+			varName := name
+			getter := func() (runtime.Value, error) {
+				return classVars[varName], nil
+			}
+			setter := func(v runtime.Value) error {
+				classVars[varName] = v
+				return nil
+			}
+			scope.defineExposed(ctx, name, runtime.NewReferenceValue(name, getter, setter))
 		}
 		for name, value := range h.GetClassConsts() {
 			scope.defineExposed(ctx, name, value)
