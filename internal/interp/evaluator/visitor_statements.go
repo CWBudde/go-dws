@@ -1498,6 +1498,15 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		if e.typeSystem.HasClass(typeName) {
 			return &runtime.NilValue{ClassType: typeName}
 		}
+		// Type aliases (type MyString = String) default to the underlying
+		// type's zero value.
+		if resolved, err := e.ResolveTypeWithContext(typeName, ctx); err == nil && resolved != nil {
+			if zero := e.getZeroValueForType(resolved); zero != nil {
+				if _, isNil := zero.(*runtime.NilValue); !isNil {
+					return zero
+				}
+			}
+		}
 		return &runtime.NilValue{}
 	}
 }

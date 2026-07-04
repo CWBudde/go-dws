@@ -244,7 +244,9 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 						return
 					}
 				}
-				if !propType.Equals(fieldType) {
+				// A field of a derived class may back a property of a base
+				// class type (covariant read access).
+				if !propType.Equals(fieldType) && !a.canAssign(fieldType, propType) {
 					a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
 						"property '"+propName+"' read field '"+readSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
 					return

@@ -440,7 +440,13 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 			typeName := field.Type.String()
 			fieldType, err = e.resolveTypeName(typeName, ctx)
 			if err != nil || fieldType == nil {
-				return e.newError(node, "unknown or invalid type for field '%s' in class '%s'", fieldName, className)
+				// Self-referential field (Field : TTest inside TTest): the
+				// class is still being declared, so name resolution fails.
+				if ident.Equal(typeName, className) {
+					fieldType = types.NewClassType(className, nil)
+				} else {
+					return e.newError(node, "unknown or invalid type for field '%s' in class '%s'", fieldName, className)
+				}
 			}
 		case field.InitValue != nil:
 			initVal := evalWithClassConsts(field.InitValue)
