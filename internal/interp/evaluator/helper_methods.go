@@ -55,6 +55,27 @@ type HelperMethodResult struct {
 	BuiltinSpec string
 }
 
+// zeroArgHelperOverload returns the overload callable with no arguments, or
+// nil when none exists. Falls back to the primary method when there are no
+// recorded overloads.
+func zeroArgHelperOverload(result *HelperMethodResult) *ast.FunctionDecl {
+	if result == nil {
+		return nil
+	}
+	if len(result.Overloads) == 0 {
+		if result.Method != nil && helperASTMethodEffectiveParamCount(result.Method) == 0 {
+			return result.Method
+		}
+		return nil
+	}
+	for _, m := range result.Overloads {
+		if m != nil && helperASTMethodEffectiveParamCount(m) == 0 {
+			return m
+		}
+	}
+	return nil
+}
+
 func helperASTMethodEffectiveParamCount(method *ast.FunctionDecl) int {
 	if method == nil {
 		return 0

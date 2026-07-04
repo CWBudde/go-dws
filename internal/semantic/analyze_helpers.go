@@ -246,10 +246,24 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 			a.symbols.DefineConst(name, typ, nil, token.Position{})
 		}
 	}
+	// MethodOverloads keys are normalized; recover the declared casing from
+	// the AST so identifier-case hints don't fire on correct usages.
+	declaredNames := make(map[string]string)
+	if helperDecl, ok := helperType.Decl.(*ast.HelperDecl); ok && helperDecl != nil {
+		for _, m := range helperDecl.Methods {
+			if m != nil && m.Name != nil {
+				declaredNames[ident.Normalize(m.Name.Value)] = m.Name.Value
+			}
+		}
+	}
 	for name, overloads := range helperType.MethodOverloads {
+		declName := declaredNames[ident.Normalize(name)]
+		if declName == "" {
+			declName = name
+		}
 		for _, methodType := range overloads {
-			if err := a.symbols.DefineOverload(name, methodType, true, false, token.Position{}); err != nil {
-				a.symbols.DefineFunction(name, methodType, token.Position{})
+			if err := a.symbols.DefineOverload(declName, methodType, true, false, token.Position{}); err != nil {
+				a.symbols.DefineFunction(declName, methodType, token.Position{})
 			}
 		}
 	}
@@ -257,6 +271,18 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 	if classType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.ClassType); ok && !decl.IsClassMethod {
 		for fieldName, fieldType := range classType.Fields {
 			a.symbols.Define(fieldName, fieldType, token.Position{})
+		}
+	}
+	// Interface helpers can call the target interface's methods on the
+	// implicit Self (e.g. SayIt(...) inside a helper for IMy).
+	if ifaceType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.InterfaceType); ok && !decl.IsClassMethod {
+		for cur := ifaceType; cur != nil; cur = cur.Parent {
+			for methodName, methodType := range cur.Methods {
+				if _, exists := a.symbols.Resolve(methodName); exists {
+					continue
+				}
+				a.symbols.DefineFunction(methodName, methodType, token.Position{})
+			}
 		}
 	}
 	if recordType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.RecordType); ok {

@@ -582,18 +582,17 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			if val, found := e.findHelperClassMember(obj, memberName); found {
 				return val
 			}
-			if ident.Equal(memberName, "ClassName") || ident.Equal(memberName, "ClassType") {
-				helpers := orderedHelpersForLookup(e.getHelpersForValue(obj))
-				for _, helper := range helpers {
-					if !isCurrentHelperMethod(ctx, memberName) {
-						helperResult := e.findHelperMethodInHelper(helper, memberName)
-						if helperResult != nil {
-							if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
-								return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
-							}
-							if helperResult.BuiltinSpec != "" {
-								return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
-							}
+			// Helper class methods reachable through the target type's meta
+			// value (e.g. `IMy.SayHello`, `TObject.ClassName`).
+			for _, helper := range orderedHelpersForLookup(e.getHelpersForValue(obj)) {
+				if !isCurrentHelperMethod(ctx, memberName) {
+					helperResult := e.findHelperMethodInHelper(helper, memberName)
+					if helperResult != nil {
+						if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
+							return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+						}
+						if helperResult.Method == nil && helperResult.BuiltinSpec != "" {
+							return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
 						}
 					}
 				}
@@ -745,8 +744,10 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			if !isCurrentHelperMethod(ctx, memberName) {
 				helperResult := e.findHelperMethodInHelper(helper, memberName)
 				if helperResult != nil {
-					if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
-						return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
+					if zeroArg := zeroArgHelperOverload(helperResult); zeroArg != nil && helperResult.BuiltinSpec == "" {
+						callResult := *helperResult
+						callResult.Method = zeroArg
+						return e.CallHelperMethod(&callResult, obj, []Value{}, node, ctx)
 					}
 					if helperResult.BuiltinSpec != "" {
 						return e.CallHelperMethod(helperResult, obj, []Value{}, node, ctx)
