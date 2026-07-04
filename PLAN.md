@@ -46,8 +46,8 @@ fixing anything else.
 | Area | Status | Pass% |
 |---|---|---|
 | SimpleScripts, Algorithms, Math, String, Interfaces, Operators | 🟡 | 54–96% |
-| Arrays | 🟡 | 23% |
-| Sets, Helpers | 🟡 | 56% |
+| Arrays | 🟡 | 80% (harness, 2026-07-04) |
+| Sets, Helpers | 🟡 | 80–81% (harness, 2026-07-04) |
 | Overloads | 🟡 | 85% (harness, 2026-07-04) |
 | **Generics, Lambdas, Associative arrays, Property expressions, JSON** | 🔴 | **0%** |
 | **All `*Fail` error-detection suites** | 🔴 | **0%** |
@@ -395,7 +395,18 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       `unicode_const`) match; no fixture requires a BOM to survive to output. Harness baselines:
       FunctionsString 45 → 51, SimpleScripts 268 → 272; no category regressed; the 11 EncodingLib
       fixtures from #342 unaffected.
-- **Exit criteria:** ArrayPass/SetOfPass/HelpersPass/OverloadsPass ≥ 80%.
+- **Exit criteria: MET (2026-07-04, internal harness).** ArrayPass **92/115 (80%)**, SetOfPass
+      **20/25 (80%)**, HelpersPass **22/27 (81%)**, OverloadsPass **33/39 (85%)**. Overall harness
+      scored passes 684 → 729 (collateral: AssociativePass 0→3, GenericsPass 12→13). Root-cause
+      batch: array concat/append/`+=`/`Add` with literals and Variant flattening; array
+      constructors (empty `[]` → array of Variant, heterogeneous widening, ordinal range
+      expansion, `nil` clears dynamic arrays); live byref `(array, index)` element refs with
+      DWScript bounds diagnostics; Variant casts at builtin args/indexes; inline anonymous enums
+      in `set of (…)`; sets as value types; helper dispatch (nil receivers, strict static-type
+      dispatch, inheritance precedence, class vars as shared refs, record helper consts).
+      Remaining fails cluster in separate features: lambda parameter-type inference, metaclass/
+      class-alias element inference, function pointers in arrays, `set of` record fields,
+      lexer-time `Declared()`/`{$FATAL}`.
 
 ### Deferred ⏸️ — do not start until core compatibility ≥ 80%
 
