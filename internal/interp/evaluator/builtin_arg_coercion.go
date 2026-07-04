@@ -10,6 +10,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // coerceBuiltinArgsToSignature converts arguments whose dynamic type differs
@@ -120,15 +121,55 @@ func stringToBoolCast(s string) bool {
 	return false
 }
 
-// raiseVariantCastException raises a catchable exception for a failed variant
-// cast at the builtin call site, matching DWScript's message format
-// ("<msg> in <routine> [line: N, column: M]").
-func (e *Evaluator) raiseVariantCastException(message string, funcName *ast.Identifier, ctx *ExecutionContext) Value {
-	pos := funcName.Token.Pos
-	if routine := currentRoutineName(ctx); routine != "" {
-		message += " in " + routine
+// ExtractIndexWithVariantCast extracts an integer index, applying DWScript
+// variant casts: Boolean→0/1 and Float/Integer/Enum ordinals are accepted via
+// ExtractIntegerIndex; a numeric String converts to its value; a non-numeric
+// String raises a catchable "Could not cast variant from String to Integer"
+// exception. Returns ok=false (with the exception set on ctx) on failure.
+func (e *Evaluator) ExtractIndexWithVariantCast(indexVal Value, ctx *ExecutionContext) (int, bool) {
+	indexVal = unwrapVariant(indexVal)
+	if idx, ok := ExtractIntegerIndex(indexVal); ok {
+		return idx, true
 	}
-	message = fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
-	ctx.SetException(e.createException("Exception", message, &pos, ctx))
+	switch v := indexVal.(type) {
+	case *runtime.FloatValue:
+		return int(math.Round(v.Value)), true
+	case *runtime.StringValue:
+		if n, err := strconv.ParseInt(strings.TrimSpace(v.Value), 10, 64); err == nil {
+			return int(n), true
+		}
+		if ctx == nil {
+			ctx = e.currentContext
+		}
+		if ctx != nil {
+			ctx.SetException(e.createException("Exception",
+				"Could not cast variant from String to Integer", nil, ctx))
+		}
+		return 0, false
+	}
+	return 0, false
+}
+
+// raiseVariantCastException raises a catchable exception for a failed variant
+// cast, matching DWScript's message format. When a call-site identifier is
+// available the routine name and source location are appended
+// ("<msg> in <routine> [line: N, column: M]"); otherwise the plain message
+// is used.
+func (e *Evaluator) raiseVariantCastException(message string, funcName *ast.Identifier, ctx *ExecutionContext) Value {
+	if ctx == nil {
+		ctx = e.currentContext
+	}
+	var posPtr *token.Position
+	if funcName != nil {
+		pos := funcName.Token.Pos
+		if routine := currentRoutineName(ctx); routine != "" {
+			message += " in " + routine
+		}
+		message = fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
+		posPtr = &pos
+	}
+	if ctx != nil {
+		ctx.SetException(e.createException("Exception", message, posPtr, ctx))
+	}
 	return e.nilValue()
 }

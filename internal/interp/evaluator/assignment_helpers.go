@@ -89,6 +89,16 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 	}
 
 	if nilVal, ok := value.(*runtime.NilValue); ok && nilVal.ClassType == "" {
+		// nil assigned to a dynamic array clears the variable to a fresh empty
+		// array (other holders of the old array keep their elements).
+		if arrVal, isArr := existingVal.(*runtime.ArrayValue); isArr &&
+			(arrVal.ArrayType == nil || arrVal.ArrayType.IsDynamic()) {
+			empty := &runtime.ArrayValue{ArrayType: arrVal.ArrayType, Elements: []runtime.Value{}}
+			if e.SetVar(ctx, targetName, empty) {
+				return empty
+			}
+			return e.newError(target, "undefined variable: %s", targetName)
+		}
 		if className := e.resolveClassTypeForAssignment(target, existingVal, ctx); className != "" {
 			value = &runtime.NilValue{ClassType: className}
 		}

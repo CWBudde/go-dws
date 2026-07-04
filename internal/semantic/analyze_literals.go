@@ -87,6 +87,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 
 	var inferredElementType types.Type
 	hasErrors := false
+	hasRanges := false
 
 	for idx, elem := range lit.Elements {
 		var elementExpected types.Type
@@ -94,7 +95,18 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			elementExpected = expectedArrayType.ElementType
 		}
 
-		elemType := a.analyzeExpressionWithExpectedType(elem, elementExpected)
+		var elemType types.Type
+		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
+			// Array constructors expand ordinal ranges ([1..3] → 1,2,3).
+			hasRanges = true
+			elemType = a.analyzeArrayRangeElement(rangeExpr)
+			if elemType == nil {
+				hasErrors = true
+				continue
+			}
+		} else {
+			elemType = a.analyzeExpressionWithExpectedType(elem, elementExpected)
+		}
 		if elemType == nil {
 			hasErrors = true
 			continue
@@ -126,6 +138,16 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 		underlyingInferred := types.GetUnderlyingType(inferredElementType)
 
 		if underlyingInferred.Equals(underlyingCurrent) {
+			continue
+		}
+
+		// nil elements defer to any reference-typed element ([nil, TObject.Create]
+		// infers array of TObject).
+		if _, inferredIsNil := underlyingInferred.(*types.NilType); inferredIsNil {
+			inferredElementType = elemType
+			continue
+		}
+		if _, currentIsNil := underlyingCurrent.(*types.NilType); currentIsNil {
 			continue
 		}
 
@@ -166,7 +188,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	}
 
 	if expectedArrayType != nil {
-		if expectedArrayType.IsStatic() && len(lit.Elements) != arrayLiteralExpectedElementCount(expectedArrayType) {
+		if expectedArrayType.IsStatic() && !hasRanges && len(lit.Elements) != arrayLiteralExpectedElementCount(expectedArrayType) {
 			actualLiteralType := types.NewStaticArrayType(expectedArrayType.ElementType, 0, len(lit.Elements)-1)
 			a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
 				Token: lit.Token,
@@ -188,6 +210,15 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	}
 
 	elementUnderlying := types.GetUnderlyingType(inferredElementType)
+	if hasRanges {
+		// Ranges expand at runtime, so the literal size is not static.
+		arrayType := types.NewDynamicArrayType(elementUnderlying)
+		a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
+			Token: lit.Token,
+			Name:  arrayType.String(),
+		})
+		return arrayType
+	}
 	size := len(lit.Elements)
 	arrayType := types.NewStaticArrayType(elementUnderlying, 0, size-1)
 
@@ -197,6 +228,26 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	})
 
 	return arrayType
+}
+
+// analyzeArrayRangeElement validates an ordinal range element of an array
+// constructor and returns its element type.
+func (a *Analyzer) analyzeArrayRangeElement(rangeExpr *ast.RangeExpression) types.Type {
+	startType := a.analyzeExpression(rangeExpr.Start)
+	endType := a.analyzeExpression(rangeExpr.RangeEnd)
+	if startType == nil || endType == nil {
+		return nil
+	}
+	if !types.IsOrdinalType(startType) || !types.IsOrdinalType(endType) {
+		a.addError("array constructor range bounds must be ordinal at %s", rangeExpr.Pos().String())
+		return nil
+	}
+	if !startType.Equals(endType) {
+		a.addError("array constructor range bounds must have the same type: got %s and %s at %s",
+			startType.String(), endType.String(), rangeExpr.Pos().String())
+		return nil
+	}
+	return startType
 }
 
 // analyzeRecordLiteral analyzes a record literal expression.
@@ -319,6 +370,25 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 	// containing non-ordinal values must therefore be treated as array literals.
 	var preAnalyzed []types.Type
 	if expectedType == nil && len(lit.Elements) > 0 {
+		// A bracket literal containing a range with no set-type context is an
+		// array constructor with the range expanded ([1..3, 5] → 1,2,3,5).
+		for _, elem := range lit.Elements {
+			if _, isRange := elem.(*ast.RangeExpression); isRange {
+				arrayLit := &ast.ArrayLiteralExpression{
+					TypedExpressionBase: lit.TypedExpressionBase,
+					Elements:            lit.Elements,
+				}
+				resultType := a.analyzeArrayLiteral(arrayLit, nil)
+				if resultType != nil && a.semanticInfo != nil {
+					a.semanticInfo.SetType(lit, &ast.TypeAnnotation{
+						Token: lit.Token,
+						Name:  resultType.String(),
+					})
+				}
+				return resultType
+			}
+		}
+
 		preAnalyzed = make([]types.Type, len(lit.Elements))
 		for i, elem := range lit.Elements {
 			// Ranges are ordinal by definition; evaluate bounds later

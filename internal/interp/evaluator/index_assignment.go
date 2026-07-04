@@ -71,8 +71,11 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 			if ctx.Exception() != nil {
 				return &runtime.NilValue{}
 			}
-			index, ok := ExtractIntegerIndex(indexVal)
+			index, ok := e.ExtractIndexWithVariantCast(indexVal, ctx)
 			if !ok {
+				if ctx.Exception() != nil {
+					return &runtime.NilValue{}
+				}
 				return e.newError(stmt, "array index must be an ordinal, got %s", indexVal.Type())
 			}
 			if arrayValue, ok := memberVal.(*runtime.ArrayValue); ok {
@@ -118,9 +121,12 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 		return e.evalDefaultPropertyAssignment(arrayVal, indexVal, value, stmt, ctx)
 	}
 
-	// Extract integer index
-	index, ok := ExtractIntegerIndex(indexVal)
+	// Extract integer index (Variant indexes are cast per DWScript rules)
+	index, ok := e.ExtractIndexWithVariantCast(indexVal, ctx)
 	if !ok {
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
 		return e.newError(stmt, "array index must be an ordinal, got %s", indexVal.Type())
 	}
 
