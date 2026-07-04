@@ -548,8 +548,11 @@ func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Va
 		return e.runObjectDestructor(objInst, classInfo.LookupMethod("Destroy"), node, ctx)
 	}
 
-	// Dispatch to evaluator-owned overload resolver when the method has overloads.
-	if classInfo.HasMethodOverloads(methodName) {
+	// Dispatch to evaluator-owned overload resolver when the method has
+	// overloads. Instance and class (static) methods sharing a name form one
+	// overload set for instance receivers.
+	if classInfo.HasMethodOverloads(methodName) ||
+		(len(classInfo.GetMethodOverloads(methodName))+len(classInfo.GetClassMethodOverloads(methodName)) > 1) {
 		return e.dispatchObjectMethodOverloaded(objInst, methodName, args, node, ctx)
 	}
 

@@ -349,6 +349,18 @@ func ResolveOverload(candidates []*Symbol, argTypes []types.Type) (*Symbol, erro
 		return bestMatches[0], nil
 	}
 
+	// Tie-break: a non-variadic exact-arity candidate beats variadic ones
+	// (e.g. F(a, b) beats F(a, b, const rest: array of X) for a 2-arg call).
+	var nonVariadic []*Symbol
+	for _, match := range bestMatches {
+		if ft, ok := match.Type.(*types.FunctionType); ok && !ft.IsVariadic {
+			nonVariadic = append(nonVariadic, match)
+		}
+	}
+	if len(nonVariadic) == 1 {
+		return nonVariadic[0], nil
+	}
+
 	// Ambiguous: multiple equally good matches
 	return nil, fmt.Errorf("ambiguous overload call: %d candidates with equal distance %d for argument types: %s",
 		len(bestMatches), minDist, formatArgTypes(argTypes))

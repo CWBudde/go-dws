@@ -81,9 +81,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check if object is a record type with methods
 		if recordType, isRecord := objectType.(*types.RecordType); isRecord {
-			// First check for class methods (static methods) with overload support
+			// First check for class methods (static methods) with overload support.
+			// On an instance receiver, same-named instance methods join the set.
 			classOverloads := recordType.GetClassMethodOverloads(methodNameLower)
 			if len(classOverloads) > 0 {
+				classOverloads = append(append([]*types.MethodInfo{}, classOverloads...),
+					recordType.GetMethodOverloads(methodNameLower)...)
 				// This is a static method call - resolve overload based on arguments
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {

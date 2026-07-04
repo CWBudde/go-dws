@@ -171,22 +171,17 @@ func (e *Evaluator) executeConstructorForObject(obj *runtime.ObjectInstance, con
 func (e *Evaluator) dispatchObjectMethodOverloaded(obj *runtime.ObjectInstance, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	classInfo := obj.Class
 
-	// Try instance method overloads first
+	// Instance and class (static) methods sharing a name form a single
+	// overload set for instance receivers; route on what was selected.
 	overloads := classInfo.GetMethodOverloads(methodName)
-	if len(overloads) > 0 {
-		method, err := e.selectOverload(classInfo.GetName(), methodName, overloads, args)
+	merged := append(append([]*ast.FunctionDecl{}, overloads...), classInfo.GetClassMethodOverloads(methodName)...)
+	if len(merged) > 0 {
+		method, err := e.selectOverload(classInfo.GetName(), methodName, merged, args)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
 		}
-		return e.executeObjectMethodDirect(obj, method, args, node, ctx)
-	}
-
-	// Fall back to class method overloads
-	classOverloads := classInfo.GetClassMethodOverloads(methodName)
-	if len(classOverloads) > 0 {
-		method, err := e.selectOverload(classInfo.GetName(), methodName, classOverloads, args)
-		if err != nil {
-			return e.newError(node, "%s", err.Error())
+		if !method.IsClassMethod {
+			return e.executeObjectMethodDirect(obj, method, args, node, ctx)
 		}
 		classValAny, err2 := e.typeSystem.CreateClassValue(classInfo.GetName())
 		if err2 != nil {
