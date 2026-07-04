@@ -23,6 +23,11 @@ jobs:
         run: just check-tidy
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          # Pinned: .golangci.yml uses the v2 config format, which the v1
+          # binary installed by action@v4 "latest" could not parse.
+          version: v2.12.1
+          # Gate PRs on newly introduced findings only; the pre-existing
+          # backlog stays visible when linting main directly.
+          only-new-issues: true
