@@ -942,3 +942,52 @@ func hasSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+// TestAnalyzeUnit_ImplementationBodyCallsSameUnitFunction verifies that a unit's
+// implementation body can call another function declared in the same interface
+// section. Regression: interface signatures must be visible in the analyzer's
+// symbol table during body analysis, not only imported afterwards.
+func TestAnalyzeUnit_ImplementationBodyCallsSameUnitFunction(t *testing.T) {
+	ident := func(name string) *ast.Identifier {
+		return &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}},
+			Value:               name,
+		}
+	}
+	sigOnly := func(name string) *ast.FunctionDecl {
+		return &ast.FunctionDecl{
+			BaseNode:   ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
+			Name:       ident(name),
+			Parameters: []*ast.Parameter{},
+			ReturnType: &ast.TypeAnnotation{Name: "Integer"},
+			Body:       nil,
+		}
+	}
+
+	// function Helper: Integer; begin Result := 1; end;
+	helperImpl := sigOnly("Helper")
+	helperImpl.Body = &ast.BlockStatement{Statements: []ast.Statement{
+		&ast.AssignmentStatement{Target: ident("Result"), Value: &ast.IntegerLiteral{Value: 1}},
+	}}
+
+	// function Main: Integer; begin Result := Helper(); end;  (calls same-unit function)
+	mainImpl := sigOnly("Main")
+	mainImpl.Body = &ast.BlockStatement{Statements: []ast.Statement{
+		&ast.AssignmentStatement{
+			Target: ident("Result"),
+			Value:  &ast.CallExpression{Function: ident("Helper"), Arguments: []ast.Expression{}},
+		},
+	}}
+
+	unitDecl := &ast.UnitDeclaration{
+		BaseNode:              ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
+		Name:                  ident("CallUnit"),
+		InterfaceSection:      &ast.BlockStatement{Statements: []ast.Statement{sigOnly("Helper"), sigOnly("Main")}},
+		ImplementationSection: &ast.BlockStatement{Statements: []ast.Statement{helperImpl, mainImpl}},
+	}
+
+	analyzer := NewAnalyzer()
+	if err := analyzer.AnalyzeUnit(unitDecl); err != nil {
+		t.Fatalf("expected no errors analyzing unit with a same-unit call, got: %v", err)
+	}
+}

@@ -128,6 +128,15 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 		}
 	}
 
+	// Import the unit's interface symbols into the analyzer's symbol table BEFORE
+	// analyzing implementation bodies, so a unit function that calls itself or another
+	// same-unit interface function resolves instead of reporting a false "Unknown name".
+	// These also become the unit's public API.
+	interfaceSymbols.symbols.Range(func(name string, symbol *Symbol) bool {
+		a.symbols.symbols.Set(name, symbol)
+		return true // continue iteration
+	})
+
 	// Step 2: Analyze implementation section and validate against interface
 	implementedFunctions := make(map[string]bool)
 	if unit.ImplementationSection != nil {
@@ -182,12 +191,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 		}
 	}
 
-	// Step 4: Import interface symbols into the analyzer's symbol table
-	// These become the unit's public API
-	interfaceSymbols.symbols.Range(func(name string, symbol *Symbol) bool {
-		a.symbols.symbols.Set(name, symbol)
-		return true // continue iteration
-	})
+	// (Interface symbols were imported into a.symbols before body analysis above.)
 
 	// Return accumulated errors
 	if len(a.errors) > 0 {
