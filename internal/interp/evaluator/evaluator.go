@@ -185,10 +185,16 @@ type ExternalFunctionRegistry = contracts.ExternalFunctionRegistry
 // Dependencies: type system, runtime services, configuration.
 // Execution state is in ExecutionContext (stateless evaluator).
 type Evaluator struct {
-	output            io.Writer
-	currentNode       ast.Node
-	config            *Config
-	currentContext    *ExecutionContext
+	output io.Writer
+	config *Config
+	// currentContext is the active ExecutionContext for the in-flight Eval call.
+	currentContext *ExecutionContext
+	// nodeContext owns the currentNode storage (see ExecutionContext.CurrentNode).
+	// It tracks the nearest non-nil ExecutionContext seen by Eval, since some
+	// call sites intentionally evaluate with a nil ctx (env/lookups not needed)
+	// while still expecting current-node tracking (for error positions) to work
+	// exactly as it did when currentNode was a flat field on the Evaluator.
+	nodeContext       *ExecutionContext
 	typeSystem        *interptypes.TypeSystem
 	engineState       *contracts.EngineState
 	selfContainedMode bool
@@ -361,7 +367,10 @@ func (e *Evaluator) RefCountManager() runtime.RefCountManager {
 
 // CurrentNode returns the current AST node being evaluated (for error reporting).
 func (e *Evaluator) CurrentNode() ast.Node {
-	return e.currentNode
+	if e.nodeContext == nil {
+		return nil
+	}
+	return e.nodeContext.CurrentNode()
 }
 
 // CurrentContext returns the active execution context for the current evaluation.
@@ -376,7 +385,10 @@ func (e *Evaluator) EngineState() *contracts.EngineState {
 
 // SetCurrentNode sets the current AST node being evaluated (for error reporting).
 func (e *Evaluator) SetCurrentNode(node ast.Node) {
-	e.currentNode = node
+	if e.nodeContext == nil {
+		return
+	}
+	e.nodeContext.SetCurrentNode(node)
 }
 
 // EnterSelfContainedMode temporarily ensures Eval() stays inside evaluator-owned
@@ -423,9 +435,24 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 	e.currentContext = ctx
 	defer func() { e.currentContext = previousContext }()
 
-	previousNode := e.currentNode
-	e.currentNode = node
-	defer func() { e.currentNode = previousNode }()
+	// nodeContext resolves to ctx when non-nil, otherwise falls back to the
+	// nearest enclosing non-nil context. This preserves the exact tracking
+	// behavior of the old flat currentNode field for the (rare) call sites
+	// that intentionally evaluate with a nil ctx.
+	previousNodeContext := e.nodeContext
+	nodeCtx := ctx
+	if nodeCtx == nil {
+		nodeCtx = previousNodeContext
+	}
+	e.nodeContext = nodeCtx
+	defer func() { e.nodeContext = previousNodeContext }()
+
+	var previousNode ast.Node
+	if nodeCtx != nil {
+		previousNode = nodeCtx.CurrentNode()
+		nodeCtx.SetCurrentNode(node)
+		defer func() { nodeCtx.SetCurrentNode(previousNode) }()
+	}
 
 	if ctx != nil && e.engineState != nil {
 		ctx.SetRefCountManager(e.engineState.RefCountManager)

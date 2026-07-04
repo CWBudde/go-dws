@@ -16,7 +16,7 @@ import (
 
 // NewError creates an error value with location information from the current node.
 func (e *Evaluator) NewError(format string, args ...interface{}) Value {
-	return e.newError(e.currentNode, format, args...)
+	return e.newError(e.CurrentNode(), format, args...)
 }
 
 // Note: CurrentNode() is already implemented in evaluator.go.
@@ -127,8 +127,8 @@ func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 
 	// Build message with position info if available
 	var message string
-	if e.currentNode != nil {
-		pos := e.currentNode.Pos()
+	if e.CurrentNode() != nil {
+		pos := e.CurrentNode().Pos()
 		message = fmt.Sprintf("Assertion failed [line: %d, column: %d]", pos.Line, pos.Column)
 	} else {
 		message = "Assertion failed"
@@ -185,5 +185,5 @@ func (e *Evaluator) RaiseException(className, message string, pos any) {
 
 // EvalFunctionPointer executes a function pointer with given arguments.
 func (e *Evaluator) EvalFunctionPointer(funcPtr Value, args []Value) Value {
-	return e.executeFunctionPointerDirect(funcPtr, args, e.currentNode, e.currentContext)
+	return e.executeFunctionPointerDirect(funcPtr, args, e.CurrentNode(), e.currentContext)
 }

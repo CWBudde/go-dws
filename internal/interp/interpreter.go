@@ -55,10 +55,11 @@ func NewWithDeps(
 		output:            output,
 		engineState:       eval.EngineState(),
 		typeSystem:        typeSystem,
-		methodRegistry:    runtime.NewMethodRegistry(),
 		evaluatorInstance: eval,
 	}
-	interp.engineState.MethodRegistry = interp.methodRegistry
+	// Reuse the MethodRegistry already created in NewEvaluator's EngineState
+	// rather than allocating a second, immediately-discarded registry.
+	interp.methodRegistry = interp.engineState.MethodRegistry
 
 	if opts != nil {
 		if depth := opts.GetMaxRecursionDepth(); depth > 0 {

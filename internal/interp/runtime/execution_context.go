@@ -3,6 +3,7 @@ package runtime
 import (
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ControlFlowKind represents the type of control flow signal.
@@ -141,6 +142,7 @@ type ExecutionContext struct {
 	envStack                  []*Environment
 	oldValuesStack            []map[string]any
 	refCountManager           RefCountManager
+	currentNode               ast.Node
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
@@ -393,6 +395,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		currentFunctionReturnType: ctx.currentFunctionReturnType,
 		arrayTypeContext:          ctx.arrayTypeContext,
 		refCountManager:           ctx.refCountManager,
+		currentNode:               ctx.currentNode,
 	}
 }
 
@@ -409,6 +412,18 @@ func (ctx *ExecutionContext) Reset() {
 	ctx.recordTypeContextType = nil
 	ctx.currentFunctionReturnType = ""
 	ctx.arrayTypeContext = nil
+	ctx.currentNode = nil
+}
+
+// CurrentNode returns the AST node currently being evaluated in this context
+// (used for error positions and stack traces).
+func (ctx *ExecutionContext) CurrentNode() ast.Node {
+	return ctx.currentNode
+}
+
+// SetCurrentNode sets the AST node currently being evaluated in this context.
+func (ctx *ExecutionContext) SetCurrentNode(node ast.Node) {
+	ctx.currentNode = node
 }
 
 // SetRefCountManager attaches a RefCountManager used by assignment helpers.
