@@ -80,6 +80,12 @@ func VariantToBool(val Value) bool {
 // IsInRange checks if value is within the range [start, end] inclusive.
 // Supports Integer, Float, String (character), and Enum values.
 func IsInRange(value, start, end Value) bool {
+	// Unwrap variants so 'case v of 1..2' matches when the selector or the
+	// range bounds are Variant-wrapped (see fixture case_variant).
+	value = unwrapVariant(value)
+	start = unwrapVariant(start)
+	end = unwrapVariant(end)
+
 	// Handle nil values (uninitialized variants)
 	if value == nil || start == nil || end == nil {
 		return false // Cannot perform range check with uninitialized variants
