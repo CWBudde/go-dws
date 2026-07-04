@@ -246,8 +246,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
-		// Field access
-		if fieldValue := objVal.GetField(memberName); fieldValue != nil {
+		// Field access (resolved against the static class of the object
+		// expression, which matters for shadowed fields)
+		if fieldValue := getFieldWithStaticClass(objVal, memberName, e.staticClassNameOf(node.Object, ctx)); fieldValue != nil {
 			return fieldValue
 		}
 
@@ -489,7 +490,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				return e.newError(node, "internal error: ClassValue conversion failed")
 			}
 
-			if fieldValue := objVal.GetField(memberName); fieldValue != nil {
+			// Field access uses the cast's static type, which matters for
+			// shadowed fields (TBase(child).Field reads TBase's slot).
+			if fieldValue := getFieldWithStaticClass(objVal, memberName, typeCastVal.GetStaticTypeName()); fieldValue != nil {
 				return fieldValue
 			}
 			if objVal.HasProperty(memberName) {

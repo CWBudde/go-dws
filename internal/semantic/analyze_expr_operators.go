@@ -228,6 +228,19 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	}
 	a.recordSymbolUsage(sym.Name, identifier.Token.Pos)
 
+	// Annotate identifiers whose declared type is a class so the evaluator can
+	// resolve shadowed fields against the reference's static type (a subclass
+	// redeclaring a parent field name keeps both storage slots; which one an
+	// access sees depends on the static class of the reference).
+	if a.semanticInfo != nil {
+		if classType, ok := types.GetUnderlyingType(sym.Type).(*types.ClassType); ok && classType != nil {
+			a.semanticInfo.SetType(identifier, &ast.TypeAnnotation{
+				Token: identifier.Token,
+				Name:  classType.Name,
+			})
+		}
+	}
+
 	// Handle function/procedure references
 	if funcType, ok := sym.Type.(*types.FunctionType); ok {
 		// Inside function's own body: name is alias for Result

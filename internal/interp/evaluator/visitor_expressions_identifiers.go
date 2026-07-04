@@ -81,8 +81,10 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		}
 		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
 			if objVal, ok := selfVal.(ObjectValue); ok {
-				// Check for instance field
-				if fieldValue := objVal.GetField(node.Value); fieldValue != nil {
+				// Check for instance field. Bare identifiers resolve in the
+				// static scope of the declaring method's class, which matters
+				// for shadowed fields.
+				if fieldValue := getFieldWithStaticClass(objVal, node.Value, currentMethodClassName(ctx)); fieldValue != nil {
 					return fieldValue
 				}
 				// If the field exists but hasn't been set yet, DWScript semantics treat

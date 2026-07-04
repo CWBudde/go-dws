@@ -43,7 +43,10 @@ func (e *Evaluator) initializeObjectFields(classInfo runtime.IClassInfo, obj *ru
 				fieldValue = &runtime.NilValue{}
 			}
 
-			obj.SetField(fieldName, fieldValue)
+			// Initialize the slot owned by this declaring class so shadowed
+			// fields (subclass redeclaring a parent field name) each get
+			// their own storage.
+			obj.SetFieldFromClass(fieldName, fieldValue, meta.Name)
 		}
 	}
 

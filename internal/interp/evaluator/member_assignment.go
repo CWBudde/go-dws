@@ -162,13 +162,18 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		objVal = underlying
 	}
 
+	// Static class of the object expression, for shadowed-field resolution.
+	staticClassName := e.staticClassNameOf(target.Object, ctx)
+
 	// NATIVE: Type cast unwrapping - get wrapped value
 	if typeCastVal, ok := objVal.(TypeCastAccessor); ok {
 		wrapped := typeCastVal.GetWrappedValue()
 		if wrapped == nil {
 			return e.newError(stmt, "cannot assign to member of nil cast value")
 		}
-		// Route to wrapped object
+		// Route to wrapped object; field writes resolve against the cast's
+		// static type (TBase(child).Field := ... writes TBase's slot).
+		staticClassName = typeCastVal.GetStaticTypeName()
 		objVal = wrapped
 	}
 
@@ -182,7 +187,12 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 			})
 		}
 
-		// Direct field assignment via ObjectFieldSetter
+		// Direct field assignment (resolved against the static class of the
+		// object expression, which matters for shadowed fields)
+		if objInst, ok := objVal.(*runtime.ObjectInstance); ok {
+			objInst.SetFieldFromClass(fieldName, value, staticClassName)
+			return value
+		}
 		if setter, ok := objVal.(ObjectFieldSetter); ok {
 			setter.SetField(fieldName, value)
 			return value

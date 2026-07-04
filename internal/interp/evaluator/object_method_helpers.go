@@ -146,6 +146,50 @@ func (e *Evaluator) executeClassMethodDirect(
 	return e.ExecuteUserFunctionDirect(method, args, ctx)
 }
 
+// currentMethodClassName returns the name of the class that declares the
+// currently executing method, or "" when not in a method context. This is the
+// static scope in which bare identifiers (implicit Self members) resolve,
+// which matters for shadowed fields (a subclass redeclaring a parent's field
+// name keeps both storage slots).
+func currentMethodClassName(ctx *ExecutionContext) string {
+	if ctx == nil || ctx.Env() == nil {
+		return ""
+	}
+	if raw, ok := ctx.Env().Get("__CurrentMethodClass__"); ok {
+		if strVal, ok := raw.(*runtime.StringValue); ok {
+			return strVal.Value
+		}
+	}
+	return ""
+}
+
+// staticClassNameOf returns the static class name of an object-valued
+// expression, used to resolve shadowed fields against the reference's static
+// type. Self resolves to the declaring class of the current method; other
+// expressions use the semantic analyzer's type annotation. Returns "" when no
+// static type is known (the caller then falls back to the dynamic class).
+func (e *Evaluator) staticClassNameOf(expr ast.Expression, ctx *ExecutionContext) string {
+	if identExpr, ok := expr.(*ast.Identifier); ok && ident.Equal(identExpr.Value, "Self") {
+		return currentMethodClassName(ctx)
+	}
+	if e.SemanticInfo() != nil {
+		if annot := e.SemanticInfo().GetType(expr); annot != nil {
+			return annot.Name
+		}
+	}
+	return ""
+}
+
+// getFieldWithStaticClass reads a field honoring field-shadowing semantics
+// when the receiver is a concrete object instance; otherwise it falls back to
+// the plain dynamic lookup.
+func getFieldWithStaticClass(objVal ObjectValue, name string, staticClassName string) Value {
+	if objInst, ok := objVal.(*runtime.ObjectInstance); ok {
+		return objInst.GetFieldFromClass(name, staticClassName)
+	}
+	return objVal.GetField(name)
+}
+
 // identifierIsInstanceMember reports whether name refers to an instance member
 // (field, property, or method) of the class whose method is currently
 // executing. Used to raise "Object not instantiated" when a method body runs
