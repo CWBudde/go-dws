@@ -10,6 +10,78 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
+// compileAndRunWithHelperTransfer mirrors the CLI pipeline: compile, transfer
+// semantic helpers, evaluate the program, and assert its output. It returns
+// the interpreter so callers can inspect the helper registry.
+func compileAndRunWithHelperTransfer(t *testing.T, source, name, wantOutput string) *Interpreter {
+	t.Helper()
+
+	compileResult := frontend.Compile(source, name, semantic.HintsLevelDisabled)
+	if compileResult.HasFatalDiagnostics() || !compileResult.SemanticSuccessful {
+		t.Fatalf("compile failed: %v", compileResult.DiagnosticStrings())
+	}
+
+	var buf bytes.Buffer
+	interp := New(&buf)
+	if compileResult.SemanticInfo != nil {
+		interp.SetSemanticInfo(compileResult.SemanticInfo)
+	}
+	interp.TransferHelpersFromSemanticAnalysis(compileResult.Analyzer.GetHelpers())
+
+	if result := interp.Eval(compileResult.Program); result != nil && result.Type() == "ERROR" {
+		t.Fatalf("evaluation failed: %s", result.String())
+	}
+
+	if got := buf.String(); got != wantOutput {
+		t.Errorf("program output = %q, want %q", got, wantOutput)
+	}
+	return interp
+}
+
+// distinctHelperInstances scans the type system's helper registry and returns,
+// for each requested (normalized) helper name, the set of distinct
+// *runtime.MutableHelperInfo pointers registered under it.
+func distinctHelperInstances(interp *Interpreter, names ...string) map[string]map[*runtime.MutableHelperInfo]bool {
+	wanted := make(map[string]bool, len(names))
+	for _, name := range names {
+		wanted[ident.Normalize(name)] = true
+	}
+
+	instances := make(map[string]map[*runtime.MutableHelperInfo]bool)
+	for _, helpers := range interp.typeSystem.AllHelpers() {
+		for _, helperAny := range helpers {
+			helperInfo, ok := helperAny.(*runtime.MutableHelperInfo)
+			if !ok {
+				continue
+			}
+			name := ident.Normalize(helperInfo.Name)
+			if !wanted[name] {
+				continue
+			}
+			if instances[name] == nil {
+				instances[name] = make(map[*runtime.MutableHelperInfo]bool)
+			}
+			instances[name][helperInfo] = true
+		}
+	}
+	return instances
+}
+
+// singleHelperInstance asserts exactly one registered instance for the
+// (normalized) helper name and returns it (nil if the assertion failed).
+func singleHelperInstance(t *testing.T, instances map[string]map[*runtime.MutableHelperInfo]bool, name string) *runtime.MutableHelperInfo {
+	t.Helper()
+	set := instances[ident.Normalize(name)]
+	if len(set) != 1 {
+		t.Errorf("helper %q registered as %d distinct MutableHelperInfo instances, want exactly 1", name, len(set))
+		return nil
+	}
+	for h := range set {
+		return h
+	}
+	return nil
+}
+
 // TestUserHelperReuseWithCaseMismatchedTarget verifies that VisitHelperDecl
 // reuses the semantic-transfer instance even when the helper declaration
 // spells the target type with different casing than the type declaration
@@ -39,37 +111,9 @@ f.x := 1;
 PrintLn(f.GetX);
 `
 
-	compileResult := frontend.Compile(source, "case_mismatch.dws", semantic.HintsLevelDisabled)
-	if compileResult.HasFatalDiagnostics() || !compileResult.SemanticSuccessful {
-		t.Fatalf("compile failed: %v", compileResult.DiagnosticStrings())
-	}
-
-	var buf bytes.Buffer
-	interp := New(&buf)
-	if compileResult.SemanticInfo != nil {
-		interp.SetSemanticInfo(compileResult.SemanticInfo)
-	}
-	interp.TransferHelpersFromSemanticAnalysis(compileResult.Analyzer.GetHelpers())
-
-	if result := interp.Eval(compileResult.Program); result != nil && result.Type() == "ERROR" {
-		t.Fatalf("evaluation failed: %s", result.String())
-	}
-
-	if got, want := buf.String(), "42\n"; got != want {
-		t.Errorf("program output = %q, want %q", got, want)
-	}
-
-	instances := make(map[*runtime.MutableHelperInfo]bool)
-	for _, helpers := range interp.typeSystem.AllHelpers() {
-		for _, helperAny := range helpers {
-			if helperInfo, ok := helperAny.(*runtime.MutableHelperInfo); ok && ident.Equal(helperInfo.Name, "TFooHelper") {
-				instances[helperInfo] = true
-			}
-		}
-	}
-	if len(instances) != 1 {
-		t.Errorf("helper registered as %d distinct MutableHelperInfo instances, want exactly 1", len(instances))
-	}
+	interp := compileAndRunWithHelperTransfer(t, source, "case_mismatch.dws", "42\n")
+	instances := distinctHelperInstances(interp, "TFooHelper")
+	singleHelperInstance(t, instances, "TFooHelper")
 }
 
 // TestUserHelperRegisteredAsSingleInstance verifies that a user helper is
@@ -103,66 +147,14 @@ PrintLn(s.Base);
 PrintLn(s.Doubled);
 `
 
-	compileResult := frontend.Compile(source, "single_instance.dws", semantic.HintsLevelDisabled)
-	if compileResult.HasFatalDiagnostics() || !compileResult.SemanticSuccessful {
-		t.Fatalf("compile failed: %v", compileResult.DiagnosticStrings())
-	}
+	interp := compileAndRunWithHelperTransfer(t, source, "single_instance.dws", "base\nabab\n")
+	instances := distinctHelperInstances(interp, "TBase", "TChild")
 
-	var buf bytes.Buffer
-	interp := New(&buf)
-	if compileResult.SemanticInfo != nil {
-		interp.SetSemanticInfo(compileResult.SemanticInfo)
-	}
-	// Mirror the CLI pipeline: transfer semantic helpers, then evaluate the
-	// program (whose declarations run through the evaluator's VisitHelperDecl).
-	interp.TransferHelpersFromSemanticAnalysis(compileResult.Analyzer.GetHelpers())
-
-	if result := interp.Eval(compileResult.Program); result != nil && result.Type() == "ERROR" {
-		t.Fatalf("evaluation failed: %s", result.String())
-	}
-
-	if got, want := buf.String(), "base\nabab\n"; got != want {
-		t.Errorf("program output = %q, want %q", got, want)
-	}
-
-	instances := make(map[string]map[*runtime.MutableHelperInfo]bool)
-	for _, helpers := range interp.typeSystem.AllHelpers() {
-		for _, helperAny := range helpers {
-			helperInfo, ok := helperAny.(*runtime.MutableHelperInfo)
-			if !ok {
-				continue
-			}
-			name := ident.Normalize(helperInfo.Name)
-			if name != "tbase" && name != "tchild" {
-				continue
-			}
-			if instances[name] == nil {
-				instances[name] = make(map[*runtime.MutableHelperInfo]bool)
-			}
-			instances[name][helperInfo] = true
-		}
-	}
-
-	for _, name := range []string{"tbase", "tchild"} {
-		switch got := len(instances[name]); {
-		case got == 0:
-			t.Errorf("helper %q not registered", name)
-		case got > 1:
-			t.Errorf("helper %q registered as %d distinct MutableHelperInfo instances, want exactly 1", name, got)
-		}
-	}
+	base := singleHelperInstance(t, instances, "TBase")
+	child := singleHelperInstance(t, instances, "TChild")
 
 	// The child's parent link must point at the single registered instance.
-	if len(instances["tbase"]) == 1 && len(instances["tchild"]) == 1 {
-		var base, child *runtime.MutableHelperInfo
-		for h := range instances["tbase"] {
-			base = h
-		}
-		for h := range instances["tchild"] {
-			child = h
-		}
-		if child.ParentHelper != base {
-			t.Errorf("child helper's ParentHelper is not the registered base instance")
-		}
+	if base != nil && child != nil && child.ParentHelper != base {
+		t.Errorf("child helper's ParentHelper is not the registered base instance")
 	}
 }
