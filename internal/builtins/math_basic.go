@@ -333,33 +333,33 @@ func LogN(ctx Context, args []Value) Value {
 		return ctx.NewError("LogN() expects exactly 2 arguments, got %d", len(args))
 	}
 
-	var xVal, baseVal float64
+	// Delphi/DWScript signature: LogN(Base, X) = Log(X) / Log(Base).
+	var baseVal, xVal float64
 	switch v := args[0].(type) {
 	case *runtime.FloatValue:
-		xVal = v.Value
+		baseVal = v.Value
 	case *runtime.IntegerValue:
-		xVal = float64(v.Value)
+		baseVal = float64(v.Value)
 	default:
 		return ctx.NewError("LogN() expects Float or Integer as first argument, got %s", args[0].Type())
 	}
 
 	switch v := args[1].(type) {
 	case *runtime.FloatValue:
-		baseVal = v.Value
+		xVal = v.Value
 	case *runtime.IntegerValue:
-		baseVal = float64(v.Value)
+		xVal = float64(v.Value)
 	default:
 		return ctx.NewError("LogN() expects Float or Integer as second argument, got %s", args[1].Type())
 	}
 
 	if xVal <= 0 {
-		return ctx.NewError("LogN() first argument must be positive, got %f", xVal)
+		return ctx.NewError("LogN() second argument must be positive, got %f", xVal)
 	}
 	if baseVal <= 0 || baseVal == 1 {
 		return ctx.NewError("LogN() base must be positive and not equal to 1, got %f", baseVal)
 	}
 
-	// LogN(x, base) = Log(x) / Log(base)
 	return &runtime.FloatValue{Value: math.Log(xVal) / math.Log(baseVal)}
 }
 
@@ -386,13 +386,14 @@ func Unsigned32(ctx Context, args []Value) Value {
 }
 
 // MaxInt implements the MaxInt() built-in function.
-// It returns the maximum integer constant or the maximum of two integers.
-// MaxInt() - returns math.MaxInt64 (9223372036854775807)
+// It returns the MaxInt constant or the maximum of two integers.
+// MaxInt() - returns the Delphi MaxInt constant (High(Int32) = 2147483647)
 // MaxInt(a, b) - returns maximum of two Integer values
 func MaxInt(ctx Context, args []Value) Value {
-	// No arguments - return maximum integer constant
+	// No arguments - the MaxInt constant is the 32-bit maximum in DWScript,
+	// even though the Integer type itself is 64-bit (see fixture FunctionsMath/maxint).
 	if len(args) == 0 {
-		return &runtime.IntegerValue{Value: math.MaxInt64}
+		return &runtime.IntegerValue{Value: math.MaxInt32}
 	}
 
 	// Two arguments - return maximum of two integers

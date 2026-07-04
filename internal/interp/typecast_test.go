@@ -285,7 +285,7 @@ begin
 	i := Integer(f) + 5;
 	PrintLn(i);
 end.`,
-			expected: "8\n",
+			expected: "9\n", // Integer(3.7) rounds (banker's) to 4
 		},
 		{
 			name: "Float cast in arithmetic",
