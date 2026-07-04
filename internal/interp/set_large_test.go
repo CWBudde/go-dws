@@ -171,7 +171,7 @@ func TestLargeSet_BinaryOperations(t *testing.T) {
 
 	interp := New(nil)
 
-	unionResult := interp.evalBinarySetOperation(set1, set2, "+")
+	unionResult := evalSetBinaryViaEvaluator(interp, set1, set2, "+")
 	if isError(unionResult) {
 		t.Fatalf("union operation failed: %s", unionResult)
 	}
@@ -183,7 +183,7 @@ func TestLargeSet_BinaryOperations(t *testing.T) {
 		}
 	}
 
-	intersectResult := interp.evalBinarySetOperation(set1, set2, "*")
+	intersectResult := evalSetBinaryViaEvaluator(interp, set1, set2, "*")
 	if isError(intersectResult) {
 		t.Fatalf("intersection operation failed: %s", intersectResult)
 	}
@@ -200,7 +200,7 @@ func TestLargeSet_BinaryOperations(t *testing.T) {
 		}
 	}
 
-	diffResult := interp.evalBinarySetOperation(set1, set2, "-")
+	diffResult := evalSetBinaryViaEvaluator(interp, set1, set2, "-")
 	if isError(diffResult) {
 		t.Fatalf("difference operation failed: %s", diffResult)
 	}
@@ -240,13 +240,13 @@ func TestLargeSet_Performance(t *testing.T) {
 	}
 
 	interp := New(nil)
-	if isError(interp.evalBinarySetOperation(set1, set2, "+")) {
+	if isError(evalSetBinaryViaEvaluator(interp, set1, set2, "+")) {
 		t.Fatalf("union failed")
 	}
-	if isError(interp.evalBinarySetOperation(set1, set2, "*")) {
+	if isError(evalSetBinaryViaEvaluator(interp, set1, set2, "*")) {
 		t.Fatalf("intersection failed")
 	}
-	if isError(interp.evalBinarySetOperation(set1, set2, "-")) {
+	if isError(evalSetBinaryViaEvaluator(interp, set1, set2, "-")) {
 		t.Fatalf("difference failed")
 	}
 }
@@ -282,7 +282,7 @@ func TestVeryLargeSet_500Elements(t *testing.T) {
 
 	interp := New(nil)
 
-	unionResult := interp.evalBinarySetOperation(set1, set2, "+")
+	unionResult := evalSetBinaryViaEvaluator(interp, set1, set2, "+")
 	if isError(unionResult) {
 		t.Fatalf("union operation failed: %s", unionResult)
 	}
@@ -291,7 +291,7 @@ func TestVeryLargeSet_500Elements(t *testing.T) {
 		t.Error("Union missing expected elements")
 	}
 
-	intersectResult := interp.evalBinarySetOperation(set1, set2, "*")
+	intersectResult := evalSetBinaryViaEvaluator(interp, set1, set2, "*")
 	if isError(intersectResult) {
 		t.Fatalf("intersection operation failed: %s", intersectResult)
 	}
@@ -305,7 +305,7 @@ func TestVeryLargeSet_500Elements(t *testing.T) {
 		t.Error("Intersection should not contain element 5")
 	}
 
-	diffResult := interp.evalBinarySetOperation(set1, set2, "-")
+	diffResult := evalSetBinaryViaEvaluator(interp, set1, set2, "-")
 	if isError(diffResult) {
 		t.Fatalf("difference operation failed: %s", diffResult)
 	}
@@ -348,7 +348,7 @@ func TestVeryLargeSet_1000Elements(t *testing.T) {
 
 	interp := New(nil)
 
-	unionResult := interp.evalBinarySetOperation(set1, set2, "+")
+	unionResult := evalSetBinaryViaEvaluator(interp, set1, set2, "+")
 	if isError(unionResult) {
 		t.Fatalf("union operation failed: %s", unionResult)
 	}
@@ -363,7 +363,7 @@ func TestVeryLargeSet_1000Elements(t *testing.T) {
 		t.Errorf("Union should have 200 elements, got %d", count)
 	}
 
-	intersectResult := interp.evalBinarySetOperation(set1, set2, "*")
+	intersectResult := evalSetBinaryViaEvaluator(interp, set1, set2, "*")
 	if isError(intersectResult) {
 		t.Fatalf("intersection operation failed: %s", intersectResult)
 	}
@@ -417,13 +417,13 @@ func TestLargeSet_MixedOperations(t *testing.T) {
 		setC.AddElement(i)
 	}
 
-	unionABResult := interp.evalBinarySetOperation(setA, setB, "+")
+	unionABResult := evalSetBinaryViaEvaluator(interp, setA, setB, "+")
 	if isError(unionABResult) {
 		t.Fatalf("union A+B failed: %s", unionABResult)
 	}
 	unionAB := unionABResult.(*SetValue)
 
-	resultVal := interp.evalBinarySetOperation(unionAB, setC, "*")
+	resultVal := evalSetBinaryViaEvaluator(interp, unionAB, setC, "*")
 	if isError(resultVal) {
 		t.Fatalf("intersection (A+B)*C failed: %s", resultVal)
 	}
@@ -442,13 +442,13 @@ func TestLargeSet_MixedOperations(t *testing.T) {
 		t.Error("15 should not be in result (not multiple of 7)")
 	}
 
-	unionBCResult := interp.evalBinarySetOperation(setB, setC, "+")
+	unionBCResult := evalSetBinaryViaEvaluator(interp, setB, setC, "+")
 	if isError(unionBCResult) {
 		t.Fatalf("union B+C failed: %s", unionBCResult)
 	}
 	unionBC := unionBCResult.(*SetValue)
 
-	diffResultVal := interp.evalBinarySetOperation(setA, unionBC, "-")
+	diffResultVal := evalSetBinaryViaEvaluator(interp, setA, unionBC, "-")
 	if isError(diffResultVal) {
 		t.Fatalf("difference A-(B+C) failed: %s", diffResultVal)
 	}

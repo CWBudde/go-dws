@@ -316,7 +316,7 @@ func (i *Interpreter) AddClassMethod(classInfo interface{}, method *ast.Function
 	}
 
 	methodMeta := runtime.MethodMetadataFromAST(method)
-	i.methodRegistry.RegisterMethod(methodMeta)
+	i.engineState.MethodRegistry.RegisterMethod(methodMeta)
 
 	// Register as class method or instance method
 	if method.IsClassMethod {

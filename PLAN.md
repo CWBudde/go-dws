@@ -219,17 +219,26 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       bind-into-every-copy workaround (`lookupAllMutableHelpers`) is deleted; `VisitFunctionDecl`
       and the parent-helper linkage use the now single-valued `lookupMutableHelper`. Verified by
       `TestUserHelperRegisteredAsSingleInstance` plus HelpersPass byte-stable across 6× re-runs.
-- [ ] **Shadow interpreter:** re-point the tests that call `interp.evalClassDeclaration` /
+- [x] **Shadow interpreter:** re-point the tests that call `interp.evalClassDeclaration` /
       `evalIntegerBinaryOp` / `evalEnumDeclaration` / set & operator helpers at the evaluator,
       then delete those bodies (`expressions_binary.go`, `enum.go`, `type_alias.go`, `set.go`
       operators, `declarations.go` class/interface builders). Mechanical, not a rewrite.
+      *(Done: deleted `expressions_binary.go`, `set.go`, `enum.go`, `type_alias.go` outright,
+      the `declarations.go` class/interface/operator builders, and `evalHelperDeclaration`;
+      `EnumTypeValue`/`TypeAliasValue` are now aliases of the `runtime` structs. Interface
+      tests rewritten to declare via scripts through the production evaluator; set tests
+      re-pointed at the evaluator's binary-op/`in`/`Include`/`Exclude` paths. −27 unreachable
+      funcs (176→149 per `deadcode ./cmd/...` filtered to `internal/interp`), −2,241 net LOC;
+      fixture report byte-identical to main.)*
 - [x] Move `Evaluator.currentNode` into `ExecutionContext`; remove the double `MethodRegistry`
-      allocation (`internal/interp/interpreter.go:61`). Done 2026-07-04: `currentNode` now lives
-      on `runtime.ExecutionContext` (with a nearest-non-nil-context fallback so nil-ctx
-      sub-evaluations keep the old flat-field error-position semantics), and
-      `Interpreter.NewWithDeps` reuses the `MethodRegistry` that `NewEvaluator` already built
-      instead of allocating and overwriting a second one. Behavior-neutral: full suite, fixture
-      gate, and `-race` all green with no baseline changes.
+      allocation (`internal/interp/interpreter.go:61`).
+      *(Done: `currentNode` now lives on `runtime.ExecutionContext` (copied on `Clone`, cleared
+      on `Reset`); `Evaluator.CurrentNode`/`SetCurrentNode` delegate to the tracked context,
+      with a nearest-non-nil-context fallback so nil-ctx sub-evaluations keep the old
+      flat-field error-position semantics, and `Eval` saves/restores the node on the context
+      it runs. `NewWithDeps` reuses the registry the evaluator allocated on `EngineState`
+      instead of allocating a second one, and the redundant `Interpreter.methodRegistry`
+      field is gone. Behavior-neutral: full suite, fixture gate, and `-race` all green.)*
 - [ ] Split the evaluator god files (`visitor_statements.go` 1461, `visitor_declarations.go`
       1426, `var_params.go` 1112).
 - [ ] **Bytecode decision:** hide `--bytecode` and `pkg/dwscript.CompileModeBytecode`, delete

@@ -131,6 +131,7 @@ func NewPropertyEvalContext() *PropertyEvalContext {
 type ExecutionContext struct {
 	handlerException          any
 	exception                 any
+	currentNode               ast.Node
 	arrayTypeContext          *types.ArrayType
 	callStack                 *CallStack
 	controlFlow               *ControlFlow
@@ -142,7 +143,6 @@ type ExecutionContext struct {
 	envStack                  []*Environment
 	oldValuesStack            []map[string]any
 	refCountManager           RefCountManager
-	currentNode               ast.Node
 }
 
 // NewExecutionContext creates a new execution context with the given environment.
@@ -258,6 +258,16 @@ func (ctx *ExecutionContext) SetHandlerException(exc any) {
 	ctx.handlerException = exc
 }
 
+// CurrentNode returns the AST node currently being evaluated (for error reporting).
+func (ctx *ExecutionContext) CurrentNode() ast.Node {
+	return ctx.currentNode
+}
+
+// SetCurrentNode sets the AST node currently being evaluated (for error reporting).
+func (ctx *ExecutionContext) SetCurrentNode(node ast.Node) {
+	ctx.currentNode = node
+}
+
 // PropContext returns the property evaluation context.
 func (ctx *ExecutionContext) PropContext() *PropertyEvalContext {
 	return ctx.propContext
@@ -365,6 +375,8 @@ func (ctx *ExecutionContext) GetOldValue(name string) (any, bool) {
 // COPIED REFERENCES:
 //   - envStack: Slice is copied to prevent corruption during push/pop
 //   - oldValuesStack: Slice is copied to prevent postcondition stack corruption
+//   - currentNode: Copied so the clone starts at the caller's node; updates in the
+//     clone do not leak back to the parent context
 //
 // WARNING: This method assumes single-threaded execution. The shared mutable state
 // (callStack, controlFlow, propContext) would cause race conditions if cloned contexts
@@ -388,6 +400,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		controlFlow:               ctx.controlFlow,
 		exception:                 ctx.exception,
 		handlerException:          ctx.handlerException,
+		currentNode:               ctx.currentNode,
 		oldValuesStack:            oldValuesStackCopy,
 		propContext:               ctx.propContext,
 		recordTypeContextType:     ctx.recordTypeContextType,
@@ -395,7 +408,6 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		currentFunctionReturnType: ctx.currentFunctionReturnType,
 		arrayTypeContext:          ctx.arrayTypeContext,
 		refCountManager:           ctx.refCountManager,
-		currentNode:               ctx.currentNode,
 	}
 }
 
@@ -413,17 +425,6 @@ func (ctx *ExecutionContext) Reset() {
 	ctx.currentFunctionReturnType = ""
 	ctx.arrayTypeContext = nil
 	ctx.currentNode = nil
-}
-
-// CurrentNode returns the AST node currently being evaluated in this context
-// (used for error positions and stack traces).
-func (ctx *ExecutionContext) CurrentNode() ast.Node {
-	return ctx.currentNode
-}
-
-// SetCurrentNode sets the AST node currently being evaluated in this context.
-func (ctx *ExecutionContext) SetCurrentNode(node ast.Node) {
-	ctx.currentNode = node
 }
 
 // SetRefCountManager attaches a RefCountManager used by assignment helpers.

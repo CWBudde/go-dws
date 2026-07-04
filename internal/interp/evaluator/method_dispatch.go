@@ -357,8 +357,10 @@ func (e *Evaluator) staticClassInfoForNilReceiver(obj Value, objectExpr ast.Expr
 	if className == "" {
 		return nil
 	}
-	classInfo, _ := e.typeSystem.LookupClass(className).(runtime.IClassInfo)
-	return classInfo
+	if classInfo, ok := e.typeSystem.LookupClass(className).(runtime.IClassInfo); ok {
+		return classInfo
+	}
+	return nil
 }
 
 // methodNameErrorNode picks the AST node whose position DWScript reports for

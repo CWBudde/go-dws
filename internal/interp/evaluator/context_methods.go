@@ -127,8 +127,8 @@ func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 
 	// Build message with position info if available
 	var message string
-	if e.CurrentNode() != nil {
-		pos := e.CurrentNode().Pos()
+	if currentNode := e.CurrentNode(); currentNode != nil {
+		pos := currentNode.Pos()
 		message = fmt.Sprintf("Assertion failed [line: %d, column: %d]", pos.Line, pos.Column)
 	} else {
 		message = "Assertion failed"

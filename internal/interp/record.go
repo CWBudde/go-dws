@@ -167,9 +167,6 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 
 	// Check type aliases
 	if typeAliasVal, ok := i.Env().Get("__type_alias_" + lowerTypeName); ok {
-		if tav, ok := typeAliasVal.(*TypeAliasValue); ok {
-			return tav.AliasedType, nil
-		}
 		if tav, ok := typeAliasVal.(*runtime.TypeAliasValue); ok {
 			return tav.AliasedType, nil
 		}

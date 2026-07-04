@@ -314,8 +314,8 @@ func (e *Evaluator) ExecuteUserFunction(
 	// Methods are qualified with their class name (e.g. "TMyObj.Proc") to match
 	// DWScript's runtime error and stack trace format.
 	var pos *lexer.Position
-	if e.CurrentNode() != nil {
-		nodePos := e.CurrentNode().Pos()
+	if currentNode := e.CurrentNode(); currentNode != nil {
+		nodePos := currentNode.Pos()
 		pos = &nodePos
 	}
 	frameName := fn.Name.Value

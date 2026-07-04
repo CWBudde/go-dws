@@ -36,7 +36,6 @@ type Interpreter struct {
 	output            io.Writer
 	engineState       *contracts.EngineState
 	typeSystem        *interptypes.TypeSystem
-	methodRegistry    *runtime.MethodRegistry
 	evaluatorInstance evaluatorShim
 	ctx               *runtime.ExecutionContext
 }
@@ -57,9 +56,11 @@ func NewWithDeps(
 		typeSystem:        typeSystem,
 		evaluatorInstance: eval,
 	}
-	// Reuse the MethodRegistry already created in NewEvaluator's EngineState
-	// rather than allocating a second, immediately-discarded registry.
-	interp.methodRegistry = interp.engineState.MethodRegistry
+	// The evaluator allocates the shared MethodRegistry on the engine state;
+	// only allocate one here if the provided engine state lacks it.
+	if interp.engineState.MethodRegistry == nil {
+		interp.engineState.MethodRegistry = runtime.NewMethodRegistry()
+	}
 
 	if opts != nil {
 		if depth := opts.GetMaxRecursionDepth(); depth > 0 {

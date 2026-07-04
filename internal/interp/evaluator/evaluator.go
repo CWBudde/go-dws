@@ -366,6 +366,7 @@ func (e *Evaluator) RefCountManager() runtime.RefCountManager {
 }
 
 // CurrentNode returns the current AST node being evaluated (for error reporting).
+// The node is tracked on the active ExecutionContext.
 func (e *Evaluator) CurrentNode() ast.Node {
 	if e.nodeContext == nil {
 		return nil
@@ -384,6 +385,8 @@ func (e *Evaluator) EngineState() *contracts.EngineState {
 }
 
 // SetCurrentNode sets the current AST node being evaluated (for error reporting).
+// The node is tracked on the active ExecutionContext; without an active context
+// the call is a no-op (Eval records the node on its context on entry).
 func (e *Evaluator) SetCurrentNode(node ast.Node) {
 	if e.nodeContext == nil {
 		return

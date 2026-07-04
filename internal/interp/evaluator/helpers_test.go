@@ -130,10 +130,10 @@ func TestUnwrapVariant(t *testing.T) {
 // selectors and bounds (case v of 11..12 with v: Variant, see fixture case_variant).
 func TestIsInRange_VariantUnwrap(t *testing.T) {
 	tests := []struct {
-		name     string
 		value    Value
 		start    Value
 		end      Value
+		name     string
 		expected bool
 	}{
 		{

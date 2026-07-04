@@ -27,6 +27,8 @@ type (
 	NullValue       = runtime.NullValue       // Variant Null (explicit null state)
 	UnassignedValue = runtime.UnassignedValue // Variant Unassigned (default state)
 	EnumValue       = runtime.EnumValue       // Enumerated values
+	EnumTypeValue   = runtime.EnumTypeValue   // Enum type metadata
+	TypeAliasValue  = runtime.TypeAliasValue  // Type alias definitions
 	TypeMetaValue   = runtime.TypeMetaValue   // Type references
 	SetValue        = runtime.SetValue        // Set values
 	IntRange        = runtime.IntRange        // Integer ranges for sets
