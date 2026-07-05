@@ -361,14 +361,12 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// method body (e.g. `Print;` calling the zero-arg overload). Checked
 	// before builtins so the helper's own methods shadow same-named builtins.
 	if _, inHelper := ctx.Env().Get("__CurrentHelperName__"); inHelper {
-		if selfRaw, ok := ctx.Env().Get("Self"); ok {
-			if selfVal, ok := selfRaw.(Value); ok {
-				if helperResult := e.FindHelperMethod(selfVal, node.Value); helperResult != nil {
-					if zeroArg := zeroArgHelperOverload(helperResult); zeroArg != nil && helperResult.BuiltinSpec == "" {
-						callResult := *helperResult
-						callResult.Method = zeroArg
-						return e.CallHelperMethod(&callResult, selfVal, []Value{}, node, ctx)
-					}
+		if selfVal, ok := ctx.Env().Get("Self"); ok {
+			if helperResult := e.FindHelperMethod(selfVal, node.Value); helperResult != nil {
+				if zeroArg := zeroArgHelperOverload(helperResult); zeroArg != nil && helperResult.BuiltinSpec == "" {
+					callResult := *helperResult
+					callResult.Method = zeroArg
+					return e.CallHelperMethod(&callResult, selfVal, []Value{}, node, ctx)
 				}
 			}
 		}
