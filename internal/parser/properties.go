@@ -159,11 +159,12 @@ parseDirectives:
 			p.nextToken() // move to 'write'
 			p.nextToken() // move to write specifier start
 
-			if p.curTokenIs(lexer.LPAREN) {
+			switch {
+			case p.curTokenIs(lexer.LPAREN):
 				if !p.parsePropertyWriteClause(prop) {
 					return nil
 				}
-			} else if p.curTokenIs(lexer.IDENT) {
+			case p.curTokenIs(lexer.IDENT):
 				// Simple identifier (field or method name)
 				prop.WriteSpec = &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
@@ -173,7 +174,7 @@ parseDirectives:
 					},
 					Value: p.cursor.Current().Literal,
 				}
-			} else {
+			default:
 				p.addError("expected identifier or expression after 'write'", ErrExpectedIdent)
 				return nil
 			}

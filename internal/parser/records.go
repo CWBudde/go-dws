@@ -509,7 +509,8 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	// Parse optional 'read' clause
 	if cursor.Peek(1).Type == lexer.READ {
 		cursor = cursor.Advance() // move to 'read'
-		if cursor.Peek(1).Type == lexer.LPAREN {
+		switch cursor.Peek(1).Type {
+		case lexer.LPAREN:
 			cursor = cursor.Advance() // move to '('
 			p.cursor = cursor
 			// parseExpression at '(' consumes the whole grouped expression and
@@ -525,11 +526,11 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 				prop.ReadExpr = readExpr
 			}
 			cursor = p.cursor
-		} else if cursor.Peek(1).Type == lexer.IDENT {
+		case lexer.IDENT:
 			cursor = cursor.Advance() // move to identifier
 			p.cursor = cursor
 			prop.ReadField = cursor.Current().Literal
-		} else {
+		default:
 			p.addError("expected identifier after 'read'", ErrExpectedIdent)
 			return nil
 		}
@@ -538,18 +539,19 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	// Parse optional 'write' clause
 	if cursor.Peek(1).Type == lexer.WRITE {
 		cursor = cursor.Advance() // move to 'write'
-		if cursor.Peek(1).Type == lexer.LPAREN {
+		switch cursor.Peek(1).Type {
+		case lexer.LPAREN:
 			cursor = cursor.Advance() // move to '('
 			p.cursor = cursor
 			if !p.parseRecordPropertyWriteClause(prop) {
 				return nil
 			}
 			cursor = p.cursor
-		} else if cursor.Peek(1).Type == lexer.IDENT {
+		case lexer.IDENT:
 			cursor = cursor.Advance() // move to identifier
 			p.cursor = cursor
 			prop.WriteField = cursor.Current().Literal
-		} else {
+		default:
 			p.addError("expected identifier after 'write'", ErrExpectedIdent)
 			return nil
 		}
