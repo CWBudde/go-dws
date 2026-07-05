@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"runtime/debug"
 	"sort"
@@ -142,20 +143,46 @@ func (r *Result) DiagnosticStrings() []string {
 
 // Parse parses source and collects parser diagnostics without running semantic analysis.
 func Parse(source string) *Result {
-	l := lexer.New(source)
+	return ParseWithFilename(source, "")
+}
+
+// ParseWithFilename parses source like Parse, additionally configuring the lexer to
+// resolve {$INCLUDE} directives relative to the directory of filename. An empty
+// filename disables include resolution.
+func ParseWithFilename(source, filename string) *Result {
+	opts := includeOptions(filename)
+	l := lexer.New(source, opts...)
 	p := parser.New(l)
 	program := p.ParseProgram()
 
+	// Include-resolution failures (e.g. an unresolvable {$INCLUDE}) are otherwise
+	// invisible to the parser-error path, which would let a script with a missing
+	// include compile and run with its include content silently dropped. Other lexer
+	// errors remain advisory and are not surfaced here.
+	diags := lexerDiagnostics(p.LexerIncludeErrors())
+	diags = append(diags, parserDiagnostics(p.Errors())...)
+
 	return &Result{
 		Program:     program,
-		Diagnostics: filterDiagnostics(parserDiagnostics(p.Errors())),
+		Diagnostics: filterDiagnostics(diags),
+	}
+}
+
+// includeOptions builds the lexer options that enable {$INCLUDE} resolution rooted
+// at the directory containing filename. It returns no options when filename is empty.
+func includeOptions(filename string) []lexer.LexerOption {
+	if filename == "" {
+		return nil
+	}
+	return []lexer.LexerOption{
+		lexer.WithIncludeResolver(lexer.NewFileIncludeResolver(filepath.Dir(filename))),
 	}
 }
 
 // Compile parses source and, if parsing succeeds, runs semantic analysis.
 // This is the shared compile-front-end boundary for diagnostics collection.
 func Compile(source, filename string, hintsLevel semantic.HintsLevel) *Result {
-	result := Parse(source)
+	result := ParseWithFilename(source, filename)
 	return compileParsedResult(result, source, filename, hintsLevel)
 }
 
@@ -336,6 +363,24 @@ func diagnosticSpecificityPriority(diag Diagnostic) int {
 	default:
 		return 0
 	}
+}
+
+// lexerDiagnostics converts accumulated lexer errors into fatal parsing
+// diagnostics so they surface through the normal front-end error path.
+func lexerDiagnostics(errs []lexer.LexerError) []Diagnostic {
+	diags := make([]Diagnostic, 0, len(errs))
+	for i := range errs {
+		diags = append(diags, Diagnostic{
+			Message:        errs[i].Message,
+			Phase:          PhaseParsing,
+			Line:           errs[i].Pos.Line,
+			Column:         errs[i].Pos.Column,
+			Severity:       SeverityError,
+			Fatal:          true,
+			BlocksSemantic: true,
+		})
+	}
+	return diags
 }
 
 func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {

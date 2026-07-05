@@ -41,34 +41,45 @@ type Lexer struct {
 	defines     map[string]struct{}
 	constValues map[string]int
 
-	input            string
-	constPending     string
-	tokenBuffer      []Token
-	errors           []LexerError
-	condStack        []conditionalFrame
-	readPosition     int
-	position         int
-	line             int
-	column           int
-	ch               rune
-	preserveComments bool
-	tracing          bool
-	constBlock       bool
-	constWait        bool
+	input              string
+	constPending       string
+	tokenBuffer        []Token
+	errors             []LexerError
+	condStack          []conditionalFrame
+	includeStack       []includeFrame
+	includeResolver    IncludeResolver
+	includedOnce       map[string]struct{}
+	includeErrors      []LexerError
+	currentIncludePath string
+	includeCount       int
+	readPosition       int
+	position           int
+	line               int
+	column             int
+	ch                 rune
+	preserveComments   bool
+	tracing            bool
+	constBlock         bool
+	constWait          bool
 }
 
 // LexerState represents the complete state of the Lexer at a specific point in time.
 // It can be saved and restored to enable backtracking during parsing.
 // This allows for efficient save/restore operations during lookahead.
 type LexerState struct {
-	defines      map[string]struct{}
-	tokenBuffer  []Token
-	condStack    []conditionalFrame
-	position     int
-	readPosition int
-	line         int
-	column       int
-	ch           rune
+	defines            map[string]struct{}
+	tokenBuffer        []Token
+	condStack          []conditionalFrame
+	input              string
+	includeStack       []includeFrame
+	includedOnce       map[string]struct{}
+	currentIncludePath string
+	includeCount       int
+	position           int
+	readPosition       int
+	line               int
+	column             int
+	ch                 rune
 }
 
 // LexerOption is a function that configures a Lexer.
@@ -81,6 +92,16 @@ type LexerOption func(*Lexer)
 func WithPreserveComments(preserve bool) LexerOption {
 	return func(l *Lexer) {
 		l.preserveComments = preserve
+	}
+}
+
+// WithIncludeResolver configures how {$INCLUDE 'file'} / {$I 'file'} /
+// {$INCLUDE_ONCE 'file'} directives resolve and load their referenced files.
+// When no resolver is set, include directives are ignored (their content is not
+// spliced into the token stream).
+func WithIncludeResolver(resolver IncludeResolver) LexerOption {
+	return func(l *Lexer) {
+		l.includeResolver = resolver
 	}
 }
 
@@ -233,6 +254,23 @@ func (l *Lexer) Errors() []LexerError {
 	return l.errors
 }
 
+// IncludeErrors returns the subset of lexer errors produced while resolving
+// {$INCLUDE} directives (e.g. a missing or unreadable include file). These are
+// surfaced as fatal front-end diagnostics, unlike other lexer errors which remain
+// advisory, so a script with a broken include fails to compile rather than running
+// with the include content silently dropped.
+func (l *Lexer) IncludeErrors() []LexerError {
+	return l.includeErrors
+}
+
+// addIncludeError records an include-resolution failure. It is tracked both in the
+// general error list and in the dedicated include-error list.
+func (l *Lexer) addIncludeError(msg string, pos Position) {
+	err := LexerError{Message: msg, Pos: pos}
+	l.errors = append(l.errors, err)
+	l.includeErrors = append(l.includeErrors, err)
+}
+
 // addError adds a new error to the lexer's error list.
 // This follows the parser's pattern of accumulating errors instead of stopping at the first error.
 func (l *Lexer) addError(msg string, pos Position) {
@@ -258,15 +296,35 @@ func (l *Lexer) SaveState() LexerState {
 	stackCopy := make([]conditionalFrame, len(l.condStack))
 	copy(stackCopy, l.condStack)
 
+	// The include stack and the current input must be captured so backtracking that
+	// spans an {$INCLUDE} boundary rewinds to the correct file and position.
+	var includeStackCopy []includeFrame
+	if l.includeStack != nil {
+		includeStackCopy = make([]includeFrame, len(l.includeStack))
+		copy(includeStackCopy, l.includeStack)
+	}
+	var includedOnceCopy map[string]struct{}
+	if l.includedOnce != nil {
+		includedOnceCopy = make(map[string]struct{}, len(l.includedOnce))
+		for k, v := range l.includedOnce {
+			includedOnceCopy[k] = v
+		}
+	}
+
 	return LexerState{
-		position:     l.position,
-		readPosition: l.readPosition,
-		ch:           l.ch,
-		line:         l.line,
-		column:       l.column,
-		tokenBuffer:  bufferCopy,
-		defines:      definesCopy,
-		condStack:    stackCopy,
+		position:           l.position,
+		readPosition:       l.readPosition,
+		ch:                 l.ch,
+		line:               l.line,
+		column:             l.column,
+		tokenBuffer:        bufferCopy,
+		defines:            definesCopy,
+		condStack:          stackCopy,
+		input:              l.input,
+		includeStack:       includeStackCopy,
+		includedOnce:       includedOnceCopy,
+		currentIncludePath: l.currentIncludePath,
+		includeCount:       l.includeCount,
 	}
 }
 
@@ -282,6 +340,11 @@ func (l *Lexer) RestoreState(s LexerState) {
 	l.tokenBuffer = s.tokenBuffer
 	l.defines = s.defines
 	l.condStack = s.condStack
+	l.input = s.input
+	l.includeStack = s.includeStack
+	l.includedOnce = s.includedOnce
+	l.currentIncludePath = s.currentIncludePath
+	l.includeCount = s.includeCount
 }
 
 // Peek returns the token n positions ahead without consuming it.
@@ -1276,6 +1339,13 @@ func (l *Lexer) handleLeftParen(pos Position) Token {
 func (l *Lexer) nextTokenInternal() Token {
 	for {
 		l.skipWhitespace()
+
+		// End of an included file: resume the file that included it.
+		if l.ch == 0 && len(l.includeStack) > 0 {
+			l.popInclude()
+			continue
+		}
+
 		pos := l.currentPos()
 
 		if l.ch == '{' && l.peekChar() == '$' {

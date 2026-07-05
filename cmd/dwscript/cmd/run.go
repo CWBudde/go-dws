@@ -190,17 +190,33 @@ func runScript(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("either provide a file path or use -e flag for inline code")
 	}
 
-	// Lexer: tokenize the input
-	l := lexer.New(input)
+	// Lexer: tokenize the input, resolving {$INCLUDE} directives relative to the
+	// directory of the script being run (disabled for inline -e expressions).
+	var lexerOpts []lexer.LexerOption
+	if evalExpr == "" {
+		lexerOpts = append(lexerOpts, lexer.WithIncludeResolver(
+			lexer.NewFileIncludeResolver(filepath.Dir(filename))))
+	}
+	l := lexer.New(input, lexerOpts...)
 
 	// Parser: build the AST
 	p := parser.New(l)
 	program := p.ParseProgram()
 
-	// Check for parser errors
-	if len(p.Errors()) > 0 {
-		// Convert ParserError to CompilerError format with pretty output
-		compilerErrors := make([]*errors.CompilerError, 0, len(p.Errors()))
+	// Check for parser and include-resolution errors. A failed {$INCLUDE} must be
+	// surfaced too; otherwise a script with a missing include would run with its
+	// include content silently dropped. Other lexer errors remain advisory.
+	lexErrs := p.LexerIncludeErrors()
+	if len(p.Errors()) > 0 || len(lexErrs) > 0 {
+		compilerErrors := make([]*errors.CompilerError, 0, len(p.Errors())+len(lexErrs))
+		for i := range lexErrs {
+			compilerErrors = append(compilerErrors, errors.NewCompilerError(
+				lexErrs[i].Pos,
+				lexErrs[i].Message,
+				input,
+				filename,
+			))
+		}
 		for _, perr := range p.Errors() {
 			compilerErrors = append(compilerErrors, errors.NewCompilerError(
 				perr.Pos,
@@ -211,7 +227,7 @@ func runScript(_ *cobra.Command, args []string) error {
 		}
 		fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, true))
 		fmt.Fprintln(os.Stderr) // Add newline
-		return fmt.Errorf("parsing failed with %d error(s)", len(p.Errors()))
+		return fmt.Errorf("parsing failed with %d error(s)", len(compilerErrors))
 	}
 
 	// Monomorphize generic types into concrete specializations before semantic
