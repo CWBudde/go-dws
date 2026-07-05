@@ -673,6 +673,9 @@ func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl
 		} else {
 			propInfo.WriteKind = types.PropAccessNone
 		}
+	} else if propDecl.WriteStmt != nil {
+		propInfo.WriteKind = types.PropAccessExpression
+		propInfo.WriteExpr = propDecl.WriteStmt
 	} else {
 		propInfo.WriteKind = types.PropAccessNone
 	}
@@ -1057,6 +1060,25 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			IsIndexed:  len(prop.IndexParams) > 0,
 		}
 
+		switch {
+		case prop.ReadField != "":
+			propInfo.ReadKind = types.PropAccessField
+		case prop.ReadExpr != nil:
+			propInfo.ReadKind = types.PropAccessExpression
+			propInfo.ReadExpr = prop.ReadExpr
+		default:
+			propInfo.ReadKind = types.PropAccessNone
+		}
+		switch {
+		case prop.WriteField != "":
+			propInfo.WriteKind = types.PropAccessField
+		case prop.WriteStmt != nil:
+			propInfo.WriteKind = types.PropAccessExpression
+			propInfo.WriteExpr = prop.WriteStmt
+		default:
+			propInfo.WriteKind = types.PropAccessNone
+		}
+
 		recordType.Properties[propNameLower] = propInfo
 	}
 
@@ -1161,11 +1183,15 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 			return e.newError(prop, "unknown type '%s' for property '%s'",
 				prop.Type.String(), prop.Name.Value)
 		}
-		propInfo := &types.PropertyInfo{Name: prop.Name.Value, Type: propType}
+		propInfo := &types.PropertyInfo{Name: prop.Name.Value, Type: propType, IsClassProperty: prop.IsClassProperty}
 		if prop.ReadSpec != nil {
 			if identExpr, ok := prop.ReadSpec.(*ast.Identifier); ok {
 				propInfo.ReadKind = types.PropAccessMethod
 				propInfo.ReadSpec = identExpr.Value
+			} else {
+				propInfo.ReadKind = types.PropAccessExpression
+				propInfo.ReadSpec = prop.ReadSpec.String()
+				propInfo.ReadExpr = prop.ReadSpec
 			}
 		}
 		if prop.WriteSpec != nil {
@@ -1173,6 +1199,9 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 				propInfo.WriteKind = types.PropAccessMethod
 				propInfo.WriteSpec = identExpr.Value
 			}
+		} else if prop.WriteStmt != nil {
+			propInfo.WriteKind = types.PropAccessExpression
+			propInfo.WriteExpr = prop.WriteStmt
 		}
 		// Key by normalized name so this overwrites the spec-less entry a
 		// reused semantic-transfer instance carries for the same property

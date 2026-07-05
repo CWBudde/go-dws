@@ -147,8 +147,15 @@ type RecordPropertyInfo struct {
 	Type       Type   // Property type
 	ReadField  string // Field name for reading (can be empty for write-only)
 	WriteField string // Field name for writing (can be empty for read-only)
-	IsDefault  bool   // True if this is a default array property
-	IsIndexed  bool   // True if this property has index parameters
+	// ReadExpr / WriteExpr hold AST nodes for expression-based accessors.
+	// ReadExpr is an ast.Expression; WriteExpr is an ast.Statement (an
+	// assignment). When set, the corresponding *Kind is PropAccessExpression.
+	ReadExpr  any
+	WriteExpr any
+	ReadKind  PropAccessKind // Access kind for reading
+	WriteKind PropAccessKind // Access kind for writing
+	IsDefault bool           // True if this is a default array property
+	IsIndexed bool           // True if this property has index parameters
 }
 
 // RecordType represents a record (struct) type.

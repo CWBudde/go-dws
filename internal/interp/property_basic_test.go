@@ -211,6 +211,76 @@ PrintLn(FValue);
 `,
 			expected: "33\n7\n",
 		},
+		{
+			name: "expression-backed write assignment form mutates the backing field",
+			input: `
+type TBox = class
+	Field: Integer = 1;
+	property MultBy2: Integer read (2*Field) write (Field := Value div 2);
+	constructor Create; begin end;
+end;
+
+var box := TBox.Create();
+PrintLn(box.MultBy2);
+box.MultBy2 := 10;
+PrintLn(box.MultBy2);
+PrintLn(box.Field);
+`,
+			expected: "2\n10\n5\n",
+		},
+		{
+			name: "expression-backed write lvalue form assigns Value to the target",
+			input: `
+type TInner = class
+	Field: Integer = 0;
+	constructor Create; begin end;
+end;
+
+type TOuter = class
+	FInner: TInner;
+	property Field: Integer read (FInner.Field) write (FInner.Field);
+	constructor Create; begin FInner := TInner.Create; end;
+end;
+
+var o := TOuter.Create();
+o.Field := 42;
+PrintLn(o.Field);
+PrintLn(o.FInner.Field);
+`,
+			expected: "42\n42\n",
+		},
+		{
+			name: "record property expression read and write",
+			input: `
+type TRec = record
+	Field: Integer;
+	property MultBy2: Integer read (2*Field) write (Field := Value div 2);
+end;
+
+var r: TRec;
+r.Field := 3;
+PrintLn(r.MultBy2);
+r.MultBy2 := 8;
+PrintLn(r.Field);
+PrintLn(r.MultBy2);
+`,
+			expected: "6\n4\n8\n",
+		},
+		{
+			name: "class property expression read and write with class var",
+			input: `
+type TConfig = class
+	class var Field: Integer = 1;
+	class property MultBy2: Integer read (2*Field) write (Field := Value div 2);
+end;
+
+PrintLn(TConfig.MultBy2);
+TConfig.MultBy2 := 10;
+PrintLn(TConfig.MultBy2);
+PrintLn(TConfig.Field);
+`,
+			expected: "2\n10\n5\n",
+		},
 	}
 
 	for _, tt := range tests {

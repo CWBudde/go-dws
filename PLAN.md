@@ -193,6 +193,34 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         error at compile time (runtime-deferred). Zero fixture yield; not pursued.
       - [ ] Make the analyzer fully **type**-order-independent (class parents/fields declared
         later without `forward`) — needs a real two-phase class builder; separate follow-up.
+- [~] **Property read/write expressions** (`PropertyExpressionsPass` **0 → 7/19 CLI (0 → 6
+      harness)**, overall CLI 599 → 606; collateral SimpleScripts harness 289 → 290; no category
+      regressed). DWScript lets a property accessor be a parenthesized expression rather than a
+      bare field/method name: `property P: Integer read (2*Field) write (Field := Value div 2)`.
+      The write clause takes three shapes, all now parsed and executed: an assignment
+      (`Field := Value div 2`), a bare lvalue normalized to `lvalue := Value` (`write (FSub.Field)`),
+      and a call executed as a statement (`write (SetField(Value div 2))`); the implicit `Value`
+      is the assigned value. Implemented across the stack:
+      - **AST/parser:** `PropertyDecl.WriteStmt` and `RecordPropertyDecl.{ReadExpr,WriteStmt}`;
+        `parsePropertyWriteClause`/`buildPropertyWriteSpec` (shared by class and record parsers);
+        record property parser now accepts `read (…)`/`write (…)`; `class property` is now parseable
+        inside `class helper`s.
+      - **Semantic:** `validateWriteExprSpec`, class-property expressions analyzed in a scope that
+        binds class vars (own + inherited), instance fields, index params, and `Value`; `Self`
+        allowed inside property expressions (metaclass for class properties). `PropertyInfo.WriteExpr`
+        and `RecordPropertyInfo.{ReadExpr,WriteExpr,ReadKind,WriteKind}` added.
+      - **Evaluator:** `executeExpressionBackedPropertyWrite`, `executeRecordExpression{Read,Write}`,
+        `evalClassPropertyExpression{Read,Write}` (metaclass Self + class-var sync); bare
+        implicit-Self record property reads; circular-reference guard re-keyed by `PropertyInfo`
+        identity (was property *name*, which false-positived on same-named properties across a
+        hierarchy — `chained_as_properties`).
+      - **Passing:** simple_instance/object_write/object_writer, record_write_statement,
+        chained_as_properties, double_brackets, asclass_property. **Remaining (separate features):**
+        interface properties (no `InterfaceType.Properties` at all), helper-property resolution
+        through a metaclass (helpers_property_expressions et al.), record `class property` parsing
+        (class_property_expressions), multi-index expression-backed indexed properties
+        (indexed_expressions), nested-record default-field init (simple_record_expressions, a
+        pre-existing bug), and the hint envelope (read_write_other_property, ⚠️ blocked above).
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

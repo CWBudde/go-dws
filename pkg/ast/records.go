@@ -101,10 +101,16 @@ func (rd *RecordDecl) String() string {
 // Also supports array properties: property Name[Index: Type]: Type read Field;
 // Note: Renamed from PropertyDecl to avoid conflict with class PropertyDecl
 type RecordPropertyDecl struct {
-	Type        TypeExpression
-	Name        *Identifier
-	ReadField   string
-	WriteField  string
+	Type       TypeExpression
+	Name       *Identifier
+	ReadField  string
+	WriteField string
+	// ReadExpr holds an expression-based read specifier: read (2*Field).
+	// When set, ReadField is empty.
+	ReadExpr Expression
+	// WriteStmt holds an expression-based write specifier: write (Field := Value)
+	// or a normalized parenthesized lvalue write. When set, WriteField is empty.
+	WriteStmt   Statement
 	IndexParams []*Parameter
 	BaseNode
 	IsDefault bool
@@ -134,11 +140,19 @@ func (pd RecordPropertyDecl) String() string {
 	if pd.ReadField != "" {
 		out.WriteString(" read ")
 		out.WriteString(pd.ReadField)
+	} else if pd.ReadExpr != nil {
+		out.WriteString(" read (")
+		out.WriteString(pd.ReadExpr.String())
+		out.WriteString(")")
 	}
 
 	if pd.WriteField != "" {
 		out.WriteString(" write ")
 		out.WriteString(pd.WriteField)
+	} else if pd.WriteStmt != nil {
+		out.WriteString(" write (")
+		out.WriteString(pd.WriteStmt.String())
+		out.WriteString(")")
 	}
 
 	if pd.IsDefault {

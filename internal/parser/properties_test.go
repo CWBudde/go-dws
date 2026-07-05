@@ -226,6 +226,70 @@ func TestPropertyExpressionRead(t *testing.T) {
 	}
 }
 
+func TestPropertyExpressionWrite(t *testing.T) {
+	t.Run("assignment form", func(t *testing.T) {
+		// property MultBy2: Integer read (2*Field) write (Field := Value div 2);
+		input := "property MultBy2: Integer read (2*Field) write (Field := Value div 2);"
+		l := lexer.New(input)
+		p := New(l)
+		prop := p.parsePropertyDeclaration()
+
+		if errs := p.Errors(); len(errs) != 0 {
+			t.Fatalf("Parser had %d errors:\n%v", len(errs), errs)
+		}
+		if prop == nil {
+			t.Fatal("parsePropertyDeclaration() returned nil")
+		}
+		if prop.WriteSpec != nil {
+			t.Errorf("expected WriteSpec to be nil for expression write, got=%T", prop.WriteSpec)
+		}
+		assign, ok := prop.WriteStmt.(*ast.AssignmentStatement)
+		if !ok {
+			t.Fatalf("WriteStmt should be *ast.AssignmentStatement, got=%T", prop.WriteStmt)
+		}
+		if target, ok := assign.Target.(*ast.Identifier); !ok || target.Value != "Field" {
+			t.Errorf("assignment target should be identifier 'Field', got=%v", assign.Target)
+		}
+	})
+
+	t.Run("lvalue form normalizes to assignment of Value", func(t *testing.T) {
+		// property Field: Integer read (FSub.Field) write (FSub.Field);
+		input := "property Field: Integer read (FSub.Field) write (FSub.Field);"
+		l := lexer.New(input)
+		p := New(l)
+		prop := p.parsePropertyDeclaration()
+
+		if errs := p.Errors(); len(errs) != 0 {
+			t.Fatalf("Parser had %d errors:\n%v", len(errs), errs)
+		}
+		assign, ok := prop.WriteStmt.(*ast.AssignmentStatement)
+		if !ok {
+			t.Fatalf("WriteStmt should be *ast.AssignmentStatement, got=%T", prop.WriteStmt)
+		}
+		if _, ok := assign.Target.(*ast.MemberAccessExpression); !ok {
+			t.Errorf("assignment target should be member access FSub.Field, got=%T", assign.Target)
+		}
+		if val, ok := assign.Value.(*ast.Identifier); !ok || val.Value != "Value" {
+			t.Errorf("assignment value should be implicit identifier 'Value', got=%v", assign.Value)
+		}
+	})
+
+	t.Run("call form becomes an expression statement", func(t *testing.T) {
+		// property MultBy2: Integer read (Field*2) write (SetField(Value div 2));
+		input := "property MultBy2: Integer read (Field*2) write (SetField(Value div 2));"
+		l := lexer.New(input)
+		p := New(l)
+		prop := p.parsePropertyDeclaration()
+
+		if errs := p.Errors(); len(errs) != 0 {
+			t.Fatalf("Parser had %d errors:\n%v", len(errs), errs)
+		}
+		if _, ok := prop.WriteStmt.(*ast.ExpressionStatement); !ok {
+			t.Fatalf("WriteStmt should be *ast.ExpressionStatement for a call, got=%T", prop.WriteStmt)
+		}
+	})
+}
+
 // ============================================================================
 // Indexed, Default, and Auto Properties
 // ============================================================================
