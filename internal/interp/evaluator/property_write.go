@@ -265,6 +265,12 @@ func (e *Evaluator) executeRecordExpressionWrite(recVal *runtime.RecordValue, pr
 	scope := newBindingScope()
 	defer scope.cleanup(e, ctx.Env())
 
+	release, errVal := e.enterRecordPropertyExpr(propInfo, node, ctx)
+	if errVal != nil {
+		return errVal
+	}
+	defer release()
+
 	scope.defineExposed(ctx, "Self", recVal)
 	e.bindRecordMethodFields(recVal, ctx, scope)
 	e.bindRecordMethodClassState(recVal, ctx, scope)

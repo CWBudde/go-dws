@@ -302,6 +302,39 @@ PrintLn(TConfig.Field);
 	}
 }
 
+// TestRecordPropertyExpressionCircularReference verifies that a self-referential
+// expression-backed record property is detected as a cycle instead of recursing
+// until the stack overflows.
+func TestRecordPropertyExpressionCircularReference(t *testing.T) {
+	input := `
+type TRec = record
+	Field: Integer;
+	property P: Integer read (P + 1);
+end;
+var r: TRec;
+PrintLn(r.P);
+`
+	var out bytes.Buffer
+	interp := New(&out)
+	result := interpret(interp, input)
+
+	err, isErr := result.(*ErrorValue)
+	exc := interp.GetException()
+	if !isErr && exc == nil {
+		t.Fatalf("expected a circular-reference error, got output %q", out.String())
+	}
+
+	msg := ""
+	if isErr {
+		msg = err.Message
+	} else if exc != nil {
+		msg = exc.Message
+	}
+	if !strings.Contains(msg, "circular property reference") {
+		t.Fatalf("expected circular-reference error, got: %q", msg)
+	}
+}
+
 // TestPropertyReadOnly tests read-only properties
 func TestPropertyReadOnly(t *testing.T) {
 	input := `

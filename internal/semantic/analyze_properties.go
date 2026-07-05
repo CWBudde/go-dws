@@ -338,6 +338,16 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		return
 	}
 
+	// Expression-based accessors on indexed properties are not yet supported by
+	// the runtime (executeIndexedPropertyRead rejects them). Reject at analysis
+	// time so the declaration fails fast with a clear message rather than being
+	// accepted and erroring at the access site.
+	if len(prop.IndexParams) > 0 {
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"indexed property '"+propName+"' does not support an expression-based read accessor"))
+		return
+	}
+
 	// If expression, validate expression type matches property type
 	// Set up class context for expression analysis to enable implicit self access
 	savedClass := a.currentClass
@@ -534,6 +544,14 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 // as implicit context and the special `Value` parameter bound to the property
 // type. The AST statement is stored for runtime evaluation.
 func (a *Analyzer) validateWriteExprSpec(prop *ast.PropertyDecl, classType *types.ClassType, propInfo *types.PropertyInfo) {
+	// Expression-based setters on indexed properties are not yet supported by the
+	// runtime (no way to supply index arguments). Reject at analysis time.
+	if len(prop.IndexParams) > 0 {
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"indexed property '"+prop.Name.Value+"' does not support an expression-based write accessor"))
+		return
+	}
+
 	savedClass := a.currentClass
 	savedInClassMethod := a.inClassMethod
 	savedInPropertyExpr := a.inPropertyExpr
