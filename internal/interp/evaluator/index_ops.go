@@ -4,6 +4,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -110,12 +111,55 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 		}
 		return &runtime.NilValue{}
 	case "RECORD":
-		// Recursively create nested records with zero-initialized fields
+		// Recursively create nested records, applying each field's default
+		// initializer expression (e.g. `Field : Integer = 1`) when present so
+		// nested record fields match a top-level `var r : TRec` declaration.
 		if recordType, ok := t.(*types.RecordType); ok {
 			nestedMetadata := e.typeSystem.LookupRecordMetadata(recordType.Name)
 
-			// Create zero-initialized nested record
+			// Field default initializers live on the registered record type
+			// value (RecordTypeValue.FieldDecls), not in the metadata.
+			var fieldDecls map[string]*ast.FieldDecl
+			if recordType.Name != "" {
+				if recordTypeAny := e.typeSystem.LookupRecord(recordType.Name); recordTypeAny != nil {
+					if rtVal, ok := recordTypeAny.(interface {
+						GetFieldDecls() map[string]*ast.FieldDecl
+					}); ok {
+						fieldDecls = rtVal.GetFieldDecls()
+					}
+				}
+			}
+
 			zeroInit := func(nestedFieldName string, nestedFieldType types.Type) runtime.Value {
+				if fieldDecls != nil {
+					if fieldDecl, ok := fieldDecls[ident.Normalize(nestedFieldName)]; ok && fieldDecl.InitValue != nil {
+						ctx := e.currentContext
+						if ctx == nil {
+							return e.getZeroValueForType(nestedFieldType)
+						}
+						// Establish the field's record type context so record-literal
+						// initializers (e.g. `Sub : TChild = (A: 1)`) resolve, mirroring
+						// the top-level record-init path.
+						prevRecordTypeName := ctx.RecordTypeContext()
+						prevRecordType := ctx.RecordTypeContextType()
+						if nestedRecordType, ok := types.GetUnderlyingType(nestedFieldType).(*types.RecordType); ok {
+							if nestedRecordType.Name != "" {
+								ctx.SetRecordTypeContext(nestedRecordType.Name)
+							} else {
+								ctx.SetRecordTypeContextType(nestedRecordType)
+							}
+						}
+						fieldValue := e.Eval(fieldDecl.InitValue, ctx)
+						if prevRecordType != nil {
+							ctx.SetRecordTypeContextType(prevRecordType)
+						} else {
+							ctx.SetRecordTypeContext(prevRecordTypeName)
+						}
+						// Propagate errors (including from initializers) instead of
+						// masking them with a zero value.
+						return fieldValue
+					}
+				}
 				return e.getZeroValueForType(nestedFieldType)
 			}
 			return runtime.NewRecordValueWithInitializer(recordType, nestedMetadata, zeroInit)

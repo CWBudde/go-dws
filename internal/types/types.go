@@ -976,6 +976,7 @@ func NewClassOfType(classType *ClassType) *ClassOfType {
 type InterfaceType struct {
 	Parent       *InterfaceType
 	Methods      map[string]*FunctionType
+	Properties   map[string]*PropertyInfo
 	Name         string
 	ExternalName string
 	IsExternal   bool
@@ -1039,6 +1040,7 @@ func NewInterfaceType(name string) *InterfaceType {
 		Name:         name,
 		Parent:       nil,
 		Methods:      make(map[string]*FunctionType),
+		Properties:   make(map[string]*PropertyInfo),
 		IsExternal:   false,
 		ExternalName: "",
 	}
@@ -1065,6 +1067,19 @@ func IsSubinterfaceOf(child, parent *InterfaceType) bool {
 	}
 
 	return false
+}
+
+// GetProperty retrieves a property by name from the interface, walking the
+// parent interface chain. Returns nil if no such property exists.
+func (it *InterfaceType) GetProperty(name string) *PropertyInfo {
+	if it == nil {
+		return nil
+	}
+	key := ident.Normalize(name)
+	if prop, ok := it.Properties[key]; ok {
+		return prop
+	}
+	return it.Parent.GetProperty(name)
 }
 
 // GetAllInterfaceMethods returns all methods of an interface, including inherited methods.

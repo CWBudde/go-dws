@@ -193,9 +193,9 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         error at compile time (runtime-deferred). Zero fixture yield; not pursued.
       - [ ] Make the analyzer fully **type**-order-independent (class parents/fields declared
         later without `forward`) — needs a real two-phase class builder; separate follow-up.
-- [~] **Property read/write expressions** (`PropertyExpressionsPass` **0 → 7/19 CLI (0 → 6
-      harness)**, overall CLI 599 → 606; collateral SimpleScripts harness 289 → 290; no category
-      regressed). DWScript lets a property accessor be a parenthesized expression rather than a
+- [~] **Property read/write expressions** (`PropertyExpressionsPass` **0 → 10/19 CLI (53%),
+      meeting its P1 exit criterion**; overall CLI 599 → 616; no category regressed). DWScript lets
+      a property accessor be a parenthesized expression rather than a
       bare field/method name: `property P: Integer read (2*Field) write (Field := Value div 2)`.
       The write clause takes three shapes, all now parsed and executed: an assignment
       (`Field := Value div 2`), a bare lvalue normalized to `lvalue := Value` (`write (FSub.Field)`),
@@ -215,12 +215,27 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         identity (was property *name*, which false-positived on same-named properties across a
         hierarchy — `chained_as_properties`).
       - **Passing:** simple_instance/object_write/object_writer, record_write_statement,
-        chained_as_properties, double_brackets, asclass_property. **Remaining (separate features):**
-        interface properties (no `InterfaceType.Properties` at all), helper-property resolution
-        through a metaclass (helpers_property_expressions et al.), record `class property` parsing
-        (class_property_expressions), multi-index expression-backed indexed properties
-        (indexed_expressions), nested-record default-field init (simple_record_expressions, a
-        pre-existing bug), and the hint envelope (read_write_other_property, ⚠️ blocked above).
+        chained_as_properties, double_brackets, asclass_property.
+      - **Interface properties (added 2026-07-05).** `InterfaceType` now carries a
+        `Properties map[string]*PropertyInfo` (populated by `analyzeInterfacePropertyDecl` from
+        `InterfaceDecl.Properties`); `analyzeMemberAccessExpression` resolves `intf.Prop` to the
+        declared property type for both read and write, and the accessor kind (method vs inline
+        expression) is recorded so the pre-existing runtime interface-property machinery
+        (`MutableInterfaceInfo.Properties`, `InterfaceInstance.LookupProperty`) executes them.
+        Interface accessor expressions are validated against the concrete implementing object at
+        runtime, so the analyzer only records the declared type. Fixes `simple_interface_expressions`,
+        `interface_write_expressions`.
+      - **Nested-record default-field init (fixed 2026-07-05, was a P4 pre-existing bug).**
+        `getZeroValueForType`'s RECORD case now applies each field's default initializer
+        expression (looked up via the registered `RecordTypeValue.FieldDecls`) instead of pure
+        zero-init, so a nested record field (`FSub : TBase` where `TBase.Field = 1`) matches a
+        top-level `var r : TBase`. Fixes `simple_record_expressions`.
+      - **Remaining (separate features):** helper-property resolution through a metaclass
+        (helpers_property_expressions et al.), record/class `class property` parsing
+        (class_property_expressions, class_property_write_expressions, property_auto_field —
+        needs `class property` in record bodies plus record auto-property backing fields),
+        multi-index expression-backed indexed properties (indexed_expressions), and the hint
+        envelope (read_write_other_property, ⚠️ blocked above).
 - [~] **Lambda / anonymous-method coverage** (`LambdaPass` **1 → 4/6 (17% → 67%)**, meeting its
       P1 exit criterion; overall CLI 606 → 613, collateral ArrayPass 86 → 89, FunctionsString
       51 → 52). Three independent gaps closed:

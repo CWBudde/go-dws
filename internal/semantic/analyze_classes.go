@@ -284,6 +284,11 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			return methodType
 		}
 
+		// Interface properties resolve to their declared type.
+		if propInfo := ifaceType.GetProperty(memberName); propInfo != nil {
+			return propInfo.Type
+		}
+
 		// Interface helpers can add both instance methods and helper class members.
 		if helperMethod := a.hasHelperMethod(objectType, memberName); helperMethod != nil {
 			if len(helperMethod.Parameters) == 0 {
