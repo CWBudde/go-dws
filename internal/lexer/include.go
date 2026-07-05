@@ -24,16 +24,23 @@ const maxIncludeDepth = 1024
 
 // IncludeResolver loads the source referenced by an include directive.
 //
-// name is the (unquoted) file name exactly as written in the directive. The
-// resolver returns the decoded file contents together with a canonical path used
-// to de-duplicate {$INCLUDE_ONCE} references. A non-nil error reports that the
-// file could not be resolved or read.
-type IncludeResolver func(name string) (content string, canonical string, err error)
+// name is the (unquoted) file name exactly as written in the directive. fromPath
+// is the canonical path of the file that contains the directive (empty for the
+// top-level source), so relative includes can be resolved against the including
+// file's own directory — matching DWScript, where nested includes resolve relative
+// to the file they appear in rather than the entry point.
+//
+// The resolver returns the decoded file contents together with a canonical path
+// used both to de-duplicate {$INCLUDE_ONCE} references and to resolve any further
+// relative includes nested inside the returned content. A non-nil error reports
+// that the file could not be resolved or read.
+type IncludeResolver func(name, fromPath string) (content string, canonical string, err error)
 
 // includeFrame captures the lexer's scan state at the point an included file was
 // entered, so the parent file can be resumed once the include is exhausted.
 type includeFrame struct {
 	input        string
+	path         string
 	ch           rune
 	position     int
 	readPosition int
@@ -42,14 +49,20 @@ type includeFrame struct {
 }
 
 // NewFileIncludeResolver returns an IncludeResolver that reads include files from
-// the filesystem, resolving relative names against baseDir. Files are decoded with
-// the same BOM/UTF-16 handling as top-level sources so included content matches
-// DWScript's file reading.
+// the filesystem. Relative names are resolved against the directory of the file
+// containing the directive (fromPath); at the top level, where no including file
+// exists yet, they resolve against baseDir. Files are decoded with the same
+// BOM/UTF-16 handling as top-level sources so included content matches DWScript's
+// file reading.
 func NewFileIncludeResolver(baseDir string) IncludeResolver {
-	return func(name string) (string, string, error) {
+	return func(name, fromPath string) (string, string, error) {
 		path := name
 		if !filepath.IsAbs(path) {
-			path = filepath.Join(baseDir, name)
+			dir := baseDir
+			if fromPath != "" {
+				dir = filepath.Dir(fromPath)
+			}
+			path = filepath.Join(dir, name)
 		}
 		content, err := encoding.DecodeFile(path)
 		if err != nil {
@@ -73,7 +86,7 @@ func (l *Lexer) handleInclude(name, content string, parentActive bool, startPos 
 
 	filename := extractIncludeArg(content)
 	if filename == "" {
-		l.addError("file name expected after $"+name, startPos)
+		l.addIncludeError("file name expected after $"+name, startPos)
 		return
 	}
 
@@ -88,9 +101,9 @@ func (l *Lexer) handleInclude(name, content string, parentActive bool, startPos 
 		return
 	}
 
-	includeContent, canonical, err := l.includeResolver(filename)
+	includeContent, canonical, err := l.includeResolver(filename, l.currentIncludePath)
 	if err != nil {
-		l.addError("cannot open include file '"+filename+"': "+err.Error(), startPos)
+		l.addIncludeError("cannot open include file '"+filename+"': "+err.Error(), startPos)
 		return
 	}
 
@@ -105,19 +118,22 @@ func (l *Lexer) handleInclude(name, content string, parentActive bool, startPos 
 	}
 
 	if len(l.includeStack) >= maxIncludeDepth {
-		l.addError("include nesting too deep (possible cyclic {$INCLUDE})", startPos)
+		l.addIncludeError("include nesting too deep (possible cyclic {$INCLUDE})", startPos)
 		return
 	}
 
-	l.enterInclude(includeContent)
+	l.enterInclude(includeContent, canonical)
 }
 
 // enterInclude pushes the current scan state and switches the lexer to lex the
 // included content. The saved state points at the first character following the
 // directive's closing '}', so the parent resumes there once the include ends.
-func (l *Lexer) enterInclude(content string) {
+// canonical is the resolved path of the included file, tracked so that relative
+// includes nested inside it resolve against its own directory.
+func (l *Lexer) enterInclude(content, canonical string) {
 	l.includeStack = append(l.includeStack, includeFrame{
 		input:        l.input,
+		path:         l.currentIncludePath,
 		position:     l.position,
 		readPosition: l.readPosition,
 		line:         l.line,
@@ -127,6 +143,7 @@ func (l *Lexer) enterInclude(content string) {
 	l.includeCount++
 
 	l.input = content
+	l.currentIncludePath = canonical
 	l.position = 0
 	l.readPosition = 0
 	l.line = 1
@@ -140,6 +157,7 @@ func (l *Lexer) popInclude() {
 	frame := l.includeStack[len(l.includeStack)-1]
 	l.includeStack = l.includeStack[:len(l.includeStack)-1]
 	l.input = frame.input
+	l.currentIncludePath = frame.path
 	l.position = frame.position
 	l.readPosition = frame.readPosition
 	l.line = frame.line

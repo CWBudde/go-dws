@@ -155,9 +155,16 @@ func ParseWithFilename(source, filename string) *Result {
 	p := parser.New(l)
 	program := p.ParseProgram()
 
+	// Include-resolution failures (e.g. an unresolvable {$INCLUDE}) are otherwise
+	// invisible to the parser-error path, which would let a script with a missing
+	// include compile and run with its include content silently dropped. Other lexer
+	// errors remain advisory and are not surfaced here.
+	diags := lexerDiagnostics(p.LexerIncludeErrors())
+	diags = append(diags, parserDiagnostics(p.Errors())...)
+
 	return &Result{
 		Program:     program,
-		Diagnostics: filterDiagnostics(parserDiagnostics(p.Errors())),
+		Diagnostics: filterDiagnostics(diags),
 	}
 }
 
@@ -356,6 +363,24 @@ func diagnosticSpecificityPriority(diag Diagnostic) int {
 	default:
 		return 0
 	}
+}
+
+// lexerDiagnostics converts accumulated lexer errors into fatal parsing
+// diagnostics so they surface through the normal front-end error path.
+func lexerDiagnostics(errs []lexer.LexerError) []Diagnostic {
+	diags := make([]Diagnostic, 0, len(errs))
+	for i := range errs {
+		diags = append(diags, Diagnostic{
+			Message:        errs[i].Message,
+			Phase:          PhaseParsing,
+			Line:           errs[i].Pos.Line,
+			Column:         errs[i].Pos.Column,
+			Severity:       SeverityError,
+			Fatal:          true,
+			BlocksSemantic: true,
+		})
+	}
+	return diags
 }
 
 func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {

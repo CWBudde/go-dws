@@ -272,14 +272,20 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       included input is exhausted, the parent file resumes exactly where it left off, so nesting
       and recursion work naturally. `{$INCLUDE_ONCE}` de-duplicates by canonical path (marking
       *before* splicing so mutual `include_once` recursion is guarded), while plain `{$INCLUDE}`
-      always re-includes. File resolution is injected via a `WithIncludeResolver` lexer option
-      (`NewFileIncludeResolver` resolves relative to the including file's directory and decodes
-      with the same BOM/UTF-16 handling as top-level sources); the resolver is wired through
-      `frontend.ParseWithFilename`/`Compile` and `cmd/dwscript run`. `{$I %FILE%}`-style value
-      substitutions are left untouched (a separate, unimplemented feature). Fixes SimpleScripts
-      `include`, `include_once`, `include_once2`; `includeSym` now produces correct output but
-      still needs the hint envelope (⚠️ blocked above). SimpleScripts 290 → 294 (harness). Covered
-      by `internal/lexer/include_test.go`.
+      always re-includes. File resolution is injected via a `WithIncludeResolver` lexer option;
+      the lexer tracks the **current including file's canonical path** so relative includes
+      resolve against the directory of the file they appear in (nested `sub/a.inc` → `{$INCLUDE
+      'b.inc'}` finds `sub/b.inc`), matching DWScript. `NewFileIncludeResolver` decodes with the
+      same BOM/UTF-16 handling as top-level sources; the resolver is wired through
+      `frontend.ParseWithFilename`/`Compile` and `cmd/dwscript run`. An **unresolvable include is
+      a fatal front-end diagnostic** (tracked on a dedicated include-error channel, surfaced via
+      `Parser.LexerIncludeErrors`, so a missing include fails to compile instead of running with
+      its content silently dropped) — other lexer errors stay advisory to avoid regressing the
+      `*Fail` diagnostic suites. `{$I %FILE%}`-style value substitutions are left untouched (a
+      separate, unimplemented feature). Fixes SimpleScripts `include`, `include_once`,
+      `include_once2`; `includeSym` now produces correct output but still needs the hint envelope
+      (⚠️ blocked above). SimpleScripts 290 → 294 (harness). Covered by
+      `internal/lexer/include_test.go`.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

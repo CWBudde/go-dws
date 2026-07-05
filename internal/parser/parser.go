@@ -129,6 +129,13 @@ func (p *Parser) LexerErrors() []lexer.LexerError {
 	return p.l.Errors()
 }
 
+// LexerIncludeErrors returns the lexer errors produced while resolving {$INCLUDE}
+// directives. These are fatal (a broken include means missing code) and are
+// surfaced through the normal error path, unlike other advisory lexer errors.
+func (p *Parser) LexerIncludeErrors() []lexer.LexerError {
+	return p.l.IncludeErrors()
+}
+
 // nextToken advances the cursor.
 func (p *Parser) nextToken() {
 	p.cursor = p.cursor.Advance()

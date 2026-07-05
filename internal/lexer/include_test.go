@@ -11,7 +11,7 @@ import (
 // The canonical path is the file name itself, so {$INCLUDE_ONCE} de-duplication
 // keys on the exact name.
 func mapIncludeResolver(files map[string]string) IncludeResolver {
-	return func(name string) (string, string, error) {
+	return func(name, _ string) (string, string, error) {
 		content, ok := files[name]
 		if !ok {
 			return "", "", fmt.Errorf("file not found: %s", name)
@@ -81,6 +81,57 @@ func TestIncludeDirectiveNested(t *testing.T) {
 			t.Errorf("token[%d] = %q, want %q", i, got[i], want[i])
 		}
 	}
+}
+
+// TestIncludeNestedResolvesFromCurrentFile verifies that a relative include nested
+// inside an already-included file is resolved against that file's directory, not the
+// top-level entry point (matching DWScript semantics).
+func TestIncludeNestedResolvesFromCurrentFile(t *testing.T) {
+	// Files keyed by canonical path; the resolver joins relative names against the
+	// directory of the including file (fromPath).
+	files := map[string]string{
+		"/root/main.dws":  "",
+		"/root/sub/a.inc": `1 {$INCLUDE 'b.inc'} 3`,
+		"/root/sub/b.inc": `2`,
+	}
+	var fromPaths []string
+	resolver := func(name, fromPath string) (string, string, error) {
+		fromPaths = append(fromPaths, fromPath)
+		dir := "/root"
+		if fromPath != "" {
+			dir = pathDir(fromPath)
+		}
+		canonical := dir + "/" + name
+		content, ok := files[canonical]
+		if !ok {
+			return "", "", fmt.Errorf("not found: %s", canonical)
+		}
+		return content, canonical, nil
+	}
+
+	// Entry point is /root/main.dws; its directive uses the sub/ subdirectory.
+	l := New(`{$INCLUDE 'sub/a.inc'}`, WithIncludeResolver(resolver))
+	l.currentIncludePath = "/root/main.dws"
+	got := collectLiterals(l)
+
+	want := []string{"1", "2", "3"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	// The nested {$INCLUDE 'b.inc'} must have been resolved from /root/sub/a.inc.
+	if len(fromPaths) != 2 || fromPaths[1] != "/root/sub/a.inc" {
+		t.Fatalf("nested include fromPath = %v, want second entry /root/sub/a.inc", fromPaths)
+	}
+}
+
+// pathDir returns everything up to the last '/' in p (a test-local dirname).
+func pathDir(p string) string {
+	for i := len(p) - 1; i >= 0; i-- {
+		if p[i] == '/' {
+			return p[:i]
+		}
+	}
+	return "."
 }
 
 func TestIncludeOnceDeduplicates(t *testing.T) {
