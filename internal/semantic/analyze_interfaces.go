@@ -164,12 +164,17 @@ func (a *Analyzer) analyzeInterfacePropertyDecl(prop *ast.PropertyDecl, iface *t
 	// Record write access kind.
 	switch {
 	case prop.WriteSpec != nil:
-		if id, ok := prop.WriteSpec.(*ast.Identifier); ok {
-			propInfo.WriteSpec = id.Value
-			propInfo.WriteKind = types.PropAccessMethod
-		} else {
-			propInfo.WriteKind = types.PropAccessNone
+		// A bare write specifier must be a field or method name; parenthesized
+		// expression setters arrive via WriteStmt instead. Reject other shapes
+		// rather than silently degrading the property to read-only.
+		id, ok := prop.WriteSpec.(*ast.Identifier)
+		if !ok {
+			a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+				"property '"+propName+"' write specifier must be a field or method name in interface '"+iface.Name+"'"))
+			return
 		}
+		propInfo.WriteSpec = id.Value
+		propInfo.WriteKind = types.PropAccessMethod
 	case prop.WriteStmt != nil:
 		propInfo.WriteKind = types.PropAccessExpression
 		propInfo.WriteExpr = prop.WriteStmt

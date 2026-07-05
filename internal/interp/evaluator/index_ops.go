@@ -133,9 +133,31 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 			zeroInit := func(nestedFieldName string, nestedFieldType types.Type) runtime.Value {
 				if fieldDecls != nil {
 					if fieldDecl, ok := fieldDecls[ident.Normalize(nestedFieldName)]; ok && fieldDecl.InitValue != nil {
-						if fieldValue := e.Eval(fieldDecl.InitValue, e.currentContext); !isError(fieldValue) {
-							return fieldValue
+						ctx := e.currentContext
+						if ctx == nil {
+							return e.getZeroValueForType(nestedFieldType)
 						}
+						// Establish the field's record type context so record-literal
+						// initializers (e.g. `Sub : TChild = (A: 1)`) resolve, mirroring
+						// the top-level record-init path.
+						prevRecordTypeName := ctx.RecordTypeContext()
+						prevRecordType := ctx.RecordTypeContextType()
+						if nestedRecordType, ok := types.GetUnderlyingType(nestedFieldType).(*types.RecordType); ok {
+							if nestedRecordType.Name != "" {
+								ctx.SetRecordTypeContext(nestedRecordType.Name)
+							} else {
+								ctx.SetRecordTypeContextType(nestedRecordType)
+							}
+						}
+						fieldValue := e.Eval(fieldDecl.InitValue, ctx)
+						if prevRecordType != nil {
+							ctx.SetRecordTypeContextType(prevRecordType)
+						} else {
+							ctx.SetRecordTypeContext(prevRecordTypeName)
+						}
+						// Propagate errors (including from initializers) instead of
+						// masking them with a zero value.
+						return fieldValue
 					}
 				}
 				return e.getZeroValueForType(nestedFieldType)
