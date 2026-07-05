@@ -61,15 +61,17 @@ func (e *Evaluator) executePropertyRead(obj Value, propInfo any, node ast.Node, 
 	// Get property context for circular reference tracking
 	propCtx := ctx.PropContext()
 
-	// Check for circular property references
+	// Check for circular property references. Track by PropertyInfo identity, not
+	// name, so distinct same-named properties on different classes don't collide.
+	propKey := fmt.Sprintf("%p", pInfo)
 	for _, prop := range propCtx.PropertyChain {
-		if prop == pInfo.Name {
+		if prop == propKey {
 			return e.newError(node, "circular property reference detected: %s", pInfo.Name)
 		}
 	}
 
 	// Push property onto chain
-	propCtx.PropertyChain = append(propCtx.PropertyChain, pInfo.Name)
+	propCtx.PropertyChain = append(propCtx.PropertyChain, propKey)
 	defer func() {
 		// Pop property from chain when done
 		if len(propCtx.PropertyChain) > 0 {
@@ -96,13 +98,19 @@ func (e *Evaluator) executeRecordPropertyRead(record Value, propInfo *types.Reco
 	if propInfo == nil {
 		return e.newError(node, "invalid record property info")
 	}
-	if propInfo.ReadField == "" {
-		return e.newError(node, "property '%s' is write-only", propInfo.Name)
-	}
 
 	recVal, ok := record.(*runtime.RecordValue)
 	if !ok {
 		return e.newError(node, "cannot read property from non-record value")
+	}
+
+	// Expression-based read: evaluate with Self and fields bound.
+	if propInfo.ReadKind == types.PropAccessExpression && propInfo.ReadExpr != nil {
+		return e.executeRecordExpressionRead(recVal, propInfo, node, ctx)
+	}
+
+	if propInfo.ReadField == "" {
+		return e.newError(node, "property '%s' is write-only", propInfo.Name)
 	}
 
 	if fieldValue, found := recVal.GetRecordField(propInfo.ReadField); found {
@@ -125,6 +133,27 @@ func (e *Evaluator) executeRecordPropertyRead(record Value, propInfo *types.Reco
 
 	return e.newError(node, "property '%s' read accessor '%s' not found in record '%s'",
 		propInfo.Name, propInfo.ReadField, recVal.GetRecordTypeName())
+}
+
+// executeRecordExpressionRead evaluates an expression-based record property
+// getter. Self and the record's fields are bound so the expression can reference
+// fields, other properties, and methods directly.
+func (e *Evaluator) executeRecordExpressionRead(recVal *runtime.RecordValue, propInfo *types.RecordPropertyInfo, node ast.Node, ctx *ExecutionContext) Value {
+	exprNode, ok := propInfo.ReadExpr.(ast.Expression)
+	if !ok {
+		return e.newError(node, "property '%s' has invalid read expression type", propInfo.Name)
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
+
+	scope.defineExposed(ctx, "Self", recVal)
+	e.bindRecordMethodFields(recVal, ctx, scope)
+	e.bindRecordMethodClassState(recVal, ctx, scope)
+
+	return e.Eval(exprNode, ctx)
 }
 
 func readRecordTypePropertyValue(recordType *RecordTypeValue, propInfo *types.RecordPropertyInfo) (Value, bool) {

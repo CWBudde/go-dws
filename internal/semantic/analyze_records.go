@@ -290,6 +290,26 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			IsIndexed:  len(prop.IndexParams) > 0,
 		}
 
+		// Determine read/write access kinds (field vs. expression).
+		switch {
+		case prop.ReadField != "":
+			propInfo.ReadKind = types.PropAccessField
+		case prop.ReadExpr != nil:
+			propInfo.ReadKind = types.PropAccessExpression
+			propInfo.ReadExpr = prop.ReadExpr
+		default:
+			propInfo.ReadKind = types.PropAccessNone
+		}
+		switch {
+		case prop.WriteField != "":
+			propInfo.WriteKind = types.PropAccessField
+		case prop.WriteStmt != nil:
+			propInfo.WriteKind = types.PropAccessExpression
+			propInfo.WriteExpr = prop.WriteStmt
+		default:
+			propInfo.WriteKind = types.PropAccessNone
+		}
+
 		// Store with lowercase key for case-insensitive lookup
 		recordType.Properties[lowerPropName] = propInfo
 	}

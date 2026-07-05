@@ -198,6 +198,15 @@ func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, is
 				cursor = p.cursor.Advance()
 				p.cursor = cursor
 				continue
+			case lexer.PROPERTY:
+				property := p.parsePropertyDeclaration()
+				if property != nil {
+					property.IsClassProperty = true
+					helperDecl.Properties = append(helperDecl.Properties, property)
+				}
+				cursor = p.cursor.Advance()
+				p.cursor = cursor
+				continue
 			default:
 				p.addError("expected 'var', 'const', 'function' or 'procedure' after 'class' keyword in helper", ErrUnexpectedToken)
 				cursor = cursor.Advance()

@@ -414,6 +414,7 @@ const (
 type PropertyInfo struct {
 	IndexValue      any
 	ReadExpr        any
+	WriteExpr       any
 	IndexValueType  Type
 	Type            Type
 	ReadSpec        string

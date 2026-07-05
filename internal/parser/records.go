@@ -358,6 +358,29 @@ func fieldsFromRecordFieldNames(
 	return fields
 }
 
+// parseRecordPropertyWriteClause parses a parenthesized record property write
+// specifier. Mirrors parsePropertyWriteClause for classes.
+//
+// PRE: cursor is LPAREN
+// POST: cursor is RPAREN
+func (p *Parser) parseRecordPropertyWriteClause(prop *ast.RecordPropertyDecl) bool {
+	writeToken := p.cursor.Current()
+
+	p.nextToken() // move into parentheses, to the lvalue start
+	lhs := p.parseExpression(LOWEST)
+	if lhs == nil {
+		return false
+	}
+
+	writeStmt, writeSpec := p.buildPropertyWriteSpec(lhs, writeToken)
+	prop.WriteStmt = writeStmt
+	if identExpr, ok := writeSpec.(*ast.Identifier); ok {
+		prop.WriteField = identExpr.Value
+	}
+
+	return p.expectPeek(lexer.RPAREN)
+}
+
 // parseRecordPropertyDeclaration parses a record property declaration (dispatcher).
 
 // Pattern: property Name: Type read FieldName write FieldName;
@@ -486,25 +509,50 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	// Parse optional 'read' clause
 	if cursor.Peek(1).Type == lexer.READ {
 		cursor = cursor.Advance() // move to 'read'
-		if cursor.Peek(1).Type != lexer.IDENT {
+		if cursor.Peek(1).Type == lexer.LPAREN {
+			cursor = cursor.Advance() // move to '('
+			p.cursor = cursor
+			// parseExpression at '(' consumes the whole grouped expression and
+			// leaves the cursor on the closing ')'.
+			readExpr := p.parseExpression(LOWEST)
+			if readExpr == nil {
+				return nil
+			}
+			// A single-identifier expression behaves like a plain field/method read.
+			if identExpr, ok := readExpr.(*ast.Identifier); ok {
+				prop.ReadField = identExpr.Value
+			} else {
+				prop.ReadExpr = readExpr
+			}
+			cursor = p.cursor
+		} else if cursor.Peek(1).Type == lexer.IDENT {
+			cursor = cursor.Advance() // move to identifier
+			p.cursor = cursor
+			prop.ReadField = cursor.Current().Literal
+		} else {
 			p.addError("expected identifier after 'read'", ErrExpectedIdent)
 			return nil
 		}
-		cursor = cursor.Advance() // move to identifier
-		p.cursor = cursor
-		prop.ReadField = cursor.Current().Literal
 	}
 
 	// Parse optional 'write' clause
 	if cursor.Peek(1).Type == lexer.WRITE {
 		cursor = cursor.Advance() // move to 'write'
-		if cursor.Peek(1).Type != lexer.IDENT {
+		if cursor.Peek(1).Type == lexer.LPAREN {
+			cursor = cursor.Advance() // move to '('
+			p.cursor = cursor
+			if !p.parseRecordPropertyWriteClause(prop) {
+				return nil
+			}
+			cursor = p.cursor
+		} else if cursor.Peek(1).Type == lexer.IDENT {
+			cursor = cursor.Advance() // move to identifier
+			p.cursor = cursor
+			prop.WriteField = cursor.Current().Literal
+		} else {
 			p.addError("expected identifier after 'write'", ErrExpectedIdent)
 			return nil
 		}
-		cursor = cursor.Advance() // move to identifier
-		p.cursor = cursor
-		prop.WriteField = cursor.Current().Literal
 	}
 
 	// Expect semicolon first

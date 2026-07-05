@@ -154,20 +154,28 @@ parseDirectives:
 			// Parse optional 'write' clause
 			// WriteSpec can be:
 			// - Identifier (field or method name)
+			// - Parenthesized lvalue expression: write (FSub.Field)
+			// - Parenthesized assignment statement: write (Field := Value div 2)
 			p.nextToken() // move to 'write'
+			p.nextToken() // move to write specifier start
 
-			if !p.expectPeek(lexer.IDENT) {
-				return nil
-			}
-
-			// Simple identifier (field or method name)
-			prop.WriteSpec = &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: p.cursor.Current(),
+			if p.curTokenIs(lexer.LPAREN) {
+				if !p.parsePropertyWriteClause(prop) {
+					return nil
+				}
+			} else if p.curTokenIs(lexer.IDENT) {
+				// Simple identifier (field or method name)
+				prop.WriteSpec = &ast.Identifier{
+					TypedExpressionBase: ast.TypedExpressionBase{
+						BaseNode: ast.BaseNode{
+							Token: p.cursor.Current(),
+						},
 					},
-				},
-				Value: p.cursor.Current().Literal,
+					Value: p.cursor.Current().Literal,
+				}
+			} else {
+				p.addError("expected identifier or expression after 'write'", ErrExpectedIdent)
+				return nil
 			}
 		default:
 			break parseDirectives
@@ -179,7 +187,7 @@ parseDirectives:
 
 	// If neither read nor write was specified, generate auto-property
 	// Auto-property generates backing field FName (F + property name)
-	if prop.ReadSpec == nil && prop.WriteSpec == nil {
+	if prop.ReadSpec == nil && prop.WriteSpec == nil && prop.WriteStmt == nil {
 		// Generate backing field name: F + property name
 		backingFieldName := "F" + propName.Value
 		backingField := &ast.Identifier{
@@ -216,6 +224,84 @@ parseDirectives:
 	decl, _ := builder.Finish(prop).(*ast.PropertyDecl)
 
 	return decl
+}
+
+// parsePropertyWriteClause parses a parenthesized property write specifier.
+// Two forms are supported:
+//   - lvalue:     write (FSub.Field)      -> normalized to `FSub.Field := Value`
+//   - assignment: write (Field := Value)  -> stored as-is
+//
+// A single-identifier lvalue (write (Field)) is stored as an ordinary field/method
+// write specifier so it flows through the existing field-backed write path.
+//
+// The special identifier `Value` refers to the value being assigned.
+//
+// PRE: cursor is LPAREN
+// POST: cursor is RPAREN
+func (p *Parser) parsePropertyWriteClause(prop *ast.PropertyDecl) bool {
+	writeToken := p.cursor.Current()
+
+	p.nextToken() // move into parentheses, to the lvalue start
+	lhs := p.parseExpression(LOWEST)
+	if lhs == nil {
+		return false
+	}
+
+	prop.WriteStmt, prop.WriteSpec = p.buildPropertyWriteSpec(lhs, writeToken)
+
+	// Expect closing parenthesis
+	return p.expectPeek(lexer.RPAREN)
+}
+
+// buildPropertyWriteSpec turns a parsed parenthesized write specifier into either
+// a write statement or a field/method write spec. Called with the cursor on the
+// last token of the left-hand expression. Handles three shapes:
+//   - assignment  (target := expr)         -> the assignment statement
+//   - call/other  (SetField(Value div 2))  -> an expression statement
+//   - plain lvalue (FSub.Field)            -> normalized to `lvalue := Value`
+//   - identifier   (Field)                 -> a plain field/method write spec
+func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Token) (ast.Statement, ast.Expression) {
+	if p.peekTokenIs(lexer.ASSIGN) {
+		p.nextToken() // move to ':='
+		assignOp := p.cursor.Current().Type
+		assignToken := p.cursor.Current()
+		p.nextToken() // move to right-hand expression
+		rhs := p.parseExpression(LOWEST)
+		if rhs == nil {
+			return nil, nil
+		}
+		return &ast.AssignmentStatement{
+			BaseNode: ast.BaseNode{Token: assignToken},
+			Target:   lhs,
+			Operator: assignOp,
+			Value:    rhs,
+		}, nil
+	}
+
+	switch lhs.(type) {
+	case *ast.Identifier:
+		// Single identifier lvalue: behaves like `write Field`.
+		return nil, lhs
+	case *ast.CallExpression:
+		// A call such as SetField(Value) executes directly.
+		return &ast.ExpressionStatement{
+			BaseNode:   ast.BaseNode{Token: writeToken},
+			Expression: lhs,
+		}, nil
+	default:
+		// General lvalue (member/index access): normalize to `lhs := Value`.
+		return &ast.AssignmentStatement{
+			BaseNode: ast.BaseNode{Token: writeToken},
+			Target:   lhs,
+			Operator: lexer.ASSIGN,
+			Value: &ast.Identifier{
+				TypedExpressionBase: ast.TypedExpressionBase{
+					BaseNode: ast.BaseNode{Token: writeToken},
+				},
+				Value: "Value",
+			},
+		}, nil
+	}
 }
 
 // parseIndexedPropertyParameterGroup parses a group of indexed property parameters with the same type.

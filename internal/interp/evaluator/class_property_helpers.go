@@ -36,8 +36,47 @@ func (e *Evaluator) evalClassPropertyRead(
 		}
 		return e.executeClassPropertyMethod(classInfo, method, nil, node, ctx)
 
+	case types.PropAccessExpression:
+		return e.evalClassPropertyExpressionRead(classInfo, propInfo, node, ctx)
+
 	default:
 		return e.newError(node, "class property '%s' has no read access", propInfo.Name)
+	}
+}
+
+// evalClassPropertyExpressionRead evaluates an expression-based class property
+// getter with the class variables and the metaclass Self bound.
+func (e *Evaluator) evalClassPropertyExpressionRead(
+	classInfo runtime.IClassInfo,
+	propInfo *types.PropertyInfo,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	exprNode, ok := propInfo.ReadExpr.(ast.Expression)
+	if !ok {
+		return e.newError(node, "class property '%s' has invalid read expression type", propInfo.Name)
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
+
+	e.bindClassPropertyExprSelf(classInfo, ctx, scope)
+
+	return e.Eval(exprNode, ctx)
+}
+
+// bindClassPropertyExprSelf binds class variables (exposed, so writes sync back),
+// the metaclass Self, and __CurrentClass__ for a class-property expression.
+func (e *Evaluator) bindClassPropertyExprSelf(classInfo runtime.IClassInfo, ctx *ExecutionContext, scope *bindingScope) {
+	e.bindClassVarsForProperty(classInfo, ctx, scope)
+
+	if classVal, err := e.typeSystem.CreateClassValue(classInfo.GetName()); err == nil && classVal != nil {
+		if classMeta, ok := classVal.(ClassMetaValue); ok {
+			scope.defineExposed(ctx, "Self", classMeta)
+			scope.defineExposed(ctx, "__CurrentClass__", classMeta)
+		}
 	}
 }
 
@@ -74,9 +113,44 @@ func (e *Evaluator) evalClassPropertyWrite(
 		}
 		return e.executeClassPropertyMethod(classInfo, method, []Value{value}, node, ctx)
 
+	case types.PropAccessExpression:
+		return e.evalClassPropertyExpressionWrite(classInfo, propInfo, value, node, ctx)
+
 	default:
 		return e.newError(node, "class property '%s' has no write access", propInfo.Name)
 	}
+}
+
+// evalClassPropertyExpressionWrite executes an expression-based class property
+// setter (an assignment or call statement) with class variables, metaclass Self,
+// and the implicit `Value` bound. Class-variable writes are synced back afterward.
+func (e *Evaluator) evalClassPropertyExpressionWrite(
+	classInfo runtime.IClassInfo,
+	propInfo *types.PropertyInfo,
+	value Value,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	stmt, ok := propInfo.WriteExpr.(ast.Statement)
+	if !ok {
+		return e.newError(node, "class property '%s' has invalid write statement type", propInfo.Name)
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
+
+	e.bindClassPropertyExprSelf(classInfo, ctx, scope)
+	scope.defineOwned(e, ctx, "Value", value)
+
+	result := e.Eval(stmt, ctx)
+	if isError(result) {
+		return result
+	}
+
+	e.syncClassVarsFromEnv(classInfo, ctx.Env())
+	return value
 }
 
 func (e *Evaluator) executeClassPropertyMethod(

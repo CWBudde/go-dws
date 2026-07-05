@@ -89,7 +89,7 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 			return nil, err
 		}
 		propKey := ident.Normalize(prop.Name.Value)
-		recordType.Properties[propKey] = &types.RecordPropertyInfo{
+		propInfo := &types.RecordPropertyInfo{
 			Name:       prop.Name.Value,
 			Type:       propType,
 			ReadField:  prop.ReadField,
@@ -97,6 +97,25 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
 		}
+		switch {
+		case prop.ReadField != "":
+			propInfo.ReadKind = types.PropAccessField
+		case prop.ReadExpr != nil:
+			propInfo.ReadKind = types.PropAccessExpression
+			propInfo.ReadExpr = prop.ReadExpr
+		default:
+			propInfo.ReadKind = types.PropAccessNone
+		}
+		switch {
+		case prop.WriteField != "":
+			propInfo.WriteKind = types.PropAccessField
+		case prop.WriteStmt != nil:
+			propInfo.WriteKind = types.PropAccessExpression
+			propInfo.WriteExpr = prop.WriteStmt
+		default:
+			propInfo.WriteKind = types.PropAccessNone
+		}
+		recordType.Properties[propKey] = propInfo
 	}
 
 	return recordType, nil

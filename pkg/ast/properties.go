@@ -22,8 +22,14 @@ import (
 //	property Items[i: Integer]: String read GetItem; default;          // Default property
 //	class property Version: String read GetVersion;                    // Class property (static)
 type PropertyDecl struct {
-	ReadSpec    Expression
-	WriteSpec   Expression
+	ReadSpec  Expression
+	WriteSpec Expression
+	// WriteStmt holds an expression-based write specifier, e.g.
+	//   property P: Integer read (2*F) write (F := Value div 2);
+	// or a parenthesized lvalue write, e.g. write (FSub.Field), which the
+	// parser normalizes to the assignment statement `FSub.Field := Value`.
+	// When WriteStmt is non-nil, WriteSpec is nil.
+	WriteStmt   Statement
 	Type        TypeExpression
 	Name        *Identifier
 	IndexParams []*Parameter
@@ -77,6 +83,10 @@ func (pd *PropertyDecl) String() string {
 	if pd.WriteSpec != nil {
 		out.WriteString(" write ")
 		out.WriteString(pd.WriteSpec.String())
+	} else if pd.WriteStmt != nil {
+		out.WriteString(" write (")
+		out.WriteString(pd.WriteStmt.String())
+		out.WriteString(")")
 	}
 
 	out.WriteString(";")

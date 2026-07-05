@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -195,6 +196,19 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 					Arguments: nil,
 				}
 				return e.executeImplicitSelfCall(callExpr, node, ctx)
+			}
+
+			// Implicit-Self record property (e.g. inside a property read
+			// expression referencing another property). Skip while executing a
+			// getter/setter to prevent unbounded recursion.
+			propCtx := ctx.PropContext()
+			if (propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter)) &&
+				recVal.HasRecordProperty(node.Value) {
+				if propDesc := recVal.LookupProperty(node.Value); propDesc != nil {
+					if propInfo, ok := propDesc.Impl.(*types.RecordPropertyInfo); ok {
+						return e.executeRecordPropertyRead(recVal, propInfo, node, ctx)
+					}
+				}
 			}
 		}
 	}

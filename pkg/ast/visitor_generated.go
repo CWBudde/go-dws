@@ -890,6 +890,9 @@ func walkPropertyDecl(n *PropertyDecl, v Visitor) {
 	if n.WriteSpec != nil {
 		Walk(v, n.WriteSpec)
 	}
+	if n.WriteStmt != nil {
+		Walk(v, n.WriteStmt)
+	}
 	if n.Type != nil {
 		Walk(v, n.Type)
 	}
@@ -972,6 +975,12 @@ func walkRecordPropertyDecl(n *RecordPropertyDecl, v Visitor) {
 	}
 	if n.Name != nil {
 		Walk(v, n.Name)
+	}
+	if n.ReadExpr != nil {
+		Walk(v, n.ReadExpr)
+	}
+	if n.WriteStmt != nil {
+		Walk(v, n.WriteStmt)
 	}
 	for _, item := range n.IndexParams {
 		if item != nil {

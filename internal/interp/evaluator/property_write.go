@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -41,15 +43,17 @@ func (e *Evaluator) executePropertyWrite(obj Value, propInfo any, value Value, n
 	// Get property context for circular reference tracking
 	propCtx := ctx.PropContext()
 
-	// Check for circular property references
+	// Check for circular property references. Track by PropertyInfo identity, not
+	// name, so distinct same-named properties on different classes don't collide.
+	propKey := fmt.Sprintf("%p", pInfo)
 	for _, prop := range propCtx.PropertyChain {
-		if prop == pInfo.Name {
+		if prop == propKey {
 			return e.newError(node, "circular property reference detected: %s", pInfo.Name)
 		}
 	}
 
 	// Push property onto chain
-	propCtx.PropertyChain = append(propCtx.PropertyChain, pInfo.Name)
+	propCtx.PropertyChain = append(propCtx.PropertyChain, propKey)
 	defer func() {
 		// Pop property from chain when done
 		if len(propCtx.PropertyChain) > 0 {
@@ -64,9 +68,61 @@ func (e *Evaluator) executePropertyWrite(obj Value, propInfo any, value Value, n
 	case types.PropAccessMethod:
 		return e.executeMethodBackedPropertyWrite(obj, objVal, pInfo, value, node, ctx)
 
+	case types.PropAccessExpression:
+		return e.executeExpressionBackedPropertyWrite(obj, pInfo, value, node, ctx)
+
 	default:
 		return e.newError(node, "property '%s' has unsupported write access kind", pInfo.Name)
 	}
+}
+
+// executeExpressionBackedPropertyWrite handles PropAccessExpression property writes.
+// The write specifier is an assignment statement (either an explicit assignment such
+// as `Field := Value div 2`, or a parenthesized lvalue such as `FSub.Field` which the
+// parser normalized to `FSub.Field := Value`). The statement executes with Self bound
+// to the object and the implicit `Value` variable holding the value being assigned.
+func (e *Evaluator) executeExpressionBackedPropertyWrite(obj Value, pInfo *types.PropertyInfo, value Value, node ast.Node, ctx *ExecutionContext) Value {
+	if pInfo.WriteExpr == nil {
+		return e.newError(node, "property '%s' has expression-based setter but no statement stored", pInfo.Name)
+	}
+
+	stmt, ok := pInfo.WriteExpr.(ast.Statement)
+	if !ok {
+		return e.newError(node, "property '%s' has invalid write statement type", pInfo.Name)
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+
+	e.bindPropertyExprSelf(obj, ctx)
+	ctx.Env().Define("Value", value)
+
+	result := e.Eval(stmt, ctx)
+	if isError(result) {
+		return result
+	}
+	return value
+}
+
+// bindPropertyExprSelf sets up the environment for evaluating a property read
+// expression or write statement so that bare identifiers resolve as implicit-Self
+// members (fields, class variables, other properties) just as they would inside a
+// method body.
+func (e *Evaluator) bindPropertyExprSelf(obj Value, ctx *ExecutionContext) {
+	ctx.Env().Define("Self", obj)
+
+	classInfo := e.classInfoForMethodSelf(obj)
+	if classInfo == nil {
+		return
+	}
+
+	ctx.Env().Define("__CurrentMethodClass__", &runtime.StringValue{Value: classInfo.GetName()})
+	if classVal, err := e.typeSystem.CreateClassValue(classInfo.GetName()); err == nil && classVal != nil {
+		if classMeta, ok := classVal.(ClassMetaValue); ok {
+			ctx.Env().Define("__CurrentClass__", classMeta)
+		}
+	}
+	e.bindClassConstantsForMethod(classInfo, ctx)
 }
 
 // executeFieldBackedPropertyWrite handles PropAccessField property writes.
@@ -168,15 +224,21 @@ func (e *Evaluator) executePropertySetterMethod(obj Value, objVal ObjectValue, p
 //   - node: AST node for error reporting
 //   - ctx: Execution context for environment and call stack
 func (e *Evaluator) executeRecordPropertyWrite(record Value, propInfo *types.RecordPropertyInfo, value Value, node ast.Node, ctx *ExecutionContext) Value {
-	// Check if property has write access
-	if propInfo.WriteField == "" {
-		return e.newError(node, readOnlyPropertyWriteMessage)
-	}
-
 	// Get RecordValue interface
 	recVal, ok := record.(*runtime.RecordValue)
 	if !ok {
 		return e.newError(node, "cannot write property to non-record value")
+	}
+
+	// Expression-based write: execute the assignment statement with Self, fields,
+	// and the implicit `Value` bound.
+	if propInfo.WriteKind == types.PropAccessExpression && propInfo.WriteExpr != nil {
+		return e.executeRecordExpressionWrite(recVal, propInfo, value, node, ctx)
+	}
+
+	// Check if property has write access
+	if propInfo.WriteField == "" {
+		return e.newError(node, readOnlyPropertyWriteMessage)
 	}
 
 	// Check if WriteField is a method or a field
@@ -187,6 +249,35 @@ func (e *Evaluator) executeRecordPropertyWrite(record Value, propInfo *types.Rec
 
 	// Field-backed property - direct field assignment
 	return e.executeRecordFieldBackedPropertyWrite(recVal, propInfo, value, node)
+}
+
+// executeRecordExpressionWrite executes an expression-based record property setter.
+// The write statement runs with Self and the record's fields bound (and synced back
+// afterward, since records are value types) and the implicit `Value` variable set.
+func (e *Evaluator) executeRecordExpressionWrite(recVal *runtime.RecordValue, propInfo *types.RecordPropertyInfo, value Value, node ast.Node, ctx *ExecutionContext) Value {
+	stmt, ok := propInfo.WriteExpr.(ast.Statement)
+	if !ok {
+		return e.newError(node, "property '%s' has invalid write statement type", propInfo.Name)
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
+
+	scope.defineExposed(ctx, "Self", recVal)
+	e.bindRecordMethodFields(recVal, ctx, scope)
+	e.bindRecordMethodClassState(recVal, ctx, scope)
+	scope.defineOwned(e, ctx, "Value", value)
+
+	result := e.Eval(stmt, ctx)
+	if isError(result) {
+		return result
+	}
+
+	e.syncRecordMethodFields(recVal, ctx)
+	e.syncRecordMethodClassState(recVal, ctx)
+	return value
 }
 
 // executeRecordFieldBackedPropertyWrite handles field-backed record property writes.

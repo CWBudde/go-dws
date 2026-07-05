@@ -316,6 +316,21 @@ func helperPropertyType(helperType *types.HelperType, name string) types.Type {
 // Self refers to the current instance in instance methods.
 // Self is NOT allowed in class methods (static methods).
 func (a *Analyzer) analyzeSelfExpression(se *ast.SelfExpression) types.Type {
+	// Inside a property read/write expression, Self is available even though no
+	// method frame is active. Class properties see the metaclass; instance
+	// properties see the instance type.
+	if a.inPropertyExpr && a.currentFunction == nil {
+		if a.currentClass != nil {
+			if a.inClassMethod {
+				return types.NewClassOfType(a.currentClass)
+			}
+			return a.currentClass
+		}
+		if a.currentRecord != nil {
+			return a.currentRecord
+		}
+	}
+
 	// Validate that we're in a method context
 	if a.currentFunction == nil {
 		a.addError("'Self' can only be used inside a method at %s", se.Token.Pos.String())

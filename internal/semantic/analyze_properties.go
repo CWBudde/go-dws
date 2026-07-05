@@ -7,6 +7,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgident "github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -154,6 +155,8 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 	// Validate write specifier
 	if prop.WriteSpec != nil {
 		a.validateWriteSpec(prop, classType, propInfo, totalIndexParamTypes)
+	} else if prop.WriteStmt != nil {
+		a.validateWriteExprSpec(prop, classType, propInfo)
 	}
 
 	// Validate default property restrictions
@@ -342,17 +345,31 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	savedInPropertyExpr := a.inPropertyExpr
 	savedCurrentProperty := a.currentProperty
 
+	oldSymbols := a.symbols
+
 	a.currentClass = classType
-	a.inClassMethod = false      // Property expressions are in instance context
+	// Class properties evaluate their expression in class (static) context, where
+	// Self is the metaclass; instance properties use instance context.
+	a.inClassMethod = propInfo.IsClassProperty
 	a.inPropertyExpr = true      // Flag to enable special property expression handling
 	a.currentProperty = propName // Track current property for circular reference detection
+	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	a.bindClassPropertyExprScope(classType, propInfo.IsClassProperty)
+	a.bindPropertyIndexParams(prop)
 
 	defer func() {
+		a.symbols = oldSymbols
 		a.currentClass = savedClass
 		a.inClassMethod = savedInClassMethod
 		a.inPropertyExpr = savedInPropertyExpr
 		a.currentProperty = savedCurrentProperty
 	}()
+
+	// Register the expression accessor up front so the property is readable even
+	// if the (best-effort) type check below cannot prove the types match.
+	propInfo.ReadKind = types.PropAccessExpression
+	propInfo.ReadSpec = prop.ReadSpec.String()
+	propInfo.ReadExpr = prop.ReadSpec // Store AST node for interpreter
 
 	// Analyze the expression with implicit self context
 	exprType := a.analyzeExpression(prop.ReadSpec)
@@ -362,16 +379,11 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	}
 
 	// Validate expression type matches property type
-	if !exprType.Equals(propType) {
+	if !exprType.Equals(propType) && !a.canAssign(exprType, propType) {
 		a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
 			"property '"+propName+"' read expression has type "+exprType.String()+", expected "+propType.String()))
 		return
 	}
-
-	// Store the expression for runtime evaluation
-	propInfo.ReadKind = types.PropAccessExpression
-	propInfo.ReadSpec = prop.ReadSpec.String()
-	propInfo.ReadExpr = prop.ReadSpec // Store AST node for interpreter
 }
 
 // validateWriteSpec validates the write specifier of a property.
@@ -515,6 +527,84 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	// Neither field nor method found
 	a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
 		"property '"+propName+"' write specifier '"+writeSpecName+"' not found in class '"+classType.Name+"'"))
+}
+
+// validateWriteExprSpec validates an expression-based write specifier (a
+// parenthesized lvalue or assignment). The statement is analyzed with the class
+// as implicit context and the special `Value` parameter bound to the property
+// type. The AST statement is stored for runtime evaluation.
+func (a *Analyzer) validateWriteExprSpec(prop *ast.PropertyDecl, classType *types.ClassType, propInfo *types.PropertyInfo) {
+	savedClass := a.currentClass
+	savedInClassMethod := a.inClassMethod
+	savedInPropertyExpr := a.inPropertyExpr
+	savedCurrentProperty := a.currentProperty
+	oldSymbols := a.symbols
+
+	a.currentClass = classType
+	a.inClassMethod = propInfo.IsClassProperty
+	a.inPropertyExpr = true
+	a.currentProperty = prop.Name.Value
+	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	a.bindClassPropertyExprScope(classType, propInfo.IsClassProperty)
+	a.bindPropertyIndexParams(prop)
+
+	defer func() {
+		a.symbols = oldSymbols
+		a.currentClass = savedClass
+		a.inClassMethod = savedInClassMethod
+		a.inPropertyExpr = savedInPropertyExpr
+		a.currentProperty = savedCurrentProperty
+	}()
+
+	// Bind the implicit `Value` parameter (the value being assigned).
+	a.symbols.DefineParameter("Value", propInfo.Type, prop.Token.Pos, false)
+
+	a.analyzeStatement(prop.WriteStmt)
+
+	propInfo.WriteKind = types.PropAccessExpression
+	propInfo.WriteExpr = prop.WriteStmt
+}
+
+// bindPropertyIndexParams binds an indexed property's index parameters into the
+// current scope so read/write expressions can reference them (e.g. read (F[i])).
+func (a *Analyzer) bindPropertyIndexParams(prop *ast.PropertyDecl) {
+	for _, param := range prop.IndexParams {
+		if param.Type == nil {
+			continue
+		}
+		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
+		if err != nil {
+			continue
+		}
+		a.symbols.DefineParameter(param.Name.Value, paramType, param.Name.Token.Pos, false)
+	}
+}
+
+// bindClassPropertyExprScope binds the members visible to a property read/write
+// expression into the current analysis scope. Class properties see class
+// variables (own and inherited); instance properties additionally see instance
+// fields. This mirrors class/instance method-body scope setup so identifiers in
+// the expression resolve without a live method frame.
+func (a *Analyzer) bindClassPropertyExprScope(classType *types.ClassType, isClassProperty bool) {
+	if classType == nil {
+		return
+	}
+
+	if !isClassProperty {
+		for fieldName, fieldType := range classType.Fields {
+			a.symbols.Define(fieldName, fieldType, token.Position{})
+		}
+		if classType.Parent != nil {
+			a.addParentFieldsToScope(classType.Parent)
+		}
+	}
+
+	for classVarName, classVarType := range classType.ClassVars {
+		a.symbols.Define(classVarName, classVarType, token.Position{})
+	}
+	if classType.Parent != nil {
+		a.addParentClassVarsToScope(classType.Parent)
+	}
 }
 
 // getConstantType looks up a constant in a class or its ancestors.
