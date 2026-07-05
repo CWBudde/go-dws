@@ -149,11 +149,39 @@ func (e *Evaluator) executeRecordExpressionRead(recVal *runtime.RecordValue, pro
 	scope := newBindingScope()
 	defer scope.cleanup(e, ctx.Env())
 
+	release, errVal := e.enterRecordPropertyExpr(propInfo, node, ctx)
+	if errVal != nil {
+		return errVal
+	}
+	defer release()
+
 	scope.defineExposed(ctx, "Self", recVal)
 	e.bindRecordMethodFields(recVal, ctx, scope)
 	e.bindRecordMethodClassState(recVal, ctx, scope)
 
 	return e.Eval(exprNode, ctx)
+}
+
+// enterRecordPropertyExpr guards an expression-backed record property accessor
+// against circular references. It pushes the property's identity onto the
+// property chain (so nested reads/writes of the same property are detected) and
+// returns a release function to pop it, or an error value if a cycle is found.
+// Keyed by RecordPropertyInfo identity so distinct same-named properties do not
+// collide.
+func (e *Evaluator) enterRecordPropertyExpr(propInfo *types.RecordPropertyInfo, node ast.Node, ctx *ExecutionContext) (func(), Value) {
+	propCtx := ctx.PropContext()
+	propKey := fmt.Sprintf("%p", propInfo)
+	for _, prop := range propCtx.PropertyChain {
+		if prop == propKey {
+			return nil, e.newError(node, "circular property reference detected: %s", propInfo.Name)
+		}
+	}
+	propCtx.PropertyChain = append(propCtx.PropertyChain, propKey)
+	return func() {
+		if len(propCtx.PropertyChain) > 0 {
+			propCtx.PropertyChain = propCtx.PropertyChain[:len(propCtx.PropertyChain)-1]
+		}
+	}, nil
 }
 
 func readRecordTypePropertyValue(recordType *RecordTypeValue, propInfo *types.RecordPropertyInfo) (Value, bool) {

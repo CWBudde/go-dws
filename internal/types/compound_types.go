@@ -148,8 +148,10 @@ type RecordPropertyInfo struct {
 	ReadField  string // Field name for reading (can be empty for write-only)
 	WriteField string // Field name for writing (can be empty for read-only)
 	// ReadExpr / WriteExpr hold AST nodes for expression-based accessors.
-	// ReadExpr is an ast.Expression; WriteExpr is an ast.Statement (an
-	// assignment). When set, the corresponding *Kind is PropAccessExpression.
+	// ReadExpr is an ast.Expression; WriteExpr is an ast.Statement — either an
+	// assignment (`Field := Value`) or an expression statement wrapping a call
+	// (`SetField(Value)`). When set, the corresponding *Kind is
+	// PropAccessExpression.
 	ReadExpr  any
 	WriteExpr any
 	ReadKind  PropAccessKind // Access kind for reading
