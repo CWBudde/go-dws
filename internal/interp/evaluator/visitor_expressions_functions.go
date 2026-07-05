@@ -572,11 +572,7 @@ func (e *Evaluator) prepareArrayElementReference(idxExpr *ast.IndexExpression, c
 		if err != nil {
 			return err
 		}
-		value, ok := val.(Value)
-		if !ok {
-			return fmt.Errorf("var parameter assignment requires runtime value, got %T", val)
-		}
-		arr.Elements[phys] = value
+		arr.Elements[phys] = val
 		return nil
 	}
 
@@ -605,22 +601,31 @@ func (e *Evaluator) prepareMemberFieldReference(memberExpr *ast.MemberAccessExpr
 	// Only handle plain record/object field access; anything else (properties,
 	// helpers) goes through the generic lvalue path.
 	fieldName := memberExpr.Member.Value
-	if cur, err := baseRef.Dereference(); err == nil {
-		switch base := cur.(type) {
-		case RecordInstanceValue:
-			if _, found := base.GetRecordField(fieldName); !found {
-				return nil, false, nil
-			}
-		case ObjectValue:
-			if base.GetField(fieldName) == nil {
-				return nil, false, nil
-			}
-		default:
-			return nil, false, nil
-		}
+	if cur, err := baseRef.Dereference(); err == nil && !memberFieldExists(cur, fieldName) {
+		return nil, false, nil
 	}
 
-	getter := func() (runtime.Value, error) {
+	getter := makeMemberFieldGetter(baseRef, fieldName)
+	setter := makeMemberFieldSetter(baseRef, fieldName)
+	return runtime.NewReferenceValue(memberExpr.String(), getter, setter), true, nil
+}
+
+// memberFieldExists reports whether cur is a record/object with a plain field
+// of the given name.
+func memberFieldExists(cur Value, fieldName string) bool {
+	switch base := cur.(type) {
+	case RecordInstanceValue:
+		_, found := base.GetRecordField(fieldName)
+		return found
+	case ObjectValue:
+		return base.GetField(fieldName) != nil
+	default:
+		return false
+	}
+}
+
+func makeMemberFieldGetter(baseRef ReferenceAccessor, fieldName string) func() (runtime.Value, error) {
+	return func() (runtime.Value, error) {
 		cur, err := baseRef.Dereference()
 		if err != nil {
 			return nil, err
@@ -637,28 +642,25 @@ func (e *Evaluator) prepareMemberFieldReference(memberExpr *ast.MemberAccessExpr
 		}
 		return nil, fmt.Errorf("field '%s' not found", fieldName)
 	}
-	setter := func(val runtime.Value) error {
+}
+
+func makeMemberFieldSetter(baseRef ReferenceAccessor, fieldName string) func(runtime.Value) error {
+	return func(val runtime.Value) error {
 		cur, err := baseRef.Dereference()
 		if err != nil {
 			return err
 		}
-		value, ok := val.(Value)
-		if !ok {
-			return fmt.Errorf("var parameter assignment requires runtime value, got %T", val)
-		}
 		if setterVal, ok := cur.(RecordFieldSetter); ok {
-			if setterVal.SetRecordField(fieldName, value) {
+			if setterVal.SetRecordField(fieldName, val) {
 				return nil
 			}
 		}
 		if setterVal, ok := cur.(ObjectFieldSetter); ok {
-			setterVal.SetField(fieldName, value)
+			setterVal.SetField(fieldName, val)
 			return nil
 		}
 		return fmt.Errorf("cannot assign field '%s'", fieldName)
 	}
-
-	return runtime.NewReferenceValue(memberExpr.String(), getter, setter), true, nil
 }
 
 func (e *Evaluator) prepareArgsForParameters(

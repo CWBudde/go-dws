@@ -14,19 +14,19 @@ func TestConcatArrayResultType(t *testing.T) {
 	staticInt := types.NewStaticArrayType(types.INTEGER, 0, 2)
 
 	tests := []struct {
-		name     string
 		left     *types.ArrayType
 		right    *types.ArrayType
 		wantElem types.Type
+		name     string
 	}{
-		{"both nil", nil, nil, types.VARIANT},
-		{"left nil", nil, intArr, types.INTEGER},
-		{"right nil", intArr, nil, types.INTEGER},
-		{"same element", intArr, intArr, types.INTEGER},
-		{"static+dynamic same element", staticInt, intArr, types.INTEGER},
-		{"variant left wins", varArr, strArr, types.VARIANT},
-		{"variant right wins", intArr, varArr, types.VARIANT},
-		{"mixed elements widen to variant", intArr, strArr, types.VARIANT},
+		{nil, nil, types.VARIANT, "both nil"},
+		{nil, intArr, types.INTEGER, "left nil"},
+		{intArr, nil, types.INTEGER, "right nil"},
+		{intArr, intArr, types.INTEGER, "same element"},
+		{staticInt, intArr, types.INTEGER, "static+dynamic same element"},
+		{varArr, strArr, types.VARIANT, "variant left wins"},
+		{intArr, varArr, types.VARIANT, "variant right wins"},
+		{intArr, strArr, types.VARIANT, "mixed elements widen to variant"},
 	}
 
 	for _, tt := range tests {
@@ -87,19 +87,19 @@ func TestArrayElementPhysicalIndex(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
 		arr      *runtime.ArrayValue
+		wantErr  string
+		name     string
 		index    int
 		wantPhys int
-		wantErr  string
 	}{
-		{"dynamic in range", dyn, 1, 1, ""},
-		{"dynamic below", dyn, -1, 0, "Lower bound exceeded! Index -1"},
-		{"dynamic above", dyn, 2, 0, "Upper bound exceeded! Index 2"},
-		{"static low bound maps to zero", static, 5, 0, ""},
-		{"static high bound", static, 6, 1, ""},
-		{"static below", static, 4, 0, "Lower bound exceeded! Index 4"},
-		{"static above", static, 7, 0, "Upper bound exceeded! Index 7"},
+		{dyn, "", "dynamic in range", 1, 1},
+		{dyn, "Lower bound exceeded! Index -1", "dynamic below", -1, 0},
+		{dyn, "Upper bound exceeded! Index 2", "dynamic above", 2, 0},
+		{static, "", "static low bound maps to zero", 5, 0},
+		{static, "", "static high bound", 6, 1},
+		{static, "Lower bound exceeded! Index 4", "static below", 4, 0},
+		{static, "Upper bound exceeded! Index 7", "static above", 7, 0},
 	}
 
 	for _, tt := range tests {

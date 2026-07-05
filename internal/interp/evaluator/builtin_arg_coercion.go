@@ -71,56 +71,76 @@ func (e *Evaluator) exprIsStaticVariant(expr ast.Expression) bool {
 func (e *Evaluator) coerceValueToKind(arg Value, kind string, funcName *ast.Identifier, ctx *ExecutionContext) (Value, Value) {
 	switch kind {
 	case "INTEGER":
-		switch v := arg.(type) {
-		case *runtime.IntegerValue:
-			return nil, nil
-		case *runtime.FloatValue:
-			return &runtime.IntegerValue{Value: int64(math.Round(v.Value))}, nil
-		case *runtime.BooleanValue:
-			if v.Value {
-				return &runtime.IntegerValue{Value: 1}, nil
-			}
-			return &runtime.IntegerValue{Value: 0}, nil
-		case *runtime.StringValue:
-			if n, err := strconv.ParseInt(strings.TrimSpace(v.Value), 10, 64); err == nil {
-				return &runtime.IntegerValue{Value: n}, nil
-			}
-			return nil, e.raiseVariantCastException("Could not cast variant from String to Integer", funcName, ctx)
-		}
+		return e.coerceToInteger(arg, funcName, ctx)
 	case "FLOAT":
-		switch v := arg.(type) {
-		case *runtime.FloatValue, *runtime.IntegerValue:
-			return nil, nil
-		case *runtime.BooleanValue:
-			if v.Value {
-				return &runtime.FloatValue{Value: 1}, nil
-			}
-			return &runtime.FloatValue{Value: 0}, nil
-		case *runtime.StringValue:
-			if f, err := strconv.ParseFloat(strings.TrimSpace(v.Value), 64); err == nil {
-				return &runtime.FloatValue{Value: f}, nil
-			}
-			return nil, e.raiseVariantCastException(
-				fmt.Sprintf("%q is not a valid floating point value", v.Value), funcName, ctx)
-		}
+		return e.coerceToFloat(arg, funcName, ctx)
 	case "STRING":
-		switch arg.(type) {
-		case *runtime.StringValue:
-			return nil, nil
-		case *runtime.IntegerValue, *runtime.FloatValue, *runtime.BooleanValue:
-			return &runtime.StringValue{Value: convertToString(arg)}, nil
-		}
+		return coerceToString(arg)
 	case "BOOLEAN":
-		switch v := arg.(type) {
-		case *runtime.BooleanValue:
-			return nil, nil
-		case *runtime.IntegerValue:
-			return &runtime.BooleanValue{Value: v.Value != 0}, nil
-		case *runtime.FloatValue:
-			return &runtime.BooleanValue{Value: v.Value != 0}, nil
-		case *runtime.StringValue:
-			return &runtime.BooleanValue{Value: stringToBoolCast(v.Value)}, nil
+		return coerceToBoolean(arg)
+	}
+	return nil, nil
+}
+
+func (e *Evaluator) coerceToInteger(arg Value, funcName *ast.Identifier, ctx *ExecutionContext) (Value, Value) {
+	switch v := arg.(type) {
+	case *runtime.IntegerValue:
+		return nil, nil
+	case *runtime.FloatValue:
+		return &runtime.IntegerValue{Value: int64(math.Round(v.Value))}, nil
+	case *runtime.BooleanValue:
+		if v.Value {
+			return &runtime.IntegerValue{Value: 1}, nil
 		}
+		return &runtime.IntegerValue{Value: 0}, nil
+	case *runtime.StringValue:
+		if n, err := strconv.ParseInt(strings.TrimSpace(v.Value), 10, 64); err == nil {
+			return &runtime.IntegerValue{Value: n}, nil
+		}
+		return nil, e.raiseVariantCastException("Could not cast variant from String to Integer", funcName, ctx)
+	}
+	return nil, nil
+}
+
+func (e *Evaluator) coerceToFloat(arg Value, funcName *ast.Identifier, ctx *ExecutionContext) (Value, Value) {
+	switch v := arg.(type) {
+	case *runtime.FloatValue, *runtime.IntegerValue:
+		return nil, nil
+	case *runtime.BooleanValue:
+		if v.Value {
+			return &runtime.FloatValue{Value: 1}, nil
+		}
+		return &runtime.FloatValue{Value: 0}, nil
+	case *runtime.StringValue:
+		if f, err := strconv.ParseFloat(strings.TrimSpace(v.Value), 64); err == nil {
+			return &runtime.FloatValue{Value: f}, nil
+		}
+		return nil, e.raiseVariantCastException(
+			fmt.Sprintf("%q is not a valid floating point value", v.Value), funcName, ctx)
+	}
+	return nil, nil
+}
+
+func coerceToString(arg Value) (Value, Value) {
+	switch arg.(type) {
+	case *runtime.StringValue:
+		return nil, nil
+	case *runtime.IntegerValue, *runtime.FloatValue, *runtime.BooleanValue:
+		return &runtime.StringValue{Value: convertToString(arg)}, nil
+	}
+	return nil, nil
+}
+
+func coerceToBoolean(arg Value) (Value, Value) {
+	switch v := arg.(type) {
+	case *runtime.BooleanValue:
+		return nil, nil
+	case *runtime.IntegerValue:
+		return &runtime.BooleanValue{Value: v.Value != 0}, nil
+	case *runtime.FloatValue:
+		return &runtime.BooleanValue{Value: v.Value != 0}, nil
+	case *runtime.StringValue:
+		return &runtime.BooleanValue{Value: stringToBoolCast(v.Value)}, nil
 	}
 	return nil, nil
 }
@@ -129,8 +149,7 @@ func (e *Evaluator) coerceValueToKind(arg Value, kind string, funcName *ast.Iden
 // "true"-ish spellings and non-zero numbers are True, anything else is False.
 func stringToBoolCast(s string) bool {
 	s = strings.TrimSpace(s)
-	switch {
-	case ident.Equal(s, "true") || ident.Equal(s, "t") || ident.Equal(s, "y") || ident.Equal(s, "yes"):
+	if ident.Equal(s, "true") || ident.Equal(s, "t") || ident.Equal(s, "y") || ident.Equal(s, "yes") {
 		return true
 	}
 	if f, err := strconv.ParseFloat(s, 64); err == nil {
