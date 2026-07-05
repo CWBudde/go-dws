@@ -47,6 +47,11 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 		a.analyzeInterfaceMethodDecl(method, interfaceType)
 	}
 
+	// Analyze each property in the interface
+	for _, property := range decl.Properties {
+		a.analyzeInterfacePropertyDecl(property, interfaceType)
+	}
+
 	// Register interface in the registry
 	// Use lowercase key for case-insensitive lookup
 	a.registerTypeWithPos(interfaceName, interfaceType, decl.Token.Pos)
@@ -103,6 +108,76 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 
 	// Add method to interface
 	iface.Methods[methodKey] = funcType
+}
+
+// analyzeInterfacePropertyDecl analyzes a property declared on an interface and
+// registers its PropertyInfo. Interface property accessors (method names or
+// inline expressions) reference members that are validated against the
+// implementing class, so only the declared property type and access kinds are
+// recorded here; the expression accessors are executed at runtime against the
+// underlying object.
+func (a *Analyzer) analyzeInterfacePropertyDecl(prop *ast.PropertyDecl, iface *types.InterfaceType) {
+	if prop == nil || prop.Name == nil {
+		return
+	}
+	propName := prop.Name.Value
+	propKey := ident.Normalize(propName)
+
+	if _, exists := iface.Properties[propKey]; exists {
+		a.addError("%s", errors.FormatNameAlreadyExists(propName, prop.Token.Pos.Line, prop.Token.Pos.Column))
+		return
+	}
+
+	if prop.Type == nil {
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"property '"+propName+"' missing type annotation in interface '"+iface.Name+"'"))
+		return
+	}
+	propType, err := a.resolveType(getTypeExpressionName(prop.Type))
+	if err != nil {
+		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+			"unknown type '"+getTypeExpressionName(prop.Type)+"' for property '"+propName+"' in interface '"+iface.Name+"'"))
+		return
+	}
+
+	propInfo := &types.PropertyInfo{
+		Name:            propName,
+		Type:            propType,
+		IsIndexed:       len(prop.IndexParams) > 0,
+		IsDefault:       prop.IsDefault,
+		IsClassProperty: prop.IsClassProperty,
+	}
+
+	// Record read access kind.
+	if prop.ReadSpec != nil {
+		if id, ok := prop.ReadSpec.(*ast.Identifier); ok {
+			propInfo.ReadSpec = id.Value
+			propInfo.ReadKind = types.PropAccessMethod
+		} else {
+			propInfo.ReadKind = types.PropAccessExpression
+			propInfo.ReadExpr = prop.ReadSpec
+		}
+	} else {
+		propInfo.ReadKind = types.PropAccessNone
+	}
+
+	// Record write access kind.
+	switch {
+	case prop.WriteSpec != nil:
+		if id, ok := prop.WriteSpec.(*ast.Identifier); ok {
+			propInfo.WriteSpec = id.Value
+			propInfo.WriteKind = types.PropAccessMethod
+		} else {
+			propInfo.WriteKind = types.PropAccessNone
+		}
+	case prop.WriteStmt != nil:
+		propInfo.WriteKind = types.PropAccessExpression
+		propInfo.WriteExpr = prop.WriteStmt
+	default:
+		propInfo.WriteKind = types.PropAccessNone
+	}
+
+	iface.Properties[propKey] = propInfo
 }
 
 // validateInterfaceImplementation validates that a class implements all required interface methods
