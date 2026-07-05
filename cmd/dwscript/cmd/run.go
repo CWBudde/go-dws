@@ -190,8 +190,14 @@ func runScript(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("either provide a file path or use -e flag for inline code")
 	}
 
-	// Lexer: tokenize the input
-	l := lexer.New(input)
+	// Lexer: tokenize the input, resolving {$INCLUDE} directives relative to the
+	// directory of the script being run (disabled for inline -e expressions).
+	var lexerOpts []lexer.LexerOption
+	if evalExpr == "" {
+		lexerOpts = append(lexerOpts, lexer.WithIncludeResolver(
+			lexer.NewFileIncludeResolver(filepath.Dir(filename))))
+	}
+	l := lexer.New(input, lexerOpts...)
 
 	// Parser: build the AST
 	p := parser.New(l)

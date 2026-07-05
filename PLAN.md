@@ -265,6 +265,21 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       - **Remaining:** `immediate` needs value-context auto-invoke of a parameterless function
         pointer (`PrintLn(f)` where `f` holds a lambda — a broader semantic change), and
         `simple_func` needs the hint envelope (⚠️ blocked above).
+- [x] **Source inclusion directives** (`{$INCLUDE 'file'}`, `{$I 'file'}`,
+      `{$INCLUDE_ONCE 'file'}`). Handled entirely in the lexer as a pure textual substitution
+      (matching DWScript): an include pushes the current scan state onto an **include stack**
+      (`internal/lexer/include.go`) and makes the referenced file the active input; when the
+      included input is exhausted, the parent file resumes exactly where it left off, so nesting
+      and recursion work naturally. `{$INCLUDE_ONCE}` de-duplicates by canonical path (marking
+      *before* splicing so mutual `include_once` recursion is guarded), while plain `{$INCLUDE}`
+      always re-includes. File resolution is injected via a `WithIncludeResolver` lexer option
+      (`NewFileIncludeResolver` resolves relative to the including file's directory and decodes
+      with the same BOM/UTF-16 handling as top-level sources); the resolver is wired through
+      `frontend.ParseWithFilename`/`Compile` and `cmd/dwscript run`. `{$I %FILE%}`-style value
+      substitutions are left untouched (a separate, unimplemented feature). Fixes SimpleScripts
+      `include`, `include_once`, `include_once2`; `includeSym` now produces correct output but
+      still needs the hint envelope (⚠️ blocked above). SimpleScripts 290 → 294 (harness). Covered
+      by `internal/lexer/include_test.go`.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

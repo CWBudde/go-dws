@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"runtime/debug"
 	"sort"
@@ -142,7 +143,15 @@ func (r *Result) DiagnosticStrings() []string {
 
 // Parse parses source and collects parser diagnostics without running semantic analysis.
 func Parse(source string) *Result {
-	l := lexer.New(source)
+	return ParseWithFilename(source, "")
+}
+
+// ParseWithFilename parses source like Parse, additionally configuring the lexer to
+// resolve {$INCLUDE} directives relative to the directory of filename. An empty
+// filename disables include resolution.
+func ParseWithFilename(source, filename string) *Result {
+	opts := includeOptions(filename)
+	l := lexer.New(source, opts...)
 	p := parser.New(l)
 	program := p.ParseProgram()
 
@@ -152,10 +161,21 @@ func Parse(source string) *Result {
 	}
 }
 
+// includeOptions builds the lexer options that enable {$INCLUDE} resolution rooted
+// at the directory containing filename. It returns no options when filename is empty.
+func includeOptions(filename string) []lexer.LexerOption {
+	if filename == "" {
+		return nil
+	}
+	return []lexer.LexerOption{
+		lexer.WithIncludeResolver(lexer.NewFileIncludeResolver(filepath.Dir(filename))),
+	}
+}
+
 // Compile parses source and, if parsing succeeds, runs semantic analysis.
 // This is the shared compile-front-end boundary for diagnostics collection.
 func Compile(source, filename string, hintsLevel semantic.HintsLevel) *Result {
-	result := Parse(source)
+	result := ParseWithFilename(source, filename)
 	return compileParsedResult(result, source, filename, hintsLevel)
 }
 

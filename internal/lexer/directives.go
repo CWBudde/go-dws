@@ -142,6 +142,8 @@ func (l *Lexer) processDirective() {
 		l.handleEndIf(startPos)
 	case "if":
 		l.handleIf(content, parts[0], parentActive, startPos)
+	case "include", "i", "include_once":
+		l.handleInclude(name, content, parentActive, startPos)
 	default:
 		l.addError("unknown compiler directive: "+name, startPos)
 	}

@@ -46,6 +46,10 @@ type Lexer struct {
 	tokenBuffer      []Token
 	errors           []LexerError
 	condStack        []conditionalFrame
+	includeStack     []includeFrame
+	includeResolver  IncludeResolver
+	includedOnce     map[string]struct{}
+	includeCount     int
 	readPosition     int
 	position         int
 	line             int
@@ -64,6 +68,10 @@ type LexerState struct {
 	defines      map[string]struct{}
 	tokenBuffer  []Token
 	condStack    []conditionalFrame
+	input        string
+	includeStack []includeFrame
+	includedOnce map[string]struct{}
+	includeCount int
 	position     int
 	readPosition int
 	line         int
@@ -81,6 +89,16 @@ type LexerOption func(*Lexer)
 func WithPreserveComments(preserve bool) LexerOption {
 	return func(l *Lexer) {
 		l.preserveComments = preserve
+	}
+}
+
+// WithIncludeResolver configures how {$INCLUDE 'file'} / {$I 'file'} /
+// {$INCLUDE_ONCE 'file'} directives resolve and load their referenced files.
+// When no resolver is set, include directives are ignored (their content is not
+// spliced into the token stream).
+func WithIncludeResolver(resolver IncludeResolver) LexerOption {
+	return func(l *Lexer) {
+		l.includeResolver = resolver
 	}
 }
 
@@ -258,6 +276,21 @@ func (l *Lexer) SaveState() LexerState {
 	stackCopy := make([]conditionalFrame, len(l.condStack))
 	copy(stackCopy, l.condStack)
 
+	// The include stack and the current input must be captured so backtracking that
+	// spans an {$INCLUDE} boundary rewinds to the correct file and position.
+	var includeStackCopy []includeFrame
+	if l.includeStack != nil {
+		includeStackCopy = make([]includeFrame, len(l.includeStack))
+		copy(includeStackCopy, l.includeStack)
+	}
+	var includedOnceCopy map[string]struct{}
+	if l.includedOnce != nil {
+		includedOnceCopy = make(map[string]struct{}, len(l.includedOnce))
+		for k, v := range l.includedOnce {
+			includedOnceCopy[k] = v
+		}
+	}
+
 	return LexerState{
 		position:     l.position,
 		readPosition: l.readPosition,
@@ -267,6 +300,10 @@ func (l *Lexer) SaveState() LexerState {
 		tokenBuffer:  bufferCopy,
 		defines:      definesCopy,
 		condStack:    stackCopy,
+		input:        l.input,
+		includeStack: includeStackCopy,
+		includedOnce: includedOnceCopy,
+		includeCount: l.includeCount,
 	}
 }
 
@@ -282,6 +319,10 @@ func (l *Lexer) RestoreState(s LexerState) {
 	l.tokenBuffer = s.tokenBuffer
 	l.defines = s.defines
 	l.condStack = s.condStack
+	l.input = s.input
+	l.includeStack = s.includeStack
+	l.includedOnce = s.includedOnce
+	l.includeCount = s.includeCount
 }
 
 // Peek returns the token n positions ahead without consuming it.
@@ -1276,6 +1317,13 @@ func (l *Lexer) handleLeftParen(pos Position) Token {
 func (l *Lexer) nextTokenInternal() Token {
 	for {
 		l.skipWhitespace()
+
+		// End of an included file: resume the file that included it.
+		if l.ch == 0 && len(l.includeStack) > 0 {
+			l.popInclude()
+			continue
+		}
+
 		pos := l.currentPos()
 
 		if l.ch == '{' && l.peekChar() == '$' {
