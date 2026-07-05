@@ -602,14 +602,6 @@ func TestLambdaParameterTypeInferenceErrors(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			name: "parameter count mismatch - too few",
-			input: `
-				type TBinaryFunc = function(a, b: Integer): Integer;
-				var f: TBinaryFunc := lambda(x) => x * 2;
-			`,
-			expectedErr: "lambda has 1 parameter but expected function type has 2 parameters",
-		},
-		{
 			name: "parameter count mismatch - too many",
 			input: `
 				type TUnaryFunc = function(x: Integer): Integer;
@@ -753,6 +745,22 @@ func TestLambdaInferenceEdgeCases(t *testing.T) {
 				);
 			`,
 		},
+		{
+			// DWScript allows a lambda to declare fewer parameters than its
+			// target function type; the surplus arguments are ignored.
+			name: "lambda with fewer parameters than target - ignored",
+			input: `
+				type TBinaryFunc = function(a, b: Integer): Integer;
+				var f: TBinaryFunc := lambda(x) => x * 2;
+			`,
+		},
+		{
+			name: "zero-parameter lambda assigned to procedure with parameter",
+			input: `
+				type TNotifyEvent = procedure(Sender: TObject);
+				var p: TNotifyEvent := lambda PrintLn('hello') end;
+			`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -806,18 +814,6 @@ func TestLambdaInferenceComplexErrors(t *testing.T) {
 				end;
 			`,
 			expectedErr: "inferred lambda return type String incompatible with expected return type Integer",
-		},
-		{
-			name: "lambda with too few parameters in call",
-			input: `
-				type TBinaryFunc = function(a, b: Integer): Integer;
-				function Process(f: TBinaryFunc): Integer;
-				begin
-					Result := f(1, 2);
-				end;
-				var result := Process(lambda(x) => x * 2);  // Only 1 param, needs 2
-			`,
-			expectedErr: "lambda has 1 parameter but expected function type has 2 parameters",
 		},
 	}
 

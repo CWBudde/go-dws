@@ -171,8 +171,12 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 		return nil
 	}
 
-	// Validate parameter count compatibility
-	if len(expr.Parameters) != len(expectedFuncType.Parameters) {
+	// Validate parameter count compatibility. DWScript allows an anonymous
+	// method / lambda to declare *fewer* parameters than the target function
+	// type; the surplus arguments are simply ignored at the call site (e.g.
+	// `procedure(Sender) := lambda PrintLn('hi') end`). Declaring more
+	// parameters than the target provides is still an error.
+	if len(expr.Parameters) > len(expectedFuncType.Parameters) {
 		a.addError("lambda has %d %s but expected function type has %d %s at %s",
 			len(expr.Parameters), pluralizeParam(len(expr.Parameters)),
 			len(expectedFuncType.Parameters), pluralizeParam(len(expectedFuncType.Parameters)),
@@ -324,13 +328,22 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	}
 	funcPtrType := types.NewFunctionPointerType(paramTypes, funcPtrReturnType)
 
+	// When the lambda declares fewer parameters than the target function type
+	// (the surplus-arguments-ignored case), it is being adapted to the target,
+	// so its resolved type is the target type itself. This keeps the assignment
+	// check (`canAssign`) from rejecting the narrower signature.
+	resultType := types.Type(funcPtrType)
+	if len(expr.Parameters) < len(expectedFuncType.Parameters) {
+		resultType = expectedFuncType
+	}
+
 	// Set the type annotation on the expression
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("lambda%s", funcPtrType.String()),
 	}
 	a.semanticInfo.SetType(expr, typeAnnotation)
 
-	return funcPtrType
+	return resultType
 }
 
 // inferReturnTypeFromBody attempts to infer the return type from a lambda body

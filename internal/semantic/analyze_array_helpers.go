@@ -600,11 +600,15 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			return types.NewDynamicArrayType(arrayType.ElementType)
 		}
 		arg := expr.Arguments[0]
-		argType := a.analyzeExpression(arg)
+		// The callback receives the element type and may return any type. Pass
+		// that as expected context so an untyped lambda parameter can be inferred
+		// (`a.Map(lambda (e) => ...)`); a VARIANT result accepts any concrete
+		// return type.
+		expectedType := types.NewFunctionPointerType([]types.Type{arrayType.ElementType}, types.VARIANT)
+		argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 		if argType == nil {
 			return types.NewDynamicArrayType(arrayType.ElementType)
 		}
-		expectedType := types.NewFunctionPointerType([]types.Type{arrayType.ElementType}, types.VARIANT)
 		if identExpr, ok := arg.(*ast.Identifier); ok {
 			if sym, exists := a.symbols.Resolve(identExpr.Value); exists {
 				if fnType, ok := sym.Type.(*types.FunctionType); ok && len(fnType.Parameters) == 1 {
@@ -621,7 +625,12 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		if !a.canAssign(argType, expectedType) {
 			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), expectedType, argType)
 		}
-		return types.NewDynamicArrayType(arrayType.ElementType)
+		// The mapped array's element type is the callback's return type.
+		mappedElem := arrayType.ElementType
+		if fp, ok := types.GetUnderlyingType(argType).(*types.FunctionPointerType); ok && fp.ReturnType != nil {
+			mappedElem = fp.ReturnType
+		}
+		return types.NewDynamicArrayType(mappedElem)
 	case "sort":
 		if len(expr.Arguments) > 1 {
 			a.addArrayHelperTooManyArgs(expr)
