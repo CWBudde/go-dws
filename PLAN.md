@@ -240,7 +240,13 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         callback argument *without* the expected function-pointer context (unlike `filter`/
         `foreach`). It now passes `function(ElementType): Variant` as context so an untyped
         parameter infers from the element type, and the mapped array's element type is the
-        callback's actual return type (`internal/semantic/analyze_array_helpers.go`). Fixes `map`.
+        callback's actual return type — whether a lambda or a named function
+        (`internal/semantic/analyze_array_helpers.go`); the runtime `evalArrayMap` likewise
+        rebuilds the result array's element type from the mapped values so runtime metadata
+        matches the semantic type. Fixes `map`.
+      - A lambda that declares fewer parameters than a **procedure** target still keeps its
+        return-type check (a value-returning lambda is rejected for a procedure type), and the
+        adapted lambda reports the target's arity while preserving its own return type.
       - **Remaining:** `immediate` needs value-context auto-invoke of a parameterless function
         pointer (`PrintLn(f)` where `f` holds a lambda — a broader semantic change), and
         `simple_func` needs the hint envelope (⚠️ blocked above).

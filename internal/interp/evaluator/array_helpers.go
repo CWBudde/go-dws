@@ -1478,9 +1478,20 @@ func (e *Evaluator) evalArrayMap(selfValue Value, args []Value, node ast.Node) V
 		resultElements[idx] = runtime.CopyValue(result)
 	}
 
+	// Map may change the element type (e.g. Integer -> String). Derive the
+	// result array's element type from the produced values so runtime metadata
+	// matches the semantic type; fall back to the source type when the mapped
+	// values carry no inferable type (empty array or untyped nil).
+	resultArrayType := arrVal.ArrayType
+	if len(resultElements) > 0 {
+		if elemType := GetValueType(resultElements[0]); elemType != nil {
+			resultArrayType = types.NewDynamicArrayType(elemType)
+		}
+	}
+
 	return &runtime.ArrayValue{
 		Elements:  resultElements,
-		ArrayType: arrVal.ArrayType,
+		ArrayType: resultArrayType,
 	}
 }
 

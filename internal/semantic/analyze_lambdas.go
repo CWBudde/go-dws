@@ -311,6 +311,17 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 		}
 	}
 
+	// A function lambda (one that yields a value) cannot satisfy a procedure-typed
+	// target. The surplus-parameters rule below relaxes the parameter *count*, but
+	// it must not also let a value-returning lambda pass as a procedure — the
+	// procedure target has a nil return type, so the earlier return-type check
+	// (gated on a non-nil expected return) never runs for it.
+	if expectedFuncType.ReturnType == nil && returnType != nil && returnType != types.VOID {
+		a.addError("lambda returns %s but expected procedure type %s at %s",
+			returnType.String(), expectedFuncType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
 	// Analyze lambda body (only if we had an explicit return type)
 	// If return type was inferred, the body was already analyzed during inference
 	if expr.ReturnType != nil && expr.Body != nil {
@@ -329,12 +340,13 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	funcPtrType := types.NewFunctionPointerType(paramTypes, funcPtrReturnType)
 
 	// When the lambda declares fewer parameters than the target function type
-	// (the surplus-arguments-ignored case), it is being adapted to the target,
-	// so its resolved type is the target type itself. This keeps the assignment
-	// check (`canAssign`) from rejecting the narrower signature.
+	// (the surplus-arguments-ignored case), it is being adapted to the target.
+	// Report it with the target's arity so the assignment check accepts it, but
+	// keep the lambda's *own* return type so downstream consumers (e.g. the
+	// `array.Map` result-element inference) still see the true signature.
 	resultType := types.Type(funcPtrType)
 	if len(expr.Parameters) < len(expectedFuncType.Parameters) {
-		resultType = expectedFuncType
+		resultType = types.NewFunctionPointerType(expectedFuncType.Parameters, funcPtrReturnType)
 	}
 
 	// Set the type annotation on the expression

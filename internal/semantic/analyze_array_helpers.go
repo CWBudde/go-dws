@@ -625,10 +625,18 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		if !a.canAssign(argType, expectedType) {
 			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), expectedType, argType)
 		}
-		// The mapped array's element type is the callback's return type.
+		// The mapped array's element type is the callback's return type, whether
+		// the callback is a lambda/function pointer or a named function.
 		mappedElem := arrayType.ElementType
-		if fp, ok := types.GetUnderlyingType(argType).(*types.FunctionPointerType); ok && fp.ReturnType != nil {
-			mappedElem = fp.ReturnType
+		switch cb := types.GetUnderlyingType(argType).(type) {
+		case *types.FunctionPointerType:
+			if cb.ReturnType != nil {
+				mappedElem = cb.ReturnType
+			}
+		case *types.FunctionType:
+			if cb.ReturnType != nil && cb.ReturnType != types.VOID {
+				mappedElem = cb.ReturnType
+			}
 		}
 		return types.NewDynamicArrayType(mappedElem)
 	case "sort":
