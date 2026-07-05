@@ -126,3 +126,27 @@ func TestArrayElementPhysicalIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestOrdinalValueLike(t *testing.T) {
+	tests := []struct {
+		bound Value
+		want  Value
+		name  string
+		ord   int
+	}{
+		{&runtime.StringValue{Value: "a"}, &runtime.StringValue{Value: "b"}, "string bound yields char string", 'b'},
+		{&runtime.BooleanValue{Value: false}, &runtime.BooleanValue{Value: true}, "boolean bound yields boolean", 1},
+		{&runtime.BooleanValue{Value: false}, &runtime.BooleanValue{Value: false}, "boolean zero yields False", 0},
+		{&runtime.IntegerValue{Value: 1}, &runtime.IntegerValue{Value: 7}, "integer bound yields integer", 7},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ordinalValueLike(tt.bound, tt.ord)
+			if got.String() != tt.want.String() || got.Type() != tt.want.Type() {
+				t.Errorf("ordinalValueLike(%v, %d) = %v (%s), want %v (%s)",
+					tt.bound, tt.ord, got, got.Type(), tt.want, tt.want.Type())
+			}
+		})
+	}
+}

@@ -216,12 +216,26 @@ func (e *Evaluator) expandArrayRangeElement(rangeExpr *ast.RangeExpression, ctx 
 	}
 	values := make([]Value, 0, absInt(endOrd-startOrd)+1)
 	for ord := startOrd; ; ord += signInt(endOrd - startOrd) {
-		values = append(values, &runtime.IntegerValue{Value: int64(ord)})
+		values = append(values, ordinalValueLike(unwrapVariant(startVal), ord))
 		if ord == endOrd {
 			break
 		}
 	}
 	return values, nil
+}
+
+// ordinalValueLike rebuilds an ordinal produced by range expansion using the
+// runtime type of the range's start bound, so `['a'..'c']` yields strings and
+// `[False..True]` yields booleans rather than raw integers.
+func ordinalValueLike(bound Value, ord int) Value {
+	switch bound.(type) {
+	case *runtime.StringValue:
+		return &runtime.StringValue{Value: string(rune(ord))}
+	case *runtime.BooleanValue:
+		return &runtime.BooleanValue{Value: ord != 0}
+	default:
+		return &runtime.IntegerValue{Value: int64(ord)}
+	}
 }
 
 func absInt(n int) int {

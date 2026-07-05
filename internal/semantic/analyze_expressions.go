@@ -476,12 +476,18 @@ func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
 	// Analyze alternative if present
 	if expr.Alternative != nil {
 		// A bracket literal branch adopts the other branch's type
-		// (e.g. `if c then [two] else []` yields a set, not an array).
+		// (e.g. `if c then [two] else []` or `if c then [] else s` yields a
+		// set, not an array), whichever side the literal is on.
 		var alternativeType types.Type
 		if isBracketLiteral(expr.Alternative) {
 			alternativeType = a.analyzeExpressionWithExpectedType(expr.Alternative, consequenceType)
 		} else {
 			alternativeType = a.analyzeExpression(expr.Alternative)
+			if alternativeType != nil && isBracketLiteral(expr.Consequence) {
+				if reTyped := a.analyzeExpressionWithExpectedType(expr.Consequence, alternativeType); reTyped != nil {
+					consequenceType = reTyped
+				}
+			}
 		}
 		if alternativeType == nil {
 			a.addError("invalid alternative expression in if-then-else at %s", expr.Token.Pos.String())

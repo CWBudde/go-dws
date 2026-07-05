@@ -24,12 +24,25 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 	typeToken := p.cursor.Current() // Save the TYPE token
 	statements := []ast.Statement{}
 
+	// A single source declaration can desugar into several statements (e.g.
+	// `type TSet = set of (A, B);` yields an implicit enum + the set decl,
+	// wrapped in a BlockStatement). Flatten those into the type section so
+	// every direct child stays a declaration — the analyzer only treats a
+	// block as a shared type-declaration scope in that case.
+	appendFlattened := func(stmt ast.Statement) {
+		if block, ok := stmt.(*ast.BlockStatement); ok {
+			statements = append(statements, block.Statements...)
+			return
+		}
+		statements = append(statements, stmt)
+	}
+
 	// Parse first type declaration
 	firstStmt := p.parseSingleTypeDeclaration(typeToken)
 	if firstStmt == nil {
 		return nil
 	}
-	statements = append(statements, firstStmt)
+	appendFlattened(firstStmt)
 
 	// Continue parsing additional type declarations without the 'type' keyword
 	// As long as the next line looks like a type declaration
@@ -39,7 +52,7 @@ func (p *Parser) parseTypeDeclaration() ast.Statement {
 		if typeStmt == nil {
 			break
 		}
-		statements = append(statements, typeStmt)
+		appendFlattened(typeStmt)
 	}
 
 	// If only one declaration, return it directly

@@ -104,8 +104,12 @@ func (e *Evaluator) coerceToInteger(arg Value, funcName *ast.Identifier, ctx *Ex
 
 func (e *Evaluator) coerceToFloat(arg Value, funcName *ast.Identifier, ctx *ExecutionContext) (Value, Value) {
 	switch v := arg.(type) {
-	case *runtime.FloatValue, *runtime.IntegerValue:
+	case *runtime.FloatValue:
 		return nil, nil
+	case *runtime.IntegerValue:
+		// Builtins with a FLOAT/TDateTime signature type-assert *FloatValue,
+		// so a Variant-held Integer must be widened at the call boundary.
+		return &runtime.FloatValue{Value: float64(v.Value)}, nil
 	case *runtime.BooleanValue:
 		if v.Value {
 			return &runtime.FloatValue{Value: 1}, nil
