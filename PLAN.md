@@ -221,6 +221,35 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         (class_property_expressions), multi-index expression-backed indexed properties
         (indexed_expressions), nested-record default-field init (simple_record_expressions, a
         pre-existing bug), and the hint envelope (read_write_other_property, ⚠️ blocked above).
+- [~] **Lambda / anonymous-method coverage** (`LambdaPass` **1 → 4/6 (17% → 67%)**, meeting its
+      P1 exit criterion; overall CLI 606 → 613, collateral ArrayPass 86 → 89, FunctionsString
+      51 → 52). Three independent gaps closed:
+      - **Parser:** a lambda whose statement-list body is written as a single `begin…end` block
+        (`lambda (a) begin PrintLn(a+'!') end end`) left the lambda's own trailing `end` as a
+        stray token ("Expression expected"). `parseLambdaExpression` now consumes that trailing
+        `end` after the block (`internal/parser/expressions_lambda.go`). Fixes `simple_proc`.
+      - **Fewer parameters than the target type.** DWScript lets a lambda / anonymous method
+        declare *fewer* parameters than its target function type; the surplus call arguments are
+        ignored (`procedure(Sender) := lambda PrintLn('hi') end`). The semantic count check
+        (`analyzeLambdaExpressionWithContext`) now rejects only *too many* params, returns the
+        target type when the lambda is narrower (so the assignment `canAssign` succeeds), and the
+        runtime lambda dispatch (`executeLambdaDirect`) ignores surplus args. Fixes
+        `implicit_params`.
+      - **Parameter-type inference for `array.Map`.** `a.Map(lambda (e) => …)` reported "lambda
+        parameter type inference not fully implemented" because the `map` helper analyzed its
+        callback argument *without* the expected function-pointer context (unlike `filter`/
+        `foreach`). It now passes `function(ElementType): Variant` as context so an untyped
+        parameter infers from the element type, and the mapped array's element type is the
+        callback's actual return type — whether a lambda or a named function
+        (`internal/semantic/analyze_array_helpers.go`); the runtime `evalArrayMap` likewise
+        rebuilds the result array's element type from the mapped values so runtime metadata
+        matches the semantic type. Fixes `map`.
+      - A lambda that declares fewer parameters than a **procedure** target still keeps its
+        return-type check (a value-returning lambda is rejected for a procedure type), and the
+        adapted lambda reports the target's arity while preserving its own return type.
+      - **Remaining:** `immediate` needs value-context auto-invoke of a parameterless function
+        pointer (`PrintLn(f)` where `f` holds a lambda — a broader semantic change), and
+        `simple_func` needs the hint envelope (⚠️ blocked above).
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

@@ -92,9 +92,18 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 		// Full syntax: lambda(x: Integer) begin ... end
 		p.cursor = p.cursor.Advance() // move to 'begin'
 
-		// Parse block statement
+		// Parse block statement (cursor ends on the block's closing 'end')
 		lambdaExpr.Body = p.parseBlockStatement()
 		lambdaExpr.IsShorthand = false
+
+		// DWScript's statement-list lambda body is terminated by 'end'. When the
+		// body is written as a single begin/end block, that block is followed by
+		// the lambda's own closing 'end' (e.g. `lambda (a) begin ... end end`).
+		// parseBlockStatement leaves the cursor on the block's closing 'end';
+		// only then does a following 'end' belong to the lambda, so consume it.
+		if p.cursor.Current().Type == lexer.END && p.cursor.Peek(1).Type == lexer.END {
+			p.cursor = p.cursor.Advance() // move to the lambda's closing 'end'
+		}
 
 		// Set end position based on body block
 		if lambdaExpr.Body != nil {

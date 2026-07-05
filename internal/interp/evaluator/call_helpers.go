@@ -61,7 +61,10 @@ func (e *Evaluator) executeLambdaDirect(
 	node ast.Node,
 	ctx *ExecutionContext,
 ) Value {
-	if len(args) != len(lambda.Parameters) {
+	// DWScript lets a lambda / anonymous method declare fewer parameters than
+	// its target function type; surplus call arguments are simply ignored. Too
+	// few arguments remains an error.
+	if len(args) < len(lambda.Parameters) {
 		return e.newError(node, "wrong number of arguments for lambda: expected %d, got %d",
 			len(lambda.Parameters), len(args))
 	}

@@ -602,14 +602,6 @@ func TestLambdaParameterTypeInferenceErrors(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			name: "parameter count mismatch - too few",
-			input: `
-				type TBinaryFunc = function(a, b: Integer): Integer;
-				var f: TBinaryFunc := lambda(x) => x * 2;
-			`,
-			expectedErr: "lambda has 1 parameter but expected function type has 2 parameters",
-		},
-		{
 			name: "parameter count mismatch - too many",
 			input: `
 				type TUnaryFunc = function(x: Integer): Integer;
@@ -753,6 +745,22 @@ func TestLambdaInferenceEdgeCases(t *testing.T) {
 				);
 			`,
 		},
+		{
+			// DWScript allows a lambda to declare fewer parameters than its
+			// target function type; the surplus arguments are ignored.
+			name: "lambda with fewer parameters than target - ignored",
+			input: `
+				type TBinaryFunc = function(a, b: Integer): Integer;
+				var f: TBinaryFunc := lambda(x) => x * 2;
+			`,
+		},
+		{
+			name: "zero-parameter lambda assigned to procedure with parameter",
+			input: `
+				type TNotifyEvent = procedure(Sender: TObject);
+				var p: TNotifyEvent := lambda PrintLn('hello') end;
+			`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -770,6 +778,79 @@ func TestLambdaInferenceEdgeCases(t *testing.T) {
 				t.Errorf("expected no semantic errors, got: %v", err)
 			}
 			if len(a.Errors()) != 0 {
+				t.Errorf("expected no errors, got: %v", a.Errors())
+			}
+		})
+	}
+}
+
+// TestArrayMapResultElementType verifies that `array.Map` reports its result
+// element type as the callback's return type (which may differ from the source
+// element type), for expression-bodied lambdas, block-bodied lambdas, and named
+// function callbacks. Each positive case pins the element type by using a mapped
+// element where only the expected type type-checks; each negative case proves the
+// element type actually changed by using it where the source type would fail.
+func TestArrayMapResultElementType(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name: "expression lambda returning Integer stays Integer",
+			input: `
+				var a: array of Integer := [1, 2, 3];
+				var s := a.Map(lambda(e) => e * 2);
+				var t: Integer := s[0];
+			`,
+		},
+		{
+			name: "block lambda returning String yields array of String",
+			input: `
+				var a: array of Integer := [1, 2, 3];
+				var s := a.Map(lambda(e) begin Result := IntToStr(e); end);
+				var t: String := s[0];
+			`,
+		},
+		{
+			name: "named function callback yields its return type",
+			input: `
+				function ToStr(x: Integer): String;
+				begin
+					Result := IntToStr(x);
+				end;
+				var a: array of Integer := [1, 2, 3];
+				var s := a.Map(ToStr);
+				var t: String := s[0];
+			`,
+		},
+		{
+			name: "mapped String element is not assignable to Integer",
+			input: `
+				var a: array of Integer := [1, 2, 3];
+				var s := a.Map(lambda(e) => IntToStr(e));
+				var t: Integer := s[0];
+			`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			a := NewAnalyzer()
+			_ = a.Analyze(program)
+
+			if tt.wantErr && len(a.Errors()) == 0 {
+				t.Errorf("expected a semantic error, got none")
+			}
+			if !tt.wantErr && len(a.Errors()) != 0 {
 				t.Errorf("expected no errors, got: %v", a.Errors())
 			}
 		})
@@ -806,18 +887,6 @@ func TestLambdaInferenceComplexErrors(t *testing.T) {
 				end;
 			`,
 			expectedErr: "inferred lambda return type String incompatible with expected return type Integer",
-		},
-		{
-			name: "lambda with too few parameters in call",
-			input: `
-				type TBinaryFunc = function(a, b: Integer): Integer;
-				function Process(f: TBinaryFunc): Integer;
-				begin
-					Result := f(1, 2);
-				end;
-				var result := Process(lambda(x) => x * 2);  // Only 1 param, needs 2
-			`,
-			expectedErr: "lambda has 1 parameter but expected function type has 2 parameters",
 		},
 	}
 

@@ -171,8 +171,12 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 		return nil
 	}
 
-	// Validate parameter count compatibility
-	if len(expr.Parameters) != len(expectedFuncType.Parameters) {
+	// Validate parameter count compatibility. DWScript allows an anonymous
+	// method / lambda to declare *fewer* parameters than the target function
+	// type; the surplus arguments are simply ignored at the call site (e.g.
+	// `procedure(Sender) := lambda PrintLn('hi') end`). Declaring more
+	// parameters than the target provides is still an error.
+	if len(expr.Parameters) > len(expectedFuncType.Parameters) {
 		a.addError("lambda has %d %s but expected function type has %d %s at %s",
 			len(expr.Parameters), pluralizeParam(len(expr.Parameters)),
 			len(expectedFuncType.Parameters), pluralizeParam(len(expectedFuncType.Parameters)),
@@ -307,6 +311,17 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 		}
 	}
 
+	// A function lambda (one that yields a value) cannot satisfy a procedure-typed
+	// target. The surplus-parameters rule below relaxes the parameter *count*, but
+	// it must not also let a value-returning lambda pass as a procedure — the
+	// procedure target has a nil return type, so the earlier return-type check
+	// (gated on a non-nil expected return) never runs for it.
+	if expectedFuncType.ReturnType == nil && returnType != nil && returnType != types.VOID {
+		a.addError("lambda returns %s but expected procedure type %s at %s",
+			returnType.String(), expectedFuncType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
 	// Analyze lambda body (only if we had an explicit return type)
 	// If return type was inferred, the body was already analyzed during inference
 	if expr.ReturnType != nil && expr.Body != nil {
@@ -324,13 +339,23 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	}
 	funcPtrType := types.NewFunctionPointerType(paramTypes, funcPtrReturnType)
 
+	// When the lambda declares fewer parameters than the target function type
+	// (the surplus-arguments-ignored case), it is being adapted to the target.
+	// Report it with the target's arity so the assignment check accepts it, but
+	// keep the lambda's *own* return type so downstream consumers (e.g. the
+	// `array.Map` result-element inference) still see the true signature.
+	resultType := types.Type(funcPtrType)
+	if len(expr.Parameters) < len(expectedFuncType.Parameters) {
+		resultType = types.NewFunctionPointerType(expectedFuncType.Parameters, funcPtrReturnType)
+	}
+
 	// Set the type annotation on the expression
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("lambda%s", funcPtrType.String()),
 	}
 	a.semanticInfo.SetType(expr, typeAnnotation)
 
-	return funcPtrType
+	return resultType
 }
 
 // inferReturnTypeFromBody attempts to infer the return type from a lambda body
