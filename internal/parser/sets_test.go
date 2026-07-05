@@ -551,3 +551,38 @@ func TestParseInlineSetType(t *testing.T) {
 		}
 	})
 }
+
+// An inline anonymous enum set inside a multi-declaration type section must
+// flatten its desugared enum+set pair into the section block, so every direct
+// child of the section remains a declaration (the analyzer only treats a
+// block as a shared type-declaration scope in that case).
+func TestParseInlineEnumSetInTypeSection(t *testing.T) {
+	input := `type
+  TSet = set of (A, B);
+  TOther = Integer;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements should contain 1 statement, got %d", len(program.Statements))
+	}
+	block, ok := program.Statements[0].(*ast.BlockStatement)
+	if !ok {
+		t.Fatalf("statement is not *ast.BlockStatement, got %T", program.Statements[0])
+	}
+	if len(block.Statements) != 3 {
+		t.Fatalf("type section should flatten to 3 declarations (enum, set, alias), got %d", len(block.Statements))
+	}
+	if _, ok := block.Statements[0].(*ast.EnumDecl); !ok {
+		t.Errorf("first declaration should be *ast.EnumDecl, got %T", block.Statements[0])
+	}
+	if _, ok := block.Statements[1].(*ast.SetDecl); !ok {
+		t.Errorf("second declaration should be *ast.SetDecl, got %T", block.Statements[1])
+	}
+	if nested, ok := block.Statements[2].(*ast.BlockStatement); ok {
+		t.Errorf("third declaration should not be a nested block, got %T", nested)
+	}
+}
