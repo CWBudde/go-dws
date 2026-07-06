@@ -52,6 +52,11 @@ func (e *Evaluator) UnwrapVariant(value Value) Value {
 //
 // This implements the builtins.Context interface method ToInt64().
 func (e *Evaluator) ToInt64(value Value) (int64, bool) {
+	// Unwrap a Variant (including a JSONVariant) so builtins that accept a
+	// Variant argument read the underlying scalar.
+	if wrapper, ok := value.(runtime.VariantWrapper); ok {
+		value = wrapper.UnwrapVariant()
+	}
 	// Simple implementations for types available in runtime package
 	switch v := value.(type) {
 	case *runtime.IntegerValue:
@@ -65,6 +70,8 @@ func (e *Evaluator) ToInt64(value Value) (int64, bool) {
 		return 0, true
 	case *runtime.FloatValue:
 		return int64(v.Value), true
+	case *runtime.JSONValue:
+		return v.AsInteger()
 	default:
 		// For SubrangeValue and other interp types, we'd need the adapter
 		// But since we're implementing builtins.Context which takes runtime.Value,
@@ -95,6 +102,11 @@ func (e *Evaluator) ToBool(value Value) (bool, bool) {
 //
 // This implements the builtins.Context interface method ToFloat64().
 func (e *Evaluator) ToFloat64(value Value) (float64, bool) {
+	// Unwrap a Variant (including a JSONVariant) so builtins that accept a
+	// Variant argument read the underlying scalar.
+	if wrapper, ok := value.(runtime.VariantWrapper); ok {
+		value = wrapper.UnwrapVariant()
+	}
 	switch v := value.(type) {
 	case *runtime.FloatValue:
 		return v.Value, true
@@ -102,6 +114,8 @@ func (e *Evaluator) ToFloat64(value Value) (float64, bool) {
 		return float64(v.Value), true
 	case *runtime.EnumValue:
 		return float64(v.OrdinalValue), true
+	case *runtime.JSONValue:
+		return v.AsFloat()
 	default:
 		return 0.0, false
 	}

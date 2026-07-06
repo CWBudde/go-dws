@@ -10,10 +10,11 @@ import (
 // Type Conversion Built-in Function Analysis
 // ============================================================================
 
-// builtinArgIsVariant reports whether the argument type is Variant; builtin
-// conversions accept Variant arguments and cast (or raise) at runtime.
+// builtinArgIsVariant reports whether the argument type is Variant (or the
+// JSON connector's JSONVariant); builtin conversions accept these arguments and
+// cast (or raise) at runtime.
 func builtinArgIsVariant(t types.Type) bool {
-	return t != nil && types.GetUnderlyingType(t).TypeKind() == "VARIANT"
+	return t != nil && (types.GetUnderlyingType(t).TypeKind() == "VARIANT" || types.IsJSONVariant(t))
 }
 
 // analyzeIntToStr analyzes the IntToStr built-in function.
@@ -71,7 +72,7 @@ func (a *Analyzer) analyzeIntToBin(args []ast.Expression, callExpr *ast.CallExpr
 	}
 	// Analyze first argument (value) - must be Integer or subrange of Integer
 	argType1 := a.analyzeExpression(args[0])
-	if argType1 != nil && argType1 != types.INTEGER {
+	if argType1 != nil && argType1 != types.INTEGER && !builtinArgIsVariant(argType1) {
 		// Check if it's a subrange type with Integer base
 		if subrange, ok := argType1.(*types.SubrangeType); ok {
 			if subrange.BaseType != types.INTEGER {
@@ -113,7 +114,7 @@ func (a *Analyzer) analyzeIntToHex(args []ast.Expression, callExpr *ast.CallExpr
 	}
 	// Analyze first argument (value) - must be Integer or subrange of Integer
 	argType1 := a.analyzeExpression(args[0])
-	if argType1 != nil && argType1 != types.INTEGER {
+	if argType1 != nil && argType1 != types.INTEGER && !builtinArgIsVariant(argType1) {
 		// Check if it's a subrange type with Integer base
 		if subrange, ok := argType1.(*types.SubrangeType); ok {
 			if subrange.BaseType != types.INTEGER {
@@ -155,7 +156,7 @@ func (a *Analyzer) analyzeStrToInt(args []ast.Expression, callExpr *ast.CallExpr
 	}
 	// Analyze the first argument and verify it's String
 	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.STRING {
+	if argType != nil && argType != types.STRING && !builtinArgIsVariant(argType) {
 		a.addError("function 'StrToInt' expects String as first argument, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
 	}

@@ -203,6 +203,7 @@ parseDirectives:
 		// Auto-property has both read and write access to the backing field
 		prop.ReadSpec = backingField
 		prop.WriteSpec = backingField
+		prop.IsAutoProperty = true
 	}
 
 	// Expect semicolon

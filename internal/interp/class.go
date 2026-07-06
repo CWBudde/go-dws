@@ -178,7 +178,16 @@ func (c *ClassInfo) GetOwnProperties() []*runtime.PropertyInfo {
 		return nil
 	}
 	props := make([]*runtime.PropertyInfo, 0, len(c.Properties))
-	for _, propInfo := range c.Properties {
+	for name, propInfo := range c.Properties {
+		// InheritParentPropertyInfos copies each parent property (same pointer)
+		// into the child's map; skip those so this returns only properties
+		// actually declared (or overridden) on this class level. This keeps
+		// JSON serialization ordering correct (most-derived own members first).
+		if c.Parent != nil {
+			if parentProp, ok := c.Parent.Properties[name]; ok && parentProp == propInfo {
+				continue
+			}
+		}
 		props = append(props, &runtime.PropertyInfo{
 			Name:      propInfo.Name,
 			IsIndexed: propInfo.IsIndexed,

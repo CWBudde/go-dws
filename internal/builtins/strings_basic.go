@@ -517,25 +517,26 @@ func IntToHex(ctx Context, args []Value) Value {
 		return ctx.NewError("IntToHex() expects exactly 2 arguments, got %d", len(args))
 	}
 
-	// First argument must be Integer (the value to convert)
-	intVal, ok := args[0].(*runtime.IntegerValue)
+	// First argument must be Integer (the value to convert). A Variant /
+	// JSONVariant coerces to its integer value.
+	intValue, ok := ctx.ToInt64(args[0])
 	if !ok {
 		return ctx.NewError("IntToHex() first argument must be Integer, got %s", args[0].Type())
 	}
 
 	// Second argument must be Integer (minimum number of digits)
-	digitsVal, ok := args[1].(*runtime.IntegerValue)
+	digits, ok := ctx.ToInt64(args[1])
 	if !ok {
 		return ctx.NewError("IntToHex() second argument must be Integer, got %s", args[1].Type())
 	}
 
 	// Convert to hexadecimal string with uppercase letters
-	hexStr := fmt.Sprintf("%X", uint64(intVal.Value))
+	hexStr := fmt.Sprintf("%X", uint64(intValue))
 
 	// Pad with zeros if necessary to reach minimum digit count
-	if digitsVal.Value > 0 && int64(len(hexStr)) < digitsVal.Value {
+	if digits > 0 && int64(len(hexStr)) < digits {
 		// Pad with leading zeros
-		hexStr = strings.Repeat("0", int(digitsVal.Value)-len(hexStr)) + hexStr
+		hexStr = strings.Repeat("0", int(digits)-len(hexStr)) + hexStr
 	}
 
 	return &runtime.StringValue{Value: hexStr}

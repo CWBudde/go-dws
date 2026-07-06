@@ -3,7 +3,40 @@ package parser
 import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
+
+// addAutoPropertyBackingField synthesizes the private backing field for a
+// field-less (auto) property such as `property Alpha: Integer;`. The parser has
+// already pointed the property's read/write specifiers at `F<Name>`; here we add
+// the matching `F<Name>` field so the analyzer and runtime have real storage.
+// The field is private so it is excluded from JSON serialization (only the
+// property key is emitted). A class property backs onto a class var.
+func (p *Parser) addAutoPropertyBackingField(classDecl *ast.ClassDecl, property *ast.PropertyDecl) {
+	if property == nil || !property.IsAutoProperty || property.Name == nil || property.Type == nil {
+		return
+	}
+	backingName := "F" + property.Name.Value
+	// Do not duplicate a field the user declared explicitly.
+	for _, f := range classDecl.Fields {
+		if f != nil && f.Name != nil && pkgident.Equal(f.Name.Value, backingName) {
+			return
+		}
+	}
+	field := &ast.FieldDecl{
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: property.Name.Token},
+			},
+			Value: backingName,
+		},
+		Type:       property.Type,
+		Visibility: ast.VisibilityPrivate,
+		IsClassVar: property.IsClassProperty,
+	}
+	field.Token = property.Name.Token
+	classDecl.Fields = append(classDecl.Fields, field)
+}
 
 // Syntax: type ClassName = class(Parent) ... end;
 //
@@ -214,6 +247,7 @@ func (p *Parser) parseClassLevelMember(cursor *TokenCursor, classDecl *ast.Class
 		if property != nil {
 			property.IsClassProperty = true // Mark as class property
 			classDecl.Properties = append(classDecl.Properties, property)
+			p.addAutoPropertyBackingField(classDecl, property)
 		}
 	} else if cursor.Current().Type == lexer.OPERATOR {
 		operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
@@ -282,6 +316,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 			// Note: We could track visibility here if needed
 			// For now, properties are parsed without explicit visibility tracking
 			classDecl.Properties = append(classDecl.Properties, property)
+			p.addAutoPropertyBackingField(classDecl, property)
 		}
 
 	case lexer.INVARIANTS:

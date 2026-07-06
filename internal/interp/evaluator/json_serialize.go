@@ -41,6 +41,8 @@ func (e *Evaluator) valueToJSONValue(val Value, node ast.Node, ctx *ExecutionCon
 		return e.recordToJSON(v, node, ctx)
 	case *runtime.ObjectInstance:
 		return e.objectToJSON(v, node, ctx)
+	case *runtime.SetValue:
+		return setToJSON(v)
 	default:
 		// Primitives, JSON passthrough, and nil are handled by the
 		// context-free converter.
@@ -119,6 +121,34 @@ func (e *Evaluator) objectToJSON(obj *runtime.ObjectInstance, node ast.Node, ctx
 	}
 
 	return result
+}
+
+// setToJSON serializes a set value to a JSON array, matching DWScript's JSON
+// connector: members are emitted in ascending ordinal order; a member with an
+// enum name becomes a JSON string (qualified as "TEnum.member" for a scoped
+// `enum`/`flags` type, bare for a plain `(...)` enum), and an ordinal with no
+// name becomes a JSON number.
+func setToJSON(s *runtime.SetValue) *jsonvalue.Value {
+	arr := jsonvalue.NewArray()
+	if s == nil || s.SetType == nil {
+		return arr
+	}
+	enumType, _ := s.SetType.ElementType.(*types.EnumType)
+	for _, ordinal := range s.Ordinals() {
+		var name string
+		if enumType != nil {
+			name = enumType.GetEnumName(ordinal)
+		}
+		switch {
+		case name == "":
+			arr.ArrayAppend(jsonvalue.NewInt64(int64(ordinal)))
+		case enumType.Scoped:
+			arr.ArrayAppend(jsonvalue.NewString(enumType.Name + "." + name))
+		default:
+			arr.ArrayAppend(jsonvalue.NewString(name))
+		}
+	}
+	return arr
 }
 
 // objectCustomStringify returns the spliced result of a class's custom Stringify

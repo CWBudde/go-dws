@@ -313,7 +313,7 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       `include_once2`; `includeSym` now produces correct output but still needs the hint envelope
       (⚠️ blocked above). SimpleScripts 290 → 294 (harness). Covered by
       `internal/lexer/include_test.go`.
-- [~] **JSON connector** (`JSONConnectorPass` **0 → 41/82 harness = 50%; 46/82 CLI = 56%**; `JSONConnectorFail`
+- [~] **JSON connector** (`JSONConnectorPass` **0 → 45/82 harness = 55%; 52/82 CLI = 63%**; `JSONConnectorFail`
       0 → 2). The script-visible `JSON` static namespace and a distinct **`JSONVariant`** connector
       type. Reuses the pre-existing `internal/jsonvalue` tree + `runtime.JSONValue`; adds byte-exact
       DWScript `Stringify`/pretty writer and an order-preserving parser (`internal/jsonvalue/
@@ -349,15 +349,38 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         newly-correct fixtures emit correct output under `bin/dwscript` but are masked in the harness
         by the over-aggressive unused-private-field hint envelope (the ⚠️-blocked hint issue below),
         not by any output error.
-      - **Remaining (~36 fails):** anonymous-record-literal *parser* support (`stringify_anonymous*`,
-        `stringify_record2`); auto-property backing-field generation (`stringify_method`,
-        `stringify_array_of_classes` — `property alpha : Integer;` currently rejects the synthesized
-        `Falpha`); `array of T` property-type parsing (`stringify_class_getter`); record copy-on-
-        assign value semantics (`stringify_record`); set-of-enum serialization (`stringify_set`);
-        gating the unused-private-field hint so the 4 masked serialization fixtures score in the
-        harness; associative-array-keyed fixtures (blocked); nested-lvalue vivification through a JSON
-        index (`generate1`); reparent/ownership (`array_add_dupe`, `reparent`); float formatting
-        (`int64_json`, `numbers`). Covered by `internal/jsonvalue/stringify_test.go`.
+      - **Clean multi-fix batch (added 2026-07-06).** Three independent, low-blast-radius buckets
+        closed, **CLI `JSONConnectorPass` 46 → 52**, harness baseline **41 → 45** (the 2-fixture gap is
+        the ⚠️-blocked hint-envelope masking, not an output error); overall no category regressed.
+        (1) **JSONVariant → builtin coercion** (`parent_implicit_cast`, `read_typed`, `array_new`):
+        `builtinArgIsVariant` now also accepts `JSONVariant` (extends IntToStr/IntToHex/StrToInt/
+        FloatToStr/… semantic checks, `internal/semantic/analyze_builtin_convert.go`); the evaluator
+        `ToInt64`/`ToFloat64` (`context_conversions.go`) unwrap a Variant/JSONVariant and read the
+        scalar via `JSONValue.AsInteger/AsFloat`; `StrToInt`/`IntToHex` coerce through those helpers.
+        `Length()` on a JSONVariant string-casts first (DWScript quirk: `Length(jsonArray)` = length of
+        `'[]'` = 2, distinct from `a.Length()`/`a.length` element count).
+        (2) **Class auto-property backing fields** (`stringify_array_of_classes`, `stringify_method`):
+        a field-less `property Alpha: Integer;` now synthesizes a private `FAlpha` `FieldDecl`
+        (`PropertyDecl.IsAutoProperty` marker + `Parser.addAutoPropertyBackingField`,
+        `internal/parser/classes.go`); class properties back onto a class var. Private visibility keeps
+        the backing field out of JSON. Fixed a latent ordering bug: `ClassInfo.GetOwnProperties` was
+        returning inherited properties (same pointer copied down by `InheritParentPropertyInfos`),
+        breaking most-derived-first JSON order — it now skips the inherited copies.
+        (3) **Set-of-enum serialization** (`stringify_set`): a bracket literal with a qualified enum
+        member (`[TEnum2.one, TEnum2.three]`) now routes to the set path (`MemberAccessExpression`
+        added to the set-convertible element kinds, `analyze_expressions.go`); `valueToJSONValue` gains
+        a `SetValue` case (`setToJSON`) emitting ascending-ordinal members — a named member as a JSON
+        string (qualified `TEnum.member` for a scoped `enum`, bare otherwise), an unnamed ordinal as a
+        JSON number.
+      - **Remaining (~30 fails):** anonymous-record-literal *parser* support (`stringify_anonymous*`,
+        `stringify_record2`); `array of T` property-type parsing (`stringify_class_getter`); record
+        copy-on-assign value semantics (`stringify_record`); gating the unused-private-field hint so
+        the masked serialization fixtures score in the harness; associative-array-keyed fixtures
+        (blocked); nested-lvalue vivification through a JSON index (`generate1`, `basic_generate`);
+        reparent/ownership (`array_add_dupe`, `reparent`, `reposition_node_in_array`); float formatting
+        (`int64_json`, `numbers`); variant→scalar cast error-message parity (`explicit_cast`);
+        `external` property syntax (`property_name`). Covered by `internal/jsonvalue/stringify_test.go`
+        and `internal/parser/properties_test.go:TestClassAutoPropertyBackingField`.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

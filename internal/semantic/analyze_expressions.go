@@ -147,6 +147,9 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 						switch elem.(type) {
 						case *ast.Identifier, *ast.RangeExpression, *ast.IntegerLiteral:
 						case *ast.CharLiteral, *ast.StringLiteral, *ast.BooleanLiteral:
+						// A qualified enum member (e.g. TEnum2.one) is a valid set
+						// element for a `set of <scoped enum>`.
+						case *ast.MemberAccessExpression:
 						default:
 							convertible = false
 						}

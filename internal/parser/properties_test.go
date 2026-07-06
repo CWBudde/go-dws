@@ -468,6 +468,56 @@ func TestPropertyAuto(t *testing.T) {
 	if writeIdent.Value != expectedField {
 		t.Errorf("Auto-property WriteSpec: expected=%q, got=%q", expectedField, writeIdent.Value)
 	}
+
+	if !prop.IsAutoProperty {
+		t.Error("field-less property should be marked IsAutoProperty")
+	}
+}
+
+// TestClassAutoPropertyBackingField verifies that a field-less (auto) property
+// declared in a class body synthesizes a matching private backing field so the
+// analyzer and runtime have real storage. A class property backs onto a class var.
+func TestClassAutoPropertyBackingField(t *testing.T) {
+	input := `type TBase = class
+  property Alpha: Integer;
+  class property Beta: String;
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if errs := p.Errors(); len(errs) != 0 {
+		t.Fatalf("Parser had %d errors:\n%v", len(errs), errs)
+	}
+
+	classDecl, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl, got=%T", program.Statements[0])
+	}
+
+	want := map[string]bool{"FAlpha": false, "FBeta": false} // name -> IsClassVar
+	want["FBeta"] = true
+
+	found := map[string]*ast.FieldDecl{}
+	for _, f := range classDecl.Fields {
+		if f != nil && f.Name != nil {
+			found[f.Name.Value] = f
+		}
+	}
+
+	for name, isClassVar := range want {
+		field, ok := found[name]
+		if !ok {
+			t.Fatalf("expected synthesized backing field %q, class fields=%v", name, found)
+		}
+		if field.Visibility != ast.VisibilityPrivate {
+			t.Errorf("backing field %q: expected private visibility, got %v", name, field.Visibility)
+		}
+		if field.IsClassVar != isClassVar {
+			t.Errorf("backing field %q: expected IsClassVar=%v, got %v", name, isClassVar, field.IsClassVar)
+		}
+	}
 }
 
 func TestPropertyErrors(t *testing.T) {

@@ -41,7 +41,7 @@
   "JSFilterScripts": 0,
   "JSFilterScriptsFail": 0,
   "JSONConnectorFail": 2,
-  "JSONConnectorPass": 41,
+  "JSONConnectorPass": 45,
   "LambdaFail": 0,
   "LambdaPass": 4,
   "Linq": 0,

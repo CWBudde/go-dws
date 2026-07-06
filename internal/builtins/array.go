@@ -28,6 +28,17 @@ func Length(ctx Context, args []Value) Value {
 
 	arg := args[0]
 
+	// A JSONVariant reports the length of its string cast (matching DWScript:
+	// Length(jsonArray) = Length('[]') = 2), NOT its element count — the element
+	// count is reached via the a.Length() method / a.length property instead.
+	if js, ok := ctx.UnwrapVariant(arg).(*runtime.JSONValue); ok {
+		length := int64(0)
+		for range js.String() {
+			length++
+		}
+		return &runtime.IntegerValue{Value: length}
+	}
+
 	// Handle arrays via Context helper
 	if length, ok := ctx.GetBuiltinArrayLength(arg); ok {
 		// Return integer value
