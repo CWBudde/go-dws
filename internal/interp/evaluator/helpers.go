@@ -62,6 +62,8 @@ func VariantToBool(val Value) bool {
 		return v.Value != ""
 	case *runtime.NilValue:
 		return false
+	case *runtime.JSONValue:
+		return !v.Value.IsFalsey()
 	default:
 		// Check by type name for types not in runtime package
 		switch val.Type() {
@@ -191,6 +193,8 @@ func IsFalsey(val Value) bool {
 	case *runtime.ArrayValue:
 		// Empty arrays are falsey
 		return len(v.Elements) == 0
+	case *runtime.JSONValue:
+		return v.Value.IsFalsey()
 	default:
 		// Check by type name for types not in runtime package
 		switch val.Type() {

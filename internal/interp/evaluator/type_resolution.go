@@ -55,6 +55,8 @@ func (e *Evaluator) ResolveType(typeName string) (types.Type, error) {
 		return types.BOOLEAN, nil
 	case "variant":
 		return types.VARIANT, nil
+	case "jsonvariant":
+		return types.JSON_VARIANT, nil
 	case "const":
 		// "Const" redirects to VARIANT for dynamic typing
 		return types.VARIANT, nil
@@ -322,6 +324,8 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 		return types.BOOLEAN, nil
 	case "variant":
 		return types.VARIANT, nil
+	case "jsonvariant":
+		return types.JSON_VARIANT, nil
 	case "const":
 		// "Const" redirects to VARIANT for dynamic typing
 		return types.VARIANT, nil

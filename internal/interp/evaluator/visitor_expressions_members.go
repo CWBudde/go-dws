@@ -50,6 +50,12 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	}
 	wantMethodPointer := expectedTypeKind == "FUNCTION_POINTER" || expectedTypeKind == "METHOD_POINTER"
 
+	// JSON namespace bare access (JSON.NewObject / JSON.NewArray, invoked without
+	// parentheses) must be handled before `JSON` is evaluated as an identifier.
+	if e.isJSONNamespaceObject(node.Object, ctx) {
+		return e.evalJSONNamespaceCall(node.Member.Value, nil, node, ctx)
+	}
+
 	// Unit-qualified access (UnitName.Symbol) should not evaluate the unit identifier.
 	if identObj, ok := node.Object.(*ast.Identifier); ok {
 		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.UnitRegistry() != nil {
@@ -83,6 +89,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	}
 
 	memberName := node.Member.Value
+
+	// Member access on a JSON value (v.foo, v.length) yields another JSON value.
+	if isJSONBoxed(obj) {
+		return e.evalJSONValueMember(jsonValueOf(obj), memberName)
+	}
 
 	// Associative array parameterless members (a.Keys, a.Length, a.Count, a.Clear).
 	if assoc, ok := obj.(*runtime.AssociativeArrayValue); ok {

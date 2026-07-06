@@ -50,7 +50,7 @@ fixing anything else.
 | Sets, Helpers | 🟡 | 80–81% (harness, 2026-07-04) |
 | Overloads | 🟡 | 85% (harness, 2026-07-04) |
 | Generics, Lambdas, Associative arrays, Property expressions | 🟡 | 53–81% (see P1) |
-| **JSON** | 🔴 | **0%** |
+| JSON connector | 🟡 | 39/82 = 48% (JSONConnectorPass, harness, 2026-07-06) |
 | **All `*Fail` error-detection suites** | 🔴 | **0%** |
 | Host libraries (DB, Crypto, COM, Web, Graphics) | ⏸️ | 0% (need host bindings; out of core scope) |
 
@@ -313,6 +313,30 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       `include_once2`; `includeSym` now produces correct output but still needs the hint envelope
       (⚠️ blocked above). SimpleScripts 290 → 294 (harness). Covered by
       `internal/lexer/include_test.go`.
+- [~] **JSON connector** (`JSONConnectorPass` **0 → 39/82 = 48%**, harness; `JSONConnectorFail`
+      0 → 2). The script-visible `JSON` static namespace and a distinct **`JSONVariant`** connector
+      type. Reuses the pre-existing `internal/jsonvalue` tree + `runtime.JSONValue`; adds byte-exact
+      DWScript `Stringify`/pretty writer and an order-preserving parser (`internal/jsonvalue/
+      {stringify,parse}.go`). Implemented across the stack:
+      - **Type system:** `types.JSONVariantType` (distinct from `Variant` so plain-Variant member
+        access still errors — required by `coalesce_typ`), with auto-box/implicit-cast assignability.
+      - **Semantic:** `JSON.<method>` namespace resolution and permissive JSONVariant member/index/
+        method typing (`internal/semantic/analyze_json.go`); boolean-context, comparison, cast, and
+        `VarIsEmpty` acceptance.
+      - **Runtime:** `JSON.Parse/Stringify/PrettyStringify/Serialize/NewObject/NewArray/*UTF8/
+        Parse{Integer,Float,String}Array`; JSON value methods (TypeName/Length/Low/High/ElementName/
+        Clone/Extend/AddFrom/Add/Push/Delete/Swap/Defined/ToString); member/index read+write with
+        positional object indexing; truthiness (`jsonvalue.IsFalsey`), implicit/explicit casts,
+        comparison, `??` coalesce, auto-boxing of scalars into a JSONVariant; print/string-cast
+        semantics (string→raw, container→compact JSON, bool→Pascal `True`/`False`, null→`null`).
+      - **Remaining (documented, ~43 fails):** **record/class serialization** (~16 `stringify_*`/
+        `serialize_class` fixtures — needs published-RTTI introspection with alphabetical ordering,
+        original casing, property getters, and a custom `Stringify` override; the `stringify_anonymous*`
+        subset additionally needs anonymous-record-literal *parser* support); associative-array-keyed
+        fixtures (blocked — associative arrays are not on this base branch); nested-lvalue
+        vivification through a JSON index (`generate1`); reparent/ownership semantics
+        (`array_add_dupe`, `reparent`); exact float→string formatting (`int64_json`); and float
+        `0/0`→NaN (`numbers`). Covered by `internal/jsonvalue/stringify_test.go`.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

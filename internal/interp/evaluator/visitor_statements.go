@@ -415,6 +415,13 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			return &runtime.NilValue{}
 		}
 
+		// Auto-box a base scalar assigned to a JSONVariant-typed target as a JSON
+		// immediate. This keys off the declared type only: a plain Variant that
+		// happens to hold a JSON value must NOT coerce a later scalar assignment.
+		if e.expectedTypeKindForIdentifier(target, ctx) == "JSON_VARIANT" {
+			value = coerceToJSONVariant(value)
+		}
+
 		// Records have value semantics - copy when assigning
 		if record, ok := value.(*runtime.RecordValue); ok {
 			value = record.Copy()
@@ -1497,6 +1504,9 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	case "variant":
 		// Unassigned variant has Value: nil (not NilValue)
 		return &runtime.VariantValue{Value: nil, ActualType: nil}
+	case "jsonvariant":
+		// A fresh JSONVariant is an Undefined JSON value (browsable, VarIsEmpty).
+		return boxJSON(nil)
 	default:
 		if e.typeSystem.HasClass(typeName) {
 			return &runtime.NilValue{ClassType: typeName}

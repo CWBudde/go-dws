@@ -147,6 +147,11 @@ func (e *Evaluator) castToInteger(val Value) Value {
 			}
 		}
 		return &runtime.IntegerValue{Value: bits}
+	case *runtime.JSONValue:
+		if i, ok := v.AsInteger(); ok {
+			return &runtime.IntegerValue{Value: i}
+		}
+		return &runtime.ErrorValue{Message: "Could not convert variant of type (" + jsonTypeName(v.Value) + ") into Integer"}
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
@@ -210,6 +215,11 @@ func (e *Evaluator) castToFloat(val Value) Value {
 	case *runtime.EnumValue:
 		// Cast enum to its ordinal value as float
 		return &runtime.FloatValue{Value: float64(v.OrdinalValue)}
+	case *runtime.JSONValue:
+		if f, ok := v.AsFloat(); ok {
+			return &runtime.FloatValue{Value: f}
+		}
+		return &runtime.ErrorValue{Message: "Could not convert variant of type (" + jsonTypeName(v.Value) + ") into Float"}
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
@@ -236,6 +246,8 @@ func (e *Evaluator) castToString(val Value) Value {
 			return &runtime.StringValue{Value: "True"}
 		}
 		return &runtime.StringValue{Value: "False"}
+	case *runtime.JSONValue:
+		return &runtime.StringValue{Value: v.String()}
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
@@ -254,6 +266,8 @@ func (e *Evaluator) castToBoolean(val Value) Value {
 	switch v := val.(type) {
 	case *runtime.BooleanValue:
 		return v
+	case *runtime.JSONValue:
+		return &runtime.BooleanValue{Value: !v.Value.IsFalsey()}
 	case *runtime.IntegerValue:
 		return &runtime.BooleanValue{Value: v.Value != 0}
 	case *runtime.FloatValue:

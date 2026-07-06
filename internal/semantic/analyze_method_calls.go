@@ -8,11 +8,22 @@ import (
 
 // analyzeMethodCallExpression analyzes a method call on an object
 func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) types.Type {
+	// JSON namespace method call: JSON.Parse(s), JSON.Stringify(x). Recognized
+	// before `JSON` is analyzed as an ordinary (undefined) identifier.
+	if a.isJSONNamespace(expr.Object) {
+		return a.analyzeJSONNamespaceResult(expr.Method.Value, expr.Arguments)
+	}
+
 	// Analyze the object expression
 	objectType := a.analyzeExpression(expr.Object)
 	if objectType == nil {
 		// Error already reported
 		return nil
+	}
+
+	// Method call on a JSONVariant receiver: v.TypeName(), v.Add(x), ...
+	if types.IsJSONVariant(objectType) {
+		return a.analyzeJSONMethodResult(expr.Method.Value, expr.Arguments)
 	}
 
 	methodName := expr.Method.Value

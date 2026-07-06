@@ -31,7 +31,7 @@ func TestJSONValue_String(t *testing.T) {
 			setup: func() *JSONValue {
 				return NewJSONValue(jsonvalue.NewBoolean(true))
 			},
-			wantStr:  "true",
+			wantStr:  "True",
 			wantType: "JSON",
 		},
 		{
@@ -39,7 +39,7 @@ func TestJSONValue_String(t *testing.T) {
 			setup: func() *JSONValue {
 				return NewJSONValue(jsonvalue.NewBoolean(false))
 			},
-			wantStr:  "false",
+			wantStr:  "False",
 			wantType: "JSON",
 		},
 		{
@@ -99,7 +99,7 @@ func TestJSONValue_String(t *testing.T) {
 				arr.ArrayAppend(jsonvalue.NewInt64(3))
 				return NewJSONValue(arr)
 			},
-			wantStr:  "[1, 2, 3]",
+			wantStr:  "[1,2,3]",
 			wantType: "JSON",
 		},
 		{
@@ -118,8 +118,7 @@ func TestJSONValue_String(t *testing.T) {
 				obj.ObjectSet("age", jsonvalue.NewInt64(30))
 				return NewJSONValue(obj)
 			},
-			// Note: Object string representation depends on insertion order
-			wantStr:  "{name: John, age: 30}",
+			wantStr:  `{"name":"John","age":30}`,
 			wantType: "JSON",
 		},
 		{
@@ -133,7 +132,7 @@ func TestJSONValue_String(t *testing.T) {
 				outer.ObjectSet("point", inner)
 				return NewJSONValue(outer)
 			},
-			wantStr:  "{point: {x: 1, y: 2}}",
+			wantStr:  `{"point":{"x":1,"y":2}}`,
 			wantType: "JSON",
 		},
 		{
@@ -148,7 +147,7 @@ func TestJSONValue_String(t *testing.T) {
 				outer.ArrayAppend(jsonvalue.NewInt64(3))
 				return NewJSONValue(outer)
 			},
-			wantStr:  "[[1, 2], 3]",
+			wantStr:  "[[1,2],3]",
 			wantType: "JSON",
 		},
 	}
@@ -356,7 +355,7 @@ func TestJSONValue_WithInterpreter(t *testing.T) {
 		t.Errorf("Type() = %v, want JSON", jsonVal.Type())
 	}
 
-	expectedStr := "{x: 10, y: 20}"
+	expectedStr := `{"x":10,"y":20}`
 	if jsonVal.String() != expectedStr {
 		t.Errorf("String() = %v, want %v", jsonVal.String(), expectedStr)
 	}

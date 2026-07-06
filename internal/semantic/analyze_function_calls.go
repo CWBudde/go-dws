@@ -32,9 +32,20 @@ func (a *Analyzer) analyzeCallExpressionWithContext(expr *ast.CallExpression, ex
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		// JSON namespace calls (JSON.Parse/Stringify/...) must be recognized before
+		// the `JSON` identifier is analyzed as an ordinary (undefined) symbol.
+		if a.isJSONNamespace(memberAccess.Object) {
+			return a.analyzeJSONNamespaceResult(memberAccess.Member.Value, expr.Arguments)
+		}
+
 		objectType := a.analyzeExpression(memberAccess.Object)
 		if objectType == nil {
 			return nil
+		}
+
+		// Method call on a JSONVariant receiver (v.TypeName(), v.Add(x), ...).
+		if types.IsJSONVariant(objectType) {
+			return a.analyzeJSONMethodResult(memberAccess.Member.Value, expr.Arguments)
 		}
 
 		// Constructor call: TClass.Create(args)
@@ -1011,6 +1022,20 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 	// Variant conversions
 	if sourceType == types.VARIANT || targetType == types.VARIANT {
 		return true
+	}
+
+	// JSONVariant conversions are valid only to/from base types and Variant
+	// (validated at runtime). Casts to unrelated types (e.g. class/interface)
+	// are not permitted and fall through to the checks below.
+	if types.IsJSONVariant(sourceType) || types.IsJSONVariant(targetType) {
+		other := sourceType
+		if types.IsJSONVariant(sourceType) {
+			other = targetType
+		}
+		switch other.TypeKind() {
+		case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "VARIANT", "JSON_VARIANT":
+			return true
+		}
 	}
 
 	// nil can be cast to any reference type: class, interface, metaclass
