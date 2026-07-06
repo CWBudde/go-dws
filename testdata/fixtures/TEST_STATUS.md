@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-07-05
+**Generated**: 2026-07-06
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 749 |
-| Failed | 1179 |
+| Passed | 790 |
+| Failed | 1138 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **39%** (749/1928) |
+| **Scored pass rate** | **41%** (790/1928) |
 
 ## Per-category
 
@@ -63,8 +63,8 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | InterfacesPass | 33 | 16 | 12 | 5 | 57% |
 | JSFilterScripts | 2 | 0 | 0 | 2 | 0% |
 | JSFilterScriptsFail | 1 | 0 | 0 | 1 | 0% |
-| JSONConnectorFail | 9 | 0 | 9 | 0 | 0% |
-| JSONConnectorPass | 82 | 0 | 82 | 0 | 0% |
+| JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
+| JSONConnectorPass | 82 | 39 | 43 | 0 | 48% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
 | LambdaPass | 6 | 4 | 2 | 0 | 67% |
 | Linq | 7 | 0 | 7 | 0 | 0% |
