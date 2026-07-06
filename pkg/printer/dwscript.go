@@ -99,7 +99,13 @@ func (p *Printer) printSetLiteral(sl *ast.SetLiteral) {
 func (p *Printer) printNewExpression(ne *ast.NewExpression) {
 	p.write("new")
 	p.space()
-	p.printDWScript(ne.ClassName)
+	if ne.ClassName != nil {
+		p.printDWScript(ne.ClassName)
+	} else if ne.Operand != nil {
+		p.write("(")
+		p.printDWScript(ne.Operand)
+		p.write(")")
+	}
 	if len(ne.Arguments) > 0 {
 		p.write("(")
 		for i, arg := range ne.Arguments {

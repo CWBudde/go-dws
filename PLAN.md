@@ -434,9 +434,33 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       Virtual/`override` default constructors dispatch on the instantiated class (`new TSubClass(20)`
       → `TSubClass.Build`). SimpleScripts CLI 288 → 290, harness 306 → 307 (the +1 gap is the
       ⚠️-blocked hint envelope masking `new_class1`, not an output error); no category regressed.
-      **Remaining `new` gaps (separate slices):** parenthesized/aliased class exprs `new (X)(args)`
-      / `new (TAlias)(args)` (parser — `new_class_alias`, `new_class3`), `new` on a class-reference
-      variable / metaclass and the nil-`TClass` runtime check (`new_class4`, `new_class3`).
+- [~] **`new` on a class reference / metaclass / parenthesized operand** (`new_class_alias`,
+      `new_class3`, `new_class4`). Closes the previously-listed remaining `new` gaps. Implemented
+      across the stack: (1) **Parser** — `new (expr)(args)` / `new (classRefExpr)(args)` now parse;
+      a new `NewExpression.Operand` field (`pkg/ast/classes.go`) carries the parenthesized operand
+      (an arbitrary expression: a parenthesized type/alias, a class-reference variable, or a call
+      returning a metaclass), and `parseNewOperandExpression` (`internal/parser/expressions_oop.go`)
+      handles the leading `(`. (2) **Semantic** — `analyzeNewExpression` (`analyze_classes.go`) now
+      resolves the constructed class from a metaclass value (`*types.ClassOfType`), a plain class
+      type, or an alias chain (`metaExprClassType`/`classTypeFromNewOperand`), so `new r` / `new c`
+      (class-reference variables), `new TAlias`, and the operand forms all type-check; `var r :=
+      TSubClass` now infers `class of TSubClass` (the var-decl guard in `analyze_statements.go` no
+      longer forces a bare *class* name to Variant — non-class type identifiers still error).
+      (3) **Evaluator** — `resolveNewMetaclass`/`classInfoFromTypeName`
+      (`visitor_expressions_functions.go`) evaluate the operand/identifier to a `ClassMetaValue`,
+      dispatch the default constructor on the **runtime** class (so `r` holding `TSubClass` builds
+      `TSubClass`), and raise a catchable `ClassType is nil [line: col]` for a nil `TClass`.
+      Collateral: the property backing-field-usage fix (below) unmasked JSON serialization fixtures
+      (**JSONConnectorPass harness 45 → 51**) and one ArrayPass fixture; **SimpleScripts harness
+      307 → 310**, no category regressed. Covered by `TestNewOperandExpression`
+      (`internal/parser/functions_call_test.go`).
+- [x] **Property backing fields referenced by an accessor are marked used**
+      (`PropertyExpressionsPass` **9 → 10, meeting its 50% P1 exit criterion**). A `property P read
+      FField write FField` left the private `FField` flagged as an unused-private-field pedantic
+      hint because the field-spec validators (`validateReadSpec`/`validateWriteSpec`,
+      `internal/semantic/analyze_properties.go`) never recorded the usage. They now call
+      `recordClassFieldUsage`, matching the other member-usage sites. Fixes `chained_as_properties`
+      and unmasks the JSON serialization fixtures noted above.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

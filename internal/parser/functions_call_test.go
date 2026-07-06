@@ -163,3 +163,47 @@ func TestNewKeywordExpression(t *testing.T) {
 		})
 	}
 }
+
+// TestNewOperandExpression covers the parenthesized-operand form of `new`,
+// where the constructed class is given by an arbitrary expression rather than
+// a bare class name: new (Type)(args) and new (call(...))().
+func TestNewOperandExpression(t *testing.T) {
+	tests := []struct {
+		input   string
+		numArgs int
+	}{
+		{"new (TAlias)(' !');", 1},
+		{"new (TMyClass)(1);", 1},
+		{"new (GetAClass(r))();", 0},
+		{"new (TMyClass);", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+			if !ok {
+				t.Fatalf("statement is not ast.ExpressionStatement. got=%T", program.Statements[0])
+			}
+
+			newExpr, ok := stmt.Expression.(*ast.NewExpression)
+			if !ok {
+				t.Fatalf("expression is not ast.NewExpression. got=%T", stmt.Expression)
+			}
+
+			// The operand form leaves ClassName nil and stores the operand expression.
+			if newExpr.ClassName != nil {
+				t.Fatalf("expected nil ClassName for operand form, got=%q", newExpr.ClassName.Value)
+			}
+			if newExpr.Operand == nil {
+				t.Fatalf("expected non-nil Operand for %q", tt.input)
+			}
+			if len(newExpr.Arguments) != tt.numArgs {
+				t.Fatalf("wrong number of arguments. expected=%d, got=%d", tt.numArgs, len(newExpr.Arguments))
+			}
+		})
+	}
+}

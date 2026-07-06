@@ -158,7 +158,11 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	// If there's an initializer, check its type
 	// Note: Parser already validates that multi-name declarations cannot have initializers
 	specialMetaValueInit := false
-	if stmt.Type == nil && stmt.Value != nil && a.isTypeMetaValueExpression(stmt.Value) {
+	if stmt.Type == nil && stmt.Value != nil && a.isTypeMetaValueExpression(stmt.Value) && !a.isClassNameExpr(stmt.Value) {
+		// A bare *class* name is a valid metaclass value (`var r := TSubClass`
+		// infers `class of TSubClass`); only non-class type identifiers
+		// (Integer/String/enum/record/…) used as a value are the "(" expected
+		// error case handled here.
 		pos := stmt.Value.End()
 		a.addError("Syntax Error: \"(\" expected [line: %d, column: %d]", pos.Line, pos.Column)
 		varType = types.VARIANT

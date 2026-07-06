@@ -869,11 +869,132 @@ func (e *Evaluator) evalWithExpectedType(node ast.Node, expectedType types.Type,
 	return e.Eval(node, ctx)
 }
 
+// newOperandNode returns the AST node that denotes the constructed class for a
+// `new` expression — the parenthesized operand when present, otherwise the bare
+// class-name identifier. Used for error positioning.
+func newOperandNode(node *ast.NewExpression) ast.Node {
+	if node.Operand != nil {
+		return node.Operand
+	}
+	if node.ClassName != nil {
+		return node.ClassName
+	}
+	return node
+}
+
+// classInfoFromTypeName resolves a type name (possibly an alias) to the class
+// info it denotes: a plain class type or a `class of X` metaclass. Returns nil
+// when the name is not a class reference.
+func (e *Evaluator) classInfoFromTypeName(name string, ctx *ExecutionContext) runtime.IClassInfo {
+	resolved, err := e.ResolveTypeWithContext(name, ctx)
+	if err != nil || resolved == nil {
+		return nil
+	}
+	className := ""
+	switch tt := types.GetUnderlyingType(resolved).(type) {
+	case *types.ClassOfType:
+		if tt.ClassType != nil {
+			className = tt.ClassType.Name
+		}
+	case *types.ClassType:
+		className = tt.Name
+	}
+	if className == "" {
+		return nil
+	}
+	if ci := e.typeSystem.LookupClass(className); ci != nil {
+		if info, ok := ci.(runtime.IClassInfo); ok {
+			return info
+		}
+	}
+	return nil
+}
+
+// resolveNewMetaclass handles the class-reference forms of `new`:
+//
+//	new (expr)(args)   — Operand is an expression yielding a metaclass value
+//	new classRefVar    — a bare identifier bound to a `class of` variable
+//	new TAlias         — a bare identifier aliasing a class
+//
+// It returns the resolved class info and its runtime class name. handled is
+// false for an ordinary `new ClassName(...)`, which the normal lookup path
+// serves. isNil is true when the reference evaluated to a nil class reference
+// (`var c: TClass; new c`), which the caller turns into a catchable
+// "ClassType is nil" exception. Constructor dispatch then runs on the resolved
+// (dynamic) class, so `r` holding TSubClass constructs TSubClass.
+func (e *Evaluator) resolveNewMetaclass(node *ast.NewExpression, ctx *ExecutionContext) (info runtime.IClassInfo, name string, handled, isNil bool, errVal Value) {
+	switch {
+	case node.Operand != nil:
+		val := e.Eval(node.Operand, ctx)
+		if isError(val) {
+			return nil, "", true, false, val
+		}
+		if cm, ok := val.(ClassMetaValue); ok {
+			if ci := cm.GetClassInfo(); ci != nil {
+				return ci, cm.GetClassName(), true, false, nil
+			}
+			return nil, "", true, true, nil
+		}
+		if _, ok := val.(*runtime.NilValue); ok {
+			return nil, "", true, true, nil
+		}
+		// The operand may be a type/alias identifier that did not evaluate to a
+		// metaclass value; resolve it as a type name.
+		if id, ok := node.Operand.(*ast.Identifier); ok {
+			if ci := e.classInfoFromTypeName(id.Value, ctx); ci != nil {
+				return ci, ci.GetName(), true, false, nil
+			}
+		}
+		return nil, "", true, false, e.newError(node.Operand, "'new' requires a class reference")
+
+	case node.ClassName != nil:
+		name := node.ClassName.Value
+		if e.typeSystem.LookupClass(name) != nil {
+			return nil, "", false, false, nil // ordinary class name — normal path
+		}
+		if v, ok := ctx.Env().Get(name); ok {
+			if cm, ok := v.(ClassMetaValue); ok {
+				if ci := cm.GetClassInfo(); ci != nil {
+					return ci, cm.GetClassName(), true, false, nil
+				}
+			}
+			if _, ok := v.(*runtime.NilValue); ok {
+				return nil, "", true, true, nil
+			}
+		}
+		if ci := e.classInfoFromTypeName(name, ctx); ci != nil {
+			return ci, ci.GetName(), true, false, nil
+		}
+		return nil, "", false, false, nil // let the normal path report "not found"
+	}
+	return nil, "", false, false, nil
+}
+
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
 // Handles class lookup, field initialization, and constructor execution.
 // Validates abstract/external classes and supports implicit parameterless constructors.
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
-	className := node.ClassName.Value
+	var className string
+	var classInfoAny any
+
+	// Class-reference forms: new (expr)(args), new classRefVar, new TAlias.
+	// These resolve the constructed class from a metaclass value / alias rather
+	// than a bare class name in the registry.
+	metaInfo, metaName, metaHandled, metaNil, metaErr := e.resolveNewMetaclass(node, ctx)
+	if metaErr != nil {
+		return metaErr
+	}
+	if metaNil {
+		// `var c: TClass; new c` with a nil class reference raises a catchable
+		// exception positioned at the class-reference operand.
+		return e.newError(newOperandNode(node), "ClassType is nil")
+	}
+	if metaHandled {
+		classInfoAny = metaInfo
+		className = metaName
+	} else {
+		className = node.ClassName.Value
+	}
 
 	// evalArgsByValue evaluates the constructor arguments left to right.
 	// Deferred until the constructor declaration is known so that var/lazy
@@ -896,8 +1017,10 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		return nil
 	}
 
-	// Look up class in type system
-	classInfoAny := e.typeSystem.LookupClass(className)
+	// Look up class in type system (unless a metaclass reference already resolved it)
+	if classInfoAny == nil {
+		classInfoAny = e.typeSystem.LookupClass(className)
+	}
 	if classInfoAny == nil {
 		if recordTypeRaw := e.typeSystem.LookupRecord(className); recordTypeRaw != nil {
 			if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok && recordType.HasStaticMethod("Create") {

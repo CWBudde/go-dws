@@ -11,34 +11,108 @@ import (
 // Class Expression Analysis Functions
 // ============================================================================
 
+// metaExprClassType unwraps a type that denotes a class to its ClassType: a
+// metaclass reference (`class of X`), a plain class type, or an alias chain to
+// either. Returns nil for anything that is not a class reference.
+func metaExprClassType(t types.Type) *types.ClassType {
+	switch tt := t.(type) {
+	case *types.ClassOfType:
+		return tt.ClassType
+	case *types.ClassType:
+		return tt
+	case *types.TypeAlias:
+		return metaExprClassType(tt.AliasedType)
+	}
+	return nil
+}
+
+// isClassNameExpr reports whether expr is a bare identifier that names a class
+// type (and therefore denotes a valid metaclass value).
+func (a *Analyzer) isClassNameExpr(expr ast.Expression) bool {
+	id, ok := expr.(*ast.Identifier)
+	if !ok {
+		return false
+	}
+	return a.getClassType(id.Value) != nil
+}
+
+// classTypeFromNewOperand resolves a bare identifier after `new` that is not a
+// registered class name to the class it constructs: a class-reference variable
+// (whose declared type is a metaclass) or a type alias to a class. Returns nil
+// if the name is neither.
+func (a *Analyzer) classTypeFromNewOperand(name *ast.Identifier) *types.ClassType {
+	if sym, ok := a.symbols.Resolve(name.Value); ok {
+		if ct := metaExprClassType(sym.Type); ct != nil {
+			a.recordSymbolUsage(name.Value, name.Token.Pos)
+			return ct
+		}
+	}
+	if resolved, err := a.resolveType(name.Value); err == nil {
+		return metaExprClassType(resolved)
+	}
+	return nil
+}
+
 // analyzeNewExpression analyzes object creation (new TClass(args) or TClass.Create(args))
 // with constructor overload resolution and visibility checking.
 func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
-	className := expr.ClassName.Value
+	var classType *types.ClassType
+	var className string
 
-	// If we're inside a class with nested types, prefer the nested type name
-	if a.currentNestedTypes != nil {
-		if qualified, ok := a.currentNestedTypes[ident.Normalize(className)]; ok {
-			className = qualified
-		}
-	} else if a.currentClass != nil {
-		if aliases, ok := a.nestedTypeAliases[ident.Normalize(a.currentClass.Name)]; ok {
-			if qualified, ok := aliases[ident.Normalize(className)]; ok {
+	switch {
+	case expr.ClassName != nil:
+		className = expr.ClassName.Value
+
+		// If we're inside a class with nested types, prefer the nested type name
+		if a.currentNestedTypes != nil {
+			if qualified, ok := a.currentNestedTypes[ident.Normalize(className)]; ok {
 				className = qualified
 			}
+		} else if a.currentClass != nil {
+			if aliases, ok := a.nestedTypeAliases[ident.Normalize(a.currentClass.Name)]; ok {
+				if qualified, ok := aliases[ident.Normalize(className)]; ok {
+					className = qualified
+				}
+			}
 		}
-	}
 
-	// Look up class in registry
-	classType := a.getClassType(className)
-	if classType == nil {
-		// Check if it's a record type with static method call (e.g., TRecord.Create())
-		if recordType := a.getRecordType(className); recordType != nil {
-			return a.analyzeRecordStaticMethodCallFromNew(expr, recordType)
+		// Look up class in registry
+		classType = a.getClassType(className)
+		if classType == nil {
+			// Check if it's a record type with static method call (e.g., TRecord.Create())
+			if recordType := a.getRecordType(className); recordType != nil {
+				return a.analyzeRecordStaticMethodCallFromNew(expr, recordType)
+			}
+			// A class-reference variable (`var c: TClass; new c`) or an alias to a
+			// class (`type TAlias = TMyClass; new TAlias`): the name resolves to a
+			// metaclass value / class type rather than a registered class name.
+			classType = a.classTypeFromNewOperand(expr.ClassName)
+			if classType == nil {
+				a.addStructuredError(NewUnknownNameError(expr.Token.Pos, className))
+				return nil
+			}
 		}
-		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, className))
+
+	case expr.Operand != nil:
+		// Parenthesized operand form: new (Type)(args) / new (classRefExpr)(args).
+		// The constructed class is whatever the operand expression denotes — a
+		// parenthesized type/alias, a class-reference variable, or a call
+		// returning a metaclass.
+		t := a.analyzeExpression(expr.Operand)
+		if t == nil {
+			return nil // the operand analysis already reported an error
+		}
+		classType = metaExprClassType(t)
+		if classType == nil {
+			a.addError("'new' requires a class or class reference at %s", expr.Token.Pos.String())
+			return nil
+		}
+		className = classType.Name
+
+	default:
 		return nil
 	}
+
 	a.warnDeprecatedClassUsage(classType, expr.Token.Pos)
 
 	// Case-mismatch hints for the class name and (for the "TClass.Create(...)"
