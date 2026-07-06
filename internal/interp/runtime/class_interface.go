@@ -86,6 +86,11 @@ type IClassInfo interface {
 	// Returns nil if no constructor with that name exists.
 	GetConstructor(name string) *ast.FunctionDecl
 
+	// GetDefaultConstructor returns the name of the constructor declared with the
+	// 'default' directive on this class, or "" if none. The evaluator walks the
+	// hierarchy so that `new TClass(...)` invokes the inherited default constructor.
+	GetDefaultConstructor() string
+
 	// HasMethodOverloads returns true if the class or any ancestor declares more
 	// than one instance method with the given name (i.e., the method is overloaded).
 	// Used by the evaluator to decide whether to use direct dispatch or fall back

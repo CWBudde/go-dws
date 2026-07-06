@@ -105,6 +105,15 @@ func (c *ClassInfo) GetParent() runtime.IClassInfo {
 	return c.Parent
 }
 
+// GetDefaultConstructor returns the name of the constructor declared with the
+// 'default' directive on this class (empty if none was declared here).
+func (c *ClassInfo) GetDefaultConstructor() string {
+	if c == nil {
+		return ""
+	}
+	return c.DefaultConstructor
+}
+
 // GetMetadata returns the AST-free metadata
 func (c *ClassInfo) GetMetadata() *runtime.ClassMetadata {
 	if c == nil {

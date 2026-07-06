@@ -420,6 +420,23 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       - **Deferred (2, niche):** `@TObject.ClassType` address-of-class-member (`func_ptr_symbol_field`)
         and value↔parameterless-function coercion in `array of function : T` (`func_ptr_classname`).
         `func_ptr_property`/`func_ptr_field_no_param`/`func_ptr_constant` remain hint-envelope-blocked.
+- [~] **`new` invokes the class's default constructor** (`new_class1`, `new_class2`). DWScript's
+      `new TClass(...)` runs the constructor declared with the `default` directive — which may be
+      named other than `Create` (`constructor World; default;`, `constructor Build(i); virtual;
+      default;`) and is searched up the hierarchy — rather than only ever looking up `Create`. A
+      class that declares only non-`default` constructors (e.g. `constructor World;` alone)
+      therefore instantiates by plain allocation, matching DWScript (`new_class1`'s `TSubClass2`).
+      The semantic analyzer already resolved the default constructor via
+      `getDefaultConstructorName`; the gap was purely in the evaluator, which hard-coded `"Create"`.
+      Added `IClassInfo.GetDefaultConstructor()` (backed by `ClassInfo.DefaultConstructor`, set from
+      the `default` directive) and taught `VisitNewExpression` to walk the hierarchy for it, falling
+      back to `Create` (so exception construction and every existing path are byte-identical).
+      Virtual/`override` default constructors dispatch on the instantiated class (`new TSubClass(20)`
+      → `TSubClass.Build`). SimpleScripts CLI 288 → 290, harness 306 → 307 (the +1 gap is the
+      ⚠️-blocked hint envelope masking `new_class1`, not an output error); no category regressed.
+      **Remaining `new` gaps (separate slices):** parenthesized/aliased class exprs `new (X)(args)`
+      / `new (TAlias)(args)` (parser — `new_class_alias`, `new_class3`), `new` on a class-reference
+      variable / metaclass and the nil-`TClass` runtime check (`new_class4`, `new_class3`).
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

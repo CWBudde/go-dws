@@ -970,11 +970,25 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		return e.newError(node, "cannot instantiate external class '%s' - external classes are not supported", className)
 	}
 
+	// Resolve the constructor `new` should invoke. DWScript's `new TClass(...)`
+	// calls the class's *default* constructor — the one declared with the
+	// `default` directive (which may be named other than "Create"), searched up
+	// the hierarchy — falling back to "Create" when none is marked. A class that
+	// declares only non-default constructors (e.g. `constructor World;` without
+	// `default`) therefore instantiates via plain allocation, matching DWScript.
+	ctorName := "Create"
+	for current := runtime.IClassInfo(classInfo); current != nil; current = current.GetParent() {
+		if dc := current.GetDefaultConstructor(); dc != "" {
+			ctorName = dc
+			break
+		}
+	}
+
 	// Execute constructor: when the declaration is unambiguous and declares
 	// var/lazy parameters, wrap the arguments (by-ref references / lazy
 	// thunks) so writes inside the constructor reach the caller's variable
 	// (see fixture oop_field). Otherwise evaluate them by value.
-	constructor := classInfo.GetConstructor("Create")
+	constructor := classInfo.GetConstructor(ctorName)
 	if constructor != nil && !constructor.IsOverload && len(constructor.Parameters) == len(node.Arguments) && hasVarOrLazyParams(constructor) {
 		preparedArgs, err := e.prepareArgsForParameters(constructor.Parameters, node.Arguments, ctx)
 		if err != nil {
@@ -994,7 +1008,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	}
 
 	if constructor != nil {
-		if err := e.executeConstructorForObject(obj, "Create", args, node, ctx); err != nil {
+		if err := e.executeConstructorForObject(obj, ctorName, args, node, ctx); err != nil {
 			return e.newError(node, "constructor failed: %v", err)
 		}
 	} else if len(args) == 1 && e.typeSystem.IsClassDescendantOf(className, "Exception") {
