@@ -1,10 +1,7 @@
 package interp
 
 import (
-	"unicode"
 	"unicode/utf8"
-
-	"golang.org/x/text/unicode/norm"
 )
 
 // runeLength returns the number of Unicode characters (runes) in a string,
@@ -28,22 +25,6 @@ func runeAt(s string, index int) (rune, bool) {
 	}
 
 	return runes[index-1], true
-}
-
-// runeReplace replaces the rune at the given 1-based index in the string.
-// Returns the updated string and true if the index was valid, or the original string and false otherwise.
-func runeReplace(s string, index int, replacement rune) (string, bool) {
-	if index < 1 {
-		return s, false
-	}
-
-	runes := []rune(s)
-	if index > len(runes) {
-		return s, false
-	}
-
-	runes[index-1] = replacement
-	return string(runes), true
 }
 
 // runeDelete removes count characters starting from a 1-based position.
@@ -86,24 +67,6 @@ func runeInsert(source, target string, pos int) string {
 	}
 
 	return string(runes[:insertPos]) + source + string(runes[insertPos:])
-}
-
-// stripAccents removes diacritical marks from a string.
-// It works by normalizing the string to NFD (decomposed form) and then
-// removing all combining marks (which include accents).
-func stripAccents(s string) string {
-	// Normalize to NFD (decomposed form)
-	normalized := norm.NFD.String(s)
-
-	// Filter out combining marks
-	var result []rune
-	for _, r := range normalized {
-		if !unicode.Is(unicode.Mn, r) {
-			result = append(result, r)
-		}
-	}
-
-	return string(result)
 }
 
 // runeSetLength resizes a string to the specified character length.
