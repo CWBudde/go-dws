@@ -451,44 +451,44 @@ type MethodInfo struct {
 // ClassType represents a class type in DWScript.
 // Classes support inheritance, fields, methods, and class variables (static fields).
 type ClassType struct {
-	OverrideMethods      map[string]bool
-	AbstractMethods      map[string]bool
+	FieldUsages          map[string]bool
+	MethodUsages         map[string]bool
 	ForwardedMethods     map[string]bool
-	ReintroduceMethods   map[string]bool // Track methods marked with 'reintroduce'
+	ReintroduceMethods   map[string]bool
 	Fields               map[string]Type
 	ClassVars            map[string]Type
-	Constants            map[string]interface{}   // Class constants
-	ConstantTypes        map[string]Type          // Types for class constants
-	ConstantVisibility   map[string]int           // Visibility for class constants
-	ClassVarVisibility   map[string]int           // Visibility for class variables
-	Methods              map[string]*FunctionType // Primary method signature (first or only overload)
-	MethodOverloads      map[string][]*MethodInfo // All overload variants
+	Constants            map[string]interface{}
+	ConstantTypes        map[string]Type
+	ConstantVisibility   map[string]int
+	VirtualMethods       map[string]bool
+	Methods              map[string]*FunctionType
+	MethodOverloads      map[string][]*MethodInfo
 	FieldVisibility      map[string]int
 	MethodVisibility     map[string]int
 	FieldDeclPositions   map[string]token.Position
 	MethodDeclPositions  map[string]token.Position
 	FieldDeclNames       map[string]string
 	MethodDeclNames      map[string]string
-	FieldUsages          map[string]bool
-	MethodUsages         map[string]bool
-	VirtualMethods       map[string]bool
+	AbstractMethods      map[string]bool
+	OverrideMethods      map[string]bool
+	ClassVarVisibility   map[string]int
 	Parent               *ClassType
 	Properties           map[string]*PropertyInfo
 	ClassMethodFlags     map[string]bool
-	Constructors         map[string]*FunctionType // Primary constructor signature
-	ConstructorOverloads map[string][]*MethodInfo // All constructor overload variants
-	DefaultConstructor   string                   // Name of the constructor marked as 'default' (empty if none)
+	Constructors         map[string]*FunctionType
+	ConstructorOverloads map[string][]*MethodInfo
 	Operators            *OperatorRegistry
+	DefaultConstructor   string
 	ExternalName         string
 	Name                 string
+	DeprecatedMessage    string
 	Interfaces           []*InterfaceType
 	IsAbstract           bool
 	IsExternal           bool
 	IsStatic             bool
-	IsForward            bool // True if this is a forward declaration only
-	IsPartial            bool // True if this is a partial class
+	IsForward            bool
+	IsPartial            bool
 	IsDeprecated         bool
-	DeprecatedMessage    string
 }
 
 // String returns the string representation of the class type

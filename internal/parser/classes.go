@@ -3,7 +3,45 @@ package parser
 import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
+
+// addAutoPropertyBackingField synthesizes the private backing field for a
+// field-less (auto) property such as `property Alpha: Integer;`. The parser has
+// already pointed the property's read/write specifiers at `F<Name>`; here we add
+// the matching `F<Name>` field so the analyzer and runtime have real storage.
+// The field is private so it is excluded from JSON serialization (only the
+// property key is emitted). A class property backs onto a class var.
+func (p *Parser) addAutoPropertyBackingField(classDecl *ast.ClassDecl, property *ast.PropertyDecl) {
+	if property == nil || !property.IsAutoProperty || property.Name == nil || property.Type == nil {
+		return
+	}
+	backingName := "F" + property.Name.Value
+	// Do not duplicate a field the user declared explicitly. Match on storage
+	// kind too: an instance property backs onto an instance field and a class
+	// property onto a class var, so an existing F<Name> of the *opposite* kind
+	// must not suppress the backing member this property actually needs.
+	for _, f := range classDecl.Fields {
+		if f != nil && f.Name != nil &&
+			f.IsClassVar == property.IsClassProperty &&
+			pkgident.Equal(f.Name.Value, backingName) {
+			return
+		}
+	}
+	field := &ast.FieldDecl{
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: property.Name.Token},
+			},
+			Value: backingName,
+		},
+		Type:       property.Type,
+		Visibility: ast.VisibilityPrivate,
+		IsClassVar: property.IsClassProperty,
+	}
+	field.Token = property.Name.Token
+	classDecl.Fields = append(classDecl.Fields, field)
+}
 
 // Syntax: type ClassName = class(Parent) ... end;
 //
@@ -214,6 +252,7 @@ func (p *Parser) parseClassLevelMember(cursor *TokenCursor, classDecl *ast.Class
 		if property != nil {
 			property.IsClassProperty = true // Mark as class property
 			classDecl.Properties = append(classDecl.Properties, property)
+			p.addAutoPropertyBackingField(classDecl, property)
 		}
 	} else if cursor.Current().Type == lexer.OPERATOR {
 		operator := p.parseClassOperatorDeclaration(classToken, currentVisibility)
@@ -282,6 +321,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 			// Note: We could track visibility here if needed
 			// For now, properties are parsed without explicit visibility tracking
 			classDecl.Properties = append(classDecl.Properties, property)
+			p.addAutoPropertyBackingField(classDecl, property)
 		}
 
 	case lexer.INVARIANTS:
@@ -296,7 +336,8 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 	case lexer.IDENT:
 		// Check if this is a field declaration or an error
 		nextType := cursor.Peek(1).Type
-		if nextType == lexer.EQ {
+		switch nextType {
+		case lexer.EQ:
 			// Bare "Name = Value;" declares a class constant, same as
 			// "const Name = Value;" (DWScript semantics). Field initializers
 			// use ":=" instead.
@@ -304,7 +345,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 			if constant != nil {
 				classDecl.Constants = append(classDecl.Constants, constant)
 			}
-		} else if nextType == lexer.COLON || nextType == lexer.COMMA || nextType == lexer.ASSIGN {
+		case lexer.COLON, lexer.COMMA, lexer.ASSIGN:
 			// Regular instance field declaration (may be comma-separated)
 			// Supports: FieldName: Type; or FieldName := Value; or FieldName: Type := Value;
 			fields := p.parseFieldDeclarations(currentVisibility)
@@ -313,7 +354,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 					classDecl.Fields = append(classDecl.Fields, field)
 				}
 			}
-		} else {
+		default:
 			// Unexpected identifier in class body - likely a field missing its type declaration
 			p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
 		}

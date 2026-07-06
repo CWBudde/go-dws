@@ -76,7 +76,7 @@ func setIdentValue(id *ast.Identifier, value string) {
 // for a plain deep copy.
 func cloneNode(v reflect.Value, subst map[string]ast.TypeExpression) reflect.Value {
 	switch v.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if v.IsNil() {
 			return v
 		}

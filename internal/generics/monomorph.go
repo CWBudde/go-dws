@@ -171,7 +171,7 @@ func (m *monomorphizer) rewrite(v reflect.Value) {
 	switch v.Kind() {
 	case reflect.Interface:
 		m.rewriteInterface(v)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		m.rewritePtr(v)
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {

@@ -215,8 +215,8 @@ func TestGetLowHighBound_RuntimeScalarValuesUnsupported(t *testing.T) {
 	e := createTestEvaluator()
 
 	tests := []struct {
-		name  string
 		value runtime.Value
+		name  string
 	}{
 		{name: "integer value", value: &runtime.IntegerValue{Value: 42}},
 		{name: "boolean value", value: &runtime.BooleanValue{Value: true}},

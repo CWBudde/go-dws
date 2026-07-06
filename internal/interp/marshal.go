@@ -141,7 +141,7 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type, interp *Interpreter) (
 
 		return goMap.Interface(), nil
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// Handle pointer parameters (var parameters)
 		// For pointer types, we need to:
 		// 1. Get the underlying value from the DWScript variable
@@ -299,7 +299,7 @@ func MarshalToDWS(goValue any) (Value, error) {
 //	func Increment(x *int64) { *x++ }
 //	// After calling Increment, we use UnmarshalFromGoPtr to get the modified value
 func UnmarshalFromGoPtr(ptrValue reflect.Value) (Value, error) {
-	if ptrValue.Kind() != reflect.Ptr {
+	if ptrValue.Kind() != reflect.Pointer {
 		return nil, fmt.Errorf("expected pointer, got %s", ptrValue.Kind())
 	}
 

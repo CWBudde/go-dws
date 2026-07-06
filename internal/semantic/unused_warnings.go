@@ -12,8 +12,8 @@ import (
 )
 
 type unusedSymbolCandidate struct {
-	name string
 	sym  *Symbol
+	name string
 	pos  token.Position
 }
 
@@ -142,8 +142,8 @@ func (a *Analyzer) collectUnusedPrivateClassMemberWarnings(classType *types.Clas
 	}
 
 	type memberWarning struct {
-		pos     token.Position
 		message string
+		pos     token.Position
 	}
 
 	warnings := make([]memberWarning, 0)

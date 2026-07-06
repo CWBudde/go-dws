@@ -38,22 +38,21 @@ import (
 //   - "var Δ" → 'Δ' is at column 5 (5 runes, Δ is a single multi-byte rune)
 //   - "// 🚀" → '🚀' is at column 4 (4 runes: /, /, space, 🚀)
 type Lexer struct {
-	defines     map[string]struct{}
-	constValues map[string]int
-
+	includeResolver    IncludeResolver
+	constValues        map[string]int
+	defines            map[string]struct{}
+	includedOnce       map[string]struct{}
 	input              string
 	constPending       string
-	tokenBuffer        []Token
-	errors             []LexerError
-	condStack          []conditionalFrame
-	includeStack       []includeFrame
-	includeResolver    IncludeResolver
-	includedOnce       map[string]struct{}
-	includeErrors      []LexerError
 	currentIncludePath string
-	includeCount       int
-	readPosition       int
+	includeErrors      []LexerError
+	includeStack       []includeFrame
+	condStack          []conditionalFrame
+	errors             []LexerError
+	tokenBuffer        []Token
 	position           int
+	readPosition       int
+	includeCount       int
 	line               int
 	column             int
 	ch                 rune
@@ -67,13 +66,13 @@ type Lexer struct {
 // It can be saved and restored to enable backtracking during parsing.
 // This allows for efficient save/restore operations during lookahead.
 type LexerState struct {
+	includedOnce       map[string]struct{}
 	defines            map[string]struct{}
-	tokenBuffer        []Token
-	condStack          []conditionalFrame
+	currentIncludePath string
 	input              string
 	includeStack       []includeFrame
-	includedOnce       map[string]struct{}
-	currentIncludePath string
+	condStack          []conditionalFrame
+	tokenBuffer        []Token
 	includeCount       int
 	position           int
 	readPosition       int

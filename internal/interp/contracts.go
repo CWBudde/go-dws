@@ -36,16 +36,3 @@ func (i *Interpreter) raiseException(className, message string, pos *lexer.Posit
 		CallStack: i.ctx.CallStack(),
 	})
 }
-
-// getOldValue retrieves a captured old value by identifier name.
-// Returns the value and true if found, or nil and false if not found.
-func (i *Interpreter) getOldValue(identName string) (Value, bool) {
-	val, exists := i.ctx.GetOldValue(identName)
-	if !exists {
-		return nil, false
-	}
-	if typedVal, ok := val.(Value); ok {
-		return typedVal, true
-	}
-	return nil, false
-}

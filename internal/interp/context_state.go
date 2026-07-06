@@ -6,7 +6,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/units"
-	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 func (i *Interpreter) exceptionValue() *runtime.ExceptionValue {
@@ -22,43 +21,8 @@ func (i *Interpreter) clearException() {
 	i.ctx.SetException(nil)
 }
 
-func (i *Interpreter) handlerExceptionValue() *runtime.ExceptionValue {
-	exc, _ := i.ctx.HandlerException().(*runtime.ExceptionValue)
-	return exc
-}
-
-func (i *Interpreter) setHandlerException(exc *runtime.ExceptionValue) {
-	i.ctx.SetHandlerException(exc)
-}
-
 func (i *Interpreter) callStackTrace() errors.StackTrace {
 	return i.ctx.CallStack()
-}
-
-func (i *Interpreter) propContext() *PropertyEvalContext {
-	return i.ctx.PropContext()
-}
-
-func (i *Interpreter) ensurePropContext() *PropertyEvalContext {
-	propCtx := i.ctx.PropContext()
-	if propCtx == nil {
-		propCtx = &PropertyEvalContext{
-			PropertyChain: make([]string, 0),
-		}
-		i.ctx.SetPropContext(propCtx)
-	}
-	return propCtx
-}
-
-func (i *Interpreter) clearPropContextIfEmpty() {
-	propCtx := i.ctx.PropContext()
-	if propCtx != nil && len(propCtx.PropertyChain) == 0 {
-		i.ctx.SetPropContext(nil)
-	}
-}
-
-func (i *Interpreter) semanticInfo() *ast.SemanticInfo {
-	return i.engineState.SemanticInfo
 }
 
 func (i *Interpreter) unitRegistry() *units.UnitRegistry {

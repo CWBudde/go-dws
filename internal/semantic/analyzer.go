@@ -72,44 +72,44 @@ const (
 
 // Analyzer performs semantic analysis on a DWScript program.
 type Analyzer struct {
-	currentClass          *types.ClassType                      // Current class being analyzed
-	helpers               map[string][]*types.HelperType        // Helper type registry
-	typeRegistry          *TypeRegistry                         // Unified type registry
-	subranges             map[string]*types.SubrangeType        // Subrange type registry
-	functionPointers      map[string]*types.FunctionPointerType // Function pointer type registry
-	currentFunction       *ast.FunctionDecl                     // Current function being analyzed
-	currentRecord         *types.RecordType                     // Current record being analyzed
-	currentSelfType       types.Type                            // Current helper Self type, when not class/record-owned
-	currentHelperType     *types.HelperType                     // Current helper being analyzed
-	symbols               *SymbolTable                          // Symbol table
-	globalOperators       *types.OperatorRegistry               // Operator overload registry
-	conversionRegistry    *types.ConversionRegistry             // Type conversion registry
-	builtinRegistry       *builtins.Registry                    // Builtin function registry
-	semanticInfo          *ast.SemanticInfo                     // AST annotations
-	unitSymbols           map[string]*SymbolTable               // Unit symbol tables
-	currentNestedTypes    map[string]string                     // Nested type tracking
-	nestedTypeAliases     map[string]map[string]string          // Nested type aliases
-	forwardMethodPos      map[string]token.Position             // Forward-declared class method positions
-	forwardMethodNames    map[string]string                     // Forward-declared class method original casing
-	forwardMethodReported map[string]bool                       // Forward-declared class methods already reported
-	currentProperty       string                                // Current property being analyzed
-	sourceFile            string                                // Source file path
-	inUnitDecl            bool                                  // Analyzing inside a unit declaration
-	parseHadErrors        bool                                  // Parser reported errors (suppresses some warnings)
-	sourceCode            string                                // Original source text
-	loopPosStack          []token.Position                      // Stack tracking loop positions for warnings
-	structuredErrors      []*SemanticError                      // Structured error objects
-	loopExitabilityStack  []LoopExitability                     // Stack tracking loop exitability
-	errors                []string                              // Error messages (legacy)
-	pendingClassWarnings  []*types.ClassType                    // Deferred class-private warnings emitted after analysis
-	loopDepth             int                                   // Loop nesting level
-	hintsLevel            HintsLevel                            // Hints emission level
-	inLoop                bool                                  // Inside loop construct
-	inLambda              bool                                  // Inside lambda/anonymous function
-	inClassMethod         bool                                  // Inside class method
-	inPropertyExpr        bool                                  // Inside property expression
-	inFinallyBlock        bool                                  // Inside finally block
-	inExceptionHandler    bool                                  // Inside try/except block
+	currentSelfType       types.Type
+	forwardMethodNames    map[string]string
+	globalOperators       *types.OperatorRegistry
+	subranges             map[string]*types.SubrangeType
+	functionPointers      map[string]*types.FunctionPointerType
+	currentFunction       *ast.FunctionDecl
+	currentRecord         *types.RecordType
+	helpers               map[string][]*types.HelperType
+	currentHelperType     *types.HelperType
+	symbols               *SymbolTable
+	forwardMethodReported map[string]bool
+	conversionRegistry    *types.ConversionRegistry
+	builtinRegistry       *builtins.Registry
+	semanticInfo          *ast.SemanticInfo
+	unitSymbols           map[string]*SymbolTable
+	currentNestedTypes    map[string]string
+	nestedTypeAliases     map[string]map[string]string
+	forwardMethodPos      map[string]token.Position
+	currentClass          *types.ClassType
+	typeRegistry          *TypeRegistry
+	currentProperty       string
+	sourceCode            string
+	sourceFile            string
+	pendingClassWarnings  []*types.ClassType
+	errors                []string
+	loopPosStack          []token.Position
+	structuredErrors      []*SemanticError
+	loopExitabilityStack  []LoopExitability
+	loopDepth             int
+	hintsLevel            HintsLevel
+	inUnitDecl            bool
+	parseHadErrors        bool
+	inLoop                bool
+	inLambda              bool
+	inClassMethod         bool
+	inPropertyExpr        bool
+	inFinallyBlock        bool
+	inExceptionHandler    bool
 }
 
 // NewAnalyzer creates a new semantic analyzer
@@ -308,10 +308,10 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// declarations are preserved. Pass 2 then analyzes the deferred bodies, by
 	// which point every top-level function signature is visible.
 	type deferredFunc struct {
+		returnType types.Type
 		decl       *ast.FunctionDecl
 		paramTypes []types.Type
-		returnType types.Type
-		analyze    bool // false when registration failed or it is a forward decl
+		analyze    bool
 	}
 	deferred := make(map[*ast.FunctionDecl]deferredFunc)
 
@@ -350,9 +350,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 
 	for _, classType := range a.pendingClassWarnings {
-		for _, warning := range a.collectUnusedPrivateClassMemberWarnings(classType) {
-			a.errors = append(a.errors, warning)
-		}
+		a.errors = append(a.errors, a.collectUnusedPrivateClassMemberWarnings(classType)...)
 	}
 	a.pendingClassWarnings = nil
 
@@ -756,7 +754,6 @@ func (a *Analyzer) isFunctionPointerVariantCompatible(from, to *types.FunctionPo
 	// Check return type compatibility
 	// If target returns Variant, any concrete return type is acceptable
 	if to.ReturnType != nil && to.ReturnType.Equals(types.VARIANT) {
-		hasVariantUsage = true
 		return true
 	}
 

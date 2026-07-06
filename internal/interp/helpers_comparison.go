@@ -3,7 +3,6 @@ package interp
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -100,108 +99,4 @@ func (i *Interpreter) getHelpersForValue(val Value) []*HelperInfo {
 		}
 	}
 	return result
-}
-
-// findHelperProperty searches all applicable helpers for a property with the given name
-// and returns the helper that owns the property and the property info.
-func (i *Interpreter) findHelperProperty(val Value, propName string) (*HelperInfo, *types.PropertyInfo) {
-	helpers := i.getHelpersForValue(val)
-	if helpers == nil {
-		return nil, nil
-	}
-
-	// Search helpers in reverse order so later helpers override earlier ones
-	// For each helper, search the inheritance chain using GetProperty
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
-		if prop, ownerHelper, ok := helper.GetProperty(propName); ok {
-			return ownerHelper, prop
-		}
-	}
-
-	return nil, nil
-}
-
-// findHelperClassVar searches helpers for a class variable with the given name.
-func (i *Interpreter) findHelperClassVar(val Value, varName string) Value {
-	helpers := i.getHelpersForValue(val)
-	if helpers == nil {
-		return nil
-	}
-
-	varNameLower := ident.Normalize(varName)
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
-		if varVal, ok := helper.ClassVars[varNameLower]; ok {
-			return varVal
-		}
-	}
-
-	return nil
-}
-
-// findHelperClassConst searches helpers for a class constant with the given name.
-func (i *Interpreter) findHelperClassConst(val Value, constName string) Value {
-	helpers := i.getHelpersForValue(val)
-	if helpers == nil {
-		return nil
-	}
-
-	constNameLower := ident.Normalize(constName)
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
-		if constVal, ok := helper.ClassConsts[constNameLower]; ok {
-			return constVal
-		}
-	}
-
-	return nil
-}
-
-// isBuiltinMethodParameterless returns true if the builtin method spec requires no parameters.
-// This is used for auto-invoke logic in member access expressions.
-func (i *Interpreter) isBuiltinMethodParameterless(builtinSpec string) bool {
-	// Map of builtin method specs to their parameter counts
-	// This must be kept in sync with the actual builtin method implementations
-	parameterlessBuiltins := map[string]bool{
-		"__array_pop":              true,  // Pop() - no parameters
-		"__array_push":             false, // Push(value) - 1 parameter
-		"__array_swap":             false, // Swap(i, j) - 2 parameters
-		"__array_add":              false, // Add(value) - 1 parameter
-		"__array_delete":           false, // Delete(index) - 1 parameter
-		"__array_indexof":          false, // IndexOf(value) - 1 parameter
-		"__array_setlength":        false, // SetLength(n) - 1 parameter
-		"__integer_tostring":       true,  // ToString() - no parameters
-		"__integer_tohexstring":    true,  // ToHexString() - no parameters
-		"__float_tostring_prec":    false, // ToString(precision) - 1 parameter
-		"__boolean_tostring":       true,  // ToString() - no parameters
-		"__string_toupper":         true,  // ToUpper() - no parameters
-		"__string_tolower":         true,  // ToLower() - no parameters
-		"__string_array_join":      false, // Join(separator) - 1 parameter
-		"__string_tointeger":       true,  // ToInteger() - no parameters
-		"__string_tofloat":         true,  // ToFloat() - no parameters
-		"__string_tostring":        true,  // ToString() - no parameters
-		"__string_startswith":      false, // StartsWith(str) - 1 parameter
-		"__string_endswith":        false, // EndsWith(str) - 1 parameter
-		"__string_contains":        false, // Contains(str) - 1 parameter
-		"__string_indexof":         false, // IndexOf(str[, startIndex]) - 1-2 parameters
-		"__string_copy":            false, // Copy(start, [len]) - 1-2 parameters
-		"__string_before":          false, // Before(str) - 1 parameter
-		"__string_after":           false, // After(str) - 1 parameter
-		"__string_trim":            true,  // Trim() - no parameters
-		"__string_split":           false, // Split(delimiter) - 1 parameter
-		"__string_tojson":          true,  // ToJSON() - no parameters
-		"__string_tohtml":          true,  // ToHTML() - no parameters
-		"__string_tohtmlattribute": true,  // ToHtmlAttribute() - no parameters
-		"__string_tocsstext":       true,  // ToCSSText() - no parameters
-		"__string_toxml":           true,  // ToXML() - no parameters (mode via explicit call)
-	}
-
-	if isParameterless, exists := parameterlessBuiltins[builtinSpec]; exists {
-		return isParameterless
-	}
-
-	// For any builtin method not in our map, assume it has parameters (safer default)
-	// This prevents incorrect auto-invocation
-	return false
 }

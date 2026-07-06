@@ -14,15 +14,6 @@ func (i *Interpreter) builtinArrayCopy(arr *ArrayValue) Value {
 	return runtime.ArrayHelperCopy(arr)
 }
 
-// builtinArrayIndexOf searches an array for a value and returns its 0-based index.
-//
-// Returns 0-based index of first occurrence (0 = first element)
-// Returns -1 if not found or invalid startIndex
-// Uses 0-based indexing (standard for dynamic arrays in Pascal/Delphi)
-func (i *Interpreter) builtinArrayIndexOf(arr *ArrayValue, value Value, startIndex int) Value {
-	return runtime.ArrayHelperIndexOf(arr, value, startIndex)
-}
-
 // builtinArrayReverse reverses an array in place.
 //
 // Modifies array by reversing elements in place

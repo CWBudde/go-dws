@@ -149,10 +149,16 @@ func StrToInt(ctx Context, args []Value) Value {
 		return ctx.NewError("StrToInt() expects 1 or 2 arguments, got %d", len(args))
 	}
 
-	// First argument must be a string
-	strVal, ok := args[0].(*runtime.StringValue)
+	// First argument must be a string. A Variant / JSONVariant coerces to its
+	// string form before parsing (e.g. StrToInt(jsonVariantHolding3) = 3).
+	arg0 := ctx.UnwrapVariant(args[0])
+	strVal, ok := arg0.(*runtime.StringValue)
 	if !ok {
-		return ctx.NewError("StrToInt() expects string argument, got %s", args[0].Type())
+		if js, isJSON := arg0.(*runtime.JSONValue); isJSON {
+			strVal = &runtime.StringValue{Value: js.String()}
+		} else {
+			return ctx.NewError("StrToInt() expects string argument, got %s", args[0].Type())
+		}
 	}
 
 	// Default base is 10

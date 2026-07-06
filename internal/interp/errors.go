@@ -8,7 +8,6 @@ import (
 	interpErrors "github.com/cwbudde/go-dws/internal/interp/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ErrorValue represents a runtime error that implements the Value interface.
@@ -87,67 +86,6 @@ func isError(val Value) bool {
 		return val.Type() == "ERROR"
 	}
 	return false
-}
-
-// Helper functions for creating categorized errors
-
-// newTypeError creates a type error with position information from a node.
-func (i *Interpreter) newTypeError(node ast.Node, format string, args ...interface{}) *ErrorValue {
-	msg := fmt.Sprintf(format, args...)
-	var pos *token.Position
-	var expr string
-	if node != nil {
-		p := convertLexerToTokenPos(i.getPositionFromNode(node))
-		pos = &p
-		expr = node.String()
-	}
-
-	interpErr := interpErrors.NewTypeError(pos, msg, expr)
-	return &ErrorValue{
-		Message: interpErr.Error(),
-		Err:     interpErr,
-	}
-}
-
-// newRuntimeError creates a runtime error with position information from a node.
-func (i *Interpreter) newRuntimeError(node ast.Node, format string, args ...interface{}) *ErrorValue {
-	msg := fmt.Sprintf(format, args...)
-	var pos *token.Position
-	var expr string
-	if node != nil {
-		p := convertLexerToTokenPos(i.getPositionFromNode(node))
-		pos = &p
-		expr = node.String()
-	}
-
-	interpErr := interpErrors.NewRuntimeError(pos, msg, expr)
-	return &ErrorValue{
-		Message: interpErr.Error(),
-		Err:     interpErr,
-	}
-}
-
-// newUndefinedError creates an undefined entity error with position information from a node.
-func (i *Interpreter) newUndefinedError(node ast.Node, format string, args ...interface{}) *ErrorValue {
-	msg := fmt.Sprintf(format, args...)
-	var pos *token.Position
-	var expr string
-	if node != nil {
-		p := convertLexerToTokenPos(i.getPositionFromNode(node))
-		pos = &p
-		expr = node.String()
-	}
-
-	interpErr := interpErrors.NewUndefinedError(pos, msg, expr)
-	return &ErrorValue{
-		Message: interpErr.Error(),
-		Err:     interpErr,
-	}
-}
-
-// convertLexerToTokenPos converts a lexer.Position to token.Position.
-func convertLexerToTokenPos(pos lexer.Position) token.Position {
-	return pos
 }
 
 // RuntimeError represents a structured runtime error with rich context

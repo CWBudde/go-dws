@@ -129,10 +129,10 @@ func TestStrToInt(t *testing.T) {
 
 	tests := []struct {
 		name          string
+		expectedError string
 		args          []Value
 		expected      int64
 		isError       bool
-		expectedError string
 	}{
 		{
 			name:     "basic integer",

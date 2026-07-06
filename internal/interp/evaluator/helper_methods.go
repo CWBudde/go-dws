@@ -45,14 +45,10 @@ type HelperInfo interface {
 
 // HelperMethodResult represents the result of a helper method lookup.
 type HelperMethodResult struct {
-	// OwnerHelper is the helper that owns the method (after searching inheritance chain)
 	OwnerHelper HelperInfo
-	// Method is the AST function declaration (nil for builtin-only methods)
-	Method *ast.FunctionDecl
-	// Overloads are candidate AST declarations for overloaded helper methods.
-	Overloads []*ast.FunctionDecl
-	// BuiltinSpec is the builtin method identifier (empty string for AST-only methods)
+	Method      *ast.FunctionDecl
 	BuiltinSpec string
+	Overloads   []*ast.FunctionDecl
 }
 
 // zeroArgHelperOverload returns the overload callable with no arguments, or
@@ -373,7 +369,7 @@ func (e *Evaluator) findHelperMethodInHelper(helper HelperInfo, methodName strin
 		return nil
 	}
 	v := reflect.ValueOf(helper)
-	if (v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface) && v.IsNil() {
+	if (v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface) && v.IsNil() {
 		return nil
 	}
 
@@ -510,7 +506,7 @@ func (e *Evaluator) CallASTHelperMethod(
 	}
 	// Check if the interface wraps a nil pointer
 	v := reflect.ValueOf(helper)
-	if (v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface) && v.IsNil() {
+	if (v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface) && v.IsNil() {
 		return e.newError(node, "helper method not found (nil owner)")
 	}
 
@@ -595,7 +591,7 @@ func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionC
 
 	// Check if helper interface wraps a nil pointer
 	v := reflect.ValueOf(helper)
-	if v.Kind() == reflect.Ptr && v.IsNil() {
+	if v.Kind() == reflect.Pointer && v.IsNil() {
 		return
 	}
 
@@ -603,7 +599,7 @@ func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionC
 	var helperChain []HelperInfo
 	for h := helper; h != nil; {
 		hv := reflect.ValueOf(h)
-		if hv.Kind() == reflect.Ptr && hv.IsNil() {
+		if hv.Kind() == reflect.Pointer && hv.IsNil() {
 			break
 		}
 		helperChain = append([]HelperInfo{h}, helperChain...)
@@ -616,7 +612,7 @@ func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionC
 			break
 		}
 		pv := reflect.ValueOf(parent)
-		if (pv.Kind() == reflect.Ptr || pv.Kind() == reflect.Interface) && pv.IsNil() {
+		if (pv.Kind() == reflect.Pointer || pv.Kind() == reflect.Interface) && pv.IsNil() {
 			break
 		}
 		h = parent

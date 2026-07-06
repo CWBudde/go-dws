@@ -6,9 +6,9 @@ import (
 
 // metaClassInfo is a metadata-backed IClassInfo for field-shadowing tests.
 type metaClassInfo struct {
-	mockClassInfo
 	meta   *ClassMetadata
 	parent *metaClassInfo
+	mockClassInfo
 }
 
 func (m *metaClassInfo) GetMetadata() *ClassMetadata { return m.meta }

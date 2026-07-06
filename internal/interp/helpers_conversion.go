@@ -1,8 +1,6 @@
 package interp
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -211,33 +209,4 @@ func (i *Interpreter) currentClassContext() *ClassInfo {
 		}
 	}
 	return nil
-}
-
-// extractSimpleTypeName extracts the simple type name from a full type string
-// Examples:
-//   - "array of Integer" -> "Integer"
-//   - "array[0..10] of String" -> "String"
-//   - "MyClass(ParentClass)" -> "MyClass"
-//   - "class of MyClass" -> "MyClass"
-//   - "Integer" -> "Integer"
-func extractSimpleTypeName(typeName string) string {
-	// Handle array types: "array of Integer" or "array[0..10] of String"
-	if strings.HasPrefix(typeName, "array") {
-		if idx := strings.Index(typeName, " of "); idx != -1 {
-			return typeName[idx+4:] // Extract everything after " of "
-		}
-	}
-
-	// Handle metaclass types: "class of MyClass"
-	if strings.HasPrefix(typeName, "class of ") {
-		return typeName[9:] // Extract everything after "class of "
-	}
-
-	// Handle class types with parent: "MyClass(ParentClass)"
-	if idx := strings.Index(typeName, "("); idx != -1 {
-		return typeName[:idx] // Extract everything before "("
-	}
-
-	// Already a simple type name
-	return typeName
 }

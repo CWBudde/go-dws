@@ -12,17 +12,12 @@ import (
 // ObjectInstance represents a runtime instance of a class.
 // Uses IClassInfo interface to avoid circular imports.
 type ObjectInstance struct {
-	Class            IClassInfo       // Class metadata
-	Fields           map[string]Value // Field name to value mapping
-	RefCount         int              // Interface reference count
-	Destroyed        bool             // Destructor completed
-	ExplicitlyFreed  bool             // Destroyed via an explicit Free/Destroy call (not refcount cleanup)
-	DestroyCallDepth int              // Nested Destroy call tracking
-
-	// destructorClaimed marks that a RefCountManager already claimed the
-	// current drop to zero, so concurrent last-releases fire the destructor
-	// callback exactly once. Reset when the count rises above zero again.
-	// Guarded by the manager's refMu.
+	Class             IClassInfo
+	Fields            map[string]Value
+	RefCount          int
+	DestroyCallDepth  int
+	Destroyed         bool
+	ExplicitlyFreed   bool
 	destructorClaimed bool
 }
 

@@ -250,7 +250,7 @@ func (p *Parser) addStructuredError(structErr *StructuredParserError) {
 
 // noPrefixParseFnError adds a localized syntax error for tokens that cannot start an expression.
 func (p *Parser) noPrefixParseFnError(tok lexer.Token) {
-	msg := "Expression expected"
+	var msg string
 	code := ErrInvalidExpression
 
 	switch tok.Type {

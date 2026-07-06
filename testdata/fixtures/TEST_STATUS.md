@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 813 |
-| Failed | 1115 |
+| Passed | 817 |
+| Failed | 1111 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **42%** (813/1928) |
+| **Scored pass rate** | **42%** (817/1928) |
 
 ## Per-category
 
@@ -64,7 +64,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | JSFilterScripts | 2 | 0 | 0 | 2 | 0% |
 | JSFilterScriptsFail | 1 | 0 | 0 | 1 | 0% |
 | JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
-| JSONConnectorPass | 82 | 41 | 41 | 0 | 50% |
+| JSONConnectorPass | 82 | 45 | 37 | 0 | 55% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
 | LambdaPass | 6 | 4 | 2 | 0 | 67% |
 | Linq | 7 | 0 | 7 | 0 | 0% |

@@ -178,7 +178,16 @@ func (c *ClassInfo) GetOwnProperties() []*runtime.PropertyInfo {
 		return nil
 	}
 	props := make([]*runtime.PropertyInfo, 0, len(c.Properties))
-	for _, propInfo := range c.Properties {
+	for name, propInfo := range c.Properties {
+		// InheritParentPropertyInfos copies each parent property (same pointer)
+		// into the child's map; skip those so this returns only properties
+		// actually declared (or overridden) on this class level. This keeps
+		// JSON serialization ordering correct (most-derived own members first).
+		if c.Parent != nil {
+			if parentProp, ok := c.Parent.Properties[name]; ok && parentProp == propInfo {
+				continue
+			}
+		}
 		props = append(props, &runtime.PropertyInfo{
 			Name:      propInfo.Name,
 			IsIndexed: propInfo.IsIndexed,
@@ -540,26 +549,6 @@ func (c *ClassInfo) lookupProperty(name string) *types.PropertyInfo {
 
 	// Not found
 	return nil
-}
-
-// lookupConstant searches for a constant in the class hierarchy.
-// It starts with the current class and walks up the parent chain.
-// Returns the ConstDecl and the ClassInfo that owns it, or (nil, nil) if not found.
-func (c *ClassInfo) lookupConstant(name string) (*ast.ConstDecl, *ClassInfo) {
-	// Check current class with case-insensitive match
-	for constName, constDecl := range c.Constants {
-		if ident.Equal(constName, name) {
-			return constDecl, c
-		}
-	}
-
-	// Check parent class (recursive)
-	if c.Parent != nil {
-		return c.Parent.lookupConstant(name)
-	}
-
-	// Not found
-	return nil, nil
 }
 
 // lookupClassVar searches for a class variable in the class hierarchy.

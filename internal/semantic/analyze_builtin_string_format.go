@@ -20,10 +20,12 @@ func (a *Analyzer) analyzeLength(args []ast.Expression, callExpr *ast.CallExpres
 	}
 	// Analyze the argument
 	argType := a.analyzeExpression(args[0])
-	// Verify it's an array or string
+	// Verify it's an array or string. A JSONVariant is accepted and, matching
+	// DWScript, Length() returns the length of its string cast (e.g. "[]" → 2),
+	// not the container element count (that is a.Length()/a.length).
 	if argType != nil {
 		if _, isArray := argType.(*types.ArrayType); !isArray {
-			if argType != types.STRING {
+			if argType != types.STRING && !types.IsJSONVariant(argType) {
 				a.addError("function 'Length' expects array or string, got %s at %s",
 					argType.String(), callExpr.Token.Pos.String())
 			}
