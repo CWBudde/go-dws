@@ -973,6 +973,7 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 		}
 
 		recordType.AddField(fieldName, fieldType, field.InitValue != nil)
+		recordType.SetFieldVisibility(fieldName, int(field.Visibility))
 		fieldDecls[ident.Normalize(fieldName)] = field
 	}
 

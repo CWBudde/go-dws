@@ -81,6 +81,7 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 		}
 
 		recordType.AddField(fieldName, fieldType, field.InitValue != nil)
+		recordType.SetFieldVisibility(fieldName, int(field.Visibility))
 	}
 
 	for _, prop := range recordNode.Properties {

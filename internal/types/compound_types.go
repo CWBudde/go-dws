@@ -182,6 +182,7 @@ type RecordType struct {
 	ClassVars            map[string]Type          // Class variables (shared across instances)
 	ClassVarNames        map[string]string        // Normalized class var name -> original casing
 	FieldsWithInit       map[string]bool          // Fields that have default initializers
+	FieldVisibility      map[string]int           // Normalized field name -> ast.Visibility (absent = public)
 	Name                 string
 }
 
@@ -356,7 +357,18 @@ func NewRecordType(name string, fields map[string]Type) *RecordType {
 		ClassVars:            make(map[string]Type),
 		ClassVarNames:        make(map[string]string),
 		FieldsWithInit:       make(map[string]bool),
+		FieldVisibility:      make(map[string]int),
 	}
+}
+
+// SetFieldVisibility records the declared visibility (an ast.Visibility value)
+// of a record field, keyed by the normalized field name. Used by JSON
+// serialization to exclude private/protected fields.
+func (rt *RecordType) SetFieldVisibility(name string, visibility int) {
+	if rt.FieldVisibility == nil {
+		rt.FieldVisibility = make(map[string]int)
+	}
+	rt.FieldVisibility[ident.Normalize(name)] = visibility
 }
 
 // ============================================================================

@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 811 |
-| Failed | 1117 |
+| Passed | 813 |
+| Failed | 1115 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **42%** (811/1928) |
+| **Scored pass rate** | **42%** (813/1928) |
 
 ## Per-category
 
@@ -64,7 +64,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | JSFilterScripts | 2 | 0 | 0 | 2 | 0% |
 | JSFilterScriptsFail | 1 | 0 | 0 | 1 | 0% |
 | JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
-| JSONConnectorPass | 82 | 40 | 42 | 0 | 49% |
+| JSONConnectorPass | 82 | 41 | 41 | 0 | 50% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
 | LambdaPass | 6 | 4 | 2 | 0 | 67% |
 | Linq | 7 | 0 | 7 | 0 | 0% |
@@ -78,7 +78,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | PropertyExpressionsPass | 19 | 9 | 10 | 0 | 47% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
 | SetOfPass | 25 | 20 | 5 | 0 | 80% |
-| SimpleScripts | 442 | 295 | 140 | 7 | 68% |
+| SimpleScripts | 442 | 296 | 139 | 7 | 68% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

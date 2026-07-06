@@ -218,6 +218,31 @@ func (e *Evaluator) evaluateLValueMember(target *ast.MemberAccessExpression, ctx
 
 	// Handle ObjectValue (class instance)
 	if obj, ok := objVal.(ObjectValue); ok {
+		// Property intermediate (e.g. obj.Prop.field := v): a property has no
+		// backing field slot, so resolve it through the getter. For a
+		// reference-typed property (returning an object/interface) this yields
+		// the live instance, and mutating it is visible through the property.
+		// The assignFunc writes back through the setter for value-typed
+		// properties (records) and is harmless for reference types.
+		if obj.HasProperty(fieldName) {
+			currentVal := obj.ReadProperty(fieldName, func(propInfo any) Value {
+				return e.executePropertyRead(objVal, propInfo, target, ctx)
+			})
+			if errVal, ok := currentVal.(*runtime.ErrorValue); ok {
+				return nil, nil, fmt.Errorf("%s", errVal.Message)
+			}
+			assignFunc := func(value Value) error {
+				res := obj.WriteProperty(fieldName, value, func(propInfo any, val Value) Value {
+					return e.executePropertyWrite(objVal, propInfo, val, target, ctx)
+				})
+				if errVal, ok := res.(*runtime.ErrorValue); ok {
+					return fmt.Errorf("%s", errVal.Message)
+				}
+				return nil
+			}
+			return currentVal, assignFunc, nil
+		}
+
 		currentVal := obj.GetField(fieldName)
 		if currentVal == nil {
 			return nil, nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.ClassName())

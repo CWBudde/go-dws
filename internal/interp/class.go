@@ -169,6 +169,28 @@ func (c *ClassInfo) GetDefaultProperty() *runtime.PropertyInfo {
 	}
 }
 
+// GetOwnProperties returns the properties declared directly on this class
+// (not inherited), each wrapped like LookupProperty. The order is
+// unspecified (Go map iteration); callers that need a stable order must sort.
+// Used by JSON serialization to enumerate a class level's own properties.
+func (c *ClassInfo) GetOwnProperties() []*runtime.PropertyInfo {
+	if c == nil || len(c.Properties) == 0 {
+		return nil
+	}
+	props := make([]*runtime.PropertyInfo, 0, len(c.Properties))
+	for _, propInfo := range c.Properties {
+		props = append(props, &runtime.PropertyInfo{
+			Name:      propInfo.Name,
+			IsIndexed: propInfo.IsIndexed,
+			IsDefault: propInfo.IsDefault,
+			ReadSpec:  propInfo.ReadSpec,
+			WriteSpec: propInfo.WriteSpec,
+			Impl:      propInfo,
+		})
+	}
+	return props
+}
+
 // FieldExists checks if a field exists
 func (c *ClassInfo) FieldExists(normalizedName string) bool {
 	if c == nil {

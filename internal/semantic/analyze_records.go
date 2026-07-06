@@ -92,6 +92,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		}
 
 		recordType.AddField(fieldName, fieldType, field.InitValue != nil)
+		recordType.SetFieldVisibility(fieldName, int(field.Visibility))
 	}
 
 	// Process constants

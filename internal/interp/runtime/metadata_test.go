@@ -404,7 +404,8 @@ func TestFieldMetadataFromAST(t *testing.T) {
 		Type: &ast.TypeAnnotation{
 			Name: "Integer",
 		},
-		InitValue: &ast.IntegerLiteral{Value: 42},
+		InitValue:  &ast.IntegerLiteral{Value: 42},
+		Visibility: ast.VisibilityPublic,
 	}
 
 	metadata := FieldMetadataFromAST(field)
@@ -427,6 +428,33 @@ func TestFieldMetadataFromAST(t *testing.T) {
 
 	if metadata.Visibility != FieldVisibilityPublic {
 		t.Errorf("Expected public visibility, got %v", metadata.Visibility)
+	}
+}
+
+// TestFieldMetadataFromAST_Visibility verifies that FieldMetadataFromAST maps the
+// AST field visibility onto the runtime FieldVisibility rather than hardcoding public.
+func TestFieldMetadataFromAST_Visibility(t *testing.T) {
+	cases := []struct {
+		astVis ast.Visibility
+		want   FieldVisibility
+		name   string
+	}{
+		{ast.VisibilityPrivate, FieldVisibilityPrivate, "private"},
+		{ast.VisibilityProtected, FieldVisibilityProtected, "protected"},
+		{ast.VisibilityPublic, FieldVisibilityPublic, "public"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			field := &ast.FieldDecl{
+				Name:       &ast.Identifier{Value: "FField"},
+				Type:       &ast.TypeAnnotation{Name: "Integer"},
+				Visibility: tc.astVis,
+			}
+			metadata := FieldMetadataFromAST(field)
+			if metadata.Visibility != tc.want {
+				t.Errorf("Expected %v, got %v", tc.want, metadata.Visibility)
+			}
+		})
 	}
 }
 

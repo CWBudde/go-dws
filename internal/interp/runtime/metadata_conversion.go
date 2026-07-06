@@ -78,8 +78,18 @@ func FieldMetadataFromAST(field *ast.FieldDecl) *FieldMetadata {
 		// Type will be resolved during semantic analysis
 	}
 
-	// Default visibility is public
-	metadata.Visibility = FieldVisibilityPublic
+	// Map the AST visibility onto the runtime field visibility. The parser maps
+	// both `published` and the default section to VisibilityPublic (go-dws
+	// collapses default/published/public), so this preserves the private and
+	// protected distinctions consumers such as JSON serialization rely on.
+	switch field.Visibility {
+	case ast.VisibilityPrivate:
+		metadata.Visibility = FieldVisibilityPrivate
+	case ast.VisibilityProtected:
+		metadata.Visibility = FieldVisibilityProtected
+	default:
+		metadata.Visibility = FieldVisibilityPublic
+	}
 
 	return metadata
 }

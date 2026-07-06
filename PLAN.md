@@ -313,7 +313,7 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       `include_once2`; `includeSym` now produces correct output but still needs the hint envelope
       (⚠️ blocked above). SimpleScripts 290 → 294 (harness). Covered by
       `internal/lexer/include_test.go`.
-- [~] **JSON connector** (`JSONConnectorPass` **0 → 39/82 = 48%**, harness; `JSONConnectorFail`
+- [~] **JSON connector** (`JSONConnectorPass` **0 → 41/82 harness = 50%; 46/82 CLI = 56%**; `JSONConnectorFail`
       0 → 2). The script-visible `JSON` static namespace and a distinct **`JSONVariant`** connector
       type. Reuses the pre-existing `internal/jsonvalue` tree + `runtime.JSONValue`; adds byte-exact
       DWScript `Stringify`/pretty writer and an order-preserving parser (`internal/jsonvalue/
@@ -329,14 +329,35 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         positional object indexing; truthiness (`jsonvalue.IsFalsey`), implicit/explicit casts,
         comparison, `??` coalesce, auto-boxing of scalars into a JSONVariant; print/string-cast
         semantics (string→raw, container→compact JSON, bool→Pascal `True`/`False`, null→`null`).
-      - **Remaining (documented, ~43 fails):** **record/class serialization** (~16 `stringify_*`/
-        `serialize_class` fixtures — needs published-RTTI introspection with alphabetical ordering,
-        original casing, property getters, and a custom `Stringify` override; the `stringify_anonymous*`
-        subset additionally needs anonymous-record-literal *parser* support); associative-array-keyed
-        fixtures (blocked — associative arrays are not on this base branch); nested-lvalue
-        vivification through a JSON index (`generate1`); reparent/ownership semantics
-        (`array_add_dupe`, `reparent`); exact float→string formatting (`int64_json`); and float
-        `0/0`→NaN (`numbers`). Covered by `internal/jsonvalue/stringify_test.go`.
+      - **Record/class serialization (added 2026-07-06).** `JSON.Stringify/Serialize/PrettyStringify`
+        now serialize class instances and records. `ValueToJSONValue` became the evaluator method
+        `valueToJSONValue` (`internal/interp/evaluator/json_serialize.go`) so property getters and a
+        custom `Stringify` override can run; `objectToJSON` walks the class hierarchy most-derived
+        first, emits public (non-private/protected) fields + non-indexed readable properties sorted
+        ordinally per level, runs expression/method getters via the existing `executePropertyRead`,
+        and splices a parameterless `function Stringify:String` as raw JSON. Records mirror this via
+        `recordToJSON`. Field visibility is now threaded to runtime metadata
+        (`FieldMetadataFromAST` maps `field.Visibility` instead of hardcoding public) and to record
+        types (new `types.RecordType.FieldVisibility`, populated in semantic + evaluator record
+        builders). A per-level property enumerator `ClassInfo.GetOwnProperties` was added. A
+        collateral evaluator fix — **chained property-object lvalue writes** (`obj.Prop.field := v`):
+        `evaluateLValueMember` (`var_params.go`) now resolves a property intermediate through the
+        getter instead of failing "field not found" — unlocks the write-heavy serialization fixtures
+        and helps property/class code generally. **CLI ground-truth `JSONConnectorPass` 41 → 46**
+        (stringify_class/special/pretty, serialize_class, stringify_func_result), overall CLI
+        680 → 686; no category regressed. **Harness baseline ratcheted +1 (40 → 41)** — the other 4
+        newly-correct fixtures emit correct output under `bin/dwscript` but are masked in the harness
+        by the over-aggressive unused-private-field hint envelope (the ⚠️-blocked hint issue below),
+        not by any output error.
+      - **Remaining (~36 fails):** anonymous-record-literal *parser* support (`stringify_anonymous*`,
+        `stringify_record2`); auto-property backing-field generation (`stringify_method`,
+        `stringify_array_of_classes` — `property alpha : Integer;` currently rejects the synthesized
+        `Falpha`); `array of T` property-type parsing (`stringify_class_getter`); record copy-on-
+        assign value semantics (`stringify_record`); set-of-enum serialization (`stringify_set`);
+        gating the unused-private-field hint so the 4 masked serialization fixtures score in the
+        harness; associative-array-keyed fixtures (blocked); nested-lvalue vivification through a JSON
+        index (`generate1`); reparent/ownership (`array_add_dupe`, `reparent`); float formatting
+        (`int64_json`, `numbers`). Covered by `internal/jsonvalue/stringify_test.go`.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

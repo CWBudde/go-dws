@@ -44,17 +44,17 @@ func (e *Evaluator) evalJSONNamespaceCall(method string, argExprs []ast.Expressi
 	case "parseutf8":
 		return e.jsonParse(decodeUTF8Bytes(jsonArgString(argValue(args, 0))), node)
 	case "serialize":
-		return e.jsonParse(jsonvalue.Stringify(ValueToJSONValue(argValue(args, 0))), node)
+		return e.jsonParse(jsonvalue.Stringify(e.valueToJSONValue(argValue(args, 0), node, ctx)), node)
 	case "stringify":
-		return &runtime.StringValue{Value: jsonvalue.Stringify(ValueToJSONValue(argValue(args, 0)))}
+		return &runtime.StringValue{Value: jsonvalue.Stringify(e.valueToJSONValue(argValue(args, 0), node, ctx))}
 	case "stringifyutf8":
-		return &runtime.StringValue{Value: encodeUTF8Bytes(jsonvalue.Stringify(ValueToJSONValue(argValue(args, 0))))}
+		return &runtime.StringValue{Value: encodeUTF8Bytes(jsonvalue.Stringify(e.valueToJSONValue(argValue(args, 0), node, ctx)))}
 	case "prettystringify":
 		indent := "\t"
 		if len(args) >= 2 {
 			indent = jsonArgString(args[1])
 		}
-		return &runtime.StringValue{Value: jsonvalue.StringifyPretty(ValueToJSONValue(argValue(args, 0)), indent)}
+		return &runtime.StringValue{Value: jsonvalue.StringifyPretty(e.valueToJSONValue(argValue(args, 0), node, ctx), indent)}
 	case "parseintegerarray":
 		nullVal := int64(0)
 		if len(args) >= 2 {
