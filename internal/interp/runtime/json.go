@@ -57,6 +57,47 @@ func (j *JSONValue) String() string {
 	}
 }
 
+// AsInteger converts a scalar JSON value to an integer (NumericValue interface).
+// Objects, arrays, strings, null and undefined are not numeric.
+func (j *JSONValue) AsInteger() (int64, bool) {
+	if j.Value == nil {
+		return 0, false
+	}
+	switch j.Value.Kind() {
+	case jsonvalue.KindInt64:
+		return j.Value.Int64Value(), true
+	case jsonvalue.KindNumber:
+		return int64(j.Value.NumberValue()), true
+	case jsonvalue.KindBoolean:
+		if j.Value.BoolValue() {
+			return 1, true
+		}
+		return 0, true
+	default:
+		return 0, false
+	}
+}
+
+// AsFloat converts a scalar JSON value to a float (NumericValue interface).
+func (j *JSONValue) AsFloat() (float64, bool) {
+	if j.Value == nil {
+		return 0, false
+	}
+	switch j.Value.Kind() {
+	case jsonvalue.KindInt64:
+		return float64(j.Value.Int64Value()), true
+	case jsonvalue.KindNumber:
+		return j.Value.NumberValue(), true
+	case jsonvalue.KindBoolean:
+		if j.Value.BoolValue() {
+			return 1, true
+		}
+		return 0, true
+	default:
+		return 0, false
+	}
+}
+
 // IsUndefined reports whether the JSON value is Undefined (an unassigned /
 // non-existent JSON value), which is how a JSONVariant reads as "empty".
 func (j *JSONValue) IsUndefined() bool {

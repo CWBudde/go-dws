@@ -521,9 +521,10 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			}
 		}
 
-		// Variant can be compared with any type
-		leftIsVariant := leftType == types.VARIANT
-		rightIsVariant := rightType == types.VARIANT
+		// Variant (and JSONVariant) can be compared with any type; the actual
+		// comparison uses runtime variant coercion.
+		leftIsVariant := leftType == types.VARIANT || types.IsJSONVariant(leftType)
+		rightIsVariant := rightType == types.VARIANT || types.IsJSONVariant(rightType)
 
 		// For equality, types must be comparable
 		if operator == "=" || operator == "<>" {
