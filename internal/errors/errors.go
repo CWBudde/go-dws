@@ -40,9 +40,9 @@ func (e *CompilerError) Format(color bool) string {
 
 	// File and position header
 	if e.File != "" {
-		sb.WriteString(fmt.Sprintf("Error in %s:%d:%d\n", e.File, e.Pos.Line, e.Pos.Column))
+		fmt.Fprintf(&sb, "Error in %s:%d:%d\n", e.File, e.Pos.Line, e.Pos.Column)
 	} else {
-		sb.WriteString(fmt.Sprintf("Error at line %d:%d\n", e.Pos.Line, e.Pos.Column))
+		fmt.Fprintf(&sb, "Error at line %d:%d\n", e.Pos.Line, e.Pos.Column)
 	}
 
 	// Extract the relevant source line
@@ -124,9 +124,9 @@ func (e *CompilerError) FormatWithContext(contextLines int, color bool) string {
 
 	// File and position header
 	if e.File != "" {
-		sb.WriteString(fmt.Sprintf("Error in %s:%d:%d\n", e.File, e.Pos.Line, e.Pos.Column))
+		fmt.Fprintf(&sb, "Error in %s:%d:%d\n", e.File, e.Pos.Line, e.Pos.Column)
 	} else {
-		sb.WriteString(fmt.Sprintf("Error at line %d:%d\n", e.Pos.Line, e.Pos.Column))
+		fmt.Fprintf(&sb, "Error at line %d:%d\n", e.Pos.Line, e.Pos.Column)
 	}
 
 	// Get context lines
@@ -208,10 +208,10 @@ func FormatErrors(errors []*CompilerError, color bool) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Compilation failed with %d error(s):\n\n", len(errors)))
+	fmt.Fprintf(&sb, "Compilation failed with %d error(s):\n\n", len(errors))
 
 	for i, err := range errors {
-		sb.WriteString(fmt.Sprintf("[Error %d of %d]\n", i+1, len(errors)))
+		fmt.Fprintf(&sb, "[Error %d of %d]\n", i+1, len(errors))
 		sb.WriteString(err.Format(color))
 		if i < len(errors)-1 {
 			sb.WriteString("\n\n")
@@ -232,10 +232,10 @@ func FormatErrorsWithContext(errors []*CompilerError, contextLines int, color bo
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Compilation failed with %d error(s):\n\n", len(errors)))
+	fmt.Fprintf(&sb, "Compilation failed with %d error(s):\n\n", len(errors))
 
 	for i, err := range errors {
-		sb.WriteString(fmt.Sprintf("[Error %d of %d]\n", i+1, len(errors)))
+		fmt.Fprintf(&sb, "[Error %d of %d]\n", i+1, len(errors))
 		sb.WriteString(err.FormatWithContext(contextLines, color))
 		if i < len(errors)-1 {
 			sb.WriteString("\n\n")

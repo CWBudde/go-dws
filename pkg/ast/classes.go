@@ -60,38 +60,29 @@ func (v Visibility) String() string {
 //	  // partial class (can be declared multiple times)
 //	end;
 type ClassDecl struct {
-	Constructor *FunctionDecl
-	Name        *Identifier
-	// EnclosingClass stores the fully qualified name of the containing class
-	// for nested class declarations (e.g., "TOuter" for TOuter.TInner).
-	EnclosingClass *Identifier
-	Parent         *Identifier
-	Destructor     *FunctionDecl
-	Invariants     *InvariantClause
-	ExternalName   string
-	Interfaces     []*Identifier
-	Operators      []*OperatorDecl
-	Properties     []*PropertyDecl
-	Methods        []*FunctionDecl
-	Fields         []*FieldDecl
-	Constants      []*ConstDecl
-	// NestedTypes contains type declarations defined inside the class body
-	// (e.g., "type TInner = class ... end;").
-	NestedTypes []Statement
+	Constructor       *FunctionDecl
+	Name              *Identifier
+	EnclosingClass    *Identifier
+	Parent            *Identifier
+	Destructor        *FunctionDecl
+	Invariants        *InvariantClause
+	ExternalName      string
+	DeprecatedMessage string
+	Methods           []*FunctionDecl
+	Interfaces        []*Identifier
+	Operators         []*OperatorDecl
+	Fields            []*FieldDecl
+	Constants         []*ConstDecl
+	NestedTypes       []Statement
+	Properties        []*PropertyDecl
+	TypeParams        []string
 	BaseNode
 	IsAbstract    bool
-	IsExternal    bool
-	IsStaticClass bool
 	IsPartial     bool
-	// IsForward marks a forward class declaration ("type TFoo = class;") whose
-	// full definition appears later. The full declaration completes the placeholder.
-	IsForward         bool
-	IsDeprecated      bool
-	DeprecatedMessage string
-	// TypeParams holds the generic type-parameter names for a generic class
-	// (e.g. ["A", "B"] for `type TTest<A,B> = class ... end;`). Empty for
-	// non-generic classes. Generic classes are monomorphized before analysis.
-	TypeParams []string
+	IsForward     bool
+	IsDeprecated  bool
+	IsStaticClass bool
+	IsExternal    bool
 }
 
 func (cd *ClassDecl) statementNode() {}

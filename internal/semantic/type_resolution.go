@@ -494,7 +494,7 @@ func (a *Analyzer) resolveInlineArrayType(signature string) (types.Type, error) 
 	// Preserve the special "array of const" type as a dedicated singleton.
 	// This keeps open-array parameter semantics distinct from a plain
 	// "array of Variant" variable declaration.
-	if lowBound == nil && highBound == nil && hasOrdinalBounds == false &&
+	if lowBound == nil && highBound == nil && !hasOrdinalBounds &&
 		ident.Normalize(elementTypeName) == "const" {
 		return types.ARRAY_OF_CONST, nil
 	}

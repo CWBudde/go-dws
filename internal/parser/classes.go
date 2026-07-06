@@ -331,7 +331,8 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 	case lexer.IDENT:
 		// Check if this is a field declaration or an error
 		nextType := cursor.Peek(1).Type
-		if nextType == lexer.EQ {
+		switch nextType {
+		case lexer.EQ:
 			// Bare "Name = Value;" declares a class constant, same as
 			// "const Name = Value;" (DWScript semantics). Field initializers
 			// use ":=" instead.
@@ -339,7 +340,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 			if constant != nil {
 				classDecl.Constants = append(classDecl.Constants, constant)
 			}
-		} else if nextType == lexer.COLON || nextType == lexer.COMMA || nextType == lexer.ASSIGN {
+		case lexer.COLON, lexer.COMMA, lexer.ASSIGN:
 			// Regular instance field declaration (may be comma-separated)
 			// Supports: FieldName: Type; or FieldName := Value; or FieldName: Type := Value;
 			fields := p.parseFieldDeclarations(currentVisibility)
@@ -348,7 +349,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 					classDecl.Fields = append(classDecl.Fields, field)
 				}
 			}
-		} else {
+		default:
 			// Unexpected identifier in class body - likely a field missing its type declaration
 			p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
 		}

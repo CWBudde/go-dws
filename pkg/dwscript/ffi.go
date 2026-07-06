@@ -412,7 +412,7 @@ func detectSignature(name string, fnType reflect.Type) (*FunctionSignature, erro
 		paramType := fnType.In(i)
 
 		// Check if this parameter is a pointer (var parameter)
-		isVarParam := paramType.Kind() == reflect.Ptr
+		isVarParam := paramType.Kind() == reflect.Pointer
 		sig.VarParams = append(sig.VarParams, isVarParam)
 
 		dwsType, err := goTypeToDWS(paramType)
@@ -487,7 +487,7 @@ func goTypeToDWS(goType reflect.Type) (string, error) {
 		}
 		// Could include value type info, but "record" is generic enough
 		return "record", nil
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// *T -> var T (by-reference parameter)
 		// Pointers indicate var parameters that can be modified by the Go function
 		elemType, err := goTypeToDWS(goType.Elem())

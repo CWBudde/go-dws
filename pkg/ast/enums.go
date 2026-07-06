@@ -60,7 +60,7 @@ func (ed *EnumDecl) String() string {
 			}
 		}
 		if val.Value != nil {
-			out.WriteString(fmt.Sprintf(" = %d", *val.Value))
+			fmt.Fprintf(&out, " = %d", *val.Value)
 		}
 	}
 

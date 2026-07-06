@@ -435,13 +435,13 @@ func TestFieldMetadataFromAST(t *testing.T) {
 // AST field visibility onto the runtime FieldVisibility rather than hardcoding public.
 func TestFieldMetadataFromAST_Visibility(t *testing.T) {
 	cases := []struct {
+		name   string
 		astVis ast.Visibility
 		want   FieldVisibility
-		name   string
 	}{
-		{ast.VisibilityPrivate, FieldVisibilityPrivate, "private"},
-		{ast.VisibilityProtected, FieldVisibilityProtected, "protected"},
-		{ast.VisibilityPublic, FieldVisibilityPublic, "public"},
+		{name: "private", astVis: ast.VisibilityPrivate, want: FieldVisibilityPrivate},
+		{name: "protected", astVis: ast.VisibilityProtected, want: FieldVisibilityProtected},
+		{name: "public", astVis: ast.VisibilityPublic, want: FieldVisibilityPublic},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

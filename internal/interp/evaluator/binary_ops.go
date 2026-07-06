@@ -1044,7 +1044,7 @@ func (e *Evaluator) evalSetComparison(op string, left, right *runtime.SetValue) 
 	case "=":
 		result = len(leftOrds) == len(rightOrds) && subset(left, right, leftOrds)
 	case "<>":
-		result = !(len(leftOrds) == len(rightOrds) && subset(left, right, leftOrds))
+		result = len(leftOrds) != len(rightOrds) || !subset(left, right, leftOrds)
 	case "<=":
 		result = subset(left, right, leftOrds)
 	case ">=":

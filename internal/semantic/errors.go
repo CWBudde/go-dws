@@ -56,9 +56,9 @@ func (e *AnalysisError) Error() string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("semantic analysis failed with %d errors:\n", len(e.Errors)))
+	fmt.Fprintf(&sb, "semantic analysis failed with %d errors:\n", len(e.Errors))
 	for i, err := range e.Errors {
-		sb.WriteString(fmt.Sprintf("  %d. %s\n", i+1, err))
+		fmt.Fprintf(&sb, "  %d. %s\n", i+1, err)
 	}
 
 	return sb.String()

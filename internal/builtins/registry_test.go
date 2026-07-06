@@ -21,8 +21,8 @@ func (e *mockErrorValue) String() string { return "ERROR: " + e.Message }
 // mockContext implements the Context interface for testing
 type mockContext struct {
 	rng       *rand.Rand
-	randSeed  int64
 	lastError string
+	randSeed  int64
 }
 
 func newMockContext() *mockContext {

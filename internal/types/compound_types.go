@@ -143,21 +143,16 @@ type ConstantInfo struct {
 // Properties provide controlled access to fields.
 // Note: Renamed from PropertyInfo to avoid conflict with class PropertyInfo
 type RecordPropertyInfo struct {
-	Name       string // Property name
-	Type       Type   // Property type
-	ReadField  string // Field name for reading (can be empty for write-only)
-	WriteField string // Field name for writing (can be empty for read-only)
-	// ReadExpr / WriteExpr hold AST nodes for expression-based accessors.
-	// ReadExpr is an ast.Expression; WriteExpr is an ast.Statement — either an
-	// assignment (`Field := Value`) or an expression statement wrapping a call
-	// (`SetField(Value)`). When set, the corresponding *Kind is
-	// PropAccessExpression.
-	ReadExpr  any
-	WriteExpr any
-	ReadKind  PropAccessKind // Access kind for reading
-	WriteKind PropAccessKind // Access kind for writing
-	IsDefault bool           // True if this is a default array property
-	IsIndexed bool           // True if this property has index parameters
+	Type       Type
+	ReadExpr   any
+	WriteExpr  any
+	Name       string
+	ReadField  string
+	WriteField string
+	ReadKind   PropAccessKind
+	WriteKind  PropAccessKind
+	IsDefault  bool
+	IsIndexed  bool
 }
 
 // RecordType represents a record (struct) type.

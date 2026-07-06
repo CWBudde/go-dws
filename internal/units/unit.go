@@ -168,7 +168,7 @@ func unitFunctionParametersMatch(left, right []*ast.Parameter) bool {
 func (u *Unit) String() string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("unit %s;\n", u.Name))
+	fmt.Fprintf(&sb, "unit %s;\n", u.Name)
 
 	if len(u.Uses) > 0 {
 		sb.WriteString("uses ")

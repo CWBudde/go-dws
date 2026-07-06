@@ -137,7 +137,7 @@ func setEndPos(node ast.Node, pos lexer.Position) {
 	}
 
 	v := reflect.ValueOf(node)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 

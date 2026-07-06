@@ -280,7 +280,7 @@ func formatSource(source string, opts printer.Options) (string, error) {
 		var errMsg strings.Builder
 		errMsg.WriteString("Parse errors:\n")
 		for _, err := range p.Errors() {
-			errMsg.WriteString(fmt.Sprintf("  %s\n", err))
+			fmt.Fprintf(&errMsg, "  %s\n", err)
 		}
 		return "", fmt.Errorf("%s", errMsg.String())
 	}

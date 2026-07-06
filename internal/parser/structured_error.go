@@ -76,17 +76,17 @@ func (e *StructuredParserError) Error() string {
 	}
 
 	// Add position
-	b.WriteString(fmt.Sprintf(" at %d:%d", e.Pos.Line, e.Pos.Column))
+	fmt.Fprintf(&b, " at %d:%d", e.Pos.Line, e.Pos.Column)
 
 	// Add block context if available
 	if e.BlockContext != nil {
-		b.WriteString(fmt.Sprintf(" (in %s block starting at line %d)",
-			e.BlockContext.BlockType, e.BlockContext.StartLine))
+		fmt.Fprintf(&b, " (in %s block starting at line %d)",
+			e.BlockContext.BlockType, e.BlockContext.StartLine)
 	}
 
 	// Add parsing phase if available
 	if e.ParsePhase != "" {
-		b.WriteString(fmt.Sprintf(" [while parsing %s]", e.ParsePhase))
+		fmt.Fprintf(&b, " [while parsing %s]", e.ParsePhase)
 	}
 
 	return b.String()
@@ -145,10 +145,10 @@ func (e *StructuredParserError) DetailedError() string {
 	if len(e.Expected) > 0 || e.Actual != "" {
 		b.WriteString("  Details:\n")
 		if len(e.Expected) > 0 {
-			b.WriteString(fmt.Sprintf("    Expected: %s\n", strings.Join(e.Expected, " or ")))
+			fmt.Fprintf(&b, "    Expected: %s\n", strings.Join(e.Expected, " or "))
 		}
 		if e.Actual != "" {
-			b.WriteString(fmt.Sprintf("    Found:    %s\n", e.Actual))
+			fmt.Fprintf(&b, "    Found:    %s\n", e.Actual)
 		}
 	}
 
@@ -156,7 +156,7 @@ func (e *StructuredParserError) DetailedError() string {
 	if len(e.Suggestions) > 0 {
 		b.WriteString("  Suggestions:\n")
 		for _, suggestion := range e.Suggestions {
-			b.WriteString(fmt.Sprintf("    - %s\n", suggestion))
+			fmt.Fprintf(&b, "    - %s\n", suggestion)
 		}
 	}
 
@@ -168,7 +168,7 @@ func (e *StructuredParserError) DetailedError() string {
 			if i < len(e.RelatedMessages) {
 				msg = e.RelatedMessages[i]
 			}
-			b.WriteString(fmt.Sprintf("    %d:%d: %s\n", pos.Line, pos.Column, msg))
+			fmt.Fprintf(&b, "    %d:%d: %s\n", pos.Line, pos.Column, msg)
 		}
 	}
 
@@ -176,7 +176,7 @@ func (e *StructuredParserError) DetailedError() string {
 	if len(e.Notes) > 0 {
 		b.WriteString("  Notes:\n")
 		for _, note := range e.Notes {
-			b.WriteString(fmt.Sprintf("    - %s\n", note))
+			fmt.Fprintf(&b, "    - %s\n", note)
 		}
 	}
 

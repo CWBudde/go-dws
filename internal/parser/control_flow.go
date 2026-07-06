@@ -17,7 +17,7 @@ func isNilStatement(stmt ast.Statement) bool {
 	}
 	// Use reflection to check if the underlying value is nil
 	v := reflect.ValueOf(stmt)
-	return v.Kind() == reflect.Ptr && v.IsNil()
+	return v.Kind() == reflect.Pointer && v.IsNil()
 }
 
 // isImplicitSemicolon checks whether the upcoming token can implicitly terminate

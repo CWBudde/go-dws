@@ -74,7 +74,7 @@ func extractJSONValueViaReflection(val Value) *jsonvalue.Value {
 
 	// Use reflection to access the Value field
 	rv := reflect.ValueOf(val)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
 	}
 
