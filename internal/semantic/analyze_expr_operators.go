@@ -108,6 +108,21 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 				}
 			}
 
+			// A class method may be invoked by bare name from within any method of
+			// the same class (instance or class method) — it needs no Self instance
+			// (func_ptr_class_meth: `SayHello;` inside a class method).
+			if methodType, found := a.currentClass.GetMethod(identifier.Value); found &&
+				a.isClassMethodInHierarchy(a.currentClass, identifier.Value) {
+				a.recordClassMethodUsage(a.currentClass, identifier.Value)
+				if len(methodType.Parameters) == 0 {
+					if methodType.ReturnType == nil || methodType.ReturnType.TypeKind() == "VOID" {
+						return types.VOID
+					}
+					return methodType.ReturnType
+				}
+				return methodPointerFromFunctionType(methodType)
+			}
+
 			if !a.inClassMethod {
 				// Check if identifier is a field of the current class (implicit Self, instance methods only)
 				if fieldType, exists := a.currentClass.GetField(identifier.Value); exists {

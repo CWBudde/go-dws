@@ -808,6 +808,9 @@ func walkNewExpression(n *NewExpression, v Visitor) {
 	if n.ClassName != nil {
 		Walk(v, n.ClassName)
 	}
+	if n.Operand != nil {
+		Walk(v, n.Operand)
+	}
 	for _, item := range n.Arguments {
 		if item != nil {
 			Walk(v, item)

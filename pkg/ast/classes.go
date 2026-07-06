@@ -268,6 +268,13 @@ func (fd *FieldDecl) String() string {
 //   - ConstructorDeclaration: for constructor method definitions
 type NewExpression struct {
 	ClassName *Identifier
+	// Operand holds a parenthesized operand expression for the forms
+	// `new (Type)(args)` / `new (classRefExpr)(args)` where the constructed
+	// class is given by an arbitrary expression (a parenthesized type/alias,
+	// a class-reference variable, or a call returning a metaclass) rather than
+	// a bare class-name identifier. Nil for the common `new ClassName(...)`
+	// form, in which case ClassName is used. When Operand is set, ClassName is nil.
+	Operand   Expression
 	Arguments []Expression
 	// TypeArgs holds the generic type arguments for `new TTest<Integer>(...)`.
 	// Nil for non-generic instantiations. When ClassName refers to a collected
@@ -285,6 +292,9 @@ func (ne *NewExpression) TokenLiteral() string {
 	if ne.ClassName != nil {
 		return ne.ClassName.TokenLiteral()
 	}
+	if ne.Operand != nil {
+		return ne.Operand.TokenLiteral()
+	}
 	return ne.Token.Literal
 }
 
@@ -293,12 +303,21 @@ func (ne *NewExpression) Pos() token.Position {
 	if ne.ClassName != nil {
 		return ne.ClassName.Pos()
 	}
+	if ne.Operand != nil {
+		return ne.Operand.Pos()
+	}
 	return ne.Token.Pos
 }
 func (ne *NewExpression) String() string {
 	var out bytes.Buffer
 
-	out.WriteString(ne.ClassName.String())
+	if ne.ClassName != nil {
+		out.WriteString(ne.ClassName.String())
+	} else if ne.Operand != nil {
+		out.WriteString("(")
+		out.WriteString(ne.Operand.String())
+		out.WriteString(")")
+	}
 	out.WriteString(".Create(")
 
 	args := []string{}

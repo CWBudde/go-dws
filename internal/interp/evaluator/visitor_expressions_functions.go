@@ -212,6 +212,33 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.newError(node, "cannot call member expression that is not a method or unit-qualified function")
 	}
 
+	// Value-callee dispatch: the callee is an expression that yields a callable
+	// value — an index result (a[i]('!')), a function/method that returns a
+	// pointer and is called immediately (MyPrint(True)('x'), o.GetProc1()('get')).
+	// Evaluate it and, if it is a pointer/lambda, invoke it.
+	switch node.Function.(type) {
+	case *ast.CallExpression, *ast.MethodCallExpression, *ast.IndexExpression:
+		calleeVal := e.Eval(node.Function, ctx)
+		if isError(calleeVal) {
+			return calleeVal
+		}
+		if isCallablePointerValue(calleeVal) {
+			args := make([]Value, len(node.Arguments))
+			for i, arg := range node.Arguments {
+				v := e.Eval(arg, ctx)
+				if isError(v) {
+					return v
+				}
+				args[i] = v
+			}
+			return e.executeFunctionPointerDirect(calleeVal, args, node, ctx)
+		}
+		// The callee is syntactically valid (e.g. f()() or a[i]()), but its
+		// runtime value is not callable. Report that directly instead of falling
+		// through to the misleading "requires identifier" error below.
+		return e.newError(node, "expression is not callable")
+	}
+
 	// Remaining call types require a simple identifier
 	funcName, ok := node.Function.(*ast.Identifier)
 	if !ok {
@@ -361,6 +388,14 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return fn(e, args)
 	}
 
+	// A proc-typed field of Self invoked by bare name inside a method
+	// (FAFunc('world')): read the stored pointer and call it. Checked before the
+	// implicit-Self method dispatch, which would otherwise report the field as a
+	// missing method.
+	if result, handled := e.tryImplicitSelfFieldCall(node, funcName, args, ctx); handled {
+		return result
+	}
+
 	// Implicit Self method calls (checked after built-ins to avoid shadowing)
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
 		if _, ok := selfRaw.(Value); ok {
@@ -370,6 +405,43 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Not found in any registry or context
 	return e.newError(node, "undefined function: %s", funcName.Value)
+}
+
+// isCallablePointerValue reports whether v is a function pointer, method
+// pointer, or lambda that can be invoked via executeFunctionPointerDirect.
+func isCallablePointerValue(v Value) bool {
+	if v == nil {
+		return false
+	}
+	switch v.Type() {
+	case "FUNCTION_POINTER", "METHOD_POINTER", "LAMBDA":
+		return true
+	default:
+		return false
+	}
+}
+
+// tryImplicitSelfFieldCall calls a proc-typed field of the implicit Self object
+// when it is invoked by bare name (FAFunc(x) inside a method). Returns
+// (result, true) when it handled the call. args are the already-evaluated
+// arguments from the standard-builtin path.
+func (e *Evaluator) tryImplicitSelfFieldCall(node *ast.CallExpression, funcName *ast.Identifier, args []Value, ctx *ExecutionContext) (Value, bool) {
+	selfRaw, ok := ctx.Env().Get("Self")
+	if !ok {
+		return nil, false
+	}
+	objVal, ok := selfRaw.(ObjectValue)
+	if !ok {
+		return nil, false
+	}
+	fieldVal := objVal.GetField(funcName.Value)
+	if fieldVal == nil {
+		return nil, false
+	}
+	if _, isPtr := fieldVal.(*runtime.FunctionPointerValue); !isPtr {
+		return nil, false
+	}
+	return e.executeFunctionPointerDirect(fieldVal, args, node, ctx), true
 }
 
 // PrepareUserFunctionArgs prepares arguments for user function invocation.
@@ -801,11 +873,132 @@ func (e *Evaluator) evalWithExpectedType(node ast.Node, expectedType types.Type,
 	return e.Eval(node, ctx)
 }
 
+// newOperandNode returns the AST node that denotes the constructed class for a
+// `new` expression — the parenthesized operand when present, otherwise the bare
+// class-name identifier. Used for error positioning.
+func newOperandNode(node *ast.NewExpression) ast.Node {
+	if node.Operand != nil {
+		return node.Operand
+	}
+	if node.ClassName != nil {
+		return node.ClassName
+	}
+	return node
+}
+
+// classInfoFromTypeName resolves a type name (possibly an alias) to the class
+// info it denotes: a plain class type or a `class of X` metaclass. Returns nil
+// when the name is not a class reference.
+func (e *Evaluator) classInfoFromTypeName(name string, ctx *ExecutionContext) runtime.IClassInfo {
+	resolved, err := e.ResolveTypeWithContext(name, ctx)
+	if err != nil || resolved == nil {
+		return nil
+	}
+	className := ""
+	switch tt := types.GetUnderlyingType(resolved).(type) {
+	case *types.ClassOfType:
+		if tt.ClassType != nil {
+			className = tt.ClassType.Name
+		}
+	case *types.ClassType:
+		className = tt.Name
+	}
+	if className == "" {
+		return nil
+	}
+	if ci := e.typeSystem.LookupClass(className); ci != nil {
+		if info, ok := ci.(runtime.IClassInfo); ok {
+			return info
+		}
+	}
+	return nil
+}
+
+// resolveNewMetaclass handles the class-reference forms of `new`:
+//
+//	new (expr)(args)   — Operand is an expression yielding a metaclass value
+//	new classRefVar    — a bare identifier bound to a `class of` variable
+//	new TAlias         — a bare identifier aliasing a class
+//
+// It returns the resolved class info and its runtime class name. handled is
+// false for an ordinary `new ClassName(...)`, which the normal lookup path
+// serves. isNil is true when the reference evaluated to a nil class reference
+// (`var c: TClass; new c`), which the caller turns into a catchable
+// "ClassType is nil" exception. Constructor dispatch then runs on the resolved
+// (dynamic) class, so `r` holding TSubClass constructs TSubClass.
+func (e *Evaluator) resolveNewMetaclass(node *ast.NewExpression, ctx *ExecutionContext) (info runtime.IClassInfo, name string, handled, isNil bool, errVal Value) {
+	switch {
+	case node.Operand != nil:
+		val := e.Eval(node.Operand, ctx)
+		if isError(val) {
+			return nil, "", true, false, val
+		}
+		if cm, ok := val.(ClassMetaValue); ok {
+			if ci := cm.GetClassInfo(); ci != nil {
+				return ci, cm.GetClassName(), true, false, nil
+			}
+			return nil, "", true, true, nil
+		}
+		if _, ok := val.(*runtime.NilValue); ok {
+			return nil, "", true, true, nil
+		}
+		// The operand may be a type/alias identifier that did not evaluate to a
+		// metaclass value; resolve it as a type name.
+		if id, ok := node.Operand.(*ast.Identifier); ok {
+			if ci := e.classInfoFromTypeName(id.Value, ctx); ci != nil {
+				return ci, ci.GetName(), true, false, nil
+			}
+		}
+		return nil, "", true, false, e.newError(node.Operand, "'new' requires a class reference")
+
+	case node.ClassName != nil:
+		name := node.ClassName.Value
+		if e.typeSystem.LookupClass(name) != nil {
+			return nil, "", false, false, nil // ordinary class name — normal path
+		}
+		if v, ok := ctx.Env().Get(name); ok {
+			if cm, ok := v.(ClassMetaValue); ok {
+				if ci := cm.GetClassInfo(); ci != nil {
+					return ci, cm.GetClassName(), true, false, nil
+				}
+			}
+			if _, ok := v.(*runtime.NilValue); ok {
+				return nil, "", true, true, nil
+			}
+		}
+		if ci := e.classInfoFromTypeName(name, ctx); ci != nil {
+			return ci, ci.GetName(), true, false, nil
+		}
+		return nil, "", false, false, nil // let the normal path report "not found"
+	}
+	return nil, "", false, false, nil
+}
+
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
 // Handles class lookup, field initialization, and constructor execution.
 // Validates abstract/external classes and supports implicit parameterless constructors.
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
-	className := node.ClassName.Value
+	var className string
+	var classInfoAny any
+
+	// Class-reference forms: new (expr)(args), new classRefVar, new TAlias.
+	// These resolve the constructed class from a metaclass value / alias rather
+	// than a bare class name in the registry.
+	metaInfo, metaName, metaHandled, metaNil, metaErr := e.resolveNewMetaclass(node, ctx)
+	if metaErr != nil {
+		return metaErr
+	}
+	if metaNil {
+		// `var c: TClass; new c` with a nil class reference raises a catchable
+		// exception positioned at the class-reference operand.
+		return e.newError(newOperandNode(node), "ClassType is nil")
+	}
+	if metaHandled {
+		classInfoAny = metaInfo
+		className = metaName
+	} else {
+		className = node.ClassName.Value
+	}
 
 	// evalArgsByValue evaluates the constructor arguments left to right.
 	// Deferred until the constructor declaration is known so that var/lazy
@@ -828,8 +1021,10 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		return nil
 	}
 
-	// Look up class in type system
-	classInfoAny := e.typeSystem.LookupClass(className)
+	// Look up class in type system (unless a metaclass reference already resolved it)
+	if classInfoAny == nil {
+		classInfoAny = e.typeSystem.LookupClass(className)
+	}
 	if classInfoAny == nil {
 		if recordTypeRaw := e.typeSystem.LookupRecord(className); recordTypeRaw != nil {
 			if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok && recordType.HasStaticMethod("Create") {
@@ -902,11 +1097,25 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		return e.newError(node, "cannot instantiate external class '%s' - external classes are not supported", className)
 	}
 
+	// Resolve the constructor `new` should invoke. DWScript's `new TClass(...)`
+	// calls the class's *default* constructor — the one declared with the
+	// `default` directive (which may be named other than "Create"), searched up
+	// the hierarchy — falling back to "Create" when none is marked. A class that
+	// declares only non-default constructors (e.g. `constructor World;` without
+	// `default`) therefore instantiates via plain allocation, matching DWScript.
+	ctorName := "Create"
+	for current := runtime.IClassInfo(classInfo); current != nil; current = current.GetParent() {
+		if dc := current.GetDefaultConstructor(); dc != "" {
+			ctorName = dc
+			break
+		}
+	}
+
 	// Execute constructor: when the declaration is unambiguous and declares
 	// var/lazy parameters, wrap the arguments (by-ref references / lazy
 	// thunks) so writes inside the constructor reach the caller's variable
 	// (see fixture oop_field). Otherwise evaluate them by value.
-	constructor := classInfo.GetConstructor("Create")
+	constructor := classInfo.GetConstructor(ctorName)
 	if constructor != nil && !constructor.IsOverload && len(constructor.Parameters) == len(node.Arguments) && hasVarOrLazyParams(constructor) {
 		preparedArgs, err := e.prepareArgsForParameters(constructor.Parameters, node.Arguments, ctx)
 		if err != nil {
@@ -926,7 +1135,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	}
 
 	if constructor != nil {
-		if err := e.executeConstructorForObject(obj, "Create", args, node, ctx); err != nil {
+		if err := e.executeConstructorForObject(obj, ctorName, args, node, ctx); err != nil {
 			return e.newError(node, "constructor failed: %v", err)
 		}
 	} else if len(args) == 1 && e.typeSystem.IsClassDescendantOf(className, "Exception") {

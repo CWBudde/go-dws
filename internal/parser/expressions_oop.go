@@ -98,8 +98,16 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 func (p *Parser) parseNewExpression() ast.Expression {
 	newToken := p.cursor.Current() // Save the 'new' token position
 
-	// Expect a type name (identifier)
+	// Parenthesized operand form: new (Type)(args) / new (classRefExpr)(args).
+	// The constructed class is given by an arbitrary expression rather than a
+	// bare class-name identifier (a parenthesized type/alias, a class-reference
+	// variable, or a call returning a metaclass).
 	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.LPAREN {
+		return p.parseNewOperandExpression(newToken)
+	}
+
+	// Expect a type name (identifier)
 	if nextToken.Type != lexer.IDENT {
 		p.addError("expected type name after 'new'", ErrExpectedIdent)
 		return nil
@@ -196,6 +204,55 @@ func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Id
 
 	// Record the end position (one past the closing parenthesis) so that
 	// End() reflects the whole expression, e.g. for raise-position reporting.
+	newExpr.EndPos = p.endPosFromToken(p.cursor.Current())
+
+	return newExpr
+}
+
+// parseNewOperandExpression parses the parenthesized-operand form of `new`:
+//
+//	new (Type)          // parenthesized type / alias
+//	new (Type)(args)    // parenthesized type with constructor arguments
+//	new (classRefExpr)  // class-reference variable or metaclass-returning call
+//	new (GetAClass(r))(args)
+//
+// The operand between the parentheses is parsed as an arbitrary expression and
+// stored in NewExpression.Operand (ClassName stays nil). An optional trailing
+// argument list is parsed as the constructor arguments.
+//
+// PRE: cursor is on NEW token, Peek(1) is LPAREN
+// POST: cursor is on the last token of the expression
+func (p *Parser) parseNewOperandExpression(newToken lexer.Token) ast.Expression {
+	p.cursor = p.cursor.Advance() // move to '('
+	p.cursor = p.cursor.Advance() // move to first token of the operand expression
+
+	operand := p.parseExpression(LOWEST)
+	if operand == nil {
+		return nil
+	}
+
+	if p.cursor.Peek(1).Type != lexer.RPAREN {
+		p.addError(fmt.Sprintf("expected ')' after 'new' operand, got %s", p.cursor.Peek(1).Type), ErrMissingRParen)
+		return nil
+	}
+	p.cursor = p.cursor.Advance() // move to ')'
+
+	newExpr := &ast.NewExpression{
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{
+				Token: newToken,
+			},
+		},
+		Operand:   operand,
+		Arguments: []ast.Expression{},
+	}
+
+	// Optional trailing constructor arguments: new (operand)(args)
+	if p.cursor.Peek(1).Type == lexer.LPAREN {
+		p.cursor = p.cursor.Advance() // move to '('
+		newExpr.Arguments = p.parseExpressionList()
+	}
+
 	newExpr.EndPos = p.endPosFromToken(p.cursor.Current())
 
 	return newExpr

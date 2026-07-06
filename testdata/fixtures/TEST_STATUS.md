@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 817 |
-| Failed | 1111 |
+| Passed | 840 |
+| Failed | 1088 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **42%** (817/1928) |
+| **Scored pass rate** | **44%** (840/1928) |
 
 ## Per-category
 
@@ -23,7 +23,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | Category | Total | Pass | Fail | Skip | Pass% |
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
-| ArrayPass | 115 | 94 | 21 | 0 | 82% |
+| ArrayPass | 115 | 96 | 19 | 0 | 83% |
 | AssociativeFail | 4 | 1 | 3 | 0 | 25% |
 | AssociativePass | 27 | 22 | 5 | 0 | 81% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
@@ -64,7 +64,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | JSFilterScripts | 2 | 0 | 0 | 2 | 0% |
 | JSFilterScriptsFail | 1 | 0 | 0 | 1 | 0% |
 | JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
-| JSONConnectorPass | 82 | 45 | 37 | 0 | 55% |
+| JSONConnectorPass | 82 | 51 | 31 | 0 | 62% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
 | LambdaPass | 6 | 4 | 2 | 0 | 67% |
 | Linq | 7 | 0 | 7 | 0 | 0% |
@@ -75,10 +75,10 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | OverloadsFail | 14 | 0 | 14 | 0 | 0% |
 | OverloadsPass | 39 | 33 | 6 | 0 | 85% |
 | PropertyExpressionsFail | 10 | 0 | 10 | 0 | 0% |
-| PropertyExpressionsPass | 19 | 9 | 10 | 0 | 47% |
+| PropertyExpressionsPass | 19 | 10 | 9 | 0 | 53% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
 | SetOfPass | 25 | 20 | 5 | 0 | 80% |
-| SimpleScripts | 442 | 296 | 139 | 7 | 68% |
+| SimpleScripts | 442 | 310 | 125 | 7 | 71% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

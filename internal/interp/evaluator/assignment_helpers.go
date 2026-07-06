@@ -157,11 +157,27 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 	switch objVal.Type() {
 	case "OBJECT":
 		if obj, ok := objVal.(ObjectValue); ok {
-			if !obj.HasMethod(memberName) {
-				return e.newError(expr, "method '%s' not found", memberName)
+			if obj.HasMethod(memberName) {
+				if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
+					return e.createFunctionPointerFromDecl(methodDecl, objVal, ctx)
+				}
 			}
-			if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
+			// A class method reached through an instance (o.ClassProc) also yields
+			// a bound pointer; the receiver still resolves ClassName virtually.
+			if methodDecl := obj.GetClassMethodDecl(memberName); methodDecl != nil {
 				return e.createFunctionPointerFromDecl(methodDecl, objVal, ctx)
+			}
+		}
+		return e.newError(expr, "method '%s' not found", memberName)
+	case "TYPE_CAST":
+		// A method pointer from a cast (TBase(child).Event) binds the underlying
+		// runtime object, so a virtual method still dispatches to the most-derived
+		// override at call time (event_virtual).
+		if castVal, ok := objVal.(TypeCastAccessor); ok {
+			if obj, ok := castVal.GetWrappedValue().(ObjectValue); ok && obj.HasMethod(memberName) {
+				if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
+					return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
+				}
 			}
 		}
 		return e.newError(expr, "method '%s' not found", memberName)
@@ -182,6 +198,22 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 		}
 		return e.newError(expr, "method '%s' not found", memberName)
 	default:
+		// A proc-typed record field read as a value (var f := rec.P). A named
+		// record reports its type name (not "RECORD"), so match by interface.
+		if recVal, ok := objVal.(RecordInstanceValue); ok {
+			if fieldVal, found := recVal.GetRecordField(memberName); found {
+				return fieldVal
+			}
+		}
+		// Class-method pointer via a metaclass value: p := TClass.ClassProc.
+		// The class-meta is captured as the receiver so ClassName resolves.
+		if classMetaVal, ok := objVal.(ClassMetaValue); ok {
+			if result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
+				return e.createFunctionPointerFromDecl(methodDecl, objVal, ctx)
+			}); created {
+				return result
+			}
+		}
 		return e.newError(expr, "method '%s' not found", memberName)
 	}
 }

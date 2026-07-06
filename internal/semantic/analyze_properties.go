@@ -254,6 +254,9 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 						"property '"+propName+"' read field '"+readSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
 					return
 				}
+				// The backing field is referenced by this accessor; mark it used
+				// so it is not flagged as an unused private field.
+				a.recordClassFieldUsage(fieldOwner, readSpecName)
 				propInfo.ReadKind = types.PropAccessField
 				propInfo.ReadSpec = readSpecName
 				return
@@ -460,6 +463,9 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	}
 
 	if found {
+		// The backing field is referenced by this accessor; mark it used
+		// so it is not flagged as an unused private field.
+		a.recordClassFieldUsage(a.getFieldOwner(classType, writeSpecName), writeSpecName)
 		propInfo.WriteKind = types.PropAccessField
 		propInfo.WriteSpec = writeSpecName
 		return

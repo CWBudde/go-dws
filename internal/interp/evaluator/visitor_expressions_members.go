@@ -40,15 +40,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return e.newError(node, "member access missing member")
 	}
 
-	expectedTypeKind := ""
-	if e.SemanticInfo() != nil {
-		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil {
-			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
-				expectedTypeKind = resolvedType.TypeKind()
-			}
-		}
-	}
-	wantMethodPointer := expectedTypeKind == "FUNCTION_POINTER" || expectedTypeKind == "METHOD_POINTER"
+	wantMethodPointer := e.memberWantsMethodPointer(node)
 
 	// JSON namespace bare access (JSON.NewObject / JSON.NewArray, invoked without
 	// parentheses) must be handled before `JSON` is evaluated as an identifier.
@@ -841,6 +833,25 @@ func (e *Evaluator) makeClassValue(node ast.Node, className string) Value {
 	return e.newError(node, "internal error: class value factory returned non-Value type for '%s'", className)
 }
 
+// memberWantsMethodPointer reports whether the analyzer annotated this member
+// access with a function/method pointer type — i.e. a method reference should
+// become a bound method pointer instead of being auto-invoked.
+func (e *Evaluator) memberWantsMethodPointer(node *ast.MemberAccessExpression) bool {
+	if e.SemanticInfo() == nil {
+		return false
+	}
+	typeAnnot := e.SemanticInfo().GetType(node)
+	if typeAnnot == nil {
+		return false
+	}
+	resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot)
+	if err != nil || resolvedType == nil {
+		return false
+	}
+	kind := resolvedType.TypeKind()
+	return kind == "FUNCTION_POINTER" || kind == "METHOD_POINTER"
+}
+
 // resolveClassMetaMember resolves a member access against a class/metaclass value
 // (built-in properties, class vars/consts/properties, constructors, class methods,
 // nested classes, and helpers). It is shared by the CLASS/CLASSINFO member path and
@@ -918,6 +929,16 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 
 	// Class methods: auto-invoke if parameterless, else return function pointer
 	if classMetaVal.HasClassMethod(memberName) {
+		// In a function-pointer context, bind a class-method pointer (carrying the
+		// class-meta as receiver so ClassName resolves) instead of auto-invoking.
+		if e.memberWantsMethodPointer(node) {
+			if result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
+				return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
+			}); created {
+				return result
+			}
+		}
+
 		// Try parameterless auto-invoke
 		result, invoked := classMetaVal.InvokeParameterlessClassMethod(memberName, func(methodDecl any) Value {
 			return e.executeClassMethodDirect(classMetaVal, methodDecl, nil, node, ctx)
@@ -926,9 +947,11 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 			return result
 		}
 
-		// Return function pointer for class methods with parameters
+		// Return function pointer for class methods with parameters. Bind the
+		// class-meta as receiver so ClassName resolves inside the pointed-to
+		// class method (func_ptr5).
 		result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
-			return e.createFunctionPointerFromDecl(methodDecl, nil, ctx)
+			return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
 		})
 		if created {
 			return result

@@ -104,6 +104,19 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 		return &runtime.StringValue{Value: ""}
 	case "BOOLEAN":
 		return &runtime.BooleanValue{Value: false}
+	case "FUNCTION_POINTER":
+		// A proc-typed variable/field holds a nil function pointer carrying its
+		// declared signature, so a bare call raises "Function pointer is nil" and
+		// Assigned() reports false until a routine is bound.
+		if fpType, ok := t.(*types.FunctionPointerType); ok {
+			return &runtime.FunctionPointerValue{PointerType: fpType}
+		}
+		return &runtime.NilValue{}
+	case "METHOD_POINTER":
+		if mpType, ok := t.(*types.MethodPointerType); ok {
+			return &runtime.FunctionPointerValue{PointerType: &mpType.FunctionPointerType}
+		}
+		return &runtime.NilValue{}
 	case "ARRAY":
 		// For array types, create an empty array with proper type
 		if arrayType, ok := t.(*types.ArrayType); ok {

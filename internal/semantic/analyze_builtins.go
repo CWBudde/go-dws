@@ -102,6 +102,9 @@ func (a *Analyzer) getBuiltinFunctionPointerType(name string) *types.FunctionPoi
 	lowerName := ident.Normalize(name)
 
 	switch lowerName {
+	// Output procedures usable as procedure(Variant) pointers (func_ptr4).
+	case "print", "println":
+		return types.NewProcedurePointerType([]types.Type{types.VARIANT})
 	// Type conversion functions commonly used with Map
 	case "inttostr":
 		// IntToStr(value: Integer): String

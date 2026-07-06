@@ -240,6 +240,22 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			return classVarValue
 		}
 
+		// A sibling class method invoked by bare name inside a class method body
+		// (`SayHello;` inside `Hello`): auto-invoke if parameterless, else pointer.
+		// Dispatch is virtual on the bound class-meta.
+		if classMetaVal.HasClassMethod(node.Value) {
+			if result, invoked := classMetaVal.InvokeParameterlessClassMethod(node.Value, func(methodDecl any) Value {
+				return e.executeClassMethodDirect(classMetaVal, methodDecl, nil, node, ctx)
+			}); invoked {
+				return result
+			}
+			if result, created := classMetaVal.CreateClassMethodPointer(node.Value, func(methodDecl any) Value {
+				return e.createFunctionPointerFromDecl(methodDecl, classMetaVal, ctx)
+			}); created {
+				return result
+			}
+		}
+
 		// Check for nested class (e.g. `new TInner` inside outer class scope)
 		if nested := classMetaVal.GetNestedClass(node.Value); nested != nil {
 			return nested

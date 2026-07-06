@@ -30,6 +30,11 @@ type ContextFlags struct {
 	// This allows the 'old' keyword to reference pre-state values.
 	ParsingPostCondition bool
 
+	// ParsingPreCondition is true when parsing preconditions (require). The
+	// 'old' keyword is invalid here (it is postcondition-only); elsewhere 'old'
+	// is an ordinary soft-keyword identifier.
+	ParsingPreCondition bool
+
 	// Future flag examples (illustrative only, not planned features):
 	// - InLoopBody bool (for break/continue validation)
 	// - InFunctionBody bool (for return statement validation)
@@ -66,6 +71,16 @@ func (ctx *ParseContext) SetFlags(flags ContextFlags) {
 // ParsingPostCondition returns whether we're currently parsing a postcondition.
 func (ctx *ParseContext) ParsingPostCondition() bool {
 	return ctx.flags.ParsingPostCondition
+}
+
+// ParsingPreCondition returns whether we're currently parsing a precondition.
+func (ctx *ParseContext) ParsingPreCondition() bool {
+	return ctx.flags.ParsingPreCondition
+}
+
+// SetParsingPreCondition sets the precondition parsing flag.
+func (ctx *ParseContext) SetParsingPreCondition(parsing bool) {
+	ctx.flags.ParsingPreCondition = parsing
 }
 
 // SetParsingPostCondition sets the postcondition parsing flag.

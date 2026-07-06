@@ -179,9 +179,12 @@ func (p *Parser) expectPeek(t lexer.TokenType) bool {
 	return false
 }
 
-// isIdentifierToken returns true for IDENT and contextual keywords (STEP, SELF, HELPER).
+// isIdentifierToken returns true for IDENT and contextual keywords (STEP, SELF,
+// HELPER, OLD). OLD is a soft keyword: it only has special meaning as `old(expr)`
+// inside contract postconditions (parsed via its prefix function), so it is a
+// valid ordinary identifier in name positions (e.g. `var old : TFunc`).
 func (p *Parser) isIdentifierToken(t lexer.TokenType) bool {
-	return t == lexer.IDENT || t == lexer.STEP || t == lexer.SELF || t == lexer.HELPER
+	return t == lexer.IDENT || t == lexer.STEP || t == lexer.SELF || t == lexer.HELPER || t == lexer.OLD
 }
 
 // isMemberNameToken returns true for tokens that DWScript allows after a dot.

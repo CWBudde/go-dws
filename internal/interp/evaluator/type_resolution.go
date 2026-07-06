@@ -386,6 +386,13 @@ func (e *Evaluator) ResolveTypeWithContext(typeName string, ctx *ExecutionContex
 		}
 	}
 
+	// Step 10: Named function/method pointer types (type TProc = procedure;).
+	if e.typeSystem != nil {
+		if funcPtrType := e.typeSystem.LookupFunctionPointerType(typeName); funcPtrType != nil {
+			return funcPtrType, nil
+		}
+	}
+
 	// Unknown type
 	return nil, fmt.Errorf("unknown type: %s", typeName)
 }

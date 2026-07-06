@@ -176,6 +176,16 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				method = recordType.GetMethod(methodNameLower)
 			}
 			if method == nil {
+				// A proc-typed record field is directly callable: rec.Proc1(x).
+				if fieldType := recordType.GetFieldType(methodNameLower); fieldType != nil && isFunctionPointerType(fieldType) {
+					if a.semanticInfo != nil && expr.Method != nil {
+						a.semanticInfo.SetType(expr.Method, &ast.TypeAnnotation{
+							Token: expr.Method.Token,
+							Name:  types.GetUnderlyingType(fieldType).String(),
+						})
+					}
+					return a.analyzeFunctionPointerCallArgs(expr.Arguments, fieldType, expr.Token.Pos)
+				}
 				// Method not found in record, check if a helper provides it
 				helperMethod := a.hasHelperMethod(objectType, methodName)
 				if helperMethod == nil {
@@ -452,6 +462,22 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		helperMethod := a.hasHelperMethod(objectType, methodName)
 		if helperMethod != nil {
 			methodType = helperMethod
+		} else if callableType := a.classCallableMemberType(classType, methodName); callableType != nil {
+			// A private/protected proc-typed field or class var must not become
+			// callable from outside its scope just by adding parentheses.
+			if !a.classCallableMemberVisible(classType, methodName, expr.Method) {
+				return nil
+			}
+			// A field, class var, or readable property of function-pointer type is
+			// directly callable: o.FEvent(1). Annotate so the evaluator reads the
+			// stored pointer instead of dispatching a same-named method.
+			if a.semanticInfo != nil && expr.Method != nil {
+				a.semanticInfo.SetType(expr.Method, &ast.TypeAnnotation{
+					Token: expr.Method.Token,
+					Name:  types.GetUnderlyingType(callableType).String(),
+				})
+			}
+			return a.analyzeFunctionPointerCallArgs(expr.Arguments, callableType, expr.Token.Pos)
 		} else {
 			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return nil

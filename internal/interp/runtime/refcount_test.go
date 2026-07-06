@@ -31,6 +31,7 @@ func (m *mockClassInfo) IsExternal() bool                                       
 func (m *mockClassInfo) GetClassVarsMap() map[string]Value                       { return nil }
 func (m *mockClassInfo) GetVirtualMethodTable() map[string]*VirtualMethodEntry   { return nil }
 func (m *mockClassInfo) GetConstructor(name string) *ast.FunctionDecl            { return nil }
+func (m *mockClassInfo) GetDefaultConstructor() string                           { return "" }
 func (m *mockClassInfo) GetFieldTypesMap() map[string]any                        { return nil }
 func (m *mockClassInfo) GetInterfaces() []*InterfaceInfo                         { return nil }
 func (m *mockClassInfo) HasMethodOverloads(name string) bool                     { return false }

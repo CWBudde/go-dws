@@ -139,7 +139,9 @@ func (e *Evaluator) VisitExpressionStatement(node *ast.ExpressionStatement, ctx 
 	if funcPtr, ok := val.(FunctionPointerCallable); ok {
 		if funcPtr.ParamCount() == 0 && funcPtr.GetBuiltinName() == "" {
 			if funcPtr.IsNil() {
-				exc := e.createException("Exception", "Function pointer is nil", &node.Token.Pos, ctx)
+				pos := node.Expression.End()
+				msg := fmt.Sprintf("Function pointer is nil [line: %d, column: %d]", pos.Line, pos.Column)
+				exc := e.createException("Exception", msg, &node.Token.Pos, ctx)
 				ctx.SetException(exc)
 				return &runtime.NilValue{}
 			}
