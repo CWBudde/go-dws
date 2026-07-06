@@ -523,6 +523,9 @@ func (c *Compiler) compileBinaryExpression(expr *ast.BinaryExpression) error {
 	if op == "??" {
 		return c.compileCoalesceExpression(expr)
 	}
+	if op == "implies" {
+		return c.compileImpliesExpression(expr)
+	}
 
 	// Handle 'and' and 'or' operators - they serve dual purposes in DWScript:
 	// 1. Boolean logical operations with short-circuit evaluation (e.g., (x > 5) and (y < 10))
@@ -712,6 +715,32 @@ func (c *Compiler) compileOrExpression(expr *ast.BinaryExpression) error {
 	}
 
 	// Patch the jump to skip right evaluation when left is true
+	return c.chunk.PatchJump(jumpIfTrue)
+}
+
+// compileImpliesExpression compiles the logical implication operator with
+// short-circuit evaluation: `a implies b` is equivalent to `(not a) or b`. When
+// `not a` is true (i.e. a is false) the consequent is not evaluated and the
+// result is true.
+func (c *Compiler) compileImpliesExpression(expr *ast.BinaryExpression) error {
+	line := lineOf(expr)
+
+	// Compile the antecedent and negate it, leaving `not a` on the stack.
+	if err := c.compileExpression(expr.Left); err != nil {
+		return err
+	}
+	c.chunk.WriteSimple(OpNot, line)
+
+	// Duplicate `not a` so we can test it without consuming it.
+	c.chunk.WriteSimple(OpDup, line)
+
+	// If `not a` is true, jump to the end keeping true on the stack (skip the
+	// consequent). Otherwise pop the duplicate and evaluate the consequent.
+	jumpIfTrue := c.chunk.EmitJump(OpJumpIfTrue, line)
+	c.chunk.WriteSimple(OpPop, line)
+	if err := c.compileExpression(expr.Right); err != nil {
+		return err
+	}
 	return c.chunk.PatchJump(jumpIfTrue)
 }
 

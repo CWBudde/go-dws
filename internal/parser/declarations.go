@@ -122,6 +122,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 
 	// If we're at CONST (or RESOURCESTRING) token, advance to identifier.
 	currentToken := p.cursor.Current()
+	isResourceString := currentToken.Type == lexer.RESOURCESTRING
 	if currentToken.Type == lexer.CONST || currentToken.Type == lexer.RESOURCESTRING {
 		p.cursor = p.cursor.Advance() // move to identifier
 		currentToken = p.cursor.Current()
@@ -147,6 +148,7 @@ func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
 		BaseNode: ast.BaseNode{
 			Token: currentToken,
 		},
+		IsResourceString: isResourceString,
 	}
 	stmt.Name = &ast.Identifier{
 		TypedExpressionBase: ast.TypedExpressionBase{

@@ -38,6 +38,53 @@ func assertOutput(t *testing.T, got, want string) {
 	}
 }
 
+// assertCompileError asserts that the source fails semantic analysis with a
+// diagnostic containing want.
+func assertCompileError(t *testing.T, source, want string) {
+	t.Helper()
+	compiled := frontend.Compile(source, "quickwins.pas", semantic.HintsLevelNormal)
+	if !compiled.HasFatalDiagnostics() && compiled.SemanticSuccessful {
+		t.Fatalf("expected a compile error containing %q, but compilation succeeded", want)
+	}
+	diags := strings.Join(compiled.DiagnosticStrings(), "\n")
+	if !strings.Contains(diags, want) {
+		t.Fatalf("expected a diagnostic containing %q, got:\n%s", want, diags)
+	}
+}
+
+// TestImpliesRejectsNonBooleanOperand covers the tightened semantic rule: a
+// non-Boolean, non-Variant operand is rejected even when the other side is Variant.
+func TestImpliesRejectsNonBooleanOperand(t *testing.T) {
+	assertCompileError(t, `
+var s := 'x';
+var v : Variant;
+PrintLn(s implies v);
+`, "operator 'implies'")
+}
+
+// TestEmptyMethodOutOfLineBodyIsDuplicate covers that an "empty;" method is a
+// complete definition, so a later out-of-line body is a duplicate, not a forward
+// implementation.
+func TestEmptyMethodOutOfLineBodyIsDuplicate(t *testing.T) {
+	assertCompileError(t, `
+type
+   TTest = class
+      procedure Proc; empty;
+   end;
+procedure TTest.Proc;
+begin
+end;
+`, "duplicate method")
+}
+
+// TestResourcestringRejectsNonStringValue covers that a resourcestring must have
+// a String value.
+func TestResourcestringRejectsNonStringValue(t *testing.T) {
+	assertCompileError(t, `
+resourcestring d = 1234;
+`, "String expected")
+}
+
 // TestImpliesOperator covers the logical implication operator, including its
 // short-circuit behaviour (a False antecedent must not evaluate the consequent).
 func TestImpliesOperator(t *testing.T) {

@@ -295,12 +295,14 @@ func (e *Evaluator) evalImpliesOp(node *ast.BinaryExpression, ctx *ExecutionCont
 		return e.newError(node.Right, "right operand evaluated to nil")
 	}
 
+	// The result of `implies` is always a plain Boolean (the semantic analyzer
+	// types it as Boolean), even when the consequent is a Variant.
 	switch rv := right.(type) {
 	case *runtime.BooleanValue:
 		return &runtime.BooleanValue{Value: rv.Value}
 	default:
 		if right.Type() == "VARIANT" {
-			return runtime.BoxVariant(&runtime.BooleanValue{Value: VariantToBool(right)})
+			return &runtime.BooleanValue{Value: VariantToBool(right)}
 		}
 		return e.newError(node.Right, "expected boolean for 'implies' operator, got %s", right.Type())
 	}
