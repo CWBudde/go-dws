@@ -268,9 +268,14 @@ func (e *Evaluator) jsonElementName(jv *jsonvalue.Value, args []Value) Value {
 
 func (e *Evaluator) jsonArrayAdd(jv *jsonvalue.Value, args []Value, node ast.Node) Value {
 	if jv == nil || jv.Kind() != jsonvalue.KindArray {
-		return e.newError(node, "JSON Add requires an array value")
+		e.RaiseException("Exception", fmt.Sprintf("JSON method Add() unsupported for type %s", jsonTypeName(jv)), nil)
+		return &runtime.NilValue{}
 	}
 	for _, arg := range args {
+		if u := unwrapVariant(arg); u == nil || u.Type() == "UNASSIGNED" {
+			e.RaiseException("Exception", "JSON Array Add() unsupported type", nil)
+			return &runtime.NilValue{}
+		}
 		jv.ArrayAppend(ValueToJSONValue(arg))
 	}
 	return &runtime.IntegerValue{Value: int64(jv.ArrayLen())}

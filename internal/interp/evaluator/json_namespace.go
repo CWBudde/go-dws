@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -54,8 +55,87 @@ func (e *Evaluator) evalJSONNamespaceCall(method string, argExprs []ast.Expressi
 			indent = jsonArgString(args[1])
 		}
 		return &runtime.StringValue{Value: jsonvalue.StringifyPretty(ValueToJSONValue(argValue(args, 0)), indent)}
+	case "parseintegerarray":
+		nullVal := int64(0)
+		if len(args) >= 2 {
+			if i, ok := ExtractIntegerIndex(args[1]); ok {
+				nullVal = int64(i)
+			}
+		}
+		return e.jsonParseTypedArray(jsonArgString(argValue(args, 0)), "int", nullVal, node)
+	case "parsefloatarray":
+		return e.jsonParseTypedArray(jsonArgString(argValue(args, 0)), "float", 0, node)
+	case "parsestringarray":
+		return e.jsonParseTypedArray(jsonArgString(argValue(args, 0)), "string", 0, node)
 	default:
 		return e.newError(node, "There is no accessible member with name %q for type JSON", method)
+	}
+}
+
+// jsonParseTypedArray parses a JSON array string into a dynamic array of the
+// given scalar kind ("int"/"float"/"string"). JSON nulls become nullVal (integers),
+// 0 (floats), or "" (strings).
+func (e *Evaluator) jsonParseTypedArray(s, kind string, nullVal int64, node ast.Node) Value {
+	jv, err := jsonvalue.Parse(strings.TrimSpace(s))
+	if err != nil {
+		return e.newError(node, "JSON parse error: %s", err.Error())
+	}
+	elems := make([]Value, 0)
+	if jv != nil && jv.Kind() == jsonvalue.KindArray {
+		for _, item := range jv.ArrayElements() {
+			elems = append(elems, jsonScalarToTyped(item, kind, nullVal))
+		}
+	}
+	return newTypedArray(elems, kind)
+}
+
+// jsonScalarToTyped converts a JSON scalar to the Integer/Float/String runtime
+// value used by the Parse*Array helpers, substituting the null placeholder.
+func jsonScalarToTyped(item *jsonvalue.Value, kind string, nullVal int64) Value {
+	isNull := item == nil || item.Kind() == jsonvalue.KindNull || item.Kind() == jsonvalue.KindUndefined
+	switch kind {
+	case "int":
+		if isNull {
+			return &runtime.IntegerValue{Value: nullVal}
+		}
+		if i, ok := (&runtime.JSONValue{Value: item}).AsInteger(); ok {
+			return &runtime.IntegerValue{Value: i}
+		}
+		return &runtime.IntegerValue{Value: nullVal}
+	case "float":
+		if isNull {
+			return &runtime.FloatValue{Value: 0}
+		}
+		if f, ok := (&runtime.JSONValue{Value: item}).AsFloat(); ok {
+			return &runtime.FloatValue{Value: f}
+		}
+		return &runtime.FloatValue{Value: 0}
+	default: // string
+		if isNull {
+			return &runtime.StringValue{Value: ""}
+		}
+		return &runtime.StringValue{Value: item.StringValue()}
+	}
+}
+
+// newTypedArray wraps elements in a dynamic ArrayValue of the given element kind.
+func newTypedArray(elems []Value, kind string) Value {
+	var elemType types.Type
+	switch kind {
+	case "int":
+		elemType = types.INTEGER
+	case "float":
+		elemType = types.FLOAT
+	default:
+		elemType = types.STRING
+	}
+	runtimeElems := make([]runtime.Value, len(elems))
+	for i, v := range elems {
+		runtimeElems[i] = v
+	}
+	return &runtime.ArrayValue{
+		Elements:  runtimeElems,
+		ArrayType: types.NewDynamicArrayType(elemType),
 	}
 }
 
