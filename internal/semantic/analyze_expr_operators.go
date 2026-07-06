@@ -706,6 +706,9 @@ func (a *Analyzer) analyzeUnaryExpression(expr *ast.UnaryExpression) types.Type 
 		if operandType.Equals(types.VARIANT) {
 			return types.VARIANT
 		}
+		if types.IsJSONVariant(operandType) {
+			return types.BOOLEAN
+		}
 		a.addError("unary not requires Boolean, Integer, or Variant operand, got %s at %s",
 			operandType.String(), expr.Token.Pos.String())
 		return nil

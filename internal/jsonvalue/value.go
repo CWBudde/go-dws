@@ -230,6 +230,31 @@ func (v *Value) ArrayElements() []*Value {
 	return elements
 }
 
+// IsFalsey reports whether the value is falsey per DWScript's JSON semantics:
+// Undefined, Null, false, numeric zero, and the empty string are falsey; every
+// object and array (even empty) and every non-empty string/non-zero number is
+// truthy.
+func (v *Value) IsFalsey() bool {
+	if v == nil {
+		return true
+	}
+	switch v.kind {
+	case KindUndefined, KindNull:
+		return true
+	case KindBoolean:
+		return !v.bool
+	case KindInt64:
+		return v.i64 == 0
+	case KindNumber:
+		return v.num == 0
+	case KindString:
+		return v.str == ""
+	default:
+		// Objects and arrays are always truthy.
+		return false
+	}
+}
+
 // Clone returns a deep copy of the value. Scalars are copied by value; objects
 // and arrays are copied recursively, preserving key order.
 func (v *Value) Clone() *Value {

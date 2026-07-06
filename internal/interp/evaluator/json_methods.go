@@ -18,6 +18,50 @@ func jsonValueOf(v Value) *jsonvalue.Value {
 	return extractJSONValueViaReflection(unwrapVariant(v))
 }
 
+// identifierHoldsJSON reports whether the variable named by target currently holds
+// a JSON value in the environment.
+func (e *Evaluator) identifierHoldsJSON(target *ast.Identifier, ctx *ExecutionContext) bool {
+	if target == nil {
+		return false
+	}
+	raw, ok := ctx.Env().Get(target.Value)
+	if !ok {
+		return false
+	}
+	v, ok := raw.(Value)
+	return ok && isJSONBoxed(v)
+}
+
+// coerceToJSONVariant auto-boxes a base scalar (or nil/unassigned) into a JSON
+// immediate when it is assigned to a JSONVariant target. Values that are already
+// JSON pass through unchanged.
+func coerceToJSONVariant(v Value) Value {
+	if v == nil {
+		return boxJSON(jsonvalue.NewUndefined())
+	}
+	if isJSONBoxed(v) {
+		return v
+	}
+	switch u := unwrapVariant(v).(type) {
+	case *runtime.StringValue:
+		return boxJSON(jsonvalue.NewString(u.Value))
+	case *runtime.IntegerValue:
+		return boxJSON(jsonvalue.NewInt64(u.Value))
+	case *runtime.FloatValue:
+		return boxJSON(jsonvalue.NewNumber(u.Value))
+	case *runtime.BooleanValue:
+		return boxJSON(jsonvalue.NewBoolean(u.Value))
+	case *runtime.NullValue:
+		return boxJSON(jsonvalue.NewNull())
+	case *runtime.NilValue:
+		return boxJSON(jsonvalue.NewNull())
+	case *runtime.UnassignedValue:
+		return boxJSON(jsonvalue.NewUndefined())
+	default:
+		return v
+	}
+}
+
 // isJSONBoxed reports whether v (after unwrapping a Variant) is a JSON value.
 func isJSONBoxed(v Value) bool {
 	if v == nil {

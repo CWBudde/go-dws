@@ -415,6 +415,13 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			return &runtime.NilValue{}
 		}
 
+		// Auto-box a base scalar assigned to a JSONVariant target as a JSON
+		// immediate. The target is a JSONVariant either by declared type or because
+		// it currently holds a JSON value (its zero value is an Undefined JSON).
+		if e.expectedTypeKindForIdentifier(target, ctx) == "JSON_VARIANT" || e.identifierHoldsJSON(target, ctx) {
+			value = coerceToJSONVariant(value)
+		}
+
 		// Records have value semantics - copy when assigning
 		if record, ok := value.(*runtime.RecordValue); ok {
 			value = record.Copy()

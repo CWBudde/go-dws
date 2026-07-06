@@ -143,6 +143,11 @@ func VarIsNull(ctx Context, args []Value) Value {
 		return &runtime.BooleanValue{Value: true}
 	}
 
+	// A JSONVariant reads as empty/null only when it is an Undefined JSON value.
+	if jv, ok := val.(*runtime.JSONValue); ok {
+		return &runtime.BooleanValue{Value: jv.IsUndefined()}
+	}
+
 	// Check for nil-like types
 	switch val.Type() {
 	case "NIL", "NULL", "UNASSIGNED":

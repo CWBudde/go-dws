@@ -148,7 +148,8 @@ func (a *Analyzer) ensureVariantArgument(expr ast.Expression, funcName string, c
 	}
 
 	argType := a.analyzeExpression(expr)
-	if argType != nil && argType != types.VARIANT {
+	// A JSONVariant is variant-compatible (VarIsEmpty/VarIsNull/... accept it).
+	if argType != nil && argType != types.VARIANT && !types.IsJSONVariant(argType) {
 		a.addError("function '%s' expects Variant argument, got %s at %s",
 			funcName, argType.String(), callExpr.Token.Pos.String())
 	}

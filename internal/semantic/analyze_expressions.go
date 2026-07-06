@@ -96,7 +96,7 @@ func isBooleanCompatible(t types.Type) bool {
 	if t == nil {
 		return false
 	}
-	if t.Equals(types.BOOLEAN) || t.Equals(types.VARIANT) {
+	if t.Equals(types.BOOLEAN) || t.Equals(types.VARIANT) || types.IsJSONVariant(t) {
 		return true
 	}
 	return false

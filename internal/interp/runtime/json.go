@@ -38,7 +38,7 @@ func (j *JSONValue) String() string {
 	case jsonvalue.KindUndefined:
 		return ""
 	case jsonvalue.KindNull:
-		return "Null"
+		return "null"
 	case jsonvalue.KindBoolean:
 		if j.Value.BoolValue() {
 			return "True"
@@ -55,6 +55,12 @@ func (j *JSONValue) String() string {
 	default:
 		return ""
 	}
+}
+
+// IsUndefined reports whether the JSON value is Undefined (an unassigned /
+// non-existent JSON value), which is how a JSONVariant reads as "empty".
+func (j *JSONValue) IsUndefined() bool {
+	return j.Value == nil || j.Value.Kind() == jsonvalue.KindUndefined
 }
 
 // NewJSONValue creates a new JSONValue wrapping a jsonvalue.Value.
