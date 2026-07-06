@@ -26,9 +26,9 @@ func (j *JSONValue) Type() string {
 // JSONVariant is cast to a string / printed (matching DWScript's
 // TBoxedJSONValue.ToString): a JSON string yields its raw content (no quotes), a
 // container yields its compact JSON serialization, a boolean yields the Pascal
-// "True"/"False", Null yields "Null", and Undefined/unassigned yields an empty
-// string. Note this differs from the JSON serialization used inside a container
-// (Stringify), where booleans and null are lowercase.
+// "True"/"False", Null yields the lowercase "null", and Undefined/unassigned
+// yields an empty string. Note this differs from a boolean inside a container
+// (Stringify), which is lowercase "true"/"false".
 func (j *JSONValue) String() string {
 	if j.Value == nil {
 		return ""

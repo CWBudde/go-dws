@@ -1024,9 +1024,18 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 		return true
 	}
 
-	// JSONVariant conversions (to/from base types and Variant, validated at runtime)
+	// JSONVariant conversions are valid only to/from base types and Variant
+	// (validated at runtime). Casts to unrelated types (e.g. class/interface)
+	// are not permitted and fall through to the checks below.
 	if types.IsJSONVariant(sourceType) || types.IsJSONVariant(targetType) {
-		return true
+		other := sourceType
+		if types.IsJSONVariant(sourceType) {
+			other = targetType
+		}
+		switch other.TypeKind() {
+		case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "VARIANT", "JSON_VARIANT":
+			return true
+		}
 	}
 
 	// nil can be cast to any reference type: class, interface, metaclass
