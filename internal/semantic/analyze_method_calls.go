@@ -463,6 +463,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		if helperMethod != nil {
 			methodType = helperMethod
 		} else if callableType := a.classCallableMemberType(classType, methodName); callableType != nil {
+			// A private/protected proc-typed field or class var must not become
+			// callable from outside its scope just by adding parentheses.
+			if !a.classCallableMemberVisible(classType, methodName, expr.Method) {
+				return nil
+			}
 			// A field, class var, or readable property of function-pointer type is
 			// directly callable: o.FEvent(1). Annotate so the evaluator reads the
 			// stored pointer instead of dispatching a same-named method.

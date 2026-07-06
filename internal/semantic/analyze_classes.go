@@ -723,17 +723,22 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 // context expects a function/method pointer. Unlike the default member-access
 // path it does NOT auto-invoke a parameterless method — it yields a method
 // pointer for deferred invocation (p := a.StaticProc; e := b.Event). It returns
-// (nil, false) when the member is not a class method, so the caller falls back
-// to normal member analysis (fields/properties of pointer type already return
-// their declared type). The result procedure/function distinction is normalised
-// so a procedure method is a procedure pointer, not a function-returning-void.
+// (nil, false) when the object is not a class, the member is not a method, or
+// the reference is invalid (an instance method reached through a metaclass, or a
+// member that is not visible from the current scope); the caller then falls back
+// to normal member analysis, which reports the appropriate diagnostic (and lets
+// fields/properties of pointer type return their declared type). The result
+// procedure/function distinction is normalised so a procedure method is a
+// procedure pointer, not a function-returning-void.
 func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccessExpression) (types.Type, bool) {
 	objectType := a.analyzeExpression(expr.Object)
 	if objectType == nil {
 		return nil, false
 	}
+	isMetaclass := false
 	if metaclass, ok := objectType.(*types.ClassOfType); ok && metaclass.ClassType != nil {
 		objectType = metaclass.ClassType
+		isMetaclass = true
 	}
 	classType, ok := objectType.(*types.ClassType)
 	if !ok {
@@ -743,6 +748,23 @@ func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccess
 	methodType, found := classType.GetMethod(memberName)
 	if !found {
 		return nil, false
+	}
+
+	// A method reached through a metaclass value must be a class method; an
+	// instance method is not a valid class-side pointer (TClass.InstanceMethod).
+	// Fall back so the normal path emits the "class method expected" diagnostic.
+	if isMetaclass && !a.isClassMethodInHierarchy(classType, memberName) {
+		return nil, false
+	}
+
+	// Respect member visibility: a private/protected method cannot be captured as
+	// a pointer from outside its declaring scope. Fall back so the normal path
+	// emits the visibility diagnostic.
+	if methodOwner := a.getMethodOwner(classType, memberName); methodOwner != nil {
+		if visibility, hasVisibility := methodOwner.MethodVisibility[memberName]; hasVisibility &&
+			!a.checkVisibility(methodOwner, visibility, memberName, "method") {
+			return nil, false
+		}
 	}
 
 	ptrType := methodPointerFromFunctionType(methodType)

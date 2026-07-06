@@ -233,6 +233,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			}
 			return e.executeFunctionPointerDirect(calleeVal, args, node, ctx)
 		}
+		// The callee is syntactically valid (e.g. f()() or a[i]()), but its
+		// runtime value is not callable. Report that directly instead of falling
+		// through to the misleading "requires identifier" error below.
+		return e.newError(node, "expression is not callable")
 	}
 
 	// Remaining call types require a simple identifier

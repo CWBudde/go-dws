@@ -157,11 +157,20 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	// type when it resolved to such a member (never for a real method), so read
 	// the stored pointer and dispatch it instead of looking up a method.
 	if e.methodNameIsCallableMember(node.Method) {
-		memberVal := e.Eval(&ast.MemberAccessExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: node.Token}},
-			Object:              node.Object,
-			Member:              node.Method,
-		}, ctx)
+		// The receiver was already evaluated into obj above; read the proc-typed
+		// member from it directly so a side-effecting receiver
+		// (NextObj().FEvent(1)) is not evaluated twice — which would also risk
+		// reading the pointer from a different object than the one dispatched.
+		memberVal, ok := e.readCallableMemberValue(obj, node, ctx)
+		if !ok {
+			// Non-object receiver (e.g. a record proc-typed field): fall back to
+			// the member-access path.
+			memberVal = e.Eval(&ast.MemberAccessExpression{
+				TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: node.Token}},
+				Object:              node.Object,
+				Member:              node.Method,
+			}, ctx)
+		}
 		if isError(memberVal) {
 			return memberVal
 		}
@@ -190,6 +199,46 @@ func (e *Evaluator) methodNameIsCallableMember(method *ast.Identifier) bool {
 	}
 	kind := resolved.TypeKind()
 	return kind == "FUNCTION_POINTER" || kind == "METHOD_POINTER"
+}
+
+// readCallableMemberValue reads a proc-typed member (readable property, field,
+// or class var) from an already-evaluated object receiver, so a proc-typed
+// member call (o.FEvent(1)) does not re-evaluate the receiver expression. The
+// member kinds and precedence mirror VisitMemberAccessExpression's object case.
+// It returns (value, true) for an object receiver and (nil, false) for any other
+// receiver kind, so the caller can fall back to member-access evaluation.
+func (e *Evaluator) readCallableMemberValue(obj Value, node *ast.MethodCallExpression, ctx *ExecutionContext) (Value, bool) {
+	objVal, ok := obj.(ObjectValue)
+	if !ok {
+		return nil, false
+	}
+	memberName := node.Method.Value
+
+	// Property (respecting getter/setter recursion guards), then field
+	// (static-class aware for shadowed fields), then class var.
+	propCtx := ctx.PropContext()
+	if propCtx == nil || (!propCtx.InPropertyGetter && !propCtx.InPropertySetter) {
+		if objVal.HasProperty(memberName) {
+			propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
+				return e.executePropertyRead(obj, propInfo, node, ctx)
+			})
+			if propValue != nil {
+				return propValue, true
+			}
+		}
+	}
+	if fieldValue := getFieldWithStaticClass(objVal, memberName, e.staticClassNameOf(node.Object, ctx)); fieldValue != nil {
+		return fieldValue, true
+	}
+	// The static-class-scoped read misses when the receiver has no static-type
+	// annotation (e.g. a call/index result); fall back to a plain dynamic read.
+	if fieldValue := objVal.GetField(memberName); fieldValue != nil {
+		return fieldValue, true
+	}
+	if classVarValue, found := objVal.GetClassVar(memberName); found {
+		return classVarValue, true
+	}
+	return nil, false
 }
 
 // lookupUnambiguousMethodDecl resolves the declaration of a method call target

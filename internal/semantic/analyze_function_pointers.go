@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
@@ -272,6 +273,39 @@ func (a *Analyzer) classCallableMemberType(classType *types.ClassType, memberNam
 		}
 	}
 	return nil
+}
+
+// classCallableMemberVisible reports whether the callable proc-typed member
+// (field or class var) named memberName on classType — as resolved by
+// classCallableMemberType — is accessible from the current scope. It mirrors the
+// field/class-var visibility rules of ordinary member access so a private or
+// protected proc-typed member cannot be invoked from outside its declaring scope
+// merely by adding parentheses (o.FEvent(...)). A visibility diagnostic is
+// emitted at member's position when access is denied. Properties are not
+// visibility-checked here, matching ordinary property member access.
+func (a *Analyzer) classCallableMemberVisible(classType *types.ClassType, memberName string, member *ast.Identifier) bool {
+	normalized := ident.Normalize(memberName)
+	if _, found := classType.GetField(memberName); found {
+		if owner := a.getFieldOwner(classType, memberName); owner != nil {
+			if visibility, ok := owner.FieldVisibility[normalized]; ok &&
+				!a.checkVisibility(owner, visibility, memberName, "field") {
+				a.addStructuredError(NewVisibilityScopeError(member.Token.Pos, member.Value))
+				return false
+			}
+		}
+		return true
+	}
+	if _, found := classType.GetClassVar(memberName); found {
+		if owner := a.getClassVarOwner(classType, memberName); owner != nil {
+			if visibility, ok := owner.ClassVarVisibility[normalized]; ok &&
+				!a.checkVisibility(owner, visibility, memberName, "class variable") {
+				a.addStructuredError(NewVisibilityScopeError(member.Token.Pos, member.Value))
+				return false
+			}
+		}
+		return true
+	}
+	return true
 }
 
 // isFunctionPointerType reports whether t (after alias resolution) is a function
