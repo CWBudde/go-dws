@@ -212,6 +212,14 @@ func (v *Value) ArrayDelete(index int) bool {
 	return true
 }
 
+// ClearArray removes all elements from the array.
+func (v *Value) ClearArray() {
+	if v == nil || v.kind != KindArray {
+		return
+	}
+	v.arrElems = v.arrElems[:0]
+}
+
 // ArrayElements returns a shallow copy of the array elements slice.
 func (v *Value) ArrayElements() []*Value {
 	if v == nil || v.kind != KindArray {
@@ -220,6 +228,31 @@ func (v *Value) ArrayElements() []*Value {
 	elements := make([]*Value, len(v.arrElems))
 	copy(elements, v.arrElems)
 	return elements
+}
+
+// Clone returns a deep copy of the value. Scalars are copied by value; objects
+// and arrays are copied recursively, preserving key order.
+func (v *Value) Clone() *Value {
+	if v == nil {
+		return nil
+	}
+	switch v.kind {
+	case KindObject:
+		obj := NewObject()
+		for _, k := range v.objKeys {
+			obj.ObjectSet(k, v.objEntries[k].Clone())
+		}
+		return obj
+	case KindArray:
+		arr := NewArray()
+		for _, elem := range v.arrElems {
+			arr.ArrayAppend(elem.Clone())
+		}
+		return arr
+	default:
+		copyVal := *v
+		return &copyVal
+	}
 }
 
 // ============================================================================

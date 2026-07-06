@@ -116,6 +116,12 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			return types.STRING
 		}
 
+		// JSONVariant indexing (v['key'], v[3]) yields another JSONVariant.
+		if types.IsJSONVariant(leftType) {
+			a.analyzeExpression(expr.Index)
+			return types.JSON_VARIANT
+		}
+
 		// Allow indexing of Variant types (can contain JSON objects/arrays)
 		// At runtime, the interpreter will handle JSON object property access and array indexing
 		if leftType.Equals(types.VARIANT) {

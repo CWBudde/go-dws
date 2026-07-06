@@ -40,6 +40,11 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		return e.newError(node, "method call missing method")
 	}
 
+	// JSON namespace method call: JSON.Parse(s), JSON.Stringify(x), ...
+	if e.isJSONNamespaceObject(node.Object, ctx) {
+		return e.evalJSONNamespaceCall(node.Method.Value, node.Arguments, node, ctx)
+	}
+
 	if identObj, ok := node.Object.(*ast.Identifier); ok {
 		if _, exists := ctx.Env().Get(identObj.Value); !exists {
 			unitExists := false
@@ -59,6 +64,19 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	}
 
 	methodName := node.Method.Value
+
+	// Method call on a JSON value receiver: v.TypeName(), v.Add(x), ...
+	if isJSONBoxed(obj) {
+		args := make([]Value, len(node.Arguments))
+		for i, arg := range node.Arguments {
+			val := e.Eval(arg, ctx)
+			if isError(val) {
+				return val
+			}
+			args[i] = val
+		}
+		return e.evalJSONMethodCall(obj, methodName, args, node, ctx)
+	}
 
 	if recordVal, ok := obj.(RecordInstanceValue); ok {
 		// Overload-aware: pick the best-matching overload for the provided

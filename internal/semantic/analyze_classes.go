@@ -249,6 +249,12 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			}
 			a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
 			return nil
+		case "json":
+			// Bare JSON namespace access (JSON.NewObject / JSON.NewArray invoked
+			// without parentheses), unless shadowed by a user symbol.
+			if a.isJSONNamespace(expr.Object) {
+				return jsonNamespaceMemberType(expr.Member.Value)
+			}
 		}
 	}
 
@@ -265,6 +271,13 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 	// Resolve type aliases to get the underlying type
 	objectTypeResolved := types.GetUnderlyingType(objectType)
+
+	// JSONVariant is dynamically browsable: any member access yields another
+	// JSONVariant (v.foo, v.foo.bar, ...). Method calls are handled at the call
+	// site (analyzeJSONMethodCall).
+	if types.IsJSONVariant(objectTypeResolved) {
+		return types.JSON_VARIANT
+	}
 
 	// Handle record type (static methods or instance fields/methods)
 	if recordType, ok := objectTypeResolved.(*types.RecordType); ok {

@@ -32,9 +32,20 @@ func (a *Analyzer) analyzeCallExpressionWithContext(expr *ast.CallExpression, ex
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		// JSON namespace calls (JSON.Parse/Stringify/...) must be recognized before
+		// the `JSON` identifier is analyzed as an ordinary (undefined) symbol.
+		if a.isJSONNamespace(memberAccess.Object) {
+			return a.analyzeJSONNamespaceResult(memberAccess.Member.Value, expr.Arguments)
+		}
+
 		objectType := a.analyzeExpression(memberAccess.Object)
 		if objectType == nil {
 			return nil
+		}
+
+		// Method call on a JSONVariant receiver (v.TypeName(), v.Add(x), ...).
+		if types.IsJSONVariant(objectType) {
+			return a.analyzeJSONMethodResult(memberAccess.Member.Value, expr.Arguments)
 		}
 
 		// Constructor call: TClass.Create(args)

@@ -89,6 +89,11 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Member access calls: obj.Method(), UnitName.Func(), TClass.Create()
 	if memberAccess, ok := node.Function.(*ast.MemberAccessExpression); ok {
+		// JSON namespace call: JSON.Parse(s), JSON.Stringify(x), ...
+		if e.isJSONNamespaceObject(memberAccess.Object, ctx) {
+			return e.evalJSONNamespaceCall(memberAccess.Member.Value, node.Arguments, node, ctx)
+		}
+
 		if identNode, ok := memberAccess.Object.(*ast.Identifier); ok {
 			if _, exists := ctx.Env().Get(identNode.Value); !exists {
 				// Unit-qualified function call
@@ -118,6 +123,19 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		objVal := e.Eval(memberAccess.Object, ctx)
 		if isError(objVal) {
 			return objVal
+		}
+
+		// Method call on a JSON value receiver: v.TypeName(), v.Add(x), ...
+		if jv := jsonValueOf(objVal); jv != nil || isJSONBoxed(objVal) {
+			args := make([]Value, len(node.Arguments))
+			for i, arg := range node.Arguments {
+				val := e.Eval(arg, ctx)
+				if isError(val) {
+					return val
+				}
+				args[i] = val
+			}
+			return e.evalJSONMethodCall(objVal, memberAccess.Member.Value, args, node, ctx)
 		}
 
 		if objVal.Type() == "RECORD_TYPE" {

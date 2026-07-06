@@ -113,6 +113,11 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 		return &runtime.NilValue{}
 	}
 
+	// JSON index write: obj['key'] := value / arr[i] := value.
+	if isJSONBoxed(arrayVal) {
+		return e.assignJSONIndex(jsonValueOf(arrayVal), indexVal, value, stmt)
+	}
+
 	// Check for interface-based indexed properties or object with default indexed property
 	// Both INTERFACE and OBJECT types may have default indexed properties
 	if strings.HasPrefix(arrayVal.Type(), "INTERFACE") || arrayVal.Type() == "OBJECT" {

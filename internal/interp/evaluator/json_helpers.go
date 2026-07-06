@@ -28,47 +28,25 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 
 	// Handle nil/null JSON value
 	if jv == nil {
-		// nil/null JSON value - wrap in Variant directly
-		return runtime.BoxVariantWithJSON(nil)
+		// nil/null JSON value browses as Undefined.
+		return boxJSON(nil)
 	}
 
-	kind := jv.Kind()
-
-	// JSON Object: support string indexing
-	if kind == jsonvalue.KindObject {
-		// Index must be a string for object property access
-		// Check via Type() method to avoid importing interp package
-		if index.Type() != "STRING" {
-			return e.newError(node, "JSON object index must be a string, got %s", index.Type())
+	// JSON browsing is lenient: any index of a non-container (or a missing key /
+	// out-of-range element) yields an Undefined JSON value rather than an error,
+	// so chains such as a[0].foo['bar'] stay browsable (see mixed_browse).
+	idx := unwrapVariant(index)
+	switch jv.Kind() {
+	case jsonvalue.KindObject:
+		return boxJSON(jv.ObjectGet(jsonArgString(idx)))
+	case jsonvalue.KindArray:
+		if i, ok := ExtractIntegerIndex(idx); ok {
+			return boxJSON(jv.ArrayGet(i))
 		}
-
-		// Extract string value via String() method
-		indexStr := index.String()
-
-		// Get the property value (returns nil if not found)
-		propValue := jv.ObjectGet(indexStr)
-
-		// Wrap in Variant directly
-		return runtime.BoxVariantWithJSON(propValue)
+		return boxJSON(nil)
+	default:
+		return boxJSON(nil)
 	}
-
-	// JSON Array: support integer indexing
-	if kind == jsonvalue.KindArray {
-		// Extract integer index
-		indexInt, ok := ExtractIntegerIndex(index)
-		if !ok {
-			return e.newError(node, "JSON array index must be an integer, got %s", index.Type())
-		}
-
-		// Get the array element (returns nil if out of bounds)
-		elemValue := jv.ArrayGet(indexInt)
-
-		// Wrap in Variant directly
-		return runtime.BoxVariantWithJSON(elemValue)
-	}
-
-	// Not an object or array
-	return e.newError(node, "cannot index JSON %s", kind.String())
 }
 
 // extractJSONValueViaReflection uses reflection to extract the internal jsonvalue.Value

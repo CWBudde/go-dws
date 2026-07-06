@@ -528,6 +528,9 @@ func (a *Analyzer) canAssign(from, to types.Type) bool {
 	if a.canAssignVariant(from, to) {
 		return true
 	}
+	if a.canAssignJSONVariant(from, to) {
+		return true
+	}
 	if a.canAssignEnumToInteger(from, to) {
 		return true
 	}
@@ -635,6 +638,34 @@ func (a *Analyzer) canAssignVariant(from, to types.Type) bool {
 	// Variant can be assigned to anything
 	if fromUnderlying.TypeKind() == "VARIANT" {
 		return true
+	}
+	return false
+}
+
+// canAssignJSONVariant checks JSONVariant assignment rules. A base scalar (or a
+// Variant) auto-boxes into a JSONVariant, and a JSONVariant implicitly converts to
+// the base scalar types. Function pointers and metaclasses do not auto-box, which
+// yields DWScript's "Cannot assign … to JSONVariant" diagnostic.
+func (a *Analyzer) canAssignJSONVariant(from, to types.Type) bool {
+	toUnderlying := types.GetUnderlyingType(to)
+	fromUnderlying := types.GetUnderlyingType(from)
+
+	isBaseScalar := func(k string) bool {
+		switch k {
+		case "INTEGER", "FLOAT", "STRING", "BOOLEAN":
+			return true
+		default:
+			return false
+		}
+	}
+
+	if toUnderlying.TypeKind() == "JSON_VARIANT" {
+		fromKind := fromUnderlying.TypeKind()
+		return fromKind == "JSON_VARIANT" || fromKind == "VARIANT" || fromKind == "NIL" || isBaseScalar(fromKind)
+	}
+	if fromUnderlying.TypeKind() == "JSON_VARIANT" {
+		toKind := toUnderlying.TypeKind()
+		return toKind == "VARIANT" || isBaseScalar(toKind)
 	}
 	return false
 }
