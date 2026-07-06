@@ -1338,6 +1338,9 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	}
 
 	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
+		if assocType := e.resolveAssociativeArrayTypeNode(arrayNode, ctx); assocType != nil {
+			return runtime.NewAssociativeArrayValue(assocType)
+		}
 		arrayType := e.resolveArrayTypeNode(arrayNode, ctx)
 		if arrayType != nil {
 			return e.createArrayZeroValue(arrayType)

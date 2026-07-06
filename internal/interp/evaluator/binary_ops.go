@@ -850,6 +850,11 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 		return &runtime.BooleanValue{Value: false}
 	}
 
+	// Associative array key membership: key in a (no insertion)
+	if assoc, ok := container.(*runtime.AssociativeArrayValue); ok {
+		return &runtime.BooleanValue{Value: assoc.Contains(unwrapVariant(value))}
+	}
+
 	// Handle array membership
 	if arrVal, ok := container.(*runtime.ArrayValue); ok {
 		// Search for the value in the array using proper equality comparison

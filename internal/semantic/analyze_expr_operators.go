@@ -627,6 +627,15 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return types.BOOLEAN
 		}
 
+		// Associative array - key membership: `key in a`
+		if assoc, isAssoc := types.GetUnderlyingType(rightType).(*types.AssociativeArrayType); isAssoc {
+			if !leftType.Equals(types.VARIANT) && !a.canAssign(leftType, assoc.KeyType) {
+				a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, leftType.String(), assoc.KeyType.String()))
+				return nil
+			}
+			return types.BOOLEAN
+		}
+
 		// Check for string type - allows character/substring membership
 		if rightType == types.STRING {
 			// Left operand should be String (character or substring)

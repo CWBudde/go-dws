@@ -84,6 +84,13 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 	memberName := node.Member.Value
 
+	// Associative array parameterless members (a.Keys, a.Length, a.Count, a.Clear).
+	if assoc, ok := obj.(*runtime.AssociativeArrayValue); ok {
+		if result, handled := e.evalAssociativeArrayMethod(assoc, memberName, nil, node); handled {
+			return result
+		}
+	}
+
 	// Alias/static-type helper binding: the analyzer records the receiver's
 	// static type when a helper resolved against it (strict helper semantics
 	// dispatch on the declared type, not the dynamic one).

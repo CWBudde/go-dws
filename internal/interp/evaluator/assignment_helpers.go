@@ -99,6 +99,14 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 			}
 			return e.newError(target, "undefined variable: %s", targetName)
 		}
+		// nil assigned to an associative array rebinds to a fresh empty map.
+		if assocVal, isAssoc := existingVal.(*runtime.AssociativeArrayValue); isAssoc {
+			empty := runtime.NewAssociativeArrayValue(assocVal.AssocType)
+			if e.SetVar(ctx, targetName, empty) {
+				return empty
+			}
+			return e.newError(target, "undefined variable: %s", targetName)
+		}
 		if className := e.resolveClassTypeForAssignment(target, existingVal, ctx); className != "" {
 			value = &runtime.NilValue{ClassType: className}
 		}

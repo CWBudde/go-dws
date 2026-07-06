@@ -231,6 +231,9 @@ func getZeroValueForType(t types.Type, methodsLookup func(*types.RecordType) map
 	case types.BOOLEAN:
 		return &BooleanValue{Value: false}
 	default:
+		if assocType, ok := t.(*types.AssociativeArrayType); ok {
+			return runtime.NewAssociativeArrayValue(assocType)
+		}
 		if arrayType, ok := t.(*types.ArrayType); ok {
 			initializer := func(elementType types.Type, _ int) Value {
 				return getZeroValueForType(elementType, methodsLookup)

@@ -564,10 +564,13 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 			return nil, fmt.Errorf("unknown array index type '%s': %w", indexTypeName, err)
 		}
 
-		// Ensure the index type has finite ordinal bounds (Boolean, Enum, Subrange)
+		// A bounded ordinal index (Boolean, Enum, Subrange) is a dense
+		// enum-indexed static array. Any other index type (Integer, String,
+		// Float, record, object, static array) makes this an associative array
+		// (sparse map keyed by that type).
 		lowBound, highBound, ok := types.OrdinalBounds(indexType)
 		if !ok {
-			return nil, fmt.Errorf("array index type '%s' must be a bounded ordinal type, got %s", indexTypeName, indexType.TypeKind())
+			return types.NewAssociativeArrayType(indexType, elementType), nil
 		}
 
 		return types.NewStaticArrayTypeWithIndexType(elementType, indexType, lowBound, highBound), nil

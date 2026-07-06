@@ -74,14 +74,8 @@ func TestEnumIndexedArrayErrors(t *testing.T) {
 		input         string
 		expectedError string
 	}{
-		{
-			name: "non-enum type as array index",
-			input: `
-				type TMyInt = Integer;
-				const arr: array[TMyInt] of String = ['test'];
-			`,
-			expectedError: "unknown type",
-		},
+		// Note: a non-ordinal index type (e.g. `array[Integer]`) is no longer an
+		// error — it is an associative array. See TestDWScriptFixtures/AssociativePass.
 		{
 			name: "undefined enum type as array index",
 			input: `
