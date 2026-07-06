@@ -231,16 +231,20 @@ func getZeroValueForType(t types.Type, methodsLookup func(*types.RecordType) map
 	case types.BOOLEAN:
 		return &BooleanValue{Value: false}
 	default:
-		if assocType, ok := t.(*types.AssociativeArrayType); ok {
+		// Resolve aliases before inspecting composite types, so e.g. an alias to
+		// an associative/array/record type yields the correct zero value instead
+		// of falling through to NilValue.
+		underlying := types.GetUnderlyingType(t)
+		if assocType, ok := underlying.(*types.AssociativeArrayType); ok {
 			return runtime.NewAssociativeArrayValue(assocType)
 		}
-		if arrayType, ok := t.(*types.ArrayType); ok {
+		if arrayType, ok := underlying.(*types.ArrayType); ok {
 			initializer := func(elementType types.Type, _ int) Value {
 				return getZeroValueForType(elementType, methodsLookup)
 			}
 			return runtime.NewArrayValue(arrayType, initializer)
 		}
-		if recordType, ok := t.(*types.RecordType); ok {
+		if recordType, ok := underlying.(*types.RecordType); ok {
 			return newRecordValueInternal(recordType, nil, methodsLookup)
 		}
 		return &NilValue{}

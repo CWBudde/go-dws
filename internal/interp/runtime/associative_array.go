@@ -36,13 +36,15 @@ func (a *AssociativeArrayValue) Type() string { return "ASSOCIATIVE_ARRAY" }
 func (a *AssociativeArrayValue) String() string {
 	parts := make([]string, 0, len(a.keys))
 	for i, k := range a.keys {
-		var v string
+		key := "nil"
+		if k != nil {
+			key = k.String()
+		}
+		v := "nil"
 		if a.values[i] != nil {
 			v = a.values[i].String()
-		} else {
-			v = "nil"
 		}
-		parts = append(parts, k.String()+": "+v)
+		parts = append(parts, key+": "+v)
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -100,8 +102,15 @@ func (a *AssociativeArrayValue) Delete(key Value) bool {
 	if i < 0 {
 		return false
 	}
-	a.keys = append(a.keys[:i], a.keys[i+1:]...)
-	a.values = append(a.values[:i], a.values[i+1:]...)
+	// Shift down, then clear the freed tail slots so the removed key/value (and
+	// anything they reference) become eligible for GC.
+	copy(a.keys[i:], a.keys[i+1:])
+	copy(a.values[i:], a.values[i+1:])
+	last := len(a.keys) - 1
+	a.keys[last] = nil
+	a.values[last] = nil
+	a.keys = a.keys[:last]
+	a.values = a.values[:last]
 	return true
 }
 
@@ -117,10 +126,14 @@ func (a *AssociativeArrayValue) Clear() {
 	a.values = nil
 }
 
-// Keys returns the keys in insertion order (a fresh slice).
+// Keys returns the keys in insertion order (a fresh slice). Value-typed keys
+// (records, static arrays) are snapshotted so a caller mutating a returned key
+// cannot corrupt the map's internal key set; object keys keep their identity.
 func (a *AssociativeArrayValue) Keys() []Value {
 	out := make([]Value, len(a.keys))
-	copy(out, a.keys)
+	for i, k := range a.keys {
+		out[i] = cloneKey(k)
+	}
 	return out
 }
 
