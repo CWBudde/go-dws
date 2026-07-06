@@ -754,7 +754,6 @@ func (a *Analyzer) isFunctionPointerVariantCompatible(from, to *types.FunctionPo
 	// Check return type compatibility
 	// If target returns Variant, any concrete return type is acceptable
 	if to.ReturnType != nil && to.ReturnType.Equals(types.VARIANT) {
-		hasVariantUsage = true
 		return true
 	}
 

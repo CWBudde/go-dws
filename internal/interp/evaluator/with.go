@@ -13,7 +13,7 @@ func (e *Evaluator) VisitWithStatement(node *ast.WithStatement, ctx *ExecutionCo
 	ctx.PushEnv()
 	defer ctx.PopEnv()
 
-	var result Value = &runtime.NilValue{}
+	var result Value
 	for _, decl := range node.Declarations {
 		result = e.VisitVarDeclStatement(decl, ctx)
 		if isError(result) {

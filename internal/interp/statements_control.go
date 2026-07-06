@@ -10,53 +10,6 @@ import (
 // This file contains shared comparison, truthiness, and operator helpers used
 // across the interpreter shell while statement execution lives in evaluator.
 
-// isTruthy determines if a value is considered "true" for conditional logic.
-// DWScript semantics for Variant→Boolean: empty/nil/zero → false, otherwise → true
-func isTruthy(val Value) bool {
-	switch v := val.(type) {
-	case *BooleanValue:
-		return v.Value
-	case *VariantValue:
-		// Variant→Boolean coercion: unassigned → false
-		if v.Value == nil {
-			return false
-		}
-		return variantToBool(v.Value)
-	default:
-		// In DWScript, only booleans and variants can be used in conditions
-		// Non-boolean values in conditionals would be a type error
-		// For now, treat non-booleans as false
-		return false
-	}
-}
-
-// variantToBool converts a variant's wrapped value to boolean.
-// DWScript semantics: empty/nil/zero → false, otherwise → true
-func variantToBool(val Value) bool {
-	if val == nil {
-		return false
-	}
-
-	switch v := val.(type) {
-	case *BooleanValue:
-		return v.Value
-	case *IntegerValue:
-		return v.Value != 0
-	case *FloatValue:
-		return v.Value != 0.0
-	case *StringValue:
-		return v.Value != ""
-	case *NilValue:
-		return false
-	case *VariantValue:
-		// Nested variant - recursively unwrap
-		return variantToBool(v.Value)
-	default:
-		// For objects, arrays, records, etc: non-nil → true
-		return true
-	}
-}
-
 // valuesEqual compares two values for equality.
 // This is used by case statements to match values.
 func (i *Interpreter) valuesEqual(left, right Value) bool {

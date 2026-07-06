@@ -264,10 +264,11 @@ func (i *Interpreter) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) *types.
 
 	// Check if element type is also an array (nested arrays)
 	if nestedArray, ok := arrayNode.ElementType.(*ast.ArrayTypeNode); ok {
-		elementType = i.resolveArrayTypeNode(nestedArray)
-		if elementType == nil {
+		nested := i.resolveArrayTypeNode(nestedArray)
+		if nested == nil {
 			return nil
 		}
+		elementType = nested
 	} else {
 		// Get element type name and resolve it
 		var elementTypeName string

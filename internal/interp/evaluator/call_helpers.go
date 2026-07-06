@@ -42,12 +42,11 @@ func (e *Evaluator) executeFunctionPointerDirect(funcPtr Value, args []Value, no
 	}
 
 	callCtx := ctx
-	restore := func() {}
 	if selfObj := callable.GetSelfObject(); selfObj != nil {
 		callCtx = ctx.Clone()
 		callCtx.SetEnv(runtime.NewEnclosedEnvironment(ctx.Env()))
 		callCtx.Env().Define("Self", selfObj)
-		restore = e.bindCurrentMethodIfNamed(callCtx, fn.Name.Value)
+		restore := e.bindCurrentMethodIfNamed(callCtx, fn.Name.Value)
 		defer restore()
 	}
 
