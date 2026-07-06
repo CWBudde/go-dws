@@ -227,6 +227,53 @@ func (e *Evaluator) parseInlineArrayType(signature string, ctx *ExecutionContext
 	return types.NewDynamicArrayType(elementType)
 }
 
+// resolveArrayElementType resolves an array's element type expression (which may
+// itself be a nested array).
+func (e *Evaluator) resolveArrayElementType(elementExpr ast.TypeExpression, ctx *ExecutionContext) types.Type {
+	if nestedArray, ok := elementExpr.(*ast.ArrayTypeNode); ok {
+		// A nested element may itself be associative.
+		if assoc := e.resolveAssociativeArrayTypeNode(nestedArray, ctx); assoc != nil {
+			return assoc
+		}
+		if arr := e.resolveArrayTypeNode(nestedArray, ctx); arr != nil {
+			return arr
+		}
+		return nil
+	}
+	var elementTypeName string
+	if typeAnnot, ok := elementExpr.(*ast.TypeAnnotation); ok {
+		elementTypeName = typeAnnot.Name
+	} else {
+		elementTypeName = elementExpr.String()
+	}
+	elementType, err := e.resolveTypeName(elementTypeName, ctx)
+	if err != nil {
+		return nil
+	}
+	return elementType
+}
+
+// resolveAssociativeArrayTypeNode resolves an ArrayTypeNode to an associative
+// array type when its index type is not a bounded ordinal. Returns nil when the
+// node is not an associative array (dynamic, static, or enum-indexed).
+func (e *Evaluator) resolveAssociativeArrayTypeNode(arrayNode *ast.ArrayTypeNode, ctx *ExecutionContext) *types.AssociativeArrayType {
+	if arrayNode == nil || !arrayNode.IsEnumIndexed() {
+		return nil
+	}
+	indexType, err := e.resolveTypeName(arrayNode.IndexType.String(), ctx)
+	if err != nil {
+		return nil
+	}
+	if _, _, ok := types.OrdinalBounds(indexType); ok {
+		return nil // bounded ordinal => enum-indexed static array, not associative
+	}
+	elementType := e.resolveArrayElementType(arrayNode.ElementType, ctx)
+	if elementType == nil {
+		return nil
+	}
+	return types.NewAssociativeArrayType(indexType, elementType)
+}
+
 // resolveArrayTypeNode resolves an ArrayTypeNode directly from the AST.
 // Handles dynamic, static, ordinal-indexed, and nested arrays.
 func (e *Evaluator) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode, ctx *ExecutionContext) *types.ArrayType {
@@ -235,28 +282,9 @@ func (e *Evaluator) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode, ctx *Exec
 	}
 
 	// Resolve element type first
-	var elementType types.Type
-
-	// Check if element type is also an array (nested arrays)
-	if nestedArray, ok := arrayNode.ElementType.(*ast.ArrayTypeNode); ok {
-		elementType = e.resolveArrayTypeNode(nestedArray, ctx)
-		if elementType == nil {
-			return nil
-		}
-	} else {
-		// Get element type name and resolve it
-		var elementTypeName string
-		if typeAnnot, ok := arrayNode.ElementType.(*ast.TypeAnnotation); ok {
-			elementTypeName = typeAnnot.Name
-		} else {
-			elementTypeName = arrayNode.ElementType.String()
-		}
-
-		var err error
-		elementType, err = e.resolveTypeName(elementTypeName, ctx)
-		if err != nil {
-			return nil
-		}
+	elementType := e.resolveArrayElementType(arrayNode.ElementType, ctx)
+	if elementType == nil {
+		return nil
 	}
 
 	// Check if dynamic or static array

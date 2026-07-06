@@ -101,6 +101,21 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return nil
 	}
 
+	// Associative array indexing: a[key] where key is assignable to KeyType,
+	// yielding the element type. New keys are legal (validated on assignment),
+	// so a read of a missing key returns the element's zero value at runtime.
+	if assoc, isAssoc := types.GetUnderlyingType(leftType).(*types.AssociativeArrayType); isAssoc {
+		keyType := a.analyzeExpression(expr.Index)
+		if keyType == nil {
+			return nil
+		}
+		if !types.GetUnderlyingType(keyType).Equals(types.VARIANT) && !a.canAssign(keyType, assoc.KeyType) {
+			a.addStructuredError(NewArrayIndexError(expr.Index.Pos(), assoc.KeyType.String(), semanticTypeNameForDiagnostic(keyType)))
+			return nil
+		}
+		return assoc.ElementType
+	}
+
 	// Check if left side is an array type
 	arrayType, ok := leftType.(*types.ArrayType)
 	if !ok {

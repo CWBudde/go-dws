@@ -322,6 +322,11 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// If not a class type, check for helpers (String, Integer, Enum types, etc.)
 	classType, ok := objectTypeResolved.(*types.ClassType)
 	if !ok {
+		if assoc, isAssoc := types.GetUnderlyingType(objectTypeResolved).(*types.AssociativeArrayType); isAssoc {
+			if result := a.analyzeAssociativeArrayMemberAccess(expr, assoc); result != nil {
+				return result
+			}
+		}
 		if arrayType, isArray := objectTypeResolved.(*types.ArrayType); isArray {
 			if result := a.analyzeArrayMemberAccess(expr, arrayType); result != nil {
 				return result

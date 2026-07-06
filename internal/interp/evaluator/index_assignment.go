@@ -71,6 +71,10 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 			if ctx.Exception() != nil {
 				return &runtime.NilValue{}
 			}
+			if assoc, ok := memberVal.(*runtime.AssociativeArrayValue); ok {
+				assoc.Set(unwrapVariant(indexVal), cloneIfCopyable(value))
+				return value
+			}
 			index, ok := e.ExtractIndexWithVariantCast(indexVal, ctx)
 			if !ok {
 				if ctx.Exception() != nil {
@@ -119,6 +123,14 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 		// Handle default property assignment using PropertyAccessor interface
 		// Pattern: Same as 3.2.11g but lookup default property instead of named property
 		return e.evalDefaultPropertyAssignment(arrayVal, indexVal, value, stmt, ctx)
+	}
+
+	// Associative array write: a[key] := value. Inserts a new key or updates an
+	// existing one; there is no bounds check. Element value semantics are
+	// preserved by snapshotting record/static-array values.
+	if assoc, ok := arrayVal.(*runtime.AssociativeArrayValue); ok {
+		assoc.Set(unwrapVariant(indexVal), cloneIfCopyable(value))
+		return value
 	}
 
 	// Extract integer index (Variant indexes are cast per DWScript rules)

@@ -110,6 +110,11 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 			return runtime.NewArrayValue(arrayType, nil)
 		}
 		return &runtime.NilValue{}
+	case "ASSOCIATIVE_ARRAY":
+		if assocType, ok := t.(*types.AssociativeArrayType); ok {
+			return runtime.NewAssociativeArrayValue(assocType)
+		}
+		return &runtime.NilValue{}
 	case "RECORD":
 		// Recursively create nested records, applying each field's default
 		// initializer expression (e.g. `Field : Integer = 1`) when present so

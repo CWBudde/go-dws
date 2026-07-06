@@ -553,6 +553,10 @@ func (a *Analyzer) canAssignNil(from, to types.Type) bool {
 		if arrType, ok := types.GetUnderlyingType(to).(*types.ArrayType); ok && arrType.IsDynamic() {
 			return true
 		}
+		// nil can be assigned to an associative array (clears it)
+		if _, ok := types.GetUnderlyingType(to).(*types.AssociativeArrayType); ok {
+			return true
+		}
 		return false
 	}
 	if toKind == "NIL" {

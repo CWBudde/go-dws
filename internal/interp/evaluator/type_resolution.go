@@ -489,6 +489,9 @@ func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression) (type
 		if ctx == nil {
 			ctx = &ExecutionContext{}
 		}
+		if assocType := e.resolveAssociativeArrayTypeNode(node, ctx); assocType != nil {
+			return assocType, nil
+		}
 		arrayType := e.resolveArrayTypeNode(node, ctx)
 		if arrayType == nil {
 			return nil, fmt.Errorf("invalid array type")

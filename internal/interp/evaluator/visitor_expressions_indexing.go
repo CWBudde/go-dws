@@ -207,6 +207,20 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		// No default property, fall through to normal indexing (which will error)
 	}
 
+	// Associative array read: a[key]. The key is an arbitrary value (not an
+	// ordinal index). A missing key returns the element's zero value without
+	// inserting it.
+	if assoc, ok := leftVal.(*runtime.AssociativeArrayValue); ok {
+		key := unwrapVariant(indexVal)
+		if stored, present := assoc.Get(key); present {
+			// Return the live stored value (like regular array indexing); value
+			// semantics for record/static-array elements are enforced at
+			// assignment time (`var b := a[k]` clones).
+			return stored
+		}
+		return e.getZeroValueForType(assoc.ElementType())
+	}
+
 	// Index must be an integer or enum for arrays and strings.
 	// Variant indexes are cast per DWScript rules (may raise).
 	index, ok := e.ExtractIndexWithVariantCast(indexVal, ctx)
