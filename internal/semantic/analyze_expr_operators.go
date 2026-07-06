@@ -575,6 +575,20 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		return types.BOOLEAN
 	}
 
+	// Handle the logical implication operator (a implies b ≡ (not a) or b).
+	// Purely Boolean (no bitwise/enum forms); Variant operands are permitted.
+	if operator == "implies" {
+		if leftType == types.VARIANT || rightType == types.VARIANT {
+			return types.BOOLEAN
+		}
+		if leftType.Equals(types.BOOLEAN) && rightType.Equals(types.BOOLEAN) {
+			return types.BOOLEAN
+		}
+		a.addError("operator 'implies' requires Boolean operands, got %s and %s at %s",
+			leftType.String(), rightType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
 	// Handle logical/bitwise operators (and, or, xor)
 	// These operators work on Boolean (logical), Integer (bitwise), and Enum types
 	if operator == "and" || operator == "or" || operator == "xor" {

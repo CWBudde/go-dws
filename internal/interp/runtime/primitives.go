@@ -140,7 +140,7 @@ func (f *FloatValue) String() string {
 		return "-INF"
 	}
 	if math.IsNaN(f.Value) {
-		return "NaN"
+		return "NAN"
 	}
 	return strconv.FormatFloat(f.Value, 'g', -1, 64)
 }

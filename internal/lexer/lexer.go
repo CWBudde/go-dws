@@ -654,6 +654,14 @@ func (l *Lexer) handleAmpersand(pos Position) Token {
 		l.readChar()
 		return tok
 	}
+	// "&keyword" is an escaped identifier: the leading '&' suppresses keyword
+	// recognition so a reserved word can be used as an ordinary identifier
+	// (e.g. var &begin, type &end). The token's literal drops the '&'.
+	if isLetter(l.peekChar()) {
+		l.readChar() // consume '&'; now positioned at the first identifier letter
+		literal := l.readIdentifier()
+		return NewToken(IDENT, literal, pos)
+	}
 	tok := NewToken(AMP, "&", pos)
 	l.readChar()
 	return tok

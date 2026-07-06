@@ -981,7 +981,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		classType.AbstractMethods[methodKey] = method.IsAbstract
 	}
 
-	if method.Body == nil {
+	if method.Body == nil && !method.IsEmpty {
 		forwardKey := ident.Normalize(classType.Name) + "." + ident.Normalize(method.Name.Value)
 		classType.ForwardedMethods[ident.Normalize(method.Name.Value)] = true
 		a.forwardMethodPos[forwardKey] = method.Name.Token.Pos

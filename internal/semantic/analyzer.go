@@ -151,6 +151,8 @@ func NewAnalyzer() *Analyzer {
 
 	// Register mathematical constants (builtin - no source position)
 	a.symbols.DefineConst("Pi", types.FLOAT, math.Pi, token.Position{})
+	a.symbols.DefineConst("NaN", types.FLOAT, math.NaN(), token.Position{})
+	a.symbols.DefineConst("Infinity", types.FLOAT, math.Inf(1), token.Position{})
 
 	// Register Variant special values (builtin - no source position)
 	a.symbols.DefineConst("Null", types.VARIANT, nil, token.Position{})
@@ -226,6 +228,9 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	}
 
 	exceptionClass.Fields["Message"] = types.STRING
+	// StackTrace is a read-only String describing the call stack at the raise
+	// point; it is populated at catch time by the evaluator.
+	exceptionClass.Fields["StackTrace"] = types.STRING
 
 	exceptionClass.AddConstructorOverload("Create", &types.MethodInfo{
 		Signature: &types.FunctionType{

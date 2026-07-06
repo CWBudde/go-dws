@@ -27,6 +27,7 @@ func (e *Evaluator) FormatString(format string, args []Value) (string, error) {
 	type formatSpec struct {
 		verb  rune
 		index int
+		raw   string // the exact specifier text as written, e.g. "%d", "%8.2f"
 	}
 	normalizeFloat := func(f float64) float64 {
 		// Clamp tiny magnitudes to zero to avoid "-0.00" artifacts when formatting.
@@ -48,6 +49,7 @@ func (e *Evaluator) FormatString(format string, args []Value) (string, error) {
 				continue
 			}
 			// Parse format specifier
+			specStart := iStr
 			iStr++
 			// Skip width/precision/flags
 			for iStr < len(format) {
@@ -62,7 +64,7 @@ func (e *Evaluator) FormatString(format string, args []Value) (string, error) {
 			if iStr < len(format) {
 				verb := rune(format[iStr])
 				if verb == 's' || verb == 'd' || verb == 'f' || verb == 'v' || verb == 'x' || verb == 'X' || verb == 'o' {
-					specs = append(specs, formatSpec{verb: verb, index: argIndex})
+					specs = append(specs, formatSpec{verb: verb, index: argIndex, raw: format[specStart : iStr+1]})
 					argIndex++
 				}
 				iStr++
@@ -101,7 +103,7 @@ func (e *Evaluator) FormatString(format string, args []Value) (string, error) {
 				// Allow integer to string conversion for %s
 				goArgs[idx] = fmt.Sprintf("%d", v.Value)
 			default:
-				return "", fmt.Errorf("cannot use %%%c with Integer value at index %d", spec.verb, idx)
+				return "", fmt.Errorf("Format '%s' invalid or incompatible with argument", spec.raw)
 			}
 		case *runtime.FloatValue:
 			// %f, %v are valid for floats
@@ -112,7 +114,7 @@ func (e *Evaluator) FormatString(format string, args []Value) (string, error) {
 				// Allow float to string conversion for %s
 				goArgs[idx] = fmt.Sprintf("%f", v.Value)
 			default:
-				return "", fmt.Errorf("cannot use %%%c with Float value at index %d", spec.verb, idx)
+				return "", fmt.Errorf("Format '%s' invalid or incompatible with argument", spec.raw)
 			}
 		case *runtime.StringValue:
 			// %s, %v are valid for strings
@@ -121,17 +123,17 @@ func (e *Evaluator) FormatString(format string, args []Value) (string, error) {
 				goArgs[idx] = v.Value
 			case 'd', 'x', 'X', 'o':
 				// String cannot be used with integer format specifiers
-				return "", fmt.Errorf("cannot use %%%c with String value at index %d", spec.verb, idx)
+				return "", fmt.Errorf("Format '%s' invalid or incompatible with argument", spec.raw)
 			case 'f':
 				// String cannot be used with float format specifiers
-				return "", fmt.Errorf("cannot use %%%c with String value at index %d", spec.verb, idx)
+				return "", fmt.Errorf("Format '%s' invalid or incompatible with argument", spec.raw)
 			default:
 				goArgs[idx] = v.Value
 			}
 		case *runtime.BooleanValue:
 			goArgs[idx] = v.Value
 		default:
-			return "", fmt.Errorf("cannot format value of type %s at index %d", unwrapped.Type(), idx)
+			return "", fmt.Errorf("Format '%s' invalid or incompatible with argument", spec.raw)
 		}
 	}
 

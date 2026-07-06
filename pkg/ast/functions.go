@@ -139,6 +139,8 @@ type FunctionDecl struct {
 	IsDefault            bool
 	IsDeprecated         bool
 	IsHelper             bool
+	IsInline             bool // "inline;" directive — advisory only, no code generation
+	IsEmpty              bool // "empty;" directive — routine has no body; call is a no-op
 }
 
 func (fd *FunctionDecl) statementNode() {}

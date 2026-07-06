@@ -39,6 +39,25 @@ func (e *ExceptionValue) Type() string {
 	return "EXCEPTION"
 }
 
+// StackTraceString renders the call stack for DWScript's Exception.StackTrace
+// property: one line per active routine (innermost first), each labeled with the
+// routine that made the call/raise and positioned at that call site. The raise
+// site itself is the innermost frame (labeled by the raising routine). The
+// outermost frame is the main program, whose label is empty.
+func (e *ExceptionValue) StackTraceString() string {
+	if e == nil {
+		return ""
+	}
+	frames := make(errors.StackTrace, len(e.CallStack), len(e.CallStack)+1)
+	copy(frames, e.CallStack)
+	if e.Position != nil {
+		// Append the raise site as the innermost frame. Its label is supplied by
+		// the preceding (raising) frame in DWScriptString, so the name is unused.
+		frames = append(frames, errors.NewStackFrame("", "", e.Position))
+	}
+	return frames.DWScriptString()
+}
+
 // GetInstance returns the ObjectInstance from this exception.
 // Returns interface{} to avoid circular import issues with evaluator package.
 func (e *ExceptionValue) GetInstance() interface{} {

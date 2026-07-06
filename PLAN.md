@@ -461,6 +461,47 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       `internal/semantic/analyze_properties.go`) never recorded the usage. They now call
       `recordClassFieldUsage`, matching the other member-usage sites. Fixes `chained_as_properties`
       and unmasks the JSON serialization fixtures noted above.
+- [~] **SimpleScripts quick-wins batch (2026-07-06).** A slice of small, mostly-independent
+      front-end/runtime gaps in the SimpleScripts corpus. **SimpleScripts harness 310 → 316, CLI
+      292 → 299 (+7); FunctionsMath harness 24 → 25, CLI 25 → 26 (+1)**; no category regressed.
+      Covered by `internal/interp/simplescripts_quickwins_test.go`.
+      - **Directives `inline;` and `empty;`** (`func_inline`, `empty_body`). New `FunctionDecl.IsInline`
+        (advisory, no codegen) and `IsEmpty` AST flags parsed in `parseSingleDirective`
+        (`internal/parser/functions.go`). An `empty;` routine has no body: the semantic analyzer no
+        longer registers it as a forwarded/unimplemented method (`analyze_classes_decl.go`) and the
+        evaluator treats a body-less `IsEmpty` routine as a no-op returning its result type's zero
+        value (`user_function_helpers.go`). `empty`/`inline` are now contextual keywords (added to
+        `isIdentifierToken` + prefix parse fns) so they still work as identifiers
+        (`string_manip`: `const empty = ''`).
+      - **`resourcestring` declarations** (`resourcestring1`) parse as string constants by routing
+        `RESOURCESTRING` through the const-declaration parser (`statements.go`, `declarations.go`).
+      - **`implies` operator** (operator shipped; the `implies` *fixture* still needs value-context
+        auto-invoke of a parameterless function, a separate broader change that `and`/`or` also lack).
+        New lowest-precedence boolean connective with short-circuit semantics `a implies b ≡ (not a)
+        or b` — parser precedence + infix (`parser.go`, `parser_builder.go`), semantic Boolean-operand
+        branch (`analyze_expr_operators.go`), and `evalImpliesOp` (`binary_ops.go`).
+      - **Escaped identifiers `&keyword`** (lexer shipped; the `reserved_word` *fixture* additionally
+        hits a pre-existing short-form-inheritance bug — `type B = class(A);` reports "isn't defined
+        completely" even for non-keyword names). `handleAmpersand` now emits an `IDENT` with the `&`
+        stripped when `&` is followed by a letter (`internal/lexer/lexer.go`); previously `&`+letter
+        was never valid (no prefix parser for `AMP`), so this is regression-free.
+      - **`NaN`/`Infinity` predefined constants** (`var_nan`, FunctionsMath `nans`). Registered as
+        Float consts in the semantic analyzer (`analyzer.go`; the runtime already defined them); NaN
+        now renders as DWScript's `NAN` (`runtime/primitives.go`).
+      - **Message-text parity** (`class_cast_meta`, `format_incorrect_params`). Metaclass `as`-cast
+        error capitalized to `Cannot cast "X" to class "Y"` (`visitor_expressions_types.go`);
+        `Format()` verb/argument-mismatch error now embeds the offending spec —
+        `Format '%d' invalid or incompatible with argument` (`context_formatting.go`, `builtins/system.go`).
+      - **`Exception.StackTrace`** (member + structural trace shipped; the `stacktrace`/`exceptobj3`/
+        `contracts_subproc` *fixtures* still need raise-site/method-call-site *column* precision, which
+        lives in shared position logic validated against many position-sensitive fixtures — deferred as
+        higher-risk). Added `StackTrace: String` field to the built-in Exception (`analyzer.go`), a
+        `ExceptionValue.StackTraceString()` renderer reusing `errors.StackTrace.DWScriptString()` plus
+        the raise site as the innermost frame (`runtime/exception.go`), populated at catch time
+        (`visitor_statements.go`).
+      - **Deferred (kept for a follow-up batch):** `Default.` global-namespace access
+        (`static_method1/2`, `value_type_separation` — needs semantic+eval global-qualifier resolution),
+        plus the auto-invoke/short-form-inheritance/position-precision blockers noted above.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

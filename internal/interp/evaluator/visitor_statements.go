@@ -1056,6 +1056,14 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 			// Get exception instance once (for both variable binding and ExceptObject)
 			excInstance := e.getExceptionInstance(exc)
 
+			// Populate the exception's StackTrace field from the raise-time call
+			// stack so `E.StackTrace` reads the DWScript-format trace.
+			if ev, ok := exc.(*runtime.ExceptionValue); ok {
+				if inst, ok := excInstance.(*runtime.ObjectInstance); ok {
+					inst.SetField("StackTrace", &runtime.StringValue{Value: ev.StackTraceString()})
+				}
+			}
+
 			// Bind exception variable
 			if handler.Variable != nil {
 				if excInstance != nil {
