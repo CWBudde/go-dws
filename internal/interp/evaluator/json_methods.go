@@ -29,8 +29,7 @@ func (e *Evaluator) identifierHoldsJSON(target *ast.Identifier, ctx *ExecutionCo
 	if !ok {
 		return false
 	}
-	v, ok := raw.(Value)
-	return ok && isJSONBoxed(v)
+	return isJSONBoxed(raw)
 }
 
 // coerceToJSONVariant auto-boxes a base scalar (or nil/unassigned) into a JSON

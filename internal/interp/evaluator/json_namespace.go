@@ -130,9 +130,7 @@ func newTypedArray(elems []Value, kind string) Value {
 		elemType = types.STRING
 	}
 	runtimeElems := make([]runtime.Value, len(elems))
-	for i, v := range elems {
-		runtimeElems[i] = v
-	}
+	copy(runtimeElems, elems)
 	return &runtime.ArrayValue{
 		Elements:  runtimeElems,
 		ArrayType: types.NewDynamicArrayType(elemType),
@@ -140,7 +138,7 @@ func newTypedArray(elems []Value, kind string) Value {
 }
 
 // jsonParse parses s, returning an Undefined JSONVariant for an empty/blank input
-// (matching DWScript's JSON.Parse('')).
+// (matching DWScript's JSON.Parse(”)).
 func (e *Evaluator) jsonParse(s string, node ast.Node) Value {
 	if strings.TrimSpace(s) == "" {
 		return runtime.BoxVariantWithJSON(jsonvalue.NewUndefined())
