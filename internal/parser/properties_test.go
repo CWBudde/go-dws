@@ -520,6 +520,48 @@ end;`
 	}
 }
 
+// TestClassAutoPropertyBackingFieldStorageKind verifies that an existing F<Name>
+// member of the opposite storage kind does not suppress the backing member the
+// auto-property actually needs: an instance property backs onto an instance
+// field even when a class var of the same name already exists.
+func TestClassAutoPropertyBackingFieldStorageKind(t *testing.T) {
+	input := `type TBase = class
+  class var FAlpha: Integer;
+  property Alpha: Integer;
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	if errs := p.Errors(); len(errs) != 0 {
+		t.Fatalf("Parser had %d errors:\n%v", len(errs), errs)
+	}
+
+	classDecl, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl, got=%T", program.Statements[0])
+	}
+
+	var classVar, instanceField bool
+	for _, f := range classDecl.Fields {
+		if f != nil && f.Name != nil && f.Name.Value == "FAlpha" {
+			if f.IsClassVar {
+				classVar = true
+			} else {
+				instanceField = true
+			}
+		}
+	}
+
+	if !classVar {
+		t.Error("expected the explicitly-declared class var FAlpha to remain")
+	}
+	if !instanceField {
+		t.Error("expected an instance FAlpha to be synthesized for the instance auto-property despite the same-named class var")
+	}
+}
+
 func TestPropertyErrors(t *testing.T) {
 	tests := []struct {
 		name          string

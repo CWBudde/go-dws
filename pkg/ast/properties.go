@@ -39,8 +39,9 @@ type PropertyDecl struct {
 	IsClassProperty bool
 	// IsAutoProperty is true when the property was declared without read/write
 	// specifiers (e.g. `property Alpha: Integer;`). The parser desugars it to
-	// read/write the synthesized backing field `F<Name>`; the class assembler
-	// then synthesizes a matching private backing FieldDecl.
+	// read/write the synthesized backing field `F<Name>` and, while assembling
+	// the class body, also synthesizes the matching private backing FieldDecl
+	// (see Parser.addAutoPropertyBackingField).
 	IsAutoProperty bool
 }
 

@@ -17,9 +17,14 @@ func (p *Parser) addAutoPropertyBackingField(classDecl *ast.ClassDecl, property 
 		return
 	}
 	backingName := "F" + property.Name.Value
-	// Do not duplicate a field the user declared explicitly.
+	// Do not duplicate a field the user declared explicitly. Match on storage
+	// kind too: an instance property backs onto an instance field and a class
+	// property onto a class var, so an existing F<Name> of the *opposite* kind
+	// must not suppress the backing member this property actually needs.
 	for _, f := range classDecl.Fields {
-		if f != nil && f.Name != nil && pkgident.Equal(f.Name.Value, backingName) {
+		if f != nil && f.Name != nil &&
+			f.IsClassVar == property.IsClassProperty &&
+			pkgident.Equal(f.Name.Value, backingName) {
 			return
 		}
 	}

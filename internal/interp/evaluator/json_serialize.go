@@ -133,7 +133,9 @@ func setToJSON(s *runtime.SetValue) *jsonvalue.Value {
 	if s == nil || s.SetType == nil {
 		return arr
 	}
-	enumType, _ := s.SetType.ElementType.(*types.EnumType)
+	// Resolve through any type alias so `set of <alias-to-enum>` still emits
+	// enum member names rather than falling back to numeric ordinals.
+	enumType, _ := types.GetUnderlyingType(s.SetType.ElementType).(*types.EnumType)
 	for _, ordinal := range s.Ordinals() {
 		var name string
 		if enumType != nil {
