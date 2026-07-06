@@ -139,6 +139,16 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 		p.cursor = cursor
 		fn.IsOverload = true
 
+	case lexer.INLINE:
+		cursor = cursor.Advance()
+		p.cursor = cursor
+		fn.IsInline = true
+
+	case lexer.EMPTY:
+		cursor = cursor.Advance()
+		p.cursor = cursor
+		fn.IsEmpty = true
+
 	case lexer.HELPER:
 		cursor = cursor.Advance()
 		p.cursor = cursor

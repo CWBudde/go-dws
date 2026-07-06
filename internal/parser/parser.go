@@ -22,6 +22,7 @@ const (
 	LOWEST
 	ASSIGN      // :=
 	COALESCE    // ?? (higher than ASSIGN so it works in assignment RHS)
+	IMPLIES     // implies (lowest-precedence boolean connective)
 	OR          // or
 	AND         // and
 	EQUALS      // = <>
@@ -39,6 +40,7 @@ const (
 var precedences = map[lexer.TokenType]int{
 	lexer.QUESTION_QUESTION: COALESCE,
 	lexer.ASSIGN:            ASSIGN,
+	lexer.IMPLIES:           IMPLIES,
 	lexer.OR:                OR,
 	lexer.XOR:               OR,
 	lexer.AND:               AND,
@@ -184,7 +186,8 @@ func (p *Parser) expectPeek(t lexer.TokenType) bool {
 // inside contract postconditions (parsed via its prefix function), so it is a
 // valid ordinary identifier in name positions (e.g. `var old : TFunc`).
 func (p *Parser) isIdentifierToken(t lexer.TokenType) bool {
-	return t == lexer.IDENT || t == lexer.STEP || t == lexer.SELF || t == lexer.HELPER || t == lexer.OLD
+	return t == lexer.IDENT || t == lexer.STEP || t == lexer.SELF || t == lexer.HELPER || t == lexer.OLD ||
+		t == lexer.EMPTY || t == lexer.INLINE
 }
 
 // isMemberNameToken returns true for tokens that DWScript allows after a dot.

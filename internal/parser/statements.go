@@ -84,6 +84,10 @@ func (p *Parser) parseStatement() ast.Statement {
 	case lexer.CONST:
 		return p.parseConstDeclaration()
 
+	case lexer.RESOURCESTRING:
+		// A resourcestring declaration is a string constant; parse it like const.
+		return p.parseConstDeclaration()
+
 	case lexer.IF:
 		return p.parseIfStatement()
 

@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
@@ -309,8 +310,15 @@ func Format(ctx Context, args []Value) Value {
 	// Delegate to Context helper for actual formatting
 	result, err := ctx.FormatString(fmtVal.Value, arrVal.Elements)
 	if err != nil {
-		// Format error should raise an exception that can be caught by try/except
+		// Format error should raise an exception that can be caught by try/except.
+		// FormatString already produces the DWScript-exact message for
+		// verb/argument incompatibilities ("Format '%d' invalid or incompatible
+		// with argument"); pass it through. Other errors fall back to the generic
+		// wording.
 		baseMsg := "Format invalid or incompatible with argument"
+		if strings.HasPrefix(err.Error(), "Format ") {
+			baseMsg = err.Error()
+		}
 		msg := baseMsg
 
 		// Get position from current node for error reporting

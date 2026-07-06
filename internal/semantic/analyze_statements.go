@@ -278,6 +278,13 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 		return
 	}
 
+	// A `resourcestring` must have a String value (DWScript rejects any other
+	// type). Enforce it against the analyzed value type.
+	if stmt.IsResourceString && !valueType.Equals(types.STRING) {
+		a.addError("String expected at %s", stmt.Value.Pos().String())
+		return
+	}
+
 	if constType == nil {
 		// Type inference: use value's type
 		constType = valueType

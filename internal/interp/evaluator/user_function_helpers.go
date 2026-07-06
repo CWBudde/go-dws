@@ -359,20 +359,24 @@ func (e *Evaluator) ExecuteUserFunction(
 	funcCtx.PushOldValues(oldValuesInterface)
 	defer funcCtx.PopOldValues()
 
-	// Execute function body
-	if fn.Body == nil {
+	// Execute function body. A routine declared with the "empty;" directive has
+	// no body and is a no-op: it simply returns its result type's zero value
+	// (Result is already zero-initialized in the function environment).
+	if fn.Body == nil && !fn.IsEmpty {
 		return nil, fmt.Errorf("function '%s' has no body", fn.Name.Value)
 	}
 
-	// Execute function body through the evaluator.
-	// This now stays on evaluator-owned execution paths instead of unconditionally
-	// round-tripping through interpreter EvalNode dispatch.
-	bodyResult := e.Eval(fn.Body, funcCtx)
+	if fn.Body != nil {
+		// Execute function body through the evaluator.
+		// This now stays on evaluator-owned execution paths instead of unconditionally
+		// round-tripping through interpreter EvalNode dispatch.
+		bodyResult := e.Eval(fn.Body, funcCtx)
 
-	// A runtime error raised in the body becomes a catchable script exception,
-	// with the routine name spliced into the message ("<msg> in <routine> [line: ...]").
-	if isError(bodyResult) && funcCtx.Exception() == nil {
-		e.raiseErrorValueAsException(bodyResult, frameName, funcCtx)
+		// A runtime error raised in the body becomes a catchable script exception,
+		// with the routine name spliced into the message ("<msg> in <routine> [line: ...]").
+		if isError(bodyResult) && funcCtx.Exception() == nil {
+			e.raiseErrorValueAsException(bodyResult, frameName, funcCtx)
+		}
 	}
 
 	// If exception was raised, propagate it to caller's context

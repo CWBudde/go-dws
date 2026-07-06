@@ -416,7 +416,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 				if e.isClassHierarchyCompatible(sourceMeta, targetMeta) || e.isClassHierarchyCompatible(targetMeta, sourceMeta) {
 					return obj, nil
 				}
-				return nil, fmt.Errorf("cannot cast \"%s\" to class \"%s\"", sourceMeta.Name, typeName)
+				return nil, fmt.Errorf("Cannot cast \"%s\" to class \"%s\"", sourceMeta.Name, typeName)
 			}
 		}
 	}

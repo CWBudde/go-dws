@@ -256,6 +256,58 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 	return e.newError(node, "type mismatch: 'or' operator requires boolean or integer operands")
 }
 
+// evalImpliesOp evaluates the logical implication operator with short-circuit
+// evaluation: `a implies b` is equivalent to `(not a) or b`. When the left
+// operand is False the result is True and the right operand is NOT evaluated.
+func (e *Evaluator) evalImpliesOp(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
+	left := e.Eval(node.Left, ctx)
+	if isError(left) {
+		return left
+	}
+	if left == nil {
+		return e.newError(node.Left, "left operand evaluated to nil")
+	}
+
+	// Coerce the left operand to a boolean (Variant is unwrapped).
+	var leftBoolValue bool
+	switch lv := left.(type) {
+	case *runtime.BooleanValue:
+		leftBoolValue = lv.Value
+	default:
+		if left.Type() == "VARIANT" {
+			leftBoolValue = VariantToBool(left)
+		} else {
+			return e.newError(node.Left, "expected boolean for 'implies' operator, got %s", left.Type())
+		}
+	}
+
+	// Short-circuit: a False antecedent makes the implication vacuously True.
+	if !leftBoolValue {
+		return &runtime.BooleanValue{Value: true}
+	}
+
+	// Antecedent is True, so the implication's value is the consequent.
+	right := e.Eval(node.Right, ctx)
+	if isError(right) {
+		return right
+	}
+	if right == nil {
+		return e.newError(node.Right, "right operand evaluated to nil")
+	}
+
+	// The result of `implies` is always a plain Boolean (the semantic analyzer
+	// types it as Boolean), even when the consequent is a Variant.
+	switch rv := right.(type) {
+	case *runtime.BooleanValue:
+		return &runtime.BooleanValue{Value: rv.Value}
+	default:
+		if right.Type() == "VARIANT" {
+			return &runtime.BooleanValue{Value: VariantToBool(right)}
+		}
+		return e.newError(node.Right, "expected boolean for 'implies' operator, got %s", right.Type())
+	}
+}
+
 // ============================================================================
 // Type-Specific Binary Operations
 // ============================================================================

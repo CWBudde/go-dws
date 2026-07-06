@@ -917,12 +917,15 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 
 	// Create method info and check for duplicate/ambiguous overloads.
 	methodInfo := &types.MethodInfo{
-		Signature:            funcType,
-		IsVirtual:            method.IsVirtual,
-		IsOverride:           method.IsOverride,
-		IsAbstract:           method.IsAbstract,
-		IsReintroduce:        method.IsReintroduce,
-		IsForwarded:          method.Body == nil,
+		Signature:     funcType,
+		IsVirtual:     method.IsVirtual,
+		IsOverride:    method.IsOverride,
+		IsAbstract:    method.IsAbstract,
+		IsReintroduce: method.IsReintroduce,
+		// An "empty;" method is a complete (no-op) definition, not a forward
+		// declaration, so a later out-of-line body is a duplicate, not an
+		// implementation of a forward.
+		IsForwarded:          method.Body == nil && !method.IsEmpty,
 		IsClassMethod:        method.IsClassMethod,
 		IsConstructor:        method.IsConstructor,
 		HasOverloadDirective: method.IsOverload,
@@ -981,7 +984,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		classType.AbstractMethods[methodKey] = method.IsAbstract
 	}
 
-	if method.Body == nil {
+	if method.Body == nil && !method.IsEmpty {
 		forwardKey := ident.Normalize(classType.Name) + "." + ident.Normalize(method.Name.Value)
 		classType.ForwardedMethods[ident.Normalize(method.Name.Value)] = true
 		a.forwardMethodPos[forwardKey] = method.Name.Token.Pos

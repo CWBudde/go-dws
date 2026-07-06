@@ -139,6 +139,12 @@ func (b *ParserBuilder) registerParseFunctions(p *Parser) {
 	p.registerPrefix(lexer.SELF, func(_ lexer.Token) ast.Expression { return p.parseSelfExpression() })
 	p.registerPrefix(lexer.IF, func(_ lexer.Token) ast.Expression { return p.parseIfExpression() })
 
+	// "empty" and "inline" are contextual keywords: reserved only in a routine's
+	// directive position (handled explicitly in parseSingleDirective); everywhere
+	// else they are ordinary identifiers (e.g. const empty = '';).
+	p.registerPrefix(lexer.EMPTY, func(_ lexer.Token) ast.Expression { return p.parseIdentifier() })
+	p.registerPrefix(lexer.INLINE, func(_ lexer.Token) ast.Expression { return p.parseIdentifier() })
+
 	// Register contextual keywords that can be used as identifiers
 	if b.config.AllowReservedKeywordsAsIdentifiers {
 		p.registerPrefix(lexer.HELPER, func(_ lexer.Token) ast.Expression { return p.parseIdentifier() })
@@ -169,6 +175,7 @@ func (b *ParserBuilder) registerParseFunctions(p *Parser) {
 	p.registerInfix(lexer.AND, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfix(lexer.OR, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfix(lexer.XOR, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
+	p.registerInfix(lexer.IMPLIES, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 
 	// Register infix parse functions for type operations
 	p.registerInfix(lexer.IN, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })

@@ -21,6 +21,8 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 		return e.evalAndOp(node, ctx)
 	case "or":
 		return e.evalOrOp(node, ctx)
+	case "implies":
+		return e.evalImpliesOp(node, ctx)
 	}
 
 	// Evaluate both operands for non-short-circuit operators

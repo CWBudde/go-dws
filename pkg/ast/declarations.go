@@ -27,6 +27,9 @@ type ConstDecl struct {
 	Visibility   Visibility
 	IsClassConst bool
 	IsDeprecated bool
+	// IsResourceString marks a declaration written with the `resourcestring`
+	// keyword. Such constants must have a String value.
+	IsResourceString bool
 }
 
 func (c *ConstDecl) End() token.Position {
