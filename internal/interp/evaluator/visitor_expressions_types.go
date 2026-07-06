@@ -7,7 +7,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
-	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains visitor methods for type operation expression AST nodes.
@@ -357,7 +356,7 @@ func (e *Evaluator) classImplementsInterfaceExplicitly(classMeta *runtime.ClassM
 //
 // Returns (Value, error) - does NOT raise exceptions.
 func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, error) {
-	targetLower := pkgident.Normalize(typeName)
+	targetLower := ident.Normalize(typeName)
 
 	// Handle variant-specific casting to primitive types
 	if variantVal, ok := obj.(VariantAccessor); ok {
@@ -417,7 +416,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 				if e.isClassHierarchyCompatible(sourceMeta, targetMeta) || e.isClassHierarchyCompatible(targetMeta, sourceMeta) {
 					return obj, nil
 				}
-				return nil, fmt.Errorf("Cannot cast \"%s\" to class \"%s\"", sourceMeta.Name, typeName)
+				return nil, fmt.Errorf("cannot cast \"%s\" to class \"%s\"", sourceMeta.Name, typeName)
 			}
 		}
 	}
@@ -445,7 +444,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 				return nil, err
 			}
 			if !e.isClassHierarchyCompatible(underlyingClassMeta, targetClassMeta) {
-				return nil, fmt.Errorf("Cannot cast interface of '%s' to class '%s'", underlyingClassMeta.Name, typeName)
+				return nil, fmt.Errorf("cannot cast interface of '%s' to class '%s'", underlyingClassMeta.Name, typeName)
 			}
 
 			// Cast is valid - return the underlying object
@@ -471,7 +470,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 			}
 
 			if !e.classImplementsInterface(underlyingClassMeta, typeName) {
-				return nil, fmt.Errorf("Cannot cast interface of \"%s\" to interface \"%s\"", underlyingClassMeta.Name, typeName)
+				return nil, fmt.Errorf("cannot cast interface of \"%s\" to interface \"%s\"", underlyingClassMeta.Name, typeName)
 			}
 
 			// Create and return new interface instance
@@ -521,7 +520,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 
 		// Validate that the object's class implements the interface
 		if !e.classImplementsInterface(objClassMeta, typeName) {
-			return nil, fmt.Errorf("Class \"%s\" does not implement interface \"%s\"", objClassMeta.Name, typeName)
+			return nil, fmt.Errorf("class \"%s\" does not implement interface \"%s\"", objClassMeta.Name, typeName)
 		}
 
 		// Create and return the interface instance
@@ -557,7 +556,7 @@ func (e *Evaluator) isClassHierarchyCompatible(sourceClass, targetClass interfac
 	// Check if source class is the same as or descended from target class
 	current := sourceMeta
 	for current != nil {
-		if pkgident.Equal(current.Name, targetMeta.Name) {
+		if ident.Equal(current.Name, targetMeta.Name) {
 			return true
 		}
 		current = current.Parent

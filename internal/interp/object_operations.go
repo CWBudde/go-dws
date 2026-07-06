@@ -27,7 +27,7 @@ func (i *Interpreter) CreateObject(className string, args []Value) (Value, error
 
 	// Check if trying to instantiate an abstract class
 	if classInfo.IsAbstractFlag {
-		return nil, fmt.Errorf("Trying to create an instance of an abstract class")
+		return nil, fmt.Errorf("trying to create an instance of an abstract class")
 	}
 
 	// Check if trying to instantiate an external class
