@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -204,6 +205,14 @@ func (a *Analyzer) buildFunctionPointerType(funcName string, funcType *types.Fun
 // analyzeFunctionPointerCall analyzes a call to a function pointer variable.
 // Validates argument types and infers the return type from the function pointer.
 func (a *Analyzer) analyzeFunctionPointerCall(callExpr *ast.CallExpression, calleeType types.Type) types.Type {
+	return a.analyzeFunctionPointerCallArgs(callExpr.Arguments, calleeType, callExpr.Token.Pos)
+}
+
+// analyzeFunctionPointerCallArgs validates a call to a function/method pointer
+// value given the raw argument list and a call position. It is shared by the
+// bare-variable call path (analyzeFunctionPointerCall) and the member-call path
+// (a proc-typed field/property invoked as o.FEvent(x)).
+func (a *Analyzer) analyzeFunctionPointerCallArgs(args []ast.Expression, calleeType types.Type, pos token.Position) types.Type {
 	underlyingType := types.GetUnderlyingType(calleeType)
 
 	// Extract function pointer type (could be FunctionPointerType or MethodPointerType)
@@ -217,22 +226,22 @@ func (a *Analyzer) analyzeFunctionPointerCall(callExpr *ast.CallExpression, call
 	}
 
 	// Validate argument count
-	if len(callExpr.Arguments) != len(funcPtr.Parameters) {
+	if len(args) != len(funcPtr.Parameters) {
 		a.addError("function pointer call argument count mismatch at %s: expected %d arguments, got %d",
-			callExpr.Token.Pos.String(), len(funcPtr.Parameters), len(callExpr.Arguments))
+			pos.String(), len(funcPtr.Parameters), len(args))
 		return nil
 	}
 
 	// Validate each argument type
-	for i, arg := range callExpr.Arguments {
-		argType := a.analyzeExpression(arg)
+	for i, arg := range args {
+		argType := a.analyzeExpressionWithExpectedType(arg, funcPtr.Parameters[i])
 		if argType == nil {
 			continue
 		}
 		expectedType := funcPtr.Parameters[i]
 		if !a.canAssign(argType, expectedType) {
 			a.addError("function pointer call argument %d type mismatch at %s: expected %s, got %s",
-				i+1, callExpr.Token.Pos.String(), expectedType.String(), argType.String())
+				i+1, pos.String(), expectedType.String(), argType.String())
 		}
 	}
 
@@ -240,4 +249,38 @@ func (a *Analyzer) analyzeFunctionPointerCall(callExpr *ast.CallExpression, call
 		return funcPtr.ReturnType
 	}
 	return types.VOID
+}
+
+// classCallableMemberType returns the function/method pointer type of a field,
+// class var, or readable property named memberName on classType, or nil if the
+// member is absent or not of pointer type. Used so a proc-typed member can be
+// invoked directly: o.FEvent(1).
+func (a *Analyzer) classCallableMemberType(classType *types.ClassType, memberName string) types.Type {
+	if fieldType, found := classType.GetField(memberName); found {
+		if isFunctionPointerType(fieldType) {
+			return fieldType
+		}
+	}
+	if classVarType, found := classType.GetClassVar(memberName); found {
+		if isFunctionPointerType(classVarType) {
+			return classVarType
+		}
+	}
+	if propInfo, found := classType.GetProperty(memberName); found && propInfo.Type != nil {
+		if propInfo.ReadKind != types.PropAccessNone && isFunctionPointerType(propInfo.Type) {
+			return propInfo.Type
+		}
+	}
+	return nil
+}
+
+// isFunctionPointerType reports whether t (after alias resolution) is a function
+// or method pointer type.
+func isFunctionPointerType(t types.Type) bool {
+	switch types.GetUnderlyingType(t).(type) {
+	case *types.FunctionPointerType, *types.MethodPointerType:
+		return true
+	default:
+		return false
+	}
 }

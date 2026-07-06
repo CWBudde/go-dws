@@ -381,6 +381,45 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         (`int64_json`, `numbers`); variant→scalar cast error-message parity (`explicit_cast`);
         `external` property syntax (`property_name`). Covered by `internal/jsonvalue/stringify_test.go`
         and `internal/parser/properties_test.go:TestClassAutoPropertyBackingField`.
+- [~] **Procedural types / function pointers.** `type T = procedure(...)` / `function(...) : X` /
+      `... of object` now work end-to-end in the AST interpreter (**SimpleScripts harness 296 → 306,
+      +collateral ArrayPass 94 → 95**; 10 of 12 winnable `func_ptr*`/`meth_ptr*`/`event_virtual`
+      fixtures pass). Implemented across the stack in five slices:
+      - **Assign a routine/builtin to a proc-typed var + call through it** (`func_ptr1`,
+        `func_ptr_var_param`). The analyzer converted a bare routine name to a pointer type but never
+        annotated the node, so the evaluator auto-invoked instead of storing a pointer;
+        `analyzeExpressionWithExpectedType` now `SetType`s the identifier in a pointer-typed context
+        (`internal/semantic/analyze_expressions.go`). A proc-typed var's zero value is a nil
+        `FunctionPointerValue` carrying its signature (`getZeroValueForType`, `index_ops.go`) so a
+        bare `p;` raises `Function pointer is nil` and `Assigned(p)` is false (`IsAssigned`,
+        `context_methods.go`). Root fix: `ResolveTypeWithContext` never consulted
+        `LookupFunctionPointerType`, so a named proc type resolved to "unknown type"
+        (`type_resolution.go`). `Print`/`PrintLn` are now `procedure(Variant)`-pointer-able
+        (`getBuiltinFunctionPointerType`).
+      - **Proc-typed fields & properties** (`func_ptr_assigned`): `o.FEvent(1)` routes a
+        field/class-var/readable-property of pointer type through `analyzeFunctionPointerCallArgs`
+        (`classCallableMemberType`, `analyze_method_calls.go`); the evaluator reads the stored pointer
+        and dispatches it (`methodNameIsCallableMember`, `visitor_expressions_methods.go`). Record
+        proc-fields handled too (call: `rec.P(x)`; read: `var f := rec.P`).
+      - **Bound method pointers** (`meth_ptr1`, `event_virtual`, `func_ptr5`, `func_ptr_var`,
+        `func_ptr_class_meth`): an expected-type-aware member access yields a method pointer (VOID→nil
+        so a procedure method is a procedure pointer, not `function→void`) via
+        `analyzeMethodReferenceInPointerContext` (`analyze_classes.go`); the evaluator's existing
+        `wantMethodPointer` machinery binds `Self`/class-meta and dispatches **virtually** at bind time
+        (covers `TBase(c).Event` casts). Class-method pointers via a metaclass or instance bind the
+        class-meta so `ClassName` resolves; `CreateClassMethodPointer` now also serves parameterless
+        class methods. Also fixed a **pre-existing** runtime bug: a bare class-method self-call
+        (`SayHello;` inside a class method) failed unless the method was overridden — the class-method
+        context in `VisitIdentifier` now resolves sibling class methods.
+      - **Parser gaps** (`func_ptr3`): `old` is now a soft keyword (ordinary identifier outside
+        contract postconditions; still an error in a `require`), and empty-arg calls on a non-identifier
+        callee (`a[i]()`, `f()()`) parse (`parseCallExpression` consumed the wrong token count).
+      - **Arrays of pointers & immediate call of a returned pointer** (`func_ptr4`): value-callee
+        dispatch in `VisitCallExpression` for `Call`/`MethodCall`/`Index` callees that yield a
+        pointer/lambda (`MyPrint(True)('x')`, `o.GetProc1()('get')`, `a[1]('!')`).
+      - **Deferred (2, niche):** `@TObject.ClassType` address-of-class-member (`func_ptr_symbol_field`)
+        and value↔parameterless-function coercion in `array of function : T` (`func_ptr_classname`).
+        `func_ptr_property`/`func_ptr_field_no_param`/`func_ptr_constant` remain hint-envelope-blocked.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

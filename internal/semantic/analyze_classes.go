@@ -644,6 +644,51 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	return nil
 }
 
+// analyzeMethodReferenceInPointerContext resolves a member access `obj.Method`
+// (or `TClass.ClassMethod`) as a bound method pointer when the surrounding
+// context expects a function/method pointer. Unlike the default member-access
+// path it does NOT auto-invoke a parameterless method — it yields a method
+// pointer for deferred invocation (p := a.StaticProc; e := b.Event). It returns
+// (nil, false) when the member is not a class method, so the caller falls back
+// to normal member analysis (fields/properties of pointer type already return
+// their declared type). The result procedure/function distinction is normalised
+// so a procedure method is a procedure pointer, not a function-returning-void.
+func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccessExpression) (types.Type, bool) {
+	objectType := a.analyzeExpression(expr.Object)
+	if objectType == nil {
+		return nil, false
+	}
+	if metaclass, ok := objectType.(*types.ClassOfType); ok && metaclass.ClassType != nil {
+		objectType = metaclass.ClassType
+	}
+	classType, ok := objectType.(*types.ClassType)
+	if !ok {
+		return nil, false
+	}
+	memberName := ident.Normalize(expr.Member.Value)
+	methodType, found := classType.GetMethod(memberName)
+	if !found {
+		return nil, false
+	}
+
+	ptrType := methodPointerFromFunctionType(methodType)
+	if a.semanticInfo != nil {
+		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{Token: expr.Token, Name: ptrType.String()})
+		a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{Token: expr.Member.Token, Name: ptrType.String()})
+	}
+	return ptrType, true
+}
+
+// methodPointerFromFunctionType builds a method pointer type from a method
+// signature, mapping a VOID (or nil) return type to a procedure pointer.
+func methodPointerFromFunctionType(ft *types.FunctionType) *types.MethodPointerType {
+	var ret types.Type
+	if ft.ReturnType != nil && ft.ReturnType.TypeKind() != "VOID" {
+		ret = ft.ReturnType
+	}
+	return types.NewMethodPointerType(ft.Parameters, ret)
+}
+
 // analyzeRecordStaticMethodCallFromNew handles record static method calls that use NewExpression syntax.
 // This occurs when the parser encounters TRecord.Create(...) which generates a NewExpression.
 func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression, recordType *types.RecordType) types.Type {

@@ -31,8 +31,15 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	}
 
 	nextToken := p.cursor.Peek(1)
+	if nextToken.Type == lexer.RPAREN {
+		// Empty-argument call on a non-identifier callee (a[i](), f()()).
+		// Consume '(' so the cursor lands on ')', matching a normal call — else
+		// the postfix loop re-reads '(' and fails ("Expression expected").
+		p.cursor = p.cursor.Advance()
+		return builder.Finish(exp).(ast.Expression)
+	}
 	if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.END ||
-		nextToken.Type == lexer.EOF || nextToken.Type == lexer.RPAREN {
+		nextToken.Type == lexer.EOF {
 		return builder.Finish(exp).(ast.Expression)
 	}
 

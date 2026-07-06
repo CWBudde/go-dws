@@ -212,6 +212,29 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.newError(node, "cannot call member expression that is not a method or unit-qualified function")
 	}
 
+	// Value-callee dispatch: the callee is an expression that yields a callable
+	// value — an index result (a[i]('!')), a function/method that returns a
+	// pointer and is called immediately (MyPrint(True)('x'), o.GetProc1()('get')).
+	// Evaluate it and, if it is a pointer/lambda, invoke it.
+	switch node.Function.(type) {
+	case *ast.CallExpression, *ast.MethodCallExpression, *ast.IndexExpression:
+		calleeVal := e.Eval(node.Function, ctx)
+		if isError(calleeVal) {
+			return calleeVal
+		}
+		if isCallablePointerValue(calleeVal) {
+			args := make([]Value, len(node.Arguments))
+			for i, arg := range node.Arguments {
+				v := e.Eval(arg, ctx)
+				if isError(v) {
+					return v
+				}
+				args[i] = v
+			}
+			return e.executeFunctionPointerDirect(calleeVal, args, node, ctx)
+		}
+	}
+
 	// Remaining call types require a simple identifier
 	funcName, ok := node.Function.(*ast.Identifier)
 	if !ok {
@@ -361,6 +384,14 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return fn(e, args)
 	}
 
+	// A proc-typed field of Self invoked by bare name inside a method
+	// (FAFunc('world')): read the stored pointer and call it. Checked before the
+	// implicit-Self method dispatch, which would otherwise report the field as a
+	// missing method.
+	if result, handled := e.tryImplicitSelfFieldCall(node, funcName, args, ctx); handled {
+		return result
+	}
+
 	// Implicit Self method calls (checked after built-ins to avoid shadowing)
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
 		if _, ok := selfRaw.(Value); ok {
@@ -370,6 +401,43 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 	// Not found in any registry or context
 	return e.newError(node, "undefined function: %s", funcName.Value)
+}
+
+// isCallablePointerValue reports whether v is a function pointer, method
+// pointer, or lambda that can be invoked via executeFunctionPointerDirect.
+func isCallablePointerValue(v Value) bool {
+	if v == nil {
+		return false
+	}
+	switch v.Type() {
+	case "FUNCTION_POINTER", "METHOD_POINTER", "LAMBDA":
+		return true
+	default:
+		return false
+	}
+}
+
+// tryImplicitSelfFieldCall calls a proc-typed field of the implicit Self object
+// when it is invoked by bare name (FAFunc(x) inside a method). Returns
+// (result, true) when it handled the call. args are the already-evaluated
+// arguments from the standard-builtin path.
+func (e *Evaluator) tryImplicitSelfFieldCall(node *ast.CallExpression, funcName *ast.Identifier, args []Value, ctx *ExecutionContext) (Value, bool) {
+	selfRaw, ok := ctx.Env().Get("Self")
+	if !ok {
+		return nil, false
+	}
+	objVal, ok := selfRaw.(ObjectValue)
+	if !ok {
+		return nil, false
+	}
+	fieldVal := objVal.GetField(funcName.Value)
+	if fieldVal == nil {
+		return nil, false
+	}
+	if _, isPtr := fieldVal.(*runtime.FunctionPointerValue); !isPtr {
+		return nil, false
+	}
+	return e.executeFunctionPointerDirect(fieldVal, args, node, ctx), true
 }
 
 // PrepareUserFunctionArgs prepares arguments for user function invocation.

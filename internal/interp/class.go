@@ -800,7 +800,11 @@ func (c *ClassValue) InvokeParameterlessClassMethod(name string, executor func(m
 	return nil, false
 }
 
-// CreateClassMethodPointer creates a function pointer for a class method with parameters.
+// CreateClassMethodPointer creates a function pointer for a class method.
+// A parameterless class method yields a pointer too when this is called (the
+// auto-invoke path tries InvokeParameterlessClassMethod first, so this is only
+// reached for a parameterless method when a pointer is explicitly wanted, e.g.
+// p := TClass.ClassProc).
 func (c *ClassValue) CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
@@ -809,19 +813,16 @@ func (c *ClassValue) CreateClassMethodPointer(name string, creator func(methodDe
 	normalizedName := ident.Normalize(name)
 	for current := c.ClassInfo; current != nil; current = current.Parent {
 		if method, exists := current.ClassMethods[normalizedName]; exists {
-			if len(method.Parameters) > 0 {
-				return creator(method), true
-			}
-			return nil, false // Parameterless
+			return creator(method), true
 		}
 		if overloads, exists := current.ClassMethodOverloads[normalizedName]; exists && len(overloads) > 0 {
-			// Return pointer for first overload with parameters
+			// Prefer an overload with parameters; else the first (parameterless) one.
 			for _, m := range overloads {
 				if len(m.Parameters) > 0 {
 					return creator(m), true
 				}
 			}
-			return nil, false // All parameterless
+			return creator(overloads[0]), true
 		}
 	}
 	return nil, false

@@ -204,6 +204,18 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 	case *ast.FloatLiteral:
 		// Float literals are always FLOAT type regardless of context
 		return types.FLOAT
+	case *ast.MemberAccessExpression:
+		// In a function-pointer target context, a method reference `obj.Method`
+		// becomes a bound method pointer rather than an auto-invoked call.
+		if expectedType != nil {
+			expectedKind := types.GetUnderlyingType(expectedType).TypeKind()
+			if expectedKind == "FUNCTION_POINTER" || expectedKind == "METHOD_POINTER" {
+				if ptrType, ok := a.analyzeMethodReferenceInPointerContext(e); ok {
+					return ptrType
+				}
+			}
+		}
+		return a.analyzeExpression(expr)
 	case *ast.CallExpression:
 		// Pass expected type for overload resolution
 		return a.analyzeCallExpressionWithContext(e, expectedType)
@@ -219,6 +231,23 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 				if implicitType := a.getImplicitCallType(e); implicitType != nil && a.canAssign(implicitType, expectedType) {
 					return implicitType
 				}
+			} else {
+				// Function-pointer context: a bare routine name resolves to a
+				// pointer type in analyzeIdentifier, but the node is only annotated
+				// for builtins there. Annotate user-routine references too, so the
+				// evaluator produces a FunctionPointerValue instead of auto-invoking
+				// a parameterless routine (func_ptr1, func_ptr_var_param).
+				resultType := a.analyzeIdentifier(e)
+				if a.semanticInfo != nil && resultType != nil && a.semanticInfo.GetType(e) == nil {
+					resultUnderlying := types.GetUnderlyingType(resultType)
+					if rk := resultUnderlying.TypeKind(); rk == "FUNCTION_POINTER" || rk == "METHOD_POINTER" {
+						a.semanticInfo.SetType(e, &ast.TypeAnnotation{
+							Token: e.Token,
+							Name:  resultUnderlying.String(),
+						})
+					}
+				}
+				return resultType
 			}
 		}
 		return a.analyzeIdentifier(e)

@@ -152,9 +152,44 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		args[i] = val
 	}
 
+	// A field/class-var/readable-property of function-pointer type is directly
+	// callable: o.FEvent(1). The analyzer annotates node.Method with the pointer
+	// type when it resolved to such a member (never for a real method), so read
+	// the stored pointer and dispatch it instead of looking up a method.
+	if e.methodNameIsCallableMember(node.Method) {
+		memberVal := e.Eval(&ast.MemberAccessExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: node.Token}},
+			Object:              node.Object,
+			Member:              node.Method,
+		}, ctx)
+		if isError(memberVal) {
+			return memberVal
+		}
+		return e.executeFunctionPointerDirect(memberVal, args, node, ctx)
+	}
+
 	// This provides unified error handling and consistent routing for all value types.
 	// See method_dispatch.go for full documentation of the dispatch architecture.
 	return e.DispatchMethodCall(obj, methodName, args, node, ctx)
+}
+
+// methodNameIsCallableMember reports whether the analyzer annotated this method
+// identifier as a function/method pointer type — i.e. the "method" is really a
+// proc-typed field, class var, or property to be read and called.
+func (e *Evaluator) methodNameIsCallableMember(method *ast.Identifier) bool {
+	if method == nil || e.SemanticInfo() == nil {
+		return false
+	}
+	annot := e.SemanticInfo().GetType(method)
+	if annot == nil {
+		return false
+	}
+	resolved, err := e.ResolveTypeFromAnnotation(annot)
+	if err != nil || resolved == nil {
+		return false
+	}
+	kind := resolved.TypeKind()
+	return kind == "FUNCTION_POINTER" || kind == "METHOD_POINTER"
 }
 
 // lookupUnambiguousMethodDecl resolves the declaration of a method call target

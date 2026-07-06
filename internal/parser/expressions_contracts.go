@@ -67,13 +67,17 @@ func (p *Parser) parseCondition() *ast.Condition {
 func (p *Parser) parseOldExpression() ast.Expression {
 	currentToken := p.cursor.Current() // the OLD token
 
-	// Validate that we're in a postcondition context
-	// Use new context API instead of direct field access
+	// 'old' is postcondition-only. Inside a precondition it is an error;
+	// anywhere else it is an ordinary soft-keyword identifier — a variable named
+	// `old`, a call `old(x)`, `old.Member`, etc.
 	if !p.ctx.ParsingPostCondition() {
-		msg := fmt.Sprintf("'old' keyword can only be used in postconditions at line %d, column %d",
-			currentToken.Pos.Line, currentToken.Pos.Column)
-		p.addError(msg, ErrInvalidSyntax)
-		return nil
+		if p.ctx.ParsingPreCondition() {
+			msg := fmt.Sprintf("'old' keyword can only be used in postconditions at line %d, column %d",
+				currentToken.Pos.Line, currentToken.Pos.Column)
+			p.addError(msg, ErrInvalidSyntax)
+			return nil
+		}
+		return p.parseIdentifier()
 	}
 
 	// Expect an identifier after 'old'
@@ -114,6 +118,11 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 	builder := p.StartNode()
 
 	requireToken := p.cursor.Current()
+
+	// 'old' is invalid inside a precondition; flag it so parseOldExpression
+	// errors here instead of treating 'old' as an ordinary identifier.
+	p.ctx.SetParsingPreCondition(true)
+	defer p.ctx.SetParsingPreCondition(false)
 
 	// Advance to the first condition
 	p.nextToken()
