@@ -49,7 +49,7 @@ fixing anything else.
 | Arrays | 🟡 | 80% (harness, 2026-07-04) |
 | Sets, Helpers | 🟡 | 80–81% (harness, 2026-07-04) |
 | Overloads | 🟡 | 85% (harness, 2026-07-04) |
-| **Generics, Lambdas, Associative arrays, Property expressions** | 🔴 | **0%** |
+| Generics, Lambdas, Associative arrays, Property expressions | 🟡 | 53–81% (see P1) |
 | JSON connector | 🟡 | 39/82 = 48% (JSONConnectorPass, harness, 2026-07-06) |
 | **All `*Fail` error-detection suites** | 🔴 | **0%** |
 | Host libraries (DB, Crypto, COM, Web, Graphics) | ⏸️ | 0% (need host bindings; out of core scope) |
@@ -266,6 +266,32 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
       - **Remaining:** `immediate` needs value-context auto-invoke of a parameterless function
         pointer (`PrintLn(f)` where `f` holds a lambda — a broader semantic change), and
         `simple_func` needs the hint envelope (⚠️ blocked above).
+- [~] **Associative arrays** (`array [KeyType] of ElementType`) — `AssociativePass` **3 → 22/27
+      (11% → 81%)**, meeting its ~80% target; overall CLI 619 → 639. A sparse map keyed by an
+      arbitrary type (Integer, String, Float, record-by-value, object-by-identity, static-array-by-
+      value). The parser already emitted `array [Ident]` with an `IndexType`; the whole feature is a
+      new value kind added below the parser. Implemented across the stack:
+      - **Type system:** new `types.AssociativeArrayType{KeyType, ElementType}` (distinct
+        `TypeKind "ASSOCIATIVE_ARRAY"` so no dense-array code silently misroutes it). The
+        discriminator is `types.OrdinalBounds`: an enum-indexed `ArrayTypeNode` whose index type has
+        no ordinal bounds (Integer/String/record/object/…) resolves to an associative type instead of
+        erroring — in both `semantic/type_resolution.go:resolveArrayTypeNode` and the evaluator's
+        `type_resolution_helpers.go:resolveAssociativeArrayTypeNode` (wired into `createZeroValue`,
+        `ResolveType`).
+      - **Semantic:** index reads check the key against `KeyType` (`analyze_arrays.go`); `key in a`
+        is key membership (`analyze_expr_operators.go`); a new `analyze_associative_arrays.go` handles
+        `Keys` (→ `array of KeyType`), `Length`/`Count`, `Clear`, `Delete(key)→Boolean`; nil is
+        assignable (`canAssignNil`).
+      - **Runtime:** `runtime.AssociativeArrayValue` — ordered key/value slices with a dedicated
+        `associativeKeyEqual` (object **pointer identity**, nil-key support, structural for
+        records/static arrays via `Equal`, primitives via `Equals`); reference-typed `Copy()`;
+        value-typed keys snapshotted on insert. Evaluator: index read returns the live stored value
+        (missing key → element zero value, **no insert** — proven by `delete.pas` sieve `Length`=35),
+        index write inserts/updates with no bounds check, `a := nil` rebinds to a fresh empty map.
+      - **Remaining (5, documented likely-misses):** nested lvalue vivification through a key
+        (`a[k].field := v`, `a[k][j] := v`, `a[k].Add(…)` — `elements_of_value`, `array_of_dyn`);
+        DWScript hash iteration order (`records` expects `b,a`); ARC destructor timing on slot
+        replace/clear (`delete_sequence`); Variant→key coercion (`variant_key_cast`).
 - [x] **Source inclusion directives** (`{$INCLUDE 'file'}`, `{$I 'file'}`,
       `{$INCLUDE_ONCE 'file'}`). Handled entirely in the lexer as a pure textual substitution
       (matching DWScript): an include pushes the current scan state onto an **include stack**

@@ -78,6 +78,21 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		return e.evalJSONMethodCall(obj, methodName, args, node, ctx)
 	}
 
+	// Associative array built-in methods (Keys/Length/Count/Clear/Delete).
+	if assoc, ok := obj.(*runtime.AssociativeArrayValue); ok {
+		args := make([]Value, len(node.Arguments))
+		for i, arg := range node.Arguments {
+			val := e.Eval(arg, ctx)
+			if isError(val) {
+				return val
+			}
+			args[i] = val
+		}
+		if result, handled := e.evalAssociativeArrayMethod(assoc, methodName, args, node); handled {
+			return result
+		}
+	}
+
 	if recordVal, ok := obj.(RecordInstanceValue); ok {
 		// Overload-aware: pick the best-matching overload for the provided
 		// arguments instead of the first registered one.

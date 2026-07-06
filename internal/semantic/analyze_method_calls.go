@@ -84,6 +84,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Check if object is a class type
 	classType, ok := objectType.(*types.ClassType)
 	if !ok {
+		if assoc, isAssoc := types.GetUnderlyingType(objectType).(*types.AssociativeArrayType); isAssoc {
+			if result := a.analyzeAssociativeArrayMethodCall(expr, assoc); result != nil {
+				return result
+			}
+		}
 		if arrayType, isArray := types.GetUnderlyingType(objectType).(*types.ArrayType); isArray {
 			if result := a.analyzeArrayMethodCall(expr, arrayType); result != nil {
 				return result
