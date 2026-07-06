@@ -1501,9 +1501,9 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	case "variant":
 		// Unassigned variant has Value: nil (not NilValue)
 		return &runtime.VariantValue{Value: nil, ActualType: nil}
-		case "jsonvariant":
-			// A fresh JSONVariant is an Undefined JSON value (browsable, VarIsEmpty).
-			return boxJSON(nil)
+	case "jsonvariant":
+		// A fresh JSONVariant is an Undefined JSON value (browsable, VarIsEmpty).
+		return boxJSON(nil)
 	default:
 		if e.typeSystem.HasClass(typeName) {
 			return &runtime.NilValue{ClassType: typeName}
