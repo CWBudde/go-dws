@@ -17,6 +17,8 @@ func TestStringifyCompact(t *testing.T) {
 		{"float_half", NewNumber(1.5), "1.5"},
 		{"neg_zero", NewNumber(negZero), "0"},
 		{"exp", NewNumber(1e99), "1E99"},
+		// 2^63 is just outside int64 range; must not overflow to a negative int.
+		{"int64_overflow", NewNumber(9223372036854775808.0), "9.22337203685478E18"},
 		{"true", NewBoolean(true), "true"},
 		{"false", NewBoolean(false), "false"},
 		{"null", NewNull(), "null"},

@@ -123,7 +123,10 @@ func FormatNumber(n float64) string {
 	if math.IsNaN(n) || math.IsInf(n, 0) {
 		return "null"
 	}
-	if math.Abs(n) <= float64(math.MaxInt64) && math.Round(n) == n {
+	// Emit an integer form only when the value is integral and safely convertible
+	// to int64. Note float64(math.MaxInt64) rounds up to 2^63, so the upper bound
+	// must be strict-less-than to avoid an overflow on values like 2^63.
+	if n >= float64(math.MinInt64) && n < float64(math.MaxInt64) && math.Round(n) == n {
 		return strconv.FormatInt(int64(math.Round(n)), 10)
 	}
 	return normalizeExponent(strconv.FormatFloat(n, 'G', 15, 64))

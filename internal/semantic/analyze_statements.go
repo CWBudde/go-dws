@@ -436,6 +436,13 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			a.recordSymbolUsage("Result", target.Token.Pos)
 		}
 
+		// Record the target's declared type on the identifier node so runtime
+		// behaviour that depends on the declared (not current) type — e.g.
+		// auto-boxing a scalar into a JSONVariant — can consult it.
+		if sym.Type != nil {
+			a.semanticInfo.SetType(target, &ast.TypeAnnotation{Token: target.Token, Name: sym.Type.String()})
+		}
+
 		// Check if variable is read-only
 		if sym.ReadOnly {
 			if sym.IsConst {
