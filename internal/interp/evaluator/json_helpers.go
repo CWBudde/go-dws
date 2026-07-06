@@ -38,6 +38,17 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 	idx := unwrapVariant(index)
 	switch jv.Kind() {
 	case jsonvalue.KindObject:
+		// A string index is a key lookup; an integer index is positional over the
+		// members in insertion order (see mixed_browse).
+		if idx.Type() != "STRING" {
+			if i, ok := ExtractIntegerIndex(idx); ok {
+				keys := jv.ObjectKeys()
+				if i >= 0 && i < len(keys) {
+					return boxJSON(jv.ObjectGet(keys[i]))
+				}
+				return boxJSON(nil)
+			}
+		}
 		return boxJSON(jv.ObjectGet(jsonArgString(idx)))
 	case jsonvalue.KindArray:
 		if i, ok := ExtractIntegerIndex(idx); ok {

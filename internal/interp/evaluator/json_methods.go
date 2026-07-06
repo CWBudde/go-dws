@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -144,15 +145,16 @@ func jsonAssignValue(v Value) *jsonvalue.Value {
 // assignJSONMember implements `jsonValue.member := value`.
 func (e *Evaluator) assignJSONMember(jv *jsonvalue.Value, name string, value Value, node ast.Node) Value {
 	if jv == nil || jv.Kind() == jsonvalue.KindUndefined {
-		return e.newError(node, `Cannot set member "%s" of Undefined`, name)
+		e.RaiseException("Exception", fmt.Sprintf(`Cannot set member "%s" of Undefined`, name), nil)
+		return &runtime.NilValue{}
 	}
 	switch jv.Kind() {
 	case jsonvalue.KindObject:
 		jv.ObjectSet(name, jsonAssignValue(value))
 	case jsonvalue.KindArray:
-		return e.newError(node, `Invalid array member "%s"`, name)
+		e.RaiseException("Exception", fmt.Sprintf(`Invalid array member "%s"`, name), nil)
 	default:
-		return e.newError(node, `Cannot set member "%s" of Immediate`, name)
+		e.RaiseException("Exception", fmt.Sprintf(`Cannot set member "%s" of Immediate`, name), nil)
 	}
 	return &runtime.NilValue{}
 }
@@ -161,7 +163,8 @@ func (e *Evaluator) assignJSONMember(jv *jsonvalue.Value, name string, value Val
 // and arrays (integer index, auto-extending with nulls).
 func (e *Evaluator) assignJSONIndex(jv *jsonvalue.Value, index Value, value Value, node ast.Node) Value {
 	if jv == nil || jv.Kind() == jsonvalue.KindUndefined {
-		return e.newError(node, "Cannot set items of Undefined")
+		e.RaiseException("Exception", "Cannot set items of Undefined", nil)
+		return &runtime.NilValue{}
 	}
 	idx := unwrapVariant(index)
 	switch jv.Kind() {
@@ -177,7 +180,7 @@ func (e *Evaluator) assignJSONIndex(jv *jsonvalue.Value, index Value, value Valu
 		}
 		jv.ArraySet(i, jsonAssignValue(value))
 	default:
-		return e.newError(node, "Cannot set items of %s", jsonTypeName(jv))
+		e.RaiseException("Exception", fmt.Sprintf("Cannot set items of %s", jsonTypeName(jv)), nil)
 	}
 	return &runtime.NilValue{}
 }
@@ -273,6 +276,8 @@ func (e *Evaluator) jsonArrayAdd(jv *jsonvalue.Value, args []Value, node ast.Nod
 	return &runtime.IntegerValue{Value: int64(jv.ArrayLen())}
 }
 
+// jsonArrayAddFrom appends the source array's elements to the receiver and empties
+// the source (a move), matching DWScript's AddFrom semantics.
 func (e *Evaluator) jsonArrayAddFrom(jv *jsonvalue.Value, args []Value, node ast.Node) Value {
 	if jv == nil || jv.Kind() != jsonvalue.KindArray {
 		return e.newError(node, "JSON AddFrom requires an array value")
@@ -280,15 +285,16 @@ func (e *Evaluator) jsonArrayAddFrom(jv *jsonvalue.Value, args []Value, node ast
 	src := jsonValueOf(argValue(args, 0))
 	if src != nil && src.Kind() == jsonvalue.KindArray {
 		for _, elem := range src.ArrayElements() {
-			jv.ArrayAppend(elem.Clone())
+			jv.ArrayAppend(elem)
 		}
+		src.ClearArray()
 	}
 	return &runtime.NilValue{}
 }
 
 // jsonExtend merges another JSON value into the receiver: object keys are copied
-// (overwriting), array elements are moved (the source array is emptied), matching
-// DWScript's Extend semantics.
+// (overwriting) and array elements are appended as copies, leaving the source
+// intact, matching DWScript's Extend semantics.
 func (e *Evaluator) jsonExtend(jv *jsonvalue.Value, args []Value, node ast.Node) Value {
 	src := jsonValueOf(argValue(args, 0))
 	if jv == nil || src == nil {
@@ -296,13 +302,12 @@ func (e *Evaluator) jsonExtend(jv *jsonvalue.Value, args []Value, node ast.Node)
 	}
 	if jv.Kind() == jsonvalue.KindObject && src.Kind() == jsonvalue.KindObject {
 		for _, k := range src.ObjectKeys() {
-			jv.ObjectSet(k, src.ObjectGet(k))
+			jv.ObjectSet(k, src.ObjectGet(k).Clone())
 		}
 	} else if jv.Kind() == jsonvalue.KindArray && src.Kind() == jsonvalue.KindArray {
 		for _, elem := range src.ArrayElements() {
-			jv.ArrayAppend(elem)
+			jv.ArrayAppend(elem.Clone())
 		}
-		src.ClearArray()
 	}
 	return &runtime.NilValue{}
 }
