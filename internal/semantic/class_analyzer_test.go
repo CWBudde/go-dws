@@ -44,9 +44,6 @@ func TestClassWithUndefinedParent(t *testing.T) {
 }
 
 func TestCircularInheritance(t *testing.T) {
-	// Note: In a single-pass analyzer, this will fail with "parent class not found"
-	// because we process declarations in order. For true circular inheritance
-	// detection, we'd need a two-pass analyzer. This test documents the current behavior.
 	input := `
 		type TA = class(TB)
 			X: Integer;
@@ -56,8 +53,33 @@ func TestCircularInheritance(t *testing.T) {
 			Y: Integer;
 		end;
 	`
-	// In single-pass, TB doesn't exist when TA tries to inherit from it
-	expectError(t, input, "parent class 'TB' not found")
+	expectError(t, input, "circular inheritance detected")
+}
+
+func TestClassCanInheritFromLaterDeclaration(t *testing.T) {
+	input := `
+		type TChild = class(TBase)
+			Name: String;
+		end;
+
+		type TBase = class
+			ID: Integer;
+		end;
+	`
+	expectNoErrors(t, input)
+}
+
+func TestClassFieldCanReferenceLaterDeclaration(t *testing.T) {
+	input := `
+		type TParent = class
+			Child: TChild;
+		end;
+
+		type TChild = class
+			Value: Integer;
+		end;
+	`
+	expectNoErrors(t, input)
 }
 
 func TestCircularInheritanceWithForwardDecl(t *testing.T) {

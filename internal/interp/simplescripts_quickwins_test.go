@@ -85,6 +85,34 @@ resourcestring d = 1234;
 `, "String expected")
 }
 
+func TestClassFieldCanUseLaterDeclaredClassAtRuntime(t *testing.T) {
+	got := runQuickwinScript(t, `
+type
+   TContainer = class
+      Child : TChild;
+   end;
+
+   TBase = class
+      function Name : String; virtual;
+      begin
+         Result := 'base';
+      end;
+   end;
+
+   TChild = class(TBase)
+      function Name : String; override;
+      begin
+         Result := 'child';
+      end;
+   end;
+
+var c := new TContainer;
+c.Child := new TChild;
+PrintLn(c.Child.Name);
+`)
+	assertOutput(t, got, "child\n")
+}
+
 // TestImpliesOperator covers the logical implication operator, including its
 // short-circuit behaviour (a False antecedent must not evaluate the consequent).
 func TestImpliesOperator(t *testing.T) {

@@ -55,10 +55,10 @@ begin
 end
 `
 
-	_, output := testEvalWithOutput(input)
+	result, output := testEvalWithOutput(input)
 
 	if output != "first,second,\n" {
-		t.Fatalf("unexpected output: %s", output)
+		t.Fatalf("unexpected output: %s (result: %s)", output, result.String())
 	}
 }
 
@@ -97,10 +97,10 @@ begin
 end
 `
 
-	_, output := testEvalWithOutput(input)
+	result, output := testEvalWithOutput(input)
 
 	if output != "Left+Right\n" {
-		t.Fatalf("unexpected output: %s", output)
+		t.Fatalf("unexpected output: %s (result: %s)", output, result.String())
 	}
 }
 

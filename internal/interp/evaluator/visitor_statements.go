@@ -19,6 +19,10 @@ import (
 func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value {
 	var result Value
 
+	if result = e.predeclareProgramClassTypes(node, ctx); isError(result) {
+		return result
+	}
+
 	for _, stmt := range node.Statements {
 		result = e.Eval(stmt, ctx)
 
@@ -71,6 +75,52 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 	}
 
 	return result
+}
+
+func (e *Evaluator) predeclareProgramClassTypes(node *ast.Program, ctx *ExecutionContext) Value {
+	if node == nil {
+		return &runtime.NilValue{}
+	}
+
+	for _, stmt := range node.Statements {
+		if result := e.predeclareClassTypesInStatement(stmt, ctx); isError(result) {
+			return result
+		}
+	}
+
+	return &runtime.NilValue{}
+}
+
+func (e *Evaluator) predeclareClassTypesInStatement(stmt ast.Statement, ctx *ExecutionContext) Value {
+	switch n := stmt.(type) {
+	case *ast.BlockStatement:
+		for _, inner := range n.Statements {
+			if result := e.predeclareClassTypesInStatement(inner, ctx); isError(result) {
+				return result
+			}
+		}
+	case *ast.ClassDecl:
+		if n.EnclosingClass != nil {
+			return &runtime.NilValue{}
+		}
+		className := e.fullClassNameFromDecl(n)
+		if className == "" || e.typeSystem.LookupClass(className) != nil {
+			return &runtime.NilValue{}
+		}
+		rawClassInfo, err := e.typeSystem.NewClassInfo(className)
+		if err != nil {
+			return e.newError(n, "internal error: %s", err.Error())
+		}
+		ci, ok := rawClassInfo.(classDeclarationInfo)
+		if !ok {
+			return e.newError(n, "internal error: invalid class type for '%s'", className)
+		}
+		ci.SetForwardClass(true)
+		ci.RegisterInTypeSystem(e.typeSystem, "")
+		ci.DefineInEnv(ctx.Env())
+	}
+
+	return &runtime.NilValue{}
 }
 
 // VisitUnitDeclaration evaluates a DWScript unit as a top-level compilation target.
