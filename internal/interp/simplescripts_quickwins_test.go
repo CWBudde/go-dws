@@ -85,6 +85,17 @@ resourcestring d = 1234;
 `, "String expected")
 }
 
+// TestResourcestringSectionMarksAllDeclarations covers that a `resourcestring`
+// section marks every declaration, not only the first: the string-only rule must
+// still reject a non-string value in a later entry of the same section.
+func TestResourcestringSectionMarksAllDeclarations(t *testing.T) {
+	assertCompileError(t, `
+resourcestring
+   a = 'first';
+   b = 1234;
+`, "String expected")
+}
+
 // TestImpliesOperator covers the logical implication operator, including its
 // short-circuit behaviour (a False antecedent must not evaluate the consequent).
 func TestImpliesOperator(t *testing.T) {
