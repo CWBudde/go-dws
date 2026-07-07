@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-07-06
+**Generated**: 2026-07-07
 
 ## Overall
 
