@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 848 |
-| Failed | 1080 |
+| Passed | 859 |
+| Failed | 1069 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **44%** (848/1928) |
+| **Scored pass rate** | **45%** (859/1928) |
 
 ## Per-category
 
@@ -52,7 +52,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | FunctionsTime | 30 | 1 | 26 | 3 | 4% |
 | FunctionsVariant | 10 | 0 | 9 | 1 | 0% |
 | GenericsFail | 8 | 0 | 8 | 0 | 0% |
-| GenericsPass | 23 | 13 | 10 | 0 | 57% |
+| GenericsPass | 23 | 14 | 9 | 0 | 61% |
 | GraphicsLib | 4 | 0 | 4 | 0 | 0% |
 | HelpersFail | 18 | 0 | 18 | 0 | 0% |
 | HelpersPass | 27 | 22 | 5 | 0 | 81% |
@@ -78,7 +78,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | PropertyExpressionsPass | 19 | 10 | 9 | 0 | 53% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
 | SetOfPass | 25 | 20 | 5 | 0 | 80% |
-| SimpleScripts | 442 | 316 | 119 | 7 | 73% |
+| SimpleScripts | 442 | 326 | 109 | 7 | 75% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

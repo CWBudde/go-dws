@@ -49,6 +49,21 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		return
 	}
 
+	// Bare promotion `property Prop;` — redeclare an inherited property under the
+	// current (typically wider) visibility, inheriting its type and accessors.
+	if prop.IsPromotion {
+		parentProp, found := classType.GetProperty(propName)
+		if !found {
+			a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
+				"promoted property '"+propName+"' not found in an ancestor of class '"+classType.Name+"'"))
+			return
+		}
+		inherited := *parentProp // copy the inherited PropertyInfo into this class
+		inherited.Name = propName
+		classType.Properties[propName] = &inherited
+		return
+	}
+
 	// Resolve property type
 	if prop.Type == nil {
 		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
@@ -56,7 +71,9 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		return
 	}
 
-	propType, err := a.resolveType(getTypeExpressionName(prop.Type))
+	// Use the general type-expression resolver so composite property types
+	// (e.g. `array of String`) resolve, not just named types.
+	propType, err := a.resolveTypeExpression(prop.Type)
 	if err != nil {
 		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
 			"unknown type '"+getTypeExpressionName(prop.Type)+"' for property '"+propName+"' in class '"+classType.Name+"'"))
@@ -289,15 +306,10 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 					a.addStructuredError(NewClassMethodOrConstructorExpectedError(ident.Token.Pos))
 					return
 				}
-			} else {
-				// For instance properties, verify the method is NOT a class method
-				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
-				if isClassMethod {
-					a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
-						"instance property '"+propName+"' read method '"+readSpecName+"' cannot be a class method"))
-					return
-				}
 			}
+			// DWScript permits an instance property to be backed by a class
+			// method (the accessor is invoked on the class), so no class-method
+			// rejection is applied here.
 
 			// Getter signature: for indexed properties, method must accept index parameters
 			// and return property type. For non-indexed, method must take no parameters

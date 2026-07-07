@@ -655,13 +655,16 @@ end;`,
 			expectedError: "read specifier 'FCount' not found",
 		},
 		{
+			// DWScript permits an instance property to be backed by a class
+			// method (the accessor is invoked on the class). Mirrors the
+			// "instance property write with class method" case below.
 			name: "instance property with class method",
 			input: `
 type TTest = class
 	class function GetCount: Integer; begin Result := 0; end;
 	property Count: Integer read GetCount;
 end;`,
-			expectedError: "instance property 'Count' read method 'GetCount' cannot be a class method",
+			expectError: false,
 		},
 		{
 			name: "class property write with instance method",

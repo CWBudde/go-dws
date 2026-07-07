@@ -43,6 +43,10 @@ type PropertyDecl struct {
 	// the class body, also synthesizes the matching private backing FieldDecl
 	// (see Parser.addAutoPropertyBackingField).
 	IsAutoProperty bool
+	// IsPromotion is true for a bare redeclaration `property Prop;` in a
+	// subclass, which promotes an inherited property (inheriting its type and
+	// accessors) under the subclass's current visibility.
+	IsPromotion bool
 }
 
 func (pd *PropertyDecl) statementNode() {}
@@ -69,9 +73,11 @@ func (pd *PropertyDecl) String() string {
 		out.WriteString("]")
 	}
 
-	// Property type
-	out.WriteString(": ")
-	out.WriteString(pd.Type.String())
+	// Property type (a bare promotion `property Prop;` has no explicit type)
+	if pd.Type != nil {
+		out.WriteString(": ")
+		out.WriteString(pd.Type.String())
+	}
 
 	// Index directive
 	if pd.IndexValue != nil {

@@ -494,19 +494,19 @@ func Chr(ctx Context, args []Value) Value {
 		return ctx.NewError("Chr() expects exactly 1 argument, got %d", len(args))
 	}
 
-	// Argument must be Integer
-	intVal, ok := args[0].(*runtime.IntegerValue)
+	// Argument must be an integer (enums/subranges coerce via ToInt64).
+	code, ok := ctx.ToInt64(args[0])
 	if !ok {
 		return ctx.NewError("Chr() expects Integer argument, got %s", args[0].Type())
 	}
 
 	// Check if the code is in valid range (0-1114111 for Unicode)
-	if intVal.Value < 0 || intVal.Value > 0x10FFFF {
-		return ctx.NewError("Chr() code %d out of valid Unicode range (0-1114111)", intVal.Value)
+	if code < 0 || code > 0x10FFFF {
+		return ctx.NewError("Chr() code %d out of valid Unicode range (0-1114111)", code)
 	}
 
 	// Return UTF-8 encoded character (Go native)
-	return &runtime.StringValue{Value: string(rune(intVal.Value))}
+	return &runtime.StringValue{Value: string(rune(code))}
 }
 
 // IntToHex implements the IntToHex() built-in function.
