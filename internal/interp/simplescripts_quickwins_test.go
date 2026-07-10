@@ -139,6 +139,24 @@ if (f implies ((1 div z) = 0)) then
 	assertOutput(t, got, "ok\n")
 }
 
+func TestFunctionPointerValueContextAutoInvoke(t *testing.T) {
+	got := runQuickwinScript(t, `
+var f : function : Integer;
+f := lambda => 123;
+PrintLn(f);
+
+function Yes : Boolean;
+begin
+   PrintLn('yes');
+   Result := True;
+end;
+
+if True implies Yes then
+   PrintLn('ok');
+`)
+	assertOutput(t, got, "123\nyes\nok\n")
+}
+
 // TestEmptyMethodDirective covers the "empty;" directive: a body-less routine
 // that is a no-op returning its result type's zero value.
 func TestEmptyMethodDirective(t *testing.T) {
@@ -193,6 +211,24 @@ var v := bye;
 PrintLn(v);
 `)
 	assertOutput(t, got, "hi\nbye\n")
+}
+
+func TestDefaultNamespaceBuiltinCalls(t *testing.T) {
+	got := runQuickwinScript(t, `
+Default.Print('a');
+Default.PrintLn('b');
+PrintLn(Default.Length('xyz'));
+`)
+	assertOutput(t, got, "ab\n3\n")
+}
+
+func TestDefaultNamespaceBuiltinPointer(t *testing.T) {
+	got := runQuickwinScript(t, `
+var p : procedure(v : Variant);
+p := Default.PrintLn;
+p('ok');
+`)
+	assertOutput(t, got, "ok\n")
 }
 
 // TestEscapedReservedWordIdentifiers covers &keyword escaped identifiers.

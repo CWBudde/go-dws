@@ -1012,6 +1012,16 @@ func TestForwardClassDeclarationWithoutImplementation(t *testing.T) {
 	expectError(t, input, "Class \"TChild\" isn't defined completely")
 }
 
+func TestShortFormClassWithParentIsComplete(t *testing.T) {
+	input := `
+		type TBase = class
+		end;
+
+		type TChild = class(TBase);
+	`
+	expectNoErrors(t, input)
+}
+
 func TestDuplicateForwardClassDeclaration(t *testing.T) {
 	input := `
 		type TChild = class;

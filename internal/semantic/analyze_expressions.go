@@ -205,6 +205,11 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		// Float literals are always FLOAT type regardless of context
 		return types.FLOAT
 	case *ast.MemberAccessExpression:
+		if a.isDefaultNamespace(e.Object) {
+			if ptrType := a.getBuiltinFunctionPointerType(e.Member.Value); ptrType != nil {
+				return ptrType
+			}
+		}
 		// In a function-pointer target context, a method reference `obj.Method`
 		// becomes a bound method pointer rather than an auto-invoked call.
 		if expectedType != nil {

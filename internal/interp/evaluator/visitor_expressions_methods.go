@@ -44,6 +44,14 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	if e.isJSONNamespaceObject(node.Object, ctx) {
 		return e.evalJSONNamespaceCall(node.Method.Value, node.Arguments, node, ctx)
 	}
+	if e.isDefaultNamespaceObject(node.Object, ctx) {
+		builtinCall := &ast.CallExpression{
+			TypedExpressionBase: node.TypedExpressionBase,
+			Function:            node.Method,
+			Arguments:           node.Arguments,
+		}
+		return e.VisitCallExpression(builtinCall, ctx)
+	}
 
 	if identObj, ok := node.Object.(*ast.Identifier); ok {
 		if _, exists := ctx.Env().Get(identObj.Value); !exists {

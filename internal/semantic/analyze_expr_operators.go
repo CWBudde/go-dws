@@ -30,6 +30,29 @@ func (a *Analyzer) addOperandMismatchError(pos token.Position, leftType, rightTy
 	a.addStructuredError(NewInvalidOperandsError(pos))
 }
 
+func implicitValueContextType(t types.Type) types.Type {
+	if implicitType := implicitCallReturnTypeFromType(t); implicitType != nil {
+		return implicitType
+	}
+	switch ptr := types.GetUnderlyingType(t).(type) {
+	case *types.FunctionPointerType:
+		if len(ptr.Parameters) == 0 {
+			if ptr.ReturnType == nil {
+				return types.VOID
+			}
+			return ptr.ReturnType
+		}
+	case *types.MethodPointerType:
+		if len(ptr.Parameters) == 0 {
+			if ptr.ReturnType == nil {
+				return types.VOID
+			}
+			return ptr.ReturnType
+		}
+	}
+	return nil
+}
+
 func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	// Handle built-in type names as type meta-values (e.g., High(Integer), Low(Boolean))
 	switch identifier.Value {
@@ -581,6 +604,12 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 	// operand is rejected even when the other side is Variant, so an invalid
 	// program does not type-check only to fail at runtime.
 	if operator == "implies" {
+		if implicitType := implicitValueContextType(leftType); implicitType != nil {
+			leftType = implicitType
+		}
+		if implicitType := implicitValueContextType(rightType); implicitType != nil {
+			rightType = implicitType
+		}
 		leftOK := leftType == types.VARIANT || leftType.Equals(types.BOOLEAN)
 		rightOK := rightType == types.VARIANT || rightType.Equals(types.BOOLEAN)
 		if leftOK && rightOK {

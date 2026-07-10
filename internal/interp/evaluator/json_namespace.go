@@ -22,6 +22,17 @@ func (e *Evaluator) isJSONNamespaceObject(obj ast.Expression, ctx *ExecutionCont
 	return !exists
 }
 
+// isDefaultNamespaceObject reports whether obj is the built-in Default
+// namespace qualifier for global built-ins (Default.Print, Default.Length, ...).
+func (e *Evaluator) isDefaultNamespaceObject(obj ast.Expression, ctx *ExecutionContext) bool {
+	identObj, ok := obj.(*ast.Identifier)
+	if !ok || !ident.Equal(identObj.Value, "Default") {
+		return false
+	}
+	_, exists := ctx.Env().Get(identObj.Value)
+	return !exists
+}
+
 // evalJSONNamespaceCall dispatches JSON.<method>(args). argExprs is nil for bare
 // parameterless access such as `JSON.NewArray`.
 func (e *Evaluator) evalJSONNamespaceCall(method string, argExprs []ast.Expression, node ast.Node, ctx *ExecutionContext) Value {

@@ -18,6 +18,18 @@ func (a *Analyzer) isJSONNamespace(obj ast.Expression) bool {
 	return !resolved
 }
 
+// isDefaultNamespace reports whether obj is the built-in `Default` namespace
+// used to qualify global built-ins (Default.Print, Default.Length, ...), unless
+// a user symbol shadows it.
+func (a *Analyzer) isDefaultNamespace(obj ast.Expression) bool {
+	identExpr, ok := obj.(*ast.Identifier)
+	if !ok || !ident.Equal(identExpr.Value, "Default") {
+		return false
+	}
+	_, resolved := a.symbols.Resolve(identExpr.Value)
+	return !resolved
+}
+
 // jsonNamespaceMemberType returns the result type of a JSON static method /
 // factory (used for both bare access like JSON.NewArray and calls like
 // JSON.Parse(s)).

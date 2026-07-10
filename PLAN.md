@@ -499,9 +499,27 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         `ExceptionValue.StackTraceString()` renderer reusing `errors.StackTrace.DWScriptString()` plus
         the raise site as the innermost frame (`runtime/exception.go`), populated at catch time
         (`visitor_statements.go`).
-      - **Deferred (kept for a follow-up batch):** `Default.` global-namespace access
-        (`static_method1/2`, `value_type_separation` — needs semantic+eval global-qualifier resolution),
-        plus the auto-invoke/short-form-inheritance/position-precision blockers noted above.
+      - **`Default.` global-namespace access and static class-method binding** (`static_method1/2`,
+        `value_type_separation`). `Default.<builtin>` now parses as a contextual namespace qualifier
+        rather than the `Default(Type)` intrinsic, with semantic/runtime dispatch routed through the
+        ordinary builtin call path and builtin function-pointer assignment (`p := Default.PrintLn`)
+        supported. A class method declared `static` now binds `ClassName`/`Self` to the declaring
+        class even when invoked through a subclass metaclass, subclass instance, or function pointer,
+        matching DWScript's non-virtual static-method semantics. **SimpleScripts CLI 299 → 302.**
+      - **Value-context auto-invoke of parameterless function pointers** (`implies`, LambdaPass
+        `immediate`). A zero-argument function pointer/lambda used where a value is consumed now
+        invokes and yields its result for `Print`/`PrintLn` arguments and `implies` operands, while
+        assignment/function-pointer contexts still preserve the pointer value. The semantic analyzer
+        also normalizes parameterless function/method-pointer operand types to their return type for
+        `implies`, so `True implies SomeBooleanFunction` type-checks. **SimpleScripts CLI 302 → 304;
+        LambdaPass 4/6 → 5/6.**
+      - **Short-form inheritance with non-`T` class names** (`reserved_word`). Semantic class analysis
+        now trusts the parser's explicit `IsForward` flag instead of inferring forward declarations
+        from nil member slices, so `type B = class(A);` is a complete empty subclass. In the
+        predeclared-class reuse path, an inheritance-list entry initially parsed as an interface is
+        promoted back to a parent class when that class is already known; this covers escaped keyword
+        names like `type &procedure = class(&end);`. **SimpleScripts CLI 304 → 305.**
+      - **Deferred (kept for a follow-up batch):** position-precision blockers noted above.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

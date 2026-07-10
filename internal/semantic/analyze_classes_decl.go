@@ -16,11 +16,7 @@ import (
 
 // isForwardDeclaration checks if a class declaration is a forward declaration (has no body).
 func (a *Analyzer) isForwardDeclaration(decl *ast.ClassDecl) bool {
-	return decl.Fields == nil &&
-		decl.Methods == nil &&
-		decl.Properties == nil &&
-		decl.Operators == nil &&
-		decl.Constants == nil
+	return decl.IsForward
 }
 
 // handleExistingClass handles conflicts when a class is redeclared.
@@ -188,6 +184,15 @@ func (a *Analyzer) initializeClassType(
 				return nil, nil
 			}
 			classType.Parent = parentClass
+		}
+		if decl.Parent == nil && parentClass == nil && len(decl.Interfaces) > 0 {
+			parentIdent := decl.Interfaces[0]
+			if candidateParent := a.getClassType(parentIdent.Value); candidateParent != nil {
+				decl.Parent = parentIdent
+				decl.Interfaces = decl.Interfaces[1:]
+				parentClass = candidateParent
+				classType.Parent = candidateParent
+			}
 		}
 
 		// Handle implicit TObject parent.

@@ -47,6 +47,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	if e.isJSONNamespaceObject(node.Object, ctx) {
 		return e.evalJSONNamespaceCall(node.Member.Value, nil, node, ctx)
 	}
+	if e.isDefaultNamespaceObject(node.Object, ctx) {
+		return &runtime.FunctionPointerValue{BuiltinName: node.Member.Value}
+	}
 
 	// Unit-qualified access (UnitName.Symbol) should not evaluate the unit identifier.
 	if identObj, ok := node.Object.(*ast.Identifier); ok {

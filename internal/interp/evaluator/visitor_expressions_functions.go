@@ -93,6 +93,14 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		if e.isJSONNamespaceObject(memberAccess.Object, ctx) {
 			return e.evalJSONNamespaceCall(memberAccess.Member.Value, node.Arguments, node, ctx)
 		}
+		if e.isDefaultNamespaceObject(memberAccess.Object, ctx) {
+			builtinCall := &ast.CallExpression{
+				TypedExpressionBase: node.TypedExpressionBase,
+				Function:            memberAccess.Member,
+				Arguments:           node.Arguments,
+			}
+			return e.VisitCallExpression(builtinCall, ctx)
+		}
 
 		if identNode, ok := memberAccess.Object.(*ast.Identifier); ok {
 			if _, exists := ctx.Env().Get(identNode.Value); !exists {
@@ -362,7 +370,12 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// Standard built-in functions
 	args := make([]Value, len(node.Arguments))
 	for idx, arg := range node.Arguments {
-		val := e.Eval(arg, ctx)
+		var val Value
+		if funcNameLower == "print" || funcNameLower == "println" {
+			val = e.evalValueContextExpression(arg, ctx)
+		} else {
+			val = e.Eval(arg, ctx)
+		}
 		if isError(val) {
 			return val
 		}
