@@ -59,6 +59,27 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 				}
 			}
 		}
+
+		// Check if it's a type alias to a primitive (e.g. type TMyInt = Integer),
+		// so TMyInt(x) casts through the aliased base type.
+		if !isTypeCast && e.typeSystem != nil {
+			if resolved, err := e.ResolveType(typeName); err == nil && resolved != nil {
+				switch types.GetUnderlyingType(resolved).TypeKind() {
+				case "INTEGER":
+					lowerName = "integer"
+					isTypeCast = true
+				case "FLOAT":
+					lowerName = "float"
+					isTypeCast = true
+				case "STRING":
+					lowerName = "string"
+					isTypeCast = true
+				case "BOOLEAN":
+					lowerName = "boolean"
+					isTypeCast = true
+				}
+			}
+		}
 	}
 
 	// If it's not a type cast, return nil without evaluating

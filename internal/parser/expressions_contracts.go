@@ -28,28 +28,22 @@ func (p *Parser) parseCondition() *ast.Condition {
 		Test:     testExpr,
 	}
 
-	// Check for optional custom message: : "message"
+	// Check for optional custom message: : <expression>
+	// DWScript allows any expression here, not just a string literal, e.g.
+	//   ensure Result > 10 : 'must be above 10, was ' + IntToStr(Result);
 	if p.peekTokenIs(lexer.COLON) {
 		p.nextToken() // consume the colon
+		p.nextToken() // move to the message expression start
 
-		// Expect a string literal for the error message
-		if !p.expectPeek(lexer.STRING) {
-			p.addError("expected string literal after ':' in contract condition", ErrUnexpectedToken)
+		msgExpr := p.parseExpression(LOWEST)
+		if msgExpr == nil {
+			p.addError("expected message expression after ':' in contract condition", ErrUnexpectedToken)
 			return nil
 		}
+		condition.Message = msgExpr
 
-		msgToken := p.cursor.Current()
-
-		condition.Message = &ast.StringLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: msgToken,
-				},
-			},
-			Value: msgToken.Literal,
-		}
-		// EndPos is the end of the message string literal
-		result := builder.Finish(condition).(*ast.Condition)
+		// EndPos is the end of the message expression
+		result := builder.FinishWithNode(condition, msgExpr).(*ast.Condition)
 		return result
 	} else {
 		// EndPos is the end of the test expression

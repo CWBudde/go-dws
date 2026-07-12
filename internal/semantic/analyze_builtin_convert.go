@@ -28,9 +28,11 @@ func (a *Analyzer) analyzeIntToStr(args []ast.Expression, callExpr *ast.CallExpr
 		}
 		return types.VARIANT
 	}
-	// Analyze the first argument and verify it's Integer or a subrange of Integer
+	// Analyze the first argument and verify it's Integer or a subrange of Integer.
+	// Enums are ordinals and implicitly convert to Integer in DWScript.
 	argType := a.analyzeExpression(args[0])
-	if argType != nil && types.GetUnderlyingType(argType) != types.INTEGER && !builtinArgIsVariant(argType) {
+	if argType != nil && types.GetUnderlyingType(argType) != types.INTEGER &&
+		types.GetUnderlyingType(argType).TypeKind() != "ENUM" && !builtinArgIsVariant(argType) {
 		// Check if it's a subrange type with Integer base
 		if subrange, ok := types.GetUnderlyingType(argType).(*types.SubrangeType); ok {
 			if subrange.BaseType != types.INTEGER {
@@ -234,15 +236,16 @@ func (a *Analyzer) analyzeFloatToStr(args []ast.Expression, callExpr *ast.CallEx
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
-	// Analyze the argument and verify it's numeric
+	// Analyze the argument and verify it's numeric (resolve type aliases, e.g.
+	// `type TMyInt = Integer`, so an aliased numeric is accepted).
 	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.FLOAT && argType != types.INTEGER && !builtinArgIsVariant(argType) {
+	if argType != nil && !types.IsNumericType(types.GetUnderlyingType(argType)) && !builtinArgIsVariant(argType) {
 		a.addError("function 'FloatToStr' expects Float as argument, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
 	}
 	if len(args) == 2 {
 		precType := a.analyzeExpression(args[1])
-		if precType != nil && precType != types.INTEGER {
+		if precType != nil && !types.GetUnderlyingType(precType).Equals(types.INTEGER) {
 			a.addError("function 'FloatToStr' expects Integer precision as second argument, got %s at %s",
 				precType.String(), callExpr.Token.Pos.String())
 		}
@@ -319,9 +322,11 @@ func (a *Analyzer) analyzeChr(args []ast.Expression, callExpr *ast.CallExpressio
 			len(args), callExpr.Token.Pos.String())
 		return types.STRING
 	}
-	// Analyze the argument and verify it's Integer
+	// Analyze the argument and verify it's Integer. Enums are ordinals and
+	// implicitly convert to Integer in DWScript.
 	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.INTEGER {
+	if argType != nil && types.GetUnderlyingType(argType) != types.INTEGER &&
+		types.GetUnderlyingType(argType).TypeKind() != "ENUM" && !builtinArgIsVariant(argType) {
 		a.addError("function 'Chr' expects Integer as argument, got %s at %s",
 			argType.String(), callExpr.Token.Pos.String())
 	}
