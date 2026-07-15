@@ -361,8 +361,15 @@ func (p *Parser) parseDefaultExpression() ast.Expression {
 	// Expect LPAREN
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.LPAREN {
-		p.addError("expected '(' after 'default'", ErrUnexpectedToken)
-		return nil
+		return &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{
+					Token:  defaultToken,
+					EndPos: p.endPosFromToken(defaultToken),
+				},
+			},
+			Value: defaultToken.Literal,
+		}
 	}
 	p.cursor = p.cursor.Advance() // move to '('
 

@@ -190,7 +190,7 @@ func (i *Interpreter) evalViaEvaluator(node ast.Node) Value {
 	result := i.evaluatorInstance.Eval(node, i.ctx)
 	// Convert runtime.ErrorValue to interp.ErrorValue for type compatibility
 	if runtimeErr, ok := result.(*runtime.ErrorValue); ok {
-		return &ErrorValue{Message: runtimeErr.Message}
+		return &ErrorValue{Message: formatDWScriptRuntimeMessage(runtimeErr.Message)}
 	}
 	return result
 }

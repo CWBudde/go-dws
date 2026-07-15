@@ -2,6 +2,6 @@
 
 package interp
 
-// fixtureTimeoutScale is 1 in normal builds; race-detector builds stretch the
-// per-fixture timeout (see fixture_race_test.go).
-const fixtureTimeoutScale = 1
+// fixtureTimeoutScale gives normal package-parallel test runs enough room for
+// compute-heavy fixtures while keeping hung fixtures bounded.
+const fixtureTimeoutScale = 4

@@ -540,10 +540,33 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         matching the write-side sibling), and taught `IntToStr`/`Chr` to accept enums (ordinals). The
         `enum_to_integer` fixture itself is **deferred** — it additionally needs indexed-property read
         through a metaclass with a class-method accessor (a separate runtime feature).
-      - **Deferred:** `static`-method `ClassName` binding (`static_method1/2` now run but bind the
-        runtime subclass instead of the declaring class); contract *inheritance* (`method_contracts`);
-        inline-method class name in contract messages (`method_condition`); the metaclass indexed-
-        property read above.
+      - **Deferred after batch #2:** `static`-method `ClassName` binding (`static_method1/2` now run
+        but bind the runtime subclass instead of the declaring class); contract *inheritance*
+        (`method_contracts`); inline-method class name in contract messages (`method_condition`); the
+        metaclass indexed-property read above.
+- [~] **SimpleScripts follow-ups (2026-07-10).** Targeted blockers left by the quick-wins batches:
+      `Default.`/static-method binding, value-context auto-invoke, and short-form inheritance.
+      - **`Default.` global-namespace access and static class-method binding** (`static_method1/2`,
+        `value_type_separation`). `Default.<builtin>` now parses as a contextual namespace qualifier
+        rather than the `Default(Type)` intrinsic, with semantic/runtime dispatch routed through the
+        ordinary builtin call path and builtin function-pointer assignment (`p := Default.PrintLn`)
+        supported. A class method declared `static` now binds `ClassName`/`Self` to the declaring
+        class even when invoked through a subclass metaclass, subclass instance, or function pointer,
+        matching DWScript's non-virtual static-method semantics.
+      - **Value-context auto-invoke of parameterless function pointers** (`implies`, LambdaPass
+        `immediate`). A zero-argument function pointer/lambda used where a value is consumed now
+        invokes and yields its result for `Print`/`PrintLn` arguments and `implies` operands, while
+        assignment/function-pointer contexts still preserve the pointer value. The semantic analyzer
+        also normalizes parameterless function/method-pointer operand types to their return type for
+        `implies`, so `True implies SomeBooleanFunction` type-checks.
+      - **Short-form inheritance with non-`T` class names** (`reserved_word`). Semantic class analysis
+        now trusts the parser's explicit `IsForward` flag instead of inferring forward declarations
+        from nil member slices, so `type B = class(A);` is a complete empty subclass. In the
+        predeclared-class reuse path, an inheritance-list entry initially parsed as an interface is
+        promoted back to a parent class when that class is already known; this covers escaped keyword
+        names like `type &procedure = class(&end);`.
+      - **Remaining deferred SimpleScripts blockers:** position-precision, contract inheritance,
+        inline-method class name in contract messages, and metaclass indexed-property read.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

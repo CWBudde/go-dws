@@ -18,9 +18,9 @@ func (a *Analyzer) isJSONNamespace(obj ast.Expression) bool {
 	return !resolved
 }
 
-// isDefaultNamespace reports whether obj is the `Default` global-namespace
-// qualifier (as in `Default.PrintLn(x)`), rather than a user symbol named
-// Default. The qualifier resolves members against the global scope.
+// isDefaultNamespace reports whether obj is the built-in `Default` namespace
+// used to qualify global built-ins (Default.Print, Default.Length, ...), unless
+// a user symbol shadows it.
 func (a *Analyzer) isDefaultNamespace(obj ast.Expression) bool {
 	identExpr, ok := obj.(*ast.Identifier)
 	if !ok || !ident.Equal(identExpr.Value, "Default") {

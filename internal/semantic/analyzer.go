@@ -96,6 +96,7 @@ type Analyzer struct {
 	sourceCode            string
 	sourceFile            string
 	pendingClassWarnings  []*types.ClassType
+	predeclaredClassTypes map[string]bool
 	errors                []string
 	loopPosStack          []token.Position
 	structuredErrors      []*SemanticError
@@ -131,6 +132,7 @@ func NewAnalyzer() *Analyzer {
 		forwardMethodPos:      make(map[string]token.Position),
 		forwardMethodNames:    make(map[string]string),
 		forwardMethodReported: make(map[string]bool),
+		predeclaredClassTypes: make(map[string]bool),
 		hintsLevel:            HintsLevelNormal,
 	}
 
@@ -302,6 +304,8 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		return fmt.Errorf("cannot analyze nil program")
 	}
 
+	a.predeclareTopLevelClassTypes(program)
+
 	// Two-pass analysis so top-level functions resolve regardless of source order
 	// (DWScript treats top-level function declarations as mutually visible, so
 	// mutual recursion works without an explicit `forward` declaration).
@@ -365,6 +369,38 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 
 	return nil
+}
+
+func (a *Analyzer) predeclareTopLevelClassTypes(program *ast.Program) {
+	for _, stmt := range program.Statements {
+		a.predeclareClassTypesInStatement(stmt)
+	}
+}
+
+func (a *Analyzer) predeclareClassTypesInStatement(stmt ast.Statement) {
+	switch n := stmt.(type) {
+	case *ast.BlockStatement:
+		for _, inner := range n.Statements {
+			a.predeclareClassTypesInStatement(inner)
+		}
+	case *ast.ClassDecl:
+		className := classFullName(n)
+		if className == "" || n.EnclosingClass != nil || a.hasType(className) {
+			return
+		}
+		classType := types.NewClassType(className, nil)
+		classType.IsForward = true
+		a.registerTypeWithPos(className, classType, n.Token.Pos)
+		a.predeclaredClassTypes[ident.Normalize(className)] = true
+	}
+}
+
+func (a *Analyzer) isPredeclaredClassType(className string) bool {
+	return a.predeclaredClassTypes[ident.Normalize(className)]
+}
+
+func (a *Analyzer) clearPredeclaredClassType(className string) {
+	delete(a.predeclaredClassTypes, ident.Normalize(className))
 }
 
 func (a *Analyzer) hasActualErrors() bool {

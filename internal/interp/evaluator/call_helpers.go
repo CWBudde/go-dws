@@ -43,6 +43,11 @@ func (e *Evaluator) executeFunctionPointerDirect(funcPtr Value, args []Value, no
 
 	callCtx := ctx
 	if selfObj := callable.GetSelfObject(); selfObj != nil {
+		if fn, _ := callable.GetFunctionDecl().(*ast.FunctionDecl); fn != nil && fn.IsClassMethod {
+			if classMeta, ok := selfObj.(ClassMetaValue); ok {
+				return e.executeClassMethodDirect(classMeta, fn, args, node, ctx)
+			}
+		}
 		callCtx = ctx.Clone()
 		callCtx.SetEnv(runtime.NewEnclosedEnvironment(ctx.Env()))
 		callCtx.Env().Define("Self", selfObj)
@@ -51,6 +56,25 @@ func (e *Evaluator) executeFunctionPointerDirect(funcPtr Value, args []Value, no
 	}
 
 	return e.ExecuteUserFunctionDirect(fn, args, callCtx)
+}
+
+func (e *Evaluator) evalValueContextExpression(expr ast.Expression, ctx *ExecutionContext) Value {
+	val := e.Eval(expr, ctx)
+	if isError(val) || ctx.Exception() != nil {
+		return val
+	}
+	return e.autoInvokeValueContext(val, expr, ctx)
+}
+
+func (e *Evaluator) autoInvokeValueContext(val Value, node ast.Node, ctx *ExecutionContext) Value {
+	funcPtr, ok := val.(FunctionPointerCallable)
+	if !ok {
+		return val
+	}
+	if funcPtr.ParamCount() != 0 || funcPtr.GetBuiltinName() != "" {
+		return val
+	}
+	return e.executeFunctionPointerDirect(val, []Value{}, node, ctx)
 }
 
 func (e *Evaluator) executeLambdaDirect(

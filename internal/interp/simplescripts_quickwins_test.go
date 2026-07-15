@@ -96,6 +96,34 @@ resourcestring
 `, "String expected")
 }
 
+func TestClassFieldCanUseLaterDeclaredClassAtRuntime(t *testing.T) {
+	got := runQuickwinScript(t, `
+type
+   TContainer = class
+      Child : TChild;
+   end;
+
+   TBase = class
+      function Name : String; virtual;
+      begin
+         Result := 'base';
+      end;
+   end;
+
+   TChild = class(TBase)
+      function Name : String; override;
+      begin
+         Result := 'child';
+      end;
+   end;
+
+var c := new TContainer;
+c.Child := new TChild;
+PrintLn(c.Child.Name);
+`)
+	assertOutput(t, got, "child\n")
+}
+
 // TestImpliesOperator covers the logical implication operator, including its
 // short-circuit behaviour (a False antecedent must not evaluate the consequent).
 func TestImpliesOperator(t *testing.T) {
@@ -120,6 +148,24 @@ if (f implies ((1 div z) = 0)) then
    PrintLn('ok');
 `)
 	assertOutput(t, got, "ok\n")
+}
+
+func TestFunctionPointerValueContextAutoInvoke(t *testing.T) {
+	got := runQuickwinScript(t, `
+var f : function : Integer;
+f := lambda => 123;
+PrintLn(f);
+
+function Yes : Boolean;
+begin
+   PrintLn('yes');
+   Result := True;
+end;
+
+if True implies Yes then
+   PrintLn('ok');
+`)
+	assertOutput(t, got, "123\nyes\nok\n")
 }
 
 // TestEmptyMethodDirective covers the "empty;" directive: a body-less routine
@@ -176,6 +222,24 @@ var v := bye;
 PrintLn(v);
 `)
 	assertOutput(t, got, "hi\nbye\n")
+}
+
+func TestDefaultNamespaceBuiltinCalls(t *testing.T) {
+	got := runQuickwinScript(t, `
+Default.Print('a');
+Default.PrintLn('b');
+PrintLn(Default.Length('xyz'));
+`)
+	assertOutput(t, got, "ab\n3\n")
+}
+
+func TestDefaultNamespaceBuiltinPointer(t *testing.T) {
+	got := runQuickwinScript(t, `
+var p : procedure(v : Variant);
+p := Default.PrintLn;
+p('ok');
+`)
+	assertOutput(t, got, "ok\n")
 }
 
 // TestEscapedReservedWordIdentifiers covers &keyword escaped identifiers.

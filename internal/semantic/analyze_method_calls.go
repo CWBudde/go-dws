@@ -13,6 +13,20 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	if a.isJSONNamespace(expr.Object) {
 		return a.analyzeJSONNamespaceResult(expr.Method.Value, expr.Arguments)
 	}
+	if a.isDefaultNamespace(expr.Object) {
+		builtinCall := &ast.CallExpression{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: expr.Token},
+			},
+			Function:  expr.Method,
+			Arguments: expr.Arguments,
+		}
+		if resultType, isBuiltin := a.analyzeBuiltinFunction(expr.Method.Value, expr.Arguments, builtinCall); isBuiltin {
+			return resultType
+		}
+		a.addStructuredError(NewUnknownNameError(expr.Method.Token.Pos, "Default."+expr.Method.Value))
+		return nil
+	}
 
 	// Default namespace: `Default.PrintLn(x)` resolves the member against the
 	// global scope (builtins / top-level routines), bypassing local/class

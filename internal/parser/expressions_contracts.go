@@ -43,12 +43,16 @@ func (p *Parser) parseCondition() *ast.Condition {
 		condition.Message = msgExpr
 
 		// EndPos is the end of the message expression
-		result := builder.FinishWithNode(condition, msgExpr).(*ast.Condition)
-		return result
+		if result, ok := builder.FinishWithNode(condition, msgExpr).(*ast.Condition); ok {
+			return result
+		}
+		return condition
 	} else {
 		// EndPos is the end of the test expression
-		result := builder.FinishWithNode(condition, testExpr).(*ast.Condition)
-		return result
+		if result, ok := builder.FinishWithNode(condition, testExpr).(*ast.Condition); ok {
+			return result
+		}
+		return condition
 	}
 }
 

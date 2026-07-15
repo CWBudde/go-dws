@@ -261,7 +261,7 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 // evaluation: `a implies b` is equivalent to `(not a) or b`. When the left
 // operand is False the result is True and the right operand is NOT evaluated.
 func (e *Evaluator) evalImpliesOp(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
-	left := e.Eval(node.Left, ctx)
+	left := e.evalValueContextExpression(node.Left, ctx)
 	if isError(left) {
 		return left
 	}
@@ -288,7 +288,7 @@ func (e *Evaluator) evalImpliesOp(node *ast.BinaryExpression, ctx *ExecutionCont
 	}
 
 	// Antecedent is True, so the implication's value is the consequent.
-	right := e.Eval(node.Right, ctx)
+	right := e.evalValueContextExpression(node.Right, ctx)
 	if isError(right) {
 		return right
 	}

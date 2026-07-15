@@ -37,6 +37,15 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if a.isJSONNamespace(memberAccess.Object) {
 			return a.analyzeJSONNamespaceResult(memberAccess.Member.Value, expr.Arguments)
 		}
+		if a.isDefaultNamespace(memberAccess.Object) {
+			builtinCall := *expr
+			builtinCall.Function = memberAccess.Member
+			if resultType, isBuiltin := a.analyzeBuiltinFunction(memberAccess.Member.Value, expr.Arguments, &builtinCall); isBuiltin {
+				return resultType
+			}
+			a.addStructuredError(NewUnknownNameError(memberAccess.Member.Token.Pos, "Default."+memberAccess.Member.Value))
+			return nil
+		}
 
 		objectType := a.analyzeExpression(memberAccess.Object)
 		if objectType == nil {

@@ -22,6 +22,14 @@ func (e *Evaluator) executeObjectMethodDirect(
 	if classInfo == nil {
 		return e.newError(node, "method execution requires class context")
 	}
+	if method.IsClassMethod {
+		if classVal, err := e.typeSystem.CreateClassValue(classInfo.GetName()); err == nil && classVal != nil {
+			if classMeta, ok := classVal.(ClassMetaValue); ok {
+				return e.executeClassMethodDirect(classMeta, method, args, node, ctx)
+			}
+		}
+		return e.newError(node, "class method execution requires runtime class value")
+	}
 
 	return e.executeMethodWithClassInfo(self, classInfo, method, args, ctx)
 }
@@ -131,6 +139,17 @@ func (e *Evaluator) executeClassMethodDirect(
 	if !ok {
 		return e.newError(node, "class method execution requires runtime class value")
 	}
+	bindClassInfo := classInfo
+	if defining := definingClassOf(classInfo, method); defining != nil {
+		if method.IsStatic {
+			bindClassInfo = defining
+			if definingValue, err := e.typeSystem.CreateClassValue(defining.GetName()); err == nil && definingValue != nil {
+				if value, ok := definingValue.(Value); ok {
+					classValue = value
+				}
+			}
+		}
+	}
 
 	ctx.PushEnv()
 	defer ctx.PopEnv()
@@ -138,10 +157,10 @@ func (e *Evaluator) executeClassMethodDirect(
 	ctx.Env().Define("Self", classValue)
 	ctx.Env().Define("__CurrentClass__", classValue)
 	ctx.Env().Define("__CurrentMethod__", &runtime.StringValue{Value: method.Name.Value})
-	if defining := definingClassOf(classInfo, method); defining != nil {
+	if defining := definingClassOf(bindClassInfo, method); defining != nil {
 		ctx.Env().Define("__CurrentMethodClass__", &runtime.StringValue{Value: defining.GetName()})
 	}
-	e.bindClassConstantsForMethod(classInfo, ctx)
+	e.bindClassConstantsForMethod(bindClassInfo, ctx)
 
 	return e.ExecuteUserFunctionDirect(method, args, ctx)
 }

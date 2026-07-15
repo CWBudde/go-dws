@@ -96,7 +96,10 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		if !p.expectPeek(lexer.SEMICOLON) {
 			return nil
 		}
-		return builder.Finish(prop).(*ast.PropertyDecl)
+		if result, ok := builder.Finish(prop).(*ast.PropertyDecl); ok {
+			return result
+		}
+		return prop
 	}
 
 	// Expect colon before type

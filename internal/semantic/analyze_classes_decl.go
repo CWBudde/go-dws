@@ -16,11 +16,7 @@ import (
 
 // isForwardDeclaration checks if a class declaration is a forward declaration (has no body).
 func (a *Analyzer) isForwardDeclaration(decl *ast.ClassDecl) bool {
-	return decl.Fields == nil &&
-		decl.Methods == nil &&
-		decl.Properties == nil &&
-		decl.Operators == nil &&
-		decl.Constants == nil
+	return decl.IsForward
 }
 
 // handleExistingClass handles conflicts when a class is redeclared.
@@ -137,6 +133,31 @@ func (a *Analyzer) createForwardDeclaration(decl *ast.ClassDecl, className strin
 	a.registerTypeWithPos(className, classType, decl.Token.Pos)
 }
 
+func (a *Analyzer) completePredeclaredForwardDeclaration(decl *ast.ClassDecl, classType *types.ClassType) bool {
+	if classType == nil {
+		return false
+	}
+
+	if decl.Parent != nil {
+		parentName := decl.Parent.Value
+		parentClass := a.getClassType(parentName)
+		if parentClass == nil {
+			a.addError("parent class '%s' not found at %s", parentName, decl.Token.Pos.String())
+			return false
+		}
+		a.warnDeprecatedClassUsage(parentClass, decl.Parent.Token.Pos)
+		classType.Parent = parentClass
+	}
+
+	classType.IsForward = true
+	classType.IsAbstract = decl.IsAbstract
+	classType.IsExternal = decl.IsExternal
+	classType.ExternalName = decl.ExternalName
+	classType.IsDeprecated = decl.IsDeprecated
+	classType.DeprecatedMessage = decl.DeprecatedMessage
+	return true
+}
+
 // initializeClassType initializes or reuses a class type, resolving its parent.
 // Returns the class type and its parent. Returns nil classType on error.
 func (a *Analyzer) initializeClassType(
@@ -163,6 +184,15 @@ func (a *Analyzer) initializeClassType(
 				return nil, nil
 			}
 			classType.Parent = parentClass
+		}
+		if decl.Parent == nil && parentClass == nil && len(decl.Interfaces) > 0 {
+			parentIdent := decl.Interfaces[0]
+			if candidateParent := a.getClassType(parentIdent.Value); candidateParent != nil {
+				decl.Parent = parentIdent
+				decl.Interfaces = decl.Interfaces[1:]
+				parentClass = candidateParent
+				classType.Parent = candidateParent
+			}
 		}
 
 		// Handle implicit TObject parent.
@@ -338,11 +368,23 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 	// Handle existing class declarations (forward/partial).
 	existingClass := a.getClassType(className)
-	resolvingForwardDecl, mergingPartialClass, shouldReturn := a.handleExistingClass(
-		existingClass, decl, className, isForwardDecl,
-	)
-	if shouldReturn {
-		return
+	resolvingForwardDecl := false
+	mergingPartialClass := false
+	if existingClass != nil && a.isPredeclaredClassType(className) {
+		a.clearPredeclaredClassType(className)
+		if isForwardDecl {
+			a.completePredeclaredForwardDeclaration(decl, existingClass)
+			return
+		}
+		resolvingForwardDecl = true
+	} else {
+		var shouldReturn bool
+		resolvingForwardDecl, mergingPartialClass, shouldReturn = a.handleExistingClass(
+			existingClass, decl, className, isForwardDecl,
+		)
+		if shouldReturn {
+			return
+		}
 	}
 
 	// Create a forward declaration if applicable.

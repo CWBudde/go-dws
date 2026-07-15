@@ -544,6 +544,10 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 			typeName := operand.String()
 			resolvedType, err := e.resolveTypeName(typeName, ctx)
 			if err == nil && resolvedType != nil {
+				if classType, ok := resolvedType.(*types.ClassType); ok {
+					operandTypes = append(operandTypes, classType.Name)
+					continue
+				}
 				operandTypes = append(operandTypes, resolvedType.String())
 			} else {
 				operandTypes = append(operandTypes, typeName)

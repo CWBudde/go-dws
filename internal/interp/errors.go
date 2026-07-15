@@ -168,15 +168,17 @@ func (i *Interpreter) getPositionFromNode(node ast.Node) lexer.Position {
 func formatRuntimeErrorValue(errVal Value) string {
 	switch err := errVal.(type) {
 	case *RuntimeError:
+		message := formatDWScriptRuntimeMessage(err.Message)
 		// Normalize to DWScript fixture format with labeled line/column
 		if err.Pos != nil && err.Pos.IsValid() {
-			return fmt.Sprintf("Runtime Error: %s [line: %d, column: %d]", err.Message, err.Pos.Line, err.Pos.Column)
+			return fmt.Sprintf("Runtime Error: %s [line: %d, column: %d]", message, err.Pos.Line, err.Pos.Column)
 		}
-		return "Runtime Error: " + strings.TrimSpace(err.Message)
+		return "Runtime Error: " + strings.TrimSpace(message)
 	case *ErrorValue:
 		// If we have structured interpreter error data, prefer that for formatting
 		if err.Err != nil && err.Err.Pos != nil {
-			return fmt.Sprintf("Runtime Error: %s [line: %d, column: %d]", err.Err.Message, err.Err.Pos.Line, err.Err.Pos.Column)
+			message := formatDWScriptRuntimeMessage(err.Err.Message)
+			return fmt.Sprintf("Runtime Error: %s [line: %d, column: %d]", message, err.Err.Pos.Line, err.Err.Pos.Column)
 		}
 
 		msg := strings.TrimPrefix(err.String(), "ERROR: ")
@@ -196,10 +198,23 @@ func formatRuntimeErrorValue(errVal Value) string {
 		msg = strings.Join(lines, "\n")
 
 		if !strings.HasPrefix(msg, "Runtime Error:") {
+			msg = formatDWScriptRuntimeMessage(msg)
 			msg = "Runtime Error: " + msg
 		}
 		return msg
 	default:
 		return "Runtime Error: " + strings.TrimSpace(errVal.String())
+	}
+}
+
+func formatDWScriptRuntimeMessage(message string) string {
+	message = strings.TrimSpace(message)
+	switch {
+	case strings.HasPrefix(message, "cannot cast interface of "):
+		return "Cannot cast interface of " + strings.TrimPrefix(message, "cannot cast interface of ")
+	case strings.HasPrefix(message, "class \"") && strings.Contains(message, "\" does not implement interface "):
+		return "Class " + strings.TrimPrefix(message, "class ")
+	default:
+		return message
 	}
 }

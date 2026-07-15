@@ -22,8 +22,8 @@ func (e *Evaluator) isJSONNamespaceObject(obj ast.Expression, ctx *ExecutionCont
 	return !exists
 }
 
-// isDefaultNamespaceObject reports whether the call object is the `Default`
-// global-namespace qualifier (identifier "Default" not shadowed by a local).
+// isDefaultNamespaceObject reports whether obj is the built-in Default
+// namespace qualifier for global built-ins (Default.Print, Default.Length, ...).
 func (e *Evaluator) isDefaultNamespaceObject(obj ast.Expression, ctx *ExecutionContext) bool {
 	identObj, ok := obj.(*ast.Identifier)
 	if !ok || !ident.Equal(identObj.Value, "Default") {

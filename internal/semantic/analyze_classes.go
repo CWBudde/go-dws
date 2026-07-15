@@ -329,6 +329,20 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			if a.isJSONNamespace(expr.Object) {
 				return jsonNamespaceMemberType(expr.Member.Value)
 			}
+		case "default":
+			if a.isDefaultNamespace(expr.Object) {
+				if ptrType := a.getBuiltinFunctionPointerType(expr.Member.Value); ptrType != nil {
+					return ptrType
+				}
+				if _, isBuiltin := a.analyzeBuiltinFunction(expr.Member.Value, nil, &ast.CallExpression{
+					TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}},
+					Function:            expr.Member,
+				}); isBuiltin {
+					return types.VOID
+				}
+				a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, "Default."+expr.Member.Value))
+				return nil
+			}
 		}
 	}
 

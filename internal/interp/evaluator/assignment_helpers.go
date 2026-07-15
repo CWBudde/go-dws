@@ -144,6 +144,10 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 		return nil
 	}
 
+	if e.isDefaultNamespaceObject(expr.Object, ctx) {
+		return &runtime.FunctionPointerValue{BuiltinName: expr.Member.Value}
+	}
+
 	objVal := e.Eval(expr.Object, ctx)
 	if isError(objVal) {
 		return objVal
@@ -163,9 +167,15 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 				}
 			}
 			// A class method reached through an instance (o.ClassProc) also yields
-			// a bound pointer; the receiver still resolves ClassName virtually.
+			// a bound pointer, but the class method runs in metaclass context rather
+			// than with the object instance as Self.
 			if methodDecl := obj.GetClassMethodDecl(memberName); methodDecl != nil {
-				return e.createFunctionPointerFromDecl(methodDecl, objVal, ctx)
+				if classVal, err := e.typeSystem.CreateClassValue(obj.ClassName()); err == nil && classVal != nil {
+					if classMeta, ok := classVal.(Value); ok {
+						return e.createFunctionPointerFromDecl(methodDecl, classMeta, ctx)
+					}
+				}
+				return e.newError(expr, "class method '%s' could not bind class context", memberName)
 			}
 		}
 		return e.newError(expr, "method '%s' not found", memberName)

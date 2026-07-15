@@ -44,6 +44,14 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	if e.isJSONNamespaceObject(node.Object, ctx) {
 		return e.evalJSONNamespaceCall(node.Method.Value, node.Arguments, node, ctx)
 	}
+	if e.isDefaultNamespaceObject(node.Object, ctx) {
+		builtinCall := &ast.CallExpression{
+			TypedExpressionBase: node.TypedExpressionBase,
+			Function:            node.Method,
+			Arguments:           node.Arguments,
+		}
+		return e.VisitCallExpression(builtinCall, ctx)
+	}
 
 	// Default namespace: `Default.PrintLn(x)` resolves against the global scope
 	// (builtins / top-level routines), bypassing local/class members. Dispatch it
