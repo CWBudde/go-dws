@@ -339,7 +339,7 @@ func (e *Evaluator) ExecuteUserFunction(
 
 	// Check preconditions before executing function body
 	if fn.PreConditions != nil {
-		if err := e.CheckPreconditions(fn.Name.Value, fn.PreConditions, funcCtx); isError(err) {
+		if err := e.CheckPreconditions(contractFuncName(fn), fn.PreConditions, funcCtx); isError(err) {
 			return nil, fmt.Errorf("precondition failed: %v", err)
 		}
 		// If exception was raised during precondition checking, propagate it
@@ -445,7 +445,7 @@ func (e *Evaluator) ExecuteUserFunction(
 
 	// Check postconditions after function body executes
 	if fn.PostConditions != nil {
-		if err := e.CheckPostconditions(fn.Name.Value, fn.PostConditions, funcCtx); isError(err) {
+		if err := e.CheckPostconditions(contractFuncName(fn), fn.PostConditions, funcCtx); isError(err) {
 			return nil, fmt.Errorf("postcondition failed: %v", err)
 		}
 		// If exception was raised during postcondition checking, propagate it

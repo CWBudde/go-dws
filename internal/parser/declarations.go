@@ -84,8 +84,13 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 	blockToken := p.cursor.Current() // Save the initial CONST token for the block
 	statements := []ast.Statement{}
 
+	// A `resourcestring` section marks every declaration in the block, not just
+	// the first — subsequent entries are parsed starting from an IDENT token, so
+	// the flag must be carried from the section-introducing keyword.
+	isResourceStringSection := blockToken.Type == lexer.RESOURCESTRING
+
 	// Parse first const declaration
-	firstStmt := p.parseSingleConstDeclaration()
+	firstStmt := p.parseSingleConstDeclaration(isResourceStringSection)
 	if firstStmt == nil {
 		return nil
 	}
@@ -95,7 +100,7 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 	// As long as the next line looks like a const declaration (not just any identifier)
 	for p.looksLikeConstDeclaration(p.cursor) {
 		p.cursor = p.cursor.Advance() // move to identifier
-		constStmt := p.parseSingleConstDeclaration()
+		constStmt := p.parseSingleConstDeclaration(isResourceStringSection)
 		if constStmt == nil {
 			break
 		}
@@ -117,12 +122,14 @@ func (p *Parser) parseConstDeclaration() ast.Statement {
 // Assumes we're already positioned at the identifier (or just before it).
 // PRE: cursor is on CONST or IDENT token
 // POST: cursor is on last token of value expression or SEMICOLON
-func (p *Parser) parseSingleConstDeclaration() *ast.ConstDecl {
+func (p *Parser) parseSingleConstDeclaration(isResourceStringSection bool) *ast.ConstDecl {
 	builder := p.StartNode()
 
 	// If we're at CONST (or RESOURCESTRING) token, advance to identifier.
+	// isResourceStringSection propagates the marker to later declarations in a
+	// `resourcestring` block, which start from an IDENT rather than the keyword.
 	currentToken := p.cursor.Current()
-	isResourceString := currentToken.Type == lexer.RESOURCESTRING
+	isResourceString := isResourceStringSection || currentToken.Type == lexer.RESOURCESTRING
 	if currentToken.Type == lexer.CONST || currentToken.Type == lexer.RESOURCESTRING {
 		p.cursor = p.cursor.Advance() // move to identifier
 		currentToken = p.cursor.Current()

@@ -53,6 +53,18 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		return e.VisitCallExpression(builtinCall, ctx)
 	}
 
+	// Default namespace: `Default.PrintLn(x)` resolves against the global scope
+	// (builtins / top-level routines), bypassing local/class members. Dispatch it
+	// as a plain global call.
+	if e.isDefaultNamespaceObject(node.Object, ctx) {
+		call := &ast.CallExpression{
+			TypedExpressionBase: node.TypedExpressionBase,
+			Function:            node.Method,
+			Arguments:           node.Arguments,
+		}
+		return e.Eval(call, ctx)
+	}
+
 	if identObj, ok := node.Object.(*ast.Identifier); ok {
 		if _, exists := ctx.Env().Get(identObj.Value); !exists {
 			unitExists := false

@@ -84,18 +84,32 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		}
 	}
 
+	// Promotion form: `property Prop;` (no index, no type, no accessors) —
+	// redeclares an inherited property under the current visibility, inheriting
+	// its type and accessors from the parent. Only valid without index params.
+	if indexParams == nil && p.peekTokenIs(lexer.SEMICOLON) {
+		prop := &ast.PropertyDecl{
+			BaseNode:    ast.BaseNode{Token: propToken},
+			Name:        propName,
+			IsPromotion: true,
+		}
+		if !p.expectPeek(lexer.SEMICOLON) {
+			return nil
+		}
+		return builder.Finish(prop).(*ast.PropertyDecl)
+	}
+
 	// Expect colon before type
 	if !p.expectPeek(lexer.COLON) {
 		return nil
 	}
 
-	// Parse property type
-	if !p.expectPeek(lexer.IDENT) {
+	// Parse property type via the shared type parser so composite types
+	// (e.g. `array of String`) are supported, not just a bare identifier.
+	p.nextToken() // move onto the type's first token
+	propType := p.parseTypeExpression()
+	if propType == nil {
 		return nil
-	}
-	propType := &ast.TypeAnnotation{
-		Token: p.cursor.Current(),
-		Name:  p.cursor.Current().Literal,
 	}
 
 	prop := &ast.PropertyDecl{
@@ -136,8 +150,8 @@ parseDirectives:
 				// Parse expression-based read spec
 				readExpr := p.parseExpression(LOWEST)
 				prop.ReadSpec = readExpr
-			} else if p.curTokenIs(lexer.IDENT) {
-				// Simple identifier (field or method name)
+			} else if p.isMemberNameToken(p.cursor.Current().Type) {
+				// Simple field/method name (may be a reserved word, e.g. `read Set`)
 				prop.ReadSpec = &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{
@@ -164,8 +178,8 @@ parseDirectives:
 				if !p.parsePropertyWriteClause(prop) {
 					return nil
 				}
-			case p.curTokenIs(lexer.IDENT):
-				// Simple identifier (field or method name)
+			case p.isMemberNameToken(p.cursor.Current().Type):
+				// Simple field/method name (may be a reserved word, e.g. `write Set`)
 				prop.WriteSpec = &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{

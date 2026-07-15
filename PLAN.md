@@ -499,27 +499,74 @@ Goal: a green CI run must mean "the language works," not "the parts we test work
         `ExceptionValue.StackTraceString()` renderer reusing `errors.StackTrace.DWScriptString()` plus
         the raise site as the innermost frame (`runtime/exception.go`), populated at catch time
         (`visitor_statements.go`).
+      - **Deferred (kept for a follow-up batch):** the auto-invoke/short-form-inheritance/
+        position-precision blockers noted above. (`Default.` global-namespace access landed in
+        batch #2 below.)
+- [~] **SimpleScripts quick-wins batch #2 (2026-07-07).** Nine independent front-end/runtime gaps.
+      **SimpleScripts CLI 299 → 309 (harness 316 → 326, +10); collateral GenericsPass 14 → 15 (harness
+      13 → 14), FailureScripts +1; overall CLI 715 → 727**; no category regressed. Covered by
+      `internal/interp/simplescripts_quickwins_test.go` (batch #2) and
+      `internal/semantic/property_test.go`.
+      - **`mod` on floats** (`mod_float`, `mod_float_large`). Split `mod` from integer-only `div` in
+        the analyzer (numeric operands, `PromoteTypes` result — Float when either side is Float,
+        `internal/semantic/analyze_expr_operators.go`); added a `math.Mod` case to `evalFloatBinaryOp`
+        with negative-zero normalization (`internal/interp/evaluator/binary_ops.go`).
+      - **Float division by zero → INF/NaN** (`div_by_zero_float`, `mul_div_optimize`). Removed the
+        float `/`-by-zero guard so `1/0.0` yields `+Inf` (rendered `INF`) and `0/0` yields `NaN`,
+        matching IEEE-754; execution continues (`binary_ops.go`). Integer `/` still errors.
+      - **`FloatToStr` on a type-aliased Integer** (`implicit_typed_int_to_float`). The arg[0] check
+        used pointer identity, rejecting `type TMyInt = Integer`; now resolves the underlying type
+        (`analyze_builtin_convert.go`). Also taught `evalTypeCast` to resolve a primitive type alias
+        (`TMyInt(x)`) through its base (`internal/interp/evaluator/type_casts.go`).
+      - **Reserved word as property accessor** (`index_property`). `read`/`write` specs now accept any
+        member-name token (e.g. `write Set`), not just `IDENT` (`internal/parser/properties.go`).
+      - **Composite (`array of T`) property types** (`property_type_array`). Property-type parsing now
+        routes through the shared `parseTypeExpression`, and the class-property analyzer uses
+        `resolveTypeExpression` (`properties.go`, `analyze_properties.go`).
+      - **Contract postcondition/precondition expression messages** (`procedure_contracts`). The
+        parser accepted only a string literal after `:`; it now parses any expression (the AST/semantic/
+        evaluator already handled it — `internal/parser/expressions_contracts.go`). Contract-failure
+        messages are now class-qualified (`TBase.Check`) via `contractFuncName`.
+      - **`property Prop;` visibility promotion** (`property_promotion`). New `PropertyDecl.IsPromotion`
+        parsed for the bare redeclaration form; the semantic analyzer copies the inherited PropertyInfo,
+        and the evaluator lets `InheritParentPropertyInfos` carry it down (`pkg/ast/properties.go`,
+        `analyze_properties.go`, `visitor_declarations.go`).
+      - **`Default.` global-namespace qualifier** (`value_type_separation`). `Default.<name>(args)`
+        parses (`Default` before `.` is a plain identifier), and both semantic and evaluator rewrite it
+        to a global call, mirroring the JSON namespace (`expressions_oop.go`, `analyze_method_calls.go`,
+        `analyze_json.go`, `visitor_expressions_methods.go`, `json_namespace.go`).
+      - **Class-method accessor on an instance property + enum→Integer coercion** (partial). Relaxed the
+        analyzer rejection of an instance property backed by a class method (correct per DWScript,
+        matching the write-side sibling), and taught `IntToStr`/`Chr` to accept enums (ordinals). The
+        `enum_to_integer` fixture itself is **deferred** — it additionally needs indexed-property read
+        through a metaclass with a class-method accessor (a separate runtime feature).
+      - **Deferred after batch #2:** `static`-method `ClassName` binding (`static_method1/2` now run
+        but bind the runtime subclass instead of the declaring class); contract *inheritance*
+        (`method_contracts`); inline-method class name in contract messages (`method_condition`); the
+        metaclass indexed-property read above.
+- [~] **SimpleScripts follow-ups (2026-07-10).** Targeted blockers left by the quick-wins batches:
+      `Default.`/static-method binding, value-context auto-invoke, and short-form inheritance.
       - **`Default.` global-namespace access and static class-method binding** (`static_method1/2`,
         `value_type_separation`). `Default.<builtin>` now parses as a contextual namespace qualifier
         rather than the `Default(Type)` intrinsic, with semantic/runtime dispatch routed through the
         ordinary builtin call path and builtin function-pointer assignment (`p := Default.PrintLn`)
         supported. A class method declared `static` now binds `ClassName`/`Self` to the declaring
         class even when invoked through a subclass metaclass, subclass instance, or function pointer,
-        matching DWScript's non-virtual static-method semantics. **SimpleScripts CLI 299 → 302.**
+        matching DWScript's non-virtual static-method semantics.
       - **Value-context auto-invoke of parameterless function pointers** (`implies`, LambdaPass
         `immediate`). A zero-argument function pointer/lambda used where a value is consumed now
         invokes and yields its result for `Print`/`PrintLn` arguments and `implies` operands, while
         assignment/function-pointer contexts still preserve the pointer value. The semantic analyzer
         also normalizes parameterless function/method-pointer operand types to their return type for
-        `implies`, so `True implies SomeBooleanFunction` type-checks. **SimpleScripts CLI 302 → 304;
-        LambdaPass 4/6 → 5/6.**
+        `implies`, so `True implies SomeBooleanFunction` type-checks.
       - **Short-form inheritance with non-`T` class names** (`reserved_word`). Semantic class analysis
         now trusts the parser's explicit `IsForward` flag instead of inferring forward declarations
         from nil member slices, so `type B = class(A);` is a complete empty subclass. In the
         predeclared-class reuse path, an inheritance-list entry initially parsed as an interface is
         promoted back to a parent class when that class is already known; this covers escaped keyword
-        names like `type &procedure = class(&end);`. **SimpleScripts CLI 304 → 305.**
-      - **Deferred (kept for a follow-up batch):** position-precision blockers noted above.
+        names like `type &procedure = class(&end);`.
+      - **Remaining deferred SimpleScripts blockers:** position-precision, contract inheritance,
+        inline-method class name in contract messages, and metaclass indexed-property read.
 - **Exit criteria:** SimpleScripts ≥ 85%, GenericsPass/LambdaPass/PropertyExpressionsPass ≥ 50%.
 
 ### P2 — Collapse the type system to one representation 🔴

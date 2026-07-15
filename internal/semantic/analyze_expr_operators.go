@@ -506,8 +506,8 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		return types.PromoteTypes(leftType, rightType)
 	}
 
-	// Handle integer division and modulo (allow Variant in div/mod operations)
-	if operator == "div" || operator == "mod" {
+	// Handle integer division (div is integer-only; allow Variant)
+	if operator == "div" {
 		leftIsVariant := leftType == types.VARIANT
 		rightIsVariant := rightType == types.VARIANT
 
@@ -523,6 +523,26 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return types.VARIANT
 		}
 		return types.INTEGER
+	}
+
+	// Handle modulo (DWScript permits mod on floats via fmod; allow Variant)
+	if operator == "mod" {
+		leftIsVariant := leftType == types.VARIANT
+		rightIsVariant := rightType == types.VARIANT
+
+		if !leftIsVariant && !rightIsVariant {
+			if !types.IsNumericType(leftType) || !types.IsNumericType(rightType) {
+				a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
+				return nil
+			}
+		}
+
+		// If Variant is involved, return Variant; otherwise promote (Float if
+		// either operand is Float, else Integer).
+		if leftIsVariant || rightIsVariant {
+			return types.VARIANT
+		}
+		return types.PromoteTypes(leftType, rightType)
 	}
 
 	// Handle bitwise shift operators

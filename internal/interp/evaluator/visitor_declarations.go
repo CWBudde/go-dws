@@ -515,6 +515,11 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		if propDecl == nil {
 			continue
 		}
+		// A bare promotion `property Prop;` carries no type/accessors of its own;
+		// InheritParentPropertyInfos (below) copies the parent property down.
+		if propDecl.IsPromotion {
+			continue
+		}
 		propInfo := e.convertPropertyDecl(classInfo, propDecl, ctx)
 		if propInfo == nil {
 			return e.newError(propDecl, "failed to add property '%s' to class '%s'", propDecl.Name.Value, className)

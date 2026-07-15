@@ -1098,7 +1098,7 @@ func TestForwardClassDeclarationWithParent(t *testing.T) {
 			X: Integer;
 		end;
 
-		type TChild = class(TBase);
+		type TChild = class;
 
 		type TChild = class(TBase)
 			Y: Integer;

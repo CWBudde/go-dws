@@ -28,6 +28,18 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		return nil
 	}
 
+	// Default namespace: `Default.PrintLn(x)` resolves the member against the
+	// global scope (builtins / top-level routines), bypassing local/class
+	// members. Rewrite to a plain global call and reuse call analysis.
+	if a.isDefaultNamespace(expr.Object) {
+		call := &ast.CallExpression{
+			TypedExpressionBase: expr.TypedExpressionBase,
+			Function:            expr.Method,
+			Arguments:           expr.Arguments,
+		}
+		return a.analyzeCallExpression(call)
+	}
+
 	// Analyze the object expression
 	objectType := a.analyzeExpression(expr.Object)
 	if objectType == nil {

@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"math"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -433,10 +434,16 @@ func (e *Evaluator) evalFloatBinaryOp(op string, left, right Value, node ast.Nod
 	case "*":
 		return &runtime.FloatValue{Value: leftVal * rightVal}
 	case "/":
-		if rightVal == 0 {
-			return e.newError(node, "division by zero: %v / %v", leftVal, rightVal)
-		}
+		// DWScript float division by zero yields ±Inf / NaN (not an error),
+		// matching IEEE-754 semantics. Go's float64 division does the same.
 		return &runtime.FloatValue{Value: leftVal / rightVal}
+	case "mod":
+		// DWScript permits mod on floats (Delphi fmod semantics).
+		m := math.Mod(leftVal, rightVal)
+		if m == 0 {
+			m = 0 // normalize negative zero to +0 (DWScript prints "0")
+		}
+		return &runtime.FloatValue{Value: m}
 	case "=":
 		return &runtime.BooleanValue{Value: leftVal == rightVal}
 	case "<>":

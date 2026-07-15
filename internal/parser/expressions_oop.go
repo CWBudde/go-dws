@@ -346,6 +346,18 @@ func (p *Parser) parseArrayDimensions(end lexer.TokenType) ([]ast.Expression, bo
 func (p *Parser) parseDefaultExpression() ast.Expression {
 	defaultToken := p.cursor.Current() // Save the 'default' token position
 
+	// `Default.<name>` is the global-namespace qualifier (e.g. Default.PrintLn),
+	// not the Default(Type) intrinsic. Emit `Default` as a plain identifier so the
+	// normal member-access/call machinery resolves it.
+	if p.cursor.Peek(1).Type == lexer.DOT {
+		return &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: defaultToken},
+			},
+			Value: defaultToken.Literal,
+		}
+	}
+
 	// Expect LPAREN
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.LPAREN {

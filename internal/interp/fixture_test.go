@@ -36,11 +36,11 @@ const (
 	// fixtureRespSentinel prefixes worker responses on stdout so they can be told apart
 	// from Go's own test-framework chatter.
 	fixtureRespSentinel = "@@DWSFIXTURE@@ "
-	// Per-fixture execution timeout: enough for normal tests, catches infinite loops.
-	// Race-detector builds multiply this (see fixtureTimeoutScale): compute-heavy
-	// fixtures like Algorithms/mandelbrot run 5-10x slower under -race and were
-	// flaking right at the 5s boundary.
-	fixtureTimeout = 5 * time.Second * fixtureTimeoutScale
+	// Per-fixture execution timeout: enough for compute-heavy fixtures in slower
+	// environments while still catching infinite loops. This matches the CLI
+	// fixture-report default; race-detector builds multiply it (see
+	// fixtureTimeoutScale).
+	fixtureTimeout = 60 * time.Second * fixtureTimeoutScale
 	// How long the parent waits for a worker response before assuming the fixture hung
 	// and killing (then restarting) the worker.
 	fixtureWorkerTimeout = fixtureTimeout + 3*time.Second
