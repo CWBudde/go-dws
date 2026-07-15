@@ -497,7 +497,7 @@ func (e *Evaluator) raiseTypeCastException(message string, node ast.Node) {
 	if asExpr, ok := node.(*ast.AsExpression); ok {
 		pos = asExpr.Token.Pos
 	}
-	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
+	fullMessage := fmt.Sprintf("%s [line: %d, column: %d]", formatDWScriptExceptionMessage(message), pos.Line, pos.Column)
 
 	// Look up Exception class
 	excClass := e.typeSystem.LookupClass("Exception")

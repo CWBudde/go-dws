@@ -63,6 +63,7 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 			if trace := exc.CallStack.DWScriptString(); trace != "" {
 				message += "\n" + trace
 			}
+			message = formatDWScriptExceptionMessage(message)
 			return &runtime.ErrorValue{Message: message}
 		}
 		type ExceptionInspector interface {
@@ -75,6 +76,18 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 	}
 
 	return result
+}
+
+func formatDWScriptExceptionMessage(message string) string {
+	message = strings.TrimSpace(message)
+	switch {
+	case strings.HasPrefix(message, "cannot cast interface of "):
+		return "Cannot cast interface of " + strings.TrimPrefix(message, "cannot cast interface of ")
+	case strings.HasPrefix(message, "class \"") && strings.Contains(message, "\" does not implement interface "):
+		return "Class " + strings.TrimPrefix(message, "class ")
+	default:
+		return message
+	}
 }
 
 func (e *Evaluator) predeclareProgramClassTypes(node *ast.Program, ctx *ExecutionContext) Value {

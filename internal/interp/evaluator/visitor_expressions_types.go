@@ -444,7 +444,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 				return nil, err
 			}
 			if !e.isClassHierarchyCompatible(underlyingClassMeta, targetClassMeta) {
-				return nil, fmt.Errorf("Cannot cast interface of '%s' to class '%s'", underlyingClassMeta.Name, typeName)
+				return nil, fmt.Errorf("cannot cast interface of '%s' to class '%s'", underlyingClassMeta.Name, typeName)
 			}
 
 			// Cast is valid - return the underlying object
@@ -470,7 +470,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 			}
 
 			if !e.classImplementsInterface(underlyingClassMeta, typeName) {
-				return nil, fmt.Errorf("Cannot cast interface of \"%s\" to interface \"%s\"", underlyingClassMeta.Name, typeName)
+				return nil, fmt.Errorf("cannot cast interface of \"%s\" to interface \"%s\"", underlyingClassMeta.Name, typeName)
 			}
 
 			// Create and return new interface instance
@@ -520,7 +520,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 
 		// Validate that the object's class implements the interface
 		if !e.classImplementsInterface(objClassMeta, typeName) {
-			return nil, fmt.Errorf("Class \"%s\" does not implement interface \"%s\"", objClassMeta.Name, typeName)
+			return nil, fmt.Errorf("class \"%s\" does not implement interface \"%s\"", objClassMeta.Name, typeName)
 		}
 
 		// Create and return the interface instance
