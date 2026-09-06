@@ -94,3 +94,37 @@ Phase 5 and later work should treat this split as the baseline:
 - `runtime` is the primitive layer
 
 Further cleanup should tighten that boundary, not recreate callback ownership.
+
+---
+
+## Appendix A — Runtime ownership boundary (from Phase 4.1)
+
+- `Interpreter` is the public engine facade; `ExecutionContext` is the canonical owner of per-run mutable state.
+- `runtime` owns value containers, call stack, control flow, property context, and exception data structures.
+- Behind `ExecutionContext`: active exception, handler exception, call stack, environment stack, property evaluation context, and the old-value capture used by contracts/postconditions.
+- Removed for good: exception getter/setter callback plumbing, env-sync callbacks, `SetFocusedInterfaces()`, and duplicated interpreter-owned copies of per-run state.
+
+## Appendix B — Seam decisions (from Phase 4.10.2)
+
+Justified, permanent boundaries:
+
+- `internal/interp/new.go` importing `internal/interp/evaluator` — the construction boundary; wires environment, type system, evaluator, interpreter facade, and shared `EngineState`.
+- Shared `EngineState` — neutral coordination state for construction, semantic info, unit state, refcount manager, and registry handles.
+- External-function integration — a shell/host boundary. The evaluator owns signature-aware argument preparation (including var-parameter references) and calls `EngineState.ExternalFunctionCaller` with runtime values only; the shell performs host invocation and FFI panic/error handling. AST nodes never round-trip back into interpreter code.
+- The evaluator shim — retained as a minimal internal handle (`Eval`, `ExecuteUserFunctionDirect`, current-node access, shared `EngineState`). It must not grow back into a semantic bridge.
+
+Resolved residue: `contracts.UserFunctionCallbacks` was removed in 4.11; user-function execution policy is evaluator-native.
+
+## Appendix C — Allowed `internal/interp` responsibilities (from Phase 4.10.5)
+
+`internal/interp` may own only:
+
+1. **Production bootstrap** — `new.go`, environment creation, type-system wiring, `EngineState` and refcount/destructor setup.
+2. **Public engine-facing API and orchestration** — `Interpreter.Eval`, `EvalWithExpectedType`, exception/query helpers, source/semantic-info configuration; all delegating AST semantics to the evaluator.
+3. **Host and unit integration** — external-function registration/invocation plumbing, unit registry load/init coordination, Go callback / FFI entry points.
+4. **Declaration/bootstrap mutation of registries and metadata** — the `evalFunctionDeclaration`, `evalClassMethodImplementation`, `evalRecordMethodImplementation`, `evalClassDeclaration`, `evalInterfaceDeclaration`, `evalOperatorDeclaration`, `evalHelperDeclaration`, `evalTypeDeclaration`, `evalEnumDeclaration` family.
+5. **Narrow runtime helper primitives** used by shell-owned integration — `evalViaEvaluator`, lvalue/reference helpers, small value-operation helpers, call-stack/error-location support.
+
+Not allowed to reappear in `internal/interp`: production statement execution (program/block/if/case/loop/try/raise/assignment/break/continue/exit), production expression execution (method dispatch, property read/write, casts, `as`, `Default(...)`, record method execution, helper method/property execution), or any shadow evaluator entry point. `internal/interp/boundary_test.go` is the executable source of truth for the allowlist; anything outside it is suspicious by default and should be moved to evaluator/runtime, justified explicitly, or deleted.
+
+The measured state of this boundary as of 2026-09 (dead residue, remaining duplication, and the ranked refactoring list) is in `audit-2026-09.md`.
