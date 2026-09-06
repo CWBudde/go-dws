@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,6 +87,7 @@ func init() {
 	runCmd.Flags().IntVar(&maxRecursion, "max-recursion", 1024, "maximum recursion depth (default: 1024)")
 	runCmd.Flags().BoolVar(&bytecodeMode, "bytecode", false, "execute via bytecode VM instead of AST interpreter (experimental)")
 	runCmd.Flags().StringVar(&hintsLevel, "hints", "off", "print compiler hints/warnings to stderr, non-fatal: off|normal|strict|pedantic (pedantic includes case-mismatch hints)")
+	runCmd.Flags().BoolVar(&testEnvelope, "test-envelope", false, "wrap output in DWScript's test-harness 'Errors >>>>' / 'Result >>>>' framing when there are messages (implies --diagnostics=plain)")
 	runCmd.Flags().StringVar(&diagnosticsMode, "diagnostics", "pretty", "diagnostic output style: pretty (source excerpt, colors on a terminal) or plain (DWScript wire format, one message per line)")
 }
 
@@ -145,6 +148,9 @@ func runScript(cmd *cobra.Command, args []string) error {
 		// Argument/flag errors already showed usage; failures from here on are the
 		// script's, so do not append the usage block to diagnostics.
 		cmd.SilenceUsage = true
+	}
+	if testEnvelope {
+		diagnosticsMode = "plain"
 	}
 	switch strings.ToLower(strings.TrimSpace(diagnosticsMode)) {
 	case "", "pretty":
@@ -225,9 +231,15 @@ func runScript(cmd *cobra.Command, args []string) error {
 	if compiled.HasFatalDiagnostics() || (compiled.SemanticAttempted && !compiled.SemanticSuccessful) {
 		return reportCompileFailure(compiled, input, filename)
 	}
+	// Hints/warnings: printed as they come, or held back for the test envelope.
+	var envelopeMsgs []string
 	if wantHints {
-		for _, h := range compiled.HintStrings() {
-			fmt.Fprintln(os.Stderr, h)
+		if testEnvelope {
+			envelopeMsgs = compiled.HintStrings()
+		} else {
+			for _, h := range compiled.HintStrings() {
+				fmt.Fprintln(os.Stderr, h)
+			}
 		}
 	}
 	if verbose && typeCheck && hasUnits {
@@ -263,7 +275,14 @@ func runScript(cmd *cobra.Command, args []string) error {
 	opts := &simpleOptions{
 		MaxRecursionDepth: maxRecursion,
 	}
-	interpreter := runner.NewWithOptions(os.Stdout, opts)
+	// With --test-envelope the program's output is buffered so the framing can be
+	// decided once compile messages and the runtime outcome are known.
+	var progOut bytes.Buffer
+	var stdout io.Writer = os.Stdout
+	if testEnvelope {
+		stdout = &progOut
+	}
+	interpreter := runner.NewWithOptions(stdout, opts)
 
 	// Set source code for enhanced runtime error messages
 	interpreter.SetSource(input, filename)
@@ -338,7 +357,40 @@ func runScript(cmd *cobra.Command, args []string) error {
 
 	result := interpreter.Eval(program)
 
+	if testEnvelope {
+		return emitTestEnvelope(interpreter, result, envelopeMsgs, &progOut)
+	}
 	return reportRuntimeOutcome(interpreter, result)
+}
+
+// emitTestEnvelope writes the program output the way DWScript's test runner does:
+// bare when there were no messages, otherwise
+//
+//	Errors >>>>
+//	<compile hints/warnings, then the runtime error>
+//	Result >>>>
+//	<program output>
+//
+// Compile failures never get here; they are printed as a flat diagnostic list.
+func emitTestEnvelope(interpreter *interp.Interpreter, result interp.Value, msgs []string, progOut *bytes.Buffer) error {
+	var runErr error
+	switch {
+	case result != nil && result.Type() == "ERROR":
+		msgs = append(msgs, interp.FormatRuntimeErrorValue(result))
+		runErr = ErrSilent
+	case interpreter.GetException() != nil:
+		msgs = append(msgs, formatUnhandledException(interpreter.GetException()))
+		runErr = ErrSilent
+	}
+	if len(msgs) > 0 {
+		fmt.Print("Errors >>>>\n")
+		for _, m := range msgs {
+			fmt.Println(m)
+		}
+		fmt.Print("Result >>>>\n")
+	}
+	_, _ = os.Stdout.Write(progOut.Bytes())
+	return runErr
 }
 
 // reportRuntimeOutcome prints an unhandled exception or runtime error, if any, and
