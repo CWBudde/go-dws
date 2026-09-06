@@ -1,3 +1,6 @@
+// Package frontend is the shared compile pipeline (lexer, parser, generics,
+// semantic analysis) and the single source of DWScript-formatted diagnostics.
+// pkg/dwscript, cmd/dwscript and the fixture harness all compile through it.
 package frontend
 
 import (

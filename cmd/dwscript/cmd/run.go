@@ -17,7 +17,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/semantic"
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/spf13/cobra"
@@ -152,6 +151,27 @@ func runScript(cmd *cobra.Command, args []string) error {
 		// script's, so do not append the usage block to diagnostics.
 		cmd.SilenceUsage = true
 	}
+	if err := normalizeDiagnosticsMode(); err != nil {
+		return err
+	}
+	// Precompiled bytecode files bypass the source pipeline entirely.
+	if evalExpr == "" && len(args) == 1 && filepath.Ext(args[0]) == ".dwc" {
+		return runBytecodeFile(args[0])
+	}
+	input, filename, err := loadRunInput(args)
+	if err != nil {
+		return err
+	}
+	cs, done, err := compileRunInput(input, filename)
+	if err != nil || done {
+		return err
+	}
+	return executeScript(cs)
+}
+
+// normalizeDiagnosticsMode validates --diagnostics and applies the modes that
+// --test-envelope implies.
+func normalizeDiagnosticsMode() error {
 	if testEnvelope {
 		diagnosticsMode = "plain"
 	}
@@ -163,37 +183,46 @@ func runScript(cmd *cobra.Command, args []string) error {
 	default:
 		return fmt.Errorf("invalid --diagnostics value %q (want pretty or plain)", diagnosticsMode)
 	}
-	var input string
-	var filename string
+	return nil
+}
 
-	// Determine input source
+// loadRunInput returns the script source and the name to report it under: the -e
+// expression as "<eval>", or the decoded contents of the single file argument.
+func loadRunInput(args []string) (input, filename string, err error) {
 	if evalExpr != "" {
-		// Inline expression provided
-		input = evalExpr
-		filename = "<eval>"
-	} else if len(args) == 1 {
-		// File path provided
-		filename = args[0]
-
-		// Check if this is a precompiled bytecode file
-		if filepath.Ext(filename) == ".dwc" {
-			return runBytecodeFile(filename)
-		}
-
-		content, err := encoding.DecodeFile(filename)
-		if err != nil {
-			// DecodeFile wraps the underlying cause (read failure or a
-			// BOM/UTF-16 decoding error), so it stays visible in the chain.
-			return fmt.Errorf("failed to load script %s: %w", filename, err)
-		}
-		input = content
-	} else {
-		return fmt.Errorf("either provide a file path or use -e flag for inline code")
+		return evalExpr, "<eval>", nil
 	}
+	if len(args) != 1 {
+		return "", "", fmt.Errorf("either provide a file path or use -e flag for inline code")
+	}
+	filename = args[0]
+	content, err := encoding.DecodeFile(filename)
+	if err != nil {
+		// DecodeFile wraps the underlying cause (read failure or a
+		// BOM/UTF-16 decoding error), so it stays visible in the chain.
+		return "", "", fmt.Errorf("failed to load script %s: %w", filename, err)
+	}
+	return content, filename, nil
+}
 
-	// Compile through the shared frontend (the same pipeline pkg/dwscript and the
-	// fixture harness use). {$INCLUDE} resolves relative to the script's directory;
-	// inline -e code has no include root.
+// compiledScript is what compileRunInput hands to executeScript.
+type compiledScript struct {
+	input, filename string
+	result          *frontend.Result
+	program         *ast.Program // what the analyzer and the interpreter run
+	compiledProgram *ast.Program // what --dump-ast and the bytecode VM see (units spliced in)
+	unitRegistry    *units.UnitRegistry
+	usedUnits       []string
+	searchPaths     []string
+	envelopeMsgs    []string
+}
+
+// compileRunInput runs the shared frontend (the same pipeline pkg/dwscript and the
+// fixture harness use) and reports its diagnostics. done is true when nothing is
+// left to execute (--compile-only); a non-nil error means compilation failed.
+func compileRunInput(input, filename string) (cs *compiledScript, done bool, err error) {
+	// {$INCLUDE} resolves relative to the script's directory; inline -e code has no
+	// include root.
 	hintLevel, wantHints := parseHintsLevel(hintsLevel)
 	compileOpts := frontend.Options{Filename: filename, HintsLevel: hintLevel}
 	if evalExpr == "" {
@@ -202,27 +231,22 @@ func runScript(cmd *cobra.Command, args []string) error {
 
 	parsed := frontend.ParseWithOptions(input, compileOpts)
 	if parsed.HasSemanticBlockingDiagnosticsInPhase(frontend.PhaseParsing) {
-		return reportCompileFailure(parsed, input, filename)
+		return nil, false, reportCompileFailure(parsed, input, filename)
 	}
-	program := parsed.Program
+	cs = &compiledScript{input: input, filename: filename, program: parsed.Program}
+	cs.compiledProgram = cs.program
+	cs.usedUnits = extractUsedUnits(cs.program)
+	hasUnits := len(cs.usedUnits) > 0
 
-	// Check if the program uses any units
-	usedUnits := extractUsedUnits(program)
-	hasUnits := len(usedUnits) > 0
-
-	// Prepare unit search paths (shared by interpreter + bytecode modes)
-	searchPaths := append([]string{}, unitSearchPaths...)
-	if len(searchPaths) == 0 && filename != "<eval>" {
-		searchPaths = append(searchPaths, filepath.Dir(filename))
+	// Unit search paths (shared by interpreter + bytecode modes)
+	cs.searchPaths = append([]string{}, unitSearchPaths...)
+	if len(cs.searchPaths) == 0 && filename != "<eval>" {
+		cs.searchPaths = append(cs.searchPaths, filepath.Dir(filename))
 	}
-
-	var unitRegistry *units.UnitRegistry
-	compiledProgram := program
 	if bytecodeMode {
-		var err error
-		compiledProgram, unitRegistry, err = buildBytecodeProgram(program, usedUnits, searchPaths)
+		cs.compiledProgram, cs.unitRegistry, err = buildBytecodeProgram(cs.program, cs.usedUnits, cs.searchPaths)
 		if err != nil {
-			return fmt.Errorf("failed to prepare bytecode program: %w", err)
+			return nil, false, fmt.Errorf("failed to prepare bytecode program: %w", err)
 		}
 	}
 
@@ -230,70 +254,54 @@ func runScript(cmd *cobra.Command, args []string) error {
 	// the frontend resolves program-level `uses` yet (PLAN.md §3.2), so unit symbols
 	// would all be reported as unknown. This is the only place that bypass lives.
 	compileOpts.TypeCheck = typeCheck && !hasUnits
-	compiled := frontend.AnalyzeParsed(parsed, input, compileOpts)
-	if compiled.HasFatalDiagnostics() || (compiled.SemanticAttempted && !compiled.SemanticSuccessful) {
-		return reportCompileFailure(compiled, input, filename)
+	cs.result = frontend.AnalyzeParsed(parsed, input, compileOpts)
+	if cs.result.HasFatalDiagnostics() || (cs.result.SemanticAttempted && !cs.result.SemanticSuccessful) {
+		return nil, false, reportCompileFailure(cs.result, input, filename)
 	}
-	// Hints/warnings: streamed as they come, held back for the test envelope, or
-	// folded into the full message list in compile-only mode.
-	var envelopeMsgs []string
+	if verbose && typeCheck && hasUnits {
+		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
+	}
+	cs.envelopeMsgs, done = reportCompileMessages(cs.result, wantHints)
+	return cs, done, nil
+}
+
+// reportCompileMessages prints the hints/warnings of a successful compile (or holds
+// them back for the test envelope) and handles --compile-only, whose plain output is
+// the compiler's full message list like DWScript's Msgs.AsInfo. done reports that the
+// command is finished.
+func reportCompileMessages(compiled *frontend.Result, wantHints bool) (envelopeMsgs []string, done bool) {
 	switch {
-	case compileOnly:
-		// handled below
-	case wantHints && testEnvelope:
+	case compileOnly && diagnosticsMode == "plain":
+		for _, line := range compiled.DiagnosticStrings() {
+			fmt.Fprintln(os.Stderr, line)
+		}
+	case wantHints && testEnvelope && !compileOnly:
 		envelopeMsgs = compiled.HintStrings()
 	case wantHints:
 		for _, h := range compiled.HintStrings() {
 			fmt.Fprintln(os.Stderr, h)
 		}
 	}
-	if verbose && typeCheck && hasUnits {
-		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
-	}
-	if compileOnly {
-		if diagnosticsMode == "plain" {
-			// Everything the compiler said, in order, like DWScript's Msgs.AsInfo
-			// (hints appear when the --hints level allows them). Never framed.
-			for _, line := range compiled.DiagnosticStrings() {
-				fmt.Fprintln(os.Stderr, line)
-			}
-		} else if wantHints {
-			for _, h := range compiled.HintStrings() {
-				fmt.Fprintln(os.Stderr, h)
-			}
-		}
-		return nil
-	}
+	return envelopeMsgs, compileOnly
+}
 
-	var semanticInfo *ast.SemanticInfo
-	var semanticHelpers map[string][]*types.HelperType
-	if compiled.Analyzer != nil {
-		semanticInfo = compiled.SemanticInfo
-		semanticHelpers = compiled.Analyzer.GetHelpers()
-	}
-
-	// Dump AST if requested
+// executeScript runs a compiled script on the bytecode VM or the AST interpreter.
+func executeScript(cs *compiledScript) error {
 	if dumpAST {
 		fmt.Println("AST:")
-		fmt.Println(compiledProgram.String())
+		fmt.Println(cs.compiledProgram.String())
 		fmt.Println()
 	}
-
 	if bytecodeMode {
-		if showUnits && unitRegistry != nil && len(usedUnits) > 0 {
-			displayUnitDependencyTree(unitRegistry, usedUnits)
+		if showUnits && cs.unitRegistry != nil && len(cs.usedUnits) > 0 {
+			displayUnitDependencyTree(cs.unitRegistry, cs.usedUnits)
 		}
-		return executeBytecodeProgram(compiledProgram, bytecodeExecOptions{
-			filename: filename,
+		return executeBytecodeProgram(cs.compiledProgram, bytecodeExecOptions{
+			filename: cs.filename,
 			trace:    trace,
 		})
 	}
 
-	// Interpreter: execute the program
-	// Create a simple options struct for passing maxRecursionDepth
-	opts := &simpleOptions{
-		MaxRecursionDepth: maxRecursion,
-	}
 	// With --test-envelope the program's output is buffered so the framing can be
 	// decided once compile messages and the runtime outcome are known.
 	var progOut bytes.Buffer
@@ -301,85 +309,71 @@ func runScript(cmd *cobra.Command, args []string) error {
 	if testEnvelope {
 		stdout = &progOut
 	}
-	interpreter := runner.NewWithOptions(stdout, opts)
-
-	// Set source code for enhanced runtime error messages
-	interpreter.SetSource(input, filename)
-
-	// Pass semantic info to interpreter if available (enables type inference for empty arrays)
-	if semanticInfo != nil {
-		interpreter.SetSemanticInfo(semanticInfo)
+	interpreter := runner.NewWithOptions(stdout, &simpleOptions{MaxRecursionDepth: maxRecursion})
+	interpreter.SetSource(cs.input, cs.filename)
+	if cs.result.Analyzer != nil {
+		// Enables type inference for empty arrays and carries helper declarations over.
+		interpreter.SetSemanticInfo(cs.result.SemanticInfo)
+		interpreter.TransferHelpersFromSemanticAnalysis(cs.result.Analyzer.GetHelpers())
 	}
 
-	// Transfer helpers from semantic analyzer to interpreter
-	if semanticHelpers != nil {
-		interpreter.TransferHelpersFromSemanticAnalysis(semanticHelpers)
+	loaded, err := loadUnits(interpreter, cs)
+	if err != nil {
+		return err
 	}
-
-	// Set up unit registry if search paths are provided or if we're running from a file
-	if len(searchPaths) > 0 {
-		registry := units.NewUnitRegistry(searchPaths)
-		interpreter.SetUnitRegistry(registry)
-
-		// Check if the program uses any units and load them
-		if len(usedUnits) > 0 {
-			if verbose {
-				fmt.Fprintf(os.Stderr, "Loading %d unit(s)...\n", len(usedUnits))
+	if loaded {
+		defer func() {
+			if err := interpreter.FinalizeUnits(); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: error during unit finalization: %v\n", err)
 			}
-
-			for _, unitName := range usedUnits {
-				unit, err := interpreter.LoadUnit(unitName, nil)
-				if err != nil {
-					return fmt.Errorf("failed to load unit '%s': %w", unitName, err)
-				}
-
-				// Import unit symbols
-				if err := interpreter.ImportUnitSymbols(unit); err != nil {
-					return fmt.Errorf("failed to import symbols from unit '%s': %w", unitName, err)
-				}
-
-				if verbose {
-					fmt.Fprintf(os.Stderr, "  ✓ Loaded unit: %s\n", unitName)
-				}
-			}
-
-			// Initialize all loaded units
-			if err := interpreter.InitializeUnits(); err != nil {
-				return fmt.Errorf("failed to initialize units: %w", err)
-			}
-
-			// Display dependency order if verbose
-			if verbose {
-				loadedUnits := interpreter.ListLoadedUnits()
-				if len(loadedUnits) > 0 {
-					fmt.Fprintf(os.Stderr, "Unit initialization order: %v\n", loadedUnits)
-				}
-			}
-
-			// Display unit dependency tree if requested
-			if showUnits {
-				displayUnitDependencyTree(interpreter.GetUnitRegistry(), usedUnits)
-			}
-
-			// Ensure units are finalized on exit
-			defer func() {
-				if err := interpreter.FinalizeUnits(); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: error during unit finalization: %v\n", err)
-				}
-			}()
-		}
+		}()
 	}
 
 	if trace {
-		fmt.Fprintf(os.Stderr, "[Trace mode enabled - executing %s]\n", filename)
+		fmt.Fprintf(os.Stderr, "[Trace mode enabled - executing %s]\n", cs.filename)
 	}
-
-	result := interpreter.Eval(program)
-
+	result := interpreter.Eval(cs.program)
 	if testEnvelope {
-		return emitTestEnvelope(interpreter, result, envelopeMsgs, &progOut)
+		return emitTestEnvelope(interpreter, result, cs.envelopeMsgs, &progOut)
 	}
 	return reportRuntimeOutcome(interpreter, result)
+}
+
+// loadUnits sets up the unit registry and loads, imports and initializes every unit
+// the program uses. loaded reports whether any unit was initialized (and therefore
+// needs finalizing).
+func loadUnits(interpreter *interp.Interpreter, cs *compiledScript) (loaded bool, err error) {
+	if len(cs.searchPaths) == 0 || len(cs.usedUnits) == 0 {
+		return false, nil
+	}
+	interpreter.SetUnitRegistry(units.NewUnitRegistry(cs.searchPaths))
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Loading %d unit(s)...\n", len(cs.usedUnits))
+	}
+	for _, unitName := range cs.usedUnits {
+		unit, err := interpreter.LoadUnit(unitName, nil)
+		if err != nil {
+			return false, fmt.Errorf("failed to load unit '%s': %w", unitName, err)
+		}
+		if err := interpreter.ImportUnitSymbols(unit); err != nil {
+			return false, fmt.Errorf("failed to import symbols from unit '%s': %w", unitName, err)
+		}
+		if verbose {
+			fmt.Fprintf(os.Stderr, "  ✓ Loaded unit: %s\n", unitName)
+		}
+	}
+	if err := interpreter.InitializeUnits(); err != nil {
+		return false, fmt.Errorf("failed to initialize units: %w", err)
+	}
+	if verbose {
+		if loadedUnits := interpreter.ListLoadedUnits(); len(loadedUnits) > 0 {
+			fmt.Fprintf(os.Stderr, "Unit initialization order: %v\n", loadedUnits)
+		}
+	}
+	if showUnits {
+		displayUnitDependencyTree(interpreter.GetUnitRegistry(), cs.usedUnits)
+	}
+	return true, nil
 }
 
 // emitTestEnvelope writes the program output the way DWScript's test runner does:
@@ -408,7 +402,9 @@ func emitTestEnvelope(interpreter *interp.Interpreter, result interp.Value, msgs
 		}
 		fmt.Print("Result >>>>\n")
 	}
-	_, _ = os.Stdout.Write(progOut.Bytes())
+	if _, err := os.Stdout.Write(progOut.Bytes()); err != nil {
+		return err
+	}
 	return runErr
 }
 

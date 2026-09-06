@@ -14,12 +14,24 @@ import (
 func captureRun(t *testing.T, source string, args []string, configure func()) (string, error) {
 	t.Helper()
 	saved := struct {
-		evalExpr, hintsLevel, diagnosticsMode          string
-		dumpAST, trace, typeCheck, showUnits, bytecode bool
-		testEnvelope, compileOnly                      bool
-		maxRecursion                                   int
-		searchPaths                                    []string
-	}{evalExpr, hintsLevel, diagnosticsMode, dumpAST, trace, typeCheck, showUnits, bytecodeMode, testEnvelope, compileOnly, maxRecursion, unitSearchPaths}
+		evalExpr        string
+		hintsLevel      string
+		diagnosticsMode string
+		searchPaths     []string
+		maxRecursion    int
+		dumpAST         bool
+		trace           bool
+		typeCheck       bool
+		showUnits       bool
+		bytecode        bool
+		testEnvelope    bool
+		compileOnly     bool
+	}{
+		evalExpr: evalExpr, hintsLevel: hintsLevel, diagnosticsMode: diagnosticsMode,
+		searchPaths: unitSearchPaths, maxRecursion: maxRecursion,
+		dumpAST: dumpAST, trace: trace, typeCheck: typeCheck, showUnits: showUnits,
+		bytecode: bytecodeMode, testEnvelope: testEnvelope, compileOnly: compileOnly,
+	}
 	t.Cleanup(func() {
 		evalExpr, hintsLevel, diagnosticsMode = saved.evalExpr, saved.hintsLevel, saved.diagnosticsMode
 		dumpAST, trace, typeCheck, showUnits, bytecodeMode = saved.dumpAST, saved.trace, saved.typeCheck, saved.showUnits, saved.bytecode

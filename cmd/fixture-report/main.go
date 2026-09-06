@@ -93,12 +93,15 @@ func trackedGoSources() []string {
 		return append(files, "go.mod", "go.sum")
 	}
 	for _, root := range []string{"cmd", "internal", "pkg"} {
-		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		walkErr := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 			if err == nil && !d.IsDir() && keep(path) {
 				files = append(files, path)
 			}
 			return nil
 		})
+		if walkErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: cannot walk %s: %v\n", root, walkErr)
+		}
 	}
 	return append(files, "go.mod", "go.sum")
 }
