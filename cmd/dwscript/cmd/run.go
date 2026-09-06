@@ -4,19 +4,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/encoding"
 	"github.com/cwbudde/go-dws/internal/errors"
-	"github.com/cwbudde/go-dws/internal/generics"
+	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/interp/runner"
 	"github.com/cwbudde/go-dws/internal/lexer"
-	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/internal/units"
@@ -33,6 +29,11 @@ var (
 	maxRecursion int
 	bytecodeMode bool
 	hintsLevel   string
+
+	// diagnosticsMode selects "pretty" (default) or "plain" (DWScript wire format).
+	diagnosticsMode string
+	// testEnvelope wraps output in the DWScript test-harness framing.
+	testEnvelope bool
 )
 
 // simpleOptions implements interp.Options for the CLI.
@@ -103,65 +104,33 @@ func parseHintsLevel(s string) (semantic.HintsLevel, bool) {
 	}
 }
 
-// realSemanticErrors filters out informational hint/warning lines, leaving only actual
-// semantic errors. With --hints enabled, Analyzer.Errors() mixes Hint:/Warning: lines in
-// with real errors; those are surfaced separately via printHintsAndWarnings and must not be
-// formatted as compiler errors (they carry no line:col and would render at 0:0) or counted
-// toward the error total.
-func realSemanticErrors(lines []string) []string {
-	out := make([]string, 0, len(lines))
-	for _, e := range lines {
-		if strings.HasPrefix(e, "Hint:") || strings.HasPrefix(e, "Warning:") {
+// reportCompileFailure prints the compile diagnostics of a failed frontend result
+// and returns the error the command should exit with.
+func reportCompileFailure(res *frontend.Result, source, filename string) error {
+	var compilerErrors []*errors.CompilerError
+	for _, d := range res.Diagnostics {
+		if d.Severity != frontend.SeverityError {
 			continue
 		}
-		out = append(out, e)
+		compilerErrors = append(compilerErrors, errors.NewCompilerError(
+			lexer.Position{Line: d.Line, Column: d.Column}, d.Message, source, filename))
 	}
-	return out
+	fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, colorEnabled()))
+	fmt.Fprintln(os.Stderr)
+	return fmt.Errorf("compilation failed with %d error(s)", len(compilerErrors))
 }
 
-// printHintsAndWarnings writes any hint/warning lines the analyzer accumulated to
-// stderr, deduplicated by exact text and sorted by source position. These are
-// informational only; a program with case mismatches still compiles and runs.
-func printHintsAndWarnings(lines []string) {
-	var out []string
-	seen := make(map[string]bool)
-	for _, e := range lines {
-		if !strings.HasPrefix(e, "Hint:") && !strings.HasPrefix(e, "Warning:") {
-			continue
-		}
-		if seen[e] {
-			continue
-		}
-		seen[e] = true
-		out = append(out, e)
-	}
-	if len(out) == 0 {
-		return
-	}
-	posRe := regexp.MustCompile(`\[line: (\d+), column: (\d+)\]`)
-	lineCol := func(s string) (int, int) {
-		m := posRe.FindStringSubmatch(s)
-		if m == nil {
-			return 1 << 30, 1 << 30
-		}
-		l, _ := strconv.Atoi(m[1])
-		c, _ := strconv.Atoi(m[2])
-		return l, c
-	}
-	sort.SliceStable(out, func(i, j int) bool {
-		li, ci := lineCol(out[i])
-		lj, cj := lineCol(out[j])
-		if li != lj {
-			return li < lj
-		}
-		return ci < cj
-	})
-	for _, h := range out {
-		fmt.Fprintln(os.Stderr, h)
-	}
+// colorEnabled reports whether diagnostics may use ANSI colors.
+func colorEnabled() bool {
+	return true
 }
 
-func runScript(_ *cobra.Command, args []string) error {
+func runScript(cmd *cobra.Command, args []string) error {
+	if cmd != nil {
+		// Argument/flag errors already showed usage; failures from here on are the
+		// script's, so do not append the usage block to diagnostics.
+		cmd.SilenceUsage = true
+	}
 	var input string
 	var filename string
 
@@ -190,49 +159,20 @@ func runScript(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("either provide a file path or use -e flag for inline code")
 	}
 
-	// Lexer: tokenize the input, resolving {$INCLUDE} directives relative to the
-	// directory of the script being run (disabled for inline -e expressions).
-	var lexerOpts []lexer.LexerOption
+	// Compile through the shared frontend (the same pipeline pkg/dwscript and the
+	// fixture harness use). {$INCLUDE} resolves relative to the script's directory;
+	// inline -e code has no include root.
+	hintLevel, wantHints := parseHintsLevel(hintsLevel)
+	compileOpts := frontend.Options{Filename: filename, HintsLevel: hintLevel}
 	if evalExpr == "" {
-		lexerOpts = append(lexerOpts, lexer.WithIncludeResolver(
-			lexer.NewFileIncludeResolver(filepath.Dir(filename))))
-	}
-	l := lexer.New(input, lexerOpts...)
-
-	// Parser: build the AST
-	p := parser.New(l)
-	program := p.ParseProgram()
-
-	// Check for parser and include-resolution errors. A failed {$INCLUDE} must be
-	// surfaced too; otherwise a script with a missing include would run with its
-	// include content silently dropped. Other lexer errors remain advisory.
-	lexErrs := p.LexerIncludeErrors()
-	if len(p.Errors()) > 0 || len(lexErrs) > 0 {
-		compilerErrors := make([]*errors.CompilerError, 0, len(p.Errors())+len(lexErrs))
-		for i := range lexErrs {
-			compilerErrors = append(compilerErrors, errors.NewCompilerError(
-				lexErrs[i].Pos,
-				lexErrs[i].Message,
-				input,
-				filename,
-			))
-		}
-		for _, perr := range p.Errors() {
-			compilerErrors = append(compilerErrors, errors.NewCompilerError(
-				perr.Pos,
-				perr.Message,
-				input,
-				filename,
-			))
-		}
-		fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, true))
-		fmt.Fprintln(os.Stderr) // Add newline
-		return fmt.Errorf("parsing failed with %d error(s)", len(compilerErrors))
+		compileOpts.IncludeDir = filepath.Dir(filename)
 	}
 
-	// Monomorphize generic types into concrete specializations before semantic
-	// analysis and execution, mirroring the shared frontend pipeline.
-	generics.Monomorphize(program)
+	parsed := frontend.ParseWithOptions(input, compileOpts)
+	if parsed.HasSemanticBlockingDiagnosticsInPhase(frontend.PhaseParsing) {
+		return reportCompileFailure(parsed, input, filename)
+	}
+	program := parsed.Program
 
 	// Check if the program uses any units
 	usedUnits := extractUsedUnits(program)
@@ -254,57 +194,28 @@ func runScript(_ *cobra.Command, args []string) error {
 		}
 	}
 
-	// Run semantic analysis if type checking is enabled
-	// Skip type checking if units are used, since symbols from units
-	// aren't available until runtime
+	// Semantic analysis is skipped for unit-using programs: neither the analyzer nor
+	// the frontend resolves program-level `uses` yet (PLAN.md §3.2), so unit symbols
+	// would all be reported as unknown. This is the only place that bypass lives.
+	compileOpts.TypeCheck = typeCheck && !hasUnits
+	compiled := frontend.AnalyzeParsed(parsed, input, compileOpts)
+	if compiled.HasFatalDiagnostics() || (compiled.SemanticAttempted && !compiled.SemanticSuccessful) {
+		return reportCompileFailure(compiled, input, filename)
+	}
+	if wantHints {
+		for _, h := range compiled.HintStrings() {
+			fmt.Fprintln(os.Stderr, h)
+		}
+	}
+	if verbose && typeCheck && hasUnits {
+		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
+	}
+
 	var semanticInfo *ast.SemanticInfo
 	var semanticHelpers map[string][]*types.HelperType
-	if typeCheck && !hasUnits {
-		analyzer := semantic.NewAnalyzer()
-		// Set source code for rich error messages
-		analyzer.SetSource(input, filename)
-
-		// Optionally surface compiler hints/warnings (--hints). These are
-		// informational: DWScript is case-insensitive, so a case mismatch is a
-		// hint, never a compile error.
-		hintLevel, wantHints := parseHintsLevel(hintsLevel)
-		if wantHints {
-			analyzer.SetHintsLevel(hintLevel)
-		}
-
-		if err := analyzer.Analyze(program); err != nil {
-			// Exclude informational hints/warnings so they are neither mis-formatted as
-			// compiler errors nor counted toward the error total (they are printed
-			// separately below when --hints is enabled).
-			realErrors := realSemanticErrors(analyzer.Errors())
-
-			// Use structured errors if available, fall back to string errors
-			var compilerErrors []*errors.CompilerError
-			if len(analyzer.StructuredErrors()) > 0 {
-				// Convert structured errors directly to CompilerError
-				for _, semErr := range analyzer.StructuredErrors() {
-					compilerErrors = append(compilerErrors, semErr.ToCompilerError(input, filename))
-				}
-			} else {
-				// Fall back to string error conversion for backward compatibility
-				compilerErrors = errors.FromStringErrors(realErrors, input, filename)
-			}
-
-			fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, true))
-			fmt.Fprintln(os.Stderr) // Add newline
-			return fmt.Errorf("semantic analysis failed with %d error(s)", len(realErrors))
-		}
-		// Surface accumulated hints/warnings to stderr (non-fatal) when requested.
-		if wantHints {
-			printHintsAndWarnings(analyzer.Errors())
-		}
-
-		// Capture semantic info to pass to interpreter
-		semanticInfo = analyzer.GetSemanticInfo()
-		// Capture helpers for transfer to interpreter
-		semanticHelpers = analyzer.GetHelpers()
-	} else if verbose && hasUnits {
-		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
+	if compiled.Analyzer != nil {
+		semanticInfo = compiled.SemanticInfo
+		semanticHelpers = compiled.Analyzer.GetHelpers()
 	}
 
 	// Dump AST if requested

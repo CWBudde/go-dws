@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -35,8 +36,14 @@ preserving 100% of DWScript's syntax and semantics.`,
 	Version: Version,
 }
 
-// Execute runs the root command
+// ErrSilent signals a failure whose diagnostics were already written by the command;
+// main prints nothing further and exits non-zero.
+var ErrSilent = errors.New("silent failure")
+
+// Execute runs the root command. Errors are returned to main, which prints them
+// exactly once (cobra's own error echo is silenced).
 func Execute() error {
+	rootCmd.SilenceErrors = true
 	return rootCmd.Execute()
 }
 
