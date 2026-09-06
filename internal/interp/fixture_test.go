@@ -33,6 +33,9 @@ const (
 	// fixtureWorkerEnv marks a re-executed test binary as a fixture worker (see
 	// TestFixtureWorkerMain). It is an implementation detail of the sandboxing scheme.
 	fixtureWorkerEnv = "DWS_FIXTURE_WORKER"
+	// Set FIXTURE_LIST_FAILS=1 to log every failing fixture name per category, e.g. to
+	// diff the harness against `just fixture-report --list-fails`.
+	fixtureListFailsEnv = "FIXTURE_LIST_FAILS"
 	// fixtureRespSentinel prefixes worker responses on stdout so they can be told apart
 	// from Go's own test-framework chatter.
 	fixtureRespSentinel = "@@DWSFIXTURE@@ "
@@ -153,6 +156,9 @@ func tallyCategory(category fixtureCategory, results map[string]fixtureResponse)
 // pass count dropped below the recorded baseline.
 func gateCategory(t *testing.T, outcome categoryOutcome, baseline int, updateMode bool) {
 	t.Helper()
+	if os.Getenv(fixtureListFailsEnv) == "1" && len(outcome.failNames) > 0 {
+		t.Logf("Failing in %s: %s", outcome.category.name, strings.Join(outcome.failNames, " "))
+	}
 	t.Logf("Category %s: %d passed, %d failed, %d skipped (%s)",
 		outcome.category.name, outcome.passed, outcome.failed, outcome.skipped, outcome.category.description)
 
@@ -545,27 +551,15 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 }
 
 // scoreErrorFixture scores an error-detection ("*Fail") fixture against its expected
-// diagnostic output.
+// diagnostic output. Like DWScript's CompilationFailure runner, it only compiles: the
+// expected file is the compiler's message list (hints included, no envelope), which is
+// empty when the program compiles cleanly. Nothing is executed.
 func scoreErrorFixture(compileResult *frontend.Result, expectedContent string) fixtureVerdict {
-	// Compile-time diagnostics: compare them to the expected error listing.
-	if compileErrors := compileResult.DiagnosticStrings(); len(compileErrors) > 0 {
-		actualErrors := strings.Join(compileErrors, "\n")
-		if normalizeOutput(actualErrors) == normalizeOutput(expectedContent) {
-			return fixtureVerdict{result: testResultPassed}
-		}
-		return fixtureVerdict{result: testResultFailed, detail: diffDetail(expectedContent, actualErrors)}
-	}
-
-	// Compiled cleanly: the error is expected at runtime.
-	buf, value := evalFixture(compileResult)
-	if value == nil || value.Type() != "ERROR" {
-		return fixtureVerdict{result: testResultFailed, detail: "expected errors but program ran cleanly"}
-	}
-	actualOutput := runtimeErrorOutput(compileResult, value, buf, expectedContent)
-	if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
+	actualErrors := strings.Join(compileResult.DiagnosticStrings(), "\n")
+	if normalizeOutput(actualErrors) == normalizeOutput(expectedContent) {
 		return fixtureVerdict{result: testResultPassed}
 	}
-	return fixtureVerdict{result: testResultFailed, detail: diffDetail(expectedContent, actualOutput)}
+	return fixtureVerdict{result: testResultFailed, detail: diffDetail(expectedContent, actualErrors)}
 }
 
 // scoreSuccessFixture scores a success fixture against its expected program output.

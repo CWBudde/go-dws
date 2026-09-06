@@ -16,17 +16,17 @@ func captureRun(t *testing.T, source string, args []string, configure func()) (s
 	saved := struct {
 		evalExpr, hintsLevel, diagnosticsMode          string
 		dumpAST, trace, typeCheck, showUnits, bytecode bool
-		testEnvelope                                   bool
+		testEnvelope, compileOnly                      bool
 		maxRecursion                                   int
 		searchPaths                                    []string
-	}{evalExpr, hintsLevel, diagnosticsMode, dumpAST, trace, typeCheck, showUnits, bytecodeMode, testEnvelope, maxRecursion, unitSearchPaths}
+	}{evalExpr, hintsLevel, diagnosticsMode, dumpAST, trace, typeCheck, showUnits, bytecodeMode, testEnvelope, compileOnly, maxRecursion, unitSearchPaths}
 	t.Cleanup(func() {
 		evalExpr, hintsLevel, diagnosticsMode = saved.evalExpr, saved.hintsLevel, saved.diagnosticsMode
 		dumpAST, trace, typeCheck, showUnits, bytecodeMode = saved.dumpAST, saved.trace, saved.typeCheck, saved.showUnits, saved.bytecode
-		testEnvelope, maxRecursion, unitSearchPaths = saved.testEnvelope, saved.maxRecursion, saved.searchPaths
+		testEnvelope, compileOnly, maxRecursion, unitSearchPaths = saved.testEnvelope, saved.compileOnly, saved.maxRecursion, saved.searchPaths
 	})
 	evalExpr, hintsLevel, diagnosticsMode = source, "off", "pretty"
-	dumpAST, trace, typeCheck, showUnits, bytecodeMode, testEnvelope = false, false, true, false, false, false
+	dumpAST, trace, typeCheck, showUnits, bytecodeMode, testEnvelope, compileOnly = false, false, true, false, false, false, false
 	maxRecursion, unitSearchPaths = 1024, nil
 	if configure != nil {
 		configure()

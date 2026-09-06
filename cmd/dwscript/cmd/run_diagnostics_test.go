@@ -51,3 +51,33 @@ func TestRun_RejectsUnknownDiagnosticsMode(t *testing.T) {
 		t.Fatalf("expected a flag validation error, got %v", err)
 	}
 }
+
+func TestRun_CompileOnly(t *testing.T) {
+	// Hints only: plain compile-only prints them flat (like DWScript's Msgs.AsInfo) and
+	// does not execute the program.
+	out, err := captureRun(t, "procedure P; var b: Integer; begin PrintLn('ran'); end; P;", nil, func() {
+		compileOnly = true
+		diagnosticsMode = "plain"
+		hintsLevel = "pedantic"
+		testEnvelope = true // ignored: compile-only never frames
+	})
+	if err != nil {
+		t.Fatalf("hints are not failures: %v\n%s", err, out)
+	}
+	if want := "Hint: Variable \"b\" declared but not used [line: 1, column: 18]\n"; out != want {
+		t.Fatalf("got %q, want %q", out, want)
+	}
+	// Errors: printed flat, ErrSilent returned, nothing executed.
+	out, err = captureRun(t, "var x: Integer := 'hello'; PrintLn('ran');", nil, func() {
+		compileOnly = true
+		diagnosticsMode = "plain"
+	})
+	if err == nil || strings.Contains(out, "ran") || !strings.HasPrefix(out, "Syntax Error:") {
+		t.Fatalf("err=%v out=%q", err, out)
+	}
+	// Clean program: no output at all.
+	out, err = captureRun(t, "PrintLn('ran');", nil, func() { compileOnly = true; diagnosticsMode = "plain" })
+	if err != nil || out != "" {
+		t.Fatalf("err=%v out=%q", err, out)
+	}
+}

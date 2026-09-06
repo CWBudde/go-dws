@@ -37,6 +37,8 @@ var (
 	diagnosticsMode string
 	// testEnvelope wraps output in the DWScript test-harness framing.
 	testEnvelope bool
+	// compileOnly stops after compilation and reports its diagnostics.
+	compileOnly bool
 )
 
 // simpleOptions implements interp.Options for the CLI.
@@ -87,6 +89,7 @@ func init() {
 	runCmd.Flags().IntVar(&maxRecursion, "max-recursion", 1024, "maximum recursion depth (default: 1024)")
 	runCmd.Flags().BoolVar(&bytecodeMode, "bytecode", false, "execute via bytecode VM instead of AST interpreter (experimental)")
 	runCmd.Flags().StringVar(&hintsLevel, "hints", "off", "print compiler hints/warnings to stderr, non-fatal: off|normal|strict|pedantic (pedantic includes case-mismatch hints)")
+	runCmd.Flags().BoolVar(&compileOnly, "compile-only", false, "compile (parse, type-check) and report diagnostics without executing; with --diagnostics=plain every message is printed, hints included, in the DWScript wire format")
 	runCmd.Flags().BoolVar(&testEnvelope, "test-envelope", false, "wrap output in DWScript's test-harness 'Errors >>>>' / 'Result >>>>' framing when there are messages (implies --diagnostics=plain)")
 	runCmd.Flags().StringVar(&diagnosticsMode, "diagnostics", "pretty", "diagnostic output style: pretty (source excerpt, colors on a terminal) or plain (DWScript wire format, one message per line)")
 }
@@ -231,19 +234,35 @@ func runScript(cmd *cobra.Command, args []string) error {
 	if compiled.HasFatalDiagnostics() || (compiled.SemanticAttempted && !compiled.SemanticSuccessful) {
 		return reportCompileFailure(compiled, input, filename)
 	}
-	// Hints/warnings: printed as they come, or held back for the test envelope.
+	// Hints/warnings: streamed as they come, held back for the test envelope, or
+	// folded into the full message list in compile-only mode.
 	var envelopeMsgs []string
-	if wantHints {
-		if testEnvelope {
-			envelopeMsgs = compiled.HintStrings()
-		} else {
-			for _, h := range compiled.HintStrings() {
-				fmt.Fprintln(os.Stderr, h)
-			}
+	switch {
+	case compileOnly:
+		// handled below
+	case wantHints && testEnvelope:
+		envelopeMsgs = compiled.HintStrings()
+	case wantHints:
+		for _, h := range compiled.HintStrings() {
+			fmt.Fprintln(os.Stderr, h)
 		}
 	}
 	if verbose && typeCheck && hasUnits {
 		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
+	}
+	if compileOnly {
+		if diagnosticsMode == "plain" {
+			// Everything the compiler said, in order, like DWScript's Msgs.AsInfo
+			// (hints appear when the --hints level allows them). Never framed.
+			for _, line := range compiled.DiagnosticStrings() {
+				fmt.Fprintln(os.Stderr, line)
+			}
+		} else if wantHints {
+			for _, h := range compiled.HintStrings() {
+				fmt.Fprintln(os.Stderr, h)
+			}
+		}
+		return nil
 	}
 
 	var semanticInfo *ast.SemanticInfo
