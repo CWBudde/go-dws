@@ -417,12 +417,24 @@ See `testdata/error_messages/README.md` for details.
 
 ### Error Display
 
-The CLI (`cmd/dwscript/cmd/run.go`) handles error display:
+The CLI (`cmd/dwscript/cmd/run.go`) compiles through `internal/frontend` and presents its
+diagnostics in one of two styles, selected with `run --diagnostics=pretty|plain`:
 
-1. **Parse errors**: Formatted via `errors.FormatErrors()`
-2. **Semantic errors**: Converted to `CompilerError`, then formatted
-3. **Runtime errors**: Checked for `RuntimeError`, formatted with source
-4. **Exceptions**: Display class, message, position, and stack trace
+1. **pretty** (default): compile errors as `CompilerError` blocks with a source excerpt via
+   `errors.FormatErrors()`; runtime errors with source; unhandled exceptions with class, message,
+   position and stack trace. ANSI colors are used only on a terminal and never when `NO_COLOR` is set.
+2. **plain**: the DWScript wire format below, one message per line, all severities in the
+   compiler's order (`frontend.Result.DiagnosticStrings()`); runtime errors via
+   `interp.FormatRuntimeErrorValue`. Exit code 1 on any error, nothing else printed.
+
+Two further flags exist for test harnesses and imply `--diagnostics=plain`:
+
+- `--test-envelope`: program output is wrapped in DWScript's test-runner framing when there is at
+  least one message (`Errors >>>>`, hints/warnings, the runtime error, `Result >>>>`, output).
+- `--compile-only`: parse and type-check without executing; prints the compiler's full message
+  list (hints included at the chosen `--hints` level), which is what the `*Fail` fixture suites expect.
+
+`cmd/fixture-report` uses exactly these flags, so its numbers match the Go harness.
 
 ### Example Output
 
@@ -472,4 +484,4 @@ Hint: <message> [line: X, column: Y]
 Warning: <message> [line: X, column: Y]
 ```
 
-`internal/frontend.Result.DiagnosticStrings()` (via `Diagnostic.Render()` → `dwserrors.FormatDWScriptError`) produces this shape and is what the fixture harness compares against. The colored, source-annotated blocks printed by `cmd/dwscript run` are a presentation layer on top of it (see `PLAN.md` T2 for the pending `--diagnostics=plain` flag). Historical standardization work: `docs/history/task-6.3-summary.md`.
+`internal/frontend.Result.DiagnosticStrings()` (via `Diagnostic.Render()` → `dwserrors.FormatDWScriptError`) produces this shape and is what the fixture harness compares against. `cmd/dwscript run --diagnostics=plain` prints exactly this; the default pretty blocks are a presentation layer on top of it. Historical standardization work: `docs/history/task-6.3-summary.md`.

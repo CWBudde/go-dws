@@ -18,7 +18,7 @@ Status figures are generated, never hand-edited:
 
 - `testdata/fixtures/TEST_STATUS.md` — per-category pass/fail from the Go harness (`just fixture-update`).
 - `testdata/fixtures/baselines.json` — the per-category floor CI enforces.
-- `just build && just fixture-report` — end-to-end CLI numbers (`cmd/fixture-report`).
+- `just fixture-report` — end-to-end CLI numbers (`cmd/fixture-report`; rebuilds `bin/dwscript`, refuses a stale one).
 
 ## Guide (language features)
 
@@ -78,9 +78,10 @@ Status figures are generated, never hand-edited:
 
 ## History and archive
 
-- [`history/README.md`](history/README.md) — index of completed-work records. The most useful file is
-  [`history/progress-log-2026-07.md`](history/progress-log-2026-07.md): root causes and fixture names
-  for everything closed in July 2026. [`history/CODEBASE_REVIEW_2026-07.md`](history/CODEBASE_REVIEW_2026-07.md)
+- [`history/README.md`](history/README.md) — index of completed-work records. The most useful files are
+  [`history/progress-log-2026-07.md`](history/progress-log-2026-07.md) (root causes and fixture names
+  for everything closed in July 2026) and [`history/progress-log-2026-09.md`](history/progress-log-2026-09.md)
+  (Phase 1 tooling: one pipeline, harness-mode CLI flags). [`history/CODEBASE_REVIEW_2026-07.md`](history/CODEBASE_REVIEW_2026-07.md)
   is the measured review that set the current priorities.
 - [`archive/README.md`](archive/README.md) — superseded designs, audits, and parked backlogs
   (`CodeGenTODO.md`, bytecode VM design notes, adapter/EvalNode migration notes, fixture-failure analyses).

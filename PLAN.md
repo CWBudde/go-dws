@@ -9,8 +9,9 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-06, HEAD `f41e7d86`):** Go harness **863 / 1,928 scored = 45%**, CLI ground truth
-**733 / 1,928 = 38%**, `*Fail` error-detection suites **107 / 647 = 17%** (harness).
+**Headline (2026-09-06, after Phase 1):** Go harness **871 / 1,928 scored = 45%**, CLI ground truth
+**871 / 1,928 = 45%** — identical in all 61 categories, since both run the same pipeline and
+scoring rules. `*Fail` error-detection suites **111 / 647 = 17%**.
 
 Where the truth lives:
 
@@ -24,14 +25,13 @@ Rules for this document:
 
 - An item is closed only by a **passing fixture** (or a test that exercises the real user-facing path).
   Closed items are deleted from this file; their story goes to `docs/history/progress-log-<date>.md`.
-- Ratchet `baselines.json` after every improvement. The baseline is currently un-ratcheted
-  (SimpleScripts 326 → 330).
+- Ratchet `baselines.json` after every improvement (`just fixture-update`).
 - The ~200 fixtures in host-library categories listed in
   [`docs/decisions/out-of-scope.md`](docs/decisions/out-of-scope.md) (DataBaseLib, COMConnector,
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (harness, 1,065 total): FailureScripts 425, SimpleScripts 105,
+- Where the remaining failures are (1,057 total): FailureScripts 421, SimpleScripts 105,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -41,28 +41,11 @@ Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do
 
 ## 1. Measurement & tooling (T)
 
-The Go harness and the CLI disagree by 130 fixtures because they run **different compile
-pipelines** (see §2 A1). Fixing the measurement comes first.
-
-- **T1** `[ ]` S — Route `cmd/dwscript run` through `internal/frontend.Compile`; delete the
-  hand-rolled lexer → parser → generics → semantic copy in `cmd/dwscript/cmd/run.go:200-320`,
-  including the `!hasUnits` bypass that skips semantic analysis for unit-using programs.
-  Unlocks: FailureScripts CLI 1 → ~103, closes the harness/CLI gap. Same item as A1.
-- **T2** `[ ]` S — `run --diagnostics=plain|pretty` (and honor `NO_COLOR`): plain mode prints the
-  DWScript wire format `Syntax Error: … [line: N, column: M]` that `frontend.Result.DiagnosticStrings()`
-  already produces; pretty stays the default for humans. Needed for `cmd/fixture-report` to score
-  `*Fail` suites. Format spec: `docs/guide/error-messages.md` appendix.
-- **T3** `[ ]` S — `run --test-envelope`: emit the `Errors >>>>` / `Result >>>>` framing used by the
-  fixture corpus for runtime errors and non-case hints. Test-harness framing only, never default
-  output. Case-mismatch hint parity stays ✋ (§5).
-- **T4** `[ ]` S — Ratchet baselines; make `cmd/fixture-report` refuse to run (or rebuild) when
-  `bin/dwscript` is older than `HEAD`.
-- **T5** `[ ]` S — Table-driven test that diffs the builtin-helper spec table used by the analyzer
-  against the specs handled by `evalArrayHelper`/`string_helpers.go` (guards A2; 11 specs are
-  currently missing on the semantic side).
-- **T6** `[ ]` S — Document in `testdata/fixtures/README.md` that `.jstxt` (68 files) and
-  `.optimized.txt` (31) expected outputs are not scored; decide whether `.optimized.txt` should be
-  an accepted alternative for FailureScripts.
+No open items. T1–T6 closed 2026-09-06 (one compile pipeline for CLI and harness, `run
+--diagnostics=plain|pretty`, `--test-envelope`, `--compile-only`, self-rebuilding
+`fixture-report` with a stale-binary guard, helper-spec parity test, unscored-variant docs);
+see [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md). New tooling
+items go here.
 
 ---
 
@@ -73,9 +56,10 @@ Evidence for every item, with file:line references and measurements, is in
 that each one shrinks the blast radius of the next. The target architecture is
 [`docs/architecture/interp-evaluator-steady-state.md`](docs/architecture/interp-evaluator-steady-state.md).
 
-- **A1** `[ ]` S — **One compile pipeline.** `internal/frontend` is the tested path (CI gate,
-  `pkg/dwscript`); the CLI re-implements it. Make the CLI a consumer of `frontend.Compile`
-  (= T1). Prerequisite for A5.
+- **A1** ✅ closed 2026-09-06 — `internal/frontend` is the only compile pipeline; the CLI consumes
+  `frontend.ParseWithOptions`/`AnalyzeParsed`. The one remaining bypass (semantic analysis skipped
+  for unit-using programs) is explicit in `cmd/dwscript/cmd/run.go` and is closed by the §3.2
+  unit-aware analysis item.
 - **A2** `[ ]` M — **One builtin-helper table.** The `__array_*`/`__string_*` method specs are
   maintained in four places with two key encodings (`internal/semantic/analyze_helpers.go`,
   `internal/semantic/analyze_array_helpers.go` 677 LOC hand-written switch,
@@ -95,7 +79,8 @@ that each one shrinks the blast radius of the next. The target architecture is
   `internal/interp/evaluator/type_resolution.go` + `type_resolution_helpers.go` (965 LOC) re-parse
   `array of …`/function-pointer signatures from strings at runtime, duplicating six functions in
   `internal/semantic/type_resolution.go`. Consume `ast.SemanticInfo` (already threaded through
-  `contracts.EngineState`) instead. Requires A1 so the analyzer always runs.
+  `contracts.EngineState`) instead. Requires the §3.2 unit-aware analysis item so the analyzer
+  also runs for unit-using programs.
 - **A6** `[ ]` L — **De-`any` the type registries** (the "triplicated type system").
   `internal/interp/types/type_system.go:553-559` aliases `ClassInfo`/`RecordTypeValue`/`InterfaceInfo`/
   `HelperInfo`/`EnumTypeValue` to `any` to break an import cycle that exists only because
@@ -148,6 +133,11 @@ Each line: what to build → fixtures/category it unlocks. Run
 
 ### 3.2 Semantic
 
+- `[ ]` M Unit-aware semantic analysis in `internal/frontend`: resolve program-level `uses` through
+  `units.UnitRegistry` (search paths as a frontend option), run `Analyzer.AnalyzeUnitWithDependencies`
+  in dependency order, then `Analyze(program)`. Deletes the explicit `TypeCheck=false` bypass in
+  `cmd/dwscript/cmd/run.go` and gives the harness unit resolution. Unlocks BuildScripts (0/54),
+  FunctionsGlobalVars, FunctionsVariant, and type checking for every unit program.
 - `[ ]` M Type-order-independent class builder (parents/fields declared later without `forward`);
   needs a real two-phase class registration. Design input: `docs/architecture/semantic-passes.md`
   (superseded design, never implemented).
@@ -188,9 +178,9 @@ Each line: what to build → fixtures/category it unlocks. Run
 - `[ ]` S Function-pointer niche: `@TObject.ClassType` address-of-class-member (`func_ptr_symbol_field`);
   value ↔ parameterless-function coercion in `array of function : T` (`func_ptr_classname`).
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
-  `class of`) after T1; the common cases were closed in July, the rest was never re-listed.
-- `[ ]` M SimpleScripts to ≥ 85% (harness 330/442 = 75%). Work
-  `just fixture-report --category SimpleScripts --list-fails`; ~60 of the fails are envelope-only (T3).
+  `class of`); the common cases were closed in July, the rest was never re-listed.
+- `[ ]` M SimpleScripts to ≥ 85% (330/442 = 75%). Work
+  `just fixture-report --category SimpleScripts --list-fails` (identical to the harness list).
 - `[ ]` M Triage in-scope categories that have no plan yet: FunctionsTime (1/30),
   FunctionsVariant (0/10), FunctionsGlobalVars (0/16), FunctionsByteBuffer (0/19),
   EncodingLib (0/12), Memory (1/13), InnerClassesPass (0/2), FunctionsDebug (0/3).
@@ -222,9 +212,11 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness: 107/647 (FailureScripts 103/528, JSONConnectorFail 2, SetOfFail 1, AssociativeFail 1,
-every other `*Fail` suite 0). CLI: 1/647 until T1/T2 land. The suites expect **plain diagnostic
-lines**, not the envelope; none of their expected outputs contain `Errors >>>>`.
+Harness and CLI: 111/647 (FailureScripts 107/528, JSONConnectorFail 2, SetOfFail 1,
+AssociativeFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
+`CompilationFailure` runner): the expected file is the compiler's message list, hints included,
+no envelope, and nothing is executed. Reproduce one with
+`dwscript run --diagnostics=plain --compile-only --hints pedantic <file>`.
 
 Work families (from the 2026-03 FailureScripts analysis, now archived at
 `docs/archive/failure-scripts-next-phase-plan.md`; counts are approximate and pre-date the July work):
@@ -272,7 +264,7 @@ Gate for everything ⏸️ below: **every non-host-library fixture category ≥ 
   (the original test runner set hint levels per test). Evidence and measurements:
   `docs/history/progress-log-2026-07.md`, "Hint/warning envelope". Do not pursue unless the
   original per-test configuration is recovered. Non-case hints (empty block, unreachable code,
-  prefer-ToString) remain in scope under F1/T3.
+  prefer-ToString) remain in scope under F1.
 - ✋ UTF-16 surrogate iteration: `docs/decisions/string-encoding.md`.
 - ✋ Subrange compile-time bounds: zero fixture yield.
 
@@ -281,9 +273,9 @@ Gate for everything ⏸️ below: **every non-host-library fixture category ≥ 
 ## 6. Definition of done (v1.0)
 
 1. `just fixture-report` and the Go harness both report **≥ 90%** on every non-host-library
-   category, and they agree except for documented envelope-only differences.
+   category, and they agree (one pipeline, one scoring rule — in place since 2026-09-06).
 2. All `*Fail` suites reproduce DWScript diagnostics.
-3. Exactly **one** type representation (A6, A7), **one** evaluator, and **one** compile pipeline (A1).
+3. Exactly **one** type representation (A6, A7), **one** evaluator, and **one** compile pipeline (✅ A1).
 4. CI fails on any per-category regression. ✅ Already in place (`baselines.json` gate).
 5. No public API or CLI flag exposes a non-functional mode without saying so (A11).
 
@@ -294,8 +286,9 @@ Track progress against fixture pass rate, not checkbox counts.
 ## 7. Reproducing the numbers
 
 ```bash
-just build && just fixture-report                        # CLI ground truth, per-category table
+just fixture-report                                      # CLI ground truth (rebuilds bin/dwscript first)
 just fixture-report --category SimpleScripts --list-fails
 go test ./internal/interp -run TestDWScriptFixtures -v   # Go harness (what CI gates on)
+FIXTURE_LIST_FAILS=1 go test ./internal/interp -run TestDWScriptFixtures -v   # ... with failing names
 just fixture-update                                      # regenerate TEST_STATUS.md, ratchet baselines
 ```
