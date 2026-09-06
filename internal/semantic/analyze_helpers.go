@@ -825,6 +825,27 @@ func (a *Analyzer) initArrayHelpers() {
 	arrayHelper.BuiltinMethods["map"] = "__array_map"
 	arrayHelper.Methods["join"] = types.NewFunctionType([]types.Type{types.STRING}, types.STRING)
 	arrayHelper.BuiltinMethods["join"] = "__array_join"
+
+	// Remaining builtin array methods, kept in parity with the runtime table in
+	// internal/interp/helpers_validation.go (pinned by TestHelperSpecParity).
+	// These deliberately have no Methods signature: array method calls are
+	// type-checked by analyzeArrayMethodCall first, and adding signatures here
+	// would change overload behaviour. Consolidating the two paths is PLAN A2.
+	for name, spec := range map[string]string{
+		"clear":    "__array_clear",
+		"contains": "__array_contains",
+		"copy":     "__array_copy",
+		"filter":   "__array_filter",
+		"foreach":  "__array_foreach",
+		"insert":   "__array_insert",
+		"move":     "__array_move",
+		"peek":     "__array_peek",
+		"remove":   "__array_remove",
+		"reverse":  "__array_reverse",
+		"sort":     "__array_sort",
+	} {
+		arrayHelper.BuiltinMethods[name] = spec
+	}
 }
 
 // initIntrinsicHelpers registers built-in helpers for primitive types (Integer, Float, Boolean, String).
