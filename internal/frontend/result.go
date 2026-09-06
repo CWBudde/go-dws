@@ -161,13 +161,15 @@ func (r *Result) HintStrings() []string {
 type Options struct {
 	// Filename is recorded in diagnostics and passed to the analyzer; it may be "" or "<eval>".
 	Filename string
-	// IncludeDir roots {$INCLUDE} resolution. Empty disables include resolution.
+	// IncludeDir roots {$INCLUDE} resolution. Empty disables include resolution; it is
+	// deliberately not derived from Filename so that a display name such as "<eval>"
+	// never enables CWD-relative includes (Compile derives it for real file names).
 	IncludeDir string
 	// HintsLevel is applied to the analyzer (semantic.HintsLevelDisabled turns hints off).
 	HintsLevel semantic.HintsLevel
-	// TypeCheck runs generic monomorphization and semantic analysis. When false only
-	// parsing and monomorphization run; Result.Analyzer stays nil.
-	TypeCheck bool
+	// SkipTypeCheck stops after parsing and generic monomorphization; Result.Analyzer
+	// stays nil. The zero value (false) runs the full pipeline.
+	SkipTypeCheck bool
 }
 
 // Parse parses source and collects parser diagnostics without running semantic analysis.
@@ -203,10 +205,10 @@ func ParseWithOptions(source string, opts Options) *Result {
 }
 
 // AnalyzeParsed runs the post-parse half of the pipeline on a ParseWithOptions result:
-// generic monomorphization and, when opts.TypeCheck is set, semantic analysis.
+// generic monomorphization and, unless opts.SkipTypeCheck is set, semantic analysis.
 // It returns the same *Result, updated in place.
 func AnalyzeParsed(result *Result, source string, opts Options) *Result {
-	if !opts.TypeCheck {
+	if opts.SkipTypeCheck {
 		if result.Program != nil && !result.HasSemanticBlockingDiagnosticsInPhase(PhaseParsing) {
 			generics.Monomorphize(result.Program)
 		}
@@ -229,7 +231,6 @@ func Compile(source, filename string, hintsLevel semantic.HintsLevel) *Result {
 		Filename:   filename,
 		IncludeDir: includeDirFor(filename),
 		HintsLevel: hintsLevel,
-		TypeCheck:  true,
 	})
 }
 

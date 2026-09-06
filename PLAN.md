@@ -136,8 +136,10 @@ Each line: what to build → fixtures/category it unlocks. Run
 - `[ ]` M Unit-aware semantic analysis in `internal/frontend`: resolve program-level `uses` through
   `units.UnitRegistry` (search paths as a frontend option), run `Analyzer.AnalyzeUnitWithDependencies`
   in dependency order, then `Analyze(program)`. Deletes the explicit `TypeCheck=false` bypass in
-  `cmd/dwscript/cmd/run.go` and gives the harness unit resolution. Unlocks BuildScripts (0/54),
-  FunctionsGlobalVars, FunctionsVariant, and type checking for every unit program.
+  `cmd/dwscript/cmd/run.go` and gives the harness unit resolution. Until then the two runners
+  still differ for the ~35 in-scope fixtures with a program-level `uses` (the harness type-checks
+  them and fails; the CLI runs them untyped). Unlocks BuildScripts (0/54), FunctionsGlobalVars,
+  FunctionsVariant, and type checking for every unit program.
 - `[ ]` M Type-order-independent class builder (parents/fields declared later without `forward`);
   needs a real two-phase class registration. Design input: `docs/architecture/semantic-passes.md`
   (superseded design, never implemented).

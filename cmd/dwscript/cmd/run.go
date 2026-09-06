@@ -89,7 +89,7 @@ func init() {
 	runCmd.Flags().BoolVar(&bytecodeMode, "bytecode", false, "execute via bytecode VM instead of AST interpreter (experimental)")
 	runCmd.Flags().StringVar(&hintsLevel, "hints", "off", "print compiler hints/warnings to stderr, non-fatal: off|normal|strict|pedantic (pedantic includes case-mismatch hints)")
 	runCmd.Flags().BoolVar(&compileOnly, "compile-only", false, "compile (parse, type-check) and report diagnostics without executing; with --diagnostics=plain every message is printed, hints included, in the DWScript wire format")
-	runCmd.Flags().BoolVar(&testEnvelope, "test-envelope", false, "wrap output in DWScript's test-harness 'Errors >>>>' / 'Result >>>>' framing when there are messages (implies --diagnostics=plain)")
+	runCmd.Flags().BoolVar(&testEnvelope, "test-envelope", false, "wrap output in DWScript's test-harness 'Errors >>>>' / 'Result >>>>' framing when there are messages; buffers all program output until exit (implies --diagnostics=plain)")
 	runCmd.Flags().StringVar(&diagnosticsMode, "diagnostics", "pretty", "diagnostic output style: pretty (source excerpt, colors on a terminal) or plain (DWScript wire format, one message per line)")
 }
 
@@ -122,17 +122,44 @@ func reportCompileFailure(res *frontend.Result, source, filename string) error {
 		}
 		return ErrSilent
 	}
-	var compilerErrors []*errors.CompilerError
-	for _, d := range res.Diagnostics {
-		if d.Severity != frontend.SeverityError {
-			continue
+	compilerErrors := prettyCompilerErrors(res, source, filename)
+	if len(compilerErrors) == 0 {
+		// Every error was filtered out of the rendered set; show what there is.
+		for _, line := range res.DiagnosticStrings() {
+			fmt.Fprintln(os.Stderr, line)
 		}
-		compilerErrors = append(compilerErrors, errors.NewCompilerError(
-			lexer.Position{Line: d.Line, Column: d.Column}, d.Message, source, filename))
+		return fmt.Errorf("compilation failed")
 	}
 	fmt.Fprint(os.Stderr, errors.FormatErrors(compilerErrors, colorEnabled()))
 	fmt.Fprintln(os.Stderr)
 	return fmt.Errorf("compilation failed with %d error(s)", len(compilerErrors))
+}
+
+// prettyCompilerErrors builds the source-annotated errors for pretty mode: parse
+// diagnostics from the frontend result, semantic errors from the analyzer's structured
+// errors (which carry the Expected:/Got: detail lines), falling back to the rendered
+// diagnostics when no structured errors exist.
+func prettyCompilerErrors(res *frontend.Result, source, filename string) []*errors.CompilerError {
+	var out []*errors.CompilerError
+	for _, d := range res.Diagnostics {
+		if d.Severity == frontend.SeverityError && d.Phase == frontend.PhaseParsing {
+			out = append(out, errors.NewCompilerError(
+				lexer.Position{Line: d.Line, Column: d.Column}, d.Message, source, filename))
+		}
+	}
+	if res.Analyzer != nil && len(res.Analyzer.StructuredErrors()) > 0 {
+		for _, se := range res.Analyzer.StructuredErrors() {
+			out = append(out, se.ToCompilerError(source, filename))
+		}
+		return out
+	}
+	for _, d := range res.Diagnostics {
+		if d.Severity == frontend.SeverityError && d.Phase != frontend.PhaseParsing {
+			out = append(out, errors.NewCompilerError(
+				lexer.Position{Line: d.Line, Column: d.Column}, d.Message, source, filename))
+		}
+	}
+	return out
 }
 
 // colorEnabled reports whether pretty diagnostics may use ANSI colors: never in
@@ -146,21 +173,24 @@ func colorEnabled() bool {
 }
 
 func runScript(cmd *cobra.Command, args []string) error {
-	if cmd != nil {
-		// Argument/flag errors already showed usage; failures from here on are the
-		// script's, so do not append the usage block to diagnostics.
-		cmd.SilenceUsage = true
-	}
 	if err := normalizeDiagnosticsMode(); err != nil {
 		return err
 	}
 	// Precompiled bytecode files bypass the source pipeline entirely.
 	if evalExpr == "" && len(args) == 1 && filepath.Ext(args[0]) == ".dwc" {
+		if testEnvelope || compileOnly {
+			return fmt.Errorf("--test-envelope and --compile-only are not supported for precompiled .dwc files")
+		}
 		return runBytecodeFile(args[0])
 	}
 	input, filename, err := loadRunInput(args)
 	if err != nil {
 		return err
+	}
+	if cmd != nil {
+		// Argument/flag errors above showed usage; failures from here on are the
+		// script's, so do not append the usage block to diagnostics.
+		cmd.SilenceUsage = true
 	}
 	cs, done, err := compileRunInput(input, filename)
 	if err != nil || done {
@@ -172,6 +202,9 @@ func runScript(cmd *cobra.Command, args []string) error {
 // normalizeDiagnosticsMode validates --diagnostics and applies the modes that
 // --test-envelope implies.
 func normalizeDiagnosticsMode() error {
+	if bytecodeMode && (testEnvelope || compileOnly) {
+		return fmt.Errorf("--test-envelope and --compile-only are not supported with --bytecode")
+	}
 	if testEnvelope {
 		diagnosticsMode = "plain"
 	}
@@ -243,20 +276,20 @@ func compileRunInput(input, filename string) (cs *compiledScript, done bool, err
 	if len(cs.searchPaths) == 0 && filename != "<eval>" {
 		cs.searchPaths = append(cs.searchPaths, filepath.Dir(filename))
 	}
+	// Semantic analysis is skipped for unit-using programs: neither the analyzer nor
+	// the frontend resolves program-level `uses` yet (PLAN.md §3.2), so unit symbols
+	// would all be reported as unknown. This is the only place that bypass lives.
+	compileOpts.SkipTypeCheck = !typeCheck || hasUnits
+	cs.result = frontend.AnalyzeParsed(parsed, input, compileOpts)
+	if cs.result.HasFatalDiagnostics() || (cs.result.SemanticAttempted && !cs.result.SemanticSuccessful) {
+		return nil, false, reportCompileFailure(cs.result, input, filename)
+	}
+	// The bytecode program is assembled from the monomorphized AST.
 	if bytecodeMode {
 		cs.compiledProgram, cs.unitRegistry, err = buildBytecodeProgram(cs.program, cs.usedUnits, cs.searchPaths)
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to prepare bytecode program: %w", err)
 		}
-	}
-
-	// Semantic analysis is skipped for unit-using programs: neither the analyzer nor
-	// the frontend resolves program-level `uses` yet (PLAN.md §3.2), so unit symbols
-	// would all be reported as unknown. This is the only place that bypass lives.
-	compileOpts.TypeCheck = typeCheck && !hasUnits
-	cs.result = frontend.AnalyzeParsed(parsed, input, compileOpts)
-	if cs.result.HasFatalDiagnostics() || (cs.result.SemanticAttempted && !cs.result.SemanticSuccessful) {
-		return nil, false, reportCompileFailure(cs.result, input, filename)
 	}
 	if verbose && typeCheck && hasUnits {
 		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
@@ -321,18 +354,18 @@ func executeScript(cs *compiledScript) error {
 	if err != nil {
 		return err
 	}
-	if loaded {
-		defer func() {
-			if err := interpreter.FinalizeUnits(); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: error during unit finalization: %v\n", err)
-			}
-		}()
-	}
 
 	if trace {
 		fmt.Fprintf(os.Stderr, "[Trace mode enabled - executing %s]\n", cs.filename)
 	}
 	result := interpreter.Eval(cs.program)
+	if loaded {
+		// Finalization sections print through the same writer, so they must run
+		// before the buffered output is emitted or the outcome is reported.
+		if err := interpreter.FinalizeUnits(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: error during unit finalization: %v\n", err)
+		}
+	}
 	if testEnvelope {
 		return emitTestEnvelope(interpreter, result, cs.envelopeMsgs, &progOut)
 	}
@@ -411,6 +444,9 @@ func emitTestEnvelope(interpreter *interp.Interpreter, result interp.Value, msgs
 // reportRuntimeOutcome prints an unhandled exception or runtime error, if any, and
 // returns the error the command should exit with (nil when the program succeeded).
 func reportRuntimeOutcome(interpreter *interp.Interpreter, result interp.Value) error {
+	// plain mirrors the fixture harness and reports the ERROR value first (an
+	// uncaught exception surfaces there as "User defined exception: ..."); pretty
+	// keeps the exception-first presentation with class name and call stack.
 	if diagnosticsMode == "plain" {
 		if result != nil && result.Type() == "ERROR" {
 			fmt.Fprintln(os.Stderr, interp.FormatRuntimeErrorValue(result))

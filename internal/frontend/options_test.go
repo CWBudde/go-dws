@@ -11,7 +11,7 @@ import (
 )
 
 func TestCompileWithOptions_TypeCheckOffSkipsAnalyzer(t *testing.T) {
-	res := CompileWithOptions("var x: Integer := 'hello';", Options{TypeCheck: false})
+	res := CompileWithOptions("var x: Integer := 'hello';", Options{SkipTypeCheck: true})
 	if res.Analyzer != nil || res.SemanticAttempted {
 		t.Fatalf("expected no semantic analysis, got attempted=%v", res.SemanticAttempted)
 	}
@@ -29,7 +29,7 @@ func TestCompileWithOptions_IncludeDirControlsIncludes(t *testing.T) {
 		t.Fatal(err)
 	}
 	src := "{$INCLUDE 'inc.inc'}"
-	with := CompileWithOptions(src, Options{Filename: "<eval>", IncludeDir: dir, HintsLevel: semantic.HintsLevelNormal, TypeCheck: true})
+	with := CompileWithOptions(src, Options{Filename: "<eval>", IncludeDir: dir, HintsLevel: semantic.HintsLevelNormal})
 	if with.HasFatalDiagnostics() {
 		t.Fatalf("include should resolve: %v", with.DiagnosticStrings())
 	}
@@ -38,7 +38,7 @@ func TestCompileWithOptions_IncludeDirControlsIncludes(t *testing.T) {
 	}
 	// Without a resolver the lexer drops the directive (pre-existing lexer behaviour):
 	// the included content must not appear.
-	without := CompileWithOptions(src, Options{Filename: "<eval>", HintsLevel: semantic.HintsLevelNormal, TypeCheck: true})
+	without := CompileWithOptions(src, Options{Filename: "<eval>", HintsLevel: semantic.HintsLevelNormal})
 	if got := len(without.Program.Statements); got != 0 {
 		t.Fatalf("empty IncludeDir must disable include resolution, got %d statements", got)
 	}
@@ -46,7 +46,7 @@ func TestCompileWithOptions_IncludeDirControlsIncludes(t *testing.T) {
 
 func TestParseThenAnalyzeEqualsCompile(t *testing.T) {
 	src := "var x: Integer := 'hello';"
-	opts := Options{HintsLevel: semantic.HintsLevelPedantic, TypeCheck: true}
+	opts := Options{HintsLevel: semantic.HintsLevelPedantic}
 	twoStep := AnalyzeParsed(ParseWithOptions(src, opts), src, opts)
 	oneStep := CompileWithOptions(src, opts)
 	legacy := Compile(src, "", semantic.HintsLevelPedantic)

@@ -20,7 +20,9 @@ never calling `SetParseHadErrors`, and leaving `--hints off` at the analyzer's d
 `internal/frontend` gained `Options`, `ParseWithOptions`, `AnalyzeParsed`, `CompileWithOptions`
 and `Result.HintStrings`; the CLI now consumes them. The unit-program bypass stays, but as an
 explicit `Options.TypeCheck=false` with the reason in a comment, because neither the analyzer
-nor the frontend resolves program-level `uses` yet (new `PLAN.md` §3.2 item).
+nor the frontend resolves program-level `uses` yet (new `PLAN.md` §3.2 item). This is the one
+place the runners still differ: the harness type-checks unit programs (and fails them), the CLI
+runs them untyped; both score them as failures today.
 
 cobra no longer echoes the error twice and dumps the usage block after script failures
 (`SilenceErrors` on the root, `SilenceUsage` once `run` has valid arguments; `cmd.ErrSilent`
