@@ -13,7 +13,7 @@ go-dws is a Go port of DWScript (Delphi Web Script), implementing a Pascal-based
 - **`ast/`**: Abstract Syntax Tree with Node/Expression/Statement interfaces, visitor pattern ready
 - **`semantic/`**: Type checking, symbol resolution, operator validation, interface/class analysis
 - **`types/`**: Rich type system (Integer, Float, String, Boolean, Array, Class, Interface, Enum, Record, Set)
-- **`bytecode/`**: Bytecode compiler and stack-based VM (5-6x faster than AST interpreter)
+- **`bytecode/`**: Bytecode compiler and stack-based VM (experimental, incomplete; no verified speedup)
 - **`interp/`**: Tree-walking AST interpreter/runtime engine
 - **`errors/`**: Error reporting with position tracking
 - **`jsonvalue/`**: JSON type integration
@@ -110,7 +110,7 @@ go mod tidy
 # Run script (AST interpreter)
 ./bin/dwscript run testdata/case_demo.dws
 
-# Compile to bytecode and execute (5-6x faster)
+# Compile to bytecode and execute (experimental bytecode VM)
 ./bin/dwscript bytecode testdata/classes.dws
 ```
 
