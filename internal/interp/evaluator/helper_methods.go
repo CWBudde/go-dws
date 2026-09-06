@@ -2,7 +2,9 @@ package evaluator
 
 import (
 	"reflect"
+	"strings"
 
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -478,11 +480,30 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 		return result
 	}
 
+	// Specs that are plain builtin names (PadLeft, StripAccents, ...) are
+	// implemented in internal/builtins; the receiver is the builtin's first argument.
+	// Evaluator-owned specs always carry the "__" prefix, so skip the registry
+	// lookup for them rather than paying for a guaranteed miss on every call.
+	if !strings.HasPrefix(spec, "__") {
+		if fn, ok := builtins.DefaultRegistry.Lookup(spec); ok {
+			return fn(e, append([]Value{selfValue}, args...))
+		}
+	}
+
 	return e.newError(node, "unknown built-in helper method '%s'", spec)
 }
 
 // CallBuiltinHelperProperty executes a built-in helper property read.
 func (e *Evaluator) CallBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node, ctx *ExecutionContext) Value {
+	// Property specs that are plain builtin names (e.g. StripAccents) are
+	// implemented in internal/builtins with the receiver as the only argument.
+	// Evaluator-owned specs always carry the "__" prefix, so skip the registry
+	// lookup for them to keep hot property reads (.Length, .High) cheap.
+	if !strings.HasPrefix(propSpec, "__") {
+		if fn, ok := builtins.DefaultRegistry.Lookup(propSpec); ok {
+			return fn(e, []Value{selfValue})
+		}
+	}
 	return e.evalBuiltinHelperProperty(propSpec, selfValue, node)
 }
 
@@ -826,7 +847,7 @@ func (e *Evaluator) executeHelperPropertyRead(
 			propInfo.Name, propInfo.ReadSpec)
 
 	case types.PropAccessBuiltin:
-		return e.evalBuiltinHelperProperty(propInfo.ReadSpec, selfValue, node)
+		return e.CallBuiltinHelperProperty(propInfo.ReadSpec, selfValue, node, ctx)
 
 	case types.PropAccessNone:
 		return e.newError(node, "property '%s' is write-only", propInfo.Name)

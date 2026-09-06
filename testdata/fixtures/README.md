@@ -4,12 +4,12 @@ This directory contains the comprehensive test suite copied from the original DW
 
 ## Overview
 
-- **Total Test Files**: ~4,400 files
-- **Test Categories**: 64 directories
-- **Test Scripts**: 2,098 `.pas` files
-- **Expected Outputs**: 2,083 `.txt` files
-- **JavaScript Tests**: 123 `.dws` files + 68 `.jstxt` files
-- **External Dependencies**: Various `.dll`, `.s3db`, `.ply`, and other support files
+Raw file counts (what `find` sees) and scored counts (what the Go harness compares) differ, so keep them apart:
+
+- **Raw contents**: 64 directories, ~2,100 `.pas` scripts, ~2,050 `.txt` expectations, plus `.jstxt`, `.optimized.txt`, `.fpctxt` variants, 123 `.dws` JavaScript filter scripts and support files (`.dll`, `.s3db`, `.ply`, ...).
+- **Scored set**: `internal/interp/fixture_test.go` (`discoverFixtureCategories`) treats every directory directly under `testdata/fixtures/` that contains at least one `.pas` file as a category (61 today; `Data`, `HTMLFilterScripts` and `Model3D` have no `.pas` and are not categories, nested subdirectories are not walked). Each `.pas` is compared against its sibling `.txt` only (`runFixtureTest`). A `.pas` without a `.txt` is reported as skipped, not failed (114 today). All other expectation variants are ignored, see [Expected-output variants that are not scored](#expected-output-variants-that-are-not-scored).
+
+Live per-category pass/skip numbers are generated into [TEST_STATUS.md](TEST_STATUS.md); do not rely on the counts in this file for scoring.
 
 ## Directory Structure
 
@@ -96,12 +96,15 @@ This directory contains the comprehensive test suite copied from the original DW
 
 ### Test Files
 - **`.pas`** - DWScript source code (Pascal syntax)
-- **`.txt`** - Expected output or error messages
-- **`.optimized.txt`** - Expected output for optimized builds (rare)
+- **`.txt`** - Expected output or error messages. This is the **only** expectation the go-dws harness scores.
+
+### Expectation variants (never scored by go-dws)
+- **`.optimized.txt`** - Upstream's expectation when the compiler runs with `coOptimize`. Upstream runs each suite twice (optimized and non-optimized) and picks this file only in the optimized run (`reference/dwscript-original/Test/UScriptTests.pas`, lines 219-224 for execution and 329-333 for failure tests); otherwise it uses `.txt`. Constant folding changes which hints and errors appear, so the content is not merely "fewer hints". go-dws has no optimizer and therefore corresponds to the non-optimized configuration, for which upstream mandates `.txt`.
+- **`.jstxt`** - Expected output of the JavaScript code-generation backend (consumed upstream only by `UJSCodeGenTests.pas` / `UJSFilterTests.pas`).
+- **`.fpctxt`** - Free Pascal variant of an expectation (`{$ifdef FPC}` upstream).
 
 ### Codegen Files
 - **`.dws`** - JavaScript filter scripts with `<%pas2js ... %>` blocks
-- **`.jstxt`** - Expected JavaScript output
 
 ### Support Files
 - **`.dll`** - Windows DLL dependencies (e.g., `sqlite3.dll`, `BeaEngine64.dll`)
@@ -227,4 +230,12 @@ When fixing failing tests:
 
 ## Expected-output variants that are not scored
 
-Only the sibling `.txt` file is compared. `.jstxt` files (JavaScript-backend expectations, 68 files) and `.optimized.txt` files (31, mostly FailureScripts) are ignored by both the Go harness and `cmd/fixture-report`. A `.pas` file without a plain `.txt` is reported as skipped. See `PLAN.md` T6.
+Only the sibling `.txt` file is compared. `.jstxt` (68 files, JavaScript backend), `.optimized.txt` (31 files: 22 in FailureScripts, 3 OverloadsFail, 2 SimpleScripts, 2 OperatorOverloadFail, 1 SetOfFail, 1 HelpersFail; every one has a sibling `.txt`) and `.fpctxt` (2 files, Free Pascal) are never opened by the Go harness or by `cmd/fixture-report`. A `.pas` file without a plain `.txt` is reported as skipped.
+
+**Decision (2026-09-06): `.optimized.txt` is not accepted as an alternative expected output, neither for FailureScripts nor anywhere else.** Reasons:
+
+- Upstream selects `.optimized.txt` only when compiling with `coOptimize` and mandates `.txt` in the non-optimized configuration. go-dws has no optimizer, so `.txt` is the matching expectation.
+- The optimized variants encode optimizer behaviour, not looser output. Examples: `FailureScripts/abstract_method` drops an unused-Result hint; `FailureScripts/unused_variables` is empty; `FailureScripts/ignore_result` turns a hint into `Compile Error: Evaluation of "StrToInt" failed ...` through constant folding; `FailureScripts/div_by_zero_int` adds `Syntax Error: Division by zero`.
+- Accepting either file would loosen 22 FailureScripts assertions and in some cases could only be matched by implementing an optimizer.
+
+If a fixture fails only because go-dws emits a hint or error that the optimized variant hides, fix the diagnostics to match `.txt`, do not fall back to `.optimized.txt`.

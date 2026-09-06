@@ -55,7 +55,7 @@ fixture-update:
 
 # Print the ground-truth per-category compatibility report (CLI-based, does not skip anything)
 fixture-report *ARGS: build
-    go run ./cmd/fixture-report {{ARGS}}
+    go run ./cmd/fixture-report --build=false {{ARGS}}
 
 # Clean build artifacts
 clean:

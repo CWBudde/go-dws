@@ -8,12 +8,19 @@
 //
 // Usage:
 //
-//	go build -o bin/dwscript ./cmd/dwscript
 //	go run ./cmd/fixture-report [--category NAME] [--list-fails] [--timeout SECS] [--cli PATH]
+//	                            [--build=false] [--allow-stale]
 //
-// Note: the CLI does not emit DWScript's "Errors >>>>" diagnostic envelope, so the *Fail
-// error-detection categories score ~0% here. For those, trust TestDWScriptFixtures, which
-// compares against the compiler's structured diagnostics.
+// The CLI is run in harness mode with the same per-category hint level as
+// TestDWScriptFixtures: `run --diagnostics=plain --test-envelope --hints LEVEL` for
+// execution suites (runtime errors and hints inside the "Errors >>>>" envelope) and
+// `run --diagnostics=plain --compile-only --hints LEVEL` for the *Fail error-detection
+// suites (the compiler's message list, nothing executed), so both runners score on the
+// same terms as DWScript's own test runner.
+//
+// By default the CLI binary is rebuilt before the run. With --build=false the binary must
+// be newer than every tracked Go source file, or the report refuses to run (a stale binary
+// silently produces wrong numbers); --allow-stale overrides that check.
 package main
 
 import (
@@ -31,9 +38,115 @@ import (
 	"time"
 
 	"github.com/cwbudde/go-dws/internal/encoding"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 const fixturesBase = "testdata/fixtures"
+
+// hintsLevelOverrides mirrors internal/interp/fixture_test.go (hintsLevelOverrides): the
+// reference harness runs everything at pedantic except these categories. Keep the two in
+// sync; the harness lives in a _test file and cannot be imported from here.
+var hintsLevelOverrides = map[string]string{
+	"Algorithms":      "normal",
+	"FunctionsString": "normal",
+}
+
+// isErrorCategory mirrors internal/interp/fixture_test.go: error-detection suites are
+// compiled only and compared against the compiler's message list, like DWScript's
+// CompilationFailure runner.
+func isErrorCategory(category string) bool {
+	return category == "FailureScripts" || category == "COMConnectorFailure" ||
+		ident.HasSuffix(category, "Fail")
+}
+
+// hintsLevelFor returns the --hints level the CLI must run a category at.
+func hintsLevelFor(category string) string {
+	if level, ok := hintsLevelOverrides[category]; ok {
+		return level
+	}
+	return "pedantic"
+}
+
+// buildCLI rebuilds the dwscript binary at path from the current sources.
+func buildCLI(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	cmd := exec.Command("go", "build", "-o", path, "./cmd/dwscript")
+	cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
+	return cmd.Run()
+}
+
+// trackedGoSources lists the Go sources the dwscript binary depends on: git-tracked
+// non-test *.go outside this tool's own directory, plus go.mod and go.sum. Without git it
+// falls back to walking cmd/, internal/ and pkg/.
+func trackedGoSources() []string {
+	var files []string
+	keep := func(f string) bool {
+		return strings.HasSuffix(f, ".go") && !strings.HasSuffix(f, "_test.go") &&
+			!strings.HasPrefix(filepath.ToSlash(f), "cmd/fixture-report/")
+	}
+	out, err := exec.Command("git", "ls-files", "-z", "--", "*.go").Output()
+	if err == nil {
+		for _, f := range strings.Split(strings.TrimRight(string(out), "\x00"), "\x00") {
+			if keep(f) {
+				files = append(files, f)
+			}
+		}
+		return append(files, "go.mod", "go.sum")
+	}
+	for _, root := range []string{"cmd", "internal", "pkg"} {
+		walkErr := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err == nil && !d.IsDir() && keep(path) {
+				files = append(files, path)
+			}
+			return nil
+		})
+		if walkErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: cannot walk %s: %v\n", root, walkErr)
+		}
+	}
+	return append(files, "go.mod", "go.sum")
+}
+
+// binaryIsStale reports whether the binary at bin may not reflect sources, returning the
+// path that proves it. A source is newer than the binary, or a listed source no longer
+// exists (git still lists a file deleted from the working tree), or the directory holding
+// a source is newer than the binary, which is how a file removed with `git rm` (and thus
+// absent from the list) is detected: deleting an entry updates its directory's mtime.
+func binaryIsStale(bin string, sources []string) (stale bool, newest string, err error) {
+	info, err := os.Stat(bin)
+	if err != nil {
+		return false, "", err
+	}
+	binTime := info.ModTime()
+	var newestTime time.Time
+	consider := func(path string, modTime time.Time) {
+		if modTime.After(binTime) && modTime.After(newestTime) {
+			newestTime = modTime
+			newest = path
+		}
+	}
+	dirs := map[string]bool{}
+	for _, src := range sources {
+		// The repository root only contributes go.mod/go.sum; its mtime changes with
+		// every scratch file created there, so it is not watched for deletions.
+		if dir := filepath.Dir(src); dir != "." {
+			dirs[dir] = true
+		}
+		si, err := os.Stat(src)
+		if err != nil {
+			return true, src + " (deleted)", nil
+		}
+		consider(src, si.ModTime())
+	}
+	for dir := range dirs {
+		if di, err := os.Stat(dir); err == nil {
+			consider(dir+string(filepath.Separator), di.ModTime())
+		}
+	}
+	return newest != "", newest, nil
+}
 
 // normalize mirrors scripts' normalization: CRLF→LF, right-trim each line, strip the whole.
 func normalize(s string) string {
@@ -45,13 +158,19 @@ func normalize(s string) string {
 	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
 
-// runOne executes the CLI on a single fixture, returning combined stdout+stderr (or a
-// sentinel on timeout).
-func runOne(cli, pasFile string, timeout time.Duration) string {
+// runOne executes the CLI on a single fixture in harness mode, returning combined
+// stdout+stderr (or a sentinel on timeout).
+func runOne(cli, category, pasFile string, timeout time.Duration) string {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, cli, "run", pasFile)
+	mode := "--test-envelope"
+	if isErrorCategory(category) {
+		mode = "--compile-only"
+	}
+	cmd := exec.CommandContext(ctx, cli, "run",
+		"--diagnostics=plain", mode, "--hints", hintsLevelFor(category), pasFile)
+	cmd.Env = append(os.Environ(), "NO_COLOR=1")
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
 		return "__TIMEOUT__"
@@ -98,11 +217,26 @@ func run() int {
 	listFails := flag.Bool("list-fails", false, "print failing fixture names")
 	timeoutSecs := flag.Int("timeout", 20, "per-fixture timeout in seconds")
 	cli := flag.String("cli", "./bin/dwscript", "path to the dwscript CLI binary")
+	build := flag.Bool("build", true, "rebuild the CLI binary from the current sources before running")
+	allowStale := flag.Bool("allow-stale", false, "with --build=false, run even if the binary is older than the Go sources")
 	flag.Parse()
 
-	if _, err := os.Stat(*cli); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s not found. Build it: go build -o bin/dwscript ./cmd/dwscript\n", *cli)
-		return 2
+	if *build {
+		if err := buildCLI(*cli); err != nil {
+			fmt.Fprintf(os.Stderr, "error: building %s failed: %v\n", *cli, err)
+			return 2
+		}
+		fmt.Fprintf(os.Stderr, "built %s\n", *cli)
+	} else {
+		stale, newest, err := binaryIsStale(*cli, trackedGoSources())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s not found. Build it: just build (or drop --build=false)\n", *cli)
+			return 2
+		}
+		if stale && !*allowStale {
+			fmt.Fprintf(os.Stderr, "error: %s is stale (newer: %s); rebuild it (just build) or pass --allow-stale\n", *cli, newest)
+			return 2
+		}
 	}
 
 	items, err := collectItems(*category)
@@ -236,7 +370,7 @@ func evaluateOne(cli string, it workItem, timeout time.Duration) result {
 		return result{category: it.category, name: name, fail: true}
 	}
 	expected := normalize(expContent)
-	got := normalize(runOne(cli, it.pasFile, timeout))
+	got := normalize(runOne(cli, it.category, it.pasFile, timeout))
 	if got == expected {
 		return result{category: it.category, name: name, pass: true}
 	}

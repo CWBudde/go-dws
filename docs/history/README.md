@@ -2,6 +2,7 @@
 
 Completed-work records and dated snapshots. Nothing here is maintained; each file describes the project at the moment it was written.
 
+- `progress-log-2026-09.md` records PLAN.md Phase 1 (one compile pipeline, harness-mode CLI flags, self-checking `fixture-report`, helper-spec parity test) with before/after numbers.
 - `progress-log-2026-07.md` is the verbatim completion narrative that used to live in `PLAN.md` (P0–P4, July 2026): what was fixed, root causes, fixture names, and the measurements at the time. Search it before re-investigating a fixture.
 - `CODEBASE_REVIEW_2026-07.md` is the measured audit that produced the P0–P4 priorities. Its numbers (21% pass rate, 48 skipped categories) are from 2026-07-02; the current numbers are generated into `testdata/fixtures/TEST_STATUS.md`.
 - `stage*-summary.md`, `phase-*`, `task-*` are stage/task completion summaries from the 2025 plan.
@@ -19,6 +20,7 @@ Current open work: `PLAN.md` at the repository root. Documentation index: `docs/
 - [`phase-4.1-audit.md`](phase-4.1-audit.md) — Phase 4.1 Audit Report
 - [`phase-4.7-verification.md`](phase-4.7-verification.md) — Phase 4.7 Verification
 - [`progress-log-2026-07.md`](progress-log-2026-07.md) — Progress log — July 2026 (P0–P4)
+- [`progress-log-2026-09.md`](progress-log-2026-09.md) — Progress log — September 2026 (PLAN.md Phase 1)
 - [`properties-completion-summary.md`](properties-completion-summary.md) — Properties Implementation - Completion Summary
 - [`rosetta-compatibility.md`](rosetta-compatibility.md) — Rosetta Code Compatibility Status
 - [`stage0-summary.md`](stage0-summary.md) — Stage 0 Completion Summary

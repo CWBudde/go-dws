@@ -13,7 +13,7 @@ import (
 
 // formatRuntimeError converts an error value to DWScript expected format
 func formatRuntimeError(errVal Value) string {
-	return formatRuntimeErrorValue(errVal)
+	return FormatRuntimeErrorValue(errVal)
 }
 
 // TestInterfaceReferenceTests runs all ported DWScript interface tests from testdata/interfaces/
