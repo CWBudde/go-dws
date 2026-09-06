@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-07-07
+**Generated**: 2026-09-06
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 859 |
-| Failed | 1069 |
+| Passed | 871 |
+| Failed | 1057 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **45%** (859/1928) |
+| **Scored pass rate** | **45%** (871/1928) |
 
 ## Per-category
 
@@ -39,7 +39,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 0 | 12 | 0 | 0% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 541 | 103 | 425 | 13 | 20% |
+| FailureScripts | 541 | 107 | 421 | 13 | 20% |
 | FunctionsByteBuffer | 19 | 0 | 19 | 0 | 0% |
 | FunctionsDebug | 3 | 0 | 3 | 0 | 0% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -48,7 +48,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | FunctionsMath3D | 2 | 0 | 2 | 0 | 0% |
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
 | FunctionsRTTI | 6 | 0 | 6 | 0 | 0% |
-| FunctionsString | 58 | 53 | 5 | 0 | 91% |
+| FunctionsString | 58 | 57 | 1 | 0 | 98% |
 | FunctionsTime | 30 | 1 | 26 | 3 | 4% |
 | FunctionsVariant | 10 | 0 | 9 | 1 | 0% |
 | GenericsFail | 8 | 0 | 8 | 0 | 0% |
@@ -78,7 +78,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | PropertyExpressionsPass | 19 | 10 | 9 | 0 | 53% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
 | SetOfPass | 25 | 20 | 5 | 0 | 80% |
-| SimpleScripts | 442 | 326 | 109 | 7 | 75% |
+| SimpleScripts | 442 | 330 | 105 | 7 | 76% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |
