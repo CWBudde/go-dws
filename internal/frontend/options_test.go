@@ -79,3 +79,14 @@ func TestHintStrings(t *testing.T) {
 		}
 	}
 }
+
+func TestIncludeDirFor_PseudoNamesDisableIncludes(t *testing.T) {
+	for _, name := range []string{"", "<eval>", "<stdin>"} {
+		if got := includeDirFor(name); got != "" {
+			t.Errorf("includeDirFor(%q) = %q, want empty (no CWD-relative includes for display names)", name, got)
+		}
+	}
+	if got := includeDirFor(filepath.Join("some", "dir", "prog.dws")); got != filepath.Join("some", "dir") {
+		t.Errorf("includeDirFor(real path) = %q", got)
+	}
+}

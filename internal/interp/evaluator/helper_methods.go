@@ -482,8 +482,12 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 
 	// Specs that are plain builtin names (PadLeft, StripAccents, ...) are
 	// implemented in internal/builtins; the receiver is the builtin's first argument.
-	if fn, ok := builtins.DefaultRegistry.Lookup(spec); ok {
-		return fn(e, append([]Value{selfValue}, args...))
+	// Evaluator-owned specs always carry the "__" prefix, so skip the registry
+	// lookup for them rather than paying for a guaranteed miss on every call.
+	if !strings.HasPrefix(spec, "__") {
+		if fn, ok := builtins.DefaultRegistry.Lookup(spec); ok {
+			return fn(e, append([]Value{selfValue}, args...))
+		}
 	}
 
 	return e.newError(node, "unknown built-in helper method '%s'", spec)

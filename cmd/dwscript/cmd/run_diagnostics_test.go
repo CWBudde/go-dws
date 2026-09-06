@@ -81,3 +81,21 @@ func TestRun_CompileOnly(t *testing.T) {
 		t.Fatalf("err=%v out=%q", err, out)
 	}
 }
+
+func TestRun_CompileOnlyImpliesPlain(t *testing.T) {
+	// The documented invocation `run --compile-only --hints pedantic` must produce the
+	// flat wire format even though --diagnostics was left at its pretty default.
+	out, err := captureRun(t, "var x: Integer := 'hello';", nil, func() {
+		compileOnly = true
+		diagnosticsMode = "pretty"
+	})
+	if err == nil {
+		t.Fatal("expected a compile failure")
+	}
+	if strings.Contains(out, "\x1b[") || strings.Contains(out, " | ") {
+		t.Fatalf("compile-only must not decorate diagnostics: %q", out)
+	}
+	if !regexp.MustCompile(`(?m)^Syntax Error: .* \[line: 1, column: \d+\]$`).MatchString(out) {
+		t.Fatalf("expected wire format, got %q", out)
+	}
+}

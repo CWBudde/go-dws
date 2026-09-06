@@ -234,9 +234,11 @@ func Compile(source, filename string, hintsLevel semantic.HintsLevel) *Result {
 	})
 }
 
-// includeDirFor derives the {$INCLUDE} root from a source filename; empty for "".
+// includeDirFor derives the {$INCLUDE} root from a source filename. It is empty for ""
+// and for display names such as "<eval>" or "<stdin>", which are not paths and must not
+// enable CWD-relative include resolution.
 func includeDirFor(filename string) string {
-	if filename == "" {
+	if filename == "" || strings.HasPrefix(filename, "<") {
 		return ""
 	}
 	return filepath.Dir(filename)

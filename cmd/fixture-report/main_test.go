@@ -59,6 +59,66 @@ func TestBinaryIsStale(t *testing.T) {
 	}
 }
 
+func TestBinaryIsStale_DeletedSource(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "cli")
+	if err := os.WriteFile(bin, nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(time.Hour)
+	if err := os.Chtimes(bin, future, future); err != nil {
+		t.Fatal(err)
+	}
+	// A source git still lists but that is gone from the working tree.
+	gone := filepath.Join(dir, "gone.go")
+	stale, newest, err := binaryIsStale(bin, []string{gone})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stale || newest != gone+" (deleted)" {
+		t.Fatalf("missing tracked source must mark binary stale (stale=%v newest=%q)", stale, newest)
+	}
+}
+
+func TestBinaryIsStale_RemovedFromDirectory(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "pkg")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	keep := filepath.Join(srcDir, "keep.go")
+	removed := filepath.Join(srcDir, "removed.go")
+	for _, f := range []string{keep, removed} {
+		if err := os.WriteFile(f, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bin := filepath.Join(dir, "cli")
+	if err := os.WriteFile(bin, nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-time.Hour)
+	for _, f := range []string{keep, removed, srcDir, bin} {
+		if err := os.Chtimes(f, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if stale, newest, _ := binaryIsStale(bin, []string{keep}); stale {
+		t.Fatalf("nothing changed, must not be stale (newest=%q)", newest)
+	}
+	// `git rm removed.go`: the file leaves the source list, only its directory changes.
+	if err := os.Remove(removed); err != nil {
+		t.Fatal(err)
+	}
+	stale, newest, err := binaryIsStale(bin, []string{keep})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !stale || newest != srcDir+string(filepath.Separator) {
+		t.Fatalf("removing a file from a source directory must mark binary stale (stale=%v newest=%q)", stale, newest)
+	}
+}
+
 func TestBinaryIsStale_MissingBinary(t *testing.T) {
 	if _, _, err := binaryIsStale(filepath.Join(t.TempDir(), "missing"), nil); err == nil {
 		t.Fatal("expected an error for a missing binary")

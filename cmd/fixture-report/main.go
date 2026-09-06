@@ -69,6 +69,9 @@ func hintsLevelFor(category string) string {
 
 // buildCLI rebuilds the dwscript binary at path from the current sources.
 func buildCLI(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
 	cmd := exec.Command("go", "build", "-o", path, "./cmd/dwscript")
 	cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
 	return cmd.Run()
@@ -106,8 +109,11 @@ func trackedGoSources() []string {
 	return append(files, "go.mod", "go.sum")
 }
 
-// binaryIsStale reports whether any of sources is newer than the binary at bin, returning
-// the newest such source. Sources that do not exist are ignored.
+// binaryIsStale reports whether the binary at bin may not reflect sources, returning the
+// path that proves it. A source is newer than the binary, or a listed source no longer
+// exists (git still lists a file deleted from the working tree), or the directory holding
+// a source is newer than the binary, which is how a file removed with `git rm` (and thus
+// absent from the list) is detected: deleting an entry updates its directory's mtime.
 func binaryIsStale(bin string, sources []string) (stale bool, newest string, err error) {
 	info, err := os.Stat(bin)
 	if err != nil {
@@ -115,14 +121,28 @@ func binaryIsStale(bin string, sources []string) (stale bool, newest string, err
 	}
 	binTime := info.ModTime()
 	var newestTime time.Time
+	consider := func(path string, modTime time.Time) {
+		if modTime.After(binTime) && modTime.After(newestTime) {
+			newestTime = modTime
+			newest = path
+		}
+	}
+	dirs := map[string]bool{}
 	for _, src := range sources {
+		// The repository root only contributes go.mod/go.sum; its mtime changes with
+		// every scratch file created there, so it is not watched for deletions.
+		if dir := filepath.Dir(src); dir != "." {
+			dirs[dir] = true
+		}
 		si, err := os.Stat(src)
 		if err != nil {
-			continue
+			return true, src + " (deleted)", nil
 		}
-		if si.ModTime().After(binTime) && si.ModTime().After(newestTime) {
-			newestTime = si.ModTime()
-			newest = src
+		consider(src, si.ModTime())
+	}
+	for dir := range dirs {
+		if di, err := os.Stat(dir); err == nil {
+			consider(dir+string(filepath.Separator), di.ModTime())
 		}
 	}
 	return newest != "", newest, nil
@@ -214,7 +234,7 @@ func run() int {
 			return 2
 		}
 		if stale && !*allowStale {
-			fmt.Fprintf(os.Stderr, "error: %s is older than %s; rebuild it (just build) or pass --allow-stale\n", *cli, newest)
+			fmt.Fprintf(os.Stderr, "error: %s is stale (newer: %s); rebuild it (just build) or pass --allow-stale\n", *cli, newest)
 			return 2
 		}
 	}

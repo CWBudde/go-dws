@@ -88,7 +88,7 @@ func init() {
 	runCmd.Flags().IntVar(&maxRecursion, "max-recursion", 1024, "maximum recursion depth (default: 1024)")
 	runCmd.Flags().BoolVar(&bytecodeMode, "bytecode", false, "execute via bytecode VM instead of AST interpreter (experimental)")
 	runCmd.Flags().StringVar(&hintsLevel, "hints", "off", "print compiler hints/warnings to stderr, non-fatal: off|normal|strict|pedantic (pedantic includes case-mismatch hints)")
-	runCmd.Flags().BoolVar(&compileOnly, "compile-only", false, "compile (parse, type-check) and report diagnostics without executing; with --diagnostics=plain every message is printed, hints included, in the DWScript wire format")
+	runCmd.Flags().BoolVar(&compileOnly, "compile-only", false, "compile (parse, type-check) and report diagnostics without executing; every message is printed, hints included, in the DWScript wire format (implies --diagnostics=plain)")
 	runCmd.Flags().BoolVar(&testEnvelope, "test-envelope", false, "wrap output in DWScript's test-harness 'Errors >>>>' / 'Result >>>>' framing when there are messages; buffers all program output until exit (implies --diagnostics=plain)")
 	runCmd.Flags().StringVar(&diagnosticsMode, "diagnostics", "pretty", "diagnostic output style: pretty (source excerpt, colors on a terminal) or plain (DWScript wire format, one message per line)")
 }
@@ -199,13 +199,13 @@ func runScript(cmd *cobra.Command, args []string) error {
 	return executeScript(cs)
 }
 
-// normalizeDiagnosticsMode validates --diagnostics and applies the modes that
-// --test-envelope implies.
+// normalizeDiagnosticsMode validates --diagnostics and applies the plain mode that
+// the harness flags --test-envelope and --compile-only imply.
 func normalizeDiagnosticsMode() error {
 	if bytecodeMode && (testEnvelope || compileOnly) {
 		return fmt.Errorf("--test-envelope and --compile-only are not supported with --bytecode")
 	}
-	if testEnvelope {
+	if testEnvelope || compileOnly {
 		diagnosticsMode = "plain"
 	}
 	switch strings.ToLower(strings.TrimSpace(diagnosticsMode)) {
@@ -299,12 +299,12 @@ func compileRunInput(input, filename string) (cs *compiledScript, done bool, err
 }
 
 // reportCompileMessages prints the hints/warnings of a successful compile (or holds
-// them back for the test envelope) and handles --compile-only, whose plain output is
-// the compiler's full message list like DWScript's Msgs.AsInfo. done reports that the
-// command is finished.
+// them back for the test envelope) and handles --compile-only, whose output is the
+// compiler's full message list like DWScript's Msgs.AsInfo (compile-only always runs
+// in plain mode). done reports that the command is finished.
 func reportCompileMessages(compiled *frontend.Result, wantHints bool) (envelopeMsgs []string, done bool) {
 	switch {
-	case compileOnly && diagnosticsMode == "plain":
+	case compileOnly:
 		for _, line := range compiled.DiagnosticStrings() {
 			fmt.Fprintln(os.Stderr, line)
 		}
