@@ -1,4 +1,4 @@
-> **Note (2026-09):** describes the `internal/builtins` registry as built. File/LOC/function counts are as of 2025-11 (~241 registered functions today).
+> **Archived (2026-09).** Describes the builtin registry as of Phase 3.7.2 (2025-11): the package path `internal/interp/builtins/`, the 169/244 migration counts and the "pending migration" list are all obsolete. The registry now lives in `internal/builtins` (~241 registered functions, `register.go`); see `docs/architecture/audit-2026-09.md` §6 for its current shape. Not maintained.
 
 # Built-in Function Registry Summary
 

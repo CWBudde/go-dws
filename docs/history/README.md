@@ -13,7 +13,6 @@ Current open work: `PLAN.md` at the repository root. Documentation index: `docs/
 ## Files
 
 
-## Files
 
 - [`CODEBASE_REVIEW_2026-07.md`](CODEBASE_REVIEW_2026-07.md) — go-dws Codebase Review — July 2026
 - [`phase-3.2-summary.md`](phase-3.2-summary.md) — Phase 3.2: Migrate Interpreter.Eval() Switch to Evaluator - Summary

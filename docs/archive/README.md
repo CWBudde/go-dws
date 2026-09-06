@@ -21,6 +21,7 @@ Current open work: `PLAN.md`. Documentation index: `docs/README.md`.
 - [`benchmark_baseline_phase3.txt`](benchmark_baseline_phase3.txt) — benchmark_baseline_phase3.txt
 - [`benchmark_summary.md`](benchmark_summary.md) — Benchmark Summary - Phase 3.1
 - [`builtin-migration-roadmap.md`](builtin-migration-roadmap.md) — Built-in Function Migration Roadmap
+- [`builtin-registry-summary.md`](builtin-registry-summary.md) — Built-in Function Registry Summary
 - [`builtin-registry-proposal.md`](builtin-registry-proposal.md) — Builtin Function Registry Patterns
 - [`bytecode-value-optimization.md`](bytecode-value-optimization.md) — Bytecode Value Optimization Design
 - [`bytecode-vm-design.md`](bytecode-vm-design.md) — Bytecode VM Instruction Set Design Research

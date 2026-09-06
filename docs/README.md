@@ -50,7 +50,6 @@ Status figures are generated, never hand-edited:
 | [`architecture/implicit-self-resolution.md`](architecture/implicit-self-resolution.md) | How identifiers and implicit `Self` resolve inside methods |
 | [`architecture/token-cursor.md`](architecture/token-cursor.md) | Parser token-cursor design |
 | [`architecture/comment-preservation.md`](architecture/comment-preservation.md) | Lexer/AST comment and trivia preservation |
-| [`architecture/builtin-registry-summary.md`](architecture/builtin-registry-summary.md) | The `internal/builtins` registry as built (counts as of 2025-11) |
 | [`architecture/semantic-passes.md`](architecture/semantic-passes.md) | **Superseded design**: a multi-pass analyzer that was never implemented; kept as input for `PLAN.md` §3.2 |
 | [`architecture/benchmarking.md`](architecture/benchmarking.md) | Running benchmarks and profiling with pprof |
 | [`architecture/ident-migration-guide.md`](architecture/ident-migration-guide.md) | Why and how to use `pkg/ident` for case-insensitive identifiers (see also `../pkg/ident/README.md`) |

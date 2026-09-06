@@ -352,5 +352,5 @@ panic(42)                             // → EHost: panic: 42
 ## See Also
 
 - [ffi.md](ffi.md) - Complete FFI documentation
-- [examples/ffi/](../examples/ffi/) - Working examples
-- [pkg/dwscript/ffi.go](../pkg/dwscript/ffi.go) - API source
+- [examples/ffi/](../../examples/ffi/) - Working examples
+- [pkg/dwscript/ffi.go](../../pkg/dwscript/ffi.go) - API source

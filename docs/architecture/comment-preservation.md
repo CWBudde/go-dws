@@ -220,4 +220,4 @@ All four comments are preserved with their original style and position.
 - [Progress log](../history/progress-log-2026-07.md) and `docs/history/` - implementation history
 - [formatter-style-guide.md](../decisions/formatter-style-guide.md) - Formatting rules (formatter is parked)
 - [Token types](../../pkg/token/token.go) - COMMENT token definition
-- [AST comment structures](../pkg/ast/comment.go) - Comment data types
+- [AST comment structures](../../pkg/ast/comment.go) - Comment data types
