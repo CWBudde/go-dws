@@ -23,4 +23,4 @@ jobs:
       # regression gate itself lives in the Go harness (test-unit / TestDWScriptFixtures),
       # which fails the build if any category drops below its baseline.
       - name: Fixture compatibility report
-        run: go run ./cmd/fixture-report
+        run: go run ./cmd/fixture-report --build=false
