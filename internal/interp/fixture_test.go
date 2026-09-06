@@ -609,7 +609,7 @@ func evalFixture(compileResult *frontend.Result) (*bytes.Buffer, Value) {
 // runtimeErrorOutput formats a runtime error, wrapping it in DWScript's Errors/Result
 // envelope when the expected output uses one.
 func runtimeErrorOutput(compileResult *frontend.Result, result Value, buf *bytes.Buffer, expectedContent string) string {
-	formattedError := formatRuntimeErrorValue(result)
+	formattedError := FormatRuntimeErrorValue(result)
 	if !strings.Contains(expectedContent, "Errors >>>>") {
 		return formattedError
 	}

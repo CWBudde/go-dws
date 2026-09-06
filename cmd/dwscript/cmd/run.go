@@ -12,6 +12,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/interp/runner"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -84,6 +85,7 @@ func init() {
 	runCmd.Flags().IntVar(&maxRecursion, "max-recursion", 1024, "maximum recursion depth (default: 1024)")
 	runCmd.Flags().BoolVar(&bytecodeMode, "bytecode", false, "execute via bytecode VM instead of AST interpreter (experimental)")
 	runCmd.Flags().StringVar(&hintsLevel, "hints", "off", "print compiler hints/warnings to stderr, non-fatal: off|normal|strict|pedantic (pedantic includes case-mismatch hints)")
+	runCmd.Flags().StringVar(&diagnosticsMode, "diagnostics", "pretty", "diagnostic output style: pretty (source excerpt, colors on a terminal) or plain (DWScript wire format, one message per line)")
 }
 
 // parseHintsLevel maps the --hints flag to a semantic hint level and whether
@@ -107,6 +109,14 @@ func parseHintsLevel(s string) (semantic.HintsLevel, bool) {
 // reportCompileFailure prints the compile diagnostics of a failed frontend result
 // and returns the error the command should exit with.
 func reportCompileFailure(res *frontend.Result, source, filename string) error {
+	if diagnosticsMode == "plain" {
+		// Wire format, all severities in emission order: exactly what the fixture
+		// harness compares for the *Fail suites.
+		for _, line := range res.DiagnosticStrings() {
+			fmt.Fprintln(os.Stderr, line)
+		}
+		return ErrSilent
+	}
 	var compilerErrors []*errors.CompilerError
 	for _, d := range res.Diagnostics {
 		if d.Severity != frontend.SeverityError {
@@ -120,9 +130,14 @@ func reportCompileFailure(res *frontend.Result, source, filename string) error {
 	return fmt.Errorf("compilation failed with %d error(s)", len(compilerErrors))
 }
 
-// colorEnabled reports whether diagnostics may use ANSI colors.
+// colorEnabled reports whether pretty diagnostics may use ANSI colors: never in
+// plain mode, never when NO_COLOR is set, and only when stderr is a terminal.
 func colorEnabled() bool {
-	return true
+	if diagnosticsMode == "plain" || os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	fi, err := os.Stderr.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
 }
 
 func runScript(cmd *cobra.Command, args []string) error {
@@ -130,6 +145,14 @@ func runScript(cmd *cobra.Command, args []string) error {
 		// Argument/flag errors already showed usage; failures from here on are the
 		// script's, so do not append the usage block to diagnostics.
 		cmd.SilenceUsage = true
+	}
+	switch strings.ToLower(strings.TrimSpace(diagnosticsMode)) {
+	case "", "pretty":
+		diagnosticsMode = "pretty"
+	case "plain":
+		diagnosticsMode = "plain"
+	default:
+		return fmt.Errorf("invalid --diagnostics value %q (want pretty or plain)", diagnosticsMode)
 	}
 	var input string
 	var filename string
@@ -315,39 +338,41 @@ func runScript(cmd *cobra.Command, args []string) error {
 
 	result := interpreter.Eval(program)
 
+	return reportRuntimeOutcome(interpreter, result)
+}
+
+// reportRuntimeOutcome prints an unhandled exception or runtime error, if any, and
+// returns the error the command should exit with (nil when the program succeeded).
+func reportRuntimeOutcome(interpreter *interp.Interpreter, result interp.Value) error {
+	if diagnosticsMode == "plain" {
+		if result != nil && result.Type() == "ERROR" {
+			fmt.Fprintln(os.Stderr, interp.FormatRuntimeErrorValue(result))
+			return ErrSilent
+		}
+		if exc := interpreter.GetException(); exc != nil {
+			fmt.Fprintln(os.Stderr, formatUnhandledException(exc))
+			return ErrSilent
+		}
+		return nil
+	}
+
 	// Check for unhandled exceptions
 	if exc := interpreter.GetException(); exc != nil {
-		// Format and print unhandled exception with position (if available) and stack trace
-		// DWScript format: "Runtime Error: <Message> [line: N, column: M]"
-		excClassName := "Exception"
-		if exc.Metadata != nil {
-			excClassName = exc.Metadata.Name
-		}
-		if exc.Position != nil {
-			fmt.Fprintf(os.Stderr, "Runtime Error: %s: %s [line: %d, column: %d]\n",
-				excClassName, exc.Message, exc.Position.Line, exc.Position.Column)
-		} else {
-			// If no position (e.g., internal errors), use simple format
-			fmt.Fprintf(os.Stderr, "Runtime Error: %s: %s\n", excClassName, exc.Message)
-		}
-
-		// Print stack trace if available
+		fmt.Fprintln(os.Stderr, formatUnhandledException(exc))
 		// The StackTrace.String() method formats each frame with position info
 		if len(exc.CallStack) > 0 {
 			fmt.Fprint(os.Stderr, exc.CallStack.String())
-			fmt.Fprintln(os.Stderr) // Add final newline
+			fmt.Fprintln(os.Stderr)
 		}
-
 		return fmt.Errorf("unhandled exception: %s", exc.Message)
 	}
 
 	// Check for runtime errors
 	if result != nil && result.Type() == "ERROR" {
-		// Check if it's a structured RuntimeError with rich formatting
+		// Structured RuntimeError: rich formatting with a source snippet
 		if runtimeErr, ok := result.(*interp.RuntimeError); ok {
 			if compilerErr := runtimeErr.ToCompilerError(); compilerErr != nil {
-				// Use rich error formatting with source snippet
-				fmt.Fprint(os.Stderr, compilerErr.Format(true))
+				fmt.Fprint(os.Stderr, compilerErr.Format(colorEnabled()))
 				fmt.Fprintln(os.Stderr)
 				return fmt.Errorf("execution failed")
 			}
@@ -633,4 +658,18 @@ func filterOutUses(stmts []ast.Statement) []ast.Statement {
 		filtered = append(filtered, stmt)
 	}
 	return filtered
+}
+
+// formatUnhandledException renders an uncaught script exception as
+// "Runtime Error: <Class>: <message> [line: N, column: M]".
+func formatUnhandledException(exc *runtime.ExceptionValue) string {
+	className := "Exception"
+	if exc.Metadata != nil {
+		className = exc.Metadata.Name
+	}
+	if exc.Position != nil {
+		return fmt.Sprintf("Runtime Error: %s: %s [line: %d, column: %d]",
+			className, exc.Message, exc.Position.Line, exc.Position.Column)
+	}
+	return fmt.Sprintf("Runtime Error: %s: %s", className, exc.Message)
 }

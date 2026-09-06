@@ -163,9 +163,11 @@ func (i *Interpreter) getPositionFromNode(node ast.Node) lexer.Position {
 	return node.Pos()
 }
 
-// formatRuntimeErrorValue converts interpreter error values to the DWScript runtime
-// error string format expected by the reference fixtures.
-func formatRuntimeErrorValue(errVal Value) string {
+// FormatRuntimeErrorValue renders an interpreter error value in the DWScript
+// fixture wire format: "Runtime Error: <message> [line: N, column: M]" (the position
+// suffix is omitted when unknown). The fixture harness and the CLI's plain
+// diagnostics mode share it.
+func FormatRuntimeErrorValue(errVal Value) string {
 	switch err := errVal.(type) {
 	case *RuntimeError:
 		message := formatDWScriptRuntimeMessage(err.Message)
