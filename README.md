@@ -547,9 +547,9 @@ go-dws includes a complete implementation of DWScript's object-oriented programm
 
 For detailed documentation on OOP features, see:
 
-- [Stage 7 Completion Summary](docs/stage7-complete.md)
-- [Delphi-to-Go Mapping Guide](docs/delphi-to-go-mapping.md)
-- [Interfaces Implementation Guide](docs/interfaces-guide.md)
+- [Documentation index](docs/README.md)
+- [Delphi-to-Go Mapping Guide](docs/decisions/delphi-to-go-mapping.md)
+- [Interfaces Implementation Guide](docs/guide/interfaces-guide.md)
 
 ## Project Structure
 
@@ -573,18 +573,22 @@ go-dws/
 ├── build/wasm/         # WASM build scripts and output
 ├── docs/               # Documentation
 │   ├── wasm/          # WASM-specific docs (API.md, BUILD.md, PLAYGROUND.md)
-│   └── plans/         # Design documents
+│   ├── guide/         # Language feature guides
+│   ├── architecture/  # How the code is structured (steady-state boundary, audits)
+│   ├── decisions/     # ADRs and scope decisions
+│   ├── history/       # Completed-work log and dated snapshots
+│   └── archive/       # Superseded notes (not maintained)
 ├── testdata/           # Test scripts and data
 │   ├── fixtures/      # Comprehensive test suite (~2,100 tests from original DWScript)
 │   └── *.dws          # Custom test scripts
 ├── reference/          # DWScript original source (read-only reference)
-├── PLAN.md             # Detailed implementation roadmap
+├── PLAN.md             # Open work only (see docs/README.md for everything else)
 └── goal.md             # High-level project goals and strategy
 ```
 
 ## Development Roadmap
 
-For the current, measured per-category compatibility status and the prioritized roadmap, see [PLAN.md](PLAN.md). A detailed graded review of the codebase is in [docs/CODEBASE_REVIEW_2026-07.md](docs/CODEBASE_REVIEW_2026-07.md).
+For the current, measured per-category compatibility status and the prioritized roadmap, see [PLAN.md](PLAN.md). A detailed graded review of the codebase is in [docs/history/CODEBASE_REVIEW_2026-07.md](docs/history/CODEBASE_REVIEW_2026-07.md).
 
 ## Design Philosophy
 
@@ -787,13 +791,13 @@ This project is a port/reimplementation and will respect the original DWScript l
 
 ### Language Features
 
-- [Contracts (Design by Contract)](docs/contracts.md) - Preconditions, postconditions, and `old` keyword
+- [Contracts (Design by Contract)](docs/guide/contracts.md) - Preconditions, postconditions, and `old` keyword
 
 ### OOP Features
 
-- [Stage 7 Completion Summary](docs/stage7-complete.md)
-- [Delphi-to-Go Mapping Guide](docs/delphi-to-go-mapping.md)
-- [Interfaces Implementation Guide](docs/interfaces-guide.md)
+- [Documentation index](docs/README.md)
+- [Delphi-to-Go Mapping Guide](docs/decisions/delphi-to-go-mapping.md)
+- [Interfaces Implementation Guide](docs/guide/interfaces-guide.md)
 
 ## Contact
 

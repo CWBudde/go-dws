@@ -224,3 +224,7 @@ When fixing failing tests:
 - Original DWScript: https://www.delphitools.info/dwscript/
 - DWScript Language Reference: https://www.delphitools.info/dwscript/language/
 - Project PLAN.md: See `../../PLAN.md` for implementation roadmap
+
+## Expected-output variants that are not scored
+
+Only the sibling `.txt` file is compared. `.jstxt` files (JavaScript-backend expectations, 68 files) and `.optimized.txt` files (31, mostly FailureScripts) are ignored by both the Go harness and `cmd/fixture-report`. A `.pas` file without a plain `.txt` is reported as skipped. See `PLAN.md` T6.

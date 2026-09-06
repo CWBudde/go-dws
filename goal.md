@@ -1,3 +1,5 @@
+> **Historical strategy document (2025).** This is the original porting charter; its Stage 0–10 numbering is no longer used. Current open work is tracked in `PLAN.md`; completed work in `docs/history/`.
+
 # Plan for Porting DWScript from Delphi to Go
 
 ## Overview and Strategy

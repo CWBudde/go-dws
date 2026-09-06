@@ -223,7 +223,7 @@ func (a *Analyzer) analyzeIdentifier(ident *ast.Identifier) types.Type {
 The interpreter evaluates identifiers with **recursion prevention**:
 
 ```go
-// internal/interp/expressions.go
+// internal/interp/evaluator/visitor_expressions_identifiers.go
 func (i *Interpreter) evalIdentifier(node *ast.Identifier) Value {
     // 1. Check environment (local variables, parameters)
     if val, ok := i.env.Get(node.Value); ok {
@@ -357,8 +357,8 @@ However, the **current implementation works correctly** and the performance diff
 - [internal/semantic/analyzer.go](../../internal/semantic/analyzer.go): Semantic analyzer
 - [internal/semantic/analyze_expr_operators.go](../../internal/semantic/analyze_expr_operators.go): Identifier resolution
 - [internal/semantic/analyze_statements.go](../../internal/semantic/analyze_statements.go): Assignment validation
-- [internal/interp/expressions.go](../../internal/interp/expressions.go): Runtime identifier evaluation
-- [internal/interp/objects.go](../../internal/interp/objects.go): Property evaluation with recursion guards
+- [internal/interp/evaluator/visitor_expressions_identifiers.go](../../internal/interp/evaluator/visitor_expressions_identifiers.go): Runtime identifier evaluation
+- [internal/interp/evaluator/visitor_expressions_members.go](../../internal/interp/evaluator/visitor_expressions_members.go): Member and property evaluation
 - [internal/interp/interpreter.go](../../internal/interp/interpreter.go): PropertyEvalContext definition
 
 ### Related Tasks

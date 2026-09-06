@@ -88,7 +88,7 @@ just run testdata/hello.dws    # Run a script
 # Run a script (AST interpreter - default)
 ./bin/dwscript run script.dws
 
-# Run with bytecode VM (5-6x faster)
+# Run with the experimental bytecode VM (incomplete; no verified speedup)
 ./bin/dwscript run --bytecode script.dws
 
 # Show disassembled bytecode
@@ -120,7 +120,7 @@ just run testdata/hello.dws    # Run a script
 Source Code → Lexer → Parser → AST → Semantic Analyzer
                                     │
                                     └→ Bytecode Compiler → Bytecode VM → Output
-                                                          (5-6x faster)
+                                                          (experimental, incomplete)
 ```
 
 ### Package Structure
@@ -179,16 +179,16 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - **Type System** (`types/`): centralized registry for classes, records, interfaces, functions, and helpers
   - **Contracts** (`contracts/`): narrow neutral cross-package coordination types
   - See `docs/architecture/interp-evaluator-steady-state.md` for the current steady-state boundary
-  - See `PLAN.md` Phase `4.9` for the remaining cleanup: interpreter-side shadow evaluators still exist and should be deleted or migrated rather than extended
+  - See `PLAN.md` §2 (A3, A4) and `docs/architecture/audit-2026-09.md` for the remaining shell residue; delete or migrate it rather than extending it
 
-- `internal/bytecode/` - Bytecode VM (5-6x faster than AST interpreter)
+- `internal/bytecode/` - Bytecode VM (experimental, incomplete, unmaintained; no verified speedup)
   - `compiler.go`: AST-to-bytecode compiler with optimizations
   - `vm.go`: Stack-based virtual machine with built-in function support
   - `bytecode.go`: Bytecode format, constant pools, value types
   - `disasm.go`: Bytecode disassembler for debugging
   - `instruction.go`: 116 opcodes for DWScript operations
   - `serializer.go`: Bytecode serialization/deserialization (.dwc file format)
-  - See [docs/bytecode-vm.md](docs/bytecode-vm.md) for details
+  - See [docs/decisions/bytecode-vm.md](docs/decisions/bytecode-vm.md) for details
 
 - `internal/errors/` - Error handling utilities
   - Error formatting and reporting
@@ -374,18 +374,18 @@ When implementing new stages/tasks:
 - Implement runtime support (interpreter & bytecode VM)
 - Add comprehensive tests
 - Update CLI if applicable
-- Document in stage summary files under `docs/`
-- Mark tasks as done in `PLAN.md`
+- Record what shipped in `docs/history/progress-log-<date>.md` and update the relevant `docs/guide/` page
+- Remove the closed item from `PLAN.md`
 
-Before large refactors, update `PLAN.md` with the affected tasks and ensure the milestone status still reflects reality. Once a feature phase is complete, mark tasks as done in `PLAN.md`.
+Before large refactors, update `PLAN.md` §2 with the affected items. When an item is closed by a passing fixture, delete it from `PLAN.md` and record what shipped in `docs/history/progress-log-<date>.md`; ratchet `testdata/fixtures/baselines.json` with `just fixture-update`.
 
 ## Important Files
 
-- `PLAN.md`: Complete task breakdown and progress tracking
+- `PLAN.md`: Open work only, ordered by leverage (measurement, architecture, language, diagnostics)
 - `goal.md`: Detailed strategy and rationale for the port
 - `README.md`: User-facing documentation
 - `CONTRIBUTING.md`: Contribution guidelines
-- `docs/stage*.md`: Stage completion summaries with statistics
+- `docs/README.md`: Documentation index (guides, architecture, decisions, history, archive)
 
 ## Reference Material
 
@@ -422,4 +422,4 @@ Revise `docs/` or `README.md` when interfaces, flags, or directory layout shift.
 
 **Memory Management**: Go's GC handles cleanup; no manual reference counting needed like Delphi.
 
-**Performance**: Current AST interpreter is simple. Bytecode VM provides 5-6x performance improvement.
+**Performance**: The AST evaluator is the only production engine. The bytecode VM is experimental and has no verified speedup; see `docs/decisions/bytecode-vm.md`.

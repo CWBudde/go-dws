@@ -316,9 +316,9 @@ jobs:
 
 ## Next Steps
 
-- **Web Playground**: See `docs/wasm/PLAYGROUND.md` (coming soon)
-- **NPM Package**: See `docs/wasm/NPM.md` (coming soon)
-- **JavaScript API**: See `docs/wasm/API.md` (coming soon)
+- **Web Playground**: See `docs/wasm/PLAYGROUND.md`
+- **NPM Package**: See `npm/README.md`
+- **JavaScript API**: See `docs/wasm/API.md`
 
 ## References
 

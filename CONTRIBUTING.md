@@ -143,9 +143,9 @@ If you're working on the parser, please read these additional resources:
 
 ### Required Reading
 
-1. **[docs/parser-architecture.md](docs/parser-architecture.md)** - Understanding Pratt parsing, precedence, and parser architecture
-2. **[docs/parser-style-guide.md](docs/parser-style-guide.md)** - Coding standards and conventions for parser code
-3. **[docs/parser-extension-guide.md](docs/parser-extension-guide.md)** - Step-by-step guide to adding new syntax
+1. **[docs/architecture/token-cursor.md](docs/architecture/token-cursor.md)** - Token cursor navigation and parser architecture
+2. **[AGENTS.md](AGENTS.md)** - Parser design (Pratt parser, precedence levels) and code style
+3. **[docs/README.md](docs/README.md)** - Documentation index (guides, architecture notes, decisions)
 
 ### Parser Conventions
 
