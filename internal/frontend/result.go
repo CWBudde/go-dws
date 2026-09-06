@@ -141,6 +141,32 @@ func (r *Result) DiagnosticStrings() []string {
 	return out
 }
 
+// HintStrings returns the rendered non-error diagnostics (hints and warnings) in
+// emission order. This is the message list DWScript's test harness prints inside
+// the "Errors >>>>" envelope for a program that compiled.
+func (r *Result) HintStrings() []string {
+	var out []string
+	for _, diag := range r.Diagnostics {
+		if diag.Severity != SeverityError {
+			out = append(out, diag.Render())
+		}
+	}
+	return out
+}
+
+// Options configures the shared compile pipeline.
+type Options struct {
+	// Filename is recorded in diagnostics and passed to the analyzer; it may be "" or "<eval>".
+	Filename string
+	// IncludeDir roots {$INCLUDE} resolution. Empty disables include resolution.
+	IncludeDir string
+	// HintsLevel is applied to the analyzer (semantic.HintsLevelDisabled turns hints off).
+	HintsLevel semantic.HintsLevel
+	// TypeCheck runs generic monomorphization and semantic analysis. When false only
+	// parsing and monomorphization run; Result.Analyzer stays nil.
+	TypeCheck bool
+}
+
 // Parse parses source and collects parser diagnostics without running semantic analysis.
 func Parse(source string) *Result {
 	return ParseWithFilename(source, "")
@@ -150,8 +176,13 @@ func Parse(source string) *Result {
 // resolve {$INCLUDE} directives relative to the directory of filename. An empty
 // filename disables include resolution.
 func ParseWithFilename(source, filename string) *Result {
-	opts := includeOptions(filename)
-	l := lexer.New(source, opts...)
+	return ParseWithOptions(source, Options{Filename: filename, IncludeDir: includeDirFor(filename)})
+}
+
+// ParseWithOptions parses source without semantic analysis. Only Options.IncludeDir
+// is consulted at this stage.
+func ParseWithOptions(source string, opts Options) *Result {
+	l := lexer.New(source, includeOptionsForDir(opts.IncludeDir)...)
 	p := parser.New(l)
 	program := p.ParseProgram()
 
@@ -168,22 +199,54 @@ func ParseWithFilename(source, filename string) *Result {
 	}
 }
 
-// includeOptions builds the lexer options that enable {$INCLUDE} resolution rooted
-// at the directory containing filename. It returns no options when filename is empty.
-func includeOptions(filename string) []lexer.LexerOption {
-	if filename == "" {
-		return nil
+// AnalyzeParsed runs the post-parse half of the pipeline on a ParseWithOptions result:
+// generic monomorphization and, when opts.TypeCheck is set, semantic analysis.
+// It returns the same *Result, updated in place.
+func AnalyzeParsed(result *Result, source string, opts Options) *Result {
+	if !opts.TypeCheck {
+		if result.Program != nil && !result.HasSemanticBlockingDiagnosticsInPhase(PhaseParsing) {
+			generics.Monomorphize(result.Program)
+		}
+		return result
 	}
-	return []lexer.LexerOption{
-		lexer.WithIncludeResolver(lexer.NewFileIncludeResolver(filepath.Dir(filename))),
-	}
+	return compileParsedResult(result, source, opts.Filename, opts.HintsLevel)
+}
+
+// CompileWithOptions is ParseWithOptions followed by AnalyzeParsed.
+func CompileWithOptions(source string, opts Options) *Result {
+	return AnalyzeParsed(ParseWithOptions(source, opts), source, opts)
 }
 
 // Compile parses source and, if parsing succeeds, runs semantic analysis.
 // This is the shared compile-front-end boundary for diagnostics collection.
+// {$INCLUDE} directives resolve relative to the directory of filename; an empty
+// filename disables include resolution.
 func Compile(source, filename string, hintsLevel semantic.HintsLevel) *Result {
-	result := ParseWithFilename(source, filename)
-	return compileParsedResult(result, source, filename, hintsLevel)
+	return CompileWithOptions(source, Options{
+		Filename:   filename,
+		IncludeDir: includeDirFor(filename),
+		HintsLevel: hintsLevel,
+		TypeCheck:  true,
+	})
+}
+
+// includeDirFor derives the {$INCLUDE} root from a source filename; empty for "".
+func includeDirFor(filename string) string {
+	if filename == "" {
+		return ""
+	}
+	return filepath.Dir(filename)
+}
+
+// includeOptionsForDir builds the lexer options that enable {$INCLUDE} resolution
+// rooted at dir. It returns no options when dir is empty.
+func includeOptionsForDir(dir string) []lexer.LexerOption {
+	if dir == "" {
+		return nil
+	}
+	return []lexer.LexerOption{
+		lexer.WithIncludeResolver(lexer.NewFileIncludeResolver(dir)),
+	}
 }
 
 func compileParsedResult(result *Result, source, filename string, hintsLevel semantic.HintsLevel) *Result {

@@ -494,15 +494,10 @@ func (w *fixtureWorker) run(req fixtureRequest) fixtureResponse {
 	}
 }
 
+// fixtureHintsAndWarnings returns the non-error diagnostics DWScript's harness prints
+// inside the "Errors >>>>" envelope; the CLI's --test-envelope uses the same source.
 func fixtureHintsAndWarnings(compileResult *frontend.Result) []string {
-	var hintsAndWarnings []string
-	for _, diag := range compileResult.Diagnostics {
-		text := diag.String()
-		if strings.HasPrefix(text, "Hint:") || strings.HasPrefix(text, "Warning:") {
-			hintsAndWarnings = append(hintsAndWarnings, text)
-		}
-	}
-	return hintsAndWarnings
+	return compileResult.HintStrings()
 }
 
 // runFixtureTest runs a single fixture in-process and returns its result plus, on failure, a
