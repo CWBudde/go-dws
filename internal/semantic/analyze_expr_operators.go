@@ -218,6 +218,14 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			}
 		}
 
+		// A strictly parameterless builtin used as a bare identifier is an
+		// implicit call, so it carries the function's result type. Checked from
+		// the registry rather than the isBuiltinFunction list below, which does
+		// not name all of them (UnixTime, UTCDateTime).
+		if resultType, ok := a.parameterlessBuiltinType(identifier.Value); ok {
+			return resultType
+		}
+
 		// Check if this is a built-in function used without parentheses
 		if a.isBuiltinFunction(identifier.Value) {
 			// Emit casing hint for built-ins when pedantic hints are enabled

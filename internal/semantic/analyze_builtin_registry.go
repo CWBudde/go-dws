@@ -68,3 +68,21 @@ func (a *Analyzer) analyzeRegisteredBuiltin(name string, args []ast.Expression, 
 	}
 	return result, true
 }
+
+// parameterlessBuiltinType returns the result type of a builtin that takes no
+// arguments at all, so a bare identifier such as `Random` or `Now` types as an
+// implicit call (`Random*0`, `var t := Now`) instead of falling back to VOID.
+//
+// Only strictly parameterless functions qualify: a signature with optional or
+// variadic parameters says nothing about whether the bare name means a call or
+// a reference, and procedures (nil ReturnType) stay VOID as before.
+func (a *Analyzer) parameterlessBuiltinType(name string) (types.Type, bool) {
+	sig, ok := a.builtinRegistry.GetSignature(name)
+	if !ok || sig.ReturnType == nil {
+		return nil, false
+	}
+	if sig.IsVariadic || sig.MinArgs != 0 || sig.MaxArgs != 0 {
+		return nil, false
+	}
+	return sig.ReturnType, true
+}

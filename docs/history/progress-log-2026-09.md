@@ -214,3 +214,52 @@ reorders `ClassDecl` field traversal. The checked-in file predates those generat
 Rather than fold that churn into this change, only the new node's dispatch case and walk
 function were added. **The drift is still open** and should be resolved deliberately — dropping
 `walkRecordTypeNode` is a real traversal change, not cosmetic.
+
+## Parameterless builtins as bare identifiers, and visitor generator drift (2026-09-07)
+
+Two follow-ups recorded by the previous change, both now closed.
+
+### `Random`, `Now`, `Pi` … used without parentheses
+
+`Random*0` reported `Incompatible operands`. A bare identifier naming a builtin fell through
+`analyzeIdentifier` to a blanket `return types.VOID`
+(`internal/semantic/analyze_expr_operators.go`), so it carried no usable type into an
+expression. Only the *call* path consulted signatures.
+
+The fix follows A9's direction — derive the answer from `builtins.Registry` rather than from
+another hand-maintained switch. `Analyzer.parameterlessBuiltinType`
+(`internal/semantic/analyze_builtin_registry.go`) returns the signature's `ReturnType`, and
+`analyzeIdentifier` uses it before falling back to `VOID`.
+
+The qualifying condition is deliberately narrow — `MinArgs == 0 && MaxArgs == 0 && !IsVariadic`
+and a non-nil `ReturnType`. A signature with *optional* parameters says nothing about whether a
+bare name means a call or a reference, and procedures keep typing as `VOID`. That admits
+exactly the 14 `Sig(nil, …)` builtins: `Pi`, `Infinity`, `NaN`, `Random`, `RandSeed`, `Now`,
+`Date`, `Time`, `UTCDateTime`, `UnixTime`, `UnixTimeMSec`, `GetStackTrace`, `GetCallStack`
+(and `Randomize`, which stays `VOID` — it is a procedure). The existing builtin
+function-*pointer* path (`Map`, `Filter`) is checked first and is unaffected.
+
+This also fixes `var t := Now;` and `Now > 0`, which failed the same way.
+
+Result: JSONConnectorPass **56 → 57** (68% → 70%), closing `stringify_anonymous2`; harness
+overall **876 → 877**. Baseline ratcheted. A9 remains `[~]` — the specialized dispatch in
+`analyze_builtin_functions.go` is still to migrate.
+
+### `pkg/ast/visitor_generated.go` drift
+
+Root cause: `RecordTypeNode` implements `TypeExpression` but does not embed `BaseNode`, so the
+generator recognizes it only via the `knownNodeTypes` allowlist in `cmd/gen-visitor/main.go` —
+where it was missing, alongside the four sibling type-expression nodes that are listed. Adding
+it makes regeneration lossless, and the checked-in file is now genuinely generated: it also
+picks up the catch-up the previous change deferred (`walkGenericTypeRef`, `TypeArgs` traversal
+on `NewExpression`/`TypeAnnotation`, `FunctionDecl.HelperName`, and `ClassDecl` fields walked
+in source order).
+
+Two guards, both confirmed to fail before the fix:
+
+- `cmd/gen-visitor/drift_test.go` — `TestGeneratedVisitorIsUpToDate` regenerates in-process and
+  compares against the committed file, so drift in either direction is caught by `go test ./...`
+  instead of surfacing as a silently skipped subtree. A companion test asserts every
+  `TypeExpression` node that needs the allowlist is on it.
+- `pkg/ast/visitor_record_type_test.go` — walks an inline `array of record … end` and asserts
+  the record's field declarations are visited.

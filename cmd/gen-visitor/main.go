@@ -56,6 +56,7 @@ var knownNodeTypes = map[string]bool{
 
 	// Type expression nodes (don't embed BaseNode but implement TypeExpression)
 	"ArrayTypeNode":           true,
+	"RecordTypeNode":          true,
 	"SetTypeNode":             true,
 	"ClassOfTypeNode":         true,
 	"FunctionPointerTypeNode": true,
