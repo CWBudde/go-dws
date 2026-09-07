@@ -18,6 +18,8 @@ func Walk(v Visitor, node Node) {
 	switch n := node.(type) {
 	case *AddressOfExpression:
 		walkAddressOfExpression(n, v)
+	case *AnonymousRecordExpression:
+		walkAnonymousRecordExpression(n, v)
 	case *ArrayDecl:
 		walkArrayDecl(n, v)
 	case *ArrayLiteralExpression:
@@ -189,6 +191,15 @@ func Walk(v Visitor, node Node) {
 func walkAddressOfExpression(n *AddressOfExpression, v Visitor) {
 	if n.Operator != nil {
 		Walk(v, n.Operator)
+	}
+}
+
+// walkAnonymousRecordExpression walks a AnonymousRecordExpression node
+func walkAnonymousRecordExpression(n *AnonymousRecordExpression, v Visitor) {
+	for _, item := range n.Fields {
+		if item != nil {
+			Walk(v, item)
+		}
 	}
 }
 

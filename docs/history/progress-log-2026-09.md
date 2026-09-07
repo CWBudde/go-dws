@@ -145,3 +145,69 @@ The complete CLI integration suite also passes (10.652s). Its repeated executabl
 builds exceeded the standard timeout on the workspace's NTFS mount, so it was run
 against a verified identical source copy on a native filesystem, using the same test
 scripts and `GOFLAGS=-buildvcs=false`. No test assertions were disabled.
+
+## Language compatibility — anonymous record expressions (§3.1)
+
+Closed 2026-09-07, in parallel with the Phase 2 architecture work. `PLAN.md` §3.1 item
+"Anonymous record literals → JSONConnectorPass `stringify_anonymous*`, `stringify_record2`".
+
+**The item's premise was wrong, and that is the main finding.** Parenthesised anonymous record
+literals — `(x: 10; y: 20)` — already parsed and already had evaluator support
+(`internal/parser/expressions.go:399-428`, `internal/parser/record_literals_test.go`). The real
+gap was a *different* syntax that the fixtures actually use: DWScript's anonymous record
+**constructor expression**, written with `record`/`end` and `:=`, with field names that may be
+string literals:
+
+```pascal
+PrintLn(JSON.Stringify(record a := s; b := True; g := Null; end));
+var r := record "i*i" := i * i; "2i" := 2 * i; end;
+'objWithField' := record Field := 123 end;   -- one line, no trailing ';'
+```
+
+Before the change this failed at parse time with `Expression expected before RECORD`.
+
+### Design
+
+The two forms are kept apart deliberately. An anonymous `RecordLiteralExpression` means
+"needs a record type from context" and is threaded through
+`ExecutionContext.SetRecordTypeContext(string)` — the string-keyed context A7 is slated to
+retire. The `record … end` form is *structurally* typed: its field names plus the inferred
+types of their values fully describe an unnamed `types.RecordType`. It therefore got its own
+AST node, `ast.AnonymousRecordExpression`, and never touches the record type context.
+
+Everything downstream already supported unnamed records, so no changes were needed there:
+`types.RecordType` allows `Name == ""`, `runtime.RecordValue.Type()` returns `"RECORD"` for it,
+and `evaluator/json_serialize.go` already sorts members alphabetically — which is exactly the
+key order the expected `.txt` files encode (`{"2i":246,"is":"123"}`).
+
+- `pkg/ast/records.go` — new `AnonymousRecordExpression` node, reusing `FieldInitializer`.
+- `internal/parser/record_expressions.go` — new; `RECORD` prefix parse function, registered in
+  `parser_builder.go`. Trailing `;` before `end` is optional; a quoted field name is kept
+  verbatim so names that are not valid identifiers (`i*i`, `2i`) survive into serialization.
+- `internal/semantic/analyze_literals.go` — synthesizes the unnamed `types.RecordType`;
+  dispatched from `analyze_expressions.go`.
+- `internal/interp/evaluator/anonymous_record.go` — new; builds the `runtime.RecordValue`.
+
+The bytecode compiler needs no new arm: its `default` case already rejects unknown expression
+nodes, which is the correct outcome for the unmaintained VM (A11).
+
+### Result
+
+JSONConnectorPass **51 → 56** (62% → 68%); harness overall **871 → 876**. Baseline ratcheted.
+Closed: `stringify_record2`, `stringify_anonymous`, `stringify_anonymous3`,
+`array_constructor2`, `trueish`. The fixture list in `PLAN.md` understated the yield — it named
+two fixtures; six use the syntax.
+
+`stringify_anonymous2` still fails, but for an unrelated reason now recorded as its own §3.2
+item: `Random*0` reports `Incompatible operands` because `random` is typed only on the call
+path (`internal/semantic/analyze_builtin_functions.go:251`) and not as a bare identifier. That
+belongs with A9.
+
+### Note on `pkg/ast/visitor_generated.go`
+
+Re-running the generator produces unrelated drift: it drops `walkRecordTypeNode` (that node
+does not embed `BaseNode`, so the current generator skips it), adds `walkGenericTypeRef`, and
+reorders `ClassDecl` field traversal. The checked-in file predates those generator changes.
+Rather than fold that churn into this change, only the new node's dispatch case and walk
+function were added. **The drift is still open** and should be resolved deliberately — dropping
+`walkRecordTypeNode` is a real traversal change, not cosmetic.

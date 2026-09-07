@@ -546,3 +546,37 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 	// Create and return a new set type based on inferred element type
 	return types.NewSetType(elementType)
 }
+
+// analyzeAnonymousRecordExpression analyzes DWScript's anonymous record
+// constructor expression (`record a := 1; b := 'x'; end`).
+//
+// Unlike an anonymous RecordLiteralExpression, this form needs no expected type:
+// it is structurally typed, so the field names together with the inferred types
+// of their value expressions fully describe an unnamed record type.
+func (a *Analyzer) analyzeAnonymousRecordExpression(expr *ast.AnonymousRecordExpression) types.Type {
+	if expr == nil {
+		return nil
+	}
+
+	recordType := types.NewRecordType("", nil)
+
+	for _, field := range expr.Fields {
+		if field == nil || field.Name == nil {
+			continue
+		}
+
+		if recordType.HasField(field.Name.Value) {
+			a.addError("duplicate field '%s' in record expression", field.Name.Value)
+			return nil
+		}
+
+		fieldType := a.analyzeExpression(field.Value)
+		if fieldType == nil {
+			return nil
+		}
+
+		recordType.AddField(field.Name.Value, fieldType, true)
+	}
+
+	return recordType
+}

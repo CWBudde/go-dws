@@ -175,13 +175,46 @@ This document catalogs ALL features found in the original DWScript implementatio
 - ✅ Record declarations
 - ✅ Record fields
 - ✅ Nested records
-- ✅ Anonymous records
+- ✅ Anonymous records (both forms, see below)
 - ✅ Value semantics
 - ⏸️ Record methods (partial support)
 - ⏸️ Record properties
 - ⏸️ Record constructors
 - ⏸️ Record operators
 - ⏸️ Record helpers
+
+#### Anonymous records: two forms
+
+DWScript has two unrelated anonymous record syntaxes, and go-dws supports both.
+
+A **record literal** uses parentheses and takes its type from context, so it needs a type
+annotation or a typed literal:
+
+```pascal
+type TPoint = record x, y : Integer; end;
+
+const origin : TPoint = (x: 0; y: 0);   // type from the annotation
+var p : TPoint := (x: 10; y: 20);
+var q := TPoint(x: 1; y: 2);            // typed literal
+```
+
+A **record constructor expression** uses `record`/`end` with `:=` and is *structurally* typed:
+the field names and the types of their values fully describe it, so it stands alone as an
+expression and needs no annotation.
+
+```pascal
+var r := record a := 1; b := 'x'; end;
+PrintLn(r.a);
+
+// Field names may be string literals, which lets them be things that are not
+// valid identifiers. The name is preserved verbatim.
+PrintLn(JSON.Stringify(record "i*i" := 9; "2i" := 6; end));  // {"2i":6,"i*i":9}
+
+// The trailing ';' before 'end' is optional.
+PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
+```
+
+`JSON.Stringify` emits record members in sorted key order, matching DWScript.
 
 ---
 

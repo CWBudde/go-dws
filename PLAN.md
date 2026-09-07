@@ -106,7 +106,6 @@ Each line: what to build → fixtures/category it unlocks. Run
 
 ### 3.1 Parser
 
-- `[ ]` S Anonymous record literals → JSONConnectorPass `stringify_anonymous*`, `stringify_record2`.
 - `[ ]` S `class property` inside record bodies + record auto-property backing fields →
   PropertyExpressionsPass `class_property_expressions`, `class_property_write_expressions`, `property_auto_field`.
 - `[ ]` S Multi-index expression-backed indexed properties → PropertyExpressionsPass `indexed_expressions`.
@@ -131,6 +130,11 @@ Each line: what to build → fixtures/category it unlocks. Run
   serialization fixtures in the harness (they already pass in the CLI).
 - `[ ]` S Value-context auto-invoke of parameterless function pointers for `and`/`or` operands
   (`Print`/`PrintLn`/`implies` already done).
+- `[ ]` S Type parameterless builtins used as bare identifiers in expressions: `Random*0` fails
+  with `Incompatible operands` because `random` is only typed on the call path
+  (`internal/semantic/analyze_builtin_functions.go:251`), while `Random` alone is not.
+  Sole remaining blocker for JSONConnectorPass `stringify_anonymous2`. Best done as part of A9,
+  which derives that switch from `builtins.Registry` signatures.
 - `[ ]` S Helper-property resolution through a metaclass → PropertyExpressionsPass `helpers_property_expressions`.
 - `[ ]` S Indexed-property read through a metaclass with a class-method accessor → SimpleScripts `enum_to_integer`.
 - `[ ]` M Contract inheritance → SimpleScripts `method_contracts`; inline-method class name in

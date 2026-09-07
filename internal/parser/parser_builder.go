@@ -138,6 +138,7 @@ func (b *ParserBuilder) registerParseFunctions(p *Parser) {
 	p.registerPrefix(lexer.INHERITED, func(_ lexer.Token) ast.Expression { return p.parseInheritedExpression() })
 	p.registerPrefix(lexer.SELF, func(_ lexer.Token) ast.Expression { return p.parseSelfExpression() })
 	p.registerPrefix(lexer.IF, func(_ lexer.Token) ast.Expression { return p.parseIfExpression() })
+	p.registerPrefix(lexer.RECORD, func(_ lexer.Token) ast.Expression { return p.parseAnonymousRecordExpression() })
 
 	// "empty" and "inline" are contextual keywords: reserved only in a routine's
 	// directive position (handled explicitly in parseSingleDirective); everywhere

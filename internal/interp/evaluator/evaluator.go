@@ -454,6 +454,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitSelfExpression(n, ctx)
 	case *ast.EnumLiteral:
 		return e.VisitEnumLiteral(n, ctx)
+	case *ast.AnonymousRecordExpression:
+		return e.VisitAnonymousRecordExpression(n, ctx)
 	case *ast.RecordLiteralExpression:
 		return e.VisitRecordLiteralExpression(n, ctx)
 	case *ast.SetLiteral:
