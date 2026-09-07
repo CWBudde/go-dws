@@ -131,7 +131,7 @@ func (e *Evaluator) expectedTypeKindForIdentifier(target *ast.Identifier, ctx *E
 	}
 
 	if typeAnnot := e.SemanticInfo().GetType(target); typeAnnot != nil {
-		if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
+		if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil && resolvedType != nil {
 			return resolvedType.TypeKind()
 		}
 	}
@@ -640,7 +640,7 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 		return &runtime.NilValue{}
 	}
 
-	result := e.applyCompoundOperation(stmt.Operator, currentVal, rightVal, stmt)
+	result := e.applyCompoundOperation(stmt.Operator, currentVal, rightVal, stmt, ctx)
 	if isError(result) {
 		return result
 	}
@@ -669,7 +669,7 @@ func (e *Evaluator) compoundAssignToImplicitTarget(
 
 	// Check __CurrentClass__ context
 	if classValue, _, ok := currentClassMetaValue(ctx); ok {
-		if result := e.compoundAssignToCurrentClassVar(target, targetName, stmt, classValue); result != nil {
+		if result := e.compoundAssignToCurrentClassVar(target, targetName, stmt, classValue, ctx); result != nil {
 			return result
 		}
 	}
@@ -723,7 +723,7 @@ func (e *Evaluator) compoundAssignToField(
 		return rightVal
 	}
 
-	result := e.applyCompoundOperation(stmt.Operator, fieldValue, rightVal, target)
+	result := e.applyCompoundOperation(stmt.Operator, fieldValue, rightVal, target, ctx)
 	if isError(result) {
 		return result
 	}
@@ -749,7 +749,7 @@ func (e *Evaluator) compoundAssignToClassVarViaSelf(
 		return rightVal
 	}
 
-	result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target)
+	result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target, ctx)
 	if isError(result) {
 		return result
 	}
@@ -791,7 +791,7 @@ func (e *Evaluator) compoundAssignToProperty(
 		return rightVal
 	}
 
-	result := e.applyCompoundOperation(stmt.Operator, currentPropValue, rightVal, target)
+	result := e.applyCompoundOperation(stmt.Operator, currentPropValue, rightVal, target, ctx)
 	if isError(result) {
 		return result
 	}
@@ -807,6 +807,7 @@ func (e *Evaluator) compoundAssignToCurrentClassVar(
 	targetName string,
 	stmt *ast.AssignmentStatement,
 	classInfoVal Value,
+	ctx *ExecutionContext,
 ) Value {
 	classMetaVal, ok := classInfoVal.(ClassMetaValue)
 	if !ok {
@@ -818,12 +819,12 @@ func (e *Evaluator) compoundAssignToCurrentClassVar(
 		return nil
 	}
 
-	rightVal := e.Eval(stmt.Value, nil) // Note: ctx not needed for class var eval
+	rightVal := e.Eval(stmt.Value, ctx) // Note: ctx not needed for class var eval
 	if isError(rightVal) {
 		return rightVal
 	}
 
-	result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target)
+	result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target, ctx)
 	if isError(result) {
 		return result
 	}
@@ -854,7 +855,7 @@ func (e *Evaluator) compoundAssignToReference(
 		return &runtime.NilValue{}
 	}
 
-	result := e.applyCompoundOperation(stmt.Operator, derefVal, rightVal, stmt)
+	result := e.applyCompoundOperation(stmt.Operator, derefVal, rightVal, stmt, ctx)
 	if isError(result) {
 		return result
 	}

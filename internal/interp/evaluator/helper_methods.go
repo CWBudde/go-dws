@@ -473,7 +473,7 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 	if result := e.evalBooleanHelper(spec, selfValue, args, node); result != nil {
 		return result
 	}
-	if result := e.evalArrayHelper(spec, selfValue, args, node); result != nil {
+	if result := e.evalArrayHelper(spec, selfValue, args, node, ctx); result != nil {
 		return result
 	}
 	if result := e.evalEnumHelper(spec, selfValue, args, node); result != nil {
@@ -486,7 +486,7 @@ func (e *Evaluator) CallBuiltinHelperMethod(spec string, selfValue Value, args [
 	// lookup for them rather than paying for a guaranteed miss on every call.
 	if !strings.HasPrefix(spec, "__") {
 		if fn, ok := builtins.DefaultRegistry.Lookup(spec); ok {
-			return fn(e, append([]Value{selfValue}, args...))
+			return fn(e.builtinContext(ctx), append([]Value{selfValue}, args...))
 		}
 	}
 
@@ -501,10 +501,10 @@ func (e *Evaluator) CallBuiltinHelperProperty(propSpec string, selfValue Value, 
 	// lookup for them to keep hot property reads (.Length, .High) cheap.
 	if !strings.HasPrefix(propSpec, "__") {
 		if fn, ok := builtins.DefaultRegistry.Lookup(propSpec); ok {
-			return fn(e, []Value{selfValue})
+			return fn(e.builtinContext(ctx), []Value{selfValue})
 		}
 	}
-	return e.evalBuiltinHelperProperty(propSpec, selfValue, node)
+	return e.evalBuiltinHelperProperty(propSpec, selfValue, node, ctx)
 }
 
 // CallASTHelperMethod executes a user-defined helper method (with AST body).
@@ -575,11 +575,11 @@ func (e *Evaluator) CallASTHelperMethod(
 
 	// For functions, initialize the Result variable
 	if method.ReturnType != nil {
-		returnType, err := e.ResolveTypeFromAnnotation(method.ReturnType)
+		returnType, err := e.ResolveTypeFromAnnotation(method.ReturnType, ctx)
 		if err != nil {
 			return e.newError(node, "failed to resolve return type: %v", err)
 		}
-		defaultVal := e.GetDefaultValue(returnType)
+		defaultVal := e.GetDefaultValue(returnType, ctx)
 		scope.defineOwned(e, ctx, "Result", defaultVal)
 		// Also define method name as alias for Result (Pascal convention)
 		if !helperResultAliasWouldShadowTarget(selfValue, method.Name.Value) {
@@ -887,40 +887,40 @@ func (e *Evaluator) executeHelperPropertyWrite(
 }
 
 // evalBuiltinHelperProperty evaluates a built-in helper property (array, enum, string, etc.).
-func (e *Evaluator) evalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node) Value {
-	switch propSpec {
-	case "__array_length", "__array_count", "__array_high", "__array_low":
+func (e *Evaluator) evalBuiltinHelperProperty(propSpec string, selfValue Value, node ast.Node, ctx *ExecutionContext) Value {
+	switch types.BuiltinHelperOperation(propSpec) {
+	case types.HelperArrayLength, types.HelperArrayCount, types.HelperArrayHigh, types.HelperArrayLow:
 		if _, ok := selfValue.(ArrayAccessor); !ok {
 			return e.newError(node, "built-in property '%s' can only be used on arrays", propSpec)
 		}
-		return e.evalArrayHelper(propSpec, selfValue, nil, node)
+		return e.evalArrayHelper(propSpec, selfValue, nil, node, ctx)
 
-	case "__enum_value":
+	case types.HelperEnumValue:
 		enumVal, ok := selfValue.(EnumAccessor)
 		if !ok {
 			return e.newError(node, "Enum.Value property requires enum receiver")
 		}
 		return &runtime.IntegerValue{Value: int64(enumVal.GetOrdinal())}
 
-	case "__enum_name", "__enum_qualifiedname":
+	case types.HelperEnumName, types.HelperEnumQualifiedName:
 		return e.evalEnumHelper(propSpec, selfValue, nil, node)
 
-	case "__string_length":
+	case types.HelperStringLength:
 		if _, ok := selfValue.(StringValue); !ok {
 			return e.newError(node, "String.Length property requires string receiver")
 		}
 		return e.evalStringHelper(propSpec, selfValue, nil, node)
 
-	case "__string_isascii", "__string_trim", "__string_trimleft", "__string_trimright":
+	case types.HelperStringIsASCII, types.HelperStringTrim, types.HelperStringTrimLeft, types.HelperStringTrimRight:
 		return e.evalStringHelper(propSpec, selfValue, nil, node)
 
-	case "__integer_tostring":
+	case types.HelperIntegerToString:
 		return e.evalIntegerHelper(propSpec, selfValue, nil, node)
 
-	case "__float_tostring_default":
+	case types.HelperFloatToStringDefault:
 		return e.evalFloatHelper(propSpec, selfValue, nil, node)
 
-	case "__boolean_tostring":
+	case types.HelperBooleanToString:
 		return e.evalBooleanHelper(propSpec, selfValue, nil, node)
 
 	default:

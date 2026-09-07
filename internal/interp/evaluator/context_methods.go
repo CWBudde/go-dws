@@ -8,6 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ============================================================================
@@ -15,11 +16,31 @@ import (
 // ============================================================================
 
 // NewError creates an error value with location information from the current node.
-func (e *Evaluator) NewError(format string, args ...interface{}) Value {
+func (e *builtinContext) NewError(format string, args ...interface{}) Value {
 	return e.newError(e.CurrentNode(), format, args...)
 }
 
-// Note: CurrentNode() is already implemented in evaluator.go.
+// builtinContext binds builtin services to a single invocation. The evaluator
+// retains no active-context pointer; mutable state belongs to ExecutionContext.
+type builtinContext struct {
+	*Evaluator
+	ctx *ExecutionContext
+}
+
+func (e *Evaluator) builtinContext(ctx *ExecutionContext) *builtinContext {
+	return &builtinContext{Evaluator: e, ctx: ctx}
+}
+
+func (e *builtinContext) CurrentNode() ast.Node {
+	return currentNode(e.ctx)
+}
+
+func currentNode(ctx *ExecutionContext) ast.Node {
+	if ctx == nil {
+		return nil
+	}
+	return ctx.CurrentNode()
+}
 
 // RandSource returns the random number generator for built-in functions.
 func (e *Evaluator) RandSource() *rand.Rand {
@@ -79,23 +100,23 @@ func (e *Evaluator) IsAssigned(value Value) bool {
 }
 
 // GetCallStackString returns a formatted string representation of the current call stack.
-func (e *Evaluator) GetCallStackString() string {
-	if e.currentContext == nil {
+func (e *builtinContext) GetCallStackString() string {
+	if e.ctx == nil {
 		return ""
 	}
-	return e.currentContext.GetCallStack().String()
+	return e.ctx.GetCallStack().String()
 }
 
 // GetCallStackArray returns the current call stack as an array of records.
-func (e *Evaluator) GetCallStackArray() Value {
-	if e.currentContext == nil {
+func (e *builtinContext) GetCallStackArray() Value {
+	if e.ctx == nil {
 		return &runtime.ArrayValue{
 			Elements:  []runtime.Value{},
 			ArrayType: types.NewDynamicArrayType(types.VARIANT),
 		}
 	}
 
-	frames := e.currentContext.GetCallStack().Frames()
+	frames := e.ctx.GetCallStack().Frames()
 	elements := make([]runtime.Value, len(frames))
 
 	for idx, frame := range frames {
@@ -124,8 +145,8 @@ func (e *Evaluator) GetCallStackArray() Value {
 
 // RaiseAssertionFailed raises an EAssertionFailed exception with an optional custom message.
 // Self-contained: no longer delegates to ExceptionManager.
-func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
-	ctx := e.currentContext
+func (e *builtinContext) RaiseAssertionFailed(customMessage string) {
+	ctx := e.ctx
 	if ctx == nil {
 		return // No context available, cannot raise exception
 	}
@@ -171,8 +192,8 @@ func (e *Evaluator) RaiseAssertionFailed(customMessage string) {
 // Implements the builtins.Context raiser interface (mirrors Interpreter.RaiseException),
 // so builtins running on the evaluator context raise catchable exceptions instead of
 // falling back to bare error values.
-func (e *Evaluator) RaiseException(className, message string, pos any) {
-	ctx := e.currentContext
+func (e *builtinContext) RaiseException(className, message string, pos any) {
+	ctx := e.ctx
 	if ctx == nil {
 		return // No context available, cannot raise exception
 	}
@@ -189,6 +210,6 @@ func (e *Evaluator) RaiseException(className, message string, pos any) {
 }
 
 // EvalFunctionPointer executes a function pointer with given arguments.
-func (e *Evaluator) EvalFunctionPointer(funcPtr Value, args []Value) Value {
-	return e.executeFunctionPointerDirect(funcPtr, args, e.CurrentNode(), e.currentContext)
+func (e *builtinContext) EvalFunctionPointer(funcPtr Value, args []Value) Value {
+	return e.executeFunctionPointerDirect(funcPtr, args, e.CurrentNode(), e.ctx)
 }

@@ -15,7 +15,7 @@ func TestConcatStrings_TwoStrings(t *testing.T) {
 		&runtime.StringValue{Value: "World"},
 	}
 
-	result := e.ConcatStrings(args)
+	result := e.builtinContext(nil).ConcatStrings(args)
 
 	strVal, ok := result.(*runtime.StringValue)
 	if !ok {
@@ -38,7 +38,7 @@ func TestConcatStrings_MultipleStrings(t *testing.T) {
 		&runtime.StringValue{Value: "!"},
 	}
 
-	result := e.ConcatStrings(args)
+	result := e.builtinContext(nil).ConcatStrings(args)
 
 	strVal, ok := result.(*runtime.StringValue)
 	if !ok {
@@ -60,7 +60,7 @@ func TestConcatStrings_EmptyStrings(t *testing.T) {
 		&runtime.StringValue{Value: ""},
 	}
 
-	result := e.ConcatStrings(args)
+	result := e.builtinContext(nil).ConcatStrings(args)
 
 	strVal, ok := result.(*runtime.StringValue)
 	if !ok {
@@ -81,7 +81,7 @@ func TestConcatStrings_NonStringArgument(t *testing.T) {
 		&runtime.IntegerValue{Value: 42},
 	}
 
-	result := e.ConcatStrings(args)
+	result := e.builtinContext(nil).ConcatStrings(args)
 
 	if result.Type() != "ERROR" {
 		t.Errorf("expected ERROR, got %s", result.Type())
@@ -110,7 +110,7 @@ func TestConcatStrings_FirstArgumentNonString(t *testing.T) {
 		&runtime.StringValue{Value: "test"},
 	}
 
-	result := e.ConcatStrings(args)
+	result := e.builtinContext(nil).ConcatStrings(args)
 
 	if result.Type() != "ERROR" {
 		t.Errorf("expected ERROR, got %s", result.Type())
@@ -134,7 +134,7 @@ func TestConcatStrings_SingleString(t *testing.T) {
 		&runtime.StringValue{Value: "OnlyOne"},
 	}
 
-	result := e.ConcatStrings(args)
+	result := e.builtinContext(nil).ConcatStrings(args)
 
 	strVal, ok := result.(*runtime.StringValue)
 	if !ok {

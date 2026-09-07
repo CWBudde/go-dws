@@ -810,8 +810,8 @@ func isSimpleType(typeName string) bool {
 
 // tryBinaryOperator attempts to use custom operator overloading.
 // Returns (result, true) if operator found, or (nil, false) if not found.
-func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node ast.Node) (Value, bool) {
-	return e.evalTryBinaryOperator(operator, left, right, node, e.currentContext)
+func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+	return e.evalTryBinaryOperator(operator, left, right, node, ctx)
 }
 
 // evalStringInBracketList evaluates 'str in [a..b, c, ...]' with string
@@ -1275,8 +1275,8 @@ func isNumericTypeName(typeStr string) bool {
 
 // tryUnaryOperator attempts to use custom operator overloading for unary operators.
 // Returns (result, true) if operator found, or (nil, false) if not found.
-func (e *Evaluator) tryUnaryOperator(operator string, operand Value, node ast.Node) (Value, bool) {
-	return e.evalTryUnaryOperator(operator, operand, node, e.currentContext)
+func (e *Evaluator) tryUnaryOperator(operator string, operand Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+	return e.evalTryUnaryOperator(operator, operand, node, ctx)
 }
 
 // evalMinusUnaryOp evaluates the unary minus operator (-x).

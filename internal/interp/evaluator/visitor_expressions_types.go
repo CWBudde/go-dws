@@ -103,9 +103,9 @@ func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionCont
 	// - interface-to-interface casting (re-wrapping)
 	// - object-to-class casting (hierarchy validation)
 	// - object-to-interface casting (wrapping)
-	result, err := e.castType(left, targetTypeName, node)
+	result, err := e.castType(left, targetTypeName, node, ctx)
 	if err != nil {
-		e.raiseTypeCastException(err.Error(), node)
+		e.raiseTypeCastException(err.Error(), node, ctx)
 		return nil
 	}
 
@@ -355,7 +355,7 @@ func (e *Evaluator) classImplementsInterfaceExplicitly(classMeta *runtime.ClassM
 // 6. object → interface (wrap + validate)
 //
 // Returns (Value, error) - does NOT raise exceptions.
-func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, error) {
+func (e *Evaluator) castType(obj Value, typeName string, node ast.Node, ctx *ExecutionContext) (Value, error) {
 	targetLower := ident.Normalize(typeName)
 
 	// Handle variant-specific casting to primitive types
@@ -404,7 +404,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node) (Value, 
 	// once the referenced classes are validated to be hierarchy-related.
 	if classMetaVal, ok := obj.(ClassMetaValue); ok {
 		targetClassName := typeName
-		if resolved, rerr := e.ResolveType(typeName); rerr == nil && resolved != nil {
+		if resolved, rerr := e.ResolveType(typeName, ctx); rerr == nil && resolved != nil {
 			if classOf, ok := resolved.(*types.ClassOfType); ok && classOf.ClassType != nil {
 				targetClassName = classOf.ClassType.Name
 			}

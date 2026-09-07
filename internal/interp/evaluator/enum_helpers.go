@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -16,14 +17,14 @@ import (
 // Returns the result value, or nil if this helper is not handled here (should fall through
 // to the adapter).
 func (e *Evaluator) evalEnumHelper(spec string, selfValue Value, args []Value, node ast.Node) Value {
-	switch spec {
-	case "__enum_value":
+	switch types.BuiltinHelperOperation(spec) {
+	case types.HelperEnumValue:
 		return e.evalEnumValue(selfValue, args, node)
 
-	case "__enum_name":
+	case types.HelperEnumName:
 		return e.evalEnumName(selfValue, args, node)
 
-	case "__enum_qualifiedname":
+	case types.HelperEnumQualifiedName:
 		return e.evalEnumQualifiedName(selfValue, args, node)
 
 	default:

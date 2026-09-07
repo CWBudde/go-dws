@@ -68,7 +68,7 @@ func (e *Evaluator) ExecuteConversionFunction(
 		DefaultValueGetter: func(returnTypeName string) Value {
 			// For conversion functions, we need to create proper instances for record types
 			// so that the function body can assign fields to Result
-			return e.getDefaultValueForTypeName(returnTypeName)
+			return e.getDefaultValueForTypeName(returnTypeName, ctx)
 		},
 	}
 
@@ -277,7 +277,7 @@ func isErrorValue(val Value) bool {
 
 // getDefaultValueForTypeName returns the default value for a type given its name.
 // This wraps the visitor_statements.go logic for creating default values by type name.
-func (e *Evaluator) getDefaultValueForTypeName(typeName string) Value {
+func (e *Evaluator) getDefaultValueForTypeName(typeName string, ctx *ExecutionContext) Value {
 	// For record type lookup, just use simple case-insensitive normalization
 	// Don't use NormalizeTypeAnnotation which adds "class:" prefix
 	normalizedName := ident.Normalize(typeName)
@@ -309,7 +309,7 @@ func (e *Evaluator) getDefaultValueForTypeName(typeName string) Value {
 
 		// Create record with zero-initialized fields (no field initializers for conversion functions)
 		initializer := func(fieldName string, fieldType types.Type) runtime.Value {
-			return e.getZeroValueForType(fieldType)
+			return e.getZeroValueForType(fieldType, ctx)
 		}
 
 		return runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)

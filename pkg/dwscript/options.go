@@ -14,6 +14,7 @@ const (
 	// CompileModeAST executes programs using the existing AST interpreter.
 	CompileModeAST CompileMode = iota
 	// CompileModeBytecode compiles programs to bytecode and executes them on the VM.
+	// Experimental: the compiler and VM are incomplete and unmaintained.
 	CompileModeBytecode
 )
 

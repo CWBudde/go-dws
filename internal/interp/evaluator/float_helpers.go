@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"github.com/cwbudde/go-dws/internal/types"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -18,11 +19,11 @@ import (
 // Returns the result value, or nil if this helper is not handled here (should fall through
 // to the adapter).
 func (e *Evaluator) evalFloatHelper(spec string, selfValue Value, args []Value, node ast.Node) Value {
-	switch spec {
-	case "__float_tostring_prec":
+	switch types.BuiltinHelperOperation(spec) {
+	case types.HelperFloatToStringPrec:
 		return e.evalFloatToStringPrec(selfValue, args, node)
 
-	case "__float_tostring_default":
+	case types.HelperFloatToStringDefault:
 		return e.evalFloatToStringDefault(selfValue, args, node)
 
 	default:

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/interp"
-	"github.com/cwbudde/go-dws/internal/interp/runner"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -438,7 +437,7 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 
 	v := executeChunk(t, chunk)
 
-	interpRunner := runner.New(io.Discard)
+	interpRunner := interp.New(io.Discard)
 	interpVal := interpRunner.Eval(program)
 	intResult, ok := interpVal.(*interp.IntegerValue)
 	if !ok {

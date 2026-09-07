@@ -3,6 +3,7 @@ package interp
 import (
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 )
 
@@ -204,13 +205,13 @@ func TestJSONValue_VarTypeIntegration(t *testing.T) {
 		name        string
 		wantVarType int64
 	}{
-		{setup: jsonvalue.NewNull, name: "null", wantVarType: varNull},
-		{setup: func() *jsonvalue.Value { return jsonvalue.NewBoolean(true) }, name: "boolean", wantVarType: varBoolean},
-		{setup: func() *jsonvalue.Value { return jsonvalue.NewInt64(42) }, name: "int64", wantVarType: varInt64},
-		{setup: func() *jsonvalue.Value { return jsonvalue.NewNumber(3.14) }, name: "number", wantVarType: varDouble},
-		{setup: func() *jsonvalue.Value { return jsonvalue.NewString("test") }, name: "string", wantVarType: varString},
-		{setup: jsonvalue.NewArray, name: "array", wantVarType: varArray},
-		{setup: jsonvalue.NewObject, name: "object", wantVarType: varJSON},
+		{setup: jsonvalue.NewNull, name: "null", wantVarType: runtime.VarNull},
+		{setup: func() *jsonvalue.Value { return jsonvalue.NewBoolean(true) }, name: "boolean", wantVarType: runtime.VarBoolean},
+		{setup: func() *jsonvalue.Value { return jsonvalue.NewInt64(42) }, name: "int64", wantVarType: runtime.VarInt64},
+		{setup: func() *jsonvalue.Value { return jsonvalue.NewNumber(3.14) }, name: "number", wantVarType: runtime.VarDouble},
+		{setup: func() *jsonvalue.Value { return jsonvalue.NewString("test") }, name: "string", wantVarType: runtime.VarString},
+		{setup: jsonvalue.NewArray, name: "array", wantVarType: runtime.VarArray},
+		{setup: jsonvalue.NewObject, name: "object", wantVarType: runtime.VarJSON},
 	}
 
 	for _, tt := range tests {
@@ -219,9 +220,9 @@ func TestJSONValue_VarTypeIntegration(t *testing.T) {
 			_ = NewJSONValue(jv) // Verify we can create a JSONValue
 
 			// Get VarType code
-			gotCode := jsonKindToVarType(jv.Kind())
+			gotCode := runtime.JSONKindToVarType(jv.Kind())
 			if gotCode != tt.wantVarType {
-				t.Errorf("jsonKindToVarType() = %v, want %v", gotCode, tt.wantVarType)
+				t.Errorf("runtime.JSONKindToVarType() = %v, want %v", gotCode, tt.wantVarType)
 			}
 		})
 	}
@@ -293,7 +294,7 @@ func TestJSONValue_Conversion_RoundTrip(t *testing.T) {
 	obj.ObjectSet("items", arr)
 
 	// Convert to DWScript Value
-	val := jsonValueToValue(obj)
+	val := runtime.JSONValueToValue(obj)
 
 	// Should be a JSONValue
 	_, ok := val.(*JSONValue)
@@ -302,7 +303,7 @@ func TestJSONValue_Conversion_RoundTrip(t *testing.T) {
 	}
 
 	// Convert back to jsonvalue.Value
-	result := valueToJSONValue(val)
+	result := runtime.ValueToJSONValue(val)
 
 	// Should be the same object
 	if result != obj {
@@ -315,16 +316,16 @@ func TestJSONValue_VariantConversion(t *testing.T) {
 	// Create JSON value
 	jv := jsonvalue.NewInt64(123)
 
-	// Wrap in Variant using jsonValueToVariant
-	variant := jsonValueToVariant(jv)
+	// Wrap in Variant using runtime.BoxVariantWithJSON
+	variant := runtime.BoxVariantWithJSON(jv)
 
 	// Verify it's a Variant
 	if variant.Type() != "VARIANT" {
 		t.Errorf("Type() = %v, want VARIANT", variant.Type())
 	}
 
-	// Extract back using variantToJSONValue
-	extracted := variantToJSONValue(variant)
+	// Extract back using runtime.ValueToJSONValue
+	extracted := runtime.ValueToJSONValue(variant)
 
 	// Should get back the original jsonvalue
 	if extracted.Kind() != jsonvalue.KindInt64 {

@@ -243,7 +243,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 	// Evaluate initializer if present
 	if node.Value != nil {
 		if node.Type != nil {
-			if resolvedType, err := e.ResolveTypeFromAnnotation(node.Type); err == nil && resolvedType != nil {
+			if resolvedType, err := e.ResolveTypeFromAnnotation(node.Type, ctx); err == nil && resolvedType != nil {
 				if resolvedType.TypeKind() == "FUNCTION_POINTER" || resolvedType.TypeKind() == "METHOD_POINTER" {
 					if memberAccess, ok := node.Value.(*ast.MemberAccessExpression); ok {
 						value = e.buildMethodPointerFromMemberAccess(memberAccess, ctx)
@@ -1423,18 +1423,18 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		}
 		arrayType := e.resolveArrayTypeNode(arrayNode, ctx)
 		if arrayType != nil {
-			return e.createArrayZeroValue(arrayType)
+			return e.createArrayZeroValue(arrayType, ctx)
 		}
 		return &runtime.NilValue{}
 	}
 
 	if recordNode, ok := typeExpr.(*ast.RecordTypeNode); ok {
-		recordType, err := e.resolveRecordTypeNode(recordNode)
+		recordType, err := e.resolveRecordTypeNode(recordNode, ctx)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
 		}
 		if rec, ok := recordType.(*types.RecordType); ok {
-			return e.createRecordZeroValue(rec)
+			return e.createRecordZeroValue(rec, ctx)
 		}
 		return &runtime.NilValue{}
 	}
@@ -1444,7 +1444,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
 		arrayType := e.parseInlineArrayType(typeName, ctx)
 		if arrayType != nil {
-			return e.createArrayZeroValue(arrayType)
+			return e.createArrayZeroValue(arrayType, ctx)
 		}
 		return &runtime.NilValue{}
 	}
@@ -1522,7 +1522,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 			}
 
 			// No initializer - generate zero value
-			return e.getZeroValueForType(fieldType)
+			return e.getZeroValueForType(fieldType, ctx)
 		}
 
 		recordValue := runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
@@ -1535,7 +1535,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		if arrayType == nil {
 			return &runtime.NilValue{}
 		}
-		return e.createArrayZeroValue(arrayType)
+		return e.createArrayZeroValue(arrayType, ctx)
 	}
 
 	if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
@@ -1587,7 +1587,7 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		// Type aliases (type MyString = String) default to the underlying
 		// type's zero value.
 		if resolved, err := e.ResolveTypeWithContext(typeName, ctx); err == nil && resolved != nil {
-			if zero := e.getZeroValueForType(resolved); zero != nil {
+			if zero := e.getZeroValueForType(resolved, ctx); zero != nil {
 				if _, isNil := zero.(*runtime.NilValue); !isNil {
 					return zero
 				}
@@ -1600,13 +1600,13 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 // createArrayZeroValue creates a properly initialized array value.
 // For static arrays, it pre-allocates elements and initializes nested arrays/records.
 // For dynamic arrays, it creates an empty array.
-func (e *Evaluator) createArrayZeroValue(arrayType *types.ArrayType) Value {
+func (e *Evaluator) createArrayZeroValue(arrayType *types.ArrayType, ctx *ExecutionContext) Value {
 	initializer := func(elementType types.Type, index int) runtime.Value {
 		if nestedArrayType, ok := elementType.(*types.ArrayType); ok {
-			return e.createArrayZeroValue(nestedArrayType)
+			return e.createArrayZeroValue(nestedArrayType, ctx)
 		}
 		if recordType, ok := elementType.(*types.RecordType); ok {
-			return e.createRecordZeroValue(recordType)
+			return e.createRecordZeroValue(recordType, ctx)
 		}
 		// For basic types, return nil - runtime will use zero values
 		return nil
@@ -1615,12 +1615,12 @@ func (e *Evaluator) createArrayZeroValue(arrayType *types.ArrayType) Value {
 }
 
 // createRecordZeroValue creates a properly initialized record value.
-func (e *Evaluator) createRecordZeroValue(recordType *types.RecordType) Value {
+func (e *Evaluator) createRecordZeroValue(recordType *types.RecordType, ctx *ExecutionContext) Value {
 	metadata := e.typeSystem.LookupRecordMetadata(recordType.Name)
 
 	// Create field initializer for nested types
 	initializer := func(fieldName string, fieldType types.Type) runtime.Value {
-		return e.getZeroValueForType(fieldType)
+		return e.getZeroValueForType(fieldType, ctx)
 	}
 
 	return runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)

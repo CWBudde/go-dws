@@ -129,27 +129,27 @@ func jsonAssignValue(v Value) *jsonvalue.Value {
 }
 
 // assignJSONMember implements `jsonValue.member := value`.
-func (e *Evaluator) assignJSONMember(jv *jsonvalue.Value, name string, value Value, node ast.Node) Value {
+func (e *Evaluator) assignJSONMember(jv *jsonvalue.Value, name string, value Value, node ast.Node, ctx *ExecutionContext) Value {
 	if jv == nil || jv.Kind() == jsonvalue.KindUndefined {
-		e.RaiseException("Exception", fmt.Sprintf(`Cannot set member "%s" of Undefined`, name), nil)
+		e.builtinContext(ctx).RaiseException("Exception", fmt.Sprintf(`Cannot set member "%s" of Undefined`, name), nil)
 		return &runtime.NilValue{}
 	}
 	switch jv.Kind() {
 	case jsonvalue.KindObject:
 		jv.ObjectSet(name, jsonAssignValue(value))
 	case jsonvalue.KindArray:
-		e.RaiseException("Exception", fmt.Sprintf(`Invalid array member "%s"`, name), nil)
+		e.builtinContext(ctx).RaiseException("Exception", fmt.Sprintf(`Invalid array member "%s"`, name), nil)
 	default:
-		e.RaiseException("Exception", fmt.Sprintf(`Cannot set member "%s" of Immediate`, name), nil)
+		e.builtinContext(ctx).RaiseException("Exception", fmt.Sprintf(`Cannot set member "%s" of Immediate`, name), nil)
 	}
 	return &runtime.NilValue{}
 }
 
 // assignJSONIndex implements `jsonValue[index] := value` for objects (string key)
 // and arrays (integer index, auto-extending with nulls).
-func (e *Evaluator) assignJSONIndex(jv *jsonvalue.Value, index Value, value Value, node ast.Node) Value {
+func (e *Evaluator) assignJSONIndex(jv *jsonvalue.Value, index Value, value Value, node ast.Node, ctx *ExecutionContext) Value {
 	if jv == nil || jv.Kind() == jsonvalue.KindUndefined {
-		e.RaiseException("Exception", "Cannot set items of Undefined", nil)
+		e.builtinContext(ctx).RaiseException("Exception", "Cannot set items of Undefined", nil)
 		return &runtime.NilValue{}
 	}
 	idx := unwrapVariant(index)
@@ -166,7 +166,7 @@ func (e *Evaluator) assignJSONIndex(jv *jsonvalue.Value, index Value, value Valu
 		}
 		jv.ArraySet(i, jsonAssignValue(value))
 	default:
-		e.RaiseException("Exception", fmt.Sprintf("Cannot set items of %s", jsonTypeName(jv)), nil)
+		e.builtinContext(ctx).RaiseException("Exception", fmt.Sprintf("Cannot set items of %s", jsonTypeName(jv)), nil)
 	}
 	return &runtime.NilValue{}
 }
@@ -220,7 +220,7 @@ func (e *Evaluator) evalJSONMethodCall(recv Value, method string, args []Value, 
 		}
 		return boxJSON(jv.Clone())
 	case "add", "push":
-		return e.jsonArrayAdd(jv, args, node)
+		return e.jsonArrayAdd(jv, args, node, ctx)
 	case "addfrom":
 		return e.jsonArrayAddFrom(jv, args, node)
 	case "extend":
@@ -252,14 +252,14 @@ func (e *Evaluator) jsonElementName(jv *jsonvalue.Value, args []Value) Value {
 	return &runtime.StringValue{Value: ""}
 }
 
-func (e *Evaluator) jsonArrayAdd(jv *jsonvalue.Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) jsonArrayAdd(jv *jsonvalue.Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if jv == nil || jv.Kind() != jsonvalue.KindArray {
-		e.RaiseException("Exception", fmt.Sprintf("JSON method Add() unsupported for type %s", jsonTypeName(jv)), nil)
+		e.builtinContext(ctx).RaiseException("Exception", fmt.Sprintf("JSON method Add() unsupported for type %s", jsonTypeName(jv)), nil)
 		return &runtime.NilValue{}
 	}
 	for _, arg := range args {
 		if u := unwrapVariant(arg); u == nil || u.Type() == "UNASSIGNED" {
-			e.RaiseException("Exception", "JSON Array Add() unsupported type", nil)
+			e.builtinContext(ctx).RaiseException("Exception", "JSON Array Add() unsupported type", nil)
 			return &runtime.NilValue{}
 		}
 		jv.ArrayAppend(ValueToJSONValue(arg))

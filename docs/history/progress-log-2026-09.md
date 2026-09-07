@@ -1,4 +1,4 @@
-# Progress log — September 2026 (PLAN.md Phase 1: measurement & tooling)
+# Progress log — September 2026
 
 Closed 2026-09-06 on branch `feat/phase1-measurement-tooling`. Items T1–T6 and A1 of the
 2026-09-06 `PLAN.md`. Numbers are from the runs recorded in the commit messages.
@@ -84,3 +84,64 @@ configuration.
   `Division by zero` (PLAN.md §3.3, runtime message parity).
 - `cmd/dwscript TestStringFunctions/Format_Function` (`Format('%f')` precision) was already red
   on `main` before this work.
+
+## Architecture refactoring — 2026-09-07
+
+A2 consolidates builtin helper names, operation identifiers, signatures, aliases,
+properties and default arguments in `internal/types/helper_specs.go`. The analyzer
+and runtime registrations consume that catalog, and evaluator dispatch uses its
+operation constants. Specialized receiver-dependent checks retain their diagnostics.
+Catalog isolation and case-insensitivity tests complement interpreter registration
+and executable-dispatch parity checks.
+
+A3 removes confirmed-dead control-flow, lazy-thunk, comparison, encoding, variant,
+and JSON compatibility code, unused value wrappers, and the `interp/runner`
+pass-through. CLI, embedding and WASM entry points construct the interpreter directly.
+The audit's constructor count was based on CLI reachability: scalar constructors and
+Go-to-script conversion helpers used by public FFI marshaling are retained. JSON
+conversion tests now exercise runtime implementations, and nil/range tests exercise
+actual evaluator behavior. Runtime package documentation no longer promises an obsolete
+file split.
+
+A4 removes the interpreter's duplicate `builtins.Context`, builtin dispatch and
+higher-order collection implementation. Both direct host calls and Go callbacks invoke
+function pointers through the evaluator with an explicit execution context. Tests cover
+case-insensitive builtin pointers, captured lambdas, repeated calls, invalid callables,
+and the absence of a second shell builtin context.
+
+A8 moves overload selection, signature equality and conversion-distance ranking into
+`internal/types`. Evaluator callers pass types and use the selected candidate index;
+they no longer allocate semantic symbols or import the semantic analyzer. Semantic
+callers retain a thin symbol adapter. Shared ranking tests cover index preservation,
+ambiguity, optional/variadic signatures and mismatches.
+
+A9 is partially complete: builtin return-type lookup now reads registry signatures,
+with explicit intrinsic exceptions. Ordinary call validation consumes those signatures,
+replacing 23 separate trigonometric, encoding and date/time analyzers. Specialized AST
+and diagnostic handlers remain open work, with their existing messages preserved.
+Argument-dependent collection result inference remains on its specialized path. The
+241-name return-type audit also corrects shared registry signatures: `Add` returns no
+value, and `StrArrayPack` returns an array of strings.
+
+A10 removes `currentContext` and `nodeContext` from the evaluator. All execution helpers
+receive context explicitly, and a builtin context adapter binds each invocation to its
+own environment, call stack, current node and exception state. Independent-context and
+nested builtin tests cover isolation and node restoration. Class-variable compound
+assignment also evaluates its RHS with the caller's context.
+
+A11's public labels now identify the bytecode compiler/VM as experimental in command
+help and `CompileModeBytecode` GoDoc. Compile help no longer claims a verified speedup.
+The decision to retain the VM unmaintained remains unchanged.
+
+Validation: the complete interpreter suite, semantic and builtin suites, evaluator,
+public embedding API, bytecode, frontend, parser, lexer, shared types and remaining
+packages pass. The fixture regression gate and regenerated status remain **871/1,928**,
+with identical pass-count baselines in all 61 categories. The status generation date
+was refreshed; no baseline floor changed. `go vet ./internal/... ./pkg/... ./cmd/...`
+and the new evaluator context-isolation tests under `-race` pass. Actual compile/run
+help output confirms the experimental bytecode labels.
+
+The complete CLI integration suite also passes (10.652s). Its repeated executable
+builds exceeded the standard timeout on the workspace's NTFS mount, so it was run
+against a verified identical source copy on a native filesystem, using the same test
+scripts and `GOFLAGS=-buildvcs=false`. No test assertions were disabled.

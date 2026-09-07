@@ -574,56 +574,56 @@ func (e *Evaluator) elementError(node *ast.ArrayLiteralExpression, idx int, form
 
 // evalArrayHelper evaluates built-in array helper methods.
 // Returns result or nil if not handled (falls through to adapter).
-func (e *Evaluator) evalArrayHelper(spec string, selfValue Value, args []Value, node ast.Node) Value {
-	switch spec {
-	case "__array_length", "__array_count":
+func (e *Evaluator) evalArrayHelper(spec string, selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
+	switch types.BuiltinHelperOperation(spec) {
+	case types.HelperArrayLength, types.HelperArrayCount:
 		return e.evalArrayLengthHelper(selfValue, args, node)
-	case "__array_high":
+	case types.HelperArrayHigh:
 		return e.evalArrayHigh(selfValue, args, node)
-	case "__array_low":
+	case types.HelperArrayLow:
 		return e.evalArrayLow(selfValue, args, node)
-	case "__array_add":
-		return e.evalArrayAdd(selfValue, args, node)
-	case "__array_push":
-		return e.evalArrayPush(selfValue, args, node)
-	case "__array_pop":
-		return e.evalArrayPop(selfValue, args, node)
-	case "__array_swap":
+	case types.HelperArrayAdd:
+		return e.evalArrayAdd(selfValue, args, node, ctx)
+	case types.HelperArrayPush:
+		return e.evalArrayPush(selfValue, args, node, ctx)
+	case types.HelperArrayPop:
+		return e.evalArrayPop(selfValue, args, node, ctx)
+	case types.HelperArraySwap:
 		return e.evalArraySwap(selfValue, args, node)
-	case "__array_delete":
+	case types.HelperArrayDelete:
 		return e.evalArrayDelete(selfValue, args, node)
-	case "__array_indexof":
+	case types.HelperArrayIndexOf:
 		return e.evalArrayIndexOf(selfValue, args, node)
-	case "__array_setlength":
-		return e.evalArraySetLength(selfValue, args, node)
-	case "__array_join":
+	case types.HelperArraySetLength:
+		return e.evalArraySetLength(selfValue, args, node, ctx)
+	case types.HelperArrayJoin:
 		return e.evalArrayJoinHelper(selfValue, args, node)
-	case "__string_array_join":
+	case types.HelperStringArrayJoin:
 		return e.evalStringArrayJoin(selfValue, args, node)
-	case "__array_map":
-		return e.evalArrayMap(selfValue, args, node)
-	case "__array_move":
-		return e.evalArrayMove(selfValue, args, node)
-	case "__array_reverse":
+	case types.HelperArrayMap:
+		return e.evalArrayMap(selfValue, args, node, ctx)
+	case types.HelperArrayMove:
+		return e.evalArrayMove(selfValue, args, node, ctx)
+	case types.HelperArrayReverse:
 		return e.evalArrayReverse(selfValue, args, node)
-	case "__array_sort":
-		return e.evalArraySortMethod(selfValue, args, node)
-	case "__array_insert":
-		return e.evalArrayInsert(selfValue, args, node)
-	case "__array_copy":
-		return e.evalArrayCopyMethod(selfValue, args, node)
-	case "__array_remove":
+	case types.HelperArraySort:
+		return e.evalArraySortMethod(selfValue, args, node, ctx)
+	case types.HelperArrayInsert:
+		return e.evalArrayInsert(selfValue, args, node, ctx)
+	case types.HelperArrayCopy:
+		return e.evalArrayCopyMethod(selfValue, args, node, ctx)
+	case types.HelperArrayRemove:
 		return e.evalArrayRemove(selfValue, args, node)
-	case "__array_contains":
+	case types.HelperArrayContains:
 		return e.evalArrayContains(selfValue, args, node)
-	case "__array_foreach":
-		return e.evalArrayForEach(selfValue, args, node)
-	case "__array_filter":
-		return e.evalArrayFilter(selfValue, args, node)
-	case "__array_clear":
+	case types.HelperArrayForEach:
+		return e.evalArrayForEach(selfValue, args, node, ctx)
+	case types.HelperArrayFilter:
+		return e.evalArrayFilter(selfValue, args, node, ctx)
+	case types.HelperArrayClear:
 		return e.evalArrayClear(selfValue, args, node)
-	case "__array_peek":
-		return e.evalArrayPeek(selfValue, args, node)
+	case types.HelperArrayPeek:
+		return e.evalArrayPeek(selfValue, args, node, ctx)
 	default:
 		return nil
 	}
@@ -652,8 +652,7 @@ func arrayMethodNamePos(node ast.Node) token.Position {
 // raiseArrayBoundExceeded sets a catchable "bound exceeded" exception, matching
 // DWScript's message format, and returns nil so the surrounding try/except can
 // intercept it.
-func (e *Evaluator) raiseArrayBoundExceeded(node ast.Node, index int, upper bool) Value {
-	ctx := e.currentContext
+func (e *Evaluator) raiseArrayBoundExceeded(node ast.Node, index int, upper bool, ctx *ExecutionContext) Value {
 	pos := arrayMethodNamePos(node)
 	boundWord := "Lower"
 	if upper {
@@ -690,13 +689,12 @@ func indexBracketPos(node ast.Node) token.Position {
 // raiseIndexBoundExceeded sets a catchable "bound exceeded" exception for an
 // out-of-bounds a[i] access, pointing at the closing bracket of the index
 // expression, and returns nil so the surrounding try/except can intercept it.
-func (e *Evaluator) raiseIndexBoundExceeded(node ast.Node, index int, upper bool) Value {
-	return e.raiseIndexBoundExceededAt(indexBracketPos(node), index, upper)
+func (e *Evaluator) raiseIndexBoundExceeded(node ast.Node, index int, upper bool, ctx *ExecutionContext) Value {
+	return e.raiseIndexBoundExceededAt(indexBracketPos(node), index, upper, ctx)
 }
 
 // raiseIndexBoundExceededAt is raiseIndexBoundExceeded with an explicit position.
-func (e *Evaluator) raiseIndexBoundExceededAt(pos token.Position, index int, upper bool) Value {
-	ctx := e.currentContext
+func (e *Evaluator) raiseIndexBoundExceededAt(pos token.Position, index int, upper bool, ctx *ExecutionContext) Value {
 	boundWord := "Lower"
 	if upper {
 		boundWord = "Upper"
@@ -717,8 +715,7 @@ func (e *Evaluator) raiseIndexBoundExceededAt(pos token.Position, index int, upp
 
 // raisePositiveCountExpected sets a catchable exception for a negative count
 // argument, matching DWScript's message format.
-func (e *Evaluator) raisePositiveCountExpected(node ast.Node, count int) Value {
-	ctx := e.currentContext
+func (e *Evaluator) raisePositiveCountExpected(node ast.Node, count int, ctx *ExecutionContext) Value {
 	pos := arrayMethodNamePos(node)
 	message := fmt.Sprintf("Positive count expected (got %d) [line: %d, column: %d]", count, pos.Line, pos.Column)
 	if ctx != nil {
@@ -730,7 +727,7 @@ func (e *Evaluator) raisePositiveCountExpected(node ast.Node, count int) Value {
 
 // evalArrayMove relocates the element at index `from` to index `to`, shifting the
 // intervening elements. Both indices must be within bounds.
-func (e *Evaluator) evalArrayMove(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayMove(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) != 2 {
 		return e.newError(node, "Array.Move expects exactly 2 arguments, got %d", len(args))
 	}
@@ -754,16 +751,16 @@ func (e *Evaluator) evalArrayMove(selfValue Value, args []Value, node ast.Node) 
 	arrayLen := len(arrVal.Elements)
 
 	if from < 0 {
-		return e.raiseArrayBoundExceeded(node, from, false)
+		return e.raiseArrayBoundExceeded(node, from, false, ctx)
 	}
 	if from >= arrayLen {
-		return e.raiseArrayBoundExceeded(node, from, true)
+		return e.raiseArrayBoundExceeded(node, from, true, ctx)
 	}
 	if to < 0 {
-		return e.raiseArrayBoundExceeded(node, to, false)
+		return e.raiseArrayBoundExceeded(node, to, false, ctx)
 	}
 	if to >= arrayLen {
-		return e.raiseArrayBoundExceeded(node, to, true)
+		return e.raiseArrayBoundExceeded(node, to, true, ctx)
 	}
 
 	if from != to {
@@ -796,7 +793,7 @@ func (e *Evaluator) evalArrayReverse(selfValue Value, args []Value, node ast.Nod
 
 // evalArraySortMethod sorts the array in place, either by natural order (no
 // argument) or by a supplied comparator function, and returns the array.
-func (e *Evaluator) evalArraySortMethod(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArraySortMethod(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) > 1 {
 		return e.newError(node, "Array.Sort expects at most 1 argument, got %d", len(args))
 	}
@@ -821,7 +818,7 @@ func (e *Evaluator) evalArraySortMethod(selfValue Value, args []Value, node ast.
 		if sortErr != nil {
 			return false
 		}
-		result := e.EvalFunctionPointer(funcPtr, []Value{arrVal.Elements[i], arrVal.Elements[j]})
+		result := e.builtinContext(ctx).EvalFunctionPointer(funcPtr, []Value{arrVal.Elements[i], arrVal.Elements[j]})
 		if isError(result) {
 			sortErr = result
 			return false
@@ -842,7 +839,7 @@ func (e *Evaluator) evalArraySortMethod(selfValue Value, args []Value, node ast.
 
 // evalArrayInsert inserts a value at the given index, shifting later elements.
 // The index may range over 0..Length (appending when equal to Length).
-func (e *Evaluator) evalArrayInsert(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayInsert(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) != 2 {
 		return e.newError(node, "Array.Insert expects exactly 2 arguments, got %d", len(args))
 	}
@@ -864,10 +861,10 @@ func (e *Evaluator) evalArrayInsert(selfValue Value, args []Value, node ast.Node
 	arrayLen := len(arrVal.Elements)
 
 	if index < 0 {
-		return e.raiseArrayBoundExceeded(node, index, false)
+		return e.raiseArrayBoundExceeded(node, index, false, ctx)
 	}
 	if index > arrayLen {
-		return e.raiseArrayBoundExceeded(node, index, true)
+		return e.raiseArrayBoundExceeded(node, index, true, ctx)
 	}
 
 	value := runtime.CopyValue(args[1])
@@ -883,7 +880,7 @@ func (e *Evaluator) evalArrayInsert(selfValue Value, args []Value, node ast.Node
 // arguments the whole array is duplicated. An out-of-range start index raises a
 // catchable bound exception (as DWScript does); a count larger than the number
 // of available elements is clamped, but a negative count is an error.
-func (e *Evaluator) evalArrayCopyMethod(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayCopyMethod(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) > 2 {
 		return e.newError(node, "Array.Copy expects at most 2 arguments, got %d", len(args))
 	}
@@ -917,15 +914,15 @@ func (e *Evaluator) evalArrayCopyMethod(selfValue Value, args []Value, node ast.
 	// empty array (no explicit start) is permitted and yields an empty array.
 	if len(args) >= 1 || arrayLen > 0 {
 		if start < 0 {
-			return e.raiseArrayBoundExceeded(node, start, false)
+			return e.raiseArrayBoundExceeded(node, start, false, ctx)
 		}
 		if start >= arrayLen {
-			return e.raiseArrayBoundExceeded(node, start, true)
+			return e.raiseArrayBoundExceeded(node, start, true, ctx)
 		}
 	}
 
 	if count < 0 {
-		return e.raisePositiveCountExpected(node, count)
+		return e.raisePositiveCountExpected(node, count, ctx)
 	}
 
 	end := start + count
@@ -1011,7 +1008,7 @@ func (e *Evaluator) evalArrayContains(selfValue Value, args []Value, node ast.No
 }
 
 // evalArrayForEach invokes the supplied procedure for each element.
-func (e *Evaluator) evalArrayForEach(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayForEach(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) != 1 {
 		return e.newError(node, "Array.ForEach expects exactly 1 argument, got %d", len(args))
 	}
@@ -1027,7 +1024,7 @@ func (e *Evaluator) evalArrayForEach(selfValue Value, args []Value, node ast.Nod
 	}
 
 	for _, elem := range arrVal.Elements {
-		result := e.EvalFunctionPointer(funcPtr, []Value{elem})
+		result := e.builtinContext(ctx).EvalFunctionPointer(funcPtr, []Value{elem})
 		if isError(result) {
 			return result
 		}
@@ -1038,7 +1035,7 @@ func (e *Evaluator) evalArrayForEach(selfValue Value, args []Value, node ast.Nod
 
 // evalArrayFilter returns a new dynamic array containing the elements for which
 // the supplied predicate returns True.
-func (e *Evaluator) evalArrayFilter(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayFilter(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) != 1 {
 		return e.newError(node, "Array.Filter expects exactly 1 argument, got %d", len(args))
 	}
@@ -1062,7 +1059,7 @@ func (e *Evaluator) evalArrayFilter(selfValue Value, args []Value, node ast.Node
 		Elements:  make([]Value, 0, len(arrVal.Elements)),
 	}
 	for _, elem := range arrVal.Elements {
-		result := e.EvalFunctionPointer(funcPtr, []Value{elem})
+		result := e.builtinContext(ctx).EvalFunctionPointer(funcPtr, []Value{elem})
 		if isError(result) {
 			return result
 		}
@@ -1102,7 +1099,7 @@ func (e *Evaluator) evalArrayClear(selfValue Value, args []Value, node ast.Node)
 }
 
 // evalArrayPeek returns the last element without removing it.
-func (e *Evaluator) evalArrayPeek(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayPeek(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) != 0 {
 		return e.newError(node, "Array.Peek expects no arguments, got %d", len(args))
 	}
@@ -1114,7 +1111,7 @@ func (e *Evaluator) evalArrayPeek(selfValue Value, args []Value, node ast.Node) 
 
 	if len(arrVal.Elements) == 0 {
 		// DWScript reports Peek on an empty array as an out-of-bounds access.
-		return e.raiseArrayBoundExceeded(node, 0, true)
+		return e.raiseArrayBoundExceeded(node, 0, true, ctx)
 	}
 
 	return arrVal.Elements[len(arrVal.Elements)-1]
@@ -1177,7 +1174,7 @@ func (e *Evaluator) evalArrayLow(selfValue Value, args []Value, node ast.Node) V
 // ============================================================================
 
 // evalArrayAdd appends element to dynamic array.
-func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) == 0 {
 		return e.newError(node, "Array.Add expects at least 1 argument")
 	}
@@ -1191,7 +1188,7 @@ func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) V
 		return e.newError(node, "Add() can only be used with dynamic arrays, not static arrays")
 	}
 
-	e.appendArrayArgs(arrVal, args)
+	e.appendArrayArgs(arrVal, args, ctx)
 
 	return &runtime.NilValue{}
 }
@@ -1199,7 +1196,7 @@ func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node) V
 // appendArrayArgs appends each argument to the array. An argument that is itself
 // an array of the receiver's element type is flattened (DWScript's Add/Push
 // accept either an element or an array of elements).
-func (e *Evaluator) appendArrayArgs(arrVal *runtime.ArrayValue, args []Value) {
+func (e *Evaluator) appendArrayArgs(arrVal *runtime.ArrayValue, args []Value, ctx *ExecutionContext) {
 	elemKind := ""
 	if arrVal.ArrayType != nil && arrVal.ArrayType.ElementType != nil {
 		elemKind = types.GetUnderlyingType(arrVal.ArrayType.ElementType).TypeKind()
@@ -1210,7 +1207,7 @@ func (e *Evaluator) appendArrayArgs(arrVal *runtime.ArrayValue, args []Value) {
 		switch elemKind {
 		case "INTEGER", "FLOAT", "STRING", "BOOLEAN":
 			unwrapped := unwrapVariant(v)
-			converted, errVal := e.coerceValueToKind(unwrapped, elemKind, nil, e.currentContext)
+			converted, errVal := e.coerceValueToKind(unwrapped, elemKind, nil, ctx)
 			if errVal != nil {
 				return false
 			}
@@ -1260,7 +1257,7 @@ func (e *Evaluator) shouldFlattenArrayArg(receiver, arg *runtime.ArrayValue) boo
 }
 
 // evalArrayPush appends element to dynamic array, copying records to avoid aliasing.
-func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) == 0 {
 		return e.newError(node, "Array.Push expects at least 1 argument")
 	}
@@ -1274,13 +1271,13 @@ func (e *Evaluator) evalArrayPush(selfValue Value, args []Value, node ast.Node) 
 		return e.newError(node, "Push() can only be used with dynamic arrays, not static arrays")
 	}
 
-	e.appendArrayArgs(arrVal, args)
+	e.appendArrayArgs(arrVal, args, ctx)
 
 	return &runtime.NilValue{}
 }
 
 // evalArrayPop removes and returns the last element from a dynamic array.
-func (e *Evaluator) evalArrayPop(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayPop(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) != 0 {
 		return e.newError(node, "Array.Pop expects no arguments, got %d", len(args))
 	}
@@ -1296,7 +1293,7 @@ func (e *Evaluator) evalArrayPop(selfValue Value, args []Value, node ast.Node) V
 
 	if len(arrVal.Elements) == 0 {
 		// DWScript reports Pop on an empty array as an out-of-bounds access.
-		return e.raiseArrayBoundExceeded(node, 0, true)
+		return e.raiseArrayBoundExceeded(node, 0, true, ctx)
 	}
 
 	lastElement := arrVal.Elements[len(arrVal.Elements)-1]
@@ -1411,7 +1408,7 @@ func (e *Evaluator) evalArrayIndexOf(selfValue Value, args []Value, node ast.Nod
 	return runtime.ArrayHelperIndexOf(arrVal, args[0], startIndex)
 }
 
-func (e *Evaluator) evalArraySetLength(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArraySetLength(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) != 1 {
 		return e.newError(node, "Array.SetLength expects exactly 1 argument")
 	}
@@ -1448,13 +1445,13 @@ func (e *Evaluator) evalArraySetLength(selfValue Value, args []Value, node ast.N
 			arrVal.Elements = append(arrVal.Elements, &runtime.NilValue{})
 			continue
 		}
-		arrVal.Elements = append(arrVal.Elements, e.GetDefaultValue(arrVal.ArrayType.ElementType))
+		arrVal.Elements = append(arrVal.Elements, e.GetDefaultValue(arrVal.ArrayType.ElementType, ctx))
 	}
 
 	return &runtime.NilValue{}
 }
 
-func (e *Evaluator) evalArrayMap(selfValue Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) evalArrayMap(selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) != 1 {
 		return e.newError(node, "Array.Map expects exactly 1 argument")
 	}
@@ -1471,7 +1468,7 @@ func (e *Evaluator) evalArrayMap(selfValue Value, args []Value, node ast.Node) V
 
 	resultElements := make([]Value, len(arrVal.Elements))
 	for idx, element := range arrVal.Elements {
-		result := e.EvalFunctionPointer(funcPtr, []Value{element})
+		result := e.builtinContext(ctx).EvalFunctionPointer(funcPtr, []Value{element})
 		if isError(result) {
 			return result
 		}

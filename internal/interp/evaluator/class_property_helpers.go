@@ -172,11 +172,11 @@ func (e *Evaluator) executeClassPropertyMethod(
 	}
 
 	if method.ReturnType != nil {
-		returnType, err := e.ResolveTypeFromAnnotation(method.ReturnType)
+		returnType, err := e.ResolveTypeFromAnnotation(method.ReturnType, ctx)
 		if err != nil {
 			return e.newError(node, "failed to resolve return type: %v", err)
 		}
-		defaultVal := e.GetDefaultValue(returnType)
+		defaultVal := e.GetDefaultValue(returnType, ctx)
 		scope.defineOwned(e, ctx, "Result", defaultVal)
 		scope.defineExposed(ctx, method.Name.Value, e.newResultAlias(ctx.Env()))
 	}

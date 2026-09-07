@@ -19,7 +19,7 @@ import (
 
 // ConcatStrings concatenates multiple string values into a single string.
 // This implements the builtins.Context interface.
-func (e *Evaluator) ConcatStrings(args []Value) Value {
+func (e *builtinContext) ConcatStrings(args []Value) Value {
 	// Build the concatenated string
 	var result strings.Builder
 

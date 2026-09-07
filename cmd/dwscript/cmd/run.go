@@ -13,7 +13,6 @@ import (
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/interp"
-	"github.com/cwbudde/go-dws/internal/interp/runner"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/semantic"
@@ -342,7 +341,7 @@ func executeScript(cs *compiledScript) error {
 	if testEnvelope {
 		stdout = &progOut
 	}
-	interpreter := runner.NewWithOptions(stdout, &simpleOptions{MaxRecursionDepth: maxRecursion})
+	interpreter := interp.NewWithOptions(stdout, &simpleOptions{MaxRecursionDepth: maxRecursion})
 	interpreter.SetSource(cs.input, cs.filename)
 	if cs.result.Analyzer != nil {
 		// Enables type inference for empty arrays and carries helper declarations over.

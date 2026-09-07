@@ -17,7 +17,7 @@ import (
 // For static arrays, the index is checked against low/high bounds and
 // converted to a physical index. For dynamic arrays, zero-based indexing
 // is used.
-func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node) Value {
+func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node, ctx *ExecutionContext) Value {
 	if arr.ArrayType == nil {
 		return e.newError(node, "array has no type information")
 	}
@@ -31,20 +31,20 @@ func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node
 		highBound := *arr.ArrayType.HighBound
 
 		if index < lowBound {
-			return e.raiseIndexBoundExceededAt(node.End(), index, false)
+			return e.raiseIndexBoundExceededAt(node.End(), index, false, ctx)
 		}
 		if index > highBound {
-			return e.raiseIndexBoundExceededAt(node.End(), index, true)
+			return e.raiseIndexBoundExceededAt(node.End(), index, true, ctx)
 		}
 
 		physicalIndex = index - lowBound
 	} else {
 		// Dynamic array: zero-based indexing
 		if index < 0 {
-			return e.raiseIndexBoundExceededAt(node.End(), index, false)
+			return e.raiseIndexBoundExceededAt(node.End(), index, false, ctx)
 		}
 		if index >= len(arr.Elements) {
-			return e.raiseIndexBoundExceededAt(node.End(), index, true)
+			return e.raiseIndexBoundExceededAt(node.End(), index, true, ctx)
 		}
 
 		physicalIndex = index
@@ -59,7 +59,7 @@ func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node
 	elem := arr.Elements[physicalIndex]
 	if elem == nil {
 		// Return properly typed zero value for uninitialized elements
-		return e.getZeroValueForType(arr.ArrayType.ElementType)
+		return e.getZeroValueForType(arr.ArrayType.ElementType, ctx)
 	}
 
 	return elem
@@ -89,7 +89,7 @@ func (e *Evaluator) IndexString(str *runtime.StringValue, index int, node ast.No
 
 // getZeroValueForType returns the zero/default value for a given type.
 // This is used when accessing uninitialized array elements and record field initialization.
-func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
+func (e *Evaluator) getZeroValueForType(t types.Type, ctx *ExecutionContext) runtime.Value {
 	if t == nil {
 		return &runtime.NilValue{}
 	}
@@ -151,9 +151,8 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 			zeroInit := func(nestedFieldName string, nestedFieldType types.Type) runtime.Value {
 				if fieldDecls != nil {
 					if fieldDecl, ok := fieldDecls[ident.Normalize(nestedFieldName)]; ok && fieldDecl.InitValue != nil {
-						ctx := e.currentContext
 						if ctx == nil {
-							return e.getZeroValueForType(nestedFieldType)
+							return e.getZeroValueForType(nestedFieldType, ctx)
 						}
 						// Establish the field's record type context so record-literal
 						// initializers (e.g. `Sub : TChild = (A: 1)`) resolve, mirroring
@@ -178,7 +177,7 @@ func (e *Evaluator) getZeroValueForType(t types.Type) runtime.Value {
 						return fieldValue
 					}
 				}
-				return e.getZeroValueForType(nestedFieldType)
+				return e.getZeroValueForType(nestedFieldType, ctx)
 			}
 			return runtime.NewRecordValueWithInitializer(recordType, nestedMetadata, zeroInit)
 		}
@@ -245,7 +244,7 @@ func ExtractIntegerIndex(indexVal Value) (int, bool) {
 //
 //	new Integer[10] → single 1D array with 10 elements
 //	new String[3, 4] → 3x4 nested arrays
-func (e *Evaluator) CreateMultiDimArray(elementType types.Type, dimensions []int) *runtime.ArrayValue {
+func (e *Evaluator) CreateMultiDimArray(elementType types.Type, dimensions []int, ctx *ExecutionContext) *runtime.ArrayValue {
 	if len(dimensions) == 0 {
 		// This shouldn't happen, but handle gracefully
 		return &runtime.ArrayValue{
@@ -263,7 +262,7 @@ func (e *Evaluator) CreateMultiDimArray(elementType types.Type, dimensions []int
 		// Create elements filled with zero values
 		elements := make([]runtime.Value, size)
 		for idx := 0; idx < size; idx++ {
-			elements[idx] = e.getZeroValueForType(elementType)
+			elements[idx] = e.getZeroValueForType(elementType, ctx)
 		}
 
 		return &runtime.ArrayValue{
@@ -282,7 +281,7 @@ func (e *Evaluator) CreateMultiDimArray(elementType types.Type, dimensions []int
 	// Create elements, each being an array of the remaining dimensions
 	elements := make([]runtime.Value, size)
 	for idx := 0; idx < size; idx++ {
-		elements[idx] = e.CreateMultiDimArray(elementType, dimensions[1:])
+		elements[idx] = e.CreateMultiDimArray(elementType, dimensions[1:], ctx)
 	}
 
 	return &runtime.ArrayValue{

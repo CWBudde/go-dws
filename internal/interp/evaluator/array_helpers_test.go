@@ -21,7 +21,7 @@ func TestEvalArrayPush_CopiesRecordValues(t *testing.T) {
 		ArrayType: types.NewDynamicArrayType(types.INTEGER),
 	}
 
-	if result := e.evalArrayPush(arr, []Value{original}, nil); isError(result) {
+	if result := e.evalArrayPush(arr, []Value{original}, nil, nil); isError(result) {
 		t.Fatalf("evalArrayPush returned error: %v", result)
 	}
 

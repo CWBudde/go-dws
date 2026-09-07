@@ -46,7 +46,7 @@ func (e *Evaluator) evalCompoundMemberAssignment(
 	}
 
 	// Apply compound operation
-	result := e.applyCompoundOperation(stmt.Operator, currentValue, rightValue, stmt)
+	result := e.applyCompoundOperation(stmt.Operator, currentValue, rightValue, stmt, ctx)
 	if isError(result) {
 		return result
 	}
@@ -87,7 +87,7 @@ func (e *Evaluator) evalCompoundIndexAssignment(
 	}
 
 	// Apply compound operation
-	result := e.applyCompoundOperation(stmt.Operator, currentValue, rightValue, stmt)
+	result := e.applyCompoundOperation(stmt.Operator, currentValue, rightValue, stmt, ctx)
 	if isError(result) {
 		return result
 	}

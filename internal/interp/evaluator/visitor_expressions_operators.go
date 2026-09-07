@@ -53,7 +53,7 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 	}
 
 	// Try operator overloading first (custom operators for objects)
-	if result, ok := e.tryBinaryOperator(node.Operator, left, right, node); ok {
+	if result, ok := e.tryBinaryOperator(node.Operator, left, right, node, ctx); ok {
 		return result
 	}
 
@@ -124,7 +124,7 @@ func (e *Evaluator) VisitUnaryExpression(node *ast.UnaryExpression, ctx *Executi
 	}
 
 	// Try operator overloading first (custom operators for objects)
-	if result, ok := e.tryUnaryOperator(node.Operator, operand, node); ok {
+	if result, ok := e.tryUnaryOperator(node.Operator, operand, node, ctx); ok {
 		return result
 	}
 

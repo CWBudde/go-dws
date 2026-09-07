@@ -765,34 +765,6 @@ func TestEvalBooleanEquality(t *testing.T) {
 	}
 }
 
-// TestEvalConvertToString tests convertToString with various types
-func TestEvalConvertToString(t *testing.T) {
-	var buf bytes.Buffer
-	interp := New(&buf)
-
-	tests := []struct {
-		name     string
-		value    Value
-		expected string
-	}{
-		{"nil converts to empty", nil, ""},
-		{"integer converts", &IntegerValue{Value: 123}, "123"},
-		{"float converts", &FloatValue{Value: 4.56}, "4.56"},
-		{"string converts", &StringValue{Value: "test"}, "test"},
-		{"boolean true", &BooleanValue{Value: true}, "True"},
-		{"boolean false", &BooleanValue{Value: false}, "False"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := interp.convertToString(tt.value)
-			if result != tt.expected {
-				t.Errorf("Expected %q, got %q", tt.expected, result)
-			}
-		})
-	}
-}
-
 // TestEvalVariantArrayFalsey tests variant with empty array is falsey
 func TestEvalVariantArrayFalsey(t *testing.T) {
 	var emptyArr ArrayValue

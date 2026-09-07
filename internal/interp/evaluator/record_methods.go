@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -54,11 +53,11 @@ func (e *Evaluator) callRecordMethod(
 	// 5. Initialize Result variable
 	// DWScript uses implicit Result variable for function return values
 	if method.ReturnType != nil {
-		returnType, err := e.ResolveTypeFromAnnotation(method.ReturnType)
+		returnType, err := e.ResolveTypeFromAnnotation(method.ReturnType, ctx)
 		if err != nil {
 			return e.newError(node, "failed to resolve return type: %v", err)
 		}
-		defaultVal := e.defaultReturnValue(returnType)
+		defaultVal := e.defaultReturnValue(returnType, ctx)
 		scope.defineOwned(e, ctx, "Result", defaultVal)
 		scope.defineExposed(ctx, method.Name.Value, e.newResultAlias(ctx.Env()))
 	}
@@ -99,7 +98,7 @@ func (e *Evaluator) callRecordStaticMethod(
 		return e.newError(node, "invalid record type")
 	}
 
-	method, errVal := e.resolveRecordStaticMethod(recordType, methodName, args, node)
+	method, errVal := e.resolveRecordStaticMethod(recordType, methodName, args, node, ctx)
 	if errVal != nil {
 		return errVal
 	}
@@ -125,11 +124,11 @@ func (e *Evaluator) callRecordStaticMethod(
 	}
 
 	if method.ReturnType != nil {
-		returnType, err := e.ResolveTypeFromAnnotation(method.ReturnType)
+		returnType, err := e.ResolveTypeFromAnnotation(method.ReturnType, ctx)
 		if err != nil {
 			return e.newError(node, "failed to resolve return type: %v", err)
 		}
-		defaultVal := e.defaultReturnValue(returnType)
+		defaultVal := e.defaultReturnValue(returnType, ctx)
 		scope.defineOwned(e, ctx, "Result", defaultVal)
 		scope.defineExposed(ctx, method.Name.Value, e.newResultAlias(ctx.Env()))
 	}
@@ -162,6 +161,7 @@ func (e *Evaluator) resolveRecordStaticMethod(
 	methodName string,
 	args []Value,
 	node ast.Node,
+	ctx *ExecutionContext,
 ) (*ast.FunctionDecl, Value) {
 	normalized := ident.Normalize(methodName)
 	overloads := recordType.ClassMethodOverloads[normalized]
@@ -179,7 +179,7 @@ func (e *Evaluator) resolveRecordStaticMethod(
 		if len(candidate.Parameters) == len(args) {
 			return candidate, nil
 		}
-	} else if candidate := e.resolveRecordMethodOverload(methodName, overloads, args); candidate != nil {
+	} else if candidate := e.resolveRecordMethodOverload(overloads, args, ctx); candidate != nil {
 		return candidate, nil
 	}
 
@@ -187,53 +187,41 @@ func (e *Evaluator) resolveRecordStaticMethod(
 		recordType.GetRecordTypeName(), methodName)
 }
 
-func (e *Evaluator) resolveRecordMethodOverload(methodName string, overloads []*ast.FunctionDecl, args []Value) *ast.FunctionDecl {
+func (e *Evaluator) resolveRecordMethodOverload(overloads []*ast.FunctionDecl, args []Value, ctx *ExecutionContext) *ast.FunctionDecl {
 	argTypes := make([]types.Type, len(args))
 	for idx, arg := range args {
 		argTypes[idx] = e.getValueType(arg)
 	}
 
-	candidates := make([]*semantic.Symbol, 0, len(overloads))
+	candidates := make([]types.Type, 0, len(overloads))
+	candidateDecls := make([]*ast.FunctionDecl, 0, len(overloads))
 	for _, overload := range overloads {
 		if len(overload.Parameters) != len(args) {
 			continue
 		}
-		funcType := e.extractFunctionType(overload, e.currentContext)
+		funcType := e.extractFunctionType(overload, ctx)
 		if funcType == nil {
 			continue
 		}
-		candidates = append(candidates, &semantic.Symbol{
-			Name:                 overload.Name.Value,
-			Type:                 funcType,
-			HasOverloadDirective: overload.IsOverload,
-		})
+		candidates = append(candidates, funcType)
+		candidateDecls = append(candidateDecls, overload)
 	}
 	if len(candidates) == 0 {
 		return nil
 	}
 
-	selected, err := semantic.ResolveOverload(candidates, argTypes)
+	selected, err := types.ResolveOverload(candidates, argTypes)
 	if err != nil {
 		return nil
 	}
-	if selectedType, ok := selected.Type.(*types.FunctionType); ok {
-		for _, overload := range overloads {
-			funcType := e.extractFunctionType(overload, e.currentContext)
-			if funcType != nil && semantic.SignaturesEqual(funcType, selectedType) &&
-				funcType.ReturnType.Equals(selectedType.ReturnType) {
-				return overload
-			}
-		}
-	}
-
-	return nil
+	return candidateDecls[selected]
 }
 
-func (e *Evaluator) defaultReturnValue(returnType types.Type) Value {
+func (e *Evaluator) defaultReturnValue(returnType types.Type, ctx *ExecutionContext) Value {
 	if returnType != nil && returnType.TypeKind() == "RECORD" {
-		return e.getZeroValueForType(returnType)
+		return e.getZeroValueForType(returnType, ctx)
 	}
-	return e.GetDefaultValue(returnType)
+	return e.GetDefaultValue(returnType, ctx)
 }
 
 func (e *Evaluator) bindRecordMethodFields(record RecordInstanceValue, ctx *ExecutionContext, scope *bindingScope) {

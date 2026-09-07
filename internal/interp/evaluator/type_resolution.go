@@ -29,15 +29,15 @@ import (
 // Returns:
 //   - The resolved types.Type
 //   - An error if the type cannot be resolved
-func (e *Evaluator) ResolveType(typeName string) (types.Type, error) {
+func (e *Evaluator) ResolveType(typeName string, ctx *ExecutionContext) (types.Type, error) {
 	// Step 1: Handle inline array types first
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
-		return e.resolveInlineArrayType(typeName)
+		return e.resolveInlineArrayType(typeName, ctx)
 	}
 
 	// Step 1b: Handle function pointer types (e.g., "function(Integer): String")
 	if strings.HasPrefix(typeName, "function(") || strings.HasPrefix(typeName, "procedure(") {
-		return e.resolveFunctionPointerType(typeName)
+		return e.resolveFunctionPointerType(typeName, ctx)
 	}
 
 	// Step 2: Normalize for case-insensitive lookup
@@ -73,9 +73,8 @@ func (e *Evaluator) ResolveType(typeName string) (types.Type, error) {
 	}
 
 	// Step 5: Use evaluator's resolveTypeName for all other types
-	// Use currentContext if available for full resolution including environment-based lookups
-	// (records, type aliases, subranges). Falls back to empty context if not in an evaluation.
-	ctx := e.currentContext
+	// Use the explicit context for environment-based lookups (records, aliases,
+	// subranges), or an empty context for standalone type queries.
 	if ctx == nil {
 		ctx = &ExecutionContext{}
 	}
@@ -90,11 +89,11 @@ func (e *Evaluator) ResolveType(typeName string) (types.Type, error) {
 // resolveInlineArrayType handles inline array type syntax:
 //   - "array of Integer" → dynamic array
 //   - "array[1..10] of String" → static array
-func (e *Evaluator) resolveInlineArrayType(typeName string) (types.Type, error) {
+func (e *Evaluator) resolveInlineArrayType(typeName string, ctx *ExecutionContext) (types.Type, error) {
 	// Handle "array of ElementType" (dynamic array)
 	if strings.HasPrefix(typeName, "array of ") {
 		elementTypeName := strings.TrimPrefix(typeName, "array of ")
-		elementType, err := e.ResolveType(elementTypeName)
+		elementType, err := e.ResolveType(elementTypeName, ctx)
 		if err != nil {
 			return nil, fmt.Errorf("invalid array element type: %w", err)
 		}
@@ -128,7 +127,7 @@ func (e *Evaluator) resolveInlineArrayType(typeName string) (types.Type, error) 
 				return nil, fmt.Errorf("invalid high bound: %s", parts[1])
 			}
 		} else {
-			indexType, err := e.ResolveType(boundsStr)
+			indexType, err := e.ResolveType(boundsStr, ctx)
 			if err != nil {
 				return nil, fmt.Errorf("invalid array index type: %w", err)
 			}
@@ -143,7 +142,7 @@ func (e *Evaluator) resolveInlineArrayType(typeName string) (types.Type, error) 
 		}
 
 		// Resolve element type
-		elementType, err := e.ResolveType(elementTypeName)
+		elementType, err := e.ResolveType(elementTypeName, ctx)
 		if err != nil {
 			return nil, fmt.Errorf("invalid array element type: %w", err)
 		}
@@ -165,7 +164,7 @@ func (e *Evaluator) resolveInlineArrayType(typeName string) (types.Type, error) 
 //
 // This is used to resolve type annotations stored by the semantic analyzer
 // for builtin functions used as function references (e.g., IntToStr in Map).
-func (e *Evaluator) resolveFunctionPointerType(typeName string) (types.Type, error) {
+func (e *Evaluator) resolveFunctionPointerType(typeName string, ctx *ExecutionContext) (types.Type, error) {
 	// Determine if it's a function or procedure
 	isFunction := strings.HasPrefix(typeName, "function(")
 	var prefix string
@@ -211,7 +210,7 @@ func (e *Evaluator) resolveFunctionPointerType(typeName string) (types.Type, err
 		// Split by comma, but be careful about nested types
 		paramStrs := splitTypeList(paramsStr)
 		for _, paramStr := range paramStrs {
-			paramType, err := e.ResolveType(strings.TrimSpace(paramStr))
+			paramType, err := e.ResolveType(strings.TrimSpace(paramStr), ctx)
 			if err != nil {
 				return nil, fmt.Errorf("invalid parameter type '%s': %w", paramStr, err)
 			}
@@ -224,7 +223,7 @@ func (e *Evaluator) resolveFunctionPointerType(typeName string) (types.Type, err
 	if isFunction && strings.HasPrefix(afterParams, ":") {
 		returnTypeName := strings.TrimSpace(strings.TrimPrefix(afterParams, ":"))
 		var err error
-		returnType, err = e.ResolveType(returnTypeName)
+		returnType, err = e.ResolveType(returnTypeName, ctx)
 		if err != nil {
 			return nil, fmt.Errorf("invalid return type '%s': %w", returnTypeName, err)
 		}
@@ -269,8 +268,8 @@ func splitTypeList(s string) []string {
 
 // ResolveTypeFromName is an alias for ResolveType for backward compatibility.
 // Deprecated: Use ResolveType instead.
-func (e *Evaluator) ResolveTypeFromName(typeName string) (types.Type, error) {
-	return e.ResolveType(typeName)
+func (e *Evaluator) ResolveTypeFromName(typeName string, ctx *ExecutionContext) (types.Type, error) {
+	return e.ResolveType(typeName, ctx)
 }
 
 // ============================================================================
@@ -474,7 +473,7 @@ func (e *Evaluator) resolveInlineArrayTypeWithContext(typeName string, ctx *Exec
 
 // ResolveTypeFromAnnotation resolves a type from an AST TypeExpression.
 // This is used for function return types, parameter types, and variable declarations.
-func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression) (types.Type, error) {
+func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression, ctx *ExecutionContext) (types.Type, error) {
 	if typeExpr == nil {
 		return nil, nil
 	}
@@ -482,7 +481,7 @@ func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression) (type
 	switch node := typeExpr.(type) {
 	case *ast.TypeAnnotation:
 		if node.InlineType != nil {
-			return e.ResolveTypeFromAnnotation(node.InlineType)
+			return e.ResolveTypeFromAnnotation(node.InlineType, ctx)
 		}
 	case *ast.ClassOfTypeNode:
 		baseClassName := ""
@@ -494,9 +493,8 @@ func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression) (type
 		}
 		return types.NewClassOfType(types.NewClassType(baseClassName, nil)), nil
 	case *ast.RecordTypeNode:
-		return e.resolveRecordTypeNode(node)
+		return e.resolveRecordTypeNode(node, ctx)
 	case *ast.ArrayTypeNode:
-		ctx := e.currentContext
 		if ctx == nil {
 			ctx = &ExecutionContext{}
 		}
@@ -514,10 +512,10 @@ func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression) (type
 	typeName := typeExpr.String()
 
 	// Delegate to ResolveType which handles all type resolution
-	return e.ResolveType(typeName)
+	return e.ResolveType(typeName, ctx)
 }
 
-func (e *Evaluator) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.Type, error) {
+func (e *Evaluator) resolveRecordTypeNode(recordNode *ast.RecordTypeNode, ctx *ExecutionContext) (types.Type, error) {
 	recordType := types.NewRecordType("", make(map[string]types.Type))
 
 	for _, field := range recordNode.Fields {
@@ -529,13 +527,13 @@ func (e *Evaluator) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types
 
 		var fieldType types.Type
 		if field.Type != nil {
-			resolved, err := e.ResolveTypeFromAnnotation(field.Type)
+			resolved, err := e.ResolveTypeFromAnnotation(field.Type, ctx)
 			if err != nil {
 				return nil, err
 			}
 			fieldType = resolved
 		} else if field.InitValue != nil {
-			value := e.Eval(field.InitValue, e.currentContext)
+			value := e.Eval(field.InitValue, ctx)
 			if isError(value) {
 				return nil, fmt.Errorf("%s", value.String())
 			}
@@ -549,7 +547,7 @@ func (e *Evaluator) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types
 	}
 
 	for _, prop := range recordNode.Properties {
-		propType, err := e.ResolveTypeFromAnnotation(prop.Type)
+		propType, err := e.ResolveTypeFromAnnotation(prop.Type, ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -573,7 +571,7 @@ func (e *Evaluator) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types
 
 // GetDefaultValue returns the default/zero value for a given type.
 // This is used for Result variable initialization in functions.
-func (e *Evaluator) GetDefaultValue(typ types.Type) Value {
+func (e *Evaluator) GetDefaultValue(typ types.Type, ctx *ExecutionContext) Value {
 	if typ == nil {
 		return e.nilValue()
 	}
@@ -599,7 +597,7 @@ func (e *Evaluator) GetDefaultValue(typ types.Type) Value {
 	case "RECORD":
 		// Records are value types and must be zero-initialized, especially when
 		// dynamic arrays grow via SetLength and allocate new record elements.
-		return e.getZeroValueForType(typ)
+		return e.getZeroValueForType(typ, ctx)
 	case "VARIANT":
 		// Variants default to Unassigned (nil-like)
 		return e.nilValue()

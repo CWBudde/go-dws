@@ -26,7 +26,9 @@ including the remaining seam decisions recorded in `phase-4.10.2`.
 
 ## Ownership rules
 
-- `ExecutionContext` is the canonical owner of per-run mutable state.
+- `ExecutionContext` is the canonical owner of per-run mutable state. Builtin calls
+  receive an invocation-scoped context adapter; the evaluator has no active-context
+  or current-node fields. Nested evaluation restores the node on its explicit context.
 - Production bootstrap is centralized in `internal/interp/new.go`.
 - `internal/interp` must not import `internal/interp/evaluator` outside construction and tests.
 - Runtime execution should not bounce through callback-style interpreter bridges.
@@ -72,8 +74,8 @@ in `phase-4.10.5-interp-allowed-responsibilities.md`.
 - host external-function invocation is an intentional shell concern; evaluator
   owns external-call argument preparation before the value-level handoff.
 - the remaining evaluator shim is an explicitly retained minimal internal
-  implementation handle for `Eval`, direct user-function execution, current-node
-  reporting, and shared engine state.
+  implementation handle for `Eval`, direct user-function and function-pointer execution,
+  and shared engine state. The shell reads node positions from its execution context.
 - that shim must not grow back into a semantic bridge.
 - `contracts.UserFunctionCallbacks` is temporary migration residue, not a
   target steady-state seam.
@@ -111,7 +113,7 @@ Justified, permanent boundaries:
 - `internal/interp/new.go` importing `internal/interp/evaluator` — the construction boundary; wires environment, type system, evaluator, interpreter facade, and shared `EngineState`.
 - Shared `EngineState` — neutral coordination state for construction, semantic info, unit state, refcount manager, and registry handles.
 - External-function integration — a shell/host boundary. The evaluator owns signature-aware argument preparation (including var-parameter references) and calls `EngineState.ExternalFunctionCaller` with runtime values only; the shell performs host invocation and FFI panic/error handling. AST nodes never round-trip back into interpreter code.
-- The evaluator shim — retained as a minimal internal handle (`Eval`, `ExecuteUserFunctionDirect`, current-node access, shared `EngineState`). It must not grow back into a semantic bridge.
+- The evaluator shim — retained as a minimal internal handle (`Eval`, `ExecuteUserFunctionDirect`, `ExecuteFunctionPointerDirect`, shared `EngineState`). It must not grow back into a semantic bridge.
 
 Resolved residue: `contracts.UserFunctionCallbacks` was removed in 4.11; user-function execution policy is evaluator-native.
 
@@ -128,3 +130,16 @@ Resolved residue: `contracts.UserFunctionCallbacks` was removed in 4.11; user-fu
 Not allowed to reappear in `internal/interp`: production statement execution (program/block/if/case/loop/try/raise/assignment/break/continue/exit), production expression execution (method dispatch, property read/write, casts, `as`, `Default(...)`, record method execution, helper method/property execution), or any shadow evaluator entry point. `internal/interp/boundary_test.go` is the executable source of truth for the allowlist; anything outside it is suspicious by default and should be moved to evaluator/runtime, justified explicitly, or deleted.
 
 The measured state of this boundary as of 2026-09 (dead residue, remaining duplication, and the ranked refactoring list) is in `audit-2026-09.md`.
+
+## September 2026 refactoring boundaries
+
+- `internal/types` owns the builtin-helper catalog and overload signature ranking.
+  Semantic analysis and runtime evaluation consume these shared declarations; the
+  evaluator does not import `internal/semantic`.
+- `interp.New` / `NewWithOptions` are the bootstrap entry points. The old `runner`
+  pass-through has been removed.
+- The interpreter does not implement `builtins.Context`. Host and FFI function-pointer
+  calls enter the evaluator with an explicit `ExecutionContext`, including builtin
+  pointers and captured lambdas. Builtin execution uses the same registry as AST calls.
+- Library-only FFI value constructors remain live even when CLI-only reachability
+  analysis labels them unreachable. See the September progress log for the cleanup.

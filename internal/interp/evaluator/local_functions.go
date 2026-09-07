@@ -11,7 +11,6 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -154,17 +153,17 @@ func (e *Evaluator) maybeCallBuiltinOverload(funcName string, overloads []*ast.F
 		make([]bool, len(sig.ParamTypes)), make([]bool, len(sig.ParamTypes)), make([]bool, len(sig.ParamTypes)),
 		sig.ReturnType,
 	)
-	builtinDist := semantic.SignatureDistance(argTypes, builtinType)
+	builtinDist := types.SignatureDistance(argTypes, builtinType)
 
 	// Best user overload distance.
 	bestUserDist := -1
 	var bestUser *ast.FunctionDecl
 	for _, fn := range overloads {
-		fnType := e.extractMethodType(fn)
+		fnType := e.extractMethodType(fn, ctx)
 		if fnType == nil {
 			continue
 		}
-		if dist := semantic.SignatureDistance(argTypes, fnType); dist >= 0 && (bestUserDist < 0 || dist < bestUserDist) {
+		if dist := types.SignatureDistance(argTypes, fnType); dist >= 0 && (bestUserDist < 0 || dist < bestUserDist) {
 			bestUserDist = dist
 			bestUser = fn
 		}
@@ -172,7 +171,7 @@ func (e *Evaluator) maybeCallBuiltinOverload(funcName string, overloads []*ast.F
 
 	// Builtin wins only on a strictly better match.
 	if builtinDist >= 0 && (bestUser == nil || builtinDist < bestUserDist) {
-		return info.Function(e, args), true
+		return info.Function(e.builtinContext(ctx), args), true
 	}
 	if bestUser != nil {
 		prepared, err := e.PrepareUserFunctionArgs(bestUser, node.Arguments, args, ctx, node)

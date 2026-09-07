@@ -42,31 +42,11 @@ func (i *Interpreter) callDWScriptFunction(
 	// 2. Save current interpreter state for re-entrancy
 	// When Go calls back into DWScript, we need to preserve the current node
 	// so that error messages show the correct location
-	savedNode := i.evaluatorInstance.CurrentNode()
-	defer func() { i.evaluatorInstance.SetCurrentNode(savedNode) }()
+	savedNode := i.ctx.CurrentNode()
+	defer func() { i.ctx.SetCurrentNode(savedNode) }()
 
-	// 3. Call the DWScript function
-	// Use existing callLambda or callFunctionPointer infrastructure
-	// These functions handle:
-	// - Environment creation and scope management
-	// - Recursion depth checking
-	// - Call stack tracking
-	// - Parameter binding
-	// - Exception handling
-	var result Value
-	if funcPtr.Lambda != nil {
-		// Lambda expression with captured closure
-		closure, ok := funcPtr.Closure.(*Environment)
-		if !ok {
-			return nil, fmt.Errorf("invalid closure type in function pointer")
-		}
-		result = i.callLambda(funcPtr.Lambda, closure, dwsArgs, nil)
-	} else if funcPtr.Function != nil {
-		// Regular function pointer
-		result = i.callFunctionPointer(funcPtr, dwsArgs, nil)
-	} else {
-		return nil, fmt.Errorf("invalid function pointer: no function or lambda")
-	}
+	// 3. Execute every callable through the evaluator, including builtin pointers.
+	result := i.EvalFunctionPointer(funcPtr, dwsArgs)
 
 	// 4. Check for exceptions
 	// If the DWScript callback raised an exception, convert it to a Go error

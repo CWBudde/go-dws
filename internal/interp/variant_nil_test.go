@@ -1,14 +1,13 @@
 package interp
 
 import (
-	"bytes"
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/interp/evaluator"
 )
 
 // TestValuesEqualWithNilVariants tests the fix for nil dereference when comparing uninitialized variants
 func TestValuesEqualWithNilVariants(t *testing.T) {
-	var buf bytes.Buffer
-	interp := New(&buf)
 
 	tests := []struct {
 		left     Value
@@ -35,9 +34,9 @@ func TestValuesEqualWithNilVariants(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "uninitialized variant and nil should be equal",
+			name:     "uninitialized variant matches the runtime unassigned value",
 			left:     &VariantValue{Value: nil},
-			right:    nil,
+			right:    &UnassignedValue{},
 			expected: true,
 		},
 		{
@@ -68,7 +67,7 @@ func TestValuesEqualWithNilVariants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := interp.valuesEqual(tt.left, tt.right)
+			result := evaluator.ValuesEqual(tt.left, tt.right)
 			if result != tt.expected {
 				t.Errorf("valuesEqual(%v, %v) = %v, expected %v", tt.left, tt.right, result, tt.expected)
 			}
@@ -78,8 +77,6 @@ func TestValuesEqualWithNilVariants(t *testing.T) {
 
 // TestIsInRangeWithNilVariants tests the fix for nil handling in range checks
 func TestIsInRangeWithNilVariants(t *testing.T) {
-	var buf bytes.Buffer
-	interp := New(&buf)
 
 	tests := []struct {
 		value    Value
@@ -141,7 +138,7 @@ func TestIsInRangeWithNilVariants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := interp.isInRange(tt.value, tt.start, tt.end)
+			result := evaluator.IsInRange(tt.value, tt.start, tt.end)
 			if result != tt.expected {
 				t.Errorf("isInRange(%v, %v, %v) = %v, expected %v", tt.value, tt.start, tt.end, result, tt.expected)
 			}

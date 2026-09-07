@@ -261,7 +261,7 @@ func RegisterStringFunctions(r *Registry) {
 	r.RegisterWithSignature("StrJoin", StrJoin, CategoryString, "Joins array of strings with delimiter",
 		Sig([]types.Type{V, S}, S)) // Array of string, delimiter
 	r.RegisterWithSignature("StrArrayPack", StrArrayPack, CategoryString, "Removes empty strings from array",
-		Sig([]types.Type{V}, V)) // Array -> Array
+		Sig([]types.Type{V}, types.NewDynamicArrayType(S))) // Array -> array of String
 	r.RegisterWithSignature("IsDelimiter", IsDelimiter, CategoryString, "Checks if character is a delimiter",
 		Sig([]types.Type{S, S, I}, B))
 	r.RegisterWithSignature("LastDelimiter", LastDelimiter, CategoryString, "Finds last delimiter position",
@@ -608,7 +608,7 @@ func RegisterArrayFunctions(r *Registry) {
 	r.RegisterWithSignature("Sort", Sort, CategoryArray, "Sorts the elements of an array in place",
 		SigOptional([]types.Type{V, V}, nil, 1)) // Optional comparator
 	r.RegisterWithSignature("Add", Add, CategoryArray, "Appends an element to the end of a dynamic array",
-		Sig([]types.Type{V, V}, I)) // Returns new length
+		Sig([]types.Type{V, V}, nil)) // Procedure
 	r.RegisterWithSignature("Delete", Delete, CategoryArray, "Removes an element at the specified index from a dynamic array",
 		SigOptional([]types.Type{V, I, I}, nil, 2)) // Optional count
 	r.RegisterWithSignature("SetLength", SetLength, CategoryArray, "Resizes a dynamic array or string to the specified length",

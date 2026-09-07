@@ -178,7 +178,7 @@ func (e *Evaluator) registerFunctionHelper(node *ast.FunctionDecl, ctx *Executio
 		return e.newError(node, "helper function '%s' must declare at least one typed parameter", node.Name.Value)
 	}
 
-	targetType, err := e.ResolveTypeFromAnnotation(node.Parameters[0].Type)
+	targetType, err := e.ResolveTypeFromAnnotation(node.Parameters[0].Type, ctx)
 	if err != nil {
 		return e.newError(node, "unknown target type '%s' for helper function '%s'",
 			node.Parameters[0].Type.String(), node.Name.Value)
@@ -472,7 +472,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 					return varValue
 				}
 			} else {
-				varValue = e.GetDefaultValue(fieldType)
+				varValue = e.GetDefaultValue(fieldType, ctx)
 			}
 
 			classInfo.AddClassVarValue(fieldName, varValue)
@@ -964,7 +964,7 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 
 		if field.Type != nil {
 			var err error
-			fieldType, err = e.ResolveTypeFromAnnotation(field.Type)
+			fieldType, err = e.ResolveTypeFromAnnotation(field.Type, ctx)
 			if err != nil || fieldType == nil {
 				return e.newError(node, "unknown or invalid type for field '%s' in record '%s'", fieldName, recordName)
 			}
@@ -1040,12 +1040,12 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			var varType types.Type
 			if classVar.Type != nil {
 				var err error
-				varType, err = e.ResolveTypeFromAnnotation(classVar.Type)
+				varType, err = e.ResolveTypeFromAnnotation(classVar.Type, ctx)
 				if err != nil || varType == nil {
 					return e.newError(node, "unknown type for class variable '%s' in record '%s'", varName, recordName)
 				}
 			}
-			varValue = e.GetDefaultValue(varType)
+			varValue = e.GetDefaultValue(varType, ctx)
 		}
 
 		classVars[ident.Normalize(varName)] = varValue
@@ -1056,7 +1056,7 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 		propName := prop.Name.Value
 		propNameLower := ident.Normalize(propName)
 
-		propType, err := e.ResolveTypeFromAnnotation(prop.Type)
+		propType, err := e.ResolveTypeFromAnnotation(prop.Type, ctx)
 		if err != nil || propType == nil {
 			return e.newError(node, "unknown type for property '%s' in record '%s'", propName, recordName)
 		}
@@ -1130,7 +1130,7 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 	}
 
 	// Resolve target type
-	targetType, err := e.ResolveTypeFromAnnotation(node.ForType)
+	targetType, err := e.ResolveTypeFromAnnotation(node.ForType, ctx)
 	if err != nil {
 		return e.newError(node, "unknown target type '%s' for helper '%s'",
 			node.ForType.String(), node.Name.Value)
@@ -1188,7 +1188,7 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 
 	// Register properties
 	for _, prop := range node.Properties {
-		propType, propErr := e.ResolveTypeFromAnnotation(prop.Type)
+		propType, propErr := e.ResolveTypeFromAnnotation(prop.Type, ctx)
 		if propErr != nil {
 			return e.newError(prop, "unknown type '%s' for property '%s'",
 				prop.Type.String(), prop.Name.Value)
@@ -1268,7 +1268,7 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 		}
 
 		if initialValue == nil {
-			initialValue = e.GetDefaultValue(varType)
+			initialValue = e.GetDefaultValue(varType, ctx)
 		}
 
 		helperInfo.ClassVars[ident.Normalize(classVar.Name.Value)] = initialValue
@@ -1447,7 +1447,7 @@ func (e *Evaluator) evalFunctionPointerType(node *ast.TypeDeclaration, ctx *Exec
 		var paramType types.Type
 		if param.Type != nil {
 			var err error
-			paramType, err = e.ResolveTypeFromAnnotation(param.Type)
+			paramType, err = e.ResolveTypeFromAnnotation(param.Type, ctx)
 			if err != nil || paramType == nil {
 				return e.newError(node, "unknown parameter type '%s' in function pointer '%s'", param.Type.String(), node.Name.Value)
 			}
@@ -1461,7 +1461,7 @@ func (e *Evaluator) evalFunctionPointerType(node *ast.TypeDeclaration, ctx *Exec
 	var returnType types.Type
 	if funcPtrType.ReturnType != nil {
 		var err error
-		returnType, err = e.ResolveTypeFromAnnotation(funcPtrType.ReturnType)
+		returnType, err = e.ResolveTypeFromAnnotation(funcPtrType.ReturnType, ctx)
 		if err != nil {
 			return e.newError(node, "unknown return type '%s' in function pointer '%s'", funcPtrType.ReturnType.String(), node.Name.Value)
 		}

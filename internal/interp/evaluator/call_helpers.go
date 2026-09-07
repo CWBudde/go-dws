@@ -33,7 +33,7 @@ func (e *Evaluator) executeFunctionPointerDirect(funcPtr Value, args []Value, no
 		if !ok {
 			return e.newError(node, "unknown built-in function '%s'", builtinName)
 		}
-		return fn(e, args)
+		return fn(e.builtinContext(ctx), args)
 	}
 
 	fn, _ := callable.GetFunctionDecl().(*ast.FunctionDecl)
@@ -121,14 +121,14 @@ func (e *Evaluator) executeLambdaDirect(
 	if lambda.ReturnType != nil || lambda.IsShorthand {
 		var resultValue = e.nilValue()
 		if lambda.ReturnType != nil {
-			returnType, err := e.ResolveTypeFromAnnotation(lambda.ReturnType)
+			returnType, err := e.ResolveTypeFromAnnotation(lambda.ReturnType, ctx)
 			if err != nil {
 				return e.newError(node, "failed to resolve lambda return type: %v", err)
 			}
 			if returnType != nil && returnType.TypeKind() == "RECORD" {
-				resultValue = e.getZeroValueForType(returnType)
+				resultValue = e.getZeroValueForType(returnType, ctx)
 			} else {
-				resultValue = e.GetDefaultValue(returnType)
+				resultValue = e.GetDefaultValue(returnType, ctx)
 			}
 		}
 		scope.defineOwned(e, lambdaCtx, "Result", resultValue)
@@ -228,7 +228,7 @@ func (e *Evaluator) executeImplicitSelfCall(node *ast.CallExpression, funcName *
 		// Overload-aware record instance dispatch (class + instance methods).
 		if rec, ok := selfVal.(*runtime.RecordValue); ok {
 			if overloads := rec.GetRecordMethodOverloads(funcName.Value); len(overloads) > 1 {
-				if selected, err := e.selectOverload(rec.GetRecordTypeName(), funcName.Value, overloads, args); err == nil {
+				if selected, err := e.selectOverload(rec.GetRecordTypeName(), funcName.Value, overloads, args, ctx); err == nil {
 					return e.callRecordMethod(self, selected, args, node, ctx)
 				}
 			}
@@ -272,7 +272,7 @@ func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, ar
 					// several overloads (constructors included), select by argument
 					// types instead of taking whatever the name lookup returns first.
 					if overloads := parent.GetMethodOverloads(methodName); len(overloads) > 1 {
-						if selected, err := e.selectOverload(parent.GetName(), methodName, overloads, args); err == nil {
+						if selected, err := e.selectOverload(parent.GetName(), methodName, overloads, args, ctx); err == nil {
 							return e.executeObjectMethodDirect(self, selected, args, node, ctx)
 						}
 					}
