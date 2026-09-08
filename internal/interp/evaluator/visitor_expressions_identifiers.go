@@ -361,11 +361,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
 		}
-		// Type assert to Value (classVal is any to avoid circular imports in types package)
-		if val, ok := classVal.(Value); ok {
-			return val
-		}
-		return e.newError(node, "internal error: ClassValueFactory returned non-Value type")
+		return classVal
 	}
 
 	// Interface type names can be used as type-meta values for helper class members.

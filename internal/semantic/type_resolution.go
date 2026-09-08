@@ -19,7 +19,12 @@ import (
 // resolveTypeExpression resolves a TypeExpression directly from the AST to a Type.
 // This is preferred over resolveType(getTypeExpressionName()) because it avoids
 // string conversion issues with complex expressions like negative array bounds.
-func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (types.Type, error) {
+func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (resolvedType types.Type, resolveErr error) {
+	defer func() {
+		if resolveErr == nil && resolvedType != nil {
+			a.semanticInfo.SetResolvedType(typeExpr, resolvedType)
+		}
+	}()
 	if typeExpr == nil {
 		return nil, fmt.Errorf("nil type expression")
 	}

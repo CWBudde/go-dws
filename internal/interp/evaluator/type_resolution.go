@@ -30,6 +30,13 @@ import (
 //   - The resolved types.Type
 //   - An error if the type cannot be resolved
 func (e *Evaluator) ResolveType(typeName string, ctx *ExecutionContext) (types.Type, error) {
+	if ident.HasPrefix(typeName, "set of ") {
+		elementType, err := e.ResolveType(strings.TrimSpace(typeName[len("set of "):]), ctx)
+		if err != nil {
+			return nil, fmt.Errorf("invalid set element type: %w", err)
+		}
+		return types.NewSetType(elementType), nil
+	}
 	// Step 1: Handle inline array types first
 	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
 		return e.resolveInlineArrayType(typeName, ctx)
@@ -61,15 +68,17 @@ func (e *Evaluator) ResolveType(typeName string, ctx *ExecutionContext) (types.T
 		// "Const" redirects to VARIANT for dynamic typing
 		return types.VARIANT, nil
 	case "tclass":
-		if !e.typeSystem.HasClass("TObject") {
+		if e.typeSystem == nil || !e.typeSystem.HasClass("TObject") {
 			return nil, fmt.Errorf("unknown class type 'TObject'")
 		}
 		return types.NewClassOfType(types.NewClassType("TObject", nil)), nil
 	}
 
 	// Step 4: Check named array types via TypeSystem (direct access)
-	if arrayType := e.typeSystem.LookupArrayType(typeName); arrayType != nil {
-		return arrayType, nil
+	if e.typeSystem != nil {
+		if arrayType := e.typeSystem.LookupArrayType(typeName); arrayType != nil {
+			return arrayType, nil
+		}
 	}
 
 	// Step 5: Use evaluator's resolveTypeName for all other types
@@ -476,6 +485,12 @@ func (e *Evaluator) resolveInlineArrayTypeWithContext(typeName string, ctx *Exec
 func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression, ctx *ExecutionContext) (types.Type, error) {
 	if typeExpr == nil {
 		return nil, nil
+	}
+
+	if e.engineState != nil && e.SemanticInfo() != nil {
+		if resolved := e.SemanticInfo().GetResolvedType(typeExpr); resolved != nil {
+			return resolved, nil
+		}
 	}
 
 	switch node := typeExpr.(type) {

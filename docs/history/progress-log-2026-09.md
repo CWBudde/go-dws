@@ -263,3 +263,78 @@ Two guards, both confirmed to fail before the fix:
   `TypeExpression` node that needs the allowlist is on it.
 - `pkg/ast/visitor_record_type_test.go` — walks an inline `array of record … end` and asserts
   the record's field declarations are visited.
+
+## Phase 2: runtime classes, resolved semantic types, and builtin signatures (2026-09-08)
+
+### A6: runtime ownership of class metadata
+
+`ClassInfo`, `ClassValue`, `ClassInfoValue`, class metadata mutation, and class operator
+storage now live in `internal/interp/runtime`. Interpreter aliases and constructor wrappers
+preserve existing callers. The class registry stores `runtime.IClassInfo`, and class creation
+uses runtime constructors directly; `ClassInfoFactory` and `ClassValueFactory` are removed.
+Registry tests now use runtime classes and cover parent links and metaclass creation without
+factory setup. Record, enum, interface, and helper registry typing, plus removal of duplicate
+class AST maps, remain open under A6.
+
+### A5: retain the analyzer's type objects across execution
+
+`ast.SemanticInfo` now stores resolved `internal/types.Type` objects for AST nodes alongside
+its existing textual annotations. Expression analysis, contextual literal analysis, and type
+annotation resolution populate this table. Evaluator annotation consumers use the resolved
+objects before legacy lookup, including array elements, declarations, function signatures,
+overload selection, and set/array literal annotations. This preserves static bounds, nominal
+type identity, and metaclass ancestry without a second parse. Identity tests cover signed array
+bounds, enum-indexed arrays, inline function signatures, metaclasses, and contextual literals.
+Compatibility annotations may be shared by nodes and retain independent resolved bindings;
+clearing the whole semantic table clears those bindings too.
+
+A5 remains open: name-only runtime callers, duplicated declaration type construction, and
+explicitly untyped execution still need a migration policy before the old string parsers can
+be deleted.
+
+### Unit-aware frontend prerequisite completed
+
+The frontend resolves program-level `uses` through a unit registry, analyzes dependencies
+before their importers, and shares semantic metadata between all unit analyzers and the
+program. Units export interface declarations, including types, constants, variables, and
+functions; implementation dependencies, private declarations, bodies, initialization, and
+finalization receive analysis. The CLI's unit-specific type-check bypass is removed.
+
+CLI, embedding API, and fixture execution reuse analyzed unit ASTs. Repeated embedding runs
+clone mutable registry state and run initialization/finalization again, without rereading the
+unit files. `dwscript.WithUnitSearchPaths(...)` configures search directories. Regression tests
+cover dependency order, private/transitive visibility, qualified function calls, errors in
+programs and unit bodies, relative includes, cycles, and repeated execution after deleting
+source files. This closes the unit-aware frontend prerequisite in §3.2 and the unit declaration
+analysis TODO. Existing runtime unit environments remain flattened; semantic analysis enforces
+visibility for typed programs.
+
+### A9: shared validation for 78 additional builtin names
+
+Registry signatures now validate 78 further builtin names, including aliases and Print/PrintLn.
+The migration deletes 68 redundant analyzer functions. Diagnostic-only styles preserve old
+wording and alias display names without redefining arity, parameter types, or return types.
+Pre-change characterization tests cover 67 migrated analyzers, invalid arguments and counts, optional
+parameters, and exact diagnostic text. Additional tests verify registry ownership and aliases.
+Multi-argument diagnostic ordering, strict date/Variant constraints, signature discrepancies,
+and AST-dependent/polymorphic rules remain listed under A9.
+
+### Validation and result
+
+The full suite passes with `GOMAXPROCS=2 GOFLAGS=-buildvcs=false go test -p 2 -timeout 20m ./...`.
+`just fixture-update` passes and ratchets SimpleScripts **330 → 331**, overall **877 → 878**
+(878 / 1,928 scored, rounded to 46%). No category regressed. Workspace build/temp caches were
+used because the sandbox's default cache is read-only and `/tmp` lacked space. The first broad
+run exceeded the CLI package timeout under host memory pressure; reduced build concurrency
+completed it. `TestBinaryIsStale` now sets source timestamps explicitly so its newest-source
+assertion does not depend on the temporary filesystem's directory timestamp ordering.
+
+Fixture comparison caught a missed Variant exception in LeftStr; it retains its specialized
+handler and now has regression tests for Variant text and Variant aliases. The
+`HelpersPass/classname_helper1` stack overflow reproduces on both HEAD and current binaries;
+it has no `uses` clause and remains an existing isolated fixture failure.
+
+`go vet -p 2 ./...` and targeted race tests for semantic metadata and repeated unit execution
+(`go test -race -p 2 ./pkg/ast ./pkg/dwscript -run 'TestSemanticInfo|TestEngine_Unit' -count=1`)
+also pass. Full golangci-lint still reports the repository's existing backlog; the migration's
+new documentation, import, test-style, and unit-analysis complexity findings were corrected.

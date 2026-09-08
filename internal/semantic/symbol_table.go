@@ -31,6 +31,8 @@ type Symbol struct {
 // Unlike the interpreter's symbol table, this one tracks compile-time
 // type information for variables and functions.
 type SymbolTable struct {
+	// exportedTypes accompanies a unit interface scope when it is imported.
+	exportedTypes map[string]types.Type
 	// Current scope's symbols (case-insensitive via ident.Map)
 	symbols *ident.Map[*Symbol]
 

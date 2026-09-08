@@ -8,9 +8,7 @@ import (
 )
 
 // Mock types for testing (these mirror the real types in interp package)
-type mockClassInfo struct {
-	Name string
-}
+type mockClassInfo = runtime.ClassInfo
 
 type mockRecordTypeValue struct {
 	Metadata *runtime.RecordMetadata
@@ -88,7 +86,7 @@ func TestClassRegistryDelegation(t *testing.T) {
 	ts := NewTypeSystem()
 
 	// Test RegisterClass and LookupClass
-	// Note: ClassInfo is type alias for 'any', so we can pass any value
+	// Class registration accepts runtime class metadata.
 	mockClass := &mockClassInfo{Name: "TestClass"}
 	ts.RegisterClass("TestClass", mockClass)
 
@@ -164,27 +162,21 @@ func TestClassHierarchy(t *testing.T) {
 
 func TestTypeSystem_NewClassInfo(t *testing.T) {
 	ts := NewTypeSystem()
-
-	if _, err := ts.NewClassInfo("NoFactory"); err == nil {
-		t.Fatal("NewClassInfo() without ClassInfoFactory should fail")
-	}
-
-	expected := &mockClassInfo{Name: "Constructed"}
-	ts.ClassInfoFactory = func(className string) ClassInfo {
-		return &mockClassInfo{Name: className}
-	}
-
-	result, err := ts.NewClassInfo(expected.Name)
+	result, err := ts.NewClassInfo("Constructed")
 	if err != nil {
 		t.Fatalf("NewClassInfo() returned error: %v", err)
 	}
-
-	classInfo, ok := result.(*mockClassInfo)
-	if !ok {
-		t.Fatalf("NewClassInfo() returned %T, want *mockClassInfo", result)
+	ts.RegisterClass("Constructed", result)
+	value, err := ts.CreateClassValue("CONSTRUCTED")
+	if err != nil {
+		t.Fatalf("CreateClassValue() returned error: %v", err)
 	}
-	if classInfo.Name != expected.Name {
-		t.Fatalf("NewClassInfo().Name = %q, want %q", classInfo.Name, expected.Name)
+	classValue, ok := value.(interface{ GetClassInfo() runtime.IClassInfo })
+	if !ok || classValue.GetClassInfo().GetName() != "Constructed" {
+		t.Fatalf("unexpected class value: %v", value)
+	}
+	if _, err := ts.CreateClassValue("Missing"); err == nil {
+		t.Fatal("missing class must return an error")
 	}
 }
 

@@ -2,6 +2,8 @@ package ast
 
 import (
 	"sync"
+
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================
@@ -69,17 +71,19 @@ import (
 // writes. Typical usage is single-threaded analysis (writes) followed by
 // concurrent interpretation/compilation (reads).
 type SemanticInfo struct {
-	types   map[Expression]*TypeAnnotation
-	symbols map[*Identifier]interface{}
-	mu      sync.RWMutex
+	resolvedTypes map[Node]types.Type
+	types         map[Expression]*TypeAnnotation
+	symbols       map[*Identifier]interface{}
+	mu            sync.RWMutex
 }
 
 // NewSemanticInfo creates a new empty semantic metadata table.
 // Each semantic analysis should create its own SemanticInfo instance.
 func NewSemanticInfo() *SemanticInfo {
 	return &SemanticInfo{
-		types:   make(map[Expression]*TypeAnnotation),
-		symbols: make(map[*Identifier]interface{}),
+		resolvedTypes: make(map[Node]types.Type),
+		types:         make(map[Expression]*TypeAnnotation),
+		symbols:       make(map[*Identifier]interface{}),
 	}
 }
 
@@ -104,6 +108,7 @@ func (si *SemanticInfo) GetType(expr Expression) *TypeAnnotation {
 func (si *SemanticInfo) SetType(expr Expression, typ *TypeAnnotation) {
 	si.mu.Lock()
 	defer si.mu.Unlock()
+	delete(si.resolvedTypes, expr)
 	si.types[expr] = typ
 }
 
@@ -118,12 +123,15 @@ func (si *SemanticInfo) HasType(expr Expression) bool {
 }
 
 // ClearType removes type information for an expression.
-// Useful for error recovery or incremental re-analysis.
+// Useful for error recovery or incremental re-analysis. Resolved annotations
+// remain independent node bindings until Clear, since other expressions may
+// share them.
 //
 // Not safe for concurrent writes.
 func (si *SemanticInfo) ClearType(expr Expression) {
 	si.mu.Lock()
 	defer si.mu.Unlock()
+	delete(si.resolvedTypes, expr)
 	delete(si.types, expr)
 }
 
@@ -198,6 +206,36 @@ func (si *SemanticInfo) SymbolCount() int {
 func (si *SemanticInfo) Clear() {
 	si.mu.Lock()
 	defer si.mu.Unlock()
+	si.resolvedTypes = make(map[Node]types.Type)
 	si.types = make(map[Expression]*TypeAnnotation)
 	si.symbols = make(map[*Identifier]interface{})
+}
+
+// GetResolvedType returns the analyzer's type object for an expression or type
+// annotation. Consumers must treat it as read-only after analysis. Unlike
+// GetType, this preserves bounds, signatures, and nominal identity.
+func (si *SemanticInfo) GetResolvedType(node Node) types.Type {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	return si.resolvedTypes[node]
+}
+
+// SetResolvedType records a resolved type without converting it to source text.
+// If node has a compatibility annotation, that annotation shares the type so
+// existing annotation consumers can migrate without reconstructing it.
+func (si *SemanticInfo) SetResolvedType(node Node, typ types.Type) {
+	if node == nil || typ == nil {
+		return
+	}
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	if si.resolvedTypes == nil {
+		si.resolvedTypes = make(map[Node]types.Type)
+	}
+	si.resolvedTypes[node] = typ
+	if expr, ok := node.(Expression); ok {
+		if annot := si.types[expr]; annot != nil {
+			si.resolvedTypes[annot] = typ
+		}
+	}
 }

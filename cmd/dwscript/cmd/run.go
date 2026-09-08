@@ -268,17 +268,14 @@ func compileRunInput(input, filename string) (cs *compiledScript, done bool, err
 	cs = &compiledScript{input: input, filename: filename, program: parsed.Program}
 	cs.compiledProgram = cs.program
 	cs.usedUnits = extractUsedUnits(cs.program)
-	hasUnits := len(cs.usedUnits) > 0
 
 	// Unit search paths (shared by interpreter + bytecode modes)
 	cs.searchPaths = append([]string{}, unitSearchPaths...)
 	if len(cs.searchPaths) == 0 && filename != "<eval>" {
 		cs.searchPaths = append(cs.searchPaths, filepath.Dir(filename))
 	}
-	// Semantic analysis is skipped for unit-using programs: neither the analyzer nor
-	// the frontend resolves program-level `uses` yet (PLAN.md §3.2), so unit symbols
-	// would all be reported as unknown. This is the only place that bypass lives.
-	compileOpts.SkipTypeCheck = !typeCheck || hasUnits
+	compileOpts.SkipTypeCheck = !typeCheck
+	compileOpts.UnitSearchPaths = cs.searchPaths
 	cs.result = frontend.AnalyzeParsed(parsed, input, compileOpts)
 	if cs.result.HasFatalDiagnostics() || (cs.result.SemanticAttempted && !cs.result.SemanticSuccessful) {
 		return nil, false, reportCompileFailure(cs.result, input, filename)
@@ -289,9 +286,6 @@ func compileRunInput(input, filename string) (cs *compiledScript, done bool, err
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to prepare bytecode program: %w", err)
 		}
-	}
-	if verbose && typeCheck && hasUnits {
-		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
 	}
 	cs.envelopeMsgs, done = reportCompileMessages(cs.result, wantHints)
 	return cs, done, nil
@@ -375,23 +369,34 @@ func executeScript(cs *compiledScript) error {
 // the program uses. loaded reports whether any unit was initialized (and therefore
 // needs finalizing).
 func loadUnits(interpreter *interp.Interpreter, cs *compiledScript) (loaded bool, err error) {
-	if len(cs.searchPaths) == 0 || len(cs.usedUnits) == 0 {
+	if len(cs.usedUnits) == 0 {
 		return false, nil
 	}
-	interpreter.SetUnitRegistry(units.NewUnitRegistry(cs.searchPaths))
+	registry := cs.result.UnitRegistry
+	if registry == nil {
+		registry = units.NewUnitRegistry(cs.searchPaths)
+	}
+	interpreter.SetUnitRegistry(registry)
 	if verbose {
 		fmt.Fprintf(os.Stderr, "Loading %d unit(s)...\n", len(cs.usedUnits))
 	}
 	for _, unitName := range cs.usedUnits {
-		unit, err := interpreter.LoadUnit(unitName, nil)
+		_, err := interpreter.LoadUnit(unitName, nil)
 		if err != nil {
 			return false, fmt.Errorf("failed to load unit '%s': %w", unitName, err)
 		}
-		if err := interpreter.ImportUnitSymbols(unit); err != nil {
-			return false, fmt.Errorf("failed to import symbols from unit '%s': %w", unitName, err)
-		}
 		if verbose {
 			fmt.Fprintf(os.Stderr, "  ✓ Loaded unit: %s\n", unitName)
+		}
+	}
+	order, err := registry.ComputeInitializationOrder()
+	if err != nil {
+		return false, err
+	}
+	for _, name := range order {
+		unit, _ := registry.GetUnit(name)
+		if err := interpreter.ImportUnitSymbols(unit); err != nil {
+			return false, err
 		}
 	}
 	if err := interpreter.InitializeUnits(); err != nil {

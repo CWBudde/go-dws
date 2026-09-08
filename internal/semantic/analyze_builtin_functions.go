@@ -17,8 +17,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// Normalize function name to lowercase for case-insensitive matching
 	lowerName := ident.Normalize(name)
 
-	// AST-sensitive and diagnostic-specific builtins retain explicit analyzers.
-	// Ordinary calls use the runtime registry's signature below.
+	// Calls with specialized semantic rules retain explicit analyzers. Ordinary
+	// calls consume registry signatures and diagnostic wording below.
 
 	// Emit a hint when the case of a built-in differs from its declaration.
 	if lowerName == "assigned" && name != "Assigned" {
@@ -26,7 +26,7 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		a.addCaseMismatchHint(name, "Assigned", pos)
 	}
 
-	// Dispatch only where AST-sensitive or diagnostic-specific rules are needed.
+	// Dispatch only where specialized semantic rules are needed.
 	switch lowerName {
 	// These calls have dedicated analysis later in analyzeFunctionCall. Their
 	// result depends on argument types (array elements or the accumulator), or
@@ -34,10 +34,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	case "map", "filter", "reduce", "foreach", "every", "some", "find", "findindex", "slice",
 		"getcallstack", "assert":
 		return nil, false
-
-	// I/O Functions
-	case "println", "print":
-		return a.analyzePrintLn(args), true
 
 	// Type Conversion
 	case "ord", "integer":
@@ -52,16 +48,10 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeStrToInt(args, callExpr), true
 	case "booltostr":
 		return a.analyzeBoolToStr(args, callExpr), true
-	case "strtofloat":
-		return a.analyzeStrToFloat(args, callExpr), true
-	case "vartostr":
-		return a.analyzeVarToStr(args, callExpr), true
 	case "floattostr":
 		return a.analyzeFloatToStr(args, callExpr), true
 	case "floattostrf":
 		return a.analyzeFloatToStrF(args, callExpr), true
-	case "strtobool":
-		return a.analyzeStrToBool(args, callExpr), true
 	case "strtointdef":
 		return a.analyzeStrToIntDef(args, callExpr), true
 	case "strtofloatdef":
@@ -70,10 +60,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeTryStrToInt(args, callExpr), true
 	case "trystrtofloat":
 		return a.analyzeTryStrToFloat(args, callExpr), true
-	case "hextoint":
-		return a.analyzeHexToInt(args, callExpr), true
-	case "bintoint":
-		return a.analyzeBinToInt(args, callExpr), true
 	case "vartointdef":
 		return a.analyzeVarToIntDef(args, callExpr), true
 	case "vartofloatdef":
@@ -84,10 +70,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeDefault(args, callExpr), true
 	case "charat":
 		return a.analyzeCharAt(args, callExpr), true
-	case "bytesizetostr":
-		return a.analyzeByteSizeToStr(args, callExpr), true
-	case "gettext", "_":
-		return a.analyzeGetText(args, callExpr), true
 
 	// Array Functions
 	case "low":
@@ -114,10 +96,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeConcat(args, callExpr), true
 	case "pos":
 		return a.analyzePos(args, callExpr), true
-	case "uppercase", "asciiuppercase", "ansiuppercase":
-		return a.analyzeUpperCase(args, callExpr), true
-	case "lowercase", "asciilowercase", "ansilowercase":
-		return a.analyzeLowerCase(args, callExpr), true
 	case "trim":
 		return a.analyzeTrim(args, callExpr), true
 	case "trimleft":
@@ -140,20 +118,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeSubString(args, callExpr), true
 	case "leftstr":
 		return a.analyzeLeftStr(args, callExpr), true
-	case "rightstr":
-		return a.analyzeRightStr(args, callExpr), true
 	case "midstr":
 		return a.analyzeMidStr(args, callExpr), true
-	case "strbeginswith":
-		return a.analyzeStrBeginsWith(args, callExpr), true
-	case "strendswith":
-		return a.analyzeStrEndsWith(args, callExpr), true
-	case "strcontains":
-		return a.analyzeStrContains(args, callExpr), true
-	case "posex":
-		return a.analyzePosEx(args, callExpr), true
-	case "revpos":
-		return a.analyzeRevPos(args, callExpr), true
 	case "strfind":
 		return a.analyzeStrFind(args, callExpr), true
 	case "strsplit":
@@ -162,56 +128,10 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeStrJoin(args, callExpr), true
 	case "strarraypack":
 		return a.analyzeStrArrayPack(args, callExpr), true
-	case "strbefore":
-		return a.analyzeStrBefore(args, callExpr), true
-	case "strbeforelast":
-		return a.analyzeStrBeforeLast(args, callExpr), true
-	case "strafter":
-		return a.analyzeStrAfter(args, callExpr), true
-	case "strafterlast":
-		return a.analyzeStrAfterLast(args, callExpr), true
-	case "strbetween":
-		return a.analyzeStrBetween(args, callExpr), true
-	case "isdelimiter":
-		return a.analyzeIsDelimiter(args, callExpr), true
-	case "lastdelimiter":
-		return a.analyzeLastDelimiter(args, callExpr), true
 	case "finddelimiter":
 		return a.analyzeFindDelimiter(args, callExpr), true
-	case "padleft":
-		return a.analyzePadLeft(args, callExpr), true
-	case "padright":
-		return a.analyzePadRight(args, callExpr), true
-	case "strdeleteleft", "deleteleft":
-		return a.analyzeStrDeleteLeft(args, callExpr), true
-	case "strdeleteright", "deleteright":
-		return a.analyzeStrDeleteRight(args, callExpr), true
-	case "reversestring":
-		return a.analyzeReverseString(args, callExpr), true
-	case "quotedstr":
-		return a.analyzeQuotedStr(args, callExpr), true
-	case "stringofstring", "dupestring":
-		return a.analyzeStringOfString(args, callExpr), true
-	case "normalizestring", "normalize":
-		return a.analyzeNormalizeString(args, callExpr), true
-	case "stripaccents":
-		return a.analyzeStripAccents(args, callExpr), true
-	case "sametext":
-		return a.analyzeSameText(args, callExpr), true
-	case "comparetext":
-		return a.analyzeCompareText(args, callExpr), true
-	case "comparestr":
-		return a.analyzeCompareStr(args, callExpr), true
-	case "ansicomparetext":
-		return a.analyzeAnsiCompareText(args, callExpr), true
-	case "ansicomparestr":
-		return a.analyzeAnsiCompareStr(args, callExpr), true
 	case "comparelocalestr":
 		return a.analyzeCompareLocaleStr(args, callExpr), true
-	case "strmatches":
-		return a.analyzeStrMatches(args, callExpr), true
-	case "strisascii":
-		return a.analyzeStrIsASCII(args, callExpr), true
 
 	// Encoding/Escaping Functions
 	case "strtoxml":
@@ -236,8 +156,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeSqr(args, callExpr), true
 	case "power":
 		return a.analyzePower(args, callExpr), true
-	case "sqrt":
-		return a.analyzeSqrt(args, callExpr), true
 
 	// Math Functions - Trigonometric
 	case "arctan2":
@@ -245,15 +163,7 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	case "hypot":
 		return a.analyzeHypot(args, callExpr), true
 
-	// Math Functions - Hyperbolic
-
 	// Math Functions - Random
-	case "random":
-		return a.analyzeRandom(args, callExpr), true
-	case "randomint":
-		return a.analyzeRandomInt(args, callExpr), true
-	case "unsigned32":
-		return a.analyzeUnsigned32(args, callExpr), true
 	case "randomize":
 		return a.analyzeRandomize(args, callExpr), true
 	case "setrandseed":
@@ -262,56 +172,22 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeIsNaN(args, callExpr), true
 
 	// Math Functions - Exponential/Logarithmic
-	case "exp":
-		return a.analyzeExp(args, callExpr), true
-	case "ln":
-		return a.analyzeLn(args, callExpr), true
-	case "log2":
-		return a.analyzeLog2(args, callExpr), true
-	case "log10":
-		return a.analyzeLog10(args, callExpr), true
 	case "logn":
 		return a.analyzeLogN(args, callExpr), true
-	case "pi":
-		return a.analyzePi(args, callExpr), true
 	case "sign":
 		return a.analyzeSign(args, callExpr), true
-	case "odd":
-		return a.analyzeOdd(args, callExpr), true
-	case "frac":
-		return a.analyzeFrac(args, callExpr), true
-	case "int":
-		return a.analyzeInt(args, callExpr), true
-	case "infinity":
-		return a.analyzeInfinity(args, callExpr), true
-	case "nan":
-		return a.analyzeNaN(args, callExpr), true
-	case "isfinite":
-		return a.analyzeIsFinite(args, callExpr), true
-	case "isinfinite":
-		return a.analyzeIsInfinite(args, callExpr), true
 	case "intpower":
 		return a.analyzeIntPower(args, callExpr), true
-	case "randseed":
-		return a.analyzeRandSeed(args, callExpr), true
 	case "randg":
 		return a.analyzeRandG(args, callExpr), true
 	case "divmod":
 		return a.analyzeDivMod(args, callExpr), true
 
 	// Math Functions - Advanced
-	case "factorial":
-		return a.analyzeFactorial(args, callExpr), true
 	case "gcd":
 		return a.analyzeGcd(args, callExpr), true
 	case "lcm":
 		return a.analyzeLcm(args, callExpr), true
-	case "isprime":
-		return a.analyzeIsPrime(args, callExpr), true
-	case "leastfactor":
-		return a.analyzeLeastFactor(args, callExpr), true
-	case "popcount":
-		return a.analyzePopCount(args, callExpr), true
 	case "testbit":
 		return a.analyzeTestBit(args, callExpr), true
 	case "haversine":
@@ -322,12 +198,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// Math Functions - Rounding
 	case "round":
 		return a.analyzeRound(args, callExpr), true
-	case "trunc":
-		return a.analyzeTrunc(args, callExpr), true
-	case "ceil":
-		return a.analyzeCeil(args, callExpr), true
-	case "floor":
-		return a.analyzeFloor(args, callExpr), true
 
 	// Math Functions - Ordinal
 	case "inc":
@@ -338,16 +208,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeSucc(args, callExpr), true
 	case "pred":
 		return a.analyzePred(args, callExpr), true
-	case "assigned":
-		return a.analyzeAssigned(args, callExpr), true
 	case "swap":
 		return a.analyzeSwap(args, callExpr), true
-
-	// Date/Time Functions - Current time
-	case "unixtime":
-		return a.analyzeUnixTime(args, callExpr), true
-	case "unixtimemsec":
-		return a.analyzeUnixTimeMSec(args, callExpr), true
 
 	// Date/Time Functions - Encoding
 	case "encodedate":
@@ -466,8 +328,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// JSON Functions
 	case "parsejson":
 		return a.analyzeParseJSON(args, callExpr), true
-	case "tojson":
-		return a.analyzeToJSON(args, callExpr), true
 	case "tojsonformatted":
 		return a.analyzeToJSONFormatted(args, callExpr), true
 	case "jsonhasfield":
@@ -476,8 +336,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeJSONKeys(args, callExpr), true
 	case "jsonvalues":
 		return a.analyzeJSONValues(args, callExpr), true
-	case "jsonlength":
-		return a.analyzeJSONLength(args, callExpr), true
 
 	// Variant Functions
 	case "vartype":
@@ -532,16 +390,6 @@ func (a *Analyzer) getBuiltinReturnType(name string) (types.Type, bool) {
 // ============================================================================
 // Individual Built-in Function Analyzers
 // ============================================================================
-
-// analyzePrintLn analyzes the PrintLn/Print built-in function.
-// These functions accept any number of arguments of any type and return void.
-func (a *Analyzer) analyzePrintLn(args []ast.Expression) types.Type {
-	// Analyze arguments for side effects (but accept any type)
-	for _, arg := range args {
-		a.analyzeExpression(arg)
-	}
-	return types.VOID
-}
 
 // analyzeOrd analyzes the Ord/Integer built-in function.
 // These functions take one argument and return an integer.

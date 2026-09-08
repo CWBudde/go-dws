@@ -43,6 +43,12 @@ func TestBinaryIsStale(t *testing.T) {
 	if err := os.WriteFile(src, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// Directory creation timestamps can be newer than a new file's timestamp
+	// on disk-backed temporary directories. Make the intended ordering explicit.
+	sourceTime := time.Now().Add(time.Minute)
+	if err := os.Chtimes(src, sourceTime, sourceTime); err != nil {
+		t.Fatal(err)
+	}
 	stale, newest, err := binaryIsStale(bin, []string{src})
 	if err != nil {
 		t.Fatal(err)

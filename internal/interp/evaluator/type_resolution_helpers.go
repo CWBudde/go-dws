@@ -91,6 +91,12 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 				return nil, fmt.Errorf("type '%s' is registered as record but does not provide RecordType (internal error)", typeName)
 			}
 
+			if setValue, ok := ctx.Env().Get("__set_type_" + normalizedName); ok {
+				if provider, ok := setValue.(interface{ GetSetType() *types.SetType }); ok {
+					return provider.GetSetType(), nil
+				}
+			}
+
 			// Try type alias (stored in environment with "__type_alias_" prefix)
 			if typeAliasVal, ok := ctx.Env().Get("__type_alias_" + normalizedName); ok {
 				// Extract aliased type using interface method
@@ -230,23 +236,10 @@ func (e *Evaluator) parseInlineArrayType(signature string, ctx *ExecutionContext
 // resolveArrayElementType resolves an array's element type expression (which may
 // itself be a nested array).
 func (e *Evaluator) resolveArrayElementType(elementExpr ast.TypeExpression, ctx *ExecutionContext) types.Type {
-	if nestedArray, ok := elementExpr.(*ast.ArrayTypeNode); ok {
-		// A nested element may itself be associative.
-		if assoc := e.resolveAssociativeArrayTypeNode(nestedArray, ctx); assoc != nil {
-			return assoc
-		}
-		if arr := e.resolveArrayTypeNode(nestedArray, ctx); arr != nil {
-			return arr
-		}
+	if elementExpr == nil {
 		return nil
 	}
-	var elementTypeName string
-	if typeAnnot, ok := elementExpr.(*ast.TypeAnnotation); ok {
-		elementTypeName = typeAnnot.Name
-	} else {
-		elementTypeName = elementExpr.String()
-	}
-	elementType, err := e.resolveTypeName(elementTypeName, ctx)
+	elementType, err := e.ResolveTypeFromAnnotation(elementExpr, ctx)
 	if err != nil {
 		return nil
 	}
@@ -260,7 +253,7 @@ func (e *Evaluator) resolveAssociativeArrayTypeNode(arrayNode *ast.ArrayTypeNode
 	if arrayNode == nil || !arrayNode.IsEnumIndexed() {
 		return nil
 	}
-	indexType, err := e.resolveTypeName(arrayNode.IndexType.String(), ctx)
+	indexType, err := e.ResolveTypeFromAnnotation(arrayNode.IndexType, ctx)
 	if err != nil {
 		return nil
 	}
@@ -294,8 +287,7 @@ func (e *Evaluator) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode, ctx *Exec
 
 	// Ordinal-indexed array (enum, boolean, subrange)
 	if arrayNode.IsEnumIndexed() {
-		indexTypeName := arrayNode.IndexType.String()
-		indexType, err := e.resolveTypeName(indexTypeName, ctx)
+		indexType, err := e.ResolveTypeFromAnnotation(arrayNode.IndexType, ctx)
 		if err != nil {
 			return nil
 		}

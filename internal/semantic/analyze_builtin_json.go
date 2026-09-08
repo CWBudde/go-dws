@@ -27,20 +27,6 @@ func (a *Analyzer) analyzeParseJSON(args []ast.Expression, callExpr *ast.CallExp
 	return types.VARIANT
 }
 
-// analyzeToJSON analyzes the ToJSON built-in function.
-// ToJSON takes one argument of any type and returns a string.
-func (a *Analyzer) analyzeToJSON(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'ToJSON' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.STRING
-	}
-	// Analyze the argument (can be any type)
-	a.analyzeExpression(args[0])
-	// Returns String
-	return types.STRING
-}
-
 // analyzeToJSONFormatted analyzes the ToJSONFormatted built-in function.
 // ToJSONFormatted takes one or two arguments (value, [indent]) and returns a string.
 // The indent parameter is optional and defaults to a standard indentation.
@@ -110,18 +96,4 @@ func (a *Analyzer) analyzeJSONValues(args []ast.Expression, callExpr *ast.CallEx
 	a.analyzeExpression(args[0])
 	// Returns array of Variant
 	return types.NewDynamicArrayType(types.VARIANT)
-}
-
-// analyzeJSONLength analyzes the JSONLength built-in function.
-// JSONLength takes one argument (json object/array) and returns an integer.
-func (a *Analyzer) analyzeJSONLength(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'JSONLength' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-	// Analyze argument
-	a.analyzeExpression(args[0])
-	// Returns Integer
-	return types.INTEGER
 }

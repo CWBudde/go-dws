@@ -293,6 +293,11 @@ func main() {
 
 For more examples and API documentation, see the [pkg/dwscript](https://pkg.go.dev/github.com/cwbudde/go-dws/pkg/dwscript) package documentation.
 
+For scripts that import units, configure their directories with
+`dwscript.New(dwscript.WithUnitSearchPaths("./scripts", "./lib"))`. Compilation
+checks unit dependencies and the program together. Execution reuses the analyzed
+unit ASTs and runs unit initialization and finalization for each run.
+
 ## LSP & IDE Integration
 
 go-dws provides a rich API designed for Language Server Protocol (LSP) implementations and IDE tooling:

@@ -98,8 +98,8 @@ func TestRun_HintsOffSuppressesHints(t *testing.T) {
 	}
 }
 
-// Unit-using programs still run; semantic analysis is skipped for them (explicit bypass).
-func TestRun_UnitsBypassStillRuns(t *testing.T) {
+// Unit programs execute after the shared frontend resolves and checks their dependencies.
+func TestRun_UnitsTypeChecked(t *testing.T) {
 	dir := t.TempDir()
 	unit := "unit U;\ninterface\nfunction Twice(a: Integer): Integer;\nimplementation\nfunction Twice(a: Integer): Integer;\nbegin\n  Result := a * 2;\nend;\nend."
 	if err := os.WriteFile(filepath.Join(dir, "U.dws"), []byte(unit), 0o644); err != nil {
@@ -161,5 +161,20 @@ func TestRun_NoArgsKeepsUsage(t *testing.T) {
 	_, err := captureRun(t, "", nil, func() { evalExpr = "" })
 	if err == nil || runCmd.SilenceUsage {
 		t.Fatalf("expected a usage error with usage enabled, err=%v silenced=%v", err, runCmd.SilenceUsage)
+	}
+}
+
+func TestRun_UnitProgramRejectsTypeErrors(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "U.dws"), []byte("unit U; interface implementation end."), 0600); err != nil {
+		t.Fatal(err)
+	}
+	main := filepath.Join(dir, "main.dws")
+	if err := os.WriteFile(main, []byte("uses U; var n: Integer := 'bad';"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	out, err := captureRun(t, "", []string{main}, func() { evalExpr = ""; typeCheck = true })
+	if err == nil || !strings.Contains(out, "Cannot assign String to Integer") {
+		t.Fatalf("err=%v output=%s", err, out)
 	}
 }

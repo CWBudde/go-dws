@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-09-07
+**Generated**: 2026-09-08
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 877 |
-| Failed | 1051 |
+| Passed | 878 |
+| Failed | 1050 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **45%** (877/1928) |
+| **Scored pass rate** | **46%** (878/1928) |
 
 ## Per-category
 
@@ -78,7 +78,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | PropertyExpressionsPass | 19 | 10 | 9 | 0 | 53% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
 | SetOfPass | 25 | 20 | 5 | 0 | 80% |
-| SimpleScripts | 442 | 330 | 105 | 7 | 76% |
+| SimpleScripts | 442 | 331 | 104 | 7 | 76% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

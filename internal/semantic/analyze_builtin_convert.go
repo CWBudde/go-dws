@@ -198,36 +198,6 @@ func (a *Analyzer) analyzeBoolToStr(args []ast.Expression, callExpr *ast.CallExp
 	return types.STRING
 }
 
-// analyzeStrToFloat analyzes the StrToFloat built-in function.
-// StrToFloat takes one string argument and returns a float.
-func (a *Analyzer) analyzeStrToFloat(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'StrToFloat' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.FLOAT
-	}
-	// Analyze the argument and verify it's String
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.STRING {
-		a.addError("function 'StrToFloat' expects String as argument, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-	return types.FLOAT
-}
-
-// analyzeVarToStr analyzes the VarToStr built-in function.
-// VarToStr takes one variant argument and returns a string.
-func (a *Analyzer) analyzeVarToStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'VarToStr' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.STRING
-	}
-	// Analyze the argument (accepts any type - variant)
-	a.analyzeExpression(args[0])
-	return types.STRING
-}
-
 // analyzeFloatToStr analyzes the FloatToStr built-in function.
 // FloatToStr takes a float (or integer) and optional precision and returns a string.
 func (a *Analyzer) analyzeFloatToStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
@@ -295,23 +265,6 @@ func (a *Analyzer) analyzeFloatToStrF(args []ast.Expression, callExpr *ast.CallE
 		}
 	}
 	return types.STRING
-}
-
-// analyzeStrToBool analyzes the StrToBool built-in function.
-// StrToBool takes one string argument and returns a boolean.
-func (a *Analyzer) analyzeStrToBool(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'StrToBool' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-	// Analyze the argument and verify it's String
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.STRING {
-		a.addError("function 'StrToBool' expects String as argument, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-	return types.BOOLEAN
 }
 
 // analyzeChr analyzes the Chr built-in function.
@@ -529,40 +482,6 @@ func (a *Analyzer) analyzeTryStrToFloat(args []ast.Expression, callExpr *ast.Cal
 		}
 	}
 	return types.BOOLEAN
-}
-
-// analyzeHexToInt analyzes the HexToInt built-in function.
-// HexToInt takes one string argument (hexadecimal) and returns an integer.
-func (a *Analyzer) analyzeHexToInt(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'HexToInt' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-	// Analyze the argument and verify it's String
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.STRING {
-		a.addError("function 'HexToInt' expects String as argument, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-	return types.INTEGER
-}
-
-// analyzeBinToInt analyzes the BinToInt built-in function.
-// BinToInt takes one string argument (binary) and returns an integer.
-func (a *Analyzer) analyzeBinToInt(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'BinToInt' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-	// Analyze the argument and verify it's String
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.STRING {
-		a.addError("function 'BinToInt' expects String as argument, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-	return types.INTEGER
 }
 
 // analyzeVarToIntDef analyzes the VarToIntDef built-in function.

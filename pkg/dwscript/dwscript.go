@@ -28,6 +28,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/interp"
 	"github.com/cwbudde/go-dws/internal/semantic"
+	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -61,12 +62,11 @@ func New(opts ...Option) (*Engine, error) {
 // This is useful when you want to compile once and run many times,
 // as it avoids re-parsing and re-checking the source code.
 func (e *Engine) Compile(source string) (*Program, error) {
-	var result *frontend.Result
-	if e.options.TypeCheck {
-		result = frontend.Compile(source, "", semantic.HintsLevelPedantic)
-	} else {
-		result = frontend.Parse(source)
-	}
+	result := frontend.CompileWithOptions(source, frontend.Options{
+		HintsLevel:      semantic.HintsLevelPedantic,
+		SkipTypeCheck:   !e.options.TypeCheck,
+		UnitSearchPaths: e.options.UnitSearchPaths,
+	})
 
 	if result.HasFatalDiagnostics() {
 		return nil, compileErrorFromFrontend(result)
@@ -94,6 +94,7 @@ func (e *Engine) Compile(source string) (*Program, error) {
 
 	return &Program{
 		ast:           program,
+		unitRegistry:  result.UnitRegistry,
 		analyzer:      analyzer,
 		semanticInfo:  semanticInfo,
 		options:       e.options,
@@ -281,7 +282,13 @@ func (e *Engine) runInterpreter(program *Program, output io.Writer) (*Result, er
 	if program.semanticInfo != nil {
 		interpreter.SetSemanticInfo(program.semanticInfo)
 	}
+	if err := prepareProgramUnits(interpreter, program); err != nil {
+		return nil, &RuntimeError{Message: err.Error()}
+	}
 	value := interpreter.Eval(program.ast)
+	if err := interpreter.FinalizeUnits(); err != nil {
+		return &Result{Output: extractOutput(output)}, &RuntimeError{Message: err.Error()}
+	}
 
 	if value != nil && value.Type() == "ERROR" {
 		return &Result{
@@ -364,6 +371,7 @@ func (e *Engine) Eval(source string) (*Result, error) {
 // Program represents a compiled DWScript program.
 // It can be executed multiple times without re-compilation.
 type Program struct {
+	unitRegistry  *units.UnitRegistry
 	ast           *ast.Program
 	analyzer      *semantic.Analyzer
 	semanticInfo  *ast.SemanticInfo
@@ -484,4 +492,34 @@ func (e *RuntimeError) Error() string {
 // This is used internally by the engine but exposed for advanced use cases.
 func (e *Engine) SetOutput(w io.Writer) {
 	e.options.Output = w
+}
+
+func prepareProgramUnits(interpreter *interp.Interpreter, program *Program) error {
+	registry := program.unitRegistry
+	if registry != nil {
+		registry = registry.CloneForExecution()
+	} else {
+		registry = units.NewUnitRegistry(program.options.UnitSearchPaths)
+	}
+	interpreter.SetUnitRegistry(registry)
+	for _, stmt := range program.ast.Statements {
+		if uses, ok := stmt.(*ast.UsesClause); ok {
+			for _, name := range uses.Units {
+				if _, err := interpreter.LoadUnit(name.Value, nil); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	order, err := registry.ComputeInitializationOrder()
+	if err != nil {
+		return err
+	}
+	for _, name := range order {
+		unit, _ := registry.GetUnit(name)
+		if err := interpreter.ImportUnitSymbols(unit); err != nil {
+			return err
+		}
+	}
+	return interpreter.InitializeUnits()
 }

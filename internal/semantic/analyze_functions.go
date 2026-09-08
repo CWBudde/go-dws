@@ -142,7 +142,7 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 	// Determine return type
 	if decl.ReturnType != nil {
 		var err error
-		returnType, err = a.resolveType(getTypeExpressionName(decl.ReturnType))
+		returnType, err = a.resolveTypeExpression(decl.ReturnType)
 		if err != nil {
 			a.addError("unknown return type '%s' in function '%s': %v",
 				getTypeExpressionName(decl.ReturnType), decl.Name.Value, err)

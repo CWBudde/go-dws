@@ -34,8 +34,6 @@ type TypeSystem struct {
 	classRegistry        *ClassRegistry                      // Class registry
 	recordTypeIDs        *ident.Map[int]                     // RTTI record type IDs
 	enumTypeIDs          *ident.Map[int]                     // RTTI enum type IDs
-	ClassInfoFactory     func(className string) ClassInfo    // Factory for concrete ClassInfo allocation
-	ClassValueFactory    func(classInfo ClassInfo) any       // Factory for ClassValue creation
 	nextRecordTypeID     int                                 // Next available record type ID
 	nextEnumTypeID       int                                 // Next available enum type ID
 	nextClassTypeID      int                                 // Next available class type ID
@@ -93,27 +91,22 @@ func (ts *TypeSystem) LookupClass(name string) ClassInfo {
 	return info
 }
 
-// CreateClassValue creates a ClassValue (metaclass reference) from a class name.
-// Returns the ClassValue (as any to avoid circular imports) and an error if the class is not found.
-func (ts *TypeSystem) CreateClassValue(className string) (any, error) {
+// CreateClassValue creates a metaclass reference for a registered runtime class.
+func (ts *TypeSystem) CreateClassValue(className string) (runtime.Value, error) {
 	classInfo := ts.LookupClass(className)
 	if classInfo == nil {
 		return nil, fmt.Errorf("class '%s' not found", className)
 	}
-	if ts.ClassValueFactory == nil {
-		return nil, fmt.Errorf("ClassValueFactory not initialized")
+	concrete, ok := classInfo.(*runtime.ClassInfo)
+	if !ok {
+		return nil, fmt.Errorf("class '%s' does not support metaclass references", className)
 	}
-	return ts.ClassValueFactory(classInfo), nil
+	return &runtime.ClassValue{ClassInfo: concrete}, nil
 }
 
-// NewClassInfo allocates a new concrete class info value using the configured factory.
-// This keeps class allocation on the canonical type-system boundary without requiring
-// evaluator code to depend on the interp package directly.
+// NewClassInfo allocates initialized runtime class metadata.
 func (ts *TypeSystem) NewClassInfo(className string) (ClassInfo, error) {
-	if ts.ClassInfoFactory == nil {
-		return nil, fmt.Errorf("ClassInfoFactory not initialized")
-	}
-	return ts.ClassInfoFactory(className), nil
+	return runtime.NewClassInfo(className), nil
 }
 
 // HasClass checks if a class with the given name exists.
@@ -550,9 +543,11 @@ func (ts *TypeSystem) GetEnumTypeID(enumName string) int {
 }
 
 // ========== Type Information ==========
-// Type aliases use 'any' to avoid circular dependencies with the interp package.
+// ClassInfo is the typed runtime class interface. Other registries still use
+// compatibility aliases pending their runtime metadata migration.
 
-type ClassInfo = any       // Expected: *interp.ClassInfo
+// ClassInfo provides runtime class metadata to the type registry.
+type ClassInfo = runtime.IClassInfo
 type RecordTypeValue = any // Expected: *interp.RecordTypeValue
 type InterfaceInfo = any   // Expected: *interp.InterfaceInfo
 type HelperInfo = any      // Expected: *interp.HelperInfo
@@ -779,17 +774,5 @@ func conversionKey(from, to string) string {
 // are returned normalized. All other types get a "class:" prefix.
 // This function is used for consistent operator registration and lookup.
 func NormalizeTypeAnnotation(name string) string {
-	trimmed := strings.TrimSpace(name)
-	normalized := ident.Normalize(trimmed)
-
-	// Check if it's a primitive type or array
-	switch normalized {
-	case "integer", "float", "string", "boolean", "variant", "nil":
-		return normalized
-	default:
-		if ident.HasPrefix(trimmed, "array of") {
-			return normalized
-		}
-		return "class:" + normalized
-	}
+	return runtime.NormalizeTypeAnnotation(name)
 }

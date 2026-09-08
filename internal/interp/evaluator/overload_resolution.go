@@ -92,7 +92,7 @@ func (e *Evaluator) extractFunctionType(fn *ast.FunctionDecl, ctx *ExecutionCont
 		}
 
 		// Use evaluator's existing resolveTypeName for type resolution
-		paramType, err := e.resolveTypeName(param.Type.String(), ctx)
+		paramType, err := e.ResolveTypeFromAnnotation(param.Type, ctx)
 		if err != nil {
 			return nil
 		}
@@ -107,7 +107,7 @@ func (e *Evaluator) extractFunctionType(fn *ast.FunctionDecl, ctx *ExecutionCont
 
 	var returnType types.Type = types.VOID
 	if fn.ReturnType != nil {
-		if rt, err := e.resolveTypeName(fn.ReturnType.String(), ctx); err == nil {
+		if rt, err := e.ResolveTypeFromAnnotation(fn.ReturnType, ctx); err == nil {
 			returnType = rt
 		}
 	}
@@ -161,7 +161,7 @@ func (e *Evaluator) ResolveOverloadFast(
 			prevArrayCtx := ctx.ArrayTypeContext()
 			ctx.ClearArrayTypeContext()
 			if idx < len(fn.Parameters) && fn.Parameters[idx].Type != nil {
-				if paramType, err := e.resolveTypeName(fn.Parameters[idx].Type.String(), ctx); err == nil {
+				if paramType, err := e.ResolveTypeFromAnnotation(fn.Parameters[idx].Type, ctx); err == nil {
 					if arrType, ok := types.GetUnderlyingType(paramType).(*types.ArrayType); ok {
 						ctx.SetArrayTypeContext(arrType)
 					}

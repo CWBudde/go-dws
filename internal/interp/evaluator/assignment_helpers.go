@@ -972,7 +972,7 @@ func (e *Evaluator) resolveClassTypeForAssignment(target *ast.Identifier, existi
 			if e.typeSystem.HasClass(typeAnnot.Name) {
 				return typeAnnot.Name
 			}
-			if resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
+			if resolved, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil {
 				if classType, ok := types.GetUnderlyingType(resolved).(*types.ClassType); ok && classType != nil {
 					if classType.Name != "" {
 						return classType.Name
@@ -1018,7 +1018,7 @@ func (e *Evaluator) getSetTypeFromTarget(target *ast.Identifier, ctx *ExecutionC
 
 	if e.SemanticInfo() != nil {
 		if typeAnnot := e.SemanticInfo().GetType(target); typeAnnot != nil && typeAnnot.Name != "" {
-			if resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
+			if resolved, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil {
 				if setType, ok := types.GetUnderlyingType(resolved).(*types.SetType); ok {
 					return setType
 				}

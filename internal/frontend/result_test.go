@@ -1307,7 +1307,7 @@ func TestCompile_SkipsSemanticDiagnosticsAfterBlockingParserError(t *testing.T) 
 		Diagnostics: parserDiagnostics([]*parser.ParserError{
 			parser.NewParserError(lexer.Position{Line: 1, Column: 1}, 1, "test", "E_UNKNOWN_PARSER_STATE"),
 		}),
-	}, "if then", "blocking_parser_only.pas", semantic.HintsLevelPedantic)
+	}, "if then", Options{Filename: "blocking_parser_only.pas", HintsLevel: semantic.HintsLevelPedantic})
 
 	if result == nil {
 		t.Fatal("expected non-nil compile result")

@@ -2,13 +2,11 @@ package types
 
 import (
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 
-// MockClassInfo is a simple mock for testing ClassRegistry
-type MockClassInfo struct {
-	Parent *MockClassInfo
-	Name   string
-}
+type MockClassInfo = runtime.ClassInfo
 
 func TestClassRegistry_RegisterAndLookup(t *testing.T) {
 	registry := NewClassRegistry()
@@ -325,5 +323,25 @@ func TestClassRegistry_Clear(t *testing.T) {
 
 	if exists := registry.Exists("Class1"); exists {
 		t.Error("Class1 should not exist after clear")
+	}
+}
+
+// Register reads the runtime parent link without a second name registration.
+func TestClassRegistry_RuntimeParentLink(t *testing.T) {
+	registry := NewClassRegistry()
+	base := runtime.NewClassInfo("TBase")
+	child := runtime.NewClassInfo("TChild")
+	child.SetParentClass(base)
+	registry.Register(base.Name, base)
+	registry.Register(child.Name, child)
+	if !registry.IsDescendantOf("tchild", "TBASE") {
+		t.Fatal("runtime parent relationship was not registered")
+	}
+	hierarchy := registry.LookupHierarchy("TChild")
+	if len(hierarchy) != 2 || hierarchy[0] != child || hierarchy[1] != base {
+		t.Fatalf("unexpected hierarchy: %v", hierarchy)
+	}
+	if registry.GetDepth("TChild") != 1 {
+		t.Fatal("child must have depth 1")
 	}
 }

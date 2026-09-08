@@ -23,7 +23,7 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 	if obj, ok := left.(*ObjectInstance); ok {
 		// Try to get concrete ClassInfo for direct lookup with inheritance support
 		if concreteClass, ok := obj.Class.(*ClassInfo); ok {
-			if entry, found := concreteClass.lookupOperator(operator, operandTypes, i.typeSystem); found {
+			if entry, found := concreteClass.LookupOperatorWithHierarchy(operator, operandTypes, i.typeSystem); found {
 				return i.invokeRuntimeOperator(entry, operands, node), true
 			}
 		}
@@ -31,7 +31,7 @@ func (i *Interpreter) tryBinaryOperator(operator string, left, right Value, node
 	if obj, ok := right.(*ObjectInstance); ok {
 		// Try to get concrete ClassInfo for direct lookup with inheritance support
 		if concreteClass, ok := obj.Class.(*ClassInfo); ok {
-			if entry, found := concreteClass.lookupOperator(operator, operandTypes, i.typeSystem); found {
+			if entry, found := concreteClass.LookupOperatorWithHierarchy(operator, operandTypes, i.typeSystem); found {
 				return i.invokeRuntimeOperator(entry, operands, node), true
 			}
 		}
@@ -59,7 +59,7 @@ func (i *Interpreter) tryUnaryOperator(operator string, operand Value, node ast.
 	if obj, ok := operand.(*ObjectInstance); ok {
 		// Try to get concrete ClassInfo for direct lookup with inheritance support
 		if concreteClass, ok := obj.Class.(*ClassInfo); ok {
-			if entry, found := concreteClass.lookupOperator(operator, operandTypes, i.typeSystem); found {
+			if entry, found := concreteClass.LookupOperatorWithHierarchy(operator, operandTypes, i.typeSystem); found {
 				return i.invokeRuntimeOperator(entry, operands, node), true
 			}
 		}

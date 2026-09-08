@@ -316,6 +316,13 @@ func constructorCallPosition(expr *ast.CallExpression) token.Position {
 // analyzeMemberAccessExpression analyzes member access on classes, records, interfaces, and helpers.
 func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpression) types.Type {
 	if identExpr, ok := expr.Object.(*ast.Identifier); ok {
+		if _, imported := a.unitSymbols[ident.Normalize(identExpr.Value)]; imported {
+			if sym, err := a.ResolveQualifiedSymbol(identExpr.Value, expr.Member.Value); err == nil {
+				return sym.Type
+			}
+			a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
+			return nil
+		}
 		switch ident.Normalize(identExpr.Value) {
 		case "system", "internal":
 			if sym, err := a.ResolveQualifiedSymbol(identExpr.Value, expr.Member.Value); err == nil && sym != nil {

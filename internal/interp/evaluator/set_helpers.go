@@ -34,7 +34,7 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 	var annotatedSetType *types.SetType
 	if e.SemanticInfo() != nil {
 		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
-			if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
+			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil {
 				if setType, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
 					annotatedSetType = setType
 				}
@@ -49,7 +49,7 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 	// This happens when semantic analyzer determined it's used in array context
 	if e.SemanticInfo() != nil {
 		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
-			resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx)
+			resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx)
 			if err == nil {
 				if arrayType, isArray := resolvedType.(*types.ArrayType); isArray {
 					// Evaluate as array literal directly instead of delegating

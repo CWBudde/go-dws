@@ -8,6 +8,15 @@ import (
 
 // analyzeMethodCallExpression analyzes a method call on an object
 func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) types.Type {
+	if name, ok := expr.Object.(*ast.Identifier); ok {
+		if _, imported := a.unitSymbols[ident.Normalize(name.Value)]; imported {
+			return a.analyzeCallExpression(&ast.CallExpression{
+				TypedExpressionBase: expr.TypedExpressionBase,
+				Function:            &ast.MemberAccessExpression{TypedExpressionBase: expr.TypedExpressionBase, Object: expr.Object, Member: expr.Method},
+				Arguments:           expr.Arguments,
+			})
+		}
+	}
 	// JSON namespace method call: JSON.Parse(s), JSON.Stringify(x). Recognized
 	// before `JSON` is analyzed as an ordinary (undefined) identifier.
 	if a.isJSONNamespace(expr.Object) {

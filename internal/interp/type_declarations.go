@@ -277,7 +277,7 @@ func (i *Interpreter) SetClassParent(classInfo interface{}, parentClass interfac
 		ci.Metadata.DefaultConstructor = parent.Metadata.DefaultConstructor
 	}
 
-	ci.Operators = parent.Operators.clone()
+	ci.Operators = parent.Operators.Clone()
 }
 
 // AddInterfaceToClass adds an interface to a class's interface list.
@@ -489,7 +489,7 @@ func (i *Interpreter) RegisterClassOperator(classInfo interface{}, opDecl *ast.O
 		SelfIndex:     selfIndex,
 	}
 
-	if err := ci.Operators.register(entry); err != nil {
+	if err := ci.Operators.Register(entry); err != nil {
 		return i.newErrorWithLocation(opDecl, "class operator '%s' already defined for operand types (%s)", opDecl.OperatorSymbol, strings.Join(operandTypes, ", "))
 	}
 
@@ -572,7 +572,7 @@ func (i *Interpreter) BuildVirtualMethodTable(classInfo interface{}) {
 	if !ok {
 		return
 	}
-	ci.buildVirtualMethodTable()
+	ci.BuildVirtualMethodTableDirect()
 }
 
 // AddClassConstant registers a class constant and its evaluated value.

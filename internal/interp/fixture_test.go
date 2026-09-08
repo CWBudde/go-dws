@@ -598,7 +598,28 @@ func evalFixture(compileResult *frontend.Result) (*bytes.Buffer, Value) {
 	if compileResult.SemanticInfo != nil {
 		interp.SetSemanticInfo(compileResult.SemanticInfo)
 	}
-	return &buf, interp.Eval(compileResult.Program)
+	if registry := compileResult.UnitRegistry; registry != nil {
+		registry = registry.CloneForExecution()
+		interp.SetUnitRegistry(registry)
+		order, err := registry.ComputeInitializationOrder()
+		if err != nil {
+			return &buf, &ErrorValue{Message: err.Error()}
+		}
+		for _, name := range order {
+			unit, _ := registry.GetUnit(name)
+			if err := interp.ImportUnitSymbols(unit); err != nil {
+				return &buf, &ErrorValue{Message: err.Error()}
+			}
+		}
+		if err := interp.InitializeUnits(); err != nil {
+			return &buf, &ErrorValue{Message: err.Error()}
+		}
+	}
+	value := interp.Eval(compileResult.Program)
+	if err := interp.FinalizeUnits(); err != nil {
+		return &buf, &ErrorValue{Message: err.Error()}
+	}
+	return &buf, value
 }
 
 // runtimeErrorOutput formats a runtime error, wrapping it in DWScript's Errors/Result

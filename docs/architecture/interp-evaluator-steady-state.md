@@ -133,6 +133,21 @@ The measured state of this boundary as of 2026-09 (dead residue, remaining dupli
 
 ## September 2026 refactoring boundaries
 
+- `runtime` owns `ClassInfo`, `ClassValue`, `ClassInfoValue`, class metadata mutation,
+  and class operator storage. `interp` retains compatibility aliases and constructor
+  wrappers. `ClassRegistry` stores `runtime.IClassInfo`; construction uses runtime
+  constructors directly, without class factory callbacks. Other registries and the
+  parallel class AST maps remain migration work under A6.
+- `ast.SemanticInfo` retains resolved `internal/types.Type` objects keyed by AST node,
+  alongside compatibility text annotations. Annotation-based evaluator resolution
+  consumes these objects before legacy lookup, preserving type identity and bounds.
+  Untyped execution and remaining name-based callers still use runtime resolution (A5).
+- Frontend unit and program analyzers share one semantic metadata table. The compiled
+  unit registry retains the analyzed ASTs; execution clones mutable registry state for
+  each run. Unit dependencies receive analysis before the importing program.
+- Builtin registry signatures own ordinary argument and result validation. Semantic
+  diagnostic styles retain historical wording without redefining signatures; AST-sensitive
+  and argument-dependent builtin rules remain explicit.
 - `internal/types` owns the builtin-helper catalog and overload signature ranking.
   Semantic analysis and runtime evaluation consume these shared declarations; the
   evaluator does not import `internal/semantic`.

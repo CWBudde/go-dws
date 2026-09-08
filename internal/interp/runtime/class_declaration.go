@@ -1,20 +1,20 @@
-package interp
+package runtime
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
+// IsPartialClass reports whether the class permits declarations in multiple parts.
 func (c *ClassInfo) IsPartialClass() bool {
 	return c != nil && c.IsPartial
 }
 
+// SetPartialClass updates the partial flag in both class metadata representations.
 func (c *ClassInfo) SetPartialClass(isPartial bool) {
 	if c != nil {
 		c.IsPartial = isPartial
@@ -37,6 +37,7 @@ func (c *ClassInfo) SetForwardClass(isForward bool) {
 	}
 }
 
+// SetAbstractClass updates the abstract flag in both class metadata representations.
 func (c *ClassInfo) SetAbstractClass(isAbstract bool) {
 	if c != nil {
 		c.IsAbstractFlag = isAbstract
@@ -46,6 +47,7 @@ func (c *ClassInfo) SetAbstractClass(isAbstract bool) {
 	}
 }
 
+// SetExternalClass records whether the class is external and its host binding name.
 func (c *ClassInfo) SetExternalClass(isExternal bool, externalName string) {
 	if c == nil {
 		return
@@ -58,22 +60,26 @@ func (c *ClassInfo) SetExternalClass(isExternal bool, externalName string) {
 	}
 }
 
+// HasNoParentClass reports whether an existing class has no parent.
 func (c *ClassInfo) HasNoParentClass() bool {
 	return c != nil && c.Parent == nil
 }
 
+// DefineCurrentClassMarker binds this class as the current class in env.
 func (c *ClassInfo) DefineCurrentClassMarker(env *Environment) {
 	if c != nil && env != nil {
 		env.Define("__CurrentClass__", &ClassInfoValue{ClassInfo: c})
 	}
 }
 
+// DefineInEnv binds a metaclass value under the class name in env.
 func (c *ClassInfo) DefineInEnv(env *Environment) {
 	if c != nil && env != nil {
 		env.Define(c.Name, &ClassValue{ClassInfo: c})
 	}
 }
 
+// SetParentClass sets the parent once and inherits its field, method, constructor, and operator bindings.
 func (c *ClassInfo) SetParentClass(parent any) {
 	parentClass, ok := parent.(*ClassInfo)
 	if c == nil || !ok || parentClass == nil || c.Parent != nil {
@@ -108,25 +114,26 @@ func (c *ClassInfo) SetParentClass(parent any) {
 
 	for name, constructor := range parentClass.Metadata.Constructors {
 		if c.Metadata.Constructors == nil {
-			c.Metadata.Constructors = make(map[string]*runtime.MethodMetadata)
+			c.Metadata.Constructors = make(map[string]*MethodMetadata)
 		}
 		c.Metadata.Constructors[name] = constructor
 	}
 	for name, overloads := range parentClass.Metadata.ConstructorOverloads {
 		if c.Metadata.ConstructorOverloads == nil {
-			c.Metadata.ConstructorOverloads = make(map[string][]*runtime.MethodMetadata)
+			c.Metadata.ConstructorOverloads = make(map[string][]*MethodMetadata)
 		}
-		c.Metadata.ConstructorOverloads[name] = append([]*runtime.MethodMetadata(nil), overloads...)
+		c.Metadata.ConstructorOverloads[name] = append([]*MethodMetadata(nil), overloads...)
 	}
 	if parentClass.Metadata.DefaultConstructor != "" {
 		c.Metadata.DefaultConstructor = parentClass.Metadata.DefaultConstructor
 	}
 
-	c.Operators = parentClass.Operators.clone()
+	c.Operators = parentClass.Operators.Clone()
 }
 
+// AddImplementedInterface records an implemented runtime interface and its metadata name.
 func (c *ClassInfo) AddImplementedInterface(iface any, ifaceName string) {
-	interfaceInfo, ok := iface.(*InterfaceInfo)
+	interfaceInfo, ok := iface.(*MutableInterfaceInfo)
 	if c == nil || !ok || interfaceInfo == nil {
 		return
 	}
@@ -134,6 +141,7 @@ func (c *ClassInfo) AddImplementedInterface(iface any, ifaceName string) {
 	c.Metadata.Interfaces = append(c.Metadata.Interfaces, ifaceName)
 }
 
+// AddConstantValue stores a constant declaration and its evaluated value.
 func (c *ClassInfo) AddConstantValue(constDecl *ast.ConstDecl, value Value) {
 	if c == nil || constDecl == nil {
 		return
@@ -146,6 +154,7 @@ func (c *ClassInfo) AddConstantValue(constDecl *ast.ConstDecl, value Value) {
 	c.Metadata.Constants[constDecl.Name.Value] = value
 }
 
+// ConstantValuesCopy copies the constant bindings while sharing their runtime values.
 func (c *ClassInfo) ConstantValuesCopy() map[string]Value {
 	if c == nil {
 		return nil
@@ -157,6 +166,7 @@ func (c *ClassInfo) ConstantValuesCopy() map[string]Value {
 	return result
 }
 
+// InheritConstantValuesFrom copies parent constants that this class has not declared.
 func (c *ClassInfo) InheritConstantValuesFrom(parent any) {
 	parentClass, ok := parent.(*ClassInfo)
 	if c == nil || !ok || parentClass == nil {
@@ -184,6 +194,7 @@ func (c *ClassInfo) InheritConstantValuesFrom(parent any) {
 	}
 }
 
+// AddFieldDeclaration registers a field declaration and its resolved type in class metadata.
 func (c *ClassInfo) AddFieldDeclaration(fieldDecl *ast.FieldDecl, fieldType types.Type) {
 	if c == nil || fieldDecl == nil {
 		return
@@ -191,17 +202,19 @@ func (c *ClassInfo) AddFieldDeclaration(fieldDecl *ast.FieldDecl, fieldType type
 	c.Fields[fieldDecl.Name.Value] = fieldType
 	c.FieldDecls[fieldDecl.Name.Value] = fieldDecl
 
-	fieldMeta := runtime.FieldMetadataFromAST(fieldDecl)
+	fieldMeta := FieldMetadataFromAST(fieldDecl)
 	fieldMeta.Type = fieldType
-	runtime.AddFieldToClass(c.Metadata, fieldMeta)
+	AddFieldToClass(c.Metadata, fieldMeta)
 }
 
+// AddClassVarValue stores a class variable value under its declared name.
 func (c *ClassInfo) AddClassVarValue(name string, value Value) {
 	if c != nil {
 		c.ClassVars[name] = value
 	}
 }
 
+// AddNestedClassRef registers a nested class with case-insensitive lookup.
 func (c *ClassInfo) AddNestedClassRef(nestedName string, nestedClass any) {
 	nestedInfo, ok := nestedClass.(*ClassInfo)
 	if c != nil && ok && nestedInfo != nil {
@@ -209,6 +222,7 @@ func (c *ClassInfo) AddNestedClassRef(nestedName string, nestedClass any) {
 	}
 }
 
+// LookupDeclaredMethod looks up an instance or class method in this class’s method map.
 func (c *ClassInfo) LookupDeclaredMethod(methodName string, isClassMethod bool) (*ast.FunctionDecl, bool) {
 	if c == nil {
 		return nil, false
@@ -222,24 +236,28 @@ func (c *ClassInfo) LookupDeclaredMethod(methodName string, isClassMethod bool) 
 	return method, exists
 }
 
+// SetConstructorDecl sets the class’s primary constructor declaration.
 func (c *ClassInfo) SetConstructorDecl(constructor *ast.FunctionDecl) {
 	if c != nil {
 		c.Constructor = constructor
 	}
 }
 
+// SetDestructorDecl sets the class’s destructor declaration.
 func (c *ClassInfo) SetDestructorDecl(destructor *ast.FunctionDecl) {
 	if c != nil {
 		c.Destructor = destructor
 	}
 }
 
+// InheritDestructorMetadataIfMissing uses the parent destructor when none is recorded locally.
 func (c *ClassInfo) InheritDestructorMetadataIfMissing() {
 	if c != nil && c.Metadata.Destructor == nil && c.Parent != nil && c.Parent.Metadata.Destructor != nil {
 		c.Metadata.Destructor = c.Parent.Metadata.Destructor
 	}
 }
 
+// SynthesizeImplicitDefaultConstructor adds a parameterless constructor for an overloaded constructor group that lacks one.
 func (c *ClassInfo) SynthesizeImplicitDefaultConstructor() {
 	if c == nil {
 		return
@@ -272,12 +290,14 @@ func (c *ClassInfo) SynthesizeImplicitDefaultConstructor() {
 	}
 }
 
+// SetPropertyInfo registers a property descriptor under its declared name.
 func (c *ClassInfo) SetPropertyInfo(name string, propInfo *types.PropertyInfo) {
 	if c != nil && propInfo != nil {
 		c.Properties[name] = propInfo
 	}
 }
 
+// DeterminePropertyAccessKind classifies an accessor name as a field, method, or missing member.
 func (c *ClassInfo) DeterminePropertyAccessKind(specName string) types.PropAccessKind {
 	if c == nil {
 		return types.PropAccessMethod
@@ -311,7 +331,8 @@ func (c *ClassInfo) DeterminePropertyAccessKind(specName string) types.PropAcces
 	return types.PropAccessNone
 }
 
-func (c *ClassInfo) AddMethodDeclaration(method *ast.FunctionDecl, className string, registry *runtime.MethodRegistry) bool {
+// AddMethodDeclaration registers a method and its overload, constructor, or destructor metadata.
+func (c *ClassInfo) AddMethodDeclaration(method *ast.FunctionDecl, className string, registry *MethodRegistry) bool {
 	if c == nil || method == nil {
 		return false
 	}
@@ -324,7 +345,7 @@ func (c *ClassInfo) AddMethodDeclaration(method *ast.FunctionDecl, className str
 		}
 	}
 
-	methodMeta := runtime.MethodMetadataFromAST(method)
+	methodMeta := MethodMetadataFromAST(method)
 	if registry != nil {
 		registry.RegisterMethod(methodMeta)
 	}
@@ -333,13 +354,13 @@ func (c *ClassInfo) AddMethodDeclaration(method *ast.FunctionDecl, className str
 		c.ClassMethods[normalizedMethodName] = method
 		c.ClassMethodOverloads[normalizedMethodName] = append(c.ClassMethodOverloads[normalizedMethodName], method)
 		if !method.IsConstructor && !method.IsDestructor {
-			runtime.AddMethodToClass(c.Metadata, methodMeta, true)
+			AddMethodToClass(c.Metadata, methodMeta, true)
 		}
 	} else {
 		c.Methods[normalizedMethodName] = method
 		c.MethodOverloads[normalizedMethodName] = append(c.MethodOverloads[normalizedMethodName], method)
 		if !method.IsConstructor && !method.IsDestructor {
-			runtime.AddMethodToClass(c.Metadata, methodMeta, false)
+			AddMethodToClass(c.Metadata, methodMeta, false)
 		}
 	}
 
@@ -350,7 +371,7 @@ func (c *ClassInfo) AddMethodDeclaration(method *ast.FunctionDecl, className str
 	if method.IsConstructor {
 		normalizedName := ident.Normalize(method.Name.Value)
 		c.Constructors[normalizedName] = method
-		runtime.AddConstructorToClass(c.Metadata, methodMeta)
+		AddConstructorToClass(c.Metadata, methodMeta)
 		if method.IsDefault {
 			c.DefaultConstructor = method.Name.Value
 		}
@@ -358,7 +379,7 @@ func (c *ClassInfo) AddMethodDeclaration(method *ast.FunctionDecl, className str
 		existingOverloads := c.ConstructorOverloads[normalizedName]
 		replaced := false
 		for idx, existingMethod := range existingOverloads {
-			if parametersMatch(existingMethod.Parameters, method.Parameters) {
+			if parametersMatchAST(existingMethod.Parameters, method.Parameters) {
 				existingOverloads[idx] = method
 				replaced = true
 				break
@@ -373,6 +394,7 @@ func (c *ClassInfo) AddMethodDeclaration(method *ast.FunctionDecl, className str
 	return true
 }
 
+// InheritParentPropertyInfos shares parent property descriptors unless this class overrides them.
 func (c *ClassInfo) InheritParentPropertyInfos() {
 	if c == nil || c.Parent == nil {
 		return
@@ -384,6 +406,7 @@ func (c *ClassInfo) InheritParentPropertyInfos() {
 	}
 }
 
+// RegisterOperatorBinding registers an operator’s operand signature and bound method.
 func (c *ClassInfo) RegisterOperatorBinding(operatorSymbol, bindingName string, operandTypes []string) error {
 	if c == nil {
 		return nil
@@ -428,7 +451,7 @@ func (c *ClassInfo) RegisterOperatorBinding(operatorSymbol, bindingName string, 
 		}
 	}
 
-	entry := &runtimeOperatorEntry{
+	entry := &ClassOperatorEntry{
 		Operator:      operatorSymbol,
 		OperandTypes:  normalizedOperands,
 		BindingName:   normalizedBindingName,
@@ -437,27 +460,32 @@ func (c *ClassInfo) RegisterOperatorBinding(operatorSymbol, bindingName string, 
 		SelfIndex:     selfIndex,
 	}
 
-	if err := c.Operators.register(entry); err != nil {
+	if err := c.Operators.Register(entry); err != nil {
 		return fmt.Errorf("class operator '%s' already defined for operand types (%s)", operatorSymbol, strings.Join(normalizedOperands, ", "))
 	}
 
 	return nil
 }
 
+// BuildVirtualMethodTableDirect rebuilds inherited and locally overridden virtual method bindings.
 func (c *ClassInfo) BuildVirtualMethodTableDirect() {
 	if c != nil {
 		c.buildVirtualMethodTable()
 	}
 }
 
+// RegisterInTypeSystem registers this class and its parent name through the registry interface.
 func (c *ClassInfo) RegisterInTypeSystem(ts any, parentName string) {
-	typeSystem, ok := ts.(*interptypes.TypeSystem)
+	typeSystem, ok := ts.(interface {
+		RegisterClassWithParent(string, IClassInfo, string)
+	})
 	if c != nil && ok && typeSystem != nil {
 		typeSystem.RegisterClassWithParent(c.Name, c, parentName)
 	}
 }
 
-func (c *ClassInfo) RegisterMethodImplementation(fn *ast.FunctionDecl, allClasses map[string]interptypes.ClassInfo) {
+// RegisterMethodImplementation replaces an out-of-line declaration and updates inherited bindings.
+func (c *ClassInfo) RegisterMethodImplementation(fn *ast.FunctionDecl, allClasses map[string]IClassInfo) {
 	if c == nil || fn == nil {
 		return
 	}
@@ -492,7 +520,7 @@ func (c *ClassInfo) RegisterMethodImplementation(fn *ast.FunctionDecl, allClasse
 	c.rebuildDescendantVMTs(allClasses)
 }
 
-func (c *ClassInfo) rebuildDescendantVMTs(allClasses map[string]interptypes.ClassInfo) {
+func (c *ClassInfo) rebuildDescendantVMTs(allClasses map[string]IClassInfo) {
 	for _, classInfoAny := range allClasses {
 		classInfo, ok := classInfoAny.(*ClassInfo)
 		if !ok {
@@ -515,7 +543,7 @@ func isDescendantOfClass(childClass, ancestorClass *ClassInfo) bool {
 	return false
 }
 
-func (c *ClassInfo) propagateMethodImplementation(allClasses map[string]interptypes.ClassInfo, normalizedMethodName string, fn *ast.FunctionDecl, isClassMethod bool) {
+func (c *ClassInfo) propagateMethodImplementation(allClasses map[string]IClassInfo, normalizedMethodName string, fn *ast.FunctionDecl, isClassMethod bool) {
 	for _, classInfoAny := range allClasses {
 		classInfo, ok := classInfoAny.(*ClassInfo)
 		if !ok || !isDescendantOfClass(classInfo, c) {
@@ -540,7 +568,7 @@ func (c *ClassInfo) propagateMethodImplementation(allClasses map[string]interpty
 	}
 }
 
-func (c *ClassInfo) propagateConstructorImplementation(allClasses map[string]interptypes.ClassInfo, fn *ast.FunctionDecl) {
+func (c *ClassInfo) propagateConstructorImplementation(allClasses map[string]IClassInfo, fn *ast.FunctionDecl) {
 	normalizedCtorName := ident.Normalize(fn.Name.Value)
 
 	for _, classInfoAny := range allClasses {
@@ -553,7 +581,7 @@ func (c *ClassInfo) propagateConstructorImplementation(allClasses map[string]int
 			if ctor.ClassName != nil && ident.Equal(ctor.ClassName.Value, classInfo.Name) {
 				continue
 			}
-			if parametersMatch(ctor.Parameters, fn.Parameters) {
+			if parametersMatchAST(ctor.Parameters, fn.Parameters) {
 				classInfo.Constructors[normalizedCtorName] = fn
 			}
 		}
@@ -566,7 +594,7 @@ func (c *ClassInfo) propagateConstructorImplementation(allClasses map[string]int
 				if decl.ClassName != nil && ident.Equal(decl.ClassName.Value, classInfo.Name) {
 					continue
 				}
-				if parametersMatch(decl.Parameters, fn.Parameters) {
+				if parametersMatchAST(decl.Parameters, fn.Parameters) {
 					overloads[idx] = fn
 				}
 			}

@@ -17,6 +17,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/semantic"
+	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -75,6 +76,8 @@ func (d Diagnostic) String() string {
 
 // Result is the shared front-end compile result for parser and semantic diagnostics.
 type Result struct {
+	// UnitRegistry retains the analyzed unit ASTs for execution.
+	UnitRegistry       *units.UnitRegistry
 	Program            *ast.Program
 	Analyzer           *semantic.Analyzer
 	SemanticInfo       *ast.SemanticInfo
@@ -159,6 +162,9 @@ func (r *Result) HintStrings() []string {
 
 // Options configures the shared compile pipeline.
 type Options struct {
+	// UnitSearchPaths configures uses resolution. Empty uses the source directory,
+	// or the current directory when Filename is a display name.
+	UnitSearchPaths []string
 	// Filename is recorded in diagnostics and passed to the analyzer; it may be "" or "<eval>".
 	Filename string
 	// IncludeDir roots {$INCLUDE} resolution. Empty disables include resolution; it is
@@ -214,7 +220,7 @@ func AnalyzeParsed(result *Result, source string, opts Options) *Result {
 		}
 		return result
 	}
-	return compileParsedResult(result, source, opts.Filename, opts.HintsLevel)
+	return compileParsedResult(result, source, opts)
 }
 
 // CompileWithOptions is ParseWithOptions followed by AnalyzeParsed.
@@ -255,7 +261,7 @@ func includeOptionsForDir(dir string) []lexer.LexerOption {
 	}
 }
 
-func compileParsedResult(result *Result, source, filename string, hintsLevel semantic.HintsLevel) *Result {
+func compileParsedResult(result *Result, source string, opts Options) *Result {
 	if result.Program == nil || result.HasSemanticBlockingDiagnosticsInPhase(PhaseParsing) {
 		return result
 	}
@@ -265,13 +271,13 @@ func compileParsedResult(result *Result, source, filename string, hintsLevel sem
 	generics.Monomorphize(result.Program)
 
 	analyzer := semantic.NewAnalyzer()
-	analyzer.SetHintsLevel(hintsLevel)
-	analyzer.SetSource(source, filename)
+	analyzer.SetHintsLevel(opts.HintsLevel)
+	analyzer.SetSource(source, opts.Filename)
 	analyzer.SetParseHadErrors(result.HasDiagnosticsInPhase(PhaseParsing))
 	result.Analyzer = analyzer
 	result.SemanticAttempted = true
 
-	err := safeAnalyze(analyzer, result)
+	err := safeAnalyzeWithUnits(analyzer, result, opts)
 	result.SemanticInfo = analyzer.GetSemanticInfo()
 	result.Diagnostics = append(result.Diagnostics, semanticDiagnostics(analyzer)...)
 	sortDiagnostics(result.Diagnostics)
