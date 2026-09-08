@@ -218,6 +218,20 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			}
 		}
 
+		// Helper method invoked by bare name on the implicit Self inside a
+		// helper method body. Resolved before the builtin fallbacks below so a
+		// helper's own parameterless method shadows a same-named builtin — the
+		// evaluator resolves in this order, and disagreeing here would type the
+		// identifier differently from the value produced at runtime.
+		if selfType := a.currentImplicitSelfType(); selfType != nil {
+			if methodType := a.resolveHelperMethodForCall(selfType, identifier.Value, nil); methodType != nil && len(methodType.Parameters) == 0 {
+				if methodType.ReturnType == nil {
+					return types.VOID
+				}
+				return methodType.ReturnType
+			}
+		}
+
 		// A strictly parameterless builtin used as a bare identifier is an
 		// implicit call, so it carries the function's result type. Checked from
 		// the registry rather than the isBuiltinFunction list below, which does
@@ -247,15 +261,6 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			// Return Void type for built-in procedures (or appropriate type for functions)
 			// For simplicity, we'll return VOID type which means "any" - the interpreter will handle it
 			return types.VOID
-		}
-
-		if selfType := a.currentImplicitSelfType(); selfType != nil {
-			if methodType := a.resolveHelperMethodForCall(selfType, identifier.Value, nil); methodType != nil && len(methodType.Parameters) == 0 {
-				if methodType.ReturnType == nil {
-					return types.VOID
-				}
-				return methodType.ReturnType
-			}
 		}
 
 		switch ident.Normalize(identifier.Value) {

@@ -233,10 +233,11 @@ another hand-maintained switch. `Analyzer.parameterlessBuiltinType`
 
 The qualifying condition is deliberately narrow — `MinArgs == 0 && MaxArgs == 0 && !IsVariadic`
 and a non-nil `ReturnType`. A signature with *optional* parameters says nothing about whether a
-bare name means a call or a reference, and procedures keep typing as `VOID`. That admits
-exactly the 14 `Sig(nil, …)` builtins: `Pi`, `Infinity`, `NaN`, `Random`, `RandSeed`, `Now`,
-`Date`, `Time`, `UTCDateTime`, `UnixTime`, `UnixTimeMSec`, `GetStackTrace`, `GetCallStack`
-(and `Randomize`, which stays `VOID` — it is a procedure). The existing builtin
+bare name means a call or a reference, and procedures keep typing as `VOID`. Of the 14
+`Sig(nil, …)` builtins that admits exactly the 13 functions: `Pi`, `Infinity`, `NaN`, `Random`,
+`RandSeed`, `Now`, `Date`, `Time`, `UTCDateTime`, `UnixTime`, `UnixTimeMSec`, `GetStackTrace`,
+`GetCallStack`. The fourteenth, `Randomize`, stays `VOID` — it is a procedure, so its
+`ReturnType` is nil. The existing builtin
 function-*pointer* path (`Map`, `Filter`) is checked first and is unaffected.
 
 This also fixes `var t := Now;` and `Now > 0`, which failed the same way.
