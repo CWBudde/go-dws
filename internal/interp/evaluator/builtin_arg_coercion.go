@@ -179,9 +179,6 @@ func (e *Evaluator) ExtractIndexWithVariantCast(indexVal Value, ctx *ExecutionCo
 		if n, err := strconv.ParseInt(strings.TrimSpace(v.Value), 10, 64); err == nil {
 			return int(n), true
 		}
-		if ctx == nil {
-			ctx = e.currentContext
-		}
 		if ctx != nil {
 			ctx.SetException(e.createException("Exception",
 				"Could not cast variant from String to Integer", nil, ctx))
@@ -197,9 +194,6 @@ func (e *Evaluator) ExtractIndexWithVariantCast(indexVal Value, ctx *ExecutionCo
 // ("<msg> in <routine> [line: N, column: M]"); otherwise the plain message
 // is used.
 func (e *Evaluator) raiseVariantCastException(message string, funcName *ast.Identifier, ctx *ExecutionContext) Value {
-	if ctx == nil {
-		ctx = e.currentContext
-	}
 	var posPtr *token.Position
 	if funcName != nil {
 		pos := funcName.Token.Pos

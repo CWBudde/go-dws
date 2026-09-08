@@ -193,33 +193,3 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 
 	return nil, fmt.Errorf("unknown type: %s", typeName)
 }
-
-// ============================================================================
-// Record Comparison
-// ============================================================================
-
-// recordsEqual checks if two records are equal by comparing all fields.
-func (i *Interpreter) recordsEqual(left, right *RecordValue) bool {
-	// Different types are not equal
-	if left.RecordType.Name != right.RecordType.Name {
-		return false
-	}
-
-	// Check if all fields are equal
-	for fieldName := range left.RecordType.Fields {
-		leftVal, leftExists := left.Fields[fieldName]
-		rightVal, rightExists := right.Fields[fieldName]
-
-		// Both should exist
-		if !leftExists || !rightExists {
-			return false
-		}
-
-		// Compare field values using the existing valuesEqual method
-		if !i.valuesEqual(leftVal, rightVal) {
-			return false
-		}
-	}
-
-	return true
-}

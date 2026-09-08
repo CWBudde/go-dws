@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/encoding"
 )
 
 func TestDetectAndDecodeFile(t *testing.T) {
@@ -90,7 +92,7 @@ func TestDetectAndDecodeFile(t *testing.T) {
 			}
 
 			// Test the function
-			result, err := detectAndDecodeFile(testFile)
+			result, err := encoding.DecodeFile(testFile)
 			if err != nil {
 				t.Fatalf("detectAndDecodeFile failed: %v", err)
 			}
@@ -103,7 +105,7 @@ func TestDetectAndDecodeFile(t *testing.T) {
 }
 
 func TestDetectAndDecodeFile_NonExistentFile(t *testing.T) {
-	_, err := detectAndDecodeFile("/nonexistent/file.txt")
+	_, err := encoding.DecodeFile("/nonexistent/file.txt")
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
 	}
@@ -118,7 +120,7 @@ func TestDetectAndDecodeFile_RealFixture(t *testing.T) {
 		t.Skip("Fixture file not found, skipping test")
 	}
 
-	result, err := detectAndDecodeFile(fixtureFile)
+	result, err := encoding.DecodeFile(fixtureFile)
 	if err != nil {
 		t.Fatalf("Failed to decode fixture file: %v", err)
 	}

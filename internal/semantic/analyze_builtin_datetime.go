@@ -9,46 +9,6 @@ import (
 // Date/Time Built-in Function Analysis
 // ============================================================================
 
-// analyzeNow analyzes the Now built-in function.
-// Now takes no arguments and returns a Float (TDateTime).
-func (a *Analyzer) analyzeNow(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 0 {
-		a.addError("function 'Now' expects 0 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-	}
-	return types.FLOAT
-}
-
-// analyzeDate analyzes the Date built-in function.
-// Date takes no arguments and returns a Float (TDateTime).
-func (a *Analyzer) analyzeDate(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 0 {
-		a.addError("function 'Date' expects 0 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-	}
-	return types.FLOAT
-}
-
-// analyzeTime analyzes the Time built-in function.
-// Time takes no arguments and returns a Float (TDateTime).
-func (a *Analyzer) analyzeTime(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 0 {
-		a.addError("function 'Time' expects 0 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-	}
-	return types.FLOAT
-}
-
-// analyzeUTCDateTime analyzes the UTCDateTime built-in function.
-// UTCDateTime takes no arguments and returns a Float (TDateTime).
-func (a *Analyzer) analyzeUTCDateTime(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 0 {
-		a.addError("function 'UTCDateTime' expects 0 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-	}
-	return types.FLOAT
-}
-
 // analyzeUnixTime analyzes the UnixTime built-in function.
 // UnixTime takes no arguments and returns an Integer.
 func (a *Analyzer) analyzeUnixTime(args []ast.Expression, callExpr *ast.CallExpression) types.Type {

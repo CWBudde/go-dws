@@ -17,16 +17,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// Normalize function name to lowercase for case-insensitive matching
 	lowerName := ident.Normalize(name)
 
-	// CHECK REGISTRY FOR EXISTENCE
-	// Note: Some builtins (Inc, Dec, Swap, Default, etc.) are not in the registry
-	// because they need special AST-level handling or aren't implemented yet in the runtime.
-	// We still have detailed analyzers for these in the switch below.
-	//
-	// We do NOT perform arity validation here because:
-	// 1. Many functions have optional parameters with complex rules
-	// 2. The detailed analyzers below provide better error messages
-	// 3. Registry signatures may be out of sync with actual semantic rules
-	// The registry is used primarily by the interpreter for runtime validation.
+	// AST-sensitive and diagnostic-specific builtins retain explicit analyzers.
+	// Ordinary calls use the runtime registry's signature below.
 
 	// Emit a hint when the case of a built-in differs from its declaration.
 	if lowerName == "assigned" && name != "Assigned" {
@@ -34,9 +26,15 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		a.addCaseMismatchHint(name, "Assigned", pos)
 	}
 
-	// Dispatch to detailed type-checking methods
-	// This handles ALL builtins, including those not in the registry
+	// Dispatch only where AST-sensitive or diagnostic-specific rules are needed.
 	switch lowerName {
+	// These calls have dedicated analysis later in analyzeFunctionCall. Their
+	// result depends on argument types (array elements or the accumulator), or
+	// their AST/diagnostic rules require that path before ordinary validation.
+	case "map", "filter", "reduce", "foreach", "every", "some", "find", "findindex", "slice",
+		"getcallstack", "assert":
+		return nil, false
+
 	// I/O Functions
 	case "println", "print":
 		return a.analyzePrintLn(args), true
@@ -216,14 +214,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeStrIsASCII(args, callExpr), true
 
 	// Encoding/Escaping Functions
-	case "strtohtml":
-		return a.analyzeStrToHtml(args, callExpr), true
-	case "strtohtmlattribute":
-		return a.analyzeStrToHtmlAttribute(args, callExpr), true
-	case "strtojson":
-		return a.analyzeStrToJSON(args, callExpr), true
-	case "strtocsstext":
-		return a.analyzeStrToCSSText(args, callExpr), true
 	case "strtoxml":
 		return a.analyzeStrToXML(args, callExpr), true
 
@@ -250,42 +240,12 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeSqrt(args, callExpr), true
 
 	// Math Functions - Trigonometric
-	case "sin":
-		return a.analyzeSin(args, callExpr), true
-	case "cos":
-		return a.analyzeCos(args, callExpr), true
-	case "tan":
-		return a.analyzeTan(args, callExpr), true
-	case "degtorad":
-		return a.analyzeDegToRad(args, callExpr), true
-	case "radtodeg":
-		return a.analyzeRadToDeg(args, callExpr), true
-	case "arcsin":
-		return a.analyzeArcSin(args, callExpr), true
-	case "arccos":
-		return a.analyzeArcCos(args, callExpr), true
-	case "arctan":
-		return a.analyzeArcTan(args, callExpr), true
 	case "arctan2":
 		return a.analyzeArcTan2(args, callExpr), true
-	case "cotan":
-		return a.analyzeCoTan(args, callExpr), true
 	case "hypot":
 		return a.analyzeHypot(args, callExpr), true
 
 	// Math Functions - Hyperbolic
-	case "sinh":
-		return a.analyzeSinh(args, callExpr), true
-	case "cosh":
-		return a.analyzeCosh(args, callExpr), true
-	case "tanh":
-		return a.analyzeTanh(args, callExpr), true
-	case "arcsinh":
-		return a.analyzeArcSinh(args, callExpr), true
-	case "arccosh":
-		return a.analyzeArcCosh(args, callExpr), true
-	case "arctanh":
-		return a.analyzeArcTanh(args, callExpr), true
 
 	// Math Functions - Random
 	case "random":
@@ -384,14 +344,6 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeSwap(args, callExpr), true
 
 	// Date/Time Functions - Current time
-	case "now":
-		return a.analyzeNow(args, callExpr), true
-	case "date":
-		return a.analyzeDate(args, callExpr), true
-	case "time":
-		return a.analyzeTime(args, callExpr), true
-	case "utcdatetime":
-		return a.analyzeUTCDateTime(args, callExpr), true
 	case "unixtime":
 		return a.analyzeUnixTime(args, callExpr), true
 	case "unixtimemsec":
@@ -550,306 +502,31 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeVarAsType(args, callExpr), true
 
 	default:
-		// Not a built-in function
-		return nil, false
+		return a.analyzeRegisteredBuiltin(name, args, callExpr)
 	}
 }
 
-// getBuiltinReturnType returns the return type for a built-in function WITHOUT analyzing arguments.
-// This is used by the validation pass to check if something is a built-in
-// and get its return type, without triggering argument analysis (which would use the wrong scope).
-// For functions where the return type depends on arguments (e.g., Default), returns VARIANT.
-//
-// IMPORTANT: This function must stay in sync with analyzeBuiltinFunction above.
-// All builtins recognized by analyzeBuiltinFunction should also be recognized here.
+// getBuiltinReturnType looks up the declared result without analyzing arguments.
+// Intrinsics without runtime signatures retain their compile-time result here.
 func (a *Analyzer) getBuiltinReturnType(name string) (types.Type, bool) {
-	// Normalize function name to lowercase for case-insensitive matching
-	lowerName := ident.Normalize(name)
-
-	switch lowerName {
-	// ========================================================================
-	// I/O Functions - return VOID
-	// ========================================================================
-	case "println", "print":
-		return types.VOID, true
-
-	// ========================================================================
-	// Type Conversion Functions
-	// ========================================================================
-	case "ord", "integer", "strtoint", "hextoint", "bintoint", "strtointdef", "vartointdef", "vartoint":
-		return types.INTEGER, true
-	case "inttostr", "inttobin", "inttohex", "booltostr", "vartostr", "floattostr", "floattostrf",
-		"bytesizetostr", "gettext", "_", "chr", "charat":
+	switch ident.Normalize(name) {
+	case "floattostrf":
 		return types.STRING, true
-	case "strtofloat", "strtofloatdef", "vartofloatdef", "vartofloat":
-		return types.FLOAT, true
-	case "strtobool":
-		return types.BOOLEAN, true
 	case "trystrtoint", "trystrtofloat":
 		return types.BOOLEAN, true
-	case "default", "varastype":
-		return types.VARIANT, true // Return type depends on arguments
-
-	// ========================================================================
-	// Array Functions
-	// ========================================================================
-	case "low", "high":
-		return types.INTEGER, true // For most cases, arrays return Integer bounds
-	case "length":
-		return types.INTEGER, true
-	case "setlength", "add", "delete", "include", "exclude":
-		return types.VOID, true
-
-	// ========================================================================
-	// String Functions
-	// ========================================================================
-	case "copy", "substr", "substring", "concat":
-		return types.STRING, true
-	case "pos", "posex", "revpos", "strfind":
-		return types.INTEGER, true
-	case "uppercase", "asciiuppercase", "ansiuppercase",
-		"lowercase", "asciilowercase", "ansilowercase":
-		return types.STRING, true
-	case "trim", "trimleft", "trimright":
-		return types.STRING, true
-	case "stringreplace", "stringofchar", "format":
-		return types.STRING, true
-	case "insert":
-		return types.VOID, true
-	case "leftstr", "rightstr", "midstr":
-		return types.STRING, true
-	case "strbeginswith", "strendswith", "strcontains":
-		return types.BOOLEAN, true
-	case "strsplit":
-		return types.VARIANT, true // Returns array of string
-	case "strjoin", "strarraypack":
-		return types.STRING, true
-	case "strbefore", "strbeforelast", "strafter", "strafterlast", "strbetween":
-		return types.STRING, true
-	case "isdelimiter":
-		return types.BOOLEAN, true
-	case "lastdelimiter", "finddelimiter":
-		return types.INTEGER, true
-	case "padleft", "padright":
-		return types.STRING, true
-	case "strdeleteleft", "deleteleft", "strdeleteright", "deleteright":
-		return types.STRING, true
-	case "reversestring":
-		return types.STRING, true
-	case "quotedstr":
-		return types.STRING, true
-	case "stringofstring", "dupestring":
-		return types.STRING, true
-	case "normalizestring", "normalize", "stripaccents":
-		return types.STRING, true
-	case "sametext":
-		return types.BOOLEAN, true
-	case "comparetext", "comparestr", "ansicomparetext", "ansicomparestr", "comparelocalestr":
-		return types.INTEGER, true
-	case "strmatches", "strisascii":
-		return types.BOOLEAN, true
-
-	// ========================================================================
-	// Encoding/Escaping Functions
-	// ========================================================================
-	case "strtohtml", "strtohtmlattribute", "strtojson", "strtocsstext", "strtoxml":
-		return types.STRING, true
-
-	// ========================================================================
-	// Math Functions - Basic
-	// ========================================================================
-	case "abs", "sqr", "sqrt", "power":
-		return types.FLOAT, true
-	case "min", "max", "clamp", "clampint", "minint", "maxint":
-		return types.VARIANT, true // Return type depends on arguments
-
-	// ========================================================================
-	// Math Functions - Trigonometric
-	// ========================================================================
-	case "sin", "cos", "tan", "degtorad", "radtodeg":
-		return types.FLOAT, true
-	case "arcsin", "arccos", "arctan", "arctan2", "cotan", "hypot":
-		return types.FLOAT, true
-
-	// ========================================================================
-	// Math Functions - Hyperbolic
-	// ========================================================================
-	case "sinh", "cosh", "tanh", "arcsinh", "arccosh", "arctanh":
-		return types.FLOAT, true
-
-	// ========================================================================
-	// Math Functions - Random
-	// ========================================================================
-	case "random":
-		return types.FLOAT, true
-	case "randomint":
-		return types.INTEGER, true
-	case "unsigned32":
-		return types.INTEGER, true
-	case "randomize":
-		return types.VOID, true
-	case "setrandseed":
-		return types.VOID, true
-	case "isnan", "isfinite", "isinfinite":
-		return types.BOOLEAN, true
-
-	// ========================================================================
-	// Math Functions - Exponential/Logarithmic
-	// ========================================================================
-	case "exp", "ln", "log2", "log10", "logn":
-		return types.FLOAT, true
-	case "pi", "infinity", "nan":
-		return types.FLOAT, true
-	case "sign":
-		return types.INTEGER, true
-	case "odd":
-		return types.BOOLEAN, true
-	case "frac", "int":
-		return types.FLOAT, true
-	case "intpower":
-		return types.FLOAT, true
-	case "randseed":
-		return types.INTEGER, true
-	case "randg":
-		return types.FLOAT, true
-	case "divmod":
-		return types.VOID, true // Modifies var parameters
-
-	// ========================================================================
-	// Math Functions - Advanced
-	// ========================================================================
-	case "factorial":
-		return types.INTEGER, true
-	case "gcd", "lcm":
-		return types.INTEGER, true
-	case "isprime":
-		return types.BOOLEAN, true
-	case "leastfactor":
-		return types.INTEGER, true
-	case "popcount", "testbit":
-		return types.INTEGER, true
-	case "haversine":
-		return types.FLOAT, true
-	case "comparenum":
-		return types.INTEGER, true
-
-	// ========================================================================
-	// Math Functions - Rounding
-	// ========================================================================
-	case "round", "trunc", "ceil", "floor":
-		return types.INTEGER, true
-
-	// ========================================================================
-	// Math Functions - Ordinal
-	// ========================================================================
-	case "inc", "dec":
-		return types.VOID, true
-	case "succ", "pred":
-		return types.VARIANT, true // Return type matches argument type
-	case "assigned":
-		return types.BOOLEAN, true
-	case "swap":
-		return types.VOID, true
-
-	// ========================================================================
-	// Date/Time Functions - Current time
-	// ========================================================================
-	case "now", "date", "time", "utcdatetime":
-		return types.FLOAT, true // TDateTime is Float
-	case "unixtime", "unixtimemsec":
-		return types.INTEGER, true
-
-	// ========================================================================
-	// Date/Time Functions - Encoding
-	// ========================================================================
-	case "encodedate", "encodetime", "encodedatetime":
-		return types.FLOAT, true // TDateTime is Float
-
-	// ========================================================================
-	// Date/Time Functions - Decoding
-	// ========================================================================
-	case "decodedate", "decodetime":
-		return types.VOID, true // Modifies var parameters
-
-	// ========================================================================
-	// Date/Time Functions - Component extraction
-	// ========================================================================
-	case "yearof", "monthof", "dayof", "hourof", "minuteof", "secondof":
-		return types.INTEGER, true
-	case "dayofweek", "dayoftheweek", "dayofyear", "weeknumber", "yearofweek":
-		return types.INTEGER, true
-
-	// ========================================================================
-	// Date/Time Functions - Formatting
-	// ========================================================================
-	case "formatdatetime", "datetimetostr", "datetostr", "timetostr":
-		return types.STRING, true
-	case "datetoiso8601", "datetimetoiso8601", "datetimetorfc822":
-		return types.STRING, true
-
-	// ========================================================================
-	// Date/Time Functions - Parsing
-	// ========================================================================
-	case "strtodate", "strtodatetime", "strtotime":
-		return types.FLOAT, true // TDateTime is Float
-	case "iso8601todatetime", "rfc822todatetime":
-		return types.FLOAT, true // TDateTime is Float
-
-	// ========================================================================
-	// Date/Time Functions - Incrementing
-	// ========================================================================
-	case "incyear", "incmonth", "incday", "inchour", "incminute", "incsecond":
-		return types.FLOAT, true // TDateTime is Float
-
-	// ========================================================================
-	// Date/Time Functions - Difference
-	// ========================================================================
-	case "daysbetween", "hoursbetween", "minutesbetween", "secondsbetween":
-		return types.INTEGER, true
-
-	// ========================================================================
-	// Date/Time Functions - Special
-	// ========================================================================
-	case "isleapyear":
-		return types.BOOLEAN, true
-	case "firstdayofyear", "firstdayofnextyear", "firstdayofmonth",
-		"firstdayofnextmonth", "firstdayofweek":
-		return types.FLOAT, true // TDateTime is Float
-
-	// ========================================================================
-	// Date/Time Functions - Unix time conversion
-	// ========================================================================
-	case "unixtimetodatetime", "unixtimemsectodatetime":
-		return types.FLOAT, true // TDateTime is Float
-	case "datetimetounixtime", "datetimetounixtimemsec":
-		return types.INTEGER, true
-
-	// ========================================================================
-	// JSON Functions
-	// ========================================================================
-	case "parsejson":
+	case "default":
 		return types.VARIANT, true
-	case "tojson", "tojsonformatted":
-		return types.STRING, true
-	case "jsonhasfield":
-		return types.BOOLEAN, true
-	case "jsonkeys", "jsonvalues":
-		return types.VARIANT, true // Returns array
-	case "jsonlength":
-		return types.INTEGER, true
-
-	// ========================================================================
-	// Variant Functions
-	// ========================================================================
-	case "vartype":
-		return types.INTEGER, true
-	case "varisnull", "varisempty", "varisclear", "varisarray", "varisstr", "varisnumeric":
-		return types.BOOLEAN, true
-
-	default:
-		// Not a built-in function
+	case "include", "exclude", "insert", "divmod", "inc", "dec", "swap", "decodedate", "decodetime":
+		return types.VOID, true
+	}
+	signature, ok := a.builtinRegistry.GetSignature(name)
+	if !ok {
 		return nil, false
 	}
+	if signature.ReturnType == nil {
+		return types.VOID, true
+	}
+	return signature.ReturnType, true
 }
 
 // ============================================================================

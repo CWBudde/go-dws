@@ -41,7 +41,7 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 			}
 			// Check if it's a metaclass ('class of X') alias, e.g. TBaseClass(ClassType).
 			if !isTypeCast {
-				if resolved, err := e.ResolveType(typeName); err == nil && resolved != nil {
+				if resolved, err := e.ResolveType(typeName, ctx); err == nil && resolved != nil {
 					if _, ok := resolved.(*types.ClassOfType); ok {
 						isTypeCast = true
 						classOfTarget = true
@@ -63,7 +63,7 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		// Check if it's a type alias to a primitive (e.g. type TMyInt = Integer),
 		// so TMyInt(x) casts through the aliased base type.
 		if !isTypeCast && e.typeSystem != nil {
-			if resolved, err := e.ResolveType(typeName); err == nil && resolved != nil {
+			if resolved, err := e.ResolveType(typeName, ctx); err == nil && resolved != nil {
 				switch types.GetUnderlyingType(resolved).TypeKind() {
 				case "INTEGER":
 					lowerName = "integer"
@@ -129,7 +129,7 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 			return e.newError(argExpr, "cannot cast %s to metaclass '%s'", val.Type(), typeName)
 		}
 		// Must be a class type (we already checked above)
-		return e.castToClassType(val, typeName, argExpr)
+		return e.castToClassType(val, typeName, argExpr, ctx)
 	}
 }
 
@@ -410,7 +410,7 @@ type VariantAccessor interface {
 // 5. ALWAYS creates TypeCastValue wrapper for successful casts
 //
 // Raises exceptions (not errors) for invalid casts.
-func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) Value {
+func (e *Evaluator) castToClassType(val Value, className string, node ast.Node, ctx *ExecutionContext) Value {
 	// Unwrap variant if needed
 	if variantVal, ok := val.(VariantAccessor); ok {
 		val = variantVal.GetVariantValue()
@@ -470,7 +470,7 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 		// Cast failed - raise exception
 		message := fmt.Sprintf("Cannot cast instance of type \"%s\" to class \"%s\"",
 			objClassMeta.Name, className)
-		e.raiseTypeCastException(message, node)
+		e.raiseTypeCastException(message, node, ctx)
 		return nil
 	}
 
@@ -486,8 +486,7 @@ func (e *Evaluator) castToClassType(val Value, className string, node ast.Node) 
 
 // raiseTypeCastException raises an exception for invalid type casts.
 // Self-contained: no longer delegates to ExceptionManager.
-func (e *Evaluator) raiseTypeCastException(message string, node ast.Node) {
-	ctx := e.currentContext
+func (e *Evaluator) raiseTypeCastException(message string, node ast.Node, ctx *ExecutionContext) {
 	if ctx == nil {
 		return // No context available, cannot raise exception
 	}

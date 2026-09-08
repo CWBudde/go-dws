@@ -83,7 +83,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 				return e.newError(stmt, "array index must be an ordinal, got %s", indexVal.Type())
 			}
 			if arrayValue, ok := memberVal.(*runtime.ArrayValue); ok {
-				return e.evalArrayElementAssignment(arrayValue, index, value, stmt)
+				return e.evalArrayElementAssignment(arrayValue, index, value, stmt, ctx)
 			}
 			if strVal, ok := memberVal.(*runtime.StringValue); ok {
 				return e.evalStringCharAssignment(strVal, index, value, stmt)
@@ -119,7 +119,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 
 	// JSON index write: obj['key'] := value / arr[i] := value.
 	if isJSONBoxed(arrayVal) {
-		return e.assignJSONIndex(jsonValueOf(arrayVal), indexVal, value, stmt)
+		return e.assignJSONIndex(jsonValueOf(arrayVal), indexVal, value, stmt, ctx)
 	}
 
 	// Check for interface-based indexed properties or object with default indexed property
@@ -149,7 +149,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 
 	// Handle array assignment
 	if arrayValue, ok := arrayVal.(*runtime.ArrayValue); ok {
-		return e.evalArrayElementAssignment(arrayValue, index, value, stmt)
+		return e.evalArrayElementAssignment(arrayValue, index, value, stmt, ctx)
 	}
 
 	// Handle string character assignment
@@ -167,6 +167,7 @@ func (e *Evaluator) evalArrayElementAssignment(
 	index int,
 	value Value,
 	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
 ) Value {
 	if arrayValue.ArrayType == nil {
 		return e.newError(stmt, "array has no type information")
@@ -189,20 +190,20 @@ func (e *Evaluator) evalArrayElementAssignment(
 		highBound := *arrayType.HighBound
 
 		if index < lowBound {
-			return e.raiseIndexBoundExceeded(diagNode, index, false)
+			return e.raiseIndexBoundExceeded(diagNode, index, false, ctx)
 		}
 		if index > highBound {
-			return e.raiseIndexBoundExceeded(diagNode, index, true)
+			return e.raiseIndexBoundExceeded(diagNode, index, true, ctx)
 		}
 
 		physicalIndex = index - lowBound
 	} else {
 		// Dynamic array: zero-based indexing
 		if index < 0 {
-			return e.raiseIndexBoundExceeded(diagNode, index, false)
+			return e.raiseIndexBoundExceeded(diagNode, index, false, ctx)
 		}
 		if index >= len(arrayValue.Elements) {
-			return e.raiseIndexBoundExceeded(diagNode, index, true)
+			return e.raiseIndexBoundExceeded(diagNode, index, true, ctx)
 		}
 
 		physicalIndex = index

@@ -16,7 +16,7 @@ import (
 // - String concatenation: += for strings
 // - Variant operations: delegates to evalVariantBinaryOp
 // - Class operator overloads: uses TryBinaryOperator infrastructure
-func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value, node ast.Node) Value {
+func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Check for class operator overloads first
 	// Use existing TryBinaryOperator infrastructure
 	leftType := left.Type()
@@ -37,7 +37,6 @@ func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value
 		}
 
 		// Try to find compound operator overload on the object (e.g., +=, -=, *=, /=)
-		ctx := e.currentContext
 		if result, found := e.evalTryBinaryOperator(compoundOpSymbol, left, right, node, ctx); found {
 			return result
 		}
@@ -65,7 +64,7 @@ func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value
 
 	switch op {
 	case token.PLUS_ASSIGN:
-		return e.evalPlusAssign(left, right, node)
+		return e.evalPlusAssign(left, right, node, ctx)
 
 	case token.MINUS_ASSIGN:
 		return e.evalMinusAssign(left, right, node)
@@ -82,7 +81,7 @@ func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value
 }
 
 // evalPlusAssign handles the += operator for various types.
-func (e *Evaluator) evalPlusAssign(left, right Value, node ast.Node) Value {
+func (e *Evaluator) evalPlusAssign(left, right Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Handle Variant values first - delegate to evalVariantBinaryOp
 	if _, ok := left.(runtime.VariantWrapper); ok {
 		result := e.evalVariantBinaryOp("+", left, right, node)
@@ -133,7 +132,7 @@ func (e *Evaluator) evalPlusAssign(left, right Value, node ast.Node) Value {
 		if l.ArrayType != nil && !l.ArrayType.IsDynamic() {
 			return e.newError(node, "operator += not supported for static arrays")
 		}
-		e.appendArrayArgs(l, []Value{right})
+		e.appendArrayArgs(l, []Value{right}, ctx)
 		return l
 
 	default:

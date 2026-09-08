@@ -218,7 +218,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			// assignment time (`var b := a[k]` clones).
 			return stored
 		}
-		return e.getZeroValueForType(assoc.ElementType())
+		return e.getZeroValueForType(assoc.ElementType(), ctx)
 	}
 
 	// Index must be an integer or enum for arrays and strings.
@@ -233,7 +233,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 
 	// Check if left side is an array
 	if arrayVal, ok := leftVal.(*runtime.ArrayValue); ok {
-		return e.IndexArray(arrayVal, index, node)
+		return e.IndexArray(arrayVal, index, node, ctx)
 	}
 
 	// Check if left side is a string
@@ -373,7 +373,7 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 		}
 
 		// No initializer - generate zero value
-		return e.getZeroValueForType(fieldType)
+		return e.getZeroValueForType(fieldType, ctx)
 	}
 
 	// Create record using runtime constructor with initializer callback

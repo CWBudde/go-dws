@@ -25,12 +25,11 @@ var (
 
 var compileCmd = &cobra.Command{
 	Use:   "compile [file]",
-	Short: "Compile a DWScript file to bytecode",
+	Short: "Compile a DWScript file to bytecode (experimental)",
 	Long: `Compile a DWScript program to bytecode and save it as a .dwc file.
 
-The compiled bytecode can be loaded and executed much faster than parsing
-the source code each time. This is useful for production deployments or
-frequently run scripts.
+The bytecode compiler and VM are experimental, incomplete, and unmaintained.
+They support only a subset of DWScript; no execution speedup is verified.
 
 Examples:
   # Compile a script to bytecode

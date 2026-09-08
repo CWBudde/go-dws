@@ -80,7 +80,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	// JSON member write: v.field := value. The JSON tree is shared by reference,
 	// so mutating it in place is visible through the variable.
 	if isJSONBoxed(objVal) {
-		return e.assignJSONMember(jsonValueOf(objVal), target.Member.Value, value, stmt)
+		return e.assignJSONMember(jsonValueOf(objVal), target.Member.Value, value, stmt, ctx)
 	}
 
 	// NATIVE: Nil value handling (auto-initialization)

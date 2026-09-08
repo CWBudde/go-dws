@@ -191,7 +191,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 							}
 							argVals[i] = val
 						}
-						if selected, err := e.selectOverload(rec.GetRecordTypeName(), memberAccess.Member.Value, overloads, argVals); err == nil {
+						if selected, err := e.selectOverload(rec.GetRecordTypeName(), memberAccess.Member.Value, overloads, argVals, ctx); err == nil {
 							return e.callRecordMethod(recordVal, selected, argVals, mc, ctx)
 						}
 					}
@@ -398,7 +398,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		if ctx.Exception() != nil {
 			return &runtime.NilValue{}
 		}
-		return fn(e, args)
+		return fn(e.builtinContext(ctx), args)
 	}
 
 	// A proc-typed field of Self invoked by bare name inside a method
@@ -583,9 +583,6 @@ func (e *Evaluator) raiseBoundExceededError(err error, ctx *ExecutionContext) (V
 	if !ok {
 		return nil, false
 	}
-	if ctx == nil {
-		ctx = e.currentContext
-	}
 	if ctx != nil {
 		ctx.SetException(e.createException("Exception", be.msg, nil, ctx))
 	}
@@ -655,7 +652,7 @@ func (e *Evaluator) prepareArrayElementReference(idxExpr *ast.IndexExpression, c
 	// Bind-time bounds check raises a catchable exception at the call site.
 	if _, err := arrayElementPhysicalIndex(arr, index); err != nil {
 		low, _ := arrayElementBounds(arr)
-		e.raiseIndexBoundExceededAt(idxExpr.End(), index, index >= low)
+		e.raiseIndexBoundExceededAt(idxExpr.End(), index, index >= low, ctx)
 		return nil, true, err
 	}
 
@@ -666,7 +663,7 @@ func (e *Evaluator) prepareArrayElementReference(idxExpr *ast.IndexExpression, c
 		}
 		el := arr.Elements[phys]
 		if el == nil {
-			return e.getZeroValueForType(arr.ArrayType.ElementType), nil
+			return e.getZeroValueForType(arr.ArrayType.ElementType, ctx), nil
 		}
 		return el, nil
 	}
@@ -1089,7 +1086,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 				return errVal
 			}
 			merged := append(classInfo.GetConstructorOverloads("Create"), classOverloads...)
-			if selected, err := e.selectOverload(classInfo.GetName(), "Create", merged, args); err == nil &&
+			if selected, err := e.selectOverload(classInfo.GetName(), "Create", merged, args, ctx); err == nil &&
 				selected.IsClassMethod && !selected.IsConstructor {
 				classValAny, cvErr := e.typeSystem.CreateClassValue(classInfo.GetName())
 				if cvErr != nil {
@@ -1198,7 +1195,7 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 		return evalErr
 	}
 
-	return e.CreateMultiDimArray(elementType, dimensions)
+	return e.CreateMultiDimArray(elementType, dimensions, ctx)
 }
 
 // VisitLambdaExpression evaluates a lambda expression (closure).

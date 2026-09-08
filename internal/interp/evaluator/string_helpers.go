@@ -15,54 +15,54 @@ import (
 // evalStringHelper evaluates built-in string helper methods and properties directly.
 // Returns nil only for unknown specs.
 func (e *Evaluator) evalStringHelper(spec string, selfValue Value, args []Value, node ast.Node) Value {
-	switch spec {
-	case "__string_toupper":
+	switch types.BuiltinHelperOperation(spec) {
+	case types.HelperStringToUpper:
 		return e.evalStringToUpper(selfValue, args, node)
-	case "__string_tolower":
+	case types.HelperStringToLower:
 		return e.evalStringToLower(selfValue, args, node)
-	case "__string_length":
+	case types.HelperStringLength:
 		return e.evalStringLength(selfValue, node)
-	case "__string_tostring":
+	case types.HelperStringToString:
 		return e.evalStringToString(selfValue, args, node)
-	case "__string_tointeger":
+	case types.HelperStringToInteger:
 		return e.evalStringToInteger(selfValue, args, node)
-	case "__string_tofloat":
+	case types.HelperStringToFloat:
 		return e.evalStringToFloat(selfValue, args, node)
-	case "__string_startswith":
+	case types.HelperStringStartsWith:
 		return e.evalStringStartsWith(selfValue, args, node)
-	case "__string_endswith":
+	case types.HelperStringEndsWith:
 		return e.evalStringEndsWith(selfValue, args, node)
-	case "__string_contains":
+	case types.HelperStringContains:
 		return e.evalStringContains(selfValue, args, node)
-	case "__string_indexof":
+	case types.HelperStringIndexOf:
 		return e.evalStringIndexOf(selfValue, args, node)
-	case "__string_matches":
+	case types.HelperStringMatches:
 		return e.evalStringMatches(selfValue, args, node)
-	case "__string_isascii":
+	case types.HelperStringIsASCII:
 		return e.evalStringIsASCII(selfValue, args, node)
-	case "__string_copy":
+	case types.HelperStringCopy:
 		return e.evalStringCopy(selfValue, args, node)
-	case "__string_before":
+	case types.HelperStringBefore:
 		return e.evalStringBefore(selfValue, args, node)
-	case "__string_after":
+	case types.HelperStringAfter:
 		return e.evalStringAfter(selfValue, args, node)
-	case "__string_trim":
+	case types.HelperStringTrim:
 		return e.evalStringTrim(selfValue, args, node)
-	case "__string_trimleft":
+	case types.HelperStringTrimLeft:
 		return e.evalStringTrimLeft(selfValue, args, node)
-	case "__string_trimright":
+	case types.HelperStringTrimRight:
 		return e.evalStringTrimRight(selfValue, args, node)
-	case "__string_split":
+	case types.HelperStringSplit:
 		return e.evalStringSplit(selfValue, args, node)
-	case "__string_tojson":
+	case types.HelperStringToJSON:
 		return e.evalStringToJSON(selfValue, args, node)
-	case "__string_tohtml":
+	case types.HelperStringToHTML:
 		return e.evalStringToHTML(selfValue, args, node)
-	case "__string_tohtmlattribute":
+	case types.HelperStringToHTMLAttribute:
 		return e.evalStringToHTMLAttribute(selfValue, args, node)
-	case "__string_tocsstext":
+	case types.HelperStringToCSSText:
 		return e.evalStringToCSSText(selfValue, args, node)
-	case "__string_toxml":
+	case types.HelperStringToXML:
 		return e.evalStringToXML(selfValue, args, node)
 	default:
 		return nil

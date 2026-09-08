@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cwbudde/go-dws/internal/encoding"
 	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -520,7 +521,7 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 	}()
 
 	// Read the .pas source file with encoding detection.
-	source, err := detectAndDecodeFile(pasFile)
+	source, err := encoding.DecodeFile(pasFile)
 	if err != nil {
 		return testResultFailed, fmt.Sprintf("failed to read source: %v", err)
 	}
@@ -529,7 +530,7 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 	// fixture is intentionally not scored (skipped). Any other read/decode error is a real
 	// problem and must fail rather than masquerade as a skip.
 	txtFile := strings.TrimSuffix(pasFile, ".pas") + ".txt"
-	expectedContent, err := detectAndDecodeFile(txtFile)
+	expectedContent, err := encoding.DecodeFile(txtFile)
 	if err != nil {
 		// errors.Is sees through the %w wrapping added by detectAndDecodeFile;
 		// os.IsNotExist would not and would misreport a missing file as failed.

@@ -9,55 +9,8 @@ import (
 )
 
 func arrayHelperCanonicalName(methodName string) string {
-	switch ident.Normalize(methodName) {
-	case "low":
-		return "Low"
-	case "high":
-		return "High"
-	case "length":
-		return "Length"
-	case "count":
-		return "Count"
-	case "setlength":
-		return "SetLength"
-	case "indexof":
-		return "IndexOf"
-	case "delete":
-		return "Delete"
-	case "remove":
-		return "Remove"
-	case "insert":
-		return "Insert"
-	case "move":
-		return "Move"
-	case "swap":
-		return "Swap"
-	case "copy":
-		return "Copy"
-	case "foreach":
-		return "ForEach"
-	case "sort":
-		return "Sort"
-	case "reverse":
-		return "Reverse"
-	case "contains":
-		return "Contains"
-	case "filter":
-		return "Filter"
-	case "clear":
-		return "Clear"
-	case "peek":
-		return "Peek"
-	case "add":
-		return "Add"
-	case "push":
-		return "Push"
-	case "pop":
-		return "Pop"
-	case "map":
-		return "Map"
-	case "join":
-		return "Join"
+	if member, ok := types.LookupBuiltinHelper("array", methodName); ok {
+		return member.Name
 	}
 	return methodName
 }
@@ -331,19 +284,20 @@ func (a *Analyzer) analyzeArrayMemberAccess(expr *ast.MemberAccessExpression, ar
 	memberNameLower := ident.Normalize(expr.Member.Value)
 	a.addArrayHelperCaseHint(expr.Member)
 
-	switch memberNameLower {
-	case "length", "count", "high", "low":
+	member, _ := types.LookupBuiltinHelper("array", memberNameLower)
+	switch member.Operation {
+	case types.HelperArrayLength, types.HelperArrayCount, types.HelperArrayHigh, types.HelperArrayLow:
 		return types.INTEGER
-	case "reverse":
+	case types.HelperArrayReverse:
 		return arrayType
-	case "clear":
+	case types.HelperArrayClear:
 		return types.VOID
-	case "peek":
+	case types.HelperArrayPeek:
 		return arrayType.ElementType
-	case "copy":
+	case types.HelperArrayCopy:
 		// Copy with no arguments duplicates the whole array.
 		return arrayType
-	case "delete", "remove", "insert", "move", "swap", "foreach", "contains", "filter":
+	case types.HelperArrayDelete, types.HelperArrayRemove, types.HelperArrayInsert, types.HelperArrayMove, types.HelperArraySwap, types.HelperArrayForEach, types.HelperArrayContains, types.HelperArrayFilter:
 		a.addArrayHelperTooFewArgs(expr)
 		if memberNameLower == "remove" {
 			return types.INTEGER
@@ -358,7 +312,7 @@ func (a *Analyzer) analyzeArrayMemberAccess(expr *ast.MemberAccessExpression, ar
 			return arrayType
 		}
 		return types.VOID
-	case "sort":
+	case types.HelperArraySort:
 		if !isArrayNaturallySortable(arrayType.ElementType) {
 			a.addArrayHelperError(expr.Member.Token.Pos, "Array does not have a natural sort order")
 		}
@@ -375,13 +329,14 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 	methodNameLower := ident.Normalize(expr.Method.Value)
 	a.addArrayHelperCaseHint(expr.Method)
 
-	switch methodNameLower {
-	case "length", "count", "high", "low":
+	member, _ := types.LookupBuiltinHelper("array", methodNameLower)
+	switch member.Operation {
+	case types.HelperArrayLength, types.HelperArrayCount, types.HelperArrayHigh, types.HelperArrayLow:
 		if len(expr.Arguments) != 0 {
 			a.addArrayHelperNoArgs(expr)
 		}
 		return types.INTEGER
-	case "add", "push":
+	case types.HelperArrayAdd, types.HelperArrayPush:
 		if len(expr.Arguments) == 0 {
 			a.addArrayHelperTooFewArgs(expr)
 			return types.VOID
@@ -420,7 +375,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			}
 		}
 		return types.VOID
-	case "setlength":
+	case types.HelperArraySetLength:
 		if len(expr.Arguments) == 0 {
 			a.addArrayHelperTooFewArgs(expr)
 			return types.VOID
@@ -431,7 +386,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		}
 		a.validateArrayIntegerArg(expr.Arguments[0])
 		return types.VOID
-	case "delete":
+	case types.HelperArrayDelete:
 		if len(expr.Arguments) == 0 {
 			a.addArrayHelperTooFewArgs(expr)
 			return types.VOID
@@ -444,7 +399,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.validateArrayIntegerArg(expr.Arguments[1])
 		}
 		return types.VOID
-	case "remove":
+	case types.HelperArrayRemove:
 		if len(expr.Arguments) == 0 {
 			a.addArrayHelperTooFewArgs(expr)
 			return types.INTEGER
@@ -459,7 +414,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.validateArrayIntegerArgAt(expr.Arguments[1], expr.Arguments[0].Pos())
 		}
 		return types.INTEGER
-	case "indexof":
+	case types.HelperArrayIndexOf:
 		if len(expr.Arguments) == 0 {
 			a.addArrayHelperTooFewArgs(expr)
 			return types.INTEGER
@@ -474,7 +429,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.validateArrayIntegerArgAt(expr.Arguments[1], expr.Arguments[0].Pos())
 		}
 		return types.INTEGER
-	case "insert":
+	case types.HelperArrayInsert:
 		if len(expr.Arguments) < 2 {
 			a.addArrayHelperTooFewArgs(expr)
 			return types.VOID
@@ -487,7 +442,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperParamTypeExpectedAt(expr.Arguments[1].Pos(), arrayType.ElementType, argType)
 		}
 		return types.VOID
-	case "move":
+	case types.HelperArrayMove:
 		if len(expr.Arguments) < 2 {
 			a.addArrayHelperTooFewArgs(expr)
 			return types.VOID
@@ -498,7 +453,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		a.validateArrayIntegerArg(expr.Arguments[0])
 		a.validateArrayIntegerArg(expr.Arguments[1])
 		return types.VOID
-	case "swap":
+	case types.HelperArraySwap:
 		if len(expr.Arguments) < 2 {
 			a.addArrayHelperTooFewArgs(expr)
 			return arrayType
@@ -509,22 +464,22 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		a.validateArrayIntegerArg(expr.Arguments[0])
 		a.validateArrayIntegerArg(expr.Arguments[1])
 		return arrayType
-	case "reverse":
+	case types.HelperArrayReverse:
 		if len(expr.Arguments) != 0 {
 			a.addArrayHelperNoArgs(expr)
 		}
 		return arrayType
-	case "clear":
+	case types.HelperArrayClear:
 		if len(expr.Arguments) != 0 {
 			a.addArrayHelperNoArgs(expr)
 		}
 		return types.VOID
-	case "peek":
+	case types.HelperArrayPeek:
 		if len(expr.Arguments) != 0 {
 			a.addArrayHelperNoArgs(expr)
 		}
 		return arrayType.ElementType
-	case "contains":
+	case types.HelperArrayContains:
 		if len(expr.Arguments) == 0 {
 			a.addArrayHelperTooFewArgs(expr)
 			return types.BOOLEAN
@@ -536,7 +491,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperParamTypeExpectedAt(expr.Arguments[0].Pos(), arrayType.ElementType, argType)
 		}
 		return types.BOOLEAN
-	case "filter":
+	case types.HelperArrayFilter:
 		if len(expr.Arguments) != 1 {
 			if len(expr.Arguments) < 1 {
 				a.addArrayHelperTooFewArgs(expr)
@@ -552,7 +507,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), predicateType, argType)
 		}
 		return types.NewDynamicArrayType(arrayType.ElementType)
-	case "copy":
+	case types.HelperArrayCopy:
 		// Copy() / Copy(start) / Copy(start, count); zero args copies the whole array.
 		if len(expr.Arguments) > 2 {
 			a.addArrayHelperTooManyArgs(expr)
@@ -564,7 +519,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.validateArrayIntegerArg(expr.Arguments[1])
 		}
 		return arrayType
-	case "foreach":
+	case types.HelperArrayForEach:
 		callbackType := types.NewProcedurePointerType([]types.Type{arrayType.ElementType})
 		if len(expr.Arguments) == 0 {
 			a.addArrayHelperTooFewArgs(expr)
@@ -590,7 +545,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), callbackType, argType)
 		}
 		return types.VOID
-	case "map":
+	case types.HelperArrayMap:
 		if len(expr.Arguments) != 1 {
 			if len(expr.Arguments) < 1 {
 				a.addArrayHelperTooFewArgs(expr)
@@ -639,7 +594,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			}
 		}
 		return types.NewDynamicArrayType(mappedElem)
-	case "sort":
+	case types.HelperArraySort:
 		if len(expr.Arguments) > 1 {
 			a.addArrayHelperTooManyArgs(expr)
 			return arrayType

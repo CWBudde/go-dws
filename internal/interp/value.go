@@ -83,60 +83,6 @@ var (
 	IsObject          = runtime.IsObject
 )
 
-// GetRecordMethod retrieves a method by name from a record (case-insensitive).
-func GetRecordMethod(r *RecordValue, name string) *ast.FunctionDecl {
-	if r.Metadata == nil {
-		return nil
-	}
-
-	methodMeta, ok := r.Metadata.Methods[ident.Normalize(name)]
-	if !ok || methodMeta.Body == nil {
-		return nil
-	}
-
-	// Reconstruct FunctionDecl from metadata for compatibility
-	blockBody, ok := methodMeta.Body.(*ast.BlockStatement)
-	if !ok {
-		return nil
-	}
-
-	// Reconstruct parameters
-	params := make([]*ast.Parameter, len(methodMeta.Parameters))
-	for i, paramMeta := range methodMeta.Parameters {
-		var paramType ast.TypeExpression
-		if paramMeta.TypeName != "" {
-			paramType = &ast.TypeAnnotation{Name: paramMeta.TypeName}
-		}
-		params[i] = &ast.Parameter{
-			Name:         &ast.Identifier{Value: paramMeta.Name},
-			Type:         paramType,
-			ByRef:        paramMeta.ByRef,
-			DefaultValue: paramMeta.DefaultValue,
-		}
-	}
-
-	// Reconstruct return type
-	var returnType ast.TypeExpression
-	if methodMeta.ReturnTypeName != "" {
-		returnType = &ast.TypeAnnotation{Name: methodMeta.ReturnTypeName}
-	}
-
-	return &ast.FunctionDecl{
-		Name:          &ast.Identifier{Value: methodMeta.Name},
-		Parameters:    params,
-		ReturnType:    returnType,
-		Body:          blockBody,
-		IsClassMethod: methodMeta.IsClassMethod,
-		IsConstructor: methodMeta.IsConstructor,
-		IsDestructor:  methodMeta.IsDestructor,
-	}
-}
-
-// RecordHasMethod checks if a method exists on the record.
-func RecordHasMethod(r *RecordValue, name string) bool {
-	return GetRecordMethod(r, name) != nil
-}
-
 // ExternalVarValue marks external variables
 type ExternalVarValue = runtime.ExternalVarValue
 
@@ -270,11 +216,6 @@ func newRecordValueInternalWithMetadataLookup(recordType *types.RecordType, meta
 // NewRecordValue creates a new record with default field values.
 func NewRecordValue(recordType *types.RecordType) Value {
 	return newRecordValueInternal(recordType, nil, nil)
-}
-
-// NewRecordValueWithMetadata creates a new record using metadata (AST-free).
-func NewRecordValueWithMetadata(recordType *types.RecordType, metadata *runtime.RecordMetadata) Value {
-	return newRecordValueInternal(recordType, metadata, nil)
 }
 
 // ClassInfoValue tracks current class context in class methods.
@@ -601,55 +542,6 @@ func NewFunctionPointerValue(function *ast.FunctionDecl, closure *Environment, s
 		Lambda:      nil,
 		Closure:     closure,
 		SelfObject:  selfObject,
-		PointerType: pointerType,
-	}
-}
-
-// NewFunctionPointerValueWithID creates a function pointer using MethodID (AST-free).
-func NewFunctionPointerValueWithID(methodID runtime.MethodID, closure *Environment, selfObject Value, pointerType *types.FunctionPointerType) *FunctionPointerValue {
-	return &FunctionPointerValue{
-		MethodID:    methodID,
-		Function:    nil,
-		Lambda:      nil,
-		Closure:     closure,
-		SelfObject:  selfObject,
-		PointerType: pointerType,
-	}
-}
-
-// NewBuiltinFunctionPointerValue creates a function pointer to a built-in function.
-func NewBuiltinFunctionPointerValue(name string, pointerType *types.FunctionPointerType) *FunctionPointerValue {
-	return &FunctionPointerValue{
-		MethodID:    runtime.InvalidMethodID,
-		Function:    nil,
-		Lambda:      nil,
-		Closure:     nil,
-		SelfObject:  nil,
-		PointerType: pointerType,
-		BuiltinName: name,
-	}
-}
-
-// NewLambdaValue creates a lambda/closure value.
-func NewLambdaValue(lambda *ast.LambdaExpression, closure *Environment, pointerType *types.FunctionPointerType) *FunctionPointerValue {
-	return &FunctionPointerValue{
-		MethodID:    runtime.InvalidMethodID,
-		Function:    nil,
-		Lambda:      lambda,
-		Closure:     closure,
-		SelfObject:  nil,
-		PointerType: pointerType,
-	}
-}
-
-// NewLambdaValueWithID creates a lambda/closure value using MethodID (AST-free).
-func NewLambdaValueWithID(methodID runtime.MethodID, closure *Environment, pointerType *types.FunctionPointerType) *FunctionPointerValue {
-	return &FunctionPointerValue{
-		MethodID:    methodID,
-		Function:    nil,
-		Lambda:      nil,
-		Closure:     closure,
-		SelfObject:  nil,
 		PointerType: pointerType,
 	}
 }

@@ -52,6 +52,10 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
 		return a.analyzeMethodCallExpression(e)
 	case *ast.ArrayLiteralExpression:
 		return a.analyzeArrayLiteral(e, nil)
+	case *ast.AnonymousRecordExpression:
+		// Structurally typed (record a := 1; end): needs no context, unlike
+		// an anonymous RecordLiteralExpression.
+		return a.analyzeAnonymousRecordExpression(e)
 	case *ast.RecordLiteralExpression:
 		// Typed record literals can be analyzed standalone
 		if e.TypeName != nil {

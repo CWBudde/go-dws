@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -191,8 +190,8 @@ func (e *Evaluator) ResolveOverloadFast(
 //
 // This method:
 //  1. Evaluates all arguments to determine their types
-//  2. Builds semantic Symbol candidates from AST function declarations
-//  3. Calls semantic.ResolveOverload to find the best match
+//  2. Builds function type candidates from AST function declarations
+//  3. Calls types.ResolveOverload to find the best match
 //  4. Returns the matching function declaration and cached argument values
 //
 // Returns an error if no overload matches the provided arguments.
@@ -224,38 +223,22 @@ func (e *Evaluator) ResolveOverloadMultiple(
 	}
 	ctx.SetArrayTypeContext(prevArrayCtx)
 
-	// 2. Build semantic symbols from overloads
-	candidates := make([]*semantic.Symbol, len(overloads))
+	// 2. Build function types from overloads
+	candidates := make([]types.Type, len(overloads))
 	for idx, fn := range overloads {
 		funcType := e.extractFunctionType(fn, ctx)
 		if funcType == nil {
 			return nil, nil, fmt.Errorf("unable to extract function type for overload %d of '%s'", idx+1, funcName)
 		}
-		candidates[idx] = &semantic.Symbol{
-			Name:                 fn.Name.Value,
-			Type:                 funcType,
-			HasOverloadDirective: fn.IsOverload,
-		}
+		candidates[idx] = funcType
 	}
 
-	// 3. Use semantic analyzer's overload resolution
-	selected, err := semantic.ResolveOverload(candidates, argTypes)
+	// 3. Use the shared type-system overload resolution
+	selected, err := types.ResolveOverload(candidates, argTypes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("There is no overloaded version of \"%s\" that can be called with these arguments", funcName)
 	}
 
-	// 4. Find matching declaration
-	selectedType, ok := selected.Type.(*types.FunctionType)
-	if !ok {
-		return nil, nil, fmt.Errorf("internal error: selected symbol type is not FunctionType")
-	}
-	for _, fn := range overloads {
-		fnType := e.extractFunctionType(fn, ctx)
-		if fnType != nil && semantic.SignaturesEqual(fnType, selectedType) &&
-			fnType.ReturnType.Equals(selectedType.ReturnType) {
-			return fn, argValues, nil
-		}
-	}
-
-	return nil, nil, fmt.Errorf("internal error: resolved overload not found in candidate list")
+	// 4. Return the declaration at the selected candidate index.
+	return overloads[selected], argValues, nil
 }

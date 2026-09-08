@@ -31,7 +31,7 @@ func readBoundarySource(t *testing.T, path string) string {
 // - evaluator implements those interfaces
 // - interp/new.go owns canonical runtime construction during Phase 4
 //
-// See docs/architecture/interp-evaluator-boundary.md for rationale.
+// See docs/architecture/interp-evaluator-steady-state.md for rationale.
 func TestInterpDoesNotImportEvaluator(t *testing.T) {
 	const forbidden = "github.com/cwbudde/go-dws/internal/interp/evaluator"
 
@@ -60,7 +60,7 @@ func TestInterpDoesNotImportEvaluator(t *testing.T) {
 		}
 
 		// Allow canonical construction entry points to import evaluator.
-		if path == "new.go" || path == filepath.Join("runner", "runner.go") || strings.HasPrefix(path, "runner"+string(filepath.Separator)) {
+		if path == "new.go" {
 			return nil
 		}
 
@@ -78,9 +78,9 @@ func TestInterpDoesNotImportEvaluator(t *testing.T) {
 			importPath := strings.Trim(imp.Path.Value, `"`)
 			if importPath == forbidden {
 				t.Errorf("%s imports %s - violates interp/evaluator boundary.\n"+
-					"Allowed only in new.go, runner/**, and *_test.go.\n"+
+					"Allowed only in new.go and *_test.go.\n"+
 					"Use contracts interfaces for all non-construction code.\n"+
-					"See docs/architecture/interp-evaluator-boundary.md",
+					"See docs/architecture/interp-evaluator-steady-state.md",
 					path, forbidden)
 			}
 		}
@@ -101,10 +101,6 @@ func TestConstructionDoesNotReferenceLegacyBridgeWiring(t *testing.T) {
 	}{
 		{
 			path:      "new.go",
-			forbidden: []string{"SetFocusedInterfaces", "SetRuntimeBridge", "SetEnvironment", "RestoreEnvironment"},
-		},
-		{
-			path:      filepath.Join("runner", "runner.go"),
 			forbidden: []string{"SetFocusedInterfaces", "SetRuntimeBridge", "SetEnvironment", "RestoreEnvironment"},
 		},
 	}
@@ -350,6 +346,42 @@ func TestInterpreterEvalSurfaceMatchesAllowlist(t *testing.T) {
 	for name, reason := range allowed {
 		if _, ok := found[name]; !ok {
 			t.Errorf("allowed Interpreter.%s (%s) is missing from the current surface; update this allowlist test if the shell boundary changed intentionally", name, reason)
+		}
+	}
+}
+
+// TestShellDoesNotOwnCallableSemantics keeps host callbacks on the same evaluator
+// dispatch path as script calls and protects the canonical construction boundary.
+func TestShellDoesNotOwnCallableSemantics(t *testing.T) {
+	t.Parallel()
+	if _, err := os.Stat(filepath.Join("runner", "runner.go")); !os.IsNotExist(err) {
+		t.Fatalf("runner construction shim must remain removed (stat error: %v)", err)
+	}
+	files, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	forbidden := map[string]bool{
+		"callBuiltin":         true,
+		"callFunctionPointer": true,
+		"callLambda":          true,
+		"builtinMap":          true,
+		"builtinFilter":       true,
+		"builtinReduce":       true,
+	}
+	for _, path := range files {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*goast.FuncDecl)
+			if ok && forbidden[fn.Name.Name] {
+				t.Errorf("%s reintroduces shell callable semantics in %s", path, fn.Name.Name)
+			}
 		}
 	}
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
-	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -136,7 +135,7 @@ func (e *Evaluator) executeConstructorForObject(obj *runtime.ObjectInstance, con
 	} else if len(overloads) > 1 {
 		// Select the best match by argument types (falls back internally to
 		// arg-count and default-parameter matching).
-		if selected, err := e.selectOverload(classInfo.GetName(), constructorName, overloads, args); err == nil {
+		if selected, err := e.selectOverload(classInfo.GetName(), constructorName, overloads, args, ctx); err == nil {
 			constructor = selected
 		}
 		if constructor == nil {
@@ -176,7 +175,7 @@ func (e *Evaluator) dispatchObjectMethodOverloaded(obj *runtime.ObjectInstance, 
 	overloads := classInfo.GetMethodOverloads(methodName)
 	merged := append(append([]*ast.FunctionDecl{}, overloads...), classInfo.GetClassMethodOverloads(methodName)...)
 	if len(merged) > 0 {
-		method, err := e.selectOverload(classInfo.GetName(), methodName, merged, args)
+		method, err := e.selectOverload(classInfo.GetName(), methodName, merged, args, ctx)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
 		}
@@ -212,7 +211,7 @@ func (e *Evaluator) dispatchInterfaceMethodDirect(intfInst *runtime.InterfaceIns
 	// Try instance method overloads
 	overloads := classInfo.GetMethodOverloads(methodName)
 	if len(overloads) > 0 {
-		method, err := e.selectOverload(classInfo.GetName(), methodName, overloads, args)
+		method, err := e.selectOverload(classInfo.GetName(), methodName, overloads, args, ctx)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
 		}
@@ -227,7 +226,7 @@ func (e *Evaluator) dispatchInterfaceMethodDirect(intfInst *runtime.InterfaceIns
 	// Try class method overloads
 	classOverloads := classInfo.GetClassMethodOverloads(methodName)
 	if len(classOverloads) > 0 {
-		method, err := e.selectOverload(classInfo.GetName(), methodName, classOverloads, args)
+		method, err := e.selectOverload(classInfo.GetName(), methodName, classOverloads, args, ctx)
 		if err != nil {
 			return e.newError(node, "%s", err.Error())
 		}
@@ -324,8 +323,7 @@ func (e *Evaluator) buildClassTypeWithHierarchy(className string) *types.ClassTy
 
 // extractMethodType extracts a types.FunctionType from an *ast.FunctionDecl.
 // Returns nil if the type cannot be determined.
-func (e *Evaluator) extractMethodType(method *ast.FunctionDecl) *types.FunctionType {
-	ctx := e.currentContext
+func (e *Evaluator) extractMethodType(method *ast.FunctionDecl, ctx *ExecutionContext) *types.FunctionType {
 	paramTypes := make([]types.Type, len(method.Parameters))
 	paramNames := make([]string, len(method.Parameters))
 	lazyParams := make([]bool, len(method.Parameters))
@@ -365,8 +363,8 @@ func (e *Evaluator) extractMethodType(method *ast.FunctionDecl) *types.FunctionT
 }
 
 // selectOverload picks the best matching overload for the given arguments.
-// Uses semantic overload resolution with type-based matching, falling back to arg-count.
-func (e *Evaluator) selectOverload(className, methodName string, overloads []*ast.FunctionDecl, args []Value) (*ast.FunctionDecl, error) {
+// Uses shared overload resolution with type-based matching, falling back to arg-count.
+func (e *Evaluator) selectOverload(className, methodName string, overloads []*ast.FunctionDecl, args []Value, ctx *ExecutionContext) (*ast.FunctionDecl, error) {
 	if len(overloads) == 1 {
 		return overloads[0], nil
 	}
@@ -377,36 +375,22 @@ func (e *Evaluator) selectOverload(className, methodName string, overloads []*as
 		argTypes[i] = e.runtimeValueType(arg)
 	}
 
-	// Build candidates for semantic resolution
-	candidates := make([]*semantic.Symbol, 0, len(overloads))
+	// Build candidates for type-based resolution
+	candidates := make([]types.Type, 0, len(overloads))
 	candidateDecls := make([]*ast.FunctionDecl, 0, len(overloads))
 	for _, method := range overloads {
-		methodType := e.extractMethodType(method)
+		methodType := e.extractMethodType(method, ctx)
 		if methodType == nil {
 			continue
 		}
-		candidates = append(candidates, &semantic.Symbol{
-			Name:                 method.Name.Value,
-			Type:                 methodType,
-			HasOverloadDirective: method.IsOverload,
-		})
+		candidates = append(candidates, methodType)
 		candidateDecls = append(candidateDecls, method)
 	}
 
 	if len(candidates) > 0 {
-		selected, err := semantic.ResolveOverload(candidates, argTypes)
+		selected, err := types.ResolveOverload(candidates, argTypes)
 		if err == nil {
-			selectedType, ok := selected.Type.(*types.FunctionType)
-			if ok {
-				for i, candidate := range candidates {
-					if ct, ok := candidate.Type.(*types.FunctionType); ok {
-						if semantic.SignaturesEqual(ct, selectedType) &&
-							ct.ReturnType.Equals(selectedType.ReturnType) {
-							return candidateDecls[i], nil
-						}
-					}
-				}
-			}
+			return candidateDecls[selected], nil
 		}
 	}
 
@@ -447,7 +431,7 @@ func (e *Evaluator) dispatchClassMethodOverloaded(classMeta ClassMetaValue, clas
 	if len(overloads) == 0 {
 		return e.newError(node, "class method '%s' not found in '%s'", methodName, classInfo.GetName())
 	}
-	method, err := e.selectOverload(classInfo.GetName(), methodName, overloads, args)
+	method, err := e.selectOverload(classInfo.GetName(), methodName, overloads, args, ctx)
 	if err != nil {
 		return e.newError(node, "%s", err.Error())
 	}

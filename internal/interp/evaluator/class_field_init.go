@@ -45,7 +45,7 @@ func (e *Evaluator) initializeObjectFields(classInfo runtime.IClassInfo, obj *ru
 					return e.newError(node, "failed to initialize field '%s': %v", fieldName, fieldValue)
 				}
 			} else if fieldMeta.Type != nil {
-				fieldValue = e.getZeroValueForType(fieldMeta.Type)
+				fieldValue = e.getZeroValueForType(fieldMeta.Type, ctx)
 			} else {
 				fieldValue = &runtime.NilValue{}
 			}

@@ -51,30 +51,16 @@ items go here.
 
 ## 2. Architecture refactoring — required (A)
 
+A2–A4, A8 and A10 closed 2026-09-07; A11's experimental API/help labels are complete.
+See [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
+A9 has a registry-backed return-type lookup and ordinary call analyzer; its remaining
+specialized handlers are listed below.
+
 Evidence for every item, with file:line references and measurements, is in
 [`docs/architecture/audit-2026-09.md`](docs/architecture/audit-2026-09.md). Items are ordered so
 that each one shrinks the blast radius of the next. The target architecture is
 [`docs/architecture/interp-evaluator-steady-state.md`](docs/architecture/interp-evaluator-steady-state.md).
 
-- **A1** ✅ closed 2026-09-06 — `internal/frontend` is the only compile pipeline; the CLI consumes
-  `frontend.ParseWithOptions`/`AnalyzeParsed`. The one remaining bypass (semantic analysis skipped
-  for unit-using programs) is explicit in `cmd/dwscript/cmd/run.go` and is closed by the §3.2
-  unit-aware analysis item.
-- **A2** `[ ]` M — **One builtin-helper table.** The `__array_*`/`__string_*` method specs are
-  maintained in four places with two key encodings (`internal/semantic/analyze_helpers.go`,
-  `internal/semantic/analyze_array_helpers.go` 677 LOC hand-written switch,
-  `internal/interp/helpers_validation.go`, `internal/interp/evaluator/array_helpers.go` +
-  `string_helpers.go`). Replace with a single table (in `internal/builtins` or `internal/types`)
-  consumed by analyzer and evaluator. Unlocks HelpersPass/HelpersFail/ArrayPass leftovers.
-- **A3** `[ ]` S — **Delete confirmed-dead shell residue** (~560 LOC): `internal/interp/statements_control.go`,
-  `lazy_params.go` (duplicate of `runtime.LazyThunk`), `helpers_comparison.go`, `encoding.go`,
-  `variant_ops.go`, 23 unused constructors in `value.go`, and the 17-LOC `internal/interp/runner`
-  pass-through (make `interp.New` the single entry point). Re-point the two tests that pin them.
-  Also fix the stale file-split promise in `internal/interp/runtime/doc.go:11-14`.
-- **A4** `[ ]` M — **Collapse the shell's second `builtins.Context`.** `internal/interp/builtins_context.go`
-  (1,046 LOC) + `builtins_collections.go` (554) + `functions_builtins.go` (166) re-implement what
-  `Evaluator` already implements and what `internal/builtins/register.go:628-634` registers.
-  Reachable only via `Interpreter.EvalFunctionPointer`; route that to the evaluator and delete.
 - **A5** `[ ]` L — **Delete the evaluator's string-based type resolution.**
   `internal/interp/evaluator/type_resolution.go` + `type_resolution_helpers.go` (965 LOC) re-parse
   `array of …`/function-pointer signatures from strings at runtime, duplicating six functions in
@@ -97,15 +83,13 @@ that each one shrinks the blast radius of the next. The target architecture is
   `runtime.Value.Type() string` comparisons (92 sites), the `*Name string` metadata fields in
   `runtime/metadata.go`, and `ExecutionContext.recordTypeContext string`. Unlocks
   OperatorOverloadPass/Fail. Depends on A6.
-- **A8** `[ ]` M — **Evaluator must not import `semantic`.** Move `semantic.ResolveOverload` and
-  `SignatureDistance` (5 evaluator call sites) into `internal/types`.
-- **A9** `[ ]` S — Derive the 231-case builtin switch in `internal/semantic/analyze_builtin_functions.go:39`
-  from `builtins.Registry` signatures (`RegisterWithSignature`) instead of hand-maintaining it.
-- **A10** `[ ]` S — Move per-run state (`currentContext`, `nodeContext`) off the long-lived
-  `Evaluator` (`evaluator.go:187-201`) into `ExecutionContext`, per the AGENTS.md guardrail.
+- **A9** `[~]` S — **Finish builtin analysis from registry signatures.** Return-type lookup and
+  ordinary call validation now consume `builtins.Registry` signatures. Remaining work: migrate
+  the specialized dispatch in `internal/semantic/analyze_builtin_functions.go` where signatures
+  can express the rules; retain explicit AST-dependent intrinsics and preserve diagnostic text.
 - **A11** ⏸️ — **Bytecode VM.** Owner decision 2026-07-04: keep in tree, unmaintained, opt-in.
-  Open regardless of that decision: mark `run --bytecode`, `dwscript compile`, and
-  `pkg/dwscript.CompileModeBytecode` as experimental in help text and godoc (S). Revisit
+  `run --bytecode`, `dwscript compile`, and
+  `pkg/dwscript.CompileModeBytecode` are labeled experimental in help text and godoc. Revisit
   delete-vs-rebuild after A6; a rebuild must use `internal/builtins` and `internal/interp/runtime`
   values, not the current fork. Status: `docs/decisions/bytecode-vm.md`.
 
@@ -122,7 +106,6 @@ Each line: what to build → fixtures/category it unlocks. Run
 
 ### 3.1 Parser
 
-- `[ ]` S Anonymous record literals → JSONConnectorPass `stringify_anonymous*`, `stringify_record2`.
 - `[ ]` S `class property` inside record bodies + record auto-property backing fields →
   PropertyExpressionsPass `class_property_expressions`, `class_property_write_expressions`, `property_auto_field`.
 - `[ ]` S Multi-index expression-backed indexed properties → PropertyExpressionsPass `indexed_expressions`.
@@ -147,6 +130,11 @@ Each line: what to build → fixtures/category it unlocks. Run
   serialization fixtures in the harness (they already pass in the CLI).
 - `[ ]` S Value-context auto-invoke of parameterless function pointers for `and`/`or` operands
   (`Print`/`PrintLn`/`implies` already done).
+- `[ ]` S Type parameterless builtins used as bare identifiers in expressions: `Random*0` fails
+  with `Incompatible operands` because `random` is only typed on the call path
+  (`internal/semantic/analyze_builtin_functions.go:251`), while `Random` alone is not.
+  Sole remaining blocker for JSONConnectorPass `stringify_anonymous2`. Best done as part of A9,
+  which derives that switch from `builtins.Registry` signatures.
 - `[ ]` S Helper-property resolution through a metaclass → PropertyExpressionsPass `helpers_property_expressions`.
 - `[ ]` S Indexed-property read through a metaclass with a class-method accessor → SimpleScripts `enum_to_integer`.
 - `[ ]` M Contract inheritance → SimpleScripts `method_contracts`; inline-method class name in

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/interp"
-	"github.com/cwbudde/go-dws/internal/interp/runner"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -897,7 +896,7 @@ func runVMAndCompare(t *testing.T, program *ast.Program) {
 		t.Fatalf("VM Run error = %v", err)
 	}
 
-	interpreter := runner.New(io.Discard)
+	interpreter := interp.New(io.Discard)
 	interpValue := interpreter.Eval(program)
 	expected, err := convertInterpreterValue(interpValue)
 	if err != nil {

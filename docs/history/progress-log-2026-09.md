@@ -1,4 +1,4 @@
-# Progress log — September 2026 (PLAN.md Phase 1: measurement & tooling)
+# Progress log — September 2026
 
 Closed 2026-09-06 on branch `feat/phase1-measurement-tooling`. Items T1–T6 and A1 of the
 2026-09-06 `PLAN.md`. Numbers are from the runs recorded in the commit messages.
@@ -84,3 +84,133 @@ configuration.
   `Division by zero` (PLAN.md §3.3, runtime message parity).
 - `cmd/dwscript TestStringFunctions/Format_Function` (`Format('%f')` precision) was already red
   on `main` before this work.
+
+## Architecture refactoring — 2026-09-07
+
+A2 consolidates builtin helper names, operation identifiers, signatures, aliases,
+properties and default arguments in `internal/types/helper_specs.go`. The analyzer
+and runtime registrations consume that catalog, and evaluator dispatch uses its
+operation constants. Specialized receiver-dependent checks retain their diagnostics.
+Catalog isolation and case-insensitivity tests complement interpreter registration
+and executable-dispatch parity checks.
+
+A3 removes confirmed-dead control-flow, lazy-thunk, comparison, encoding, variant,
+and JSON compatibility code, unused value wrappers, and the `interp/runner`
+pass-through. CLI, embedding and WASM entry points construct the interpreter directly.
+The audit's constructor count was based on CLI reachability: scalar constructors and
+Go-to-script conversion helpers used by public FFI marshaling are retained. JSON
+conversion tests now exercise runtime implementations, and nil/range tests exercise
+actual evaluator behavior. Runtime package documentation no longer promises an obsolete
+file split.
+
+A4 removes the interpreter's duplicate `builtins.Context`, builtin dispatch and
+higher-order collection implementation. Both direct host calls and Go callbacks invoke
+function pointers through the evaluator with an explicit execution context. Tests cover
+case-insensitive builtin pointers, captured lambdas, repeated calls, invalid callables,
+and the absence of a second shell builtin context.
+
+A8 moves overload selection, signature equality and conversion-distance ranking into
+`internal/types`. Evaluator callers pass types and use the selected candidate index;
+they no longer allocate semantic symbols or import the semantic analyzer. Semantic
+callers retain a thin symbol adapter. Shared ranking tests cover index preservation,
+ambiguity, optional/variadic signatures and mismatches.
+
+A9 is partially complete: builtin return-type lookup now reads registry signatures,
+with explicit intrinsic exceptions. Ordinary call validation consumes those signatures,
+replacing 23 separate trigonometric, encoding and date/time analyzers. Specialized AST
+and diagnostic handlers remain open work, with their existing messages preserved.
+Argument-dependent collection result inference remains on its specialized path. The
+241-name return-type audit also corrects shared registry signatures: `Add` returns no
+value, and `StrArrayPack` returns an array of strings.
+
+A10 removes `currentContext` and `nodeContext` from the evaluator. All execution helpers
+receive context explicitly, and a builtin context adapter binds each invocation to its
+own environment, call stack, current node and exception state. Independent-context and
+nested builtin tests cover isolation and node restoration. Class-variable compound
+assignment also evaluates its RHS with the caller's context.
+
+A11's public labels now identify the bytecode compiler/VM as experimental in command
+help and `CompileModeBytecode` GoDoc. Compile help no longer claims a verified speedup.
+The decision to retain the VM unmaintained remains unchanged.
+
+Validation: the complete interpreter suite, semantic and builtin suites, evaluator,
+public embedding API, bytecode, frontend, parser, lexer, shared types and remaining
+packages pass. The fixture regression gate and regenerated status were unchanged by this
+architecture work — **871/1,928**, with identical pass-count baselines in all 61
+categories and no baseline floor changed by A10/A11. (The anonymous record expression
+work recorded below then raised this to **876/1,928** and ratcheted `JSONConnectorPass`
+51 → 56; that is the status `TEST_STATUS.md` and `baselines.json` now carry.) The status
+generation date was refreshed. `go vet ./internal/... ./pkg/... ./cmd/...`
+and the new evaluator context-isolation tests under `-race` pass. Actual compile/run
+help output confirms the experimental bytecode labels.
+
+The complete CLI integration suite also passes (10.652s). Its repeated executable
+builds exceeded the standard timeout on the workspace's NTFS mount, so it was run
+against a verified identical source copy on a native filesystem, using the same test
+scripts and `GOFLAGS=-buildvcs=false`. No test assertions were disabled.
+
+## Language compatibility — anonymous record expressions (§3.1)
+
+Closed 2026-09-07, in parallel with the Phase 2 architecture work. `PLAN.md` §3.1 item
+"Anonymous record literals → JSONConnectorPass `stringify_anonymous*`, `stringify_record2`".
+
+**The item's premise was wrong, and that is the main finding.** Parenthesised anonymous record
+literals — `(x: 10; y: 20)` — already parsed and already had evaluator support
+(`internal/parser/expressions.go:399-428`, `internal/parser/record_literals_test.go`). The real
+gap was a *different* syntax that the fixtures actually use: DWScript's anonymous record
+**constructor expression**, written with `record`/`end` and `:=`, with field names that may be
+string literals:
+
+```pascal
+PrintLn(JSON.Stringify(record a := s; b := True; g := Null; end));
+var r := record "i*i" := i * i; "2i" := 2 * i; end;
+'objWithField' := record Field := 123 end;   -- one line, no trailing ';'
+```
+
+Before the change this failed at parse time with `Expression expected before RECORD`.
+
+### Design
+
+The two forms are kept apart deliberately. An anonymous `RecordLiteralExpression` means
+"needs a record type from context" and is threaded through
+`ExecutionContext.SetRecordTypeContext(string)` — the string-keyed context A7 is slated to
+retire. The `record … end` form is *structurally* typed: its field names plus the inferred
+types of their values fully describe an unnamed `types.RecordType`. It therefore got its own
+AST node, `ast.AnonymousRecordExpression`, and never touches the record type context.
+
+Everything downstream already supported unnamed records, so no changes were needed there:
+`types.RecordType` allows `Name == ""`, `runtime.RecordValue.Type()` returns `"RECORD"` for it,
+and `evaluator/json_serialize.go` already sorts members alphabetically — which is exactly the
+key order the expected `.txt` files encode (`{"2i":246,"is":"123"}`).
+
+- `pkg/ast/records.go` — new `AnonymousRecordExpression` node, reusing `FieldInitializer`.
+- `internal/parser/record_expressions.go` — new; `RECORD` prefix parse function, registered in
+  `parser_builder.go`. Trailing `;` before `end` is optional; a quoted field name is kept
+  verbatim so names that are not valid identifiers (`i*i`, `2i`) survive into serialization.
+- `internal/semantic/analyze_literals.go` — synthesizes the unnamed `types.RecordType`;
+  dispatched from `analyze_expressions.go`.
+- `internal/interp/evaluator/anonymous_record.go` — new; builds the `runtime.RecordValue`.
+
+The bytecode compiler needs no new arm: its `default` case already rejects unknown expression
+nodes, which is the correct outcome for the unmaintained VM (A11).
+
+### Result
+
+JSONConnectorPass **51 → 56** (62% → 68%); harness overall **871 → 876**. Baseline ratcheted.
+Closed: `stringify_record2`, `stringify_anonymous`, `stringify_anonymous3`,
+`array_constructor2`, `trueish`. The fixture list in `PLAN.md` understated the yield — it named
+two fixtures; six use the syntax.
+
+`stringify_anonymous2` still fails, but for an unrelated reason now recorded as its own §3.2
+item: `Random*0` reports `Incompatible operands` because `random` is typed only on the call
+path (`internal/semantic/analyze_builtin_functions.go:251`) and not as a bare identifier. That
+belongs with A9.
+
+### Note on `pkg/ast/visitor_generated.go`
+
+Re-running the generator produces unrelated drift: it drops `walkRecordTypeNode` (that node
+does not embed `BaseNode`, so the current generator skips it), adds `walkGenericTypeRef`, and
+reorders `ClassDecl` field traversal. The checked-in file predates those generator changes.
+Rather than fold that churn into this change, only the new node's dispatch case and walk
+function were added. **The drift is still open** and should be resolved deliberately — dropping
+`walkRecordTypeNode` is a real traversal change, not cosmetic.

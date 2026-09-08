@@ -126,7 +126,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 					}
 					argVals[i] = val
 				}
-				if selected, err := e.selectOverload(rec.GetRecordTypeName(), methodName, overloads, argVals); err == nil {
+				if selected, err := e.selectOverload(rec.GetRecordTypeName(), methodName, overloads, argVals, ctx); err == nil {
 					return e.callRecordMethod(recordVal, selected, argVals, node, ctx)
 				}
 			}
@@ -176,7 +176,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	// callable: o.FEvent(1). The analyzer annotates node.Method with the pointer
 	// type when it resolved to such a member (never for a real method), so read
 	// the stored pointer and dispatch it instead of looking up a method.
-	if e.methodNameIsCallableMember(node.Method) {
+	if e.methodNameIsCallableMember(node.Method, ctx) {
 		// The receiver was already evaluated into obj above; read the proc-typed
 		// member from it directly so a side-effecting receiver
 		// (NextObj().FEvent(1)) is not evaluated twice — which would also risk
@@ -205,7 +205,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 // methodNameIsCallableMember reports whether the analyzer annotated this method
 // identifier as a function/method pointer type — i.e. the "method" is really a
 // proc-typed field, class var, or property to be read and called.
-func (e *Evaluator) methodNameIsCallableMember(method *ast.Identifier) bool {
+func (e *Evaluator) methodNameIsCallableMember(method *ast.Identifier, ctx *ExecutionContext) bool {
 	if method == nil || e.SemanticInfo() == nil {
 		return false
 	}
@@ -213,7 +213,7 @@ func (e *Evaluator) methodNameIsCallableMember(method *ast.Identifier) bool {
 	if annot == nil {
 		return false
 	}
-	resolved, err := e.ResolveTypeFromAnnotation(annot)
+	resolved, err := e.ResolveTypeFromAnnotation(annot, ctx)
 	if err != nil || resolved == nil {
 		return false
 	}

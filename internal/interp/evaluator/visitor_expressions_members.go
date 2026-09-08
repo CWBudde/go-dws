@@ -40,7 +40,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return e.newError(node, "member access missing member")
 	}
 
-	wantMethodPointer := e.memberWantsMethodPointer(node)
+	wantMethodPointer := e.memberWantsMethodPointer(node, ctx)
 
 	// JSON namespace bare access (JSON.NewObject / JSON.NewArray, invoked without
 	// parentheses) must be handled before `JSON` is evaluated as an identifier.
@@ -839,7 +839,7 @@ func (e *Evaluator) makeClassValue(node ast.Node, className string) Value {
 // memberWantsMethodPointer reports whether the analyzer annotated this member
 // access with a function/method pointer type — i.e. a method reference should
 // become a bound method pointer instead of being auto-invoked.
-func (e *Evaluator) memberWantsMethodPointer(node *ast.MemberAccessExpression) bool {
+func (e *Evaluator) memberWantsMethodPointer(node *ast.MemberAccessExpression, ctx *ExecutionContext) bool {
 	if e.SemanticInfo() == nil {
 		return false
 	}
@@ -847,7 +847,7 @@ func (e *Evaluator) memberWantsMethodPointer(node *ast.MemberAccessExpression) b
 	if typeAnnot == nil {
 		return false
 	}
-	resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot)
+	resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx)
 	if err != nil || resolvedType == nil {
 		return false
 	}
@@ -934,7 +934,7 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 	if classMetaVal.HasClassMethod(memberName) {
 		// In a function-pointer context, bind a class-method pointer (carrying the
 		// class-meta as receiver so ClassName resolves) instead of auto-invoking.
-		if e.memberWantsMethodPointer(node) {
+		if e.memberWantsMethodPointer(node, ctx) {
 			if result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
 				return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
 			}); created {

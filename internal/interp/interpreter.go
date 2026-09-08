@@ -25,9 +25,8 @@ type PropertyEvalContext = runtime.PropertyEvalContext
 type evaluatorShim interface {
 	Eval(node ast.Node, ctx *runtime.ExecutionContext) Value
 	ExecuteUserFunctionDirect(fn *ast.FunctionDecl, args []Value, ctx *runtime.ExecutionContext) Value
-	CurrentNode() ast.Node
+	ExecuteFunctionPointerDirect(funcPtr Value, args []Value, ctx *runtime.ExecutionContext) Value
 	EngineState() *contracts.EngineState
-	SetCurrentNode(node ast.Node)
 }
 
 // Interpreter executes DWScript AST nodes and manages the runtime environment.
@@ -40,7 +39,7 @@ type Interpreter struct {
 	ctx               *runtime.ExecutionContext
 }
 
-// NewWithDeps creates an Interpreter with its core dependencies provided by a higher-level runner.
+// NewWithDeps creates an Interpreter with its core dependencies provided by the canonical constructor.
 // This avoids `internal/interp` importing `internal/interp/evaluator`.
 func NewWithDeps(
 	output io.Writer,
@@ -172,8 +171,8 @@ func (i *Interpreter) PushScope() func() {
 // pushCallStack adds a new frame to the call stack with the given function name.
 func (i *Interpreter) pushCallStack(functionName string) {
 	var pos *lexer.Position
-	if i.evaluatorInstance.CurrentNode() != nil {
-		nodePos := i.evaluatorInstance.CurrentNode().Pos()
+	if i.ctx.CurrentNode() != nil {
+		nodePos := i.ctx.CurrentNode().Pos()
 		pos = &nodePos
 	}
 	_ = i.ctx.GetCallStack().Push(functionName, i.sourceFile(), pos)
@@ -198,7 +197,6 @@ func (i *Interpreter) evalViaEvaluator(node ast.Node) Value {
 // Eval evaluates an AST node and returns its value.
 // Main entry point for the interpreter.
 func (i *Interpreter) Eval(node ast.Node) Value {
-	i.evaluatorInstance.SetCurrentNode(node)
 	return i.evalViaEvaluator(node)
 }
 
@@ -206,7 +204,6 @@ func (i *Interpreter) Eval(node ast.Node) Value {
 // This is primarily used for array literals in function calls where the parameter type is known.
 // If expectedType is nil, this falls back to regular Eval().
 func (i *Interpreter) EvalWithExpectedType(node ast.Node, expectedType types.Type) Value {
-	i.evaluatorInstance.SetCurrentNode(node)
 
 	if expectedType == nil {
 		return i.evalViaEvaluator(node)

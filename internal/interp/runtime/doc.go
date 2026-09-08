@@ -5,14 +5,10 @@
 //   - Value creation helpers and utilities
 //   - Object pooling for performance optimization
 //
-// The package is organized into:
-//   - value_interfaces.go: Interface definitions for value operations
-//   - primitives.go: Basic value types (Integer, Float, String, Boolean, Nil)
-//   - composite.go: Composite types (Array, Record, Set) - TODO
-//   - object.go: Object types (Class instances, Interfaces) - TODO
-//   - function.go: Callable types (Function pointers, Lambdas) - TODO
-//   - special.go: Special types (Error, Exception, Variant, TypeInfo) - TODO
-//   - pool.go: Object pooling for frequently allocated types
+// Values and execution state are grouped by responsibility, including primitives,
+// arrays, records, objects, callable values and execution contexts.
+// Shared metadata, environments, call stacks and reference counting live here
+// alongside the value containers used by the evaluator.
 //
 // Design Goals:
 //   - Type safety through interfaces instead of type assertions
@@ -20,5 +16,5 @@
 //   - Reduced allocations via object pooling
 //   - Easy to test components in isolation
 //
-// For more details, see docs/architecture/interpreter-refactoring.md
+// For more details, see docs/architecture/interp-evaluator-steady-state.md
 package runtime

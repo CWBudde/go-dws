@@ -231,3 +231,46 @@ func (rle *RecordLiteralExpression) String() string {
 
 	return out.String()
 }
+
+// AnonymousRecordExpression represents DWScript's anonymous record constructor
+// expression:
+//
+//	record a := 1; b := 'x'; end
+//	record "i*i" := i * i; "2i" := 2 * i; end
+//	record Field := 123 end
+//
+// Unlike RecordLiteralExpression, which is written with parentheses and needs an
+// expected record type from its context, this form is structurally typed: the
+// field names and the inferred types of their values fully describe the record,
+// so it can stand alone as an expression (for example as an argument to
+// JSON.Stringify).
+//
+// Field names may be written as identifiers or as string literals; a quoted name
+// is kept verbatim in the Name identifier so that names which are not valid
+// identifiers ("i*i", "2i") survive into serialization.
+type AnonymousRecordExpression struct {
+	Fields []*FieldInitializer
+	BaseNode
+}
+
+func (are *AnonymousRecordExpression) expressionNode() {}
+
+// String returns a string representation of the anonymous record expression.
+func (are *AnonymousRecordExpression) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("record ")
+	for _, field := range are.Fields {
+		if field.Name != nil {
+			out.WriteString(field.Name.String())
+			out.WriteString(" := ")
+		}
+		if field.Value != nil {
+			out.WriteString(field.Value.String())
+		}
+		out.WriteString("; ")
+	}
+	out.WriteString("end")
+
+	return out.String()
+}

@@ -300,7 +300,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	var expectedTypeKind string
 	if e.SemanticInfo() != nil {
 		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil {
-			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot); err == nil && resolvedType != nil {
+			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil && resolvedType != nil {
 				expectedTypeKind = resolvedType.TypeKind()
 			}
 		}
@@ -370,7 +370,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Interface type names can be used as type-meta values for helper class members.
 	if ifaceAny := e.typeSystem.LookupInterface(node.Value); ifaceAny != nil {
-		resolvedType, err := e.ResolveType(node.Value)
+		resolvedType, err := e.ResolveType(node.Value, ctx)
 		if err != nil {
 			return e.newError(node, "unknown interface type '%s': %v", node.Value, err)
 		}
@@ -380,7 +380,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		}
 	}
 
-	if resolvedType, err := e.ResolveType(node.Value); err == nil && resolvedType != nil {
+	if resolvedType, err := e.ResolveType(node.Value, ctx); err == nil && resolvedType != nil {
 		return &runtime.TypeMetaValue{
 			TypeInfo: resolvedType,
 			TypeName: resolvedType.String(),
@@ -414,7 +414,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 		// Parameterless built-in functions are auto-invoked
 		if fn, ok := builtins.DefaultRegistry.Lookup(node.Value); ok {
-			return fn(e, []Value{}) // Call with empty args (parameterless auto-invoke)
+			return fn(e.builtinContext(ctx), []Value{}) // Call with empty args (parameterless auto-invoke)
 		}
 		// Builtin registered but not found in registry - should not happen
 		return e.newError(node, "builtin function '%s' registered but not found in registry", node.Value)
@@ -466,13 +466,13 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 	var resultValue Value
 	if fn.ReturnType != nil {
 		// Resolve the return type to a types.Type
-		returnType, err := e.ResolveTypeFromAnnotation(fn.ReturnType)
+		returnType, err := e.ResolveTypeFromAnnotation(fn.ReturnType, ctx)
 		if err != nil {
 			return e.newError(node, "cannot resolve return type '%s': %v", fn.ReturnType.String(), err)
 		}
 
 		// Get proper zero value for the type (handles all types correctly)
-		resultValue = e.GetDefaultValue(returnType)
+		resultValue = e.GetDefaultValue(returnType, ctx)
 
 		e.DefineVar(ctx, "Result", resultValue)
 

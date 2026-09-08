@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"github.com/cwbudde/go-dws/internal/types"
 	"strconv"
 	"strings"
 
@@ -20,11 +21,11 @@ import (
 // Returns the result value, or nil if this helper is not handled here (should fall through
 // to the adapter).
 func (e *Evaluator) evalIntegerHelper(spec string, selfValue Value, args []Value, node ast.Node) Value {
-	switch spec {
-	case "__integer_tostring":
+	switch types.BuiltinHelperOperation(spec) {
+	case types.HelperIntegerToString:
 		return e.evalIntegerToString(selfValue, args, node)
 
-	case "__integer_tohexstring":
+	case types.HelperIntegerToHexString:
 		return e.evalIntegerToHexString(selfValue, args, node)
 
 	default:

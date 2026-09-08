@@ -3,12 +3,13 @@ package interp
 import (
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // ============================================================================
-// Tests for jsonValueToValue (JSON → DWScript runtime values)
+// Tests for runtime.JSONValueToValue (JSON → DWScript runtime values)
 // ============================================================================
 
 func TestJSONValueToValue_Primitives(t *testing.T) {
@@ -82,7 +83,7 @@ func TestJSONValueToValue_Primitives(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := jsonValueToValue(tt.input)
+			result := runtime.JSONValueToValue(tt.input)
 			if result == nil {
 				t.Fatal("expected non-nil result")
 			}
@@ -103,7 +104,7 @@ func TestJSONValueToValue_Array(t *testing.T) {
 	arr.ArrayAppend(jsonvalue.NewInt64(2))
 	arr.ArrayAppend(jsonvalue.NewInt64(3))
 
-	result := jsonValueToValue(arr)
+	result := runtime.JSONValueToValue(arr)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -129,7 +130,7 @@ func TestJSONValueToValue_Object(t *testing.T) {
 	obj.ObjectSet("name", jsonvalue.NewString("John"))
 	obj.ObjectSet("age", jsonvalue.NewInt64(30))
 
-	result := jsonValueToValue(obj)
+	result := runtime.JSONValueToValue(obj)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -156,7 +157,7 @@ func TestJSONValueToValue_Object(t *testing.T) {
 }
 
 func TestJSONValueToValue_Nil(t *testing.T) {
-	result := jsonValueToValue(nil)
+	result := runtime.JSONValueToValue(nil)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -166,7 +167,7 @@ func TestJSONValueToValue_Nil(t *testing.T) {
 }
 
 // ============================================================================
-// Tests for valueToJSONValue (DWScript runtime values → JSON)
+// Tests for runtime.ValueToJSONValue (DWScript runtime values → JSON)
 // ============================================================================
 
 func TestValueToJSONValue_Primitives(t *testing.T) {
@@ -209,7 +210,7 @@ func TestValueToJSONValue_Primitives(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := valueToJSONValue(tt.input)
+			result := runtime.ValueToJSONValue(tt.input)
 			if result == nil {
 				t.Fatal("expected non-nil result")
 			}
@@ -222,7 +223,7 @@ func TestValueToJSONValue_Primitives(t *testing.T) {
 
 func TestValueToJSONValue_BooleanValues(t *testing.T) {
 	trueVal := &BooleanValue{Value: true}
-	result := valueToJSONValue(trueVal)
+	result := runtime.ValueToJSONValue(trueVal)
 	if result.Kind() != jsonvalue.KindBoolean {
 		t.Errorf("Kind() = %v, want KindBoolean", result.Kind())
 	}
@@ -231,7 +232,7 @@ func TestValueToJSONValue_BooleanValues(t *testing.T) {
 	}
 
 	falseVal := &BooleanValue{Value: false}
-	result = valueToJSONValue(falseVal)
+	result = runtime.ValueToJSONValue(falseVal)
 	if result.Kind() != jsonvalue.KindBoolean {
 		t.Errorf("Kind() = %v, want KindBoolean", result.Kind())
 	}
@@ -243,7 +244,7 @@ func TestValueToJSONValue_BooleanValues(t *testing.T) {
 func TestValueToJSONValue_NumericValues(t *testing.T) {
 	// Integer
 	intVal := &IntegerValue{Value: 42}
-	result := valueToJSONValue(intVal)
+	result := runtime.ValueToJSONValue(intVal)
 	if result.Kind() != jsonvalue.KindInt64 {
 		t.Errorf("Kind() = %v, want KindInt64", result.Kind())
 	}
@@ -253,7 +254,7 @@ func TestValueToJSONValue_NumericValues(t *testing.T) {
 
 	// Float
 	floatVal := &FloatValue{Value: 3.14}
-	result = valueToJSONValue(floatVal)
+	result = runtime.ValueToJSONValue(floatVal)
 	if result.Kind() != jsonvalue.KindNumber {
 		t.Errorf("Kind() = %v, want KindNumber", result.Kind())
 	}
@@ -264,7 +265,7 @@ func TestValueToJSONValue_NumericValues(t *testing.T) {
 
 func TestValueToJSONValue_String(t *testing.T) {
 	strVal := &StringValue{Value: "hello world"}
-	result := valueToJSONValue(strVal)
+	result := runtime.ValueToJSONValue(strVal)
 	if result.Kind() != jsonvalue.KindString {
 		t.Errorf("Kind() = %v, want KindString", result.Kind())
 	}
@@ -278,7 +279,7 @@ func TestValueToJSONValue_JSONValue(t *testing.T) {
 	jv := jsonvalue.NewString("test")
 	jsonVal := &JSONValue{Value: jv}
 
-	result := valueToJSONValue(jsonVal)
+	result := runtime.ValueToJSONValue(jsonVal)
 	if result != jv {
 		t.Error("expected same jsonvalue.Value instance")
 	}
@@ -295,7 +296,7 @@ func TestValueToJSONValue_Array(t *testing.T) {
 		},
 	}
 
-	result := valueToJSONValue(arr)
+	result := runtime.ValueToJSONValue(arr)
 	if result.Kind() != jsonvalue.KindArray {
 		t.Errorf("Kind() = %v, want KindArray", result.Kind())
 	}
@@ -330,7 +331,7 @@ func TestValueToJSONValue_Record(t *testing.T) {
 		},
 	}
 
-	result := valueToJSONValue(rec)
+	result := runtime.ValueToJSONValue(rec)
 	if result.Kind() != jsonvalue.KindObject {
 		t.Errorf("Kind() = %v, want KindObject", result.Kind())
 	}
@@ -354,7 +355,7 @@ func TestValueToJSONValue_Variant(t *testing.T) {
 		ActualType: types.INTEGER,
 	}
 
-	result := valueToJSONValue(variant)
+	result := runtime.ValueToJSONValue(variant)
 	if result.Kind() != jsonvalue.KindInt64 {
 		t.Errorf("Kind() = %v, want KindInt64", result.Kind())
 	}
@@ -364,19 +365,19 @@ func TestValueToJSONValue_Variant(t *testing.T) {
 }
 
 func TestValueToJSONValue_Nil(t *testing.T) {
-	result := valueToJSONValue(nil)
+	result := runtime.ValueToJSONValue(nil)
 	if result.Kind() != jsonvalue.KindNull {
 		t.Errorf("Kind() = %v, want KindNull", result.Kind())
 	}
 }
 
 // ============================================================================
-// Tests for jsonValueToVariant
+// Tests for runtime.BoxVariantWithJSON
 // ============================================================================
 
 func TestJSONValueToVariant(t *testing.T) {
 	jv := jsonvalue.NewString("test")
-	variant := jsonValueToVariant(jv)
+	variant := runtime.BoxVariantWithJSON(jv)
 
 	if variant == nil {
 		t.Fatal("expected non-nil variant")
@@ -398,7 +399,7 @@ func TestJSONValueToVariant(t *testing.T) {
 }
 
 func TestJSONValueToVariant_Nil(t *testing.T) {
-	variant := jsonValueToVariant(nil)
+	variant := runtime.BoxVariantWithJSON(nil)
 
 	if variant == nil {
 		t.Fatal("expected non-nil variant")
@@ -410,7 +411,7 @@ func TestJSONValueToVariant_Nil(t *testing.T) {
 }
 
 // ============================================================================
-// Tests for variantToJSONValue
+// Tests for runtime.ValueToJSONValue
 // ============================================================================
 
 func TestVariantToJSONValue(t *testing.T) {
@@ -421,7 +422,7 @@ func TestVariantToJSONValue(t *testing.T) {
 		ActualType: nil,
 	}
 
-	result := variantToJSONValue(variant)
+	result := runtime.ValueToJSONValue(variant)
 	if result != jv {
 		t.Error("expected same jsonvalue.Value instance")
 	}
@@ -434,7 +435,7 @@ func TestVariantToJSONValue_NonJSON(t *testing.T) {
 		ActualType: types.STRING,
 	}
 
-	result := variantToJSONValue(variant)
+	result := runtime.ValueToJSONValue(variant)
 	if result.Kind() != jsonvalue.KindString {
 		t.Errorf("Kind() = %v, want KindString", result.Kind())
 	}
@@ -444,14 +445,14 @@ func TestVariantToJSONValue_NonJSON(t *testing.T) {
 }
 
 func TestVariantToJSONValue_Nil(t *testing.T) {
-	result := variantToJSONValue(nil)
+	result := runtime.ValueToJSONValue(nil)
 	if result.Kind() != jsonvalue.KindNull {
 		t.Errorf("Kind() = %v, want KindNull", result.Kind())
 	}
 }
 
 // ============================================================================
-// Tests for jsonKindToVarType
+// Tests for runtime.JSONKindToVarType
 // ============================================================================
 
 func TestJSONKindToVarType(t *testing.T) {
@@ -460,21 +461,21 @@ func TestJSONKindToVarType(t *testing.T) {
 		kind     jsonvalue.Kind
 		wantCode int64
 	}{
-		{"undefined", jsonvalue.KindUndefined, varEmpty},
-		{"null", jsonvalue.KindNull, varNull},
-		{"boolean", jsonvalue.KindBoolean, varBoolean},
-		{"int64", jsonvalue.KindInt64, varInt64},
-		{"number", jsonvalue.KindNumber, varDouble},
-		{"string", jsonvalue.KindString, varString},
-		{"array", jsonvalue.KindArray, varArray},
-		{"object", jsonvalue.KindObject, varJSON},
+		{"undefined", jsonvalue.KindUndefined, runtime.VarEmpty},
+		{"null", jsonvalue.KindNull, runtime.VarNull},
+		{"boolean", jsonvalue.KindBoolean, runtime.VarBoolean},
+		{"int64", jsonvalue.KindInt64, runtime.VarInt64},
+		{"number", jsonvalue.KindNumber, runtime.VarDouble},
+		{"string", jsonvalue.KindString, runtime.VarString},
+		{"array", jsonvalue.KindArray, runtime.VarArray},
+		{"object", jsonvalue.KindObject, runtime.VarJSON},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := jsonKindToVarType(tt.kind)
+			got := runtime.JSONKindToVarType(tt.kind)
 			if got != tt.wantCode {
-				t.Errorf("jsonKindToVarType(%v) = %v, want %v", tt.kind, got, tt.wantCode)
+				t.Errorf("runtime.JSONKindToVarType(%v) = %v, want %v", tt.kind, got, tt.wantCode)
 			}
 		})
 	}
@@ -499,9 +500,9 @@ func TestRoundTrip_PrimitivesToJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Convert to JSON
-			jv := valueToJSONValue(tt.value)
+			jv := runtime.ValueToJSONValue(tt.value)
 			// Convert back
-			result := jsonValueToValue(jv)
+			result := runtime.JSONValueToValue(jv)
 
 			// Type should match (except float might be integer if whole number)
 			originalType := tt.value.Type()
@@ -532,9 +533,9 @@ func TestRoundTrip_JSONToDWScript(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Convert to DWScript value
-			val := jsonValueToValue(tt.jsonVal)
+			val := runtime.JSONValueToValue(tt.jsonVal)
 			// Convert back to JSON
-			jv := valueToJSONValue(val)
+			jv := runtime.ValueToJSONValue(val)
 
 			// Kind should match original
 			if jv.Kind() != tt.jsonVal.Kind() {

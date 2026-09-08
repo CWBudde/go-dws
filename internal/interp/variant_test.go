@@ -518,7 +518,7 @@ func TestVarTypeInteger(t *testing.T) {
 		end.
 	`
 	result := testEvalAndGetVar(t, input, "typeCode")
-	expectInteger(t, result, 3) // varInteger = 3
+	expectInteger(t, result, 3) // runtime.VarInteger = 3
 }
 
 func TestVarTypeFloat(t *testing.T) {
@@ -530,7 +530,7 @@ func TestVarTypeFloat(t *testing.T) {
 		end.
 	`
 	result := testEvalAndGetVar(t, input, "typeCode")
-	expectInteger(t, result, 5) // varDouble = 5
+	expectInteger(t, result, 5) // runtime.VarDouble = 5
 }
 
 func TestVarTypeString(t *testing.T) {
@@ -542,7 +542,7 @@ func TestVarTypeString(t *testing.T) {
 		end.
 	`
 	result := testEvalAndGetVar(t, input, "typeCode")
-	expectInteger(t, result, 256) // varString = 256
+	expectInteger(t, result, 256) // runtime.VarString = 256
 }
 
 func TestVarTypeBoolean(t *testing.T) {
@@ -554,7 +554,7 @@ func TestVarTypeBoolean(t *testing.T) {
 		end.
 	`
 	result := testEvalAndGetVar(t, input, "typeCode")
-	expectInteger(t, result, 11) // varBoolean = 11
+	expectInteger(t, result, 11) // runtime.VarBoolean = 11
 }
 
 func TestVarTypeEmpty(t *testing.T) {
@@ -566,7 +566,7 @@ func TestVarTypeEmpty(t *testing.T) {
 		end.
 	`
 	result := testEvalAndGetVar(t, input, "typeCode")
-	expectInteger(t, result, 0) // varEmpty = 0
+	expectInteger(t, result, 0) // runtime.VarEmpty = 0
 }
 
 func TestVarTypeNonVariant(t *testing.T) {
@@ -579,7 +579,7 @@ func TestVarTypeNonVariant(t *testing.T) {
 		end.
 	`
 	result := testEvalAndGetVar(t, input, "typeCode")
-	expectInteger(t, result, 3) // varInteger = 3
+	expectInteger(t, result, 3) // runtime.VarInteger = 3
 }
 
 func TestVarIsNullUnassigned(t *testing.T) {
@@ -740,8 +740,8 @@ func TestVariantIntrospectionCombined(t *testing.T) {
 				VarIsNull(v1),           // true
 				VarIsNumeric(v2),        // true
 				VarIsNumeric(v3),        // false
-				VarType(v2) = 3,         // true (varInteger)
-				VarType(v3) = 256        // true (varString)
+				VarType(v2) = 3,         // true (runtime.VarInteger)
+				VarType(v3) = 256        // true (runtime.VarString)
 			];
 		end.
 	`
@@ -1066,7 +1066,7 @@ func TestVarAsTypeToInteger(t *testing.T) {
 		var result: Variant;
 		var i: Integer;
 		begin
-			result := VarAsType(v, 3);  // 3 = varInteger
+			result := VarAsType(v, 3);  // 3 = runtime.VarInteger
 			i := VarToInt(result);
 		end.
 	`
@@ -1076,7 +1076,7 @@ func TestVarAsTypeToInteger(t *testing.T) {
 		t.Fatalf("expected *IntegerValue, got %T", val)
 	}
 	if intVal.Value != 42 {
-		t.Errorf("VarAsType('42', varInteger) wrong. expected=%d, got=%d", 42, intVal.Value)
+		t.Errorf("VarAsType('42', runtime.VarInteger) wrong. expected=%d, got=%d", 42, intVal.Value)
 	}
 }
 
@@ -1086,7 +1086,7 @@ func TestVarAsTypeToFloat(t *testing.T) {
 		var result: Variant;
 		var f: Float;
 		begin
-			result := VarAsType(v, 5);  // 5 = varDouble
+			result := VarAsType(v, 5);  // 5 = runtime.VarDouble
 			f := VarToFloat(result);
 		end.
 	`
@@ -1096,7 +1096,7 @@ func TestVarAsTypeToFloat(t *testing.T) {
 		t.Fatalf("expected *FloatValue, got %T", val)
 	}
 	if floatVal.Value != 42.0 {
-		t.Errorf("VarAsType(42, varDouble) wrong. expected=%f, got=%f", 42.0, floatVal.Value)
+		t.Errorf("VarAsType(42, runtime.VarDouble) wrong. expected=%f, got=%f", 42.0, floatVal.Value)
 	}
 }
 
@@ -1106,7 +1106,7 @@ func TestVarAsTypeToString(t *testing.T) {
 		var result: Variant;
 		var s: String;
 		begin
-			result := VarAsType(v, 256);  // 256 = varString
+			result := VarAsType(v, 256);  // 256 = runtime.VarString
 			s := VarToStr(result);
 		end.
 	`
@@ -1116,7 +1116,7 @@ func TestVarAsTypeToString(t *testing.T) {
 		t.Fatalf("expected *StringValue, got %T", val)
 	}
 	if stringVal.Value != "42" {
-		t.Errorf("VarAsType(42, varString) wrong. expected=%q, got=%q", "42", stringVal.Value)
+		t.Errorf("VarAsType(42, runtime.VarString) wrong. expected=%q, got=%q", "42", stringVal.Value)
 	}
 }
 
@@ -1126,7 +1126,7 @@ func TestVarAsTypeToBoolean(t *testing.T) {
 		var v2: Variant := 0;
 		var i1, i2: Integer;
 		begin
-			i1 := VarToInt(VarAsType(v1, 11));  // 11 = varBoolean, then convert to int
+			i1 := VarToInt(VarAsType(v1, 11));  // 11 = runtime.VarBoolean, then convert to int
 			i2 := VarToInt(VarAsType(v2, 11));
 		end.
 	`
@@ -1136,7 +1136,7 @@ func TestVarAsTypeToBoolean(t *testing.T) {
 		t.Fatalf("expected *IntegerValue, got %T", r1)
 	}
 	if intVal1.Value != 1 {
-		t.Errorf("VarAsType(1, varBoolean) wrong. expected=1, got=%d", intVal1.Value)
+		t.Errorf("VarAsType(1, runtime.VarBoolean) wrong. expected=1, got=%d", intVal1.Value)
 	}
 
 	r2 := testEvalAndGetVar(t, input, "i2")
@@ -1145,7 +1145,7 @@ func TestVarAsTypeToBoolean(t *testing.T) {
 		t.Fatalf("expected *IntegerValue, got %T", r2)
 	}
 	if intVal2.Value != 0 {
-		t.Errorf("VarAsType(0, varBoolean) wrong. expected=0, got=%d", intVal2.Value)
+		t.Errorf("VarAsType(0, runtime.VarBoolean) wrong. expected=0, got=%d", intVal2.Value)
 	}
 }
 
@@ -1155,7 +1155,7 @@ func TestVarAsTypeEmptyToInteger(t *testing.T) {
 		var result: Variant;
 		var i: Integer;
 		begin
-			result := VarAsType(v, 3);  // 3 = varInteger
+			result := VarAsType(v, 3);  // 3 = runtime.VarInteger
 			i := VarToInt(result);
 		end.
 	`
@@ -1165,7 +1165,7 @@ func TestVarAsTypeEmptyToInteger(t *testing.T) {
 		t.Fatalf("expected *IntegerValue, got %T", val)
 	}
 	if intVal.Value != 0 {
-		t.Errorf("VarAsType(empty, varInteger) wrong. expected=%d, got=%d", 0, intVal.Value)
+		t.Errorf("VarAsType(empty, runtime.VarInteger) wrong. expected=%d, got=%d", 0, intVal.Value)
 	}
 }
 
