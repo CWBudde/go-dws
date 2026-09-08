@@ -38,7 +38,8 @@ func arrayLiteralExpectedElementCount(arrayType *types.ArrayType) int {
 
 // analyzeArrayLiteral analyzes an array literal expression.
 // Type inference, element validation, numeric promotion.
-func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expectedType types.Type) types.Type {
+func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expectedType types.Type) (resolvedType types.Type) {
+	defer func() { a.semanticInfo.SetResolvedType(lit, resolvedType) }()
 	if lit == nil {
 		return nil
 	}
@@ -360,7 +361,8 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 }
 
 // analyzeSetLiteralWithContext analyzes a set literal expression with optional type context
-func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedType types.Type) types.Type {
+func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedType types.Type) (resolvedType types.Type) {
+	defer func() { a.semanticInfo.SetResolvedType(lit, resolvedType) }()
 	if lit == nil {
 		return nil
 	}

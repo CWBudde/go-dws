@@ -22,15 +22,6 @@ func NewWithOptions(output io.Writer, opts Options) *Interpreter {
 	env := NewEnvironment()
 
 	ts := interptypes.NewTypeSystem()
-	ts.ClassInfoFactory = func(className string) any {
-		return NewClassInfo(className)
-	}
-	ts.ClassValueFactory = func(classInfo interptypes.ClassInfo) any {
-		if ci, ok := classInfo.(*ClassInfo); ok {
-			return &ClassValue{ClassInfo: ci}
-		}
-		return nil
-	}
 
 	maxRecursionDepth := DefaultMaxRecursionDepth
 	if opts != nil {

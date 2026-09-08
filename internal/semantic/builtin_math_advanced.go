@@ -5,24 +5,6 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
-// analyzeFactorial analyzes the Factorial() built-in function.
-// Factorial(n: Integer): Integer
-func (a *Analyzer) analyzeFactorial(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'Factorial' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.INTEGER {
-		a.addError("function 'Factorial' expects Integer argument, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-
-	return types.INTEGER
-}
-
 // analyzeGcd analyzes the Gcd() built-in function.
 // Gcd(a, b: Integer): Integer
 func (a *Analyzer) analyzeGcd(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
@@ -68,60 +50,6 @@ func (a *Analyzer) analyzeLcm(args []ast.Expression, callExpr *ast.CallExpressio
 	if argType2 != nil && argType2 != types.INTEGER {
 		a.addError("function 'Lcm' expects Integer as second argument, got %s at %s",
 			argType2.String(), callExpr.Token.Pos.String())
-	}
-
-	return types.INTEGER
-}
-
-// analyzeIsPrime analyzes the IsPrime() built-in function.
-// IsPrime(n: Integer): Boolean
-func (a *Analyzer) analyzeIsPrime(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'IsPrime' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.INTEGER {
-		a.addError("function 'IsPrime' expects Integer argument, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-
-	return types.BOOLEAN
-}
-
-// analyzeLeastFactor analyzes the LeastFactor() built-in function.
-// LeastFactor(n: Integer): Integer
-func (a *Analyzer) analyzeLeastFactor(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'LeastFactor' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.INTEGER {
-		a.addError("function 'LeastFactor' expects Integer argument, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-
-	return types.INTEGER
-}
-
-// analyzePopCount analyzes the PopCount() built-in function.
-// PopCount(n: Integer): Integer
-func (a *Analyzer) analyzePopCount(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'PopCount' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.INTEGER {
-		a.addError("function 'PopCount' expects Integer argument, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
 	}
 
 	return types.INTEGER

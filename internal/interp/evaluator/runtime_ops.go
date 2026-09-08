@@ -335,7 +335,7 @@ func (e *Evaluator) extractMethodType(method *ast.FunctionDecl, ctx *ExecutionCo
 		if param.Type == nil {
 			return nil
 		}
-		pt, err := e.resolveTypeName(param.Type.String(), ctx)
+		pt, err := e.ResolveTypeFromAnnotation(param.Type, ctx)
 		if err != nil {
 			return nil
 		}
@@ -349,7 +349,7 @@ func (e *Evaluator) extractMethodType(method *ast.FunctionDecl, ctx *ExecutionCo
 
 	var returnType types.Type = types.VOID
 	if method.ReturnType != nil {
-		rt, err := e.resolveTypeName(method.ReturnType.String(), ctx)
+		rt, err := e.ResolveTypeFromAnnotation(method.ReturnType, ctx)
 		if err == nil {
 			returnType = rt
 		}

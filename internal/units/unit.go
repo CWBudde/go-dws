@@ -33,6 +33,9 @@ import (
 //	  // Cleanup code
 //	end.
 type Unit struct {
+	// Declaration and Source preserve the exact parsed input for semantic analysis.
+	Declaration *ast.UnitDeclaration
+	Source      string
 	// InterfaceSection contains the public declarations (types, functions, etc.)
 	// Symbols in the interface section are visible to units that use this unit.
 	InterfaceSection *ast.BlockStatement

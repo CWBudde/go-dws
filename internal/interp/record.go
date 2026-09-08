@@ -140,11 +140,7 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 
 	// Built-in metaclass type (class of TObject)
 	if ident.Equal(lowerTypeName, "tclass") {
-		if objClass := i.typeSystem.LookupClass("TObject"); objClass != nil {
-			if ct, ok := objClass.(*types.ClassType); ok {
-				return types.NewClassOfType(ct), nil
-			}
-		}
+
 		return types.NewClassOfType(types.NewClassType("TObject", nil)), nil
 	}
 

@@ -84,6 +84,8 @@ func Walk(v Visitor, node Node) {
 		walkFunctionDecl(n, v)
 	case *FunctionPointerTypeNode:
 		walkFunctionPointerTypeNode(n, v)
+	case *GenericTypeRef:
+		walkGenericTypeRef(n, v)
 	case *GroupedExpression:
 		walkGroupedExpression(n, v)
 	case *HelperDecl:
@@ -345,22 +347,17 @@ func walkClassDecl(n *ClassDecl, v Visitor) {
 	if n.Destructor != nil {
 		Walk(v, n.Destructor)
 	}
+	for _, item := range n.Methods {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 	for _, item := range n.Interfaces {
 		if item != nil {
 			Walk(v, item)
 		}
 	}
 	for _, item := range n.Operators {
-		if item != nil {
-			Walk(v, item)
-		}
-	}
-	for _, item := range n.Properties {
-		if item != nil {
-			Walk(v, item)
-		}
-	}
-	for _, item := range n.Methods {
 		if item != nil {
 			Walk(v, item)
 		}
@@ -376,6 +373,11 @@ func walkClassDecl(n *ClassDecl, v Visitor) {
 		}
 	}
 	for _, item := range n.NestedTypes {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	for _, item := range n.Properties {
 		if item != nil {
 			Walk(v, item)
 		}
@@ -549,6 +551,9 @@ func walkFunctionDecl(n *FunctionDecl, v Visitor) {
 	if n.ClassName != nil {
 		Walk(v, n.ClassName)
 	}
+	if n.HelperName != nil {
+		Walk(v, n.HelperName)
+	}
 	if n.Body != nil {
 		Walk(v, n.Body)
 	}
@@ -574,6 +579,18 @@ func walkFunctionPointerTypeNode(n *FunctionPointerTypeNode, v Visitor) {
 	}
 	if n.ReturnType != nil {
 		Walk(v, n.ReturnType)
+	}
+}
+
+// walkGenericTypeRef walks a GenericTypeRef node
+func walkGenericTypeRef(n *GenericTypeRef, v Visitor) {
+	if n.Base != nil {
+		Walk(v, n.Base)
+	}
+	for _, item := range n.TypeArgs {
+		if item != nil {
+			Walk(v, item)
+		}
 	}
 }
 
@@ -823,6 +840,11 @@ func walkNewExpression(n *NewExpression, v Visitor) {
 		Walk(v, n.Operand)
 	}
 	for _, item := range n.Arguments {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
+	for _, item := range n.TypeArgs {
 		if item != nil {
 			Walk(v, item)
 		}
@@ -1100,6 +1122,11 @@ func walkTryStatement(n *TryStatement, v Visitor) {
 func walkTypeAnnotation(n *TypeAnnotation, v Visitor) {
 	if n.InlineType != nil {
 		Walk(v, n.InlineType)
+	}
+	for _, item := range n.TypeArgs {
+		if item != nil {
+			Walk(v, item)
+		}
 	}
 }
 

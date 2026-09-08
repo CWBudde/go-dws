@@ -9,26 +9,6 @@ import (
 // Date/Time Built-in Function Analysis
 // ============================================================================
 
-// analyzeUnixTime analyzes the UnixTime built-in function.
-// UnixTime takes no arguments and returns an Integer.
-func (a *Analyzer) analyzeUnixTime(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 0 {
-		a.addError("function 'UnixTime' expects 0 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-	}
-	return types.INTEGER
-}
-
-// analyzeUnixTimeMSec analyzes the UnixTimeMSec built-in function.
-// UnixTimeMSec takes no arguments and returns an Integer.
-func (a *Analyzer) analyzeUnixTimeMSec(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 0 {
-		a.addError("function 'UnixTimeMSec' expects 0 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-	}
-	return types.INTEGER
-}
-
 // analyzeEncodeDate analyzes the EncodeDate built-in function.
 // EncodeDate takes 3 arguments (year, month, day) and returns a Float (TDateTime).
 func (a *Analyzer) analyzeEncodeDate(args []ast.Expression, callExpr *ast.CallExpression) types.Type {

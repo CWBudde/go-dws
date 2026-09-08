@@ -8,10 +8,6 @@ import (
 // ============================================================================
 // Math Utility Built-in Function Analysis
 // ============================================================================
-// This file contains analyzers for utility math functions:
-// - Inc, Dec, Succ, Pred
-// - Random, RandomInt, Randomize, SetRandSeed, RandSeed, RandG
-// - Assigned, Swap
 
 // analyzeInc analyzes the Inc built-in procedure.
 // Inc takes 1-2 arguments: variable and optional delta.
@@ -123,19 +119,6 @@ func (a *Analyzer) analyzePred(args []ast.Expression, callExpr *ast.CallExpressi
 	return types.INTEGER
 }
 
-// analyzeAssigned analyzes the Assigned built-in function.
-// Assigned takes 1 argument and checks if a pointer/object/variant is nil.
-// Returns Boolean.
-func (a *Analyzer) analyzeAssigned(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'Assigned' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-	a.analyzeExpression(args[0])
-	return types.BOOLEAN
-}
-
 // analyzeSwap analyzes the Swap built-in function.
 // Swap takes 2 var arguments and swaps their values.
 //
@@ -167,32 +150,6 @@ func (a *Analyzer) analyzeSwap(args []ast.Expression, callExpr *ast.CallExpressi
 	return nil
 }
 
-// analyzeRandom analyzes the Random built-in function.
-// Random takes no arguments and always returns Float.
-func (a *Analyzer) analyzeRandom(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 0 {
-		a.addError("function 'Random' expects no arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-	}
-	return types.FLOAT
-}
-
-// analyzeRandomInt analyzes the RandomInt built-in function.
-// RandomInt takes one Integer argument and returns random Integer in [0, max).
-func (a *Analyzer) analyzeRandomInt(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'RandomInt' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.INTEGER {
-		a.addError("function 'RandomInt' expects Integer argument, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-	return types.INTEGER
-}
-
 // analyzeRandomize analyzes the Randomize built-in procedure.
 // Randomize takes no arguments and returns nothing (nil/void).
 //
@@ -221,17 +178,6 @@ func (a *Analyzer) analyzeSetRandSeed(args []ast.Expression, callExpr *ast.CallE
 			argType.String(), callExpr.Token.Pos.String())
 	}
 	return nil
-}
-
-// analyzeRandSeed analyzes the RandSeed built-in function.
-// RandSeed: Integer
-func (a *Analyzer) analyzeRandSeed(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 0 {
-		a.addError("function 'RandSeed' expects no arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-	return types.INTEGER
 }
 
 // analyzeRandG analyzes the RandG built-in function.

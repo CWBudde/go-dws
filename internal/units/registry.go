@@ -3,6 +3,7 @@ package units
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -124,9 +125,13 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 	}
 
 	// Parse the unit file
-	l := lexer.New(string(source))
+	l := lexer.New(string(source), lexer.WithIncludeResolver(lexer.NewFileIncludeResolver(filepath.Dir(filePath))))
 	p := parser.New(l)
 	program := p.ParseProgram()
+
+	if errs := p.LexerIncludeErrors(); len(errs) > 0 {
+		return nil, fmt.Errorf("include errors in unit '%s': %v", name, errs)
+	}
 
 	// Check for parsing errors
 	if len(p.Errors()) > 0 {
@@ -151,6 +156,8 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 
 	// Create the unit from the parsed declaration
 	unit := NewUnit(unitDecl.Name.Value, filePath)
+	unit.Declaration = unitDecl
+	unit.Source = string(source)
 
 	// Extract sections from the parsed AST
 	unit.InterfaceSection = unitDecl.InterfaceSection
@@ -337,4 +344,18 @@ func (r *UnitRegistry) ComputeInitializationOrder() ([]string, error) {
 	}
 
 	return initOrder, nil
+}
+
+// CloneForExecution shares analyzed ASTs while isolating runtime function tables.
+// Each execution needs its own registry because importing unit implementations
+// fills FunctionSymbols lazily.
+func (r *UnitRegistry) CloneForExecution() *UnitRegistry {
+	clone := NewUnitRegistry(append([]string(nil), r.searchPaths...))
+	r.units.Range(func(name string, unit *Unit) bool {
+		executionUnit := *unit
+		executionUnit.FunctionSymbols = ident.NewMap[[]*ast.FunctionDecl]()
+		clone.units.Set(name, &executionUnit)
+		return true
+	})
+	return clone
 }

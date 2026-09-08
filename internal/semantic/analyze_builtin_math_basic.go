@@ -8,11 +8,6 @@ import (
 // ============================================================================
 // Basic Math Built-in Function Analysis
 // ============================================================================
-// This file contains analyzers for basic mathematical operations including:
-// - Abs, Min, Max
-// - Clamp, ClampInt, MinInt, MaxInt
-// - Sqr, Sign, Odd
-// - DivMod
 
 // analyzeAbs analyzes the Abs built-in function.
 // Abs takes one numeric argument and returns the same type.
@@ -206,22 +201,6 @@ func (a *Analyzer) analyzeSign(args []ast.Expression, callExpr *ast.CallExpressi
 			argType.String(), callExpr.Token.Pos.String())
 	}
 	return types.INTEGER
-}
-
-// analyzeOdd analyzes the Odd built-in function.
-// Odd takes an Integer and returns a Boolean.
-func (a *Analyzer) analyzeOdd(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'Odd' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-	argType := a.analyzeExpression(args[0])
-	if argType != nil && argType != types.INTEGER {
-		a.addError("function 'Odd' expects Integer, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-	return types.BOOLEAN
 }
 
 // analyzeDivMod analyzes the DivMod built-in procedure.

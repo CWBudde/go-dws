@@ -79,7 +79,7 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 	if e.SemanticInfo() != nil {
 		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
 			isSetAnnotation := false
-			if resolvedType, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx); err == nil {
+			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil {
 				_, isSetAnnotation = types.GetUnderlyingType(resolvedType).(*types.SetType)
 			} else if e.parseInlineSetType(typeAnnot.Name) != nil {
 				// Inline "set of X" annotations may not resolve as named types.
@@ -327,7 +327,7 @@ func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression,
 	}
 
 	// Resolve the type name to an ArrayType using context-aware resolution
-	resolved, err := e.ResolveTypeWithContext(typeAnnot.Name, ctx)
+	resolved, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx)
 	if err != nil {
 		return nil
 	}

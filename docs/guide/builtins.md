@@ -2,6 +2,24 @@
 
 This document provides detailed documentation for built-in functions implemented in go-dws.
 
+## Calling parameterless built-ins
+
+A built-in that takes no arguments may be written without parentheses, and the bare name is an
+implicit call carrying the function's result type — so it can be used anywhere an expression of
+that type is expected:
+
+```pascal
+var x := Random * 0;          // Float
+var t := Now;                 // Float (DateTime)
+PrintLn((Random * 0).ToString);
+if Now > 0 then PrintLn(Pi);
+```
+
+This applies to built-ins that take *no* parameters at all: `Pi`, `Infinity`, `NaN`, `Random`,
+`RandSeed`, `Now`, `Date`, `Time`, `UTCDateTime`, `UnixTime`, `UnixTimeMSec`, `GetStackTrace`,
+and `GetCallStack`. Built-ins with optional parameters still need the call parentheses, and
+parameterless *procedures* such as `Randomize` have no value to yield.
+
 ## String Functions
 
 ### Format

@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
@@ -382,5 +383,30 @@ func TestSemanticInfo_OverwriteType(t *testing.T) {
 	// Count should still be 1
 	if count := si.TypeCount(); count != 1 {
 		t.Errorf("TypeCount() after overwrite = %d, want 1", count)
+	}
+}
+
+func TestSemanticInfo_ResolvedTypeLifetime(t *testing.T) {
+	info := NewSemanticInfo()
+	expr := &Identifier{Value: "items"}
+	annotation := &TypeAnnotation{Name: "array of Integer"}
+	resolved := types.NewDynamicArrayType(types.INTEGER)
+	info.SetType(expr, annotation)
+	info.SetResolvedType(expr, resolved)
+	if info.GetResolvedType(expr) != resolved || info.GetResolvedType(annotation) != resolved {
+		t.Fatal("expression and annotation must retain the analyzer's type object")
+	}
+	info.SetType(expr, &TypeAnnotation{Name: "String"})
+	if info.GetResolvedType(expr) != nil {
+		t.Fatal("replacement annotation retained a stale expression type")
+	}
+	info.SetResolvedType(expr, types.STRING)
+	info.ClearType(expr)
+	if info.GetResolvedType(expr) != nil {
+		t.Fatal("ClearType retained a resolved type")
+	}
+	info.Clear()
+	if info.GetResolvedType(annotation) != nil {
+		t.Fatal("Clear retained an annotation type")
 	}
 }

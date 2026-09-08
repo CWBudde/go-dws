@@ -31,6 +31,8 @@ func (m CompileMode) String() string {
 
 // Options configures the behavior of the DWScript engine.
 type Options struct {
+	// UnitSearchPaths lists directories used to resolve uses clauses.
+	UnitSearchPaths   []string
 	Output            io.Writer
 	ExternalFunctions *interp.ExternalFunctionRegistry
 	MaxRecursionDepth int
@@ -122,4 +124,12 @@ func (o *Options) GetExternalFunctions() *interp.ExternalFunctionRegistry {
 // GetMaxRecursionDepth returns the maximum recursion depth for function calls.
 func (o *Options) GetMaxRecursionDepth() int {
 	return o.MaxRecursionDepth
+}
+
+// WithUnitSearchPaths sets directories searched for units, in priority order.
+func WithUnitSearchPaths(paths ...string) Option {
+	return func(opts *Options) error {
+		opts.UnitSearchPaths = append([]string(nil), paths...)
+		return nil
+	}
 }

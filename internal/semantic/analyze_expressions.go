@@ -11,7 +11,8 @@ import (
 
 // analyzeExpression analyzes an expression and returns its type.
 // Returns nil if the expression is invalid.
-func (a *Analyzer) analyzeExpression(expr ast.Expression) types.Type {
+func (a *Analyzer) analyzeExpression(expr ast.Expression) (resolvedType types.Type) {
+	defer func() { a.semanticInfo.SetResolvedType(expr, resolvedType) }()
 	if expr == nil {
 		return nil
 	}
@@ -112,7 +113,8 @@ func isBooleanCompatible(t types.Type) bool {
 // - Lambda (parameter types from function pointer), Nil (class/interface type)
 // - Integer (float when context expects Float), Call (overload resolution)
 // For other types, falls back to analyzeExpression() without context.
-func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expectedType types.Type) types.Type {
+func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expectedType types.Type) (resolvedType types.Type) {
+	defer func() { a.semanticInfo.SetResolvedType(expr, resolvedType) }()
 	if expr == nil {
 		return nil
 	}

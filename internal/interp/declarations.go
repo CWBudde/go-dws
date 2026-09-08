@@ -37,7 +37,7 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 	}
 
 	// Rebuild VMT and propagate to descendants
-	classInfo.buildVirtualMethodTable()
+	classInfo.BuildVirtualMethodTableDirect()
 	i.propagateMethodImplementationToDescendants(classInfo, normalizedMethodName, fn, fn.IsClassMethod)
 	i.rebuildDescendantVMTs(classInfo)
 }
@@ -46,7 +46,7 @@ func (i *Interpreter) evalClassMethodImplementation(fn *ast.FunctionDecl, classI
 func (i *Interpreter) rebuildDescendantVMTs(parentClass *ClassInfo) {
 	for _, classInfo := range i.allRegisteredClassInfos() {
 		if i.isDescendantOf(classInfo, parentClass) {
-			classInfo.buildVirtualMethodTable()
+			classInfo.BuildVirtualMethodTableDirect()
 		}
 	}
 }

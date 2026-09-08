@@ -571,13 +571,7 @@ func (e *Evaluator) lookupClassMetadataByName(className string) (*runtime.ClassM
 		return nil, fmt.Errorf("class '%s' not found", className)
 	}
 
-	if metadataProvider, ok := classInfo.(interface{ GetMetadata() *runtime.ClassMetadata }); ok {
-		if meta := metadataProvider.GetMetadata(); meta != nil {
-			return meta, nil
-		}
-	}
-
-	if meta, ok := classInfo.(*runtime.ClassMetadata); ok {
+	if meta := classInfo.GetMetadata(); meta != nil {
 		return meta, nil
 	}
 

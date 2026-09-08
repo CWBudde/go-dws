@@ -41,7 +41,7 @@ This document catalogs ALL features found in the original DWScript implementatio
 
 - ⏸️ `const` declarations
 - ⏸️ Inline variable declarations (scoped var in blocks)
-- ⏸️ Unit-level variables (no unit system yet)
+- ✅ Unit-level variables, including implementation-private declarations
 
 ---
 
@@ -630,7 +630,13 @@ PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
 - Unit aliasing: `uses MyUnit as MU;`
 
 #### go-dws Status
-- ⏸️ Unit system
+- ✅ Unit declarations and program-level `uses`, with dependency-ordered semantic analysis
+- ✅ Exported types, constants, variables, and functions; implementation-private declarations
+- ✅ Unit initialization/finalization and qualified function calls
+- Embedding applications configure search directories with `dwscript.WithUnitSearchPaths`.
+  The CLI searches the script directory and its configured unit paths. Compilation and
+  execution share the analyzed unit ASTs, so unit programs receive type checking too.
+- General namespaces and unit alias syntax remain incomplete.
 
 ---
 

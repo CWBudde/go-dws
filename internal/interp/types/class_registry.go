@@ -3,6 +3,7 @@
 package types
 
 import (
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -15,79 +16,47 @@ import (
 // - Efficient hierarchy traversal
 // - Descendant checking (is class A derived from class B?)
 type ClassRegistry struct {
-	// classes stores ClassInfo entries with case-insensitive lookup
-	// and automatic original-casing preservation
-	classes *ident.Map[*ClassInfoEntry]
-}
-
-// ClassInfoEntry wraps class information stored in the registry.
-// We use 'any' to avoid circular dependencies with the interp package.
-type ClassInfoEntry struct {
-	// Info is the actual ClassInfo from interp package (stored as any)
-	Info any
-
-	// Name is the original case-sensitive class name
-	Name string
-
-	// ParentName is the parent class name (case-sensitive)
-	// Empty string means no parent (root of hierarchy)
-	ParentName string
+	classes *ident.Map[runtime.IClassInfo]
+	// parentNames records explicitly declared parent names, including forward references.
+	parentNames *ident.Map[string]
 }
 
 // NewClassRegistry creates a new empty class registry.
 func NewClassRegistry() *ClassRegistry {
 	return &ClassRegistry{
-		classes: ident.NewMap[*ClassInfoEntry](),
+		classes:     ident.NewMap[runtime.IClassInfo](),
+		parentNames: ident.NewMap[string](),
 	}
 }
 
 // Register adds a class to the registry.
 // The name is stored case-insensitively (normalized key).
 // If a class with the same name already exists, it is replaced.
-func (r *ClassRegistry) Register(name string, classInfo any) {
+func (r *ClassRegistry) Register(name string, classInfo runtime.IClassInfo) {
 	if classInfo == nil {
 		return
 	}
-
-	// Extract parent name if available
-	// We need to handle the ClassInfo type without importing interp
-	parentName := ""
-	// Note: Parent extraction will be handled by the caller since we can't
-	// access ClassInfo.Parent without circular dependency
-
-	entry := &ClassInfoEntry{
-		Info:       classInfo,
-		Name:       name,
-		ParentName: parentName,
-	}
-
-	r.classes.Set(name, entry)
+	r.classes.Set(name, classInfo)
+	r.parentNames.Delete(name)
 }
 
-// RegisterWithParent adds a class to the registry with explicit parent name.
-// This allows the registry to track inheritance without accessing ClassInfo internals.
-func (r *ClassRegistry) RegisterWithParent(name string, classInfo any, parentName string) {
+// RegisterWithParent registers a class and its declared parent name.
+func (r *ClassRegistry) RegisterWithParent(name string, classInfo runtime.IClassInfo, parentName string) {
 	if classInfo == nil {
 		return
 	}
-
-	entry := &ClassInfoEntry{
-		Info:       classInfo,
-		Name:       name,
-		ParentName: parentName,
-	}
-
-	r.classes.Set(name, entry)
+	r.classes.Set(name, classInfo)
+	r.parentNames.Set(name, parentName)
 }
 
 // Lookup finds a class by name (case-insensitive).
 // Returns the class info and true if found, nil and false otherwise.
-func (r *ClassRegistry) Lookup(name string) (any, bool) {
+func (r *ClassRegistry) Lookup(name string) (runtime.IClassInfo, bool) {
 	entry, ok := r.classes.Get(name)
 	if !ok {
 		return nil, false
 	}
-	return entry.Info, true
+	return entry, true
 }
 
 // Exists checks if a class with the given name exists in the registry.
@@ -104,24 +73,24 @@ func (r *ClassRegistry) Exists(name string) bool {
 //	LookupHierarchy("Dog") returns [Dog, Animal, Object]
 //
 // Returns nil if the class is not found.
-func (r *ClassRegistry) LookupHierarchy(name string) []any {
+func (r *ClassRegistry) LookupHierarchy(name string) []runtime.IClassInfo {
 	entry, ok := r.classes.Get(name)
 	if !ok {
 		return nil
 	}
 
-	hierarchy := []any{entry.Info}
+	hierarchy := []runtime.IClassInfo{entry}
 
 	// Walk up the parent chain
-	currentParent := entry.ParentName
+	currentParent := r.GetParentName(name)
 	for currentParent != "" {
 		parentEntry, ok := r.classes.Get(currentParent)
 		if !ok {
 			// Parent not found in registry - stop here
 			break
 		}
-		hierarchy = append(hierarchy, parentEntry.Info)
-		currentParent = parentEntry.ParentName
+		hierarchy = append(hierarchy, parentEntry)
+		currentParent = r.GetParentName(currentParent)
 	}
 
 	return hierarchy
@@ -134,7 +103,11 @@ func (r *ClassRegistry) GetParentName(name string) string {
 	if !ok {
 		return ""
 	}
-	return entry.ParentName
+	if parent := entry.GetParent(); parent != nil {
+		return parent.GetName()
+	}
+	parentName, _ := r.parentNames.Get(name)
+	return parentName
 }
 
 // IsDescendantOf checks if descendantName is a descendant of ancestorName.
@@ -152,24 +125,24 @@ func (r *ClassRegistry) IsDescendantOf(descendantName, ancestorName string) bool
 	}
 
 	// Look up the descendant class
-	entry, ok := r.classes.Get(descendantName)
+	_, ok := r.classes.Get(descendantName)
 	if !ok {
 		return false
 	}
 
 	// Walk up the parent chain looking for the ancestor
-	currentParent := entry.ParentName
+	currentParent := r.GetParentName(descendantName)
 	for currentParent != "" {
 		if ident.Equal(currentParent, ancestorName) {
 			return true
 		}
 
-		parentEntry, ok := r.classes.Get(currentParent)
+		_, ok := r.classes.Get(currentParent)
 		if !ok {
 			// Parent not in registry - can't continue
 			break
 		}
-		currentParent = parentEntry.ParentName
+		currentParent = r.GetParentName(currentParent)
 	}
 
 	return false
@@ -178,10 +151,10 @@ func (r *ClassRegistry) IsDescendantOf(descendantName, ancestorName string) bool
 // GetAllClasses returns a map of all registered classes.
 // The map uses normalized keys (case-insensitive).
 // The returned map should not be modified directly.
-func (r *ClassRegistry) GetAllClasses() map[string]any {
-	result := make(map[string]any, r.classes.Len())
-	r.classes.Range(func(name string, entry *ClassInfoEntry) bool {
-		result[ident.Normalize(name)] = entry.Info
+func (r *ClassRegistry) GetAllClasses() map[string]runtime.IClassInfo {
+	result := make(map[string]runtime.IClassInfo, r.classes.Len())
+	r.classes.Range(func(name string, entry runtime.IClassInfo) bool {
+		result[ident.Normalize(name)] = entry
 		return true
 	})
 	return result
@@ -205,10 +178,10 @@ func (r *ClassRegistry) GetClassNames() []string {
 // Example: If Cat and Dog inherit from Animal:
 //
 //	FindDescendants("Animal") returns [Cat, Dog]
-func (r *ClassRegistry) FindDescendants(ancestorName string) []any {
-	descendants := []any{}
+func (r *ClassRegistry) FindDescendants(ancestorName string) []runtime.IClassInfo {
+	descendants := []runtime.IClassInfo{}
 
-	r.classes.Range(func(name string, entry *ClassInfoEntry) bool {
+	r.classes.Range(func(name string, entry runtime.IClassInfo) bool {
 		// Skip the ancestor itself
 		if ident.Equal(name, ancestorName) {
 			return true // continue iteration
@@ -216,7 +189,7 @@ func (r *ClassRegistry) FindDescendants(ancestorName string) []any {
 
 		// Check if this class inherits from the ancestor
 		if r.IsDescendantOf(name, ancestorName) {
-			descendants = append(descendants, entry.Info)
+			descendants = append(descendants, entry)
 		}
 		return true // continue iteration
 	})
@@ -235,22 +208,22 @@ func (r *ClassRegistry) FindDescendants(ancestorName string) []any {
 //	GetDepth("Animal") returns 1 (if Animal inherits from Object)
 //	GetDepth("Dog") returns 2 (if Dog inherits from Animal)
 func (r *ClassRegistry) GetDepth(name string) int {
-	entry, ok := r.classes.Get(name)
+	_, ok := r.classes.Get(name)
 	if !ok {
 		return -1
 	}
 
 	depth := 0
-	currentParent := entry.ParentName
+	currentParent := r.GetParentName(name)
 
 	for currentParent != "" {
-		parentEntry, ok := r.classes.Get(currentParent)
+		_, ok := r.classes.Get(currentParent)
 		if !ok {
 			// Parent not found - stop here
 			break
 		}
 		depth++
-		currentParent = parentEntry.ParentName
+		currentParent = r.GetParentName(currentParent)
 	}
 
 	return depth
@@ -259,9 +232,11 @@ func (r *ClassRegistry) GetDepth(name string) int {
 // Clear removes all classes from the registry.
 func (r *ClassRegistry) Clear() {
 	r.classes.Clear()
+	r.parentNames.Clear()
 }
 
 // Unregister removes a class from the registry by name.
 func (r *ClassRegistry) Unregister(name string) {
 	r.classes.Delete(name)
+	r.parentNames.Delete(name)
 }

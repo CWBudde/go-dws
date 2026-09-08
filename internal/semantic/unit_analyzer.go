@@ -54,168 +54,123 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	}
 
 	a.warnUnitNameFileMismatch(unit)
+	previousInUnit := a.inUnitDecl
+	a.inUnitDecl = true
+	defer func() { a.inUnitDecl = previousInUnit }()
 
-	// Step 0: Store available units for qualified access (UnitName.Symbol)
-	if availableUnits != nil {
-		for unitName, unitSymbols := range availableUnits {
-			a.unitSymbols[unitName] = unitSymbols
-		}
+	normalizedUnits := make(map[string]*SymbolTable, len(availableUnits))
+	for name, symbols := range availableUnits {
+		normalizedUnits[ident.Normalize(name)] = symbols
+		a.unitSymbols[ident.Normalize(name)] = symbols
+	}
+	imported := make(map[string]string)
+	if err := a.importUnitUses(unit.InterfaceSection, normalizedUnits, imported); err != nil {
+		return err
 	}
 
-	// Step 1: Process uses clauses and import symbols from dependencies
-	// Track which symbols are imported from which unit to detect conflicts
-	importedSymbols := make(map[string]string) // symbol name -> source unit name
-
+	// An enclosed scope separates the public API from builtins and dependencies.
+	a.symbols = NewEnclosedSymbolTable(a.symbols)
+	exports := a.symbols
+	beforeTypes := a.typeRegistry.AllTypes()
+	interfaceFunctions := make(map[string][]*ast.FunctionDecl)
 	if unit.InterfaceSection != nil {
 		for _, stmt := range unit.InterfaceSection.Statements {
-			if usesClause, ok := stmt.(*ast.UsesClause); ok {
-				// Process each unit in the uses clause
-				for _, unitIdent := range usesClause.Units {
-					unitName := ident.Normalize(unitIdent.Value)
-
-					// Look up the unit's symbols
-					if availableUnits == nil {
-						return fmt.Errorf("unit '%s' uses '%s', but no units are available", unit.Name.Value, unitIdent.Value)
-					}
-
-					unitSymbols, found := availableUnits[unitName]
-					if !found {
-						return fmt.Errorf("unit '%s' not found (required by uses clause)", unitIdent.Value)
-					}
-
-					// Import all symbols from the used unit
-					var importErr error
-					unitSymbols.symbols.Range(func(symbolName string, symbol *Symbol) bool {
-						// Normalize for case-insensitive conflict checking
-						normalizedName := ident.Normalize(symbolName)
-
-						// Check for conflicts
-						if existingSource, exists := importedSymbols[normalizedName]; exists {
-							importErr = fmt.Errorf("symbol conflict: '%s' is exported by both '%s' and '%s'",
-								symbol.Name, existingSource, unitIdent.Value)
-							return false // stop iteration
-						}
-
-						// Import the symbol
-						a.symbols.symbols.Set(symbolName, symbol)
-						importedSymbols[normalizedName] = unitIdent.Value
-						return true // continue iteration
-					})
-					if importErr != nil {
-						return importErr
-					}
-				}
-			}
-		}
-	}
-
-	// Create a separate symbol table for the unit's interface (exported symbols)
-	interfaceSymbols := NewSymbolTable()
-
-	// Step 1: Analyze interface section and collect function signatures
-	// Interface section contains declarations only (no implementations)
-	interfaceFunctions := make(map[string]*ast.FunctionDecl)
-	if unit.InterfaceSection != nil {
-		for _, stmt := range unit.InterfaceSection.Statements {
-			switch decl := stmt.(type) {
-			case *ast.FunctionDecl:
-				// Validate function declaration
+			if decl, ok := stmt.(*ast.FunctionDecl); ok && decl.ClassName == nil {
 				if decl.Name == nil {
 					a.addError("function declaration missing name")
 					continue
 				}
-
-				// Store function signature for later validation
-				normalizedName := ident.Normalize(decl.Name.Value)
-				interfaceFunctions[normalizedName] = decl
-
-				// Build function type from parameters and return type
-				funcType, err := a.buildFunctionType(decl)
-				if err != nil {
-					a.addError("invalid function signature for '%s': %v", decl.Name.Value, err)
-					continue
-				}
-
-				// Add to interface symbol table (exported)
-				interfaceSymbols.DefineFunction(decl.Name.Value, funcType, decl.Name.Token.Pos)
-
-			// TODO: Handle other declaration types (type declarations, constants, etc.)
-			default:
-				// For now, skip non-function declarations
+				name := ident.Normalize(decl.Name.Value)
+				interfaceFunctions[name] = append(interfaceFunctions[name], decl)
+				a.registerFunctionSignature(decl)
+			} else {
+				a.analyzeStatement(stmt)
 			}
 		}
 	}
-
-	// Import the unit's interface symbols into the analyzer's symbol table BEFORE
-	// analyzing implementation bodies, so a unit function that calls itself or another
-	// same-unit interface function resolves instead of reporting a false "Unknown name".
-	// These also become the unit's public API.
-	interfaceSymbols.symbols.Range(func(name string, symbol *Symbol) bool {
-		a.symbols.symbols.Set(name, symbol)
-		return true // continue iteration
+	exports.exportedTypes = make(map[string]types.Type)
+	for name, typ := range a.typeRegistry.AllTypes() {
+		if _, existed := beforeTypes[name]; !existed {
+			exports.exportedTypes[name] = typ
+		}
+	}
+	publicSymbols := NewSymbolTable()
+	publicSymbols.exportedTypes = exports.exportedTypes
+	exports.symbols.Range(func(name string, symbol *Symbol) bool {
+		publicSymbols.symbols.Set(name, symbol)
+		return true
 	})
+	a.unitSymbols[ident.Normalize(unit.Name.Value)] = publicSymbols
 
-	// Step 2: Analyze implementation section and validate against interface
-	implementedFunctions := make(map[string]bool)
+	// Private declarations and implementation-only imports never become exports.
+	a.symbols = NewEnclosedSymbolTable(exports)
+	if err := a.importUnitUses(unit.ImplementationSection, normalizedUnits, imported); err != nil {
+		return err
+	}
+	implemented := make(map[*ast.FunctionDecl]bool)
+	var bodies []*ast.FunctionDecl
 	if unit.ImplementationSection != nil {
 		for _, stmt := range unit.ImplementationSection.Statements {
-			switch decl := stmt.(type) {
-			case *ast.FunctionDecl:
-				if decl.Name == nil {
-					a.addError("function implementation missing name")
-					continue
+			decl, ok := stmt.(*ast.FunctionDecl)
+			if !ok || decl.ClassName != nil {
+				a.analyzeStatement(stmt)
+				continue
+			}
+			if decl.Name == nil {
+				a.addError("function implementation missing name")
+				continue
+			}
+			candidates := interfaceFunctions[ident.Normalize(decl.Name.Value)]
+			matched := false
+			for _, candidate := range candidates {
+				if a.validateFunctionSignatureMatch(candidate, decl) == nil {
+					implemented[candidate] = true
+					matched = true
+					break
 				}
-
-				normalizedName := ident.Normalize(decl.Name.Value)
-
-				// Check if this function was declared in the interface
-				interfaceDecl, hasInterfaceDecl := interfaceFunctions[normalizedName]
-				if hasInterfaceDecl {
-					// Validate that signatures match
-					if err := a.validateFunctionSignatureMatch(interfaceDecl, decl); err != nil {
-						a.addError("implementation of '%s' doesn't match interface: %v", decl.Name.Value, err)
-						continue
-					}
-
-					// Mark as implemented
-					implementedFunctions[normalizedName] = true
-				}
-
-				// Analyze the function implementation body so type errors inside unit
-				// functions are reported (mirrors analyzeFunctionBody for the program path).
-				if decl.Body != nil {
-					funcType, err := a.buildFunctionType(decl)
-					if err != nil {
-						a.addError("invalid function signature for '%s': %v", decl.Name.Value, err)
-						continue
-					}
-					returnType := funcType.ReturnType
-					if returnType == nil {
-						returnType = types.VOID
-					}
-					a.analyzeFunctionBody(decl, funcType.Parameters, returnType)
-				}
-
-			default:
-				// Implementation-only declarations (not in interface)
+			}
+			if len(candidates) > 0 && !matched {
+				a.addError("implementation of '%s' doesn't match interface: %v", decl.Name.Value, a.validateFunctionSignatureMatch(candidates[0], decl))
+				continue
+			}
+			if !matched {
+				a.registerFunctionSignature(decl)
+			}
+			bodies = append(bodies, decl)
+		}
+	}
+	for _, decl := range bodies {
+		if decl.Body == nil {
+			continue
+		}
+		funcType, err := a.buildFunctionType(decl)
+		if err != nil {
+			a.addError("invalid function signature for '%s': %v", decl.Name.Value, err)
+			continue
+		}
+		returnType := funcType.ReturnType
+		if returnType == nil {
+			returnType = types.VOID
+		}
+		a.analyzeFunctionBody(decl, funcType.Parameters, returnType)
+	}
+	for _, candidates := range interfaceFunctions {
+		for _, decl := range candidates {
+			if !implemented[decl] && !decl.IsExternal && decl.Body == nil {
+				a.addError("interface function '%s' has no implementation", decl.Name.Value)
 			}
 		}
 	}
-
-	// Step 3: Verify all interface functions have implementations
-	for name, interfaceFunc := range interfaceFunctions {
-		if !implementedFunctions[name] {
-			a.addError("interface function '%s' has no implementation", interfaceFunc.Name.Value)
+	for _, section := range []*ast.BlockStatement{unit.InitSection, unit.FinalSection} {
+		if section != nil {
+			for _, stmt := range section.Statements {
+				a.analyzeStatement(stmt)
+			}
 		}
 	}
-
-	// (Interface symbols were imported into a.symbols before body analysis above.)
-
-	// Return accumulated errors
-	if len(a.errors) > 0 {
+	if a.hasActualErrors() {
 		return &AnalysisError{Errors: a.errors}
 	}
-
 	return nil
 }
 
@@ -258,7 +213,7 @@ func (a *Analyzer) buildFunctionType(decl *ast.FunctionDecl) (*types.FunctionTyp
 			return nil, fmt.Errorf("parameter '%s' missing type", param.Name.Value)
 		}
 
-		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
+		paramType, err := a.resolveTypeExpression(param.Type)
 		if err != nil {
 			return nil, fmt.Errorf("unknown type '%s' for parameter '%s': %v", getTypeExpressionName(param.Type), param.Name.Value, err)
 		}
@@ -268,7 +223,7 @@ func (a *Analyzer) buildFunctionType(decl *ast.FunctionDecl) (*types.FunctionTyp
 
 	// Resolve return type
 	if decl.ReturnType != nil {
-		returnType, err := a.resolveType(getTypeExpressionName(decl.ReturnType))
+		returnType, err := a.resolveTypeExpression(decl.ReturnType)
 		if err != nil {
 			return nil, fmt.Errorf("unknown return type '%s': %v", getTypeExpressionName(decl.ReturnType), err)
 		}

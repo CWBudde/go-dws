@@ -9,8 +9,9 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-06, after Phase 1):** Go harness **871 / 1,928 scored = 45%**, CLI ground truth
-**871 / 1,928 = 45%** — identical in all 61 categories, since both run the same pipeline and
+**Headline (2026-09-08):** Go harness **878 / 1,928 scored = 46%**. Last full CLI
+measurement (2026-09-06, after Phase 1): **871 / 1,928 = 45%**; refresh with
+`just fixture-report` for current CLI numbers. Both use the shared compile pipeline and
 scoring rules. `*Fail` error-detection suites **111 / 647 = 17%**.
 
 Where the truth lives:
@@ -31,7 +32,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (1,057 total): FailureScripts 421, SimpleScripts 105,
+- Where the remaining failures are (1,050 total): FailureScripts 421, SimpleScripts 104,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -51,6 +52,11 @@ items go here.
 
 ## 2. Architecture refactoring — required (A)
 
+A5 now consumes resolved semantic type objects for annotation-based execution; its
+unit-aware frontend prerequisite is complete. A6's class metadata migration and typed
+class registry are complete; A9 has migrated 78 further builtin names to registry validation.
+The remaining work is listed below (2026-09-08).
+
 A2–A4, A8 and A10 closed 2026-09-07; A11's experimental API/help labels are complete.
 See [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
 A9 has a registry-backed return-type lookup and ordinary call analyzer; its remaining
@@ -61,32 +67,33 @@ Evidence for every item, with file:line references and measurements, is in
 that each one shrinks the blast radius of the next. The target architecture is
 [`docs/architecture/interp-evaluator-steady-state.md`](docs/architecture/interp-evaluator-steady-state.md).
 
-- **A5** `[ ]` L — **Delete the evaluator's string-based type resolution.**
-  `internal/interp/evaluator/type_resolution.go` + `type_resolution_helpers.go` (965 LOC) re-parse
-  `array of …`/function-pointer signatures from strings at runtime, duplicating six functions in
-  `internal/semantic/type_resolution.go`. Consume `ast.SemanticInfo` (already threaded through
-  `contracts.EngineState`) instead. Requires the §3.2 unit-aware analysis item so the analyzer
-  also runs for unit-using programs.
-- **A6** `[ ]` L — **De-`any` the type registries** (the "triplicated type system").
-  `internal/interp/types/type_system.go:553-559` aliases `ClassInfo`/`RecordTypeValue`/`InterfaceInfo`/
-  `HelperInfo`/`EnumTypeValue` to `any` to break an import cycle that exists only because
-  `ClassInfo` lives in `internal/interp` instead of `internal/interp/runtime`. Sequence:
-  (i) move `ClassInfo`/`ClassValue` to `runtime` (the `runtime.IClassInfo` seam already exists);
-  (ii) type `ClassRegistry` as `ident.Map[runtime.IClassInfo]`; (iii) delete `ClassInfoFactory`/
-  `ClassValueFactory`; (iv) repeat for record → enum → interface → helper; (v) drop the 12 parallel
-  AST maps on `ClassInfo` that duplicate `runtime.ClassMetadata`. Open question feeding this:
-  `docs/archive/phase-4.12.1-lifetime-inventory.md` (owned vs aliased binding lifetimes).
+- **A5** `[~]` L — **Delete the evaluator's remaining string-based type resolution.**
+  Annotation-based execution now consumes resolved types from `ast.SemanticInfo`, shared
+  across unit and program analysis. Remaining name-only callers and explicitly untyped
+  execution still use `evaluator/type_resolution.go` and `type_resolution_helpers.go`.
+  Migrate those consumers and declaration registration before deleting the inline array /
+  function-signature parsers; retain an explicit policy for `WithTypeCheck(false)`.
+- **A6** `[~]` L — **Finish typing the registries and consolidating metadata.**
+  `ClassInfo`, `ClassValue`, and class metadata mutation now live in `runtime`;
+  `ClassRegistry` stores `runtime.IClassInfo`, and the two class factories are gone.
+  Remaining: replace `any` registry aliases for record → enum → interface → helper, remove
+  their factory seams where applicable, and drop the parallel AST maps on `ClassInfo`
+  that duplicate `runtime.ClassMetadata`. Lifetime design input remains
+  `docs/archive/phase-4.12.1-lifetime-inventory.md` (owned vs aliased bindings).
 - **A7** `[ ]` L — **Typed type identity.** Operator-overload dispatch keys on `"class:"`-prefixed
-  strings encoded twice (`internal/interp/operators.go:136-160`, `evaluator/runtime_ops.go:471-477`)
+  strings encoded twice (`internal/interp/runtime/class_operators.go`, `evaluator/runtime_ops.go`)
   and compared with `strings.HasPrefix`, while the typed comparator
   `internal/types/operator_registry.go:100` already exists. Start there; then retire
   `runtime.Value.Type() string` comparisons (92 sites), the `*Name string` metadata fields in
   `runtime/metadata.go`, and `ExecutionContext.recordTypeContext string`. Unlocks
   OperatorOverloadPass/Fail. Depends on A6.
-- **A9** `[~]` S — **Finish builtin analysis from registry signatures.** Return-type lookup and
-  ordinary call validation now consume `builtins.Registry` signatures. Remaining work: migrate
-  the specialized dispatch in `internal/semantic/analyze_builtin_functions.go` where signatures
-  can express the rules; retain explicit AST-dependent intrinsics and preserve diagnostic text.
+- **A9** `[~]` S — **Finish builtin analysis from registry signatures.** Return-type lookup,
+  ordinary calls, and 78 additional builtin names use `builtins.Registry` signatures;
+  diagnostic styles preserve historical wording. Remaining: multi-argument math handlers
+  with diagnostic-order constraints; date handlers with strict Float rules; Variant handlers
+  requiring strict Variant/JSONVariant constraints; reconcile signature discrepancies for
+  Trim, RandG, and array-returning JSON/string functions. Retain explicit AST-dependent
+  and polymorphic intrinsics.
 - **A11** ⏸️ — **Bytecode VM.** Owner decision 2026-07-04: keep in tree, unmaintained, opt-in.
   `run --bytecode`, `dwscript compile`, and
   `pkg/dwscript.CompileModeBytecode` are labeled experimental in help text and godoc. Revisit
@@ -116,13 +123,6 @@ Each line: what to build → fixtures/category it unlocks. Run
 
 ### 3.2 Semantic
 
-- `[ ]` M Unit-aware semantic analysis in `internal/frontend`: resolve program-level `uses` through
-  `units.UnitRegistry` (search paths as a frontend option), run `Analyzer.AnalyzeUnitWithDependencies`
-  in dependency order, then `Analyze(program)`. Deletes the explicit `TypeCheck=false` bypass in
-  `cmd/dwscript/cmd/run.go` and gives the harness unit resolution. Until then the two runners
-  still differ for the ~35 in-scope fixtures with a program-level `uses` (the harness type-checks
-  them and fails; the CLI runs them untyped). Unlocks BuildScripts (0/54), FunctionsGlobalVars,
-  FunctionsVariant, and type checking for every unit program.
 - `[ ]` M Type-order-independent class builder (parents/fields declared later without `forward`);
   needs a real two-phase class registration. Design input: `docs/architecture/semantic-passes.md`
   (superseded design, never implemented).
@@ -130,11 +130,6 @@ Each line: what to build → fixtures/category it unlocks. Run
   serialization fixtures in the harness (they already pass in the CLI).
 - `[ ]` S Value-context auto-invoke of parameterless function pointers for `and`/`or` operands
   (`Print`/`PrintLn`/`implies` already done).
-- `[ ]` S Type parameterless builtins used as bare identifiers in expressions: `Random*0` fails
-  with `Incompatible operands` because `random` is only typed on the call path
-  (`internal/semantic/analyze_builtin_functions.go:251`), while `Random` alone is not.
-  Sole remaining blocker for JSONConnectorPass `stringify_anonymous2`. Best done as part of A9,
-  which derives that switch from `builtins.Registry` signatures.
 - `[ ]` S Helper-property resolution through a metaclass → PropertyExpressionsPass `helpers_property_expressions`.
 - `[ ]` S Indexed-property read through a metaclass with a class-method accessor → SimpleScripts `enum_to_integer`.
 - `[ ]` M Contract inheritance → SimpleScripts `method_contracts`; inline-method class name in
@@ -169,7 +164,7 @@ Each line: what to build → fixtures/category it unlocks. Run
   value ↔ parameterless-function coercion in `array of function : T` (`func_ptr_classname`).
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
   `class of`); the common cases were closed in July, the rest was never re-listed.
-- `[ ]` M SimpleScripts to ≥ 85% (330/442 = 75%). Work
+- `[ ]` M SimpleScripts to ≥ 85% (331/442 = 75%). Work
   `just fixture-report --category SimpleScripts --list-fails` (identical to the harness list).
 - `[ ]` M Triage in-scope categories that have no plan yet: FunctionsTime (1/30),
   FunctionsVariant (0/10), FunctionsGlobalVars (0/16), FunctionsByteBuffer (0/19),
@@ -182,13 +177,12 @@ Each line: what to build → fixtures/category it unlocks. Run
 
 Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted (A11).
 
-- `[ ]` `internal/semantic/unit_analyzer.go:142` — analyze non-function declarations (types, constants) in units.
 - `[ ]` `internal/semantic/analyze_arrays.go:162` — validate index expression types against property index-parameter types.
 - `[ ]` `internal/semantic/overload_resolution.go:211` — class-hierarchy distance in overload matching.
 - `[ ]` `internal/semantic/analyze_records.go:387` — record member visibility rules.
 - `[ ]` `internal/semantic/analyze_function_calls.go:26` — use `expectedType` in overload resolution.
 - `[ ]` `internal/interp/evaluator/helpers.go:131` — enum range checking.
-- `[ ]` `internal/interp/class.go:513` — return a callable instead of an AST node (goes away with A6).
+- `[ ]` `internal/interp/runtime/class.go` — replace compatibility AST method lookups with runtime callables (A6).
 - `[ ]` `internal/units/search.go:171-172` — user (`~/.dwscript/lib`) and system library search paths.
 - `[ ]` `cmd/dwscript/cmd/fmt.go:296` — real diff algorithm for `dwscript fmt --diff`.
 - `[ ]` `pkg/wasm/api.go:126,299` — custom filesystem integration for WASM.

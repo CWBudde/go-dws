@@ -32,6 +32,24 @@ func (a *Analyzer) analyzeCallExpressionWithContext(expr *ast.CallExpression, ex
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		if name, ok := memberAccess.Object.(*ast.Identifier); ok {
+			if symbols, imported := a.unitSymbols[ident.Normalize(name.Value)]; imported {
+				// Reuse regular call checking, including overloads and defaults, in the unit namespace.
+				oldSymbols := a.symbols
+				a.symbols = NewEnclosedSymbolTable(oldSymbols)
+				if symbol, found := symbols.symbols.Get(memberAccess.Member.Value); found {
+					a.symbols.symbols.Set(memberAccess.Member.Value, symbol)
+				} else {
+					a.symbols = oldSymbols
+					a.addStructuredError(NewUnknownNameError(memberAccess.Member.Token.Pos, name.Value+"."+memberAccess.Member.Value))
+					return nil
+				}
+				defer func() { a.symbols = oldSymbols }()
+				call := *expr
+				call.Function = memberAccess.Member
+				return a.analyzeCallExpression(&call)
+			}
+		}
 		// JSON namespace calls (JSON.Parse/Stringify/...) must be recognized before
 		// the `JSON` identifier is analyzed as an ordinary (undefined) symbol.
 		if a.isJSONNamespace(memberAccess.Object) {

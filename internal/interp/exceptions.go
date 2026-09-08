@@ -107,7 +107,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		Body:           freeMethod.Body,
 		Visibility:     runtime.VisibilityPublic,
 	}, false)
-	objectClass.buildVirtualMethodTable()
+	objectClass.BuildVirtualMethodTableDirect()
 
 	// Use lowercase key for O(1) case-insensitive lookup
 	i.typeSystem.RegisterClass("TObject", objectClass)

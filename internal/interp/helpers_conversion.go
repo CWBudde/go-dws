@@ -182,7 +182,7 @@ func (i *Interpreter) resolveTypeFromAnnotation(typeExpr ast.TypeExpression) typ
 // resolveClassInfoByName looks up a class by name, handling both global and nested classes.
 func (i *Interpreter) resolveClassInfoByName(name string) *ClassInfo {
 	if current := i.currentClassContext(); current != nil {
-		if nested := current.lookupNestedClass(name); nested != nil {
+		if nested := current.LookupNestedClass(name); nested != nil {
 			return nested
 		}
 	}

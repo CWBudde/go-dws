@@ -633,7 +633,7 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 // Converts AST property declaration to PropertyInfo for runtime access.
 // Used by interface, class, and record evaluation.
 func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl *ast.PropertyDecl, ctx *ExecutionContext) *types.PropertyInfo {
-	propType, err := e.ResolveTypeWithContext(propDecl.Type.String(), ctx)
+	propType, err := e.ResolveTypeFromAnnotation(propDecl.Type, ctx)
 	if err != nil || propType == nil {
 		propType = types.NIL
 	}
@@ -1226,7 +1226,7 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 		)
 
 		if classVar.Type != nil {
-			resolvedType, err := e.resolveTypeName(classVar.Type.String(), ctx)
+			resolvedType, err := e.ResolveTypeFromAnnotation(classVar.Type, ctx)
 			if err != nil {
 				return e.newError(classVar, "unknown type for class variable '%s'",
 					classVar.Name.Value)
@@ -1279,7 +1279,7 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 		// Typed record constants ((x:1; y:2)) need the record type context.
 		var restoreRecordCtx bool
 		if classConst.Type != nil {
-			if resolved, err := e.ResolveTypeWithContext(classConst.Type.String(), ctx); err == nil {
+			if resolved, err := e.ResolveTypeFromAnnotation(classConst.Type, ctx); err == nil {
 				if recType, ok := types.GetUnderlyingType(resolved).(*types.RecordType); ok && recType.Name != "" {
 					ctx.SetRecordTypeContext(recType.Name)
 					restoreRecordCtx = true
@@ -1523,7 +1523,7 @@ func (e *Evaluator) evalTypeAlias(node *ast.TypeDeclaration, ctx *ExecutionConte
 			return &runtime.NilValue{}
 		}
 
-		aliasedType, resolveErr = e.resolveTypeName(node.AliasedType.String(), ctx)
+		aliasedType, resolveErr = e.ResolveTypeFromAnnotation(node.AliasedType, ctx)
 		if resolveErr != nil {
 			return e.newError(node, "unknown type '%s' in type alias", node.AliasedType.String())
 		}
@@ -1561,7 +1561,7 @@ func (e *Evaluator) VisitSetDecl(node *ast.SetDecl, ctx *ExecutionContext) Value
 
 	// Register named set types in the runtime environment so later phases (var init,
 	// empty set literals, etc.) can resolve them.
-	elemType, err := e.ResolveTypeWithContext(node.ElementType.String(), ctx)
+	elemType, err := e.ResolveTypeFromAnnotation(node.ElementType, ctx)
 	if err != nil {
 		return e.newError(node, "unknown set element type '%s'", node.ElementType.String())
 	}
