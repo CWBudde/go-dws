@@ -41,8 +41,8 @@ func NewTestProgram(t *testing.T, source string) *ast.Program {
 func NewTestASTInterpreter(t *testing.T, program *ast.Program) string {
 	t.Helper()
 	var buf bytes.Buffer
-	interp := interp.New(&buf)
-	result := interp.Eval(program)
+	interpreter := interp.New(&buf)
+	result := interpreter.Eval(program)
 	if result != nil && result.Type() == "ERROR" {
 		t.Fatalf("AST interpreter error: %v", result)
 	}

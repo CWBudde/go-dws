@@ -135,9 +135,12 @@ The decision to retain the VM unmaintained remains unchanged.
 
 Validation: the complete interpreter suite, semantic and builtin suites, evaluator,
 public embedding API, bytecode, frontend, parser, lexer, shared types and remaining
-packages pass. The fixture regression gate and regenerated status remain **871/1,928**,
-with identical pass-count baselines in all 61 categories. The status generation date
-was refreshed; no baseline floor changed. `go vet ./internal/... ./pkg/... ./cmd/...`
+packages pass. The fixture regression gate and regenerated status were unchanged by this
+architecture work — **871/1,928**, with identical pass-count baselines in all 61
+categories and no baseline floor changed by A10/A11. (The anonymous record expression
+work recorded below then raised this to **876/1,928** and ratcheted `JSONConnectorPass`
+51 → 56; that is the status `TEST_STATUS.md` and `baselines.json` now carry.) The status
+generation date was refreshed. `go vet ./internal/... ./pkg/... ./cmd/...`
 and the new evaluator context-isolation tests under `-race` pass. Actual compile/run
 help output confirms the experimental bytecode labels.
 

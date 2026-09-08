@@ -52,10 +52,10 @@ func (a *Analyzer) analyzeRegisteredBuiltin(name string, args []ast.Expression, 
 		if expected == nil || expected == types.VARIANT {
 			continue
 		}
-		valid := actual == expected
+		valid := expected.Equals(actual)
 		description := expected.String()
 		if expected == types.FLOAT {
-			valid = actual == types.INTEGER || actual == types.FLOAT
+			valid = types.INTEGER.Equals(actual) || types.FLOAT.Equals(actual)
 			description = "Integer or Float"
 		}
 		if !valid {

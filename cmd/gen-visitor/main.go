@@ -564,9 +564,21 @@ func sortFieldsByOrder(fields []*FieldInfo) []*FieldInfo {
 	return sorted
 }
 
+// article returns the indefinite article matching the given type name.
+func article(name string) string {
+	if name == "" {
+		return "a"
+	}
+	switch name[0] {
+	case 'A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u':
+		return "an"
+	}
+	return "a"
+}
+
 // generateWalkFunction generates a walk function for a specific node type
 func generateWalkFunction(buf *bytes.Buffer, node *NodeInfo) {
-	fmt.Fprintf(buf, "// walk%s walks a %s node\n", node.Name, node.Name)
+	fmt.Fprintf(buf, "// walk%s walks %s %s node\n", node.Name, article(node.Name), node.Name)
 	fmt.Fprintf(buf, "func walk%s(n *%s, v Visitor) {\n", node.Name, node.Name)
 
 	if len(node.Fields) == 0 {
