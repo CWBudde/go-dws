@@ -467,3 +467,99 @@ Changed-source lint reports zero issues, and scoped `git diff --check` passes.
 concurrent gains in JSONConnectorPass (57 → 59) and PropertyExpressionsPass (10 → 15);
 all other floors stay unchanged. Validation uses workspace Go/build/temp caches because
 the default Go cache is read-only and `/tmp` has limited free space.
+
+`go test -p 2 -timeout 20m ./internal/semantic ./internal/interp/...` passes, including
+the evaluator and runtime packages. The interpreter package completed in 87 seconds.
+
+## 2026-09-09 — Semantic backlog refinement (planning complete)
+
+PLAN.md §3.2 now divides the remaining semantic work into 24 tasks across class
+construction, diagnostics/metaclass properties, contracts, generics, overloads, sets,
+and conditional compilation. Each task has a stable ID and acceptance target; sequencing
+and shared-file coordination identify work that can proceed alongside §3.1.
+
+The class-builder tasks extend the existing class predeclaration mechanism rather than
+assuming it is absent. The conditional-compilation tasks require reproducing their
+blockers before implementation because the previous ArrayPass/SetOfPass attribution
+was not supported by a source search. An explicit Done summary in §3.2 links the completed
+`and`/`or` callback work to its implementation and validation record above. The remaining
+language tasks stay open. This refinement changes documentation only; test execution
+remains with the user.
+
+## 2026-09-09 — Parser gaps closed, PLAN.md §3.1 emptied (3.1)
+
+Six items were listed under §3.1. Measuring each against the built CLI first changed the
+shape of the work: `array of T` in getter position already worked and was deleted as
+already-shipped, and `{$I %FILE%}` was reclassified won't-fix because its only fixture,
+SimpleScripts `include_expr`, encodes the original Delphi runner's paths
+(`Test\include_expr.pas`, `*MainModule*`) that neither scoring path normalizes, and
+`%FUNCTION%` is not knowable at lex time. The remaining four are closed here.
+
+**`class property` in records and auto-property backing fields.** `parseRecordBody` rejected
+`class property`; `parseRecordPropertyDeclaration` had no auto-property desugaring, so a
+record `property Field: Integer;` parsed into a permanently unreadable and unwritable
+property. Both now mirror the class side: the parser points a bare property at `F<Name>`
+and `addRecordAutoPropertyBackingField` synthesizes the field, or the class var for a class
+property. `RecordPropertyDecl` and `RecordPropertyInfo` carry `IsClassProperty`, and record
+class-property writes reach `RecordTypeValue.ClassVars`, matching the read fallback that
+already existed in `readRecordTypePropertyValue`.
+
+Three runtime defects surfaced underneath and had to be fixed for the fixtures to pass.
+Writing a class property through an instance (`obj.ClassProp := v`) created an instance
+field shadowing the class var, so the write was silently lost while the read still saw the
+old value; `executePropertyWrite` now delegates class properties to the existing
+`evalClassPropertyWrite`, so instance and metaclass spellings share one implementation.
+The same shadowing hit plain class vars in `member_assignment.go` and in `EvaluateLValue`,
+where `obj.ClassVar.Field := v` could not even resolve its base. And class properties are
+not virtual: `TBase(sub).ClassProp` must read TBase's declaration, so `staticClassPropertyOf`
+resolves them against the cast's static type on both the read and the write path, alongside
+the field-shadowing rule that was already there.
+
+**Expression-backed and multi-index indexed properties.** The semantic analyzer rejected
+expression accessors on indexed properties up front, even though `bindPropertyIndexParams`
+already bound the index parameters into the accessor scope — the code was unreachable behind
+the guard. Removing both guards, carrying the declared index parameter names and types on
+`PropertyInfo`, and binding those names in `executeIndexedPropertyExpressionRead` and
+`tryIndexedPropertyExpressionWrite` completes the feature; the read-only check in
+`index_assignment.go` no longer treats an empty `WriteSpec` as read-only, since an
+expression setter legitimately has none. Separately, multi-index properties did not work at
+all, with any accessor kind: `a.Prop[i, j]` parses as the chain `a.Prop[i][j]`, which fell
+through to ordinary indexing and reported `Array expected`.
+`analyzeMultiIndexPropertyAccess` now collects the chain and resolves it against the single
+declaration when its length matches the declared arity.
+
+**`external` on properties.** Parsed for both record and class properties following the
+existing external-function pattern, carried to `RecordPropertyInfo`/`PropertyInfo`, and used
+as the emitted key in JSON serialization. Members are sorted by the emitted name, so
+`property Test2 : Integer external 'hello'` yields `{"Test":123,"hello":123}`.
+
+**Nested `>>` in generic type-argument lists.** No fixture exercises this, but
+`var x : TA<TA<Integer>>;` failed. The lexer emits `>>` as one token and there was no
+token-splitting mechanism to reuse. `TokenCursor.SplitGreaterGreater` rewrites the buffered
+token into the single remaining `>` in place — one token in, one token out — which keeps
+every other cursor's index valid where an insertion would not, since cursors share the token
+buffer. `parseTypeArguments` takes the first `>` without advancing, leaving the second for
+the enclosing list, and `looksLikeGenericTypeRef` counts `>>` as two closers. `>>` is not a
+shift operator in DWScript (`shr` is), so no operator behavior changes. Triple nesting and
+expression position (`TA<TA<Integer>>.Make`) both work.
+
+Two diagnostic bugs blocked the fixtures once parsing succeeded, both only visible under
+`--hints pedantic`. Class vars were bound into property-expression scopes under their
+normalized map key, so a use spelled exactly as declared produced
+`Hint: "Field" does not match case of declaration ("field")` — the analyzer quoting its own
+lowercasing. `ClassVarDeclNames` now records the declared casing (`Fields` already kept it,
+which is why only class vars were affected) and the binders use it. And a private method or
+field named only as a property accessor was reported as never used, because accessor
+resolution never marked it; `validateReadSpec`/`validateWriteSpec` now record the usage.
+
+The CLI fixture comparison goes from 878 to 885 passes, exactly the seven targeted fixtures
+with no category regressions: PropertyExpressionsPass `class_property_expressions`,
+`class_property_write_expressions`, `property_auto_field`, `indexed_expressions`,
+`indexed_write_expressions`, and JSONConnectorPass `property_name`,
+`stringify_class_getter`. `indexed_write_expressions` was not listed in PLAN.md but is the
+same feature. PropertyExpressionsPass `read_write_other_property` remains failing: it needs
+a case-mismatch hint, which is won't-fix per §5.
+
+`go test ./internal/... ./pkg/...` passes, including the interpreter, evaluator, semantic and
+parser packages. Validation ran with `TMPDIR` pointed at a root-filesystem directory because
+`/tmp` is a 7.3 GB tmpfs that was 97% full.
