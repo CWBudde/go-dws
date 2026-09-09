@@ -148,6 +148,44 @@ func (f *FunctionPointerType) IsCompatibleWith(other Type) bool {
 	return false
 }
 
+// IsPointerType reports whether t (after alias resolution) is a function or
+// method pointer type.
+func IsPointerType(t Type) bool {
+	switch GetUnderlyingType(t).(type) {
+	case *FunctionPointerType, *MethodPointerType:
+		return true
+	default:
+		return false
+	}
+}
+
+// PointerCompatible reports whether a value of function/method pointer type
+// `from` may be used where pointer type `to` is expected.
+//
+// bothPointers is false when either operand is not a pointer type, letting
+// callers fall through to their remaining rules instead of treating the pair as
+// an incompatible pointer match. When both are pointers the decision is
+// delegated to the pointer types' own IsCompatibleWith, which encodes the
+// asymmetry: a method pointer satisfies a plain function-pointer slot, but a
+// plain function pointer never satisfies a method-pointer slot (a method needs
+// an object context).
+func PointerCompatible(from, to Type) (compatible, bothPointers bool) {
+	from = GetUnderlyingType(from)
+	to = GetUnderlyingType(to)
+
+	if !IsPointerType(from) || !IsPointerType(to) {
+		return false, false
+	}
+
+	switch fromPtr := from.(type) {
+	case *MethodPointerType:
+		return fromPtr.IsCompatibleWith(to), true
+	case *FunctionPointerType:
+		return fromPtr.IsCompatibleWith(to), true
+	}
+	return false, false
+}
+
 // MethodPointerType represents a method pointer type (procedure/function of object).
 // Method pointers bind both a method and an object instance.
 //

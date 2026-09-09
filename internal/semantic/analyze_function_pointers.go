@@ -105,17 +105,83 @@ func (a *Analyzer) analyzeAddressOfExpression(expr *ast.AddressOfExpression) typ
 		return a.analyzeAddressOfFunction(target.Value, expr)
 
 	case *ast.MemberAccessExpression:
-		// Method reference: @TMyClass.MyMethod
-		// This would require analyzing the class and method
-		a.addError("method pointers (@TClass.Method) not yet implemented at %s",
-			expr.Token.Pos.String())
-		return nil
+		// Bound method reference: @instance.MethodName
+		return a.analyzeAddressOfMethod(target, expr)
 
 	default:
 		a.addError("address-of operator (@) requires a function or procedure name at %s",
 			expr.Token.Pos.String())
 		return nil
 	}
+}
+
+// analyzeAddressOfMethod resolves a bound method reference (@instance.Method)
+// and produces a method pointer type describing the method's signature.
+//
+// Only instance receivers are supported: taking the address of a method through
+// a class name (@TClass.Method) yields an unbound method reference, which is a
+// separate feature and is rejected here with an explicit diagnostic.
+func (a *Analyzer) analyzeAddressOfMethod(target *ast.MemberAccessExpression, expr *ast.AddressOfExpression) types.Type {
+	if target.Member == nil {
+		a.addError("address-of operator (@) requires a method name at %s", expr.Token.Pos.String())
+		return nil
+	}
+
+	objectType := a.analyzeExpression(target.Object)
+	if objectType == nil {
+		// The receiver already produced a diagnostic; do not pile on.
+		return nil
+	}
+
+	underlying := types.GetUnderlyingType(objectType)
+
+	// @TClass.Method through a class name is an unbound method reference and is
+	// not supported yet (tracked separately in PLAN.md).
+	if _, isMeta := underlying.(*types.ClassOfType); isMeta {
+		a.addError("unbound method pointers (@TClass.%s) are not supported at %s",
+			target.Member.Value, expr.Token.Pos.String())
+		return nil
+	}
+
+	classType, ok := underlying.(*types.ClassType)
+	if !ok {
+		a.addError("address-of operator (@) requires an object instance to bind a method, got %s at %s",
+			objectType.String(), expr.Token.Pos.String())
+		return nil
+	}
+
+	methodName := target.Member.Value
+
+	// A method pointer cannot represent an overload set; mirror the runtime and
+	// bind the first declared (non-constructor) overload.
+	var method *types.MethodInfo
+	for _, candidate := range a.getMethodOverloadsInHierarchy(methodName, classType) {
+		if candidate == nil || candidate.Signature == nil || candidate.IsConstructor {
+			continue
+		}
+		method = candidate
+		break
+	}
+	if method == nil {
+		a.addError("'%s' is not a method of class '%s' at %s",
+			methodName, classType.Name, expr.Token.Pos.String())
+		return nil
+	}
+
+	a.recordClassMethodUsage(classType, methodName)
+
+	var returnType types.Type
+	if method.Signature.ReturnType != nil && method.Signature.ReturnType != types.VOID {
+		returnType = method.Signature.ReturnType
+	}
+
+	methodPtrType := types.NewMethodPointerType(method.Signature.Parameters, returnType)
+	typeAnnotation := &ast.TypeAnnotation{
+		Name: fmt.Sprintf("method pointer to %s.%s", classType.Name, methodName),
+	}
+	a.semanticInfo.SetType(expr, typeAnnotation)
+
+	return methodPtrType
 }
 
 // analyzeAddressOfFunction resolves a function name and creates a function pointer type.
@@ -332,10 +398,5 @@ func (a *Analyzer) classCallableMemberVisible(classType *types.ClassType, member
 // isFunctionPointerType reports whether t (after alias resolution) is a function
 // or method pointer type.
 func isFunctionPointerType(t types.Type) bool {
-	switch types.GetUnderlyingType(t).(type) {
-	case *types.FunctionPointerType, *types.MethodPointerType:
-		return true
-	default:
-		return false
-	}
+	return types.IsPointerType(t)
 }

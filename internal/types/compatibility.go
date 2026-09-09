@@ -42,6 +42,12 @@ func IsCompatible(from, to Type) bool {
 		}
 	}
 
+	// Function/method pointer compatibility: a method pointer satisfies a plain
+	// function pointer slot with a matching signature, but not the reverse.
+	if compatible, bothPointers := PointerCompatible(from, to); bothPointers {
+		return compatible
+	}
+
 	// Integer can be implicitly converted to Float
 	if from.TypeKind() == "INTEGER" && to.TypeKind() == "FLOAT" {
 		return true
