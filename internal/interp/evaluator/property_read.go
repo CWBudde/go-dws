@@ -561,19 +561,21 @@ func (e *Evaluator) checkIndexedPropertyArity(pInfo *types.PropertyInfo, indexCo
 }
 
 // checkIndexedAccessorArity verifies an indexed property accessor takes exactly the
-// index arguments supplied (a setter's trailing value parameter is counted by the
-// caller through indexCount). Returns nil when the arity matches.
+// arguments supplied. argCount is the full argument list the accessor is called
+// with, which for a setter includes the trailing assigned value on top of the
+// indices, so the message counts arguments rather than indices. Returns nil when
+// the arity matches.
 func (e *Evaluator) checkIndexedAccessorArity(
 	pInfo *types.PropertyInfo,
 	methodDecl *runtime.MethodMetadata,
 	methodName string,
-	indexCount int,
+	argCount int,
 	role string,
 	node ast.Node,
 ) Value {
-	if len(methodDecl.Parameters) == indexCount {
+	if len(methodDecl.Parameters) == argCount {
 		return nil
 	}
-	return e.newError(node, "indexed property '%s' %s method '%s' expects %d parameter(s), got %d index argument(s)",
-		pInfo.Name, role, methodName, len(methodDecl.Parameters), indexCount)
+	return e.newError(node, "indexed property '%s' %s method '%s' expects %d parameter(s), got %d argument(s)",
+		pInfo.Name, role, methodName, len(methodDecl.Parameters), argCount)
 }
