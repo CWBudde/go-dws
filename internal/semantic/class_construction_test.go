@@ -465,3 +465,252 @@ b.P;`,
 		})
 	}
 }
+
+// TestClassConstruction_ValidationAfterSignaturesComplete covers L-S1c: the
+// ancestor-dependent validations (override, hiding, interface implementation,
+// abstract) run only once every ancestor's member surface is registered, so an
+// `override` against a parent declared later in the file is accepted — while the
+// genuinely invalid cases stay diagnosed with the same messages.
+func TestClassConstruction_ValidationAfterSignaturesComplete(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		errorContains string
+		wantErr       bool
+	}{
+		{
+			name: "override against a parent declared later is accepted",
+			input: `type TC = class(TA)
+	procedure Go; override;
+	begin
+		PrintLn(2);
+	end;
+end;
+type TA = class
+	procedure Go; virtual;
+	begin
+		PrintLn(1);
+	end;
+end;
+var c := TC.Create;
+c.Go;`,
+		},
+		{
+			name: "inherited resolves when the parent is declared later",
+			input: `type TC = class(TA)
+	procedure Go; override;
+	begin
+		inherited Go;
+		PrintLn(2);
+	end;
+end;
+type TA = class
+	procedure Go; virtual;
+	begin
+		PrintLn(1);
+	end;
+end;
+var c := TC.Create;
+c.Go;`,
+		},
+		{
+			name: "override of a constructor declared in a later parent is accepted",
+			input: `type TC = class(TA)
+	constructor Create; override;
+	begin
+		inherited Create;
+	end;
+end;
+type TA = class
+	constructor Create; virtual;
+	begin
+	end;
+end;
+var c := TC.Create;`,
+		},
+		{
+			name: "out-of-line implementation of a method overriding a later parent",
+			input: `type TC = class(TA)
+	procedure Go; override;
+end;
+type TA = class
+	procedure Go; virtual;
+	begin
+	end;
+end;
+procedure TC.Go;
+begin
+	inherited Go;
+	PrintLn(TB.Value);
+end;
+type TB = class
+	const Value = 42;
+end;
+var c := TC.Create;
+c.Go;`,
+		},
+		{
+			name: "override through a grandparent declared last",
+			input: `type TC = class(TB)
+	procedure Go; override;
+	begin
+	end;
+end;
+type TB = class(TA)
+end;
+type TA = class
+	procedure Go; virtual;
+	begin
+	end;
+end;
+var c := TC.Create;
+c.Go;`,
+		},
+		{
+			name: "override with no such parent method stays diagnosed (parent first)",
+			input: `type TA = class
+	procedure Go; virtual;
+	begin
+	end;
+end;
+type TC = class(TA)
+	procedure Nope; override;
+	begin
+	end;
+end;`,
+			wantErr:       true,
+			errorContains: "no such method exists in parent class",
+		},
+		{
+			name: "override with no such parent method stays diagnosed (parent last)",
+			input: `type TC = class(TA)
+	procedure Nope; override;
+	begin
+	end;
+end;
+type TA = class
+	procedure Go; virtual;
+	begin
+	end;
+end;`,
+			wantErr:       true,
+			errorContains: "no such method exists in parent class",
+		},
+		{
+			name: "override with a mismatched signature stays diagnosed (parent last)",
+			input: `type TC = class(TA)
+	procedure Go(x: String); override;
+	begin
+	end;
+end;
+type TA = class
+	procedure Go(x: Integer); virtual;
+	begin
+	end;
+end;`,
+			wantErr:       true,
+			errorContains: "no matching signature exists in parent class",
+		},
+		{
+			name: "override of a non-virtual parent method stays diagnosed (parent last)",
+			input: `type TC = class(TA)
+	procedure Go; override;
+	begin
+	end;
+end;
+type TA = class
+	procedure Go;
+	begin
+	end;
+end;`,
+			wantErr:       true,
+			errorContains: "parent method is not virtual",
+		},
+		{
+			name: "hiding a virtual parent method without override stays diagnosed (parent last)",
+			input: `type TC = class(TA)
+	procedure Go;
+	begin
+	end;
+end;
+type TA = class
+	procedure Go; virtual;
+	begin
+	end;
+end;`,
+			wantErr:       true,
+			errorContains: "hides virtual parent method",
+		},
+		{
+			name: "duplicate member stays diagnosed",
+			input: `type TC = class(TA)
+	procedure Go; virtual;
+	procedure Go; virtual;
+end;
+type TA = class
+end;`,
+			wantErr:       true,
+			errorContains: "duplicate method signature",
+		},
+		{
+			name: "declared but unimplemented method stays diagnosed (parent last)",
+			input: `type TC = class(TA)
+	procedure Go;
+end;
+type TA = class
+end;
+var c := TC.Create;`,
+			wantErr:       true,
+			errorContains: "not implemented",
+		},
+		{
+			name: "instantiating a class with an unimplemented abstract method stays diagnosed",
+			input: `type TA = class abstract
+	procedure Go; virtual; abstract;
+end;
+type TC = class(TA)
+end;
+var c := TC.Create;`,
+			wantErr:       true,
+			errorContains: "abstract",
+		},
+		{
+			name: "missing interface implementation stays diagnosed (interface declared later)",
+			input: `type TC = class(TObject, IFoo)
+end;
+type IFoo = interface
+	procedure Go;
+end;`,
+			wantErr:       true,
+			errorContains: "IFoo",
+		},
+		{
+			name: "executable statements keep source order around a type section",
+			input: `PrintLn(1);
+type TA = class
+	const C = 5;
+end;
+PrintLn(TA.C);
+PrintLn(3);`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := analyzeSource(t, tt.input)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected an error but got none")
+				}
+				if !strings.Contains(err.Error(), tt.errorContains) {
+					t.Fatalf("expected error containing %q, got: %v", tt.errorContains, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}

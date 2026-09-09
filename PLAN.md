@@ -113,10 +113,12 @@ fixture-baseline updates after each completed task.
 
 #### 3.2.1 Class construction independent of declaration order
 
-The current analyzer already predeclares top-level class identities. Extend that mechanism
-into two-phase class construction; do not introduce a second type registry. The old
-[semantic-passes design](docs/architecture/semantic-passes.md) is design input only, not an
-implemented pass framework. Record the architecture work in §2 before starting the refactor.
+**Closed 2026-09-09.** Class construction is now four explicit phases over the single type
+registry in `internal/semantic/class_construction.go` — identity, inheritance, member
+signatures before bodies, and ancestor-dependent validation after signatures. No second type
+registry was introduced. The old
+[semantic-passes design](docs/architecture/semantic-passes.md) remains design input only, not
+an implemented pass framework.
 
 **Done (2026-09-09):** L-S1a. Predeclaration is now an explicit two-phase construction in
 `internal/semantic/class_construction.go` (identity, then inheritance), still over the single
@@ -133,13 +135,16 @@ may now name a class or a member declared later in the file; `SimpleScripts/meth
 `SimpleScripts/var_param_obj_method` newly pass (885 → 887). See
 [the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--class-member-signatures-complete-before-body-checking-l-s1b).
 
-- **L-S1c** `[ ]` S — Integrate deferred class-body and final validation after signatures are
-  complete; depends on L-S1b. Acceptance: inline and out-of-line methods can access members
-  of later classes, while missing implementations, duplicates, and invalid overrides remain
-  diagnosed. Preserve source order for executable statements and initializers. Known
-  reproduction left open by L-S1a: `checkMethodOverriding` and `inherited` still read the
-  parent's members at the child's declaration site, so `override` against a parent declared
-  later is wrongly rejected.
+**Done (2026-09-09):** L-S1c, closing this section. A fourth phase postpones the
+ancestor-dependent validations (`validateVirtualOverride` per method; `checkMethodOverriding`,
+`validateInterfaceImplementation` and `validateAbstractClass` as the class tail) into a queue
+drained with the deferred bodies, and only when an ancestor's declarations are still
+outstanding — so `override` and `inherited` against a parent declared later now work, while
+every negative case keeps its existing message and position. Fixtures unchanged at 887 with an
+identical failing list. Remaining order dependency, documented rather than fixed: a statement
+such as `var c := TC.Create;` written before the abstract ancestor's declaration is still
+checked in source order and misses the abstract-instantiation error. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--ancestor-dependent-class-validation-after-signatures-complete-l-s1c).
 
 #### 3.2.2 Diagnostics and metaclass properties
 

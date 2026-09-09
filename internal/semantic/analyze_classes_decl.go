@@ -363,6 +363,9 @@ func (a *Analyzer) collectNestedAliases(aliases map[string]string, stmt ast.Stat
 
 // analyzeClassDecl analyzes a class declaration.
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
+	// Phase 4 bookkeeping: this declaration no longer contributes members, on
+	// every exit path including the early diagnostic returns.
+	defer a.markClassDeclAnalyzed(decl)
 	defer func() {
 		if decl != nil && decl.Name != nil {
 			a.recordDeclaredType(decl, classFullName(decl))
@@ -611,13 +614,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		a.analyzePropertyDecl(property, classType)
 	}
 	a.registerClassOperators(classType, decl)
-	if parentClass != nil {
-		a.checkMethodOverriding(classType, parentClass)
-	}
-	if len(decl.Interfaces) > 0 {
-		a.validateInterfaceImplementation(classType, decl)
-	}
-	a.validateAbstractClass(classType)
+	a.deferClassTailValidation(decl, classType, parentClass)
 }
 
 // analyzeMethodImplementation analyzes an out-of-line method implementation.
@@ -1050,7 +1047,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	}
 	classType.SetMethodDeclPosition(method.Name.Value, method.Name.Token.Pos)
 
-	a.validateVirtualOverride(method, classType, funcType)
+	// Phase 4 of class construction: ancestor-dependent validation waits until
+	// every ancestor's members are registered. See class_construction.go.
+	a.deferOverrideValidation(method, classType, funcType)
 
 	// Phase 3 of class construction: the signature is registered above, in source
 	// order; the body is checked only once every class member signature exists.

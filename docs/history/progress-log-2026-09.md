@@ -681,3 +681,68 @@ by design: `checkMethodOverriding` and `validateVirtualOverride` still read the 
 members at the child's declaration site, so
 `type TC = class(TA) procedure Go; override; ... end; type TA = class procedure Go; virtual; ... end;`
 still reports `method 'Go' marked as override, but no such method exists in parent class`.
+
+## 2026-09-09 — Ancestor-dependent class validation after signatures complete (L-S1c)
+
+`PLAN.md` §3.2.1 L-S1c, closing the section. Phases 1–3 made class identity, ancestry and
+member signatures order-independent; the checks that *compare* a class against its ancestors
+still ran at the child's declaration site and so read a half-built parent.
+
+**Measurement first.** Of the stated acceptance cases, the out-of-line one already worked at
+`c8cfbc4a`: `type TFoo = class procedure P; end; procedure TFoo.P; begin PrintLn(TBar.Value);
+end; type TBar = class const Value = 42; end;` compiled and printed `42`, because out-of-line
+implementations are analyzed after the type section anyway. What failed were the two inline
+cases, both with the same message:
+
+```pascal
+type TC = class(TA) procedure Go; override; begin PrintLn(2); end; end;
+type TA = class procedure Go; virtual; begin PrintLn(1); end; end;
+var c := TC.Create; c.Go;
+// method 'Go' marked as override, but no such method exists in parent class
+```
+
+and the same shape with `inherited Go;` in the body. Both now compile and print `2` / `1 2`.
+
+**Phase 4 (validation after signatures).** `internal/semantic/class_construction.go` gains a
+fourth phase that postpones the four ancestor-dependent validations —
+`validateVirtualOverride` per method, and `checkMethodOverriding`,
+`validateInterfaceImplementation`, `validateAbstractClass` as the class-declaration tail — into
+a `deferredClassChecks` queue drained at the existing phase-3 drain point (right after the last
+top-level class declaration) and *before* the deferred bodies, so a signature-level diagnostic
+still precedes the body diagnostics of the same program.
+
+The deferral is conditional, which is what keeps existing diagnostics where they are.
+`noteTopLevelClassDecls` records how many top-level declarations contribute to each class
+(populated from the phase-2 grouping, so forward + implementation and the parts of a partial
+class count together); `markClassDeclAnalyzed` — deferred at the top of `analyzeClassDecl`, so
+it also runs on the early diagnostic returns — decrements it. `classAncestorsPending` walks the
+linked parent chain and reports whether any ancestor still has declarations outstanding. Only
+then is a check queued; when every ancestor is already complete, it runs exactly where it
+always did, with the same position and the same ordering. In practice this means only programs
+that today produce the bogus error change behavior. No second type registry: the single shared
+`*types.ClassType` shell is still mutated in place, and the queue stores pointers to it.
+
+**Diagnostics preserved.** New table-driven cases in
+`internal/semantic/class_construction_test.go`
+(`TestClassConstruction_ValidationAfterSignaturesComplete`, 15 subtests) pin both directions:
+override / `inherited` / overriding constructor / out-of-line override / override through a
+grandparent declared last all accepted; and, with the parent declared *last*, `override` with
+no such parent method, `override` with a mismatched signature, `override` of a non-virtual
+parent method, hiding a virtual parent method without `override`, a duplicate member, a
+declared-but-unimplemented method, an unimplemented inherited abstract method and a missing
+interface implementation all still diagnosed with their existing messages. Executable
+statements around a type section keep source order.
+
+**Validation:** `go test -p 2 -timeout 40m ./...` green. `just fixture-report` **887 / 2,042
+before and after, with a byte-identical failing-fixture list** (`--list-fails` diffed both
+ways) — this is a correctness/ordering fix, not a fixture unlock, and `baselines.json` needed
+no ratchet. `golangci-lint run`: 1,204 issues before and after; the only delta is
+`analyzeClassDecl`'s cyclomatic complexity dropping 56 → 54.
+
+**Known limitation, not fixed here.** A *statement* that instantiates a class is still analyzed
+in source order, so `type TC = class(TA) end; var c := TC.Create; type TA = class abstract
+procedure Go; virtual; abstract; end;` does not report "Trying to create an instance of an
+abstract class" — the statement is checked before `TA` exists. This is unchanged from
+`c8cfbc4a` (verified against the pre-change binary) and is inherent to executable statements
+keeping source order, which L-S1c's acceptance criteria require; fixing it would mean deferring
+statement analysis, a much larger change.

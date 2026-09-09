@@ -72,70 +72,73 @@ const (
 
 // Analyzer performs semantic analysis on a DWScript program.
 type Analyzer struct {
-	currentSelfType        types.Type
-	forwardMethodNames     map[string]string
-	globalOperators        *types.OperatorRegistry
-	subranges              map[string]*types.SubrangeType
-	functionPointers       map[string]*types.FunctionPointerType
-	currentFunction        *ast.FunctionDecl
-	currentRecord          *types.RecordType
-	helpers                map[string][]*types.HelperType
-	currentHelperType      *types.HelperType
-	symbols                *SymbolTable
-	forwardMethodReported  map[string]bool
-	conversionRegistry     *types.ConversionRegistry
-	builtinRegistry        *builtins.Registry
-	semanticInfo           *ast.SemanticInfo
-	unitSymbols            map[string]*SymbolTable
-	currentNestedTypes     map[string]string
-	nestedTypeAliases      map[string]map[string]string
-	forwardMethodPos       map[string]token.Position
-	currentClass           *types.ClassType
-	typeRegistry           *TypeRegistry
-	currentProperty        string
-	sourceCode             string
-	sourceFile             string
-	pendingClassWarnings   []*types.ClassType
-	predeclaredClassTypes  map[string]bool
-	deferredMethodBodies   []deferredMethodBody
-	errors                 []string
-	loopPosStack           []token.Position
-	structuredErrors       []*SemanticError
-	loopExitabilityStack   []LoopExitability
-	loopDepth              int
-	hintsLevel             HintsLevel
-	inUnitDecl             bool
-	deferClassMethodBodies bool
-	parseHadErrors         bool
-	inLoop                 bool
-	inLambda               bool
-	inClassMethod          bool
-	inPropertyExpr         bool
-	inFinallyBlock         bool
-	inExceptionHandler     bool
+	currentSelfType         types.Type
+	forwardMethodNames      map[string]string
+	globalOperators         *types.OperatorRegistry
+	subranges               map[string]*types.SubrangeType
+	functionPointers        map[string]*types.FunctionPointerType
+	currentFunction         *ast.FunctionDecl
+	currentRecord           *types.RecordType
+	helpers                 map[string][]*types.HelperType
+	currentHelperType       *types.HelperType
+	symbols                 *SymbolTable
+	forwardMethodReported   map[string]bool
+	conversionRegistry      *types.ConversionRegistry
+	builtinRegistry         *builtins.Registry
+	semanticInfo            *ast.SemanticInfo
+	unitSymbols             map[string]*SymbolTable
+	currentNestedTypes      map[string]string
+	nestedTypeAliases       map[string]map[string]string
+	forwardMethodPos        map[string]token.Position
+	currentClass            *types.ClassType
+	typeRegistry            *TypeRegistry
+	currentProperty         string
+	sourceCode              string
+	sourceFile              string
+	pendingClassWarnings    []*types.ClassType
+	predeclaredClassTypes   map[string]bool
+	deferredMethodBodies    []deferredMethodBody
+	deferredClassChecks     []deferredClassCheck
+	pendingClassMemberDecls map[string]int
+	errors                  []string
+	loopPosStack            []token.Position
+	structuredErrors        []*SemanticError
+	loopExitabilityStack    []LoopExitability
+	loopDepth               int
+	hintsLevel              HintsLevel
+	inUnitDecl              bool
+	deferClassMethodBodies  bool
+	parseHadErrors          bool
+	inLoop                  bool
+	inLambda                bool
+	inClassMethod           bool
+	inPropertyExpr          bool
+	inFinallyBlock          bool
+	inExceptionHandler      bool
 }
 
 // NewAnalyzer creates a new semantic analyzer
 func NewAnalyzer() *Analyzer {
 	a := &Analyzer{
-		symbols:               NewSymbolTable(),
-		typeRegistry:          NewTypeRegistry(),
-		unitSymbols:           make(map[string]*SymbolTable),
-		errors:                make([]string, 0),
-		structuredErrors:      make([]*SemanticError, 0),
-		subranges:             make(map[string]*types.SubrangeType),
-		functionPointers:      make(map[string]*types.FunctionPointerType),
-		helpers:               make(map[string][]*types.HelperType),
-		globalOperators:       types.NewOperatorRegistry(),
-		conversionRegistry:    types.NewConversionRegistry(),
-		builtinRegistry:       builtins.DefaultRegistry,
-		semanticInfo:          ast.NewSemanticInfo(),
-		nestedTypeAliases:     make(map[string]map[string]string),
-		forwardMethodPos:      make(map[string]token.Position),
-		forwardMethodNames:    make(map[string]string),
-		forwardMethodReported: make(map[string]bool),
-		predeclaredClassTypes: make(map[string]bool),
-		hintsLevel:            HintsLevelNormal,
+		symbols:                 NewSymbolTable(),
+		typeRegistry:            NewTypeRegistry(),
+		unitSymbols:             make(map[string]*SymbolTable),
+		errors:                  make([]string, 0),
+		structuredErrors:        make([]*SemanticError, 0),
+		subranges:               make(map[string]*types.SubrangeType),
+		functionPointers:        make(map[string]*types.FunctionPointerType),
+		helpers:                 make(map[string][]*types.HelperType),
+		globalOperators:         types.NewOperatorRegistry(),
+		conversionRegistry:      types.NewConversionRegistry(),
+		builtinRegistry:         builtins.DefaultRegistry,
+		semanticInfo:            ast.NewSemanticInfo(),
+		nestedTypeAliases:       make(map[string]map[string]string),
+		forwardMethodPos:        make(map[string]token.Position),
+		forwardMethodNames:      make(map[string]string),
+		forwardMethodReported:   make(map[string]bool),
+		predeclaredClassTypes:   make(map[string]bool),
+		pendingClassMemberDecls: make(map[string]int),
+		hintsLevel:              HintsLevelNormal,
 	}
 
 	// Register built-in Exception base class

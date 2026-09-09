@@ -90,6 +90,7 @@ func (a *Analyzer) resolveTopLevelClassInheritance(program *ast.Program) {
 	for _, stmt := range program.Statements {
 		r.collect(stmt)
 	}
+	a.noteTopLevelClassDecls(r.groups)
 
 	// Shape flags first: parent linking checks nothing that depends on them, but
 	// the checks in analyzeClassDecl do.
@@ -343,6 +344,9 @@ func (a *Analyzer) runDeferredMethodBodies() {
 // has been queued.
 func (a *Analyzer) drainDeferredMethodBodies() {
 	a.deferClassMethodBodies = false
+	// Phase 4 first: a signature-level diagnostic still precedes the body
+	// diagnostics of the same program.
+	a.runDeferredClassChecks()
 	a.runDeferredMethodBodies()
 }
 
@@ -377,4 +381,151 @@ func statementDeclaresClass(stmt ast.Statement) bool {
 		return true
 	}
 	return false
+}
+
+// ============================================================================
+// Phase 4: signature validation after signatures are complete
+// ============================================================================
+//
+// Phases 1-3 make class identity, ancestry and member signatures available
+// independently of source order. The validations that *compare* a class against
+// its ancestors — `validateVirtualOverride`, `checkMethodOverriding`,
+// `validateInterfaceImplementation` and `validateAbstractClass` — still read the
+// parent's member surface, so running them where the child is declared rejects a
+// legal `override` whenever the parent is declared later in the file.
+//
+// Phase 4 postpones exactly those validations, and only when they would read an
+// incomplete ancestor: a class whose own top-level declarations have not all been
+// analyzed yet. When every ancestor is already complete the checks run in place,
+// so their diagnostics keep the position *and the ordering* they have always had.
+// The deferred queue is drained at the same point as the deferred method bodies
+// (right after the last top-level class declaration) and before them, so a
+// signature-level diagnostic still precedes the body diagnostics of the same
+// program.
+
+// deferredClassCheck is one postponed ancestor-dependent validation. Exactly one
+// of the two shapes is populated: a per-method override validation, or the
+// class-level tail validation of one class declaration.
+type deferredClassCheck struct {
+	classType   *types.ClassType
+	method      *ast.FunctionDecl
+	methodType  *types.FunctionType
+	classDecl   *ast.ClassDecl
+	parentClass *types.ClassType
+	isClassTail bool
+}
+
+// noteTopLevelClassDecls records how many top-level declarations contribute to
+// each class, so that `classAncestorsPending` can tell a class whose member
+// surface is still growing from one that is finished.
+func (a *Analyzer) noteTopLevelClassDecls(groups map[string]*classDeclGroup) {
+	for key, group := range groups {
+		a.pendingClassMemberDecls[key] += len(group.decls)
+	}
+}
+
+// markClassDeclAnalyzed records that one of a class's top-level declarations has
+// been analyzed. It is deferred at the top of analyzeClassDecl so that it also
+// runs on the early-return diagnostic paths.
+func (a *Analyzer) markClassDeclAnalyzed(decl *ast.ClassDecl) {
+	if decl == nil || decl.EnclosingClass != nil {
+		return
+	}
+	key := ident.Normalize(classFullName(decl))
+	if key == "" {
+		return
+	}
+	if remaining := a.pendingClassMemberDecls[key]; remaining > 0 {
+		a.pendingClassMemberDecls[key] = remaining - 1
+	}
+}
+
+// classAncestorsPending reports whether any ancestor of classType still has
+// top-level declarations waiting to be analyzed, which is exactly the situation
+// in which an ancestor-dependent validation would read a half-built parent.
+func (a *Analyzer) classAncestorsPending(classType *types.ClassType) bool {
+	if classType == nil {
+		return false
+	}
+	seen := make(map[*types.ClassType]bool)
+	for current := classType.Parent; current != nil; current = current.Parent {
+		if seen[current] {
+			return false
+		}
+		seen[current] = true
+		if a.pendingClassMemberDecls[ident.Normalize(current.Name)] > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// deferOverrideValidation runs validateVirtualOverride now, or queues it when an
+// ancestor is still incomplete.
+func (a *Analyzer) deferOverrideValidation(
+	method *ast.FunctionDecl,
+	classType *types.ClassType,
+	methodType *types.FunctionType,
+) {
+	if !a.deferClassMethodBodies || !a.classAncestorsPending(classType) {
+		a.validateVirtualOverride(method, classType, methodType)
+		return
+	}
+	a.deferredClassChecks = append(a.deferredClassChecks, deferredClassCheck{
+		classType:  classType,
+		method:     method,
+		methodType: methodType,
+	})
+}
+
+// deferClassTailValidation runs the class-level ancestor-dependent validations
+// now, or queues them when an ancestor is still incomplete.
+func (a *Analyzer) deferClassTailValidation(
+	decl *ast.ClassDecl,
+	classType *types.ClassType,
+	parentClass *types.ClassType,
+) {
+	if !a.deferClassMethodBodies || !a.classAncestorsPending(classType) {
+		a.runClassTailValidation(decl, classType, parentClass)
+		return
+	}
+	a.deferredClassChecks = append(a.deferredClassChecks, deferredClassCheck{
+		classType:   classType,
+		classDecl:   decl,
+		parentClass: parentClass,
+		isClassTail: true,
+	})
+}
+
+// runClassTailValidation performs the ancestor-dependent checks that close out a
+// class declaration, in the order analyzeClassDecl has always run them.
+func (a *Analyzer) runClassTailValidation(
+	decl *ast.ClassDecl,
+	classType *types.ClassType,
+	parentClass *types.ClassType,
+) {
+	if parentClass != nil {
+		a.checkMethodOverriding(classType, parentClass)
+	}
+	if len(decl.Interfaces) > 0 {
+		a.validateInterfaceImplementation(classType, decl)
+	}
+	a.validateAbstractClass(classType)
+}
+
+// runDeferredClassChecks drains the phase 4 queue in source order. A check may
+// itself analyze a nested declaration, so the queue is walked by index.
+func (a *Analyzer) runDeferredClassChecks() {
+	for i := 0; i < len(a.deferredClassChecks); i++ {
+		check := a.deferredClassChecks[i]
+		previousClass := a.currentClass
+		a.currentClass = check.classType
+		if check.isClassTail {
+			a.runClassTailValidation(check.classDecl, check.classType, check.parentClass)
+		} else {
+			a.validateVirtualOverride(check.method, check.classType, check.methodType)
+		}
+		a.currentClass = previousClass
+	}
+	a.deferredClassChecks = nil
 }
