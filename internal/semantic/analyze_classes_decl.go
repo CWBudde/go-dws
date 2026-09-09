@@ -1050,34 +1050,50 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	}
 	classType.SetMethodDeclPosition(method.Name.Value, method.Name.Token.Pos)
 
+	a.validateVirtualOverride(method, classType, funcType)
+
+	// Phase 3 of class construction: the signature is registered above, in source
+	// order; the body is checked only once every class member signature exists.
+	// See class_construction.go.
+	a.deferMethodBody(deferredMethodBody{
+		method:                 method,
+		classType:              classType,
+		outerSymbols:           a.symbols,
+		nestedTypes:            a.currentNestedTypes,
+		paramTypes:             paramTypes,
+		returnType:             returnType,
+		inUnitDecl:             a.inUnitDecl,
+		wasExplicitConstructor: wasExplicitConstructor,
+	})
+}
+
+// checkMethodBody analyzes one inline class method body in a freshly built
+// method scope. It is called either immediately from deferMethodBody or later,
+// when the deferred-body queue is drained.
+func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
+	method := deferred.method
+	classType := deferred.classType
+	paramTypes := deferred.paramTypes
+	returnType := deferred.returnType
+	wasExplicitConstructor := deferred.wasExplicitConstructor
+
+	previousClass := a.currentClass
+	a.currentClass = classType
+	defer func() { a.currentClass = previousClass }()
+	previousNestedTypes := a.currentNestedTypes
+	a.currentNestedTypes = deferred.nestedTypes
+	defer func() { a.currentNestedTypes = previousNestedTypes }()
+	previousInUnitDecl := a.inUnitDecl
+	a.inUnitDecl = deferred.inUnitDecl
+	defer func() { a.inUnitDecl = previousInUnitDecl }()
+
 	// Analyze method body in a new scope.
 	oldSymbols := a.symbols
-	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	a.symbols = NewEnclosedSymbolTable(deferred.outerSymbols)
 	defer func() { a.symbols = oldSymbols }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
-	if method.IsClassMethod {
-		// Static methods only access class variables.
-		for classVarName, classVarType := range classType.ClassVars {
-			a.symbols.Define(classVarName, classVarType, token.Position{})
-		}
-		if classType.Parent != nil {
-			a.addParentClassVarsToScope(classType.Parent)
-		}
-	} else {
-		// Instance methods have 'Self' and access to all members.
-		a.symbols.Define("Self", classType, method.Token.Pos)
-		for fieldName, fieldType := range classType.Fields {
-			a.symbols.Define(fieldName, fieldType, token.Position{})
-		}
-		for classVarName, classVarType := range classType.ClassVars {
-			a.symbols.Define(classVarName, classVarType, token.Position{})
-		}
-		if classType.Parent != nil {
-			a.addParentFieldsToScope(classType.Parent)
-			a.addParentClassVarsToScope(classType.Parent)
-		}
-	}
+	a.defineMethodScopeMembers(method, classType)
 
 	// Add parameters and 'Result' variable to scope.
 	for i, param := range method.Parameters {
@@ -1112,10 +1128,36 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	defer func() { a.inClassMethod = previousInClassMethod }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
-	a.validateVirtualOverride(method, classType, funcType)
-
 	if method.Body != nil {
 		a.analyzeBlock(method.Body)
+	}
+}
+
+// defineMethodScopeMembers populates the current method scope with the members
+// a method body may name without qualification.
+func (a *Analyzer) defineMethodScopeMembers(method *ast.FunctionDecl, classType *types.ClassType) {
+	if method.IsClassMethod {
+		// Static methods only access class variables.
+		for classVarName, classVarType := range classType.ClassVars {
+			a.symbols.Define(classVarName, classVarType, token.Position{})
+		}
+		if classType.Parent != nil {
+			a.addParentClassVarsToScope(classType.Parent)
+		}
+		return
+	}
+
+	// Instance methods have 'Self' and access to all members.
+	a.symbols.Define("Self", classType, method.Token.Pos)
+	for fieldName, fieldType := range classType.Fields {
+		a.symbols.Define(fieldName, fieldType, token.Position{})
+	}
+	for classVarName, classVarType := range classType.ClassVars {
+		a.symbols.Define(classVarName, classVarType, token.Position{})
+	}
+	if classType.Parent != nil {
+		a.addParentFieldsToScope(classType.Parent)
+		a.addParentClassVarsToScope(classType.Parent)
 	}
 }
 

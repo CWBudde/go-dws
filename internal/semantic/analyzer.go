@@ -72,45 +72,47 @@ const (
 
 // Analyzer performs semantic analysis on a DWScript program.
 type Analyzer struct {
-	currentSelfType       types.Type
-	forwardMethodNames    map[string]string
-	globalOperators       *types.OperatorRegistry
-	subranges             map[string]*types.SubrangeType
-	functionPointers      map[string]*types.FunctionPointerType
-	currentFunction       *ast.FunctionDecl
-	currentRecord         *types.RecordType
-	helpers               map[string][]*types.HelperType
-	currentHelperType     *types.HelperType
-	symbols               *SymbolTable
-	forwardMethodReported map[string]bool
-	conversionRegistry    *types.ConversionRegistry
-	builtinRegistry       *builtins.Registry
-	semanticInfo          *ast.SemanticInfo
-	unitSymbols           map[string]*SymbolTable
-	currentNestedTypes    map[string]string
-	nestedTypeAliases     map[string]map[string]string
-	forwardMethodPos      map[string]token.Position
-	currentClass          *types.ClassType
-	typeRegistry          *TypeRegistry
-	currentProperty       string
-	sourceCode            string
-	sourceFile            string
-	pendingClassWarnings  []*types.ClassType
-	predeclaredClassTypes map[string]bool
-	errors                []string
-	loopPosStack          []token.Position
-	structuredErrors      []*SemanticError
-	loopExitabilityStack  []LoopExitability
-	loopDepth             int
-	hintsLevel            HintsLevel
-	inUnitDecl            bool
-	parseHadErrors        bool
-	inLoop                bool
-	inLambda              bool
-	inClassMethod         bool
-	inPropertyExpr        bool
-	inFinallyBlock        bool
-	inExceptionHandler    bool
+	currentSelfType        types.Type
+	forwardMethodNames     map[string]string
+	globalOperators        *types.OperatorRegistry
+	subranges              map[string]*types.SubrangeType
+	functionPointers       map[string]*types.FunctionPointerType
+	currentFunction        *ast.FunctionDecl
+	currentRecord          *types.RecordType
+	helpers                map[string][]*types.HelperType
+	currentHelperType      *types.HelperType
+	symbols                *SymbolTable
+	forwardMethodReported  map[string]bool
+	conversionRegistry     *types.ConversionRegistry
+	builtinRegistry        *builtins.Registry
+	semanticInfo           *ast.SemanticInfo
+	unitSymbols            map[string]*SymbolTable
+	currentNestedTypes     map[string]string
+	nestedTypeAliases      map[string]map[string]string
+	forwardMethodPos       map[string]token.Position
+	currentClass           *types.ClassType
+	typeRegistry           *TypeRegistry
+	currentProperty        string
+	sourceCode             string
+	sourceFile             string
+	pendingClassWarnings   []*types.ClassType
+	predeclaredClassTypes  map[string]bool
+	deferredMethodBodies   []deferredMethodBody
+	errors                 []string
+	loopPosStack           []token.Position
+	structuredErrors       []*SemanticError
+	loopExitabilityStack   []LoopExitability
+	loopDepth              int
+	hintsLevel             HintsLevel
+	inUnitDecl             bool
+	deferClassMethodBodies bool
+	parseHadErrors         bool
+	inLoop                 bool
+	inLambda               bool
+	inClassMethod          bool
+	inPropertyExpr         bool
+	inFinallyBlock         bool
+	inExceptionHandler     bool
 }
 
 // NewAnalyzer creates a new semantic analyzer
@@ -325,7 +327,13 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	deferred := make(map[*ast.FunctionDecl]deferredFunc)
 
 	// Pass 1: register signatures, analyze non-function declarations and top-level statements.
-	for _, stmt := range program.Statements {
+	// Inline class method bodies are deferred until the last top-level class
+	// declaration has been analyzed (phase 3 of class construction), so that a
+	// body may refer to any class and any class member regardless of source
+	// order. See class_construction.go.
+	a.deferClassMethodBodies = true
+	lastClassDecl := lastTopLevelClassDeclIndex(program)
+	for i, stmt := range program.Statements {
 		if fd, ok := stmt.(*ast.FunctionDecl); ok && fd.ClassName == nil && !fd.IsHelper {
 			paramTypes, returnType, regOK := a.registerFunctionSignature(fd)
 			deferred[fd] = deferredFunc{
@@ -337,7 +345,11 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 			continue
 		}
 		a.analyzeStatement(stmt)
+		if i == lastClassDecl {
+			a.drainDeferredMethodBodies()
+		}
 	}
+	a.drainDeferredMethodBodies()
 
 	// Pass 2: analyze deferred function bodies in source order.
 	for _, stmt := range program.Statements {

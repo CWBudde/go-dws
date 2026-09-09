@@ -612,3 +612,72 @@ Also noted while probing: `sealed` is not enforced as an inheritance restriction
 order, and `type TFoo = class(TBase);` is by design a complete empty subclass rather than a
 forward declaration (`internal/parser/classes.go`), so `validateForwardDeclParent`'s
 "different parent" branch is unreachable for top-level classes.
+
+## 2026-09-09 — Class member signatures complete before body checking (L-S1b)
+
+`PLAN.md` §3.2.1 L-S1b, building directly on L-S1a. Phases 1 and 2 give a class its *identity*
+and its *ancestry* independent of source order, which is already enough for a field, parameter,
+property or return type to name a class declared later in the file. It is not enough for a
+method *body*, which needs the members of the classes it touches.
+
+**Measurement first.** Of the four stated acceptance cases, three already passed at
+`7a44cf97`: a field typed by a later-declared class, two classes with mutually referring
+fields, and a property/method signature typed by a later-declared class all compiled and ran
+cleanly, and type identity was already consistent (assignment in both directions and method
+dispatch through the field both worked), because phase 1 registers one shared shell that later
+gets mutated in place. What did *not* work was any inline method body, in either direction:
+
+```pascal
+type TA = class
+  B: TB;
+  procedure Go; begin B.Hello; end;   // "There is no accessible member with name Hello for type TB"
+end;
+type TB = class procedure Hello; begin PrintLn('hi'); end; end;
+```
+
+and, within a single class, a body referring to a member declared further down — a method
+(`Unknown name "B"`), or a property (`Unknown name "V"`), because `analyzeClassDecl` registers
+properties only after the method loop has already checked every inline body.
+
+**Phase 3 (member signatures before bodies).** `analyzeMethodDecl` is split. Everything that
+must stay in source order — parameter and return type resolution, constructor detection,
+overload and forward matching, visibility and virtual/override metadata,
+`validateVirtualOverride` — still runs where the method is declared. The body no longer does:
+it is captured in a `deferredMethodBody` (the method, its class, the enclosing symbol table,
+the nested-type aliases, the resolved parameter/return types and the `inUnitDecl` flag) and
+queued. The new `checkMethodBody` later restores exactly that declaration-site environment,
+builds the method scope from scratch and analyzes the block, so parent fields and class vars
+are read at drain time rather than at declaration time.
+
+**Where the queue drains matters.** Draining at the end of the declaration pass — the obvious
+choice, mirroring the existing top-level-function two-pass — cost two fixtures for two
+different reasons, both ordering artifacts rather than real errors:
+`FailureScripts/abstract_method` moved a body hint after the errors from the executable
+statements below the type section, and `SimpleScripts/class_init` let a global `var b`
+declared *after* the type section shadow the class constant `B` in a deferred body (class
+constants and properties are consulted only after `symbols.Resolve` fails). Draining right
+after the *last top-level statement that declares a class* fixes both: every class is complete,
+no later global is in scope yet, and body diagnostics stay in source order relative to the code
+that follows. `lastTopLevelClassDeclIndex` mirrors the statement shapes phases 1/2 already walk.
+Bodies of local classes declared inside a function body are still checked immediately.
+
+**Validation:** `go test -p 2 -timeout 40m ./...` fully green. `just fixture-report` **885 →
+887 / 2,042**, no category regressed; `SimpleScripts/method_implem` (property, class const and
+class function all declared after the inline bodies that use them) and
+`SimpleScripts/var_param_obj_method` (a write-only property declared after the method that
+assigns it) newly pass, and `baselines.json` / `TEST_STATUS.md` are ratcheted. New table-driven
+`TestClassConstruction_MemberSignaturesBeforeBodies` in
+`internal/semantic/class_construction_test.go` covers all four acceptance cases plus the
+same-class ordering cases, a negative case (a genuinely missing member of a later class is
+still reported) and the global-shadowing regression; run against the pre-change tree exactly
+four of its cases fail, so the rest are regression guards. `golangci-lint run` reports no new
+findings: `analyzeMethodDecl`'s cyclomatic complexity drops 58 → 40 and the extracted
+`checkMethodBody` / `defineMethodScopeMembers` stay under the threshold.
+
+**Not fixed, and left to L-S1c:** out-of-line implementations (`procedure TFoo.P;` at top
+level) are still analyzed in source order in the declaration pass — they are written after the
+type section anyway — and the `override`/`inherited` limitation L-S1a recorded is untouched
+by design: `checkMethodOverriding` and `validateVirtualOverride` still read the parent's
+members at the child's declaration site, so
+`type TC = class(TA) procedure Go; override; ... end; type TA = class procedure Go; virtual; ... end;`
+still reports `method 'Go' marked as override, but no such method exists in parent class`.

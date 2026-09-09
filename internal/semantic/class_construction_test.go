@@ -269,3 +269,199 @@ end;`,
 		})
 	}
 }
+
+// TestClassConstruction_MemberSignaturesBeforeBodies covers L-S1b: every class
+// member signature (field, class var, constant, property, method) is registered
+// before any inline class method body is checked, so a body may name a class or
+// a member declared later in the file.
+func TestClassConstruction_MemberSignaturesBeforeBodies(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		errorContains string
+		wantErr       bool
+	}{
+		{
+			name: "field typed by a later-declared class",
+			input: `type TA = class
+	B: TB;
+end;
+type TB = class
+	N: Integer;
+end;
+var a := TA.Create;
+a.B := TB.Create;
+a.B.N := 7;`,
+		},
+		{
+			name: "mutually referring class fields without forward",
+			input: `type TA = class
+	Other: TB;
+	N: Integer;
+end;
+type TB = class
+	Back: TA;
+	M: Integer;
+end;
+var a := TA.Create;
+var b := TB.Create;
+a.Other := b;
+b.Back := a;`,
+		},
+		{
+			name: "property and method signatures typed by a later-declared class",
+			input: `type TA = class
+private
+	FP: TB;
+public
+	property P: TB read FP write FP;
+	function Make(x: TB): TB;
+	begin
+		Result := x;
+	end;
+end;
+type TB = class
+	V: Integer;
+end;
+var a := TA.Create;
+var b := TB.Create;
+a.P := b;
+PrintLn(a.Make(b).V);`,
+		},
+		{
+			name: "inline body calls a method of a later-declared class",
+			input: `type TA = class
+	B: TB;
+	procedure Go;
+	begin
+		B.Hello;
+		PrintLn(B.V);
+	end;
+end;
+type TB = class
+	V: Integer;
+	procedure Hello;
+	begin
+		PrintLn('hi');
+	end;
+end;`,
+		},
+		{
+			name: "inline body constructs and uses a later-declared class",
+			input: `type TA = class
+	function Make: TB;
+	begin
+		Result := TB.Create;
+		Result.V := 9;
+	end;
+end;
+type TB = class
+	V: Integer;
+end;`,
+		},
+		{
+			name: "inline body calls a method declared later in the same class",
+			input: `type TA = class
+	procedure A;
+	begin
+		B;
+	end;
+	procedure B;
+	begin
+		PrintLn('b');
+	end;
+end;`,
+		},
+		{
+			name: "inline body reads a property declared later in the same class",
+			input: `type TA = class
+private
+	FV: Integer;
+	procedure Show;
+	begin
+		PrintLn(V);
+	end;
+public
+	property V: Integer read FV write FV;
+	procedure Run;
+	begin
+		Show;
+	end;
+end;`,
+		},
+		{
+			name: "inline body reads a constant declared later in the same class",
+			input: `type TA = class
+	function Greet: String;
+	begin
+		Result := cHello;
+	end;
+	const cHello = 'Hello';
+end;`,
+		},
+		{
+			name: "identity: value reached through a forward-referencing field is the later-declared class",
+			input: `type TA = class
+	B: TB;
+end;
+type TB = class
+	procedure Hello;
+	begin
+		PrintLn('hello');
+	end;
+end;
+var a := TA.Create;
+var b: TB := TB.Create;
+a.B := b;
+b := a.B;
+a.B.Hello;
+b.Hello;`,
+		},
+		{
+			name: "a body still reports genuinely unknown members of a later-declared class",
+			input: `type TA = class
+	B: TB;
+	procedure Go;
+	begin
+		B.Missing;
+	end;
+end;
+type TB = class
+	V: Integer;
+end;`,
+			wantErr:       true,
+			errorContains: "Missing",
+		},
+		{
+			name: "a global declared after the type section does not shadow a class constant",
+			input: `type TChild = class
+	const B = 4.5;
+	procedure P;
+	begin
+		PrintLn(B);
+	end;
+end;
+var b := TChild.Create;
+b.P;`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := analyzeSource(t, tt.input)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected an error but got none")
+				}
+				if !strings.Contains(err.Error(), tt.errorContains) {
+					t.Fatalf("expected error containing %q, got: %v", tt.errorContains, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}

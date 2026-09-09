@@ -125,9 +125,14 @@ checking, cycles and unknown parents stay diagnostics, and forward/partial behav
 unchanged; see
 [the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--two-phase-class-construction-inheritance-before-members-l-s1a).
 
-- **L-S1b** `[ ]` M — Complete field, property, and method signatures before checking bodies;
-  depends on L-S1a. Acceptance: later-declared class types and mutually referring class
-  fields work without `forward`, with consistent resolved type identities.
+**Done (2026-09-09):** L-S1b. Inline class method bodies are no longer checked where they are
+declared: the signature is registered in source order, the body is queued and checked once the
+last top-level class declaration has been analyzed, so every class has its full member surface
+(fields, class vars, constants, methods, properties) on its single shared shell first. A body
+may now name a class or a member declared later in the file; `SimpleScripts/method_implem` and
+`SimpleScripts/var_param_obj_method` newly pass (885 → 887). See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--class-member-signatures-complete-before-body-checking-l-s1b).
+
 - **L-S1c** `[ ]` S — Integrate deferred class-body and final validation after signatures are
   complete; depends on L-S1b. Acceptance: inline and out-of-line methods can access members
   of later classes, while missing implementations, duplicates, and invalid overrides remain

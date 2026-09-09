@@ -277,3 +277,104 @@ func (r *classInheritanceResolver) reaches(start, target *types.ClassType) bool 
 	}
 	return false
 }
+
+// ============================================================================
+// Phase 3: member signatures before bodies
+// ============================================================================
+//
+// Phase 3 completes the picture started by phases 1 and 2. Phases 1/2 make a
+// class *identity* and its ancestry available regardless of source order, which
+// is enough for a field, parameter, property or return type to name a class
+// declared later in the file. It is not enough for a method body, which needs
+// the *members* of the classes it touches.
+//
+// So an inline class method body (`procedure P; begin ... end;` written inside
+// the class declaration) is not checked where it is declared. Its signature is
+// registered immediately — that part must stay in source order, because
+// overload and forward resolution depend on it — and the body is queued. The
+// queue is drained once every top-level declaration has been analyzed, i.e.
+// once every class has all of its fields, class vars, constants, methods and
+// properties registered on its single shared `*types.ClassType`.
+//
+// This makes an inline body independent of declaration order in both
+// directions: a body may refer to a class declared later in the file, and it
+// may refer to a member of its own class declared further down (a property, or
+// a method declared after it).
+//
+// Out-of-line implementations (`procedure TFoo.P;` at top level) are already
+// written after the type section and are left alone.
+
+// deferredMethodBody is one inline class method body whose checking has been
+// postponed until every class member signature is registered. It captures the
+// declaration-site context that the body needs, so draining the queue restores
+// exactly the environment the body was declared in.
+type deferredMethodBody struct {
+	method                 *ast.FunctionDecl
+	classType              *types.ClassType
+	outerSymbols           *SymbolTable
+	nestedTypes            map[string]string
+	returnType             types.Type
+	paramTypes             []types.Type
+	inUnitDecl             bool
+	wasExplicitConstructor bool
+}
+
+// deferMethodBody queues an inline method body, or checks it immediately when
+// body deferral is not active (local classes declared inside a function body,
+// and callers that analyze a class outside the top-level program pass).
+func (a *Analyzer) deferMethodBody(body deferredMethodBody) {
+	if !a.deferClassMethodBodies {
+		a.checkMethodBody(body)
+		return
+	}
+	a.deferredMethodBodies = append(a.deferredMethodBodies, body)
+}
+
+// runDeferredMethodBodies drains the queue. Checking a body may itself declare a
+// local class, so the queue is walked by index and re-read on every iteration.
+func (a *Analyzer) runDeferredMethodBodies() {
+	for i := 0; i < len(a.deferredMethodBodies); i++ {
+		a.checkMethodBody(a.deferredMethodBodies[i])
+	}
+	a.deferredMethodBodies = nil
+}
+
+// drainDeferredMethodBodies turns body deferral off and checks everything that
+// has been queued.
+func (a *Analyzer) drainDeferredMethodBodies() {
+	a.deferClassMethodBodies = false
+	a.runDeferredMethodBodies()
+}
+
+// lastTopLevelClassDeclIndex returns the index of the last top-level statement
+// that declares a class, or -1 when the program declares none. Draining the
+// deferred bodies right after that statement — rather than at the end of the
+// declaration pass — keeps inline bodies out of reach of globals declared after
+// the type section, which would otherwise shadow class constants and
+// properties, and keeps body diagnostics in source order relative to the
+// statements that follow.
+func lastTopLevelClassDeclIndex(program *ast.Program) int {
+	last := -1
+	for i, stmt := range program.Statements {
+		if statementDeclaresClass(stmt) {
+			last = i
+		}
+	}
+	return last
+}
+
+// statementDeclaresClass reports whether a top-level statement contributes a
+// class declaration, mirroring the shapes handled by phases 1 and 2.
+func statementDeclaresClass(stmt ast.Statement) bool {
+	switch n := stmt.(type) {
+	case *ast.BlockStatement:
+		for _, inner := range n.Statements {
+			if statementDeclaresClass(inner) {
+				return true
+			}
+		}
+	case *ast.ClassDecl:
+		return true
+	}
+	return false
+}
