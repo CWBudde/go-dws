@@ -487,7 +487,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 
 	// 4. Check preconditions before function body
 	if fn.PreConditions != nil {
-		if err := e.checkPreconditions(contractFuncName(fn), fn.PreConditions, ctx); err != nil {
+		if err := e.checkPreconditions(e.contractRoutineName(fn, ctx), fn.PreConditions, ctx); err != nil {
 			return err
 		}
 		// If exception was raised during precondition checking, return early
@@ -550,7 +550,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 	// 9. Check postconditions after function body
 	// Old values are available via ctx.GetOldValue() during postcondition evaluation
 	if fn.PostConditions != nil {
-		if err := e.checkPostconditions(contractFuncName(fn), fn.PostConditions, ctx); err != nil {
+		if err := e.checkPostconditions(e.contractRoutineName(fn, ctx), fn.PostConditions, ctx); err != nil {
 			return err
 		}
 		// If exception was raised during postcondition checking, return early

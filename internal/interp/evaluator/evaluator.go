@@ -185,10 +185,15 @@ type ExternalFunctionRegistry = contracts.ExternalFunctionRegistry
 // Dependencies: type system, runtime services, configuration.
 // Execution state is in ExecutionContext (stateless evaluator).
 type Evaluator struct {
-	output            io.Writer
-	config            *Config
-	typeSystem        *interptypes.TypeSystem
-	engineState       *contracts.EngineState
+	output      io.Writer
+	config      *Config
+	typeSystem  *interptypes.TypeSystem
+	engineState *contracts.EngineState
+
+	// contractChains memoizes resolved contract inheritance chains, keyed by
+	// declaration and declaring class. See contract_inheritance.go.
+	contractChains map[contractChainKey][]contractSource
+
 	selfContainedMode bool
 }
 

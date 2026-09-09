@@ -547,3 +547,63 @@ func TestContractWithProcedure(t *testing.T) {
 		t.Errorf("Expected output %q, got %q", expected, output.String())
 	}
 }
+
+// ============================================================================
+// Method contracts: naming and inheritance (PLAN.md §3.2.3)
+// ============================================================================
+
+// TestContract_InlineMethodNameIsClassQualified verifies that a method whose
+// body is written inline in the class declaration reports its contract
+// failures class-qualified, exactly as an out-of-line implementation does.
+// Inline methods carry no ClassName on the declaration, which used to drop the
+// prefix (SimpleScripts/method_condition).
+func TestContract_InlineMethodNameIsClassQualified(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TTest = class
+			Field : Integer;
+			procedure Bump;
+			require
+				Field <= 0;
+			begin
+				Field += 1;
+			end;
+		end;
+
+		var t := new TTest;
+		t.Bump;
+		try
+			t.Bump;
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TTest.Bump [line: 6, column: 5], Field <= 0")
+}
+
+// TestContract_FreeFunctionCalledFromMethodKeepsBareName verifies that a free
+// function called from inside a method body is not mistaken for a method of the
+// enclosing class. The callee still sees the caller's class binding, so the
+// chain resolver must confirm that the class actually declares the routine.
+func TestContract_FreeFunctionCalledFromMethodKeepsBareName(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		procedure RequirePositive(i : Integer);
+		require
+			i > 0;
+		begin
+			PrintLn(i);
+		end;
+
+		type TTest = class
+			procedure Run(i : Integer);
+			begin
+				RequirePositive(i);
+			end;
+		end;
+
+		var t := new TTest;
+		try
+			t.Run(-1);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in RequirePositive [line: 4, column: 4], i > 0")
+}

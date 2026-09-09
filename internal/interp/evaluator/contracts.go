@@ -45,9 +45,20 @@ func (e *Evaluator) raiseContractException(className, message string, node ast.N
 	ctx.SetException(exc)
 }
 
-// contractFuncName returns the name used in contract-failure messages. For a
-// method it is class-qualified (e.g. "TBase.Check"), matching DWScript; for a
-// free function it is the bare name.
+// contractRoutineName returns the name a contract failure reports for fn.
+// Methods are class-qualified (e.g. "TBase.Check"), matching DWScript. The
+// class comes from the resolved contract chain, so a method whose body is
+// written inline in the class declaration — which leaves fn.ClassName nil,
+// unlike an out-of-line "procedure TBase.Check" header — is qualified too.
+func (e *Evaluator) contractRoutineName(fn *ast.FunctionDecl, ctx *ExecutionContext) string {
+	if chain := e.contractChain(fn, ctx); len(chain) > 0 {
+		return chain[0].routineName
+	}
+	return contractFuncName(fn)
+}
+
+// contractFuncName is the fallback for a routine with no class context: an
+// out-of-line header still carries its qualifier, a free function does not.
 func contractFuncName(fn *ast.FunctionDecl) string {
 	if fn.ClassName != nil && fn.ClassName.Value != "" {
 		return fn.ClassName.Value + "." + fn.Name.Value
