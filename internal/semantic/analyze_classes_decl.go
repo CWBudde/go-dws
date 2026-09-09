@@ -538,6 +538,12 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 			classType.ClassVars[normalizedFieldName] = fieldType
 			classType.ClassVarVisibility[normalizedFieldName] = int(field.Visibility)
+			if classType.ClassVarDeclNames == nil {
+				classType.ClassVarDeclNames = make(map[string]string)
+			}
+			if _, exists := classType.ClassVarDeclNames[normalizedFieldName]; !exists {
+				classType.ClassVarDeclNames[normalizedFieldName] = originalFieldName
+			}
 		} else {
 			// Handle instance fields.
 			fieldExists := false

@@ -1,0 +1,26 @@
+type TVariant = function: Variant;
+var calls := '';
+function Yes: Variant;
+begin
+   calls += 'Y';
+   Result := True;
+end;
+function No: Variant;
+begin
+   calls += 'N';
+   Result := False;
+end;
+var yesPtr: TVariant := @Yes;
+var noPtr: TVariant := @No;
+PrintLn(noPtr and yesPtr);
+PrintLn(yesPtr or noPtr);
+PrintLn(yesPtr and noPtr);
+PrintLn(noPtr or yesPtr);
+PrintLn(True and yesPtr);
+PrintLn(False or noPtr);
+PrintLn(calls);
+var number: TVariant := lambda => 3;
+PrintLn(number and 1);
+PrintLn(1 and number);
+PrintLn(number or 4);
+PrintLn(4 or number);

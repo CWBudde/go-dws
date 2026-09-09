@@ -110,7 +110,12 @@ func (e *Evaluator) objectToJSON(obj *runtime.ObjectInstance, node ast.Node, ctx
 			if isError(res) {
 				continue
 			}
-			add(prop.Name, e.valueToJSONValue(res, node, ctx))
+			// An `external 'name'` clause renames the property's JSON key.
+			name := prop.Name
+			if pInfo.ExternalName != "" {
+				name = pInfo.ExternalName
+			}
+			add(name, e.valueToJSONValue(res, node, ctx))
 		}
 
 		sort.Slice(members, func(i, j int) bool { return members[i].name < members[j].name })
@@ -226,7 +231,12 @@ func (e *Evaluator) recordToJSON(rec *runtime.RecordValue, node ast.Node, ctx *E
 			if isError(res) {
 				continue
 			}
-			add(prop.Name, e.valueToJSONValue(res, node, ctx))
+			// An `external 'name'` clause renames the property's JSON key.
+			name := prop.Name
+			if prop.ExternalName != "" {
+				name = prop.ExternalName
+			}
+			add(name, e.valueToJSONValue(res, node, ctx))
 		}
 	}
 

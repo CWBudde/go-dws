@@ -593,6 +593,22 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 
 // Converts AST property declaration to PropertyInfo for runtime access.
 // Used by interface, class, and record evaluation.
+// indexParamNames returns the declared index parameter names of an indexed
+// property, in declaration order, for expression-based accessors to bind.
+func indexParamNames(params []*ast.Parameter) []string {
+	if len(params) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(params))
+	for _, param := range params {
+		if param == nil || param.Name == nil {
+			continue
+		}
+		names = append(names, param.Name.Value)
+	}
+	return names
+}
+
 func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl *ast.PropertyDecl, ctx *ExecutionContext) *types.PropertyInfo {
 	propType, err := e.ResolveTypeFromAnnotation(propDecl.Type, ctx)
 	if err != nil || propType == nil {
@@ -605,6 +621,8 @@ func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl
 		IsIndexed:       len(propDecl.IndexParams) > 0,
 		IsDefault:       propDecl.IsDefault,
 		IsClassProperty: propDecl.IsClassProperty,
+		ExternalName:    propDecl.ExternalName,
+		IndexParamNames: indexParamNames(propDecl.IndexParams),
 	}
 
 	// Extract index value if present

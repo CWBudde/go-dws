@@ -95,8 +95,6 @@ Each line: what to build → fixtures/category it unlocks. Run
   (superseded design, never implemented).
 - `[ ]` S Gate the over-aggressive unused-private-field hint → unmasks JSONConnectorPass
   serialization fixtures in the harness (they already pass in the CLI).
-- `[ ]` S Value-context auto-invoke of parameterless function pointers for `and`/`or` operands
-  (`Print`/`PrintLn`/`implies` already done).
 - `[ ]` S Helper-property resolution through a metaclass → PropertyExpressionsPass `helpers_property_expressions`.
 - `[ ]` S Indexed-property read through a metaclass with a class-method accessor → SimpleScripts `enum_to_integer`.
 - `[ ]` M Contract inheritance → SimpleScripts `method_contracts`; inline-method class name in

@@ -435,3 +435,35 @@ The complete suite passes with `go test -p 2 -timeout 20m ./...`, including CLI 
 visitor-generation drift checks and the fixture gate. The final CLI package took 332 seconds
 under the constrained build concurrency; the interpreter package took 94 seconds. A5–A7 and
 A9 are closed in PLAN.md. A11 remains explicitly deferred pending an owner decision.
+
+## 2026-09-09 — Parameterless callbacks in `and` / `or` (3.2)
+
+The semantic analyzer now checks parameterless function and method pointer operands
+using their return types for `and` and `or`. The evaluator invokes callbacks through
+the existing value-context helper, preserving left-to-right evaluation, Boolean
+short-circuiting, and eager Integer/enum bitwise operations. Operand errors and pending
+exceptions stop evaluation immediately. Variant results retain existing coercion rules.
+
+Regression scripts in `testdata/function_pointer_operators/` exercise the shared compile
+pipeline and production evaluator: named functions, pointer variables, lambdas, bound
+methods, call counts/order, bitwise and Variant results, and skipped/invoked nil or raising
+callbacks. Negative tests cover parameter-taking callbacks, incompatible result types,
+and existing pointer-comparison diagnostics. Pointer assignment and `implies` also retain
+their behavior. This closes the `and`/`or` item in PLAN.md §3.2 without changing parser,
+AST, shared type definitions, `xor`, or builtin-pointer invocation policy.
+
+Targeted tests pass with `go test ./internal/interp -run
+'^TestFunctionPointerOperators_|^TestImplies|^TestFunctionPointerValueContextAutoInvoke$'
+-count=1`. The CLI reproduction now prints `True` twice for `callback and True` and
+`False or callback`, where both expressions previously failed with incompatible operands.
+The lambda guide documents the supported value contexts and evaluation order.
+
+The fixture comparison is unchanged across all 61 categories: 885 passed, 1,043 failed,
+114 skipped (1,928 scored). This starting workspace already included concurrent property
+work, so the difference from the earlier 878-pass headline is not attributed to this fix.
+Changed-source lint reports zero issues, and scoped `git diff --check` passes.
+
+`just fixture-update` passes and refreshes the generated status. It ratchets the existing
+concurrent gains in JSONConnectorPass (57 → 59) and PropertyExpressionsPass (10 → 15);
+all other floors stay unchanged. Validation uses workspace Go/build/temp caches because
+the default Go cache is read-only and `/tmp` has limited free space.

@@ -559,6 +559,12 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			if fieldValue := getFieldWithStaticClass(objVal, memberName, typeCastVal.GetStaticTypeName()); fieldValue != nil {
 				return fieldValue
 			}
+			// Class properties are statically bound, like the fields above:
+			// TBase(child).ClassProp reads TBase's declaration even when child's
+			// dynamic class redeclares the same name.
+			if pInfo := e.staticClassPropertyOf(objVal, memberName, typeCastVal.GetStaticTypeName()); pInfo != nil {
+				return e.executePropertyRead(wrappedValue, pInfo, node, ctx)
+			}
 			if objVal.HasProperty(memberName) {
 				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
 					return e.executePropertyRead(wrappedValue, propInfo, node, ctx)

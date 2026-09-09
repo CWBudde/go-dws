@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -294,4 +295,29 @@ func classMethodMetadata(classInfo runtime.IClassInfo, method any) *runtime.Meth
 		}
 	}
 	return runtime.MethodMetadataFromAST(declaration)
+}
+
+// staticClassPropertyOf resolves a class property against staticClassName rather
+// than against the receiver's dynamic class. Class properties are not virtual, so
+// `TBase(sub).ClassProp` must read TBase's declaration even when sub's dynamic
+// class redeclares the same name. Returns nil when there is no static type
+// information, when the static and dynamic declarations coincide, or when the
+// member is not a class property (instance properties stay dynamically bound).
+func (e *Evaluator) staticClassPropertyOf(objVal ObjectValue, name string, staticClassName string) *types.PropertyInfo {
+	if staticClassName == "" || objVal == nil || ident.Equal(staticClassName, objVal.ClassName()) {
+		return nil
+	}
+	staticClass := e.typeSystem.LookupClass(staticClassName)
+	if staticClass == nil {
+		return nil
+	}
+	staticProp := staticClass.LookupProperty(name)
+	if staticProp == nil {
+		return nil
+	}
+	pInfo, ok := unwrapPropertyInfo(staticProp.Impl)
+	if !ok || !pInfo.IsClassProperty {
+		return nil
+	}
+	return pInfo
 }

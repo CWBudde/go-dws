@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -329,6 +330,13 @@ func (e *Evaluator) evalIndexedPropertyAssignmentOnObject(
 		return e.newError(stmt, "property '%s' is not an indexed property", propName)
 	}
 
+	// An expression-based setter, e.g. `property Arr[i: Integer]: Integer
+	// write (F[i])`, has no setter method and leaves WriteSpec empty, so it must
+	// be handled before the read-only check below.
+	if result, handled := e.tryIndexedPropertyExpressionWrite(baseObj, propDesc, indexValues, value, stmt, ctx); handled {
+		return result
+	}
+
 	// Check if property has write access
 	if propDesc.WriteSpec == "" {
 		return e.newError(stmt, readOnlyPropertyWriteMessage)
@@ -410,6 +418,12 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 		return e.newError(stmt, "default property on %s is not an indexed property", obj.Type())
 	}
 
+	// Expression-based setters leave WriteSpec empty (see the named-property
+	// path); handle them before the read-only check.
+	if result, handled := e.tryIndexedPropertyExpressionWrite(obj, propDesc, []Value{indexVal}, value, stmt, ctx); handled {
+		return result
+	}
+
 	// Check if property has write access
 	if propDesc.WriteSpec == "" {
 		return e.newError(stmt, readOnlyPropertyWriteMessage)
@@ -448,4 +462,55 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 	}
 
 	return value
+}
+
+// tryIndexedPropertyExpressionWrite executes an expression-based setter of an
+// indexed property, e.g. `property Arr[i: Integer]: Integer write (F[i])`, which
+// the parser normalizes to the statement `F[i] := Value`. The index parameters
+// and the implicit `Value` are bound by name, mirroring the read side in
+// executeIndexedPropertyExpressionRead. Reports handled=false when the property
+// does not use an expression setter, leaving method dispatch to the caller.
+func (e *Evaluator) tryIndexedPropertyExpressionWrite(
+	obj Value,
+	propDesc *runtime.PropertyDescriptor,
+	indexValues []Value,
+	value Value,
+	stmt ast.Node,
+	ctx *ExecutionContext,
+) (Value, bool) {
+	pInfo, ok := unwrapPropertyInfo(propDesc.Impl)
+	if !ok || pInfo.WriteKind != types.PropAccessExpression {
+		return nil, false
+	}
+
+	writeStmt, ok := pInfo.WriteExpr.(ast.Statement)
+	if !ok {
+		return e.newError(stmt, "property '%s' has invalid write statement type", pInfo.Name), true
+	}
+
+	target := obj
+	if ifaceInst, isIface := obj.(*runtime.InterfaceInstance); isIface {
+		if ifaceInst.Object == nil {
+			return e.newError(stmt, "property '%s' setter cannot be executed on nil interface", pInfo.Name), true
+		}
+		target = ifaceInst.Object
+	}
+
+	if len(pInfo.IndexParamNames) != len(indexValues) {
+		return e.newError(stmt, "indexed property '%s' expects %d index argument(s), got %d",
+			pInfo.Name, len(pInfo.IndexParamNames), len(indexValues)), true
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+
+	if errVal := e.bindIndexedPropertyExprScope(target, pInfo.IndexParamNames, indexValues, ctx); errVal != nil {
+		return errVal, true
+	}
+	e.DefineVar(ctx, "Value", value)
+
+	if result := e.Eval(writeStmt, ctx); isError(result) {
+		return result, true
+	}
+	return value, true
 }

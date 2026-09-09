@@ -1156,8 +1156,9 @@ func (a *Analyzer) addParentClassVarsToScope(parent *types.ClassType) {
 	for classVarName, classVarType := range parent.ClassVars {
 		// Don't override if already defined (shadowing)
 		if !a.symbols.IsDeclaredInCurrentScope(classVarName) {
-			// Use zero position for synthesized parent class variable bindings
-			a.symbols.Define(classVarName, classVarType, token.Position{})
+			// Use zero position for synthesized parent class variable bindings,
+			// and the declared casing so uses don't trip the case-mismatch hint.
+			a.symbols.Define(parent.DeclaredClassVarName(classVarName), classVarType, token.Position{})
 		}
 	}
 

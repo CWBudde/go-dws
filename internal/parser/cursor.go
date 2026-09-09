@@ -458,3 +458,35 @@ func (c *TokenCursor) FindNext(t token.TokenType) (int, bool) {
 	})
 	return distance, found
 }
+
+// SplitGreaterGreater consumes the first '>' of a `>>` token N positions ahead,
+// leaving a single '>' in its place. The lexer emits `>>` as one shift-operator
+// token, but in a generic type-argument list the same characters close two
+// nested lists (`TA<TB<Integer>>`). Rewriting the buffered token in place — one
+// token in, one token out — keeps every other cursor's index valid, which
+// inserting a token would not: cursors share the token buffer.
+//
+// Returns false when the token N ahead is not `>>`, leaving the buffer untouched.
+// The caller must not advance past the rewritten token: the remaining '>' is the
+// closer for the enclosing list.
+func (c *TokenCursor) SplitGreaterGreater(n int) bool {
+	if c.Peek(n).Type != token.GREATER_GREATER {
+		return false
+	}
+	targetIndex := c.index + n
+	if targetIndex >= len(c.tokens) {
+		return false
+	}
+
+	tok := c.tokens[targetIndex]
+	remaining := tok
+	remaining.Type = token.GREATER
+	remaining.Literal = ">"
+	// The surviving '>' is the second character of the original token.
+	remaining.Pos.Column++
+	c.tokens[targetIndex] = remaining
+	if targetIndex == c.index {
+		c.current = remaining
+	}
+	return true
+}

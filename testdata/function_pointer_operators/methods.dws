@@ -1,0 +1,15 @@
+type TBool = function: Boolean of object;
+type TTest = class
+   Calls: Integer;
+   function Yes: Boolean;
+   begin
+      Calls += 1;
+      Result := True;
+   end;
+end;
+var obj := new TTest;
+var callback: TBool := obj.Yes;
+PrintLn(callback and callback);
+PrintLn(False or callback);
+PrintLn(callback or callback);
+PrintLn(obj.Calls);

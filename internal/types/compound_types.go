@@ -153,6 +153,12 @@ type RecordPropertyInfo struct {
 	WriteKind  PropAccessKind
 	IsDefault  bool
 	IsIndexed  bool
+	// ExternalName, when set by an `external 'name'` clause, replaces the
+	// declared name when the record is serialized.
+	ExternalName string
+	// IsClassProperty marks `class property` members, which are backed by the
+	// record type's class vars rather than by a field on each record value.
+	IsClassProperty bool
 }
 
 // RecordType represents a record (struct) type.

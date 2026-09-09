@@ -35,7 +35,12 @@ type PropertyDecl struct {
 	IndexParams []*Parameter
 	IndexValue  Expression
 	BaseNode
-	IsDefault       bool
+	IsDefault bool
+	// IsExternal is true for `property Name: Type external 'JsonKey' ...`.
+	// ExternalName holds the quoted name, which replaces the declared name when
+	// the object is serialized (JSON.Stringify).
+	IsExternal      bool
+	ExternalName    string
 	IsClassProperty bool
 	// IsAutoProperty is true when the property was declared without read/write
 	// specifiers (e.g. `property Alpha: Integer;`). The parser desugars it to

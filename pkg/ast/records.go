@@ -114,6 +114,21 @@ type RecordPropertyDecl struct {
 	IndexParams []*Parameter
 	BaseNode
 	IsDefault bool
+	// IsExternal is true for `property Name: Type external 'JsonKey' ...`.
+	// ExternalName holds the quoted name, which replaces the declared name when
+	// the record is serialized (JSON.Stringify).
+	IsExternal   bool
+	ExternalName string
+	// IsClassProperty is true for `class property Name: Type ...` declared inside
+	// a record body. A class property is backed by a class var rather than by an
+	// instance field, and is reachable through both the record type and a value.
+	IsClassProperty bool
+	// IsAutoProperty is true when the property was declared without read/write
+	// specifiers (e.g. `property Alpha: Integer;`). The parser desugars it to
+	// read/write the synthesized backing member `F<Name>` and, while assembling
+	// the record body, also synthesizes that member (see
+	// Parser.addRecordAutoPropertyBackingField). Mirrors PropertyDecl.IsAutoProperty.
+	IsAutoProperty bool
 }
 
 func (pd RecordPropertyDecl) String() string {
