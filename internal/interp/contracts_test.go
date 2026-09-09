@@ -791,3 +791,105 @@ func TestContract_InheritedPostconditionCapturesOld(t *testing.T) {
 		end;
 	`, "Post-condition failed in TBase.Bump [line: 7, column: 5], Result = old i + 1")
 }
+
+// TestContract_InheritedPreconditionPicksMatchingOverload verifies that an
+// override inherits the ancestor overload with its own signature, not whichever
+// one the name-indexed lookup happens to return. Evaluating a sibling
+// overload's condition would bind an argument to a parameter of another type.
+func TestContract_InheritedPreconditionPicksMatchingOverload(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(s : String); overload; virtual;
+			require
+				s <> '' : 'string overload';
+			begin
+				PrintLn('base str ' + s);
+			end;
+
+			procedure Check(i : Integer); overload; virtual;
+			require
+				i > 0 : 'integer overload';
+			begin
+				PrintLn('base int ' + IntToStr(i));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			procedure Check(i : Integer); overload; override;
+			begin
+				PrintLn('child int ' + IntToStr(i));
+			end;
+		end;
+
+		var c := TChild.Create;
+		try
+			c.Check(-1);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TBase.Check [line: 12, column: 5], integer overload")
+}
+
+// TestContract_ClassMethodInheritsPrecondition verifies that contract
+// inheritance reaches class methods, which live in their own method table and
+// are invisible to the instance-method lookup.
+func TestContract_ClassMethodInheritsPrecondition(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			class procedure Check(i : Integer); virtual;
+			require
+				i > 0;
+			begin
+				PrintLn('base ' + IntToStr(i));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			class procedure Check(i : Integer); override;
+			begin
+				PrintLn('child ' + IntToStr(i));
+			end;
+		end;
+
+		TChild.Check(1);
+		try
+			TChild.Check(-1);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "child 1\nPre-condition failed in TBase.Check [line: 5, column: 5], i > 0")
+}
+
+// TestContract_InheritedConditionSeesDeclaringClassField verifies that an
+// inherited condition resolves members against the class that declares it. When
+// the derived class shadows a field the base condition names, the base's own
+// storage slot is the one that must be read.
+func TestContract_InheritedConditionSeesDeclaringClassField(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			Limit : Integer;
+			procedure Check; virtual;
+			require
+				Limit > 0 : 'base limit ' + IntToStr(Limit);
+			begin
+				PrintLn('base');
+			end;
+		end;
+
+		type TChild = class (TBase)
+			Limit : Integer;
+			procedure Check; override;
+			begin
+				PrintLn('child');
+			end;
+		end;
+
+		var c := TChild.Create;
+		c.Limit := 5;
+		try
+			c.Check;
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TBase.Check [line: 6, column: 5], base limit 0")
+}

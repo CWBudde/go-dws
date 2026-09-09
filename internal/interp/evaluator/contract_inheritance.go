@@ -13,6 +13,7 @@ import (
 // "TBase.Check" when the call was dispatched to a TSubChild instance.
 type contractSource struct {
 	fn          *ast.FunctionDecl
+	className   string
 	routineName string
 }
 
@@ -72,7 +73,7 @@ func (e *Evaluator) buildContractChain(fn *ast.FunctionDecl, className string) [
 		return nil
 	}
 
-	chain := []contractSource{{fn: fn, routineName: qualifiedName(defining.GetName(), fn)}}
+	chain := []contractSource{newContractSource(fn, defining.GetName())}
 	seen := map[*ast.FunctionDecl]bool{fn: true}
 
 	for current := defining; current != nil; {
@@ -80,8 +81,8 @@ func (e *Evaluator) buildContractChain(fn *ast.FunctionDecl, className string) [
 		if parent == nil {
 			break
 		}
-		decl := runtime.MethodDeclaration(parent.LookupMethod(fn.Name.Value))
-		if decl == nil || seen[decl] {
+		decl := ancestorMethodDecl(parent, fn, seen)
+		if decl == nil {
 			break
 		}
 		seen[decl] = true
@@ -90,11 +91,91 @@ func (e *Evaluator) buildContractChain(fn *ast.FunctionDecl, className string) [
 		if owner == nil {
 			owner = parent
 		}
-		chain = append(chain, contractSource{fn: decl, routineName: qualifiedName(owner.GetName(), decl)})
+		chain = append(chain, newContractSource(decl, owner.GetName()))
 		current = owner
 	}
 
 	return chain
+}
+
+// ancestorMethodDecl finds the declaration fn overrides, starting at parent.
+// A name is not enough to identify it: an ancestor may declare several
+// overloads, and inheriting a sibling overload's condition would evaluate it
+// against arguments it was never written for. Class methods live in their own
+// table, which the instance lookup never searches.
+func ancestorMethodDecl(
+	parent runtime.IClassInfo,
+	fn *ast.FunctionDecl,
+	seen map[*ast.FunctionDecl]bool,
+) *ast.FunctionDecl {
+	overloads := parent.GetMethodOverloads(fn.Name.Value)
+	if fn.IsClassMethod {
+		overloads = parent.GetClassMethodOverloads(fn.Name.Value)
+	}
+	if decl := bestSignatureMatch(overloads, fn, seen); decl != nil {
+		return decl
+	}
+
+	// A method that is not overloaded is registered in the name-indexed table
+	// only, so the overload set above is empty for it.
+	single := parent.LookupMethod(fn.Name.Value)
+	if fn.IsClassMethod {
+		single = parent.LookupClassMethod(fn.Name.Value)
+	}
+	decl := runtime.MethodDeclaration(single)
+	if decl == nil || seen[decl] {
+		return nil
+	}
+	return decl
+}
+
+// bestSignatureMatch picks the overload fn overrides: same parameter types when
+// one matches, otherwise the first with the same arity. Returns nil when no
+// candidate has fn's arity, which is safer than inheriting a mismatched
+// contract.
+func bestSignatureMatch(
+	candidates []*runtime.MethodMetadata,
+	fn *ast.FunctionDecl,
+	seen map[*ast.FunctionDecl]bool,
+) *ast.FunctionDecl {
+	var byArity *ast.FunctionDecl
+	for _, candidate := range candidates {
+		decl := runtime.MethodDeclaration(candidate)
+		if decl == nil || seen[decl] || len(decl.Parameters) != len(fn.Parameters) {
+			continue
+		}
+		if parameterTypesMatch(decl, fn) {
+			return decl
+		}
+		if byArity == nil {
+			byArity = decl
+		}
+	}
+	return byArity
+}
+
+// parameterTypesMatch compares two declarations' parameter types by their
+// written form, which is what distinguishes overloads of the same arity.
+func parameterTypesMatch(candidate, fn *ast.FunctionDecl) bool {
+	for idx, param := range candidate.Parameters {
+		own := fn.Parameters[idx]
+		if param.Type == nil || own.Type == nil {
+			if (param.Type == nil) != (own.Type == nil) {
+				return false
+			}
+			continue
+		}
+		if !ident.Equal(param.Type.String(), own.Type.String()) {
+			return false
+		}
+	}
+	return true
+}
+
+// newContractSource records a declaration together with the class that declares
+// it: the name a failure reports, and the scope its conditions must resolve in.
+func newContractSource(fn *ast.FunctionDecl, className string) contractSource {
+	return contractSource{fn: fn, className: className, routineName: qualifiedName(className, fn)}
 }
 
 // ownerOfMethodDecl returns the highest class in the hierarchy that declares
@@ -200,22 +281,37 @@ func parameterAliases(source, executing *ast.FunctionDecl, ctx *ExecutionContext
 	return aliases
 }
 
-// evalUnderSourceParameters runs body with source's parameter names bound to the
-// executing call's argument values. It is a no-op when the names already agree,
-// which is every case except an override that renamed its parameters.
-func (e *Evaluator) evalUnderSourceParameters(
+// evalInSourceScope runs body in the scope the source's conditions were written
+// in: its declaring class, and its own parameter names bound to the executing
+// call's argument values. For the executing declaration itself both already
+// hold, so it runs body directly.
+//
+// The class matters because bare and Self member access resolve against the
+// static class of the method being executed (see staticClassNameOf). Leaving
+// the derived class bound would make an inherited condition read a field the
+// derived class shadows -- the wrong storage slot -- rather than the one its
+// own class declared.
+func (e *Evaluator) evalInSourceScope(
 	source contractSource,
 	executing *ast.FunctionDecl,
 	ctx *ExecutionContext,
 	body func() Value,
 ) Value {
+	if source.fn == executing {
+		return body()
+	}
+
 	aliases := parameterAliases(source.fn, executing, ctx)
-	if len(aliases) == 0 {
+	rebindClass := source.className != "" && !ident.Equal(source.className, currentMethodClassName(ctx))
+	if len(aliases) == 0 && !rebindClass {
 		return body()
 	}
 
 	ctx.PushEnv()
 	defer ctx.PopEnv()
+	if rebindClass {
+		ctx.Env().Define("__CurrentMethodClass__", &runtime.StringValue{Value: source.className})
+	}
 	for name, value := range aliases {
 		ctx.Env().Define(name, value)
 	}
@@ -230,7 +326,7 @@ func (e *Evaluator) checkContractPreconditions(
 	ctx *ExecutionContext,
 ) Value {
 	for _, source := range sources {
-		result := e.evalUnderSourceParameters(source, executing, ctx, func() Value {
+		result := e.evalInSourceScope(source, executing, ctx, func() Value {
 			return e.checkPreconditions(source.routineName, source.fn.PreConditions, ctx)
 		})
 		if isError(result) {
@@ -250,7 +346,7 @@ func (e *Evaluator) checkContractPostconditions(
 	ctx *ExecutionContext,
 ) Value {
 	for _, source := range sources {
-		result := e.evalUnderSourceParameters(source, executing, ctx, func() Value {
+		result := e.evalInSourceScope(source, executing, ctx, func() Value {
 			return e.checkPostconditions(source.routineName, source.fn.PostConditions, ctx)
 		})
 		if isError(result) {
@@ -272,7 +368,7 @@ func (e *Evaluator) captureOldValuesForSources(
 ) map[string]Value {
 	oldValues := make(map[string]Value)
 	for _, source := range sources {
-		e.evalUnderSourceParameters(source, executing, ctx, func() Value {
+		e.evalInSourceScope(source, executing, ctx, func() Value {
 			for _, condition := range source.fn.PostConditions.Conditions {
 				e.findOldExpressions(condition.Test, ctx, oldValues)
 				if condition.Message != nil {
