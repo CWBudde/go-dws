@@ -208,6 +208,13 @@ func (p *Parser) looksLikeGenericTypeRef() bool {
 			if depth == 0 {
 				return p.cursor.Peek(i+1).Type == lexer.DOT
 			}
+		case lexer.GREATER_GREATER:
+			// The lexer emits `>>` as one shift token; in nested generics it
+			// closes two lists (parseTypeArguments splits it when consuming).
+			depth -= 2
+			if depth <= 0 {
+				return depth == 0 && p.cursor.Peek(i+1).Type == lexer.DOT
+			}
 		case lexer.IDENT, lexer.COMMA, lexer.DOT:
 			// Allowed inside a type-argument list.
 		default:

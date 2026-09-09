@@ -435,3 +435,314 @@ The complete suite passes with `go test -p 2 -timeout 20m ./...`, including CLI 
 visitor-generation drift checks and the fixture gate. The final CLI package took 332 seconds
 under the constrained build concurrency; the interpreter package took 94 seconds. A5–A7 and
 A9 are closed in PLAN.md. A11 remains explicitly deferred pending an owner decision.
+
+## 2026-09-09 — Parameterless callbacks in `and` / `or` (3.2)
+
+The semantic analyzer now checks parameterless function and method pointer operands
+using their return types for `and` and `or`. The evaluator invokes callbacks through
+the existing value-context helper, preserving left-to-right evaluation, Boolean
+short-circuiting, and eager Integer/enum bitwise operations. Operand errors and pending
+exceptions stop evaluation immediately. Variant results retain existing coercion rules.
+
+Regression scripts in `testdata/function_pointer_operators/` exercise the shared compile
+pipeline and production evaluator: named functions, pointer variables, lambdas, bound
+methods, call counts/order, bitwise and Variant results, and skipped/invoked nil or raising
+callbacks. Negative tests cover parameter-taking callbacks, incompatible result types,
+and existing pointer-comparison diagnostics. Pointer assignment and `implies` also retain
+their behavior. This closes the `and`/`or` item in PLAN.md §3.2 without changing parser,
+AST, shared type definitions, `xor`, or builtin-pointer invocation policy.
+
+Targeted tests pass with `go test ./internal/interp -run
+'^TestFunctionPointerOperators_|^TestImplies|^TestFunctionPointerValueContextAutoInvoke$'
+-count=1`. The CLI reproduction now prints `True` twice for `callback and True` and
+`False or callback`, where both expressions previously failed with incompatible operands.
+The lambda guide documents the supported value contexts and evaluation order.
+
+The fixture comparison is unchanged across all 61 categories: 885 passed, 1,043 failed,
+114 skipped (1,928 scored). This starting workspace already included concurrent property
+work, so the difference from the earlier 878-pass headline is not attributed to this fix.
+Changed-source lint reports zero issues, and scoped `git diff --check` passes.
+
+`just fixture-update` passes and refreshes the generated status. It ratchets the existing
+concurrent gains in JSONConnectorPass (57 → 59) and PropertyExpressionsPass (10 → 15);
+all other floors stay unchanged. Validation uses workspace Go/build/temp caches because
+the default Go cache is read-only and `/tmp` has limited free space.
+
+`go test -p 2 -timeout 20m ./internal/semantic ./internal/interp/...` passes, including
+the evaluator and runtime packages. The interpreter package completed in 87 seconds.
+
+## 2026-09-09 — Semantic backlog refinement (planning complete)
+
+PLAN.md §3.2 now divides the remaining semantic work into 24 tasks across class
+construction, diagnostics/metaclass properties, contracts, generics, overloads, sets,
+and conditional compilation. Each task has a stable ID and acceptance target; sequencing
+and shared-file coordination identify work that can proceed alongside §3.1.
+
+The class-builder tasks extend the existing class predeclaration mechanism rather than
+assuming it is absent. The conditional-compilation tasks require reproducing their
+blockers before implementation because the previous ArrayPass/SetOfPass attribution
+was not supported by a source search. An explicit Done summary in §3.2 links the completed
+`and`/`or` callback work to its implementation and validation record above. The remaining
+language tasks stay open. This refinement changes documentation only; test execution
+remains with the user.
+
+## 2026-09-09 — Parser gaps closed, PLAN.md §3.1 emptied (3.1)
+
+Six items were listed under §3.1. Measuring each against the built CLI first changed the
+shape of the work: `array of T` in getter position already worked and was deleted as
+already-shipped, and `{$I %FILE%}` was reclassified won't-fix because its only fixture,
+SimpleScripts `include_expr`, encodes the original Delphi runner's paths
+(`Test\include_expr.pas`, `*MainModule*`) that neither scoring path normalizes, and
+`%FUNCTION%` is not knowable at lex time. The remaining four are closed here.
+
+**`class property` in records and auto-property backing fields.** `parseRecordBody` rejected
+`class property`; `parseRecordPropertyDeclaration` had no auto-property desugaring, so a
+record `property Field: Integer;` parsed into a permanently unreadable and unwritable
+property. Both now mirror the class side: the parser points a bare property at `F<Name>`
+and `addRecordAutoPropertyBackingField` synthesizes the field, or the class var for a class
+property. `RecordPropertyDecl` and `RecordPropertyInfo` carry `IsClassProperty`, and record
+class-property writes reach `RecordTypeValue.ClassVars`, matching the read fallback that
+already existed in `readRecordTypePropertyValue`.
+
+Three runtime defects surfaced underneath and had to be fixed for the fixtures to pass.
+Writing a class property through an instance (`obj.ClassProp := v`) created an instance
+field shadowing the class var, so the write was silently lost while the read still saw the
+old value; `executePropertyWrite` now delegates class properties to the existing
+`evalClassPropertyWrite`, so instance and metaclass spellings share one implementation.
+The same shadowing hit plain class vars in `member_assignment.go` and in `EvaluateLValue`,
+where `obj.ClassVar.Field := v` could not even resolve its base. And class properties are
+not virtual: `TBase(sub).ClassProp` must read TBase's declaration, so `staticClassPropertyOf`
+resolves them against the cast's static type on both the read and the write path, alongside
+the field-shadowing rule that was already there.
+
+**Expression-backed and multi-index indexed properties.** The semantic analyzer rejected
+expression accessors on indexed properties up front, even though `bindPropertyIndexParams`
+already bound the index parameters into the accessor scope — the code was unreachable behind
+the guard. Removing both guards, carrying the declared index parameter names and types on
+`PropertyInfo`, and binding those names in `executeIndexedPropertyExpressionRead` and
+`tryIndexedPropertyExpressionWrite` completes the feature; the read-only check in
+`index_assignment.go` no longer treats an empty `WriteSpec` as read-only, since an
+expression setter legitimately has none. Separately, multi-index properties did not work at
+all, with any accessor kind: `a.Prop[i, j]` parses as the chain `a.Prop[i][j]`, which fell
+through to ordinary indexing and reported `Array expected`.
+`analyzeMultiIndexPropertyAccess` now collects the chain and resolves it against the single
+declaration when its length matches the declared arity.
+
+**`external` on properties.** Parsed for both record and class properties following the
+existing external-function pattern, carried to `RecordPropertyInfo`/`PropertyInfo`, and used
+as the emitted key in JSON serialization. Members are sorted by the emitted name, so
+`property Test2 : Integer external 'hello'` yields `{"Test":123,"hello":123}`.
+
+**Nested `>>` in generic type-argument lists.** No fixture exercises this, but
+`var x : TA<TA<Integer>>;` failed. The lexer emits `>>` as one token and there was no
+token-splitting mechanism to reuse. `TokenCursor.SplitGreaterGreater` rewrites the buffered
+token into the single remaining `>` in place — one token in, one token out — which keeps
+every other cursor's index valid where an insertion would not, since cursors share the token
+buffer. `parseTypeArguments` takes the first `>` without advancing, leaving the second for
+the enclosing list, and `looksLikeGenericTypeRef` counts `>>` as two closers. `>>` is not a
+shift operator in DWScript (`shr` is), so no operator behavior changes. Triple nesting and
+expression position (`TA<TA<Integer>>.Make`) both work.
+
+Two diagnostic bugs blocked the fixtures once parsing succeeded, both only visible under
+`--hints pedantic`. Class vars were bound into property-expression scopes under their
+normalized map key, so a use spelled exactly as declared produced
+`Hint: "Field" does not match case of declaration ("field")` — the analyzer quoting its own
+lowercasing. `ClassVarDeclNames` now records the declared casing (`Fields` already kept it,
+which is why only class vars were affected) and the binders use it. And a private method or
+field named only as a property accessor was reported as never used, because accessor
+resolution never marked it; `validateReadSpec`/`validateWriteSpec` now record the usage.
+
+The CLI fixture comparison goes from 878 to 885 passes, exactly the seven targeted fixtures
+with no category regressions: PropertyExpressionsPass `class_property_expressions`,
+`class_property_write_expressions`, `property_auto_field`, `indexed_expressions`,
+`indexed_write_expressions`, and JSONConnectorPass `property_name`,
+`stringify_class_getter`. `indexed_write_expressions` was not listed in PLAN.md but is the
+same feature. PropertyExpressionsPass `read_write_other_property` remains failing: it needs
+a case-mismatch hint, which is won't-fix per §5.
+
+`go test ./internal/... ./pkg/...` passes, including the interpreter, evaluator, semantic and
+parser packages. Validation ran with `TMPDIR` pointed at a root-filesystem directory because
+`/tmp` is a 7.3 GB tmpfs that was 97% full.
+
+## 2026-09-09 — Two-phase class construction: inheritance before members (L-S1a)
+
+`PLAN.md` §3.2.1 L-S1a. The analyzer already predeclared one `*types.ClassType` shell per
+top-level class name; that mechanism is now split into two explicit phases in the new
+`internal/semantic/class_construction.go`:
+
+1. **Identity** — unchanged: every top-level `ClassDecl` (recursing into blocks) registers a
+   single shell in the one type registry. There is still exactly one type representation per
+   class; no second registry was introduced.
+2. **Inheritance** — new `resolveTopLevelClassInheritance`. Declarations are grouped by
+   normalized full name (so an explicit `forward` and its implementation, or the parts of a
+   partial class, form one group). For each group it propagates the declaration-level shape
+   flags (`IsAbstract`, `IsExternal`, `ExternalName`, `IsStaticClass`, `IsDeprecated`,
+   `DeprecatedMessage`) onto the shell, then links parents with a memoized DFS that resolves
+   ancestors before descendants.
+
+The phase is deliberately silent. Unknown parents, cycles, self-inheritance and
+forward/partial parent disagreements are left *unlinked* so that `analyzeClassDecl` still
+emits the existing diagnostics at the existing positions; the DFS carries an in-progress
+marker and a length-bounded `reaches` walk so a cyclic declaration set can never recurse or
+spin during the phase itself. `IsForward` and `IsPartial` stay owned by `analyzeClassDecl`.
+
+The `class(TParent, IFoo)` disambiguation (a leading interface entry that actually names a
+class) is applied in the phase with the same AST rewrite `resolveParentClass` performs, so
+the later interface-implementation check still sees the right list.
+
+**Observable fix:** class-level inheritance validation is no longer order-dependent.
+`type TChild = class(TExt) end; type TExt = class external end;` was silently accepted; it now
+reports `non-external class 'TChild' cannot inherit from external class 'TExt'`, matching the
+diagnostic already produced when the parent is declared first.
+
+**Validation:** `go test ./...` green; `just fixture-report` **885 / 2,042 before and after,
+byte-identical per-category table** (this task is a correctness/ordering fix, not a fixture
+win). New table-driven tests in `internal/semantic/class_construction_test.go` cover
+child-before-parent field/method/grandparent inheritance, unknown parents, 2-class, 3-class
+and self cycles, external-parent order independence, and forward/partial preservation. Run
+against the pre-change tree, exactly one case fails (external parent declared after the
+child), confirming the rest are regression guards.
+
+**Still order-dependent, and left to L-S1b/L-S1c:** member-level checks that read the
+parent's members at the child's declaration site — `override` validation
+(`checkMethodOverriding`) and `inherited` resolution still fail when the parent is declared
+later, e.g.
+`type TChild = class(TParent) procedure Hello; override; ... end; type TParent = class procedure Hello; virtual; ... end;`.
+Also noted while probing: `sealed` is not enforced as an inheritance restriction in either
+order, and `type TFoo = class(TBase);` is by design a complete empty subclass rather than a
+forward declaration (`internal/parser/classes.go`), so `validateForwardDeclParent`'s
+"different parent" branch is unreachable for top-level classes.
+
+## 2026-09-09 — Class member signatures complete before body checking (L-S1b)
+
+`PLAN.md` §3.2.1 L-S1b, building directly on L-S1a. Phases 1 and 2 give a class its *identity*
+and its *ancestry* independent of source order, which is already enough for a field, parameter,
+property or return type to name a class declared later in the file. It is not enough for a
+method *body*, which needs the members of the classes it touches.
+
+**Measurement first.** Of the four stated acceptance cases, three already passed at
+`7a44cf97`: a field typed by a later-declared class, two classes with mutually referring
+fields, and a property/method signature typed by a later-declared class all compiled and ran
+cleanly, and type identity was already consistent (assignment in both directions and method
+dispatch through the field both worked), because phase 1 registers one shared shell that later
+gets mutated in place. What did *not* work was any inline method body, in either direction:
+
+```pascal
+type TA = class
+  B: TB;
+  procedure Go; begin B.Hello; end;   // "There is no accessible member with name Hello for type TB"
+end;
+type TB = class procedure Hello; begin PrintLn('hi'); end; end;
+```
+
+and, within a single class, a body referring to a member declared further down — a method
+(`Unknown name "B"`), or a property (`Unknown name "V"`), because `analyzeClassDecl` registers
+properties only after the method loop has already checked every inline body.
+
+**Phase 3 (member signatures before bodies).** `analyzeMethodDecl` is split. Everything that
+must stay in source order — parameter and return type resolution, constructor detection,
+overload and forward matching, visibility and virtual/override metadata,
+`validateVirtualOverride` — still runs where the method is declared. The body no longer does:
+it is captured in a `deferredMethodBody` (the method, its class, the enclosing symbol table,
+the nested-type aliases, the resolved parameter/return types and the `inUnitDecl` flag) and
+queued. The new `checkMethodBody` later restores exactly that declaration-site environment,
+builds the method scope from scratch and analyzes the block, so parent fields and class vars
+are read at drain time rather than at declaration time.
+
+**Where the queue drains matters.** Draining at the end of the declaration pass — the obvious
+choice, mirroring the existing top-level-function two-pass — cost two fixtures for two
+different reasons, both ordering artifacts rather than real errors:
+`FailureScripts/abstract_method` moved a body hint after the errors from the executable
+statements below the type section, and `SimpleScripts/class_init` let a global `var b`
+declared *after* the type section shadow the class constant `B` in a deferred body (class
+constants and properties are consulted only after `symbols.Resolve` fails). Draining right
+after the *last top-level statement that declares a class* fixes both: every class is complete,
+no later global is in scope yet, and body diagnostics stay in source order relative to the code
+that follows. `lastTopLevelClassDeclIndex` mirrors the statement shapes phases 1/2 already walk.
+Bodies of local classes declared inside a function body are still checked immediately.
+
+**Validation:** `go test -p 2 -timeout 40m ./...` fully green. `just fixture-report` **885 →
+887 / 2,042**, no category regressed; `SimpleScripts/method_implem` (property, class const and
+class function all declared after the inline bodies that use them) and
+`SimpleScripts/var_param_obj_method` (a write-only property declared after the method that
+assigns it) newly pass, and `baselines.json` / `TEST_STATUS.md` are ratcheted. New table-driven
+`TestClassConstruction_MemberSignaturesBeforeBodies` in
+`internal/semantic/class_construction_test.go` covers all four acceptance cases plus the
+same-class ordering cases, a negative case (a genuinely missing member of a later class is
+still reported) and the global-shadowing regression; run against the pre-change tree exactly
+four of its cases fail, so the rest are regression guards. `golangci-lint run` reports no new
+findings: `analyzeMethodDecl`'s cyclomatic complexity drops 58 → 40 and the extracted
+`checkMethodBody` / `defineMethodScopeMembers` stay under the threshold.
+
+**Not fixed, and left to L-S1c:** out-of-line implementations (`procedure TFoo.P;` at top
+level) are still analyzed in source order in the declaration pass — they are written after the
+type section anyway — and the `override`/`inherited` limitation L-S1a recorded is untouched
+by design: `checkMethodOverriding` and `validateVirtualOverride` still read the parent's
+members at the child's declaration site, so
+`type TC = class(TA) procedure Go; override; ... end; type TA = class procedure Go; virtual; ... end;`
+still reports `method 'Go' marked as override, but no such method exists in parent class`.
+
+## 2026-09-09 — Ancestor-dependent class validation after signatures complete (L-S1c)
+
+`PLAN.md` §3.2.1 L-S1c, closing the section. Phases 1–3 made class identity, ancestry and
+member signatures order-independent; the checks that *compare* a class against its ancestors
+still ran at the child's declaration site and so read a half-built parent.
+
+**Measurement first.** Of the stated acceptance cases, the out-of-line one already worked at
+`c8cfbc4a`: `type TFoo = class procedure P; end; procedure TFoo.P; begin PrintLn(TBar.Value);
+end; type TBar = class const Value = 42; end;` compiled and printed `42`, because out-of-line
+implementations are analyzed after the type section anyway. What failed were the two inline
+cases, both with the same message:
+
+```pascal
+type TC = class(TA) procedure Go; override; begin PrintLn(2); end; end;
+type TA = class procedure Go; virtual; begin PrintLn(1); end; end;
+var c := TC.Create; c.Go;
+// method 'Go' marked as override, but no such method exists in parent class
+```
+
+and the same shape with `inherited Go;` in the body. Both now compile and print `2` / `1 2`.
+
+**Phase 4 (validation after signatures).** `internal/semantic/class_construction.go` gains a
+fourth phase that postpones the four ancestor-dependent validations —
+`validateVirtualOverride` per method, and `checkMethodOverriding`,
+`validateInterfaceImplementation`, `validateAbstractClass` as the class-declaration tail — into
+a `deferredClassChecks` queue drained at the existing phase-3 drain point (right after the last
+top-level class declaration) and *before* the deferred bodies, so a signature-level diagnostic
+still precedes the body diagnostics of the same program.
+
+The deferral is conditional, which is what keeps existing diagnostics where they are.
+`noteTopLevelClassDecls` records how many top-level declarations contribute to each class
+(populated from the phase-2 grouping, so forward + implementation and the parts of a partial
+class count together); `markClassDeclAnalyzed` — deferred at the top of `analyzeClassDecl`, so
+it also runs on the early diagnostic returns — decrements it. `classAncestorsPending` walks the
+linked parent chain and reports whether any ancestor still has declarations outstanding. Only
+then is a check queued; when every ancestor is already complete, it runs exactly where it
+always did, with the same position and the same ordering. In practice this means only programs
+that today produce the bogus error change behavior. No second type registry: the single shared
+`*types.ClassType` shell is still mutated in place, and the queue stores pointers to it.
+
+**Diagnostics preserved.** New table-driven cases in
+`internal/semantic/class_construction_test.go`
+(`TestClassConstruction_ValidationAfterSignaturesComplete`, 15 subtests) pin both directions:
+override / `inherited` / overriding constructor / out-of-line override / override through a
+grandparent declared last all accepted; and, with the parent declared *last*, `override` with
+no such parent method, `override` with a mismatched signature, `override` of a non-virtual
+parent method, hiding a virtual parent method without `override`, a duplicate member, a
+declared-but-unimplemented method, an unimplemented inherited abstract method and a missing
+interface implementation all still diagnosed with their existing messages. Executable
+statements around a type section keep source order.
+
+**Validation:** `go test -p 2 -timeout 40m ./...` green. `just fixture-report` **887 / 2,042
+before and after, with a byte-identical failing-fixture list** (`--list-fails` diffed both
+ways) — this is a correctness/ordering fix, not a fixture unlock, and `baselines.json` needed
+no ratchet. `golangci-lint run`: 1,204 issues before and after; the only delta is
+`analyzeClassDecl`'s cyclomatic complexity dropping 56 → 54.
+
+**Known limitation, not fixed here.** A *statement* that instantiates a class is still analyzed
+in source order, so `type TC = class(TA) end; var c := TC.Create; type TA = class abstract
+procedure Go; virtual; abstract; end;` does not report "Trying to create an instance of an
+abstract class" — the statement is checked before `TA` exists. This is unchanged from
+`c8cfbc4a` (verified against the pre-change binary) and is inherent to executable statements
+keeping source order, which L-S1c's acceptance criteria require; fixing it would mean deferring
+statement analysis, a much larger change.

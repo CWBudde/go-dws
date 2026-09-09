@@ -414,14 +414,27 @@ const (
 // Fields: Name, Type, ReadSpec, WriteSpec, IsIndexed, IsDefault
 // Properties provide syntactic sugar for getter/setter access.
 type PropertyInfo struct {
-	IndexValue      any
-	ReadExpr        any
-	WriteExpr       any
-	IndexValueType  Type
-	Type            Type
-	ReadSpec        string
-	WriteSpec       string
-	Name            string
+	IndexValue     any
+	ReadExpr       any
+	WriteExpr      any
+	IndexValueType Type
+	Type           Type
+	ReadSpec       string
+	WriteSpec      string
+	Name           string
+	// ExternalName, when set by an `external 'name'` clause, replaces the
+	// declared name when the object is serialized.
+	ExternalName string
+	// IndexParamNames holds the declared index parameter names of an indexed
+	// property, in order. Expression-based accessors bind these names to the
+	// supplied index values when evaluating the read expression or write
+	// statement; method-based accessors pass the indices as call arguments and
+	// do not need them.
+	IndexParamNames []string
+	// IndexParamTypes holds the declared index parameter types, in order. It is
+	// the authoritative arity for an indexed property: unlike the accessor
+	// method's signature, it is available for expression-based accessors too.
+	IndexParamTypes []Type
 	ReadKind        PropAccessKind
 	WriteKind       PropAccessKind
 	HasIndexValue   bool
@@ -451,27 +464,32 @@ type MethodInfo struct {
 // ClassType represents a class type in DWScript.
 // Classes support inheritance, fields, methods, and class variables (static fields).
 type ClassType struct {
-	FieldUsages          map[string]bool
-	MethodUsages         map[string]bool
-	ForwardedMethods     map[string]bool
-	ReintroduceMethods   map[string]bool
-	Fields               map[string]Type
-	ClassVars            map[string]Type
-	Constants            map[string]interface{}
-	ConstantTypes        map[string]Type
-	ConstantVisibility   map[string]int
-	VirtualMethods       map[string]bool
-	Methods              map[string]*FunctionType
-	MethodOverloads      map[string][]*MethodInfo
-	FieldVisibility      map[string]int
-	MethodVisibility     map[string]int
-	FieldDeclPositions   map[string]token.Position
-	MethodDeclPositions  map[string]token.Position
-	FieldDeclNames       map[string]string
-	MethodDeclNames      map[string]string
-	AbstractMethods      map[string]bool
-	OverrideMethods      map[string]bool
-	ClassVarVisibility   map[string]int
+	FieldUsages         map[string]bool
+	MethodUsages        map[string]bool
+	ForwardedMethods    map[string]bool
+	ReintroduceMethods  map[string]bool
+	Fields              map[string]Type
+	ClassVars           map[string]Type
+	Constants           map[string]interface{}
+	ConstantTypes       map[string]Type
+	ConstantVisibility  map[string]int
+	VirtualMethods      map[string]bool
+	Methods             map[string]*FunctionType
+	MethodOverloads     map[string][]*MethodInfo
+	FieldVisibility     map[string]int
+	MethodVisibility    map[string]int
+	FieldDeclPositions  map[string]token.Position
+	MethodDeclPositions map[string]token.Position
+	FieldDeclNames      map[string]string
+	MethodDeclNames     map[string]string
+	AbstractMethods     map[string]bool
+	OverrideMethods     map[string]bool
+	ClassVarVisibility  map[string]int
+	// ClassVarDeclNames maps a normalized class-var name to its declared
+	// casing. ClassVars is keyed by the normalized name (unlike Fields, which
+	// keeps the original), so this is the only record of how the source spelled
+	// it — needed wherever a diagnostic quotes the declaration.
+	ClassVarDeclNames    map[string]string
 	Parent               *ClassType
 	Properties           map[string]*PropertyInfo
 	ClassMethodFlags     map[string]bool
@@ -866,6 +884,7 @@ func NewClassType(name string, parent *ClassType) *ClassType {
 		FieldDeclPositions:   make(map[string]token.Position),
 		MethodDeclPositions:  make(map[string]token.Position),
 		FieldDeclNames:       make(map[string]string),
+		ClassVarDeclNames:    make(map[string]string),
 		MethodDeclNames:      make(map[string]string),
 		FieldUsages:          make(map[string]bool),
 		MethodUsages:         make(map[string]bool),
@@ -1250,4 +1269,16 @@ type ExternalVarSymbol struct {
 	WriteFunc    func(any) error
 	Name         string
 	ExternalName string
+}
+
+// DeclaredClassVarName returns the class var's declared casing, searching up the
+// inheritance chain. Falls back to the given name when it was never recorded.
+func (ct *ClassType) DeclaredClassVarName(name string) string {
+	normalized := ident.Normalize(name)
+	for cur := ct; cur != nil; cur = cur.Parent {
+		if declared, ok := cur.ClassVarDeclNames[normalized]; ok && declared != "" {
+			return declared
+		}
+	}
+	return name
 }

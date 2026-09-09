@@ -174,8 +174,8 @@ func (p *Parser) recoverArrayType() {
 // POST: p.cursor is at the closing GREATER ('>').
 //
 // Returns nil (and records an error) on malformed input. Adjacent closing
-// brackets in deeply nested generics (`>>`) are not supported, matching the
-// scope of the current generics implementation.
+// brackets in nested generics (`TA<TB<Integer>>`) are handled by splitting the
+// lexer's single `>>` shift token into two `>` closers.
 func (p *Parser) parseTypeArguments() []ast.TypeExpression {
 	p.cursor = p.cursor.Advance() // move to '<'
 
@@ -193,6 +193,12 @@ func (p *Parser) parseTypeArguments() []ast.TypeExpression {
 			p.cursor = p.cursor.Advance() // consume ','
 		case lexer.GREATER:
 			p.cursor = p.cursor.Advance() // consume '>'
+			return args
+		case lexer.GREATER_GREATER:
+			// `>>` closes this list and the enclosing one. Take the first '>' and
+			// leave the second in the buffer for the caller; do not advance, so
+			// the enclosing list sees it as its own closer.
+			p.cursor.SplitGreaterGreater(1)
 			return args
 		default:
 			p.addPeekTokenError("\">\" expected in generic type argument list", ErrUnexpectedToken)

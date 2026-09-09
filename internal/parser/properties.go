@@ -140,6 +140,14 @@ parseDirectives:
 				return nil
 			}
 			indexValue = p.parseExpression(LOWEST)
+		case p.peekTokenIs(lexer.EXTERNAL):
+			// external 'name' renames the property for JSON serialization.
+			p.nextToken() // move to 'external'
+			prop.IsExternal = true
+			if p.peekTokenIs(lexer.STRING) {
+				p.nextToken() // move to the name literal
+				prop.ExternalName = p.cursor.Current().Literal
+			}
 		case p.peekTokenIs(lexer.READ):
 			// Parse optional 'read' clause
 			// ReadSpec can be:

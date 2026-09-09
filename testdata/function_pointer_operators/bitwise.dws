@@ -1,0 +1,41 @@
+type TInt = function: Integer;
+var calls := '';
+function Zero: Integer;
+begin
+   calls += 'Z';
+   Result := 0;
+end;
+function Three: Integer;
+begin
+   calls += 'T';
+   Result := 3;
+end;
+var zeroPtr: TInt := @Zero;
+var threePtr: TInt := @Three;
+PrintLn(zeroPtr and threePtr);
+PrintLn(threePtr or zeroPtr);
+PrintLn(threePtr and 1);
+PrintLn(1 and threePtr);
+PrintLn(threePtr or 4);
+PrintLn(4 or threePtr);
+PrintLn(calls);
+type TFlags = (None = 0, First = 1, Second = 2, Both = 3);
+type TGetFlags = function: TFlags;
+function EmptyFlags: TFlags;
+begin
+   calls += 'E';
+   Result := None;
+end;
+function AllFlags: TFlags;
+begin
+   calls += 'A';
+   Result := Both;
+end;
+var emptyPtr: TGetFlags := @EmptyFlags;
+var allPtr: TGetFlags := @AllFlags;
+calls := '';
+PrintLn(Ord(emptyPtr and allPtr));
+PrintLn(Ord(allPtr or emptyPtr));
+PrintLn(Ord(allPtr and First));
+PrintLn(Ord(First or allPtr));
+PrintLn(calls);

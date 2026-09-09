@@ -656,6 +656,16 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 	// Handle logical/bitwise operators (and, or, xor)
 	// These operators work on Boolean (logical), Integer (bitwise), and Enum types
 	if operator == "and" || operator == "or" || operator == "xor" {
+		// and/or consume values, including the results of parameterless callbacks.
+		if operator == "and" || operator == "or" {
+			if implicitType := implicitValueContextType(leftType); implicitType != nil {
+				leftType = implicitType
+			}
+			if implicitType := implicitValueContextType(rightType); implicitType != nil {
+				rightType = implicitType
+			}
+		}
+
 		// Variant allowed in logical/bitwise operations
 		leftIsVariant := leftType == types.VARIANT
 		rightIsVariant := rightType == types.VARIANT

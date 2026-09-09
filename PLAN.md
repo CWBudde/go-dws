@@ -80,37 +80,159 @@ Each line: what to build → fixtures/category it unlocks. Run
 
 ### 3.1 Parser
 
-- `[ ]` S `class property` inside record bodies + record auto-property backing fields →
-  PropertyExpressionsPass `class_property_expressions`, `class_property_write_expressions`, `property_auto_field`.
-- `[ ]` S Multi-index expression-backed indexed properties → PropertyExpressionsPass `indexed_expressions`.
-- `[ ]` S Deeply nested closing `>>` in generic type-argument lists → GenericsPass.
-- `[ ]` S `external` property syntax → JSONConnectorPass `property_name`.
-- `[ ]` S `array of T` as a property type in getter position → JSONConnectorPass `stringify_class_getter`.
-- `[ ]` S `{$I %FILE%}`-style value substitution → SimpleScripts.
+No open items. Closed 2026-09-09: `class property` in record bodies with auto-property backing
+fields, expression-backed and multi-index indexed properties, `external` property syntax, and
+nested `>>` in generic type-argument lists; see
+[`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
+
+- ✋ `{$I %FILE%}`-style value substitution: the only fixture, SimpleScripts `include_expr`, cannot
+  pass. Its expected output hardcodes the original Delphi runner's paths (`Test\include_expr.pas`,
+  `*MainModule*`), and neither `cmd/fixture-report` `normalize()` nor the Go harness normalizes
+  paths; `%FUNCTION%` is also not knowable at lex time. Reopen only with a path-normalizing harness.
+- ✋ `array of T` as a property type in getter position: measured 2026-09-09, already works.
 
 ### 3.2 Semantic
 
-- `[ ]` M Type-order-independent class builder (parents/fields declared later without `forward`);
-  needs a real two-phase class registration. Design input: `docs/architecture/semantic-passes.md`
-  (superseded design, never implemented).
-- `[ ]` S Gate the over-aggressive unused-private-field hint → unmasks JSONConnectorPass
-  serialization fixtures in the harness (they already pass in the CLI).
-- `[ ]` S Value-context auto-invoke of parameterless function pointers for `and`/`or` operands
-  (`Print`/`PrintLn`/`implies` already done).
-- `[ ]` S Helper-property resolution through a metaclass → PropertyExpressionsPass `helpers_property_expressions`.
-- `[ ]` S Indexed-property read through a metaclass with a class-method accessor → SimpleScripts `enum_to_integer`.
-- `[ ]` M Contract inheritance → SimpleScripts `method_contracts`; inline-method class name in
-  contract messages → `method_condition`.
-- `[ ]` M Generics follow-ups: generic interfaces (`interface1`), generic `external` classes and
-  function-pointer types (`class_external1`, `external_promise`, `func_ptr1`), external generic
-  method bodies (`function TTest<T>.Foo`), operator-overload specialization, `array of T` method
-  gaps (`array1`, `tlist1`) → GenericsPass (14/23).
-- `[ ]` M Overload leftovers: class `operator =`/`<>` overloading, `@obj.Method` pointers,
-  function-pointer parameter typing in overload sets, metaclass `inherited` → OverloadsPass (33/39).
-- `[ ]` S Set leftovers: array ↔ set conversion, `set of` record fields, out-of-range diagnostics
-  → SetOfPass (20/25).
-- `[ ]` S Lexer-time `Declared()` / `{$FATAL}` → ArrayPass/SetOfPass stragglers.
-- ✋ Subrange bounds at compile time: no fixture declares a subrange type; zero yield.
+**Done (2026-09-09):** parameterless function/method-pointer operands for `and` / `or`,
+including return-type checking, short-circuit execution, and exception propagation.
+Regression tests exercise the shared compile pipeline and production evaluator; completion
+and validation are recorded in
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--parameterless-callbacks-in-and--or-32).
+
+The remaining work is divided into bounded tasks below. IDs stay stable when neighboring
+items close. Fixture names are acceptance targets from the existing backlog; confirm the
+current failure before implementing a task, since §3.1 work may already remove a blocker.
+Close each task with a passing target fixture or a focused compile-and-run/diagnostic test.
+
+**Coordination:** complete the class-builder tasks in order. Other groups can proceed
+independently when their source ownership does not overlap. Coordinate property/record
+analysis and shared type changes with §3.1; serialize changes to the generic specializer,
+overload resolver, and class metadata within their respective groups. Runtime changes
+needed to finish a semantic task belong in the evaluator. Integrate PLAN/history and
+fixture-baseline updates after each completed task.
+
+#### 3.2.1 Class construction independent of declaration order
+
+**Closed 2026-09-09.** Class construction is now four explicit phases over the single type
+registry in `internal/semantic/class_construction.go` — identity, inheritance, member
+signatures before bodies, and ancestor-dependent validation after signatures. No second type
+registry was introduced. The old
+[semantic-passes design](docs/architecture/semantic-passes.md) remains design input only, not
+an implemented pass framework.
+
+**Done (2026-09-09):** L-S1a. Predeclaration is now an explicit two-phase construction in
+`internal/semantic/class_construction.go` (identity, then inheritance), still over the single
+type registry. Parent links and class-level shape flags are resolved before member/body
+checking, cycles and unknown parents stay diagnostics, and forward/partial behavior is
+unchanged; see
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--two-phase-class-construction-inheritance-before-members-l-s1a).
+
+**Done (2026-09-09):** L-S1b. Inline class method bodies are no longer checked where they are
+declared: the signature is registered in source order, the body is queued and checked once the
+last top-level class declaration has been analyzed, so every class has its full member surface
+(fields, class vars, constants, methods, properties) on its single shared shell first. A body
+may now name a class or a member declared later in the file; `SimpleScripts/method_implem` and
+`SimpleScripts/var_param_obj_method` newly pass (885 → 887). See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--class-member-signatures-complete-before-body-checking-l-s1b).
+
+**Done (2026-09-09):** L-S1c, closing this section. A fourth phase postpones the
+ancestor-dependent validations (`validateVirtualOverride` per method; `checkMethodOverriding`,
+`validateInterfaceImplementation` and `validateAbstractClass` as the class tail) into a queue
+drained with the deferred bodies, and only when an ancestor's declarations are still
+outstanding — so `override` and `inherited` against a parent declared later now work, while
+every negative case keeps its existing message and position. Fixtures unchanged at 887 with an
+identical failing list. Remaining order dependency, documented rather than fixed: a statement
+such as `var c := TC.Create;` written before the abstract ancestor's declaration is still
+checked in source order and misses the abstract-instantiation error. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--ancestor-dependent-class-validation-after-signatures-complete-l-s1c).
+
+#### 3.2.2 Diagnostics and metaclass properties
+
+These are separate fixes; none requires the class-builder refactor as a prerequisite.
+
+- **L-S2a** `[ ]` S — Correct unused-private-field hint eligibility/usage tracking. First
+  reproduce the alleged JSON serialization mismatch through the current shared pipeline;
+  retain legitimate pedantic hints and property-access usage. Coordinate with §3.1 backing
+  fields. Acceptance: an affected JSONConnectorPass serialization fixture matches its
+  diagnostic envelope, plus a regression for a genuinely unused field.
+- **L-S2b** `[ ]` S — Resolve helper properties through a metaclass →
+  PropertyExpressionsPass `helpers_property_expressions`. Cover getter and setter resolution
+  using existing property metadata; coordinate with §3.1 property handling.
+- **L-S2c** `[ ]` S — Resolve indexed reads through a metaclass when the accessor is a class
+  method → SimpleScripts `enum_to_integer`. Preserve the accessor's class receiver and
+  validate index arguments; coordinate shared index validation with §3.4.
+
+#### 3.2.3 Contracts
+
+- **L-S3a** `[ ]` S — Inherit `require` conditions on inherited and overridden methods.
+  Acceptance: focused compile-and-run cases from SimpleScripts `method_contracts`, including
+  dispatch through a base-typed reference and the upstream combination of base/derived conditions.
+- **L-S3b** `[ ]` S — Inherit and combine `ensure` conditions, preserving the declaring method's
+  context and any `old(...)` capture. Coordinate contract metadata with L-S3a; acceptance:
+  focused postcondition cases and the complete `method_contracts` fixture after both land.
+- **L-S3c** `[ ]` S — Include the declaring class name in inline-method contract messages →
+  SimpleScripts `method_condition`. Independent of inheritance; keep shared source-column
+  precision work in §3.3 separate.
+
+#### 3.2.4 Generics
+
+Keep specialization changes focused on one capability at a time. Coordinate syntax support
+with §3.1, especially nested type-argument delimiters and out-of-line generic method headers.
+
+- **L-S4a** `[ ]` S — Specialize generic interfaces and their method signatures →
+  GenericsPass `interface1`.
+- **L-S4b** `[ ]` M — Specialize generic `external` class declarations and member signatures →
+  `class_external1`, `external_promise`. Distinguish compile support from any host runtime
+  binding requirement before claiming a fixture is closed.
+- **L-S4c** `[ ]` S — Specialize generic function-pointer parameter and return types → `func_ptr1`.
+- **L-S4d** `[ ]` M — Bind out-of-line generic method bodies such as
+  `function TTest<T>.Foo` to their declaration and specialized type parameters. Acceptance:
+  a compile-and-run regression with multiple concrete specializations; parser support must
+  be present first.
+- **L-S4e** `[ ]` S — Resolve operators against concrete specialization types →
+  `specialize_to_operator_overload`; cover both built-in and user-defined operators.
+- **L-S4f** `[ ]` M — Complete `array of T` substitution and method-call typing → `array1`,
+  `tlist1`. Depends on L-S4d where methods are defined out of line; preserve array bounds
+  and parameter modes through specialization.
+
+#### 3.2.5 Overloads and method pointers
+
+- **L-S5a** `[ ]` S — Resolve and dispatch class `operator =` / `<>` overloads →
+  OverloadsPass `class_equal_diff`.
+- **L-S5b** `[ ]` S — Type and bind `@obj.Method` in overload arguments without invoking it →
+  `class_vs_proc`. Keep address-of-class-member runtime work in §3.3 separate.
+- **L-S5c** `[ ]` S — Use expected function-pointer signatures to select overload candidates →
+  `overload_func_ptr_param`; retain ambiguity and incompatible-signature diagnostics.
+  Coordinate with §3.4's expected-type overload-resolution item.
+- **L-S5d** `[ ]` S — Resolve metaclass `inherited` calls with the correct overload and class
+  receiver → `overload_on_metaclass`. Coordinate class dispatch with L-S2c when files overlap.
+
+#### 3.2.6 Sets
+
+- **L-S6a** `[ ]` S — Complete array ↔ set conversions, including empty inputs and element
+  compatibility → SetOfPass `array_to_set`, `init_from_array`, `init_from_empty_array`.
+  Add a focused reverse-conversion test if the corpus does not exercise that direction.
+- **L-S6b** `[ ]` S — Resolve `set of` record fields consistently through analysis and runtime
+  metadata → `set_in_record`. Coordinate with §3.1 record changes.
+- **L-S6c** `[ ]` S — Finish set range validation and out-of-range diagnostics → relevant
+  SetOfFail cases, with `in_set_out_of_range` protecting membership behavior. Coordinate
+  evaluator enum-range checks with §3.4; do not add unrequested subrange-type support.
+
+#### 3.2.7 Conditional compilation (lexer/semantic coordination)
+
+The old ArrayPass/SetOfPass attribution needs re-identification: no `Declared(` or
+`{$FATAL` occurrence was found in those current `.pas` sources during this refinement.
+Keep these tasks scoped to reproduced cases, including their include files.
+
+- **L-S7a** `[ ]` S — Identify the failing conditional-compilation case, then expose the
+  appropriate declaration visibility to lexer-time `Declared()`. Acceptance: compile tests
+  for present/absent identifiers, case-insensitivity, and inactive branches. Coordinate the
+  lexer/preprocessor boundary with §3.1 value substitution.
+- **L-S7b** `[ ]` S — Identify the failing `{$FATAL}` case, then implement active-branch fatal
+  diagnostics with source position and message parity. Depends on L-S7a only when the branch
+  condition uses `Declared()`; verify that inactive branches emit no fatal diagnostic.
+
+✋ Subrange bounds at compile time: no fixture declares a subrange type; zero yield.
 
 ### 3.3 Runtime / evaluator
 

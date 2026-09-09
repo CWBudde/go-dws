@@ -69,6 +69,23 @@ var getValue := lambda(): Integer => 42;
 PrintLn(IntToStr(getValue()));  // Output: 42
 ```
 
+Parameterless function pointers, lambdas, and bound method pointers used as `and`
+or `or` operands are invoked automatically:
+
+```pascal
+var ready: function: Boolean := lambda => True;
+PrintLn(ready and True);  // Output: True
+PrintLn(False or ready); // Output: True
+```
+
+Operands are evaluated from left to right. Boolean `and` skips the right operand
+when the left is false; Boolean `or` skips it when the left is true. Each callback
+that is needed runs once. Integer and enum results use bitwise operations and
+evaluate both operands. Variant results follow the existing Variant operator rules.
+Exceptions from invoked callbacks propagate normally, including nil-pointer calls;
+a skipped callback is never invoked. Assigning a callback to another function
+pointer still preserves the callback without invoking it.
+
 ### Type Inference
 
 Return types can be inferred from the lambda body:

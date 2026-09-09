@@ -245,6 +245,20 @@ func (e *Evaluator) evaluateLValueMember(target *ast.MemberAccessExpression, ctx
 
 		currentVal := obj.GetField(fieldName)
 		if currentVal == nil {
+			// A class var reached through an instance (`obj.ClassVar.Field := v`).
+			// It is shared storage on the class, so both the read and the write
+			// back must target the class slot rather than a per-instance field.
+			if classVarValue, found := obj.GetClassVar(fieldName); found {
+				assignFunc := func(value Value) error {
+					if classInfo := e.classInfoForMethodSelf(objVal); classInfo != nil {
+						if e.setClassVarValue(classInfo, fieldName, value) {
+							return nil
+						}
+					}
+					return fmt.Errorf("class var '%s' not found in class '%s'", fieldName, obj.ClassName())
+				}
+				return classVarValue, assignFunc, nil
+			}
 			return nil, nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.ClassName())
 		}
 

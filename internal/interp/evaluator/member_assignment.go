@@ -186,12 +186,31 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 
 	// NATIVE: Object field/property assignment
 	if objValIface, ok := objVal.(ObjectValue); ok {
+		// Class properties are statically bound, like the field writes below:
+		// TBase(child).ClassProp := v writes TBase's declaration even when
+		// child's dynamic class redeclares the same name.
+		if pInfo := e.staticClassPropertyOf(objValIface, fieldName, staticClassName); pInfo != nil {
+			return e.executePropertyWrite(objVal, pInfo, value, stmt, ctx)
+		}
+
 		// Check if this is a property (has priority over fields)
 		if objValIface.HasProperty(fieldName) {
 			// Property assignment via callback pattern
 			return objValIface.WriteProperty(fieldName, value, func(propInfo any, val Value) Value {
 				return e.executePropertyWrite(objVal, propInfo, val, stmt, ctx)
 			})
+		}
+
+		// A class var is shared storage on the class, not per-instance state.
+		// Reaching it through an instance (`obj.ClassVar := v`) must write that
+		// shared slot; the field assignment below would instead create an
+		// instance field shadowing it, silently losing the write.
+		if classInfo := e.classInfoForMethodSelf(objVal); classInfo != nil {
+			if _, owner := classInfo.LookupClassVar(fieldName); owner != nil {
+				if e.setClassVarValue(classInfo, fieldName, value) {
+					return value
+				}
+			}
 		}
 
 		// Direct field assignment (resolved against the static class of the

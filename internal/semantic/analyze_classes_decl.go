@@ -363,6 +363,9 @@ func (a *Analyzer) collectNestedAliases(aliases map[string]string, stmt ast.Stat
 
 // analyzeClassDecl analyzes a class declaration.
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
+	// Phase 4 bookkeeping: this declaration no longer contributes members, on
+	// every exit path including the early diagnostic returns.
+	defer a.markClassDeclAnalyzed(decl)
 	defer func() {
 		if decl != nil && decl.Name != nil {
 			a.recordDeclaredType(decl, classFullName(decl))
@@ -538,6 +541,12 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 
 			classType.ClassVars[normalizedFieldName] = fieldType
 			classType.ClassVarVisibility[normalizedFieldName] = int(field.Visibility)
+			if classType.ClassVarDeclNames == nil {
+				classType.ClassVarDeclNames = make(map[string]string)
+			}
+			if _, exists := classType.ClassVarDeclNames[normalizedFieldName]; !exists {
+				classType.ClassVarDeclNames[normalizedFieldName] = originalFieldName
+			}
 		} else {
 			// Handle instance fields.
 			fieldExists := false
@@ -605,13 +614,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		a.analyzePropertyDecl(property, classType)
 	}
 	a.registerClassOperators(classType, decl)
-	if parentClass != nil {
-		a.checkMethodOverriding(classType, parentClass)
-	}
-	if len(decl.Interfaces) > 0 {
-		a.validateInterfaceImplementation(classType, decl)
-	}
-	a.validateAbstractClass(classType)
+	a.deferClassTailValidation(decl, classType, parentClass)
 }
 
 // analyzeMethodImplementation analyzes an out-of-line method implementation.
@@ -1044,34 +1047,52 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	}
 	classType.SetMethodDeclPosition(method.Name.Value, method.Name.Token.Pos)
 
+	// Phase 4 of class construction: ancestor-dependent validation waits until
+	// every ancestor's members are registered. See class_construction.go.
+	a.deferOverrideValidation(method, classType, funcType)
+
+	// Phase 3 of class construction: the signature is registered above, in source
+	// order; the body is checked only once every class member signature exists.
+	// See class_construction.go.
+	a.deferMethodBody(deferredMethodBody{
+		method:                 method,
+		classType:              classType,
+		outerSymbols:           a.symbols,
+		nestedTypes:            a.currentNestedTypes,
+		paramTypes:             paramTypes,
+		returnType:             returnType,
+		inUnitDecl:             a.inUnitDecl,
+		wasExplicitConstructor: wasExplicitConstructor,
+	})
+}
+
+// checkMethodBody analyzes one inline class method body in a freshly built
+// method scope. It is called either immediately from deferMethodBody or later,
+// when the deferred-body queue is drained.
+func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
+	method := deferred.method
+	classType := deferred.classType
+	paramTypes := deferred.paramTypes
+	returnType := deferred.returnType
+	wasExplicitConstructor := deferred.wasExplicitConstructor
+
+	previousClass := a.currentClass
+	a.currentClass = classType
+	defer func() { a.currentClass = previousClass }()
+	previousNestedTypes := a.currentNestedTypes
+	a.currentNestedTypes = deferred.nestedTypes
+	defer func() { a.currentNestedTypes = previousNestedTypes }()
+	previousInUnitDecl := a.inUnitDecl
+	a.inUnitDecl = deferred.inUnitDecl
+	defer func() { a.inUnitDecl = previousInUnitDecl }()
+
 	// Analyze method body in a new scope.
 	oldSymbols := a.symbols
-	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	a.symbols = NewEnclosedSymbolTable(deferred.outerSymbols)
 	defer func() { a.symbols = oldSymbols }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
-	if method.IsClassMethod {
-		// Static methods only access class variables.
-		for classVarName, classVarType := range classType.ClassVars {
-			a.symbols.Define(classVarName, classVarType, token.Position{})
-		}
-		if classType.Parent != nil {
-			a.addParentClassVarsToScope(classType.Parent)
-		}
-	} else {
-		// Instance methods have 'Self' and access to all members.
-		a.symbols.Define("Self", classType, method.Token.Pos)
-		for fieldName, fieldType := range classType.Fields {
-			a.symbols.Define(fieldName, fieldType, token.Position{})
-		}
-		for classVarName, classVarType := range classType.ClassVars {
-			a.symbols.Define(classVarName, classVarType, token.Position{})
-		}
-		if classType.Parent != nil {
-			a.addParentFieldsToScope(classType.Parent)
-			a.addParentClassVarsToScope(classType.Parent)
-		}
-	}
+	a.defineMethodScopeMembers(method, classType)
 
 	// Add parameters and 'Result' variable to scope.
 	for i, param := range method.Parameters {
@@ -1106,10 +1127,38 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	defer func() { a.inClassMethod = previousInClassMethod }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
-	a.validateVirtualOverride(method, classType, funcType)
-
 	if method.Body != nil {
 		a.analyzeBlock(method.Body)
+	}
+}
+
+// defineMethodScopeMembers populates the current method scope with the members
+// a method body may name without qualification.
+func (a *Analyzer) defineMethodScopeMembers(method *ast.FunctionDecl, classType *types.ClassType) {
+	if method.IsClassMethod {
+		// Static methods only access class variables. ClassVars is keyed by the
+		// normalized name, so bind the declared casing to avoid bogus
+		// case-mismatch hints in the method body.
+		for classVarName, classVarType := range classType.ClassVars {
+			a.symbols.Define(classType.DeclaredClassVarName(classVarName), classVarType, token.Position{})
+		}
+		if classType.Parent != nil {
+			a.addParentClassVarsToScope(classType.Parent)
+		}
+		return
+	}
+
+	// Instance methods have 'Self' and access to all members.
+	a.symbols.Define("Self", classType, method.Token.Pos)
+	for fieldName, fieldType := range classType.Fields {
+		a.symbols.Define(fieldName, fieldType, token.Position{})
+	}
+	for classVarName, classVarType := range classType.ClassVars {
+		a.symbols.Define(classType.DeclaredClassVarName(classVarName), classVarType, token.Position{})
+	}
+	if classType.Parent != nil {
+		a.addParentFieldsToScope(classType.Parent)
+		a.addParentClassVarsToScope(classType.Parent)
 	}
 }
 

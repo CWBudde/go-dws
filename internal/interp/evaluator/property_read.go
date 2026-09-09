@@ -414,12 +414,75 @@ func (e *Evaluator) executeIndexedPropertyRead(obj Value, propInfo any, indices 
 		return e.executeIndexedPropertyGetterMethod(obj, objVal, pInfo, indices, node, ctx)
 
 	case types.PropAccessExpression:
-		// Expression-based indexed properties not supported yet
-		return e.newError(node, "expression-based indexed property getters not yet supported")
+		return e.executeIndexedPropertyExpressionRead(obj, pInfo, indices, node, ctx)
 
 	default:
 		return e.newError(node, "indexed property '%s' has no read access", pInfo.Name)
 	}
+}
+
+// executeIndexedPropertyExpressionRead evaluates an expression-based indexed
+// property getter, e.g. `property Arr[i: Integer]: Integer read (F[i])`. It is
+// executeExpressionBackedPropertyRead plus the index parameters bound by name,
+// so the expression can reference them the way a getter method body would.
+func (e *Evaluator) executeIndexedPropertyExpressionRead(obj Value, pInfo *types.PropertyInfo, indices []Value, node ast.Node, ctx *ExecutionContext) Value {
+	if len(pInfo.IndexParamNames) != len(indices) {
+		return e.newError(node, "indexed property '%s' expects %d index argument(s), got %d",
+			pInfo.Name, len(pInfo.IndexParamNames), len(indices))
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+
+	if errVal := e.bindIndexedPropertyReadScope(obj, pInfo.IndexParamNames, indices, ctx); errVal != nil {
+		return errVal
+	}
+
+	exprNode, ok := pInfo.ReadExpr.(ast.Expression)
+	if !ok {
+		return e.newError(node, "property '%s' has invalid expression type", pInfo.Name)
+	}
+	if groupedExpr, ok := exprNode.(*ast.GroupedExpression); ok {
+		exprNode = groupedExpr.Expression
+	}
+
+	return e.Eval(exprNode, ctx)
+}
+
+// bindIndexedPropertyReadScope binds Self, the receiver's fields, and the index
+// parameters for an expression-based indexed property getter. The caller owns the
+// pushed environment.
+func (e *Evaluator) bindIndexedPropertyReadScope(obj Value, paramNames []string, indices []Value, ctx *ExecutionContext) Value {
+	e.bindPropertyExprSelf(obj, ctx)
+
+	if fieldBinder, ok := obj.(FieldBinder); ok {
+		fieldBinder.BindFieldsToEnvironment(func(name string, value Value) {
+			e.DefineVar(ctx, name, value)
+		})
+	}
+
+	return e.bindIndexedPropertyParams(paramNames, indices, ctx)
+}
+
+// bindIndexedPropertyWriteScope binds Self and the index parameters for an
+// expression-based indexed property setter. Unlike the read scope it deliberately
+// does not copy the receiver's fields into the environment: a setter such as
+// `write (F := Value)` must fall through to implicit-Self assignment, and a local
+// binding named F would swallow the write instead. Bare reads of F still resolve
+// through Self, exactly as they do in the non-indexed setter path.
+func (e *Evaluator) bindIndexedPropertyWriteScope(obj Value, paramNames []string, indices []Value, ctx *ExecutionContext) Value {
+	e.bindPropertyExprSelf(obj, ctx)
+
+	return e.bindIndexedPropertyParams(paramNames, indices, ctx)
+}
+
+// bindIndexedPropertyParams defines the index parameters by name. They bind last
+// so they shadow any same-named member.
+func (e *Evaluator) bindIndexedPropertyParams(paramNames []string, indices []Value, ctx *ExecutionContext) Value {
+	for i, name := range paramNames {
+		e.DefineVar(ctx, name, indices[i])
+	}
+	return nil
 }
 
 // executeIndexedPropertyGetterMethod executes an indexed property getter method.

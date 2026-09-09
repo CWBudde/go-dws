@@ -27,6 +27,21 @@ func formatInt(v int) string {
 }
 
 // analyzePropertyDecl validates a property declaration and registers it in the class metadata.
+// propertyIndexParamNames returns the declared index parameter names in order.
+func propertyIndexParamNames(params []*ast.Parameter) []string {
+	if len(params) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(params))
+	for _, param := range params {
+		if param == nil || param.Name == nil {
+			continue
+		}
+		names = append(names, param.Name.Value)
+	}
+	return names
+}
+
 func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.ClassType) {
 	propName := prop.Name.Value
 
@@ -154,6 +169,9 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		IsIndexed:       isIndexed,
 		IsDefault:       prop.IsDefault,
 		IsClassProperty: prop.IsClassProperty,
+		ExternalName:    prop.ExternalName,
+		IndexParamNames: propertyIndexParamNames(prop.IndexParams),
+		IndexParamTypes: indexParamTypes,
 	}
 	if prop.IndexValue != nil {
 		propInfo.HasIndexValue = true
@@ -215,7 +233,9 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		// Check class-level members first: class vars, then constants, then instance fields
 
 		// 1. Check if it's a class variable (only for class properties)
-		if fieldType, found := classType.ClassVars[pkgident.Normalize(readSpecName)]; found {
+		// GetClassVar walks the inheritance chain: a subclass property may be
+		// backed by a class var declared on an ancestor.
+		if fieldType, found := classType.GetClassVar(readSpecName); found {
 			fieldOwner := a.getClassVarOwner(classType, readSpecName)
 			if fieldOwner != nil {
 				visibility, hasVisibility := fieldOwner.ClassVarVisibility[pkgident.Normalize(readSpecName)]
@@ -232,6 +252,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 						"property '"+propName+"' read class variable '"+readSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
 					return
 				}
+				a.recordClassFieldUsage(classType, readSpecName)
 				propInfo.ReadKind = types.PropAccessField
 				propInfo.ReadSpec = readSpecName
 				return
@@ -342,6 +363,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				return
 			}
 
+			a.recordClassMethodUsage(classType, readSpecName)
 			propInfo.ReadKind = types.PropAccessMethod
 			propInfo.ReadSpec = readSpecName
 			return
@@ -350,16 +372,6 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		// Neither field nor method found
 		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
 			"property '"+propName+"' read specifier '"+readSpecName+"' not found in class '"+classType.Name+"'"))
-		return
-	}
-
-	// Expression-based accessors on indexed properties are not yet supported by
-	// the runtime (executeIndexedPropertyRead rejects them). Reject at analysis
-	// time so the declaration fails fast with a clear message rather than being
-	// accepted and erroring at the access site.
-	if len(prop.IndexParams) > 0 {
-		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
-			"indexed property '"+propName+"' does not support an expression-based read accessor"))
 		return
 	}
 
@@ -436,7 +448,8 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 	if propInfo.IsClassProperty {
 		// Class property must use class variable
-		fieldType, found = classType.ClassVars[pkgident.Normalize(writeSpecName)]
+		// GetClassVar walks the inheritance chain (see validateReadSpec).
+		fieldType, found = classType.GetClassVar(writeSpecName)
 		if found {
 			fieldOwner := a.getClassVarOwner(classType, writeSpecName)
 			if fieldOwner != nil {
@@ -478,6 +491,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		// The backing field is referenced by this accessor; mark it used
 		// so it is not flagged as an unused private field.
 		a.recordClassFieldUsage(a.getFieldOwner(classType, writeSpecName), writeSpecName)
+		a.recordClassFieldUsage(classType, writeSpecName)
 		propInfo.WriteKind = types.PropAccessField
 		propInfo.WriteSpec = writeSpecName
 		return
@@ -547,6 +561,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			return
 		}
 
+		a.recordClassMethodUsage(classType, writeSpecName)
 		propInfo.WriteKind = types.PropAccessMethod
 		propInfo.WriteSpec = writeSpecName
 		return
@@ -562,14 +577,6 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 // as implicit context and the special `Value` parameter bound to the property
 // type. The AST statement is stored for runtime evaluation.
 func (a *Analyzer) validateWriteExprSpec(prop *ast.PropertyDecl, classType *types.ClassType, propInfo *types.PropertyInfo) {
-	// Expression-based setters on indexed properties are not yet supported by the
-	// runtime (no way to supply index arguments). Reject at analysis time.
-	if len(prop.IndexParams) > 0 {
-		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
-			"indexed property '"+prop.Name.Value+"' does not support an expression-based write accessor"))
-		return
-	}
-
 	savedClass := a.currentClass
 	savedInClassMethod := a.inClassMethod
 	savedInPropertyExpr := a.inPropertyExpr
@@ -635,8 +642,10 @@ func (a *Analyzer) bindClassPropertyExprScope(classType *types.ClassType, isClas
 		}
 	}
 
+	// ClassVars is keyed by normalized name; bind the declared casing so a use
+	// spelled as declared does not trip the case-mismatch hint.
 	for classVarName, classVarType := range classType.ClassVars {
-		a.symbols.Define(classVarName, classVarType, token.Position{})
+		a.symbols.Define(classType.DeclaredClassVarName(classVarName), classVarType, token.Position{})
 	}
 	if classType.Parent != nil {
 		a.addParentClassVarsToScope(classType.Parent)

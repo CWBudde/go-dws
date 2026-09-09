@@ -1,0 +1,12 @@
+False
+True
+False
+True
+callback failed
+callback failed
+callback failed
+callback failed
+Function pointer is nil
+Function pointer is nil
+Function pointer is nil
+Function pointer is nil

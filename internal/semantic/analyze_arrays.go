@@ -81,6 +81,12 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		}
 	}
 
+	// Multi-index properties: obj.Prop[i, j] parses as obj.Prop[i][j], so the
+	// whole chain has to be resolved against one property declaration.
+	if propType, handled := a.analyzeMultiIndexPropertyAccess(expr); handled {
+		return propType
+	}
+
 	// Analyze the left side (what's being indexed)
 	leftType := a.analyzeExpression(expr.Left)
 	if leftType == nil {
@@ -296,6 +302,68 @@ func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessEx
 	return nil
 }
 
+// analyzeMultiIndexPropertyAccess resolves an indexed property that takes more
+// than one index. `obj.Prop[i, j]` parses as the chain `obj.Prop[i][j]`, so the
+// indices must be collected back together and checked against the single
+// property declaration at the root of the chain. Returns handled=false when the
+// expression is not such a chain, leaving the ordinary indexing rules to apply.
+func (a *Analyzer) analyzeMultiIndexPropertyAccess(expr *ast.IndexExpression) (types.Type, bool) {
+	// Collect the chain outermost-first, then reverse into declaration order.
+	indices := []ast.Expression{expr.Index}
+	root := expr.Left
+	for {
+		inner, ok := root.(*ast.IndexExpression)
+		if !ok {
+			break
+		}
+		indices = append(indices, inner.Index)
+		root = inner.Left
+	}
+	if len(indices) < 2 {
+		return nil, false
+	}
+	for i, j := 0, len(indices)-1; i < j; i, j = i+1, j-1 {
+		indices[i], indices[j] = indices[j], indices[i]
+	}
+
+	memberAccess, ok := root.(*ast.MemberAccessExpression)
+	if !ok {
+		return nil, false
+	}
+	objectType := a.analyzeExpression(memberAccess.Object)
+	if objectType == nil {
+		return nil, false
+	}
+	objectResolved := types.GetUnderlyingType(objectType)
+	if metaclassType, ok := objectResolved.(*types.ClassOfType); ok {
+		objectResolved = metaclassType.ClassType
+	}
+	classType, ok := objectResolved.(*types.ClassType)
+	if !ok {
+		return nil, false
+	}
+	propInfo, found := classType.GetProperty(ident.Normalize(memberAccess.Member.Value))
+	if !found || !propInfo.IsIndexed {
+		return nil, false
+	}
+
+	expectedIndexTypes := a.getIndexedPropertyParamTypes(propInfo, classType)
+	// Only claim the chain when its length matches the declared arity; a shorter
+	// or longer chain indexes into the property's own (array) result type.
+	if len(expectedIndexTypes) != len(indices) {
+		return nil, false
+	}
+
+	for i, indexExpr := range indices {
+		indexType := a.analyzeExpressionWithExpectedType(indexExpr, expectedIndexTypes[i])
+		if indexType != nil && !a.canAssign(indexType, expectedIndexTypes[i]) {
+			a.addStructuredError(NewArrayIndexError(indexExpr.Pos(), expectedIndexTypes[i].String(), indexType.String()))
+			return propInfo.Type, true
+		}
+	}
+	return propInfo.Type, true
+}
+
 // getDefaultClassProperty walks the class hierarchy to find a default property, if any.
 func (a *Analyzer) getDefaultClassProperty(classType *types.ClassType) *types.PropertyInfo {
 	for current := classType; current != nil; current = current.Parent {
@@ -315,6 +383,12 @@ func (a *Analyzer) getDefaultClassProperty(classType *types.ClassType) *types.Pr
 //
 // If no method information is available, returns nil.
 func (a *Analyzer) getIndexedPropertyParamTypes(propInfo *types.PropertyInfo, classType *types.ClassType) []types.Type {
+	// Declared index parameters are authoritative and, unlike an accessor
+	// method's signature, are also available for expression-based accessors.
+	if len(propInfo.IndexParamTypes) > 0 {
+		return propInfo.IndexParamTypes
+	}
+
 	// Use getter signature if it is a method
 	if propInfo.ReadKind == types.PropAccessMethod && propInfo.ReadSpec != "" {
 		if methodType, found := classType.GetMethod(ident.Normalize(propInfo.ReadSpec)); found {

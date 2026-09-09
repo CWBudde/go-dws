@@ -295,6 +295,9 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			WriteField: prop.WriteField,
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
+
+			IsClassProperty: prop.IsClassProperty,
+			ExternalName:    prop.ExternalName,
 		}
 
 		// Determine read/write access kinds (field vs. expression).

@@ -3,6 +3,7 @@ package parser
 import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	pkgident "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // parseRecordOrHelperDeclaration determines if this is a record or helper declaration (dispatcher).
@@ -196,8 +197,19 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 				cursor = p.cursor.Advance()
 				p.cursor = cursor
 				continue
+			} else if cursor.Current().Type == lexer.PROPERTY {
+				// Class property: class property Name: Type read X write Y;
+				prop := p.parseRecordPropertyDeclaration()
+				if prop != nil {
+					prop.IsClassProperty = true
+					recordDecl.Properties = append(recordDecl.Properties, *prop)
+					p.addRecordAutoPropertyBackingField(recordDecl, prop, currentVisibility)
+				}
+				cursor = p.cursor.Advance()
+				p.cursor = cursor
+				continue
 			} else {
-				p.addError("expected 'var', 'const', 'function' or 'procedure' after 'class' keyword in record", ErrUnexpectedToken)
+				p.addError("expected 'var', 'const', 'function', 'procedure' or 'property' after 'class' keyword in record", ErrUnexpectedToken)
 				cursor = cursor.Advance()
 				p.cursor = cursor
 				continue
@@ -228,6 +240,7 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 			prop := p.parseRecordPropertyDeclaration()
 			if prop != nil {
 				recordDecl.Properties = append(recordDecl.Properties, *prop)
+				p.addRecordAutoPropertyBackingField(recordDecl, prop, currentVisibility)
 			}
 			cursor = p.cursor.Advance()
 			p.cursor = cursor
@@ -390,7 +403,50 @@ func (p *Parser) parseRecordPropertyWriteClause(prop *ast.RecordPropertyDecl) bo
 // PRE: cursor is PROPERTY
 // POST: cursor is SEMICOLON
 //
+// addRecordAutoPropertyBackingField synthesizes the backing member for a
+// field-less (auto) record property such as `property Alpha: Integer;`. The
+// parser has already pointed the property's read/write specifiers at `F<Name>`;
+// here we add the matching member so the analyzer and runtime have real storage.
+// An instance property backs onto a field, a class property onto a class var.
+// Record counterpart of Parser.addAutoPropertyBackingField.
+//
 //nolint:gocyclo // Property parser handling multiple directives
+func (p *Parser) addRecordAutoPropertyBackingField(recordDecl *ast.RecordDecl, property *ast.RecordPropertyDecl, visibility ast.Visibility) {
+	if property == nil || !property.IsAutoProperty || property.Name == nil || property.Type == nil {
+		return
+	}
+	backingName := "F" + property.Name.Value
+	// Do not duplicate a member the user declared explicitly. Match on storage
+	// kind too: an existing F<Name> of the opposite kind must not suppress the
+	// backing member this property actually needs.
+	existing := recordDecl.Fields
+	if property.IsClassProperty {
+		existing = recordDecl.ClassVars
+	}
+	for _, f := range existing {
+		if f != nil && f.Name != nil && pkgident.Equal(f.Name.Value, backingName) {
+			return
+		}
+	}
+	field := &ast.FieldDecl{
+		Name: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: property.Name.Token},
+			},
+			Value: backingName,
+		},
+		Type:       property.Type,
+		Visibility: visibility,
+		IsClassVar: property.IsClassProperty,
+	}
+	field.Token = property.Name.Token
+	if property.IsClassProperty {
+		recordDecl.ClassVars = append(recordDecl.ClassVars, field)
+	} else {
+		recordDecl.Fields = append(recordDecl.Fields, field)
+	}
+}
+
 func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	cursor := p.cursor
 	propToken := cursor.Current() // 'property' token
@@ -506,6 +562,19 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 		IsDefault:   false,
 	}
 
+	// Parse optional 'external' clause: property P : T external 'name' read F;
+	// The external name replaces the property name in JSON serialization.
+	if cursor.Peek(1).Type == lexer.EXTERNAL {
+		cursor = cursor.Advance() // move to 'external'
+		p.cursor = cursor
+		prop.IsExternal = true
+		if cursor.Peek(1).Type == lexer.STRING {
+			cursor = cursor.Advance() // move to the name literal
+			p.cursor = cursor
+			prop.ExternalName = cursor.Current().Literal
+		}
+	}
+
 	// Parse optional 'read' clause
 	if cursor.Peek(1).Type == lexer.READ {
 		cursor = cursor.Advance() // move to 'read'
@@ -555,6 +624,16 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 			p.addError("expected identifier after 'write'", ErrExpectedIdent)
 			return nil
 		}
+	}
+
+	// A property declared without read/write specifiers is an auto-property: it
+	// reads and writes a compiler-synthesized backing member named F<Name>.
+	// Mirrors the class-side desugaring in parsePropertyDeclaration.
+	if prop.ReadField == "" && prop.WriteField == "" && prop.ReadExpr == nil && prop.WriteStmt == nil {
+		backingName := "F" + propName.Value
+		prop.ReadField = backingName
+		prop.WriteField = backingName
+		prop.IsAutoProperty = true
 	}
 
 	// Expect semicolon first

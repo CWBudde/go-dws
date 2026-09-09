@@ -50,8 +50,8 @@ func (e *Evaluator) evalCoalesceOp(node *ast.BinaryExpression, ctx *ExecutionCon
 // For integers: bitwise AND.
 func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
 	// Evaluate left operand
-	left := e.Eval(node.Left, ctx)
-	if isError(left) {
+	left := e.evalValueContextExpression(node.Left, ctx)
+	if isError(left) || ctx.Exception() != nil {
 		return left
 	}
 	if left == nil {
@@ -61,8 +61,8 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 	// For integers, 'and' is bitwise AND (not short-circuit)
 	if runtime.KindOf(left) == runtime.KindInteger {
 		// Need to evaluate right operand for bitwise operation
-		right := e.Eval(node.Right, ctx)
-		if isError(right) {
+		right := e.evalValueContextExpression(node.Right, ctx)
+		if isError(right) || ctx.Exception() != nil {
 			return right
 		}
 		if right == nil {
@@ -84,8 +84,8 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 		}
 
 		// Left is true, evaluate right
-		right := e.Eval(node.Right, ctx)
-		if isError(right) {
+		right := e.evalValueContextExpression(node.Right, ctx)
+		if isError(right) || ctx.Exception() != nil {
 			return right
 		}
 		if right == nil {
@@ -126,8 +126,8 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 			}
 		}
 		// Fall through to evaluate right operand
-		right := e.Eval(node.Right, ctx)
-		if isError(right) {
+		right := e.evalValueContextExpression(node.Right, ctx)
+		if isError(right) || ctx.Exception() != nil {
 			return right
 		}
 		if right == nil {
@@ -138,8 +138,8 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 
 	// Handle Enum types - bitwise AND (not short-circuit)
 	if runtime.KindOf(left) == runtime.KindEnum {
-		right := e.Eval(node.Right, ctx)
-		if isError(right) {
+		right := e.evalValueContextExpression(node.Right, ctx)
+		if isError(right) || ctx.Exception() != nil {
 			return right
 		}
 		if right == nil {
@@ -156,8 +156,8 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 // For integers: bitwise OR.
 func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
 	// Evaluate left operand
-	left := e.Eval(node.Left, ctx)
-	if isError(left) {
+	left := e.evalValueContextExpression(node.Left, ctx)
+	if isError(left) || ctx.Exception() != nil {
 		return left
 	}
 	if left == nil {
@@ -167,8 +167,8 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 	// For integers, 'or' is bitwise OR (not short-circuit)
 	if runtime.KindOf(left) == runtime.KindInteger {
 		// Need to evaluate right operand for bitwise operation
-		right := e.Eval(node.Right, ctx)
-		if isError(right) {
+		right := e.evalValueContextExpression(node.Right, ctx)
+		if isError(right) || ctx.Exception() != nil {
 			return right
 		}
 		if right == nil {
@@ -190,8 +190,8 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 		}
 
 		// Left is false, evaluate right
-		right := e.Eval(node.Right, ctx)
-		if isError(right) {
+		right := e.evalValueContextExpression(node.Right, ctx)
+		if isError(right) || ctx.Exception() != nil {
 			return right
 		}
 		if right == nil {
@@ -232,8 +232,8 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 			}
 		}
 		// Fall through to evaluate right operand
-		right := e.Eval(node.Right, ctx)
-		if isError(right) {
+		right := e.evalValueContextExpression(node.Right, ctx)
+		if isError(right) || ctx.Exception() != nil {
 			return right
 		}
 		if right == nil {
@@ -244,8 +244,8 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 
 	// Handle Enum types - bitwise OR (not short-circuit)
 	if runtime.KindOf(left) == runtime.KindEnum {
-		right := e.Eval(node.Right, ctx)
-		if isError(right) {
+		right := e.evalValueContextExpression(node.Right, ctx)
+		if isError(right) || ctx.Exception() != nil {
 			return right
 		}
 		if right == nil {

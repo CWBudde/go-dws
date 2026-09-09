@@ -1,0 +1,57 @@
+type TBool = function: Boolean;
+function Fail: Boolean;
+begin
+   raise Exception.Create('callback failed');
+end;
+function Right: Boolean;
+begin
+   PrintLn('unexpected right operand');
+   Result := True;
+end;
+var failPtr: TBool := @Fail;
+var rightPtr: TBool := @Right;
+var nilPtr: TBool;
+PrintLn(False and failPtr);
+PrintLn(True or failPtr);
+PrintLn(False and nilPtr);
+PrintLn(True or nilPtr);
+try
+   PrintLn(failPtr and rightPtr);
+except
+   on E: Exception do PrintLn(E.Message);
+end;
+try
+   PrintLn(failPtr or rightPtr);
+except
+   on E: Exception do PrintLn(E.Message);
+end;
+try
+   PrintLn(True and failPtr);
+except
+   on E: Exception do PrintLn(E.Message);
+end;
+try
+   PrintLn(False or failPtr);
+except
+   on E: Exception do PrintLn(E.Message);
+end;
+try
+   PrintLn(nilPtr and rightPtr);
+except
+   on E: Exception do PrintLn(E.Message);
+end;
+try
+   PrintLn(nilPtr or rightPtr);
+except
+   on E: Exception do PrintLn(E.Message);
+end;
+try
+   PrintLn(True and nilPtr);
+except
+   on E: Exception do PrintLn(E.Message);
+end;
+try
+   PrintLn(False or nilPtr);
+except
+   on E: Exception do PrintLn(E.Message);
+end;

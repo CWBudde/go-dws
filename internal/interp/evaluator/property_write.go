@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // executePropertyWrite handles property setter execution for ObjectValue.WriteProperty callback.
@@ -38,6 +39,16 @@ func (e *Evaluator) executePropertyWrite(obj Value, propInfo any, value Value, n
 	// Check if property has write access
 	if pInfo.WriteKind == types.PropAccessNone {
 		return e.newError(node, readOnlyPropertyWriteMessage)
+	}
+
+	// A class property reached through an instance (`obj.ClassProp := v`) has the
+	// same meaning as through the metaclass: it is backed by class vars and its
+	// accessor expression sees class state, not instance state. Delegate to the
+	// class-property path so both spellings share one implementation.
+	if pInfo.IsClassProperty {
+		if classInfo := e.classInfoForMethodSelf(obj); classInfo != nil {
+			return e.evalClassPropertyWrite(classInfo, pInfo, value, node, ctx)
+		}
 	}
 
 	// Get property context for circular reference tracking
@@ -288,12 +299,41 @@ func (e *Evaluator) executeRecordExpressionWrite(recVal *runtime.RecordValue, pr
 func (e *Evaluator) executeRecordFieldBackedPropertyWrite(recVal *runtime.RecordValue, propInfo *types.RecordPropertyInfo, value Value, node ast.Node) Value {
 	fieldName := propInfo.WriteField
 
+	// A class property is backed by a class var on the record type, not by a
+	// field on this value. Writing it through a value must reach that class var;
+	// SetRecordField would fail (or shadow it with a same-named instance field).
+	// The read side has the mirror-image fallback in readRecordTypePropertyValue.
+	if propInfo.IsClassProperty {
+		if !e.writeRecordTypePropertyValue(recVal, fieldName, value) {
+			return e.newError(node, "class var '%s' not found in record '%s'", fieldName, recVal.GetRecordTypeName())
+		}
+		return value
+	}
+
 	// Use RecordFieldSetter interface to set the field
 	if !recVal.SetRecordField(fieldName, value) {
 		return e.newError(node, "field '%s' not found in record '%s'", fieldName, recVal.GetRecordTypeName())
 	}
 
 	return value
+}
+
+// writeRecordTypePropertyValue stores value in the record type's class var named
+// fieldName. Counterpart of readRecordTypePropertyValue.
+func (e *Evaluator) writeRecordTypePropertyValue(recVal *runtime.RecordValue, fieldName string, value Value) bool {
+	if recVal.RecordType == nil || fieldName == "" {
+		return false
+	}
+	recordType := e.typeSystem.LookupRecord(recVal.RecordType.Name)
+	if recordType == nil || recordType.ClassVars == nil {
+		return false
+	}
+	key := ident.Normalize(fieldName)
+	if _, found := recordType.ClassVars[key]; !found {
+		return false
+	}
+	recordType.ClassVars[key] = value
+	return true
 }
 
 // executeRecordPropertySetterMethod handles method-backed record property writes.
