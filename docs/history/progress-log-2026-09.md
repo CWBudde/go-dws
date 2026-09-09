@@ -928,3 +928,66 @@ expression accessor through the class name) and two diagnostic subtests pinning 
 instance-method getter and setter. `just fixture-report` **895 → 896 / 2,042**,
 `SimpleScripts/enum_to_integer`, no category down. `golangci-lint run --new-from-rev`: 0 issues.
 Baselines ratcheted. §3.2.2 is now closed.
+
+## 2026-09-09 — Contract inheritance and inline-method naming (L-S3a, L-S3b, L-S3c)
+
+Closes `PLAN.md` §3.2.3. Harness **896 → 898 / 1,928** (46% → 47%), SimpleScripts 336 → 338;
+`method_contracts` and `method_condition` newly pass, no category down.
+
+**The shape of the bug.** Contracts were read straight off the executing `*ast.FunctionDecl` at
+both call sites (`ExecuteUserFunction`, `invokeParameterlessUserFunction`). Two consequences:
+
+1. An override with no conditions of its own ran none. `TSubChild.Check(-1)` printed
+   `subchild -1` where DWScript raises `Pre-condition failed in TBase.Check`.
+2. The failure name came from `fn.ClassName`, which the parser sets only for out-of-line headers
+   (`procedure TFoo.Bar`). A method whose body is written inline in the class declaration lost
+   the class prefix entirely — `Pre-condition failed in TestPre` instead of `TTest.TestPre`.
+
+**The fix is one resolver.** `internal/interp/evaluator/contract_inheritance.go` builds a
+*contract chain*: the executing declaration first, then each distinct ancestor declaration of the
+same method, base-most last. It is derived from what already existed rather than new registration
+plumbing — `currentMethodClassName(ctx)` (the `__CurrentMethodClass__` binding
+`executeMethodWithClassInfo` already sets) names the class, `TypeSystem.LookupClass` resolves it,
+`OwnsMethodDecl` confirms ownership, and `IClassInfo.LookupMethod` walks the parents.
+
+The ownership check is what keeps this honest. A free function called from inside a method body
+still sees the caller's class binding in its environment chain; because no class in the chain
+declares it, it resolves to an empty chain and keeps its bare name and its own conditions.
+`runtime.MethodMetadata` already carries unread `PreConditions`/`PostConditions` fields; they
+stayed unread — resolving from the AST plus the class chain keeps the change inside one package.
+
+**Ordering is observable, and the fixture settles it.** Postconditions run derived-first: with
+`TBase.Check` ensuring `i < 10` and `TSubChild.Check` ensuring `i < 5`, `s.Check(10)` fails both,
+and the expected output names `TSubChild.Check`. Ancestor-first would print `TBase.Check`.
+Preconditions run root-first; upstream permits `require` on the root method only, so at most one
+source contributes in practice, but the order is now defined rather than accidental.
+
+**Two details that would have been silent bugs.** `old` capture ran over the executing
+declaration's postconditions only, so an inherited `ensure Result = old i + 1` had nothing
+captured by the time the body had run; it now walks the same chain. And an ancestor condition
+names the *ancestor's* parameters — contract parameters bind by position, so when an override
+renames them the ancestor's names are aliased to the call's argument values for the duration of
+the check (`parameterAliases`). Chains are memoized per (declaration, declaring class); the same
+declaration is shared with every descendant that does not override it, so the declaration pointer
+alone is not a sufficient key.
+
+**Removed.** The exported `CheckPreconditions` / `CheckPostconditions` / `CaptureOldValues`
+wrappers and the single-declaration `captureOldValues` they fronted had no callers left.
+
+**Not done, deliberately.** The `Preconditions must be defined in the root method only`
+diagnostic belongs to §4 error-detection parity (`FailureScripts/contracts_precondition` also
+needs `Warning: Constant condition`). The call-stack frame name in `ExecuteUserFunction` has the
+same missing-qualifier bug (`TTest.TestMeth` vs `TestMeth`, visible in
+`SimpleScripts/contracts_subproc`), but that fixture also needs the raise-site column work listed
+in §3.3 and would not flip; stack-trace text is validated by many position-sensitive fixtures, so
+it stays a separate change.
+
+**Validation:** `go test ./...` green; six new subtests in `internal/interp/contracts_test.go`
+covering inline-method qualification, a free function called from a method, inherited `require`
+(direct and through a base-typed reference, and with a renamed parameter), inherited `ensure`,
+derived-before-inherited reporting, and inherited `old` capture. `golangci-lint run`: no new
+issues in the touched files. Baselines ratcheted.
+
+While updating [`docs/guide/contracts.md`](../guide/contracts.md), two stale limitations were
+measured and removed: contract failures **are** catchable with `try/except`, and `old` with a
+`var` parameter does persist to the caller.

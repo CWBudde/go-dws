@@ -10,6 +10,7 @@ DWScript supports **Design by Contract** (DbC), a programming methodology that a
 - **Postconditions** (`ensure`): Conditions that must be true when a function returns
 - **`old` keyword**: Reference pre-execution values in postconditions
 - **Custom error messages**: Optional descriptive messages for contract failures
+- **Contract inheritance**: Overridden methods inherit their ancestors' conditions
 - **Full DWScript compatibility**: 100% compatible with original DWScript contract syntax
 
 ## Syntax
@@ -172,6 +173,12 @@ When a contract is violated, a `ContractFailureError` is raised with a detailed 
 
 **Format**: `Pre-condition failed in FunctionName [line: N, column: M], message`
 
+For a method the name is class-qualified — `TTest.TestPre` — whether the body is written inline
+in the class declaration or out of line as `procedure TTest.TestPre`. When a condition is
+inherited, the name and position are those of the class that **declares** the condition, not the
+receiver's class: an inherited `require` failing on a `TSubChild` instance still reports
+`TBase.Check`.
+
 Example:
 ```
 Pre-condition failed in Divide [line: 3, column: 4], divisor cannot be zero
@@ -210,6 +217,43 @@ ensure
 
 The interpreter automatically identifies all `old` expressions in postconditions and captures those values before the function executes.
 
+### Contract Inheritance
+
+An overriding method inherits the contracts of the method it overrides:
+
+- **Preconditions** of the ancestor are checked even when the override declares none. Upstream
+  DWScript allows `require` on the root method only; go-dws evaluates every `require` in the
+  chain, root-most first, rather than rejecting the declaration.
+- **Postconditions** of the ancestor are checked in addition to the override's own. The
+  override's run first, so when a derived and an inherited `ensure` both fail, the derived one
+  is reported.
+- **`old` values** are captured for inherited postconditions too, before the body runs.
+
+Conditions bind their parameters by position, so an ancestor condition still sees the call's
+arguments when the override gives its parameters different names.
+
+```pascal
+type TBase = class
+   procedure Check(i : Integer); virtual;
+   require
+      i > 0;
+   begin
+      PrintLn('base ' + IntToStr(i));
+   end;
+end;
+
+type TSubChild = class (TBase)
+   procedure Check(i : Integer); override;
+   begin
+      PrintLn('subchild ' + IntToStr(i));
+   end;
+end;
+
+var s := TSubChild.Create;
+s.Check(-1);
+// Pre-condition failed in TBase.Check [line: 4, column: 7], i > 0
+```
+
 ### Nested Calls
 
 Contracts are checked for every function call, including nested calls:
@@ -234,17 +278,15 @@ end;
 
 ### Current Limitations
 
-1. **Exception handling not implemented**: You cannot currently catch contract failures with `try/except` blocks (exception handling is planned for a future stage)
-2. **Var parameters**: The `old` keyword with var parameters is implemented but var parameters themselves have a known issue where modifications don't persist to the caller
-3. **Class method contracts**: Method contract inheritance (Liskov substitution principle) is not yet implemented - this requires Stage 7 (OOP) completion
+1. **Class invariants**: `invariants` clauses parse but are never evaluated at runtime
+2. **Root-only preconditions**: upstream rejects `require` on a non-root method with
+   `Preconditions must be defined in the root method only`; go-dws accepts and evaluates it
 
 ### Future Enhancements
 
 The following features are planned:
 
-1. **Method contract inheritance** (Stage 7): Overridden methods will inherit base class contracts
-2. **Invariants** (Stage 8): Class invariants that must hold before and after every public method call
-3. **Exception integration**: Proper try/catch support for contract failures
+1. **Invariants**: Class invariants that must hold before and after every public method call
 
 ## Best Practices
 
@@ -315,6 +357,9 @@ Contract tests are located in `testdata/contracts/`:
 - `recursive_factorial.dws`: Contracts with recursion
 - `nested_calls.dws`: Contracts with nested function calls
 - `multiple_conditions.dws`: Multiple pre/postconditions
+
+Method contract behavior is covered by `internal/interp/contracts_test.go` and the fixtures
+`testdata/fixtures/SimpleScripts/method_contracts.pas` and `method_condition.pas`.
 
 Run tests with:
 ```bash
