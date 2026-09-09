@@ -470,3 +470,26 @@ var b := new TBox<Integer>;`)
 		t.Errorf("expected the TPlain implementation to be preserved, got %d", len(impls))
 	}
 }
+
+// TestMonomorphize_GenericInterfaceParent covers a generic interface deriving
+// from a specialization of another: `interface (IBase<T>)`.
+func TestMonomorphize_GenericInterfaceParent(t *testing.T) {
+	prog := parseProgram(t, `type IBase<T> = interface function GetP : T; end;
+type IChild<T> = interface(IBase<T>) procedure SetP(v : T); end;
+var i : IChild<Integer>;`)
+	Monomorphize(prog)
+
+	child := findInterface(prog, "IChild<Integer>")
+	if child == nil {
+		t.Fatalf("expected specialized interface IChild<Integer>; decls: %v", declNames(prog))
+	}
+	if findInterface(prog, "IBase<Integer>") == nil {
+		t.Fatalf("expected the parent to be specialized too; decls: %v", declNames(prog))
+	}
+	if child.Parent == nil || child.Parent.Value != "IBase<Integer>" {
+		t.Errorf("Parent = %v, want IBase<Integer>", child.Parent)
+	}
+	if child.Parent != nil && child.Parent.TypeArgs != nil {
+		t.Errorf("Parent.TypeArgs should be cleared, got %v", child.Parent.TypeArgs)
+	}
+}

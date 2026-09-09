@@ -267,3 +267,51 @@ func lastFunctionDecl(t *testing.T, prog *ast.Program) *ast.FunctionDecl {
 	t.Fatalf("no *ast.FunctionDecl in program; statements: %v", prog.Statements)
 	return nil
 }
+
+// TestParseGenericInterfaceParent covers `interface (IBase<T>)`: like a class
+// inheritance entry, the parent identifier keeps the base name and carries the
+// type arguments for the monomorphizer to specialize.
+func TestParseGenericInterfaceParent(t *testing.T) {
+	prog := parseGenericProgram(t, `type IBase<T> = interface function GetP : T; end;
+type IChild<T> = interface(IBase<T>) procedure SetP(v : T); end;`)
+
+	var child *ast.InterfaceDecl
+	for _, stmt := range prog.Statements {
+		if d, ok := stmt.(*ast.InterfaceDecl); ok && d.Name != nil && d.Name.Value == "IChild" {
+			child = d
+		}
+	}
+	if child == nil {
+		t.Fatal("no InterfaceDecl named IChild found")
+	}
+	if child.Parent == nil || child.Parent.Value != "IBase" {
+		t.Fatalf("Parent = %v, want IBase (base name, unmangled)", child.Parent)
+	}
+	if len(child.Parent.TypeArgs) != 1 || child.Parent.TypeArgs[0].String() != "T" {
+		t.Fatalf("Parent.TypeArgs = %v, want [T]", child.Parent.TypeArgs)
+	}
+}
+
+// TestParseMalformedTypeDeclarationDoesNotPanic guards the typed-nil collapse: a
+// failed body parse must not reach later phases as a non-nil ast.Statement
+// wrapping a nil pointer.
+func TestParseMalformedTypeDeclarationDoesNotPanic(t *testing.T) {
+	cases := []string{
+		`type IChild<T> = interface(123) procedure SetP(v : T); end;`,
+		`type IBase<T> = interface function GetP : T; end;
+type IChild<T> = interface(IBase<) procedure SetP(v : T); end;`,
+		`type TTest<T> = class(999) Field : T; end;`,
+	}
+	for _, src := range cases {
+		p := New(lexer.New(src))
+		prog := p.ParseProgram() // must not panic
+		if len(p.Errors()) == 0 {
+			t.Errorf("expected parser errors for %q", src)
+		}
+		for i, stmt := range prog.Statements {
+			if isNilDecl(stmt) {
+				t.Errorf("statement %d of %q is a typed-nil declaration", i, src)
+			}
+		}
+	}
+}
