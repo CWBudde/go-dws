@@ -46,6 +46,8 @@ func (e *Evaluator) getValueType(val Value) types.Type {
 			return v.RecordType
 		}
 		return types.NIL
+	case *runtime.FunctionPointerValue:
+		return e.functionPointerValueType(v)
 	default:
 		// For ObjectInstance - use helper method (was e.adapter.GetClassMetadataFromValue)
 		if metadata := e.getClassMetadataFromValue(val); metadata != nil {
@@ -53,6 +55,40 @@ func (e *Evaluator) getValueType(val Value) types.Type {
 		}
 		return types.NIL
 	}
+}
+
+// functionPointerValueType returns the static pointer type of a function or
+// method pointer value, so an overload can be resolved from already-evaluated
+// argument values.
+//
+// Both construction paths populate PointerType; the MethodMetadata fallback
+// covers pointers built from a canonical runtime callable whose signature was
+// resolved after the pointer value itself.
+func (e *Evaluator) functionPointerValueType(fp *runtime.FunctionPointerValue) types.Type {
+	if fp == nil {
+		return types.NIL
+	}
+	if fp.PointerType != nil {
+		return fp.PointerType
+	}
+	if fp.Callable != nil {
+		paramTypes := make([]types.Type, 0, len(fp.Callable.Parameters))
+		for _, param := range fp.Callable.Parameters {
+			if param.Type == nil {
+				return types.NIL
+			}
+			paramTypes = append(paramTypes, param.Type)
+		}
+		var returnType types.Type
+		if fp.Callable.ReturnType != nil && fp.Callable.ReturnType != types.VOID {
+			returnType = fp.Callable.ReturnType
+		}
+		if fp.SelfObject != nil {
+			return types.NewMethodPointerType(paramTypes, returnType)
+		}
+		return types.NewFunctionPointerType(paramTypes, returnType)
+	}
+	return types.NIL
 }
 
 // classTypeFromMetadata builds a types.ClassType from runtime.ClassMetadata.
