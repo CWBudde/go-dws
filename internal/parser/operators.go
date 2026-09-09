@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -62,16 +60,13 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 
 	// Optional return type
 	if cursor.Peek(1).Type == lexer.COLON {
-		cursor = cursor.Advance() // move to ':'
-		if cursor.Peek(1).Type != lexer.IDENT {
-			p.addError("expected return type after ':' in operator declaration", ErrExpectedType)
+		cursor = cursor.Advance()   // move to ':'
+		p.cursor = cursor.Advance() // move to the return type
+		decl.ReturnType = p.parseTypeExpression()
+		if isInvalidTypeExpression(decl.ReturnType) {
 			return nil
 		}
-		cursor = cursor.Advance() // move to type identifier
-		decl.ReturnType = &ast.TypeAnnotation{
-			Token: cursor.Current(),
-			Name:  cursor.Current().Literal,
-		}
+		cursor = p.cursor
 	}
 
 	// Expect 'uses' clause
@@ -231,67 +226,41 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 // PRE: cursor is on LPAREN token
 // POST: cursor is on RPAREN token
 func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
-	operandTypes := []ast.TypeExpression{}
-	cursor := p.cursor
-
-	cursor = cursor.Advance() // move past '(' to first operand or ')'
-
-	for cursor.Current().Type != lexer.RPAREN && cursor.Current().Type != lexer.EOF {
-		startToken := cursor.Current()
-		nameParts := []string{cursor.Current().Literal}
-
-		// Collect tokens that belong to this type until ',' or ')'
-		for cursor.Peek(1).Type != lexer.COMMA && cursor.Peek(1).Type != lexer.RPAREN && cursor.Peek(1).Type != lexer.EOF {
-			cursor = cursor.Advance()
-			nameParts = append(nameParts, cursor.Current().Literal)
-		}
-
-		// Check for unterminated list immediately after collecting tokens
-		if cursor.Peek(1).Type == lexer.EOF {
-			p.addError("unterminated operator operand list", ErrMissingRParen)
-			p.cursor = cursor
+	var operandTypes []ast.TypeExpression
+	p.cursor = p.cursor.Advance()
+	for p.cursor.Current().Type != lexer.RPAREN && p.cursor.Current().Type != lexer.EOF {
+		operand := p.parseOperatorOperandType()
+		if isInvalidTypeExpression(operand) {
 			return operandTypes
 		}
-
-		if cursor.Current().Type != lexer.IDENT {
-			// Allow keywords like 'array' or 'set' in operator operand types.
-			if !cursor.Current().Type.IsKeyword() {
-				p.addError("expected type identifier in operator operand list", ErrExpectedType)
-				p.cursor = cursor
-				return operandTypes
-			}
-		}
-
-		operandTypes = append(operandTypes, &ast.TypeAnnotation{
-			Token: startToken,
-			Name:  strings.Join(nameParts, " "),
-		})
-
-		if cursor.Peek(1).Type == lexer.COMMA {
-			cursor = cursor.Advance() // move to ','
-			cursor = cursor.Advance() // move past ',' to next type
-			continue
-		}
-
-		if cursor.Peek(1).Type == lexer.RPAREN {
-			cursor = cursor.Advance() // move to ')'
-			break
-		}
-
-		if cursor.Peek(1).Type == lexer.EOF {
+		operandTypes = append(operandTypes, operand)
+		switch p.cursor.Peek(1).Type {
+		case lexer.COMMA:
+			p.cursor = p.cursor.Advance().Advance()
+		case lexer.RPAREN:
+			p.cursor = p.cursor.Advance()
+			return operandTypes
+		case lexer.EOF:
 			p.addError("unterminated operator operand list", ErrMissingRParen)
-			p.cursor = cursor
+			return operandTypes
+		default:
+			p.addError("expected ',' or ')' in operator operand list", ErrUnexpectedToken)
 			return operandTypes
 		}
-
-		p.addError("expected ',' or ')' in operator operand list", ErrUnexpectedToken)
-		p.cursor = cursor
-		return operandTypes
 	}
-
-	p.cursor = cursor
-
 	return operandTypes
+}
+
+// parseOperatorOperandType accepts a type or a parameter-style operand such as
+// "const items: array of const"; parameter modifiers do not change its type.
+func (p *Parser) parseOperatorOperandType() ast.TypeExpression {
+	if p.cursor.Current().Type == lexer.CONST || p.cursor.Current().Type == lexer.VAR {
+		p.cursor = p.cursor.Advance()
+	}
+	if p.cursor.Current().Type == lexer.IDENT && p.cursor.Peek(1).Type == lexer.COLON {
+		p.cursor = p.cursor.Advance().Advance()
+	}
+	return p.parseTypeExpression()
 }
 
 // isOperatorSymbolToken returns true if the token type is valid after 'operator'.
@@ -318,32 +287,18 @@ func normalizeOperatorSymbol(tok lexer.Token) string {
 	}
 }
 
-// parseTypeExpressionUntil parses a type expression until the stop condition is met.
-// It assumes the current token is the first token of the type expression.
-// PRE: cursor is IDENT or type keyword
-// POST: cursor is last token before stop condition
-
+// parseTypeExpressionUntil parses a structured operand or return type and checks
+// that the next token is a valid delimiter for the enclosing operator declaration.
 // PRE: cursor is on IDENT or type keyword
-// POST: cursor is on last token before stop condition
-func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (*ast.TypeAnnotation, bool) {
-	cursor := p.cursor
-
-	if cursor.Current().Type != lexer.IDENT && !cursor.Current().Type.IsKeyword() {
-		p.addError("expected type identifier", ErrExpectedType)
+// POST: cursor is on the last token of the type expression
+func (p *Parser) parseTypeExpressionUntil(stopFn func(lexer.TokenType) bool) (ast.TypeExpression, bool) {
+	typeExpr := p.parseTypeExpression()
+	if isInvalidTypeExpression(typeExpr) {
 		return nil, false
 	}
-
-	startToken := cursor.Current()
-	parts := []string{cursor.Current().Literal}
-
-	for !stopFn(cursor.Peek(1).Type) {
-		cursor = cursor.Advance()
-		parts = append(parts, cursor.Current().Literal)
+	if !stopFn(p.cursor.Peek(1).Type) {
+		p.addError("unexpected token after operator type", ErrUnexpectedToken)
+		return nil, false
 	}
-
-	p.cursor = cursor
-	return &ast.TypeAnnotation{
-		Token: startToken,
-		Name:  strings.Join(parts, " "),
-	}, true
+	return typeExpr, true
 }

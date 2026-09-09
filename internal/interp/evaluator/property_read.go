@@ -123,10 +123,8 @@ func (e *Evaluator) executeRecordPropertyRead(record Value, propInfo *types.Reco
 
 	if recVal.RecordType != nil {
 		if recordTypeRaw := e.typeSystem.LookupRecord(recVal.RecordType.Name); recordTypeRaw != nil {
-			if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok {
-				if value, found := readRecordTypePropertyValue(recordType, propInfo); found {
-					return value
-				}
+			if value, found := readRecordTypePropertyValue(recordTypeRaw, propInfo); found {
+				return value
 			}
 		}
 	}
@@ -264,10 +262,7 @@ func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, p
 		if methodDecl == nil {
 			return e.newError(node, "property '%s' getter method '%s' not found", pInfo.Name, methodName)
 		}
-		method, ok := methodDecl.(*ast.FunctionDecl)
-		if !ok {
-			return e.newError(node, "property '%s' getter is not a valid method", pInfo.Name)
-		}
+		method := methodDecl
 		if len(method.Parameters) != len(indexArgs) {
 			return e.newError(node, "property '%s' getter method '%s' expects %d parameter(s), but index directive supplies %d",
 				pInfo.Name, pInfo.ReadSpec, len(method.Parameters), len(indexArgs))
@@ -291,8 +286,8 @@ func (e *Evaluator) executePropertyGetterMethod(obj Value, objVal ObjectValue, p
 		propCtx.InPropertyGetter = savedInGetter
 	}()
 
-	result, invoked := objVal.InvokeParameterlessMethod(methodName, func(methodDecl any) Value {
-		method := methodDecl.(*ast.FunctionDecl)
+	result, invoked := objVal.InvokeParameterlessMethod(methodName, func(methodDecl *runtime.MethodMetadata) Value {
+		method := methodDecl
 
 		// Verify parameter count matches index directive arguments
 		if len(method.Parameters) != len(indexArgs) {
@@ -442,10 +437,7 @@ func (e *Evaluator) executeIndexedPropertyGetterMethod(obj Value, objVal ObjectV
 	}
 
 	// Type-assert to get parameter count
-	method, ok := methodDecl.(*ast.FunctionDecl)
-	if !ok {
-		return e.newError(node, "indexed property '%s' getter is not a valid method", pInfo.Name)
-	}
+	method := methodDecl
 
 	// Verify method has correct number of parameters (index params, no value param)
 	expectedParamCount := len(indices)

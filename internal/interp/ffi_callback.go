@@ -3,6 +3,8 @@ package interp
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 
 // callDWScriptFunction invokes a DWScript function from Go context.
@@ -94,18 +96,18 @@ func (i *Interpreter) callDWScriptFunctionSafe(
 // Unlike MarshalToGo which requires a target type, this function
 // infers the Go type from the DWScript value type.
 func marshalValueToGo(val Value) (any, error) {
-	switch val.Type() {
-	case "INTEGER":
+	switch runtime.KindOf(val) {
+	case runtime.KindInteger:
 		return GoInt(val)
-	case "FLOAT":
+	case runtime.KindFloat:
 		return GoFloat(val)
-	case "STRING":
+	case runtime.KindString:
 		return GoString(val)
-	case "BOOLEAN":
+	case runtime.KindBoolean:
 		return GoBool(val)
-	case "NIL":
+	case runtime.KindNil:
 		return nil, nil
-	case "ARRAY":
+	case runtime.KindArray:
 		// Convert array to []any
 		arrayVal, ok := val.(*ArrayValue)
 		if !ok {
@@ -122,7 +124,7 @@ func marshalValueToGo(val Value) (any, error) {
 		}
 		return result, nil
 
-	case "RECORD":
+	case runtime.KindRecord:
 		// Convert record to map[string]any
 		recordVal, ok := val.(*RecordValue)
 		if !ok {

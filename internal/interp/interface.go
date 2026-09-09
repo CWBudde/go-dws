@@ -133,7 +133,7 @@ func (i *Interpreter) runDestructor(obj *ObjectInstance, destructor *ast.Functio
 
 	// Reuse existing destructor if not supplied
 	if destructor == nil && obj.Class != nil {
-		destructor = obj.Class.LookupMethod("Destroy")
+		destructor = runtime.MethodDeclaration(obj.Class.LookupMethod("Destroy"))
 	}
 
 	// node != nil marks an explicit Free/Destroy call (refcount cleanup passes nil)
@@ -191,7 +191,7 @@ func (i *Interpreter) runDestructorForRefCount(obj *ObjectInstance) error {
 	}
 
 	// Look up the destructor
-	destructor := obj.Class.LookupMethod("Destroy")
+	destructor := runtime.MethodDeclaration(obj.Class.LookupMethod("Destroy"))
 
 	// Execute destructor via runDestructor (handles marking and environment)
 	// Pass nil for node since this is automatic ref count cleanup

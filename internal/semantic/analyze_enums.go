@@ -14,6 +14,12 @@ import (
 
 // analyzeEnumDecl analyzes an enum type declaration
 func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
+	defer func() {
+		if decl != nil && decl.Name != nil {
+			a.recordDeclaredType(decl, decl.Name.Value)
+		}
+	}()
+
 	if decl == nil {
 		return
 	}

@@ -153,7 +153,7 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		if nilVal, isNil := obj.(*runtime.NilValue); isNil && nilVal.GetTypedClassName() == "" {
 			obj = &runtime.NilValue{ClassType: castVal.GetStaticTypeName()}
 		}
-	} else if obj.Type() == "TYPE_CAST" {
+	} else if runtime.KindOf(obj) == runtime.KindTypeCast {
 		return e.newError(node, "internal error: TYPE_CAST value does not implement TypeCastAccessor interface")
 	}
 
@@ -177,8 +177,8 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		}
 		if rec, ok := obj.(*runtime.RecordValue); ok && rec.RecordType != nil {
 			if recordTypeRaw := e.typeSystem.LookupRecord(rec.RecordType.Name); recordTypeRaw != nil {
-				if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok && recordType.HasStaticMethod(methodName) {
-					return e.callRecordStaticMethod(recordType, methodName, args, node, ctx)
+				if recordTypeRaw.HasStaticMethod(methodName) {
+					return e.callRecordStaticMethod(recordTypeRaw, methodName, args, node, ctx)
 				}
 			}
 		}
@@ -189,15 +189,15 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 	}
 
 	// Route based on object type
-	switch obj.Type() {
+	switch runtime.KindOf(obj) {
 	// ============================================================
 	// Interface-based dispatch (direct, no adapter)
 	// ============================================================
 
-	case "SET":
+	case runtime.KindSet:
 		return e.dispatchSetMethod(obj, normalizedMethod, methodName, args, node)
 
-	case "TYPE_META":
+	case runtime.KindTypeMeta:
 		if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
 			return e.CallHelperMethod(helperResult, obj, args, node, ctx)
 		}
@@ -213,7 +213,7 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		}
 		return e.dispatchEnumTypeMetaMethod(obj, normalizedMethod, methodName, args, node)
 
-	case "NIL":
+	case runtime.KindNil:
 		if normalizedMethod == "free" {
 			return obj
 		}
@@ -223,17 +223,17 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 	// Helper-based dispatch (builtin/AST helper methods)
 	// ============================================================
 
-	case "STRING", "INTEGER", "FLOAT", "BOOLEAN", "ARRAY", "VARIANT", "ENUM":
+	case runtime.KindString, runtime.KindInteger, runtime.KindFloat, runtime.KindBoolean, runtime.KindArray, runtime.KindVariant, runtime.KindEnum:
 		return e.dispatchHelperMethod(obj, methodName, args, node, ctx)
 
 	// ============================================================
 	// Evaluator-owned dispatch for OOP types
 	// ============================================================
 
-	case "OBJECT":
+	case runtime.KindObject:
 		return e.dispatchObjectMethod(obj, methodName, args, node, ctx)
 
-	case "INTERFACE":
+	case runtime.KindInterface:
 		intfInst, ok := obj.(*runtime.InterfaceInstance)
 		if !ok {
 			return e.newError(node, "internal error: INTERFACE value is not *runtime.InterfaceInstance")
@@ -244,7 +244,7 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 		}
 		return result
 
-	case "CLASS", "CLASSINFO":
+	case runtime.KindClass, runtime.KindClassInfo:
 		classMeta, ok := obj.(ClassMetaValue)
 		if !ok {
 			return e.newError(node, "internal error: %s value does not implement ClassMetaValue", obj.Type())
@@ -259,7 +259,7 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 				// A constructor name shared with class methods: resolve across the
 				// merged overload set and route on what was selected.
 				merged := append(classInfo.GetConstructorOverloads(methodName), classOverloads...)
-				selected, err := e.selectOverload(classInfo.GetName(), methodName, merged, args, ctx)
+				selected, err := e.selectCallableOverload(classInfo.GetName(), methodName, merged, args, ctx)
 				if err != nil {
 					return e.newError(node, "%s", err.Error())
 				}
@@ -308,7 +308,7 @@ func (e *Evaluator) dispatchMethodOnNilObject(obj Value, methodName string, args
 		// With overloads, pick the best match for the argument types rather than
 		// whatever LookupMethod happens to return first.
 		if overloads := classInfo.GetMethodOverloads(methodName); len(overloads) > 1 {
-			if selected, err := e.selectOverload(classInfo.GetName(), methodName, overloads, args, ctx); err == nil {
+			if selected, err := e.selectCallableOverload(classInfo.GetName(), methodName, overloads, args, ctx); err == nil {
 				method = selected
 			}
 		}
@@ -321,7 +321,7 @@ func (e *Evaluator) dispatchMethodOnNilObject(obj Value, methodName string, args
 		if method == nil {
 			for info := classInfo; info != nil; info = info.GetParent() {
 				if helpersAny := e.typeSystem.LookupHelpers(info.GetName()); helpersAny != nil {
-					for _, helper := range orderedHelpersForLookup(convertToHelperInfoSlice(helpersAny)) {
+					for _, helper := range orderedHelpersForLookup(helpersAny) {
 						if result := e.findHelperMethodInHelper(helper, methodName); result != nil {
 							return e.CallHelperMethod(result, obj, args, node, ctx)
 						}
@@ -341,13 +341,13 @@ func (e *Evaluator) dispatchMethodOnNilObject(obj Value, methodName string, args
 // instantiated object at the call site. The class's virtual method table is
 // consulted as well because method lookup may return the implementation
 // declaration, which does not carry the virtual/override flags.
-func isNonVirtualInstanceMethod(classInfo runtime.IClassInfo, method *ast.FunctionDecl) bool {
+func isNonVirtualInstanceMethod(classInfo runtime.IClassInfo, method *runtime.MethodMetadata) bool {
 	if method.IsVirtual || method.IsOverride || method.IsAbstract ||
 		method.IsClassMethod || method.IsConstructor || method.IsDestructor {
 		return false
 	}
 	if vmt := classInfo.GetVirtualMethodTable(); vmt != nil {
-		sig := ident.Normalize(method.Name.Value) + "_" + strconv.Itoa(len(method.Parameters))
+		sig := ident.Normalize(method.Name) + "_" + strconv.Itoa(len(method.Parameters))
 		if _, isVirtual := vmt[sig]; isVirtual {
 			return false
 		}
@@ -414,14 +414,14 @@ func (e *Evaluator) callClassConstructor(classMeta ClassMetaValue, methodName st
 
 func (e *Evaluator) callClassMethod(classMeta ClassMetaValue, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if len(args) == 0 {
-		if result, invoked := classMeta.InvokeParameterlessClassMethod(methodName, func(methodDecl any) Value {
+		if result, invoked := classMeta.InvokeParameterlessClassMethod(methodName, func(methodDecl *runtime.MethodMetadata) Value {
 			return e.executeClassMethodDirect(classMeta, methodDecl, nil, node, ctx)
 		}); invoked {
 			return result
 		}
 	}
 
-	if result, ok := classMeta.CreateClassMethodPointer(methodName, func(methodDecl any) Value {
+	if result, ok := classMeta.CreateClassMethodPointer(methodName, func(methodDecl *runtime.MethodMetadata) Value {
 		return e.executeClassMethodDirect(classMeta, methodDecl, args, node, ctx)
 	}); ok {
 		return result
@@ -525,7 +525,7 @@ func (e *Evaluator) dispatchHelperMethod(obj Value, methodName string, args []Va
 		if annot := e.SemanticInfo().GetType(node.Method); annot != nil && strings.HasPrefix(annot.Name, "__helper_receiver:") {
 			target := strings.TrimPrefix(annot.Name, "__helper_receiver:")
 			if helpersAny := e.typeSystem.LookupHelpers(ident.Normalize(target)); helpersAny != nil {
-				for _, helper := range orderedHelpersForLookup(convertToHelperInfoSlice(helpersAny)) {
+				for _, helper := range orderedHelpersForLookup(helpersAny) {
 					if result := e.findHelperMethodInHelper(helper, methodName); result != nil {
 						return e.CallHelperMethod(result, obj, args, node, ctx)
 					}
@@ -612,7 +612,7 @@ func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Va
 }
 
 // runObjectDestructor executes an object's destructor and marks the object as destroyed.
-func (e *Evaluator) runObjectDestructor(obj *runtime.ObjectInstance, destructor *ast.FunctionDecl, node ast.Node, ctx *ExecutionContext) Value {
+func (e *Evaluator) runObjectDestructor(obj *runtime.ObjectInstance, destructor *runtime.MethodMetadata, node ast.Node, ctx *ExecutionContext) Value {
 	if obj == nil {
 		return e.nilValue()
 	}

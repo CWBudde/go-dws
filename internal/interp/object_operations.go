@@ -41,15 +41,15 @@ func (i *Interpreter) CreateObject(className string, args []Value) (Value, error
 	// Initialize fields with default values
 	defer i.PushScope()()
 
-	for fieldName, fieldType := range classInfo.Fields {
+	for fieldName, field := range classInfo.Fields {
 		var fieldValue Value
-		if fieldDecl, hasDecl := classInfo.FieldDecls[fieldName]; hasDecl && fieldDecl.InitValue != nil {
-			fieldValue = i.Eval(fieldDecl.InitValue)
+		if field.InitValue != nil {
+			fieldValue = i.Eval(field.InitValue)
 			if isError(fieldValue) {
 				return nil, fmt.Errorf("failed to initialize field '%s': %v", fieldName, fieldValue)
 			}
 		} else {
-			fieldValue = getZeroValueForType(fieldType, nil)
+			fieldValue = getZeroValueForType(field.Type, nil)
 		}
 		obj.SetField(fieldName, fieldValue)
 	}
@@ -60,7 +60,7 @@ func (i *Interpreter) CreateObject(className string, args []Value) (Value, error
 		defer i.PushScope()()
 		i.Env().Define("Self", obj)
 
-		result := i.executeUserFunctionViaEvaluator(constructor, internalArgs)
+		result := i.executeUserFunctionViaEvaluator(constructor.Declaration, internalArgs)
 
 		// Propagate constructor errors
 		if isError(result) {

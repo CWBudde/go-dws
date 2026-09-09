@@ -661,6 +661,12 @@ func (a *Analyzer) evaluateConstantTypeCast(typeName string, arg ast.Expression)
 // Handles type aliases: type TUserID = Integer;
 // Handles subrange types: type TDigit = 0..9;
 func (a *Analyzer) analyzeTypeDeclaration(decl *ast.TypeDeclaration) {
+	defer func() {
+		if decl != nil && decl.Name != nil {
+			a.recordDeclaredType(decl, decl.Name.Value)
+		}
+	}()
+
 	if decl == nil {
 		return
 	}

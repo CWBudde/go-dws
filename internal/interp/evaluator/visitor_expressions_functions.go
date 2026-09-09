@@ -33,7 +33,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	if funcIdent, ok := node.Function.(*ast.Identifier); ok {
 		if valRaw, exists := ctx.Env().Get(funcIdent.Value); exists {
 			val := valRaw.(Value)
-			if val.Type() == "FUNCTION_POINTER" || val.Type() == "LAMBDA" || val.Type() == "METHOD_POINTER" {
+			if runtime.KindOf(val) == runtime.KindFunctionPointer || runtime.KindOf(val) == runtime.KindLambda || runtime.KindOf(val) == runtime.KindMethodPointer {
 				funcPtr, ok := val.(FunctionPointerCallable)
 				if !ok {
 					// Fallback for non-standard function pointer types
@@ -146,7 +146,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			return e.evalJSONMethodCall(objVal, memberAccess.Member.Value, args, node, ctx)
 		}
 
-		if objVal.Type() == "RECORD_TYPE" {
+		if runtime.KindOf(objVal) == runtime.KindRecordType {
 			recordType, ok := objVal.(*RecordTypeValue)
 			if !ok {
 				return e.newError(node, "record type '%s' has invalid runtime metadata", memberAccess.Object.String())
@@ -164,7 +164,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 
 		// Record, interface, or object method calls
 		_, isRecordInstance := objVal.(RecordInstanceValue)
-		if isRecordInstance || objVal.Type() == "INTERFACE" || objVal.Type() == "OBJECT" {
+		if isRecordInstance || runtime.KindOf(objVal) == runtime.KindInterface || runtime.KindOf(objVal) == runtime.KindObject {
 			// Create synthetic MethodCallExpression for error reporting
 			mc := &ast.MethodCallExpression{
 				TypedExpressionBase: ast.TypedExpressionBase{
@@ -292,7 +292,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// Record static method calls (when inside record method context)
 	if recordRaw, ok := ctx.Env().Get("__CurrentRecord__"); ok {
 		if recordVal, ok := recordRaw.(Value); ok {
-			if recordVal.Type() == "RECORD_TYPE" {
+			if runtime.KindOf(recordVal) == runtime.KindRecordType {
 				if rtmv, ok := recordVal.(RecordTypeMetaValue); ok {
 					if rtmv.HasStaticMethod(funcName.Value) {
 						recordType, ok := recordVal.(*RecordTypeValue)
@@ -426,8 +426,8 @@ func isCallablePointerValue(v Value) bool {
 	if v == nil {
 		return false
 	}
-	switch v.Type() {
-	case "FUNCTION_POINTER", "METHOD_POINTER", "LAMBDA":
+	switch runtime.KindOf(v) {
+	case runtime.KindFunctionPointer, runtime.KindMethodPointer, runtime.KindLambda:
 		return true
 	default:
 		return false
@@ -846,7 +846,7 @@ func (e *Evaluator) callExternalFunction(
 
 		var val Value
 		if idx < len(signature.ParamTypes) {
-			expectedType, err := e.resolveTypeName(signature.ParamTypes[idx], ctx)
+			expectedType, err := e.ResolveTypeFromAnnotation(signature.ParamTypes[idx], ctx)
 			if err == nil {
 				val = e.evalWithExpectedType(arg, expectedType, ctx)
 			} else {
@@ -876,7 +876,7 @@ func (e *Evaluator) evalWithExpectedType(node ast.Node, expectedType types.Type,
 		defer ctx.SetArrayTypeContext(prev)
 	case *types.RecordType:
 		prev := ctx.RecordTypeContext()
-		ctx.SetRecordTypeContext(typed.Name)
+		ctx.SetRecordTypeContext(typed)
 		defer ctx.SetRecordTypeContext(prev)
 	}
 
@@ -899,8 +899,8 @@ func newOperandNode(node *ast.NewExpression) ast.Node {
 // classInfoFromTypeName resolves a type name (possibly an alias) to the class
 // info it denotes: a plain class type or a `class of X` metaclass. Returns nil
 // when the name is not a class reference.
-func (e *Evaluator) classInfoFromTypeName(name string, ctx *ExecutionContext) runtime.IClassInfo {
-	resolved, err := e.ResolveTypeWithContext(name, ctx)
+func (e *Evaluator) classInfoFromTypeName(node *ast.Identifier, ctx *ExecutionContext) runtime.IClassInfo {
+	resolved, err := e.resolveTypeReference(node, node.Value, ctx)
 	if err != nil || resolved == nil {
 		return nil
 	}
@@ -955,7 +955,7 @@ func (e *Evaluator) resolveNewMetaclass(node *ast.NewExpression, ctx *ExecutionC
 		// The operand may be a type/alias identifier that did not evaluate to a
 		// metaclass value; resolve it as a type name.
 		if id, ok := node.Operand.(*ast.Identifier); ok {
-			if ci := e.classInfoFromTypeName(id.Value, ctx); ci != nil {
+			if ci := e.classInfoFromTypeName(id, ctx); ci != nil {
 				return ci, ci.GetName(), true, false, nil
 			}
 		}
@@ -976,7 +976,7 @@ func (e *Evaluator) resolveNewMetaclass(node *ast.NewExpression, ctx *ExecutionC
 				return nil, "", true, true, nil
 			}
 		}
-		if ci := e.classInfoFromTypeName(name, ctx); ci != nil {
+		if ci := e.classInfoFromTypeName(node.ClassName, ctx); ci != nil {
 			return ci, ci.GetName(), true, false, nil
 		}
 		return nil, "", false, false, nil // let the normal path report "not found"
@@ -1037,11 +1037,11 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	}
 	if classInfoAny == nil {
 		if recordTypeRaw := e.typeSystem.LookupRecord(className); recordTypeRaw != nil {
-			if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok && recordType.HasStaticMethod("Create") {
+			if recordTypeRaw.HasStaticMethod("Create") {
 				if errVal := evalArgsByValue(); errVal != nil {
 					return errVal
 				}
-				return e.callRecordStaticMethod(recordType, "Create", args, node, ctx)
+				return e.callRecordStaticMethod(recordTypeRaw, "Create", args, node, ctx)
 			}
 		}
 
@@ -1086,7 +1086,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 				return errVal
 			}
 			merged := append(classInfo.GetConstructorOverloads("Create"), classOverloads...)
-			if selected, err := e.selectOverload(classInfo.GetName(), "Create", merged, args, ctx); err == nil &&
+			if selected, err := e.selectCallableOverload(classInfo.GetName(), "Create", merged, args, ctx); err == nil &&
 				selected.IsClassMethod && !selected.IsConstructor {
 				classValAny, cvErr := e.typeSystem.CreateClassValue(classInfo.GetName())
 				if cvErr != nil {
@@ -1125,7 +1125,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	// var/lazy parameters, wrap the arguments (by-ref references / lazy
 	// thunks) so writes inside the constructor reach the caller's variable
 	// (see fixture oop_field). Otherwise evaluate them by value.
-	constructor := classInfo.GetConstructor(ctorName)
+	constructor := runtime.MethodDeclaration(classInfo.GetConstructor(ctorName))
 	if constructor != nil && !constructor.IsOverload && len(constructor.Parameters) == len(node.Arguments) && hasVarOrLazyParams(constructor) {
 		preparedArgs, err := e.prepareArgsForParameters(constructor.Parameters, node.Arguments, ctx)
 		if err != nil {
@@ -1184,7 +1184,7 @@ func (e *Evaluator) VisitNewArrayExpression(node *ast.NewArrayExpression, ctx *E
 
 	// Resolve element type
 	elementTypeName := node.ElementTypeName.Value
-	elementType, typeErr := e.ResolveTypeWithContext(elementTypeName, ctx)
+	elementType, typeErr := e.resolveTypeReference(node.ElementTypeName, elementTypeName, ctx)
 	if typeErr != nil {
 		return e.newError(node, "unknown element type '%s': %s", elementTypeName, typeErr)
 	}

@@ -57,20 +57,20 @@ func BoxVariant(value Value) *VariantValue {
 
 	// Map runtime Value type to semantic types.Type
 	var actualType types.Type
-	switch value.Type() {
-	case "INTEGER":
+	switch KindOf(value) {
+	case KindInteger:
 		actualType = types.INTEGER
-	case "FLOAT":
+	case KindFloat:
 		actualType = types.FLOAT
-	case "STRING":
+	case KindString:
 		actualType = types.STRING
-	case "BOOLEAN":
+	case KindBoolean:
 		actualType = types.BOOLEAN
-	case "NIL":
+	case KindNil:
 		actualType = nil // nil has no type
-	case "NULL":
+	case KindNull:
 		actualType = nil
-	case "UNASSIGNED":
+	case KindUnassigned:
 		actualType = nil
 	default:
 		actualType = nil

@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // buildRecordMetadata builds RecordMetadata from AST declarations.
@@ -18,31 +19,41 @@ func (e *Evaluator) buildRecordMetadata(
 	staticMethodOverloads map[string][]*ast.FunctionDecl,
 	constants map[string]Value,
 	classVars map[string]Value,
+	ctx *ExecutionContext,
 ) *runtime.RecordMetadata {
 	metadata := runtime.NewRecordMetadata(recordName, recordType)
+	callables := make(map[*ast.FunctionDecl]*runtime.MethodMetadata)
+	methodMetadata := func(decl *ast.FunctionDecl) *runtime.MethodMetadata {
+		if cached := callables[decl]; cached != nil {
+			return cached
+		}
+		result := runtime.MethodMetadataFromAST(decl, e.metadataTypeResolver(ctx))
+		callables[decl] = result
+		return result
+	}
 
 	// Convert instance methods to MethodMetadata (keeping all overloads)
 	for methodName, methodDecl := range methods {
-		metadata.Methods[methodName] = e.buildMethodMetadata(methodDecl)
+		metadata.Methods[methodName] = methodMetadata(methodDecl)
 	}
 	for methodName, decls := range methodOverloads {
 		metas := make([]*runtime.MethodMetadata, 0, len(decls))
 		for _, decl := range decls {
-			metas = append(metas, e.buildMethodMetadata(decl))
+			metas = append(metas, methodMetadata(decl))
 		}
 		metadata.MethodOverloads[methodName] = metas
 	}
 
 	// Convert static methods to MethodMetadata (keeping all overloads)
 	for methodName, methodDecl := range staticMethods {
-		methodMeta := e.buildMethodMetadata(methodDecl)
+		methodMeta := methodMetadata(methodDecl)
 		methodMeta.IsClassMethod = true
 		metadata.StaticMethods[methodName] = methodMeta
 	}
 	for methodName, decls := range staticMethodOverloads {
 		metas := make([]*runtime.MethodMetadata, 0, len(decls))
 		for _, decl := range decls {
-			methodMeta := e.buildMethodMetadata(decl)
+			methodMeta := methodMetadata(decl)
 			methodMeta.IsClassMethod = true
 			metas = append(metas, methodMeta)
 		}
@@ -60,38 +71,31 @@ func (e *Evaluator) buildRecordMetadata(
 	return metadata
 }
 
-// buildMethodMetadata converts an AST FunctionDecl to MethodMetadata.
-func (e *Evaluator) buildMethodMetadata(decl *ast.FunctionDecl) *runtime.MethodMetadata {
-	// Build parameter metadata
-	params := make([]runtime.ParameterMetadata, len(decl.Parameters))
-	for idx, param := range decl.Parameters {
-		typeName := ""
-		if param.Type != nil {
-			typeName = param.Type.String()
+// metadataTypeResolver fills runtime callable types from semantic identities or
+// structured unchecked annotations in the declaration's environment.
+func (e *Evaluator) metadataTypeResolver(ctx *ExecutionContext) runtime.TypeResolver {
+	return func(annotation ast.TypeExpression) types.Type {
+		resolved, err := e.ResolveTypeFromAnnotation(annotation, ctx)
+		if err != nil {
+			return nil
 		}
-		params[idx] = runtime.ParameterMetadata{
-			Name:         param.Name.Value,
-			TypeName:     typeName,
-			Type:         nil, // Will be resolved later if needed
-			ByRef:        param.ByRef,
-			DefaultValue: param.DefaultValue,
+		return resolved
+	}
+}
+
+func (e *Evaluator) resolveClassCallableTypes(metadata *runtime.ClassMetadata, declaration *ast.FunctionDecl, ctx *ExecutionContext) {
+	if metadata == nil || declaration == nil || declaration.Name == nil {
+		return
+	}
+	name := ident.Normalize(declaration.Name.Value)
+	candidates := []*runtime.MethodMetadata{metadata.Methods[name], metadata.ClassMethods[name], metadata.Constructors[name], metadata.Destructor}
+	candidates = append(candidates, metadata.MethodOverloads[name]...)
+	candidates = append(candidates, metadata.ClassMethodOverloads[name]...)
+	candidates = append(candidates, metadata.ConstructorOverloads[name]...)
+	for _, candidate := range candidates {
+		if candidate != nil && (candidate.Declaration == declaration || candidate.SourceDeclaration == declaration) {
+			candidate.ResolveTypes(e.metadataTypeResolver(ctx))
+			return
 		}
-	}
-
-	// Determine return type
-	returnTypeName := ""
-	if decl.ReturnType != nil {
-		returnTypeName = decl.ReturnType.String()
-	}
-
-	return &runtime.MethodMetadata{
-		Name:           decl.Name.Value,
-		Parameters:     params,
-		ReturnTypeName: returnTypeName,
-		ReturnType:     nil, // Will be resolved later if needed
-		Body:           decl.Body,
-		IsClassMethod:  decl.IsClassMethod,
-		IsConstructor:  decl.IsConstructor,
-		IsDestructor:   decl.IsDestructor,
 	}
 }

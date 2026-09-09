@@ -33,6 +33,18 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (resolvedT
 		return nil, nil
 	}
 
+	if annotation, ok := typeExpr.(*ast.TypeAnnotation); ok && annotation.InlineType != nil {
+		return a.resolveTypeExpression(annotation.InlineType)
+	}
+	if annotation, ok := typeExpr.(*ast.ArrayTypeAnnotation); ok {
+		return a.resolveTypeExpression(&ast.ArrayTypeNode{
+			ElementType: annotation.ElementType,
+			LowBound:    annotation.LowBound,
+			HighBound:   annotation.HighBound,
+			Token:       annotation.Token,
+		})
+	}
+
 	// Handle SetTypeNode directly to validate element type without string round-tripping
 	if setNode, ok := typeExpr.(*ast.SetTypeNode); ok {
 		return a.resolveSetTypeNode(setNode)

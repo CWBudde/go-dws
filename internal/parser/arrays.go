@@ -438,11 +438,11 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 		return nil
 	}
 
-	// Convert TypeExpression to string representation for TypeAnnotation
-	// This allows the semantic analyzer to resolve it via resolveInlineArrayType
+	// Retain the original structure alongside the compatibility display name.
 	elementType := &ast.TypeAnnotation{
-		Token: cursor.Current(),
-		Name:  elementTypeExpr.String(),
+		Token:      cursor.Current(),
+		Name:       elementTypeExpr.String(),
+		InlineType: elementTypeExpr,
 	}
 
 	// Build nested array type annotations if we have dimensions
@@ -476,8 +476,9 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 			if i > 0 {
 				// Create a wrapper TypeAnnotation pointing to this array type
 				currentElementType = &ast.TypeAnnotation{
-					Token: arrayToken,
-					Name:  newArrayType.String(),
+					Token:      arrayToken,
+					Name:       newArrayType.String(),
+					InlineType: newArrayType,
 				}
 			} else {
 				// This is the outermost dimension, use it directly

@@ -24,6 +24,8 @@ func Walk(v Visitor, node Node) {
 		walkArrayDecl(n, v)
 	case *ArrayLiteralExpression:
 		walkArrayLiteralExpression(n, v)
+	case *ArrayTypeAnnotation:
+		walkArrayTypeAnnotation(n, v)
 	case *ArrayTypeNode:
 		walkArrayTypeNode(n, v)
 	case *AsExpression:
@@ -210,6 +212,9 @@ func walkArrayDecl(n *ArrayDecl, v Visitor) {
 	if n.Name != nil {
 		Walk(v, n.Name)
 	}
+	if n.ArrayType != nil {
+		Walk(v, n.ArrayType)
+	}
 }
 
 // walkArrayLiteralExpression walks an ArrayLiteralExpression node
@@ -218,6 +223,19 @@ func walkArrayLiteralExpression(n *ArrayLiteralExpression, v Visitor) {
 		if item != nil {
 			Walk(v, item)
 		}
+	}
+}
+
+// walkArrayTypeAnnotation walks an ArrayTypeAnnotation node
+func walkArrayTypeAnnotation(n *ArrayTypeAnnotation, v Visitor) {
+	if n.ElementType != nil {
+		Walk(v, n.ElementType)
+	}
+	if n.LowBound != nil {
+		Walk(v, n.LowBound)
+	}
+	if n.HighBound != nil {
+		Walk(v, n.HighBound)
 	}
 }
 

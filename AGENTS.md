@@ -187,7 +187,7 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
   - **Type System** (`types/`): centralized registry for classes, records, interfaces, functions, and helpers
   - **Contracts** (`contracts/`): narrow neutral cross-package coordination types
   - See `docs/architecture/interp-evaluator-steady-state.md` for the current steady-state boundary
-  - See `PLAN.md` §2 (A5–A7) for the remaining type-model consolidation and `docs/history/progress-log-2026-09.md` for the completed shell cleanup
+  - See `docs/history/progress-log-2026-09.md` for the completed shell cleanup and type-model consolidation
 
 - `internal/bytecode/` - Bytecode VM (experimental, incomplete, unmaintained; no verified speedup)
   - `compiler.go`: AST-to-bytecode compiler with optimizations

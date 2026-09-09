@@ -22,7 +22,7 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 	jv := extractJSONValueViaReflection(base)
 
 	// If we couldn't extract a JSON value, it's not a JSON type
-	if jv == nil && base.Type() != "JSON" {
+	if jv == nil && runtime.KindOf(base) != runtime.KindJSON {
 		return e.newError(node, "cannot index non-JSON value of type %s", base.Type())
 	}
 
@@ -40,7 +40,7 @@ func (e *Evaluator) indexJSON(base Value, index Value, node ast.Node) Value {
 	case jsonvalue.KindObject:
 		// A string index is a key lookup; an integer index is positional over the
 		// members in insertion order (see mixed_browse).
-		if idx.Type() != "STRING" {
+		if runtime.KindOf(idx) != runtime.KindString {
 			if i, ok := ExtractIntegerIndex(idx); ok {
 				keys := jv.ObjectKeys()
 				if i >= 0 && i < len(keys) {
@@ -68,7 +68,7 @@ func extractJSONValueViaReflection(val Value) *jsonvalue.Value {
 	}
 
 	// Check if this is a "JSON" type
-	if val.Type() != "JSON" {
+	if runtime.KindOf(val) != runtime.KindJSON {
 		return nil
 	}
 
@@ -228,7 +228,7 @@ func ValueToJSONValue(val Value) *jsonvalue.Value {
 		return obj
 	default:
 		// Check if it's a JSONValue by type name (avoid import)
-		if val.Type() == "JSON" {
+		if runtime.KindOf(val) == runtime.KindJSON {
 			// Extract using reflection
 			jv := extractJSONValueViaReflection(val)
 			if jv != nil {

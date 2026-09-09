@@ -1,8 +1,6 @@
 package evaluator
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -84,7 +82,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	}
 
 	// NATIVE: Nil value handling (auto-initialization)
-	if objVal == nil || objVal.Type() == "NIL" {
+	if objVal == nil || runtime.KindOf(objVal) == runtime.KindNil {
 		// Only attempt auto-initialization if we have a setter (LValue)
 		if objSetter != nil {
 			// Case: Array element initialization (arr[i].Member := val)
@@ -119,7 +117,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		// Still nil after any auto-initialization: assigning to an instance
 		// member of a nil reference raises "Object not instantiated" at the
 		// member's position (catchable with try/except).
-		if objVal == nil || objVal.Type() == "NIL" {
+		if objVal == nil || runtime.KindOf(objVal) == runtime.KindNil {
 			return e.newError(target.Member, "Object not instantiated")
 		}
 	}
@@ -211,8 +209,8 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	}
 
 	// NATIVE: Class/metaclass assignment
-	objType := objVal.Type()
-	if objType == "RECORD_TYPE" {
+	objType := runtime.KindOf(objVal)
+	if objType == runtime.KindRecordType {
 		recordType, ok := objVal.(*RecordTypeValue)
 		if !ok {
 			return e.newError(stmt, "internal error: RECORD_TYPE value is not *RecordTypeValue")
@@ -244,7 +242,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		}
 		return e.newError(stmt, "record class member '%s' not found in record '%s'", fieldName, recordType.GetRecordTypeName())
 	}
-	if strings.HasPrefix(objType, "CLASS") || objType == "CLASSINFO" {
+	if objType == runtime.KindClass || objType == runtime.KindClassInfo {
 		if classMeta, ok := objVal.(ClassMetaValue); ok {
 			// Check for Class Variable
 			if classMeta.HasClassVar(fieldName) {
@@ -292,5 +290,5 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	}
 
 	// Unknown type or unsupported member assignment
-	return e.newError(stmt, "member assignment not supported for type %s", objType)
+	return e.newError(stmt, "member assignment not supported for type %s", objVal.Type())
 }

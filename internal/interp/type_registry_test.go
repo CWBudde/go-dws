@@ -20,11 +20,7 @@ func TestTypeRegistryStandalone(t *testing.T) {
 
 	// Test 1: Register and lookup classes
 	t.Run("ClassRegistration", func(t *testing.T) {
-		classInfo := &ClassInfo{
-			Name:   "TMyClass",
-			Parent: nil,
-			Fields: make(map[string]internalTypes.Type),
-		}
+		classInfo := NewClassInfo("TMyClass")
 
 		// Register class
 		ts.RegisterClass("TMyClass", classInfo)
@@ -182,11 +178,7 @@ func TestInterpreterEvaluatorSharedTypeSystem(t *testing.T) {
 	ts := interp.typeSystem
 
 	// Register a class via TypeSystem
-	classInfo := &ClassInfo{
-		Name:    "TSharedClass",
-		Fields:  make(map[string]internalTypes.Type),
-		Methods: make(map[string]*ast.FunctionDecl),
-	}
+	classInfo := NewClassInfo("TSharedClass")
 	ts.RegisterClass("TSharedClass", classInfo)
 
 	// Test 1: Interpreter should see the registered class via TypeSystem
@@ -242,10 +234,7 @@ func TestTypeRegistryConcurrentAccess(t *testing.T) {
 	// Register some types
 	for i := 0; i < 10; i++ {
 		className := fmt.Sprintf("TClass%d", i)
-		classInfo := &ClassInfo{
-			Name:   className,
-			Fields: make(map[string]internalTypes.Type),
-		}
+		classInfo := NewClassInfo(className)
 		ts.RegisterClass(className, classInfo)
 	}
 

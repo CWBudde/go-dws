@@ -8,27 +8,27 @@ import (
 
 // MethodMetadataFromAST converts an AST function declaration to metadata.
 // Creates MethodMetadata with AST Body, PreConditions, and PostConditions.
-func MethodMetadataFromAST(fn *ast.FunctionDecl) *MethodMetadata {
+func MethodMetadataFromAST(fn *ast.FunctionDecl, resolvers ...TypeResolver) *MethodMetadata {
 	if fn == nil {
 		return nil
 	}
 
 	metadata := &MethodMetadata{
-		Name:       fn.Name.Value,
-		Parameters: make([]ParameterMetadata, len(fn.Parameters)),
-		Body:       fn.Body,
+		Declaration:       fn,
+		SourceDeclaration: fn,
+		IsStatic:          fn.IsStatic,
+		Name:              fn.Name.Value,
+		Parameters:        make([]ParameterMetadata, len(fn.Parameters)),
+		Body:              fn.Body,
 	}
 
 	// Convert parameters
 	for i, param := range fn.Parameters {
-		metadata.Parameters[i] = ParameterMetadataFromAST(param)
+		metadata.Parameters[i] = ParameterMetadataFromAST(param, resolvers...)
 	}
 
-	// Set return type information
-	if fn.ReturnType != nil {
-		metadata.ReturnTypeName = fn.ReturnType.String()
-		// ReturnType will be resolved during semantic analysis
-	}
+	// Project the semantic identity when the declaration has been resolved.
+	metadata.ReturnType = resolveMetadataType(fn.ReturnType, resolvers)
 
 	// Copy validation conditions
 	metadata.PreConditions = fn.PreConditions
@@ -42,28 +42,35 @@ func MethodMetadataFromAST(fn *ast.FunctionDecl) *MethodMetadata {
 	metadata.IsClassMethod = fn.IsClassMethod
 	metadata.IsConstructor = fn.IsConstructor
 	metadata.IsDestructor = fn.IsDestructor
+	switch fn.Visibility {
+	case ast.VisibilityPrivate:
+		metadata.Visibility = VisibilityPrivate
+	case ast.VisibilityProtected:
+		metadata.Visibility = VisibilityProtected
+	default:
+		metadata.Visibility = VisibilityPublic
+	}
 
 	return metadata
 }
 
 // ParameterMetadataFromAST converts an AST parameter to ParameterMetadata.
-func ParameterMetadataFromAST(param *ast.Parameter) ParameterMetadata {
+func ParameterMetadataFromAST(param *ast.Parameter, resolvers ...TypeResolver) ParameterMetadata {
 	metadata := ParameterMetadata{
 		Name:         param.Name.Value,
 		ByRef:        param.ByRef,
+		IsLazy:       param.IsLazy,
+		IsConst:      param.IsConst,
 		DefaultValue: param.DefaultValue,
 	}
 
-	if param.Type != nil {
-		metadata.TypeName = param.Type.String()
-		// Type will be resolved during semantic analysis
-	}
+	metadata.Type = resolveMetadataType(param.Type, resolvers)
 
 	return metadata
 }
 
 // FieldMetadataFromAST converts an AST field declaration to FieldMetadata.
-func FieldMetadataFromAST(field *ast.FieldDecl) *FieldMetadata {
+func FieldMetadataFromAST(field *ast.FieldDecl, resolvers ...TypeResolver) *FieldMetadata {
 	if field == nil {
 		return nil
 	}
@@ -73,10 +80,7 @@ func FieldMetadataFromAST(field *ast.FieldDecl) *FieldMetadata {
 		InitValue: field.InitValue,
 	}
 
-	if field.Type != nil {
-		metadata.TypeName = field.Type.String()
-		// Type will be resolved during semantic analysis
-	}
+	metadata.Type = resolveMetadataType(field.Type, resolvers)
 
 	// Map the AST visibility onto the runtime field visibility. The parser maps
 	// both `published` and the default section to VisibilityPublic (go-dws
@@ -104,10 +108,7 @@ func ClassMetadataFromAST(decl *ast.ClassDecl) *ClassMetadata {
 
 	metadata := NewClassMetadata(decl.Name.Value)
 
-	// Set parent name if specified
-	if decl.Parent != nil {
-		metadata.ParentName = decl.Parent.String()
-	}
+	// Parent is linked to canonical class metadata during declaration registration.
 
 	// Set interfaces
 	for _, intf := range decl.Interfaces {
@@ -284,4 +285,40 @@ func AddFieldToRecord(record *RecordMetadata, field *FieldMetadata) {
 
 	normalizedName := ident.Normalize(field.Name)
 	record.Fields[normalizedName] = field
+}
+
+// TypeResolver projects an AST type expression to its resolved semantic identity.
+// Declaration registration supplies the resolver for its environment; runtime
+// metadata never reconstructs a type from a display string.
+type TypeResolver func(ast.TypeExpression) types.Type
+
+func resolveMetadataType(annotation ast.TypeExpression, resolvers []TypeResolver) types.Type {
+	if annotation == nil || len(resolvers) == 0 || resolvers[0] == nil {
+		return nil
+	}
+	return resolvers[0](annotation)
+}
+
+// ResolveTypes fills a callable's type identities without replacing its canonical
+// metadata object. Unresolved annotations preserve identities already supplied by
+// a declaration or native bootstrap.
+func (m *MethodMetadata) ResolveTypes(resolve TypeResolver) {
+	if m == nil || m.Declaration == nil || resolve == nil {
+		return
+	}
+	if m.Declaration.ReturnType != nil {
+		if resolved := resolve(m.Declaration.ReturnType); resolved != nil {
+			m.ReturnType = resolved
+		}
+	}
+	for index, param := range m.Declaration.Parameters {
+		if index >= len(m.Parameters) {
+			break
+		}
+		if param.Type != nil {
+			if resolved := resolve(param.Type); resolved != nil {
+				m.Parameters[index].Type = resolved
+			}
+		}
+	}
 }

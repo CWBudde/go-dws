@@ -24,13 +24,13 @@ func (m *MockClassMetaValue) GetClassVar(name string) (Value, bool)      { retur
 func (m *MockClassMetaValue) GetClassConstant(name string) (Value, bool) { return nil, false }
 func (m *MockClassMetaValue) HasClassMethod(name string) bool            { return false }
 func (m *MockClassMetaValue) HasConstructor(name string) bool            { return false }
-func (m *MockClassMetaValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool) {
+func (m *MockClassMetaValue) InvokeParameterlessClassMethod(_ string, _ func(methodDecl *runtime.MethodMetadata) Value) (Value, bool) {
 	return nil, false
 }
-func (m *MockClassMetaValue) CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool) {
+func (m *MockClassMetaValue) CreateClassMethodPointer(_ string, _ func(methodDecl *runtime.MethodMetadata) Value) (Value, bool) {
 	return nil, false
 }
-func (m *MockClassMetaValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) {
+func (m *MockClassMetaValue) InvokeConstructor(_ string, _ func(methodDecl *runtime.MethodMetadata) Value) (Value, bool) {
 	return nil, false
 }
 func (m *MockClassMetaValue) GetNestedClass(name string) Value {
@@ -60,17 +60,17 @@ func (m *mockObjectValue) GetClassType() Value {
 }
 func (m *mockObjectValue) HasProperty(name string) bool { return false }
 func (m *mockObjectValue) HasMethod(name string) bool   { return false }
-func (m *mockObjectValue) GetMethodDecl(name string) any {
+func (m *mockObjectValue) GetMethodDecl(_ string) *runtime.MethodMetadata {
 	return nil
 }
-func (m *mockObjectValue) GetClassMethodDecl(name string) any {
+func (m *mockObjectValue) GetClassMethodDecl(_ string) *runtime.MethodMetadata {
 	return nil
 }
 func (m *mockObjectValue) GetField(name string) Value { return nil }
 func (m *mockObjectValue) GetClassVar(name string) (Value, bool) {
 	return nil, false
 }
-func (m *mockObjectValue) CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value {
+func (m *mockObjectValue) CallInheritedMethod(_ string, _ []Value, _ func(methodDecl *runtime.MethodMetadata, args []Value) Value) Value {
 	return nil
 }
 func (m *mockObjectValue) ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value {
@@ -85,10 +85,10 @@ func (m *mockObjectValue) WriteProperty(propName string, value Value, propertyEx
 func (m *mockObjectValue) WriteIndexedProperty(propInfo any, indices []Value, value Value, propertyExecutor func(propInfo any, indices []Value, value Value) Value) Value {
 	return nil
 }
-func (m *mockObjectValue) InvokeParameterlessMethod(methodName string, methodExecutor func(methodDecl any) Value) (Value, bool) {
+func (m *mockObjectValue) InvokeParameterlessMethod(_ string, _ func(methodDecl *runtime.MethodMetadata) Value) (Value, bool) {
 	return nil, false
 }
-func (m *mockObjectValue) CreateMethodPointer(methodName string, pointerCreator func(methodDecl any) Value) (Value, bool) {
+func (m *mockObjectValue) CreateMethodPointer(_ string, _ func(methodDecl *runtime.MethodMetadata) Value) (Value, bool) {
 	return nil, false
 }
 
@@ -257,3 +257,5 @@ func TestMemberAssignment_AutoInit(t *testing.T) {
 		}
 	})
 }
+
+func (m *MockClassMetaValue) ValueKind() runtime.ValueKind { return runtime.KindClassInfo }

@@ -64,41 +64,41 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 
 	// Handle operations based on operand types
 	// Check for Variant FIRST (Variant operations take precedence)
-	if left.Type() == "VARIANT" || right.Type() == "VARIANT" {
+	if runtime.KindOf(left) == runtime.KindVariant || runtime.KindOf(right) == runtime.KindVariant {
 		return e.evalVariantBinaryOp(node.Operator, left, right, node)
 	}
 
 	// Type-specific binary operations
 	switch {
-	case left.Type() == "INTEGER" && right.Type() == "INTEGER":
+	case runtime.KindOf(left) == runtime.KindInteger && runtime.KindOf(right) == runtime.KindInteger:
 		return e.evalIntegerBinaryOp(node.Operator, left, right, node)
 
-	case left.Type() == "FLOAT" || right.Type() == "FLOAT":
+	case runtime.KindOf(left) == runtime.KindFloat || runtime.KindOf(right) == runtime.KindFloat:
 		return e.evalFloatBinaryOp(node.Operator, left, right, node)
 
-	case left.Type() == "STRING" && right.Type() == "STRING":
+	case runtime.KindOf(left) == runtime.KindString && runtime.KindOf(right) == runtime.KindString:
 		return e.evalStringBinaryOp(node.Operator, left, right, node)
 
-	case left.Type() == "SET" && right.Type() == "SET":
+	case runtime.KindOf(left) == runtime.KindSet && runtime.KindOf(right) == runtime.KindSet:
 		return e.evalSetBinaryOp(node.Operator, left, right, node)
 
 	// Array concatenation: array + array -> new dynamic array
-	case left.Type() == "ARRAY" && right.Type() == "ARRAY":
+	case runtime.KindOf(left) == runtime.KindArray && runtime.KindOf(right) == runtime.KindArray:
 		return e.evalArrayBinaryOp(node.Operator, left, right, node)
 
 	// Allow string concatenation with RTTI_TYPEINFO
-	case (left.Type() == "STRING" && right.Type() == "RTTI_TYPEINFO") ||
-		(left.Type() == "RTTI_TYPEINFO" && right.Type() == "STRING"):
+	case (runtime.KindOf(left) == runtime.KindString && runtime.KindOf(right) == runtime.KindRTTITypeInfo) ||
+		(runtime.KindOf(left) == runtime.KindRTTITypeInfo && runtime.KindOf(right) == runtime.KindString):
 		if node.Operator == "+" {
 			return &runtime.StringValue{Value: left.String() + right.String()}
 		}
 		return e.newError(node, "type mismatch: %s %s %s", left.Type(), node.Operator, right.Type())
 
-	case left.Type() == "BOOLEAN" && right.Type() == "BOOLEAN":
+	case runtime.KindOf(left) == runtime.KindBoolean && runtime.KindOf(right) == runtime.KindBoolean:
 		return e.evalBooleanBinaryOp(node.Operator, left, right, node)
 
 	// Enum comparisons
-	case left.Type() == "ENUM" && right.Type() == "ENUM":
+	case runtime.KindOf(left) == runtime.KindEnum && runtime.KindOf(right) == runtime.KindEnum:
 		return e.evalEnumBinaryOp(node.Operator, left, right, node)
 
 	// Object, interface, class, and nil comparisons (= and <>)
@@ -196,7 +196,7 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 		function := overloads[0]
 
 		// Build the function pointer type and create the value
-		pointerType := buildFunctionPointerType(function)
+		pointerType := e.buildFunctionPointerType(function, ctx)
 		return &runtime.FunctionPointerValue{
 			Function:    function,
 			Closure:     ctx.Env(),
@@ -215,7 +215,7 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 		methodName := operand.Member.Value
 
 		if objVal, ok := objectVal.(ObjectValue); ok {
-			if methodPtr, created := objVal.CreateMethodPointer(methodName, func(methodDecl any) Value {
+			if methodPtr, created := objVal.CreateMethodPointer(methodName, func(methodDecl *runtime.MethodMetadata) Value {
 				return e.createFunctionPointerFromDecl(methodDecl, objectVal, ctx)
 			}); created {
 				return methodPtr

@@ -137,9 +137,8 @@ type ExecutionContext struct {
 	controlFlow               *ControlFlow
 	propContext               *PropertyEvalContext
 	env                       *Environment
-	recordTypeContextType     *types.RecordType
-	recordTypeContext         string
-	currentFunctionReturnType string
+	recordTypeContext         *types.RecordType
+	currentFunctionReturnType types.Type
 	envStack                  []*Environment
 	oldValuesStack            []map[string]any
 	refCountManager           RefCountManager
@@ -278,47 +277,35 @@ func (ctx *ExecutionContext) SetPropContext(propCtx *PropertyEvalContext) {
 	ctx.propContext = propCtx
 }
 
-// RecordTypeContext returns the current record type context for anonymous record literals.
-func (ctx *ExecutionContext) RecordTypeContext() string {
+// RecordTypeContext returns the expected type for a record literal, named or inline.
+func (ctx *ExecutionContext) RecordTypeContext() *types.RecordType {
 	return ctx.recordTypeContext
 }
 
-// SetRecordTypeContext sets the record type context for anonymous record literals.
-func (ctx *ExecutionContext) SetRecordTypeContext(typeName string) {
-	ctx.recordTypeContext = typeName
-	ctx.recordTypeContextType = nil
+// SetRecordTypeContext sets the expected record type. Callers restore the previous
+// pointer after evaluating nested literals so enclosing contexts remain intact.
+func (ctx *ExecutionContext) SetRecordTypeContext(recordType *types.RecordType) {
+	ctx.recordTypeContext = recordType
 }
 
-// RecordTypeContextType returns the current anonymous record type context.
-func (ctx *ExecutionContext) RecordTypeContextType() *types.RecordType {
-	return ctx.recordTypeContextType
-}
-
-// SetRecordTypeContextType sets an anonymous record type context.
-func (ctx *ExecutionContext) SetRecordTypeContextType(recordType *types.RecordType) {
-	ctx.recordTypeContextType = recordType
-	ctx.recordTypeContext = ""
-}
-
-// ClearRecordTypeContext clears the record type context.
+// ClearRecordTypeContext clears the expected record type.
 func (ctx *ExecutionContext) ClearRecordTypeContext() {
-	ctx.recordTypeContext = ""
-	ctx.recordTypeContextType = nil
+	ctx.recordTypeContext = nil
 }
 
 // GetCurrentFunctionReturnType returns the expected return type for the current function.
-func (ctx *ExecutionContext) GetCurrentFunctionReturnType() string {
+func (ctx *ExecutionContext) GetCurrentFunctionReturnType() types.Type {
 	return ctx.currentFunctionReturnType
 }
 
 // SetCurrentFunctionReturnType sets the expected return type for the current function.
-func (ctx *ExecutionContext) SetCurrentFunctionReturnType(typeName string) {
-	ctx.currentFunctionReturnType = typeName
+func (ctx *ExecutionContext) SetCurrentFunctionReturnType(returnType types.Type) {
+	ctx.currentFunctionReturnType = returnType
 }
 
 // ClearCurrentFunctionReturnType clears the expected return type.
 func (ctx *ExecutionContext) ClearCurrentFunctionReturnType() {
-	ctx.currentFunctionReturnType = ""
+	ctx.currentFunctionReturnType = nil
 }
 
 // ArrayTypeContext returns the current array type context for array literal evaluation.
@@ -403,7 +390,6 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		currentNode:               ctx.currentNode,
 		oldValuesStack:            oldValuesStackCopy,
 		propContext:               ctx.propContext,
-		recordTypeContextType:     ctx.recordTypeContextType,
 		recordTypeContext:         ctx.recordTypeContext,
 		currentFunctionReturnType: ctx.currentFunctionReturnType,
 		arrayTypeContext:          ctx.arrayTypeContext,
@@ -420,9 +406,8 @@ func (ctx *ExecutionContext) Reset() {
 	ctx.handlerException = nil
 	ctx.oldValuesStack = make([]map[string]any, 0)
 	ctx.propContext = NewPropertyEvalContext()
-	ctx.recordTypeContext = ""
-	ctx.recordTypeContextType = nil
-	ctx.currentFunctionReturnType = ""
+	ctx.recordTypeContext = nil
+	ctx.currentFunctionReturnType = nil
 	ctx.arrayTypeContext = nil
 	ctx.currentNode = nil
 }

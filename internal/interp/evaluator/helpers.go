@@ -18,7 +18,7 @@ func IsTruthy(val Value) bool {
 	default:
 		// Check if this is a Variant type by type name
 		// (VariantValue is in internal/interp, not runtime, so we check by type string)
-		if val.Type() == "VARIANT" {
+		if runtime.KindOf(val) == runtime.KindVariant {
 			// For variants, we need to unwrap and check the underlying value
 			// This requires accessing the Value field, but VariantValue is not imported here
 			// Use VariantToBool helper
@@ -66,8 +66,8 @@ func VariantToBool(val Value) bool {
 		return !v.Value.IsFalsey()
 	default:
 		// Check by type name for types not in runtime package
-		switch val.Type() {
-		case "NIL", "UNASSIGNED":
+		switch runtime.KindOf(val) {
+		case runtime.KindNil, runtime.KindUnassigned:
 			return false
 		default:
 			// For objects, arrays, records, etc: non-nil → true
@@ -197,10 +197,10 @@ func IsFalsey(val Value) bool {
 		return v.Value.IsFalsey()
 	default:
 		// Check by type name for types not in runtime package
-		switch val.Type() {
-		case "NIL", "UNASSIGNED", "NULL":
+		switch runtime.KindOf(val) {
+		case runtime.KindNil, runtime.KindUnassigned, runtime.KindNull:
 			return true
-		case "VARIANT":
+		case runtime.KindVariant:
 			// Variant values need to be unwrapped
 			if wrapper, ok := val.(runtime.VariantWrapper); ok {
 				return IsFalsey(wrapper.UnwrapVariant())

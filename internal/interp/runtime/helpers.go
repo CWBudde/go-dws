@@ -246,7 +246,7 @@ func Equal(left, right Value) (bool, error) {
 	}
 
 	// Fall back to simple type check
-	if left.Type() != right.Type() {
+	if !SameValueType(left, right) {
 		return false, nil
 	}
 
@@ -392,5 +392,5 @@ func TypesMatch(left, right Value) bool {
 	if left == nil || right == nil {
 		return false
 	}
-	return left.Type() == right.Type()
+	return SameValueType(left, right)
 }

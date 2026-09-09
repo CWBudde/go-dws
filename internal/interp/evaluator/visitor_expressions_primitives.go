@@ -109,8 +109,6 @@ func (e *Evaluator) VisitIfExpression(node *ast.IfExpression, ctx *ExecutionCont
 			if setType, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
 				return runtime.NewSetValue(setType)
 			}
-		} else if setType := e.parseInlineSetType(typeAnnot.Name); setType != nil {
-			return runtime.NewSetValue(setType)
 		}
 		return &runtime.NilValue{}
 	}

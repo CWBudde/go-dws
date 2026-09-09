@@ -30,89 +30,14 @@ import (
 //   - SetValue → types.SetType
 //   - NullValue/UnassignedValue → nil
 func GetValueType(val Value) types.Type {
-	if val == nil {
+	switch runtime.KindOf(val) {
+	case runtime.KindNil, runtime.KindNull, runtime.KindUnassigned:
 		return nil
-	}
-	if recVal, ok := val.(*runtime.RecordValue); ok && recVal.RecordType != nil {
-		return recVal.RecordType
-	}
-
-	// Get the type string from the value
-	typeStr := val.Type()
-
-	// Handle value types based on their Type() string
-	switch typeStr {
-	case "INTEGER":
-		return types.INTEGER
-
-	case "FLOAT":
-		return types.FLOAT
-
-	case "STRING":
-		return types.STRING
-
-	case "BOOLEAN":
-		return types.BOOLEAN
-
-	case "NIL":
-		// Nil is context-dependent - could be any reference type
-		return nil
-
-	case "NULL":
-		// Variant NULL value - no specific type
-		return nil
-
-	case "UNASSIGNED":
-		// Variant UNASSIGNED value - no specific type
-		return nil
-
-	case "VARIANT":
-		// For Variant values, we need to unwrap to get the actual type
-		// This requires access to the wrapped value, which we'll handle via a helper
+	case runtime.KindVariant:
 		return unwrapVariantType(val)
-
-	case "ARRAY":
-		// Arrays have their element type stored
-		// We'll use a helper to extract the element type
-		return getArrayElementTypeFromValue(val)
-
-	case "RECORD":
-		// Record types - use helper to extract the type
-		return getRecordTypeFromValue(val)
-
-	case "ENUM":
-		// Enum types - use helper to extract the type
-		return getEnumTypeFromValue(val)
-
-	case "SET":
-		// Set types - use helper to extract the type
-		return getSetTypeFromValue(val)
-
-	case "OBJECT":
-		// Class instances: build the class type with its parent chain so
-		// assignability/overload checks can rank subclass conversions.
-		if obj, ok := val.(*runtime.ObjectInstance); ok && obj.Class != nil {
-			return classTypeFromClassInfo(obj.Class)
-		}
-		return nil
-
 	default:
-		// Unknown value types have no static type information.
-		return nil
+		return runtime.LanguageType(val)
 	}
-}
-
-// classTypeFromClassInfo builds a types.ClassType (with parent chain) from
-// runtime class info.
-func classTypeFromClassInfo(classInfo runtime.IClassInfo) *types.ClassType {
-	if classInfo == nil {
-		return nil
-	}
-	var parent *types.ClassType
-	if p := classInfo.GetParent(); p != nil {
-		parent = classTypeFromClassInfo(p)
-	}
-	return types.NewClassType(classInfo.GetName(), parent)
 }
 
 // unwrapVariantType unwraps a Variant value to get its actual type.
@@ -134,58 +59,6 @@ func unwrapVariantType(val Value) types.Type {
 	return types.VARIANT
 }
 
-// getArrayElementTypeFromValue extracts the ArrayType from an ArrayValue.
-func getArrayElementTypeFromValue(val Value) types.Type {
-	if arrVal, ok := val.(*runtime.ArrayValue); ok && arrVal.ArrayType != nil {
-		return arrVal.ArrayType
-	}
-	return nil
-}
-
-// getRecordTypeFromValue extracts the RecordType from a RecordValue.
-func getRecordTypeFromValue(val Value) types.Type {
-	if recVal, ok := val.(*runtime.RecordValue); ok && recVal.RecordType != nil {
-		return recVal.RecordType
-	}
-	return nil
-}
-
-// getEnumTypeFromValue extracts type info from an EnumValue.
-// Returns nil since EnumValue only stores the type name, not the full EnumType.
-// Full type lookup would require TypeSystem access.
-func getEnumTypeFromValue(val Value) types.Type {
-	// EnumValue only has TypeName string, not *types.EnumType
-	// We can't look up the full type without TypeSystem access
-	// Return nil - callers should use TypeName for identification
-	return nil
-}
-
-// getSetTypeFromValue extracts the SetType from a SetValue.
-func getSetTypeFromValue(val Value) types.Type {
-	if setVal, ok := val.(*runtime.SetValue); ok && setVal.SetType != nil {
-		return setVal.SetType
-	}
-	return nil
-}
-
-// getTypeByName converts a type name to a types.Type.
-func getTypeByName(name string) types.Type {
-	switch name {
-	case "Integer":
-		return types.INTEGER
-	case "Float":
-		return types.FLOAT
-	case "String":
-		return types.STRING
-	case "Boolean":
-		return types.BOOLEAN
-	default:
-		// For custom types, return Integer as placeholder.
-		// Full type resolution would require TypeSystem access.
-		return types.INTEGER
-	}
-}
-
 // ============================================================================
 // Function Pointer Creation Helpers
 // ============================================================================
@@ -199,41 +72,49 @@ func createFunctionPointerFromDecl(fn *ast.FunctionDecl, closure any) Value {
 	}
 }
 
-// buildFunctionPointerType builds a FunctionPointerType from a function declaration.
-func buildFunctionPointerType(fn *ast.FunctionDecl) *types.FunctionPointerType {
-	// Build parameter types from type annotations
+// buildFunctionPointerType resolves a function's declared signature without parsing display text.
+func (e *Evaluator) buildFunctionPointerType(fn *ast.FunctionDecl, ctx *ExecutionContext) *types.FunctionPointerType {
 	paramTypes := make([]types.Type, len(fn.Parameters))
-	for idx, param := range fn.Parameters {
-		if param.Type != nil {
-			paramTypes[idx] = getTypeByName(param.Type.String())
-		} else {
-			paramTypes[idx] = types.INTEGER // Default fallback
+	for i, parameter := range fn.Parameters {
+		resolved, err := e.ResolveTypeFromAnnotation(parameter.Type, ctx)
+		if err != nil || resolved == nil {
+			return nil
 		}
+		paramTypes[i] = resolved
 	}
-
-	// Get return type
 	var returnType types.Type
 	if fn.ReturnType != nil {
-		returnType = getTypeByName(fn.ReturnType.String())
+		resolved, err := e.ResolveTypeFromAnnotation(fn.ReturnType, ctx)
+		if err != nil || resolved == nil {
+			return nil
+		}
+		returnType = resolved
 	}
-
-	// Create the function pointer type
-	if returnType != nil {
-		return types.NewFunctionPointerType(paramTypes, returnType)
-	}
-	return types.NewProcedurePointerType(paramTypes)
+	return types.NewFunctionPointerType(paramTypes, returnType)
 }
 
 // createFunctionPointerFromDecl creates a FunctionPointerValue from a method declaration.
 // The methodDecl parameter is any to support both ClassMetaValue and ObjectValue callback signatures.
 func (e *Evaluator) createFunctionPointerFromDecl(methodDecl any, selfObject Value, ctx *ExecutionContext) Value {
-	fn, ok := methodDecl.(*ast.FunctionDecl)
-	if !ok {
-		return e.newError(nil, "internal error: expected FunctionDecl, got %T", methodDecl)
+	var fn *ast.FunctionDecl
+	var callable *runtime.MethodMetadata
+	switch method := methodDecl.(type) {
+	case *runtime.MethodMetadata:
+		callable = method
+		fn = runtime.MethodDeclaration(method)
+	case *ast.FunctionDecl:
+		fn = method
+	}
+	if fn == nil {
+		return e.newError(nil, "internal error: expected callable declaration, got %T", methodDecl)
 	}
 
-	pointerType := buildFunctionPointerType(fn)
+	pointerType := e.buildFunctionPointerType(fn, ctx)
+	if callable != nil {
+		fn = nil
+	}
 	return &runtime.FunctionPointerValue{
+		Callable:    callable,
 		Function:    fn,
 		Closure:     ctx.Env(),
 		SelfObject:  selfObject,

@@ -1,7 +1,6 @@
 package evaluator
 
 import (
-	"reflect"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/builtins"
@@ -14,36 +13,8 @@ import (
 // Helper methods are type extensions that add methods to types that don't
 // natively have them (e.g., str.ToUpper(), arr.Push(), num.ToString()).
 
-// HelperInfo represents a helper type declaration at runtime.
-// Uses wrapper methods returning `any` to avoid circular imports with *interp.HelperInfo.
-type HelperInfo interface {
-	GetName() string
-	GetTargetType() types.Type
-
-	// GetMethodAny looks up a method by name in this helper's inheritance chain.
-	// Returns the method declaration, the helper that owns it (as any), and whether it was found.
-	GetMethodAny(name string) (*ast.FunctionDecl, any, bool)
-
-	// GetMethodOverloadsAny looks up method overloads by name in this helper's inheritance chain.
-	GetMethodOverloadsAny(name string) ([]*ast.FunctionDecl, any, bool)
-
-	// GetBuiltinMethodAny looks up a builtin method spec by name in this helper's inheritance chain.
-	// Returns the builtin spec, the helper that owns it (as any), and whether it was found.
-	GetBuiltinMethodAny(name string) (string, any, bool)
-
-	// GetPropertyAny looks up a property by name in this helper's inheritance chain.
-	// Returns the property info (as any), the helper that owns it (as any), and whether it was found.
-	GetPropertyAny(name string) (any, any, bool)
-
-	// GetClassVars returns the class variables defined in this helper.
-	GetClassVars() map[string]Value
-
-	// GetClassConsts returns the class constants defined in this helper.
-	GetClassConsts() map[string]Value
-
-	// GetParentHelperAny returns the parent helper (nil for root helpers).
-	GetParentHelperAny() any
-}
+// HelperInfo is the runtime-owned helper declaration and its shared class state.
+type HelperInfo = *runtime.MutableHelperInfo
 
 // HelperMethodResult represents the result of a helper method lookup.
 type HelperMethodResult struct {
@@ -186,12 +157,8 @@ func orderedHelpersForLookup(helpers []HelperInfo) []HelperInfo {
 // transitively) from ancestor.
 func helperDescendsFrom(helper, ancestor HelperInfo) bool {
 	for cur := helper; cur != nil; {
-		parentAny := cur.GetParentHelperAny()
-		if parentAny == nil {
-			return false
-		}
-		parent, ok := parentAny.(HelperInfo)
-		if !ok {
+		parent := cur.GetParentHelper()
+		if parent == nil {
 			return false
 		}
 		if parent == ancestor {
@@ -217,7 +184,7 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 		arrayTypeStr := v.ArrayTypeString()
 		specific := ident.Normalize(arrayTypeStr)
 		if helpers := e.typeSystem.LookupHelpers(specific); helpers != nil {
-			combined = append(combined, convertToHelperInfoSlice(helpers)...)
+			combined = append(combined, helpers...)
 		}
 		if arrayVal, ok := v.(*runtime.ArrayValue); ok {
 			if arrayVal.ArrayType != nil && arrayVal.ArrayType.IsStatic() {
@@ -225,16 +192,16 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 				dynArrayType := types.NewDynamicArrayType(arrayVal.ArrayType.ElementType)
 				dynSpecific := ident.Normalize(dynArrayType.String())
 				if helpers := e.typeSystem.LookupHelpers(dynSpecific); helpers != nil {
-					combined = append(combined, convertToHelperInfoSlice(helpers)...)
+					combined = append(combined, helpers...)
 				}
 			}
 		}
 
 		if helpers := e.typeSystem.LookupHelpers("array"); helpers != nil {
-			combined = append(combined, convertToHelperInfoSlice(helpers)...)
+			combined = append(combined, helpers...)
 		}
 		for _, helpersAny := range e.typeSystem.AllHelpers() {
-			for _, helper := range convertToHelperInfoSlice(helpersAny) {
+			for _, helper := range helpersAny {
 				target := types.GetUnderlyingType(helper.GetTargetType())
 				if _, ok := target.(*types.ArrayType); !ok {
 					continue
@@ -250,7 +217,7 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 	case EnumAccessor:
 		// Try specific enum type first, then generic "enum" helpers
 		var combined []HelperInfo
-		enumTypeName := val.Type()
+		enumTypeName := "enum"
 		// Try to get actual enum type name if available
 		type enumWithTypeName interface {
 			Value
@@ -261,10 +228,10 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 		}
 		specific := ident.Normalize(enumTypeName)
 		if helpers := e.typeSystem.LookupHelpers(specific); helpers != nil {
-			combined = append(combined, convertToHelperInfoSlice(helpers)...)
+			combined = append(combined, helpers...)
 		}
 		if helpers := e.typeSystem.LookupHelpers("enum"); helpers != nil {
-			combined = append(combined, convertToHelperInfoSlice(helpers)...)
+			combined = append(combined, helpers...)
 		}
 		return combined
 
@@ -290,10 +257,10 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 		} else if v.TypeInfo != nil {
 			typeName = v.TypeInfo.String()
 		} else {
-			typeName = v.Type()
+			return nil
 		}
 	default:
-		typeName = v.Type()
+		return nil
 	}
 
 	// Look up helpers for this type
@@ -301,7 +268,7 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 	if helpers == nil {
 		return nil
 	}
-	return convertToHelperInfoSlice(helpers)
+	return helpers
 }
 
 // FindHelperMethod searches all applicable helpers for a method with the given name.
@@ -316,21 +283,14 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 	// User-declared helpers keep declaration order; built-in helpers are fallback.
 	for _, helper := range orderedHelpersForLookup(helpers) {
 
-		if overloads, ownerHelperAny, ok := helper.GetMethodOverloadsAny(methodName); ok && len(overloads) > 0 {
-			// Resolve owner helper from the returned any type
-			var ownerHelper HelperInfo
-			if ownerHelperAny != nil {
-				if oh, ok := ownerHelperAny.(HelperInfo); ok {
-					ownerHelper = oh
-				} else {
-					ownerHelper = helper
-				}
-			} else {
+		if overloads, ownerHelperAny, ok := helper.GetMethodOverloads(methodName); ok && len(overloads) > 0 {
+			ownerHelper := ownerHelperAny
+			if ownerHelper == nil {
 				ownerHelper = helper
 			}
 
 			// Also check for builtin spec
-			if spec, _, ok := ownerHelper.GetBuiltinMethodAny(methodName); ok {
+			if spec, _, ok := ownerHelper.GetBuiltinMethod(methodName); ok {
 				return &HelperMethodResult{
 					OwnerHelper: ownerHelper,
 					Method:      overloads[len(overloads)-1],
@@ -349,9 +309,9 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 
 	// If no declared method, check for builtin-only entries
 	for _, helper := range orderedHelpersForLookup(helpers) {
-		if spec, ownerHelperAny, ok := helper.GetBuiltinMethodAny(methodName); ok {
-			ownerHelper, ok := ownerHelperAny.(HelperInfo)
-			if !ok {
+		if spec, ownerHelperAny, ok := helper.GetBuiltinMethod(methodName); ok {
+			ownerHelper := ownerHelperAny
+			if ownerHelper == nil {
 				// Should not happen if registered correctly
 				return nil
 			}
@@ -370,13 +330,9 @@ func (e *Evaluator) findHelperMethodInHelper(helper HelperInfo, methodName strin
 	if helper == nil {
 		return nil
 	}
-	v := reflect.ValueOf(helper)
-	if (v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface) && v.IsNil() {
-		return nil
-	}
 
-	if overloads, ownerHelperAny, ok := helper.GetMethodOverloadsAny(methodName); ok && len(overloads) > 0 {
-		ownerHelper, _ := ownerHelperAny.(HelperInfo)
+	if overloads, ownerHelperAny, ok := helper.GetMethodOverloads(methodName); ok && len(overloads) > 0 {
+		ownerHelper := ownerHelperAny
 		if ownerHelper == nil {
 			ownerHelper = helper
 		}
@@ -385,14 +341,14 @@ func (e *Evaluator) findHelperMethodInHelper(helper HelperInfo, methodName strin
 			Method:      overloads[len(overloads)-1],
 			Overloads:   overloads,
 		}
-		if spec, _, ok := ownerHelper.GetBuiltinMethodAny(methodName); ok {
+		if spec, _, ok := ownerHelper.GetBuiltinMethod(methodName); ok {
 			result.BuiltinSpec = spec
 		}
 		return result
 	}
 
-	if spec, ownerHelperAny, ok := helper.GetBuiltinMethodAny(methodName); ok {
-		ownerHelper, _ := ownerHelperAny.(HelperInfo)
+	if spec, ownerHelperAny, ok := helper.GetBuiltinMethod(methodName); ok {
+		ownerHelper := ownerHelperAny
 		if ownerHelper == nil {
 			ownerHelper = helper
 		}
@@ -526,10 +482,6 @@ func (e *Evaluator) CallASTHelperMethod(
 		return e.newError(node, "helper method not found")
 	}
 	// Check if the interface wraps a nil pointer
-	v := reflect.ValueOf(helper)
-	if (v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface) && v.IsNil() {
-		return e.newError(node, "helper method not found (nil owner)")
-	}
 
 	expectedArgCount := len(method.Parameters)
 	if method.IsHelper {
@@ -611,29 +563,13 @@ func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionC
 	}
 
 	// Check if helper interface wraps a nil pointer
-	v := reflect.ValueOf(helper)
-	if v.Kind() == reflect.Pointer && v.IsNil() {
-		return
-	}
 
 	// Build helper chain from root to current
 	var helperChain []HelperInfo
 	for h := helper; h != nil; {
-		hv := reflect.ValueOf(h)
-		if hv.Kind() == reflect.Pointer && hv.IsNil() {
-			break
-		}
 		helperChain = append([]HelperInfo{h}, helperChain...)
-		parentAny := h.GetParentHelperAny()
-		if parentAny == nil {
-			break
-		}
-		parent, ok := parentAny.(HelperInfo)
-		if !ok || parent == nil {
-			break
-		}
-		pv := reflect.ValueOf(parent)
-		if (pv.Kind() == reflect.Pointer || pv.Kind() == reflect.Interface) && pv.IsNil() {
+		parent := h.GetParentHelper()
+		if parent == nil {
 			break
 		}
 		h = parent
@@ -669,23 +605,21 @@ func (e *Evaluator) bindHelperChainVarsConsts(helper HelperInfo, ctx *ExecutionC
 func (e *Evaluator) extractReturnValue(methodName string, ctx *ExecutionContext) Value {
 	// Check Result variable first
 	if resultVal, ok := ctx.Env().Get("Result"); ok {
-		if val, ok := resultVal.(Value); ok && val.Type() != "NIL" {
-			return val
+		if runtime.KindOf(resultVal) != runtime.KindNil {
+			return resultVal
 		}
 	}
 
 	// Check method name alias
 	if methodNameVal, ok := ctx.Env().Get(methodName); ok {
-		if val, ok := methodNameVal.(Value); ok && val.Type() != "NIL" {
-			return val
+		if runtime.KindOf(methodNameVal) != runtime.KindNil {
+			return methodNameVal
 		}
 	}
 
 	// Fallback to Result even if NIL
 	if resultVal, ok := ctx.Env().Get("Result"); ok {
-		if val, ok := resultVal.(Value); ok {
-			return val
-		}
+		return resultVal
 	}
 
 	// Final fallback
@@ -695,26 +629,6 @@ func (e *Evaluator) extractReturnValue(methodName string, ctx *ExecutionContext)
 // ============================================================================
 // Helper Utilities
 // ============================================================================
-
-// convertToHelperInfoSlice converts []any from TypeSystem.LookupHelpers to []HelperInfo.
-func convertToHelperInfoSlice(helpers []any) []HelperInfo {
-	if helpers == nil {
-		return nil
-	}
-
-	result := make([]HelperInfo, 0, len(helpers))
-	for _, h := range helpers {
-		if h == nil {
-			continue
-		}
-		if helperInfo, ok := h.(HelperInfo); ok {
-			if helperInfo != nil && !reflect.ValueOf(helperInfo).IsNil() {
-				result = append(result, helperInfo)
-			}
-		}
-	}
-	return result
-}
 
 func containsHelperInfo(helpers []HelperInfo, target HelperInfo) bool {
 	for _, helper := range helpers {
@@ -765,16 +679,9 @@ func (e *Evaluator) FindHelperProperty(val Value, propName string) (HelperInfo, 
 
 	for _, helper := range orderedHelpersForLookup(helpers) {
 
-		// Use GetPropertyAny which searches the inheritance chain and returns the owner helper
-		if propInfo, ownerHelperAny, found := helper.GetPropertyAny(propName); found && propInfo != nil {
-			pInfo, ok := propInfo.(*types.PropertyInfo)
-			if ok {
-				ownerHelper, ok := ownerHelperAny.(HelperInfo)
-				if !ok {
-					return nil, nil
-				}
-				return ownerHelper, pInfo
-			}
+		// Use GetProperty which searches the inheritance chain and returns the owner helper
+		if propInfo, ownerHelperAny, found := helper.GetProperty(propName); found && propInfo != nil {
+			return ownerHelperAny, propInfo
 		}
 	}
 
@@ -800,17 +707,15 @@ func (e *Evaluator) executeHelperPropertyRead(
 		}
 		// Otherwise try as getter method
 		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
-		if method, methodOwnerAny, ok := helper.GetMethodAny(normalizedReadSpec); ok {
-			methodOwner, ok := methodOwnerAny.(HelperInfo)
-			if !ok {
+		if method, methodOwnerAny, ok := helper.GetMethod(normalizedReadSpec); ok {
+			methodOwner := methodOwnerAny
+			if methodOwner == nil {
 				// Should not happen
 				return e.newError(node, "invalid helper method owner")
 			}
 			var builtinSpec string
-			if methodOwner != nil {
-				if spec, _, ok := methodOwner.GetBuiltinMethodAny(normalizedReadSpec); ok {
-					builtinSpec = spec
-				}
+			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedReadSpec); ok {
+				builtinSpec = spec
 			}
 			result := &HelperMethodResult{
 				OwnerHelper: methodOwner,
@@ -824,17 +729,15 @@ func (e *Evaluator) executeHelperPropertyRead(
 
 	case types.PropAccessMethod:
 		normalizedReadSpec := ident.Normalize(propInfo.ReadSpec)
-		if method, methodOwnerAny, ok := helper.GetMethodAny(normalizedReadSpec); ok {
-			methodOwner, ok := methodOwnerAny.(HelperInfo)
-			if !ok {
+		if method, methodOwnerAny, ok := helper.GetMethod(normalizedReadSpec); ok {
+			methodOwner := methodOwnerAny
+			if methodOwner == nil {
 				// Should not happen
 				return e.newError(node, "invalid helper method owner")
 			}
 			var builtinSpec string
-			if methodOwner != nil {
-				if spec, _, ok := methodOwner.GetBuiltinMethodAny(normalizedReadSpec); ok {
-					builtinSpec = spec
-				}
+			if spec, _, ok := methodOwner.GetBuiltinMethod(normalizedReadSpec); ok {
+				builtinSpec = spec
 			}
 			result := &HelperMethodResult{
 				OwnerHelper: methodOwner,
@@ -870,9 +773,9 @@ func (e *Evaluator) executeHelperPropertyWrite(
 	}
 
 	normalizedWriteSpec := ident.Normalize(propInfo.WriteSpec)
-	if method, methodOwnerAny, ok := helper.GetMethodAny(normalizedWriteSpec); ok {
-		methodOwner, ok := methodOwnerAny.(HelperInfo)
-		if !ok {
+	if method, methodOwnerAny, ok := helper.GetMethod(normalizedWriteSpec); ok {
+		methodOwner := methodOwnerAny
+		if methodOwner == nil {
 			return e.newError(node, "invalid helper method owner")
 		}
 		result := &HelperMethodResult{
@@ -926,4 +829,44 @@ func (e *Evaluator) evalBuiltinHelperProperty(propSpec string, selfValue Value, 
 	default:
 		return e.newError(node, "unknown built-in property '%s'", propSpec)
 	}
+}
+
+func (e *Evaluator) registerFunctionHelper(node *ast.FunctionDecl, ctx *ExecutionContext) Value {
+	if len(node.Parameters) == 0 || node.Parameters[0].Type == nil {
+		return e.newError(node, "helper function '%s' must declare at least one typed parameter", node.Name.Value)
+	}
+
+	targetType, err := e.ResolveTypeFromAnnotation(node.Parameters[0].Type, ctx)
+	if err != nil {
+		return e.newError(node, "unknown target type '%s' for helper function '%s'",
+			node.Parameters[0].Type.String(), node.Name.Value)
+	}
+
+	methodName := node.Name.Value
+	if node.HelperName != nil {
+		methodName = node.HelperName.Value
+	}
+
+	helperInfo := runtime.NewMutableHelperInfo("__"+methodName+"FunctionHelper", targetType, false)
+	methodKey := ident.Normalize(methodName)
+	helperInfo.Methods[methodKey] = node
+	helperInfo.MethodOverloads[methodKey] = append(helperInfo.MethodOverloads[methodKey], node)
+
+	typeName := ident.Normalize(targetType.String())
+	e.typeSystem.RegisterHelper(typeName, helperInfo)
+
+	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))
+	if simpleTypeName != typeName {
+		e.typeSystem.RegisterHelper(simpleTypeName, helperInfo)
+	}
+
+	return &runtime.NilValue{}
+}
+
+// Extracts simple type name from qualified string ("array of Integer" -> "array").
+func extractSimpleTypeName(typeName string) string {
+	if idx := strings.Index(typeName, " "); idx != -1 {
+		return typeName[:idx]
+	}
+	return typeName
 }

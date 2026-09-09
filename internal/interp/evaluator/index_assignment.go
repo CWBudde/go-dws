@@ -1,8 +1,6 @@
 package evaluator
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -124,7 +122,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 
 	// Check for interface-based indexed properties or object with default indexed property
 	// Both INTERFACE and OBJECT types may have default indexed properties
-	if strings.HasPrefix(arrayVal.Type(), "INTERFACE") || arrayVal.Type() == "OBJECT" {
+	if runtime.KindOf(arrayVal) == runtime.KindInterface || runtime.KindOf(arrayVal) == runtime.KindObject {
 		// Handle default property assignment using PropertyAccessor interface
 		// Pattern: Same as 3.2.11g but lookup default property instead of named property
 		return e.evalDefaultPropertyAssignment(arrayVal, indexVal, value, stmt, ctx)

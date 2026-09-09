@@ -371,8 +371,8 @@ func TestBindFunctionParameters_WithConversion(t *testing.T) {
 	args := []Value{&runtime.IntegerValue{Value: 42}}
 
 	// Conversion callback that converts Integer to Float
-	converter := func(value Value, targetTypeName string) (Value, bool) {
-		if targetTypeName == "Float" {
+	converter := func(value Value, targetType ast.TypeExpression) (Value, bool) {
+		if targetType.String() == "Float" {
 			if intVal, ok := value.(*runtime.IntegerValue); ok {
 				return &runtime.FloatValue{Value: float64(intVal.Value)}, true
 			}
@@ -423,7 +423,7 @@ func TestBindFunctionParameters_VarParameter(t *testing.T) {
 
 	// This converter should NOT be called for var parameters
 	converterCalled := false
-	converter := func(value Value, targetTypeName string) (Value, bool) {
+	converter := func(value Value, _ ast.TypeExpression) (Value, bool) {
 		converterCalled = true
 		return value, false
 	}
@@ -500,8 +500,8 @@ func TestBindFunctionParameters_MixedVarAndRegular(t *testing.T) {
 	}
 
 	conversionCount := 0
-	converter := func(value Value, targetTypeName string) (Value, bool) {
-		if targetTypeName == "Float" {
+	converter := func(value Value, targetType ast.TypeExpression) (Value, bool) {
+		if targetType.String() == "Float" {
 			if intVal, ok := value.(*runtime.IntegerValue); ok {
 				conversionCount++
 				return &runtime.FloatValue{Value: float64(intVal.Value)}, true
@@ -560,7 +560,7 @@ func TestBindFunctionParameters_NilType(t *testing.T) {
 
 	// Converter should not be called when there's no type
 	converterCalled := false
-	converter := func(value Value, targetTypeName string) (Value, bool) {
+	converter := func(value Value, _ ast.TypeExpression) (Value, bool) {
 		converterCalled = true
 		return value, false
 	}
@@ -626,8 +626,8 @@ func TestInitializeResultVariable_Function(t *testing.T) {
 	}
 
 	// Callback that returns default integer value
-	defaultValueGetter := func(returnTypeName string) Value {
-		if returnTypeName == "Integer" {
+	defaultValueGetter := func(returnType ast.TypeExpression) Value {
+		if returnType.String() == "Integer" {
 			return &runtime.IntegerValue{Value: 0}
 		}
 		return &runtime.NilValue{}
@@ -665,7 +665,7 @@ func TestInitializeResultVariable_FunctionNameAlias(t *testing.T) {
 		ReturnType: &ast.TypeAnnotation{Name: "String"},
 	}
 
-	defaultValueGetter := func(returnTypeName string) Value {
+	defaultValueGetter := func(_ ast.TypeExpression) Value {
 		return &runtime.StringValue{Value: ""}
 	}
 
@@ -748,8 +748,8 @@ func TestInitializeResultVariable_FloatDefault(t *testing.T) {
 		ReturnType: &ast.TypeAnnotation{Name: "Float"},
 	}
 
-	defaultValueGetter := func(returnTypeName string) Value {
-		if returnTypeName == "Float" {
+	defaultValueGetter := func(returnType ast.TypeExpression) Value {
+		if returnType.String() == "Float" {
 			return &runtime.FloatValue{Value: 0.0}
 		}
 		return &runtime.NilValue{}

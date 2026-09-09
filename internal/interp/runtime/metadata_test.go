@@ -56,18 +56,18 @@ func TestFieldVisibilityString(t *testing.T) {
 // TestMethodMetadata_IsFunction tests the IsFunction method.
 func TestMethodMetadata_IsFunction(t *testing.T) {
 	tests := []struct {
-		name           string
-		returnTypeName string
-		expected       bool
+		name       string
+		returnType types.Type
+		expected   bool
 	}{
-		{"function with return type", "Integer", true},
-		{"procedure without return type", "", false},
+		{"function with return type", types.INTEGER, true},
+		{"procedure without return type", nil, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &MethodMetadata{
-				ReturnTypeName: tt.returnTypeName,
+				ReturnType: tt.returnType,
 			}
 			result := m.IsFunction()
 			if result != tt.expected {
@@ -80,18 +80,18 @@ func TestMethodMetadata_IsFunction(t *testing.T) {
 // TestMethodMetadata_IsProcedure tests the IsProcedure method.
 func TestMethodMetadata_IsProcedure(t *testing.T) {
 	tests := []struct {
-		name           string
-		returnTypeName string
-		expected       bool
+		name       string
+		returnType types.Type
+		expected   bool
 	}{
-		{"procedure without return type", "", true},
-		{"function with return type", "Integer", false},
+		{"procedure without return type", nil, true},
+		{"function with return type", types.INTEGER, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &MethodMetadata{
-				ReturnTypeName: tt.returnTypeName,
+				ReturnType: tt.returnType,
 			}
 			result := m.IsProcedure()
 			if result != tt.expected {
@@ -335,7 +335,8 @@ func TestMethodMetadataFromAST(t *testing.T) {
 		IsOverride: false,
 	}
 
-	metadata := MethodMetadataFromAST(fn)
+	resolvedTypes := map[ast.TypeExpression]types.Type{fn.Parameters[0].Type: types.INTEGER, fn.Parameters[1].Type: types.STRING, fn.ReturnType: types.BOOLEAN}
+	metadata := MethodMetadataFromAST(fn, func(annotation ast.TypeExpression) types.Type { return resolvedTypes[annotation] })
 
 	if metadata == nil {
 		t.Fatal("Expected non-nil metadata")
@@ -353,8 +354,8 @@ func TestMethodMetadataFromAST(t *testing.T) {
 	if metadata.Parameters[0].Name != "x" {
 		t.Errorf("Expected parameter name 'x', got %q", metadata.Parameters[0].Name)
 	}
-	if metadata.Parameters[0].TypeName != "Integer" {
-		t.Errorf("Expected parameter type 'Integer', got %q", metadata.Parameters[0].TypeName)
+	if metadata.Parameters[0].Type != types.INTEGER {
+		t.Errorf("Expected parameter type 'Integer', got %q", metadata.Parameters[0].Type)
 	}
 	if metadata.Parameters[0].ByRef {
 		t.Error("Expected ByRef to be false")
@@ -372,8 +373,8 @@ func TestMethodMetadataFromAST(t *testing.T) {
 	}
 
 	// Check return type
-	if metadata.ReturnTypeName != "Boolean" {
-		t.Errorf("Expected return type 'Boolean', got %q", metadata.ReturnTypeName)
+	if metadata.ReturnType != types.BOOLEAN {
+		t.Errorf("Expected return type 'Boolean', got %q", metadata.ReturnType)
 	}
 
 	if metadata.Body == nil {
@@ -386,6 +387,27 @@ func TestMethodMetadataFromAST(t *testing.T) {
 	}
 	if metadata.IsOverride {
 		t.Error("Expected IsOverride to be false")
+	}
+}
+
+func TestMethodMetadataFromAST_Visibility(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		visibility ast.Visibility
+		want       MethodVisibility
+	}{
+		{"private", ast.VisibilityPrivate, VisibilityPrivate},
+		{"protected", ast.VisibilityProtected, VisibilityProtected},
+		{"public", ast.VisibilityPublic, VisibilityPublic},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			method := MethodMetadataFromAST(&ast.FunctionDecl{
+				Name: &ast.Identifier{Value: "Compute"}, Visibility: test.visibility,
+			})
+			if method.Visibility != test.want {
+				t.Errorf("method visibility = %v, want %v", method.Visibility, test.want)
+			}
+		})
 	}
 }
 
@@ -408,7 +430,7 @@ func TestFieldMetadataFromAST(t *testing.T) {
 		Visibility: ast.VisibilityPublic,
 	}
 
-	metadata := FieldMetadataFromAST(field)
+	metadata := FieldMetadataFromAST(field, func(ast.TypeExpression) types.Type { return types.INTEGER })
 
 	if metadata == nil {
 		t.Fatal("Expected non-nil metadata")
@@ -418,8 +440,8 @@ func TestFieldMetadataFromAST(t *testing.T) {
 		t.Errorf("Expected name 'FMyField', got %q", metadata.Name)
 	}
 
-	if metadata.TypeName != "Integer" {
-		t.Errorf("Expected type 'Integer', got %q", metadata.TypeName)
+	if metadata.Type != types.INTEGER {
+		t.Errorf("Expected type 'Integer', got %q", metadata.Type)
 	}
 
 	if metadata.InitValue == nil {
@@ -538,7 +560,7 @@ func TestAddConstructorToClass(t *testing.T) {
 func TestAddFieldToClass(t *testing.T) {
 	class := NewClassMetadata("TMyClass")
 
-	field := &FieldMetadata{Name: "FMyField", TypeName: "Integer"}
+	field := &FieldMetadata{Name: "FMyField", Type: types.INTEGER}
 	AddFieldToClass(class, field)
 
 	if class.Fields["fmyfield"] != field {
@@ -548,3 +570,31 @@ func TestAddFieldToClass(t *testing.T) {
 
 // Note: normalizeIdentifier test removed - function replaced by ident.Normalize
 // which has its own tests in pkg/ident/
+
+// Runtime metadata retains resolved identities, including aliases and structured
+// types whose display strings cannot safely be parsed back into declarations.
+func TestMethodMetadata_ResolveTypesPreservesIdentity(t *testing.T) {
+	parameter := &ast.TypeAnnotation{Name: "TAlias"}
+	result := &ast.TypeAnnotation{Name: "TResult"}
+	fn := &ast.FunctionDecl{
+		Name:       &ast.Identifier{Value: "Compute"},
+		Parameters: []*ast.Parameter{{Name: &ast.Identifier{Value: "input"}, Type: parameter}},
+		ReturnType: result,
+	}
+	method := MethodMetadataFromAST(fn)
+	method.ID = MethodID(42)
+	if !method.IsFunction() || method.IsProcedure() || method.ReturnType != nil {
+		t.Fatal("unresolved function must retain its declaration's callable kind")
+	}
+	alias := &types.TypeAlias{Name: "TAlias", AliasedType: types.INTEGER}
+	array := types.NewStaticArrayType(types.STRING, -2, 3)
+	known := map[ast.TypeExpression]types.Type{parameter: alias, result: array}
+	method.ResolveTypes(func(annotation ast.TypeExpression) types.Type { return known[annotation] })
+	if method.Parameters[0].Type != alias || method.ReturnType != array || method.Declaration != fn || method.ID != MethodID(42) {
+		t.Fatal("resolving types changed canonical metadata or lost semantic identity")
+	}
+	method.ResolveTypes(func(ast.TypeExpression) types.Type { return nil })
+	if method.Parameters[0].Type != alias || method.ReturnType != array {
+		t.Fatal("unresolved implementation annotation erased a resolved declaration identity")
+	}
+}

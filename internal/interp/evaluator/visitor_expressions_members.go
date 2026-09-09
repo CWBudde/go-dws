@@ -104,7 +104,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		if annot := e.SemanticInfo().GetType(node.Member); annot != nil && strings.HasPrefix(annot.Name, "__helper_receiver:") {
 			target := strings.TrimPrefix(annot.Name, "__helper_receiver:")
 			if helpersAny := e.typeSystem.LookupHelpers(ident.Normalize(target)); helpersAny != nil {
-				for _, helper := range orderedHelpersForLookup(convertToHelperInfoSlice(helpersAny)) {
+				for _, helper := range orderedHelpersForLookup(helpersAny) {
 					if helperResult := e.findHelperMethodInHelper(helper, memberName); helperResult != nil {
 						if zeroArg := zeroArgHelperOverload(helperResult); zeroArg != nil && helperResult.BuiltinSpec == "" {
 							callResult := *helperResult
@@ -139,8 +139,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		}
 
 		if rec, ok := obj.(*runtime.RecordValue); ok && rec.RecordType != nil {
-			recordTypeRaw := e.typeSystem.LookupRecord(rec.RecordType.Name)
-			if recordType, ok := recordTypeRaw.(*RecordTypeValue); ok {
+			recordType := e.typeSystem.LookupRecord(rec.RecordType.Name)
+			if recordType != nil {
 				normalizedMember := ident.Normalize(memberName)
 				if val, found := recordType.Constants[normalizedMember]; found {
 					return val
@@ -201,8 +201,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	}
 
 	// Route based on object type
-	switch obj.Type() {
-	case "OBJECT":
+	switch runtime.KindOf(obj) {
+	case runtime.KindObject:
 		// Object instance. Helpers are checked before TObject built-ins so user
 		// helpers can deliberately override members such as ClassName.
 		objVal, ok := obj.(ObjectValue)
@@ -230,11 +230,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 					return value
 				}
 			}
-			if propInfo, ownerHelperAny, found := helper.GetPropertyAny(memberName); found && propInfo != nil {
-				if pInfo, ok := propInfo.(*types.PropertyInfo); ok {
-					ownerHelper, _ := ownerHelperAny.(HelperInfo)
-					return e.executeHelperPropertyRead(ownerHelper, pInfo, obj, node, ctx)
-				}
+			if propInfo, ownerHelperAny, found := helper.GetProperty(memberName); found && propInfo != nil {
+				ownerHelper := ownerHelperAny
+				return e.executeHelperPropertyRead(ownerHelper, propInfo, obj, node, ctx)
 			}
 			if !isCurrentHelperMethod(ctx, memberName) {
 				helperResult := e.findHelperMethodInHelper(helper, memberName)
@@ -317,7 +315,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 
 			// Try parameterless auto-invoke first
-			result, invoked := objVal.InvokeParameterlessMethod(memberName, func(methodDecl any) Value {
+			result, invoked := objVal.InvokeParameterlessMethod(memberName, func(_ *runtime.MethodMetadata) Value {
 				// Create synthetic method call
 				methodCall := &ast.MethodCallExpression{
 					TypedExpressionBase: ast.TypedExpressionBase{
@@ -334,7 +332,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 
 			// Return function pointer for methods with parameters
-			result, created := objVal.CreateMethodPointer(memberName, func(methodDecl any) Value {
+			result, created := objVal.CreateMethodPointer(memberName, func(methodDecl *runtime.MethodMetadata) Value {
 				return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
 			})
 			if created {
@@ -345,7 +343,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Class (static) method accessed through an instance. DWScript allows
 		// class methods to be invoked on instances; dispatch through the method-call
 		// path (which resolves class methods and binds the metaclass as Self).
-		if classMethodDecl, ok := objVal.GetClassMethodDecl(memberName).(*ast.FunctionDecl); ok && classMethodDecl != nil {
+		if classMethodDecl := objVal.GetClassMethodDecl(memberName); classMethodDecl != nil {
 			// A class method observes Self as the metaclass, not the instance it was
 			// reached through. Bind the receiver's class value so a class method using
 			// Self (e.g. Self.Create or returning Self) behaves the same as the
@@ -384,7 +382,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		return e.newError(node, "field '%s' not found in class '%s'", memberName, objVal.ClassName())
 
-	case "INTERFACE":
+	case runtime.KindInterface:
 		// Interface instance: verify member exists, access underlying object
 		ifaceVal, ok := obj.(InterfaceInstanceValue)
 		if !ok {
@@ -417,7 +415,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				}
 
 				// Try parameterless auto-invoke first
-				result, invoked := objVal.InvokeParameterlessMethod(memberName, func(methodDecl any) Value {
+				result, invoked := objVal.InvokeParameterlessMethod(memberName, func(_ *runtime.MethodMetadata) Value {
 					// Create synthetic method call - use original node.Object (the interface expression)
 					methodCall := &ast.MethodCallExpression{
 						TypedExpressionBase: ast.TypedExpressionBase{
@@ -434,7 +432,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				}
 
 				// Return function pointer for methods with parameters
-				result, created := objVal.CreateMethodPointer(memberName, func(methodDecl any) Value {
+				result, created := objVal.CreateMethodPointer(memberName, func(methodDecl *runtime.MethodMetadata) Value {
 					return e.createFunctionPointerFromDecl(methodDecl, underlying, ctx)
 				})
 				if created {
@@ -446,11 +444,11 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		return e.newError(node, "member '%s' not found on interface '%s'", memberName, ifaceVal.InterfaceName())
 
-	case "CLASS":
+	case runtime.KindClass:
 		// CLASS and CLASSINFO both implement ClassMetaValue
 		fallthrough
 
-	case "CLASSINFO":
+	case runtime.KindClassInfo:
 		// Metaclass access: ClassName, ClassParent, ClassType, class vars/consts
 		classMetaVal, ok := obj.(ClassMetaValue)
 		if !ok {
@@ -458,7 +456,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		}
 		return e.resolveClassMetaMember(obj, classMetaVal, memberName, node, ctx)
 
-	case "RECORD_TYPE":
+	case runtime.KindRecordType:
 		// Static record access: constants, class vars, static methods
 		recTypeVal, ok := obj.(*RecordTypeValue)
 		if !ok {
@@ -503,7 +501,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		// Helper class consts/vars/methods declared for the record type
 		if helpersAny := e.typeSystem.LookupHelpers(ident.Normalize(recTypeVal.GetRecordTypeName())); helpersAny != nil {
-			for _, helper := range orderedHelpersForLookup(convertToHelperInfoSlice(helpersAny)) {
+			for _, helper := range orderedHelpersForLookup(helpersAny) {
 				for name, v := range helper.GetClassConsts() {
 					if ident.Equal(name, memberName) {
 						return v
@@ -526,7 +524,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		return e.newError(node, "member '%s' not found in record type '%s'", memberName, recTypeVal.GetRecordTypeName())
 
-	case "TYPE_CAST":
+	case runtime.KindTypeCast:
 		// Type cast: use static type for class var lookup (TBase(child).ClassVar)
 		typeCastVal, ok := obj.(TypeCastAccessor)
 		if !ok {
@@ -565,7 +563,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				propValue := objVal.ReadProperty(memberName, func(propInfo any) Value {
 					return e.executePropertyRead(wrappedValue, propInfo, node, ctx)
 				})
-				if propValue != nil && propValue.Type() != "ERROR" {
+				if propValue != nil && runtime.KindOf(propValue) != runtime.KindError {
 					return propValue
 				}
 			}
@@ -573,7 +571,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			// Method dispatch on wrapped object
 			if objVal.HasMethod(memberName) {
 				// Try parameterless auto-invoke
-				result, invoked := objVal.InvokeParameterlessMethod(memberName, func(methodDecl any) Value {
+				result, invoked := objVal.InvokeParameterlessMethod(memberName, func(_ *runtime.MethodMetadata) Value {
 					// Create synthetic method call - use original node.Object (the cast expression)
 					// so that the method call sees the cast wrapper
 					methodCall := &ast.MethodCallExpression{
@@ -591,7 +589,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				}
 
 				// Return function pointer for methods with parameters
-				result, created := objVal.CreateMethodPointer(memberName, func(methodDecl any) Value {
+				result, created := objVal.CreateMethodPointer(memberName, func(methodDecl *runtime.MethodMetadata) Value {
 					return e.createFunctionPointerFromDecl(methodDecl, wrappedValue, ctx)
 				})
 				if created {
@@ -615,7 +613,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		return e.newError(node, "member '%s' not found", memberName)
 
-	case "TYPE_META":
+	case runtime.KindTypeMeta:
 		// Enum type meta access (TColor.Red, TColor.Low/High)
 		enumMeta, ok := obj.(EnumTypeMetaDispatcher)
 		if !ok {
@@ -628,7 +626,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			// used as a value. Resolve class members (ClassName, ClassParent, ClassType,
 			// class methods/consts) against the referenced class.
 			if tmv, ok := obj.(*runtime.TypeMetaValue); ok {
-				if classOf, ok := tmv.TypeInfo.(*types.ClassOfType); ok && classOf.ClassType != nil {
+				if classOf, ok := types.GetUnderlyingType(tmv.TypeInfo).(*types.ClassOfType); ok && classOf.ClassType != nil {
 					classVal := e.makeClassValue(node, classOf.ClassType.Name)
 					if !isError(classVal) {
 						if classMetaVal, ok := classVal.(ClassMetaValue); ok {
@@ -709,7 +707,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 		return e.newError(node, "enum value '%s' not found in enum type", memberName)
 
-	case "NIL":
+	case runtime.KindNil:
 		// nil.Free is allowed (no-op)
 		if ident.Equal(memberName, "Free") {
 			return &runtime.NilValue{}
@@ -742,7 +740,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		// Instance member access on nil is an error, reported at the member's position
 		return e.newError(node.Member, "Object not instantiated")
 
-	case "ENUM":
+	case runtime.KindEnum:
 		// Enum value properties (.Value, helpers)
 		enumVal, ok := obj.(EnumAccessor)
 		if !ok {
@@ -771,12 +769,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		helpers := e.getHelpersForValue(obj)
 		for idx := len(helpers) - 1; idx >= 0; idx-- {
 			helper := helpers[idx]
-			if propInfo, ownerHelperAny, found := helper.GetPropertyAny(memberName); found && propInfo != nil {
-				pInfo, ok := propInfo.(*types.PropertyInfo)
-				if ok {
-					ownerHelper, _ := ownerHelperAny.(HelperInfo)
-					return e.executeHelperPropertyRead(ownerHelper, pInfo, obj, node, ctx)
-				}
+			if propInfo, ownerHelperAny, found := helper.GetProperty(memberName); found && propInfo != nil {
+				return e.executeHelperPropertyRead(ownerHelperAny, propInfo, obj, node, ctx)
 			}
 		}
 
@@ -785,7 +779,15 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	default:
 		// Other types (STRING, INTEGER, FLOAT, BOOLEAN, ARRAY): check helpers
 
-		helpers := orderedHelpersForLookup(e.getHelpersForValue(obj))
+		helpers := e.getHelpersForValue(obj)
+		if info := e.SemanticInfo(); info != nil {
+			if alias, ok := info.GetResolvedType(node.Object).(*types.TypeAlias); ok {
+				// Scalar values retain their representation, while strict helpers
+				// bind to the receiver's declared alias identity.
+				helpers = append(e.typeSystem.LookupHelpers(alias.Name), helpers...)
+			}
+		}
+		helpers = orderedHelpersForLookup(helpers)
 		for _, helper := range helpers {
 			for name, value := range helper.GetClassConsts() {
 				if ident.Equal(name, memberName) {
@@ -797,12 +799,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 					return value
 				}
 			}
-			if propInfo, ownerHelperAny, found := helper.GetPropertyAny(memberName); found && propInfo != nil {
-				pInfo, ok := propInfo.(*types.PropertyInfo)
-				if ok {
-					ownerHelper, _ := ownerHelperAny.(HelperInfo)
-					return e.executeHelperPropertyRead(ownerHelper, pInfo, obj, node, ctx)
-				}
+			if propInfo, ownerHelperAny, found := helper.GetProperty(memberName); found && propInfo != nil {
+				return e.executeHelperPropertyRead(ownerHelperAny, propInfo, obj, node, ctx)
 			}
 			if !isCurrentHelperMethod(ctx, memberName) {
 				helperResult := e.findHelperMethodInHelper(helper, memberName)
@@ -843,15 +841,7 @@ func (e *Evaluator) memberWantsMethodPointer(node *ast.MemberAccessExpression, c
 	if e.SemanticInfo() == nil {
 		return false
 	}
-	typeAnnot := e.SemanticInfo().GetType(node)
-	if typeAnnot == nil {
-		return false
-	}
-	resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx)
-	if err != nil || resolvedType == nil {
-		return false
-	}
-	kind := resolvedType.TypeKind()
+	kind := e.resolvedExpressionTypeKind(node, ctx)
 	return kind == "FUNCTION_POINTER" || kind == "METHOD_POINTER"
 }
 
@@ -919,7 +909,7 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 	// is reached via the `class of X` (TYPE_META) delegation, node.Object evaluates to a
 	// TypeMetaValue, not the class reference, which would break construction.
 	if classMetaVal.HasConstructor(memberName) {
-		result, invoked := classMetaVal.InvokeConstructor(memberName, func(methodDecl any) Value {
+		result, invoked := classMetaVal.InvokeConstructor(memberName, func(_ *runtime.MethodMetadata) Value {
 			return e.callClassConstructor(classMetaVal, memberName, []Value{}, node, ctx)
 		})
 		if invoked {
@@ -935,7 +925,7 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 		// In a function-pointer context, bind a class-method pointer (carrying the
 		// class-meta as receiver so ClassName resolves) instead of auto-invoking.
 		if e.memberWantsMethodPointer(node, ctx) {
-			if result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
+			if result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl *runtime.MethodMetadata) Value {
 				return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
 			}); created {
 				return result
@@ -943,7 +933,7 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 		}
 
 		// Try parameterless auto-invoke
-		result, invoked := classMetaVal.InvokeParameterlessClassMethod(memberName, func(methodDecl any) Value {
+		result, invoked := classMetaVal.InvokeParameterlessClassMethod(memberName, func(methodDecl *runtime.MethodMetadata) Value {
 			return e.executeClassMethodDirect(classMetaVal, methodDecl, nil, node, ctx)
 		})
 		if invoked {
@@ -953,7 +943,7 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 		// Return function pointer for class methods with parameters. Bind the
 		// class-meta as receiver so ClassName resolves inside the pointed-to
 		// class method (func_ptr5).
-		result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
+		result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl *runtime.MethodMetadata) Value {
 			return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
 		})
 		if created {

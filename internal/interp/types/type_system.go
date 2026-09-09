@@ -5,7 +5,6 @@ package types
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	coretypes "github.com/cwbudde/go-dws/internal/types"
@@ -190,15 +189,7 @@ func (ts *TypeSystem) LookupRecordMetadata(name string) *runtime.RecordMetadata 
 		return nil
 	}
 
-	type hasMetadata interface {
-		GetMetadata() *runtime.RecordMetadata
-	}
-
-	if hm, ok := recordTypeValue.(hasMetadata); ok {
-		return hm.GetMetadata()
-	}
-
-	return nil
+	return recordTypeValue.Metadata
 }
 
 // ========== Interface Registry ==========
@@ -330,7 +321,7 @@ func (ts *TypeSystem) HasFunctionPointerType(name string) bool {
 
 // LookupEnumMetadata returns the EnumTypeValue wrapper for the given enum name.
 // Returns nil if the enum doesn't exist.
-func (ts *TypeSystem) LookupEnumMetadata(name string) any {
+func (ts *TypeSystem) LookupEnumMetadata(name string) EnumTypeValue {
 	return ts.LookupEnumType(name)
 }
 
@@ -543,15 +534,21 @@ func (ts *TypeSystem) GetEnumTypeID(enumName string) int {
 }
 
 // ========== Type Information ==========
-// ClassInfo is the typed runtime class interface. Other registries still use
-// compatibility aliases pending their runtime metadata migration.
 
 // ClassInfo provides runtime class metadata to the type registry.
 type ClassInfo = runtime.IClassInfo
-type RecordTypeValue = any // Expected: *interp.RecordTypeValue
-type InterfaceInfo = any   // Expected: *interp.InterfaceInfo
-type HelperInfo = any      // Expected: *interp.HelperInfo
-type EnumTypeValue = any   // Expected: *interp.EnumTypeValue
+
+// RecordTypeValue provides runtime record metadata to the type registry.
+type RecordTypeValue = *runtime.RecordTypeValue
+
+// InterfaceInfo provides runtime interface metadata to the type registry.
+type InterfaceInfo = *runtime.MutableInterfaceInfo
+
+// HelperInfo provides runtime helper metadata to the type registry.
+type HelperInfo = *runtime.MutableHelperInfo
+
+// EnumTypeValue provides runtime enum metadata to the type registry.
+type EnumTypeValue = *runtime.EnumTypeValue
 
 // ========== Operator Registry ==========
 
@@ -563,10 +560,10 @@ type OperatorRegistry struct {
 
 // OperatorEntry represents a registered operator overload.
 type OperatorEntry struct {
-	Class         interface{} // *ClassInfo (avoiding import cycle)
+	Class         runtime.IClassInfo
 	Operator      string
 	BindingName   string
-	OperandTypes  []string
+	OperandTypes  []coretypes.Type
 	SelfIndex     int
 	IsClassMethod bool
 }
@@ -588,7 +585,7 @@ func (r *OperatorRegistry) Register(entry *OperatorEntry) error {
 	// Check for duplicate signatures
 	existing, _ := r.entries.Get(entry.Operator)
 	for _, e := range existing {
-		if operatorSignatureKey(e.OperandTypes) == operatorSignatureKey(entry.OperandTypes) {
+		if coretypes.OperatorOperandsEqual(e.OperandTypes, entry.OperandTypes) {
 			return fmt.Errorf("operator already registered")
 		}
 	}
@@ -599,7 +596,7 @@ func (r *OperatorRegistry) Register(entry *OperatorEntry) error {
 
 // Lookup finds an operator overload matching the given operator and operand types.
 // Returns the entry and true if found, nil and false otherwise.
-func (r *OperatorRegistry) Lookup(operator string, operandTypes []string) (*OperatorEntry, bool) {
+func (r *OperatorRegistry) Lookup(operator string, operandTypes []coretypes.Type) (*OperatorEntry, bool) {
 	if r == nil {
 		return nil, false
 	}
@@ -609,16 +606,7 @@ func (r *OperatorRegistry) Lookup(operator string, operandTypes []string) (*Oper
 		return nil, false
 	}
 
-	// Try exact match for performance
-	for _, entry := range entries {
-		if operatorSignatureKey(entry.OperandTypes) == operatorSignatureKey(operandTypes) {
-			return entry, true
-		}
-	}
-
-	// Assignment-compatible matching (for inheritance) is handled in the interpreter layer
-
-	return nil, false
+	return coretypes.SelectOperatorOverload(operandTypes, entries, func(entry *OperatorEntry) []coretypes.Type { return entry.OperandTypes })
 }
 
 // Clone creates a deep copy of the operator registry.
@@ -636,143 +624,85 @@ func (r *OperatorRegistry) Clone() *OperatorRegistry {
 	return clone
 }
 
-// operatorSignatureKey generates a key for operator signature matching.
-func operatorSignatureKey(operandTypes []string) string {
-	return strings.Join(operandTypes, "|")
-}
+// ConversionRegistry stores conversions in declaration order for deterministic chaining.
+type ConversionRegistry struct{ implicit, explicit []*ConversionEntry }
 
-// ========== Conversion Registry ==========
-
-// ConversionRegistry manages type conversions (implicit and explicit).
-type ConversionRegistry struct {
-	implicit map[string]*ConversionEntry
-	explicit map[string]*ConversionEntry
-}
-
-// ConversionEntry represents a registered type conversion.
+// ConversionEntry binds a conversion between resolved language types.
 type ConversionEntry struct {
-	From        string
-	To          string
+	From        coretypes.Type
+	To          coretypes.Type
 	BindingName string
 	Implicit    bool
 }
 
-// NewConversionRegistry creates a new conversion registry.
-func NewConversionRegistry() *ConversionRegistry {
-	return &ConversionRegistry{
-		implicit: make(map[string]*ConversionEntry),
-		explicit: make(map[string]*ConversionEntry),
-	}
-}
+// NewConversionRegistry creates an empty conversion registry.
+func NewConversionRegistry() *ConversionRegistry { return &ConversionRegistry{} }
 
-// Register registers a new type conversion.
-// Returns an error if a conversion with the same signature is already registered.
+// Register adds a conversion, rejecting duplicate typed signatures.
 func (r *ConversionRegistry) Register(entry *ConversionEntry) error {
-	if entry == nil {
-		return fmt.Errorf("conversion entry cannot be nil")
+	if entry == nil || entry.From == nil || entry.To == nil {
+		return fmt.Errorf("conversion requires resolved source and target types")
 	}
-	key := conversionKey(entry.From, entry.To)
-
+	entries := &r.explicit
 	if entry.Implicit {
-		if _, exists := r.implicit[key]; exists {
-			return fmt.Errorf("implicit conversion already registered")
-		}
-		r.implicit[key] = entry
-	} else {
-		if _, exists := r.explicit[key]; exists {
-			return fmt.Errorf("explicit conversion already registered")
-		}
-		r.explicit[key] = entry
+		entries = &r.implicit
 	}
-
+	for _, old := range *entries {
+		if coretypes.OperatorTypesEqual(old.From, entry.From) && coretypes.OperatorTypesEqual(old.To, entry.To) {
+			return fmt.Errorf("conversion already registered")
+		}
+	}
+	*entries = append(*entries, entry)
 	return nil
 }
 
-// FindImplicit finds an implicit conversion from one type to another.
-// Returns the conversion entry and true if found, nil and false otherwise.
-func (r *ConversionRegistry) FindImplicit(from, to string) (*ConversionEntry, bool) {
+// FindImplicit returns the conversion with the requested resolved signature.
+func (r *ConversionRegistry) FindImplicit(from, to coretypes.Type) (*ConversionEntry, bool) {
 	if r == nil {
 		return nil, false
 	}
-	entry, ok := r.implicit[conversionKey(from, to)]
-	return entry, ok
+	for _, entry := range r.implicit {
+		if coretypes.OperatorTypesEqual(entry.From, from) && coretypes.OperatorTypesEqual(entry.To, to) {
+			return entry, true
+		}
+	}
+	return nil, false
 }
 
-// FindConversionPath uses BFS to find the shortest path of implicit conversions.
-// Returns a slice of intermediate type names, or nil if no path exists.
-// maxDepth limits the number of conversions in the chain.
-func (r *ConversionRegistry) FindConversionPath(from, to string, maxDepth int) []string {
-	if r == nil || maxDepth <= 0 {
+// FindConversionPath finds the shortest implicit conversion chain, up to maxDepth steps.
+func (r *ConversionRegistry) FindConversionPath(from, to coretypes.Type, maxDepth int) []coretypes.Type {
+	if r == nil || from == nil || to == nil || maxDepth <= 0 {
 		return nil
 	}
-
-	// Normalize type names
-	from = ident.Normalize(from)
-	to = ident.Normalize(to)
-
-	// Direct conversion check
-	if _, ok := r.implicit[conversionKey(from, to)]; ok {
-		return []string{from, to}
-	}
-
-	// BFS to find shortest conversion path
-	type queueItem struct {
-		currentType string
-		path        []string
-	}
-
-	visited := make(map[string]bool)
-	queue := []queueItem{{currentType: from, path: []string{from}}}
-	visited[from] = true
-
+	queue := [][]coretypes.Type{{from}}
+	visited := []coretypes.Type{from}
 	for len(queue) > 0 {
-		current := queue[0]
+		path := queue[0]
 		queue = queue[1:]
-
-		// Check if path is too long
-		if len(current.path) > maxDepth {
+		if len(path) > maxDepth {
 			continue
 		}
-
-		// Try all possible conversions from current type
+		current := path[len(path)-1]
 		for _, entry := range r.implicit {
-			// Check if this conversion starts from current type
-			if ident.Normalize(entry.From) == current.currentType {
-				nextType := ident.Normalize(entry.To)
-
-				// Found target!
-				if nextType == to {
-					return append(current.path, nextType)
+			if !coretypes.OperatorTypesEqual(entry.From, current) {
+				continue
+			}
+			next := append(append([]coretypes.Type(nil), path...), entry.To)
+			if coretypes.OperatorTypesEqual(entry.To, to) {
+				return next
+			}
+			seen := false
+			for _, old := range visited {
+				if coretypes.OperatorTypesEqual(old, entry.To) {
+					seen = true
+					break
 				}
-
-				// Add to queue if not visited
-				if !visited[nextType] {
-					visited[nextType] = true
-					newPath := make([]string, len(current.path)+1)
-					copy(newPath, current.path)
-					newPath[len(current.path)] = nextType
-					queue = append(queue, queueItem{
-						currentType: nextType,
-						path:        newPath,
-					})
-				}
+			}
+			if !seen {
+				visited = append(visited, entry.To)
+				queue = append(queue, next)
 			}
 		}
 	}
-
-	// No path found
 	return nil
-}
-
-// conversionKey generates a key for conversion lookup.
-func conversionKey(from, to string) string {
-	return ident.Normalize(from) + "->" + ident.Normalize(to)
-}
-
-// NormalizeTypeAnnotation normalizes a type annotation string for operator lookup.
-// Primitive types (integer, float, string, boolean, variant, nil) and array types
-// are returned normalized. All other types get a "class:" prefix.
-// This function is used for consistent operator registration and lookup.
-func NormalizeTypeAnnotation(name string) string {
-	return runtime.NormalizeTypeAnnotation(name)
 }

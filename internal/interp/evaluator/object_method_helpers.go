@@ -13,15 +13,16 @@ func (e *Evaluator) executeObjectMethodDirect(
 	node ast.Node,
 	ctx *ExecutionContext,
 ) Value {
-	method, ok := methodDecl.(*ast.FunctionDecl)
-	if !ok {
-		return e.newError(node, "invalid method declaration type")
-	}
-
 	classInfo := e.classInfoForMethodSelf(self)
 	if classInfo == nil {
 		return e.newError(node, "method execution requires class context")
 	}
+	callable := classMethodMetadata(classInfo, methodDecl)
+	if callable == nil || callable.Declaration == nil {
+		return e.newError(node, "invalid method declaration type")
+	}
+	method := callable.Declaration
+
 	if method.IsClassMethod {
 		if classVal, err := e.typeSystem.CreateClassValue(classInfo.GetName()); err == nil && classVal != nil {
 			if classMeta, ok := classVal.(ClassMetaValue); ok {
@@ -31,7 +32,7 @@ func (e *Evaluator) executeObjectMethodDirect(
 		return e.newError(node, "class method execution requires runtime class value")
 	}
 
-	return e.executeMethodWithClassInfo(self, classInfo, method, args, ctx)
+	return e.executeMethodWithClassInfo(self, classInfo, callable, args, ctx)
 }
 
 // executeMethodWithClassInfo executes a method body with an explicitly supplied
@@ -41,10 +42,14 @@ func (e *Evaluator) executeObjectMethodDirect(
 func (e *Evaluator) executeMethodWithClassInfo(
 	self Value,
 	classInfo runtime.IClassInfo,
-	method *ast.FunctionDecl,
+	callable *runtime.MethodMetadata,
 	args []Value,
 	ctx *ExecutionContext,
 ) Value {
+	method := runtime.MethodDeclaration(callable)
+	if method == nil {
+		return e.newError(nil, "method has no executable declaration")
+	}
 	ctx.PushEnv()
 	defer ctx.PopEnv()
 
@@ -125,14 +130,14 @@ func (e *Evaluator) executeClassMethodDirect(
 	node ast.Node,
 	ctx *ExecutionContext,
 ) Value {
-	method, ok := methodDecl.(*ast.FunctionDecl)
-	if !ok {
-		return e.newError(node, "invalid class method declaration type")
-	}
-
 	classInfo := classMeta.GetClassInfo()
 	if classInfo == nil {
 		return e.newError(node, "class method execution requires class context")
+	}
+	callable := classMethodMetadata(classInfo, methodDecl)
+	method := runtime.MethodDeclaration(callable)
+	if method == nil {
+		return e.newError(node, "invalid class method declaration type")
 	}
 
 	classValue, ok := classMeta.(Value)
@@ -141,7 +146,7 @@ func (e *Evaluator) executeClassMethodDirect(
 	}
 	bindClassInfo := classInfo
 	if defining := definingClassOf(classInfo, method); defining != nil {
-		if method.IsStatic {
+		if callable.IsStatic {
 			bindClassInfo = defining
 			if definingValue, err := e.typeSystem.CreateClassValue(defining.GetName()); err == nil && definingValue != nil {
 				if value, ok := definingValue.(Value); ok {
@@ -271,4 +276,22 @@ func classMetaValueFromRaw(raw any) (Value, ClassMetaValue, bool) {
 	}
 
 	return nil, nil, false
+}
+
+// classMethodMetadata bridges AST callbacks at the execution boundary to the
+// canonical callable selected from the runtime class declaration.
+func classMethodMetadata(classInfo runtime.IClassInfo, method any) *runtime.MethodMetadata {
+	if callable, ok := method.(*runtime.MethodMetadata); ok {
+		return callable
+	}
+	declaration, ok := method.(*ast.FunctionDecl)
+	if !ok || declaration == nil {
+		return nil
+	}
+	if concrete, ok := classInfo.(*runtime.ClassInfo); ok {
+		if callable := concrete.CallableForDeclaration(declaration); callable != nil {
+			return callable
+		}
+	}
+	return runtime.MethodMetadataFromAST(declaration)
 }

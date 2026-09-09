@@ -54,7 +54,7 @@ func isJSONBoxed(v Value) bool {
 	if v == nil {
 		return false
 	}
-	return unwrapVariant(v).Type() == "JSON"
+	return runtime.KindOf(unwrapVariant(v)) == runtime.KindJSON
 }
 
 // boxJSON wraps a jsonvalue.Value into a variant-boxed JSONValue, materializing a
@@ -114,10 +114,10 @@ func jsonAssignValue(v Value) *jsonvalue.Value {
 	if u == nil {
 		return jsonvalue.NewNull()
 	}
-	switch u.Type() {
-	case "UNASSIGNED", "NIL", "NULL":
+	switch runtime.KindOf(u) {
+	case runtime.KindUnassigned, runtime.KindNil, runtime.KindNull:
 		return jsonvalue.NewNull()
-	case "JSON":
+	case runtime.KindJSON:
 		jv := extractJSONValueViaReflection(u)
 		if jv == nil || jv.Kind() == jsonvalue.KindUndefined {
 			return jsonvalue.NewNull()
@@ -258,7 +258,7 @@ func (e *Evaluator) jsonArrayAdd(jv *jsonvalue.Value, args []Value, node ast.Nod
 		return &runtime.NilValue{}
 	}
 	for _, arg := range args {
-		if u := unwrapVariant(arg); u == nil || u.Type() == "UNASSIGNED" {
+		if u := unwrapVariant(arg); u == nil || runtime.KindOf(u) == runtime.KindUnassigned {
 			e.builtinContext(ctx).RaiseException("Exception", "JSON Array Add() unsupported type", nil)
 			return &runtime.NilValue{}
 		}

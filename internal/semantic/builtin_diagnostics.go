@@ -8,7 +8,26 @@ type builtinDiagnosticStyle struct {
 	arguments   []string
 	noArguments bool
 	optionalOr  bool
+	// Formats control presentation only; constraints are evaluated by the registry.
+	argumentFormats        []string
+	arrayElementFormat     string
+	groupFormat            string
+	aritySuffix            string
+	arityRecovery          builtinArityRecovery
+	analyzeAllFirst        bool
+	nilProcedureResult     bool
+	arityFormat            string
+	silentMissingArguments bool
+	variantArityResult     bool
 }
+
+type builtinArityRecovery uint8
+
+const (
+	stopAfterArityError builtinArityRecovery = iota
+	recoverDeclaredArguments
+	recoverAllArguments
+)
 
 var builtinDiagnosticStyles = map[string]builtinDiagnosticStyle{
 	"_":               {arguments: []string{"string as argument"}, name: "GetText"},

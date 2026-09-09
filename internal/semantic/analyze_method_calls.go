@@ -218,6 +218,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 							Token: expr.Method.Token,
 							Name:  types.GetUnderlyingType(fieldType).String(),
 						})
+						a.semanticInfo.SetResolvedType(expr.Method, fieldType)
 					}
 					return a.analyzeFunctionPointerCallArgs(expr.Arguments, fieldType, expr.Token.Pos)
 				}
@@ -511,6 +512,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 					Token: expr.Method.Token,
 					Name:  types.GetUnderlyingType(callableType).String(),
 				})
+				a.semanticInfo.SetResolvedType(expr.Method, callableType)
 			}
 			return a.analyzeFunctionPointerCallArgs(expr.Arguments, callableType, expr.Token.Pos)
 		} else {

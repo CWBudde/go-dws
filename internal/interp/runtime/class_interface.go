@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -14,6 +15,9 @@ import (
 //
 // ClassInfo (internal/interp/class.go) implements this interface.
 type IClassInfo interface {
+	// GetClassType returns the semantic identity of this runtime class.
+	GetClassType() *types.ClassType
+
 	// GetName returns the class name
 	GetName() string
 
@@ -36,13 +40,13 @@ type IClassInfo interface {
 	// Searches the current class first, then walks up the parent chain.
 	// Returns the method declaration or nil if not found.
 	// Name comparison is case-insensitive.
-	LookupMethod(name string) *ast.FunctionDecl
+	LookupMethod(name string) *MethodMetadata
 
 	// LookupClassMethod finds a class/static method by name in the class hierarchy.
 	// Searches the current class first, then walks up the parent chain.
 	// Returns the method declaration or nil if not found.
 	// Name comparison is case-insensitive.
-	LookupClassMethod(name string) *ast.FunctionDecl
+	LookupClassMethod(name string) *MethodMetadata
 
 	// LookupProperty finds a property by name in the class hierarchy.
 	// Searches the current class first, then walks up the parent chain.
@@ -76,7 +80,7 @@ type IClassInfo interface {
 
 	// LookupOperator finds an operator overload for the given operator and operand types.
 	// Returns the operator entry and true if found, or nil and false if not found.
-	LookupOperator(operator string, operandTypes []string) (*OperatorEntry, bool)
+	LookupOperator(operator string, operandTypes []types.Type) (*OperatorEntry, bool)
 
 	// GetInterfaces returns the list of interfaces this class implements.
 	// Used for interface casting and type checking.
@@ -84,7 +88,7 @@ type IClassInfo interface {
 
 	// GetConstructor returns a constructor declaration by name (case-insensitive).
 	// Returns nil if no constructor with that name exists.
-	GetConstructor(name string) *ast.FunctionDecl
+	GetConstructor(name string) *MethodMetadata
 
 	// GetDefaultConstructor returns the name of the constructor declared with the
 	// 'default' directive on this class, or "" if none. The evaluator walks the
@@ -103,19 +107,15 @@ type IClassInfo interface {
 
 	// GetMethodOverloads returns all overloads (across the class hierarchy) for the
 	// given instance method name. The name comparison is case-insensitive.
-	GetMethodOverloads(name string) []*ast.FunctionDecl
+	GetMethodOverloads(name string) []*MethodMetadata
 
 	// GetClassMethodOverloads returns all overloads (across the class hierarchy) for
 	// the given class (static) method name. The name comparison is case-insensitive.
-	GetClassMethodOverloads(name string) []*ast.FunctionDecl
+	GetClassMethodOverloads(name string) []*MethodMetadata
 
 	// GetConstructorOverloads returns all overloads (across the class hierarchy) for
 	// the given constructor name. The name comparison is case-insensitive.
-	GetConstructorOverloads(name string) []*ast.FunctionDecl
-
-	// GetFieldTypesMap returns the field name to type mapping for this class.
-	// Used for field initialization during object creation.
-	GetFieldTypesMap() map[string]any
+	GetConstructorOverloads(name string) []*MethodMetadata
 }
 
 // PropertyInfo wraps property metadata for runtime access.
@@ -132,11 +132,11 @@ type PropertyInfo struct {
 // VirtualMethodEntry tracks virtual method dispatch information.
 // Copied from internal/interp/class.go to avoid import cycle.
 type VirtualMethodEntry struct {
-	Method        *ast.FunctionDecl // The method declaration
-	OwningClass   IClassInfo        // The class that first declared this virtual method
-	IsVirtual     bool              // True if declared as 'virtual'
-	IsOverride    bool              // True if declared as 'override'
-	IsReintroduce bool              // True if declared as 'reintroduce'
+	Method        *MethodMetadata // Canonical callable metadata
+	OwningClass   IClassInfo      // The class that first declared this virtual method
+	IsVirtual     bool            // True if declared as 'virtual'
+	IsOverride    bool            // True if declared as 'override'
+	IsReintroduce bool            // True if declared as 'reintroduce'
 }
 
 // OperatorEntry represents an operator overload registration.
@@ -146,7 +146,7 @@ type OperatorEntry struct {
 	Method        *ast.FunctionDecl // Method implementing the operator (may be nil)
 	BindingName   string            // Normalized method name binding
 	Operator      string            // Operator symbol (+, -, *, etc.)
-	OperandTypes  []string          // Type names of operands
+	OperandTypes  []types.Type      // Type names of operands
 	SelfIndex     int               // Index of the 'self' operand (0 for unary/left, 1 for right, -1 for global)
 	IsClassMethod bool              // True if this is a class method operator
 }

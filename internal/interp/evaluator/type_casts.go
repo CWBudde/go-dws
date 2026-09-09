@@ -34,15 +34,13 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		} else if e.typeSystem != nil {
 			// Check if it's an enum type via TypeSystem
 			if enumMetadata := e.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
-				if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
-					enumType = etv.GetEnumType()
-					isTypeCast = true
-				}
+				enumType = enumMetadata.GetEnumType()
+				isTypeCast = true
 			}
 			// Check if it's a metaclass ('class of X') alias, e.g. TBaseClass(ClassType).
 			if !isTypeCast {
-				if resolved, err := e.ResolveType(typeName, ctx); err == nil && resolved != nil {
-					if _, ok := resolved.(*types.ClassOfType); ok {
+				if resolved, err := e.resolveTypeName(typeName, ctx); err == nil && resolved != nil {
+					if _, ok := types.GetUnderlyingType(resolved).(*types.ClassOfType); ok {
 						isTypeCast = true
 						classOfTarget = true
 					}
@@ -63,7 +61,7 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		// Check if it's a type alias to a primitive (e.g. type TMyInt = Integer),
 		// so TMyInt(x) casts through the aliased base type.
 		if !isTypeCast && e.typeSystem != nil {
-			if resolved, err := e.ResolveType(typeName, ctx); err == nil && resolved != nil {
+			if resolved, err := e.resolveTypeName(typeName, ctx); err == nil && resolved != nil {
 				switch types.GetUnderlyingType(resolved).TypeKind() {
 				case "INTEGER":
 					lowerName = "integer"
@@ -176,7 +174,7 @@ func (e *Evaluator) castToInteger(val Value) Value {
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
-	if val.Type() == "VARIANT" {
+	if runtime.KindOf(val) == runtime.KindVariant {
 		if varAccessor, ok := val.(VariantAccessor); ok {
 			return e.castToInteger(varAccessor.GetVariantValue())
 		}
@@ -195,7 +193,7 @@ func (e *Evaluator) castToSet(val Value, setType *types.SetType, typeName string
 
 	intVal, ok := val.(*runtime.IntegerValue)
 	if !ok {
-		if val.Type() == "VARIANT" {
+		if runtime.KindOf(val) == runtime.KindVariant {
 			if varAccessor, ok := val.(VariantAccessor); ok {
 				return e.castToSet(varAccessor.GetVariantValue(), setType, typeName)
 			}
@@ -244,7 +242,7 @@ func (e *Evaluator) castToFloat(val Value) Value {
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
-	if val.Type() == "VARIANT" {
+	if runtime.KindOf(val) == runtime.KindVariant {
 		if varAccessor, ok := val.(VariantAccessor); ok {
 			return e.castToFloat(varAccessor.GetVariantValue())
 		}
@@ -272,7 +270,7 @@ func (e *Evaluator) castToString(val Value) Value {
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
-	if val.Type() == "VARIANT" {
+	if runtime.KindOf(val) == runtime.KindVariant {
 		if varAccessor, ok := val.(VariantAccessor); ok {
 			return e.castToString(varAccessor.GetVariantValue())
 		}
@@ -317,7 +315,7 @@ func (e *Evaluator) castToBoolean(val Value) Value {
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
-	if val.Type() == "VARIANT" {
+	if runtime.KindOf(val) == runtime.KindVariant {
 		if varAccessor, ok := val.(VariantAccessor); ok {
 			return e.castToBoolean(varAccessor.GetVariantValue())
 		}
@@ -343,7 +341,7 @@ func (e *Evaluator) castToEnum(val Value, targetEnum *types.EnumType, typeName s
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
-	if val.Type() == "VARIANT" {
+	if runtime.KindOf(val) == runtime.KindVariant {
 		if varAccessor, ok := val.(VariantAccessor); ok {
 			return e.castToEnum(varAccessor.GetVariantValue(), targetEnum, typeName)
 		}
@@ -388,11 +386,6 @@ func (e *Evaluator) builtinDefault(args []ast.Expression) Value {
 		// For now, return nil (which represents the default value for reference types)
 		return &runtime.NilValue{}
 	}
-}
-
-// EnumTypeValueAccessor provides access to EnumType from EnumTypeValue
-type EnumTypeValueAccessor interface {
-	GetEnumType() *types.EnumType
 }
 
 // VariantAccessor provides access to variant values

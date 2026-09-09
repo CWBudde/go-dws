@@ -3,6 +3,7 @@ package interp
 import (
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -65,7 +66,7 @@ func TestClassInfoAddMethod(t *testing.T) {
 	}
 
 	// Methods are stored with lowercase keys for case-insensitive lookup
-	classInfo.GetMethodsMap()["getvalue"] = method
+	classInfo.GetMethodsMap()["getvalue"] = runtime.MethodMetadataFromAST(method)
 
 	if len(classInfo.GetMethodsMap()) != 1 {
 		t.Errorf("len(classInfo.Methods) = %d, want 1", len(classInfo.GetMethodsMap()))
@@ -75,7 +76,7 @@ func TestClassInfoAddMethod(t *testing.T) {
 		t.Error("Method 'GetValue' should be registered")
 	}
 
-	if classInfo.GetMethodsMap()["getvalue"].Name.Value != "GetValue" {
+	if classInfo.GetMethodsMap()["getvalue"].Name != "GetValue" {
 		t.Error("Method name should be 'GetValue'")
 	}
 }
@@ -117,7 +118,7 @@ func TestMethodLookupBasic(t *testing.T) {
 		},
 	}
 	// Methods are stored with lowercase keys for case-insensitive lookup
-	classInfo.GetMethodsMap()["getvalue"] = method
+	classInfo.GetMethodsMap()["getvalue"] = runtime.MethodMetadataFromAST(method)
 
 	// Create object
 	obj := NewObjectInstance(classInfo)
@@ -129,7 +130,7 @@ func TestMethodLookupBasic(t *testing.T) {
 		t.Fatal("GetMethod('GetValue') should not return nil")
 	}
 
-	if foundMethod.Name.Value != "GetValue" {
+	if foundMethod.Name != "GetValue" {
 		t.Error("Found method should have name 'GetValue'")
 	}
 }
@@ -146,7 +147,7 @@ func TestMethodLookupWithInheritance(t *testing.T) {
 		},
 	}
 	// Methods are stored with lowercase keys for case-insensitive lookup
-	parent.GetMethodsMap()["tostring"] = parentMethod
+	parent.GetMethodsMap()["tostring"] = runtime.MethodMetadataFromAST(parentMethod)
 
 	// Create child class
 	child := NewClassInfo("TPerson")
@@ -162,7 +163,7 @@ func TestMethodLookupWithInheritance(t *testing.T) {
 		t.Fatal("GetMethod should find parent's method")
 	}
 
-	if foundMethod.Name.Value != "ToString" {
+	if foundMethod.Name != "ToString" {
 		t.Error("Found method should be 'ToString' from parent")
 	}
 }
@@ -180,7 +181,7 @@ func TestMethodOverriding(t *testing.T) {
 		Body: &ast.BlockStatement{}, // Different body
 	}
 	// Methods are stored with lowercase keys for case-insensitive lookup
-	parent.GetMethodsMap()["tostring"] = parentMethod
+	parent.GetMethodsMap()["tostring"] = runtime.MethodMetadataFromAST(parentMethod)
 
 	// Create child class that overrides the method
 	child := NewClassInfo("TPerson")
@@ -200,7 +201,7 @@ func TestMethodOverriding(t *testing.T) {
 		},
 	}
 	// Methods are stored with lowercase keys for case-insensitive lookup
-	child.GetMethodsMap()["tostring"] = childMethod
+	child.GetMethodsMap()["tostring"] = runtime.MethodMetadataFromAST(childMethod)
 
 	// Create object of child class
 	obj := NewObjectInstance(child)
@@ -213,7 +214,7 @@ func TestMethodOverriding(t *testing.T) {
 	}
 
 	// Verify it's the child's method (different body)
-	if foundMethod != childMethod {
+	if foundMethod.Declaration != childMethod {
 		t.Error("Should find child's overridden method, not parent's")
 	}
 }
@@ -546,8 +547,8 @@ func TestClassMetadataInheritance(t *testing.T) {
 		t.Fatal("Expected TDerived metadata to have Parent set")
 	}
 
-	if derived.Metadata.ParentName != "TBase" {
-		t.Errorf("Expected parent name 'TBase', got %q", derived.Metadata.ParentName)
+	if derived.Metadata.Parent.Name != "TBase" {
+		t.Errorf("Expected parent name 'TBase', got %q", derived.Metadata.Parent.Name)
 	}
 
 	// The parent metadata should be the base class's metadata

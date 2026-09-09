@@ -118,13 +118,7 @@ func runtimeHelperTable(t *testing.T) map[string][]*HelperInfo {
 	}
 	out := make(map[string][]*HelperInfo)
 	for typeName, helpers := range interp.typeSystem.AllHelpers() {
-		for _, raw := range helpers {
-			helper, ok := raw.(*HelperInfo)
-			if !ok {
-				t.Fatalf("runtime helper for %q has unexpected type %T", typeName, raw)
-			}
-			out[typeName] = append(out[typeName], helper)
-		}
+		out[typeName] = append(out[typeName], helpers...)
 	}
 	return out
 }

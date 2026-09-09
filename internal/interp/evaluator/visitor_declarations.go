@@ -1,8 +1,6 @@
 package evaluator
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -28,17 +26,15 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 		if classInfoAny := e.typeSystem.LookupClass(typeName); classInfoAny != nil {
 			if classInfo, ok := classInfoAny.(classDeclarationInfo); ok {
 				classInfo.RegisterMethodImplementation(node, e.typeSystem.AllClasses())
+				e.resolveClassCallableTypes(classInfo.GetMetadata(), node, ctx)
 				return &runtime.NilValue{}
 			}
 			return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
 		}
 
 		if recordInfoAny := e.typeSystem.LookupRecord(typeName); recordInfoAny != nil {
-			if recordInfo, ok := recordInfoAny.(*runtime.RecordTypeValue); ok {
-				recordInfo.RegisterMethodImplementation(node)
-				return &runtime.NilValue{}
-			}
-			return e.newError(node, "type '%s' not found for method '%s'", typeName, node.Name.Value)
+			recordInfoAny.RegisterMethodImplementation(node)
+			return &runtime.NilValue{}
 		}
 
 		if helperInfo := e.lookupMutableHelper(typeName); helperInfo != nil {
@@ -74,8 +70,8 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 func (e *Evaluator) lookupMutableHelper(name string) *runtime.MutableHelperInfo {
 	for _, helpers := range e.typeSystem.AllHelpers() {
 		for _, helper := range helpers {
-			if helperInfo, ok := helper.(*runtime.MutableHelperInfo); ok && ident.Equal(helperInfo.Name, name) {
-				return helperInfo
+			if helper != nil && ident.Equal(helper.Name, name) {
+				return helper
 			}
 		}
 	}
@@ -88,7 +84,7 @@ func (e *Evaluator) lookupMutableHelper(name string) *runtime.MutableHelperInfo 
 // appends, so an unconditional call would duplicate the entry.
 func (e *Evaluator) registerHelperOnce(typeName string, helperInfo *runtime.MutableHelperInfo) {
 	for _, existing := range e.typeSystem.LookupHelpers(typeName) {
-		if h, ok := existing.(*runtime.MutableHelperInfo); ok && h == helperInfo {
+		if existing == helperInfo {
 			return
 		}
 	}
@@ -173,38 +169,6 @@ func typeAnnotationsEqual(left, right ast.TypeExpression) bool {
 	return ident.Equal(left.String(), right.String())
 }
 
-func (e *Evaluator) registerFunctionHelper(node *ast.FunctionDecl, ctx *ExecutionContext) Value {
-	if len(node.Parameters) == 0 || node.Parameters[0].Type == nil {
-		return e.newError(node, "helper function '%s' must declare at least one typed parameter", node.Name.Value)
-	}
-
-	targetType, err := e.ResolveTypeFromAnnotation(node.Parameters[0].Type, ctx)
-	if err != nil {
-		return e.newError(node, "unknown target type '%s' for helper function '%s'",
-			node.Parameters[0].Type.String(), node.Name.Value)
-	}
-
-	methodName := node.Name.Value
-	if node.HelperName != nil {
-		methodName = node.HelperName.Value
-	}
-
-	helperInfo := runtime.NewMutableHelperInfo("__"+methodName+"FunctionHelper", targetType, false)
-	methodKey := ident.Normalize(methodName)
-	helperInfo.Methods[methodKey] = node
-	helperInfo.MethodOverloads[methodKey] = append(helperInfo.MethodOverloads[methodKey], node)
-
-	typeName := ident.Normalize(targetType.String())
-	e.typeSystem.RegisterHelper(typeName, helperInfo)
-
-	simpleTypeName := ident.Normalize(extractSimpleTypeName(targetType.String()))
-	if simpleTypeName != typeName {
-		e.typeSystem.RegisterHelper(simpleTypeName, helperInfo)
-	}
-
-	return &runtime.NilValue{}
-}
-
 // Returns fully qualified class name (e.g., "Outer.Inner" for nested classes).
 func (e *Evaluator) fullClassNameFromDecl(cd *ast.ClassDecl) string {
 	if cd.EnclosingClass != nil && cd.EnclosingClass.Value != "" {
@@ -214,6 +178,7 @@ func (e *Evaluator) fullClassNameFromDecl(cd *ast.ClassDecl) string {
 }
 
 type classDeclarationInfo interface {
+	GetMetadata() *runtime.ClassMetadata
 	IsPartialClass() bool
 	SetPartialClass(isPartial bool)
 	IsForwardClass() bool
@@ -231,15 +196,12 @@ type classDeclarationInfo interface {
 	AddFieldDeclaration(fieldDecl *ast.FieldDecl, fieldType types.Type)
 	AddClassVarValue(name string, value Value)
 	AddMethodDeclaration(method *ast.FunctionDecl, className string, registry *runtime.MethodRegistry) bool
-	LookupDeclaredMethod(methodName string, isClassMethod bool) (*ast.FunctionDecl, bool)
-	SetConstructorDecl(constructor *ast.FunctionDecl)
-	SetDestructorDecl(destructor *ast.FunctionDecl)
 	InheritDestructorMetadataIfMissing()
 	SynthesizeImplicitDefaultConstructor()
 	SetPropertyInfo(name string, propInfo *types.PropertyInfo)
 	DeterminePropertyAccessKind(specName string) types.PropAccessKind
 	InheritParentPropertyInfos()
-	RegisterOperatorBinding(operatorSymbol, bindingName string, operandTypes []string) error
+	RegisterOperatorBinding(operatorSymbol, bindingName string, operandTypes []types.Type) error
 	BuildVirtualMethodTableDirect()
 	RegisterInTypeSystem(ts any, parentName string)
 	DefineInEnv(env *runtime.Environment)
@@ -318,6 +280,12 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	}
 	if node.IsExternal {
 		classInfo.SetExternalClass(true, node.ExternalName)
+	}
+
+	if concrete, ok := classInfo.(*runtime.ClassInfo); ok {
+		if resolved, ok := e.resolvedSemanticType(node).(*types.ClassType); ok {
+			concrete.SetResolvedType(resolved)
+		}
 	}
 
 	// Setup temporary environment for nested class context
@@ -438,7 +406,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		case field.Type != nil:
 			var err error
 			typeName := field.Type.String()
-			fieldType, err = e.resolveTypeName(typeName, ctx)
+			fieldType, err = e.ResolveTypeFromAnnotation(field.Type, ctx)
 			if err != nil || fieldType == nil {
 				// Self-referential field (Field : TTest inside TTest): the
 				// class is still being declared, so name resolution fails.
@@ -487,6 +455,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		if !classInfo.AddMethodDeclaration(method, className, e.EngineState().MethodRegistry) {
 			return e.newError(method, "failed to add method '%s' to class '%s'", method.Name.Value, className)
 		}
+		e.resolveClassCallableTypes(classInfo.GetMetadata(), method, ctx)
 	}
 
 	// Process explicit constructor
@@ -494,14 +463,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		if !classInfo.AddMethodDeclaration(node.Constructor, className, e.EngineState().MethodRegistry) {
 			return e.newError(node.Constructor, "failed to add constructor to class '%s'", className)
 		}
-	}
-
-	// Identify constructor ("Create") and destructor ("Destroy")
-	if constructor, exists := classInfo.LookupDeclaredMethod("create", false); exists {
-		classInfo.SetConstructorDecl(constructor)
-	}
-	if destructor, exists := classInfo.LookupDeclaredMethod("destroy", false); exists {
-		classInfo.SetDestructorDecl(destructor)
+		e.resolveClassCallableTypes(classInfo.GetMetadata(), node.Constructor, ctx)
 	}
 
 	// Inherit destructor from parent if missing
@@ -539,19 +501,17 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 			return e.newError(opDecl, "class operator '%s' missing binding", opDecl.OperatorSymbol)
 		}
 
-		operandTypes := make([]string, 0, len(opDecl.OperandTypes))
+		operandTypes := make([]types.Type, 0, len(opDecl.OperandTypes))
 		for _, operand := range opDecl.OperandTypes {
-			typeName := operand.String()
-			resolvedType, err := e.resolveTypeName(typeName, ctx)
-			if err == nil && resolvedType != nil {
-				if classType, ok := resolvedType.(*types.ClassType); ok {
-					operandTypes = append(operandTypes, classType.Name)
-					continue
+			resolvedType, err := e.ResolveTypeFromAnnotation(operand, ctx)
+			if err != nil || resolvedType == nil {
+				if ident.Equal(operand.String(), className) {
+					resolvedType = types.NewClassType(className, nil)
+				} else {
+					return e.newError(opDecl, "unknown operator operand type '%s'", operand.String())
 				}
-				operandTypes = append(operandTypes, resolvedType.String())
-			} else {
-				operandTypes = append(operandTypes, typeName)
 			}
+			operandTypes = append(operandTypes, resolvedType)
 		}
 
 		if err := classInfo.RegisterOperatorBinding(opDecl.OperatorSymbol, opDecl.Binding.Value, operandTypes); err != nil {
@@ -576,6 +536,9 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 
 	interfaceName := node.Name.Value
 	interfaceInfo := runtime.NewMutableInterfaceInfo(interfaceName)
+	if resolved, ok := e.resolvedSemanticType(node).(*types.InterfaceType); ok {
+		interfaceInfo.Type = resolved
+	}
 
 	// Resolve parent interface
 	if node.Parent != nil {
@@ -586,12 +549,10 @@ func (e *Evaluator) VisitInterfaceDecl(node *ast.InterfaceDecl, ctx *ExecutionCo
 			return e.newError(node.Parent, "parent interface '%s' not found", parentName)
 		}
 
-		parentInfo, ok := parentInterface.(*runtime.MutableInterfaceInfo)
-		if !ok {
-			return e.newError(node.Parent, "invalid parent interface '%s'", parentName)
+		interfaceInfo.Parent = parentInterface
+		if e.resolvedSemanticType(node) == nil {
+			interfaceInfo.Type.Parent = parentInterface.GetInterfaceType()
 		}
-
-		interfaceInfo.Parent = parentInfo
 
 		if e.hasCircularInterfaceInheritance(interfaceInfo) {
 			return e.newError(node.Parent,
@@ -733,11 +694,13 @@ func (e *Evaluator) VisitOperatorDecl(node *ast.OperatorDecl, ctx *ExecutionCont
 		return e.newError(node, "operator '%s' missing binding", node.OperatorSymbol)
 	}
 
-	// Normalize operand types
-	operandTypes := make([]string, len(node.OperandTypes))
-	for idx, operand := range node.OperandTypes {
-		opRand := operand.String()
-		operandTypes[idx] = interptypes.NormalizeTypeAnnotation(opRand)
+	operandTypes := make([]types.Type, len(node.OperandTypes))
+	for index, operand := range node.OperandTypes {
+		resolved, err := e.ResolveTypeFromAnnotation(operand, ctx)
+		if err != nil {
+			return e.newError(node, "unknown operator operand type '%s'", operand.String())
+		}
+		operandTypes[index] = resolved
 	}
 
 	// Handle conversion operators (implicit/explicit)
@@ -749,7 +712,10 @@ func (e *Evaluator) VisitOperatorDecl(node *ast.OperatorDecl, ctx *ExecutionCont
 			return e.newError(node, "conversion operator '%s' requires a return type", node.OperatorSymbol)
 		}
 
-		targetType := interptypes.NormalizeTypeAnnotation(node.ReturnType.String())
+		targetType, err := e.ResolveTypeFromAnnotation(node.ReturnType, ctx)
+		if err != nil {
+			return e.newError(node, "unknown conversion target type '%s'", node.ReturnType.String())
+		}
 		entry := &interptypes.ConversionEntry{
 			From:        operandTypes[0],
 			To:          targetType,
@@ -771,7 +737,7 @@ func (e *Evaluator) VisitOperatorDecl(node *ast.OperatorDecl, ctx *ExecutionCont
 	}
 
 	if err := e.typeSystem.Operators().Register(entry); err != nil {
-		return e.newError(node, "operator '%s' already defined for operand types (%s)", node.OperatorSymbol, strings.Join(operandTypes, ", "))
+		return e.newError(node, "operator '%s' already defined for operand types (%s)", node.OperatorSymbol, types.FormatTypeList(operandTypes))
 	}
 
 	return &runtime.NilValue{}
@@ -865,10 +831,15 @@ func (e *Evaluator) VisitEnumDecl(node *ast.EnumDecl, ctx *ExecutionContext) Val
 		enumType = types.NewEnumType(enumName, enumValues, orderedNames)
 	}
 
+	if resolved, ok := e.resolvedSemanticType(node).(*types.EnumType); ok {
+		enumType = resolved
+	}
+
 	// Register enum values in environment (skip for scoped enums)
 	if !node.Scoped {
 		for valueName, ordinalValue := range enumValues {
 			enumVal := &runtime.EnumValue{
+				EnumType:     enumType,
 				TypeName:     enumName,
 				ValueName:    valueName,
 				OrdinalValue: ordinalValue,
@@ -920,7 +891,7 @@ func (e *Evaluator) extractEnumOrdinal(val Value, enumName, valueName string, no
 		return v.GetValue(), nil
 	}
 
-	if converted, ok := e.TryImplicitConversion(val, "Integer", ctx); ok {
+	if converted, ok := e.TryImplicitConversion(val, types.INTEGER, ctx); ok {
 		if isError(converted) {
 			return 0, converted
 		}
@@ -1092,8 +1063,14 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 		recordType.Properties[propNameLower] = propInfo
 	}
 
+	// Runtime declaration maps remain mutable; the analyzed type is shared read-only.
+	if resolved, ok := e.resolvedSemanticType(node).(*types.RecordType); ok {
+		recordType = resolved
+		recordTypeValue.RecordType = resolved
+	}
+
 	// Build metadata and create record type value
-	metadata := e.buildRecordMetadata(recordName, recordType, methods, staticMethods, methodOverloads, staticMethodOverloads, constants, classVars)
+	metadata := e.buildRecordMetadata(recordName, recordType, methods, staticMethods, methodOverloads, staticMethodOverloads, constants, classVars, ctx)
 
 	recordTypeValue.FieldDecls = fieldDecls
 	recordTypeValue.Metadata = metadata
@@ -1277,18 +1254,19 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 	// Evaluate class constants
 	for _, classConst := range node.ClassConsts {
 		// Typed record constants ((x:1; y:2)) need the record type context.
+		previousRecordType := ctx.RecordTypeContext()
 		var restoreRecordCtx bool
 		if classConst.Type != nil {
 			if resolved, err := e.ResolveTypeFromAnnotation(classConst.Type, ctx); err == nil {
-				if recType, ok := types.GetUnderlyingType(resolved).(*types.RecordType); ok && recType.Name != "" {
-					ctx.SetRecordTypeContext(recType.Name)
+				if recType, ok := types.GetUnderlyingType(resolved).(*types.RecordType); ok {
+					ctx.SetRecordTypeContext(recType)
 					restoreRecordCtx = true
 				}
 			}
 		}
 		constValue := e.Eval(classConst.Value, ctx)
 		if restoreRecordCtx {
-			ctx.ClearRecordTypeContext()
+			ctx.SetRecordTypeContext(previousRecordType)
 		}
 		if isError(constValue) {
 			return constValue
@@ -1333,38 +1311,13 @@ func (e *Evaluator) VisitArrayDecl(node *ast.ArrayDecl, ctx *ExecutionContext) V
 		return e.newError(node, "invalid array type declaration")
 	}
 
-	// Resolve element type
-	elementTypeName := arrayTypeAnnotation.ElementType.String()
-	elementType, err := e.resolveTypeName(elementTypeName, ctx)
+	resolved, err := e.ResolveTypeFromAnnotation(arrayTypeAnnotation, ctx)
 	if err != nil {
-		return e.newError(node, "unknown element type '%s': %v", elementTypeName, err)
+		return e.newError(node, "invalid array type: %v", err)
 	}
-
-	// Create array type (dynamic or static)
-	var arrayType *types.ArrayType
-	if arrayTypeAnnotation.IsDynamic() {
-		arrayType = types.NewDynamicArrayType(elementType)
-	} else {
-		// Evaluate bounds
-		lowBoundVal := e.Eval(arrayTypeAnnotation.LowBound, ctx)
-		if isError(lowBoundVal) {
-			return lowBoundVal
-		}
-		highBoundVal := e.Eval(arrayTypeAnnotation.HighBound, ctx)
-		if isError(highBoundVal) {
-			return highBoundVal
-		}
-
-		lowBound, ok := lowBoundVal.(*runtime.IntegerValue)
-		if !ok {
-			return e.newError(node, "array lower bound must be an integer")
-		}
-		highBound, ok := highBoundVal.(*runtime.IntegerValue)
-		if !ok {
-			return e.newError(node, "array upper bound must be an integer")
-		}
-
-		arrayType = types.NewStaticArrayType(elementType, int(lowBound.Value), int(highBound.Value))
+	arrayType, ok := resolved.(*types.ArrayType)
+	if !ok {
+		return e.newError(node, "expected array type, got %s", resolved.String())
 	}
 
 	e.typeSystem.RegisterArrayType(arrayName, arrayType)
@@ -1428,6 +1381,9 @@ func (e *Evaluator) evalSubrangeType(node *ast.TypeDeclaration, ctx *ExecutionCo
 		HighBound: highBoundInt,
 	}
 
+	if resolved, ok := e.resolvedSemanticType(node).(*types.SubrangeType); ok {
+		subrangeType = resolved
+	}
 	e.typeSystem.RegisterSubrangeType(node.Name.Value, subrangeType)
 
 	return &runtime.NilValue{}
@@ -1439,40 +1395,9 @@ func (e *Evaluator) evalFunctionPointerType(node *ast.TypeDeclaration, ctx *Exec
 		return e.newError(node, "function pointer type declaration has no type information")
 	}
 
-	funcPtrType := node.FunctionPointerType
-
-	// Resolve parameter types
-	paramTypes := make([]types.Type, len(funcPtrType.Parameters))
-	for idx, param := range funcPtrType.Parameters {
-		var paramType types.Type
-		if param.Type != nil {
-			var err error
-			paramType, err = e.ResolveTypeFromAnnotation(param.Type, ctx)
-			if err != nil || paramType == nil {
-				return e.newError(node, "unknown parameter type '%s' in function pointer '%s'", param.Type.String(), node.Name.Value)
-			}
-		} else {
-			paramType = types.INTEGER
-		}
-		paramTypes[idx] = paramType
-	}
-
-	// Resolve return type (nil for procedures)
-	var returnType types.Type
-	if funcPtrType.ReturnType != nil {
-		var err error
-		returnType, err = e.ResolveTypeFromAnnotation(funcPtrType.ReturnType, ctx)
-		if err != nil {
-			return e.newError(node, "unknown return type '%s' in function pointer '%s'", funcPtrType.ReturnType.String(), node.Name.Value)
-		}
-	}
-
-	// Create function or method pointer type
-	var resolvedType types.Type
-	if funcPtrType.OfObject {
-		resolvedType = types.NewMethodPointerType(paramTypes, returnType)
-	} else {
-		resolvedType = types.NewFunctionPointerType(paramTypes, returnType)
+	resolvedType, err := e.ResolveTypeFromAnnotation(node.FunctionPointerType, ctx)
+	if err != nil {
+		return e.newError(node, "invalid function pointer type: %v", err)
 	}
 
 	// Register in TypeSystem
@@ -1489,44 +1414,12 @@ func (e *Evaluator) evalFunctionPointerType(node *ast.TypeDeclaration, ctx *Exec
 
 // Evaluates type alias (type TUserID = Integer).
 func (e *Evaluator) evalTypeAlias(node *ast.TypeDeclaration, ctx *ExecutionContext) Value {
-	// Skip inline/complex types (handled by semantic analyzer)
-	var (
-		aliasedType types.Type
-		resolveErr  error
-	)
-
-	switch t := node.AliasedType.(type) {
-	case *ast.ClassOfTypeNode:
-		baseClassName := ""
-		if t.ClassType != nil {
-			baseClassName = t.ClassType.String()
-		}
-		if baseClassName == "" || !e.typeSystem.HasClass(baseClassName) {
-			return e.newError(node, "unknown type '%s' in type alias", baseClassName)
-		}
-		classType := types.NewClassType(baseClassName, nil)
-		aliasedType = types.NewClassOfType(classType)
-	case *ast.SetTypeNode:
-		// Set types handled by semantic analyzer.
-		return &runtime.NilValue{}
-	case *ast.ArrayTypeNode:
-		resolvedArray := e.resolveArrayTypeNode(t, ctx)
-		if resolvedArray == nil {
-			return e.newError(node, "cannot resolve array type in alias '%s'", node.Name.Value)
-		}
-		aliasedType = resolvedArray
-	case *ast.FunctionPointerTypeNode:
-		// Function pointer types handled elsewhere.
-		return &runtime.NilValue{}
-	default:
-		if typeAnnot, ok := node.AliasedType.(*ast.TypeAnnotation); ok && typeAnnot.InlineType != nil {
-			return &runtime.NilValue{}
-		}
-
-		aliasedType, resolveErr = e.ResolveTypeFromAnnotation(node.AliasedType, ctx)
-		if resolveErr != nil {
-			return e.newError(node, "unknown type '%s' in type alias", node.AliasedType.String())
-		}
+	aliasedType, err := e.ResolveTypeFromAnnotation(node.AliasedType, ctx)
+	if err != nil {
+		return e.newError(node, "unknown type '%s' in type alias", node.AliasedType.String())
+	}
+	if semanticType := e.resolvedSemanticType(node); semanticType != nil {
+		aliasedType = semanticType
 	}
 
 	// Create and register type alias.
@@ -1536,7 +1429,7 @@ func (e *Evaluator) evalTypeAlias(node *ast.TypeDeclaration, ctx *ExecutionConte
 	}
 
 	// If alias targets an enum, register the alias for scoped enum lookups.
-	if enumType, ok := aliasedType.(*types.EnumType); ok {
+	if enumType, ok := types.GetUnderlyingType(aliasedType).(*types.EnumType); ok {
 		e.typeSystem.RegisterEnumType(node.Name.Value, runtime.NewEnumTypeValue(enumType))
 	}
 
@@ -1567,17 +1460,12 @@ func (e *Evaluator) VisitSetDecl(node *ast.SetDecl, ctx *ExecutionContext) Value
 	}
 
 	setType := types.NewSetType(elemType)
+	if resolved, ok := e.resolvedSemanticType(node).(*types.SetType); ok {
+		setType = resolved
+	}
 	ctx.Env().Define("__set_type_"+ident.Normalize(node.Name.Value), &runtime.SetTypeValue{
 		Name:    node.Name.Value,
 		SetType: setType,
 	})
 	return nil
-}
-
-// Extracts simple type name from qualified string ("array of Integer" -> "array").
-func extractSimpleTypeName(typeName string) string {
-	if idx := strings.Index(typeName, " "); idx != -1 {
-		return typeName[:idx]
-	}
-	return typeName
 }

@@ -49,19 +49,19 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("Max", Max, CategoryMath, "Returns the maximum of two numbers",
 		Sig([]types.Type{V, V}, V))
 	r.RegisterWithSignature("ClampInt", ClampInt, CategoryMath, "Clamps an integer value between min and max",
-		Sig([]types.Type{I, I, I}, I))
+		Sig([]types.Type{I, I, I}, I).WithConstraints(exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("Clamp", Clamp, CategoryMath, "Clamps a value between min and max",
-		Sig([]types.Type{F, F, F}, F))
+		Sig([]types.Type{F, F, F}, F).WithConstraints(numericParameter, numericParameter, numericParameter))
 	r.RegisterWithSignature("Sqr", Sqr, CategoryMath, "Returns the square of a number",
 		Sig([]types.Type{V}, V))
 	r.RegisterWithSignature("Power", Power, CategoryMath, "Returns base raised to the power of exponent",
-		Sig([]types.Type{F, F}, F))
+		Sig([]types.Type{F, F}, F).WithConstraints(numericParameter, numericParameter))
 	r.RegisterWithSignature("Sqrt", Sqrt, CategoryMath, "Returns the square root of a number",
 		Sig([]types.Type{F}, F))
 	r.RegisterWithSignature("Pi", Pi, CategoryMath, "Returns the value of π (pi)",
 		Sig(nil, F))
 	r.RegisterWithSignature("Sign", Sign, CategoryMath, "Returns the sign of a number (-1, 0, or 1)",
-		Sig([]types.Type{V}, I))
+		Sig([]types.Type{F}, I).WithConstraints(numericParameter))
 	r.RegisterWithSignature("Odd", Odd, CategoryMath, "Returns true if the number is odd",
 		Sig([]types.Type{I}, B))
 	r.RegisterWithSignature("Frac", Frac, CategoryMath, "Returns the fractional part of a float",
@@ -69,7 +69,7 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("Int", Int, CategoryMath, "Returns the integer part of a float",
 		Sig([]types.Type{F}, F))
 	r.RegisterWithSignature("Round", Round, CategoryMath, "Rounds a float to the nearest integer",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(ParameterConstraint{Types: []types.Type{types.INTEGER, types.FLOAT, types.VARIANT}}))
 	r.RegisterWithSignature("Trunc", Trunc, CategoryMath, "Truncates a float to an integer",
 		Sig([]types.Type{F}, I))
 	r.RegisterWithSignature("Ceil", Ceil, CategoryMath, "Returns the ceiling (smallest integer >= value)",
@@ -79,17 +79,17 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("Unsigned32", Unsigned32, CategoryMath, "Converts a signed integer to unsigned 32-bit",
 		Sig([]types.Type{I}, I))
 	r.RegisterWithSignature("MaxInt", MaxInt, CategoryMath, "Returns the maximum value of multiple integers",
-		SigVariadic([]types.Type{I}, I, 1))
+		SigVariadic([]types.Type{I}, I, 0).WithConstraints(exactParameter))
 	r.RegisterWithSignature("MinInt", MinInt, CategoryMath, "Returns the minimum value of multiple integers",
-		SigVariadic([]types.Type{I}, I, 1))
+		SigVariadic([]types.Type{I}, I, 0).WithConstraints(exactParameter))
 
 	// Advanced math functions
 	r.RegisterWithSignature("Factorial", Factorial, CategoryMath, "Returns the factorial of n",
 		Sig([]types.Type{I}, I))
 	r.RegisterWithSignature("Gcd", Gcd, CategoryMath, "Returns the greatest common divisor",
-		Sig([]types.Type{I, I}, I))
+		Sig([]types.Type{I, I}, I).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("Lcm", Lcm, CategoryMath, "Returns the least common multiple",
-		Sig([]types.Type{I, I}, I))
+		Sig([]types.Type{I, I}, I).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("IsPrime", IsPrime, CategoryMath, "Returns true if n is a prime number",
 		Sig([]types.Type{I}, B))
 	r.RegisterWithSignature("LeastFactor", LeastFactor, CategoryMath, "Returns the smallest prime factor",
@@ -97,11 +97,11 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("PopCount", PopCount, CategoryMath, "Returns the number of set bits",
 		Sig([]types.Type{I}, I))
 	r.RegisterWithSignature("TestBit", TestBit, CategoryMath, "Tests if a specific bit is set",
-		Sig([]types.Type{I, I}, B))
+		Sig([]types.Type{I, I}, B).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("Haversine", Haversine, CategoryMath, "Calculates the haversine distance",
-		Sig([]types.Type{F, F, F, F}, F))
+		Sig([]types.Type{F, F, F, F}, F).WithConstraints(ParameterConstraint{Exact: true, Numeric: true}, ParameterConstraint{Exact: true, Numeric: true}, ParameterConstraint{Exact: true, Numeric: true}, ParameterConstraint{Exact: true, Numeric: true}))
 	r.RegisterWithSignature("CompareNum", CompareNum, CategoryMath, "Compares two numbers (-1, 0, 1)",
-		Sig([]types.Type{V, V}, I))
+		Sig([]types.Type{V, V}, I).WithConstraints(ParameterConstraint{Exact: true, Numeric: true}, ParameterConstraint{Exact: true, Numeric: true}))
 
 	// Exponential and logarithmic functions
 	r.RegisterWithSignature("Exp", Exp, CategoryMath, "Returns e raised to the power of x",
@@ -113,9 +113,9 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("Log10", Log10, CategoryMath, "Returns the base-10 logarithm",
 		Sig([]types.Type{F}, F))
 	r.RegisterWithSignature("LogN", LogN, CategoryMath, "Returns the logarithm with custom base",
-		Sig([]types.Type{F, F}, F))
+		Sig([]types.Type{F, F}, F).WithConstraints(numericParameter, numericParameter))
 	r.RegisterWithSignature("IntPower", IntPower, CategoryMath, "Returns base raised to integer exponent",
-		Sig([]types.Type{F, I}, F))
+		Sig([]types.Type{F, I}, F).WithConstraints(numericParameter, exactParameter))
 
 	// Special values
 	r.RegisterWithSignature("Infinity", Infinity, CategoryMath, "Returns positive infinity",
@@ -127,7 +127,7 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("IsInfinite", IsInfinite, CategoryMath, "Returns true if value is infinite",
 		Sig([]types.Type{F}, B))
 	r.RegisterWithSignature("IsNaN", IsNaN, CategoryMath, "Returns true if value is NaN",
-		Sig([]types.Type{F}, B))
+		Sig([]types.Type{F}, B).WithConstraints(ParameterConstraint{Any: true}))
 
 	// Trigonometric functions
 	r.RegisterWithSignature("Sin", Sin, CategoryMath, "Returns the sine of x (radians)",
@@ -145,13 +145,13 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("ArcTan", ArcTan, CategoryMath, "Returns the arctangent of x",
 		Sig([]types.Type{F}, F))
 	r.RegisterWithSignature("ArcTan2", ArcTan2, CategoryMath, "Returns the arctangent of y/x",
-		Sig([]types.Type{F, F}, F))
+		Sig([]types.Type{F, F}, F).WithConstraints(numericParameter, numericParameter))
 	r.RegisterWithSignature("DegToRad", DegToRad, CategoryMath, "Converts degrees to radians",
 		Sig([]types.Type{F}, F))
 	r.RegisterWithSignature("RadToDeg", RadToDeg, CategoryMath, "Converts radians to degrees",
 		Sig([]types.Type{F}, F))
 	r.RegisterWithSignature("Hypot", Hypot, CategoryMath, "Returns the hypotenuse (sqrt(x²+y²))",
-		Sig([]types.Type{F, F}, F))
+		Sig([]types.Type{F, F}, F).WithConstraints(numericParameter, numericParameter))
 
 	// Hyperbolic functions
 	r.RegisterWithSignature("Sinh", Sinh, CategoryMath, "Returns the hyperbolic sine",
@@ -173,13 +173,13 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("RandomInt", RandomInt, CategoryMath, "Returns a random integer in range",
 		Sig([]types.Type{I}, I))
 	r.RegisterWithSignature("Randomize", Randomize, CategoryMath, "Seeds the random number generator",
-		Sig(nil, nil)) // Procedure
+		Sig(nil, nil))
 	r.RegisterWithSignature("SetRandSeed", SetRandSeed, CategoryMath, "Sets the random number seed",
-		Sig([]types.Type{I}, nil)) // Procedure
+		Sig([]types.Type{I}, nil).WithConstraints(exactParameter))
 	r.RegisterWithSignature("RandSeed", RandSeed, CategoryMath, "Returns the current random seed",
 		Sig(nil, I))
 	r.RegisterWithSignature("RandG", RandG, CategoryMath, "Returns a random Gaussian value",
-		Sig([]types.Type{F, F}, F))
+		Sig(nil, types.FLOAT))
 }
 
 // RegisterStringFunctions registers all string manipulation built-in functions.
@@ -187,11 +187,10 @@ func RegisterStringFunctions(r *Registry) {
 	S := types.STRING
 	I := types.INTEGER
 	B := types.BOOLEAN
-	V := types.VARIANT
 
 	// Basic string functions
 	r.RegisterWithSignature("Pos", Pos, CategoryString, "Finds the position of a substring",
-		Sig([]types.Type{S, S}, I))
+		SigOptional([]types.Type{S, S, I}, I, 2).WithConstraints(exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("UpperCase", UpperCase, CategoryString, "Converts string to uppercase",
 		Sig([]types.Type{S}, S))
 	r.RegisterWithSignature("LowerCase", LowerCase, CategoryString, "Converts string to lowercase",
@@ -205,31 +204,31 @@ func RegisterStringFunctions(r *Registry) {
 	r.RegisterWithSignature("AnsiLowerCase", AnsiLowerCase, CategoryString, "Converts ANSI string to lowercase",
 		Sig([]types.Type{S}, S))
 	r.RegisterWithSignature("Trim", Trim, CategoryString, "Removes leading and trailing whitespace",
-		SigOptional([]types.Type{S, S}, S, 1))
+		SigOptional([]types.Type{S, I, I}, S, 1).WithArgCounts(1, 3).WithConstraints(exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("TrimLeft", TrimLeft, CategoryString, "Removes leading whitespace",
-		SigOptional([]types.Type{S, S}, S, 1))
+		SigOptional([]types.Type{S, I}, S, 1).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("TrimRight", TrimRight, CategoryString, "Removes trailing whitespace",
-		SigOptional([]types.Type{S, S}, S, 1))
+		SigOptional([]types.Type{S, I}, S, 1).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("StringReplace", StringReplace, CategoryString, "Replaces occurrences of a substring",
-		Sig([]types.Type{S, S, S}, S))
+		SigOptional([]types.Type{S, S, S, I}, S, 3).WithConstraints(exactParameter, exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("StrReplace", StrReplace, CategoryString, "Alias for StringReplace",
-		Sig([]types.Type{S, S, S}, S))
+		SigOptional([]types.Type{S, S, S, I}, S, 3).WithConstraints(exactParameter, exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("StrReplaceMacros", StrReplaceMacros, CategoryString, "Replaces macros delimited in a string",
-		Sig([]types.Type{S, V, S, S}, S)) // (str, callback, startDelim, endDelim)
+		SigOptional([]types.Type{S, types.NewDynamicArrayType(S), S, S}, S, 2).WithConstraints(exactParameter, ParameterConstraint{ArrayElement: types.STRING}, exactParameter, exactParameter))
 	r.RegisterWithSignature("StringOfChar", StringOfChar, CategoryString, "Creates a string of repeated characters",
 		Sig([]types.Type{S, I}, S))
 	r.RegisterWithSignature("SubStr", SubStr, CategoryString, "Extracts a substring",
-		SigOptional([]types.Type{S, I, I}, S, 2))
+		SigOptional([]types.Type{S, I, I}, S, 2).WithConstraints(exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("SubString", SubString, CategoryString, "Extracts a substring (alias)",
-		SigOptional([]types.Type{S, I, I}, S, 2))
+		Sig([]types.Type{S, I, I}, S).WithConstraints(exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("LeftStr", LeftStr, CategoryString, "Returns leftmost characters",
-		Sig([]types.Type{S, I}, S))
+		Sig([]types.Type{S, I}, S).WithConstraints(ParameterConstraint{Exact: true, AllowVariant: true}, exactParameter))
 	r.RegisterWithSignature("RightStr", RightStr, CategoryString, "Returns rightmost characters",
 		Sig([]types.Type{S, I}, S))
 	r.RegisterWithSignature("MidStr", MidStr, CategoryString, "Extracts middle substring",
-		SigOptional([]types.Type{S, I, I}, S, 2))
+		SigOptional([]types.Type{S, I, I}, S, 2).WithConstraints(exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("Chr", Chr, CategoryString, "Converts character code to string",
-		Sig([]types.Type{I}, S))
+		Sig([]types.Type{I}, S).WithConstraints(ParameterConstraint{Exact: true, ResolveAliases: true, AllowEnum: true, AllowVariant: true}))
 
 	// String search functions
 	r.RegisterWithSignature("StrBeginsWith", StrBeginsWith, CategoryString, "Checks if string starts with prefix",
@@ -243,7 +242,7 @@ func RegisterStringFunctions(r *Registry) {
 	r.RegisterWithSignature("RevPos", RevPos, CategoryString, "Finds last position of substring",
 		Sig([]types.Type{S, S}, I))
 	r.RegisterWithSignature("StrFind", StrFind, CategoryString, "Finds substring in string",
-		SigOptional([]types.Type{S, S, I}, I, 2))
+		SigOptional([]types.Type{S, S, I}, I, 2).WithConstraints(exactParameter, exactParameter, exactParameter))
 
 	// Advanced string functions
 	r.RegisterWithSignature("StrBefore", StrBefore, CategoryString, "Returns text before delimiter",
@@ -257,17 +256,17 @@ func RegisterStringFunctions(r *Registry) {
 	r.RegisterWithSignature("StrBetween", StrBetween, CategoryString, "Extracts text between delimiters",
 		Sig([]types.Type{S, S, S}, S))
 	r.RegisterWithSignature("StrSplit", StrSplit, CategoryString, "Splits string into array by delimiter",
-		Sig([]types.Type{S, S}, V)) // Returns array of string
+		Sig([]types.Type{S, S}, types.NewDynamicArrayType(S)).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("StrJoin", StrJoin, CategoryString, "Joins array of strings with delimiter",
-		Sig([]types.Type{V, S}, S)) // Array of string, delimiter
+		Sig([]types.Type{types.NewDynamicArrayType(S), S}, S).WithConstraints(ParameterConstraint{ArrayElement: types.STRING}, exactParameter))
 	r.RegisterWithSignature("StrArrayPack", StrArrayPack, CategoryString, "Removes empty strings from array",
-		Sig([]types.Type{V}, types.NewDynamicArrayType(S))) // Array -> array of String
+		Sig([]types.Type{types.NewDynamicArrayType(S)}, types.NewDynamicArrayType(S)).WithConstraints(ParameterConstraint{ArrayElement: types.STRING}))
 	r.RegisterWithSignature("IsDelimiter", IsDelimiter, CategoryString, "Checks if character is a delimiter",
 		Sig([]types.Type{S, S, I}, B))
 	r.RegisterWithSignature("LastDelimiter", LastDelimiter, CategoryString, "Finds last delimiter position",
 		Sig([]types.Type{S, S}, I))
 	r.RegisterWithSignature("FindDelimiter", FindDelimiter, CategoryString, "Finds first delimiter position",
-		SigOptional([]types.Type{S, S, I}, I, 2))
+		SigOptional([]types.Type{S, S, I}, I, 2).WithConstraints(exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("PadLeft", PadLeft, CategoryString, "Pads string on the left",
 		SigOptional([]types.Type{S, I, S}, S, 2))
 	r.RegisterWithSignature("PadRight", PadRight, CategoryString, "Pads string on the right",
@@ -317,7 +316,7 @@ func RegisterStringFunctions(r *Registry) {
 	r.RegisterWithSignature("AnsiCompareStr", AnsiCompareStr, CategoryString, "ANSI case-sensitive comparison",
 		Sig([]types.Type{S, S}, I))
 	r.RegisterWithSignature("CompareLocaleStr", CompareLocaleStr, CategoryString, "Locale-aware string comparison",
-		Sig([]types.Type{S, S}, I))
+		SigOptional([]types.Type{S, S, S, B}, I, 2).WithConstraints(exactParameter, exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("StrMatches", StrMatches, CategoryString, "Tests if string matches pattern",
 		Sig([]types.Type{S, S}, B))
 	r.RegisterWithSignature("StrIsASCII", StrIsASCII, CategoryString, "Checks if string is ASCII only",
@@ -333,11 +332,11 @@ func RegisterDateTimeFunctions(r *Registry) {
 
 	// Date/time creation
 	r.RegisterWithSignature("EncodeDate", EncodeDate, CategoryDateTime, "Creates date from year, month, day",
-		Sig([]types.Type{I, I, I}, F))
+		Sig([]types.Type{I, I, I}, F).WithConstraints(exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("EncodeTime", EncodeTime, CategoryDateTime, "Creates time from hour, minute, second",
-		SigOptional([]types.Type{I, I, I, I}, F, 3)) // msec optional
+		Sig([]types.Type{I, I, I, I}, F).WithConstraints(exactParameter, exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("EncodeDateTime", EncodeDateTime, CategoryDateTime, "Creates datetime from components",
-		SigOptional([]types.Type{I, I, I, I, I, I, I}, F, 6)) // msec optional
+		Sig([]types.Type{I, I, I, I, I, I, I}, F).WithConstraints(exactParameter, exactParameter, exactParameter, exactParameter, exactParameter, exactParameter, exactParameter))
 	r.RegisterWithSignature("Now", Now, CategoryDateTime, "Returns current date and time",
 		Sig(nil, F))
 	r.RegisterWithSignature("Date", Date, CategoryDateTime, "Returns current date",
@@ -349,53 +348,53 @@ func RegisterDateTimeFunctions(r *Registry) {
 
 	// Date/time arithmetic
 	r.RegisterWithSignature("IncYear", IncYear, CategoryDateTime, "Adds years to a date",
-		SigOptional([]types.Type{F, I}, F, 1))
+		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("IncMonth", IncMonth, CategoryDateTime, "Adds months to a date",
-		SigOptional([]types.Type{F, I}, F, 1))
+		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("IncDay", IncDay, CategoryDateTime, "Adds days to a date",
-		SigOptional([]types.Type{F, I}, F, 1))
+		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("IncHour", IncHour, CategoryDateTime, "Adds hours to a datetime",
-		SigOptional([]types.Type{F, I}, F, 1))
+		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("IncMinute", IncMinute, CategoryDateTime, "Adds minutes to a datetime",
-		SigOptional([]types.Type{F, I}, F, 1))
+		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("IncSecond", IncSecond, CategoryDateTime, "Adds seconds to a datetime",
-		SigOptional([]types.Type{F, I}, F, 1))
+		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("DaysBetween", DaysBetween, CategoryDateTime, "Returns days between two dates",
-		Sig([]types.Type{F, F}, I))
+		Sig([]types.Type{F, F}, I).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("HoursBetween", HoursBetween, CategoryDateTime, "Returns hours between two datetimes",
-		Sig([]types.Type{F, F}, I))
+		Sig([]types.Type{F, F}, I).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("MinutesBetween", MinutesBetween, CategoryDateTime, "Returns minutes between two datetimes",
-		Sig([]types.Type{F, F}, I))
+		Sig([]types.Type{F, F}, I).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("SecondsBetween", SecondsBetween, CategoryDateTime, "Returns seconds between two datetimes",
-		Sig([]types.Type{F, F}, I))
+		Sig([]types.Type{F, F}, I).WithConstraints(exactParameter, exactParameter))
 
 	// Date/time formatting
 	r.RegisterWithSignature("FormatDateTime", FormatDateTime, CategoryDateTime, "Formats datetime with format string",
-		Sig([]types.Type{S, F}, S))
+		Sig([]types.Type{S, F}, S).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("DateTimeToStr", DateTimeToStr, CategoryDateTime, "Converts datetime to string",
-		Sig([]types.Type{F}, S))
+		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DateToStr", DateToStr, CategoryDateTime, "Converts date to string",
-		Sig([]types.Type{F}, S))
+		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
 	r.RegisterWithSignature("TimeToStr", TimeToStr, CategoryDateTime, "Converts time to string",
-		Sig([]types.Type{F}, S))
+		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DateToISO8601", DateToISO8601, CategoryDateTime, "Converts date to ISO8601 format",
-		Sig([]types.Type{F}, S))
+		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DateTimeToISO8601", DateTimeToISO8601, CategoryDateTime, "Converts datetime to ISO8601 format",
-		Sig([]types.Type{F}, S))
+		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DateTimeToRFC822", DateTimeToRFC822, CategoryDateTime, "Converts datetime to RFC822 format",
-		Sig([]types.Type{F}, S))
+		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
 
 	// Date/time parsing
 	r.RegisterWithSignature("StrToDate", StrToDate, CategoryDateTime, "Parses string to date",
-		Sig([]types.Type{S}, F))
+		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("StrToDateTime", StrToDateTime, CategoryDateTime, "Parses string to datetime",
-		Sig([]types.Type{S}, F))
+		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("StrToTime", StrToTime, CategoryDateTime, "Parses string to time",
-		Sig([]types.Type{S}, F))
+		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("ISO8601ToDateTime", ISO8601ToDateTime, CategoryDateTime, "Parses ISO8601 to datetime",
-		Sig([]types.Type{S}, F))
+		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("RFC822ToDateTime", RFC822ToDateTime, CategoryDateTime, "Parses RFC822 to datetime",
-		Sig([]types.Type{S}, F))
+		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
 
 	// Unix time conversions
 	r.RegisterWithSignature("UnixTime", UnixTime, CategoryDateTime, "Returns current Unix timestamp",
@@ -403,49 +402,49 @@ func RegisterDateTimeFunctions(r *Registry) {
 	r.RegisterWithSignature("UnixTimeMSec", UnixTimeMSec, CategoryDateTime, "Returns current Unix timestamp in milliseconds",
 		Sig(nil, I))
 	r.RegisterWithSignature("UnixTimeToDateTime", UnixTimeToDateTime, CategoryDateTime, "Converts Unix timestamp to datetime",
-		Sig([]types.Type{I}, F))
+		Sig([]types.Type{I}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DateTimeToUnixTime", DateTimeToUnixTime, CategoryDateTime, "Converts datetime to Unix timestamp",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("UnixTimeMSecToDateTime", UnixTimeMSecToDateTime, CategoryDateTime, "Converts Unix milliseconds to datetime",
-		Sig([]types.Type{I}, F))
+		Sig([]types.Type{I}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DateTimeToUnixTimeMSec", DateTimeToUnixTimeMSec, CategoryDateTime, "Converts datetime to Unix milliseconds",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 
 	// Date/time information
 	r.RegisterWithSignature("YearOf", YearOf, CategoryDateTime, "Extracts year from datetime",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("MonthOf", MonthOf, CategoryDateTime, "Extracts month from datetime",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DayOf", DayOf, CategoryDateTime, "Extracts day from datetime",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("HourOf", HourOf, CategoryDateTime, "Extracts hour from datetime",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("MinuteOf", MinuteOf, CategoryDateTime, "Extracts minute from datetime",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("SecondOf", SecondOf, CategoryDateTime, "Extracts second from datetime",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DayOfWeek", DayOfWeek, CategoryDateTime, "Returns day of week (0=Sunday)",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DayOfTheWeek", DayOfTheWeek, CategoryDateTime, "Returns day of week (1=Monday)",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("DayOfYear", DayOfYear, CategoryDateTime, "Returns day of year (1-366)",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("WeekNumber", WeekNumber, CategoryDateTime, "Returns ISO week number",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("YearOfWeek", YearOfWeek, CategoryDateTime, "Returns year of ISO week",
-		Sig([]types.Type{F}, I))
+		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
 	r.RegisterWithSignature("IsLeapYear", IsLeapYear, CategoryDateTime, "Checks if year is a leap year",
-		Sig([]types.Type{I}, B))
+		Sig([]types.Type{I}, B).WithConstraints(exactParameter))
 	r.RegisterWithSignature("FirstDayOfYear", FirstDayOfYear, CategoryDateTime, "Returns first day of year",
-		Sig([]types.Type{F}, F))
+		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("FirstDayOfNextYear", FirstDayOfNextYear, CategoryDateTime, "Returns first day of next year",
-		Sig([]types.Type{F}, F))
+		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("FirstDayOfMonth", FirstDayOfMonth, CategoryDateTime, "Returns first day of month",
-		Sig([]types.Type{F}, F))
+		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("FirstDayOfNextMonth", FirstDayOfNextMonth, CategoryDateTime, "Returns first day of next month",
-		Sig([]types.Type{F}, F))
+		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
 	r.RegisterWithSignature("FirstDayOfWeek", FirstDayOfWeek, CategoryDateTime, "Returns first day of ISO week",
-		Sig([]types.Type{F}, F))
+		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
 }
 
 // RegisterConversionFunctions registers all type conversion built-in functions.
@@ -456,21 +455,23 @@ func RegisterConversionFunctions(r *Registry) {
 	B := types.BOOLEAN
 	V := types.VARIANT
 	r.RegisterWithSignature("IntToStr", IntToStr, CategoryConversion, "Converts integer to string",
-		SigOptional([]types.Type{I, I}, S, 1)) // Optional base parameter
+		SigOptional([]types.Type{I, I}, S, 1).WithConstraints(
+			ParameterConstraint{Exact: true, ResolveAliases: true, AllowEnum: true, AllowVariant: true, AllowIntegerSubrange: true},
+			ParameterConstraint{Exact: true, ResolveAliases: true, AllowIntegerSubrange: true})) // Optional base parameter
 	r.RegisterWithSignature("IntToBin", IntToBin, CategoryConversion, "Converts integer to binary string",
-		SigOptional([]types.Type{I, I}, S, 1)) // Optional digits parameter
+		SigOptional([]types.Type{I, I}, S, 1).WithConstraints(ParameterConstraint{Exact: true, AllowIntegerSubrange: true, AllowVariant: true}, integerRangeParameter))
 	r.RegisterWithSignature("StrToInt", StrToInt, CategoryConversion, "Converts string to integer",
-		Sig([]types.Type{S}, I))
+		SigOptional([]types.Type{S, I}, I, 1).WithConstraints(ParameterConstraint{Exact: true, AllowVariant: true}, integerRangeParameter))
 	r.RegisterWithSignature("StrToFloat", StrToFloat, CategoryConversion, "Converts string to float",
 		Sig([]types.Type{S}, F))
 	r.RegisterWithSignature("FloatToStr", FloatToStr, CategoryConversion, "Converts float to string",
-		SigOptional([]types.Type{F, I}, S, 1)) // Optional precision
+		SigOptional([]types.Type{F, I}, S, 1).WithConstraints(ParameterConstraint{Exact: true, ResolveAliases: true, Numeric: true, AllowVariant: true}, ParameterConstraint{ResolveAliases: true}))
 	r.RegisterWithSignature("BoolToStr", BoolToStr, CategoryConversion, "Converts boolean to string",
-		Sig([]types.Type{B}, S))
+		Sig([]types.Type{B}, S).WithConstraints(ParameterConstraint{Exact: true, AllowVariant: true}))
 
 	// Hexadecimal conversion
 	r.RegisterWithSignature("IntToHex", IntToHex, CategoryConversion, "Converts integer to hexadecimal string",
-		Sig([]types.Type{I, I}, S))
+		SigOptional([]types.Type{I, I}, S, 1).WithConstraints(ParameterConstraint{Exact: true, AllowIntegerSubrange: true, AllowVariant: true}, integerRangeParameter))
 	r.RegisterWithSignature("HexToInt", HexToInt, CategoryConversion, "Converts hexadecimal string to integer",
 		Sig([]types.Type{S}, I))
 	r.RegisterWithSignature("BinToInt", BinToInt, CategoryConversion, "Converts binary string to integer",
@@ -478,7 +479,7 @@ func RegisterConversionFunctions(r *Registry) {
 	r.RegisterWithSignature("StrToBool", StrToBool, CategoryConversion, "Converts string to boolean",
 		Sig([]types.Type{S}, B))
 	r.RegisterWithSignature("Ord", Ord, CategoryConversion, "Returns ordinal value of enum/boolean/char",
-		Sig([]types.Type{V}, I))
+		Sig([]types.Type{V}, I).WithConstraints(ParameterConstraint{Any: true}))
 
 	// Ordinal functions
 	r.RegisterWithSignature("Succ", Succ, CategoryConversion, "Returns the successor of an ordinal value",
@@ -499,7 +500,7 @@ func RegisterEncodingFunctions(r *Registry) {
 	r.RegisterWithSignature("StrToCSSText", StrToCSSText, CategoryEncoding, "Encodes string for CSS text",
 		Sig([]types.Type{S}, S))
 	r.RegisterWithSignature("StrToXML", StrToXML, CategoryEncoding, "Encodes string for XML",
-		Sig([]types.Type{S}, S))
+		SigOptional([]types.Type{S, types.INTEGER}, S, 1).WithConstraints(exactParameter, integerRangeParameter))
 }
 
 // RegisterJSONFunctions registers all JSON manipulation built-in functions.
@@ -510,17 +511,17 @@ func RegisterJSONFunctions(r *Registry) {
 	V := types.VARIANT
 
 	r.RegisterWithSignature("ParseJSON", ParseJSON, CategoryJSON, "Parses JSON string to Variant",
-		Sig([]types.Type{S}, V))
+		Sig([]types.Type{S}, V).WithConstraints(ParameterConstraint{}))
 	r.RegisterWithSignature("ToJSON", ToJSON, CategoryJSON, "Converts value to compact JSON string",
 		Sig([]types.Type{V}, S))
 	r.RegisterWithSignature("ToJSONFormatted", ToJSONFormatted, CategoryJSON, "Converts value to formatted JSON string",
-		SigOptional([]types.Type{V, S}, S, 1)) // Optional indent string
+		SigOptional([]types.Type{V, types.INTEGER}, S, 1).WithConstraints(ParameterConstraint{Any: true}, ParameterConstraint{}))
 	r.RegisterWithSignature("JSONHasField", JSONHasField, CategoryJSON, "Checks if JSON object has field",
-		Sig([]types.Type{V, S}, B))
+		Sig([]types.Type{V, S}, B).WithConstraints(ParameterConstraint{Any: true}, ParameterConstraint{}))
 	r.RegisterWithSignature("JSONKeys", JSONKeys, CategoryJSON, "Returns keys of JSON object",
-		Sig([]types.Type{V}, V)) // Returns array of string
+		Sig([]types.Type{V}, types.NewDynamicArrayType(S)).WithConstraints(ParameterConstraint{Any: true}))
 	r.RegisterWithSignature("JSONValues", JSONValues, CategoryJSON, "Returns values of JSON object/array",
-		Sig([]types.Type{V}, V)) // Returns array
+		Sig([]types.Type{V}, types.NewDynamicArrayType(V)).WithConstraints(ParameterConstraint{Any: true}))
 	r.RegisterWithSignature("JSONLength", JSONLength, CategoryJSON, "Returns length of JSON array/object",
 		Sig([]types.Type{V}, I))
 }
@@ -556,31 +557,31 @@ func RegisterVariantFunctions(r *Registry) {
 	r.RegisterWithSignature("VarType", VarType, CategoryVariant, "Returns the type code of a Variant",
 		Sig([]types.Type{V}, I))
 	r.RegisterWithSignature("VarIsNull", VarIsNull, CategoryVariant, "Checks if Variant is unassigned",
-		Sig([]types.Type{V}, B))
+		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
 	r.RegisterWithSignature("VarIsEmpty", VarIsEmpty, CategoryVariant, "Checks if Variant is empty (alias for VarIsNull)",
-		Sig([]types.Type{V}, B))
+		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
 	r.RegisterWithSignature("VarIsClear", VarIsClear, CategoryVariant, "Checks if Variant is cleared (alias for VarIsNull)",
-		Sig([]types.Type{V}, B))
+		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
 	r.RegisterWithSignature("VarIsArray", VarIsArray, CategoryVariant, "Checks if Variant holds an array",
-		Sig([]types.Type{V}, B))
+		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
 	r.RegisterWithSignature("VarIsStr", VarIsStr, CategoryVariant, "Checks if Variant holds a string",
-		Sig([]types.Type{V}, B))
+		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
 	r.RegisterWithSignature("VarIsNumeric", VarIsNumeric, CategoryVariant, "Checks if Variant holds a numeric value",
-		Sig([]types.Type{V}, B))
+		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
 
 	// Variant conversion
 	r.RegisterWithSignature("VarToStr", VarToStr, CategoryVariant, "Converts Variant to string",
 		Sig([]types.Type{V}, S))
 	r.RegisterWithSignature("VarToInt", VarToInt, CategoryVariant, "Converts Variant to integer",
-		Sig([]types.Type{V}, I))
+		Sig([]types.Type{V}, I).WithConstraints(variantParameter))
 	r.RegisterWithSignature("VarToIntDef", VarToIntDef, CategoryVariant, "Converts Variant to integer with a default value",
-		Sig([]types.Type{V, I}, I))
+		Sig([]types.Type{V, I}, I).WithConstraints(ParameterConstraint{Any: true}, exactParameter))
 	r.RegisterWithSignature("VarToFloat", VarToFloat, CategoryVariant, "Converts Variant to float",
-		Sig([]types.Type{V}, F))
+		Sig([]types.Type{V}, F).WithConstraints(variantParameter))
 	r.RegisterWithSignature("VarToFloatDef", VarToFloatDef, CategoryVariant, "Converts Variant to float with a default value",
-		Sig([]types.Type{V, F}, F))
+		Sig([]types.Type{V, F}, F).WithConstraints(ParameterConstraint{Any: true}, exactParameter))
 	r.RegisterWithSignature("VarAsType", VarAsType, CategoryVariant, "Converts Variant to specified type code",
-		Sig([]types.Type{V, I}, V))
+		Sig([]types.Type{V, I}, V).WithConstraints(variantParameter, ParameterConstraint{Types: []types.Type{types.INTEGER, types.STRING}}))
 	r.RegisterWithSignature("VarClear", VarClear, CategoryVariant, "Clears Variant to unassigned state",
 		Sig([]types.Type{V}, nil)) // Procedure (modifies input)
 }
@@ -663,11 +664,11 @@ func RegisterSystemFunctions(r *Registry) {
 
 	// Type conversion
 	r.RegisterWithSignature("Integer", Integer, CategoryConversion, "Converts a value to an integer",
-		Sig([]types.Type{V}, I))
+		Sig([]types.Type{V}, I).WithConstraints(ParameterConstraint{Any: true}))
 	r.RegisterWithSignature("StrToIntDef", StrToIntDef, CategoryConversion, "Converts a string to an integer with a default value",
-		Sig([]types.Type{S, I}, I))
+		SigOptional([]types.Type{S, I, I}, I, 2).WithConstraints(exactParameter, exactParameter, integerRangeParameter))
 	r.RegisterWithSignature("StrToFloatDef", StrToFloatDef, CategoryConversion, "Converts a string to a float with a default value",
-		Sig([]types.Type{S, F}, F))
+		Sig([]types.Type{S, F}, F).WithConstraints(exactParameter, exactParameter))
 
 	// String formatting
 	r.RegisterWithSignature("Format", Format, CategoryString, "Formats a string using format specifiers",

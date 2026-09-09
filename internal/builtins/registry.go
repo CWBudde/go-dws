@@ -71,6 +71,14 @@ type FunctionInfo struct {
 // FunctionSignature describes the type signature of a built-in function.
 // Enables type-safe function pointer handling for built-ins.
 type FunctionSignature struct {
+	// Constraints refine call compatibility without changing the nominal types
+	// used for function pointers. An absent constraint uses ordinary assignment
+	// compatibility (including numeric widening and Variant's wildcard role).
+	Constraints []ParameterConstraint
+
+	// AllowedArgCounts describes disjoint overload arities, such as Trim's 1 or 3.
+	// When empty, MinArgs and MaxArgs define the accepted interval.
+	AllowedArgCounts []int
 
 	// ReturnType is the function's return type (nil for procedures).
 	ReturnType types.Type

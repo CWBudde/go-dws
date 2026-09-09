@@ -31,7 +31,7 @@ func (e *Evaluator) newError(node ast.Node, format string, args ...any) Value {
 // isError checks if a value is an error.
 func isError(val Value) bool {
 	if val != nil {
-		return val.Type() == "ERROR"
+		return runtime.KindOf(val) == runtime.KindError
 	}
 	return false
 }

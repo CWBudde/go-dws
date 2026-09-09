@@ -17,140 +17,16 @@ func (a *Analyzer) analyzeVarType(args []ast.Expression, callExpr *ast.CallExpre
 			len(args), callExpr.Token.Pos.String())
 		return types.INTEGER
 	}
-	a.ensureVariantArgument(args[0], "VarType", callExpr, true)
-	return types.INTEGER
-}
-
-// analyzeVarIsNull analyzes the VarIsNull built-in function.
-// VarIsNull takes one Variant argument and returns a boolean.
-func (a *Analyzer) analyzeVarIsNull(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'VarIsNull' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-	a.ensureVariantArgument(args[0], "VarIsNull", callExpr, false)
-	return types.BOOLEAN
-}
-
-// analyzeVarIsEmpty analyzes the VarIsEmpty built-in function.
-// VarIsEmpty takes one Variant argument and returns a boolean.
-func (a *Analyzer) analyzeVarIsEmpty(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'VarIsEmpty' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-	a.ensureVariantArgument(args[0], "VarIsEmpty", callExpr, false)
-	return types.BOOLEAN
-}
-
-// analyzeVarIsClear analyzes the VarIsClear built-in function.
-// VarIsClear takes one Variant argument and returns a boolean.
-func (a *Analyzer) analyzeVarIsClear(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'VarIsClear' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-	a.ensureVariantArgument(args[0], "VarIsClear", callExpr, false)
-	return types.BOOLEAN
-}
-
-// analyzeVarIsArray analyzes the VarIsArray built-in function.
-// VarIsArray takes one Variant argument and returns a boolean.
-func (a *Analyzer) analyzeVarIsArray(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'VarIsArray' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-	a.ensureVariantArgument(args[0], "VarIsArray", callExpr, false)
-	return types.BOOLEAN
-}
-
-// analyzeVarIsStr analyzes the VarIsStr built-in function.
-// VarIsStr takes one Variant argument and returns a boolean.
-func (a *Analyzer) analyzeVarIsStr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'VarIsStr' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-	a.ensureVariantArgument(args[0], "VarIsStr", callExpr, false)
-	return types.BOOLEAN
-}
-
-// analyzeVarIsNumeric analyzes the VarIsNumeric built-in function.
-// VarIsNumeric takes one Variant argument and returns a boolean.
-func (a *Analyzer) analyzeVarIsNumeric(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'VarIsNumeric' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.BOOLEAN
-	}
-	a.ensureVariantArgument(args[0], "VarIsNumeric", callExpr, false)
-	return types.BOOLEAN
-}
-
-// analyzeVarToInt analyzes the VarToInt built-in function.
-// VarToInt takes one argument and returns an integer.
-func (a *Analyzer) analyzeVarToInt(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'VarToInt' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
+	// A literal names a Variant type for comparison; a String variable does not.
+	if _, ok := args[0].(*ast.StringLiteral); ok {
 		return types.INTEGER
 	}
-	a.ensureVariantArgument(args[0], "VarToInt", callExpr, false)
-	return types.INTEGER
-}
 
-// analyzeVarToFloat analyzes the VarToFloat built-in function.
-// VarToFloat takes one argument and returns a float.
-func (a *Analyzer) analyzeVarToFloat(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'VarToFloat' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.FLOAT
-	}
-	a.ensureVariantArgument(args[0], "VarToFloat", callExpr, false)
-	return types.FLOAT
-}
-
-// analyzeVarAsType analyzes the VarAsType built-in function.
-// VarAsType takes two arguments (value, type code) and returns a Variant.
-func (a *Analyzer) analyzeVarAsType(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 2 {
-		a.addError("function 'VarAsType' expects 2 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.VARIANT
-	}
-	a.ensureVariantArgument(args[0], "VarAsType", callExpr, false)
-	argType := a.analyzeExpression(args[1])
-	// Second argument should be Integer (type code) or String (type name)
-	if argType != nil && argType != types.INTEGER && argType != types.STRING {
-		a.addError("VarAsType type code must be Integer or String, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-	return types.VARIANT
-}
-
-// ensureVariantArgument verifies that the provided expression is of Variant type.
-// Some built-ins (like VarType) permit string literals for comparison purposes.
-//
-//nolint:unparam // return value used for side effects, consistency with other analyzers
-func (a *Analyzer) ensureVariantArgument(expr ast.Expression, funcName string, callExpr *ast.CallExpression, allowStringLiteral bool) {
-	if allowStringLiteral {
-		if _, ok := expr.(*ast.StringLiteral); ok {
-			// Allow string literals (e.g., VarType('string')) for type comparisons
-			return
-		}
-	}
-
-	argType := a.analyzeExpression(expr)
-	// A JSONVariant is variant-compatible (VarIsEmpty/VarIsNull/... accept it).
+	argType := a.analyzeExpression(args[0])
+	// JSONVariant participates in Variant introspection.
 	if argType != nil && argType != types.VARIANT && !types.IsJSONVariant(argType) {
 		a.addError("function '%s' expects Variant argument, got %s at %s",
-			funcName, argType.String(), callExpr.Token.Pos.String())
+			"VarType", argType.String(), callExpr.Token.Pos.String())
 	}
+	return types.INTEGER
 }

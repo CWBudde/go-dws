@@ -89,26 +89,26 @@ func varTypeFromValue(ctx Context, val Value) Value {
 		return &runtime.IntegerValue{Value: varEmpty}
 	}
 
-	// Check if it's a JSON value - must come before Type() switch
+	// Check if it's a JSON value - must come before the representation switch
 	// because JSON values need special handling based on their kind
 	if typeCode, ok := ctx.GetJSONVarType(val); ok {
 		return &runtime.IntegerValue{Value: typeCode}
 	}
 
-	switch val.Type() {
-	case "INTEGER":
+	switch runtime.KindOf(val) {
+	case runtime.KindInteger:
 		return &runtime.IntegerValue{Value: varInteger}
-	case "FLOAT":
+	case runtime.KindFloat:
 		return &runtime.IntegerValue{Value: varDouble}
-	case "STRING":
+	case runtime.KindString:
 		return &runtime.IntegerValue{Value: varString}
-	case "BOOLEAN":
+	case runtime.KindBoolean:
 		return &runtime.IntegerValue{Value: varBoolean}
-	case "NIL", "NULL", "UNASSIGNED":
+	case runtime.KindNil, runtime.KindNull, runtime.KindUnassigned:
 		return &runtime.IntegerValue{Value: varEmpty}
-	case "ARRAY":
+	case runtime.KindArray:
 		return &runtime.IntegerValue{Value: varArray}
-	case "VARIANT":
+	case runtime.KindVariant:
 		return &runtime.IntegerValue{Value: varVariant}
 	default:
 		// Unknown type - treat as empty
@@ -149,8 +149,8 @@ func VarIsNull(ctx Context, args []Value) Value {
 	}
 
 	// Check for nil-like types
-	switch val.Type() {
-	case "NIL", "NULL", "UNASSIGNED":
+	switch runtime.KindOf(val) {
+	case runtime.KindNil, runtime.KindNull, runtime.KindUnassigned:
 		return &runtime.BooleanValue{Value: true}
 	default:
 		return &runtime.BooleanValue{Value: false}
@@ -215,7 +215,7 @@ func VarIsArray(ctx Context, args []Value) Value {
 	val := ctx.UnwrapVariant(arg)
 
 	// Check if the unwrapped value is an array
-	if val != nil && val.Type() == "ARRAY" {
+	if val != nil && runtime.KindOf(val) == runtime.KindArray {
 		return &runtime.BooleanValue{Value: true}
 	}
 	return &runtime.BooleanValue{Value: false}
@@ -241,7 +241,7 @@ func VarIsStr(ctx Context, args []Value) Value {
 	val := ctx.UnwrapVariant(arg)
 
 	// Check if the unwrapped value is a string
-	if val != nil && val.Type() == "STRING" {
+	if val != nil && runtime.KindOf(val) == runtime.KindString {
 		return &runtime.BooleanValue{Value: true}
 	}
 	return &runtime.BooleanValue{Value: false}
@@ -268,8 +268,8 @@ func VarIsNumeric(ctx Context, args []Value) Value {
 
 	// Check if the unwrapped value is numeric
 	if val != nil {
-		switch val.Type() {
-		case "INTEGER", "FLOAT":
+		switch runtime.KindOf(val) {
+		case runtime.KindInteger, runtime.KindFloat:
 			return &runtime.BooleanValue{Value: true}
 		}
 	}
@@ -302,8 +302,8 @@ func VarToStr(ctx Context, args []Value) Value {
 	if val == nil {
 		return &runtime.StringValue{Value: ""}
 	}
-	switch val.Type() {
-	case "NIL", "NULL", "UNASSIGNED":
+	switch runtime.KindOf(val) {
+	case runtime.KindNil, runtime.KindNull, runtime.KindUnassigned:
 		return &runtime.StringValue{Value: ""}
 	}
 
@@ -339,8 +339,8 @@ func VarToInt(ctx Context, args []Value) Value {
 	if val == nil {
 		return &runtime.IntegerValue{Value: 0}
 	}
-	switch val.Type() {
-	case "NIL", "NULL", "UNASSIGNED":
+	switch runtime.KindOf(val) {
+	case runtime.KindNil, runtime.KindNull, runtime.KindUnassigned:
 		return &runtime.IntegerValue{Value: 0}
 	}
 
@@ -395,8 +395,8 @@ func VarToFloat(ctx Context, args []Value) Value {
 	if val == nil {
 		return &runtime.FloatValue{Value: 0.0}
 	}
-	switch val.Type() {
-	case "NIL", "NULL", "UNASSIGNED":
+	switch runtime.KindOf(val) {
+	case runtime.KindNil, runtime.KindNull, runtime.KindUnassigned:
 		return &runtime.FloatValue{Value: 0.0}
 	}
 
@@ -481,7 +481,7 @@ func VarAsType(ctx Context, args []Value) Value {
 	val := ctx.UnwrapVariant(arg)
 
 	// Handle nil/empty Variant - convert to zero value of target type
-	if val == nil || val.Type() == "NIL" || val.Type() == "NULL" || val.Type() == "UNASSIGNED" {
+	if val == nil || runtime.KindOf(val) == runtime.KindNil || runtime.KindOf(val) == runtime.KindNull || runtime.KindOf(val) == runtime.KindUnassigned {
 		switch targetType {
 		case varInteger:
 			return &runtime.IntegerValue{Value: 0}
@@ -506,19 +506,19 @@ func VarAsType(ctx Context, args []Value) Value {
 	case varInteger:
 		// Use VarToInt for conversion
 		converted = VarToInt(ctx, []Value{arg})
-		if converted.Type() == "ERROR" {
+		if runtime.KindOf(converted) == runtime.KindError {
 			return converted
 		}
 	case varDouble:
 		// Use VarToFloat for conversion
 		converted = VarToFloat(ctx, []Value{arg})
-		if converted.Type() == "ERROR" {
+		if runtime.KindOf(converted) == runtime.KindError {
 			return converted
 		}
 	case varString:
 		// Use VarToStr for conversion
 		converted = VarToStr(ctx, []Value{arg})
-		if converted.Type() == "ERROR" {
+		if runtime.KindOf(converted) == runtime.KindError {
 			return converted
 		}
 	case varBoolean:

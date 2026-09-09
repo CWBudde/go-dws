@@ -314,3 +314,7 @@ func TestVariantBooleanCoercionBugFix(t *testing.T) {
 		}
 	})
 }
+
+func (m *mockVariantValue) ValueKind() runtime.ValueKind { return runtime.KindVariant }
+
+func (m *mockUnassignedValue) ValueKind() runtime.ValueKind { return runtime.KindUnassigned }

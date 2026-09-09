@@ -73,7 +73,7 @@ func (e *Evaluator) evalSimpleAssignmentDirect(
 	if refVal, isRef := existingVal.(ReferenceValueAccessor); isRef {
 		return e.evalReferenceAssignment(refVal, value, target, ctx)
 	}
-	if existingVal.Type() == "EXTERNAL_VAR" {
+	if runtime.KindOf(existingVal) == runtime.KindExternalVar {
 		return e.errorForExternalVar(existingVal, target)
 	}
 	if subrangeVal, isSubrange := existingVal.(SubrangeValueAccessor); isSubrange {
@@ -130,13 +130,7 @@ func (e *Evaluator) expectedTypeKindForIdentifier(target *ast.Identifier, ctx *E
 		return ""
 	}
 
-	if typeAnnot := e.SemanticInfo().GetType(target); typeAnnot != nil {
-		if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil && resolvedType != nil {
-			return resolvedType.TypeKind()
-		}
-	}
-
-	return ""
+	return e.resolvedExpressionTypeKind(target, ctx)
 }
 
 func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
@@ -158,8 +152,8 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 
 	memberName := expr.Member.Value
 
-	switch objVal.Type() {
-	case "OBJECT":
+	switch runtime.KindOf(objVal) {
+	case runtime.KindObject:
 		if obj, ok := objVal.(ObjectValue); ok {
 			if obj.HasMethod(memberName) {
 				if methodDecl := obj.GetMethodDecl(memberName); methodDecl != nil {
@@ -179,7 +173,7 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 			}
 		}
 		return e.newError(expr, "method '%s' not found", memberName)
-	case "TYPE_CAST":
+	case runtime.KindTypeCast:
 		// A method pointer from a cast (TBase(child).Event) binds the underlying
 		// runtime object, so a virtual method still dispatches to the most-derived
 		// override at call time (event_virtual).
@@ -191,7 +185,7 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 			}
 		}
 		return e.newError(expr, "method '%s' not found", memberName)
-	case "INTERFACE":
+	case runtime.KindInterface:
 		if ifaceVal, ok := objVal.(InterfaceInstanceValue); ok {
 			if !ifaceVal.HasInterfaceMethod(memberName) {
 				return e.newError(expr, "method '%s' not found", memberName)
@@ -218,7 +212,7 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 		// Class-method pointer via a metaclass value: p := TClass.ClassProc.
 		// The class-meta is captured as the receiver so ClassName resolves.
 		if classMetaVal, ok := objVal.(ClassMetaValue); ok {
-			if result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl any) Value {
+			if result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl *runtime.MethodMetadata) Value {
 				return e.createFunctionPointerFromDecl(methodDecl, objVal, ctx)
 			}); created {
 				return result
@@ -238,7 +232,7 @@ func (e *Evaluator) assignToImplicitTarget(
 ) Value {
 	// Check Self context for fields, class vars, properties
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
-		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
+		if selfVal := selfRaw; runtime.KindOf(selfVal) == runtime.KindObject {
 			if result := e.assignToSelfMember(target, targetName, value, selfVal, ctx); result != nil {
 				return result
 			}
@@ -431,18 +425,18 @@ func (e *Evaluator) prepareValueForAssignment(
 		return value
 	}
 
-	targetType := existingVal.Type()
-	sourceType := value.Type()
+	targetType := runtime.KindOf(existingVal)
+	sourceType := runtime.KindOf(value)
 
 	// Implicit type conversion
-	if targetType != sourceType {
-		if converted, ok := e.TryImplicitConversion(value, targetType, ctx); ok {
+	if !types.OperatorTypesEqual(runtime.LanguageType(existingVal), runtime.LanguageType(value)) {
+		if converted, ok := e.TryImplicitConversion(value, runtime.LanguageType(existingVal), ctx); ok {
 			value = converted
 		}
 	}
 
 	// Box value if target is Variant
-	if targetType == "VARIANT" && sourceType != "VARIANT" {
+	if targetType == runtime.KindVariant && sourceType != runtime.KindVariant {
 		value = runtime.BoxVariant(value)
 	}
 
@@ -464,7 +458,7 @@ func (e *Evaluator) prepareValueForAssignment(
 	}
 
 	// Increment ref count for method pointer's SelfObject
-	if value.Type() == "METHOD_POINTER" {
+	if runtime.KindOf(value) == runtime.KindMethodPointer {
 		if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok && funcPtr.SelfObject != nil {
 			ctx.RefCountManager().IncrementRef(funcPtr.SelfObject)
 		}
@@ -535,7 +529,7 @@ func (e *Evaluator) evalReferenceAssignment(
 	}
 
 	// Interface/object var parameter - ref counting
-	if currentVal.Type() == "INTERFACE" || currentVal.Type() == "OBJECT" {
+	if runtime.KindOf(currentVal) == runtime.KindInterface || runtime.KindOf(currentVal) == runtime.KindObject {
 		refMgr := ctx.RefCountManager()
 
 		// Release old reference
@@ -558,16 +552,16 @@ func (e *Evaluator) evalReferenceAssignment(
 	}
 
 	// Implicit type conversion
-	targetType := currentVal.Type()
-	sourceType := value.Type()
-	if targetType != sourceType {
-		if converted, ok := e.TryImplicitConversion(value, targetType, ctx); ok {
+	targetType := runtime.KindOf(currentVal)
+	sourceType := runtime.KindOf(value)
+	if !types.OperatorTypesEqual(runtime.LanguageType(currentVal), runtime.LanguageType(value)) {
+		if converted, ok := e.TryImplicitConversion(value, runtime.LanguageType(currentVal), ctx); ok {
 			value = converted
 		}
 	}
 
 	// Box value if target is Variant
-	if targetType == "VARIANT" && sourceType != "VARIANT" {
+	if targetType == runtime.KindVariant && sourceType != runtime.KindVariant {
 		value = runtime.BoxVariant(value)
 	}
 
@@ -660,7 +654,7 @@ func (e *Evaluator) compoundAssignToImplicitTarget(
 ) Value {
 	// Check Self context
 	if selfRaw, ok := ctx.Env().Get("Self"); ok {
-		if selfVal, ok := selfRaw.(Value); ok && selfVal.Type() == "OBJECT" {
+		if selfVal := selfRaw; runtime.KindOf(selfVal) == runtime.KindObject {
 			if result := e.compoundAssignToSelfMember(target, targetName, stmt, selfVal, ctx); result != nil {
 				return result
 			}
@@ -759,12 +753,12 @@ func (e *Evaluator) compoundAssignToClassVarViaSelf(
 		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
 	}
 
-	classMetaVal, ok := objInst.Class.(ClassMetaValue)
+	classInfo, ok := objInst.Class.(*runtime.ClassInfo)
 	if !ok {
 		return e.newError(target, "cannot assign to class variable '%s': class does not support SetClassVar", targetName)
 	}
 
-	if classMetaVal.SetClassVar(targetName, result) {
+	if (&runtime.ClassValue{ClassInfo: classInfo}).SetClassVar(targetName, result) {
 		return result
 	}
 	return e.newError(target, "failed to set class variable '%s'", targetName)
@@ -895,11 +889,6 @@ func (e *Evaluator) getArrayTypeFromTarget(target *ast.Identifier, ctx *Executio
 		return arrType
 	}
 
-	// Try type string from value
-	if arrType := e.resolveArrayTypeFromTypeStringer(existingVal, ctx); arrType != nil {
-		return arrType
-	}
-
 	// Fall back to semantic type information
 	return e.resolveArrayTypeFromSemanticInfo(target, ctx)
 }
@@ -915,53 +904,26 @@ func (e *Evaluator) resolveArrayTypeFromIdentifier(target *ast.Identifier, ctx *
 		return arrVal.ArrayType
 	}
 
-	if typeStringer, ok := resolved.(interface{ ArrayTypeString() string }); ok {
-		return e.resolveArrayTypeFromTypeName(typeStringer.ArrayTypeString(), ctx)
-	}
 	return nil
 }
 
-// resolveArrayTypeFromTypeStringer extracts array type from a value with ArrayTypeString method.
-func (e *Evaluator) resolveArrayTypeFromTypeStringer(val any, ctx *ExecutionContext) *types.ArrayType {
-	if typeStringer, ok := val.(interface{ ArrayTypeString() string }); ok {
-		return e.resolveArrayTypeFromTypeName(typeStringer.ArrayTypeString(), ctx)
-	}
-	return nil
-}
-
-// resolveArrayTypeFromSemanticInfo gets array type from semantic analysis info.
+// resolveArrayTypeFromSemanticInfo retains the analyzer's array type identity.
 func (e *Evaluator) resolveArrayTypeFromSemanticInfo(target *ast.Identifier, ctx *ExecutionContext) *types.ArrayType {
 	if e.SemanticInfo() == nil {
 		return nil
 	}
-
-	typeAnnot := e.SemanticInfo().GetType(target)
-	if typeAnnot == nil || typeAnnot.Name == "" {
-		return nil
-	}
-
-	return e.resolveArrayTypeFromTypeName(typeAnnot.Name, ctx)
-}
-
-// resolveArrayTypeFromTypeName resolves a type name to ArrayType.
-func (e *Evaluator) resolveArrayTypeFromTypeName(typeName string, ctx *ExecutionContext) *types.ArrayType {
-	if typeName == "" || typeName == "array" {
-		return nil
-	}
-
-	resolved, err := e.ResolveTypeWithContext(typeName, ctx)
-	if err != nil {
-		return nil
-	}
-
-	if arrType, ok := resolved.(*types.ArrayType); ok {
-		return arrType
-	}
-
-	if underlying := types.GetUnderlyingType(resolved); underlying != nil {
-		if arrType, ok := underlying.(*types.ArrayType); ok {
-			return arrType
+	resolved := e.SemanticInfo().GetResolvedType(target)
+	if resolved == nil {
+		if annotation := e.SemanticInfo().GetType(target); annotation != nil {
+			var err error
+			resolved, err = e.ResolveTypeFromAnnotation(annotation, ctx)
+			if err != nil {
+				return nil
+			}
 		}
+	}
+	if array, ok := types.GetUnderlyingType(resolved).(*types.ArrayType); ok {
+		return array
 	}
 	return nil
 }
@@ -1029,28 +991,21 @@ func (e *Evaluator) getSetTypeFromTarget(target *ast.Identifier, ctx *ExecutionC
 	return nil
 }
 
-// getRecordTypeNameFromTarget extracts record type name from target variable.
-// This enables context inference for anonymous record literals during assignment:
-// var p: TPoint; p := (x: 1, y: 2); // Literal adopts TPoint type
-//
-// RecordValue.Type() returns the record type name (e.g., "TPoint") or "RECORD"
-// for anonymous records. For context inference, we need the actual type name.
-//
-// Returns empty string if:
-// - Target variable doesn't exist
-// - Target variable is not a record
-// - Target variable is an anonymous record (Type() returns "RECORD")
-// - Type name is not a registered record type
-func (e *Evaluator) getRecordTypeNameFromTarget(target *ast.Identifier, ctx *ExecutionContext) string {
-	existingVal, exists := ctx.Env().Get(target.Value)
-	if !exists || existingVal == nil {
-		return ""
+// getRecordTypeFromTarget retains named and inline record identity for assignment.
+func (e *Evaluator) getRecordTypeFromTarget(target *ast.Identifier, ctx *ExecutionContext) *types.RecordType {
+	if resolved, ok := types.GetUnderlyingType(e.resolvedSemanticType(target)).(*types.RecordType); ok {
+		return resolved
 	}
-
-	// RecordValue.Type() returns record type name or "RECORD" for anonymous
-	typeName := existingVal.Type()
-	if typeName != "" && typeName != "RECORD" && e.typeSystem.HasRecord(typeName) {
-		return typeName
+	value, _ := ctx.Env().Get(target.Value)
+	if record, ok := value.(*runtime.RecordValue); ok {
+		return record.RecordType
 	}
-	return ""
+	if reference, ok := value.(interface{ Dereference() (runtime.Value, error) }); ok {
+		if resolved, err := reference.Dereference(); err == nil {
+			if record, ok := resolved.(*runtime.RecordValue); ok {
+				return record.RecordType
+			}
+		}
+	}
+	return nil
 }

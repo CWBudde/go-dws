@@ -5,7 +5,6 @@ package runtime
 import (
 	"fmt"
 
-	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -140,7 +139,7 @@ func (o *ObjectInstance) SetFieldFromClass(name string, value Value, className s
 //
 // Note: This performs static method resolution (not virtual dispatch).
 // Virtual dispatch is implemented inline in objects_methods.go where needed.
-func (o *ObjectInstance) GetMethod(name string) *ast.FunctionDecl {
+func (o *ObjectInstance) GetMethod(name string) *MethodMetadata {
 	if o.Class == nil {
 		return nil
 	}
@@ -241,6 +240,9 @@ type classTypeProxy struct {
 	class IClassInfo
 }
 
+// GetClassInfo returns the referenced runtime class identity.
+func (c *classTypeProxy) GetClassInfo() IClassInfo { return c.class }
+
 func (c *classTypeProxy) Type() string {
 	return "CLASS"
 }
@@ -269,7 +271,7 @@ func (o *ObjectInstance) HasMethod(name string) bool {
 }
 
 // GetMethodDecl retrieves a method declaration by name from the class hierarchy.
-func (o *ObjectInstance) GetMethodDecl(name string) any {
+func (o *ObjectInstance) GetMethodDecl(name string) *MethodMetadata {
 	if o == nil || o.Class == nil {
 		return nil
 	}
@@ -283,8 +285,8 @@ func (o *ObjectInstance) GetMethodDecl(name string) any {
 // GetClassMethodDecl retrieves a class (static) method declaration by name from
 // the class hierarchy. DWScript permits calling class methods through an
 // instance, so member access on an object falls back to this lookup.
-// Returns *ast.FunctionDecl (as any) or nil if no such class method exists.
-func (o *ObjectInstance) GetClassMethodDecl(name string) any {
+// Returns canonical method metadata or nil if no such class method exists.
+func (o *ObjectInstance) GetClassMethodDecl(name string) *MethodMetadata {
 	if o == nil || o.Class == nil {
 		return nil
 	}
@@ -308,7 +310,7 @@ func (o *ObjectInstance) GetClassVar(name string) (Value, bool) {
 }
 
 // CallInheritedMethod calls a method from the parent class using the provided executor callback.
-func (o *ObjectInstance) CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value {
+func (o *ObjectInstance) CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl *MethodMetadata, args []Value) Value) Value {
 	// Validate object state
 	if o == nil || o.Class == nil {
 		return newError("object has no class information")
@@ -398,7 +400,7 @@ func (o *ObjectInstance) WriteIndexedProperty(propInfo any, indices []Value, val
 // InvokeParameterlessMethod invokes a method if it has zero parameters.
 // Returns (result, true) if successful, or (nil, false) if method has parameters.
 func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
-	methodExecutor func(methodDecl any) Value) (Value, bool) {
+	methodExecutor func(methodDecl *MethodMetadata) Value) (Value, bool) {
 	if o == nil || o.Class == nil {
 		return nil, false
 	}
@@ -425,7 +427,7 @@ func (o *ObjectInstance) InvokeParameterlessMethod(methodName string,
 
 // callableWithoutArguments reports whether a method can be invoked with no
 // arguments: it either has no parameters or every parameter has a default value.
-func callableWithoutArguments(method *ast.FunctionDecl) bool {
+func callableWithoutArguments(method *MethodMetadata) bool {
 	for _, param := range method.Parameters {
 		if param.DefaultValue == nil {
 			return false
@@ -437,7 +439,7 @@ func callableWithoutArguments(method *ast.FunctionDecl) bool {
 // CreateMethodPointer creates a method pointer for a method with parameters.
 // Returns (pointer, true) if successful, or (nil, false) if method has no parameters.
 func (o *ObjectInstance) CreateMethodPointer(methodName string,
-	pointerCreator func(methodDecl any) Value) (Value, bool) {
+	pointerCreator func(methodDecl *MethodMetadata) Value) (Value, bool) {
 	if o == nil || o.Class == nil {
 		return nil, false
 	}

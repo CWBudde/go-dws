@@ -303,14 +303,14 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 
 		// Create class that implements interface
 		class := NewClassInfo("TTest")
-		class.Methods["doit"] = &ast.FunctionDecl{
+		class.Methods["doit"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{
 			Name: &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{},
 				},
 				Value: "DoIt",
 			},
-		}
+		})
 		class.Interfaces = append(class.Interfaces, iface)
 
 		// Create object instance
@@ -335,13 +335,12 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		// Create interface and class
 		iface := NewInterfaceInfo("ITest")
 		class := NewClassInfo("TTest")
-		class.GetMethodsMap()["doit"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DoIt"}}
+		class.GetMethodsMap()["doit"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DoIt"}})
 		// Register field so SetField uses normalized metadata/legacy paths
 		// Note: Skipping field registration since Fields now expects *ast.FieldDecl
 		runtime.AddFieldToClass(class.Metadata, &runtime.FieldMetadata{
 			Name:       "TestField",
 			Type:       types.INTEGER,
-			TypeName:   "Integer",
 			Visibility: runtime.FieldVisibilityPublic,
 		})
 
@@ -436,7 +435,7 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 		iface.Methods[strings.ToLower("Release")] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
 
 		class := NewClassInfo("TResource")
-		class.Methods["release"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
+		class.Methods["release"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}})
 
 		interp.typeSystem.RegisterInterface("iresource", iface)
 		interp.typeSystem.RegisterClass("TResource", class)

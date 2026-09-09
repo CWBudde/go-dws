@@ -1,7 +1,11 @@
 package evaluator
 
 import (
+	"bytes"
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/parser"
@@ -79,5 +83,80 @@ func TestSemanticTypes_ContextualLiteral(t *testing.T) {
 				t.Fatal("contextual literal annotation lost resolved type identity")
 			}
 		})
+	}
+}
+
+func TestResolveTypeFromAnnotation_UncheckedStructure(t *testing.T) {
+	for _, source := range []string{
+		"var value: array[-2..2] of array of Integer;",
+		"var value: function(var x: Integer): String;",
+		"var value: procedure(x: array of Integer) of object;",
+	} {
+		t.Run(source, func(t *testing.T) {
+			p := parser.New(lexer.New(source))
+			program := p.ParseProgram()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parse: %v", p.Errors())
+			}
+			decl := program.Statements[0].(*ast.VarDeclStatement)
+			evaluator := NewEvaluator(nil, nil, nil, nil, nil, nil)
+			resolved, err := evaluator.ResolveTypeFromAnnotation(decl.Type, nil)
+			if err != nil || resolved == nil {
+				t.Fatalf("resolve structured annotation: %v, %v", resolved, err)
+			}
+			if pointer, ok := decl.Type.(*ast.FunctionPointerTypeNode); ok && pointer.OfObject {
+				if _, ok := resolved.(*types.MethodPointerType); !ok {
+					t.Fatalf("method pointer resolved as %T", resolved)
+				}
+			}
+		})
+	}
+}
+
+func TestSemanticTypes_DeclarationRegistration(t *testing.T) {
+	source := `type TItem = (First, Second); type TItems = array of TItem; type TRecord = record Items: TItems; end; type TSet = set of TItem;`
+	p := parser.New(lexer.New(source))
+	program := p.ParseProgram()
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parse: %v", p.Errors())
+	}
+	analyzer := semantic.NewAnalyzer()
+	if err := analyzer.Analyze(program); err != nil {
+		t.Fatal(err)
+	}
+	info := analyzer.GetSemanticInfo()
+	for range 2 {
+		registry := interptypes.NewTypeSystem()
+		evaluator := NewEvaluator(registry, &bytes.Buffer{}, nil, nil, info, nil)
+		ctx := NewExecutionContext(runtime.NewEnvironment())
+		if result := evaluator.Eval(program, ctx); isError(result) {
+			t.Fatal(result.String())
+		}
+		for _, statement := range program.Statements {
+			expected := info.GetResolvedType(statement)
+			if expected == nil {
+				t.Fatalf("missing declaration metadata: %T", statement)
+			}
+			var name string
+			switch declaration := statement.(type) {
+			case *ast.EnumDecl:
+				name = declaration.Name.Value
+			case *ast.ArrayDecl:
+				name = declaration.Name.Value
+			case *ast.RecordDecl:
+				name = declaration.Name.Value
+			case *ast.SetDecl:
+				name = declaration.Name.Value
+			case *ast.TypeDeclaration:
+				name = declaration.Name.Value
+			}
+			actual, err := evaluator.resolveTypeName(name, ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if actual != expected {
+				t.Fatalf("%s registration reconstructed %T instead of preserving semantic identity", name, actual)
+			}
+		}
 	}
 }

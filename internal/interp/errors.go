@@ -6,6 +6,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/errors"
 	interpErrors "github.com/cwbudde/go-dws/internal/interp/errors"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -83,7 +84,7 @@ func (e *ContractFailureError) String() string {
 // isError checks if a value is an error.
 func isError(val Value) bool {
 	if val != nil {
-		return val.Type() == "ERROR"
+		return runtime.KindOf(val) == runtime.KindError
 	}
 	return false
 }

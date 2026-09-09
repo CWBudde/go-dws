@@ -172,10 +172,7 @@ func (e *Evaluator) executePropertySetterMethod(obj Value, objVal ObjectValue, p
 	}
 
 	// Type-assert to get parameter info
-	method, ok := methodDecl.(*ast.FunctionDecl)
-	if !ok {
-		return e.newError(node, "property '%s' setter is not a valid method", pInfo.Name)
-	}
+	method := methodDecl
 
 	// Build arguments: index directive args (if any) + value param
 	indexArgs, err := e.buildIndexDirectiveArgs(pInfo)

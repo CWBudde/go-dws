@@ -236,13 +236,15 @@ func (p *Parser) parseFunctionReturnType() *ast.TypeAnnotation {
 		return te
 	case *ast.FunctionPointerTypeNode:
 		return &ast.TypeAnnotation{
-			Token: te.Token,
-			Name:  te.String(),
+			Token:      te.Token,
+			Name:       te.String(),
+			InlineType: te,
 		}
 	case *ast.SetTypeNode:
 		return &ast.TypeAnnotation{
-			Token: te.Token,
-			Name:  te.String(),
+			Token:      te.Token,
+			Name:       te.String(),
+			InlineType: te,
 		}
 	case *ast.ArrayTypeNode:
 		if te == nil {
@@ -254,8 +256,9 @@ func (p *Parser) parseFunctionReturnType() *ast.TypeAnnotation {
 			token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
 		}
 		return &ast.TypeAnnotation{
-			Token: token,
-			Name:  te.String(),
+			Token:      token,
+			Name:       te.String(),
+			InlineType: te,
 		}
 	default:
 		p.addError("unsupported type expression in return type", ErrInvalidType)
@@ -837,8 +840,9 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 		case *ast.FunctionPointerTypeNode:
 			// For nested function pointers, use the string representation as type name
 			typeAnnotation = &ast.TypeAnnotation{
-				Token: te.Token,
-				Name:  te.String(),
+				Token:      te.Token,
+				Name:       te.String(),
+				InlineType: te,
 			}
 		case *ast.ArrayTypeNode:
 			// For array types, use string representation
@@ -847,14 +851,16 @@ func (p *Parser) parseTypeOnlyParameterListAtToken() []*ast.Parameter {
 				token = lexer.Token{Type: lexer.ARRAY, Literal: "array", Pos: lexer.Position{}}
 			}
 			typeAnnotation = &ast.TypeAnnotation{
-				Token: token,
-				Name:  te.String(),
+				Token:      token,
+				Name:       te.String(),
+				InlineType: te,
 			}
 		case *ast.SetTypeNode:
 			// For set types, use string representation
 			typeAnnotation = &ast.TypeAnnotation{
-				Token: te.Token,
-				Name:  te.String(),
+				Token:      te.Token,
+				Name:       te.String(),
+				InlineType: te,
 			}
 		default:
 			p.addError("unsupported type expression in function pointer parameter", ErrInvalidType)

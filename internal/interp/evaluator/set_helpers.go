@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -30,38 +29,14 @@ func (e *Evaluator) evalSetLiteralDirect(node *ast.SetLiteral, ctx *ExecutionCon
 		return e.newError(node, "nil set literal")
 	}
 
-	// If semantic analysis provided a set type annotation, capture it for inference.
+	resolved := types.GetUnderlyingType(e.resolvedExpressionType(node, ctx))
 	var annotatedSetType *types.SetType
-	if e.SemanticInfo() != nil {
-		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
-			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil {
-				if setType, ok := types.GetUnderlyingType(resolvedType).(*types.SetType); ok {
-					annotatedSetType = setType
-				}
-			}
-			if annotatedSetType == nil {
-				annotatedSetType = e.parseInlineSetType(typeAnnot.Name)
-			}
-		}
+	if setType, ok := resolved.(*types.SetType); ok {
+		annotatedSetType = setType
 	}
-
-	// Check if this SetLiteral should be treated as an array (array of const)
-	// This happens when semantic analyzer determined it's used in array context
-	if e.SemanticInfo() != nil {
-		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
-			resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx)
-			if err == nil {
-				if arrayType, isArray := resolvedType.(*types.ArrayType); isArray {
-					// Evaluate as array literal directly instead of delegating
-					// Convert SetLiteral to ArrayLiteralExpression and evaluate directly
-					arrayLit := &ast.ArrayLiteralExpression{
-						Elements: node.Elements,
-					}
-					// Pass the array type via semantic info if possible
-					return e.evalArrayLiteralWithType(arrayLit, arrayType, ctx)
-				}
-			}
-		}
+	if arrayType, ok := resolved.(*types.ArrayType); ok {
+		arrayLit := &ast.ArrayLiteralExpression{Elements: node.Elements}
+		return e.evalArrayLiteralWithType(arrayLit, arrayType, ctx)
 	}
 
 	// Evaluate all elements and determine the ordinal type
@@ -278,35 +253,5 @@ func (e *Evaluator) lookupEnumType(typeName string) (*types.EnumType, error) {
 		return nil, fmt.Errorf("unknown enum type '%s'", typeName)
 	}
 
-	// The stored value should implement EnumTypeValueAccessor
-	if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
-		return etv.GetEnumType(), nil
-	}
-
-	// The value was found but wrong type - this is a programming error
-	return nil, fmt.Errorf("type '%s' is registered but does not provide EnumType (internal error)", typeName)
-}
-
-// parseInlineSetType parses inline set type syntax like "set of TEnumType".
-// Returns the SetType, or nil if the string doesn't match the expected format.
-func (e *Evaluator) parseInlineSetType(signature string) *types.SetType {
-	// Check for "set of " prefix (case-sensitive per DWScript spec)
-	if !strings.HasPrefix(signature, "set of ") {
-		return nil
-	}
-
-	// Extract enum type name: "set of TColor" → "TColor"
-	enumTypeName := strings.TrimSpace(signature[7:]) // Skip "set of "
-	if enumTypeName == "" {
-		return nil
-	}
-
-	// Look up the enum type using existing helper
-	enumType, err := e.lookupEnumType(enumTypeName)
-	if err != nil {
-		return nil
-	}
-
-	// Create and return the set type
-	return types.NewSetType(enumType)
+	return enumMetadata.GetEnumType(), nil
 }

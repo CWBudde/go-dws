@@ -17,8 +17,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// Normalize function name to lowercase for case-insensitive matching
 	lowerName := ident.Normalize(name)
 
-	// Calls with specialized semantic rules retain explicit analyzers. Ordinary
-	// calls consume registry signatures and diagnostic wording below.
+	// AST-dependent and polymorphic intrinsics retain explicit analyzers.
+	// Ordinary calls consume registry signatures and diagnostic policies.
 
 	// Emit a hint when the case of a built-in differs from its declaration.
 	if lowerName == "assigned" && name != "Assigned" {
@@ -35,37 +35,14 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		"getcallstack", "assert":
 		return nil, false
 
-	// Type Conversion
-	case "ord", "integer":
-		return a.analyzeOrd(args, callExpr), true
-	case "inttostr":
-		return a.analyzeIntToStr(args, callExpr), true
-	case "inttobin":
-		return a.analyzeIntToBin(args, callExpr), true
-	case "inttohex":
-		return a.analyzeIntToHex(args, callExpr), true
-	case "strtoint":
-		return a.analyzeStrToInt(args, callExpr), true
-	case "booltostr":
-		return a.analyzeBoolToStr(args, callExpr), true
-	case "floattostr":
-		return a.analyzeFloatToStr(args, callExpr), true
+	// FloatToStrF is a compile-time compatibility intrinsic without a runtime
+	// implementation or callable registry entry.
 	case "floattostrf":
 		return a.analyzeFloatToStrF(args, callExpr), true
-	case "strtointdef":
-		return a.analyzeStrToIntDef(args, callExpr), true
-	case "strtofloatdef":
-		return a.analyzeStrToFloatDef(args, callExpr), true
 	case "trystrtoint":
 		return a.analyzeTryStrToInt(args, callExpr), true
 	case "trystrtofloat":
 		return a.analyzeTryStrToFloat(args, callExpr), true
-	case "vartointdef":
-		return a.analyzeVarToIntDef(args, callExpr), true
-	case "vartofloatdef":
-		return a.analyzeVarToFloatDef(args, callExpr), true
-	case "chr":
-		return a.analyzeChr(args, callExpr), true
 	case "default":
 		return a.analyzeDefault(args, callExpr), true
 	case "charat":
@@ -90,52 +67,14 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeLength(args, callExpr), true
 	case "copy":
 		return a.analyzeCopy(args, callExpr), true
-	case "substr":
-		return a.analyzeSubStr(args, callExpr), true
 	case "concat":
 		return a.analyzeConcat(args, callExpr), true
-	case "pos":
-		return a.analyzePos(args, callExpr), true
-	case "trim":
-		return a.analyzeTrim(args, callExpr), true
-	case "trimleft":
-		return a.analyzeTrimLeft(args, callExpr), true
-	case "trimright":
-		return a.analyzeTrimRight(args, callExpr), true
-	case "stringreplace":
-		return a.analyzeStringReplace(args, callExpr), true
-	case "strreplace":
-		return a.analyzeStringReplace(args, callExpr), true
-	case "strreplacemacros":
-		return a.analyzeStrReplaceMacros(args, callExpr), true
 	case "stringofchar":
 		return a.analyzeStringOfChar(args, callExpr), true
 	case "format":
 		return a.analyzeFormat(args, callExpr), true
 	case "insert":
 		return a.analyzeInsert(args, callExpr), true
-	case "substring":
-		return a.analyzeSubString(args, callExpr), true
-	case "leftstr":
-		return a.analyzeLeftStr(args, callExpr), true
-	case "midstr":
-		return a.analyzeMidStr(args, callExpr), true
-	case "strfind":
-		return a.analyzeStrFind(args, callExpr), true
-	case "strsplit":
-		return a.analyzeStrSplit(args, callExpr), true
-	case "strjoin":
-		return a.analyzeStrJoin(args, callExpr), true
-	case "strarraypack":
-		return a.analyzeStrArrayPack(args, callExpr), true
-	case "finddelimiter":
-		return a.analyzeFindDelimiter(args, callExpr), true
-	case "comparelocalestr":
-		return a.analyzeCompareLocaleStr(args, callExpr), true
-
-	// Encoding/Escaping Functions
-	case "strtoxml":
-		return a.analyzeStrToXML(args, callExpr), true
 
 	// Math Functions - Basic
 	case "abs":
@@ -144,60 +83,12 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeMin(args, callExpr), true
 	case "max":
 		return a.analyzeMax(args, callExpr), true
-	case "clampint":
-		return a.analyzeClampInt(args, callExpr), true
-	case "clamp":
-		return a.analyzeClamp(args, callExpr), true
-	case "maxint":
-		return a.analyzeMaxInt(args, callExpr), true
-	case "minint":
-		return a.analyzeMinInt(args, callExpr), true
 	case "sqr":
 		return a.analyzeSqr(args, callExpr), true
-	case "power":
-		return a.analyzePower(args, callExpr), true
 
-	// Math Functions - Trigonometric
-	case "arctan2":
-		return a.analyzeArcTan2(args, callExpr), true
-	case "hypot":
-		return a.analyzeHypot(args, callExpr), true
-
-	// Math Functions - Random
-	case "randomize":
-		return a.analyzeRandomize(args, callExpr), true
-	case "setrandseed":
-		return a.analyzeSetRandSeed(args, callExpr), true
-	case "isnan":
-		return a.analyzeIsNaN(args, callExpr), true
-
-	// Math Functions - Exponential/Logarithmic
-	case "logn":
-		return a.analyzeLogN(args, callExpr), true
-	case "sign":
-		return a.analyzeSign(args, callExpr), true
-	case "intpower":
-		return a.analyzeIntPower(args, callExpr), true
-	case "randg":
-		return a.analyzeRandG(args, callExpr), true
+	// By-reference arithmetic
 	case "divmod":
 		return a.analyzeDivMod(args, callExpr), true
-
-	// Math Functions - Advanced
-	case "gcd":
-		return a.analyzeGcd(args, callExpr), true
-	case "lcm":
-		return a.analyzeLcm(args, callExpr), true
-	case "testbit":
-		return a.analyzeTestBit(args, callExpr), true
-	case "haversine":
-		return a.analyzeHaversine(args, callExpr), true
-	case "comparenum":
-		return a.analyzeCompareNum(args, callExpr), true
-
-	// Math Functions - Rounding
-	case "round":
-		return a.analyzeRound(args, callExpr), true
 
 	// Math Functions - Ordinal
 	case "inc":
@@ -211,153 +102,15 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	case "swap":
 		return a.analyzeSwap(args, callExpr), true
 
-	// Date/Time Functions - Encoding
-	case "encodedate":
-		return a.analyzeEncodeDate(args, callExpr), true
-	case "encodetime":
-		return a.analyzeEncodeTime(args, callExpr), true
-	case "encodedatetime":
-		return a.analyzeEncodeDateTime(args, callExpr), true
-
 	// Date/Time Functions - Decoding
 	case "decodedate":
 		return a.analyzeDecodeDate(args, callExpr), true
 	case "decodetime":
 		return a.analyzeDecodeTime(args, callExpr), true
 
-	// Date/Time Functions - Component extraction
-	case "yearof":
-		return a.analyzeYearOf(args, callExpr), true
-	case "monthof":
-		return a.analyzeMonthOf(args, callExpr), true
-	case "dayof":
-		return a.analyzeDayOf(args, callExpr), true
-	case "hourof":
-		return a.analyzeHourOf(args, callExpr), true
-	case "minuteof":
-		return a.analyzeMinuteOf(args, callExpr), true
-	case "secondof":
-		return a.analyzeSecondOf(args, callExpr), true
-	case "dayofweek":
-		return a.analyzeDayOfWeek(args, callExpr), true
-	case "dayoftheweek":
-		return a.analyzeDayOfTheWeek(args, callExpr), true
-	case "dayofyear":
-		return a.analyzeDayOfYear(args, callExpr), true
-	case "weeknumber":
-		return a.analyzeWeekNumber(args, callExpr), true
-	case "yearofweek":
-		return a.analyzeYearOfWeek(args, callExpr), true
-
-	// Date/Time Functions - Formatting
-	case "formatdatetime":
-		return a.analyzeFormatDateTime(args, callExpr), true
-	case "datetimetostr":
-		return a.analyzeDateTimeToStr(args, callExpr), true
-	case "datetostr":
-		return a.analyzeDateToStr(args, callExpr), true
-	case "timetostr":
-		return a.analyzeTimeToStr(args, callExpr), true
-	case "datetoiso8601":
-		return a.analyzeDateToISO8601(args, callExpr), true
-	case "datetimetoiso8601":
-		return a.analyzeDateTimeToISO8601(args, callExpr), true
-	case "datetimetorfc822":
-		return a.analyzeDateTimeToRFC822(args, callExpr), true
-
-	// Date/Time Functions - Parsing
-	case "strtodate":
-		return a.analyzeStrToDate(args, callExpr), true
-	case "strtodatetime":
-		return a.analyzeStrToDateTime(args, callExpr), true
-	case "strtotime":
-		return a.analyzeStrToTime(args, callExpr), true
-	case "iso8601todatetime":
-		return a.analyzeISO8601ToDateTime(args, callExpr), true
-	case "rfc822todatetime":
-		return a.analyzeRFC822ToDateTime(args, callExpr), true
-
-	// Date/Time Functions - Incrementing
-	case "incyear":
-		return a.analyzeIncYear(args, callExpr), true
-	case "incmonth":
-		return a.analyzeIncMonth(args, callExpr), true
-	case "incday":
-		return a.analyzeIncDay(args, callExpr), true
-	case "inchour":
-		return a.analyzeIncHour(args, callExpr), true
-	case "incminute":
-		return a.analyzeIncMinute(args, callExpr), true
-	case "incsecond":
-		return a.analyzeIncSecond(args, callExpr), true
-
-	// Date/Time Functions - Difference
-	case "daysbetween":
-		return a.analyzeDaysBetween(args, callExpr), true
-	case "hoursbetween":
-		return a.analyzeHoursBetween(args, callExpr), true
-	case "minutesbetween":
-		return a.analyzeMinutesBetween(args, callExpr), true
-	case "secondsbetween":
-		return a.analyzeSecondsBetween(args, callExpr), true
-
-	// Date/Time Functions - Special
-	case "isleapyear":
-		return a.analyzeIsLeapYear(args, callExpr), true
-	case "firstdayofyear":
-		return a.analyzeFirstDayOfYear(args, callExpr), true
-	case "firstdayofnextyear":
-		return a.analyzeFirstDayOfNextYear(args, callExpr), true
-	case "firstdayofmonth":
-		return a.analyzeFirstDayOfMonth(args, callExpr), true
-	case "firstdayofnextmonth":
-		return a.analyzeFirstDayOfNextMonth(args, callExpr), true
-	case "firstdayofweek":
-		return a.analyzeFirstDayOfWeek(args, callExpr), true
-
-	// Date/Time Functions - Unix time conversion
-	case "unixtimetodatetime":
-		return a.analyzeUnixTimeToDateTime(args, callExpr), true
-	case "unixtimemsectodatetime":
-		return a.analyzeUnixTimeMSecToDateTime(args, callExpr), true
-	case "datetimetounixtime":
-		return a.analyzeDateTimeToUnixTime(args, callExpr), true
-	case "datetimetounixtimemsec":
-		return a.analyzeDateTimeToUnixTimeMSec(args, callExpr), true
-
-	// JSON Functions
-	case "parsejson":
-		return a.analyzeParseJSON(args, callExpr), true
-	case "tojsonformatted":
-		return a.analyzeToJSONFormatted(args, callExpr), true
-	case "jsonhasfield":
-		return a.analyzeJSONHasField(args, callExpr), true
-	case "jsonkeys":
-		return a.analyzeJSONKeys(args, callExpr), true
-	case "jsonvalues":
-		return a.analyzeJSONValues(args, callExpr), true
-
 	// Variant Functions
 	case "vartype":
 		return a.analyzeVarType(args, callExpr), true
-	case "varisnull":
-		return a.analyzeVarIsNull(args, callExpr), true
-	case "varisempty":
-		return a.analyzeVarIsEmpty(args, callExpr), true
-	case "varisclear":
-		return a.analyzeVarIsClear(args, callExpr), true
-	case "varisarray":
-		return a.analyzeVarIsArray(args, callExpr), true
-	case "varisstr":
-		return a.analyzeVarIsStr(args, callExpr), true
-	case "varisnumeric":
-		return a.analyzeVarIsNumeric(args, callExpr), true
-	case "vartoint":
-		return a.analyzeVarToInt(args, callExpr), true
-	case "vartofloat":
-		return a.analyzeVarToFloat(args, callExpr), true
-	case "varastype":
-		return a.analyzeVarAsType(args, callExpr), true
 
 	default:
 		return a.analyzeRegisteredBuiltin(name, args, callExpr)
@@ -385,21 +138,4 @@ func (a *Analyzer) getBuiltinReturnType(name string) (types.Type, bool) {
 		return types.VOID, true
 	}
 	return signature.ReturnType, true
-}
-
-// ============================================================================
-// Individual Built-in Function Analyzers
-// ============================================================================
-
-// analyzeOrd analyzes the Ord/Integer built-in function.
-// These functions take one argument and return an integer.
-func (a *Analyzer) analyzeOrd(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'Ord' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-	// Analyze the argument
-	a.analyzeExpression(args[0])
-	return types.INTEGER
 }

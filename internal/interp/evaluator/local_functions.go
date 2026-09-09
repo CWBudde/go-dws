@@ -192,27 +192,16 @@ func (e *Evaluator) userMethodHidesBuiltin(obj Value, memberName string) bool {
 		return false
 	}
 	for _, decl := range objInst.Class.GetMethodOverloads(memberName) {
-		if astCallableWithNoArgs(decl) {
+		if callableWithNoArgs(decl) {
 			return true
 		}
 	}
 	for _, decl := range objInst.Class.GetClassMethodOverloads(memberName) {
-		if astCallableWithNoArgs(decl) {
+		if callableWithNoArgs(decl) {
 			return true
 		}
 	}
 	return false
-}
-
-// astCallableWithNoArgs reports whether a declaration can be called without
-// arguments (no parameters, or all parameters defaulted).
-func astCallableWithNoArgs(decl *ast.FunctionDecl) bool {
-	for _, param := range decl.Parameters {
-		if param.DefaultValue == nil {
-			return false
-		}
-	}
-	return true
 }
 
 // callLocalFunctionSet resolves and invokes a nested function overload set.
@@ -236,4 +225,16 @@ func (e *Evaluator) callLocalFunctionSet(set *LocalFunctionSet, argExprs []ast.E
 		return e.newError(node, "%s", err.Error())
 	}
 	return e.ExecuteUserFunctionDirect(fn, args, ctx)
+}
+
+func callableWithNoArgs(method *runtime.MethodMetadata) bool {
+	if method == nil {
+		return false
+	}
+	for _, parameter := range method.Parameters {
+		if parameter.DefaultValue == nil {
+			return false
+		}
+	}
+	return true
 }

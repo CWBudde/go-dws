@@ -259,7 +259,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			if arrayLit, ok := node.Value.(*ast.ArrayLiteralExpression); ok {
 				if node.Type != nil {
 					typeName := node.Type.String()
-					resolvedType, err := e.resolveTypeName(typeName, ctx)
+					resolvedType, err := e.ResolveTypeFromAnnotation(node.Type, ctx)
 					if err != nil {
 						return e.newError(node, "failed to resolve array type '%s': %v", typeName, err)
 					}
@@ -277,13 +277,14 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				}
 				typeName := node.Type.String()
 
-				if !e.typeSystem.HasRecord(typeName) {
+				if e.recordTypeFromAnnotation(node.Type, ctx) == nil {
 					return e.newError(node, "unknown type '%s'", typeName)
 				}
 
-				ctx.SetRecordTypeContext(typeName)
+				previousRecordType := ctx.RecordTypeContext()
+				ctx.SetRecordTypeContext(e.recordTypeFromAnnotation(node.Type, ctx))
 				value = e.Eval(recordLit, ctx)
-				ctx.ClearRecordTypeContext()
+				ctx.SetRecordTypeContext(previousRecordType)
 			} else {
 				value = e.Eval(node.Value, ctx)
 			}
@@ -308,7 +309,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 				}
 				value = wrappedVal
 			} else {
-				if converted, ok := e.TryImplicitConversion(value, typeName, ctx); ok {
+				if converted, ok := e.TryImplicitConversionFromAnnotation(value, node.Type, ctx); ok {
 					value = converted
 				}
 			}
@@ -341,7 +342,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			if node.Type != nil {
 				typeName := node.Type.String()
 				if e.typeSystem.HasInterface(typeName) {
-					if value.Type() != "INTERFACE" {
+					if runtime.KindOf(value) != runtime.KindInterface {
 						wrapped, err := e.wrapInInterface(value, typeName, node)
 						if err != nil {
 							return e.newError(node, "%v", err)
@@ -381,13 +382,14 @@ func (e *Evaluator) VisitConstDecl(node *ast.ConstDecl, ctx *ExecutionContext) V
 		}
 		typeName := node.Type.String()
 
-		if !e.typeSystem.HasRecord(typeName) {
+		if e.recordTypeFromAnnotation(node.Type, ctx) == nil {
 			return e.newError(node, "unknown type '%s'", typeName)
 		}
 
-		ctx.SetRecordTypeContext(typeName)
+		previousRecordType := ctx.RecordTypeContext()
+		ctx.SetRecordTypeContext(e.recordTypeFromAnnotation(node.Type, ctx))
 		value = e.Eval(recordLit, ctx)
-		ctx.ClearRecordTypeContext()
+		ctx.SetRecordTypeContext(previousRecordType)
 	} else {
 		value = e.Eval(node.Value, ctx)
 	}
@@ -429,6 +431,7 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 						typeName = targetAnnot.Name
 					}
 					e.SemanticInfo().SetType(setLit, &ast.TypeAnnotation{Token: setLit.Token, Name: typeName})
+					e.SemanticInfo().SetResolvedType(setLit, expectedSetType)
 					defer e.SemanticInfo().ClearType(setLit)
 				}
 
@@ -453,9 +456,10 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 
 		// Context inference for anonymous record literals
 		if recordLit, isRecordLit := node.Value.(*ast.RecordLiteralExpression); isRecordLit && recordLit.TypeName == nil {
-			if recordTypeName := e.getRecordTypeNameFromTarget(target, ctx); recordTypeName != "" {
-				ctx.SetRecordTypeContext(recordTypeName)
-				defer ctx.ClearRecordTypeContext()
+			if recordType := e.getRecordTypeFromTarget(target, ctx); recordType != nil {
+				previousRecordType := ctx.RecordTypeContext()
+				ctx.SetRecordTypeContext(recordType)
+				defer ctx.SetRecordTypeContext(previousRecordType)
 			}
 		}
 
@@ -900,6 +904,7 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 					}
 					// Create an enum value for this element
 					enumVal := &runtime.EnumValue{
+						EnumType:     enumType,
 						TypeName:     enumType.Name,
 						ValueName:    name,
 						OrdinalValue: ordinal,
@@ -943,7 +948,7 @@ func (e *Evaluator) VisitForInStatement(node *ast.ForInStatement, ctx *Execution
 	case *runtime.TypeMetaValue:
 		// Iterate over enum type values by ordinal range (min to max)
 		// DWScript iterates over the full range from min to max, not just declared values
-		enumType, ok := col.TypeInfo.(*types.EnumType)
+		enumType, ok := types.GetUnderlyingType(col.TypeInfo).(*types.EnumType)
 		if !ok {
 			return e.newError(node, "for-in loop: can only iterate over enum types, got %s", col.TypeName)
 		}
@@ -1111,7 +1116,7 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 
 	// Try each handler in order
 	for _, handler := range clause.Handlers {
-		if e.matchesExceptionType(exc, handler.ExceptionType) {
+		if e.matchesExceptionType(exc, handler.ExceptionType, ctx) {
 			// Create new scope for exception variable
 			ctx.PushEnv()
 			defer ctx.PopEnv()
@@ -1198,7 +1203,7 @@ func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *Execution
 	// Raising a nil exception reference raises "Object not instantiated",
 	// reported just past the raised expression (DWScript reports the parser's
 	// position after consuming the expression).
-	if excVal == nil || excVal.Type() == "NIL" {
+	if excVal == nil || runtime.KindOf(excVal) == runtime.KindNil {
 		pos := raisedExpressionEndPos(node.Exception)
 		message := fmt.Sprintf("Object not instantiated [line: %d, column: %d]", pos.Line, pos.Column)
 		ctx.SetException(e.createException("Exception", message, nil, ctx))
@@ -1229,31 +1234,27 @@ func raisedExpressionEndPos(expr ast.Expression) token.Position {
 }
 
 // matchesExceptionType checks if an exception matches a handler's exception type.
-func (e *Evaluator) matchesExceptionType(exc interface{}, typeExpr ast.TypeExpression) bool {
-	// Nil type expression means bare handler - catches all
+func (e *Evaluator) matchesExceptionType(exc interface{}, typeExpr ast.TypeExpression, ctx *ExecutionContext) bool {
 	if typeExpr == nil {
 		return true
 	}
-
-	// Get the handler's exception type name
-	handlerTypeName := typeExpr.String()
-
-	// Get the exception's type name
-	// All values implement Type() string method
-	type TypedValue interface {
-		Type() string
+	handlerType, err := e.ResolveTypeFromAnnotation(typeExpr, ctx)
+	if err != nil {
+		return false
 	}
-
-	excVal, ok := exc.(TypedValue)
+	exception, ok := exc.(*runtime.ExceptionValue)
 	if !ok {
 		return false
 	}
-
-	excTypeName := excVal.Type()
-
-	// Use TypeSystem to check class hierarchy
-	// IsClassDescendantOf returns true if excTypeName == handlerTypeName or if excTypeName inherits from handlerTypeName
-	return e.typeSystem.IsClassDescendantOf(excTypeName, handlerTypeName)
+	var actual types.Type
+	if exception.Instance != nil && exception.Instance.Class != nil {
+		actual = exception.Instance.Class.GetClassType()
+	} else if exception.Metadata != nil {
+		if class := e.typeSystem.LookupClass(exception.Metadata.Name); class != nil {
+			actual = class.GetClassType()
+		}
+	}
+	return types.OperatorTypesCompatible(actual, handlerType)
 }
 
 // getExceptionInstance extracts the ObjectInstance from an ExceptionValue.
@@ -1283,7 +1284,7 @@ func (e *Evaluator) getExceptionInstance(exc interface{}) Value {
 // Handles nil objects by creating a standard "Object not instantiated" exception.
 func (e *Evaluator) createExceptionFromObject(obj Value, ctx *ExecutionContext, pos any) any {
 	// Handle nil object case -> raise standard "Object not instantiated" exception
-	if obj == nil || obj.Type() == "NIL" {
+	if obj == nil || runtime.KindOf(obj) == runtime.KindNil {
 		// Get Exception class from type system
 		excClass := e.typeSystem.LookupClass("Exception")
 		if excClass == nil {
@@ -1320,11 +1321,12 @@ func (e *Evaluator) VisitExitStatement(node *ast.ExitStatement, ctx *ExecutionCo
 	ctx.ControlFlow().SetExit()
 	if node.ReturnValue != nil {
 		// Set record type context if returning anonymous record literal
+		previousRecordType := ctx.RecordTypeContext()
 		contextSet := false
-		if returnType := ctx.GetCurrentFunctionReturnType(); returnType != "" {
+		if returnType := ctx.GetCurrentFunctionReturnType(); returnType != nil {
 			if recordLit, ok := node.ReturnValue.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
-				if e.typeSystem.HasRecord(returnType) {
-					ctx.SetRecordTypeContext(returnType)
+				if recordType, ok := types.GetUnderlyingType(returnType).(*types.RecordType); ok {
+					ctx.SetRecordTypeContext(recordType)
 					contextSet = true
 				}
 			}
@@ -1333,7 +1335,7 @@ func (e *Evaluator) VisitExitStatement(node *ast.ExitStatement, ctx *ExecutionCo
 		value := e.Eval(node.ReturnValue, ctx)
 
 		if contextSet {
-			ctx.ClearRecordTypeContext()
+			ctx.SetRecordTypeContext(previousRecordType)
 		}
 
 		if isError(value) {
@@ -1357,11 +1359,12 @@ func (e *Evaluator) VisitReturnStatement(node *ast.ReturnStatement, ctx *Executi
 	var returnVal Value
 	if node.ReturnValue != nil {
 		// Set record type context if returning anonymous record literal
+		previousRecordType := ctx.RecordTypeContext()
 		contextSet := false
-		if returnType := ctx.GetCurrentFunctionReturnType(); returnType != "" {
+		if returnType := ctx.GetCurrentFunctionReturnType(); returnType != nil {
 			if recordLit, ok := node.ReturnValue.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
-				if e.typeSystem.HasRecord(returnType) {
-					ctx.SetRecordTypeContext(returnType)
+				if recordType, ok := types.GetUnderlyingType(returnType).(*types.RecordType); ok {
+					ctx.SetRecordTypeContext(recordType)
 					contextSet = true
 				}
 			}
@@ -1370,7 +1373,7 @@ func (e *Evaluator) VisitReturnStatement(node *ast.ReturnStatement, ctx *Executi
 		returnVal = e.Eval(node.ReturnValue, ctx)
 
 		if contextSet {
-			ctx.ClearRecordTypeContext()
+			ctx.SetRecordTypeContext(previousRecordType)
 		}
 
 		if isError(returnVal) {
@@ -1413,188 +1416,31 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 		return &runtime.NilValue{}
 	}
 
-	if annot, ok := typeExpr.(*ast.TypeAnnotation); ok && annot.InlineType != nil {
-		return e.createZeroValue(annot.InlineType, node, ctx)
-	}
-
-	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok {
-		if assocType := e.resolveAssociativeArrayTypeNode(arrayNode, ctx); assocType != nil {
-			return runtime.NewAssociativeArrayValue(assocType)
-		}
-		arrayType := e.resolveArrayTypeNode(arrayNode, ctx)
-		if arrayType != nil {
-			return e.createArrayZeroValue(arrayType, ctx)
-		}
+	resolved, err := e.ResolveTypeFromAnnotation(typeExpr, ctx)
+	if err != nil {
 		return &runtime.NilValue{}
 	}
+	return e.createZeroValueForResolvedType(resolved, ctx)
+}
 
-	if recordNode, ok := typeExpr.(*ast.RecordTypeNode); ok {
-		recordType, err := e.resolveRecordTypeNode(recordNode, ctx)
-		if err != nil {
-			return e.newError(node, "%s", err.Error())
-		}
-		if rec, ok := recordType.(*types.RecordType); ok {
-			return e.createRecordZeroValue(rec, ctx)
-		}
-		return &runtime.NilValue{}
+// createZeroValueForResolvedType preserves declared type metadata when initializing
+// variables and function results. Runtime field defaults use the same constructors.
+func (e *Evaluator) createZeroValueForResolvedType(resolved types.Type, ctx *ExecutionContext) Value {
+	switch typ := types.GetUnderlyingType(resolved).(type) {
+	case *types.ArrayType:
+		return e.createArrayZeroValue(typ, ctx)
+	case *types.SetType:
+		return runtime.NewSetValue(typ)
+	case *types.SubrangeType:
+		return runtime.NewSubrangeValueZero(typ)
 	}
-
-	typeName := typeExpr.String()
-
-	if strings.HasPrefix(typeName, "array of ") || strings.HasPrefix(typeName, "array[") {
-		arrayType := e.parseInlineArrayType(typeName, ctx)
-		if arrayType != nil {
-			return e.createArrayZeroValue(arrayType, ctx)
-		}
-		return &runtime.NilValue{}
-	}
-
-	if strings.HasPrefix(typeName, "set of ") {
-		setType := e.parseInlineSetType(typeName)
-		if setType == nil {
-			return &runtime.NilValue{}
-		}
-		return runtime.NewSetValue(setType)
-	}
-
-	if e.typeSystem.HasRecord(typeName) {
-		// Look up record type via TypeSystem
-		recordTypeAny := e.typeSystem.LookupRecord(typeName)
-		if recordTypeAny == nil {
-			return &runtime.NilValue{}
-		}
-
-		// Type-assert to access RecordType, Metadata, and FieldDecls
-		type recordTypeAccess interface {
-			GetRecordType() *types.RecordType
-			GetMetadata() *runtime.RecordMetadata
-		}
-
-		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
-		if !ok {
-			return &runtime.NilValue{}
-		}
-
-		recordType := recordTypeAccessor.GetRecordType()
-		if recordType == nil {
-			return &runtime.NilValue{}
-		}
-
-		metadata := recordTypeAccessor.GetMetadata()
-
-		// Extract FieldDecls for field initializer evaluation
-		var fieldDecls map[string]*ast.FieldDecl
-		type hasFieldDecls interface {
-			GetFieldDecls() map[string]*ast.FieldDecl
-		}
-		if rtVal, ok := recordTypeAny.(hasFieldDecls); ok {
-			fieldDecls = rtVal.GetFieldDecls()
-		}
-
-		// Create field initializer callback for runtime constructor
-		initializer := func(fieldName string, fieldType types.Type) runtime.Value {
-			fieldNameNorm := ident.Normalize(fieldName)
-
-			// Check for field initializer expression in FieldDecls
-			if fieldDecls != nil {
-				if fieldDecl, hasDecl := fieldDecls[fieldNameNorm]; hasDecl && fieldDecl.InitValue != nil {
-					prevRecordTypeName := ctx.RecordTypeContext()
-					prevRecordType := ctx.RecordTypeContextType()
-					if nestedRecordType, ok := types.GetUnderlyingType(fieldType).(*types.RecordType); ok {
-						if nestedRecordType.Name != "" {
-							ctx.SetRecordTypeContext(nestedRecordType.Name)
-						} else {
-							ctx.SetRecordTypeContextType(nestedRecordType)
-						}
-					}
-					// Evaluate the field initializer AST expression directly
-					fieldValue := e.Eval(fieldDecl.InitValue, ctx)
-					if prevRecordType != nil {
-						ctx.SetRecordTypeContextType(prevRecordType)
-					} else {
-						ctx.SetRecordTypeContext(prevRecordTypeName)
-					}
-					if isError(fieldValue) {
-						return fieldValue
-					}
-					return fieldValue
-				}
-			}
-
-			// No initializer - generate zero value
-			return e.getZeroValueForType(fieldType, ctx)
-		}
-
-		recordValue := runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
-
-		return recordValue
-	}
-
-	if e.typeSystem.HasArrayType(typeName) {
-		arrayType := e.typeSystem.LookupArrayType(typeName)
-		if arrayType == nil {
-			return &runtime.NilValue{}
-		}
-		return e.createArrayZeroValue(arrayType, ctx)
-	}
-
-	if subrangeType := e.typeSystem.LookupSubrangeType(typeName); subrangeType != nil {
-		return runtime.NewSubrangeValueZero(subrangeType)
-	}
-
-	// Named set types (type TMySet = set of TMyEnum;) initialize to an empty set.
-	if setTypeVal, ok := ctx.Env().Get("__set_type_" + ident.Normalize(typeName)); ok {
-		if stv, ok := setTypeVal.(interface{ GetSetType() *types.SetType }); ok {
-			return runtime.NewSetValue(stv.GetSetType())
-		}
-	}
-
-	if e.typeSystem.HasInterface(typeName) {
-		// Lookup interface metadata from TypeSystem
-		ifaceInfoAny := e.typeSystem.LookupInterface(typeName)
-		if ifaceInfoAny == nil {
-			return &runtime.NilValue{}
-		}
-		// Type-assert to IInterfaceInfo interface
-		ifaceInfo, ok := ifaceInfoAny.(runtime.IInterfaceInfo)
-		if !ok {
-			return &runtime.NilValue{}
-		}
-		// Create nil interface instance directly
-		return runtime.NewInterfaceInstance(ifaceInfo, nil)
-	}
-
-	// Initialize basic types with their zero values
-	switch ident.Normalize(typeName) {
-	case "integer":
-		return &runtime.IntegerValue{Value: 0}
-	case "float":
-		return &runtime.FloatValue{Value: 0.0}
-	case "string":
-		return &runtime.StringValue{Value: ""}
-	case "boolean":
-		return &runtime.BooleanValue{Value: false}
-	case "variant":
-		// Unassigned variant has Value: nil (not NilValue)
-		return &runtime.VariantValue{Value: nil, ActualType: nil}
-	case "jsonvariant":
-		// A fresh JSONVariant is an Undefined JSON value (browsable, VarIsEmpty).
+	if types.GetUnderlyingType(resolved) == types.JSON_VARIANT {
 		return boxJSON(nil)
-	default:
-		if e.typeSystem.HasClass(typeName) {
-			return &runtime.NilValue{ClassType: typeName}
-		}
-		// Type aliases (type MyString = String) default to the underlying
-		// type's zero value.
-		if resolved, err := e.ResolveTypeWithContext(typeName, ctx); err == nil && resolved != nil {
-			if zero := e.getZeroValueForType(resolved, ctx); zero != nil {
-				if _, isNil := zero.(*runtime.NilValue); !isNil {
-					return zero
-				}
-			}
-		}
-		return &runtime.NilValue{}
 	}
+	if types.GetUnderlyingType(resolved) == types.VARIANT {
+		return &runtime.VariantValue{Value: nil, ActualType: nil}
+	}
+	return e.getZeroValueForType(resolved, ctx)
 }
 
 // createArrayZeroValue creates a properly initialized array value.

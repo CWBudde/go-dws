@@ -83,10 +83,6 @@ func (e *Evaluator) IndexString(str *runtime.StringValue, index int, node ast.No
 	return &runtime.StringValue{Value: string(char)}
 }
 
-// Note: JSON indexing is delegated to adapter since JSONValue and VariantValue
-// are in the interp package and we can't import them here without circular deps.
-// JSON handling will use val.Type() == "JSON" check and delegate to adapter.
-
 // getZeroValueForType returns the zero/default value for a given type.
 // This is used when accessing uninitialized array elements and record field initialization.
 func (e *Evaluator) getZeroValueForType(t types.Type, ctx *ExecutionContext) runtime.Value {
@@ -140,11 +136,7 @@ func (e *Evaluator) getZeroValueForType(t types.Type, ctx *ExecutionContext) run
 			var fieldDecls map[string]*ast.FieldDecl
 			if recordType.Name != "" {
 				if recordTypeAny := e.typeSystem.LookupRecord(recordType.Name); recordTypeAny != nil {
-					if rtVal, ok := recordTypeAny.(interface {
-						GetFieldDecls() map[string]*ast.FieldDecl
-					}); ok {
-						fieldDecls = rtVal.GetFieldDecls()
-					}
+					fieldDecls = recordTypeAny.GetFieldDecls()
 				}
 			}
 
@@ -157,21 +149,12 @@ func (e *Evaluator) getZeroValueForType(t types.Type, ctx *ExecutionContext) run
 						// Establish the field's record type context so record-literal
 						// initializers (e.g. `Sub : TChild = (A: 1)`) resolve, mirroring
 						// the top-level record-init path.
-						prevRecordTypeName := ctx.RecordTypeContext()
-						prevRecordType := ctx.RecordTypeContextType()
+						prevRecordType := ctx.RecordTypeContext()
 						if nestedRecordType, ok := types.GetUnderlyingType(nestedFieldType).(*types.RecordType); ok {
-							if nestedRecordType.Name != "" {
-								ctx.SetRecordTypeContext(nestedRecordType.Name)
-							} else {
-								ctx.SetRecordTypeContextType(nestedRecordType)
-							}
+							ctx.SetRecordTypeContext(nestedRecordType)
 						}
 						fieldValue := e.Eval(fieldDecl.InitValue, ctx)
-						if prevRecordType != nil {
-							ctx.SetRecordTypeContextType(prevRecordType)
-						} else {
-							ctx.SetRecordTypeContext(prevRecordTypeName)
-						}
+						ctx.SetRecordTypeContext(prevRecordType)
 						// Propagate errors (including from initializers) instead of
 						// masking them with a zero value.
 						return fieldValue
@@ -189,9 +172,7 @@ func (e *Evaluator) getZeroValueForType(t types.Type, ctx *ExecutionContext) run
 			ifaceName := ifaceType.Name
 			if ifaceName != "" {
 				if ifaceInfoAny := e.typeSystem.LookupInterface(ifaceName); ifaceInfoAny != nil {
-					if ifaceInfo, ok := ifaceInfoAny.(runtime.IInterfaceInfo); ok {
-						return runtime.NewInterfaceInstance(ifaceInfo, nil)
-					}
+					return runtime.NewInterfaceInstance(ifaceInfoAny, nil)
 				}
 			}
 		}

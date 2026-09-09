@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 )
 
@@ -89,7 +90,7 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type, interp *Interpreter) (
 
 	case reflect.Slice:
 		// Convert DWScript array to Go slice
-		if dwsValue.Type() != "ARRAY" {
+		if runtime.KindOf(dwsValue) != runtime.KindArray {
 			return nil, fmt.Errorf("expected ARRAY, got %s", dwsValue.Type())
 		}
 		arrayVal, ok := dwsValue.(*ArrayValue)
@@ -118,7 +119,7 @@ func MarshalToGo(dwsValue Value, targetType reflect.Type, interp *Interpreter) (
 			return nil, fmt.Errorf("only map[string]T is supported")
 		}
 
-		if dwsValue.Type() != "RECORD" {
+		if runtime.KindOf(dwsValue) != runtime.KindRecord {
 			return nil, fmt.Errorf("expected RECORD, got %s", dwsValue.Type())
 		}
 		recordVal, ok := dwsValue.(*RecordValue)
@@ -236,14 +237,14 @@ func MarshalToDWS(goValue any) (Value, error) {
 		// Determine element type from first element (if any)
 		var elemType types.Type = types.NIL
 		if len(elements) > 0 {
-			switch elements[0].Type() {
-			case "INTEGER":
+			switch runtime.KindOf(elements[0]) {
+			case runtime.KindInteger:
 				elemType = types.INTEGER
-			case "FLOAT":
+			case runtime.KindFloat:
 				elemType = types.FLOAT
-			case "STRING":
+			case runtime.KindString:
 				elemType = types.STRING
-			case "BOOLEAN":
+			case runtime.KindBoolean:
 				elemType = types.BOOLEAN
 			}
 		} else {

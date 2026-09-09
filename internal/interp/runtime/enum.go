@@ -15,9 +15,10 @@ import (
 // - ValueName: "Red" (for Red), "Green" (for Green), etc.
 // - OrdinalValue: 0 (for Red), 1 (for Green), 2 (for Blue)
 type EnumValue struct {
-	TypeName     string // Enum type name (e.g., "TColor")
-	ValueName    string // Enum value name (e.g., "Red")
-	OrdinalValue int    // The ordinal value (e.g., 0 for Red if implicit)
+	EnumType     *types.EnumType // Resolved declaration identity.
+	TypeName     string          // Enum type name (e.g., "TColor")
+	ValueName    string          // Enum value name (e.g., "Red")
+	OrdinalValue int             // The ordinal value (e.g., 0 for Red if implicit)
 }
 
 // NewEnumValue constructs an enum runtime value from an ordinal.
@@ -33,6 +34,7 @@ func NewEnumValue(typeName string, enumType *types.EnumType, ordinal int) *EnumV
 	}
 
 	return &EnumValue{
+		EnumType:     enumType,
 		TypeName:     typeName,
 		ValueName:    valueName,
 		OrdinalValue: ordinal,
@@ -77,6 +79,7 @@ func EnumValueAtIndex(typeName string, enumType *types.EnumType, index int) (*En
 
 	valueName := enumType.OrderedNames[index]
 	return &EnumValue{
+		EnumType:     enumType,
 		TypeName:     typeName,
 		ValueName:    valueName,
 		OrdinalValue: enumType.Values[valueName],

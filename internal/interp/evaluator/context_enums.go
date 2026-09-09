@@ -52,11 +52,7 @@ func (e *Evaluator) GetEnumSuccessor(enumVal Value) (Value, error) {
 		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
 	}
 
-	etv, ok := enumMetadata.(EnumTypeValueAccessor)
-	if !ok {
-		return nil, fmt.Errorf("invalid enum type metadata for %s", val.TypeName)
-	}
-	enumType := etv.GetEnumType()
+	enumType := enumMetadata.GetEnumType()
 
 	currentPos, err := runtime.EnumValueIndex(val, enumType)
 	if err != nil {
@@ -86,11 +82,7 @@ func (e *Evaluator) GetEnumPredecessor(enumVal Value) (Value, error) {
 		return nil, fmt.Errorf("enum type metadata not found for %s", val.TypeName)
 	}
 
-	etv, ok := enumMetadata.(EnumTypeValueAccessor)
-	if !ok {
-		return nil, fmt.Errorf("invalid enum type metadata for %s", val.TypeName)
-	}
-	enumType := etv.GetEnumType()
+	enumType := enumMetadata.GetEnumType()
 
 	currentPos, err := runtime.EnumValueIndex(val, enumType)
 	if err != nil {
@@ -161,8 +153,5 @@ func (e *Evaluator) GetEnumMetadata(typeName string) builtins.Value {
 	if metadata == nil {
 		return nil
 	}
-	if val, ok := metadata.(builtins.Value); ok {
-		return val
-	}
-	return nil
+	return metadata
 }

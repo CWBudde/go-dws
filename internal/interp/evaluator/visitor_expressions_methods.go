@@ -209,15 +209,7 @@ func (e *Evaluator) methodNameIsCallableMember(method *ast.Identifier, ctx *Exec
 	if method == nil || e.SemanticInfo() == nil {
 		return false
 	}
-	annot := e.SemanticInfo().GetType(method)
-	if annot == nil {
-		return false
-	}
-	resolved, err := e.ResolveTypeFromAnnotation(annot, ctx)
-	if err != nil || resolved == nil {
-		return false
-	}
-	kind := resolved.TypeKind()
+	kind := e.resolvedExpressionTypeKind(method, ctx)
 	return kind == "FUNCTION_POINTER" || kind == "METHOD_POINTER"
 }
 
@@ -272,19 +264,19 @@ func lookupUnambiguousMethodDecl(obj Value, methodName string, argCount int) *as
 
 	switch o := obj.(type) {
 	case ObjectValue:
-		if d, ok := o.GetMethodDecl(methodName).(*ast.FunctionDecl); ok && d != nil {
-			decl = d
-		} else if d, ok := o.GetClassMethodDecl(methodName).(*ast.FunctionDecl); ok && d != nil {
-			decl = d
+		if d := o.GetMethodDecl(methodName); d != nil {
+			decl = runtime.MethodDeclaration(d)
+		} else if d := o.GetClassMethodDecl(methodName); d != nil {
+			decl = runtime.MethodDeclaration(d)
 		}
 	case ClassMetaValue:
 		if classInfo := o.GetClassInfo(); classInfo != nil {
-			decl = classInfo.GetConstructor(methodName)
+			decl = runtime.MethodDeclaration(classInfo.GetConstructor(methodName))
 			if decl == nil {
-				decl = classInfo.LookupMethod(methodName)
+				decl = runtime.MethodDeclaration(classInfo.LookupMethod(methodName))
 			}
 			if decl == nil {
-				decl = classInfo.LookupClassMethod(methodName)
+				decl = runtime.MethodDeclaration(classInfo.LookupClassMethod(methodName))
 			}
 		}
 	}
@@ -304,15 +296,16 @@ func lookupUnambiguousMethodDecl(obj Value, methodName string, argCount int) *as
 // parameters) and only returns declarations that the nil-dispatch path can
 // actually execute (non-virtual instance methods).
 func (e *Evaluator) lookupNilReceiverMethodDecl(obj Value, node *ast.MethodCallExpression, argCount int) *ast.FunctionDecl {
-	if obj == nil || obj.Type() != "NIL" {
+	if obj == nil || runtime.KindOf(obj) != runtime.KindNil {
 		return nil
 	}
 	classInfo := e.staticClassInfoForNilReceiver(obj, node.Object)
 	if classInfo == nil {
 		return nil
 	}
-	decl := classInfo.LookupMethod(node.Method.Value)
-	if decl == nil || !isNonVirtualInstanceMethod(classInfo, decl) {
+	method := classInfo.LookupMethod(node.Method.Value)
+	decl := runtime.MethodDeclaration(method)
+	if decl == nil || !isNonVirtualInstanceMethod(classInfo, method) {
 		return nil
 	}
 	if decl.IsOverload || len(decl.Parameters) != argCount {

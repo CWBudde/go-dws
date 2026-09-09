@@ -146,15 +146,11 @@ func (i *Interpreter) resolveType(typeName string) (types.Type, error) {
 
 	// Check custom types via TypeSystem
 	if enumMetadata := i.typeSystem.LookupEnumMetadata(typeName); enumMetadata != nil {
-		if etv, ok := enumMetadata.(*EnumTypeValue); ok {
-			return etv.EnumType, nil
-		}
+		return enumMetadata.EnumType, nil
 	}
 
 	if recordTypeValueAny := i.typeSystem.LookupRecord(typeName); recordTypeValueAny != nil {
-		if rtv, ok := recordTypeValueAny.(*RecordTypeValue); ok {
-			return rtv.RecordType, nil
-		}
+		return recordTypeValueAny.RecordType, nil
 	}
 
 	if arrayType := i.typeSystem.LookupArrayType(typeName); arrayType != nil {

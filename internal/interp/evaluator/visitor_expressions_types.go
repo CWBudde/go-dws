@@ -54,7 +54,7 @@ func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionCont
 	}
 
 	// Handle nil - nil is not an instance of any type
-	if left == nil || left.Type() == "NIL" {
+	if left == nil || runtime.KindOf(left) == runtime.KindNil {
 		return &runtime.BooleanValue{Value: false}
 	}
 
@@ -154,7 +154,7 @@ func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ct
 // - Interface implementation checking (obj is IMyInterface checks if class implements it)
 func (e *Evaluator) checkType(obj Value, typeName string) bool {
 	// Handle nil - nil is not an instance of any type
-	if obj == nil || obj.Type() == "NIL" {
+	if obj == nil || runtime.KindOf(obj) == runtime.KindNil {
 		return false
 	}
 
@@ -214,9 +214,7 @@ func (e *Evaluator) classImplementsInterface(classMeta *runtime.ClassMetadata, i
 	// Resolve target interface info for inheritance checks (may be nil if not registered yet)
 	var targetInterface runtime.IInterfaceInfo
 	if ifaceAny := e.typeSystem.LookupInterface(interfaceName); ifaceAny != nil {
-		if ifaceInfo, ok := ifaceAny.(runtime.IInterfaceInfo); ok {
-			targetInterface = ifaceInfo
-		}
+		targetInterface = ifaceAny
 	}
 
 	// Check if this class explicitly declares the interface
@@ -250,10 +248,7 @@ func (e *Evaluator) interfaceInheritsFrom(sourceName string, targetIface runtime
 		return false
 	}
 
-	ifaceInfo, ok := ifaceAny.(runtime.IInterfaceInfo)
-	if !ok || ifaceInfo == nil {
-		return false
-	}
+	var ifaceInfo runtime.IInterfaceInfo = ifaceAny
 
 	for current := ifaceInfo; current != nil; current = current.GetParent() {
 		if current == targetIface || ident.Equal(current.GetName(), targetIface.GetName()) {
@@ -271,7 +266,7 @@ func (e *Evaluator) interfaceInheritsFrom(sourceName string, targetIface runtime
 // - Returns (bool, error) where error is only for unknown interfaces
 func (e *Evaluator) checkImplements(obj Value, interfaceName string) (bool, error) {
 	// 1. Handle nil - nil implements no interfaces
-	if obj == nil || obj.Type() == "NIL" {
+	if obj == nil || runtime.KindOf(obj) == runtime.KindNil {
 		return false, nil
 	}
 
@@ -404,8 +399,8 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node, ctx *Exe
 	// once the referenced classes are validated to be hierarchy-related.
 	if classMetaVal, ok := obj.(ClassMetaValue); ok {
 		targetClassName := typeName
-		if resolved, rerr := e.ResolveType(typeName, ctx); rerr == nil && resolved != nil {
-			if classOf, ok := resolved.(*types.ClassOfType); ok && classOf.ClassType != nil {
+		if resolved, rerr := e.resolveTypeName(typeName, ctx); rerr == nil && resolved != nil {
+			if classOf, ok := types.GetUnderlyingType(resolved).(*types.ClassOfType); ok && classOf.ClassType != nil {
 				targetClassName = classOf.ClassType.Name
 			}
 		}
@@ -587,11 +582,7 @@ func (e *Evaluator) createInterfaceWrapper(interfaceName string, obj Value) (Val
 		return nil, fmt.Errorf("interface '%s' not found", interfaceName)
 	}
 
-	// Cast to runtime.IInterfaceInfo
-	ifaceInfo, ok := ifaceInfoAny.(runtime.IInterfaceInfo)
-	if !ok {
-		return nil, fmt.Errorf("interface '%s' does not implement IInterfaceInfo", interfaceName)
-	}
+	ifaceInfo := ifaceInfoAny
 
 	// Handle nil object case
 	if obj == nil {

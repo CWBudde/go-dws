@@ -744,3 +744,24 @@ func TestEnumIndexedArrayType(t *testing.T) {
 		})
 	}
 }
+
+func TestFunctionReturnType_PreservesStructure(t *testing.T) {
+	for _, source := range []string{
+		`function Values: array[-2..2] of Integer; begin end;`,
+		`function Callback: function(var x: Integer): String; begin end;`,
+		`function Members: set of Integer; begin end;`,
+	} {
+		t.Run(source, func(t *testing.T) {
+			p := New(lexer.New(source))
+			program := p.ParseProgram()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parse: %v", p.Errors())
+			}
+			declaration := program.Statements[0].(*ast.FunctionDecl)
+			annotation := declaration.ReturnType.(*ast.TypeAnnotation)
+			if annotation.InlineType == nil {
+				t.Fatalf("lost compound return type structure: %s", annotation.Name)
+			}
+		})
+	}
+}

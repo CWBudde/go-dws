@@ -15,6 +15,12 @@ import (
 
 // analyzeRecordDecl analyzes a record type declaration.
 func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
+	defer func() {
+		if decl != nil && decl.Name != nil {
+			a.recordDeclaredType(decl, decl.Name.Value)
+		}
+	}()
+
 	if decl == nil {
 		return
 	}

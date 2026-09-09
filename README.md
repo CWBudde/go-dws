@@ -298,6 +298,11 @@ For scripts that import units, configure their directories with
 checks unit dependencies and the program together. Execution reuses the analyzed
 unit ASTs and runs unit initialization and finalization for each run.
 
+`dwscript.WithTypeCheck(false)` continues to skip semantic checking. Execution resolves
+structured type declarations as needed, including nested arrays and function pointers;
+it does not enable semantic analysis implicitly. Public external-function signatures
+continue to use strings.
+
 ## LSP & IDE Integration
 
 go-dws provides a rich API designed for Language Server Protocol (LSP) implementations and IDE tooling:

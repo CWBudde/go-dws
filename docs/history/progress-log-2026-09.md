@@ -339,3 +339,99 @@ it has no `uses` clause and remains an existing isolated fixture failure.
 (`go test -race -p 2 ./pkg/ast ./pkg/dwscript -run 'TestSemanticInfo|TestEngine_Unit' -count=1`)
 also pass. Full golangci-lint still reports the repository's existing backlog; the migration's
 new documentation, import, test-style, and unit-analysis complexity findings were corrected.
+
+
+## 2026-09-09 — Phase 2 type and metadata consolidation (A5–A7, A9)
+
+### A5: structural type resolution through execution
+
+Evaluator type resolution consumes the analyzer's resolved type objects or structured
+AST annotations and declared names. The inline array, set and function-signature string
+parsers are removed. Unchecked execution still skips semantic analysis and supports
+nested arrays, inline records, function pointers and metaclasses through the same
+structural resolver. Public external-function signature strings remain supported and
+are parsed once at registration.
+
+Parser producers now retain compound return, parameter, named-array and operator
+annotations. The AST visitor recognizes and traverses ArrayTypeAnnotation. Runtime
+class, record, enum and interface registration reuses semantic declaration identity;
+alias-aware consumers unwrap aliases only when inspecting their underlying shape.
+Identifier lookup distinguishes declared types from function values, preserving builtin
+pointers and implicit calls. Record literal and function return contexts carry resolved
+types, including nested, by-reference and external-function paths.
+
+### A6: typed registries and canonical runtime callables
+
+Record, enum, interface and helper registries now have concrete runtime entries.
+ClassMetadata owns class fields, callable groups, constructors, virtual dispatch,
+properties, constants, class variables and operators; ClassInfo no longer duplicates
+those entries in AST maps. Class lookup and dispatch pass canonical MethodMetadata
+bindings through evaluator-owned execution.
+
+Implementation binding retains callable identity, declaring class, method IDs,
+visibility, static/virtual/override flags, defaults, parameter modifiers and contracts.
+Captured method pointers observe later implementation binding. Binding copies the
+mutable declaration header and parameter slice, leaving compiled source unchanged.
+Inherited lookup retains the defining owner's callable. Unused interpreter-side
+declaration and operator execution adapters are deleted.
+
+### A7: typed operator signatures and runtime representation dispatch
+
+Operators and implicit conversions retain typed operands and share typed signature
+comparison. Exact matches precede compatible matches. Inherited operands rank by
+ancestor distance from left to right, preserving the old runtime precedence without
+class-name encodings. Conversion chains use deterministic shortest paths and handle
+cycles and depth limits. Assignment attempts conversion between distinct named record
+types even though they share a runtime representation.
+
+ValueKind supplies representation dispatch, while LanguageType supplies language type
+identity. Value.Type() remains available for diagnostics without adding a required
+method to the public value contract. Runtime and evaluator comparisons no longer use
+its display strings as dispatch keys; an architecture test guards that boundary.
+Runtime metadata drops duplicate type-name fields, and ExecutionContext owns a single
+resolved record context and function return type.
+
+### A9: builtin signature constraints
+
+Builtin registry signatures now cover strict numeric/date/Variant/JSONVariant rules,
+string-or-Variant arguments, array elements, ordinal conversion and diagnostic ordering.
+Trim, RandG, StringReplace, ToJSONFormatted and array-returning JSON/string signatures
+agree with runtime behavior. AST-dependent, by-reference and polymorphic intrinsics
+remain explicit. FloatToStrF remains semantic-only because it has no runtime callable.
+The shared analyzer replaces 111 additional builtin names (including aliases) and
+removes about 2,600 lines of specialized analyzer and dispatch code. Golden compatibility
+tests retain 8,176 pre-change argument patterns across 112 names, including the retained
+StringOfChar intrinsic, with exact diagnostic and result-type expectations.
+
+### Validation
+
+The full fixture gate passes: **878 / 1,928 scored** (1,050 failing, 114 unscored).
+The freshly rebuilt CLI produces the same result, and all 61 category counts match the
+pre-refactor floors. The known isolated `HelpersPass/classname_helper1` recursion failure
+still reproduces in the baseline and remains outside this refactor.
+
+The final comparison caught inferred function signatures being mistaken for explicit
+pointer contexts. Callable-context detection now retains the analyzer's annotation-presence
+marker while consuming resolved identities; regression tests cover bare calls, default
+arguments, explicit pointer bindings and record-returning implicit-call receivers.
+
+CLI measurement used `just fixture-report --allow-stale`: the recipe rebuilt the binary
+immediately before measurement, and the flag bypassed the stale guard's treatment of
+tracked source files deleted by this uncommitted refactor. Build and test commands used
+`GOMAXPROCS=2`, `GOFLAGS=-buildvcs=false`, and workspace build/temp caches because the default
+cache is read-only and `/tmp` has limited space.
+
+`just fixture-update` passes and leaves every baseline count unchanged; TEST_STATUS.md
+records the refreshed date. `go vet -p 2 ./...` and targeted race tests pass. Race coverage
+includes semantic metadata, repeated unit execution, structured types, external nested-array
+contexts, aliased/implicit callable paths and canonical class binding.
+
+Changed-source lint reports zero issues, and the unfiltered scan has no findings in
+new files. Full lint still reports the repository's backlog (1,199 findings in the final
+scan); newly orphaned helpers and newly introduced formatting, alignment, assertion and
+complexity issues were removed or corrected. Scoped `git diff --check` passes.
+
+The complete suite passes with `go test -p 2 -timeout 20m ./...`, including CLI integration,
+visitor-generation drift checks and the fixture gate. The final CLI package took 332 seconds
+under the constrained build concurrency; the interpreter package took 94 seconds. A5–A7 and
+A9 are closed in PLAN.md. A11 remains explicitly deferred pending an owner decision.

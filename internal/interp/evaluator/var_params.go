@@ -62,7 +62,7 @@ func (e *Evaluator) evaluateLValueIdentifier(target *ast.Identifier, ctx *Execut
 		if selfRaw, selfOk := ctx.Env().Get("Self"); selfOk {
 			if selfVal, ok := selfRaw.(Value); ok {
 				// Object instance fields
-				if selfVal.Type() == "OBJECT" {
+				if runtime.KindOf(selfVal) == runtime.KindObject {
 					if objVal, ok := selfVal.(ObjectValue); ok {
 						fieldVal := objVal.GetField(varName)
 						fieldExists := fieldVal != nil

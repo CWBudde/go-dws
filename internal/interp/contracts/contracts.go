@@ -22,9 +22,9 @@ type ClassMetaValue interface {
 	GetClassConstant(name string) (Value, bool)
 	HasClassMethod(name string) bool
 	HasConstructor(name string) bool
-	InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool)
-	CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool)
-	InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool)
+	InvokeParameterlessClassMethod(name string, executor func(methodDecl *runtime.MethodMetadata) Value) (Value, bool)
+	CreateClassMethodPointer(name string, creator func(methodDecl *runtime.MethodMetadata) Value) (Value, bool)
+	InvokeConstructor(name string, executor func(methodDecl *runtime.MethodMetadata) Value) (Value, bool)
 	GetNestedClass(name string) Value
 	ReadClassProperty(name string, executor func(propInfo any) Value) (Value, bool)
 	GetClassInfo() runtime.IClassInfo
@@ -43,7 +43,7 @@ type ExternalFunctionRegistry interface {
 // runtime arguments before handing off to the host-function invoker.
 type ExternalFunctionSignature struct {
 	VarParams  []bool
-	ParamTypes []string
+	ParamTypes []ast.TypeExpression
 }
 
 // EngineState holds interpreter-runtime state that must not be owned by both
