@@ -184,7 +184,8 @@ compiled type information.
 - ✅ Anonymous records (both forms, see below)
 - ✅ Value semantics
 - ⏸️ Record methods (partial support)
-- ⏸️ Record properties
+- ✅ Record properties, including auto-properties, expression-based accessors, and
+  `class property` backed by a `class var`
 - ⏸️ Record constructors
 - ⏸️ Record operators
 - ⏸️ Record helpers
@@ -357,20 +358,25 @@ PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
 - Default indexed properties: `property Items[i: Integer]: String ...; default;`
 - Multi-dimensional indexed: `property Data[x, y: Integer]: Float ...;`
 - Expression-based getters: `property Doubled: Integer read (FValue * 2);`
+- Expression-based setters: `property Half: Integer write (FValue := Value * 2);`
 - Class properties (static): `class property Count: Integer read FCount;`
+- External names (JSON key): `property Test: Integer external 'test' read FTest;`
 - Property arrays
 - Property overriding in inheritance
 
 #### go-dws Status
 - ✅ Simple properties (field/method-backed)
 - ✅ Read-only, write-only
-- ✅ Auto-properties
+- ✅ Auto-properties (a bare `property Alpha: Integer;` gets a synthesized `FAlpha`)
 - ✅ Property inheritance
-- ⏸️ Indexed properties (parsed, runtime deferred)
-- ⏸️ Default properties
-- ⏸️ Multi-dimensional indexed
-- ⏸️ Expression-based getters (deferred)
-- ⏸️ Class properties (static)
+- ✅ Indexed properties, including multi-index `Data[x, y: Integer]`
+- ✅ Default properties (`obj[i]` for read and write)
+- ✅ Expression-based getters and setters, on plain and indexed properties.
+  An indexed accessor expression sees the index parameters by name:
+  `property Arr[i: Integer]: Integer read (F[i]) write (F[i]);`
+- ✅ Class properties, reachable through the metaclass and through an instance.
+  They are not virtual: `TBase(sub).ClassProp` reads `TBase`'s declaration.
+- ✅ `external 'name'` renames the property's key in JSON serialization
 
 ---
 
@@ -495,7 +501,11 @@ PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
 - Generic operators
 
 #### go-dws Status
-- ⏸️ Generics (not started)
+- `[~]` Generic classes and records, multiple type parameters, and nested type
+  arguments (`TA<TB<Integer>>`, in both type and expression position) work.
+  Remaining gaps are tracked in PLAN.md §3.2: generic interfaces, generic
+  `external` classes and function-pointer types, out-of-line generic method
+  bodies, and operator-overload specialization. Measured: GenericsPass 14/23.
 
 ---
 
