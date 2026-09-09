@@ -1092,3 +1092,119 @@ found" check for a renamed out-of-line type parameter is not implemented. Type-p
 constraints are parsed and ignored. Comparing a function pointer against `nil` (`f = nil`)
 still reports "operator = requires comparable types"; assignment and argument passing work,
 and no fixture demands the comparison.
+## 2026-09-09 — Overloads and method pointers, PLAN.md §3.2.5 emptied (L-S5a–L-S5d)
+
+Stacked on §3.2.4. `OverloadsPass` 33 → 37 of 39 (85% → 95%); corpus 906 → 910 of 1,928.
+No category regressed (`OperatorOverloadPass` 5, `ArrayPass` 96, `LambdaPass` 4,
+`GenericsPass` 23, `SimpleScripts` 331, all unchanged). Two of the four tickets turned out to describe the wrong defect; the
+reproductions below are what actually shipped.
+
+### L-S5a — operator dispatch is no longer blind to a nil operand's declared type
+
+`class_equal_diff` was not a missing `operator =` feature — user `operator =`/`<>` on classes
+already worked. The fixture declares `var c : TMy;` and never assigns it, so both operands are
+`NilValue` at runtime. `evalTryBinaryOperator` (`internal/interp/evaluator/runtime_ops.go`)
+searched class operators only for a concrete `*runtime.ObjectInstance`, and both it and
+`lookupGlobalOperator` keyed the registry on `runtime.LanguageType(operand)`, which maps
+`*runtime.NilValue` to `types.NIL`. `Lookup("=", [NIL, NIL])` could never match the registered
+`(TMy, TMy)` entry, so dispatch fell through to builtin reference equality and printed
+`True`/`False`.
+
+The operand *expressions* are now threaded from `VisitBinaryExpression` /
+`VisitUnaryExpression` down through `tryBinaryOperator` / `tryUnaryOperator` into the lookups.
+New `operandOperatorType` prefers the runtime language type and falls back to the analyzer's
+resolved static type (recorded for every expression by the `defer` in
+`Analyzer.analyzeExpression`) when the value carries none; `operandClassInfo` does the same for
+the class-operator receiver, resolving the static `*types.ClassType` through
+`typeSystem.LookupClass`. Compound assignment has no operand expressions and passes `nil`,
+which skips the fallback and keeps its previous behavior.
+
+### L-S5d — `inherited ClassName` reaches TObject's builtin
+
+`overload_on_metaclass` was not a metaclass-dispatch gap either: metaclass `ClassName`
+dispatch already produced `TObj`/`TObj`/`TSub`. Only `inherited ClassName` failed to compile,
+with the misleading `'inherited' cannot be used in class 'TObj' which has no parent class`.
+The builtin was registered as `objectClass.Methods["ClassName"]`, but `ClassType.GetMethod`
+reads `MethodOverloads` only, so the member lookup missed and fell through to the
+`isTObjectParent` branch.
+
+`ClassName` is now registered with `AddMethodOverload` like `Destroy`/`Free`, marked
+`IsSynthesized` so `analyze_classes.go`'s `memberName == "classname"` hiding check still fires
+only for a *user* declaration (`classname_hide_with_default` unchanged). At runtime,
+`executeInheritedCallDirect` gained a `ClassName` builtin fallback beside the existing
+`Create`/`Destroy`/`Free` one, returning `objVal.ClassName()` exactly as the normal instance
+path does.
+
+`resolveClassMetaMember` was deliberately left alone: it answers `ClassName` on a metaclass
+receiver from the builtin *before* consulting user methods, which looks like a gap but is what
+this fixture wants — the user's `ClassName` is an instance method, so `TObj.ClassName` must
+still yield `TObj`.
+
+### L-S5b — `@obj.Method` binds as a method pointer
+
+The evaluator already implemented `@obj.Method` in full (evaluate receiver,
+`CreateMethodPointer`, return a `FunctionPointerValue` with `SelfObject` bound). It was blocked
+purely by a semantic stub that errored `method pointers (@TClass.Method) not yet implemented`
+on every `*ast.MemberAccessExpression` operand of `@`.
+
+New `analyzeAddressOfMethod` analyzes the receiver, resolves the member through
+`getMethodOverloadsInHierarchy` (skipping constructors, binding the first overload since a
+method pointer cannot represent an overload set), records the usage, and returns
+`types.NewMethodPointerType(...)`. A `*types.ClassOfType` receiver — `@TClass.Method`, the
+unbound address-of-class-member case — still errors, but now says so accurately; that stays
+§3.3 (`func_ptr_symbol_field`).
+
+For `TEvent = procedure` to accept `@o.Foo`, function-pointer compatibility had to exist at
+all: `IsCompatible` had no pointer branch, so it only succeeded on `Equals`, and
+`MethodPointerType.Equals` rejects a plain `FunctionPointerType`. New `types.IsPointerType` and
+`types.PointerCompatible` delegate to the pointer types' own `IsCompatibleWith`, which already
+encoded the right asymmetry (a method pointer satisfies a function-pointer slot; never the
+reverse), and both `IsCompatible` and `typeDistance` call the one helper. In `typeDistance` an
+exact match keeps distance 0 and a compatible-but-not-identical pointer scores 1, so
+`Test(@o.Foo)` prefers `Test(a: TEvent)` over `Test(a: TObject)`.
+
+`TestMethodPointer_StoredInArray` (`internal/interp/method_pointer_test.go`), skipped with a
+comment blaming exactly this analyzer stub, is un-skipped and passes.
+
+### L-S5c — function-pointer arguments survive runtime overload re-resolution
+
+`overload_func_ptr_param` compiled clean; it failed at runtime, where the evaluator
+re-resolves overloads from evaluated argument *values*. `getValueType` had no case for
+`*runtime.FunctionPointerValue`, so it fell to `default`, `getClassMetadataFromValue` returned
+nil, and every function-pointer argument was typed `NIL` — which `typeDistance` scored as
+incompatible against every `procedure(...)` parameter.
+
+`getValueType` now returns the value's `PointerType`, with a fallback that rebuilds the
+signature from `Callable` (method pointer when `SelfObject` is bound) for pointers whose
+signature was resolved after the value. `typeDistance`'s `NIL` special-case was extended to
+give `FUNCTION_POINTER` / `METHOD_POINTER` targets the same rank as `FUNCTION` (2), so an
+explicit `nil` still binds to a function-pointer parameter. No expected-type push-down was
+needed — compile-time selection already picked the right overload by exact `Equals` matching,
+so the §3.4 item stays open and untouched.
+
+### Measured, still open
+
+- The 14 `OverloadsFail` fixtures all need `The function X was forward declared but not
+  implemented`, which exists nowhere in the tree (`grep -rn "forward declared"` finds only the
+  class-parent variants in `analyze_classes_decl.go`). That is §4 / F7, not §3.2.5.
+- `OverloadsPass/overload_ambiguous_delegate` and `overload_class_method` are the two
+  remaining `OverloadsPass` failures and cannot pass: their expected output contains the
+  case-mismatch hints covered by the ✋ won't-fix in §5.
+
+  In `overload_ambiguous_delegate`, `a.A(@fn)` / `b.B(@fn)` now correctly select the `TFunc`
+  overloads (they previously selected by declaration order). The bare-identifier lines
+  `a.A(fn)` / `b.B(fn)` still do not match: DWScript implicitly *invokes* a parameterless
+  function used as a non-pointer argument and expects `A int` / `B int`, but the analyzer
+  passes `fn` as a pointer. That defect is pre-existing and untouched here — before this
+  change both candidates scored identically and declaration order decided the winner (`TA`
+  happened to print `A int`, `TB` printed `B func`); giving compatible pointers a real
+  distance simply makes the pre-existing mis-binding deterministic (`A func` / `B func`).
+  Fixing it needs the expected-type push-down tracked in §3.4, which no §3.2.5 target fixture
+  required, so it stays open.
+
+  In `overload_class_method`, a bare `ClassName` inside a class method still yields the empty
+  string rather than `tobj`; only the case-hint direction changed. Registering the builtin as
+  a method overload was not sufficient there, and that fixture is hint-blocked regardless.
+
+**Validation:** `go test ./...` green; `golangci-lint run` shows no new issues in the twelve
+touched files. Baselines ratcheted (`OverloadsPass` 33 → 37) and `TEST_STATUS.md` regenerated.

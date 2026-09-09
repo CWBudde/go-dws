@@ -165,12 +165,23 @@ func typeDistance(from, to Type) int {
 		switch to.TypeKind() {
 		case "CLASS", "INTERFACE", "CLASSOF":
 			return 1
-		case "FUNCTION":
+		case "FUNCTION", "FUNCTION_POINTER", "METHOD_POINTER":
 			return 2
 		}
 		if toArray, ok := to.(*ArrayType); ok && toArray.IsDynamic() {
 			return 2
 		}
+	}
+
+	// Function/method pointer arguments: an exact signature match was already
+	// scored 0 above, so anything reaching here is at best a compatible-but-not
+	// identical pointer (a method pointer passed to a plain function-pointer
+	// parameter), which ranks just behind the exact match.
+	if compatible, bothPointers := PointerCompatible(from, to); bothPointers {
+		if compatible {
+			return 1
+		}
+		return -1
 	}
 
 	// Array compatibility (static vs dynamic, element hierarchy)

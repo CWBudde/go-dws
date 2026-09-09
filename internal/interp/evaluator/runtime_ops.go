@@ -290,6 +290,10 @@ func (e *Evaluator) runtimeValueType(val Value) types.Type {
 			return v.RecordType
 		}
 		return types.NIL
+	case *runtime.FunctionPointerValue:
+		// Share the pointer typing used by ResolveOverloadMultiple so that
+		// record and class method overloads rank @fn by its signature too.
+		return e.functionPointerValueType(v)
 	default:
 		// Metaclass references (TClass values) participate in overload
 		// resolution as "class of <name>".
@@ -444,70 +448,119 @@ func (e *Evaluator) dispatchClassMethodOverloaded(classMeta ClassMetaValue, clas
 
 // evalTryBinaryOperator attempts to find and invoke a binary operator overload.
 // Self-contained: replaces e.oopEngine.TryBinaryOperator.
-func (e *Evaluator) evalTryBinaryOperator(operator string, left, right Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+func (e *Evaluator) evalTryBinaryOperator(operator string, left, right Value, leftExpr, rightExpr ast.Expression, node ast.Node, ctx *ExecutionContext) (Value, bool) {
 	if e.typeSystem == nil {
 		return nil, false
 	}
 	operands := []Value{left, right}
+	operandExprs := []ast.Expression{leftExpr, rightExpr}
 
 	// Check left operand's class operators (with inheritance fallback)
-	if obj, ok := left.(*runtime.ObjectInstance); ok {
-		if result, found := e.lookupClassOperator(operator, obj.Class, operands, node, ctx); found {
+	if classInfo, ok := e.operandClassInfo(left, leftExpr); ok {
+		if result, found := e.lookupClassOperator(operator, classInfo, operands, operandExprs, node, ctx); found {
 			return result, true
 		}
 	}
 	// Check right operand's class operators (with inheritance fallback)
-	if obj, ok := right.(*runtime.ObjectInstance); ok {
-		if result, found := e.lookupClassOperator(operator, obj.Class, operands, node, ctx); found {
+	if classInfo, ok := e.operandClassInfo(right, rightExpr); ok {
+		if result, found := e.lookupClassOperator(operator, classInfo, operands, operandExprs, node, ctx); found {
 			return result, true
 		}
 	}
 	// Check global operator registry (with inheritance-compatible type keys)
-	if result, found := e.lookupGlobalOperator(operator, operands, node, ctx); found {
+	if result, found := e.lookupGlobalOperator(operator, operands, operandExprs, node, ctx); found {
 		return result, true
 	}
 	return nil, false
 }
 
+// operandOperatorType resolves the type key used for operator lookup. Runtime
+// values normally carry their own language type, but an unassigned class or
+// interface reference evaluates to nil and would otherwise erase the operand's
+// identity. In that case the analyzer's resolved static type is used instead,
+// so that `operator = (TMy, TMy)` still matches two nil TMy operands.
+func (e *Evaluator) operandOperatorType(operand Value, expr ast.Expression) types.Type {
+	languageType := runtime.LanguageType(operand)
+	if languageType != nil && languageType != types.NIL {
+		return languageType
+	}
+	if expr == nil {
+		return languageType
+	}
+	if resolved := e.resolvedSemanticType(expr); resolved != nil {
+		return resolved
+	}
+	return languageType
+}
+
+// operandClassInfo returns the runtime class whose operators should be searched
+// for an operand, falling back to the operand's static class type when the
+// runtime value is nil.
+func (e *Evaluator) operandClassInfo(operand Value, expr ast.Expression) (runtime.IClassInfo, bool) {
+	if obj, ok := operand.(*runtime.ObjectInstance); ok {
+		return obj.Class, true
+	}
+	if expr == nil || e.typeSystem == nil {
+		return nil, false
+	}
+	classType, ok := e.operandOperatorType(operand, expr).(*types.ClassType)
+	if !ok || classType == nil {
+		return nil, false
+	}
+	classInfo, ok := e.typeSystem.LookupClass(classType.Name).(runtime.IClassInfo)
+	if !ok || classInfo == nil {
+		return nil, false
+	}
+	return classInfo, true
+}
+
+// operatorOperandTypes builds the operand type keys for an operator lookup.
+// operandExprs may be nil, or hold nil entries, when no source expression is
+// available (compound assignment); those operands keep their runtime type.
+func (e *Evaluator) operatorOperandTypes(operands []Value, operandExprs []ast.Expression) []types.Type {
+	operandTypes := make([]types.Type, len(operands))
+	for i, operand := range operands {
+		var expr ast.Expression
+		if i < len(operandExprs) {
+			expr = operandExprs[i]
+		}
+		operandTypes[i] = e.operandOperatorType(operand, expr)
+	}
+	return operandTypes
+}
+
 // lookupClassOperator searches the class hierarchy using resolved operand types.
-func (e *Evaluator) lookupClassOperator(operator string, classInfo runtime.IClassInfo, operands []Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+func (e *Evaluator) lookupClassOperator(operator string, classInfo runtime.IClassInfo, operands []Value, operandExprs []ast.Expression, node ast.Node, ctx *ExecutionContext) (Value, bool) {
 	if classInfo == nil {
 		return nil, false
 	}
-	operandTypes := make([]types.Type, len(operands))
-	for i, operand := range operands {
-		operandTypes[i] = runtime.LanguageType(operand)
-	}
-	if entry, found := classInfo.LookupOperator(operator, operandTypes); found {
+	if entry, found := classInfo.LookupOperator(operator, e.operatorOperandTypes(operands, operandExprs)); found {
 		return e.invokeRuntimeOperatorEntry(entry, operands, node, ctx), true
 	}
 	return nil, false
 }
 
 // lookupGlobalOperator searches exact signatures before assignment-compatible signatures.
-func (e *Evaluator) lookupGlobalOperator(operator string, operands []Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
-	operandTypes := make([]types.Type, len(operands))
-	for i, operand := range operands {
-		operandTypes[i] = runtime.LanguageType(operand)
-	}
-	if entry, found := e.typeSystem.Operators().Lookup(operator, operandTypes); found {
+func (e *Evaluator) lookupGlobalOperator(operator string, operands []Value, operandExprs []ast.Expression, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+	if entry, found := e.typeSystem.Operators().Lookup(operator, e.operatorOperandTypes(operands, operandExprs)); found {
 		return e.invokeGlobalOperatorEntry(entry, operands, node, ctx), true
 	}
 	return nil, false
 }
 
 // evalTryUnaryOperator invokes a matching class or global unary operator.
-func (e *Evaluator) evalTryUnaryOperator(operator string, operand Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+func (e *Evaluator) evalTryUnaryOperator(operator string, operand Value, operandExpr ast.Expression, node ast.Node, ctx *ExecutionContext) (Value, bool) {
 	if e.typeSystem == nil {
 		return nil, false
 	}
 	operands := []Value{operand}
-	if obj, ok := operand.(*runtime.ObjectInstance); ok {
-		if result, found := e.lookupClassOperator(operator, obj.Class, operands, node, ctx); found {
+	operandExprs := []ast.Expression{operandExpr}
+	if classInfo, ok := e.operandClassInfo(operand, operandExpr); ok {
+		if result, found := e.lookupClassOperator(operator, classInfo, operands, operandExprs, node, ctx); found {
 			return result, true
 		}
 	}
-	return e.lookupGlobalOperator(operator, operands, node, ctx)
+	return e.lookupGlobalOperator(operator, operands, operandExprs, node, ctx)
 }
 
 // invokeRuntimeOperatorEntry invokes a runtime.OperatorEntry (from IClassInfo.LookupOperator).

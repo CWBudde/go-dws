@@ -782,8 +782,8 @@ func isObjectLike(kind runtime.ValueKind) bool {
 
 // tryBinaryOperator attempts to use custom operator overloading.
 // Returns (result, true) if operator found, or (nil, false) if not found.
-func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
-	return e.evalTryBinaryOperator(operator, left, right, node, ctx)
+func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, leftExpr, rightExpr ast.Expression, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+	return e.evalTryBinaryOperator(operator, left, right, leftExpr, rightExpr, node, ctx)
 }
 
 // evalStringInBracketList evaluates 'str in [a..b, c, ...]' with string
@@ -1247,8 +1247,8 @@ func isNumericKind(kind runtime.ValueKind) bool {
 
 // tryUnaryOperator attempts to use custom operator overloading for unary operators.
 // Returns (result, true) if operator found, or (nil, false) if not found.
-func (e *Evaluator) tryUnaryOperator(operator string, operand Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
-	return e.evalTryUnaryOperator(operator, operand, node, ctx)
+func (e *Evaluator) tryUnaryOperator(operator string, operand Value, operandExpr ast.Expression, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+	return e.evalTryUnaryOperator(operator, operand, operandExpr, node, ctx)
 }
 
 // evalMinusUnaryOp evaluates the unary minus operator (-x).

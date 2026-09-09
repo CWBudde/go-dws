@@ -10,7 +10,7 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-09):** Go harness and freshly rebuilt CLI both
-**906 / 1,928 scored = 47%**, with no category regressions after §3.2.4.
+**910 / 1,928 scored = 47%**, with no category regressions after §3.2.4 and §3.2.5.
 Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **111 / 647 = 17%**.
 
@@ -252,15 +252,14 @@ demands the comparison. Measured 2026-09-09.
 
 #### 3.2.5 Overloads and method pointers
 
-- **L-S5a** `[ ]` S — Resolve and dispatch class `operator =` / `<>` overloads →
-  OverloadsPass `class_equal_diff`.
-- **L-S5b** `[ ]` S — Type and bind `@obj.Method` in overload arguments without invoking it →
-  `class_vs_proc`. Keep address-of-class-member runtime work in §3.3 separate.
-- **L-S5c** `[ ]` S — Use expected function-pointer signatures to select overload candidates →
-  `overload_func_ptr_param`; retain ambiguity and incompatible-signature diagnostics.
-  Coordinate with §3.4's expected-type overload-resolution item.
-- **L-S5d** `[ ]` S — Resolve metaclass `inherited` calls with the correct overload and class
-  receiver → `overload_on_metaclass`. Coordinate class dispatch with L-S2c when files overlap.
+Closed 2026-09-09 (L-S5a–L-S5d); `OverloadsPass` 33 → 37 of 39. See
+[`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
+
+✋ The two remaining `OverloadsPass` failures (`overload_ambiguous_delegate`,
+`overload_class_method`) expect case-mismatch hints and are blocked by the won't-fix in §5;
+their behavior is otherwise correct. The 14 `OverloadsFail` fixtures need
+`The function X was forward declared but not implemented`, which does not exist anywhere in
+the tree — that is §4 / F7, not this section.
 
 #### 3.2.6 Sets
 
