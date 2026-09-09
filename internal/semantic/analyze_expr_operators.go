@@ -278,6 +278,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		a.addCaseMismatchHint(identifier.Value, sym.Name, identifier.Token.Pos)
 	}
 	a.recordSymbolUsage(sym.Name, identifier.Token.Pos)
+	a.recordResolvedSymbolFieldUsage(sym)
 
 	// Annotate identifiers whose declared type is a class so the evaluator can
 	// resolve shadowed fields against the reference's static type (a subclass

@@ -1151,7 +1151,7 @@ func (a *Analyzer) defineMethodScopeMembers(method *ast.FunctionDecl, classType 
 	// Instance methods have 'Self' and access to all members.
 	a.symbols.Define("Self", classType, method.Token.Pos)
 	for fieldName, fieldType := range classType.Fields {
-		a.symbols.Define(fieldName, fieldType, token.Position{})
+		a.symbols.DefineClassField(fieldName, fieldType, classType)
 	}
 	for classVarName, classVarType := range classType.ClassVars {
 		a.symbols.Define(classType.DeclaredClassVarName(classVarName), classVarType, token.Position{})

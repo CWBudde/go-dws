@@ -488,25 +488,27 @@ func (e *Evaluator) bindIndexedPropertyParams(paramNames []string, indices []Val
 // executeIndexedPropertyGetterMethod executes an indexed property getter method.
 //
 // Indexed properties require getter methods (not fields), because the method
-// receives the index values as parameters.
+// receives the index values as parameters. The accessor may be a class method:
+// DWScript permits `property P[i: Integer]: String read Get` where Get is a
+// `class function`, and calling it through an instance is legal, so the lookup
+// falls back to the class method table and binds the class as the receiver.
 func (e *Evaluator) executeIndexedPropertyGetterMethod(obj Value, objVal ObjectValue, pInfo *types.PropertyInfo, indices []Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Get the getter method name
 	methodName := pInfo.ReadSpec
 
 	// Look up the getter method via ObjectValue interface
+	isClassMethod := false
 	methodDecl := objVal.GetMethodDecl(methodName)
+	if methodDecl == nil {
+		methodDecl = objVal.GetClassMethodDecl(methodName)
+		isClassMethod = methodDecl != nil
+	}
 	if methodDecl == nil {
 		return e.newError(node, "indexed property '%s' getter method '%s' not found", pInfo.Name, methodName)
 	}
 
-	// Type-assert to get parameter count
-	method := methodDecl
-
-	// Verify method has correct number of parameters (index params, no value param)
-	expectedParamCount := len(indices)
-	if len(method.Parameters) != expectedParamCount {
-		return e.newError(node, "indexed property '%s' getter method '%s' expects %d parameter(s), got %d index argument(s)",
-			pInfo.Name, methodName, len(method.Parameters), len(indices))
+	if errVal := e.checkIndexedAccessorArity(pInfo, methodDecl, methodName, len(indices), "getter", node); errVal != nil {
+		return errVal
 	}
 
 	// Set flag to indicate we're inside a property getter
@@ -517,5 +519,63 @@ func (e *Evaluator) executeIndexedPropertyGetterMethod(obj Value, objVal ObjectV
 		propCtx.InPropertyGetter = savedInGetter
 	}()
 
+	if isClassMethod {
+		return e.executeIndexedPropertyClassMethod(e.classSelfForInstance(objVal, obj), methodDecl, indices, pInfo, node, ctx)
+	}
 	return e.executeObjectMethodDirect(obj, methodDecl, indices, node, ctx)
+}
+
+// executeIndexedPropertyClassMethod invokes an indexed property accessor that is a
+// class method, with the metaclass as the receiver so Self and ClassName resolve to
+// the class rather than an instance.
+func (e *Evaluator) executeIndexedPropertyClassMethod(
+	classSelf Value,
+	methodDecl *runtime.MethodMetadata,
+	args []Value,
+	pInfo *types.PropertyInfo,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	classMeta, ok := classSelf.(ClassMetaValue)
+	if !ok {
+		return e.newError(node, "indexed property '%s' accessor '%s' requires a class receiver",
+			pInfo.Name, methodDecl.Name)
+	}
+	return e.executeClassMethodDirect(classMeta, methodDecl, args, node, ctx)
+}
+
+// checkIndexedPropertyArity verifies the number of index arguments against the
+// property's declared index parameters. IndexParamTypes is the authoritative arity:
+// unlike an accessor method's signature it is available for expression accessors too.
+// Returns nil when the arity matches.
+func (e *Evaluator) checkIndexedPropertyArity(pInfo *types.PropertyInfo, indexCount int, node ast.Node) Value {
+	declared := len(pInfo.IndexParamTypes)
+	if declared == 0 {
+		declared = len(pInfo.IndexParamNames)
+	}
+	if declared == 0 || declared == indexCount {
+		return nil
+	}
+	return e.newError(node, "indexed property '%s' expects %d index argument(s), got %d",
+		pInfo.Name, declared, indexCount)
+}
+
+// checkIndexedAccessorArity verifies an indexed property accessor takes exactly the
+// arguments supplied. argCount is the full argument list the accessor is called
+// with, which for a setter includes the trailing assigned value on top of the
+// indices, so the message counts arguments rather than indices. Returns nil when
+// the arity matches.
+func (e *Evaluator) checkIndexedAccessorArity(
+	pInfo *types.PropertyInfo,
+	methodDecl *runtime.MethodMetadata,
+	methodName string,
+	argCount int,
+	role string,
+	node ast.Node,
+) Value {
+	if len(methodDecl.Parameters) == argCount {
+		return nil
+	}
+	return e.newError(node, "indexed property '%s' %s method '%s' expects %d parameter(s), got %d argument(s)",
+		pInfo.Name, role, methodName, len(methodDecl.Parameters), argCount)
 }

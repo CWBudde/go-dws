@@ -635,9 +635,12 @@ func (a *Analyzer) bindClassPropertyExprScope(classType *types.ClassType, isClas
 
 	if !isClassProperty {
 		for fieldName, fieldType := range classType.Fields {
-			a.symbols.Define(fieldName, fieldType, token.Position{})
+			a.symbols.DefineClassField(fieldName, fieldType, classType)
 		}
 		if classType.Parent != nil {
+			// Inherited private fields are deliberately left out of scope by
+			// addParentFieldsToScope, and only private fields are ever hinted,
+			// so parent bindings need no usage attribution.
 			a.addParentFieldsToScope(classType.Parent)
 		}
 	}

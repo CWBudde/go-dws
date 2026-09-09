@@ -443,6 +443,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
+		a.recordResolvedSymbolFieldUsage(sym)
+
 		if ident.Equal(target.Value, "Result") {
 			a.recordSymbolUsage("Result", target.Token.Pos)
 		}
@@ -622,11 +624,29 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 	case *ast.IndexExpression:
 		// Array index assignment: arr[i] := value or arr[i] += value
-		// Analyze the target to ensure it's valid
-		baseType := a.analyzeExpression(target.Left)
-		if isArrayOfConstType(baseType) {
-			a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
-			return
+		// Analyze the target to ensure it's valid. An indexed property is the one
+		// base that must not be analyzed on its own: `TC.Prop` without its index
+		// arguments is not a readable expression, and analyzing it would reject the
+		// whole assignment for needing an object reference.
+		var baseType types.Type
+		if propInfo := a.indexedPropertyOfMemberAccess(target.Left); propInfo != nil {
+			if !a.checkIndexedPropertyWriteTarget(target.Left, propInfo) {
+				return
+			}
+			// A plain assignment only writes, so the target's read accessor is
+			// irrelevant: mark it so the read-side metaclass gate below is skipped.
+			// A compound assignment does read, and keeps the gate.
+			if !isCompound {
+				prevWriteTarget := a.indexedWriteTargetMember
+				a.indexedWriteTargetMember = target.Left
+				defer func() { a.indexedWriteTargetMember = prevWriteTarget }()
+			}
+		} else {
+			baseType = a.analyzeExpression(target.Left)
+			if isArrayOfConstType(baseType) {
+				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
+				return
+			}
 		}
 		targetType := a.analyzeExpression(target)
 		if targetType == nil {

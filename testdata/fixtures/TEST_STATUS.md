@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 887 |
-| Failed | 1041 |
+| Passed | 896 |
+| Failed | 1032 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **46%** (887/1928) |
+| **Scored pass rate** | **46%** (896/1928) |
 
 ## Per-category
 
@@ -52,13 +52,13 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | FunctionsTime | 30 | 1 | 26 | 3 | 4% |
 | FunctionsVariant | 10 | 0 | 9 | 1 | 0% |
 | GenericsFail | 8 | 0 | 8 | 0 | 0% |
-| GenericsPass | 23 | 14 | 9 | 0 | 61% |
+| GenericsPass | 23 | 15 | 8 | 0 | 65% |
 | GraphicsLib | 4 | 0 | 4 | 0 | 0% |
 | HelpersFail | 18 | 0 | 18 | 0 | 0% |
 | HelpersPass | 27 | 22 | 5 | 0 | 81% |
 | IniFileLib | 2 | 0 | 2 | 0 | 0% |
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
-| InnerClassesPass | 2 | 0 | 2 | 0 | 0% |
+| InnerClassesPass | 2 | 1 | 1 | 0 | 50% |
 | InterfacesFail | 19 | 0 | 19 | 0 | 0% |
 | InterfacesPass | 33 | 16 | 12 | 5 | 57% |
 | JSFilterScripts | 2 | 0 | 0 | 2 | 0% |
@@ -75,10 +75,10 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | OverloadsFail | 14 | 0 | 14 | 0 | 0% |
 | OverloadsPass | 39 | 33 | 6 | 0 | 85% |
 | PropertyExpressionsFail | 10 | 0 | 10 | 0 | 0% |
-| PropertyExpressionsPass | 19 | 15 | 4 | 0 | 79% |
+| PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
-| SetOfPass | 25 | 20 | 5 | 0 | 80% |
-| SimpleScripts | 442 | 333 | 102 | 7 | 77% |
+| SetOfPass | 25 | 21 | 4 | 0 | 84% |
+| SimpleScripts | 442 | 336 | 99 | 7 | 77% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

@@ -115,6 +115,13 @@ type Analyzer struct {
 	inPropertyExpr          bool
 	inFinallyBlock          bool
 	inExceptionHandler      bool
+
+	// indexedWriteTargetMember names the member access currently being analyzed as
+	// the target of a plain `:=` assignment to an indexed property. The read-side
+	// metaclass gate is skipped for exactly that node: a write-only property, or one
+	// whose getter needs an instance, is still legally writable. Compound assignments
+	// leave it nil, since they do read the property.
+	indexedWriteTargetMember ast.Expression
 }
 
 // NewAnalyzer creates a new semantic analyzer

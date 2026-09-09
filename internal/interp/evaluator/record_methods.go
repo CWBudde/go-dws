@@ -306,6 +306,44 @@ func (e *Evaluator) bindRecordMethodClassState(record RecordInstanceValue, ctx *
 	}
 }
 
+// setRecordClassVar writes a record type's class variable through an instance
+// receiver. Class vars are shared storage on the record type, so `rec.ClassVar := v`
+// must reach that slot; the instance field setter would otherwise create a field of
+// the same name and shadow it. Reports whether the name named a class variable.
+func (e *Evaluator) setRecordClassVar(record Value, name string, value Value, ctx *ExecutionContext) bool {
+	recordType := e.recordTypeValueOf(record, ctx)
+	if recordType == nil {
+		return false
+	}
+	key := ident.Normalize(name)
+	if _, exists := recordType.ClassVars[key]; !exists {
+		return false
+	}
+	recordType.ClassVars[key] = value
+	if recordType.Metadata != nil {
+		recordType.Metadata.ClassVars[key] = value
+	}
+	return true
+}
+
+// recordTypeValueOf resolves the RecordTypeValue that owns a record instance's
+// class-level state, or nil when it is not in scope.
+func (e *Evaluator) recordTypeValueOf(record Value, ctx *ExecutionContext) *RecordTypeValue {
+	recVal, ok := record.(*runtime.RecordValue)
+	if !ok || recVal == nil || recVal.RecordType == nil {
+		return nil
+	}
+	recordTypeRaw, found := ctx.Env().Get("__record_type_" + ident.Normalize(recVal.RecordType.Name))
+	if !found {
+		return nil
+	}
+	recordType, ok := recordTypeRaw.(*RecordTypeValue)
+	if !ok {
+		return nil
+	}
+	return recordType
+}
+
 func (e *Evaluator) syncRecordMethodClassState(record RecordInstanceValue, ctx *ExecutionContext) {
 	recVal, ok := record.(*runtime.RecordValue)
 	if !ok || recVal == nil || recVal.RecordType == nil {

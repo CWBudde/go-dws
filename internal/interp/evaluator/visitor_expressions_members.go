@@ -626,6 +626,22 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
+		// A class property contributed by a helper binds to the cast's static class,
+		// like the class properties above: TBase(child).HelperClassProp must read the
+		// helper declared for TBase even when child's own helper redeclares the name.
+		if staticMeta := e.staticClassMetaOf(typeCastVal); staticMeta != nil {
+			if helper, pInfo := e.FindHelperProperty(staticMeta, memberName); pInfo != nil && pInfo.IsClassProperty {
+				return e.executeHelperPropertyRead(helper, pInfo, staticMeta, node, ctx)
+			}
+		}
+
+		// Instance helper properties still take the wrapped receiver.
+		if wrappedValue != nil {
+			if helper, pInfo := e.FindHelperProperty(wrappedValue, memberName); pInfo != nil && !pInfo.IsClassProperty {
+				return e.executeHelperPropertyRead(helper, pInfo, wrappedValue, node, ctx)
+			}
+		}
+
 		return e.newError(node, "member '%s' not found", memberName)
 
 	case runtime.KindTypeMeta:
@@ -982,7 +998,30 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 		}
 	}
 
+	// Class properties contributed by a class helper. Only class properties are
+	// reachable this way: an instance property declared in a helper still needs an
+	// instance receiver, so it falls through to the not-found error below.
+	if helper, propInfo := e.FindHelperProperty(obj, memberName); propInfo != nil && propInfo.IsClassProperty {
+		return e.executeHelperPropertyRead(helper, propInfo, obj, node, ctx)
+	}
+
 	return e.newError(node, "member '%s' not found in class '%s'", memberName, classMetaVal.GetClassName())
+}
+
+// staticClassMetaOf resolves the metaclass value named by a type cast's static type,
+// so members that bind statically (class vars, class properties) can be looked up
+// against the cast rather than the wrapped value's dynamic class. Returns nil when
+// the static type names no class.
+func (e *Evaluator) staticClassMetaOf(typeCastVal TypeCastAccessor) Value {
+	staticName := typeCastVal.GetStaticTypeName()
+	if staticName == "" {
+		return nil
+	}
+	classVal, err := e.typeSystem.CreateClassValue(staticName)
+	if err != nil {
+		return nil
+	}
+	return classVal
 }
 
 // classSelfForInstance resolves the class (metaclass) value for an instance, so a class

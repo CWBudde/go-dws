@@ -111,6 +111,18 @@ func (a *Analyzer) recordClassFieldUsage(classType *types.ClassType, name string
 	classType.MarkFieldUsed(name)
 }
 
+// recordResolvedSymbolFieldUsage marks a class field used when a bare identifier
+// resolved to one of the synthesized field bindings of the enclosing method or
+// property-expression scope. Without it, every implicit-Self reference resolves
+// through the symbol table, never reaches the currentClass.GetField fallbacks
+// that do the marking, and leaves the field looking unused.
+func (a *Analyzer) recordResolvedSymbolFieldUsage(sym *Symbol) {
+	if a == nil || sym == nil {
+		return
+	}
+	a.recordClassFieldUsage(sym.ClassFieldOwner, sym.Name)
+}
+
 func (a *Analyzer) recordClassMethodUsage(classType *types.ClassType, name string) {
 	if classType == nil {
 		return

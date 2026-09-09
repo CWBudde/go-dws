@@ -47,6 +47,14 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 			}
 		}
 
+		// Indexed property written through a class name, the write counterpart of
+		// evalClassMetaIndexedProperty.
+		if classMetaVal, ok := baseObj.(ClassMetaValue); ok {
+			if result, handled := e.evalClassMetaIndexedPropertyWrite(baseObj, classMetaVal, memberAccess.Member.Value, indices, value, stmt, ctx); handled {
+				return result
+			}
+		}
+
 		memberVal := e.Eval(memberAccess, ctx)
 		if isError(memberVal) {
 			return memberVal
@@ -358,7 +366,14 @@ func (e *Evaluator) evalIndexedPropertyAssignmentOnObject(
 		}
 	}
 
+	// The setter may be a class method, the write-side counterpart of
+	// executeIndexedPropertyGetterMethod's fallback.
+	isClassMethod := false
 	methodDecl := objVal.GetMethodDecl(propDesc.WriteSpec)
+	if methodDecl == nil {
+		methodDecl = objVal.GetClassMethodDecl(propDesc.WriteSpec)
+		isClassMethod = methodDecl != nil
+	}
 	if methodDecl == nil {
 		return e.newError(stmt, "indexed property '%s' setter method '%s' not found", propName, propDesc.WriteSpec)
 	}
@@ -368,7 +383,12 @@ func (e *Evaluator) evalIndexedPropertyAssignmentOnObject(
 	args = append(args, indexValues...)
 	args = append(args, value)
 
-	result := e.executeObjectMethodDirect(objVal, methodDecl, args, stmt, ctx)
+	var result Value
+	if isClassMethod {
+		result = e.executeIndexedPropertySetterClassMethod(e.classSelfForInstance(objVal, baseObj), methodDecl, args, propName, stmt, ctx)
+	} else {
+		result = e.executeObjectMethodDirect(objVal, methodDecl, args, stmt, ctx)
+	}
 
 	// Check for errors from method execution
 	if isError(result) {
@@ -445,7 +465,12 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 		}
 	}
 
+	isClassMethod := false
 	methodDecl := objVal.GetMethodDecl(propDesc.WriteSpec)
+	if methodDecl == nil {
+		methodDecl = objVal.GetClassMethodDecl(propDesc.WriteSpec)
+		isClassMethod = methodDecl != nil
+	}
 	if methodDecl == nil {
 		return e.newError(stmt, "default property setter method '%s' not found", propDesc.WriteSpec)
 	}
@@ -454,7 +479,12 @@ func (e *Evaluator) evalDefaultPropertyAssignment(
 	// Note: For default properties, we have a single index (not multi-index like named properties)
 	args := []Value{indexVal, value}
 
-	result := e.executeObjectMethodDirect(objVal, methodDecl, args, stmt, ctx)
+	var result Value
+	if isClassMethod {
+		result = e.executeIndexedPropertySetterClassMethod(e.classSelfForInstance(objVal, obj), methodDecl, args, propDesc.Name, stmt, ctx)
+	} else {
+		result = e.executeObjectMethodDirect(objVal, methodDecl, args, stmt, ctx)
+	}
 
 	// Check for errors from method execution
 	if isError(result) {
@@ -482,7 +512,21 @@ func (e *Evaluator) tryIndexedPropertyExpressionWrite(
 	if !ok || pInfo.WriteKind != types.PropAccessExpression {
 		return nil, false
 	}
+	return e.executeIndexedPropertyExpressionWrite(obj, pInfo, indexValues, value, stmt, ctx)
+}
 
+// executeIndexedPropertyExpressionWrite runs the normalized `F[i] := Value`
+// statement of an expression-based indexed setter against the given receiver,
+// which is an instance for an instance property and the class meta value for a
+// class property.
+func (e *Evaluator) executeIndexedPropertyExpressionWrite(
+	obj Value,
+	pInfo *types.PropertyInfo,
+	indexValues []Value,
+	value Value,
+	stmt ast.Node,
+	ctx *ExecutionContext,
+) (Value, bool) {
 	writeStmt, ok := pInfo.WriteExpr.(ast.Statement)
 	if !ok {
 		return e.newError(stmt, "property '%s' has invalid write statement type", pInfo.Name), true
@@ -513,4 +557,85 @@ func (e *Evaluator) tryIndexedPropertyExpressionWrite(
 		return result, true
 	}
 	return value, true
+}
+
+// executeIndexedPropertySetterClassMethod invokes an indexed property setter that is
+// a class method, binding the metaclass as the receiver.
+func (e *Evaluator) executeIndexedPropertySetterClassMethod(
+	classSelf Value,
+	methodDecl *runtime.MethodMetadata,
+	args []Value,
+	propName string,
+	stmt ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	classMeta, ok := classSelf.(ClassMetaValue)
+	if !ok {
+		return e.newError(stmt, "indexed property '%s' setter '%s' requires a class receiver", propName, methodDecl.Name)
+	}
+	return e.executeClassMethodDirect(classMeta, methodDecl, args, stmt, ctx)
+}
+
+// evalClassMetaIndexedPropertyWrite writes an indexed property through a class name,
+// e.g. `TConvert.Prop[i] := v`. It reports handled=false when the class declares no
+// such indexed property, so the caller falls through to ordinary handling.
+func (e *Evaluator) evalClassMetaIndexedPropertyWrite(
+	obj Value,
+	classMetaVal ClassMetaValue,
+	memberName string,
+	indices []ast.Expression,
+	value Value,
+	stmt ast.Node,
+	ctx *ExecutionContext,
+) (Value, bool) {
+	classInfo := classMetaVal.GetClassInfo()
+	if classInfo == nil {
+		return nil, false
+	}
+	propDesc := classInfo.LookupProperty(memberName)
+	if propDesc == nil || !propDesc.IsIndexed {
+		return nil, false
+	}
+	pInfo, ok := unwrapPropertyInfo(propDesc.Impl)
+	if !ok {
+		return e.newError(stmt, "invalid property info type"), true
+	}
+
+	indexValues := make([]Value, len(indices))
+	for i, indexExpr := range indices {
+		indexValues[i] = e.Eval(indexExpr, ctx)
+		if isError(indexValues[i]) {
+			return indexValues[i], true
+		}
+	}
+	if errVal := e.checkIndexedPropertyArity(pInfo, len(indexValues), stmt); errVal != nil {
+		return errVal, true
+	}
+
+	switch pInfo.WriteKind {
+	case types.PropAccessField, types.PropAccessMethod:
+		method := classInfo.LookupClassMethod(pInfo.WriteSpec)
+		if method == nil {
+			return e.newError(stmt, "indexed property '%s' setter '%s' is not a class method, so it cannot be written through class '%s'",
+				pInfo.Name, pInfo.WriteSpec, classMetaVal.GetClassName()), true
+		}
+		args := make([]Value, 0, len(indexValues)+1)
+		args = append(args, indexValues...)
+		args = append(args, value)
+		if errVal := e.checkIndexedAccessorArity(pInfo, method, pInfo.WriteSpec, len(args), "setter", stmt); errVal != nil {
+			return errVal, true
+		}
+		if result := e.executeIndexedPropertyClassMethod(obj, method, args, pInfo, stmt, ctx); isError(result) {
+			return result, true
+		}
+		return value, true
+
+	case types.PropAccessExpression:
+		// Mirrors the read side, which evaluates an expression accessor in class
+		// context: an expression setter needs no instance either.
+		return e.executeIndexedPropertyExpressionWrite(obj, pInfo, indexValues, value, stmt, ctx)
+
+	default:
+		return e.newError(stmt, readOnlyPropertyWriteMessage), true
+	}
 }

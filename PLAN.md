@@ -148,19 +148,50 @@ checked in source order and misses the abstract-instantiation error. See
 
 #### 3.2.2 Diagnostics and metaclass properties
 
-These are separate fixes; none requires the class-builder refactor as a prerequisite.
+**Closed 2026-09-09.** All three items shipped; the ✋ notes below record what was measured and
+deliberately left out.
 
-- **L-S2a** `[ ]` S — Correct unused-private-field hint eligibility/usage tracking. First
-  reproduce the alleged JSON serialization mismatch through the current shared pipeline;
-  retain legitimate pedantic hints and property-access usage. Coordinate with §3.1 backing
-  fields. Acceptance: an affected JSONConnectorPass serialization fixture matches its
-  diagnostic envelope, plus a regression for a genuinely unused field.
-- **L-S2b** `[ ]` S — Resolve helper properties through a metaclass →
-  PropertyExpressionsPass `helpers_property_expressions`. Cover getter and setter resolution
-  using existing property metadata; coordinate with §3.1 property handling.
-- **L-S2c** `[ ]` S — Resolve indexed reads through a metaclass when the accessor is a class
-  method → SimpleScripts `enum_to_integer`. Preserve the accessor's class receiver and
-  validate index arguments; coordinate shared index validation with §3.4.
+**Done (2026-09-09):** L-S2a. The ticket's premise did not reproduce — measured on the shared
+pipeline, `JSONConnectorPass/serialize_class` passes and no failing JSONConnectorPass fixture
+involves the hint at all. The real defect was a false positive: a private field named by bare
+name inside a method body or an expression-form property accessor resolved through the symbol
+table and was never marked used. Class field bindings now carry their declaring class
+(`Symbol.ClassFieldOwner`), the six fixtures that emitted a bogus hint emit none, and fixtures
+rose 888 → 892. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--unused-private-field-hint-usage-tracking-l-s2a).
+
+- ✋ Unused-private-field hints when the program also has a compile error: the blanket
+  suppression in `internal/semantic/unused_warnings.go` drops every private-member hint for a
+  class as soon as any non-hint diagnostic exists, which contradicts
+  `OverloadsFail/overloads_not_implem`. That fixture fails for unrelated parser reasons, so the
+  rule is untestable today. Reopen once the fixture parses.
+- ✋ Unused-private hints for record fields and class vars: `types.RecordType` has
+  `FieldVisibility` but no usage-tracking infrastructure, and class vars have none either.
+  Measured 2026-09-09; no fixture demands it.
+
+**Done (2026-09-09):** L-S2b. Helper properties now support expression-form accessors and are
+reachable through a metaclass, a type cast's static class, and a record receiver, on both the
+read and the write side; a non-identifier write specifier is recognized as the lvalue shorthand
+it is, and record class vars written through an instance reach shared storage. All three
+helper-property fixtures pass (`helpers_property_expressions`,
+`class_helpers_property_write_expressions`, `record_helpers_property_write_expressions`),
+PropertyExpressionsPass 15 → 18. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--helper-property-expression-accessors-and-metaclass-resolution-l-s2b).
+
+- ✋ `read_write_other_property`: a property whose read/write specifier names *another property*
+  (`property Mapped : Integer read Prop write Prop`) is rejected at compile time. Measured
+  2026-09-09; a distinct gap from helper properties, belongs with §3.1 property handling.
+- ✋ Record-type metaclass member access (`TRec.SomeClassProperty` through the type name, as
+  opposed to through an instance) is unsupported. Measured 2026-09-09; no fixture demands it.
+
+**Done (2026-09-09):** L-S2c, closing this section. An indexed property whose accessor is a class
+method now resolves through a class name *and* through an instance, on both the read and the
+write side, with the metaclass bound as the accessor's receiver and index arity validated against
+the declared index parameters. Semantic analysis was tightened to match: reaching such a property
+through a class name when the accessor needs an instance is now a compile-time diagnostic with the
+same messages the non-indexed metaclass path uses, instead of semantic accepting what the
+evaluator could not execute. `SimpleScripts/enum_to_integer` passes, 895 → 896. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--indexed-properties-with-class-method-accessors-l-s2c).
 
 #### 3.2.3 Contracts
 

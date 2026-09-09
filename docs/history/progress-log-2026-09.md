@@ -746,3 +746,185 @@ abstract class" — the statement is checked before `TA` exists. This is unchang
 `c8cfbc4a` (verified against the pre-change binary) and is inherent to executable statements
 keeping source order, which L-S1c's acceptance criteria require; fixing it would mean deferring
 statement analysis, a much larger change.
+
+## 2026-09-09 — Unused-private-field hint: usage tracking (L-S2a)
+
+`PLAN.md` §3.2.2 L-S2a. The section instructs confirming each failure before implementing, and
+here that mattered: **the ticket's premise did not reproduce.**
+`JSONConnectorPass/serialize_class` passes cleanly under `--hints pedantic`, and none of the 23
+currently-failing JSONConnectorPass fixtures involves an unused-private-field hint at all —
+they fail on record copy-on-assign value semantics, missing connector APIs, VARIANT member
+access and runtime-message wording. `stringify_record`, the closest candidate, differs on
+`{"BottomRight":{"x":1,"y":3}}` vs `…"y":2`, which is the record-assignment item already
+tracked separately in `PLAN.md`. The stated acceptance fixture is retired.
+
+**What actually reproduced** is a false-positive class, found by sweeping every fixture at
+pedantic level and diffing the emitted `Private field` hints against the expected `.txt`:
+
+```pascal
+type TA = class
+   private FA : Integer;   // Self.FA       -> correctly marked used
+   private FB : Integer;   // FB := 1       -> HINTED (wrong)
+   private FC : Integer;   // PrintLn(FC)   -> HINTED (wrong)
+   private FD : Integer;
+   public property Q : Integer read (FD * 2);   // -> HINTED (wrong)
+   public procedure Touch;
+   begin Self.FA := 0; FB := 1; PrintLn(FC); end;
+end;
+```
+
+**Root cause.** `defineMethodScopeMembers` (`internal/semantic/analyze_classes_decl.go`) and
+`bindClassPropertyExprScope` (`internal/semantic/analyze_properties.go`) inject a class's own
+fields into the scope as ordinary symbols so a method body or a property accessor can name them
+without `Self.`. A bare identifier therefore resolves against the symbol table and never reaches
+the `a.currentClass.GetField(...)` fallbacks in `analyze_expr_operators.go` /
+`analyze_statements.go` — the only places that called `recordClassFieldUsage` for implicit-`Self`
+access. Qualified `obj.Field` and property read/write *specifiers* were marked correctly, which
+is why `FailureScripts/class_unused_privates` kept passing and hid the gap.
+
+**Fix.** The binding itself now carries the attribution rather than a side table:
+`SymbolTable.DefineClassField` sets `Symbol.ClassFieldOwner` to the declaring class, and the two
+symbol-resolution sites call `recordResolvedSymbolFieldUsage(sym)`, which forwards to the
+existing `recordClassFieldUsage`. Putting it on the symbol rather than in a name-keyed map is
+what makes shadowing correct for free: a local declared as `FValue` inside the method replaces
+the binding with an ordinary symbol whose `ClassFieldOwner` is nil, so it does not mark the
+field used. Inherited fields need nothing — `addParentFieldsToScope` deliberately omits private
+parent fields, and only private fields are ever hinted.
+
+**Tests.** `internal/semantic/unused_private_field_test.go` is new; the message previously had
+*zero* Go test coverage, only fixtures. Ten table-driven cases cover qualified read, bare read
+inline and out-of-line, bare and compound assignment, expression-form read and write accessors,
+identifier specifiers, a genuinely unused field that must still be hinted, and the shadowing
+case; plus sibling fields tracked independently and the hint staying pedantic-only.
+
+**Validation:** `go test ./internal/... ./pkg/...` green. The full-tree sweep for
+`Private field` hints not present in the expected output went from **six**
+(`Algorithms/bottles_of_beer`, `GenericsPass/tlist1`, `InnerClassesPass/inner_implem`,
+`SetOfPass/enum_property`, `SimpleScripts/free_destroy`, `SimpleScripts/partial_class3`) to
+**zero**. `just fixture-report` **888 → 892 / 2,042** (measured on `894e387c`, with the change
+stashed and unstashed): GenericsPass 14 → 15, InnerClassesPass 0 → 1, SetOfPass 20 → 21,
+SimpleScripts 334 → 335, no category down. The two that did not
+convert are unrelated: `Algorithms` runs at `normal` hints in the harness, and
+`SimpleScripts/partial_class3` still differs on partial-class redeclaration handling.
+`baselines.json` and `TEST_STATUS.md` ratcheted with `just fixture-update`.
+
+## 2026-09-09 — Helper property expression accessors and metaclass resolution (L-S2b)
+
+`PLAN.md` §3.2.2 L-S2b. `PropertyExpressionsPass/helpers_property_expressions` failed with
+`Runtime Error: property 'MultBy2' has no read access`. Minimising it split the ticket's single
+line into two independent gaps, and chasing the fixture to green surfaced three more.
+
+**1. No expression case in the helper accessors.** `executeHelperPropertyRead` /
+`executeHelperPropertyWrite` (`internal/interp/evaluator/helper_methods.go`) switched on
+`ReadKind`/`WriteKind` and handled `PropAccessField`, `PropAccessMethod`, `PropAccessBuiltin` and
+`PropAccessNone` — but not `types.PropAccessExpression`, so every expression-form helper accessor
+fell into `default:`. The metadata was already there: the helper property converter in
+`visitor_declarations.go` sets `ReadKind`, `ReadExpr`, `WriteExpr` and `IsClassProperty`. This was
+never class-property-specific — a plain `property M : Integer read (2*Field)` on an instance
+helper failed identically.
+
+The new cases delegate to the accessor scope the receiver deserves rather than defining a
+helper-only one: a `class property` resolves the extended type's class metadata
+(`helperReceiverClassInfo`) and reuses `evalClassPropertyExpressionRead` / `…Write`, a record
+receiver gets fields plus class state the way a record method body does, and everything else
+takes the existing object-shaped `executeExpressionBackedPropertyRead` / `…Write`.
+
+**2. Helper properties invisible through a metaclass.** `resolveClassMetaMember`
+(`visitor_expressions_members.go`) consulted helper *methods* but never helper *properties*, so
+`TBase.HelperClassProp` reported `member 'MultBy2' not found in class 'TBase'`;
+`member_assignment.go` had the same hole on the write side. Both now look up
+`FindHelperProperty` before erroring, and both restrict it to `IsClassProperty` — an instance
+property declared in a helper still needs an instance receiver.
+
+**3. Helper class properties through a type cast.** `TBase(FSub).MultBy2` must bind the *cast's*
+static class, exactly like the field and class-property lookups beside it. Both the read path and
+`member_assignment` now resolve the static metaclass (`staticClassMetaOf`) and look the helper
+property up against it, falling back to the wrapped receiver for instance properties.
+
+**4. Lvalue write specifiers.** `write (FBase.MultBy2)` — no `:=` — is shorthand for
+`write (FBase.MultBy2 := Value)`. The parser collapses `write (Field)` to a plain identifier, so
+only the non-identifier form reached the converters, where both the class and the helper path
+silently set `PropAccessNone` and dropped the setter. `writeSpecAssignment` now synthesizes the
+assignment, storing it in the same expression form an explicit write statement uses.
+
+**5. Record class vars written through an instance.** `FBase.Field := v`, where `Field` is a
+record `class var`, fell through to the instance field setter, which created a field of that name
+and shadowed the shared slot — the write was silently lost. The record branch of member
+assignment now writes the `RecordTypeValue`'s class-var storage first, mirroring the rule the
+object branch already had for classes. The helper-property lookup is likewise placed before the
+field setter on both branches, for the same reason.
+
+**Semantic alignment.** `analyzeHelperProperty` (`internal/semantic/analyze_helpers.go`) stored
+only `{Name, Type}`, leaving every helper property at `ReadKind == PropAccessNone` and disagreeing
+with the evaluator about the same AST. It now records the same read/write kinds, specs,
+`IsIndexed`, `IsDefault` and `IsClassProperty`. The accessor expression itself is deliberately
+*not* analyzed here — that can surface new diagnostics across unrelated fixtures and belongs with
+the §3.1 property work.
+
+**Validation:** `go test ./internal/... ./pkg/...` green;
+`internal/interp/helper_property_expressions_test.go` is new (10 subtests over instance/class
+helpers, record helpers, instance/class-name/cast receivers, the lvalue shorthand, and the record
+class-var rule). `just fixture-report` **892 → 895 / 2,042**, the whole delta in
+PropertyExpressionsPass 15 → 18 — `helpers_property_expressions`,
+`class_helpers_property_write_expressions` and `record_helpers_property_write_expressions` — with
+no category down. `golangci-lint run --new-from-rev`: 0 issues. Baselines ratcheted.
+
+**Left open, recorded in `PLAN.md`.** `read_write_other_property` (a property whose specifier
+names another property) is a different gap, and record-type metaclass access (`TRec.ClassProp`
+through the type name rather than an instance) remains unsupported; no fixture demands it.
+
+## 2026-09-09 — Indexed properties with class-method accessors (L-S2c)
+
+`PLAN.md` §3.2.2 L-S2c, closing the section. `SimpleScripts/enum_to_integer` failed with
+`Runtime Error: member 'Prop' not found in class 'TConvert'` on `TConvert.Prop[eGamma]`, where
+`Prop` is an ordinary indexed property whose getter happens to be a `class function`. Minimising
+it showed the ticket's framing was half the story: **the same read through an instance failed
+too**, with `indexed property 'Prop' getter method 'Get' not found`.
+
+**Root causes.** `executeIndexedPropertyGetterMethod`
+(`internal/interp/evaluator/property_read.go`) resolved the accessor with
+`objVal.GetMethodDecl`, which walks only the instance method table —
+`ObjectInstance.GetClassMethodDecl` already existed for precisely this case (DWScript permits
+calling a class method through an instance) and was simply not consulted. Separately,
+`VisitIndexExpression` (`visitor_expressions_indexing.go`) matched three receiver shapes for
+`obj.Prop[i]` — interface instance, object, record — and had **no metaclass branch**, so
+`TConvert.Prop[…]` fell through to plain member access and died in `resolveClassMetaMember`.
+Neither `evalClassPropertyRead` nor `ReadClassProperty` could have helped: the first rejects
+indexed properties outright, the second rejects anything with `!IsClassProperty`, and `Prop` is
+an instance property.
+
+**Fix.** The accessor lookup now falls back to the class method table and, when it lands there,
+invokes the accessor with the metaclass as receiver (`classSelfForInstance` for an instance
+receiver) so `Self` and `ClassName` resolve to the class. `evalClassMetaIndexedProperty` adds the
+missing receiver branch: it resolves the property from the class info, evaluates and arity-checks
+the indices against `PropertyInfo.IndexParamTypes` — the authoritative arity, available for
+expression accessors too — and dispatches to the class method or, for `PropAccessExpression`, to
+the existing `executeIndexedPropertyExpressionRead`. It reports *unhandled* rather than erroring
+when the class declares no such indexed property, so ordinary member access still produces its
+usual not-found diagnostic.
+
+**The write side mirrors it**, though no fixture demands it: `index_assignment.go` gained the same
+`GetMethodDecl` → `GetClassMethodDecl` fallback on both the named and default-property setter
+paths, plus `evalClassMetaIndexedPropertyWrite`. Leaving it out would have made
+`TC.Prop[i]` readable but not writable.
+
+**Semantic tightened to match.** `analyzeIndexedPropertyAccess`
+(`internal/semantic/analyze_arrays.go`) unwrapped `*types.ClassOfType` and returned the property
+type for *any* indexed property, bypassing the metaclass restriction the plain member-access path
+enforces — semantic and runtime disagreed about which side supported this.
+`checkIndexedPropertyMetaclassAccess` now applies the same rule with the same messages
+(`Read access of property should be a static method` + `Class method or constructor expected` for
+an instance-method accessor, `Object reference needed` for field/expression accessors). The write
+counterpart, `checkIndexedPropertyWriteTarget`, also unblocks the legal case: the assignment path
+used to call `analyzeExpression(target.Left)` on the bare `TC.Prop`, which is not a readable
+expression, and rejected the whole statement. That standalone analysis is now skipped for an
+indexed-property base, and the write check returns early when it diagnoses so the read-side check
+does not report the same problem twice.
+
+**Validation:** `go test ./internal/... ./pkg/...` green;
+`internal/interp/indexed_property_class_accessor_test.go` is new — five execution subtests
+(read/write through the class name and through an instance, in both combinations, plus an
+expression accessor through the class name) and two diagnostic subtests pinning the rejected
+instance-method getter and setter. `just fixture-report` **895 → 896 / 2,042**,
+`SimpleScripts/enum_to_integer`, no category down. `golangci-lint run --new-from-rev`: 0 issues.
+Baselines ratcheted. §3.2.2 is now closed.
