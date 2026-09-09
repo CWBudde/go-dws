@@ -10,9 +10,9 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-09):** Go harness and freshly rebuilt CLI both
-**910 / 1,928 scored = 47%**, with no category regressions after §3.2.4 and §3.2.5.
+**920 / 1,928 scored = 48%**, with no category regressions after §3.2.4, §3.2.5 and §3.2.6.
 Both use the shared compile pipeline and scoring rules.
-`*Fail` error-detection suites **111 / 647 = 17%**.
+`*Fail` error-detection suites **115 / 647 = 18%**.
 
 Where the truth lives:
 
@@ -32,7 +32,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (1,022 total): FailureScripts 421, SimpleScripts 97,
+- Where the remaining failures are (1,008 total): FailureScripts 421, SimpleScripts 95,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -263,14 +263,18 @@ the tree — that is §4 / F7, not this section.
 
 #### 3.2.6 Sets
 
-- **L-S6a** `[ ]` S — Complete array ↔ set conversions, including empty inputs and element
-  compatibility → SetOfPass `array_to_set`, `init_from_array`, `init_from_empty_array`.
-  Add a focused reverse-conversion test if the corpus does not exercise that direction.
-- **L-S6b** `[ ]` S — Resolve `set of` record fields consistently through analysis and runtime
-  metadata → `set_in_record`. Coordinate with §3.1 record changes.
-- **L-S6c** `[ ]` S — Finish set range validation and out-of-range diagnostics → relevant
-  SetOfFail cases, with `in_set_out_of_range` protecting membership behavior. Coordinate
-  evaluator enum-range checks with §3.4; do not add unrequested subrange-type support.
+Closed 2026-09-09 (L-S6a–L-S6c); `SetOfPass` 21 → 25 of 25 (100%), `SetOfFail` 1 → 5,
+`SimpleScripts` 338 → 340. A bracket literal now converts on its expected type rather than on
+its element shape, set literals fold as compile-time constants, partial record constants are
+accepted with defaulted fields, `set of (a, b)` parses in a variable's type, and Float → enum
+casts compile. New diagnostics: `Element is out of set bounds`, `Set expected`,
+`Enumeration expected`, `Set has too many elements for cast to integer`. See
+[`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
+
+✋ The other nine `SetOfFail` fixtures (`bracket_left_missing`, `bracket_right_missing`,
+`for_in_set_missing_do`, `include`, `invalid_method`, `invalid_operand`, `of_missing`,
+`test_non_variable`, `type_missing`) are parser-recovery and message-parity work, not set
+semantics — they belong to §4 / F7.
 
 #### 3.2.7 Conditional compilation (lexer/semantic coordination)
 
@@ -338,7 +342,7 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 111/647 (FailureScripts 107/528, JSONConnectorFail 2, SetOfFail 1,
+Harness and CLI: 115/647 (FailureScripts 107/528, SetOfFail 5, JSONConnectorFail 2,
 AssociativeFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
@@ -362,9 +366,11 @@ Work families (from the 2026-03 FailureScripts analysis, now archived at
 - **F6** `[ ]` S Runtime-mismatch residue (13): `div_by_zero_float`/`_int`, `dyn_array_setlength3`,
   `for_in_subclass`, `missing_param1`, ….
 - **F7** `[ ]` M Per-suite sweeps, all currently 0 and not formatting-only (verified by substring
-  check): InterfacesFail 19, HelpersFail 18, OverloadsFail 14, SetOfFail 13,
-  PropertyExpressionsFail 10, GenericsFail 8, JSONConnectorFail 7, LambdaFail 6,
+  check): InterfacesFail 19, HelpersFail 18, OverloadsFail 14,
+  PropertyExpressionsFail 10, SetOfFail 9, GenericsFail 8, JSONConnectorFail 7, LambdaFail 6,
   OperatorOverloadFail 6, AssociativeFail 3, AttributesFail 2, InnerClassesFail 1.
+  (SetOfFail is no longer at 0: §3.2.6 closed four of its fourteen; the rest is parser
+  recovery and message parity.)
 - **F8** `[ ]` S Convert the remaining raw `addError(...)` sites to structured diagnostics
   (`analyze_function_calls.go` 54, `analyze_statements.go` 49, `analyze_method_calls.go` 17,
   `analyze_classes.go` 10) so message text and ordering are centrally controlled

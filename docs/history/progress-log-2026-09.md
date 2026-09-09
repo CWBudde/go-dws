@@ -1208,3 +1208,127 @@ so the §3.4 item stays open and untouched.
 
 **Validation:** `go test ./...` green; `golangci-lint run` shows no new issues in the twelve
 touched files. Baselines ratcheted (`OverloadsPass` 33 → 37) and `TEST_STATUS.md` regenerated.
+
+## 2026-09-09 — Sets, PLAN.md §3.2.6 emptied (L-S6a–L-S6c)
+
+Stacked on §3.2.5. `SetOfPass` 21 → 25 of 25 (84% → **100%**), `SetOfFail` 1 → 5 of 14
+(7% → 36%), `SimpleScripts` 338 → 340; corpus 910 → 920 of 1,928 (47% → 48%). Harness and CLI
+agree. No category regressed.
+
+Measurement first, and it moved the work considerably:
+
+- `init_from_array`, named in the PLAN item, **already passed**. It needed a regression guard,
+  not a fix.
+- The runtime half of L-S6b already worked: `var r : record F : TMySet end = (F: [enumTwo]);`
+  followed by `r.F := [enumOne]` printed `ok1` / `ok2` before any change here.
+- The whole of `in_set_out_of_range.pas` already produced its expected output once
+  `TBigEnum(IntPower(10, i))` was rewritten as `TBigEnum(Round(…))`. The single blocker was a
+  compile-time rejection of the Float → enum cast.
+- All four failing `SetOfPass` fixtures failed at *compile* time. None reached the evaluator.
+
+### L-S6a — bracket literals convert on the expected type, not on their shape
+
+DWScript writes array and set constructors with the same `[]` syntax. The parser guesses which
+one it has from the element node kinds (`shouldParseAsSetLiteral`, `internal/parser/arrays.go`),
+and semantic analysis then re-classifies against the expected type. That re-classification was
+itself gated by a whitelist of element node kinds in `analyze_expressions.go`, so a typecast
+element (`[TMyEnum(3)]`) fell through both filters and stayed an array literal. `s + [TMyEnum(3)]`
+therefore reported `set operator + requires set operands, got set of TMyEnum and
+array[0..0] of TMyEnum`.
+
+The whitelist is gone. When the expected type is a `*types.SetType` the literal is a set
+constructor, whatever its elements look like, and `analyzeSetLiteralWithContext` — which already
+owns the per-element ordinal and element-type diagnostics — reports anything wrong with them.
+
+`evaluateConstant` (`internal/semantic/analyze_types.go`) had cases for record and array literals
+but none for `*ast.SetLiteral`, so `const v : TMy = [A, C];` was rejected as "not a compile-time
+constant" and `v` was never defined. New `evaluateConstantSetElements` folds the elements,
+keeping a range as its two constant bounds rather than expanding it. The folded value is only a
+constancy proof: `VisitConstDecl` re-evaluates the initializer at run time.
+
+Closes `array_to_set`.
+
+### L-S6b — partial record constants, and `set of` in a variable's type
+
+`set_in_record` needed two unrelated things.
+
+*Partial record literals.* `const rA : TRecord = (A: [enumOne]);` was rejected by
+`missing required field 'b' in record literal` — an invented message no fixture expects, which
+DWScript does not have. It is gone; omitted fields keep their default. That required
+`getZeroValueForType` (`internal/interp/evaluator/index_ops.go`) to learn `"SET"`, or `rA.B`
+would have been `NilValue` and `enumOne in rA.B` a runtime type error rather than `False`.
+`GetDefaultValue` gained the same case (plus `"ASSOCIATIVE_ARRAY"`), so a set-typed function
+`Result` now starts as the empty set instead of nil. `SimpleScripts/const_record` newly passes
+as a side effect; `internal/semantic/record_test.go` was updated to assert the new behavior.
+
+*Inline anonymous enums in a type position.* `var elemsInline : set of (et3) = [];` did not
+parse: the desugaring into an implicit `EnumDecl` existed only in `parseSetDeclaration`
+(the named `type TMy = set of (A, B)` form), while `parseSetType` handed the element type to
+`parseTypeExpression`, which cannot start at `(`.
+
+`parseSetType` now desugars too, via new `parseInlineSetEnum`. A variable's set type has no name
+to derive the implicit enum's name from, so it is minted from the `set` token's position
+(`$InlineEnum$<line>$<col>`). Routing the declaration out needed a small general facility: the
+parser keeps a `pendingTypeDecls` queue (saved and restored with the rest of the speculative
+parsing state), and `parseStatement` — now a thin wrapper around the renamed
+`parseStatementInner` — drains it into a `BlockStatement` ahead of the statement.
+
+That block must not open a scope, or the enum's members would be invisible to everything after
+it. `analyzeBlock`'s existing transparency test infers "declaration section" from the block's
+contents, and a block mixing an `EnumDecl` with a `VarDeclStatement` matches neither predicate.
+Rather than widen the inference, `ast.BlockStatement` gained an explicit
+`SharesEnclosingScope` flag that the parser sets on exactly these hoist blocks. The evaluator's
+`VisitBlockStatement` was already scope-transparent and needed no change.
+
+Finally, the var-declaration path in `visitor_statements.go` rejected a bracket literal against a
+`set of` declaration with `expected array type, got set of TElements` — only `[]` reaches it as
+an `ArrayLiteralExpression`, since a non-empty `[a, b]` is already a `SetLiteral`. It now routes
+a set-typed declaration through new `evalBracketLiteralAsSet`, which annotates the synthetic node
+the way the assignment path already did.
+
+Closes `set_in_record` and `init_from_empty_array`.
+
+### L-S6c — range validation and out-of-range diagnostics
+
+*Float → enum casts.* `isValidCast` accepted only Integer as an enum cast's source, so
+`TBigEnum(IntPower(10, i))` failed with `Cannot cast this type to "Integer"`. Float is now
+accepted and truncated to its ordinal in `castToEnum`. Deliberately **not** bounds-checked:
+`in_set_out_of_range` depends on `TEnum(-1)` / `TEnum(3)` producing an out-of-range enum whose
+membership test simply answers `False`, and the lenient `SetValue.HasElement` behavior behind
+that is unchanged. Closes `in_set_out_of_range`.
+
+*`Element is out of set bounds`.* New `checkSetElementBounds` folds each set-literal element to a
+compile-time ordinal (`evaluateConstantInt`, recursing into a range's two bounds) and compares it
+against `types.OrdinalBounds` of the set's element type. Non-constant elements are left to run
+time. The check is value-based, not "is a cast": `cons_autocast_bounds` expects errors for
+`TMyEnum(3)` and `TMyEnum(-1)` but none for `TMyEnum(0)`. It only fires because L-S6a made those
+elements set elements in the first place. Closes `cons_autocast_bounds`.
+
+*`Set expected`.* `analyzeIncludeExclude`'s first-argument diagnostic used go-dws wording at the
+call's position; it now uses DWScript's wording anchored on the argument. Closes `invalid_base`.
+
+*`Enumeration expected`.* `type TMySet = set of procedure;` produced
+`expected type identifier after 'of' in set declaration` at the wrong column plus a stray
+`";" expected`. `parseSetDeclaration` now emits DWScript's single message at the `of` token and
+recovers to the declaration's semicolon (`skipToSetDeclarationEnd`). Closes `invalid_type`.
+
+*`Set has too many elements for cast to integer`.* Nothing checked this at all. A set's integer
+form is its ordinal bitmask, so the base type has to fit one; `checkSetIntegerCastWidth` rejects
+a base type spanning more than 32 ordinals. `TSet(i)` reaches it through `isValidCast`, but
+`Integer(s)` does not — `Integer` is a registered conversion builtin, not a type cast — so
+`analyzeBuiltinFunction` gained an `"integer"` case that applies the same rule to the resolved
+argument type after the ordinary builtin analysis has run. Closes `integer_vs_set`.
+
+### Scope
+
+The other nine `SetOfFail` fixtures (`bracket_left_missing`, `bracket_right_missing`,
+`for_in_set_missing_do`, `include`, `invalid_method`, `invalid_operand`, `of_missing`,
+`test_non_variable`, `type_missing`) are parser-recovery and message-parity work, not set
+semantics. They stay with §4 / F7.
+
+**Validation:** `go test ./...` green; `golangci-lint run --new-from-rev=HEAD` reports 0 issues.
+New tests in `internal/semantic/set_test.go` (`TestBracketLiteralConversions`,
+`TestSetElementBounds`, `TestSetIntegerCastWidth`) cover both conversion directions, the bounds
+check's positive and negative cases, and the cast-width rule. Baselines ratcheted
+(`SetOfPass` 21 → 25, `SetOfFail` 1 → 5, `SimpleScripts` 338 → 340) and `TEST_STATUS.md`
+regenerated.

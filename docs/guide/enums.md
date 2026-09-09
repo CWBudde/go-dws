@@ -147,13 +147,24 @@ end;
 - `.QualifiedName` property (returns TypeName.ValueName)
 - `High()` and `Low()` functions for enums
 - For-in loops with enums
+- Enum-based sets (`set of TColor`), including inline anonymous bases
+  (`type TMy = set of (A, B)` and `var s : set of (A, B)`)
+- Enum type casting from Integer and Float (`TEnum(ordinal)`), which may produce an
+  out-of-range value; such a value is never a member of a set
+- Scoped enum member access through the type (`TEnum.Value`)
+
+### Set diagnostics
+
+- `Element is out of set bounds` — a set literal element whose ordinal is known at compile
+  time and falls outside the set's base type, e.g. `[TColor(7)]` for `set of (Red, Green, Blue)`.
+- `Enumeration expected` — a `set of` whose base type is not an enumeration.
+- `Set expected` — the first argument of `Include`/`Exclude` is not a set.
+- `Set has too many elements for cast to integer` — a set's integer form is its ordinal
+  bitmask, so `Integer(s)` and `TSet(i)` require a base type spanning at most 32 ordinals.
 
 ### ⏳ Planned Features
 
 - Enum comparison operators
-- Enum-based sets (set of TColor)
-- Enum type casting (TEnum(ordinal))
-- Scoped enum member access through type (TEnum.Value)
 
 ## Examples
 
