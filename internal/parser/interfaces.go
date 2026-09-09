@@ -222,7 +222,8 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 }
 
 // attachTypeParams records generic type-parameter names on a parsed type
-// declaration. Only class, record, and alias/array declarations can be generic.
+// declaration. Class, record, interface, alias and array declarations can all
+// be generic; every other kind silently keeps no type parameters.
 func attachTypeParams(stmt ast.Statement, params []string) {
 	if len(params) == 0 {
 		return
@@ -231,6 +232,10 @@ func attachTypeParams(stmt ast.Statement, params []string) {
 	case *ast.ClassDecl:
 		d.TypeParams = params
 	case *ast.RecordDecl:
+		d.TypeParams = params
+	case *ast.InterfaceDecl:
+		d.TypeParams = params
+	case *ast.ArrayDecl:
 		d.TypeParams = params
 	case *ast.TypeDeclaration:
 		d.TypeParams = params

@@ -664,7 +664,11 @@ func walkHelperDecl(n *HelperDecl, v Visitor) {
 
 // walkIdentifier walks an Identifier node
 func walkIdentifier(n *Identifier, v Visitor) {
-	// No children to walk
+	for _, item := range n.TypeArgs {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkIfExpression walks an IfExpression node

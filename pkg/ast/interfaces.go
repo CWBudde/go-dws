@@ -91,6 +91,10 @@ type InterfaceDecl struct {
 	ExternalName string
 	Methods      []*InterfaceMethodDecl
 	Properties   []*PropertyDecl
+	// TypeParams holds the generic type-parameter names for a generic
+	// interface (e.g. ["T"] for `type ITest<T> = interface ... end;`).
+	// Empty otherwise.
+	TypeParams []string
 	BaseNode
 	IsExternal bool
 }

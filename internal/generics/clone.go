@@ -16,6 +16,10 @@ func typeParamsOf(stmt ast.Statement) []string {
 		return d.TypeParams
 	case *ast.RecordDecl:
 		return d.TypeParams
+	case *ast.InterfaceDecl:
+		return d.TypeParams
+	case *ast.ArrayDecl:
+		return d.TypeParams
 	case *ast.TypeDeclaration:
 		return d.TypeParams
 	default:
@@ -28,6 +32,17 @@ func isTemplateDecl(stmt ast.Statement) bool {
 	return len(typeParamsOf(stmt)) > 0
 }
 
+// genericMethodImpl reports whether stmt is an out-of-line implementation of a
+// generic type's method, such as `function TTest<T>.Test(v : T) : T; begin ... end;`,
+// and returns the declaration together with the base type name it implements.
+func genericMethodImpl(stmt ast.Statement) (fn *ast.FunctionDecl, base string, ok bool) {
+	fn, isFunc := stmt.(*ast.FunctionDecl)
+	if !isFunc || fn.ClassName == nil || len(fn.ClassTypeParams) == 0 {
+		return nil, "", false
+	}
+	return fn, fn.ClassName.Value, true
+}
+
 // declName returns the declared type name for a type declaration statement.
 func declName(stmt ast.Statement) string {
 	switch d := stmt.(type) {
@@ -36,6 +51,14 @@ func declName(stmt ast.Statement) string {
 			return d.Name.Value
 		}
 	case *ast.RecordDecl:
+		if d.Name != nil {
+			return d.Name.Value
+		}
+	case *ast.InterfaceDecl:
+		if d.Name != nil {
+			return d.Name.Value
+		}
+	case *ast.ArrayDecl:
 		if d.Name != nil {
 			return d.Name.Value
 		}
@@ -56,6 +79,12 @@ func specializeDecl(stmt ast.Statement, mangled string) {
 		setIdentValue(d.Name, mangled)
 		d.TypeParams = nil
 	case *ast.RecordDecl:
+		setIdentValue(d.Name, mangled)
+		d.TypeParams = nil
+	case *ast.InterfaceDecl:
+		setIdentValue(d.Name, mangled)
+		d.TypeParams = nil
+	case *ast.ArrayDecl:
 		setIdentValue(d.Name, mangled)
 		d.TypeParams = nil
 	case *ast.TypeDeclaration:

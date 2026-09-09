@@ -120,7 +120,13 @@ type FunctionDecl struct {
 	ExternalName      string
 	CallingConvention string
 	DeprecatedMessage string
-	Parameters        []*Parameter
+	// ClassTypeParams holds the generic type-parameter names written on an
+	// out-of-line method header, e.g. `function TTest<T>.Test(...)`. It is
+	// non-empty only for a method implementation of a generic class template,
+	// and the monomorphizer clears it when the body is specialized. ClassName
+	// stays the base name (TTest) until then.
+	ClassTypeParams []string
+	Parameters      []*Parameter
 	BaseNode
 	CallingConventionPos token.Position
 	StaticPos            token.Position

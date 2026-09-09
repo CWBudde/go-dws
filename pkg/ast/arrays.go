@@ -20,6 +20,9 @@ import (
 type ArrayDecl struct {
 	Name      *Identifier
 	ArrayType *ArrayTypeAnnotation
+	// TypeParams holds the generic type-parameter names for a generic array
+	// type (e.g. ["T"] for `type TArr<T> = array of T;`). Empty otherwise.
+	TypeParams []string
 	BaseNode
 }
 

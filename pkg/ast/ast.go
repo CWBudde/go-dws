@@ -83,8 +83,15 @@ func (p *Program) End() token.Position {
 }
 
 // Identifier represents an identifier (variable name, function name, etc.)
+//
+// TypeArgs is set only where an identifier position may carry a generic
+// instantiation that has no TypeAnnotation to hold it — currently a class
+// declaration's parent/interface list, e.g. `class (ITest<Integer>)`. Value
+// stays the base name until the monomorphizer replaces it with the mangled
+// specialization name and clears TypeArgs.
 type Identifier struct {
-	Value string
+	Value    string
+	TypeArgs []TypeExpression
 	TypedExpressionBase
 }
 
