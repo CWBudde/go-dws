@@ -5,6 +5,8 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -106,49 +108,6 @@ func TestResolveTypeName_Primitives(t *testing.T) {
 			if result.TypeKind() != tt.expectedType.TypeKind() {
 				t.Errorf("TypeKind mismatch for '%s': expected '%s', got '%s'",
 					tt.typeName, tt.expectedType.TypeKind(), result.TypeKind())
-			}
-		})
-	}
-}
-
-// TestResolveTypeName_ParentQualification tests that parent qualification is stripped.
-func TestResolveTypeName_ParentQualification(t *testing.T) {
-	tests := []struct {
-		name        string
-		typeName    string
-		expectError bool
-	}{
-		// These should strip the (TParent) suffix and try to resolve the base name
-		// Since custom types aren't supported yet in 3.5.139a, they should error
-		{"Class with parent", "TSub(TBase)", true},
-		{"Class with parent and spaces", "TSub (TBase)", true},
-		{"Class with nested parent", "TSub(TBase(TRoot))", true},
-
-		// But if the base name is a primitive, it should work
-		// (This is unlikely in practice but tests the stripping logic)
-		{"Primitive with paren suffix", "Integer(Foo)", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			e := &Evaluator{}
-			ctx := &ExecutionContext{}
-
-			result, err := e.resolveTypeName(tt.typeName, ctx)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error for type '%s', but got none", tt.typeName)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Unexpected error for type '%s': %v", tt.typeName, err)
-					return
-				}
-				// For "Integer(Foo)", should resolve to INTEGER
-				if result != types.INTEGER {
-					t.Errorf("Expected INTEGER for '%s', got %v", tt.typeName, result)
-				}
 			}
 		})
 	}
@@ -284,8 +243,8 @@ func TestResolveTypeName_ArrayTypes(t *testing.T) {
 	// - Returns error if not found
 }
 
-// TestParseInlineArrayType tests parseInlineArrayType for inline array syntax.
-func TestParseInlineArrayType(t *testing.T) {
+// TestResolveParsedArrayType resolves structured parser output without type checking.
+func TestResolveParsedArrayType(t *testing.T) {
 	tests := []struct {
 		name         string
 		signature    string
@@ -325,10 +284,7 @@ func TestParseInlineArrayType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &Evaluator{}
-			ctx := &ExecutionContext{}
-
-			result := e.parseInlineArrayType(tt.signature, ctx)
+			result := resolveParsedArrayForTest(tt.signature)
 
 			if tt.expectNil {
 				if result != nil {
@@ -377,57 +333,46 @@ func TestParseInlineArrayType(t *testing.T) {
 	}
 }
 
-// TestResolveTypeName_InlineArrays tests resolveTypeName for inline array syntax.
-func TestResolveTypeName_InlineArrays(t *testing.T) {
-	tests := []struct {
-		name         string
-		typeName     string
-		expectedType string
-		expectError  bool
-	}{
-		// Dynamic arrays via resolveTypeName
-		{name: "Resolve dynamic array", typeName: "array of Integer", expectError: false, expectedType: "array of Integer"},
-		{name: "Resolve dynamic string array", typeName: "array of String", expectError: false, expectedType: "array of String"},
-
-		// Static arrays via resolveTypeName
-		{name: "Resolve static array", typeName: "array[0..9] of Integer", expectError: false, expectedType: "array[0..9] of Integer"},
-		{name: "Resolve static bounds array", typeName: "array[1..100] of String", expectError: false, expectedType: "array[1..100] of String"},
-
-		// Nested arrays
-		{name: "Resolve 2D array", typeName: "array of array of Integer", expectError: false, expectedType: "array of array of Integer"},
-
-		// Error cases
-		{name: "Invalid array syntax", typeName: "array Integer", expectError: true, expectedType: ""},
-		{name: "Unknown element type", typeName: "array of CustomType", expectError: true, expectedType: ""},
+// resolveParsedArrayForTest runs the standalone resolver on parsed array syntax.
+func resolveParsedArrayForTest(signature string) *types.ArrayType {
+	p := parser.New(lexer.New("var value: " + signature + ";"))
+	program := p.ParseProgram()
+	if len(p.Errors()) != 0 {
+		return nil
 	}
+	decl := program.Statements[0].(*ast.VarDeclStatement)
+	array, ok := decl.Type.(*ast.ArrayTypeNode)
+	if !ok {
+		return nil
+	}
+	// Unbound identifiers cannot be evaluated by a standalone resolver.
+	if _, lowIsName := array.LowBound.(*ast.Identifier); lowIsName {
+		return nil
+	}
+	e := &Evaluator{}
+	resolved, err := e.ResolveTypeFromAnnotation(array, &ExecutionContext{})
+	if err != nil {
+		return nil
+	}
+	result, ok := resolved.(*types.ArrayType)
+	if !ok {
+		return nil
+	}
+	return result
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+// Name lookup intentionally rejects display strings; compound syntax is resolved
+// structurally in TestResolveParsedArrayType and semantic_type_resolution_test.go.
+func TestResolveTypeName_RejectsDisplaySyntax(t *testing.T) {
+	for _, name := range []string{
+		"TSub(TBase)", "TSub (TBase)", "TSub(TBase(TRoot))", "Integer(Foo)",
+		"array of Integer", "array[0..9] of Integer", "array of array of String",
+		"set of Integer", "function(Integer): String", "class of TObject",
+	} {
+		t.Run(name, func(t *testing.T) {
 			e := &Evaluator{}
-			ctx := &ExecutionContext{}
-
-			result, err := e.resolveTypeName(tt.typeName, ctx)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error for type '%s', got nil", tt.typeName)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("Unexpected error for type '%s': %v", tt.typeName, err)
-				return
-			}
-
-			if result == nil {
-				t.Errorf("Expected non-nil type for '%s', got nil", tt.typeName)
-				return
-			}
-
-			if result.String() != tt.expectedType {
-				t.Errorf("Type string mismatch for '%s': expected '%s', got '%s'",
-					tt.typeName, tt.expectedType, result.String())
+			if _, err := e.resolveTypeName(name, nil); err == nil {
+				t.Fatalf("name lookup interpreted display syntax %q", name)
 			}
 		})
 	}

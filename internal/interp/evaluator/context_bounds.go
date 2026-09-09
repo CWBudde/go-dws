@@ -41,7 +41,7 @@ func (e *Evaluator) GetLowBound(value Value) (Value, error) {
 		case types.BOOLEAN:
 			return &runtime.BooleanValue{Value: false}, nil
 		}
-		if enumType, ok := typeMetaVal.TypeInfo.(*types.EnumType); ok {
+		if enumType, ok := types.GetUnderlyingType(typeMetaVal.TypeInfo).(*types.EnumType); ok {
 			if len(enumType.OrderedNames) == 0 {
 				return nil, fmt.Errorf("enum type '%s' has no values", typeMetaVal.TypeName)
 			}
@@ -64,11 +64,7 @@ func (e *Evaluator) GetLowBound(value Value) (Value, error) {
 		if enumMetadata == nil {
 			return nil, fmt.Errorf("enum type '%s' not found", enumVal.TypeName)
 		}
-		etv, ok := enumMetadata.(EnumTypeValueAccessor)
-		if !ok {
-			return nil, fmt.Errorf("invalid enum type metadata for '%s'", enumVal.TypeName)
-		}
-		enumType := etv.GetEnumType()
+		enumType := enumMetadata.GetEnumType()
 		if len(enumType.OrderedNames) == 0 {
 			return nil, fmt.Errorf("enum type '%s' has no values", enumVal.TypeName)
 		}
@@ -96,7 +92,7 @@ func (e *Evaluator) GetHighBound(value Value) (Value, error) {
 		case types.BOOLEAN:
 			return &runtime.BooleanValue{Value: true}, nil
 		}
-		if enumType, ok := typeMetaVal.TypeInfo.(*types.EnumType); ok {
+		if enumType, ok := types.GetUnderlyingType(typeMetaVal.TypeInfo).(*types.EnumType); ok {
 			if len(enumType.OrderedNames) == 0 {
 				return nil, fmt.Errorf("enum type '%s' has no values", typeMetaVal.TypeName)
 			}
@@ -119,11 +115,7 @@ func (e *Evaluator) GetHighBound(value Value) (Value, error) {
 		if enumMetadata == nil {
 			return nil, fmt.Errorf("enum type '%s' not found", enumVal.TypeName)
 		}
-		etv, ok := enumMetadata.(EnumTypeValueAccessor)
-		if !ok {
-			return nil, fmt.Errorf("invalid enum type metadata for '%s'", enumVal.TypeName)
-		}
-		enumType := etv.GetEnumType()
+		enumType := enumMetadata.GetEnumType()
 		if len(enumType.OrderedNames) == 0 {
 			return nil, fmt.Errorf("enum type '%s' has no values", enumVal.TypeName)
 		}

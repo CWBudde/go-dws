@@ -4,29 +4,16 @@ import (
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	coretypes "github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // Mock types for testing (these mirror the real types in interp package)
 type mockClassInfo = runtime.ClassInfo
 
-type mockRecordTypeValue struct {
-	Metadata *runtime.RecordMetadata
-	Name     string
-}
-
-// GetMetadata implements the interface expected by LookupRecordMetadata.
-func (m *mockRecordTypeValue) GetMetadata() *runtime.RecordMetadata {
-	return m.Metadata
-}
-
-type mockInterfaceInfo struct {
-	Name string
-}
-
-type mockHelperInfo struct {
-	Name string
-}
+type mockRecordTypeValue = runtime.RecordTypeValue
+type mockInterfaceInfo = runtime.MutableInterfaceInfo
+type mockHelperInfo = runtime.MutableHelperInfo
 
 // TestNewTypeSystem verifies that NewTypeSystem initializes all registries correctly.
 func TestNewTypeSystem(t *testing.T) {
@@ -185,7 +172,7 @@ func TestRecordRegistry(t *testing.T) {
 	ts := NewTypeSystem()
 
 	// Test RegisterRecord and LookupRecord
-	mockRecord := &mockRecordTypeValue{Name: "TestRecord"}
+	mockRecord := &mockRecordTypeValue{RecordType: &coretypes.RecordType{Name: "TestRecord"}}
 	ts.RegisterRecord("TestRecord", mockRecord)
 
 	result := ts.LookupRecord("TestRecord")
@@ -219,7 +206,6 @@ func TestRecordRegistry(t *testing.T) {
 	// Test LookupRecordMetadata
 	mockMetadata := runtime.NewRecordMetadata("RecordWithMetadata", nil)
 	recordWithMetadata := &mockRecordTypeValue{
-		Name:     "RecordWithMetadata",
 		Metadata: mockMetadata,
 	}
 	ts.RegisterRecord("RecordWithMetadata", recordWithMetadata)
@@ -245,7 +231,7 @@ func TestRecordRegistry(t *testing.T) {
 	}
 
 	// Test LookupRecordMetadata for record without GetMetadata method
-	recordWithoutMetadata := &mockRecordTypeValue{Name: "NoMetadata"}
+	recordWithoutMetadata := &mockRecordTypeValue{}
 	ts.RegisterRecord("RecordNoMeta", recordWithoutMetadata)
 	metadataResult := ts.LookupRecordMetadata("RecordNoMeta")
 	// Should return nil for record with nil metadata
@@ -489,7 +475,7 @@ func TestAllMethods(t *testing.T) {
 	// Register some test data
 	ts.RegisterClass("Class1", &mockClassInfo{Name: "Class1"})
 	ts.RegisterClass("Class2", &mockClassInfo{Name: "Class2"})
-	ts.RegisterRecord("Record1", &mockRecordTypeValue{Name: "Record1"})
+	ts.RegisterRecord("Record1", &mockRecordTypeValue{RecordType: &coretypes.RecordType{Name: "Record1"}})
 	ts.RegisterInterface("Interface1", &mockInterfaceInfo{Name: "Interface1"})
 	ts.RegisterHelper("String", &mockHelperInfo{Name: "Helper1"})
 
@@ -553,26 +539,12 @@ func TestDirectRegistryAccess(t *testing.T) {
 // ========== Enum Type Registry Tests ==========
 // Comprehensive tests for enum type registry
 
-// Mock types for enum testing
-type mockEnumTypeValue struct {
-	enumType any
-	name     string
-}
-
-func (m *mockEnumTypeValue) Type() string     { return "ENUM_TYPE" }
-func (m *mockEnumTypeValue) String() string   { return m.name }
-func (m *mockEnumTypeValue) GetEnumType() any { return m.enumType }
-
-type mockCoreEnumType struct {
-	name string
-}
-
 // TestEnumTypeRegistry_RegisterAndLookup verifies basic registration and lookup.
 func TestEnumTypeRegistry_RegisterAndLookup(t *testing.T) {
 	ts := NewTypeSystem()
 
 	// Create a mock EnumTypeValue (in real code this would be *interp.EnumTypeValue)
-	mockEnum := &mockEnumTypeValue{name: "TColor"}
+	mockEnum := &runtime.EnumTypeValue{EnumType: &coretypes.EnumType{Name: "TColor"}}
 
 	ts.RegisterEnumType("TColor", mockEnum)
 
@@ -588,7 +560,7 @@ func TestEnumTypeRegistry_RegisterAndLookup(t *testing.T) {
 // TestEnumTypeRegistry_CaseInsensitive verifies case-insensitive lookup.
 func TestEnumTypeRegistry_CaseInsensitive(t *testing.T) {
 	ts := NewTypeSystem()
-	mockEnum := &mockEnumTypeValue{name: "TColor"}
+	mockEnum := &runtime.EnumTypeValue{EnumType: &coretypes.EnumType{Name: "TColor"}}
 
 	ts.RegisterEnumType("TColor", mockEnum)
 
@@ -605,7 +577,7 @@ func TestEnumTypeRegistry_CaseInsensitive(t *testing.T) {
 // TestEnumTypeRegistry_HasEnumType verifies existence checking.
 func TestEnumTypeRegistry_HasEnumType(t *testing.T) {
 	ts := NewTypeSystem()
-	mockEnum := &mockEnumTypeValue{name: "TColor"}
+	mockEnum := &runtime.EnumTypeValue{EnumType: &coretypes.EnumType{Name: "TColor"}}
 
 	if ts.HasEnumType("TColor") {
 		t.Error("Should not have enum type before registration")
@@ -625,8 +597,8 @@ func TestEnumTypeRegistry_HasEnumType(t *testing.T) {
 func TestEnumTypeRegistry_AllEnumTypes(t *testing.T) {
 	ts := NewTypeSystem()
 
-	enum1 := &mockEnumTypeValue{name: "TColor"}
-	enum2 := &mockEnumTypeValue{name: "TSize"}
+	enum1 := &runtime.EnumTypeValue{EnumType: &coretypes.EnumType{Name: "TColor"}}
+	enum2 := &runtime.EnumTypeValue{EnumType: &coretypes.EnumType{Name: "TSize"}}
 
 	ts.RegisterEnumType("TColor", enum1)
 	ts.RegisterEnumType("TSize", enum2)
@@ -663,11 +635,8 @@ func TestEnumTypeRegistry_LookupMissing(t *testing.T) {
 func TestEnumTypeRegistry_LookupMetadata(t *testing.T) {
 	ts := NewTypeSystem()
 
-	mockEnumType := &mockCoreEnumType{name: "TColor"}
-	mockEnum := &mockEnumTypeValue{
-		name:     "TColor",
-		enumType: mockEnumType,
-	}
+	mockEnumType := &coretypes.EnumType{Name: "TColor"}
+	mockEnum := &runtime.EnumTypeValue{EnumType: mockEnumType}
 
 	ts.RegisterEnumType("TColor", mockEnum)
 
@@ -680,14 +649,8 @@ func TestEnumTypeRegistry_LookupMetadata(t *testing.T) {
 		t.Errorf("Retrieved metadata doesn't match expected wrapper: got %T, want %T", metadata, mockEnum)
 	}
 
-	// Verify we can extract the enum type from the wrapper
-	if enumAccessor, ok := metadata.(interface{ GetEnumType() any }); ok {
-		extractedType := enumAccessor.GetEnumType()
-		if extractedType != mockEnumType {
-			t.Errorf("Extracted enum type doesn't match: got %T, want %T", extractedType, mockEnumType)
-		}
-	} else {
-		t.Error("Metadata doesn't implement GetEnumType() interface")
+	if metadata.GetEnumType() != mockEnumType {
+		t.Error("enum metadata did not preserve semantic type identity")
 	}
 
 	// Missing enum
@@ -713,7 +676,7 @@ func TestEnumTypeRegistry_RTTIIntegration(t *testing.T) {
 	ts := NewTypeSystem()
 
 	// Register enum type
-	mockEnum := &mockEnumTypeValue{name: "TColor"}
+	mockEnum := &runtime.EnumTypeValue{EnumType: &coretypes.EnumType{Name: "TColor"}}
 	ts.RegisterEnumType("TColor", mockEnum)
 
 	// RTTI IDs should still work independently

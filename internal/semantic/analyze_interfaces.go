@@ -14,6 +14,7 @@ import (
 // analyzeInterfaceDecl analyzes an interface declaration
 func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 	interfaceName := decl.Name.Value
+	defer a.recordDeclaredType(decl, interfaceName)
 
 	// Check if interface is already declared (use lowercase for case-insensitive duplicate check)
 	if a.hasType(interfaceName) {

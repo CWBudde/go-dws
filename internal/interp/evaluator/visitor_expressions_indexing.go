@@ -52,7 +52,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 					}
 
 					// Call indexed property getter on underlying object
-					if underlying.Type() == "OBJECT" {
+					if runtime.KindOf(underlying) == runtime.KindObject {
 						if objVal, ok := underlying.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
 								return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
@@ -68,7 +68,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		}
 
 		// Handle object indexed property access
-		if objVal.Type() == "OBJECT" {
+		if runtime.KindOf(objVal) == runtime.KindObject {
 			if accessor, ok := objVal.(PropertyAccessor); ok {
 				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
 					// Evaluate all indices
@@ -136,12 +136,12 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	leftVal = unwrapVariant(leftVal)
 
 	// Handle JSON indexing
-	if leftVal.Type() == "JSON" {
+	if runtime.KindOf(leftVal) == runtime.KindJSON {
 		return e.indexJSON(leftVal, indexVal, node)
 	}
 
 	// Handle object default property access
-	if leftVal.Type() == "OBJECT" {
+	if runtime.KindOf(leftVal) == runtime.KindObject {
 		if accessor, ok := leftVal.(PropertyAccessor); ok {
 			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
 				if objVal, ok := leftVal.(ObjectValue); ok {
@@ -154,7 +154,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	}
 
 	// Handle interface default property access
-	if leftVal.Type() == "INTERFACE" {
+	if runtime.KindOf(leftVal) == runtime.KindInterface {
 		// Unwrap interface to get underlying object
 		if ifaceVal, ok := leftVal.(InterfaceInstanceValue); ok {
 			underlying := ifaceVal.GetUnderlyingObjectValue()
@@ -166,7 +166,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			if accessor, ok := leftVal.(PropertyAccessor); ok {
 				if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil && defaultProp.IsIndexed {
 					// The property is defined on the interface, but we need the underlying object for execution
-					if underlying.Type() == "OBJECT" {
+					if runtime.KindOf(underlying) == runtime.KindObject {
 						if objVal, ok := underlying.(ObjectValue); ok {
 							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
 								return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
@@ -180,7 +180,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			// No default property on interface, continue with unwrapped object
 			// Check if the underlying object has a default property
 			leftVal = underlying
-			if leftVal.Type() == "OBJECT" {
+			if runtime.KindOf(leftVal) == runtime.KindObject {
 				if accessor, ok := leftVal.(PropertyAccessor); ok {
 					if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
 						if objVal, ok := leftVal.(ObjectValue); ok {
@@ -259,11 +259,14 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 	switch {
 	case node.TypeName != nil:
 		recordTypeName = node.TypeName.Value
-	case ctx.RecordTypeContext() != "":
-		// Anonymous literal with type context from caller (e.g., var/const declaration)
-		recordTypeName = ctx.RecordTypeContext()
-	case ctx.RecordTypeContextType() != nil:
-		recordType = ctx.RecordTypeContextType()
+		if resolved, err := e.resolveTypeReference(node, recordTypeName, ctx); err == nil {
+			if resolvedRecord, ok := types.GetUnderlyingType(resolved).(*types.RecordType); ok {
+				recordType = resolvedRecord
+			}
+		}
+	case ctx.RecordTypeContext() != nil:
+		recordType = ctx.RecordTypeContext()
+		recordTypeName = recordType.Name
 	default:
 		// Anonymous literal requires type context (should have been set by caller)
 		return e.newError(node, "record literal requires explicit type name or type context")
@@ -276,17 +279,7 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 			return e.newError(node, "unknown record type '%s'", recordTypeName)
 		}
 
-		// Type-assert to access RecordType, Metadata, and FieldDecls
-		// This is safe because TypeSystem stores *RecordTypeValue
-		type recordTypeAccess interface {
-			GetRecordType() *types.RecordType
-			GetMetadata() *runtime.RecordMetadata
-		}
-
-		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
-		if !ok {
-			return e.newError(node, "failed to access record type '%s'", recordTypeName)
-		}
+		recordTypeAccessor := recordTypeAny
 
 		recordType = recordTypeAccessor.GetRecordType()
 		if recordType == nil {
@@ -295,14 +288,12 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 
 		metadata = recordTypeAccessor.GetMetadata()
 
-		// Extract FieldDecls using struct field access
-		// Since we know the concrete type is *RecordTypeValue from interp package
-		type hasFieldDecls interface {
-			GetFieldDecls() map[string]*ast.FieldDecl
-		}
-		if rtVal, ok := recordTypeAny.(hasFieldDecls); ok {
-			fieldDecls = rtVal.GetFieldDecls()
-		}
+		fieldDecls = recordTypeAny.GetFieldDecls()
+	}
+
+	if registered := e.typeSystem.LookupRecord(recordType.Name); registered != nil {
+		metadata = registered.GetMetadata()
+		fieldDecls = registered.GetFieldDecls()
 	}
 
 	// Evaluate field values
@@ -322,23 +313,14 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 		}
 
 		expectedFieldType := recordType.Fields[fieldNameNorm]
-		prevRecordTypeName := ctx.RecordTypeContext()
-		prevRecordType := ctx.RecordTypeContextType()
+		prevRecordType := ctx.RecordTypeContext()
 		if nestedRecordType, ok := types.GetUnderlyingType(expectedFieldType).(*types.RecordType); ok {
-			if nestedRecordType.Name != "" {
-				ctx.SetRecordTypeContext(nestedRecordType.Name)
-			} else {
-				ctx.SetRecordTypeContextType(nestedRecordType)
-			}
+			ctx.SetRecordTypeContext(nestedRecordType)
 		}
 
 		// Evaluate the field value expression
 		fieldValue := e.Eval(field.Value, ctx)
-		if prevRecordType != nil {
-			ctx.SetRecordTypeContextType(prevRecordType)
-		} else {
-			ctx.SetRecordTypeContext(prevRecordTypeName)
-		}
+		ctx.SetRecordTypeContext(prevRecordType)
 		if isError(fieldValue) {
 			return fieldValue
 		}

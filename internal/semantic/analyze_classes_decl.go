@@ -363,6 +363,12 @@ func (a *Analyzer) collectNestedAliases(aliases map[string]string, stmt ast.Stat
 
 // analyzeClassDecl analyzes a class declaration.
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
+	defer func() {
+		if decl != nil && decl.Name != nil {
+			a.recordDeclaredType(decl, classFullName(decl))
+		}
+	}()
+
 	className := classFullName(decl)
 	isForwardDecl := a.isForwardDeclaration(decl)
 

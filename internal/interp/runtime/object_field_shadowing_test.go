@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // metaClassInfo is a metadata-backed IClassInfo for field-shadowing tests.
@@ -23,12 +25,10 @@ func newMetaClass(name string, parent *metaClassInfo, fieldNames ...string) *met
 	meta := NewClassMetadata(name)
 	if parent != nil {
 		meta.Parent = parent.meta
-		meta.ParentName = parent.meta.Name
 	}
 	for _, fieldName := range fieldNames {
 		AddFieldToClass(meta, &FieldMetadata{
 			Name:       fieldName,
-			TypeName:   "Integer",
 			Visibility: FieldVisibilityPublic,
 		})
 	}
@@ -155,3 +155,5 @@ func mapKeys(m map[string]Value) []string {
 	}
 	return keys
 }
+
+func (m *metaClassInfo) GetClassType() *types.ClassType { return types.NewClassType(m.GetName(), nil) }

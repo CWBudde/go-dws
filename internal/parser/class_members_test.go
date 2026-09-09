@@ -63,6 +63,9 @@ end;
 	if len(second.OperandTypes) != 1 || second.OperandTypes[0].String() != "array of Integer" {
 		t.Fatalf("second operator operand expected 'array of Integer'; got %v", second.OperandTypes)
 	}
+	if _, ok := second.OperandTypes[0].(*ast.ArrayTypeNode); !ok {
+		t.Fatalf("array operand structure discarded: %T", second.OperandTypes[0])
+	}
 	if second.Binding == nil || second.Binding.Value != "ContainsArray" {
 		t.Fatalf("second operator binding expected 'ContainsArray'; got %v", second.Binding)
 	}

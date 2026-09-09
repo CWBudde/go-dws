@@ -21,11 +21,12 @@ type ParameterMetadata struct {
 	// Name is the parameter name for binding arguments.
 	Name string
 
-	// TypeName is the string representation of the type (for display/debugging).
-	TypeName string
-
 	// ByRef indicates if this is a var parameter (pass-by-reference).
 	ByRef bool
+	// IsLazy delays evaluation until the parameter is accessed.
+	IsLazy bool
+	// IsConst marks a read-only parameter binding.
+	IsConst bool
 }
 
 // MethodVisibility represents method visibility levels in DWScript.
@@ -61,43 +62,47 @@ func (v MethodVisibility) String() string {
 	}
 }
 
-// MethodMetadata describes a callable method/function at runtime.
-// This replaces the need to store full *ast.FunctionDecl nodes in runtime types.
-//
-// Design rationale:
-//   - Stores only information needed at runtime (signature, flags, visibility)
-//   - Executable body can be AST, bytecode ID, or native function
-//   - Reduces memory overhead compared to full AST nodes
-//   - Enables serialization for bytecode cache
+// MethodMetadata is the canonical runtime identity and resolved signature of a
+// callable. It retains the executable AST payload and original declaration for
+// semantic bindings; implementation binding updates this identity in place.
 type MethodMetadata struct {
-	ReturnType     types.Type           // Resolved return type (nil for procedures)
-	Body           ast.Statement        // AST statement block to execute
-	PreConditions  *ast.PreConditions   // Assertions checked before execution
-	PostConditions *ast.PostConditions  // Assertions checked after execution
-	NativeFunc     func(args []any) any // Built-in function implementation
-	Name           string               // Method/function name
-	ReturnTypeName string               // String representation of return type
-	Parameters     []ParameterMetadata  // Method parameters
-	BytecodeID     int                  // ID of compiled bytecode if pre-compiled
-	ID             MethodID             // Unique method identifier in registry
-	Visibility     MethodVisibility     // Access control level
-	IsVirtual      bool                 // Uses virtual dispatch
-	IsAbstract     bool                 // No implementation (abstract)
-	IsOverride     bool                 // Overrides parent's virtual method
-	IsReintroduce  bool                 // Breaks virtual dispatch chain
-	IsClassMethod  bool                 // Static method
-	IsConstructor  bool                 // Constructor method
-	IsDestructor   bool                 // Destructor method
+	// Declaration is the executable AST payload for this canonical runtime callable.
+	Declaration *ast.FunctionDecl
+	// SourceDeclaration identifies the original source node for semantic bindings.
+	SourceDeclaration *ast.FunctionDecl
+	// Owner is the runtime class that declared this callable.
+	Owner          IClassInfo
+	ReturnType     types.Type          // Resolved return type (nil for procedures)
+	Body           ast.Statement       // AST statement block to execute
+	PreConditions  *ast.PreConditions  // Assertions checked before execution
+	PostConditions *ast.PostConditions // Assertions checked after execution
+	Name           string              // Method/function name
+	Parameters     []ParameterMetadata // Method parameters
+	BytecodeID     int                 // ID of compiled bytecode if pre-compiled
+	ID             MethodID            // Unique method identifier in registry
+	Visibility     MethodVisibility    // Access control level
+	IsStatic       bool                // Binds the defining class when a class method is invoked
+	IsVirtual      bool                // Uses virtual dispatch
+	IsAbstract     bool                // No implementation (abstract)
+	IsOverride     bool                // Overrides parent's virtual method
+	IsReintroduce  bool                // Breaks virtual dispatch chain
+	IsClassMethod  bool                // Static method
+	IsConstructor  bool                // Constructor method
+	IsDestructor   bool                // Destructor method
 }
 
 // IsFunction returns true if this method has a return value.
 func (m *MethodMetadata) IsFunction() bool {
-	return m.ReturnTypeName != ""
+	if m.ReturnType != nil {
+		return m.ReturnType != types.VOID
+	}
+	// A forward declaration can precede resolution of its return type.
+	return m.Declaration != nil && m.Declaration.ReturnType != nil
 }
 
 // IsProcedure returns true if this method has no return value.
 func (m *MethodMetadata) IsProcedure() bool {
-	return m.ReturnTypeName == ""
+	return !m.IsFunction()
 }
 
 // RequiredParamCount returns the number of required (non-optional) parameters.
@@ -155,25 +160,12 @@ type FieldMetadata struct {
 	Type       types.Type      // Resolved field type
 	InitValue  ast.Expression  // Initializer expression
 	Name       string          // Field name
-	TypeName   string          // String representation of type
 	Visibility FieldVisibility // Access control level
 }
 
 // VirtualMethodMetadata tracks virtual method dispatch information.
 // This replaces VirtualMethodEntry without AST dependencies.
-type VirtualMethodMetadata struct {
-	// IntroducedBy is the class that first declared this method as virtual.
-	IntroducedBy *ClassMetadata
-
-	// Implementation is the method to actually call for this class.
-	Implementation *MethodMetadata
-
-	// IsVirtual indicates this method participates in virtual dispatch.
-	IsVirtual bool
-
-	// IsReintroduced indicates this method breaks the virtual dispatch chain.
-	IsReintroduced bool
-}
+type VirtualMethodMetadata = VirtualMethodEntry
 
 // ClassMetadata contains runtime metadata for a class.
 // This replaces the AST-dependent fields in ClassInfo.
@@ -184,23 +176,22 @@ type VirtualMethodMetadata struct {
 //   - Constants/ClassVars remain as Values (already runtime values)
 //   - Enables independent evolution of runtime and AST representations
 type ClassMetadata struct {
-	Operators            any                               // Operator overload registry
+	Operators            *ClassOperatorRegistry            // Operator overload registry
 	ConstructorOverloads map[string][]*MethodMetadata      // All constructor overload variants
 	Destructor           *MethodMetadata                   // Class destructor
-	Properties           map[string]any                    // Property metadata
+	Properties           map[string]*types.PropertyInfo    // Property metadata
 	Fields               map[string]*FieldMetadata         // Instance fields
 	Methods              map[string]*MethodMetadata        // Instance methods
 	MethodOverloads      map[string][]*MethodMetadata      // Instance method overloads
 	ClassMethods         map[string]*MethodMetadata        // Static methods
 	ClassMethodOverloads map[string][]*MethodMetadata      // Static method overloads
 	Constructors         map[string]*MethodMetadata        // Constructors
-	ClassVars            map[string]any                    // Class variable values
+	ClassVars            map[string]Value                  // Class variable values
 	Parent               *ClassMetadata                    // Parent class metadata
 	VirtualMethods       map[string]*VirtualMethodMetadata // Virtual dispatch info
-	Constants            map[string]any                    // Evaluated constant values
+	Constants            map[string]Value                  // Evaluated constant values
 	DefaultConstructor   string                            // Default constructor name
 	Name                 string                            // Class name
-	ParentName           string                            // Parent class name
 	ExternalName         string                            // External implementation name
 	Interfaces           []string                          // Implemented interface names
 	IsAbstract           bool                              // Cannot be instantiated
@@ -212,6 +203,7 @@ type ClassMetadata struct {
 func NewClassMetadata(name string) *ClassMetadata {
 	return &ClassMetadata{
 		Name:                 name,
+		Operators:            NewClassOperatorRegistry(),
 		Fields:               make(map[string]*FieldMetadata),
 		Methods:              make(map[string]*MethodMetadata),
 		MethodOverloads:      make(map[string][]*MethodMetadata),
@@ -220,9 +212,9 @@ func NewClassMetadata(name string) *ClassMetadata {
 		Constructors:         make(map[string]*MethodMetadata),
 		ConstructorOverloads: make(map[string][]*MethodMetadata),
 		VirtualMethods:       make(map[string]*VirtualMethodMetadata),
-		Constants:            make(map[string]interface{}),
-		ClassVars:            make(map[string]interface{}),
-		Properties:           make(map[string]interface{}),
+		Constants:            make(map[string]Value),
+		ClassVars:            make(map[string]Value),
+		Properties:           make(map[string]*types.PropertyInfo),
 	}
 }
 

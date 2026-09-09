@@ -8,7 +8,6 @@ import (
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
-	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ConversionCallbacks holds the callbacks needed for executing conversion functions.
@@ -65,10 +64,10 @@ func (e *Evaluator) ExecuteConversionFunction(
 	// Conversion functions are simple: one parameter in, one value out
 	userCallbacks := &UserFunctionCallbacks{
 		// DefaultValueGetter returns the default for the return type
-		DefaultValueGetter: func(returnTypeName string) Value {
+		DefaultValueGetter: func(returnType ast.TypeExpression) Value {
 			// For conversion functions, we need to create proper instances for record types
 			// so that the function body can assign fields to Result
-			return e.getDefaultValueForTypeName(returnTypeName, ctx)
+			return e.createZeroValue(returnType, currentNode(ctx), ctx)
 		},
 	}
 
@@ -110,8 +109,8 @@ func (e *Evaluator) ExecuteConversionFunctionSimple(
 	ctx *ExecutionContext,
 ) (Value, error) {
 	// Use evaluator's native TryImplicitConversion for parameter conversion if needed
-	implicitConversion := func(value Value, targetTypeName string) (Value, bool) {
-		return e.TryImplicitConversion(value, targetTypeName, ctx)
+	implicitConversion := func(value Value, targetType ast.TypeExpression) (Value, bool) {
+		return e.TryImplicitConversionFromAnnotation(value, targetType, ctx)
 	}
 
 	callbacks := &ConversionCallbacks{
@@ -136,25 +135,19 @@ func (e *Evaluator) ExecuteConversionFunctionSimple(
 // Returns:
 //   - (convertedValue, true) if conversion was found and applied
 //   - (original value, false) if no conversion was needed or available
-func (e *Evaluator) TryImplicitConversion(value Value, targetTypeName string, ctx *ExecutionContext) (Value, bool) {
+func (e *Evaluator) TryImplicitConversion(value Value, targetType types.Type, ctx *ExecutionContext) (Value, bool) {
 	// Handle nil value
 	if value == nil {
 		return nil, false
 	}
 
-	sourceTypeName := value.Type()
-
-	// No conversion needed if types already match
-	if sourceTypeName == targetTypeName {
+	sourceType := runtime.LanguageType(value)
+	if targetType == nil || types.OperatorTypesEqual(sourceType, targetType) {
 		return value, false
 	}
 
-	// Normalize type names for conversion lookup (to match how they're registered)
-	normalizedSource := interptypes.NormalizeTypeAnnotation(sourceTypeName)
-	normalizedTarget := interptypes.NormalizeTypeAnnotation(targetTypeName)
-
 	// Try direct conversion first (using TypeSystem's ConversionRegistry)
-	entry, found := e.typeSystem.Conversions().FindImplicit(normalizedSource, normalizedTarget)
+	entry, found := e.typeSystem.Conversions().FindImplicit(sourceType, targetType)
 	if found {
 		result, ok := e.executeConversionEntry(entry, value, ctx)
 		if ok {
@@ -165,7 +158,7 @@ func (e *Evaluator) TryImplicitConversion(value Value, targetTypeName string, ct
 
 	// Try chained conversion if direct conversion not found
 	const maxConversionChainDepth = 3
-	path := e.typeSystem.Conversions().FindConversionPath(normalizedSource, normalizedTarget, maxConversionChainDepth)
+	path := e.typeSystem.Conversions().FindConversionPath(sourceType, targetType, maxConversionChainDepth)
 	if len(path) >= 2 {
 		result, ok := e.executeConversionChain(path, value, ctx)
 		if ok {
@@ -176,14 +169,14 @@ func (e *Evaluator) TryImplicitConversion(value Value, targetTypeName string, ct
 	// Built-in conversions (no registry entry needed)
 
 	// Integer → Float is always allowed in Pascal/Delphi (automatic widening)
-	if normalizedSource == "integer" && normalizedTarget == "float" {
+	if types.OperatorTypesEqual(sourceType, types.INTEGER) && types.OperatorTypesEqual(targetType, types.FLOAT) {
 		if intVal, ok := value.(*runtime.IntegerValue); ok {
 			return &runtime.FloatValue{Value: float64(intVal.Value)}, true
 		}
 	}
 
 	// Enum → Integer implicit conversion
-	if enumVal, ok := value.(*runtime.EnumValue); ok && normalizedTarget == "integer" {
+	if enumVal, ok := value.(*runtime.EnumValue); ok && types.OperatorTypesEqual(targetType, types.INTEGER) {
 		return &runtime.IntegerValue{Value: int64(enumVal.OrdinalValue)}, true
 	}
 
@@ -237,7 +230,7 @@ func (e *Evaluator) executeConversionEntry(entry *interptypes.ConversionEntry, v
 // Returns:
 //   - (convertedValue, true) if all conversions in the chain succeeded
 //   - (nil, false) if any conversion in the chain failed
-func (e *Evaluator) executeConversionChain(path []string, value Value, ctx *ExecutionContext) (Value, bool) {
+func (e *Evaluator) executeConversionChain(path []types.Type, value Value, ctx *ExecutionContext) (Value, bool) {
 	if len(path) < 2 {
 		return nil, false
 	}
@@ -272,61 +265,14 @@ func isErrorValue(val Value) bool {
 	if val == nil {
 		return false
 	}
-	return val.Type() == "ERROR"
+	return runtime.KindOf(val) == runtime.KindError
 }
 
-// getDefaultValueForTypeName returns the default value for a type given its name.
-// This wraps the visitor_statements.go logic for creating default values by type name.
-func (e *Evaluator) getDefaultValueForTypeName(typeName string, ctx *ExecutionContext) Value {
-	// For record type lookup, just use simple case-insensitive normalization
-	// Don't use NormalizeTypeAnnotation which adds "class:" prefix
-	normalizedName := ident.Normalize(typeName)
-
-	// Check for record types - need to create actual instances for conversion functions
-	if e.typeSystem.HasRecord(normalizedName) {
-		recordTypeAny := e.typeSystem.LookupRecord(normalizedName)
-		if recordTypeAny == nil {
-			return &runtime.NilValue{}
-		}
-
-		// Type-assert to access RecordType and Metadata
-		type recordTypeAccess interface {
-			GetRecordType() *types.RecordType
-			GetMetadata() *runtime.RecordMetadata
-		}
-
-		recordTypeAccessor, ok := recordTypeAny.(recordTypeAccess)
-		if !ok {
-			return &runtime.NilValue{}
-		}
-
-		recordType := recordTypeAccessor.GetRecordType()
-		if recordType == nil {
-			return &runtime.NilValue{}
-		}
-
-		metadata := recordTypeAccessor.GetMetadata()
-
-		// Create record with zero-initialized fields (no field initializers for conversion functions)
-		initializer := func(fieldName string, fieldType types.Type) runtime.Value {
-			return e.getZeroValueForType(fieldType, ctx)
-		}
-
-		return runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
+// TryImplicitConversionFromAnnotation resolves a declared target before conversion.
+func (e *Evaluator) TryImplicitConversionFromAnnotation(value Value, annotation ast.TypeExpression, ctx *ExecutionContext) (Value, bool) {
+	target, err := e.ResolveTypeFromAnnotation(annotation, ctx)
+	if err != nil {
+		return value, false
 	}
-
-	// For other types, return simple zero values
-	switch typeName {
-	case "integer":
-		return &runtime.IntegerValue{Value: 0}
-	case "float":
-		return &runtime.FloatValue{Value: 0.0}
-	case "string":
-		return &runtime.StringValue{Value: ""}
-	case "boolean":
-		return &runtime.BooleanValue{Value: false}
-	default:
-		// Classes, interfaces, and unknown types default to nil
-		return &runtime.NilValue{}
-	}
+	return e.TryImplicitConversion(value, target, ctx)
 }

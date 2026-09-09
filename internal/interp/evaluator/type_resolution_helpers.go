@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -12,14 +11,12 @@ import (
 
 // resolveTypeName resolves a type name string to a types.Type.
 // Handles primitives (Integer, Float, String, Boolean, Variant, TDateTime, Nil, Void),
-// registered types (enums, records, classes, interfaces), and inline array types.
+// registered types (enums, records, classes, interfaces), and function pointer aliases.
 func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (types.Type, error) {
-	// Strip parent qualification from class type strings like "TSub(TBase)"
-	// This enables proper resolution using the declared class name.
-	cleanTypeName := typeName
-	if idx := strings.Index(cleanTypeName, "("); idx != -1 {
-		cleanTypeName = strings.TrimSpace(cleanTypeName[:idx])
+	if ctx == nil {
+		ctx = &ExecutionContext{}
 	}
+	cleanTypeName := typeName
 
 	// Normalize type name for case-insensitive comparison
 	// DWScript (like Pascal) is case-insensitive for all identifiers
@@ -41,6 +38,8 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 
 	case "variant":
 		return types.VARIANT, nil
+	case "jsonvariant":
+		return types.JSON_VARIANT, nil
 
 	case "const":
 		// "Const" is deprecated, redirect to Variant
@@ -60,11 +59,7 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 		// Check if typeSystem is initialized (defensive programming for tests)
 		if e.typeSystem != nil {
 			if enumMetadata := e.typeSystem.LookupEnumMetadata(cleanTypeName); enumMetadata != nil {
-				if etv, ok := enumMetadata.(EnumTypeValueAccessor); ok {
-					return etv.GetEnumType(), nil
-				}
-				// Found but wrong type - programming error
-				return nil, fmt.Errorf("type '%s' is registered as enum but does not provide EnumType (internal error)", typeName)
+				return enumMetadata.GetEnumType(), nil
 			}
 		}
 
@@ -73,9 +68,12 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 			// Try nested class type in current class context.
 			if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
 				if currentClass, ok := currentClassRaw.(ClassMetaValue); ok && currentClass != nil {
+					if ident.Equal(currentClass.GetClassName(), cleanTypeName) {
+						return currentClass.GetClassInfo().GetClassType(), nil
+					}
 					if nestedVal := currentClass.GetNestedClass(cleanTypeName); nestedVal != nil {
 						if nestedClass, ok := nestedVal.(ClassMetaValue); ok {
-							return types.NewClassType(nestedClass.GetClassName(), nil), nil
+							return nestedClass.GetClassInfo().GetClassType(), nil
 						}
 					}
 				}
@@ -113,11 +111,6 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 			return types.NewClassOfType(e.buildClassTypeWithHierarchy("TObject")), nil
 		}
 
-		// "class of X" metaclass types
-		if rest, found := strings.CutPrefix(normalizedName, "class of "); found {
-			return types.NewClassOfType(e.buildClassTypeWithHierarchy(strings.TrimSpace(rest))), nil
-		}
-
 		// Try class type via TypeSystem
 		if e.typeSystem != nil && e.typeSystem.HasClass(cleanTypeName) {
 			// Build the class type with its parent chain so overload resolution
@@ -127,21 +120,12 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 
 		// Try interface type via TypeSystem
 		if e.typeSystem != nil && e.typeSystem.HasInterface(cleanTypeName) {
-			// Create an InterfaceType with the clean name
-			// Note: The TypeSystem stores InterfaceInfo as 'any', so we just create the type directly
-			return types.NewInterfaceType(cleanTypeName), nil
+			return e.typeSystem.LookupInterface(cleanTypeName).GetInterfaceType(), nil
 		}
 
 		// Try array type via TypeSystem
 		if e.typeSystem != nil {
 			if arrayType := e.typeSystem.LookupArrayType(cleanTypeName); arrayType != nil {
-				return arrayType, nil
-			}
-		}
-
-		// Try inline array type parsing
-		if strings.HasPrefix(ident.Normalize(cleanTypeName), "array") {
-			if arrayType := e.parseInlineArrayType(cleanTypeName, ctx); arrayType != nil {
 				return arrayType, nil
 			}
 		}
@@ -163,74 +147,6 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 		// Unknown type
 		return nil, fmt.Errorf("unknown type: %s", typeName)
 	}
-}
-
-// parseInlineArrayType parses inline array type signatures like "array of Type" or "array[low..high] of Type".
-// Supports nested arrays and both static and dynamic array syntax.
-func (e *Evaluator) parseInlineArrayType(signature string, ctx *ExecutionContext) *types.ArrayType {
-	var lowBound, highBound *int
-
-	// Normalize signature for case-insensitive parsing
-	lowerSignature := strings.ToLower(signature)
-
-	// Check if this is a static array with bounds
-	if strings.HasPrefix(lowerSignature, "array[") {
-		// Extract bounds: array[low..high] of Type
-		endBracket := strings.Index(signature, "]")
-		if endBracket == -1 {
-			return nil
-		}
-
-		boundsStr := signature[6:endBracket] // Skip "array["
-		parts := strings.Split(boundsStr, "..")
-		if len(parts) != 2 {
-			return nil
-		}
-
-		// Parse low bound
-		low := 0
-		if _, err := fmt.Sscanf(parts[0], "%d", &low); err != nil {
-			return nil
-		}
-		lowBound = &low
-
-		// Parse high bound
-		high := 0
-		if _, err := fmt.Sscanf(parts[1], "%d", &high); err != nil {
-			return nil
-		}
-		highBound = &high
-
-		// Skip past "] of " in original signature (preserve case for element type)
-		signature = signature[endBracket+1:]
-		lowerSignature = lowerSignature[endBracket+1:]
-	} else if strings.HasPrefix(lowerSignature, "array of ") {
-		// Dynamic array: skip "array" to get " of ElementType"
-		signature = signature[5:] // Skip "array" (preserve case for element type)
-		lowerSignature = lowerSignature[5:]
-	} else {
-		return nil
-	}
-
-	// Now signature should be " of ElementType"
-	if !strings.HasPrefix(lowerSignature, " of ") {
-		return nil
-	}
-
-	// Extract element type name (from original signature to preserve case)
-	elementTypeName := strings.TrimSpace(signature[4:]) // Skip " of "
-
-	// Resolve element type recursively (handles nested arrays)
-	elementType, err := e.resolveTypeName(elementTypeName, ctx)
-	if err != nil || elementType == nil {
-		return nil
-	}
-
-	// Create array type
-	if lowBound != nil && highBound != nil {
-		return types.NewStaticArrayType(elementType, *lowBound, *highBound)
-	}
-	return types.NewDynamicArrayType(elementType)
 }
 
 // resolveArrayElementType resolves an array's element type expression (which may
@@ -297,7 +213,7 @@ func (e *Evaluator) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode, ctx *Exec
 			return nil
 		}
 
-		return types.NewStaticArrayType(elementType, low, high)
+		return types.NewStaticArrayTypeWithIndexType(elementType, indexType, low, high)
 	}
 
 	// Static array - evaluate constant bound expressions.

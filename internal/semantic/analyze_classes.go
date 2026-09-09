@@ -792,6 +792,7 @@ func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccess
 	if a.semanticInfo != nil {
 		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{Token: expr.Token, Name: ptrType.String()})
 		a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{Token: expr.Member.Token, Name: ptrType.String()})
+		a.semanticInfo.SetResolvedType(expr.Member, ptrType)
 	}
 	return ptrType, true
 }

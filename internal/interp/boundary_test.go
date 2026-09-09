@@ -286,9 +286,7 @@ func TestInterpreterEvalSurfaceMatchesAllowlist(t *testing.T) {
 	t.Parallel()
 
 	allowed := map[string]string{
-		"evalViaEvaluator":               "internal delegation helper from shell to evaluator",
-		"evalClassMethodImplementation":  "declaration/bootstrap registry mutation",
-		"evalRecordMethodImplementation": "declaration/bootstrap registry mutation",
+		"evalViaEvaluator": "internal delegation helper from shell to evaluator",
 	}
 
 	found := make(map[string]string)

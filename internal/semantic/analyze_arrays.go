@@ -13,6 +13,12 @@ import (
 
 // analyzeArrayDecl analyzes an array type declaration
 func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
+	defer func() {
+		if decl != nil && decl.Name != nil {
+			a.recordDeclaredType(decl, decl.Name.Value)
+		}
+	}()
+
 	if decl == nil {
 		return
 	}
@@ -347,6 +353,8 @@ func (a *Analyzer) analyzeNewArrayExpression(expr *ast.NewArrayExpression) types
 		a.addError("unknown type '%s' at %s", elementTypeName, expr.ElementTypeName.Pos().String())
 		return nil
 	}
+
+	a.semanticInfo.SetResolvedType(expr.ElementTypeName, elementType)
 
 	// Validate each dimension expression is an integer
 	for i, dimExpr := range expr.Dimensions {

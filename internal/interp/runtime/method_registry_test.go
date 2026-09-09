@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -38,9 +39,9 @@ func TestRegisterMethod(t *testing.T) {
 	registry := NewMethodRegistry()
 
 	method := &MethodMetadata{
-		Name:           "DoSomething",
-		ReturnTypeName: "Integer",
-		Parameters:     []ParameterMetadata{},
+		Name:       "DoSomething",
+		ReturnType: types.INTEGER,
+		Parameters: []ParameterMetadata{},
 	}
 
 	id := registry.RegisterMethod(method)
@@ -112,8 +113,8 @@ func TestGetMethod(t *testing.T) {
 	registry := NewMethodRegistry()
 
 	original := &MethodMetadata{
-		Name:           "MyMethod",
-		ReturnTypeName: "String",
+		Name:       "MyMethod",
+		ReturnType: types.STRING,
 	}
 
 	id := registry.RegisterMethod(original)
@@ -410,29 +411,27 @@ func TestMethodRegistry_WithRealMetadata(t *testing.T) {
 	function := &MethodMetadata{
 		Name: "Add",
 		Parameters: []ParameterMetadata{
-			{Name: "a", TypeName: "Integer", ByRef: false},
-			{Name: "b", TypeName: "Integer", ByRef: false},
+			{Name: "a", Type: types.INTEGER, ByRef: false},
+			{Name: "b", Type: types.INTEGER, ByRef: false},
 		},
-		ReturnTypeName: "Integer",
-		Body:           &ast.BlockStatement{},
+		ReturnType: types.INTEGER,
+		Body:       &ast.BlockStatement{},
 	}
 
 	// Procedure without return type
 	procedure := &MethodMetadata{
 		Name: "PrintMessage",
 		Parameters: []ParameterMetadata{
-			{Name: "msg", TypeName: "String", ByRef: false},
+			{Name: "msg", Type: types.STRING, ByRef: false},
 		},
-		ReturnTypeName: "",
-		Body:           &ast.BlockStatement{},
+		Body: &ast.BlockStatement{},
 	}
 
 	// Virtual method
 	virtualMethod := &MethodMetadata{
-		Name:           "DoSomething",
-		ReturnTypeName: "",
-		IsVirtual:      true,
-		Visibility:     VisibilityPublic,
+		Name:       "DoSomething",
+		IsVirtual:  true,
+		Visibility: VisibilityPublic,
 	}
 
 	// Register methods

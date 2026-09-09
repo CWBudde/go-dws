@@ -261,3 +261,5 @@ func TestOrdChrRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func (*mockEnumValue) ValueKind() runtime.ValueKind { return runtime.KindEnum }

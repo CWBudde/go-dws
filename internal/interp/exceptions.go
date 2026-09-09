@@ -47,8 +47,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		IsConstructor: true,
 	}
 	// Use lowercase key for case-insensitive constructor matching
-	objectClass.Constructors["create"] = createConstructor
-	objectClass.ConstructorOverloads["create"] = []*ast.FunctionDecl{createConstructor}
+	objectClass.AddMethodDeclaration(createConstructor, "TObject", nil)
 
 	// Add default Destroy destructor (virtual) and Free method
 	destroyMethod := &ast.FunctionDecl{
@@ -82,31 +81,9 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	}
 
 	// Store methods with lowercase keys for case-insensitive lookup
-	objectClass.Methods["destroy"] = destroyMethod
-	objectClass.MethodOverloads["destroy"] = []*ast.FunctionDecl{destroyMethod}
-	objectClass.Methods["free"] = freeMethod
-	objectClass.MethodOverloads["free"] = []*ast.FunctionDecl{freeMethod}
-	objectClass.Destructor = destroyMethod
+	objectClass.AddMethodDeclaration(destroyMethod, "TObject", nil)
+	objectClass.AddMethodDeclaration(freeMethod, "TObject", nil)
 
-	// Populate metadata for Destroy/Free (AST-free path)
-	runtime.AddMethodToClass(objectClass.Metadata, &runtime.MethodMetadata{
-		Name:           "Destroy",
-		Parameters:     []runtime.ParameterMetadata{},
-		ReturnType:     nil,
-		ReturnTypeName: "",
-		Body:           destroyMethod.Body,
-		IsVirtual:      true,
-		IsDestructor:   true,
-		Visibility:     runtime.VisibilityPublic,
-	}, false)
-	runtime.AddMethodToClass(objectClass.Metadata, &runtime.MethodMetadata{
-		Name:           "Free",
-		Parameters:     []runtime.ParameterMetadata{},
-		ReturnType:     nil,
-		ReturnTypeName: "",
-		Body:           freeMethod.Body,
-		Visibility:     runtime.VisibilityPublic,
-	}, false)
 	objectClass.BuildVirtualMethodTableDirect()
 
 	// Use lowercase key for O(1) case-insensitive lookup
@@ -115,18 +92,17 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// Register Exception base class
 	exceptionClass := NewClassInfo("Exception")
 	exceptionClass.Parent = objectClass // Exception inherits from TObject
-	exceptionClass.Fields["Message"] = types.STRING
+	exceptionClass.Type.Parent = objectClass.Type
+	exceptionClass.Fields["message"] = &runtime.FieldMetadata{Name: "Message", Type: types.STRING}
 	exceptionClass.IsAbstractFlag = false
 	exceptionClass.IsExternalFlag = false
 
 	// Set parent metadata for hierarchy checks
 	exceptionClass.Metadata.Parent = objectClass.Metadata
-	exceptionClass.Metadata.ParentName = "TObject"
 
 	// Populate metadata for exception fields
 	messageMeta := &runtime.FieldMetadata{
 		Name:       "Message",
-		TypeName:   "String",
 		Type:       types.STRING,
 		Visibility: runtime.FieldVisibilityPublic,
 	}
@@ -152,6 +128,7 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	for _, excName := range standardExceptions {
 		excClass := NewClassInfo(excName)
 		excClass.Parent = exceptionClass
+		excClass.Type.Parent = exceptionClass.Type
 		excClass.IsAbstractFlag = false
 		excClass.IsExternalFlag = false
 
@@ -159,7 +136,6 @@ func (i *Interpreter) registerBuiltinExceptions() {
 		// Message is inherited from Exception; redeclaring it here would
 		// create a shadowed field with its own storage slot.
 		excClass.Metadata.Parent = exceptionClass.Metadata
-		excClass.Metadata.ParentName = "Exception"
 
 		// Inherit Create constructor
 		excClass.Constructors["Create"] = nil
@@ -171,7 +147,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// Register EHost exception wrapper for host runtime errors.
 	eHostClass := NewClassInfo("EHost")
 	eHostClass.Parent = exceptionClass
-	eHostClass.Fields["ExceptionClass"] = types.STRING
+	eHostClass.Type.Parent = exceptionClass.Type
+	eHostClass.Fields["exceptionclass"] = &runtime.FieldMetadata{Name: "ExceptionClass", Type: types.STRING}
 	eHostClass.IsAbstractFlag = false
 	eHostClass.IsExternalFlag = false
 
@@ -179,11 +156,9 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// Message is inherited from Exception; redeclaring it here would create a
 	// shadowed field with its own storage slot.
 	eHostClass.Metadata.Parent = exceptionClass.Metadata
-	eHostClass.Metadata.ParentName = "Exception"
 
 	exceptionClassMeta := &runtime.FieldMetadata{
 		Name:       "ExceptionClass",
-		TypeName:   "String",
 		Type:       types.STRING,
 		Visibility: runtime.FieldVisibilityPublic,
 	}

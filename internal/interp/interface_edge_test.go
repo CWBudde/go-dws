@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -43,14 +44,14 @@ func TestEdge_EmptyInterface(t *testing.T) {
 
 		// Class with methods
 		class2 := NewClassInfo("TClassWithMethods")
-		class2.Methods["DoSomething"] = &ast.FunctionDecl{
+		class2.Methods["DoSomething"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{
 			Name: &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{},
 				},
 				Value: "DoSomething",
 			},
-		}
+		})
 		class2.Interfaces = append(class2.Interfaces, iface)
 		if !classImplementsInterface(class2, iface) {
 			t.Error("Class with methods should also implement empty interface")
@@ -135,14 +136,14 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	// Create class that implements all 15 methods
 	class := NewClassInfo("TLargeClass")
 	for _, name := range methodNames {
-		class.Methods[strings.ToLower(name)] = &ast.FunctionDecl{
+		class.Methods[strings.ToLower(name)] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{
 			Name: &ast.Identifier{
 				TypedExpressionBase: ast.TypedExpressionBase{
 					BaseNode: ast.BaseNode{},
 				},
 				Value: name,
 			},
-		}
+		})
 	}
 	class.Interfaces = append(class.Interfaces, iface)
 
@@ -155,14 +156,14 @@ func TestEdge_InterfaceWithManyMethods(t *testing.T) {
 	incompleteClass := NewClassInfo("TIncompleteClass")
 	for i, name := range methodNames {
 		if i < 14 { // Only add 14 methods (missing one)
-			incompleteClass.Methods[strings.ToLower(name)] = &ast.FunctionDecl{
+			incompleteClass.Methods[strings.ToLower(name)] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{
 				Name: &ast.Identifier{
 					TypedExpressionBase: ast.TypedExpressionBase{
 						BaseNode: ast.BaseNode{},
 					},
 					Value: name,
 				},
-			}
+			})
 		}
 	}
 
@@ -287,7 +288,7 @@ func TestEdge_ConflictingInterfaces(t *testing.T) {
 	// Create class that implements both interfaces
 	// (In DWScript, the single implementation satisfies both)
 	class := NewClassInfo("TDualImplementor")
-	class.Methods["conflictingmethod"] = &ast.FunctionDecl{
+	class.Methods["conflictingmethod"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{
 		Name: &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{},
@@ -298,7 +299,7 @@ func TestEdge_ConflictingInterfaces(t *testing.T) {
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Integer"},
 			Name:  "Integer",
 		},
-	}
+	})
 	class.Interfaces = append(class.Interfaces, iface1, iface2)
 
 	// Class implements both interfaces (name match is sufficient)
@@ -433,7 +434,7 @@ func TestEdge_InterfaceInstanceImplementsInterface(t *testing.T) {
 
 	// Create class that implements iface1 but not iface2
 	class := NewClassInfo("TTest")
-	class.Methods["method1"] = &ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}}
+	class.Methods["method1"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{Name: &ast.Identifier{Value: "Method1"}})
 	class.Interfaces = append(class.Interfaces, iface1)
 
 	obj := NewObjectInstance(class)

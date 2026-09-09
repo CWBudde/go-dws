@@ -155,11 +155,15 @@ func (e *Evaluator) evalClassPropertyExpressionWrite(
 
 func (e *Evaluator) executeClassPropertyMethod(
 	classInfo runtime.IClassInfo,
-	method *ast.FunctionDecl,
+	callable *runtime.MethodMetadata,
 	args []Value,
 	node ast.Node,
 	ctx *ExecutionContext,
 ) Value {
+	method := runtime.MethodDeclaration(callable)
+	if method == nil {
+		return e.newError(node, "property method has no executable declaration")
+	}
 	ctx.PushEnv()
 	defer ctx.PopEnv()
 	scope := newBindingScope()

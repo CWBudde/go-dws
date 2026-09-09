@@ -36,6 +36,11 @@ func (e *Evaluator) getValueType(val Value) types.Type {
 			return v.ArrayType
 		}
 		return types.NIL
+	case *runtime.ObjectInstance:
+		if v.Class != nil && v.Class.GetClassType() != nil {
+			return v.Class.GetClassType()
+		}
+		return types.NIL
 	case *runtime.RecordValue:
 		if v.RecordType != nil {
 			return v.RecordType
@@ -57,6 +62,11 @@ func (e *Evaluator) getValueType(val Value) types.Type {
 func (e *Evaluator) classTypeFromMetadata(metadata *runtime.ClassMetadata) types.Type {
 	if metadata == nil {
 		return types.NIL
+	}
+	if e.typeSystem != nil {
+		if class := e.typeSystem.LookupClass(metadata.Name); class != nil && class.GetClassType() != nil {
+			return class.GetClassType()
+		}
 	}
 
 	var parentType *types.ClassType
@@ -144,11 +154,12 @@ func (e *Evaluator) ResolveOverloadFast(
 			argValues[idx] = nil
 		} else {
 			// Set record type context if argument is anonymous record literal
+			previousRecordType := ctx.RecordTypeContext()
 			contextSet := false
 			if idx < len(fn.Parameters) && fn.Parameters[idx].Type != nil {
-				paramType := fn.Parameters[idx].Type.String()
+				paramType := e.recordTypeFromAnnotation(fn.Parameters[idx].Type, ctx)
 				if recordLit, ok := argExpr.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
-					if e.typeSystem.HasRecord(paramType) {
+					if paramType != nil {
 						ctx.SetRecordTypeContext(paramType)
 						contextSet = true
 					}
@@ -173,7 +184,7 @@ func (e *Evaluator) ResolveOverloadFast(
 			ctx.SetArrayTypeContext(prevArrayCtx)
 
 			if contextSet {
-				ctx.ClearRecordTypeContext()
+				ctx.SetRecordTypeContext(previousRecordType)
 			}
 
 			if isError(val) {

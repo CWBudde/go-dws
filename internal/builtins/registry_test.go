@@ -156,8 +156,8 @@ func (m *mockContext) WriteLine(s string) {
 }
 
 func (m *mockContext) GetEnumOrdinal(value Value) (int64, bool) {
-	// Simple mock - check type string since we can't import EnumValue
-	if value.Type() == "ENUM" {
+	// Enum values opt in to the typed runtime representation.
+	if runtime.KindOf(value) == runtime.KindEnum {
 		// For testing, return a dummy ordinal
 		return 0, true
 	}
@@ -165,8 +165,8 @@ func (m *mockContext) GetEnumOrdinal(value Value) (int64, bool) {
 }
 
 func (m *mockContext) GetJSONVarType(value Value) (int64, bool) {
-	// Simple mock - check type string since we can't import JSONValue
-	if value.Type() == "JSON" {
+	// JSON values carry their typed runtime representation.
+	if runtime.KindOf(value) == runtime.KindJSON {
 		// For testing, return a dummy varType (varJSON = 0x1000)
 		return 0x1000, true
 	}
@@ -760,3 +760,5 @@ func TestConcurrency(t *testing.T) {
 		t.Error("Concurrent operations failed")
 	}
 }
+
+func (*mockErrorValue) ValueKind() runtime.ValueKind { return runtime.KindError }

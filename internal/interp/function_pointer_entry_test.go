@@ -78,3 +78,47 @@ func TestInterpreterDoesNotImplementBuiltinContext(t *testing.T) {
 		t.Fatal("interpreter shell must delegate builtin dispatch to the evaluator")
 	}
 }
+
+func TestFunctionPointerEntry_CapturedBeforeMethodImplementation(t *testing.T) {
+	var output bytes.Buffer
+	engine := New(&output)
+	p := parser.New(lexer.New(`
+ type TSample = class
+  function Compute(value: Integer): Integer;
+  function Answer: Integer;
+ end;
+ var instance := TSample.Create;
+ var callback := @instance.Compute;
+ var parameterless := @instance.Answer;
+ function TSample.Compute(value: Integer): Integer;
+ begin
+  Result := value + 1;
+ end;
+ function TSample.Answer: Integer;
+ begin
+  Result := 42;
+ end;
+ PrintLn(callback(41));
+ PrintLn(parameterless());
+ `))
+	program := p.ParseProgram()
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parse errors: %v", p.Errors())
+	}
+	if result := engine.Eval(program); isError(result) {
+		t.Fatalf("evaluation: %s", result.String())
+	}
+	if got := output.String(); got != "42\n42\n" {
+		t.Fatalf("output = %q", got)
+	}
+	for _, name := range []string{"callback", "parameterless"} {
+		captured, ok := engine.Env().Get(name)
+		if !ok {
+			t.Fatalf("missing %s", name)
+		}
+		pointer, ok := captured.(*FunctionPointerValue)
+		if !ok || pointer.Callable == nil || pointer.Callable.Declaration.Body == nil {
+			t.Fatalf("%s did not retain the canonical callable: %v", name, captured)
+		}
+	}
+}

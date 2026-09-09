@@ -78,12 +78,12 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		// A non-virtual method may execute with Self = nil (DWScript allows calling
 		// non-virtual methods on nil references). Implicit-Self member access then
 		// raises "Object not instantiated" at the member's position.
-		if selfRaw != nil && selfRaw.Type() == "NIL" {
+		if selfRaw != nil && runtime.KindOf(selfRaw) == runtime.KindNil {
 			if e.identifierIsInstanceMember(node.Value, ctx) {
 				return e.newError(node, "Object not instantiated")
 			}
 		}
-		if selfVal := selfRaw; selfVal != nil && selfVal.Type() == "OBJECT" {
+		if selfVal := selfRaw; selfVal != nil && runtime.KindOf(selfVal) == runtime.KindObject {
 			if objVal, ok := selfVal.(ObjectValue); ok {
 				// Check for instance field. Bare identifiers resolve in the
 				// static scope of the declaring method's class, which matters
@@ -122,13 +122,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			// Use ObjectValue interface for direct method check
 			if objVal, ok := selfVal.(ObjectValue); ok && objVal.HasMethod(node.Value) {
 				// Use InvokeParameterlessMethod with callback pattern
-				if result, invoked := objVal.InvokeParameterlessMethod(node.Value, func(methodDecl any) Value {
+				if result, invoked := objVal.InvokeParameterlessMethod(node.Value, func(methodDecl *runtime.MethodMetadata) Value {
 					return e.executeObjectMethodDirect(selfVal, methodDecl, nil, node, ctx)
 				}); invoked {
 					return result
 				}
 				// Use CreateMethodPointer with callback pattern
-				if methodPtr, created := objVal.CreateMethodPointer(node.Value, func(methodDecl any) Value {
+				if methodPtr, created := objVal.CreateMethodPointer(node.Value, func(methodDecl *runtime.MethodMetadata) Value {
 					return e.createFunctionPointerFromDecl(methodDecl, selfVal, ctx)
 				}); created {
 					return methodPtr
@@ -141,8 +141,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			// instance method. DWScript allows this; dispatch through the implicit
 			// Self call path, which resolves class methods and binds the metaclass.
 			if objVal, ok := selfVal.(ObjectValue); ok {
-				if classMethodDecl, ok := objVal.GetClassMethodDecl(node.Value).(*ast.FunctionDecl); ok &&
-					classMethodDecl != nil && len(classMethodDecl.Parameters) == 0 {
+				if classMethodDecl := objVal.GetClassMethodDecl(node.Value); classMethodDecl != nil && len(classMethodDecl.Parameters) == 0 {
 					callExpr := &ast.CallExpression{
 						TypedExpressionBase: ast.TypedExpressionBase{
 							BaseNode: ast.BaseNode{Token: node.Token},
@@ -244,12 +243,12 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		// (`SayHello;` inside `Hello`): auto-invoke if parameterless, else pointer.
 		// Dispatch is virtual on the bound class-meta.
 		if classMetaVal.HasClassMethod(node.Value) {
-			if result, invoked := classMetaVal.InvokeParameterlessClassMethod(node.Value, func(methodDecl any) Value {
+			if result, invoked := classMetaVal.InvokeParameterlessClassMethod(node.Value, func(methodDecl *runtime.MethodMetadata) Value {
 				return e.executeClassMethodDirect(classMetaVal, methodDecl, nil, node, ctx)
 			}); invoked {
 				return result
 			}
-			if result, created := classMetaVal.CreateClassMethodPointer(node.Value, func(methodDecl any) Value {
+			if result, created := classMetaVal.CreateClassMethodPointer(node.Value, func(methodDecl *runtime.MethodMetadata) Value {
 				return e.createFunctionPointerFromDecl(methodDecl, classMetaVal, ctx)
 			}); created {
 				return result
@@ -297,14 +296,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// in a function-pointer context (e.g., arguments typed as TProc). In that
 	// case we should return a function pointer even for parameterless functions
 	// instead of auto-invoking them.
-	var expectedTypeKind string
-	if e.SemanticInfo() != nil {
-		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil {
-			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil && resolvedType != nil {
-				expectedTypeKind = resolvedType.TypeKind()
-			}
-		}
-	}
+	expectedTypeKind := e.resolvedExpressionTypeKind(node, ctx)
 
 	if overloads := e.FunctionRegistry().Lookup(funcNameLower); len(overloads) > 0 {
 		// Find the appropriate overload
@@ -366,7 +358,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 	// Interface type names can be used as type-meta values for helper class members.
 	if ifaceAny := e.typeSystem.LookupInterface(node.Value); ifaceAny != nil {
-		resolvedType, err := e.ResolveType(node.Value, ctx)
+		resolvedType, err := e.resolveTypeReference(node, node.Value, ctx)
 		if err != nil {
 			return e.newError(node, "unknown interface type '%s': %v", node.Value, err)
 		}
@@ -376,7 +368,9 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		}
 	}
 
-	if resolvedType, err := e.ResolveType(node.Value, ctx); err == nil && resolvedType != nil {
+	// Only declared type names produce metadata; expression types also describe
+	// builtins and values, which must continue through ordinary lookup.
+	if resolvedType, err := e.resolveTypeName(node.Value, ctx); err == nil && resolvedType != nil {
 		return &runtime.TypeMetaValue{
 			TypeInfo: resolvedType,
 			TypeName: resolvedType.String(),
@@ -542,9 +536,9 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		}
 
 		// Implicit conversion for return type
-		if resultValue.Type() != "NIL" {
-			returnTypeName := fn.ReturnType.String()
-			if converted, ok := e.TryImplicitConversion(resultValue, returnTypeName, ctx); ok {
+		if runtime.KindOf(resultValue) != runtime.KindNil {
+			returnTypeName := fn.ReturnType
+			if converted, ok := e.TryImplicitConversionFromAnnotation(resultValue, returnTypeName, ctx); ok {
 				resultValue = converted
 			}
 		}

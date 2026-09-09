@@ -38,7 +38,7 @@ func (t *TypeMetaValue) IsEnumTypeMeta() bool {
 	if t.TypeInfo == nil {
 		return false
 	}
-	_, isEnum := t.TypeInfo.(*types.EnumType)
+	_, isEnum := types.GetUnderlyingType(t.TypeInfo).(*types.EnumType)
 	return isEnum
 }
 
@@ -48,7 +48,7 @@ func (t *TypeMetaValue) EnumLow() int {
 	if t.TypeInfo == nil {
 		return 0
 	}
-	enumType, ok := t.TypeInfo.(*types.EnumType)
+	enumType, ok := types.GetUnderlyingType(t.TypeInfo).(*types.EnumType)
 	if !ok {
 		return 0
 	}
@@ -61,7 +61,7 @@ func (t *TypeMetaValue) EnumHigh() int {
 	if t.TypeInfo == nil {
 		return 0
 	}
-	enumType, ok := t.TypeInfo.(*types.EnumType)
+	enumType, ok := types.GetUnderlyingType(t.TypeInfo).(*types.EnumType)
 	if !ok {
 		return 0
 	}
@@ -75,7 +75,7 @@ func (t *TypeMetaValue) EnumByName(name string) int {
 	if t.TypeInfo == nil {
 		return 0
 	}
-	enumType, ok := t.TypeInfo.(*types.EnumType)
+	enumType, ok := types.GetUnderlyingType(t.TypeInfo).(*types.EnumType)
 	if !ok {
 		return 0
 	}
@@ -111,7 +111,7 @@ func (t *TypeMetaValue) GetEnumValue(name string) Value {
 	if t.TypeInfo == nil {
 		return nil
 	}
-	enumType, ok := t.TypeInfo.(*types.EnumType)
+	enumType, ok := types.GetUnderlyingType(t.TypeInfo).(*types.EnumType)
 	if !ok {
 		return nil
 	}

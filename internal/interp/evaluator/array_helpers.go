@@ -30,7 +30,7 @@ func (e *Evaluator) evaluateDimensions(dimensions []ast.Expression, ctx *Executi
 			return nil, dimValue
 		}
 
-		if dimValue.Type() != "INTEGER" {
+		if runtime.KindOf(dimValue) != runtime.KindInteger {
 			return nil, e.newError(node, "array dimension must be an integer, got %s", dimValue.Type())
 		}
 
@@ -76,28 +76,11 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 
 	// Disambiguation: `[...]` can represent a set literal when semantic analysis expects a SET.
 	// Some contexts (notably empty literals `[]`) otherwise look like an empty array literal.
-	if e.SemanticInfo() != nil {
-		if typeAnnot := e.SemanticInfo().GetType(node); typeAnnot != nil && typeAnnot.Name != "" {
-			isSetAnnotation := false
-			if resolvedType, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx); err == nil {
-				_, isSetAnnotation = types.GetUnderlyingType(resolvedType).(*types.SetType)
-			} else if e.parseInlineSetType(typeAnnot.Name) != nil {
-				// Inline "set of X" annotations may not resolve as named types.
-				isSetAnnotation = true
-			}
-			if isSetAnnotation {
-				setLit := &ast.SetLiteral{
-					Elements:            node.Elements,
-					TypedExpressionBase: node.TypedExpressionBase,
-				}
-
-				// Preserve the type annotation for set inference (esp. for empty `[]`).
-				e.SemanticInfo().SetType(setLit, typeAnnot)
-				defer e.SemanticInfo().ClearType(setLit)
-
-				return e.evalSetLiteralDirect(setLit, ctx)
-			}
-		}
+	if setType, ok := types.GetUnderlyingType(e.resolvedExpressionType(node, ctx)).(*types.SetType); ok {
+		setLit := &ast.SetLiteral{Elements: node.Elements, TypedExpressionBase: node.TypedExpressionBase}
+		e.SemanticInfo().SetResolvedType(setLit, setType)
+		defer e.SemanticInfo().ClearType(setLit)
+		return e.evalSetLiteralDirect(setLit, ctx)
 	}
 
 	// Use context type if available
@@ -266,7 +249,7 @@ func (e *Evaluator) evaluateSingleArrayElement(elem ast.Expression, arrayType *t
 		if recordLit, ok := elem.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
 			if recordType, ok := types.GetUnderlyingType(arrayType.ElementType).(*types.RecordType); ok {
 				prev := ctx.RecordTypeContext()
-				ctx.SetRecordTypeContext(recordType.Name)
+				ctx.SetRecordTypeContext(recordType)
 				val := e.Eval(recordLit, ctx)
 				ctx.SetRecordTypeContext(prev)
 				return val
@@ -317,33 +300,11 @@ func (e *Evaluator) buildRuntimeArray(arrayType *types.ArrayType, coercedElement
 
 // getArrayTypeFromAnnotation retrieves the array type from semantic info.
 func (e *Evaluator) getArrayTypeFromAnnotation(node *ast.ArrayLiteralExpression, ctx *ExecutionContext) *types.ArrayType {
-	if e.SemanticInfo() == nil {
+	arrayType, ok := types.GetUnderlyingType(e.resolvedExpressionType(node, ctx)).(*types.ArrayType)
+	if !ok {
 		return nil
 	}
-
-	typeAnnot := e.SemanticInfo().GetType(node)
-	if typeAnnot == nil || typeAnnot.Name == "" {
-		return nil
-	}
-
-	// Resolve the type name to an ArrayType using context-aware resolution
-	resolved, err := e.ResolveTypeFromAnnotation(typeAnnot, ctx)
-	if err != nil {
-		return nil
-	}
-
-	if arrayType, ok := resolved.(*types.ArrayType); ok {
-		return arrayType
-	}
-
-	// Check underlying type for type aliases
-	if underlying := types.GetUnderlyingType(resolved); underlying != nil {
-		if arrayType, ok := underlying.(*types.ArrayType); ok {
-			return arrayType
-		}
-	}
-
-	return nil
+	return arrayType
 }
 
 // evalArrayLiteralWithExpectedType evaluates nested array literal with expected type from parent.
@@ -387,7 +348,7 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 			if recordLit, ok := elem.(*ast.RecordLiteralExpression); ok && recordLit.TypeName == nil {
 				if recordType, ok := types.GetUnderlyingType(arrayType.ElementType).(*types.RecordType); ok {
 					prev := ctx.RecordTypeContext()
-					ctx.SetRecordTypeContext(recordType.Name)
+					ctx.SetRecordTypeContext(recordType)
 					val = e.Eval(recordLit, ctx)
 					ctx.SetRecordTypeContext(prev)
 				}
@@ -501,7 +462,7 @@ func (e *Evaluator) coerceSingleElement(val Value, valueTypes []types.Type, idx 
 	}
 
 	// Handle nil values
-	if val != nil && val.Type() == "NIL" {
+	if val != nil && runtime.KindOf(val) == runtime.KindNil {
 		return e.handleNilElement(val, idx, targetType, node)
 	}
 
@@ -1580,7 +1541,7 @@ func ValuesEqual(a, b Value) bool {
 	}
 
 	// Type must match
-	if a.Type() != b.Type() {
+	if !runtime.SameValueType(a, b) {
 		return false
 	}
 

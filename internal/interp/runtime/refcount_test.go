@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/internal/types"
 )
 
 // mockClassInfo is a minimal IClassInfo implementation for testing
@@ -12,33 +12,32 @@ type mockClassInfo struct {
 	name string
 }
 
-func (m *mockClassInfo) GetName() string                            { return m.name }
-func (m *mockClassInfo) GetMetadata() *ClassMetadata                { return nil }
-func (m *mockClassInfo) LookupMethod(name string) *ast.FunctionDecl { return nil }
-func (m *mockClassInfo) LookupClassMethod(name string) *ast.FunctionDecl {
+func (m *mockClassInfo) GetName() string                       { return m.name }
+func (m *mockClassInfo) GetMetadata() *ClassMetadata           { return nil }
+func (m *mockClassInfo) LookupMethod(_ string) *MethodMetadata { return nil }
+func (m *mockClassInfo) LookupClassMethod(_ string) *MethodMetadata {
 	return nil
 }
-func (m *mockClassInfo) LookupProperty(name string) *PropertyInfo       { return nil }
-func (m *mockClassInfo) LookupClassVar(name string) (Value, IClassInfo) { return nil, nil }
-func (m *mockClassInfo) LookupOperator(op string, types []string) (*OperatorEntry, bool) {
+func (m *mockClassInfo) LookupProperty(_ string) *PropertyInfo       { return nil }
+func (m *mockClassInfo) LookupClassVar(_ string) (Value, IClassInfo) { return nil, nil }
+func (m *mockClassInfo) LookupOperator(_ string, _ []types.Type) (*OperatorEntry, bool) {
 	return nil, false
 }
-func (m *mockClassInfo) GetDefaultProperty() *PropertyInfo                       { return nil }
-func (m *mockClassInfo) GetParent() IClassInfo                                   { return nil }
-func (m *mockClassInfo) FieldExists(normalizedName string) bool                  { return false }
-func (m *mockClassInfo) IsAbstract() bool                                        { return false }
-func (m *mockClassInfo) IsExternal() bool                                        { return false }
-func (m *mockClassInfo) GetClassVarsMap() map[string]Value                       { return nil }
-func (m *mockClassInfo) GetVirtualMethodTable() map[string]*VirtualMethodEntry   { return nil }
-func (m *mockClassInfo) GetConstructor(name string) *ast.FunctionDecl            { return nil }
-func (m *mockClassInfo) GetDefaultConstructor() string                           { return "" }
-func (m *mockClassInfo) GetFieldTypesMap() map[string]any                        { return nil }
-func (m *mockClassInfo) GetInterfaces() []*InterfaceInfo                         { return nil }
-func (m *mockClassInfo) HasMethodOverloads(name string) bool                     { return false }
-func (m *mockClassInfo) HasClassMethodOverloads(name string) bool                { return false }
-func (m *mockClassInfo) GetMethodOverloads(name string) []*ast.FunctionDecl      { return nil }
-func (m *mockClassInfo) GetClassMethodOverloads(name string) []*ast.FunctionDecl { return nil }
-func (m *mockClassInfo) GetConstructorOverloads(name string) []*ast.FunctionDecl { return nil }
+func (m *mockClassInfo) GetDefaultProperty() *PropertyInfo                     { return nil }
+func (m *mockClassInfo) GetParent() IClassInfo                                 { return nil }
+func (m *mockClassInfo) FieldExists(_ string) bool                             { return false }
+func (m *mockClassInfo) IsAbstract() bool                                      { return false }
+func (m *mockClassInfo) IsExternal() bool                                      { return false }
+func (m *mockClassInfo) GetClassVarsMap() map[string]Value                     { return nil }
+func (m *mockClassInfo) GetVirtualMethodTable() map[string]*VirtualMethodEntry { return nil }
+func (m *mockClassInfo) GetConstructor(_ string) *MethodMetadata               { return nil }
+func (m *mockClassInfo) GetDefaultConstructor() string                         { return "" }
+func (m *mockClassInfo) GetInterfaces() []*InterfaceInfo                       { return nil }
+func (m *mockClassInfo) HasMethodOverloads(_ string) bool                      { return false }
+func (m *mockClassInfo) HasClassMethodOverloads(_ string) bool                 { return false }
+func (m *mockClassInfo) GetMethodOverloads(_ string) []*MethodMetadata         { return nil }
+func (m *mockClassInfo) GetClassMethodOverloads(_ string) []*MethodMetadata    { return nil }
+func (m *mockClassInfo) GetConstructorOverloads(_ string) []*MethodMetadata    { return nil }
 
 // mockInterfaceInfo is a minimal IInterfaceInfo implementation for testing
 type mockInterfaceInfo struct {
@@ -725,3 +724,5 @@ func Test_RefCount_DestructorCallback_Concurrency(t *testing.T) {
 		t.Errorf("destructor called %d times, want %d", finalCount, objects)
 	}
 }
+
+func (m *mockClassInfo) GetClassType() *types.ClassType { return types.NewClassType(m.GetName(), nil) }

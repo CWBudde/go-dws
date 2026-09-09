@@ -9,46 +9,32 @@ import (
 )
 
 // ClassVirtualMethodEntry tracks virtual method dispatch information.
-type ClassVirtualMethodEntry struct {
-	IntroducedBy   *ClassInfo        // Class that first declared this method as virtual
-	Implementation *ast.FunctionDecl // Method declaration to call for this class
-	IsVirtual      bool              // Participates in virtual dispatch
-	IsReintroduced bool              // Breaks the virtual dispatch chain
-}
+type ClassVirtualMethodEntry = VirtualMethodEntry
 
 // ClassInfo represents runtime class metadata.
 // It stores information about a class's structure including fields, methods,
 // parent class, and constructor/destructor.
 type ClassInfo struct {
-	// Metadata contains AST-free runtime metadata for this class
+	// ClassMetadata owns member and dispatch metadata; Metadata names the same object.
+	*ClassMetadata
+
+	// Type is the resolved semantic identity shared with declaration analysis.
+	Type *types.ClassType
+
+	// Metadata contains runtime declaration metadata for this class.
 	Metadata *ClassMetadata
 
-	// Legacy AST fields maintained for backward compatibility
-	Constants            map[string]*ast.ConstDecl
-	ClassVars            map[string]Value
-	ConstructorOverloads map[string][]*ast.FunctionDecl
-	VirtualMethodTable   map[string]*ClassVirtualMethodEntry
-	Fields               map[string]types.Type
-	FieldDecls           map[string]*ast.FieldDecl
-	Constructor          *ast.FunctionDecl
-	ClassMethodOverloads map[string][]*ast.FunctionDecl
-	ClassMethods         map[string]*ast.FunctionDecl
-	Methods              map[string]*ast.FunctionDecl
-	ConstantValues       map[string]Value
-	Constructors         map[string]*ast.FunctionDecl
-	Operators            *ClassOperatorRegistry
-	Properties           map[string]*types.PropertyInfo
-	Destructor           *ast.FunctionDecl
-	Parent               *ClassInfo
-	MethodOverloads      map[string][]*ast.FunctionDecl
-	NestedClasses        map[string]*ClassInfo
-	ExternalName         string
-	Name                 string
-	DefaultConstructor   string
-	Interfaces           []*MutableInterfaceInfo
-	IsExternalFlag       bool // Renamed to avoid conflict with IsExternal() method
-	IsAbstractFlag       bool // Renamed to avoid conflict with IsAbstract() method
-	IsPartial            bool
+	// Class identity and hierarchy links remain separate from member metadata.
+	Parent             *ClassInfo
+	NestedClasses      map[string]*ClassInfo
+	ExternalName       string
+	Name               string
+	DefaultConstructor string
+	Interfaces         []*MutableInterfaceInfo
+	typeShared         bool
+	IsExternalFlag     bool // Renamed to avoid conflict with IsExternal() method
+	IsAbstractFlag     bool // Renamed to avoid conflict with IsAbstract() method
+	IsPartial          bool
 	// IsForwardDecl marks a class registered only via a forward declaration
 	// ("type TFoo = class;"). It is cleared when the full definition completes it.
 	IsForwardDecl bool
@@ -57,25 +43,14 @@ type ClassInfo struct {
 // NewClassInfo creates a new ClassInfo with the given name.
 // Fields, Methods, ClassVars, ClassMethods, and Properties maps are initialized as empty.
 func NewClassInfo(name string) *ClassInfo {
+	metadata := NewClassMetadata(name)
 	return &ClassInfo{
-		Name:                 name,
-		Parent:               nil,
-		Metadata:             NewClassMetadata(name),
-		Fields:               make(map[string]types.Type),
-		FieldDecls:           make(map[string]*ast.FieldDecl),
-		ClassVars:            make(map[string]Value),
-		Constants:            make(map[string]*ast.ConstDecl),
-		ConstantValues:       make(map[string]Value),
-		Methods:              make(map[string]*ast.FunctionDecl),
-		MethodOverloads:      make(map[string][]*ast.FunctionDecl),
-		ClassMethods:         make(map[string]*ast.FunctionDecl),
-		ClassMethodOverloads: make(map[string][]*ast.FunctionDecl),
-		Operators:            NewClassOperatorRegistry(),
-		Constructors:         make(map[string]*ast.FunctionDecl),
-		ConstructorOverloads: make(map[string][]*ast.FunctionDecl),
-		Properties:           make(map[string]*types.PropertyInfo),
-		VirtualMethodTable:   make(map[string]*ClassVirtualMethodEntry),
-		NestedClasses:        make(map[string]*ClassInfo),
+		ClassMetadata: metadata,
+		Type:          types.NewClassType(name, nil),
+		Name:          name,
+		Parent:        nil,
+		Metadata:      metadata,
+		NestedClasses: make(map[string]*ClassInfo),
 	}
 }
 
@@ -84,6 +59,24 @@ var _ IClassInfo = (*ClassInfo)(nil)
 
 // === IClassInfo Interface Implementation ===
 // These methods expose runtime class data to object instances and evaluators.
+
+// SetResolvedType adopts the analyzer's immutable class identity. Runtime
+// inheritance binding must not modify this shared object on subsequent runs.
+func (c *ClassInfo) SetResolvedType(classType *types.ClassType) {
+	if c == nil || classType == nil {
+		return
+	}
+	c.Type = classType
+	c.typeShared = true
+}
+
+// GetClassType returns this class's resolved semantic identity.
+func (c *ClassInfo) GetClassType() *types.ClassType {
+	if c == nil {
+		return nil
+	}
+	return c.Type
+}
 
 // GetName returns the class name
 func (c *ClassInfo) GetName() string {
@@ -119,12 +112,12 @@ func (c *ClassInfo) GetMetadata() *ClassMetadata {
 }
 
 // LookupMethod finds a method by name in the class hierarchy
-func (c *ClassInfo) LookupMethod(name string) *ast.FunctionDecl {
+func (c *ClassInfo) LookupMethod(name string) *MethodMetadata {
 	return c.lookupMethod(name)
 }
 
 // LookupClassMethod finds a class/static method by name in the class hierarchy.
-func (c *ClassInfo) LookupClassMethod(name string) *ast.FunctionDecl {
+func (c *ClassInfo) LookupClassMethod(name string) *MethodMetadata {
 	if c == nil {
 		return nil
 	}
@@ -206,58 +199,32 @@ func (c *ClassInfo) GetOwnProperties() []*PropertyInfo {
 }
 
 // FieldExists checks if a field exists
-func (c *ClassInfo) FieldExists(normalizedName string) bool {
-	if c == nil {
-		return false
-	}
-
-	nameNorm := ident.Normalize(normalizedName)
-
-	// Prefer AST-free metadata (normalized keys) when available.
-	if c.Metadata != nil && c.Metadata.Fields != nil {
-		if _, ok := c.Metadata.Fields[nameNorm]; ok {
-			return true
+func (c *ClassInfo) FieldExists(name string) bool {
+	for current := c; current != nil; current = current.Parent {
+		if current.ClassMetadata == nil {
+			continue
+		}
+		for field := range current.Fields {
+			if ident.Equal(field, name) {
+				return true
+			}
 		}
 	}
-
-	// Legacy fallback: support both normalized and original-cased keys.
-	if _, ok := c.Fields[nameNorm]; ok {
-		return true
-	}
-	if _, ok := c.Fields[normalizedName]; ok {
-		return true
-	}
-	for k := range c.Fields {
-		if ident.Equal(k, normalizedName) {
-			return true
-		}
-	}
-
 	return false
 }
 
-// GetFieldsMap returns the legacy field declarations map
-func (c *ClassInfo) GetFieldsMap() map[string]*ast.FieldDecl {
-	if c == nil {
+// GetFieldsMap returns canonical field metadata owned by this class.
+func (c *ClassInfo) GetFieldsMap() map[string]*FieldMetadata {
+	if c == nil || c.ClassMetadata == nil {
 		return nil
 	}
-	return c.FieldDecls
+	return c.Fields
 }
 
-// GetMethodsMap returns the legacy methods map
-func (c *ClassInfo) GetMethodsMap() map[string]*ast.FunctionDecl {
-	if c == nil {
+// GetMethodsMap returns canonical callable metadata owned by this class.
+func (c *ClassInfo) GetMethodsMap() map[string]*MethodMetadata {
+	if c == nil || c.ClassMetadata == nil {
 		return nil
-	}
-	if len(c.MethodOverloads) > 0 {
-		for name, overloads := range c.MethodOverloads {
-			if len(overloads) == 0 {
-				continue
-			}
-			if _, exists := c.Methods[name]; !exists {
-				c.Methods[name] = overloads[0]
-			}
-		}
 	}
 	return c.Methods
 }
@@ -281,34 +248,21 @@ func (c *ClassInfo) GetClassVarsMap() map[string]Value {
 
 // GetVirtualMethodTable returns the virtual method dispatch table
 func (c *ClassInfo) GetVirtualMethodTable() map[string]*VirtualMethodEntry {
-	if c == nil || c.VirtualMethodTable == nil {
+	if c == nil || c.ClassMetadata == nil {
 		return nil
 	}
-	// Convert from ClassVirtualMethodEntry to VirtualMethodEntry
-	result := make(map[string]*VirtualMethodEntry, len(c.VirtualMethodTable))
-	for sig, entry := range c.VirtualMethodTable {
-		if entry != nil {
-			result[sig] = &VirtualMethodEntry{
-				Method:        entry.Implementation,
-				OwningClass:   entry.IntroducedBy,
-				IsVirtual:     entry.IsVirtual,
-				IsOverride:    false, // ClassVirtualMethodEntry doesn't track this separately
-				IsReintroduce: entry.IsReintroduced,
-			}
-		}
-	}
-	return result
+	return c.VirtualMethods
 }
 
 // LookupOperator finds an operator overload
 // Note: This method doesn't support inheritance checking because it can't access typeSystem
 // (interface constraint). Use lookupOperator directly when inheritance checking is needed.
-func (c *ClassInfo) LookupOperator(operator string, operandTypes []string) (*OperatorEntry, bool) {
+func (c *ClassInfo) LookupOperator(operator string, operandTypes []types.Type) (*OperatorEntry, bool) {
 	if c == nil || c.Operators == nil {
 		return nil, false
 	}
 	// Use nil typeSystem for exact match only (no inheritance checking)
-	entry, found := c.LookupOperatorWithHierarchy(operator, operandTypes, nil)
+	entry, found := c.lookupOperator(operator, operandTypes)
 	if !found || entry == nil {
 		return nil, false
 	}
@@ -353,7 +307,7 @@ func (c *ClassInfo) IsExternal() bool {
 }
 
 // GetConstructor returns a constructor declaration by name (case-insensitive).
-func (c *ClassInfo) GetConstructor(name string) *ast.FunctionDecl {
+func (c *ClassInfo) GetConstructor(name string) *MethodMetadata {
 	if c == nil {
 		return nil
 	}
@@ -366,17 +320,7 @@ func (c *ClassInfo) GetConstructor(name string) *ast.FunctionDecl {
 
 // HasMethodOverloads returns true if the class or any ancestor declares more than
 // one instance method with the given name (i.e., the method is overloaded).
-func (c *ClassInfo) HasMethodOverloads(name string) bool {
-	normalizedName := ident.Normalize(name)
-	total := 0
-	for current := c; current != nil; current = current.Parent {
-		total += len(current.MethodOverloads[normalizedName])
-		if total > 1 {
-			return true
-		}
-	}
-	return false
-}
+func (c *ClassInfo) HasMethodOverloads(name string) bool { return len(c.GetMethodOverloads(name)) > 1 }
 
 // HasClassMethodOverloads returns true if the class or any ancestor declares more
 // than one class (static) method with the given name.
@@ -393,19 +337,29 @@ func (c *ClassInfo) HasClassMethodOverloads(name string) bool {
 }
 
 // GetMethodOverloads returns all instance method overloads across the class hierarchy.
-func (c *ClassInfo) GetMethodOverloads(name string) []*ast.FunctionDecl {
+func (c *ClassInfo) GetMethodOverloads(name string) []*MethodMetadata {
 	normalizedName := ident.Normalize(name)
-	var result []*ast.FunctionDecl
+	var result []*MethodMetadata
+	seen := make(map[*MethodMetadata]bool)
+	add := func(methods []*MethodMetadata) {
+		for _, method := range methods {
+			if method != nil && !seen[method] {
+				seen[method] = true
+				result = append(result, method)
+			}
+		}
+	}
 	for current := c; current != nil; current = current.Parent {
-		result = append(result, current.MethodOverloads[normalizedName]...)
+		add(current.MethodOverloads[normalizedName])
+		add(current.ConstructorOverloads[normalizedName])
 	}
 	return result
 }
 
 // GetClassMethodOverloads returns all class (static) method overloads across the class hierarchy.
-func (c *ClassInfo) GetClassMethodOverloads(name string) []*ast.FunctionDecl {
+func (c *ClassInfo) GetClassMethodOverloads(name string) []*MethodMetadata {
 	normalizedName := ident.Normalize(name)
-	var result []*ast.FunctionDecl
+	var result []*MethodMetadata
 	for current := c; current != nil; current = current.Parent {
 		result = append(result, current.ClassMethodOverloads[normalizedName]...)
 	}
@@ -413,9 +367,9 @@ func (c *ClassInfo) GetClassMethodOverloads(name string) []*ast.FunctionDecl {
 }
 
 // GetConstructorOverloads returns all constructor overloads across the class hierarchy.
-func (c *ClassInfo) GetConstructorOverloads(name string) []*ast.FunctionDecl {
+func (c *ClassInfo) GetConstructorOverloads(name string) []*MethodMetadata {
 	normalizedName := ident.Normalize(name)
-	var result []*ast.FunctionDecl
+	var result []*MethodMetadata
 	for current := c; current != nil; current = current.Parent {
 		result = append(result, current.ConstructorOverloads[normalizedName]...)
 	}
@@ -432,54 +386,41 @@ func (c *ClassInfo) OwnsMethodDecl(fn *ast.FunctionDecl) bool {
 	}
 	for _, overloads := range c.MethodOverloads {
 		for _, decl := range overloads {
-			if decl == fn {
+			if MethodDeclaration(decl) == fn {
 				return true
 			}
 		}
 	}
 	for _, overloads := range c.ClassMethodOverloads {
 		for _, decl := range overloads {
-			if decl == fn {
+			if MethodDeclaration(decl) == fn {
 				return true
 			}
 		}
 	}
 	for _, overloads := range c.ConstructorOverloads {
 		for _, decl := range overloads {
-			if decl == fn {
+			if MethodDeclaration(decl) == fn {
 				return true
 			}
 		}
 	}
 	for _, decl := range c.Methods {
-		if decl == fn {
+		if MethodDeclaration(decl) == fn {
 			return true
 		}
 	}
 	for _, decl := range c.ClassMethods {
-		if decl == fn {
+		if MethodDeclaration(decl) == fn {
 			return true
 		}
 	}
 	for _, decl := range c.Constructors {
-		if decl == fn {
+		if MethodDeclaration(decl) == fn {
 			return true
 		}
 	}
-	return c.Destructor == fn
-}
-
-// GetFieldTypesMap returns the field name to type mapping for this class.
-func (c *ClassInfo) GetFieldTypesMap() map[string]any {
-	if c == nil {
-		return nil
-	}
-	// Convert map[string]types.Type to map[string]any to avoid import cycle
-	result := make(map[string]any, len(c.Fields))
-	for name, typ := range c.Fields {
-		result[name] = typ
-	}
-	return result
+	return MethodDeclaration(c.Destructor) == fn
 }
 
 // === End IClassInfo Interface Implementation ===
@@ -497,24 +438,9 @@ func (c *ClassInfo) LookupNestedClass(name string) *ClassInfo {
 
 // lookupMethod searches for a method in the class hierarchy.
 // Walks up the parent chain, returning the first method found or nil.
-func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
+func (c *ClassInfo) lookupMethod(name string) *MethodMetadata {
 	normalizedName := ident.Normalize(name)
 
-	// Try metadata first (AST-free path)
-	if c.Metadata != nil {
-		if _, exists := c.Metadata.Methods[normalizedName]; exists {
-			// Extract AST node from metadata for backward compatibility
-			// During migration, MethodMetadata.Body is still ast.Statement
-			// We need to return the full FunctionDecl, so fall back to legacy for now
-			// TODO: After full migration, return callable instead of AST
-			if legacyMethod, legacyExists := c.Methods[normalizedName]; legacyExists {
-				return legacyMethod
-			}
-		}
-	}
-
-	// Legacy fallback: Check current class Methods map
-	// This is needed during migration when metadata exists but method isn't in Metadata.Methods
 	if method, exists := c.Methods[normalizedName]; exists {
 		return method
 	}
@@ -522,6 +448,13 @@ func (c *ClassInfo) lookupMethod(name string) *ast.FunctionDecl {
 	// Fallback to overload list when Methods map is empty or incomplete.
 	if overloads, exists := c.MethodOverloads[normalizedName]; exists && len(overloads) > 0 {
 		return overloads[0]
+	}
+
+	if constructor := c.Constructors[normalizedName]; constructor != nil {
+		return constructor
+	}
+	if c.Destructor != nil && ident.Equal(c.Destructor.Name, name) {
+		return c.Destructor
 	}
 
 	// Check parent class (recursive)
@@ -621,20 +554,15 @@ func (c *ClassInfo) getDefaultProperty() *types.PropertyInfo {
 	return nil
 }
 
-// LookupOperatorWithHierarchy searches class operators using assignment-compatible operand types.
-func (c *ClassInfo) LookupOperatorWithHierarchy(operator string, operandTypes []string, typeSystem ClassHierarchy) (*ClassOperatorEntry, bool) {
-	if c == nil {
-		return nil, false
-	}
-	if c.Operators != nil {
-		if entry, ok := c.Operators.lookup(operator, operandTypes, typeSystem); ok {
-			return entry, true
+// lookupOperator searches class operators using assignment-compatible operand types.
+func (c *ClassInfo) lookupOperator(operator string, operandTypes []types.Type) (*ClassOperatorEntry, bool) {
+	var entries []*ClassOperatorEntry
+	for current := c; current != nil; current = current.Parent {
+		if current.Operators != nil {
+			entries = append(entries, current.Operators.entries[ident.Normalize(operator)]...)
 		}
 	}
-	if c.Parent != nil {
-		return c.Parent.LookupOperatorWithHierarchy(operator, operandTypes, typeSystem)
-	}
-	return nil, false
+	return types.SelectOperatorOverload(operandTypes, entries, func(entry *ClassOperatorEntry) []types.Type { return entry.OperandTypes })
 }
 
 // HasConstructor checks whether the class or its ancestors declare a constructor with the given name.
@@ -735,7 +663,7 @@ func (c *ClassValue) GetClassConstant(name string) (Value, bool) {
 		return nil, false
 	}
 	// Check ConstantValues cache first (case-insensitive)
-	for constName, value := range c.ClassInfo.ConstantValues {
+	for constName, value := range c.ClassInfo.Constants {
 		if ident.Equal(constName, name) {
 			return value, true
 		}
@@ -779,7 +707,7 @@ func (c *ClassValue) HasConstructor(name string) bool {
 }
 
 // InvokeParameterlessClassMethod invokes a parameterless class method.
-func (c *ClassValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool) {
+func (c *ClassValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl *MethodMetadata) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
 	}
@@ -810,7 +738,7 @@ func (c *ClassValue) InvokeParameterlessClassMethod(name string, executor func(m
 // auto-invoke path tries InvokeParameterlessClassMethod first, so this is only
 // reached for a parameterless method when a pointer is explicitly wanted, e.g.
 // p := TClass.ClassProc).
-func (c *ClassValue) CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool) {
+func (c *ClassValue) CreateClassMethodPointer(name string, creator func(methodDecl *MethodMetadata) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
 	}
@@ -834,7 +762,7 @@ func (c *ClassValue) CreateClassMethodPointer(name string, creator func(methodDe
 }
 
 // InvokeConstructor invokes a constructor.
-func (c *ClassValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) {
+func (c *ClassValue) InvokeConstructor(name string, executor func(methodDecl *MethodMetadata) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
 	}
@@ -957,88 +885,44 @@ func AsClassValue(v Value) (*ClassValue, bool) {
 // buildVirtualMethodTable builds the virtual method table for this class.
 // Implements virtual/override/reintroduce semantics for method dispatch.
 func (c *ClassInfo) buildVirtualMethodTable() {
-	// First, copy parent's VMT if we have a parent
-	// This inherits all virtual methods from the parent
+	c.VirtualMethods = make(map[string]*VirtualMethodEntry)
 	if c.Parent != nil {
-		for sig, entry := range c.Parent.VirtualMethodTable {
-			// Copy the entry - child inherits parent's virtual methods
-			c.VirtualMethodTable[sig] = &ClassVirtualMethodEntry{
-				IntroducedBy:   entry.IntroducedBy,
-				Implementation: entry.Implementation,
-				IsVirtual:      entry.IsVirtual,
-				IsReintroduced: false,
+		for sig, inherited := range c.Parent.VirtualMethods {
+			entry := *inherited
+			entry.IsReintroduce = false
+			c.VirtualMethods[sig] = &entry
+		}
+	}
+	install := func(method *MethodMetadata) {
+		if method == nil || method.Declaration == nil || (method.Owner != nil && method.Owner != c) {
+			return
+		}
+		sig := methodSignature(method.Declaration)
+		if method.IsVirtual {
+			c.VirtualMethods[sig] = &VirtualMethodEntry{OwningClass: c, Method: method, IsVirtual: true}
+		} else if method.IsOverride {
+			if entry := c.VirtualMethods[sig]; entry != nil {
+				entry.Method = method
+				entry.IsOverride = true
 			}
 		}
 	}
-
-	// Now process this class's own methods
-	for _, method := range c.MethodOverloads {
-		for _, m := range method {
-			sig := methodSignature(m)
-
-			if m.IsVirtual {
-				// This method is declared as virtual
-				// It starts a new virtual dispatch chain
-				c.VirtualMethodTable[sig] = &ClassVirtualMethodEntry{
-					IntroducedBy:   c,
-					Implementation: m,
-					IsVirtual:      true,
-					IsReintroduced: false,
-				}
-			} else if m.IsOverride {
-				// This method overrides a parent virtual method
-				// Update the VMT entry to point to this override
-				if existingEntry, exists := c.VirtualMethodTable[sig]; exists {
-					// Keep the IntroducedBy from parent, but update implementation
-					existingEntry.Implementation = m
-				}
-				// If no existing entry, this is an error (should be caught by semantic analysis)
-			}
-			// Reintroduced and non-virtual methods leave inherited virtual bindings unchanged.
+	for _, group := range c.MethodOverloads {
+		for _, method := range group {
+			install(method)
 		}
 	}
-
-	// Process class methods (static methods) similarly
-	for _, method := range c.ClassMethodOverloads {
-		for _, m := range method {
-			sig := methodSignature(m)
-
-			if m.IsVirtual {
-				c.VirtualMethodTable[sig] = &ClassVirtualMethodEntry{
-					IntroducedBy:   c,
-					Implementation: m,
-					IsVirtual:      true,
-					IsReintroduced: false,
-				}
-			} else if m.IsOverride {
-				if existingEntry, exists := c.VirtualMethodTable[sig]; exists {
-					existingEntry.Implementation = m
-				}
-			}
-			// Reintroduced class methods leave inherited virtual bindings unchanged.
+	for _, group := range c.ClassMethodOverloads {
+		for _, method := range group {
+			install(method)
 		}
 	}
-
-	// Process constructors (they can also be virtual/override)
-	for _, ctors := range c.ConstructorOverloads {
-		for _, ctor := range ctors {
-			sig := methodSignature(ctor)
-
-			if ctor.IsVirtual {
-				c.VirtualMethodTable[sig] = &ClassVirtualMethodEntry{
-					IntroducedBy:   c,
-					Implementation: ctor,
-					IsVirtual:      true,
-					IsReintroduced: false,
-				}
-			} else if ctor.IsOverride {
-				if existingEntry, exists := c.VirtualMethodTable[sig]; exists {
-					existingEntry.Implementation = ctor
-				}
-			}
-			// Constructors typically don't use reintroduce
+	for _, group := range c.ConstructorOverloads {
+		for _, method := range group {
+			install(method)
 		}
 	}
+	install(c.Destructor)
 }
 
 // methodSignature generates a signature string for a method.
@@ -1062,7 +946,7 @@ func (c *ClassInfo) GetClassConstant(name string) (Value, bool) {
 
 	// Check ConstantValues cache (case-insensitive)
 	normalizedName := ident.Normalize(name)
-	for constName, value := range c.ConstantValues {
+	for constName, value := range c.Constants {
 		if ident.Normalize(constName) == normalizedName {
 			return value, true
 		}

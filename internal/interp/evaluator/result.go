@@ -1,5 +1,7 @@
 package evaluator
 
+import "github.com/cwbudde/go-dws/internal/interp/runtime"
+
 // EvalResult wraps a Value to provide cleaner error propagation patterns.
 // It reduces the boilerplate of repetitive "if isError(val) { return val }" checks
 // while maintaining backward compatibility with existing code.
@@ -43,7 +45,7 @@ func (r *EvalResult) Val() Value {
 // Error returns the error if this result contains an ErrorValue, nil otherwise.
 // This provides a cleaner way to check for errors compared to isError(val).
 func (r *EvalResult) Error() Value {
-	if r.value != nil && r.value.Type() == "ERROR" {
+	if r.value != nil && runtime.KindOf(r.value) == runtime.KindError {
 		return r.value
 	}
 	return nil

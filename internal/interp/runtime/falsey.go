@@ -20,10 +20,10 @@ func IsFalsey(val Value) bool {
 	case *ArrayValue:
 		return len(v.Elements) == 0
 	default:
-		switch val.Type() {
-		case "NIL", "UNASSIGNED", "NULL":
+		switch KindOf(val) {
+		case KindNil, KindUnassigned, KindNull:
 			return true
-		case "VARIANT":
+		case KindVariant:
 			if wrapper, ok := val.(VariantWrapper); ok {
 				return IsFalsey(wrapper.UnwrapVariant())
 			}

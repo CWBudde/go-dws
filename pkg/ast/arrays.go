@@ -59,6 +59,8 @@ type ArrayTypeAnnotation struct {
 	EndPos      token.Position
 }
 
+func (ata *ArrayTypeAnnotation) typeExpressionNode() {}
+
 func (a *ArrayTypeAnnotation) End() token.Position {
 	if a.EndPos.Line != 0 {
 		return a.EndPos

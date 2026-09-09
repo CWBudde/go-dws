@@ -12,6 +12,12 @@ import (
 
 // analyzeSetDecl analyzes a set type declaration
 func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
+	defer func() {
+		if decl != nil && decl.Name != nil {
+			a.recordDeclaredType(decl, decl.Name.Value)
+		}
+	}()
+
 	if decl == nil {
 		return
 	}

@@ -1,8 +1,6 @@
 package evaluator
 
 import (
-	"strings"
-
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -19,8 +17,7 @@ import (
 func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Check for class operator overloads first
 	// Use existing TryBinaryOperator infrastructure
-	leftType := left.Type()
-	if leftType == "OBJECT" || strings.HasPrefix(leftType, "OBJECT[") {
+	if runtime.KindOf(left) == runtime.KindObject {
 		// Try operator overload - first try the compound operator directly
 		var compoundOpSymbol string
 		switch op {

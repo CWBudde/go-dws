@@ -46,7 +46,7 @@ func (c *ClassInfoValue) GetClassConstant(name string) (Value, bool) {
 		return nil, false
 	}
 	// Check current class (case-insensitive)
-	for constName, value := range c.ClassInfo.ConstantValues {
+	for constName, value := range c.ClassInfo.Constants {
 		if ident.Equal(constName, name) {
 			return value, true
 		}
@@ -89,7 +89,7 @@ func (c *ClassInfoValue) HasConstructor(name string) bool {
 }
 
 // InvokeParameterlessClassMethod invokes a parameterless class method.
-func (c *ClassInfoValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl any) Value) (Value, bool) {
+func (c *ClassInfoValue) InvokeParameterlessClassMethod(name string, executor func(methodDecl *MethodMetadata) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
 	}
@@ -116,7 +116,7 @@ func (c *ClassInfoValue) InvokeParameterlessClassMethod(name string, executor fu
 }
 
 // CreateClassMethodPointer creates a function pointer for a class method with parameters.
-func (c *ClassInfoValue) CreateClassMethodPointer(name string, creator func(methodDecl any) Value) (Value, bool) {
+func (c *ClassInfoValue) CreateClassMethodPointer(name string, creator func(methodDecl *MethodMetadata) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
 	}
@@ -143,7 +143,7 @@ func (c *ClassInfoValue) CreateClassMethodPointer(name string, creator func(meth
 }
 
 // InvokeConstructor invokes a constructor.
-func (c *ClassInfoValue) InvokeConstructor(name string, executor func(methodDecl any) Value) (Value, bool) {
+func (c *ClassInfoValue) InvokeConstructor(name string, executor func(methodDecl *MethodMetadata) Value) (Value, bool) {
 	if c == nil || c.ClassInfo == nil {
 		return nil, false
 	}

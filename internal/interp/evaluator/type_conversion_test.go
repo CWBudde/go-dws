@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -197,7 +198,7 @@ func TestConversionCallbacks_NilHandling(t *testing.T) {
 
 	t.Run("partial ConversionCallbacks", func(t *testing.T) {
 		callbacks := &ConversionCallbacks{
-			ImplicitConversion: func(value Value, targetTypeName string) (Value, bool) {
+			ImplicitConversion: func(value Value, _ ast.TypeExpression) (Value, bool) {
 				return value, false
 			},
 		}
@@ -218,7 +219,7 @@ func TestTryImplicitConversion_NilValue(t *testing.T) {
 	e := NewEvaluator(typeSystem, nil, nil, nil, nil, refCountMgr)
 	ctx := NewExecutionContext(nil)
 
-	result, ok := e.TryImplicitConversion(nil, "Integer", ctx)
+	result, ok := e.TryImplicitConversion(nil, types.INTEGER, ctx)
 	if ok {
 		t.Error("expected no conversion for nil value")
 	}
@@ -237,7 +238,7 @@ func TestTryImplicitConversion_SameType(t *testing.T) {
 	value := &runtime.IntegerValue{Value: 42}
 
 	// INTEGER == INTEGER (exact match)
-	result, ok := e.TryImplicitConversion(value, "INTEGER", ctx)
+	result, ok := e.TryImplicitConversion(value, types.INTEGER, ctx)
 	if ok {
 		t.Error("expected no conversion for same type")
 	}
@@ -267,7 +268,7 @@ func TestTryImplicitConversion_IntegerToFloat(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			value := &runtime.IntegerValue{Value: tc.input}
-			result, ok := e.TryImplicitConversion(value, "Float", ctx)
+			result, ok := e.TryImplicitConversion(value, types.FLOAT, ctx)
 
 			if !ok {
 				t.Error("expected conversion to succeed for Integer→Float")
@@ -314,7 +315,7 @@ func TestTryImplicitConversion_EnumToInteger(t *testing.T) {
 				OrdinalValue: tc.ordinal,
 			}
 
-			result, ok := e.TryImplicitConversion(value, "Integer", ctx)
+			result, ok := e.TryImplicitConversion(value, types.INTEGER, ctx)
 
 			if !ok {
 				t.Error("expected conversion to succeed for Enum→Integer")
@@ -342,7 +343,7 @@ func TestTryImplicitConversion_NoConversionAvailable(t *testing.T) {
 
 	// String → Integer is not a built-in conversion
 	value := &runtime.StringValue{Value: "42"}
-	result, ok := e.TryImplicitConversion(value, "Integer", ctx)
+	result, ok := e.TryImplicitConversion(value, types.INTEGER, ctx)
 
 	if ok {
 		t.Error("expected no conversion for String→Integer without registered conversion")
@@ -362,7 +363,7 @@ func TestTryImplicitConversion_FloatToInteger(t *testing.T) {
 
 	// Float → Integer is NOT an implicit conversion (would lose precision)
 	value := &runtime.FloatValue{Value: 42.5}
-	result, ok := e.TryImplicitConversion(value, "Integer", ctx)
+	result, ok := e.TryImplicitConversion(value, types.INTEGER, ctx)
 
 	if ok {
 		t.Error("expected no implicit conversion for Float→Integer (would lose precision)")
@@ -387,7 +388,11 @@ func TestTryImplicitConversion_TypeNormalization(t *testing.T) {
 
 	for _, targetType := range testCases {
 		t.Run(targetType, func(t *testing.T) {
-			result, ok := e.TryImplicitConversion(value, targetType, ctx)
+			resolved, err := e.ResolveTypeFromAnnotation(&ast.TypeAnnotation{Name: targetType}, ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, ok := e.TryImplicitConversion(value, resolved, ctx)
 
 			if !ok {
 				t.Errorf("expected conversion to succeed for Integer→%s", targetType)

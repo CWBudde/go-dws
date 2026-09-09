@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -87,45 +86,19 @@ func (c *ClassInfo) SetParentClass(parent any) {
 	}
 
 	c.Parent = parentClass
+	if !c.typeShared && c.Type != nil {
+		c.Type.Parent = parentClass.GetClassType()
+	}
 	c.Metadata.Parent = parentClass.Metadata
-	c.Metadata.ParentName = parentClass.Metadata.Name
 
-	for fieldName, fieldType := range parentClass.Fields {
-		c.Fields[fieldName] = fieldType
-	}
-	for fieldName, fieldDecl := range parentClass.FieldDecls {
-		c.FieldDecls[fieldName] = fieldDecl
-	}
-	for methodName, methodDecl := range parentClass.Methods {
-		c.Methods[methodName] = methodDecl
-	}
-	for methodName, methodDecl := range parentClass.ClassMethods {
-		c.ClassMethods[methodName] = methodDecl
-	}
 	for name, constructor := range parentClass.Constructors {
 		c.Constructors[ident.Normalize(name)] = constructor
 	}
 	for name, overloads := range parentClass.ConstructorOverloads {
-		c.ConstructorOverloads[ident.Normalize(name)] = append([]*ast.FunctionDecl(nil), overloads...)
+		c.ConstructorOverloads[ident.Normalize(name)] = append([]*MethodMetadata(nil), overloads...)
 	}
 	if parentClass.DefaultConstructor != "" {
 		c.DefaultConstructor = parentClass.DefaultConstructor
-	}
-
-	for name, constructor := range parentClass.Metadata.Constructors {
-		if c.Metadata.Constructors == nil {
-			c.Metadata.Constructors = make(map[string]*MethodMetadata)
-		}
-		c.Metadata.Constructors[name] = constructor
-	}
-	for name, overloads := range parentClass.Metadata.ConstructorOverloads {
-		if c.Metadata.ConstructorOverloads == nil {
-			c.Metadata.ConstructorOverloads = make(map[string][]*MethodMetadata)
-		}
-		c.Metadata.ConstructorOverloads[name] = append([]*MethodMetadata(nil), overloads...)
-	}
-	if parentClass.Metadata.DefaultConstructor != "" {
-		c.Metadata.DefaultConstructor = parentClass.Metadata.DefaultConstructor
 	}
 
 	c.Operators = parentClass.Operators.Clone()
@@ -146,12 +119,7 @@ func (c *ClassInfo) AddConstantValue(constDecl *ast.ConstDecl, value Value) {
 	if c == nil || constDecl == nil {
 		return
 	}
-	c.Constants[constDecl.Name.Value] = constDecl
-	c.ConstantValues[constDecl.Name.Value] = value
-	if c.Metadata.Constants == nil {
-		c.Metadata.Constants = make(map[string]any)
-	}
-	c.Metadata.Constants[constDecl.Name.Value] = value
+	c.Constants[constDecl.Name.Value] = value
 }
 
 // ConstantValuesCopy copies the constant bindings while sharing their runtime values.
@@ -159,8 +127,8 @@ func (c *ClassInfo) ConstantValuesCopy() map[string]Value {
 	if c == nil {
 		return nil
 	}
-	result := make(map[string]Value, len(c.ConstantValues))
-	for name, val := range c.ConstantValues {
+	result := make(map[string]Value, len(c.Constants))
+	for name, val := range c.Constants {
 		result[name] = val
 	}
 	return result
@@ -172,24 +140,9 @@ func (c *ClassInfo) InheritConstantValuesFrom(parent any) {
 	if c == nil || !ok || parentClass == nil {
 		return
 	}
-	for name, decl := range parentClass.Constants {
+	for name, value := range parentClass.Constants {
 		if _, exists := c.Constants[name]; !exists {
-			c.Constants[name] = decl
-		}
-	}
-	for name, val := range parentClass.ConstantValues {
-		if _, exists := c.ConstantValues[name]; !exists {
-			c.ConstantValues[name] = val
-		}
-	}
-	if parentClass.Metadata != nil && parentClass.Metadata.Constants != nil {
-		if c.Metadata.Constants == nil {
-			c.Metadata.Constants = make(map[string]any)
-		}
-		for name, val := range parentClass.Metadata.Constants {
-			if _, exists := c.Metadata.Constants[name]; !exists {
-				c.Metadata.Constants[name] = val
-			}
+			c.Constants[name] = value
 		}
 	}
 }
@@ -199,8 +152,6 @@ func (c *ClassInfo) AddFieldDeclaration(fieldDecl *ast.FieldDecl, fieldType type
 	if c == nil || fieldDecl == nil {
 		return
 	}
-	c.Fields[fieldDecl.Name.Value] = fieldType
-	c.FieldDecls[fieldDecl.Name.Value] = fieldDecl
 
 	fieldMeta := FieldMetadataFromAST(fieldDecl)
 	fieldMeta.Type = fieldType
@@ -222,34 +173,6 @@ func (c *ClassInfo) AddNestedClassRef(nestedName string, nestedClass any) {
 	}
 }
 
-// LookupDeclaredMethod looks up an instance or class method in this class’s method map.
-func (c *ClassInfo) LookupDeclaredMethod(methodName string, isClassMethod bool) (*ast.FunctionDecl, bool) {
-	if c == nil {
-		return nil, false
-	}
-	normalizedName := ident.Normalize(methodName)
-	if isClassMethod {
-		method, exists := c.ClassMethods[normalizedName]
-		return method, exists
-	}
-	method, exists := c.Methods[normalizedName]
-	return method, exists
-}
-
-// SetConstructorDecl sets the class’s primary constructor declaration.
-func (c *ClassInfo) SetConstructorDecl(constructor *ast.FunctionDecl) {
-	if c != nil {
-		c.Constructor = constructor
-	}
-}
-
-// SetDestructorDecl sets the class’s destructor declaration.
-func (c *ClassInfo) SetDestructorDecl(destructor *ast.FunctionDecl) {
-	if c != nil {
-		c.Destructor = destructor
-	}
-}
-
 // InheritDestructorMetadataIfMissing uses the parent destructor when none is recorded locally.
 func (c *ClassInfo) InheritDestructorMetadataIfMissing() {
 	if c != nil && c.Metadata.Destructor == nil && c.Parent != nil && c.Parent.Metadata.Destructor != nil {
@@ -266,7 +189,7 @@ func (c *ClassInfo) SynthesizeImplicitDefaultConstructor() {
 		hasOverloadDirective := false
 		hasParameterlessOverload := false
 		for _, ctor := range overloads {
-			if ctor.IsOverload {
+			if ctor.Declaration != nil && ctor.Declaration.IsOverload {
 				hasOverloadDirective = true
 			}
 			if len(ctor.Parameters) == 0 {
@@ -282,10 +205,12 @@ func (c *ClassInfo) SynthesizeImplicitDefaultConstructor() {
 				IsOverload:    true,
 			}
 			normalizedName := ident.Normalize(ctorName)
+			callable := MethodMetadataFromAST(implicitConstructor)
+			callable.Owner = c
 			if _, exists := c.Constructors[normalizedName]; !exists {
-				c.Constructors[normalizedName] = implicitConstructor
+				c.Constructors[normalizedName] = callable
 			}
-			c.ConstructorOverloads[normalizedName] = append(c.ConstructorOverloads[normalizedName], implicitConstructor)
+			c.ConstructorOverloads[normalizedName] = append(c.ConstructorOverloads[normalizedName], callable)
 		}
 	}
 }
@@ -336,61 +261,34 @@ func (c *ClassInfo) AddMethodDeclaration(method *ast.FunctionDecl, className str
 	if c == nil || method == nil {
 		return false
 	}
-
-	normalizedMethodName := ident.Normalize(method.Name.Value)
-
-	if !method.IsConstructor && ident.Equal(method.Name.Value, "Create") && method.ReturnType != nil {
-		if ident.Equal(method.ReturnType.String(), className) {
-			method.IsConstructor = true
-		}
+	if !method.IsConstructor && ident.Equal(method.Name.Value, "Create") && method.ReturnType != nil && ident.Equal(method.ReturnType.String(), className) {
+		method.IsConstructor = true
 	}
-
-	methodMeta := MethodMetadataFromAST(method)
+	callable := MethodMetadataFromAST(method)
+	callable.Owner = c
 	if registry != nil {
-		registry.RegisterMethod(methodMeta)
+		registry.RegisterMethod(callable)
 	}
-
-	if method.IsClassMethod {
-		c.ClassMethods[normalizedMethodName] = method
-		c.ClassMethodOverloads[normalizedMethodName] = append(c.ClassMethodOverloads[normalizedMethodName], method)
-		if !method.IsConstructor && !method.IsDestructor {
-			AddMethodToClass(c.Metadata, methodMeta, true)
-		}
-	} else {
-		c.Methods[normalizedMethodName] = method
-		c.MethodOverloads[normalizedMethodName] = append(c.MethodOverloads[normalizedMethodName], method)
-		if !method.IsConstructor && !method.IsDestructor {
-			AddMethodToClass(c.Metadata, methodMeta, false)
-		}
-	}
-
-	if method.IsDestructor {
-		c.Metadata.Destructor = methodMeta
-	}
-
-	if method.IsConstructor {
-		normalizedName := ident.Normalize(method.Name.Value)
-		c.Constructors[normalizedName] = method
-		AddConstructorToClass(c.Metadata, methodMeta)
+	name := ident.Normalize(method.Name.Value)
+	switch {
+	case method.IsConstructor:
+		c.Constructors[name] = callable
+		c.ConstructorOverloads[name] = replaceCallable(c.ConstructorOverloads[name], callable)
 		if method.IsDefault {
 			c.DefaultConstructor = method.Name.Value
+			c.Metadata.DefaultConstructor = method.Name.Value
 		}
-
-		existingOverloads := c.ConstructorOverloads[normalizedName]
-		replaced := false
-		for idx, existingMethod := range existingOverloads {
-			if parametersMatchAST(existingMethod.Parameters, method.Parameters) {
-				existingOverloads[idx] = method
-				replaced = true
-				break
-			}
+	case method.IsDestructor:
+		c.Destructor = callable
+	default:
+		if method.IsClassMethod {
+			c.ClassMethods[name] = callable
+			c.ClassMethodOverloads[name] = append(c.ClassMethodOverloads[name], callable)
+		} else {
+			c.Methods[name] = callable
+			c.MethodOverloads[name] = append(c.MethodOverloads[name], callable)
 		}
-		if !replaced {
-			existingOverloads = append(existingOverloads, method)
-		}
-		c.ConstructorOverloads[normalizedName] = existingOverloads
 	}
-
 	return true
 }
 
@@ -407,7 +305,7 @@ func (c *ClassInfo) InheritParentPropertyInfos() {
 }
 
 // RegisterOperatorBinding registers an operator’s operand signature and bound method.
-func (c *ClassInfo) RegisterOperatorBinding(operatorSymbol, bindingName string, operandTypes []string) error {
+func (c *ClassInfo) RegisterOperatorBinding(operatorSymbol, bindingName string, operandTypes []types.Type) error {
 	if c == nil {
 		return nil
 	}
@@ -420,29 +318,26 @@ func (c *ClassInfo) RegisterOperatorBinding(operatorSymbol, bindingName string, 
 		}
 	}
 
-	classKey := NormalizeTypeAnnotation(c.Name)
-	normalizedOperands := make([]string, 0, len(operandTypes)+1)
+	classType := c.GetClassType()
+	normalizedOperands := append([]types.Type(nil), operandTypes...)
 	includesClass := false
-	for _, operandType := range operandTypes {
-		key := NormalizeTypeAnnotation(operandType)
-		if key == classKey {
+	for _, operand := range operandTypes {
+		if types.OperatorTypesEqual(operand, classType) {
 			includesClass = true
 		}
-		normalizedOperands = append(normalizedOperands, key)
 	}
 	if !includesClass {
 		if ident.Equal(operatorSymbol, "in") {
-			normalizedOperands = append(normalizedOperands, classKey)
+			normalizedOperands = append(normalizedOperands, classType)
 		} else {
-			normalizedOperands = append([]string{classKey}, normalizedOperands...)
+			normalizedOperands = append([]types.Type{classType}, normalizedOperands...)
 		}
 	}
-
 	selfIndex := -1
 	if !isClassMethod {
-		for idx, key := range normalizedOperands {
-			if key == classKey {
-				selfIndex = idx
+		for i, operand := range normalizedOperands {
+			if types.OperatorTypesEqual(operand, classType) {
+				selfIndex = i
 				break
 			}
 		}
@@ -461,7 +356,7 @@ func (c *ClassInfo) RegisterOperatorBinding(operatorSymbol, bindingName string, 
 	}
 
 	if err := c.Operators.Register(entry); err != nil {
-		return fmt.Errorf("class operator '%s' already defined for operand types (%s)", operatorSymbol, strings.Join(normalizedOperands, ", "))
+		return fmt.Errorf("class operator '%s' already defined for operand types (%s)", operatorSymbol, types.FormatTypeList(normalizedOperands))
 	}
 
 	return nil
@@ -489,34 +384,25 @@ func (c *ClassInfo) RegisterMethodImplementation(fn *ast.FunctionDecl, allClasse
 	if c == nil || fn == nil {
 		return
 	}
-
-	normalizedMethodName := ident.Normalize(fn.Name.Value)
-
-	if fn.IsClassMethod {
-		c.ClassMethods[normalizedMethodName] = fn
-		overloads := c.ClassMethodOverloads[normalizedMethodName]
-		c.ClassMethodOverloads[normalizedMethodName] = replaceMethodInOverloadListNoReceiver(overloads, fn)
+	name := ident.Normalize(fn.Name.Value)
+	existing := c.findCallableDeclaration(fn)
+	if existing != nil {
+		existing.BindImplementation(fn)
 	} else {
-		c.Methods[normalizedMethodName] = fn
-		overloads := c.MethodOverloads[normalizedMethodName]
-		c.MethodOverloads[normalizedMethodName] = replaceMethodInOverloadListNoReceiver(overloads, fn)
+		c.AddMethodDeclaration(fn, c.Name, nil)
+		existing = c.findCallableDeclaration(fn)
 	}
-
-	if fn.IsConstructor {
-		normalizedCtorName := ident.Normalize(fn.Name.Value)
-		c.Constructors[normalizedCtorName] = fn
-		overloads := c.ConstructorOverloads[normalizedCtorName]
-		c.ConstructorOverloads[normalizedCtorName] = replaceMethodInOverloadListNoReceiver(overloads, fn)
-		c.Constructor = fn
-		c.propagateConstructorImplementation(allClasses, fn)
+	switch {
+	case fn.IsConstructor:
+		c.Constructors[name] = existing
+	case fn.IsDestructor:
+		c.Destructor = existing
+	case fn.IsClassMethod:
+		c.ClassMethods[name] = existing
+	default:
+		c.Methods[name] = existing
 	}
-
-	if fn.IsDestructor {
-		c.Destructor = fn
-	}
-
 	c.buildVirtualMethodTable()
-	c.propagateMethodImplementation(allClasses, normalizedMethodName, fn, fn.IsClassMethod)
 	c.rebuildDescendantVMTs(allClasses)
 }
 
@@ -543,75 +429,39 @@ func isDescendantOfClass(childClass, ancestorClass *ClassInfo) bool {
 	return false
 }
 
-func (c *ClassInfo) propagateMethodImplementation(allClasses map[string]IClassInfo, normalizedMethodName string, fn *ast.FunctionDecl, isClassMethod bool) {
-	for _, classInfoAny := range allClasses {
-		classInfo, ok := classInfoAny.(*ClassInfo)
-		if !ok || !isDescendantOfClass(classInfo, c) {
-			continue
-		}
-
-		if isClassMethod {
-			if existing, ok := classInfo.ClassMethods[normalizedMethodName]; ok {
-				if existing.ClassName != nil && ident.Equal(existing.ClassName.Value, classInfo.Name) {
-					continue
-				}
-				classInfo.ClassMethods[normalizedMethodName] = fn
-			}
-		} else {
-			if existing, ok := classInfo.Methods[normalizedMethodName]; ok {
-				if existing.ClassName != nil && ident.Equal(existing.ClassName.Value, classInfo.Name) {
-					continue
-				}
-				classInfo.Methods[normalizedMethodName] = fn
-			}
+// findCallableDeclaration locates the canonical callable for a declaration signature.
+func (c *ClassInfo) findCallableDeclaration(fn *ast.FunctionDecl) *MethodMetadata {
+	if c == nil || fn == nil {
+		return nil
+	}
+	name := ident.Normalize(fn.Name.Value)
+	var candidates []*MethodMetadata
+	switch {
+	case fn.IsConstructor:
+		candidates = c.ConstructorOverloads[name]
+	case fn.IsDestructor:
+		return c.Destructor
+	case fn.IsClassMethod:
+		candidates = c.ClassMethodOverloads[name]
+	default:
+		candidates = c.MethodOverloads[name]
+	}
+	for _, candidate := range candidates {
+		if candidate != nil && candidate.Declaration != nil && parameterTypesEqualFold(candidate.Declaration.Parameters, fn.Parameters) {
+			return candidate
 		}
 	}
+	return nil
 }
 
-func (c *ClassInfo) propagateConstructorImplementation(allClasses map[string]IClassInfo, fn *ast.FunctionDecl) {
-	normalizedCtorName := ident.Normalize(fn.Name.Value)
-
-	for _, classInfoAny := range allClasses {
-		classInfo, ok := classInfoAny.(*ClassInfo)
-		if !ok || !isDescendantOfClass(classInfo, c) {
-			continue
-		}
-
-		if ctor, ok := classInfo.Constructors[normalizedCtorName]; ok && ctor != nil {
-			if ctor.ClassName != nil && ident.Equal(ctor.ClassName.Value, classInfo.Name) {
-				continue
-			}
-			if parametersMatchAST(ctor.Parameters, fn.Parameters) {
-				classInfo.Constructors[normalizedCtorName] = fn
-			}
-		}
-
-		if overloads, ok := classInfo.ConstructorOverloads[normalizedCtorName]; ok {
-			for idx, decl := range overloads {
-				if decl == nil {
-					continue
-				}
-				if decl.ClassName != nil && ident.Equal(decl.ClassName.Value, classInfo.Name) {
-					continue
-				}
-				if parametersMatchAST(decl.Parameters, fn.Parameters) {
-					overloads[idx] = fn
-				}
-			}
-			classInfo.ConstructorOverloads[normalizedCtorName] = overloads
-		}
-	}
-}
-
-func replaceMethodInOverloadListNoReceiver(list []*ast.FunctionDecl, impl *ast.FunctionDecl) []*ast.FunctionDecl {
-	for idx, decl := range list {
-		if parameterTypesEqualFold(decl.Parameters, impl.Parameters) {
-			mergeParameterDefaults(impl, decl)
-			list[idx] = impl
+func replaceCallable(list []*MethodMetadata, method *MethodMetadata) []*MethodMetadata {
+	for index, existing := range list {
+		if existing != nil && parameterTypesEqualFold(existing.Declaration.Parameters, method.Declaration.Parameters) {
+			list[index] = method
 			return list
 		}
 	}
-	return append(list, impl)
+	return append(list, method)
 }
 
 // parameterTypesEqualFold compares two parameter lists by declared type name,
@@ -645,4 +495,14 @@ func mergeParameterDefaults(impl, decl *ast.FunctionDecl) {
 			impl.Parameters[i].DefaultValue = declParam.DefaultValue
 		}
 	}
+}
+
+// CallableForDeclaration returns the canonical callable for a declaration signature.
+func (c *ClassInfo) CallableForDeclaration(declaration *ast.FunctionDecl) *MethodMetadata {
+	for current := c; current != nil; current = current.Parent {
+		if callable := current.findCallableDeclaration(declaration); callable != nil {
+			return callable
+		}
+	}
+	return nil
 }

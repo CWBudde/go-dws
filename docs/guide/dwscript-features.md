@@ -103,6 +103,12 @@ This document catalogs ALL features found in the original DWScript implementatio
 
 ## Type System
 
+Checked programs retain resolved type information through execution, including array
+bounds, enum indices, function-pointer signatures and class ancestry. The embedding
+option `WithTypeCheck(false)` skips semantic checking and resolves structured declarations
+at runtime. Reusing a compiled program creates fresh runtime state while retaining its
+compiled type information.
+
 ### Primitive Types
 
 **Test Evidence**: All test directories

@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -59,7 +60,7 @@ func replaceMethodMetadataOverloadList(list []*MethodMetadata, impl *MethodMetad
 		if decl == nil {
 			continue
 		}
-		if parametersMatchMetadata(decl.Parameters, impl.Parameters) {
+		if methodParametersMatchMetadata(decl, impl) {
 			list[idx] = impl
 			return list
 		}
@@ -83,12 +84,21 @@ func parametersMatchAST(params1, params2 []*ast.Parameter) bool {
 	return true
 }
 
-func parametersMatchMetadata(params1, params2 []ParameterMetadata) bool {
+func methodParametersMatchMetadata(first, second *MethodMetadata) bool {
+	params1, params2 := first.Parameters, second.Parameters
 	if len(params1) != len(params2) {
 		return false
 	}
 	for i := range params1 {
-		if params1[i].TypeName != params2[i].TypeName {
+		// Implementation binding can precede resolution of the new declaration.
+		// Retain its original syntax until declaration registration supplies types.
+		if params1[i].Type == nil || params2[i].Type == nil {
+			if first.Declaration != nil && second.Declaration != nil {
+				return parametersMatchAST(first.Declaration.Parameters, second.Declaration.Parameters)
+			}
+			return false
+		}
+		if !types.OperatorTypesEqual(params1[i].Type, params2[i].Type) {
 			return false
 		}
 	}

@@ -182,49 +182,8 @@ func (r *RecordValue) GetRecordMethodOverloads(name string) []*ast.FunctionDecl 
 	return decls
 }
 
-// FunctionDecl reconstructs an ast.FunctionDecl from method metadata.
-// Returns nil for native methods (no AST body).
-func (m *MethodMetadata) FunctionDecl() *ast.FunctionDecl {
-	if m == nil || m.Body == nil {
-		return nil
-	}
-	blockBody, ok := m.Body.(*ast.BlockStatement)
-	if !ok {
-		// Body must be a BlockStatement for function declarations
-		return nil
-	}
-
-	// Reconstruct parameters from metadata
-	params := make([]*ast.Parameter, len(m.Parameters))
-	for i, paramMeta := range m.Parameters {
-		var paramType ast.TypeExpression
-		if paramMeta.TypeName != "" {
-			paramType = &ast.TypeAnnotation{Name: paramMeta.TypeName}
-		}
-		params[i] = &ast.Parameter{
-			Name:         &ast.Identifier{Value: paramMeta.Name},
-			Type:         paramType,
-			ByRef:        paramMeta.ByRef,
-			DefaultValue: paramMeta.DefaultValue,
-		}
-	}
-
-	// Reconstruct return type if present
-	var returnType ast.TypeExpression
-	if m.ReturnTypeName != "" {
-		returnType = &ast.TypeAnnotation{Name: m.ReturnTypeName}
-	}
-
-	return &ast.FunctionDecl{
-		Name:          &ast.Identifier{Value: m.Name},
-		Parameters:    params,
-		ReturnType:    returnType,
-		Body:          blockBody,
-		IsClassMethod: m.IsClassMethod,
-		IsConstructor: m.IsConstructor,
-		IsDestructor:  m.IsDestructor,
-	}
-}
+// FunctionDecl returns the original executable AST payload of this callable.
+func (m *MethodMetadata) FunctionDecl() *ast.FunctionDecl { return MethodDeclaration(m) }
 
 // HasRecordProperty checks if a property with the given name exists.
 // Note: Records CAN have properties in DWScript (though less common than classes).

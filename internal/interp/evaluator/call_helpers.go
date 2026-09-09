@@ -3,7 +3,6 @@ package evaluator
 import (
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -39,6 +38,15 @@ func (e *Evaluator) executeFunctionPointerDirect(funcPtr Value, args []Value, no
 	fn, _ := callable.GetFunctionDecl().(*ast.FunctionDecl)
 	if fn == nil {
 		return e.newError(node, "function pointer is nil")
+	}
+
+	if pointer, ok := funcPtr.(*runtime.FunctionPointerValue); ok && pointer.Callable != nil && pointer.SelfObject != nil {
+		if pointer.Callable.IsClassMethod {
+			if classMeta, ok := pointer.SelfObject.(ClassMetaValue); ok {
+				return e.executeClassMethodDirect(classMeta, pointer.Callable, args, node, ctx)
+			}
+		}
+		return e.executeObjectMethodDirect(pointer.SelfObject, pointer.Callable, args, node, ctx)
 	}
 
 	callCtx := ctx
@@ -110,8 +118,8 @@ func (e *Evaluator) executeLambdaDirect(
 	for idx, param := range lambda.Parameters {
 		arg := args[idx]
 		if param.Type != nil {
-			paramTypeName := param.Type.String()
-			if converted, ok := e.TryImplicitConversion(arg, paramTypeName, lambdaCtx); ok {
+			paramTypeName := param.Type
+			if converted, ok := e.TryImplicitConversionFromAnnotation(arg, paramTypeName, lambdaCtx); ok {
 				arg = converted
 			}
 		}
@@ -272,7 +280,7 @@ func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, ar
 					// several overloads (constructors included), select by argument
 					// types instead of taking whatever the name lookup returns first.
 					if overloads := parent.GetMethodOverloads(methodName); len(overloads) > 1 {
-						if selected, err := e.selectOverload(parent.GetName(), methodName, overloads, args, ctx); err == nil {
+						if selected, err := e.selectCallableOverload(parent.GetName(), methodName, overloads, args, ctx); err == nil {
 							return e.executeObjectMethodDirect(self, selected, args, node, ctx)
 						}
 					}
@@ -296,7 +304,7 @@ func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, ar
 				return e.newError(node, "method, property, or field '%s' not found in parent class '%s'", methodName, parentName)
 			}
 		}
-		return objVal.CallInheritedMethod(methodName, args, func(methodDecl any, methodArgs []Value) Value {
+		return objVal.CallInheritedMethod(methodName, args, func(methodDecl *runtime.MethodMetadata, methodArgs []Value) Value {
 			return e.executeObjectMethodDirect(self, methodDecl, methodArgs, node, ctx)
 		})
 	}
@@ -346,14 +354,12 @@ func (e *Evaluator) executeInheritedHelperCallDirect(self Value, helperName, met
 		if result := e.findHelperMethodInHelper(helper, methodName); result != nil {
 			return e.CallHelperMethod(result, self, args, node, ctx)
 		}
-		if propInfo, ownerHelperAny, found := helper.GetPropertyAny(methodName); found && propInfo != nil {
+		if propInfo, ownerHelperAny, found := helper.GetProperty(methodName); found && propInfo != nil {
 			if len(args) > 0 {
 				return e.newError(node, "cannot call property '%s' as a method", methodName)
 			}
-			if pInfo, ok := propInfo.(*types.PropertyInfo); ok {
-				ownerHelper, _ := ownerHelperAny.(HelperInfo)
-				return e.executeHelperPropertyRead(ownerHelper, pInfo, self, node, ctx)
-			}
+			ownerHelper := ownerHelperAny
+			return e.executeHelperPropertyRead(ownerHelper, propInfo, self, node, ctx)
 		}
 		for name, value := range helper.GetClassConsts() {
 			if ident.Equal(name, methodName) {
@@ -409,10 +415,8 @@ func (e *Evaluator) inheritedHelperCandidates(self Value, currentHelper *runtime
 		candidates = append(candidates, helper)
 	}
 
-	if parentAny := currentHelper.GetParentHelperAny(); parentAny != nil {
-		if parent, ok := parentAny.(HelperInfo); ok {
-			add(parent)
-		}
+	if parentAny := currentHelper.GetParentHelper(); parentAny != nil {
+		add(parentAny)
 	}
 	for _, helper := range orderedHelpersForLookup(e.getHelpersForValue(self)) {
 		add(helper)

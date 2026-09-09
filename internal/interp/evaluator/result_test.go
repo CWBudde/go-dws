@@ -2,6 +2,8 @@ package evaluator
 
 import (
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
 
 // Mock value types for testing
@@ -482,3 +484,5 @@ func TestUsagePatterns(t *testing.T) {
 		}
 	})
 }
+
+func (m *mockError) ValueKind() runtime.ValueKind { return runtime.KindError }

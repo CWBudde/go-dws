@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
+// MutableHelperInfo holds runtime declarations and state for a type helper.
 type MutableHelperInfo struct {
 	TargetType      types.Type
 	ParentHelper    *MutableHelperInfo
@@ -21,6 +22,7 @@ type MutableHelperInfo struct {
 	IsStrict        bool
 }
 
+// NewMutableHelperInfo creates empty helper metadata for the target type.
 func NewMutableHelperInfo(name string, targetType types.Type, isRecordHelper bool) *MutableHelperInfo {
 	return &MutableHelperInfo{
 		Name:            name,
@@ -35,6 +37,7 @@ func NewMutableHelperInfo(name string, targetType types.Type, isRecordHelper boo
 	}
 }
 
+// GetName returns the declared helper name.
 func (h *MutableHelperInfo) GetName() string {
 	if h == nil {
 		return ""
@@ -42,6 +45,7 @@ func (h *MutableHelperInfo) GetName() string {
 	return h.Name
 }
 
+// GetTargetType returns the type extended by this helper.
 func (h *MutableHelperInfo) GetTargetType() types.Type {
 	if h == nil {
 		return nil
@@ -49,6 +53,7 @@ func (h *MutableHelperInfo) GetTargetType() types.Type {
 	return h.TargetType
 }
 
+// GetMethod finds a method and the helper that declares it.
 func (h *MutableHelperInfo) GetMethod(name string) (*ast.FunctionDecl, *MutableHelperInfo, bool) {
 	for key, method := range h.Methods {
 		if ident.Equal(key, name) {
@@ -66,6 +71,7 @@ func (h *MutableHelperInfo) GetMethod(name string) (*ast.FunctionDecl, *MutableH
 	return nil, nil, false
 }
 
+// GetMethodOverloads finds method overloads and their declaring helper.
 func (h *MutableHelperInfo) GetMethodOverloads(name string) ([]*ast.FunctionDecl, *MutableHelperInfo, bool) {
 	for key, overloads := range h.MethodOverloads {
 		if ident.Equal(key, name) && len(overloads) > 0 {
@@ -78,6 +84,7 @@ func (h *MutableHelperInfo) GetMethodOverloads(name string) ([]*ast.FunctionDecl
 	return nil, nil, false
 }
 
+// GetBuiltinMethod finds a builtin method binding and its declaring helper.
 func (h *MutableHelperInfo) GetBuiltinMethod(name string) (string, *MutableHelperInfo, bool) {
 	for key, spec := range h.BuiltinMethods {
 		if ident.Equal(key, name) {
@@ -90,6 +97,7 @@ func (h *MutableHelperInfo) GetBuiltinMethod(name string) (string, *MutableHelpe
 	return "", nil, false
 }
 
+// GetProperty finds a property and the helper that declares it.
 func (h *MutableHelperInfo) GetProperty(name string) (*types.PropertyInfo, *MutableHelperInfo, bool) {
 	for key, prop := range h.Properties {
 		if ident.Equal(key, name) {
@@ -102,41 +110,17 @@ func (h *MutableHelperInfo) GetProperty(name string) (*types.PropertyInfo, *Muta
 	return nil, nil, false
 }
 
+// GetClassVars returns the mutable class variable table.
 func (h *MutableHelperInfo) GetClassVars() map[string]Value {
 	return h.ClassVars
 }
 
+// GetClassConsts returns the class constant table.
 func (h *MutableHelperInfo) GetClassConsts() map[string]Value {
 	return h.ClassConsts
 }
 
+// GetParentHelper returns the inherited helper, if any.
 func (h *MutableHelperInfo) GetParentHelper() *MutableHelperInfo {
-	return h.ParentHelper
-}
-
-func (h *MutableHelperInfo) GetMethodAny(name string) (*ast.FunctionDecl, any, bool) {
-	method, owner, found := h.GetMethod(name)
-	return method, owner, found
-}
-
-func (h *MutableHelperInfo) GetMethodOverloadsAny(name string) ([]*ast.FunctionDecl, any, bool) {
-	methods, owner, found := h.GetMethodOverloads(name)
-	return methods, owner, found
-}
-
-func (h *MutableHelperInfo) GetBuiltinMethodAny(name string) (string, any, bool) {
-	spec, owner, found := h.GetBuiltinMethod(name)
-	return spec, owner, found
-}
-
-func (h *MutableHelperInfo) GetPropertyAny(name string) (any, any, bool) {
-	prop, owner, found := h.GetProperty(name)
-	return prop, owner, found
-}
-
-func (h *MutableHelperInfo) GetParentHelperAny() any {
-	if h == nil || h.ParentHelper == nil {
-		return nil
-	}
 	return h.ParentHelper
 }

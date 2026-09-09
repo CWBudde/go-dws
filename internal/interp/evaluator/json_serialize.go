@@ -165,7 +165,7 @@ func (e *Evaluator) objectCustomStringify(obj *runtime.ObjectInstance, node ast.
 	if len(md.Parameters) != 0 || md.IsClassMethod || md.IsConstructor || md.ReturnType == nil {
 		return nil, false
 	}
-	if !ident.Equal(md.ReturnType.String(), "String") {
+	if types.GetUnderlyingType(md.ReturnType) != types.STRING {
 		return nil, false
 	}
 

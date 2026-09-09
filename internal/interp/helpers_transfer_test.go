@@ -10,6 +10,23 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
+func TestStrictHelperConstantsUseDeclaredAlias(t *testing.T) {
+	compileAndRunWithHelperTransfer(t, `
+type FirstString = String;
+type SecondString = String;
+type TFirstHelper = strict helper for FirstString
+   const Greeting = 'first';
+end;
+type TSecondHelper = strict helper for SecondString
+   const Greeting = 'second';
+end;
+var first: FirstString;
+var second: SecondString;
+PrintLn(first.Greeting);
+PrintLn(second.Greeting);
+`, "strict_helper_aliases.dws", "first\nsecond\n")
+}
+
 // compileAndRunWithHelperTransfer mirrors the CLI pipeline: compile, transfer
 // semantic helpers, evaluate the program, and assert its output. It returns
 // the interpreter so callers can inspect the helper registry.
@@ -49,9 +66,8 @@ func distinctHelperInstances(interp *Interpreter, names ...string) map[string]ma
 
 	instances := make(map[string]map[*runtime.MutableHelperInfo]bool)
 	for _, helpers := range interp.typeSystem.AllHelpers() {
-		for _, helperAny := range helpers {
-			helperInfo, ok := helperAny.(*runtime.MutableHelperInfo)
-			if !ok {
+		for _, helperInfo := range helpers {
+			if helperInfo == nil {
 				continue
 			}
 			name := ident.Normalize(helperInfo.Name)

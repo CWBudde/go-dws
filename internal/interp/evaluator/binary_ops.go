@@ -59,7 +59,7 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 	}
 
 	// For integers, 'and' is bitwise AND (not short-circuit)
-	if left.Type() == "INTEGER" {
+	if runtime.KindOf(left) == runtime.KindInteger {
 		// Need to evaluate right operand for bitwise operation
 		right := e.Eval(node.Right, ctx)
 		if isError(right) {
@@ -72,7 +72,7 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 	}
 
 	// For booleans, short-circuit evaluation
-	if left.Type() == "BOOLEAN" {
+	if runtime.KindOf(left) == runtime.KindBoolean {
 		leftBool, ok := left.(*runtime.BooleanValue)
 		if !ok {
 			return e.newError(node.Left, "expected boolean for 'and' operator")
@@ -95,7 +95,7 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 		// Handle Variant on the right: unwrap and coerce to boolean
 		var rightBoolValue bool
 		var rightIsVariant bool
-		if right.Type() == "VARIANT" {
+		if runtime.KindOf(right) == runtime.KindVariant {
 			rightBoolValue = VariantToBool(right)
 			rightIsVariant = true
 		} else {
@@ -115,10 +115,10 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 	}
 
 	// Handle Variant types
-	if left.Type() == "VARIANT" {
+	if runtime.KindOf(left) == runtime.KindVariant {
 		// Unwrap and try again
 		left = unwrapVariant(left)
-		if left.Type() == "BOOLEAN" {
+		if runtime.KindOf(left) == runtime.KindBoolean {
 			leftBool, ok := left.(*runtime.BooleanValue)
 			if ok && !leftBool.Value {
 				// Short-circuit
@@ -137,7 +137,7 @@ func (e *Evaluator) evalAndOp(node *ast.BinaryExpression, ctx *ExecutionContext)
 	}
 
 	// Handle Enum types - bitwise AND (not short-circuit)
-	if left.Type() == "ENUM" {
+	if runtime.KindOf(left) == runtime.KindEnum {
 		right := e.Eval(node.Right, ctx)
 		if isError(right) {
 			return right
@@ -165,7 +165,7 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 	}
 
 	// For integers, 'or' is bitwise OR (not short-circuit)
-	if left.Type() == "INTEGER" {
+	if runtime.KindOf(left) == runtime.KindInteger {
 		// Need to evaluate right operand for bitwise operation
 		right := e.Eval(node.Right, ctx)
 		if isError(right) {
@@ -178,7 +178,7 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 	}
 
 	// For booleans, short-circuit evaluation
-	if left.Type() == "BOOLEAN" {
+	if runtime.KindOf(left) == runtime.KindBoolean {
 		leftBool, ok := left.(*runtime.BooleanValue)
 		if !ok {
 			return e.newError(node.Left, "expected boolean for 'or' operator")
@@ -201,7 +201,7 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 		// Handle Variant on the right: unwrap and coerce to boolean
 		var rightBoolValue bool
 		var rightIsVariant bool
-		if right.Type() == "VARIANT" {
+		if runtime.KindOf(right) == runtime.KindVariant {
 			rightBoolValue = VariantToBool(right)
 			rightIsVariant = true
 		} else {
@@ -221,10 +221,10 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 	}
 
 	// Handle Variant types
-	if left.Type() == "VARIANT" {
+	if runtime.KindOf(left) == runtime.KindVariant {
 		// Unwrap and try again
 		left = unwrapVariant(left)
-		if left.Type() == "BOOLEAN" {
+		if runtime.KindOf(left) == runtime.KindBoolean {
 			leftBool, ok := left.(*runtime.BooleanValue)
 			if ok && leftBool.Value {
 				// Short-circuit
@@ -243,7 +243,7 @@ func (e *Evaluator) evalOrOp(node *ast.BinaryExpression, ctx *ExecutionContext) 
 	}
 
 	// Handle Enum types - bitwise OR (not short-circuit)
-	if left.Type() == "ENUM" {
+	if runtime.KindOf(left) == runtime.KindEnum {
 		right := e.Eval(node.Right, ctx)
 		if isError(right) {
 			return right
@@ -275,7 +275,7 @@ func (e *Evaluator) evalImpliesOp(node *ast.BinaryExpression, ctx *ExecutionCont
 	case *runtime.BooleanValue:
 		leftBoolValue = lv.Value
 	default:
-		if left.Type() == "VARIANT" {
+		if runtime.KindOf(left) == runtime.KindVariant {
 			leftBoolValue = VariantToBool(left)
 		} else {
 			return e.newError(node.Left, "expected boolean for 'implies' operator, got %s", left.Type())
@@ -302,7 +302,7 @@ func (e *Evaluator) evalImpliesOp(node *ast.BinaryExpression, ctx *ExecutionCont
 	case *runtime.BooleanValue:
 		return &runtime.BooleanValue{Value: rv.Value}
 	default:
-		if right.Type() == "VARIANT" {
+		if runtime.KindOf(right) == runtime.KindVariant {
 			return &runtime.BooleanValue{Value: VariantToBool(right)}
 		}
 		return e.newError(node.Right, "expected boolean for 'implies' operator, got %s", right.Type())
@@ -570,6 +570,7 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 	case "and":
 		// Bitwise AND on enum ordinal values, return enum of same type
 		return &runtime.EnumValue{
+			EnumType:     leftEnum.EnumType,
 			TypeName:     leftEnum.TypeName,
 			ValueName:    "", // No specific name for computed values
 			OrdinalValue: leftVal & rightVal,
@@ -577,6 +578,7 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 	case "or":
 		// Bitwise OR on enum ordinal values, return enum of same type
 		return &runtime.EnumValue{
+			EnumType:     leftEnum.EnumType,
 			TypeName:     leftEnum.TypeName,
 			ValueName:    "", // No specific name for computed values
 			OrdinalValue: leftVal | rightVal,
@@ -584,6 +586,7 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 	case "xor":
 		// Bitwise XOR on enum ordinal values, return enum of same type
 		return &runtime.EnumValue{
+			EnumType:     leftEnum.EnumType,
 			TypeName:     leftEnum.TypeName,
 			ValueName:    "", // No specific name for computed values
 			OrdinalValue: leftVal ^ rightVal,
@@ -601,13 +604,13 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 // Supports: nil, objects, interfaces, classes, RTTI, sets, arrays, records.
 func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node ast.Node) Value {
 	// Check type names to identify complex types
-	leftType := left.Type()
-	rightType := right.Type()
+	leftType := runtime.KindOf(left)
+	rightType := runtime.KindOf(right)
 
 	// Handle nil comparisons
-	if leftType == "NIL" || rightType == "NIL" {
+	if leftType == runtime.KindNil || rightType == runtime.KindNil {
 		// Both nil
-		if leftType == "NIL" && rightType == "NIL" {
+		if leftType == runtime.KindNil && rightType == runtime.KindNil {
 			if op == "=" {
 				return &runtime.BooleanValue{Value: true}
 			}
@@ -615,10 +618,10 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 		}
 
 		// One is nil, one is not - handle interface special case
-		if leftType == "INTERFACE" || rightType == "INTERFACE" {
+		if leftType == runtime.KindInterface || rightType == runtime.KindInterface {
 			// Check if interface wraps nil object
 			var intfIsNil bool
-			if leftType == "INTERFACE" {
+			if leftType == runtime.KindInterface {
 				// Interface on left, nil on right
 				// Check if underlying Object is nil (not string representation)
 				if intfVal, ok := left.(InterfaceInstanceValue); ok {
@@ -648,7 +651,7 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 	}
 
 	// Handle RTTITypeInfoValue comparisons (TypeOf results)
-	if leftType == "RTTI_TYPE_INFO" && rightType == "RTTI_TYPE_INFO" {
+	if leftType == runtime.KindRTTITypeInfo && rightType == runtime.KindRTTITypeInfo {
 		// Compare using string representation (contains TypeID)
 		result := left.String() == right.String()
 		if op == "=" {
@@ -658,14 +661,16 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 	}
 
 	// Handle ClassValue (metaclass) comparisons
-	// ClassValue Type() returns "CLASS[ClassName]"
-	leftIsClass := len(leftType) > 6 && leftType[:6] == "CLASS[" && leftType[len(leftType)-1] == ']'
-	rightIsClass := len(rightType) > 6 && rightType[:6] == "CLASS[" && rightType[len(rightType)-1] == ']'
+	// Metaclass values carry their class identity independently of display names.
+	leftIsClass := leftType == runtime.KindClass
+	rightIsClass := rightType == runtime.KindClass
 
 	if leftIsClass || rightIsClass {
-		// Both are ClassValue - compare by string representation
+		// Both are metaclass values - compare their referenced runtime classes.
 		if leftIsClass && rightIsClass {
-			result := left.String() == right.String()
+			leftClass, leftOK := left.(interface{ GetClassInfo() runtime.IClassInfo })
+			rightClass, rightOK := right.(interface{ GetClassInfo() runtime.IClassInfo })
+			result := leftOK && rightOK && leftClass.GetClassInfo() == rightClass.GetClassInfo()
 			if op == "=" {
 				return &runtime.BooleanValue{Value: result}
 			}
@@ -679,7 +684,7 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 	}
 
 	// Handle InterfaceInstance comparisons
-	if leftType == "INTERFACE" && rightType == "INTERFACE" {
+	if leftType == runtime.KindInterface && rightType == runtime.KindInterface {
 		// Compare underlying objects by identity (pointer equality)
 		var result bool
 		leftIntf, leftOK := left.(InterfaceInstanceValue)
@@ -710,25 +715,9 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 		}
 	}
 
-	// Handle Object comparisons (Type() returns "OBJECT[ClassName]")
-	leftIsObj := len(leftType) > 7 && leftType[:7] == "OBJECT[" && leftType[len(leftType)-1] == ']'
-	rightIsObj := len(rightType) > 7 && rightType[:7] == "OBJECT[" && rightType[len(rightType)-1] == ']'
-
-	if leftIsObj || rightIsObj {
-		// Object identity comparison - compare by pointer equality
-		// Use string representation which includes object address
-		result := left.String() == right.String()
-		if op == "=" {
-			return &runtime.BooleanValue{Value: result}
-		}
-		return &runtime.BooleanValue{Value: !result}
-	}
-
-	// Handle Record comparisons
-	// RecordValue Type() returns record type name or "RECORD"
-	// We check both for named records and anonymous "RECORD" type
-	leftIsRecord := leftType == "RECORD" || (leftType != "" && !isSimpleType(leftType))
-	rightIsRecord := rightType == "RECORD" || (rightType != "" && !isSimpleType(rightType))
+	// Record representation is explicit; names no longer distinguish records from other values.
+	leftIsRecord := leftType == runtime.KindRecord
+	rightIsRecord := rightType == runtime.KindRecord
 
 	if leftIsRecord && rightIsRecord {
 		// Use RecordsEqual helper (currently uses string comparison)
@@ -754,8 +743,8 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 // - Classes with classes
 // - RTTI_TYPE_INFO with RTTI_TYPE_INFO
 func areEqualityCompatible(left, right Value) bool {
-	leftType := left.Type()
-	rightType := right.Type()
+	leftType := runtime.KindOf(left)
+	rightType := runtime.KindOf(right)
 
 	// Same type always compatible
 	if leftType == rightType {
@@ -763,10 +752,10 @@ func areEqualityCompatible(left, right Value) bool {
 	}
 
 	// Nil can compare with objects, interfaces, classes
-	if leftType == "NIL" || rightType == "NIL" {
+	if leftType == runtime.KindNil || rightType == runtime.KindNil {
 		// Check if other side is object/interface/class
 		otherType := rightType
-		if leftType == "NIL" {
+		if rightType == runtime.KindNil {
 			otherType = leftType
 		}
 		// Allow nil with OBJECT, INTERFACE, CLASS types
@@ -778,30 +767,13 @@ func areEqualityCompatible(left, right Value) bool {
 	return isObjectLike(leftType) && isObjectLike(rightType)
 }
 
-// isObjectLike checks if a type is object/interface/class-like
-func isObjectLike(typeStr string) bool {
-	if typeStr == "NIL" || typeStr == "INTERFACE" || typeStr == "RTTI_TYPE_INFO" {
-		return true
-	}
-	// Check for CLASS[...] pattern
-	if len(typeStr) > 6 && typeStr[:6] == "CLASS[" && typeStr[len(typeStr)-1] == ']' {
-		return true
-	}
-	// Check for OBJECT[...] pattern
-	if len(typeStr) > 7 && typeStr[:7] == "OBJECT[" && typeStr[len(typeStr)-1] == ']' {
+// isObjectLike identifies reference-like runtime representations.
+func isObjectLike(kind runtime.ValueKind) bool {
+	switch kind {
+	case runtime.KindNil, runtime.KindInterface, runtime.KindClass, runtime.KindObject, runtime.KindRTTITypeInfo:
 		return true
 	}
 	return false
-}
-
-// isSimpleType checks if a type name represents a simple value type.
-func isSimpleType(typeName string) bool {
-	switch typeName {
-	case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "NIL", "SET", "ARRAY", "VARIANT", "ENUM":
-		return true
-	default:
-		return false
-	}
 }
 
 // ============================================================================
@@ -1185,35 +1157,35 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 		return e.newError(node, "cannot perform operation on unassigned Variant")
 	}
 
-	leftType := leftVal.Type()
-	rightType := rightVal.Type()
+	leftType := runtime.KindOf(leftVal)
+	rightType := runtime.KindOf(rightVal)
 
 	// Dispatch based on unwrapped types
 	switch {
 	// Both integers
-	case leftType == "INTEGER" && rightType == "INTEGER":
+	case leftType == runtime.KindInteger && rightType == runtime.KindInteger:
 		return e.evalIntegerBinaryOp(op, leftVal, rightVal, node)
 
 	// Either is float → promote to float
-	case leftType == "FLOAT" || rightType == "FLOAT":
+	case leftType == runtime.KindFloat || rightType == runtime.KindFloat:
 		return e.evalFloatBinaryOp(op, leftVal, rightVal, node)
 
 	// Both strings
-	case leftType == "STRING" && rightType == "STRING":
+	case leftType == runtime.KindString && rightType == runtime.KindString:
 		return e.evalStringBinaryOp(op, leftVal, rightVal, node)
 
 	// Both booleans
-	case leftType == "BOOLEAN" && rightType == "BOOLEAN":
+	case leftType == runtime.KindBoolean && rightType == runtime.KindBoolean:
 		return e.evalBooleanBinaryOp(op, leftVal, rightVal, node)
 
 	// String + any type → string concatenation (for + operator only)
-	case op == "+" && (leftType == "STRING" || rightType == "STRING"):
+	case op == "+" && (leftType == runtime.KindString || rightType == runtime.KindString):
 		leftStr := convertToString(leftVal)
 		rightStr := convertToString(rightVal)
 		return &runtime.StringValue{Value: leftStr + rightStr}
 
 	// Numeric type mismatch → try conversion
-	case isNumericTypeName(leftType) && isNumericTypeName(rightType):
+	case isNumericKind(leftType) && isNumericKind(rightType):
 		// This shouldn't happen since we handle Integer and Float above,
 		// but included for completeness
 		return e.evalFloatBinaryOp(op, leftVal, rightVal, node)
@@ -1227,9 +1199,9 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 
 	// For boolean operators with mixed numeric/boolean types, coerce to boolean
 	case (op == "and" || op == "or" || op == "xor") &&
-		((leftType == "BOOLEAN" && (rightType == "INTEGER" || rightType == "FLOAT")) ||
-			(rightType == "BOOLEAN" && (leftType == "INTEGER" || leftType == "FLOAT")) ||
-			((leftType == "INTEGER" || leftType == "FLOAT") && (rightType == "INTEGER" || rightType == "FLOAT"))):
+		((leftType == runtime.KindBoolean && (rightType == runtime.KindInteger || rightType == runtime.KindFloat)) ||
+			(rightType == runtime.KindBoolean && (leftType == runtime.KindInteger || leftType == runtime.KindFloat)) ||
+			((leftType == runtime.KindInteger || leftType == runtime.KindFloat) && (rightType == runtime.KindInteger || rightType == runtime.KindFloat))):
 		// Coerce both operands to boolean
 		leftBool := VariantToBool(leftVal)
 		rightBool := VariantToBool(rightVal)
@@ -1239,7 +1211,7 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 
 	default:
 		return e.newError(node, "incompatible Variant types for operator %s: %s and %s",
-			op, leftType, rightType)
+			op, leftVal.Type(), rightVal.Type())
 	}
 }
 
@@ -1248,8 +1220,8 @@ func isNullish(val Value) bool {
 	if val == nil {
 		return true
 	}
-	switch val.Type() {
-	case "NIL", "NULL", "UNASSIGNED":
+	switch runtime.KindOf(val) {
+	case runtime.KindNil, runtime.KindNull, runtime.KindUnassigned:
 		return true
 	default:
 		return false
@@ -1264,9 +1236,9 @@ func convertToString(val Value) string {
 	return val.String()
 }
 
-// isNumericTypeName checks if a type name string is numeric (INTEGER or FLOAT).
-func isNumericTypeName(typeStr string) bool {
-	return typeStr == "INTEGER" || typeStr == "FLOAT"
+// isNumericKind checks if a type name string is numeric (INTEGER or FLOAT).
+func isNumericKind(kind runtime.ValueKind) bool {
+	return kind == runtime.KindInteger || kind == runtime.KindFloat
 }
 
 // ============================================================================
@@ -1316,7 +1288,7 @@ func (e *Evaluator) evalPlusUnaryOp(operand Value, node ast.Node) Value {
 func (e *Evaluator) evalNotUnaryOp(operand Value, node ast.Node) Value {
 	// Handle Variant: convert to bool using DWScript semantics, negate, wrap in Variant
 	// Uses VariantToBool from helpers.go which handles unwrapping and type coercion
-	if operand.Type() == "VARIANT" {
+	if runtime.KindOf(operand) == runtime.KindVariant {
 		boolResult := VariantToBool(operand)
 		// Return the negated result as a Variant containing a Boolean
 		return runtime.BoxVariant(&runtime.BooleanValue{Value: !boolResult})

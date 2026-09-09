@@ -216,7 +216,7 @@ func (i *Interpreter) EvalWithExpectedType(node ast.Node, expectedType types.Typ
 		defer i.ctx.SetArrayTypeContext(prev)
 	case *types.RecordType:
 		prev := i.ctx.RecordTypeContext()
-		i.ctx.SetRecordTypeContext(typed.Name)
+		i.ctx.SetRecordTypeContext(typed)
 		defer i.ctx.SetRecordTypeContext(prev)
 	}
 

@@ -124,7 +124,7 @@ Resolved residue: `contracts.UserFunctionCallbacks` was removed in 4.11; user-fu
 1. **Production bootstrap** — `new.go`, environment creation, type-system wiring, `EngineState` and refcount/destructor setup.
 2. **Public engine-facing API and orchestration** — `Interpreter.Eval`, `EvalWithExpectedType`, exception/query helpers, source/semantic-info configuration; all delegating AST semantics to the evaluator.
 3. **Host and unit integration** — external-function registration/invocation plumbing, unit registry load/init coordination, Go callback / FFI entry points.
-4. **Declaration/bootstrap mutation of registries and metadata** — the `evalFunctionDeclaration`, `evalClassMethodImplementation`, `evalRecordMethodImplementation`, `evalClassDeclaration`, `evalInterfaceDeclaration`, `evalOperatorDeclaration`, `evalHelperDeclaration`, `evalTypeDeclaration`, `evalEnumDeclaration` family.
+4. **Bootstrap mutation of registries and metadata** — builtin classes, exceptions, host functions and unit setup. Script declaration execution belongs to the evaluator; the unused interpreter declaration adapters were removed in September 2026.
 5. **Narrow runtime helper primitives** used by shell-owned integration — `evalViaEvaluator`, lvalue/reference helpers, small value-operation helpers, call-stack/error-location support.
 
 Not allowed to reappear in `internal/interp`: production statement execution (program/block/if/case/loop/try/raise/assignment/break/continue/exit), production expression execution (method dispatch, property read/write, casts, `as`, `Default(...)`, record method execution, helper method/property execution), or any shadow evaluator entry point. `internal/interp/boundary_test.go` is the executable source of truth for the allowlist; anything outside it is suspicious by default and should be moved to evaluator/runtime, justified explicitly, or deleted.
@@ -133,21 +133,41 @@ The measured state of this boundary as of 2026-09 (dead residue, remaining dupli
 
 ## September 2026 refactoring boundaries
 
-- `runtime` owns `ClassInfo`, `ClassValue`, `ClassInfoValue`, class metadata mutation,
-  and class operator storage. `interp` retains compatibility aliases and constructor
-  wrappers. `ClassRegistry` stores `runtime.IClassInfo`; construction uses runtime
-  constructors directly, without class factory callbacks. Other registries and the
-  parallel class AST maps remain migration work under A6.
-- `ast.SemanticInfo` retains resolved `internal/types.Type` objects keyed by AST node,
-  alongside compatibility text annotations. Annotation-based evaluator resolution
-  consumes these objects before legacy lookup, preserving type identity and bounds.
-  Untyped execution and remaining name-based callers still use runtime resolution (A5).
+- `runtime` owns class, record, enum, interface and helper metadata. Runtime registries
+  have typed entries; no factory callbacks or untyped registry aliases remain.
+  `ClassMetadata` owns class field, callable, constructor, virtual-dispatch, property,
+  constant, class-variable and operator maps. `ClassInfo` has no parallel AST maps.
+- Class lookups return canonical `MethodMetadata` bindings. AST bodies, defaults and
+  contracts remain executable payloads; out-of-line implementation binding preserves
+  callable identity, defining class and declaration flags. Captured method pointers
+  retain the callable, so they observe a subsequently bound implementation. Binding
+  copies mutable AST headers and parameter slices instead of changing compiled source.
+- `ast.SemanticInfo` retains resolved `internal/types.Type` objects keyed by AST node.
+  Declaration registration and execution reuse these identities. Unchecked compilation
+  still skips semantic analysis: the evaluator resolves structured type AST nodes and
+  declared names, without parsing type display strings. Public external signature strings
+  are parsed once at registration and carried internally as structured descriptors.
+- Operator and conversion signatures store `types.Type` operands. Semantic analysis and
+  execution share typed exact/compatible matching. Exact signatures win; inherited
+  class operands rank by ancestor distance in operand order, preserving left-operand
+  precedence. Runtime conversion chains use shortest paths with declaration-order
+  tie breaking. Display strings never encode operator dispatch keys.
+- `runtime.ValueKind` identifies runtime representations; `runtime.LanguageType` supplies
+  language type identity. These serve different purposes: two named records have the same
+  representation but distinct language types. `Value.Type()` remains a display API, with
+  no additional required method on the value interface. Runtime dispatch uses typed kinds
+  and capabilities, guarded by an architecture test.
+- `ExecutionContext` carries one resolved record-type context and a resolved function
+  return type. Nested expression evaluation restores the previous context. Compiled
+  semantic identities are shared; mutable execution state remains local to each run.
 - Frontend unit and program analyzers share one semantic metadata table. The compiled
   unit registry retains the analyzed ASTs; execution clones mutable registry state for
   each run. Unit dependencies receive analysis before the importing program.
-- Builtin registry signatures own ordinary argument and result validation. Semantic
-  diagnostic styles retain historical wording without redefining signatures; AST-sensitive
-  and argument-dependent builtin rules remain explicit.
+- Builtin signatures own argument counts, parameter constraints and result types,
+  including strict Variant/date rules and array element constraints. Semantic policies
+  preserve diagnostic wording, ordering and recovery without duplicating signatures.
+  AST-dependent, by-reference and polymorphic intrinsics remain explicit; FloatToStrF
+  remains a semantic-only intrinsic with no callable runtime implementation.
 - `internal/types` owns the builtin-helper catalog and overload signature ranking.
   Semantic analysis and runtime evaluation consume these shared declarations; the
   evaluator does not import `internal/semantic`.

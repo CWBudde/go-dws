@@ -468,6 +468,8 @@ func (u *UnassignedValue) Copy() Value {
 // NOTE: Closure field uses interface{} to avoid circular import with interp.Environment.
 // At runtime, this will be *Environment.
 type FunctionPointerValue struct {
+	// Callable retains the canonical binding for class method pointers.
+	Callable    *MethodMetadata
 	Closure     any                        // Environment where function was defined
 	SelfObject  Value                      // Object instance for method pointers
 	PointerType *types.FunctionPointerType // Function pointer type info
@@ -493,7 +495,7 @@ func (f *FunctionPointerValue) Type() string {
 // IsNil returns true if this function pointer has no function or lambda assigned.
 // Used to check before invocation to raise appropriate DWScript exceptions.
 func (f *FunctionPointerValue) IsNil() bool {
-	return f.Function == nil && f.Lambda == nil && f.MethodID == InvalidMethodID && f.BuiltinName == ""
+	return f.Callable == nil && f.Function == nil && f.Lambda == nil && f.MethodID == InvalidMethodID && f.BuiltinName == ""
 }
 
 // GetBuiltinName returns the built-in function identifier this pointer refers to,
@@ -515,6 +517,9 @@ func (f *FunctionPointerValue) ParamCount() int {
 	if f.Lambda != nil {
 		return len(f.Lambda.Parameters)
 	}
+	if f.Callable != nil {
+		return f.Callable.ParamCount()
+	}
 	if f.Function != nil {
 		return len(f.Function.Parameters)
 	}
@@ -534,6 +539,9 @@ func (f *FunctionPointerValue) HasSelfObject() bool {
 // GetFunctionDecl returns the function AST node (*ast.FunctionDecl) for regular function pointers.
 // Returns nil for lambda closures.
 func (f *FunctionPointerValue) GetFunctionDecl() any {
+	if f.Callable != nil {
+		return f.Callable.Declaration
+	}
 	return f.Function
 }
 
@@ -579,15 +587,16 @@ func (f *FunctionPointerValue) String() string {
 
 	// Legacy path: use AST nodes
 	// Regular function/method pointers
-	if f.Function == nil {
+	declaration, ok := f.GetFunctionDecl().(*ast.FunctionDecl)
+	if !ok || declaration == nil {
 		return "@<nil>"
 	}
 
 	if f.SelfObject != nil {
-		return "@" + f.SelfObject.String() + "." + f.Function.Name.Value
+		return "@" + f.SelfObject.String() + "." + declaration.Name.Value
 	}
 
-	return "@" + f.Function.Name.Value
+	return "@" + declaration.Name.Value
 }
 
 // ============================================================================

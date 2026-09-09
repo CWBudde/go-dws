@@ -5,19 +5,24 @@ import (
 	"sync"
 
 	"github.com/cwbudde/go-dws/internal/interp/contracts"
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ExternalFunctionRegistry stores external Go functions registered for DWScript.
 // It provides thread-safe registration and lookup of external functions.
 type ExternalFunctionRegistry struct {
-	functions map[string]*ExternalFunctionValue
-	mu        sync.RWMutex
+	functions      map[string]*ExternalFunctionValue
+	parameterTypes map[string][]ast.TypeExpression
+	mu             sync.RWMutex
 }
 
 // NewExternalFunctionRegistry creates a new empty registry.
 func NewExternalFunctionRegistry() *ExternalFunctionRegistry {
 	return &ExternalFunctionRegistry{
-		functions: make(map[string]*ExternalFunctionValue),
+		functions:      make(map[string]*ExternalFunctionValue),
+		parameterTypes: make(map[string][]ast.TypeExpression),
 	}
 }
 
@@ -29,6 +34,23 @@ func (r *ExternalFunctionRegistry) Register(name string, wrapper ExternalFunctio
 
 	if _, exists := r.functions[name]; exists {
 		return fmt.Errorf("function %s is already registered", name)
+	}
+
+	// Public host signatures remain textual. Parse them once at registration;
+	// evaluator argument preparation consumes structured type expressions.
+	if wrapper != nil {
+		parameters := wrapper.GetParamTypes()
+		descriptors := make([]ast.TypeExpression, len(parameters))
+		for index, typeName := range parameters {
+			p := parser.New(lexer.New("var argument: " + typeName + ";"))
+			program := p.ParseProgram()
+			if len(p.Errors()) == 0 && len(program.Statements) == 1 {
+				if declaration, ok := program.Statements[0].(*ast.VarDeclStatement); ok {
+					descriptors[index] = declaration.Type
+				}
+			}
+		}
+		r.parameterTypes[name] = descriptors
 	}
 
 	r.functions[name] = &ExternalFunctionValue{
@@ -70,7 +92,7 @@ func (r *ExternalFunctionRegistry) Signature(name string) (contracts.ExternalFun
 
 	return contracts.ExternalFunctionSignature{
 		VarParams:  fn.Wrapper.GetVarParams(),
-		ParamTypes: fn.Wrapper.GetParamTypes(),
+		ParamTypes: r.parameterTypes[name],
 	}, true
 }
 

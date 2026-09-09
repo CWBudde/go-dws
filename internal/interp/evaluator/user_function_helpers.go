@@ -64,7 +64,7 @@ func (e *Evaluator) EvaluateDefaultParameters(
 }
 
 // ImplicitConversionFunc is a callback type for implicit type conversion.
-type ImplicitConversionFunc func(value Value, targetTypeName string) (Value, bool)
+type ImplicitConversionFunc func(value Value, targetType ast.TypeExpression) (Value, bool)
 
 // BindFunctionParameters binds function parameters to arguments with implicit conversion.
 // Var (ByRef) parameters skip conversion to preserve ReferenceValue.
@@ -84,7 +84,7 @@ func (e *Evaluator) BindFunctionParameters(
 		if !param.ByRef {
 			// Apply implicit conversion if parameter has a type and converter is provided
 			if param.Type != nil && converter != nil {
-				paramTypeName := param.Type.String()
+				paramTypeName := param.Type
 				if converted, ok := converter(arg, paramTypeName); ok {
 					arg = converted
 				}
@@ -105,7 +105,7 @@ func (e *Evaluator) BindFunctionParameters(
 }
 
 // DefaultValueFunc is a callback type for getting the default value for a return type.
-type DefaultValueFunc func(returnTypeName string) Value
+type DefaultValueFunc func(returnType ast.TypeExpression) Value
 
 // FunctionNameAliasFunc is a callback type for creating the function name alias.
 // In DWScript, assigning to either Result or the function name sets the return value.
@@ -129,8 +129,7 @@ func (e *Evaluator) InitializeResultVariable(
 	// Get the default value for the return type
 	var resultValue Value
 	if defaultValueGetter != nil {
-		returnTypeName := fn.ReturnType.String()
-		resultValue = defaultValueGetter(returnTypeName)
+		resultValue = defaultValueGetter(fn.ReturnType)
 	} else {
 		// Default to NilValue if no callback provided
 		resultValue = &runtime.NilValue{}
@@ -179,7 +178,7 @@ func (e *Evaluator) CaptureOldValues(
 type CleanupInterfaceReferencesFunc func(env *runtime.Environment)
 
 // TryImplicitConversionReturnFunc is a callback type for implicit return type conversion.
-type TryImplicitConversionReturnFunc func(returnValue Value, expectedReturnType string) (Value, bool)
+type TryImplicitConversionReturnFunc func(returnValue Value, expectedReturnType ast.TypeExpression) (Value, bool)
 
 // IncrementInterfaceRefCountFunc is a callback type for incrementing interface reference counts.
 type IncrementInterfaceRefCountFunc func(returnValue Value)
@@ -196,11 +195,11 @@ type UserFunctionCallbacks struct {
 
 func (e *Evaluator) defaultUserFunctionCallbacks(ctx *ExecutionContext) *UserFunctionCallbacks {
 	return &UserFunctionCallbacks{
-		ImplicitConversion: func(value Value, targetTypeName string) (Value, bool) {
-			return e.TryImplicitConversion(value, targetTypeName, ctx)
+		ImplicitConversion: func(value Value, targetType ast.TypeExpression) (Value, bool) {
+			return e.TryImplicitConversionFromAnnotation(value, targetType, ctx)
 		},
-		DefaultValueGetter: func(returnTypeName string) Value {
-			return e.createZeroValue(&ast.TypeAnnotation{Name: returnTypeName}, currentNode(ctx), ctx)
+		DefaultValueGetter: func(returnType ast.TypeExpression) Value {
+			return e.createZeroValue(returnType, currentNode(ctx), ctx)
 		},
 		FunctionNameAlias: func(funcName string, funcEnv *runtime.Environment) Value {
 			getter := func() (Value, error) {
@@ -215,8 +214,8 @@ func (e *Evaluator) defaultUserFunctionCallbacks(ctx *ExecutionContext) *UserFun
 			}
 			return runtime.NewReferenceValue("Result", getter, setter)
 		},
-		ReturnValueConverter: func(returnValue Value, expectedReturnType string) (Value, bool) {
-			return e.TryImplicitConversion(returnValue, expectedReturnType, ctx)
+		ReturnValueConverter: func(returnValue Value, expectedReturnType ast.TypeExpression) (Value, bool) {
+			return e.TryImplicitConversionFromAnnotation(returnValue, expectedReturnType, ctx)
 		},
 		InterfaceRefCounter: func(returnValue Value) {
 			if intfInst, ok := returnValue.(*runtime.InterfaceInstance); ok && intfInst.Object != nil && e.engineState.RefCountManager != nil {
@@ -301,8 +300,9 @@ func (e *Evaluator) ExecuteUserFunction(
 
 	// Set return type context for return/exit statements
 	if fn.ReturnType != nil {
-		returnTypeName := fn.ReturnType.String()
-		funcCtx.SetCurrentFunctionReturnType(returnTypeName)
+		if returnType, err := e.ResolveTypeFromAnnotation(fn.ReturnType, funcCtx); err == nil {
+			funcCtx.SetCurrentFunctionReturnType(returnType)
+		}
 	}
 
 	// Check recursion depth
@@ -428,8 +428,8 @@ func (e *Evaluator) ExecuteUserFunction(
 		}
 
 		// Apply implicit conversion if return type doesn't match (if callback provided)
-		if callbacks.ReturnValueConverter != nil && returnValue.Type() != "NIL" {
-			expectedReturnType := fn.ReturnType.String()
+		if callbacks.ReturnValueConverter != nil && runtime.KindOf(returnValue) != runtime.KindNil {
+			expectedReturnType := fn.ReturnType
 			if converted, ok := callbacks.ReturnValueConverter(returnValue, expectedReturnType); ok {
 				returnValue = converted
 			}

@@ -9,10 +9,10 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-08):** Go harness **878 / 1,928 scored = 46%**. Last full CLI
-measurement (2026-09-06, after Phase 1): **871 / 1,928 = 45%**; refresh with
-`just fixture-report` for current CLI numbers. Both use the shared compile pipeline and
-scoring rules. `*Fail` error-detection suites **111 / 647 = 17%**.
+**Headline (2026-09-09):** Go harness and freshly rebuilt CLI both
+**878 / 1,928 scored = 46%**, with no category regressions after Phase 2.
+Both use the shared compile pipeline and scoring rules.
+`*Fail` error-detection suites **111 / 647 = 17%**.
 
 Where the truth lives:
 
@@ -52,57 +52,24 @@ items go here.
 
 ## 2. Architecture refactoring — required (A)
 
-A5 now consumes resolved semantic type objects for annotation-based execution; its
-unit-aware frontend prerequisite is complete. A6's class metadata migration and typed
-class registry are complete; A9 has migrated 78 further builtin names to registry validation.
-The remaining work is listed below (2026-09-08).
+A5–A7 and A9 closed 2026-09-09: structural type resolution, typed runtime
+registries and canonical callables, typed operator/value dispatch, and builtin signature
+constraints. A2–A4, A8 and A10 closed 2026-09-07. Completion and validation are recorded in
+[`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
 
-A2–A4, A8 and A10 closed 2026-09-07; A11's experimental API/help labels are complete.
-See [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
-A9 has a registry-backed return-type lookup and ordinary call analyzer; its remaining
-specialized handlers are listed below.
-
-Evidence for every item, with file:line references and measurements, is in
-[`docs/architecture/audit-2026-09.md`](docs/architecture/audit-2026-09.md). Items are ordered so
-that each one shrinks the blast radius of the next. The target architecture is
+The current architecture is documented in
 [`docs/architecture/interp-evaluator-steady-state.md`](docs/architecture/interp-evaluator-steady-state.md).
+Only the explicitly deferred bytecode decision remains here.
 
-- **A5** `[~]` L — **Delete the evaluator's remaining string-based type resolution.**
-  Annotation-based execution now consumes resolved types from `ast.SemanticInfo`, shared
-  across unit and program analysis. Remaining name-only callers and explicitly untyped
-  execution still use `evaluator/type_resolution.go` and `type_resolution_helpers.go`.
-  Migrate those consumers and declaration registration before deleting the inline array /
-  function-signature parsers; retain an explicit policy for `WithTypeCheck(false)`.
-- **A6** `[~]` L — **Finish typing the registries and consolidating metadata.**
-  `ClassInfo`, `ClassValue`, and class metadata mutation now live in `runtime`;
-  `ClassRegistry` stores `runtime.IClassInfo`, and the two class factories are gone.
-  Remaining: replace `any` registry aliases for record → enum → interface → helper, remove
-  their factory seams where applicable, and drop the parallel AST maps on `ClassInfo`
-  that duplicate `runtime.ClassMetadata`. Lifetime design input remains
-  `docs/archive/phase-4.12.1-lifetime-inventory.md` (owned vs aliased bindings).
-- **A7** `[ ]` L — **Typed type identity.** Operator-overload dispatch keys on `"class:"`-prefixed
-  strings encoded twice (`internal/interp/runtime/class_operators.go`, `evaluator/runtime_ops.go`)
-  and compared with `strings.HasPrefix`, while the typed comparator
-  `internal/types/operator_registry.go:100` already exists. Start there; then retire
-  `runtime.Value.Type() string` comparisons (92 sites), the `*Name string` metadata fields in
-  `runtime/metadata.go`, and `ExecutionContext.recordTypeContext string`. Unlocks
-  OperatorOverloadPass/Fail. Depends on A6.
-- **A9** `[~]` S — **Finish builtin analysis from registry signatures.** Return-type lookup,
-  ordinary calls, and 78 additional builtin names use `builtins.Registry` signatures;
-  diagnostic styles preserve historical wording. Remaining: multi-argument math handlers
-  with diagnostic-order constraints; date handlers with strict Float rules; Variant handlers
-  requiring strict Variant/JSONVariant constraints; reconcile signature discrepancies for
-  Trim, RandG, and array-returning JSON/string functions. Retain explicit AST-dependent
-  and polymorphic intrinsics.
 - **A11** ⏸️ — **Bytecode VM.** Owner decision 2026-07-04: keep in tree, unmaintained, opt-in.
   `run --bytecode`, `dwscript compile`, and
-  `pkg/dwscript.CompileModeBytecode` are labeled experimental in help text and godoc. Revisit
-  delete-vs-rebuild after A6; a rebuild must use `internal/builtins` and `internal/interp/runtime`
-  values, not the current fork. Status: `docs/decisions/bytecode-vm.md`.
+  `pkg/dwscript.CompileModeBytecode` are labeled experimental in help text and godoc. A6 is complete;
+  delete-vs-rebuild remains deferred pending an owner decision. A rebuild must use
+  `internal/builtins` and `internal/interp/runtime` values, not the current fork. Status: `docs/decisions/bytecode-vm.md`.
 
 **Not planned** (measured, not worth it): source TODO cleanup (27 in total), panic-to-error
 conversion (panics are not used for control flow), splitting `visitor_statements.go`/
-`visitor_declarations.go` by size alone (they are cohesive dispatch; A6 changes them anyway).
+`visitor_declarations.go` by size alone (they are cohesive dispatch).
 
 ---
 
@@ -182,7 +149,6 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
 - `[ ]` `internal/semantic/analyze_records.go:387` — record member visibility rules.
 - `[ ]` `internal/semantic/analyze_function_calls.go:26` — use `expectedType` in overload resolution.
 - `[ ]` `internal/interp/evaluator/helpers.go:131` — enum range checking.
-- `[ ]` `internal/interp/runtime/class.go` — replace compatibility AST method lookups with runtime callables (A6).
 - `[ ]` `internal/units/search.go:171-172` — user (`~/.dwscript/lib`) and system library search paths.
 - `[ ]` `cmd/dwscript/cmd/fmt.go:296` — real diff algorithm for `dwscript fmt --diff`.
 - `[ ]` `pkg/wasm/api.go:126,299` — custom filesystem integration for WASM.

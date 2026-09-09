@@ -27,6 +27,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/interp"
+	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -290,7 +291,7 @@ func (e *Engine) runInterpreter(program *Program, output io.Writer) (*Result, er
 		return &Result{Output: extractOutput(output)}, &RuntimeError{Message: err.Error()}
 	}
 
-	if value != nil && value.Type() == "ERROR" {
+	if value != nil && runtime.KindOf(value) == runtime.KindError {
 		return &Result{
 				Output:  extractOutput(output),
 				Success: false,

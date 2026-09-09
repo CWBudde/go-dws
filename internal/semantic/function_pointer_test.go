@@ -983,3 +983,115 @@ func TestBothExplicitAndImplicitConversion(t *testing.T) {
 		t.Errorf("expected no errors, got: %v", a.Errors())
 	}
 }
+
+// TestAddressOfBuiltinOptionalArity ensures a pointer to a builtin with
+// optional parameters keeps the required arity callable. Expanding the nominal
+// signature to every optional parameter would reject `f('a', 'abc')` even
+// though Pos itself accepts two arguments.
+func TestAddressOfBuiltinOptionalArity(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "pointer to Pos called with required arguments",
+			input: `
+				var f := @Pos;
+				begin
+					PrintLn(f('a', 'abc'));
+				end.
+			`,
+		},
+		{
+			name: "pointer to Pos called with the optional argument",
+			input: `
+				var f := @Pos;
+				begin
+					PrintLn(f('a', 'abca', 2));
+				end.
+			`,
+		},
+		{
+			name: "pointer to Trim called with required arguments",
+			input: `
+				var f := @Trim;
+				begin
+					PrintLn(f('  x  '));
+				end.
+			`,
+		},
+		{
+			name: "pointer to IntToHex called with all arguments",
+			input: `
+				var f := @IntToHex;
+				begin
+					PrintLn(f(5, 1));
+				end.
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			a := NewAnalyzer()
+			if err := a.Analyze(program); err != nil {
+				t.Errorf("expected no semantic errors, got: %v", err)
+			}
+			if len(a.Errors()) != 0 {
+				t.Errorf("expected no errors, got: %v", a.Errors())
+			}
+		})
+	}
+}
+
+// TestAddressOfBuiltinArityErrors ensures the relaxed arity range for builtin
+// pointers still rejects calls outside it.
+func TestAddressOfBuiltinArityErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "too few arguments for Pos pointer",
+			input: `
+				var f := @Pos;
+				begin
+					PrintLn(f('a'));
+				end.
+			`,
+		},
+		{
+			name: "too many arguments for Pos pointer",
+			input: `
+				var f := @Pos;
+				begin
+					PrintLn(f('a', 'abc', 1, 2));
+				end.
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := parser.New(l)
+			program := p.ParseProgram()
+			if len(p.Errors()) != 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			a := NewAnalyzer()
+			_ = a.Analyze(program)
+			if len(a.Errors()) == 0 {
+				t.Error("expected a semantic error for the invalid argument count, got none")
+			}
+		})
+	}
+}

@@ -25,16 +25,16 @@ type ObjectValue interface {
 	HasMethod(name string) bool
 	// GetMethodDecl retrieves method declaration by name from the class hierarchy.
 	// Returns *ast.FunctionDecl (passed as any) or nil if not found.
-	GetMethodDecl(name string) any
+	GetMethodDecl(name string) *runtime.MethodMetadata
 	// GetClassMethodDecl retrieves a class (static) method declaration by name.
 	// DWScript allows class methods to be invoked through an instance, so member
 	// access falls back to this. Returns *ast.FunctionDecl (as any) or nil.
-	GetClassMethodDecl(name string) any
+	GetClassMethodDecl(name string) *runtime.MethodMetadata
 	GetField(name string) Value
 	GetClassVar(name string) (Value, bool)
 	// CallInheritedMethod calls a parent class method.
 	// methodExecutor callback executes the resolved method (*ast.FunctionDecl as any).
-	CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl any, args []Value) Value) Value
+	CallInheritedMethod(methodName string, args []Value, methodExecutor func(methodDecl *runtime.MethodMetadata, args []Value) Value) Value
 	// ReadProperty reads a property value using the propertyExecutor callback.
 	// Supports field-backed, method-backed, and expression-backed properties.
 	ReadProperty(propName string, propertyExecutor func(propInfo any) Value) Value
@@ -47,10 +47,10 @@ type ObjectValue interface {
 	WriteIndexedProperty(propInfo any, indices []Value, value Value, propertyExecutor func(propInfo any, indices []Value, value Value) Value) Value
 	// InvokeParameterlessMethod invokes zero-parameter methods via methodExecutor callback.
 	// Returns (result, true) if method exists and has 0 parameters, (nil, false) otherwise.
-	InvokeParameterlessMethod(methodName string, methodExecutor func(methodDecl any) Value) (Value, bool)
+	InvokeParameterlessMethod(methodName string, methodExecutor func(methodDecl *runtime.MethodMetadata) Value) (Value, bool)
 	// CreateMethodPointer creates method pointer via pointerCreator callback.
 	// Returns (Value, true) if method exists and has parameters, (nil, false) otherwise.
-	CreateMethodPointer(methodName string, pointerCreator func(methodDecl any) Value) (Value, bool)
+	CreateMethodPointer(methodName string, pointerCreator func(methodDecl *runtime.MethodMetadata) Value) (Value, bool)
 }
 
 // EnumAccessor provides access to enum ordinal values.
