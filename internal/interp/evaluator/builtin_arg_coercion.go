@@ -8,6 +8,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -28,6 +29,19 @@ func (e *Evaluator) coerceBuiltinArgsToSignature(funcName *ast.Identifier, argEx
 	for i := range args {
 		if i >= len(sig.ParamTypes) || sig.ParamTypes[i] == nil {
 			break
+		}
+		// A record reaching a Variant parameter goes through a user-defined
+		// `operator implicit (TRec) : Variant` when one is registered, so
+		// PrintLn(rec) prints what the operator returns rather than the
+		// default record dump. Gated on records so the common argument kinds
+		// never touch the conversion registry.
+		if sig.ParamTypes[i].TypeKind() == "VARIANT" {
+			if _, isRecord := unwrapVariant(args[i]).(*runtime.RecordValue); isRecord {
+				if converted, ok := e.TryImplicitConversion(unwrapVariant(args[i]), types.VARIANT, ctx); ok {
+					args[i] = converted
+				}
+			}
+			continue
 		}
 		// Only apply variant casts to arguments whose static (declared) type
 		// is Variant; other mismatches keep their strict runtime errors.

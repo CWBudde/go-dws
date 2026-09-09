@@ -217,23 +217,72 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 
 	// For other type declarations (class, interface, enum, etc.), handle each type
 	result := p.parseTypeKind(nameIdent, typeToken, nextToken)
+	if isNilDecl(result) {
+		// A failed body parse returns a typed-nil pointer, which is a non-nil
+		// ast.Statement. Collapse it to a true nil so it never reaches the
+		// statement list, where later phases would dereference it.
+		return nil
+	}
 	attachTypeParams(result, typeParams)
 	return result
 }
 
+// isNilDecl reports whether stmt is nil or a typed-nil declaration pointer.
+func isNilDecl(stmt ast.Statement) bool {
+	switch d := stmt.(type) {
+	case nil:
+		return true
+	case *ast.ClassDecl:
+		return d == nil
+	case *ast.RecordDecl:
+		return d == nil
+	case *ast.InterfaceDecl:
+		return d == nil
+	case *ast.ArrayDecl:
+		return d == nil
+	case *ast.TypeDeclaration:
+		return d == nil
+	case *ast.EnumDecl:
+		return d == nil
+	case *ast.SetDecl:
+		return d == nil
+	case *ast.HelperDecl:
+		return d == nil
+	}
+	return false
+}
+
 // attachTypeParams records generic type-parameter names on a parsed type
-// declaration. Only class, record, and alias/array declarations can be generic.
+// declaration. Class, record, interface, alias and array declarations can all
+// be generic; every other kind silently keeps no type parameters.
+//
+// A failed body parse returns a typed-nil declaration, which is a non-nil
+// ast.Statement, so every case guards against a nil pointer.
 func attachTypeParams(stmt ast.Statement, params []string) {
 	if len(params) == 0 {
 		return
 	}
 	switch d := stmt.(type) {
 	case *ast.ClassDecl:
-		d.TypeParams = params
+		if d != nil {
+			d.TypeParams = params
+		}
 	case *ast.RecordDecl:
-		d.TypeParams = params
+		if d != nil {
+			d.TypeParams = params
+		}
+	case *ast.InterfaceDecl:
+		if d != nil {
+			d.TypeParams = params
+		}
+	case *ast.ArrayDecl:
+		if d != nil {
+			d.TypeParams = params
+		}
 	case *ast.TypeDeclaration:
-		d.TypeParams = params
+		if d != nil {
+			d.TypeParams = params
+		}
 	}
 }
 
@@ -683,6 +732,19 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 				},
 			},
 			Value: cursor.Current().Literal,
+		}
+
+		// Generic instantiation as the parent: interface (IBase<T>). Value stays
+		// the base name; the monomorphizer replaces it with the mangled
+		// specialization name and clears TypeArgs, as for class inheritance.
+		if cursor.Peek(1).Type == lexer.LESS {
+			p.cursor = cursor
+			args := p.parseTypeArguments()
+			if args == nil {
+				return nil // parseTypeArguments already recorded the error
+			}
+			interfaceDecl.Parent.TypeArgs = args
+			cursor = p.cursor
 		}
 
 		if cursor.Peek(1).Type != lexer.RPAREN {

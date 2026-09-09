@@ -991,3 +991,104 @@ issues in the touched files. Baselines ratcheted.
 While updating [`docs/guide/contracts.md`](../guide/contracts.md), two stale limitations were
 measured and removed: contract failures **are** catchable with `try/except`, and `old` with a
 `var` parameter does persist to the caller.
+
+## 2026-09-09 — Generics (L-S4a…L-S4f)
+
+Closed `PLAN.md` §3.2.4. **GenericsPass 15 → 23 (100%)**; overall 898 → 906 of 1,928 scored.
+No other category moved: `just fixture-update` changed exactly one line in
+`baselines.json`.
+
+Measuring the eight failing fixtures first changed the shape of the work. Only five were
+generics bugs; three reproduced in plain non-generic code and were fixed as the general
+bugs they are. Two of the six planned items needed no code at all — `func_ptr1` (L-S4c) and
+`tlist1` (the second half of L-S4f) already passed.
+
+### Generic interfaces and array aliases (L-S4a, L-S4f)
+
+Specialization is an AST pre-pass (`internal/generics`), and four switches in `clone.go`
+(`typeParamsOf`, `declName`, `isTemplateDecl`, `specializeDecl`) decide which declaration
+kinds are templates. They covered `ClassDecl`, `RecordDecl` and `TypeDeclaration` only, so
+`InterfaceDecl` and `ArrayDecl` silently lost their type parameters — the parser had already
+parsed them, and `attachTypeParams` dropped them on the floor. `type TTest<T> = array of T`
+routes through `parseArrayDeclaration`, which returns `*ast.ArrayDecl`, not a
+`TypeDeclaration`; that alone was `array1`. Both nodes gained `TypeParams []string` and
+entries in all four switches plus `attachTypeParams`. `cloneNode` is reflection-based, so
+interface methods and properties substitute for free.
+
+`interface1` needed one more thing: `class (ITest<Integer>)`. The inheritance list stores
+bare `*ast.Identifier`, which had nowhere to carry type arguments, and unlike an `as` cast
+there is no `TypeAnnotation` in that position. `ast.Identifier` gained an optional
+`TypeArgs []TypeExpression`, mirroring the existing `TypeAnnotation.TypeArgs` /
+`NewExpression.TypeArgs` pattern, and `rewritePtr` gained the symmetric `*ast.Identifier`
+case. All 33 non-test readers of `.Interfaces`/`.Parent` read `.Value`, which by then holds
+the mangled name, so nothing downstream changed. The regenerated visitor now walks
+`Identifier.TypeArgs`; `[]string` fields are skipped by the generator, as `ClassDecl.TypeParams`
+already showed.
+
+### Out-of-line generic method bodies (L-S4d)
+
+`function TTest<T>.Test(const v : T) : T;` did not parse: `parseFunctionQualifiedName` walks
+`.`-separated segments and never looked for `<`. Three fixtures — `repeat`, `while`,
+`variant_implicit_cast` — hang off this, none of which `PLAN.md` had listed under L-S4d,
+which asked for a hand-written regression instead.
+
+Parser: a new pure-lookahead `looksLikeMethodTypeParams` requires a balanced angle group
+**followed by a dot**, which is what separates `TTest<T>.Test` from the comparison `a < b`
+and confines type parameters to class-name segments (a generic free function `Foo<T>(x)` is
+still unsupported and takes the old error path). Unlike `looksLikeGenericTypeRef` it allows
+any token inside the brackets, so a constrained header `<T: TObject>` is recognized too.
+`parseTypeParameters` is reused verbatim. The names land on a new
+`FunctionDecl.ClassTypeParams`; `ClassName` stays the base name `TTest`, which is what the
+monomorphizer looks up.
+
+Monomorphizer: `collectTemplates` gained a second arm collecting these bodies by normalized
+base name — a full pre-pass, so a body written before, after or between its uses is handled
+identically. `ensureSpecialized` then calls `emitMethodBodies`, which clones each body with
+the same substitution, re-points `ClassName` at the mangled name and appends it right after
+the specialized class. Substitution is keyed on the *header's* parameter names mapped
+positionally onto the type arguments, so a header that renames them still works.
+
+No semantic or evaluator change was needed, and that was verified before writing any code by
+hand-assembling the exact statement layout the monomorphizer emits and running it: a
+`FunctionDecl` with a `ClassName` is analyzed immediately rather than deferred, and
+`analyzeClassMethodImplementation` clears the entry from `ForwardedMethods`, so emitting the
+body after its class decl and before the first use satisfies `validateForwardMethods`.
+
+### Three non-generic bugs filed under §3.2.4
+
+- **`class external` methods (`class_external1`).** A body-less method was recorded in
+  `ForwardedMethods` regardless of `IsExternal`, so every external class reported
+  `Method "X" ... not implemented`. Reproduced without generics in four lines. The host
+  implements those methods; the guard now excludes external classes and external methods.
+- **Function-pointer values (`external_promise`).** `@f` where `f` is already a
+  function-pointer variable was rejected — `analyzeAddressOfFunction` demanded a
+  `*types.FunctionType`. Address-of a function pointer is the identity, so it now returns
+  that type, and `VisitAddressOfExpression` returns the held value at runtime. Separately,
+  `canAssignNil` had no function-pointer case, so `nil` could not be assigned to or passed
+  for one.
+- **`operator implicit (TRec) : Variant` (`specialize_to_operator_overload`).** The `<`/`>`
+  overloads already resolved correctly through the generic method; what failed was
+  `PrintLn(rec)`. `PrintLn` declares a Variant parameter, but `coerceBuiltinArgsToSignature`
+  only coerced arguments whose *static* type was already Variant, and only between the four
+  basic kinds — so the record arrived unconverted and printed as `TRec(a: 2, b: 20)`.
+  A record reaching a Variant parameter now goes through the existing
+  `TryImplicitConversion`; gating on records keeps the common argument kinds off the
+  conversion registry.
+
+**Validation:** `go test ./...` green. `golangci-lint run --new-from-rev=main`: 0 issues.
+`just fixture-report` 906/1,928 with GenericsPass at 23/23 and no category regressions.
+New tests: nine in `internal/parser/generics_test.go` (generic interface/array declarations,
+`class (ITest<Integer>)`, four out-of-line header forms, and guards that plain
+`TFoo.Bar`, `TOuter.TInner.Bar` and `<` comparisons are unaffected); nine in
+`internal/generics/monomorph_test.go` (interface and array specialization, inheritance-list
+instantiation, one body per specialization, emission order, substitution, body-before-use,
+arity mismatch, `Default(T)`, and a non-template header left in place); external-class and
+function-pointer subtests in `internal/semantic`; two `PrintLn`-of-record tests in
+`internal/interp/operator_test.go`.
+
+**Left open, measured:** `GenericsFail` (0/8) belongs to §4 error-detection parity —
+`implem_mismatch1` now gets further but still fails, since DWScript's "T expected but u
+found" check for a renamed out-of-line type parameter is not implemented. Type-parameter
+constraints are parsed and ignored. Comparing a function pointer against `nil` (`f = nil`)
+still reports "operator = requires comparable types"; assignment and argument passing work,
+and no fixture demands the comparison.

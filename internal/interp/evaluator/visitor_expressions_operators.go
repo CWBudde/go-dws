@@ -168,6 +168,20 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 	// The operator should be an identifier (function/procedure name) or member access (for methods)
 	switch operand := node.Operator.(type) {
 	case *ast.Identifier:
+		// A variable holding a function pointer denotes that value, and `@f` is
+		// the identity on it. The environment is consulted first so a local
+		// variable shadowing a routine of the same name wins, matching how
+		// VisitIdentifier and VisitCallExpression resolve names — otherwise the
+		// analyzer and the evaluator would disagree under shadowing.
+		if val, found := ctx.Env().Get(operand.Value); found {
+			switch unwrapped := unwrapVariant(val).(type) {
+			case *runtime.FunctionPointerValue:
+				return unwrapped
+			case *runtime.NilValue:
+				return val
+			}
+		}
+
 		// Regular function/procedure pointer: @FunctionName
 		funcNameLower := ident.Normalize(operand.Value)
 		overloads := e.FunctionRegistry().Lookup(funcNameLower)

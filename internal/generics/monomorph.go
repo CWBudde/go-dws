@@ -38,6 +38,7 @@ func Monomorphize(prog *ast.Program) {
 	m := &monomorphizer{
 		templates: make(map[string]templateInfo),
 		emitted:   make(map[string]bool),
+		methods:   make(map[string][]*ast.FunctionDecl),
 	}
 	m.collectTemplates(prog.Statements)
 	if len(m.templates) == 0 {
@@ -54,6 +55,10 @@ type templateInfo struct {
 type monomorphizer struct {
 	templates map[string]templateInfo
 	emitted   map[string]bool
+	// methods holds out-of-line implementations of generic type methods, keyed
+	// by the normalized base type name. Every specialization gets its own
+	// substituted clone of each entry.
+	methods map[string][]*ast.FunctionDecl
 	// out is the statement list being built for the current pass; specialized
 	// declarations are appended here just before the statement that uses them.
 	out []ast.Statement
@@ -70,6 +75,10 @@ func (m *monomorphizer) collectTemplates(stmts []ast.Statement) {
 		}
 		if params := typeParamsOf(stmt); len(params) > 0 {
 			m.templates[ident.Normalize(declName(stmt))] = templateInfo{decl: stmt, params: params}
+			continue
+		}
+		if fn, base, ok := genericMethodImpl(stmt); ok {
+			m.methods[ident.Normalize(base)] = append(m.methods[ident.Normalize(base)], fn)
 		}
 	}
 }
@@ -92,6 +101,12 @@ func (m *monomorphizer) rewriteStatements(stmts []ast.Statement) []ast.Statement
 	for _, stmt := range stmts {
 		if isTemplateDecl(stmt) {
 			continue // templates are replaced by their specializations
+		}
+		if _, base, ok := genericMethodImpl(stmt); ok && m.isTemplate(base) {
+			// Emitted once per specialization by ensureSpecialized. A header
+			// naming a type that is not a template is left in place so the
+			// analyzer reports it normally.
+			continue
 		}
 		if block, ok := stmt.(*ast.BlockStatement); ok {
 			block.Statements = m.rewriteStatements(block.Statements)
@@ -161,7 +176,45 @@ func (m *monomorphizer) ensureSpecialized(base string, args []ast.TypeExpression
 	// emitting their dependencies before it.
 	m.rewrite(reflect.ValueOf(clone))
 	m.out = append(m.out, clone)
+	m.emitMethodBodies(base, mangled, args)
 	return mangled
+}
+
+// emitMethodBodies clones every out-of-line implementation of the generic type
+// base for the specialization named mangled, substituting the type arguments and
+// re-targeting the implementation at the concrete type. Bodies are appended
+// after the specialized declaration, so both are in place before the statement
+// that first uses the specialization.
+func (m *monomorphizer) emitMethodBodies(base, mangled string, args []ast.TypeExpression) {
+	for _, impl := range m.methods[ident.Normalize(base)] {
+		// The header may name its parameters differently from the declaration
+		// (`procedure TTest<u>.Dummy` against `TTest<T>`), so substitution is
+		// keyed on the header's own names, mapped positionally onto args.
+		if len(impl.ClassTypeParams) != len(args) {
+			continue // arity disagrees with the instantiation; leave it unimplemented
+		}
+		subst := make(map[string]ast.TypeExpression, len(args))
+		for i, p := range impl.ClassTypeParams {
+			subst[ident.Normalize(p)] = args[i]
+		}
+
+		body, ok := cloneNode(reflect.ValueOf(impl), subst).Interface().(*ast.FunctionDecl)
+		if !ok {
+			continue
+		}
+		// A method whose own name matches a type parameter must keep its name.
+		if impl.Name != nil {
+			named := *impl.Name
+			body.Name = &named
+		}
+		if body.ClassName != nil {
+			body.ClassName.Value = mangled
+		}
+		body.ClassTypeParams = nil
+		// Emit any nested specializations the body needs ahead of it.
+		m.rewrite(reflect.ValueOf(body))
+		m.out = append(m.out, body)
+	}
 }
 
 // rewrite walks the tree at v, rewriting generic type references in place and
@@ -226,6 +279,15 @@ func (m *monomorphizer) rewritePtr(v reflect.Value) {
 		m.rewrite(v.Elem())
 		if len(node.TypeArgs) > 0 && node.ClassName != nil && m.isTemplate(node.ClassName.Value) {
 			node.ClassName.Value = m.ensureSpecialized(node.ClassName.Value, node.TypeArgs)
+			node.TypeArgs = nil
+		}
+	case *ast.Identifier:
+		// An identifier carries TypeArgs only where a generic instantiation has
+		// no TypeAnnotation to hold it — a class declaration's parent/interface
+		// list, e.g. `class (ITest<Integer>)`.
+		m.rewrite(v.Elem())
+		if len(node.TypeArgs) > 0 && m.isTemplate(node.Value) {
+			node.Value = m.ensureSpecialized(node.Value, node.TypeArgs)
 			node.TypeArgs = nil
 		}
 	default:

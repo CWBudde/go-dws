@@ -266,10 +266,54 @@ func (p *Parser) parseFunctionReturnType() *ast.TypeAnnotation {
 	}
 }
 
-// parseFunctionQualifiedName parses a function name, which may be qualified (ClassName.MethodName).
+// looksLikeMethodTypeParams performs a non-consuming lookahead to decide whether
+// the token after the cursor opens a generic type-parameter list that closes and
+// is immediately followed by a '.', as in `TTest<T>.Test`. The trailing dot is
+// what distinguishes it from a comparison such as `a < b`, and it confines type
+// parameters to class-name segments: a generic free function `Foo<T>(x)` is not
+// supported and still takes the existing error path.
+//
+// Unlike looksLikeGenericTypeRef, any token is allowed inside the brackets, so
+// constrained headers like `TTest<T: TObject>.Test` are recognized too —
+// parseTypeParameters already parses and ignores constraints.
+//
+// PRE/POST: cursor unchanged.
+func (p *Parser) looksLikeMethodTypeParams() bool {
+	if p.cursor.Peek(1).Type != lexer.LESS {
+		return false
+	}
+	depth := 0
+	for i := 1; i <= 64; i++ {
+		switch p.cursor.Peek(i).Type {
+		case lexer.LESS:
+			depth++
+		case lexer.GREATER:
+			depth--
+			if depth == 0 {
+				return p.cursor.Peek(i+1).Type == lexer.DOT
+			}
+		case lexer.GREATER_GREATER:
+			depth -= 2
+			if depth <= 0 {
+				return depth == 0 && p.cursor.Peek(i+1).Type == lexer.DOT
+			}
+		case lexer.SEMICOLON, lexer.LPAREN, lexer.BEGIN, lexer.EOF:
+			// A header never spans these; give up rather than scan into the body.
+			return false
+		}
+	}
+	return false
+}
+
+// parseFunctionQualifiedName parses a function name, which may be qualified
+// (ClassName.MethodName), and where the class name may carry a generic
+// type-parameter list (`TTest<T>.Method`). The returned typeParams are the
+// names from that list; className keeps the base name (TTest), which is what
+// the monomorphizer looks up.
+//
 // PRE: cursor is at function/procedure name
 // POST: cursor is at function name (last identifier)
-func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier) {
+func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier, typeParams []string) {
 	cursor := p.cursor
 
 	firstIdent := &ast.Identifier{
@@ -283,8 +327,21 @@ func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier) 
 
 	// Collect qualified identifiers for nested classes (e.g., TOuter.TInner.Method)
 	parts := []string{firstIdent.Value}
-	// Advance through any ".Ident" segments to build the qualified class name
-	for cursor.Peek(1).Type == lexer.DOT && p.isMemberNameToken(cursor.Peek(2).Type) {
+	// Advance through any ".Ident" segments to build the qualified class name,
+	// allowing a generic type-parameter list on each class-name segment.
+	for {
+		p.cursor = cursor
+		if p.looksLikeMethodTypeParams() {
+			params := p.parseTypeParameters()
+			if params == nil {
+				return nil, nil, nil // parseTypeParameters recorded the error
+			}
+			typeParams = append(typeParams, params...)
+			cursor = p.cursor
+		}
+		if cursor.Peek(1).Type != lexer.DOT || !p.isMemberNameToken(cursor.Peek(2).Type) {
+			break
+		}
 		cursor = cursor.Advance() // move to '.'
 		cursor = cursor.Advance() // move to next ident
 		p.cursor = cursor
@@ -310,7 +367,7 @@ func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier) 
 		className = nil
 	}
 
-	return name, className
+	return name, className, typeParams
 }
 
 // Syntax: function Name(params): Type; begin ... end;
@@ -335,7 +392,10 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	cursor = cursor.Advance() // move to name
 	p.cursor = cursor
 
-	fn.Name, fn.ClassName = p.parseFunctionQualifiedName()
+	fn.Name, fn.ClassName, fn.ClassTypeParams = p.parseFunctionQualifiedName()
+	if fn.Name == nil {
+		return nil // malformed generic type-parameter list; error already recorded
+	}
 	cursor = p.cursor // reload cursor after parsing qualified name
 
 	// Parse parameter list (if present)

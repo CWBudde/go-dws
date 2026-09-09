@@ -1085,3 +1085,123 @@ func TestCompoundAssignmentClassOperator(t *testing.T) {
 		t.Fatalf("expected %q, got %q", expected, output)
 	}
 }
+
+// TestImplicitConversionToVariantParameter covers a record reaching a builtin's
+// Variant parameter: PrintLn must go through a user-defined
+// `operator implicit (TRec) : Variant` rather than dumping the record's fields.
+func TestImplicitConversionToVariantParameter(t *testing.T) {
+	input := `
+		type TRec = record a, b : Integer; end;
+
+		function RecToVariant(r : TRec) : Variant;
+		begin
+		  Result := r.a.ToString + ',' + r.b.ToString;
+		end;
+
+		operator implicit (TRec) : Variant uses RecToVariant;
+
+		var r1 : TRec = (a:1; b:10);
+		begin
+		  PrintLn(r1);
+		end
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	expected := "1,10\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}
+
+// TestRecordWithoutImplicitVariantOperatorKeepsDefaultFormatting guards that the
+// Variant-parameter conversion only fires when an operator is registered.
+func TestRecordWithoutImplicitVariantOperatorKeepsDefaultFormatting(t *testing.T) {
+	input := `
+		type TRec = record a, b : Integer; end;
+		var r1 : TRec = (a:1; b:10);
+		begin
+		  PrintLn(r1);
+		end
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	expected := "TRec(a: 1, b: 10)\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}
+
+// TestAddressOfPrefersShadowingLocalVariable pins the resolution order for `@f`:
+// a local function-pointer variable shadowing a routine of the same name wins,
+// matching how plain identifier and call expressions resolve names.
+func TestAddressOfPrefersShadowingLocalVariable(t *testing.T) {
+	input := `
+		type TOnF = procedure(response: Integer);
+
+		procedure Show(response: Integer);
+		begin
+		  PrintLn('global: ' + response.ToString);
+		end;
+
+		procedure Other(response: Integer);
+		begin
+		  PrintLn('local: ' + response.ToString);
+		end;
+
+		procedure Test;
+		var Show : TOnF;
+		begin
+		  Show := @Other;
+		  var g : TOnF;
+		  g := @Show;
+		  g(1);
+		end;
+
+		begin
+		  Test;
+		end
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	expected := "local: 1\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}
+
+// TestAddressOfFallsBackToRoutineWhenNotShadowed guards that consulting the
+// environment first did not break the ordinary `@Routine` case.
+func TestAddressOfFallsBackToRoutineWhenNotShadowed(t *testing.T) {
+	input := `
+		type TOnF = procedure(response: Integer);
+
+		procedure Show(response: Integer);
+		begin
+		  PrintLn('global: ' + response.ToString);
+		end;
+
+		var g : TOnF;
+		begin
+		  g := @Show;
+		  g(1);
+		end
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	expected := "global: 1\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}

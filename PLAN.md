@@ -10,7 +10,7 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-09):** Go harness and freshly rebuilt CLI both
-**878 / 1,928 scored = 46%**, with no category regressions after Phase 2.
+**906 / 1,928 scored = 47%**, with no category regressions after §3.2.4.
 Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **111 / 647 = 17%**.
 
@@ -32,7 +32,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (1,050 total): FailureScripts 421, SimpleScripts 104,
+- Where the remaining failures are (1,022 total): FailureScripts 421, SimpleScripts 97,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -226,24 +226,29 @@ demands them; measured 2026-09-09.
 
 #### 3.2.4 Generics
 
-Keep specialization changes focused on one capability at a time. Coordinate syntax support
-with §3.1, especially nested type-argument delimiters and out-of-line generic method headers.
+**Closed 2026-09-09.** GenericsPass 15 → 23 (100%). Generic interfaces and generic array
+aliases are now templates like classes and records; a class inheritance list can name a
+generic instantiation (`class (ITest<Integer>)`); and out-of-line generic method bodies
+(`function TTest<T>.Test`) are parsed and cloned once per specialization. Measurement also
+showed three of the listed blockers were not generics bugs at all and were fixed as such:
+`class external` methods are no longer treated as forward declarations, `@f` on a
+function-pointer variable and `nil` as a function-pointer argument now type-check and run,
+and a record reaching a builtin's Variant parameter goes through a user-defined
+`operator implicit (TRec) : Variant`. L-S4c (`func_ptr1`) and the `tlist1` half of L-S4f
+already passed; measured, not implemented. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--generics-l-s4al-s4f).
 
-- **L-S4a** `[ ]` S — Specialize generic interfaces and their method signatures →
-  GenericsPass `interface1`.
-- **L-S4b** `[ ]` M — Specialize generic `external` class declarations and member signatures →
-  `class_external1`, `external_promise`. Distinguish compile support from any host runtime
-  binding requirement before claiming a fixture is closed.
-- **L-S4c** `[ ]` S — Specialize generic function-pointer parameter and return types → `func_ptr1`.
-- **L-S4d** `[ ]` M — Bind out-of-line generic method bodies such as
-  `function TTest<T>.Foo` to their declaration and specialized type parameters. Acceptance:
-  a compile-and-run regression with multiple concrete specializations; parser support must
-  be present first.
-- **L-S4e** `[ ]` S — Resolve operators against concrete specialization types →
-  `specialize_to_operator_overload`; cover both built-in and user-defined operators.
-- **L-S4f** `[ ]` M — Complete `array of T` substitution and method-call typing → `array1`,
-  `tlist1`. Depends on L-S4d where methods are defined out of line; preserve array bounds
-  and parameter modes through specialization.
+✋ `GenericsFail` (8 fixtures, 0 passing) is untouched: it belongs to §4 error-detection
+parity. `GenericsFail/implem_mismatch1` now gets further before failing — DWScript's
+"T expected but u found" check for a mismatched out-of-line type-parameter name is not
+implemented; substitution is positional instead.
+
+✋ Type-parameter constraints (`<T: TObject>`) are parsed and ignored; no fixture in
+`GenericsPass` demands them. Measured 2026-09-09.
+
+✋ Comparing a function pointer against `nil` (`f = nil`) still reports
+"operator = requires comparable types". Assignment and argument passing work; no fixture
+demands the comparison. Measured 2026-09-09.
 
 #### 3.2.5 Overloads and method pointers
 

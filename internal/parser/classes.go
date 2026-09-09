@@ -126,14 +126,29 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 		cursor = cursor.Advance() // move to IDENT
 		p.cursor = cursor
 
-		identifiers = append(identifiers, &ast.Identifier{
+		entry := &ast.Identifier{
 			TypedExpressionBase: ast.TypedExpressionBase{
 				BaseNode: ast.BaseNode{
 					Token: cursor.Current(),
 				},
 			},
 			Value: cursor.Current().Literal,
-		})
+		}
+
+		// Generic instantiation in the inheritance list: class (ITest<Integer>).
+		// Value stays the base name; the monomorphizer replaces it with the
+		// mangled specialization name and clears TypeArgs.
+		if cursor.Peek(1).Type == lexer.LESS {
+			p.cursor = cursor
+			args := p.parseTypeArguments()
+			if args == nil {
+				return // parseTypeArguments already recorded the error
+			}
+			entry.TypeArgs = args
+			cursor = p.cursor
+		}
+
+		identifiers = append(identifiers, entry)
 
 		// Check for comma (more items) or closing paren
 		nextTok := cursor.Peek(1)

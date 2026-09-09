@@ -510,11 +510,16 @@ PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
 - Generic operators
 
 #### go-dws Status
-- `[~]` Generic classes and records, multiple type parameters, and nested type
-  arguments (`TA<TB<Integer>>`, in both type and expression position) work.
-  Remaining gaps are tracked in PLAN.md §3.2: generic interfaces, generic
-  `external` classes and function-pointer types, out-of-line generic method
-  bodies, and operator-overload specialization. Measured: GenericsPass 14/23.
+- ✅ Generic classes, records, interfaces and array aliases; multiple type
+  parameters; nested type arguments (`TA<TB<Integer>>`, in both type and
+  expression position); generic instantiations in a class inheritance list
+  (`class (ITest<Integer>)`); generic function-pointer types; and out-of-line
+  generic method bodies (`function TTest<T>.Foo`), including constructors and
+  class methods. Measured: GenericsPass 23/23.
+- ⏸️ Type constraints (`<T: TObject>`) are parsed and ignored — no constraint
+  checking. Generic *methods* on a non-generic type (`function Max<T>(a, b: T): T`)
+  are not supported; only generic types are. Error-detection parity for generics
+  (`GenericsFail`) is tracked in PLAN.md §4.
 
 ---
 
