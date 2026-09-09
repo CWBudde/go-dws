@@ -95,6 +95,39 @@ begin
 end.
 ```
 
+An accessor may also be an expression rather than a method name, and a helper may
+declare a `class property`. A class property is reachable through an instance, through
+the extended type's name, and through a cast — where it binds the cast's *static* class:
+
+```pascal
+type TBase = class
+  class var Field: Integer = 1;
+end;
+
+type TBaseHelper = class helper for TBase
+  class property MultBy2: Integer read (2 * Field) write (Field := Value div 2);
+end;
+
+type TSub = class(TBase)
+end;
+
+var b := TBase.Create;
+var s := TSub.Create;
+begin
+  PrintLn(TBase.MultBy2);      // 2   — through the class name
+  PrintLn(b.MultBy2);          // 2   — through an instance
+  PrintLn(TBase(s).MultBy2);   // 2   — through a cast, binding TBase's helper
+  TBase.MultBy2 := 10;
+  PrintLn(TBase.Field);        // 5
+end.
+```
+
+A write specifier that names an lvalue rather than an accessor method is shorthand for
+assigning to it — `write (FBase.MultBy2)` means `write (FBase.MultBy2 := Value)`.
+
+An instance property declared in a helper still needs an instance receiver: it is not
+reachable through the extended type's name.
+
 ### 3. Class Constants
 
 Helpers can define class-level constants that are accessible within helper methods.
@@ -308,6 +341,10 @@ Helpers are registered at runtime in the interpreter and at compile-time in the 
 2. **No Field Access:** Helpers cannot directly access private fields of classes (must use public methods/properties)
 3. **No External Methods:** Helper methods must be defined inline within the helper declaration block
 4. **Static Resolution:** Helper methods are resolved at runtime, not compile-time (slight performance overhead)
+5. **No record-type metaclass access:** a record helper's class property is reachable
+   through a record *instance*, but not through the record type's name (`TRec.ClassProp`)
+6. **Accessor expressions are not type-checked:** a helper property's `read (...)` /
+   `write (...)` expression is evaluated at runtime but not analyzed semantically
 
 ### Future Enhancements
 

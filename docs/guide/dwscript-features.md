@@ -376,7 +376,16 @@ PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
   `property Arr[i: Integer]: Integer read (F[i]) write (F[i]);`
 - ✅ Class properties, reachable through the metaclass and through an instance.
   They are not virtual: `TBase(sub).ClassProp` reads `TBase`'s declaration.
+- ✅ An indexed property whose accessor is a `class function` / `class procedure` is
+  readable and writable both through an instance and through the class name
+  (`TConvert.Prop[i]`). Reaching an indexed property through the class name when its
+  accessor is an *instance* method is a compile-time error, the same one the
+  non-indexed path reports.
+- ✅ A write specifier that names an lvalue rather than an accessor is shorthand for
+  assigning to it: `write (FBase.Prop)` means `write (FBase.Prop := Value)`.
 - ✅ `external 'name'` renames the property's key in JSON serialization
+- ❌ A read/write specifier that names *another property*
+  (`property Mapped: Integer read Prop write Prop`) is rejected at compile time.
 
 ---
 
