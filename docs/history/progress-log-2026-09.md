@@ -807,3 +807,68 @@ SimpleScripts 334 → 335, no category down. The two that did not
 convert are unrelated: `Algorithms` runs at `normal` hints in the harness, and
 `SimpleScripts/partial_class3` still differs on partial-class redeclaration handling.
 `baselines.json` and `TEST_STATUS.md` ratcheted with `just fixture-update`.
+
+## 2026-09-09 — Helper property expression accessors and metaclass resolution (L-S2b)
+
+`PLAN.md` §3.2.2 L-S2b. `PropertyExpressionsPass/helpers_property_expressions` failed with
+`Runtime Error: property 'MultBy2' has no read access`. Minimising it split the ticket's single
+line into two independent gaps, and chasing the fixture to green surfaced three more.
+
+**1. No expression case in the helper accessors.** `executeHelperPropertyRead` /
+`executeHelperPropertyWrite` (`internal/interp/evaluator/helper_methods.go`) switched on
+`ReadKind`/`WriteKind` and handled `PropAccessField`, `PropAccessMethod`, `PropAccessBuiltin` and
+`PropAccessNone` — but not `types.PropAccessExpression`, so every expression-form helper accessor
+fell into `default:`. The metadata was already there: the helper property converter in
+`visitor_declarations.go` sets `ReadKind`, `ReadExpr`, `WriteExpr` and `IsClassProperty`. This was
+never class-property-specific — a plain `property M : Integer read (2*Field)` on an instance
+helper failed identically.
+
+The new cases delegate to the accessor scope the receiver deserves rather than defining a
+helper-only one: a `class property` resolves the extended type's class metadata
+(`helperReceiverClassInfo`) and reuses `evalClassPropertyExpressionRead` / `…Write`, a record
+receiver gets fields plus class state the way a record method body does, and everything else
+takes the existing object-shaped `executeExpressionBackedPropertyRead` / `…Write`.
+
+**2. Helper properties invisible through a metaclass.** `resolveClassMetaMember`
+(`visitor_expressions_members.go`) consulted helper *methods* but never helper *properties*, so
+`TBase.HelperClassProp` reported `member 'MultBy2' not found in class 'TBase'`;
+`member_assignment.go` had the same hole on the write side. Both now look up
+`FindHelperProperty` before erroring, and both restrict it to `IsClassProperty` — an instance
+property declared in a helper still needs an instance receiver.
+
+**3. Helper class properties through a type cast.** `TBase(FSub).MultBy2` must bind the *cast's*
+static class, exactly like the field and class-property lookups beside it. Both the read path and
+`member_assignment` now resolve the static metaclass (`staticClassMetaOf`) and look the helper
+property up against it, falling back to the wrapped receiver for instance properties.
+
+**4. Lvalue write specifiers.** `write (FBase.MultBy2)` — no `:=` — is shorthand for
+`write (FBase.MultBy2 := Value)`. The parser collapses `write (Field)` to a plain identifier, so
+only the non-identifier form reached the converters, where both the class and the helper path
+silently set `PropAccessNone` and dropped the setter. `writeSpecAssignment` now synthesizes the
+assignment, storing it in the same expression form an explicit write statement uses.
+
+**5. Record class vars written through an instance.** `FBase.Field := v`, where `Field` is a
+record `class var`, fell through to the instance field setter, which created a field of that name
+and shadowed the shared slot — the write was silently lost. The record branch of member
+assignment now writes the `RecordTypeValue`'s class-var storage first, mirroring the rule the
+object branch already had for classes. The helper-property lookup is likewise placed before the
+field setter on both branches, for the same reason.
+
+**Semantic alignment.** `analyzeHelperProperty` (`internal/semantic/analyze_helpers.go`) stored
+only `{Name, Type}`, leaving every helper property at `ReadKind == PropAccessNone` and disagreeing
+with the evaluator about the same AST. It now records the same read/write kinds, specs,
+`IsIndexed`, `IsDefault` and `IsClassProperty`. The accessor expression itself is deliberately
+*not* analyzed here — that can surface new diagnostics across unrelated fixtures and belongs with
+the §3.1 property work.
+
+**Validation:** `go test ./internal/... ./pkg/...` green;
+`internal/interp/helper_property_expressions_test.go` is new (10 subtests over instance/class
+helpers, record helpers, instance/class-name/cast receivers, the lvalue shorthand, and the record
+class-var rule). `just fixture-report` **892 → 895 / 2,042**, the whole delta in
+PropertyExpressionsPass 15 → 18 — `helpers_property_expressions`,
+`class_helpers_property_write_expressions` and `record_helpers_property_write_expressions` — with
+no category down. `golangci-lint run --new-from-rev`: 0 issues. Baselines ratcheted.
+
+**Left open, recorded in `PLAN.md`.** `read_write_other_property` (a property whose specifier
+names another property) is a different gap, and record-type metaclass access (`TRec.ClassProp`
+through the type name rather than an instance) remains unsupported; no fixture demands it.

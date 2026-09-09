@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Visitor methods for declaration AST nodes (functions, classes, interfaces, types, etc.).
@@ -659,7 +660,11 @@ func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl
 			propInfo.WriteSpec = ident.Value
 			propInfo.WriteKind = e.determinePropertyAccessKind(classInfo, ident.Value)
 		} else {
-			propInfo.WriteKind = types.PropAccessNone
+			// A non-identifier write specifier is an lvalue, not an accessor name:
+			// `write (FBase.Prop)` is shorthand for `write (FBase.Prop := Value)`.
+			propInfo.WriteKind = types.PropAccessExpression
+			propInfo.WriteSpec = propDecl.WriteSpec.String()
+			propInfo.WriteExpr = writeSpecAssignment(propDecl.WriteSpec)
 		}
 	} else if propDecl.WriteStmt != nil {
 		propInfo.WriteKind = types.PropAccessExpression
@@ -669,6 +674,30 @@ func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl
 	}
 
 	return propInfo
+}
+
+// writeSpecAssignment turns an lvalue write specifier into the assignment it is
+// shorthand for. DWScript lets a property name its target directly —
+// `property P : Integer write (FBase.Q)` means `write (FBase.Q := Value)` — so the
+// setter is stored in the same expression form as an explicit write statement, with
+// the implicit `Value` as the assigned expression.
+func writeSpecAssignment(writeSpec ast.Expression) ast.Statement {
+	target := writeSpec
+	if grouped, ok := target.(*ast.GroupedExpression); ok {
+		target = grouped.Expression
+	}
+	pos := writeSpec.Pos()
+	return &ast.AssignmentStatement{
+		BaseNode: ast.BaseNode{Token: token.Token{Type: token.ASSIGN, Literal: ":=", Pos: pos}},
+		Target:   target,
+		Operator: token.ASSIGN,
+		Value: &ast.Identifier{
+			TypedExpressionBase: ast.TypedExpressionBase{
+				BaseNode: ast.BaseNode{Token: token.Token{Type: token.IDENT, Literal: "Value", Pos: pos}},
+			},
+			Value: "Value",
+		},
+	}
 }
 
 func (e *Evaluator) determinePropertyAccessKind(classInfo classDeclarationInfo, specName string) types.PropAccessKind {
@@ -1203,6 +1232,10 @@ func (e *Evaluator) VisitHelperDecl(node *ast.HelperDecl, ctx *ExecutionContext)
 			if identExpr, ok := prop.WriteSpec.(*ast.Identifier); ok {
 				propInfo.WriteKind = types.PropAccessMethod
 				propInfo.WriteSpec = identExpr.Value
+			} else {
+				propInfo.WriteKind = types.PropAccessExpression
+				propInfo.WriteSpec = prop.WriteSpec.String()
+				propInfo.WriteExpr = writeSpecAssignment(prop.WriteSpec)
 			}
 		} else if prop.WriteStmt != nil {
 			propInfo.WriteKind = types.PropAccessExpression

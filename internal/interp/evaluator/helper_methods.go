@@ -689,7 +689,8 @@ func (e *Evaluator) FindHelperProperty(val Value, propName string) (HelperInfo, 
 }
 
 // executeHelperPropertyRead evaluates a helper property read access.
-// Handles PropAccessField, PropAccessMethod, PropAccessBuiltin, and PropAccessNone.
+// Handles PropAccessField, PropAccessMethod, PropAccessExpression, PropAccessBuiltin,
+// and PropAccessNone.
 func (e *Evaluator) executeHelperPropertyRead(
 	helper HelperInfo,
 	propInfo *types.PropertyInfo,
@@ -749,6 +750,9 @@ func (e *Evaluator) executeHelperPropertyRead(
 		return e.newError(node, "property '%s' getter method '%s' not found",
 			propInfo.Name, propInfo.ReadSpec)
 
+	case types.PropAccessExpression:
+		return e.executeHelperPropertyExpressionRead(propInfo, selfValue, node, ctx)
+
 	case types.PropAccessBuiltin:
 		return e.CallBuiltinHelperProperty(propInfo.ReadSpec, selfValue, node, ctx)
 
@@ -760,6 +764,132 @@ func (e *Evaluator) executeHelperPropertyRead(
 	}
 }
 
+// executeHelperPropertyExpressionRead evaluates an expression-form helper property
+// getter, e.g. `class property MultBy2 : Integer read (2*Field)` on a class helper.
+// A class property binds the extended type's class variables and a metaclass Self;
+// an instance property binds the receiver's own members. Both cases reuse the
+// class/record/object accessor scopes rather than defining a helper-only one.
+func (e *Evaluator) executeHelperPropertyExpressionRead(
+	propInfo *types.PropertyInfo,
+	selfValue Value,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	if propInfo.IsClassProperty {
+		if classInfo := e.helperReceiverClassInfo(selfValue); classInfo != nil {
+			return e.evalClassPropertyExpressionRead(classInfo, propInfo, node, ctx)
+		}
+	}
+	if recVal, ok := selfValue.(RecordInstanceValue); ok {
+		return e.evalHelperRecordExpressionRead(recVal, propInfo, node, ctx)
+	}
+	return e.executeExpressionBackedPropertyRead(selfValue, propInfo, node, ctx)
+}
+
+// evalHelperRecordExpressionRead evaluates an expression-form helper property on a
+// record receiver. Records carry class variables of their own, so the accessor needs
+// the same fields-plus-class-state scope a record method body gets; the object path
+// binds instance fields only and would leave a `class var` unresolved.
+func (e *Evaluator) evalHelperRecordExpressionRead(
+	recVal RecordInstanceValue,
+	propInfo *types.PropertyInfo,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	exprNode, ok := propInfo.ReadExpr.(ast.Expression)
+	if !ok {
+		return e.newError(node, "property '%s' has invalid read expression type", propInfo.Name)
+	}
+	if groupedExpr, ok := exprNode.(*ast.GroupedExpression); ok {
+		exprNode = groupedExpr.Expression
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
+
+	scope.defineExposed(ctx, "Self", recVal)
+	if !propInfo.IsClassProperty {
+		e.bindRecordMethodFields(recVal, ctx, scope)
+	}
+	e.bindRecordMethodClassState(recVal, ctx, scope)
+
+	return e.Eval(exprNode, ctx)
+}
+
+// evalHelperRecordExpressionWrite mirrors evalHelperRecordExpressionRead for setters,
+// binding the implicit `Value` and syncing class-variable writes back afterwards.
+func (e *Evaluator) evalHelperRecordExpressionWrite(
+	recVal RecordInstanceValue,
+	propInfo *types.PropertyInfo,
+	value Value,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	stmt, ok := propInfo.WriteExpr.(ast.Statement)
+	if !ok {
+		return e.newError(node, "property '%s' has invalid write statement type", propInfo.Name)
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+	scope := newBindingScope()
+	defer scope.cleanup(e, ctx.Env())
+
+	scope.defineExposed(ctx, "Self", recVal)
+	if !propInfo.IsClassProperty {
+		e.bindRecordMethodFields(recVal, ctx, scope)
+	}
+	e.bindRecordMethodClassState(recVal, ctx, scope)
+	scope.defineOwned(e, ctx, "Value", value)
+
+	if result := e.Eval(stmt, ctx); isError(result) {
+		return result
+	}
+	e.syncRecordMethodClassState(recVal, ctx)
+	return value
+}
+
+// executeHelperPropertyExpressionWrite executes an expression-form helper property
+// setter. It mirrors executeHelperPropertyExpressionRead.
+func (e *Evaluator) executeHelperPropertyExpressionWrite(
+	propInfo *types.PropertyInfo,
+	selfValue Value,
+	value Value,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	if propInfo.IsClassProperty {
+		if classInfo := e.helperReceiverClassInfo(selfValue); classInfo != nil {
+			return e.evalClassPropertyExpressionWrite(classInfo, propInfo, value, node, ctx)
+		}
+	}
+	if recVal, ok := selfValue.(RecordInstanceValue); ok {
+		return e.evalHelperRecordExpressionWrite(recVal, propInfo, value, node, ctx)
+	}
+	return e.executeExpressionBackedPropertyWrite(selfValue, propInfo, value, node, ctx)
+}
+
+// helperReceiverClassInfo resolves the class metadata behind a helper receiver, so
+// a `class property` declared in a class helper can be evaluated in class context
+// whether it was reached through an instance or through the class name. Returns nil
+// for receivers that carry no class metadata (records, scalars), leaving the caller
+// to fall back to the instance-shaped accessor scope.
+func (e *Evaluator) helperReceiverClassInfo(selfValue Value) runtime.IClassInfo {
+	if classMeta, ok := selfValue.(ClassMetaValue); ok {
+		return classMeta.GetClassInfo()
+	}
+	if objVal, ok := selfValue.(ObjectValue); ok {
+		if classValAny, err := e.typeSystem.CreateClassValue(objVal.ClassName()); err == nil {
+			if classMeta, ok := classValAny.(ClassMetaValue); ok {
+				return classMeta.GetClassInfo()
+			}
+		}
+	}
+	return nil
+}
+
 func (e *Evaluator) executeHelperPropertyWrite(
 	helper HelperInfo,
 	propInfo *types.PropertyInfo,
@@ -768,6 +898,9 @@ func (e *Evaluator) executeHelperPropertyWrite(
 	node ast.Node,
 	ctx *ExecutionContext,
 ) Value {
+	if propInfo.WriteKind == types.PropAccessExpression {
+		return e.executeHelperPropertyExpressionWrite(propInfo, selfValue, value, node, ctx)
+	}
 	if propInfo.WriteKind == types.PropAccessNone || propInfo.WriteSpec == "" {
 		return e.newError(node, readOnlyPropertyWriteMessage)
 	}

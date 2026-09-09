@@ -167,9 +167,20 @@ rose 888 → 892. See
 - ✋ Unused-private hints for record fields and class vars: `types.RecordType` has
   `FieldVisibility` but no usage-tracking infrastructure, and class vars have none either.
   Measured 2026-09-09; no fixture demands it.
-- **L-S2b** `[ ]` S — Resolve helper properties through a metaclass →
-  PropertyExpressionsPass `helpers_property_expressions`. Cover getter and setter resolution
-  using existing property metadata; coordinate with §3.1 property handling.
+**Done (2026-09-09):** L-S2b. Helper properties now support expression-form accessors and are
+reachable through a metaclass, a type cast's static class, and a record receiver, on both the
+read and the write side; a non-identifier write specifier is recognized as the lvalue shorthand
+it is, and record class vars written through an instance reach shared storage. All three
+helper-property fixtures pass (`helpers_property_expressions`,
+`class_helpers_property_write_expressions`, `record_helpers_property_write_expressions`),
+PropertyExpressionsPass 15 → 18. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--helper-property-expression-accessors-and-metaclass-resolution-l-s2b).
+
+- ✋ `read_write_other_property`: a property whose read/write specifier names *another property*
+  (`property Mapped : Integer read Prop write Prop`) is rejected at compile time. Measured
+  2026-09-09; a distinct gap from helper properties, belongs with §3.1 property handling.
+- ✋ Record-type metaclass member access (`TRec.SomeClassProperty` through the type name, as
+  opposed to through an instance) is unsupported. Measured 2026-09-09; no fixture demands it.
 - **L-S2c** `[ ]` S — Resolve indexed reads through a metaclass when the accessor is a class
   method → SimpleScripts `enum_to_integer`. Preserve the accessor's class receiver and
   validate index arguments; coordinate shared index validation with §3.4.

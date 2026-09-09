@@ -140,6 +140,19 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 			// Fallback if property lookup failed
 			return e.newError(stmt, "property '%s' not found in record", fieldName)
 		}
+		// A class var is shared storage on the record type, not per-instance state
+		// (the object path below has the same rule for classes).
+		if e.setRecordClassVar(objVal, fieldName, value, ctx) {
+			return value
+		}
+
+		// Properties contributed by a record helper. Like the object path below,
+		// this must precede the field setter, which would otherwise create a field
+		// of that name and swallow the write.
+		if helper, propInfo := e.FindHelperProperty(objVal, fieldName); propInfo != nil {
+			return e.executeHelperPropertyWrite(helper, propInfo, objVal, value, stmt, ctx)
+		}
+
 		// Simple field assignment - use RecordFieldSetter if available
 		if setter, ok := objVal.(RecordFieldSetter); ok {
 			setter.SetRecordField(fieldName, value)
@@ -173,6 +186,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	staticClassName := e.staticClassNameOf(target.Object, ctx)
 
 	// NATIVE: Type cast unwrapping - get wrapped value
+	var staticCast TypeCastAccessor
 	if typeCastVal, ok := objVal.(TypeCastAccessor); ok {
 		wrapped := typeCastVal.GetWrappedValue()
 		if wrapped == nil {
@@ -181,6 +195,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		// Route to wrapped object; field writes resolve against the cast's
 		// static type (TBase(child).Field := ... writes TBase's slot).
 		staticClassName = typeCastVal.GetStaticTypeName()
+		staticCast = typeCastVal
 		objVal = wrapped
 	}
 
@@ -211,6 +226,25 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 					return value
 				}
 			}
+		}
+
+		// A class property contributed by a helper binds to the cast's static class,
+		// mirroring staticClassPropertyOf above: TBase(child).HelperClassProp := v
+		// writes through TBase's helper, not the dynamic class's.
+		if staticCast != nil {
+			if staticMeta := e.staticClassMetaOf(staticCast); staticMeta != nil {
+				if helper, propInfo := e.FindHelperProperty(staticMeta, fieldName); propInfo != nil && propInfo.IsClassProperty {
+					return e.executeHelperPropertyWrite(helper, propInfo, staticMeta, value, stmt, ctx)
+				}
+			}
+		}
+
+		// Properties contributed by a helper. This must precede the field
+		// assignment below: that fallback creates an instance field on the fly, so
+		// an unrecognized helper property would be silently swallowed rather than
+		// written or diagnosed.
+		if helper, propInfo := e.FindHelperProperty(objVal, fieldName); propInfo != nil {
+			return e.executeHelperPropertyWrite(helper, propInfo, objVal, value, stmt, ctx)
 		}
 
 		// Direct field assignment (resolved against the static class of the
@@ -286,6 +320,12 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 			})
 			if ok {
 				return result
+			}
+
+			// Class properties contributed by a class helper. As on the read side,
+			// only class properties are reachable through a class name.
+			if helper, propInfo := e.FindHelperProperty(objVal, fieldName); propInfo != nil && propInfo.IsClassProperty {
+				return e.executeHelperPropertyWrite(helper, propInfo, objVal, value, stmt, ctx)
 			}
 
 			// Neither class variable nor class property found

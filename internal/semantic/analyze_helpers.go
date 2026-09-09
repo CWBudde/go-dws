@@ -414,10 +414,39 @@ func (a *Analyzer) analyzeHelperProperty(prop *ast.PropertyDecl, helperType *typ
 		return
 	}
 
-	// Create property info
+	// Create property info. The accessor shape is recorded here so semantic
+	// analysis sees the same read/write kinds the evaluator derives from the same
+	// AST (see convertHelperPropertyDecl); leaving them at PropAccessNone made every
+	// helper property look inaccessible to any check that consults ReadKind.
+	// The accessor expression itself is not analyzed here.
 	propInfo := &types.PropertyInfo{
-		Name: propName,
-		Type: propType,
+		Name:            propName,
+		Type:            propType,
+		IsIndexed:       len(prop.IndexParams) > 0,
+		IsDefault:       prop.IsDefault,
+		IsClassProperty: prop.IsClassProperty,
+	}
+	if prop.ReadSpec != nil {
+		if identExpr, ok := prop.ReadSpec.(*ast.Identifier); ok {
+			propInfo.ReadKind = types.PropAccessMethod
+			propInfo.ReadSpec = identExpr.Value
+		} else {
+			propInfo.ReadKind = types.PropAccessExpression
+			propInfo.ReadSpec = prop.ReadSpec.String()
+			propInfo.ReadExpr = prop.ReadSpec
+		}
+	}
+	switch {
+	case prop.WriteSpec != nil:
+		if identExpr, ok := prop.WriteSpec.(*ast.Identifier); ok {
+			propInfo.WriteKind = types.PropAccessMethod
+			propInfo.WriteSpec = identExpr.Value
+		} else {
+			propInfo.WriteKind = types.PropAccessExpression
+			propInfo.WriteSpec = prop.WriteSpec.String()
+		}
+	case prop.WriteStmt != nil:
+		propInfo.WriteKind = types.PropAccessExpression
 	}
 
 	propNameLower := ident.Normalize(propName)
