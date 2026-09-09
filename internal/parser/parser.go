@@ -142,6 +142,13 @@ func (p *Parser) LexerIncludeErrors() []lexer.LexerError {
 	return p.l.IncludeErrors()
 }
 
+// LexerDirectiveDiagnostics returns the lexer diagnostics produced by compiler
+// directives ({$HINT}, {$WARNING}, {$ERROR}, {$FATAL} and malformed conditional
+// directives). These are surfaced through the normal diagnostic path.
+func (p *Parser) LexerDirectiveDiagnostics() []lexer.LexerError {
+	return p.l.DirectiveDiagnostics()
+}
+
 // nextToken advances the cursor.
 func (p *Parser) nextToken() {
 	p.cursor = p.cursor.Advance()

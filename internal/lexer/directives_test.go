@@ -300,7 +300,7 @@ func TestCompilerDirectiveErrors(t *testing.T) {
 		{
 			name:          "unterminated directive",
 			input:         "{$DEFINE DEBUG",
-			expectedError: "unterminated compiler directive",
+			expectedError: `"}" expected`,
 		},
 		{
 			name:          "empty directive",
@@ -325,22 +325,22 @@ func TestCompilerDirectiveErrors(t *testing.T) {
 		{
 			name:          "unbalanced ELSE",
 			input:         "{$ELSE}\nx := 1;",
-			expectedError: "unbalanced conditional directive",
+			expectedError: "Unbalanced conditional directive",
 		},
 		{
 			name:          "unbalanced ENDIF",
 			input:         "{$ENDIF}\nx := 1;",
-			expectedError: "unbalanced conditional directive",
+			expectedError: "Unbalanced conditional directive",
 		},
 		{
 			name:          "double ELSE",
 			input:         "{$IFDEF DEBUG}\nx := 1;\n{$ELSE}\ny := 2;\n{$ELSE}\nz := 3;\n{$ENDIF}",
-			expectedError: "unfinished conditional directive",
+			expectedError: "Unfinished conditional directive",
 		},
 		{
 			name:          "unknown directive",
 			input:         "{$UNKNOWN}\nx := 1;",
-			expectedError: "unknown compiler directive: unknown",
+			expectedError: `Compiler switch "UNKNOWN" unknown`,
 		},
 	}
 

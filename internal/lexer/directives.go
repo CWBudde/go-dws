@@ -3,6 +3,7 @@
 package lexer
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -17,7 +18,12 @@ type conditionalFrame struct {
 	active       bool
 	parentActive bool
 	elseSeen     bool
-	startPos     Position
+	// fromIf marks a frame opened by {$IF} rather than {$IFDEF}/{$IFNDEF}. DWScript
+	// anchors an unbalanced-conditional report on the {$ELSE} of an {$IF}, but on the
+	// opening directive of an {$IFDEF} (FailureScripts/conditionals_else3 vs
+	// FailureScripts/invalid_switch).
+	fromIf   bool
+	startPos Position
 }
 
 // ifTokenType represents token types for $if expression evaluation.
@@ -112,10 +118,12 @@ func (l *Lexer) isSkippingTokens() bool {
 }
 
 // processDirective handles compiler directives like {$DEFINE}, {$IFDEF}, {$IF}, etc.
+//
+//nolint:gocyclo // A flat switch over the compiler switches is clearer than dispatch indirection.
 func (l *Lexer) processDirective() {
 	startPos := l.currentPos()
 
-	content := l.readDirectiveContent(startPos)
+	content, closePos := l.readDirectiveContent(startPos)
 	if content == "" {
 		return // error already reported
 	}
@@ -138,19 +146,40 @@ func (l *Lexer) processDirective() {
 		l.handleIfDef(name, arg, parentActive, startPos)
 	case "else":
 		l.handleElse(startPos)
-	case "endif":
+	case "endif", "ifend":
 		l.handleEndIf(startPos)
 	case "if":
 		l.handleIf(content, parts[0], parentActive, startPos)
 	case "include", "i", "include_once":
 		l.handleInclude(name, content, parentActive, startPos)
+	case "hint":
+		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityHint, "Hint", false)
+	case "warning":
+		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityWarning, "Warning", false)
+	case "error":
+		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityError, "Compile Error", false)
+	case "fatal":
+		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityError, "Compile Error", true)
+	case "hints", "warnings":
+		l.handleSwitchToggle(content, parentActive, startPos, closePos)
+	case "r", "resource":
+		l.handleStringSwitch(content, parentActive, startPos, closePos)
+	case "region", "endregion", "filter", "f":
+		// Recognized and ignored: {$REGION} only structures source for editors, and
+		// {$FILTER} is an include variant whose filtering is not implemented.
 	default:
-		l.addError("unknown compiler directive: "+name, startPos)
+		// Gated on parentActive: an unknown switch inside a dead {$IFDEF} branch is
+		// not reported (FailureScripts/switch_invalid3).
+		if parentActive {
+			l.addDirectiveDiagnostic(
+				fmt.Sprintf("Compiler switch %q unknown", strings.ToUpper(name)),
+				directiveNameColumn(startPos), LexerSeverityError, "")
+		}
 	}
 }
 
 // readDirectiveContent reads the content of a compiler directive.
-func (l *Lexer) readDirectiveContent(startPos Position) string {
+func (l *Lexer) readDirectiveContent(startPos Position) (string, Position) {
 	// Consume "{$"
 	l.readChar() // '{'
 	l.readChar() // '$'
@@ -166,9 +195,13 @@ func (l *Lexer) readDirectiveContent(startPos Position) string {
 	}
 
 	if l.ch == 0 {
-		l.addError("unterminated compiler directive", startPos)
-		return ""
+		l.reportUnterminatedDirective(builder.String(), startPos)
+		return "", l.currentPos()
 	}
+
+	// The closing brace anchors "String expected" / "ON/OFF expected" diagnostics,
+	// so capture it before it is consumed.
+	closePos := l.currentPos()
 
 	// consume closing '}'
 	l.readChar()
@@ -176,10 +209,10 @@ func (l *Lexer) readDirectiveContent(startPos Position) string {
 	content := strings.TrimSpace(builder.String())
 	if content == "" {
 		l.addError("empty compiler directive", startPos)
-		return ""
+		return "", closePos
 	}
 
-	return content
+	return content, closePos
 }
 
 // handleDefine handles {$DEFINE} directives.
@@ -226,15 +259,20 @@ func (l *Lexer) handleIfDef(name, arg string, parentActive bool, startPos Positi
 // handleElse handles {$ELSE} directives.
 func (l *Lexer) handleElse(startPos Position) {
 	if len(l.condStack) == 0 {
-		l.addError("unbalanced conditional directive", startPos)
+		l.addDirectiveDiagnostic("Unbalanced conditional directive",
+			directiveNameColumn(startPos), LexerSeverityError, "")
 		return
 	}
 	top := &l.condStack[len(l.condStack)-1]
 	if top.elseSeen {
-		l.addError("unfinished conditional directive", startPos)
+		l.addDirectiveDiagnostic("Unfinished conditional directive",
+			directiveNameColumn(startPos), LexerSeverityError, "")
 		return
 	}
 	top.elseSeen = true
+	if top.fromIf {
+		top.startPos = startPos
+	}
 	if top.parentActive {
 		top.active = !top.cond
 	} else {
@@ -245,7 +283,8 @@ func (l *Lexer) handleElse(startPos Position) {
 // handleEndIf handles {$ENDIF} directives.
 func (l *Lexer) handleEndIf(startPos Position) {
 	if len(l.condStack) == 0 {
-		l.addError("unbalanced conditional directive", startPos)
+		l.addDirectiveDiagnostic("Unbalanced conditional directive",
+			directiveNameColumn(startPos), LexerSeverityError, "")
 	} else {
 		l.condStack = l.condStack[:len(l.condStack)-1]
 	}
@@ -259,6 +298,7 @@ func (l *Lexer) handleIf(content, firstPart string, parentActive bool, startPos 
 		parentActive: parentActive,
 		active:       parentActive && cond,
 		startPos:     startPos,
+		fromIf:       true,
 	}
 	l.condStack = append(l.condStack, frame)
 }
@@ -282,7 +322,7 @@ func (l *Lexer) trackConst(tok Token) {
 		l.handleConstIdent(tok.Literal)
 	case COLON:
 		// ignore
-	case ASSIGN:
+	case ASSIGN, EQ:
 		l.handleConstAssign()
 	case INT:
 		l.handleConstInt(tok.Literal)
