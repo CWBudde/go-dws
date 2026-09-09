@@ -190,6 +190,16 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 					PointerType: pointerType,
 				}
 			}
+			// A variable that already holds a function pointer: `@f` and `f`
+			// denote the same value, so the address-of is the identity.
+			if val, found := ctx.Env().Get(operand.Value); found {
+				if fnPtr, isPtr := unwrapVariant(val).(*runtime.FunctionPointerValue); isPtr {
+					return fnPtr
+				}
+				if _, isNil := unwrapVariant(val).(*runtime.NilValue); isNil {
+					return val
+				}
+			}
 			return e.newError(node, "undefined function or procedure: %s", operand.Value)
 		}
 

@@ -20,6 +20,44 @@ end;
 		}
 	})
 
+	t.Run("external class methods need no implementation", func(t *testing.T) {
+		// The host implements an external class's methods, so a body-less
+		// declaration is not a forward declaration awaiting a body.
+		input := `
+type TExternal = class external
+    Field : Integer;
+    function Hello(p : Integer) : Integer;
+    procedure Greet;
+end;
+`
+		_, err := analyzeSource(t, input)
+		if err != nil {
+			t.Errorf("Expected no errors, got: %v", err)
+		}
+	})
+
+	t.Run("non-external class still requires an implementation", func(t *testing.T) {
+		input := `
+type TRegular = class
+    function Hello(p : Integer) : Integer;
+end;
+`
+		analyzer, err := analyzeSource(t, input)
+		if err == nil {
+			t.Fatal("Expected a 'not implemented' error for a non-external class")
+		}
+		found := false
+		for _, errMsg := range analyzer.Errors() {
+			if containsString(errMsg, "not implemented") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected a 'not implemented' error, got: %v", analyzer.Errors())
+		}
+	})
+
 	t.Run("external class with external parent is valid", func(t *testing.T) {
 		input := `
 type TExternalParent = class external

@@ -1095,3 +1095,82 @@ func TestAddressOfBuiltinArityErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestFunctionPointerValueSemantics covers a function-pointer variable used as a
+// value: taking its address is the identity, and nil is assignable to it.
+func TestFunctionPointerValueSemantics(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "address-of a function-pointer variable",
+			input: `
+				type TOnF = procedure(response: Integer);
+				procedure Show(response: Integer); begin PrintLn(response); end;
+				var f : TOnF;
+				f := @Show;
+				var g : TOnF;
+				g := @f;
+			`,
+		},
+		{
+			name: "function-pointer variable as an argument via address-of",
+			input: `
+				type TOnF = procedure(response: Integer);
+				type TC = class function Go(a : TOnF) : Integer; begin Result := 1; end; end;
+				var f : TOnF;
+				var c := new TC;
+				PrintLn(c.Go(@f));
+			`,
+		},
+		{
+			name: "nil assigned to a function-pointer variable",
+			input: `
+				type TOnF = procedure(response: Integer);
+				var f : TOnF;
+				f := nil;
+			`,
+		},
+		{
+			name: "nil passed for a function-pointer parameter",
+			input: `
+				type TOnF = procedure(response: Integer);
+				type TC = class function Go(a : TOnF) : Integer; begin Result := 1; end; end;
+				var c := new TC;
+				PrintLn(c.Go(nil));
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := analyzeSource(t, tt.input); err != nil {
+				t.Errorf("Expected no errors, got: %v", err)
+			}
+		})
+	}
+}
+
+// TestAddressOfNonCallableStillRejected guards that the function-pointer
+// identity case did not loosen the error for a genuinely non-callable symbol.
+func TestAddressOfNonCallableStillRejected(t *testing.T) {
+	input := `
+		var x : Integer;
+		var y := @x;
+	`
+	analyzer, err := analyzeSource(t, input)
+	if err == nil {
+		t.Fatal("Expected an error for taking the address of an Integer variable")
+	}
+	found := false
+	for _, errMsg := range analyzer.Errors() {
+		if containsString(errMsg, "is not a function or procedure") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected a 'not a function or procedure' error, got: %v", analyzer.Errors())
+	}
+}

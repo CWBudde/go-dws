@@ -1085,3 +1085,54 @@ func TestCompoundAssignmentClassOperator(t *testing.T) {
 		t.Fatalf("expected %q, got %q", expected, output)
 	}
 }
+
+// TestImplicitConversionToVariantParameter covers a record reaching a builtin's
+// Variant parameter: PrintLn must go through a user-defined
+// `operator implicit (TRec) : Variant` rather than dumping the record's fields.
+func TestImplicitConversionToVariantParameter(t *testing.T) {
+	input := `
+		type TRec = record a, b : Integer; end;
+
+		function RecToVariant(r : TRec) : Variant;
+		begin
+		  Result := r.a.ToString + ',' + r.b.ToString;
+		end;
+
+		operator implicit (TRec) : Variant uses RecToVariant;
+
+		var r1 : TRec = (a:1; b:10);
+		begin
+		  PrintLn(r1);
+		end
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	expected := "1,10\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}
+
+// TestRecordWithoutImplicitVariantOperatorKeepsDefaultFormatting guards that the
+// Variant-parameter conversion only fires when an operator is registered.
+func TestRecordWithoutImplicitVariantOperatorKeepsDefaultFormatting(t *testing.T) {
+	input := `
+		type TRec = record a, b : Integer; end;
+		var r1 : TRec = (a:1; b:10);
+		begin
+		  PrintLn(r1);
+		end
+	`
+
+	result, output := testEvalWithOutput(input)
+	if isError(result) {
+		t.Fatalf("evaluation error: %s", result.String())
+	}
+	expected := "TRec(a: 1, b: 10)\n"
+	if output != expected {
+		t.Fatalf("expected %q, got %q", expected, output)
+	}
+}

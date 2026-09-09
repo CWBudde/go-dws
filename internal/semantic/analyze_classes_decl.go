@@ -1035,7 +1035,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		classType.AbstractMethods[methodKey] = method.IsAbstract
 	}
 
-	if method.Body == nil && !method.IsEmpty {
+	// A body-less method of an external class is implemented by the host, not
+	// by the script, so it is not a forward declaration awaiting an
+	// implementation.
+	if method.Body == nil && !method.IsEmpty && !classType.IsExternal && !method.IsExternal {
 		forwardKey := ident.Normalize(classType.Name) + "." + ident.Normalize(method.Name.Value)
 		classType.ForwardedMethods[ident.Normalize(method.Name.Value)] = true
 		a.forwardMethodPos[forwardKey] = method.Name.Token.Pos

@@ -148,6 +148,15 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 		return nil
 	}
 
+	// Taking the address of a variable that already holds a function pointer is
+	// the identity: `@f` and `f` denote the same value.
+	if funcPtrType, ok := types.GetUnderlyingType(sym.Type).(*types.FunctionPointerType); ok {
+		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
+			Name: fmt.Sprintf("function pointer to %s", funcName),
+		})
+		return funcPtrType
+	}
+
 	// The symbol must be a function type
 	funcType, ok := sym.Type.(*types.FunctionType)
 	if !ok {
