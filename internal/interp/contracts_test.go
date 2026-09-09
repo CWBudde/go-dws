@@ -699,3 +699,95 @@ func TestContract_InheritedPreconditionWithRenamedParameter(t *testing.T) {
 		end;
 	`, "Pre-condition failed in TBase.Check [line: 5, column: 5], value > 0")
 }
+
+// TestContract_OverrideInheritsPostcondition verifies that an override with no
+// `ensure` of its own still has to satisfy the ancestor's.
+func TestContract_OverrideInheritsPostcondition(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			function Scale(i : Integer) : Integer; virtual;
+			begin
+				Result := i * 2;
+			ensure
+				Result > 0;
+			end;
+		end;
+
+		type TChild = class (TBase)
+			function Scale(i : Integer) : Integer; override;
+			begin
+				Result := -i;
+			end;
+		end;
+
+		var c := TChild.Create;
+		try
+			PrintLn(c.Scale(5));
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Post-condition failed in TBase.Scale [line: 7, column: 5], Result > 0")
+}
+
+// TestContract_DerivedPostconditionReportedBeforeInherited pins the evaluation
+// order: when a derived and an inherited postcondition both fail, DWScript
+// reports the derived one (SimpleScripts/method_contracts).
+func TestContract_DerivedPostconditionReportedBeforeInherited(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(i : Integer); virtual;
+			begin
+				PrintLn('base ' + IntToStr(i));
+			ensure
+				i < 10;
+			end;
+		end;
+
+		type TSubChild = class (TBase)
+			procedure Check(i : Integer); override;
+			begin
+				PrintLn('subchild ' + IntToStr(i));
+			ensure
+				i < 5 : 'was ' + IntToStr(i);
+			end;
+		end;
+
+		var s := TSubChild.Create;
+		try
+			s.Check(10);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "subchild 10\nPost-condition failed in TSubChild.Check [line: 16, column: 5], was 10")
+}
+
+// TestContract_InheritedPostconditionCapturesOld verifies that `old` operands
+// of an inherited postcondition are captured before the body runs, which the
+// derived declaration alone would never have asked for.
+func TestContract_InheritedPostconditionCapturesOld(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			function Bump(i : Integer) : Integer; virtual;
+			begin
+				Result := i + 1;
+			ensure
+				Result = old i + 1;
+			end;
+		end;
+
+		type TChild = class (TBase)
+			function Bump(i : Integer) : Integer; override;
+			begin
+				i := 100;
+				Result := i + 5;
+			end;
+		end;
+
+		var c := TChild.Create;
+		try
+			PrintLn(c.Bump(1));
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Post-condition failed in TBase.Bump [line: 7, column: 5], Result = old i + 1")
+}

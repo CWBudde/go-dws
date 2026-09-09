@@ -45,18 +45,6 @@ func (e *Evaluator) raiseContractException(className, message string, node ast.N
 	ctx.SetException(exc)
 }
 
-// contractRoutineName returns the name a contract failure reports for fn.
-// Methods are class-qualified (e.g. "TBase.Check"), matching DWScript. The
-// class comes from the resolved contract chain, so a method whose body is
-// written inline in the class declaration — which leaves fn.ClassName nil,
-// unlike an out-of-line "procedure TBase.Check" header — is qualified too.
-func (e *Evaluator) contractRoutineName(fn *ast.FunctionDecl, ctx *ExecutionContext) string {
-	if chain := e.contractChain(fn, ctx); len(chain) > 0 {
-		return chain[0].routineName
-	}
-	return contractFuncName(fn)
-}
-
 // contractFuncName is the fallback for a routine with no class context: an
 // out-of-line header still carries its qualifier, a free function does not.
 func contractFuncName(fn *ast.FunctionDecl) string {
@@ -119,29 +107,6 @@ func (e *Evaluator) checkPreconditions(funcName string, preConditions *ast.PreCo
 	}
 
 	return nil
-}
-
-// captureOldValues traverses postconditions to find all OldExpression nodes
-// and captures their current values from the environment.
-// This must be called BEFORE the function body executes.
-func (e *Evaluator) captureOldValues(funcDecl *ast.FunctionDecl, ctx *ExecutionContext) map[string]Value {
-	oldValues := make(map[string]Value)
-
-	// If there are no postconditions, no need to capture anything
-	if funcDecl.PostConditions == nil {
-		return oldValues
-	}
-
-	// Traverse all postconditions and find OldExpression nodes
-	for _, condition := range funcDecl.PostConditions.Conditions {
-		e.findOldExpressions(condition.Test, ctx, oldValues)
-		// Note: Message expressions can also contain old expressions
-		if condition.Message != nil {
-			e.findOldExpressions(condition.Message, ctx, oldValues)
-		}
-	}
-
-	return oldValues
 }
 
 // findOldExpressions recursively searches an expression tree for OldExpression nodes

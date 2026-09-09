@@ -142,6 +142,24 @@ func preconditionSources(chain []contractSource, fn *ast.FunctionDecl) []contrac
 	return sources
 }
 
+// postconditionSources returns the sources whose postconditions must run, the
+// executing declaration first and ancestors after. The order is observable:
+// when a derived and an inherited postcondition both fail, DWScript reports the
+// derived one (SimpleScripts/method_contracts).
+func postconditionSources(chain []contractSource, fn *ast.FunctionDecl) []contractSource {
+	if len(chain) == 0 {
+		return ownConditionSource(fn, fn.PostConditions != nil)
+	}
+
+	sources := make([]contractSource, 0, len(chain))
+	for _, source := range chain {
+		if source.fn.PostConditions != nil {
+			sources = append(sources, source)
+		}
+	}
+	return sources
+}
+
 // ownConditionSource is the non-method fallback: the declaration's own
 // conditions under its own (possibly out-of-line qualified) name.
 func ownConditionSource(fn *ast.FunctionDecl, has bool) []contractSource {
@@ -223,4 +241,46 @@ func (e *Evaluator) checkContractPreconditions(
 		}
 	}
 	return nil
+}
+
+// checkContractPostconditions mirrors checkContractPreconditions for `ensure`.
+func (e *Evaluator) checkContractPostconditions(
+	sources []contractSource,
+	executing *ast.FunctionDecl,
+	ctx *ExecutionContext,
+) Value {
+	for _, source := range sources {
+		result := e.evalUnderSourceParameters(source, executing, ctx, func() Value {
+			return e.checkPostconditions(source.routineName, source.fn.PostConditions, ctx)
+		})
+		if isError(result) {
+			return result
+		}
+		if ctx.Exception() != nil {
+			return nil
+		}
+	}
+	return nil
+}
+
+// captureOldValuesForSources captures the `old` operands of every postcondition
+// that will run, including inherited ones, before the body executes.
+func (e *Evaluator) captureOldValuesForSources(
+	sources []contractSource,
+	executing *ast.FunctionDecl,
+	ctx *ExecutionContext,
+) map[string]Value {
+	oldValues := make(map[string]Value)
+	for _, source := range sources {
+		e.evalUnderSourceParameters(source, executing, ctx, func() Value {
+			for _, condition := range source.fn.PostConditions.Conditions {
+				e.findOldExpressions(condition.Test, ctx, oldValues)
+				if condition.Message != nil {
+					e.findOldExpressions(condition.Message, ctx, oldValues)
+				}
+			}
+			return nil
+		})
+	}
+	return oldValues
 }

@@ -148,32 +148,6 @@ func (e *Evaluator) InitializeResultVariable(
 	return nil
 }
 
-// CheckPreconditions evaluates preconditions for a function.
-func (e *Evaluator) CheckPreconditions(
-	funcName string,
-	preConditions *ast.PreConditions,
-	ctx *ExecutionContext,
-) Value {
-	return e.checkPreconditions(funcName, preConditions, ctx)
-}
-
-// CheckPostconditions evaluates postconditions for a function.
-func (e *Evaluator) CheckPostconditions(
-	funcName string,
-	postConditions *ast.PostConditions,
-	ctx *ExecutionContext,
-) Value {
-	return e.checkPostconditions(funcName, postConditions, ctx)
-}
-
-// CaptureOldValues captures variable values for postcondition evaluation.
-func (e *Evaluator) CaptureOldValues(
-	funcDecl *ast.FunctionDecl,
-	ctx *ExecutionContext,
-) map[string]Value {
-	return e.captureOldValues(funcDecl, ctx)
-}
-
 // CleanupInterfaceReferencesFunc is a callback type for cleaning up interface references.
 type CleanupInterfaceReferencesFunc func(env *runtime.Environment)
 
@@ -351,8 +325,10 @@ func (e *Evaluator) ExecuteUserFunction(
 		}
 	}
 
-	// Capture old values for postcondition evaluation
-	oldValues := e.CaptureOldValues(fn, funcCtx)
+	// Capture old values for postcondition evaluation, inherited ones included:
+	// an ancestor's `old x` must be captured before the body runs too.
+	postSources := postconditionSources(contracts, fn)
+	oldValues := e.captureOldValuesForSources(postSources, fn, funcCtx)
 	// Convert to map[string]interface{} for PushOldValues
 	oldValuesInterface := make(map[string]interface{}, len(oldValues))
 	for k, v := range oldValues {
@@ -445,9 +421,11 @@ func (e *Evaluator) ExecuteUserFunction(
 		returnValue = &runtime.NilValue{}
 	}
 
-	// Check postconditions after function body executes
-	if fn.PostConditions != nil {
-		if err := e.CheckPostconditions(e.contractRoutineName(fn, funcCtx), fn.PostConditions, funcCtx); isError(err) {
+	// Check postconditions after function body executes. The executing
+	// declaration's own conditions run before any it inherits: when both fail,
+	// DWScript reports the derived one.
+	if len(postSources) > 0 {
+		if err := e.checkContractPostconditions(postSources, fn, funcCtx); isError(err) {
 			return nil, fmt.Errorf("postcondition failed: %v", err)
 		}
 		// If exception was raised during postcondition checking, propagate it
