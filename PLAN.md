@@ -195,15 +195,34 @@ evaluator could not execute. `SimpleScripts/enum_to_integer` passes, 895 → 896
 
 #### 3.2.3 Contracts
 
-- **L-S3a** `[ ]` S — Inherit `require` conditions on inherited and overridden methods.
-  Acceptance: focused compile-and-run cases from SimpleScripts `method_contracts`, including
-  dispatch through a base-typed reference and the upstream combination of base/derived conditions.
-- **L-S3b** `[ ]` S — Inherit and combine `ensure` conditions, preserving the declaring method's
-  context and any `old(...)` capture. Coordinate contract metadata with L-S3a; acceptance:
-  focused postcondition cases and the complete `method_contracts` fixture after both land.
-- **L-S3c** `[ ]` S — Include the declaring class name in inline-method contract messages →
-  SimpleScripts `method_condition`. Independent of inheritance; keep shared source-column
-  precision work in §3.3 separate.
+**Closed 2026-09-09.** Method contracts are now resolved through a contract chain — the
+executing declaration plus each ancestor declaration of the same method — instead of being read
+off the executing declaration alone. Every condition is reported under the class that *declares*
+it, so an inherited `require` on a derived instance still names the base method.
+
+**Done (2026-09-09):** L-S3c. Contract failures name the class for a method whose body is written
+inline in the class declaration, not only for out-of-line `procedure TFoo.Bar` implementations;
+the declaring class comes from the class registry, which also keeps a free function called from
+inside a method body unqualified. `SimpleScripts/method_condition` passes.
+
+**Done (2026-09-09):** L-S3a. An override with no `require` of its own runs the ancestor's,
+base-most first, reported with the ancestor's name and position. Contract parameters bind by
+position, so an ancestor condition is evaluated against the call's arguments even when the
+override renamed its parameters.
+
+**Done (2026-09-09):** L-S3b, closing this section. Inherited `ensure` conditions run too, with
+`old(...)` capture extended over the same chain. The executing declaration's own postconditions
+are checked before any it inherits: when both fail, DWScript reports the derived one.
+`SimpleScripts/method_contracts` passes; SimpleScripts 336 → 338. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--contract-inheritance-and-inline-method-naming-l-s3a-l-s3b-l-s3c).
+
+✋ `Preconditions must be defined in the root method only`: upstream rejects `require` on a
+non-root method. Not implemented — it belongs to §4 error-detection parity, and
+`FailureScripts/contracts_precondition` also needs `Warning: Constant condition`. The runtime
+meanwhile evaluates every `require` in the chain, root-most first.
+
+✋ Class invariants parse into `ClassDecl.Invariants` but are never evaluated. No fixture
+demands them; measured 2026-09-09.
 
 #### 3.2.4 Generics
 

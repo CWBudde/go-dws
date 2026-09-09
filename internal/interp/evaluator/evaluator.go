@@ -183,12 +183,19 @@ type ExternalFunctionRegistry = contracts.ExternalFunctionRegistry
 
 // Evaluator evaluates DWScript AST nodes.
 // Dependencies: type system, runtime services, configuration.
-// Execution state is in ExecutionContext (stateless evaluator).
+// Per-run execution state lives in ExecutionContext, not here. The evaluator
+// itself is not immutable: it memoizes derivations of the program's own
+// structure (contractChains), so it is not safe to share across goroutines.
 type Evaluator struct {
-	output            io.Writer
-	config            *Config
-	typeSystem        *interptypes.TypeSystem
-	engineState       *contracts.EngineState
+	output      io.Writer
+	config      *Config
+	typeSystem  *interptypes.TypeSystem
+	engineState *contracts.EngineState
+
+	// contractChains memoizes resolved contract inheritance chains, keyed by
+	// declaration and declaring class. See contract_inheritance.go.
+	contractChains map[contractChainKey][]contractSource
+
 	selfContainedMode bool
 }
 

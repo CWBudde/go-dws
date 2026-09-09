@@ -547,3 +547,349 @@ func TestContractWithProcedure(t *testing.T) {
 		t.Errorf("Expected output %q, got %q", expected, output.String())
 	}
 }
+
+// ============================================================================
+// Method contracts: naming and inheritance (PLAN.md §3.2.3)
+// ============================================================================
+
+// TestContract_InlineMethodNameIsClassQualified verifies that a method whose
+// body is written inline in the class declaration reports its contract
+// failures class-qualified, exactly as an out-of-line implementation does.
+// Inline methods carry no ClassName on the declaration, which used to drop the
+// prefix (SimpleScripts/method_condition).
+func TestContract_InlineMethodNameIsClassQualified(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TTest = class
+			Field : Integer;
+			procedure Bump;
+			require
+				Field <= 0;
+			begin
+				Field += 1;
+			end;
+		end;
+
+		var t := new TTest;
+		t.Bump;
+		try
+			t.Bump;
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TTest.Bump [line: 6, column: 5], Field <= 0")
+}
+
+// TestContract_FreeFunctionCalledFromMethodKeepsBareName verifies that a free
+// function called from inside a method body is not mistaken for a method of the
+// enclosing class. The callee still sees the caller's class binding, so the
+// chain resolver must confirm that the class actually declares the routine.
+func TestContract_FreeFunctionCalledFromMethodKeepsBareName(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		procedure RequirePositive(i : Integer);
+		require
+			i > 0;
+		begin
+			PrintLn(i);
+		end;
+
+		type TTest = class
+			procedure Run(i : Integer);
+			begin
+				RequirePositive(i);
+			end;
+		end;
+
+		var t := new TTest;
+		try
+			t.Run(-1);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in RequirePositive [line: 4, column: 4], i > 0")
+}
+
+// TestContract_OverrideInheritsPrecondition verifies that an override with no
+// `require` of its own runs the ancestor's, and that the failure names the
+// class that declares the condition rather than the receiver's dynamic class
+// (SimpleScripts/method_contracts).
+func TestContract_OverrideInheritsPrecondition(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(i : Integer); virtual;
+			require
+				i > 0;
+			begin
+				PrintLn('base ' + IntToStr(i));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			procedure Check(i : Integer); override;
+			begin
+				PrintLn('child ' + IntToStr(i));
+			end;
+		end;
+
+		var c := TChild.Create;
+		c.Check(1);
+		try
+			c.Check(-1);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "child 1\nPre-condition failed in TBase.Check [line: 5, column: 5], i > 0")
+}
+
+// TestContract_InheritedPreconditionThroughBaseReference verifies that the
+// inherited precondition also runs when the call is dispatched virtually
+// through a base-typed reference.
+func TestContract_InheritedPreconditionThroughBaseReference(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(i : Integer); virtual;
+			require
+				i > 0;
+			begin
+				PrintLn('base ' + IntToStr(i));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			procedure Check(i : Integer); override;
+			begin
+				PrintLn('child ' + IntToStr(i));
+			end;
+		end;
+
+		var b : TBase := TChild.Create;
+		try
+			b.Check(0);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TBase.Check [line: 5, column: 5], i > 0")
+}
+
+// TestContract_InheritedPreconditionWithRenamedParameter verifies that an
+// ancestor condition is evaluated against the call's arguments by position,
+// even when the override gives its parameters different names.
+func TestContract_InheritedPreconditionWithRenamedParameter(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(value : Integer); virtual;
+			require
+				value > 0;
+			begin
+				PrintLn('base ' + IntToStr(value));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			procedure Check(amount : Integer); override;
+			begin
+				PrintLn('child ' + IntToStr(amount));
+			end;
+		end;
+
+		var c := TChild.Create;
+		try
+			c.Check(-3);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TBase.Check [line: 5, column: 5], value > 0")
+}
+
+// TestContract_OverrideInheritsPostcondition verifies that an override with no
+// `ensure` of its own still has to satisfy the ancestor's.
+func TestContract_OverrideInheritsPostcondition(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			function Scale(i : Integer) : Integer; virtual;
+			begin
+				Result := i * 2;
+			ensure
+				Result > 0;
+			end;
+		end;
+
+		type TChild = class (TBase)
+			function Scale(i : Integer) : Integer; override;
+			begin
+				Result := -i;
+			end;
+		end;
+
+		var c := TChild.Create;
+		try
+			PrintLn(c.Scale(5));
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Post-condition failed in TBase.Scale [line: 7, column: 5], Result > 0")
+}
+
+// TestContract_DerivedPostconditionReportedBeforeInherited pins the evaluation
+// order: when a derived and an inherited postcondition both fail, DWScript
+// reports the derived one (SimpleScripts/method_contracts).
+func TestContract_DerivedPostconditionReportedBeforeInherited(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(i : Integer); virtual;
+			begin
+				PrintLn('base ' + IntToStr(i));
+			ensure
+				i < 10;
+			end;
+		end;
+
+		type TSubChild = class (TBase)
+			procedure Check(i : Integer); override;
+			begin
+				PrintLn('subchild ' + IntToStr(i));
+			ensure
+				i < 5 : 'was ' + IntToStr(i);
+			end;
+		end;
+
+		var s := TSubChild.Create;
+		try
+			s.Check(10);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "subchild 10\nPost-condition failed in TSubChild.Check [line: 16, column: 5], was 10")
+}
+
+// TestContract_InheritedPostconditionCapturesOld verifies that `old` operands
+// of an inherited postcondition are captured before the body runs, which the
+// derived declaration alone would never have asked for.
+func TestContract_InheritedPostconditionCapturesOld(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			function Bump(i : Integer) : Integer; virtual;
+			begin
+				Result := i + 1;
+			ensure
+				Result = old i + 1;
+			end;
+		end;
+
+		type TChild = class (TBase)
+			function Bump(i : Integer) : Integer; override;
+			begin
+				i := 100;
+				Result := i + 5;
+			end;
+		end;
+
+		var c := TChild.Create;
+		try
+			PrintLn(c.Bump(1));
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Post-condition failed in TBase.Bump [line: 7, column: 5], Result = old i + 1")
+}
+
+// TestContract_InheritedPreconditionPicksMatchingOverload verifies that an
+// override inherits the ancestor overload with its own signature, not whichever
+// one the name-indexed lookup happens to return. Evaluating a sibling
+// overload's condition would bind an argument to a parameter of another type.
+func TestContract_InheritedPreconditionPicksMatchingOverload(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(s : String); overload; virtual;
+			require
+				s <> '' : 'string overload';
+			begin
+				PrintLn('base str ' + s);
+			end;
+
+			procedure Check(i : Integer); overload; virtual;
+			require
+				i > 0 : 'integer overload';
+			begin
+				PrintLn('base int ' + IntToStr(i));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			procedure Check(i : Integer); overload; override;
+			begin
+				PrintLn('child int ' + IntToStr(i));
+			end;
+		end;
+
+		var c := TChild.Create;
+		try
+			c.Check(-1);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TBase.Check [line: 12, column: 5], integer overload")
+}
+
+// TestContract_ClassMethodInheritsPrecondition verifies that contract
+// inheritance reaches class methods, which live in their own method table and
+// are invisible to the instance-method lookup.
+func TestContract_ClassMethodInheritsPrecondition(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			class procedure Check(i : Integer); virtual;
+			require
+				i > 0;
+			begin
+				PrintLn('base ' + IntToStr(i));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			class procedure Check(i : Integer); override;
+			begin
+				PrintLn('child ' + IntToStr(i));
+			end;
+		end;
+
+		TChild.Check(1);
+		try
+			TChild.Check(-1);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "child 1\nPre-condition failed in TBase.Check [line: 5, column: 5], i > 0")
+}
+
+// TestContract_InheritedConditionSeesDeclaringClassField verifies that an
+// inherited condition resolves members against the class that declares it. When
+// the derived class shadows a field the base condition names, the base's own
+// storage slot is the one that must be read.
+func TestContract_InheritedConditionSeesDeclaringClassField(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			Limit : Integer;
+			procedure Check; virtual;
+			require
+				Limit > 0 : 'base limit ' + IntToStr(Limit);
+			begin
+				PrintLn('base');
+			end;
+		end;
+
+		type TChild = class (TBase)
+			Limit : Integer;
+			procedure Check; override;
+			begin
+				PrintLn('child');
+			end;
+		end;
+
+		var c := TChild.Create;
+		c.Limit := 5;
+		try
+			c.Check;
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TBase.Check [line: 6, column: 5], base limit 0")
+}

@@ -485,9 +485,10 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		e.DefineVar(ctx, funcName, funcNameAlias)
 	}
 
-	// 4. Check preconditions before function body
-	if fn.PreConditions != nil {
-		if err := e.checkPreconditions(contractFuncName(fn), fn.PreConditions, ctx); err != nil {
+	// 4. Check preconditions before function body, including inherited ones
+	contracts := e.contractChain(fn, ctx)
+	if preSources := preconditionSources(contracts, fn); len(preSources) > 0 {
+		if err := e.checkContractPreconditions(preSources, fn, ctx); err != nil {
 			return err
 		}
 		// If exception was raised during precondition checking, return early
@@ -496,11 +497,12 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		}
 	}
 
-	// 4b. Capture old values for postconditions
+	// 4b. Capture old values for postconditions, inherited ones included.
 	// This must be called BEFORE the function body executes
 	var oldValues map[string]Value
-	if fn.PostConditions != nil {
-		oldValues = e.captureOldValues(fn, ctx)
+	postSources := postconditionSources(contracts, fn)
+	if len(postSources) > 0 {
+		oldValues = e.captureOldValuesForSources(postSources, fn, ctx)
 		// Convert map[string]Value to map[string]interface{} for ExecutionContext
 		oldValuesInterface := make(map[string]interface{}, len(oldValues))
 		for k, v := range oldValues {
@@ -547,10 +549,10 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		resultValue = &runtime.NilValue{}
 	}
 
-	// 9. Check postconditions after function body
+	// 9. Check postconditions after function body, derived before inherited.
 	// Old values are available via ctx.GetOldValue() during postcondition evaluation
-	if fn.PostConditions != nil {
-		if err := e.checkPostconditions(contractFuncName(fn), fn.PostConditions, ctx); err != nil {
+	if len(postSources) > 0 {
+		if err := e.checkContractPostconditions(postSources, fn, ctx); err != nil {
 			return err
 		}
 		// If exception was raised during postcondition checking, return early
