@@ -209,10 +209,20 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 	objectClass.MethodVisibility[ident.Normalize("Destroy")] = int(ast.VisibilityPublic)
 	objectClass.MethodVisibility[ident.Normalize("Free")] = int(ast.VisibilityPublic)
 
-	objectClass.Methods["ClassName"] = &types.FunctionType{
-		Parameters: []types.Type{},
-		ReturnType: types.STRING,
-	}
+	// ClassName is registered as a real (synthesized) method overload so that
+	// GetMethod - which reads MethodOverloads only - can see it. That is what
+	// makes `inherited ClassName` resolve against TObject instead of reporting
+	// a missing parent member. IsSynthesized keeps it distinguishable from a
+	// user-declared ClassName method during member analysis.
+	objectClass.AddMethodOverload("ClassName", &types.MethodInfo{
+		Signature: &types.FunctionType{
+			Parameters: []types.Type{},
+			ReturnType: types.STRING,
+		},
+		IsSynthesized: true,
+		Visibility:    int(ast.VisibilityPublic),
+	})
+	objectClass.MethodVisibility[ident.Normalize("ClassName")] = int(ast.VisibilityPublic)
 
 	a.registerBuiltinType("TObject", objectClass)
 

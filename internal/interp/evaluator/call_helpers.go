@@ -297,6 +297,11 @@ func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, ar
 				if ident.Equal(methodName, "Create") || ident.Equal(methodName, "Destroy") || ident.Equal(methodName, "Free") {
 					return &runtime.NilValue{}
 				}
+				// inherited ClassName resolves to TObject's built-in, which
+				// reports the instance's actual class name.
+				if ident.Equal(methodName, "ClassName") {
+					return &runtime.StringValue{Value: objVal.ClassName()}
+				}
 				parentName := "TObject"
 				if parent != nil {
 					parentName = parent.GetName()

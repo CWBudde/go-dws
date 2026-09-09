@@ -535,6 +535,11 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	if memberName == "classname" {
 		userOverloads := a.getMethodOverloadsInHierarchy(memberName, classType)
 		for _, overload := range userOverloads {
+			// TObject's own ClassName is synthesized; only a user declaration
+			// can hide the builtin.
+			if overload.IsSynthesized {
+				continue
+			}
 			if requiredParamCount(overload.Signature) == 0 {
 				if declared := a.declaredMethodName(classType, memberName); declared != "" && expr.Member.Value != declared {
 					pos := expr.Token.Pos
