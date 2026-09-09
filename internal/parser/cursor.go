@@ -482,8 +482,11 @@ func (c *TokenCursor) SplitGreaterGreater(n int) bool {
 	remaining := tok
 	remaining.Type = token.GREATER
 	remaining.Literal = ">"
-	// The surviving '>' is the second character of the original token.
+	// The surviving '>' is the second character of the original token, so both
+	// the column and the byte offset advance by one — leaving Offset behind would
+	// make the position internally inconsistent and skew downstream error spans.
 	remaining.Pos.Column++
+	remaining.Pos.Offset++
 	c.tokens[targetIndex] = remaining
 	if targetIndex == c.index {
 		c.current = remaining

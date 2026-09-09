@@ -563,6 +563,15 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			// TBase(child).ClassProp reads TBase's declaration even when child's
 			// dynamic class redeclares the same name.
 			if pInfo := e.staticClassPropertyOf(objVal, memberName, typeCastVal.GetStaticTypeName()); pInfo != nil {
+				// A field-backed class property resolves its read specifier against
+				// the cast's static class too. Going through executePropertyRead
+				// with the wrapped receiver would hit the child's GetClassVar and
+				// make TBase(child).ClassProp disagree with TBase(child).ClassVar.
+				if pInfo.ReadKind == types.PropAccessField {
+					if classVarValue, found := typeCastVal.GetStaticClassVar(pInfo.ReadSpec); found {
+						return classVarValue
+					}
+				}
 				return e.executePropertyRead(wrappedValue, pInfo, node, ctx)
 			}
 			if objVal.HasProperty(memberName) {

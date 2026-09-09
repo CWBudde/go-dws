@@ -434,7 +434,7 @@ func (e *Evaluator) executeIndexedPropertyExpressionRead(obj Value, pInfo *types
 	ctx.PushEnv()
 	defer ctx.PopEnv()
 
-	if errVal := e.bindIndexedPropertyExprScope(obj, pInfo.IndexParamNames, indices, ctx); errVal != nil {
+	if errVal := e.bindIndexedPropertyReadScope(obj, pInfo.IndexParamNames, indices, ctx); errVal != nil {
 		return errVal
 	}
 
@@ -449,10 +449,10 @@ func (e *Evaluator) executeIndexedPropertyExpressionRead(obj Value, pInfo *types
 	return e.Eval(exprNode, ctx)
 }
 
-// bindIndexedPropertyExprScope binds Self, the receiver's members, and the index
-// parameters for an expression-based indexed property accessor. The caller owns
-// the pushed environment.
-func (e *Evaluator) bindIndexedPropertyExprScope(obj Value, paramNames []string, indices []Value, ctx *ExecutionContext) Value {
+// bindIndexedPropertyReadScope binds Self, the receiver's fields, and the index
+// parameters for an expression-based indexed property getter. The caller owns the
+// pushed environment.
+func (e *Evaluator) bindIndexedPropertyReadScope(obj Value, paramNames []string, indices []Value, ctx *ExecutionContext) Value {
 	e.bindPropertyExprSelf(obj, ctx)
 
 	if fieldBinder, ok := obj.(FieldBinder); ok {
@@ -461,7 +461,24 @@ func (e *Evaluator) bindIndexedPropertyExprScope(obj Value, paramNames []string,
 		})
 	}
 
-	// Index parameters bind last so they shadow any same-named member.
+	return e.bindIndexedPropertyParams(paramNames, indices, ctx)
+}
+
+// bindIndexedPropertyWriteScope binds Self and the index parameters for an
+// expression-based indexed property setter. Unlike the read scope it deliberately
+// does not copy the receiver's fields into the environment: a setter such as
+// `write (F := Value)` must fall through to implicit-Self assignment, and a local
+// binding named F would swallow the write instead. Bare reads of F still resolve
+// through Self, exactly as they do in the non-indexed setter path.
+func (e *Evaluator) bindIndexedPropertyWriteScope(obj Value, paramNames []string, indices []Value, ctx *ExecutionContext) Value {
+	e.bindPropertyExprSelf(obj, ctx)
+
+	return e.bindIndexedPropertyParams(paramNames, indices, ctx)
+}
+
+// bindIndexedPropertyParams defines the index parameters by name. They bind last
+// so they shadow any same-named member.
+func (e *Evaluator) bindIndexedPropertyParams(paramNames []string, indices []Value, ctx *ExecutionContext) Value {
 	for i, name := range paramNames {
 		e.DefineVar(ctx, name, indices[i])
 	}

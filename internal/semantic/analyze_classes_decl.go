@@ -1136,9 +1136,11 @@ func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
 // a method body may name without qualification.
 func (a *Analyzer) defineMethodScopeMembers(method *ast.FunctionDecl, classType *types.ClassType) {
 	if method.IsClassMethod {
-		// Static methods only access class variables.
+		// Static methods only access class variables. ClassVars is keyed by the
+		// normalized name, so bind the declared casing to avoid bogus
+		// case-mismatch hints in the method body.
 		for classVarName, classVarType := range classType.ClassVars {
-			a.symbols.Define(classVarName, classVarType, token.Position{})
+			a.symbols.Define(classType.DeclaredClassVarName(classVarName), classVarType, token.Position{})
 		}
 		if classType.Parent != nil {
 			a.addParentClassVarsToScope(classType.Parent)
@@ -1152,7 +1154,7 @@ func (a *Analyzer) defineMethodScopeMembers(method *ast.FunctionDecl, classType 
 		a.symbols.Define(fieldName, fieldType, token.Position{})
 	}
 	for classVarName, classVarType := range classType.ClassVars {
-		a.symbols.Define(classVarName, classVarType, token.Position{})
+		a.symbols.Define(classType.DeclaredClassVarName(classVarName), classVarType, token.Position{})
 	}
 	if classType.Parent != nil {
 		a.addParentFieldsToScope(classType.Parent)

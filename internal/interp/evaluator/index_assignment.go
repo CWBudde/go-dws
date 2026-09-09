@@ -504,7 +504,7 @@ func (e *Evaluator) tryIndexedPropertyExpressionWrite(
 	ctx.PushEnv()
 	defer ctx.PopEnv()
 
-	if errVal := e.bindIndexedPropertyExprScope(target, pInfo.IndexParamNames, indexValues, ctx); errVal != nil {
+	if errVal := e.bindIndexedPropertyWriteScope(target, pInfo.IndexParamNames, indexValues, ctx); errVal != nil {
 		return errVal, true
 	}
 	e.DefineVar(ctx, "Value", value)
