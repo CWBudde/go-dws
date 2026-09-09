@@ -607,14 +607,14 @@ func (a *Analyzer) canAssignNil(from, to types.Type) bool {
 		if _, ok := types.GetUnderlyingType(to).(*types.AssociativeArrayType); ok {
 			return true
 		}
-		// nil can be assigned to a function pointer (clears it)
-		if _, ok := types.GetUnderlyingType(to).(*types.FunctionPointerType); ok {
+		// nil can be assigned to a function or method pointer (clears it)
+		if types.IsPointerType(to) {
 			return true
 		}
 		return false
 	}
 	if toKind == "NIL" {
-		if _, ok := types.GetUnderlyingType(from).(*types.FunctionPointerType); ok {
+		if types.IsPointerType(from) {
 			return true
 		}
 		return fromKind == "CLASS" || fromKind == "INTERFACE" || fromKind == "CLASSOF"

@@ -290,6 +290,10 @@ func (e *Evaluator) runtimeValueType(val Value) types.Type {
 			return v.RecordType
 		}
 		return types.NIL
+	case *runtime.FunctionPointerValue:
+		// Share the pointer typing used by ResolveOverloadMultiple so that
+		// record and class method overloads rank @fn by its signature too.
+		return e.functionPointerValueType(v)
 	default:
 		// Metaclass references (TClass values) participate in overload
 		// resolution as "class of <name>".

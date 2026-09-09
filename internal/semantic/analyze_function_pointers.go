@@ -168,6 +168,17 @@ func (a *Analyzer) analyzeAddressOfMethod(target *ast.MemberAccessExpression, ex
 		return nil
 	}
 
+	// Taking a method's address is a member access and obeys the same visibility
+	// rules: @obj.PrivateMethod must be rejected wherever obj.PrivateMethod() is.
+	methodOwner := a.getMethodOwner(classType, methodName)
+	if methodOwner != nil {
+		visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(methodName)]
+		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
+			a.addStructuredError(NewVisibilityScopeError(target.Member.Token.Pos, target.Member.Value))
+			return nil
+		}
+	}
+
 	a.recordClassMethodUsage(classType, methodName)
 
 	var returnType types.Type

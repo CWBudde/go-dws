@@ -64,12 +64,17 @@ func (e *Evaluator) getValueType(val Value) types.Type {
 // Both construction paths populate PointerType; the MethodMetadata fallback
 // covers pointers built from a canonical runtime callable whose signature was
 // resolved after the pointer value itself.
+//
+// A bound pointer (SelfObject != nil) is always reported as a MethodPointerType,
+// even when it was constructed with a plain FunctionPointerType: the pointer's
+// identity decides whether a `procedure(...) of object` parameter can accept it,
+// and buildFunctionPointerType cannot express that distinction.
 func (e *Evaluator) functionPointerValueType(fp *runtime.FunctionPointerValue) types.Type {
 	if fp == nil {
 		return types.NIL
 	}
 	if fp.PointerType != nil {
-		return fp.PointerType
+		return methodPointerIfBound(fp.PointerType, fp.SelfObject != nil)
 	}
 	if fp.Callable != nil {
 		paramTypes := make([]types.Type, 0, len(fp.Callable.Parameters))
@@ -89,6 +94,20 @@ func (e *Evaluator) functionPointerValueType(fp *runtime.FunctionPointerValue) t
 		return types.NewFunctionPointerType(paramTypes, returnType)
 	}
 	return types.NIL
+}
+
+// methodPointerIfBound promotes a plain function pointer type to a method
+// pointer type when the value it describes carries a bound receiver.
+func methodPointerIfBound(pointerType types.Type, bound bool) types.Type {
+	if !bound {
+		return pointerType
+	}
+	funcPtr, ok := types.GetUnderlyingType(pointerType).(*types.FunctionPointerType)
+	if !ok {
+		// Already a MethodPointerType (or not a pointer at all): leave it alone.
+		return pointerType
+	}
+	return types.NewMethodPointerType(funcPtr.Parameters, funcPtr.ReturnType)
 }
 
 // classTypeFromMetadata builds a types.ClassType from runtime.ClassMetadata.
