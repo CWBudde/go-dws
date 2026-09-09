@@ -167,6 +167,10 @@ func (a *Analyzer) buildFunctionPointerTypeFromBuiltin(funcName string, sig *bui
 	}
 
 	funcPtrType := types.NewFunctionPointerType(sig.ParamTypes, returnType)
+	// Builtins may declare optional trailing parameters. Record the required
+	// count so a call through the pointer keeps every arity the builtin itself
+	// accepts instead of demanding the fully expanded parameter list.
+	funcPtrType.MinArgs = sig.MinArgs
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("function pointer to %s", funcName),
 	}
@@ -226,10 +230,16 @@ func (a *Analyzer) analyzeFunctionPointerCallArgs(args []ast.Expression, calleeT
 		return nil
 	}
 
-	// Validate argument count
-	if len(args) != len(funcPtr.Parameters) {
-		a.addError("function pointer call argument count mismatch at %s: expected %d arguments, got %d",
-			pos.String(), len(funcPtr.Parameters), len(args))
+	// Validate argument count. Pointers to builtins with optional parameters
+	// accept any arity between the required count and the full parameter list.
+	required := funcPtr.RequiredParamCount()
+	if len(args) < required || len(args) > len(funcPtr.Parameters) {
+		expected := fmt.Sprintf("%d", len(funcPtr.Parameters))
+		if required != len(funcPtr.Parameters) {
+			expected = fmt.Sprintf("%d to %d", required, len(funcPtr.Parameters))
+		}
+		a.addError("function pointer call argument count mismatch at %s: expected %s arguments, got %d",
+			pos.String(), expected, len(args))
 		return nil
 	}
 

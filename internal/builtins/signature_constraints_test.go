@@ -97,3 +97,34 @@ func TestBuiltinSignatures_CorrectedShapes(t *testing.T) {
 		})
 	}
 }
+
+// TestBuiltinSignatures_OptionalArity asserts that builtins with optional
+// trailing parameters keep MinArgs below their full parameter list, which is
+// what lets a function pointer to them stay callable at the shorter arity.
+func TestBuiltinSignatures_OptionalArity(t *testing.T) {
+	tests := []struct {
+		name    string
+		minArgs int
+		params  int
+	}{
+		{"Pos", 2, 3},
+		{"IntToHex", 1, 2},
+		{"Trim", 1, 3},
+		{"UpperCase", 1, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sig, found := DefaultRegistry.GetSignature(tt.name)
+			if !found {
+				t.Fatalf("no signature registered for %s", tt.name)
+			}
+			if sig.MinArgs != tt.minArgs {
+				t.Errorf("MinArgs = %d, want %d", sig.MinArgs, tt.minArgs)
+			}
+			if len(sig.ParamTypes) != tt.params {
+				t.Errorf("len(ParamTypes) = %d, want %d", len(sig.ParamTypes), tt.params)
+			}
+		})
+	}
+}

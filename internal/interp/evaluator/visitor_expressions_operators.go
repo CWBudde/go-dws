@@ -182,6 +182,8 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 						returnType = sig.ReturnType
 					}
 					pointerType = types.NewFunctionPointerType(sig.ParamTypes, returnType)
+					// Keep optional trailing parameters optional through the pointer.
+					pointerType.MinArgs = sig.MinArgs
 				}
 				return &runtime.FunctionPointerValue{
 					BuiltinName: operand.Value,

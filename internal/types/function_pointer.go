@@ -13,6 +13,13 @@ import (
 type FunctionPointerType struct {
 	ReturnType Type
 	Parameters []Type
+
+	// MinArgs is the number of leading parameters a call must supply. Zero
+	// means every parameter is required, which is the common case. It is
+	// non-zero only for pointers to builtins that declare optional
+	// parameters, such as @IntToHex, where both IntToHex(5) and
+	// IntToHex(5, 1) are valid through the pointer.
+	MinArgs int
 }
 
 // NewFunctionPointerType creates a new function pointer type with the given parameters and return type.
@@ -29,6 +36,15 @@ func NewProcedurePointerType(params []Type) *FunctionPointerType {
 		Parameters: params,
 		ReturnType: nil,
 	}
+}
+
+// RequiredParamCount returns how many arguments a call through this pointer
+// must supply. Parameters beyond it are optional.
+func (f *FunctionPointerType) RequiredParamCount() int {
+	if f.MinArgs > 0 && f.MinArgs <= len(f.Parameters) {
+		return f.MinArgs
+	}
+	return len(f.Parameters)
 }
 
 // TypeKind returns the type kind identifier for function pointers.
