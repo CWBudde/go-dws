@@ -478,6 +478,14 @@ func (ie *ImplementsExpression) String() string {
 // BlockStatement represents a block of statements (begin...end).
 type BlockStatement struct {
 	Statements []Statement
+
+	// SharesEnclosingScope marks a block the parser synthesized purely to group
+	// statements, not a `begin … end` the source wrote. Such a block must not
+	// open a scope of its own, so the declarations inside it stay visible to
+	// everything that follows — for example the implicit enum hoisted out of
+	// `var s : set of (a, b)`.
+	SharesEnclosingScope bool
+
 	BaseNode
 }
 

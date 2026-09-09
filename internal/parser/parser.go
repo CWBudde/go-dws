@@ -94,6 +94,9 @@ type Parser struct {
 	cursor               *TokenCursor
 	errors               []*ParserError
 	blockStack           []BlockContext
+	pendingTypeDecls     []ast.Statement
+	parsingInlineEnum    bool
+	parsingParameterList bool
 	parsingPostCondition bool
 }
 
@@ -105,6 +108,7 @@ type ParserState struct {
 	cursor               *TokenCursor
 	errors               []*ParserError
 	blockStack           []BlockContext
+	pendingTypeDecls     []ast.Statement
 	lexerState           lexer.LexerState
 	parsingPostCondition bool
 }
@@ -297,12 +301,15 @@ func (p *Parser) saveState() ParserState {
 	copy(errorsCopy, p.errors)
 	blockStackCopy := make([]BlockContext, len(p.blockStack))
 	copy(blockStackCopy, p.blockStack)
+	pendingCopy := make([]ast.Statement, len(p.pendingTypeDecls))
+	copy(pendingCopy, p.pendingTypeDecls)
 
 	return ParserState{
 		errors:               errorsCopy,
 		lexerState:           p.l.SaveState(),
 		parsingPostCondition: p.parsingPostCondition,
 		blockStack:           blockStackCopy,
+		pendingTypeDecls:     pendingCopy,
 		ctx:                  p.ctx.Snapshot(),
 		cursor:               p.cursor,
 	}
@@ -313,6 +320,7 @@ func (p *Parser) restoreState(state ParserState) {
 	p.errors = state.errors
 	p.parsingPostCondition = state.parsingPostCondition
 	p.blockStack = state.blockStack
+	p.pendingTypeDecls = state.pendingTypeDecls
 	p.l.RestoreState(state.lexerState)
 	p.ctx.Restore(state.ctx)
 	p.cursor = state.cursor

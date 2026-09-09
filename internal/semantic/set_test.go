@@ -395,3 +395,247 @@ func TestSetMembershipErrors(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Array <-> Set Conversion Tests (L-S6a)
+// ============================================================================
+
+// TestBracketLiteralConversions covers both directions of the bracket-literal
+// disambiguation. DWScript writes array and set constructors with the same `[]`
+// syntax, so the expected type — not the parser's syntactic heuristic — decides
+// which one a literal becomes.
+func TestBracketLiteralConversions(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name: "set literal shape flows into an array-typed target",
+			input: `
+				var a: array of Integer := [1, 2];
+				var b: array of String := ['x', 'y'];
+			`,
+		},
+		{
+			name: "identifier elements flow into an array-typed target",
+			input: `
+				const lo = 1;
+				const hi = 2;
+				var a: array of Integer := [lo, hi];
+			`,
+		},
+		{
+			name: "empty literal into a set-typed target",
+			input: `
+				type TColor = (Red, Green, Blue);
+				type TColors = set of TColor;
+				var c: TColors := [];
+			`,
+		},
+		{
+			name: "single element into a set-typed target",
+			input: `
+				type TColor = (Red, Green, Blue);
+				type TColors = set of TColor;
+				var c: TColors := [Green];
+			`,
+		},
+		{
+			name: "range into a set-typed target",
+			input: `
+				type TColor = (Red, Green, Blue);
+				type TColors = set of TColor;
+				var c: TColors := [Red..Blue];
+			`,
+		},
+		{
+			// A typecast element defeats the parser's heuristic, so this literal
+			// arrives as an array literal and must still convert.
+			name: "typecast element into a set-typed target",
+			input: `
+				type TColor = (Red, Green, Blue);
+				type TColors = set of TColor;
+				var c: TColors;
+				c := c + [TColor(1)];
+			`,
+		},
+		{
+			name: "set constant declaration",
+			input: `
+				type TElem = (A = 1, B = 64, C = 128);
+				type TMy = set of TElem;
+				const v : TMy = [A, C];
+			`,
+		},
+		{
+			name: "inline anonymous enum in a variable's set type",
+			input: `
+				var e : set of (et1, et2) = [];
+				var f : Boolean := et1 in e;
+			`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+// TestSetElementBounds covers the compile-time bounds check on set elements
+// (L-S6c). Only compile-time-constant ordinals are checked; anything else is
+// left to run time, where an out-of-range ordinal is simply never a member.
+func TestSetElementBounds(t *testing.T) {
+	const setup = `
+		type TColor = (Red, Green, Blue);
+		type TColors = set of TColor;
+		var c: TColors;
+	`
+
+	errorCases := []struct {
+		name  string
+		input string
+	}{
+		{name: "above the high bound", input: setup + "c := c + [TColor(3)];"},
+		{name: "below the low bound", input: setup + "c := c + [TColor(-1)];"},
+		{name: "range bound out of set", input: setup + "c := c + [TColor(0)..TColor(7)];"},
+	}
+	for _, tt := range errorCases {
+		t.Run(tt.name, func(t *testing.T) {
+			expectError(t, tt.input, "Element is out of set bounds")
+		})
+	}
+
+	okCases := []struct {
+		name  string
+		input string
+	}{
+		{name: "at the low bound", input: setup + "c := c + [TColor(0)];"},
+		{name: "at the high bound", input: setup + "c := c + [TColor(2)];"},
+	}
+	for _, tt := range okCases {
+		t.Run(tt.name, func(t *testing.T) {
+			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+// TestSetIntegerCastWidth covers the set <-> Integer cast rule (L-S6c). The
+// integer form is a bitmask indexed by the element's *absolute* ordinal, so the
+// rule is about the highest reachable ordinal, not the base type's span.
+func TestSetIntegerCastWidth(t *testing.T) {
+	t.Run("narrow set casts both ways", func(t *testing.T) {
+		expectNoErrors(t, `
+			type TEnum = (one, two);
+			type TSet = set of TEnum;
+			var s : TSet;
+			var i := Integer(s);
+			s := TSet(i);
+		`)
+	})
+
+	t.Run("highest representable ordinal is accepted", func(t *testing.T) {
+		expectNoErrors(t, `
+			type TEnum = (lo = 0, hi = 31);
+			type TSet = set of TEnum;
+			var s : TSet;
+			var i := Integer(s);
+		`)
+	})
+
+	t.Run("wide set rejects the cast to integer", func(t *testing.T) {
+		expectError(t, `
+			type TEnum = (one = 1, fifty = 50);
+			type TSet = set of TEnum;
+			var s : TSet;
+			var i := Integer(s);
+		`, "Set has too many elements for cast to integer")
+	})
+
+	t.Run("wide set rejects the cast from integer", func(t *testing.T) {
+		expectError(t, `
+			type TEnum = (one = 1, fifty = 50);
+			type TSet = set of TEnum;
+			var i : Integer;
+			var s := TSet(i);
+		`, "Set has too many elements for cast to integer")
+	})
+
+	t.Run("narrow span at high ordinals is rejected", func(t *testing.T) {
+		// Span 32, but ordinal 64 needs bit 64 and would be dropped silently.
+		expectError(t, `
+			type TEnum = (h33 = 33, h64 = 64);
+			type TSet = set of TEnum;
+			var s : TSet;
+			var i := Integer(s);
+		`, "Set has too many elements for cast to integer")
+	})
+
+	t.Run("unbounded ordinal base is rejected", func(t *testing.T) {
+		// `set of Integer` works (map storage) but has no bitmask form.
+		expectError(t, `
+			var s : set of Integer := [65];
+			var i := Integer(s);
+		`, "Set has too many elements for cast to integer")
+	})
+}
+
+// TestSetMutationRequiresVariable covers the receiver check on Include/Exclude.
+// Both mutate in place, so a constant receiver would otherwise rewrite the
+// constant at run time — `const` sets became declarable with L-S6a.
+func TestSetMutationRequiresVariable(t *testing.T) {
+	const setup = `
+		type TElem = (A, B, C);
+		type TSet = set of TElem;
+	`
+
+	t.Run("variable receiver is accepted", func(t *testing.T) {
+		expectNoErrors(t, setup+`
+			var v : TSet := [A];
+			Include(v, B);
+			v.Exclude(A);
+		`)
+	})
+
+	t.Run("constant receiver is rejected in procedure form", func(t *testing.T) {
+		expectError(t, setup+`
+			const v : TSet = [A];
+			Include(v, B);
+		`, "Variable expected")
+	})
+
+	t.Run("constant receiver is rejected in method form", func(t *testing.T) {
+		expectError(t, setup+`
+			const v : TSet = [A];
+			v.Include(B);
+		`, "Variable expected")
+	})
+
+	t.Run("function result is rejected", func(t *testing.T) {
+		expectError(t, setup+`
+			function Make : TSet; begin end;
+			Include(Make, A);
+		`, "Variable expected")
+	})
+}
+
+// TestInlineSetEnumScope covers where an inline `set of (a, b)` may appear.
+// A parameter list has no statement to hoist the implicit enum in front of, so
+// it is rejected rather than published into the scope around the routine.
+func TestInlineSetEnumScope(t *testing.T) {
+	t.Run("statement-level declaration is accepted", func(t *testing.T) {
+		expectNoErrors(t, `
+			var s : set of (et1, et2) = [];
+			var b : Boolean := et1 in s;
+		`)
+	})
+
+	t.Run("parameter position is rejected", func(t *testing.T) {
+		expectError(t, `
+			procedure Test(s : set of (pt1, pt2));
+			begin
+			end;
+		`, "anonymous enumeration is not allowed in a parameter's set type")
+	})
+}

@@ -63,6 +63,12 @@ func (a *Analyzer) emitUnusedWarningsForCurrentScope() {
 		if sym.Name == "" || sym.DeclPosition.Line == 0 || sym.DeclPosition.Column == 0 {
 			return true
 		}
+		// Compiler-synthesized names (the implicit enum behind an inline
+		// `set of (a, b)`, for instance) are spelled with a leading '$' and must
+		// never surface in a diagnostic — the user did not write them.
+		if strings.HasPrefix(sym.Name, "$") {
+			return true
+		}
 		if ident.Equal(sym.Name, "Self") {
 			return true
 		}

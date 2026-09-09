@@ -613,6 +613,13 @@ func (p *Parser) parseParameterList() []*ast.Parameter {
 //
 //nolint:gocyclo // Parameter parser handling multiple modifiers and types
 func (p *Parser) parseParameterGroup() []*ast.Parameter {
+	// A parameter's type expression has no statement to hoist a synthesized
+	// declaration in front of, so parseInlineSetEnum refuses one here rather
+	// than leaking its members into the enclosing scope. See parseStatement.
+	prevParsingParameterList := p.parsingParameterList
+	p.parsingParameterList = true
+	defer func() { p.parsingParameterList = prevParsingParameterList }()
+
 	cursor := p.cursor
 	params := []*ast.Parameter{}
 

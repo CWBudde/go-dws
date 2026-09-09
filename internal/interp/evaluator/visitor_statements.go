@@ -263,11 +263,20 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 					if err != nil {
 						return e.newError(node, "failed to resolve array type '%s': %v", typeName, err)
 					}
-					arrayType, ok := resolvedType.(*types.ArrayType)
-					if !ok {
+					// A bracket literal against a `set of` declaration is a set
+					// constructor, not an array one. Only `[]` reaches here as an
+					// ArrayLiteralExpression — the parser already classifies a
+					// non-empty `[a, b]` as a SetLiteral.
+					if setType, isSet := types.GetUnderlyingType(resolvedType).(*types.SetType); isSet {
+						value = e.evalBracketLiteralAsSet(arrayLit, setType, ctx)
+					} else if arrayType, isArray := resolvedType.(*types.ArrayType); isArray {
+						value = e.evalArrayLiteralWithExpectedType(arrayLit, arrayType, ctx)
+					} else {
 						return e.newError(node, "expected array type, got %s", resolvedType.String())
 					}
-					value = e.evalArrayLiteralWithExpectedType(arrayLit, arrayType, ctx)
+					if isError(value) {
+						return value
+					}
 				} else {
 					value = e.Eval(node.Value, ctx)
 				}

@@ -176,9 +176,43 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		}
 		return constElements, nil
 
+	case *ast.SetLiteral:
+		// Support set literals in const declarations (`const v : TSet = [A, C];`).
+		// The evaluator re-evaluates the initializer at runtime, so the folded
+		// value only has to prove that every element is a compile-time constant.
+		return a.evaluateConstantSetElements(e.Elements)
+
 	default:
 		return nil, fmt.Errorf("expression is not a compile-time constant")
 	}
+}
+
+// evaluateConstantSetElements folds the elements of a bracket literal used as a
+// set constant. Range elements (`[lo..hi]`) are kept as their constant bounds
+// rather than expanded, so a wide range costs nothing at compile time.
+func (a *Analyzer) evaluateConstantSetElements(elements []ast.Expression) (interface{}, error) {
+	constElements := make([]interface{}, len(elements))
+	for i, elem := range elements {
+		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
+			low, err := a.evaluateConstant(rangeExpr.Start)
+			if err != nil {
+				return nil, fmt.Errorf("set element %d is not constant: %v", i, err)
+			}
+			high, err := a.evaluateConstant(rangeExpr.RangeEnd)
+			if err != nil {
+				return nil, fmt.Errorf("set element %d is not constant: %v", i, err)
+			}
+			constElements[i] = [2]interface{}{low, high}
+			continue
+		}
+
+		elemVal, err := a.evaluateConstant(elem)
+		if err != nil {
+			return nil, fmt.Errorf("set element %d is not constant: %v", i, err)
+		}
+		constElements[i] = elemVal
+	}
+	return constElements, nil
 }
 
 // evaluateConstantInt evaluates a compile-time constant integer expression.
@@ -610,6 +644,11 @@ func (a *Analyzer) evaluateConstantTypeCast(typeName string, arg ast.Expression)
 			// Integer → Enum: Return the integer ordinal
 			// The const will store the ordinal value, which will be converted to EnumValue at runtime
 			return v
+		case float64:
+			// Float → Enum truncates to the ordinal, the same way castToEnum does
+			// at run time. Folding it here keeps the compile-time set-bounds check
+			// consistent between `[TEnum(3)]` and `[TEnum(3.5)]`.
+			return int(v)
 		default:
 			return nil // Can't cast this type to enum at compile time
 		}

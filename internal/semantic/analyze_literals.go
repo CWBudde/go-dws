@@ -345,17 +345,11 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 		}
 	}
 
-	// Check for missing required fields (skip fields with default initializers)
-	for fieldName := range recordType.Fields {
-		if !initializedFields[fieldName] {
-			// Check if the field has a default initializer
-			if recordType.FieldsWithInit != nil && recordType.FieldsWithInit[fieldName] {
-				// Field has a default initializer, so it's not required in the literal
-				continue
-			}
-			a.addError("missing required field '%s' in record literal", fieldName)
-		}
-	}
+	// Omitted fields are not an error: DWScript allows a partial record
+	// constructor and default-initializes every field the literal does not name
+	// (see SetOfPass/set_in_record, where `const rA : TRecord = (A: [enumOne])`
+	// leaves `B` as the empty set). The runtime supplies those defaults through
+	// createRecordZeroValue -> getZeroValueForType.
 
 	return recordType
 }
@@ -518,6 +512,12 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 			}
 		}
 
+		boundsType := elemType
+		if expectedSetType != nil {
+			boundsType = expectedSetType.ElementType
+		}
+		a.checkSetElementBounds(elem, boundsType)
+
 		// First element determines the element type
 		if i == 0 {
 			elementType = elemType
@@ -581,4 +581,36 @@ func (a *Analyzer) analyzeAnonymousRecordExpression(expr *ast.AnonymousRecordExp
 	}
 
 	return recordType
+}
+
+// checkSetElementBounds reports DWScript's "Element is out of set bounds" for a
+// set element whose ordinal is known at compile time and falls outside the set's
+// element type. A cast is the usual way to produce one (`[TMyEnum(3)]`).
+//
+// Elements that are not compile-time constants are left alone: DWScript checks
+// those at run time, where an out-of-range ordinal is simply never a member.
+func (a *Analyzer) checkSetElementBounds(elem ast.Expression, boundsType types.Type) {
+	if elem == nil || boundsType == nil {
+		return
+	}
+
+	low, high, ok := types.OrdinalBounds(boundsType)
+	if !ok {
+		return
+	}
+
+	if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
+		a.checkSetElementBounds(rangeExpr.Start, boundsType)
+		a.checkSetElementBounds(rangeExpr.RangeEnd, boundsType)
+		return
+	}
+
+	ordinal, err := a.evaluateConstantInt(elem)
+	if err != nil {
+		return
+	}
+
+	if ordinal < low || ordinal > high {
+		a.addError("Element is out of set bounds at %s", elem.Pos().String())
+	}
 }

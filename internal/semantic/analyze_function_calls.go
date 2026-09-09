@@ -1018,6 +1018,44 @@ func (a *Analyzer) analyzeTypeCast(typeName string, args []ast.Expression, expr 
 	return targetType, true
 }
 
+// maxSetIntegerCastOrdinal is the highest element ordinal a set may hold and
+// still have an integer representation.
+//
+// The integer form of a set is a bitmask in which an element's *absolute*
+// ordinal is the bit index — `castToSet` and the `Integer(set)` cast both index
+// by ordinal, not by an offset from the base type's low bound. So the rule is
+// about the highest reachable ordinal, not about how many elements the base
+// type spans: `set of (h33 = 33, h64 = 64)` spans only 32 values but needs bit
+// 64, which no mask holds.
+//
+// The bound itself is pinned by the corpus rather than by upstream source
+// (`reference/dwscript-original/` is empty in this checkout):
+// `SetOfPass/set_to_integer` and `set_to_integer2` cast base types with ordinals
+// 0..1 and must succeed, while `SetOfFail/integer_vs_set` casts
+// `(one = 1, fifty = 50)` and must fail. That places the limit somewhere in
+// 1..49, so the mask is a 32-bit one and the highest usable bit is 31.
+const maxSetIntegerCastOrdinal = 31
+
+// checkSetIntegerCastWidth validates a set <-> Integer cast against the ordinal
+// range of the set's base type, reporting DWScript's diagnostic when the set has
+// no integer representation.
+func (a *Analyzer) checkSetIntegerCastWidth(setType *types.SetType, pos token.Position) bool {
+	if setType == nil || setType.ElementType == nil {
+		return true
+	}
+
+	// An unbounded ordinal base (`set of Integer`) has no bitmask form at all:
+	// the set itself works, backed by map storage, but a cast would silently
+	// drop every element outside the mask.
+	low, high, ok := types.OrdinalBounds(setType.ElementType)
+	if !ok || low < 0 || high > maxSetIntegerCastOrdinal {
+		a.addError("Set has too many elements for cast to integer at %s", pos.String())
+		return false
+	}
+
+	return true
+}
+
 // isValidCast checks if casting from sourceType to targetType is valid.
 func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Position) bool {
 	sourceType = types.GetUnderlyingType(sourceType)
@@ -1091,20 +1129,25 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 		return true
 	}
 
-	// Enum <-> Integer casts
+	// Enum <-> Integer casts. A Float source is accepted on the way in and
+	// truncated to its ordinal, so `TEnum(IntPower(10, i))` compiles.
 	_, sourceIsEnum := sourceType.(*types.EnumType)
 	_, targetIsEnum := targetType.(*types.EnumType)
 	if (sourceIsEnum && targetType == types.INTEGER) ||
-		(sourceType == types.INTEGER && targetIsEnum) {
+		((sourceType == types.INTEGER || sourceType == types.FLOAT) && targetIsEnum) {
 		return true
 	}
 
-	// Set <-> Integer casts (a set's integer form is its ordinal bitmask)
-	_, sourceIsSet := sourceType.(*types.SetType)
-	_, targetIsSet := targetType.(*types.SetType)
-	if (sourceIsSet && targetType == types.INTEGER) ||
-		(sourceType == types.INTEGER && targetIsSet) {
-		return true
+	// Set <-> Integer casts (a set's integer form is its ordinal bitmask). The
+	// bitmask only exists for a set narrow enough to fit one, so a wider base
+	// type is rejected the way DWScript rejects it.
+	sourceSet, sourceIsSet := sourceType.(*types.SetType)
+	targetSet, targetIsSet := targetType.(*types.SetType)
+	if sourceIsSet && targetType == types.INTEGER {
+		return a.checkSetIntegerCastWidth(sourceSet, pos)
+	}
+	if sourceType == types.INTEGER && targetIsSet {
+		return a.checkSetIntegerCastWidth(targetSet, pos)
 	}
 
 	if _, isEnum := targetType.(*types.EnumType); isEnum {

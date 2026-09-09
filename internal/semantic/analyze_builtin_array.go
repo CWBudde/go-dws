@@ -4,6 +4,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgident "github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -233,6 +234,34 @@ func (a *Analyzer) analyzeDelete(args []ast.Expression, callExpr *ast.CallExpres
 // analyzeIncludeExclude analyzes the procedure form of the set builtins
 // Include(setVar, element) and Exclude(setVar, element). Both mutate the set
 // in place and return no value.
+// isMutableSetReceiver reports whether expr may be the receiver of Include or
+// Exclude, which mutate the set in place. It must be an lvalue and it must not
+// be a constant: `const v : TSet = [A];` is stored in the ordinary environment
+// as a plain SetValue, so without this check `Include(v, B)` would quietly
+// rewrite the constant.
+//
+// DWScript reports both cases as "Variable expected" (SetOfFail/test_non_variable).
+func (a *Analyzer) isMutableSetReceiver(expr ast.Expression, pos token.Position) bool {
+	if !a.isLValue(expr) {
+		a.addError("Variable expected at %s", pos.String())
+		return false
+	}
+
+	if identExpr, ok := expr.(*ast.Identifier); ok {
+		if sym, found := a.symbols.Resolve(identExpr.Value); found {
+			// A constant, a read-only binding, or a bare function name (whose
+			// value is a call's temporary result) is not something to mutate.
+			_, isFunction := sym.Type.(*types.FunctionType)
+			if sym.IsConst || sym.ReadOnly || isFunction {
+				a.addError("Variable expected at %s", pos.String())
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	canonical := "Include"
 	if pkgident.Equal(name, "Exclude") {
@@ -245,9 +274,8 @@ func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, cal
 		return types.VOID
 	}
 
-	if !a.isLValue(args[0]) {
-		a.addError("function '%s' first argument must be a set variable at %s",
-			canonical, callExpr.Token.Pos.String())
+	if !a.isMutableSetReceiver(args[0], args[0].Pos()) {
+		return types.VOID
 	}
 
 	setArgType := a.analyzeExpression(args[0])
@@ -259,8 +287,8 @@ func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, cal
 
 	setType, ok := types.GetUnderlyingType(setArgType).(*types.SetType)
 	if !ok {
-		a.addError("function '%s' first argument must be a set, got %s at %s",
-			canonical, setArgType.String(), callExpr.Token.Pos.String())
+		// DWScript's wording, anchored on the offending argument.
+		a.addError("Set expected at %s", args[0].Pos().String())
 		return types.VOID
 	}
 

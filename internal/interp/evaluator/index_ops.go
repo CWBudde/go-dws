@@ -124,6 +124,13 @@ func (e *Evaluator) getZeroValueForType(t types.Type, ctx *ExecutionContext) run
 			return runtime.NewAssociativeArrayValue(assocType)
 		}
 		return &runtime.NilValue{}
+	case "SET":
+		// An uninitialized set is the empty set, not nil, so `x in r.Field`
+		// works on a field a record literal did not name.
+		if setType, ok := t.(*types.SetType); ok {
+			return runtime.NewSetValue(setType)
+		}
+		return &runtime.NilValue{}
 	case "RECORD":
 		// Recursively create nested records, applying each field's default
 		// initializer expression (e.g. `Field : Integer = 1`) when present so

@@ -65,8 +65,39 @@ func (p *Parser) parseDestructorStatement() ast.Statement {
 	return method
 }
 
-//nolint:gocyclo // Statement dispatcher with many statement types
+// parseStatement parses one statement and hoists any type declaration the
+// statement's own type expressions had to synthesize.
+//
+// An anonymous enum written inline in a type position (`var s : set of (a, b)`)
+// has no declaration site of its own, so parseSetType desugars it into an
+// implicit EnumDecl and queues it here. Draining the queue around the statement
+// yields the same shape parseSetDeclaration already produces for the named form
+// (`type TMy = set of (a, b)`): a BlockStatement with the enum first. Block
+// statements are scope-transparent for declarations, so the enum's members stay
+// visible to everything that follows.
 func (p *Parser) parseStatement() ast.Statement {
+	outerPending := p.pendingTypeDecls
+	p.pendingTypeDecls = nil
+	startToken := p.cursor.Current()
+
+	stmt := p.parseStatementInner()
+
+	hoisted := p.pendingTypeDecls
+	p.pendingTypeDecls = outerPending
+
+	if len(hoisted) == 0 || stmt == nil {
+		return stmt
+	}
+
+	return &ast.BlockStatement{
+		BaseNode:             ast.BaseNode{Token: startToken},
+		Statements:           append(hoisted, stmt),
+		SharesEnclosingScope: true,
+	}
+}
+
+//nolint:gocyclo // Statement dispatcher with many statement types
+func (p *Parser) parseStatementInner() ast.Statement {
 	// As we implement each statement cursor handler, they'll be added here
 
 	currentToken := p.cursor.Current()

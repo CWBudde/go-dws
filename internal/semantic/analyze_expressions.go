@@ -145,37 +145,26 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		return a.analyzeSetLiteralWithContext(e, expectedType)
 	case *ast.ArrayLiteralExpression:
 		if expectedType != nil {
+			// A bracket literal in a set-typed context is a set constructor,
+			// whatever shape its elements have. The parser's heuristic
+			// (shouldParseAsSetLiteral) only sees syntax, so a typecast element
+			// such as `[TMyEnum(3)]` arrives here as an array literal; the
+			// expected type is the authority. analyzeSetLiteralWithContext owns
+			// the per-element ordinal, element-type and bounds diagnostics.
 			if _, ok := types.GetUnderlyingType(expectedType).(*types.SetType); ok {
-				convertible := len(e.Elements) == 0
-				if !convertible {
-					convertible = true
-					for _, elem := range e.Elements {
-						switch elem.(type) {
-						case *ast.Identifier, *ast.RangeExpression, *ast.IntegerLiteral:
-						case *ast.CharLiteral, *ast.StringLiteral, *ast.BooleanLiteral:
-						// A qualified enum member (e.g. TEnum2.one) is a valid set
-						// element for a `set of <scoped enum>`.
-						case *ast.MemberAccessExpression:
-						default:
-							convertible = false
-						}
-					}
+				setLit := &ast.SetLiteral{
+					TypedExpressionBase: e.TypedExpressionBase,
+					Elements:            e.Elements,
 				}
-				if convertible {
-					setLit := &ast.SetLiteral{
-						TypedExpressionBase: e.TypedExpressionBase,
-						Elements:            e.Elements,
-					}
 
-					resultType := a.analyzeSetLiteralWithContext(setLit, expectedType)
-					if resultType != nil && a.semanticInfo != nil {
-						a.semanticInfo.SetType(e, &ast.TypeAnnotation{
-							Token: e.Token,
-							Name:  resultType.String(),
-						})
-					}
-					return resultType
+				resultType := a.analyzeSetLiteralWithContext(setLit, expectedType)
+				if resultType != nil && a.semanticInfo != nil {
+					a.semanticInfo.SetType(e, &ast.TypeAnnotation{
+						Token: e.Token,
+						Name:  resultType.String(),
+					})
 				}
+				return resultType
 			}
 		}
 		return a.analyzeArrayLiteral(e, expectedType)

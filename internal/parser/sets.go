@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -63,19 +65,24 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 		}
 	}
 
-	// Expect type identifier
+	// Expect type identifier. A set's base must be an enumeration, so anything
+	// else here gets DWScript's wording, reported at the 'of' keyword. Recovery
+	// skips to the declaration's semicolon so the caller does not also complain
+	// about the tokens that follow.
+	ofToken := p.cursor.Current()
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.IDENT {
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrExpectedType).
-			WithMessage("expected type identifier after 'of' in set declaration").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("type name").
+			WithMessage("Enumeration expected").
+			WithPosition(ofToken.Pos, ofToken.Length()).
+			WithExpectedString("enumeration type name").
 			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("provide a type name after 'of'").
+			WithSuggestion("provide an enumeration type name after 'of'").
 			WithParsePhase("set declaration").
 			Build()
 		p.addStructuredError(err)
+		p.skipToSetDeclarationEnd()
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to type identifier
@@ -107,6 +114,63 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 	return setDecl
 }
 
+// parseInlineSetEnum parses the `(a, b)` of an inline `set of (a, b)` in a type
+// position, queues the implicit enum declaration for parseStatement to hoist,
+// and returns the type expression naming it.
+//
+// PRE: cursor is OF, and the next token is LPAREN
+// POST: cursor is the enum's closing RPAREN
+func (p *Parser) parseInlineSetEnum(setToken lexer.Token) ast.TypeExpression {
+	// The hoist target is the statement being parsed, and a parameter list has
+	// none of its own — the nearest statement is the whole routine declaration,
+	// so hoisting there would publish the anonymous enum's members into the
+	// scope *around* the routine. Rejecting is the conservative choice: this
+	// position did not parse at all before inline set enums were added, no
+	// fixture uses it, and the correct scope for such an enum is genuinely
+	// ambiguous (the members would have to be visible to callers to build an
+	// argument, yet they are declared inside the signature).
+	// The diagnostic is recorded here and parsing continues normally: the error
+	// already stops the program from compiling, so where the (unreachable)
+	// declaration ends up no longer matters, and the caller keeps a well-formed
+	// type expression to work with.
+	if p.parsingParameterList {
+		p.addError("anonymous enumeration is not allowed in a parameter's set type; declare the enumeration first", ErrExpectedType)
+	}
+
+	enumName := &ast.Identifier{
+		Value: fmt.Sprintf("$InlineEnum$%d$%d", setToken.Pos.Line, setToken.Pos.Column),
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: setToken},
+		},
+	}
+
+	p.parsingInlineEnum = true
+	enumDecl := p.parseEnumDeclaration(enumName, setToken, false, false)
+	p.parsingInlineEnum = false
+	if enumDecl == nil {
+		return nil
+	}
+	p.pendingTypeDecls = append(p.pendingTypeDecls, enumDecl)
+
+	return &ast.TypeAnnotation{
+		Token: enumName.Token,
+		Name:  enumName.Value,
+	}
+}
+
+// skipToSetDeclarationEnd advances the cursor to the semicolon that terminates a
+// malformed `type T = set of …;` declaration, so a single diagnostic is reported
+// for the bad base type instead of a cascade from the tokens after it.
+func (p *Parser) skipToSetDeclarationEnd() {
+	for {
+		switch p.cursor.Current().Type {
+		case lexer.SEMICOLON, lexer.EOF:
+			return
+		}
+		p.cursor = p.cursor.Advance()
+	}
+}
+
 // parseSetType parses an inline set type expression.
 // Called when we encounter 'set' in a type context.
 // Current token should be 'set'.
@@ -134,18 +198,31 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 	cursor = cursor.Advance() // move to OF
 	p.cursor = cursor
 
-	// Parse element type
-	cursor = cursor.Advance() // move to element type
-	p.cursor = cursor
+	var elementType ast.TypeExpression
 
-	// Element type can be:
-	// 1. Simple identifier: TEnum
-	// 2. Inline anonymous enum: (A, B, C) - would be handled by parseTypeExpression
-	// 3. Subrange: 1..100 - might need special handling in future
-	elementType := p.parseTypeExpression()
-	if elementType == nil {
-		p.addError("expected type expression after 'set of'", ErrExpectedType)
-		return nil
+	if cursor.Peek(1).Type == lexer.LPAREN {
+		// Inline anonymous enum: `var s : set of (a, b)`. Unlike the named form
+		// (`type TMy = set of (a, b)`, handled in parseSetDeclaration) there is
+		// no type name to derive the implicit enum's name from, so mint one from
+		// the 'set' token's position and queue the declaration for
+		// parseStatement to hoist ahead of the statement being parsed.
+		elementType = p.parseInlineSetEnum(setToken)
+		if elementType == nil {
+			return nil
+		}
+	} else {
+		// Parse element type
+		cursor = cursor.Advance() // move to element type
+		p.cursor = cursor
+
+		// Element type can be:
+		// 1. Simple identifier: TEnum
+		// 2. Subrange: 1..100 - might need special handling in future
+		elementType = p.parseTypeExpression()
+		if elementType == nil {
+			p.addError("expected type expression after 'set of'", ErrExpectedType)
+			return nil
+		}
 	}
 
 	setTypeNode := &ast.SetTypeNode{
