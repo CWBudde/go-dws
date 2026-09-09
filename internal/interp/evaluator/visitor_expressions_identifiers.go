@@ -485,9 +485,10 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 		e.DefineVar(ctx, funcName, funcNameAlias)
 	}
 
-	// 4. Check preconditions before function body
-	if fn.PreConditions != nil {
-		if err := e.checkPreconditions(e.contractRoutineName(fn, ctx), fn.PreConditions, ctx); err != nil {
+	// 4. Check preconditions before function body, including inherited ones
+	contracts := e.contractChain(fn, ctx)
+	if preSources := preconditionSources(contracts, fn); len(preSources) > 0 {
+		if err := e.checkContractPreconditions(preSources, fn, ctx); err != nil {
 			return err
 		}
 		// If exception was raised during precondition checking, return early

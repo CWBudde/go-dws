@@ -3,6 +3,7 @@ package evaluator
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // contractSource is one class's contribution to a method's contract chain: the
@@ -121,4 +122,105 @@ func qualifiedName(className string, fn *ast.FunctionDecl) string {
 		return fn.Name.Value
 	}
 	return className + "." + fn.Name.Value
+}
+
+// preconditionSources returns the sources whose preconditions must run, base-most
+// first. Upstream DWScript allows `require` on the root method only, so in
+// practice at most one source contributes; ordering it root-first keeps the
+// behavior defined if a script declares more.
+func preconditionSources(chain []contractSource, fn *ast.FunctionDecl) []contractSource {
+	if len(chain) == 0 {
+		return ownConditionSource(fn, fn.PreConditions != nil)
+	}
+
+	sources := make([]contractSource, 0, len(chain))
+	for i := len(chain) - 1; i >= 0; i-- {
+		if chain[i].fn.PreConditions != nil {
+			sources = append(sources, chain[i])
+		}
+	}
+	return sources
+}
+
+// ownConditionSource is the non-method fallback: the declaration's own
+// conditions under its own (possibly out-of-line qualified) name.
+func ownConditionSource(fn *ast.FunctionDecl, has bool) []contractSource {
+	if !has {
+		return nil
+	}
+	return []contractSource{{fn: fn, routineName: contractFuncName(fn)}}
+}
+
+// parameterAliases maps an ancestor declaration's parameter names to the values
+// currently bound under the executing declaration's names. DWScript matches
+// contract parameters by position, so an ancestor condition whose parameters are
+// named differently from the override's must still see the call's arguments.
+// Names that already agree are omitted, so the common case allocates nothing.
+func parameterAliases(source, executing *ast.FunctionDecl, ctx *ExecutionContext) map[string]Value {
+	if source == executing {
+		return nil
+	}
+
+	var aliases map[string]Value
+	for idx, param := range source.Parameters {
+		if idx >= len(executing.Parameters) {
+			break
+		}
+		own := executing.Parameters[idx]
+		if param.Name == nil || own.Name == nil || ident.Equal(param.Name.Value, own.Name.Value) {
+			continue
+		}
+		value, ok := ctx.Env().Get(own.Name.Value)
+		if !ok {
+			continue
+		}
+		if aliases == nil {
+			aliases = make(map[string]Value, len(source.Parameters))
+		}
+		aliases[param.Name.Value] = value
+	}
+	return aliases
+}
+
+// evalUnderSourceParameters runs body with source's parameter names bound to the
+// executing call's argument values. It is a no-op when the names already agree,
+// which is every case except an override that renamed its parameters.
+func (e *Evaluator) evalUnderSourceParameters(
+	source contractSource,
+	executing *ast.FunctionDecl,
+	ctx *ExecutionContext,
+	body func() Value,
+) Value {
+	aliases := parameterAliases(source.fn, executing, ctx)
+	if len(aliases) == 0 {
+		return body()
+	}
+
+	ctx.PushEnv()
+	defer ctx.PopEnv()
+	for name, value := range aliases {
+		ctx.Env().Define(name, value)
+	}
+	return body()
+}
+
+// checkContractPreconditions evaluates each source's preconditions in turn,
+// stopping at the first failure (which has already raised the exception).
+func (e *Evaluator) checkContractPreconditions(
+	sources []contractSource,
+	executing *ast.FunctionDecl,
+	ctx *ExecutionContext,
+) Value {
+	for _, source := range sources {
+		result := e.evalUnderSourceParameters(source, executing, ctx, func() Value {
+			return e.checkPreconditions(source.routineName, source.fn.PreConditions, ctx)
+		})
+		if isError(result) {
+			return result
+		}
+		if ctx.Exception() != nil {
+			return nil
+		}
+	}
+	return nil
 }

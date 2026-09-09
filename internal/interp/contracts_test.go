@@ -607,3 +607,95 @@ func TestContract_FreeFunctionCalledFromMethodKeepsBareName(t *testing.T) {
 		end;
 	`, "Pre-condition failed in RequirePositive [line: 4, column: 4], i > 0")
 }
+
+// TestContract_OverrideInheritsPrecondition verifies that an override with no
+// `require` of its own runs the ancestor's, and that the failure names the
+// class that declares the condition rather than the receiver's dynamic class
+// (SimpleScripts/method_contracts).
+func TestContract_OverrideInheritsPrecondition(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(i : Integer); virtual;
+			require
+				i > 0;
+			begin
+				PrintLn('base ' + IntToStr(i));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			procedure Check(i : Integer); override;
+			begin
+				PrintLn('child ' + IntToStr(i));
+			end;
+		end;
+
+		var c := TChild.Create;
+		c.Check(1);
+		try
+			c.Check(-1);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "child 1\nPre-condition failed in TBase.Check [line: 5, column: 5], i > 0")
+}
+
+// TestContract_InheritedPreconditionThroughBaseReference verifies that the
+// inherited precondition also runs when the call is dispatched virtually
+// through a base-typed reference.
+func TestContract_InheritedPreconditionThroughBaseReference(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(i : Integer); virtual;
+			require
+				i > 0;
+			begin
+				PrintLn('base ' + IntToStr(i));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			procedure Check(i : Integer); override;
+			begin
+				PrintLn('child ' + IntToStr(i));
+			end;
+		end;
+
+		var b : TBase := TChild.Create;
+		try
+			b.Check(0);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TBase.Check [line: 5, column: 5], i > 0")
+}
+
+// TestContract_InheritedPreconditionWithRenamedParameter verifies that an
+// ancestor condition is evaluated against the call's arguments by position,
+// even when the override gives its parameters different names.
+func TestContract_InheritedPreconditionWithRenamedParameter(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+		type TBase = class
+			procedure Check(value : Integer); virtual;
+			require
+				value > 0;
+			begin
+				PrintLn('base ' + IntToStr(value));
+			end;
+		end;
+
+		type TChild = class (TBase)
+			procedure Check(amount : Integer); override;
+			begin
+				PrintLn('child ' + IntToStr(amount));
+			end;
+		end;
+
+		var c := TChild.Create;
+		try
+			c.Check(-3);
+		except
+			on E: Exception do PrintLn(E.Message);
+		end;
+	`, "Pre-condition failed in TBase.Check [line: 5, column: 5], value > 0")
+}

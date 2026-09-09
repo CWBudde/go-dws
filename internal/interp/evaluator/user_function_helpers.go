@@ -337,9 +337,11 @@ func (e *Evaluator) ExecuteUserFunction(
 		return nil, err
 	}
 
-	// Check preconditions before executing function body
-	if fn.PreConditions != nil {
-		if err := e.CheckPreconditions(e.contractRoutineName(fn, funcCtx), fn.PreConditions, funcCtx); isError(err) {
+	// Check preconditions before executing function body, including any the
+	// method inherits from an ancestor declaration.
+	contracts := e.contractChain(fn, funcCtx)
+	if preSources := preconditionSources(contracts, fn); len(preSources) > 0 {
+		if err := e.checkContractPreconditions(preSources, fn, funcCtx); isError(err) {
 			return nil, fmt.Errorf("precondition failed: %v", err)
 		}
 		// If exception was raised during precondition checking, propagate it
