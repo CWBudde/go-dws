@@ -480,10 +480,18 @@ func (a *Analyzer) checkIndexedPropertyMetaclassAccess(
 	if propInfo.IsClassProperty {
 		return true
 	}
+	if a.indexedWriteTargetMember == ast.Expression(memberAccess) {
+		// The target of a plain assignment is never read; checkIndexedPropertyWriteTarget
+		// has already validated the setter.
+		return true
+	}
 	pos := memberAccess.Member.Token.Pos
 	switch propInfo.ReadKind {
 	case types.PropAccessField, types.PropAccessMethod:
-		if propInfo.ReadSpec != "" && classType.ClassMethodFlags[ident.Normalize(propInfo.ReadSpec)] {
+		// Resolve the class-method flag across the hierarchy: an inherited class
+		// method is absent from the derived class's own ClassMethodFlags map, but
+		// the evaluator's LookupClassMethod finds it.
+		if propInfo.ReadSpec != "" && a.isClassMethodInHierarchy(classType, propInfo.ReadSpec) {
 			return true
 		}
 		a.addStructuredError(NewPropertyReadShouldBeStaticMethodError(pos))
@@ -545,7 +553,7 @@ func (a *Analyzer) checkIndexedPropertyWriteTarget(target ast.Expression, propIn
 	}
 	switch propInfo.WriteKind {
 	case types.PropAccessField, types.PropAccessMethod:
-		if propInfo.WriteSpec != "" && classOf.ClassType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)] {
+		if propInfo.WriteSpec != "" && a.isClassMethodInHierarchy(classOf.ClassType, propInfo.WriteSpec) {
 			return true
 		}
 		a.addStructuredError(NewPropertyWriteShouldBeStaticMethodError(pos))

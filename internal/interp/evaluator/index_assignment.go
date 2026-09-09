@@ -512,7 +512,21 @@ func (e *Evaluator) tryIndexedPropertyExpressionWrite(
 	if !ok || pInfo.WriteKind != types.PropAccessExpression {
 		return nil, false
 	}
+	return e.executeIndexedPropertyExpressionWrite(obj, pInfo, indexValues, value, stmt, ctx)
+}
 
+// executeIndexedPropertyExpressionWrite runs the normalized `F[i] := Value`
+// statement of an expression-based indexed setter against the given receiver,
+// which is an instance for an instance property and the class meta value for a
+// class property.
+func (e *Evaluator) executeIndexedPropertyExpressionWrite(
+	obj Value,
+	pInfo *types.PropertyInfo,
+	indexValues []Value,
+	value Value,
+	stmt ast.Node,
+	ctx *ExecutionContext,
+) (Value, bool) {
 	writeStmt, ok := pInfo.WriteExpr.(ast.Statement)
 	if !ok {
 		return e.newError(stmt, "property '%s' has invalid write statement type", pInfo.Name), true
@@ -615,6 +629,11 @@ func (e *Evaluator) evalClassMetaIndexedPropertyWrite(
 			return result, true
 		}
 		return value, true
+
+	case types.PropAccessExpression:
+		// Mirrors the read side, which evaluates an expression accessor in class
+		// context: an expression setter needs no instance either.
+		return e.executeIndexedPropertyExpressionWrite(obj, pInfo, indexValues, value, stmt, ctx)
 
 	default:
 		return e.newError(stmt, readOnlyPropertyWriteMessage), true

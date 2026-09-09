@@ -56,6 +56,56 @@ end;
 			expected: "d\n",
 		},
 		{
+			name: "inherited class-method accessor through the class name",
+			input: `
+type TBase = class
+	class var Store : array [0..4] of String;
+	class function Get(i : Integer) : String;
+	begin
+		Result := Store[i];
+	end;
+	class procedure Put(i : Integer; const v : String);
+	begin
+		Store[i] := v;
+	end;
+end;
+type TChild = class(TBase)
+	property Prop[i : Integer] : String read Get write Put;
+end;
+TChild.Prop[1] := 'inherited';
+PrintLn(TChild.Prop[1]);
+`,
+			expected: "inherited\n",
+		},
+		{
+			name: "write-only indexed property through the class name",
+			input: `
+type TC = class
+	class var Store : array [0..4] of String;
+	class procedure Put(i : Integer; const v : String);
+	begin
+		Store[i] := v;
+	end;
+	property Prop[i : Integer] : String write Put;
+end;
+TC.Prop[1] := 'w';
+PrintLn(TC.Store[1]);
+`,
+			expected: "w\n",
+		},
+		{
+			name: "class property with expression accessors through the class name",
+			input: `
+type TC = class
+	class var Store : array [0..4] of Integer;
+	class property Prop[i : Integer] : Integer read (Store[i]) write (Store[i]);
+end;
+TC.Prop[2] := 7;
+PrintLn(TC.Prop[2]);
+`,
+			expected: "7\n",
+		},
+		{
 			name: "expression accessor through the class name",
 			input: `
 type TC = class
@@ -130,6 +180,23 @@ TC.Prop[1] := 'a';
 			want: []string{
 				"Write access of property should be a static method",
 				"Class method or constructor expected",
+			},
+		},
+		{
+			name: "compound assignment still needs read access",
+			input: `
+type TC = class
+	class var Store : array [0..4] of Integer;
+	class procedure Put(i, v : Integer);
+	begin
+		Store[i] := v;
+	end;
+	property Prop[i : Integer] : Integer write Put;
+end;
+TC.Prop[1] += 5;
+`,
+			want: []string{
+				"Cannot read a write only property",
 			},
 		},
 	}
