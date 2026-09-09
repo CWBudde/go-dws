@@ -150,11 +150,23 @@ checked in source order and misses the abstract-instantiation error. See
 
 These are separate fixes; none requires the class-builder refactor as a prerequisite.
 
-- **L-S2a** `[ ]` S — Correct unused-private-field hint eligibility/usage tracking. First
-  reproduce the alleged JSON serialization mismatch through the current shared pipeline;
-  retain legitimate pedantic hints and property-access usage. Coordinate with §3.1 backing
-  fields. Acceptance: an affected JSONConnectorPass serialization fixture matches its
-  diagnostic envelope, plus a regression for a genuinely unused field.
+**Done (2026-09-09):** L-S2a. The ticket's premise did not reproduce — measured on the shared
+pipeline, `JSONConnectorPass/serialize_class` passes and no failing JSONConnectorPass fixture
+involves the hint at all. The real defect was a false positive: a private field named by bare
+name inside a method body or an expression-form property accessor resolved through the symbol
+table and was never marked used. Class field bindings now carry their declaring class
+(`Symbol.ClassFieldOwner`), the six fixtures that emitted a bogus hint emit none, and fixtures
+rose 888 → 892. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--unused-private-field-hint-usage-tracking-l-s2a).
+
+- ✋ Unused-private-field hints when the program also has a compile error: the blanket
+  suppression in `internal/semantic/unused_warnings.go` drops every private-member hint for a
+  class as soon as any non-hint diagnostic exists, which contradicts
+  `OverloadsFail/overloads_not_implem`. That fixture fails for unrelated parser reasons, so the
+  rule is untestable today. Reopen once the fixture parses.
+- ✋ Unused-private hints for record fields and class vars: `types.RecordType` has
+  `FieldVisibility` but no usage-tracking infrastructure, and class vars have none either.
+  Measured 2026-09-09; no fixture demands it.
 - **L-S2b** `[ ]` S — Resolve helper properties through a metaclass →
   PropertyExpressionsPass `helpers_property_expressions`. Cover getter and setter resolution
   using existing property metadata; coordinate with §3.1 property handling.

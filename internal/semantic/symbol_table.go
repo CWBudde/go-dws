@@ -10,7 +10,13 @@ import (
 
 // Symbol represents a symbol in the symbol table (variable or function)
 type Symbol struct {
-	Type                  types.Type
+	Type types.Type
+	// ClassFieldOwner is set only on the synthesized bindings that make a class's
+	// own fields visible by bare name inside a method body or a property
+	// expression accessor. It names the declaring class, so a bare-name reference
+	// can be attributed back to the field for unused-private-field tracking; a
+	// local that shadows a field is an ordinary symbol and leaves it nil.
+	ClassFieldOwner       *types.ClassType
 	Value                 interface{}
 	Name                  string
 	DeprecationMessage    string
@@ -65,6 +71,18 @@ func (st *SymbolTable) Define(name string, typ types.Type, pos token.Position) {
 		IsConst:      false,
 		DeclPosition: pos,
 		Usages:       make([]token.Position, 0),
+	})
+}
+
+// DefineClassField defines a synthesized binding that exposes a class field by
+// bare name in the current scope, recording the declaring class on the symbol.
+func (st *SymbolTable) DefineClassField(name string, typ types.Type, owner *types.ClassType) {
+	st.symbols.Set(name, &Symbol{
+		Name:            name, // Keep original case for error messages
+		Type:            typ,
+		ClassFieldOwner: owner,
+		DeclPosition:    token.Position{},
+		Usages:          make([]token.Position, 0),
 	})
 }
 

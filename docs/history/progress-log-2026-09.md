@@ -746,3 +746,64 @@ abstract class" — the statement is checked before `TA` exists. This is unchang
 `c8cfbc4a` (verified against the pre-change binary) and is inherent to executable statements
 keeping source order, which L-S1c's acceptance criteria require; fixing it would mean deferring
 statement analysis, a much larger change.
+
+## 2026-09-09 — Unused-private-field hint: usage tracking (L-S2a)
+
+`PLAN.md` §3.2.2 L-S2a. The section instructs confirming each failure before implementing, and
+here that mattered: **the ticket's premise did not reproduce.**
+`JSONConnectorPass/serialize_class` passes cleanly under `--hints pedantic`, and none of the 23
+currently-failing JSONConnectorPass fixtures involves an unused-private-field hint at all —
+they fail on record copy-on-assign value semantics, missing connector APIs, VARIANT member
+access and runtime-message wording. `stringify_record`, the closest candidate, differs on
+`{"BottomRight":{"x":1,"y":3}}` vs `…"y":2`, which is the record-assignment item already
+tracked separately in `PLAN.md`. The stated acceptance fixture is retired.
+
+**What actually reproduced** is a false-positive class, found by sweeping every fixture at
+pedantic level and diffing the emitted `Private field` hints against the expected `.txt`:
+
+```pascal
+type TA = class
+   private FA : Integer;   // Self.FA       -> correctly marked used
+   private FB : Integer;   // FB := 1       -> HINTED (wrong)
+   private FC : Integer;   // PrintLn(FC)   -> HINTED (wrong)
+   private FD : Integer;
+   public property Q : Integer read (FD * 2);   // -> HINTED (wrong)
+   public procedure Touch;
+   begin Self.FA := 0; FB := 1; PrintLn(FC); end;
+end;
+```
+
+**Root cause.** `defineMethodScopeMembers` (`internal/semantic/analyze_classes_decl.go`) and
+`bindClassPropertyExprScope` (`internal/semantic/analyze_properties.go`) inject a class's own
+fields into the scope as ordinary symbols so a method body or a property accessor can name them
+without `Self.`. A bare identifier therefore resolves against the symbol table and never reaches
+the `a.currentClass.GetField(...)` fallbacks in `analyze_expr_operators.go` /
+`analyze_statements.go` — the only places that called `recordClassFieldUsage` for implicit-`Self`
+access. Qualified `obj.Field` and property read/write *specifiers* were marked correctly, which
+is why `FailureScripts/class_unused_privates` kept passing and hid the gap.
+
+**Fix.** The binding itself now carries the attribution rather than a side table:
+`SymbolTable.DefineClassField` sets `Symbol.ClassFieldOwner` to the declaring class, and the two
+symbol-resolution sites call `recordResolvedSymbolFieldUsage(sym)`, which forwards to the
+existing `recordClassFieldUsage`. Putting it on the symbol rather than in a name-keyed map is
+what makes shadowing correct for free: a local declared as `FValue` inside the method replaces
+the binding with an ordinary symbol whose `ClassFieldOwner` is nil, so it does not mark the
+field used. Inherited fields need nothing — `addParentFieldsToScope` deliberately omits private
+parent fields, and only private fields are ever hinted.
+
+**Tests.** `internal/semantic/unused_private_field_test.go` is new; the message previously had
+*zero* Go test coverage, only fixtures. Ten table-driven cases cover qualified read, bare read
+inline and out-of-line, bare and compound assignment, expression-form read and write accessors,
+identifier specifiers, a genuinely unused field that must still be hinted, and the shadowing
+case; plus sibling fields tracked independently and the hint staying pedantic-only.
+
+**Validation:** `go test ./internal/... ./pkg/...` green. The full-tree sweep for
+`Private field` hints not present in the expected output went from **six**
+(`Algorithms/bottles_of_beer`, `GenericsPass/tlist1`, `InnerClassesPass/inner_implem`,
+`SetOfPass/enum_property`, `SimpleScripts/free_destroy`, `SimpleScripts/partial_class3`) to
+**zero**. `just fixture-report` **888 → 892 / 2,042** (measured on `894e387c`, with the change
+stashed and unstashed): GenericsPass 14 → 15, InnerClassesPass 0 → 1, SetOfPass 20 → 21,
+SimpleScripts 334 → 335, no category down. The two that did not
+convert are unrelated: `Algorithms` runs at `normal` hints in the harness, and
+`SimpleScripts/partial_class3` still differs on partial-class redeclaration handling.
+`baselines.json` and `TEST_STATUS.md` ratcheted with `just fixture-update`.

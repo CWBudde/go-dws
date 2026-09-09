@@ -443,6 +443,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
+		a.recordResolvedSymbolFieldUsage(sym)
+
 		if ident.Equal(target.Value, "Result") {
 			a.recordSymbolUsage("Result", target.Token.Pos)
 		}
