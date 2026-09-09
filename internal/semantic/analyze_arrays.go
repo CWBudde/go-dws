@@ -270,8 +270,10 @@ func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessEx
 	}
 
 	objectResolved := types.GetUnderlyingType(objectType)
+	isMetaclass := false
 	if metaclassType, ok := objectResolved.(*types.ClassOfType); ok {
 		objectResolved = metaclassType.ClassType
+		isMetaclass = true
 	}
 
 	memberName := ident.Normalize(memberAccess.Member.Value)
@@ -281,6 +283,14 @@ func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessEx
 		if propInfo, found := classType.GetProperty(memberName); found {
 			if !propInfo.IsIndexed {
 				// Not an indexed property – let general indexing rules apply to the property type
+				return nil
+			}
+
+			// Reaching an indexed property through a class name is legal only when the
+			// accessor needs no instance. This mirrors the rule the plain member-access
+			// path applies in analyzeClassMemberAccess; without it, semantic analysis
+			// accepted what the evaluator could not execute.
+			if isMetaclass && !a.checkIndexedPropertyMetaclassAccess(classType, propInfo, memberAccess) {
 				return nil
 			}
 
@@ -455,4 +465,93 @@ func (a *Analyzer) analyzeNewArrayExpression(expr *ast.NewArrayExpression) types
 	}
 
 	return resultType
+}
+
+// checkIndexedPropertyMetaclassAccess validates reading an indexed instance property
+// through a class name. Only a class-method accessor is reachable without an
+// instance; a field-, expression- or instance-method-backed accessor is diagnosed
+// with the same messages the non-indexed metaclass path uses. Class properties are
+// always allowed. Returns false when a diagnostic was emitted.
+func (a *Analyzer) checkIndexedPropertyMetaclassAccess(
+	classType *types.ClassType,
+	propInfo *types.PropertyInfo,
+	memberAccess *ast.MemberAccessExpression,
+) bool {
+	if propInfo.IsClassProperty {
+		return true
+	}
+	pos := memberAccess.Member.Token.Pos
+	switch propInfo.ReadKind {
+	case types.PropAccessField, types.PropAccessMethod:
+		if propInfo.ReadSpec != "" && classType.ClassMethodFlags[ident.Normalize(propInfo.ReadSpec)] {
+			return true
+		}
+		a.addStructuredError(NewPropertyReadShouldBeStaticMethodError(pos))
+		a.addStructuredError(NewClassMethodOrConstructorExpectedError(pos))
+		return false
+	default:
+		a.addStructuredError(NewObjectReferenceNeededError(pos))
+		return false
+	}
+}
+
+// indexedPropertyOfMemberAccess resolves the indexed property a member access names,
+// or nil when the expression is not a member access on a class, or names no indexed
+// property. It does not analyze the member access.
+func (a *Analyzer) indexedPropertyOfMemberAccess(expr ast.Expression) *types.PropertyInfo {
+	memberAccess, ok := expr.(*ast.MemberAccessExpression)
+	if !ok {
+		return nil
+	}
+	objectType := a.analyzeExpression(memberAccess.Object)
+	if objectType == nil {
+		return nil
+	}
+	objectResolved := types.GetUnderlyingType(objectType)
+	if metaclassType, ok := objectResolved.(*types.ClassOfType); ok {
+		objectResolved = metaclassType.ClassType
+	}
+	classType, ok := objectResolved.(*types.ClassType)
+	if !ok {
+		return nil
+	}
+	propInfo, found := classType.GetProperty(ident.Normalize(memberAccess.Member.Value))
+	if !found || !propInfo.IsIndexed {
+		return nil
+	}
+	return propInfo
+}
+
+// checkIndexedPropertyWriteTarget validates writing an indexed property, including
+// through a class name, where only a class-method setter is reachable. It is the
+// write counterpart of checkIndexedPropertyMetaclassAccess. Returns false when a
+// diagnostic was emitted, so the caller can stop before the read-side analysis
+// reports the same problem a second time.
+func (a *Analyzer) checkIndexedPropertyWriteTarget(target ast.Expression, propInfo *types.PropertyInfo) bool {
+	memberAccess, ok := target.(*ast.MemberAccessExpression)
+	if !ok {
+		return true
+	}
+	pos := memberAccess.Member.Token.Pos
+	if propInfo.WriteKind == types.PropAccessNone {
+		a.addStructuredError(NewReadOnlyPropertyError(pos, memberAccess.Member.Value))
+		return false
+	}
+
+	objectType := a.analyzeExpression(memberAccess.Object)
+	classOf, isMetaclass := types.GetUnderlyingType(objectType).(*types.ClassOfType)
+	if !isMetaclass || propInfo.IsClassProperty || classOf.ClassType == nil {
+		return true
+	}
+	switch propInfo.WriteKind {
+	case types.PropAccessField, types.PropAccessMethod:
+		if propInfo.WriteSpec != "" && classOf.ClassType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)] {
+			return true
+		}
+		a.addStructuredError(NewPropertyWriteShouldBeStaticMethodError(pos))
+		a.addStructuredError(NewClassMethodOrConstructorExpectedError(pos))
+	default:
+		a.addStructuredError(NewObjectReferenceNeededError(pos))
+	}
+	return false
 }

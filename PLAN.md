@@ -148,7 +148,8 @@ checked in source order and misses the abstract-instantiation error. See
 
 #### 3.2.2 Diagnostics and metaclass properties
 
-These are separate fixes; none requires the class-builder refactor as a prerequisite.
+**Closed 2026-09-09.** All three items shipped; the ✋ notes below record what was measured and
+deliberately left out.
 
 **Done (2026-09-09):** L-S2a. The ticket's premise did not reproduce — measured on the shared
 pipeline, `JSONConnectorPass/serialize_class` passes and no failing JSONConnectorPass fixture
@@ -167,6 +168,7 @@ rose 888 → 892. See
 - ✋ Unused-private hints for record fields and class vars: `types.RecordType` has
   `FieldVisibility` but no usage-tracking infrastructure, and class vars have none either.
   Measured 2026-09-09; no fixture demands it.
+
 **Done (2026-09-09):** L-S2b. Helper properties now support expression-form accessors and are
 reachable through a metaclass, a type cast's static class, and a record receiver, on both the
 read and the write side; a non-identifier write specifier is recognized as the lvalue shorthand
@@ -181,9 +183,15 @@ PropertyExpressionsPass 15 → 18. See
   2026-09-09; a distinct gap from helper properties, belongs with §3.1 property handling.
 - ✋ Record-type metaclass member access (`TRec.SomeClassProperty` through the type name, as
   opposed to through an instance) is unsupported. Measured 2026-09-09; no fixture demands it.
-- **L-S2c** `[ ]` S — Resolve indexed reads through a metaclass when the accessor is a class
-  method → SimpleScripts `enum_to_integer`. Preserve the accessor's class receiver and
-  validate index arguments; coordinate shared index validation with §3.4.
+
+**Done (2026-09-09):** L-S2c, closing this section. An indexed property whose accessor is a class
+method now resolves through a class name *and* through an instance, on both the read and the
+write side, with the metaclass bound as the accessor's receiver and index arity validated against
+the declared index parameters. Semantic analysis was tightened to match: reaching such a property
+through a class name when the accessor needs an instance is now a compile-time diagnostic with the
+same messages the non-indexed metaclass path uses, instead of semantic accepting what the
+evaluator could not execute. `SimpleScripts/enum_to_integer` passes, 895 → 896. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--indexed-properties-with-class-method-accessors-l-s2c).
 
 #### 3.2.3 Contracts
 

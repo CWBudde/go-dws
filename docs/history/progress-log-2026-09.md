@@ -872,3 +872,59 @@ no category down. `golangci-lint run --new-from-rev`: 0 issues. Baselines ratche
 **Left open, recorded in `PLAN.md`.** `read_write_other_property` (a property whose specifier
 names another property) is a different gap, and record-type metaclass access (`TRec.ClassProp`
 through the type name rather than an instance) remains unsupported; no fixture demands it.
+
+## 2026-09-09 — Indexed properties with class-method accessors (L-S2c)
+
+`PLAN.md` §3.2.2 L-S2c, closing the section. `SimpleScripts/enum_to_integer` failed with
+`Runtime Error: member 'Prop' not found in class 'TConvert'` on `TConvert.Prop[eGamma]`, where
+`Prop` is an ordinary indexed property whose getter happens to be a `class function`. Minimising
+it showed the ticket's framing was half the story: **the same read through an instance failed
+too**, with `indexed property 'Prop' getter method 'Get' not found`.
+
+**Root causes.** `executeIndexedPropertyGetterMethod`
+(`internal/interp/evaluator/property_read.go`) resolved the accessor with
+`objVal.GetMethodDecl`, which walks only the instance method table —
+`ObjectInstance.GetClassMethodDecl` already existed for precisely this case (DWScript permits
+calling a class method through an instance) and was simply not consulted. Separately,
+`VisitIndexExpression` (`visitor_expressions_indexing.go`) matched three receiver shapes for
+`obj.Prop[i]` — interface instance, object, record — and had **no metaclass branch**, so
+`TConvert.Prop[…]` fell through to plain member access and died in `resolveClassMetaMember`.
+Neither `evalClassPropertyRead` nor `ReadClassProperty` could have helped: the first rejects
+indexed properties outright, the second rejects anything with `!IsClassProperty`, and `Prop` is
+an instance property.
+
+**Fix.** The accessor lookup now falls back to the class method table and, when it lands there,
+invokes the accessor with the metaclass as receiver (`classSelfForInstance` for an instance
+receiver) so `Self` and `ClassName` resolve to the class. `evalClassMetaIndexedProperty` adds the
+missing receiver branch: it resolves the property from the class info, evaluates and arity-checks
+the indices against `PropertyInfo.IndexParamTypes` — the authoritative arity, available for
+expression accessors too — and dispatches to the class method or, for `PropAccessExpression`, to
+the existing `executeIndexedPropertyExpressionRead`. It reports *unhandled* rather than erroring
+when the class declares no such indexed property, so ordinary member access still produces its
+usual not-found diagnostic.
+
+**The write side mirrors it**, though no fixture demands it: `index_assignment.go` gained the same
+`GetMethodDecl` → `GetClassMethodDecl` fallback on both the named and default-property setter
+paths, plus `evalClassMetaIndexedPropertyWrite`. Leaving it out would have made
+`TC.Prop[i]` readable but not writable.
+
+**Semantic tightened to match.** `analyzeIndexedPropertyAccess`
+(`internal/semantic/analyze_arrays.go`) unwrapped `*types.ClassOfType` and returned the property
+type for *any* indexed property, bypassing the metaclass restriction the plain member-access path
+enforces — semantic and runtime disagreed about which side supported this.
+`checkIndexedPropertyMetaclassAccess` now applies the same rule with the same messages
+(`Read access of property should be a static method` + `Class method or constructor expected` for
+an instance-method accessor, `Object reference needed` for field/expression accessors). The write
+counterpart, `checkIndexedPropertyWriteTarget`, also unblocks the legal case: the assignment path
+used to call `analyzeExpression(target.Left)` on the bare `TC.Prop`, which is not a readable
+expression, and rejected the whole statement. That standalone analysis is now skipped for an
+indexed-property base, and the write check returns early when it diagnoses so the read-side check
+does not report the same problem twice.
+
+**Validation:** `go test ./internal/... ./pkg/...` green;
+`internal/interp/indexed_property_class_accessor_test.go` is new — five execution subtests
+(read/write through the class name and through an instance, in both combinations, plus an
+expression accessor through the class name) and two diagnostic subtests pinning the rejected
+instance-method getter and setter. `just fixture-report` **895 → 896 / 2,042**,
+`SimpleScripts/enum_to_integer`, no category down. `golangci-lint run --new-from-rev`: 0 issues.
+Baselines ratcheted. §3.2.2 is now closed.

@@ -110,6 +110,16 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 			}
 		}
 
+		// Handle indexed property access through a class name. The property need not
+		// be a `class property`: DWScript allows an ordinary indexed property whose
+		// accessor is a class method to be read through the class, since the accessor
+		// needs no instance.
+		if classMetaVal, ok := objVal.(ClassMetaValue); ok {
+			if result, handled := e.evalClassMetaIndexedProperty(objVal, classMetaVal, memberAccess.Member.Value, indices, node, ctx); handled {
+				return result
+			}
+		}
+
 		// Not an indexed property - fall through to normal member access handling
 		// This will likely error, but let it be handled by the regular logic below
 	}
@@ -362,4 +372,65 @@ func (e *Evaluator) VisitRecordLiteralExpression(node *ast.RecordLiteralExpressi
 	recordValue := runtime.NewRecordValueWithInitializer(recordType, metadata, initializer)
 
 	return recordValue
+}
+
+// evalClassMetaIndexedProperty reads an indexed property through a class name, e.g.
+// `TConvert.Prop[i]`. It reports handled=false when the class declares no such
+// indexed property, so the caller can fall through to ordinary member access and
+// produce the usual not-found diagnostic.
+//
+// Only accessors that need no instance are reachable this way: a class method, or an
+// expression accessor evaluated in class context. An indexed property backed by an
+// instance method is a compile-time error (see analyzeIndexedPropertyAccess); the
+// runtime check here is the backstop for anything that slips past it.
+func (e *Evaluator) evalClassMetaIndexedProperty(
+	obj Value,
+	classMetaVal ClassMetaValue,
+	memberName string,
+	indices []ast.Expression,
+	node ast.Node,
+	ctx *ExecutionContext,
+) (Value, bool) {
+	classInfo := classMetaVal.GetClassInfo()
+	if classInfo == nil {
+		return nil, false
+	}
+	propDesc := classInfo.LookupProperty(memberName)
+	if propDesc == nil || !propDesc.IsIndexed {
+		return nil, false
+	}
+	pInfo, ok := unwrapPropertyInfo(propDesc.Impl)
+	if !ok {
+		return e.newError(node, "invalid property info type"), true
+	}
+
+	indexVals := make([]Value, len(indices))
+	for i, indexExpr := range indices {
+		indexVals[i] = e.Eval(indexExpr, ctx)
+		if isError(indexVals[i]) {
+			return indexVals[i], true
+		}
+	}
+	if errVal := e.checkIndexedPropertyArity(pInfo, len(indexVals), node); errVal != nil {
+		return errVal, true
+	}
+
+	switch pInfo.ReadKind {
+	case types.PropAccessField, types.PropAccessMethod:
+		method := classInfo.LookupClassMethod(pInfo.ReadSpec)
+		if method == nil {
+			return e.newError(node, "indexed property '%s' getter '%s' is not a class method, so it cannot be read through class '%s'",
+				pInfo.Name, pInfo.ReadSpec, classMetaVal.GetClassName()), true
+		}
+		if errVal := e.checkIndexedAccessorArity(pInfo, method, pInfo.ReadSpec, len(indexVals), "getter", node); errVal != nil {
+			return errVal, true
+		}
+		return e.executeIndexedPropertyClassMethod(obj, method, indexVals, pInfo, node, ctx), true
+
+	case types.PropAccessExpression:
+		return e.executeIndexedPropertyExpressionRead(obj, pInfo, indexVals, node, ctx), true
+
+	default:
+		return e.newError(node, "indexed property '%s' has no read access", pInfo.Name), true
+	}
 }
