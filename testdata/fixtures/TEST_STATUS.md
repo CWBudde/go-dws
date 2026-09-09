@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 906 |
-| Failed | 1022 |
+| Passed | 910 |
+| Failed | 1018 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **47%** (906/1928) |
+| **Scored pass rate** | **47%** (910/1928) |
 
 ## Per-category
 
@@ -73,7 +73,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | OperatorOverloadFail | 6 | 0 | 6 | 0 | 0% |
 | OperatorOverloadPass | 8 | 5 | 3 | 0 | 62% |
 | OverloadsFail | 14 | 0 | 14 | 0 | 0% |
-| OverloadsPass | 39 | 33 | 6 | 0 | 85% |
+| OverloadsPass | 39 | 37 | 2 | 0 | 95% |
 | PropertyExpressionsFail | 10 | 0 | 10 | 0 | 0% |
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
 | SetOfFail | 14 | 1 | 13 | 0 | 7% |
