@@ -230,9 +230,10 @@ func (e *Evaluator) GetDefaultValue(typ types.Type, ctx *ExecutionContext) Value
 			return runtime.NewArrayValue(arrType, nil)
 		}
 		return e.nilValue()
-	case "RECORD":
-		// Records are value types and must be zero-initialized, especially when
-		// dynamic arrays grow via SetLength and allocate new record elements.
+	case "RECORD", "SET", "ASSOCIATIVE_ARRAY":
+		// Records and sets are value types and must be zero-initialized,
+		// especially when dynamic arrays grow via SetLength and allocate new
+		// elements. A set-typed Result must start as the empty set, not nil.
 		return e.getZeroValueForType(typ, ctx)
 	case "VARIANT":
 		// Variants default to Unassigned (nil-like)

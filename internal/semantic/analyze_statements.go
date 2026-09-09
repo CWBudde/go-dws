@@ -779,7 +779,8 @@ func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
 	// Check if this block is a declaration section (types/const/var).
 	// Declaration sections should not create a new scope - their symbols
 	// must stay visible to subsequent statements in the enclosing scope.
-	shareEnclosingScope := a.isTypeDeclarationBlock(stmt) || a.isConstOrVarDeclBlock(stmt)
+	shareEnclosingScope := stmt.SharesEnclosingScope ||
+		a.isTypeDeclarationBlock(stmt) || a.isConstOrVarDeclBlock(stmt)
 
 	// Create a new scope for the block (unless it's a type declaration block)
 	var oldSymbols *SymbolTable

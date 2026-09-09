@@ -134,13 +134,17 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 		return nil
 	}
 
-	// Expect semicolon after closing paren
-	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after enum declaration", ErrMissingSemicolon)
-		return nil
+	// Expect semicolon after closing paren, except for an enum synthesized from
+	// an inline `set of (a, b)` in a type position, where the type expression
+	// continues after the closing paren (`= []`, `)`, `;`, …).
+	if !p.parsingInlineEnum {
+		if cursor.Peek(1).Type != lexer.SEMICOLON {
+			p.addError("expected ';' after enum declaration", ErrMissingSemicolon)
+			return nil
+		}
+		cursor = cursor.Advance() // move to SEMICOLON
+		p.cursor = cursor
 	}
-	cursor = cursor.Advance() // move to SEMICOLON
-	p.cursor = cursor
 
 	// End position is at the semicolon
 	decl := builder.Finish(enumDecl).(*ast.EnumDecl)

@@ -179,6 +179,29 @@ func TestRecordLiterals(t *testing.T) {
 				var person: TPerson := (Name: 'Alice', Age: 30);
 			`,
 		},
+		{
+			// DWScript allows a partial record constructor; every field the
+			// literal does not name keeps its default value.
+			name: "partial record literal defaults the omitted fields",
+			input: `
+				type TPoint = record
+					X, Y: Integer;
+				end;
+				var p: TPoint := (X: 10);
+			`,
+		},
+		{
+			name: "partial record constant with a set field",
+			input: `
+				type TMyEnum = (enumOne, enumTwo);
+				type TMySet = set of TMyEnum;
+				type TRecord = record
+					A : TMySet;
+					B : TMySet;
+				end;
+				const rA : TRecord = (A: [enumOne]);
+			`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -213,16 +236,6 @@ func TestRecordLiteralErrors(t *testing.T) {
 				var p: TPoint := (X: 10, Y: 'hello');
 			`,
 			expectedError: "cannot assign String to Integer",
-		},
-		{
-			name: "missing required fields",
-			input: `
-				type TPoint = record
-					X, Y: Integer;
-				end;
-				var p: TPoint := (X: 10);
-			`,
-			expectedError: "missing required field 'Y'",
 		},
 		{
 			name: "duplicate field in literal",

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -107,6 +109,34 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 	return setDecl
 }
 
+// parseInlineSetEnum parses the `(a, b)` of an inline `set of (a, b)` in a type
+// position, queues the implicit enum declaration for parseStatement to hoist,
+// and returns the type expression naming it.
+//
+// PRE: cursor is OF, and the next token is LPAREN
+// POST: cursor is the enum's closing RPAREN
+func (p *Parser) parseInlineSetEnum(setToken lexer.Token) ast.TypeExpression {
+	enumName := &ast.Identifier{
+		Value: fmt.Sprintf("$InlineEnum$%d$%d", setToken.Pos.Line, setToken.Pos.Column),
+		TypedExpressionBase: ast.TypedExpressionBase{
+			BaseNode: ast.BaseNode{Token: setToken},
+		},
+	}
+
+	p.parsingInlineEnum = true
+	enumDecl := p.parseEnumDeclaration(enumName, setToken, false, false)
+	p.parsingInlineEnum = false
+	if enumDecl == nil {
+		return nil
+	}
+	p.pendingTypeDecls = append(p.pendingTypeDecls, enumDecl)
+
+	return &ast.TypeAnnotation{
+		Token: enumName.Token,
+		Name:  enumName.Value,
+	}
+}
+
 // parseSetType parses an inline set type expression.
 // Called when we encounter 'set' in a type context.
 // Current token should be 'set'.
@@ -134,18 +164,31 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 	cursor = cursor.Advance() // move to OF
 	p.cursor = cursor
 
-	// Parse element type
-	cursor = cursor.Advance() // move to element type
-	p.cursor = cursor
+	var elementType ast.TypeExpression
 
-	// Element type can be:
-	// 1. Simple identifier: TEnum
-	// 2. Inline anonymous enum: (A, B, C) - would be handled by parseTypeExpression
-	// 3. Subrange: 1..100 - might need special handling in future
-	elementType := p.parseTypeExpression()
-	if elementType == nil {
-		p.addError("expected type expression after 'set of'", ErrExpectedType)
-		return nil
+	if cursor.Peek(1).Type == lexer.LPAREN {
+		// Inline anonymous enum: `var s : set of (a, b)`. Unlike the named form
+		// (`type TMy = set of (a, b)`, handled in parseSetDeclaration) there is
+		// no type name to derive the implicit enum's name from, so mint one from
+		// the 'set' token's position and queue the declaration for
+		// parseStatement to hoist ahead of the statement being parsed.
+		elementType = p.parseInlineSetEnum(setToken)
+		if elementType == nil {
+			return nil
+		}
+	} else {
+		// Parse element type
+		cursor = cursor.Advance() // move to element type
+		p.cursor = cursor
+
+		// Element type can be:
+		// 1. Simple identifier: TEnum
+		// 2. Subrange: 1..100 - might need special handling in future
+		elementType = p.parseTypeExpression()
+		if elementType == nil {
+			p.addError("expected type expression after 'set of'", ErrExpectedType)
+			return nil
+		}
 	}
 
 	setTypeNode := &ast.SetTypeNode{

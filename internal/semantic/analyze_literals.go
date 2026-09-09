@@ -345,17 +345,11 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 		}
 	}
 
-	// Check for missing required fields (skip fields with default initializers)
-	for fieldName := range recordType.Fields {
-		if !initializedFields[fieldName] {
-			// Check if the field has a default initializer
-			if recordType.FieldsWithInit != nil && recordType.FieldsWithInit[fieldName] {
-				// Field has a default initializer, so it's not required in the literal
-				continue
-			}
-			a.addError("missing required field '%s' in record literal", fieldName)
-		}
-	}
+	// Omitted fields are not an error: DWScript allows a partial record
+	// constructor and default-initializes every field the literal does not name
+	// (see SetOfPass/set_in_record, where `const rA : TRecord = (A: [enumOne])`
+	// leaves `B` as the empty set). The runtime supplies those defaults through
+	// createRecordZeroValue -> getZeroValueForType.
 
 	return recordType
 }
@@ -582,3 +576,4 @@ func (a *Analyzer) analyzeAnonymousRecordExpression(expr *ast.AnonymousRecordExp
 
 	return recordType
 }
+

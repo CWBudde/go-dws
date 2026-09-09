@@ -255,3 +255,29 @@ func (e *Evaluator) lookupEnumType(typeName string) (*types.EnumType, error) {
 
 	return enumMetadata.GetEnumType(), nil
 }
+
+// evalBracketLiteralAsSet evaluates a bracket literal the parser classified as an
+// array constructor against a set-typed context, e.g. the `[]` in
+// `var s : set of TElem = [];`. A non-empty `[a, b]` already reaches the
+// evaluator as an *ast.SetLiteral, so in practice this covers the empty literal
+// and any literal whose elements defeated the parser's heuristic.
+func (e *Evaluator) evalBracketLiteralAsSet(
+	lit *ast.ArrayLiteralExpression,
+	setType *types.SetType,
+	ctx *ExecutionContext,
+) Value {
+	setLit := &ast.SetLiteral{
+		Elements:            lit.Elements,
+		TypedExpressionBase: lit.TypedExpressionBase,
+	}
+
+	// Annotate the synthetic node so evalSetLiteralDirect can materialize the
+	// typed empty set instead of failing to infer an element type.
+	if e.SemanticInfo() != nil {
+		e.SemanticInfo().SetType(setLit, &ast.TypeAnnotation{Token: setLit.Token, Name: setType.String()})
+		e.SemanticInfo().SetResolvedType(setLit, setType)
+		defer e.SemanticInfo().ClearType(setLit)
+	}
+
+	return e.evalSetLiteralDirect(setLit, ctx)
+}
