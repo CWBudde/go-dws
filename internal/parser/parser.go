@@ -96,6 +96,7 @@ type Parser struct {
 	blockStack           []BlockContext
 	pendingTypeDecls     []ast.Statement
 	parsingInlineEnum    bool
+	parsingParameterList bool
 	parsingPostCondition bool
 }
 

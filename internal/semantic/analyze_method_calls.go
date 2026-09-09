@@ -260,6 +260,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		if setType, isSet := types.GetUnderlyingType(objectType).(*types.SetType); isSet {
 			switch methodNameLower {
 			case "include", "exclude":
+				// Both mutate the set in place, so the receiver must be a
+				// writable variable — not a constant, and not a call's result.
+				if !a.isMutableSetReceiver(expr.Object, expr.Method.Token.Pos) {
+					return types.VOID
+				}
+
 				if len(expr.Arguments) != 1 {
 					a.addError("set method '%s' expects 1 argument, got %d at %s",
 						methodName, len(expr.Arguments), expr.Token.Pos.String())

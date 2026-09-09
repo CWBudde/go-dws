@@ -644,6 +644,11 @@ func (a *Analyzer) evaluateConstantTypeCast(typeName string, arg ast.Expression)
 			// Integer → Enum: Return the integer ordinal
 			// The const will store the ordinal value, which will be converted to EnumValue at runtime
 			return v
+		case float64:
+			// Float → Enum truncates to the ordinal, the same way castToEnum does
+			// at run time. Folding it here keeps the compile-time set-bounds check
+			// consistent between `[TEnum(3)]` and `[TEnum(3.5)]`.
+			return int(v)
 		default:
 			return nil // Can't cast this type to enum at compile time
 		}

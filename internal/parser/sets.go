@@ -121,6 +121,22 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 // PRE: cursor is OF, and the next token is LPAREN
 // POST: cursor is the enum's closing RPAREN
 func (p *Parser) parseInlineSetEnum(setToken lexer.Token) ast.TypeExpression {
+	// The hoist target is the statement being parsed, and a parameter list has
+	// none of its own — the nearest statement is the whole routine declaration,
+	// so hoisting there would publish the anonymous enum's members into the
+	// scope *around* the routine. Rejecting is the conservative choice: this
+	// position did not parse at all before inline set enums were added, no
+	// fixture uses it, and the correct scope for such an enum is genuinely
+	// ambiguous (the members would have to be visible to callers to build an
+	// argument, yet they are declared inside the signature).
+	// The diagnostic is recorded here and parsing continues normally: the error
+	// already stops the program from compiling, so where the (unreachable)
+	// declaration ends up no longer matters, and the caller keeps a well-formed
+	// type expression to work with.
+	if p.parsingParameterList {
+		p.addError("anonymous enumeration is not allowed in a parameter's set type; declare the enumeration first", ErrExpectedType)
+	}
+
 	enumName := &ast.Identifier{
 		Value: fmt.Sprintf("$InlineEnum$%d$%d", setToken.Pos.Line, setToken.Pos.Column),
 		TypedExpressionBase: ast.TypedExpressionBase{

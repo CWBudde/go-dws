@@ -1018,27 +1018,41 @@ func (a *Analyzer) analyzeTypeCast(typeName string, args []ast.Expression, expr 
 	return targetType, true
 }
 
-// maxSetIntegerCastElements is the widest set base type that survives a cast to
-// or from Integer. DWScript builds the integer form as a bitmask, so a base type
-// spanning more ordinals than this has no integer representation.
-const maxSetIntegerCastElements = 32
+// maxSetIntegerCastOrdinal is the highest element ordinal a set may hold and
+// still have an integer representation.
+//
+// The integer form of a set is a bitmask in which an element's *absolute*
+// ordinal is the bit index — `castToSet` and the `Integer(set)` cast both index
+// by ordinal, not by an offset from the base type's low bound. So the rule is
+// about the highest reachable ordinal, not about how many elements the base
+// type spans: `set of (h33 = 33, h64 = 64)` spans only 32 values but needs bit
+// 64, which no mask holds.
+//
+// The bound itself is pinned by the corpus rather than by upstream source
+// (`reference/dwscript-original/` is empty in this checkout):
+// `SetOfPass/set_to_integer` and `set_to_integer2` cast base types with ordinals
+// 0..1 and must succeed, while `SetOfFail/integer_vs_set` casts
+// `(one = 1, fifty = 50)` and must fail. That places the limit somewhere in
+// 1..49, so the mask is a 32-bit one and the highest usable bit is 31.
+const maxSetIntegerCastOrdinal = 31
 
-// checkSetIntegerCastWidth validates a set <-> Integer cast against the set's
-// base-type width, reporting DWScript's diagnostic when it does not fit.
+// checkSetIntegerCastWidth validates a set <-> Integer cast against the ordinal
+// range of the set's base type, reporting DWScript's diagnostic when the set has
+// no integer representation.
 func (a *Analyzer) checkSetIntegerCastWidth(setType *types.SetType, pos token.Position) bool {
 	if setType == nil || setType.ElementType == nil {
 		return true
 	}
 
+	// An unbounded ordinal base (`set of Integer`) has no bitmask form at all:
+	// the set itself works, backed by map storage, but a cast would silently
+	// drop every element outside the mask.
 	low, high, ok := types.OrdinalBounds(setType.ElementType)
-	if !ok {
-		return true
-	}
-
-	if high-low+1 > maxSetIntegerCastElements {
+	if !ok || low < 0 || high > maxSetIntegerCastOrdinal {
 		a.addError("Set has too many elements for cast to integer at %s", pos.String())
 		return false
 	}
+
 	return true
 }
 

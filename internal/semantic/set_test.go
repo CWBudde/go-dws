@@ -521,7 +521,9 @@ func TestSetElementBounds(t *testing.T) {
 	}
 }
 
-// TestSetIntegerCastWidth covers the set <-> Integer cast width rule (L-S6c).
+// TestSetIntegerCastWidth covers the set <-> Integer cast rule (L-S6c). The
+// integer form is a bitmask indexed by the element's *absolute* ordinal, so the
+// rule is about the highest reachable ordinal, not the base type's span.
 func TestSetIntegerCastWidth(t *testing.T) {
 	t.Run("narrow set casts both ways", func(t *testing.T) {
 		expectNoErrors(t, `
@@ -530,6 +532,15 @@ func TestSetIntegerCastWidth(t *testing.T) {
 			var s : TSet;
 			var i := Integer(s);
 			s := TSet(i);
+		`)
+	})
+
+	t.Run("highest representable ordinal is accepted", func(t *testing.T) {
+		expectNoErrors(t, `
+			type TEnum = (lo = 0, hi = 31);
+			type TSet = set of TEnum;
+			var s : TSet;
+			var i := Integer(s);
 		`)
 	})
 
@@ -549,5 +560,82 @@ func TestSetIntegerCastWidth(t *testing.T) {
 			var i : Integer;
 			var s := TSet(i);
 		`, "Set has too many elements for cast to integer")
+	})
+
+	t.Run("narrow span at high ordinals is rejected", func(t *testing.T) {
+		// Span 32, but ordinal 64 needs bit 64 and would be dropped silently.
+		expectError(t, `
+			type TEnum = (h33 = 33, h64 = 64);
+			type TSet = set of TEnum;
+			var s : TSet;
+			var i := Integer(s);
+		`, "Set has too many elements for cast to integer")
+	})
+
+	t.Run("unbounded ordinal base is rejected", func(t *testing.T) {
+		// `set of Integer` works (map storage) but has no bitmask form.
+		expectError(t, `
+			var s : set of Integer := [65];
+			var i := Integer(s);
+		`, "Set has too many elements for cast to integer")
+	})
+}
+
+// TestSetMutationRequiresVariable covers the receiver check on Include/Exclude.
+// Both mutate in place, so a constant receiver would otherwise rewrite the
+// constant at run time — `const` sets became declarable with L-S6a.
+func TestSetMutationRequiresVariable(t *testing.T) {
+	const setup = `
+		type TElem = (A, B, C);
+		type TSet = set of TElem;
+	`
+
+	t.Run("variable receiver is accepted", func(t *testing.T) {
+		expectNoErrors(t, setup+`
+			var v : TSet := [A];
+			Include(v, B);
+			v.Exclude(A);
+		`)
+	})
+
+	t.Run("constant receiver is rejected in procedure form", func(t *testing.T) {
+		expectError(t, setup+`
+			const v : TSet = [A];
+			Include(v, B);
+		`, "Variable expected")
+	})
+
+	t.Run("constant receiver is rejected in method form", func(t *testing.T) {
+		expectError(t, setup+`
+			const v : TSet = [A];
+			v.Include(B);
+		`, "Variable expected")
+	})
+
+	t.Run("function result is rejected", func(t *testing.T) {
+		expectError(t, setup+`
+			function Make : TSet; begin end;
+			Include(Make, A);
+		`, "Variable expected")
+	})
+}
+
+// TestInlineSetEnumScope covers where an inline `set of (a, b)` may appear.
+// A parameter list has no statement to hoist the implicit enum in front of, so
+// it is rejected rather than published into the scope around the routine.
+func TestInlineSetEnumScope(t *testing.T) {
+	t.Run("statement-level declaration is accepted", func(t *testing.T) {
+		expectNoErrors(t, `
+			var s : set of (et1, et2) = [];
+			var b : Boolean := et1 in s;
+		`)
+	})
+
+	t.Run("parameter position is rejected", func(t *testing.T) {
+		expectError(t, `
+			procedure Test(s : set of (pt1, pt2));
+			begin
+			end;
+		`, "anonymous enumeration is not allowed in a parameter's set type")
 	})
 }
