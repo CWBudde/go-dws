@@ -41,8 +41,8 @@ func (r *ExternalFunctionRegistry) Register(name string, wrapper ExternalFunctio
 	if wrapper != nil {
 		parameters := wrapper.GetParamTypes()
 		descriptors := make([]ast.TypeExpression, len(parameters))
-		for index, name := range parameters {
-			p := parser.New(lexer.New("var argument: " + name + ";"))
+		for index, typeName := range parameters {
+			p := parser.New(lexer.New("var argument: " + typeName + ";"))
 			program := p.ParseProgram()
 			if len(p.Errors()) == 0 && len(program.Statements) == 1 {
 				if declaration, ok := program.Statements[0].(*ast.VarDeclStatement); ok {
