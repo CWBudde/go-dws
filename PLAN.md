@@ -118,17 +118,23 @@ into two-phase class construction; do not introduce a second type registry. The 
 [semantic-passes design](docs/architecture/semantic-passes.md) is design input only, not an
 implemented pass framework. Record the architecture work in §2 before starting the refactor.
 
-- **L-S1a** `[ ]` M — Resolve inheritance before member/body checking, preserving predeclared
-  identities and explicit-forward/partial-class behavior. Acceptance: a child declared
-  before its parent compiles and inherits members; unknown parents and inheritance cycles
-  produce diagnostics rather than recursion or a crash.
+**Done (2026-09-09):** L-S1a. Predeclaration is now an explicit two-phase construction in
+`internal/semantic/class_construction.go` (identity, then inheritance), still over the single
+type registry. Parent links and class-level shape flags are resolved before member/body
+checking, cycles and unknown parents stay diagnostics, and forward/partial behavior is
+unchanged; see
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--two-phase-class-construction-inheritance-before-members-l-s1a).
+
 - **L-S1b** `[ ]` M — Complete field, property, and method signatures before checking bodies;
   depends on L-S1a. Acceptance: later-declared class types and mutually referring class
   fields work without `forward`, with consistent resolved type identities.
 - **L-S1c** `[ ]` S — Integrate deferred class-body and final validation after signatures are
   complete; depends on L-S1b. Acceptance: inline and out-of-line methods can access members
   of later classes, while missing implementations, duplicates, and invalid overrides remain
-  diagnosed. Preserve source order for executable statements and initializers.
+  diagnosed. Preserve source order for executable statements and initializers. Known
+  reproduction left open by L-S1a: `checkMethodOverriding` and `inherited` still read the
+  parent's members at the child's declaration site, so `override` against a parent declared
+  later is wrongly rejected.
 
 #### 3.2.2 Diagnostics and metaclass properties
 

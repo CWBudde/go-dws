@@ -371,30 +371,6 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	return nil
 }
 
-func (a *Analyzer) predeclareTopLevelClassTypes(program *ast.Program) {
-	for _, stmt := range program.Statements {
-		a.predeclareClassTypesInStatement(stmt)
-	}
-}
-
-func (a *Analyzer) predeclareClassTypesInStatement(stmt ast.Statement) {
-	switch n := stmt.(type) {
-	case *ast.BlockStatement:
-		for _, inner := range n.Statements {
-			a.predeclareClassTypesInStatement(inner)
-		}
-	case *ast.ClassDecl:
-		className := classFullName(n)
-		if className == "" || n.EnclosingClass != nil || a.hasType(className) {
-			return
-		}
-		classType := types.NewClassType(className, nil)
-		classType.IsForward = true
-		a.registerTypeWithPos(className, classType, n.Token.Pos)
-		a.predeclaredClassTypes[ident.Normalize(className)] = true
-	}
-}
-
 func (a *Analyzer) isPredeclaredClassType(className string) bool {
 	return a.predeclaredClassTypes[ident.Normalize(className)]
 }

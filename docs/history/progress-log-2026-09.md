@@ -563,3 +563,52 @@ a case-mismatch hint, which is won't-fix per §5.
 `go test ./internal/... ./pkg/...` passes, including the interpreter, evaluator, semantic and
 parser packages. Validation ran with `TMPDIR` pointed at a root-filesystem directory because
 `/tmp` is a 7.3 GB tmpfs that was 97% full.
+
+## 2026-09-09 — Two-phase class construction: inheritance before members (L-S1a)
+
+`PLAN.md` §3.2.1 L-S1a. The analyzer already predeclared one `*types.ClassType` shell per
+top-level class name; that mechanism is now split into two explicit phases in the new
+`internal/semantic/class_construction.go`:
+
+1. **Identity** — unchanged: every top-level `ClassDecl` (recursing into blocks) registers a
+   single shell in the one type registry. There is still exactly one type representation per
+   class; no second registry was introduced.
+2. **Inheritance** — new `resolveTopLevelClassInheritance`. Declarations are grouped by
+   normalized full name (so an explicit `forward` and its implementation, or the parts of a
+   partial class, form one group). For each group it propagates the declaration-level shape
+   flags (`IsAbstract`, `IsExternal`, `ExternalName`, `IsStaticClass`, `IsDeprecated`,
+   `DeprecatedMessage`) onto the shell, then links parents with a memoized DFS that resolves
+   ancestors before descendants.
+
+The phase is deliberately silent. Unknown parents, cycles, self-inheritance and
+forward/partial parent disagreements are left *unlinked* so that `analyzeClassDecl` still
+emits the existing diagnostics at the existing positions; the DFS carries an in-progress
+marker and a length-bounded `reaches` walk so a cyclic declaration set can never recurse or
+spin during the phase itself. `IsForward` and `IsPartial` stay owned by `analyzeClassDecl`.
+
+The `class(TParent, IFoo)` disambiguation (a leading interface entry that actually names a
+class) is applied in the phase with the same AST rewrite `resolveParentClass` performs, so
+the later interface-implementation check still sees the right list.
+
+**Observable fix:** class-level inheritance validation is no longer order-dependent.
+`type TChild = class(TExt) end; type TExt = class external end;` was silently accepted; it now
+reports `non-external class 'TChild' cannot inherit from external class 'TExt'`, matching the
+diagnostic already produced when the parent is declared first.
+
+**Validation:** `go test ./...` green; `just fixture-report` **885 / 2,042 before and after,
+byte-identical per-category table** (this task is a correctness/ordering fix, not a fixture
+win). New table-driven tests in `internal/semantic/class_construction_test.go` cover
+child-before-parent field/method/grandparent inheritance, unknown parents, 2-class, 3-class
+and self cycles, external-parent order independence, and forward/partial preservation. Run
+against the pre-change tree, exactly one case fails (external parent declared after the
+child), confirming the rest are regression guards.
+
+**Still order-dependent, and left to L-S1b/L-S1c:** member-level checks that read the
+parent's members at the child's declaration site — `override` validation
+(`checkMethodOverriding`) and `inherited` resolution still fail when the parent is declared
+later, e.g.
+`type TChild = class(TParent) procedure Hello; override; ... end; type TParent = class procedure Hello; virtual; ... end;`.
+Also noted while probing: `sealed` is not enforced as an inheritance restriction in either
+order, and `type TFoo = class(TBase);` is by design a complete empty subclass rather than a
+forward declaration (`internal/parser/classes.go`), so `validateForwardDeclParent`'s
+"different parent" branch is unreachable for top-level classes.
