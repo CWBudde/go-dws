@@ -65,19 +65,24 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 		}
 	}
 
-	// Expect type identifier
+	// Expect type identifier. A set's base must be an enumeration, so anything
+	// else here gets DWScript's wording, reported at the 'of' keyword. Recovery
+	// skips to the declaration's semicolon so the caller does not also complain
+	// about the tokens that follow.
+	ofToken := p.cursor.Current()
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.IDENT {
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrExpectedType).
-			WithMessage("expected type identifier after 'of' in set declaration").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("type name").
+			WithMessage("Enumeration expected").
+			WithPosition(ofToken.Pos, ofToken.Length()).
+			WithExpectedString("enumeration type name").
 			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("provide a type name after 'of'").
+			WithSuggestion("provide an enumeration type name after 'of'").
 			WithParsePhase("set declaration").
 			Build()
 		p.addStructuredError(err)
+		p.skipToSetDeclarationEnd()
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to type identifier
@@ -134,6 +139,19 @@ func (p *Parser) parseInlineSetEnum(setToken lexer.Token) ast.TypeExpression {
 	return &ast.TypeAnnotation{
 		Token: enumName.Token,
 		Name:  enumName.Value,
+	}
+}
+
+// skipToSetDeclarationEnd advances the cursor to the semicolon that terminates a
+// malformed `type T = set of …;` declaration, so a single diagnostic is reported
+// for the bad base type instead of a cascade from the tokens after it.
+func (p *Parser) skipToSetDeclarationEnd() {
+	for {
+		switch p.cursor.Current().Type {
+		case lexer.SEMICOLON, lexer.EOF:
+			return
+		}
+		p.cursor = p.cursor.Advance()
 	}
 }
 

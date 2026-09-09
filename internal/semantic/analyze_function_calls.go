@@ -1018,6 +1018,30 @@ func (a *Analyzer) analyzeTypeCast(typeName string, args []ast.Expression, expr 
 	return targetType, true
 }
 
+// maxSetIntegerCastElements is the widest set base type that survives a cast to
+// or from Integer. DWScript builds the integer form as a bitmask, so a base type
+// spanning more ordinals than this has no integer representation.
+const maxSetIntegerCastElements = 32
+
+// checkSetIntegerCastWidth validates a set <-> Integer cast against the set's
+// base-type width, reporting DWScript's diagnostic when it does not fit.
+func (a *Analyzer) checkSetIntegerCastWidth(setType *types.SetType, pos token.Position) bool {
+	if setType == nil || setType.ElementType == nil {
+		return true
+	}
+
+	low, high, ok := types.OrdinalBounds(setType.ElementType)
+	if !ok {
+		return true
+	}
+
+	if high-low+1 > maxSetIntegerCastElements {
+		a.addError("Set has too many elements for cast to integer at %s", pos.String())
+		return false
+	}
+	return true
+}
+
 // isValidCast checks if casting from sourceType to targetType is valid.
 func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Position) bool {
 	sourceType = types.GetUnderlyingType(sourceType)
@@ -1091,20 +1115,25 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 		return true
 	}
 
-	// Enum <-> Integer casts
+	// Enum <-> Integer casts. A Float source is accepted on the way in and
+	// truncated to its ordinal, so `TEnum(IntPower(10, i))` compiles.
 	_, sourceIsEnum := sourceType.(*types.EnumType)
 	_, targetIsEnum := targetType.(*types.EnumType)
 	if (sourceIsEnum && targetType == types.INTEGER) ||
-		(sourceType == types.INTEGER && targetIsEnum) {
+		((sourceType == types.INTEGER || sourceType == types.FLOAT) && targetIsEnum) {
 		return true
 	}
 
-	// Set <-> Integer casts (a set's integer form is its ordinal bitmask)
-	_, sourceIsSet := sourceType.(*types.SetType)
-	_, targetIsSet := targetType.(*types.SetType)
-	if (sourceIsSet && targetType == types.INTEGER) ||
-		(sourceType == types.INTEGER && targetIsSet) {
-		return true
+	// Set <-> Integer casts (a set's integer form is its ordinal bitmask). The
+	// bitmask only exists for a set narrow enough to fit one, so a wider base
+	// type is rejected the way DWScript rejects it.
+	sourceSet, sourceIsSet := sourceType.(*types.SetType)
+	targetSet, targetIsSet := targetType.(*types.SetType)
+	if sourceIsSet && targetType == types.INTEGER {
+		return a.checkSetIntegerCastWidth(sourceSet, pos)
+	}
+	if sourceType == types.INTEGER && targetIsSet {
+		return a.checkSetIntegerCastWidth(targetSet, pos)
 	}
 
 	if _, isEnum := targetType.(*types.EnumType); isEnum {

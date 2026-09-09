@@ -112,6 +112,19 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	case "vartype":
 		return a.analyzeVarType(args, callExpr), true
 
+	// Integer() reaches a set through the conversion registry rather than the
+	// type-cast path, so the set's bitmask-width rule is applied here.
+	case "integer":
+		result, handled := a.analyzeRegisteredBuiltin(name, args, callExpr)
+		if handled && len(args) == 1 {
+			if argType := a.semanticInfo.GetResolvedType(args[0]); argType != nil {
+				if setType, isSet := types.GetUnderlyingType(argType).(*types.SetType); isSet {
+					a.checkSetIntegerCastWidth(setType, args[0].Pos())
+				}
+			}
+		}
+		return result, handled
+
 	default:
 		return a.analyzeRegisteredBuiltin(name, args, callExpr)
 	}

@@ -259,8 +259,8 @@ func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, cal
 
 	setType, ok := types.GetUnderlyingType(setArgType).(*types.SetType)
 	if !ok {
-		a.addError("function '%s' first argument must be a set, got %s at %s",
-			canonical, setArgType.String(), callExpr.Token.Pos.String())
+		// DWScript's wording, anchored on the offending argument.
+		a.addError("Set expected at %s", args[0].Pos().String())
 		return types.VOID
 	}
 

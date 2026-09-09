@@ -332,6 +332,12 @@ func (e *Evaluator) castToEnum(val Value, targetEnum *types.EnumType, typeName s
 		ordinal := int(v.Value)
 		return runtime.NewEnumValue(typeName, targetEnum, ordinal)
 
+	case *runtime.FloatValue:
+		// A Float source is truncated to its ordinal. The result is deliberately
+		// not bounds-checked: DWScript lets an out-of-range ordinal exist and
+		// simply reports False for any set membership test on it.
+		return runtime.NewEnumValue(typeName, targetEnum, int(v.Value))
+
 	case *runtime.EnumValue:
 		// Enum → Enum: Only allow identity cast (same type)
 		if pkgident.Equal(v.TypeName, typeName) {
