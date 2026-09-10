@@ -132,6 +132,15 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		return leftVal
 	}
 
+	return e.indexResolvedValue(leftVal, node, ctx)
+}
+
+// indexResolvedValue applies one level of indexing to an already-evaluated
+// container. It is the tail of VisitIndexExpression, split out so that lvalue
+// resolution (which must resolve the container itself, vivifying missing
+// associative-array slots along the way) can reuse the read semantics without
+// re-evaluating the base expression.
+func (e *Evaluator) indexResolvedValue(leftVal Value, node *ast.IndexExpression, ctx *ExecutionContext) Value {
 	if node.Index == nil {
 		return e.newError(node, "index expression missing index")
 	}
@@ -150,71 +159,11 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		return e.indexJSON(leftVal, indexVal, node)
 	}
 
-	// Handle object default property access
-	if runtime.KindOf(leftVal) == runtime.KindObject {
-		if accessor, ok := leftVal.(PropertyAccessor); ok {
-			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-				if objVal, ok := leftVal.(ObjectValue); ok {
-					return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
-						return e.executeIndexedPropertyRead(leftVal, pi, idx, node, ctx)
-					})
-				}
-			}
-		}
-	}
-
-	// Handle interface default property access
-	if runtime.KindOf(leftVal) == runtime.KindInterface {
-		// Unwrap interface to get underlying object
-		if ifaceVal, ok := leftVal.(InterfaceInstanceValue); ok {
-			underlying := ifaceVal.GetUnderlyingObjectValue()
-			if underlying == nil {
-				return e.newError(node, "interface is nil")
-			}
-
-			// Check if interface has a default property
-			if accessor, ok := leftVal.(PropertyAccessor); ok {
-				if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil && defaultProp.IsIndexed {
-					// The property is defined on the interface, but we need the underlying object for execution
-					if runtime.KindOf(underlying) == runtime.KindObject {
-						if objVal, ok := underlying.(ObjectValue); ok {
-							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
-								return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
-							})
-						}
-					}
-					return e.newError(node, "interface underlying object is not a class instance")
-				}
-			}
-
-			// No default property on interface, continue with unwrapped object
-			// Check if the underlying object has a default property
-			leftVal = underlying
-			if runtime.KindOf(leftVal) == runtime.KindObject {
-				if accessor, ok := leftVal.(PropertyAccessor); ok {
-					if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-						if objVal, ok := leftVal.(ObjectValue); ok {
-							return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
-								return e.executeIndexedPropertyRead(leftVal, pi, idx, node, ctx)
-							})
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Handle record default property access
-	if recVal, ok := leftVal.(RecordInstanceValue); ok {
-		// Check if record has a default property
-		if accessor, ok := leftVal.(PropertyAccessor); ok {
-			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
-				return recVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
-					return e.executeRecordIndexedPropertyRead(leftVal, pi, idx, node, ctx)
-				})
-			}
-		}
-		// No default property, fall through to normal indexing (which will error)
+	// Handle default property access on objects, interfaces and records. An
+	// interface with no default property of its own is replaced by its
+	// underlying object, so indexing continues against that.
+	if result, handled := e.indexViaDefaultProperty(&leftVal, indexVal, node, ctx); handled {
+		return result
 	}
 
 	// Associative array read: a[key]. The key is an arbitrary value (not an
@@ -255,6 +204,94 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	}
 
 	return e.newError(node, "cannot index type %s", leftVal.Type())
+}
+
+// indexViaDefaultProperty resolves `x[i]` where x is an object, interface or
+// record carrying a default (indexed) property. It reports whether it handled
+// the access. When the receiver is an interface without a default property of
+// its own, *leftVal is replaced by the underlying object so the caller keeps
+// indexing against that.
+func (e *Evaluator) indexViaDefaultProperty(
+	leftVal *Value,
+	indexVal Value,
+	node *ast.IndexExpression,
+	ctx *ExecutionContext,
+) (Value, bool) {
+	switch runtime.KindOf(*leftVal) {
+	case runtime.KindObject:
+		return e.readObjectDefaultProperty(*leftVal, indexVal, node, ctx)
+
+	case runtime.KindInterface:
+		ifaceVal, ok := (*leftVal).(InterfaceInstanceValue)
+		if !ok {
+			return nil, false
+		}
+		underlying := ifaceVal.GetUnderlyingObjectValue()
+		if underlying == nil {
+			return e.newError(node, "interface is nil"), true
+		}
+
+		// A default property declared on the interface itself is executed
+		// against the underlying instance.
+		if accessor, ok := (*leftVal).(PropertyAccessor); ok {
+			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil && defaultProp.IsIndexed {
+				if runtime.KindOf(underlying) == runtime.KindObject {
+					if objVal, ok := underlying.(ObjectValue); ok {
+						return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
+							return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
+						}), true
+					}
+				}
+				return e.newError(node, "interface underlying object is not a class instance"), true
+			}
+		}
+
+		// Otherwise fall through to the underlying object.
+		*leftVal = underlying
+		if runtime.KindOf(underlying) == runtime.KindObject {
+			return e.readObjectDefaultProperty(underlying, indexVal, node, ctx)
+		}
+		return nil, false
+	}
+
+	// Records: no default property means ordinary indexing (which will error).
+	if recVal, ok := (*leftVal).(RecordInstanceValue); ok {
+		if accessor, ok := (*leftVal).(PropertyAccessor); ok {
+			if defaultProp := accessor.GetDefaultProperty(); defaultProp != nil {
+				obj := *leftVal
+				return recVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
+					return e.executeRecordIndexedPropertyRead(obj, pi, idx, node, ctx)
+				}), true
+			}
+		}
+	}
+
+	return nil, false
+}
+
+// readObjectDefaultProperty reads a class instance's default indexed property,
+// reporting whether the instance has one.
+func (e *Evaluator) readObjectDefaultProperty(
+	obj Value,
+	indexVal Value,
+	node *ast.IndexExpression,
+	ctx *ExecutionContext,
+) (Value, bool) {
+	accessor, ok := obj.(PropertyAccessor)
+	if !ok {
+		return nil, false
+	}
+	defaultProp := accessor.GetDefaultProperty()
+	if defaultProp == nil {
+		return nil, false
+	}
+	objVal, ok := obj.(ObjectValue)
+	if !ok {
+		return nil, false
+	}
+	return objVal.ReadIndexedProperty(defaultProp.Impl, []Value{indexVal}, func(pi any, idx []Value) Value {
+		return e.executeIndexedPropertyRead(obj, pi, idx, node, ctx)
+	}), true
 }
 
 // VisitRecordLiteralExpression evaluates record literal expressions like TMyRecord(Field1: 1, Field2: 'hello').
