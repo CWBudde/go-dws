@@ -90,6 +90,12 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return e.evalJSONValueMember(jsonValueOf(obj), memberName)
 	}
 
+	// ByteBuffer members double as parameterless calls (b.Length, b.ToJSON,
+	// b.GetByte), so route them through the same intrinsic dispatcher.
+	if _, isBuffer := obj.(*runtime.ByteBufferValue); isBuffer {
+		return e.DispatchByteBufferMethod(obj, memberName, nil, node, ctx)
+	}
+
 	// Associative array parameterless members (a.Keys, a.Length, a.Count, a.Clear).
 	if assoc, ok := obj.(*runtime.AssociativeArrayValue); ok {
 		if result, handled := e.evalAssociativeArrayMethod(assoc, memberName, nil, node); handled {

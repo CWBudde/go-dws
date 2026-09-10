@@ -74,6 +74,10 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if types.IsJSONVariant(objectType) {
 			return a.analyzeJSONMethodResult(memberAccess.Member.Value, expr.Arguments)
 		}
+		// Method call on a ByteBuffer receiver spelled as a call expression.
+		if types.IsByteBuffer(objectType) {
+			return a.analyzeByteBufferMethodResult(memberAccess.Member.Value, expr.Arguments)
+		}
 
 		// Constructor call: TClass.Create(args)
 		if classType, isClassType := objectType.(*types.ClassType); isClassType {
@@ -1154,6 +1158,15 @@ func (a *Analyzer) isValidCast(sourceType, targetType types.Type, pos token.Posi
 		case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "VARIANT", "JSON_VARIANT":
 			return true
 		}
+	}
+
+	// ByteBuffer(s) builds a buffer from a data string; ByteBuffer to ByteBuffer
+	// is an identity cast. Nothing else converts.
+	if types.IsByteBuffer(targetType) {
+		return sourceType.TypeKind() == "STRING"
+	}
+	if types.IsByteBuffer(sourceType) {
+		return false
 	}
 
 	// nil can be cast to any reference type: class, interface, metaclass

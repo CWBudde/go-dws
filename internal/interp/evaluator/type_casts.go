@@ -27,6 +27,12 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 	switch lowerName {
 	case "integer", "float", "string", "boolean", "variant":
 		isTypeCast = true
+	case "bytebuffer":
+		// ByteBuffer(s) builds a buffer from a data string, unless a user type or
+		// routine of the same name shadows the intrinsic.
+		if e.typeSystem == nil || !e.typeSystem.HasClass(lowerName) {
+			isTypeCast = true
+		}
 	default:
 		// Check if it's a class/interface type
 		if e.typeSystem != nil && e.typeSystem.HasClass(lowerName) {
@@ -101,6 +107,8 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		return e.castToString(val)
 	case "boolean":
 		return e.castToBoolean(val)
+	case "bytebuffer":
+		return e.castToByteBuffer(val, argExpr)
 	case "variant":
 		// Sets stored in Variants use their integer bitmask representation
 		// (DWScript: Variant(setA + setB) prints the combined bitmask).
@@ -129,6 +137,24 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		// Must be a class type (we already checked above)
 		return e.castToClassType(val, typeName, argExpr, ctx)
 	}
+}
+
+// castToByteBuffer converts a value to a ByteBuffer.
+//
+// A String is read as a DWScript data string, i.e. one byte per UTF-16 code
+// unit, keeping only its low byte. An existing ByteBuffer passes through
+// unchanged, preserving reference identity.
+func (e *Evaluator) castToByteBuffer(val Value, node ast.Node) Value {
+	switch source := val.(type) {
+	case *runtime.ByteBufferValue:
+		return source
+	case *runtime.StringValue:
+		return runtime.NewByteBufferValueFromBytes(runtime.DataStringToBytes(source.Value))
+	}
+	if variant, ok := val.(*runtime.VariantValue); ok {
+		return e.castToByteBuffer(variant.UnwrapVariant(), node)
+	}
+	return e.newError(node, "cannot cast %s to ByteBuffer", val.Type())
 }
 
 // castToInteger converts a value to Integer

@@ -1033,6 +1033,12 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		return nil
 	}
 
+	// `new ByteBuffer` instantiates the built-in buffer type, which has no entry
+	// in the class registry. A user class of the same name wins.
+	if classInfoAny == nil && ident.Equal(className, "ByteBuffer") && e.typeSystem.LookupClass(className) == nil {
+		return runtime.NewByteBufferValue()
+	}
+
 	// Look up class in type system (unless a metaclass reference already resolved it)
 	if classInfoAny == nil {
 		classInfoAny = e.typeSystem.LookupClass(className)

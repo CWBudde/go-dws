@@ -61,6 +61,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		return a.analyzeJSONMethodResult(expr.Method.Value, expr.Arguments)
 	}
 
+	// Method call on a ByteBuffer receiver: b.SetLength(4), b.GetByte(0), ...
+	if types.IsByteBuffer(objectType) {
+		return a.analyzeByteBufferMethodResult(expr.Method.Value, expr.Arguments)
+	}
+
 	methodName := expr.Method.Value
 	methodNameLower := ident.Normalize(methodName)
 	isMetaclass := false
