@@ -94,6 +94,10 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return nil
 	}
 
+	// `Test[Index]` where Test is a parameterless function indexes the call's
+	// result, not the function itself. Member access unwraps the same way.
+	leftType = a.applyImplicitCallType(expr.Left, leftType)
+
 	// Allow default indexed properties on classes (obj[index] -> obj.DefaultProperty[index])
 	if classType, ok := types.GetUnderlyingType(leftType).(*types.ClassType); ok {
 		if defaultProp := a.getDefaultClassProperty(classType); defaultProp != nil {

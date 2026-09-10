@@ -313,7 +313,9 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 - `[ ]` M Nested lvalue vivification through a key or index (`a[k].field := v`, `a[k][j] := v`,
   `a[k].Add(…)`) → AssociativePass `elements_of_value`, `array_of_dyn`; JSONConnectorPass
   `generate1`, `basic_generate`.
-- `[ ]` S DWScript hash iteration order → AssociativePass `records`.
+- `[ ]` S DWScript hash iteration order → AssociativePass `records`. The compile-time blocker is
+  fixed (the analyzer now indexes the result of a parenless function call); the fixture's only
+  remaining diff is `Keys.Join(',')` emitting `a,b` where DWScript emits `b,a`.
 - `[ ]` S ARC destructor timing on associative slot replace/clear → `delete_sequence`;
   Variant → key coercion → `variant_key_cast`.
 - `[ ]` M Record copy-on-assign value semantics → JSONConnectorPass `stringify_record`.

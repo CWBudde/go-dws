@@ -369,12 +369,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	if objType == nil {
 		return nil
 	}
-	if implicitType := a.getImplicitCallType(obj); implicitType != nil {
-		objType = implicitType
-	} else if implicitType := implicitCallReturnTypeFromType(objType); implicitType != nil {
-		objType = implicitType
-	}
-	objType = types.GetUnderlyingType(objType)
+	objType = types.GetUnderlyingType(a.applyImplicitCallType(obj, objType))
 
 	// Check if the type is a record type
 	recordType, ok := objType.(*types.RecordType)

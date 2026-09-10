@@ -1460,3 +1460,32 @@ Closes `SimpleScripts/declared` and `FailureScripts/special_funcs5`.
 file. New table-driven tests in `internal/lexer/directives_test.go` (declaration tracking,
 `Defined` vs `Declared`, directive diagnostics) and `internal/semantic/analyze_declared_test.go`.
 Baselines ratcheted and `TEST_STATUS.md` regenerated.
+
+## 2026-09-10 — Indexing the result of an implicit (parenless) call (PLAN.md §3.3)
+
+`Test['toto']`, where `Test` is a parameterless function returning an array, rejected the program
+at compile time: `Syntax Error: Array expected`, plus fallout `Unknown name "r1"` wherever the
+dropped declaration was later used. `analyzeIndexExpression` analyzed `expr.Left` and matched the
+resulting type against the array / associative-array branches without ever unwrapping the implicit
+call, so it saw the function's own type. Member access on the same shape (`Test.Keys`) already
+worked, because `analyzeMemberAccess` and `analyzeRecordFieldAccess` both unwrap.
+
+That unwrap — `getImplicitCallType` on the expression, falling back to
+`implicitCallReturnTypeFromType` on its type — was duplicated at both member-access sites. It is
+now one helper, `applyImplicitCallType` (`internal/semantic/analyze_function_calls.go`), which both
+sites call and which `analyzeIndexExpression` applies to `expr.Left` before the class-default-
+property, associative-array, array and string branches, so every branch sees the result type.
+
+The helper only fires for a zero-parameter function type, so a function pointer that takes
+arguments is still not indexable, and a parenless call returning a non-indexable type still gets
+`Array expected`.
+
+**Validation:** `go test ./...` green; new table-driven tests in
+`internal/semantic/analyze_arrays_implicit_call_test.go` cover dynamic, static and associative
+array results, an associative array of records, string indexing, and two negative cases.
+`just fixture-check` passes with no category moving; baselines unchanged.
+
+### Scope
+
+`AssociativePass/records` still fails, on hash iteration order alone: `Keys.Join(',')` yields
+`a,b` where DWScript yields `b,a`. That remains the open §3.3 item and is not touched here.

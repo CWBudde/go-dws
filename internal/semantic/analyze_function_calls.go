@@ -821,6 +821,21 @@ func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
 	return funcType.ReturnType
 }
 
+// applyImplicitCallType unwraps a parameterless function reference into the
+// type of its result, so that `Test.Member` and `Test[Index]` operate on the
+// value the call yields rather than on the function itself. expr is the
+// expression that produced typ; typ is returned unchanged when no implicit
+// call applies.
+func (a *Analyzer) applyImplicitCallType(expr ast.Expression, typ types.Type) types.Type {
+	if implicitType := a.getImplicitCallType(expr); implicitType != nil {
+		return implicitType
+	}
+	if implicitType := implicitCallReturnTypeFromType(typ); implicitType != nil {
+		return implicitType
+	}
+	return typ
+}
+
 func implicitCallReturnTypeFromType(typ types.Type) types.Type {
 	funcType, ok := types.GetUnderlyingType(typ).(*types.FunctionType)
 	if !ok || len(funcType.Parameters) > 0 {
