@@ -100,3 +100,62 @@ func TestCallSitePosOf_Nil(t *testing.T) {
 		t.Fatalf("callSitePosOf(nil) = %v, want nil", got)
 	}
 }
+
+func classNameIdent(name string) *ast.Identifier {
+	return identAt(name, 1, 1)
+}
+
+// TestQualifiedRoutineName pins how a stack frame names a routine: methods are
+// class-qualified whether the implementation is written out-of-line (ClassName)
+// or inline in the class body (DeclaringClassName).
+func TestQualifiedRoutineName(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   *ast.FunctionDecl
+		want string
+	}{
+		{
+			name: "free routine is unqualified",
+			fn:   &ast.FunctionDecl{Name: classNameIdent("TestProc")},
+			want: "TestProc",
+		},
+		{
+			name: "out-of-line method uses ClassName",
+			fn: &ast.FunctionDecl{
+				Name:      classNameIdent("Boom"),
+				ClassName: classNameIdent("TMyClass"),
+			},
+			want: "TMyClass.Boom",
+		},
+		{
+			name: "inline method uses DeclaringClassName",
+			fn: &ast.FunctionDecl{
+				Name:               classNameIdent("TestMeth"),
+				DeclaringClassName: "TTest",
+			},
+			want: "TTest.TestMeth",
+		},
+		{
+			name: "ClassName wins over DeclaringClassName",
+			fn: &ast.FunctionDecl{
+				Name:               classNameIdent("Boom"),
+				ClassName:          classNameIdent("TMyClass"),
+				DeclaringClassName: "TOther",
+			},
+			want: "TMyClass.Boom",
+		},
+		{
+			name: "nil routine has no name",
+			fn:   nil,
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := qualifiedRoutineName(tt.fn); got != tt.want {
+				t.Fatalf("qualifiedRoutineName = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

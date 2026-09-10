@@ -503,6 +503,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	if cursor.Current().Type != lexer.END {
 		p.addError("expected 'end' to close class declaration", ErrMissingEnd)
 		decl, _ := builder.Finish(classDecl).(*ast.ClassDecl)
+		annotateDeclaringClass(decl)
 		return decl
 	}
 
@@ -516,8 +517,42 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 	p.parseClassDeprecatedDirective(classDecl)
 
 	decl := builder.Finish(classDecl).(*ast.ClassDecl)
+	annotateDeclaringClass(decl)
 
 	return decl
+}
+
+// annotateDeclaringClass records the owning class name on every routine declared
+// inline in the class body. An out-of-line implementation (`procedure TFoo.Bar;`)
+// already carries its qualifier in ClassName; an inline one has none to parse,
+// yet DWScript still names it "TFoo.Bar" in a stack frame.
+func annotateDeclaringClass(decl *ast.ClassDecl) {
+	if decl == nil || decl.Name == nil || decl.Name.Value == "" {
+		return
+	}
+	className := decl.Name.Value
+	if decl.EnclosingClass != nil && decl.EnclosingClass.Value != "" {
+		className = decl.EnclosingClass.Value + "." + className
+	}
+
+	annotate := func(fn *ast.FunctionDecl) {
+		if fn != nil {
+			fn.DeclaringClassName = className
+		}
+	}
+	for _, method := range decl.Methods {
+		annotate(method)
+	}
+	annotate(decl.Constructor)
+	annotate(decl.Destructor)
+
+	// A nested class only learns its enclosing class once the outer body has
+	// been assembled, so re-annotate it here with the qualified owner.
+	for _, nested := range decl.NestedTypes {
+		if nestedClass, ok := nested.(*ast.ClassDecl); ok {
+			annotateDeclaringClass(nestedClass)
+		}
+	}
 }
 
 // parseClassDeprecatedDirective parses an optional deprecated marker after a class declaration.

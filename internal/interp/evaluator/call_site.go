@@ -68,3 +68,23 @@ func raiseSitePos(expr ast.Expression) token.Position {
 	}
 	return expr.End()
 }
+
+// qualifiedRoutineName renders the name DWScript puts on a stack frame: a method
+// is qualified with its class ("TFoo.Bar"), a free routine is not.
+//
+// An out-of-line implementation (`procedure TFoo.Bar;`) carries the qualifier in
+// ClassName. A method declared inline in the class body has no qualifier to
+// parse, so the parser records the owning class in DeclaringClassName instead.
+func qualifiedRoutineName(fn *ast.FunctionDecl) string {
+	if fn == nil || fn.Name == nil {
+		return ""
+	}
+	switch {
+	case fn.ClassName != nil && fn.ClassName.Value != "":
+		return fn.ClassName.Value + "." + fn.Name.Value
+	case fn.DeclaringClassName != "":
+		return fn.DeclaringClassName + "." + fn.Name.Value
+	default:
+		return fn.Name.Value
+	}
+}

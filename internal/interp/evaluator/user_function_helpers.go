@@ -287,10 +287,7 @@ func (e *Evaluator) ExecuteUserFunction(
 	// Methods are qualified with their class name (e.g. "TMyObj.Proc") to match
 	// DWScript's runtime error and stack trace format.
 	pos := callSitePosOf(currentNode(ctx))
-	frameName := fn.Name.Value
-	if fn.ClassName != nil && fn.ClassName.Value != "" {
-		frameName = fn.ClassName.Value + "." + frameName
-	}
+	frameName := qualifiedRoutineName(fn)
 	if err := funcCtx.GetCallStack().Push(frameName, e.SourceFile(), pos); err != nil {
 		return nil, err
 	}
