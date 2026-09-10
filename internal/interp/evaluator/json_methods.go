@@ -3,6 +3,7 @@ package evaluator
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/jsonvalue"
@@ -334,5 +335,63 @@ func (e *Evaluator) jsonSwap(jv *jsonvalue.Value, args []Value, node ast.Node) V
 		return e.newError(node, "Upper bound exceeded! Index %d", i)
 	}
 	jv.ArraySwap(i, j)
+	return &runtime.NilValue{}
+}
+
+// jsonScalarFloat applies DWScript's JSON immediate → Float conversion. Numbers
+// and booleans convert directly and strings are parsed (an empty or unparsable
+// string yields 0, matching StrToFloatDef). Objects, arrays, null and undefined
+// are not values and report ok=false, which the caller turns into DWScript's
+// "Not a value" exception.
+func jsonScalarFloat(jv *jsonvalue.Value) (float64, bool) {
+	if jv == nil {
+		return 0, false
+	}
+	switch jv.Kind() {
+	case jsonvalue.KindInt64:
+		return float64(jv.Int64Value()), true
+	case jsonvalue.KindNumber:
+		return jv.NumberValue(), true
+	case jsonvalue.KindBoolean:
+		if jv.BoolValue() {
+			return 1, true
+		}
+		return 0, true
+	case jsonvalue.KindString:
+		f, err := strconv.ParseFloat(strings.TrimSpace(jv.StringValue()), 64)
+		if err != nil {
+			return 0, true
+		}
+		return f, true
+	default:
+		return 0, false
+	}
+}
+
+// jsonScalarInteger applies DWScript's JSON immediate → Integer conversion. It
+// follows jsonScalarFloat and truncates, so Integer(json '1.25') is 1.
+func jsonScalarInteger(jv *jsonvalue.Value) (int64, bool) {
+	if jv != nil && jv.Kind() == jsonvalue.KindInt64 {
+		return jv.Int64Value(), true
+	}
+	f, ok := jsonScalarFloat(jv)
+	if !ok {
+		return 0, false
+	}
+	return int64(f), true
+}
+
+// jsonNotAValue raises DWScript's "Not a value" exception, which is what casting
+// a JSON object, array or undefined node to a scalar produces. The position is
+// the statement being executed, matching DWScript's statement-level reporting.
+func (e *Evaluator) jsonNotAValue(ctx *ExecutionContext) Value {
+	msg := "Not a value"
+	if ctx != nil {
+		if stmt := ctx.CurrentStatement(); stmt != nil {
+			pos := stmt.Pos()
+			msg = fmt.Sprintf("%s [line: %d, column: %d]", msg, pos.Line, pos.Column)
+		}
+	}
+	e.builtinContext(ctx).RaiseException("Exception", msg, nil)
 	return &runtime.NilValue{}
 }

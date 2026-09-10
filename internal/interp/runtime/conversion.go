@@ -5,6 +5,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/cwbudde/go-dws/internal/dwsfmt"
 )
 
 // ============================================================================
@@ -339,7 +341,7 @@ func IntToStr(i int64) string {
 
 // FloatToStr converts a float to a string.
 func FloatToStr(f float64) string {
-	return strconv.FormatFloat(f, 'g', 15, 64)
+	return dwsfmt.FloatToStr(f)
 }
 
 // BoolToStr converts a boolean to a string ("True" or "False").
