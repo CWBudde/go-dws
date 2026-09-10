@@ -2090,11 +2090,11 @@ no fixture depends on the old, more permissive behaviour.
 
 Key lookup, insertion and deletion are no longer O(n).
 
-**Validation:** `go test -count=1 ./...` green; `golangci-lint run --new-from-rev=main` reports 0
-issues; `just check-fmt` clean. New table-driven tests in
+**Validation:** `go test -count=1 ./...` green; `golangci-lint run --new-from-rev=origin/main`
+reports 0 issues; `just check-fmt` clean. New table-driven tests in
 `internal/interp/runtime/associative_hash_test.go` pin the xxHash32 port against the published
 reference vectors (covering the four-accumulator path for inputs of 16 bytes or more, which no
 fixture reaches), pin the hash and bucket index of every key in the order-sensitive fixtures, and
 cover growth, backward-shift deletion, per-key-kind round-trips and the
 equal-keys-hash-equally invariant. Full fixture report against the branch point: `AssociativePass`
-22 → 23, total 920 → 921, no category down. Baselines ratcheted and `TEST_STATUS.md` regenerated.
+22 → 23, total 938 → 939, no category down. Baselines ratcheted and `TEST_STATUS.md` regenerated.
