@@ -390,6 +390,8 @@ func TypeFromString(name string) (Type, error) {
 		return VARIANT, nil
 	case "jsonvariant":
 		return JSON_VARIANT, nil
+	case "bytebuffer":
+		return BYTE_BUFFER, nil
 	default:
 		return nil, fmt.Errorf("unknown type: %s", name)
 	}
