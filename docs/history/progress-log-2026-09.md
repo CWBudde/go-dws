@@ -2296,3 +2296,77 @@ concurrency exercise for `-race`.
 Full fixture report before/after: TOTAL **938 → 952**, no category below its previous value.
 `FunctionsGlobalVars` 0 → 12; `FunctionsTime` 1 → 3 as a side effect of the bare-name procedure
 and function-pointer fixes. Baselines ratcheted and `TEST_STATUS.md` regenerated.
+
+## 2026-09-10 — Date/time rebuild: FunctionsTime 1 → 27 (§3.3)
+
+`FunctionsTime` was the worst-scoring in-scope category: 1 of 27 scored fixtures. Closed on
+branch `feat/plan-3.3-functions-time`. **Fixture score 920 → 946 of 1,928 scored; no other
+category moved, and the `*Fail` error-detection suites stayed at 115 / 647.**
+
+### Integer where TDateTime is expected
+
+`TDateTime` is an alias of `Float`, so `YearOf(0)` and `FormatDateTime('yyyy', 0)` are legal
+DWScript. The builtin signatures used an exact-`Float` parameter constraint and the analyzer
+rejected the Integer with `'YearOf' expects Float/TDateTime, got Integer`. Every `TDateTime`
+parameter now carries the numeric constraint. Widening it does not weaken error detection: the
+`*Fail` suites are unchanged.
+
+### Formatter and parser rewritten
+
+The old formatter was string replacement over the format string and the parsers went through
+`time.Parse`. Both were replaced by a compiled-token formatter and a character-at-a-time scanner
+that follow Delphi's rules: `ddd`/`dddd` and `mmm`/`mmmm` names, 12-hour hours with `am/pm`,
+`a/p` and `ampm`, the `uuu` UTC-offset marker, both quoting forms, and `m` after an hour meaning
+minutes. Values are decoded through civil arithmetic with millisecond rounding, so
+`EncodeTime(12, 34, 45, 567)` round-trips, and Delphi's negative-`TDateTime` sign convention is
+respected. Parse failures report `Date/time parsing error for "x"`; the ISO 8601 scanner
+reproduces the per-position messages that `iso8601.errors` pins.
+
+### FormatSettings and DateTimeZone
+
+`FormatSettings` is an engine-provided **static class** and it is **mutable**: its class
+variables are the *only* storage for the locale settings. `Evaluator.DateTimeFormatSettings`
+materialises a snapshot from them on each call, so a script's assignment is visible to the very
+next built-in with no cache to invalidate. The analyzer registers the class type
+(`internal/semantic/analyze_format_settings.go`) and the interpreter bootstrap creates the
+runtime counterpart (`internal/interp/format_settings.go`) from the same
+`semantic.FormatSettingsClassVars` list, so the two sides cannot drift.
+
+`DateTimeZone` is a scoped enum (`Default`, `Local`, `UTC`) threaded through every built-in that
+converts between a number and a moment. `Default` resolves through `FormatSettings.Zone`.
+
+### New built-ins
+
+`Sleep`, `ParseDateTime`, `StrToDateDef`, `StrToTimeDef`, `StrToDateTimeDef`, `IncWeek`,
+`IncMilliSecond`, `MonthOfYear`, `DayOfMonth`, `DateToWeekNumber`, `DateToYearOfWeek`,
+`LocalDateTimeToUTCDateTime`, `UTCDateTimeToLocalDateTime`, `LocalDateTimeToUnixTime`,
+`UnixTimeToLocalDateTime`, and the two-argument `DateTimeToISO8601` precision overload.
+
+### The fixture suite is timezone-dependent
+
+Four fixtures inherited from DWScript's own suite assume a Central European host: `incmonth` and
+`local_utc_unix` hard-code the +1/+2 offsets in their expected output, and `encode` and `utc`
+print `Cannot perform test for GMT+0` when the local zone is UTC. Scored against the host's zone
+the category yields 27 under `Europe/Berlin`, 25 under `America/New_York` and 23 under `UTC` —
+so the pass count would depend on where CI happened to run, and GitHub runners are UTC.
+
+Both runners therefore pin `TZ=Europe/Berlin` for every fixture: the harness sets it on each
+worker subprocess (`internal/interp/fixture_test.go`) and `cmd/fixture-report` sets it on each
+CLI invocation. `TestDWScriptFixtures` fails up front with a clear message if the zone cannot be
+loaded, so a host without `tzdata` reports that rather than silently scoring 23. This is a
+reproducibility measure, not a per-fixture special case — no fixture input is inspected.
+
+### Scope
+
+Three `FunctionsTime` fixtures (`now`, `default_values`, `datetime_strings`) ship without an
+expected `.txt` upstream and stay unscored. They are self-checking — they print only on failure
+— and all three produce empty output, so they pass in substance. `sleep.pas` is `Sleep(0)`, which
+is deterministic; nothing in the suite depends on a real elapsed duration.
+
+**Validation:** `go test ./... -count=1` green (including the ~74 s `internal/interp` fixture
+harness and the CLI end-to-end suite); `golangci-lint run --new-from-rev=main` reports 0 issues;
+`just check-fmt` clean. `go run ./cmd/fixture-report --build=false` agrees with the harness at
+946. New tests: `internal/interp/format_settings_test.go` (defaults, mutability, and that
+`FormatSettings.Zone` drives a built-in given no explicit zone). Baselines ratcheted
+(`FunctionsTime` 1 → 27) and `TEST_STATUS.md` regenerated. User-facing reference:
+[`docs/guide/date-time.md`](../guide/date-time.md).

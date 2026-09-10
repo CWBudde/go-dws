@@ -27,6 +27,7 @@ Status figures are generated, never hand-edited:
 | [`guide/dwscript-features.md`](guide/dwscript-features.md) | Catalog of every upstream DWScript feature (the parity target list) |
 | [`guide/builtins.md`](guide/builtins.md) | Built-in functions reference (`Format`, string/math/conversion helpers) |
 | [`guide/control-flow.md`](guide/control-flow.md) | `break`, `continue`, `exit` semantics |
+| [`guide/date-time.md`](guide/date-time.md) | `TDateTime`, `DateTimeZone`, `FormatSettings`, format specifiers |
 | [`guide/exceptions.md`](guide/exceptions.md) | `try`/`except`/`finally`, `raise`, exception classes |
 | [`guide/contracts.md`](guide/contracts.md) | `require`/`ensure`/`old` design-by-contract |
 | [`guide/enums.md`](guide/enums.md) | Enumerated types, ordinals, scoped enums |
