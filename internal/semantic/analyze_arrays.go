@@ -89,14 +89,16 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 
 	// Analyze the left side (what's being indexed)
 	leftType := a.analyzeExpression(expr.Left)
+
+	// `Test[Index]` where Test is a parameterless function indexes the call's
+	// result, not the function itself. Member access unwraps the same way.
+	// Applied before the nil check: an overload set has no type of its own, so
+	// only the resolved parameterless overload yields an indexable type.
+	leftType = a.applyImplicitCallType(expr.Left, leftType)
 	if leftType == nil {
 		// Error already reported
 		return nil
 	}
-
-	// `Test[Index]` where Test is a parameterless function indexes the call's
-	// result, not the function itself. Member access unwraps the same way.
-	leftType = a.applyImplicitCallType(expr.Left, leftType)
 
 	// Allow default indexed properties on classes (obj[index] -> obj.DefaultProperty[index])
 	if classType, ok := types.GetUnderlyingType(leftType).(*types.ClassType); ok {

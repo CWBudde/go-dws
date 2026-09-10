@@ -60,6 +60,21 @@ func TestIndexImplicitFunctionCall(t *testing.T) {
 			`,
 		},
 		{
+			name: "overload set whose parameterless overload returns an array",
+			input: `
+				type TIntArray = array of Integer;
+				function Test : TIntArray; overload;
+				begin
+					Result := [1, 2, 3];
+				end;
+				function Test(i : Integer) : Integer; overload;
+				begin
+					Result := i;
+				end;
+				var x : Integer := Test[0];
+			`,
+		},
+		{
 			name: "parenless function returning string indexed by integer",
 			input: `
 				function Test : String;

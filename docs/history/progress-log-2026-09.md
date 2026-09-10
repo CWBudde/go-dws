@@ -1480,9 +1480,21 @@ The helper only fires for a zero-parameter function type, so a function pointer 
 arguments is still not indexable, and a parenless call returning a non-indexable type still gets
 `Array expected`.
 
-**Validation:** `go test ./...` green; new table-driven tests in
+Overload sets need one extra step: they deliberately carry no type of their own, so `expr.Left`
+analyzes to `nil` and the old nil check bailed out before the unwrap could run. The unwrap is now
+applied before that check, and `applyImplicitCallType` resolves a nil type against the overload
+set, using the single parameterless overload when the set has exactly one. A set with none, or
+with several, is left to regular overload resolution.
+
+**Validation:** `go test ./... -timeout 30m` — 26 of 27 packages green, and `cmd/dwscript`
+verified separately with `go test ./cmd/dwscript -timeout 120m`. The split is not cosmetic:
+`cmd/dwscript` shells out to the built binary once per case, so at the default per-package
+limit it trips the pre-existing 10-minute timeout, and on a loaded machine it exceeds 30
+minutes too. That slowness predates this change and is unrelated to it — no bare
+`go test ./...` is green here. New table-driven tests in
 `internal/semantic/analyze_arrays_implicit_call_test.go` cover dynamic, static and associative
-array results, an associative array of records, string indexing, and two negative cases.
+array results, an associative array of records, string indexing, an overload set whose
+parameterless overload returns an array, and two negative cases.
 `just fixture-check` passes with no category moving; baselines unchanged.
 
 ### Scope
