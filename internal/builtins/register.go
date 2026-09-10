@@ -455,8 +455,6 @@ func RegisterDateTimeFunctions(r *Registry) {
 		Sig(nil, F))
 	r.RegisterWithSignature("UTCDateTime", UTCDateTime, CategoryDateTime, "Returns current UTC datetime",
 		Sig(nil, F))
-	r.RegisterWithSignature("Sleep", Sleep, CategoryDateTime, "Pauses execution for a number of milliseconds",
-		Sig([]types.Type{I}, nil).WithConstraints(num))
 
 	// Timezone conversions
 	r.RegisterWithSignature("LocalDateTimeToUTCDateTime", LocalDateTimeToUTCDateTime, CategoryDateTime,

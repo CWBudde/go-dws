@@ -2300,8 +2300,8 @@ and function-pointer fixes. Baselines ratcheted and `TEST_STATUS.md` regenerated
 ## 2026-09-10 — Date/time rebuild: FunctionsTime 1 → 27 (§3.3)
 
 `FunctionsTime` was the worst-scoring in-scope category: 1 of 27 scored fixtures. Closed on
-branch `feat/plan-3.3-functions-time`. **Fixture score 920 → 946 of 1,928 scored; no other
-category moved, and the `*Fail` error-detection suites stayed at 115 / 647.**
+branch `feat/plan-3.3-functions-time`. **Fixture score 938 → 964 of 1,928 scored; no other
+category moved, and the `*Fail` error-detection suites stayed at 130 / 647.**
 
 ### Integer where TDateTime is expected
 
@@ -2364,9 +2364,9 @@ expected `.txt` upstream and stay unscored. They are self-checking — they prin
 is deterministic; nothing in the suite depends on a real elapsed duration.
 
 **Validation:** `go test ./... -count=1` green (including the ~74 s `internal/interp` fixture
-harness and the CLI end-to-end suite); `golangci-lint run --new-from-rev=main` reports 0 issues;
-`just check-fmt` clean. `go run ./cmd/fixture-report --build=false` agrees with the harness at
-946. New tests: `internal/interp/format_settings_test.go` (defaults, mutability, and that
+harness and the CLI end-to-end suite); `golangci-lint run --new-from-rev=origin/main` reports
+0 issues; `just check-fmt` clean. `go run ./cmd/fixture-report --build=false` agrees with the
+harness at 964. New tests: `internal/interp/format_settings_test.go` (defaults, mutability, and that
 `FormatSettings.Zone` drives a built-in given no explicit zone). Baselines ratcheted
 (`FunctionsTime` 1 → 27) and `TEST_STATUS.md` regenerated. User-facing reference:
 [`docs/guide/date-time.md`](../guide/date-time.md).

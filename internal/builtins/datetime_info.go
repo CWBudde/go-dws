@@ -2,7 +2,6 @@ package builtins
 
 import (
 	"math"
-	"time"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 )
@@ -155,22 +154,6 @@ func UTCDateTimeToLocalDateTime(ctx Context, args []Value) Value {
 		return errVal
 	}
 	return floatResult(utcDateTimeToLocalDateTime(dt))
-}
-
-// Sleep implements the Sleep() built-in procedure, pausing the script for the
-// given number of milliseconds.
-func Sleep(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("Sleep() expects 1 argument, got %d", len(args))
-	}
-	msec, errVal := integerArg(ctx, args, 0, "Sleep")
-	if errVal != nil {
-		return errVal
-	}
-	if msec > 0 {
-		time.Sleep(time.Duration(msec) * time.Millisecond)
-	}
-	return nil
 }
 
 // =============================================================================
