@@ -201,3 +201,7 @@ which is how the expiration tests stay deterministic.
   `PrivateVarsNames` and `CleanupPrivateVars` are not implemented. The fixture
   that covers them (`private_vars`) also depends on a separate parser gap:
   a unit without `interface`/`implementation` sections fails to parse.
+- **Case hints on array pseudo-methods.** `queue_snapshot` exercises
+  `GlobalQueueSnapshot(...).Map(...).join(',')`. Its output is byte-correct, but
+  the compiler emits a `"join" does not match case of declaration ("Join")` hint
+  that upstream does not emit for this array. Unrelated to the store itself.

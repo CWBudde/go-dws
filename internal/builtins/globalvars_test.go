@@ -369,10 +369,10 @@ func TestGlobalVarStore_CleanupQueues(t *testing.T) {
 
 func TestFromRuntimeValue(t *testing.T) {
 	tests := []struct {
-		name    string
 		value   Value
-		want    GlobalVarValue
+		name    string
 		wantErr string
+		want    GlobalVarValue
 	}{
 		{name: "integer", value: &runtime.IntegerValue{Value: 7}, want: intVar(7)},
 		{name: "string", value: &runtime.StringValue{Value: "s"}, want: stringVar("s")},

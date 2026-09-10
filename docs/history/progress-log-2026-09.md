@@ -2194,6 +2194,8 @@ codec's round trip, padding, MIME wrapping and malformed input. Baseline ratchet
 
 ## 2026-09-10 — GlobalVars host library, PLAN.md §3.3 (FunctionsGlobalVars 0/16 → 11/16)
 
+## 2026-09-10 — GlobalVars host library, PLAN.md §3.3 (FunctionsGlobalVars 0/16 → 12/16)
+
 `FunctionsGlobalVars` scored 0/16 because the library did not exist at all: every fixture died
 at semantic analysis with `Unknown name`. The fixtures are the specification — there is no
 `reference/dwscript-original/` checkout in this worktree — so the API below was derived from
@@ -2261,21 +2263,26 @@ Null variants by emptiness before falling through to the complex-type cases.
 prints nothing at all. Changed to the empty string. (`Null` still prints `Null` — `write_intf`
 confirms upstream does that.)
 
-### Scope — the five that remain
+### Scope — what remains
 
 - `private_vars` — needs the per-unit `WritePrivateVar` / `ReadPrivateVar` / `PrivateVarsNames` /
   `CleanupPrivateVars` family, and separately a **parser** fix: a unit with no
   `interface`/`implementation` sections fails with
   `expected 'end' to close unit declaration`. Reproduces in six lines with no GlobalVars
   involved. Left for §3.3.
-- `write_intf` — blocked before it reaches the library, on
+- `write_intf` — **closed.** It was blocked before it reached the library, on
   `TTest(nil) as IInterface` (`'as' operator requires object instance, got TYPE_CAST`).
+  A static class cast produces a `TypeCastValue` that only narrows the compile-time view of
+  the reference; `as` reinterprets the runtime instance, so it now unwraps that static view
+  first and continues with the underlying reference (nil included). The library already
+  rejected interface payloads with the expected
+  `Cannot store global of type TInterfaceSymbol`.
 - `queue_snapshot` — the library output is byte-correct; the fixture fails only on four spurious
   `"join" does not match case of declaration ("Join")` hints. Upstream emits case hints for
   array pseudo-methods (`add`, `copy`) but not for this one; the rule was not worth guessing at
   from one fixture.
-- `basic` and `cleanup` and `names` now pass; the two remaining `.pas` files in the directory
-  (`unit_private_vars1/2`) are units without expectations and are scored as NoExp.
+- The two remaining `.pas` files in the directory (`unit_private_vars1/2`) are units without
+  expectations and are scored as NoExp, so 12/16 is 12 of the 14 scored fixtures.
 
 ### Validation
 
