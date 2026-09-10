@@ -156,7 +156,7 @@ compiled type information.
 - ⏸️ Multi-dimensional syntax `[M, N]` (use `array of array` instead)
 - ⏸️ Open array parameters
 - ⏸️ Array of const (variadic)
-- ⏸️ Associative arrays
+- ✅ Associative arrays (see [Associative Arrays / Dictionaries](#associative-arrays--dictionaries))
 
 ---
 
@@ -613,7 +613,15 @@ PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
 - Iteration over keys/values
 
 #### go-dws Status
-- ⏸️ Associative arrays
+- ✅ Declaration, key-value read/write, `Keys`, `Length`/`Count`, `Clear`, `Delete(key)`
+- ✅ A Variant index is converted to the declared key type, so a slot written through a
+  Variant holding `123` in an `array [String] of T` is found again as `a['123']`
+- ✅ Object lifetime (ARC): the map holds a reference to every key and value it stores.
+  Overwriting a slot destroys the displaced value, `Delete` and `Clear` destroy the entries
+  they remove, and a map still bound at program end releases what it owns. An object that a
+  variable still references is not destroyed by any of these.
+- ⏸️ Nested lvalue vivification through a key (`a[k].field := v`, `a[k][j] := v`)
+- ⏸️ DWScript's hash iteration order for `Keys`
 
 ---
 

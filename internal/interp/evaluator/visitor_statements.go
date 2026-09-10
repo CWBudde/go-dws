@@ -75,6 +75,10 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 		return e.newError(node, "uncaught exception: %v", ctx.Exception())
 	}
 
+	// Program-scope finalization: associative arrays release the keys and
+	// values they own, running the destructors of objects the map outlived.
+	e.releaseAssociativeBindings(ctx.Env())
+
 	return result
 }
 

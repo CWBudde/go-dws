@@ -87,21 +87,34 @@ func (a *AssociativeArrayValue) Get(key Value) (Value, bool) {
 
 // Set inserts or updates the value at key. Value-typed keys are snapshotted so
 // later mutation of the caller's key variable does not alter the stored key.
-func (a *AssociativeArrayValue) Set(key, value Value) {
+//
+// It returns the value previously stored at key and whether an existing slot
+// was overwritten, so callers can apply ARC to the displaced value.
+func (a *AssociativeArrayValue) Set(key, value Value) (prev Value, replaced bool) {
 	if i := a.indexOf(key); i >= 0 {
+		prev = a.values[i]
 		a.values[i] = value
-		return
+		return prev, true
 	}
 	a.keys = append(a.keys, cloneKey(key))
 	a.values = append(a.values, value)
+	return nil, false
 }
 
 // Delete removes the entry at key, returning whether it was present.
 func (a *AssociativeArrayValue) Delete(key Value) bool {
+	_, _, ok := a.DeleteEntry(key)
+	return ok
+}
+
+// DeleteEntry removes the entry at key and returns the stored key and value
+// alongside whether the key was present. Callers own the ARC release of both.
+func (a *AssociativeArrayValue) DeleteEntry(key Value) (storedKey, storedValue Value, ok bool) {
 	i := a.indexOf(key)
 	if i < 0 {
-		return false
+		return nil, nil, false
 	}
+	storedKey, storedValue = a.keys[i], a.values[i]
 	// Shift down, then clear the freed tail slots so the removed key/value (and
 	// anything they reference) become eligible for GC.
 	copy(a.keys[i:], a.keys[i+1:])
@@ -111,7 +124,7 @@ func (a *AssociativeArrayValue) Delete(key Value) bool {
 	a.values[last] = nil
 	a.keys = a.keys[:last]
 	a.values = a.values[:last]
-	return true
+	return storedKey, storedValue, true
 }
 
 // Contains reports whether key is present.
@@ -124,6 +137,16 @@ func (a *AssociativeArrayValue) Len() int { return len(a.keys) }
 func (a *AssociativeArrayValue) Clear() {
 	a.keys = nil
 	a.values = nil
+}
+
+// TakeEntries empties the array and returns the stored keys and their parallel
+// values. Callers own the ARC release of everything returned; emptying first
+// makes a second take a no-op, so the contents can never be released twice.
+func (a *AssociativeArrayValue) TakeEntries() (keys, values []Value) {
+	keys, values = a.keys, a.values
+	a.keys = nil
+	a.values = nil
+	return keys, values
 }
 
 // Keys returns the keys in insertion order (a fresh slice). Value-typed keys
