@@ -8,23 +8,23 @@ import (
 func TestFloatToStr(t *testing.T) {
 	tests := []struct {
 		name string
-		in   float64
 		want string
+		in   float64
 	}{
-		{"zero", 0, "0"},
-		{"integral", 100, "100"},
-		{"simple fraction", 1.25, "1.25"},
-		{"fifteen significant digits", 1.0 / 3.0, "0.333333333333333"},
-		{"rounds to fifteen digits", 0.1 + 0.2, "0.3"},
-		{"large int64 as exponent", 4611686018427387905, "4.61168601842739E18"},
-		{"big exponent drops plus", 1e99, "1E99"},
-		{"small exponent keeps minus", 1e-5, "1E-5"},
-		{"exponent leading zeros stripped", 1e-7, "1E-7"},
-		{"fixed below exponent threshold", 1e14, "100000000000000"},
-		{"negative", -0.5, "-0.5"},
-		{"positive infinity", math.Inf(1), "INF"},
-		{"negative infinity", math.Inf(-1), "-INF"},
-		{"not a number", math.NaN(), "NAN"},
+		{name: "zero", in: 0, want: "0"},
+		{name: "integral", in: 100, want: "100"},
+		{name: "simple fraction", in: 1.25, want: "1.25"},
+		{name: "fifteen significant digits", in: 1.0 / 3.0, want: "0.333333333333333"},
+		{name: "rounds to fifteen digits", in: 0.1 + 0.2, want: "0.3"},
+		{name: "large int64 as exponent", in: 4611686018427387905, want: "4.61168601842739E18"},
+		{name: "big exponent drops plus", in: 1e99, want: "1E99"},
+		{name: "small exponent keeps minus", in: 1e-5, want: "1E-5"},
+		{name: "exponent leading zeros stripped", in: 1e-7, want: "1E-7"},
+		{name: "fixed below exponent threshold", in: 1e14, want: "100000000000000"},
+		{name: "negative", in: -0.5, want: "-0.5"},
+		{name: "positive infinity", in: math.Inf(1), want: "INF"},
+		{name: "negative infinity", in: math.Inf(-1), want: "-INF"},
+		{name: "not a number", in: math.NaN(), want: "NAN"},
 	}
 
 	for _, tt := range tests {
