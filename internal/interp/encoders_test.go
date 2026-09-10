@@ -88,6 +88,26 @@ func TestEncoderClasses_AsValueAndMetaclass(t *testing.T) {
 	`, "004500780061006d0070006c0065\n4500780061006d0070006c006500")
 }
 
+// TestEncoderClasses_ImplicitParameterConversion checks that a user-declared
+// `operator implicit` is applied before the native method body runs, so a
+// native class method sees the same argument a DWScript-bodied method would.
+func TestEncoderClasses_ImplicitParameterConversion(t *testing.T) {
+	runScriptTestWithSemantic(t, `
+type TVal = record V : Integer; end;
+
+function ValToStr(v : TVal) : String;
+begin
+   Result := 'x' + IntToStr(v.V);
+end;
+
+operator implicit (TVal) : String uses ValToStr;
+
+var v : TVal;
+v.V := 1;
+PrintLn(HexadecimalEncoder.Encode(v));
+`, "7831")
+}
+
 // TestEncoderClasses_MalformedInputRaises checks that a native method's error
 // surfaces as a catchable DWScript exception carrying DWScript's wording, the
 // enclosing routine name and the failing statement's position.

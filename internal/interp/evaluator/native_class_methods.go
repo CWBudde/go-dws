@@ -26,7 +26,7 @@ func (e *Evaluator) executeNativeClassMethod(
 			classInfo.GetName(), callable.Name, len(callable.Parameters), len(args))
 	}
 
-	result, err := callable.Native(classInfo, args)
+	result, err := callable.Native(classInfo, e.convertNativeMethodArgs(callable, args, ctx))
 	if err != nil {
 		return e.raiseNativeMethodError(err, node, ctx)
 	}
@@ -34,6 +34,44 @@ func (e *Evaluator) executeNativeClassMethod(
 		return &runtime.NullValue{}
 	}
 	return result
+}
+
+// convertNativeMethodArgs applies each declared parameter's implicit
+// conversion before the Go body sees the argument, so a native method observes
+// the same values an equivalent DWScript-bodied method would.
+//
+// Semantic analysis already accepts an argument whose type reaches the
+// parameter type through a user-declared `operator implicit`; without this
+// step the native body would receive the unconverted value. Var (ByRef)
+// parameters keep their reference, matching BindFunctionParameters.
+//
+// The returned slice is a copy whenever a conversion applied, leaving the
+// caller's arguments untouched.
+func (e *Evaluator) convertNativeMethodArgs(
+	callable *runtime.MethodMetadata,
+	args []Value,
+	ctx *ExecutionContext,
+) []Value {
+	converted := args
+	copied := false
+
+	for idx, param := range callable.Parameters {
+		if param.ByRef || param.Type == nil || args[idx] == nil {
+			continue
+		}
+		value, ok := e.TryImplicitConversion(args[idx], param.Type, ctx)
+		if !ok {
+			continue
+		}
+		if !copied {
+			converted = make([]Value, len(args))
+			copy(converted, args)
+			copied = true
+		}
+		converted[idx] = value
+	}
+
+	return converted
 }
 
 // raiseNativeMethodError converts a native method's error into a DWScript
