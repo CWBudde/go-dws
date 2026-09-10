@@ -40,19 +40,30 @@ func (e *Evaluator) globalVarNameArgument(
 	return str.Value, nil
 }
 
+// globalVarResultTarget resolves the caller's var parameter into an assignment
+// closure. It runs before the store is read so that a non-assignable target is
+// rejected without consuming a queue entry.
+func (e *Evaluator) globalVarResultTarget(
+	fnName string,
+	target ast.Expression,
+	node ast.Node,
+	ctx *ExecutionContext,
+) (func(Value) error, Value) {
+	_, assign, err := e.EvaluateLValue(target, ctx)
+	if err != nil {
+		return nil, e.newError(node, "%s() second argument must be a variable: %s", fnName, err.Error())
+	}
+	return assign, nil
+}
+
 // storeGlobalVarResult assigns a retrieved global value to the caller's
 // variable and returns True. It is only called when a value was found.
 func (e *Evaluator) storeGlobalVarResult(
 	fnName string,
-	target ast.Expression,
+	assign func(Value) error,
 	stored builtins.GlobalVarValue,
 	node ast.Node,
-	ctx *ExecutionContext,
 ) Value {
-	_, assign, err := e.EvaluateLValue(target, ctx)
-	if err != nil {
-		return e.newError(node, "%s() second argument must be a variable: %s", fnName, err.Error())
-	}
 	if err := assign(stored.ToRuntimeValue()); err != nil {
 		return e.newError(node, "%s() failed to update the target variable: %s", fnName, err.Error())
 	}
@@ -69,11 +80,15 @@ func (e *Evaluator) builtinTryReadGlobalVar(args []ast.Expression, node ast.Node
 	if errVal != nil {
 		return errVal
 	}
+	assign, errVal := e.globalVarResultTarget(fnName, args[1], node, ctx)
+	if errVal != nil {
+		return errVal
+	}
 	stored, found := builtins.DefaultGlobalVars.Read(name)
 	if !found {
 		return &runtime.BooleanValue{Value: false}
 	}
-	return e.storeGlobalVarResult(fnName, args[1], stored, node, ctx)
+	return e.storeGlobalVarResult(fnName, assign, stored, node)
 }
 
 // globalQueueReaders maps the lowercase built-in name onto the store operation
@@ -115,9 +130,13 @@ func (e *Evaluator) builtinGlobalQueueRead(
 	if errVal != nil {
 		return errVal
 	}
+	assign, errVal := e.globalVarResultTarget(reader.name, args[1], node, ctx)
+	if errVal != nil {
+		return errVal
+	}
 	stored, found := reader.read(name)
 	if !found {
 		return &runtime.BooleanValue{Value: false}
 	}
-	return e.storeGlobalVarResult(reader.name, args[1], stored, node, ctx)
+	return e.storeGlobalVarResult(reader.name, assign, stored, node)
 }

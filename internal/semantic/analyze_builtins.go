@@ -176,6 +176,11 @@ func (a *Analyzer) registrySignatureAsFunctionPointer(name string) *types.Functi
 	if !ok || sig.ReturnType == nil || sig.IsVariadic {
 		return nil
 	}
+	// A by-reference parameter cannot be expressed by a function pointer type:
+	// indirect invocation would hand the built-in an already-evaluated value.
+	if sig.HasVarParams() {
+		return nil
+	}
 	if len(sig.AllowedArgCounts) > 0 {
 		return nil
 	}

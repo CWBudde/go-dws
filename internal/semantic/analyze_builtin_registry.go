@@ -45,15 +45,28 @@ func (a *Analyzer) analyzeRegisteredBuiltin(name string, args []ast.Expression, 
 		actual := make([]types.Type, len(analyzedArgs))
 		for index, arg := range analyzedArgs {
 			actual[index] = a.analyzeExpression(arg)
+			a.checkBuiltinVarArgument(sig, diagnosticName, index, arg)
 		}
 		a.checkBuiltinArguments(sig, style, diagnosticName, actual, call)
 	} else {
 		for index, arg := range analyzedArgs {
 			actual := a.analyzeExpression(arg)
+			a.checkBuiltinVarArgument(sig, diagnosticName, index, arg)
 			a.checkBuiltinArgument(sig, style, diagnosticName, index, actual, call)
 		}
 	}
 	return result, true
+}
+
+// checkBuiltinVarArgument reports an argument passed to a by-reference builtin
+// parameter that is not assignable. Its exact type is checked separately by the
+// signature constraint attached alongside the var marker.
+func (a *Analyzer) checkBuiltinVarArgument(sig *builtins.FunctionSignature, name string, index int, arg ast.Expression) {
+	if !sig.IsVarParam(index) || a.isLValue(arg) {
+		return
+	}
+	a.addError("var parameter %d to function '%s' requires a variable (identifier, array element, or field), got %s at %s",
+		index+1, name, arg.String(), arg.Pos().String())
 }
 
 func (a *Analyzer) reportBuiltinArity(sig *builtins.FunctionSignature, style builtinDiagnosticStyle, name string, count int, call *ast.CallExpression) {

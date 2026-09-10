@@ -613,6 +613,14 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 	leftType := runtime.KindOf(left)
 	rightType := runtime.KindOf(right)
 
+	// Unassigned, Null and nil are all empty Variant representations and
+	// compare equal to one another, matching evalVariantBinaryOp. Without this
+	// the answer would depend on whether the operand happened to be wrapped in
+	// a Variant (e.g. the raw Unassigned returned by a missing ReadGlobalVar).
+	if isNullish(left) && isNullish(right) {
+		return &runtime.BooleanValue{Value: op == "="}
+	}
+
 	// Handle nil comparisons
 	if leftType == runtime.KindNil || rightType == runtime.KindNil {
 		// Both nil
@@ -661,11 +669,9 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 	// empty variant never equals a value-carrying one. Without this, comparing
 	// two absent globals (CompareExchangeGlobalVar's result) is a type error.
 	if isEmptyVariantKind(leftType) || isEmptyVariantKind(rightType) {
-		result := leftType == rightType
-		if op == "=" {
-			return &runtime.BooleanValue{Value: result}
-		}
-		return &runtime.BooleanValue{Value: !result}
+		// Both-empty is already handled by the nullish check above, so exactly
+		// one operand carries a value here and the two are never equal.
+		return &runtime.BooleanValue{Value: op == "<>"}
 	}
 
 	// Handle RTTITypeInfoValue comparisons (TypeOf results)

@@ -61,7 +61,7 @@ func RegisterGlobalVarsFunctions(r *Registry) {
 		Sig([]types.Type{S, V}, V))
 	r.RegisterWithSignature("TryReadGlobalVar", varParamOnlyGlobalVarFunc("TryReadGlobalVar"), CategoryGlobalVars,
 		"Reads a process-wide global into a var parameter, reporting whether it existed",
-		Sig([]types.Type{S, V}, B))
+		Sig([]types.Type{S, V}, B).WithVarParams(1))
 	r.RegisterWithSignature("DeleteGlobalVar", DeleteGlobalVar, CategoryGlobalVars,
 		"Deletes a process-wide global, reporting whether it existed",
 		Sig([]types.Type{S}, B))
@@ -96,16 +96,16 @@ func RegisterGlobalVarsFunctions(r *Registry) {
 		Sig([]types.Type{S, V}, B))
 	r.RegisterWithSignature("GlobalQueuePull", varParamOnlyGlobalVarFunc("GlobalQueuePull"), CategoryGlobalVars,
 		"Removes the front value of a process-wide queue into a var parameter",
-		Sig([]types.Type{S, V}, B))
+		Sig([]types.Type{S, V}, B).WithVarParams(1))
 	r.RegisterWithSignature("GlobalQueuePop", varParamOnlyGlobalVarFunc("GlobalQueuePop"), CategoryGlobalVars,
 		"Removes the back value of a process-wide queue into a var parameter",
-		Sig([]types.Type{S, V}, B))
+		Sig([]types.Type{S, V}, B).WithVarParams(1))
 	r.RegisterWithSignature("GlobalQueueFirst", varParamOnlyGlobalVarFunc("GlobalQueueFirst"), CategoryGlobalVars,
 		"Reads the front value of a process-wide queue without removing it",
-		Sig([]types.Type{S, V}, B))
+		Sig([]types.Type{S, V}, B).WithVarParams(1))
 	r.RegisterWithSignature("GlobalQueuePeek", varParamOnlyGlobalVarFunc("GlobalQueuePeek"), CategoryGlobalVars,
 		"Reads the back value of a process-wide queue without removing it",
-		Sig([]types.Type{S, V}, B))
+		Sig([]types.Type{S, V}, B).WithVarParams(1))
 	r.RegisterWithSignature("GlobalQueueLength", GlobalQueueLength, CategoryGlobalVars,
 		"Returns the number of entries in a process-wide queue",
 		Sig([]types.Type{S}, I))

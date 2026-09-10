@@ -1,7 +1,7 @@
 # Global Variables and Global Queues
 
 **Status**: Implemented (PLAN.md §3.3)
-**Fixtures**: `testdata/fixtures/FunctionsGlobalVars/` — 11 / 16 passing
+**Fixtures**: `testdata/fixtures/FunctionsGlobalVars/` — 12 / 16 passing
 **Source**: `internal/builtins/globalvars.go`, `internal/builtins/globalvars_funcs.go`
 
 ## Overview

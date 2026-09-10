@@ -2207,7 +2207,7 @@ reading all 16 of them.
 globals plus named double-ended queues, guarded by one `sync.RWMutex`. `DefaultGlobalVars` is the
 shared instance; `NewGlobalVarStore()` gives a host or a test its own.
 `internal/builtins/globalvars_funcs.go` adapts it to the `BuiltinFunc` convention and
-`RegisterGlobalVarsFunctions` wires 23 names into the new `CategoryGlobalVars`.
+`RegisterGlobalVarsFunctions` wires 24 names into the new `CategoryGlobalVars`.
 
 Three design decisions worth recording:
 
@@ -2293,6 +2293,6 @@ mask matching, expiration against a fake clock, compare-and-exchange, snapshot r
 tag rejection, queue end semantics, storable-value rejection, and an eight-goroutine
 concurrency exercise for `-race`.
 
-Full fixture report before/after: TOTAL **920 → 933**, no category below its previous value.
-`FunctionsGlobalVars` 0 → 11; `FunctionsTime` 1 → 3 as a side effect of the bare-name procedure
+Full fixture report before/after: TOTAL **920 → 934**, no category below its previous value.
+`FunctionsGlobalVars` 0 → 12; `FunctionsTime` 1 → 3 as a side effect of the bare-name procedure
 and function-pointer fixes. Baselines ratcheted and `TEST_STATUS.md` regenerated.

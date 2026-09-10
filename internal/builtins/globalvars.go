@@ -270,6 +270,12 @@ func matchesMask(name, mask string) bool {
 // equality: numeric kinds compare numerically, everything else compares by
 // kind and payload.
 func globalVarEqual(a, b GlobalVarValue) bool {
+	// Two integers compare exactly. Routing them through float64 would make
+	// distinct 64-bit values above 2^53 collapse onto the same float, which
+	// would break CompareExchange as a synchronization primitive.
+	if a.Kind == GlobalVarInteger && b.Kind == GlobalVarInteger {
+		return a.Int == b.Int
+	}
 	if isNumericKind(a.Kind) && isNumericKind(b.Kind) {
 		return numericValue(a) == numericValue(b)
 	}
@@ -333,6 +339,9 @@ func (s *GlobalVarStore) QueuePull(name string) (GlobalVarValue, bool) {
 		return GlobalVarValue{}, false
 	}
 	value := queue[0]
+	// Clear the consumed slot so the backing array does not retain the
+	// payload: queues are process-wide and can be long-lived.
+	queue[0] = GlobalVarValue{}
 	s.queues[name] = queue[1:]
 	return value, true
 }
@@ -346,6 +355,7 @@ func (s *GlobalVarStore) QueuePop(name string) (GlobalVarValue, bool) {
 		return GlobalVarValue{}, false
 	}
 	value := queue[len(queue)-1]
+	queue[len(queue)-1] = GlobalVarValue{}
 	s.queues[name] = queue[:len(queue)-1]
 	return value, true
 }
@@ -420,12 +430,45 @@ const globalVarsFileTag = "DWSGV1"
 type serializedGlobalVar struct {
 	Name string `json:"n"`
 	Str  string `json:"s,omitempty"`
+	// FloatSpecial carries NaN and +/-Infinity, which JSON cannot express as
+	// numbers. When set it takes precedence over Float on restore.
+	FloatSpecial string `json:"fs,omitempty"`
 	// TTL is the remaining lifetime in seconds at save time; 0 means no expiry.
 	TTL   float64       `json:"ttl,omitempty"`
 	Int   int64         `json:"i,omitempty"`
 	Float float64       `json:"f,omitempty"`
 	Kind  GlobalVarKind `json:"k"`
 	Bool  bool          `json:"b,omitempty"`
+}
+
+// encodeSpecialFloat returns the textual tag for a non-finite float, or an
+// empty string for a finite one. encoding/json rejects NaN and +/-Infinity,
+// and both are reachable from script via NaN() and Infinity().
+func encodeSpecialFloat(f float64) string {
+	switch {
+	case math.IsNaN(f):
+		return "nan"
+	case math.IsInf(f, 1):
+		return "inf"
+	case math.IsInf(f, -1):
+		return "-inf"
+	default:
+		return ""
+	}
+}
+
+// decodeSpecialFloat restores the float encoded by encodeSpecialFloat.
+func decodeSpecialFloat(tag string) float64 {
+	switch tag {
+	case "nan":
+		return math.NaN()
+	case "inf":
+		return math.Inf(1)
+	case "-inf":
+		return math.Inf(-1)
+	default:
+		return 0
+	}
 }
 
 // SaveToString serializes every live global into a self-describing string that
@@ -454,6 +497,10 @@ func (s *GlobalVarStore) SaveToString() string {
 			Float: entry.value.Float,
 			Str:   entry.value.Str,
 			Bool:  entry.value.Bool,
+		}
+		if special := encodeSpecialFloat(entry.value.Float); special != "" {
+			record.Float = 0
+			record.FloatSpecial = special
 		}
 		if !entry.expires.IsZero() {
 			record.TTL = entry.expires.Sub(now).Seconds()
@@ -493,11 +540,15 @@ func (s *GlobalVarStore) LoadFromString(data string) error {
 	defer s.mu.Unlock()
 	s.vars = make(map[string]*globalVarEntry, len(records))
 	for _, record := range records {
+		floatValue := record.Float
+		if record.FloatSpecial != "" {
+			floatValue = decodeSpecialFloat(record.FloatSpecial)
+		}
 		entry := &globalVarEntry{
 			value: GlobalVarValue{
 				Kind:  record.Kind,
 				Int:   record.Int,
-				Float: record.Float,
+				Float: floatValue,
 				Str:   record.Str,
 				Bool:  record.Bool,
 			},

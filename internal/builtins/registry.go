@@ -80,6 +80,11 @@ type FunctionSignature struct {
 	// compatibility (including numeric widening and Variant's wildcard role).
 	Constraints []ParameterConstraint
 
+	// VarParams marks the parameters passed by reference. A var parameter
+	// requires an assignable argument whose static type matches exactly, and it
+	// makes the signature unusable as a function pointer.
+	VarParams []bool
+
 	// AllowedArgCounts describes disjoint overload arities, such as Trim's 1 or 3.
 	// When empty, MinArgs and MaxArgs define the accepted interval.
 	AllowedArgCounts []int

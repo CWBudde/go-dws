@@ -33,6 +33,42 @@ func (s *FunctionSignature) WithConstraints(constraints ...ParameterConstraint) 
 	return s
 }
 
+// WithVarParams marks the given parameter indexes as by-reference (var)
+// parameters and constrains them to an exact type match.
+func (s *FunctionSignature) WithVarParams(indexes ...int) *FunctionSignature {
+	if len(s.VarParams) < len(s.ParamTypes) {
+		s.VarParams = make([]bool, len(s.ParamTypes))
+	}
+	if len(s.Constraints) < len(s.ParamTypes) {
+		constraints := make([]ParameterConstraint, len(s.ParamTypes))
+		copy(constraints, s.Constraints)
+		s.Constraints = constraints
+	}
+	for _, index := range indexes {
+		if index < 0 || index >= len(s.VarParams) {
+			continue
+		}
+		s.VarParams[index] = true
+		s.Constraints[index] = exactParameter
+	}
+	return s
+}
+
+// HasVarParams reports whether any parameter is passed by reference.
+func (s *FunctionSignature) HasVarParams() bool {
+	for _, isVar := range s.VarParams {
+		if isVar {
+			return true
+		}
+	}
+	return false
+}
+
+// IsVarParam reports whether the parameter at index is passed by reference.
+func (s *FunctionSignature) IsVarParam(index int) bool {
+	return index >= 0 && index < len(s.VarParams) && s.VarParams[index]
+}
+
 // WithArgCounts specifies the allowed disjoint arities of a signature.
 func (s *FunctionSignature) WithArgCounts(counts ...int) *FunctionSignature {
 	s.AllowedArgCounts = counts
