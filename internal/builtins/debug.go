@@ -25,7 +25,10 @@ const MainModuleName = "*MainModule*"
 // SourceCodeLocationTypeName is the script-visible name of the location record.
 const SourceCodeLocationTypeName = "TSourceCodeLocation"
 
-// Field names of TSourceCodeLocation, in declaration order.
+// Field names of TSourceCodeLocation, listed in the order DWScript declares
+// them. types.RecordType stores fields in a map and carries no field order;
+// every output path (record String(), JSON serialization) sorts the names
+// itself, so the map is not a source of nondeterministic output.
 const (
 	SourceCodeLocationFileField = "File"
 	SourceCodeLocationLineField = "Line"

@@ -665,30 +665,15 @@ v := False;
 PrintLn(VarToInt(v));    // 0
 ```
 
-### VarClear Limitation
-
-VarClear must assign back (no var parameters yet):
-
-```pascal
-var v: Variant := 42;
-VarClear(v);           // Does nothing - return value not assigned!
-v := VarClear(v);      // Correct - assigns empty Variant
-```
-
 ### Type Code Compatibility
 
-Use official VarType codes for portability:
+The `varEmpty`, `varNull`, `varInt64`, `varDouble`, `varBoolean`, `varString`
+(and the remaining Delphi) type-code constants are predeclared, so compare
+against them rather than against raw numbers:
 
 ```pascal
-const
-    varEmpty = 0;
-    varInteger = 3;
-    varDouble = 5;
-    varBoolean = 11;
-    varString = 256;
-
 var v: Variant := 42;
-if VarType(v) = varInteger then
+if VarType(v) = varInt64 then
     PrintLn('Integer variant');
 ```
 
