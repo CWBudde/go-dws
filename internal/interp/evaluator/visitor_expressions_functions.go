@@ -1004,6 +1004,46 @@ func (e *Evaluator) resolveNewMetaclass(node *ast.NewExpression, ctx *ExecutionC
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
 // Handles class lookup, field initialization, and constructor execution.
 // Validates abstract/external classes and supports implicit parameterless constructors.
+// lookupNestedClassInScope resolves a class name against the nested types of the
+// class currently executing, which shadow a global class of the same name.
+// Returns nil when the name is not a nested type in scope.
+func (e *Evaluator) lookupNestedClassInScope(className string, ctx *ExecutionContext) any {
+	if ctx == nil || ctx.Env() == nil {
+		return nil
+	}
+
+	nestedIn := func(meta ClassMetaValue) any {
+		if meta == nil {
+			return nil
+		}
+		nested, ok := meta.GetNestedClass(className).(ClassMetaValue)
+		if !ok || nested == nil {
+			return nil
+		}
+		return nested.GetClassInfo()
+	}
+
+	if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
+		if classMeta, ok := currentClassRaw.(ClassMetaValue); ok {
+			if info := nestedIn(classMeta); info != nil {
+				return info
+			}
+		}
+	}
+
+	if selfRaw, ok := ctx.Env().Get("Self"); ok {
+		if objVal, ok := selfRaw.(ObjectValue); ok {
+			if classMeta, ok := objVal.GetClassType().(ClassMetaValue); ok {
+				if info := nestedIn(classMeta); info != nil {
+					return info
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionContext) Value {
 	var className string
 	var classInfoAny any
@@ -1048,8 +1088,16 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 		return nil
 	}
 
+	// Look up the class (unless a metaclass reference already resolved it). A
+	// nested type of the class being executed shadows a global class of the
+	// same name, so it has to be tried first.
+	if classInfoAny == nil {
+		classInfoAny = e.lookupNestedClassInScope(className, ctx)
+	}
+
 	// `new ByteBuffer` instantiates the built-in buffer type, which has no entry
-	// in the class registry. A user class of the same name wins.
+	// in the class registry. A user class of the same name wins — including a
+	// nested one, which the lookup above has already resolved.
 	if classInfoAny == nil && ident.Equal(className, "ByteBuffer") && e.typeSystem.LookupClass(className) == nil {
 		// There is no constructor overload taking arguments; reject them here so
 		// the call never looks like it silently discarded its operands.
@@ -1072,33 +1120,7 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 				return e.callRecordStaticMethod(recordTypeRaw, "Create", args, node, ctx)
 			}
 		}
-
-		// Try nested class lookup from current context.
-		if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
-			if classMeta, ok := currentClassRaw.(ClassMetaValue); ok {
-				if nested := classMeta.GetNestedClass(className); nested != nil {
-					if nestedMeta, ok := nested.(ClassMetaValue); ok {
-						classInfoAny = nestedMeta.GetClassInfo()
-					}
-				}
-			}
-		}
-		if classInfoAny == nil {
-			if selfRaw, ok := ctx.Env().Get("Self"); ok {
-				if objVal, ok := selfRaw.(ObjectValue); ok {
-					if classMeta, ok := objVal.GetClassType().(ClassMetaValue); ok {
-						if nested := classMeta.GetNestedClass(className); nested != nil {
-							if nestedMeta, ok := nested.(ClassMetaValue); ok {
-								classInfoAny = nestedMeta.GetClassInfo()
-							}
-						}
-					}
-				}
-			}
-		}
-		if classInfoAny == nil {
-			return e.newError(node, "class '%s' not found", className)
-		}
+		return e.newError(node, "class '%s' not found", className)
 	}
 
 	classInfo, ok := classInfoAny.(runtime.IClassInfo)
