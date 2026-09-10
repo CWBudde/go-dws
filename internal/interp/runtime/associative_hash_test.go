@@ -277,3 +277,46 @@ func TestAssociativeArray_EqualKeysHashEqually(t *testing.T) {
 		}
 	}
 }
+
+// TestAssociativeArray_FloatKeyTypeCoercesIntegerKeys pins the implicit
+// conversion DWScript's compiler performs on the key expression: for an
+// `array [Float] of ...` an Integer index must be converted to Float before
+// hashing, otherwise it hashes as varInt64 and misses the varDouble bucket.
+func TestAssociativeArray_FloatKeyTypeCoercesIntegerKeys(t *testing.T) {
+	a := newTestAssoc(types.FLOAT, types.INTEGER)
+	a.Set(&IntegerValue{Value: 1}, &IntegerValue{Value: 7})
+
+	if got, ok := a.Get(&FloatValue{Value: 1.0}); !ok {
+		t.Error("Get(1.0) missed the key stored as integer 1")
+	} else if iv, isInt := got.(*IntegerValue); !isInt || iv.Value != 7 {
+		t.Errorf("Get(1.0) = %v, want 7", got)
+	}
+	if _, ok := a.Get(&IntegerValue{Value: 1}); !ok {
+		t.Error("Get(1) missed its own key")
+	}
+
+	a.Set(&FloatValue{Value: 1.0}, &IntegerValue{Value: 8})
+	if a.Len() != 1 {
+		t.Errorf("Len = %d, want 1: integer and float key must share a bucket", a.Len())
+	}
+
+	if !a.Delete(&IntegerValue{Value: 1}) {
+		t.Error("Delete(1) = false, want true")
+	}
+	if a.Len() != 0 {
+		t.Errorf("Len after delete = %d, want 0", a.Len())
+	}
+}
+
+// TestAssociativeArray_VariantKeyTypeKeepsNumericRepresentation documents the
+// deliberate counterpart: with a Variant key type there is no declared type to
+// convert to, so an integer and a float key stay distinct, exactly as upstream
+// hashes varInt64 and varDouble differently.
+func TestAssociativeArray_VariantKeyTypeKeepsNumericRepresentation(t *testing.T) {
+	a := newTestAssoc(types.VARIANT, types.INTEGER)
+	a.Set(&IntegerValue{Value: 1}, &IntegerValue{Value: 1})
+	a.Set(&FloatValue{Value: 1.0}, &IntegerValue{Value: 2})
+	if a.Len() != 2 {
+		t.Errorf("Len = %d, want 2", a.Len())
+	}
+}

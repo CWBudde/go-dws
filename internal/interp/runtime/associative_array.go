@@ -160,11 +160,38 @@ func (a *AssociativeArrayValue) linearFind(key Value, hash uint32) (index int, f
 	}
 }
 
+// coerceKey applies the implicit conversion that DWScript's compiler inserts on
+// an associative-array key expression: `ReadSymbolArrayExpr` wraps a key whose
+// type is not the declared key type with `WrapWithImplicitConversion`, so an
+// Integer index into an `array [Float] of ...` is converted before it ever
+// reaches the hash table.
+//
+// The conversion is load-bearing here because the hash is type-sensitive: a
+// script integer is a `varInt64` and a float a `varDouble`, which hash
+// differently even when numerically equal. Without this coercion `a[1] := x`
+// followed by `a[1.0]` would probe a different bucket and miss.
+func (a *AssociativeArrayValue) coerceKey(key Value) Value {
+	keyType := a.KeyType()
+	if keyType == nil || !types.GetUnderlyingType(keyType).Equals(types.FLOAT) {
+		return key
+	}
+	switch k := key.(type) {
+	case *IntegerValue:
+		return NewFloat(float64(k.Value))
+	case *VariantValue:
+		if inner, ok := k.Value.(*IntegerValue); ok {
+			return NewFloat(float64(inner.Value))
+		}
+	}
+	return key
+}
+
 // Get returns the value stored at key and whether the key is present.
 func (a *AssociativeArrayValue) Get(key Value) (Value, bool) {
 	if a.count == 0 {
 		return nil, false
 	}
+	key = a.coerceKey(key)
 	if i, found := a.linearFind(key, associativeHashCode(key)); found {
 		return a.values[i], true
 	}
@@ -180,6 +207,7 @@ func (a *AssociativeArrayValue) Set(key, value Value) (prev Value, replaced bool
 	if a.count >= a.growth {
 		a.grow()
 	}
+	key = a.coerceKey(key)
 	hash := associativeHashCode(key)
 	i, found := a.linearFind(key, hash)
 	if !found {
@@ -212,6 +240,7 @@ func (a *AssociativeArrayValue) DeleteEntry(key Value) (storedKey, storedValue V
 	if a.count == 0 {
 		return nil, nil, false
 	}
+	key = a.coerceKey(key)
 	i, found := a.linearFind(key, associativeHashCode(key))
 	if !found {
 		return nil, nil, false

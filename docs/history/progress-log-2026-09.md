@@ -2070,6 +2070,22 @@ Both are unreachable from the corpus and are recorded here rather than papered o
   itself. We substitute a monotonic per-instance identity, which keeps lookups correct and the
   order deterministic within a run.
 
+### Key coercion
+
+The hash is type-sensitive: a script integer is a `varInt64` and a float a `varDouble`, and
+`DWSHashCode` hashes them through different branches, so numerically equal values of different
+representation land in different buckets. Upstream compensates at compile time —
+`TdwsCompiler.ReadSymbolArrayExpr` wraps a key expression whose type is not the declared key type
+with `WrapWithImplicitConversion` — so `a[1]` on an `array [Float] of ...` is converted to `1.0`
+before it ever reaches the table. `AssociativeArrayValue.coerceKey` performs that same conversion
+on `Get`/`Set`/`Delete`.
+
+With a `Variant` key type there is no declared type to convert to, so an Integer key and a Float
+key of equal numeric value stay distinct, exactly as upstream keeps `varInt64` and `varDouble`
+apart. The same applies to `+0.0` and `-0.0`, whose raw 64-bit patterns differ. Both are a
+narrowing against the previous linear scan, which compared numerically; both match upstream, and
+no fixture depends on the old, more permissive behaviour.
+
 ### Side effect
 
 Key lookup, insertion and deletion are no longer O(n).
