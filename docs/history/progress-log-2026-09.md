@@ -1573,14 +1573,15 @@ regenerated. User-facing documentation: [`docs/guide/bytebuffer.md`](../guide/by
 
 ## §3.3 — JSON node ownership, number formatting, "Not a value" cast parity
 
-Closed 2026-09-10 on branch `feat/plan-3.3-json-ownership-formatting`. Closes the §3.3 item
+Closed 2026-09-10 on branch `feat/plan-3.3-json-ownership-formatting`, re-measured after the
+rebase onto §3.2.7. Closes the §3.3 item
 "JSON node reparent/ownership … float formatting … variant → scalar cast message parity".
 
 | | before | after |
 | --- | --- | --- |
 | `JSONConnectorPass` (CLI) | 59 / 82 | 65 / 82 |
 | `JSONConnectorFail` (CLI) | 2 / 9 | 2 / 9 |
-| TOTAL (`just fixture-report`) | 920 / 2,042 | 926 / 2,042 |
+| TOTAL (`just fixture-report`) | 938 / 2,042 | 944 / 2,042 |
 
 No category moved down.
 
