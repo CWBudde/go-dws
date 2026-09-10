@@ -2191,3 +2191,101 @@ Behaviour worth recording, all of it fixture-derived rather than invented:
 New table-driven tests in `internal/encoding/codec_test.go` and `codec_web_test.go` cover every
 codec's round trip, padding, MIME wrapping and malformed input. Baseline ratcheted
 (`EncodingLib` 0 → 12) and `TEST_STATUS.md` regenerated.
+
+## 2026-09-10 — GlobalVars host library, PLAN.md §3.3 (FunctionsGlobalVars 0/16 → 11/16)
+
+`FunctionsGlobalVars` scored 0/16 because the library did not exist at all: every fixture died
+at semantic analysis with `Unknown name`. The fixtures are the specification — there is no
+`reference/dwscript-original/` checkout in this worktree — so the API below was derived from
+reading all 16 of them.
+
+### The library
+
+`internal/builtins/globalvars.go` holds `GlobalVarStore`, a process-wide store of named Variant
+globals plus named double-ended queues, guarded by one `sync.RWMutex`. `DefaultGlobalVars` is the
+shared instance; `NewGlobalVarStore()` gives a host or a test its own.
+`internal/builtins/globalvars_funcs.go` adapts it to the `BuiltinFunc` convention and
+`RegisterGlobalVarsFunctions` wires 23 names into the new `CategoryGlobalVars`.
+
+Three design decisions worth recording:
+
+*Values are a struct, not a runtime pointer.* `GlobalVarValue` is a plain value type
+(`Kind` + payload). The store is shared across scripts, so handing out `runtime.Value` pointers
+would alias one script's values into another's. It also makes the snapshot format trivial.
+
+*Time is injected.* Expiration reads the clock through a `func() time.Time` field
+(`GlobalVarStore.SetClock`), so `TestGlobalVarStore_Expiration` advances a fake clock instead of
+sleeping. The `inc_expire` fixture still sleeps for real, through the new `Sleep(ms)` builtin.
+The fixture pinned down a non-obvious rule: the expiration belongs to the *write*, not the name,
+so `IncrementGlobalVar(name, 1)` with no expiration argument clears a lifetime a previous write
+had set, while `IncrementGlobalVar(name, 1, 0.001)` renews it.
+
+*Names are case-sensitive, masks are not.* `names.pas` writes `hello`, `Hello` and `Byebye` and
+expects all three back, then matches `'h*'` against `Hello` *and* `hello`. So the store keys on
+the exact name and only the wildcard comparison goes through `pkg/ident`. This is the one place
+the repo-wide "identifiers are case-insensitive" rule does not apply.
+
+*Snapshot format.* `SaveGlobalVarsToString` emits a `DWSGV1` header line plus a JSON array;
+`LoadGlobalVarsFromString` replaces the whole store and rejects anything else with
+`Invalid file tag`, which is what `save_restore` asserts. It is deliberately not
+byte-compatible with the Delphi binary format — nothing in the fixtures observes the bytes.
+
+*Var parameters.* `TryReadGlobalVar` and `GlobalQueuePull`/`Pop`/`First`/`Peek` write into the
+caller's variable, which the registry's already-evaluated-arguments convention cannot express.
+They are dispatched from the evaluator's var-param switch
+(`internal/interp/evaluator/globalvars.go`) and registered with signatures only so the analyzer
+knows their types.
+
+### Four gaps found underneath it
+
+The library alone got 8/16. The rest were language-surface gaps that the fixtures happened to be
+the first to exercise, all fixed in a separate commit:
+
+*Bare-name builtin procedures.* `CleanupGlobalVars;` was `Unknown name`.
+`parameterlessBuiltinType` required `MinArgs == MaxArgs == 0` *and* a non-nil result, so a
+procedure with only optional parameters fell through to a hand-maintained name list in
+`isBuiltinFunction`. A procedure has no result, so its bare name can only ever mean a call;
+any non-variadic procedure whose parameters are all optional now types as VOID there.
+
+*Builtins as function pointers by bare name.* `GlobalVarsNames('*').Sort(CompareText)` failed
+with `More arguments expected` — `getBuiltinFunctionPointerType` was a hardcoded switch of about
+twenty names that did not include `CompareText`. It now falls back to the registered signature
+for any fixed-arity builtin with a declared result. `@CompareText` already worked; the bare form
+now does too. This closed three fixtures on its own.
+
+*Empty-Variant equality.* `CompareExchangeGlobalVar(...) = Unassigned` raised
+`type mismatch: UNASSIGNED = UNASSIGNED`. `evalEqualityComparison` now compares Unassigned and
+Null variants by emptiness before falling through to the complex-type cases.
+
+*Printing an unassigned Variant.* `UnassignedValue.String()` returned `"unassigned"`; DWScript
+prints nothing at all. Changed to the empty string. (`Null` still prints `Null` — `write_intf`
+confirms upstream does that.)
+
+### Scope — the five that remain
+
+- `private_vars` — needs the per-unit `WritePrivateVar` / `ReadPrivateVar` / `PrivateVarsNames` /
+  `CleanupPrivateVars` family, and separately a **parser** fix: a unit with no
+  `interface`/`implementation` sections fails with
+  `expected 'end' to close unit declaration`. Reproduces in six lines with no GlobalVars
+  involved. Left for §3.3.
+- `write_intf` — blocked before it reaches the library, on
+  `TTest(nil) as IInterface` (`'as' operator requires object instance, got TYPE_CAST`).
+- `queue_snapshot` — the library output is byte-correct; the fixture fails only on four spurious
+  `"join" does not match case of declaration ("Join")` hints. Upstream emits case hints for
+  array pseudo-methods (`add`, `copy`) but not for this one; the rule was not worth guessing at
+  from one fixture.
+- `basic` and `cleanup` and `names` now pass; the two remaining `.pas` files in the directory
+  (`unit_private_vars1/2`) are units without expectations and are scored as NoExp.
+
+### Validation
+
+`go test ./... -timeout 30m`; `go test -race ./internal/builtins/...`;
+`golangci-lint run --new-from-rev=main` reports 0 issues; `just check-fmt` clean.
+New table-driven tests in `internal/builtins/globalvars_test.go` cover name case sensitivity,
+mask matching, expiration against a fake clock, compare-and-exchange, snapshot round-trip and
+tag rejection, queue end semantics, storable-value rejection, and an eight-goroutine
+concurrency exercise for `-race`.
+
+Full fixture report before/after: TOTAL **920 → 933**, no category below its previous value.
+`FunctionsGlobalVars` 0 → 11; `FunctionsTime` 1 → 3 as a side effect of the bare-name procedure
+and function-pointer fixes. Baselines ratcheted and `TEST_STATUS.md` regenerated.

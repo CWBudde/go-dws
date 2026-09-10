@@ -11,7 +11,7 @@
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
 **983 / 1,928 scored = 51%**, after §3.2.7 closed conditional compilation and §3.3
-closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers and associative key coercion and ARC destructor timing and nested lvalue vivification and associative hash iteration order and EncodingLib. Both use the shared compile pipeline and scoring rules.
+closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers and associative key coercion and ARC destructor timing and nested lvalue vivification and associative hash iteration order and EncodingLib and GlobalVars. Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
@@ -319,6 +319,14 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
   First step for each: list fails, bucket by cause, then add concrete items here.
   FunctionsByteBuffer is closed at 19/19; see
   [`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md).
+- `[ ]` S FunctionsGlobalVars remainder (12/16, library shipped — see
+  [`docs/guide/global-vars.md`](docs/guide/global-vars.md)). Two unrelated causes:
+  `private_vars` needs the per-unit `WritePrivateVar`/`ReadPrivateVar`/`PrivateVarsNames`/
+  `CleanupPrivateVars` family **and** a parser fix (a unit without `interface`/`implementation`
+  sections fails with `expected 'end' to close unit declaration`); `queue_snapshot` fails only
+  on a spurious case hint for the array pseudo-method `join`, which upstream emits for
+  `array of String` (ArrayPass `dynamic_array_remove` expects it) but not for the
+  non-string array this fixture builds.
 - ✋ UTF-16 surrogate iteration (`for_in_str`, `for_in_str2`): intentional divergence, see
   [`docs/decisions/string-encoding.md`](docs/decisions/string-encoding.md).
 

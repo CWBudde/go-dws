@@ -31,6 +31,7 @@ Status figures are generated, never hand-edited:
 | [`guide/contracts.md`](guide/contracts.md) | `require`/`ensure`/`old` design-by-contract |
 | [`guide/enums.md`](guide/enums.md) | Enumerated types, ordinals, scoped enums |
 | [`guide/variant.md`](guide/variant.md) | Variant type semantics and `VarType` codes |
+| [`guide/global-vars.md`](guide/global-vars.md) | Process-wide global variables and global queues |
 | [`guide/helpers.md`](guide/helpers.md) | Type helpers (`helper for`) |
 | [`guide/interfaces-guide.md`](guide/interfaces-guide.md) | Interfaces: declaration, implementation, casting, external |
 | [`guide/lambdas.md`](guide/lambdas.md) | Lambdas, anonymous methods, closures |
