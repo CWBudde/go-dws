@@ -136,6 +136,9 @@ func (e *Evaluator) executeClassMethodDirect(
 		return e.newError(node, "class method execution requires class context")
 	}
 	callable := classMethodMetadata(classInfo, methodDecl)
+	if callable != nil && callable.Native != nil {
+		return e.executeNativeClassMethod(classInfo, callable, args, node, ctx)
+	}
 	method := runtime.MethodDeclaration(callable)
 	if method == nil {
 		return e.newError(node, "invalid class method declaration type")

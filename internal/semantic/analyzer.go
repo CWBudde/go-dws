@@ -154,6 +154,9 @@ func NewAnalyzer() *Analyzer {
 	// Register built-in interfaces
 	a.registerBuiltinInterfaces()
 
+	// Register the EncodingLib encoder classes (Base64Encoder and friends)
+	a.registerBuiltinEncoderTypes()
+
 	// Register built-in array helpers
 	a.initArrayHelpers()
 

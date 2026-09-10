@@ -62,12 +62,24 @@ func (v MethodVisibility) String() string {
 	}
 }
 
+// NativeClassMethod implements a built-in class method body in Go.
+//
+// It receives the runtime class the call dispatched to (which lets one shared
+// implementation serve several classes) and the already-evaluated arguments.
+// A returned error is turned into a catchable DWScript exception carrying the
+// error text as its Message, so implementations should use DWScript's wording.
+type NativeClassMethod func(class IClassInfo, args []Value) (Value, error)
+
 // MethodMetadata is the canonical runtime identity and resolved signature of a
 // callable. It retains the executable AST payload and original declaration for
 // semantic bindings; implementation binding updates this identity in place.
 type MethodMetadata struct {
 	// Declaration is the executable AST payload for this canonical runtime callable.
 	Declaration *ast.FunctionDecl
+	// Native implements the method body in Go instead of in AST. It is set only
+	// for built-in classes (see the EncodingLib encoders) and, when present,
+	// takes precedence over Declaration/Body.
+	Native NativeClassMethod
 	// SourceDeclaration identifies the original source node for semantic bindings.
 	SourceDeclaration *ast.FunctionDecl
 	// Owner is the runtime class that declared this callable.
