@@ -231,8 +231,6 @@ func NewEvaluator(
 		RandomSeed:        defaultSeed,
 		MaxRecursionDepth: config.MaxRecursionDepth,
 	}
-	dateTimeSettings := builtins.DefaultDateTimeFormatSettings()
-	state.DateTimeFormatSettings = &dateTimeSettings
 
 	return &Evaluator{
 		typeSystem:  typeSystem,

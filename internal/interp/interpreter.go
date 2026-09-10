@@ -94,6 +94,7 @@ func NewWithDeps(
 	interp.initArrayHelpers()
 	interp.initIntrinsicHelpers()
 	interp.initEnumHelpers()
+	interp.registerDateTimeFormatSettings(env)
 
 	// ExceptObject is nil outside an except block, but typed: DWScript still
 	// answers ExceptObject.StackTrace there (with ''), which needs the static

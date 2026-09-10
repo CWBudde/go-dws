@@ -3,7 +3,6 @@ package contracts
 import (
 	"math/rand"
 
-	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -63,10 +62,6 @@ type EngineState struct {
 	LoadedUnits            []string
 	RandomSeed             int64
 	MaxRecursionDepth      int
-
-	// DateTimeFormatSettings is the storage behind the script-visible
-	// FormatSettings class and is read by every date/time built-in.
-	DateTimeFormatSettings *builtins.DateTimeFormatSettings
 }
 
 // The old callback-style focused interfaces were removed during Phase 4.

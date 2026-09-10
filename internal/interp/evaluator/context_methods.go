@@ -36,13 +36,64 @@ func (e *builtinContext) CurrentNode() ast.Node {
 	return currentNode(e.ctx)
 }
 
+// formatSettingsClassName is the script-visible name of the static class whose
+// class variables are the only storage for the date/time locale settings.
+const formatSettingsClassName = "FormatSettings"
+
+// formatSettingsZoneVar is the FormatSettings class variable that selects the
+// default DateTimeZone for values that do not name one explicitly.
+const formatSettingsZoneVar = "Zone"
+
+// formatSettingsStringVars binds each string-typed FormatSettings class
+// variable to the DateTimeFormatSettings field it feeds. It is a package-level
+// table so that reading the settings — which every date/time built-in does —
+// costs no allocation.
+var formatSettingsStringVars = []struct {
+	field func(*builtins.DateTimeFormatSettings) *string
+	name  string
+}{
+	{func(s *builtins.DateTimeFormatSettings) *string { return &s.ShortDateFormat }, "ShortDateFormat"},
+	{func(s *builtins.DateTimeFormatSettings) *string { return &s.LongDateFormat }, "LongDateFormat"},
+	{func(s *builtins.DateTimeFormatSettings) *string { return &s.ShortTimeFormat }, "ShortTimeFormat"},
+	{func(s *builtins.DateTimeFormatSettings) *string { return &s.LongTimeFormat }, "LongTimeFormat"},
+	{func(s *builtins.DateTimeFormatSettings) *string { return &s.TimeAMString }, "TimeAMString"},
+	{func(s *builtins.DateTimeFormatSettings) *string { return &s.TimePMString }, "TimePMString"},
+}
+
 // DateTimeFormatSettings returns the running script's date/time format
 // settings. This implements the builtins.Context interface.
+//
+// The script-visible FormatSettings class variables are the storage, so the
+// snapshot is materialised on each call and always reflects the most recent
+// assignment the script made. Values that a script has not touched keep their
+// defaults, and a class variable holding an unexpected value type is ignored
+// rather than treated as an error.
 func (e *Evaluator) DateTimeFormatSettings() *builtins.DateTimeFormatSettings {
-	if e.engineState == nil {
-		return nil
+	settings := builtins.DefaultDateTimeFormatSettings()
+	class := e.typeSystem.LookupClass(formatSettingsClassName)
+	if class == nil {
+		return &settings
 	}
-	return e.engineState.DateTimeFormatSettings
+	for _, classVar := range formatSettingsStringVars {
+		value, owner := class.LookupClassVar(classVar.name)
+		if owner == nil {
+			continue
+		}
+		if str, ok := value.(*runtime.StringValue); ok {
+			*classVar.field(&settings) = str.Value
+		}
+	}
+	// Zone starts out as the ordinal the bootstrap stored and becomes an enum
+	// value once a script assigns DateTimeZone.Local or DateTimeZone.UTC, so
+	// both representations have to be understood.
+	if value, owner := class.LookupClassVar(formatSettingsZoneVar); owner != nil {
+		if ordinal, ok := e.ToInt64(value); ok {
+			settings.Zone = builtins.TimeZone(ordinal)
+		} else if ordinal, ok := e.GetEnumOrdinal(value); ok {
+			settings.Zone = builtins.TimeZone(ordinal)
+		}
+	}
+	return &settings
 }
 
 func currentNode(ctx *ExecutionContext) ast.Node {
