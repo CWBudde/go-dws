@@ -91,75 +91,98 @@ func (e *Evaluator) DispatchByteBufferMethod(receiver Value, methodName string, 
 
 	normalized := ident.Normalize(methodName)
 
-	// Typed integer accessors: GetByte/SetInt32/...
+	if result, handled := e.byteBufferTypedAccessor(buffer, normalized, args, node, ctx); handled {
+		return result
+	}
+	if result, handled := e.byteBufferShapeMember(buffer, normalized, args, node, ctx); handled {
+		return result
+	}
+	if result, handled := e.byteBufferBulkMember(buffer, normalized, args, node, ctx); handled {
+		return result
+	}
+
+	return e.newError(node, "method '%s' not found for type 'ByteBuffer'", methodName)
+}
+
+// byteBufferTypedAccessor handles the Get<T>/Set<T> family for the named
+// integer and floating point widths. It reports whether it recognised the
+// member.
+func (e *Evaluator) byteBufferTypedAccessor(buffer *runtime.ByteBufferValue, normalized string, args []Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
 	if suffix, isGetter := byteBufferAccessorSuffix(normalized, "get"); isGetter {
 		if spec, known := byteBufferIntegerAccessor(suffix); known {
-			return e.byteBufferGetInteger(buffer, spec, suffix, args, node, ctx)
+			return e.byteBufferGetInteger(buffer, spec, suffix, args, node, ctx), true
 		}
 		if byteBufferIsFloatAccessor(suffix) {
-			return e.byteBufferGetFloat(buffer, suffix, args, node, ctx)
+			return e.byteBufferGetFloat(buffer, suffix, args, node, ctx), true
 		}
 	}
 	if suffix, isSetter := byteBufferAccessorSuffix(normalized, "set"); isSetter {
 		if _, known := byteBufferIntegerAccessor(suffix); known {
-			return e.byteBufferSetInteger(buffer, suffix, args, node, ctx)
+			return e.byteBufferSetInteger(buffer, suffix, args, node, ctx), true
 		}
 		if byteBufferIsFloatAccessor(suffix) {
-			return e.byteBufferSetFloat(buffer, suffix, args, node, ctx)
+			return e.byteBufferSetFloat(buffer, suffix, args, node, ctx), true
 		}
 	}
+	return nil, false
+}
 
-	if result, handled := e.byteBufferShapeMember(buffer, normalized, args, node, ctx); handled {
-		return result
-	}
-
+// byteBufferBulkMember handles the members that move whole runs of bytes:
+// GetData, SetData, GetIntegers, the Assign family and Copy. It reports whether
+// it recognised the member.
+func (e *Evaluator) byteBufferBulkMember(buffer *runtime.ByteBufferValue, normalized string, args []Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
 	switch normalized {
 	case "getdata":
 		index, okIndex := byteBufferIntArg(args, 0)
 		size, okSize := byteBufferIntArg(args, 1)
 		if !okIndex || !okSize {
-			return e.newError(node, "ByteBuffer.GetData expects (index, size)")
+			return e.newError(node, "ByteBuffer.GetData expects (index, size)"), true
 		}
 		data, err := buffer.GetDataAt(int(index), int(size))
 		if err != nil {
-			return e.raiseByteBufferError(node, err, ctx)
+			return e.raiseByteBufferError(node, err, ctx), true
 		}
-		return &runtime.StringValue{Value: data}
+		return &runtime.StringValue{Value: data}, true
 
 	case "setdata":
-		return e.byteBufferSetData(buffer, args, node, ctx)
+		return e.byteBufferSetData(buffer, args, node, ctx), true
 
 	case "getintegers":
-		return e.byteBufferGetIntegers(buffer, args, node, ctx)
+		return e.byteBufferGetIntegers(buffer, args, node, ctx), true
 
 	case "assign":
 		if len(args) != 1 {
-			return e.newError(node, "ByteBuffer.Assign expects exactly 1 argument")
+			return e.newError(node, "ByteBuffer.Assign expects exactly 1 argument"), true
 		}
 		source, ok := byteBufferReceiver(args[0])
 		if !ok {
-			return e.newError(node, "ByteBuffer.Assign expects a ByteBuffer argument")
+			return e.newError(node, "ByteBuffer.Assign expects a ByteBuffer argument"), true
 		}
 		buffer.Assign(source)
-		return e.nilValue()
+		return e.nilValue(), true
 
 	case "assigndatastring", "assignbase64", "assignjson", "assignhexstring":
-		return e.byteBufferAssignString(buffer, normalized, args, node, ctx)
+		return e.byteBufferAssignString(buffer, normalized, args, node, ctx), true
 
 	case "copy":
-		index, _ := byteBufferIntArg(args, 0)
-		count := int64(buffer.Length())
-		if len(args) >= 2 {
-			explicit, ok := byteBufferIntArg(args, 1)
-			if !ok {
-				return e.newError(node, "ByteBuffer.Copy expects Integer arguments")
-			}
-			count = explicit
-		}
-		return buffer.Copy(int(index), int(count))
+		return e.byteBufferCopy(buffer, args, node), true
 	}
+	return nil, false
+}
 
-	return e.newError(node, "method '%s' not found for type 'ByteBuffer'", methodName)
+// byteBufferCopy implements Copy, Copy(index) and Copy(index, count). An
+// omitted count means "to the end"; the range is clamped to the buffer.
+func (e *Evaluator) byteBufferCopy(buffer *runtime.ByteBufferValue, args []Value, node ast.Node) Value {
+	index, _ := byteBufferIntArg(args, 0)
+	count := int64(buffer.Length())
+	if len(args) >= 2 {
+		explicit, ok := byteBufferIntArg(args, 1)
+		if !ok {
+			return e.newError(node, "ByteBuffer.Copy expects Integer arguments")
+		}
+		count = explicit
+	}
+	return buffer.Copy(int(index), int(count))
 }
 
 // byteBufferShapeMember handles the members that describe or reshape the buffer
