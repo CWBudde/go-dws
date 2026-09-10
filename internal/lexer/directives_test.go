@@ -639,6 +639,24 @@ func TestCompilerDirectiveDeclared(t *testing.T) {
 			decls: "procedure Epsilon;\nvar Local : Integer;\nbegin\nend;", query: "Local", want: false},
 
 		{name: "forward declaration not visible", decls: "", query: "Later", want: false},
+
+		// A declaration section stays in effect across semicolons, so every entry is
+		// recorded — not just the first.
+		{name: "var section second entry", decls: "var Alpha : Integer; Beta : Integer;",
+			query: "Beta", want: true},
+		{name: "var section third entry",
+			decls: "var Alpha : Integer; Beta : Integer; Gamma : String;", query: "Gamma", want: true},
+		{name: "var section second entry list",
+			decls: "var Alpha : Integer; Beta, Delta : Integer;", query: "Delta", want: true},
+		{name: "const section second entry", decls: "const Gamma = 'g'; Theta = 't';",
+			query: "Theta", want: true},
+		// ... but a statement after a section must not be mistaken for a declaration.
+		{name: "statement after var section not tracked",
+			decls: "var Alpha : Integer;\nSomeCall('x');", query: "SomeCall", want: false},
+		{name: "assignment after var section not tracked",
+			decls: "var Alpha : Integer;\nUnknownVar := 1;", query: "UnknownVar", want: false},
+		{name: "var section ends at begin",
+			decls: "var Alpha : Integer;\nbegin\n  Local := 1;\nend;", query: "Local", want: false},
 	}
 
 	for _, tt := range tests {
@@ -780,5 +798,88 @@ func TestCompilerDirectiveIfArgumentDiagnostics(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestDirectiveStringArgumentDecoding covers DWScript string escaping in a directive
+// argument: an inner quote is written by doubling it.
+func TestDirectiveStringArgumentDecoding(t *testing.T) {
+	tests := []struct {
+		name string
+		arg  string
+		want string
+		ok   bool
+	}{
+		{name: "plain single quoted", arg: "'done'", want: "done", ok: true},
+		{name: "plain double quoted", arg: `"done"`, want: "done", ok: true},
+		{name: "doubled single quote", arg: "'it''s ready'", want: "it's ready", ok: true},
+		{name: "doubled double quote", arg: `"say ""hi"""`, want: `say "hi"`, ok: true},
+		{name: "double quote inside single quoted", arg: `'say "hi"'`, want: `say "hi"`, ok: true},
+		{name: "empty string", arg: "''", want: "", ok: true},
+		{name: "unterminated", arg: "'oops", ok: false},
+		{name: "unquoted", arg: "oops", ok: false},
+		{name: "undoubled inner quote", arg: "'a'b'", ok: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := unquoteDirectiveString(tt.arg)
+			if ok != tt.ok {
+				t.Fatalf("unquoteDirectiveString(%q) ok = %v, want %v", tt.arg, ok, tt.ok)
+			}
+			if ok && got != tt.want {
+				t.Errorf("unquoteDirectiveString(%q) = %q, want %q", tt.arg, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestDirectiveMessageDecodesDoubledQuote checks the decoded text reaches the diagnostic.
+func TestDirectiveMessageDecodesDoubledQuote(t *testing.T) {
+	l := New("{$HINT 'it''s ready'}\n")
+	drainTokens(l)
+
+	diags := l.DirectiveDiagnostics()
+	if len(diags) != 1 {
+		t.Fatalf("got %d diagnostics, want 1: %v", len(diags), diags)
+	}
+	if diags[0].Message != "it's ready" {
+		t.Errorf("message = %q, want %q", diags[0].Message, "it's ready")
+	}
+	if want := "Hint: it's ready [line: 1, column: 3]"; diags[0].Rendered != want {
+		t.Errorf("rendered = %q, want %q", diags[0].Rendered, want)
+	}
+}
+
+// TestFatalStopIsRewoundByRestoreState guards the {$FATAL} stop flag against parser
+// backtracking: a speculative read that runs past the directive must not leave the lexer
+// permanently stopped.
+func TestFatalStopIsRewoundByRestoreState(t *testing.T) {
+	l := New("alpha beta {$FATAL 'stop'} gamma")
+
+	first := l.NextToken()
+	if first.Literal != "alpha" {
+		t.Fatalf("first token = %q, want alpha", first.Literal)
+	}
+
+	state := l.SaveState()
+
+	// Speculative read that runs into the fatal directive.
+	for {
+		tok := l.NextToken()
+		if tok.Type == EOF {
+			break
+		}
+	}
+	if !l.StoppedByFatal() {
+		t.Fatal("expected the speculative read to hit {$FATAL}")
+	}
+
+	l.RestoreState(state)
+	if l.StoppedByFatal() {
+		t.Fatal("RestoreState did not rewind the fatal stop flag")
+	}
+	if tok := l.NextToken(); tok.Literal != "beta" {
+		t.Fatalf("after restore got %q, want beta", tok.Literal)
 	}
 }

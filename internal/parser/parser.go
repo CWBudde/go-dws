@@ -241,7 +241,27 @@ func (p *Parser) peekError(t lexer.TokenType) {
 		msg,
 		ErrUnexpectedToken,
 	)
+	p.recordError(err)
+}
+
+// recordError appends a parser diagnostic unless it is an artifact of {$FATAL}
+// truncation.
+//
+// A fatal directive ends tokenization wherever it appears, so any construct still open
+// at that point looks unterminated to the parser. The resulting "end expected" style
+// diagnostics describe the truncation, not the source, and DWScript does not emit them:
+// the fatal message is the authoritative one. Errors raised before the truncated tail is
+// reached are unaffected.
+func (p *Parser) recordError(err *ParserError) {
+	if p.l != nil && p.l.StoppedByFatal() && p.atTruncatedEnd() {
+		return
+	}
 	p.errors = append(p.errors, err)
+}
+
+// atTruncatedEnd reports whether the parser has reached the synthetic end of input.
+func (p *Parser) atTruncatedEnd() bool {
+	return p.cursor.Current().Type == lexer.EOF || p.cursor.Peek(1).Type == lexer.EOF
 }
 
 // addError adds a generic error message with the specified error code.
@@ -254,7 +274,7 @@ func (p *Parser) addError(msg string, code string) {
 		msg,
 		code,
 	)
-	p.errors = append(p.errors, err)
+	p.recordError(err)
 }
 
 // addStructuredError adds a structured error with auto-injected block context.
@@ -262,7 +282,7 @@ func (p *Parser) addStructuredError(structErr *StructuredParserError) {
 	if structErr.BlockContext == nil {
 		structErr.BlockContext = p.currentBlockContext()
 	}
-	p.errors = append(p.errors, structErr.ToParserError())
+	p.recordError(structErr.ToParserError())
 }
 
 // noPrefixParseFnError adds a localized syntax error for tokens that cannot start an expression.
@@ -281,7 +301,7 @@ func (p *Parser) noPrefixParseFnError(tok lexer.Token) {
 	}
 
 	err := NewParserError(tok.Pos, tok.Length(), msg, code)
-	p.errors = append(p.errors, err)
+	p.recordError(err)
 }
 
 // registerPrefix registers a prefix parse function for a token type.

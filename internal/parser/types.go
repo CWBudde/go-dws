@@ -215,7 +215,7 @@ func (p *Parser) addPeekTokenError(message string, code string) {
 		message,
 		code,
 	)
-	p.errors = append(p.errors, err)
+	p.recordError(err)
 }
 
 // detectFunctionPointerFullSyntax determines if we have full syntax (with parameter names)

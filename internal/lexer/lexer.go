@@ -74,8 +74,13 @@ type Lexer struct {
 // It can be saved and restored to enable backtracking during parsing.
 // This allows for efficient save/restore operations during lookahead.
 type LexerState struct {
-	decls              *declTracker
-	includedOnce       map[string]struct{}
+	decls        *declTracker
+	includedOnce map[string]struct{}
+	// stopped and directiveTruncated are directive side effects. A speculative read
+	// that runs past a {$FATAL} would otherwise leave the lexer permanently stopped,
+	// so the real parse would see an immediate EOF and lose every token in between.
+	stopped            bool
+	directiveTruncated bool
 	defines            map[string]struct{}
 	currentIncludePath string
 	input              string
@@ -272,6 +277,14 @@ func (l *Lexer) IncludeErrors() []LexerError {
 	return l.includeErrors
 }
 
+// StoppedByFatal reports whether tokenization was ended early by a {$FATAL} directive.
+// The parser uses this to tell a real end of input from a truncated one: diagnostics it
+// would raise at the synthetic EOF are artifacts of the truncation, not defects in the
+// source, and DWScript does not report them.
+func (l *Lexer) StoppedByFatal() bool {
+	return l.stopped
+}
+
 // DirectiveDiagnostics returns the subset of lexer diagnostics produced by compiler
 // directives ({$HINT}, {$WARNING}, {$ERROR}, {$FATAL}, and malformed conditional
 // directives). Unlike the general advisory error list these are surfaced by the front
@@ -360,6 +373,8 @@ func (l *Lexer) SaveState() LexerState {
 		currentIncludePath: l.currentIncludePath,
 		includeCount:       l.includeCount,
 		decls:              l.decls.clone(),
+		stopped:            l.stopped,
+		directiveTruncated: l.directiveTruncated,
 	}
 }
 
@@ -383,6 +398,8 @@ func (l *Lexer) RestoreState(s LexerState) {
 	// Cloned again so restoring the same saved state twice cannot alias a tracker that
 	// the first restore went on to mutate.
 	l.decls = s.decls.clone()
+	l.stopped = s.stopped
+	l.directiveTruncated = s.directiveTruncated
 }
 
 // Peek returns the token n positions ahead without consuming it.

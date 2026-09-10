@@ -72,6 +72,11 @@ type declTracker struct {
 	typeName string
 	// helperTarget is the helped type of a "helper for" declaration, if any.
 	helperTarget string
+	// tentativeName holds an identifier seen just after a section semicolon. DWScript
+	// allows statements between file-scope declarations, so the name is committed only
+	// once a ':', '=' or ',' confirms it really is a declaration and not the start of a
+	// statement such as "PrintLn('x');" or "Total := 1;".
+	tentativeName string
 	// fieldNames buffers identifiers that may turn out to be field names, i.e. the
 	// "A, B" of "A, B : Integer;". They are committed when the ':' arrives.
 	fieldNames []string
@@ -100,6 +105,13 @@ type declTracker struct {
 	inRoutine bool
 	// atDeclStart marks a position inside a type body where a field declaration may begin.
 	atDeclStart bool
+	// inVarSection records that a file-scope "var" or "const" keyword is still in
+	// effect, so further names in the same section are recognized without repeating it
+	// ("var A : Integer; B : Integer;").
+	inVarSection bool
+	// expectSectionName marks the position just after a semicolon inside such a
+	// section, where another declaration may begin.
+	expectSectionName bool
 }
 
 // wellKnownTObjectMembers are the TObject members DWScript's internal unit always
@@ -235,6 +247,7 @@ func (t *declTracker) feedFileScope(tok Token) {
 			t.inTypeSection = true
 			t.state = declStateTypeName
 		}
+		t.endVarSection()
 		t.declPending = false
 		t.declList = false
 	case VAR, CONST:
@@ -242,25 +255,41 @@ func (t *declTracker) feedFileScope(tok Token) {
 		t.state = declStateIdle
 		t.declPending = t.blockDepth == 0 && !t.inRoutine
 		t.declList = false
+		t.endVarSection()
+		t.inVarSection = t.declPending
 	case FUNCTION, PROCEDURE:
 		t.inTypeSection = false
 		t.state = declStateIdle
 		t.declPending = t.blockDepth == 0 && !t.inRoutine
 		t.declList = false
+		t.endVarSection()
 		t.inRoutine = true
 	case IDENT:
-		if t.declPending {
+		switch {
+		case t.declPending:
 			t.add(tok.Literal)
 			t.declPending = false
 			t.declList = true
+		case t.expectSectionName:
+			t.tentativeName = tok.Literal
+			t.expectSectionName = false
 		}
+	case COLON, EQ:
+		t.commitTentative()
+	case ASSIGN:
+		// "NAME := value" at file scope is an assignment statement, not a continuation
+		// of a var section: the inference form "var x := 1" carries its own keyword.
+		t.endVarSection()
 	case COMMA:
+		t.commitTentative()
 		if t.declList {
 			t.declPending = true
 		}
 	case SEMICOLON:
 		t.declPending = false
 		t.declList = false
+		t.tentativeName = ""
+		t.expectSectionName = t.inVarSection && t.blockDepth == 0 && !t.inRoutine
 		if t.inTypeSection && t.blockDepth == 0 {
 			t.state = declStateTypeName
 		}
@@ -268,6 +297,7 @@ func (t *declTracker) feedFileScope(tok Token) {
 		t.inTypeSection = false
 		t.declPending = false
 		t.declList = false
+		t.endVarSection()
 		t.blockDepth++
 	case END:
 		t.declPending = false
@@ -282,11 +312,35 @@ func (t *declTracker) feedFileScope(tok Token) {
 		t.inTypeSection = false
 		t.declPending = false
 		t.declList = false
+		t.endVarSection()
 		t.state = declStateIdle
 	default:
 		t.declPending = false
 		t.declList = false
+		if t.tentativeName != "" {
+			// The identifier was the start of a statement, not a declaration, so the
+			// section is over.
+			t.endVarSection()
+		}
 	}
+}
+
+// commitTentative accepts a pending section name once a token confirms it introduces a
+// declaration rather than a statement.
+func (t *declTracker) commitTentative() {
+	if t.tentativeName == "" {
+		return
+	}
+	t.add(t.tentativeName)
+	t.tentativeName = ""
+	t.declList = true
+}
+
+// endVarSection closes a file-scope var/const section and drops any unconfirmed name.
+func (t *declTracker) endVarSection() {
+	t.inVarSection = false
+	t.expectSectionName = false
+	t.tentativeName = ""
 }
 
 // feedTypeKind inspects the first token of the right-hand side of "type NAME = ...".

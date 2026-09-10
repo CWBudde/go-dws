@@ -31,9 +31,12 @@ func directiveArgument(content string) string {
 	return strings.TrimSpace(trimmed[idx:])
 }
 
-// unquoteDirectiveString strips a matching pair of single or double quotes.
-// DWScript accepts both, e.g. {$FATAL 'done'} and {$FATAL "done"}.
-// It reports whether arg was a quoted string literal.
+// unquoteDirectiveString decodes a DWScript string literal delimited by single or double
+// quotes; both are accepted, e.g. {$FATAL 'done'} and {$FATAL "done"}.
+//
+// A quote inside the literal is escaped by doubling it, so {$HINT 'it”s ready'} carries
+// the message "it's ready". An undoubled inner quote is not a valid literal.
+// It reports whether arg was a well-formed quoted string.
 func unquoteDirectiveString(arg string) (string, bool) {
 	if len(arg) < 2 {
 		return "", false
@@ -45,7 +48,20 @@ func unquoteDirectiveString(arg string) (string, bool) {
 	if arg[len(arg)-1] != quote {
 		return "", false
 	}
-	return arg[1 : len(arg)-1], true
+
+	body := arg[1 : len(arg)-1]
+	var out strings.Builder
+	out.Grow(len(body))
+	for i := 0; i < len(body); i++ {
+		if body[i] == quote {
+			if i+1 >= len(body) || body[i+1] != quote {
+				return "", false
+			}
+			i++
+		}
+		out.WriteByte(body[i])
+	}
+	return out.String(), true
 }
 
 // handleMessageDirective implements the DWScript message directives {$HINT}, {$WARNING},

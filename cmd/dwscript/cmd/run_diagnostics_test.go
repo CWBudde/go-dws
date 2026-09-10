@@ -99,3 +99,37 @@ func TestRun_CompileOnlyImpliesPlain(t *testing.T) {
 		t.Fatalf("expected wire format, got %q", out)
 	}
 }
+
+// TestRun_FatalDirectiveSuppressesTruncationErrors covers {$FATAL} inside an unfinished
+// construct. The directive ends tokenization wherever it appears, so the enclosing block
+// looks unterminated to the parser; DWScript reports only the fatal, not the follow-on
+// "end expected" noise the truncation causes.
+func TestRun_FatalDirectiveSuppressesTruncationErrors(t *testing.T) {
+	src := "procedure Foo;\nbegin\n   PrintLn('x');\n   {$FATAL 'stop here'}\n"
+	out, err := captureRun(t, src, nil, func() { diagnosticsMode = "plain"; compileOnly = true })
+	if err == nil {
+		t.Fatal("expected a compile failure")
+	}
+
+	got := strings.TrimSpace(out)
+	if want := "Compile Error: stop here [line: 4, column: 6]"; got != want {
+		t.Fatalf("got %q, want exactly %q", got, want)
+	}
+}
+
+// TestRun_FatalDirectiveKeepsEarlierErrors is the counterpart: a real syntax error before
+// the fatal is still the source's own defect and must survive.
+func TestRun_FatalDirectiveKeepsEarlierErrors(t *testing.T) {
+	src := "var x: Integer\nPrintLn('missing semicolon above');\n{$FATAL 'stop'}\n"
+	out, err := captureRun(t, src, nil, func() { diagnosticsMode = "plain"; compileOnly = true })
+	if err == nil {
+		t.Fatal("expected a compile failure")
+	}
+
+	if !strings.Contains(out, `";" expected [line: 1, column: 8]`) {
+		t.Fatalf("earlier syntax error was suppressed: %q", out)
+	}
+	if !strings.Contains(out, "Compile Error: stop [line: 3, column: 3]") {
+		t.Fatalf("fatal message missing: %q", out)
+	}
+}
