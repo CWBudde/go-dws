@@ -18,6 +18,9 @@ type ObjectInstance struct {
 	Destroyed         bool
 	ExplicitlyFreed   bool
 	destructorClaimed bool
+	// assocIdentity is the lazily assigned identity hash used when this
+	// instance is a key of an associative array (see associative_hash.go).
+	assocIdentity uint32
 }
 
 // NewObjectInstance creates a new object instance of the given class.
