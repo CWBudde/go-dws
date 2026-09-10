@@ -156,7 +156,7 @@ func (a *Analyzer) analyzeAddressOfMethod(target *ast.MemberAccessExpression, ex
 		return nil
 	}
 
-	method := a.firstBindableMethodOverload(methodName, classType)
+	method := a.firstBindableMethodOverload(methodName, classType, isMetaclass)
 	if method == nil {
 		a.addError("'%s' is not a method of class '%s' at %s",
 			methodName, classType.Name, expr.Token.Pos.String())
@@ -208,9 +208,21 @@ func addressOfReceiverClass(objectType types.Type) (classType *types.ClassType, 
 // firstBindableMethodOverload returns the overload a method pointer binds to. A
 // pointer cannot represent an overload set, so the runtime and the analyzer agree
 // on the first declared non-constructor overload.
-func (a *Analyzer) firstBindableMethodOverload(methodName string, classType *types.ClassType) *types.MethodInfo {
+//
+// classMethodsOnly restricts the candidates to the class side, which is what a
+// metaclass receiver (@TClass.M) can bind and all the runtime's
+// CreateClassMethodPointer looks at; without it a same-named instance overload
+// declared first would be recorded here while the runtime binds a class one.
+func (a *Analyzer) firstBindableMethodOverload(
+	methodName string,
+	classType *types.ClassType,
+	classMethodsOnly bool,
+) *types.MethodInfo {
 	for _, candidate := range a.getMethodOverloadsInHierarchy(methodName, classType) {
 		if candidate == nil || candidate.Signature == nil || candidate.IsConstructor {
+			continue
+		}
+		if classMethodsOnly && !candidate.IsClassMethod {
 			continue
 		}
 		return candidate

@@ -242,10 +242,8 @@ func (e *Evaluator) addressOfMember(node *ast.AddressOfExpression, operand *ast.
 	}
 
 	if classMeta, ok := objectVal.(ClassMetaValue); ok {
-		if classMeta.HasClassMethod(methodName) {
-			if methodPtr, created := classMeta.CreateClassMethodPointer(methodName, bindDecl); created {
-				return methodPtr
-			}
+		if methodPtr, created := e.bindClassMethodPointer(classMeta, methodName, objectVal, ctx); created {
+			return methodPtr
 		}
 		if isIntrinsicClassMemberName(methodName) {
 			return e.newIntrinsicClassMemberPointer(objectVal, methodName, node, ctx)
@@ -259,6 +257,11 @@ func (e *Evaluator) addressOfMember(node *ast.AddressOfExpression, operand *ast.
 		}
 		if methodDecl := objVal.GetMethodDecl(methodName); methodDecl != nil {
 			return e.createFunctionPointerFromDecl(methodDecl, objectVal, ctx)
+		}
+		// A class method reached through an instance binds the class reference,
+		// and owns the name ahead of an intrinsic member of the same name.
+		if methodDecl := objVal.GetClassMethodDecl(methodName); methodDecl != nil {
+			return e.createFunctionPointerFromDecl(methodDecl, e.classSelfForInstance(objVal, objectVal), ctx)
 		}
 		if isIntrinsicClassMemberName(methodName) {
 			return e.newIntrinsicClassMemberPointer(objectVal, methodName, node, ctx)

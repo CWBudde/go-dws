@@ -47,6 +47,67 @@ func (e *Evaluator) newIntrinsicClassMemberPointer(receiver Value, memberName st
 	}
 }
 
+// bindClassMethodPointer builds a pointer to a user-declared class method on a
+// class reference. It also covers the parameterless case, which the
+// CreateClassMethodPointer factories decline because the auto-invoke path
+// normally owns it: in a pointer context the declared method must still win
+// over an intrinsic member of the same name.
+func (e *Evaluator) bindClassMethodPointer(
+	classMeta ClassMetaValue,
+	memberName string,
+	receiver Value,
+	ctx *ExecutionContext,
+) (Value, bool) {
+	if classMeta == nil || !classMeta.HasClassMethod(memberName) {
+		return nil, false
+	}
+	bind := func(methodDecl *runtime.MethodMetadata) Value {
+		return e.createFunctionPointerFromDecl(methodDecl, receiver, ctx)
+	}
+	if ptr, created := classMeta.CreateClassMethodPointer(memberName, bind); created {
+		return ptr, true
+	}
+	// Reuse the parameterless lookup, binding the declaration instead of
+	// executing it (nested classes decline parameterless methods above).
+	return classMeta.InvokeParameterlessClassMethod(memberName, bind)
+}
+
+// classMetaMemberPointer resolves `TClass.Member` in a pointer context: a
+// user-declared class method owns the name, otherwise the intrinsic member
+// (ClassName / ClassType) is captured.
+func (e *Evaluator) classMetaMemberPointer(
+	classMeta ClassMetaValue,
+	memberName string,
+	receiver Value,
+	node ast.Expression,
+	ctx *ExecutionContext,
+) Value {
+	if ptr, ok := e.bindClassMethodPointer(classMeta, memberName, receiver, ctx); ok {
+		return ptr
+	}
+	return e.newIntrinsicClassMemberPointer(receiver, memberName, node, ctx)
+}
+
+// instanceMemberPointer resolves `obj.Member` in a pointer context for one of
+// the intrinsic member names. An instance method wins, then a class method
+// reached through the instance (bound to the class reference, as elsewhere),
+// and only then the intrinsic itself.
+func (e *Evaluator) instanceMemberPointer(
+	objVal ObjectValue,
+	receiver Value,
+	memberName string,
+	node ast.Expression,
+	ctx *ExecutionContext,
+) Value {
+	if methodDecl := objVal.GetMethodDecl(memberName); methodDecl != nil {
+		return e.createFunctionPointerFromDecl(methodDecl, receiver, ctx)
+	}
+	if methodDecl := objVal.GetClassMethodDecl(memberName); methodDecl != nil {
+		return e.createFunctionPointerFromDecl(methodDecl, e.classSelfForInstance(objVal, receiver), ctx)
+	}
+	return e.newIntrinsicClassMemberPointer(receiver, memberName, node, ctx)
+}
+
 // invokeIntrinsicClassMember evaluates a pointer captured by
 // newIntrinsicClassMemberPointer against its bound receiver.
 func (e *Evaluator) invokeIntrinsicClassMember(ptr *runtime.FunctionPointerValue, args []Value, node ast.Node) Value {

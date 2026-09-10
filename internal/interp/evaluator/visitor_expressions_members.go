@@ -268,6 +268,14 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
+		// In a function-pointer context the intrinsic members are captured
+		// rather than read, so `a.Add(obj.ClassName)` stores a callable into an
+		// `array of function : String` (func_ptr_classname). A user-declared
+		// method of the same name still owns the reference.
+		if isIntrinsicClassMemberName(memberName) && wantMethodPointer {
+			return e.instanceMemberPointer(objVal, obj, memberName, node, ctx)
+		}
+
 		// Built-in TObject properties (ClassName, ClassType).
 		// A user-declared ClassName method callable with zero arguments hides
 		// the builtin (falls through to the method auto-invoke below).
@@ -915,14 +923,7 @@ func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValu
 	if isIntrinsicClassMemberName(memberName) && node != nil && e.memberWantsMethodPointer(node, ctx) {
 		// A class method of the same name owns the reference; the intrinsic is
 		// only the fallback, matching how the analyzer resolved the node.
-		if classMetaVal.HasClassMethod(memberName) {
-			if result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl *runtime.MethodMetadata) Value {
-				return e.createFunctionPointerFromDecl(methodDecl, obj, ctx)
-			}); created {
-				return result
-			}
-		}
-		return e.newIntrinsicClassMemberPointer(obj, memberName, node, ctx)
+		return e.classMetaMemberPointer(classMetaVal, memberName, obj, node, ctx)
 	}
 	if ident.Equal(memberName, "ClassName") {
 		return &runtime.StringValue{Value: classMetaVal.GetClassName()}
