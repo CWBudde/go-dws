@@ -82,6 +82,13 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 			for _, arg := range expr.Arguments {
 				a.analyzeExpression(arg)
 			}
+			// ByteBuffer has no constructor overload taking arguments, so
+			// `new ByteBuffer(x)` is rejected here rather than silently
+			// dropping x (which the evaluator would never evaluate).
+			if len(expr.Arguments) > 0 {
+				a.addError("'ByteBuffer' has no constructor that accepts %d arguments at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
 			return types.BYTE_BUFFER
 		}
 

@@ -173,7 +173,19 @@ func (e *Evaluator) byteBufferBulkMember(buffer *runtime.ByteBufferValue, normal
 // byteBufferCopy implements Copy, Copy(index) and Copy(index, count). An
 // omitted count means "to the end"; the range is clamped to the buffer.
 func (e *Evaluator) byteBufferCopy(buffer *runtime.ByteBufferValue, args []Value, node ast.Node) Value {
-	index, _ := byteBufferIntArg(args, 0)
+	if len(args) > 2 {
+		return e.newError(node, "ByteBuffer.Copy expects 0 to 2 arguments, got %d", len(args))
+	}
+	var index int64
+	if len(args) >= 1 {
+		// An omitted index means 0, but a supplied argument that is not an
+		// Integer is an error rather than a silent fallback to Copy(0).
+		explicit, ok := byteBufferIntArg(args, 0)
+		if !ok {
+			return e.newError(node, "ByteBuffer.Copy expects Integer arguments")
+		}
+		index = explicit
+	}
 	count := int64(buffer.Length())
 	if len(args) >= 2 {
 		explicit, ok := byteBufferIntArg(args, 1)
@@ -200,6 +212,11 @@ func (e *Evaluator) byteBufferShapeMember(buffer *runtime.ByteBufferValue, norma
 		length, ok := byteBufferIntArg(args, 0)
 		if !ok {
 			return e.newError(node, "ByteBuffer.SetLength expects an Integer argument"), true
+		}
+		if length > runtime.MaxByteBufferLength {
+			// Turn an unsatisfiable allocation into a catchable script error
+			// rather than letting make() panic the host.
+			return e.raiseByteBufferError(node, runtime.NewByteBufferLengthError(length), ctx), true
 		}
 		buffer.SetLength(int(length))
 		return e.nilValue(), true
@@ -253,6 +270,11 @@ func (e *Evaluator) byteBufferGetInteger(buffer *runtime.ByteBufferValue, spec r
 		value int64
 		err   error
 	)
+	if len(args) > 1 {
+		// DWScript declares the getters as two overloads, () and (index), so a
+		// third argument has no signature to bind to.
+		return e.newError(node, "ByteBuffer.Get%s expects 0 or 1 arguments, got %d", suffix, len(args))
+	}
 	if len(args) == 0 {
 		value, err = buffer.GetInt(spec.Size, spec.Signed)
 	} else {
@@ -301,6 +323,9 @@ func (e *Evaluator) byteBufferGetFloat(buffer *runtime.ByteBufferValue, suffix s
 		value float64
 		err   error
 	)
+	if len(args) > 1 {
+		return e.newError(node, "ByteBuffer.Get%s expects 0 or 1 arguments, got %d", suffix, len(args))
+	}
 	if len(args) == 0 {
 		value, err = buffer.GetFloat(suffix)
 	} else {

@@ -1036,6 +1036,11 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 	// `new ByteBuffer` instantiates the built-in buffer type, which has no entry
 	// in the class registry. A user class of the same name wins.
 	if classInfoAny == nil && ident.Equal(className, "ByteBuffer") && e.typeSystem.LookupClass(className) == nil {
+		// There is no constructor overload taking arguments; reject them here so
+		// the call never looks like it silently discarded its operands.
+		if len(node.Arguments) > 0 {
+			return e.newError(node, "'ByteBuffer' has no constructor that accepts %d arguments", len(node.Arguments))
+		}
 		return runtime.NewByteBufferValue()
 	}
 

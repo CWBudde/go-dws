@@ -35,6 +35,19 @@ func newOverflowError(value int64, typeName string) *ByteBufferError {
 	return &ByteBufferError{Message: fmt.Sprintf("value %d out of %s range", value, typeName)}
 }
 
+// MaxByteBufferLength is the largest buffer a script may request. The reference
+// implementation has no explicit ceiling; it lets Delphi's SetLength raise
+// EOutOfMemory, which surfaces as a catchable script exception. Go's make()
+// panics instead and would take the host down, so a resize beyond this bound is
+// turned into a ByteBuffer error. 2 GiB is far above any legitimate script use
+// while keeping `b.SetLength(High(Integer))` a diagnosable error.
+const MaxByteBufferLength = math.MaxInt32
+
+// NewByteBufferLengthError builds the diagnostic for an unsatisfiable resize.
+func NewByteBufferLengthError(length int64) *ByteBufferError {
+	return &ByteBufferError{Message: fmt.Sprintf("Invalid length %d (maximum is %d)", length, MaxByteBufferLength)}
+}
+
 // ByteBufferValue is the runtime representation of a DWScript ByteBuffer.
 //
 // It is always handled through a pointer, which is what gives ByteBuffer its
@@ -68,9 +81,6 @@ func (b *ByteBufferValue) String() string { return b.ToJSON() }
 
 // ValueKind identifies the ByteBuffer runtime representation.
 func (b *ByteBufferValue) ValueKind() ValueKind { return KindByteBuffer }
-
-// LanguageType returns the declared DWScript type of the value.
-func (b *ByteBufferValue) LanguageType() any { return nil }
 
 // Bytes returns the buffer's live backing storage. Callers must not retain it.
 func (b *ByteBufferValue) Bytes() []byte { return b.data }
@@ -107,8 +117,13 @@ func (b *ByteBufferValue) SetPosition(n int) error {
 }
 
 // checkRange validates that size bytes are addressable at index.
+//
+// index and size both originate from script Integers, so the comparison must
+// never form index+size: for an index near MaxInt64 that sum wraps negative and
+// would let an out-of-range access through to a slice index panic. Comparing
+// size against the remaining tail keeps every operand within range.
 func (b *ByteBufferValue) checkRange(index, size int) error {
-	if index < 0 || size < 0 || index+size > len(b.data) {
+	if index < 0 || size < 0 || index > len(b.data) || size > len(b.data)-index {
 		return newRangeError(index, size, len(b.data))
 	}
 	return nil
@@ -262,6 +277,11 @@ func (b *ByteBufferValue) GetIntegers(index, count, elementSize int, signed bool
 	}
 	if count < 0 {
 		count = 0
+	}
+	// count*elementSize would overflow for a hostile count, so reject anything
+	// that cannot possibly fit before forming the product.
+	if count > len(b.data) {
+		return nil, newRangeError(index, count, len(b.data))
 	}
 	if err := b.checkRange(index, count*elementSize); err != nil {
 		return nil, err
@@ -600,7 +620,9 @@ func (b *ByteBufferValue) Copy(index, count int) *ByteBufferValue {
 	if count < 0 {
 		count = 0
 	}
-	if index+count > len(b.data) {
+	// Clamp against the remaining tail rather than against index+count, which
+	// wraps negative for a script-supplied count near MaxInt64.
+	if count > len(b.data)-index {
 		count = len(b.data) - index
 	}
 	return NewByteBufferValueFromBytes(b.data[index : index+count])

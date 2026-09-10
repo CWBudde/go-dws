@@ -125,6 +125,7 @@ var valueKindNames = [...]string{
 	KindArray:            "ARRAY",
 	KindAssociativeArray: "ASSOCIATIVE_ARRAY",
 	KindBoolean:          "BOOLEAN",
+	KindByteBuffer:       "BYTEBUFFER",
 	KindClass:            "CLASS",
 	KindClassInfo:        "CLASSINFO",
 	KindEnum:             "ENUM",
