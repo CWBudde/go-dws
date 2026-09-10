@@ -851,7 +851,7 @@ func (e *Evaluator) evalStringInBracketList(left Value, rightExpr ast.Expression
 
 // evalInOperator evaluates the 'in' operator for membership testing.
 // Supports: arrays, sets, strings, subranges.
-func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value {
+func (e *Evaluator) evalInOperator(value, container Value, node ast.Node, ctx *ExecutionContext) Value {
 	// Handle set membership
 	if setVal, ok := container.(*runtime.SetValue); ok {
 		// Value must be an ordinal type to be in a set
@@ -881,9 +881,15 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node) Value 
 		return &runtime.BooleanValue{Value: false}
 	}
 
-	// Associative array key membership: key in a (no insertion)
+	// Associative array key membership: key in a (no insertion). The key goes
+	// through the same coercion as reads, writes and Delete, so a Variant 123
+	// tested against an `array [String] of ...` finds the stored '123' slot.
 	if assoc, ok := container.(*runtime.AssociativeArrayValue); ok {
-		return &runtime.BooleanValue{Value: assoc.Contains(unwrapVariant(value))}
+		key, errVal := e.coerceAssociativeKey(assoc, value, ctx)
+		if errVal != nil {
+			return errVal
+		}
+		return &runtime.BooleanValue{Value: assoc.Contains(key)}
 	}
 
 	// Handle array membership

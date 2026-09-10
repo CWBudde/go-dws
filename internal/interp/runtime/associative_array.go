@@ -19,6 +19,30 @@ type AssociativeArrayValue struct {
 	AssocType *types.AssociativeArrayType
 	keys      []Value // insertion order; value-typed keys are snapshotted
 	values    []Value // parallel to keys
+	bindings  int     // live named bindings sharing this map (ARC, see RetainBinding)
+}
+
+// RetainBinding records that one more named binding (variable, parameter,
+// field) now shares this map. Because associative arrays are reference types,
+// the entries they own must outlive every binding, not just the one whose
+// scope happens to end first.
+func (a *AssociativeArrayValue) RetainBinding() {
+	if a == nil {
+		return
+	}
+	a.bindings++
+}
+
+// ReleaseBinding drops one named binding and reports whether that was the last
+// one, i.e. whether the caller must now release the map's retained keys and
+// values. A map that was never retained (bindings == 0) never reports true, so
+// an unbalanced release cannot empty a map somebody still holds.
+func (a *AssociativeArrayValue) ReleaseBinding() bool {
+	if a == nil || a.bindings <= 0 {
+		return false
+	}
+	a.bindings--
+	return a.bindings == 0
 }
 
 // Compile-time interface satisfaction check.

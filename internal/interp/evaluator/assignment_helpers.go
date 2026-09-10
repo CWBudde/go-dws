@@ -473,6 +473,12 @@ func (e *Evaluator) prepareValueForAssignment(
 		}
 	}
 
+	// An associative array assigned into a second binding is shared, not copied,
+	// so the target slot becomes another owner of the map's entries.
+	if assoc, isAssoc := value.(*runtime.AssociativeArrayValue); isAssoc && Value(assoc) != existingVal {
+		assoc.RetainBinding()
+	}
+
 	return value
 }
 
@@ -490,6 +496,14 @@ func (e *Evaluator) retainValueForBinding(value Value, ctx *ExecutionContext) Va
 
 	if objInst, ok := value.(*runtime.ObjectInstance); ok {
 		ctx.RefCountManager().IncrementRef(objInst)
+		return value
+	}
+
+	// Associative arrays are reference types: the entries they retain belong to
+	// the map, not to whichever binding dies first. Count the bindings so the
+	// contents are released only when the last one disappears.
+	if assoc, ok := value.(*runtime.AssociativeArrayValue); ok {
+		assoc.RetainBinding()
 		return value
 	}
 
@@ -512,6 +526,13 @@ func (e *Evaluator) releaseValueForBinding(value Value) {
 
 	if objInst, ok := value.(*runtime.ObjectInstance); ok {
 		e.engineState.RefCountManager.ReleaseObject(objInst)
+		return
+	}
+
+	if assoc, ok := value.(*runtime.AssociativeArrayValue); ok {
+		if assoc.ReleaseBinding() {
+			e.releaseAssociativeContents(assoc)
+		}
 		return
 	}
 
@@ -576,6 +597,12 @@ func (e *Evaluator) evalReferenceAssignment(
 
 	// Clone copyable values
 	value = cloneIfCopyable(value)
+
+	// A map stored through a var parameter escapes the callee's scope, so the
+	// caller's slot becomes another owner of its entries.
+	if assoc, isAssoc := value.(*runtime.AssociativeArrayValue); isAssoc && Value(assoc) != currentVal {
+		assoc.RetainBinding()
+	}
 
 	if err := refVal.Assign(value); err != nil {
 		return e.newError(target, "%s", err.Error())

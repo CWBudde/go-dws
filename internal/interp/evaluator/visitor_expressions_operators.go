@@ -59,7 +59,7 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 
 	// Handle 'in' operator (membership testing)
 	if node.Operator == "in" {
-		return e.evalInOperator(left, right, node)
+		return e.evalInOperator(left, right, node, ctx)
 	}
 
 	// Handle operations based on operand types

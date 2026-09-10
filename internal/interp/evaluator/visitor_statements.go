@@ -19,6 +19,23 @@ import (
 func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value {
 	var result Value
 
+	// Program-scope finalization: associative arrays release the keys and
+	// values they own, running the destructors of objects the map outlived.
+	// Deferred so it also covers the error and uncaught-exception exits below.
+	// The environment is resolved inside the closure, because the program's
+	// own declarations are only defined after this function has been entered.
+	//
+	// Destructor bodies do not execute while an exception is still active, so
+	// the pending exception is parked for the duration of the finalization and
+	// restored afterwards. It has already been turned into the returned error
+	// at that point; restoring it only keeps the context state truthful.
+	defer func() {
+		pending := ctx.Exception()
+		ctx.SetException(nil)
+		e.releaseAssociativeBindings(ctx.Env())
+		ctx.SetException(pending)
+	}()
+
 	if result = e.predeclareProgramClassTypes(node, ctx); isError(result) {
 		return result
 	}
@@ -74,10 +91,6 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 		}
 		return e.newError(node, "uncaught exception: %v", ctx.Exception())
 	}
-
-	// Program-scope finalization: associative arrays release the keys and
-	// values they own, running the destructors of objects the map outlived.
-	e.releaseAssociativeBindings(ctx.Env())
 
 	return result
 }
