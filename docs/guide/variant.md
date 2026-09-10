@@ -37,13 +37,20 @@ var v4: Variant := True;     // Boolean variant
 
 ### Uninitialized Variants
 
-Uninitialized Variants have the special state "empty" (VarType code 0):
+Uninitialized Variants have the special state "empty" (VarType code 0). Empty and
+Null are distinct states: `Null` is a value, so an uninitialized Variant is empty
+but not null.
 
 ```pascal
 var v: Variant;
-PrintLn(VarIsNull(v));     // True
-PrintLn(VarIsEmpty(v));    // True (same as VarIsNull in DWScript)
+PrintLn(VarIsEmpty(v));    // True
+PrintLn(VarIsClear(v));    // True (alias for VarIsEmpty)
+PrintLn(VarIsNull(v));     // False - Null is a value, "no value" is not Null
 PrintLn(VarType(v));       // 0 (varEmpty)
+
+v := Null;
+PrintLn(VarIsEmpty(v));    // False
+PrintLn(VarIsNull(v));     // True
 ```
 
 ## Boxing and Unboxing
@@ -142,20 +149,25 @@ Explicit conversion using VarType codes:
 
 ```pascal
 var v: Variant := '123';
-var asInt: Variant := VarAsType(v, 3);    // 3 = varInteger
-var asFloat: Variant := VarAsType(v, 5);  // 5 = varDouble
-var asStr: Variant := VarAsType(v, 256);  // 256 = varString
+var asInt: Variant := VarAsType(v, varInteger);
+var asFloat: Variant := VarAsType(v, varDouble);
+var asStr: Variant := VarAsType(v, varString);
 
-PrintLn(VarType(asInt));    // 3
-PrintLn(VarType(asFloat));  // 5
-PrintLn(VarType(asStr));    // 256
+PrintLn(VarType(asInt));    // 20 (varInt64)
+PrintLn(VarType(asFloat));  // 5  (varDouble)
+PrintLn(VarType(asStr));    // 256 (varString)
 ```
+
+The Delphi type-code constants (`varEmpty`, `varNull`, `varInteger`, `varInt64`,
+`varSingle`, `varDouble`, `varBoolean`, `varString`, `varUString`, `varArray`, …)
+are predeclared, so a script never has to spell the numbers out.
 
 **VarType Codes**:
 - 0 = varEmpty (uninitialized)
-- 3 = varInteger
+- 1 = varNull
 - 5 = varDouble (Float)
 - 11 = varBoolean
+- 20 = varInt64 (what VarType reports for an Integer - DWScript integers are 64-bit)
 - 256 = varString
 
 ## Array of Const Pattern
@@ -169,7 +181,7 @@ The Variant type enables the `array of const` pattern for variadic-style functio
 var arr: array of Variant := ['hello', 42, 3.14, True];
 
 PrintLn(VarType(arr[0]));  // 256 (String)
-PrintLn(VarType(arr[1]));  // 3 (Integer)
+PrintLn(VarType(arr[1]));  // 20 (Integer)
 PrintLn(VarType(arr[2]));  // 5 (Float)
 PrintLn(VarType(arr[3]));  // 11 (Boolean)
 ```
@@ -214,37 +226,46 @@ Returns the type code identifying the actual type:
 var v1: Variant := 42;
 var v2: Variant := 'hello';
 
-PrintLn(VarType(v1));  // 3 (varInteger)
+PrintLn(VarType(v1));  // 20 (varInt64)
 PrintLn(VarType(v2));  // 256 (varString)
 ```
 
 **Type Codes** (Delphi-compatible):
-- `0` (varEmpty) - Uninitialized/null
-- `3` (varInteger) - Integer value
+- `0` (varEmpty) - Uninitialized
+- `1` (varNull) - The Null value
 - `5` (varDouble) - Float value
 - `11` (varBoolean) - Boolean value
+- `20` (varInt64) - Integer value
 - `256` (varString) - String value
 - `0x2000` (varArray) - Array value
 
+Any argument is accepted: DWScript boxes a non-Variant value into a Variant for a
+Variant parameter, so `VarType(123)` and `VarIsStr('x')` are legal.
+
 #### VarIsNull(v: Variant): Boolean
 
-Checks if Variant is uninitialized:
+Checks whether the Variant holds the Null value. An uninitialized Variant is
+*not* Null:
 
 ```pascal
 var v1: Variant;
-var v2: Variant := 42;
+var v2: Variant := Null;
 
-PrintLn(VarIsNull(v1));  // True
-PrintLn(VarIsNull(v2));  // False
+PrintLn(VarIsNull(v1));  // False
+PrintLn(VarIsNull(v2));  // True
 ```
 
 #### VarIsEmpty(v: Variant): Boolean
 
-Alias for VarIsNull (same semantics in DWScript):
+Checks whether the Variant never received a value. `VarIsClear` is an alias:
 
 ```pascal
 var v: Variant;
 PrintLn(VarIsEmpty(v));  // True
+PrintLn(VarIsClear(v));  // True
+
+v := Null;
+PrintLn(VarIsEmpty(v));  // False - Null is a value
 ```
 
 #### VarIsNumeric(v: Variant): Boolean
@@ -261,21 +282,20 @@ PrintLn(VarIsNumeric(v2));  // True
 PrintLn(VarIsNumeric(v3));  // False
 ```
 
-#### VarClear(v: Variant): Variant
+#### VarClear(var v: Variant)
 
-Clears a Variant and returns an empty/uninitialized Variant:
+Resets a Variant variable to its uninitialized state. It is a procedure with a
+`var` parameter, so it writes back to the variable:
 
 ```pascal
 var v: Variant := 42;
-PrintLn(VarIsNull(v));     // False
-PrintLn(VarType(v));       // 3 (varInteger)
+PrintLn(VarIsEmpty(v));    // False
+PrintLn(VarType(v));       // 20 (varInt64)
 
-v := VarClear(v);
-PrintLn(VarIsNull(v));     // True
+VarClear(v);
+PrintLn(VarIsEmpty(v));    // True
 PrintLn(VarType(v));       // 0 (varEmpty)
 ```
-
-**Note**: In standard DWScript, VarClear is a procedure with a `var` parameter that modifies the variable in place. This implementation returns an empty Variant that must be assigned back: `v := VarClear(v)`.
 
 ### Conversion Functions
 
@@ -283,6 +303,10 @@ See "Type Conversion Rules" section above for:
 - `VarToInt(v: Variant): Integer`
 - `VarToFloat(v: Variant): Float`
 - `VarToStr(v: Variant): String`
+
+`VarToStr` accepts any argument, but hints when the static type already says
+which dedicated conversion applies: `IntToStr()` for an Integer, `FloatToStr()`
+for a Float, and "Redundant function call" for a String.
 - `VarAsType(v: Variant, typeCode: Integer): Variant`
 
 ## Comparison with Delphi/DWScript
