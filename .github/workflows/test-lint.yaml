@@ -9,6 +9,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # golangci-lint needs real history to find the merge base with main.
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -22,12 +25,28 @@ jobs:
       - name: Check go mod tidy
         run: just check-tidy
 
+      - name: Fetch main for diffing
+        run: git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
           # Pinned: .golangci.yml uses the v2 config format, which the v1
           # binary installed by action@v4 "latest" could not parse.
           version: v2.12.1
-          # Gate PRs on newly introduced findings only; the pre-existing
-          # backlog stays visible when linting main directly.
-          only-new-issues: true
+          # Gate branches on newly introduced findings only.
+          #
+          # We compute the diff ourselves instead of using the action's
+          # only-new-issues, which asks the GitHub compare API for
+          # `before...after` and, when that request fails, silently degrades to
+          # reporting the entire backlog (1219 findings) rather than failing
+          # loudly. On this repo the workflow triggers on `push`, so that
+          # request 404s in two common cases: the first push of a new branch
+          # (`before` is all-zeroes) and any force-push (`before` is orphaned).
+          # Every rebased PR therefore turned red on pre-existing findings, with
+          # GitHub's 10-annotation cap showing a different arbitrary handful
+          # each run.
+          #
+          # --new-from-merge-base is computed locally from git history, so it
+          # behaves identically for pushes, force-pushes and new branches.
+          args: --new-from-merge-base=origin/main --timeout 10m

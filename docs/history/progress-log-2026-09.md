@@ -1356,7 +1356,7 @@ through plain `addError` was explicitly "advisory and not surfaced". `{$HINT}`, 
 emitted *nothing whatsoever*.
 
 Rather than promoting every lexer error (a large, untargeted blast radius), the lexer gained a
-dedicated directive-diagnostic channel carrying a `LexerSeverity` and an optional pre-rendered
+dedicated directive-diagnostic channel carrying a `Severity` and an optional pre-rendered
 DWScript string. `frontend.Diagnostic.Rendered` already short-circuits `Render()`, so
 `Hint:` / `Warning:` / `Compile Error:` bypass `FormatDWScriptError`'s hardcoded `Syntax Error:`
 prefix without disturbing the shared formatter. Diagnostics are deduplicated by message and

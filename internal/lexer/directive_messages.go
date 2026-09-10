@@ -77,7 +77,7 @@ func (l *Lexer) handleMessageDirective(
 	content string,
 	parentActive bool,
 	startPos, closePos Position,
-	severity LexerSeverity,
+	severity Severity,
 	prefix string,
 	stop bool,
 ) {
@@ -97,7 +97,7 @@ func (l *Lexer) handleMessageDirective(
 		// A missing or unquoted argument is a syntax error anchored at the closing
 		// brace. {$FATAL} still stops, even when its argument is invalid.
 		l.addDirectiveDiagnostic("String expected",
-			directiveArgPosition(content, startPos, closePos), LexerSeverityError, "")
+			directiveArgPosition(content, startPos, closePos), SeverityError, "")
 		if stop {
 			l.stopped = true
 		}
@@ -131,7 +131,7 @@ func (l *Lexer) handleSwitchToggle(name, content string, parentActive bool, star
 		return
 	default:
 		l.addDirectiveDiagnostic("ON/OFF expected",
-			directiveArgPosition(content, startPos, closePos), LexerSeverityError, "")
+			directiveArgPosition(content, startPos, closePos), SeverityError, "")
 	}
 }
 
@@ -143,7 +143,7 @@ func (l *Lexer) handleStringSwitch(content string, parentActive bool, startPos, 
 	}
 	if _, ok := unquoteDirectiveString(directiveArgument(content)); !ok {
 		l.addDirectiveDiagnostic("String expected",
-			directiveArgPosition(content, startPos, closePos), LexerSeverityError, "")
+			directiveArgPosition(content, startPos, closePos), SeverityError, "")
 	}
 }
 
@@ -210,20 +210,20 @@ func (l *Lexer) reportUnterminatedDirective(raw string, startPos Position) {
 
 	normalized := ident.Normalize(strings.TrimSpace(name))
 	if normalized == "" {
-		l.addDirectiveDiagnostic(`"}" expected`, namePos, LexerSeverityError, "")
+		l.addDirectiveDiagnostic(`"}" expected`, namePos, SeverityError, "")
 		return
 	}
 
 	if _, ok := knownSwitches[normalized]; !ok {
 		l.addDirectiveDiagnostic(
 			fmt.Sprintf("Compiler switch %q unknown", strings.ToUpper(strings.TrimSpace(name))),
-			namePos, LexerSeverityError, "")
+			namePos, SeverityError, "")
 		return
 	}
 
 	if normalized == "include" || normalized == "i" || normalized == "include_once" {
 		if strings.TrimSpace(raw[argOffset:]) == "" {
-			l.addDirectiveDiagnostic("Name of include file expected", namePos, LexerSeverityError, "")
+			l.addDirectiveDiagnostic("Name of include file expected", namePos, SeverityError, "")
 		}
 	}
 
@@ -233,7 +233,7 @@ func (l *Lexer) reportUnterminatedDirective(raw string, startPos Position) {
 	if strings.TrimSpace(raw[argOffset:]) != "" {
 		bracePos.Column = namePos.Column + argOffset
 	}
-	l.addDirectiveDiagnostic(`"}" expected`, bracePos, LexerSeverityError, "")
+	l.addDirectiveDiagnostic(`"}" expected`, bracePos, SeverityError, "")
 }
 
 // reportUnbalancedConditionals reports conditional directives still open at end of input.
@@ -246,17 +246,17 @@ func (l *Lexer) reportUnbalancedConditionals() {
 	}
 	frame := l.condStack[len(l.condStack)-1]
 	l.addDirectiveDiagnostic("Unbalanced conditional directive",
-		directiveNameColumn(frame.startPos), LexerSeverityError, "")
+		directiveNameColumn(frame.startPos), SeverityError, "")
 	l.condStack = nil
 }
 
 // severityEnabled reports whether a message directive of this severity is currently
 // switched on. Errors are not switchable.
-func (l *Lexer) severityEnabled(severity LexerSeverity) bool {
+func (l *Lexer) severityEnabled(severity Severity) bool {
 	switch severity {
-	case LexerSeverityHint:
+	case SeverityHint:
 		return l.hintsEnabled
-	case LexerSeverityWarning:
+	case SeverityWarning:
 		return l.warningsEnabled
 	default:
 		return true

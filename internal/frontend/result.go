@@ -471,11 +471,11 @@ func lexerDiagnostics(errs []lexer.LexerError, blocksSemantic bool) []Diagnostic
 }
 
 // lexerSeverity maps a lexer diagnostic severity onto the front-end severity.
-func lexerSeverity(sev lexer.LexerSeverity) Severity {
+func lexerSeverity(sev lexer.Severity) Severity {
 	switch sev {
-	case lexer.LexerSeverityWarning:
+	case lexer.SeverityWarning:
 		return SeverityWarning
-	case lexer.LexerSeverityHint:
+	case lexer.SeverityHint:
 		return SeverityHint
 	default:
 		return SeverityError
