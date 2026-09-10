@@ -273,13 +273,13 @@ func TestUTF16_RoundTrip(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     string
-		bigEndian bool
 		hex       string
+		bigEndian bool
 	}{
-		{"ascii big endian", "Example", true, "004500780061006d0070006c0065"},
-		{"ascii little endian", "Example", false, "4500780061006d0070006c006500"},
-		{"latin1 big endian", "éric", true, "00e9007200690063"},
-		{"latin1 little endian", "éric", false, "e900720069006300"},
+		{"ascii big endian", "Example", "004500780061006d0070006c0065", true},
+		{"ascii little endian", "Example", "4500780061006d0070006c006500", false},
+		{"latin1 big endian", "éric", "00e9007200690063", true},
+		{"latin1 little endian", "éric", "e900720069006300", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

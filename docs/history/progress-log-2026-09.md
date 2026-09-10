@@ -2175,8 +2175,13 @@ Behaviour worth recording, all of it fixture-derived rather than invented:
 - `Base64URIEncoder` is unpadded RFC 4648 §5.
 - Base32 output carries no `=` padding, and `Decode` accepts `0` as an alias for `O` — pinned by
   `base32.pas`, which expects `Decode('000000')` to be `739ce7`.
-- `HTMLTextEncoder.Encode` also escapes U+00A0 as `&nbsp;` (`UdwsWebUtilsTests.pas` agrees);
-  `Decode` strips tags *and* resolves character references, leaving unknown ones untouched.
+- `HTMLTextEncoder.Encode` also escapes U+00A0 as `&nbsp;` (pinned by `htmltext.pas`, which
+  encodes `"'"#$a0` to `&#39;&nbsp;`); `Decode` strips tags *and* resolves character references,
+  leaving unknown ones untouched.
+- Folding `StrToHtml` onto `encoding.HTMLTextEncode` changes it in exactly one way: it now emits
+  `&nbsp;` for U+00A0 as well. `StrToHtmlAttribute` is byte-for-byte unchanged. No fixture calls
+  either builtin, so this is not covered by the suite; the change aligns the function-shaped
+  encoder with the class-shaped one the fixtures do pin.
 - `URLEncodedEncoder.Decode` never raises: a truncated `%` escape ends decoding and a malformed
   one yields U+FFFD.
 
