@@ -34,6 +34,8 @@ func (t *ByteBufferType) Equals(other Type) bool {
 }
 
 // BYTE_BUFFER is the singleton ByteBuffer type instance.
+//
+//nolint:revive // named like the other builtin type singletons (INTEGER, STRING, JSON_VARIANT)
 var BYTE_BUFFER = &ByteBufferType{}
 
 // IsByteBuffer reports whether t resolves to the built-in ByteBuffer type.

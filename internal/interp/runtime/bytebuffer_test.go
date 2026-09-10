@@ -38,13 +38,13 @@ func TestByteBufferValue_SetLengthPreservesPrefix(t *testing.T) {
 	}
 
 	tests := []struct {
-		length int
 		want   string
+		length int
 	}{
-		{2, "[6,9]"},
-		{1, "[6]"},
-		{2, "[6,0]"},
-		{0, "[]"},
+		{"[6,9]", 2},
+		{"[6]", 1},
+		{"[6,0]", 2},
+		{"[]", 0},
 	}
 	for _, tt := range tests {
 		b.SetLength(tt.length)
@@ -59,13 +59,13 @@ func TestByteBufferValue_SetPositionRange(t *testing.T) {
 	b.SetLength(1)
 
 	tests := []struct {
-		pos     int
 		wantErr string
+		pos     int
 	}{
-		{0, ""},
-		{1, ""},
-		{-1, "Position -1 out of range (length 1)"},
-		{2, "Position 2 out of range (length 1)"},
+		{"", 0},
+		{"", 1},
+		{"Position -1 out of range (length 1)", -1},
+		{"Position 2 out of range (length 1)", 2},
 	}
 	for _, tt := range tests {
 		err := b.SetPosition(tt.pos)
@@ -81,21 +81,21 @@ func TestByteBufferValue_SetPositionRange(t *testing.T) {
 func TestByteBufferValue_IntegerOverflowDiagnostics(t *testing.T) {
 	tests := []struct {
 		suffix string
-		value  int64
 		want   string
+		value  int64
 	}{
-		{"byte", -1, "value -1 out of Byte range"},
-		{"byte", 256, "value 256 out of Byte range"},
-		{"int8", -129, "value -129 out of Int8 range"},
-		{"int8", 128, "value 128 out of Int8 range"},
-		{"word", -1, "value -1 out of Word range"},
-		{"word", 0x10000, "value 65536 out of Word range"},
-		{"int16", -0x8001, "value -32769 out of Int16 range"},
-		{"int16", 0x8000, "value 32768 out of Int16 range"},
-		{"dword", -1, "value -1 out of DWord range"},
-		{"dword", 0x100000000, "value 4294967296 out of DWord range"},
-		{"int32", -0x80000001, "value -2147483649 out of Int32 range"},
-		{"int32", 0x80000000, "value 2147483648 out of Int32 range"},
+		{"byte", "value -1 out of Byte range", -1},
+		{"byte", "value 256 out of Byte range", 256},
+		{"int8", "value -129 out of Int8 range", -129},
+		{"int8", "value 128 out of Int8 range", 128},
+		{"word", "value -1 out of Word range", -1},
+		{"word", "value 65536 out of Word range", 0x10000},
+		{"int16", "value -32769 out of Int16 range", -0x8001},
+		{"int16", "value 32768 out of Int16 range", 0x8000},
+		{"dword", "value -1 out of DWord range", -1},
+		{"dword", "value 4294967296 out of DWord range", 0x100000000},
+		{"int32", "value -2147483649 out of Int32 range", -0x80000001},
+		{"int32", "value 2147483648 out of Int32 range", 0x80000000},
 	}
 	for _, tt := range tests {
 		b := NewByteBufferValue()
@@ -113,15 +113,15 @@ func TestByteBufferValue_IntegerOverflowDiagnostics(t *testing.T) {
 func TestByteBufferValue_RangeDiagnostics(t *testing.T) {
 	tests := []struct {
 		name   string
-		length int
-		pos    int
 		suffix string
 		want   string
+		length int
+		pos    int
 	}{
-		{"byte on empty", 0, 0, "byte", "Out of range (index 0, size 1 for length 0)"},
-		{"word past end", 3, 2, "word", "Out of range (index 2, size 2 for length 3)"},
-		{"dword past end", 5, 4, "dword", "Out of range (index 4, size 4 for length 5)"},
-		{"int64 past end", 9, 8, "int64", "Out of range (index 8, size 8 for length 9)"},
+		{"byte on empty", "byte", "Out of range (index 0, size 1 for length 0)", 0, 0},
+		{"word past end", "word", "Out of range (index 2, size 2 for length 3)", 3, 2},
+		{"dword past end", "dword", "Out of range (index 4, size 4 for length 5)", 5, 4},
+		{"int64 past end", "int64", "Out of range (index 8, size 8 for length 9)", 9, 8},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -141,16 +141,16 @@ func TestByteBufferValue_RangeDiagnostics(t *testing.T) {
 func TestByteBufferValue_LittleEndianRoundTrip(t *testing.T) {
 	tests := []struct {
 		suffix   string
-		value    int64
 		wantJSON string
+		value    int64
 		signed   bool
 	}{
-		{"int8", -3, "[253]", true},
-		{"int16", -3, "[253,255]", true},
-		{"word", 34*256 + 12, "[12,34]", false},
-		{"int32", -0x01020304, "[252,252,253,254]", true},
-		{"dword", 0x01020304, "[4,3,2,1]", false},
-		{"int64", 0x01020304050708, "[8,7,5,4,3,2,1,0]", true},
+		{"int8", "[253]", -3, true},
+		{"int16", "[253,255]", -3, true},
+		{"word", "[12,34]", 34*256 + 12, false},
+		{"int32", "[252,252,253,254]", -0x01020304, true},
+		{"dword", "[4,3,2,1]", 0x01020304, false},
+		{"int64", "[8,7,5,4,3,2,1,0]", 0x01020304050708, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.suffix, func(t *testing.T) {
@@ -388,15 +388,15 @@ func TestByteBufferValue_Copy(t *testing.T) {
 	b.AssignDataString("hello world")
 
 	tests := []struct {
+		want  string
 		index int
 		count int
-		want  string
 	}{
-		{0, 11, "hello world"},
-		{6, 11, "world"},
-		{6, 10, "world"},
-		{1, 2, "el"},
-		{2, 0, ""},
+		{"hello world", 0, 11},
+		{"world", 6, 11},
+		{"world", 6, 10},
+		{"el", 1, 2},
+		{"", 2, 0},
 	}
 	for _, tt := range tests {
 		if got := b.Copy(tt.index, tt.count).ToDataString(); got != tt.want {

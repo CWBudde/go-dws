@@ -109,31 +109,11 @@ func (e *Evaluator) DispatchByteBufferMethod(receiver Value, methodName string, 
 		}
 	}
 
+	if result, handled := e.byteBufferShapeMember(buffer, normalized, args, node, ctx); handled {
+		return result
+	}
+
 	switch normalized {
-	case "length":
-		return &runtime.IntegerValue{Value: int64(buffer.Length())}
-
-	case "position":
-		return &runtime.IntegerValue{Value: int64(buffer.Position())}
-
-	case "setlength":
-		length, ok := byteBufferIntArg(args, 0)
-		if !ok {
-			return e.newError(node, "ByteBuffer.SetLength expects an Integer argument")
-		}
-		buffer.SetLength(int(length))
-		return e.nilValue()
-
-	case "setposition":
-		position, ok := byteBufferIntArg(args, 0)
-		if !ok {
-			return e.newError(node, "ByteBuffer.SetPosition expects an Integer argument")
-		}
-		if err := buffer.SetPosition(int(position)); err != nil {
-			return e.raiseByteBufferError(node, err, ctx)
-		}
-		return e.nilValue()
-
 	case "getdata":
 		index, okIndex := byteBufferIntArg(args, 0)
 		size, okSize := byteBufferIntArg(args, 1)
@@ -151,15 +131,6 @@ func (e *Evaluator) DispatchByteBufferMethod(receiver Value, methodName string, 
 
 	case "getintegers":
 		return e.byteBufferGetIntegers(buffer, args, node, ctx)
-
-	case "tojson":
-		return &runtime.StringValue{Value: buffer.ToJSON()}
-	case "todatastring":
-		return &runtime.StringValue{Value: buffer.ToDataString()}
-	case "tobase64":
-		return &runtime.StringValue{Value: buffer.ToBase64()}
-	case "tohexstring":
-		return &runtime.StringValue{Value: buffer.ToHexString()}
 
 	case "assign":
 		if len(args) != 1 {
@@ -189,6 +160,47 @@ func (e *Evaluator) DispatchByteBufferMethod(receiver Value, methodName string, 
 	}
 
 	return e.newError(node, "method '%s' not found for type 'ByteBuffer'", methodName)
+}
+
+// byteBufferShapeMember handles the members that describe or reshape the buffer
+// as a whole: Length, Position, SetLength, SetPosition and the To* renderings.
+// It reports whether it recognised the member.
+func (e *Evaluator) byteBufferShapeMember(buffer *runtime.ByteBufferValue, normalized string, args []Value, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+	switch normalized {
+	case "length":
+		return &runtime.IntegerValue{Value: int64(buffer.Length())}, true
+
+	case "position":
+		return &runtime.IntegerValue{Value: int64(buffer.Position())}, true
+
+	case "setlength":
+		length, ok := byteBufferIntArg(args, 0)
+		if !ok {
+			return e.newError(node, "ByteBuffer.SetLength expects an Integer argument"), true
+		}
+		buffer.SetLength(int(length))
+		return e.nilValue(), true
+
+	case "setposition":
+		position, ok := byteBufferIntArg(args, 0)
+		if !ok {
+			return e.newError(node, "ByteBuffer.SetPosition expects an Integer argument"), true
+		}
+		if err := buffer.SetPosition(int(position)); err != nil {
+			return e.raiseByteBufferError(node, err, ctx), true
+		}
+		return e.nilValue(), true
+
+	case "tojson":
+		return &runtime.StringValue{Value: buffer.ToJSON()}, true
+	case "todatastring":
+		return &runtime.StringValue{Value: buffer.ToDataString()}, true
+	case "tobase64":
+		return &runtime.StringValue{Value: buffer.ToBase64()}, true
+	case "tohexstring":
+		return &runtime.StringValue{Value: buffer.ToHexString()}, true
+	}
+	return nil, false
 }
 
 // byteBufferAccessorSuffix splits a normalized member name into its Get/Set

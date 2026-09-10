@@ -43,7 +43,9 @@ func TestFloatValue(t *testing.T) {
 		{name: "negative float", wantType: "FLOAT", wantStr: "-2.5", value: -2.5},
 		{name: "zero", wantType: "FLOAT", wantStr: "0", value: 0.0},
 		{name: "integer-like float", wantType: "FLOAT", wantStr: "42", value: 42.0},
-		{name: "scientific notation", wantType: "FLOAT", wantStr: "1.23e+10", value: 1.23e10},
+		// DWScript's FloatToStr uses 15 significant digits and only switches to
+		// exponent form once the exponent reaches 15, so 1.23e10 spells out.
+		{name: "scientific notation", wantType: "FLOAT", wantStr: "12300000000", value: 1.23e10},
 	}
 
 	for _, tt := range tests {
