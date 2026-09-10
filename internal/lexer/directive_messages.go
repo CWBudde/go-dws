@@ -84,6 +84,12 @@ func (l *Lexer) handleMessageDirective(
 	if !parentActive {
 		return
 	}
+	if !l.severityEnabled(severity) {
+		// {$HINTS OFF} / {$WARNINGS OFF} suppress the message entirely. {$ERROR} and
+		// {$FATAL} are not switchable, and a malformed argument is still a syntax
+		// error, so only the message itself is gated.
+		return
+	}
 
 	arg := directiveArgument(content)
 	message, ok := unquoteDirectiveString(arg)
@@ -112,14 +118,16 @@ func (l *Lexer) handleMessageDirective(
 //
 // The switches are accepted and parsed for message parity but do not currently change
 // which diagnostics are reported.
-func (l *Lexer) handleSwitchToggle(content string, parentActive bool, startPos, closePos Position) {
+func (l *Lexer) handleSwitchToggle(name, content string, parentActive bool, startPos, closePos Position) {
 	if !parentActive {
 		return
 	}
 
 	arg := directiveArgument(content)
-	switch ident.Normalize(arg) {
+	normalized := ident.Normalize(arg)
+	switch normalized {
 	case "on", "off", "normal", "strict", "pedantic":
+		l.setSeveritySwitch(name, normalized != "off")
 		return
 	default:
 		l.addDirectiveDiagnostic("ON/OFF expected",
@@ -240,4 +248,29 @@ func (l *Lexer) reportUnbalancedConditionals() {
 	l.addDirectiveDiagnostic("Unbalanced conditional directive",
 		directiveNameColumn(frame.startPos), LexerSeverityError, "")
 	l.condStack = nil
+}
+
+// severityEnabled reports whether a message directive of this severity is currently
+// switched on. Errors are not switchable.
+func (l *Lexer) severityEnabled(severity LexerSeverity) bool {
+	switch severity {
+	case LexerSeverityHint:
+		return l.hintsEnabled
+	case LexerSeverityWarning:
+		return l.warningsEnabled
+	default:
+		return true
+	}
+}
+
+// setSeveritySwitch applies a {$HINTS} or {$WARNINGS} toggle. DWScript's hint levels
+// (NORMAL, STRICT, PEDANTIC) all mean "on" as far as the directive messages go; the
+// analyzer's own hint level is a separate concern.
+func (l *Lexer) setSeveritySwitch(name string, enabled bool) {
+	switch ident.Normalize(name) {
+	case "hints":
+		l.hintsEnabled = enabled
+	case "warnings":
+		l.warningsEnabled = enabled
+	}
 }

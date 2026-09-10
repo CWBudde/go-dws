@@ -655,6 +655,23 @@ func TestCompilerDirectiveDeclared(t *testing.T) {
 			decls: "var Alpha : Integer;\nSomeCall('x');", query: "SomeCall", want: false},
 		{name: "assignment after var section not tracked",
 			decls: "var Alpha : Integer;\nUnknownVar := 1;", query: "UnknownVar", want: false},
+		// A visibility section introduces members; it must not interrupt them.
+		{name: "field after private",
+			decls: "type TWidget = class\nprivate\n  FPriv : Integer;\nend;",
+			query: "TWidget.FPriv", want: true},
+		{name: "field after public",
+			decls: "type TWidget = class\nprivate\n  FPriv : Integer;\npublic\n  FPub : Integer;\nend;",
+			query: "TWidget.FPub", want: true},
+		{name: "field after strict private",
+			decls: "type TWidget = class\nstrict private\n  FHidden : Integer;\nend;",
+			query: "TWidget.FHidden", want: true},
+		{name: "method after protected",
+			decls: "type TWidget = class\nprotected\n  procedure Run;\nend;",
+			query: "TWidget.Run", want: true},
+		{name: "visibility keyword not a member",
+			decls: "type TWidget = class\nprivate\n  FPriv : Integer;\nend;",
+			query: "TWidget.private", want: false},
+
 		{name: "var section ends at begin",
 			decls: "var Alpha : Integer;\nbegin\n  Local := 1;\nend;", query: "Local", want: false},
 	}
@@ -881,5 +898,87 @@ func TestFatalStopIsRewoundByRestoreState(t *testing.T) {
 	}
 	if tok := l.NextToken(); tok.Literal != "beta" {
 		t.Fatalf("after restore got %q, want beta", tok.Literal)
+	}
+}
+
+// TestHintsAndWarningsSwitchesGateMessages covers {$HINTS}/{$WARNINGS}: they switch
+// whether later {$HINT}/{$WARNING} directives report anything. {$ERROR} is not switchable.
+func TestHintsAndWarningsSwitchesGateMessages(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want []string
+	}{
+		{
+			name: "hints off suppresses hint",
+			src:  "{$HINT 'first'}{$HINTS OFF}{$HINT 'gone'}",
+			want: []string{"first"},
+		},
+		{
+			name: "hints on restores hint",
+			src:  "{$HINTS OFF}{$HINT 'gone'}{$HINTS ON}{$HINT 'back'}",
+			want: []string{"back"},
+		},
+		{
+			name: "warnings off suppresses warning",
+			src:  "{$WARNINGS OFF}{$WARNING 'gone'}{$WARNINGS ON}{$WARNING 'back'}",
+			want: []string{"back"},
+		},
+		{
+			name: "switches are independent",
+			src:  "{$WARNINGS OFF}{$HINT 'hint survives'}{$WARNING 'gone'}",
+			want: []string{"hint survives"},
+		},
+		{
+			name: "hint level names mean on",
+			src:  "{$HINTS OFF}{$HINTS PEDANTIC}{$HINT 'pedantic on'}",
+			want: []string{"pedantic on"},
+		},
+		{
+			name: "errors are not switchable",
+			src:  "{$HINTS OFF}{$WARNINGS OFF}{$ERROR 'still reported'}",
+			want: []string{"still reported"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.src)
+			drainTokens(l)
+
+			var got []string
+			for _, d := range l.DirectiveDiagnostics() {
+				got = append(got, d.Message)
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Errorf("message %d = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestHintsSwitchIsRewoundByRestoreState keeps the switches consistent under parser
+// backtracking, like the other directive side effects.
+func TestHintsSwitchIsRewoundByRestoreState(t *testing.T) {
+	l := New("alpha {$HINTS OFF} beta")
+
+	if tok := l.NextToken(); tok.Literal != "alpha" {
+		t.Fatalf("first token = %q, want alpha", tok.Literal)
+	}
+	state := l.SaveState()
+
+	drainTokens(l)
+	if l.hintsEnabled {
+		t.Fatal("expected the speculative read to switch hints off")
+	}
+
+	l.RestoreState(state)
+	if !l.hintsEnabled {
+		t.Fatal("RestoreState did not rewind the {$HINTS} switch")
 	}
 }

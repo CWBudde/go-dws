@@ -179,7 +179,7 @@ func (l *Lexer) processDirective() {
 	case "fatal":
 		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityError, "Compile Error", true)
 	case "hints", "warnings":
-		l.handleSwitchToggle(content, parentActive, startPos, closePos)
+		l.handleSwitchToggle(name, content, parentActive, startPos, closePos)
 	case "r", "resource":
 		l.handleStringSwitch(content, parentActive, startPos, closePos)
 	case "region", "endregion", "filter", "f":

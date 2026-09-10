@@ -66,8 +66,12 @@ type Lexer struct {
 	// directiveTruncated records that a directive was left unterminated, which
 	// suppresses the follow-on unbalanced-conditional report.
 	directiveTruncated bool
-	constBlock         bool
-	constWait          bool
+	// hintsEnabled and warningsEnabled are toggled by {$HINTS} and {$WARNINGS} and gate
+	// whether {$HINT} and {$WARNING} record a diagnostic. Both start enabled.
+	hintsEnabled    bool
+	warningsEnabled bool
+	constBlock      bool
+	constWait       bool
 }
 
 // LexerState represents the complete state of the Lexer at a specific point in time.
@@ -79,8 +83,11 @@ type LexerState struct {
 	// stopped and directiveTruncated are directive side effects. A speculative read
 	// that runs past a {$FATAL} would otherwise leave the lexer permanently stopped,
 	// so the real parse would see an immediate EOF and lose every token in between.
+	// The {$HINTS}/{$WARNINGS} switches are rewound for the same reason.
 	stopped            bool
 	directiveTruncated bool
+	hintsEnabled       bool
+	warningsEnabled    bool
 	defines            map[string]struct{}
 	currentIncludePath string
 	input              string
@@ -155,8 +162,10 @@ func New(input string, opts ...LexerOption) *Lexer {
 		defines: map[string]struct{}{
 			ident.Normalize("DWSCRIPT"): {},
 		},
-		constValues: make(map[string]int),
-		decls:       newDeclTracker(),
+		constValues:     make(map[string]int),
+		decls:           newDeclTracker(),
+		hintsEnabled:    true,
+		warningsEnabled: true,
 	}
 
 	// Apply options
@@ -375,6 +384,8 @@ func (l *Lexer) SaveState() LexerState {
 		decls:              l.decls.clone(),
 		stopped:            l.stopped,
 		directiveTruncated: l.directiveTruncated,
+		hintsEnabled:       l.hintsEnabled,
+		warningsEnabled:    l.warningsEnabled,
 	}
 }
 
@@ -400,6 +411,8 @@ func (l *Lexer) RestoreState(s LexerState) {
 	l.decls = s.decls.clone()
 	l.stopped = s.stopped
 	l.directiveTruncated = s.directiveTruncated
+	l.hintsEnabled = s.hintsEnabled
+	l.warningsEnabled = s.warningsEnabled
 }
 
 // Peek returns the token n positions ahead without consuming it.

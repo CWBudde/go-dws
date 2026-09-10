@@ -453,6 +453,11 @@ func (t *declTracker) feedBody(tok Token) {
 	case VAR, CONST:
 		t.fieldNames = nil
 		t.atDeclStart = t.bodyDepth == 1
+	case PRIVATE, PROTECTED, PUBLIC, PUBLISHED, STRICT:
+		// A visibility section introduces members rather than interrupting them, so the
+		// next identifier still starts a field declaration.
+		t.fieldNames = nil
+		t.atDeclStart = t.bodyDepth == 1
 	case BEGIN, CASE, TRY, ASM, RECORD:
 		t.bodyDepth++
 		t.fieldNames = nil
