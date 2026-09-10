@@ -79,9 +79,12 @@ func valueToJSONValueUnwrapped(val Value) *jsonvalue.Value {
 		}
 		return arr
 	case *RecordValue:
+		// Field keys must be walked in a stable order: Go map iteration is
+		// randomized and would otherwise emit JSON keys in a different order
+		// on every run.
 		obj := jsonvalue.NewObject()
-		for fieldName, fieldValue := range v.Fields {
-			obj.ObjectSet(fieldName, ValueToJSONValue(fieldValue))
+		for _, fieldKey := range v.OrderedFieldKeys() {
+			obj.ObjectSet(v.FieldDisplayName(fieldKey), ValueToJSONValue(v.Fields[fieldKey]))
 		}
 		return obj
 	case *JSONValue:

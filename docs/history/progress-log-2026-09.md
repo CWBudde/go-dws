@@ -1745,3 +1745,52 @@ and `qualifiedRoutineName` over out-of-line / inline / free routines),
 case), `internal/interp/stack_trace_positions_test.go` (four end-to-end traces), and two parser
 tests for `DeclaringClassName` including the nested-class path. Baselines ratcheted
 (`SimpleScripts` 343 → 346) and `TEST_STATUS.md` regenerated.
+
+## 2026-09-10 — Record copy-on-assign value semantics (§3.3)
+
+Closed the `PLAN.md` §3.3 item *"Record copy-on-assign value semantics"*.
+**JSONConnectorPass 59 → 60 of 82**; overall 957 → 958 of 1,928 scored. No other category moved.
+
+### The bug
+
+`r.BottomRight := p` stored `p`'s `*runtime.RecordValue` by reference, so the later `p.y := 3`
+was visible through `r.BottomRight`. JSONConnectorPass `stringify_record` printed
+`{"BottomRight":{"x":1,"y":3},…}` instead of `{"BottomRight":{"x":1,"y":2},…}`.
+
+`RecordValue.Copy()` was never the problem — it deep-copies fields through `CopyValue`. The
+copy simply was not being made. `evalAssignment` copies records on the identifier path
+(`x := rec`) and `index_assignment.go` copies them through `cloneIfCopyable` on the index path
+(`a[i] := rec`), but the `*ast.MemberAccessExpression` path went straight to
+`evalMemberAssignmentDirect` with the live value. Every member write was affected — record
+fields, record properties (`executeRecordPropertyWrite`), object fields, and nested targets —
+not only the one the fixture happened to expose.
+
+The `*ast.IndexExpression` aliasing exception in `prepareValueForAssignment` was investigated
+and left alone: it is reached only after `evalAssignment` has already copied records, so it
+governs static arrays only and is not part of this bug.
+
+### The fix
+
+`evalMemberAssignmentDirect` (`internal/interp/evaluator/member_assignment.go`) copies a
+`*runtime.RecordValue` RHS before doing anything else. It is the single choke point for member
+writes, so field, property, object-field and nested paths are all covered by the one copy,
+and it mirrors what the identifier path in `evalAssignment` already did.
+
+### Deterministic record JSON keys (latent, fixed while here)
+
+The context-free `ValueToJSONValue` fallbacks in `internal/interp/evaluator/json_helpers.go`
+and `internal/interp/runtime/json_helpers.go` walked `RecordValue.Fields` as a Go map, so any
+path reaching them emitted JSON keys in a random order per run. `RecordValue` gained
+`OrderedFieldKeys()` and `FieldDisplayName()` (`internal/interp/runtime/record.go`); both
+fallbacks now use them. The context-aware `recordToJSON` in `json_serialize.go` — which applies
+visibility rules and runs property getters — is unchanged and remains the path record
+serialization normally takes.
+
+### Validation
+
+- `go test ./...` green.
+- New table-driven `TestRecordCopyOnAssign` in `internal/interp/record_copy_on_assign_test.go`
+  covers simple variable, record field, record property, object field, dynamic array element,
+  nested record targets, and the read-side copy. Four of its seven cases failed before the fix.
+- `just fixture-report` diffed against `baselines.json`: exactly one category moved,
+  `JSONConnectorPass` 59 → 60. Baselines ratcheted and `TEST_STATUS.md` regenerated.
