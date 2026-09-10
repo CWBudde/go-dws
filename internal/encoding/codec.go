@@ -100,7 +100,7 @@ func Base64Decode(s string) (string, error) {
 	}
 	decoded, err := base64.StdEncoding.DecodeString(cleaned)
 	if err != nil {
-		return "", fmt.Errorf("Invalid Base64 input")
+		return "", scriptErrorf("Invalid Base64 input")
 	}
 	return BytesToScriptString(decoded), nil
 }
@@ -121,7 +121,7 @@ func Base64URIDecode(s string) (string, error) {
 	}
 	decoded, err := base64.RawURLEncoding.DecodeString(cleaned)
 	if err != nil {
-		return "", fmt.Errorf("Invalid Base64 input")
+		return "", scriptErrorf("Invalid Base64 input")
 	}
 	return BytesToScriptString(decoded), nil
 }
@@ -211,7 +211,7 @@ func base32CharValue(r rune) (int, error) {
 		// Lenient alias for the visually identical letter 'O'.
 		return int('O' - 'A'), nil
 	}
-	return 0, fmt.Errorf("Invalid character (#%d) in Base32", int(r))
+	return 0, scriptErrorf("Invalid character (#%d) in Base32", int(r))
 }
 
 // ============================================================================
@@ -262,7 +262,7 @@ func Base58Decode(s string) (string, error) {
 	for _, r := range s {
 		index := strings.IndexRune(base58Alphabet, r)
 		if index < 0 {
-			return "", fmt.Errorf("Non-base58 character")
+			return "", scriptErrorf("Non-base58 character")
 		}
 		if index == 0 && countingZeros {
 			zeros++
@@ -303,18 +303,18 @@ func HexadecimalEncode(s string) string {
 func HexadecimalDecode(s string) (string, error) {
 	chars := []rune(s)
 	if len(chars)%2 != 0 {
-		return "", fmt.Errorf("Even hexadecimal character count expected")
+		return "", scriptErrorf("Even hexadecimal character count expected")
 	}
 
 	out := make([]byte, 0, len(chars)/2)
 	for i := 0; i < len(chars); i += 2 {
 		high, ok := hexDigitValue(chars[i])
 		if !ok {
-			return "", fmt.Errorf("Invalid hexadecimal character at index %d", i+1)
+			return "", scriptErrorf("Invalid hexadecimal character at index %d", i+1)
 		}
 		low, ok := hexDigitValue(chars[i+1])
 		if !ok {
-			return "", fmt.Errorf("Invalid hexadecimal character at index %d", i+2)
+			return "", scriptErrorf("Invalid hexadecimal character at index %d", i+2)
 		}
 		out = append(out, byte(high<<4|low))
 	}
@@ -394,4 +394,12 @@ func decodeUTF8Lossy(data []byte) string {
 		data = data[size:]
 	}
 	return sb.String()
+}
+
+// scriptErrorf builds an error whose text is shown to DWScript code as an
+// exception message. Those messages copy the original DWScript wording, which
+// is capitalized and not sentence-fragment style, so they deliberately do not
+// follow Go's error-string convention.
+func scriptErrorf(format string, args ...any) error {
+	return fmt.Errorf(format, args...) //nolint:err113 // message text is the DWScript contract
 }

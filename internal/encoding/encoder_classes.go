@@ -1,7 +1,5 @@
 package encoding
 
-import "fmt"
-
 // This file is the single source of truth for DWScript's EncodingLib encoder
 // classes. Both the semantic analyzer (which needs the class and method names)
 // and the interpreter (which needs the implementations) build their
@@ -153,6 +151,6 @@ func infallible(fn func(string) string) EncoderMethodFunc {
 // raises rather than encoding anything.
 func abstractEncoderMethod(name string) EncoderMethodFunc {
 	return func(string) (string, error) {
-		return "", fmt.Errorf("Abstract class method \"%s\" called in class %q", name, EncoderBaseClassName)
+		return "", scriptErrorf("Abstract class method %q called in class %q", name, EncoderBaseClassName)
 	}
 }

@@ -11,7 +11,7 @@
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
 **971 / 1,928 scored = 50%**, after §3.2.7 closed conditional compilation and §3.3
-closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers and associative key coercion and ARC destructor timing and nested lvalue vivification and associative hash iteration order. Both use the shared compile pipeline and scoring rules.
+closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers and associative key coercion and ARC destructor timing and nested lvalue vivification and associative hash iteration order and EncodingLib. Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
@@ -315,8 +315,7 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 - `[ ]` M SimpleScripts to ≥ 85% (345/442 = 78%). Work
   `just fixture-report --category SimpleScripts --list-fails` (identical to the harness list).
 - `[ ]` M Triage in-scope categories that have no plan yet: FunctionsTime (1/30),
-  FunctionsVariant (0/10), FunctionsGlobalVars (0/16),
-  EncodingLib (0/12), Memory (1/13), InnerClassesPass (0/2), FunctionsDebug (0/3).
+  FunctionsVariant (0/10), FunctionsGlobalVars (0/16), Memory (1/13), InnerClassesPass (0/2), FunctionsDebug (0/3).
   First step for each: list fails, bucket by cause, then add concrete items here.
   FunctionsByteBuffer is closed at 19/19; see
   [`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md).

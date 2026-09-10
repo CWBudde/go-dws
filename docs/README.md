@@ -36,6 +36,7 @@ Status figures are generated, never hand-edited:
 | [`guide/lambdas.md`](guide/lambdas.md) | Lambdas, anonymous methods, closures |
 | [`guide/operators.md`](guide/operators.md) | Operator overloading behavior mirrored from upstream |
 | [`guide/json-type-mapping.md`](guide/json-type-mapping.md) | JSON ↔ DWScript type mapping |
+| [`guide/encoders.md`](guide/encoders.md) | EncodingLib encoder classes (Base64, Base32, hex, UTF-8/16, URL, HTML) |
 | [`guide/error-messages.md`](guide/error-messages.md) | Error message format, positions, stack traces; DWScript wire format appendix |
 | [`guide/ffi-guide.md`](guide/ffi-guide.md) | Foreign function interface quick start |
 | [`guide/ffi.md`](guide/ffi.md) | Full FFI reference |
