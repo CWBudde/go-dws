@@ -32,6 +32,104 @@ func RegisterAll(r *Registry) {
 	RegisterArrayFunctions(r)
 	RegisterCollectionFunctions(r)
 	RegisterSystemFunctions(r)
+	RegisterGlobalVarsFunctions(r)
+}
+
+// RegisterGlobalVarsFunctions registers the process-wide global variable and
+// global queue built-ins backed by DefaultGlobalVars.
+//
+// TryReadGlobalVar and the four GlobalQueue read functions take a var
+// parameter. They are registered here so that semantic analysis knows their
+// signatures, but the evaluator intercepts the calls before arguments are
+// evaluated so it can write back to the caller's variable.
+func RegisterGlobalVarsFunctions(r *Registry) {
+	S := types.STRING
+	I := types.INTEGER
+	F := types.FLOAT
+	B := types.BOOLEAN
+	V := types.VARIANT
+
+	// Global variables
+	r.RegisterWithSignature("WriteGlobalVar", WriteGlobalVar, CategoryGlobalVars,
+		"Stores a Variant in a process-wide global, with an optional expiration in seconds",
+		SigOptional([]types.Type{S, V, F}, nil, 2))
+	r.RegisterWithSignature("ReadGlobalVar", ReadGlobalVar, CategoryGlobalVars,
+		"Reads a process-wide global, returning Unassigned when absent",
+		Sig([]types.Type{S}, V))
+	r.RegisterWithSignature("ReadGlobalVarDef", ReadGlobalVarDef, CategoryGlobalVars,
+		"Reads a process-wide global, returning a default when absent",
+		Sig([]types.Type{S, V}, V))
+	r.RegisterWithSignature("TryReadGlobalVar", varParamOnlyGlobalVarFunc("TryReadGlobalVar"), CategoryGlobalVars,
+		"Reads a process-wide global into a var parameter, reporting whether it existed",
+		Sig([]types.Type{S, V}, B))
+	r.RegisterWithSignature("DeleteGlobalVar", DeleteGlobalVar, CategoryGlobalVars,
+		"Deletes a process-wide global, reporting whether it existed",
+		Sig([]types.Type{S}, B))
+	r.RegisterWithSignature("CleanupGlobalVars", CleanupGlobalVars, CategoryGlobalVars,
+		"Deletes all process-wide globals matching an optional wildcard mask",
+		SigOptional([]types.Type{S}, nil, 0))
+	r.RegisterWithSignature("GlobalVarsNames", GlobalVarsNames, CategoryGlobalVars,
+		"Returns the names of all globals matching a wildcard mask",
+		Sig([]types.Type{S}, types.NewDynamicArrayType(S)))
+	r.RegisterWithSignature("GlobalVarsNamesCommaText", GlobalVarsNamesCommaText, CategoryGlobalVars,
+		"Returns all global names joined by commas",
+		Sig(nil, S))
+	r.RegisterWithSignature("IncrementGlobalVar", IncrementGlobalVar, CategoryGlobalVars,
+		"Atomically increments an integer global and returns the new value",
+		SigOptional([]types.Type{S, I, F}, I, 1))
+	r.RegisterWithSignature("CompareExchangeGlobalVar", CompareExchangeGlobalVar, CategoryGlobalVars,
+		"Atomically writes a global when it matches a comparand, returning the previous value",
+		Sig([]types.Type{S, V, V}, V))
+	r.RegisterWithSignature("SaveGlobalVarsToString", SaveGlobalVarsToString, CategoryGlobalVars,
+		"Serializes all globals into a string snapshot",
+		Sig(nil, S))
+	r.RegisterWithSignature("LoadGlobalVarsFromString", LoadGlobalVarsFromString, CategoryGlobalVars,
+		"Restores all globals from a snapshot produced by SaveGlobalVarsToString",
+		Sig([]types.Type{S}, nil))
+
+	// Global queues
+	r.RegisterWithSignature("GlobalQueuePush", GlobalQueuePush, CategoryGlobalVars,
+		"Appends a value to the back of a process-wide queue",
+		Sig([]types.Type{S, V}, B))
+	r.RegisterWithSignature("GlobalQueueInsert", GlobalQueueInsert, CategoryGlobalVars,
+		"Prepends a value to the front of a process-wide queue",
+		Sig([]types.Type{S, V}, B))
+	r.RegisterWithSignature("GlobalQueuePull", varParamOnlyGlobalVarFunc("GlobalQueuePull"), CategoryGlobalVars,
+		"Removes the front value of a process-wide queue into a var parameter",
+		Sig([]types.Type{S, V}, B))
+	r.RegisterWithSignature("GlobalQueuePop", varParamOnlyGlobalVarFunc("GlobalQueuePop"), CategoryGlobalVars,
+		"Removes the back value of a process-wide queue into a var parameter",
+		Sig([]types.Type{S, V}, B))
+	r.RegisterWithSignature("GlobalQueueFirst", varParamOnlyGlobalVarFunc("GlobalQueueFirst"), CategoryGlobalVars,
+		"Reads the front value of a process-wide queue without removing it",
+		Sig([]types.Type{S, V}, B))
+	r.RegisterWithSignature("GlobalQueuePeek", varParamOnlyGlobalVarFunc("GlobalQueuePeek"), CategoryGlobalVars,
+		"Reads the back value of a process-wide queue without removing it",
+		Sig([]types.Type{S, V}, B))
+	r.RegisterWithSignature("GlobalQueueLength", GlobalQueueLength, CategoryGlobalVars,
+		"Returns the number of entries in a process-wide queue",
+		Sig([]types.Type{S}, I))
+	r.RegisterWithSignature("GlobalQueueSnapshot", GlobalQueueSnapshot, CategoryGlobalVars,
+		"Returns a copy of a process-wide queue as an array of Variant",
+		Sig([]types.Type{S}, types.NewDynamicArrayType(V)))
+	r.RegisterWithSignature("GlobalQueueSnapshotIntegers", GlobalQueueSnapshotIntegers, CategoryGlobalVars,
+		"Returns a copy of a process-wide queue as an array of Integer",
+		Sig([]types.Type{S}, types.NewDynamicArrayType(I)))
+	r.RegisterWithSignature("GlobalQueueSnapshotFloats", GlobalQueueSnapshotFloats, CategoryGlobalVars,
+		"Returns a copy of a process-wide queue as an array of Float",
+		Sig([]types.Type{S}, types.NewDynamicArrayType(F)))
+	r.RegisterWithSignature("GlobalQueueSnapshotStrings", GlobalQueueSnapshotStrings, CategoryGlobalVars,
+		"Returns a copy of a process-wide queue as an array of String",
+		Sig([]types.Type{S}, types.NewDynamicArrayType(S)))
+	r.RegisterWithSignature("CleanupGlobalQueues", CleanupGlobalQueues, CategoryGlobalVars,
+		"Deletes all process-wide queues matching an optional wildcard mask",
+		SigOptional([]types.Type{S}, nil, 0))
+
+	// Sleep is part of DWScript's global-vars unit surface and is required by
+	// the expiration fixtures.
+	r.RegisterWithSignature("Sleep", Sleep, CategorySystem,
+		"Suspends the script for the given number of milliseconds",
+		Sig([]types.Type{I}, nil))
 }
 
 // RegisterMathFunctions registers all mathematical built-in functions.

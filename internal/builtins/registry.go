@@ -47,6 +47,10 @@ const (
 
 	// CategorySystem includes system and miscellaneous functions
 	CategorySystem Category = "system"
+
+	// CategoryGlobalVars includes the process-wide global variable and global
+	// queue functions (WriteGlobalVar, GlobalQueuePush, etc.)
+	CategoryGlobalVars Category = "globalvars"
 )
 
 // FunctionInfo holds metadata about a built-in function.

@@ -332,6 +332,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.builtinDivMod(node.Arguments, ctx)
 	case "declared", "conditionaldefined":
 		return e.builtinCompileTimePredicate(funcName, node)
+	case "tryreadglobalvar":
+		return e.builtinTryReadGlobalVar(node.Arguments, node, ctx)
+	case "globalqueuepull", "globalqueuepop", "globalqueuefirst", "globalqueuepeek":
+		return e.builtinGlobalQueueRead(funcNameLower, node.Arguments, node, ctx)
 	case "trystrtoint":
 		return e.builtinTryStrToInt(node.Arguments, ctx)
 	case "trystrtofloat":
