@@ -11,7 +11,7 @@
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
 **970 / 1,928 scored = 50%**, after §3.2.7 closed conditional compilation and §3.3
-closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers and associative key coercion and ARC destructor timing and nested lvalue vivification. Both use the shared compile pipeline and scoring rules.
+closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers and associative key coercion and ARC destructor timing and nested lvalue vivification and associative hash iteration order. Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
@@ -310,9 +310,6 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 
 ### 3.3 Runtime / evaluator
 
-- `[ ]` S DWScript hash iteration order → AssociativePass `records`. The compile-time blocker is
-  fixed (the analyzer now indexes the result of a parenless function call); the fixture's only
-  remaining diff is `Keys.Join(',')` emitting `a,b` where DWScript emits `b,a`.
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
   `class of`); the common cases were closed in July, the rest was never re-listed.
 - `[ ]` M SimpleScripts to ≥ 85% (345/442 = 78%). Work

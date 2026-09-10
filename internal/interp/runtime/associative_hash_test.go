@@ -46,18 +46,18 @@ const lipsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do 
 // in order-sensitive fixtures, computed with the ported DWScript hash.
 func TestAssociativeHashCode_Buckets(t *testing.T) {
 	tests := []struct {
-		name       string
 		key        Value
+		name       string
 		wantHash   uint32
 		wantBucket int // hash mod the initial capacity of 32
 	}{
-		{"string a", &StringValue{Value: "a"}, 3664126901, 21},
-		{"string b", &StringValue{Value: "b"}, 3229501451, 11},
-		{"string toto", &StringValue{Value: "toto"}, 3440707429, 5},
-		{"integer 10", &IntegerValue{Value: 10}, 2295946489, 25},
-		{"integer 11", &IntegerValue{Value: 11}, 2111288658, 18},
-		{"integer 20", &IntegerValue{Value: 20}, 2679957210, 26},
-		{"integer 21", &IntegerValue{Value: 21}, 2433484647, 7},
+		{&StringValue{Value: "a"}, "string a", 3664126901, 21},
+		{&StringValue{Value: "b"}, "string b", 3229501451, 11},
+		{&StringValue{Value: "toto"}, "string toto", 3440707429, 5},
+		{&IntegerValue{Value: 10}, "integer 10", 2295946489, 25},
+		{&IntegerValue{Value: 11}, "integer 11", 2111288658, 18},
+		{&IntegerValue{Value: 20}, "integer 20", 2679957210, 26},
+		{&IntegerValue{Value: 21}, "integer 21", 2433484647, 7},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -226,17 +226,17 @@ func TestAssociativeArray_DeleteKeepsProbeChains(t *testing.T) {
 // also matched correctly, so hashing and equality agree.
 func TestAssociativeArray_KeyKindsRoundTrip(t *testing.T) {
 	tests := []struct {
-		name string
 		key  Value
 		miss Value
+		name string
 	}{
-		{"integer", &IntegerValue{Value: 42}, &IntegerValue{Value: 43}},
-		{"negative integer", &IntegerValue{Value: -42}, &IntegerValue{Value: 42}},
-		{"float", &FloatValue{Value: 1.5}, &FloatValue{Value: 2.5}},
-		{"string", &StringValue{Value: "hello"}, &StringValue{Value: "world"}},
-		{"empty string", &StringValue{Value: ""}, &StringValue{Value: " "}},
-		{"unicode string", &StringValue{Value: "grüße"}, &StringValue{Value: "grusse"}},
-		{"boolean true", &BooleanValue{Value: true}, &BooleanValue{Value: false}},
+		{&IntegerValue{Value: 42}, &IntegerValue{Value: 43}, "integer"},
+		{&IntegerValue{Value: -42}, &IntegerValue{Value: 42}, "negative integer"},
+		{&FloatValue{Value: 1.5}, &FloatValue{Value: 2.5}, "float"},
+		{&StringValue{Value: "hello"}, &StringValue{Value: "world"}, "string"},
+		{&StringValue{Value: ""}, &StringValue{Value: " "}, "empty string"},
+		{&StringValue{Value: "grüße"}, &StringValue{Value: "grusse"}, "unicode string"},
+		{&BooleanValue{Value: true}, &BooleanValue{Value: false}, "boolean true"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
