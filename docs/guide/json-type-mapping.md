@@ -49,6 +49,49 @@ PrintLn(ToJSON(json));       // Outputs: {"items":[99,2,3]}
 
 If converted to `ArrayValue`, this would create a copy and mutations wouldn't be visible through other references.
 
+#### Single Ownership (Reparenting)
+
+Reference semantics do **not** mean a node can be in two containers at once. Like
+DWScript's `TdwsJSONValue.Owner`, every JSON node knows the container it lives in,
+and inserting it somewhere else *moves* it: it is first detached from its previous
+owner. Detaching from an object drops the key; detaching from an array removes the
+slot, shrinking the array.
+
+```dws
+var o := JSON.NewObject;
+o.Dati := JSON.Parse('{"Campo":{"IDValue":5}}');
+o.SottoOggetto := o.Dati.Campo;   // moves Campo out of Dati
+PrintLn(o);  // {"Dati":{},"SottoOggetto":{"IDValue":5}}
+```
+
+Use `Clone()` to get a copy that leaves the original in place:
+
+```dws
+o.SottoOggetto := o.Dati.Campo.Clone();
+PrintLn(o);  // {"Dati":{"Campo":{"IDValue":5}},"SottoOggetto":{"IDValue":5}}
+```
+
+The same rule applies to `Add`/`Push`, `a[i] := node`, and `AddFrom` (a move that
+empties the source array). `Extend` and `Clone` insert copies, so the source keeps
+its nodes. `Swap` exchanges two slots in place and reparents nothing.
+
+A variable that still references a moved node keeps working — it points at the same
+node, now reachable through its new owner:
+
+```dws
+var a := JSON.NewArray;
+var b := JSON.NewObject;
+a.Add(b);
+var a2 := JSON.NewArray;
+a2.Add(a[0]);        // b moves from a to a2
+b.test := '1';
+PrintLn(JSON.Stringify(a));   // []
+PrintLn(JSON.Stringify(a2));  // [{"test":"1"}]
+```
+
+**Implementation**: `internal/jsonvalue/value.go` (`Owner()`, `Detach()`, and the
+adopting `ObjectSet`/`ArraySet`/`ArrayAppend`).
+
 ---
 
 ### DWScript → JSON (Serialization Direction)

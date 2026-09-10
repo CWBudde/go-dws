@@ -161,10 +161,14 @@ func (e *Evaluator) assignJSONIndex(jv *jsonvalue.Value, index Value, value Valu
 		if !ok || i < 0 {
 			return e.newError(node, "JSON array index must be a non-negative integer")
 		}
+		// Reparent before sizing the array: detaching the incoming node from
+		// this very array would otherwise shrink it back under the new index.
+		child := jsonAssignValue(value)
+		child.Detach()
 		for jv.ArrayLen() <= i {
 			jv.ArrayAppend(jsonvalue.NewNull())
 		}
-		jv.ArraySet(i, jsonAssignValue(value))
+		jv.ArraySet(i, child)
 	default:
 		e.builtinContext(ctx).RaiseException("Exception", fmt.Sprintf("Cannot set items of %s", jsonTypeName(jv)), nil)
 	}
@@ -329,8 +333,6 @@ func (e *Evaluator) jsonSwap(jv *jsonvalue.Value, args []Value, node ast.Node) V
 	if !iok || !jok || i < 0 || i >= n || j < 0 || j >= n {
 		return e.newError(node, "Upper bound exceeded! Index %d", i)
 	}
-	ei, ej := jv.ArrayGet(i), jv.ArrayGet(j)
-	jv.ArraySet(i, ej)
-	jv.ArraySet(j, ei)
+	jv.ArraySwap(i, j)
 	return &runtime.NilValue{}
 }

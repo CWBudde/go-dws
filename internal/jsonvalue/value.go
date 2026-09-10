@@ -45,6 +45,7 @@ func (k Kind) String() string {
 // to make downstream use in the interpreter simpler and more type-safe.
 type Value struct {
 	objEntries map[string]*Value
+	owner      *Value
 	str        string
 	objKeys    []string
 	arrElems   []*Value
@@ -52,6 +53,78 @@ type Value struct {
 	i64        int64
 	kind       Kind
 	bool       bool
+}
+
+// Owner returns the container (object or array) this value is currently stored
+// in, or nil when the value is a root. It mirrors DWScript's TdwsJSONValue.Owner.
+func (v *Value) Owner() *Value {
+	if v == nil {
+		return nil
+	}
+	return v.owner
+}
+
+// Detach removes the value from its owning container, mirroring DWScript's
+// reparenting semantics: a node can only ever live in one place, so inserting it
+// somewhere else first removes it from where it was. Detaching from an object
+// drops the key; detaching from an array removes the slot (shrinking the array).
+// Detaching a root value is a no-op.
+func (v *Value) Detach() {
+	if v == nil || v.owner == nil {
+		return
+	}
+	owner := v.owner
+	v.owner = nil
+	switch owner.kind {
+	case KindObject:
+		for _, k := range owner.objKeys {
+			if owner.objEntries[k] == v {
+				owner.removeKey(k)
+				return
+			}
+		}
+	case KindArray:
+		for i, elem := range owner.arrElems {
+			if elem == v {
+				owner.removeIndex(i)
+				return
+			}
+		}
+	}
+}
+
+// adopt makes child a member of v, detaching it from a previous owner first.
+func (v *Value) adopt(child *Value) {
+	if child == nil {
+		return
+	}
+	child.Detach()
+	child.owner = v
+}
+
+// disown clears the owner back-pointer of a value that is being evicted from v.
+func disown(child *Value) {
+	if child != nil {
+		child.owner = nil
+	}
+}
+
+// removeKey deletes an object entry without touching the child's owner pointer.
+func (v *Value) removeKey(key string) {
+	delete(v.objEntries, key)
+	for i, k := range v.objKeys {
+		if k == key {
+			v.objKeys = append(v.objKeys[:i], v.objKeys[i+1:]...)
+			break
+		}
+	}
+}
+
+// removeIndex deletes an array slot without touching the child's owner pointer.
+func (v *Value) removeIndex(index int) {
+	copy(v.arrElems[index:], v.arrElems[index+1:])
+	v.arrElems[len(v.arrElems)-1] = nil
+	v.arrElems = v.arrElems[:len(v.arrElems)-1]
 }
 
 // Kind returns the kind of the value.
@@ -125,7 +198,14 @@ func (v *Value) ObjectSet(key string, child *Value) {
 	if v == nil || v.kind != KindObject {
 		return
 	}
-	if _, exists := v.objEntries[key]; !exists {
+	// Reparent first: the child may currently live in v itself, in which case
+	// detaching drops the very key we are about to (re)create.
+	v.adopt(child)
+	if previous, exists := v.objEntries[key]; exists {
+		if previous != child {
+			disown(previous)
+		}
+	} else {
 		v.objKeys = append(v.objKeys, key)
 	}
 	v.objEntries[key] = child
@@ -136,16 +216,12 @@ func (v *Value) ObjectDelete(key string) bool {
 	if v == nil || v.kind != KindObject {
 		return false
 	}
-	if _, exists := v.objEntries[key]; !exists {
+	existing, exists := v.objEntries[key]
+	if !exists {
 		return false
 	}
-	delete(v.objEntries, key)
-	for i, k := range v.objKeys {
-		if k == key {
-			v.objKeys = append(v.objKeys[:i], v.objKeys[i+1:]...)
-			break
-		}
-	}
+	disown(existing)
+	v.removeKey(key)
 	return true
 }
 
@@ -187,7 +263,30 @@ func (v *Value) ArraySet(index int, child *Value) bool {
 	if index < 0 || index >= len(v.arrElems) {
 		return false
 	}
+	previous := v.arrElems[index]
+	v.adopt(child)
+	// adopt may have shrunk the array when child already lived in v.
+	if index >= len(v.arrElems) {
+		return false
+	}
+	if previous != child {
+		disown(previous)
+	}
 	v.arrElems[index] = child
+	return true
+}
+
+// ArraySwap exchanges two elements in place. Unlike ArraySet it does not
+// reparent, so neither element is detached from the array.
+func (v *Value) ArraySwap(i, j int) bool {
+	if v == nil || v.kind != KindArray {
+		return false
+	}
+	n := len(v.arrElems)
+	if i < 0 || i >= n || j < 0 || j >= n {
+		return false
+	}
+	v.arrElems[i], v.arrElems[j] = v.arrElems[j], v.arrElems[i]
 	return true
 }
 
@@ -196,6 +295,7 @@ func (v *Value) ArrayAppend(child *Value) {
 	if v == nil || v.kind != KindArray {
 		return
 	}
+	v.adopt(child)
 	v.arrElems = append(v.arrElems, child)
 }
 
@@ -207,8 +307,8 @@ func (v *Value) ArrayDelete(index int) bool {
 	if index < 0 || index >= len(v.arrElems) {
 		return false
 	}
-	copy(v.arrElems[index:], v.arrElems[index+1:])
-	v.arrElems = v.arrElems[:len(v.arrElems)-1]
+	disown(v.arrElems[index])
+	v.removeIndex(index)
 	return true
 }
 
@@ -216,6 +316,9 @@ func (v *Value) ArrayDelete(index int) bool {
 func (v *Value) ClearArray() {
 	if v == nil || v.kind != KindArray {
 		return
+	}
+	for _, elem := range v.arrElems {
+		disown(elem)
 	}
 	v.arrElems = v.arrElems[:0]
 }
@@ -276,6 +379,8 @@ func (v *Value) Clone() *Value {
 		return arr
 	default:
 		copyVal := *v
+		// A clone is always a fresh root; it is not a member of v's container.
+		copyVal.owner = nil
 		return &copyVal
 	}
 }
