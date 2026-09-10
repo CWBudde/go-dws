@@ -9,10 +9,10 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-10):** Go harness and freshly rebuilt CLI both
-**937 / 1,928 scored = 49%**, after §3.2.7 closed conditional compilation.
+**Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
+**938 / 1,928 scored = 49%**, after §3.2.7 closed conditional compilation.
 Both use the shared compile pipeline and scoring rules.
-`*Fail` error-detection suites **115 / 647 = 18%**.
+`*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
 
@@ -32,7 +32,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (991 total): FailureScripts 406, SimpleScripts 93,
+- Where the remaining failures are (990 total): FailureScripts 406, SimpleScripts 92,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
