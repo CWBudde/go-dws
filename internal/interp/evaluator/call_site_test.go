@@ -27,8 +27,8 @@ func identAt(name string, line, column int) *ast.Identifier {
 // call expression.
 func TestCallSitePos_NameToken(t *testing.T) {
 	tests := []struct {
-		name string
 		node ast.Node
+		name string
 		want token.Position
 	}{
 		{

@@ -380,6 +380,17 @@ func (e *Evaluator) staticClassInfoForNilReceiver(obj Value, objectExpr ast.Expr
 	return nil
 }
 
+// isExceptionClassInfo reports whether classInfo is the Exception base class or
+// one of its descendants.
+func isExceptionClassInfo(classInfo runtime.IClassInfo) bool {
+	for current := classInfo; current != nil; current = current.GetParent() {
+		if ident.Equal(current.GetName(), "Exception") {
+			return true
+		}
+	}
+	return false
+}
+
 // methodNameErrorNode picks the AST node whose position DWScript reports for
 // receiver errors (nil or destroyed object): the method/member name identifier
 // when available, otherwise the whole expression.

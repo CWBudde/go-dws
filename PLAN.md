@@ -11,7 +11,7 @@
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
 **963 / 1,928 scored = 50%**, after §3.2.7 closed conditional compilation and §3.3
-closed ByteBuffer and JSON ownership and number formatting. Both use the shared compile pipeline and scoring rules.
+closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces. Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
@@ -319,9 +319,6 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 - `[ ]` S ARC destructor timing on associative slot replace/clear → `delete_sequence`;
   Variant → key coercion → `variant_key_cast`.
 - `[ ]` M Record copy-on-assign value semantics → JSONConnectorPass `stringify_record`.
-- `[ ]` M Raise-site and method-call-site **column** precision → SimpleScripts `stacktrace`,
-  `exceptobj3`, `contracts_subproc`. Higher risk: lives in shared position logic validated by many
-  position-sensitive fixtures.
 - `[ ]` S Function-pointer niche: `@TObject.ClassType` address-of-class-member (`func_ptr_symbol_field`);
   value ↔ parameterless-function coercion in `array of function : T` (`func_ptr_classname`).
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,

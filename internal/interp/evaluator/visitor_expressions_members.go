@@ -774,6 +774,13 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 		}
 
+		// Exception.StackTrace is a magic getter in DWScript, not a field
+		// dereference, so it answers '' on a nil reference. That is what makes
+		// `PrintLn(ExceptObject.StackTrace)` outside an except block legal.
+		if ident.Equal(memberName, "StackTrace") && isExceptionClassInfo(e.staticClassInfoForNilReceiver(obj, node.Object)) {
+			return &runtime.StringValue{Value: ""}
+		}
+
 		// Instance member access on nil is an error, reported at the member's position
 		return e.newError(node.Member, "Object not instantiated")
 

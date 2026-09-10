@@ -162,7 +162,28 @@ TopFunction [line: 26, column: 1]
 FunctionName [line: N, column: M]
 ```
 
-Each frame is listed from most recent (where error occurred) to oldest (entry point).
+Each frame is listed from most recent (where the error occurred) to oldest (entry point).
+
+A frame pairs a **name** with a **position**, and the two do not belong to the same routine:
+
+- the name is the routine that *contains* the call site — the caller, not the callee;
+- the position is the **name token of the thing being called**. `obj.Bar` reports the column of
+  `Bar`, not of `obj`; `Exception.Create('x')` reports `Create`, neither `Exception` nor the
+  closing paren.
+
+A method is named with its class, whether its implementation is written inline in the class body
+or out of line: `TMyClass.Boom`, never bare `Boom`.
+
+The outermost frame's call site lies in the main program, which has no name, so its label is
+empty — the line begins with a space:
+
+```
+TMyClass.Boom [line: 46, column: 20]
+ [line: 51, column: 6]
+```
+
+Read that as: the raise happened at 46:20 inside `TMyClass.Boom`, and the main program called
+`Boom` at 51:6.
 
 ## Color Coding
 
@@ -251,6 +272,11 @@ Level3 [line: 7, column: 3]
 Level2 [line: 13, column: 3]
 Level1 [line: 19, column: 3]
 ```
+
+Note that the position on the `Runtime Error:` line and the position of the innermost stack frame
+answer different questions and can differ. The message reports the `raise` statement — just past
+the raised expression — while the innermost frame reports where the exception object was
+*constructed*, at the constructor's name token.
 
 ### Programmatic Stack Traces
 
