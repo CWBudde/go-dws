@@ -320,7 +320,7 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
   Variant → key coercion → `variant_key_cast`.
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
   `class of`); the common cases were closed in July, the rest was never re-listed.
-- `[ ]` M SimpleScripts to ≥ 85% (342/442 = 79%). Work
+- `[ ]` M SimpleScripts to ≥ 85% (345/442 = 78%). Work
   `just fixture-report --category SimpleScripts --list-fails` (identical to the harness list).
 - `[ ]` M Triage in-scope categories that have no plan yet: FunctionsTime (1/30),
   FunctionsVariant (0/10), FunctionsGlobalVars (0/16),

@@ -1874,5 +1874,8 @@ tests in `internal/semantic/intrinsic_member_pointer_test.go` (accepted position
 narrowness of the coercion: result mismatch, a target with parameters, and instance-method
 `@TClass.Method` still unsupported) and `internal/interp/intrinsic_member_pointer_test.go`
 (explicit call, auto-invoke on read, auto-invoke in receiver position, instance receiver,
-user-method precedence). Baselines ratcheted (`SimpleScripts` 340 → 342; end-to-end
-`just fixture-report` TOTAL 920 → 922 with no category regression).
+user-method precedence). Baselines ratcheted (`SimpleScripts` 343 → 345; end-to-end
+`just fixture-report` TOTAL 957 → 959 with no category regression).
+
+> Rebased onto `main` after §3.2.7 and the ByteBuffer host type landed; the counts above are the
+> re-measured post-rebase numbers, not the ones from the original branch point.
