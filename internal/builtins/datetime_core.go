@@ -313,6 +313,8 @@ func isFormatLetter(r rune, lower rune) bool {
 // The am/pm markers are recognised the way DWScript does it, by comparing the
 // whole remainder of the format string (dwsDateTime.pas uses StrComp), so
 // "hh:nn ampm" is a marker while "ampm hh:nn" is literal text.
+//
+//nolint:gocyclo // one specifier per branch; splitting the scanner hides the grammar
 func compileDateTimeFormat(format string) *dateTimeFormatter {
 	f := &dateTimeFormatter{}
 	r := []rune(format)
@@ -392,14 +394,14 @@ func compileDateTimeFormat(format string) *dateTimeFormatter {
 			}
 		case c == 'a':
 			rest := string(r[p:])
-			switch {
-			case rest == "ampm":
+			switch rest {
+			case "ampm":
 				f.addToken(tokAMPM)
 				p += 4
-			case rest == "am/pm":
+			case "am/pm":
 				f.addToken(tokAMSlashPM)
 				p += 5
-			case rest == "a/p":
+			case "a/p":
 				f.addToken(tokASlashP)
 				p += 3
 			default:
@@ -447,6 +449,8 @@ func runLength(r []rune, p int, lower rune, maximum int) int {
 }
 
 // apply renders a TDateTime with the compiled format and the given settings.
+//
+//nolint:gocyclo // one compiled token per branch; splitting it hides the mapping
 func (f *dateTimeFormatter) apply(dt float64, s *DateTimeFormatSettings) string {
 	c := decodeDateTime(dt)
 	dayNumber, _ := dateTimeSplit(dt)
@@ -543,6 +547,10 @@ func utcOffsetString(dt float64) string {
 }
 
 // errInvalidDateTime is raised for TDateTime values outside Delphi's range.
+// The capitalisation is DWScript's own and reaches the script, so it does not
+// follow the Go convention for error strings.
+//
+//nolint:staticcheck // ST1005: wording is script-visible and fixed by DWScript
 var errInvalidDateTime = fmt.Errorf("Invalid date/time")
 
 // formatDateTimeSettings implements TdwsFormatSettings.FormatDateTime.
@@ -714,6 +722,8 @@ func (d *dateTimeParser) grabLiteral(quote rune) bool {
 // explicit format string. It is a port of the clean-room parser in
 // Source/dwsDateTime.pas and reproduces its tolerances exactly, including the
 // two-digit-year window and the single trailing character it allows.
+//
+//nolint:gocyclo // a character-at-a-time scanner whose tolerances must stay in one place
 func tryStrToDateTimeFormat(format, str string, s *DateTimeFormatSettings, tz TimeZone) (float64, bool) {
 	d := &dateTimeParser{
 		settings: s,
@@ -939,7 +949,11 @@ func tryStrToTimeSettings(str string, s *DateTimeFormatSettings, tz TimeZone) (f
 	return tryStrToDateTimeFormat(s.LongTimeFormat, str, s, tz)
 }
 
-// dateTimeConversionError builds the DWScript parsing failure message.
+// dateTimeConversionError builds the DWScript parsing failure message. The
+// exact wording, capitalisation included, is asserted by the strto_fail
+// fixture, so it does not follow the Go convention for error strings.
+//
+//nolint:staticcheck // ST1005: wording is script-visible and fixed by DWScript
 func dateTimeConversionError(str string) error {
 	return fmt.Errorf(`Date/time parsing error for "%s"`, str)
 }

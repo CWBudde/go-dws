@@ -152,6 +152,8 @@ func (r *iso8601Parser) readUpTo6Digits() (int, error) {
 // parseDateTimeISO8601 returns the parsed TDateTime and the UTC offset as a
 // day fraction. An offset of exactly 1 means "no offset was present", which is
 // the sentinel the original uses.
+//
+//nolint:gocyclo // a position-by-position scanner; each branch owns one diagnostic
 func parseDateTimeISO8601(v string) (dt, utcOffset float64, err error) {
 	utcOffset = 1
 	if v == "" {
@@ -300,11 +302,11 @@ func formatRFC822(dt float64) string {
 
 // parseRFC822 parses an RFC 822 date. It accepts both the classic
 // "Thu, 08 Oct 2009 00:00:00 GMT" form and the JavaScript
-// "Fri Feb 11 2022 10:25:55 GMT+0100 (...)" form. Unparsable input yields 0,
-// matching WebUtils.RFC822ToDateTime.
-func parseRFC822(str string) (float64, error) {
+// "Fri Feb 11 2022 10:25:55 GMT+0100 (...)" form. Unparsable input yields 0
+// rather than an error, matching WebUtils.RFC822ToDateTime.
+func parseRFC822(str string) float64 {
 	if str == "" {
-		return 0, nil
+		return 0
 	}
 	start := 0
 	if idx := strings.IndexByte(str, ','); idx >= 0 {
@@ -316,7 +318,7 @@ func parseRFC822(str string) (float64, error) {
 		fields = fields[:maxItems]
 	}
 	if len(fields) < 5 {
-		return 0, nil
+		return 0
 	}
 
 	var year, month, day, hour, minute, second, deltaHours int
@@ -325,13 +327,13 @@ func parseRFC822(str string) (float64, error) {
 		day = rfc822TwoDigits(fields[2])
 		year = rfc822Year(fields[3])
 		hour, minute, second = rfc822HMS(fields[4])
-		deltaHours, _ = strconv.Atoi(fields[5][3:])
+		deltaHours = rfc822SignedInt(fields[5][3:])
 	} else {
 		day = rfc822TwoDigits(fields[0])
 		month = rfc822Month(fields[1])
 		year = rfc822Year(fields[2])
 		hour, minute, second = rfc822HMS(fields[3])
-		deltaHours, _ = strconv.Atoi(fields[4])
+		deltaHours = rfc822SignedInt(fields[4])
 	}
 
 	deltaDays := 0
@@ -340,15 +342,26 @@ func parseRFC822(str string) (float64, error) {
 		deltaDays++
 	}
 	if hour == rfc822InvalidHour || !isValidDate(year, month, day) || !isValidTime(hour, minute, second, 0) {
-		return 0, nil
+		return 0
 	}
 	dt := encodeDateOnly(year, month, day) + encodeTimeOnly(hour, minute, second, 0)
 	// deltaHours is the signed HHMM offset, so dividing by 100 hours undoes it.
-	return dt - float64(deltaHours)/2400.0 + float64(deltaDays), nil
+	return dt - float64(deltaHours)/2400.0 + float64(deltaDays)
 }
 
 // rfc822InvalidHour marks an unparsable time-of-day field.
 const rfc822InvalidHour = 65535
+
+// rfc822SignedInt parses a numeric zone offset such as "0100" or "-0500".
+// Anything unparsable counts as no offset, in line with the rest of the RFC 822
+// scanner, which degrades to 0 rather than failing.
+func rfc822SignedInt(s string) int {
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return v
+}
 
 func rfc822TwoDigits(s string) int {
 	if len(s) != 2 {
@@ -409,11 +422,6 @@ func rfc822HMS(s string) (hour, minute, second int) {
 // =============================================================================
 // Unix time
 // =============================================================================
-
-// unixTimeToDateTime converts a Unix timestamp in seconds to a UTC TDateTime.
-func unixTimeToDateTime(unixTime int64) float64 {
-	return float64(unixTime)/secondsPerDay + unixEpochDateTime
-}
 
 // unixTimeMSecToDateTime converts a Unix timestamp in milliseconds to a UTC
 // TDateTime.

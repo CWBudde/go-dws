@@ -263,11 +263,7 @@ func RFC822ToDateTime(ctx Context, args []Value) Value {
 	if errVal != nil {
 		return errVal
 	}
-	dt, err := parseRFC822(str)
-	if err != nil {
-		return ctx.NewError("%s", err.Error())
-	}
-	return floatResult(dt)
+	return floatResult(parseRFC822(str))
 }
 
 // =============================================================================

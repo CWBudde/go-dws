@@ -21,11 +21,11 @@ func dateTimeArg(ctx Context, args []Value, index int, fn string) (float64, Valu
 	return value, nil
 }
 
-// dateTimeArgOrNow reads a TDateTime argument, substituting the current local
-// date and time for a zero value. Several DWScript date functions use zero as
-// "unspecified".
-func dateTimeArgOrNow(ctx Context, args []Value, index int, fn string) (float64, Value) {
-	dt, errVal := dateTimeArg(ctx, args, index, fn)
+// dateTimeArgOrNow reads the first TDateTime argument, substituting the current
+// local date and time for a zero value. Several DWScript date functions use
+// zero as "unspecified".
+func dateTimeArgOrNow(ctx Context, args []Value, fn string) (float64, Value) {
+	dt, errVal := dateTimeArg(ctx, args, 0, fn)
 	if errVal != nil {
 		return 0, errVal
 	}
@@ -182,7 +182,7 @@ func YearOf(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("YearOf() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "YearOf")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "YearOf")
 	if errVal != nil {
 		return errVal
 	}
@@ -194,7 +194,7 @@ func MonthOf(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("MonthOf() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "MonthOf")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "MonthOf")
 	if errVal != nil {
 		return errVal
 	}
@@ -206,7 +206,7 @@ func MonthOfYear(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("MonthOfYear() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "MonthOfYear")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "MonthOfYear")
 	if errVal != nil {
 		return errVal
 	}
@@ -218,7 +218,7 @@ func DayOf(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("DayOf() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "DayOf")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "DayOf")
 	if errVal != nil {
 		return errVal
 	}
@@ -230,7 +230,7 @@ func DayOfMonth(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("DayOfMonth() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "DayOfMonth")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "DayOfMonth")
 	if errVal != nil {
 		return errVal
 	}
@@ -304,7 +304,7 @@ func DayOfYear(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("DayOfYear() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "DayOfYear")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "DayOfYear")
 	if errVal != nil {
 		return errVal
 	}
@@ -316,7 +316,7 @@ func WeekNumber(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("WeekNumber() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "WeekNumber")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "WeekNumber")
 	if errVal != nil {
 		return errVal
 	}
@@ -328,7 +328,7 @@ func DateToWeekNumber(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("DateToWeekNumber() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "DateToWeekNumber")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "DateToWeekNumber")
 	if errVal != nil {
 		return errVal
 	}
@@ -340,7 +340,7 @@ func YearOfWeek(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("YearOfWeek() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "YearOfWeek")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "YearOfWeek")
 	if errVal != nil {
 		return errVal
 	}
@@ -352,7 +352,7 @@ func DateToYearOfWeek(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("DateToYearOfWeek() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "DateToYearOfWeek")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "DateToYearOfWeek")
 	if errVal != nil {
 		return errVal
 	}
@@ -380,7 +380,7 @@ func FirstDayOfYear(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("FirstDayOfYear() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "FirstDayOfYear")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "FirstDayOfYear")
 	if errVal != nil {
 		return errVal
 	}
@@ -393,7 +393,7 @@ func FirstDayOfNextYear(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("FirstDayOfNextYear() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "FirstDayOfNextYear")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "FirstDayOfNextYear")
 	if errVal != nil {
 		return errVal
 	}
@@ -406,7 +406,7 @@ func FirstDayOfMonth(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("FirstDayOfMonth() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "FirstDayOfMonth")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "FirstDayOfMonth")
 	if errVal != nil {
 		return errVal
 	}
@@ -419,7 +419,7 @@ func FirstDayOfNextMonth(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("FirstDayOfNextMonth() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "FirstDayOfNextMonth")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "FirstDayOfNextMonth")
 	if errVal != nil {
 		return errVal
 	}
@@ -438,7 +438,7 @@ func FirstDayOfWeek(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("FirstDayOfWeek() expects 1 argument, got %d", len(args))
 	}
-	dt, errVal := dateTimeArgOrNow(ctx, args, 0, "FirstDayOfWeek")
+	dt, errVal := dateTimeArgOrNow(ctx, args, "FirstDayOfWeek")
 	if errVal != nil {
 		return errVal
 	}
