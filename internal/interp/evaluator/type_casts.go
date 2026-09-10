@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/dwsfmt"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -296,7 +297,7 @@ func (e *Evaluator) castToString(val Value) Value {
 	case *runtime.IntegerValue:
 		return &runtime.StringValue{Value: fmt.Sprintf("%d", v.Value)}
 	case *runtime.FloatValue:
-		return &runtime.StringValue{Value: fmt.Sprintf("%g", v.Value)}
+		return &runtime.StringValue{Value: dwsfmt.FloatToStr(v.Value)}
 	case *runtime.BooleanValue:
 		if v.Value {
 			return &runtime.StringValue{Value: "True"}

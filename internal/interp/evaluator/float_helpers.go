@@ -3,6 +3,7 @@ package evaluator
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/dwsfmt"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -58,7 +59,8 @@ func (e *Evaluator) evalFloatToStringPrec(selfValue Value, args []Value, node as
 }
 
 // evalFloatToStringDefault implements Float.ToString property (no arguments).
-// Converts the float to a string using Go's %g format (compact representation).
+// Converts the float using Delphi's FloatToStr rules so it matches Print and
+// the JSON connector.
 func (e *Evaluator) evalFloatToStringDefault(selfValue Value, args []Value, node ast.Node) Value {
 	// This is a property read, so args should be empty
 	if len(args) != 0 {
@@ -70,5 +72,5 @@ func (e *Evaluator) evalFloatToStringDefault(selfValue Value, args []Value, node
 		return e.newError(node, "Float.ToString property requires float receiver")
 	}
 
-	return &runtime.StringValue{Value: fmt.Sprintf("%g", floatVal.Value)}
+	return &runtime.StringValue{Value: dwsfmt.FloatToStr(floatVal.Value)}
 }
