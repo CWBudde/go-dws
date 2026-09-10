@@ -527,11 +527,24 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 // already carries its qualifier in ClassName; an inline one has none to parse,
 // yet DWScript still names it "TFoo.Bar" in a stack frame.
 func annotateDeclaringClass(decl *ast.ClassDecl) {
+	annotateDeclaringClassIn(decl, "")
+}
+
+// annotateDeclaringClassIn does the work of annotateDeclaringClass. ownerPrefix
+// is the already-qualified name of the enclosing class ("TOuter.TInner"), empty
+// at the top level. It has to be threaded through the recursion because
+// ClassDecl.EnclosingClass only ever names the *immediate* parent, which would
+// render a class nested more than one level deep as "TInner.TDeep" instead of
+// "TOuter.TInner.TDeep".
+func annotateDeclaringClassIn(decl *ast.ClassDecl, ownerPrefix string) {
 	if decl == nil || decl.Name == nil || decl.Name.Value == "" {
 		return
 	}
 	className := decl.Name.Value
-	if decl.EnclosingClass != nil && decl.EnclosingClass.Value != "" {
+	switch {
+	case ownerPrefix != "":
+		className = ownerPrefix + "." + className
+	case decl.EnclosingClass != nil && decl.EnclosingClass.Value != "":
 		className = decl.EnclosingClass.Value + "." + className
 	}
 
@@ -550,7 +563,7 @@ func annotateDeclaringClass(decl *ast.ClassDecl) {
 	// been assembled, so re-annotate it here with the qualified owner.
 	for _, nested := range decl.NestedTypes {
 		if nestedClass, ok := nested.(*ast.ClassDecl); ok {
-			annotateDeclaringClass(nestedClass)
+			annotateDeclaringClassIn(nestedClass, className)
 		}
 	}
 }

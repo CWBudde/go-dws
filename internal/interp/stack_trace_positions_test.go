@@ -77,8 +77,8 @@ end;
 }
 
 // TestExceptObject_StackTraceOutsideExceptBlock checks that DWScript's magic
-// StackTrace getter answers ” on the nil ExceptObject instead of raising
-// "Object not instantiated".
+// StackTrace getter answers with an empty string on the nil ExceptObject
+// instead of raising "Object not instantiated".
 func TestExceptObject_StackTraceOutsideExceptBlock(t *testing.T) {
 	runScriptTest(t, `
 PrintLn(ExceptObject = nil);

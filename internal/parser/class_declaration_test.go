@@ -560,3 +560,49 @@ end;`
 		t.Errorf("Ping.DeclaringClassName = %q, want %q", got, "TOuter.TInner")
 	}
 }
+
+// TestDeeplyNestedClassMethodsRecordQualifiedDeclaringClass checks that the
+// qualifier keeps growing past the first level of nesting. ClassDecl.EnclosingClass
+// only ever names the immediate parent, so the already-qualified owner has to be
+// threaded through the annotation walk.
+func TestDeeplyNestedClassMethodsRecordQualifiedDeclaringClass(t *testing.T) {
+	input := `type TOuter = class
+   type TInner = class
+      type TDeep = class
+         procedure Ping;
+         begin
+         end;
+      end;
+   end;
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	outer, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T", program.Statements[0])
+	}
+	if len(outer.NestedTypes) != 1 {
+		t.Fatalf("expected 1 nested type in TOuter, got %d", len(outer.NestedTypes))
+	}
+	inner, ok := outer.NestedTypes[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("TOuter nested type is not *ast.ClassDecl. got=%T", outer.NestedTypes[0])
+	}
+	if len(inner.NestedTypes) != 1 {
+		t.Fatalf("expected 1 nested type in TInner, got %d", len(inner.NestedTypes))
+	}
+	deep, ok := inner.NestedTypes[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("TInner nested type is not *ast.ClassDecl. got=%T", inner.NestedTypes[0])
+	}
+	if len(deep.Methods) != 1 {
+		t.Fatalf("expected 1 method in TDeep, got %d", len(deep.Methods))
+	}
+	if got := deep.Methods[0].DeclaringClassName; got != "TOuter.TInner.TDeep" {
+		t.Errorf("Ping.DeclaringClassName = %q, want %q", got, "TOuter.TInner.TDeep")
+	}
+}
