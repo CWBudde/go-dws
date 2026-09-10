@@ -1655,6 +1655,8 @@ semantics.
 ## 2026-09-10 — Call-site column precision in stack traces, PLAN.md §3.3
 
 `SimpleScripts` 343 → 346 of 442 (79% → 80%); corpus 938 → 941 of 2,042 (49%). No category
+
+`SimpleScripts` 343 → 346 of 442 (78%); corpus 938 → 941 of 1,928 (49%). No category
 regressed — the whole `just fixture-report --list-fails` table was captured before and after and
 diffed; the only lines that changed are the three closed fixtures. Closes
 `SimpleScripts/stacktrace`, `SimpleScripts/exceptobj3` and `SimpleScripts/contracts_subproc`, and
@@ -2373,12 +2375,14 @@ harness at 964. New tests: `internal/interp/format_settings_test.go` (defaults, 
 
 (`SimpleScripts` 340 → 343) and `TEST_STATUS.md` regenerated.
 
+
 ## 2026-09-10 — Variant introspection, debug locations, inner-class scoping, PLAN.md §3.3
 
 Three small untouched fixture categories, closed together. Stacks on the call-site column
 precision work above, whose class-qualified frame names `CurrentStackTrace` reuses.
 
-**Result:** FunctionsVariant 0/10 → 10/10, FunctionsDebug 0/3 → 3/3, InnerClassesPass 1/2 → 2/2.
+**Result:** FunctionsVariant 0/10 → 10/10, FunctionsDebug 0/3 → 3/3, InnerClassesPass 1/2 → 2/2;
+corpus 941 → 954 of 1,928 (49%).
 No category moved down.
 
 ### Variant parameters auto-box
@@ -2457,7 +2461,7 @@ built a global `TSub`. The order is now nested-first, matching the analyzer, whi
 resolved `currentNestedTypes` before the global registry. Outside the class the global type still
 wins.
 
-**Validation:** `go test -count=1 ./...` green; `golangci-lint run --new-from-rev=main` reports 0.
+**Validation:** `go test -count=1 ./...` green; `golangci-lint run --new-from-rev=origin/main` reports 0.
 New tests: `internal/builtins/variant_semantics_test.go` (emptiness predicates across
 Null/Unassigned/nil/JSON, JSON kind predicates, `VarAsType` code aliases, constants vs `VarType`),
 `internal/semantic/vartostr_hint_test.go`, `internal/interp/source_code_location_test.go` (seven

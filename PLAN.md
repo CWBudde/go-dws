@@ -10,7 +10,7 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
-**1,021 / 1,928 scored = 53%**, after §3.2.7 closed conditional compilation and §3.3
+**1,036 / 1,928 scored = 54%**, after §3.2.7 closed conditional compilation and §3.3
 closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers and associative key coercion and ARC destructor timing and nested lvalue vivification and associative hash iteration order and EncodingLib and GlobalVars and FunctionsTime and Variant introspection, debug locations and inner classes. Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **130 / 647 = 20%**.
 
@@ -32,7 +32,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (907 total): FailureScripts 406, SimpleScripts 89,
+- Where the remaining failures are (892 total): FailureScripts 406, SimpleScripts 87,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -312,7 +312,6 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
   `class of`); the common cases were closed in July, the rest was never re-listed.
-- `[ ]` M SimpleScripts to ≥ 85% (345/442 = 78%). Work
   `just fixture-report --category SimpleScripts --list-fails` (identical to the harness list).
 - `[ ]` M Triage in-scope categories that have no plan yet: FunctionsTime (1/30),
   FunctionsVariant (0/10), FunctionsGlobalVars (0/16), Memory (1/13), InnerClassesPass (0/2), FunctionsDebug (0/3).
