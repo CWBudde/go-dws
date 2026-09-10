@@ -1882,8 +1882,8 @@ user-method precedence). Baselines ratcheted (`SimpleScripts` 343 → 345; end-t
 
 ## 2026-09-10 — Associative arrays: ARC destructor timing and Variant → key coercion (PLAN.md §3.3)
 
-`AssociativePass` 22 → 24 of 27 (81% → **89%**); corpus 920 → 922 of 1,928 scored. Harness and
-CLI agree. No category regressed. Closes the §3.3 item
+`AssociativePass` 22 → 24 of 27 (81% → **89%**); corpus 938 → 940 of 1,928 scored, re-measured
+after rebasing onto the §3.2.7 floor. Harness and CLI agree at 940. No category regressed. Closes the §3.3 item
 "ARC destructor timing on associative slot replace/clear; Variant → key coercion"
 (`delete_sequence`, `variant_key_cast`).
 
@@ -1934,7 +1934,7 @@ global object still gets no destructor at program end.
 order) remain open under their own §3.3 items.
 
 **Validation:** `go test ./...` green; `just fixture-report --category AssociativePass
---list-fails` 24/27; full `just fixture-report` 922 (was 920). New tests:
+--list-fails` 24/27; full `just fixture-report` 940 (was 938). New tests:
 `internal/interp/runtime/associative_array_test.go`
 (`TestAssociativeArray_SetReportsReplacedSlot`, `_DeleteEntry`, `_TakeEntries`) and
 `internal/interp/associative_arc_test.go` (`TestAssociativeArrayARC`,
