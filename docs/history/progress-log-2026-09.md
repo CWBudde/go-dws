@@ -2103,7 +2103,7 @@ equal-keys-hash-equally invariant. Full fixture report against the branch point:
 
 Every fixture in `testdata/fixtures/EncodingLib` failed at semantic analysis with
 `Unknown name "<X>Encoder"`: the category had no implementation at all. It is now complete.
-TOTAL PLACEHOLDER_PREV → PLACEHOLDER_TOTAL scored, with no category below its previous value.
+TOTAL 938 → 950 scored, with no category below its previous value.
 
 ### Classes, not a namespace
 
