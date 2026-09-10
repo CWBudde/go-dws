@@ -1567,6 +1567,6 @@ category.
 `internal/interp/runtime/bytebuffer_test.go` (table-driven over endianness, bounds, overflow,
 `Extended` round-tripping and the encodings) and `internal/interp/bytebuffer_test.go` (the
 script-level surface: auto-instantiation, aliasing versus `Assign`, both accessor arities, the
-data-string cast, catchable diagnostics). Fixture totals **920 → 939**, `FunctionsByteBuffer`
+data-string cast, catchable diagnostics). Fixture totals **938 → 957**, `FunctionsByteBuffer`
 **0/19 → 19/19**, no category below its previous value. Baselines ratcheted and `TEST_STATUS.md`
 regenerated. User-facing documentation: [`docs/guide/bytebuffer.md`](../guide/bytebuffer.md).
