@@ -600,6 +600,12 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 // Complex Type Comparisons
 // ============================================================================
 
+// isEmptyVariantKind reports whether a value kind represents an empty Variant
+// (Unassigned or Null), which compares by emptiness rather than by payload.
+func isEmptyVariantKind(kind runtime.ValueKind) bool {
+	return kind == runtime.KindUnassigned || kind == runtime.KindNull
+}
+
 // evalEqualityComparison handles = and <> operators for complex types.
 // Supports: nil, objects, interfaces, classes, RTTI, sets, arrays, records.
 func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node ast.Node) Value {
@@ -648,6 +654,18 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 			return &runtime.BooleanValue{Value: false}
 		}
 		return &runtime.BooleanValue{Value: true}
+	}
+
+	// Handle empty-Variant comparisons. DWScript compares Unassigned and Null
+	// variants by their emptiness, so `Unassigned = Unassigned` is True and an
+	// empty variant never equals a value-carrying one. Without this, comparing
+	// two absent globals (CompareExchangeGlobalVar's result) is a type error.
+	if isEmptyVariantKind(leftType) || isEmptyVariantKind(rightType) {
+		result := leftType == rightType
+		if op == "=" {
+			return &runtime.BooleanValue{Value: result}
+		}
+		return &runtime.BooleanValue{Value: !result}
 	}
 
 	// Handle RTTITypeInfoValue comparisons (TypeOf results)

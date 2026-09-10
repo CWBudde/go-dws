@@ -426,9 +426,10 @@ func (u *UnassignedValue) Type() string {
 	return "UNASSIGNED"
 }
 
-// String returns "unassigned".
+// String returns the empty string. DWScript renders an unassigned Variant as
+// nothing at all, so `PrintLn(ReadGlobalVar('missing'))` prints a blank line.
 func (u *UnassignedValue) String() string {
-	return "unassigned"
+	return ""
 }
 
 // Equals checks if another value is also unassigned.

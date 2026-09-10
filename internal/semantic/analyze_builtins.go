@@ -158,8 +158,34 @@ func (a *Analyzer) getBuiltinFunctionPointerType(name string) *types.FunctionPoi
 	case "reversestring":
 		// ReverseString(s: String): String
 		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
-	default:
-		// No known function pointer type for this builtin
+	}
+
+	// Fall back to the registered signature. Only fixed-arity functions with a
+	// declared result qualify: optional or variadic parameters leave the
+	// pointer's arity ambiguous, and a procedure's bare name is an implicit
+	// call rather than a reference.
+	return a.registrySignatureAsFunctionPointer(name)
+}
+
+// registrySignatureAsFunctionPointer derives a function pointer type from a
+// builtin's registered signature, or nil when the signature cannot be expressed
+// as one. It lets built-ins such as CompareText be passed to Sort or Map by
+// bare name, the way DWScript accepts them.
+func (a *Analyzer) registrySignatureAsFunctionPointer(name string) *types.FunctionPointerType {
+	sig, ok := a.builtinRegistry.GetSignature(name)
+	if !ok || sig.ReturnType == nil || sig.IsVariadic {
 		return nil
 	}
+	if len(sig.AllowedArgCounts) > 0 {
+		return nil
+	}
+	if sig.MinArgs == 0 || sig.MinArgs != sig.MaxArgs || sig.MaxArgs != len(sig.ParamTypes) {
+		return nil
+	}
+	for _, paramType := range sig.ParamTypes {
+		if paramType == nil {
+			return nil
+		}
+	}
+	return types.NewFunctionPointerType(sig.ParamTypes, sig.ReturnType)
 }
