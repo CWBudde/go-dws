@@ -480,8 +480,52 @@ The fixture corpus and the `*Fail` suites expect the exact DWScript serializatio
 ```
 Syntax Error: <message> [line: X, column: Y]
 Error: <message> [line: X, column: Y]         (runtime errors)
+Compile Error: <message> [line: X, column: Y] ({$ERROR} and {$FATAL} directives)
 Hint: <message> [line: X, column: Y]
 Warning: <message> [line: X, column: Y]
 ```
 
 `internal/frontend.Result.DiagnosticStrings()` (via `Diagnostic.Render()` → `dwserrors.FormatDWScriptError`) produces this shape and is what the fixture harness compares against. `cmd/dwscript run --diagnostics=plain` prints exactly this; the default pretty blocks are a presentation layer on top of it. Historical standardization work: `docs/history/task-6.3-summary.md`.
+
+### Diagnostics from compiler directives
+
+The message directives emit diagnostics straight from the lexer:
+
+| Directive | Output |
+| --- | --- |
+| `{$HINT 'text'}` | `Hint: text [line: X, column: Y]` |
+| `{$WARNING 'text'}` | `Warning: text [line: X, column: Y]` |
+| `{$ERROR 'text'}` | `Compile Error: text [line: X, column: Y]` |
+| `{$FATAL 'text'}` | `Compile Error: text [line: X, column: Y]`, then compilation stops |
+
+`{$ERROR}` and `{$FATAL}` share a prefix and differ only in whether compilation continues.
+`{$FATAL}` halts tokenization immediately, so nothing after it is compiled, while every
+message recorded before it is still reported. Both `'…'` and `"…"` quoting is accepted.
+
+The position is the directive *name* — the column of `{` plus two. Argument diagnostics
+(`String expected`, `ON/OFF expected`) anchor at the argument when one is present and at the
+closing brace otherwise. A directive inside an inactive `{$IF}`/`{$IFDEF}` branch emits nothing.
+
+`{$HINTS}` and `{$WARNINGS}` take `ON`, `OFF`, `NORMAL`, `STRICT` or `PEDANTIC`;
+`{$R}`/`{$RESOURCE}` require a quoted string. An unrecognized switch reports
+`Compiler switch "NAME" unknown`, and a directive missing its closing brace reports
+`"}" expected`.
+
+Unlike a failed `{$INCLUDE}`, these do not block semantic analysis: the source before a
+`{$FATAL}` parsed correctly, so its errors are still reported alongside the fatal.
+
+### `Declared()` and `ConditionalDefined()`
+
+`Declared('Name')` is a compile-time predicate available both as an ordinary expression and
+inside `{$IF}`. It takes a constant string, resolves it case-insensitively, and folds to a
+boolean. Dotted names reach members (`Declared('TObject.Create')`), a leading `Internal.`
+segment denotes the built-in unit (`Declared('Internal.Sin')`), and helper methods are visible
+through the helped type. Bare member names do not resolve: a record field `Dummy` does not make
+`Declared('dummy')` true. A non-String argument reports `String expected`, and a non-constant
+argument inside `{$IF}` reports `Constant expression expected`.
+
+`Defined('X')` is different and narrower: it asks only whether `X` is a `{$DEFINE}` symbol.
+
+Two limitations: `ConditionalDefined()` always folds to `False` because `{$DEFINE}` symbols are
+not reachable from the analyzer, and inside `{$IF}` the set of declared names comes from a
+forward-only scan of the token stream, so it sees only what precedes the directive.
