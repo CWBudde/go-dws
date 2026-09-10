@@ -47,6 +47,15 @@ const (
 	// How long the parent waits for a worker response before assuming the fixture hung
 	// and killing (then restarting) the worker.
 	fixtureWorkerTimeout = fixtureTimeout + 3*time.Second
+	// fixtureTimeZone is the IANA zone every fixture is executed under. Several
+	// FunctionsTime fixtures are inherited verbatim from DWScript's own suite and
+	// were written on a Central European machine: they hard-code the CET/CEST
+	// offsets (incmonth, local_utc_unix) or refuse to run at all when the local
+	// zone is UTC (encode, utc, which print "cannot perform test for GMT+0").
+	// Leaving them on the host's zone would make the baseline depend on where the
+	// suite runs, so the harness fixes the zone for every worker instead. Keep in
+	// sync with the constant of the same name in cmd/fixture-report/main.go.
+	fixtureTimeZone = "Europe/Berlin"
 )
 
 // TestDWScriptFixtures runs the comprehensive DWScript test suite (~2,100 tests) and
@@ -73,6 +82,12 @@ const (
 //	go test -v ./internal/interp -run TestDWScriptFixtures/CategoryName
 func TestDWScriptFixtures(t *testing.T) {
 	updateMode := os.Getenv(fixtureUpdateEnv) == "1"
+
+	// Fail loudly rather than silently scoring the timezone-sensitive fixtures
+	// against UTC when the host has no zone database installed.
+	if _, err := time.LoadLocation(fixtureTimeZone); err != nil {
+		t.Fatalf("Fixture time zone %q is unavailable (install tzdata): %v", fixtureTimeZone, err)
+	}
 
 	categories, err := discoverFixtureCategories(fixturesRoot)
 	if err != nil {
@@ -407,7 +422,7 @@ type fixtureVerdict struct {
 // start (re-)launches the worker subprocess.
 func (w *fixtureWorker) start() error {
 	cmd := exec.Command(os.Args[0], "-test.run=^TestFixtureWorkerMain$", "-test.timeout=0")
-	cmd.Env = append(os.Environ(), fixtureWorkerEnv+"=1")
+	cmd.Env = append(os.Environ(), fixtureWorkerEnv+"=1", "TZ="+fixtureTimeZone)
 	// Surface worker stderr (panics, runtime diagnostics) to the parent so fixture
 	// regressions stay debuggable. Only stdout carries the sentinel-prefixed protocol.
 	cmd.Stderr = os.Stderr

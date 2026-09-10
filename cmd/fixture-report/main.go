@@ -43,6 +43,16 @@ import (
 
 const fixturesBase = "testdata/fixtures"
 
+// fixtureTimeZone is the IANA zone every fixture is scored under. Several
+// FunctionsTime fixtures are inherited verbatim from DWScript's own suite and
+// were written on a Central European machine: they hard-code the CET/CEST
+// offsets (incmonth, local_utc_unix) or refuse to run at all when the local
+// zone is UTC (encode, utc, which print "cannot perform test for GMT+0").
+// Leaving them on the host's zone would make the pass count depend on where
+// the suite runs, so the harness fixes the zone instead. Keep in sync with the
+// constant of the same name in internal/interp/fixture_test.go.
+const fixtureTimeZone = "Europe/Berlin"
+
 // hintsLevelOverrides mirrors internal/interp/fixture_test.go (hintsLevelOverrides): the
 // reference harness runs everything at pedantic except these categories. Keep the two in
 // sync; the harness lives in a _test file and cannot be imported from here.
@@ -170,7 +180,7 @@ func runOne(cli, category, pasFile string, timeout time.Duration) string {
 	}
 	cmd := exec.CommandContext(ctx, cli, "run",
 		"--diagnostics=plain", mode, "--hints", hintsLevelFor(category), pasFile)
-	cmd.Env = append(os.Environ(), "NO_COLOR=1")
+	cmd.Env = append(os.Environ(), "NO_COLOR=1", "TZ="+fixtureTimeZone)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
 		return "__TIMEOUT__"

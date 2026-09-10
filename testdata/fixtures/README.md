@@ -114,6 +114,17 @@ Live per-category pass/skip numbers are generated into [TEST_STATUS.md](TEST_STA
 
 ## Running Tests
 
+### Fixed timezone
+
+Both runners execute every fixture with `TZ=Europe/Berlin`. Four `FunctionsTime` fixtures come
+from DWScript's own suite and assume a Central European host: `incmonth` and `local_utc_unix`
+hard-code the +1/+2 offsets in their expected output, while `encode` and `utc` print
+`Cannot perform test for GMT+0` under UTC. Without a fixed zone the category would score 27,
+25 or 23 depending on where the suite runs. The zone is set in `internal/interp/fixture_test.go`
+(`fixtureTimeZone`, applied to each worker subprocess) and in `cmd/fixture-report/main.go`
+(the same constant, applied to each CLI invocation); keep the two in sync. `TestDWScriptFixtures`
+fails immediately if the host has no zone database.
+
 ### Run All Tests
 ```bash
 go test -v ./internal/interp -run TestDWScriptFixtures
