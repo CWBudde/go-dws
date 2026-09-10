@@ -1,6 +1,9 @@
 package builtins
 
-import "github.com/cwbudde/go-dws/internal/types"
+import (
+	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
+)
 
 // ParameterConstraint refines the values accepted by a builtin call parameter.
 // The nominal parameter type remains available for function pointer signatures.
@@ -21,6 +24,9 @@ type ParameterConstraint struct {
 	AllowIntegerSubrange bool
 	// AllowEnum accepts enumeration values after optional alias resolution.
 	AllowEnum bool
+	// EnumName restricts AllowEnum to the enumeration with this name, so that an
+	// unrelated enumeration cannot be passed for its ordinal value.
+	EnumName string
 	// Numeric accepts the type system's numeric types.
 	Numeric bool
 	// Any accepts every successfully analyzed expression type.
@@ -164,7 +170,14 @@ func (c ParameterConstraint) acceptsOrdinal(actual types.Type) bool {
 			return true
 		}
 	}
-	return c.AllowEnum && actual.TypeKind() == "ENUM"
+	if !c.AllowEnum || actual.TypeKind() != "ENUM" {
+		return false
+	}
+	if c.EnumName == "" {
+		return true
+	}
+	enum, ok := actual.(*types.EnumType)
+	return ok && ident.Equal(enum.Name, c.EnumName)
 }
 
 func ordinaryParameterAccepts(expected, actual types.Type) bool {

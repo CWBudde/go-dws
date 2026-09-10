@@ -435,7 +435,7 @@ func RegisterDateTimeFunctions(r *Registry) {
 	Z := types.INTEGER // DateTimeZone ordinal
 
 	dt := numericParameter
-	zone := ParameterConstraint{Types: []types.Type{types.INTEGER}, AllowEnum: true}
+	zone := ParameterConstraint{Types: []types.Type{types.INTEGER}, AllowEnum: true, EnumName: "DateTimeZone"}
 	str := exactParameter
 	num := exactParameter
 

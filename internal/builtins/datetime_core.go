@@ -5,6 +5,8 @@ import (
 	"math"
 	"strings"
 	"time"
+
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // =============================================================================
@@ -100,8 +102,31 @@ func decodeDateTime(dt float64) civilDate {
 // encodeDateOnly converts a civil date into a TDateTime day number.
 // It does not validate the date; use isValidDate for that.
 func encodeDateOnly(year, month, day int) float64 {
+	// time.Time.Sub saturates at roughly 290 years, which is far short of the
+	// year 1..9999 range isValidDate accepts, so the day count is computed with
+	// calendar arithmetic. time.Date is still used to normalise out-of-range
+	// month and day values exactly as before.
 	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
-	return math.Round(t.Sub(dateTimeEpoch).Hours() / 24)
+	return float64(daysFromCivil(t.Year(), int(t.Month()), t.Day()) + int(unixEpochDateTime))
+}
+
+// daysFromCivil returns the number of days between 1970-01-01 and the given
+// proleptic Gregorian date. It is Howard Hinnant's days_from_civil algorithm
+// and stays exact across the whole TDateTime range.
+func daysFromCivil(year, month, day int) int {
+	y := year
+	if month <= 2 {
+		y--
+	}
+	era := y / 400
+	if y < 0 {
+		era = (y - 399) / 400
+	}
+	yoe := y - era*400                     // [0, 399]
+	mp := (month + 9) % 12                 // March = 0
+	doy := (153*mp+2)/5 + day - 1          // [0, 365]
+	doe := yoe*365 + yoe/4 - yoe/100 + doy // [0, 146096]
+	return era*146097 + doe - 719468
 }
 
 // encodeTimeOnly converts a civil clock reading into the fractional part of a
@@ -779,7 +804,8 @@ func tryStrToDateTimeFormat(format, str string, s *DateTimeFormatSettings, tz Ti
 		d.hourToken = false
 		switch lower {
 		case 'a':
-			if d.tokStart+4 <= len(d.format) && string(d.format[d.tokStart:d.tokStart+4]) == "ampm" {
+			// dwsDateTime.pas compares with UnicodeCompareLen, which folds case.
+			if d.tokStart+4 <= len(d.format) && ident.Equal(string(d.format[d.tokStart:d.tokStart+4]), "ampm") {
 				if !d.grabAMPM() {
 					return 0, false
 				}
