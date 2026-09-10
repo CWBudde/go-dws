@@ -142,7 +142,7 @@ func (f *FloatValue) String() string {
 	if math.IsNaN(f.Value) {
 		return "NAN"
 	}
-	return strconv.FormatFloat(f.Value, 'g', -1, 64)
+	return strconv.FormatFloat(f.Value, 'g', 15, 64)
 }
 
 // AsInteger converts the float to an integer (truncates).

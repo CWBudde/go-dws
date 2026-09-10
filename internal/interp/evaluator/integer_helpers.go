@@ -85,8 +85,10 @@ func (e *Evaluator) evalIntegerToHexString(selfValue Value, args []Value, node a
 		digits = 0
 	}
 
-	// Format as uppercase hex
-	hexStr := fmt.Sprintf("%X", intVal.Value)
+	// Format as uppercase hex. A negative value is rendered as its 64-bit
+	// two's-complement pattern, as DWScript does: (-128).ToHexString(1) is
+	// "FFFFFFFFFFFFFF80", not "-80".
+	hexStr := fmt.Sprintf("%X", uint64(intVal.Value))
 
 	// Pad with leading zeros if needed
 	if len(hexStr) < digits {

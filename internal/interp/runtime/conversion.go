@@ -339,7 +339,7 @@ func IntToStr(i int64) string {
 
 // FloatToStr converts a float to a string.
 func FloatToStr(f float64) string {
-	return strconv.FormatFloat(f, 'g', -1, 64)
+	return strconv.FormatFloat(f, 'g', 15, 64)
 }
 
 // BoolToStr converts a boolean to a string ("True" or "False").
