@@ -1501,3 +1501,72 @@ parameterless overload returns an array, and two negative cases.
 
 `AssociativePass/records` still fails, on hash iteration order alone: `Keys.Join(',')` yields
 `a,b` where DWScript yields `b,a`. That remains the open §3.3 item and is not touched here.
+
+## 2026-09-10 — ByteBuffer, PLAN.md §3.3 FunctionsByteBuffer closed (19/19)
+
+`ByteBuffer` was entirely missing: 17 of the 19 `FunctionsByteBuffer` fixtures failed with
+`unknown type 'ByteBuffer'` and the other two with `Unknown name "ByteBuffer"`. The corpus was the
+only specification available — `reference/dwscript-original/` is empty in this checkout — so every
+member name, arity, endianness rule and diagnostic below was derived from the fixtures and is
+pinned by them.
+
+### Shape of the type
+
+`ByteBuffer` is **not** a class. Two fixture facts decide this. `assign` declares
+`var b2 : ByteBuffer;` and immediately calls `b2.ToDataString`, so a declared variable must be
+live rather than nil; `new` assigns one buffer to another and then resizes through the second
+name, so assignment must alias. The type is therefore a singleton `types.Type`
+(`types.BYTE_BUFFER`, modelled on `JSONVariant`) whose runtime value is always a
+`*runtime.ByteBufferValue`. The pointer gives reference semantics for free; auto-instantiation is
+a `BYTE_BUFFER` case in the two zero-value constructors. `Assign` is the copying operation.
+
+### Engine
+
+`internal/interp/runtime/bytebuffer.go` holds the whole byte-level engine, dependency-free apart
+from the standard library: resize with zero-fill (`init` checks that a shrink-then-grow yields
+zeroes, so the buffer is reallocated rather than resliced), a cursor whose legal range is
+`0 … Length` inclusive, little-endian typed accessors, x87 80-bit `Extended` encode/decode, and the
+data-string conversion that keeps the low byte of each UTF-16 code unit (`strings` pins
+`ByteBuffer(#$1234#$5678)` = `$34 $78`).
+
+Diagnostics are produced by the engine because their wording is fixed by the corpus:
+`Out of range (index I, size S for length L)`, `Position P out of range (length L)` and
+`value V out of T range`. `dwords` shows the overflow check running before the range check, and
+that a failed write must not advance the cursor.
+
+`GetIntegers(index, count, size, signed)` reproduces an upstream quirk: `integers` calls it with
+indices 0, 1, 2 and 0 and every result starts at byte 0, so `index` participates in the bounds
+check but does not shift the read origin. That is documented at the function and in the guide
+rather than silently "fixed", since parity is the goal.
+
+### Wiring
+
+Semantic analysis resolves the name through `types.TypeFromString`, types the intrinsic members
+from a table in `internal/semantic/analyze_bytebuffer.go`, and hooks member access, method calls,
+`new ByteBuffer` and the `String -> ByteBuffer` cast. Execution adds a `KindByteBuffer` case to
+`DispatchMethodCall` and routes parameterless member access to the same dispatcher, because
+DWScript treats `b.ToJSON` and `b.ToJSON()` alike. Failures become catchable `Exception`s
+positioned at the member name, reusing `arrayMethodNamePos` and the existing array-bounds pattern.
+
+### Two formatting fixes found along the way
+
+`floats` and `integers` failed on output formatting rather than on buffer semantics, and both
+gaps were corpus-wide:
+
+- Float rendering used Go's shortest round-trip form. DWScript's `FloatToStr` prints 15
+  significant digits, so `3.141592025756836` must print as `3.14159202575684`, and integral
+  15-digit values such as `-845680067215360` must not go exponential. Both now use `%.15g`.
+- `Integer.ToHexString` rendered a negative value with a minus sign (`-80`) instead of its 64-bit
+  two's-complement pattern (`FFFFFFFFFFFFFF80`).
+
+Measured against the full suite, each change moves only `FunctionsByteBuffer` and regresses no
+category.
+
+**Validation:** `go test ./... -timeout 30m` green;
+`golangci-lint run --new-from-rev=main` reports 0 issues; `just check-fmt` clean. New tests:
+`internal/interp/runtime/bytebuffer_test.go` (table-driven over endianness, bounds, overflow,
+`Extended` round-tripping and the encodings) and `internal/interp/bytebuffer_test.go` (the
+script-level surface: auto-instantiation, aliasing versus `Assign`, both accessor arities, the
+data-string cast, catchable diagnostics). Fixture totals **920 → 939**, `FunctionsByteBuffer`
+**0/19 → 19/19**, no category below its previous value. Baselines ratcheted and `TEST_STATUS.md`
+regenerated. User-facing documentation: [`docs/guide/bytebuffer.md`](../guide/bytebuffer.md).

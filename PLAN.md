@@ -10,9 +10,9 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
-**938 / 1,928 scored = 49%**, after §3.2.7 closed conditional compilation.
-Both use the shared compile pipeline and scoring rules.
-`*Fail` error-detection suites **130 / 647 = 20%**.
+**@@TOTAL@@ / 1,928 scored = @@PCT@@%**, after §3.2.7 closed conditional compilation and §3.3
+closed ByteBuffer. Both use the shared compile pipeline and scoring rules.
+`*Fail` error-detection suites **@@FAIL@@ / 647 = @@FAILPCT@@%**.
 
 Where the truth lives:
 
@@ -32,7 +32,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (990 total): FailureScripts 406, SimpleScripts 92,
+- Where the remaining failures are (@@REM@@ total): FailureScripts @@FS@@, SimpleScripts @@SS@@,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -332,9 +332,11 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 - `[ ]` M SimpleScripts to ≥ 85% (331/442 = 75%). Work
   `just fixture-report --category SimpleScripts --list-fails` (identical to the harness list).
 - `[ ]` M Triage in-scope categories that have no plan yet: FunctionsTime (1/30),
-  FunctionsVariant (0/10), FunctionsGlobalVars (0/16), FunctionsByteBuffer (0/19),
+  FunctionsVariant (0/10), FunctionsGlobalVars (0/16),
   EncodingLib (0/12), Memory (1/13), InnerClassesPass (0/2), FunctionsDebug (0/3).
   First step for each: list fails, bucket by cause, then add concrete items here.
+  FunctionsByteBuffer is closed at 19/19; see
+  [`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md).
 - ✋ UTF-16 surrogate iteration (`for_in_str`, `for_in_str2`): intentional divergence, see
   [`docs/decisions/string-encoding.md`](docs/decisions/string-encoding.md).
 
