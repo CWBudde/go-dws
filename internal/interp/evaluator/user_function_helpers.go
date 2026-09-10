@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
-	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -287,11 +286,7 @@ func (e *Evaluator) ExecuteUserFunction(
 	// Push function name onto call stack with call-site position when available.
 	// Methods are qualified with their class name (e.g. "TMyObj.Proc") to match
 	// DWScript's runtime error and stack trace format.
-	var pos *lexer.Position
-	if currentNode := currentNode(ctx); currentNode != nil {
-		nodePos := currentNode.Pos()
-		pos = &nodePos
-	}
+	pos := callSitePosOf(currentNode(ctx))
 	frameName := fn.Name.Value
 	if fn.ClassName != nil && fn.ClassName.Value != "" {
 		frameName = fn.ClassName.Value + "." + frameName

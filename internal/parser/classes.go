@@ -721,8 +721,9 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 						Token: ident.Token,
 					},
 				},
-				ClassName: ident,
-				Arguments: []ast.Expression{},
+				ClassName:      ident,
+				Arguments:      []ast.Expression{},
+				ConstructorPos: memberToken.Pos,
 			}
 
 			// Parse arguments - cursor will be at RPAREN after parseExpressionList
