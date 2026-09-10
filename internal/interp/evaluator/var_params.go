@@ -925,20 +925,42 @@ func (e *Evaluator) builtinSwap(args []ast.Expression, ctx *ExecutionContext) Va
 // builtinVarClear implements VarClear(var v : Variant), which resets a Variant
 // variable to its unassigned state. DWScript declares it with a var parameter,
 // so the write has to reach the variable rather than a copy.
-func (e *Evaluator) builtinVarClear(args []ast.Expression, ctx *ExecutionContext) Value {
+func (e *Evaluator) builtinVarClear(node ast.Node, args []ast.Expression, ctx *ExecutionContext) Value {
 	if len(args) != 1 {
-		return e.newError(nil, "VarClear() expects exactly 1 argument, got %d", len(args))
+		return e.newError(node, "VarClear() expects exactly 1 argument, got %d", len(args))
+	}
+
+	// A var parameter binds the variable itself, so it cannot auto-box: only a
+	// Variant may be cleared. The analyzer rejects this too; the guard keeps a
+	// typed variable from being replaced with an unassigned Variant when the
+	// call reaches the evaluator without semantic information.
+	if !e.staticTypeIsVariant(args[0]) {
+		return e.newError(args[0], "VarClear() argument must be a Variant variable")
 	}
 
 	_, assign, err := e.EvaluateLValue(args[0], ctx)
 	if err != nil {
-		return e.newError(nil, "VarClear() argument must be a variable: %s", err.Error())
+		return e.newError(args[0], "VarClear() argument must be a variable: %s", err.Error())
 	}
 	if err := assign(&runtime.UnassignedValue{}); err != nil {
-		return e.newError(nil, "VarClear() failed to clear the variable: %s", err.Error())
+		return e.newError(args[0], "VarClear() failed to clear the variable: %s", err.Error())
 	}
 
 	return &runtime.NilValue{}
+}
+
+// staticTypeIsVariant reports whether the analyzer typed expr as a Variant.
+// An expression with no type annotation is accepted, so that scripts analyzed
+// without semantic information keep working.
+func (e *Evaluator) staticTypeIsVariant(expr ast.Expression) bool {
+	if e.SemanticInfo() == nil {
+		return true
+	}
+	annot := e.SemanticInfo().GetType(expr)
+	if annot == nil || annot.Name == "" {
+		return true
+	}
+	return ident.Equal(annot.Name, "Variant")
 }
 
 // builtinIncludeExclude implements the procedure forms of the set builtins

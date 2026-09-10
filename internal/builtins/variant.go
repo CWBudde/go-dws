@@ -56,15 +56,16 @@ const (
 //
 // Returns type codes compatible with Delphi's VarType function:
 //   - varEmpty (0): Unassigned/uninitialized Variant
-//   - varInteger (3): Integer value
+//   - varNull (1): The Null value
 //   - varDouble (5): Float value
 //   - varBoolean (11): Boolean value
+//   - varInt64 (20): Integer value (DWScript integers are 64-bit)
 //   - varString (256): String value
 //
 // Example:
 //
 //	var v: Variant := 42;
-//	PrintLn(VarType(v));  // Outputs: 3 (varInteger)
+//	PrintLn(VarType(v));  // Outputs: 20 (varInt64)
 func VarType(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("VarType() expects exactly 1 argument, got %d", len(args))
@@ -106,7 +107,10 @@ func varTypeFromValue(ctx Context, val Value) Value {
 		return &runtime.IntegerValue{Value: varString}
 	case runtime.KindBoolean:
 		return &runtime.IntegerValue{Value: varBoolean}
-	case runtime.KindNil, runtime.KindNull, runtime.KindUnassigned:
+	case runtime.KindNull:
+		// Null is a value of its own; only an unassigned Variant is varEmpty.
+		return &runtime.IntegerValue{Value: varNull}
+	case runtime.KindNil, runtime.KindUnassigned:
 		return &runtime.IntegerValue{Value: varEmpty}
 	case runtime.KindArray:
 		return &runtime.IntegerValue{Value: varArray}

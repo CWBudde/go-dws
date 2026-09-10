@@ -327,7 +327,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	case "swap":
 		return e.builtinSwap(node.Arguments, ctx)
 	case "varclear":
-		return e.builtinVarClear(node.Arguments, ctx)
+		return e.builtinVarClear(node, node.Arguments, ctx)
 	case "currentsourcecodelocation", "callersourcecodelocation", "currentstacktrace":
 		if len(node.Arguments) == 0 {
 			if result, handled := e.evalDebugBuiltin(funcName.Value, node.Function, ctx); handled {
@@ -1004,6 +1004,35 @@ func (e *Evaluator) resolveNewMetaclass(node *ast.NewExpression, ctx *ExecutionC
 // VisitNewExpression evaluates a 'new' expression (object instantiation).
 // Handles class lookup, field initialization, and constructor execution.
 // Validates abstract/external classes and supports implicit parameterless constructors.
+// declaringClassOfCurrentMethod returns the class that lexically declares the
+// method being executed, or nil when there is none or it is not registered.
+func (e *Evaluator) declaringClassOfCurrentMethod(ctx *ExecutionContext) runtime.IClassInfo {
+	declaring := currentMethodClassName(ctx)
+	if declaring == "" {
+		return nil
+	}
+	return e.typeSystem.LookupClass(declaring)
+}
+
+// lookupNestedClassInHierarchy applies nestedIn to a class and its ancestors,
+// returning the first nested type found.
+func (e *Evaluator) lookupNestedClassInHierarchy(start runtime.IClassInfo, nestedIn func(ClassMetaValue) any) any {
+	for info := start; info != nil; info = info.GetParent() {
+		classValue, err := e.typeSystem.CreateClassValue(info.GetName())
+		if err != nil || classValue == nil {
+			continue
+		}
+		classMeta, ok := classValue.(ClassMetaValue)
+		if !ok {
+			continue
+		}
+		if nested := nestedIn(classMeta); nested != nil {
+			return nested
+		}
+	}
+	return nil
+}
+
 // lookupNestedClassInScope resolves a class name against the nested types of the
 // class currently executing, which shadow a global class of the same name.
 // Returns nil when the name is not a nested type in scope.
@@ -1023,6 +1052,17 @@ func (e *Evaluator) lookupNestedClassInScope(className string, ctx *ExecutionCon
 		return nested.GetClassInfo()
 	}
 
+	// A nested type name is resolved lexically: it is in scope for the class
+	// that declares the executing method and for that class's ancestors. The
+	// receiver's dynamic class must not take part, or an inherited base method
+	// naming a global class would pick up a same-named nested type declared by
+	// the derived class it happens to run on.
+	if declaringInfo := e.declaringClassOfCurrentMethod(ctx); declaringInfo != nil {
+		return e.lookupNestedClassInHierarchy(declaringInfo, nestedIn)
+	}
+
+	// No declaring class recorded or resolvable (e.g. a class-expression
+	// context): fall back to the class currently bound for member resolution.
 	if currentClassRaw, ok := ctx.Env().Get("__CurrentClass__"); ok {
 		if classMeta, ok := currentClassRaw.(ClassMetaValue); ok {
 			if info := nestedIn(classMeta); info != nil {

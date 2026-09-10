@@ -699,11 +699,11 @@ func RegisterVariantFunctions(r *Registry) {
 	// Variant type checking
 	r.RegisterWithSignature("VarType", VarType, CategoryVariant, "Returns the type code of a Variant",
 		Sig([]types.Type{V}, I))
-	r.RegisterWithSignature("VarIsNull", VarIsNull, CategoryVariant, "Checks if Variant is unassigned",
+	r.RegisterWithSignature("VarIsNull", VarIsNull, CategoryVariant, "Checks if Variant holds the Null value",
 		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
-	r.RegisterWithSignature("VarIsEmpty", VarIsEmpty, CategoryVariant, "Checks if Variant is empty (alias for VarIsNull)",
+	r.RegisterWithSignature("VarIsEmpty", VarIsEmpty, CategoryVariant, "Checks if Variant is empty (unassigned)",
 		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
-	r.RegisterWithSignature("VarIsClear", VarIsClear, CategoryVariant, "Checks if Variant is cleared (alias for VarIsNull)",
+	r.RegisterWithSignature("VarIsClear", VarIsClear, CategoryVariant, "Checks if Variant is cleared (alias for VarIsEmpty)",
 		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
 	r.RegisterWithSignature("VarIsArray", VarIsArray, CategoryVariant, "Checks if Variant holds an array",
 		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
@@ -725,8 +725,8 @@ func RegisterVariantFunctions(r *Registry) {
 		Sig([]types.Type{V, F}, F).WithConstraints(ParameterConstraint{Any: true}, exactParameter))
 	r.RegisterWithSignature("VarAsType", VarAsType, CategoryVariant, "Converts Variant to specified type code",
 		Sig([]types.Type{V, I}, V).WithConstraints(autoBoxedVariantParameter, ParameterConstraint{Types: []types.Type{types.INTEGER, types.STRING}}))
-	r.RegisterWithSignature("VarClear", VarClear, CategoryVariant, "Clears Variant to unassigned state",
-		Sig([]types.Type{V}, nil)) // Procedure (modifies input)
+	r.RegisterWithSignature("VarClear", VarClear, CategoryVariant, "Clears a Variant variable to its unassigned state",
+		Sig([]types.Type{V}, nil).WithConstraints(varVariantParameter)) // Procedure with a var parameter
 }
 
 // RegisterArrayFunctions registers all array built-in functions.
