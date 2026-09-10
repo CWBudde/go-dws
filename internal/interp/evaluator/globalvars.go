@@ -79,13 +79,21 @@ func (e *Evaluator) builtinTryReadGlobalVar(args []ast.Expression, node ast.Node
 // globalQueueReaders maps the lowercase built-in name onto the store operation
 // it performs. Pull and Pop remove an entry; First and Peek do not.
 var globalQueueReaders = map[string]struct {
-	name string
 	read func(string) (builtins.GlobalVarValue, bool)
+	name string
 }{
-	"globalqueuepull":  {name: "GlobalQueuePull", read: func(n string) (builtins.GlobalVarValue, bool) { return builtins.DefaultGlobalVars.QueuePull(n) }},
-	"globalqueuepop":   {name: "GlobalQueuePop", read: func(n string) (builtins.GlobalVarValue, bool) { return builtins.DefaultGlobalVars.QueuePop(n) }},
-	"globalqueuefirst": {name: "GlobalQueueFirst", read: func(n string) (builtins.GlobalVarValue, bool) { return builtins.DefaultGlobalVars.QueueFirst(n) }},
-	"globalqueuepeek":  {name: "GlobalQueuePeek", read: func(n string) (builtins.GlobalVarValue, bool) { return builtins.DefaultGlobalVars.QueuePeek(n) }},
+	"globalqueuepull": {read: func(n string) (builtins.GlobalVarValue, bool) {
+		return builtins.DefaultGlobalVars.QueuePull(n)
+	}, name: "GlobalQueuePull"},
+	"globalqueuepop": {read: func(n string) (builtins.GlobalVarValue, bool) {
+		return builtins.DefaultGlobalVars.QueuePop(n)
+	}, name: "GlobalQueuePop"},
+	"globalqueuefirst": {read: func(n string) (builtins.GlobalVarValue, bool) {
+		return builtins.DefaultGlobalVars.QueueFirst(n)
+	}, name: "GlobalQueueFirst"},
+	"globalqueuepeek": {read: func(n string) (builtins.GlobalVarValue, bool) {
+		return builtins.DefaultGlobalVars.QueuePeek(n)
+	}, name: "GlobalQueuePeek"},
 }
 
 // builtinGlobalQueueRead implements the four queue readers that write their

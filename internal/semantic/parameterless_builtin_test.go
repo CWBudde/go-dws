@@ -32,8 +32,11 @@ func TestParameterlessBuiltinAsBareIdentifier(t *testing.T) {
 }
 
 // TestParameterlessBuiltinType checks which registry signatures qualify as
-// implicit parameterless calls. Optional, variadic, and procedure signatures
-// must not, since a bare name there does not unambiguously mean a call.
+// implicit parameterless calls. A function's bare name qualifies only when it
+// takes no arguments at all, since optional or variadic parameters leave it
+// ambiguous whether the name means a call or a reference. Procedures are the
+// exception: they have no result, so a bare name can only mean a call, and any
+// non-variadic procedure whose parameters are all optional qualifies.
 func TestParameterlessBuiltinType(t *testing.T) {
 	analyzer := NewAnalyzer()
 
@@ -47,7 +50,9 @@ func TestParameterlessBuiltinType(t *testing.T) {
 		{types.INTEGER, "parameterless Integer function", "RandSeed", true},
 		{types.FLOAT, "case insensitive", "rAnDoM", true},
 		{types.INTEGER, "not in the isBuiltinFunction list", "UnixTime", true},
-		{nil, "parameterless procedure", "Randomize", false},
+		{types.VOID, "parameterless procedure", "Randomize", true},
+		{types.VOID, "procedure with only optional parameters", "CleanupGlobalVars", true},
+		{nil, "procedure with a required parameter", "Sleep", false},
 		{nil, "required parameters", "Sqrt", false},
 		{nil, "optional parameters", "Trim", false},
 		{nil, "variadic", "PrintLn", false},
