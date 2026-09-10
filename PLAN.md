@@ -319,9 +319,6 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 - `[ ]` S ARC destructor timing on associative slot replace/clear → `delete_sequence`;
   Variant → key coercion → `variant_key_cast`.
 - `[ ]` M Record copy-on-assign value semantics → JSONConnectorPass `stringify_record`.
-- `[ ]` M JSON node reparent/ownership (`array_add_dupe`, `reparent`, `reposition_node_in_array`),
-  float formatting (`int64_json`, `numbers`), variant → scalar cast message parity (`explicit_cast`)
-  → JSONConnectorPass (51/82).
 - `[ ]` M Raise-site and method-call-site **column** precision → SimpleScripts `stacktrace`,
   `exceptobj3`, `contracts_subproc`. Higher risk: lives in shared position logic validated by many
   position-sensitive fixtures.

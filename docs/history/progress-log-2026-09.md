@@ -1570,3 +1570,82 @@ script-level surface: auto-instantiation, aliasing versus `Assign`, both accesso
 data-string cast, catchable diagnostics). Fixture totals **938 → 957**, `FunctionsByteBuffer`
 **0/19 → 19/19**, no category below its previous value. Baselines ratcheted and `TEST_STATUS.md`
 regenerated. User-facing documentation: [`docs/guide/bytebuffer.md`](../guide/bytebuffer.md).
+
+## §3.3 — JSON node ownership, number formatting, "Not a value" cast parity
+
+Closed 2026-09-10 on branch `feat/plan-3.3-json-ownership-formatting`. Closes the §3.3 item
+"JSON node reparent/ownership … float formatting … variant → scalar cast message parity".
+
+| | before | after |
+| --- | --- | --- |
+| `JSONConnectorPass` (CLI) | 59 / 82 | 65 / 82 |
+| `JSONConnectorFail` (CLI) | 2 / 9 | 2 / 9 |
+| TOTAL (`just fixture-report`) | 920 / 2,042 | 926 / 2,042 |
+
+No category moved down.
+
+### Node ownership
+
+`jsonvalue.Value` had no parent pointer at all, so "reference semantics" was modelled purely as
+Go pointer sharing: inserting a node that already lived in a container aliased it into two places.
+DWScript's `TdwsJSONValue` has an `Owner`, and inserting a node elsewhere *moves* it.
+
+`Value` gained an `owner` back-pointer plus `Owner()` and `Detach()`. `ObjectSet`, `ArraySet` and
+`ArrayAppend` now adopt their child (detaching it from a previous owner first); `ObjectDelete`,
+`ArrayDelete`, `ClearArray` and replaced entries release it; `Clone()` returns a root. Detaching
+from an object drops the key, detaching from an array removes the slot — which is what makes
+`a[0] := b; a[1] := b` print `[null,{…}]` rather than duplicating the node.
+
+Two call sites needed care. `Swap` must not reparent, so it uses a new non-adopting `ArraySwap`.
+The JSON index assignment detaches the incoming node *before* padding the array with nulls,
+otherwise a move inside the same array shrinks it back out from under the new index.
+
+Closes `reparent`, `array_add_dupe`, `reposition_node_in_array`.
+
+### Number formatting
+
+Three separate gaps behind `numbers` and `int64_json`:
+
+*Float rendering.* `FloatValue.String()` used Go's shortest round-trip form
+(`0.3333333333333333`, `1e+99`). Delphi's `FloatToStr` uses `ffGeneral` with 15 significant
+digits and an exponent with no `+` and no leading zeros. The rule now lives in a new
+`internal/dwsfmt` package (`FloatToStr`, `NormalizeExponent`) shared by the runtime, the JSON
+serializer's `FormatNumber` and `runtime.FloatToStr`, so there is one spelling of a float.
+
+*Integer `/` by zero.* `/` is float division in DWScript even for integer operands, and DWScript
+runs with FPU exceptions masked, so `0/0` is NaN. The evaluator raised "division by zero"; it no
+longer does. `div` and `mod` are unaffected — the `div_by_zero_int` / `mod_by_zero_int` fixtures
+only exercise those.
+
+*JSON → scalar narrowing.* `var f : Float := jsonNode` left `f` holding a JSON node, so it
+printed the raw Int64 and `Round(f)` rejected it as "got JSON". `TryImplicitConversion` now
+narrows a JSON immediate to Integer/Float following DWScript's immediate rules (numbers and
+booleans convert, strings are parsed with a 0 default, containers are left alone).
+
+### "Not a value"
+
+`Float(jsonObject)` reported `Could not convert variant of type (Object) into Float` as an
+unpositioned runtime error, printed with the `"\n at line L, column: C+2"` suffix the expression
+statement appends. DWScript raises `Not a value [line: 5, column: 5]` — one line, bracketed, at
+the position of the *statement*, not of the failing sub-expression.
+
+`ExecutionContext` now tracks the innermost statement (`CurrentStatement`), set alongside
+`CurrentNode` in `Evaluator.Eval`, because DWScript reports runtime exceptions at statement
+granularity. `evalTypeCast` raises a catchable exception with that position when the JSON node has
+no scalar value. The same change gives the JSON branches of `castToInteger`/`castToFloat` the
+immediate rules, so `Float(json '')` is 0 and `Integer(json '1.25')` is 1. Closes `explicit_cast`.
+
+### Scope
+
+The remaining 17 `JSONConnectorPass` failures are other people's items: lvalue vivification
+(`generate1`, `basic_generate`), record copy-on-assign (`stringify_record`), and the
+`as_const_param` / `associative_array` / `circular_references` / `const_array` / `global_var` /
+`implicit_*` / `in_static` / `stringify_array_of_array` / `write_immediate_prop` /
+`delete_array_index` / `comparison2` / `assign_static_to_dynamic` group.
+
+**Validation:** `go test ./... -timeout 40m` green; `golangci-lint run --new-from-rev=main`
+reports 0 issues; `just check-fmt` clean. New tests: `internal/jsonvalue/ownership_test.go`
+(adopt/detach/removal/clone/parse-time ownership), `internal/dwsfmt/float_test.go`,
+`internal/interp/evaluator/json_scalar_test.go`. `docs/guide/json-type-mapping.md` gained a
+"Single Ownership (Reparenting)" section — the page previously documented pure reference
+semantics.
