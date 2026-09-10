@@ -39,12 +39,23 @@ func (e *Evaluator) resolveLValueContainer(expr ast.Expression, ctx *ExecutionCo
 		return e.Eval(expr, ctx)
 	}
 
-	// Indexed properties and other member-rooted forms have their own handling
-	// in VisitIndexExpression; leave them to it.
+	// An index chain rooted at a member (`holder.X[k]`) may be an indexed
+	// property, which VisitIndexExpression handles as a whole because it needs
+	// the flattened index list. Ordinary members — a field or a non-indexed
+	// property holding an associative array — must still take the vivifying
+	// path, so only genuine indexed properties are handed over.
 	if base, _ := CollectIndices(idx); isMemberRootedBase(base) {
-		return e.Eval(expr, ctx)
+		if ma, isMember := base.(*ast.MemberAccessExpression); isMember && e.memberIsIndexedProperty(ma, ctx) {
+			return e.Eval(expr, ctx)
+		}
 	}
 
+	return e.resolveIndexedLValueContainer(idx, ctx)
+}
+
+// resolveIndexedLValueContainer resolves one level of an index chain that
+// resolveLValueContainer has already cleared for vivification.
+func (e *Evaluator) resolveIndexedLValueContainer(idx *ast.IndexExpression, ctx *ExecutionContext) Value {
 	container := e.resolveLValueContainer(idx.Left, ctx)
 	if isError(container) {
 		return container
@@ -104,6 +115,59 @@ func derefAssociative(v Value) (*runtime.AssociativeArrayValue, bool) {
 	}
 	assoc, ok := unwrapVariant(v).(*runtime.AssociativeArrayValue)
 	return assoc, ok
+}
+
+// memberIsIndexedProperty reports whether `obj.Member` names something that
+// VisitIndexExpression reads as an indexed property rather than as a plain
+// container that happens to be indexed afterwards. Only those forms must skip
+// vivification; an ordinary field or a non-indexed property that holds an
+// associative array is resolved through the vivifying path like any other
+// container.
+//
+// The object expression is evaluated here and again by the indexed-property
+// path, mirroring what evalIndexAssignmentDirect already does for the write
+// side of the same forms.
+func (e *Evaluator) memberIsIndexedProperty(ma *ast.MemberAccessExpression, ctx *ExecutionContext) bool {
+	if ma.Object == nil || ma.Member == nil {
+		return true
+	}
+	objVal := e.Eval(ma.Object, ctx)
+	if isError(objVal) || ctx.Exception() != nil {
+		// Let the ordinary path report the failure.
+		return true
+	}
+	// An indexed property reached through a class name has its own handling.
+	if _, isMeta := objVal.(ClassMetaValue); isMeta {
+		return true
+	}
+	propDesc := lookupPropertyDescriptor(objVal, ma.Member.Value)
+	if propDesc == nil {
+		if intf, isIntf := objVal.(InterfaceInstanceValue); isIntf {
+			if underlying := intf.GetUnderlyingObjectValue(); underlying != nil {
+				objVal = underlying
+				propDesc = lookupPropertyDescriptor(objVal, ma.Member.Value)
+			}
+		}
+	}
+	if propDesc == nil {
+		return false
+	}
+	// Records route every indexed property read through ReadIndexedProperty,
+	// not just the ones declared with index parameters.
+	if _, isRecord := objVal.(RecordInstanceValue); isRecord {
+		return true
+	}
+	return propDesc.IsIndexed
+}
+
+// lookupPropertyDescriptor returns the property named name on v, or nil when v
+// exposes no properties or has no such property.
+func lookupPropertyDescriptor(v Value, name string) *PropertyDescriptor {
+	accessor, ok := v.(PropertyAccessor)
+	if !ok {
+		return nil
+	}
+	return accessor.LookupProperty(name)
 }
 
 // isMemberRootedBase reports whether an index chain is rooted at a member

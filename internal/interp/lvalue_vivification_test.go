@@ -117,6 +117,54 @@ PrintLn(m[0][1]);
 `,
 			want: "7\n",
 		},
+		{
+			name: "member-rooted receiver vivifies through a record field",
+			script: `type THolder = record Map : array [String] of array of String; end;
+var h : THolder;
+h.Map['alpha'].Add('beta');
+PrintLn(h.Map['alpha'].Join(','));
+PrintLn(h.Map.Length);
+`,
+			want: "beta\n1\n",
+		},
+		{
+			name: "member-rooted var parameter vivifies through a record field",
+			script: `type TStaticArray = array [0..2] of Integer;
+type THolder = record Map : array [String] of TStaticArray; end;
+var h : THolder;
+procedure Bump(var v : Integer);
+begin
+   v := v + 41;
+end;
+Bump(h.Map['alpha'][1]);
+PrintLn(h.Map['alpha'][1]);
+PrintLn(h.Map.Length);
+`,
+			want: "41\n1\n",
+		},
+		{
+			name: "member-rooted rvalue read of a missing key does not insert",
+			script: `type THolder = record Map : array [String] of Integer; end;
+var h : THolder;
+PrintLn(h.Map['missing']);
+PrintLn(h.Map.Length);
+`,
+			want: "0\n0\n",
+		},
+		{
+			name: "var parameter bound to a nested element vivifies the slot",
+			script: `type TStaticArray = array [0..2] of Integer;
+var a : array [String] of TStaticArray;
+procedure Bump(var v : Integer);
+begin
+   v := v + 41;
+end;
+Bump(a['missing'][0]);
+PrintLn(a['missing'][0]);
+PrintLn(a.Length);
+`,
+			want: "41\n1\n",
+		},
 	}
 
 	for _, tt := range tests {
