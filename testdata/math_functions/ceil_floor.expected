@@ -20,6 +20,6 @@ Floor(5) = 5
 Floor(-3) = -3
 Price $19.99 rounds up to $20
 Price $19.99 rounds down to $19
-100 / 3 = 33.333333333333336
+100 / 3 = 33.3333333333333
 Ceil(100/3) = 34
 Floor(100/3) = 33

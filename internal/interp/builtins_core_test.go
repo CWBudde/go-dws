@@ -127,7 +127,8 @@ func TestHighLowWithFloatType(t *testing.T) {
 			checkFn: func(t *testing.T, output string) {
 				// Check that the output contains a very large number
 				// math.MaxFloat64 is approximately 1.7976931348623157e+308
-				if !strings.Contains(output, "e+") {
+				// DWScript spells the exponent Delphi-style: "1.79769313486232E308".
+				if !strings.Contains(output, "E") {
 					t.Errorf("expected scientific notation in output, got: %q", output)
 				}
 			},
@@ -140,7 +141,8 @@ func TestHighLowWithFloatType(t *testing.T) {
 				if !strings.Contains(output, "-") {
 					t.Errorf("expected negative number in output, got: %q", output)
 				}
-				if !strings.Contains(output, "e+") {
+				// DWScript spells the exponent Delphi-style: "1.79769313486232E308".
+				if !strings.Contains(output, "E") {
 					t.Errorf("expected scientific notation in output, got: %q", output)
 				}
 			},

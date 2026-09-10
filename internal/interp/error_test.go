@@ -22,7 +22,7 @@ func TestErrorMessagesIncludeLocation(t *testing.T) {
 		},
 		{
 			name:     "division by zero includes location",
-			input:    "var x: Integer := 10;\nvar y: Integer := x / 0;",
+			input:    "var x: Integer := 10;\nvar y: Integer := x div 0;",
 			expected: "line: 2",
 		},
 		{
