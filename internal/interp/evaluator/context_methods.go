@@ -5,6 +5,7 @@ import (
 	"io"
 	"math/rand"
 
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -33,6 +34,15 @@ func (e *Evaluator) builtinContext(ctx *ExecutionContext) *builtinContext {
 
 func (e *builtinContext) CurrentNode() ast.Node {
 	return currentNode(e.ctx)
+}
+
+// DateTimeFormatSettings returns the running script's date/time format
+// settings. This implements the builtins.Context interface.
+func (e *Evaluator) DateTimeFormatSettings() *builtins.DateTimeFormatSettings {
+	if e.engineState == nil {
+		return nil
+	}
+	return e.engineState.DateTimeFormatSettings
 }
 
 func currentNode(ctx *ExecutionContext) ast.Node {

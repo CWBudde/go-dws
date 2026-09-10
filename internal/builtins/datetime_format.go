@@ -1,9 +1,7 @@
 package builtins
 
 import (
-	"time"
-
-	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"math"
 )
 
 // =============================================================================
@@ -11,126 +9,122 @@ import (
 // =============================================================================
 
 // FormatDateTime implements the FormatDateTime() built-in function.
-// Formats a TDateTime according to a format string.
-// FormatDateTime(format: String, dt: TDateTime): String
+// FormatDateTime(format: String; dt: TDateTime; tz: DateTimeZone = Default): String
 func FormatDateTime(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("FormatDateTime() expects 2 arguments (format, dt), got %d", len(args))
+	if len(args) < 2 || len(args) > 3 {
+		return ctx.NewError("FormatDateTime() expects 2 or 3 arguments (format, dt, [zone]), got %d", len(args))
 	}
-
-	// First argument: format string
-	formatVal, ok := args[0].(*runtime.StringValue)
-	if !ok {
-		return ctx.NewError("FormatDateTime() expects String as first argument, got %s", args[0].Type())
+	format, errVal := stringArg(ctx, args, 0, "FormatDateTime")
+	if errVal != nil {
+		return errVal
 	}
-
-	// Second argument: TDateTime value
-	dtVal, ok := args[1].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("FormatDateTime() expects Float/TDateTime as second argument, got %s", args[1].Type())
+	dt, errVal := dateTimeArg(ctx, args, 1, "FormatDateTime")
+	if errVal != nil {
+		return errVal
 	}
-
-	result := formatDateTime(formatVal.Value, dtVal.Value)
-	return &runtime.StringValue{Value: result}
+	result, err := formatDateTimeSettings(format, dt, settings(ctx), zoneArg(ctx, args, 2))
+	if err != nil {
+		return ctx.NewError("%s", err.Error())
+	}
+	return stringResult(result)
 }
 
-// DateTimeToStr implements the DateTimeToStr() built-in function.
-// Converts a TDateTime to a string using default format.
+// DateTimeToStr implements the DateTimeToStr() built-in function, using
+// FormatSettings.ShortDateFormat and FormatSettings.LongTimeFormat.
 func DateTimeToStr(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("DateTimeToStr() expects 1 argument, got %d", len(args))
+	if len(args) < 1 || len(args) > 2 {
+		return ctx.NewError("DateTimeToStr() expects 1 or 2 arguments, got %d", len(args))
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("DateTimeToStr() expects Float/TDateTime, got %s", args[0].Type())
+	dt, errVal := dateTimeArg(ctx, args, 0, "DateTimeToStr")
+	if errVal != nil {
+		return errVal
 	}
-
-	// Use default format: YYYY-MM-DD HH:MM:SS
-	result := formatDateTime("yyyy-mm-dd hh:nn:ss", dtVal.Value)
-	return &runtime.StringValue{Value: result}
+	result, err := dateTimeToStrSettings(dt, settings(ctx), zoneArg(ctx, args, 1))
+	if err != nil {
+		return ctx.NewError("%s", err.Error())
+	}
+	return stringResult(result)
 }
 
-// DateToStr implements the DateToStr() built-in function.
-// Converts a TDateTime to a date string.
+// DateToStr implements the DateToStr() built-in function, using
+// FormatSettings.ShortDateFormat.
 func DateToStr(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("DateToStr() expects 1 argument, got %d", len(args))
+	if len(args) < 1 || len(args) > 2 {
+		return ctx.NewError("DateToStr() expects 1 or 2 arguments, got %d", len(args))
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("DateToStr() expects Float/TDateTime, got %s", args[0].Type())
+	dt, errVal := dateTimeArg(ctx, args, 0, "DateToStr")
+	if errVal != nil {
+		return errVal
 	}
-
-	// Use default date format: YYYY-MM-DD
-	result := formatDateTime("yyyy-mm-dd", dtVal.Value)
-	return &runtime.StringValue{Value: result}
+	result, err := dateToStrSettings(dt, settings(ctx), zoneArg(ctx, args, 1))
+	if err != nil {
+		return ctx.NewError("%s", err.Error())
+	}
+	return stringResult(result)
 }
 
-// TimeToStr implements the TimeToStr() built-in function.
-// Converts a TDateTime to a time string.
+// TimeToStr implements the TimeToStr() built-in function, using
+// FormatSettings.LongTimeFormat.
 func TimeToStr(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("TimeToStr() expects 1 argument, got %d", len(args))
+	if len(args) < 1 || len(args) > 2 {
+		return ctx.NewError("TimeToStr() expects 1 or 2 arguments, got %d", len(args))
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("TimeToStr() expects Float/TDateTime, got %s", args[0].Type())
+	dt, errVal := dateTimeArg(ctx, args, 0, "TimeToStr")
+	if errVal != nil {
+		return errVal
 	}
-
-	// Use default time format: HH:MM:SS
-	result := formatDateTime("hh:nn:ss", dtVal.Value)
-	return &runtime.StringValue{Value: result}
+	result, err := timeToStrSettings(dt, settings(ctx), zoneArg(ctx, args, 1))
+	if err != nil {
+		return ctx.NewError("%s", err.Error())
+	}
+	return stringResult(result)
 }
 
 // DateToISO8601 implements the DateToISO8601() built-in function.
-// Formats date as ISO 8601 string (YYYY-MM-DD).
 func DateToISO8601(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("DateToISO8601() expects 1 argument, got %d", len(args))
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("DateToISO8601() expects Float/TDateTime, got %s", args[0].Type())
+	dt, errVal := dateTimeArg(ctx, args, 0, "DateToISO8601")
+	if errVal != nil {
+		return errVal
 	}
-
-	result := formatDateISO8601(dtVal.Value)
-	return &runtime.StringValue{Value: result}
+	return stringResult(formatDateISO8601(dt))
 }
 
 // DateTimeToISO8601 implements the DateTimeToISO8601() built-in function.
-// Formats datetime as ISO 8601 string (YYYY-MM-DDTHH:MM:SS).
+// DateTimeToISO8601(dt: TDateTime; precision: String = ”): String
+// The precision argument accepts 'sec' and 'msec'; anything else selects the
+// automatic precision, which omits zero seconds.
 func DateTimeToISO8601(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("DateTimeToISO8601() expects 1 argument, got %d", len(args))
+	if len(args) < 1 || len(args) > 2 {
+		return ctx.NewError("DateTimeToISO8601() expects 1 or 2 arguments, got %d", len(args))
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("DateTimeToISO8601() expects Float/TDateTime, got %s", args[0].Type())
+	dt, errVal := dateTimeArg(ctx, args, 0, "DateTimeToISO8601")
+	if errVal != nil {
+		return errVal
 	}
-
-	result := formatISO8601(dtVal.Value)
-	return &runtime.StringValue{Value: result}
+	prec := ISO8601PrecAuto
+	if len(args) == 2 {
+		precStr, errVal := stringArg(ctx, args, 1, "DateTimeToISO8601")
+		if errVal != nil {
+			return errVal
+		}
+		prec = parseISO8601Precision(precStr)
+	}
+	return stringResult(formatISO8601(dt, prec))
 }
 
 // DateTimeToRFC822 implements the DateTimeToRFC822() built-in function.
-// Formats datetime as RFC 822 string.
 func DateTimeToRFC822(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("DateTimeToRFC822() expects 1 argument, got %d", len(args))
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("DateTimeToRFC822() expects Float/TDateTime, got %s", args[0].Type())
+	dt, errVal := dateTimeArg(ctx, args, 0, "DateTimeToRFC822")
+	if errVal != nil {
+		return errVal
 	}
-
-	result := formatRFC822(dtVal.Value)
-	return &runtime.StringValue{Value: result}
+	return stringResult(formatRFC822(dt))
 }
 
 // =============================================================================
@@ -138,103 +132,142 @@ func DateTimeToRFC822(ctx Context, args []Value) Value {
 // =============================================================================
 
 // StrToDate implements the StrToDate() built-in function.
-// Parses a date string to TDateTime.
+// StrToDate(str: String; tz: DateTimeZone = Default): TDateTime
 func StrToDate(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("StrToDate() expects 1 argument, got %d", len(args))
-	}
-
-	strVal, ok := args[0].(*runtime.StringValue)
-	if !ok {
-		return ctx.NewError("StrToDate() expects String, got %s", args[0].Type())
-	}
-
-	dt, err := parseDate(strVal.Value)
-	if err != nil {
-		return ctx.NewError("StrToDate() %s", err)
-	}
-
-	return &runtime.FloatValue{Value: dt}
-}
-
-// StrToDateTime implements the StrToDateTime() built-in function.
-// Parses a datetime string to TDateTime.
-func StrToDateTime(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("StrToDateTime() expects 1 argument, got %d", len(args))
-	}
-
-	strVal, ok := args[0].(*runtime.StringValue)
-	if !ok {
-		return ctx.NewError("StrToDateTime() expects String, got %s", args[0].Type())
-	}
-
-	dt, err := parseDateTime(strVal.Value)
-	if err != nil {
-		return ctx.NewError("StrToDateTime() %s", err)
-	}
-
-	return &runtime.FloatValue{Value: dt}
+	return parseWith(ctx, args, "StrToDate", tryStrToDateSettings)
 }
 
 // StrToTime implements the StrToTime() built-in function.
-// Parses a time string to TDateTime.
+// StrToTime(str: String; tz: DateTimeZone = Default): TDateTime
 func StrToTime(ctx Context, args []Value) Value {
-	if len(args) != 1 {
-		return ctx.NewError("StrToTime() expects 1 argument, got %d", len(args))
-	}
+	return parseWith(ctx, args, "StrToTime", tryStrToTimeSettings)
+}
 
-	strVal, ok := args[0].(*runtime.StringValue)
+// StrToDateTime implements the StrToDateTime() built-in function. It falls back
+// to date-only parsing when the combined date and time formats do not match.
+func StrToDateTime(ctx Context, args []Value) Value {
+	return parseWith(ctx, args, "StrToDateTime", func(str string, s *DateTimeFormatSettings, tz TimeZone) (float64, bool) {
+		if dt, ok := tryStrToDateTimeSettings(str, s, tz); ok {
+			return dt, true
+		}
+		return tryStrToDateSettings(str, s, tz)
+	})
+}
+
+// StrToDateDef implements the StrToDateDef() built-in function.
+// StrToDateDef(str: String; def: TDateTime; tz: DateTimeZone = Default): TDateTime
+func StrToDateDef(ctx Context, args []Value) Value {
+	return parseWithDefault(ctx, args, "StrToDateDef", tryStrToDateSettings)
+}
+
+// StrToTimeDef implements the StrToTimeDef() built-in function.
+func StrToTimeDef(ctx Context, args []Value) Value {
+	return parseWithDefault(ctx, args, "StrToTimeDef", tryStrToTimeSettings)
+}
+
+// StrToDateTimeDef implements the StrToDateTimeDef() built-in function.
+func StrToDateTimeDef(ctx Context, args []Value) Value {
+	return parseWithDefault(ctx, args, "StrToDateTimeDef",
+		func(str string, s *DateTimeFormatSettings, tz TimeZone) (float64, bool) {
+			if dt, ok := tryStrToDateTimeSettings(str, s, tz); ok {
+				return dt, true
+			}
+			return tryStrToDateSettings(str, s, tz)
+		})
+}
+
+// dateTimeTryParser is the shared shape of the settings-driven parsers.
+type dateTimeTryParser func(str string, s *DateTimeFormatSettings, tz TimeZone) (float64, bool)
+
+// parseWith implements the raising StrTo* family.
+func parseWith(ctx Context, args []Value, fn string, parse dateTimeTryParser) Value {
+	if len(args) < 1 || len(args) > 2 {
+		return ctx.NewError("%s() expects 1 or 2 arguments, got %d", fn, len(args))
+	}
+	str, errVal := stringArg(ctx, args, 0, fn)
+	if errVal != nil {
+		return errVal
+	}
+	dt, ok := parse(str, settings(ctx), zoneArg(ctx, args, 1))
 	if !ok {
-		return ctx.NewError("StrToTime() expects String, got %s", args[0].Type())
+		return ctx.NewError("%s", dateTimeConversionError(str).Error())
 	}
+	return floatResult(dt)
+}
 
-	dt, err := parseTime(strVal.Value)
-	if err != nil {
-		return ctx.NewError("StrToTime() %s", err)
+// parseWithDefault implements the non-raising StrTo*Def family.
+func parseWithDefault(ctx Context, args []Value, fn string, parse dateTimeTryParser) Value {
+	if len(args) < 2 || len(args) > 3 {
+		return ctx.NewError("%s() expects 2 or 3 arguments, got %d", fn, len(args))
 	}
+	str, errVal := stringArg(ctx, args, 0, fn)
+	if errVal != nil {
+		return errVal
+	}
+	def, errVal := dateTimeArg(ctx, args, 1, fn)
+	if errVal != nil {
+		return errVal
+	}
+	dt, ok := parse(str, settings(ctx), zoneArg(ctx, args, 2))
+	if !ok {
+		return floatResult(def)
+	}
+	return floatResult(dt)
+}
 
-	return &runtime.FloatValue{Value: dt}
+// ParseDateTime implements the ParseDateTime() built-in function, parsing a
+// string against an explicit format. It returns 0 when the string does not
+// match, rather than raising.
+// ParseDateTime(format, str: String; tz: DateTimeZone = Default): TDateTime
+func ParseDateTime(ctx Context, args []Value) Value {
+	if len(args) < 2 || len(args) > 3 {
+		return ctx.NewError("ParseDateTime() expects 2 or 3 arguments (format, str, [zone]), got %d", len(args))
+	}
+	format, errVal := stringArg(ctx, args, 0, "ParseDateTime")
+	if errVal != nil {
+		return errVal
+	}
+	str, errVal := stringArg(ctx, args, 1, "ParseDateTime")
+	if errVal != nil {
+		return errVal
+	}
+	dt, ok := tryStrToDateTimeFormat(format, str, settings(ctx), zoneArg(ctx, args, 2))
+	if !ok {
+		return floatResult(0)
+	}
+	return floatResult(dt)
 }
 
 // ISO8601ToDateTime implements the ISO8601ToDateTime() built-in function.
-// Parses an ISO 8601 string to TDateTime.
 func ISO8601ToDateTime(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("ISO8601ToDateTime() expects 1 argument, got %d", len(args))
 	}
-
-	strVal, ok := args[0].(*runtime.StringValue)
-	if !ok {
-		return ctx.NewError("ISO8601ToDateTime() expects String, got %s", args[0].Type())
+	str, errVal := stringArg(ctx, args, 0, "ISO8601ToDateTime")
+	if errVal != nil {
+		return errVal
 	}
-
-	dt, err := parseISO8601(strVal.Value)
+	dt, err := parseISO8601(str)
 	if err != nil {
-		return ctx.NewError("ISO8601ToDateTime() %s", err)
+		return ctx.NewError("%s", err.Error())
 	}
-
-	return &runtime.FloatValue{Value: dt}
+	return floatResult(dt)
 }
 
 // RFC822ToDateTime implements the RFC822ToDateTime() built-in function.
-// Parses an RFC 822 string to TDateTime.
 func RFC822ToDateTime(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("RFC822ToDateTime() expects 1 argument, got %d", len(args))
 	}
-
-	strVal, ok := args[0].(*runtime.StringValue)
-	if !ok {
-		return ctx.NewError("RFC822ToDateTime() expects String, got %s", args[0].Type())
+	str, errVal := stringArg(ctx, args, 0, "RFC822ToDateTime")
+	if errVal != nil {
+		return errVal
 	}
-
-	dt, err := parseRFC822(strVal.Value)
+	dt, err := parseRFC822(str)
 	if err != nil {
-		return ctx.NewError("RFC822ToDateTime() %s", err)
+		return ctx.NewError("%s", err.Error())
 	}
-
-	return &runtime.FloatValue{Value: dt}
+	return floatResult(dt)
 }
 
 // =============================================================================
@@ -242,87 +275,95 @@ func RFC822ToDateTime(ctx Context, args []Value) Value {
 // =============================================================================
 
 // UnixTime implements the UnixTime() built-in function.
-// Returns Unix timestamp (seconds since 1970-01-01) for current time.
+// With no argument it returns the current Unix timestamp in seconds.
 func UnixTime(ctx Context, args []Value) Value {
 	if len(args) != 0 {
 		return ctx.NewError("UnixTime() expects 0 arguments, got %d", len(args))
 	}
-
-	now := time.Now().UTC()
-	return &runtime.IntegerValue{Value: now.Unix()}
+	return int64Result(dateTimeToUnixTime(utcNowDateTime()))
 }
 
 // UnixTimeMSec implements the UnixTimeMSec() built-in function.
-// Returns Unix timestamp in milliseconds for current time.
 func UnixTimeMSec(ctx Context, args []Value) Value {
 	if len(args) != 0 {
 		return ctx.NewError("UnixTimeMSec() expects 0 arguments, got %d", len(args))
 	}
-
-	now := time.Now().UTC()
-	return &runtime.IntegerValue{Value: now.UnixMilli()}
+	return int64Result(dateTimeToUnixTimeMSec(utcNowDateTime()))
 }
 
-// UnixTimeToDateTime implements the UnixTimeToDateTime() built-in function.
-// Converts Unix timestamp to TDateTime.
+// UnixTimeToDateTime implements the UnixTimeToDateTime() built-in function,
+// producing a UTC TDateTime.
 func UnixTimeToDateTime(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("UnixTimeToDateTime() expects 1 argument, got %d", len(args))
 	}
-
-	unixTimeVal, ok := args[0].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("UnixTimeToDateTime() expects Integer, got %s", args[0].Type())
+	ut, errVal := dateTimeArg(ctx, args, 0, "UnixTimeToDateTime")
+	if errVal != nil {
+		return errVal
 	}
-
-	dt := unixTimeToDateTime(unixTimeVal.Value)
-	return &runtime.FloatValue{Value: dt}
+	return floatResult(ut/secondsPerDay + unixEpochDateTime)
 }
 
-// DateTimeToUnixTime implements the DateTimeToUnixTime() built-in function.
-// Converts TDateTime to Unix timestamp.
+// DateTimeToUnixTime implements the DateTimeToUnixTime() built-in function,
+// interpreting its argument as a UTC TDateTime.
 func DateTimeToUnixTime(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("DateTimeToUnixTime() expects 1 argument, got %d", len(args))
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("DateTimeToUnixTime() expects Float/TDateTime, got %s", args[0].Type())
+	dt, errVal := dateTimeArg(ctx, args, 0, "DateTimeToUnixTime")
+	if errVal != nil {
+		return errVal
 	}
-
-	unixTime := dateTimeToUnixTime(dtVal.Value)
-	return &runtime.IntegerValue{Value: unixTime}
+	return int64Result(dateTimeToUnixTime(dt))
 }
 
 // UnixTimeMSecToDateTime implements the UnixTimeMSecToDateTime() built-in function.
-// Converts Unix timestamp in milliseconds to TDateTime.
 func UnixTimeMSecToDateTime(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("UnixTimeMSecToDateTime() expects 1 argument, got %d", len(args))
 	}
-
-	unixTimeMSVal, ok := args[0].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("UnixTimeMSecToDateTime() expects Integer, got %s", args[0].Type())
+	ut, errVal := integerArg(ctx, args, 0, "UnixTimeMSecToDateTime")
+	if errVal != nil {
+		return errVal
 	}
-
-	dt := unixTimeMSecToDateTime(unixTimeMSVal.Value)
-	return &runtime.FloatValue{Value: dt}
+	return floatResult(unixTimeMSecToDateTime(ut))
 }
 
 // DateTimeToUnixTimeMSec implements the DateTimeToUnixTimeMSec() built-in function.
-// Converts TDateTime to Unix timestamp in milliseconds.
 func DateTimeToUnixTimeMSec(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("DateTimeToUnixTimeMSec() expects 1 argument, got %d", len(args))
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("DateTimeToUnixTimeMSec() expects Float/TDateTime, got %s", args[0].Type())
+	dt, errVal := dateTimeArg(ctx, args, 0, "DateTimeToUnixTimeMSec")
+	if errVal != nil {
+		return errVal
 	}
+	return int64Result(dateTimeToUnixTimeMSec(dt))
+}
 
-	unixTimeMS := dateTimeToUnixTimeMSec(dtVal.Value)
-	return &runtime.IntegerValue{Value: unixTimeMS}
+// LocalDateTimeToUnixTime implements the LocalDateTimeToUnixTime() built-in
+// function, converting a local TDateTime to a Unix timestamp.
+func LocalDateTimeToUnixTime(ctx Context, args []Value) Value {
+	if len(args) != 1 {
+		return ctx.NewError("LocalDateTimeToUnixTime() expects 1 argument, got %d", len(args))
+	}
+	dt, errVal := dateTimeArg(ctx, args, 0, "LocalDateTimeToUnixTime")
+	if errVal != nil {
+		return errVal
+	}
+	return int64Result(int64(math.Round(localDateTimeToUTCDateTime(dt)*secondsPerDay)) -
+		int64(unixEpochDateTime)*86400)
+}
+
+// UnixTimeToLocalDateTime implements the UnixTimeToLocalDateTime() built-in
+// function, converting a Unix timestamp to a local TDateTime.
+func UnixTimeToLocalDateTime(ctx Context, args []Value) Value {
+	if len(args) != 1 {
+		return ctx.NewError("UnixTimeToLocalDateTime() expects 1 argument, got %d", len(args))
+	}
+	ut, errVal := integerArg(ctx, args, 0, "UnixTimeToLocalDateTime")
+	if errVal != nil {
+		return errVal
+	}
+	return floatResult(utcDateTimeToLocalDateTime(float64(ut)/secondsPerDay + unixEpochDateTime))
 }

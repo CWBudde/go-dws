@@ -18,7 +18,8 @@ func TestBuiltinSignatures_CallConstraints(t *testing.T) {
 		valid  bool
 	}{
 		{types.INTEGER, "Sqrt", 0, true},
-		{types.INTEGER, "YearOf", 0, false},
+		// TDateTime is a Float alias, so Integer converts implicitly.
+		{types.INTEGER, "YearOf", 0, true},
 		{types.FLOAT, "YearOf", 0, true},
 		{&types.TypeAlias{Name: "DateAlias", AliasedType: types.FLOAT}, "YearOf", 0, false},
 		{types.VARIANT, "VarIsEmpty", 0, true},

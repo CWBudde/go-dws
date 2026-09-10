@@ -195,7 +195,7 @@ func TestMonthOf(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.IntegerValue{Value: 123}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}
@@ -348,7 +348,7 @@ func TestMinuteOf(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.IntegerValue{Value: 30}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}
@@ -501,7 +501,7 @@ func TestDayOfTheWeek(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.IntegerValue{Value: 3}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}
@@ -609,7 +609,7 @@ func TestWeekNumber(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.IntegerValue{Value: 11}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}
@@ -727,7 +727,7 @@ func TestIsLeapYear(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.FloatValue{Value: 2020.0}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}
@@ -779,7 +779,7 @@ func TestFirstDayOfYear(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.IntegerValue{Value: 2023}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}
@@ -935,7 +935,7 @@ func TestFirstDayOfNextMonth(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.IntegerValue{Value: 4}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}

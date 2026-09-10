@@ -20,9 +20,10 @@ func (e *mockErrorValue) String() string { return "ERROR: " + e.Message }
 
 // mockContext implements the Context interface for testing
 type mockContext struct {
-	rng       *rand.Rand
-	lastError string
-	randSeed  int64
+	rng              *rand.Rand
+	dateTimeSettings *DateTimeFormatSettings
+	lastError        string
+	randSeed         int64
 }
 
 func newMockContext() *mockContext {
@@ -349,6 +350,14 @@ func (m *mockContext) ConcatStrings(args []Value) Value {
 func (m *mockContext) GetEnumMetadata(typeName string) Value {
 	// Simple mock - return nil for testing (enum metadata not found)
 	return nil
+}
+
+func (m *mockContext) DateTimeFormatSettings() *DateTimeFormatSettings {
+	if m.dateTimeSettings == nil {
+		settings := DefaultDateTimeFormatSettings()
+		m.dateTimeSettings = &settings
+	}
+	return m.dateTimeSettings
 }
 
 func TestNewRegistry(t *testing.T) {

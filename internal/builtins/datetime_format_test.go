@@ -90,10 +90,11 @@ func TestFormatDateTime(t *testing.T) {
 			args: []Value{&runtime.StringValue{Value: "yyyy-mm-dd"}},
 		},
 		{
-			name: "wrong argument count - 3 args",
+			name: "wrong argument count - 4 args",
 			args: []Value{
 				&runtime.StringValue{Value: "yyyy-mm-dd"},
 				&runtime.FloatValue{Value: testDate},
+				&runtime.IntegerValue{Value: 1},
 				&runtime.IntegerValue{Value: 1},
 			},
 		},
@@ -146,8 +147,12 @@ func TestDateTimeToStr(t *testing.T) {
 			isError: true,
 		},
 		{
-			name:    "wrong argument count - 2 args",
-			args:    []Value{&runtime.FloatValue{Value: testDate}, &runtime.IntegerValue{Value: 1}},
+			name: "wrong argument count - 3 args",
+			args: []Value{
+				&runtime.FloatValue{Value: testDate},
+				&runtime.IntegerValue{Value: 1},
+				&runtime.IntegerValue{Value: 1},
+			},
 			isError: true,
 		},
 		{
@@ -203,7 +208,7 @@ func TestDateToStr(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.IntegerValue{Value: 20230315}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}
@@ -347,7 +352,7 @@ func TestDateTimeToISO8601(t *testing.T) {
 		{
 			name:     "valid datetime",
 			args:     []Value{&runtime.FloatValue{Value: testDate}},
-			expected: "2023-03-15T12:30:45",
+			expected: "2023-03-15T12:30:45Z",
 		},
 		{
 			name:    "wrong argument count",
@@ -356,7 +361,7 @@ func TestDateTimeToISO8601(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.IntegerValue{Value: 123}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}
@@ -452,9 +457,9 @@ func TestStrToDate(t *testing.T) {
 			isError: false,
 		},
 		{
-			name:    "US format",
+			name:    "US format is not the configured short date format",
 			args:    []Value{&runtime.StringValue{Value: "03/15/2023"}},
-			isError: false,
+			isError: true,
 		},
 		{
 			name:    "invalid format",
@@ -510,9 +515,9 @@ func TestStrToDateTime(t *testing.T) {
 			isError: false,
 		},
 		{
-			name:    "ISO format with T separator",
+			name:    "T separator is not the configured date/time format",
 			args:    []Value{&runtime.StringValue{Value: "2023-03-15T12:30:45"}},
-			isError: false,
+			isError: true,
 		},
 		{
 			name:    "invalid format",
@@ -677,9 +682,9 @@ func TestRFC822ToDateTime(t *testing.T) {
 			isError: false,
 		},
 		{
-			name:    "invalid format",
+			name:    "unparsable input yields zero rather than an error",
 			args:    []Value{&runtime.StringValue{Value: "2023-03-15"}},
-			isError: true,
+			isError: false,
 		},
 		{
 			name:    "wrong argument count",
@@ -789,7 +794,7 @@ func TestUnixTimeToDateTime(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.FloatValue{Value: 1678886400.0}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}
@@ -836,7 +841,7 @@ func TestDateTimeToUnixTime(t *testing.T) {
 		},
 		{
 			name:    "wrong type",
-			args:    []Value{&runtime.IntegerValue{Value: 1678886400}},
+			args:    []Value{&runtime.StringValue{Value: "not a date/time"}},
 			isError: true,
 		},
 	}

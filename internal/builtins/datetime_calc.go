@@ -1,174 +1,74 @@
 package builtins
 
-import (
-	"time"
-
-	"github.com/cwbudde/go-dws/internal/interp/runtime"
-)
-
 // =============================================================================
 // Date Encoding Functions
 // =============================================================================
 
 // EncodeDate implements the EncodeDate() built-in function.
-// Creates a TDateTime from year, month, day components.
-// EncodeDate(year, month, day: Integer): TDateTime
+// EncodeDate(year, month, day: Integer; tz: DateTimeZone = Default): TDateTime
 func EncodeDate(ctx Context, args []Value) Value {
-	if len(args) != 3 {
-		return ctx.NewError("EncodeDate() expects 3 arguments (year, month, day), got %d", len(args))
+	if len(args) < 3 || len(args) > 4 {
+		return ctx.NewError("EncodeDate() expects 3 or 4 arguments (year, month, day, [zone]), got %d", len(args))
 	}
-
-	// Extract year
-	yearVal, ok := args[0].(*runtime.IntegerValue)
+	parts, errVal := integerArgs(ctx, args, 3, "EncodeDate")
+	if errVal != nil {
+		return errVal
+	}
+	dt, ok := tryEncodeDate(parts[0], parts[1], parts[2], settings(ctx), zoneArg(ctx, args, 3))
 	if !ok {
-		return ctx.NewError("EncodeDate() year must be Integer, got %s", args[0].Type())
+		return ctx.NewError("EncodeDate() invalid date: %d-%02d-%02d", parts[0], parts[1], parts[2])
 	}
-
-	// Extract month
-	monthVal, ok := args[1].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeDate() month must be Integer, got %s", args[1].Type())
-	}
-
-	// Extract day
-	dayVal, ok := args[2].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeDate() day must be Integer, got %s", args[2].Type())
-	}
-
-	year := int(yearVal.Value)
-	month := int(monthVal.Value)
-	day := int(dayVal.Value)
-
-	// Validate date
-	if !isValidDate(year, month, day) {
-		return ctx.NewError("EncodeDate() invalid date: %d-%02d-%02d", year, month, day)
-	}
-
-	// Create date (time = 00:00:00)
-	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
-	dtValue := goTimeToDelphiDateTime(t)
-
-	return &runtime.FloatValue{Value: dtValue}
+	return floatResult(dt)
 }
 
 // EncodeTime implements the EncodeTime() built-in function.
-// Creates a TDateTime from hour, minute, second, millisecond components.
 // EncodeTime(hour, minute, second, msec: Integer): TDateTime
 func EncodeTime(ctx Context, args []Value) Value {
 	if len(args) != 4 {
 		return ctx.NewError("EncodeTime() expects 4 arguments (hour, minute, second, msec), got %d", len(args))
 	}
-
-	// Extract hour
-	hourVal, ok := args[0].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeTime() hour must be Integer, got %s", args[0].Type())
+	parts, errVal := integerArgs(ctx, args, 4, "EncodeTime")
+	if errVal != nil {
+		return errVal
 	}
-
-	// Extract minute
-	minuteVal, ok := args[1].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeTime() minute must be Integer, got %s", args[1].Type())
+	if !isValidTime(parts[0], parts[1], parts[2], parts[3]) {
+		return ctx.NewError("EncodeTime() invalid time: %02d:%02d:%02d.%03d",
+			parts[0], parts[1], parts[2], parts[3])
 	}
-
-	// Extract second
-	secondVal, ok := args[2].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeTime() second must be Integer, got %s", args[2].Type())
-	}
-
-	// Extract millisecond
-	msecVal, ok := args[3].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeTime() msec must be Integer, got %s", args[3].Type())
-	}
-
-	hour := int(hourVal.Value)
-	minute := int(minuteVal.Value)
-	second := int(secondVal.Value)
-	msec := int(msecVal.Value)
-
-	// Validate time
-	if !isValidTime(hour, minute, second, msec) {
-		return ctx.NewError("EncodeTime() invalid time: %02d:%02d:%02d.%03d", hour, minute, second, msec)
-	}
-
-	// Create time on epoch date
-	nanoseconds := msec * 1000000
-	t := time.Date(1899, 12, 30, hour, minute, second, nanoseconds, time.UTC)
-	dtValue := goTimeToDelphiDateTime(t)
-
-	return &runtime.FloatValue{Value: dtValue}
+	return floatResult(encodeTimeOnly(parts[0], parts[1], parts[2], parts[3]))
 }
 
 // EncodeDateTime implements the EncodeDateTime() built-in function.
-// Creates a TDateTime from full date and time components.
-// EncodeDateTime(year, month, day, hour, minute, second, msec: Integer): TDateTime
+// EncodeDateTime(year, month, day, hour, minute, second, msec: Integer;
+//
+//	tz: DateTimeZone = Default): TDateTime
 func EncodeDateTime(ctx Context, args []Value) Value {
-	if len(args) != 7 {
-		return ctx.NewError("EncodeDateTime() expects 7 arguments (year, month, day, hour, minute, second, msec), got %d", len(args))
+	if len(args) < 7 || len(args) > 8 {
+		return ctx.NewError("EncodeDateTime() expects 7 or 8 arguments, got %d", len(args))
 	}
-
-	// Extract all components
-	yearVal, ok := args[0].(*runtime.IntegerValue)
+	parts, errVal := integerArgs(ctx, args, 7, "EncodeDateTime")
+	if errVal != nil {
+		return errVal
+	}
+	dt, ok := tryEncodeDateTime(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5], parts[6],
+		settings(ctx), zoneArg(ctx, args, 7))
 	if !ok {
-		return ctx.NewError("EncodeDateTime() year must be Integer, got %s", args[0].Type())
+		return ctx.NewError("EncodeDateTime() invalid date/time")
 	}
+	return floatResult(dt)
+}
 
-	monthVal, ok := args[1].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeDateTime() month must be Integer, got %s", args[1].Type())
+// integerArgs reads the first count arguments as Integers.
+func integerArgs(ctx Context, args []Value, count int, fn string) ([]int, Value) {
+	parts := make([]int, count)
+	for i := 0; i < count; i++ {
+		value, errVal := integerArg(ctx, args, i, fn)
+		if errVal != nil {
+			return nil, errVal
+		}
+		parts[i] = int(value)
 	}
-
-	dayVal, ok := args[2].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeDateTime() day must be Integer, got %s", args[2].Type())
-	}
-
-	hourVal, ok := args[3].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeDateTime() hour must be Integer, got %s", args[3].Type())
-	}
-
-	minuteVal, ok := args[4].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeDateTime() minute must be Integer, got %s", args[4].Type())
-	}
-
-	secondVal, ok := args[5].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeDateTime() second must be Integer, got %s", args[5].Type())
-	}
-
-	msecVal, ok := args[6].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("EncodeDateTime() msec must be Integer, got %s", args[6].Type())
-	}
-
-	year := int(yearVal.Value)
-	month := int(monthVal.Value)
-	day := int(dayVal.Value)
-	hour := int(hourVal.Value)
-	minute := int(minuteVal.Value)
-	second := int(secondVal.Value)
-	msec := int(msecVal.Value)
-
-	// Validate date and time
-	if !isValidDate(year, month, day) {
-		return ctx.NewError("EncodeDateTime() invalid date: %d-%02d-%02d", year, month, day)
-	}
-
-	if !isValidTime(hour, minute, second, msec) {
-		return ctx.NewError("EncodeDateTime() invalid time: %02d:%02d:%02d.%03d", hour, minute, second, msec)
-	}
-
-	// Create full datetime
-	nanoseconds := msec * 1000000
-	t := time.Date(year, time.Month(month), day, hour, minute, second, nanoseconds, time.UTC)
-	dtValue := goTimeToDelphiDateTime(t)
-
-	return &runtime.FloatValue{Value: dtValue}
+	return parts, nil
 }
 
 // =============================================================================
@@ -188,220 +88,150 @@ func EncodeDateTime(ctx Context, args []Value) Value {
 // Incrementing Functions
 // =============================================================================
 
+// incrementBy reads the (dt, count) argument pair shared by the Inc* family.
+// The count defaults to 1 when omitted.
+func incrementBy(ctx Context, args []Value, fn string) (dt float64, count int64, errVal Value) {
+	if len(args) < 1 || len(args) > 2 {
+		return 0, 0, ctx.NewError("%s() expects 1 or 2 arguments (dt, [count]), got %d", fn, len(args))
+	}
+	dt, errVal = dateTimeArg(ctx, args, 0, fn)
+	if errVal != nil {
+		return 0, 0, errVal
+	}
+	count = 1
+	if len(args) == 2 {
+		count, errVal = integerArg(ctx, args, 1, fn)
+		if errVal != nil {
+			return 0, 0, errVal
+		}
+	}
+	return dt, count, nil
+}
+
 // IncYear implements the IncYear() built-in function.
-// Adds years to a TDateTime.
 func IncYear(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("IncYear() expects 2 arguments (dt, years), got %d", len(args))
+	dt, count, errVal := incrementBy(ctx, args, "IncYear")
+	if errVal != nil {
+		return errVal
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("IncYear() expects Float/TDateTime as first argument, got %s", args[0].Type())
-	}
-
-	yearsVal, ok := args[1].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("IncYear() expects Integer as second argument, got %s", args[1].Type())
-	}
-
-	result := incYears(dtVal.Value, int(yearsVal.Value))
-	return &runtime.FloatValue{Value: result}
+	return floatResult(incMonths(dt, int(count)*12))
 }
 
 // IncMonth implements the IncMonth() built-in function.
-// Adds months to a TDateTime.
 func IncMonth(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("IncMonth() expects 2 arguments (dt, months), got %d", len(args))
+	dt, count, errVal := incrementBy(ctx, args, "IncMonth")
+	if errVal != nil {
+		return errVal
 	}
+	return floatResult(incMonths(dt, int(count)))
+}
 
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("IncMonth() expects Float/TDateTime as first argument, got %s", args[0].Type())
+// IncWeek implements the IncWeek() built-in function.
+func IncWeek(ctx Context, args []Value) Value {
+	dt, count, errVal := incrementBy(ctx, args, "IncWeek")
+	if errVal != nil {
+		return errVal
 	}
-
-	monthsVal, ok := args[1].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("IncMonth() expects Integer as second argument, got %s", args[1].Type())
-	}
-
-	result := incMonths(dtVal.Value, int(monthsVal.Value))
-	return &runtime.FloatValue{Value: result}
+	return floatResult(dt + 7*float64(count))
 }
 
 // IncDay implements the IncDay() built-in function.
-// Adds days to a TDateTime.
 func IncDay(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("IncDay() expects 2 arguments (dt, days), got %d", len(args))
+	dt, count, errVal := incrementBy(ctx, args, "IncDay")
+	if errVal != nil {
+		return errVal
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("IncDay() expects Float/TDateTime as first argument, got %s", args[0].Type())
-	}
-
-	daysVal, ok := args[1].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("IncDay() expects Integer as second argument, got %s", args[1].Type())
-	}
-
-	// Simple addition since TDateTime stores days as integer part
-	result := dtVal.Value + float64(daysVal.Value)
-	return &runtime.FloatValue{Value: result}
+	return floatResult(dt + float64(count))
 }
 
 // IncHour implements the IncHour() built-in function.
-// Adds hours to a TDateTime.
 func IncHour(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("IncHour() expects 2 arguments (dt, hours), got %d", len(args))
+	dt, count, errVal := incrementBy(ctx, args, "IncHour")
+	if errVal != nil {
+		return errVal
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("IncHour() expects Float/TDateTime as first argument, got %s", args[0].Type())
-	}
-
-	hoursVal, ok := args[1].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("IncHour() expects Integer as second argument, got %s", args[1].Type())
-	}
-
-	// 1 hour = 1/24 day
-	result := dtVal.Value + (float64(hoursVal.Value) / 24.0)
-	return &runtime.FloatValue{Value: result}
+	return floatResult(dt + float64(count)/24)
 }
 
 // IncMinute implements the IncMinute() built-in function.
-// Adds minutes to a TDateTime.
 func IncMinute(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("IncMinute() expects 2 arguments (dt, minutes), got %d", len(args))
+	dt, count, errVal := incrementBy(ctx, args, "IncMinute")
+	if errVal != nil {
+		return errVal
 	}
-
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("IncMinute() expects Float/TDateTime as first argument, got %s", args[0].Type())
-	}
-
-	minutesVal, ok := args[1].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("IncMinute() expects Integer as second argument, got %s", args[1].Type())
-	}
-
-	// 1 minute = 1/(24*60) day
-	result := dtVal.Value + (float64(minutesVal.Value) / (24.0 * 60.0))
-	return &runtime.FloatValue{Value: result}
+	return floatResult(dt + float64(count)/1440)
 }
 
 // IncSecond implements the IncSecond() built-in function.
-// Adds seconds to a TDateTime.
 func IncSecond(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("IncSecond() expects 2 arguments (dt, seconds), got %d", len(args))
+	dt, count, errVal := incrementBy(ctx, args, "IncSecond")
+	if errVal != nil {
+		return errVal
 	}
+	return floatResult(dt + float64(count)/secondsPerDay)
+}
 
-	dtVal, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("IncSecond() expects Float/TDateTime as first argument, got %s", args[0].Type())
+// IncMilliSecond implements the IncMilliSecond() built-in function.
+func IncMilliSecond(ctx Context, args []Value) Value {
+	dt, count, errVal := incrementBy(ctx, args, "IncMilliSecond")
+	if errVal != nil {
+		return errVal
 	}
-
-	secondsVal, ok := args[1].(*runtime.IntegerValue)
-	if !ok {
-		return ctx.NewError("IncSecond() expects Integer as second argument, got %s", args[1].Type())
-	}
-
-	// 1 second = 1/86400 day
-	result := dtVal.Value + (float64(secondsVal.Value) / 86400.0)
-	return &runtime.FloatValue{Value: result}
+	return floatResult(dt + float64(count)/millisecondsPerDay)
 }
 
 // =============================================================================
 // Date Difference Functions
 // =============================================================================
 
-// DaysBetween implements the DaysBetween() built-in function.
-// Calculates whole days between two TDateTime values.
-func DaysBetween(ctx Context, args []Value) Value {
+// dateTimePair reads the two TDateTime arguments of the *Between family.
+func dateTimePair(ctx Context, args []Value, fn string) (dt1, dt2 float64, errVal Value) {
 	if len(args) != 2 {
-		return ctx.NewError("DaysBetween() expects 2 arguments (dt1, dt2), got %d", len(args))
+		return 0, 0, ctx.NewError("%s() expects 2 arguments, got %d", fn, len(args))
 	}
-
-	dt1Val, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("DaysBetween() expects Float/TDateTime as first argument, got %s", args[0].Type())
+	dt1, errVal = dateTimeArg(ctx, args, 0, fn)
+	if errVal != nil {
+		return 0, 0, errVal
 	}
-
-	dt2Val, ok := args[1].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("DaysBetween() expects Float/TDateTime as second argument, got %s", args[1].Type())
+	dt2, errVal = dateTimeArg(ctx, args, 1, fn)
+	if errVal != nil {
+		return 0, 0, errVal
 	}
+	return dt1, dt2, nil
+}
 
-	days := daysBetween(dt1Val.Value, dt2Val.Value)
-	return &runtime.IntegerValue{Value: int64(days)}
+// DaysBetween implements the DaysBetween() built-in function.
+func DaysBetween(ctx Context, args []Value) Value {
+	dt1, dt2, errVal := dateTimePair(ctx, args, "DaysBetween")
+	if errVal != nil {
+		return errVal
+	}
+	return intResult(daysBetween(dt1, dt2))
 }
 
 // HoursBetween implements the HoursBetween() built-in function.
-// Calculates whole hours between two TDateTime values.
 func HoursBetween(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("HoursBetween() expects 2 arguments (dt1, dt2), got %d", len(args))
+	dt1, dt2, errVal := dateTimePair(ctx, args, "HoursBetween")
+	if errVal != nil {
+		return errVal
 	}
-
-	dt1Val, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("HoursBetween() expects Float/TDateTime as first argument, got %s", args[0].Type())
-	}
-
-	dt2Val, ok := args[1].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("HoursBetween() expects Float/TDateTime as second argument, got %s", args[1].Type())
-	}
-
-	hours := hoursBetween(dt1Val.Value, dt2Val.Value)
-	return &runtime.IntegerValue{Value: int64(hours)}
+	return intResult(hoursBetween(dt1, dt2))
 }
 
 // MinutesBetween implements the MinutesBetween() built-in function.
-// Calculates whole minutes between two TDateTime values.
 func MinutesBetween(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("MinutesBetween() expects 2 arguments (dt1, dt2), got %d", len(args))
+	dt1, dt2, errVal := dateTimePair(ctx, args, "MinutesBetween")
+	if errVal != nil {
+		return errVal
 	}
-
-	dt1Val, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("MinutesBetween() expects Float/TDateTime as first argument, got %s", args[0].Type())
-	}
-
-	dt2Val, ok := args[1].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("MinutesBetween() expects Float/TDateTime as second argument, got %s", args[1].Type())
-	}
-
-	minutes := minutesBetween(dt1Val.Value, dt2Val.Value)
-	return &runtime.IntegerValue{Value: int64(minutes)}
+	return intResult(minutesBetween(dt1, dt2))
 }
 
 // SecondsBetween implements the SecondsBetween() built-in function.
-// Calculates whole seconds between two TDateTime values.
 func SecondsBetween(ctx Context, args []Value) Value {
-	if len(args) != 2 {
-		return ctx.NewError("SecondsBetween() expects 2 arguments (dt1, dt2), got %d", len(args))
+	dt1, dt2, errVal := dateTimePair(ctx, args, "SecondsBetween")
+	if errVal != nil {
+		return errVal
 	}
-
-	dt1Val, ok := args[0].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("SecondsBetween() expects Float/TDateTime as first argument, got %s", args[0].Type())
-	}
-
-	dt2Val, ok := args[1].(*runtime.FloatValue)
-	if !ok {
-		return ctx.NewError("SecondsBetween() expects Float/TDateTime as second argument, got %s", args[1].Type())
-	}
-
-	seconds := secondsBetween(dt1Val.Value, dt2Val.Value)
-	return &runtime.IntegerValue{Value: int64(seconds)}
+	return intResult(secondsBetween(dt1, dt2))
 }

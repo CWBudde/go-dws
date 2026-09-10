@@ -422,127 +422,174 @@ func RegisterStringFunctions(r *Registry) {
 }
 
 // RegisterDateTimeFunctions registers all date/time built-in functions.
+//
+// TDateTime is an alias of Float, so every TDateTime parameter uses the
+// numeric constraint: an Integer argument converts implicitly, exactly as in
+// DWScript. The optional trailing DateTimeZone parameter is nominally an
+// Integer and also accepts the DateTimeZone enumeration.
 func RegisterDateTimeFunctions(r *Registry) {
-	F := types.FLOAT // DateTime stored as Float
+	F := types.FLOAT // TDateTime is stored as Float
 	I := types.INTEGER
 	S := types.STRING
 	B := types.BOOLEAN
+	Z := types.INTEGER // DateTimeZone ordinal
+
+	dt := numericParameter
+	zone := ParameterConstraint{Types: []types.Type{types.INTEGER}, AllowEnum: true}
+	str := exactParameter
+	num := exactParameter
 
 	// Date/time creation
 	r.RegisterWithSignature("EncodeDate", EncodeDate, CategoryDateTime, "Creates date from year, month, day",
-		Sig([]types.Type{I, I, I}, F).WithConstraints(exactParameter, exactParameter, exactParameter))
+		SigOptional([]types.Type{I, I, I, Z}, F, 3).WithConstraints(num, num, num, zone))
 	r.RegisterWithSignature("EncodeTime", EncodeTime, CategoryDateTime, "Creates time from hour, minute, second",
-		Sig([]types.Type{I, I, I, I}, F).WithConstraints(exactParameter, exactParameter, exactParameter, exactParameter))
+		Sig([]types.Type{I, I, I, I}, F).WithConstraints(num, num, num, num))
 	r.RegisterWithSignature("EncodeDateTime", EncodeDateTime, CategoryDateTime, "Creates datetime from components",
-		Sig([]types.Type{I, I, I, I, I, I, I}, F).WithConstraints(exactParameter, exactParameter, exactParameter, exactParameter, exactParameter, exactParameter, exactParameter))
-	r.RegisterWithSignature("Now", Now, CategoryDateTime, "Returns current date and time",
+		SigOptional([]types.Type{I, I, I, I, I, I, I, Z}, F, 7).
+			WithConstraints(num, num, num, num, num, num, num, zone))
+	r.RegisterWithSignature("Now", Now, CategoryDateTime, "Returns current local date and time",
 		Sig(nil, F))
-	r.RegisterWithSignature("Date", Date, CategoryDateTime, "Returns current date",
+	r.RegisterWithSignature("Date", Date, CategoryDateTime, "Returns current local date",
 		Sig(nil, F))
-	r.RegisterWithSignature("Time", Time, CategoryDateTime, "Returns current time",
+	r.RegisterWithSignature("Time", Time, CategoryDateTime, "Returns current local time",
 		Sig(nil, F))
 	r.RegisterWithSignature("UTCDateTime", UTCDateTime, CategoryDateTime, "Returns current UTC datetime",
 		Sig(nil, F))
+	r.RegisterWithSignature("Sleep", Sleep, CategoryDateTime, "Pauses execution for a number of milliseconds",
+		Sig([]types.Type{I}, nil).WithConstraints(num))
+
+	// Timezone conversions
+	r.RegisterWithSignature("LocalDateTimeToUTCDateTime", LocalDateTimeToUTCDateTime, CategoryDateTime,
+		"Reinterprets a local datetime as UTC", Sig([]types.Type{F}, F).WithConstraints(dt))
+	r.RegisterWithSignature("UTCDateTimeToLocalDateTime", UTCDateTimeToLocalDateTime, CategoryDateTime,
+		"Reinterprets a UTC datetime as local time", Sig([]types.Type{F}, F).WithConstraints(dt))
 
 	// Date/time arithmetic
 	r.RegisterWithSignature("IncYear", IncYear, CategoryDateTime, "Adds years to a date",
-		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
+		SigOptional([]types.Type{F, I}, F, 1).WithConstraints(dt, num))
 	r.RegisterWithSignature("IncMonth", IncMonth, CategoryDateTime, "Adds months to a date",
-		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
+		SigOptional([]types.Type{F, I}, F, 1).WithConstraints(dt, num))
+	r.RegisterWithSignature("IncWeek", IncWeek, CategoryDateTime, "Adds weeks to a date",
+		SigOptional([]types.Type{F, I}, F, 1).WithConstraints(dt, num))
 	r.RegisterWithSignature("IncDay", IncDay, CategoryDateTime, "Adds days to a date",
-		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
+		SigOptional([]types.Type{F, I}, F, 1).WithConstraints(dt, num))
 	r.RegisterWithSignature("IncHour", IncHour, CategoryDateTime, "Adds hours to a datetime",
-		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
+		SigOptional([]types.Type{F, I}, F, 1).WithConstraints(dt, num))
 	r.RegisterWithSignature("IncMinute", IncMinute, CategoryDateTime, "Adds minutes to a datetime",
-		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
+		SigOptional([]types.Type{F, I}, F, 1).WithConstraints(dt, num))
 	r.RegisterWithSignature("IncSecond", IncSecond, CategoryDateTime, "Adds seconds to a datetime",
-		Sig([]types.Type{F, I}, F).WithConstraints(exactParameter, exactParameter))
+		SigOptional([]types.Type{F, I}, F, 1).WithConstraints(dt, num))
+	r.RegisterWithSignature("IncMilliSecond", IncMilliSecond, CategoryDateTime, "Adds milliseconds to a datetime",
+		SigOptional([]types.Type{F, I}, F, 1).WithConstraints(dt, num))
 	r.RegisterWithSignature("DaysBetween", DaysBetween, CategoryDateTime, "Returns days between two dates",
-		Sig([]types.Type{F, F}, I).WithConstraints(exactParameter, exactParameter))
+		Sig([]types.Type{F, F}, I).WithConstraints(dt, dt))
 	r.RegisterWithSignature("HoursBetween", HoursBetween, CategoryDateTime, "Returns hours between two datetimes",
-		Sig([]types.Type{F, F}, I).WithConstraints(exactParameter, exactParameter))
+		Sig([]types.Type{F, F}, I).WithConstraints(dt, dt))
 	r.RegisterWithSignature("MinutesBetween", MinutesBetween, CategoryDateTime, "Returns minutes between two datetimes",
-		Sig([]types.Type{F, F}, I).WithConstraints(exactParameter, exactParameter))
+		Sig([]types.Type{F, F}, I).WithConstraints(dt, dt))
 	r.RegisterWithSignature("SecondsBetween", SecondsBetween, CategoryDateTime, "Returns seconds between two datetimes",
-		Sig([]types.Type{F, F}, I).WithConstraints(exactParameter, exactParameter))
+		Sig([]types.Type{F, F}, I).WithConstraints(dt, dt))
 
 	// Date/time formatting
 	r.RegisterWithSignature("FormatDateTime", FormatDateTime, CategoryDateTime, "Formats datetime with format string",
-		Sig([]types.Type{S, F}, S).WithConstraints(exactParameter, exactParameter))
+		SigOptional([]types.Type{S, F, Z}, S, 2).WithConstraints(str, dt, zone))
 	r.RegisterWithSignature("DateTimeToStr", DateTimeToStr, CategoryDateTime, "Converts datetime to string",
-		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
+		SigOptional([]types.Type{F, Z}, S, 1).WithConstraints(dt, zone))
 	r.RegisterWithSignature("DateToStr", DateToStr, CategoryDateTime, "Converts date to string",
-		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
+		SigOptional([]types.Type{F, Z}, S, 1).WithConstraints(dt, zone))
 	r.RegisterWithSignature("TimeToStr", TimeToStr, CategoryDateTime, "Converts time to string",
-		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
+		SigOptional([]types.Type{F, Z}, S, 1).WithConstraints(dt, zone))
 	r.RegisterWithSignature("DateToISO8601", DateToISO8601, CategoryDateTime, "Converts date to ISO8601 format",
-		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
-	r.RegisterWithSignature("DateTimeToISO8601", DateTimeToISO8601, CategoryDateTime, "Converts datetime to ISO8601 format",
-		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, S).WithConstraints(dt))
+	r.RegisterWithSignature("DateTimeToISO8601", DateTimeToISO8601, CategoryDateTime,
+		"Converts datetime to ISO8601 format, optionally with 'sec' or 'msec' precision",
+		SigOptional([]types.Type{F, S}, S, 1).WithConstraints(dt, str))
 	r.RegisterWithSignature("DateTimeToRFC822", DateTimeToRFC822, CategoryDateTime, "Converts datetime to RFC822 format",
-		Sig([]types.Type{F}, S).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, S).WithConstraints(dt))
 
 	// Date/time parsing
 	r.RegisterWithSignature("StrToDate", StrToDate, CategoryDateTime, "Parses string to date",
-		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
+		SigOptional([]types.Type{S, Z}, F, 1).WithConstraints(str, zone))
+	r.RegisterWithSignature("StrToDateDef", StrToDateDef, CategoryDateTime, "Parses string to date with a default",
+		SigOptional([]types.Type{S, F, Z}, F, 2).WithConstraints(str, dt, zone))
 	r.RegisterWithSignature("StrToDateTime", StrToDateTime, CategoryDateTime, "Parses string to datetime",
-		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
+		SigOptional([]types.Type{S, Z}, F, 1).WithConstraints(str, zone))
+	r.RegisterWithSignature("StrToDateTimeDef", StrToDateTimeDef, CategoryDateTime,
+		"Parses string to datetime with a default",
+		SigOptional([]types.Type{S, F, Z}, F, 2).WithConstraints(str, dt, zone))
 	r.RegisterWithSignature("StrToTime", StrToTime, CategoryDateTime, "Parses string to time",
-		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
+		SigOptional([]types.Type{S, Z}, F, 1).WithConstraints(str, zone))
+	r.RegisterWithSignature("StrToTimeDef", StrToTimeDef, CategoryDateTime, "Parses string to time with a default",
+		SigOptional([]types.Type{S, F, Z}, F, 2).WithConstraints(str, dt, zone))
+	r.RegisterWithSignature("ParseDateTime", ParseDateTime, CategoryDateTime,
+		"Parses a string against an explicit format, returning 0 on mismatch",
+		SigOptional([]types.Type{S, S, Z}, F, 2).WithConstraints(str, str, zone))
 	r.RegisterWithSignature("ISO8601ToDateTime", ISO8601ToDateTime, CategoryDateTime, "Parses ISO8601 to datetime",
-		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
+		Sig([]types.Type{S}, F).WithConstraints(str))
 	r.RegisterWithSignature("RFC822ToDateTime", RFC822ToDateTime, CategoryDateTime, "Parses RFC822 to datetime",
-		Sig([]types.Type{S}, F).WithConstraints(exactParameter))
+		Sig([]types.Type{S}, F).WithConstraints(str))
 
 	// Unix time conversions
 	r.RegisterWithSignature("UnixTime", UnixTime, CategoryDateTime, "Returns current Unix timestamp",
 		Sig(nil, I))
-	r.RegisterWithSignature("UnixTimeMSec", UnixTimeMSec, CategoryDateTime, "Returns current Unix timestamp in milliseconds",
-		Sig(nil, I))
-	r.RegisterWithSignature("UnixTimeToDateTime", UnixTimeToDateTime, CategoryDateTime, "Converts Unix timestamp to datetime",
-		Sig([]types.Type{I}, F).WithConstraints(exactParameter))
-	r.RegisterWithSignature("DateTimeToUnixTime", DateTimeToUnixTime, CategoryDateTime, "Converts datetime to Unix timestamp",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
-	r.RegisterWithSignature("UnixTimeMSecToDateTime", UnixTimeMSecToDateTime, CategoryDateTime, "Converts Unix milliseconds to datetime",
-		Sig([]types.Type{I}, F).WithConstraints(exactParameter))
-	r.RegisterWithSignature("DateTimeToUnixTimeMSec", DateTimeToUnixTimeMSec, CategoryDateTime, "Converts datetime to Unix milliseconds",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+	r.RegisterWithSignature("UnixTimeMSec", UnixTimeMSec, CategoryDateTime,
+		"Returns current Unix timestamp in milliseconds", Sig(nil, I))
+	r.RegisterWithSignature("UnixTimeToDateTime", UnixTimeToDateTime, CategoryDateTime,
+		"Converts Unix timestamp to UTC datetime", Sig([]types.Type{F}, F).WithConstraints(dt))
+	r.RegisterWithSignature("DateTimeToUnixTime", DateTimeToUnixTime, CategoryDateTime,
+		"Converts UTC datetime to Unix timestamp", Sig([]types.Type{F}, I).WithConstraints(dt))
+	r.RegisterWithSignature("UnixTimeMSecToDateTime", UnixTimeMSecToDateTime, CategoryDateTime,
+		"Converts Unix milliseconds to UTC datetime", Sig([]types.Type{I}, F).WithConstraints(num))
+	r.RegisterWithSignature("DateTimeToUnixTimeMSec", DateTimeToUnixTimeMSec, CategoryDateTime,
+		"Converts UTC datetime to Unix milliseconds", Sig([]types.Type{F}, I).WithConstraints(dt))
+	r.RegisterWithSignature("LocalDateTimeToUnixTime", LocalDateTimeToUnixTime, CategoryDateTime,
+		"Converts local datetime to Unix timestamp", Sig([]types.Type{F}, I).WithConstraints(dt))
+	r.RegisterWithSignature("UnixTimeToLocalDateTime", UnixTimeToLocalDateTime, CategoryDateTime,
+		"Converts Unix timestamp to local datetime", Sig([]types.Type{I}, F).WithConstraints(num))
 
 	// Date/time information
 	r.RegisterWithSignature("YearOf", YearOf, CategoryDateTime, "Extracts year from datetime",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("MonthOf", MonthOf, CategoryDateTime, "Extracts month from datetime",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
+	r.RegisterWithSignature("MonthOfYear", MonthOfYear, CategoryDateTime, "Extracts month from datetime",
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("DayOf", DayOf, CategoryDateTime, "Extracts day from datetime",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
+	r.RegisterWithSignature("DayOfMonth", DayOfMonth, CategoryDateTime, "Extracts day of month from datetime",
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("HourOf", HourOf, CategoryDateTime, "Extracts hour from datetime",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("MinuteOf", MinuteOf, CategoryDateTime, "Extracts minute from datetime",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("SecondOf", SecondOf, CategoryDateTime, "Extracts second from datetime",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
-	r.RegisterWithSignature("DayOfWeek", DayOfWeek, CategoryDateTime, "Returns day of week (0=Sunday)",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
+	r.RegisterWithSignature("DayOfWeek", DayOfWeek, CategoryDateTime, "Returns day of week (1=Sunday)",
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("DayOfTheWeek", DayOfTheWeek, CategoryDateTime, "Returns day of week (1=Monday)",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("DayOfYear", DayOfYear, CategoryDateTime, "Returns day of year (1-366)",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("WeekNumber", WeekNumber, CategoryDateTime, "Returns ISO week number",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
+	r.RegisterWithSignature("DateToWeekNumber", DateToWeekNumber, CategoryDateTime, "Returns ISO week number",
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("YearOfWeek", YearOfWeek, CategoryDateTime, "Returns year of ISO week",
-		Sig([]types.Type{F}, I).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, I).WithConstraints(dt))
+	r.RegisterWithSignature("DateToYearOfWeek", DateToYearOfWeek, CategoryDateTime, "Returns year of ISO week",
+		Sig([]types.Type{F}, I).WithConstraints(dt))
 	r.RegisterWithSignature("IsLeapYear", IsLeapYear, CategoryDateTime, "Checks if year is a leap year",
-		Sig([]types.Type{I}, B).WithConstraints(exactParameter))
+		Sig([]types.Type{I}, B).WithConstraints(num))
 	r.RegisterWithSignature("FirstDayOfYear", FirstDayOfYear, CategoryDateTime, "Returns first day of year",
-		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, F).WithConstraints(dt))
 	r.RegisterWithSignature("FirstDayOfNextYear", FirstDayOfNextYear, CategoryDateTime, "Returns first day of next year",
-		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, F).WithConstraints(dt))
 	r.RegisterWithSignature("FirstDayOfMonth", FirstDayOfMonth, CategoryDateTime, "Returns first day of month",
-		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
-	r.RegisterWithSignature("FirstDayOfNextMonth", FirstDayOfNextMonth, CategoryDateTime, "Returns first day of next month",
-		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, F).WithConstraints(dt))
+	r.RegisterWithSignature("FirstDayOfNextMonth", FirstDayOfNextMonth, CategoryDateTime,
+		"Returns first day of next month", Sig([]types.Type{F}, F).WithConstraints(dt))
 	r.RegisterWithSignature("FirstDayOfWeek", FirstDayOfWeek, CategoryDateTime, "Returns first day of ISO week",
-		Sig([]types.Type{F}, F).WithConstraints(exactParameter))
+		Sig([]types.Type{F}, F).WithConstraints(dt))
 }
 
 // RegisterConversionFunctions registers all type conversion built-in functions.
