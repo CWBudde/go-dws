@@ -20,7 +20,7 @@ func (v *VariantValue) Type() string {
 // String returns the string representation of the wrapped value.
 func (v *VariantValue) String() string {
 	if v.Value == nil {
-		return "Unassigned" // Similar to Delphi's unassigned variant
+		return "" // DWScript prints an unassigned Variant as nothing at all
 	}
 	return v.Value.String()
 }

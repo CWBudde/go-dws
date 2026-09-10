@@ -4,6 +4,7 @@ import (
 	"io"
 	"math"
 
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -109,6 +110,11 @@ func NewWithDeps(
 	env.Define("Infinity", &FloatValue{Value: math.Inf(1)})
 	env.Define("Null", NewNullValue())
 	env.Define("Unassigned", NewUnassignedValue())
+
+	// Variant type-code constants (varInteger, varString, ...)
+	for _, c := range builtins.VarTypeConstants() {
+		env.Define(c.Name, &IntegerValue{Value: c.Value})
+	}
 
 	return interp
 }

@@ -524,9 +524,9 @@ func TestVariantValueUnassigned(t *testing.T) {
 		t.Errorf("VariantValue.Type() = %v, want VARIANT", got)
 	}
 
-	// Test String() returns "Unassigned" for nil value
-	if got := variant.String(); got != "Unassigned" {
-		t.Errorf("VariantValue.String() = %v, want Unassigned", got)
+	// Test String() returns the empty string for an unassigned Variant
+	if got := variant.String(); got != "" {
+		t.Errorf("VariantValue.String() = %q, want an empty string", got)
 	}
 }
 

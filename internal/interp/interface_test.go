@@ -170,8 +170,9 @@ func TestInterfaceInstanceImplementsValue(t *testing.T) {
 		t.Errorf("iface.Type() = %s, want INTERFACE", iface.Type())
 	}
 
-	// Test String() method
-	expected := "IMyInterface instance (wrapping TMyClass)"
+	// Test String() method: DWScript renders a bound interface reference with
+	// its own internal symbol class name (see runtime.InterfaceInstance.String).
+	expected := "TInterfaceSymbol"
 	if iface.String() != expected {
 		t.Errorf("iface.String() = %s, want %s", iface.String(), expected)
 	}

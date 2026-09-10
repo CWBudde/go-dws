@@ -178,6 +178,11 @@ func NewAnalyzer() *Analyzer {
 	a.symbols.DefineConst("Null", types.VARIANT, nil, token.Position{})
 	a.symbols.DefineConst("Unassigned", types.VARIANT, nil, token.Position{})
 
+	// Register Variant type-code constants (varInteger, varString, ...)
+	for _, c := range builtins.VarTypeConstants() {
+		a.symbols.DefineConst(c.Name, types.INTEGER, c.Value, token.Position{})
+	}
+
 	return a
 }
 

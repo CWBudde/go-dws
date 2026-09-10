@@ -43,11 +43,12 @@ func TestBuiltinVarType_Boolean(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-func TestBuiltinVarType_InvalidType(t *testing.T) {
+// DWScript implicitly boxes a non-Variant argument into a Variant parameter.
+func TestBuiltinVarType_AutoBoxedInteger(t *testing.T) {
 	input := `
 		var vt := VarType(42);
 	`
-	expectError(t, input, "variant")
+	expectNoErrors(t, input)
 }
 
 // VarIsNull function tests
@@ -67,11 +68,12 @@ func TestBuiltinVarIsNull_NotNull(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-func TestBuiltinVarIsNull_InvalidType(t *testing.T) {
+// DWScript implicitly boxes a non-Variant argument into a Variant parameter.
+func TestBuiltinVarIsNull_AutoBoxedString(t *testing.T) {
 	input := `
 		var isNull := VarIsNull('hello');
 	`
-	expectError(t, input, "variant")
+	expectNoErrors(t, input)
 }
 
 // VarIsEmpty function tests
@@ -158,11 +160,12 @@ func TestBuiltinVarToInt_String(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-func TestBuiltinVarToInt_InvalidType(t *testing.T) {
+// DWScript implicitly boxes a non-Variant argument into a Variant parameter.
+func TestBuiltinVarToInt_AutoBoxedInteger(t *testing.T) {
 	input := `
 		var n := VarToInt(42);
 	`
-	expectError(t, input, "variant")
+	expectNoErrors(t, input)
 }
 
 // VarToFloat function tests
@@ -389,11 +392,12 @@ func TestBuiltinVarIsClear_NotClear(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-func TestBuiltinVarIsClear_InvalidType(t *testing.T) {
+// DWScript implicitly boxes a non-Variant argument into a Variant parameter.
+func TestBuiltinVarIsClear_AutoBoxedInteger(t *testing.T) {
 	input := `
 		var isClear := VarIsClear(123);
 	`
-	expectError(t, input, "variant")
+	expectNoErrors(t, input)
 }
 
 // VarIsArray function tests
@@ -422,11 +426,12 @@ func TestBuiltinVarIsArray_Integer(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-func TestBuiltinVarIsArray_InvalidType(t *testing.T) {
+// DWScript implicitly boxes a non-Variant argument into a Variant parameter.
+func TestBuiltinVarIsArray_AutoBoxedString(t *testing.T) {
 	input := `
 		var isArray := VarIsArray('test');
 	`
-	expectError(t, input, "variant")
+	expectNoErrors(t, input)
 }
 
 // VarIsStr function tests
@@ -455,11 +460,12 @@ func TestBuiltinVarIsStr_Array(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-func TestBuiltinVarIsStr_InvalidType(t *testing.T) {
+// DWScript implicitly boxes a non-Variant argument into a Variant parameter.
+func TestBuiltinVarIsStr_AutoBoxedInteger(t *testing.T) {
 	input := `
 		var isStr := VarIsStr(42);
 	`
-	expectError(t, input, "variant")
+	expectNoErrors(t, input)
 }
 
 // Combined tests for all three new functions

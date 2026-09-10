@@ -326,6 +326,8 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.builtinInsert(node.Arguments, ctx)
 	case "swap":
 		return e.builtinSwap(node.Arguments, ctx)
+	case "varclear":
+		return e.builtinVarClear(node.Arguments, ctx)
 	case "include", "exclude":
 		return e.builtinIncludeExclude(funcNameLower, node.Arguments, ctx)
 	case "divmod":

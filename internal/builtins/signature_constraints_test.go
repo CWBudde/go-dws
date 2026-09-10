@@ -24,8 +24,9 @@ func TestBuiltinSignatures_CallConstraints(t *testing.T) {
 		{&types.TypeAlias{Name: "DateAlias", AliasedType: types.FLOAT}, "YearOf", 0, false},
 		{types.VARIANT, "VarIsEmpty", 0, true},
 		{types.JSON_VARIANT, "VarIsEmpty", 0, true},
-		{types.STRING, "VarIsEmpty", 0, false},
-		{variantAlias, "VarIsEmpty", 0, false},
+		// DWScript auto-boxes any value into a Variant parameter.
+		{types.STRING, "VarIsEmpty", 0, true},
+		{variantAlias, "VarIsEmpty", 0, true},
 		{types.STRING, "ToJSON", 0, true},
 		{variantAlias, "LeftStr", 0, true},
 		{variantAlias, "LeftStr", 1, false},

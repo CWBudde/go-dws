@@ -45,7 +45,8 @@ const (
 	varLongWord = 19     // LongWord (unsigned 32-bit)
 	varInt64    = 20     // 64-bit signed integer
 	varUInt64   = 21     // 64-bit unsigned integer
-	varString   = 256    // String (Unicode)
+	varString   = 256    // String
+	varUString  = 258    // Unicode string
 	varArray    = 0x2000 // Array flag (ORed with element type)
 	varJSON     = 0x1000 // JSON object
 )
@@ -97,7 +98,8 @@ func varTypeFromValue(ctx Context, val Value) Value {
 
 	switch runtime.KindOf(val) {
 	case runtime.KindInteger:
-		return &runtime.IntegerValue{Value: varInteger}
+		// DWScript's native integer is 64-bit.
+		return &runtime.IntegerValue{Value: varInt64}
 	case runtime.KindFloat:
 		return &runtime.IntegerValue{Value: varDouble}
 	case runtime.KindString:
@@ -116,83 +118,80 @@ func varTypeFromValue(ctx Context, val Value) Value {
 	}
 }
 
-// VarIsNull checks if a Variant is unassigned (has no value).
+// VarIsNull checks if a Variant holds the Null value.
 // VarIsNull(v: Variant): Boolean
 //
-// Returns True if the Variant is unassigned, False otherwise.
-// In DWScript, "null" and "empty" are essentially the same for Variants.
+// Returns True only for the SQL-style Null value. An unassigned (Empty)
+// Variant is *not* Null - use VarIsEmpty/VarIsClear for that.
 //
 // Example:
 //
 //	var v: Variant;
-//	PrintLn(VarIsNull(v));  // Outputs: true
-//	v := 42;
-//	PrintLn(VarIsNull(v));  // Outputs: false
+//	PrintLn(VarIsNull(v));     // Outputs: False
+//	v := Null;
+//	PrintLn(VarIsNull(v));     // Outputs: True
 func VarIsNull(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("VarIsNull() expects exactly 1 argument, got %d", len(args))
 	}
 
-	arg := args[0]
-
-	// Unwrap if it's a Variant
-	val := ctx.UnwrapVariant(arg)
-
-	// Variant is null if its wrapped value is nil or is a nil-like value
+	val := ctx.UnwrapVariant(args[0])
 	if val == nil {
-		return &runtime.BooleanValue{Value: true}
-	}
-
-	// A JSONVariant reads as empty/null only when it is an Undefined JSON value.
-	if jv, ok := val.(*runtime.JSONValue); ok {
-		return &runtime.BooleanValue{Value: jv.IsUndefined()}
-	}
-
-	// Check for nil-like types
-	switch runtime.KindOf(val) {
-	case runtime.KindNil, runtime.KindNull, runtime.KindUnassigned:
-		return &runtime.BooleanValue{Value: true}
-	default:
 		return &runtime.BooleanValue{Value: false}
 	}
+
+	// A JSON value reads as Null only when it is the JSON null literal.
+	if jv, ok := val.(*runtime.JSONValue); ok {
+		return &runtime.BooleanValue{Value: jv.IsNull()}
+	}
+
+	return &runtime.BooleanValue{Value: runtime.KindOf(val) == runtime.KindNull}
 }
 
 // VarIsEmpty checks if a Variant is empty (unassigned).
 // VarIsEmpty(v: Variant): Boolean
 //
-// Returns True if the Variant is empty, False otherwise.
-// In DWScript, VarIsEmpty is equivalent to VarIsNull.
+// Returns True if the Variant never received a value. Null is a value, so
+// VarIsEmpty(Null) is False.
 //
 // Example:
 //
 //	var v: Variant;
-//	PrintLn(VarIsEmpty(v));  // Outputs: true
+//	PrintLn(VarIsEmpty(v));  // Outputs: True
 func VarIsEmpty(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("VarIsEmpty() expects exactly 1 argument, got %d", len(args))
 	}
 
-	// VarIsEmpty is the same as VarIsNull in DWScript
-	return VarIsNull(ctx, args)
+	val := ctx.UnwrapVariant(args[0])
+	return &runtime.BooleanValue{Value: isUnassignedVariant(val)}
 }
 
 // VarIsClear checks if a Variant is cleared (unassigned).
 // VarIsClear(v: Variant): Boolean
 //
-// Returns True if the Variant is cleared, False otherwise.
-// In DWScript, VarIsClear is an alias for VarIsEmpty.
-//
-// Example:
-//
-//	var v: Variant;
-//	PrintLn(VarIsClear(v));  // Outputs: true
+// VarIsClear is an alias for VarIsEmpty.
 func VarIsClear(ctx Context, args []Value) Value {
 	if len(args) != 1 {
 		return ctx.NewError("VarIsClear() expects exactly 1 argument, got %d", len(args))
 	}
 
-	// VarIsClear is the same as VarIsNull in DWScript
-	return VarIsNull(ctx, args)
+	val := ctx.UnwrapVariant(args[0])
+	return &runtime.BooleanValue{Value: isUnassignedVariant(val)}
+}
+
+// isUnassignedVariant reports whether an unwrapped Variant payload never
+// received a value. Null and a nil interface/object reference are values.
+func isUnassignedVariant(val Value) bool {
+	if val == nil {
+		return true
+	}
+	// JSON undefined (a missing member or an out-of-range element) is empty;
+	// the JSON null literal is not.
+	if jv, ok := val.(*runtime.JSONValue); ok {
+		return jv.IsUndefined()
+	}
+	return runtime.KindOf(val) == runtime.KindUnassigned
 }
 
 // VarIsArray checks if a Variant holds an array value.
@@ -213,6 +212,10 @@ func VarIsArray(ctx Context, args []Value) Value {
 
 	// Unwrap if it's a Variant
 	val := ctx.UnwrapVariant(arg)
+
+	if jv, ok := val.(*runtime.JSONValue); ok {
+		return &runtime.BooleanValue{Value: jv.IsArray()}
+	}
 
 	// Check if the unwrapped value is an array
 	if val != nil && runtime.KindOf(val) == runtime.KindArray {
@@ -240,6 +243,10 @@ func VarIsStr(ctx Context, args []Value) Value {
 	// Unwrap if it's a Variant
 	val := ctx.UnwrapVariant(arg)
 
+	if jv, ok := val.(*runtime.JSONValue); ok {
+		return &runtime.BooleanValue{Value: jv.IsString()}
+	}
+
 	// Check if the unwrapped value is a string
 	if val != nil && runtime.KindOf(val) == runtime.KindString {
 		return &runtime.BooleanValue{Value: true}
@@ -265,6 +272,10 @@ func VarIsNumeric(ctx Context, args []Value) Value {
 
 	// Unwrap if it's a Variant
 	val := ctx.UnwrapVariant(arg)
+
+	if jv, ok := val.(*runtime.JSONValue); ok {
+		return &runtime.BooleanValue{Value: jv.IsNumber()}
+	}
 
 	// Check if the unwrapped value is numeric
 	if val != nil {
@@ -483,11 +494,11 @@ func VarAsType(ctx Context, args []Value) Value {
 	// Handle nil/empty Variant - convert to zero value of target type
 	if val == nil || runtime.KindOf(val) == runtime.KindNil || runtime.KindOf(val) == runtime.KindNull || runtime.KindOf(val) == runtime.KindUnassigned {
 		switch targetType {
-		case varInteger:
+		case varInteger, varInt64, varSmallint, varByte, varWord, varLongWord:
 			return &runtime.IntegerValue{Value: 0}
-		case varDouble:
+		case varDouble, varSingle, varCurrency:
 			return &runtime.FloatValue{Value: 0.0}
-		case varString:
+		case varString, varUString, varOleStr:
 			return &runtime.StringValue{Value: ""}
 		case varBoolean:
 			return &runtime.BooleanValue{Value: false}
@@ -503,19 +514,19 @@ func VarAsType(ctx Context, args []Value) Value {
 	// Convert based on target type
 	var converted Value
 	switch targetType {
-	case varInteger:
+	case varInteger, varInt64, varSmallint, varByte, varWord, varLongWord:
 		// Use VarToInt for conversion
 		converted = VarToInt(ctx, []Value{arg})
 		if runtime.KindOf(converted) == runtime.KindError {
 			return converted
 		}
-	case varDouble:
+	case varDouble, varSingle, varCurrency:
 		// Use VarToFloat for conversion
 		converted = VarToFloat(ctx, []Value{arg})
 		if runtime.KindOf(converted) == runtime.KindError {
 			return converted
 		}
-	case varString:
+	case varString, varUString, varOleStr:
 		// Use VarToStr for conversion
 		converted = VarToStr(ctx, []Value{arg})
 		if runtime.KindOf(converted) == runtime.KindError {

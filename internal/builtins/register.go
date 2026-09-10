@@ -700,31 +700,31 @@ func RegisterVariantFunctions(r *Registry) {
 	r.RegisterWithSignature("VarType", VarType, CategoryVariant, "Returns the type code of a Variant",
 		Sig([]types.Type{V}, I))
 	r.RegisterWithSignature("VarIsNull", VarIsNull, CategoryVariant, "Checks if Variant is unassigned",
-		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
+		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
 	r.RegisterWithSignature("VarIsEmpty", VarIsEmpty, CategoryVariant, "Checks if Variant is empty (alias for VarIsNull)",
-		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
+		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
 	r.RegisterWithSignature("VarIsClear", VarIsClear, CategoryVariant, "Checks if Variant is cleared (alias for VarIsNull)",
-		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
+		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
 	r.RegisterWithSignature("VarIsArray", VarIsArray, CategoryVariant, "Checks if Variant holds an array",
-		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
+		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
 	r.RegisterWithSignature("VarIsStr", VarIsStr, CategoryVariant, "Checks if Variant holds a string",
-		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
+		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
 	r.RegisterWithSignature("VarIsNumeric", VarIsNumeric, CategoryVariant, "Checks if Variant holds a numeric value",
-		Sig([]types.Type{V}, B).WithConstraints(variantParameter))
+		Sig([]types.Type{V}, B).WithConstraints(autoBoxedVariantParameter))
 
 	// Variant conversion
 	r.RegisterWithSignature("VarToStr", VarToStr, CategoryVariant, "Converts Variant to string",
 		Sig([]types.Type{V}, S))
 	r.RegisterWithSignature("VarToInt", VarToInt, CategoryVariant, "Converts Variant to integer",
-		Sig([]types.Type{V}, I).WithConstraints(variantParameter))
+		Sig([]types.Type{V}, I).WithConstraints(autoBoxedVariantParameter))
 	r.RegisterWithSignature("VarToIntDef", VarToIntDef, CategoryVariant, "Converts Variant to integer with a default value",
 		Sig([]types.Type{V, I}, I).WithConstraints(ParameterConstraint{Any: true}, exactParameter))
 	r.RegisterWithSignature("VarToFloat", VarToFloat, CategoryVariant, "Converts Variant to float",
-		Sig([]types.Type{V}, F).WithConstraints(variantParameter))
+		Sig([]types.Type{V}, F).WithConstraints(autoBoxedVariantParameter))
 	r.RegisterWithSignature("VarToFloatDef", VarToFloatDef, CategoryVariant, "Converts Variant to float with a default value",
 		Sig([]types.Type{V, F}, F).WithConstraints(ParameterConstraint{Any: true}, exactParameter))
 	r.RegisterWithSignature("VarAsType", VarAsType, CategoryVariant, "Converts Variant to specified type code",
-		Sig([]types.Type{V, I}, V).WithConstraints(variantParameter, ParameterConstraint{Types: []types.Type{types.INTEGER, types.STRING}}))
+		Sig([]types.Type{V, I}, V).WithConstraints(autoBoxedVariantParameter, ParameterConstraint{Types: []types.Type{types.INTEGER, types.STRING}}))
 	r.RegisterWithSignature("VarClear", VarClear, CategoryVariant, "Clears Variant to unassigned state",
 		Sig([]types.Type{V}, nil)) // Procedure (modifies input)
 }

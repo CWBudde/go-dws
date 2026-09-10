@@ -922,6 +922,25 @@ func (e *Evaluator) builtinSwap(args []ast.Expression, ctx *ExecutionContext) Va
 	return &runtime.NilValue{}
 }
 
+// builtinVarClear implements VarClear(var v : Variant), which resets a Variant
+// variable to its unassigned state. DWScript declares it with a var parameter,
+// so the write has to reach the variable rather than a copy.
+func (e *Evaluator) builtinVarClear(args []ast.Expression, ctx *ExecutionContext) Value {
+	if len(args) != 1 {
+		return e.newError(nil, "VarClear() expects exactly 1 argument, got %d", len(args))
+	}
+
+	_, assign, err := e.EvaluateLValue(args[0], ctx)
+	if err != nil {
+		return e.newError(nil, "VarClear() argument must be a variable: %s", err.Error())
+	}
+	if err := assign(&runtime.UnassignedValue{}); err != nil {
+		return e.newError(nil, "VarClear() failed to clear the variable: %s", err.Error())
+	}
+
+	return &runtime.NilValue{}
+}
+
 // builtinIncludeExclude implements the procedure forms of the set builtins
 // Include(setVar, element) and Exclude(setVar, element). Both mutate the set
 // variable in place: Include adds an element, Exclude removes it.

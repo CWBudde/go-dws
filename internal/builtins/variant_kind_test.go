@@ -24,7 +24,7 @@ func TestVariantIntrospection_UsesRepresentationKind(t *testing.T) {
 		kind          runtime.ValueKind
 		numeric, text bool
 	}{
-		{"STRING", varInteger, runtime.KindInteger, true, false},
+		{"STRING", varInt64, runtime.KindInteger, true, false},
 		{"INTEGER", varString, runtime.KindString, false, true},
 		{"custom collection", varArray, runtime.KindArray, false, false},
 	} {

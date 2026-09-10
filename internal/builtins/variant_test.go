@@ -21,7 +21,7 @@ func TestVarType(t *testing.T) {
 		{
 			name:     "integer value",
 			args:     []Value{&runtime.IntegerValue{Value: 42}},
-			expected: 3, // varInteger
+			expected: 20, // varInt64 - DWScript integers are 64-bit
 		},
 		{
 			name:     "float value",
@@ -68,9 +68,19 @@ func TestVarIsNull(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "nil value is null",
-			args:     []Value{&runtime.NilValue{}},
+			name:     "Null is null",
+			args:     []Value{&runtime.NullValue{}},
 			expected: true,
+		},
+		{
+			name:     "unassigned is not null",
+			args:     []Value{&runtime.UnassignedValue{}},
+			expected: false,
+		},
+		{
+			name:     "nil reference is not null",
+			args:     []Value{&runtime.NilValue{}},
+			expected: false,
 		},
 		{
 			name:     "integer is not null",
@@ -117,9 +127,19 @@ func TestVarIsEmpty(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "nil value is empty",
-			args:     []Value{&runtime.NilValue{}},
+			name:     "unassigned is empty",
+			args:     []Value{&runtime.UnassignedValue{}},
 			expected: true,
+		},
+		{
+			name:     "Null is not empty",
+			args:     []Value{&runtime.NullValue{}},
+			expected: false,
+		},
+		{
+			name:     "nil reference is not empty",
+			args:     []Value{&runtime.NilValue{}},
+			expected: false,
 		},
 		{
 			name:     "integer is not empty",
@@ -151,9 +171,19 @@ func TestVarIsClear(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "nil value is clear",
-			args:     []Value{&runtime.NilValue{}},
+			name:     "unassigned is clear",
+			args:     []Value{&runtime.UnassignedValue{}},
 			expected: true,
+		},
+		{
+			name:     "Null is not clear",
+			args:     []Value{&runtime.NullValue{}},
+			expected: false,
+		},
+		{
+			name:     "nil reference is not clear",
+			args:     []Value{&runtime.NilValue{}},
+			expected: false,
 		},
 		{
 			name:     "integer is not clear",

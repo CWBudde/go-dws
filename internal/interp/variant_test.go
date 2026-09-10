@@ -518,7 +518,7 @@ func TestVarTypeInteger(t *testing.T) {
 		end.
 	`
 	result := testEvalAndGetVar(t, input, "typeCode")
-	expectInteger(t, result, 3) // runtime.VarInteger = 3
+	expectInteger(t, result, 20) // varInt64 - DWScript integers are 64-bit
 }
 
 func TestVarTypeFloat(t *testing.T) {
@@ -579,12 +579,26 @@ func TestVarTypeNonVariant(t *testing.T) {
 		end.
 	`
 	result := testEvalAndGetVar(t, input, "typeCode")
-	expectInteger(t, result, 3) // runtime.VarInteger = 3
+	expectInteger(t, result, 20) // varInt64 - DWScript integers are 64-bit
 }
 
+// An unassigned Variant is Empty, not Null: VarIsNull answers only for the
+// Null value itself.
 func TestVarIsNullUnassigned(t *testing.T) {
 	input := `
 		var v: Variant;
+		var result: Boolean;
+		begin
+			result := VarIsNull(v);
+		end.
+	`
+	result := testEvalAndGetVar(t, input, "result")
+	expectBoolean(t, result, false)
+}
+
+func TestVarIsNullNullValue(t *testing.T) {
+	input := `
+		var v: Variant := Null;
 		var result: Boolean;
 		begin
 			result := VarIsNull(v);
@@ -1199,6 +1213,32 @@ func TestVariantConversionCombined(t *testing.T) {
 		end.
 	`
 	testRunProgram(t, input)
+}
+
+// VarClear is declared with a var parameter, so the procedure form has to
+// write the cleared state back to the variable itself.
+func TestVarClearProcedureFormClearsVariable(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		call     string
+		expected bool
+	}{
+		{name: "empty after clear", call: "VarIsEmpty(v)", expected: true},
+		{name: "not null after clear", call: "VarIsNull(v)", expected: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			input := `
+		var v: Variant := 42;
+		var result: Boolean;
+		begin
+			VarClear(v);
+			result := ` + tt.call + `;
+		end.
+	`
+			result := testEvalAndGetVar(t, input, "result")
+			expectBoolean(t, result, tt.expected)
+		})
+	}
 }
 
 // ============================================================================
