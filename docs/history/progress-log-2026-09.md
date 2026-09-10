@@ -2287,12 +2287,12 @@ confirms upstream does that.)
 ### Validation
 
 `go test ./... -timeout 30m`; `go test -race ./internal/builtins/...`;
-`golangci-lint run --new-from-rev=main` reports 0 issues; `just check-fmt` clean.
+`golangci-lint run --new-from-rev=origin/main` reports 0 issues; `just check-fmt` clean.
 New table-driven tests in `internal/builtins/globalvars_test.go` cover name case sensitivity,
 mask matching, expiration against a fake clock, compare-and-exchange, snapshot round-trip and
 tag rejection, queue end semantics, storable-value rejection, and an eight-goroutine
 concurrency exercise for `-race`.
 
-Full fixture report before/after: TOTAL **920 → 934**, no category below its previous value.
+Full fixture report before/after: TOTAL **938 → 952**, no category below its previous value.
 `FunctionsGlobalVars` 0 → 12; `FunctionsTime` 1 → 3 as a side effect of the bare-name procedure
 and function-pointer fixes. Baselines ratcheted and `TEST_STATUS.md` regenerated.

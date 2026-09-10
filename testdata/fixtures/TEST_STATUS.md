@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 983 |
-| Failed | 945 |
+| Passed | 997 |
+| Failed | 931 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **51%** (983/1928) |
+| **Scored pass rate** | **52%** (997/1928) |
 
 ## Per-category
 
@@ -43,13 +43,13 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 0 | 3 | 0 | 0% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
-| FunctionsGlobalVars | 16 | 0 | 14 | 2 | 0% |
+| FunctionsGlobalVars | 16 | 12 | 2 | 2 | 86% |
 | FunctionsMath | 40 | 25 | 10 | 5 | 71% |
 | FunctionsMath3D | 2 | 0 | 2 | 0 | 0% |
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
 | FunctionsRTTI | 6 | 0 | 6 | 0 | 0% |
 | FunctionsString | 58 | 57 | 1 | 0 | 98% |
-| FunctionsTime | 30 | 1 | 26 | 3 | 4% |
+| FunctionsTime | 30 | 3 | 24 | 3 | 11% |
 | FunctionsVariant | 10 | 0 | 9 | 1 | 0% |
 | GenericsFail | 8 | 0 | 8 | 0 | 0% |
 | GenericsPass | 23 | 23 | 0 | 0 | 100% |
