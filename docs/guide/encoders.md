@@ -35,7 +35,7 @@ what `UTF8Encoder.Encode` and the UTF-16 encoders produce, so the encoders compo
 
 ```pascal
 PrintLn(HexadecimalEncoder.Encode(UTF8Encoder.Encode('éric')));
-// c3a97269 63 -> c3a9726963
+// c3a9726963
 ```
 
 ## Encoders as values

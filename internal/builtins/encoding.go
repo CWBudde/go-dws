@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/encoding"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	pkgast "github.com/cwbudde/go-dws/pkg/ast"
@@ -47,29 +48,9 @@ func StrToHtml(ctx Context, args []Value) Value {
 }
 
 // htmlEncode encodes a string for safe use in HTML content.
-// Encodes: & < > " '
+// It delegates to the shared codec that also backs HTMLTextEncoder.
 func htmlEncode(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-
-	for _, r := range s {
-		switch r {
-		case '&':
-			b.WriteString("&amp;")
-		case '<':
-			b.WriteString("&lt;")
-		case '>':
-			b.WriteString("&gt;")
-		case '"':
-			b.WriteString("&quot;")
-		case '\'':
-			b.WriteString("&#39;")
-		default:
-			b.WriteRune(r)
-		}
-	}
-
-	return b.String()
+	return encoding.HTMLTextEncode(s)
 }
 
 // StrToHtmlAttribute encodes a string for safe use in HTML attributes.
@@ -91,28 +72,9 @@ func StrToHtmlAttribute(ctx Context, args []Value) Value {
 }
 
 // htmlAttributeEncode encodes a string for safe use in HTML attributes.
-// More restrictive than htmlEncode - encodes more characters.
+// It delegates to the shared codec that also backs HTMLAttributeEncoder.
 func htmlAttributeEncode(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-
-	for _, r := range s {
-		// As per OWASP rule #2: encode everything except alphanumerics
-		if ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || ('0' <= r && r <= '9') || r > 255 {
-			b.WriteRune(r)
-			continue
-		}
-
-		code := int(r)
-		// Use decimal for common ASCII characters, hex otherwise (matches DWScript reference)
-		if code >= 10 && code <= 99 {
-			fmt.Fprintf(&b, "&#%d;", code)
-		} else {
-			fmt.Fprintf(&b, "&#x%X;", code)
-		}
-	}
-
-	return b.String()
+	return encoding.HTMLAttributeEncode(s)
 }
 
 // StrToJSON encodes a string for safe use in JSON (escapes special characters).
