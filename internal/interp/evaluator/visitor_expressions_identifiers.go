@@ -392,6 +392,12 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		}
 	}
 
+	// Call-stack introspection built-ins depend on where they are written, so
+	// they are resolved here rather than through the value-only registry.
+	if result, handled := e.evalDebugBuiltin(node.Value, node, ctx); handled {
+		return result
+	}
+
 	// Final check: check for built-in functions or return undefined error
 	if e.FunctionRegistry().IsBuiltin(node.Value) {
 		// If the semantic type expects a function/method pointer, return a builtin function pointer

@@ -183,6 +183,15 @@ func NewAnalyzer() *Analyzer {
 		a.symbols.DefineConst(c.Name, types.INTEGER, c.Value, token.Position{})
 	}
 
+	// Register the debug introspection points. Their values depend on the call
+	// stack at the point of use, so the evaluator computes them; the analyzer
+	// only needs their names and types.
+	a.registerBuiltinType(builtins.SourceCodeLocationTypeName, builtins.SourceCodeLocationType())
+	locationType := builtins.SourceCodeLocationType()
+	a.symbols.Define(builtins.CurrentSourceCodeLocationName, locationType, token.Position{})
+	a.symbols.Define(builtins.CallerSourceCodeLocationName, locationType, token.Position{})
+	a.symbols.Define(builtins.CurrentStackTraceName, types.STRING, token.Position{})
+
 	return a
 }
 

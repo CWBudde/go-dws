@@ -328,6 +328,12 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.builtinSwap(node.Arguments, ctx)
 	case "varclear":
 		return e.builtinVarClear(node.Arguments, ctx)
+	case "currentsourcecodelocation", "callersourcecodelocation", "currentstacktrace":
+		if len(node.Arguments) == 0 {
+			if result, handled := e.evalDebugBuiltin(funcName.Value, node.Function, ctx); handled {
+				return result
+			}
+		}
 	case "include", "exclude":
 		return e.builtinIncludeExclude(funcNameLower, node.Arguments, ctx)
 	case "divmod":
