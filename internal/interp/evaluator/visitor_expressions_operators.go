@@ -220,35 +220,52 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 		}
 
 	case *ast.MemberAccessExpression:
-		// Method pointer: @object.MethodName
-		// First evaluate the object
-		objectVal := e.Eval(operand.Object, ctx)
-		if isError(objectVal) {
-			return objectVal
-		}
-
-		// Get the method name
-		methodName := operand.Member.Value
-
-		if objVal, ok := objectVal.(ObjectValue); ok {
-			if methodPtr, created := objVal.CreateMethodPointer(methodName, func(methodDecl *runtime.MethodMetadata) Value {
-				return e.createFunctionPointerFromDecl(methodDecl, objectVal, ctx)
-			}); created {
-				return methodPtr
-			}
-
-			if methodDecl := objVal.GetMethodDecl(methodName); methodDecl != nil {
-				return e.createFunctionPointerFromDecl(methodDecl, objectVal, ctx)
-			}
-
-			// Method not found
-			return e.newError(node, "undefined method: %s.%s", objVal.ClassName(), methodName)
-		}
-
-		// Non-object type - cannot create method pointer
-		return e.newError(node, "method pointer requires an object instance, got %s", objectVal.Type())
+		return e.addressOfMember(node, operand, ctx)
 
 	default:
 		return e.newError(node, "address-of operator requires function or method name, got %T", operand)
 	}
+}
+
+// addressOfMember builds the pointer denoted by `@receiver.Member`. The receiver
+// may be an object instance (a bound method pointer), or a class reference (a
+// class-method pointer, or one of TObject's intrinsic parameterless members).
+func (e *Evaluator) addressOfMember(node *ast.AddressOfExpression, operand *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
+	objectVal := e.Eval(operand.Object, ctx)
+	if isError(objectVal) {
+		return objectVal
+	}
+	methodName := operand.Member.Value
+
+	bindDecl := func(methodDecl *runtime.MethodMetadata) Value {
+		return e.createFunctionPointerFromDecl(methodDecl, objectVal, ctx)
+	}
+
+	if classMeta, ok := objectVal.(ClassMetaValue); ok {
+		if classMeta.HasClassMethod(methodName) {
+			if methodPtr, created := classMeta.CreateClassMethodPointer(methodName, bindDecl); created {
+				return methodPtr
+			}
+		}
+		if isIntrinsicClassMemberName(methodName) {
+			return e.newIntrinsicClassMemberPointer(objectVal, methodName, node, ctx)
+		}
+		return e.newError(node, "undefined class method: %s.%s", classMeta.GetClassName(), methodName)
+	}
+
+	if objVal, ok := objectVal.(ObjectValue); ok {
+		if methodPtr, created := objVal.CreateMethodPointer(methodName, bindDecl); created {
+			return methodPtr
+		}
+		if methodDecl := objVal.GetMethodDecl(methodName); methodDecl != nil {
+			return e.createFunctionPointerFromDecl(methodDecl, objectVal, ctx)
+		}
+		if isIntrinsicClassMemberName(methodName) {
+			return e.newIntrinsicClassMemberPointer(objectVal, methodName, node, ctx)
+		}
+		return e.newError(node, "undefined method: %s.%s", objVal.ClassName(), methodName)
+	}
+
+	// Non-object type - cannot create method pointer
+	return e.newError(node, "method pointer requires an object instance, got %s", objectVal.Type())
 }

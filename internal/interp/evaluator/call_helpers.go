@@ -35,6 +35,10 @@ func (e *Evaluator) executeFunctionPointerDirect(funcPtr Value, args []Value, no
 		return fn(e.builtinContext(ctx), args)
 	}
 
+	if pointer, ok := funcPtr.(*runtime.FunctionPointerValue); ok && pointer.IntrinsicMember != "" {
+		return e.invokeIntrinsicClassMember(pointer, args, node)
+	}
+
 	fn, _ := callable.GetFunctionDecl().(*ast.FunctionDecl)
 	if fn == nil {
 		return e.newError(node, "function pointer is nil")

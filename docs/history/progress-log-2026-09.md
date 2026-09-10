@@ -1794,3 +1794,85 @@ serialization normally takes.
   nested record targets, and the read-side copy. Four of its seven cases failed before the fix.
 - `just fixture-report` diffed against `baselines.json`: exactly one category moved,
   `JSONConnectorPass` 59 → 60. Baselines ratcheted and `TEST_STATUS.md` regenerated.
+
+## 2026-09-10 — Metaclass method pointers and intrinsic-member capture (PLAN.md §3.3)
+
+Closes the §3.3 function-pointer niche item and its two acceptance fixtures,
+`SimpleScripts/func_ptr_symbol_field` and `SimpleScripts/func_ptr_classname`.
+
+Both fixtures are the same feature in two syntactic positions: a **parameterless class member
+captured as a pointer instead of being read eagerly**. PLAN.md described the second half as a
+"value ↔ parameterless-function coercion", but that framing does not survive contact with the
+fixture — `TObject.ClassName` is not a `String` being widened into a `function : String`, it is
+DWScript's intrinsic parameterless class member being *bound*. Modelling it as a pointer is what
+makes `a1[i]()` an ordinary call and `a2[i]` an ordinary auto-invoke.
+
+### The intrinsic members are not methods
+
+`ClassName` exists on TObject as a *synthesized* overload (so `inherited ClassName` resolves) and
+`ClassType` does not exist as a symbol at all — both are answered ad hoc by the member-access
+paths. Neither is a class method, so `analyzeMethodReferenceInPointerContext` rejected them: the
+metaclass branch demands `isClassMethodInHierarchy`. `analyzeAddressOfMethod` rejected the
+metaclass receiver outright with `unbound method pointers (@TClass.X) are not supported`.
+
+New `intrinsicMemberPointerType` (`internal/semantic/analyze_function_pointers.go`) forms the
+pointer: `ClassName -> function : String`, `ClassType -> function : class of <receiver>`. A
+user-declared method of the same name suppresses it (`firstNonSynthesizedMethod`), so an
+override still owns the reference.
+
+*Result-type covariance.* `FunctionPointerType.Equals` compares result types exactly, so
+`function : class of TClassA` is not `function : TClass`. Rather than loosen pointer equality —
+which is shared with `LambdaPass`, `DelegateLib` and `OverloadsPass` — the intrinsic adopts the
+*declared* signature when the context supplies one and the intrinsic's own result is assignable
+to it. `a1.Add(TClassA.ClassType)` therefore stores a `function : TClass`. With no context
+(`var proc := @TObject.ClassType`) the natural signature is used.
+
+`analyzeMethodReferenceInPointerContext` now takes the expected type so it can consult it, and
+its annotation bookkeeping moved into `annotateMemberPointerType`. `analyzeAddressOfMethod`
+resolves a metaclass receiver to its class (`addressOfReceiverClass`) and only reports
+`unbound method pointers` when the member is neither an intrinsic nor a class method.
+
+### Auto-invoke in the receiver position
+
+`proc.ClassName` needs `proc` invoked before the member is looked up. The analyzer's
+member-access path used `implicitCallReturnTypeFromType`, which only understands `FunctionType`;
+it now uses the existing `implicitValueContextType`, which also covers parameterless function and
+method pointers. `implicitCallReturnTypeFromType` itself was deliberately left alone — widening
+it would make `var proc := @TObject.ClassType` infer `class of TObject` instead of a pointer.
+`VisitMemberAccessExpression` gained the matching runtime step, skipped for a nil pointer so
+member access on one keeps its current diagnostic.
+
+### Runtime
+
+An intrinsic member has no declaration to point at, so `runtime.FunctionPointerValue` gained
+`IntrinsicMember` — a name dispatched against `SelfObject`. `IsNil` and `String` account for it;
+`executeFunctionPointerDirect` routes it to `invokeIntrinsicClassMember`
+(`internal/interp/evaluator/intrinsic_member_pointer.go`), which answers `ClassName`/`ClassType`
+for either a class reference or an object instance.
+
+Two sites create these pointers, both only when the analyzer annotated the node as a pointer
+(`memberWantsMethodPointer`) or the `@` operator was used: `resolveClassMetaMember` and the
+member branch of `VisitAddressOfExpression`, the latter extracted into `addressOfMember` so a
+class-reference receiver binds a class-method pointer first and falls back to the intrinsic. The
+declared-class-method-wins rule is enforced at both sites, matching the analyzer.
+
+### Scope
+
+`func_ptr_field_no_param` and `func_ptr_property` still fail; they are unrelated
+(field- and property-typed pointers), not a metaclass or intrinsic-member problem.
+
+Not fixed, and out of scope: an eager (non-pointer) read of `TThing.ClassName` where the class
+declares `class function ClassName` still returns the builtin, because `resolveClassMetaMember`
+answers the builtin before it reaches the class-method lookup. The instance path already guards
+this with `userMethodHidesBuiltin`; the class path has no equivalent. Only the pointer path was
+made consistent here.
+
+**Validation:** `go test ./...` green. `golangci-lint run` reports 1205 issues, unchanged from
+`main` — the two functions this work pushed over the `gocyclo` threshold were split
+(`addressOfMember`, `addressOfReceiverClass`, `firstBindableMethodOverload`). New table-driven
+tests in `internal/semantic/intrinsic_member_pointer_test.go` (accepted positions, and the
+narrowness of the coercion: result mismatch, a target with parameters, and instance-method
+`@TClass.Method` still unsupported) and `internal/interp/intrinsic_member_pointer_test.go`
+(explicit call, auto-invoke on read, auto-invoke in receiver position, instance receiver,
+user-method precedence). Baselines ratcheted (`SimpleScripts` 340 → 342; end-to-end
+`just fixture-report` TOTAL 920 → 922 with no category regression).

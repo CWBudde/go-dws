@@ -11,7 +11,7 @@
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
 **966 / 1,928 scored = 50%**, after §3.2.7 closed conditional compilation and §3.3
-closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics. Both use the shared compile pipeline and scoring rules.
+closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers. Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
@@ -318,11 +318,9 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
   remaining diff is `Keys.Join(',')` emitting `a,b` where DWScript emits `b,a`.
 - `[ ]` S ARC destructor timing on associative slot replace/clear → `delete_sequence`;
   Variant → key coercion → `variant_key_cast`.
-- `[ ]` S Function-pointer niche: `@TObject.ClassType` address-of-class-member (`func_ptr_symbol_field`);
-  value ↔ parameterless-function coercion in `array of function : T` (`func_ptr_classname`).
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
   `class of`); the common cases were closed in July, the rest was never re-listed.
-- `[ ]` M SimpleScripts to ≥ 85% (331/442 = 75%). Work
+- `[ ]` M SimpleScripts to ≥ 85% (342/442 = 79%). Work
   `just fixture-report --category SimpleScripts --list-fails` (identical to the harness list).
 - `[ ]` M Triage in-scope categories that have no plan yet: FunctionsTime (1/30),
   FunctionsVariant (0/10), FunctionsGlobalVars (0/16),

@@ -210,7 +210,7 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		if expectedType != nil {
 			expectedKind := types.GetUnderlyingType(expectedType).TypeKind()
 			if expectedKind == "FUNCTION_POINTER" || expectedKind == "METHOD_POINTER" {
-				if ptrType, ok := a.analyzeMethodReferenceInPointerContext(e); ok {
+				if ptrType, ok := a.analyzeMethodReferenceInPointerContext(e, expectedType); ok {
 					return ptrType
 				}
 			}

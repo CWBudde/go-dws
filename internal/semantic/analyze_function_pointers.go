@@ -133,17 +133,7 @@ func (a *Analyzer) analyzeAddressOfMethod(target *ast.MemberAccessExpression, ex
 		return nil
 	}
 
-	underlying := types.GetUnderlyingType(objectType)
-
-	// @TClass.Method through a class name is an unbound method reference and is
-	// not supported yet (tracked separately in PLAN.md).
-	if _, isMeta := underlying.(*types.ClassOfType); isMeta {
-		a.addError("unbound method pointers (@TClass.%s) are not supported at %s",
-			target.Member.Value, expr.Token.Pos.String())
-		return nil
-	}
-
-	classType, ok := underlying.(*types.ClassType)
+	classType, isMetaclass, ok := addressOfReceiverClass(objectType)
 	if !ok {
 		a.addError("address-of operator (@) requires an object instance to bind a method, got %s at %s",
 			objectType.String(), expr.Token.Pos.String())
@@ -152,16 +142,21 @@ func (a *Analyzer) analyzeAddressOfMethod(target *ast.MemberAccessExpression, ex
 
 	methodName := target.Member.Value
 
-	// A method pointer cannot represent an overload set; mirror the runtime and
-	// bind the first declared (non-constructor) overload.
-	var method *types.MethodInfo
-	for _, candidate := range a.getMethodOverloadsInHierarchy(methodName, classType) {
-		if candidate == nil || candidate.Signature == nil || candidate.IsConstructor {
-			continue
-		}
-		method = candidate
-		break
+	// TObject's intrinsic class members (ClassName, ClassType) are not ordinary
+	// methods; @TObject.ClassType captures one as a parameterless pointer.
+	if ptrType, isIntrinsic := a.intrinsicMemberPointerType(classType, methodName, nil); isIntrinsic {
+		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{Name: ptrType.String()})
+		a.semanticInfo.SetResolvedType(expr, ptrType)
+		return ptrType
 	}
+
+	if isMetaclass && !a.isClassMethodInHierarchy(classType, ident.Normalize(methodName)) {
+		a.addError("unbound method pointers (@TClass.%s) are not supported at %s",
+			methodName, expr.Token.Pos.String())
+		return nil
+	}
+
+	method := a.firstBindableMethodOverload(methodName, classType)
 	if method == nil {
 		a.addError("'%s' is not a method of class '%s' at %s",
 			methodName, classType.Name, expr.Token.Pos.String())
@@ -193,6 +188,34 @@ func (a *Analyzer) analyzeAddressOfMethod(target *ast.MemberAccessExpression, ex
 	a.semanticInfo.SetType(expr, typeAnnotation)
 
 	return methodPtrType
+}
+
+// addressOfReceiverClass resolves the class an address-of receiver binds against.
+// A metaclass receiver (@TClass.Method) yields its class with isMetaclass set,
+// which restricts the reference to the class side.
+func addressOfReceiverClass(objectType types.Type) (classType *types.ClassType, isMetaclass bool, ok bool) {
+	underlying := types.GetUnderlyingType(objectType)
+	if metaclass, isMeta := underlying.(*types.ClassOfType); isMeta {
+		if metaclass.ClassType == nil {
+			return nil, true, false
+		}
+		return metaclass.ClassType, true, true
+	}
+	classType, ok = underlying.(*types.ClassType)
+	return classType, false, ok
+}
+
+// firstBindableMethodOverload returns the overload a method pointer binds to. A
+// pointer cannot represent an overload set, so the runtime and the analyzer agree
+// on the first declared non-constructor overload.
+func (a *Analyzer) firstBindableMethodOverload(methodName string, classType *types.ClassType) *types.MethodInfo {
+	for _, candidate := range a.getMethodOverloadsInHierarchy(methodName, classType) {
+		if candidate == nil || candidate.Signature == nil || candidate.IsConstructor {
+			continue
+		}
+		return candidate
+	}
+	return nil
 }
 
 // analyzeAddressOfFunction resolves a function name and creates a function pointer type.
@@ -410,4 +433,102 @@ func (a *Analyzer) classCallableMemberVisible(classType *types.ClassType, member
 // or method pointer type.
 func isFunctionPointerType(t types.Type) bool {
 	return types.IsPointerType(t)
+}
+
+// ============================================================================
+// Intrinsic Class Member Pointers (ClassName / ClassType)
+// ============================================================================
+
+// intrinsicClassMemberNaturalType returns the result type of one of TObject's
+// intrinsic, parameterless class members when captured on classType:
+//
+//	ClassName -> String
+//	ClassType -> class of <classType>
+//
+// It returns nil for any other member name, or when the class (or an ancestor)
+// declares a real method of that name, which then owns the reference.
+func (a *Analyzer) intrinsicClassMemberNaturalType(classType *types.ClassType, memberName string) types.Type {
+	if classType == nil {
+		return nil
+	}
+	switch {
+	case ident.Equal(memberName, "ClassName"):
+		// TObject's ClassName is registered as a synthesized overload; a
+		// user-declared override is a real method and takes precedence.
+		if info := a.firstNonSynthesizedMethod(classType, memberName); info != nil {
+			return nil
+		}
+		return types.STRING
+	case ident.Equal(memberName, "ClassType"):
+		if info := a.firstNonSynthesizedMethod(classType, memberName); info != nil {
+			return nil
+		}
+		return types.NewClassOfType(classType)
+	default:
+		return nil
+	}
+}
+
+// firstNonSynthesizedMethod returns the first user-declared (non-synthesized)
+// overload of memberName in classType's hierarchy, or nil when the name is only
+// backed by a synthesized built-in.
+func (a *Analyzer) firstNonSynthesizedMethod(classType *types.ClassType, memberName string) *types.MethodInfo {
+	for _, candidate := range a.getMethodOverloadsInHierarchy(memberName, classType) {
+		if candidate != nil && !candidate.IsSynthesized {
+			return candidate
+		}
+	}
+	return nil
+}
+
+// intrinsicMemberPointerType forms the parameterless function pointer produced by
+// capturing an intrinsic class member (ClassName, ClassType) in a context that
+// expects a pointer.
+//
+// The declared target type is adopted for the result when the intrinsic's own
+// result is assignable to it: `TClassA.ClassType` yields `class of TClassA`, and
+// storing it in a `function : TClass` slot must keep the slot's signature so the
+// exact signature match performed by pointer assignability succeeds.
+//
+// `expected` may be nil (an inferred `var p := @TObject.ClassType`), in which
+// case the intrinsic's natural signature is used.
+func (a *Analyzer) intrinsicMemberPointerType(classType *types.ClassType, memberName string, expected types.Type) (*types.FunctionPointerType, bool) {
+	naturalType := a.intrinsicClassMemberNaturalType(classType, memberName)
+	if naturalType == nil {
+		return nil, false
+	}
+
+	expectedPtr := parameterlessPointerTarget(expected)
+	if expected != nil && expectedPtr == nil {
+		return nil, false
+	}
+	if expectedPtr == nil {
+		return types.NewFunctionPointerType(nil, naturalType), true
+	}
+	if expectedPtr.ReturnType == nil || !a.canAssign(naturalType, expectedPtr.ReturnType) {
+		return nil, false
+	}
+	return types.NewFunctionPointerType(nil, expectedPtr.ReturnType), true
+}
+
+// parameterlessPointerTarget returns the function pointer signature behind a
+// function or method pointer type, but only when it takes no parameters.
+// Returns nil for every other type.
+func parameterlessPointerTarget(t types.Type) *types.FunctionPointerType {
+	if t == nil {
+		return nil
+	}
+	var ptr *types.FunctionPointerType
+	switch underlying := types.GetUnderlyingType(t).(type) {
+	case *types.MethodPointerType:
+		ptr = &underlying.FunctionPointerType
+	case *types.FunctionPointerType:
+		ptr = underlying
+	default:
+		return nil
+	}
+	if len(ptr.Parameters) != 0 {
+		return nil
+	}
+	return ptr
 }

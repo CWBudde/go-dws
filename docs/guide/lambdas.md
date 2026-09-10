@@ -86,6 +86,33 @@ Exceptions from invoked callbacks propagate normally, including nil-pointer call
 a skipped callback is never invoked. Assigning a callback to another function
 pointer still preserves the callback without invoking it.
 
+### Intrinsic Class Members as Pointers
+
+`ClassName` and `ClassType` are parameterless class members, so they can be captured
+as pointers instead of being read. `@` captures explicitly; a context that expects a
+parameterless function captures implicitly:
+
+```pascal
+var proc := @TObject.ClassType;
+PrintLn(proc.ClassName);        // Output: TObject
+
+type TClassA = class(TObject);
+var a : array of function : TClass;
+a.Add(TObject.ClassType);
+a.Add(TClassA.ClassType);
+PrintLn(a[0]().ClassName);      // Output: TObject
+PrintLn(a[1]().ClassName);      // Output: TClassA
+
+var names : array of function : String;
+names.Add(TClassA.ClassName);
+PrintLn(names[0]);              // Output: TClassA (auto-invoked on read)
+```
+
+`TClassA.ClassType` yields `class of TClassA`, which a `function : TClass` slot accepts.
+A class that declares its own method of the same name takes precedence over the
+intrinsic. A parameterless pointer in a receiver position (`proc.ClassName`) is
+invoked before the member is looked up.
+
 ### Type Inference
 
 Return types can be inferred from the lambda body:
