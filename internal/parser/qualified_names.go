@@ -18,7 +18,7 @@ func isKnownUnitPrefixName(name string) bool {
 }
 
 func (p *Parser) addParserErrorAt(pos lexer.Position, length int, message, code string) {
-	p.errors = append(p.errors, NewParserError(pos, length, message, code))
+	p.recordError(NewParserError(pos, length, message, code))
 }
 
 func (p *Parser) parseQualifiedIdentifierAtCurrent() (*ast.Identifier, bool) {

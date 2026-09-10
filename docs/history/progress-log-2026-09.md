@@ -1332,3 +1332,131 @@ New tests in `internal/semantic/set_test.go` (`TestBracketLiteralConversions`,
 check's positive and negative cases, and the cast-width rule. Baselines ratcheted
 (`SetOfPass` 21 → 25, `SetOfFail` 1 → 5, `SimpleScripts` 338 → 340) and `TEST_STATUS.md`
 regenerated.
+
+## 2026-09-10 — conditional compilation: `Declared()` and the message directives (§3.2.7)
+
+Closes `PLAN.md` §3.2.7 (L-S7a, L-S7b) on branch `feat/conditional-compilation-3.2.7`.
+Fixtures **920 → 937**: `FailureScripts` 107 → 122, `SimpleScripts` 340 → 342.
+
+Both tickets were marked "needs re-identification" because the old ArrayPass/SetOfPass
+attribution was stale. Re-measuring first paid for itself: the `Declared` half turned out to be
+two independent gaps (a preprocessor one and a missing builtin), and the `{$FATAL}` half was
+blocked by a plumbing defect that also gated ten unrelated fixtures.
+
+> The `reference/dwscript-original/` submodule is not checked out in this tree. Every message,
+> column and severity below was derived from the fixtures and their upstream-authored `.txt`
+> files, which are the authoritative spec here.
+
+### The blocker underneath L-S7b: lexer diagnostics were discarded
+
+`internal/frontend/result.go` forwarded only `p.LexerIncludeErrors()`; everything recorded
+through plain `addError` was explicitly "advisory and not surfaced". `{$HINT}`, `{$WARNING}`,
+`{$ERROR}` and `{$FATAL}` were not directive cases at all, so they fell through to
+`unknown compiler directive` — and that error was then thrown away. `FailureScripts/error_directives`
+emitted *nothing whatsoever*.
+
+Rather than promoting every lexer error (a large, untargeted blast radius), the lexer gained a
+dedicated directive-diagnostic channel carrying a `LexerSeverity` and an optional pre-rendered
+DWScript string. `frontend.Diagnostic.Rendered` already short-circuits `Render()`, so
+`Hint:` / `Warning:` / `Compile Error:` bypass `FormatDWScriptError`'s hardcoded `Syntax Error:`
+prefix without disturbing the shared formatter. Diagnostics are deduplicated by message and
+position because parser backtracking can re-lex the same directive.
+
+One subtlety cost a debugging round: these diagnostics must **not** set `BlocksSemantic`. A
+broken `{$INCLUDE}` means code is missing, so analysing the remainder is noise; a `{$FATAL}` is
+the opposite — everything before it parsed correctly, and DWScript still reports that code's
+errors. Marking them blocking silently deleted all six expected errors from `final.pas`.
+
+### L-S7b — message and severity directives
+
+`{$ERROR}` and `{$FATAL}` share the `Compile Error:` prefix and differ only in whether
+compilation continues; `{$FATAL}` stops tokenizing immediately while retaining every message
+already recorded. Messages anchor at the directive *name* (`{` column + 2); a missing or
+unquoted argument reports `String expected` at the argument when present and at the closing
+brace otherwise — a position `readDirectiveContent` did not previously track. Both `'…'` and
+`"…"` quoting is accepted, and `strings.Fields` had to be abandoned for argument parsing since
+it truncates `{$HINT 'first hint'}` at the first space. `{$HINTS}`/`{$WARNINGS}` take
+ON/OFF/NORMAL/STRICT/PEDANTIC and otherwise report `ON/OFF expected`; `{$R}`/`{$RESOURCE}`
+require a string. Directives in an inactive branch emit nothing.
+
+Closes `error_directives` and `hint_warn`.
+
+### Conditional-directive parity (§4/F7 work taken opportunistically)
+
+With the channel in place, ten more fixtures were within reach and were closed:
+`Unbalanced`/`Unfinished conditional directive` and `Compiler switch "X" unknown` replace the
+former lowercase advisory strings; an unknown switch inside a dead `{$IFDEF}` branch is not
+reported; an unterminated directive reports `"}" expected` (plus `Name of include file expected`
+for `{$INCLUDE}`) instead of cascading into an unbalanced-conditional report. `{$IFEND}` closes
+`{$IF}`, and `{$REGION}`/`{$FILTER}`/`{$F}` are recognized and ignored — the last two are real
+DWScript include variants that the new unknown-switch error would otherwise have broken
+(`examples/rosetta/Include_a_file.dws` caught this).
+
+The known-switch table is evidence-based, built from an inventory of every `{$…}` occurrence in
+the corpus, because `switch_invalid1`, `switch_invalid3` and `invalid_switch` are *negative*
+tests that require specific names to stay unknown.
+
+Closes `conditionals1`, `conditionals2`, `conditionals3`, `conditionals4`, `conditionals5`,
+`conditionals6`, `conditionals_else1`, `conditionals_else2`, `conditionals_else3`,
+`switch_invalid1`, `switch_invalid3`, `invalid_switch`.
+
+### L-S7a — `Declared()`
+
+Two independent gaps. `trackConst` dispatched on `ASSIGN` (`:=`) but never `EQ` (`=`), so an
+ordinary `const Test = 101;` was never tracked; the one-line fix closed
+`SimpleScripts/conditionals_nested4` on its own. Separately, `Declared` was a plain alias for
+`Defined` in the lexer and did not exist as an expression at all.
+
+*Preprocessor side.* A forward-only declaration tracker (`internal/lexer/declarations.go`)
+records class/record/interface/helper types with their members as dotted names, mirrors helper
+members onto the helped type so `Declared('TObject.Proc')` resolves through a
+`helper for TObject`, seeds `TObject`, and tracks file-scope declarations. Bare member names
+stay invisible — `declared.pas` requires `Declared('dummy')` to be false even though
+`TMyRecord.Dummy` exists. Because the lexer scans sequentially, point-of-use visibility falls
+out for free: `conditionals_nested4` runs the same `{$IF Declared('Test')}` before and after the
+const and expects false then true. The tracker is a deliberate heuristic in the spirit of
+`trackConst`, not a second parser, and is deep-cloned in `SaveState`/`RestoreState` because its
+state machine is position-dependent (unlike the idempotent `constValues` map). `Defined()` is
+now narrowed to `{$DEFINE}` symbols only, the correct DWScript distinction.
+
+`{$IF}` expression positions are now real; they were previously always line 0, column 0.
+`Defined(<non-string>)` reports `String expected` and `Declared(<non-constant>)` reports
+`Constant expression expected`, both at the argument column.
+
+*Expression side.* `Declared` and `ConditionalDefined` are compile-time intrinsics that validate
+a constant string argument, resolve a case-insensitive dotted name against the type registry,
+symbol table and builtins (stripping a leading `Internal.` segment, since builtins live in that
+unit), and fold to a boolean. A non-String argument now reports `String expected` at the
+argument column instead of cascading into `Unknown name` plus `Undefined variable`.
+
+Closes `SimpleScripts/declared` and `FailureScripts/special_funcs5`.
+
+### Scope and divergences
+
+- ✋ **`FailureScripts/static_methods` regressed** and is the one fixture lost. It passed only
+  because `{$FATAL}` was ignored: upstream's `.txt` omits the `Compile Error: aborted` line even
+  though the directive is present on line 26. The only structural difference from `final`,
+  `default_constructor` and `virtual1` — where the fatal *is* reported — is that it is the sole
+  file whose `{$FATAL}` is not at column 1. That correlation holds 5/5 but has no plausible
+  tokenizer mechanism, so it was not encoded as a rule. Net for the group is +2.
+- ✋ `ConditionalDefined(s)` always folds to `False`: `{$DEFINE}` symbols live in preprocessor
+  state the analyzer cannot reach. Argument validation is complete.
+- ✋ `HelpersPass/declared_helper` now resolves all four `Declared()` calls and emits no spurious
+  `{$FATAL}` output, but cannot pass: its expectation needs the case-mismatch hints §5 marks
+  won't-fix, and `THelper.Proc(TObject.Create)` — calling a helper method with an explicit
+  instance argument — is an unimplemented call form. That form is the one concrete follow-up.
+- ✋ `FailureScripts/special_funcs4` matches on its first line; the second needs
+  `Expression expected` for `Inc(i, )`, which is parser recovery (§4/F7).
+- ✋ `FailureScripts/conditionals2.1` wants the unbalanced report at the directive *argument*
+  (column 9) while `conditionals2` wants it at the directive *name* (column 3), for byte-identical
+  directives. The name anchor was chosen for consistency with every other directive diagnostic.
+- Note for §5: `hint_pedantic` shows `{$HINTS OFF}` / `{$HINTS PEDANTIC}` are expected to switch
+  hint reporting on and off mid-file. That is plausibly the per-test hint configuration §5 says
+  is unrecoverable, and may be worth revisiting.
+- Unit boundaries are unchanged: `internal/units/registry.go` builds a fresh lexer per unit, so
+  defines and tracked declarations do not cross `uses`.
+
+**Validation:** `go test ./...` green; `golangci-lint` reports no findings in any new or changed
+file. New table-driven tests in `internal/lexer/directives_test.go` (declaration tracking,
+`Defined` vs `Declared`, directive diagnostics) and `internal/semantic/analyze_declared_test.go`.
+Baselines ratcheted and `TEST_STATUS.md` regenerated.

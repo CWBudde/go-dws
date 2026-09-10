@@ -330,6 +330,8 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		return e.builtinIncludeExclude(funcNameLower, node.Arguments, ctx)
 	case "divmod":
 		return e.builtinDivMod(node.Arguments, ctx)
+	case "declared", "conditionaldefined":
+		return e.builtinCompileTimePredicate(funcName, node)
 	case "trystrtoint":
 		return e.builtinTryStrToInt(node.Arguments, ctx)
 	case "trystrtofloat":

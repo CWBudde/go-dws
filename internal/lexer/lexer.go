@@ -39,6 +39,7 @@ import (
 //   - "// 🚀" → '🚀' is at column 4 (4 runes: /, /, space, 🚀)
 type Lexer struct {
 	includeResolver    IncludeResolver
+	decls              *declTracker
 	constValues        map[string]int
 	defines            map[string]struct{}
 	includedOnce       map[string]struct{}
@@ -46,6 +47,7 @@ type Lexer struct {
 	constPending       string
 	currentIncludePath string
 	includeErrors      []LexerError
+	directiveDiags     []LexerError
 	includeStack       []includeFrame
 	condStack          []conditionalFrame
 	errors             []LexerError
@@ -58,15 +60,34 @@ type Lexer struct {
 	ch                 rune
 	preserveComments   bool
 	tracing            bool
-	constBlock         bool
-	constWait          bool
+	// stopped is set by {$FATAL}: tokenization ends immediately, so nothing after
+	// the directive is compiled.
+	stopped bool
+	// directiveTruncated records that a directive was left unterminated, which
+	// suppresses the follow-on unbalanced-conditional report.
+	directiveTruncated bool
+	// hintsEnabled and warningsEnabled are toggled by {$HINTS} and {$WARNINGS} and gate
+	// whether {$HINT} and {$WARNING} record a diagnostic. Both start enabled.
+	hintsEnabled    bool
+	warningsEnabled bool
+	constBlock      bool
+	constWait       bool
 }
 
 // LexerState represents the complete state of the Lexer at a specific point in time.
 // It can be saved and restored to enable backtracking during parsing.
 // This allows for efficient save/restore operations during lookahead.
 type LexerState struct {
-	includedOnce       map[string]struct{}
+	decls        *declTracker
+	includedOnce map[string]struct{}
+	// stopped and directiveTruncated are directive side effects. A speculative read
+	// that runs past a {$FATAL} would otherwise leave the lexer permanently stopped,
+	// so the real parse would see an immediate EOF and lose every token in between.
+	// The {$HINTS}/{$WARNINGS} switches are rewound for the same reason.
+	stopped            bool
+	directiveTruncated bool
+	hintsEnabled       bool
+	warningsEnabled    bool
 	defines            map[string]struct{}
 	currentIncludePath string
 	input              string
@@ -141,7 +162,10 @@ func New(input string, opts ...LexerOption) *Lexer {
 		defines: map[string]struct{}{
 			ident.Normalize("DWSCRIPT"): {},
 		},
-		constValues: make(map[string]int),
+		constValues:     make(map[string]int),
+		decls:           newDeclTracker(),
+		hintsEnabled:    true,
+		warningsEnabled: true,
 	}
 
 	// Apply options
@@ -262,6 +286,39 @@ func (l *Lexer) IncludeErrors() []LexerError {
 	return l.includeErrors
 }
 
+// StoppedByFatal reports whether tokenization was ended early by a {$FATAL} directive.
+// The parser uses this to tell a real end of input from a truncated one: diagnostics it
+// would raise at the synthetic EOF are artifacts of the truncation, not defects in the
+// source, and DWScript does not report them.
+func (l *Lexer) StoppedByFatal() bool {
+	return l.stopped
+}
+
+// DirectiveDiagnostics returns the subset of lexer diagnostics produced by compiler
+// directives ({$HINT}, {$WARNING}, {$ERROR}, {$FATAL}, and malformed conditional
+// directives). Unlike the general advisory error list these are surfaced by the front
+// end, so a script using them reports DWScript-compatible messages.
+func (l *Lexer) DirectiveDiagnostics() []LexerError {
+	return l.directiveDiags
+}
+
+// addDirectiveDiagnostic records a compiler-directive diagnostic. rendered may be empty,
+// in which case the front end applies its default formatting.
+//
+// Parser backtracking can re-lex the same directive, so identical diagnostics at the same
+// position are recorded only once.
+func (l *Lexer) addDirectiveDiagnostic(msg string, pos Position, severity LexerSeverity, rendered string) {
+	for i := range l.directiveDiags {
+		existing := &l.directiveDiags[i]
+		if existing.Message == msg && existing.Pos.Line == pos.Line && existing.Pos.Column == pos.Column {
+			return
+		}
+	}
+	diag := LexerError{Message: msg, Pos: pos, Severity: severity, Rendered: rendered}
+	l.directiveDiags = append(l.directiveDiags, diag)
+	l.errors = append(l.errors, diag)
+}
+
 // addIncludeError records an include-resolution failure. It is tracked both in the
 // general error list and in the dedicated include-error list.
 func (l *Lexer) addIncludeError(msg string, pos Position) {
@@ -324,6 +381,11 @@ func (l *Lexer) SaveState() LexerState {
 		includedOnce:       includedOnceCopy,
 		currentIncludePath: l.currentIncludePath,
 		includeCount:       l.includeCount,
+		decls:              l.decls.clone(),
+		stopped:            l.stopped,
+		directiveTruncated: l.directiveTruncated,
+		hintsEnabled:       l.hintsEnabled,
+		warningsEnabled:    l.warningsEnabled,
 	}
 }
 
@@ -344,6 +406,13 @@ func (l *Lexer) RestoreState(s LexerState) {
 	l.includedOnce = s.includedOnce
 	l.currentIncludePath = s.currentIncludePath
 	l.includeCount = s.includeCount
+	// Cloned again so restoring the same saved state twice cannot alias a tracker that
+	// the first restore went on to mutate.
+	l.decls = s.decls.clone()
+	l.stopped = s.stopped
+	l.directiveTruncated = s.directiveTruncated
+	l.hintsEnabled = s.hintsEnabled
+	l.warningsEnabled = s.warningsEnabled
 }
 
 // Peek returns the token n positions ahead without consuming it.
@@ -357,6 +426,7 @@ func (l *Lexer) Peek(n int) Token {
 		// Generate and buffer the next token
 		tok := l.nextTokenInternal()
 		l.trackConst(tok)
+		l.trackDeclaration(tok)
 		l.tokenBuffer = append(l.tokenBuffer, tok)
 	}
 
@@ -1182,6 +1252,10 @@ func (l *Lexer) NextToken() Token {
 	// No buffered tokens, generate the next one
 	tok := l.nextTokenInternal()
 	l.trackConst(tok)
+	// Only freshly generated tokens are tracked: a token handed out from the Peek
+	// buffer was already tracked when it was generated, and re-feeding it would replay
+	// it out of order into the declaration state machine.
+	l.trackDeclaration(tok)
 	return tok
 }
 
@@ -1345,6 +1419,11 @@ func (l *Lexer) handleLeftParen(pos Position) Token {
 //nolint:gocyclo // Lexer complexity is acceptable for token dispatching
 func (l *Lexer) nextTokenInternal() Token {
 	for {
+		// {$FATAL} halts the tokenizer: report EOF and compile nothing further.
+		if l.stopped {
+			return NewToken(EOF, "", l.currentPos())
+		}
+
 		l.skipWhitespace()
 
 		// End of an included file: resume the file that included it.
@@ -1362,10 +1441,7 @@ func (l *Lexer) nextTokenInternal() Token {
 
 		if l.isSkippingTokens() {
 			if l.ch == 0 {
-				if len(l.condStack) > 0 {
-					l.addError("unfinished conditional directive", l.condStack[len(l.condStack)-1].startPos)
-					l.condStack = nil
-				}
+				l.reportUnbalancedConditionals()
 				return NewToken(EOF, "", pos)
 			}
 			l.readChar()
@@ -1374,10 +1450,7 @@ func (l *Lexer) nextTokenInternal() Token {
 
 		switch l.ch {
 		case 0:
-			if len(l.condStack) > 0 {
-				l.addError("unfinished conditional directive", l.condStack[len(l.condStack)-1].startPos)
-				l.condStack = nil
-			}
+			l.reportUnbalancedConditionals()
 			return NewToken(EOF, "", pos)
 		case '/':
 			return l.handleSlashToken(pos)
@@ -1437,10 +1510,30 @@ func isHexDigit(ch rune) bool {
 		('A' <= ch && ch <= 'F')
 }
 
-// LexerError represents an error encountered during lexical analysis.
+// LexerSeverity classifies a lexer diagnostic. DWScript compiler directives such as
+// {$HINT} and {$WARNING} emit non-error messages, so the lexer needs more than a single
+// error severity.
+type LexerSeverity int
+
+const (
+	// LexerSeverityError is the default severity and blocks compilation.
+	LexerSeverityError LexerSeverity = iota
+	// LexerSeverityWarning is a non-blocking warning ({$WARNING}).
+	LexerSeverityWarning
+	// LexerSeverityHint is a non-blocking hint ({$HINT}).
+	LexerSeverityHint
+)
+
+// LexerError represents a diagnostic encountered during lexical analysis.
 type LexerError struct {
 	Message string
 	Pos     Position
+	// Severity classifies the diagnostic. The zero value is LexerSeverityError, so
+	// existing call sites keep their previous meaning.
+	Severity LexerSeverity
+	// Rendered, when non-empty, is the exact DWScript-formatted message the front end
+	// must print verbatim instead of applying the default "Syntax Error:" framing.
+	Rendered string
 }
 
 func (e *LexerError) Error() string {

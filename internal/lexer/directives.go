@@ -3,6 +3,7 @@
 package lexer
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -17,7 +18,12 @@ type conditionalFrame struct {
 	active       bool
 	parentActive bool
 	elseSeen     bool
-	startPos     Position
+	// fromIf marks a frame opened by {$IF} rather than {$IFDEF}/{$IFNDEF}. DWScript
+	// anchors an unbalanced-conditional report on the {$ELSE} of an {$IF}, but on the
+	// opening directive of an {$IFDEF} (FailureScripts/conditionals_else3 vs
+	// FailureScripts/invalid_switch).
+	fromIf   bool
+	startPos Position
 }
 
 // ifTokenType represents token types for $if expression evaluation.
@@ -45,6 +51,9 @@ const (
 type ifToken struct {
 	val string
 	typ ifTokenType
+	// off is the token's 0-based offset within the expression text, used to anchor
+	// argument diagnostics on the right column.
+	off int
 }
 
 // ifValKind represents the kind of value in a $if expression.
@@ -78,13 +87,28 @@ func (v ifValue) asBool() bool {
 	}
 }
 
-// isDefined checks if a symbol is defined (either via {$DEFINE} or as a const).
+// isDefined reports whether name is a conditional-compilation symbol, i.e. whether it was
+// introduced by {$DEFINE} (or is one of the built-ins) and not since removed by {$UNDEF}.
+//
+// This is deliberately narrower than isDeclared: DWScript's Defined() answers only the
+// preprocessor question, while Declared() answers the symbol-table one.
 func (l *Lexer) isDefined(name string) bool {
 	_, ok := l.defines[ident.Normalize(name)]
-	if ok {
+	return ok
+}
+
+// isDeclared reports whether name has been declared in the source up to this point.
+//
+// It consults the heuristic declaration tracker (see declarations.go) plus the integer
+// constants scraped by trackConst, so that both "type"/"var"/"const"/routine names and
+// dotted member names such as TObject.Create resolve. Because both are fed from the
+// forward-only token stream, the answer is the point-of-use one: a name declared later in
+// the file is not visible here.
+func (l *Lexer) isDeclared(name string) bool {
+	if l.decls.isDeclared(name) {
 		return true
 	}
-	_, ok = l.constValues[ident.Normalize(name)]
+	_, ok := l.constValues[ident.Normalize(name)]
 	return ok
 }
 
@@ -112,10 +136,12 @@ func (l *Lexer) isSkippingTokens() bool {
 }
 
 // processDirective handles compiler directives like {$DEFINE}, {$IFDEF}, {$IF}, etc.
+//
+//nolint:gocyclo // A flat switch over the compiler switches is clearer than dispatch indirection.
 func (l *Lexer) processDirective() {
 	startPos := l.currentPos()
 
-	content := l.readDirectiveContent(startPos)
+	content, closePos := l.readDirectiveContent(startPos)
 	if content == "" {
 		return // error already reported
 	}
@@ -138,19 +164,40 @@ func (l *Lexer) processDirective() {
 		l.handleIfDef(name, arg, parentActive, startPos)
 	case "else":
 		l.handleElse(startPos)
-	case "endif":
+	case "endif", "ifend":
 		l.handleEndIf(startPos)
 	case "if":
 		l.handleIf(content, parts[0], parentActive, startPos)
 	case "include", "i", "include_once":
 		l.handleInclude(name, content, parentActive, startPos)
+	case "hint":
+		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityHint, "Hint", false)
+	case "warning":
+		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityWarning, "Warning", false)
+	case "error":
+		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityError, "Compile Error", false)
+	case "fatal":
+		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityError, "Compile Error", true)
+	case "hints", "warnings":
+		l.handleSwitchToggle(name, content, parentActive, startPos, closePos)
+	case "r", "resource":
+		l.handleStringSwitch(content, parentActive, startPos, closePos)
+	case "region", "endregion", "filter", "f":
+		// Recognized and ignored: {$REGION} only structures source for editors, and
+		// {$FILTER} is an include variant whose filtering is not implemented.
 	default:
-		l.addError("unknown compiler directive: "+name, startPos)
+		// Gated on parentActive: an unknown switch inside a dead {$IFDEF} branch is
+		// not reported (FailureScripts/switch_invalid3).
+		if parentActive {
+			l.addDirectiveDiagnostic(
+				fmt.Sprintf("Compiler switch %q unknown", strings.ToUpper(name)),
+				directiveNameColumn(startPos), LexerSeverityError, "")
+		}
 	}
 }
 
 // readDirectiveContent reads the content of a compiler directive.
-func (l *Lexer) readDirectiveContent(startPos Position) string {
+func (l *Lexer) readDirectiveContent(startPos Position) (string, Position) {
 	// Consume "{$"
 	l.readChar() // '{'
 	l.readChar() // '$'
@@ -166,9 +213,13 @@ func (l *Lexer) readDirectiveContent(startPos Position) string {
 	}
 
 	if l.ch == 0 {
-		l.addError("unterminated compiler directive", startPos)
-		return ""
+		l.reportUnterminatedDirective(builder.String(), startPos)
+		return "", l.currentPos()
 	}
+
+	// The closing brace anchors "String expected" / "ON/OFF expected" diagnostics,
+	// so capture it before it is consumed.
+	closePos := l.currentPos()
 
 	// consume closing '}'
 	l.readChar()
@@ -176,10 +227,10 @@ func (l *Lexer) readDirectiveContent(startPos Position) string {
 	content := strings.TrimSpace(builder.String())
 	if content == "" {
 		l.addError("empty compiler directive", startPos)
-		return ""
+		return "", closePos
 	}
 
-	return content
+	return content, closePos
 }
 
 // handleDefine handles {$DEFINE} directives.
@@ -226,15 +277,20 @@ func (l *Lexer) handleIfDef(name, arg string, parentActive bool, startPos Positi
 // handleElse handles {$ELSE} directives.
 func (l *Lexer) handleElse(startPos Position) {
 	if len(l.condStack) == 0 {
-		l.addError("unbalanced conditional directive", startPos)
+		l.addDirectiveDiagnostic("Unbalanced conditional directive",
+			directiveNameColumn(startPos), LexerSeverityError, "")
 		return
 	}
 	top := &l.condStack[len(l.condStack)-1]
 	if top.elseSeen {
-		l.addError("unfinished conditional directive", startPos)
+		l.addDirectiveDiagnostic("Unfinished conditional directive",
+			directiveNameColumn(startPos), LexerSeverityError, "")
 		return
 	}
 	top.elseSeen = true
+	if top.fromIf {
+		top.startPos = startPos
+	}
 	if top.parentActive {
 		top.active = !top.cond
 	} else {
@@ -245,20 +301,28 @@ func (l *Lexer) handleElse(startPos Position) {
 // handleEndIf handles {$ENDIF} directives.
 func (l *Lexer) handleEndIf(startPos Position) {
 	if len(l.condStack) == 0 {
-		l.addError("unbalanced conditional directive", startPos)
+		l.addDirectiveDiagnostic("Unbalanced conditional directive",
+			directiveNameColumn(startPos), LexerSeverityError, "")
 	} else {
 		l.condStack = l.condStack[:len(l.condStack)-1]
 	}
 }
 
 // handleIf handles {$IF} directives.
+//
+// The expression's base position is the column of the character just past the directive
+// name, so that diagnostics raised while evaluating it (see evalIfExpression) land on the
+// offending argument rather than on the directive.
 func (l *Lexer) handleIf(content, firstPart string, parentActive bool, startPos Position) {
-	cond := l.evalIfExpression(strings.TrimPrefix(content, firstPart))
+	base := directiveNameColumn(startPos)
+	base.Column += len(firstPart)
+	cond := l.evalIfExpression(strings.TrimPrefix(content, firstPart), base, parentActive)
 	frame := conditionalFrame{
 		cond:         cond,
 		parentActive: parentActive,
 		active:       parentActive && cond,
 		startPos:     startPos,
+		fromIf:       true,
 	}
 	l.condStack = append(l.condStack, frame)
 }
@@ -282,7 +346,7 @@ func (l *Lexer) trackConst(tok Token) {
 		l.handleConstIdent(tok.Literal)
 	case COLON:
 		// ignore
-	case ASSIGN:
+	case ASSIGN, EQ:
 		l.handleConstAssign()
 	case INT:
 		l.handleConstInt(tok.Literal)
@@ -343,13 +407,31 @@ func (l *Lexer) handleConstOther() {
 }
 
 // evalIfExpression evaluates a $if compiler directive expression.
-// Supports: defined(NAME), integer constants, comparisons, and/or/not operators.
+// Supports: Defined(NAME), Declared(NAME), integer constants, comparisons and the
+// and/or/not operators.
+//
+// base is the source position of offset 0 of expr, so that argument diagnostics can be
+// reported at their real column. active is false when the directive sits inside an
+// inactive conditional branch, in which case no diagnostic is emitted at all.
 //
 //nolint:gocyclo // Lexer complexity is acceptable for expression parsing
-func (l *Lexer) evalIfExpression(expr string) bool {
+func (l *Lexer) evalIfExpression(expr string, base Position, active bool) bool {
 	tokens := lexIfExpression(expr)
-	pos := Position{}
+	pos := base
 	cur := 0
+
+	// posOf maps a $if token back to its position in the directive.
+	posOf := func(t ifToken) Position {
+		p := base
+		p.Column += t.off
+		return p
+	}
+	report := func(msg string, t ifToken) {
+		if !active {
+			return
+		}
+		l.addDirectiveDiagnostic(msg, posOf(t), LexerSeverityError, "")
+	}
 
 	next := func() ifToken {
 		if cur >= len(tokens) {
@@ -387,20 +469,37 @@ func (l *Lexer) evalIfExpression(expr string) bool {
 				advance()
 				arg := tok
 				advance()
+				query := ident.Normalize(name)
+				isQuery := query == "defined" || query == "declared"
 				if tok.typ != ifTokRParen {
+					// The argument is not a lone name or literal, e.g.
+					// Declared(IntToStr(i)). DWScript requires a constant expression.
+					if isQuery {
+						report("Constant expression expected", arg)
+						for tok.typ != ifTokRParen && tok.typ != ifTokEOF {
+							advance()
+						}
+						if tok.typ == ifTokRParen {
+							advance()
+						}
+						return ifValue{kind: ifValBool, boolVal: false}
+					}
 					l.addError("invalid $if expression", pos)
 					return ifValue{kind: ifValBool, boolVal: false}
 				}
 				advance()
-				switch strings.ToLower(name) {
-				case "defined", "declared":
-					if arg.typ == ifTokIdent || arg.typ == ifTokString {
-						return ifValue{kind: ifValBool, boolVal: l.isDefined(arg.val)}
-					}
-					return ifValue{kind: ifValBool, boolVal: false}
-				default:
+				if !isQuery {
 					return ifValue{kind: ifValBool, boolVal: false}
 				}
+				if arg.typ != ifTokIdent && arg.typ != ifTokString {
+					// Defined(123) and friends: the argument must name a symbol.
+					report("String expected", arg)
+					return ifValue{kind: ifValBool, boolVal: false}
+				}
+				if query == "declared" {
+					return ifValue{kind: ifValBool, boolVal: l.isDeclared(arg.val)}
+				}
+				return ifValue{kind: ifValBool, boolVal: l.isDefined(arg.val)}
 			}
 			if v, ok := l.constValues[ident.Normalize(name)]; ok {
 				return ifValue{kind: ifValInt, intVal: v}
@@ -542,11 +641,15 @@ func compareBools(op ifTokenType, left, right bool) bool {
 }
 
 // lexIfExpression tokenizes a $if expression string into tokens.
+//
+// Each token records its offset within expr. The offset is counted in bytes, which equals
+// the rune column DWScript reports because compiler directives are ASCII.
 func lexIfExpression(expr string) []ifToken {
 	var tokens []ifToken
 	reader := strings.NewReader(expr)
 
 	for {
+		off := len(expr) - reader.Len()
 		ch, _, err := reader.ReadRune()
 		if err != nil {
 			break
@@ -557,6 +660,7 @@ func lexIfExpression(expr string) []ifToken {
 
 		tok := lexIfToken(ch, reader)
 		if tok.typ != ifTokEOF {
+			tok.off = off
 			tokens = append(tokens, tok)
 		}
 	}

@@ -122,7 +122,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 	// Expect '=' after type name
 	if p.cursor.Peek(1).Type != lexer.EQ {
 		nextToken := p.cursor.Peek(1)
-		p.errors = append(p.errors, NewParserError(
+		p.recordError(NewParserError(
 			nextToken.Pos,
 			nextToken.Length(),
 			"expected '=' after type name",
@@ -346,7 +346,7 @@ func (p *Parser) parseTypeNameIdentifier() *ast.Identifier {
 		// After 'type' keyword, expect identifier next
 		if !p.isIdentifierToken(cursor.Peek(1).Type) {
 			nextToken := cursor.Peek(1)
-			p.errors = append(p.errors, NewParserError(
+			p.recordError(NewParserError(
 				nextToken.Pos,
 				nextToken.Length(),
 				"expected identifier after 'type'",

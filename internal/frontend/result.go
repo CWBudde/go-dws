@@ -199,9 +199,12 @@ func ParseWithOptions(source string, opts Options) *Result {
 
 	// Include-resolution failures (e.g. an unresolvable {$INCLUDE}) are otherwise
 	// invisible to the parser-error path, which would let a script with a missing
-	// include compile and run with its include content silently dropped. Other lexer
-	// errors remain advisory and are not surfaced here.
-	diags := lexerDiagnostics(p.LexerIncludeErrors())
+	// include compile and run with its include content silently dropped. Compiler
+	// directives that emit messages ({$HINT}, {$WARNING}, {$ERROR}, {$FATAL}) and
+	// malformed conditional directives are surfaced through the same path. Other
+	// lexer errors remain advisory and are not surfaced here.
+	diags := lexerDiagnostics(p.LexerIncludeErrors(), true)
+	diags = append(diags, lexerDiagnostics(p.LexerDirectiveDiagnostics(), false)...)
 	diags = append(diags, parserDiagnostics(p.Errors())...)
 
 	return &Result{
@@ -440,22 +443,43 @@ func diagnosticSpecificityPriority(diag Diagnostic) int {
 	}
 }
 
-// lexerDiagnostics converts accumulated lexer errors into fatal parsing
-// diagnostics so they surface through the normal front-end error path.
-func lexerDiagnostics(errs []lexer.LexerError) []Diagnostic {
+// lexerDiagnostics converts lexer diagnostics into front-end diagnostics.
+//
+// blocksSemantic distinguishes the two sources. A broken {$INCLUDE} means code is
+// missing, so analysing the truncated program would produce noise. A message directive
+// such as {$FATAL} is different: everything before it parsed correctly and DWScript
+// still reports that code's errors, so semantic analysis must run.
+func lexerDiagnostics(errs []lexer.LexerError, blocksSemantic bool) []Diagnostic {
 	diags := make([]Diagnostic, 0, len(errs))
 	for i := range errs {
+		severity := lexerSeverity(errs[i].Severity)
+		blocking := severity == SeverityError
 		diags = append(diags, Diagnostic{
-			Message:        errs[i].Message,
-			Phase:          PhaseParsing,
-			Line:           errs[i].Pos.Line,
-			Column:         errs[i].Pos.Column,
-			Severity:       SeverityError,
-			Fatal:          true,
-			BlocksSemantic: true,
+			Message:  errs[i].Message,
+			Rendered: errs[i].Rendered,
+			Phase:    PhaseParsing,
+			Line:     errs[i].Pos.Line,
+			Column:   errs[i].Pos.Column,
+			Severity: severity,
+			// Only errors abort the compile; {$HINT} and {$WARNING} must let
+			// semantic analysis and execution proceed.
+			Fatal:          blocking,
+			BlocksSemantic: blocking && blocksSemantic,
 		})
 	}
 	return diags
+}
+
+// lexerSeverity maps a lexer diagnostic severity onto the front-end severity.
+func lexerSeverity(sev lexer.LexerSeverity) Severity {
+	switch sev {
+	case lexer.LexerSeverityWarning:
+		return SeverityWarning
+	case lexer.LexerSeverityHint:
+		return SeverityHint
+	default:
+		return SeverityError
+	}
 }
 
 func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {

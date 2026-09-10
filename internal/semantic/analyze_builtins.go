@@ -72,7 +72,8 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 		"isyesterday", "istomorrow", "issameday", "comparedate", "comparetime",
 		"comparedatetime", "parsejson", "tojson", "tojsonformatted",
 		"jsonhasfield", "jsonkeys", "jsonvalues", "jsonlength",
-		"getstacktrace", "getcallstack":
+		"getstacktrace", "getcallstack",
+		"declared", "conditionaldefined":
 		return true
 	default:
 		return false

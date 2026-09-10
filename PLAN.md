@@ -9,8 +9,8 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-09):** Go harness and freshly rebuilt CLI both
-**920 / 1,928 scored = 48%**, with no category regressions after §3.2.4, §3.2.5 and §3.2.6.
+**Headline (2026-09-10):** Go harness and freshly rebuilt CLI both
+**937 / 1,928 scored = 49%**, after §3.2.7 closed conditional compilation.
 Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **115 / 647 = 18%**.
 
@@ -32,7 +32,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (1,008 total): FailureScripts 421, SimpleScripts 95,
+- Where the remaining failures are (991 total): FailureScripts 406, SimpleScripts 93,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -276,19 +276,35 @@ casts compile. New diagnostics: `Element is out of set bounds`, `Set expected`,
 `test_non_variable`, `type_missing`) are parser-recovery and message-parity work, not set
 semantics — they belong to §4 / F7.
 
-#### 3.2.7 Conditional compilation (lexer/semantic coordination)
+#### 3.2.7 Conditional compilation
 
-The old ArrayPass/SetOfPass attribution needs re-identification: no `Declared(` or
-`{$FATAL` occurrence was found in those current `.pas` sources during this refinement.
-Keep these tasks scoped to reproduced cases, including their include files.
+Closed 2026-09-10 (L-S7a, L-S7b); fixtures 920 → 937, `FailureScripts` 107 → 122,
+`SimpleScripts` 340 → 342. `Declared()` is a real compile-time predicate in both the
+preprocessor and expression positions, the message directives (`{$HINT}`, `{$WARNING}`,
+`{$ERROR}`, `{$FATAL}`, `{$HINTS}`, `{$WARNINGS}`, `{$R}`) have DWScript message/position
+parity, and lexer diagnostics reach the front end at all — which also closed twelve
+malformed-directive fixtures listed under §4/F7. See
+[`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md#2026-09-10--conditional-compilation-declared-and-the-message-directives-327).
 
-- **L-S7a** `[ ]` S — Identify the failing conditional-compilation case, then expose the
-  appropriate declaration visibility to lexer-time `Declared()`. Acceptance: compile tests
-  for present/absent identifiers, case-insensitivity, and inactive branches. Coordinate the
-  lexer/preprocessor boundary with §3.1 value substitution.
-- **L-S7b** `[ ]` S — Identify the failing `{$FATAL}` case, then implement active-branch fatal
-  diagnostics with source position and message parity. Depends on L-S7a only when the branch
-  condition uses `Declared()`; verify that inactive branches emit no fatal diagnostic.
+✋ `FailureScripts/static_methods` regressed and is the one fixture lost: it passed only
+because `{$FATAL}` was ignored, and upstream's expectation omits the `Compile Error` line
+even though the directive is present. The only structural difference from the three
+fixtures where the fatal *is* reported is that its `{$FATAL}` is not at column 1 — a
+correlation that holds 5/5 but has no plausible tokenizer mechanism, so it was not encoded.
+Reopen if the reference submodule is ever checked out.
+
+✋ `ConditionalDefined(s)` always folds to `False`; `{$DEFINE}` symbols live in preprocessor
+state the analyzer cannot reach. Argument validation is complete.
+
+✋ `HelpersPass/declared_helper` resolves all four `Declared()` calls but cannot pass: its
+expectation needs the case-mismatch hints §5 marks won't-fix, and
+`THelper.Proc(TObject.Create)` — a helper method called with an explicit instance argument —
+is an unimplemented call form. **That call form is the one concrete follow-up from this
+section** and belongs to §3.2 helper work.
+
+✋ `special_funcs4` (needs `Expression expected` for `Inc(i, )`) and `conditionals2.1` (wants
+the unbalanced report at the directive argument, column 9, where the byte-identical
+`conditionals2` wants it at the name, column 3) stay with §4 / F7.
 
 ✋ Subrange bounds at compile time: no fixture declares a subrange type; zero yield.
 

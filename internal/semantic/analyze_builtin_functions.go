@@ -45,6 +45,11 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeTryStrToFloat(args, callExpr), true
 	case "default":
 		return a.analyzeDefault(args, callExpr), true
+	// Compile-time predicates: resolved during analysis and folded to a constant.
+	case "declared":
+		return a.analyzeDeclared(name, args, callExpr), true
+	case "conditionaldefined":
+		return a.analyzeConditionalDefined(name, args, callExpr), true
 	case "charat":
 		return a.analyzeCharAt(args, callExpr), true
 
@@ -136,7 +141,7 @@ func (a *Analyzer) getBuiltinReturnType(name string) (types.Type, bool) {
 	switch ident.Normalize(name) {
 	case "floattostrf":
 		return types.STRING, true
-	case "trystrtoint", "trystrtofloat":
+	case "trystrtoint", "trystrtofloat", "declared", "conditionaldefined":
 		return types.BOOLEAN, true
 	case "default":
 		return types.VARIANT, true
