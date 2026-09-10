@@ -1654,7 +1654,7 @@ semantics.
 
 ## 2026-09-10 — Call-site column precision in stack traces, PLAN.md §3.3
 
-`SimpleScripts` 340 → 343 of 442 (78% → 79%); corpus 920 → 923 of 2,042 (48%). No category
+`SimpleScripts` 343 → 346 of 442 (79% → 80%); corpus 938 → 941 of 2,042 (49%). No category
 regressed — the whole `just fixture-report --list-fails` table was captured before and after and
 diffed; the only lines that changed are the three closed fixtures. Closes
 `SimpleScripts/stacktrace`, `SimpleScripts/exceptobj3` and `SimpleScripts/contracts_subproc`, and
@@ -1744,4 +1744,4 @@ and `qualifiedRoutineName` over out-of-line / inline / free routines),
 `internal/interp/runtime/exception_test.go` (`OriginPos` precedence, fallback, and the no-frame
 case), `internal/interp/stack_trace_positions_test.go` (four end-to-end traces), and two parser
 tests for `DeclaringClassName` including the nested-class path. Baselines ratcheted
-(`SimpleScripts` 340 → 343) and `TEST_STATUS.md` regenerated.
+(`SimpleScripts` 343 → 346) and `TEST_STATUS.md` regenerated.
