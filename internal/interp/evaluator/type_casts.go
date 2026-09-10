@@ -97,6 +97,17 @@ func (e *Evaluator) evalTypeCast(typeName string, argExpr ast.Expression, ctx *E
 		return val
 	}
 
+	// A JSON container (or undefined node) has no scalar value: DWScript's
+	// TdwsJSONValue raises "Not a value" rather than reporting a variant cast.
+	switch lowerName {
+	case "integer", "float":
+		if isJSONBoxed(val) {
+			if _, ok := jsonScalarFloat(jsonValueOf(val)); !ok {
+				return e.jsonNotAValue(ctx)
+			}
+		}
+	}
+
 	// Perform the type cast
 	switch lowerName {
 	case "integer":
@@ -193,10 +204,10 @@ func (e *Evaluator) castToInteger(val Value) Value {
 		}
 		return &runtime.IntegerValue{Value: bits}
 	case *runtime.JSONValue:
-		if i, ok := v.AsInteger(); ok {
+		if i, ok := jsonScalarInteger(v.Value); ok {
 			return &runtime.IntegerValue{Value: i}
 		}
-		return &runtime.ErrorValue{Message: "Could not convert variant of type (" + jsonTypeName(v.Value) + ") into Integer"}
+		return &runtime.ErrorValue{Message: "Not a value"}
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)
@@ -261,10 +272,10 @@ func (e *Evaluator) castToFloat(val Value) Value {
 		// Cast enum to its ordinal value as float
 		return &runtime.FloatValue{Value: float64(v.OrdinalValue)}
 	case *runtime.JSONValue:
-		if f, ok := v.AsFloat(); ok {
+		if f, ok := jsonScalarFloat(v.Value); ok {
 			return &runtime.FloatValue{Value: f}
 		}
-		return &runtime.ErrorValue{Message: "Could not convert variant of type (" + jsonTypeName(v.Value) + ") into Float"}
+		return &runtime.ErrorValue{Message: "Not a value"}
 	}
 
 	// Handle Variant by unwrapping (VariantValue is in interp package, not runtime)

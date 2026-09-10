@@ -132,6 +132,7 @@ type ExecutionContext struct {
 	handlerException          any
 	exception                 any
 	currentNode               ast.Node
+	currentStatement          ast.Node
 	arrayTypeContext          *types.ArrayType
 	callStack                 *CallStack
 	controlFlow               *ControlFlow
@@ -267,6 +268,18 @@ func (ctx *ExecutionContext) SetCurrentNode(node ast.Node) {
 	ctx.currentNode = node
 }
 
+// CurrentStatement returns the innermost statement currently being executed.
+// DWScript reports runtime exceptions at statement granularity, so this is the
+// position an exception raised deep inside an expression should carry.
+func (ctx *ExecutionContext) CurrentStatement() ast.Node {
+	return ctx.currentStatement
+}
+
+// SetCurrentStatement sets the innermost statement currently being executed.
+func (ctx *ExecutionContext) SetCurrentStatement(node ast.Node) {
+	ctx.currentStatement = node
+}
+
 // PropContext returns the property evaluation context.
 func (ctx *ExecutionContext) PropContext() *PropertyEvalContext {
 	return ctx.propContext
@@ -388,6 +401,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 		exception:                 ctx.exception,
 		handlerException:          ctx.handlerException,
 		currentNode:               ctx.currentNode,
+		currentStatement:          ctx.currentStatement,
 		oldValuesStack:            oldValuesStackCopy,
 		propContext:               ctx.propContext,
 		recordTypeContext:         ctx.recordTypeContext,
@@ -410,6 +424,7 @@ func (ctx *ExecutionContext) Reset() {
 	ctx.currentFunctionReturnType = nil
 	ctx.arrayTypeContext = nil
 	ctx.currentNode = nil
+	ctx.currentStatement = nil
 }
 
 // SetRefCountManager attaches a RefCountManager used by assignment helpers.
