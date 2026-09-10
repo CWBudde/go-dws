@@ -557,3 +557,228 @@ func containsMiddle(s, substr string) bool {
 	}
 	return false
 }
+
+// drainTokens runs the lexer to completion and returns the identifier literals it
+// produced, which is enough to tell which conditional branches were taken.
+func drainTokens(l *Lexer) []string {
+	var idents []string
+	for {
+		tok := l.NextToken()
+		if tok.Type == EOF {
+			return idents
+		}
+		if tok.Type == IDENT || tok.Type == STRING {
+			idents = append(idents, tok.Literal)
+		}
+	}
+}
+
+// branchMarkers keeps only the "yes"/"no" branch markers from a token literal list.
+func branchMarkers(idents []string) []string {
+	var markers []string
+	for _, id := range idents {
+		if id == "yes" || id == "no" {
+			markers = append(markers, id)
+		}
+	}
+	return markers
+}
+
+// declaredMarker wraps body in a {$IF Declared(name)} whose active branch emits the
+// identifier "yes" and whose inactive branch emits "no".
+func declaredMarker(decls, name string) string {
+	return decls + "\n{$IF Declared('" + name + "')}\nyes;\n{$ELSE}\nno;\n{$ENDIF}\n"
+}
+
+// TestCompilerDirectiveDeclared covers the heuristic declaration tracker behind
+// {$IF Declared('X')}: types, dotted members, helpers, case-insensitivity and the
+// forward-visibility rule.
+func TestCompilerDirectiveDeclared(t *testing.T) {
+	const recordDecl = "type TMyRecord = record\n  Dummy : Integer;\nend;"
+	const classDecl = "type TFoo = class\n  procedure Bar;\n  FField : Integer;\nend;"
+	const helperDecl = "type THelper = helper for TObject\n" +
+		"  procedure Proc;\n  begin\n    PrintLn('x');\n  end;\nend;"
+
+	tests := []struct {
+		name  string
+		decls string
+		query string
+		want  bool
+	}{
+		{name: "record type present", decls: recordDecl, query: "TMyRecord", want: true},
+		{name: "record type absent", decls: recordDecl, query: "TNoSuchRecord", want: false},
+		{name: "record member dotted", decls: recordDecl, query: "TMyRecord.Dummy", want: true},
+		{name: "record member unknown", decls: recordDecl, query: "TMyRecord.Oops", want: false},
+		{name: "bare member invisible", decls: recordDecl, query: "dummy", want: false},
+		{name: "type name case insensitive", decls: recordDecl, query: "tmyRECORD", want: true},
+		{name: "member case insensitive", decls: recordDecl, query: "TMYRECORD.DUMMY", want: true},
+
+		{name: "class type", decls: classDecl, query: "TFoo", want: true},
+		{name: "class method", decls: classDecl, query: "TFoo.Bar", want: true},
+		{name: "class field", decls: classDecl, query: "TFoo.FField", want: true},
+		{name: "class bare method invisible", decls: classDecl, query: "Bar", want: false},
+
+		{name: "helper type", decls: helperDecl, query: "THelper", want: true},
+		{name: "helper method", decls: helperDecl, query: "THelper.Proc", want: true},
+		{name: "helper method through helped type", decls: helperDecl, query: "TObject.Proc", want: true},
+		{name: "helper method unknown", decls: helperDecl, query: "THelper.ProcBug", want: false},
+		{name: "helped type unknown member", decls: helperDecl, query: "TObject.ProcBug", want: false},
+		{name: "helper body local invisible", decls: helperDecl, query: "PrintLn", want: false},
+
+		{name: "seeded TObject", decls: "", query: "TObject", want: true},
+		{name: "seeded TObject.Create", decls: "", query: "tobject.CREATE", want: true},
+		{name: "seeded TObject.Free", decls: "", query: "TObject.Free", want: true},
+
+		{name: "top level var", decls: "var Alpha : Integer;", query: "Alpha", want: true},
+		{name: "top level var list", decls: "var Alpha, Beta : Integer;", query: "Beta", want: true},
+		{name: "top level const", decls: "const Gamma = 'g';", query: "Gamma", want: true},
+		{name: "top level function", decls: "function Delta : Integer;\nbegin\n  Result := 1;\nend;",
+			query: "Delta", want: true},
+		{name: "top level procedure", decls: "procedure Epsilon;\nbegin\nend;", query: "Epsilon", want: true},
+		{name: "routine local invisible",
+			decls: "procedure Epsilon;\nvar Local : Integer;\nbegin\nend;", query: "Local", want: false},
+
+		{name: "forward declaration not visible", decls: "", query: "Later", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := declaredMarker(tt.decls, tt.query)
+			// The forward case declares the name only after the {$IF}.
+			if tt.name == "forward declaration not visible" {
+				src += "var Later : Integer;\n"
+			}
+			l := New(src)
+			markers := branchMarkers(drainTokens(l))
+
+			want := "no"
+			if tt.want {
+				want = "yes"
+			}
+			if len(markers) != 1 || markers[0] != want {
+				t.Fatalf("Declared(%q): got markers %v, want [%s]", tt.query, markers, want)
+			}
+		})
+	}
+}
+
+// TestCompilerDirectiveDeclaredAfterDeclaration verifies the point-of-use rule: the same
+// query is false before the declaration and true after it.
+func TestCompilerDirectiveDeclaredAfterDeclaration(t *testing.T) {
+	src := "{$IF Declared('Later')}early;{$ENDIF}\n" +
+		"var Later : Integer;\n" +
+		"{$IF Declared('Later')}late;{$ENDIF}\n"
+
+	var markers []string
+	for _, id := range drainTokens(New(src)) {
+		if id == "early" || id == "late" {
+			markers = append(markers, id)
+		}
+	}
+	if len(markers) != 1 || markers[0] != "late" {
+		t.Fatalf("got markers %v, want [late]", markers)
+	}
+}
+
+// TestCompilerDirectiveDefinedIsPreprocessorOnly verifies that Defined() answers only the
+// {$DEFINE} question while Declared() answers the symbol-table one.
+func TestCompilerDirectiveDefinedIsPreprocessorOnly(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "Defined does not see declarations",
+			input: "var Alpha : Integer;\n{$IF Defined('Alpha')}yes;{$ELSE}no;{$ENDIF}",
+			want:  "no",
+		},
+		{
+			name:  "Defined sees DEFINE symbols",
+			input: "{$DEFINE Alpha}\n{$IF Defined(Alpha)}yes;{$ELSE}no;{$ENDIF}",
+			want:  "yes",
+		},
+		{
+			name:  "Declared does not see DEFINE symbols",
+			input: "{$DEFINE Alpha}\n{$IF Declared('Alpha')}yes;{$ELSE}no;{$ENDIF}",
+			want:  "no",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			markers := branchMarkers(drainTokens(New(tt.input)))
+			if len(markers) != 1 || markers[0] != tt.want {
+				t.Fatalf("got markers %v, want [%s]", markers, tt.want)
+			}
+		})
+	}
+}
+
+// TestCompilerDirectiveIfArgumentDiagnostics pins the DWScript messages and columns for a
+// malformed Defined()/Declared() argument, and verifies that a directive in an inactive
+// branch reports nothing.
+func TestCompilerDirectiveIfArgumentDiagnostics(t *testing.T) {
+	type diag struct {
+		message string
+		line    int
+		column  int
+	}
+
+	tests := []struct {
+		name  string
+		input string
+		want  []diag
+	}{
+		{
+			name:  "Defined with integer argument",
+			input: "var i : Integer;\n\n{$if Defined(123)}{$endif}\n",
+			want:  []diag{{"String expected", 3, 14}},
+		},
+		{
+			name:  "Declared with call argument",
+			input: "var i : Integer;\n\n{$if Declared(IntToStr(i))}{$endif}\n",
+			want:  []diag{{"Constant expression expected", 3, 15}},
+		},
+		{
+			name: "both, matching FailureScripts/special_funcs5",
+			input: "var i : Integer;\n\n{$if Defined(123)}{$endif}\n\n" +
+				"{$if Declared(IntToStr(i))}{$endif}\n",
+			want: []diag{
+				{"String expected", 3, 14},
+				{"Constant expression expected", 5, 15},
+			},
+		},
+		{
+			name:  "inactive branch reports nothing",
+			input: "{$IFDEF NOT_DEFINED}\n{$if Defined(123)}{$endif}\n{$ENDIF}\n",
+			want:  nil,
+		},
+		{
+			name:  "well formed arguments report nothing",
+			input: "var i : Integer;\n{$if Declared('i')}{$endif}\n{$if Defined(DWSCRIPT)}{$endif}\n",
+			want:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+			drainTokens(l)
+
+			got := l.DirectiveDiagnostics()
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d diagnostics %v, want %d", len(got), got, len(tt.want))
+			}
+			for i, want := range tt.want {
+				if got[i].Message != want.message ||
+					got[i].Pos.Line != want.line ||
+					got[i].Pos.Column != want.column {
+					t.Errorf("diagnostic %d = %q [line: %d, column: %d], want %q [line: %d, column: %d]",
+						i, got[i].Message, got[i].Pos.Line, got[i].Pos.Column,
+						want.message, want.line, want.column)
+				}
+			}
+		})
+	}
+}

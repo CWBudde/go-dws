@@ -39,6 +39,7 @@ import (
 //   - "// 🚀" → '🚀' is at column 4 (4 runes: /, /, space, 🚀)
 type Lexer struct {
 	includeResolver    IncludeResolver
+	decls              *declTracker
 	constValues        map[string]int
 	defines            map[string]struct{}
 	includedOnce       map[string]struct{}
@@ -73,6 +74,7 @@ type Lexer struct {
 // It can be saved and restored to enable backtracking during parsing.
 // This allows for efficient save/restore operations during lookahead.
 type LexerState struct {
+	decls              *declTracker
 	includedOnce       map[string]struct{}
 	defines            map[string]struct{}
 	currentIncludePath string
@@ -149,6 +151,7 @@ func New(input string, opts ...LexerOption) *Lexer {
 			ident.Normalize("DWSCRIPT"): {},
 		},
 		constValues: make(map[string]int),
+		decls:       newDeclTracker(),
 	}
 
 	// Apply options
@@ -356,6 +359,7 @@ func (l *Lexer) SaveState() LexerState {
 		includedOnce:       includedOnceCopy,
 		currentIncludePath: l.currentIncludePath,
 		includeCount:       l.includeCount,
+		decls:              l.decls.clone(),
 	}
 }
 
@@ -376,6 +380,9 @@ func (l *Lexer) RestoreState(s LexerState) {
 	l.includedOnce = s.includedOnce
 	l.currentIncludePath = s.currentIncludePath
 	l.includeCount = s.includeCount
+	// Cloned again so restoring the same saved state twice cannot alias a tracker that
+	// the first restore went on to mutate.
+	l.decls = s.decls.clone()
 }
 
 // Peek returns the token n positions ahead without consuming it.
@@ -389,6 +396,7 @@ func (l *Lexer) Peek(n int) Token {
 		// Generate and buffer the next token
 		tok := l.nextTokenInternal()
 		l.trackConst(tok)
+		l.trackDeclaration(tok)
 		l.tokenBuffer = append(l.tokenBuffer, tok)
 	}
 
@@ -1214,6 +1222,10 @@ func (l *Lexer) NextToken() Token {
 	// No buffered tokens, generate the next one
 	tok := l.nextTokenInternal()
 	l.trackConst(tok)
+	// Only freshly generated tokens are tracked: a token handed out from the Peek
+	// buffer was already tracked when it was generated, and re-feeding it would replay
+	// it out of order into the declaration state machine.
+	l.trackDeclaration(tok)
 	return tok
 }
 
