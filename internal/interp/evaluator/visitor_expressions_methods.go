@@ -108,7 +108,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 			}
 			args[i] = val
 		}
-		if result, handled := e.evalAssociativeArrayMethod(assoc, methodName, args, node); handled {
+		if result, handled := e.evalAssociativeArrayMethod(assoc, methodName, args, node, ctx); handled {
 			return result
 		}
 	}

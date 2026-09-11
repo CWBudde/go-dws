@@ -79,7 +79,11 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 				return &runtime.NilValue{}
 			}
 			if assoc, ok := memberVal.(*runtime.AssociativeArrayValue); ok {
-				assoc.Set(unwrapVariant(indexVal), cloneIfCopyable(value))
+				key, errVal := e.coerceAssociativeKey(assoc, indexVal, ctx)
+				if errVal != nil {
+					return errVal
+				}
+				e.storeAssociativeEntry(assoc, key, cloneIfCopyable(value), ctx)
 				return value
 			}
 			index, ok := e.ExtractIndexWithVariantCast(indexVal, ctx)
@@ -141,7 +145,11 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 	// existing one; there is no bounds check. Element value semantics are
 	// preserved by snapshotting record/static-array values.
 	if assoc, ok := arrayVal.(*runtime.AssociativeArrayValue); ok {
-		assoc.Set(unwrapVariant(indexVal), cloneIfCopyable(value))
+		key, errVal := e.coerceAssociativeKey(assoc, indexVal, ctx)
+		if errVal != nil {
+			return errVal
+		}
+		e.storeAssociativeEntry(assoc, key, cloneIfCopyable(value), ctx)
 		return value
 	}
 

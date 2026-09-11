@@ -1879,3 +1879,65 @@ user-method precedence). Baselines ratcheted (`SimpleScripts` 343 → 345; end-t
 
 > Rebased onto `main` after §3.2.7 and the ByteBuffer host type landed; the counts above are the
 > re-measured post-rebase numbers, not the ones from the original branch point.
+
+## 2026-09-10 — Associative arrays: ARC destructor timing and Variant → key coercion (PLAN.md §3.3)
+
+`AssociativePass` 22 → 24 of 27 (81% → **89%**); corpus 938 → 940 of 1,928 scored, re-measured
+after rebasing onto the §3.2.7 floor. Harness and CLI agree at 940. No category regressed. Closes the §3.3 item
+"ARC destructor timing on associative slot replace/clear; Variant → key coercion"
+(`delete_sequence`, `variant_key_cast`).
+
+### Variant → key coercion
+
+`a[v]` unwrapped the Variant but never converted it, so writing through a Variant holding
+`123` into an `array [String] of String` stored an `IntegerValue` key that `a['123']` could
+never find — `variant_key_cast` printed two of its three lines.
+
+One helper, `coerceAssociativeKey` (`internal/interp/evaluator/associative_helpers.go`), now
+serves all four key sites (read, the two write paths, and `Delete`). It unwraps the Variant,
+then converts to `AssociativeArrayValue.KeyType()` through the existing machinery:
+`TryImplicitConversion` first (user-registered and chained conversions), falling back to
+`coerceValueToKind`, the same variant-cast rules builtin arguments use. Coercion is gated on
+the index actually being a `runtime.VariantWrapper`, so a genuinely mistyped key keeps its
+strict behavior and no non-Variant path changes.
+
+### ARC destructor timing
+
+`runtime.AssociativeArrayValue` had no refcount integration at all: overwriting a slot dropped
+the old value on the floor, `Delete`/`Clear` dropped whole entries, and object keys were never
+retained. `delete_sequence` printed no destructor output except the one that fired too early.
+
+The map stays refcount-agnostic; it only exposes what the evaluator needs to do the ARC work:
+`Set` returns the displaced value and whether it replaced a slot, `DeleteEntry` returns the
+stored key and value, and `TakeEntries` empties the map and hands both slices over (a second
+take yields nothing, so contents can never be released twice). The evaluator side reuses
+`retainValueForBinding` / `releaseValueForBinding` — the same helpers named bindings use —
+through `storeAssociativeEntry`, `releaseAssociativeEntry` and `releaseAssociativeContents`.
+No second lifetime mechanism was introduced.
+
+The resulting observable order matches DWScript: a slot overwrite destroys the displaced
+value only (the key slot already holds its retained key); `Delete` and `Clear` release value
+before key; program-scope finalization releases keys before values.
+
+### Scope: why the release is not in `releaseValueForBinding`
+
+Hooking assoc-array release into `releaseValueForBinding` — where the task originally pointed
+— regressed `by_ref` and `parameters`. Associative arrays are *reference* types: a map passed
+to a function is the caller's map, so releasing its contents when the callee's scope ends
+empties a map that is still alive. Correct handling needs a refcount on the map value itself,
+which does not exist yet and is out of scope here. Instead, `VisitProgram` runs a narrow
+program-scope finalization (`releaseAssociativeBindings`) over the global environment. Global
+finalization of plain object bindings remains a separate, still-open concern: an unbound
+global object still gets no destructor at program end.
+
+`array_of_dyn`, `elements_of_value` (nested lvalue vivification) and `records` (hash iteration
+order) remain open under their own §3.3 items.
+
+**Validation:** `go test ./...` green; `just fixture-report --category AssociativePass
+--list-fails` 24/27; full `just fixture-report` 940 (was 938). New tests:
+`internal/interp/runtime/associative_array_test.go`
+(`TestAssociativeArray_SetReportsReplacedSlot`, `_DeleteEntry`, `_TakeEntries`) and
+`internal/interp/associative_arc_test.go` (`TestAssociativeArrayARC`,
+`TestAssociativeArrayVariantKeyCoercion`) covering slot replace, Delete, Clear, program-end
+finalization, and four key-coercion directions. Baselines ratcheted and `TEST_STATUS.md`
+regenerated.

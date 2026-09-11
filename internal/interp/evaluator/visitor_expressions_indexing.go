@@ -221,7 +221,10 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	// ordinal index). A missing key returns the element's zero value without
 	// inserting it.
 	if assoc, ok := leftVal.(*runtime.AssociativeArrayValue); ok {
-		key := unwrapVariant(indexVal)
+		key, errVal := e.coerceAssociativeKey(assoc, indexVal, ctx)
+		if errVal != nil {
+			return errVal
+		}
 		if stored, present := assoc.Get(key); present {
 			// Return the live stored value (like regular array indexing); value
 			// semantics for record/static-array elements are enforced at

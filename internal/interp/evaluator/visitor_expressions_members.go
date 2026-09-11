@@ -113,7 +113,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 
 	// Associative array parameterless members (a.Keys, a.Length, a.Count, a.Clear).
 	if assoc, ok := obj.(*runtime.AssociativeArrayValue); ok {
-		if result, handled := e.evalAssociativeArrayMethod(assoc, memberName, nil, node); handled {
+		if result, handled := e.evalAssociativeArrayMethod(assoc, memberName, nil, node, ctx); handled {
 			return result
 		}
 	}

@@ -10,8 +10,8 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
-**966 / 1,928 scored = 50%**, after §3.2.7 closed conditional compilation and §3.3
-closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers. Both use the shared compile pipeline and scoring rules.
+**968 / 1,928 scored = 50%**, after §3.2.7 closed conditional compilation and §3.3
+closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers and associative key coercion and ARC destructor timing. Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
@@ -32,7 +32,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (962 total): FailureScripts 406, SimpleScripts 89,
+- Where the remaining failures are (960 total): FailureScripts 406, SimpleScripts 89,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -316,8 +316,6 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 - `[ ]` S DWScript hash iteration order → AssociativePass `records`. The compile-time blocker is
   fixed (the analyzer now indexes the result of a parenless function call); the fixture's only
   remaining diff is `Keys.Join(',')` emitting `a,b` where DWScript emits `b,a`.
-- `[ ]` S ARC destructor timing on associative slot replace/clear → `delete_sequence`;
-  Variant → key coercion → `variant_key_cast`.
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
   `class of`); the common cases were closed in July, the rest was never re-listed.
 - `[ ]` M SimpleScripts to ≥ 85% (345/442 = 78%). Work

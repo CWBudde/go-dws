@@ -99,3 +99,92 @@ func TestAssociativeArray_ReferenceCopy(t *testing.T) {
 		t.Fatal("Copy must return the receiver (reference semantics)")
 	}
 }
+
+// TestAssociativeArray_SetReportsReplacedSlot covers the ARC hook on Set: an
+// overwrite must hand the displaced value back so the caller can release it,
+// while a fresh insert reports nothing to release.
+func TestAssociativeArray_SetReportsReplacedSlot(t *testing.T) {
+	tests := []struct {
+		name         string
+		wantPrev     string
+		preset       bool
+		wantReplaced bool
+	}{
+		{name: "fresh insert", preset: false, wantReplaced: false},
+		{name: "overwrite", preset: true, wantReplaced: true, wantPrev: "old"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := newTestAssoc(types.STRING, types.STRING)
+			if tt.preset {
+				a.Set(&StringValue{Value: "k"}, &StringValue{Value: "old"})
+			}
+
+			prev, replaced := a.Set(&StringValue{Value: "k"}, &StringValue{Value: "new"})
+			if replaced != tt.wantReplaced {
+				t.Fatalf("replaced = %v, want %v", replaced, tt.wantReplaced)
+			}
+			if !tt.wantReplaced {
+				if prev != nil {
+					t.Fatalf("prev = %v, want nil", prev)
+				}
+				return
+			}
+			str, ok := prev.(*StringValue)
+			if !ok || str.Value != tt.wantPrev {
+				t.Fatalf("prev = %v, want %q", prev, tt.wantPrev)
+			}
+			if a.Len() != 1 {
+				t.Fatalf("Len = %d, want 1", a.Len())
+			}
+		})
+	}
+}
+
+// TestAssociativeArray_DeleteEntry checks that DeleteEntry hands back both the
+// stored key and the stored value, which the evaluator needs in order to
+// release the map's references to them.
+func TestAssociativeArray_DeleteEntry(t *testing.T) {
+	a := newTestAssoc(types.STRING, types.STRING)
+	a.Set(&StringValue{Value: "k"}, &StringValue{Value: "v"})
+
+	key, value, ok := a.DeleteEntry(&StringValue{Value: "k"})
+	if !ok {
+		t.Fatal("DeleteEntry reported a missing key")
+	}
+	if k, isStr := key.(*StringValue); !isStr || k.Value != "k" {
+		t.Fatalf("key = %v, want \"k\"", key)
+	}
+	if v, isStr := value.(*StringValue); !isStr || v.Value != "v" {
+		t.Fatalf("value = %v, want \"v\"", value)
+	}
+	if a.Len() != 0 {
+		t.Fatalf("Len = %d, want 0", a.Len())
+	}
+
+	if _, _, ok := a.DeleteEntry(&StringValue{Value: "k"}); ok {
+		t.Fatal("second DeleteEntry should report a missing key")
+	}
+}
+
+// TestAssociativeArray_TakeEntries checks that TakeEntries empties the map and
+// that a second take yields nothing, so contents can never be released twice.
+func TestAssociativeArray_TakeEntries(t *testing.T) {
+	a := newTestAssoc(types.STRING, types.STRING)
+	a.Set(&StringValue{Value: "k1"}, &StringValue{Value: "v1"})
+	a.Set(&StringValue{Value: "k2"}, &StringValue{Value: "v2"})
+
+	keys, values := a.TakeEntries()
+	if len(keys) != 2 || len(values) != 2 {
+		t.Fatalf("took %d keys / %d values, want 2 / 2", len(keys), len(values))
+	}
+	if a.Len() != 0 {
+		t.Fatalf("Len = %d after take, want 0", a.Len())
+	}
+
+	keys, values = a.TakeEntries()
+	if len(keys) != 0 || len(values) != 0 {
+		t.Fatalf("second take yielded %d keys / %d values, want 0 / 0", len(keys), len(values))
+	}
+}
