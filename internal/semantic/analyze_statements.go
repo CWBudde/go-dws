@@ -647,6 +647,10 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
 				return
 			}
+			if a.isReadOnlyArrayIndexTarget(target, baseType) {
+				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
+				return
+			}
 		}
 		targetType := a.analyzeExpression(target)
 		if targetType == nil {
@@ -691,6 +695,44 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 	default:
 		a.addError("invalid assignment target at %s", stmt.Token.Pos.String())
 	}
+}
+
+// isReadOnlyArrayIndexTarget reports whether an indexed assignment target such
+// as `arr[0] := x` writes into a static array bound to a read-only symbol — a
+// `const` parameter or a declared constant.
+//
+// Two cases are deliberately excluded, matching DWScript:
+//   - Open and dynamic arrays. A `const` open-array parameter only pins the
+//     reference, so element assignment is legal (FailureScripts/array_of_const
+//     expects no error for `procedure Test1(const AInts: array of Integer)`).
+//   - Chains rooted at a member access (`obj.Items[0]`), which mutate the
+//     referenced object rather than the const binding itself.
+func (a *Analyzer) isReadOnlyArrayIndexTarget(target *ast.IndexExpression, baseType types.Type) bool {
+	arrayType, ok := types.GetUnderlyingType(baseType).(*types.ArrayType)
+	if !ok || !arrayType.IsStatic() {
+		return false
+	}
+
+	root := ast.Expression(target)
+	for {
+		idx, ok := root.(*ast.IndexExpression)
+		if !ok {
+			break
+		}
+		root = idx.Left
+	}
+
+	rootIdent, ok := root.(*ast.Identifier)
+	if !ok {
+		return false
+	}
+
+	sym, ok := a.symbols.Resolve(rootIdent.Value)
+	if !ok {
+		return false
+	}
+
+	return sym.ReadOnly || sym.IsConst
 }
 
 // isBracketLiteral reports whether the expression is a bracket literal

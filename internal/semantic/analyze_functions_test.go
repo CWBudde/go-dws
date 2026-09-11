@@ -272,16 +272,32 @@ func TestConstParameterWithArray(t *testing.T) {
 	expectNoErrors(t, input)
 }
 
-func TestConstParameterCannotBeModified(t *testing.T) {
-	input := `
-		procedure Clear(const arr: array of Integer);
-		begin
-			arr[0] := 0;  // Error: can't modify const parameter
-		end;
-	`
-	// Note: This test may need additional implementation to detect array element assignment
-	// through const parameters. For now, we're testing basic assignment.
-	expectNoErrors(t, input) // TODO: Should eventually error when we detect indexed assignment to const
+// TestConstArrayParameterElementAssignment pins DWScript's split behaviour for
+// writing an element through a `const` array parameter: a static array is a
+// value binding and the write is rejected, while an open (or dynamic) array
+// parameter only pins the reference, so the write is allowed.
+// See testdata/fixtures/FailureScripts/const_param4.pas and array_of_const.pas.
+func TestConstArrayParameterElementAssignment(t *testing.T) {
+	t.Run("static array is rejected", func(t *testing.T) {
+		input := `
+			type TStat = array [1..3] of Integer;
+			procedure Clear(const arr: TStat);
+			begin
+				arr[1] := 0;
+			end;
+		`
+		expectError(t, input, "Cannot assign a value to the left-side argument")
+	})
+
+	t.Run("open array is allowed", func(t *testing.T) {
+		input := `
+			procedure Clear(const arr: array of Integer);
+			begin
+				arr[0] := 0;
+			end;
+		`
+		expectNoErrors(t, input)
+	})
 }
 
 // TestForwardFunctionReferenceWithoutForwardKeyword verifies the analyzer is

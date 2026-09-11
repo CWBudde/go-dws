@@ -314,6 +314,11 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 
 ✋ Subrange bounds at compile time: no fixture declares a subrange type; zero yield.
 
+✋ `for <var> in <set>` does not type-check the loop variable against the set's element type:
+`var i: Integer; for i in s do` over a `set of TEnum` is accepted silently. Found 2026-09-11
+while clearing the §3.4 skipped-test backlog; the commented-out
+`TestLargeSetForInLoopVariableTypeError` that documented it was deleted. No fixture demands it.
+
 ### 3.3 Runtime / evaluator
 
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
@@ -362,9 +367,11 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
   `TypedExpression`/`TypedExpressionBase` with a proper `Symbol` type. (The `pkg/ast/metadata.go` slot that used
   to be listed here was never a symbol: it cached folded compile-time predicate results and is now the typed
   `SetFoldedPredicate`/`FoldedPredicate` API.)
-- `[ ]` Skipped tests to revive or delete: `internal/semantic/analyze_types_test.go:130,266`,
-  `analyze_functions_test.go:284`, `case_insensitive_test.go:185`; `cmd/dwscript/sets_test.go:15,64` (skip
-  message cites a closed P4 item); `internal/parser/functions_decl_test.go:639` (cites old task 5.11).
+
+**Done (2026-09-11):** the skipped-test backlog is cleared — every entry was revived, deleted or
+turned into a real check, and const static-array element assignment is now diagnosed
+(`FailureScripts` 122 → 123). See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-11--the-skipped-test-backlog-34).
 
 ---
 

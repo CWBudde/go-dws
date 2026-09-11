@@ -617,8 +617,8 @@ func TestParameterErrors(t *testing.T) {
 	}
 }
 
-// TestNestedFunctions tests nested function declarations
-// Note: DWScript may or may not support nested functions. This test documents current behavior.
+// TestNestedFunctions verifies that a function declared inside another
+// function's body parses and lands in the outer function's statement list.
 func TestNestedFunctions(t *testing.T) {
 	input := `
 		function Outer(x: Integer): Integer;
@@ -632,15 +632,10 @@ func TestNestedFunctions(t *testing.T) {
 	p := testParser(input)
 	program := p.ParseProgram()
 
-	// Check if parser supports nested functions
-	// If there are parser errors, nested functions are not yet supported
-	errors := p.Errors()
-	if len(errors) > 0 {
-		t.Skip("Nested functions not yet supported - this is expected per PLAN.md task 5.11")
-		return
+	if errs := p.Errors(); len(errs) != 0 {
+		t.Fatalf("expected no parser errors, got %v", errs)
 	}
 
-	// If we get here, nested functions ARE supported
 	if len(program.Statements) != 1 {
 		t.Fatalf("expected 1 statement, got %d", len(program.Statements))
 	}
@@ -654,11 +649,28 @@ func TestNestedFunctions(t *testing.T) {
 		t.Errorf("outer function name = %q, want 'Outer'", outerFn.Name.Value)
 	}
 
-	// Check if the body contains the nested function
-	// This would require the AST to support nested function declarations
-	// For now, we just verify the outer function parses correctly
 	if outerFn.Body == nil {
-		t.Error("outer function body is nil")
+		t.Fatal("outer function body is nil")
+	}
+
+	var inner *ast.FunctionDecl
+	for _, stmt := range outerFn.Body.Statements {
+		if fn, ok := stmt.(*ast.FunctionDecl); ok {
+			inner = fn
+			break
+		}
+	}
+
+	if inner == nil {
+		t.Fatalf("expected a nested *ast.FunctionDecl in the outer body, got %v", outerFn.Body.Statements)
+	}
+
+	if inner.Name.Value != "Inner" {
+		t.Errorf("nested function name = %q, want 'Inner'", inner.Name.Value)
+	}
+
+	if len(inner.Parameters) != 1 || inner.Parameters[0].Name.Value != "y" {
+		t.Errorf("nested function parameters = %v, want a single parameter 'y'", inner.Parameters)
 	}
 }
 
