@@ -222,7 +222,7 @@ func normalizeDiagnosticsMode() error {
 // expression as "<eval>", or the decoded contents of the single file argument.
 func loadRunInput(args []string) (input, filename string, err error) {
 	if evalExpr != "" {
-		return evalExpr, "<eval>", nil
+		return evalExpr, evalFilename, nil
 	}
 	if len(args) != 1 {
 		return "", "", fmt.Errorf("either provide a file path or use -e flag for inline code")
@@ -270,10 +270,7 @@ func compileRunInput(input, filename string) (cs *compiledScript, done bool, err
 	cs.usedUnits = extractUsedUnits(cs.program)
 
 	// Unit search paths (shared by interpreter + bytecode modes)
-	cs.searchPaths = append([]string{}, unitSearchPaths...)
-	if len(cs.searchPaths) == 0 && filename != "<eval>" {
-		cs.searchPaths = append(cs.searchPaths, filepath.Dir(filename))
-	}
+	cs.searchPaths = resolveUnitSearchPaths(filename)
 	compileOpts.SkipTypeCheck = !typeCheck
 	compileOpts.UnitSearchPaths = cs.searchPaths
 	cs.result = frontend.AnalyzeParsed(parsed, input, compileOpts)

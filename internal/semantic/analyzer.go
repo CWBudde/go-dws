@@ -98,6 +98,7 @@ type Analyzer struct {
 	pendingClassWarnings    []*types.ClassType
 	predeclaredClassTypes   map[string]bool
 	deferredMethodBodies    []deferredMethodBody
+	retainedScopes          []*SymbolTable
 	deferredClassChecks     []deferredClassCheck
 	pendingClassMemberDecls map[string]int
 	errors                  []string
@@ -865,6 +866,36 @@ func (a *Analyzer) isFunctionPointerVariantCompatible(from, to *types.FunctionPo
 // GetSymbolTable returns the current symbol table.
 func (a *Analyzer) GetSymbolTable() *SymbolTable {
 	return a.symbols
+}
+
+// retainScope keeps an inner scope alive past analysis under the given name, so
+// that its symbols (and those of the scopes nested inside it) remain
+// inspectable. Only the outermost scope of a construct needs to be registered:
+// nested scopes are reachable through SymbolTable.Children.
+func (a *Analyzer) retainScope(st *SymbolTable, name string) {
+	if st == nil {
+		return
+	}
+	// A scope opened inside an already-retained one (a lambda in a function
+	// body, say) was linked into its parent's children by
+	// NewEnclosedSymbolTable and is therefore already reachable from a
+	// top-level retained scope. Registering it a second time would make
+	// callers that walk RetainedScopes and recurse into Children report its
+	// symbols twice.
+	alreadyReachable := st.linkedToRetainedParent()
+	st.Retain(name)
+	if alreadyReachable {
+		return
+	}
+	a.retainedScopes = append(a.retainedScopes, st)
+}
+
+// RetainedScopes returns the inner scopes that were kept alive during analysis,
+// in the order they were entered. Each returned scope is the outermost scope of
+// a construct; scopes nested inside it are reachable via SymbolTable.Children
+// or, flattened, via SymbolTable.NestedSymbolsWithScope.
+func (a *Analyzer) RetainedScopes() []*SymbolTable {
+	return a.retainedScopes
 }
 
 // GetClasses returns the analyzer's class type map.

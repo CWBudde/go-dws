@@ -105,12 +105,7 @@ func compileScript(_ *cobra.Command, args []string) error {
 	// Handle unit loading for bytecode compilation
 	var compiledProgram *ast.Program
 	if hasUnits {
-		var searchPaths []string
-		if len(unitSearchPaths) > 0 {
-			searchPaths = unitSearchPaths
-		} else {
-			searchPaths = []string{filepath.Dir(filename)}
-		}
+		searchPaths := resolveUnitSearchPaths(filename)
 
 		// Build bytecode program with units
 		var unitRegistry interface{} // Not actually used for compilation

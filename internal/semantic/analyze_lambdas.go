@@ -80,6 +80,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 	// Create new scope for lambda body
 	oldSymbols := a.symbols
 	lambdaScope := NewEnclosedSymbolTable(oldSymbols)
+	a.retainScope(lambdaScope, "lambda")
 	a.symbols = lambdaScope
 	defer func() { a.symbols = oldSymbols }()
 	defer a.emitUnusedWarningsForCurrentScope()
@@ -238,6 +239,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	// Create new scope for lambda body
 	oldSymbols := a.symbols
 	lambdaScope := NewEnclosedSymbolTable(oldSymbols)
+	a.retainScope(lambdaScope, "lambda")
 	a.symbols = lambdaScope
 	defer func() { a.symbols = oldSymbols }()
 	defer a.emitUnusedWarningsForCurrentScope()

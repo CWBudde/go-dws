@@ -2635,3 +2635,129 @@ ordinals, aliased ordinals, mismatched enum types, reversed bounds, Integer/Enum
 metadata) and fixture `SimpleScripts/case_range_enum`, which now prints the `case` outcome next to
 the `>=`/`<=` outcome for every member so the two can never silently diverge again.
 `just fixture-report` 1042 → 1043, SimpleScripts 348 → 349; baseline ratcheted.
+
+## 2026-09-11 — Unit search paths: user, system and `DWSCRIPT_PATH` (PLAN.md §3.4)
+
+`GetDefaultSearchPaths` promised a user and a system library directory in its doc comment and
+returned only `{"."}`. It now returns, in order: `.`, each existing directory named in the
+`DWSCRIPT_PATH` environment variable (`filepath.ListSeparator`-delimited), `~/.dwscript/lib`, and
+the system directories — `/usr/local/share/dwscript/lib` then `/usr/share/dwscript/lib` on Unix,
+`%ProgramData%\dwscript\lib` on Windows. `DWSCRIPT_PATH` sits ahead of the fixed locations so a
+user can override a shipped unit without touching the library directories.
+
+Non-existent directories are skipped, and every entry but `.` goes through the existing
+`AddSearchPath`, which makes it absolute and de-duplicates. A `dirExists` sibling to `fileExists`
+was added rather than reusing `fileExists`, which returns false for directories.
+
+The environment-dependent parts are gathered in the exported wrapper only. The logic lives in an
+unexported seam, `defaultSearchPaths(home, envPath string, sysDirs []string, exists func(string) bool)`,
+which is table-tested with a fake `exists` across: no home, home without the directory, home with
+it, several `DWSCRIPT_PATH` entries, missing and empty entries, duplicates, and ordering. The OS
+split uses a `runtime.GOOS` switch in `systemLibraryDirs` rather than build tags: the list is a
+handful of constants, so one function keeps the full cross-platform ordering reviewable, and all
+tested logic takes the list as a parameter and therefore runs on every OS.
+
+`os` is used directly rather than `pkg/platform.FileSystem`: `search.go` already calls `os.Stat`
+throughout, the package takes no platform handle, and under WASM units are supplied through the
+host API rather than a scanned filesystem. `GOOS=js GOARCH=wasm go build ./...` stays green —
+`os.UserHomeDir` and `os.Stat` both compile for `js/wasm`.
+
+The CLI now actually reaches those defaults. `GetDefaultSearchPaths` was only consulted when a
+`-I` path was given; `run` and `compile` each built their own list from `filepath.Dir(filename)`,
+so a unit that lived only in `DWSCRIPT_PATH` or a library directory stayed unresolvable. Both
+commands now call one shared `resolveUnitSearchPaths(filename)` in `cmd/dwscript/cmd/unitpaths.go`,
+which puts the script's own directory first (only when no `-I` was given, since an explicit `-I`
+list states the order the caller wants), then the `-I` paths in command-line order, then the
+defaults. Entries are de-duplicated by absolute path while the original spelling is kept, and the
+`<eval>` pseudo-filename of inline `-e` code contributes no directory. README documents the full
+six-step order.
+
+## 2026-09-11 — `Program.Symbols()` reports the real scope and position (PLAN.md §3.4)
+
+`pkg/dwscript/symbols.go` hardcoded `Scope: "global"` and `Position: token.Position{}` for every
+symbol, and its doc comment claimed symbols arrived "global first, followed by symbols from inner
+scopes" — which nothing in the code did. The obstacle was `SymbolTable.AllSymbols()`: it flattened
+the scope chain into one `map[string]*Symbol`, losing depth and silently dropping any symbol that
+an inner scope shadowed. The analyzer also discarded every inner scope after analysing it, so the
+root table was all `Program.Symbols()` could ever see.
+
+`SymbolTable` now carries `depth`, `scopeName`, `children` and a `retain` flag.
+`NewEnclosedSymbolTable` sets the child one level deeper than its parent and inherits the parent's
+scope name; if the parent is retained, the child is retained too and is linked into the parent's
+children. `Retain(name)` opts a scope in. Retention is opt-in because the analyzer allocates
+throwaway scopes — the per-call scope for unit-qualified calls in `analyze_function_calls.go`, one
+per call site — that would otherwise accumulate for the analyzer's lifetime.
+
+`AllSymbolsWithScope()` walks the chain outermost-first without flattening, so a shadowing local is
+reported alongside the symbol it shadows, each tagged with the declaring scope's depth and name.
+`NestedSymbolsWithScope()` flattens a retained scope and its descendants. `LocalSymbols()` covers a
+single scope and sorts by declaration position, making the output deterministic (the underlying
+`ident.Map` iterates a Go map). `AllSymbols()` is unchanged for its existing callers.
+
+The analyzer retains function bodies (`analyzeFunctionBody`) and both lambda scopes, registering
+them in `retainedScopes`; nested blocks inside them come along automatically, which is how function
+locals are picked up. Class, record and helper method bodies are deliberately **not** retained:
+their scopes are pre-populated with synthesized bindings (`Self`, every field, property, constant
+and class var) that are not local declarations and would read as noise in an IDE symbol list.
+
+`Symbol.Scope` is now `"global"` at depth 0 and the owning function's name (or `"lambda"`) deeper
+in; `Symbol.Position` is `semantic.Symbol.DeclPosition`, which the symbol table has always
+populated. Extraction also stopped assuming `sym.Type != nil`: an overload set stores `nil` there
+and its signatures on `Overloads`, so `Program.Symbols()` used to panic on any overloaded routine
+and now reports one entry per overload. No exported signature changed; `Symbol`'s fields kept their
+order and only gained doc comments.
+
+A scope opened inside an already-retained one is linked into its parent's `children` by
+`NewEnclosedSymbolTable`, so registering it in `retainedScopes` as well made `Program.Symbols()`
+walk it twice — once through the parent's `NestedSymbolsWithScope()` and once as a top-level
+retained scope — and report a nested lambda's parameters, `Result` and locals twice.
+`retainScope` now registers only root scopes: `SymbolTable.linkedToRetainedParent()` reports
+whether the scope is already reachable from a retained parent's children, and if it is, the scope
+is still marked retained but not appended to `retainedScopes`. A lambda at program scope has no
+retained parent and is therefore still registered.
+
+**Validation:** `go test ./internal/... ./pkg/...` green; `just fixture-report` TOTAL 1039/2042
+(unchanged); `golangci-lint run` reports nothing in the touched files. New tests:
+`internal/semantic/symbol_table_scope_test.go` (depth, retention propagation, shadowed symbols
+surviving `AllSymbolsWithScope` while `AllSymbols` still flattens them away, nested-scope
+flattening, `Analyzer.RetainedScopes`) and `pkg/dwscript/symbols_scope_test.go` (a global, a
+function, a parameter, the implicit `Result`, a local shadowing a global, and declaration
+positions).
+
+## 2026-09-11 — `dwscript fmt --diff`: unified Myers diff (PLAN.md §3.4)
+
+`showDiff` paired lines positionally, so a single inserted or deleted line made every following
+line report as changed; it also swallowed blank lines (`if origLine != ""`), emitted no hunks or
+context, and printed straight to `fmt.Printf`, which made it untestable.
+
+`cmd/dwscript/cmd/diff.go` replaces it with a hand-rolled Myers O(ND) line diff (no new
+dependency — `go.mod` still carries only cobra and `golang.org/x/text`) rendered as a unified diff:
+`@@ -old,count +new,count @@` hunks with three lines of context, runs of context shorter than twice
+that merged into one hunk, GNU's `,1`-omitting range syntax, blank lines kept as content, and
+`\ No newline at end of file` handled by folding the missing terminator into the line's comparison
+key so an otherwise identical last line still shows as a change.
+
+`WriteUnifiedDiff(w io.Writer, filename, original, formatted) (bool, error)` also writes the
+`---`/`+++` header, so the whole diff is one unit and the `case fmtDiff:` block no longer prints
+around it. `dwscript fmt -d` now exits non-zero (`ErrSilent`, no extra message) when any file
+differs, the way `gofmt -l`-driven CI checks expect; no recipe in `justfile` or `.github/` calls
+`fmt -d`, so no existing caller changes behavior.
+
+**Validation:** `cmd/dwscript/cmd/diff_test.go` covers identical input, pure insertion, pure
+deletion, replacement, a change on the first line, a change on the last line, two separated hunks,
+a missing trailing newline on either side, blank lines, an empty original, an emptied file, and a
+non-cascading insertion — every expectation captured from GNU `diff -u` on the same inputs. A
+throwaway 374-case randomized comparison against the system `diff -u` was byte-identical in 308
+cases; the remaining 66 differed only in which of several equally minimal edit scripts was chosen
+(identical `+`/`-` counts, and the script always reconstructs the target). On a real file,
+`./bin/dwscript fmt -d testdata/fixtures/AutoFormat/class.pas` is byte-identical to `diff -u` on the
+same pair and exits 1.
+
+Myers backtracking is bounded. The forward pass used to keep a copy of the entire `2*(N+M)+1`
+endpoint vector per edit distance, which is quadratic in the edit distance and, for two 5,000-line
+inputs with no line in common, about 1.6 GB — enough to have the process killed. Only the diagonals
+`k` in `[-d, d]` are ever read back at distance `d`, so snapshot `d` is now `2d+1` ints indexed by
+`d+k`, and the forward pass gives up past `maxDiffEditDistance` (2896, roughly 67 MiB of trace and
+about 1,400 reformatted lines) in favour of a whole-file replacement that `buildHunks` renders as a
+single hunk. Distance 0 is special-cased in the backtrack, where the predecessor is the origin
+rather than a trace entry.

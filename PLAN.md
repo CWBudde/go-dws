@@ -350,8 +350,6 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
   then runs with a different overload — it resolves independently at run time
   (`evaluator.ResolveOverloadMultiple`) with no expected-type channel. Blocked until the evaluator can
   see the call site's expected type, or reuse the analyzer's choice via `ast.SemanticInfo`.
-- `[ ]` `internal/units/search.go:171-172` — user (`~/.dwscript/lib`) and system library search paths.
-- `[ ]` `cmd/dwscript/cmd/fmt.go:296` — real diff algorithm for `dwscript fmt --diff`.
 - `[ ]` Engine seam for `platform.Platform`. The WASM side is done: `setFileSystem()` and
   `init({fs})` validate a host object and install it via `(*WASMPlatform).SetFileSystem`
   (see [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md)), but
@@ -361,7 +359,6 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
   `Engine`-held platform defaulting to `platform/native`, and file builtins routed through
   `Engine.FS()`.
 - `[ ]` `pkg/ast/metadata.go:140,153`, `pkg/ast/type_annotation.go:58`, `pkg/ast/base.go:42` — replace `any` symbol slots with a proper `Symbol` type.
-- `[ ]` `pkg/dwscript/symbols.go:74` — report the actual scope level instead of `"global"`.
 - `[ ]` Skipped tests to revive or delete: `internal/semantic/analyze_types_test.go:130,266`,
   `analyze_functions_test.go:284`, `case_insensitive_test.go:185`; `cmd/dwscript/sets_test.go:15,64` (skip
   message cites a closed P4 item); `internal/parser/functions_decl_test.go:639` (cites old task 5.11).
