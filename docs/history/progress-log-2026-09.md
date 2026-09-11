@@ -2662,6 +2662,16 @@ throughout, the package takes no platform handle, and under WASM units are suppl
 host API rather than a scanned filesystem. `GOOS=js GOARCH=wasm go build ./...` stays green —
 `os.UserHomeDir` and `os.Stat` both compile for `js/wasm`.
 
+The CLI now actually reaches those defaults. `GetDefaultSearchPaths` was only consulted when a
+`-I` path was given; `run` and `compile` each built their own list from `filepath.Dir(filename)`,
+so a unit that lived only in `DWSCRIPT_PATH` or a library directory stayed unresolvable. Both
+commands now call one shared `resolveUnitSearchPaths(filename)` in `cmd/dwscript/cmd/unitpaths.go`,
+which puts the script's own directory first (only when no `-I` was given, since an explicit `-I`
+list states the order the caller wants), then the `-I` paths in command-line order, then the
+defaults. Entries are de-duplicated by absolute path while the original spelling is kept, and the
+`<eval>` pseudo-filename of inline `-e` code contributes no directory. README documents the full
+six-step order.
+
 ## 2026-09-11 — `Program.Symbols()` reports the real scope and position (PLAN.md §3.4)
 
 `pkg/dwscript/symbols.go` hardcoded `Scope: "global"` and `Position: token.Position{}` for every
@@ -2696,6 +2706,15 @@ populated. Extraction also stopped assuming `sym.Type != nil`: an overload set s
 and its signatures on `Overloads`, so `Program.Symbols()` used to panic on any overloaded routine
 and now reports one entry per overload. No exported signature changed; `Symbol`'s fields kept their
 order and only gained doc comments.
+
+A scope opened inside an already-retained one is linked into its parent's `children` by
+`NewEnclosedSymbolTable`, so registering it in `retainedScopes` as well made `Program.Symbols()`
+walk it twice — once through the parent's `NestedSymbolsWithScope()` and once as a top-level
+retained scope — and report a nested lambda's parameters, `Result` and locals twice.
+`retainScope` now registers only root scopes: `SymbolTable.linkedToRetainedParent()` reports
+whether the scope is already reachable from a retained parent's children, and if it is, the scope
+is still marked retained but not appended to `retainedScopes`. A lambda at program scope has no
+retained parent and is therefore still registered.
 
 **Validation:** `go test ./internal/... ./pkg/...` green; `just fixture-report` TOTAL 1039/2042
 (unchanged); `golangci-lint run` reports nothing in the touched files. New tests:
@@ -2733,3 +2752,12 @@ cases; the remaining 66 differed only in which of several equally minimal edit s
 (identical `+`/`-` counts, and the script always reconstructs the target). On a real file,
 `./bin/dwscript fmt -d testdata/fixtures/AutoFormat/class.pas` is byte-identical to `diff -u` on the
 same pair and exits 1.
+
+Myers backtracking is bounded. The forward pass used to keep a copy of the entire `2*(N+M)+1`
+endpoint vector per edit distance, which is quadratic in the edit distance and, for two 5,000-line
+inputs with no line in common, about 1.6 GB — enough to have the process killed. Only the diagonals
+`k` in `[-d, d]` are ever read back at distance `d`, so snapshot `d` is now `2d+1` ints indexed by
+`d+k`, and the forward pass gives up past `maxDiffEditDistance` (2896, roughly 67 MiB of trace and
+about 1,400 reformatted lines) in favour of a whole-file replacement that `buildHunks` renders as a
+single hunk. Distance 0 is special-cased in the backtrack, where the predecessor is the origin
+rather than a trace entry.

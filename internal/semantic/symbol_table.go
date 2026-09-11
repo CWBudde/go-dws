@@ -115,6 +115,22 @@ func (st *SymbolTable) Retain(name string) {
 	st.scopeName = name
 }
 
+// linkedToRetainedParent reports whether this scope is already reachable from
+// its enclosing scope's children, which NewEnclosedSymbolTable arranges for
+// every scope opened inside a retained one. Callers that enumerate retained
+// scopes and recurse into Children use it to avoid visiting such a scope twice.
+func (st *SymbolTable) linkedToRetainedParent() bool {
+	if st.outer == nil || !st.outer.retain {
+		return false
+	}
+	for _, child := range st.outer.children {
+		if child == st {
+			return true
+		}
+	}
+	return false
+}
+
 // Depth returns the nesting level of this scope: 0 for the global scope.
 func (st *SymbolTable) Depth() int {
 	return st.depth

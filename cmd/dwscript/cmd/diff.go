@@ -62,27 +62,66 @@ func (t diffText) compareKeys() []string {
 	return keys
 }
 
+// maxDiffEditDistance bounds the edit distance the forward pass will explore.
+//
+// Backtracking needs one snapshot of the furthest-reaching endpoints per edit
+// distance d, and only the diagonals k in [-d, d] are ever read back, so a
+// snapshot holds 2d+1 ints and a complete trace costs 8*(D+1)^2 bytes on a
+// 64-bit build. That is quadratic in the edit distance, which for two texts
+// with no line in common approaches the sum of their lengths: two 5,000-line
+// inputs would allocate gigabytes and can take the process down with it.
+//
+// Past this bound the exact edit script is abandoned in favour of a whole-file
+// replacement (see replaceAllOps). Real formatter diffs are far below it - the
+// distance is roughly twice the number of reformatted lines, so this tolerates
+// about 1,400 changed lines - and its cost is capped at roughly 67 MiB.
+const maxDiffEditDistance = 2896
+
 // myersDiff computes a minimal line-level edit script transforming a into b
 // using Myers' O(ND) difference algorithm. The returned operations are in
-// source order.
+// source order. When the edit distance exceeds maxDiffEditDistance the exact
+// script is given up and the whole of a is reported as replaced by b.
 func myersDiff(a, b []string) []diffOp {
-	trace, offset := myersTrace(a, b)
-	return myersBacktrack(trace, offset, len(a), len(b))
+	trace, ok := myersTrace(a, b)
+	if !ok {
+		return replaceAllOps(len(a), len(b))
+	}
+	return myersBacktrack(trace, len(a), len(b))
+}
+
+// replaceAllOps is the bounded fallback for inputs whose edit distance exceeds
+// maxDiffEditDistance: every old line is deleted and every new line inserted,
+// which buildHunks renders as a single whole-file hunk.
+func replaceAllOps(n, m int) []diffOp {
+	ops := make([]diffOp, 0, n+m)
+	for i := 0; i < n; i++ {
+		ops = append(ops, diffOp{Kind: diffDelete, Idx: i})
+	}
+	for i := 0; i < m; i++ {
+		ops = append(ops, diffOp{Kind: diffInsert, Idx: i})
+	}
+	return ops
 }
 
 // myersTrace runs the forward pass of Myers' algorithm, returning one snapshot
-// of the furthest-reaching path endpoints per edit distance, plus the index
-// offset that maps a diagonal k to a slot in those snapshots.
-func myersTrace(a, b []string) (trace [][]int, offset int) {
+// of the furthest-reaching path endpoints per edit distance. Snapshot d covers
+// the diagonals k in [-d, d] - the only ones myersBacktrack reads at that
+// distance - stored at index d+k, so the trace grows quadratically in the edit
+// distance rather than in the product of the input lengths. ok is false when
+// the edit distance exceeds maxDiffEditDistance, in which case no trace is
+// returned.
+func myersTrace(a, b []string) (trace [][]int, ok bool) {
 	n, m := len(a), len(b)
-	maxD := n + m
-	offset = maxD
-	v := make([]int, 2*maxD+1)
+	offset := n + m
+	maxD := min(n+m, maxDiffEditDistance)
+	// Two slots of slack: nextX reads the neighbouring diagonals k±1, which
+	// reach one past the widest diagonal the search itself visits.
+	v := make([]int, 2*offset+3)
 	trace = make([][]int, 0, maxD+1)
 
 	for d := 0; d <= maxD; d++ {
-		snapshot := make([]int, len(v))
-		copy(snapshot, v)
+		snapshot := make([]int, 2*d+1)
+		copy(snapshot, v[offset-d:offset+d+1])
 		trace = append(trace, snapshot)
 
 		for k := -d; k <= d; k += 2 {
@@ -94,11 +133,11 @@ func myersTrace(a, b []string) (trace [][]int, offset int) {
 			}
 			v[offset+k] = x
 			if x >= n && y >= m {
-				return trace, offset
+				return trace, true
 			}
 		}
 	}
-	return trace, offset
+	return nil, false
 }
 
 // nextX picks the furthest-reaching endpoint on diagonal k for edit distance d:
@@ -111,20 +150,24 @@ func nextX(v []int, offset, k, d int) int {
 }
 
 // myersBacktrack walks the forward-pass trace backwards and reconstructs the
-// edit script in source order.
-func myersBacktrack(trace [][]int, offset, n, m int) []diffOp {
+// edit script in source order. Snapshot d is indexed by d+k, covering the
+// diagonals k in [-d, d]; at distance 0 the predecessor is the origin.
+func myersBacktrack(trace [][]int, n, m int) []diffOp {
 	var reversed []diffOp
 	x, y := n, m
 	for d := len(trace) - 1; d >= 0 && (x > 0 || y > 0); d-- {
-		prev := trace[d]
-		k := x - y
+		prevX, prevY := 0, 0
+		if d > 0 {
+			prev := trace[d]
+			k := x - y
 
-		prevK := k - 1
-		if k == -d || (k != d && prev[offset+k-1] < prev[offset+k+1]) {
-			prevK = k + 1
+			prevK := k - 1
+			if k == -d || (k != d && prev[d+k-1] < prev[d+k+1]) {
+				prevK = k + 1
+			}
+			prevX = prev[d+prevK]
+			prevY = prevX - prevK
 		}
-		prevX := prev[offset+prevK]
-		prevY := prevX - prevK
 
 		for x > prevX && y > prevY {
 			x--

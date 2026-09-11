@@ -6,32 +6,37 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
-// TestProgram_Symbols_Scope covers the Scope field: globals, a function
-// parameter, a function local, and a local that shadows a global.
-func TestProgram_Symbols_Scope(t *testing.T) {
-	source := `
-		var shared: Integer := 1;
-		var onlyGlobal: String := 'g';
+// scopeFixtureSource declares a global that a function local shadows, plus a
+// parameter and a global-only variable, so one compilation covers every scope
+// kind Symbols() reports.
+const scopeFixtureSource = `
+	var shared: Integer := 1;
+	var onlyGlobal: String := 'g';
 
-		function Compute(factor: Integer): Integer;
-		var shared: String;
-		begin
-			shared := 'local';
-			Result := factor * 2;
-		end;
-	`
+	function Compute(factor: Integer): Integer;
+	var shared: String;
+	begin
+		shared := 'local';
+		Result := factor * 2;
+	end;
+`
+
+// compileScopeFixture compiles scopeFixtureSource and returns the reported
+// symbols grouped by name, together with a lookup that selects the occurrence
+// belonging to a given scope. Shadowed names have more than one occurrence.
+func compileScopeFixture(t *testing.T) (map[string][]Symbol, func(name, scope string) (Symbol, bool)) {
+	t.Helper()
 
 	engine, err := New(WithTypeCheck(true))
 	if err != nil {
 		t.Fatalf("Failed to create engine: %v", err)
 	}
 
-	program, err := engine.Compile(source)
+	program, err := engine.Compile(scopeFixtureSource)
 	if err != nil {
 		t.Fatalf("Compilation failed: %v", err)
 	}
 
-	// Collect every occurrence of a name: shadowed symbols must all be reported.
 	byName := make(map[string][]Symbol)
 	for _, sym := range program.Symbols() {
 		byName[sym.Name] = append(byName[sym.Name], sym)
@@ -45,6 +50,14 @@ func TestProgram_Symbols_Scope(t *testing.T) {
 		}
 		return Symbol{}, false
 	}
+
+	return byName, findScope
+}
+
+// TestProgram_Symbols_Scope covers the Scope field for globals, a function
+// parameter and a function local.
+func TestProgram_Symbols_Scope(t *testing.T) {
+	byName, findScope := compileScopeFixture(t)
 
 	// A plain global.
 	if sym, ok := findScope("onlyGlobal", "global"); !ok {
@@ -69,8 +82,14 @@ func TestProgram_Symbols_Scope(t *testing.T) {
 	if _, ok := findScope("Result", "Compute"); !ok {
 		t.Errorf("Expected \"Result\" scoped to Compute, got %+v", byName["Result"])
 	}
+}
 
-	// A local shadowing a global: both must appear, with distinct scopes.
+// TestProgram_Symbols_ShadowedLocal pins the case the old flattened
+// AllSymbols() dropped: a local shadowing a global must be reported alongside
+// it, with its own scope and type.
+func TestProgram_Symbols_ShadowedLocal(t *testing.T) {
+	byName, findScope := compileScopeFixture(t)
+
 	globalShared, okGlobal := findScope("shared", "global")
 	localShared, okLocal := findScope("shared", "Compute")
 	if !okGlobal || !okLocal {

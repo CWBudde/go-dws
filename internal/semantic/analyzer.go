@@ -876,7 +876,17 @@ func (a *Analyzer) retainScope(st *SymbolTable, name string) {
 	if st == nil {
 		return
 	}
+	// A scope opened inside an already-retained one (a lambda in a function
+	// body, say) was linked into its parent's children by
+	// NewEnclosedSymbolTable and is therefore already reachable from a
+	// top-level retained scope. Registering it a second time would make
+	// callers that walk RetainedScopes and recurse into Children report its
+	// symbols twice.
+	alreadyReachable := st.linkedToRetainedParent()
 	st.Retain(name)
+	if alreadyReachable {
+		return
+	}
 	a.retainedScopes = append(a.retainedScopes, st)
 }
 
