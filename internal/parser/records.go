@@ -104,13 +104,14 @@ func (p *Parser) parseInlineRecordType() ast.TypeExpression {
 	}
 
 	return &ast.RecordTypeNode{
-		Token:      recordToken,
-		EndPos:     cursor.Current().End(),
-		Fields:     recordDecl.Fields,
-		Methods:    recordDecl.Methods,
-		Properties: recordDecl.Properties,
-		Constants:  recordDecl.Constants,
-		ClassVars:  recordDecl.ClassVars,
+		Token:              recordToken,
+		EndPos:             cursor.Current().End(),
+		Fields:             recordDecl.Fields,
+		Methods:            recordDecl.Methods,
+		Properties:         recordDecl.Properties,
+		Constants:          recordDecl.Constants,
+		ClassVars:          recordDecl.ClassVars,
+		VisibilitySections: recordDecl.VisibilitySections,
 	}
 }
 

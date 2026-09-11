@@ -53,8 +53,15 @@ type RecordTypeNode struct {
 	Properties []RecordPropertyDecl
 	Constants  []*ConstDecl
 	ClassVars  []*FieldDecl
-	Token      token.Token
-	EndPos     token.Position
+
+	// VisibilitySections lists the visibility specifiers written inside the
+	// inline record body, in source order. It mirrors
+	// RecordDecl.VisibilitySections so anonymous records get the same
+	// diagnostics as named ones.
+	VisibilitySections []RecordVisibilitySection `ast:"skip"`
+
+	Token  token.Token
+	EndPos token.Position
 }
 
 func (rt *RecordTypeNode) String() string {

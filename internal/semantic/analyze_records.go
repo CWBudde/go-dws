@@ -18,9 +18,9 @@ import (
 // a record body. Records default to public, only support `private`, `public`
 // and `published`, and DWScript hints when a section repeats the visibility
 // that is already in effect.
-func (a *Analyzer) checkRecordVisibilitySections(decl *ast.RecordDecl) {
+func (a *Analyzer) checkRecordVisibilitySections(sections []ast.RecordVisibilitySection) {
 	current := "public"
-	for _, section := range decl.VisibilitySections {
+	for _, section := range sections {
 		switch section.Specifier {
 		case "protected":
 			a.addStructuredError(NewGenericError(section.Pos,
@@ -58,7 +58,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		return
 	}
 
-	a.checkRecordVisibilitySections(decl)
+	a.checkRecordVisibilitySections(decl.VisibilitySections)
 
 	// DWScript rejects a record whose body declares no members at all. A record
 	// that only declares static members (class vars, class methods), methods,

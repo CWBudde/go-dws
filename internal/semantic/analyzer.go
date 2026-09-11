@@ -122,6 +122,11 @@ type Analyzer struct {
 	// whose getter needs an instance, is still legally writable. Compound assignments
 	// leave it nil, since they do read the property.
 	indexedWriteTargetMember ast.Expression
+
+	// reportedInlineRecordVisibility tracks the inline record type nodes whose
+	// visibility sections have already been diagnosed, so a node resolved more
+	// than once does not report the same diagnostic twice.
+	reportedInlineRecordVisibility map[*ast.RecordTypeNode]bool
 }
 
 // NewAnalyzer creates a new semantic analyzer

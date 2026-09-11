@@ -365,3 +365,96 @@ end;
 		})
 	}
 }
+
+// TestInlineRecordVisibilitySectionDiagnostics verifies that anonymous inline
+// record types get the same visibility diagnostics as named record
+// declarations. The specifiers are parsed into RecordTypeNode.VisibilitySections
+// and checked when the inline type is resolved.
+func TestInlineRecordVisibilitySectionDiagnostics(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    []string
+		notWant []string
+	}{
+		{
+			name:   "inline record with protected section is rejected",
+			source: "var r : record protected X : Integer; end;\n",
+			want:   []string{`Records do not supported "protected" visibility specifier`},
+		},
+		{
+			name: "inline record with protected section spanning lines",
+			source: `
+var r : record
+   protected
+      X : Integer;
+end;
+`,
+			want: []string{`Records do not supported "protected" visibility specifier`},
+		},
+		{
+			name:   "inline record with redundant public section hints",
+			source: "var r : record public X : Integer; end;\n",
+			want:   []string{`Hint: Redundant specifier, visibility is already "public"`},
+		},
+		{
+			name: "inline record with repeated private section hints",
+			source: `
+var r : record
+   private
+   private
+      FHidden : Integer;
+end;
+`,
+			want: []string{`Hint: Redundant specifier, visibility is already "private"`},
+		},
+		{
+			name:   "plain inline record reports nothing",
+			source: "var r : record X : Integer; end;\n",
+			notWant: []string{
+				`Records do not supported "protected" visibility specifier`,
+				"Redundant specifier",
+			},
+		},
+		{
+			name: "alternating inline sections are not redundant",
+			source: `
+var r : record
+   private
+      FHidden : Integer;
+   public
+      Pub : Integer;
+end;
+`,
+			notWant: []string{"Redundant specifier"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			diags := analyzeRecordSource(t, tt.source)
+			for _, want := range tt.want {
+				if countDiagnostics(diags, want) != 1 {
+					t.Errorf("want exactly one diagnostic %q, got %d (diagnostics: %v)",
+						want, countDiagnostics(diags, want), diags)
+				}
+			}
+			for _, notWant := range tt.notWant {
+				if hasDiagnostic(diags, notWant) {
+					t.Errorf("unexpected diagnostic %q (got: %v)", notWant, diags)
+				}
+			}
+		})
+	}
+}
+
+// countDiagnostics returns how many diagnostics contain substr.
+func countDiagnostics(diags []string, substr string) int {
+	count := 0
+	for _, d := range diags {
+		if strings.Contains(d, substr) {
+			count++
+		}
+	}
+	return count
+}

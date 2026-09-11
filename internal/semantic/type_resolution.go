@@ -74,6 +74,18 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (resolvedT
 }
 
 func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.Type, error) {
+	// Anonymous inline records get the same visibility diagnostics as named
+	// ones. A single node can be resolved more than once (for example when a
+	// declaration is analyzed and its type later re-resolved), so report only
+	// the first time.
+	if len(recordNode.VisibilitySections) > 0 && !a.reportedInlineRecordVisibility[recordNode] {
+		if a.reportedInlineRecordVisibility == nil {
+			a.reportedInlineRecordVisibility = make(map[*ast.RecordTypeNode]bool)
+		}
+		a.reportedInlineRecordVisibility[recordNode] = true
+		a.checkRecordVisibilitySections(recordNode.VisibilitySections)
+	}
+
 	recordType := types.NewRecordType("", make(map[string]types.Type))
 
 	for _, field := range recordNode.Fields {
