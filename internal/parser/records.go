@@ -55,6 +55,7 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 		p.addError("expected 'end' to close record declaration", ErrMissingEnd)
 		return nil
 	}
+	recordDecl.EndKeywordPos = cursor.Current().Pos
 
 	// Expect semicolon after 'end'
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
@@ -125,20 +126,21 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 
 	// Parse record body until 'end'
 	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF {
-		// Check for visibility modifiers
-		if cursor.Current().Type == lexer.PRIVATE {
-			currentVisibility = ast.VisibilityPrivate
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
-		} else if cursor.Current().Type == lexer.PUBLIC {
-			currentVisibility = ast.VisibilityPublic
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
-		} else if cursor.Current().Type == lexer.PUBLISHED {
-			// Published is treated as public for records
-			currentVisibility = ast.VisibilityPublic
+		// Check for visibility modifiers. `protected` is not a legal record
+		// section, but it is consumed here so the analyzer can report it and
+		// the rest of the body still parses.
+		switch cursor.Current().Type {
+		case lexer.PRIVATE, lexer.PUBLIC, lexer.PUBLISHED, lexer.PROTECTED:
+			specifier := pkgident.Normalize(cursor.Current().Literal)
+			recordDecl.VisibilitySections = append(recordDecl.VisibilitySections,
+				ast.RecordVisibilitySection{Specifier: specifier, Pos: cursor.Current().Pos})
+			switch cursor.Current().Type {
+			case lexer.PRIVATE:
+				currentVisibility = ast.VisibilityPrivate
+			case lexer.PUBLIC, lexer.PUBLISHED:
+				// Published is treated as public for records
+				currentVisibility = ast.VisibilityPublic
+			}
 			cursor = cursor.Advance()
 			p.cursor = cursor
 			continue

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -12,6 +13,26 @@ import (
 // ============================================================================
 // Record Type Analysis
 // ============================================================================
+
+// checkRecordVisibilitySections diagnoses the visibility specifiers written in
+// a record body. Records default to public, only support `private`, `public`
+// and `published`, and DWScript hints when a section repeats the visibility
+// that is already in effect.
+func (a *Analyzer) checkRecordVisibilitySections(decl *ast.RecordDecl) {
+	current := "public"
+	for _, section := range decl.VisibilitySections {
+		switch section.Specifier {
+		case "protected":
+			a.addStructuredError(NewGenericError(section.Pos,
+				`Records do not supported "protected" visibility specifier`))
+		case current:
+			a.addHint("Redundant specifier, visibility is already %q [line: %d, column: %d]",
+				section.Specifier, section.Pos.Line, section.Pos.Column)
+		default:
+			current = section.Specifier
+		}
+	}
+}
 
 // analyzeRecordDecl analyzes a record type declaration.
 func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
@@ -23,6 +44,13 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 	if decl == nil {
 		return
+	}
+
+	a.checkRecordVisibilitySections(decl)
+
+	// DWScript requires every record to declare at least one field.
+	if len(decl.Fields) == 0 && decl.EndKeywordPos.Line != 0 {
+		a.addStructuredError(NewGenericError(decl.EndKeywordPos, "Record has no field members"))
 	}
 
 	recordName := decl.Name.Value
@@ -356,6 +384,49 @@ func (a *Analyzer) recordFieldContainsRecordByValue(fieldType types.Type, target
 	return false
 }
 
+// isRecordMemberVisible reports whether a record member declared with the given
+// visibility is reachable from the current analysis scope.
+//
+// Records have no inheritance and DWScript only allows `private`, `public` and
+// `published` sections inside them (`published` is parsed as public). So a
+// member is visible when it is public, or when the analyzer is currently inside
+// a method body of the very record that owns it.
+func (a *Analyzer) isRecordMemberVisible(recordType *types.RecordType, visibility int) bool {
+	if visibility != int(ast.VisibilityPrivate) {
+		return true
+	}
+	if a.currentRecord == nil || recordType == nil {
+		return false
+	}
+	if a.currentRecord == recordType {
+		return true
+	}
+	return recordType.Name != "" && ident.Equal(a.currentRecord.Name, recordType.Name)
+}
+
+// checkRecordMemberVisibility validates access to the record member stored under
+// normalizedName, reporting a DWScript-style visibility diagnostic when the
+// member is out of scope. It reports whether access is allowed.
+func (a *Analyzer) checkRecordMemberVisibility(
+	recordType *types.RecordType,
+	normalizedName, declaredName string,
+	pos lexer.Position,
+) bool {
+	if recordType == nil {
+		return true
+	}
+	// An absent entry means public (see types.RecordType.FieldVisibility).
+	visibility, ok := recordType.FieldVisibility[normalizedName]
+	if !ok {
+		return true
+	}
+	if a.isRecordMemberVisible(recordType, visibility) {
+		return true
+	}
+	a.addStructuredError(NewVisibilityScopeError(pos, declaredName))
+	return false
+}
+
 // analyzeRecordFieldAccess analyzes access to a record field.
 func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Identifier) types.Type {
 	if field == nil {
@@ -388,8 +459,9 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
 			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
 		}
-		// TODO: Check visibility rules if needed
-		// For now, we allow all field access
+		if !a.checkRecordMemberVisibility(recordType, lowerFieldName, fieldName, field.Token.Pos) {
+			return nil
+		}
 		return fieldType
 	}
 

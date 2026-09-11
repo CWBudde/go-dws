@@ -5,7 +5,21 @@ package ast
 import (
 	"bytes"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/token"
 )
+
+// RecordVisibilitySection records one visibility specifier written inside a
+// record body, in source order. DWScript diagnoses redundant specifiers and
+// rejects "protected" inside records, so the specifier keyword is kept as
+// written (lower-cased) rather than collapsed onto Visibility.
+type RecordVisibilitySection struct {
+	// Specifier is the keyword as written, lower-cased: "private", "public",
+	// "published" or "protected".
+	Specifier string
+	// Pos is the position of the specifier keyword.
+	Pos token.Position
+}
 
 // ============================================================================
 // Record Declaration
@@ -33,7 +47,12 @@ type RecordDecl struct {
 	// (e.g. ["A", "B"] for `type TRec<A,B> = record ... end;`). Empty for
 	// non-generic records. Generic records are monomorphized before analysis.
 	TypeParams []string
+	// VisibilitySections lists the visibility specifiers written inside the
+	// record body, in source order. It carries no child nodes.
+	VisibilitySections []RecordVisibilitySection `ast:"skip"`
 	BaseNode
+	// EndKeywordPos is the position of the record's closing `end` keyword.
+	EndKeywordPos token.Position `ast:"skip"`
 }
 
 func (rd *RecordDecl) statementNode() {}

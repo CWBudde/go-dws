@@ -2513,3 +2513,46 @@ observable from JavaScript, but scripts cannot yet read through it. Closing that
 thrown-error mapping, and platform install/reset); `just wasm-smoke` (new
 `build/wasm/smoke-fs.mjs`, which loads a real `dwscript.wasm` in Node and checks the JS-facing
 contract of `setFileSystem`/`init({fs})`); `GOOS=js GOARCH=wasm go build ./...`.
+
+## 2026-09-11 — Record member visibility, PLAN.md §3.4 (FailureScripts 122 → 124)
+
+`internal/semantic/analyze_records.go` carried a `// TODO: Check visibility rules if needed` where
+the field lookup in `analyzeRecordFieldAccess` returned unconditionally, so a `private` record field
+was reachable from anywhere. `FailureScripts/record_visibility` compiled clean.
+
+The rule is much simpler than the class one, which is why it gets its own helper instead of reusing
+`Analyzer.checkVisibility`: records have no inheritance, and the parser already folds `published`
+onto `public` and rejects nothing else, so a member is visible when it is public or when
+`Analyzer.currentRecord` is the record that owns it. `checkRecordMemberVisibility` reads
+`types.RecordType.FieldVisibility` (absent entry = public) and emits
+`NewVisibilityScopeError`, the same diagnostic the class path uses.
+
+The check had to fire at three sites, not just field reads: the member expression (covers both
+`PrintLn(r.FHidden)` and `r.FHidden := 'a'`, which share `analyzeRecordFieldAccess`) and the record
+literal field list in `analyzeRecordLiteral`, which resolves fields by name without going through
+member access at all. `record_method` and the other ~70 `record*` SimpleScripts fixtures keep
+working because `analyzeRecordMethodBody` already sets `currentRecord` for both inline and
+out-of-line method bodies.
+
+### Visibility sections in the record body
+
+`record_visibility_redundant` died in the parser at `protected`. `parseRecordBody` now consumes
+`private` / `public` / `published` / `protected` uniformly and records each specifier, in source
+order, on `ast.RecordDecl.VisibilitySections` (with `ast:"skip"`, so the visitor generator leaves it
+alone); the closing `end` position lands in `EndKeywordPos`. All four diagnostics then come from the
+analyzer, which is what the fixture needs — a parser error would stop the pipeline before the hints
+were emitted. `checkRecordVisibilitySections` tracks the specifier keyword rather than the folded
+`ast.Visibility`, because DWScript treats `published` after `private` as a change but `private`
+after `private` as redundant. A record that declares no field at all now reports
+`Record has no field members` at its `end`.
+
+The upstream message `Records do not supported "protected" visibility specifier` is reproduced with
+its typo.
+
+**Validation:** `go test ./...` green. `just fixture-check` green.
+FailureScripts 122 → 124 (`record_visibility`, `record_visibility_redundant`); SimpleScripts
+unchanged at 348/442, with no fixture changing state in either direction. New tests:
+`internal/semantic/record_visibility_test.go` (two table-driven suites: member access from inside
+and outside the owning record, across reads, assignments and literals; and the record-body
+specifier diagnostics). `golangci-lint run` on `internal/semantic`, `internal/parser` and `pkg/ast`
+reports the same 398 pre-existing issues as `main`.

@@ -332,6 +332,11 @@ func (a *Analyzer) analyzeRecordLiteral(lit *ast.RecordLiteralExpression, expect
 			continue
 		}
 
+		// A record literal may only initialize fields visible from this scope.
+		if !a.checkRecordMemberVisibility(recordType, lowerFieldName, fieldName, field.Name.Token.Pos) {
+			continue
+		}
+
 		// Type-check the field value
 		actualType := a.analyzeExpressionWithExpectedType(field.Value, expectedFieldType)
 		if actualType == nil {

@@ -344,7 +344,6 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
 
 - `[ ]` `internal/semantic/analyze_arrays.go:162` — validate index expression types against property index-parameter types.
 - `[ ]` `internal/semantic/overload_resolution.go:211` — class-hierarchy distance in overload matching.
-- `[ ]` `internal/semantic/analyze_records.go:387` — record member visibility rules.
 - `[ ]` `internal/semantic/analyze_function_calls.go:26` — use `expectedType` in overload resolution.
 - `[ ]` `internal/interp/evaluator/helpers.go:131` — enum range checking.
 - `[ ]` `internal/units/search.go:171-172` — user (`~/.dwscript/lib`) and system library search paths.
