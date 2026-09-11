@@ -10,12 +10,14 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
-**1,039 / 1,928 scored = 54%**, after §3.2.7 closed conditional compilation and §3.3
-closed the whole runtime/evaluator bucket: associative arrays (key coercion, ARC destructor
+**1,039 / 1,928 scored = 54%**, after §3.2.7 closed conditional compilation and a §3.3 merge
+train closed these runtime/evaluator items: associative arrays (key coercion, ARC destructor
 timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
 JSON ownership and number formatting, call-site column precision in stack traces, metaclass
 method pointers, and the ByteBuffer, EncodingLib, GlobalVars, FunctionsTime, FunctionsVariant,
-FunctionsDebug and InnerClasses host libraries. Both use the shared compile pipeline and scoring rules.
+FunctionsDebug and InnerClasses host libraries. §3.3 itself stays open: the runtime-panic
+re-measurement, Memory (1/13) and the FunctionsGlobalVars remainder (12/16). Both use the shared
+compile pipeline and scoring rules.
 `*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
