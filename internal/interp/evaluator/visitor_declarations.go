@@ -1086,6 +1086,8 @@ func (e *Evaluator) VisitRecordDecl(node *ast.RecordDecl, ctx *ExecutionContext)
 			WriteField: prop.WriteField,
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
+
+			IndexParamTypes: e.resolveRecordPropertyIndexParamTypes(prop.IndexParams, ctx),
 		}
 
 		switch {

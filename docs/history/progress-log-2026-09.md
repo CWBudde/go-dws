@@ -2513,3 +2513,88 @@ observable from JavaScript, but scripts cannot yet read through it. Closing that
 thrown-error mapping, and platform install/reset); `just wasm-smoke` (new
 `build/wasm/smoke-fs.mjs`, which loads a real `dwscript.wasm` in Node and checks the JS-facing
 contract of `setFileSystem`/`init({fs})`); `GOOS=js GOARCH=wasm go build ./...`.
+
+## 2026-09-11 — Record member visibility, PLAN.md §3.4 (FailureScripts 122 → 124)
+
+`internal/semantic/analyze_records.go` carried a `// TODO: Check visibility rules if needed` where
+the field lookup in `analyzeRecordFieldAccess` returned unconditionally, so a `private` record field
+was reachable from anywhere. `FailureScripts/record_visibility` compiled clean.
+
+The rule is much simpler than the class one, which is why it gets its own helper instead of reusing
+`Analyzer.checkVisibility`: records have no inheritance, and the parser already folds `published`
+onto `public` and rejects nothing else, so a member is visible when it is public or when
+`Analyzer.currentRecord` is the record that owns it. `checkRecordMemberVisibility` reads
+`types.RecordType.FieldVisibility` (absent entry = public) and emits
+`NewVisibilityScopeError`, the same diagnostic the class path uses.
+
+The check had to fire at three sites, not just field reads: the member expression (covers both
+`PrintLn(r.FHidden)` and `r.FHidden := 'a'`, which share `analyzeRecordFieldAccess`) and the record
+literal field list in `analyzeRecordLiteral`, which resolves fields by name without going through
+member access at all. `record_method` and the other ~70 `record*` SimpleScripts fixtures keep
+working because `analyzeRecordMethodBody` already sets `currentRecord` for both inline and
+out-of-line method bodies.
+
+### Visibility sections in the record body
+
+`record_visibility_redundant` died in the parser at `protected`. `parseRecordBody` now consumes
+`private` / `public` / `published` / `protected` uniformly and records each specifier, in source
+order, on `ast.RecordDecl.VisibilitySections` (with `ast:"skip"`, so the visitor generator leaves it
+alone); the closing `end` position lands in `EndKeywordPos`. All four diagnostics then come from the
+analyzer, which is what the fixture needs — a parser error would stop the pipeline before the hints
+were emitted. `checkRecordVisibilitySections` tracks the specifier keyword rather than the folded
+`ast.Visibility`, because DWScript treats `published` after `private` as a change but `private`
+after `private` as redundant. A record that declares no field at all now reports
+`Record has no field members` at its `end`.
+
+The upstream message `Records do not supported "protected" visibility specifier` is reproduced with
+its typo.
+
+**Validation:** `go test ./...` green. `just fixture-check` green.
+FailureScripts 122 → 124 (`record_visibility`, `record_visibility_redundant`); SimpleScripts
+unchanged at 348/442, with no fixture changing state in either direction. New tests:
+`internal/semantic/record_visibility_test.go` (two table-driven suites: member access from inside
+and outside the owning record, across reads, assignments and literals; and the record-body
+specifier diagnostics). `golangci-lint run` on `internal/semantic`, `internal/parser` and `pkg/ast`
+reports the same 398 pre-existing issues as `main`.
+
+## 2026-09-11 — Record default-property index types, PLAN.md §3.4 (FailureScripts 124 → 125)
+
+`internal/semantic/analyze_arrays.go` validated the index expression of a class default property
+against the property's index parameter types, but the record branch ~70 lines below carried
+`// TODO: Validate index type matches property index parameter types` and only called
+`analyzeExpression`. `r['bad']` on a record whose default property is declared
+`property Items[i : Integer] : String` compiled clean; the same mistake on a class was rejected.
+
+The blocker was metadata, not the check: `types.PropertyInfo` (classes) has `IndexParamTypes`,
+`types.RecordPropertyInfo` had only `IsIndexed bool`, discarding `ast.PropertyDecl.IndexParams`
+after counting it. `RecordPropertyInfo` gained `IndexParamTypes []Type`, populated at all four
+construction sites — `internal/semantic/analyze_records.go` and `internal/semantic/type_resolution.go`
+(inline record types) via the new `Analyzer.resolveRecordPropertyIndexParamTypes`, and
+`internal/interp/evaluator/visitor_declarations.go` and
+`internal/interp/evaluator/type_resolution.go` via the matching
+`Evaluator.resolveRecordPropertyIndexParamTypes`, so runtime and compile-time record metadata
+agree. Both helpers return nil when any index parameter lacks a resolvable type annotation, which
+leaves the accessor-signature fallback in charge rather than validating against a partial list;
+diagnostics for unresolvable index parameter types stay with the declaration checks.
+
+`getIndexedPropertyParamTypes` was split into a shape-neutral
+`indexedPropertyParamTypes(declared, readSpec, writeSpec, lookupMethod)` plus two thin wrappers, so
+the preference order (declared index parameters, then getter parameters, then setter parameters
+minus the value parameter) is not duplicated. The record wrapper passes `ReadField`/`WriteField`:
+record accessors are recorded as names, and `RecordType.GetMethod` returns nil for a name that is
+actually a field.
+
+The record branch now mirrors the class branch exactly, including the diagnostic, so both paths
+report `Array index expected "Integer" but got "String"` for the same mistake.
+
+Out of scope: multi-index record properties (`p[i, j]`) — the record branch still picks one
+default property out of a map iteration, which is non-deterministic if a record ever declares two
+defaults. Records also do not check a property's read-field type the way classes do (`property
+Items[i : Integer] : String read FItems` with an array-typed `FItems` is accepted).
+
+**Validation:** `go test ./internal/semantic/... ./internal/types/... ./internal/interp/...` green
+except the pre-existing `TestRecordStaticMembersThroughTypeAndInstance` failure, which reproduces
+unchanged on the parent commit. FailureScripts 124/541 → 125/542; SimpleScripts unchanged at
+348/442; overall `just fixture-report` 1041/2042 → 1042/2043. The two fail lists are identical
+before and after. New tests: `testdata/fixtures/FailureScripts/record_default_property_index_type`
+and `internal/semantic/record_default_property_index_test.go`.

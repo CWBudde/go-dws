@@ -195,6 +195,8 @@ func (e *Evaluator) resolveRecordTypeNode(recordNode *ast.RecordTypeNode, ctx *E
 			WriteField: prop.WriteField,
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
+
+			IndexParamTypes: e.resolveRecordPropertyIndexParamTypes(prop.IndexParams, ctx),
 		}
 	}
 
@@ -261,4 +263,28 @@ func (e *Evaluator) recordTypeFromAnnotation(annotation ast.TypeExpression, ctx 
 		return record
 	}
 	return nil
+}
+
+// resolveRecordPropertyIndexParamTypes resolves the declared index parameter
+// types of a record property (`property Items[i : Integer] : String`).
+//
+// It returns nil when the property is not indexed or when any index parameter
+// lacks a resolvable type annotation, matching the semantic analyzer so that
+// runtime and compile-time record metadata agree.
+func (e *Evaluator) resolveRecordPropertyIndexParamTypes(params []*ast.Parameter, ctx *ExecutionContext) []types.Type {
+	if len(params) == 0 {
+		return nil
+	}
+	resolved := make([]types.Type, 0, len(params))
+	for _, param := range params {
+		if param == nil || param.Type == nil {
+			return nil
+		}
+		paramType, err := e.ResolveTypeFromAnnotation(param.Type, ctx)
+		if err != nil || paramType == nil {
+			return nil
+		}
+		resolved = append(resolved, paramType)
+	}
+	return resolved
 }

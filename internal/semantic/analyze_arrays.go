@@ -176,9 +176,16 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			}
 
 			if defaultProp != nil {
-				// Analyze the index expression
-				// TODO: Validate index type matches property index parameter types
-				a.analyzeExpression(expr.Index)
+				expectedIndexTypes := a.getIndexedRecordPropertyParamTypes(defaultProp, recordType)
+				if len(expectedIndexTypes) > 0 {
+					indexType := a.analyzeExpressionWithExpectedType(expr.Index, expectedIndexTypes[0])
+					if indexType != nil && !a.canAssign(indexType, expectedIndexTypes[0]) {
+						a.addStructuredError(NewArrayIndexError(expr.Index.Pos(), expectedIndexTypes[0].String(), indexType.String()))
+						return defaultProp.Type
+					}
+				} else {
+					a.analyzeExpression(expr.Index)
+				}
 				return defaultProp.Type
 			}
 		}
@@ -399,22 +406,57 @@ func (a *Analyzer) getDefaultClassProperty(classType *types.ClassType) *types.Pr
 //
 // If no method information is available, returns nil.
 func (a *Analyzer) getIndexedPropertyParamTypes(propInfo *types.PropertyInfo, classType *types.ClassType) []types.Type {
-	// Declared index parameters are authoritative and, unlike an accessor
-	// method's signature, are also available for expression-based accessors.
-	if len(propInfo.IndexParamTypes) > 0 {
-		return propInfo.IndexParamTypes
+	readSpec := ""
+	if propInfo.ReadKind == types.PropAccessMethod {
+		readSpec = propInfo.ReadSpec
+	}
+	writeSpec := ""
+	if propInfo.WriteKind == types.PropAccessMethod {
+		writeSpec = propInfo.WriteSpec
+	}
+	return indexedPropertyParamTypes(propInfo.IndexParamTypes, readSpec, writeSpec,
+		func(name string) *types.FunctionType {
+			if methodType, found := classType.GetMethod(name); found {
+				return methodType
+			}
+			return nil
+		})
+}
+
+// getIndexedRecordPropertyParamTypes is the record counterpart of
+// getIndexedPropertyParamTypes. Record accessors are recorded as field names,
+// so the fallback resolves a name that turns out to be a record method.
+func (a *Analyzer) getIndexedRecordPropertyParamTypes(propInfo *types.RecordPropertyInfo, recordType *types.RecordType) []types.Type {
+	return indexedPropertyParamTypes(propInfo.IndexParamTypes, propInfo.ReadField, propInfo.WriteField,
+		recordType.GetMethod)
+}
+
+// indexedPropertyParamTypes derives the index parameter types of an indexed
+// property, shared by the class and record property shapes.
+//
+// Preference order:
+//  1. Declared index parameters, which are authoritative and — unlike an
+//     accessor method's signature — also available for expression- and
+//     field-backed accessors.
+//  2. Getter method parameters (all parameters are index parameters).
+//  3. Setter method parameters (all but the last parameter are index parameters).
+//
+// readSpec and writeSpec name the accessor methods, or are empty when the
+// accessor is not a method. lookupMethod returns nil for an unknown name.
+// If no information is available, returns nil.
+func indexedPropertyParamTypes(declared []types.Type, readSpec, writeSpec string, lookupMethod func(string) *types.FunctionType) []types.Type {
+	if len(declared) > 0 {
+		return declared
 	}
 
-	// Use getter signature if it is a method
-	if propInfo.ReadKind == types.PropAccessMethod && propInfo.ReadSpec != "" {
-		if methodType, found := classType.GetMethod(ident.Normalize(propInfo.ReadSpec)); found {
+	if readSpec != "" {
+		if methodType := lookupMethod(ident.Normalize(readSpec)); methodType != nil {
 			return methodType.Parameters
 		}
 	}
 
-	// Use setter signature if it is a method (exclude the value parameter)
-	if propInfo.WriteKind == types.PropAccessMethod && propInfo.WriteSpec != "" {
-		if methodType, found := classType.GetMethod(ident.Normalize(propInfo.WriteSpec)); found {
+	if writeSpec != "" {
+		if methodType := lookupMethod(ident.Normalize(writeSpec)); methodType != nil {
 			if len(methodType.Parameters) > 0 {
 				return methodType.Parameters[:len(methodType.Parameters)-1]
 			}

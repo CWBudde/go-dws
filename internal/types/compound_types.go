@@ -151,8 +151,13 @@ type RecordPropertyInfo struct {
 	WriteField string
 	ReadKind   PropAccessKind
 	WriteKind  PropAccessKind
-	IsDefault  bool
-	IsIndexed  bool
+	// IndexParamTypes holds the resolved types of the declared index
+	// parameters (`property P[i : Integer] : String`). It is empty for
+	// non-indexed properties and for declarations whose index parameter types
+	// could not be resolved.
+	IndexParamTypes []Type
+	IsDefault       bool
+	IsIndexed       bool
 	// ExternalName, when set by an `external 'name'` clause, replaces the
 	// declared name when the record is serialized.
 	ExternalName string

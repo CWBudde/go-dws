@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/errors"
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -12,6 +13,38 @@ import (
 // ============================================================================
 // Record Type Analysis
 // ============================================================================
+
+// checkRecordVisibilitySections diagnoses the visibility specifiers written in
+// a record body. Records default to public, only support `private`, `public`
+// and `published`, and DWScript hints when a section repeats the visibility
+// that is already in effect.
+func (a *Analyzer) checkRecordVisibilitySections(sections []ast.RecordVisibilitySection) {
+	current := "public"
+	for _, section := range sections {
+		switch section.Specifier {
+		case "protected":
+			a.addStructuredError(NewGenericError(section.Pos,
+				`Records do not supported "protected" visibility specifier`))
+		case current:
+			a.addHint("Redundant specifier, visibility is already %q [line: %d, column: %d]",
+				section.Specifier, section.Pos.Line, section.Pos.Column)
+		default:
+			current = section.Specifier
+		}
+	}
+}
+
+// recordHasNoMembers reports whether a record body declares no members of any
+// kind: no fields, no class vars, no methods (instance or class), no
+// properties and no constants. Visibility specifiers alone do not count as
+// members.
+func recordHasNoMembers(decl *ast.RecordDecl) bool {
+	return len(decl.Fields) == 0 &&
+		len(decl.ClassVars) == 0 &&
+		len(decl.Methods) == 0 &&
+		len(decl.Properties) == 0 &&
+		len(decl.Constants) == 0
+}
 
 // analyzeRecordDecl analyzes a record type declaration.
 func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
@@ -23,6 +56,15 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 	if decl == nil {
 		return
+	}
+
+	a.checkRecordVisibilitySections(decl.VisibilitySections)
+
+	// DWScript rejects a record whose body declares no members at all. A record
+	// that only declares static members (class vars, class methods), methods,
+	// properties or constants is legal.
+	if recordHasNoMembers(decl) && decl.EndKeywordPos.Line != 0 {
+		a.addStructuredError(NewGenericError(decl.EndKeywordPos, "Record has no field members"))
 	}
 
 	recordName := decl.Name.Value
@@ -296,6 +338,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
 
+			IndexParamTypes: a.resolveRecordPropertyIndexParamTypes(prop.IndexParams),
 			IsClassProperty: prop.IsClassProperty,
 			ExternalName:    prop.ExternalName,
 		}
@@ -356,6 +399,49 @@ func (a *Analyzer) recordFieldContainsRecordByValue(fieldType types.Type, target
 	return false
 }
 
+// isRecordMemberVisible reports whether a record member declared with the given
+// visibility is reachable from the current analysis scope.
+//
+// Records have no inheritance and DWScript only allows `private`, `public` and
+// `published` sections inside them (`published` is parsed as public). So a
+// member is visible when it is public, or when the analyzer is currently inside
+// a method body of the very record that owns it.
+func (a *Analyzer) isRecordMemberVisible(recordType *types.RecordType, visibility int) bool {
+	if visibility != int(ast.VisibilityPrivate) {
+		return true
+	}
+	if a.currentRecord == nil || recordType == nil {
+		return false
+	}
+	if a.currentRecord == recordType {
+		return true
+	}
+	return recordType.Name != "" && ident.Equal(a.currentRecord.Name, recordType.Name)
+}
+
+// checkRecordMemberVisibility validates access to the record member stored under
+// normalizedName, reporting a DWScript-style visibility diagnostic when the
+// member is out of scope. It reports whether access is allowed.
+func (a *Analyzer) checkRecordMemberVisibility(
+	recordType *types.RecordType,
+	normalizedName, declaredName string,
+	pos lexer.Position,
+) bool {
+	if recordType == nil {
+		return true
+	}
+	// An absent entry means public (see types.RecordType.FieldVisibility).
+	visibility, ok := recordType.FieldVisibility[normalizedName]
+	if !ok {
+		return true
+	}
+	if a.isRecordMemberVisible(recordType, visibility) {
+		return true
+	}
+	a.addStructuredError(NewVisibilityScopeError(pos, declaredName))
+	return false
+}
+
 // analyzeRecordFieldAccess analyzes access to a record field.
 func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Identifier) types.Type {
 	if field == nil {
@@ -388,8 +474,9 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
 			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
 		}
-		// TODO: Check visibility rules if needed
-		// For now, we allow all field access
+		if !a.checkRecordMemberVisibility(recordType, lowerFieldName, fieldName, field.Token.Pos) {
+			return nil
+		}
 		return fieldType
 	}
 
@@ -490,4 +577,29 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 
 	a.addStructuredError(NewAccessibleMemberError(field.Token.Pos, fieldName, recordType.Name))
 	return nil
+}
+
+// resolveRecordPropertyIndexParamTypes resolves the declared index parameter
+// types of a record property (`property Items[i : Integer] : String`).
+//
+// It returns nil when the property is not indexed or when any index parameter
+// lacks a resolvable type annotation, so that callers fall back to the accessor
+// method signature instead of validating against a partial list. Diagnostics for
+// unresolvable index parameter types are left to the declaration checks.
+func (a *Analyzer) resolveRecordPropertyIndexParamTypes(params []*ast.Parameter) []types.Type {
+	if len(params) == 0 {
+		return nil
+	}
+	resolved := make([]types.Type, 0, len(params))
+	for _, param := range params {
+		if param == nil || param.Type == nil {
+			return nil
+		}
+		paramType, err := a.resolveTypeExpression(param.Type)
+		if err != nil || paramType == nil {
+			return nil
+		}
+		resolved = append(resolved, paramType)
+	}
+	return resolved
 }
