@@ -9,10 +9,10 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-10):** Go harness and freshly rebuilt CLI both
-**937 / 1,928 scored = 49%**, after §3.2.7 closed conditional compilation.
+**Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
+**938 / 1,928 scored = 49%**, after §3.2.7 closed conditional compilation.
 Both use the shared compile pipeline and scoring rules.
-`*Fail` error-detection suites **115 / 647 = 18%**.
+`*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
 
@@ -32,7 +32,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (991 total): FailureScripts 406, SimpleScripts 93,
+- Where the remaining failures are (990 total): FailureScripts 406, SimpleScripts 92,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -313,7 +313,9 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 - `[ ]` M Nested lvalue vivification through a key or index (`a[k].field := v`, `a[k][j] := v`,
   `a[k].Add(…)`) → AssociativePass `elements_of_value`, `array_of_dyn`; JSONConnectorPass
   `generate1`, `basic_generate`.
-- `[ ]` S DWScript hash iteration order → AssociativePass `records`.
+- `[ ]` S DWScript hash iteration order → AssociativePass `records`. The compile-time blocker is
+  fixed (the analyzer now indexes the result of a parenless function call); the fixture's only
+  remaining diff is `Keys.Join(',')` emitting `a,b` where DWScript emits `b,a`.
 - `[ ]` S ARC destructor timing on associative slot replace/clear → `delete_sequence`;
   Variant → key coercion → `variant_key_cast`.
 - `[ ]` M Record copy-on-assign value semantics → JSONConnectorPass `stringify_record`.

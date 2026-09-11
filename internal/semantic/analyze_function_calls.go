@@ -821,6 +821,60 @@ func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
 	return funcType.ReturnType
 }
 
+// applyImplicitCallType unwraps a parameterless function reference into the
+// type of its result, so that `Test.Member` and `Test[Index]` operate on the
+// value the call yields rather than on the function itself. expr is the
+// expression that produced typ; typ is returned unchanged when no implicit
+// call applies.
+func (a *Analyzer) applyImplicitCallType(expr ast.Expression, typ types.Type) types.Type {
+	if implicitType := a.getImplicitCallType(expr); implicitType != nil {
+		return implicitType
+	}
+	if implicitType := implicitCallReturnTypeFromType(typ); implicitType != nil {
+		return implicitType
+	}
+	// Overload-set symbols deliberately carry no type of their own, so the
+	// caller sees a nil type. The implicit call still has a result type when
+	// the set holds exactly one parameterless overload.
+	if typ == nil {
+		if funcType := a.parameterlessOverloadType(expr); funcType != nil {
+			if funcType.IsProcedure() {
+				return types.VOID
+			}
+			return funcType.ReturnType
+		}
+	}
+	return typ
+}
+
+// parameterlessOverloadType returns the signature of the single parameterless
+// overload of expr's overload set, or nil when expr is not an overload set or
+// the set has no unique parameterless overload.
+func (a *Analyzer) parameterlessOverloadType(expr ast.Expression) *types.FunctionType {
+	identExpr, ok := expr.(*ast.Identifier)
+	if !ok {
+		return nil
+	}
+	sym, symOk := a.symbols.Resolve(identExpr.Value)
+	if !symOk || !sym.IsOverloadSet {
+		return nil
+	}
+
+	var found *types.FunctionType
+	for _, overload := range a.symbols.GetOverloadSet(identExpr.Value) {
+		funcType, isFuncType := overload.Type.(*types.FunctionType)
+		if !isFuncType || len(funcType.Parameters) > 0 {
+			continue
+		}
+		if found != nil {
+			// Ambiguous: leave the call to regular overload resolution.
+			return nil
+		}
+		found = funcType
+	}
+	return found
+}
+
 func implicitCallReturnTypeFromType(typ types.Type) types.Type {
 	funcType, ok := types.GetUnderlyingType(typ).(*types.FunctionType)
 	if !ok || len(funcType.Parameters) > 0 {
