@@ -34,6 +34,18 @@ func (a *Analyzer) checkRecordVisibilitySections(decl *ast.RecordDecl) {
 	}
 }
 
+// recordHasNoMembers reports whether a record body declares no members of any
+// kind: no fields, no class vars, no methods (instance or class), no
+// properties and no constants. Visibility specifiers alone do not count as
+// members.
+func recordHasNoMembers(decl *ast.RecordDecl) bool {
+	return len(decl.Fields) == 0 &&
+		len(decl.ClassVars) == 0 &&
+		len(decl.Methods) == 0 &&
+		len(decl.Properties) == 0 &&
+		len(decl.Constants) == 0
+}
+
 // analyzeRecordDecl analyzes a record type declaration.
 func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	defer func() {
@@ -48,8 +60,10 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 	a.checkRecordVisibilitySections(decl)
 
-	// DWScript requires every record to declare at least one field.
-	if len(decl.Fields) == 0 && decl.EndKeywordPos.Line != 0 {
+	// DWScript rejects a record whose body declares no members at all. A record
+	// that only declares static members (class vars, class methods), methods,
+	// properties or constants is legal.
+	if recordHasNoMembers(decl) && decl.EndKeywordPos.Line != 0 {
 		a.addStructuredError(NewGenericError(decl.EndKeywordPos, "Record has no field members"))
 	}
 

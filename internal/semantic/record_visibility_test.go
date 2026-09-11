@@ -271,3 +271,97 @@ end;
 		})
 	}
 }
+
+// TestRecordEmptyBodyDiagnostic verifies that "Record has no field members" is
+// reported only for a record whose body declares no members at all. A record
+// that declares static members, methods, properties or constants is legal even
+// when it has no instance fields.
+func TestRecordEmptyBodyDiagnostic(t *testing.T) {
+	const emptyRecordDiagnostic = "Record has no field members"
+
+	tests := []struct {
+		name      string
+		source    string
+		wantError bool
+	}{
+		{
+			name: "record with only class vars",
+			source: `
+type TRec = record
+   class var Counter : Integer;
+end;
+`,
+		},
+		{
+			name: "record with only methods",
+			source: `
+type TRec = record
+   function Add(a, b : Integer) : Integer;
+   begin
+      Result := a + b;
+   end;
+end;
+`,
+		},
+		{
+			name: "record with only a class method",
+			source: `
+type TRec = record
+   class function Zero : Integer;
+   begin
+      Result := 0;
+   end;
+end;
+`,
+		},
+		{
+			name: "record with only a property",
+			source: `
+type TRec = record
+   property Value : Integer read GetValue;
+   function GetValue : Integer;
+   begin
+      Result := 1;
+   end;
+end;
+`,
+		},
+		{
+			name: "record with only a constant",
+			source: `
+type TRec = record
+   const Answer = 42;
+end;
+`,
+		},
+		{
+			name: "genuinely empty record",
+			source: `
+type TRec = record
+end;
+`,
+			wantError: true,
+		},
+		{
+			name: "record with only visibility specifiers",
+			source: `
+type TRec = record
+   public
+   private
+end;
+`,
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			diags := analyzeRecordSource(t, tt.source)
+			got := hasDiagnostic(diags, emptyRecordDiagnostic)
+			if got != tt.wantError {
+				t.Errorf("hasDiagnostic(%q) = %v, want %v (diagnostics: %v)",
+					emptyRecordDiagnostic, got, tt.wantError, diags)
+			}
+		})
+	}
+}
