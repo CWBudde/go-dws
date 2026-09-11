@@ -2704,3 +2704,32 @@ surviving `AllSymbolsWithScope` while `AllSymbols` still flattens them away, nes
 flattening, `Analyzer.RetainedScopes`) and `pkg/dwscript/symbols_scope_test.go` (a global, a
 function, a parameter, the implicit `Result`, a local shadowing a global, and declaration
 positions).
+
+## 2026-09-11 — `dwscript fmt --diff`: unified Myers diff (PLAN.md §3.4)
+
+`showDiff` paired lines positionally, so a single inserted or deleted line made every following
+line report as changed; it also swallowed blank lines (`if origLine != ""`), emitted no hunks or
+context, and printed straight to `fmt.Printf`, which made it untestable.
+
+`cmd/dwscript/cmd/diff.go` replaces it with a hand-rolled Myers O(ND) line diff (no new
+dependency — `go.mod` still carries only cobra and `golang.org/x/text`) rendered as a unified diff:
+`@@ -old,count +new,count @@` hunks with three lines of context, runs of context shorter than twice
+that merged into one hunk, GNU's `,1`-omitting range syntax, blank lines kept as content, and
+`\ No newline at end of file` handled by folding the missing terminator into the line's comparison
+key so an otherwise identical last line still shows as a change.
+
+`WriteUnifiedDiff(w io.Writer, filename, original, formatted) (bool, error)` also writes the
+`---`/`+++` header, so the whole diff is one unit and the `case fmtDiff:` block no longer prints
+around it. `dwscript fmt -d` now exits non-zero (`ErrSilent`, no extra message) when any file
+differs, the way `gofmt -l`-driven CI checks expect; no recipe in `justfile` or `.github/` calls
+`fmt -d`, so no existing caller changes behavior.
+
+**Validation:** `cmd/dwscript/cmd/diff_test.go` covers identical input, pure insertion, pure
+deletion, replacement, a change on the first line, a change on the last line, two separated hunks,
+a missing trailing newline on either side, blank lines, an empty original, an emptied file, and a
+non-cascading insertion — every expectation captured from GNU `diff -u` on the same inputs. A
+throwaway 374-case randomized comparison against the system `diff -u` was byte-identical in 308
+cases; the remaining 66 differed only in which of several equally minimal edit scripts was chosen
+(identical `+`/`-` counts, and the script always reconstructs the target). On a real file,
+`./bin/dwscript fmt -d testdata/fixtures/AutoFormat/class.pas` is byte-identical to `diff -u` on the
+same pair and exits 1.

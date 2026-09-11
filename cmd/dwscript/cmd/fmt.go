@@ -24,6 +24,10 @@ var (
 	fmtUseTabs   bool   // --tabs: use tabs instead of spaces for indentation
 	fmtSimplify  bool   // -s: simplify code (future enhancement)
 	fmtRecursive bool   // -r: process directories recursively
+
+	// fmtDiffFound records whether -d found at least one file that differs,
+	// so that the command can exit non-zero like gofmt-driven CI checks expect.
+	fmtDiffFound bool
 )
 
 var fmtCmd = &cobra.Command{
@@ -52,7 +56,8 @@ standard input.
 Flags:
   -w         write result to (source) file instead of stdout
   -l         list files whose formatting differs
-  -d         display diffs instead of rewriting files
+  -d         display diffs instead of rewriting files (exits non-zero if any
+             file differs, so CI checks can rely on the exit status)
   -r         process directories recursively
   --style    formatting style: detailed (default), compact, or multiline
   --indent   number of spaces per indentation level (default: 2)
@@ -96,6 +101,8 @@ func init() {
 }
 
 func runFmt(cmd *cobra.Command, args []string) error {
+	fmtDiffFound = false
+
 	// Validate flags
 	if fmtWrite && fmtList {
 		return fmt.Errorf("cannot use -w and -l together")
@@ -141,6 +148,13 @@ func runFmt(cmd *cobra.Command, args []string) error {
 
 	if hasErrors {
 		return fmt.Errorf("formatting failed for one or more files")
+	}
+
+	// Exit non-zero when -d reported differences, so CI checks can rely on the
+	// exit status. The diff itself is the diagnostic, so nothing more is printed.
+	if fmtDiffFound {
+		cmd.SilenceUsage = true
+		return ErrSilent
 	}
 
 	return nil
@@ -236,11 +250,13 @@ func formatFile(filename string, opts printer.Options) error {
 		}
 
 	case fmtDiff:
-		// Diff mode: show differences
-		if changed {
-			fmt.Printf("--- %s (original)\n", filename)
-			fmt.Printf("+++ %s (formatted)\n", filename)
-			showDiff(original, formatted)
+		// Diff mode: show differences as a unified diff
+		differs, err := WriteUnifiedDiff(os.Stdout, filename, original, formatted)
+		if err != nil {
+			return fmt.Errorf("error writing diff: %w", err)
+		}
+		if differs {
+			fmtDiffFound = true
 		}
 
 	case fmtWrite:
@@ -290,37 +306,6 @@ func formatSource(source string, opts printer.Options) (string, error) {
 	formatted := pr.Print(program)
 
 	return formatted, nil
-}
-
-// showDiff shows a simple line-by-line diff
-// TODO: Use a proper diff algorithm for better output
-func showDiff(original, formatted string) {
-	origLines := strings.Split(original, "\n")
-	fmtLines := strings.Split(formatted, "\n")
-
-	maxLines := len(origLines)
-	if len(fmtLines) > maxLines {
-		maxLines = len(fmtLines)
-	}
-
-	for i := 0; i < maxLines; i++ {
-		var origLine, fmtLine string
-		if i < len(origLines) {
-			origLine = origLines[i]
-		}
-		if i < len(fmtLines) {
-			fmtLine = fmtLines[i]
-		}
-
-		if origLine != fmtLine {
-			if origLine != "" {
-				fmt.Printf("- %s\n", origLine)
-			}
-			if fmtLine != "" {
-				fmt.Printf("+ %s\n", fmtLine)
-			}
-		}
-	}
 }
 
 // isFormattedCorrectly checks if a file is already correctly formatted
