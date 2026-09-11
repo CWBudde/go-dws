@@ -2,10 +2,6 @@
 // This file contains InterfaceInstance, which represents a runtime instance of an interface.
 package runtime
 
-import (
-	"fmt"
-)
-
 // ============================================================================
 // Interface Instance
 // ============================================================================
@@ -44,19 +40,21 @@ func (ii *InterfaceInstance) Type() string {
 	return "INTERFACE"
 }
 
-// String returns the string representation of the interface instance.
+// interfaceInstanceDisplay is what DWScript prints for a bound interface
+// reference. The name is DWScript's own compiler symbol class leaking through
+// its Variant-to-string conversion; the fixtures in
+// testdata/fixtures/FunctionsVariant record it verbatim, and it does not vary
+// with the interface or the implementing class.
+const interfaceInstanceDisplay = "TInterfaceSymbol"
+
+// String returns the string representation of the interface instance,
+// matching DWScript: an unbound reference prints as "nil".
 // Implements the Value interface.
 func (ii *InterfaceInstance) String() string {
 	if ii.Object == nil {
-		if ii.Interface != nil {
-			return fmt.Sprintf("%s instance (nil)", ii.Interface.GetName())
-		}
-		return "interface instance (nil)"
+		return "nil"
 	}
-	if ii.Interface != nil {
-		return fmt.Sprintf("%s instance (wrapping %s)", ii.Interface.GetName(), ii.Object.Class.GetName())
-	}
-	return fmt.Sprintf("interface instance (wrapping %s)", ii.Object.Class.GetName())
+	return interfaceInstanceDisplay
 }
 
 // GetUnderlyingObject returns the object wrapped by this interface instance.

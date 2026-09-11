@@ -116,6 +116,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 	// Variant Functions
 	case "vartype":
 		return a.analyzeVarType(args, callExpr), true
+	case "vartostr":
+		return a.analyzeVarToStr(args, callExpr)
 
 	// Integer() reaches a set through the conversion registry rather than the
 	// type-cast path, so the set's bitmask-width rule is applied here.

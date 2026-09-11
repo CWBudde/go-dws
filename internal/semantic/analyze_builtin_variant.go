@@ -22,11 +22,33 @@ func (a *Analyzer) analyzeVarType(args []ast.Expression, callExpr *ast.CallExpre
 		return types.INTEGER
 	}
 
-	argType := a.analyzeExpression(args[0])
-	// JSONVariant participates in Variant introspection.
-	if argType != nil && argType != types.VARIANT && !types.IsJSONVariant(argType) {
-		a.addError("function '%s' expects Variant argument, got %s at %s",
-			"VarType", argType.String(), callExpr.Token.Pos.String())
-	}
+	// DWScript boxes any value into a Variant for a Variant parameter, so
+	// VarType accepts every analyzable expression type.
+	a.analyzeExpression(args[0])
 	return types.INTEGER
+}
+
+// analyzeVarToStr analyzes the VarToStr built-in function.
+// The conversion is accepted for every type, but DWScript hints when a
+// dedicated conversion (or no conversion at all) reads better.
+func (a *Analyzer) analyzeVarToStr(args []ast.Expression, callExpr *ast.CallExpression) (types.Type, bool) {
+	result, handled := a.analyzeRegisteredBuiltin("vartostr", args, callExpr)
+	if !handled || len(args) != 1 || a.hintsLevel < HintsLevelNormal {
+		return result, handled
+	}
+
+	argType := a.semanticInfo.GetResolvedType(args[0])
+	if argType == nil {
+		return result, handled
+	}
+	pos := callExpr.Function.Pos()
+	switch types.GetUnderlyingType(argType) {
+	case types.INTEGER:
+		a.addHint("Prefer .ToString or IntToStr() [line: %d, column: %d]", pos.Line, pos.Column)
+	case types.FLOAT:
+		a.addHint("Prefer .ToString or FloatToStr() [line: %d, column: %d]", pos.Line, pos.Column)
+	case types.STRING:
+		a.addHint("Redundant function call [line: %d, column: %d]", pos.Line, pos.Column)
+	}
+	return result, handled
 }

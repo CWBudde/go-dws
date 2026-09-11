@@ -148,9 +148,16 @@ func (c ParameterConstraint) accepts(expected, actual types.Type) bool {
 }
 
 var (
-	exactParameter        = ParameterConstraint{Exact: true}
-	numericParameter      = ParameterConstraint{Types: []types.Type{types.INTEGER, types.FLOAT}}
-	variantParameter      = ParameterConstraint{Exact: true, AllowJSONVariant: true}
+	exactParameter   = ParameterConstraint{Exact: true}
+	numericParameter = ParameterConstraint{Types: []types.Type{types.INTEGER, types.FLOAT}}
+	// autoBoxedVariantParameter mirrors DWScript, which implicitly boxes any
+	// value into a Variant when a Variant parameter is declared.
+	autoBoxedVariantParameter = ParameterConstraint{Any: true}
+	// varVariantParameter is the `var v : Variant` parameter of VarClear. A var
+	// parameter binds the variable itself, so there is no auto-boxing: the
+	// argument's static type has to be a Variant already, or clearing it would
+	// replace a typed variable with an unassigned Variant.
+	varVariantParameter   = ParameterConstraint{Exact: true, ResolveAliases: true, AllowJSONVariant: true}
 	integerRangeParameter = ParameterConstraint{Exact: true, AllowIntegerSubrange: true}
 )
 

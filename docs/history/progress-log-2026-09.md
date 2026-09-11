@@ -1655,6 +1655,8 @@ semantics.
 ## 2026-09-10 — Call-site column precision in stack traces, PLAN.md §3.3
 
 `SimpleScripts` 343 → 346 of 442 (79% → 80%); corpus 938 → 941 of 2,042 (49%). No category
+
+`SimpleScripts` 343 → 346 of 442 (78%); corpus 938 → 941 of 1,928 (49%). No category
 regressed — the whole `just fixture-report --list-fails` table was captured before and after and
 diffed; the only lines that changed are the three closed fixtures. Closes
 `SimpleScripts/stacktrace`, `SimpleScripts/exceptobj3` and `SimpleScripts/contracts_subproc`, and
@@ -2370,3 +2372,100 @@ harness at 964. New tests: `internal/interp/format_settings_test.go` (defaults, 
 `FormatSettings.Zone` drives a built-in given no explicit zone). Baselines ratcheted
 (`FunctionsTime` 1 → 27) and `TEST_STATUS.md` regenerated. User-facing reference:
 [`docs/guide/date-time.md`](../guide/date-time.md).
+
+(`SimpleScripts` 340 → 343) and `TEST_STATUS.md` regenerated.
+
+
+## 2026-09-10 — Variant introspection, debug locations, inner-class scoping, PLAN.md §3.3
+
+Three small untouched fixture categories, closed together. Stacks on the call-site column
+precision work above, whose class-qualified frame names `CurrentStackTrace` reuses.
+
+**Result:** FunctionsVariant 0/10 → 10/10, FunctionsDebug 0/3 → 3/3, InnerClassesPass 1/2 → 2/2;
+corpus 941 → 954 of 1,928 (49%).
+No category moved down.
+
+### Variant parameters auto-box
+
+`VarType(123)`, `VarIsStr('hello')` and `VarAsType(123, varString)` were rejected with
+"expects Variant argument, got Integer". DWScript boxes any value into a Variant when the
+parameter is declared `Variant`, so the constraint was ours, not the language's — no fixture
+anywhere records that message. The `Var*` signatures now carry `autoBoxedVariantParameter`
+(`ParameterConstraint{Any: true}`), and `analyzeVarType` accepts every analyzable type.
+
+### Null, Empty and a nil reference are three different things
+
+`VarIsEmpty`, `VarIsClear` and `VarIsNull` were aliases of one another, so `var_null` printed the
+wrong answer for both `Null` and an unassigned Variant. The fixtures settle it: an unassigned
+Variant is *empty and not null*; `Null` is a value, so it is *null and not empty*; a nil interface
+reference is neither. `VarIsNull` now answers only for `Null` (and the JSON `null` literal), while
+`VarIsEmpty`/`VarIsClear` answer for the unassigned state (and JSON `undefined` — a missing
+member or an out-of-range element).
+
+`VarClear` became what DWScript declares: a procedure with a `var` parameter that writes the
+cleared state back to the variable, next to `Inc`/`Dec`/`Swap` in `var_params.go`. It used to
+return an empty Variant the caller had to assign back.
+
+### Variant type codes are script-visible
+
+`vartype` compares `VarType(x)` against `varString`, `varInt64`, `varDouble`, `varBoolean`, none of
+which existed. The Delphi codes are now predeclared constants (`builtins.VarTypeConstants`), shared
+by the analyzer's symbol table and the interpreter's global environment so the two cannot drift.
+`VarType` reports `varInt64` (20), not `varInteger` (3), for an integer: DWScript's native integer
+is 64-bit. `VarAsType` accepts every code that aliases the same runtime representation
+(`varInt64`/`varSmallint`/`varByte`… → Integer, `varSingle`/`varCurrency` → Float,
+`varUString`/`varOleStr` → String).
+
+### VarToStr hints
+
+`vartostr` and `vartostr_num` expect DWScript's nudges toward the dedicated conversion:
+`Prefer .ToString or IntToStr()`, `Prefer .ToString or FloatToStr()`, and `Redundant function call`
+for a String argument. A Variant argument gets no hint. The position is the callee's name token,
+not the opening parenthesis.
+
+### Printing an unassigned Variant and an interface reference
+
+`varisarray`, `varisclear`, `varisnumeric` and `varisstr2` print the value under test before
+classifying it. An unassigned Variant prints as nothing (we printed `Unassigned`/`unassigned`), an
+unbound interface reference prints as `nil`, and a bound one prints as `TInterfaceSymbol` — that
+last string is DWScript's own compiler symbol class leaking through its Variant-to-string
+conversion. It does not vary with the interface or the implementing class; the fixtures record it
+verbatim and are the only source for it here, since `reference/dwscript-original/` is empty in this
+checkout. `runtime.InterfaceInstance.String()` names it in one constant.
+
+JSON payloads also had to take part in kind introspection: `VarIsArray(JSON.Parse('[123]'))` was
+`False` because the check only looked for a native array value.
+
+### Debug introspection
+
+`CurrentSourceCodeLocation`, `CallerSourceCodeLocation` and `CurrentStackTrace` were all "Unknown
+name". They depend on the position of their own occurrence, which the value-only builtin registry
+cannot supply, so they are resolved in the evaluator
+(`internal/interp/evaluator/source_code_location.go`) against the frames the call stack already
+records. Each frame stores the routine being executed and the position it was called from, which is
+exactly the split the two location built-ins need: "current" is the top frame's *name* with the
+expression's own line, "caller" is the top frame's *position* with the name of the frame below it.
+`CurrentStackTrace` is `errors.StackTrace.DWScriptString()` — already the caller-labeled format used
+for unhandled exceptions — with one extra innermost line for the routine that asked.
+
+`TSourceCodeLocation` (File, Line, Name) is registered as a built-in record type from a single
+shared `*types.RecordType`, so a script can name it as a return type and the analyzer and runtime
+agree on one type identity. `File` is `*MainModule*`, DWScript's name for the main script.
+
+### Nested types shadow same-named global classes
+
+`hello_alice_bob` declares `TTest.TSub` *and* a global `TSub`, then fails at runtime with
+"field 'Hello' not found in class 'TSub'". `VisitNewExpression` consulted the global class registry
+first and only fell back to the enclosing class's nested types, so `new TSub` inside `TTest.Add`
+built a global `TSub`. The order is now nested-first, matching the analyzer, which has always
+resolved `currentNestedTypes` before the global registry. Outside the class the global type still
+wins.
+
+**Validation:** `go test -count=1 ./...` green; `golangci-lint run --new-from-rev=origin/main` reports 0.
+New tests: `internal/builtins/variant_semantics_test.go` (emptiness predicates across
+Null/Unassigned/nil/JSON, JSON kind predicates, `VarAsType` code aliases, constants vs `VarType`),
+`internal/semantic/vartostr_hint_test.go`, `internal/interp/source_code_location_test.go` (seven
+end-to-end location and trace shapes), `internal/interp/inner_class_scope_test.go`. Recorded
+expectations updated where the old behavior was the thing being fixed:
+`internal/semantic/testdata/builtin_analysis_compatibility.json` lost 85 now-unreachable
+"expects Variant argument" diagnostics. Baselines ratcheted and `TEST_STATUS.md` regenerated.

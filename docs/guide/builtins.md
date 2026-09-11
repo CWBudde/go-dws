@@ -19,8 +19,53 @@ if Now > 0 then PrintLn(Pi);
 
 This applies to built-ins that take *no* parameters at all: `Pi`, `Infinity`, `NaN`, `Random`,
 `RandSeed`, `Now`, `Date`, `Time`, `UTCDateTime`, `UnixTime`, `UnixTimeMSec`, `GetStackTrace`,
-and `GetCallStack`. Built-ins with optional parameters still need the call parentheses, and
-parameterless *procedures* such as `Randomize` have no value to yield.
+`GetCallStack`, `CurrentSourceCodeLocation`, `CallerSourceCodeLocation` and `CurrentStackTrace`.
+Built-ins with optional parameters still need the call parentheses, and parameterless
+*procedures* such as `Randomize` have no value to yield.
+
+## Debug introspection
+
+Three built-ins read the call stack of the running script.
+
+```pascal
+type TSourceCodeLocation = record
+   File : String;   // '*MainModule*' for the main script
+   Line : Integer;
+   Name : String;   // routine that owns the location; '' at program level
+end;
+
+function CurrentSourceCodeLocation : TSourceCodeLocation;
+function CallerSourceCodeLocation : TSourceCodeLocation;
+function CurrentStackTrace : String;
+```
+
+- `CurrentSourceCodeLocation` describes where the expression itself is written, named after the
+  routine containing it.
+- `CallerSourceCodeLocation` describes where the enclosing routine was called from, named after
+  the routine that made the call. In the main program there is no caller, and every field is
+  empty (`Line` is `0`).
+- `CurrentStackTrace` renders the live stack the way an unhandled exception reports it: one line
+  per call site, innermost first, each labeled with the routine containing that call site.
+
+```pascal
+procedure Test2;
+begin
+   PrintLn(CurrentStackTrace);
+end;
+
+procedure Test;
+begin
+   Test2;
+end;
+
+Test;
+```
+
+```plain
+Test2 [line: 3, column: 12]
+Test [line: 8, column: 4]
+ [line: 11, column: 1]
+```
 
 ## String Functions
 

@@ -104,6 +104,35 @@ func (j *JSONValue) IsUndefined() bool {
 	return j.Value == nil || j.Value.Kind() == jsonvalue.KindUndefined
 }
 
+// IsNull reports whether the JSON value is the JSON null literal, which is how
+// a JSONVariant reads as "null" (distinct from Undefined, which reads as empty).
+func (j *JSONValue) IsNull() bool {
+	return j.Value != nil && j.Value.Kind() == jsonvalue.KindNull
+}
+
+// IsArray reports whether the JSON value is a JSON array.
+func (j *JSONValue) IsArray() bool {
+	return j.Value != nil && j.Value.Kind() == jsonvalue.KindArray
+}
+
+// IsString reports whether the JSON value is a JSON string.
+func (j *JSONValue) IsString() bool {
+	return j.Value != nil && j.Value.Kind() == jsonvalue.KindString
+}
+
+// IsNumber reports whether the JSON value is a JSON number (integral or not).
+func (j *JSONValue) IsNumber() bool {
+	if j.Value == nil {
+		return false
+	}
+	switch j.Value.Kind() {
+	case jsonvalue.KindInt64, jsonvalue.KindNumber:
+		return true
+	default:
+		return false
+	}
+}
+
 // NewJSONValue creates a new JSONValue wrapping a jsonvalue.Value.
 func NewJSONValue(v *jsonvalue.Value) *JSONValue {
 	return &JSONValue{Value: v}
