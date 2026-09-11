@@ -2018,3 +2018,83 @@ mutating-receiver positions insert, rvalue reads do not — plus slot reuse, who
 replacement, compound assignment, plain nested arrays, and the three nested-JSON forms. Baselines
 ratcheted (`AssociativePass` 22 → 24, `JSONConnectorPass` 59 → 61) and `TEST_STATUS.md`
 regenerated.
+
+## 2026-09-10 — DWScript hash iteration order for associative arrays (PLAN.md §3.3)
+
+`AssociativePass/records` printed `a,b` where DWScript prints `b,a`. Nothing about the fixture is
+sorted or reversed: DWScript's `array [K] of V` is an open-addressing hash table, `.Keys` walks the
+bucket array in index order, and the resulting order is a deterministic function of the hash, the
+table size and the probe sequence. Our `AssociativeArrayValue` was two parallel slices in insertion
+order with an O(n) linear scan, and its doc comment recorded insertion order as a deliberate choice.
+
+Matching that order means porting the real table, not picking a permutation that satisfies one
+fixture. `reference/dwscript-original/` is empty in this checkout, so the algorithm was taken from
+upstream directly:
+
+- `Source/dwsAssociativeArrays.pas` — `TScriptAssociativeArray`: capacity starts at 32 and doubles,
+  the table grows once `count >= capacity*11/16`, bucket index is `hash and (capacity-1)` with
+  linear probing, a hash code of `0` marks an empty bucket, and `CopyKeys` walks buckets
+  `0..capacity-1`. `Delete` uses backward-shift deletion, which is required: blanking a bucket
+  outright would cut the probe chain of any entry that had collided with it.
+- `Source/dwsDataContext.pas` — `DWSHashCode`: FNV-1a mixing (`basis 2166136261`, `prime 16777619`)
+  over per-slot hashes, substituting the basis whenever the result lands on `0`.
+- `Source/dwsUtils.pas` — `SimpleStringHash` is xxHash32 (seed 0) over the string's UTF-16 code
+  units; `SimpleInt64Hash` and `SimpleIntegerHash` are simplified MurmurHash3 finalizers.
+
+### Why we believe the order is portable
+
+The corpus pins associative-array iteration order in exactly two fixtures, and the port reproduces
+all three orders in them without any fitting:
+
+| Fixture | Key type | Inserted | DWScript expects | Port yields |
+| --- | --- | --- | --- | --- |
+| `AssociativePass/records` | String | `a`, `b` | `b,a` | `b,a` |
+| `JSONConnectorPass/associative_array` | Integer | `10, 11, 20, 21` | `21,11,10,20` | `21,11,10,20` |
+| `JSONConnectorPass/associative_array` | String | `1.2`, `3.4` | `1.2,3.4` | `1.2,3.4` |
+
+Three independent orders — two key types, one of them a four-element permutation that is neither
+insertion nor sorted order — falling out of one hash model is what distinguishes a port from a
+guess. Every other fixture that touches `.Keys` either sorts (`keys`, `array_of_dyn`, `delete`,
+`delete_record`, `parameters`), aggregates commutatively (`integer_float`), or holds at most one key
+at the moment of enumeration (`stringify_keys`, `keys_str_int`).
+
+### Known divergences
+
+Both are unreachable from the corpus and are recorded here rather than papered over:
+
+- **Record keys.** Upstream hashes a record's data slots in declaration order. `types.RecordType`
+  stores fields in a map with no declaration order, so record keys are flattened in sorted field
+  order instead. Deterministic, but not upstream's bucket order.
+- **Object keys.** Upstream hashes the low 32 bits of the object's interface pointer, so its
+  object-key order is heap-address dependent and not reproducible between two runs of DWScript
+  itself. We substitute a monotonic per-instance identity, which keeps lookups correct and the
+  order deterministic within a run.
+
+### Key coercion
+
+The hash is type-sensitive: a script integer is a `varInt64` and a float a `varDouble`, and
+`DWSHashCode` hashes them through different branches, so numerically equal values of different
+representation land in different buckets. Upstream compensates at compile time —
+`TdwsCompiler.ReadSymbolArrayExpr` wraps a key expression whose type is not the declared key type
+with `WrapWithImplicitConversion` — so `a[1]` on an `array [Float] of ...` is converted to `1.0`
+before it ever reaches the table. `AssociativeArrayValue.coerceKey` performs that same conversion
+on `Get`/`Set`/`Delete`.
+
+With a `Variant` key type there is no declared type to convert to, so an Integer key and a Float
+key of equal numeric value stay distinct, exactly as upstream keeps `varInt64` and `varDouble`
+apart. The same applies to `+0.0` and `-0.0`, whose raw 64-bit patterns differ. Both are a
+narrowing against the previous linear scan, which compared numerically; both match upstream, and
+no fixture depends on the old, more permissive behaviour.
+
+### Side effect
+
+Key lookup, insertion and deletion are no longer O(n).
+
+**Validation:** `go test -count=1 ./...` green; `golangci-lint run --new-from-rev=origin/main`
+reports 0 issues; `just check-fmt` clean. New table-driven tests in
+`internal/interp/runtime/associative_hash_test.go` pin the xxHash32 port against the published
+reference vectors (covering the four-accumulator path for inputs of 16 bytes or more, which no
+fixture reaches), pin the hash and bucket index of every key in the order-sensitive fixtures, and
+cover growth, backward-shift deletion, per-key-kind round-trips and the
+equal-keys-hash-equally invariant. Full fixture report against the branch point: `AssociativePass`
+22 → 23, total 938 → 939, no category down. Baselines ratcheted and `TEST_STATUS.md` regenerated.

@@ -55,13 +55,16 @@ func TestAssociativeArray_SetGetLenDelete(t *testing.T) {
 	}
 }
 
-func TestAssociativeArray_KeysInsertionOrder(t *testing.T) {
+func TestAssociativeArray_KeysUseBucketOrder(t *testing.T) {
+	// Keys come out in hash-bucket order, not insertion order. Both "a" and
+	// "b" are inserted here in the opposite order from records.pas and still
+	// yield b,a, because the order depends only on the hash codes.
 	a := newTestAssoc(types.STRING, types.INTEGER)
 	a.Set(&StringValue{Value: "b"}, &IntegerValue{Value: 2})
 	a.Set(&StringValue{Value: "a"}, &IntegerValue{Value: 1})
 	keys := a.Keys()
 	if len(keys) != 2 || keys[0].String() != "b" || keys[1].String() != "a" {
-		t.Fatalf("Keys = %v, want [b a] (insertion order)", keys)
+		t.Fatalf("Keys = %v, want [b a] (bucket order)", keys)
 	}
 }
 
