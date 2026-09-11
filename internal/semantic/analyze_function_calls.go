@@ -22,13 +22,6 @@ func (a *Analyzer) analyzeArgumentForParameter(arg ast.Expression, paramType typ
 	return a.analyzeExpressionWithExpectedType(arg, paramType)
 }
 
-// analyzeCallExpressionWithContext analyzes a call expression with optional expected type.
-// TODO: Use expectedType for overload resolution when implemented.
-func (a *Analyzer) analyzeCallExpressionWithContext(expr *ast.CallExpression, expectedType types.Type) types.Type {
-	_ = expectedType
-	return a.analyzeCallExpression(expr)
-}
-
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {

@@ -217,8 +217,17 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		}
 		return a.analyzeExpression(expr)
 	case *ast.CallExpression:
-		// Pass expected type for overload resolution
-		return a.analyzeCallExpressionWithContext(e, expectedType)
+		// The expected type deliberately plays no part here. Return type is not
+		// part of overload identity in DWScript (see types.SignaturesEqual), so
+		// it could only serve as a last-resort tie-break between candidates that
+		// already score equally on argument distance. Resolving such a call in
+		// the analyzer would admit programs the AST evaluator then executes with
+		// a different overload: the evaluator resolves overloads independently
+		// at run time (see evaluator.ResolveOverloadMultiple) and has no channel
+		// for a call site's expected type. Wiring that channel — or recording the
+		// analyzer's chosen overload in ast.SemanticInfo for the evaluator to
+		// reuse — has to come first.
+		return a.analyzeCallExpression(e)
 	case *ast.Identifier:
 		// In contexts like `x := GetValue;`, DWScript auto-invokes a
 		// parameterless function when the expected type matches its return type.
