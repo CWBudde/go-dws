@@ -4,6 +4,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // This file contains shared helper functions for the evaluator.
@@ -101,6 +103,13 @@ func IsInRange(value, start, end Value) bool {
 		if startOk && endOk {
 			return v.Value >= startInt.Value && v.Value <= endInt.Value
 		}
+		// Mixed Integer selector with enum bounds: DWScript promotes enums to
+		// Integer implicitly, so compare declared ordinals.
+		startOrd, startOrdOk := integerOrEnumOrdinal(start)
+		endOrd, endOrdOk := integerOrEnumOrdinal(end)
+		if startOrdOk && endOrdOk {
+			return int(v.Value) >= startOrd && int(v.Value) <= endOrd
+		}
 
 	case *runtime.FloatValue:
 		startFloat, startOk := start.(*runtime.FloatValue)
@@ -126,13 +135,114 @@ func IsInRange(value, start, end Value) bool {
 			return v.Value >= startStr.Value && v.Value <= endStr.Value
 		}
 
+	case *runtime.EnumValue:
+		return enumInRange(v, start, end)
+
 	default:
-		// For EnumValue and other types, check by type name
-		// TODO: Implement enum range checking
+		// Non-ordinal selectors (records, objects, arrays) have no range.
 		return false
 	}
 
 	return false
+}
+
+// enumInRange implements DWScript range checks for an enum selector.
+//
+// When all three operands belong to the same enumeration the comparison uses
+// declaration order (runtime.EnumValueIndex), so that a type declared with
+// explicit, non-contiguous ordinals such as (A = 1, B = 10, C = 2) behaves the
+// same way as the rest of the enum support in this package (Succ/Pred,
+// Low/High and the set/array range expansion in expandArrayRangeElement).
+//
+// Mixed Integer/Enum bounds share no declaration order, so they fall back to
+// comparing declared ordinal values, matching DWScript's implicit
+// enum-to-Integer promotion. Reversed bounds never match, mirroring the
+// Integer, Float and String arms of IsInRange.
+func enumInRange(value *runtime.EnumValue, start, end Value) bool {
+	startEnum, startIsEnum := start.(*runtime.EnumValue)
+	endEnum, endIsEnum := end.(*runtime.EnumValue)
+
+	if !startIsEnum || !endIsEnum {
+		// Mixed Integer/Enum bounds (e.g. "case e of 0..2").
+		return enumInOrdinalRange(value, start, end)
+	}
+
+	// All three operands must belong to the same enumeration.
+	if !sameEnumeration(value, startEnum) || !sameEnumeration(value, endEnum) {
+		return false
+	}
+
+	if enumType := firstEnumType(value, startEnum, endEnum); enumType != nil {
+		valueIdx, valueErr := runtime.EnumValueIndex(value, enumType)
+		startIdx, startErr := runtime.EnumValueIndex(startEnum, enumType)
+		endIdx, endErr := runtime.EnumValueIndex(endEnum, enumType)
+		if valueErr == nil && startErr == nil && endErr == nil {
+			return valueIdx >= startIdx && valueIdx <= endIdx
+		}
+	}
+
+	// No declaration metadata available: fall back to declared ordinals.
+	return value.OrdinalValue >= startEnum.OrdinalValue && value.OrdinalValue <= endEnum.OrdinalValue
+}
+
+// enumInOrdinalRange compares an enum selector against bounds that are not all
+// enum values of the same enumeration, using declared ordinals. Any enum bound
+// must still belong to the selector's enumeration.
+func enumInOrdinalRange(value *runtime.EnumValue, start, end Value) bool {
+	startOrd, startOk := enumComparableOrdinal(value, start)
+	if !startOk {
+		return false
+	}
+
+	endOrd, endOk := enumComparableOrdinal(value, end)
+	if !endOk {
+		return false
+	}
+
+	return value.OrdinalValue >= startOrd && value.OrdinalValue <= endOrd
+}
+
+// enumComparableOrdinal returns the ordinal of a bound that may be compared
+// against the given enum selector.
+func enumComparableOrdinal(value *runtime.EnumValue, bound Value) (int, bool) {
+	if boundEnum, ok := bound.(*runtime.EnumValue); ok && !sameEnumeration(value, boundEnum) {
+		return 0, false
+	}
+
+	return integerOrEnumOrdinal(bound)
+}
+
+// sameEnumeration reports whether two enum values belong to the same
+// enumeration. Resolved declaration identity wins; the case-insensitive type
+// name is only consulted when either side lacks metadata.
+func sameEnumeration(a, b *runtime.EnumValue) bool {
+	if a.EnumType != nil && b.EnumType != nil {
+		return a.EnumType == b.EnumType
+	}
+	return ident.Equal(a.TypeName, b.TypeName)
+}
+
+// firstEnumType returns the first resolved enum declaration among the given
+// values, or nil when none of them carries metadata.
+func firstEnumType(values ...*runtime.EnumValue) *types.EnumType {
+	for _, v := range values {
+		if v != nil && v.EnumType != nil {
+			return v.EnumType
+		}
+	}
+	return nil
+}
+
+// integerOrEnumOrdinal returns the declared ordinal of an Integer or Enum bound.
+func integerOrEnumOrdinal(val Value) (int, bool) {
+	switch v := val.(type) {
+	case *runtime.IntegerValue:
+		return int(v.Value), true
+	case *runtime.EnumValue:
+		return v.OrdinalValue, true
+	default:
+		return 0, false
+	}
 }
 
 // RuneLength returns the number of Unicode characters (runes) in a string.

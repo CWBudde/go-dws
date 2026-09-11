@@ -1,0 +1,12 @@
+cool
+cool
+cool
+warm
+1 in
+10 in
+2 in
+1 in
+10 in
+2 out
+reversed does not match
+no match

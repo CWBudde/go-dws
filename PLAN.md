@@ -344,7 +344,6 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
 
 - `[ ]` `internal/semantic/overload_resolution.go:211` — class-hierarchy distance in overload matching.
 - `[ ]` `internal/semantic/analyze_function_calls.go:26` — use `expectedType` in overload resolution.
-- `[ ]` `internal/interp/evaluator/helpers.go:131` — enum range checking.
 - `[ ]` `internal/units/search.go:171-172` — user (`~/.dwscript/lib`) and system library search paths.
 - `[ ]` `cmd/dwscript/cmd/fmt.go:296` — real diff algorithm for `dwscript fmt --diff`.
 - `[ ]` Engine seam for `platform.Platform`. The WASM side is done: `setFileSystem()` and

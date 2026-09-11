@@ -2598,3 +2598,28 @@ unchanged on the parent commit. FailureScripts 124/541 → 125/542; SimpleScript
 348/442; overall `just fixture-report` 1041/2042 → 1042/2043. The two fail lists are identical
 before and after. New tests: `testdata/fixtures/FailureScripts/record_default_property_index_type`
 and `internal/semantic/record_default_property_index_test.go`.
+
+## 2026-09-11 — Enum range checking in case statements (PLAN.md §3.4)
+
+`IsInRange` switched on the selector's concrete type and fell through to a `default: return false`
+carrying a `// TODO: Implement enum range checking`, so every enum range label silently failed to
+match. `case c of Red..Blue` printed nothing and exited 0.
+
+The new `*runtime.EnumValue` arm requires all three operands to belong to the same enumeration —
+resolved `*types.EnumType` identity where both sides carry metadata, `ident.Equal` on `TypeName`
+only as a fallback — and then compares **declaration order** via `runtime.EnumValueIndex`, not
+`OrdinalValue`. This matches the enum handling already in place for `Succ`/`Pred`, `Low`/`High`
+and set/array range expansion (`expandArrayRangeElement`), so `(dOne = 1, dTen = 10, dTwo = 2)`
+treats `dOne..dTwo` as covering all three members. Where the values carry no declaration metadata
+the comparison degrades to declared ordinals.
+
+Mixed Integer/Enum bounds have no shared declaration order, so they compare declared ordinals,
+matching DWScript's implicit enum-to-Integer promotion. The analyzer rejects such a `case` label
+before it reaches the evaluator today ("case value type Integer incompatible with case expression
+type TC"), so this only matters for other `IsInRange` callers. Reversed bounds never match, like
+the Integer, Float and String arms.
+
+**Validation:** new `TestIsInRange_Enum` table (15 cases: implicit ordinals, bounds, explicit
+non-contiguous ordinals, mismatched enum types, reversed bounds, Integer/Enum mixes, missing
+metadata) and fixture `SimpleScripts/case_range_enum`. `just fixture-report` 1039 → 1040,
+SimpleScripts 348 → 349; baseline ratcheted.

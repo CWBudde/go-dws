@@ -174,3 +174,162 @@ func TestIsInRange_VariantUnwrap(t *testing.T) {
 		})
 	}
 }
+
+// newTestEnumType builds enum declaration metadata from an ordered list of
+// member names and their declared ordinals, preserving declaration order.
+func newTestEnumType(name string, names []string, ordinals []int) *types.EnumType {
+	values := make(map[string]int, len(names))
+	for i, n := range names {
+		values[n] = ordinals[i]
+	}
+
+	return &types.EnumType{Name: name, Values: values, OrderedNames: names}
+}
+
+// TestIsInRange_Enum verifies enum range checking in case statements
+// (see fixture SimpleScripts/case_range_enum).
+func TestIsInRange_Enum(t *testing.T) {
+	// Implicit, contiguous ordinals: TColor = (Red, Green, Blue, Yellow).
+	color := newTestEnumType("TColor",
+		[]string{"Red", "Green", "Blue", "Yellow"},
+		[]int{0, 1, 2, 3})
+	// Explicit, non-monotonic ordinals: TDisj = (A = 1, B = 10, C = 2).
+	disj := newTestEnumType("TDisj", []string{"A", "B", "C"}, []int{1, 10, 2})
+	// A distinct enumeration that shares member names and ordinals with TColor.
+	other := newTestEnumType("TOther", []string{"Red", "Green", "Blue"}, []int{0, 1, 2})
+
+	enumOf := func(et *types.EnumType, name string) *runtime.EnumValue {
+		return &runtime.EnumValue{
+			EnumType:     et,
+			TypeName:     et.Name,
+			ValueName:    name,
+			OrdinalValue: et.Values[name],
+		}
+	}
+
+	tests := []struct {
+		value    Value
+		start    Value
+		end      Value
+		name     string
+		expected bool
+	}{
+		{
+			name:     "implicit ordinals inside range",
+			value:    enumOf(color, "Green"),
+			start:    enumOf(color, "Red"),
+			end:      enumOf(color, "Blue"),
+			expected: true,
+		},
+		{
+			name:     "implicit ordinals on lower bound",
+			value:    enumOf(color, "Red"),
+			start:    enumOf(color, "Red"),
+			end:      enumOf(color, "Blue"),
+			expected: true,
+		},
+		{
+			name:     "implicit ordinals on upper bound",
+			value:    enumOf(color, "Blue"),
+			start:    enumOf(color, "Red"),
+			end:      enumOf(color, "Blue"),
+			expected: true,
+		},
+		{
+			name:     "implicit ordinals outside range",
+			value:    enumOf(color, "Yellow"),
+			start:    enumOf(color, "Red"),
+			end:      enumOf(color, "Blue"),
+			expected: false,
+		},
+		{
+			name:     "variant-wrapped enum selector",
+			value:    &runtime.VariantValue{Value: enumOf(color, "Green")},
+			start:    enumOf(color, "Red"),
+			end:      enumOf(color, "Blue"),
+			expected: true,
+		},
+		{
+			// Declaration order puts B (ordinal 10) between A and C, so A..C
+			// covers it even though 10 falls outside the ordinal span [1, 2].
+			name:     "explicit non-contiguous ordinals use declaration order",
+			value:    enumOf(disj, "B"),
+			start:    enumOf(disj, "A"),
+			end:      enumOf(disj, "C"),
+			expected: true,
+		},
+		{
+			name:     "explicit non-contiguous ordinals outside declaration range",
+			value:    enumOf(disj, "C"),
+			start:    enumOf(disj, "A"),
+			end:      enumOf(disj, "B"),
+			expected: false,
+		},
+		{
+			name:     "mismatched enum types never match",
+			value:    enumOf(other, "Green"),
+			start:    enumOf(color, "Red"),
+			end:      enumOf(color, "Blue"),
+			expected: false,
+		},
+		{
+			name:     "mismatched enum bound never matches",
+			value:    enumOf(color, "Green"),
+			start:    enumOf(color, "Red"),
+			end:      enumOf(other, "Blue"),
+			expected: false,
+		},
+		{
+			name:     "reversed bounds never match",
+			value:    enumOf(color, "Green"),
+			start:    enumOf(color, "Blue"),
+			end:      enumOf(color, "Red"),
+			expected: false,
+		},
+		{
+			name:     "integer bounds compare declared ordinals",
+			value:    enumOf(color, "Green"),
+			start:    &runtime.IntegerValue{Value: 0},
+			end:      &runtime.IntegerValue{Value: 2},
+			expected: true,
+		},
+		{
+			name:     "integer bounds outside declared ordinals",
+			value:    enumOf(disj, "B"),
+			start:    &runtime.IntegerValue{Value: 1},
+			end:      &runtime.IntegerValue{Value: 2},
+			expected: false,
+		},
+		{
+			name:     "integer selector with enum bounds",
+			value:    &runtime.IntegerValue{Value: 1},
+			start:    enumOf(color, "Red"),
+			end:      enumOf(color, "Blue"),
+			expected: true,
+		},
+		{
+			name:     "unsupported bound type",
+			value:    enumOf(color, "Green"),
+			start:    &runtime.StringValue{Value: "Red"},
+			end:      &runtime.StringValue{Value: "Blue"},
+			expected: false,
+		},
+		{
+			// Without declaration metadata the comparison degrades to the
+			// declared ordinals, which is all the values carry.
+			name:     "missing metadata falls back to ordinals",
+			value:    &runtime.EnumValue{TypeName: "TColor", ValueName: "Green", OrdinalValue: 1},
+			start:    &runtime.EnumValue{TypeName: "tcolor", ValueName: "Red", OrdinalValue: 0},
+			end:      &runtime.EnumValue{TypeName: "TCOLOR", ValueName: "Blue", OrdinalValue: 2},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsInRange(tt.value, tt.start, tt.end); got != tt.expected {
+				t.Errorf("IsInRange() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
