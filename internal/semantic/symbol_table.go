@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -44,6 +45,35 @@ type SymbolTable struct {
 
 	// Parent scope (nil for global scope)
 	outer *SymbolTable
+
+	// children holds the nested scopes that were kept alive for post-analysis
+	// inspection. It stays empty unless this scope is retained (see Retain):
+	// the analyzer creates and discards many short-lived scopes, so scopes are
+	// not linked to their parent by default.
+	children []*SymbolTable
+
+	// scopeName names the construct that owns this scope, such as the function
+	// whose body it is. Nested scopes inherit it; it is empty for the global
+	// scope.
+	scopeName string
+
+	// depth is the nesting level of this scope: 0 for the global scope, one
+	// more than the enclosing scope otherwise.
+	depth int
+
+	// retain records that this scope, and every scope nested inside it,
+	// survives analysis.
+	retain bool
+}
+
+// ScopedSymbol pairs a symbol with the scope that declared it.
+type ScopedSymbol struct {
+	Symbol *Symbol
+	// Scope names the construct owning the declaring scope (a function or a
+	// lambda). It is empty for the global scope.
+	Scope string
+	// Depth is the nesting level of the declaring scope: 0 for the global scope.
+	Depth int
 }
 
 // NewSymbolTable creates a new symbol table
@@ -54,11 +84,101 @@ func NewSymbolTable() *SymbolTable {
 	}
 }
 
-// NewEnclosedSymbolTable creates a new symbol table enclosed by an outer scope
+// NewEnclosedSymbolTable creates a new symbol table enclosed by an outer scope.
+// The new scope sits one level deeper than its parent and inherits the parent's
+// scope name. If the parent is retained, so is the child, and the child is
+// linked into the parent's children.
 func NewEnclosedSymbolTable(outer *SymbolTable) *SymbolTable {
 	st := NewSymbolTable()
 	st.outer = outer
+	if outer != nil {
+		st.depth = outer.depth + 1
+		st.scopeName = outer.scopeName
+		if outer.retain {
+			st.retain = true
+			outer.children = append(outer.children, st)
+		}
+	}
 	return st
+}
+
+// Retain marks this scope, and every scope later nested inside it, as surviving
+// analysis so that it can be inspected afterwards (for example by
+// Program.Symbols). name identifies the owning construct and is inherited by
+// nested scopes.
+//
+// Retention is opt-in rather than the default because the analyzer allocates
+// throwaway scopes - a per-call scope for unit-qualified calls, for instance -
+// that would otherwise accumulate for the lifetime of the analyzer.
+func (st *SymbolTable) Retain(name string) {
+	st.retain = true
+	st.scopeName = name
+}
+
+// Depth returns the nesting level of this scope: 0 for the global scope.
+func (st *SymbolTable) Depth() int {
+	return st.depth
+}
+
+// ScopeName returns the name of the construct owning this scope, or "" when the
+// scope is global or unnamed.
+func (st *SymbolTable) ScopeName() string {
+	return st.scopeName
+}
+
+// Children returns the retained scopes nested directly inside this one.
+func (st *SymbolTable) Children() []*SymbolTable {
+	return st.children
+}
+
+// LocalSymbols returns the symbols declared in this scope only, ordered by
+// declaration position and then by name so that the result is deterministic.
+func (st *SymbolTable) LocalSymbols() []ScopedSymbol {
+	result := make([]ScopedSymbol, 0, st.symbols.Len())
+	st.symbols.Range(func(_ string, sym *Symbol) bool {
+		result = append(result, ScopedSymbol{Symbol: sym, Scope: st.scopeName, Depth: st.depth})
+		return true
+	})
+	sortScopedSymbols(result)
+	return result
+}
+
+// AllSymbolsWithScope returns the symbols visible from this scope, walking the
+// enclosing chain from the outermost scope inwards. Unlike AllSymbols it does
+// not flatten the chain: every scope contributes its own symbols, each tagged
+// with the depth and name of the scope that declared it, so a local that
+// shadows an outer symbol appears alongside the symbol it shadows.
+func (st *SymbolTable) AllSymbolsWithScope() []ScopedSymbol {
+	var result []ScopedSymbol
+	if st.outer != nil {
+		result = st.outer.AllSymbolsWithScope()
+	}
+	return append(result, st.LocalSymbols()...)
+}
+
+// NestedSymbolsWithScope returns the symbols declared in this scope and,
+// recursively, in every retained scope nested inside it. The enclosing chain is
+// not included.
+func (st *SymbolTable) NestedSymbolsWithScope() []ScopedSymbol {
+	result := st.LocalSymbols()
+	for _, child := range st.children {
+		result = append(result, child.NestedSymbolsWithScope()...)
+	}
+	return result
+}
+
+// sortScopedSymbols orders symbols by declaration position, then by name.
+func sortScopedSymbols(symbols []ScopedSymbol) {
+	sort.SliceStable(symbols, func(i, j int) bool {
+		a, b := symbols[i].Symbol, symbols[j].Symbol
+		if a.DeclPosition.Line != b.DeclPosition.Line {
+			return a.DeclPosition.Line < b.DeclPosition.Line
+		}
+		if a.DeclPosition.Column != b.DeclPosition.Column {
+			return a.DeclPosition.Column < b.DeclPosition.Column
+		}
+		return a.Name < b.Name
+	})
 }
 
 // Define defines a new variable symbol in the current scope

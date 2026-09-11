@@ -13,10 +13,15 @@ import (
 // Symbols are extracted from the semantic analyzer's symbol table after compilation
 // and are useful for IDE features like code completion, go-to-definition, and hover information.
 type Symbol struct {
-	Name       string
-	Kind       string
-	Type       string
-	Scope      string
+	Name string
+	Kind string
+	Type string
+	// Scope is "global" for symbols declared at program scope, and the name of
+	// the owning function (or "lambda") for symbols declared inside one. Type
+	// declarations are always reported as "global".
+	Scope string
+	// Position is the declaration position of the symbol. It is the zero value
+	// for symbols the analyzer synthesizes rather than reads from source.
 	Position   token.Position
 	IsReadOnly bool
 	IsConst    bool
@@ -25,8 +30,17 @@ type Symbol struct {
 // Symbols returns all symbols declared in the program.
 // This includes variables, constants, functions, classes, and other declarations.
 //
-// Symbols are organized hierarchically by scope. Global symbols appear first,
-// followed by symbols from inner scopes.
+// Symbols are organized hierarchically by scope: global symbols appear first,
+// followed by the symbols of each retained inner scope (function and lambda
+// bodies, including the blocks nested inside them), and finally the program's
+// type declarations. Within a scope, symbols are ordered by declaration
+// position. A local that shadows a global is reported alongside the global it
+// shadows, distinguished by Scope.
+//
+// Inner scopes are retained only for function and lambda bodies. Class, record
+// and helper method bodies are not reported, because their scopes are
+// pre-populated with synthesized bindings (Self, fields, properties) that are
+// not local declarations.
 //
 // If the program was not type-checked (e.g., compiled with TypeCheck: false),
 // this method returns an empty slice as symbol information is not available.
@@ -59,19 +73,32 @@ func (p *Program) Symbols() []Symbol {
 func extractSymbols(analyzer *semantic.Analyzer) []Symbol {
 	result := []Symbol{}
 
-	// Extract variables and functions from symbol table
-	symbolTable := analyzer.GetSymbolTable()
-	if symbolTable != nil {
-		for _, sym := range symbolTable.AllSymbols() {
-			// Determine kind based on symbol type
-			kind := determineSymbolKind(sym)
+	// Extract variables and functions from the global scope chain, then from
+	// every inner scope the analyzer retained (function and lambda bodies).
+	var scoped []semantic.ScopedSymbol
+	if symbolTable := analyzer.GetSymbolTable(); symbolTable != nil {
+		scoped = symbolTable.AllSymbolsWithScope()
+	}
+	for _, inner := range analyzer.RetainedScopes() {
+		scoped = append(scoped, inner.NestedSymbolsWithScope()...)
+	}
 
+	for _, entry := range scoped {
+		// An overload set has no type of its own; report each overload instead.
+		members := []*semantic.Symbol{entry.Symbol}
+		if entry.Symbol.IsOverloadSet {
+			members = entry.Symbol.Overloads
+		}
+		for _, sym := range members {
+			if sym.Type == nil {
+				continue
+			}
 			result = append(result, Symbol{
 				Name:       sym.Name,
-				Kind:       kind,
+				Kind:       determineSymbolKind(sym),
 				Type:       sym.Type.String(),
-				Position:   token.Position{}, // Position info not stored in symbol table
-				Scope:      "global",         // TODO: Track actual scope level
+				Position:   sym.DeclPosition,
+				Scope:      scopeLabel(entry),
 				IsReadOnly: sym.ReadOnly,
 				IsConst:    sym.IsConst,
 			})
@@ -160,6 +187,19 @@ func extractSymbols(analyzer *semantic.Analyzer) []Symbol {
 	}
 
 	return result
+}
+
+// scopeLabel maps a scope depth to the label reported on Symbol.Scope.
+// Depth 0 is the program's global scope; anything deeper is local to a
+// construct and is named after it when the analyzer recorded a name.
+func scopeLabel(entry semantic.ScopedSymbol) string {
+	if entry.Depth == 0 {
+		return "global"
+	}
+	if entry.Scope == "" {
+		return "local"
+	}
+	return entry.Scope
 }
 
 // determineSymbolKind determines the kind of a symbol based on its type.

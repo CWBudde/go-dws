@@ -199,6 +199,7 @@ func (a *Analyzer) analyzeFunctionBody(decl *ast.FunctionDecl, paramTypes []type
 	// Analyze function body in new scope
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
+	a.retainScope(a.symbols, decl.Name.Value)
 	defer func() { a.symbols = oldSymbols }()
 
 	// Add parameters to function scope

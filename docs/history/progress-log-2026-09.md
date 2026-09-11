@@ -2661,3 +2661,46 @@ tested logic takes the list as a parameter and therefore runs on every OS.
 throughout, the package takes no platform handle, and under WASM units are supplied through the
 host API rather than a scanned filesystem. `GOOS=js GOARCH=wasm go build ./...` stays green —
 `os.UserHomeDir` and `os.Stat` both compile for `js/wasm`.
+
+## 2026-09-11 — `Program.Symbols()` reports the real scope and position (PLAN.md §3.4)
+
+`pkg/dwscript/symbols.go` hardcoded `Scope: "global"` and `Position: token.Position{}` for every
+symbol, and its doc comment claimed symbols arrived "global first, followed by symbols from inner
+scopes" — which nothing in the code did. The obstacle was `SymbolTable.AllSymbols()`: it flattened
+the scope chain into one `map[string]*Symbol`, losing depth and silently dropping any symbol that
+an inner scope shadowed. The analyzer also discarded every inner scope after analysing it, so the
+root table was all `Program.Symbols()` could ever see.
+
+`SymbolTable` now carries `depth`, `scopeName`, `children` and a `retain` flag.
+`NewEnclosedSymbolTable` sets the child one level deeper than its parent and inherits the parent's
+scope name; if the parent is retained, the child is retained too and is linked into the parent's
+children. `Retain(name)` opts a scope in. Retention is opt-in because the analyzer allocates
+throwaway scopes — the per-call scope for unit-qualified calls in `analyze_function_calls.go`, one
+per call site — that would otherwise accumulate for the analyzer's lifetime.
+
+`AllSymbolsWithScope()` walks the chain outermost-first without flattening, so a shadowing local is
+reported alongside the symbol it shadows, each tagged with the declaring scope's depth and name.
+`NestedSymbolsWithScope()` flattens a retained scope and its descendants. `LocalSymbols()` covers a
+single scope and sorts by declaration position, making the output deterministic (the underlying
+`ident.Map` iterates a Go map). `AllSymbols()` is unchanged for its existing callers.
+
+The analyzer retains function bodies (`analyzeFunctionBody`) and both lambda scopes, registering
+them in `retainedScopes`; nested blocks inside them come along automatically, which is how function
+locals are picked up. Class, record and helper method bodies are deliberately **not** retained:
+their scopes are pre-populated with synthesized bindings (`Self`, every field, property, constant
+and class var) that are not local declarations and would read as noise in an IDE symbol list.
+
+`Symbol.Scope` is now `"global"` at depth 0 and the owning function's name (or `"lambda"`) deeper
+in; `Symbol.Position` is `semantic.Symbol.DeclPosition`, which the symbol table has always
+populated. Extraction also stopped assuming `sym.Type != nil`: an overload set stores `nil` there
+and its signatures on `Overloads`, so `Program.Symbols()` used to panic on any overloaded routine
+and now reports one entry per overload. No exported signature changed; `Symbol`'s fields kept their
+order and only gained doc comments.
+
+**Validation:** `go test ./internal/... ./pkg/...` green; `just fixture-report` TOTAL 1039/2042
+(unchanged); `golangci-lint run` reports nothing in the touched files. New tests:
+`internal/semantic/symbol_table_scope_test.go` (depth, retention propagation, shadowed symbols
+surviving `AllSymbolsWithScope` while `AllSymbols` still flattens them away, nested-scope
+flattening, `Analyzer.RetainedScopes`) and `pkg/dwscript/symbols_scope_test.go` (a global, a
+function, a parameter, the implicit `Result`, a local shadowing a global, and declaration
+positions).

@@ -360,7 +360,6 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
   `Engine`-held platform defaulting to `platform/native`, and file builtins routed through
   `Engine.FS()`.
 - `[ ]` `pkg/ast/metadata.go:140,153`, `pkg/ast/type_annotation.go:58`, `pkg/ast/base.go:42` — replace `any` symbol slots with a proper `Symbol` type.
-- `[ ]` `pkg/dwscript/symbols.go:74` — report the actual scope level instead of `"global"`.
 - `[ ]` Skipped tests to revive or delete: `internal/semantic/analyze_types_test.go:130,266`,
   `analyze_functions_test.go:284`, `case_insensitive_test.go:185`; `cmd/dwscript/sets_test.go:15,64` (skip
   message cites a closed P4 item); `internal/parser/functions_decl_test.go:639` (cites old task 5.11).
