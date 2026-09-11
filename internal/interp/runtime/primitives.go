@@ -469,7 +469,11 @@ type FunctionPointerValue struct {
 	Function    *ast.FunctionDecl          // AST node of function (legacy)
 	Lambda      *ast.LambdaExpression      // AST node of lambda (legacy)
 	BuiltinName string                     // Built-in function identifier
-	MethodID    MethodID                   // Unique ID in MethodRegistry
+	// IntrinsicMember names a built-in TObject pseudo-member (ClassName,
+	// ClassType) captured as a parameterless pointer bound to SelfObject.
+	// It has no declaration to point at, so it is dispatched by name.
+	IntrinsicMember string
+	MethodID        MethodID // Unique ID in MethodRegistry
 }
 
 // Type returns "FUNCTION_POINTER", "METHOD_POINTER", or "LAMBDA" (closure).
@@ -488,7 +492,8 @@ func (f *FunctionPointerValue) Type() string {
 // IsNil returns true if this function pointer has no function or lambda assigned.
 // Used to check before invocation to raise appropriate DWScript exceptions.
 func (f *FunctionPointerValue) IsNil() bool {
-	return f.Callable == nil && f.Function == nil && f.Lambda == nil && f.MethodID == InvalidMethodID && f.BuiltinName == ""
+	return f.Callable == nil && f.Function == nil && f.Lambda == nil && f.MethodID == InvalidMethodID &&
+		f.BuiltinName == "" && f.IntrinsicMember == ""
 }
 
 // GetBuiltinName returns the built-in function identifier this pointer refers to,
@@ -576,6 +581,13 @@ func (f *FunctionPointerValue) String() string {
 
 	if f.BuiltinName != "" {
 		return "@" + f.BuiltinName
+	}
+
+	if f.IntrinsicMember != "" {
+		if f.SelfObject != nil {
+			return "@" + f.SelfObject.String() + "." + f.IntrinsicMember
+		}
+		return "@" + f.IntrinsicMember
 	}
 
 	// Legacy path: use AST nodes

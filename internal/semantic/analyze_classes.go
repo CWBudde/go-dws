@@ -373,7 +373,15 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	if objectType == nil {
 		return nil
 	}
+	// An implicit (parenless) call in the receiver position is invoked before
+	// the member is looked up.
 	objectType = a.applyImplicitCallType(expr.Object, objectType)
+	// The same holds for a parameterless function/method pointer *value*, which
+	// applyImplicitCallType deliberately leaves alone: `p.ClassName` reads the
+	// member of what `p` returns (func_ptr_symbol_field).
+	if implicitType := implicitValueContextType(objectType); implicitType != nil {
+		objectType = implicitType
+	}
 	memberName := ident.Normalize(expr.Member.Value)
 
 	// Resolve type aliases to get the underlying type
@@ -774,7 +782,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 // fields/properties of pointer type return their declared type). The result
 // procedure/function distinction is normalised so a procedure method is a
 // procedure pointer, not a function-returning-void.
-func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccessExpression) (types.Type, bool) {
+func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccessExpression, expected types.Type) (types.Type, bool) {
 	objectType := a.analyzeExpression(expr.Object)
 	if objectType == nil {
 		return nil, false
@@ -790,6 +798,17 @@ func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccess
 	}
 	memberName := ident.Normalize(expr.Member.Value)
 	methodType, found := classType.GetMethod(memberName)
+
+	// TObject's intrinsic class members (ClassName, ClassType) are not ordinary
+	// class methods, yet they may be captured as parameterless pointers. Handle
+	// them before the class-method rule rejects the metaclass receiver.
+	if !found || !a.isClassMethodInHierarchy(classType, memberName) {
+		if ptrType, ok := a.intrinsicMemberPointerType(classType, memberName, expected); ok {
+			a.annotateMemberPointerType(expr, ptrType)
+			return ptrType, true
+		}
+	}
+
 	if !found {
 		return nil, false
 	}
@@ -812,12 +831,21 @@ func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccess
 	}
 
 	ptrType := methodPointerFromFunctionType(methodType)
-	if a.semanticInfo != nil {
-		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{Token: expr.Token, Name: ptrType.String()})
-		a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{Token: expr.Member.Token, Name: ptrType.String()})
-		a.semanticInfo.SetResolvedType(expr.Member, ptrType)
-	}
+	a.annotateMemberPointerType(expr, ptrType)
 	return ptrType, true
+}
+
+// annotateMemberPointerType records that a member access denotes a pointer
+// rather than an auto-invoked call. The evaluator reads this annotation
+// (memberWantsMethodPointer) to decide between binding and invoking.
+func (a *Analyzer) annotateMemberPointerType(expr *ast.MemberAccessExpression, ptrType types.Type) {
+	if a.semanticInfo == nil || ptrType == nil {
+		return
+	}
+	a.semanticInfo.SetType(expr, &ast.TypeAnnotation{Token: expr.Token, Name: ptrType.String()})
+	a.semanticInfo.SetResolvedType(expr, ptrType)
+	a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{Token: expr.Member.Token, Name: ptrType.String()})
+	a.semanticInfo.SetResolvedType(expr.Member, ptrType)
 }
 
 // methodPointerFromFunctionType builds a method pointer type from a method

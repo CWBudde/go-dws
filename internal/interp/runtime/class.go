@@ -745,17 +745,15 @@ func (c *ClassValue) CreateClassMethodPointer(name string, creator func(methodDe
 	// Look up class method in hierarchy
 	normalizedName := ident.Normalize(name)
 	for current := c.ClassInfo; current != nil; current = current.Parent {
+		// A pointer cannot represent an overload set: bind the first declared
+		// overload, which is the policy the analyzer records for @TClass.M
+		// (firstBindableMethodOverload). ClassMethods holds the last declaration
+		// of a name, so the overload list is consulted first.
+		if overloads, exists := current.ClassMethodOverloads[normalizedName]; exists && len(overloads) > 0 {
+			return creator(overloads[0]), true
+		}
 		if method, exists := current.ClassMethods[normalizedName]; exists {
 			return creator(method), true
-		}
-		if overloads, exists := current.ClassMethodOverloads[normalizedName]; exists && len(overloads) > 0 {
-			// Prefer an overload with parameters; else the first (parameterless) one.
-			for _, m := range overloads {
-				if len(m.Parameters) > 0 {
-					return creator(m), true
-				}
-			}
-			return creator(overloads[0]), true
 		}
 	}
 	return nil, false

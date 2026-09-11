@@ -171,6 +171,12 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 				}
 				return e.newError(expr, "class method '%s' could not bind class context", memberName)
 			}
+			// TObject's intrinsic parameterless members are captured as pointers
+			// here too, so `var p: function : String := obj.ClassName` stores a
+			// callable rather than failing (func_ptr_classname).
+			if isIntrinsicClassMemberName(memberName) {
+				return e.newIntrinsicClassMemberPointer(objVal, memberName, expr, ctx)
+			}
 		}
 		return e.newError(expr, "method '%s' not found", memberName)
 	case runtime.KindTypeCast:
@@ -212,10 +218,13 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 		// Class-method pointer via a metaclass value: p := TClass.ClassProc.
 		// The class-meta is captured as the receiver so ClassName resolves.
 		if classMetaVal, ok := objVal.(ClassMetaValue); ok {
-			if result, created := classMetaVal.CreateClassMethodPointer(memberName, func(methodDecl *runtime.MethodMetadata) Value {
-				return e.createFunctionPointerFromDecl(methodDecl, objVal, ctx)
-			}); created {
+			if result, created := e.bindClassMethodPointer(classMetaVal, memberName, objVal, ctx); created {
 				return result
+			}
+			// `var p: function : String := TObject.ClassName` captures the
+			// intrinsic member the analyzer resolved to a pointer.
+			if isIntrinsicClassMemberName(memberName) {
+				return e.newIntrinsicClassMemberPointer(objVal, memberName, expr, ctx)
 			}
 		}
 		return e.newError(expr, "method '%s' not found", memberName)

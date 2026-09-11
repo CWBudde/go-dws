@@ -83,6 +83,21 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		obj = deref
 	}
 
+	// A parameterless callable in the receiver position is invoked before the
+	// member is looked up, mirroring the analyzer: `proc.ClassName` reads the
+	// member of what `proc` returns (func_ptr_symbol_field). A nil pointer is
+	// left alone so member access on it keeps its existing diagnostic.
+	if callable, isCallable := obj.(FunctionPointerCallable); isCallable && !callable.IsNil() {
+		invoked := e.autoInvokeValueContext(obj, node.Object, ctx)
+		if isError(invoked) {
+			return invoked
+		}
+		if ctx.Exception() != nil {
+			return &runtime.NilValue{}
+		}
+		obj = invoked
+	}
+
 	memberName := node.Member.Value
 
 	// Member access on a JSON value (v.foo, v.length) yields another JSON value.
@@ -251,6 +266,14 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 					}
 				}
 			}
+		}
+
+		// In a function-pointer context the intrinsic members are captured
+		// rather than read, so `a.Add(obj.ClassName)` stores a callable into an
+		// `array of function : String` (func_ptr_classname). A user-declared
+		// method of the same name still owns the reference.
+		if isIntrinsicClassMemberName(memberName) && wantMethodPointer {
+			return e.instanceMemberPointer(objVal, obj, memberName, node, ctx)
 		}
 
 		// Built-in TObject properties (ClassName, ClassType).
@@ -894,7 +917,14 @@ func (e *Evaluator) memberWantsMethodPointer(node *ast.MemberAccessExpression, c
 // nested classes, and helpers). It is shared by the CLASS/CLASSINFO member path and
 // by the metaclass (`class of X`) member path.
 func (e *Evaluator) resolveClassMetaMember(obj Value, classMetaVal ClassMetaValue, memberName string, node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
-	// Built-in properties
+	// Built-in properties. In a function-pointer context they are captured
+	// rather than read, so `a.Add(TObject.ClassName)` stores a pointer into an
+	// `array of function : String` (func_ptr_classname).
+	if isIntrinsicClassMemberName(memberName) && node != nil && e.memberWantsMethodPointer(node, ctx) {
+		// A class method of the same name owns the reference; the intrinsic is
+		// only the fallback, matching how the analyzer resolved the node.
+		return e.classMetaMemberPointer(classMetaVal, memberName, obj, node, ctx)
+	}
 	if ident.Equal(memberName, "ClassName") {
 		return &runtime.StringValue{Value: classMetaVal.GetClassName()}
 	}
