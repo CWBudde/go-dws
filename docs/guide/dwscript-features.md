@@ -182,7 +182,8 @@ compiled type information.
 - ✅ Record fields
 - ✅ Nested records
 - ✅ Anonymous records (both forms, see below)
-- ✅ Value semantics
+- ✅ Value semantics — every assignment stores an independent copy, whether the destination is a
+  variable, a record or object field, a record property, or an array element
 - ⏸️ Record methods (partial support)
 - ✅ Record properties, including auto-properties, expression-based accessors, and
   `class property` backed by a `class var`

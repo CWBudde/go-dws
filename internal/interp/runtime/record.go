@@ -98,6 +98,35 @@ func (r *RecordValue) Copy() Value {
 	}
 }
 
+// FieldDisplayName returns the declared casing for a field key, falling back to
+// the key itself when the record type carries no name mapping.
+func (r *RecordValue) FieldDisplayName(fieldKey string) string {
+	if r.RecordType != nil && r.RecordType.FieldNames != nil {
+		if orig, ok := r.RecordType.FieldNames[ident.Normalize(fieldKey)]; ok {
+			return orig
+		}
+	}
+	return fieldKey
+}
+
+// OrderedFieldKeys returns the record's field keys sorted by their declared
+// name. Fields are stored in a Go map, whose iteration order is randomized, so
+// any serialization that walks them must go through this helper to stay
+// deterministic.
+func (r *RecordValue) OrderedFieldKeys() []string {
+	if len(r.Fields) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(r.Fields))
+	for key := range r.Fields {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return r.FieldDisplayName(keys[i]) < r.FieldDisplayName(keys[j])
+	})
+	return keys
+}
+
 // GetRecordField retrieves a field value by name (case-insensitive lookup).
 // Returns the field value and true if found, nil and false otherwise.
 func (r *RecordValue) GetRecordField(name string) (Value, bool) {

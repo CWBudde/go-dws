@@ -218,12 +218,13 @@ func ValueToJSONValue(val Value) *jsonvalue.Value {
 		}
 		return arr
 	case *runtime.RecordValue:
-		// Convert DWScript record to JSON object
+		// Convert DWScript record to JSON object. Field keys must be walked in
+		// a stable order: Go map iteration is randomized and would otherwise
+		// emit JSON keys in a different order on every run.
 		obj := jsonvalue.NewObject()
-		for fieldName, fieldValue := range v.Fields {
-			// Recursively convert each field
-			jsonField := ValueToJSONValue(fieldValue)
-			obj.ObjectSet(fieldName, jsonField)
+		for _, fieldKey := range v.OrderedFieldKeys() {
+			jsonField := ValueToJSONValue(v.Fields[fieldKey])
+			obj.ObjectSet(v.FieldDisplayName(fieldKey), jsonField)
 		}
 		return obj
 	default:

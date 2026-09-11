@@ -42,6 +42,14 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	var objVal Value
 	var objSetter func(Value) error
 
+	// Records have value semantics: storing one into a field, a property or any
+	// other member slot must store an independent copy, so a later mutation of
+	// the source is not observable through the destination. This mirrors the
+	// simple-assignment path in evalAssignment.
+	if record, ok := value.(*runtime.RecordValue); ok {
+		value = record.Copy()
+	}
+
 	// Try to evaluate as LValue to allow auto-initialization and proper mutation
 	if IsVarTarget(target.Object) {
 		var err error
