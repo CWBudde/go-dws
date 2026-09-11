@@ -297,7 +297,8 @@ begin
 	result := Float(i) / 3.0;
 	PrintLn(result);
 end.`,
-			expected: "3.3333333333333335\n",
+			// 15 significant digits, as DWScript's FloatToStr prints them.
+			expected: "3.33333333333333\n",
 		},
 		{
 			name: "Boolean cast in condition",

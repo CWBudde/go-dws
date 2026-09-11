@@ -1446,6 +1446,11 @@ func (e *Evaluator) createZeroValueForResolvedType(resolved types.Type, ctx *Exe
 	if types.GetUnderlyingType(resolved) == types.JSON_VARIANT {
 		return boxJSON(nil)
 	}
+	// A declared ByteBuffer variable is auto-instantiated: `var b : ByteBuffer;`
+	// is immediately usable and starts empty rather than nil.
+	if types.IsByteBuffer(resolved) {
+		return runtime.NewByteBufferValue()
+	}
 	if types.GetUnderlyingType(resolved) == types.VARIANT {
 		return &runtime.VariantValue{Value: nil, ActualType: nil}
 	}

@@ -76,6 +76,22 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 			}
 		}
 
+		// `new ByteBuffer` instantiates the built-in buffer type, which is not a
+		// class and therefore has no entry in the class registry.
+		if a.isByteBufferTypeName(className) {
+			for _, arg := range expr.Arguments {
+				a.analyzeExpression(arg)
+			}
+			// ByteBuffer has no constructor overload taking arguments, so
+			// `new ByteBuffer(x)` is rejected here rather than silently
+			// dropping x (which the evaluator would never evaluate).
+			if len(expr.Arguments) > 0 {
+				a.addError("'ByteBuffer' has no constructor that accepts %d arguments at %s",
+					len(expr.Arguments), expr.Token.Pos.String())
+			}
+			return types.BYTE_BUFFER
+		}
+
 		// Look up class in registry
 		classType = a.getClassType(className)
 		if classType == nil {
@@ -368,6 +384,12 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// site (analyzeJSONMethodCall).
 	if types.IsJSONVariant(objectTypeResolved) {
 		return types.JSON_VARIANT
+	}
+
+	// ByteBuffer members are intrinsics; a parameterless member access such as
+	// b.Length or b.ToJSON resolves from the intrinsic table.
+	if types.IsByteBuffer(objectTypeResolved) {
+		return byteBufferMemberType(memberName)
 	}
 
 	// Handle record type (static methods or instance fields/methods)

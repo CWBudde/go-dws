@@ -12,6 +12,10 @@ func LanguageType(value Value) types.Type {
 		return scalar
 	}
 	switch v := value.(type) {
+	case *ByteBufferValue:
+		// The built-in buffer type is a singleton, so it carries no per-value
+		// type information the way objects and records do.
+		return types.BYTE_BUFFER
 	case *ObjectInstance:
 		if v.Class != nil {
 			if classType := v.Class.GetClassType(); classType != nil {

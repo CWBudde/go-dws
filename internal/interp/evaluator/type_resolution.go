@@ -224,6 +224,9 @@ func (e *Evaluator) GetDefaultValue(typ types.Type, ctx *ExecutionContext) Value
 		return &runtime.BooleanValue{Value: false}
 	case "CLASS", "INTERFACE", "FUNCTION_POINTER", "METHOD_POINTER":
 		return e.nilValue()
+	case "BYTE_BUFFER":
+		// ByteBuffer is auto-instantiated rather than nil-defaulted.
+		return runtime.NewByteBufferValue()
 	case "ARRAY":
 		// Arrays should default to an empty array value of the correct element type.
 		if arrType, ok := typ.(*types.ArrayType); ok {

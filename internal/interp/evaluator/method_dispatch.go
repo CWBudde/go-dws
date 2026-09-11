@@ -197,6 +197,9 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 	case runtime.KindSet:
 		return e.dispatchSetMethod(obj, normalizedMethod, methodName, args, node)
 
+	case runtime.KindByteBuffer:
+		return e.DispatchByteBufferMethod(obj, methodName, args, node, ctx)
+
 	case runtime.KindTypeMeta:
 		if helperResult := e.FindHelperMethod(obj, methodName); helperResult != nil {
 			return e.CallHelperMethod(helperResult, obj, args, node, ctx)

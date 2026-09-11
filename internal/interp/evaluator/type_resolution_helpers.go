@@ -41,6 +41,9 @@ func (e *Evaluator) resolveTypeName(typeName string, ctx *ExecutionContext) (typ
 	case "jsonvariant":
 		return types.JSON_VARIANT, nil
 
+	case "bytebuffer":
+		return types.BYTE_BUFFER, nil
+
 	case "const":
 		// "Const" is deprecated, redirect to Variant
 		return types.VARIANT, nil

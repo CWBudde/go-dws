@@ -105,6 +105,8 @@ const (
 	KindUnassigned ValueKind = 35
 	// KindVariant identifies the VARIANT representation.
 	KindVariant ValueKind = 36
+	// KindByteBuffer identifies the BYTEBUFFER representation.
+	KindByteBuffer ValueKind = 37
 )
 
 // KindOf identifies built-in runtime representations without reading display strings.
@@ -123,6 +125,7 @@ var valueKindNames = [...]string{
 	KindArray:            "ARRAY",
 	KindAssociativeArray: "ASSOCIATIVE_ARRAY",
 	KindBoolean:          "BOOLEAN",
+	KindByteBuffer:       "BYTEBUFFER",
 	KindClass:            "CLASS",
 	KindClassInfo:        "CLASSINFO",
 	KindEnum:             "ENUM",

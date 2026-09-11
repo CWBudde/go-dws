@@ -66,6 +66,8 @@ func BoxVariant(value Value) *VariantValue {
 		actualType = types.STRING
 	case KindBoolean:
 		actualType = types.BOOLEAN
+	case KindByteBuffer:
+		actualType = types.BYTE_BUFFER
 	case KindNil:
 		actualType = nil // nil has no type
 	case KindNull:
