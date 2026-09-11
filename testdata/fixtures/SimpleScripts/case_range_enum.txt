@@ -2,11 +2,13 @@ cool
 cool
 cool
 warm
-1 in
-10 in
-2 in
-1 in
-10 in
-2 out
+1 in cmp-in
+10 out cmp-out
+2 in cmp-in
+1 in cmp-in
+10 in cmp-in
+2 in cmp-in
+aOne = aAlias: True
+alias in range
 reversed does not match
 no match

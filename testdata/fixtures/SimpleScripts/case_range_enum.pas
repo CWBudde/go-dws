@@ -15,35 +15,56 @@ var c : TColor;
 for c := Low(TColor) to High(TColor) do
    PrintColorRange(c);
 
-// Ranges follow declaration order, so dTen sits between dOne and dTwo
-// even though its ordinal value is 10.
+// Ranges compare ordinal values, exactly like the <= and >= operators, so
+// dTen (ordinal 10) falls outside dOne..dTwo (ordinals 1..2) even though it
+// is declared between them.
 procedure PrintDisjRange(const value : TDisj);
 begin
    Print(IntToStr(Ord(value)) + ' ');
    case value of
-      dOne..dTwo : PrintLn('in');
+      dOne..dTwo : Print('in');
    else
-      PrintLn('out');
+      Print('out');
    end;
+   // A case range must always agree with the comparison operators.
+   if (value >= dOne) and (value <= dTwo) then
+      PrintLn(' cmp-in')
+   else
+      PrintLn(' cmp-out');
 end;
 
 PrintDisjRange(dOne);
 PrintDisjRange(dTen);
 PrintDisjRange(dTwo);
 
-procedure PrintNarrowDisjRange(const value : TDisj);
+procedure PrintWideDisjRange(const value : TDisj);
 begin
    Print(IntToStr(Ord(value)) + ' ');
    case value of
-      dOne..dTen : PrintLn('in');
+      dOne..dTen : Print('in');
    else
-      PrintLn('out');
+      Print('out');
    end;
+   if (value >= dOne) and (value <= dTen) then
+      PrintLn(' cmp-in')
+   else
+      PrintLn(' cmp-out');
 end;
 
-PrintNarrowDisjRange(dOne);
-PrintNarrowDisjRange(dTen);
-PrintNarrowDisjRange(dTwo);
+PrintWideDisjRange(dOne);
+PrintWideDisjRange(dTen);
+PrintWideDisjRange(dTwo);
+
+// Aliases share an ordinal, so an alias of the lower bound is inside the range
+// just as "=" reports it equal.
+type TAlias = (aOne = 1, aAlias = 1, aTwo = 2);
+
+PrintLn('aOne = aAlias: ' + BoolToStr(aOne = aAlias));
+case aOne of
+   aAlias..aTwo : PrintLn('alias in range');
+else
+   PrintLn('alias out of range');
+end;
 
 // Reversed bounds never match.
 case Green of

@@ -195,6 +195,8 @@ func TestIsInRange_Enum(t *testing.T) {
 		[]int{0, 1, 2, 3})
 	// Explicit, non-monotonic ordinals: TDisj = (A = 1, B = 10, C = 2).
 	disj := newTestEnumType("TDisj", []string{"A", "B", "C"}, []int{1, 10, 2})
+	// Aliased ordinals: TAlias = (A = 1, B = 1, C = 2).
+	alias := newTestEnumType("TAlias", []string{"A", "B", "C"}, []int{1, 1, 2})
 	// A distinct enumeration that shares member names and ordinals with TColor.
 	other := newTestEnumType("TOther", []string{"Red", "Green", "Blue"}, []int{0, 1, 2})
 
@@ -250,20 +252,32 @@ func TestIsInRange_Enum(t *testing.T) {
 			expected: true,
 		},
 		{
-			// Declaration order puts B (ordinal 10) between A and C, so A..C
-			// covers it even though 10 falls outside the ordinal span [1, 2].
-			name:     "explicit non-contiguous ordinals use declaration order",
+			// Ranges compare ordinals, like the <= and >= operators, so B
+			// (ordinal 10) is outside A..C (ordinals 1..2) even though it is
+			// declared between them.
+			name:     "explicit non-monotonic ordinals use ordinal order",
 			value:    enumOf(disj, "B"),
 			start:    enumOf(disj, "A"),
 			end:      enumOf(disj, "C"),
-			expected: true,
+			expected: false,
 		},
 		{
-			name:     "explicit non-contiguous ordinals outside declaration range",
+			// The ordinal span A..B is [1, 10], which covers C (ordinal 2)
+			// even though C is declared after B.
+			name:     "explicit non-monotonic ordinals inside ordinal span",
 			value:    enumOf(disj, "C"),
 			start:    enumOf(disj, "A"),
 			end:      enumOf(disj, "B"),
-			expected: false,
+			expected: true,
+		},
+		{
+			// Aliases share an ordinal, so "A = B" is true and A is inside
+			// the range B..C.
+			name:     "aliased ordinals match like equality",
+			value:    enumOf(alias, "A"),
+			start:    enumOf(alias, "B"),
+			end:      enumOf(alias, "C"),
+			expected: true,
 		},
 		{
 			name:     "mismatched enum types never match",

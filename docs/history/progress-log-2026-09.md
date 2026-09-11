@@ -2605,21 +2605,33 @@ and `internal/semantic/record_default_property_index_test.go`.
 carrying a `// TODO: Implement enum range checking`, so every enum range label silently failed to
 match. `case c of Red..Blue` printed nothing and exited 0.
 
-The new `*runtime.EnumValue` arm requires all three operands to belong to the same enumeration —
+The new `*runtime.EnumValue` arm requires any enum bound to belong to the selector's enumeration —
 resolved `*types.EnumType` identity where both sides carry metadata, `ident.Equal` on `TypeName`
-only as a fallback — and then compares **declaration order** via `runtime.EnumValueIndex`, not
-`OrdinalValue`. This matches the enum handling already in place for `Succ`/`Pred`, `Low`/`High`
-and set/array range expansion (`expandArrayRangeElement`), so `(dOne = 1, dTen = 10, dTwo = 2)`
-treats `dOne..dTwo` as covering all three members. Where the values carry no declaration metadata
-the comparison degrades to declared ordinals.
+only as a fallback — and then compares **declared ordinal values** (`OrdinalValue`).
 
-Mixed Integer/Enum bounds have no shared declaration order, so they compare declared ordinals,
-matching DWScript's implicit enum-to-Integer promotion. The analyzer rejects such a `case` label
-before it reaches the evaluator today ("case value type Integer incompatible with case expression
-type TC"), so this only matters for other `IsInRange` callers. Reversed bounds never match, like
-the Integer, Float and String arms.
+The first cut of this change compared declaration order (`runtime.EnumValueIndex`) instead, to
+mirror `Succ`/`Pred`, `Low`/`High` and `expandArrayRangeElement`. Review of PR #388 showed that
+this makes `case` contradict the enum comparison operators, which `evalEnumBinaryOp` implements on
+`OrdinalValue`. Reproduced on the pre-fix build: with `(A = 1, B = 10, C = 2)`, `(B >= A) and
+(B <= C)` printed `False` while `case B of A..C` matched; with the alias declaration
+`(A = 1, B = 1, C = 2)`, `A = B` printed `True` while `case A of B..C` fell through to `else`. A
+range label and the equivalent `>=`/`<=` conjunction must agree, so range dispatch now compares
+ordinals too. `(dOne = 1, dTen = 10, dTwo = 2)` therefore treats `dOne..dTwo` as the ordinal span
+`[1, 2]`, which excludes `dTen`.
 
-**Validation:** new `TestIsInRange_Enum` table (15 cases: implicit ordinals, bounds, explicit
-non-contiguous ordinals, mismatched enum types, reversed bounds, Integer/Enum mixes, missing
-metadata) and fixture `SimpleScripts/case_range_enum`. `just fixture-report` 1039 → 1040,
-SimpleScripts 348 → 349; baseline ratcheted.
+This leaves a deliberate, documented split: `case` labels and the comparison operators use ordinal
+order, while set/array range *expansion* (`expandArrayRangeElement`, `[dOne..dTwo]`) still
+enumerates members in declaration order, as do `Succ`/`Pred` and `Low`/`High`. Expansion has to
+produce a member sequence and declaration order is the only total order over members; dispatch has
+to answer a containment question and must match the operators. Not changed here.
+
+Mixed Integer/Enum bounds also compare declared ordinals, matching DWScript's implicit
+enum-to-Integer promotion. The analyzer rejects such a `case` label before it reaches the evaluator
+today ("case value type Integer incompatible with case expression type TC"), so this only matters
+for other `IsInRange` callers. Reversed bounds never match, like the Integer, Float and String arms.
+
+**Validation:** `TestIsInRange_Enum` table (implicit ordinals, bounds, explicit non-monotonic
+ordinals, aliased ordinals, mismatched enum types, reversed bounds, Integer/Enum mixes, missing
+metadata) and fixture `SimpleScripts/case_range_enum`, which now prints the `case` outcome next to
+the `>=`/`<=` outcome for every member so the two can never silently diverge again.
+`just fixture-report` 1042 → 1043, SimpleScripts 348 → 349; baseline ratcheted.
