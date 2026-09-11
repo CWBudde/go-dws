@@ -2807,7 +2807,7 @@ elements.
 only for a static array reached through a pure index chain rooted at a read-only identifier, and
 emits upstream's wording, `Cannot assign a value to the left-side argument`. Member-access roots
 (`obj.Items[0]`) are excluded deliberately: they mutate the referenced object, not the binding.
-`FailureScripts/const_array1` now matches exactly (122 → 123); `array_of_const` is unchanged. The
+`FailureScripts/const_array1` now matches exactly (125 → 126); `array_of_const` is unchanged. The
 test is renamed `TestConstArrayParameterElementAssignment` and pins both halves of the split.
 
 Still divergent, and not addressed here: assigning to a `const` scalar or string parameter emits
@@ -2823,5 +2823,5 @@ case-mismatch hints §5 marks won't-fix. The comment is replaced by `TestFactori
 the var-block counterpart to the existing `TestFactorialSimple` that the note stood in for.
 
 **Validation:** `go test ./internal/parser/... ./internal/semantic/... ./cmd/...` green;
-`just build` green; fixtures 1039 → 1040 with `SetOfPass` unchanged at 25/25 and no category
+`just build` green; fixtures 1043 → 1044 with `SetOfPass` unchanged at 25/25 and no category
 regressing. Baselines ratcheted and `TEST_STATUS.md` regenerated.

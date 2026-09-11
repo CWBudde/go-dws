@@ -366,7 +366,7 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
 
 **Done (2026-09-11):** the skipped-test backlog is cleared — every entry was revived, deleted or
 turned into a real check, and const static-array element assignment is now diagnosed
-(`FailureScripts` 122 → 123). See
+(`FailureScripts` 125 → 126). See
 [the September progress log](docs/history/progress-log-2026-09.md#2026-09-11--the-skipped-test-backlog-34).
 
 ---

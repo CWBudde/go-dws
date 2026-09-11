@@ -224,7 +224,7 @@ func embedsNodeBase(structType *ast.StructType) bool {
 			continue
 		}
 
-		if ident.Name == "BaseNode" || ident.Name == "TypedStatementBase" {
+		if ident.Name == "BaseNode" {
 			return true
 		}
 	}
@@ -234,7 +234,7 @@ func embedsNodeBase(structType *ast.StructType) bool {
 // isNodeTypeName checks if a type name represents a node type (not a base struct)
 func isNodeTypeName(name string) bool {
 	// Skip base types that are embedded but not actual nodes
-	if name == "BaseNode" || name == "TypedStatementBase" {
+	if name == "BaseNode" {
 		return false
 	}
 	return true
@@ -245,11 +245,10 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 	var fields []*FieldInfo
 
 	for _, field := range structType.Fields.List {
-		// Handle embedded fields by recursively extracting their fields
+		// Skip embedded fields: the only embedded base is BaseNode, which has
+		// no Node fields of its own (type information lives in SemanticInfo),
+		// so it contributes nothing to walk.
 		if len(field.Names) == 0 {
-			// This is an embedded field - skip it as we only want explicit fields
-			// Note: BaseNode/TypedStatementBase no longer have a Type field
-			// Type information is stored in SemanticInfo
 			continue
 		}
 
