@@ -298,6 +298,18 @@ For scripts that import units, configure their directories with
 checks unit dependencies and the program together. Execution reuses the analyzed
 unit ASTs and runs unit initialization and finalization for each run.
 
+On the command line, `dwscript -I <dir>` (repeatable) adds unit search paths. When no
+`-I` flag is given, the default search order is:
+
+1. the current directory (`.`)
+2. every existing directory listed in the `DWSCRIPT_PATH` environment variable
+   (separated by `:` on Unix, `;` on Windows)
+3. the user library directory `~/.dwscript/lib`
+4. the system library directories — `/usr/local/share/dwscript/lib` then
+   `/usr/share/dwscript/lib` on Unix, `%ProgramData%\dwscript\lib` on Windows
+
+Directories that do not exist are skipped, and duplicates are removed.
+
 `dwscript.WithTypeCheck(false)` continues to skip semantic checking. Execution resolves
 structured type declarations as needed, including nested arrays and function pointers;
 it does not enable semantic analysis implicitly. Public external-function signatures

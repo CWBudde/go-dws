@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -127,6 +128,16 @@ func fileExists(path string) bool {
 	return !info.IsDir()
 }
 
+// dirExists checks if a path exists and is a directory.
+// It is the directory-side counterpart of fileExists.
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
 // min returns the minimum of two integers.
 func min(a, b int) int {
 	if a < b {
@@ -160,16 +171,85 @@ func AddSearchPath(paths []string, newPath string) ([]string, error) {
 	return append(paths, absPath), nil
 }
 
-// GetDefaultSearchPaths returns the default search paths for units.
-// This includes:
-//   - Current directory (".")
-//   - User's DWScript library directory (if it exists)
-//   - System DWScript library directory (if it exists)
+// SearchPathEnvVar is the environment variable holding extra unit search paths.
+// Its value is a list of directories separated by the platform list separator
+// (":" on Unix, ";" on Windows), searched after the current directory and before
+// the user and system library directories.
+const SearchPathEnvVar = "DWSCRIPT_PATH"
+
+// GetDefaultSearchPaths returns the default search paths for units, in order:
+//
+//  1. Current directory (".")
+//  2. Each existing directory listed in the DWSCRIPT_PATH environment variable
+//  3. The user's DWScript library directory, ~/.dwscript/lib (if it exists)
+//  4. The system DWScript library directories (if they exist):
+//     /usr/local/share/dwscript/lib then /usr/share/dwscript/lib on Unix,
+//     %ProgramData%\dwscript\lib on Windows
+//
+// Every entry except "." is made absolute and de-duplicated, and is only
+// included when the directory actually exists.
 func GetDefaultSearchPaths() []string {
+	// os.UserHomeDir fails when no home directory is configured; an empty
+	// home simply skips the user library path.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = ""
+	}
+
+	return defaultSearchPaths(home, os.Getenv(SearchPathEnvVar), systemLibraryDirs(), dirExists)
+}
+
+// systemLibraryDirs returns the OS-specific system library directories, most
+// specific first. A runtime.GOOS switch is used rather than build tags because
+// the whole list is a handful of string constants: keeping it in one function
+// makes the full cross-platform ordering reviewable in one place, and the
+// interesting logic lives in defaultSearchPaths, which takes the list as a
+// parameter and is therefore testable on every OS.
+func systemLibraryDirs() []string {
+	if runtime.GOOS == "windows" {
+		programData := os.Getenv("ProgramData")
+		if programData == "" {
+			return nil
+		}
+		return []string{filepath.Join(programData, "dwscript", "lib")}
+	}
+
+	return []string{
+		filepath.Join("/usr", "local", "share", "dwscript", "lib"),
+		filepath.Join("/usr", "share", "dwscript", "lib"),
+	}
+}
+
+// defaultSearchPaths builds the default search path list from explicit inputs.
+// It is the testable core of GetDefaultSearchPaths: home is the user's home
+// directory ("" when unknown), envPath the raw DWSCRIPT_PATH value, sysDirs the
+// system library directories in priority order, and exists reports whether a
+// directory is present.
+func defaultSearchPaths(home, envPath string, sysDirs []string, exists func(string) bool) []string {
 	paths := []string{"."}
 
-	// TODO: Add user library path (e.g., ~/.dwscript/lib)
-	// TODO: Add system library path (e.g., /usr/share/dwscript/lib)
+	add := func(dir string) {
+		if dir == "" || !exists(dir) {
+			return
+		}
+		updated, err := AddSearchPath(paths, dir)
+		if err != nil {
+			return
+		}
+		paths = updated
+	}
+
+	for _, dir := range filepath.SplitList(envPath) {
+		add(dir)
+	}
+
+	if home != "" {
+		add(filepath.Join(home, ".dwscript", "lib"))
+	}
+
+	for _, dir := range sysDirs {
+		add(dir)
+	}
 
 	return paths
 }

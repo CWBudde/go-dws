@@ -2635,3 +2635,29 @@ ordinals, aliased ordinals, mismatched enum types, reversed bounds, Integer/Enum
 metadata) and fixture `SimpleScripts/case_range_enum`, which now prints the `case` outcome next to
 the `>=`/`<=` outcome for every member so the two can never silently diverge again.
 `just fixture-report` 1042 → 1043, SimpleScripts 348 → 349; baseline ratcheted.
+
+## 2026-09-11 — Unit search paths: user, system and `DWSCRIPT_PATH` (PLAN.md §3.4)
+
+`GetDefaultSearchPaths` promised a user and a system library directory in its doc comment and
+returned only `{"."}`. It now returns, in order: `.`, each existing directory named in the
+`DWSCRIPT_PATH` environment variable (`filepath.ListSeparator`-delimited), `~/.dwscript/lib`, and
+the system directories — `/usr/local/share/dwscript/lib` then `/usr/share/dwscript/lib` on Unix,
+`%ProgramData%\dwscript\lib` on Windows. `DWSCRIPT_PATH` sits ahead of the fixed locations so a
+user can override a shipped unit without touching the library directories.
+
+Non-existent directories are skipped, and every entry but `.` goes through the existing
+`AddSearchPath`, which makes it absolute and de-duplicates. A `dirExists` sibling to `fileExists`
+was added rather than reusing `fileExists`, which returns false for directories.
+
+The environment-dependent parts are gathered in the exported wrapper only. The logic lives in an
+unexported seam, `defaultSearchPaths(home, envPath string, sysDirs []string, exists func(string) bool)`,
+which is table-tested with a fake `exists` across: no home, home without the directory, home with
+it, several `DWSCRIPT_PATH` entries, missing and empty entries, duplicates, and ordering. The OS
+split uses a `runtime.GOOS` switch in `systemLibraryDirs` rather than build tags: the list is a
+handful of constants, so one function keeps the full cross-platform ordering reviewable, and all
+tested logic takes the list as a parameter and therefore runs on every OS.
+
+`os` is used directly rather than `pkg/platform.FileSystem`: `search.go` already calls `os.Stat`
+throughout, the package takes no platform handle, and under WASM units are supplied through the
+host API rather than a scanned filesystem. `GOOS=js GOARCH=wasm go build ./...` stays green —
+`os.UserHomeDir` and `os.Stat` both compile for `js/wasm`.

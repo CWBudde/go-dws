@@ -350,7 +350,6 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
   then runs with a different overload — it resolves independently at run time
   (`evaluator.ResolveOverloadMultiple`) with no expected-type channel. Blocked until the evaluator can
   see the call site's expected type, or reuse the analyzer's choice via `ast.SemanticInfo`.
-- `[ ]` `internal/units/search.go:171-172` — user (`~/.dwscript/lib`) and system library search paths.
 - `[ ]` `cmd/dwscript/cmd/fmt.go:296` — real diff algorithm for `dwscript fmt --diff`.
 - `[ ]` Engine seam for `platform.Platform`. The WASM side is done: `setFileSystem()` and
   `init({fs})` validate a host object and install it via `(*WASMPlatform).SetFileSystem`

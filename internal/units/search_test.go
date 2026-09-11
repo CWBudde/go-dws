@@ -351,15 +351,179 @@ func TestAddSearchPath(t *testing.T) {
 }
 
 func TestGetDefaultSearchPaths(t *testing.T) {
+	extra := t.TempDir()
+	t.Setenv(SearchPathEnvVar, extra+string(filepath.ListSeparator)+filepath.Join(extra, "missing"))
+
 	paths := GetDefaultSearchPaths()
 
 	if len(paths) == 0 {
-		t.Error("expected at least one default search path")
+		t.Fatal("expected at least one default search path")
 	}
 
 	// First path should be current directory
 	if paths[0] != "." {
 		t.Errorf("expected first path to be '.', got '%s'", paths[0])
+	}
+
+	// The existing DWSCRIPT_PATH entry must be present, the missing one must not.
+	absExtra, err := filepath.Abs(extra)
+	if err != nil {
+		t.Fatalf("filepath.Abs: %v", err)
+	}
+	if len(paths) < 2 || paths[1] != absExtra {
+		t.Errorf("expected DWSCRIPT_PATH entry '%s' right after '.', got %v", absExtra, paths)
+	}
+	for _, p := range paths {
+		if p == filepath.Join(absExtra, "missing") {
+			t.Errorf("non-existent DWSCRIPT_PATH entry should be skipped, got %v", paths)
+		}
+	}
+
+	// Every entry but "." must be absolute, and no duplicates are allowed.
+	seen := map[string]bool{}
+	for _, p := range paths {
+		if p != "." && !filepath.IsAbs(p) {
+			t.Errorf("expected absolute path, got '%s'", p)
+		}
+		if seen[p] {
+			t.Errorf("duplicate search path '%s' in %v", p, paths)
+		}
+		seen[p] = true
+	}
+}
+
+func TestDefaultSearchPaths(t *testing.T) {
+	// existsIn returns an exists func accepting exactly the listed directories.
+	existsIn := func(dirs ...string) func(string) bool {
+		set := make(map[string]bool, len(dirs))
+		for _, d := range dirs {
+			set[d] = true
+		}
+		return func(path string) bool { return set[path] }
+	}
+
+	abs := func(t *testing.T, path string) string {
+		t.Helper()
+		a, err := filepath.Abs(path)
+		if err != nil {
+			t.Fatalf("filepath.Abs(%q): %v", path, err)
+		}
+		return a
+	}
+
+	home := abs(t, "testhome")
+	userLib := filepath.Join(home, ".dwscript", "lib")
+	sysA := abs(t, filepath.Join("sys", "a"))
+	sysB := abs(t, filepath.Join("sys", "b"))
+	envA := abs(t, filepath.Join("env", "a"))
+	envB := abs(t, filepath.Join("env", "b"))
+	sep := string(filepath.ListSeparator)
+
+	tests := []struct {
+		exists  func(string) bool
+		name    string
+		home    string
+		envPath string
+		sysDirs []string
+		want    []string
+	}{
+		{
+			name:   "no home and nothing exists",
+			exists: existsIn(),
+			want:   []string{"."},
+		},
+		{
+			name:    "home without the lib directory",
+			home:    home,
+			sysDirs: []string{sysA},
+			exists:  existsIn(home),
+			want:    []string{"."},
+		},
+		{
+			name:   "home with the lib directory",
+			home:   home,
+			exists: existsIn(userLib),
+			want:   []string{".", userLib},
+		},
+		{
+			name:    "no home skips the user library",
+			sysDirs: []string{sysA},
+			exists:  existsIn(userLib, sysA),
+			want:    []string{".", sysA},
+		},
+		{
+			name:    "env entries come before user and system",
+			home:    home,
+			envPath: envA + sep + envB,
+			sysDirs: []string{sysA, sysB},
+			exists:  existsIn(envA, envB, userLib, sysA, sysB),
+			want:    []string{".", envA, envB, userLib, sysA, sysB},
+		},
+		{
+			name:    "system directories keep their order",
+			sysDirs: []string{sysA, sysB},
+			exists:  existsIn(sysA, sysB),
+			want:    []string{".", sysA, sysB},
+		},
+		{
+			name:    "missing env entries are skipped",
+			envPath: envA + sep + envB,
+			exists:  existsIn(envB),
+			want:    []string{".", envB},
+		},
+		{
+			name:    "empty env entries are ignored",
+			envPath: sep + envA + sep + sep,
+			exists:  existsIn(envA),
+			want:    []string{".", envA},
+		},
+		{
+			name:    "duplicates are deduplicated",
+			home:    home,
+			envPath: envA + sep + envA + sep + userLib,
+			sysDirs: []string{sysA, sysA},
+			exists:  existsIn(envA, userLib, sysA),
+			want:    []string{".", envA, userLib, sysA},
+		},
+		{
+			name:    "empty system directory entries are ignored",
+			sysDirs: []string{"", sysA},
+			exists:  existsIn(sysA),
+			want:    []string{".", sysA},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := defaultSearchPaths(tt.home, tt.envPath, tt.sysDirs, tt.exists)
+
+			if len(got) != len(tt.want) {
+				t.Fatalf("expected %v, got %v", tt.want, got)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Fatalf("expected %v, got %v", tt.want, got)
+				}
+			}
+		})
+	}
+}
+
+func TestDirExists(t *testing.T) {
+	tempDir := t.TempDir()
+	file := filepath.Join(tempDir, "unit.dws")
+	if err := os.WriteFile(file, []byte("unit Unit;"), 0o644); err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+
+	if !dirExists(tempDir) {
+		t.Error("expected dirExists to be true for a directory")
+	}
+	if dirExists(file) {
+		t.Error("expected dirExists to be false for a regular file")
+	}
+	if dirExists(filepath.Join(tempDir, "nope")) {
+		t.Error("expected dirExists to be false for a missing path")
 	}
 }
 
