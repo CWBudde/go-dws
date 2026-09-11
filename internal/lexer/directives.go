@@ -171,13 +171,13 @@ func (l *Lexer) processDirective() {
 	case "include", "i", "include_once":
 		l.handleInclude(name, content, parentActive, startPos)
 	case "hint":
-		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityHint, "Hint", false)
+		l.handleMessageDirective(content, parentActive, startPos, closePos, SeverityHint, "Hint", false)
 	case "warning":
-		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityWarning, "Warning", false)
+		l.handleMessageDirective(content, parentActive, startPos, closePos, SeverityWarning, "Warning", false)
 	case "error":
-		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityError, "Compile Error", false)
+		l.handleMessageDirective(content, parentActive, startPos, closePos, SeverityError, "Compile Error", false)
 	case "fatal":
-		l.handleMessageDirective(content, parentActive, startPos, closePos, LexerSeverityError, "Compile Error", true)
+		l.handleMessageDirective(content, parentActive, startPos, closePos, SeverityError, "Compile Error", true)
 	case "hints", "warnings":
 		l.handleSwitchToggle(name, content, parentActive, startPos, closePos)
 	case "r", "resource":
@@ -191,7 +191,7 @@ func (l *Lexer) processDirective() {
 		if parentActive {
 			l.addDirectiveDiagnostic(
 				fmt.Sprintf("Compiler switch %q unknown", strings.ToUpper(name)),
-				directiveNameColumn(startPos), LexerSeverityError, "")
+				directiveNameColumn(startPos), SeverityError, "")
 		}
 	}
 }
@@ -278,13 +278,13 @@ func (l *Lexer) handleIfDef(name, arg string, parentActive bool, startPos Positi
 func (l *Lexer) handleElse(startPos Position) {
 	if len(l.condStack) == 0 {
 		l.addDirectiveDiagnostic("Unbalanced conditional directive",
-			directiveNameColumn(startPos), LexerSeverityError, "")
+			directiveNameColumn(startPos), SeverityError, "")
 		return
 	}
 	top := &l.condStack[len(l.condStack)-1]
 	if top.elseSeen {
 		l.addDirectiveDiagnostic("Unfinished conditional directive",
-			directiveNameColumn(startPos), LexerSeverityError, "")
+			directiveNameColumn(startPos), SeverityError, "")
 		return
 	}
 	top.elseSeen = true
@@ -302,7 +302,7 @@ func (l *Lexer) handleElse(startPos Position) {
 func (l *Lexer) handleEndIf(startPos Position) {
 	if len(l.condStack) == 0 {
 		l.addDirectiveDiagnostic("Unbalanced conditional directive",
-			directiveNameColumn(startPos), LexerSeverityError, "")
+			directiveNameColumn(startPos), SeverityError, "")
 	} else {
 		l.condStack = l.condStack[:len(l.condStack)-1]
 	}
@@ -430,7 +430,7 @@ func (l *Lexer) evalIfExpression(expr string, base Position, active bool) bool {
 		if !active {
 			return
 		}
-		l.addDirectiveDiagnostic(msg, posOf(t), LexerSeverityError, "")
+		l.addDirectiveDiagnostic(msg, posOf(t), SeverityError, "")
 	}
 
 	next := func() ifToken {

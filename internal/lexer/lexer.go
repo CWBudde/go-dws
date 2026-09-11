@@ -294,48 +294,6 @@ func (l *Lexer) StoppedByFatal() bool {
 	return l.stopped
 }
 
-// DirectiveDiagnostics returns the subset of lexer diagnostics produced by compiler
-// directives ({$HINT}, {$WARNING}, {$ERROR}, {$FATAL}, and malformed conditional
-// directives). Unlike the general advisory error list these are surfaced by the front
-// end, so a script using them reports DWScript-compatible messages.
-func (l *Lexer) DirectiveDiagnostics() []LexerError {
-	return l.directiveDiags
-}
-
-// addDirectiveDiagnostic records a compiler-directive diagnostic. rendered may be empty,
-// in which case the front end applies its default formatting.
-//
-// Parser backtracking can re-lex the same directive, so identical diagnostics at the same
-// position are recorded only once.
-func (l *Lexer) addDirectiveDiagnostic(msg string, pos Position, severity LexerSeverity, rendered string) {
-	for i := range l.directiveDiags {
-		existing := &l.directiveDiags[i]
-		if existing.Message == msg && existing.Pos.Line == pos.Line && existing.Pos.Column == pos.Column {
-			return
-		}
-	}
-	diag := LexerError{Message: msg, Pos: pos, Severity: severity, Rendered: rendered}
-	l.directiveDiags = append(l.directiveDiags, diag)
-	l.errors = append(l.errors, diag)
-}
-
-// addIncludeError records an include-resolution failure. It is tracked both in the
-// general error list and in the dedicated include-error list.
-func (l *Lexer) addIncludeError(msg string, pos Position) {
-	err := LexerError{Message: msg, Pos: pos}
-	l.errors = append(l.errors, err)
-	l.includeErrors = append(l.includeErrors, err)
-}
-
-// addError adds a new error to the lexer's error list.
-// This follows the parser's pattern of accumulating errors instead of stopping at the first error.
-func (l *Lexer) addError(msg string, pos Position) {
-	l.errors = append(l.errors, LexerError{
-		Message: msg,
-		Pos:     pos,
-	})
-}
-
 // SaveState captures the current lexer state for later restoration.
 // This is useful for lookahead operations and parser backtracking.
 // Deep copies the tokenBuffer to prevent corruption during speculative parsing.
@@ -1510,27 +1468,13 @@ func isHexDigit(ch rune) bool {
 		('A' <= ch && ch <= 'F')
 }
 
-// LexerSeverity classifies a lexer diagnostic. DWScript compiler directives such as
-// {$HINT} and {$WARNING} emit non-error messages, so the lexer needs more than a single
-// error severity.
-type LexerSeverity int
-
-const (
-	// LexerSeverityError is the default severity and blocks compilation.
-	LexerSeverityError LexerSeverity = iota
-	// LexerSeverityWarning is a non-blocking warning ({$WARNING}).
-	LexerSeverityWarning
-	// LexerSeverityHint is a non-blocking hint ({$HINT}).
-	LexerSeverityHint
-)
-
 // LexerError represents a diagnostic encountered during lexical analysis.
 type LexerError struct {
 	Message string
 	Pos     Position
-	// Severity classifies the diagnostic. The zero value is LexerSeverityError, so
+	// Severity classifies the diagnostic. The zero value is SeverityError, so
 	// existing call sites keep their previous meaning.
-	Severity LexerSeverity
+	Severity Severity
 	// Rendered, when non-empty, is the exact DWScript-formatted message the front end
 	// must print verbatim instead of applying the default "Syntax Error:" framing.
 	Rendered string
