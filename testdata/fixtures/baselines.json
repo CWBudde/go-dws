@@ -14,7 +14,7 @@
   "DOMParser": 0,
   "DataBaseLib": 0,
   "DelegateLib": 0,
-  "EncodingLib": 0,
+  "EncodingLib": 12,
   "External": 0,
   "FailureScripts": 122,
   "FunctionsByteBuffer": 19,

@@ -89,6 +89,7 @@ func NewWithDeps(
 	})
 
 	interp.registerBuiltinExceptions()
+	interp.registerBuiltinEncoders()
 	interp.registerBuiltinInterfaces()
 	interp.initArrayHelpers()
 	interp.initIntrinsicHelpers()

@@ -2098,3 +2098,96 @@ fixture reaches), pin the hash and bucket index of every key in the order-sensit
 cover growth, backward-shift deletion, per-key-kind round-trips and the
 equal-keys-hash-equally invariant. Full fixture report against the branch point: `AssociativePass`
 22 → 23, total 938 → 939, no category down. Baselines ratcheted and `TEST_STATUS.md` regenerated.
+
+## 2026-09-10 — EncodingLib encoder classes, PLAN.md §3.3 (EncodingLib 0/12 → 12/12)
+
+Every fixture in `testdata/fixtures/EncodingLib` failed at semantic analysis with
+`Unknown name "<X>Encoder"`: the category had no implementation at all. It is now complete.
+TOTAL 938 → 950 scored, with no category below its previous value.
+
+### Classes, not a namespace
+
+The obvious cheap route was the `JSON`/`Default` trick — recognise the bare identifier in the
+analyzer and dispatch a Go `switch` at runtime (`internal/interp/evaluator/json_namespace.go`).
+The fixtures rule that out. `base64.pas` writes `var encoder := Base64Encoder;` — the encoder has
+to *be* a value — and `utf16.pas` declares `procedure Test(e : class of Encoder; s : String)` and
+calls `e.Encode(s)`, which needs a metaclass and virtual class-method dispatch. A namespace has
+neither.
+
+So the encoders are registered as ordinary classes on both sides: `registerBuiltinEncoderTypes`
+in `internal/semantic/encoders.go` (a `types.ClassType` per encoder, methods added with
+`IsClassMethod: true`, which is the bit `analyzeMethodCallExpression` checks for a metaclass
+receiver) and `registerBuiltinEncoders` in `internal/interp/encoders.go` (a `runtime.ClassInfo`
+per encoder, methods in `ClassMethods`). Virtual dispatch needed no new machinery:
+`ClassValue.CreateClassMethodPointer` already walks `ClassInfo.Parent` from the receiver's runtime
+class, so an override in `UTF16BigEndianEncoder` wins over the abstract `Encoder` entry.
+
+Both registrations are generated from one table, `encoding.EncoderClassSpecs()`
+(`internal/encoding/encoder_classes.go`), so the analyzer's view and the runtime's view cannot
+drift. Every encoder method has the same shape — one `String` in, one `String` out — which is
+what makes a single table workable.
+
+### A native body hook for builtin classes
+
+`executeClassMethodDirect` used to demand an `*ast.FunctionDecl` and hand it to
+`ExecuteUserFunctionDirect`; there was no way to give a class method a Go body. (`IsExternalFlag`
+looks like one but only produces "external classes are not supported".) `runtime.MethodMetadata`
+now carries an optional `Native runtime.NativeClassMethod`, checked before the AST path. A native
+method returns `(Value, error)`; the error becomes a catchable `Exception` whose `Message` is the
+error text, so `try ... except on E : Exception` works exactly as it does for `raise`.
+
+This is the first Go-implemented method body on a class in the codebase. It is deliberately narrow:
+one field, one branch, no registry.
+
+### Exception positions now name the statement and the routine
+
+`hexa_errors.pas`, `base32.pas` and `base58.pas` pin DWScript's exception-position convention,
+which the engine did not implement:
+
+```text
+Even hexadecimal character count expected in TryDecode [line: 4, column: 7]
+```
+
+Two differences from what go-dws produced. The position is the **statement's**, not the failing
+sub-expression's (column 7 is `PrintLn`, not `HexadecimalEncoder`), and the message is qualified
+with the **routine** the statement belongs to (nothing is appended in the main program, which is
+why `base32.pas` expects a bare `... in Base32 [line: 17, column: 4]` — there "in Base32" is part
+of the encoder's own message).
+
+`ExecutionContext` therefore tracks `currentStatement` alongside `currentNode`, set in
+`Evaluator.Eval` whenever the node is an `ast.Statement`, and the routine name comes from the
+existing call stack (`CallStack.Current().FunctionName`). Only the new native-method error path
+reads them, so no existing message changed — confirmed by the full fixture diff. Other fixtures
+want the same convention (`FunctionsTime/iso8601.errors`, `ArrayPass/array_element_byref`,
+`COMConnector/array_high`); the tracking is now in place for whoever takes those on.
+
+### Codecs
+
+`internal/encoding/codec.go` and `codec_web.go` hold the implementations, kept free of any
+interpreter type so the function-shaped `StrToHtml*` builtins and a future `ByteBuffer` can share
+them. They operate on *byte strings* — a DWScript string whose every character holds one byte —
+mirroring Delphi's `RawByteString`, which is what the upstream encoders consume.
+
+Behaviour worth recording, all of it fixture-derived rather than invented:
+
+- `Base64Encoder.Decode` ignores spaces, tabs, CR and LF anywhere, and tolerates missing padding.
+- `Base64Encoder.EncodeMIME` wraps at 76 characters (RFC 2045); `Decode` reads the wrapped form.
+- `Base64URIEncoder` is unpadded RFC 4648 §5.
+- Base32 output carries no `=` padding, and `Decode` accepts `0` as an alias for `O` — pinned by
+  `base32.pas`, which expects `Decode('000000')` to be `739ce7`.
+- `HTMLTextEncoder.Encode` also escapes U+00A0 as `&nbsp;` (pinned by `htmltext.pas`, which
+  encodes `"'"#$a0` to `&#39;&nbsp;`); `Decode` strips tags *and* resolves character references,
+  leaving unknown ones untouched.
+- Folding `StrToHtml` onto `encoding.HTMLTextEncode` changes it in exactly one way: it now emits
+  `&nbsp;` for U+00A0 as well. `StrToHtmlAttribute` is byte-for-byte unchanged. No fixture calls
+  either builtin, so this is not covered by the suite; the change aligns the function-shaped
+  encoder with the class-shaped one the fixtures do pin.
+- `URLEncodedEncoder.Decode` never raises: a truncated `%` escape ends decoding and a malformed
+  one yields U+FFFD.
+
+### Validation
+
+`go test ./... -timeout 30m` green; `golangci-lint run --new-from-rev=main` reports 0 issues.
+New table-driven tests in `internal/encoding/codec_test.go` and `codec_web_test.go` cover every
+codec's round trip, padding, MIME wrapping and malformed input. Baseline ratcheted
+(`EncodingLib` 0 → 12) and `TEST_STATUS.md` regenerated.
