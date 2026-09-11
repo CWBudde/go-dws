@@ -343,7 +343,13 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted (A11).
 
 - `[ ]` `internal/semantic/overload_resolution.go:211` — class-hierarchy distance in overload matching.
-- `[ ]` `internal/semantic/analyze_function_calls.go:26` — use `expectedType` in overload resolution.
+- `[ ]` Expected-type overload resolution (was `analyze_function_calls.go:26`): the dead `expectedType`
+  parameter is gone; the note now sits at the dispatch in `internal/semantic/analyze_expressions.go`.
+  Return type is not part of overload identity (`types.SignaturesEqual`), so an expected type can only
+  be a last-resort tie-break. Resolving one in the analyzer alone admits programs the AST evaluator
+  then runs with a different overload — it resolves independently at run time
+  (`evaluator.ResolveOverloadMultiple`) with no expected-type channel. Blocked until the evaluator can
+  see the call site's expected type, or reuse the analyzer's choice via `ast.SemanticInfo`.
 - `[ ]` `internal/units/search.go:171-172` — user (`~/.dwscript/lib`) and system library search paths.
 - `[ ]` `cmd/dwscript/cmd/fmt.go:296` — real diff algorithm for `dwscript fmt --diff`.
 - `[ ]` Engine seam for `platform.Platform`. The WASM side is done: `setFileSystem()` and
