@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 997 |
-| Failed | 931 |
+| Passed | 1021 |
+| Failed | 907 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **52%** (997/1928) |
+| **Scored pass rate** | **53%** (1021/1928) |
 
 ## Per-category
 
@@ -49,7 +49,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
 | FunctionsRTTI | 6 | 0 | 6 | 0 | 0% |
 | FunctionsString | 58 | 57 | 1 | 0 | 98% |
-| FunctionsTime | 30 | 3 | 24 | 3 | 11% |
+| FunctionsTime | 30 | 27 | 0 | 3 | 100% |
 | FunctionsVariant | 10 | 0 | 9 | 1 | 0% |
 | GenericsFail | 8 | 0 | 8 | 0 | 0% |
 | GenericsPass | 23 | 23 | 0 | 0 | 100% |

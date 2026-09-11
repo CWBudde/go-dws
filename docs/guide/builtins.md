@@ -1,5 +1,7 @@
 # Built-in Functions Reference
 
+Date and time built-ins have their own page: [`date-time.md`](date-time.md).
+
 This document provides detailed documentation for built-in functions implemented in go-dws.
 
 ## Calling parameterless built-ins

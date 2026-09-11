@@ -157,6 +157,9 @@ func NewAnalyzer() *Analyzer {
 	// Register the EncodingLib encoder classes (Base64Encoder and friends)
 	a.registerBuiltinEncoderTypes()
 
+	// Register the DateTimeZone enumeration and the FormatSettings static class
+	a.registerDateTimeFormatSettings()
+
 	// Register built-in array helpers
 	a.initArrayHelpers()
 

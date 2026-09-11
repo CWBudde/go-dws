@@ -208,6 +208,13 @@ type Context interface {
 	// Returns nil if the enum type is not found.
 	// Used by Succ/Pred to navigate enum ordinals.
 	GetEnumMetadata(typeName string) Value
+
+	// DateTimeFormatSettings returns the running script's date/time format
+	// settings, the storage behind the script-visible FormatSettings class.
+	// Date/time built-ins read it; scripts mutate it through FormatSettings.
+	// Implementations may return nil, in which case the built-ins fall back to
+	// DefaultDateTimeFormatSettings.
+	DateTimeFormatSettings() *DateTimeFormatSettings
 }
 
 // BuiltinFunc is the signature for all built-in function implementations.
