@@ -10,8 +10,12 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
-**1,036 / 1,928 scored = 54%**, after §3.2.7 closed conditional compilation and §3.3
-closed ByteBuffer and JSON ownership and number formatting and call-site column precision in stack traces and record copy-on-assign value semantics and metaclass method pointers and associative key coercion and ARC destructor timing and nested lvalue vivification and associative hash iteration order and EncodingLib and GlobalVars and FunctionsTime and Variant introspection, debug locations and inner classes. Both use the shared compile pipeline and scoring rules.
+**1,039 / 1,928 scored = 54%**, after §3.2.7 closed conditional compilation and §3.3
+closed the whole runtime/evaluator bucket: associative arrays (key coercion, ARC destructor
+timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
+JSON ownership and number formatting, call-site column precision in stack traces, metaclass
+method pointers, and the ByteBuffer, EncodingLib, GlobalVars, FunctionsTime, FunctionsVariant,
+FunctionsDebug and InnerClasses host libraries. Both use the shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **130 / 647 = 20%**.
 
 Where the truth lives:
@@ -32,7 +36,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (892 total): FailureScripts 406, SimpleScripts 87,
+- Where the remaining failures are (889 total): FailureScripts 406, SimpleScripts 87,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -313,11 +317,14 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 - `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
   `class of`); the common cases were closed in July, the rest was never re-listed.
   `just fixture-report --category SimpleScripts --list-fails` (identical to the harness list).
-- `[ ]` M Triage in-scope categories that have no plan yet: FunctionsTime (1/30),
-  FunctionsVariant (0/10), FunctionsGlobalVars (0/16), Memory (1/13), InnerClassesPass (0/2), FunctionsDebug (0/3).
-  First step for each: list fails, bucket by cause, then add concrete items here.
-  FunctionsByteBuffer is closed at 19/19; see
-  [`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md).
+- `[ ]` M Triage the remaining untouched in-scope category: Memory (1/13). Its two scored
+  fails (`external_constructor_exception`, `external_constructor_exception2`) need host-exposed
+  external classes (`TExposedClass`), which is host-integration territory; the other ten have no
+  `.txt` and are therefore unscored. First step: list fails, bucket by cause, then add concrete
+  items here.
+  The categories this section used to list are now closed: FunctionsByteBuffer 19/19 (see
+  [`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md)), FunctionsTime 27/27,
+  FunctionsVariant 9/9, FunctionsDebug 3/3, InnerClassesPass 2/2 and EncodingLib 12/12.
 - `[ ]` S FunctionsGlobalVars remainder (12/16, library shipped — see
   [`docs/guide/global-vars.md`](docs/guide/global-vars.md)). Two unrelated causes:
   `private_vars` needs the per-unit `WritePrivateVar`/`ReadPrivateVar`/`PrivateVarsNames`/
@@ -351,7 +358,7 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 115/647 (FailureScripts 107/528, SetOfFail 5, JSONConnectorFail 2,
+Harness and CLI: 130/647 (FailureScripts 122/528, SetOfFail 5, JSONConnectorFail 2,
 AssociativeFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
