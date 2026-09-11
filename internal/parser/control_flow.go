@@ -96,9 +96,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	currentToken := p.cursor.Current()
 
 	expr := &ast.IfExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: currentToken},
-		},
+		BaseNode: ast.BaseNode{Token: currentToken},
 	}
 
 	// Move past 'if' and parse the condition
@@ -679,10 +677,8 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	p.cursor = p.cursor.Advance() // move to identifier
 	variable := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: p.cursor.Current(),
 		},
 		Value: p.cursor.Current().Literal,
 	}
@@ -987,10 +983,8 @@ func (p *Parser) parseCaseValueOrRange(value ast.Expression) ast.Expression {
 
 		// Create RangeExpression
 		rangeExpr := &ast.RangeExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: rangeToken,
-				},
+			BaseNode: ast.BaseNode{
+				Token: rangeToken,
 			},
 			Start:    value,
 			RangeEnd: endValue,

@@ -37,10 +37,8 @@ func TestInterfaceInfoWithInheritance(t *testing.T) {
 			Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 		},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "BaseMethod"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "BaseMethod"},
 			},
 			Value: "BaseMethod",
 		},
@@ -55,10 +53,8 @@ func TestInterfaceInfoWithInheritance(t *testing.T) {
 			Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 		},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "DerivedMethod"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "DerivedMethod"},
 			},
 			Value: "DerivedMethod",
 		},
@@ -83,10 +79,8 @@ func TestInterfaceInfoAddMethod(t *testing.T) {
 			Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"},
 		},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Increment"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Increment"},
 			},
 			Value: "Increment",
 		},
@@ -98,10 +92,8 @@ func TestInterfaceInfoAddMethod(t *testing.T) {
 			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 		},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
 			},
 			Value: "GetValue",
 		},

@@ -376,8 +376,8 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 		for _, elem := range lit.Elements {
 			if _, isRange := elem.(*ast.RangeExpression); isRange {
 				arrayLit := &ast.ArrayLiteralExpression{
-					TypedExpressionBase: lit.TypedExpressionBase,
-					Elements:            lit.Elements,
+					BaseNode: lit.BaseNode,
+					Elements: lit.Elements,
 				}
 				resultType := a.analyzeArrayLiteral(arrayLit, nil)
 				if resultType != nil && a.semanticInfo != nil {
@@ -402,8 +402,8 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 
 			if elemType != nil && !types.IsOrdinalType(elemType) {
 				arrayLit := &ast.ArrayLiteralExpression{
-					TypedExpressionBase: lit.TypedExpressionBase,
-					Elements:            lit.Elements,
+					BaseNode: lit.BaseNode,
+					Elements: lit.Elements,
 				}
 				resultType := a.analyzeArrayLiteral(arrayLit, nil)
 

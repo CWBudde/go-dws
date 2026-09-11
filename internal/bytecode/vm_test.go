@@ -18,18 +18,14 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(1, 1)},
 			},
 			Names: []*ast.Identifier{{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
 				},
 				Value: "x",
 			}},
 			Value: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 10)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 10)},
 				},
 				Value: 2,
 			},
@@ -39,18 +35,14 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 				Token: lexer.Token{Type: lexer.VAR, Literal: "var", Pos: pos(2, 1)},
 			},
 			Names: []*ast.Identifier{{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(2, 5)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(2, 5)},
 				},
 				Value: "y",
 			}},
 			Value: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(2, 10)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(2, 10)},
 				},
 				Value: 3,
 			},
@@ -60,41 +52,31 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
 			},
 			ReturnValue: &ast.BinaryExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
 				},
 				Operator: "+",
 				Left: &ast.BinaryExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
 					},
 					Operator: "*",
 					Left: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 8)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 8)},
 						},
 						Value: "x",
 					},
 					Right: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(3, 12)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(3, 12)},
 						},
 						Value: "y",
 					},
 				},
 				Right: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.INT, Literal: "4", Pos: pos(3, 18)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.INT, Literal: "4", Pos: pos(3, 18)},
 					},
 					Value: 4,
 				},
@@ -107,18 +89,14 @@ func TestVM_RunArithmeticProgram(t *testing.T) {
 
 func TestVM_RunWhileLoop(t *testing.T) {
 	xIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
 		},
 		Value: "x",
 	}
 	yIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(2, 5)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(2, 5)},
 		},
 		Value: "y",
 	}
@@ -130,10 +108,8 @@ func TestVM_RunWhileLoop(t *testing.T) {
 			},
 			Names: []*ast.Identifier{xIdent},
 			Value: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 10)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 10)},
 				},
 				Value: 2,
 			},
@@ -144,10 +120,8 @@ func TestVM_RunWhileLoop(t *testing.T) {
 			},
 			Names: []*ast.Identifier{yIdent},
 			Value: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(2, 10)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(2, 10)},
 				},
 				Value: 3,
 			},
@@ -157,25 +131,19 @@ func TestVM_RunWhileLoop(t *testing.T) {
 				Token: lexer.Token{Type: lexer.WHILE, Literal: "while", Pos: pos(3, 1)},
 			},
 			Condition: &ast.BinaryExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.LESS, Literal: "<", Pos: pos(3, 10)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.LESS, Literal: "<", Pos: pos(3, 10)},
 				},
 				Operator: "<",
 				Left: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 8)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 8)},
 					},
 					Value: "x",
 				},
 				Right: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.INT, Literal: "10", Pos: pos(3, 12)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.INT, Literal: "10", Pos: pos(3, 12)},
 					},
 					Value: 10,
 				},
@@ -186,33 +154,25 @@ func TestVM_RunWhileLoop(t *testing.T) {
 				},
 				Operator: lexer.ASSIGN,
 				Target: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 3)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 3)},
 					},
 					Value: "x",
 				},
 				Value: &ast.BinaryExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(4, 8)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(4, 8)},
 					},
 					Operator: "+",
 					Left: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 7)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(4, 7)},
 						},
 						Value: "x",
 					},
 					Right: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(4, 11)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(4, 11)},
 						},
 						Value: "y",
 					},
@@ -224,10 +184,8 @@ func TestVM_RunWhileLoop(t *testing.T) {
 				Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
 			},
 			ReturnValue: &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(5, 9)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(5, 9)},
 				},
 				Value: "x",
 			},
@@ -951,10 +909,8 @@ func runCompiledProgramExpectError(t *testing.T, name string, program *ast.Progr
 
 func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue int, elseValue *int) *ast.Program {
 	accIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(1, 5)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(1, 5)},
 		},
 		Value: "acc",
 	}
@@ -964,10 +920,8 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 		},
 		Names: []*ast.Identifier{accIdent},
 		Value: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(1, 10)},
 			},
 			Value: 0,
 		},
@@ -978,16 +932,12 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 			Token: lexer.Token{Type: lexer.RAISE, Literal: "raise", Pos: pos(2, 3)},
 		},
 		Exception: &ast.NewExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.NEW, Literal: "new", Pos: pos(2, 9)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.NEW, Literal: "new", Pos: pos(2, 9)},
 			},
 			ClassName: &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: thrownClass, Pos: pos(2, 13)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: thrownClass, Pos: pos(2, 13)},
 				},
 				Value: thrownClass,
 			},
@@ -1001,18 +951,14 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 		},
 		Operator: lexer.ASSIGN,
 		Target: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(3, 3)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(3, 3)},
 			},
 			Value: "acc",
 		},
 		Value: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.INT, Literal: fmt.Sprintf("%d", handlerValue), Pos: pos(3, 10)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.INT, Literal: fmt.Sprintf("%d", handlerValue), Pos: pos(3, 10)},
 			},
 			Value: int64(handlerValue),
 		},
@@ -1020,10 +966,8 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 
 	handler := &ast.ExceptionHandler{
 		Variable: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "E", Pos: pos(3, 4)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "E", Pos: pos(3, 4)},
 			},
 			Value: "E",
 		},
@@ -1041,18 +985,14 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 			},
 			Operator: lexer.ASSIGN,
 			Target: &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(4, 3)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(4, 3)},
 				},
 				Value: "acc",
 			},
 			Value: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.INT, Literal: fmt.Sprintf("%d", *elseValue), Pos: pos(4, 10)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.INT, Literal: fmt.Sprintf("%d", *elseValue), Pos: pos(4, 10)},
 				},
 				Value: int64(*elseValue),
 			},
@@ -1073,10 +1013,8 @@ func buildTypedExceptionProgram(thrownClass, handlerClass string, handlerValue i
 			Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(5, 1)},
 		},
 		ReturnValue: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(5, 9)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "acc", Pos: pos(5, 9)},
 			},
 			Value: "acc",
 		},

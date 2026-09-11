@@ -18,9 +18,7 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current()
 	lambdaExpr := &ast.LambdaExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: currentToken}, // The 'lambda' keyword
-		},
+		BaseNode: ast.BaseNode{Token: currentToken}, // The 'lambda' keyword,
 	}
 
 	// Check for opening parenthesis (optional for zero-parameter lambdas)

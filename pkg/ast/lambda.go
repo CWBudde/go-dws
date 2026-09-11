@@ -31,7 +31,7 @@ type LambdaExpression struct {
 	Body         *BlockStatement
 	Parameters   []*Parameter
 	CapturedVars []string
-	TypedExpressionBase
+	BaseNode
 	IsShorthand bool
 }
 

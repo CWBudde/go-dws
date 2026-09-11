@@ -35,11 +35,9 @@ func (p *Parser) parseQualifiedIdentifierAtCurrent() (*ast.Identifier, bool) {
 			p.cursor = cursor
 			p.addParserErrorAt(nextToken.Pos, nextToken.Length(), "Name expected", ErrExpectedIdent)
 			return &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token:  currentToken,
-						EndPos: p.endPosFromToken(endToken),
-					},
+				BaseNode: ast.BaseNode{
+					Token:  currentToken,
+					EndPos: p.endPosFromToken(endToken),
 				},
 				Value: strings.Join(parts, "."),
 			}, false
@@ -53,11 +51,9 @@ func (p *Parser) parseQualifiedIdentifierAtCurrent() (*ast.Identifier, bool) {
 
 	p.cursor = cursor
 	return &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  currentToken,
-				EndPos: p.endPosFromToken(endToken),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  currentToken,
+			EndPos: p.endPosFromToken(endToken),
 		},
 		Value: strings.Join(parts, "."),
 	}, true

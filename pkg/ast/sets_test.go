@@ -79,9 +79,7 @@ func TestSetLiteral(t *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 
 		setLit := &SetLiteral{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{Token: tok},
-			},
+			BaseNode: BaseNode{Token: tok},
 			Elements: []Expression{
 				NewTestIdentifier("one"),
 				NewTestIdentifier("two"),
@@ -105,9 +103,7 @@ func TestSetLiteral(t *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 
 		setLit := &SetLiteral{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{Token: tok},
-			},
+			BaseNode: BaseNode{Token: tok},
 			Elements: []Expression{},
 		}
 
@@ -121,9 +117,7 @@ func TestSetLiteral(t *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 
 		setLit := &SetLiteral{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{Token: tok},
-			},
+			BaseNode: BaseNode{Token: tok},
 			Elements: []Expression{
 				NewTestIdentifier("one"),
 				NewTestIdentifier("two"),
@@ -140,9 +134,7 @@ func TestSetLiteral(t *testing.T) {
 	t.Run("Implements Expression interface", func(_ *testing.T) {
 		tok := lexer.Token{Type: lexer.LBRACK, Literal: "["}
 		setLit := &SetLiteral{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{Token: tok},
-			},
+			BaseNode: BaseNode{Token: tok},
 			Elements: []Expression{},
 		}
 
@@ -164,10 +156,8 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		unionExpr := &BinaryExpression{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: tok,
-				},
+			BaseNode: BaseNode{
+				Token: tok,
 			},
 			Left:     s1,
 			Operator: "+",
@@ -188,10 +178,8 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		diffExpr := &BinaryExpression{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: tok,
-				},
+			BaseNode: BaseNode{
+				Token: tok,
 			},
 			Left:     s1,
 			Operator: "-",
@@ -212,10 +200,8 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		intersectExpr := &BinaryExpression{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: tok,
-				},
+			BaseNode: BaseNode{
+				Token: tok,
 			},
 			Left:     s1,
 			Operator: "*",
@@ -236,10 +222,8 @@ func TestSetOperators(t *testing.T) {
 		set := NewTestIdentifier("mySet")
 
 		inExpr := &BinaryExpression{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: tok,
-				},
+			BaseNode: BaseNode{
+				Token: tok,
 			},
 			Left:     elem,
 			Operator: "in",
@@ -260,10 +244,8 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		eqExpr := &BinaryExpression{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: tok,
-				},
+			BaseNode: BaseNode{
+				Token: tok,
 			},
 			Left:     s1,
 			Operator: "=",
@@ -284,10 +266,8 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		neqExpr := &BinaryExpression{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: tok,
-				},
+			BaseNode: BaseNode{
+				Token: tok,
 			},
 			Left:     s1,
 			Operator: "<>",
@@ -308,10 +288,8 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		subsetExpr := &BinaryExpression{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: tok,
-				},
+			BaseNode: BaseNode{
+				Token: tok,
 			},
 			Left:     s1,
 			Operator: "<=",
@@ -332,10 +310,8 @@ func TestSetOperators(t *testing.T) {
 		s2 := NewTestIdentifier("s2")
 
 		supersetExpr := &BinaryExpression{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: tok,
-				},
+			BaseNode: BaseNode{
+				Token: tok,
 			},
 			Left:     s1,
 			Operator: ">=",

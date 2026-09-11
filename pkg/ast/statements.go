@@ -119,7 +119,7 @@ func (as *AssignmentStatement) String() string {
 type CallExpression struct {
 	Function  Expression
 	Arguments []Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ce *CallExpression) expressionNode() {}
@@ -245,7 +245,7 @@ func (pc *PostConditions) String() string {
 //	Result = old count + 1
 type OldExpression struct {
 	Identifier *Identifier
-	TypedExpressionBase
+	BaseNode
 }
 
 func (oe *OldExpression) expressionNode() {}

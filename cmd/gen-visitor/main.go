@@ -180,7 +180,7 @@ func parseASTFiles(dir string) ([]*NodeInfo, error) {
 					return true
 				}
 
-				// Check if this struct embeds BaseNode or TypedExpressionBase,
+				// Check if this struct embeds BaseNode,
 				// or is a special known node type like Program
 				if !embedsNodeBase(structType) && !knownNodeTypes[nodeName] {
 					return true
@@ -210,7 +210,7 @@ func parseASTFiles(dir string) ([]*NodeInfo, error) {
 	return result, nil
 }
 
-// embedsNodeBase checks if a struct embeds BaseNode or TypedExpressionBase
+// embedsNodeBase checks if a struct embeds BaseNode
 func embedsNodeBase(structType *ast.StructType) bool {
 	for _, field := range structType.Fields.List {
 		// Embedded field has no names
@@ -224,7 +224,7 @@ func embedsNodeBase(structType *ast.StructType) bool {
 			continue
 		}
 
-		if ident.Name == "BaseNode" || ident.Name == "TypedExpressionBase" || ident.Name == "TypedStatementBase" {
+		if ident.Name == "BaseNode" || ident.Name == "TypedStatementBase" {
 			return true
 		}
 	}
@@ -234,7 +234,7 @@ func embedsNodeBase(structType *ast.StructType) bool {
 // isNodeTypeName checks if a type name represents a node type (not a base struct)
 func isNodeTypeName(name string) bool {
 	// Skip base types that are embedded but not actual nodes
-	if name == "BaseNode" || name == "TypedExpressionBase" || name == "TypedStatementBase" {
+	if name == "BaseNode" || name == "TypedStatementBase" {
 		return false
 	}
 	return true
@@ -248,7 +248,7 @@ func extractFields(structType *ast.StructType) []*FieldInfo {
 		// Handle embedded fields by recursively extracting their fields
 		if len(field.Names) == 0 {
 			// This is an embedded field - skip it as we only want explicit fields
-			// Note: TypedExpressionBase/TypedStatementBase no longer have a Type field
+			// Note: BaseNode/TypedStatementBase no longer have a Type field
 			// Type information is stored in SemanticInfo
 			continue
 		}

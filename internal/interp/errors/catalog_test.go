@@ -442,25 +442,19 @@ func TestNotImplementedError(t *testing.T) {
 
 func TestErrTypeMismatch(t *testing.T) {
 	node := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Pos: token.Position{Line: 10, Column: 5}},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Pos: token.Position{Line: 10, Column: 5}},
 		},
 		Left: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: token.Token{Type: token.INT, Literal: "5"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: token.Token{Type: token.INT, Literal: "5"},
 			},
 			Value: 5,
 		},
 		Operator: "+",
 		Right: &ast.StringLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: token.Token{Type: token.STRING, Literal: "\"hello\""},
-				},
+			BaseNode: ast.BaseNode{
+				Token: token.Token{Type: token.STRING, Literal: "\"hello\""},
 			},
 			Value: "hello",
 		},
@@ -478,25 +472,19 @@ func TestErrTypeMismatch(t *testing.T) {
 
 func TestErrDivByZero(t *testing.T) {
 	node := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Pos: token.Position{Line: 15, Column: 10}},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Pos: token.Position{Line: 15, Column: 10}},
 		},
 		Left: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: token.Token{Type: token.INT, Literal: "10"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: token.Token{Type: token.INT, Literal: "10"},
 			},
 			Value: 10,
 		},
 		Operator: "/",
 		Right: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: token.Token{Type: token.INT, Literal: "0"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: token.Token{Type: token.INT, Literal: "0"},
 			},
 			Value: 0,
 		},
@@ -514,13 +502,11 @@ func TestErrDivByZero(t *testing.T) {
 
 func TestErrUndefinedVariable(t *testing.T) {
 	node := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{
-					Type:    token.IDENT,
-					Literal: "x",
-					Pos:     token.Position{Line: 20, Column: 5},
-				},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{
+				Type:    token.IDENT,
+				Literal: "x",
+				Pos:     token.Position{Line: 20, Column: 5},
 			},
 		},
 		Value: "x",
@@ -541,16 +527,12 @@ func TestErrUndefinedVariable(t *testing.T) {
 
 func TestErrWrongArgCount(t *testing.T) {
 	node := &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Pos: token.Position{Line: 25, Column: 8}},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Pos: token.Position{Line: 25, Column: 8}},
 		},
 		Function: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: token.Token{Type: token.IDENT, Literal: "Sqrt"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: token.Token{Type: token.IDENT, Literal: "Sqrt"},
 			},
 			Value: "Sqrt",
 		},
@@ -569,10 +551,8 @@ func TestErrWrongArgCount(t *testing.T) {
 
 func TestErrNotImplemented(t *testing.T) {
 	node := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Pos: token.Position{Line: 30, Column: 12}},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Pos: token.Position{Line: 30, Column: 12}},
 		},
 		Value: "feature",
 	}

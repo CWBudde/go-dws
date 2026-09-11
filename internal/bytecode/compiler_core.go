@@ -538,8 +538,8 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 		return nil
 	}
 
-	// Check concrete types first before falling back to TypedExpression interface
-	// This is important because many types implement TypedExpression but may have nil GetType()
+	// Check concrete types first before falling back to the semantic type table,
+	// because many expressions have no recorded type annotation.
 	switch node := expr.(type) {
 	case *ast.IntegerLiteral:
 		return types.INTEGER
@@ -622,15 +622,13 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 			return leftType
 		}
 		return rightType
-	case ast.TypedExpression:
+	default:
+		// Fall back to the type recorded by the semantic analyzer, if any.
 		if c.semanticInfo != nil {
-			typeAnnot := c.semanticInfo.GetType(node)
-			if typeAnnot != nil {
+			if typeAnnot := c.semanticInfo.GetType(node); typeAnnot != nil {
 				return typeFromAnnotation(typeAnnot)
 			}
 		}
-		return nil
-	default:
 		return nil
 	}
 }

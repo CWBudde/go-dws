@@ -358,8 +358,8 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 					return ptrType
 				}
 				if _, isBuiltin := a.analyzeBuiltinFunction(expr.Member.Value, nil, &ast.CallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: expr.Token}},
-					Function:            expr.Member,
+					BaseNode: ast.BaseNode{Token: expr.Token},
+					Function: expr.Member,
 				}); isBuiltin {
 					return types.VOID
 				}

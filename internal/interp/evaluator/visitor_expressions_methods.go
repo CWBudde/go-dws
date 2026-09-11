@@ -46,9 +46,9 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	}
 	if e.isDefaultNamespaceObject(node.Object, ctx) {
 		builtinCall := &ast.CallExpression{
-			TypedExpressionBase: node.TypedExpressionBase,
-			Function:            node.Method,
-			Arguments:           node.Arguments,
+			BaseNode:  node.BaseNode,
+			Function:  node.Method,
+			Arguments: node.Arguments,
 		}
 		return e.VisitCallExpression(builtinCall, ctx)
 	}
@@ -58,9 +58,9 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	// as a plain global call.
 	if e.isDefaultNamespaceObject(node.Object, ctx) {
 		call := &ast.CallExpression{
-			TypedExpressionBase: node.TypedExpressionBase,
-			Function:            node.Method,
-			Arguments:           node.Arguments,
+			BaseNode:  node.BaseNode,
+			Function:  node.Method,
+			Arguments: node.Arguments,
 		}
 		return e.Eval(call, ctx)
 	}
@@ -189,9 +189,9 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 			// Non-object receiver (e.g. a record proc-typed field): fall back to
 			// the member-access path.
 			memberVal = e.Eval(&ast.MemberAccessExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: node.Token}},
-				Object:              node.Object,
-				Member:              node.Method,
+				BaseNode: ast.BaseNode{Token: node.Token},
+				Object:   node.Object,
+				Member:   node.Method,
 			}, ctx)
 		}
 		if isError(memberVal) {

@@ -282,7 +282,7 @@ type NewExpression struct {
 	// specialized name and clears this field; if the base is not a known generic
 	// template the reference is left unchanged.
 	TypeArgs []TypeExpression
-	TypedExpressionBase
+	BaseNode
 	// ConstructorPos is the source position of the constructor *name* token in
 	// the `TClassName.Create(...)` spelling (the `Create` identifier). DWScript
 	// reports a call site at the callee's name token, so raise sites and stack
@@ -359,7 +359,7 @@ func (ne *NewExpression) String() string {
 type MemberAccessExpression struct {
 	Object Expression
 	Member *Identifier
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ma *MemberAccessExpression) expressionNode() {}
@@ -391,7 +391,7 @@ type MethodCallExpression struct {
 	Object    Expression
 	Method    *Identifier
 	Arguments []Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (mc *MethodCallExpression) expressionNode() {}
@@ -430,7 +430,7 @@ func (mc *MethodCallExpression) String() string {
 type InheritedExpression struct {
 	Method    *Identifier
 	Arguments []Expression
-	TypedExpressionBase
+	BaseNode
 	IsCall   bool
 	IsMember bool
 }
@@ -470,7 +470,7 @@ func (ie *InheritedExpression) String() string {
 //	Self.ClassName
 type SelfExpression struct {
 	Token token.Token
-	TypedExpressionBase
+	BaseNode
 }
 
 func (se *SelfExpression) expressionNode() {}

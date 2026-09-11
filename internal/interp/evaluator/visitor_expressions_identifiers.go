@@ -143,9 +143,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			if objVal, ok := selfVal.(ObjectValue); ok {
 				if classMethodDecl := objVal.GetClassMethodDecl(node.Value); classMethodDecl != nil && len(classMethodDecl.Parameters) == 0 {
 					callExpr := &ast.CallExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{Token: node.Token},
-						},
+						BaseNode:  ast.BaseNode{Token: node.Token},
 						Function:  node,
 						Arguments: nil,
 					}
@@ -186,10 +184,8 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 
 			if recVal.HasRecordMethod(node.Value) {
 				callExpr := &ast.CallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: node.Token,
-						},
+					BaseNode: ast.BaseNode{
+						Token: node.Token,
 					},
 					Function:  node,
 					Arguments: nil,
@@ -266,9 +262,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 			if helperResult := e.FindHelperMethod(selfVal, node.Value); helperResult != nil {
 				if helperResult.Method != nil && helperASTMethodEffectiveParamCount(helperResult.Method) == 0 {
 					callExpr := &ast.CallExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{Token: node.Token},
-						},
+						BaseNode:  ast.BaseNode{Token: node.Token},
 						Function:  node,
 						Arguments: nil,
 					}
@@ -276,9 +270,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 				}
 				if helperResult.BuiltinSpec != "" {
 					callExpr := &ast.CallExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{Token: node.Token},
-						},
+						BaseNode:  ast.BaseNode{Token: node.Token},
 						Function:  node,
 						Arguments: nil,
 					}

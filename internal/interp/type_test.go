@@ -26,10 +26,8 @@ func TestTypeAliasBasicUsage(t *testing.T) {
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
 				Name: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					},
 					Value: "TUserID",
 				},
@@ -42,10 +40,8 @@ func TestTypeAliasBasicUsage(t *testing.T) {
 			&ast.VarDeclStatement{
 				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var"}},
 				Names: []*ast.Identifier{{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "id"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "id"},
 					},
 					Value: "id",
 				}},
@@ -54,10 +50,8 @@ func TestTypeAliasBasicUsage(t *testing.T) {
 					Name:  "TUserID",
 				},
 				Value: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.INT, Literal: "42"},
 					},
 					Value: 42,
 				},
@@ -99,10 +93,8 @@ func TestTypeAliasResolveType(t *testing.T) {
 			Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 		},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 			},
 			Value: "TUserID",
 		},

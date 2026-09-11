@@ -254,11 +254,9 @@ func (e *Evaluator) executeImplicitSelfCall(node *ast.CallExpression, funcName *
 		return e.newError(node, "method '%s' not found on Self", funcName.Value)
 	default:
 		return e.DispatchMethodCall(selfVal, funcName.Value, args, &ast.MethodCallExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: node.Token},
-			},
-			Object: &ast.Identifier{Value: "Self"},
-			Method: funcName,
+			BaseNode: ast.BaseNode{Token: node.Token},
+			Object:   &ast.Identifier{Value: "Self"},
+			Method:   funcName,
 		}, ctx)
 	}
 }

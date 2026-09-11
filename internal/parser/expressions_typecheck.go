@@ -15,10 +15,8 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	isToken := p.cursor.Current()
 	expression := &ast.IsExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: isToken},
-		},
-		Left: left,
+		BaseNode: ast.BaseNode{Token: isToken},
+		Left:     left,
 	}
 
 	p.cursor = p.cursor.Advance()
@@ -56,10 +54,8 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	asToken := p.cursor.Current()
 	expression := &ast.AsExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: asToken},
-		},
-		Left: left,
+		BaseNode: ast.BaseNode{Token: asToken},
+		Left:     left,
 	}
 
 	p.cursor = p.cursor.Advance()
@@ -84,10 +80,8 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 	builder := p.StartNode()
 	implementsToken := p.cursor.Current()
 	expression := &ast.ImplementsExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: implementsToken},
-		},
-		Left: left,
+		BaseNode: ast.BaseNode{Token: implementsToken},
+		Left:     left,
 	}
 
 	p.cursor = p.cursor.Advance()

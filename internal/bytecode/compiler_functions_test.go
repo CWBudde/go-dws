@@ -13,27 +13,21 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 	intType := &ast.TypeAnnotation{Name: "Integer"}
 
 	countIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(2, 5)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(2, 5)},
 		},
 		Value: "count",
 	}
 	incrementIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "increment", Pos: pos(3, 5)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "increment", Pos: pos(3, 5)},
 		},
 		Value: "increment",
 	}
 
 	innerLambda := &ast.LambdaExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(4, 10)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(4, 10)},
 		},
 		ReturnType: intType,
 		Body: &ast.BlockStatement{
@@ -43,33 +37,25 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 3)}},
 					Operator: lexer.ASSIGN,
 					Target: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 3)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 3)},
 						},
 						Value: "count",
 					},
 					Value: &ast.BinaryExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(5, 15)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(5, 15)},
 						},
 						Operator: "+",
 						Left: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 12)},
-								},
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(5, 12)},
 							},
 							Value: "count",
 						},
 						Right: &ast.IntegerLiteral{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(5, 17)},
-								},
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(5, 17)},
 							},
 							Value: 1,
 						},
@@ -80,10 +66,8 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(6, 3)},
 					},
 					ReturnValue: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(6, 11)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "count", Pos: pos(6, 11)},
 						},
 						Value: "count",
 					},
@@ -93,10 +77,8 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 	}
 
 	outerLambda := &ast.LambdaExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(1, 10)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(1, 10)},
 		},
 		Body: &ast.BlockStatement{
 			BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.BEGIN, Literal: "begin"}},
@@ -107,10 +89,8 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 						countIdent,
 					},
 					Value: &ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(2, 15)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "0", Pos: pos(2, 15)},
 						},
 						Value: 0,
 					},
@@ -129,10 +109,8 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(4, 1)},
 					},
 					ReturnValue: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "increment", Pos: pos(4, 9)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "increment", Pos: pos(4, 9)},
 						},
 						Value: "increment",
 					},
@@ -149,10 +127,8 @@ func TestCompiler_LambdaCapturesLocal(t *testing.T) {
 				},
 				Names: []*ast.Identifier{
 					{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "makeCounter", Pos: pos(1, 5)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "makeCounter", Pos: pos(1, 5)},
 						},
 						Value: "makeCounter",
 					},
@@ -211,10 +187,8 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 	paramX := &ast.Parameter{
 		Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 20)},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 20)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 20)},
 			},
 			Value: "x",
 		},
@@ -230,25 +204,19 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(2, 5)},
 				},
 				ReturnValue: &ast.BinaryExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(2, 15)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(2, 15)},
 					},
 					Operator: "+",
 					Left: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 13)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(2, 13)},
 						},
 						Value: "x",
 					},
 					Right: &ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(2, 17)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "1", Pos: pos(2, 17)},
 						},
 						Value: 1,
 					},
@@ -262,10 +230,8 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function", Pos: pos(1, 1)},
 		},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "AddOne", Pos: pos(1, 1)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "AddOne", Pos: pos(1, 1)},
 			},
 			Value: "AddOne",
 		},
@@ -275,25 +241,19 @@ func TestCompiler_FunctionDeclDirectCall(t *testing.T) {
 	}
 
 	callAddOne := &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.LPAREN, Literal: "(", Pos: pos(4, 12)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.LPAREN, Literal: "(", Pos: pos(4, 12)},
 		},
 		Function: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "AddOne", Pos: pos(4, 5)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "AddOne", Pos: pos(4, 5)},
 			},
 			Value: "AddOne",
 		},
 		Arguments: []ast.Expression{
 			&ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: lexer.Token{Type: lexer.INT, Literal: "41", Pos: pos(4, 13)},
-					},
+				BaseNode: ast.BaseNode{
+					Token: lexer.Token{Type: lexer.INT, Literal: "41", Pos: pos(4, 13)},
 				},
 				Value: 41,
 			},
@@ -341,19 +301,15 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 				},
 				Names: []*ast.Identifier{
 					{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(1, 5)},
 						},
 						Value: "x",
 					},
 				},
 				Value: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 10)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.INT, Literal: "2", Pos: pos(1, 10)},
 					},
 					Value: 2,
 				},
@@ -364,19 +320,15 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 				},
 				Names: []*ast.Identifier{
 					{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(2, 5)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(2, 5)},
 						},
 						Value: "y",
 					},
 				},
 				Value: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(2, 10)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.INT, Literal: "3", Pos: pos(2, 10)},
 					},
 					Value: 3,
 				},
@@ -386,41 +338,31 @@ func TestCompiler_ExecuteMatchesInterpreter(t *testing.T) {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(3, 1)},
 				},
 				ReturnValue: &ast.BinaryExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.PLUS, Literal: "+", Pos: pos(3, 14)},
 					},
 					Operator: "+",
 					Left: &ast.BinaryExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.ASTERISK, Literal: "*", Pos: pos(3, 9)},
 						},
 						Operator: "*",
 						Left: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 8)},
-								},
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.IDENT, Literal: "x", Pos: pos(3, 8)},
 							},
 							Value: "x",
 						},
 						Right: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(3, 12)},
-								},
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.IDENT, Literal: "y", Pos: pos(3, 12)},
 							},
 							Value: "y",
 						},
 					},
 					Right: &ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.INT, Literal: "4", Pos: pos(3, 18)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "4", Pos: pos(3, 18)},
 						},
 						Value: 4,
 					},
@@ -459,20 +401,16 @@ func TestCompiler_BuiltinShadowing(t *testing.T) {
 	// When we call abs, it should use OpCallIndirect (indirect call), not OpCall with a builtin
 
 	absIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.IDENT, Literal: "abs", Pos: pos(1, 5)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.IDENT, Literal: "abs", Pos: pos(1, 5)},
 		},
 		Value: "abs",
 	}
 
 	// Create a lambda that returns 42
 	lambda := &ast.LambdaExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(1, 12)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.LAMBDA, Literal: "lambda", Pos: pos(1, 12)},
 		},
 		ReturnType: &ast.TypeAnnotation{Name: "Integer"},
 		Body: &ast.BlockStatement{
@@ -483,10 +421,8 @@ func TestCompiler_BuiltinShadowing(t *testing.T) {
 						Token: lexer.Token{Type: lexer.IDENT, Literal: "Result", Pos: pos(2, 3)},
 					},
 					ReturnValue: &ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: pos(2, 13)},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "42", Pos: pos(2, 13)},
 						},
 						Value: 42,
 					},
@@ -497,16 +433,12 @@ func TestCompiler_BuiltinShadowing(t *testing.T) {
 
 	// Create call expression: abs()
 	callAbs := &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lexer.Token{Type: lexer.LPAREN, Literal: "(", Pos: pos(3, 4)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: lexer.Token{Type: lexer.LPAREN, Literal: "(", Pos: pos(3, 4)},
 		},
 		Function: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "abs", Pos: pos(3, 1)},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "abs", Pos: pos(3, 1)},
 			},
 			Value: "abs",
 		},

@@ -231,8 +231,8 @@ func TestUnitFields(t *testing.T) {
 func testUnitFunction(name string, body *ast.BlockStatement) *ast.FunctionDecl {
 	return &ast.FunctionDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}},
-			Value:               name,
+			BaseNode: ast.BaseNode{},
+			Value:    name,
 		},
 		ReturnType: &ast.TypeAnnotation{Name: "Integer"},
 		Body:       body,

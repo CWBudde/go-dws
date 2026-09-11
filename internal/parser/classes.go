@@ -30,10 +30,8 @@ func (p *Parser) addAutoPropertyBackingField(classDecl *ast.ClassDecl, property 
 	}
 	field := &ast.FieldDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: property.Name.Token},
-			},
-			Value: backingName,
+			BaseNode: ast.BaseNode{Token: property.Name.Token},
+			Value:    backingName,
 		},
 		Type:       property.Type,
 		Visibility: ast.VisibilityPrivate,
@@ -70,10 +68,8 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 	p.cursor = cursor
 
 	nameIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
 		},
 		Value: cursor.Current().Literal,
 	}
@@ -127,10 +123,8 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 		p.cursor = cursor
 
 		entry := &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: cursor.Current(),
-				},
+			BaseNode: ast.BaseNode{
+				Token: cursor.Current(),
 			},
 			Value: cursor.Current().Literal,
 		}
@@ -606,10 +600,8 @@ func (p *Parser) appendNestedType(classDecl *ast.ClassDecl, stmt ast.Statement, 
 	case *ast.ClassDecl:
 		if n.EnclosingClass == nil {
 			n.EnclosingClass = &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: enclosingName.Token,
-					},
+				BaseNode: ast.BaseNode{
+					Token: enclosingName.Token,
 				},
 				Value: outerName,
 			}
@@ -737,20 +729,16 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		p.addError("Name expected", ErrExpectedIdent)
 		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.EOF})
 		return builder.Finish(&ast.InvalidExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: dotToken,
-				},
+			BaseNode: ast.BaseNode{
+				Token: dotToken,
 			},
 			Reason: "name expected after dot",
 		}).(ast.Expression)
 	}
 
 	memberName := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: memberToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: memberToken,
 		},
 		Value: memberToken.Literal,
 	}
@@ -764,10 +752,8 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 			p.cursor = p.cursor.Advance() // move to '('
 
 			newExpr := &ast.NewExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: ident.Token,
-					},
+				BaseNode: ast.BaseNode{
+					Token: ident.Token,
 				},
 				ClassName:      ident,
 				Arguments:      []ast.Expression{},
@@ -786,10 +772,8 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		p.cursor = p.cursor.Advance() // move to '('
 
 		methodCall := &ast.MethodCallExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: dotToken,
-				},
+			BaseNode: ast.BaseNode{
+				Token: dotToken,
 			},
 			Object:    left,
 			Method:    memberName,
@@ -806,10 +790,8 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 
 	// Otherwise, this is simple member access: obj.field
 	memberAccess := &ast.MemberAccessExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: dotToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: dotToken,
 		},
 		Object: left,
 		Member: memberName,
@@ -842,10 +824,8 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 
 	constToken := cursor.Current()
 	nameIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
 		},
 		Value: cursor.Current().Literal,
 	}

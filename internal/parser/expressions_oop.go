@@ -18,10 +18,8 @@ func (p *Parser) parseSelfExpression() ast.Expression {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current()
 	selfExpr := &ast.SelfExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: currentToken, // The 'self' keyword
-			},
+		BaseNode: ast.BaseNode{
+			Token: currentToken, // The 'self' keyword
 		},
 		Token: currentToken,
 	}
@@ -43,10 +41,8 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current()
 	inheritedExpr := &ast.InheritedExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: currentToken, // The 'inherited' keyword
-			},
+		BaseNode: ast.BaseNode{
+			Token: currentToken, // The 'inherited' keyword
 		},
 	}
 
@@ -56,10 +52,8 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 		p.cursor = p.cursor.Advance() // move to identifier
 		methodToken := p.cursor.Current()
 		inheritedExpr.Method = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: methodToken,
-				},
+			BaseNode: ast.BaseNode{
+				Token: methodToken,
 			},
 			Value: methodToken.Literal,
 		}
@@ -136,10 +130,8 @@ func (p *Parser) parseNewExpression() ast.Expression {
 		parts = append(parts, typeToken.Literal)
 	}
 	typeName := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: typeToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: typeToken,
 		},
 		Value: strings.Join(parts, "."),
 	}
@@ -170,10 +162,8 @@ func (p *Parser) parseNewExpression() ast.Expression {
 		// No parentheses - treat as zero-argument constructor
 		// DWScript allows: new TTest (equivalent to new TTest())
 		return &ast.NewExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: newToken,
-				},
+			BaseNode: ast.BaseNode{
+				Token: newToken,
 			},
 			ClassName: typeName,
 			Arguments: []ast.Expression{},
@@ -188,10 +178,8 @@ func (p *Parser) parseNewExpression() ast.Expression {
 func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Identifier) ast.Expression {
 	// Create NewExpression
 	newExpr := &ast.NewExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: newToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: newToken,
 		},
 		ClassName: className,
 	}
@@ -238,10 +226,8 @@ func (p *Parser) parseNewOperandExpression(newToken lexer.Token) ast.Expression 
 	p.cursor = p.cursor.Advance() // move to ')'
 
 	newExpr := &ast.NewExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: newToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: newToken,
 		},
 		Operand:   operand,
 		Arguments: []ast.Expression{},
@@ -278,10 +264,8 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 	}
 
 	return &ast.NewArrayExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: newToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: newToken,
 		},
 		ElementTypeName: elementTypeName,
 		Dimensions:      dimensions,
@@ -351,10 +335,8 @@ func (p *Parser) parseDefaultExpression() ast.Expression {
 	// normal member-access/call machinery resolves it.
 	if p.cursor.Peek(1).Type == lexer.DOT {
 		return &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: defaultToken},
-			},
-			Value: defaultToken.Literal,
+			BaseNode: ast.BaseNode{Token: defaultToken},
+			Value:    defaultToken.Literal,
 		}
 	}
 
@@ -362,11 +344,9 @@ func (p *Parser) parseDefaultExpression() ast.Expression {
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.LPAREN {
 		return &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token:  defaultToken,
-					EndPos: p.endPosFromToken(defaultToken),
-				},
+			BaseNode: ast.BaseNode{
+				Token:  defaultToken,
+				EndPos: p.endPosFromToken(defaultToken),
 			},
 			Value: defaultToken.Literal,
 		}
@@ -392,16 +372,12 @@ func (p *Parser) parseDefaultExpression() ast.Expression {
 
 	// Return as a CallExpression with function name "Default"
 	return &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: defaultToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: defaultToken,
 		},
 		Function: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: defaultToken,
-				},
+			BaseNode: ast.BaseNode{
+				Token: defaultToken,
 			},
 			Value: "Default",
 		},
@@ -418,9 +394,7 @@ func (p *Parser) parseAddressOfExpression() ast.Expression {
 	builder := p.StartNode()
 	currentToken := p.cursor.Current()
 	expression := &ast.AddressOfExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: currentToken}, // The @ token
-		},
+		BaseNode: ast.BaseNode{Token: currentToken}, // The @ token,
 	}
 
 	p.cursor = p.cursor.Advance() // advance to the target

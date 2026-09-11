@@ -77,10 +77,8 @@ func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, is
 		p.cursor = cursor
 
 		helperDecl.ParentHelper = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: cursor.Current(),
-				},
+			BaseNode: ast.BaseNode{
+				Token: cursor.Current(),
 			},
 			Value: cursor.Current().Literal,
 		}

@@ -103,7 +103,7 @@ func (fpt *FunctionPointerTypeNode) typeExpressionNode() {}
 // that can be assigned to variables, passed as parameters, or stored in data structures.
 type AddressOfExpression struct {
 	Operator Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ao *AddressOfExpression) expressionNode() {}

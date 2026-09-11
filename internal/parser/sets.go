@@ -46,10 +46,8 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 	// Desugared into an implicit enum declaration plus the set declaration.
 	if p.cursor.Peek(1).Type == lexer.LPAREN {
 		enumName := &ast.Identifier{
-			Value: "$" + nameIdent.Value + "$InlineEnum",
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: nameIdent.Token},
-			},
+			Value:    "$" + nameIdent.Value + "$InlineEnum",
+			BaseNode: ast.BaseNode{Token: nameIdent.Token},
 		}
 		enumDecl := p.parseEnumDeclaration(enumName, typeToken, false, false)
 		if enumDecl == nil {
@@ -138,10 +136,8 @@ func (p *Parser) parseInlineSetEnum(setToken lexer.Token) ast.TypeExpression {
 	}
 
 	enumName := &ast.Identifier{
-		Value: fmt.Sprintf("$InlineEnum$%d$%d", setToken.Pos.Line, setToken.Pos.Column),
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: setToken},
-		},
+		Value:    fmt.Sprintf("$InlineEnum$%d$%d", setToken.Pos.Line, setToken.Pos.Column),
+		BaseNode: ast.BaseNode{Token: setToken},
 	}
 
 	p.parsingInlineEnum = true

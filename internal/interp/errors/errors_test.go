@@ -302,10 +302,8 @@ func TestPositionFromNode(t *testing.T) {
 		{
 			name: "Identifier",
 			node: &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Pos: token.Position{Line: 1, Column: 5}},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Pos: token.Position{Line: 1, Column: 5}},
 				},
 				Value: "x",
 			},
@@ -314,10 +312,8 @@ func TestPositionFromNode(t *testing.T) {
 		{
 			name: "IntegerLiteral",
 			node: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Pos: token.Position{Line: 2, Column: 10}},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Pos: token.Position{Line: 2, Column: 10}},
 				},
 				Value: 42,
 			},
@@ -326,10 +322,8 @@ func TestPositionFromNode(t *testing.T) {
 		{
 			name: "BinaryExpression",
 			node: &ast.BinaryExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Pos: token.Position{Line: 3, Column: 15}},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Pos: token.Position{Line: 3, Column: 15}},
 				},
 				Operator: "+",
 			},
@@ -369,10 +363,8 @@ func TestExpressionFromNode(t *testing.T) {
 		{
 			name: "Identifier",
 			node: &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.IDENT, Literal: "x"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.IDENT, Literal: "x"},
 				},
 				Value: "x",
 			},
@@ -381,10 +373,8 @@ func TestExpressionFromNode(t *testing.T) {
 		{
 			name: "IntegerLiteral",
 			node: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.INT, Literal: "42"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.INT, Literal: "42"},
 				},
 				Value: 42,
 			},

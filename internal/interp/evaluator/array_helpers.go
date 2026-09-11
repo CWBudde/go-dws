@@ -77,7 +77,7 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 	// Disambiguation: `[...]` can represent a set literal when semantic analysis expects a SET.
 	// Some contexts (notably empty literals `[]`) otherwise look like an empty array literal.
 	if setType, ok := types.GetUnderlyingType(e.resolvedExpressionType(node, ctx)).(*types.SetType); ok {
-		setLit := &ast.SetLiteral{Elements: node.Elements, TypedExpressionBase: node.TypedExpressionBase}
+		setLit := &ast.SetLiteral{Elements: node.Elements, BaseNode: node.BaseNode}
 		e.SemanticInfo().SetResolvedType(setLit, setType)
 		defer e.SemanticInfo().ClearType(setLit)
 		return e.evalSetLiteralDirect(setLit, ctx)

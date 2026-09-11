@@ -363,10 +363,6 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
   `WithPlatform`. Needs: a public `dwscript.WithPlatform(platform.Platform) Option`, an
   `Engine`-held platform defaulting to `platform/native`, and file builtins routed through
   `Engine.FS()`.
-- `[ ]` `pkg/ast/type_annotation.go:58`, `pkg/ast/base.go:42` — replace the `any` symbol slots on
-  `TypedExpression`/`TypedExpressionBase` with a proper `Symbol` type. (The `pkg/ast/metadata.go` slot that used
-  to be listed here was never a symbol: it cached folded compile-time predicate results and is now the typed
-  `SetFoldedPredicate`/`FoldedPredicate` API.)
 
 **Done (2026-09-11):** the skipped-test backlog is cleared — every entry was revived, deleted or
 turned into a real check, and const static-array element assignment is now diagnosed

@@ -29,10 +29,8 @@ func TestSemanticInfo_TypeOperations(t *testing.T) {
 
 	// Create a test expression node
 	expr := &IntegerLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
 		},
 		Value: 42,
 	}
@@ -97,10 +95,8 @@ func TestSemanticInfo_FoldedPredicateOperations(t *testing.T) {
 
 	// Create a test callee identifier node
 	ident := &Identifier{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.IDENT, Literal: "Declared", Pos: token.Position{Line: 1, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.IDENT, Literal: "Declared", Pos: token.Position{Line: 1, Column: 1}},
 		},
 		Value: "Declared",
 	}
@@ -148,28 +144,22 @@ func TestSemanticInfo_MultipleExpressions(t *testing.T) {
 
 	// Create multiple expression nodes
 	expr1 := &IntegerLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
 		},
 		Value: 42,
 	}
 
 	expr2 := &StringLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.STRING, Literal: "hello", Pos: token.Position{Line: 2, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.STRING, Literal: "hello", Pos: token.Position{Line: 2, Column: 1}},
 		},
 		Value: "hello",
 	}
 
 	expr3 := &BooleanLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.TRUE, Literal: "True", Pos: token.Position{Line: 3, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.TRUE, Literal: "True", Pos: token.Position{Line: 3, Column: 1}},
 		},
 		Value: true,
 	}
@@ -206,18 +196,14 @@ func TestSemanticInfo_Clear(t *testing.T) {
 
 	// Add some data
 	expr := &IntegerLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
 		},
 		Value: 42,
 	}
 	ident := &Identifier{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.IDENT, Literal: "x", Pos: token.Position{Line: 1, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.IDENT, Literal: "x", Pos: token.Position{Line: 1, Column: 1}},
 		},
 		Value: "x",
 	}
@@ -256,10 +242,8 @@ func TestSemanticInfo_ConcurrentReads(t *testing.T) {
 
 	// Create test data
 	expr := &IntegerLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
 		},
 		Value: 42,
 	}
@@ -304,10 +288,8 @@ func TestSemanticInfo_IndependentInstances(t *testing.T) {
 
 	// Create a shared expression node
 	expr := &IntegerLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
 		},
 		Value: 42,
 	}
@@ -362,10 +344,8 @@ func TestSemanticInfo_OverwriteType(t *testing.T) {
 	si := NewSemanticInfo()
 
 	expr := &IntegerLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
-			},
+		BaseNode: BaseNode{
+			Token: token.Token{Type: token.INT, Literal: "42", Pos: token.Position{Line: 1, Column: 1}},
 		},
 		Value: 42,
 	}

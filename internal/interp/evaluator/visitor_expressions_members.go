@@ -171,9 +171,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				}
 				if recordType.HasStaticMethod(memberName) {
 					methodCall := &ast.MethodCallExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{Token: node.Token},
-						},
+						BaseNode:  ast.BaseNode{Token: node.Token},
 						Object:    node.Object,
 						Method:    node.Member,
 						Arguments: []ast.Expression{},
@@ -347,9 +345,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			result, invoked := objVal.InvokeParameterlessMethod(memberName, func(_ *runtime.MethodMetadata) Value {
 				// Create synthetic method call
 				methodCall := &ast.MethodCallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: node.Token},
-					},
+					BaseNode:  ast.BaseNode{Token: node.Token},
 					Object:    node.Object,
 					Method:    node.Member,
 					Arguments: []ast.Expression{},
@@ -384,9 +380,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			}
 			if len(classMethodDecl.Parameters) == 0 {
 				methodCall := &ast.MethodCallExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: node.Token},
-					},
+					BaseNode:  ast.BaseNode{Token: node.Token},
 					Object:    node.Object,
 					Method:    node.Member,
 					Arguments: []ast.Expression{},
@@ -447,9 +441,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 				result, invoked := objVal.InvokeParameterlessMethod(memberName, func(_ *runtime.MethodMetadata) Value {
 					// Create synthetic method call - use original node.Object (the interface expression)
 					methodCall := &ast.MethodCallExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{Token: node.Token},
-						},
+						BaseNode:  ast.BaseNode{Token: node.Token},
 						Object:    node.Object,
 						Method:    node.Member,
 						Arguments: []ast.Expression{},
@@ -518,9 +510,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			// Try parameterless auto-invoke first
 			// Create synthetic method call
 			methodCall := &ast.MethodCallExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: node.Token},
-				},
+				BaseNode:  ast.BaseNode{Token: node.Token},
 				Object:    node.Object,
 				Method:    node.Member,
 				Arguments: []ast.Expression{},
@@ -619,9 +609,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 					// Create synthetic method call - use original node.Object (the cast expression)
 					// so that the method call sees the cast wrapper
 					methodCall := &ast.MethodCallExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{Token: node.Token},
-						},
+						BaseNode:  ast.BaseNode{Token: node.Token},
 						Object:    node.Object,
 						Method:    node.Member,
 						Arguments: []ast.Expression{},

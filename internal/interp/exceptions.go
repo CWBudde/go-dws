@@ -34,10 +34,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// The nil body means it just initializes fields with defaults
 	createConstructor := &ast.FunctionDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Create"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Create"},
 			},
 			Value: "Create",
 		},
@@ -52,10 +50,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	// Add default Destroy destructor (virtual) and Free method
 	destroyMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Destroy"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Destroy"},
 			},
 			Value: "Destroy",
 		},
@@ -68,10 +64,8 @@ func (i *Interpreter) registerBuiltinExceptions() {
 	}
 	freeMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "Free"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "Free"},
 			},
 			Value: "Free",
 		},

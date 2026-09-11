@@ -43,12 +43,10 @@ import (
 // This is a convenience helper for tests to avoid verbose struct initialization.
 func NewTestIdentifier(name string) *Identifier {
 	return &Identifier{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: lexer.Token{
-					Type:    lexer.IDENT,
-					Literal: name,
-				},
+		BaseNode: BaseNode{
+			Token: lexer.Token{
+				Type:    lexer.IDENT,
+				Literal: name,
 			},
 		},
 		Value: name,
@@ -63,12 +61,10 @@ func NewTestIntegerLiteral(value int64, tokenLiteral ...string) *IntegerLiteral 
 		literal = tokenLiteral[0]
 	}
 	return &IntegerLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: lexer.Token{
-					Type:    lexer.INT,
-					Literal: literal,
-				},
+		BaseNode: BaseNode{
+			Token: lexer.Token{
+				Type:    lexer.INT,
+				Literal: literal,
 			},
 		},
 		Value: value,
@@ -83,12 +79,10 @@ func NewTestFloatLiteral(value float64, tokenLiteral ...string) *FloatLiteral {
 		literal = tokenLiteral[0]
 	}
 	return &FloatLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: lexer.Token{
-					Type:    lexer.FLOAT,
-					Literal: literal,
-				},
+		BaseNode: BaseNode{
+			Token: lexer.Token{
+				Type:    lexer.FLOAT,
+				Literal: literal,
 			},
 		},
 		Value: value,
@@ -103,12 +97,10 @@ func NewTestStringLiteral(value string, tokenLiteral ...string) *StringLiteral {
 		literal = tokenLiteral[0]
 	}
 	return &StringLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: lexer.Token{
-					Type:    lexer.STRING,
-					Literal: literal,
-				},
+		BaseNode: BaseNode{
+			Token: lexer.Token{
+				Type:    lexer.STRING,
+				Literal: literal,
 			},
 		},
 		Value: value,
@@ -124,12 +116,10 @@ func NewTestBooleanLiteral(value bool) *BooleanLiteral {
 		literal = "false"
 	}
 	return &BooleanLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: lexer.Token{
-					Type:    tokenType,
-					Literal: literal,
-				},
+		BaseNode: BaseNode{
+			Token: lexer.Token{
+				Type:    tokenType,
+				Literal: literal,
 			},
 		},
 		Value: value,
@@ -256,10 +246,8 @@ func NewTestBlockStatement(statements []Statement) *BlockStatement {
 // This is a convenience helper for tests to avoid verbose struct initialization.
 func NewTestBinaryExpression(left Expression, operator string, right Expression) *BinaryExpression {
 	return &BinaryExpression{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
-			},
+		BaseNode: BaseNode{
+			Token: NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
 		},
 		Left:     left,
 		Right:    right,
@@ -271,10 +259,8 @@ func NewTestBinaryExpression(left Expression, operator string, right Expression)
 // This is a convenience helper for tests to avoid verbose struct initialization.
 func NewTestUnaryExpression(operator string, operand Expression) *UnaryExpression {
 	return &UnaryExpression{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
-			},
+		BaseNode: BaseNode{
+			Token: NewTestToken(lexer.IDENT, operator), // Use IDENT for operator token
 		},
 		Right:    operand,
 		Operator: operator,
@@ -285,9 +271,7 @@ func NewTestUnaryExpression(operator string, operand Expression) *UnaryExpressio
 // This is a convenience helper for tests to avoid verbose struct initialization.
 func NewTestCallExpression(function Expression, args []Expression) *CallExpression {
 	return &CallExpression{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{Token: NewTestToken(lexer.LPAREN, "(")}, // Use LPAREN for call token
-		},
+		BaseNode:  BaseNode{Token: NewTestToken(lexer.LPAREN, "(")}, // Use LPAREN for call token,
 		Function:  function,
 		Arguments: args,
 	}
@@ -297,9 +281,7 @@ func NewTestCallExpression(function Expression, args []Expression) *CallExpressi
 // This is a convenience helper for tests to avoid verbose struct initialization.
 func NewTestGroupedExpression(expression Expression) *GroupedExpression {
 	return &GroupedExpression{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{Token: NewTestToken(lexer.LPAREN, "(")},
-		},
+		BaseNode:   BaseNode{Token: NewTestToken(lexer.LPAREN, "(")},
 		Expression: expression,
 	}
 }
@@ -312,13 +294,11 @@ func NewTestIntegerLiteralWithPos(value int64, line, column int, tokenLiteral ..
 		literal = tokenLiteral[0]
 	}
 	return &IntegerLiteral{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: lexer.Token{
-					Type:    lexer.INT,
-					Literal: literal,
-					Pos:     lexer.Position{Line: line, Column: column},
-				},
+		BaseNode: BaseNode{
+			Token: lexer.Token{
+				Type:    lexer.INT,
+				Literal: literal,
+				Pos:     lexer.Position{Line: line, Column: column},
 			},
 		},
 		Value: value,
@@ -329,13 +309,11 @@ func NewTestIntegerLiteralWithPos(value int64, line, column int, tokenLiteral ..
 // This is a convenience helper for tests that need position information.
 func NewTestUnaryExpressionWithPos(operator string, operand Expression, line, column int) *UnaryExpression {
 	return &UnaryExpression{
-		TypedExpressionBase: TypedExpressionBase{
-			BaseNode: BaseNode{
-				Token: lexer.Token{
-					Type:    lexer.IDENT,
-					Literal: operator,
-					Pos:     lexer.Position{Line: line, Column: column},
-				},
+		BaseNode: BaseNode{
+			Token: lexer.Token{
+				Type:    lexer.IDENT,
+				Literal: operator,
+				Pos:     lexer.Position{Line: line, Column: column},
 			},
 		},
 		Right:    operand,

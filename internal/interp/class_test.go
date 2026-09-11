@@ -51,10 +51,8 @@ func TestClassInfoAddMethod(t *testing.T) {
 			Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"},
 		},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "GetValue"},
 			},
 			Value: "GetValue",
 		},
@@ -111,10 +109,8 @@ func TestMethodLookupBasic(t *testing.T) {
 
 	method := &ast.FunctionDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "GetValue",
+			BaseNode: ast.BaseNode{},
+			Value:    "GetValue",
 		},
 	}
 	// Methods are stored with lowercase keys for case-insensitive lookup
@@ -140,10 +136,8 @@ func TestMethodLookupWithInheritance(t *testing.T) {
 	parent := NewClassInfo("TObject")
 	parentMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "ToString",
+			BaseNode: ast.BaseNode{},
+			Value:    "ToString",
 		},
 	}
 	// Methods are stored with lowercase keys for case-insensitive lookup
@@ -173,10 +167,8 @@ func TestMethodOverriding(t *testing.T) {
 	parent := NewClassInfo("TObject")
 	parentMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "ToString",
+			BaseNode: ast.BaseNode{},
+			Value:    "ToString",
 		},
 		Body: &ast.BlockStatement{}, // Different body
 	}
@@ -189,10 +181,8 @@ func TestMethodOverriding(t *testing.T) {
 
 	childMethod := &ast.FunctionDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "ToString",
+			BaseNode: ast.BaseNode{},
+			Value:    "ToString",
 		},
 		Body: &ast.BlockStatement{
 			Statements: []ast.Statement{

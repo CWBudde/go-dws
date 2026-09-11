@@ -40,10 +40,8 @@ func BenchmarkVisitIntegerLiteral(b *testing.B) {
 	eval := createTestEvaluator()
 	ctx := createTestContext()
 	node := &ast.IntegerLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.INT, Literal: "42"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.INT, Literal: "42"},
 		},
 		Value: 42,
 	}
@@ -60,10 +58,8 @@ func BenchmarkVisitFloatLiteral(b *testing.B) {
 	eval := createTestEvaluator()
 	ctx := createTestContext()
 	node := &ast.FloatLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.FLOAT, Literal: "3.14"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.FLOAT, Literal: "3.14"},
 		},
 		Value: 3.14,
 	}
@@ -80,10 +76,8 @@ func BenchmarkVisitStringLiteral(b *testing.B) {
 	eval := createTestEvaluator()
 	ctx := createTestContext()
 	node := &ast.StringLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.STRING, Literal: "hello"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.STRING, Literal: "hello"},
 		},
 		Value: "hello",
 	}
@@ -100,10 +94,8 @@ func BenchmarkVisitBooleanLiteral(b *testing.B) {
 	eval := createTestEvaluator()
 	ctx := createTestContext()
 	node := &ast.BooleanLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.TRUE, Literal: "true"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.TRUE, Literal: "true"},
 		},
 		Value: true,
 	}
@@ -126,23 +118,17 @@ func BenchmarkVisitBinaryExpression_IntegerAdd(b *testing.B) {
 
 	// 3 + 5
 	node := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.PLUS, Literal: "+"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.PLUS, Literal: "+"},
 		},
 		Left: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "3"}},
-			},
-			Value: 3,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "3"}},
+			Value:    3,
 		},
 		Operator: "+",
 		Right: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "5"}},
-			},
-			Value: 5,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "5"}},
+			Value:    5,
 		},
 	}
 
@@ -160,23 +146,17 @@ func BenchmarkVisitBinaryExpression_IntegerMultiply(b *testing.B) {
 
 	// 6 * 7
 	node := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.ASTERISK, Literal: "*"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.ASTERISK, Literal: "*"},
 		},
 		Left: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "6"}},
-			},
-			Value: 6,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "6"}},
+			Value:    6,
 		},
 		Operator: "*",
 		Right: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "7"}},
-			},
-			Value: 7,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "7"}},
+			Value:    7,
 		},
 	}
 
@@ -194,23 +174,17 @@ func BenchmarkVisitBinaryExpression_IntegerComparison(b *testing.B) {
 
 	// 42 > 10
 	node := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.IDENT, Literal: ">"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.IDENT, Literal: ">"},
 		},
 		Left: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "42"}},
-			},
-			Value: 42,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "42"}},
+			Value:    42,
 		},
 		Operator: ">",
 		Right: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "10"}},
-			},
-			Value: 10,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "10"}},
+			Value:    10,
 		},
 	}
 
@@ -228,23 +202,17 @@ func BenchmarkVisitBinaryExpression_BooleanAnd(b *testing.B) {
 
 	// true and false
 	node := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.AND, Literal: "and"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.AND, Literal: "and"},
 		},
 		Left: &ast.BooleanLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.TRUE, Literal: "true"}},
-			},
-			Value: true,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.TRUE, Literal: "true"}},
+			Value:    true,
 		},
 		Operator: "and",
 		Right: &ast.BooleanLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.FALSE, Literal: "false"}},
-			},
-			Value: false,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.FALSE, Literal: "false"}},
+			Value:    false,
 		},
 	}
 
@@ -262,23 +230,17 @@ func BenchmarkVisitBinaryExpression_StringConcat(b *testing.B) {
 
 	// 'Hello' + ' World'
 	node := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.PLUS, Literal: "+"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.PLUS, Literal: "+"},
 		},
 		Left: &ast.StringLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.STRING, Literal: "Hello"}},
-			},
-			Value: "Hello",
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.STRING, Literal: "Hello"}},
+			Value:    "Hello",
 		},
 		Operator: "+",
 		Right: &ast.StringLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.STRING, Literal: " World"}},
-			},
-			Value: " World",
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.STRING, Literal: " World"}},
+			Value:    " World",
 		},
 	}
 
@@ -300,17 +262,13 @@ func BenchmarkVisitUnaryExpression_IntegerNegation(b *testing.B) {
 
 	// -42
 	node := &ast.UnaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.MINUS, Literal: "-"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.MINUS, Literal: "-"},
 		},
 		Operator: "-",
 		Right: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "42"}},
-			},
-			Value: 42,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "42"}},
+			Value:    42,
 		},
 	}
 
@@ -328,17 +286,13 @@ func BenchmarkVisitUnaryExpression_BooleanNot(b *testing.B) {
 
 	// not true
 	node := &ast.UnaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.NOT, Literal: "not"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.NOT, Literal: "not"},
 		},
 		Operator: "not",
 		Right: &ast.BooleanLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.TRUE, Literal: "true"}},
-			},
-			Value: true,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.TRUE, Literal: "true"}},
+			Value:    true,
 		},
 	}
 
@@ -370,35 +324,25 @@ func BenchmarkComplexArithmetic(b *testing.B) {
 
 	// (3 + 5) * 2
 	innerAdd := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: token.Token{Type: token.PLUS, Literal: "+"}},
-		},
+		BaseNode: ast.BaseNode{Token: token.Token{Type: token.PLUS, Literal: "+"}},
 		Left: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "3"}},
-			},
-			Value: 3,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "3"}},
+			Value:    3,
 		},
 		Operator: "+",
 		Right: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "5"}},
-			},
-			Value: 5,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "5"}},
+			Value:    5,
 		},
 	}
 
 	node := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: token.Token{Type: token.ASTERISK, Literal: "*"}},
-		},
+		BaseNode: ast.BaseNode{Token: token.Token{Type: token.ASTERISK, Literal: "*"}},
 		Left:     innerAdd,
 		Operator: "*",
 		Right: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "2"}},
-			},
-			Value: 2,
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "2"}},
+			Value:    2,
 		},
 	}
 
@@ -416,24 +360,18 @@ func BenchmarkDeepNesting(b *testing.B) {
 
 	// Build ((((1 + 2) + 3) + 4) + 5)
 	var result ast.Expression = &ast.IntegerLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "1"}},
-		},
-		Value: 1,
+		BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "1"}},
+		Value:    1,
 	}
 
 	for i := 2; i <= 5; i++ {
 		result = &ast.BinaryExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.PLUS, Literal: "+"}},
-			},
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.PLUS, Literal: "+"}},
 			Left:     result,
 			Operator: "+",
 			Right: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: ""}},
-				},
-				Value: int64(i),
+				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: ""}},
+				Value:    int64(i),
 			},
 		}
 	}
@@ -452,24 +390,18 @@ func BenchmarkWideExpression(b *testing.B) {
 
 	// Build 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10
 	var result ast.Expression = &ast.IntegerLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "1"}},
-		},
-		Value: 1,
+		BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "1"}},
+		Value:    1,
 	}
 
 	for i := 2; i <= 10; i++ {
 		result = &ast.BinaryExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.PLUS, Literal: "+"}},
-			},
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.PLUS, Literal: "+"}},
 			Left:     result,
 			Operator: "+",
 			Right: &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: ""}},
-				},
-				Value: int64(i),
+				BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: ""}},
+				Value:    int64(i),
 			},
 		}
 	}
@@ -492,28 +424,20 @@ func BenchmarkVisitorDispatchMixed(b *testing.B) {
 
 	// Create a variety of expression nodes
 	intLit := &ast.IntegerLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "42"}},
-		},
-		Value: 42,
+		BaseNode: ast.BaseNode{Token: token.Token{Type: token.INT, Literal: "42"}},
+		Value:    42,
 	}
 	floatLit := &ast.FloatLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: token.Token{Type: token.FLOAT, Literal: "3.14"}},
-		},
-		Value: 3.14,
+		BaseNode: ast.BaseNode{Token: token.Token{Type: token.FLOAT, Literal: "3.14"}},
+		Value:    3.14,
 	}
 	strLit := &ast.StringLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: token.Token{Type: token.STRING, Literal: "hello"}},
-		},
-		Value: "hello",
+		BaseNode: ast.BaseNode{Token: token.Token{Type: token.STRING, Literal: "hello"}},
+		Value:    "hello",
 	}
 	boolLit := &ast.BooleanLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: token.Token{Type: token.TRUE, Literal: "true"}},
-		},
-		Value: true,
+		BaseNode: ast.BaseNode{Token: token.Token{Type: token.TRUE, Literal: "true"}},
+		Value:    true,
 	}
 
 	b.ResetTimer()

@@ -363,10 +363,8 @@ func (p *Parser) parseTypeNameIdentifier() *ast.Identifier {
 	}
 
 	return &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
 		},
 		Value: cursor.Current().Literal,
 	}
@@ -726,10 +724,8 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 		p.cursor = cursor
 
 		interfaceDecl.Parent = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: cursor.Current(),
-				},
+			BaseNode: ast.BaseNode{
+				Token: cursor.Current(),
 			},
 			Value: cursor.Current().Literal,
 		}
@@ -866,10 +862,8 @@ func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 	p.cursor = cursor
 
 	methodDecl.Name = &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
 		},
 		Value: cursor.Current().Literal,
 	}

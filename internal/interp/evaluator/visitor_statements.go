@@ -446,8 +446,8 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 		if arrLit, ok := node.Value.(*ast.ArrayLiteralExpression); ok {
 			if expectedSetType := e.getSetTypeFromTarget(target, ctx); expectedSetType != nil {
 				setLit := &ast.SetLiteral{
-					Elements:            arrLit.Elements,
-					TypedExpressionBase: arrLit.TypedExpressionBase,
+					Elements: arrLit.Elements,
+					BaseNode: arrLit.BaseNode,
 				}
 
 				// Provide type information for empty `[]` inference.
