@@ -600,12 +600,26 @@ func (e *Evaluator) evalEnumBinaryOp(op string, left, right Value, node ast.Node
 // Complex Type Comparisons
 // ============================================================================
 
+// isEmptyVariantKind reports whether a value kind represents an empty Variant
+// (Unassigned or Null), which compares by emptiness rather than by payload.
+func isEmptyVariantKind(kind runtime.ValueKind) bool {
+	return kind == runtime.KindUnassigned || kind == runtime.KindNull
+}
+
 // evalEqualityComparison handles = and <> operators for complex types.
 // Supports: nil, objects, interfaces, classes, RTTI, sets, arrays, records.
 func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node ast.Node) Value {
 	// Check type names to identify complex types
 	leftType := runtime.KindOf(left)
 	rightType := runtime.KindOf(right)
+
+	// Unassigned, Null and nil are all empty Variant representations and
+	// compare equal to one another, matching evalVariantBinaryOp. Without this
+	// the answer would depend on whether the operand happened to be wrapped in
+	// a Variant (e.g. the raw Unassigned returned by a missing ReadGlobalVar).
+	if isNullish(left) && isNullish(right) {
+		return &runtime.BooleanValue{Value: op == "="}
+	}
 
 	// Handle nil comparisons
 	if leftType == runtime.KindNil || rightType == runtime.KindNil {
@@ -648,6 +662,16 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 			return &runtime.BooleanValue{Value: false}
 		}
 		return &runtime.BooleanValue{Value: true}
+	}
+
+	// Handle empty-Variant comparisons. DWScript compares Unassigned and Null
+	// variants by their emptiness, so `Unassigned = Unassigned` is True and an
+	// empty variant never equals a value-carrying one. Without this, comparing
+	// two absent globals (CompareExchangeGlobalVar's result) is a type error.
+	if isEmptyVariantKind(leftType) || isEmptyVariantKind(rightType) {
+		// Both-empty is already handled by the nullish check above, so exactly
+		// one operand carries a value here and the two are never equal.
+		return &runtime.BooleanValue{Value: op == "<>"}
 	}
 
 	// Handle RTTITypeInfoValue comparisons (TypeOf results)

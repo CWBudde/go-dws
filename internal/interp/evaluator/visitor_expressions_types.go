@@ -388,6 +388,16 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node, ctx *Exe
 		}
 	}
 
+	// A static class cast (e.g. `TTest(nil)`) only narrows the compile-time view of
+	// the value; `as` reinterprets the runtime instance, so unwrap the static view
+	// first and continue with the underlying reference.
+	if typeCastVal, ok := obj.(TypeCastAccessor); ok {
+		obj = typeCastVal.GetWrappedValue()
+		if obj == nil {
+			obj = &runtime.NilValue{}
+		}
+	}
+
 	// Handle nil - nil can be cast to any type
 	if _, isNil := obj.(*runtime.NilValue); isNil {
 		return &runtime.NilValue{}, nil
