@@ -31,9 +31,13 @@ func missingFileSystemMethods(isFunc func(name string) bool) []string {
 // slash-separated form used by the virtual filesystem and handed to the
 // JavaScript host: backslashes become slashes, "." and ".." are resolved, and
 // the result always starts with a single slash. The empty path maps to "/".
+//
+// Only separators and the empty string are special. Whitespace is part of a
+// path, not decoration: POSIX and the browser storage APIs all accept names
+// with leading or trailing spaces, so "/ reports " must keep addressing
+// "/ reports " and not silently collapse onto "/reports".
 func normalizeFSPath(p string) string {
 	p = strings.ReplaceAll(p, "\\", "/")
-	p = strings.TrimSpace(p)
 	if p == "" {
 		return "/"
 	}
@@ -48,6 +52,14 @@ func normalizeFSPath(p string) string {
 func errMissingFileSystemMethods(missing []string) error {
 	return fmt.Errorf("custom filesystem is missing required method(s): %s (required: %s)",
 		strings.Join(missing, ", "), strings.Join(RequiredFileSystemMethods, ", "))
+}
+
+// errFileSystemAccessor reports a filesystem object whose property accessor
+// threw while a required method was being read, which happens with Proxy
+// traps and getters. Validation treats it like any other malformed
+// filesystem so the host still gets an ArgumentError.
+func errFileSystemAccessor(name string, err error) error {
+	return fmt.Errorf("reading required method %q of the custom filesystem failed: %w", name, err)
 }
 
 // errNotAnObject reports a non-object passed where a filesystem was expected.
@@ -86,10 +98,11 @@ type rawDirEntry struct {
 }
 
 // dirEntryToFileInfo converts one raw entry into a platform.FileInfo,
-// rejecting entries without a usable name.
+// rejecting entries without a usable name. Like normalizeFSPath, it strips
+// separators but never whitespace: a file literally named " draft " keeps
+// that name.
 func dirEntryToFileInfo(e rawDirEntry) (platform.FileInfo, error) {
-	name := strings.TrimSpace(e.Name)
-	name = strings.Trim(name, "/")
+	name := strings.Trim(e.Name, "/")
 	if name == "" {
 		return platform.FileInfo{}, errors.New("directory entry has an empty name")
 	}

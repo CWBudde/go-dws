@@ -87,6 +87,30 @@ check(
 const notAnObject = dws.setFileSystem('nope');
 check('setFileSystem("nope") returns an Error', notAnObject instanceof Error, String(notAnObject));
 
+// 3b. An object whose property reads throw is rejected the same way, instead
+// of tearing down the WASM instance or yielding a silent null.
+const throwing = dws.setFileSystem(
+    new Proxy(
+        {},
+        {
+            get() {
+                throw new Error('accessor exploded');
+            },
+        },
+    ),
+);
+check('setFileSystem(throwing proxy) returns an Error', throwing instanceof Error, String(throwing));
+check(
+    'setFileSystem(throwing proxy) reports ArgumentError',
+    throwing instanceof Error && throwing.type === 'ArgumentError',
+    throwing instanceof Error ? throwing.type : String(throwing),
+);
+check(
+    'setFileSystem(throwing proxy) surfaces the host message',
+    throwing instanceof Error && throwing.message.includes('accessor exploded'),
+    throwing instanceof Error ? throwing.message : String(throwing),
+);
+
 // 4. null resets without error.
 check('setFileSystem(null) returns null', dws.setFileSystem(null) === null);
 

@@ -32,13 +32,43 @@ func NewJSFileSystem(obj js.Value) (*JSFileSystem, error) {
 	if obj.Type() != js.TypeObject {
 		return nil, errNotAnObject(jsTypeName(obj))
 	}
+	var accessorErr error
 	missing := missingFileSystemMethods(func(name string) bool {
-		return obj.Get(name).Type() == js.TypeFunction
+		if accessorErr != nil {
+			return true // already failing; accessorErr is what the caller sees
+		}
+		value, err := jsGetProperty(obj, name)
+		if err != nil {
+			accessorErr = errFileSystemAccessor(name, err)
+			return true
+		}
+		return value.Type() == js.TypeFunction
 	})
+	if accessorErr != nil {
+		return nil, accessorErr
+	}
 	if len(missing) > 0 {
 		return nil, errMissingFileSystemMethods(missing)
 	}
 	return &JSFileSystem{obj: obj}, nil
+}
+
+// jsGetProperty reads obj[name] without letting a throwing accessor escape.
+//
+// js.Value.Get goes through the syscall/js valueGet hook, which wasm_exec.js
+// implements as a bare Reflect.get: an exception from a Proxy trap or a
+// getter unwinds through the WASM boundary and tears down the whole instance,
+// so recovering around Get is not enough. Calling Reflect.get as a method
+// instead routes the read through the guarded valueCall hook, which turns the
+// exception into a js.Error panic that recover can convert into an error.
+func jsGetProperty(obj js.Value, name string) (value js.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			value = js.Undefined()
+			err = jsPanicToError(r)
+		}
+	}()
+	return js.Global().Get("Reflect").Call("get", obj, name), nil
 }
 
 // jsTypeName renders a js.Value's type for error messages.

@@ -228,12 +228,16 @@ filesystem. Pass `null` or `undefined` to restore the built-in one.
   - `exists(path)` → `boolean`
 
 **Returns:** `null` on success, or an `Error` with `type === 'ArgumentError'`
-when the value is not an object or a required method is missing. Validation
+when the value is not an object, a required method is missing, or reading a
+required method throws (a `Proxy` trap or a getter that raises). Validation
 happens on installation, not at first use.
 
 **Paths** are normalized before the host sees them: backslashes become forward
 slashes, `.`/`..` are resolved, and the path is always absolute (`a/b.txt` →
-`/a/b.txt`).
+`/a/b.txt`). Whitespace is never stripped: `'/ reports '` stays
+`'/ reports '`, so it addresses a different file than `'/reports'`, exactly as
+it would on a native filesystem. Directory-entry names are passed through the
+same way.
 
 **Synchronous only.** `platform.FileSystem` on the Go side is a synchronous
 interface, and blocking a goroutine on a JavaScript Promise deadlocks the

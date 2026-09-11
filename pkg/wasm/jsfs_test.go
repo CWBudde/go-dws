@@ -120,6 +120,112 @@ func TestNewJSFileSystemRejectsIncompleteObjects(t *testing.T) {
 	}
 }
 
+func TestNewJSFileSystemRejectsThrowingAccessors(t *testing.T) {
+	// A Proxy whose get trap throws is the realistic version of this: reading
+	// any property raises. The read must come back as a Go error, not as a
+	// JavaScript exception that unwinds through the WASM boundary.
+	makeProxy := jsFunction("return new Proxy({}, { get() { throw new Error('accessor exploded'); } });")
+	proxy := makeProxy.Invoke()
+
+	fs, err := NewJSFileSystem(proxy)
+	if err == nil {
+		t.Fatal("expected an error for a filesystem whose accessors throw")
+	}
+	if fs != nil {
+		t.Error("no filesystem must be returned when validation fails")
+	}
+	for _, want := range []string{"readFile", "accessor exploded"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q", err, want)
+		}
+	}
+}
+
+func TestNewJSFileSystemRejectsOneThrowingGetter(t *testing.T) {
+	// Only the third required method throws; the ones before it are fine.
+	makeObj := jsFunction(`
+		const o = { readFile() {}, writeFile() {} };
+		Object.defineProperty(o, 'listDir', { get() { throw new Error('getter exploded'); } });
+		return o;
+	`)
+
+	_, err := NewJSFileSystem(makeObj.Invoke())
+	if err == nil {
+		t.Fatal("expected an error for a throwing getter")
+	}
+	if !strings.Contains(err.Error(), "listDir") {
+		t.Errorf("error %q does not name the offending method", err)
+	}
+}
+
+func TestInstallFileSystemReportsThrowingAccessors(t *testing.T) {
+	plat, ok := platformwasm.NewWASMPlatform().(*platformwasm.WASMPlatform)
+	if !ok {
+		t.Fatal("NewWASMPlatform did not return *WASMPlatform")
+	}
+	ctx := &Context{platform: plat}
+
+	makeProxy := jsFunction("return new Proxy({}, { get() { throw new Error('accessor exploded'); } });")
+	if err := ctx.installFileSystem(makeProxy.Invoke()); err == nil {
+		t.Fatal("installFileSystem must surface an error instead of panicking")
+	}
+	if plat.HasCustomFileSystem() {
+		t.Error("a rejected filesystem must not be installed")
+	}
+}
+
+func TestJSFileSystemPreservesWhitespaceInPaths(t *testing.T) {
+	obj, seen := newMemoryJSFS(t, map[string]string{"/ reports /  q1 .txt": "kept"})
+
+	fs, err := NewJSFileSystem(obj)
+	if err != nil {
+		t.Fatalf("NewJSFileSystem: %v", err)
+	}
+
+	data, err := fs.ReadFile("/ reports /  q1 .txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "kept" {
+		t.Errorf("ReadFile = %q, want %q", data, "kept")
+	}
+	if got, want := seen["readFile"], "/ reports /  q1 .txt"; got != want {
+		t.Errorf("host received path %q, want %q", got, want)
+	}
+
+	// The trimmed spelling must address a different, non-existent file.
+	if fs.Exists("/reports/q1.txt") {
+		t.Error("the space-stripped path must not resolve to the spaced file")
+	}
+	if !fs.Exists("/ reports /  q1 .txt") {
+		t.Error("Exists lost the whitespace in the path")
+	}
+}
+
+func TestJSFileSystemListDirKeepsWhitespaceNames(t *testing.T) {
+	obj := newJSObject(t, map[string]func(args []js.Value) any{
+		"readFile":  func([]js.Value) any { return js.Null() },
+		"writeFile": func([]js.Value) any { return js.Undefined() },
+		"delete":    func([]js.Value) any { return js.Undefined() },
+		"exists":    func([]js.Value) any { return true },
+		"listDir": func([]js.Value) any {
+			return js.ValueOf([]any{" draft ", "plain.txt"})
+		},
+	})
+
+	fs, err := NewJSFileSystem(obj)
+	if err != nil {
+		t.Fatalf("NewJSFileSystem: %v", err)
+	}
+	infos, err := fs.ListDir("/")
+	if err != nil {
+		t.Fatalf("ListDir: %v", err)
+	}
+	if len(infos) != 2 || infos[0].Name != " draft " || infos[1].Name != "plain.txt" {
+		t.Fatalf("ListDir returned %+v, want the names verbatim", infos)
+	}
+}
+
 func TestJSFileSystemRoundTrip(t *testing.T) {
 	files := map[string]string{"/hello.txt": "world"}
 	obj, seen := newMemoryJSFS(t, files)

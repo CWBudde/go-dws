@@ -14,7 +14,7 @@ func TestNormalizeFSPath(t *testing.T) {
 		want  string
 	}{
 		{"empty", "", "/"},
-		{"blank", "   ", "/"},
+		{"whitespace only is a real name", "   ", "/   "},
 		{"root", "/", "/"},
 		{"relative", "a/b.txt", "/a/b.txt"},
 		{"absolute", "/a/b.txt", "/a/b.txt"},
@@ -24,6 +24,10 @@ func TestNormalizeFSPath(t *testing.T) {
 		{"double slash", "//a//b", "/a/b"},
 		{"escape above root", "/../../etc/passwd", "/etc/passwd"},
 		{"relative escape", "../secret", "/secret"},
+		{"leading and trailing spaces are preserved", "/ reports ", "/ reports "},
+		{"spaces inside a segment are preserved", "/my dir/a b.txt", "/my dir/a b.txt"},
+		{"tab in a name is preserved", "/a\tb.txt", "/a\tb.txt"},
+		{"spaced relative path", " notes ", "/ notes "},
 	}
 
 	for _, tt := range tests {
@@ -155,7 +159,7 @@ func TestDirEntryToFileInfo(t *testing.T) {
 	})
 
 	t.Run("empty name is rejected", func(t *testing.T) {
-		if _, err := dirEntryToFileInfo(rawDirEntry{Name: "  "}); err == nil {
+		if _, err := dirEntryToFileInfo(rawDirEntry{Name: ""}); err == nil {
 			t.Fatal("expected an error for an empty entry name")
 		}
 	})
@@ -163,6 +167,33 @@ func TestDirEntryToFileInfo(t *testing.T) {
 	t.Run("negative size is rejected", func(t *testing.T) {
 		if _, err := dirEntryToFileInfo(rawDirEntry{Name: "a.txt", Size: -1}); err == nil {
 			t.Fatal("expected an error for a negative size")
+		}
+	})
+}
+
+// TestDirEntryToFileInfo_Whitespace pins the rule that directory-entry names
+// carry their whitespace: only slashes are stripped, so " draft " stays a
+// distinct name from "draft".
+func TestDirEntryToFileInfo_Whitespace(t *testing.T) {
+	t.Run("whitespace in a name is preserved", func(t *testing.T) {
+		for _, name := range []string{" draft ", "  ", "a b.txt"} {
+			info, err := dirEntryToFileInfo(rawDirEntry{Name: name})
+			if err != nil {
+				t.Fatalf("dirEntryToFileInfo(%q): unexpected error: %v", name, err)
+			}
+			if info.Name != name {
+				t.Errorf("Name = %q, want %q", info.Name, name)
+			}
+		}
+	})
+
+	t.Run("spaced base name survives a full path", func(t *testing.T) {
+		info, err := dirEntryToFileInfo(rawDirEntry{Name: "/ reports / a.txt "})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if info.Name != " a.txt " {
+			t.Errorf("Name = %q, want %q", info.Name, " a.txt ")
 		}
 	})
 }
@@ -185,6 +216,17 @@ func TestDirEntriesToFileInfos(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "entry 1") {
 		t.Errorf("error %q does not identify the offending entry", err)
+	}
+}
+
+func TestErrFileSystemAccessorWrapsCause(t *testing.T) {
+	cause := errors.New("boom")
+	err := errFileSystemAccessor("readFile", cause)
+	if !errors.Is(err, cause) {
+		t.Fatalf("errFileSystemAccessor did not wrap the cause: %v", err)
+	}
+	if msg := err.Error(); !strings.Contains(msg, "readFile") {
+		t.Errorf("error %q does not name the offending method", msg)
 	}
 }
 

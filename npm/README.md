@@ -17,7 +17,7 @@ The package ships the following public files:
 index.js          # ESM entry (exports helpers + default async factory)
 index.cjs         # CommonJS bridge that proxies to the ESM loader
 loader.js         # Runtime/bootstrap helper (ESM)
-dwscript.wasm     # Prebuilt WebAssembly binary
+dwscript.wasm     # Prebuilt WebAssembly binary (rebuilt at pack time, see below)
 wasm_exec.js      # Official Go WASM runtime support file
 typescript/       # TypeScript declarations
 examples/         # Usage samples (Node.js, React, Vue, vanilla)
@@ -152,6 +152,17 @@ Feel free to copy these into your project or adapt them as integration tests.
 ## Publishing & CI
 
 This package is meant to be published via the `npm-publish.yml` GitHub Actions workflow (see repo root). The workflow builds the WASM binary, copies it into `npm/`, and runs `npm publish --provenance` when a release tag is pushed.
+
+### The bundled `dwscript.wasm` is a build output
+
+`npm/dwscript.wasm` is tracked for convenience, but it is generated from the Go sources in this repository and is authoritative only for the commit that produced it. Any commit touching the interpreter or the WASM bridge leaves it behind.
+
+So that nobody ships a stale binary, the package has a `prepare` script (`scripts/prepare-wasm.mjs`) that rebuilds `dwscript.wasm` and `wasm_exec.js` from source whenever the repository is reachable next to the package. npm runs it for exactly the cases that bypass the release workflow:
+
+- `npm pack` and `npm publish` from a checkout
+- installing the package as a Git dependency
+
+Those runs need Go 1.24+ on `PATH`; the script fails with an explanatory message rather than packaging the tracked binary. Installs from the npm registry never run `prepare`, so ordinary consumers are unaffected, and the script no-ops when the Go sources are absent. Set `DWSCRIPT_SKIP_WASM_BUILD=1` to force it to keep the tracked binary.
 
 ## License
 
