@@ -20,6 +20,9 @@
     "./dwscript.wasm": "./dwscript.wasm",
     "./wasm_exec.js": "./wasm_exec.js"
   },
+  "scripts": {
+    "prepare": "node scripts/prepare-wasm.mjs"
+  },
   "files": [
     "index.js",
     "index.cjs",
@@ -28,6 +31,7 @@
     "wasm_exec.js",
     "typescript",
     "examples",
+    "scripts",
     "README.md",
     "LICENSE"
   ],

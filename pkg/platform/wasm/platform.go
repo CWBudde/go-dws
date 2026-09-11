@@ -226,6 +226,7 @@ func (c *WASMConsole) ReadLine() (string, error) {
 // It combines WASMFileSystem and WASMConsole with time functions.
 type WASMPlatform struct {
 	fs      *WASMFileSystem
+	custom  platform.FileSystem
 	console *WASMConsole
 }
 
@@ -261,9 +262,32 @@ func NewWASMPlatformWithCallbacks(outputCallback func(string), inputCallback fun
 	}
 }
 
-// FS returns the virtual filesystem implementation.
+// FS returns the active filesystem: the one installed with SetFileSystem when
+// present, otherwise the built-in in-memory virtual filesystem.
 func (p *WASMPlatform) FS() platform.FileSystem {
+	if p.custom != nil {
+		return p.custom
+	}
 	return p.fs
+}
+
+// SetFileSystem installs a host-supplied filesystem, replacing the built-in
+// virtual filesystem for all subsequent FS() calls. Passing nil is equivalent
+// to ResetFileSystem. The virtual filesystem is kept and its contents survive,
+// so ResetFileSystem restores exactly the previous state.
+func (p *WASMPlatform) SetFileSystem(fs platform.FileSystem) {
+	p.custom = fs
+}
+
+// ResetFileSystem removes any host-supplied filesystem and restores the
+// built-in in-memory virtual filesystem.
+func (p *WASMPlatform) ResetFileSystem() {
+	p.custom = nil
+}
+
+// HasCustomFileSystem reports whether a host-supplied filesystem is installed.
+func (p *WASMPlatform) HasCustomFileSystem() bool {
+	return p.custom != nil
 }
 
 // Console returns the WASM console implementation.
@@ -294,8 +318,10 @@ func (p *WASMPlatform) Sleep(duration time.Duration) {
 	// <-done
 }
 
-// GetFileSystem returns the underlying WASMFileSystem for direct access.
-// This is useful for advanced operations not covered by the interface.
+// GetFileSystem returns the built-in virtual filesystem for direct access.
+// This is useful for advanced operations not covered by the interface. Note
+// that it always returns the virtual filesystem, even while a host-supplied
+// filesystem is installed; use FS() for the currently active one.
 func (p *WASMPlatform) GetFileSystem() *WASMFileSystem {
 	return p.fs
 }

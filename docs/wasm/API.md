@@ -97,7 +97,8 @@ Initialize the DWScript instance with optional configuration.
   - `onOutput` (Function) - Callback for program output
   - `onError` (Function) - Callback for errors
   - `onInput` (Function) - Callback for input requests
-  - `fs` (Object) - Custom filesystem implementation (not yet implemented)
+  - `fs` (Object) - Custom filesystem implementation, see [`setFileSystem(fs)`](#setfilesystemfs).
+    An invalid object rejects the returned promise with an `ArgumentError`.
 
 **Returns:** `Promise<void>`
 
@@ -215,18 +216,65 @@ dws.on('input', (prompt) => {
 
 #### `setFileSystem(fs)`
 
-Set a custom filesystem implementation (not yet implemented).
+Install a host-supplied filesystem, replacing the built-in in-memory virtual
+filesystem. Pass `null` or `undefined` to restore the built-in one.
 
 **Parameters:**
-- `fs` (Object) - Filesystem object with methods:
-  - `readFile(path)` → Promise<Uint8Array>
-  - `writeFile(path, data)` → Promise<void>
-  - `listDir(path)` → Promise<Array<string>>
-  - `delete(path)` → Promise<void>
+- `fs` (Object) - Filesystem object with **synchronous** methods:
+  - `readFile(path)` → `Uint8Array | string` (throw if the file does not exist)
+  - `writeFile(path, data: Uint8Array)` → ignored
+  - `listDir(path)` → `Array<string | { name, size?, isDir?, modTime? }>`
+  - `delete(path)` → ignored
+  - `exists(path)` → `boolean`
 
-**Returns:** `null`
+**Returns:** `null` on success, or an `Error` with `type === 'ArgumentError'`
+when the value is not an object, a required method is missing, or reading a
+required method throws (a `Proxy` trap or a getter that raises). Validation
+happens on installation, not at first use.
 
-**Note:** Currently logs a warning. Full implementation coming soon.
+**Paths** are normalized before the host sees them: backslashes become forward
+slashes, `.`/`..` are resolved, and the path is always absolute (`a/b.txt` →
+`/a/b.txt`). Whitespace is never stripped: `'/ reports '` stays
+`'/ reports '`, so it addresses a different file than `'/reports'`, exactly as
+it would on a native filesystem. Directory-entry names are passed through the
+same way.
+
+**Synchronous only.** `platform.FileSystem` on the Go side is a synchronous
+interface, and blocking a goroutine on a JavaScript Promise deadlocks the
+single-threaded WASM event loop. A method that returns a thenable therefore
+fails with an explicit error instead of hanging. Hosts whose storage is async
+(IndexedDB, `fetch`) must pre-load into memory and serve the cached copy
+synchronously.
+
+**Example:**
+```javascript
+const files = new Map([['/hello.txt', 'world']]);
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+const result = dws.setFileSystem({
+    readFile(path) {
+        if (!files.has(path)) throw new Error(`file not found: ${path}`);
+        return enc.encode(files.get(path));
+    },
+    writeFile(path, data) { files.set(path, dec.decode(data)); },
+    listDir(path) {
+        return [...files.keys()]
+            .filter((p) => p.startsWith(path))
+            .map((p) => ({ name: p.slice(path.length).replace(/^\//, '') }));
+    },
+    delete(path) { files.delete(path); },
+    exists(path) { return files.has(path); },
+});
+if (result instanceof Error) throw result;
+```
+
+**Current limitation:** the filesystem is installed on the instance's platform,
+but the interpreter does not yet expose a script-visible file API (there are no
+`LoadTextFromFile`/`SaveTextToFile` builtins, and `dwscript.Engine` has no
+platform seam). Installing a filesystem is therefore validated and observable
+from JavaScript, but scripts cannot read through it yet. Wiring
+`platform.Platform` into `dwscript.Engine` is tracked in `PLAN.md`.
 
 #### `version()`
 

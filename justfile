@@ -128,6 +128,21 @@ wasm-test:
     @echo "✓ WASM compiles successfully"
     @rm /tmp/dwscript-test.wasm
 
+# Run the js/wasm-tagged Go tests under Node (needs node on PATH)
+wasm-test-unit:
+    @echo "Running js/wasm Go tests under Node..."
+    @GOOS=js GOARCH=wasm go test -exec="$(go env GOROOT)/lib/wasm/go_js_wasm_exec" ./pkg/wasm/... ./pkg/platform/wasm/...
+
+# Node smoke test of the JavaScript-facing API (custom filesystem contract)
+wasm-smoke:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Building WASM for the Node smoke test..."
+    WASM=$(mktemp -t dwscript-smoke-XXXXXX.wasm)
+    trap 'rm -f "$WASM"' EXIT
+    GOOS=js GOARCH=wasm go build -o "$WASM" ./cmd/dwscript-wasm
+    node build/wasm/smoke-fs.mjs "$WASM" "$(go env GOROOT)/lib/wasm/wasm_exec.js"
+
 # Optimize existing WASM binary
 wasm-optimize file="build/wasm/dist/dwscript.wasm":
     @echo "Optimizing WASM binary..."

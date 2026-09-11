@@ -1,7 +1,5 @@
 //go:build js && wasm
 
-// Package wasm provides WebAssembly-specific functionality for go-dws,
-// including JavaScript/Go interop and browser API bindings.
 package wasm
 
 import (
@@ -33,7 +31,13 @@ func newDWScriptInstance(this js.Value, args []js.Value) interface{} {
 		}
 	}()
 
-	// Create platform with output capture
+	// Create platform with output capture.
+	//
+	// NOTE: the platform currently only carries the filesystem installed via
+	// init({fs}) / setFileSystem(). The interpreter does not yet expose any
+	// script-visible file API, so nothing consults platform.FS() during
+	// execution; wiring the platform into dwscript.Engine is tracked
+	// separately (see docs/wasm/API.md, "Custom filesystem").
 	var outputBuffer bytes.Buffer
 	wasmPlat := wasm.NewWASMPlatformWithIO(&outputBuffer)
 
@@ -123,8 +127,12 @@ func initFunc(ctx *Context, args []js.Value) interface{} {
 
 		// Set custom filesystem if provided
 		if fs := options.Get("fs"); !fs.IsNull() && !fs.IsUndefined() {
-			// TODO: Implement custom filesystem integration
-			ConsoleWarn("Custom filesystem not yet implemented")
+			if err := ctx.installFileSystem(fs); err != nil {
+				// init() always settles a promise, so report the bad
+				// filesystem as a rejection rather than a bare error object.
+				return js.Global().Get("Promise").Call("reject",
+					CreateErrorObject("ArgumentError", err.Error(), nil))
+			}
 		}
 	}
 
@@ -290,17 +298,38 @@ func onFunc(ctx *Context, args []js.Value) interface{} {
 }
 
 // setFileSystemFunc sets a custom filesystem implementation.
+//
+// The argument must be an object implementing RequiredFileSystemMethods with
+// synchronous methods (see the package documentation). Passing null or
+// undefined restores the built-in in-memory virtual filesystem.
+//
 // JavaScript usage: dws.setFileSystem(customFS)
 func setFileSystemFunc(ctx *Context, args []js.Value) interface{} {
 	if len(args) < 1 {
 		return CreateErrorObject("ArgumentError", "setFileSystem requires 1 argument: filesystem object", nil)
 	}
 
-	// TODO: Implement custom filesystem integration
-	// For now, just log a warning
-	ConsoleWarn("Custom filesystem not yet implemented")
-
+	if err := ctx.installFileSystem(args[0]); err != nil {
+		return CreateErrorObject("ArgumentError", err.Error(), nil)
+	}
 	return js.Null()
+}
+
+// installFileSystem validates and installs a host-supplied filesystem object
+// on this instance's platform. A null or undefined value resets the platform
+// to its built-in in-memory virtual filesystem.
+func (ctx *Context) installFileSystem(value js.Value) error {
+	if value.IsNull() || value.IsUndefined() {
+		ctx.platform.ResetFileSystem()
+		return nil
+	}
+
+	fs, err := NewJSFileSystem(value)
+	if err != nil {
+		return err
+	}
+	ctx.platform.SetFileSystem(fs)
+	return nil
 }
 
 // versionFunc returns version information.

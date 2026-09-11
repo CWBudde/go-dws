@@ -2469,3 +2469,47 @@ end-to-end location and trace shapes), `internal/interp/inner_class_scope_test.g
 expectations updated where the old behavior was the thing being fixed:
 `internal/semantic/testdata/builtin_analysis_compatibility.json` lost 85 now-unreachable
 "expects Variant argument" diagnostics. Baselines ratcheted and `TEST_STATUS.md` regenerated.
+
+## Custom filesystem bridge for WASM (§3.4, 2026-09-11)
+
+`pkg/wasm/api.go` had two sites that warned "Custom filesystem not yet implemented": the `fs`
+option of `init()` and the whole body of `setFileSystem()`. Both now validate a host-supplied
+JavaScript object and install it as a `platform.FileSystem`.
+
+### Synchronous by contract
+
+`platform.FileSystem` is a synchronous Go interface, and blocking a goroutine on a JavaScript
+Promise deadlocks the single-threaded WASM event loop — the `Sleep` Promise→channel pattern works
+only because `setTimeout` resolves without the Go side holding the loop. Host filesystem methods
+must therefore return synchronously. A method that returns a thenable fails fast with an explicit
+error ("returned a Promise; filesystem methods must be synchronous") instead of hanging, and the
+previously documented Promise-based TypeScript shape (`npm/typescript/index.d.ts`) was corrected to
+the synchronous one. Hosts backed by IndexedDB or `fetch` pre-load into memory and serve the cache.
+
+### What was added
+
+- `pkg/wasm/fsbridge.go` (no build tags, so it is unit-testable on any host): path normalization,
+  required-method validation, error shapes, and the `rawDirEntry` → `platform.FileInfo` conversion.
+- `pkg/wasm/jsfs.go` (`js && wasm`): `JSFileSystem`, a thin `syscall/js` adapter over that logic.
+  It maps thrown JavaScript exceptions to Go errors, rejects Promises and malformed results, and
+  accepts directory entries as either plain names or `{name, size, isDir, modTime}` objects.
+- `(*WASMPlatform).SetFileSystem` / `ResetFileSystem` / `HasCustomFileSystem` in
+  `pkg/platform/wasm`: `FS()` returns the installed filesystem, otherwise the built-in virtual one.
+  `GetFileSystem()` keeps returning the virtual filesystem, so existing callers are unaffected.
+- Validation happens on installation: a missing method produces an `ArgumentError` naming it, and
+  `init({fs})` rejects its promise rather than returning a bare error object.
+
+### Still open
+
+The engine never consults a platform. `pkg/platform` has no importer outside `pkg/wasm`, the
+interpreter exposes no script-visible file API (no `LoadTextFromFile`/`SaveTextToFile` builtins),
+and `dwscript.Options` has no `WithPlatform`/`WithFileSystem`. The bridge is therefore complete and
+observable from JavaScript, but scripts cannot yet read through it. Closing that needs a public
+`dwscript.WithPlatform(platform.Platform) Option` plus file builtins that route through
+`Engine.platform.FS()`; both are out of scope for a source-TODO item and remain in `PLAN.md`.
+
+**Validation:** `go test ./...`; `just wasm-test-unit` (the `js && wasm` tests for `pkg/wasm` and
+`pkg/platform/wasm` executed under Node, including `JSFileSystem` round trips, Promise rejection,
+thrown-error mapping, and platform install/reset); `just wasm-smoke` (new
+`build/wasm/smoke-fs.mjs`, which loads a real `dwscript.wasm` in Node and checks the JS-facing
+contract of `setFileSystem`/`init({fs})`); `GOOS=js GOARCH=wasm go build ./...`.
