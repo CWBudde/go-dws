@@ -620,8 +620,36 @@ PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
   Overwriting a slot destroys the displaced value, `Delete` and `Clear` destroy the entries
   they remove, and a map still bound at program end releases what it owns. An object that a
   variable still references is not destroyed by any of these.
-- ⏸️ Nested lvalue vivification through a key (`a[k].field := v`, `a[k][j] := v`)
+- ✅ Nested lvalue vivification through a key (`a[k].field := v`, `a[k][j] := v`)
 - ⏸️ DWScript's hash iteration order for `Keys`
+
+##### Associative-array key vivification
+
+Reading a key that is not present yields the element type's zero value and leaves the map
+untouched, so a plain read never grows it:
+
+```dws
+var a : array[String] of Integer;
+PrintLn(a['nope']);   // 0
+PrintLn(a.Length);    // 0
+```
+
+Reaching a missing key from an **lvalue**, or from a receiver whose method mutates it in place,
+inserts the slot first, so the nested write is stored rather than lost:
+
+```dws
+type TRec = record S : String; end;
+var r : array[Integer] of TRec;
+r[2].S := 'hello';            // inserts key 2, then writes the field
+PrintLn(r[2].S);              // hello
+
+var m : array[String] of array of String;
+m['alpha'].Add('beta');       // inserts 'alpha', then appends to the stored array
+PrintLn(m.Keys.Join(','));    // alpha
+```
+
+The same rule applies to nested indexing (`sa[1][1] := 123`) and to JSON values reached through
+an index or a member (`a[0].TEST := 3`, `v.List[0] := 'zero'`), which are always the live node.
 
 ---
 

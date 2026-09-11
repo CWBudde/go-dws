@@ -77,8 +77,11 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		}
 	}
 
-	// Evaluate the object first
-	obj := e.Eval(node.Object, ctx)
+	// Evaluate the object first. A receiver reached through an index is
+	// resolved as an lvalue container: a method may mutate it in place
+	// (`a['x'].Add(y)`), so a missing associative-array key has to be vivified
+	// rather than handing back a throwaway zero value the mutation is lost in.
+	obj := e.resolveLValueContainer(node.Object, ctx)
 	if isError(obj) {
 		return obj
 	}

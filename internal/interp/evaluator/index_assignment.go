@@ -78,6 +78,12 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 			if ctx.Exception() != nil {
 				return &runtime.NilValue{}
 			}
+			// JSON index write reached through a member: `v.List[0] := 'zero'`.
+			// The member read already yields the live child node, so mutating
+			// it is visible through `v`.
+			if isJSONBoxed(memberVal) {
+				return e.assignJSONIndex(jsonValueOf(memberVal), indexVal, value, stmt, ctx)
+			}
 			if assoc, ok := memberVal.(*runtime.AssociativeArrayValue); ok {
 				key, errVal := e.coerceAssociativeKey(assoc, indexVal, ctx)
 				if errVal != nil {
@@ -106,8 +112,11 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 
 	// Evaluate the array/string being indexed
 	// Process ONLY the outermost index, not all nested indices
-	// This allows arr[i][j] := value to work as: (arr[i])[j] := value
-	arrayVal := e.Eval(target.Left, ctx)
+	// This allows arr[i][j] := value to work as: (arr[i])[j] := value.
+	// The base is resolved as an lvalue container so that an intermediate
+	// associative-array key is vivified rather than yielding a throwaway zero
+	// value that the write would be lost in.
+	arrayVal := e.resolveLValueContainer(target.Left, ctx)
 	if isError(arrayVal) {
 		return arrayVal
 	}

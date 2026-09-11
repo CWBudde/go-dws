@@ -114,8 +114,10 @@ func (e *Evaluator) evaluateLValueIdentifier(target *ast.Identifier, ctx *Execut
 
 // evaluateLValueIndex handles array index lvalues: arr[i]
 func (e *Evaluator) evaluateLValueIndex(target *ast.IndexExpression, ctx *ExecutionContext) (Value, AssignFunc, error) {
-	// Evaluate array and index ONCE
-	arrVal := e.Eval(target.Left, ctx)
+	// Evaluate array and index ONCE. The base goes through the lvalue container
+	// resolver so a nested `a[k][i]` / `a[k].f` vivifies the associative slot
+	// instead of mutating a throwaway zero value.
+	arrVal := e.resolveLValueContainer(target.Left, ctx)
 	if isError(arrVal) {
 		if errVal, ok := arrVal.(*runtime.ErrorValue); ok {
 			return nil, nil, fmt.Errorf("failed to evaluate array: %s", errVal.Message)
@@ -131,12 +133,6 @@ func (e *Evaluator) evaluateLValueIndex(target *ast.IndexExpression, ctx *Execut
 		return nil, nil, fmt.Errorf("failed to evaluate index: unknown error")
 	}
 
-	indexInt, ok := indexVal.(*runtime.IntegerValue)
-	if !ok {
-		return nil, nil, fmt.Errorf("index must be Integer, got %s", indexVal.Type())
-	}
-	index := int(indexInt.Value)
-
 	// Unwrap ReferenceValue if the array itself is a var parameter
 	if ref, isRef := arrVal.(ReferenceAccessor); isRef {
 		deref, err := ref.Dereference()
@@ -145,6 +141,47 @@ func (e *Evaluator) evaluateLValueIndex(target *ast.IndexExpression, ctx *Execut
 		}
 		arrVal = deref
 	}
+
+	// JSON lvalue: a[i] / o['key']. The JSON tree is shared by reference, so
+	// the read hands back the live child and the write mutates the parent in
+	// place, which keeps `a[0].TEST := 3` visible through `a`.
+	if isJSONBoxed(arrVal) {
+		jv := jsonValueOf(arrVal)
+		currentVal := e.indexJSON(unwrapVariant(arrVal), indexVal, target)
+		assignFunc := func(value Value) error {
+			if res := e.assignJSONIndex(jv, indexVal, value, target, ctx); isError(res) {
+				if errVal, ok := res.(*runtime.ErrorValue); ok {
+					return fmt.Errorf("%s", errVal.Message)
+				}
+			}
+			return nil
+		}
+		return currentVal, assignFunc, nil
+	}
+
+	// Associative array lvalue: a[key]. The key is an arbitrary value rather
+	// than an ordinal index, and a missing key is vivified so the caller writes
+	// into a slot the map owns.
+	if assoc, ok := unwrapVariant(arrVal).(*runtime.AssociativeArrayValue); ok {
+		key := unwrapVariant(indexVal)
+		currentVal := e.vivifyAssociativeSlot(assoc, indexVal, ctx)
+		if errVal, ok := currentVal.(*runtime.ErrorValue); ok {
+			return nil, nil, fmt.Errorf("%s", errVal.Message)
+		}
+		assignFunc := func(value Value) error {
+			// Snapshot record/static-array values, matching the direct write
+			// path in evalIndexAssignmentDirect.
+			assoc.Set(key, cloneIfCopyable(value))
+			return nil
+		}
+		return currentVal, assignFunc, nil
+	}
+
+	indexInt, ok := indexVal.(*runtime.IntegerValue)
+	if !ok {
+		return nil, nil, fmt.Errorf("index must be Integer, got %s", indexVal.Type())
+	}
+	index := int(indexInt.Value)
 
 	// Get the array
 	arr, ok := arrVal.(*runtime.ArrayValue)
@@ -196,8 +233,10 @@ func (e *Evaluator) evaluateLValueIndex(target *ast.IndexExpression, ctx *Execut
 
 // evaluateLValueMember handles object/record field lvalues: obj.field
 func (e *Evaluator) evaluateLValueMember(target *ast.MemberAccessExpression, ctx *ExecutionContext) (Value, AssignFunc, error) {
-	// Evaluate object ONCE
-	objVal := e.Eval(target.Object, ctx)
+	// Evaluate object ONCE, through the lvalue container resolver so that
+	// `a[k].field := v` vivifies the associative slot rather than writing into
+	// a throwaway zero value.
+	objVal := e.resolveLValueContainer(target.Object, ctx)
 	if isError(objVal) {
 		if errVal, ok := objVal.(*runtime.ErrorValue); ok {
 			return nil, nil, fmt.Errorf("failed to evaluate object: %s", errVal.Message)
@@ -214,6 +253,22 @@ func (e *Evaluator) evaluateLValueMember(target *ast.MemberAccessExpression, ctx
 			return nil, nil, err
 		}
 		objVal = deref
+	}
+
+	// JSON member lvalue: v.field. Mirrors the index case above so that a
+	// nested `v.Flags.Bool := True` writes into the live tree.
+	if isJSONBoxed(objVal) {
+		jv := jsonValueOf(objVal)
+		currentVal := e.evalJSONValueMember(jv, fieldName)
+		assignFunc := func(value Value) error {
+			if res := e.assignJSONMember(jv, fieldName, value, target, ctx); isError(res) {
+				if errVal, ok := res.(*runtime.ErrorValue); ok {
+					return fmt.Errorf("%s", errVal.Message)
+				}
+			}
+			return nil
+		}
+		return currentVal, assignFunc, nil
 	}
 
 	// Handle ObjectValue (class instance)

@@ -3,7 +3,7 @@
 Closed 2026-09-06 on branch `feat/phase1-measurement-tooling`. Items T1–T6 and A1 of the
 2026-09-06 `PLAN.md`. Numbers are from the runs recorded in the commit messages.
 
-## Headline
+### Headline
 
 | | before | after |
 | --- | --- | --- |
@@ -1940,4 +1940,81 @@ order) remain open under their own §3.3 items.
 `internal/interp/associative_arc_test.go` (`TestAssociativeArrayARC`,
 `TestAssociativeArrayVariantKeyCoercion`) covering slot replace, Delete, Clear, program-end
 finalization, and four key-coercion directions. Baselines ratcheted and `TEST_STATUS.md`
+
+## 2026-09-10 — Nested lvalue vivification through a key or index (PLAN.md §3.3)
+
+Closed 2026-09-10 on branch `feat/plan-3.3-nested-lvalue-vivification`. Closes the `PLAN.md` §3.3
+item of the same name in full: all four fixtures it named now pass.
+
+### Headline
+
+| | before | after |
+| --- | --- | --- |
+| CLI (`just fixture-report`) | 938 / 1,928 | 942 / 1,928 |
+| AssociativePass | 22 / 27 | 24 / 27 |
+| JSONConnectorPass | 59 / 82 | 61 / 82 |
+
+No category moved down. Every other category is byte-identical between the two reports.
+
+### The two defects
+
+**`evaluateLValueIndex` only understood plain arrays.** `internal/interp/evaluator/var_params.go`
+handled `*runtime.ArrayValue` and required a literal `*runtime.IntegerValue` index, so
+`ra[2].S := 'hello'` on `var ra : array[Integer] of TRecord` died with
+`cannot index into ASSOCIATIVE_ARRAY`.
+
+**No vivification on a missing key.** `VisitIndexExpression` returned
+`getZeroValueForType(assoc.ElementType())` for an absent key *without inserting the slot*. That is
+right for a pure rvalue read (`PrintLn(a['nope'])` must not grow the map) and wrong everywhere the
+value is only an intermediate step: `sa[1][1] := 123` wrote into a throwaway static array and
+`a['alpha'].Add('beta')` appended to a throwaway dynamic array — both silently lost.
+
+### The seam
+
+There was none: `evalIndexAssignmentDirect` deliberately handled only the outermost index and got
+its base with `e.Eval(target.Left, ctx)` — an **rvalue** evaluation — then mutated whatever came
+back.
+
+The tail of `VisitIndexExpression` was split into `indexResolvedValue(leftVal, node, ctx)`, which
+applies one level of indexing to an *already-evaluated* container. On top of that,
+`internal/interp/evaluator/lvalue_vivify.go` adds `resolveLValueContainer`: it resolves the
+container part of a nested lvalue, recursing through `IndexExpression` bases and vivifying a
+missing associative-array slot, and falling back to ordinary read semantics for everything else
+(arrays, objects, records and JSON already hand back live references). The base is resolved once,
+so a side-effecting index expression is still evaluated exactly once.
+
+Four call sites now resolve their base through it instead of `Eval`: `evaluateLValueIndex`,
+`evaluateLValueMember`, `evalIndexAssignmentDirect`, and the receiver of
+`VisitMethodCallExpression` — the last because a method may mutate its receiver in place, which is
+what `a['alpha'].Add('beta')` needs. `VisitIndexExpression` itself is untouched, so a pure rvalue
+read still does not insert.
+
+`evaluateLValueIndex` additionally learned associative arrays (vivify, then write back with
+`assoc.Set`) and JSON (`indexJSON` / `assignJSONIndex`); `evaluateLValueMember` learned JSON
+members (`evalJSONValueMember` / `assignJSONMember`). The member-rooted branch of
+`evalIndexAssignmentDirect` gained the JSON index write it was missing, which is what
+`v.List[0] := 'zero'` needs.
+
+### Overlap with the ARC / key-coercion work
+
+`feat/plan-3.3-assoc-arc-key-coercion` (PR #374) had not landed on `main` when this branch was
+cut, so `coerceAssociativeKey` and the retain/release `storeAssociativeEntry` path did not exist
+yet. Key handling here stays minimal — `unwrapVariant`, matching what `evalIndexAssignmentDirect`
+already did — and vivification inserts through plain `AssociativeArrayValue.Set`. Whichever branch
+lands second should route `vivifyAssociativeSlot` (`lvalue_vivify.go`) through the coercing and
+retaining insert, so a vivified slot is owned like any other.
+
+### Scope
+
+The three remaining `AssociativePass` failures are other §3.3 items: `records` (hash iteration
+order), `delete_sequence` (ARC destructor timing) and `variant_key_cast` (Variant → key coercion).
+The 21 remaining `JSONConnectorPass` failures are node reparenting/ownership, float formatting and
+cast-message parity — the separate §3.3 JSON item.
+
+**Validation:** `go test ./... -timeout 30m` green; `golangci-lint run --new-from-rev=main` reports
+0 issues; `just check-fmt` clean. New table-driven tests in
+`internal/interp/lvalue_vivification_test.go` cover both directions of the rule — lvalue and
+mutating-receiver positions insert, rvalue reads do not — plus slot reuse, whole-element
+replacement, compound assignment, plain nested arrays, and the three nested-JSON forms. Baselines
+ratcheted (`AssociativePass` 22 → 24, `JSONConnectorPass` 59 → 61) and `TEST_STATUS.md`
 regenerated.

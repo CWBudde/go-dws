@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2042 |
-| Passed | 968 |
-| Failed | 960 |
+| Passed | 970 |
+| Failed | 958 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **50%** (968/1928) |
+| **Scored pass rate** | **50%** (970/1928) |
 
 ## Per-category
 
@@ -25,7 +25,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
 | ArrayPass | 115 | 96 | 19 | 0 | 83% |
 | AssociativeFail | 4 | 1 | 3 | 0 | 25% |
-| AssociativePass | 27 | 24 | 3 | 0 | 89% |
+| AssociativePass | 27 | 26 | 1 | 0 | 96% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
 | AutoFormat | 10 | 0 | 0 | 10 | 0% |
 | BigInteger | 16 | 0 | 16 | 0 | 0% |

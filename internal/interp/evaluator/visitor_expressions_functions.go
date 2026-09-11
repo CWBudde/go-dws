@@ -626,7 +626,10 @@ func arrayElementPhysicalIndex(arr *runtime.ArrayValue, index int) (int, error) 
 // handled=false when the argument is not a plain array element (e.g. string
 // index or default property), letting the generic lvalue path take over.
 func (e *Evaluator) prepareArrayElementReference(idxExpr *ast.IndexExpression, ctx *ExecutionContext) (Value, bool, error) {
-	arrRaw := e.Eval(idxExpr.Left, ctx)
+	// The container goes through the lvalue resolver so that binding
+	// `P(a['missing'][0])` vivifies the associative slot instead of handing the
+	// var parameter a throwaway zero array whose writes are lost.
+	arrRaw := e.resolveLValueContainer(idxExpr.Left, ctx)
 	if isError(arrRaw) {
 		return nil, false, nil
 	}
