@@ -475,3 +475,134 @@ func TestParseClassDeclaration(t *testing.T) {
 		})
 	}
 }
+
+// TestClassMethodsRecordDeclaringClass verifies that routines declared inline in
+// a class body remember their owning class, which is what lets a stack frame
+// read "TTest.TestMeth". An out-of-line implementation carries the qualifier in
+// ClassName instead and needs no annotation.
+func TestClassMethodsRecordDeclaringClass(t *testing.T) {
+	input := `type TTest = class
+   constructor Create;
+   begin
+   end;
+   destructor Destroy; override;
+   begin
+   end;
+   procedure TestMeth;
+   begin
+   end;
+   procedure Later;
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	decl, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T", program.Statements[0])
+	}
+
+	routines := map[string]*ast.FunctionDecl{}
+	for _, method := range decl.Methods {
+		routines[method.Name.Value] = method
+	}
+	if decl.Constructor != nil {
+		routines[decl.Constructor.Name.Value] = decl.Constructor
+	}
+	if decl.Destructor != nil {
+		routines[decl.Destructor.Name.Value] = decl.Destructor
+	}
+
+	for _, name := range []string{"Create", "Destroy", "TestMeth", "Later"} {
+		fn, found := routines[name]
+		if !found {
+			t.Fatalf("class body did not yield routine %q, got %v", name, routines)
+		}
+		if fn.DeclaringClassName != "TTest" {
+			t.Errorf("%s.DeclaringClassName = %q, want %q", name, fn.DeclaringClassName, "TTest")
+		}
+	}
+}
+
+// TestNestedClassMethodsRecordQualifiedDeclaringClass checks that a method of a
+// nested class is annotated with the fully qualified owner.
+func TestNestedClassMethodsRecordQualifiedDeclaringClass(t *testing.T) {
+	input := `type TOuter = class
+   type TInner = class
+      procedure Ping;
+      begin
+      end;
+   end;
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	outer, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T", program.Statements[0])
+	}
+	if len(outer.NestedTypes) != 1 {
+		t.Fatalf("expected 1 nested type, got %d", len(outer.NestedTypes))
+	}
+	inner, ok := outer.NestedTypes[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("nested type is not *ast.ClassDecl. got=%T", outer.NestedTypes[0])
+	}
+	if len(inner.Methods) != 1 {
+		t.Fatalf("expected 1 nested method, got %d", len(inner.Methods))
+	}
+	if got := inner.Methods[0].DeclaringClassName; got != "TOuter.TInner" {
+		t.Errorf("Ping.DeclaringClassName = %q, want %q", got, "TOuter.TInner")
+	}
+}
+
+// TestDeeplyNestedClassMethodsRecordQualifiedDeclaringClass checks that the
+// qualifier keeps growing past the first level of nesting. ClassDecl.EnclosingClass
+// only ever names the immediate parent, so the already-qualified owner has to be
+// threaded through the annotation walk.
+func TestDeeplyNestedClassMethodsRecordQualifiedDeclaringClass(t *testing.T) {
+	input := `type TOuter = class
+   type TInner = class
+      type TDeep = class
+         procedure Ping;
+         begin
+         end;
+      end;
+   end;
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	outer, ok := program.Statements[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not *ast.ClassDecl. got=%T", program.Statements[0])
+	}
+	if len(outer.NestedTypes) != 1 {
+		t.Fatalf("expected 1 nested type in TOuter, got %d", len(outer.NestedTypes))
+	}
+	inner, ok := outer.NestedTypes[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("TOuter nested type is not *ast.ClassDecl. got=%T", outer.NestedTypes[0])
+	}
+	if len(inner.NestedTypes) != 1 {
+		t.Fatalf("expected 1 nested type in TInner, got %d", len(inner.NestedTypes))
+	}
+	deep, ok := inner.NestedTypes[0].(*ast.ClassDecl)
+	if !ok {
+		t.Fatalf("TInner nested type is not *ast.ClassDecl. got=%T", inner.NestedTypes[0])
+	}
+	if len(deep.Methods) != 1 {
+		t.Fatalf("expected 1 method in TDeep, got %d", len(deep.Methods))
+	}
+	if got := deep.Methods[0].DeclaringClassName; got != "TOuter.TInner.TDeep" {
+		t.Errorf("Ping.DeclaringClassName = %q, want %q", got, "TOuter.TInner.TDeep")
+	}
+}

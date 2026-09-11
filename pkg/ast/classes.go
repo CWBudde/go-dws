@@ -283,6 +283,21 @@ type NewExpression struct {
 	// template the reference is left unchanged.
 	TypeArgs []TypeExpression
 	TypedExpressionBase
+	// ConstructorPos is the source position of the constructor *name* token in
+	// the `TClassName.Create(...)` spelling (the `Create` identifier). DWScript
+	// reports a call site at the callee's name token, so raise sites and stack
+	// frames use this position rather than Pos() (the class name) or End().
+	// Zero for the `new TClassName(...)` spelling, which has no name token.
+	ConstructorPos token.Position
+}
+
+// ConstructorNamePos returns the position of the constructor name token when the
+// expression was written as `TClassName.Create(...)`, falling back to Pos().
+func (ne *NewExpression) ConstructorNamePos() token.Position {
+	if ne.ConstructorPos.Line > 0 {
+		return ne.ConstructorPos
+	}
+	return ne.Pos()
 }
 
 func (ne *NewExpression) expressionNode() {}

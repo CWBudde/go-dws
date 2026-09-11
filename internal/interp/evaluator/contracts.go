@@ -10,6 +10,11 @@ import (
 
 // raiseContractException creates an exception and sets it in the context.
 // Self-contained: no longer delegates to ExceptionManager.
+//
+// node is deliberately nil for contract failures: the exception is built by the
+// engine rather than by a script-level `EFoo.Create(...)`, so it contributes no
+// innermost stack-trace frame. DWScript names the failing routine and its
+// condition in the message text instead (see checkPreconditions).
 func (e *Evaluator) raiseContractException(className, message string, node ast.Node, ctx *ExecutionContext) {
 	// Get call stack for exception
 	callStack := ctx.CallStack()
@@ -101,7 +106,7 @@ func (e *Evaluator) checkPreconditions(funcName string, preConditions *ast.PreCo
 				funcName, condPos.Line, condPos.Column, message)
 
 			// Raise exception directly (no adapter!)
-			e.raiseContractException("Exception", fullMessage, condition.Test, ctx)
+			e.raiseContractException("Exception", fullMessage, nil, ctx)
 			return nil
 		}
 	}
@@ -240,7 +245,7 @@ func (e *Evaluator) checkPostconditions(funcName string, postConditions *ast.Pos
 				funcName, condPos.Line, condPos.Column, message)
 
 			// Raise exception directly (no adapter!)
-			e.raiseContractException("Exception", fullMessage, condition.Test, ctx)
+			e.raiseContractException("Exception", fullMessage, nil, ctx)
 			return nil
 		}
 	}

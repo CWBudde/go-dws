@@ -980,7 +980,8 @@ needs `Warning: Constant condition`). The call-stack frame name in `ExecuteUserF
 same missing-qualifier bug (`TTest.TestMeth` vs `TestMeth`, visible in
 `SimpleScripts/contracts_subproc`), but that fixture also needs the raise-site column work listed
 in §3.3 and would not flip; stack-trace text is validated by many position-sensitive fixtures, so
-it stays a separate change.
+it stays a separate change. *(Closed 2026-09-10 together with the column work — see
+"Call-site column precision in stack traces" below.)*
 
 **Validation:** `go test ./...` green; six new subtests in `internal/interp/contracts_test.go`
 covering inline-method qualification, a free function called from a method, inherited `require`
@@ -1650,3 +1651,97 @@ reports 0 issues; `just check-fmt` clean. New tests: `internal/jsonvalue/ownersh
 `internal/interp/evaluator/json_scalar_test.go`. `docs/guide/json-type-mapping.md` gained a
 "Single Ownership (Reparenting)" section — the page previously documented pure reference
 semantics.
+
+## 2026-09-10 — Call-site column precision in stack traces, PLAN.md §3.3
+
+`SimpleScripts` 343 → 346 of 442 (79% → 80%); corpus 938 → 941 of 2,042 (49%). No category
+regressed — the whole `just fixture-report --list-fails` table was captured before and after and
+diffed; the only lines that changed are the three closed fixtures. Closes
+`SimpleScripts/stacktrace`, `SimpleScripts/exceptobj3` and `SimpleScripts/contracts_subproc`, and
+with them the last item of §3.3's diagnostics group.
+
+The PLAN item flagged this as the higher-risk one because it lives in shared position logic. The
+risk turned out to be real but narrow, and measurement is what located it: the naive reading of
+the fixtures — "the raise site is the constructor name" — regressed `exception_nested_call` and
+`exceptobj2` on the first attempt, because those two pin the *same* `raise EFoo.Create(…)` shape
+to a *different* column.
+
+### The governing rule
+
+A stack frame is positioned at the **name token of the callee**:
+
+| written | frame position |
+| --- | --- |
+| `Foo(1)` | `Foo` |
+| `obj.Bar` | `Bar`, not `obj` |
+| `(new TTest).TestMeth` | `TestMeth`, not `TTest` |
+| `Exception.Create('x')` | `Create`, neither `Exception` nor the closing paren |
+
+`callSitePos` (`internal/interp/evaluator/call_site.go`) is that view of a node, and the
+frame-push sites use it. AST `Pos()` was deliberately **not** changed: it starts at the receiver
+for `MethodCallExpression` and at the class name for `NewExpression`, and diagnostics, hints and
+the whole `*Fail` corpus are calibrated against it. Moving `Pos()` would have repositioned a great
+many messages to buy three fixtures.
+
+### Two positions, not one
+
+`stacktrace.pas:13` and `exceptobj2.pas:5` are both `Raise Exception.Create(…)`. The first expects
+column 20 (the `Create` identifier), the second column 33 (just past the `)`). They are not in
+conflict — they are reading two different things:
+
+- the **unhandled-exception message** is positioned just past the raised expression, which is what
+  `Exception.End()` models and what we already did;
+- the innermost **`Exception.StackTrace`** frame is the site where the exception object was
+  *constructed*. DWScript captures the call stack inside the constructor, so that frame is the
+  `Create` call, and the `raise` statement's own position never appears in the trace.
+
+`ExceptionValue` therefore grew `OriginPos` alongside `Position`. It falls back to `Position` when
+unset, so a runtime error — division by zero, a nil dereference — which has no separate
+construction site keeps the frame it had.
+
+### Inline methods are now class-qualified
+
+`ExecuteUserFunction` built the frame name from `FunctionDecl.ClassName`, which only an
+out-of-line header (`procedure TFoo.Bar;`) carries. A method written inline in the class body has
+no qualifier to parse and came out as bare `TestMeth` where DWScript writes `TTest.TestMeth`. The
+parser now records the owner on every routine declared in a class body —
+`FunctionDecl.DeclaringClassName`, covering constructors, destructors and nested classes, whose
+methods get the full owner path. It is metadata only and never participates in name resolution, so
+the `ClassName`-based logic in the semantic analyzer and the parser is untouched.
+
+This closes the qualifier bug that the 2026-09-09 contract-inheritance entry (L-S3a–L-S3c)
+recorded as **not done, deliberately** — it was left out then because `contracts_subproc` also
+needed the column work, so fixing it alone would not have flipped the fixture.
+
+### A contract failure has no innermost frame
+
+`raiseContractException` positioned the exception at the failing condition, which `OriginPos`'s
+predecessor then rendered as an extra frame — `RequirePositive [line: 2, column: 11]` — that
+DWScript does not emit. A failed `require`/`ensure` is built by the engine, not by a script-level
+`EFoo.Create(…)`; it has no construction site, and the failing routine and its condition are
+already named in the message text. The node argument is now nil.
+
+### `ExceptObject.StackTrace` is nil-safe
+
+`exceptobj3` reads `ExceptObject.StackTrace` outside any `except` block and expects an empty
+line. In DWScript `StackTrace` is a magic getter, not a field dereference, so it answers `''` on a
+nil reference; we raised `Object not instantiated`. `ExceptObject` is now bound as a *typed* nil
+(`NilValue{ClassType: "Exception"}`) so the static class resolves, and the nil branch of member
+access answers `''` for `StackTrace` on an Exception-typed nil. `ExceptObject = nil` still reads
+`True` — a typed nil compares equal to nil.
+
+### Scope
+
+`raise <expr>` where the expression is not a call (a plain object reference, say) still reports
+`End()` as its origin frame; no fixture pins that case. Strictly, DWScript captures the stack when
+the exception is *constructed*, so `var e := EFoo.Create('x'); … raise e;` should trace to line of
+the `Create`, not the `raise`. Modelling that needs the stack captured on the object at
+construction time; it is not what any fixture measures today.
+
+**Validation:** `go test ./...` green. New tests:
+`internal/interp/evaluator/call_site_test.go` (table-driven `callSitePos` over all call shapes,
+and `qualifiedRoutineName` over out-of-line / inline / free routines),
+`internal/interp/runtime/exception_test.go` (`OriginPos` precedence, fallback, and the no-frame
+case), `internal/interp/stack_trace_positions_test.go` (four end-to-end traces), and two parser
+tests for `DeclaringClassName` including the nested-class path. Baselines ratcheted
+(`SimpleScripts` 343 → 346) and `TEST_STATUS.md` regenerated.

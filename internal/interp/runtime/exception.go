@@ -16,7 +16,15 @@ type ExceptionValue struct {
 	Metadata  *ClassMetadata  // AST-free class metadata
 	Instance  *ObjectInstance // Exception object instance
 	Position  *lexer.Position // Position where the exception was raised (for error reporting)
-	Message   string          // Exception message
+	// OriginPos overrides the position of the innermost stack-trace frame: the site
+	// where the exception object was constructed (`EFoo.Create(...)`), reported
+	// at the constructor's *name* token. DWScript captures the call stack when
+	// an exception is built, so this frame is the constructor call, not the
+	// `raise` statement — which is why it differs from Position, the position
+	// DWScript reports in an unhandled-exception message (just past the raised
+	// expression). Nil means no extra innermost frame is contributed.
+	OriginPos *lexer.Position
+	Message   string // Exception message
 
 	CallStack errors.StackTrace // Stack trace at the point the exception was raised
 
@@ -41,21 +49,34 @@ func (e *ExceptionValue) Type() string {
 
 // StackTraceString renders the call stack for DWScript's Exception.StackTrace
 // property: one line per active routine (innermost first), each labeled with the
-// routine that made the call/raise and positioned at that call site. The raise
-// site itself is the innermost frame (labeled by the raising routine). The
-// outermost frame is the main program, whose label is empty.
+// routine that made the call and positioned at that call site. The exception's
+// construction site (OriginPos) is the innermost frame, labeled by the routine
+// that constructed it. The outermost frame is the main program, whose label is
+// empty.
 func (e *ExceptionValue) StackTraceString() string {
 	if e == nil {
 		return ""
 	}
 	frames := make(errors.StackTrace, len(e.CallStack), len(e.CallStack)+1)
 	copy(frames, e.CallStack)
-	if e.Position != nil {
-		// Append the raise site as the innermost frame. Its label is supplied by
-		// the preceding (raising) frame in DWScriptString, so the name is unused.
-		frames = append(frames, errors.NewStackFrame("", "", e.Position))
+	if origin := e.originFramePos(); origin != nil {
+		// Append the construction site as the innermost frame. Its label is
+		// supplied by the preceding (raising) frame in DWScriptString, so the
+		// name is unused.
+		frames = append(frames, errors.NewStackFrame("", "", origin))
 	}
 	return frames.DWScriptString()
+}
+
+// originFramePos resolves the innermost stack-trace frame position: OriginPos
+// when set, otherwise the reported raise position. A runtime error (division by
+// zero, nil dereference, ...) has no separate construction site, so the two
+// coincide.
+func (e *ExceptionValue) originFramePos() *lexer.Position {
+	if e.OriginPos != nil {
+		return e.OriginPos
+	}
+	return e.Position
 }
 
 // GetInstance returns the ObjectInstance from this exception.

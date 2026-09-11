@@ -446,7 +446,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 
 	// 3. Push function name onto call stack for stack traces
 	funcName := fn.Name.Value
-	pos := node.Pos()
+	pos := callSitePos(node)
 	if err := ctx.GetCallStack().Push(funcName, e.SourceFile(), &pos); err != nil {
 		return e.newError(node, "recursion depth exceeded calling '%s'", funcName)
 	}

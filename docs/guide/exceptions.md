@@ -357,13 +357,45 @@ raise new Exception('error message');
 
 **StackTrace Example**:
 ```pascal
+procedure ThisOneBombs;
+begin
+   raise Exception.Create('boom!');
+end;
+
 try
-  raise Exception.Create('error');
+   ThisOneBombs;
 except
-  on E: Exception do
-    PrintLn(E.StackTrace);  // Shows call stack
+   on E: Exception do
+      PrintLn(E.StackTrace);
 end;
 ```
+
+Output:
+```
+ThisOneBombs [line: 3, column: 20]
+ [line: 8, column: 4]
+```
+
+Each line pairs the routine that *made* a call with the position of that call, and a call is
+positioned at the **name token of the callee**: column 20 on line 3 is the `Create` identifier,
+column 4 on line 8 is `ThisOneBombs`. The innermost line is where the exception object was
+constructed. The outermost call site lies in the main program, which has no name, so that line
+begins with a space.
+
+A method frame is class-qualified — `TTest.TestMeth` — whether the implementation is written
+inline in the class body or out of line.
+
+Two cases contribute no innermost construction frame:
+
+- a failed `require` / `ensure`, which the engine builds itself; the failing routine and its
+  condition are named in the message text instead;
+- reading `StackTrace` off a nil reference, which answers `''`. `ExceptObject` is nil outside an
+  `except` block, so `PrintLn(ExceptObject.StackTrace)` there prints an empty line rather than
+  raising `Object not instantiated`.
+
+Note that `E.StackTrace` and the `Runtime Error:` line of an *unhandled* exception report
+different positions for the same `raise`: the message reports the raise statement (just past the
+raised expression), the trace reports the construction site.
 
 ### Standard Exception Types
 

@@ -94,7 +94,10 @@ func NewWithDeps(
 	interp.initIntrinsicHelpers()
 	interp.initEnumHelpers()
 
-	env.Define("ExceptObject", &NilValue{})
+	// ExceptObject is nil outside an except block, but typed: DWScript still
+	// answers ExceptObject.StackTrace there (with ''), which needs the static
+	// class to resolve.
+	env.Define("ExceptObject", &NilValue{ClassType: "Exception"})
 	env.Define("Integer", NewTypeMetaValue(types.INTEGER, "Integer"))
 	env.Define("Float", NewTypeMetaValue(types.FLOAT, "Float"))
 	env.Define("String", NewTypeMetaValue(types.STRING, "String"))

@@ -126,7 +126,14 @@ type FunctionDecl struct {
 	// and the monomorphizer clears it when the body is specialized. ClassName
 	// stays the base name (TTest) until then.
 	ClassTypeParams []string
-	Parameters      []*Parameter
+	// DeclaringClassName is the name of the class whose body declares this
+	// routine, for methods written *inline* in the class declaration. An
+	// out-of-line implementation (`procedure TFoo.Bar;`) carries the qualifier
+	// in ClassName instead; this field exists because an inline method has no
+	// qualifier to parse. It is metadata only — it never participates in name
+	// resolution — and is used to render qualified stack frames ("TFoo.Bar").
+	DeclaringClassName string
+	Parameters         []*Parameter
 	BaseNode
 	CallingConventionPos token.Position
 	StaticPos            token.Position

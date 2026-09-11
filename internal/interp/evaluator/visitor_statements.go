@@ -1219,12 +1219,16 @@ func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *Execution
 		return nil
 	}
 
-	// DWScript reports the raise position just past the raised expression
-	// (the parser's position after consuming it).
+	// DWScript reports an unhandled raise just past the raised expression (the
+	// parser's position after consuming it) ...
 	pos := node.Exception.End()
 	excObj := e.createExceptionFromObject(excVal, ctx, &pos)
 	if excValue, ok := excObj.(*runtime.ExceptionValue); ok {
 		excValue.UserRaised = true
+		// ... but the innermost stack-trace frame is the site where the
+		// exception object was constructed, at the constructor's name token.
+		originPos := raiseSitePos(node.Exception)
+		excValue.OriginPos = &originPos
 	}
 	ctx.SetException(excObj)
 
