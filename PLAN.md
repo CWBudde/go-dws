@@ -358,7 +358,10 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
   `WithPlatform`. Needs: a public `dwscript.WithPlatform(platform.Platform) Option`, an
   `Engine`-held platform defaulting to `platform/native`, and file builtins routed through
   `Engine.FS()`.
-- `[ ]` `pkg/ast/metadata.go:140,153`, `pkg/ast/type_annotation.go:58`, `pkg/ast/base.go:42` — replace `any` symbol slots with a proper `Symbol` type.
+- `[ ]` `pkg/ast/type_annotation.go:58`, `pkg/ast/base.go:42` — replace the `any` symbol slots on
+  `TypedExpression`/`TypedExpressionBase` with a proper `Symbol` type. (The `pkg/ast/metadata.go` slot that used
+  to be listed here was never a symbol: it cached folded compile-time predicate results and is now the typed
+  `SetFoldedPredicate`/`FoldedPredicate` API.)
 - `[ ]` Skipped tests to revive or delete: `internal/semantic/analyze_types_test.go:130,266`,
   `analyze_functions_test.go:284`, `case_insensitive_test.go:185`; `cmd/dwscript/sets_test.go:15,64` (skip
   message cites a closed P4 item); `internal/parser/functions_decl_test.go:639` (cites old task 5.11).

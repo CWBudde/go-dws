@@ -19,8 +19,8 @@ func TestNewSemanticInfo(t *testing.T) {
 		t.Errorf("TypeCount() = %d, want 0", si.TypeCount())
 	}
 
-	if si.SymbolCount() != 0 {
-		t.Errorf("SymbolCount() = %d, want 0", si.SymbolCount())
+	if si.FoldedPredicateCount() != 0 {
+		t.Errorf("FoldedPredicateCount() = %d, want 0", si.FoldedPredicateCount())
 	}
 }
 
@@ -92,48 +92,54 @@ func TestSemanticInfo_TypeOperations(t *testing.T) {
 	}
 }
 
-func TestSemanticInfo_SymbolOperations(t *testing.T) {
+func TestSemanticInfo_FoldedPredicateOperations(t *testing.T) {
 	si := NewSemanticInfo()
 
-	// Create a test identifier node
+	// Create a test callee identifier node
 	ident := &Identifier{
 		TypedExpressionBase: TypedExpressionBase{
 			BaseNode: BaseNode{
-				Token: token.Token{Type: token.IDENT, Literal: "x", Pos: token.Position{Line: 1, Column: 1}},
+				Token: token.Token{Type: token.IDENT, Literal: "Declared", Pos: token.Position{Line: 1, Column: 1}},
 			},
 		},
-		Value: "x",
+		Value: "Declared",
 	}
 
-	// Create a test symbol (using interface{} for now)
-	symbol := "test_symbol"
-
-	// Test GetSymbol on identifier without symbol
-	if sym := si.GetSymbol(ident); sym != nil {
-		t.Errorf("GetSymbol() = %v, want nil", sym)
+	// Test FoldedPredicate on an identifier without a folded value
+	if value, ok := si.FoldedPredicate(ident); ok || value {
+		t.Errorf("FoldedPredicate() = (%v, %v), want (false, false)", value, ok)
 	}
 
-	// Test HasSymbol on identifier without symbol
-	if si.HasSymbol(ident) {
-		t.Error("HasSymbol() = true, want false")
+	// Test HasFoldedPredicate on an identifier without a folded value
+	if si.HasFoldedPredicate(ident) {
+		t.Error("HasFoldedPredicate() = true, want false")
 	}
 
-	// Set symbol
-	si.SetSymbol(ident, symbol)
+	// Record a folded value
+	si.SetFoldedPredicate(ident, true)
 
-	// Test GetSymbol after setting
-	if sym := si.GetSymbol(ident); sym != symbol {
-		t.Errorf("GetSymbol() = %v, want %v", sym, symbol)
+	// Test FoldedPredicate after setting
+	if value, ok := si.FoldedPredicate(ident); !ok || !value {
+		t.Errorf("FoldedPredicate() = (%v, %v), want (true, true)", value, ok)
 	}
 
-	// Test HasSymbol after setting
-	if !si.HasSymbol(ident) {
-		t.Error("HasSymbol() = false, want true")
+	// Test HasFoldedPredicate after setting
+	if !si.HasFoldedPredicate(ident) {
+		t.Error("HasFoldedPredicate() = false, want true")
 	}
 
-	// Test SymbolCount
-	if count := si.SymbolCount(); count != 1 {
-		t.Errorf("SymbolCount() = %d, want 1", count)
+	// A recorded false must be distinguishable from an absent value
+	si.SetFoldedPredicate(ident, false)
+	if value, ok := si.FoldedPredicate(ident); !ok || value {
+		t.Errorf("FoldedPredicate() after overwrite = (%v, %v), want (false, true)", value, ok)
+	}
+	if !si.HasFoldedPredicate(ident) {
+		t.Error("HasFoldedPredicate() after overwrite = false, want true")
+	}
+
+	// Test FoldedPredicateCount
+	if count := si.FoldedPredicateCount(); count != 1 {
+		t.Errorf("FoldedPredicateCount() = %d, want 1", count)
 	}
 }
 
@@ -217,14 +223,14 @@ func TestSemanticInfo_Clear(t *testing.T) {
 	}
 
 	si.SetType(expr, &TypeAnnotation{Name: "Integer"})
-	si.SetSymbol(ident, "symbol")
+	si.SetFoldedPredicate(ident, true)
 
 	// Verify data was added
 	if si.TypeCount() != 1 {
 		t.Errorf("TypeCount() before Clear = %d, want 1", si.TypeCount())
 	}
-	if si.SymbolCount() != 1 {
-		t.Errorf("SymbolCount() before Clear = %d, want 1", si.SymbolCount())
+	if si.FoldedPredicateCount() != 1 {
+		t.Errorf("FoldedPredicateCount() before Clear = %d, want 1", si.FoldedPredicateCount())
 	}
 
 	// Clear
@@ -234,14 +240,14 @@ func TestSemanticInfo_Clear(t *testing.T) {
 	if si.TypeCount() != 0 {
 		t.Errorf("TypeCount() after Clear = %d, want 0", si.TypeCount())
 	}
-	if si.SymbolCount() != 0 {
-		t.Errorf("SymbolCount() after Clear = %d, want 0", si.SymbolCount())
+	if si.FoldedPredicateCount() != 0 {
+		t.Errorf("FoldedPredicateCount() after Clear = %d, want 0", si.FoldedPredicateCount())
 	}
 	if si.GetType(expr) != nil {
 		t.Error("GetType() after Clear should return nil")
 	}
-	if si.GetSymbol(ident) != nil {
-		t.Error("GetSymbol() after Clear should return nil")
+	if _, ok := si.FoldedPredicate(ident); ok {
+		t.Error("FoldedPredicate() after Clear should report no value")
 	}
 }
 

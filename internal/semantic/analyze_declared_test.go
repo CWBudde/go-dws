@@ -58,7 +58,7 @@ func declaredCallResults(t *testing.T, analyzer *Analyzer, program *ast.Program)
 		if !ok {
 			return true
 		}
-		if folded, ok := analyzer.GetSemanticInfo().GetSymbol(callee).(bool); ok {
+		if folded, ok := analyzer.GetSemanticInfo().FoldedPredicate(callee); ok {
 			results = append(results, folded)
 		}
 		return true

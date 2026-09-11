@@ -14,7 +14,7 @@ import (
 // semantic information the call cannot be answered at all.
 func (e *Evaluator) builtinCompileTimePredicate(funcName *ast.Identifier, node ast.Node) Value {
 	if info := e.SemanticInfo(); info != nil {
-		if folded, ok := info.GetSymbol(funcName).(bool); ok {
+		if folded, ok := info.FoldedPredicate(funcName); ok {
 			return &runtime.BooleanValue{Value: folded}
 		}
 	}

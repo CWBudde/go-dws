@@ -29,7 +29,7 @@ import (
 // **New Architecture**:
 //
 // The new design uses a separate SemanticInfo table that maps AST nodes to their
-// semantic information (types, symbols, etc.). This provides:
+// semantic information (types, folded compile-time values, etc.). This provides:
 //
 // 1. **Separation of concerns**: Parsing produces immutable AST; analysis produces
 //    separate metadata.
@@ -40,9 +40,9 @@ import (
 //
 // **Architecture Components**:
 //
-// - SemanticInfo: Main metadata table, thread-safe, maps nodes to types/symbols
+// - SemanticInfo: Main metadata table, thread-safe, maps nodes to semantic results
 // - Expression → *TypeAnnotation: Maps expression nodes to their inferred types
-// - *Identifier → Symbol: Maps identifiers to their symbol table entries (future)
+// - *Identifier → bool: Caches compile-time predicate results per call site
 //
 // **Thread Safety**:
 //
@@ -63,27 +63,28 @@ import (
 // ============================================================================
 
 // SemanticInfo holds semantic analysis results for an AST.
-// It maps AST nodes to their inferred types, resolved symbols, and other
-// semantic information. This separation allows the AST to remain immutable
-// after parsing while still supporting multiple semantic analyses.
+// It maps AST nodes to their inferred types, folded compile-time predicate
+// results, and other semantic information. This separation allows the AST to
+// remain immutable after parsing while still supporting multiple semantic
+// analyses.
 //
 // Thread Safety: SemanticInfo is safe for concurrent reads but not concurrent
 // writes. Typical usage is single-threaded analysis (writes) followed by
 // concurrent interpretation/compilation (reads).
 type SemanticInfo struct {
-	resolvedTypes map[Node]types.Type
-	types         map[Expression]*TypeAnnotation
-	symbols       map[*Identifier]interface{}
-	mu            sync.RWMutex
+	resolvedTypes    map[Node]types.Type
+	types            map[Expression]*TypeAnnotation
+	foldedPredicates map[*Identifier]bool
+	mu               sync.RWMutex
 }
 
 // NewSemanticInfo creates a new empty semantic metadata table.
 // Each semantic analysis should create its own SemanticInfo instance.
 func NewSemanticInfo() *SemanticInfo {
 	return &SemanticInfo{
-		resolvedTypes: make(map[Node]types.Type),
-		types:         make(map[Expression]*TypeAnnotation),
-		symbols:       make(map[*Identifier]interface{}),
+		resolvedTypes:    make(map[Node]types.Type),
+		types:            make(map[Expression]*TypeAnnotation),
+		foldedPredicates: make(map[*Identifier]bool),
 	}
 }
 
@@ -136,42 +137,40 @@ func (si *SemanticInfo) ClearType(expr Expression) {
 }
 
 // ============================================================================
-// Symbol Information API
+// Compile-Time Predicate Cache
 // ============================================================================
 
-// GetSymbol returns the resolved symbol for an identifier node.
-// Returns nil if no symbol has been set for this identifier.
+// FoldedPredicate returns the compile-time value the semantic analyzer folded
+// for a predicate call site, keyed by the callee identifier. The second result
+// reports whether a value was recorded at all.
 //
 // Thread-safe for concurrent reads.
-//
-// NOTE: Currently returns any to avoid circular dependency.
-// TODO: Refine to return proper Symbol type
-func (si *SemanticInfo) GetSymbol(ident *Identifier) any {
+func (si *SemanticInfo) FoldedPredicate(ident *Identifier) (bool, bool) {
 	si.mu.RLock()
 	defer si.mu.RUnlock()
-	return si.symbols[ident]
+	value, ok := si.foldedPredicates[ident]
+	return value, ok
 }
 
-// SetSymbol associates a symbol with an identifier node.
-// This is called by the semantic analyzer during name resolution.
+// SetFoldedPredicate records the compile-time result of a predicate intrinsic
+// such as Declared or ConditionalDefined. The value is keyed by the callee
+// identifier, which is unique per call site.
 //
 // Not safe for concurrent writes. Should only be called during analysis.
-//
-// NOTE: Currently accepts any to avoid circular dependency.
-// TODO: Refine to return proper Symbol type
-func (si *SemanticInfo) SetSymbol(ident *Identifier, symbol any) {
+func (si *SemanticInfo) SetFoldedPredicate(ident *Identifier, value bool) {
 	si.mu.Lock()
 	defer si.mu.Unlock()
-	si.symbols[ident] = symbol
+	si.foldedPredicates[ident] = value
 }
 
-// HasSymbol returns true if a symbol has been set for the given identifier.
+// HasFoldedPredicate returns true if a compile-time predicate value has been
+// recorded for the given identifier.
 //
 // Thread-safe for concurrent reads.
-func (si *SemanticInfo) HasSymbol(ident *Identifier) bool {
+func (si *SemanticInfo) HasFoldedPredicate(ident *Identifier) bool {
 	si.mu.RLock()
 	defer si.mu.RUnlock()
-	_, ok := si.symbols[ident]
+	_, ok := si.foldedPredicates[ident]
 	return ok
 }
 
@@ -189,14 +188,14 @@ func (si *SemanticInfo) TypeCount() int {
 	return len(si.types)
 }
 
-// SymbolCount returns the number of identifiers with symbol information.
-// Useful for statistics and testing.
+// FoldedPredicateCount returns the number of call sites with a folded
+// compile-time predicate value. Useful for statistics and testing.
 //
 // Thread-safe for concurrent reads.
-func (si *SemanticInfo) SymbolCount() int {
+func (si *SemanticInfo) FoldedPredicateCount() int {
 	si.mu.RLock()
 	defer si.mu.RUnlock()
-	return len(si.symbols)
+	return len(si.foldedPredicates)
 }
 
 // Clear removes all semantic information.
@@ -208,7 +207,7 @@ func (si *SemanticInfo) Clear() {
 	defer si.mu.Unlock()
 	si.resolvedTypes = make(map[Node]types.Type)
 	si.types = make(map[Expression]*TypeAnnotation)
-	si.symbols = make(map[*Identifier]interface{})
+	si.foldedPredicates = make(map[*Identifier]bool)
 }
 
 // GetResolvedType returns the analyzer's type object for an expression or type

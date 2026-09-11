@@ -94,7 +94,7 @@ func (a *Analyzer) foldCompileTimePredicate(callExpr *ast.CallExpression, value 
 		return
 	}
 	if callee, ok := callExpr.Function.(*ast.Identifier); ok {
-		a.semanticInfo.SetSymbol(callee, value)
+		a.semanticInfo.SetFoldedPredicate(callee, value)
 	}
 }
 
