@@ -342,7 +342,6 @@ the unbalanced report at the directive argument, column 9, where the byte-identi
 
 Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted (A11).
 
-- `[ ]` `internal/semantic/analyze_arrays.go:162` — validate index expression types against property index-parameter types.
 - `[ ]` `internal/semantic/overload_resolution.go:211` — class-hierarchy distance in overload matching.
 - `[ ]` `internal/semantic/analyze_function_calls.go:26` — use `expectedType` in overload resolution.
 - `[ ]` `internal/interp/evaluator/helpers.go:131` — enum range checking.

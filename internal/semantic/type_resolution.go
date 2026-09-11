@@ -114,6 +114,8 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 			WriteField: prop.WriteField,
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
+
+			IndexParamTypes: a.resolveRecordPropertyIndexParamTypes(prop.IndexParams),
 		}
 		switch {
 		case prop.ReadField != "":

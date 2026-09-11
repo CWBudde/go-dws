@@ -324,6 +324,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
 
+			IndexParamTypes: a.resolveRecordPropertyIndexParamTypes(prop.IndexParams),
 			IsClassProperty: prop.IsClassProperty,
 			ExternalName:    prop.ExternalName,
 		}
@@ -562,4 +563,29 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 
 	a.addStructuredError(NewAccessibleMemberError(field.Token.Pos, fieldName, recordType.Name))
 	return nil
+}
+
+// resolveRecordPropertyIndexParamTypes resolves the declared index parameter
+// types of a record property (`property Items[i : Integer] : String`).
+//
+// It returns nil when the property is not indexed or when any index parameter
+// lacks a resolvable type annotation, so that callers fall back to the accessor
+// method signature instead of validating against a partial list. Diagnostics for
+// unresolvable index parameter types are left to the declaration checks.
+func (a *Analyzer) resolveRecordPropertyIndexParamTypes(params []*ast.Parameter) []types.Type {
+	if len(params) == 0 {
+		return nil
+	}
+	resolved := make([]types.Type, 0, len(params))
+	for _, param := range params {
+		if param == nil || param.Type == nil {
+			return nil
+		}
+		paramType, err := a.resolveTypeExpression(param.Type)
+		if err != nil || paramType == nil {
+			return nil
+		}
+		resolved = append(resolved, paramType)
+	}
+	return resolved
 }
