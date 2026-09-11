@@ -349,7 +349,14 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
 - `[ ]` `internal/interp/evaluator/helpers.go:131` — enum range checking.
 - `[ ]` `internal/units/search.go:171-172` — user (`~/.dwscript/lib`) and system library search paths.
 - `[ ]` `cmd/dwscript/cmd/fmt.go:296` — real diff algorithm for `dwscript fmt --diff`.
-- `[ ]` `pkg/wasm/api.go:126,299` — custom filesystem integration for WASM.
+- `[ ]` Engine seam for `platform.Platform`. The WASM side is done: `setFileSystem()` and
+  `init({fs})` validate a host object and install it via `(*WASMPlatform).SetFileSystem`
+  (see [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md)), but
+  nothing consults it — `pkg/platform` has no importer outside `pkg/wasm`, there are no
+  file builtins (`LoadTextFromFile`/`SaveTextToFile`), and `dwscript.Options` has no
+  `WithPlatform`. Needs: a public `dwscript.WithPlatform(platform.Platform) Option`, an
+  `Engine`-held platform defaulting to `platform/native`, and file builtins routed through
+  `Engine.FS()`.
 - `[ ]` `pkg/ast/metadata.go:140,153`, `pkg/ast/type_annotation.go:58`, `pkg/ast/base.go:42` — replace `any` symbol slots with a proper `Symbol` type.
 - `[ ]` `pkg/dwscript/symbols.go:74` — report the actual scope level instead of `"global"`.
 - `[ ]` Skipped tests to revive or delete: `internal/semantic/analyze_types_test.go:130,266`,

@@ -36,15 +36,31 @@ export interface DWScriptInstance {
     on(event: 'error', callback: (error: RuntimeError) => void): void;
     on(event: 'input', callback: (prompt: string) => string | Promise<string>): void;
     version(): { version: string; build: string; platform: string };
-    setFileSystem(fs: VirtualFileSystem): void;
+    /** Returns null on success, or an Error (type 'ArgumentError') if the object is invalid. */
+    setFileSystem(fs: VirtualFileSystem | null): null | Error;
     dispose(): void;
 }
 
+export interface VirtualFileSystemEntry {
+    name: string;
+    size?: number;
+    isDir?: boolean;
+    /** Modification time in milliseconds since the epoch. */
+    modTime?: number;
+}
+
+/**
+ * Host-supplied filesystem. Every method must return synchronously: the Go
+ * side is a synchronous interface and awaiting a Promise would deadlock the
+ * WASM event loop. A method returning a thenable fails with an explicit error.
+ * Report failures by throwing.
+ */
 export interface VirtualFileSystem {
-    readFile(path: string): Promise<Uint8Array>;
-    writeFile(path: string, data: Uint8Array): Promise<void>;
-    listDir(path: string): Promise<string[]>;
-    delete(path: string): Promise<void>;
+    readFile(path: string): Uint8Array | string;
+    writeFile(path: string, data: Uint8Array): void;
+    listDir(path: string): Array<string | VirtualFileSystemEntry>;
+    delete(path: string): void;
+    exists(path: string): boolean;
 }
 
 export interface RuntimeOptions {

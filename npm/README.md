@@ -97,7 +97,8 @@ Once created, the `DWScript` instance supports the same methods documented in th
 - `run(program)` → `{ success, output, executionTime, error? }`
 - `eval(source: string)` → same as `run`
 - `on(event, callback)` for `output`, `error`, `input`
-- `setFileSystem(fs)` (currently stubbed with a warning)
+- `setFileSystem(fs)` installs a host filesystem (synchronous methods only; see
+  `docs/wasm/API.md`), returns `null` or an `ArgumentError`
 - `version()` returns `{ version, build: 'wasm', platform: 'javascript' }`
 - `dispose()` cleans up callbacks and Go handles
 
