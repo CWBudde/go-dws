@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf16"
+
+	"github.com/cwbudde/go-dws/internal/dwsfmt"
 )
 
 // Stringify renders v as a compact JSON string using DWScript's serialization
@@ -129,29 +131,7 @@ func FormatNumber(n float64) string {
 	if n >= float64(math.MinInt64) && n < float64(math.MaxInt64) && math.Round(n) == n {
 		return strconv.FormatInt(int64(math.Round(n)), 10)
 	}
-	return normalizeExponent(strconv.FormatFloat(n, 'G', 15, 64))
-}
-
-// normalizeExponent rewrites Go's exponent form (E+99, E-05) into DWScript's
-// (E99, E-5): drop a leading '+', keep '-', strip leading zeros of the exponent.
-func normalizeExponent(s string) string {
-	i := strings.IndexAny(s, "eE")
-	if i < 0 {
-		return s
-	}
-	mantissa, exp := s[:i], s[i+1:]
-	sign := ""
-	if len(exp) > 0 && (exp[0] == '+' || exp[0] == '-') {
-		if exp[0] == '-' {
-			sign = "-"
-		}
-		exp = exp[1:]
-	}
-	exp = strings.TrimLeft(exp, "0")
-	if exp == "" {
-		exp = "0"
-	}
-	return mantissa + "E" + sign + exp
+	return dwsfmt.NormalizeExponent(strconv.FormatFloat(n, 'G', dwsfmt.FloatSignificantDigits, 64))
 }
 
 const jsonHexDigits = "0123456789ABCDEF"

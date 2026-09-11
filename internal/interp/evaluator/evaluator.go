@@ -413,6 +413,13 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		previousNode := ctx.CurrentNode()
 		ctx.SetCurrentNode(node)
 		defer ctx.SetCurrentNode(previousNode)
+		// DWScript reports runtime exceptions at statement granularity, so keep
+		// track of the innermost statement independently of the current node.
+		if _, isStmt := node.(ast.Statement); isStmt {
+			previousStmt := ctx.CurrentStatement()
+			ctx.SetCurrentStatement(node)
+			defer ctx.SetCurrentStatement(previousStmt)
+		}
 	}
 
 	if ctx != nil && e.engineState != nil {

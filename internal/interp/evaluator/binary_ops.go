@@ -340,10 +340,10 @@ func (e *Evaluator) evalIntegerBinaryOp(op string, left, right Value, node ast.N
 	case "*":
 		return &runtime.IntegerValue{Value: leftVal * rightVal}
 	case "/":
-		if rightVal == 0 {
-			return e.newError(node, "division by zero: %d / %d", leftVal, rightVal)
-		}
-		// Integer division in DWScript uses / for float division
+		// `/` is always float division in DWScript, including for integer
+		// operands, and DWScript runs with FPU exceptions masked: dividing by
+		// zero yields ±Inf / NaN rather than raising. Only `div` and `mod`
+		// report a division by zero.
 		return &runtime.FloatValue{Value: float64(leftVal) / float64(rightVal)}
 	case "div":
 		if rightVal == 0 {

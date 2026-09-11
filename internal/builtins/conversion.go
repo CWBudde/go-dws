@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/dwsfmt"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
@@ -333,7 +334,7 @@ func FloatToStr(ctx Context, args []Value) Value {
 
 		// Extremely large precision falls back to default formatting
 		if prec > 15 {
-			return &runtime.StringValue{Value: strconv.FormatFloat(floatValue, 'g', -1, 64)}
+			return &runtime.StringValue{Value: dwsfmt.FloatToStr(floatValue)}
 		}
 
 		// Use fixed-point formatting, trimming trailing zeros when precision is zero
@@ -344,9 +345,9 @@ func FloatToStr(ctx Context, args []Value) Value {
 		return &runtime.StringValue{Value: result}
 	}
 
-	// Default formatting keeps significant digits without losing precision
-	result := strconv.FormatFloat(floatValue, 'g', -1, 64)
-	return &runtime.StringValue{Value: result}
+	// Default formatting follows Delphi's FloatToStr (15 significant digits,
+	// normalized exponent) so every user-visible float spelling agrees.
+	return &runtime.StringValue{Value: dwsfmt.FloatToStr(floatValue)}
 }
 
 // BoolToStr converts a boolean to its string representation.

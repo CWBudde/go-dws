@@ -485,8 +485,9 @@ func TestTypeMismatch(t *testing.T) {
 
 // TestDivisionByZero tests error handling for division by zero.
 func TestDivisionByZero(t *testing.T) {
+	// `/` is float division and DWScript masks FPU exceptions, so only the
+	// integer operators report a division by zero (5 / 0 is +Inf).
 	tests := []string{
-		"5 / 0",
 		"10 div 0",
 		"10 mod 0",
 	}

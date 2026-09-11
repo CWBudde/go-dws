@@ -297,7 +297,6 @@ begin
 	result := Float(i) / 3.0;
 	PrintLn(result);
 end.`,
-			// 15 significant digits, as DWScript's FloatToStr prints them.
 			expected: "3.33333333333333\n",
 		},
 		{

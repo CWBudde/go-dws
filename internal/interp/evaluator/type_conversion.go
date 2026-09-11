@@ -180,6 +180,34 @@ func (e *Evaluator) TryImplicitConversion(value Value, targetType types.Type, ct
 		return &runtime.IntegerValue{Value: int64(enumVal.OrdinalValue)}, true
 	}
 
+	// JSON node → scalar: a JSON immediate assigned to a typed variable becomes
+	// that type, so `var f : Float := jsonNode` really holds a Float (and prints
+	// and rounds like one) instead of staying a JSON node.
+	if converted, ok := tryJSONScalarConversion(value, targetType); ok {
+		return converted, true
+	}
+
+	return value, false
+}
+
+// tryJSONScalarConversion narrows a (possibly variant-boxed) JSON node to a base
+// scalar type. Containers and undefined nodes have no scalar value and are left
+// alone, so the caller's strict handling still applies.
+func tryJSONScalarConversion(value Value, targetType types.Type) (Value, bool) {
+	if !isJSONBoxed(value) {
+		return value, false
+	}
+	jv := jsonValueOf(value)
+	switch {
+	case types.OperatorTypesEqual(targetType, types.FLOAT):
+		if f, ok := jsonScalarFloat(jv); ok {
+			return &runtime.FloatValue{Value: f}, true
+		}
+	case types.OperatorTypesEqual(targetType, types.INTEGER):
+		if i, ok := jsonScalarInteger(jv); ok {
+			return &runtime.IntegerValue{Value: i}, true
+		}
+	}
 	return value, false
 }
 

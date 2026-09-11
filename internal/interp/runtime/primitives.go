@@ -2,9 +2,9 @@ package runtime
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 
+	"github.com/cwbudde/go-dws/internal/dwsfmt"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -131,18 +131,11 @@ func (f *FloatValue) Type() string {
 	return "FLOAT"
 }
 
-// String returns the string representation of the float.
+// String returns the string representation of the float, using Delphi's
+// FloatToStr rules (15 significant digits, normalized exponent) so printed
+// floats match DWScript.
 func (f *FloatValue) String() string {
-	if math.IsInf(f.Value, 1) {
-		return "INF"
-	}
-	if math.IsInf(f.Value, -1) {
-		return "-INF"
-	}
-	if math.IsNaN(f.Value) {
-		return "NAN"
-	}
-	return strconv.FormatFloat(f.Value, 'g', 15, 64)
+	return dwsfmt.FloatToStr(f.Value)
 }
 
 // AsInteger converts the float to an integer (truncates).
