@@ -333,3 +333,98 @@ func TestFunctionPointerCallArityVocabulary(t *testing.T) {
 		})
 	}
 }
+
+// DWScript names the type a context required and nothing else, and anchors the
+// message at the first token of the unit that owns the value — the introducer
+// where the unit has one. Recorded in loop_nonbool, repeat2,
+// ifthenelse_expression1 and contracts_types.
+func TestBooleanExpectedAnchor(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "while anchors at the keyword, not the condition",
+			input: "while 'hello' do ;",
+			want:  "Syntax Error: Boolean expected at 1:1",
+		},
+		{
+			name:  "repeat anchors at until, not at repeat",
+			input: "repeat until 'hello';",
+			want:  "Syntax Error: Boolean expected at 1:8",
+		},
+		{
+			name:  "the if-then-else expression anchors at if",
+			input: "var t1 := if 'bug' then 1 else 2;",
+			want:  "Syntax Error: Boolean expected at 1:11",
+		},
+		{
+			name:  "a contract clause has no introducer, so it anchors at the condition",
+			input: "procedure Test(i : Integer);\nrequire\n   IntToStr(i) : i;\nbegin\nend;",
+			want:  "Syntax Error: Boolean expected at 3:4",
+		},
+		{
+			name:  "a contract message re-uses the condition's anchor",
+			input: "procedure Test(i : Integer);\nrequire\n   IntToStr(i) : i;\nbegin\nend;",
+			want:  "Syntax Error: String expected at 3:4",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := analyzeWithHints(t, tt.input, HintsLevelPedantic)
+			if !containsDiagnostic(got, tt.want) {
+				t.Errorf("missing %q in %v", tt.want, got)
+			}
+		})
+	}
+}
+
+// One empty-block hint per `if`. Upstream reports only `Empty THEN block` for
+// `if True then else ;` (if_empty_terms) and reaches `Empty ELSE block` only
+// where the THEN branch has a body of its own (empty_if_block). A `while` loop
+// with an empty body draws no hint at all — `Empty FOR loop` belongs to the FOR
+// loops.
+func TestEmptyBlockHints(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    []string
+		notWant []string
+	}{
+		{
+			name:    "an empty else beside an empty then is not reported",
+			input:   "if True then else ;",
+			want:    []string{"Hint: Empty THEN block [line: 1, column: 14]"},
+			notWant: []string{"Empty ELSE block"},
+		},
+		{
+			name:    "an empty else beside a real then is reported",
+			input:   "if True then PrintLn('x') else ;",
+			want:    []string{"Hint: Empty ELSE block [line: 1, column: 32]"},
+			notWant: []string{"Empty THEN block"},
+		},
+		{
+			name:    "an empty while body draws no hint",
+			input:   "while True do ;",
+			notWant: []string{"Empty FOR loop", "Empty WHILE loop"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := analyzeWithHints(t, tt.input, HintsLevelPedantic)
+			for _, want := range tt.want {
+				if !containsDiagnostic(got, want) {
+					t.Errorf("missing %q in %v", want, got)
+				}
+			}
+			for _, unwanted := range tt.notWant {
+				if containsDiagnostic(got, unwanted) {
+					t.Errorf("unexpected %q in %v", unwanted, got)
+				}
+			}
+		})
+	}
+}

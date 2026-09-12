@@ -920,12 +920,12 @@ func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
 	// Check condition type
 	condType := a.analyzeExpression(stmt.Condition)
 	if condType != nil && !isBooleanCompatible(condType) {
-		a.addError("if condition must be boolean, got %s at %s",
-			condType.String(), stmt.Token.Pos.String())
+		a.addBooleanExpected(stmt.Token.Pos)
 	}
 
 	// Check for empty then block (hint)
-	if _, isEmpty := stmt.Consequence.(*ast.EmptyStatement); isEmpty {
+	_, thenIsEmpty := stmt.Consequence.(*ast.EmptyStatement)
+	if thenIsEmpty {
 		pos := stmt.Consequence.Pos()
 		a.addHint("Empty THEN block [line: %d, column: %d]", pos.Line, pos.Column)
 	}
@@ -935,8 +935,11 @@ func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
 
 	// Analyze alternative if present
 	if stmt.Alternative != nil {
-		// Check for empty else block (hint)
-		if _, isEmpty := stmt.Alternative.(*ast.EmptyStatement); isEmpty {
+		// Check for empty else block (hint). One hint per `if`: upstream reports
+		// only `Empty THEN block` for `if True then else ;` (if_empty_terms),
+		// and reaches `Empty ELSE block` only where the THEN branch has a body
+		// of its own (empty_if_block).
+		if _, isEmpty := stmt.Alternative.(*ast.EmptyStatement); isEmpty && !thenIsEmpty {
 			pos := stmt.Alternative.Pos()
 			a.addHint("Empty ELSE block [line: %d, column: %d]", pos.Line, pos.Column)
 		}
@@ -952,8 +955,7 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 	// Check condition type
 	condType := a.analyzeExpression(stmt.Condition)
 	if condType != nil && !isBooleanCompatible(condType) {
-		a.addError("while condition must be boolean, got %s at %s",
-			condType.String(), stmt.Token.Pos.String())
+		a.addBooleanExpected(stmt.Token.Pos)
 	}
 
 	// Enter loop for infinite loop detection
@@ -992,11 +994,9 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 		a.markLoopExitable(LoopExitBreak)
 	}
 
-	// Analyze body
-	if empty, ok := stmt.Body.(*ast.EmptyStatement); ok {
-		a.addHint("Empty FOR loop [line: %d, column: %d]",
-			empty.Token.Pos.Line, empty.Token.Pos.Column)
-	}
+	// A while loop with an empty body draws no hint. `Empty FOR loop` is the FOR
+	// loops' own, and upstream emits nothing here: loop_nonbool, loop_infinite
+	// and infinite_loop all have an empty while body and none expects a hint.
 	a.analyzeStatement(stmt.Body)
 }
 
@@ -1026,8 +1026,9 @@ func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
 	// Check condition type
 	condType := a.analyzeExpression(stmt.Condition)
 	if condType != nil && !isBooleanCompatible(condType) {
-		a.addError("repeat-until condition must be boolean, got %s at %s",
-			condType.String(), stmt.Token.Pos.String())
+		// Anchored at `until`, which owns the condition, not at `repeat`
+		// (repeat2, column 8).
+		a.addBooleanExpected(stmt.UntilPos)
 	}
 
 	// Check if loop is potentially exitable based on condition

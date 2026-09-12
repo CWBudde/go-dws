@@ -269,15 +269,6 @@ func TestErrorRecoveryRepeatStatement(t *testing.T) {
 			expectErrors:  1,
 			errorContains: []string{"expected 'until'", "repeat block"},
 		},
-		{
-			name: "empty repeat body",
-			input: `
-			repeat
-			until x > 10;
-			`,
-			expectErrors:  1,
-			errorContains: []string{"repeat block"},
-		},
 	}
 
 	for _, tt := range tests {
@@ -1121,5 +1112,23 @@ func TestGetErrorCodeForMissingToken(t *testing.T) {
 					tt.expectedCode, tt.token, code)
 			}
 		})
+	}
+}
+
+// TestEmptyRepeatBodyParses pins that an empty repeat body is legal. DWScript
+// parses `repeat until X;` as a do-while that only tests its condition and goes
+// on to check the condition itself: FailureScripts/repeat1 reports
+// `Expression expected` for a missing condition and repeat2 `Boolean expected`
+// for a non-boolean one, neither of them a complaint about the body.
+func TestEmptyRepeatBodyParses(t *testing.T) {
+	l := lexer.New("repeat until x > 10;")
+	p := New(l)
+	_ = p.ParseProgram()
+
+	if errs := p.Errors(); len(errs) != 0 {
+		for _, err := range errs {
+			t.Logf("  Error: %s", err.Message)
+		}
+		t.Fatalf("expected no parse errors, got %d", len(errs))
 	}
 }

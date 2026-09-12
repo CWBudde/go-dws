@@ -150,7 +150,7 @@ func TestIfConditionNotBoolean(t *testing.T) {
 		if x then
 			x := x + 1;
 	`
-	expectError(t, input, "if condition must be boolean")
+	expectError(t, input, "Boolean expected")
 }
 
 func TestWhileStatement(t *testing.T) {
@@ -168,7 +168,7 @@ func TestWhileConditionNotBoolean(t *testing.T) {
 		while x do
 			x := x - 1;
 	`
-	expectError(t, input, "while condition must be boolean")
+	expectError(t, input, "Boolean expected")
 }
 
 func TestRepeatStatement(t *testing.T) {
@@ -188,7 +188,7 @@ func TestRepeatConditionNotBoolean(t *testing.T) {
 			x := x + 1
 		until x;
 	`
-	expectError(t, input, "repeat-until condition must be boolean")
+	expectError(t, input, "Boolean expected")
 }
 
 func TestForStatement(t *testing.T) {

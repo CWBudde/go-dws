@@ -316,16 +316,17 @@ func (a *Analyzer) checkPreconditions(preconds *ast.PreConditions, funcName stri
 	for _, cond := range preconds.Conditions {
 		testType := a.analyzeExpression(cond.Test)
 		if testType != nil && !isBooleanCompatible(testType) {
-			a.addError("precondition must be boolean expression in function '%s', got %s at %s",
-				funcName, testType.String(), cond.Token.Pos.String())
+			a.addBooleanExpected(cond.Token.Pos)
 		}
 
 		// Message must be string (if present)
 		if cond.Message != nil {
 			msgType := a.analyzeExpression(cond.Message)
 			if msgType != nil && msgType != types.STRING {
-				a.addError("condition message must be string expression in function '%s', got %s at %s",
-					funcName, msgType.String(), cond.Token.Pos.String())
+				// The message error re-uses the condition's anchor, not the
+				// message expression's: contracts_types reports both at the
+				// clause's first token.
+				a.addStringExpected(cond.Token.Pos)
 			}
 		}
 	}
@@ -340,16 +341,17 @@ func (a *Analyzer) checkPostconditions(postconds *ast.PostConditions, funcName s
 	for _, cond := range postconds.Conditions {
 		testType := a.analyzeExpression(cond.Test)
 		if testType != nil && !isBooleanCompatible(testType) {
-			a.addError("postcondition must be boolean expression in function '%s', got %s at %s",
-				funcName, testType.String(), cond.Token.Pos.String())
+			a.addBooleanExpected(cond.Token.Pos)
 		}
 
 		// Message must be string (if present)
 		if cond.Message != nil {
 			msgType := a.analyzeExpression(cond.Message)
 			if msgType != nil && msgType != types.STRING {
-				a.addError("condition message must be string expression in function '%s', got %s at %s",
-					funcName, msgType.String(), cond.Token.Pos.String())
+				// The message error re-uses the condition's anchor, not the
+				// message expression's: contracts_types reports both at the
+				// clause's first token.
+				a.addStringExpected(cond.Token.Pos)
 			}
 		}
 

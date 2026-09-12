@@ -122,6 +122,11 @@ func (ws *WhileStatement) String() string {
 type RepeatStatement struct {
 	Body      Statement
 	Condition Expression
+	// UntilPos is the `until` keyword, which is where DWScript anchors the
+	// diagnostics that belong to the condition rather than to the loop —
+	// `repeat until 'hello';` reports `Boolean expected` at column 8, neither at
+	// the `repeat` (column 1) nor at the condition (column 14).
+	UntilPos token.Position
 	BaseNode
 }
 

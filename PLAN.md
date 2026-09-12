@@ -10,7 +10,7 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-12):** Go harness and freshly rebuilt CLI both
-**1,071 / 1,930 scored = 55%**, after §3.2.7 closed conditional compilation and a §3.3 merge
+**1,077 / 1,930 scored = 56%**, after §3.2.7 closed conditional compilation and a §3.3 merge
 train closed these runtime/evaluator items: associative arrays (key coercion, ARC destructor
 timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
 JSON ownership and number formatting, call-site column precision in stack traces, metaclass
@@ -21,10 +21,11 @@ FunctionsGlobalVars `private_vars` remainder (13/16); its runtime-panic re-measu
 with the `deprecated` directive family (five fixtures) and a re-measurement that put the
 missing-validation queue at 58, not the 82 the 2026-03 archive recorded; the constant-instruction
 hint and the array-helper receiver rules closed three more, adopting DWScript's canonical
-argument-count vocabulary closed ten, and making the keyword operators case-insensitive closed
-three, and the expression-position implicit call closed one more. Both use the shared compile
-pipeline and scoring rules.
-`*Fail` error-detection suites **153 / 640 = 23%**.
+argument-count vocabulary closed ten, making the keyword operators case-insensitive closed three,
+the expression-position implicit call closed one, and `Boolean expected` — with an empty `repeat`
+body and two miscopied empty-block hints — closed six. Both use the shared compile pipeline and
+scoring rules.
+`*Fail` error-detection suites **157 / 640 = 25%**.
 
 Where the truth lives:
 
@@ -423,7 +424,7 @@ turned into a real check, and const static-array element assignment is now diagn
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 153/640 (FailureScripts 144/529, SetOfFail 5, JSONConnectorFail 2,
+Harness and CLI: 157/640 (FailureScripts 148/529, SetOfFail 5, JSONConnectorFail 2,
 AssociativeFail 1, InterfacesFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
@@ -507,6 +508,29 @@ dynamic arrays`), and the ones needing actual storage are refused on a bare type
 (`Array instance expected`) — `Low` excepted, since it is 0 for every dynamic array, as are a
 static array's bounds. `FailureScripts/ignore_result`, `array_static_methods` and `dyn_array4`
 pass; fixtures 1,054 → 1,057.
+
+**Done (2026-09-12):** `Boolean expected`. Not an F5 slice — every fixture it closed already
+printed something, and F5's silent list is unchanged at 48 — but message parity of the same kind,
+plus two genuine defects found while measuring it. DWScript names the type a context
+required and nothing else — not the type it got, not the construct that wanted it — so every
+wrong-typed condition in the language reports `Boolean expected` (`if`, `while`, `until`, the
+if-then-else expression, `require`, `ensure`) and a contract's message half reports
+`String expected`, re-using the condition's anchor rather than the message expression's. The anchor
+is the first token of the smallest unit that owns the value, and where that unit has an introducer
+the introducer wins over the expression: `while` at column 1 rather than the condition at 7,
+`until` at 8 rather than `repeat` at 1 or the condition at 14. `ast.RepeatStatement` carried only
+the `repeat` keyword and now carries `UntilPos`. The `Infinite loop` warning is deliberately left
+alone: `loop_infinite` wants it on `until`, `infinite_loop` on the condition, and both arrived in
+the same import commit, so the suite does not say which is right. An empty `repeat` body is legal —
+`repeat until X;` is a do-while that only tests its condition — and the parser's guard against it
+was what kept `repeat1` and `repeat2` from ever reaching the condition. Two empty-block hints were
+also wrong, found by measurement rather than looked for: `analyzeWhile` emitted `Empty FOR loop`
+(the FOR loops' own hint; upstream emits none for a while), and `Empty ELSE block` was reported
+beside an equally empty THEN, where upstream gives one hint per `if`. Closed `contracts_types`,
+`loop_nonbool`, `repeat1`, `repeat2`, `if_empty_terms` and `ifthenelse_optimize1`. Still open in
+this bucket: `assert` and `enum_byname` want the same sentences anchored at the *argument* rather
+than the call, `ifthenelse_expression1` fails on parser recovery after `if 2=2 1`, and
+`contracts_error2` needs a builtin to resolve inside a `require` clause.
 
 **Done (2026-09-12):** the expression-position implicit call, the fourth F5 slice. DWScript reads
 a routine name as a call and converts it back to a reference only where the context wants a
