@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1057 |
-| Failed | 873 |
+| Passed | 1067 |
+| Failed | 863 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **55%** (1057/1930) |
+| **Scored pass rate** | **55%** (1067/1930) |
 
 ## Per-category
 
@@ -39,7 +39,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 132 | 397 | 13 | 25% |
+| FailureScripts | 542 | 141 | 388 | 13 | 27% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -59,7 +59,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | IniFileLib | 2 | 0 | 2 | 0 | 0% |
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
 | InnerClassesPass | 2 | 2 | 0 | 0 | 100% |
-| InterfacesFail | 19 | 0 | 19 | 0 | 0% |
+| InterfacesFail | 19 | 1 | 18 | 0 | 5% |
 | InterfacesPass | 33 | 16 | 12 | 5 | 57% |
 | JSFilterScripts | 2 | 0 | 0 | 2 | 0% |
 | JSFilterScriptsFail | 1 | 0 | 0 | 1 | 0% |

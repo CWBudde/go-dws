@@ -513,8 +513,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					a.recordClassMethodUsage(methodOwner, funcIdent.Value)
 				}
 				if len(expr.Arguments) != len(methodType.Parameters) {
-					a.addError("method '%s' expects %d arguments, got %d at %s",
-						funcIdent.Value, len(methodType.Parameters), len(expr.Arguments), expr.Token.Pos.String())
+					a.addArgumentCountError(funcIdent.Token.Pos, len(expr.Arguments),
+						len(methodType.Parameters), len(methodType.Parameters))
 					return methodType.ReturnType
 				}
 				for i, arg := range expr.Arguments {
@@ -658,35 +658,28 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	overloadSet := a.symbols.GetOverloadSet(funcIdent.Value)
 	hasOverloads := sym.IsOverloadSet || len(overloadSet) > 1
 
-	// Check argument count (handles optional parameters)
-	requiredParams := 0
-	for _, defaultVal := range funcType.DefaultValues {
-		if defaultVal == nil {
-			requiredParams++
-		}
-	}
+	// Check argument count (handles optional parameters). requiredParamCount
+	// treats absent default-value metadata as "all parameters required", which a
+	// bare count of nil entries would read as "all optional".
+	requiredParams := requiredParamCount(funcType)
 
-	if len(expr.Arguments) < requiredParams {
-		if requiredParams == len(funcType.Parameters) {
-			a.addError("function '%s' expects %d arguments, got %d at %s",
-				funcIdent.Value, requiredParams, len(expr.Arguments),
-				expr.Token.Pos.String())
-		} else {
-			a.addError("function '%s' expects at least %d arguments, got %d at %s",
-				funcIdent.Value, requiredParams, len(expr.Arguments),
-				expr.Token.Pos.String())
-		}
-		return nil
-	}
-	if len(expr.Arguments) > len(funcType.Parameters) {
-		a.addError("function '%s' expects at most %d arguments, got %d at %s",
-			funcIdent.Value, len(funcType.Parameters), len(expr.Arguments),
-			expr.Token.Pos.String())
-		return nil
-	}
+	// Upstream type-checks the arguments it was handed before it counts them:
+	// `Test('')` against `Test(a: Integer; b: String)` reports the unusable first
+	// argument and stays silent about the missing second one. Only a call whose
+	// supplied arguments all fit draws the count diagnostic.
+	//
+	// Only the plain-call path does this. The method, record, helper and
+	// constructor paths still report the count first; `func_params1` is the only
+	// fixture that pins the ordering, so the others were left as they were rather
+	// than changed without a fixture to measure against.
+	argCountMismatch := len(expr.Arguments) < requiredParams || len(expr.Arguments) > len(funcType.Parameters)
+	diagnosticsBeforeArgs := len(a.errors)
 
 	// Check argument types (handles lazy and var parameters)
 	for i, arg := range expr.Arguments {
+		if i >= len(funcType.Parameters) {
+			break
+		}
 		expectedType := funcType.Parameters[i]
 		isLazy := len(funcType.LazyParams) > i && funcType.LazyParams[i]
 		isVar := len(funcType.VarParams) > i && funcType.VarParams[i]
@@ -750,6 +743,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				}
 			}
 		}
+	}
+
+	if argCountMismatch {
+		if len(a.errors) == diagnosticsBeforeArgs {
+			a.addArgumentCountError(funcIdent.Token.Pos, len(expr.Arguments),
+				requiredParams, len(funcType.Parameters))
+		}
+		return nil
 	}
 
 	return funcType.ReturnType
@@ -976,9 +977,8 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 
 	// Validate argument count
 	if len(expr.Arguments) != len(selectedSignature.Parameters) {
-		a.addError("constructor '%s' expects %d arguments, got %d at %s",
-			constructorName, len(selectedSignature.Parameters), len(expr.Arguments),
-			expr.Token.Pos.String())
+		a.addArgumentCountError(callNamePos(expr.Function, expr.Token.Pos), len(expr.Arguments),
+			len(selectedSignature.Parameters), len(selectedSignature.Parameters))
 		return classType
 	}
 

@@ -119,7 +119,7 @@ func TestFunctionCallWrongArgumentCount(t *testing.T) {
 
 		var x := Add(5);
 	`
-	expectError(t, input, "expects 2 arguments, got 1")
+	expectError(t, input, "More arguments expected")
 }
 
 func TestFunctionCallWrongArgumentType(t *testing.T) {

@@ -231,9 +231,12 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 
 	if len(matchingCountConstructors) == 0 {
 		if len(validConstructors) > 0 {
-			a.addError("constructor '%s' expects %d arguments, got %d at %s",
-				constructorName, len(validConstructors[0].Signature.Parameters), len(expr.Arguments),
-				expr.Token.Pos.String())
+			// The bounds come from the whole set, not from whichever overload was
+			// declared first: a class with both `Create` and `Create(Integer)`
+			// accepts nothing outside 0..1, and `new T(1, 2)` is over that, not
+			// short of the first signature.
+			minWanted, maxWanted := constructorArityBounds(validConstructors)
+			a.addArgumentCountError(newExpressionNamePos(expr), len(expr.Arguments), minWanted, maxWanted)
 		} else {
 			a.addError("class '%s' has no constructor that accepts %d arguments at %s",
 				className, len(expr.Arguments), expr.Token.Pos.String())
@@ -959,4 +962,40 @@ func (a *Analyzer) maybeAddUnnamedEnumElementHint(expr ast.Expression, pos token
 	}
 
 	a.addHint("Enumeration element is unnamed or out of range [line: %d, column: %d]", pos.Line, pos.Column)
+}
+
+// newExpressionNamePos returns the token an argument-count diagnostic on a
+// `new` expression is anchored at: the class name, or the operand expression
+// for the parenthesized `new (Type)(...)` forms.
+func newExpressionNamePos(expr *ast.NewExpression) token.Position {
+	switch {
+	case expr.ClassName != nil:
+		return expr.ClassName.Token.Pos
+	case expr.Operand != nil:
+		return expr.Operand.Pos()
+	default:
+		return expr.Token.Pos
+	}
+}
+
+// constructorArityBounds returns the smallest number of arguments any of the
+// constructors requires and the largest number any of them accepts.
+func constructorArityBounds(constructors []*types.MethodInfo) (int, int) {
+	minWanted, maxWanted := -1, 0
+	for _, ctor := range constructors {
+		if ctor == nil || ctor.Signature == nil {
+			continue
+		}
+		required := requiredParamCount(ctor.Signature)
+		if minWanted < 0 || required < minWanted {
+			minWanted = required
+		}
+		if declared := len(ctor.Signature.Parameters); declared > maxWanted {
+			maxWanted = declared
+		}
+	}
+	if minWanted < 0 {
+		minWanted = 0
+	}
+	return minWanted, maxWanted
 }

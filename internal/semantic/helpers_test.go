@@ -291,7 +291,7 @@ func TestHelperMethodParameters(t *testing.T) {
 				end.
 			`,
 			expectError: true,
-			errorMsg:    "expects 1 arguments, got 0",
+			errorMsg:    "More arguments expected",
 		},
 		{
 			name: "wrong parameter type",

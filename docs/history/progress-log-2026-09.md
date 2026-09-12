@@ -3247,3 +3247,148 @@ just fixture-update                                              # FailureScript
 The per-fixture failure list was diffed against a worktree at `origin/main` rather than trusting
 the category totals: the baselines are floors, so a one-for-one swap would not have shown up in
 `just fixture-update`. That diff is what caught both regressions above.
+
+## 2026-09-12 — DWScript's argument-count vocabulary (§4 / F5)
+
+### The vocabulary
+
+go-dws described every argument-count problem in its own words and anchored the message at the
+opening parenthesis:
+
+```
+Syntax Error: method 'Test' of class 'TMyClass' expects 2 arguments, got 1 [line: 13, column: 10]
+```
+
+DWScript has three fixed sentences for the whole language and names neither the routine nor the
+counts, because the message is raised from the argument reader, which knows only that it ran out
+of arguments or was handed too many:
+
+```
+Syntax Error: More arguments expected [line: 13, column: 11]
+Syntax Error: Too many arguments
+Syntax Error: No arguments expected
+```
+
+`No arguments expected` is the narrow one: `array_error6` uses it for `a.Low(1)`, where the
+helper declares no parameters at all, and `Too many arguments` everywhere else — including
+`('hello').Test('456')` against a function helper, whose one declared parameter is bound to the
+receiver. So the wording follows the *declared* parameter count, not the number of arguments the
+call site is allowed to write.
+
+The anchor is the token naming the routine: `Test` in `Test(1)`, the member name in `c.Test(1)`
+and `TTest.Test`, the class name in `new TMyClass`. The one exception is the intrinsic array
+helpers, which upstream reaches through a different reader and anchors one column past the name
+(`a.SetLength;` → column 12, the semicolon); that convention was already implemented in
+`arrayHelperCallDiagnosticPos` and is untouched.
+
+Every arity check at a call site that *names a routine* now uses `addArgumentCountError`, which
+picks the sentence from `(got, minWanted, maxWanted)`: plain calls, class methods, interface and
+record methods, helper methods, constructors and `new`. No fixture asserted the old wording — the
+expected files are upstream's output — so this could only help; the only assertions that had to
+change were unit tests.
+
+Three paths were deliberately left alone, and the comment on `addArgumentCountError` says so: the
+specialized built-in analyzers (`Length`, `Low`, `DecodeDate`, `FloatToStrF`, …), the
+signature-driven registry path in `reportBuiltinArity`, and function-pointer calls. Each carries
+its own per-built-in diagnostic policy, so converting them is a separate, separately measurable
+slice rather than a rename.
+
+For the constructor paths the bounds come from the whole overload set rather than from whichever
+signature is declared first: a class with `Create` and `Create(Integer)` accepts 0..1, so
+`new T(1, 2)` is over the top, not short of the parameterless one.
+
+### Type errors outrank the count
+
+`func_params1` pins an ordering that is not obvious:
+
+```pascal
+Test('');       // Argument 0 expects type "Integer" instead of "String"
+Test(1);        // More arguments expected
+```
+
+Both calls are one argument short of `Test(a: Integer; b: String)`, but only the second reports
+it. Upstream type-checks the arguments it was handed *before* it counts them and stops at the
+first that does not fit, so a short call whose arguments are also wrong reports the type error
+alone. The function-call path now type-checks the overlapping prefix first and reports the count
+only when that produced nothing.
+
+This is implemented for the plain-call path only. `func_params1` is the single fixture that pins
+the ordering, and the method, record, helper and constructor paths still report the count first;
+changing them without a fixture to measure against would have been a guess.
+
+### The implicit call
+
+A bare routine name in statement position is a call in DWScript — `Test;` is `Test()` — so a
+routine with required parameters is short of them. `checkImplicitCallArity` runs on
+`ExpressionStatement` beside the constant-instruction hint and covers a name resolving to a
+user routine, a method of the enclosing class, a method reached through a class or metaclass
+(`TTest.Test;`), a method reached through `Self`, an overload set answered from its members
+rather than from a type it does not have, and a built-in, whose minimum arity comes from the
+registry rather than from `isBuiltinFunction`, which answers a different question.
+
+Two things it must not do. It is suppressed after a failed parse, like the constant-instruction
+hint, because recovered fragments say nothing about the source. And it is overload-aware across
+the whole class hierarchy: `OverloadsPass/meth_overload_hide` declares `Test(f: Float)` in the
+base, parameterless `Test` in the middle class and `Test(a: Integer)` in the leaf, so
+`GetMethod` — which stops at the first level that has the name — answers with a signature that
+needs an argument while the parameterless overload two levels up is what `s.Test;` means. Both
+`meth_overload_hide` and `overload_non_overload_in_subclass` regressed on the first attempt and
+are the reason `classAcceptsNoArguments` walks parents.
+
+Only statement position is covered. In an expression the same name may be a reference rather than
+a call, and which one it is depends on the expected type. Upstream resolves that too — a function
+reference that does not fit the expected pointer type is re-read as a call, which is why
+`func_ptr_mismatch` expects `More arguments expected` on `@Test` before the type error — but that
+rule is not implemented here and is recorded in PLAN.md §4/F5 with the six fixtures waiting on it.
+
+### Overloaded built-ins
+
+`Abs`, `Sqr`, `Min` and `Max` are declared upstream as overload sets, one signature per operand
+type, not as single magic functions. They therefore name no parameter and no count: any call they
+cannot match — wrong arity or wrong types — reports
+`There is no overloaded version of "X" that can be called with these arguments`, anchored at the
+name. `sqr` is three of those on three different bad argument types, and `missing_param1b` is the
+bare `Max;`. The set lives in `overloadedBuiltins` and the dedicated analyzers in
+`analyze_builtin_math_basic.go` report the same sentence for a bad argument type.
+
+### Two smaller rules
+
+The bare array-helper member form (`a.SetLength;`) now reports the missing argument for every
+helper that needs one, not only the eight that were listed; `Add`, `Push`, `SetLength`,
+`IndexOf`, `Map` and `Join` were missing.
+
+An indexed property named without its indices is a read of the accessor with no arguments, so
+`Val.Bug;` reports `More arguments expected` at `Val` before the member error on `Bug`
+(`property_error10`). The diagnostic is suppressed while analyzing the base of an index list —
+`analyzeIndexBase` sets `inIndexBase`, and only for a bare name, so the property inside a larger
+base (`Box(Val)[0]`, where the index belongs to `Box`'s result) is still reported — since `Val[1]`
+supplies what the property wants. Note
+that implicit-Self indexed property *access* is still unsupported: `Val[1]` inside a method
+reports `Array expected` exactly as it did before this change, and that gap is not touched here.
+
+### Not done deliberately
+
+`new_class3` now matches its first line but still lacks
+`Method "Doh" of class "TMyClass" not implemented` — a declared-but-unimplemented constructor is
+a different check. `array_method1` (`arr.SetLength[5]`) is one line short of
+`Invalid Instruction - function or assignment expected`. `HelpersFail/function_helper` and
+`helper_explicit` need explicit helper-call syntax (`TDummy.Next(2)`, where the receiver is
+passed as the first argument), which is a feature rather than a wording change.
+
+### Validation
+
+```
+go test ./internal/semantic ./internal/types ./internal/parser   # green
+go test ./...                                                    # green
+golangci-lint run --new-from-merge-base=origin/main --timeout 10m # 0 issues
+go run ./cmd/fixture-report -list-fails                          # +10, no regressions
+just fixture-update                                              # FailureScripts 132 -> 141, InterfacesFail 0 -> 1
+```
+
+Closed: `FailureScripts/dyn_array_setlength3`, `func_params1`, `method_missing_arg`,
+`missing_param1`, `missing_param1b`, `missing_param2`, `missing_param3`, `property_error10`,
+`sqr`, `InterfacesFail/error_in_method`. Fixtures 1,057 → 1,067; F5's silent list 55 → 48.
+
+The per-fixture failure list was captured before the first edit and re-diffed after each step,
+because the baselines are floors and a one-for-one swap is invisible to `just fixture-update`.
+That diff is what caught the two overload regressions above.

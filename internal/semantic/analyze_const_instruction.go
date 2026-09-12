@@ -77,8 +77,10 @@ func (a *Analyzer) isConstantInstruction(expr ast.Expression) bool {
 		*ast.BooleanLiteral, *ast.CharLiteral:
 		return true
 	case *ast.Identifier:
-		sym, ok := a.symbols.Resolve(e.Value)
-		return ok && sym.IsConst
+		if sym, ok := a.symbols.Resolve(e.Value); ok {
+			return sym.IsConst
+		}
+		return a.isConstantBareBuiltin(e.Value)
 	case *ast.UnaryExpression:
 		return a.isConstantInstruction(e.Right)
 	case *ast.BinaryExpression:
@@ -135,4 +137,16 @@ func (a *Analyzer) isConstantArrayMember(expr *ast.MemberAccessExpression) bool 
 		return true
 	}
 	return false
+}
+
+// isConstantBareBuiltin reports a built-in named without an argument list that
+// upstream still folds to a constant, such as `MaxInt;`. The name must be
+// stateless and callable with no arguments; MaxInt also accepts two, so the
+// maximum arity says nothing and only the minimum is consulted.
+func (a *Analyzer) isConstantBareBuiltin(name string) bool {
+	if !statelessBuiltins[ident.Normalize(name)] {
+		return false
+	}
+	sig, ok := a.builtinRegistry.GetSignature(name)
+	return ok && sig.MinArgs == 0
 }

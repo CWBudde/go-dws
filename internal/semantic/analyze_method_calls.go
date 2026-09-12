@@ -99,9 +99,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Validate arguments
 		if len(expr.Arguments) != len(methodType.Parameters) {
-			a.addError("method '%s' expects %d arguments, got %d at %s",
-				methodName, len(methodType.Parameters), len(expr.Arguments),
-				expr.Token.Pos.String())
+			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
+				len(methodType.Parameters), len(methodType.Parameters))
 			return methodType.ReturnType
 		}
 
@@ -238,9 +237,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			// Validate method arguments (defaulted parameters are optional)
 			if len(expr.Arguments) > len(method.Parameters) ||
 				len(expr.Arguments) < requiredParamCount(method) {
-				a.addError("record method '%s' expects %d arguments, got %d at %s",
-					methodName, len(method.Parameters), len(expr.Arguments),
-					expr.Token.Pos.String())
+				a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
+					requiredParamCount(method), len(method.Parameters))
 				return method.ReturnType
 			}
 
@@ -318,17 +316,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check argument count is within valid range
 		if len(expr.Arguments) < requiredParams || len(expr.Arguments) > len(helperMethod.Parameters) {
-			if requiredParams == len(helperMethod.Parameters) {
-				// All parameters are required
-				a.addError("helper method '%s' expects %d arguments, got %d at %s",
-					methodName, len(helperMethod.Parameters), len(expr.Arguments),
-					expr.Token.Pos.String())
-			} else {
-				// Method has optional parameters
-				a.addError("helper method '%s' expects %d-%d arguments, got %d at %s",
-					methodName, requiredParams, len(helperMethod.Parameters), len(expr.Arguments),
-					expr.Token.Pos.String())
-			}
+			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
+				requiredParams, len(helperMethod.Parameters))
 			return helperMethod.ReturnType
 		}
 
@@ -400,9 +389,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		if len(expr.Arguments) > len(methodType.Parameters) ||
 			len(expr.Arguments) < requiredParamCount(methodType) {
-			a.addError("constructor '%s' of class '%s' expects %d arguments, got %d at %s",
-				methodName, classType.Name, len(methodType.Parameters), len(expr.Arguments),
-				expr.Token.Pos.String())
+			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
+				requiredParamCount(methodType), len(methodType.Parameters))
 			return classType
 		}
 
@@ -552,9 +540,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	if len(overloads) <= 1 {
 		// Check argument count
 		if len(expr.Arguments) != len(methodType.Parameters) {
-			a.addError("method '%s' of class '%s' expects %d arguments, got %d at %s",
-				methodName, classType.Name, len(methodType.Parameters), len(expr.Arguments),
-				expr.Token.Pos.String())
+			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
+				len(methodType.Parameters), len(methodType.Parameters))
 			return methodType.ReturnType
 		}
 

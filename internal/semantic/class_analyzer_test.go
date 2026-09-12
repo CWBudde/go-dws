@@ -263,7 +263,7 @@ func TestNewExpressionWrongConstructorArgs(t *testing.T) {
 
 		var p := TPoint.Create(10);
 	`
-	expectError(t, input, "expects 2 arguments, got 1")
+	expectError(t, input, "More arguments expected")
 }
 
 func TestNewExpressionWrongConstructorArgTypes(t *testing.T) {
@@ -332,7 +332,7 @@ func TestNewKeywordConstructorArgMismatch(t *testing.T) {
 
 		var p := new TPoint(10);
 	`
-	expectError(t, input, "expects 2 arguments, got 1")
+	expectError(t, input, "More arguments expected")
 }
 
 // ============================================================================

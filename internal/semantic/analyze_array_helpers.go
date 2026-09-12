@@ -303,8 +303,23 @@ func (a *Analyzer) analyzeArrayMemberAccess(expr *ast.MemberAccessExpression, ar
 	case types.HelperArrayCopy:
 		// Copy with no arguments duplicates the whole array.
 		return arrayType
-	case types.HelperArrayDelete, types.HelperArrayRemove, types.HelperArrayInsert, types.HelperArrayMove, types.HelperArraySwap, types.HelperArrayForEach, types.HelperArrayContains, types.HelperArrayFilter:
+	case types.HelperArrayDelete, types.HelperArrayRemove, types.HelperArrayInsert, types.HelperArrayMove,
+		types.HelperArraySwap, types.HelperArrayForEach, types.HelperArrayContains, types.HelperArrayFilter,
+		types.HelperArrayAdd, types.HelperArrayPush, types.HelperArraySetLength, types.HelperArrayIndexOf,
+		types.HelperArrayMap, types.HelperArrayJoin:
+		// Every helper here needs at least one argument, so the bare member form
+		// is always short of one. The remaining helpers answer from the array
+		// alone and are legitimate without parentheses.
 		a.addArrayHelperTooFewArgs(expr)
+		if memberNameLower == "indexof" {
+			return types.INTEGER
+		}
+		if memberNameLower == "join" {
+			return types.STRING
+		}
+		if memberNameLower == "map" {
+			return types.NewDynamicArrayType(arrayType.ElementType)
+		}
 		if memberNameLower == "remove" {
 			return types.INTEGER
 		}
