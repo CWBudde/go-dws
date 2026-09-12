@@ -9,8 +9,8 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-11):** Go harness and freshly rebuilt CLI both
-**1,039 / 1,928 scored = 54%**, after §3.2.7 closed conditional compilation and a §3.3 merge
+**Headline (2026-09-12):** Go harness and freshly rebuilt CLI both
+**1,044 / 1,930 scored = 54%**, after §3.2.7 closed conditional compilation and a §3.3 merge
 train closed these runtime/evaluator items: associative arrays (key coercion, ARC destructor
 timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
 JSON ownership and number formatting, call-site column precision in stack traces, metaclass
@@ -18,7 +18,7 @@ method pointers, and the ByteBuffer, EncodingLib, GlobalVars, FunctionsTime, Fun
 FunctionsDebug and InnerClasses host libraries. §3.3 itself stays open: the runtime-panic
 re-measurement, Memory (1/13) and the FunctionsGlobalVars remainder (12/16). Both use the shared
 compile pipeline and scoring rules.
-`*Fail` error-detection suites **130 / 647 = 20%**.
+`*Fail` error-detection suites **134 / 640 = 21%**.
 
 Where the truth lives:
 
@@ -38,7 +38,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (889 total): FailureScripts 406, SimpleScripts 87,
+- Where the remaining failures are (886 total): FailureScripts 403, SimpleScripts 87,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -347,7 +347,6 @@ while clearing the §3.4 skipped-test backlog; the commented-out
 
 Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted (A11).
 
-- `[ ]` `internal/semantic/overload_resolution.go:211` — class-hierarchy distance in overload matching.
 - `[ ]` Expected-type overload resolution (was `analyze_function_calls.go:26`): the dead `expectedType`
   parameter is gone; the note now sits at the dispatch in `internal/semantic/analyze_expressions.go`.
   Return type is not part of overload identity (`types.SignaturesEqual`), so an expected type can only
@@ -364,6 +363,20 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
   `Engine`-held platform defaulting to `platform/native`, and file builtins routed through
   `Engine.FS()`.
 
+**Done (2026-09-12):** class-hierarchy distance in overload matching. The TODO this item named
+(`internal/semantic/overload_resolution.go:211`) no longer exists — that file is now an 81-line
+facade over `internal/types`, and `types.SignatureDistance` has ranked class arguments by
+inheritance steps (`classDistance`) since the type-system consolidation. Measured and pinned with
+regression tests: given `TC < TB < TA` and overloads on `TA` and `TB`, a `TC` argument now
+provably selects `TB`. Nothing was implemented; the item was stale bookkeeping.
+
+**Done (2026-09-12):** the three `t.Skip`ped class-operator inheritance tests in
+`internal/interp/operator_test.go` are revived. The "pre-existing bug in operator inheritance
+with mixed types" they documented does not exist: multi-level and deep-hierarchy operator
+resolution already worked, and the third test failed only because its constructor parameter `id`
+shadows the field `ID` — DWScript is case-insensitive, so `ID := id` is a self-assignment and the
+field is never written. Renaming the parameter is the fix; the scoping behaviour is correct.
+
 **Done (2026-09-11):** the skipped-test backlog is cleared — every entry was revived, deleted or
 turned into a real check, and const static-array element assignment is now diagnosed
 (`FailureScripts` 125 → 126). See
@@ -373,7 +386,7 @@ turned into a real check, and const static-array element assignment is now diagn
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 130/647 (FailureScripts 122/528, SetOfFail 5, JSONConnectorFail 2,
+Harness and CLI: 134/640 (FailureScripts 126/529, SetOfFail 5, JSONConnectorFail 2,
 AssociativeFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with

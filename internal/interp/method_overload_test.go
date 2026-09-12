@@ -431,3 +431,75 @@ func runScriptTest(t *testing.T, script, expectedOutput string) {
 		t.Errorf("Output mismatch:\nExpected:\n%s\n\nGot:\n%s", expected, actualOutput)
 	}
 }
+
+// ============================================================================
+// Class-hierarchy distance in overload resolution (PLAN.md §3.4)
+// ============================================================================
+
+// TestOverload_ClassHierarchyDistance pins that an argument whose class is
+// derived from several candidate parameter types selects the *nearest*
+// ancestor, not merely the first assignable one. TC derives from TB derives
+// from TA, so F(TC) must reach the TB overload (one inheritance step) rather
+// than the TA overload (two).
+func TestOverload_ClassHierarchyDistance(t *testing.T) {
+	script := `
+type TA = class end;
+type TB = class(TA) end;
+type TC = class(TB) end;
+
+procedure F(x: TA); overload;
+begin
+	PrintLn('TA');
+end;
+
+procedure F(x: TB); overload;
+begin
+	PrintLn('TB');
+end;
+
+var a := TA.Create;
+var b := TB.Create;
+var c := TC.Create;
+begin
+	F(c);
+	F(b);
+	F(a);
+end
+`
+
+	runScriptTest(t, script, "TB\nTB\nTA")
+}
+
+// TestOverload_ClassHierarchyDistance_Semantic runs the same program through
+// the semantic analyzer as well, so the analyzer's ranking and the evaluator's
+// independent runtime resolution are pinned to the same answer.
+func TestOverload_ClassHierarchyDistance_Semantic(t *testing.T) {
+	script := `
+type TShape = class end;
+type TRound = class(TShape) end;
+type TCircle = class(TRound) end;
+
+function Name(s: TShape): String; overload;
+begin
+	Result := 'shape';
+end;
+
+function Name(r: TRound): String; overload;
+begin
+	Result := 'round';
+end;
+
+var c := TCircle.Create;
+begin
+	PrintLn(Name(c));
+end
+`
+
+	result, output := testEvalWithOutputAndSemantic(t, script)
+	if isError(result) {
+		t.Fatalf("unexpected error: %s", result)
+	}
+	if output != "round\n" {
+		t.Errorf("expected the nearest ancestor overload to win, got %q", output)
+	}
+}
