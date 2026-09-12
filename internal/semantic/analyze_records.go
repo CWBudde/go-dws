@@ -338,6 +338,9 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
 
+			DeprecatedMessage: prop.DeprecatedMessage,
+			IsDeprecated:      prop.IsDeprecated,
+
 			IndexParamTypes: a.resolveRecordPropertyIndexParamTypes(prop.IndexParams),
 			IsClassProperty: prop.IsClassProperty,
 			ExternalName:    prop.ExternalName,
@@ -541,6 +544,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	if recordType.Properties != nil {
 		propInfo, propExists := recordType.Properties[lowerFieldName]
 		if propExists {
+			a.warnDeprecatedRecordPropertyUsage(propInfo, field.Token.Pos)
 			if propInfo.Name != "" && propInfo.Name != fieldName && ident.Equal(propInfo.Name, fieldName) {
 				a.addCaseMismatchHint(fieldName, propInfo.Name, field.Token.Pos)
 			}

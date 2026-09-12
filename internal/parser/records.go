@@ -655,5 +655,24 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 		p.cursor = cursor
 	}
 
+	// Then the optional `deprecated ['msg'];` directive, which may follow either
+	// the property's own semicolon or the one after `default`.
+	if cursor.Peek(1).Type == lexer.DEPRECATED {
+		cursor = cursor.Advance() // move to 'deprecated'
+		p.cursor = cursor
+		prop.IsDeprecated = true
+		if cursor.Peek(1).Type == lexer.STRING {
+			cursor = cursor.Advance() // move to the message literal
+			p.cursor = cursor
+			prop.DeprecatedMessage = cursor.Current().Literal
+		}
+		if cursor.Peek(1).Type != lexer.SEMICOLON {
+			p.addError("expected ';' after 'deprecated'", ErrMissingSemicolon)
+			return nil
+		}
+		cursor = cursor.Advance() // move to SEMICOLON
+		p.cursor = cursor
+	}
+
 	return prop
 }

@@ -277,6 +277,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	if sym.Name != "" && sym.Name != identifier.Value && ident.Equal(sym.Name, identifier.Value) {
 		a.addCaseMismatchHint(identifier.Value, sym.Name, identifier.Token.Pos)
 	}
+	a.warnDeprecatedSymbolUsage(sym, identifier.Token.Pos)
 	a.recordSymbolUsage(sym.Name, identifier.Token.Pos)
 	a.recordResolvedSymbolFieldUsage(sym)
 

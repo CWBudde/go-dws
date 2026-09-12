@@ -39,9 +39,14 @@ type PropertyDecl struct {
 	// IsExternal is true for `property Name: Type external 'JsonKey' ...`.
 	// ExternalName holds the quoted name, which replaces the declared name when
 	// the object is serialized (JSON.Stringify).
-	IsExternal      bool
-	ExternalName    string
-	IsClassProperty bool
+	IsExternal   bool
+	ExternalName string
+	// DeprecatedMessage is the text of a `deprecated 'msg'` directive written
+	// after the declaration; a bare `deprecated;` leaves it empty and sets
+	// IsDeprecated alone.
+	DeprecatedMessage string
+	IsDeprecated      bool
+	IsClassProperty   bool
 	// IsAutoProperty is true when the property was declared without read/write
 	// specifiers (e.g. `property Alpha: Integer;`). The parser desugars it to
 	// read/write the synthesized backing field `F<Name>` and, while assembling
