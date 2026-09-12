@@ -3281,11 +3281,21 @@ helpers, which upstream reaches through a different reader and anchors one colum
 (`a.SetLength;` → column 12, the semicolon); that convention was already implemented in
 `arrayHelperCallDiagnosticPos` and is untouched.
 
-Every call-site arity check now uses `addArgumentCountError`, which picks the sentence from
-`(got, minWanted, maxWanted)`: plain calls, class methods, interface and record methods, helper
-methods, constructors and `new`. No fixture asserted the old wording — the expected files are
-upstream's output — so this could only help; the only assertions that had to change were unit
-tests.
+Every arity check at a call site that *names a routine* now uses `addArgumentCountError`, which
+picks the sentence from `(got, minWanted, maxWanted)`: plain calls, class methods, interface and
+record methods, helper methods, constructors and `new`. No fixture asserted the old wording — the
+expected files are upstream's output — so this could only help; the only assertions that had to
+change were unit tests.
+
+Three paths were deliberately left alone, and the comment on `addArgumentCountError` says so: the
+specialized built-in analyzers (`Length`, `Low`, `DecodeDate`, `FloatToStrF`, …), the
+signature-driven registry path in `reportBuiltinArity`, and function-pointer calls. Each carries
+its own per-built-in diagnostic policy, so converting them is a separate, separately measurable
+slice rather than a rename.
+
+For the constructor paths the bounds come from the whole overload set rather than from whichever
+signature is declared first: a class with `Create` and `Create(Integer)` accepts 0..1, so
+`new T(1, 2)` is over the top, not short of the parameterless one.
 
 ### Type errors outrank the count
 
@@ -3302,14 +3312,19 @@ first that does not fit, so a short call whose arguments are also wrong reports 
 alone. The function-call path now type-checks the overlapping prefix first and reports the count
 only when that produced nothing.
 
+This is implemented for the plain-call path only. `func_params1` is the single fixture that pins
+the ordering, and the method, record, helper and constructor paths still report the count first;
+changing them without a fixture to measure against would have been a guess.
+
 ### The implicit call
 
 A bare routine name in statement position is a call in DWScript — `Test;` is `Test()` — so a
 routine with required parameters is short of them. `checkImplicitCallArity` runs on
 `ExpressionStatement` beside the constant-instruction hint and covers a name resolving to a
 user routine, a method of the enclosing class, a method reached through a class or metaclass
-(`TTest.Test;`), and a built-in, whose minimum arity comes from the registry rather than from
-`isBuiltinFunction`, which answers a different question.
+(`TTest.Test;`), a method reached through `Self`, an overload set answered from its members
+rather than from a type it does not have, and a built-in, whose minimum arity comes from the
+registry rather than from `isBuiltinFunction`, which answers a different question.
 
 Two things it must not do. It is suppressed after a failed parse, like the constant-instruction
 hint, because recovered fragments say nothing about the source. And it is overload-aware across
@@ -3345,7 +3360,9 @@ helper that needs one, not only the eight that were listed; `Add`, `Push`, `SetL
 An indexed property named without its indices is a read of the accessor with no arguments, so
 `Val.Bug;` reports `More arguments expected` at `Val` before the member error on `Bug`
 (`property_error10`). The diagnostic is suppressed while analyzing the base of an index list —
-`analyzeIndexBase` sets `inIndexBase` — since `Val[1]` supplies what the property wants. Note
+`analyzeIndexBase` sets `inIndexBase`, and only for a bare name, so the property inside a larger
+base (`Box(Val)[0]`, where the index belongs to `Box`'s result) is still reported — since `Val[1]`
+supplies what the property wants. Note
 that implicit-Self indexed property *access* is still unsupported: `Val[1]` inside a method
 reports `Array expected` exactly as it did before this change, and that gap is not touched here.
 

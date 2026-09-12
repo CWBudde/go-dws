@@ -37,6 +37,19 @@ func TestImplicitCallArity(t *testing.T) {
 			input: "var a : array of Integer;\na.SetLength;",
 			want:  "More arguments expected at 2:12",
 		},
+		{
+			name: "overload set with no parameterless member",
+			input: "procedure Test(i : Integer); overload;\nbegin\nend;\n" +
+				"procedure Test(s : String); overload;\nbegin\nend;\n\nTest;",
+			want: "More arguments expected at 8:1",
+		},
+		{
+			name: "method reached through Self",
+			input: "type TTest = class\n   procedure Doit(i : Integer);\n   procedure Run;\nend;\n" +
+				"procedure TTest.Doit(i : Integer);\nbegin\nend;\n" +
+				"procedure TTest.Run;\nbegin\n   Self.Doit;\nend;",
+			want: "More arguments expected at 10:9",
+		},
 	}
 
 	for _, tt := range tests {
@@ -70,6 +83,11 @@ func TestImplicitCallArityNotReported(t *testing.T) {
 		{
 			name:  "array helper that needs no argument",
 			input: "var a : array of Integer;\na.Clear;",
+		},
+		{
+			name: "overload set with a parameterless member",
+			input: "procedure Test; overload;\nbegin\nend;\n" +
+				"procedure Test(i : Integer); overload;\nbegin\nend;\n\nTest;",
 		},
 		{
 			name:  "indexed property supplied with its index",
@@ -176,5 +194,20 @@ func TestBareStatelessBuiltinIsConstantInstruction(t *testing.T) {
 	}
 	if !containsDiagnostic(got, "Hint: Constant Instruction - has no effect [line: 2, column: 1]") {
 		t.Errorf("missing constant-instruction hint in %v", got)
+	}
+}
+
+// The count a constructor call is measured against comes from the whole overload
+// set, not from whichever signature happens to be declared first: a class with
+// both `Create` and `Create(Integer)` accepts 0..1 arguments, so two is over the
+// top rather than short of the parameterless one.
+func TestConstructorArityBoundsSpanTheOverloadSet(t *testing.T) {
+	input := "type T = class\n   constructor Create;\n   constructor Create(i : Integer); overload;\nend;\n" +
+		"constructor T.Create;\nbegin\nend;\n" +
+		"constructor T.Create(i : Integer);\nbegin\nend;\n\n" +
+		"var x := new T(1, 2);"
+	got := analyzeWithHints(t, input, HintsLevelPedantic)
+	if !hasDiagnosticContaining(got, "Too many arguments") {
+		t.Errorf("expected the count to be measured against the whole set, got %v", got)
 	}
 }

@@ -51,10 +51,10 @@ func (a *Analyzer) implicitCallNeedsArguments(identifier *ast.Identifier) (token
 		if a.currentFunction != nil && ident.Equal(a.currentFunction.Name.Value, identifier.Value) {
 			return pos, false
 		}
-		// An overload set with a parameterless member is satisfied by the bare
-		// name; overload resolution picks that one.
-		if a.parameterlessOverloadType(identifier) != nil {
-			return pos, false
+		// An overload set has no type of its own, so it is answered from its
+		// members: the bare name is a call to whichever overload takes none.
+		if sym.IsOverloadSet {
+			return pos, !overloadSetAcceptsNoArguments(a.symbols.GetOverloadSet(identifier.Value))
 		}
 		funcType, isFunc := sym.Type.(*types.FunctionType)
 		if !isFunc {
@@ -139,6 +139,15 @@ func classAcceptsNoArguments(classType *types.ClassType, name string) bool {
 // implicit-call check runs, so re-analyzing it here would duplicate every
 // diagnostic it produced.
 func (a *Analyzer) inferMemberObjectType(object ast.Expression) types.Type {
+	if _, isSelf := object.(*ast.SelfExpression); isSelf {
+		if a.currentClass == nil {
+			return nil
+		}
+		if a.inClassMethod {
+			return types.NewClassOfType(a.currentClass)
+		}
+		return a.currentClass
+	}
 	objIdent, ok := object.(*ast.Identifier)
 	if !ok {
 		return nil
@@ -161,4 +170,16 @@ func (a *Analyzer) builtinCanonicalName(name string) string {
 		}
 	}
 	return name
+}
+
+// overloadSetAcceptsNoArguments reports whether any member of an overload set
+// can be called without arguments.
+func overloadSetAcceptsNoArguments(overloads []*Symbol) bool {
+	for _, overload := range overloads {
+		funcType, isFunc := overload.Type.(*types.FunctionType)
+		if isFunc && requiredParamCount(funcType) == 0 {
+			return true
+		}
+	}
+	return false
 }

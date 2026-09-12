@@ -658,18 +658,20 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	overloadSet := a.symbols.GetOverloadSet(funcIdent.Value)
 	hasOverloads := sym.IsOverloadSet || len(overloadSet) > 1
 
-	// Check argument count (handles optional parameters)
-	requiredParams := 0
-	for _, defaultVal := range funcType.DefaultValues {
-		if defaultVal == nil {
-			requiredParams++
-		}
-	}
+	// Check argument count (handles optional parameters). requiredParamCount
+	// treats absent default-value metadata as "all parameters required", which a
+	// bare count of nil entries would read as "all optional".
+	requiredParams := requiredParamCount(funcType)
 
 	// Upstream type-checks the arguments it was handed before it counts them:
 	// `Test('')` against `Test(a: Integer; b: String)` reports the unusable first
 	// argument and stays silent about the missing second one. Only a call whose
 	// supplied arguments all fit draws the count diagnostic.
+	//
+	// Only the plain-call path does this. The method, record, helper and
+	// constructor paths still report the count first; `func_params1` is the only
+	// fixture that pins the ordering, so the others were left as they were rather
+	// than changed without a fixture to measure against.
 	argCountMismatch := len(expr.Arguments) < requiredParams || len(expr.Arguments) > len(funcType.Parameters)
 	diagnosticsBeforeArgs := len(a.errors)
 

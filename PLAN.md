@@ -498,15 +498,18 @@ pass; fixtures 1,054 → 1,057.
 go-dws named the routine and the counts (`function 'Test' expects 2 arguments, got 1`) and
 anchored at the opening parenthesis; upstream says only `More arguments expected`,
 `Too many arguments` or `No arguments expected`, anchored at the name being called, and the last
-of those only when the routine declares no parameters at all. Every call-site arity check —
-plain calls, methods, interface and record methods, helper methods, constructors and `new` —
-now says that, and three rules that follow from it shipped with it. A bare routine name in
+of those only when the routine declares no parameters at all. Every arity check at a call site
+that *names a routine* — plain calls, methods, interface and record methods, helper methods,
+constructors and `new` — now says that, and three rules that follow from it shipped with it.
+(The specialized built-in analyzers, the signature-driven registry path and function-pointer
+calls still describe their own counts; converting those is a separate slice.) A bare routine name in
 statement position is a call, so `Test;`, `Sin;` and `TTest.Test;` report the missing arguments
 (overload-aware across the class hierarchy, or `meth_overload_hide` would have regressed); the
 array helpers that need an argument report it in the bare member form too; and an indexed
 property named without its indices reads the accessor with nothing. Upstream also type-checks
 the arguments it was handed *before* it counts them, so a short call whose arguments do not fit
-reports the type error alone. Finally, the built-ins DWScript declares as overload sets — `Abs`,
+reports the type error alone — implemented for the plain-call path only, since `func_params1` is
+the one fixture pinning the ordering. Finally, the built-ins DWScript declares as overload sets — `Abs`,
 `Sqr`, `Min`, `Max` — name no count at all: any call they cannot match reports
 `There is no overloaded version of "X" that can be called with these arguments`.
 `FailureScripts/dyn_array_setlength3`, `func_params1`, `method_missing_arg`, `missing_param1`,

@@ -35,6 +35,14 @@ func (a *Analyzer) addNoArgumentsExpected(pos token.Position) {
 }
 
 // addArgumentCountError picks the wording upstream uses for the given counts.
+//
+// It is used by the call sites that name a routine — plain calls, class,
+// interface, record and helper methods, constructors and `new`. The
+// specialized built-in analyzers (Length, Low, DecodeDate, FloatToStrF, …), the
+// signature-driven registry path in reportBuiltinArity, and function-pointer
+// calls still describe their own counts; converting those is a separate,
+// separately measurable change, since each carries its own per-built-in
+// diagnostic policy.
 func (a *Analyzer) addArgumentCountError(pos token.Position, got, minWanted, maxWanted int) {
 	switch {
 	case got < minWanted:
