@@ -10,7 +10,7 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-12):** Go harness and freshly rebuilt CLI both
-**1,070 / 1,930 scored = 55%**, after §3.2.7 closed conditional compilation and a §3.3 merge
+**1,071 / 1,930 scored = 55%**, after §3.2.7 closed conditional compilation and a §3.3 merge
 train closed these runtime/evaluator items: associative arrays (key coercion, ARC destructor
 timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
 JSON ownership and number formatting, call-site column precision in stack traces, metaclass
@@ -22,8 +22,9 @@ with the `deprecated` directive family (five fixtures) and a re-measurement that
 missing-validation queue at 58, not the 82 the 2026-03 archive recorded; the constant-instruction
 hint and the array-helper receiver rules closed three more, adopting DWScript's canonical
 argument-count vocabulary closed ten, and making the keyword operators case-insensitive closed
-three. Both use the shared compile pipeline and scoring rules.
-`*Fail` error-detection suites **152 / 640 = 23%**.
+three, and the expression-position implicit call closed one more. Both use the shared compile
+pipeline and scoring rules.
+`*Fail` error-detection suites **153 / 640 = 23%**.
 
 Where the truth lives:
 
@@ -422,7 +423,7 @@ turned into a real check, and const static-array element assignment is now diagn
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 152/640 (FailureScripts 143/529, SetOfFail 5, JSONConnectorFail 2,
+Harness and CLI: 153/640 (FailureScripts 144/529, SetOfFail 5, JSONConnectorFail 2,
 AssociativeFail 1, InterfacesFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
@@ -454,12 +455,18 @@ Work families (from the 2026-03 FailureScripts analysis, now archived at
     `ord`, `enum_flags_overflow`, `default_params2`, `for_var_usage`, `case_of_else`, …
     - `Constant Instruction - has no effect` still has one holder, `class_const4`, where upstream
     reports it as an **error** on a class-const declaration rather than a hint on a statement.
-    - `func_ptr_mismatch` needs the *expression-position* implicit call: upstream re-reads a
-    function reference that does not fit the expected pointer type as a call, so `@Test` draws
-    `More arguments expected` before the type error. The statement-position rule shipped;
-    this one did not, and it is what `array_of_proc`, `array_of_proc2`,
-    `const_procedure_array`, `callback_err_vs_nil`, `func_ptr1` and `func_ptr4` are also
-    waiting on (those are not in the 48 — they already print something).
+    - `func_ptr_mismatch` still prints nothing, but no longer for want of the implicit call,
+    which shipped 2026-09-12. Two things are missing instead. `const` does not survive the
+    `types.FunctionType` → `types.FunctionPointerType` conversion, which has no slot for
+    parameter modifiers, so `@Test` is judged compatible with `procedure(Foo: string)` and
+    nothing is reported; and the message needs DWScript's rendering of routine types,
+    `"procedure Test(const String)"`, which `errors.SimplifyTypeName` truncates at the first
+    `(` to `"procedure"`. `func_ptr4` (`"class function ClassType: TClass"`) and `func_ptr1`
+    (`"procedure TMyProc"`, plus `Assignment's right-side-argument has no return type`) need
+    the same renderer. `array_of_proc`, `array_of_proc2` and `const_procedure_array` now emit
+    the arity error and need the array constructor's own unification diagnostic,
+    `Incompatible types: "void" and "nil"`, whose positions are not the element's — `[5:11]`
+    is the `]` and `[5:9]` the whitespace after the comma.
   Two of these are blocked on missing AST position data rather than on the check itself:
   `enum_flags_overflow` needs a per-element position on `ast.EnumValue` (only `EnumDecl` has
   one today), and `default_params2` needs a constant-folded comparison of two default-value
@@ -500,6 +507,23 @@ dynamic arrays`), and the ones needing actual storage are refused on a bare type
 (`Array instance expected`) — `Low` excepted, since it is 0 for every dynamic array, as are a
 static array's bounds. `FailureScripts/ignore_result`, `array_static_methods` and `dyn_array4`
 pass; fixtures 1,054 → 1,057.
+
+**Done (2026-09-12):** the expression-position implicit call, the fourth F5 slice. DWScript reads
+a routine name as a call and converts it back to a reference only where the context wants a
+function pointer whose signature the routine actually fits; where the conversion does not apply the
+call reading stands, so a routine with required parameters draws `More arguments expected` before
+the type error. `func_ptr1` pins both sides: `p := Proc2` reports it, `p := Proc4` does not, because
+`Proc4()` is well-formed. go-dws defaults the other way — `analyzeIdentifier` returns a pointer type
+— so rather than invert that, the rule is applied where the context has already rejected the
+reference (`checkPointerContextArity`), at four sites: a bare name in a pointer context, a bare name
+in any other value context, `@Routine`, and a function-pointer operand of `=`/`<>`. The operand case
+has no name token and is anchored at the operator, alongside the `Invalid Operands` that follows it.
+The intrinsic array helpers are exempt — `a.ForEach(IntToStr)` keeps the reference reading and names
+the routine's own signature — so their callback argument goes through
+`analyzeArrayHelperCallbackArg`. Calls *through* a pointer, the third path the argument-count slice
+left alone, now use the same two sentences and no longer leak a non-wire-format line; a miscounted
+call yields the pointer's result type rather than nil, which had produced a spurious
+`'p' is not a function` on top of the arity error. Closed `callback_err_vs_nil`.
 
 **Done (2026-09-12):** DWScript's canonical argument-count vocabulary, the third F5 slice.
 go-dws named the routine and the counts (`function 'Test' expects 2 arguments, got 1`) and
