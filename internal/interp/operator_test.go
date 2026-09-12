@@ -104,12 +104,8 @@ end
 	}
 }
 
-// TestClassOperatorMultiLevelInheritance tests that operators work with grandchild classes
-// SKIP: This test exposes a pre-existing bug in operator inheritance where operands with
-// different runtime types lose their values. Bug existed before refactoring.
-// TODO: Fix the underlying bug where inheritance matching doesn't properly handle mixed types
+// TestClassOperatorMultiLevelInheritance tests that operators work with grandchild classes.
 func TestClassOperatorMultiLevelInheritance(t *testing.T) {
-	t.Skip("Skipping due to pre-existing bug in operator inheritance with mixed types")
 	input := `
 type TGrandParent = class
   Value: Integer;
@@ -163,14 +159,14 @@ end
 	}
 }
 
-// TestClassOperatorMixedParentChild tests operator with one parent and one child operand
-// SKIP: Exposes pre-existing bug - see TestClassOperatorMultiLevelInheritance
+// TestClassOperatorMixedParentChild tests operator with one parent and one child operand.
+// The constructor parameter is deliberately not named "id": DWScript is case-insensitive,
+// so a parameter "id" would shadow the field "ID" and "ID := id" would be a self-assignment.
 func TestClassOperatorMixedParentChild(t *testing.T) {
-	t.Skip("Skipping due to pre-existing bug in operator inheritance with mixed types")
 	input := `
 type TBase = class
   ID: String;
-  constructor Create(id: String);
+  constructor Create(anID: String);
   function Merge(other: TBase): TBase;
   class operator + (TBase, TBase) : TBase uses Merge;
 end;
@@ -179,9 +175,9 @@ type TDerived = class(TBase)
   Extra: String;
 end;
 
-constructor TBase.Create(id: String);
+constructor TBase.Create(anID: String);
 begin
-  ID := id;
+  ID := anID;
 end;
 
 function TBase.Merge(other: TBase): TBase;
@@ -270,10 +266,8 @@ end
 	}
 }
 
-// TestClassOperatorDeepHierarchy tests operator resolution with deeper inheritance chains
-// SKIP: Exposes pre-existing bug - see TestClassOperatorMultiLevelInheritance
+// TestClassOperatorDeepHierarchy tests operator resolution with deeper inheritance chains.
 func TestClassOperatorDeepHierarchy(t *testing.T) {
-	t.Skip("Skipping due to pre-existing bug in operator inheritance with mixed types")
 	input := `
 type TLevel0 = class
   Depth: Integer;

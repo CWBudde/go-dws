@@ -2825,3 +2825,49 @@ the var-block counterpart to the existing `TestFactorialSimple` that the note st
 **Validation:** `go test ./internal/parser/... ./internal/semantic/... ./cmd/...` green;
 `just build` green; fixtures 1043 → 1044 with `SetOfPass` unchanged at 25/25 and no category
 regressing. Baselines ratcheted and `TEST_STATUS.md` regenerated.
+
+## 2026-09-12 — Two stale §3.4 items, measured and closed
+
+Both remaining non-blocked entries in the §3.4 source-TODO backlog turned out to describe work
+that was already done. Neither needed an implementation; both needed a measurement and a test, so
+the claim stops resting on a comment.
+
+### Class-hierarchy distance in overload matching
+
+The item named `internal/semantic/overload_resolution.go:211`. There is no such line: that file is
+now an 81-line facade whose `ResolveOverload` delegates to `internal/types`, and the ranking it
+delegates to already scores a class argument by the number of inheritance steps to the parameter
+type (`types.classDistance`, called from `typeDistance`). The consolidation that moved it there
+carried the behaviour along and left the TODO behind.
+
+Measured end to end: with `TC` derived from `TB` derived from `TA` and overloads declared on `TA`
+and `TB`, a `TC` argument selects the `TB` overload — one step, not two — while a `TA` argument
+still selects `TA`. Two regression tests in `internal/interp/method_overload_test.go` pin it,
+`TestOverload_ClassHierarchyDistance` through the evaluator and
+`TestOverload_ClassHierarchyDistance_Semantic` through the analyzer as well, so the analyzer's
+ranking and the evaluator's independent runtime resolution are held to the same answer.
+
+### The class-operator inheritance skips
+
+`internal/interp/operator_test.go` carried three `t.Skip`s pointing at one another and at a
+"pre-existing bug in operator inheritance where operands with different runtime types lose their
+values". Revived, two pass unchanged: `TestClassOperatorMultiLevelInheritance` (an operator
+declared on `TGrandParent` invoked on `TParent`/`TChild` operands in every combination) and
+`TestClassOperatorDeepHierarchy` (four levels).
+
+The third, `TestClassOperatorMixedParentChild`, did fail — printing two empty lines — but not for
+the documented reason. Its constructor is `constructor Create(id: String)` and its field is
+`ID: String`, so `ID := id` assigns the parameter to itself: DWScript is case-insensitive, the
+parameter shadows the field, and the field is never written. The operator then merges two empty
+strings. Renaming the parameter to `anID` makes the test pass and the operator resolution was
+never involved — confirmed by reducing the script until no operator remained and `parent.ID` was
+still empty.
+
+The shadowing itself is correct Pascal scoping and is left as is; the test comment now says why the
+parameter is not named `id`, so the trap is not re-laid.
+
+**Validation:** `go test ./...` green; `just build` green; `golangci-lint run
+--new-from-merge-base=origin/main` clean. Fixtures unchanged at 1044 — the change is test-only, so
+`baselines.json` and `TEST_STATUS.md` need no regeneration. PLAN.md §0 and §4 headline counts
+re-measured against the current `TEST_STATUS.md` (1044/1930; `*Fail` 134/640, FailureScripts
+126/529), which had drifted behind the §3.4 merge train.
