@@ -439,3 +439,100 @@ func TestUnitErrorCases(t *testing.T) {
 		})
 	}
 }
+
+// TestUnitWithoutSectionKeywords covers a unit that omits `interface` and
+// `implementation` entirely and simply lists its declarations after the header
+// — the shape used by the FunctionsGlobalVars private-variable fixtures. Such a
+// unit also ends without a trailing `end.`.
+func TestUnitWithoutSectionKeywords(t *testing.T) {
+	input := `unit TestUnit;
+
+procedure PrepareTest;
+begin
+	PrintLn('ready');
+end;
+
+procedure RunTest;
+begin
+	PrintLn('run');
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program should have 1 statement, got=%d", len(program.Statements))
+	}
+
+	unit, ok := program.Statements[0].(*ast.UnitDeclaration)
+	if !ok {
+		t.Fatalf("statement is not *ast.UnitDeclaration, got=%T", program.Statements[0])
+	}
+
+	if unit.ImplementationSection == nil {
+		t.Fatal("a section-less unit's declarations should land in the implementation section")
+	}
+
+	var functions int
+	for _, stmt := range unit.ImplementationSection.Statements {
+		if _, isFunc := stmt.(*ast.FunctionDecl); isFunc {
+			functions++
+		}
+	}
+	if functions != 2 {
+		t.Errorf("expected both procedures to be parsed, got %d", functions)
+	}
+}
+
+// TestUnitWithoutSectionKeywordsAndUses covers the same shape with a leading
+// uses clause, which must not be mistaken for the start of a section.
+func TestUnitWithoutSectionKeywordsAndUses(t *testing.T) {
+	input := `unit TestUnit;
+
+uses OtherUnit;
+
+procedure RunTest;
+begin
+	PrintLn('run');
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	unit, ok := program.Statements[0].(*ast.UnitDeclaration)
+	if !ok {
+		t.Fatalf("statement is not *ast.UnitDeclaration, got=%T", program.Statements[0])
+	}
+	if unit.ImplementationSection == nil {
+		t.Fatal("unit should have an implicit implementation section")
+	}
+
+	// The leading uses clause is recorded by the unit-header recovery path and
+	// so may sit in either section; what matters is that it survives and that
+	// the declarations after it are still parsed.
+	var sawUses, sawFunc bool
+	sections := []*ast.BlockStatement{unit.InterfaceSection, unit.ImplementationSection}
+	for _, section := range sections {
+		if section == nil {
+			continue
+		}
+		for _, stmt := range section.Statements {
+			switch stmt.(type) {
+			case *ast.UsesClause:
+				sawUses = true
+			case *ast.FunctionDecl:
+				sawFunc = true
+			}
+		}
+	}
+	if !sawUses {
+		t.Error("the uses clause should be retained")
+	}
+	if !sawFunc {
+		t.Error("the procedure following the uses clause should still be parsed")
+	}
+}

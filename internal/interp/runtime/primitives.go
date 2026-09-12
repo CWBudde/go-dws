@@ -352,6 +352,13 @@ type NilValue struct {
 	// ClassType stores the expected class type for this nil value (if any).
 	// This allows accessing class variables via nil instances: var b: TBase; b.ClassVar
 	ClassType string // e.g., "TBase"
+
+	// IsMetaclass marks a nil that stands for an unassigned `class of X`
+	// variable rather than an unassigned object reference. DWScript reports
+	// the two mistakes differently ("ClassType is nil" vs "Object not
+	// instantiated"), and by the time the error is raised the declared type is
+	// no longer reachable, so the value has to carry the distinction.
+	IsMetaclass bool
 }
 
 // Type returns "NIL".
@@ -377,7 +384,7 @@ func (n *NilValue) Equals(other Value) (bool, error) {
 
 // Copy returns a copy of the nil value.
 func (n *NilValue) Copy() Value {
-	return &NilValue{ClassType: n.ClassType}
+	return &NilValue{ClassType: n.ClassType, IsMetaclass: n.IsMetaclass}
 }
 
 // GetTypedClassName returns the class type name for typed nil values.

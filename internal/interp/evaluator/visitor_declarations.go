@@ -297,23 +297,9 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	defer ctx.SetEnv(savedEnv)
 
 	// Resolve inheritance (explicit parent or implicit TObject)
-	var parentClass interface{}
-	var parentClassName string
-	if node.Parent != nil {
-		parentClassName = node.Parent.Value
-		parentClass = e.typeSystem.LookupClass(parentClassName)
-		if parentClass == nil {
-			return e.newError(node, "parent class '%s' not found", parentClassName)
-		}
-	} else {
-		// Implicit TObject inheritance (unless this IS TObject or external)
-		if !ident.Equal(className, "TObject") && !node.IsExternal {
-			parentClassName = "TObject"
-			parentClass = e.typeSystem.LookupClass(parentClassName)
-			if parentClass == nil {
-				return e.newError(node, "implicit parent class 'TObject' not found")
-			}
-		}
+	parentClass, parentClassName, parentErr := e.resolveParentClass(node, className, ctx)
+	if parentErr != nil {
+		return parentErr
 	}
 
 	// Set parent reference and inherit members
@@ -322,14 +308,8 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	}
 
 	// Process implemented interfaces
-	for _, ifaceIdent := range node.Interfaces {
-		ifaceName := ifaceIdent.Value
-		iface := e.typeSystem.LookupInterface(ifaceName)
-		if iface == nil {
-			return e.newError(node, "interface '%s' not found", ifaceName)
-		}
-
-		classInfo.AddImplementedInterface(iface, ifaceName)
+	if errValue := e.attachImplementedInterfaces(node, classInfo); errValue != nil {
+		return errValue
 	}
 
 	// Evaluate class constants (sequentially to allow dependencies)

@@ -1463,6 +1463,12 @@ func (e *Evaluator) createZeroValueForResolvedType(resolved types.Type, ctx *Exe
 		return runtime.NewSetValue(typ)
 	case *types.SubrangeType:
 		return runtime.NewSubrangeValueZero(typ)
+	case *types.ClassOfType:
+		// An unassigned `class of X` variable is nil, but a nil metaclass is a
+		// distinct mistake from a nil object reference and DWScript reports it
+		// as "ClassType is nil". The declared type is gone by the time the
+		// error is raised, so the value carries the distinction.
+		return &runtime.NilValue{IsMetaclass: true}
 	}
 	if types.GetUnderlyingType(resolved) == types.JSON_VARIANT {
 		return boxJSON(nil)

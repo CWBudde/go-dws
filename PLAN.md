@@ -10,14 +10,15 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-12):** Go harness and freshly rebuilt CLI both
-**1,044 / 1,930 scored = 54%**, after §3.2.7 closed conditional compilation and a §3.3 merge
+**1,049 / 1,930 scored = 54%**, after §3.2.7 closed conditional compilation and a §3.3 merge
 train closed these runtime/evaluator items: associative arrays (key coercion, ARC destructor
 timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
 JSON ownership and number formatting, call-site column precision in stack traces, metaclass
 method pointers, and the ByteBuffer, EncodingLib, GlobalVars, FunctionsTime, FunctionsVariant,
-FunctionsDebug and InnerClasses host libraries. §3.3 itself stays open: the runtime-panic
-re-measurement, Memory (1/13) and the FunctionsGlobalVars remainder (12/16). Both use the shared
-compile pipeline and scoring rules.
+FunctionsDebug and InnerClasses host libraries. §3.3 itself stays open: Memory (1/13) and the
+FunctionsGlobalVars `private_vars` remainder (13/16); its runtime-panic re-measurement closed
+2026-09-12, finding no panics and three ordinary dispatch/alias defects instead. Both use the
+shared compile pipeline and scoring rules.
 `*Fail` error-detection suites **134 / 640 = 21%**.
 
 Where the truth lives:
@@ -38,7 +39,7 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (886 total): FailureScripts 403, SimpleScripts 87,
+- Where the remaining failures are (881 total): FailureScripts 403, SimpleScripts 82,
   host-library categories ~200, everything else < 40 per category.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
@@ -321,9 +322,6 @@ while clearing the §3.4 skipped-test backlog; the commented-out
 
 ### 3.3 Runtime / evaluator
 
-- `[ ]` S Re-measure the runtime-panic fixtures (metaclass `ClassName`, class-method dispatch,
-  `class of`); the common cases were closed in July, the rest was never re-listed.
-  `just fixture-report --category SimpleScripts --list-fails` (identical to the harness list).
 - `[ ]` M Triage the remaining untouched in-scope category: Memory (1/13). Its two scored
   fails (`external_constructor_exception`, `external_constructor_exception2`) need host-exposed
   external classes (`TExposedClass`), which is host-integration territory; the other ten have no
@@ -332,16 +330,36 @@ while clearing the §3.4 skipped-test backlog; the commented-out
   The categories this section used to list are now closed: FunctionsByteBuffer 19/19 (see
   [`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md)), FunctionsTime 27/27,
   FunctionsVariant 9/9, FunctionsDebug 3/3, InnerClassesPass 2/2 and EncodingLib 12/12.
-- `[ ]` S FunctionsGlobalVars remainder (12/16, library shipped — see
-  [`docs/guide/global-vars.md`](docs/guide/global-vars.md)). Two unrelated causes:
-  `private_vars` needs the per-unit `WritePrivateVar`/`ReadPrivateVar`/`PrivateVarsNames`/
-  `CleanupPrivateVars` family **and** a parser fix (a unit without `interface`/`implementation`
-  sections fails with `expected 'end' to close unit declaration`); `queue_snapshot` fails only
-  on a spurious case hint for the array pseudo-method `join`, which upstream emits for
-  `array of String` (ArrayPass `dynamic_array_remove` expects it) but not for the
-  non-string array this fixture builds.
+- `[ ]` M FunctionsGlobalVars `private_vars` (13/16, library shipped — see
+  [`docs/guide/global-vars.md`](docs/guide/global-vars.md)). The parser half is done
+  (2026-09-12): a unit written without `interface`/`implementation` sections now parses. What
+  remains is the per-unit `WritePrivateVar`/`ReadPrivateVar`/`PrivateVarsNames`/
+  `CleanupPrivateVars` family, and the blocker is **unit identity at run time**, which nothing
+  currently tracks: neither `runtime.MethodMetadata`/`FunctionMetadata` nor the execution
+  context records which unit a body came from. Needs, in order: (1) record the declaring unit on
+  callable metadata when `ImportUnitSymbols` installs it; (2) carry it on the call stack so the
+  executing unit is known; (3) add `CurrentUnit() string` to `builtins.Context`; (4) implement
+  the four builtins over a per-unit store keyed by that name, raising
+  `Private variables cannot be referred from main module` when the caller is the main module.
+  Sized M rather than S because of (1)–(3), not the builtins.
+- ✋ FunctionsGlobalVars `queue_snapshot`: measured 2026-09-12, the produced output already
+  matches the expectation exactly, line for line. The only difference is four
+  `"join" does not match case of declaration ("Join")` hints, and the discriminator is not
+  recoverable: our analyzer types `Map`'s result from the callback's return type, so the
+  receiver here is `array of String` — the same element type as `ArrayPass/dynamic_array_remove`,
+  where upstream *does* emit the hint. Making these two disagree would mean regressing `Map`'s
+  return-type inference to match a hint quirk. This is the §5 case-mismatch won't-fix, not a
+  GlobalVars gap.
 - ✋ UTF-16 surrogate iteration (`for_in_str`, `for_in_str2`): intentional divergence, see
   [`docs/decisions/string-encoding.md`](docs/decisions/string-encoding.md).
+
+**Done (2026-09-12):** the runtime-panic re-measurement, which found no panics at all. All 87
+then-failing `SimpleScripts` fixtures were run through the CLI and none produced a Go panic or
+goroutine dump (there is no `recover` on the run path, so one would surface). The three areas the
+item named were failing for ordinary, concrete reasons instead, and all three are now fixed —
+nil-metaclass message parity, class aliases as class names, and non-virtual/`reintroduce`
+dispatch. `SimpleScripts` 349 → 354, fixtures 1044 → 1049. See
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-12--the-runtime-panic-re-measurement-33).
 
 ### 3.4 Source TODO backlog (merged from the former `TODOs.md`)
 
