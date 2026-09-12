@@ -36,6 +36,16 @@ func TestRun_RuntimeMessageVocabulary(t *testing.T) {
 			want:   "Runtime Error: Upper bound exceeded! Index 3",
 		},
 		{
+			name:   "string write below the first character",
+			source: "var s := 'string'; s[0] := '!';",
+			want:   "Runtime Error: Lower bound exceeded! Index 0",
+		},
+		{
+			name:   "string write past the last character",
+			source: "var s := 'ab'; s[3] := '!';",
+			want:   "Runtime Error: Upper bound exceeded! Index 3",
+		},
+		{
 			name:   "call to an unbound external routine",
 			source: "function Dummy(p : Integer) : String; external; Dummy(12);",
 			want:   `Runtime Error: Unhandled call to external symbol "Dummy" from`,
@@ -56,17 +66,37 @@ func TestRun_RuntimeMessageVocabulary(t *testing.T) {
 }
 
 // TestRun_StringIndexOutOfRangeIsCatchable pins that a bad string index raises a
-// script exception rather than killing the program: SimpleScripts/string_bounds
-// wraps four such accesses in try/except and expects execution to continue.
+// script exception rather than killing the program, for reads and writes alike.
+// This held before the messages were unified and has to keep holding after:
+// SimpleScripts/string_bounds wraps four out-of-range *writes* in try/except and
+// expects execution to continue past each.
 func TestRun_StringIndexOutOfRangeIsCatchable(t *testing.T) {
-	out, err := captureRun(t, "var s := 'a'; try PrintLn(s[0]); except PrintLn('caught'); end; PrintLn('after');", nil, nil)
-	if err != nil {
-		t.Fatalf("expected the exception to be caught, got %v\n%s", err, out)
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{
+			name:   "read",
+			source: "var s := 'a'; try PrintLn(s[0]); except PrintLn('caught'); end; PrintLn('after');",
+		},
+		{
+			name:   "write",
+			source: "var s := 'a'; try s[0] := '!'; except PrintLn('caught'); end; PrintLn('after');",
+		},
 	}
-	for _, want := range []string{"caught", "after"} {
-		if !strings.Contains(out, want) {
-			t.Fatalf("got %q\nwant it to contain %q", out, want)
-		}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, err := captureRun(t, tt.source, nil, nil)
+			if err != nil {
+				t.Fatalf("expected the exception to be caught, got %v\n%s", err, out)
+			}
+			for _, want := range []string{"caught", "after"} {
+				if !strings.Contains(out, want) {
+					t.Fatalf("got %q\nwant it to contain %q", out, want)
+				}
+			}
+		})
 	}
 }
 

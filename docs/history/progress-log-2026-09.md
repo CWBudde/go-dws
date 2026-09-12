@@ -3946,14 +3946,14 @@ already true of the compound forms (`newDivisionByZeroError` in
 `internal/interp/evaluator/compound_ops.go` has said `Division by zero` all along); only the plain
 binary operators disagreed with their own compound counterparts.
 
-The string index is more than wording. An array index out of range raises a **catchable** exception
-(`raiseIndexBoundExceededAt`); a string index raised a fatal error. `SimpleScripts/string_bounds`
-— which has no expectation file and so scores nothing — writes through four out-of-range string
-indices inside `try/except` and expects execution to continue past each, which is the evidence the
-two should behave alike. `IndexString` now raises the same exception, anchored at the opening
-bracket. ⚠️ That anchor differs by one column from the array form and rests on a single fixture
-(`PrintLn(s[0])` wants column 10); the two are separate expression classes upstream and position
-themselves separately, so it is recorded as an observation, not a rule.
+The string index needed the mechanism unified, not fixed. Both paths were already **catchable** —
+`newError`'s value becomes a script exception, so `SimpleScripts/string_bounds` reached all four of
+its `except` blocks before this change as well — but they were catchable by a different route than
+the array bounds, with a different sentence and no `" in <routine>"` suffix. Reads and writes now
+both go through `raiseIndexBoundExceededAt`, the same helper the array paths use, anchored at the
+opening bracket. ⚠️ That anchor differs by one column from the array form and rests on a single
+fixture (`PrintLn(s[0])` wants column 10); the two are separate expression classes upstream and
+position themselves separately, so it is recorded as an observation, not a rule.
 
 `external` gained its own message instead of sharing "has no body" with an unimplemented forward
 declaration: `fn.IsExternal` already distinguishes them. The sentence ends in "from" because the

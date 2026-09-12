@@ -75,12 +75,12 @@ func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node
 // DWScript strings are 1-indexed.
 //
 // An out-of-range index raises the same catchable "Lower/Upper bound exceeded!"
-// exception an array does, not a fatal error — SimpleScripts/string_bounds writes
-// through four such accesses inside try/except and expects none of them to reach
-// the statement after the assignment. The anchor is the opening bracket
-// (SimpleScripts/string_bounds2 wants column 10 of `PrintLn(s[0])`), one column
-// short of where an array read is reported; the two are separate expression
-// classes upstream and position themselves separately.
+// exception an array does, through the same helper — the write path in
+// index_assignment.go does too, so `s[i]` reports one way whether it is read or
+// written. The anchor is the opening bracket (SimpleScripts/string_bounds2 wants
+// column 10 of `PrintLn(s[0])`), one column short of where an array read is
+// reported; the two are separate expression classes upstream and position
+// themselves separately.
 func (e *Evaluator) IndexString(str *runtime.StringValue, index int, node ast.Node, ctx *ExecutionContext) Value {
 	// DWScript strings are 1-indexed
 	// Use rune-based indexing to handle UTF-8 correctly

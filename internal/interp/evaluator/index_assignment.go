@@ -103,7 +103,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 				return e.evalArrayElementAssignment(arrayValue, index, value, stmt, ctx)
 			}
 			if strVal, ok := memberVal.(*runtime.StringValue); ok {
-				return e.evalStringCharAssignment(strVal, index, value, stmt)
+				return e.evalStringCharAssignment(strVal, index, value, stmt, ctx)
 			}
 		}
 
@@ -178,7 +178,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 
 	// Handle string character assignment
 	if strVal, ok := arrayVal.(*runtime.StringValue); ok {
-		return e.evalStringCharAssignment(strVal, index, value, stmt)
+		return e.evalStringCharAssignment(strVal, index, value, stmt, ctx)
 	}
 
 	return e.newError(stmt, "cannot index type %s", arrayVal.Type())
@@ -252,11 +252,20 @@ func (e *Evaluator) evalStringCharAssignment(
 	index int,
 	value Value,
 	stmt *ast.AssignmentStatement,
+	ctx *ExecutionContext,
 ) Value {
-	// Bounds check using rune length (DWScript strings are 1-based)
+	// Bounds check using rune length (DWScript strings are 1-based).
+	// Reads and writes report the same sentence at the same anchor — see
+	// IndexString, which the read path uses.
 	strLen := RuneLength(strVal.Value)
 	if index < 1 || index > strLen {
-		return e.newError(stmt, "string index out of bounds: %d (string length is %d)", index, strLen)
+		diagNode := ast.Node(stmt)
+		if stmt != nil {
+			if target, ok := stmt.Target.(*ast.IndexExpression); ok {
+				diagNode = target
+			}
+		}
+		return e.raiseIndexBoundExceededAt(stringIndexBracketPos(diagNode), index, index > strLen, ctx)
 	}
 
 	// Value to assign must be a string (character); use first rune
