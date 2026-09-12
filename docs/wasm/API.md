@@ -269,12 +269,20 @@ const result = dws.setFileSystem({
 if (result instanceof Error) throw result;
 ```
 
-**Current limitation:** the filesystem is installed on the instance's platform,
-but the interpreter does not yet expose a script-visible file API (there are no
-`LoadTextFromFile`/`SaveTextToFile` builtins, and `dwscript.Engine` has no
-platform seam). Installing a filesystem is therefore validated and observable
-from JavaScript, but scripts cannot read through it yet. Wiring
-`platform.Platform` into `dwscript.Engine` is tracked in `PLAN.md`.
+Scripts read and write through this filesystem: the instance's platform is
+handed to the engine at creation, and the `LoadTextFromFile` / `SaveTextToFile`
+built-ins go through `platform.FS()` and nowhere else. A filesystem installed
+after `init()` applies to subsequent runs, because `setFileSystem` replaces the
+filesystem on the same platform instance the engine already holds.
+
+```javascript
+dws.setFileSystem(myFS);
+dws.eval("SaveTextToFile('greeting.txt', 'hello'); PrintLn(LoadTextFromFile('greeting.txt'));");
+// myFS.writeFile('greeting.txt', ...) and myFS.readFile('greeting.txt') are called
+```
+
+With no filesystem installed, scripts see the built-in in-memory virtual
+filesystem, which does not persist between instances.
 
 #### `version()`
 

@@ -315,6 +315,28 @@ Entries 3 to 6 are the defaults, and they are appended whether or not `-I` was
 given. Directories that do not exist are skipped, and duplicates are removed.
 Inline code passed with `-e` has no script directory, so it starts at entry 2.
 
+### Filesystem access
+
+The file built-ins `LoadTextFromFile(path)` and `SaveTextToFile(path, text)` reach
+the host only through the engine's platform, and never through `os` directly.
+Without configuration that platform is the real operating system for a native
+build and an in-memory virtual filesystem for a WASM one.
+
+`dwscript.WithPlatform` replaces it, which is the seam to use for sandboxing,
+serving scripts from an embedded filesystem, or recording what a script touches:
+
+```go
+engine, err := dwscript.New(dwscript.WithPlatform(myPlatform))
+```
+
+`myPlatform` implements `platform.Platform` (`FS`, `Console`, `Now`, `Sleep`)
+from `pkg/platform`; `pkg/platform/native` is the native implementation and
+`pkg/platform/wasm` the WASM one. `engine.FS()` returns the filesystem in
+force, defaulting to the build's platform rather than nil.
+
+Under WASM a host can also install a JavaScript-backed filesystem at runtime
+through `init({fs})` or `setFileSystem()`, which routes to the same seam.
+
 `dwscript.WithTypeCheck(false)` continues to skip semantic checking. Execution resolves
 structured type declarations as needed, including nested arrays and function pointers;
 it does not enable semantic analysis implicitly. Public external-function signatures

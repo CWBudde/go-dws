@@ -686,6 +686,14 @@ func RegisterIOFunctions(r *Registry) {
 		SigVariadic([]types.Type{V}, nil, 0))
 	r.RegisterWithSignature("PrintLn", PrintLn, CategoryIO, "Prints arguments with newline",
 		SigVariadic([]types.Type{V}, nil, 0))
+
+	S := types.STRING
+	r.RegisterWithSignature("LoadTextFromFile", LoadTextFromFile, CategoryIO,
+		"Reads a file through the engine platform and returns its contents",
+		Sig([]types.Type{S}, S))
+	r.RegisterWithSignature("SaveTextToFile", SaveTextToFile, CategoryIO,
+		"Writes a string to a file through the engine platform",
+		Sig([]types.Type{S, S}, nil))
 }
 
 // RegisterVariantFunctions registers all Variant introspection and conversion built-in functions.

@@ -18,6 +18,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/platform"
 	"github.com/spf13/cobra"
 )
 
@@ -50,6 +51,12 @@ func (o *simpleOptions) GetExternalFunctions() *interp.ExternalFunctionRegistry 
 
 func (o *simpleOptions) GetMaxRecursionDepth() int {
 	return o.MaxRecursionDepth
+}
+
+// GetPlatform returns nil so the CLI accepts the build default: the real
+// operating system.
+func (o *simpleOptions) GetPlatform() platform.Platform {
+	return nil
 }
 
 var runCmd = &cobra.Command{

@@ -1,10 +1,12 @@
 package dwscript
 
 import (
+	"errors"
 	"io"
 	"os"
 
 	"github.com/cwbudde/go-dws/internal/interp"
+	"github.com/cwbudde/go-dws/pkg/platform"
 )
 
 // CompileMode selects which execution engine the DWScript runtime uses.
@@ -35,6 +37,10 @@ type Options struct {
 	UnitSearchPaths   []string
 	Output            io.Writer
 	ExternalFunctions *interp.ExternalFunctionRegistry
+	// Platform supplies the filesystem, console and clock the script sees.
+	// Nil means the build default: the real OS natively, an in-memory
+	// virtual filesystem under WASM.
+	Platform          platform.Platform
 	MaxRecursionDepth int
 	CompileMode       CompileMode
 	TypeCheck         bool
@@ -122,6 +128,11 @@ func (o *Options) GetExternalFunctions() *interp.ExternalFunctionRegistry {
 }
 
 // GetMaxRecursionDepth returns the maximum recursion depth for function calls.
+// GetPlatform returns the configured platform, or nil to accept the default.
+func (o *Options) GetPlatform() platform.Platform {
+	return o.Platform
+}
+
 func (o *Options) GetMaxRecursionDepth() int {
 	return o.MaxRecursionDepth
 }
@@ -130,6 +141,27 @@ func (o *Options) GetMaxRecursionDepth() int {
 func WithUnitSearchPaths(paths ...string) Option {
 	return func(opts *Options) error {
 		opts.UnitSearchPaths = append([]string(nil), paths...)
+		return nil
+	}
+}
+
+// WithPlatform installs the platform the script runs against: its filesystem,
+// console and clock. File built-ins such as LoadTextFromFile and
+// SaveTextToFile go through it and nowhere else, so this is the single seam an
+// embedder needs to sandbox, virtualize or record a script's file access.
+//
+// Without it the engine uses the build's default platform — the real operating
+// system for a native build, an in-memory virtual filesystem for a WASM one.
+//
+// Example — serve a script from an in-memory filesystem:
+//
+//	engine, err := dwscript.New(dwscript.WithPlatform(myPlatform))
+func WithPlatform(p platform.Platform) Option {
+	return func(opts *Options) error {
+		if p == nil {
+			return errors.New("platform must not be nil")
+		}
+		opts.Platform = p
 		return nil
 	}
 }

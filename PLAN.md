@@ -346,6 +346,7 @@ while clearing the §3.4 skipped-test backlog; the commented-out
 ### 3.4 Source TODO backlog (merged from the former `TODOs.md`)
 
 Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted (A11).
+One item remains, and it is blocked on the evaluator rather than ready to build.
 
 - `[ ]` Expected-type overload resolution (was `analyze_function_calls.go:26`): the dead `expectedType`
   parameter is gone; the note now sits at the dispatch in `internal/semantic/analyze_expressions.go`.
@@ -354,14 +355,20 @@ Live `// TODO` markers that are real work, not notes. Bytecode TODOs are omitted
   then runs with a different overload — it resolves independently at run time
   (`evaluator.ResolveOverloadMultiple`) with no expected-type channel. Blocked until the evaluator can
   see the call site's expected type, or reuse the analyzer's choice via `ast.SemanticInfo`.
-- `[ ]` Engine seam for `platform.Platform`. The WASM side is done: `setFileSystem()` and
-  `init({fs})` validate a host object and install it via `(*WASMPlatform).SetFileSystem`
-  (see [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md)), but
-  nothing consults it — `pkg/platform` has no importer outside `pkg/wasm`, there are no
-  file builtins (`LoadTextFromFile`/`SaveTextToFile`), and `dwscript.Options` has no
-  `WithPlatform`. Needs: a public `dwscript.WithPlatform(platform.Platform) Option`, an
-  `Engine`-held platform defaulting to `platform/native`, and file builtins routed through
-  `Engine.FS()`.
+
+**Done (2026-09-12):** the engine seam for `platform.Platform`, closing the last buildable item
+in this section. `dwscript.WithPlatform(platform.Platform) Option` installs a platform on the
+engine; `Engine.Platform()`/`Engine.FS()` report the one in force, defaulting to the build's
+platform (native, or the WASM virtual filesystem) rather than nil. The platform rides on
+`contracts.EngineState`, `builtins.Context` gained `FS()`, and the first two file built-ins —
+`LoadTextFromFile` and `SaveTextToFile` — go through it and nowhere near `os`. The WASM bridge
+now hands its platform to the engine, so a host filesystem installed through `init({fs})` is one
+a script actually reads: `just wasm-smoke` round-trips a script through a JavaScript `Map`-backed
+filesystem against the real WASM build. Fixtures unchanged
+at 1044, as expected: no scored fixture calls either built-in, and the FunctionsFile category
+needs a `File` handle type, the path helpers (`ExtractFileExt`, `ChangeFileExt`, …) and directory
+enumeration, none of which this seam provides. That category stays out of scope.
+See [the September progress log](docs/history/progress-log-2026-09.md#2026-09-12--the-platformplatform-engine-seam).
 
 **Done (2026-09-12):** class-hierarchy distance in overload matching. The TODO this item named
 (`internal/semantic/overload_resolution.go:211`) no longer exists — that file is now an 81-line

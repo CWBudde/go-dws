@@ -33,16 +33,19 @@ func newDWScriptInstance(this js.Value, args []js.Value) interface{} {
 
 	// Create platform with output capture.
 	//
-	// NOTE: the platform currently only carries the filesystem installed via
-	// init({fs}) / setFileSystem(). The interpreter does not yet expose any
-	// script-visible file API, so nothing consults platform.FS() during
-	// execution; wiring the platform into dwscript.Engine is tracked
-	// separately (see docs/wasm/API.md, "Custom filesystem").
+	// The platform carries the filesystem installed via init({fs}) /
+	// setFileSystem(), and is handed to the engine below so the file
+	// built-ins read and write through it. SetFileSystem mutates this same
+	// instance, so a host that swaps its filesystem after init affects
+	// subsequent runs without rebuilding the engine.
 	var outputBuffer bytes.Buffer
 	wasmPlat := wasm.NewWASMPlatformWithIO(&outputBuffer)
 
 	// Create a Go DWScript engine configured to write to our buffer
-	engine, err := dwscript.New(dwscript.WithOutput(&outputBuffer))
+	engine, err := dwscript.New(
+		dwscript.WithOutput(&outputBuffer),
+		dwscript.WithPlatform(wasmPlat),
+	)
 	if err != nil {
 		return CreateErrorObject("InitializationError", err.Error(), nil)
 	}

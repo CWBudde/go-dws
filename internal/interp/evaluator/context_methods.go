@@ -6,10 +6,12 @@ import (
 	"math/rand"
 
 	"github.com/cwbudde/go-dws/internal/builtins"
+	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/platform"
 )
 
 // ============================================================================
@@ -101,6 +103,19 @@ func currentNode(ctx *ExecutionContext) ast.Node {
 		return nil
 	}
 	return ctx.CurrentNode()
+}
+
+// FS returns the filesystem of the platform installed on this engine, falling
+// back to the build's default platform so a built-in never has to nil-check it.
+func (e *Evaluator) FS() platform.FileSystem {
+	if e.engineState.Platform == nil {
+		// An evaluator built directly, outside NewWithOptions, has no platform
+		// installed. Resolve the default per call rather than caching it here:
+		// an engine can be shared across goroutines, and a lazy write to shared
+		// state would be a race for the sake of an allocation nobody measured.
+		return contracts.DefaultPlatform().FS()
+	}
+	return e.engineState.Platform.FS()
 }
 
 // RandSource returns the random number generator for built-in functions.

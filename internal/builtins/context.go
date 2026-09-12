@@ -18,6 +18,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/platform"
 )
 
 // EnumTypeValueAccessor provides access to EnumType from EnumTypeValue.
@@ -49,6 +50,13 @@ type Context interface {
 	// CurrentNode returns the AST node currently being evaluated.
 	// This is used for error reporting to provide source location context.
 	CurrentNode() ast.Node
+
+	// FS returns the filesystem the host installed for this run, and is the
+	// only route a built-in may take to reach a file. It is never nil: an
+	// engine with no explicit platform uses the platform default (the real
+	// OS filesystem natively, an in-memory one under WASM), so a built-in can
+	// call it unconditionally.
+	FS() platform.FileSystem
 
 	// RandSource returns the random number generator for built-in functions
 	// like Random(), RandomInt(), and RandG().

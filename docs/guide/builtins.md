@@ -306,6 +306,46 @@ PrintLn(TrimRight('  hello  '));  // Output:   hello
 
 ---
 
+## File Functions
+
+These are the only built-ins that touch the host filesystem, and they reach it
+exclusively through the engine's platform — see
+[`dwscript.WithPlatform`](../../README.md#filesystem-access). An embedder can
+therefore sandbox or virtualize file access without the script changing.
+
+### LoadTextFromFile
+
+```pascal
+function LoadTextFromFile(path: String): String;
+```
+
+Returns the whole contents of `path` as a string. A missing or unreadable file
+raises a runtime error rather than returning an empty string, so a mistyped path
+is not mistaken for an empty file.
+
+```pascal
+PrintLn(LoadTextFromFile('config.ini'));
+```
+
+### SaveTextToFile
+
+```pascal
+procedure SaveTextToFile(path: String; text: String);
+```
+
+Writes `text` to `path`, creating the file if it does not exist and replacing
+its contents if it does.
+
+```pascal
+SaveTextToFile('out.txt', 'hello');
+```
+
+Both take the path as a `String`; a non-string argument is a type error rather
+than being coerced, since a silent conversion would turn a mistake in the script
+into a confusing file error.
+
+---
+
 ## Implementation Status
 
 ✅ **Fully Implemented:**

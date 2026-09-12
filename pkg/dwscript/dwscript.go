@@ -27,10 +27,12 @@ import (
 	"github.com/cwbudde/go-dws/internal/bytecode"
 	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/interp"
+	"github.com/cwbudde/go-dws/internal/interp/contracts"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/platform"
 )
 
 // Engine is the main entry point for the DWScript interpreter.
@@ -487,6 +489,22 @@ type RuntimeError struct {
 
 func (e *RuntimeError) Error() string {
 	return fmt.Sprintf("runtime error: %s", e.Message)
+}
+
+// Platform returns the platform this engine runs scripts against. An engine
+// created without WithPlatform reports the build's default platform rather
+// than nil, so callers can always reach a filesystem.
+func (e *Engine) Platform() platform.Platform {
+	if e.options.Platform == nil {
+		return contracts.DefaultPlatform()
+	}
+	return e.options.Platform
+}
+
+// FS returns the filesystem the engine's file built-ins read and write
+// through. It is shorthand for Platform().FS().
+func (e *Engine) FS() platform.FileSystem {
+	return e.Platform().FS()
 }
 
 // SetOutput sets the writer where program output (PrintLn, etc.) will be written.
