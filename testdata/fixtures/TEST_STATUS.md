@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1054 |
-| Failed | 876 |
+| Passed | 1057 |
+| Failed | 873 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **55%** (1054/1930) |
+| **Scored pass rate** | **55%** (1057/1930) |
 
 ## Per-category
 
@@ -39,7 +39,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 129 | 400 | 13 | 24% |
+| FailureScripts | 542 | 132 | 397 | 13 | 25% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |

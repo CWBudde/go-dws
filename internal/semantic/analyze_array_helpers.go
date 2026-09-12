@@ -284,7 +284,13 @@ func (a *Analyzer) analyzeArrayMemberAccess(expr *ast.MemberAccessExpression, ar
 	memberNameLower := ident.Normalize(expr.Member.Value)
 	a.addArrayHelperCaseHint(expr.Member)
 
-	member, _ := types.LookupBuiltinHelper("array", memberNameLower)
+	member, isBuiltinHelper := types.LookupBuiltinHelper("array", memberNameLower)
+	if a.checkDynamicArrayOnlyHelper(arrayType, expr.Member, member.Operation) {
+		return nil
+	}
+	if a.checkArrayInstanceReceiver(expr.Object, arrayType, expr.Member, member.Operation, isBuiltinHelper) {
+		return types.INTEGER
+	}
 	switch member.Operation {
 	case types.HelperArrayLength, types.HelperArrayCount, types.HelperArrayHigh, types.HelperArrayLow:
 		return types.INTEGER
@@ -329,7 +335,11 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 	methodNameLower := ident.Normalize(expr.Method.Value)
 	a.addArrayHelperCaseHint(expr.Method)
 
-	member, _ := types.LookupBuiltinHelper("array", methodNameLower)
+	member, isBuiltinHelper := types.LookupBuiltinHelper("array", methodNameLower)
+	if !a.checkDynamicArrayOnlyHelper(arrayType, expr.Method, member.Operation) &&
+		a.checkArrayInstanceReceiver(expr.Object, arrayType, expr.Method, member.Operation, isBuiltinHelper) {
+		return types.VOID
+	}
 	switch member.Operation {
 	case types.HelperArrayLength, types.HelperArrayCount, types.HelperArrayHigh, types.HelperArrayLow:
 		if len(expr.Arguments) != 0 {
@@ -629,4 +639,81 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 	}
 
 	return nil
+}
+
+// dynamicArrayOnlyHelpers are the array helpers upstream refuses on a static
+// array: everything that grows, shrinks or reorders the storage, plus Copy,
+// which yields a dynamic array. Low, High, Length and the read-only searching
+// and mapping helpers stay available on both array kinds.
+var dynamicArrayOnlyHelpers = map[types.BuiltinHelperOperation]bool{
+	types.HelperArrayAdd:       true,
+	types.HelperArrayPush:      true,
+	types.HelperArrayPop:       true,
+	types.HelperArrayPeek:      true,
+	types.HelperArrayInsert:    true,
+	types.HelperArrayDelete:    true,
+	types.HelperArrayRemove:    true,
+	types.HelperArrayClear:     true,
+	types.HelperArraySetLength: true,
+	types.HelperArraySwap:      true,
+	types.HelperArrayMove:      true,
+	types.HelperArrayCopy:      true,
+}
+
+// checkDynamicArrayOnlyHelper reports a helper that may not be used on a static
+// array. It returns true when the diagnostic was emitted, in which case the
+// caller must not go on to validate arguments: upstream stops at the
+// restriction and says nothing further about the call.
+func (a *Analyzer) checkDynamicArrayOnlyHelper(arrayType *types.ArrayType, method *ast.Identifier, op types.BuiltinHelperOperation) bool {
+	if arrayType == nil || !arrayType.IsStatic() || method == nil || !dynamicArrayOnlyHelpers[op] {
+		return false
+	}
+	a.addArrayHelperError(method.Token.Pos,
+		`Array method "`+arrayHelperCanonicalName(method.Value)+`" is restricted to dynamic arrays`)
+	return true
+}
+
+// arrayReceiverIsTypeReference reports whether an array helper was reached
+// through the array *type* rather than through a value of it, as in
+// `TStrings.Add(...)`. A local of the same name shadows the type, so the symbol
+// table is consulted first.
+func (a *Analyzer) arrayReceiverIsTypeReference(object ast.Expression) bool {
+	objIdent, ok := object.(*ast.Identifier)
+	if !ok {
+		return false
+	}
+	if _, shadowed := a.symbols.Resolve(objIdent.Value); shadowed {
+		return false
+	}
+	return a.hasType(objIdent.Value)
+}
+
+// typeOnlyArrayHelpers are the helpers answerable from the array type alone.
+// Low is always one: it is 0 for every dynamic array. Length, Count and High
+// need the actual storage, so they are type-only for static arrays, whose
+// bounds are fixed at compile time.
+func typeOnlyArrayHelper(op types.BuiltinHelperOperation, static bool) bool {
+	if op == types.HelperArrayLow {
+		return true
+	}
+	if !static {
+		return false
+	}
+	return op == types.HelperArrayHigh || op == types.HelperArrayLength || op == types.HelperArrayCount
+}
+
+// checkArrayInstanceReceiver reports a helper that needs a value but was given
+// the array type. It returns true when the diagnostic was emitted.
+func (a *Analyzer) checkArrayInstanceReceiver(object ast.Expression, arrayType *types.ArrayType, method *ast.Identifier, op types.BuiltinHelperOperation, isBuiltinHelper bool) bool {
+	// Only the intrinsic helpers are restricted. A user helper's class function
+	// is *meant* to be called on the type (`TIntArray.Series(3)`), so a name the
+	// intrinsic table does not know must fall through untouched.
+	if !isBuiltinHelper || arrayType == nil || method == nil || !a.arrayReceiverIsTypeReference(object) {
+		return false
+	}
+	if typeOnlyArrayHelper(op, arrayType.IsStatic()) {
+		return false
+	}
+	a.addArrayHelperError(method.Token.Pos, "Array instance expected")
+	return true
 }
