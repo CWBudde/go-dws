@@ -219,7 +219,7 @@ func ParseWithOptions(source string, opts Options) *Result {
 func AnalyzeParsed(result *Result, source string, opts Options) *Result {
 	if opts.SkipTypeCheck {
 		if result.Program != nil && !result.HasSemanticBlockingDiagnosticsInPhase(PhaseParsing) {
-			generics.Monomorphize(result.Program)
+			safeMonomorphize(result)
 		}
 		return result
 	}
@@ -291,29 +291,23 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	return result
 }
 
-// safeMonomorphize runs generic specialization under the same recover discipline
-// as semantic analysis.
+// safeMonomorphize runs generic specialization and records a failure as a
+// diagnostic, the way safeAnalyze does for semantic analysis.
 //
-// Monomorphization walks every top-level statement, so it is the first pass to
-// touch whatever shape the parser produced from malformed input — and it ran
-// outside any recover, which turned a single bad node into a segfault of the
-// whole process, library embedders included. A compiler may report that it does
-// not understand a program; it may not die on one.
+// The recovery itself lives in generics.Monomorphize, so the paths outside this
+// package — unit loading and `dwscript compile` — are covered too. This turns
+// the reported error into the wire-format diagnostic a frontend caller expects.
 func safeMonomorphize(result *Result) {
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			result.Diagnostics = append(result.Diagnostics, Diagnostic{
-				Message:  "internal generic specialization panic",
-				Rendered: fmt.Sprintf("internal generic specialization panic: %v\n%s", recovered, strings.TrimSpace(string(debug.Stack()))),
-				Code:     "E_GENERICS_PANIC",
-				Phase:    PhaseSemantic,
-				Severity: SeverityError,
-				Fatal:    true,
-			})
-		}
-	}()
-
-	generics.Monomorphize(result.Program)
+	if err := generics.Monomorphize(result.Program); err != nil {
+		result.Diagnostics = append(result.Diagnostics, Diagnostic{
+			Message:  "internal generic specialization panic",
+			Rendered: "internal generic specialization panic: " + err.Error(),
+			Code:     "E_GENERICS_PANIC",
+			Phase:    PhaseSemantic,
+			Severity: SeverityError,
+			Fatal:    true,
+		})
+	}
 }
 
 func safeAnalyze(analyzer *semantic.Analyzer, result *Result) (err error) {

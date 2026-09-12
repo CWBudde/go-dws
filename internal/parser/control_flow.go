@@ -12,11 +12,23 @@ import (
 // In Go, an interface can contain a nil pointer but not be nil itself,
 // which causes issues when calling methods on the interface.
 func isNilStatement(stmt ast.Statement) bool {
-	if stmt == nil {
+	return isNilNodeValue(stmt)
+}
+
+// isNilTypeExpression is isNilStatement for type expressions, which reach the
+// tree through their own dispatcher and have the same typed-nil hazard.
+func isNilTypeExpression(typeExpr ast.TypeExpression) bool {
+	return isNilNodeValue(typeExpr)
+}
+
+// isNilNodeValue reports whether an AST interface value is nil or holds a nil
+// pointer. The two are indistinguishable to `== nil` but not to a field access,
+// which faults on the second.
+func isNilNodeValue(node any) bool {
+	if node == nil {
 		return true
 	}
-	// Use reflection to check if the underlying value is nil
-	v := reflect.ValueOf(stmt)
+	v := reflect.ValueOf(node)
 	return v.Kind() == reflect.Pointer && v.IsNil()
 }
 

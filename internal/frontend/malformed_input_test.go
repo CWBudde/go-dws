@@ -35,6 +35,13 @@ func TestMalformedInputDoesNotCrash(t *testing.T) {
 		{"uses with a file qualifier", "uses Classes in 'Classes.pas';\n"},
 		{"parameter list runs off the end", "procedure Dummy7(a : Integer"},
 		{"record field after a method", "type\n   TRec = record\n      A : Integer;\n      function Test : TRec;\n      begin\n         Result.A:=1;\n      end;\n      B : Integer;\n   end;\n"},
+		// These reach the tree through a wrapper that converts the concrete
+		// pointer to ast.Statement itself, so they bypass any per-dispatch-case
+		// normalization; they are covered by the statement boundary instead.
+		{"incomplete class method", "class function Foo(a"},
+		{"incomplete constructor", "constructor Create(a"},
+		{"incomplete destructor", "destructor Destroy(a"},
+		{"incomplete for-in", "for x in "},
 	}
 
 	for _, tt := range tests {
@@ -106,6 +113,38 @@ func TestMalformedInputTerminates(t *testing.T) {
 				// and this process is about to fail anyway.
 				t.Fatal("compile did not terminate within 10s")
 			}
+		})
+	}
+}
+
+// TestMalformedInputRendersBestEffortAST pins the public promise that a parse
+// result can be traversed.
+//
+// pkg/dwscript hands callers a best-effort AST alongside the accumulated parser
+// diagnostics, which an editor integration walks — Program.String() being the
+// simplest way to do it. A typed-nil statement in that tree faults on the walk
+// rather than on the parse, so the caller crashes while doing exactly what the
+// API invites. Partially typed declarations are the normal state of a file being
+// edited, so these are ordinary inputs, not exotic ones.
+func TestMalformedInputRendersBestEffortAST(t *testing.T) {
+	sources := []string{
+		"class function Foo(a",
+		"constructor Create(a",
+		"destructor Destroy(a",
+		"procedure Bug1(lazy var a : Integer);\nbegin\nend;\n",
+		"for x in ",
+		"procedure t(const a : Array Of function : procedure);\nbegin\nend;\n",
+	}
+
+	for _, source := range sources {
+		t.Run(source, func(_ *testing.T) {
+			result := ParseWithOptions(source, Options{Filename: "<test>"})
+			if result.Program == nil {
+				return
+			}
+			// Walking the tree must not fault, whatever the parser made of it.
+			// A fault here fails the test as a panic; there is nothing to assert.
+			_ = result.Program.String()
 		})
 	}
 }

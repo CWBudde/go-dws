@@ -18,27 +18,24 @@ import (
 //
 // This unified parser enables inline type syntax in parameters and variables
 // without requiring type aliases.
-// typeExpressionOrNil converts a possibly-nil concrete type-node pointer into a
-// true nil ast.TypeExpression. It is statementOrNil's counterpart for type
-// expressions; see that function for why a typed nil is dangerous.
+// parseTypeExpression parses a type expression, normalizing a failed parse to a
+// true nil.
 //
-// The array element type is the case that made it matter. `array of function :
-// procedure` has an unsupported return type, so parseFunctionPointerType reports
-// it and returns nil — as a typed nil, which isInvalidTypeExpression below does
-// not recognise, so parseArrayType carried on and asked the element for its End()
-// position. That faulted inside the parser itself.
-func typeExpressionOrNil[T interface {
-	comparable
-	ast.TypeExpression
-}](typeExpr T) ast.TypeExpression {
-	var zero T
-	if typeExpr == zero {
+// Several type parsers return a concrete node pointer (*ast.FunctionPointerTypeNode,
+// *ast.SetTypeNode, *ast.ClassOfTypeNode), so a nil one would otherwise arrive at
+// callers as a typed nil that `== nil` does not catch — isInvalidTypeExpression
+// below reads it as a perfectly good type. `array of function : procedure` did
+// exactly that: the unsupported return type was reported, the nil element type was
+// not recognised, and parseArrayType asked it for its End() position.
+func (p *Parser) parseTypeExpression() ast.TypeExpression {
+	typeExpr := p.parseTypeExpressionInner()
+	if isNilTypeExpression(typeExpr) {
 		return nil
 	}
 	return typeExpr
 }
 
-func (p *Parser) parseTypeExpression() ast.TypeExpression {
+func (p *Parser) parseTypeExpressionInner() ast.TypeExpression {
 	cursor := p.cursor
 	builder := p.StartNode()
 	currentToken := cursor.Current()
@@ -98,7 +95,7 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		// Inline function or procedure pointer type
-		return typeExpressionOrNil(p.parseFunctionPointerType())
+		return p.parseFunctionPointerType()
 
 	case lexer.ARRAY:
 		// Array type: array of ElementType
@@ -109,11 +106,11 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 
 	case lexer.SET:
 		// Set type: set of ElementType
-		return typeExpressionOrNil(p.parseSetType())
+		return p.parseSetType()
 
 	case lexer.CLASS:
 		// Metaclass type: class of ClassName
-		return typeExpressionOrNil(p.parseClassOfType())
+		return p.parseClassOfType()
 
 	default:
 		p.addError("expected type expression, got "+currentToken.Literal, ErrExpectedType)

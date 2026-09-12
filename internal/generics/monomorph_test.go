@@ -8,6 +8,16 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
+// monomorphize runs Monomorphize and fails the test if it reports a panic.
+// Ignoring the error would let a crash pass silently, which is the failure mode
+// the error return exists to expose.
+func monomorphize(t *testing.T, prog *ast.Program) {
+	t.Helper()
+	if err := Monomorphize(prog); err != nil {
+		t.Fatalf("Monomorphize: %v", err)
+	}
+}
+
 func parseProgram(t *testing.T, src string) *ast.Program {
 	t.Helper()
 	p := parser.New(lexer.New(src))
@@ -51,7 +61,7 @@ func TestMonomorphize_NoGenerics_LeavesProgramUnchanged(t *testing.T) {
 	prog := parseProgram(t, `type TFoo = class Field : Integer; end;
 var f := new TFoo;`)
 	before := len(prog.Statements)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 	if len(prog.Statements) != before {
 		t.Fatalf("expected %d statements, got %d", before, len(prog.Statements))
 	}
@@ -63,7 +73,7 @@ var f := new TFoo;`)
 func TestMonomorphize_GenericClass_SpecializesAndSubstitutes(t *testing.T) {
 	prog := parseProgram(t, `type TBox<T> = class Value : T; end;
 var b := new TBox<Integer>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	// The generic template must be removed and replaced by the specialization.
 	if findClass(prog, "TBox") != nil {
@@ -103,7 +113,7 @@ func TestMonomorphize_SpecializationInsertedBeforeUse(t *testing.T) {
 	prog := parseProgram(t, `type TBox<T> = class Value : T; end;
 var a := new TBox<Integer>;
 var b := new TBox<String>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	names := declNames(prog)
 	// Two distinct specializations, each declared before its use.
@@ -119,7 +129,7 @@ func TestMonomorphize_SameInstantiationEmittedOnce(t *testing.T) {
 	prog := parseProgram(t, `type TBox<T> = class Value : T; end;
 var a := new TBox<Integer>;
 var b := new TBox<Integer>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	count := 0
 	for _, name := range declNames(prog) {
@@ -139,7 +149,7 @@ func TestMonomorphize_TemplateInMultiDeclTypeSection(t *testing.T) {
   TBox<T> = class Value : T; end;
   TOther = Integer;
 var b := new TBox<Integer>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	if findClassDeep(prog.Statements, "TBox<Integer>") == nil {
 		t.Fatalf("expected TBox<Integer> specialization somewhere in the tree; decls: %v", declNames(prog))
@@ -154,7 +164,7 @@ func TestMonomorphize_ArityMismatch_NotSpecialized(t *testing.T) {
 	// Too many type arguments must not silently produce a concrete class.
 	prog := parseProgram(t, `type TBox<T> = class Value : T; end;
 var b := new TBox<Integer, String>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	if findClassDeep(prog.Statements, "TBox<Integer,String>") != nil {
 		t.Fatal("arity-mismatched instantiation must not be specialized")
@@ -184,7 +194,7 @@ func findClassDeep(stmts []ast.Statement, name string) *ast.ClassDecl {
 func TestMonomorphize_GenericRecord_TwoParams(t *testing.T) {
 	prog := parseProgram(t, `type TPair<A, B> = record First : A; Second : B; end;
 var p : TPair<Integer, String>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	spec := findRecord(prog, "TPair<Integer,String>")
 	if spec == nil {
@@ -248,7 +258,7 @@ func TestMonomorphize_GenericInterface_SpecializesMembers(t *testing.T) {
     property P : T read GetP write SetP;
 end;
 var i : ITest<Integer>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	if findInterface(prog, "ITest") != nil {
 		t.Fatal("generic template ITest should have been removed")
@@ -280,7 +290,7 @@ var i : ITest<Integer>;`)
 func TestMonomorphize_GenericInterfaceInInheritanceList(t *testing.T) {
 	prog := parseProgram(t, `type ITest<T> = interface function GetP : T; end;
 type TTest = class (ITest<Integer>) function GetP : Integer; begin Result := 1; end; end;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	if findInterface(prog, "ITest<Integer>") == nil {
 		t.Fatalf("expected specialized interface ITest<Integer>; decls: %v", declNames(prog))
@@ -304,7 +314,7 @@ func TestMonomorphize_GenericArrayAlias_Specializes(t *testing.T) {
 	prog := parseProgram(t, `type TTest<T> = array of T;
 var i : TTest<Integer>;
 var s : TTest<String>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	if findArrayDecl(prog, "TTest") != nil {
 		t.Fatal("generic template TTest should have been removed")
@@ -325,7 +335,7 @@ func TestMonomorphize_OutOfLineMethodBody_SpecializedPerInstantiation(t *testing
 function TTest<T>.Test(v : T) : T; begin Result := v; end;
 var a := new TTest<Integer>;
 var b := new TTest<String>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	if len(findMethodImpls(prog, "TTest")) != 0 {
 		t.Error("the generic out-of-line template body should have been removed")
@@ -348,7 +358,7 @@ func TestMonomorphize_OutOfLineBodySubstitutesTypeParam(t *testing.T) {
 	prog := parseProgram(t, `type TTest<T> = class function Test(v : T) : T; end;
 function TTest<T>.Test(v : T) : T; begin Result := v; end;
 var a := new TTest<Integer>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	impls := findMethodImpls(prog, "TTest<Integer>")
 	if len(impls) != 1 {
@@ -368,7 +378,7 @@ func TestMonomorphize_OutOfLineBodyEmittedAfterItsClass(t *testing.T) {
 	prog := parseProgram(t, `type TTest<T> = class function Test(v : T) : T; end;
 function TTest<T>.Test(v : T) : T; begin Result := v; end;
 var a := new TTest<Integer>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	classIdx := stmtIndex(prog, func(s ast.Statement) bool {
 		c, ok := s.(*ast.ClassDecl)
@@ -402,7 +412,7 @@ func TestMonomorphize_OutOfLineBodyDeclaredBeforeUse(t *testing.T) {
 	prog := parseProgram(t, `type TTest<T> = class function Test(v : T) : T; end;
 var a := new TTest<Integer>;
 function TTest<T>.Test(v : T) : T; begin Result := v; end;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	impls := findMethodImpls(prog, "TTest<Integer>")
 	if len(impls) != 1 {
@@ -417,7 +427,7 @@ func TestMonomorphize_OutOfLineBodyArityMismatch_NotEmitted(t *testing.T) {
 	prog := parseProgram(t, `type TTest<T> = class procedure Dummy; end;
 procedure TTest<T, U>.Dummy; begin end;
 var a := new TTest<Integer>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	if impls := findMethodImpls(prog, "TTest<Integer>"); len(impls) != 0 {
 		t.Errorf("arity-mismatched header must not be emitted, got %d implementations", len(impls))
@@ -431,7 +441,7 @@ func TestMonomorphize_OutOfLineConstructorWithDefaultT(t *testing.T) {
 	prog := parseProgram(t, `type TTest<T> = class A : array of T; constructor Create(n : Integer); end;
 constructor TTest<T>.Create(n : Integer); begin A.Add(Default(T)); end;
 var a := new TTest<Integer>(1);`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	impls := findMethodImpls(prog, "TTest<Integer>")
 	if len(impls) != 1 {
@@ -464,7 +474,7 @@ func TestMonomorphize_OutOfLineBodyForNonTemplateClass_Preserved(t *testing.T) {
 	prog := parseProgram(t, `type TBox<T> = class Value : T; end;
 procedure TPlain<T>.M; begin end;
 var b := new TBox<Integer>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	if impls := findMethodImpls(prog, "TPlain"); len(impls) != 1 {
 		t.Errorf("expected the TPlain implementation to be preserved, got %d", len(impls))
@@ -477,7 +487,7 @@ func TestMonomorphize_GenericInterfaceParent(t *testing.T) {
 	prog := parseProgram(t, `type IBase<T> = interface function GetP : T; end;
 type IChild<T> = interface(IBase<T>) procedure SetP(v : T); end;
 var i : IChild<Integer>;`)
-	Monomorphize(prog)
+	monomorphize(t, prog)
 
 	child := findInterface(prog, "IChild<Integer>")
 	if child == nil {

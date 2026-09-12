@@ -55,7 +55,9 @@ func analyzeUnits(analyzer *semantic.Analyzer, result *Result, opts Options) err
 	for _, name := range order {
 		unit, _ := registry.GetUnit(name)
 		// Monomorphization must happen on the same nodes later passed to execution.
-		generics.Monomorphize(&ast.Program{Statements: []ast.Statement{unit.Declaration}})
+		if err := generics.Monomorphize(&ast.Program{Statements: []ast.Statement{unit.Declaration}}); err != nil {
+			return fail(err)
+		}
 		unitAnalyzer := semantic.NewAnalyzer()
 		unitAnalyzer.SetSemanticInfo(analyzer.GetSemanticInfo())
 		unitAnalyzer.SetHintsLevel(opts.HintsLevel)
