@@ -9,23 +9,35 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-12):** Go harness and freshly rebuilt CLI both
-**1,078 / 1,930 scored = 56%**, after §3.2.7 closed conditional compilation and a §3.3 merge
-train closed these runtime/evaluator items: associative arrays (key coercion, ARC destructor
-timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
-JSON ownership and number formatting, call-site column precision in stack traces, metaclass
-method pointers, and the ByteBuffer, EncodingLib, GlobalVars, FunctionsTime, FunctionsVariant,
-FunctionsDebug and InnerClasses host libraries. §3.3 itself stays open: Memory (1/13) and the
-FunctionsGlobalVars `private_vars` remainder (13/16); its runtime-panic re-measurement closed
-2026-09-12, finding no panics and three ordinary dispatch/alias defects instead. §4/F5 opened
-with the `deprecated` directive family (five fixtures) and a re-measurement that put the
-missing-validation queue at 58, not the 82 the 2026-03 archive recorded; the constant-instruction
-hint and the array-helper receiver rules closed three more, adopting DWScript's canonical
-argument-count vocabulary closed ten, making the keyword operators case-insensitive closed three,
-the expression-position implicit call closed one, `Boolean expected` — with an empty `repeat`
-body and two miscopied empty-block hints — closed six, and stopping the compiler crashing and
-hanging on malformed input closed one. Both use the shared compile pipeline and scoring rules.
-`*Fail` error-detection suites **158 / 640 = 25%**.
+**Headline (2026-09-12):** Go harness and freshly rebuilt CLI agree at **1,091 / 1,930 scored =
+57%**; `*Fail` error-detection suites **165 / 640 = 26%**. What shipped to get there is in
+[the September progress log](docs/history/progress-log-2026-09.md), not here.
+
+**What the denominator is.** 2,044 fixtures ship in the tree; 114 have no expected `.txt` and are
+dropped as unscored, leaving 1,930. That denominator still contains the **219 host-library fixtures
+excluded from every target below** (see the scope rule further down) — all 219 currently fail, so
+the headline counts work nobody intends to do. Excluding them, the same run reads **1,091 / 1,711 =
+64% in scope**, and that is the number to track against §6. Both are honest; the lower one is the
+one quoted outward, and T7 will lower it again by scoring the 114.
+
+Open, in leverage order:
+
+- **§4** is where the remaining mass is. Re-measured fixture-by-fixture on 2026-09-12 and
+  rewritten around what that found: F6 closed outright, F5 grew by 27 fixtures in suites it had
+  never been counted over, F8 turned out to block 265 of the 480 remaining failures, and two new
+  families were split out — the 68 fixtures one line from passing (F9) and the `Incompatible
+  types` sentence (F10). Full tables:
+  [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
+- **§3.5** is new and is the other half of the measurement: 145 in-scope fixtures fail in the
+  suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
+  ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
+  and E8 is a by-reference binding bug E1 turned up.
+- **§3.3** has two items left, both now broken into subtasks against a 2026-09-12 triage: Memory
+  (1 of 3 scored, and mostly a harness gap) and the FunctionsGlobalVars `private_vars` remainder
+  (12/16, blocked on unit identity at run time).
+- **§1** gained T7 and T8 from the same measurement: 36 fixtures upstream scores and go-dws
+  skips, and a classification mode for `fixture-report`.
+- **§3.4** has one item, blocked on the evaluator. **§2** has one, deferred by owner decision.
 
 Where the truth lives:
 
@@ -45,8 +57,15 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (876 total): FailureScripts 400, SimpleScripts 80,
-  host-library categories ~200, everything else < 40 per category.
+- Where the remaining failures are (839 total, 2026-09-12): **219 host-library** (out of scope),
+  **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
+  HelpersFail 18 each, the rest under 15), and **145 in the execution suites** (§3.5:
+  SimpleScripts 71, ArrayPass 19, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 10, a tail
+  of ones and twos). Nothing crashes and nothing times out.
+- Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
+  (T8, closed 2026-09-12). It reports each failure's distance from passing, whether what differs is
+  a diagnostic or the program's output, and which message shapes recur — none of which
+  `baselines.json` can see, because it holds pass-count floors.
 
 Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
 ✋ won't-fix, with the decision record. Size: S (hours), M (days), L (week+).
@@ -55,11 +74,28 @@ Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do
 
 ## 1. Measurement & tooling (T)
 
-No open items. T1–T6 closed 2026-09-06 (one compile pipeline for CLI and harness, `run
+T1–T6 closed 2026-09-06 (one compile pipeline for CLI and harness, `run
 --diagnostics=plain|pretty`, `--test-envelope`, `--compile-only`, self-rebuilding
 `fixture-report` with a stale-binary guard, helper-spec parity test, unscored-variant docs);
 see [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md). New tooling
 items go here.
+
+- **T7** `[ ]` S Score the `.txt`-less fixtures, and give the harness a per-category hint level.
+  Upstream treats a missing expectation file as **"must print nothing"**; go-dws reports those
+  fixtures as unscored and drops them. Measured 2026-09-12: **36 fixtures across nine categories**,
+  **28 of which already print nothing**, so adopting the rule is +28 passes on +36 scored — which
+  lowers the headline percentage, the honest direction, because the suite grows. Memory
+  additionally needs the compiler's **default** hint level rather than `--hints pedantic`. The
+  rule, the affected categories and the three groups deliberately excluded are documented next to
+  the fixtures: [`testdata/fixtures/README.md`](testdata/fixtures/README.md).
+**Closed here (2026-09-12):**
+
+- [The fixture classifier](docs/history/progress-log-2026-09.md#2026-09-12--the-fixture-classifier-t8)
+  (**T8**) — `fixture-report --classify` buckets every failure by distance, by what kind of line
+  differs and by message shape, and `--in-scope` drops the host-library categories. It replaced a
+  throwaway shell script, and rebuilding the measurement changed two things: the `*Fail` near-miss
+  counts (see §4) and the discovery that §3 had no item for 151 failing execution-suite fixtures
+  (now §3.5).
 
 ---
 
@@ -86,10 +122,14 @@ conversion (panics are not used for control flow), splitting `visitor_statements
 
 ---
 
-## 3. Language compatibility (L)
+## 3. Language compatibility (L, E)
 
 Each line: what to build → fixtures/category it unlocks. Run
-`just fixture-report --category <Cat> --list-fails` for the live list.
+`just fixture-report --category <Cat> --list-fails` for the live list, or
+`--classify` with it to see how far each failure is from passing.
+
+§3.1–§3.4 are organised by *subsystem* and are largely closed. §3.5 is organised by *failing
+suite* and is not: it holds the execution-suite failures the subsystem view never surfaced.
 
 ### 3.1 Parser
 
@@ -98,12 +138,10 @@ fields, expression-backed and multi-index indexed properties, `external` propert
 nested `>>` in generic type-argument lists; see
 [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
 
-**Done (2026-09-12):** the keyword operators are case-insensitive. The AST carried the operator's
-source spelling, and the analyzer, the evaluator and the bytecode compiler each compare it against
-a lowercase literal, so `6 and 3` compiled and `6 And 3` drew `unknown binary operator: And` —
-taking the whole declaration with it, since `var a := 6 And 3` then leaves `a` undeclared. Folded
-once where the node is built (`operatorSpelling`), which covers `and or xor not div mod shl shr
-sar in implies`. Closed `bitwise_booleans`, `bitwise_shift` and `func_result_as_byref`.
+Also closed 2026-09-12:
+[the keyword operators are case-insensitive](docs/history/progress-log-2026-09.md#2026-09-12--keyword-operators-are-case-insensitive-31)
+— the spelling is folded once where the node is built, covering `and or xor not div mod shl shr sar
+in implies` (+3 fixtures).
 
 - ✋ `{$I %FILE%}`-style value substitution: the only fixture, SimpleScripts `include_expr`, cannot
   pass. Its expected output hardcodes the original Delphi runner's paths (`Test\include_expr.pas`,
@@ -113,72 +151,32 @@ sar in implies`. Closed `bitwise_booleans`, `bitwise_shift` and `func_result_as_
 
 ### 3.2 Semantic
 
-**Done (2026-09-09):** parameterless function/method-pointer operands for `and` / `or`,
-including return-type checking, short-circuit execution, and exception propagation.
-Regression tests exercise the shared compile pipeline and production evaluator; completion
-and validation are recorded in
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--parameterless-callbacks-in-and--or-32).
+**Closed 2026-09-09 / 09-10.** All seven bounded task groups shipped (L-S1…L-S7); write-ups in
+[the September progress log](docs/history/progress-log-2026-09.md):
 
-The remaining work is divided into bounded tasks below. IDs stay stable when neighboring
-items close. Fixture names are acceptance targets from the existing backlog; confirm the
-current failure before implementing a task, since §3.1 work may already remove a blocker.
-Close each task with a passing target fixture or a focused compile-and-run/diagnostic test.
+| Group | What shipped | Fixtures |
+| --- | --- | --- |
+| Parameterless callbacks in `and` / `or` | function/method-pointer operands, with return-type checking, short-circuiting and exception propagation | — |
+| 3.2.1 Class construction (L-S1a–c) | four explicit phases over the single type registry: identity, inheritance, member signatures before bodies, ancestor-dependent validation after | 885 → 887 |
+| 3.2.2 Diagnostics and metaclass properties (L-S2a–c) | private-field usage tracking, helper-property expression accessors, indexed properties with class-method accessors | 888 → 896 |
+| 3.2.3 Contracts (L-S3a–c) | contracts resolved through the ancestor chain, each condition reported under the class that *declares* it | SimpleScripts 336 → 338 |
+| 3.2.4 Generics (L-S4a–f) | generic interfaces and array aliases as templates, generic instantiations in inheritance lists, out-of-line generic method bodies | GenericsPass 15 → 23 (100%) |
+| 3.2.5 Overloads and method pointers (L-S5a–d) | — | OverloadsPass 33 → 37 of 39 |
+| 3.2.6 Sets (L-S6a–c) | bracket literals convert on their expected type, set literals fold as constants, four new set diagnostics | SetOfPass 21 → 25 (100%), SetOfFail 1 → 5 |
+| 3.2.7 Conditional compilation (L-S7a–b) | `Declared()` as a real compile-time predicate in both the preprocessor and expression positions; message directives with message/position parity | 920 → 937 |
 
-**Coordination:** complete the class-builder tasks in order. Other groups can proceed
-independently when their source ownership does not overlap. Coordinate property/record
-analysis and shared type changes with §3.1; serialize changes to the generic specializer,
-overload resolver, and class metadata within their respective groups. Runtime changes
-needed to finish a semantic task belong in the evaluator. Integrate PLAN/history and
-fixture-baseline updates after each completed task.
+One order dependency remains, documented rather than fixed (L-S1c): `var c := TC.Create;` written
+*before* the abstract ancestor's declaration is still checked in source order and misses the
+abstract-instantiation error. The old
+[semantic-passes design](docs/architecture/semantic-passes.md) stays design input only, not an
+implemented pass framework.
 
-#### 3.2.1 Class construction independent of declaration order
+**The one concrete follow-up from this section** is the last bullet of 3.2.7's notes:
+`THelper.Proc(TObject.Create)`, a helper method called with an explicit instance argument, is an
+unimplemented call form.
 
-**Closed 2026-09-09.** Class construction is now four explicit phases over the single type
-registry in `internal/semantic/class_construction.go` — identity, inheritance, member
-signatures before bodies, and ancestor-dependent validation after signatures. No second type
-registry was introduced. The old
-[semantic-passes design](docs/architecture/semantic-passes.md) remains design input only, not
-an implemented pass framework.
-
-**Done (2026-09-09):** L-S1a. Predeclaration is now an explicit two-phase construction in
-`internal/semantic/class_construction.go` (identity, then inheritance), still over the single
-type registry. Parent links and class-level shape flags are resolved before member/body
-checking, cycles and unknown parents stay diagnostics, and forward/partial behavior is
-unchanged; see
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--two-phase-class-construction-inheritance-before-members-l-s1a).
-
-**Done (2026-09-09):** L-S1b. Inline class method bodies are no longer checked where they are
-declared: the signature is registered in source order, the body is queued and checked once the
-last top-level class declaration has been analyzed, so every class has its full member surface
-(fields, class vars, constants, methods, properties) on its single shared shell first. A body
-may now name a class or a member declared later in the file; `SimpleScripts/method_implem` and
-`SimpleScripts/var_param_obj_method` newly pass (885 → 887). See
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--class-member-signatures-complete-before-body-checking-l-s1b).
-
-**Done (2026-09-09):** L-S1c, closing this section. A fourth phase postpones the
-ancestor-dependent validations (`validateVirtualOverride` per method; `checkMethodOverriding`,
-`validateInterfaceImplementation` and `validateAbstractClass` as the class tail) into a queue
-drained with the deferred bodies, and only when an ancestor's declarations are still
-outstanding — so `override` and `inherited` against a parent declared later now work, while
-every negative case keeps its existing message and position. Fixtures unchanged at 887 with an
-identical failing list. Remaining order dependency, documented rather than fixed: a statement
-such as `var c := TC.Create;` written before the abstract ancestor's declaration is still
-checked in source order and misses the abstract-instantiation error. See
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--ancestor-dependent-class-validation-after-signatures-complete-l-s1c).
-
-#### 3.2.2 Diagnostics and metaclass properties
-
-**Closed 2026-09-09.** All three items shipped; the ✋ notes below record what was measured and
-deliberately left out.
-
-**Done (2026-09-09):** L-S2a. The ticket's premise did not reproduce — measured on the shared
-pipeline, `JSONConnectorPass/serialize_class` passes and no failing JSONConnectorPass fixture
-involves the hint at all. The real defect was a false positive: a private field named by bare
-name inside a method body or an expression-form property accessor resolved through the symbol
-table and was never marked used. Class field bindings now carry their declaring class
-(`Symbol.ClassFieldOwner`), the six fixtures that emitted a bogus hint emit none, and fixtures
-rose 888 → 892. See
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--unused-private-field-hint-usage-tracking-l-s2a).
+**Measured and deliberately not done.** Each of these was looked at and left; the reason is the
+point, so they stay here rather than moving to the history log.
 
 - ✋ Unused-private-field hints when the program also has a compile error: the blanket
   suppression in `internal/semantic/unused_warnings.go` drops every private-member hint for a
@@ -188,173 +186,101 @@ rose 888 → 892. See
 - ✋ Unused-private hints for record fields and class vars: `types.RecordType` has
   `FieldVisibility` but no usage-tracking infrastructure, and class vars have none either.
   Measured 2026-09-09; no fixture demands it.
-
-**Done (2026-09-09):** L-S2b. Helper properties now support expression-form accessors and are
-reachable through a metaclass, a type cast's static class, and a record receiver, on both the
-read and the write side; a non-identifier write specifier is recognized as the lvalue shorthand
-it is, and record class vars written through an instance reach shared storage. All three
-helper-property fixtures pass (`helpers_property_expressions`,
-`class_helpers_property_write_expressions`, `record_helpers_property_write_expressions`),
-PropertyExpressionsPass 15 → 18. See
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--helper-property-expression-accessors-and-metaclass-resolution-l-s2b).
-
 - ✋ `read_write_other_property`: a property whose read/write specifier names *another property*
   (`property Mapped : Integer read Prop write Prop`) is rejected at compile time. Measured
   2026-09-09; a distinct gap from helper properties, belongs with §3.1 property handling.
 - ✋ Record-type metaclass member access (`TRec.SomeClassProperty` through the type name, as
   opposed to through an instance) is unsupported. Measured 2026-09-09; no fixture demands it.
-
-**Done (2026-09-09):** L-S2c, closing this section. An indexed property whose accessor is a class
-method now resolves through a class name *and* through an instance, on both the read and the
-write side, with the metaclass bound as the accessor's receiver and index arity validated against
-the declared index parameters. Semantic analysis was tightened to match: reaching such a property
-through a class name when the accessor needs an instance is now a compile-time diagnostic with the
-same messages the non-indexed metaclass path uses, instead of semantic accepting what the
-evaluator could not execute. `SimpleScripts/enum_to_integer` passes, 895 → 896. See
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--indexed-properties-with-class-method-accessors-l-s2c).
-
-#### 3.2.3 Contracts
-
-**Closed 2026-09-09.** Method contracts are now resolved through a contract chain — the
-executing declaration plus each ancestor declaration of the same method — instead of being read
-off the executing declaration alone. Every condition is reported under the class that *declares*
-it, so an inherited `require` on a derived instance still names the base method.
-
-**Done (2026-09-09):** L-S3c. Contract failures name the class for a method whose body is written
-inline in the class declaration, not only for out-of-line `procedure TFoo.Bar` implementations;
-the declaring class comes from the class registry, which also keeps a free function called from
-inside a method body unqualified. `SimpleScripts/method_condition` passes.
-
-**Done (2026-09-09):** L-S3a. An override with no `require` of its own runs the ancestor's,
-base-most first, reported with the ancestor's name and position. Contract parameters bind by
-position, so an ancestor condition is evaluated against the call's arguments even when the
-override renamed its parameters.
-
-**Done (2026-09-09):** L-S3b, closing this section. Inherited `ensure` conditions run too, with
-`old(...)` capture extended over the same chain. The executing declaration's own postconditions
-are checked before any it inherits: when both fail, DWScript reports the derived one.
-`SimpleScripts/method_contracts` passes; SimpleScripts 336 → 338. See
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--contract-inheritance-and-inline-method-naming-l-s3a-l-s3b-l-s3c).
-
-✋ `Preconditions must be defined in the root method only`: upstream rejects `require` on a
-non-root method. Not implemented — it belongs to §4 error-detection parity, and
-`FailureScripts/contracts_precondition` also needs `Warning: Constant condition`. The runtime
-meanwhile evaluates every `require` in the chain, root-most first.
-
-✋ Class invariants parse into `ClassDecl.Invariants` but are never evaluated. No fixture
-demands them; measured 2026-09-09.
-
-#### 3.2.4 Generics
-
-**Closed 2026-09-09.** GenericsPass 15 → 23 (100%). Generic interfaces and generic array
-aliases are now templates like classes and records; a class inheritance list can name a
-generic instantiation (`class (ITest<Integer>)`); and out-of-line generic method bodies
-(`function TTest<T>.Test`) are parsed and cloned once per specialization. Measurement also
-showed three of the listed blockers were not generics bugs at all and were fixed as such:
-`class external` methods are no longer treated as forward declarations, `@f` on a
-function-pointer variable and `nil` as a function-pointer argument now type-check and run,
-and a record reaching a builtin's Variant parameter goes through a user-defined
-`operator implicit (TRec) : Variant`. L-S4c (`func_ptr1`) and the `tlist1` half of L-S4f
-already passed; measured, not implemented. See
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-09--generics-l-s4al-s4f).
-
-✋ `GenericsFail` (8 fixtures, 0 passing) is untouched: it belongs to §4 error-detection
-parity. `GenericsFail/implem_mismatch1` now gets further before failing — DWScript's
-"T expected but u found" check for a mismatched out-of-line type-parameter name is not
-implemented; substitution is positional instead.
-
-✋ Type-parameter constraints (`<T: TObject>`) are parsed and ignored; no fixture in
-`GenericsPass` demands them. Measured 2026-09-09.
-
-✋ Comparing a function pointer against `nil` (`f = nil`) still reports
-"operator = requires comparable types". Assignment and argument passing work; no fixture
-demands the comparison. Measured 2026-09-09.
-
-#### 3.2.5 Overloads and method pointers
-
-Closed 2026-09-09 (L-S5a–L-S5d); `OverloadsPass` 33 → 37 of 39. See
-[`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
-
-✋ The two remaining `OverloadsPass` failures (`overload_ambiguous_delegate`,
-`overload_class_method`) expect case-mismatch hints and are blocked by the won't-fix in §5;
-their behavior is otherwise correct. The 14 `OverloadsFail` fixtures need
-`The function X was forward declared but not implemented`, which does not exist anywhere in
-the tree — that is §4 / F7, not this section.
-
-#### 3.2.6 Sets
-
-Closed 2026-09-09 (L-S6a–L-S6c); `SetOfPass` 21 → 25 of 25 (100%), `SetOfFail` 1 → 5,
-`SimpleScripts` 338 → 340. A bracket literal now converts on its expected type rather than on
-its element shape, set literals fold as compile-time constants, partial record constants are
-accepted with defaulted fields, `set of (a, b)` parses in a variable's type, and Float → enum
-casts compile. New diagnostics: `Element is out of set bounds`, `Set expected`,
-`Enumeration expected`, `Set has too many elements for cast to integer`. See
-[`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
-
-✋ The other nine `SetOfFail` fixtures (`bracket_left_missing`, `bracket_right_missing`,
-`for_in_set_missing_do`, `include`, `invalid_method`, `invalid_operand`, `of_missing`,
-`test_non_variable`, `type_missing`) are parser-recovery and message-parity work, not set
-semantics — they belong to §4 / F7.
-
-#### 3.2.7 Conditional compilation
-
-Closed 2026-09-10 (L-S7a, L-S7b); fixtures 920 → 937, `FailureScripts` 107 → 122,
-`SimpleScripts` 340 → 342. `Declared()` is a real compile-time predicate in both the
-preprocessor and expression positions, the message directives (`{$HINT}`, `{$WARNING}`,
-`{$ERROR}`, `{$FATAL}`, `{$HINTS}`, `{$WARNINGS}`, `{$R}`) have DWScript message/position
-parity, and lexer diagnostics reach the front end at all — which also closed twelve
-malformed-directive fixtures listed under §4/F7. See
-[`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md#2026-09-10--conditional-compilation-declared-and-the-message-directives-327).
-
-✋ `FailureScripts/static_methods` regressed and is the one fixture lost: it passed only
-because `{$FATAL}` was ignored, and upstream's expectation omits the `Compile Error` line
-even though the directive is present. The only structural difference from the three
-fixtures where the fatal *is* reported is that its `{$FATAL}` is not at column 1 — a
-correlation that holds 5/5 but has no plausible tokenizer mechanism, so it was not encoded.
-Reopen if the reference submodule is ever checked out.
-
-✋ `ConditionalDefined(s)` always folds to `False`; `{$DEFINE}` symbols live in preprocessor
-state the analyzer cannot reach. Argument validation is complete.
-
-✋ `HelpersPass/declared_helper` resolves all four `Declared()` calls but cannot pass: its
-expectation needs the case-mismatch hints §5 marks won't-fix, and
-`THelper.Proc(TObject.Create)` — a helper method called with an explicit instance argument —
-is an unimplemented call form. **That call form is the one concrete follow-up from this
-section** and belongs to §3.2 helper work.
-
-✋ `special_funcs4` (needs `Expression expected` for `Inc(i, )`) and `conditionals2.1` (wants
-the unbalanced report at the directive argument, column 9, where the byte-identical
-`conditionals2` wants it at the name, column 3) stay with §4 / F7.
-
-✋ Subrange bounds at compile time: no fixture declares a subrange type; zero yield.
-
-✋ `for <var> in <set>` does not type-check the loop variable against the set's element type:
-`var i: Integer; for i in s do` over a `set of TEnum` is accepted silently. Found 2026-09-11
-while clearing the §3.4 skipped-test backlog; the commented-out
-`TestLargeSetForInLoopVariableTypeError` that documented it was deleted. No fixture demands it.
+- ✋ `Preconditions must be defined in the root method only`: upstream rejects `require` on a
+  non-root method. Not implemented — it belongs to §4 error-detection parity, and
+  `FailureScripts/contracts_precondition` also needs `Warning: Constant condition`. The runtime
+  meanwhile evaluates every `require` in the chain, root-most first.
+- ✋ Class invariants parse into `ClassDecl.Invariants` but are never evaluated. No fixture
+  demands them; measured 2026-09-09.
+- ✋ `GenericsFail` (8 fixtures, 0 passing) is untouched: it belongs to §4 error-detection
+  parity. `GenericsFail/implem_mismatch1` now gets further before failing — DWScript's
+  "T expected but u found" check for a mismatched out-of-line type-parameter name is not
+  implemented; substitution is positional instead.
+- ✋ Type-parameter constraints (`<T: TObject>`) are parsed and ignored; no fixture in
+  `GenericsPass` demands them. Measured 2026-09-09.
+- ✋ Comparing a function pointer against `nil` (`f = nil`) still reports
+  "operator = requires comparable types". Assignment and argument passing work; no fixture
+  demands the comparison. Measured 2026-09-09.
+- ✋ The two remaining `OverloadsPass` failures (`overload_ambiguous_delegate`,
+  `overload_class_method`) expect case-mismatch hints and are blocked by the won't-fix in §5;
+  their behavior is otherwise correct. The 14 `OverloadsFail` fixtures need
+  `The function X was forward declared but not implemented`, which does not exist anywhere in
+  the tree — that is §4 / F7, not this section.
+- ✋ The other nine `SetOfFail` fixtures (`bracket_left_missing`, `bracket_right_missing`,
+  `for_in_set_missing_do`, `include`, `invalid_method`, `invalid_operand`, `of_missing`,
+  `test_non_variable`, `type_missing`) are parser-recovery and message-parity work, not set
+  semantics — they belong to §4 / F7.
+- ✋ `FailureScripts/static_methods` regressed and is the one fixture lost: it passed only
+  because `{$FATAL}` was ignored, and upstream's expectation omits the `Compile Error` line
+  even though the directive is present. The only structural difference from the three
+  fixtures where the fatal *is* reported is that its `{$FATAL}` is not at column 1 — a
+  correlation that holds 5/5 but has no plausible tokenizer mechanism, so it was not encoded.
+  Reopen if the reference submodule is ever checked out.
+- ✋ `ConditionalDefined(s)` always folds to `False`; `{$DEFINE}` symbols live in preprocessor
+  state the analyzer cannot reach. Argument validation is complete.
+- ✋ `HelpersPass/declared_helper` resolves all four `Declared()` calls but cannot pass: its
+  expectation needs the case-mismatch hints §5 marks won't-fix, and
+  `THelper.Proc(TObject.Create)` — a helper method called with an explicit instance argument —
+  is an unimplemented call form — the follow-up named above.
+- ✋ `special_funcs4` (needs `Expression expected` for `Inc(i, )`) and `conditionals2.1` (wants
+  the unbalanced report at the directive argument, column 9, where the byte-identical
+  `conditionals2` wants it at the name, column 3) stay with §4 / F7.
+- ✋ Subrange bounds at compile time: no fixture declares a subrange type; zero yield.
+- ✋ `for <var> in <set>` does not type-check the loop variable against the set's element type:
+  `var i: Integer; for i in s do` over a `set of TEnum` is accepted silently. Found 2026-09-11
+  while clearing the §3.4 skipped-test backlog; the commented-out
+  `TestLargeSetForInLoopVariableTypeError` that documented it was deleted. No fixture demands it.
 
 ### 3.3 Runtime / evaluator
 
-- `[ ]` M Triage the remaining untouched in-scope category: Memory (1/13). Its two scored
-  fails (`external_constructor_exception`, `external_constructor_exception2`) need host-exposed
-  external classes (`TExposedClass`), which is host-integration territory; the other ten have no
-  `.txt` and are therefore unscored. First step: list fails, bucket by cause, then add concrete
-  items here.
-  The categories this section used to list are now closed: FunctionsByteBuffer 19/19 (see
-  [`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md)), FunctionsTime 27/27,
-  FunctionsVariant 9/9, FunctionsDebug 3/3, InnerClassesPass 2/2 and EncodingLib 12/12.
-- `[ ]` M FunctionsGlobalVars `private_vars` (13/16, library shipped — see
+Every other category this section used to list is closed: FunctionsByteBuffer 19/19 (see
+[`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md)), FunctionsTime 27/27, FunctionsVariant 9/9,
+FunctionsDebug 3/3, InnerClassesPass 2/2, EncodingLib 12/12.
+
+- `[~]` S **Memory — triaged 2026-09-12, and mostly a harness gap rather than language work.**
+  The category reads 1 of 3 scored with ten fixtures unscored.
+  - `[ ]` S Five of those ten already compile clean and print nothing (`obj_bidicycle`,
+    `obj_cycle`, `obj_selfref`, `simple`, and `obj_local` at the default hint level). Scoring them
+    the way upstream does takes Memory to 6/13 with no language change — that is **T7**, do it
+    there.
+  - `[ ]` S `obj_fields` is the one real defect this category exposes:
+    `TMyObj2.Create.Field := TMyObj1.Create;` — a constructor call as the **base of an lvalue** —
+    fails with `Runtime Error: cannot access field of CLASS [line: 13, column: 21]`. The
+    construction yields the class rather than the instance in that position; the same assignment
+    through a variable (line 12 of the same fixture) works.
+  - ⏸️ The six `external*` fixtures need a **host-registered external class** — upstream's `SetUp`
+    registers `TExposedClass` and `TExposedBoomClass` with host-side constructors and an
+    `OnCleanUp` hook (`UMemoryTests.pas:86-118`). That is host-integration surface, §5 territory.
+    go-dws answers `parent class 'TExposedClass' not found`, which is right for a host that
+    registered nothing.
+  - ✋ Upstream's leak assertions (`exec.ObjectCount = 0`, external-object count) do not port: they
+    check DWScript's reference counting at a point where Go's GC has not necessarily run. Five of
+    the ten unscored fixtures exist only to make that assertion; "compiles and prints nothing" is
+    all of it that is portable.
+- `[ ]` M FunctionsGlobalVars `private_vars` (12/16, library shipped — see
   [`docs/guide/global-vars.md`](docs/guide/global-vars.md)). The parser half is done
   (2026-09-12): a unit written without `interface`/`implementation` sections now parses. What
   remains is the per-unit `WritePrivateVar`/`ReadPrivateVar`/`PrivateVarsNames`/
   `CleanupPrivateVars` family, and the blocker is **unit identity at run time**, which nothing
   currently tracks: neither `runtime.MethodMetadata`/`FunctionMetadata` nor the execution
-  context records which unit a body came from. Needs, in order: (1) record the declaring unit on
-  callable metadata when `ImportUnitSymbols` installs it; (2) carry it on the call stack so the
-  executing unit is known; (3) add `CurrentUnit() string` to `builtins.Context`; (4) implement
-  the four builtins over a per-unit store keyed by that name, raising
-  `Private variables cannot be referred from main module` when the caller is the main module.
-  Sized M rather than S because of (1)–(3), not the builtins.
+  context records which unit a body came from. In order — the first three are the M, the
+  builtins themselves are an S:
+  - `[ ]` Record the declaring unit on callable metadata when `ImportUnitSymbols` installs it
+    (`runtime.MethodMetadata` / `FunctionMetadata` gain a unit field).
+  - `[ ]` Carry it on the call stack, so "which unit is executing" is answerable at any point in
+    a run, not just at the declaration site.
+  - `[ ]` Add `CurrentUnit() string` to `builtins.Context`, the seam the builtins read.
+  - `[ ]` Implement `WritePrivateVar` / `ReadPrivateVar` / `PrivateVarsNames` /
+    `CleanupPrivateVars` over a per-unit store keyed by that name, raising
+    `Private variables cannot be referred from main module` when the caller is the main module.
+  - `[ ]` Acceptance: `FunctionsGlobalVars/private_vars`. The other unit-identity consumers
+    (stack traces, `{$I %FILE%}`) are out of scope here — do not widen the metadata beyond what
+    the four builtins need.
 - ✋ FunctionsGlobalVars `queue_snapshot`: measured 2026-09-12, the produced output already
   matches the expectation exactly, line for line. The only difference is four
   `"join" does not match case of declaration ("Join")` hints, and the discriminator is not
@@ -366,13 +292,12 @@ while clearing the §3.4 skipped-test backlog; the commented-out
 - ✋ UTF-16 surrogate iteration (`for_in_str`, `for_in_str2`): intentional divergence, see
   [`docs/decisions/string-encoding.md`](docs/decisions/string-encoding.md).
 
-**Done (2026-09-12):** the runtime-panic re-measurement, which found no panics at all. All 87
-then-failing `SimpleScripts` fixtures were run through the CLI and none produced a Go panic or
-goroutine dump (there is no `recover` on the run path, so one would surface). The three areas the
-item named were failing for ordinary, concrete reasons instead, and all three are now fixed —
-nil-metaclass message parity, class aliases as class names, and non-virtual/`reintroduce`
-dispatch. `SimpleScripts` 349 → 354, fixtures 1044 → 1049. See
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-12--the-runtime-panic-re-measurement-33).
+**Closed 2026-09-12:**
+[the runtime-panic re-measurement](docs/history/progress-log-2026-09.md#2026-09-12--the-runtime-panic-re-measurement-33) — there
+were no runtime panics; the three areas the item named were failing for ordinary reasons
+(nil-metaclass message parity, class aliases as class names, non-virtual/`reintroduce` dispatch),
+all now fixed. `SimpleScripts` 349 → 354. Note it covered *runtime* panics only; the compile-time
+crashes were found separately and closed under §4.
 
 ### 3.4 Source TODO backlog (merged from the former `TODOs.md`)
 
@@ -387,213 +312,248 @@ One item remains, and it is blocked on the evaluator rather than ready to build.
   (`evaluator.ResolveOverloadMultiple`) with no expected-type channel. Blocked until the evaluator can
   see the call site's expected type, or reuse the analyzer's choice via `ast.SemanticInfo`.
 
-**Done (2026-09-12):** the engine seam for `platform.Platform`, closing the last buildable item
-in this section. `dwscript.WithPlatform(platform.Platform) Option` installs a platform on the
-engine; `Engine.Platform()`/`Engine.FS()` report the one in force, defaulting to the build's
-platform (native, or the WASM virtual filesystem) rather than nil. The platform rides on
-`contracts.EngineState`, `builtins.Context` gained `FS()`, and the first two file built-ins —
-`LoadTextFromFile` and `SaveTextToFile` — go through it and nowhere near `os`. The WASM bridge
-now hands its platform to the engine, so a host filesystem installed through `init({fs})` is one
-a script actually reads: `just wasm-smoke` round-trips a script through a JavaScript `Map`-backed
-filesystem against the real WASM build. Fixtures unchanged
-at 1044, as expected: no scored fixture calls either built-in, and the FunctionsFile category
-needs a `File` handle type, the path helpers (`ExtractFileExt`, `ChangeFileExt`, …) and directory
-enumeration, none of which this seam provides. That category stays out of scope.
-See [the September progress log](docs/history/progress-log-2026-09.md#2026-09-12--the-platformplatform-engine-seam).
+**Closed here (2026-09-11 / 09-12):**
 
-**Done (2026-09-12):** class-hierarchy distance in overload matching. The TODO this item named
-(`internal/semantic/overload_resolution.go:211`) no longer exists — that file is now an 81-line
-facade over `internal/types`, and `types.SignatureDistance` has ranked class arguments by
-inheritance steps (`classDistance`) since the type-system consolidation. Measured and pinned with
-regression tests: given `TC < TB < TA` and overloads on `TA` and `TB`, a `TC` argument now
-provably selects `TB`. Nothing was implemented; the item was stale bookkeeping.
+- [The `platform.Platform` engine seam](docs/history/progress-log-2026-09.md#2026-09-12--the-platformplatform-engine-seam) —
+  `WithPlatform`, `Engine.Platform()`/`FS()`, `builtins.Context.FS()`, and the first two file
+  built-ins routed through it. Fixtures unchanged, as expected: no scored fixture calls them, and
+  FunctionsFile needs a `File` handle type and the path helpers, which this seam does not provide.
+- [Two stale items, measured and closed](docs/history/progress-log-2026-09.md#2026-09-12--two-stale-34-items-measured-and-closed)
+  — class-hierarchy distance in overload matching already worked
+  (`types.SignatureDistance`/`classDistance`), and the three `t.Skip`ped class-operator
+  inheritance tests documented a bug that does not exist: the third failed only because a
+  constructor parameter `id` shadows the field `ID`, and DWScript is case-insensitive, so
+  `ID := id` is a self-assignment. Nothing was implemented; both were stale bookkeeping.
+- [The skipped-test backlog](docs/history/progress-log-2026-09.md#2026-09-11--the-skipped-test-backlog-34) — every entry revived,
+  deleted or turned into a real check; const static-array element assignment is now diagnosed
+  (`FailureScripts` 125 → 126).
 
-**Done (2026-09-12):** the three `t.Skip`ped class-operator inheritance tests in
-`internal/interp/operator_test.go` are revived. The "pre-existing bug in operator inheritance
-with mixed types" they documented does not exist: multi-level and deep-hierarchy operator
-resolution already worked, and the third test failed only because its constructor parameter `id`
-shadows the field `ID` — DWScript is case-insensitive, so `ID := id` is a self-assignment and the
-field is never written. Renaming the parameter is the fix; the scoping behaviour is correct.
+### 3.5 Execution-suite failures (E)
 
-**Done (2026-09-11):** the skipped-test backlog is cleared — every entry was revived, deleted or
-turned into a real check, and const static-array element assignment is now diagnosed
-(`FailureScripts` 125 → 126). See
-[the September progress log](docs/history/progress-log-2026-09.md#2026-09-11--the-skipped-test-backlog-34).
+**New 2026-09-12**, from the first classification run over the suites that *run* a program rather
+than compile it. §3.1–§3.4 report "no open items" while **145 in-scope execution-suite fixtures
+fail**; they were never enumerated because the only measurement that existed covered the `*Fail`
+suites. Tables and method:
+[`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
+Regenerate with `just fixture-report --in-scope --classify --list-fails`.
+
+Read the numbers with one caveat: **111 of the 145 are classified `mixed`** (a diagnostic *and* the
+output differ), which for an execution suite is almost always one fault — a spurious compile error
+stops the program, so its output goes missing too. Fix the error and both lines go away. It also
+means distance overstates these: a one-line spurious error on a program printing forty lines
+scores 41.
+
+- **E3** `[ ]` M **The case-mismatch hint, structurally.** `Hint: "X" does not match case of
+  declaration ("X")` is the largest cross-cutting diagnostic family in the whole in-scope set: **28
+  fixtures want it and do not get it, 9 get it where upstream emits none**, spread over
+  `SimpleScripts`, `ArrayPass`, `HelpersPass`, `OverloadsPass` and `FailureScripts`. It exists
+  (`Analyzer.addCaseMismatchHint`) but is called by hand from ~20 separate resolution sites, each
+  deciding independently what the declared name is — which is exactly why it is both missing and
+  spurious. It belongs at the single point where a name resolves to a declaration. ⚠️ Its `sole`
+  yield is 5: most of the 28 fixtures need something else as well, so this is a structural fix, not
+  a fixture-count win. Size it accordingly.
+- **E4** `[ ]` M **Missing primitive and array helpers** — `FunctionsMath` (10 failing, 6 of them
+  this) and `ArrayPass`. Absent members, named by the spurious diagnostics: `Integer.TestBit`,
+  `Integer.Compare`, `Integer.PopCount`, `Float.Compare`, and on `array of Float` / `array of
+  String`: `Pack`, `Offset`, `Multiply`, `MultiplyAdd`. Mechanical once the first one has a home.
+- **E5** `[ ]` M **`InterfacesPass` (12) — casting and comparison.** The recurring spurious
+  diagnostic is `'X' operator requires class instance, got IInterface`; the expected side wants
+  `Cannot cast interface of "X" to class "X"`, the interface-to-interface form, and
+  `Class "X" does not implement interface "X"`. Three fixtures are within two edits.
+- **E6** `[ ]` M **`JSONConnectorPass` (14) — value conversion, not rendering.** Four are one edit
+  out, and they do not share a cause: `global_var` prints `"hello"` where `hello` is wanted (an
+  implicit string conversion keeping its quotes), while `implicit_to_int2` prints `null` for
+  `{"test":1}` — a conversion that lost its value. Measure each before grouping them.
+- **E7** `[ ]` S **Two spurious compile errors that stop a program running.**
+  `SimpleScripts/ignore_result` needs `String.Replace`; `SimpleScripts/assert_variant` needs
+  `Assert` to accept a Variant condition rather than rejecting it as
+  `first argument must be Boolean, got Variant`.
+- **E8** `[ ]` S **A var parameter bound to `a[<expr containing a member access>]` silently
+  degrades to a copy.** Found while closing E1. `prepareArrayElementReference`
+  (`internal/interp/evaluator/visitor_expressions_functions.go:636`) evaluates the index with
+  `e.Eval`, and inside that path `a.High` / `a.Length` evaluate to **NIL** — so
+  `P(a[a.High+1])` bails to the generic by-value path while `P(a[i])` and `P(a[2+2])` bind by
+  reference correctly. Two consequences: writes through the parameter are lost, and the bounds
+  diagnostic comes from the wrong anchor. That second one is why
+  `SimpleScripts/const_array_empty` is still open: it wants the closing bracket (column 17 of
+  `PrintLn(arr[i])`), which is what `indexBracketPos` already gives every *write*, but moving the
+  read path onto that anchor turns `ArrayPass/array_element_byref` red, because its line 65
+  (`AsString(a[a.Length])`) is one of the mis-routed binds and upstream reports a real bind one
+  column further on. Fix the routing first, then move the anchor; the two fixtures close together.
+  Reproduction in `internal/interp/evaluator/index_ops.go`'s `IndexArray` comment.
+- `[ ]` The remainder — `HelpersPass` 5, `OperatorOverloadPass` 3, `LambdaPass`/`Memory`/
+  `OverloadsPass`/`FunctionsGlobalVars` 2 each, `BuildScripts`/`FunctionsString`/
+  `PropertyExpressionsPass` 1 each — is not yet clustered. Classify per category before opening an
+  item: `just fixture-report --category HelpersPass --classify`.
+
+**Closed here (2026-09-12):**
+
+- [Runtime-message vocabulary and the self-positioned hint](docs/history/progress-log-2026-09.md#2026-09-12--runtime-message-vocabulary-e1-e2)
+  (**E1**, **E2**) — `Division by zero` for both `div` and `mod`, `Lower/Upper bound exceeded!` for
+  a string index (catchable, like the array form), `Unhandled call to external symbol "X" from`,
+  `raise ExceptObject` recognised as a re-raise, and the calling-convention hint shared between
+  methods and free routines so it anchors like every other diagnostic. Six `SimpleScripts` fixtures.
+  Two remainders were split out rather than left implied: `const_array_empty` is now part of **E8**,
+  and `partial_class3` still fails on a spurious `Result is never used` hint and a spurious
+  `class 'TTest' already declared` runtime error — its hint anchor was only one of three faults.
+  Cosmetic, no fixture: `--diagnostics=pretty` prints the position twice for any exception whose
+  message already carries one (arrays and strings alike). The plain and envelope renderers do not.
 
 ---
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 158/640 (FailureScripts 149/529, SetOfFail 5, JSONConnectorFail 2,
+Harness and CLI: 165/640 (FailureScripts 156/529, SetOfFail 5, JSONConnectorFail 2,
 AssociativeFail 1, InterfacesFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
 `dwscript run --diagnostics=plain --compile-only --hints pedantic <file>`.
 
-Work families (from the 2026-03 FailureScripts analysis, now archived at
-`docs/archive/failure-scripts-next-phase-plan.md`; counts are approximate and pre-date the July work):
+**Measured 2026-09-12**, every `*Fail` fixture diffed line-by-line against its expectation. The
+tables, the per-shape inventories and the full near-miss list are in
+[`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md);
+only what to build is repeated here. **475 in-scope fixtures fail** (COMConnectorFailure's 8 are
+host-library). **156 are one edit from passing and 281 are within two**, so working the
+audit's near-miss queue across families often beats draining one family. ⚠️ Those two counts
+replace the 68 / 194 recorded on 2026-09-12: the original script sorted both sides and compared
+with `comm`, so a diagnostic emitted in the *wrong words* counted as two lines. It is one edit, and
+`fixture-report --classify` now counts it as one (T8). Nothing about the port changed; re-derive
+with `just fixture-report --in-scope --classify`. Two results reordered
+what follows: go-dws's own invented message vocabulary blocks **265 of the 480** (F8, re-sized from
+S to M), and the missing-validation sweep had only ever been counted over `FailureScripts`
+(F5, +27 fixtures).
 
-- **F1** `[ ]` M Warning/hint emission and ordering (~54): `Empty THEN block`, unused result,
-  unused variable, unreachable code; ordering of warnings vs same-line errors. Case-mismatch
-  hints are excluded (✋ §5).
-- **F2** `[ ]` M Array diagnostics (~41): `Array expected`, `Too many indices`, bound-exceeded
-  wording, malformed array-type recovery.
-- **F3** `[ ]` M Parser header/declaration/delimiter recovery (~58): parameter lists, `case`,
-  `except`, record/method headers; delimiter wording (`")" expected`, `END expected`,
-  `DO expected`, `TO or DOWNTO expected`).
-- **F4** `[ ]` L Class/property/static/override/visibility diagnostics (~125): the largest family.
-- **F5** `[~]` M Missing-validation sweep: the `FailureScripts` fixtures where DWScript
-  reports something and go-dws compiles clean. **Re-measured 2026-09-12: 58, not the 82 the
-  2026-03 archive recorded** — the list is regenerated by running every fixture through
-  `dwscript run --diagnostics=plain --compile-only --hints pedantic` and keeping the ones that
-  print nothing. Two names the old list gave as examples do not belong: `conditionals1-6` and
-  `switch_invalid1-3` already emit diagnostics, so they are directive **message parity**
-  (`internal/lexer/directive_messages.go`), not missing validation, and belong to F7.
-  **Re-measured again 2026-09-12 after the argument-count slice: 48.** The queue is now almost
-  entirely single-fixture work; only one bucket has more than one holder:
-  - `Warning: Constant condition` — 2 fixtures
-  - single-fixture items: `proc_with_result`, `readonly_field`, `const_param2`, `assigned`,
-    `ord`, `enum_flags_overflow`, `default_params2`, `for_var_usage`, `case_of_else`, …
-    - `Constant Instruction - has no effect` still has one holder, `class_const4`, where upstream
-    reports it as an **error** on a class-const declaration rather than a hint on a statement.
-    - `func_ptr_mismatch` still prints nothing, but no longer for want of the implicit call,
-    which shipped 2026-09-12. Two things are missing instead. `const` does not survive the
-    `types.FunctionType` → `types.FunctionPointerType` conversion, which has no slot for
-    parameter modifiers, so `@Test` is judged compatible with `procedure(Foo: string)` and
-    nothing is reported; and the message needs DWScript's rendering of routine types,
-    `"procedure Test(const String)"`, which `errors.SimplifyTypeName` truncates at the first
-    `(` to `"procedure"`. `func_ptr4` (`"class function ClassType: TClass"`) and `func_ptr1`
-    (`"procedure TMyProc"`, plus `Assignment's right-side-argument has no return type`) need
-    the same renderer. `array_of_proc`, `array_of_proc2` and `const_procedure_array` now emit
-    the arity error and need the array constructor's own unification diagnostic,
-    `Incompatible types: "void" and "nil"`, whose positions are not the element's — `[5:11]`
-    is the `]` and `[5:9]` the whitespace after the comma.
-  Two of these are blocked on missing AST position data rather than on the check itself:
-  `enum_flags_overflow` needs a per-element position on `ast.EnumValue` (only `EnumDecl` has
-  one today), and `default_params2` needs a constant-folded comparison of two default-value
-  expressions, which `mergeDefaultValues` has no helper for.
+Work families — IDs from the 2026-03 analysis
+(`docs/archive/failure-scripts-next-phase-plan.md`), counts from the 2026-09-12 re-measurement:
 
-- **F6** `[ ]` S Runtime-mismatch residue (13, not re-measured since the 2026-09-12
-  argument-count slice, which moved `dyn_array_setlength3` and `missing_param1` out of it):
-  `div_by_zero_float`/`_int`, `for_in_subclass`, ….
-- **F7** `[ ]` M Per-suite sweeps, all currently 0 and not formatting-only (verified by substring
-  check): InterfacesFail 19, HelpersFail 18, OverloadsFail 14,
-  PropertyExpressionsFail 10, SetOfFail 9, GenericsFail 8, JSONConnectorFail 7, LambdaFail 6,
-  OperatorOverloadFail 6, AssociativeFail 3, AttributesFail 2, InnerClassesFail 1.
-  (SetOfFail is no longer at 0: §3.2.6 closed four of its fourteen; the rest is parser
-  recovery and message parity.)
-- **F8** `[ ]` S Convert the remaining raw `addError(...)` sites to structured diagnostics
-  (`analyze_function_calls.go` 54, `analyze_statements.go` 49, `analyze_method_calls.go` 17,
-  `analyze_classes.go` 10) so message text and ordering are centrally controlled
-  (`docs/archive/semantic-legacy-hotspots-5.3.10.md`).
+- **F1** `[~]` M Warning/hint emission and ordering. The for-loop half closed 2026-09-12 (see the
+  table at the end of this section); what is left is ordering across bodies and the hints that do
+  not exist yet.
+  - `[ ]` S Ordering — `infinite_loop` wants **routine bodies before the main body**: `Trap`'s
+    warnings at lines 6 and 3, then the main program's at 19, 21, 35. It is a side-effect of
+    §3.2.1's deferred body checking, which should stay — re-order on the way out, not the analysis
+    on the way in.
+  - `[ ]` S Hints and warnings that exist nowhere in the tree, lines (fixtures):
+    `Unreachable code` 12 (5) · `Constant condition` 8 (5) ·
+    `Redundant "begin" in clause of a case..of` (`case_of_else`) ·
+    `Private virtual methods cannot be overridden` (`virtual_private`) ·
+    `Redundant specifier, visibility is already "X"` (`class_visibility_redundant`) ·
+    `"X" parameter is a reference type passed as VAR, but never written to`
+    (`hint_reference_var_params`) · `Assigning a to itself` (`self_assign`).
+  - Case-mismatch hints stay excluded (✋ §5); they are only 13 lines over 9 fixtures, smaller than
+    the archive implied.
+- **F2** `[ ]` M Array diagnostics: `Array expected`, `Too many indices` (8 lines, all in one
+  fixture), bound-exceeded wording, malformed array-type recovery, and
+  `Range start and range stop are of incompatible types: "X" and "Y"` 9 (4).
+- **F3** `[ ]` M Parser header/declaration/delimiter recovery. `"X" expected` is the largest
+  missing shape at 70 lines over 64 fixtures — almost one per fixture, so wide and shallow rather
+  than one deep bug. By token: `")"` ~23, `";"` ~11, `"]"` ~9, `"("` ~6, `"end"` 4, `">"` 4.
+  `Name expected` 38 (33) and `Type expected` 15 (14) have the same shape. The blocker is F8:
+  go-dws answers with its own sentence instead (`expected ')', got SEMICOLON`).
+- **F4** `[ ]` L Class/property/static/override/visibility diagnostics — still the largest family.
+  Leaders, lines (fixtures): `Method "X" of class "Y" not implemented` 34 (15) ·
+  `Name "X" already exists` 20 (12) · `Class reference expected` 11 (9) ·
+  `Class "X" isn't defined completely` 9 (7) and the `Interface` variant 4 (3) ·
+  `There is already a field with name "X"` 8 (4) · `"X" is not a method of class "Y"` 7 (4).
+- **F5** `[~]` M Missing-validation sweep — DWScript reports something, go-dws compiles **clean**.
+  **43 in FailureScripts** (was 58 before the September slices) **plus 27 in the other suites,
+  never previously counted**; the per-suite list is in the audit.
+  - `[ ]` HelpersFail 10 is the densest and most coherent pocket: 10 of its 18 failures produce
+    nothing at all, and 5 are one line from passing. Helpers accept far more than they should.
+  - `[ ]` InterfacesFail 4 · JSONConnectorFail 3 · LambdaFail 3 · OverloadsFail 3 · GenericsFail 2
+    · PropertyExpressionsFail 2.
+  - The FailureScripts 43 are almost all single-fixture work. Known sub-blockers:
+    `class_const4` needs `Constant Instruction - has no effect` as an **error** on a class-const
+    declaration rather than a hint on a statement; `enum_flags_overflow` needs a per-element
+    position on `ast.EnumValue` (only `EnumDecl` has one); `default_params2` needs a
+    constant-folded comparison of two default-value expressions, which `mergeDefaultValues` has no
+    helper for.
+  - `func_ptr_mismatch` is silent for two reasons: `const` does not survive the
+    `types.FunctionType` → `types.FunctionPointerType` conversion, which has no slot for parameter
+    modifiers, so `@Test` is judged compatible with `procedure(Foo: string)`; and the message needs
+    the routine-type renderer in F10.
+- **F6** ✅ **Closed 2026-09-12.** No runtime-mismatch residue is left: every FailureScripts fixture
+  with a blank expectation compiles clean, and none expects a `Runtime Error` line.
+  `for_in_subclass`, the last name on the list, turned out to be message parity and moves to F8.
+- **F7** `[ ]` M Per-suite sweeps. Failing / one line away / two or fewer: HelpersFail 18/5/9 ·
+  InterfacesFail 18/2/8 · OverloadsFail 14/1/5 · PropertyExpressionsFail 10/3/6 · SetOfFail 9/1/7 ·
+  GenericsFail 8/0/2 · JSONConnectorFail 7/1/2 · LambdaFail 6/2/3 · OperatorOverloadFail 6/0/1 ·
+  AssociativeFail 3/0/2 · AttributesFail 2/0/0 · InnerClassesFail 1/0/1.
+  - `[ ]` S **Sentence capitalization** — the cheapest item in the section. go-dws lowercases the
+    first word of `overload of "X" will be ambiguous…`, `overloaded procedure "X" must be marked…`
+    and `there is already a method with name "X"`, across five `OverloadsFail` fixtures. Two of the
+    same kind: `AssociativeFail/contains` renders `"Nil"` for `"nil"`, and
+    `FailureScripts/incorrect_type1` renders a builtin's parameter type as `"string"`.
+  - `[ ]` S `The function "X" was forward declared but not implemented` exists nowhere in the tree
+    — 8 lines over `OverloadsFail/forwards`, `forwards_unit`, `overload_func_ptr_param` and
+    `FailureScripts/forward_missing1`.
+  - `[ ]` S SetOfFail's nine are parser recovery and message parity; seven are within two lines,
+    and `type_missing` is one `Type expected` away.
+- **F8** `[ ]` **M, re-sized from S by measurement.** Replace go-dws's invented diagnostic
+  vocabulary with DWScript's. The original framing — convert the remaining raw `addError(...)`
+  sites to structured diagnostics (`analyze_function_calls.go` 54, `analyze_statements.go` 49,
+  `analyze_method_calls.go` 17, `analyze_classes.go` 10;
+  `docs/archive/semantic-legacy-hotspots-5.3.10.md`) — is right, but this is the precondition for
+  **265 of the 480 failing fixtures**, not a cleanup, and the parser is in it as much as the
+  analyzer.
+  - `[ ]` Extract the worklist: 291 distinct shapes with the fixtures each one blocks, mechanical
+    from the classification run (see **T8**).
+  - `[ ]` Work it by shape, largest first, mapping each to the sentence it should be
+    (`expected ')' after parameter list` → `")" expected`, `unknown type 'X'` → `Type expected`).
+    Anchors must be measured per shape; the sentence is the easy half.
+- **F9** `[ ]` M **The near-miss queue** — the 68 one-line fixtures, listed in the audit. Recurring
+  themes, each one change: `Unexpected "Integer Literal"` (`property_error6`, `visibility5`) ·
+  triple-apostrophe string diagnostics (`triple_apos1`, `triple_apos2`) · spurious
+  `No arguments expected` on an array helper called with none (`dyn_array1`,
+  `dyn_array_setlength2`) · `argument N to method 'X' of class 'Y' has type …` →
+  `Argument N expects type "X" instead of "Y"` (`method_param_error1`, `method_param_error2`) ·
+  spurious `Undefined variable 'Integer'` for an escaped reserved word (`reserved_escape_empty`,
+  `reserved_escape_number`).
+- **F10** `[ ]` M `Incompatible types: "X" and "Y"` — 58 lines over 22 fixtures, the largest missing
+  *semantic* shape. DWScript uses one sentence wherever two types fail to unify, target first,
+  supplied second, both quoted; go-dws invents a bespoke sentence per site, which is why the
+  cluster spans four unrelated subsystems. Split, per the 2026-09-12 decision:
+  - `[ ]` **Sentence and anchor only** — `array_initialization4`, `coalesce_dynarray`, `const_1`,
+    `case_error5` (`for_error4` closed 2026-09-12 with the for-in work). ⚠️ The
+    array-literal anchors need their own measurement first: `array_of_proc2` wants column 9, which
+    is *whitespace after the comma*, and `array_of_proc` wants the `]`. These look like artifacts
+    of upstream's scanner position rather than a token rule — the same ambiguity as the
+    `Infinite loop` anchor declined in #400. Confirm or park.
+  - `[ ]` **DWScript's routine-type rendering** — `class function ClassType: TClass`,
+    `function IntToHex(Integer, Integer): String`, `destructor Destroy`,
+    `procedure Test(const String)`, `procedure (String)`, `procedure TMyProc`. Rule: omit `()` when
+    there are no parameters; an unnamed type keeps the separating space. Blocked on
+    `types.FunctionPointerType` (`internal/types/function_pointer.go:13`) carrying no name, kind or
+    parameter modifiers, and on `errors.SimplifyTypeName` (`internal/errors/errors.go:400`)
+    truncating any signature at the first `(`. Extend `semanticNamedFunctionPointerName`
+    (`internal/semantic/analyze_array_helpers.go:94`, pinned by
+    `internal/frontend/result_test.go:417`) rather than starting over. Unlocks `func_ptr3`,
+    `func_ptr4`, `func_ptr_mismatch`, and with `Destructor can only be invoked on instance`,
+    `func_ptr5`.
+  - `[ ]` The `Cannot assign "X" to "Y"` variant is a separate 37 lines over 17 fixtures with a
+    different sentence. It **does** share a site: `for_in_subclass` drives the same for-in check
+    that now emits `Incompatible types: "X" and "Y"` for `for_in1` and `for_error4`, but expects
+    `Cannot assign "TBase" to "TChild"` because the two class types are related and the assignment
+    narrows. ⚠️ Its anchor is column 12 of `for c in a do`, which is the `do` — not the `in` every
+    other for-in diagnostic uses, and not the collection either. Measure that before implementing
+    the split, the way the `Infinite loop` anchor was parked in #400.
 
-**Done (2026-09-12):** the compiler no longer crashes or hangs on malformed input. Not a message
-slice: nine fixtures segfaulted the compile pipeline and one looped forever, which is worse than a
-wrong sentence — the process dies, or never answers — and both are reachable from the public
-embedding API through `frontend.AnalyzeParsed`, not just the CLI. §3.3's runtime-panic
-re-measurement did not cover these; they are compile-time. The crashes shared one cause: most
-statement and type parsers return a *concrete* node pointer rather than the `ast.Statement` /
-`ast.TypeExpression` interface, so a `return nil` on a parse failure becomes a **typed nil** —
-non-nil as an interface, faulting on any field access — and every `!= nil` guard, `ParseProgram`'s
-own included, waved it through. A malformed routine header left a typed-nil `*ast.FunctionDecl` at
-the top level and the generic monomorphizer faulted walking it, in scripts using no generics at
-all; an unsupported function-pointer return type left a typed-nil element type that faulted inside
-the parser. `statementOrNil` and `typeExpressionOrNil` normalize the two dispatchers, so the
-interface is nil exactly when the parse failed. The hang was pre-existing and separate:
-`synchronize` lists `IDENT` among its safe points, so asked to recover *from* an identifier it
-returns without advancing, and `parseRecordBody` reported the same misplaced field until memory ran
-out — which is what made a whole-corpus in-process sweep unrunnable. Defence in depth, since the
-parser is not the only thing that builds an AST: monomorphization now runs under the same `recover`
-discipline as semantic analysis (it ran outside it), `genericMethodImpl` guards the typed nil its
-type assertion accepts, and `extractUsedUnits` skips nil unit names. Measured over all 2,127
-fixtures: **0 panics and 0 timeouts, against 9 and 1 before**. Closed `record_recursive3`, which
-now matches exactly; the other eight fail on message parity rather than a signal, and
-`ArrayPass/array_of_proc_param` needs `function : procedure` return types — a real feature gap that
-now reports the diagnostic it already had instead of faulting. Fixtures 1,077 → 1,078.
+**Shipped in this section (2026-09-12).** Full write-ups in
+[the September progress log](docs/history/progress-log-2026-09.md):
 
-**Done (2026-09-12):** the `deprecated` directive family, the first F5 slice. The parser already
-recorded `deprecated` on classes, routines, constants and enum elements, and the analyzer warned
-for deprecated *classes* only — `Symbol.IsDeprecated` was scaffolding nothing ever set and
-`NewDeprecatedWarning` had zero call sites. Deprecation is now carried on the symbol (routines,
-constants, enum elements), on `types.MethodInfo`, and on `types.PropertyInfo` /
-`types.RecordPropertyInfo`, and warned at every use site: bare and parenthesized calls, method
-calls, property reads and writes including indexed and default-property (`t[i]`) access, and
-inheriting from a deprecated class. `deprecated` on a property is newly parsed for both classes
-and records — on records it was previously mis-parsed as a field declaration and produced three
-spurious errors. `FailureScripts/deprecated`, `deprecated_property`, `deprecated_empty` and
-`SimpleScripts/const_deprecated`, `enum_element_deprecated` pass; fixtures 1,049 → 1,054.
+| What | Fixtures |
+| --- | --- |
+| [No crashes, no hangs, on malformed input](docs/history/progress-log-2026-09.md#2026-09-12--no-crashes-no-hangs-on-malformed-input-4) — nine segfaults and one infinite loop, all from typed-nil AST nodes; 0 panics and 0 timeouts over all 2,127 fixtures | +1 |
+| [DWScript's argument-count vocabulary](docs/history/progress-log-2026-09.md#2026-09-12--dwscripts-argument-count-vocabulary-4--f5) — `More arguments expected` / `Too many arguments` / `No arguments expected`, anchored at the name being called | +10 |
+| [`Boolean expected`, and one hint per `if`](docs/history/progress-log-2026-09.md#2026-09-12--boolean-expected-and-one-hint-per-if-4) — the message names the type the context required and nothing else; an empty `repeat` body is legal | +6 |
+| [The `deprecated` directive family](docs/history/progress-log-2026-09.md#2026-09-12--the-deprecated-directive-family-4--f5) — deprecation carried on symbols, methods and properties, warned at every use site | +5 |
+| [The constant-instruction hint and the array-helper receiver rules](docs/history/progress-log-2026-09.md#2026-09-12--the-constant-instruction-hint-and-the-array-helper-receiver-rules-4--f5) — constness decided structurally, never by folding | +3 |
+| [The expression-position implicit call](docs/history/progress-log-2026-09.md#2026-09-12--the-expression-position-implicit-call-4--f5) — a routine name reads as a call unless the context wants a pointer it actually fits | +1 |
+| [The for-loop diagnostics](docs/history/progress-log-2026-09.md#2026-09-12--the-for-loop-diagnostics-4--f1-f10) — `Assignment to FOR-Loop variable`, the for-in half of `Empty FOR loop`, `Incompatible types` and `Enumeration expected` anchored at the `in`, and hints no longer reordered against errors | +7 |
 
-**Done (2026-09-12):** the constant-instruction hint and the array-helper receiver rules, the
-second F5 slice. A statement whose expression is provably constant now draws DWScript's
-`Constant Instruction - has no effect`; constness is decided structurally, never by folding, so
-`StrToInt('A');` is reported without being evaluated. Separately, the intrinsic array helpers
-that resize or reorder storage are refused on a static array (`Array method "X" is restricted to
-dynamic arrays`), and the ones needing actual storage are refused on a bare type name
-(`Array instance expected`) — `Low` excepted, since it is 0 for every dynamic array, as are a
-static array's bounds. `FailureScripts/ignore_result`, `array_static_methods` and `dyn_array4`
-pass; fixtures 1,054 → 1,057.
-
-**Done (2026-09-12):** `Boolean expected`. Not an F5 slice — every fixture it closed already
-printed something, and F5's silent list is unchanged at 48 — but message parity of the same kind,
-plus two genuine defects found while measuring it. DWScript names the type a context
-required and nothing else — not the type it got, not the construct that wanted it — so every
-wrong-typed condition in the language reports `Boolean expected` (`if`, `while`, `until`, the
-if-then-else expression, `require`, `ensure`) and a contract's message half reports
-`String expected`, re-using the condition's anchor rather than the message expression's. The anchor
-is the first token of the smallest unit that owns the value, and where that unit has an introducer
-the introducer wins over the expression: `while` at column 1 rather than the condition at 7,
-`until` at 8 rather than `repeat` at 1 or the condition at 14. `ast.RepeatStatement` carried only
-the `repeat` keyword and now carries `UntilPos`. The `Infinite loop` warning is deliberately left
-alone: `loop_infinite` wants it on `until`, `infinite_loop` on the condition, and both arrived in
-the same import commit, so the suite does not say which is right. An empty `repeat` body is legal —
-`repeat until X;` is a do-while that only tests its condition — and the parser's guard against it
-was what kept `repeat1` and `repeat2` from ever reaching the condition. Two empty-block hints were
-also wrong, found by measurement rather than looked for: `analyzeWhile` emitted `Empty FOR loop`
-(the FOR loops' own hint; upstream emits none for a while), and `Empty ELSE block` was reported
-beside an equally empty THEN, where upstream gives one hint per `if`. Closed `contracts_types`,
-`loop_nonbool`, `repeat1`, `repeat2`, `if_empty_terms` and `ifthenelse_optimize1`. Still open in
-this bucket: `assert` and `enum_byname` want the same sentences anchored at the *argument* rather
-than the call, `ifthenelse_expression1` fails on parser recovery after `if 2=2 1`, and
-`contracts_error2` needs a builtin to resolve inside a `require` clause.
-
-**Done (2026-09-12):** the expression-position implicit call, the fourth F5 slice. DWScript reads
-a routine name as a call and converts it back to a reference only where the context wants a
-function pointer whose signature the routine actually fits; where the conversion does not apply the
-call reading stands, so a routine with required parameters draws `More arguments expected` before
-the type error. `func_ptr1` pins both sides: `p := Proc2` reports it, `p := Proc4` does not, because
-`Proc4()` is well-formed. go-dws defaults the other way — `analyzeIdentifier` returns a pointer type
-— so rather than invert that, the rule is applied where the context has already rejected the
-reference (`checkPointerContextArity`), at four sites: a bare name in a pointer context, a bare name
-in any other value context, `@Routine`, and a function-pointer operand of `=`/`<>`. The operand case
-has no name token and is anchored at the operator, alongside the `Invalid Operands` that follows it.
-The intrinsic array helpers are exempt — `a.ForEach(IntToStr)` keeps the reference reading and names
-the routine's own signature — so their callback argument goes through
-`analyzeArrayHelperCallbackArg`. Calls *through* a pointer, the third path the argument-count slice
-left alone, now use the same two sentences and no longer leak a non-wire-format line; a miscounted
-call yields the pointer's result type rather than nil, which had produced a spurious
-`'p' is not a function` on top of the arity error. Closed `callback_err_vs_nil`.
-
-**Done (2026-09-12):** DWScript's canonical argument-count vocabulary, the third F5 slice.
-go-dws named the routine and the counts (`function 'Test' expects 2 arguments, got 1`) and
-anchored at the opening parenthesis; upstream says only `More arguments expected`,
-`Too many arguments` or `No arguments expected`, anchored at the name being called, and the last
-of those only when the routine declares no parameters at all. Every arity check at a call site
-that *names a routine* — plain calls, methods, interface and record methods, helper methods,
-constructors and `new` — now says that, and three rules that follow from it shipped with it.
-(The specialized built-in analyzers, the signature-driven registry path and function-pointer
-calls still describe their own counts; converting those is a separate slice.) A bare routine name in
-statement position is a call, so `Test;`, `Sin;` and `TTest.Test;` report the missing arguments
-(overload-aware across the class hierarchy, or `meth_overload_hide` would have regressed); the
-array helpers that need an argument report it in the bare member form too; and an indexed
-property named without its indices reads the accessor with nothing. Upstream also type-checks
-the arguments it was handed *before* it counts them, so a short call whose arguments do not fit
-reports the type error alone — implemented for the plain-call path only, since `func_params1` is
-the one fixture pinning the ordering. Finally, the built-ins DWScript declares as overload sets — `Abs`,
-`Sqr`, `Min`, `Max` — name no count at all: any call they cannot match reports
-`There is no overloaded version of "X" that can be called with these arguments`.
-`FailureScripts/dyn_array_setlength3`, `func_params1`, `method_missing_arg`, `missing_param1`,
-`missing_param1b`, `missing_param2`, `missing_param3`, `property_error10`, `sqr` and
-`InterfacesFail/error_in_method` pass; fixtures 1,057 → 1,067, and InterfacesFail leaves 0.
+Left open by those slices: `assert` and `enum_byname` want `Boolean expected` anchored at the
+*argument* rather than the call; `ifthenelse_expression1` fails on parser recovery after
+`if 2=2 1`; `contracts_error2` needs a builtin to resolve inside a `require` clause.
 
 ✋ `FailureScripts/class_deprecated` stays open on one position convention. Four of its eight
 warnings are emitted with the right text but two columns late: for a *declaration's type

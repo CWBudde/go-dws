@@ -20,7 +20,7 @@ func TestRun_TestEnvelope(t *testing.T) {
 		{
 			name:    "runtime error after output is framed",
 			source:  "PrintLn('a'); var x := 1 div 0;",
-			want:    "Errors >>>>\nRuntime Error: division by zero: 1 div 0 [line: 1, column: 26]\nResult >>>>\na\n",
+			want:    "Errors >>>>\nRuntime Error: Division by zero [line: 1, column: 26]\nResult >>>>\na\n",
 			wantErr: true,
 		},
 		{

@@ -5,6 +5,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -24,6 +25,11 @@ func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node
 
 	// Convert logical index to physical index.
 	// Read diagnostics point one past the index's closing bracket (DWScript).
+	// ⚠️ SimpleScripts/const_array_empty wants the bracket itself, one column
+	// earlier; ArrayPass/array_element_byref wants what is here. They differ
+	// because upstream reports a by-reference bind one column further on than a
+	// plain read, and go-dws routes `a[a.High+1]` down the read path by mistake
+	// (see PLAN.md §3.5 E8). Fix the routing before moving this anchor.
 	var physicalIndex int
 	if arr.ArrayType.IsStatic() {
 		// Static array: check bounds and adjust for low bound
@@ -67,20 +73,41 @@ func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node
 
 // IndexString performs string indexing (returns a single-character string).
 // DWScript strings are 1-indexed.
-func (e *Evaluator) IndexString(str *runtime.StringValue, index int, node ast.Node) Value {
+//
+// An out-of-range index raises the same catchable "Lower/Upper bound exceeded!"
+// exception an array does, not a fatal error — SimpleScripts/string_bounds writes
+// through four such accesses inside try/except and expects none of them to reach
+// the statement after the assignment. The anchor is the opening bracket
+// (SimpleScripts/string_bounds2 wants column 10 of `PrintLn(s[0])`), one column
+// short of where an array read is reported; the two are separate expression
+// classes upstream and position themselves separately.
+func (e *Evaluator) IndexString(str *runtime.StringValue, index int, node ast.Node, ctx *ExecutionContext) Value {
 	// DWScript strings are 1-indexed
 	// Use rune-based indexing to handle UTF-8 correctly
 	strLen := RuneLength(str.Value)
 	if index < 1 || index > strLen {
-		return e.newError(node, "string index out of bounds: %d (string length is %d)", index, strLen)
+		return e.raiseIndexBoundExceededAt(stringIndexBracketPos(node), index, index > strLen, ctx)
 	}
 
 	// Get the character at the given position
 	char, ok := RuneAt(str.Value, index)
 	if !ok {
-		return e.newError(node, "string index out of bounds: %d", index)
+		return e.raiseIndexBoundExceededAt(stringIndexBracketPos(node), index, true, ctx)
 	}
 	return &runtime.StringValue{Value: string(char)}
+}
+
+// stringIndexBracketPos returns the position of the opening bracket of `s[i]`,
+// derived from the end of the indexed expression. Falls back to the node's own
+// position when the node is not an index expression.
+func stringIndexBracketPos(node ast.Node) token.Position {
+	if idx, ok := node.(*ast.IndexExpression); ok && idx.Left != nil {
+		return idx.Left.End()
+	}
+	if node == nil {
+		return token.Position{}
+	}
+	return node.Pos()
 }
 
 // getZeroValueForType returns the zero/default value for a given type.

@@ -41,7 +41,8 @@ func (a *Analyzer) handleExistingClass(
 			return false, false, true
 		}
 	} else if existingClass.IsPartial && !decl.IsPartial && !isForwardDecl {
-		a.addHint("Previous declaration of class was \"partial\" at %s", decl.Token.Pos.String())
+		a.addHint("Previous declaration of class was \"partial\" [line: %d, column: %d]",
+			decl.Token.Pos.Line, decl.Token.Pos.Column)
 		mergingPartialClass = true
 	} else if !existingClass.IsPartial && decl.IsPartial {
 		a.addError("%s", errors.FormatTypeAlreadyDefined(className, "Class", decl.Token.Pos.Line, decl.Token.Pos.Column))
@@ -873,9 +874,7 @@ func (a *Analyzer) findMatchingOverloadForImplementation(implDecl *ast.FunctionD
 
 // analyzeMethodDecl analyzes a method declaration within a class.
 func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.ClassType) {
-	if method.CallingConvention != "" {
-		a.addHint("Calling convention \"%s\" is ignored at %s", method.CallingConvention, method.CallingConventionPos.String())
-	}
+	a.addCallConventionHint(method)
 	if method.IsStatic && !method.IsClassMethod {
 		pos := method.StaticPos
 		if pos.Line == 0 {

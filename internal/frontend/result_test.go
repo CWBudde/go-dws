@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -1036,28 +1037,38 @@ func TestSortDiagnostics_ParserComesBeforeSemanticAtSameLocation(t *testing.T) {
 	}
 }
 
-func TestSortDiagnostics_SameLineHintComesBeforeSemanticError(t *testing.T) {
-	diags := []Diagnostic{
-		{
-			Message:  `Syntax Error: Incompatible operands`,
-			Phase:    PhaseSemantic,
-			Line:     2,
-			Column:   8,
-			Severity: SeverityError,
-		},
-		{
-			Message:  `Hint: "print" does not match case of declaration ("Print")`,
-			Phase:    PhaseSemantic,
-			Line:     2,
-			Column:   10,
-			Severity: SeverityHint,
-		},
+// A hint and an error on the same line keep the order they were emitted in, in
+// both directions: upstream writes the two streams as it compiles, so neither
+// severity nor column decides. `use_proc_result1` wants the hint at column 10
+// before the error at column 8; `array_in1` wants the error at column 6 before
+// the hint at column 17. The analyzer produces each in the right order, and the
+// sort must not disturb either.
+func TestSortDiagnostics_SameLineHintKeepsEmittedOrder(t *testing.T) {
+	hint := Diagnostic{
+		Message:  `Hint: "print" does not match case of declaration ("Print")`,
+		Phase:    PhaseSemantic,
+		Line:     2,
+		Column:   10,
+		Severity: SeverityHint,
+	}
+	err := Diagnostic{
+		Message:  `Syntax Error: Incompatible operands`,
+		Phase:    PhaseSemantic,
+		Line:     2,
+		Column:   8,
+		Severity: SeverityError,
 	}
 
-	sortDiagnostics(diags)
+	hintFirst := []Diagnostic{hint, err}
+	sortDiagnostics(hintFirst)
+	if hintFirst[0].Severity != SeverityHint || hintFirst[1].Severity != SeverityError {
+		t.Fatalf("hint emitted first did not stay first: %+v", hintFirst)
+	}
 
-	if diags[0].Severity != SeverityHint || diags[1].Severity != SeverityError {
-		t.Fatalf("unexpected order after sort: %+v", diags)
+	errFirst := []Diagnostic{err, hint}
+	sortDiagnostics(errFirst)
+	if errFirst[0].Severity != SeverityError || errFirst[1].Severity != SeverityHint {
+		t.Fatalf("error emitted first did not stay first: %+v", errFirst)
 	}
 }
 
@@ -1318,6 +1329,144 @@ func TestCompile_SkipsSemanticDiagnosticsAfterBlockingParserError(t *testing.T) 
 	for _, diag := range result.Diagnostics {
 		if diag.Phase == PhaseSemantic {
 			t.Fatalf("did not expect semantic diagnostics, got: %+v", result.Diagnostics)
+		}
+	}
+}
+
+// diagnostics is the shared assertion for the tests below: DWScript's output is
+// an ordered list, so both the text and the order are part of the expectation.
+func assertDiagnostics(t *testing.T, source, filename string, want []string) {
+	t.Helper()
+	result := Compile(source, filename, semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	if len(got) != len(want) {
+		t.Fatalf("expected %d diagnostics, got %d: %v", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("diagnostic %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestCompile_WarnsOnAssignmentToForLoopVariable(t *testing.T) {
+	// The anchor differs by the shape of the write: an ordinary assignment is
+	// reported at its target, while a loop header that reuses an enclosing
+	// loop's variable is reported at the `:=` — the token upstream's scanner
+	// holds once it has read the name.
+	assertDiagnostics(t, `var i : Integer;
+for i:=1 to 10 do i:=1;`, "for_var_usage.pas", []string{
+		`Warning: Assignment to FOR-Loop variable [line: 2, column: 19]`,
+	})
+
+	assertDiagnostics(t, `var i : Integer;
+for i:=1 to 10 do 
+   for i:=1 to 10 do ;`, "for_var_usage2.pas", []string{
+		`Warning: Assignment to FOR-Loop variable [line: 3, column: 9]`,
+		`Hint: Empty FOR loop [line: 3, column: 22]`,
+	})
+}
+
+func TestCompile_RendersForInLoopVariableMismatch(t *testing.T) {
+	// The loop header converts nothing, so the Integer-to-Float promotion an
+	// assignment would perform is an error here. Both diagnostics are anchored
+	// at the `in`, and the empty-body hint follows the error on the same line.
+	assertDiagnostics(t, `var i : Integer;
+var f : Float;
+
+var ia : array of Integer;
+var fa : array of Float;
+
+for i in ia do ;
+for f in ia do ;
+
+for i in fa do ;
+for f in fa do ;`, "for_in1.pas", []string{
+		`Hint: Empty FOR loop [line: 7, column: 16]`,
+		`Syntax Error: Incompatible types: "Float" and "Integer" [line: 8, column: 7]`,
+		`Hint: Empty FOR loop [line: 8, column: 16]`,
+		`Syntax Error: Incompatible types: "Integer" and "Float" [line: 10, column: 7]`,
+		`Hint: Empty FOR loop [line: 10, column: 16]`,
+		`Hint: Empty FOR loop [line: 11, column: 16]`,
+	})
+}
+
+func TestCompile_SplitsNonEnumerableForInCollections(t *testing.T) {
+	// Naming a type that is not an enumeration still builds a loop, so the
+	// empty-body hint follows; an expression that is not a container does not,
+	// and nothing further is reported about the loop.
+	assertDiagnostics(t, `var i : Integer;
+
+for i in Integer do ;`, "for_in2.pas", []string{
+		`Syntax Error: Enumeration expected [line: 3, column: 7]`,
+		`Hint: Empty FOR loop [line: 3, column: 21]`,
+	})
+
+	assertDiagnostics(t, `var i : Integer;
+
+for i in PrintLn('bug') do ;`, "for_error3.pas", []string{
+		`Syntax Error: Array expected [line: 3, column: 7]`,
+	})
+}
+
+func TestCompile_IteratingAStringDrawsNoEmptyForLoopHint(t *testing.T) {
+	// Upstream compiles a string for-in into a character walk rather than a
+	// container loop, and that path emits no empty-body hint.
+	assertDiagnostics(t, `var s := '';
+for var c in s do;`, "for_var_in_string.pas", nil)
+}
+
+func TestCompile_KeepsHintsInEmissionOrderAgainstErrors(t *testing.T) {
+	// A hint is never reordered against an error, on a shared line as much as
+	// across lines: the name-resolution hint at column 10 precedes the enclosing
+	// expression's error at column 8 because it was produced first.
+	assertDiagnostics(t, `var x := 0;
+x := x + print('');`, "use_proc_result1.pas", []string{
+		`Hint: "print" does not match case of declaration ("Print") [line: 2, column: 10]`,
+		`Syntax Error: Incompatible operands [line: 2, column: 8]`,
+	})
+}
+
+// TestCompile_CallConventionHintAnchorsLikeEveryOtherDiagnostic pins that the
+// hint a method's calling convention produces is the one a free routine produces:
+// same sentence, and a position rendered as "[line: L, column: C]" rather than
+// formatted into the message text as "at L:C". A hint that writes its own
+// position can never match a fixture (SimpleScripts/call_conventions).
+func TestCompile_CallConventionHintAnchorsLikeEveryOtherDiagnostic(t *testing.T) {
+	const src = `type
+   TMyClass = class
+      procedure M; stdcall; begin end;
+   end;
+procedure F; register;
+begin
+end;`
+
+	result := Compile(src, "call_conventions.pas", semantic.HintsLevelPedantic)
+	if result == nil {
+		t.Fatal("expected non-nil compile result")
+	}
+
+	var hints []Diagnostic
+	for _, diag := range result.Diagnostics {
+		if strings.Contains(diag.Message, "onvention") {
+			hints = append(hints, diag)
+		}
+	}
+	if len(hints) != 2 {
+		t.Fatalf("got %d calling-convention hints %+v, want one for the method and one for the routine", len(hints), hints)
+	}
+	for _, hint := range hints {
+		if !strings.Contains(hint.Message, "Call convention") ||
+			!strings.Contains(hint.Message, "is not supported and ignored") {
+			t.Fatalf("hint %q does not use the shared sentence", hint.Message)
+		}
+		// A hint that formatted its own "at L:C" would leave the structured
+		// position empty, which is what made the method form unmatchable.
+		if hint.Line == 0 || hint.Column == 0 {
+			t.Fatalf("hint %q carries no structured position (%d:%d)", hint.Message, hint.Line, hint.Column)
+		}
+		if strings.Contains(hint.Message, " at ") {
+			t.Fatalf("hint %q formats its own position", hint.Message)
 		}
 	}
 }

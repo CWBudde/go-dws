@@ -1,11 +1,20 @@
 package evaluator
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
+
+// externalSymbolMessage is what DWScript raises when script code calls a routine
+// declared `external` with no host implementation bound to it. The sentence ends
+// in "from" because the call site follows it as the usual
+// "[line: L, column: C]" anchor (SimpleScripts/external).
+func externalSymbolMessage(name string) string {
+	return fmt.Sprintf("Unhandled call to external symbol %q from", name)
+}
 
 // EvaluateDefaultParameters fills in missing optional arguments with default values.
 // Evaluates defaults in the caller's context for variables in caller's scope.
@@ -333,6 +342,9 @@ func (e *Evaluator) ExecuteUserFunction(
 	// no body and is a no-op: it simply returns its result type's zero value
 	// (Result is already zero-initialized in the function environment).
 	if fn.Body == nil && !fn.IsEmpty {
+		if fn.IsExternal {
+			return nil, errors.New(externalSymbolMessage(fn.Name.Value))
+		}
 		return nil, fmt.Errorf("function '%s' has no body", fn.Name.Value)
 	}
 

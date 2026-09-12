@@ -77,6 +77,9 @@ func (e *Evaluator) VisitProgram(node *ast.Program, ctx *ExecutionContext) Value
 			if exc.Position != nil && exc.Position.IsValid() && !strings.Contains(message, "[line:") {
 				message = fmt.Sprintf("%s [line: %d, column: %d]", message, exc.Position.Line, exc.Position.Column)
 			}
+			if exc.ReRaisePos != nil && exc.ReRaisePos.IsValid() {
+				message = fmt.Sprintf("%s [line: %d, column: %d]", message, exc.ReRaisePos.Line, exc.ReRaisePos.Column)
+			}
 			if trace := exc.CallStack.DWScriptString(); trace != "" {
 				message += "\n" + trace
 			}
@@ -1205,62 +1208,6 @@ func (e *Evaluator) evalExceptClause(clause *ast.ExceptClause, ctx *ExecutionCon
 		ctx.SetException(nil)
 		e.Eval(clause.ElseBlock, ctx)
 	}
-}
-
-// VisitRaiseStatement evaluates a raise statement (exception throwing).
-func (e *Evaluator) VisitRaiseStatement(node *ast.RaiseStatement, ctx *ExecutionContext) Value {
-	// Bare raise - re-raise current exception
-	if node.Exception == nil {
-		// Use the exception saved by evalExceptClause
-		if ctx.HandlerException() != nil {
-			// Re-raise the exception
-			ctx.SetException(ctx.HandlerException())
-			return nil
-		}
-
-		panic("runtime error: bare raise with no active exception")
-	}
-
-	excVal := e.Eval(node.Exception, ctx)
-	if isError(excVal) {
-		return excVal
-	}
-
-	// Raising a nil exception reference raises "Object not instantiated",
-	// reported just past the raised expression (DWScript reports the parser's
-	// position after consuming the expression).
-	if excVal == nil || runtime.KindOf(excVal) == runtime.KindNil {
-		pos := raisedExpressionEndPos(node.Exception)
-		message := fmt.Sprintf("Object not instantiated [line: %d, column: %d]", pos.Line, pos.Column)
-		ctx.SetException(e.createException("Exception", message, nil, ctx))
-		return nil
-	}
-
-	// DWScript reports an unhandled raise just past the raised expression (the
-	// parser's position after consuming it) ...
-	pos := node.Exception.End()
-	excObj := e.createExceptionFromObject(excVal, ctx, &pos)
-	if excValue, ok := excObj.(*runtime.ExceptionValue); ok {
-		excValue.UserRaised = true
-		// ... but the innermost stack-trace frame is the site where the
-		// exception object was constructed, at the constructor's name token.
-		originPos := raiseSitePos(node.Exception)
-		excValue.OriginPos = &originPos
-	}
-	ctx.SetException(excObj)
-
-	return nil
-}
-
-// raisedExpressionEndPos approximates the source position immediately after a
-// raised expression (identifiers advance by their length; other expressions
-// fall back to their start position).
-func raisedExpressionEndPos(expr ast.Expression) token.Position {
-	pos := expr.Pos()
-	if identExpr, ok := expr.(*ast.Identifier); ok {
-		pos.Column += len(identExpr.Value)
-	}
-	return pos
 }
 
 // matchesExceptionType checks if an exception matches a handler's exception type.

@@ -512,6 +512,9 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 
 	// 5. Execute function body
 	if fn.Body == nil {
+		if fn.IsExternal {
+			return e.newError(node, "%s", externalSymbolMessage(funcName))
+		}
 		return e.newError(node, "function '%s' has no body", funcName)
 	}
 
