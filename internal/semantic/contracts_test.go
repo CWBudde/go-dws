@@ -40,7 +40,7 @@ begin
 end;
 `,
 			expectError: true,
-			errorMsg:    "precondition must be boolean",
+			errorMsg:    "Boolean expected",
 		},
 		{
 			name: "invalid string precondition",
@@ -53,7 +53,7 @@ begin
 end;
 `,
 			expectError: true,
-			errorMsg:    "precondition must be boolean",
+			errorMsg:    "Boolean expected",
 		},
 	}
 
@@ -117,7 +117,7 @@ ensure
 	Result;
 `,
 			expectError: true,
-			errorMsg:    "postcondition must be boolean",
+			errorMsg:    "Boolean expected",
 		},
 	}
 

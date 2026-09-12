@@ -3544,3 +3544,90 @@ golangci-lint run --new-from-merge-base=origin/main --timeout 10m
 go run -buildvcs=false ./cmd/fixture-report -list-fails
 just fixture-update
 ```
+
+## 2026-09-12 — `Boolean expected`, and one hint per `if` (§4)
+
+This is message parity rather than missing validation: every fixture it closes already printed
+something, and F5's silent list is unchanged at 48. Two of the six fell to genuine defects found
+while measuring the bucket rather than to the wording.
+
+### The vocabulary
+
+go-dws described every wrong-typed condition in its own words, and named both the construct and
+the type it got:
+
+```
+Syntax Error: while condition must be boolean, got String [line: 1, column: 1]
+Syntax Error: precondition must be boolean expression in function 'Test', got String [line: 3, column: 4]
+```
+
+DWScript names the type it *wanted* and nothing else, because the message is raised where the
+value is read rather than where the construct is assembled:
+
+```
+Syntax Error: Boolean expected [line: 1, column: 1]
+```
+
+`Boolean expected` covers every condition in the language — `if`, `while`, `until`, the
+if-then-else expression, `require` and `ensure` — and `String expected` the message half of a
+contract clause. A contract's message error re-uses the *condition's* anchor, not the message
+expression's: `contracts_types` reports both at column 4 though the message starts at column 18.
+
+### The anchor
+
+One rule explains every fixture: the first token of the smallest syntactic unit that owns the
+value. Where that unit has an introducer of its own, the introducer wins over the expression:
+
+| | owns the condition | anchor | condition starts at |
+|---|---|---|---|
+| `while 'hello' do ;` | the `while` statement | **1** | 7 |
+| `repeat until 'hello';` | the `until` clause | **8** | 14 |
+| `var t := if 'bug' then 1 else 2;` | the `if` expression | **11** | 14 |
+| `   IntToStr(i) : i;` | the contract clause | **4** | 4 |
+
+The contract clause has no introducer — `require` is on the line above and is not the anchor — so
+the unit begins at the condition and the two coincide.
+
+`repeat` is the one that needed new information: `ast.RepeatStatement` recorded only the `repeat`
+keyword, so the condition's diagnostics had nowhere to point. It now carries `UntilPos`. The
+`Infinite loop` warning is deliberately left where it is: `loop_infinite` wants it on `until` and
+`infinite_loop` wants it on the condition, and the two fixtures arrived in the same import commit,
+so the suite does not actually say which is right. `Boolean expected` is not ambiguous — column 8
+in `repeat2` can only be `until`.
+
+### An empty `repeat` body is legal
+
+`repeat until X;` is a do-while that only tests its condition. go-dws's parser rejected it outright
+and never reached the condition, which is why `repeat1` and `repeat2` both failed with a complaint
+about the body rather than about what upstream complains about. Removing the guard is enough for
+both: `repeat until ;` now falls through to `parseExpression`, which already reports
+`Expression expected` at the offending token, so the parser's own "expected condition after
+'until'" is raised only when the expression parse said nothing.
+
+### One hint per `if`, and none for a `while`
+
+Two empty-block hints were wrong, both found while measuring this bucket rather than looked for:
+
+- `analyzeWhile` emitted `Empty FOR loop` for a while loop with an empty body. It is the FOR loops'
+  hint — all eight of its appearances in the suite are `for` loops — and upstream emits nothing for
+  a while: `loop_nonbool`, `loop_infinite` and `infinite_loop` all have one and none expects a hint.
+- `Empty ELSE block` was reported beside an equally empty THEN. Upstream reports one hint per `if`:
+  `if True then else ;` draws only `Empty THEN block` (`if_empty_terms`), and `Empty ELSE block`
+  appears only where the THEN branch has a body of its own (`empty_if_block`).
+
+### Not done
+
+`assert` and `enum_byname` need the same sentences but a different anchor — the argument's own
+first token, where go-dws anchors at the call. `assert` additionally wants `")" expected` for a
+third argument, which is a parse-time restriction on `Assert` rather than an arity check.
+`ifthenelse_expression1` gets its `Boolean expected` right and fails on parser recovery after
+`if 2=2 1`. `contracts_error2` needs a builtin to resolve inside a `require` clause.
+
+### Validation
+
+```
+go test ./...
+golangci-lint run --new-from-merge-base=origin/main --timeout 10m
+go run -buildvcs=false ./cmd/fixture-report -list-fails
+just fixture-update
+```

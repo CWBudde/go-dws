@@ -427,10 +427,12 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 	} else if len(block.Statements) > 1 {
 		stmt.Body = block
 	} else {
-		p.addErrorWithContext("expected at least one statement in repeat body", ErrInvalidSyntax)
-		// Synchronize to recover
-		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
-		return nil
+		// An empty body is legal: `repeat until X;` is a do-while that only tests
+		// its condition. Upstream parses it and goes on to check the condition —
+		// repeat1 reports `Expression expected` for the missing condition, and
+		// repeat2 `Boolean expected` for a non-boolean one, neither of them a
+		// complaint about the body.
+		stmt.Body = block
 	}
 
 	// Expect 'until' keyword
@@ -444,11 +446,18 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 	}
 
 	// Parse the condition
+	stmt.UntilPos = p.cursor.Current().Pos
 	p.cursor = p.cursor.Advance()
+	errorsBeforeCondition := len(p.errors)
 	stmt.Condition = p.parseExpression(LOWEST)
 
 	if stmt.Condition == nil {
-		p.addError("expected condition after 'until'", ErrInvalidExpression)
+		// parseExpression reports `Expression expected` at the offending token
+		// itself, which is the diagnostic upstream gives (repeat1, column 14 —
+		// the `;`). Only speak up when it said nothing.
+		if len(p.errors) == errorsBeforeCondition {
+			p.addError("expected condition after 'until'", ErrInvalidExpression)
+		}
 		return nil
 	}
 

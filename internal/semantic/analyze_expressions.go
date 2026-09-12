@@ -517,8 +517,7 @@ func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
 	// Check that condition is boolean or Variant
 	condType := a.analyzeExpression(expr.Condition)
 	if condType != nil && !isBooleanCompatible(condType) {
-		a.addError("if expression condition must be boolean, got %s at %s",
-			condType.String(), expr.Token.Pos.String())
+		a.addBooleanExpected(expr.Token.Pos)
 	}
 
 	// Analyze consequence expression

@@ -194,6 +194,23 @@ func NewOperatorTypeMismatch(pos lexer.Position, operator string, left, right ty
 	}
 }
 
+// NewTypeExpectedError creates the DWScript diagnostic for a value of the wrong
+// type in a context that admits exactly one.
+//
+// Upstream names the type it wanted and nothing else — not the type it got, not
+// the construct that wanted it. `Boolean expected` covers every condition in the
+// language (`if`, `while`, `until`, the if-then-else expression, `require` and
+// `ensure`, `Assert`'s first argument); `String expected` covers the message
+// half of a contract and `Assert`'s second argument.
+func NewTypeExpectedError(pos lexer.Position, typeName string) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorTypeMismatch,
+		Message:  fmt.Sprintf("Syntax Error: %s expected", typeName),
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
 // NewInvalidOperandsError creates the DWScript invalid-operands diagnostic.
 func NewInvalidOperandsError(pos lexer.Position) *SemanticError {
 	return &SemanticError{
