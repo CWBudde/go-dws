@@ -3161,3 +3161,89 @@ Fixtures **1,049 → 1,054** (54% → 55%): `FailureScripts` 126 → 129 (`depre
 `deprecated_property`, `deprecated_empty`), `SimpleScripts` 354 → 356 (`const_deprecated`,
 `enum_element_deprecated`). `*Fail` suites 134 → 137 of 640. Two new parser tests cover the
 class and record property directives.
+
+## 2026-09-12 — The constant-instruction hint and the array-helper receiver rules (§4 / F5)
+
+The second slice off the re-measured F5 queue. Three fixtures closed:
+`FailureScripts/ignore_result`, `array_static_methods`, `dyn_array4`; 1,054 → 1,057.
+
+### Constant Instruction - has no effect
+
+DWScript hints when a statement computes a value and throws it away. The rule is *not* "a
+function's result was ignored" — a call to a user routine as a statement is ordinary Pascal and
+draws nothing. It fires when the compiler can prove the whole expression constant.
+
+The decision is structural, never an evaluation. That distinction is visible in the fixture pair:
+`ignore_result.txt` hints on `StrToInt('A');` while `ignore_result.optimized.txt` turns the same
+line into `Compile Error: Evaluation of "StrToInt" failed`, because only the optimized run folds
+it. go-dws has no optimizer and so matches `.txt`; `isConstantInstruction` therefore answers from
+the shape of the expression alone and can safely be asked about expressions whose folding would
+raise.
+
+What counts as constant:
+
+| Shape | Constant when |
+| --- | --- |
+| literal | always |
+| identifier | it resolves to a const symbol |
+| unary / binary operator | every operand is |
+| call | the callee is a stateless built-in, unshadowed, and every argument is |
+| `a.Low` / `.High` / `.Length` / `.Count` | `a` is a **static** array — its bounds are fixed |
+
+`statelessBuiltins` is an explicit set of pure conversions and pure math, mirroring upstream's
+`iffStateLess` registration. Everything touching mutable state — `Random`, `Now`, the `Var*`
+inspectors, the JSON helpers, `Print` — is excluded, and so is anything locale- or
+format-sensitive. A user routine that shadows a built-in name disqualifies the call outright: its
+body may do anything.
+
+Two details cost a round of measurement each:
+
+- **Position.** A binary expression's own `Pos()` is its *operator* token, so `1 + 2;` would have
+  been anchored at column 3. Upstream anchors at the start of the instruction, so
+  `constInstructionPos` follows `Left` down to the leftmost token.
+- **Recovery noise.** The first version regressed `FailureScripts/array_error8`, where a
+  malformed `const` declaration recovers a stray `)` into an expression statement. Upstream stops
+  at the syntax error and never reaches the hint, so the hint is now gated on `parseHadErrors` —
+  the same rule `unit_analyzer.go` already applies to its courtesy warnings.
+
+### Array helper receivers
+
+Two independent restrictions, both anchored at the member name:
+
+- `Array method "X" is restricted to dynamic arrays` — the intrinsic helpers that grow, shrink or
+  reorder the storage (`Add`, `Push`, `Pop`, `Peek`, `Insert`, `Delete`, `Remove`, `Clear`,
+  `SetLength`, `Swap`, `Move`) plus `Copy`, which yields a dynamic array. `Low`, `High`, `Length`
+  and the read-only searching and mapping helpers stay available on both array kinds.
+- `Array instance expected` — a helper reached through the array *type* rather than a value of
+  it. `Low` is exempt unconditionally (it is 0 for every dynamic array) and `High`, `Length` and
+  `Count` are exempt on a static array, whose bounds are known from the type. `dyn_array4`
+  pins all four cases in one file.
+
+The restriction outranks the receiver check: `TStrings2.Add('1')` on a static array type reports
+the restriction and says nothing about the missing instance.
+
+The first version of the receiver check regressed `HelpersPass/array_helper` and
+`static_array_helper`, because it fired on *any* member of an array type reference — including a
+user helper's class function, which is precisely what is meant to be called on the type. The
+check now consults the `ok` result of `types.LookupBuiltinHelper` and leaves unknown names alone.
+
+### Not done deliberately
+
+`FailureScripts/class_const4` and `missing_param1` also carry a constant-instruction line but are
+not closable by this work. `class_const4` wants it as a **Syntax Error** on a class-const
+declaration, not as a hint on a statement — a different producer. `missing_param1` additionally
+needs `More arguments expected` for a parameterless `Sin;`, which is the next F5 bucket.
+
+### Validation
+
+```
+go test ./internal/semantic ./internal/types ./internal/parser   # green
+go test ./...                                                    # green
+golangci-lint run --new-from-merge-base=origin/main --timeout 10m # 0 issues
+go run ./cmd/fixture-report -list-fails                          # +3, no regressions anywhere
+just fixture-update                                              # FailureScripts 129 → 132
+```
+
+The per-fixture failure list was diffed against a worktree at `origin/main` rather than trusting
+the category totals: the baselines are floors, so a one-for-one swap would not have shown up in
+`just fixture-update`. That diff is what caught both regressions above.

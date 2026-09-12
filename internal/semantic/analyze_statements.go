@@ -56,6 +56,7 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeAssignment(s)
 	case *ast.ExpressionStatement:
 		a.analyzeExpression(s.Expression)
+		a.hintConstantInstruction(s.Expression)
 	case *ast.EmptyStatement:
 		return
 	case *ast.BlockStatement:
