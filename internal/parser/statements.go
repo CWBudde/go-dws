@@ -96,6 +96,32 @@ func (p *Parser) parseStatement() ast.Statement {
 	}
 }
 
+// statementOrNil converts a possibly-nil concrete declaration pointer into a
+// true nil ast.Statement.
+//
+// Most statement parsers return a concrete node pointer (*ast.FunctionDecl,
+// *ast.IfStatement, ...) rather than the ast.Statement interface. Returning a
+// nil one of those through an interface result produces a *typed nil*: an
+// interface value that is non-nil but whose field accesses fault. Every
+// consumer that guards with `stmt != nil` — ParseProgram's own loop included —
+// then lets it through, and the crash surfaces arbitrarily far away. It did:
+// a malformed routine header put a typed-nil *ast.FunctionDecl at the top level
+// and the generics monomorphizer segfaulted on it, in scripts using no generics
+// at all.
+//
+// Normalizing here means the interface is nil exactly when the parse failed, so
+// the ordinary nil checks downstream do what they look like they do.
+func statementOrNil[T interface {
+	comparable
+	ast.Statement
+}](stmt T) ast.Statement {
+	var zero T
+	if stmt == zero {
+		return nil
+	}
+	return stmt
+}
+
 //nolint:gocyclo // Statement dispatcher with many statement types
 func (p *Parser) parseStatementInner() ast.Statement {
 	// As we implement each statement cursor handler, they'll be added here
@@ -104,7 +130,7 @@ func (p *Parser) parseStatementInner() ast.Statement {
 
 	switch currentToken.Type {
 	case lexer.BEGIN:
-		return p.parseBlockStatement()
+		return statementOrNil(p.parseBlockStatement())
 
 	case lexer.SEMICOLON:
 		return &ast.EmptyStatement{BaseNode: ast.BaseNode{Token: currentToken}}
@@ -120,43 +146,43 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		return p.parseConstDeclaration()
 
 	case lexer.IF:
-		return p.parseIfStatement()
+		return statementOrNil(p.parseIfStatement())
 
 	case lexer.WHILE:
-		return p.parseWhileStatement()
+		return statementOrNil(p.parseWhileStatement())
 
 	case lexer.WITH:
-		return p.parseWithStatement()
+		return statementOrNil(p.parseWithStatement())
 
 	case lexer.REPEAT:
-		return p.parseRepeatStatement()
+		return statementOrNil(p.parseRepeatStatement())
 
 	case lexer.FOR:
 		return p.parseForStatement()
 
 	case lexer.CASE:
-		return p.parseCaseStatement()
+		return statementOrNil(p.parseCaseStatement())
 
 	case lexer.BREAK:
-		return p.parseBreakStatement()
+		return statementOrNil(p.parseBreakStatement())
 
 	case lexer.CONTINUE:
-		return p.parseContinueStatement()
+		return statementOrNil(p.parseContinueStatement())
 
 	case lexer.EXIT:
-		return p.parseExitStatement()
+		return statementOrNil(p.parseExitStatement())
 
 	case lexer.TRY:
-		return p.parseTryStatement()
+		return statementOrNil(p.parseTryStatement())
 
 	case lexer.RAISE:
-		return p.parseRaiseStatement()
+		return statementOrNil(p.parseRaiseStatement())
 
 	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
-		return p.parseFunctionDeclaration()
+		return statementOrNil(p.parseFunctionDeclaration())
 
 	case lexer.OPERATOR:
-		return p.parseOperatorDeclaration()
+		return statementOrNil(p.parseOperatorDeclaration())
 
 	case lexer.CLASS:
 		return p.parseClassStatement()
@@ -171,7 +197,7 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		return p.parseTypeDeclaration()
 
 	case lexer.USES:
-		return p.parseUsesClause()
+		return statementOrNil(p.parseUsesClause())
 
 	default:
 		return p.parseDefaultStatementCase(currentToken)

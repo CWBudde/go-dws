@@ -605,6 +605,9 @@ func extractUsedUnits(program *ast.Program) []string {
 	for _, stmt := range program.Statements {
 		if usesClause, ok := stmt.(*ast.UsesClause); ok {
 			for _, unitIdent := range usesClause.Units {
+				if unitIdent == nil {
+					continue
+				}
 				if !seen[unitIdent.Value] {
 					usedUnits = append(usedUnits, unitIdent.Value)
 					seen[unitIdent.Value] = true

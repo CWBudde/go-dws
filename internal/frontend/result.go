@@ -271,7 +271,7 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 
 	// Monomorphize generic types into concrete specializations before semantic
 	// analysis, so the analyzer and evaluator only ever see ordinary types.
-	generics.Monomorphize(result.Program)
+	safeMonomorphize(result)
 
 	analyzer := semantic.NewAnalyzer()
 	analyzer.SetHintsLevel(opts.HintsLevel)
@@ -289,6 +289,31 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	result.SemanticSuccessful = err == nil
 
 	return result
+}
+
+// safeMonomorphize runs generic specialization under the same recover discipline
+// as semantic analysis.
+//
+// Monomorphization walks every top-level statement, so it is the first pass to
+// touch whatever shape the parser produced from malformed input — and it ran
+// outside any recover, which turned a single bad node into a segfault of the
+// whole process, library embedders included. A compiler may report that it does
+// not understand a program; it may not die on one.
+func safeMonomorphize(result *Result) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			result.Diagnostics = append(result.Diagnostics, Diagnostic{
+				Message:  "internal generic specialization panic",
+				Rendered: fmt.Sprintf("internal generic specialization panic: %v\n%s", recovered, strings.TrimSpace(string(debug.Stack()))),
+				Code:     "E_GENERICS_PANIC",
+				Phase:    PhaseSemantic,
+				Severity: SeverityError,
+				Fatal:    true,
+			})
+		}
+	}()
+
+	generics.Monomorphize(result.Program)
 }
 
 func safeAnalyze(analyzer *semantic.Analyzer, result *Result) (err error) {

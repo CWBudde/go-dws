@@ -18,6 +18,26 @@ import (
 //
 // This unified parser enables inline type syntax in parameters and variables
 // without requiring type aliases.
+// typeExpressionOrNil converts a possibly-nil concrete type-node pointer into a
+// true nil ast.TypeExpression. It is statementOrNil's counterpart for type
+// expressions; see that function for why a typed nil is dangerous.
+//
+// The array element type is the case that made it matter. `array of function :
+// procedure` has an unsupported return type, so parseFunctionPointerType reports
+// it and returns nil — as a typed nil, which isInvalidTypeExpression below does
+// not recognise, so parseArrayType carried on and asked the element for its End()
+// position. That faulted inside the parser itself.
+func typeExpressionOrNil[T interface {
+	comparable
+	ast.TypeExpression
+}](typeExpr T) ast.TypeExpression {
+	var zero T
+	if typeExpr == zero {
+		return nil
+	}
+	return typeExpr
+}
+
 func (p *Parser) parseTypeExpression() ast.TypeExpression {
 	cursor := p.cursor
 	builder := p.StartNode()
@@ -78,7 +98,7 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 
 	case lexer.FUNCTION, lexer.PROCEDURE:
 		// Inline function or procedure pointer type
-		return p.parseFunctionPointerType()
+		return typeExpressionOrNil(p.parseFunctionPointerType())
 
 	case lexer.ARRAY:
 		// Array type: array of ElementType
@@ -89,11 +109,11 @@ func (p *Parser) parseTypeExpression() ast.TypeExpression {
 
 	case lexer.SET:
 		// Set type: set of ElementType
-		return p.parseSetType()
+		return typeExpressionOrNil(p.parseSetType())
 
 	case lexer.CLASS:
 		// Metaclass type: class of ClassName
-		return p.parseClassOfType()
+		return typeExpressionOrNil(p.parseClassOfType())
 
 	default:
 		p.addError("expected type expression, got "+currentToken.Literal, ErrExpectedType)
