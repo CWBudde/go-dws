@@ -8,8 +8,14 @@
 //
 // Usage:
 //
-//	go run ./cmd/fixture-report [--category NAME] [--list-fails] [--timeout SECS] [--cli PATH]
-//	                            [--build=false] [--allow-stale]
+//	go run ./cmd/fixture-report [--category NAME] [--list-fails] [--classify] [--in-scope]
+//	                            [--timeout SECS] [--cli PATH] [--build=false] [--allow-stale]
+//
+// --classify diffs every failing fixture against its expectation and reports how far
+// each one is from passing, what kind of line differs, and which message shapes recur
+// across the suite — the measurement baselines.json cannot make, because it holds
+// pass-count floors and so cannot see a fixture swap one wrong line for another.
+// --in-scope drops the host-library categories excluded from every PLAN.md target.
 //
 // The CLI is run in harness mode with the same per-category hint level as
 // TestDWScriptFixtures: `run --diagnostics=plain --test-envelope --hints LEVEL` for
@@ -43,6 +49,9 @@ import (
 
 const fixturesBase = "testdata/fixtures"
 
+// timeoutSentinel stands in for the output of a fixture that never terminated.
+const timeoutSentinel = "__TIMEOUT__"
+
 // fixtureTimeZone is the IANA zone every fixture is scored under. Several
 // FunctionsTime fixtures are inherited verbatim from DWScript's own suite and
 // were written on a Central European machine: they hard-code the CET/CEST
@@ -59,6 +68,21 @@ const fixtureTimeZone = "Europe/Berlin"
 var hintsLevelOverrides = map[string]string{
 	"Algorithms":      "normal",
 	"FunctionsString": "normal",
+}
+
+// outOfScopeCategories are the host-library suites excluded from every target in
+// PLAN.md, per docs/decisions/out-of-scope.md: they bind Windows COM, a database, a
+// filesystem, a GUI or Delphi RTTI, none of which a portable scripting engine
+// provides. They are counted in the headline pass rate — the honest denominator
+// includes everything upstream ships — but they are noise in any measurement meant
+// to direct work, which is what --in-scope is for. Keep in sync with PLAN.md §0.
+var outOfScopeCategories = map[string]bool{
+	"BigInteger": true, "COMConnector": true, "COMConnectorFailure": true,
+	"ClassesLib": true, "CryptoLib": true, "DOMParser": true, "DataBaseLib": true,
+	"DelegateLib": true, "FunctionsFile": true, "FunctionsMath3D": true,
+	"FunctionsMathComplex": true, "FunctionsRTTI": true, "GraphicsLib": true,
+	"IniFileLib": true, "Linq": true, "LinqJSON": true, "SystemInfoLib": true,
+	"TabularLib": true, "TimeSeriesLib": true, "WebLib": true,
 }
 
 // isErrorCategory mirrors internal/interp/fixture_test.go: error-detection suites are
@@ -183,7 +207,7 @@ func runOne(cli, category, pasFile string, timeout time.Duration) string {
 	cmd.Env = append(os.Environ(), "NO_COLOR=1", "TZ="+fixtureTimeZone)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
-		return "__TIMEOUT__"
+		return timeoutSentinel
 	}
 	// A non-zero exit (script emitted errors) is expected and its output is what we compare.
 	// Only a failure to launch the CLI (missing binary, etc.) is surfaced distinctly.
@@ -209,13 +233,15 @@ type workItem struct {
 	txtFile  string
 }
 
-// result is the verdict for one work item.
+// result is the verdict for one work item. class is populated only for failures,
+// and only when classification was asked for.
 type result struct {
 	category string
 	name     string
 	pass     bool
 	fail     bool
 	noExp    bool
+	class    *classification
 }
 
 func main() {
@@ -225,6 +251,8 @@ func main() {
 func run() int {
 	category := flag.String("category", "", "only run this category")
 	listFails := flag.Bool("list-fails", false, "print failing fixture names")
+	classifyFails := flag.Bool("classify", false, "classify each failure by distance, kind and message shape")
+	inScope := flag.Bool("in-scope", false, "skip the host-library categories excluded from every PLAN.md target")
 	timeoutSecs := flag.Int("timeout", 20, "per-fixture timeout in seconds")
 	cli := flag.String("cli", "./bin/dwscript", "path to the dwscript CLI binary")
 	build := flag.Bool("build", true, "rebuild the CLI binary from the current sources before running")
@@ -249,18 +277,19 @@ func run() int {
 		}
 	}
 
-	items, err := collectItems(*category)
+	items, err := collectItems(*category, *inScope)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
 	}
 
-	results := evaluate(*cli, items, time.Duration(*timeoutSecs)*time.Second)
+	results := evaluate(*cli, items, time.Duration(*timeoutSecs)*time.Second, *classifyFails)
 
 	// Aggregate per category, preserving a stable (sorted) category order.
 	stats := map[string]*categoryStat{}
 	var order []string
 	var fails []string
+	var failed []result
 	for _, r := range results {
 		st := stats[r.category]
 		if st == nil {
@@ -277,6 +306,7 @@ func run() int {
 		default:
 			st.fail++
 			fails = append(fails, r.category+"/"+r.name)
+			failed = append(failed, r)
 		}
 	}
 	sort.Strings(order)
@@ -290,12 +320,16 @@ func run() int {
 			fmt.Printf("  %s\n", name)
 		}
 	}
+
+	if *classifyFails {
+		printClassification(failed, *listFails)
+	}
 	return 0
 }
 
 // collectItems builds the work list of fixtures (those with an expected .txt are scored;
 // those without are counted as NoExp).
-func collectItems(only string) ([]workItem, error) {
+func collectItems(only string, inScope bool) ([]workItem, error) {
 	entries, err := os.ReadDir(fixturesBase)
 	if err != nil {
 		return nil, err
@@ -308,6 +342,11 @@ func collectItems(only string) ([]workItem, error) {
 		}
 		cat := entry.Name()
 		if only != "" && cat != only {
+			continue
+		}
+		// An explicitly named category is always run, even an out-of-scope one:
+		// --category says what to measure, --in-scope only filters a whole-tree run.
+		if inScope && only == "" && outOfScopeCategories[cat] {
 			continue
 		}
 		pasFiles, err := filepath.Glob(filepath.Join(fixturesBase, cat, "*.pas"))
@@ -328,7 +367,7 @@ func collectItems(only string) ([]workItem, error) {
 
 // evaluate runs the work list through a bounded worker pool and returns one result each,
 // in input order (results[i] corresponds to items[i]).
-func evaluate(cli string, items []workItem, timeout time.Duration) []result {
+func evaluate(cli string, items []workItem, timeout time.Duration, classifyFails bool) []result {
 	workers := runtime.NumCPU()
 	if workers > 8 {
 		workers = 8
@@ -353,7 +392,7 @@ func evaluate(cli string, items []workItem, timeout time.Duration) []result {
 		go func() {
 			defer wg.Done()
 			for j := range jobs {
-				results[j.idx] = evaluateOne(cli, j.item, timeout)
+				results[j.idx] = evaluateOne(cli, j.item, timeout, classifyFails)
 			}
 		}()
 	}
@@ -366,7 +405,7 @@ func evaluate(cli string, items []workItem, timeout time.Duration) []result {
 }
 
 // evaluateOne scores a single fixture.
-func evaluateOne(cli string, it workItem, timeout time.Duration) result {
+func evaluateOne(cli string, it workItem, timeout time.Duration, classifyFails bool) result {
 	name := strings.TrimSuffix(filepath.Base(it.pasFile), ".pas")
 	expContent, err := encoding.DecodeFile(it.txtFile)
 	if err != nil {
@@ -384,7 +423,16 @@ func evaluateOne(cli string, it workItem, timeout time.Duration) result {
 	if got == expected {
 		return result{category: it.category, name: name, pass: true}
 	}
-	return result{category: it.category, name: name, fail: true}
+	res := result{category: it.category, name: name, fail: true}
+	if classifyFails {
+		// The normalized output, the same text the pass/fail verdict was made on:
+		// anything else would diff a trailing newline the comparison never saw. The
+		// timeout sentinel and a panic's stack both survive normalization, so
+		// classify can still recognise them.
+		c := classify(expected, got)
+		res.class = &c
+	}
+	return res
 }
 
 // printReport writes the per-category table and the total row.
