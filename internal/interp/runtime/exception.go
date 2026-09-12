@@ -24,7 +24,13 @@ type ExceptionValue struct {
 	// DWScript reports in an unhandled-exception message (just past the raised
 	// expression). Nil means no extra innermost frame is contributed.
 	OriginPos *lexer.Position
-	Message   string // Exception message
+	// ReRaisePos is the position of a `raise E` that re-raised an exception object
+	// already in flight (typically `raise ExceptObject`). DWScript keeps the
+	// original message and position and appends this one, so the unhandled report
+	// reads "<message> [original] [re-raise]" — see SimpleScripts/re_raise. Nil for
+	// an exception that was raised only once.
+	ReRaisePos *lexer.Position
+	Message    string // Exception message
 
 	CallStack errors.StackTrace // Stack trace at the point the exception was raised
 

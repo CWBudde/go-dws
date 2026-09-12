@@ -200,7 +200,7 @@ func (e *Evaluator) indexResolvedValue(leftVal Value, node *ast.IndexExpression,
 
 	// Check if left side is a string
 	if strVal, ok := leftVal.(*runtime.StringValue); ok {
-		return e.IndexString(strVal, index, node)
+		return e.IndexString(strVal, index, node, ctx)
 	}
 
 	return e.newError(node, "cannot index type %s", leftVal.Type())

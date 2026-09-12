@@ -16,6 +16,48 @@ func TestHintsLevelFor(t *testing.T) {
 	}
 }
 
+func TestCollectItems_InScopeDropsHostLibrariesButNotANamedOne(t *testing.T) {
+	// A miniature fixture tree: collectItems reads the real directory layout, so the
+	// test supplies one rather than depending on the repository's.
+	dir := t.TempDir()
+	for _, cat := range []string{"SimpleScripts", "DataBaseLib"} {
+		catDir := filepath.Join(dir, fixturesBase, cat)
+		if err := os.MkdirAll(catDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(catDir, "a.pas"), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Chdir(dir)
+
+	all, err := collectItems("", false)
+	if err != nil {
+		t.Fatalf("collectItems: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("full run collected %d fixtures, want both categories", len(all))
+	}
+
+	inScope, err := collectItems("", true)
+	if err != nil {
+		t.Fatalf("collectItems in-scope: %v", err)
+	}
+	if len(inScope) != 1 || inScope[0].category != "SimpleScripts" {
+		t.Fatalf("in-scope run = %v, want only SimpleScripts", inScope)
+	}
+
+	// Naming a category explicitly overrides the filter: --category says what to
+	// measure, --in-scope only prunes a whole-tree run.
+	named, err := collectItems("DataBaseLib", true)
+	if err != nil {
+		t.Fatalf("collectItems named: %v", err)
+	}
+	if len(named) != 1 {
+		t.Fatal("an explicitly named out-of-scope category must still be collected")
+	}
+}
+
 func TestIsErrorCategory(t *testing.T) {
 	for _, c := range []string{"FailureScripts", "COMConnectorFailure", "HelpersFail", "InterfacesFail"} {
 		if !isErrorCategory(c) {

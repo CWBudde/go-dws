@@ -347,12 +347,15 @@ func (e *Evaluator) evalIntegerBinaryOp(op string, left, right Value, node ast.N
 		return &runtime.FloatValue{Value: float64(leftVal) / float64(rightVal)}
 	case "div":
 		if rightVal == 0 {
-			return e.newError(node, "division by zero: %d div %d", leftVal, rightVal)
+			// DWScript reports one sentence for both `div` and `mod`, with no
+			// operands spelled out: "Division by zero". The compound forms in
+			// compound_ops.go already say this.
+			return e.newError(node, "Division by zero")
 		}
 		return &runtime.IntegerValue{Value: leftVal / rightVal}
 	case "mod":
 		if rightVal == 0 {
-			return e.newError(node, "modulo by zero: %d mod %d", leftVal, rightVal)
+			return e.newError(node, "Division by zero")
 		}
 		return &runtime.IntegerValue{Value: leftVal % rightVal}
 	case "shl":

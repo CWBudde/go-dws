@@ -175,6 +175,11 @@ type ForStatement struct {
 	Body     Statement
 	Step     Expression
 	Variable *Identifier
+	// AssignPos is the `:=` that follows the loop variable. DWScript anchors
+	// `Assignment to FOR-Loop variable` there when the loop reuses an enclosing
+	// loop's control variable, because that is where its scanner stands once the
+	// name has been read.
+	AssignPos token.Position
 	BaseNode
 	Direction ForDirection
 	InlineVar bool
@@ -228,6 +233,10 @@ type ForInStatement struct {
 	Body       Statement
 	Step       Expression
 	Variable   *Identifier
+	// InPos is the `in` keyword, which is where DWScript anchors the
+	// `Incompatible types` diagnostic when the loop variable cannot hold the
+	// collection's elements — the same introducer rule as `until` on a repeat.
+	InPos token.Position
 	BaseNode
 	InlineVar bool
 }

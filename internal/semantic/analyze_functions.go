@@ -46,10 +46,7 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 // in both cases the caller must not run a body pass.
 func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes []types.Type, returnType types.Type, ok bool) {
 	// Check for unsupported calling conventions and emit hints
-	if decl.CallingConvention != "" {
-		a.addHint("Call convention \"%s\" is not supported and ignored [line: %d, column: %d]",
-			decl.CallingConvention, decl.CallingConventionPos.Line, decl.CallingConventionPos.Column)
-	}
+	a.addCallConventionHint(decl)
 
 	// Regular function (not method): resolve parameter and return types
 	paramTypes = make([]types.Type, 0, len(decl.Parameters))
@@ -391,4 +388,16 @@ func (a *Analyzer) validateOldExpressions(expr ast.Expression, funcName string) 
 			a.validateOldExpressions(e.Index, funcName)
 		}
 	}
+}
+
+// addCallConventionHint reports a calling convention the port ignores. Methods and
+// free routines share it so they share the sentence and the anchor: every other
+// diagnostic renders its position as "[line: L, column: C]", and a hint that
+// formats its own "at L:C" cannot match any fixture (SimpleScripts/call_conventions).
+func (a *Analyzer) addCallConventionHint(decl *ast.FunctionDecl) {
+	if decl == nil || decl.CallingConvention == "" {
+		return
+	}
+	a.addHint("Call convention %q is not supported and ignored [line: %d, column: %d]",
+		decl.CallingConvention, decl.CallingConventionPos.Line, decl.CallingConventionPos.Column)
 }

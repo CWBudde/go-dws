@@ -241,7 +241,8 @@ When fixing failing tests:
 
 ## Expected-output variants that are not scored
 
-Only the sibling `.txt` file is compared. `.jstxt` (68 files, JavaScript backend), `.optimized.txt` (31 files: 22 in FailureScripts, 3 OverloadsFail, 2 SimpleScripts, 2 OperatorOverloadFail, 1 SetOfFail, 1 HelpersFail; every one has a sibling `.txt`) and `.fpctxt` (2 files, Free Pascal) are never opened by the Go harness or by `cmd/fixture-report`. A `.pas` file without a plain `.txt` is reported as skipped.
+Only the sibling `.txt` file is compared. `.jstxt` (68 files, JavaScript backend), `.optimized.txt` (31 files: 22 in FailureScripts, 3 OverloadsFail, 2 SimpleScripts, 2 OperatorOverloadFail, 1 SetOfFail, 1 HelpersFail; every one has a sibling `.txt`) and `.fpctxt` (2 files, Free Pascal) are never opened by the Go harness or by `cmd/fixture-report`. A `.pas` file without a plain `.txt` is reported as skipped — see the next section, which is a
+known divergence rather than a settled rule.
 
 **Decision (2026-09-06): `.optimized.txt` is not accepted as an alternative expected output, neither for FailureScripts nor anywhere else.** Reasons:
 
@@ -250,3 +251,39 @@ Only the sibling `.txt` file is compared. `.jstxt` (68 files, JavaScript backend
 - Accepting either file would loosen 22 FailureScripts assertions and in some cases could only be matched by implementing an optimizer.
 
 If a fixture fails only because go-dws emits a hint or error that the optimized variant hides, fix the diagnostics to match `.txt`, do not fall back to `.optimized.txt`.
+
+## A missing `.txt` means "must print nothing" upstream
+
+Open divergence, measured 2026-09-12 (`PLAN.md` §1 / **T7**). Where go-dws skips a `.pas` with no
+sibling `.txt`, upstream **scores it against empty output**. It is the same line in both runners:
+
+```pascal
+if FileExists(resultsFileName) then begin
+   expectedResult.LoadFromFile(resultsFileName);
+   CheckEquals(expectedResult.Text, output, FTests[i]);
+end else CheckEquals('', output, FTests[i]);
+```
+
+`UScriptTests.pas:238`, and `UMemoryTests.pas:254` for the Memory suite.
+
+**36 fixtures** are affected — Memory 10, SimpleScripts 7, InterfacesPass 5, FunctionsMath 5,
+FunctionsTime 3, JSFilterScripts 2, FunctionsGlobalVars 2, FunctionsVariant 1, JSFilterScriptsFail
+1 — and **28 of them already print nothing**, so adopting the rule is +28 passes on +36 scored.
+That moves the headline percentage slightly *down*, which is the honest direction: the suite grows
+because more of it is being checked.
+
+Three groups are deliberately **not** covered by this rule:
+
+- **BuildScripts (53) and AutoFormat (10)** have their own upstream runners and are not output
+  comparisons at all.
+- **External and DelegateLib** are host-library categories, out of scope
+  (`docs/decisions/out-of-scope.md`).
+- **FailureScripts' 13** (`duplicate_field`, `duplicate_property`, `exit_result1`, `exit_result3`,
+  `exit_result4`, `for_non_int_bounds1`, `for_non_int_bounds2`, `if1`, `if2`, `invalid_float`,
+  `invalid_hex`, `invalid_integer`, `no_switch`) are fixtures whose `.txt` was **lost in the
+  import**, not fixtures that expect silence. Eleven correctly report an error today; scoring them
+  as "must be silent" would mark correct behaviour as failing.
+
+The Memory suite additionally needs the compiler's **default** hint level rather than
+`--hints pedantic`: `Memory/obj_local`'s only output is a pedantic-only unused-variable hint. The
+harness applies one global hint level today, which is the other half of T7.

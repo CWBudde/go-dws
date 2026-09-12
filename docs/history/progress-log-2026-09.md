@@ -3663,8 +3663,14 @@ None of the six generics crashers uses generics at all: `collectTemplates` walks
 statement, so a malformed routine header anywhere reaches it. `typeParamsOf` survived the same node
 only because `*ast.FunctionDecl` falls through its switch to `default`.
 
-`statementOrNil` and `typeExpressionOrNil` normalize the two dispatchers, so the interface is nil
-exactly when the parse failed — which is what the existing nil checks already assume.
+The fix normalizes at the two dispatch boundaries — `parseStatement` and `parseTypeExpression`,
+each now a thin wrapper over an `...Inner` that does the dispatching — so the interface is nil
+exactly when the parse failed, which is what every existing nil check already assumes. Review
+caught the first attempt, which wrapped the fourteen individual dispatch cases instead: that
+missed the parsers converting to the interface internally (`class function`, constructors,
+destructors, `for ... in`), and duplicated `isNilStatement`, a reflection-based typed-nil check
+that had been sitting in `internal/parser/control_flow.go` with eight call sites all along. One
+boundary check reusing it is both shorter and strictly more complete.
 `isInvalidTypeExpression` already handled a true nil, so the array element type needed nothing
 else once the dispatcher stopped lying to it.
 
@@ -3703,3 +3709,309 @@ compiler answers.
 inputs that broke them. A whole-corpus in-process sweep was written and then deleted: the fixture
 harness already isolates every fixture in a worker subprocess with a 5s timeout and crash
 detection, so the sweep duplicated it at the cost of the memory that started this.
+
+## 2026-09-12 — The `*Fail` classification, and a triage of Memory (§1, §3.3, §4)
+
+No code changed. This is the measurement §4 had been asking for since the 2026-03 analysis was
+archived, plus the "list fails, bucket by cause" that §3.3's Memory item named as its own first
+step. Both sections were carrying counts that pre-dated the July work.
+
+**The tables, inventories and the full near-miss list live in
+[`../architecture/fail-suite-audit-2026-09.md`](../architecture/fail-suite-audit-2026-09.md)** —
+that is a document meant to be re-read, not a dated entry. What follows is what it changed.
+
+### Method, briefly
+
+Every `*Fail` fixture ran through the production CLI as a subprocess under `timeout 10` — never
+in-process, which is what made the previous whole-corpus sweep unrunnable — and its output was
+compared line-by-line against the expectation, giving per fixture a count of missing and spurious
+lines. Messages were then clustered by shape.
+
+This is the part `baselines.json` cannot do: it holds per-category pass-count floors, so a fixture
+that swaps one wrong line for another is invisible to `just fixture-update`. Folding the
+classification into `cmd/fixture-report` is now **T8**.
+
+### What it changed
+
+480 in-scope fixtures fail. **68 are exactly one line from passing and 194 are within two**, which
+argues for working a near-miss queue across families rather than draining one family at a time —
+that became **F9**.
+
+**F8 was mis-sized by an order of magnitude.** It had been filed as an S-sized cleanup — "convert
+the remaining raw `addError(...)` sites to structured diagnostics". 265 of the 480 fixtures emit at
+least one message go-dws invented rather than inherited: 551 lines across 291 distinct shapes,
+mechanically identifiable because every DWScript sentence starts with a capital and none of these
+do. It is the precondition for more than half the section, and the parser is in it as much as the
+analyzer — the top shapes are recovery sentences, not semantic ones.
+
+**F5 had only ever been counted over `FailureScripts`.** 70 fixtures compile completely clean where
+DWScript reports something: 43 there and 27 in the other suites, never previously measured. The
+densest pocket is `HelpersFail`, where 10 of 18 failures produce nothing at all.
+
+**F6 is closed.** Every `FailureScripts` fixture whose expectation is blank now compiles clean, and
+none expects a `Runtime Error` line at all. `for_in_subclass`, the last name on the old list, turned
+out to be message parity rather than runtime residue, and moved to F8.
+
+**Two fixtures fail on ordering alone** — `array_in1` wants same-line diagnostics ordered by column,
+`infinite_loop` wants routine bodies reported before the main body. The second is a side-effect of
+L-S1b/L-S1c's deferred body checking, which was right and should stay: the fix is to re-order the
+diagnostics on the way out, not the analysis on the way in.
+
+### Memory (§3.3)
+
+The category reads 1 of 3 scored with ten fixtures unscored, and the triage says it is mostly a
+**harness** gap. Upstream's runner (`UMemoryTests.pas:228`) asserts that the program compiles with
+no messages, that its output equals the `.txt` when one exists and is **empty** when none does, and
+that `exec.ObjectCount = 0` afterwards.
+
+- Five of the ten unscored fixtures already compile clean and print nothing (`obj_bidicycle`,
+  `obj_cycle`, `obj_selfref`, `simple`, and `obj_local`, whose only output is a pedantic-only
+  unused-variable hint — the Memory runner uses the compiler's default hint level).
+- One is a real evaluator defect: `obj_fields` does `TMyObj2.Create.Field := TMyObj1.Create;` — a
+  constructor call as the **base of an lvalue** — and gets `Runtime Error: cannot access field of
+  CLASS`. The construction yields the class rather than the instance in that position; the same
+  assignment through a variable works.
+- Six need a **host-registered external class**. Upstream's `SetUp` registers `TExposedClass` and
+  `TExposedBoomClass` with host-side constructors and an `OnCleanUp` hook. go-dws answers `parent
+  class 'TExposedClass' not found`, which is correct for a host that registered nothing; this is
+  host-integration surface, not language work.
+- The leak assertions do not port at all. They check DWScript's reference counting at a point where
+  Go's GC has not necessarily run.
+
+### The same gap, eight more categories (§1 / T7)
+
+`else CheckEquals('', output, …)` is not Memory-specific — it is the same line in
+`UScriptTests.pas:238`. 36 fixtures across nine categories have no `.txt` and are dropped rather
+than checked for silence; 28 already print nothing. The rule, the affected categories and the three
+groups it deliberately excludes are documented where they belong, next to the fixtures:
+[`../../testdata/fixtures/README.md`](../../testdata/fixtures/README.md).
+
+## 2026-09-12 — The for-loop diagnostics (§4 / F1, F10)
+
+`PLAN.md` §4's near-miss queue had four for-loop entries sitting one or two lines from passing, in
+two different families. They share one function each in the parser and the analyzer, so they were
+done together. **FailureScripts 149 → 156**, seven fixtures, no regressions: `for_var_usage`,
+`for_var_usage2`, `for_in1`, `for_in2`, `for_error3`, `for_error4`, `array_in1`.
+
+### Ordering: hints are never reordered against errors
+
+`sortDiagnostics` (`internal/frontend/result.go`) forced a hint or warning ahead of an error on the
+same source line. That rule was wrong, and the audit had recorded the wrong reason for it: it read
+`array_in1` as evidence that upstream orders same-line diagnostics **by column**. Column ordering
+does fix `array_in1` and `for_in1` — and breaks `use_proc_result1`, which wants the
+case-of-declaration hint at column 10 *before* the `Incompatible operands` error at column 8.
+
+The rule that satisfies all three is simpler than either: **emission order, always**. DWScript
+writes both streams as it compiles, so a hint lands where it was produced — after the condition's
+error and before the body's, inner before outer. Removing the same-line special case entirely (the
+comparator now declines to order a hint against an error at all, leaving `sort.SliceStable` to keep
+them as emitted) closed `array_in1`'s 26 lines outright, and is what makes the for-in work below
+line up without a second anchor rule.
+
+### `Warning: Assignment to FOR-Loop variable`
+
+Did not exist. `Symbol` gained `IsLoopVariable` — deliberately not `ReadOnly`, because writing to a
+`for` variable is legal and only draws a warning — set by `DefineLoopVariable`, which already
+existed to keep control variables out of unused-variable reporting.
+
+Two anchors, because upstream reports at whatever token its scanner holds:
+
+| shape | anchor | fixture |
+| --- | --- | --- |
+| ordinary assignment to the loop variable | the assignment target | `for i:=1 to 10 do i:=1;` |
+| a loop header reusing an enclosing loop's variable | the `:=` | `for i:=1 to 10 do for i:=1 to 10 do ;` |
+
+The second needed a position the AST did not carry, so `ForStatement` gained `AssignPos`, the way
+`RepeatStatement` carries `UntilPos` for the same reason.
+
+### The for-in header, anchored at `in`
+
+`ForInStatement` gained `InPos`, and every diagnostic the header produces now anchors there — the
+same introducer rule `until` follows on a repeat, confirmed against `for_in1` (column 7),
+`for_error4` (7) and `COMConnectorFailure/for_in_error1` (10).
+
+Three behaviours changed inside `analyzeForIn`:
+
+- **`Incompatible types: "X" and "Y"`**, loop variable first, element type second, replacing
+  `for-in loop variable i has type Integer, cannot assign Float`. The check is stricter than
+  assignment: the loop header converts nothing, so the Integer-to-Float promotion an assignment
+  would perform is an error here (`for f in ia`, `for_in1` line 8). That is the one place
+  `forInAccepts` differs from `canAssign`.
+- **`Enumeration expected` / `Array expected`.** go-dws answered both with its own
+  `for-in collection type X is not enumerable`. Upstream splits them, and the split is visible in
+  what follows: naming a *type* that is not an enumeration still builds a loop, so the empty-body
+  hint comes after it (`for_in2`), while an expression that is not a container abandons the loop
+  and reports nothing more about it (`for_error3`). A collection whose element type stayed `Void`
+  no longer cascades into a second diagnostic about the loop variable.
+- **`Hint: Empty FOR loop` for for-in**, which #400 had correctly removed from `while` but never
+  wired here — with one exception measured out of `SimpleScripts/for_var_in_string`: iterating a
+  **string** draws no hint. Upstream compiles that into a character walk rather than a container
+  loop, and that path does not emit it.
+
+### Left open
+
+`for_in_subclass` still fails, and it answers a question `PLAN.md` §4 / F10 had left open —
+whether the `Cannot assign "X" to "Y"` variant shares a site with `Incompatible types: "X" and
+"Y"`. It does: the same for-in check produces `Incompatible types: "Float" and "Integer"` for
+`for_in1` and `Cannot assign "TBase" to "TChild"` for `for_in_subclass`, where the two class types
+are related and the assignment narrows. Its anchor is column 12 of `for c in a do`, which is the
+`do` — neither the `in` every other for-in diagnostic uses nor the collection. That was not guessed
+at, for the same reason the `Infinite loop` anchor was parked in #400.
+
+Tests: `internal/frontend/result_test.go` pins each of the six behaviours above against the fixture
+source it was measured from.
+
+## 2026-09-12 — The fixture classifier (T8)
+
+`baselines.json` holds per-category pass-count **floors**. It cannot see a fixture swap one wrong
+line for another, and the pass/fail table cannot tell a fixture that is one word from passing from
+one that produces nothing at all. The 2026-09-12 `*Fail` re-measurement answered both questions
+with a shell script that was thrown away afterwards — which is why its numbers could not be
+reproduced, and why the execution suites never got the same treatment.
+
+`cmd/fixture-report` now does it: `--classify` diffs every failing fixture against its expectation
+and reports, per category, how far each failure is from passing, whether what differs is a
+diagnostic or the program's own output, and which message shapes recur across the suite.
+`--in-scope` drops the host-library categories excluded from every PLAN.md target.
+
+### What the tool decides, and why
+
+- **Distance is line-level edit distance, counted per diff hunk.** A diagnostic emitted in the
+  wrong words is **one** edit, not two lines. The old script sorted both sides and compared with
+  `comm`, which counted it as two, so the `*Fail` near-miss figures move from 68 / 194 to
+  **156 / 281** without anything about the port changing. The definition now lives in `lineDiff`'s
+  doc comment next to the code that produces it, which was the point of the item.
+- **Shapes are ranked by fixtures blocked, not occurrences** — one fixture emitting a shape twenty
+  times is one fixture, and the pass rate counts fixtures. A second column, `sole`, counts the
+  fixtures a shape is the *only* thing wrong with: `fixtures` ranks the work, `sole` predicts the
+  yield, and the gap between them is how much else has to be right first. `"X" expected` touches 64
+  in-scope fixtures and closes 22 alone.
+- **Blank lines are kept.** Normalization has already stripped the leading and trailing ones, so a
+  surviving blank is one the program printed. An earlier revision dropped them and scored
+  `SimpleScripts/print_multi_args` as failing at **distance 0** — its whole defect is a missing
+  blank line from `Print("")`.
+
+The one bug worth recording: classification was first handed the CLI's raw output while the
+pass/fail verdict was made on the normalized text, so every fixture picked up a trailing blank and
+all 626 failures classified as `mixed`. Both sides now read the same string.
+
+### What it found
+
+Zero crashes and zero timeouts across all 2,044 fixtures — PR #401's result, now checkable rather
+than remembered.
+
+626 in-scope fixtures fail: **475 in the `*Fail` suites** (§4) and **151 in the execution suites**,
+which no PLAN.md item covered. §3 reported "no open items" because it is organised by subsystem and
+every subsystem's enumerated task groups had shipped; nothing was reading the suites back. That gap
+is now §3.5 (E1–E7) and
+[`docs/architecture/pass-suite-audit-2026-09.md`](../architecture/pass-suite-audit-2026-09.md).
+
+The execution suites fail differently from the `*Fail` suites. 111 of the 151 differ in both a
+diagnostic and the program's output, which is almost always **one** fault: a spurious compile error
+stops the program, so its output goes missing too. And where §4's work is DWScript's vocabulary,
+these are mostly things go-dws cannot do yet — `Integer.TestBit`, `array of Float.Pack`, interface
+casting — named directly by the spurious `no accessible member` diagnostics.
+
+Two findings were cheap enough to write down as ready-to-build items. `SimpleScripts`' eleven
+diagnostics-only failures are almost all **runtime-message vocabulary**: go-dws raises the right
+error at the right place and invents the sentence (`division by zero: 1 div 0` for
+`Division by zero`). And one hint formats its position **into the message text** —
+`Calling convention "safecall" is ignored at 3:30` where every other diagnostic renders
+`[line: 3, column: 30]` — which no fixture carrying it can survive.
+
+Tests: `cmd/fixture-report/classify_test.go` pins the distance definition (including that a
+one-for-one swap is one edit and that two unrelated hunks are two), the shape reduction, the
+`sole` yield, and the blank-line rule.
+
+## 2026-09-12 — Runtime-message vocabulary (E1, E2)
+
+The first two items §3.5 opened, closed the same day. Six `SimpleScripts` fixtures; **1,085 →
+1,091 scored (57%)**, in scope **1,091 / 1,711 = 64%**. Nothing else moved: the per-fixture failure
+list shows six closures and zero regressions.
+
+### The sentences
+
+go-dws was raising the right error in the right place and inventing the words. Each of these is a
+one-line change to a message, not to behaviour:
+
+| Fixture | was | now |
+| --- | --- | --- |
+| `div_by_zero_int` | `division by zero: 1 div 0` | `Division by zero` |
+| `mod_by_zero_int` | `modulo by zero: 1 mod 0` | `Division by zero` |
+| `string_bounds2` | `string index out of bounds: 0 (string length is 6)` | `Lower bound exceeded! Index 0` |
+| `external` | `function 'Dummy' has no body` | `Unhandled call to external symbol "Dummy" from` |
+
+DWScript uses **one** sentence for `div` and `mod` alike, with no operands spelled out. That was
+already true of the compound forms (`newDivisionByZeroError` in
+`internal/interp/evaluator/compound_ops.go` has said `Division by zero` all along); only the plain
+binary operators disagreed with their own compound counterparts.
+
+The string index needed the mechanism unified, not fixed. Both paths were already **catchable** —
+`newError`'s value becomes a script exception, so `SimpleScripts/string_bounds` reached all four of
+its `except` blocks before this change as well — but they were catchable by a different route than
+the array bounds, with a different sentence and no `" in <routine>"` suffix. Reads and writes now
+both go through `raiseIndexBoundExceededAt`, the same helper the array paths use, anchored at the
+opening bracket. ⚠️ That anchor differs by one column from the array form and rests on a single
+fixture (`PrintLn(s[0])` wants column 10); the two are separate expression classes upstream and
+position themselves separately, so it is recorded as an observation, not a rule.
+
+`external` gained its own message instead of sharing "has no body" with an unimplemented forward
+declaration: `fn.IsExternal` already distinguishes them. The sentence ends in "from" because the
+call site follows it as the usual `[line: L, column: C]`.
+
+### Re-raise
+
+`SimpleScripts/re_raise` raises a **runtime-initiated** exception a second time, from a procedure
+called out of the `except` block:
+
+```pascal
+procedure ExceptionHandler;
+begin
+  Raise ExceptObject;
+end;
+```
+
+Upstream keeps the original message and position and appends the position of the re-raise —
+`Division by zero [line: 12, column: 13] [line: 5, column: 20]`. go-dws was treating it as a fresh
+`raise`, which wrapped it as `User defined exception:` and dropped the original position.
+`reRaisedException` now recognises that the raised object *is* the exception the enclosing handler
+is processing (same `*ObjectInstance`), and re-raises that value rather than building a new one:
+message, position and "user raised" status survive, `ReRaisePos` records where, and the reported
+call stack is refreshed to the frames the exception is escaping through **now** — which is what
+produces the ` [line: 19, column: 2]` trace line the fixture expects.
+
+`VisitRaiseStatement` and its helpers moved to `internal/interp/evaluator/visitor_raise.go`;
+`visitor_statements.go` was one edit from revive's 1,500-line limit.
+
+### The hint that formatted its own position (E2)
+
+`Calling convention "safecall" is ignored at 3:30`, where every other diagnostic renders
+`[line: 3, column: 30]`. The free-routine path had the correct sentence *and* the correct anchor
+all along — only methods went through a second, hand-written call. Both now share
+`Analyzer.addCallConventionHint`. This is worth more than one fixture: a message with no structured
+position also reaches `frontend.Diagnostic` with `Line`/`Column` zero, so nothing downstream can
+place it. The `Previous declaration of class was "partial"` hint had the same defect and was fixed
+with it, though `SimpleScripts/partial_class3` still fails on two unrelated faults.
+
+### What did not close, and why it is worth writing down
+
+`SimpleScripts/const_array_empty` wants the bounds diagnostic for a *read* anchored at the closing
+bracket — exactly where `indexBracketPos` already puts every *write*. Making the read path agree
+closed it and turned `ArrayPass/array_element_byref` red, so the change was reverted rather than
+shipped as a swap.
+
+The reason is a real bug, now **§3.5 E8**. `prepareArrayElementReference` binds an array element to
+a `var` parameter as a live `(array, index)` reference, and bails to the by-value path when it
+cannot evaluate the index. Inside that path `a.High` and `a.Length` evaluate to **NIL**, so
+`P(a[a.High+1])` degrades to a copy while `P(a[i])` and `P(a[2+2])` bind correctly — writes through
+the parameter are lost, and the bounds diagnostic then comes from the read path's anchor. Upstream
+reports a genuine by-reference bind one column further on than a read, which is why the two
+fixtures currently want different columns. Fix the routing and both close together; the comment in
+`IndexArray` says so at the point where someone would otherwise move the anchor again.
+
+### Tests
+
+`cmd/dwscript/cmd/run_runtime_messages_test.go` pins the five sentences through the CLI, that a bad
+string index is catchable, and that a re-raise keeps the original message and reports two
+positions. `internal/frontend/result_test.go` pins that both calling-convention hints carry a
+structured position and do not write " at " into their own text.
