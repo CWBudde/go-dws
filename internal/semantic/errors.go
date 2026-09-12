@@ -200,8 +200,11 @@ func NewOperatorTypeMismatch(pos lexer.Position, operator string, left, right ty
 // Upstream names the type it wanted and nothing else — not the type it got, not
 // the construct that wanted it. `Boolean expected` covers every condition in the
 // language (`if`, `while`, `until`, the if-then-else expression, `require` and
-// `ensure`, `Assert`'s first argument); `String expected` covers the message
-// half of a contract and `Assert`'s second argument.
+// `ensure`); `String expected` covers the message half of a contract.
+//
+// `Assert` wants both sentences too — and anchored at the argument rather than
+// at the call (FailureScripts/assert) — but it still emits its own
+// `function 'Assert' ...` wording and does not route through here yet.
 func NewTypeExpectedError(pos lexer.Position, typeName string) *SemanticError {
 	return &SemanticError{
 		Type:     ErrorTypeMismatch,
