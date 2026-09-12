@@ -2939,3 +2939,126 @@ FunctionsFile category is not moved and stays out of scope — it needs a `File`
 green (the build-tag pair is the reason this is worth stating); `just wasm-smoke` green with the
 three new round-trip checks; `golangci-lint run --new-from-merge-base=origin/main` clean; fixture
 gate green with counts unchanged at 1044.
+
+## 2026-09-12 — The runtime-panic re-measurement (§3.3)
+
+The §3.3 item asked to re-measure "the runtime-panic fixtures (metaclass `ClassName`,
+class-method dispatch, `class of`)", noting the common cases were closed in July and the rest was
+never re-listed. Re-measured: **there are no panics left.** All 87 then-failing `SimpleScripts`
+fixtures were run through the CLI and none produced a Go panic or a goroutine dump. That is a
+real signal rather than a swallowed one — `cmd/dwscript` has no `recover` on the run path, so a
+panic would reach the terminal.
+
+The three areas the item named were still failing, but for ordinary reasons. Bucketed and fixed:
+
+### `classname_nil_call` — a nil metaclass is not a nil object
+
+`var o : TObjClass;` (with `TObjClass = class of TObject`) left unassigned reported
+`Object not instantiated`; DWScript says `ClassType is nil`. The two are different mistakes and
+upstream names them differently.
+
+The declared type is gone by the time the error is raised — `SemanticInfo` carries no annotation
+for the receiver on this path, and the value was a bare `NilValue` — so the distinction now rides
+on the value: `NilValue.IsMetaclass`, set when a `class of` variable is zero-initialised
+(`createZeroValueForResolvedType`, and `GetDefaultValue` for symmetry). Both the member-access and
+the method-call nil paths ask `nilReceiverMessage` for the wording.
+
+### `class_of3` — a type alias for a class is a class name
+
+`type TMyControl = TObject;` is an alias, not a forward declaration, and it failed in three
+different places at once: as a metaclass operand (`class of TMyControl`), as a parent
+(`class (TMyControl)`), and as a static receiver (`TMyControl.ClassName`). Each site cast to
+`*types.ClassType` without resolving the alias first:
+
+- `resolveClassOfTypeNode` now resolves through `types.GetUnderlyingType`.
+- `Analyzer.getClassType` does the same, which fixes the parent case at all five call sites that
+  were repeating the same lookup.
+- The evaluator's class registry is keyed by the declared class name, so an alias has to be
+  translated rather than resolved: `resolveClassAliasName` returns the underlying class's own
+  name, used by the parent lookup and by the type-meta member path.
+
+### `class_method`, `reintroduce`, `reintroduce_virtual` — non-virtual methods bind statically
+
+The largest of the three, and not specific to class methods: **any** non-virtual method
+redeclared in a descendant was dispatched dynamically. Delphi and DWScript bind a non-virtual
+method at compile time against the receiver's *declared* type, so
+`var a : TA := TB.Create; a.P;` runs `TA.P` when `TB` merely redeclares `P`.
+
+`dispatchObjectMethod` now consults the receiver's static type first, ahead of the overload path
+— a redeclaration in a descendant looks like an overload set to the registry, but hiding is not
+overloading. Three details were load-bearing:
+
+- **The static binding cannot reuse `executeObjectMethodDirect`,** which re-resolves the method
+  name against the runtime class and would undo the binding it was just given. A separate
+  execution helper runs the chosen method with the declared class as its context, routing class
+  methods through their metaclass.
+- **Virtual calls resolve through the virtual method table, not by name.** This is what
+  `reintroduce` needs: a reintroduced method does not take over its ancestor's slot, so a call
+  typed at the ancestor must reach neither it nor anything declared below it. `LookupMethod`
+  walks most-derived-first by name and cannot see the broken chain; the VMT already models it
+  correctly and simply was not being consulted.
+- **`reintroduce; virtual` starts a second chain** that shares a signature with the one it hides.
+  The table is keyed by signature alone, so the new chain overwrites the old slot; comparing the
+  chain's originating class (`VirtualMethodEntry.OwningClass`) against the declared type's entry
+  tells them apart, and a call typed above the reintroduction stays on the original chain.
+
+The first attempt regressed `OverloadsPass/overload_virtual`: picking the declared type's method
+by name alone chose the wrong arity for an overloaded virtual, and a two-argument body then ran
+with none. Real overload sets are now left to the overload resolver — the static path selects only
+when exactly one declaration of that name accepts the call's arity, because choosing between
+genuine overloads needs argument types this path does not see.
+
+One property worth stating because the tests depend on it: static binding needs the analyzer's
+type annotations, so `internal/interp/dispatch_static_test.go` runs through
+`testEvalWithOutputAndSemantic`. Without semantic info, dispatch necessarily falls back to the
+runtime class.
+
+**Validation:** `SimpleScripts` 349 → 354 and fixtures 1044 → 1049 (`class_method`, `class_of3`,
+`classname_nil_call`, `reintroduce`, `reintroduce_virtual`), no category regressing; baselines
+ratcheted and `TEST_STATUS.md` regenerated. `go test ./...` green; `just build` green;
+`golangci-lint run --new-from-merge-base=origin/main` clean.
+
+## 2026-09-12 — FunctionsGlobalVars: the last two fixtures, measured
+
+Both remaining fails were measured rather than assumed, and they turned out to be different
+kinds of thing.
+
+### `queue_snapshot` is the §5 case-hint won't-fix
+
+Its output already matches the expectation exactly, line for line. The only difference is four
+`"join" does not match case of declaration ("Join")` hints that upstream does not emit.
+
+PLAN.md recorded the discriminator as element type — upstream emits the hint for `array of
+String`, as `ArrayPass/dynamic_array_remove` expects, but not for "the non-string array this
+fixture builds". Measured, that does not hold for us: our analyzer types `Map`'s result from the
+callback's return type, and the callback here is `lambda (v) => String(v)`, so the receiver *is*
+`array of String` — the same element type as the fixture that wants the hint. Reproducing the
+difference would mean regressing `Map`'s return-type inference to match a hint quirk.
+
+Reclassified as ✋ under the §5 case-mismatch parity won't-fix. The GlobalVars library itself is
+correct here.
+
+### `private_vars`: parser half done, the rest needs unit identity
+
+Two blockers, and the first is now fixed. A unit written without `interface`/`implementation`
+sections — just a header followed by declarations, and ending without a trailing `end.` — failed
+with `expected 'end' to close unit declaration`. `parseUnit` now treats that shape as an implicit
+implementation section. A section-less unit publishes all of its declarations, so nothing changes
+about symbol export.
+
+Writing the test for it caught a second case the first fix missed: a section-less unit whose first
+token is `uses` took the pre-existing unit-header recovery branch, which consumed the uses clause
+and left the cursor on the following declaration with an interface section already set. The
+implicit-section branch no longer requires the interface section to be absent; `parseInterfaceSection`
+leaves the cursor on `implementation` or a section end, so reaching that branch with neither can
+only be this case.
+
+What remains is the `WritePrivateVar`/`ReadPrivateVar`/`PrivateVarsNames`/`CleanupPrivateVars`
+family, and the blocker is **unit identity at run time**, which nothing currently tracks: neither
+callable metadata nor the execution context records which unit a body came from, and these
+builtins are per-unit by definition (each unit sees only its own private variables, and the main
+module sees none). The concrete steps are recorded in PLAN.md §3.3; the item is resized from S to
+M because of that plumbing, not the builtins.
+
+**Validation:** `go test ./internal/parser` green including two new tests for the section-less
+shape; fixture counts unchanged by the parser fix alone.

@@ -1051,7 +1051,10 @@ func (a *Analyzer) getClassType(name string) *types.ClassType {
 	if !ok {
 		return nil
 	}
-	classType, ok := typ.(*types.ClassType)
+	// An alias for a class names that class everywhere a class name is
+	// accepted — as a parent (`class (TMyControl)`), as a metaclass operand,
+	// and as a static receiver — so resolve through the alias.
+	classType, ok := types.GetUnderlyingType(typ).(*types.ClassType)
 	if !ok {
 		return nil
 	}

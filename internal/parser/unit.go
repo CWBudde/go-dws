@@ -68,6 +68,18 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 	// Parse implementation section (optional but common)
 	if p.curTokenIs(lexer.IMPLEMENTATION) {
 		unitDecl.ImplementationSection = p.parseImplementationSection()
+	} else if !p.curTokenIsUnitSectionEnd() {
+		// A unit may omit the section keywords entirely and simply list its
+		// declarations after the header. Everything up to the unit's end is
+		// then both its interface and its implementation, so parse it as an
+		// implicit implementation section; symbol export is unaffected because
+		// a section-less unit publishes all of its declarations.
+		//
+		// parseInterfaceSection leaves the cursor on `implementation` or on a
+		// section end, so reaching here with neither means the header was
+		// followed directly by declarations — with or without the leading uses
+		// clause the branch above already consumed.
+		unitDecl.ImplementationSection = p.parseImplicitUnitSection()
 	}
 
 	// Parse initialization section (optional)
@@ -237,6 +249,46 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 			if fn, ok := stmt.(*ast.FunctionDecl); ok && fn.Body == nil {
 				fn.IsForward = true
 			}
+			block.Statements = append(block.Statements, stmt)
+		}
+		p.nextToken()
+	}
+
+	return block
+}
+
+// curTokenIsUnitSectionEnd reports whether the cursor sits on a token that ends
+// the declaration part of a unit.
+func (p *Parser) curTokenIsUnitSectionEnd() bool {
+	return p.curTokenIs(lexer.INITIALIZATION) ||
+		p.curTokenIs(lexer.FINALIZATION) ||
+		p.curTokenIs(lexer.END) ||
+		p.curTokenIs(lexer.EOF)
+}
+
+// parseImplicitUnitSection parses the declarations of a unit written without
+// `interface`/`implementation` keywords. The cursor already sits on the first
+// declaration, so unlike parseImplementationSection there is no section keyword
+// to step over.
+func (p *Parser) parseImplicitUnitSection() *ast.BlockStatement {
+	block := &ast.BlockStatement{
+		BaseNode:   ast.BaseNode{Token: p.cursor.Current()},
+		Statements: []ast.Statement{},
+	}
+
+	if p.curTokenIs(lexer.USES) {
+		if usesClause := p.parseUsesClause(); usesClause != nil {
+			block.Statements = append(block.Statements, usesClause)
+		}
+		p.nextToken()
+	}
+
+	for !p.curTokenIsUnitSectionEnd() {
+		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+			continue
+		}
+		if stmt := p.parseStatement(); stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
 		p.nextToken()

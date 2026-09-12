@@ -100,6 +100,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -335,7 +336,7 @@ func (e *Evaluator) dispatchMethodOnNilObject(obj Value, methodName string, args
 	}
 
 	// Virtual dispatch (or unknown static type) needs an instance.
-	return e.newError(methodNameErrorNode(node), "Object not instantiated")
+	return e.newError(methodNameErrorNode(node), "%s", e.nilReceiverMessage(obj, objectExpr, ctx))
 }
 
 // isNonVirtualInstanceMethod reports whether a method can be invoked on a nil
@@ -378,6 +379,269 @@ func (e *Evaluator) staticClassInfoForNilReceiver(obj Value, objectExpr ast.Expr
 		return classInfo
 	}
 	return nil
+}
+
+// nilReceiverMessage picks the message DWScript reports for a call or member
+// access on a nil receiver. A nil *metaclass* — a `class of X` variable that
+// was never assigned — is a different mistake from a nil object reference, and
+// upstream names it differently, so the receiver's static type decides.
+func (e *Evaluator) nilReceiverMessage(obj Value, objectExpr ast.Expression, ctx *ExecutionContext) string {
+	if nilVal, ok := obj.(*runtime.NilValue); ok && nilVal.IsMetaclass {
+		return "ClassType is nil"
+	}
+	if e.isMetaclassExpression(objectExpr, ctx) {
+		return "ClassType is nil"
+	}
+	return "Object not instantiated"
+}
+
+// isMetaclassExpression reports whether an expression's static type is a
+// metaclass ("class of X"), resolving through type aliases.
+func (e *Evaluator) isMetaclassExpression(objectExpr ast.Expression, ctx *ExecutionContext) bool {
+	if objectExpr == nil || e.SemanticInfo() == nil {
+		return false
+	}
+	annotation := e.SemanticInfo().GetType(objectExpr)
+	if annotation == nil || annotation.Name == "" {
+		return false
+	}
+	resolved, err := e.resolveTypeName(annotation.Name, ctx)
+	if err != nil || resolved == nil {
+		return false
+	}
+	_, isClassOf := types.GetUnderlyingType(resolved).(*types.ClassOfType)
+	return isClassOf
+}
+
+// staticReceiverClassInfo resolves the class a receiver expression is *declared*
+// as, which is what non-virtual dispatch resolves against. Returns nil when the
+// call site has no usable static type (an unannotated expression, or a type that
+// is not a class), in which case the caller keeps its dynamic resolution.
+func (e *Evaluator) staticReceiverClassInfo(node ast.Node, ctx *ExecutionContext) runtime.IClassInfo {
+	call, ok := node.(*ast.MethodCallExpression)
+	if !ok || call.Object == nil || e.SemanticInfo() == nil {
+		return nil
+	}
+	annotation := e.SemanticInfo().GetType(call.Object)
+	if annotation == nil || annotation.Name == "" {
+		return nil
+	}
+	className := annotation.Name
+	if resolved := e.resolveClassAliasName(className, ctx); resolved != "" {
+		className = resolved
+	}
+	return e.typeSystem.LookupClass(className)
+}
+
+// staticallyDispatchedMethod returns the method a call must run when the
+// receiver's declared type hides a same-named method further down the
+// hierarchy. DWScript, like Delphi, binds a non-virtual method at compile time
+// against the declared type, so `var a : TA := TB.Create; a.P;` runs TA.P when
+// TB merely redeclares P, and TB.P only when P is virtual and overridden.
+//
+// Returns nil whenever dynamic resolution is already correct: no static type at
+// the call site, the declared class does not know the name, or the method is
+// virtual/abstract/a constructor or destructor.
+func (e *Evaluator) staticallyDispatchedMethod(
+	dynamicClass runtime.IClassInfo,
+	methodName string,
+	argCount int,
+	node ast.Node,
+	ctx *ExecutionContext,
+) (runtime.IClassInfo, *runtime.MethodMetadata) {
+	staticClass := e.staticReceiverClassInfo(node, ctx)
+	if staticClass == nil || dynamicClass == nil {
+		return nil, nil
+	}
+	// Same class means dynamic lookup already answers with the declared one.
+	if ident.Equal(staticClass.GetName(), dynamicClass.GetName()) {
+		return nil, nil
+	}
+	// Only narrow to the declared type when the runtime class actually derives
+	// from it; an unrelated annotation must not redirect the call.
+	if !classDerivesFrom(dynamicClass, staticClass.GetName()) {
+		return nil, nil
+	}
+
+	method := staticMethodForArity(staticClass, methodName, argCount)
+	if method == nil {
+		return nil, nil
+	}
+	if method.IsConstructor || method.IsDestructor {
+		return nil, nil
+	}
+
+	sig := ident.Normalize(method.Name) + "_" + strconv.Itoa(len(method.Parameters))
+	var staticEntry *runtime.VirtualMethodEntry
+	if vmt := staticClass.GetVirtualMethodTable(); vmt != nil {
+		staticEntry = vmt[sig]
+	}
+	staticIsVirtual := staticEntry != nil ||
+		method.IsVirtual || method.IsOverride || method.IsAbstract
+
+	if staticIsVirtual {
+		return resolveVirtualChain(staticClass, dynamicClass, staticEntry, sig)
+	}
+
+	return staticClass, method
+}
+
+// resolveVirtualChain resolves a virtual call against the runtime class's
+// virtual method table rather than by name.
+//
+// The distinction matters for `reintroduce`: a reintroduced method does not
+// take over its ancestor's slot, so a call typed at the ancestor must reach
+// neither it nor anything declared below it. Name lookup would return the
+// most-derived declaration and ignore the broken chain.
+//
+// `reintroduce; virtual` is the harder case: it starts a *new* chain that
+// shares a signature with the one it hides, and the table is keyed by signature
+// alone, so the new chain overwrites the old slot. The class that first
+// declared each chain tells them apart — when the runtime class's chain is not
+// the one the declared type can see, the call stays on the declared type's.
+func resolveVirtualChain(
+	staticClass, dynamicClass runtime.IClassInfo,
+	staticEntry *runtime.VirtualMethodEntry,
+	sig string,
+) (runtime.IClassInfo, *runtime.MethodMetadata) {
+	vmt := dynamicClass.GetVirtualMethodTable()
+	if vmt == nil {
+		return nil, nil
+	}
+	entry := vmt[sig]
+	if entry == nil || entry.Method == nil {
+		return nil, nil
+	}
+
+	if isDifferentVirtualChain(entry, staticEntry) {
+		owner := methodDeclaringClass(staticClass, staticEntry.Method)
+		if owner == nil {
+			owner = staticEntry.OwningClass
+		}
+		return owner, staticEntry.Method
+	}
+
+	owner := entry.OwningClass
+	if resolved := methodDeclaringClass(dynamicClass, entry.Method); resolved != nil {
+		owner = resolved
+	}
+	if owner == nil {
+		return nil, nil
+	}
+	return owner, entry.Method
+}
+
+// isDifferentVirtualChain reports whether the runtime class's table entry
+// belongs to a chain the declared type cannot see, which happens when a
+// descendant restarted the chain with `reintroduce; virtual`.
+func isDifferentVirtualChain(entry, staticEntry *runtime.VirtualMethodEntry) bool {
+	if staticEntry == nil || staticEntry.Method == nil {
+		return false
+	}
+	if entry.OwningClass == nil || staticEntry.OwningClass == nil {
+		return false
+	}
+	return !ident.Equal(entry.OwningClass.GetName(), staticEntry.OwningClass.GetName())
+}
+
+// staticMethodForArity picks the declared type's method for a call of the given
+// arity. It returns nil when the name is genuinely overloaded at that arity,
+// because choosing between real overloads is the overload resolver's job and
+// requires the argument types this path does not see.
+func staticMethodForArity(staticClass runtime.IClassInfo, methodName string, argCount int) *runtime.MethodMetadata {
+	candidates := append(
+		append([]*runtime.MethodMetadata(nil), staticClass.GetMethodOverloads(methodName)...),
+		staticClass.GetClassMethodOverloads(methodName)...,
+	)
+	if len(candidates) == 0 {
+		method := staticClass.LookupMethod(methodName)
+		if method == nil {
+			method = staticClass.LookupClassMethod(methodName)
+		}
+		return method
+	}
+
+	var match *runtime.MethodMetadata
+	for _, candidate := range candidates {
+		if candidate == nil {
+			continue
+		}
+		if !methodAcceptsArgCount(candidate, argCount) {
+			continue
+		}
+		if match != nil {
+			// Two declarations of the same name accept this call: a real
+			// overload set. Leave it to the overload resolver.
+			return nil
+		}
+		match = candidate
+	}
+	return match
+}
+
+// methodAcceptsArgCount reports whether a method can be called with argCount
+// arguments, accounting for parameters that have defaults.
+func methodAcceptsArgCount(method *runtime.MethodMetadata, argCount int) bool {
+	if argCount > len(method.Parameters) {
+		return false
+	}
+	required := 0
+	for _, param := range method.Parameters {
+		if param.DefaultValue == nil {
+			required++
+		}
+	}
+	return argCount >= required
+}
+
+// methodDeclaringClass finds the class in a hierarchy that owns a method, so a
+// statically bound call executes with the right class context.
+func methodDeclaringClass(from runtime.IClassInfo, method *runtime.MethodMetadata) runtime.IClassInfo {
+	if method == nil {
+		return nil
+	}
+	for current := from; current != nil; current = current.GetParent() {
+		if current.LookupMethod(method.Name) == method || current.LookupClassMethod(method.Name) == method {
+			return current
+		}
+	}
+	return nil
+}
+
+// executeStaticallyDispatchedMethod runs a method bound to the receiver's
+// declared class. It cannot go through executeObjectMethodDirect, which
+// re-resolves the method name against the *runtime* class and would undo the
+// static binding.
+func (e *Evaluator) executeStaticallyDispatchedMethod(
+	self Value,
+	staticClass runtime.IClassInfo,
+	method *runtime.MethodMetadata,
+	args []Value,
+	node ast.Node,
+	ctx *ExecutionContext,
+) Value {
+	if method.IsClassMethod {
+		classVal, err := e.typeSystem.CreateClassValue(staticClass.GetName())
+		if err != nil || classVal == nil {
+			return e.newError(node, "class method execution requires runtime class value")
+		}
+		classMeta, ok := classVal.(ClassMetaValue)
+		if !ok {
+			return e.newError(node, "class method execution requires runtime class value")
+		}
+		return e.executeClassMethodDirect(classMeta, method, args, node, ctx)
+	}
+	return e.executeMethodWithClassInfo(self, staticClass, method, args, ctx)
+}
+
+// classDerivesFrom reports whether classInfo is ancestorName or descends from it.
+func classDerivesFrom(classInfo runtime.IClassInfo, ancestorName string) bool {
+	for current := classInfo; current != nil; current = current.GetParent() {
+		if ident.Equal(current.GetName(), ancestorName) {
+			return true
+		}
+	}
+	return false
 }
 
 // isExceptionClassInfo reports whether classInfo is the Exception base class or
@@ -592,6 +856,14 @@ func (e *Evaluator) dispatchObjectMethod(obj Value, methodName string, args []Va
 			return e.newError(node, "Free takes no arguments")
 		}
 		return e.runObjectDestructor(objInst, classInfo.LookupMethod("Destroy"), node, ctx)
+	}
+
+	// A non-virtual method hidden by a same-named one in a descendant binds to
+	// the receiver's declared type, not its runtime class. This precedes the
+	// overload path: a redeclaration in a descendant looks like an overload set
+	// to the registry, but hiding is not overloading.
+	if staticClass, staticMethod := e.staticallyDispatchedMethod(classInfo, methodName, len(args), node, ctx); staticMethod != nil {
+		return e.executeStaticallyDispatchedMethod(obj, staticClass, staticMethod, args, node, ctx)
 	}
 
 	// Dispatch to evaluator-owned overload resolver when the method has

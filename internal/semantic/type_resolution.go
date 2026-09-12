@@ -1300,8 +1300,10 @@ func (a *Analyzer) resolveClassOfTypeNode(classOfNode *ast.ClassOfTypeNode) (typ
 		return nil, fmt.Errorf("unknown class type '%s' in metaclass declaration: %w", classTypeName, err)
 	}
 
-	// Verify that it's actually a class type
-	concreteClassType, ok := classType.(*types.ClassType)
+	// Verify that it's actually a class type. The name may be an alias for one
+	// (`type TMyControl = TObject;`), which is still a legal metaclass operand,
+	// so resolve through the alias rather than rejecting it.
+	concreteClassType, ok := types.GetUnderlyingType(classType).(*types.ClassType)
 	if !ok {
 		return nil, fmt.Errorf("'%s' is not a class type, cannot create metaclass 'class of %s'", classTypeName, classTypeName)
 	}

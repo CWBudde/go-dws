@@ -674,8 +674,20 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			// used as a value. Resolve class members (ClassName, ClassParent, ClassType,
 			// class methods/consts) against the referenced class.
 			if tmv, ok := obj.(*runtime.TypeMetaValue); ok {
-				if classOf, ok := types.GetUnderlyingType(tmv.TypeInfo).(*types.ClassOfType); ok && classOf.ClassType != nil {
-					classVal := e.makeClassValue(node, classOf.ClassType.Name)
+				// An alias for a class (`type TMyControl = TObject;`) reaches
+				// here as a type meta over the class itself rather than over a
+				// `class of`; both name the same class members.
+				className := ""
+				switch underlying := types.GetUnderlyingType(tmv.TypeInfo).(type) {
+				case *types.ClassOfType:
+					if underlying.ClassType != nil {
+						className = underlying.ClassType.Name
+					}
+				case *types.ClassType:
+					className = underlying.Name
+				}
+				if className != "" {
+					classVal := e.makeClassValue(node, className)
 					if !isError(classVal) {
 						if classMetaVal, ok := classVal.(ClassMetaValue); ok {
 							return e.resolveClassMetaMember(classVal, classMetaVal, memberName, node, ctx)
@@ -792,8 +804,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 			return &runtime.StringValue{Value: ""}
 		}
 
-		// Instance member access on nil is an error, reported at the member's position
-		return e.newError(node.Member, "Object not instantiated")
+		// Instance member access on nil is an error, reported at the member's
+		// position. A nil metaclass gets its own message (see nilReceiverMessage).
+		return e.newError(node.Member, "%s", e.nilReceiverMessage(obj, node.Object, ctx))
 
 	case runtime.KindEnum:
 		// Enum value properties (.Value, helpers)

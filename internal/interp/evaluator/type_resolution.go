@@ -226,6 +226,10 @@ func (e *Evaluator) GetDefaultValue(typ types.Type, ctx *ExecutionContext) Value
 		return &runtime.BooleanValue{Value: false}
 	case "CLASS", "INTERFACE", "FUNCTION_POINTER", "METHOD_POINTER":
 		return e.nilValue()
+	case "CLASSOF":
+		// An unassigned `class of X` variable is nil, but a nil metaclass is a
+		// distinct mistake from a nil object and is reported as such.
+		return &runtime.NilValue{IsMetaclass: true}
 	case "BYTE_BUFFER":
 		// ByteBuffer is auto-instantiated rather than nil-defaulted.
 		return runtime.NewByteBufferValue()
