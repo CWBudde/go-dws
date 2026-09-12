@@ -587,3 +587,48 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 		})
 	}
 }
+
+// TestOperatorSpellingIsNormalized pins the AST's canonical operator spelling.
+// DWScript is case-insensitive, so the keyword operators name the same operator
+// whatever case the source used; the analyzer, evaluator and bytecode compiler
+// all switch on this string against lowercase literals, so the fold has to
+// happen here rather than in each of them.
+func TestOperatorSpellingIsNormalized(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "binary keyword operator", input: `var a := 6 And 3;`, expected: "and"},
+		{name: "binary keyword operator uppercase", input: `var a := 6 SHR 1;`, expected: "shr"},
+		{name: "symbolic operator is untouched", input: `var a := 6 + 3;`, expected: "+"},
+		{name: "prefix keyword operator", input: `var a := Not True;`, expected: "not"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := testParser(tt.input)
+			program := p.ParseProgram()
+			checkParserErrors(t, p)
+
+			decl, ok := program.Statements[0].(*ast.VarDeclStatement)
+			if !ok {
+				t.Fatalf("expected a var declaration, got %T", program.Statements[0])
+			}
+
+			var operator string
+			switch value := decl.Value.(type) {
+			case *ast.BinaryExpression:
+				operator = value.Operator
+			case *ast.UnaryExpression:
+				operator = value.Operator
+			default:
+				t.Fatalf("expected an operator expression, got %T", decl.Value)
+			}
+
+			if operator != tt.expected {
+				t.Errorf("expected operator %q, got %q", tt.expected, operator)
+			}
+		})
+	}
+}

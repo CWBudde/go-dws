@@ -3392,3 +3392,46 @@ Closed: `FailureScripts/dyn_array_setlength3`, `func_params1`, `method_missing_a
 The per-fixture failure list was captured before the first edit and re-diffed after each step,
 because the baselines are floors and a one-for-one swap is invisible to `just fixture-update`.
 That diff is what caught the two overload regressions above.
+
+## 2026-09-12 — Keyword operators are case-insensitive (§3.1)
+
+DWScript is a case-insensitive language, and that includes the keyword operators. go-dws stored
+the operator on the AST node as the source spelling:
+
+```go
+expression := &ast.BinaryExpression{
+	Operator: operatorToken.Literal,
+	Left:     left,
+}
+```
+
+Every consumer then compared that string against a lowercase literal — the analyzer
+(`operator == "and"`), the evaluator (`case "and":`) and the bytecode compiler all switch on it.
+So `6 and 3` worked and `6 And 3` did not:
+
+```
+Error in opcase.pas:1:12
+   1 | var a := 6 And 3;
+                  ^
+unknown binary operator: And
+```
+
+The failure is worse than a bad message: the declaration never completes, so every later use of
+`a` draws `Unknown name "a"` as well.
+
+The case the source happened to use is a lexical accident, so it is folded once where the node is
+built, in `operatorSpelling`, rather than normalized again in each of the three consumers.
+Symbolic operators pass through untouched — they have no letters to fold.
+
+### Validation
+
+`bitwise_booleans` and `bitwise_shift` both open with a capitalized operator on their first line
+and a lowercase one on the second, which is why each was emitting `Invalid Operands` for its
+second line and go-dws's own `unknown binary operator` for its first. `func_result_as_byref` is a
+`SimpleScripts` fixture that failed to compile at all on `Func(IntToStr(i)) And 255`.
+
+```
+go test ./...
+golangci-lint run --new-from-merge-base=origin/main --timeout 10m
+go run -buildvcs=false ./cmd/fixture-report -list-fails
+```
