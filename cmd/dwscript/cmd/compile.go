@@ -96,7 +96,9 @@ func compileScript(_ *cobra.Command, args []string) error {
 
 	// Monomorphize generic types into concrete specializations before semantic
 	// analysis and bytecode compilation, mirroring the shared frontend pipeline.
-	generics.Monomorphize(program)
+	if err := generics.Monomorphize(program); err != nil {
+		return err
+	}
 
 	// Extract used units to determine if we need to skip type checking
 	usedUnits := extractUsedUnits(program)

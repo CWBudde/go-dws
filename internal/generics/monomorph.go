@@ -25,15 +25,33 @@ package generics
 import (
 	"reflect"
 
+	"fmt"
+	"runtime/debug"
+	"strings"
+
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // Monomorphize rewrites generic type usage in prog into concrete specializations.
 // If the program declares no generic templates it is left unchanged.
-func Monomorphize(prog *ast.Program) {
+//
+// It reports a panic as an error rather than letting it escape. Monomorphization
+// walks every top-level statement, so it is the first pass to touch whatever
+// shape the parser made of malformed input, and it runs on paths that have no
+// recovery of their own (`SkipTypeCheck`, unit loading, `dwscript compile`).
+// A compiler may say it does not understand a program; it may not die on one.
+// Guarding here rather than at each call site is what keeps that true for a
+// caller added later.
+func Monomorphize(prog *ast.Program) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("generic specialization panic: %v\n%s", recovered, strings.TrimSpace(string(debug.Stack())))
+		}
+	}()
+
 	if prog == nil {
-		return
+		return nil
 	}
 	m := &monomorphizer{
 		templates: make(map[string]templateInfo),
@@ -42,9 +60,10 @@ func Monomorphize(prog *ast.Program) {
 	}
 	m.collectTemplates(prog.Statements)
 	if len(m.templates) == 0 {
-		return
+		return nil
 	}
 	m.run(prog)
+	return nil
 }
 
 type templateInfo struct {

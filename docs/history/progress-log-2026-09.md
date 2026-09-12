@@ -3631,3 +3631,75 @@ golangci-lint run --new-from-merge-base=origin/main --timeout 10m
 go run -buildvcs=false ./cmd/fixture-report -list-fails
 just fixture-update
 ```
+
+## 2026-09-12 — No crashes, no hangs, on malformed input (§4)
+
+Not a message-parity slice. Picking the next bucket started with a measurement — classifying all
+379 failing `FailureScripts` fixtures by distance from their expectation and clustering the
+missing and spurious diagnostics by shape — and that surfaced something no list had: **nine
+fixtures segfaulted the compile pipeline, and one looped forever.** A wrong sentence is a defect;
+a process that dies, or never answers, is a different category. One crasher sits in a *passing*
+suite (`ArrayPass/array_of_proc_param`), and all of them are reachable from the public embedding
+API through `frontend.AnalyzeParsed`, not only from the CLI. §3.3's runtime-panic re-measurement
+of the same day found no panics and was right — it measured the *runtime*. These are compile-time,
+and nothing had looked there.
+
+### The crashes: one cause, three symptoms
+
+Most statement and type parsers return a **concrete** node pointer — `*ast.FunctionDecl`,
+`*ast.IfStatement`, `*ast.FunctionPointerTypeNode` — rather than the `ast.Statement` /
+`ast.TypeExpression` interface they are dispatched through. A `return nil` on a parse failure then
+becomes a *typed nil*: an interface value that is non-nil but faults on any field access. Every
+consumer guarding with `!= nil` lets it through, `ParseProgram`'s own loop included, and the fault
+surfaces arbitrarily far from the parse that produced it.
+
+| Crash site | Fault | Fixtures |
+| --- | --- | --- |
+| `internal/generics/clone.go` `genericMethodImpl` | `stmt.(*ast.FunctionDecl)` succeeds on a typed nil, `fn.ClassName` faults | `const_param3`, `contracts_unfinished2`, `contracts_unfinished3`, `declaration_mismatch1`, `lazy`, `params1` |
+| `pkg/ast/function_pointer.go` `End()` | `fpt.ReturnType != nil` passes on a typed nil, `.End()` faults | `ArrayPass/array_of_proc_param` |
+| `cmd/dwscript/cmd/run.go` `extractUsedUnits` | nil `*ast.Identifier` in `UsesClause.Units` | `OperatorOverloadFail/operator_overload5`, `LanguageTestsLAZ` |
+
+None of the six generics crashers uses generics at all: `collectTemplates` walks every top-level
+statement, so a malformed routine header anywhere reaches it. `typeParamsOf` survived the same node
+only because `*ast.FunctionDecl` falls through its switch to `default`.
+
+`statementOrNil` and `typeExpressionOrNil` normalize the two dispatchers, so the interface is nil
+exactly when the parse failed — which is what the existing nil checks already assume.
+`isInvalidTypeExpression` already handled a true nil, so the array element type needed nothing
+else once the dispatcher stopped lying to it.
+
+### The hang was pre-existing, and separate
+
+`synchronize` lists `IDENT` among its safe points. Asked to recover *from* an identifier it
+therefore returns without advancing, and `parseRecordBody` — which calls it on a field declared
+after a method — reported the same token until memory ran out. Confirmed against `main`, not
+assumed: the baseline binary times out on `record_recursive3` too. It is also what made a
+whole-corpus in-process sweep unrunnable, and it took the developer's editor down with it. The
+record is unparseable from that point and upstream reports the misplaced field once, so the branch
+now scans to the record's `end` directly rather than asking a helper that cannot move.
+
+### Defence in depth
+
+The parser is not the only thing that builds an AST, so three guards back the fix up:
+monomorphization now runs under the same `recover` discipline as semantic analysis — it ran
+*outside* `safeAnalyze`, which is precisely why one bad node killed the process instead of becoming
+a diagnostic — `genericMethodImpl` guards the typed nil its type assertion accepts, and
+`extractUsedUnits` skips nil unit names.
+
+### Measurement
+
+Over all 2,127 fixtures: **0 panics and 0 timeouts, against 9 and 1 before.** The per-fixture
+failure-list diff shows **1 closed, 0 regressed** — `record_recursive3`, which now matches its
+expected output exactly. Fixtures 1,077 → 1,078; FailureScripts 148 → 149.
+
+The other eight crashers still fail, and honestly so: they fail on message parity now rather than
+on a signal. `lazy` wants `Name expected [11,21]` and go-dws says `expected ')' after parameter
+list at 11:25`; `ArrayPass/array_of_proc_param` needs `function : procedure` return types, a real
+feature gap that now reports the `complex return types not yet supported in function pointers` it
+already had instead of faulting. The deliverable here was never a fixture count — it was that the
+compiler answers.
+
+`TestMalformedInputDoesNotCrash` and `TestMalformedInputTerminates` pin both properties on the
+inputs that broke them. A whole-corpus in-process sweep was written and then deleted: the fixture
+harness already isolates every fixture in a worker subprocess with a 5s timeout and crash
+detection, so the sweep duplicated it at the cost of the memory that started this.

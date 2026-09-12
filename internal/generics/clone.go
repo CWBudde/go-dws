@@ -37,7 +37,10 @@ func isTemplateDecl(stmt ast.Statement) bool {
 // and returns the declaration together with the base type name it implements.
 func genericMethodImpl(stmt ast.Statement) (fn *ast.FunctionDecl, base string, ok bool) {
 	fn, isFunc := stmt.(*ast.FunctionDecl)
-	if !isFunc || fn.ClassName == nil || len(fn.ClassTypeParams) == 0 {
+	// fn == nil guards a typed nil: a *ast.FunctionDecl(nil) stored in an
+	// ast.Statement satisfies the assertion, and every field access then faults.
+	// The parser no longer produces one, but this walks whatever it is handed.
+	if !isFunc || fn == nil || fn.ClassName == nil || len(fn.ClassTypeParams) == 0 {
 		return nil, "", false
 	}
 	return fn, fn.ClassName.Value, true

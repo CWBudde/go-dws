@@ -82,6 +82,18 @@ func (p *Parser) parseStatement() ast.Statement {
 
 	stmt := p.parseStatementInner()
 
+	// Most statement parsers return a concrete node pointer rather than the
+	// ast.Statement interface, so a nil one arrives here as a *typed nil*:
+	// non-nil as an interface, faulting on any field access. Callers guard with
+	// `stmt != nil` — ParseProgram's own loop included — and would let it
+	// through. Normalizing at this single boundary covers every parser that
+	// routes through here, including the ones that convert to the interface
+	// internally (`class function`, constructors, destructors, `for ... in`),
+	// which is why it is done here rather than per dispatch case.
+	if isNilStatement(stmt) {
+		stmt = nil
+	}
+
 	hoisted := p.pendingTypeDecls
 	p.pendingTypeDecls = outerPending
 

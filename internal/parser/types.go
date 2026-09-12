@@ -18,7 +18,24 @@ import (
 //
 // This unified parser enables inline type syntax in parameters and variables
 // without requiring type aliases.
+// parseTypeExpression parses a type expression, normalizing a failed parse to a
+// true nil.
+//
+// Several type parsers return a concrete node pointer (*ast.FunctionPointerTypeNode,
+// *ast.SetTypeNode, *ast.ClassOfTypeNode), so a nil one would otherwise arrive at
+// callers as a typed nil that `== nil` does not catch — isInvalidTypeExpression
+// below reads it as a perfectly good type. `array of function : procedure` did
+// exactly that: the unsupported return type was reported, the nil element type was
+// not recognised, and parseArrayType asked it for its End() position.
 func (p *Parser) parseTypeExpression() ast.TypeExpression {
+	typeExpr := p.parseTypeExpressionInner()
+	if isNilTypeExpression(typeExpr) {
+		return nil
+	}
+	return typeExpr
+}
+
+func (p *Parser) parseTypeExpressionInner() ast.TypeExpression {
 	cursor := p.cursor
 	builder := p.StartNode()
 	currentToken := cursor.Current()

@@ -219,7 +219,7 @@ func ParseWithOptions(source string, opts Options) *Result {
 func AnalyzeParsed(result *Result, source string, opts Options) *Result {
 	if opts.SkipTypeCheck {
 		if result.Program != nil && !result.HasSemanticBlockingDiagnosticsInPhase(PhaseParsing) {
-			generics.Monomorphize(result.Program)
+			safeMonomorphize(result)
 		}
 		return result
 	}
@@ -271,7 +271,7 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 
 	// Monomorphize generic types into concrete specializations before semantic
 	// analysis, so the analyzer and evaluator only ever see ordinary types.
-	generics.Monomorphize(result.Program)
+	safeMonomorphize(result)
 
 	analyzer := semantic.NewAnalyzer()
 	analyzer.SetHintsLevel(opts.HintsLevel)
@@ -289,6 +289,25 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	result.SemanticSuccessful = err == nil
 
 	return result
+}
+
+// safeMonomorphize runs generic specialization and records a failure as a
+// diagnostic, the way safeAnalyze does for semantic analysis.
+//
+// The recovery itself lives in generics.Monomorphize, so the paths outside this
+// package — unit loading and `dwscript compile` — are covered too. This turns
+// the reported error into the wire-format diagnostic a frontend caller expects.
+func safeMonomorphize(result *Result) {
+	if err := generics.Monomorphize(result.Program); err != nil {
+		result.Diagnostics = append(result.Diagnostics, Diagnostic{
+			Message:  "internal generic specialization panic",
+			Rendered: "internal generic specialization panic: " + err.Error(),
+			Code:     "E_GENERICS_PANIC",
+			Phase:    PhaseSemantic,
+			Severity: SeverityError,
+			Fatal:    true,
+		})
+	}
 }
 
 func safeAnalyze(analyzer *semantic.Analyzer, result *Result) (err error) {
