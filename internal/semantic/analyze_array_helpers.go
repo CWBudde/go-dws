@@ -527,7 +527,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		}
 		predicateType := types.NewFunctionPointerType([]types.Type{arrayType.ElementType}, types.BOOLEAN)
 		arg := expr.Arguments[0]
-		argType := a.analyzeExpressionWithExpectedType(arg, predicateType)
+		argType := a.analyzeArrayHelperCallbackArg(arg, predicateType)
 		if argType != nil && !a.canAssign(argType, predicateType) {
 			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), predicateType, argType)
 		}
@@ -554,7 +554,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperTooManyArgs(expr)
 		}
 		arg := expr.Arguments[0]
-		argType := a.analyzeExpressionWithExpectedType(arg, callbackType)
+		argType := a.analyzeArrayHelperCallbackArg(arg, callbackType)
 		if argType != nil && !a.canAssign(argType, callbackType) {
 			if name, fn, namePos, _ := a.namedArrayHelperCallable(arg); fn != nil {
 				if len(fn.Parameters) != 1 || !a.canAssign(arrayType.ElementType, fn.Parameters[0]) {
@@ -585,7 +585,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		// (`a.Map(lambda (e) => ...)`); a VARIANT result accepts any concrete
 		// return type.
 		expectedType := types.NewFunctionPointerType([]types.Type{arrayType.ElementType}, types.VARIANT)
-		argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
+		argType := a.analyzeArrayHelperCallbackArg(arg, expectedType)
 		if argType == nil {
 			return types.NewDynamicArrayType(arrayType.ElementType)
 		}
@@ -632,7 +632,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		}
 		comparatorType := types.NewFunctionPointerType([]types.Type{arrayType.ElementType, arrayType.ElementType}, types.INTEGER)
 		arg := expr.Arguments[0]
-		argType := a.analyzeExpressionWithExpectedType(arg, comparatorType)
+		argType := a.analyzeArrayHelperCallbackArg(arg, comparatorType)
 		if argType != nil && !a.canAssign(argType, comparatorType) {
 			if name, fn, namePos, isAddressOf := a.namedArrayHelperCallable(arg); fn != nil {
 				if isAddressOf {
@@ -731,4 +731,25 @@ func (a *Analyzer) checkArrayInstanceReceiver(object ast.Expression, arrayType *
 	}
 	a.addArrayHelperError(method.Token.Pos, "Array instance expected")
 	return true
+}
+
+// analyzeArrayHelperCallbackArg analyzes the callback argument of an intrinsic
+// array helper.
+//
+// Upstream reads these through the array-method reader rather than through the
+// ordinary assignment coercion, so a routine named here stays a reference and is
+// reported against the callback signature — `a.ForEach(IntToStr)` draws
+// `Incompatible parameter types … (instead of "function IntToStr(Integer): String")`,
+// naming the routine's own signature, and never the implicit call's
+// `More arguments expected`. It is the same separate reader that anchors the
+// helpers' own arity diagnostics one column past the member name.
+//
+// The flag covers the whole argument expression, so a routine reference nested
+// deeper inside it is suppressed too. That only ever withholds a diagnostic,
+// never invents one, and no fixture nests a reference that far.
+func (a *Analyzer) analyzeArrayHelperCallbackArg(arg ast.Expression, callbackType types.Type) types.Type {
+	previous := a.inArrayHelperCallback
+	a.inArrayHelperCallback = true
+	defer func() { a.inArrayHelperCallback = previous }()
+	return a.analyzeExpressionWithExpectedType(arg, callbackType)
 }

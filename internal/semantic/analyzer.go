@@ -117,9 +117,13 @@ type Analyzer struct {
 	// inIndexBase marks analysis of the expression an index list is applied to,
 	// where a bare indexed-property name is complete rather than short of its
 	// index arguments.
-	inIndexBase        bool
-	inFinallyBlock     bool
-	inExceptionHandler bool
+	inIndexBase bool
+	// inArrayHelperCallback marks analysis of the callback argument of an
+	// intrinsic array helper, which upstream reads through its own reader and so
+	// never subjects to the implicit call.
+	inArrayHelperCallback bool
+	inFinallyBlock        bool
+	inExceptionHandler    bool
 
 	// indexedWriteTargetMember names the member access currently being analyzed as
 	// the target of a plain `:=` assignment to an indexed property. The read-side

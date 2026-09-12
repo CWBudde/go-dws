@@ -608,6 +608,16 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		if operator == "=" || operator == "<>" {
 			// If either operand is Variant, allow the comparison
 			if !leftIsVariant && !rightIsVariant {
+				// A function-pointer operand is implicitly called before it is
+				// compared, so one that needs arguments is short of them first
+				// and only then an invalid operand (callback_err_vs_nil). Both
+				// diagnostics are anchored at the operator, which is the only
+				// position the comparison has — the operand may be a variable
+				// with no routine name to point at.
+				if a.reportOperandImplicitCallArity(expr.Token.Pos, leftType, rightType) {
+					a.addStructuredError(NewInvalidOperandsError(expr.Token.Pos))
+					return nil
+				}
 				if !types.IsComparableType(leftType) || !types.IsComparableType(rightType) {
 					a.addError("operator %s requires comparable types at %s",
 						operator, expr.Token.Pos.String())

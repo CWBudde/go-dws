@@ -3435,3 +3435,112 @@ go test ./...
 golangci-lint run --new-from-merge-base=origin/main --timeout 10m
 go run -buildvcs=false ./cmd/fixture-report -list-fails
 ```
+
+## 2026-09-12 — The expression-position implicit call (§4 / F5)
+
+The statement-position rule shipped earlier: a bare routine name is a call, so `Test;` against
+`procedure Test(i : Integer)` draws `More arguments expected`. This is the other half — the same
+rule in an expression, where whether the name is a call or a reference depends on what the context
+wants.
+
+### The rule
+
+DWScript reads a routine name as a *call* and converts it back to a reference only where the
+context wants a function pointer whose signature the routine actually fits. Where the conversion
+does not apply the call reading stands, so a routine with required parameters is short of them
+before the type error the context goes on to report. `func_ptr1` pins both sides of it:
+
+```
+p:=Proc2;   // procedure Proc2(i : Integer), against TMyProc = procedure
+            //   More arguments expected [33:4]   <- the name
+            //   Assignment's right-side-argument has no return type [33:2]
+
+p:=Proc4;   // function Proc4 : String, same target
+            //   Incompatible operands [39:2]     <- no arity error: Proc4() is well-formed
+```
+
+So it is not "the types do not match, complain twice". The arity error appears only when the call
+the context falls back to would itself be short of arguments.
+
+go-dws has the opposite default: `analyzeIdentifier` hands back a pointer type and each site opts
+into the call reading. Rather than invert that — which would move every funcptr assignment in the
+language — the rule is applied at the points where the context has already decided the reference
+does not fit, in `checkPointerContextArity`. Four of them:
+
+- a bare name in a function-pointer context (`p := Proc2`),
+- a bare name in any other value context (`Test([Test])` against `array of Integer`),
+- `@Routine`, which had no expected-type case at all and so never saw the rejection,
+- a function-pointer *operand* of `=` / `<>`.
+
+The operand case is the odd one. It has no name token — the operand may be a variable — so upstream
+anchors both its diagnostics at the operator:
+
+```
+if callback <> nil then
+     More arguments expected [21:15]
+     Invalid Operands [21:15]
+```
+
+That is `callback_err_vs_nil`, and it is what the slice closes. Only operands that *require*
+arguments are covered: a parameterless pointer is implicitly called too, and its result may well be
+comparable, but no fixture pins what upstream does with `callback = callback` and the evaluator has
+no matching implicit call, so that case is left as it was.
+
+### The intrinsic array helpers are exempt
+
+The first measurement regressed `array_foreach_error`, which expects the reference reading:
+
+```
+a.ForEach(IntToStr);
+    Incompatible parameter types - "procedure (Integer)" expected
+      (instead of "function IntToStr(Integer): String")
+```
+
+Upstream names `IntToStr`'s own signature there, so it never called it. The array helpers are read
+through their own reader — the same one whose arity diagnostics anchor one column past the member
+name — so the callback argument is analyzed through `analyzeArrayHelperCallbackArg`, which
+suppresses the rule for the whole argument expression.
+
+### Calls through a function pointer
+
+`analyzeFunctionPointerCallArgs` was the third path the argument-count slice deliberately left
+alone. It described its own counts, and it put `at L:C` in the middle of the sentence, so the
+renderer that turns `at L:C` into `[line: L, column: C]` never matched and the line escaped the
+wire format verbatim:
+
+```
+function pointer call argument count mismatch at 31:2: expected 0 arguments, got 1
+```
+
+It now uses the two canonical sentences. `No arguments expected` is not among them even though the
+pointer declares no parameters: `func_ptr1` calls a `procedure` pointer with one argument and gets
+`Too many arguments`, which confirms that `No arguments expected` belongs to the intrinsic helpers
+rather than to zero-parameter routines in general.
+
+A miscounted call now also yields the pointer's result type instead of nil. Callers read nil as
+"the callee was not a pointer at all" and went on to report `'p' is not a function`, doubling up on
+the arity diagnostic just raised.
+
+### Not done
+
+Three fixtures now emit the arity error and nothing else changed, because each needs a different
+piece:
+
+- `func_ptr4` and `func_ptr_mismatch` need DWScript's rendering of routine types —
+  `"class function ClassType: TClass"`, `"procedure Test(const String)"`. go-dws renders both as
+  `"function"`, because `errors.SimplifyTypeName` truncates a type name at its first `(`.
+  `func_ptr_mismatch` additionally needs `const` to survive the `FunctionType` →
+  `FunctionPointerType` conversion, which has no slot for parameter modifiers; without it the
+  reference is judged compatible and nothing is reported at all.
+- `array_of_proc`, `array_of_proc2` and `const_procedure_array` need the array constructor's own
+  type-unification diagnostic (`Incompatible types: "void" and "nil"`), whose positions are not
+  the element's — `[5:11]` is the `]`, `[5:9]` the whitespace after the comma.
+
+### Validation
+
+```
+go test ./...
+golangci-lint run --new-from-merge-base=origin/main --timeout 10m
+go run -buildvcs=false ./cmd/fixture-report -list-fails
+just fixture-update
+```

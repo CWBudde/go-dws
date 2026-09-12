@@ -211,3 +211,125 @@ func TestConstructorArityBoundsSpanTheOverloadSet(t *testing.T) {
 		t.Errorf("expected the count to be measured against the whole set, got %v", got)
 	}
 }
+
+// A routine reference the context rejects is re-read as a call, so a routine
+// that needs arguments is short of them before the type error the context goes
+// on to report. Recorded in FailureScripts/func_ptr1.txt and func_ptr4.txt.
+func TestPointerContextImplicitCallArity(t *testing.T) {
+	const procedures = "type TMyProc = procedure;\n\n" +
+		"procedure Proc1;\nbegin\nend;\n\n" +
+		"procedure Proc2(i : Integer);\nbegin\nend;\n\n" +
+		"function Proc4 : String;\nbegin\n   Result := '';\nend;\n\n" +
+		"var p : TMyProc;\n"
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "signature does not fit the pointer",
+			input: procedures + "p:=Proc2;",
+			want:  "More arguments expected at 17:4",
+		},
+		{
+			name:  "address-of a builtin that needs arguments",
+			input: "type TMyProc = procedure;\nvar p : TMyProc;\np := @IntToHex;",
+			want:  "More arguments expected at 3:7",
+		},
+		{
+			name:  "inside an array literal typed by the parameter",
+			input: "procedure Test(const AParams : array of Integer);\nbegin\nend;\n\nTest([Test]);",
+			want:  "More arguments expected at 5:7",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := analyzeWithHints(t, tt.input, HintsLevelPedantic)
+			if !containsDiagnostic(got, tt.want) {
+				t.Errorf("missing %q in %v", tt.want, got)
+			}
+		})
+	}
+
+	// The reference fits, or the call the context falls back to is well-formed.
+	// Neither is short of arguments, so neither says so.
+	notReported := []struct {
+		name  string
+		input string
+	}{
+		{name: "signature fits the pointer", input: procedures + "p:=Proc1;"},
+		{
+			name:  "wrong result type but no parameters",
+			input: procedures + "p:=Proc4;",
+		},
+		{
+			name:  "array helper callbacks keep the reference reading",
+			input: "var a : array of Integer;\na.ForEach(IntToStr);",
+		},
+	}
+
+	for _, tt := range notReported {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, diagnostic := range analyzeWithHints(t, tt.input, HintsLevelPedantic) {
+				if containsDiagnostic([]string{diagnostic}, "More arguments expected") {
+					t.Errorf("unexpected arity diagnostic %q", diagnostic)
+				}
+			}
+		})
+	}
+}
+
+// A function-pointer operand of a comparison is implicitly called too. It has no
+// name token, so both diagnostics are anchored at the operator — the only
+// position the comparison has. Recorded in FailureScripts/callback_err_vs_nil.txt.
+func TestComparisonOperandImplicitCallArity(t *testing.T) {
+	input := "type TSomeCallback = procedure(x, y : Integer);\n" +
+		"var callback : TSomeCallback;\n" +
+		"if callback <> nil then\n   PrintLn('x');"
+
+	got := analyzeWithHints(t, input, HintsLevelPedantic)
+	for _, want := range []string{
+		"More arguments expected at 3:13",
+		"Syntax Error: Invalid Operands at 3:13",
+	} {
+		if !containsDiagnostic(got, want) {
+			t.Errorf("missing %q in %v", want, got)
+		}
+	}
+}
+
+// A call through a function pointer uses the same two sentences as any other
+// call site. `No arguments expected` is not among them even when the pointer
+// declares no parameters: func_ptr1 calls a `procedure` pointer with one
+// argument and gets `Too many arguments`.
+func TestFunctionPointerCallArityVocabulary(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name: "too many for a parameterless pointer",
+			input: "type TMyProc = procedure;\nvar p : TMyProc;\n" +
+				"p('hello');",
+			want: "Too many arguments at 3:2",
+		},
+		{
+			name: "too few",
+			input: "type TBinaryOp = function(x, y : Integer) : Integer;\n" +
+				"var op : TBinaryOp;\nvar r : Integer;\nr := op(5);",
+			want: "More arguments expected at 4:8",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := analyzeWithHints(t, tt.input, HintsLevelPedantic)
+			if !containsDiagnostic(got, tt.want) {
+				t.Errorf("missing %q in %v", tt.want, got)
+			}
+		})
+	}
+}

@@ -214,6 +214,15 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 			}
 		}
 		return a.analyzeExpression(expr)
+	case *ast.AddressOfExpression:
+		// `@Test` is a routine reference like a bare name, and upstream subjects
+		// it to the same rule: where the reference does not fit the expected
+		// pointer type, the call reading stands and a routine with required
+		// parameters is short of arguments. The expected type reaches no other
+		// part of the address-of analysis, which resolves the operand on its own.
+		resultType := a.analyzeExpression(e)
+		a.checkPointerContextArity(e, resultType, expectedType)
+		return resultType
 	case *ast.CallExpression:
 		// The expected type deliberately plays no part here. Return type is not
 		// part of overload identity in DWScript (see types.SignaturesEqual), so
@@ -238,6 +247,14 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 				if implicitType := a.getImplicitCallType(e); implicitType != nil && a.canAssign(implicitType, expectedType) {
 					return implicitType
 				}
+				// The context wants a value, and a routine reference is not one.
+				// Upstream reads the name as a call here too, so a routine with
+				// required parameters is short of them — `Test([Test])` against
+				// `array of Integer` reports it for the inner name
+				// (const_procedure_array).
+				resultType := a.analyzeIdentifier(e)
+				a.checkPointerContextArity(e, resultType, expectedType)
+				return resultType
 			} else {
 				// Function-pointer context: a bare routine name resolves to a
 				// pointer type in analyzeIdentifier, but the node is only annotated
@@ -245,6 +262,7 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 				// evaluator produces a FunctionPointerValue instead of auto-invoking
 				// a parameterless routine (func_ptr1, func_ptr_var_param).
 				resultType := a.analyzeIdentifier(e)
+				a.checkPointerContextArity(e, resultType, expectedType)
 				if a.semanticInfo != nil && resultType != nil && a.semanticInfo.GetType(e) == nil {
 					resultUnderlying := types.GetUnderlyingType(resultType)
 					if rk := resultUnderlying.TypeKind(); rk == "FUNCTION_POINTER" || rk == "METHOD_POINTER" {

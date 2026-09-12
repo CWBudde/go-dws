@@ -183,3 +183,87 @@ func overloadSetAcceptsNoArguments(overloads []*Symbol) bool {
 	}
 	return false
 }
+
+// checkPointerContextArity reports a routine reference that the surrounding
+// context has just rejected.
+//
+// DWScript reads a routine name as a call and converts it back to a reference
+// only where the context wants a function pointer the routine's signature
+// actually fits. Where that conversion does not apply the call reading stands,
+// so a routine with required parameters draws `More arguments expected` before
+// the type error the context goes on to report — `p := Proc2` against
+// `TMyProc = procedure` reports both, while `p := Proc4` reports only the type
+// error, because `Proc4` takes no arguments and the call itself is well-formed.
+//
+// go-dws has the opposite default: analyzeIdentifier hands back a pointer type
+// and each site opts into the call reading. So the rule is applied here, at the
+// point where the context has already decided the reference does not fit, rather
+// than by re-reading the name.
+func (a *Analyzer) checkPointerContextArity(expr ast.Expression, actual, expected types.Type) {
+	if a.parseHadErrors || a.inArrayHelperCallback || actual == nil || expected == nil {
+		return
+	}
+	if a.canAssign(actual, expected) {
+		return
+	}
+	a.reportImplicitCallArity(expr)
+}
+
+// reportImplicitCallArity emits the arity half of the implicit call for a
+// routine reference, whatever syntax named it.
+func (a *Analyzer) reportImplicitCallArity(expr ast.Expression) {
+	switch e := expr.(type) {
+	case *ast.AddressOfExpression:
+		// `@Test` names the same routine as `Test`; the address-of operator only
+		// says which reading the author intended, and upstream overrides it the
+		// same way (func_ptr4 reports the arity error at `IntToHex`, one column
+		// past the `@`).
+		a.reportImplicitCallArity(e.Operator)
+	case *ast.Identifier:
+		if pos, missing := a.implicitCallNeedsArguments(e); missing {
+			a.addMoreArgumentsExpected(pos)
+		}
+	case *ast.MemberAccessExpression:
+		if pos, missing := a.implicitMemberCallNeedsArguments(e); missing {
+			a.addMoreArgumentsExpected(pos)
+		}
+	}
+}
+
+// reportOperandImplicitCallArity applies the same rule to a binary operand,
+// which has no name token of its own to anchor at.
+//
+// A function-pointer *variable* is implicitly called too — `callback <> nil` is
+// `callback(x, y) <> nil` — and upstream anchors the resulting diagnostic at the
+// operator, alongside the `Invalid Operands` that follows it. Reports whether
+// any operand was short of arguments.
+//
+// Only operands that require arguments are covered. A parameterless pointer is
+// implicitly called as well, and its result may well be comparable, but no
+// fixture pins what upstream does with `callback = callback` and the evaluator
+// has no matching implicit call, so that case is deliberately left as it was.
+func (a *Analyzer) reportOperandImplicitCallArity(pos token.Position, operandTypes ...types.Type) bool {
+	reported := false
+	for _, operandType := range operandTypes {
+		if pointerRequiresArguments(operandType) {
+			a.addMoreArgumentsExpected(pos)
+			reported = true
+		}
+	}
+	return reported
+}
+
+// pointerRequiresArguments reports a function- or method-pointer type whose
+// call would be short of arguments.
+func pointerRequiresArguments(operandType types.Type) bool {
+	if operandType == nil {
+		return false
+	}
+	switch pointer := types.GetUnderlyingType(operandType).(type) {
+	case *types.FunctionPointerType:
+		return pointer.RequiredParamCount() > 0
+	case *types.MethodPointerType:
+		return pointer.RequiredParamCount() > 0
+	}
+	return false
+}

@@ -356,14 +356,17 @@ func (a *Analyzer) analyzeFunctionPointerCallArgs(args []ast.Expression, calleeT
 	// Validate argument count. Pointers to builtins with optional parameters
 	// accept any arity between the required count and the full parameter list.
 	required := funcPtr.RequiredParamCount()
-	if len(args) < required || len(args) > len(funcPtr.Parameters) {
-		expected := fmt.Sprintf("%d", len(funcPtr.Parameters))
-		if required != len(funcPtr.Parameters) {
-			expected = fmt.Sprintf("%d to %d", required, len(funcPtr.Parameters))
-		}
-		a.addError("function pointer call argument count mismatch at %s: expected %s arguments, got %d",
-			pos.String(), expected, len(args))
-		return nil
+	switch {
+	case len(args) < required:
+		a.addMoreArgumentsExpected(pos)
+		return functionPointerCallResult(funcPtr)
+	case len(args) > len(funcPtr.Parameters):
+		// `Too many arguments` even when the pointer declares no parameters at
+		// all: `No arguments expected` belongs to the intrinsic array helpers,
+		// which upstream reaches through a different reader (func_ptr1 calls a
+		// `procedure` pointer with one argument and gets `Too many arguments`).
+		a.addTooManyArguments(pos)
+		return functionPointerCallResult(funcPtr)
 	}
 
 	// Validate each argument type
@@ -379,6 +382,16 @@ func (a *Analyzer) analyzeFunctionPointerCallArgs(args []ast.Expression, calleeT
 		}
 	}
 
+	return functionPointerCallResult(funcPtr)
+}
+
+// functionPointerCallResult is the type a call through the pointer yields.
+//
+// A miscounted call still yields it rather than nil: callers read nil as "the
+// callee was not a pointer at all" and go on to report `'p' is not a function`,
+// which would double up on the arity diagnostic just raised. Upstream types the
+// call from the signature and carries on to the next check the same way.
+func functionPointerCallResult(funcPtr *types.FunctionPointerType) types.Type {
 	if funcPtr.ReturnType != nil {
 		return funcPtr.ReturnType
 	}

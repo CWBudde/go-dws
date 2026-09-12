@@ -496,7 +496,7 @@ func TestFunctionPointerCallErrors(t *testing.T) {
 					result := op(5);
 				end.
 			`,
-			expectedErr: "argument count mismatch",
+			expectedErr: "More arguments expected",
 		},
 		{
 			name: "wrong argument types",
