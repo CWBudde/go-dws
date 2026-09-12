@@ -5,7 +5,22 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
+
+// operatorSpelling returns the canonical spelling of an operator token.
+//
+// DWScript is case-insensitive, so `and`, `And` and `AND` are one operator, and
+// the case the source happened to use is a lexical accident. Storing the source
+// spelling on the AST node pushes that accident into every consumer, each of
+// which then compares it against a lowercase literal: the analyzer, the
+// evaluator and the bytecode compiler all switch on this string. Folding it once
+// here keeps them all case-insensitive without a per-consumer normalization.
+//
+// Symbolic operators pass through unchanged; they have no letters to fold.
+func operatorSpelling(operator lexer.Token) string {
+	return ident.Normalize(operator.Literal)
+}
 
 func isInvalidExpression(expr ast.Expression) bool {
 	if expr == nil {
@@ -132,7 +147,7 @@ func (p *Parser) parseNotInIsAs(leftExp ast.Expression) ast.Expression {
 			Token:  notToken,
 			EndPos: comparisonExp.End(),
 		},
-		Operator: notToken.Literal,
+		Operator: operatorSpelling(notToken),
 		Right:    comparisonExp,
 	}
 
@@ -227,7 +242,7 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 		BaseNode: ast.BaseNode{
 			Token: operatorToken,
 		},
-		Operator: operatorToken.Literal,
+		Operator: operatorSpelling(operatorToken),
 	}
 
 	// Advance to operand
@@ -251,7 +266,7 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 		BaseNode: ast.BaseNode{
 			Token: operatorToken,
 		},
-		Operator: operatorToken.Literal,
+		Operator: operatorSpelling(operatorToken),
 		Left:     left,
 	}
 

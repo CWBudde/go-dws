@@ -10,7 +10,7 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-12):** Go harness and freshly rebuilt CLI both
-**1,067 / 1,930 scored = 55%**, after §3.2.7 closed conditional compilation and a §3.3 merge
+**1,070 / 1,930 scored = 55%**, after §3.2.7 closed conditional compilation and a §3.3 merge
 train closed these runtime/evaluator items: associative arrays (key coercion, ARC destructor
 timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
 JSON ownership and number formatting, call-site column precision in stack traces, metaclass
@@ -20,10 +20,10 @@ FunctionsGlobalVars `private_vars` remainder (13/16); its runtime-panic re-measu
 2026-09-12, finding no panics and three ordinary dispatch/alias defects instead. §4/F5 opened
 with the `deprecated` directive family (five fixtures) and a re-measurement that put the
 missing-validation queue at 58, not the 82 the 2026-03 archive recorded; the constant-instruction
-hint and the array-helper receiver rules closed three more, and adopting DWScript's canonical
-argument-count vocabulary closed ten. Both use the
-shared compile pipeline and scoring rules.
-`*Fail` error-detection suites **150 / 640 = 23%**.
+hint and the array-helper receiver rules closed three more, adopting DWScript's canonical
+argument-count vocabulary closed ten, and making the keyword operators case-insensitive closed
+three. Both use the shared compile pipeline and scoring rules.
+`*Fail` error-detection suites **152 / 640 = 23%**.
 
 Where the truth lives:
 
@@ -95,6 +95,13 @@ No open items. Closed 2026-09-09: `class property` in record bodies with auto-pr
 fields, expression-backed and multi-index indexed properties, `external` property syntax, and
 nested `>>` in generic type-argument lists; see
 [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md).
+
+**Done (2026-09-12):** the keyword operators are case-insensitive. The AST carried the operator's
+source spelling, and the analyzer, the evaluator and the bytecode compiler each compare it against
+a lowercase literal, so `6 and 3` compiled and `6 And 3` drew `unknown binary operator: And` —
+taking the whole declaration with it, since `var a := 6 And 3` then leaves `a` undeclared. Folded
+once where the node is built (`operatorSpelling`), which covers `and or xor not div mod shl shr
+sar in implies`. Closed `bitwise_booleans`, `bitwise_shift` and `func_result_as_byref`.
 
 - ✋ `{$I %FILE%}`-style value substitution: the only fixture, SimpleScripts `include_expr`, cannot
   pass. Its expected output hardcodes the original Delphi runner's paths (`Test\include_expr.pas`,
@@ -415,7 +422,7 @@ turned into a real check, and const static-array element assignment is now diagn
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 150/640 (FailureScripts 141/529, SetOfFail 5, JSONConnectorFail 2,
+Harness and CLI: 152/640 (FailureScripts 143/529, SetOfFail 5, JSONConnectorFail 2,
 AssociativeFail 1, InterfacesFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with

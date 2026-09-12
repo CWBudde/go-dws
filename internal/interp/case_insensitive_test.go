@@ -366,3 +366,41 @@ func interpretCode(interp *Interpreter, input string) Value {
 
 	return interp.Eval(program)
 }
+
+// TestCaseInsensitiveKeywordOperators tests that the keyword operators are
+// recognized whatever case the source uses. The case a program writes them in is
+// a lexical accident, but the AST used to carry it through to the analyzer, the
+// evaluator and the bytecode compiler, each of which compares it against a
+// lowercase literal — so `6 and 3` compiled and `6 And 3` did not.
+func TestCaseInsensitiveKeywordOperators(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     string
+		expected string
+	}{
+		{name: "And", code: `PrintLn(6 And 3);`, expected: "2\n"},
+		{name: "Or", code: `PrintLn(6 Or 1);`, expected: "7\n"},
+		{name: "XOR", code: `PrintLn(6 XOR 3);`, expected: "5\n"},
+		{name: "Not", code: `PrintLn(Not True);`, expected: "False\n"},
+		{name: "DIV", code: `PrintLn(7 DIV 2);`, expected: "3\n"},
+		{name: "Mod", code: `PrintLn(7 Mod 2);`, expected: "1\n"},
+		{name: "Shl", code: `PrintLn(1 Shl 3);`, expected: "8\n"},
+		{name: "SHR", code: `PrintLn(8 SHR 2);`, expected: "2\n"},
+		{name: "In", code: `PrintLn('b' In 'abc');`, expected: "True\n"},
+		{name: "IMPLIES", code: `PrintLn(True IMPLIES False);`, expected: "False\n"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out bytes.Buffer
+			interp := New(&out)
+			result := interpretCode(interp, tt.code)
+			if isError(result) {
+				t.Fatalf("execution failed: %s", result.String())
+			}
+			if out.String() != tt.expected {
+				t.Errorf("expected output %q, got %q", tt.expected, out.String())
+			}
+		})
+	}
+}
