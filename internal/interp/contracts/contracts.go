@@ -6,6 +6,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/platform"
 )
 
 // Value is the shared value interface used across interpreter/evaluator.
@@ -55,6 +56,7 @@ type EngineState struct {
 	InitializedUnits       map[string]bool
 	SemanticInfo           *ast.SemanticInfo
 	MethodRegistry         *runtime.MethodRegistry
+	Platform               platform.Platform
 	Random                 *rand.Rand
 	ExternalFunctionCaller func(funcName string, args []Value) Value
 	SourceCode             string

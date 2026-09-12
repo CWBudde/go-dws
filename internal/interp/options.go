@@ -1,5 +1,7 @@
 package interp
 
+import "github.com/cwbudde/go-dws/pkg/platform"
+
 // Options defines the interface for configuring the interpreter.
 // This interface breaks the circular dependency between internal/interp and pkg/dwscript.
 // The pkg/dwscript.Options concrete type implements this interface.
@@ -15,4 +17,8 @@ type Options interface {
 	// GetMaxRecursionDepth returns the maximum recursion depth for function calls.
 	// Returns 0 if not set (caller should use default).
 	GetMaxRecursionDepth() int
+
+	// GetPlatform returns the platform the host installed, or nil to let the
+	// interpreter fall back to the build's default platform.
+	GetPlatform() platform.Platform
 }

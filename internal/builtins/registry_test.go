@@ -8,6 +8,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/platform"
 )
 
 // mockErrorValue is a simple error value for testing
@@ -22,6 +23,7 @@ func (e *mockErrorValue) String() string { return "ERROR: " + e.Message }
 type mockContext struct {
 	rng              *rand.Rand
 	dateTimeSettings *DateTimeFormatSettings
+	fs               platform.FileSystem
 	lastError        string
 	randSeed         int64
 }
@@ -40,6 +42,12 @@ func (m *mockContext) NewError(format string, args ...interface{}) Value {
 
 func (m *mockContext) CurrentNode() ast.Node {
 	return nil
+}
+
+// FS returns the filesystem installed on this mock. Tests that do not exercise
+// file built-ins leave it nil, which is fine because nothing else consults it.
+func (m *mockContext) FS() platform.FileSystem {
+	return m.fs
 }
 
 func (m *mockContext) RandSource() *rand.Rand {

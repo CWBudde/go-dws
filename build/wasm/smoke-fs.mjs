@@ -133,6 +133,26 @@ const result = dws.eval("PrintLn('smoke');");
 check('eval still runs', result.success === true, JSON.stringify(result.error?.message));
 check('eval produced output', String(result.output).includes('smoke'), String(result.output));
 
+// 8. A script reads and writes through the installed filesystem. This is the
+//    check that distinguishes a filesystem the host can install from one the
+//    interpreter actually consults.
+const scripted = makeFS(new Map([['/in.txt', 'from the host']]));
+dws.setFileSystem(scripted);
+const roundTrip = dws.eval(
+    "PrintLn(LoadTextFromFile('/in.txt')); SaveTextToFile('/out.txt', 'from the script');",
+);
+check('script eval succeeds', roundTrip.success === true, JSON.stringify(roundTrip.error?.message));
+check(
+    'LoadTextFromFile reads through the installed filesystem',
+    String(roundTrip.output).includes('from the host'),
+    String(roundTrip.output),
+);
+check(
+    'SaveTextToFile writes through the installed filesystem',
+    scripted.store.get('/out.txt') === 'from the script',
+    String(scripted.store.get('/out.txt')),
+);
+
 dws.dispose();
 
 if (failures > 0) {

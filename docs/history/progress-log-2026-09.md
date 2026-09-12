@@ -2871,3 +2871,71 @@ parameter is not named `id`, so the trap is not re-laid.
 `baselines.json` and `TEST_STATUS.md` need no regeneration. PLAN.md §0 and §4 headline counts
 re-measured against the current `TEST_STATUS.md` (1044/1930; `*Fail` 134/640, FailureScripts
 126/529), which had drifted behind the §3.4 merge train.
+
+## 2026-09-12 — The `platform.Platform` engine seam
+
+`pkg/platform` had been written, implemented twice (native and WASM) and reached by the WASM
+JavaScript bridge, but nothing in the engine consulted it: outside `pkg/wasm` the package had no
+importer, there were no file built-ins, and `dwscript.Options` had no way to name a platform. This
+closes that gap, which was the last buildable item in PLAN.md §3.4.
+
+### The seam
+
+`dwscript.WithPlatform(platform.Platform) Option` installs a platform on the engine and rejects
+nil. `Engine.Platform()` and `Engine.FS()` report the platform in force; both fall back to the
+build's default rather than returning nil, so a caller never has to nil-check a filesystem.
+
+The platform travels the same route as the other engine-wide state: `pkg/dwscript.Options`
+implements a new `interp.Options.GetPlatform()`, `interp.NewWithOptions` installs the result on
+`contracts.EngineState.Platform`, and `builtins.Context` gained an `FS()` method the evaluator
+answers from there.
+
+The default is a build-tag pair, `contracts.DefaultPlatform()`, not a runtime check:
+`pkg/platform/native` is itself `//go:build !js && !wasm` because it imports os facilities a WASM
+build cannot link, so a single file importing both implementations would not compile for either
+target. Natively the default is the real OS; under WASM it is the in-memory virtual filesystem,
+which a host can still replace wholesale through the existing `init({fs})` bridge — that bridge
+now reaches built-ins rather than terminating in an unread field.
+
+### The first two file built-ins
+
+`LoadTextFromFile(path)` and `SaveTextToFile(path, text)` are registered under `CategoryIO` and
+go through `Context.FS()` and nowhere near `os`. Two deliberate choices:
+
+- A missing or unreadable file is a runtime error, not an empty string. Returning `''` would make
+  a mistyped path indistinguishable from an empty file.
+- A non-string path is a type error, not a coercion. Coercing would turn a mistake in the script
+  into a confusing file error one layer down.
+
+`pkg/dwscript/platform_test.go` runs a script against an in-memory filesystem that records every
+path it touches, and asserts both that the output is right and that the read and the write landed
+in the installed filesystem rather than on disk — the property that makes this a sandboxing seam
+rather than a convenience.
+
+### The WASM bridge now terminates somewhere
+
+`pkg/wasm/api.go` already built a `WASMPlatform` and installed host filesystems on it, but
+created the engine without it — the comment there said as much, and `docs/wasm/API.md` carried a
+"current limitation" paragraph saying a host could install a filesystem that scripts could not
+read through. The engine is now created with `dwscript.WithPlatform(wasmPlat)`, and because
+`SetFileSystem` replaces the filesystem on that same platform instance, a host that swaps its
+filesystem after `init()` affects subsequent runs without rebuilding the engine.
+
+`build/wasm/smoke-fs.mjs` gained the check that distinguishes an installed filesystem from a
+consulted one: a script does `LoadTextFromFile('/in.txt')` and `SaveTextToFile('/out.txt', …)`
+against a `Map`-backed JavaScript filesystem, and the test asserts both that the host's contents
+reached the script and that the script's write landed in the host's `Map`. It passes against the
+real `GOOS=js GOARCH=wasm` build under Node (`just wasm-smoke`, 17 checks).
+
+### What this does not do
+
+Fixtures are unchanged at 1044, as expected: no scored fixture calls either built-in. The
+FunctionsFile category is not moved and stays out of scope — it needs a `File` handle type with
+`FileCreate`/`FileOpenRead` and `Write`/`Read`/`Seek`, the path helpers (`ExtractFileExt`,
+`ChangeFileExt`, `ExpandFileName`), and directory enumeration (`ForceDirectories`, `CreateDir`,
+`EnumerateSubDirs`). Those are a host-library surface; this change is the seam they would sit on.
+
+**Validation:** `go test ./...` green; `just build` green; `GOOS=js GOARCH=wasm go build ./...`
+green (the build-tag pair is the reason this is worth stating); `just wasm-smoke` green with the
+three new round-trip checks; `golangci-lint run --new-from-merge-base=origin/main` clean; fixture
+gate green with counts unchanged at 1044.
