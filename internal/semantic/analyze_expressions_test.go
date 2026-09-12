@@ -216,13 +216,16 @@ func TestFormatBuiltInFunction(t *testing.T) {
 }
 
 func TestFormatWrongNumberOfArguments(t *testing.T) {
-	tests := []string{
-		`var result := Format('test');`,           // Only 1 argument
-		`var result := Format('test', arr, 123);`, // 3 arguments
+	tests := []struct {
+		input string
+		error string
+	}{
+		{`var result := Format('test');`, "More arguments expected"},
+		{`var result := Format('test', arr, 123);`, "Too many arguments"},
 	}
 
-	for _, input := range tests {
-		expectError(t, input, "Format() expects exactly 2 arguments")
+	for _, test := range tests {
+		expectError(t, test.input, test.error)
 	}
 }
 

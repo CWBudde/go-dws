@@ -56,6 +56,7 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 		a.analyzeAssignment(s)
 	case *ast.ExpressionStatement:
 		a.analyzeExpression(s.Expression)
+		a.checkImplicitCallArity(s.Expression)
 		a.hintConstantInstruction(s.Expression)
 	case *ast.EmptyStatement:
 		return
@@ -647,7 +648,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				defer func() { a.indexedWriteTargetMember = prevWriteTarget }()
 			}
 		} else {
-			baseType = a.analyzeExpression(target.Left)
+			baseType = a.analyzeIndexBase(target.Left)
 			if isArrayOfConstType(baseType) {
 				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
 				return

@@ -38,8 +38,7 @@ func (a *Analyzer) analyzeLength(args []ast.Expression, callExpr *ast.CallExpres
 // Concat takes at least one argument (all strings or all arrays) and returns a string or array.
 func (a *Analyzer) analyzeConcat(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) == 0 {
-		a.addError("function 'Concat' expects at least 1 argument, got 0 at %s",
-			callExpr.Token.Pos.String())
+		a.addMoreArgumentsExpected(callNamePos(callExpr.Function, callExpr.Token.Pos))
 		return types.STRING
 	}
 
@@ -108,8 +107,7 @@ func (a *Analyzer) analyzeStringOfChar(args []ast.Expression, callExpr *ast.Call
 // Format takes exactly 2 arguments: format string and array of values.
 func (a *Analyzer) analyzeFormat(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 2 {
-		a.addError("Format() expects exactly 2 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
+		a.addArgumentCountError(callNamePos(callExpr.Function, callExpr.Token.Pos), len(args), 2, 2)
 		return types.STRING
 	}
 	// First argument: format string (must be String)

@@ -114,8 +114,12 @@ type Analyzer struct {
 	inLambda                bool
 	inClassMethod           bool
 	inPropertyExpr          bool
-	inFinallyBlock          bool
-	inExceptionHandler      bool
+	// inIndexBase marks analysis of the expression an index list is applied to,
+	// where a bare indexed-property name is complete rather than short of its
+	// index arguments.
+	inIndexBase        bool
+	inFinallyBlock     bool
+	inExceptionHandler bool
 
 	// indexedWriteTargetMember names the member access currently being analyzed as
 	// the target of a plain `:=` assignment to an indexed property. The read-side

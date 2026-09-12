@@ -10,7 +10,7 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-12):** Go harness and freshly rebuilt CLI both
-**1,057 / 1,930 scored = 55%**, after §3.2.7 closed conditional compilation and a §3.3 merge
+**1,067 / 1,930 scored = 55%**, after §3.2.7 closed conditional compilation and a §3.3 merge
 train closed these runtime/evaluator items: associative arrays (key coercion, ARC destructor
 timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
 JSON ownership and number formatting, call-site column precision in stack traces, metaclass
@@ -20,9 +20,10 @@ FunctionsGlobalVars `private_vars` remainder (13/16); its runtime-panic re-measu
 2026-09-12, finding no panics and three ordinary dispatch/alias defects instead. §4/F5 opened
 with the `deprecated` directive family (five fixtures) and a re-measurement that put the
 missing-validation queue at 58, not the 82 the 2026-03 archive recorded; the constant-instruction
-hint and the array-helper receiver rules closed three more. Both use the
+hint and the array-helper receiver rules closed three more, and adopting DWScript's canonical
+argument-count vocabulary closed ten. Both use the
 shared compile pipeline and scoring rules.
-`*Fail` error-detection suites **140 / 640 = 22%**.
+`*Fail` error-detection suites **150 / 640 = 23%**.
 
 Where the truth lives:
 
@@ -414,8 +415,8 @@ turned into a real check, and const static-array element assignment is now diagn
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 140/640 (FailureScripts 132/529, SetOfFail 5, JSONConnectorFail 2,
-AssociativeFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
+Harness and CLI: 150/640 (FailureScripts 141/529, SetOfFail 5, JSONConnectorFail 2,
+AssociativeFail 1, InterfacesFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
 `dwscript run --diagnostics=plain --compile-only --hints pedantic <file>`.
@@ -439,22 +440,27 @@ Work families (from the 2026-03 FailureScripts analysis, now archived at
   print nothing. Two names the old list gave as examples do not belong: `conditionals1-6` and
   `switch_invalid1-3` already emit diagnostics, so they are directive **message parity**
   (`internal/lexer/directive_messages.go`), not missing validation, and belong to F7.
-  The remaining 55 bucket by what they need, largest first:
-  - `More arguments expected` — 4 fixtures (`dyn_array_setlength3`, `missing_param2`,
-    `missing_param3`, …)
-  - `Warning: Constant condition` — 3 fixtures
+  **Re-measured again 2026-09-12 after the argument-count slice: 48.** The queue is now almost
+  entirely single-fixture work; only one bucket has more than one holder:
+  - `Warning: Constant condition` — 2 fixtures
   - single-fixture items: `proc_with_result`, `readonly_field`, `const_param2`, `assigned`,
     `ord`, `enum_flags_overflow`, `default_params2`, `for_var_usage`, `case_of_else`, …
-    - `Constant Instruction - has no effect` still has two holders: `class_const4`, where upstream
-    reports it as an **error** on a class-const declaration rather than a hint on a statement,
-    and `missing_param1`, which also needs `More arguments expected`.
+    - `Constant Instruction - has no effect` still has one holder, `class_const4`, where upstream
+    reports it as an **error** on a class-const declaration rather than a hint on a statement.
+    - `func_ptr_mismatch` needs the *expression-position* implicit call: upstream re-reads a
+    function reference that does not fit the expected pointer type as a call, so `@Test` draws
+    `More arguments expected` before the type error. The statement-position rule shipped;
+    this one did not, and it is what `array_of_proc`, `array_of_proc2`,
+    `const_procedure_array`, `callback_err_vs_nil`, `func_ptr1` and `func_ptr4` are also
+    waiting on (those are not in the 48 — they already print something).
   Two of these are blocked on missing AST position data rather than on the check itself:
   `enum_flags_overflow` needs a per-element position on `ast.EnumValue` (only `EnumDecl` has
   one today), and `default_params2` needs a constant-folded comparison of two default-value
   expressions, which `mergeDefaultValues` has no helper for.
 
-- **F6** `[ ]` S Runtime-mismatch residue (13): `div_by_zero_float`/`_int`, `dyn_array_setlength3`,
-  `for_in_subclass`, `missing_param1`, ….
+- **F6** `[ ]` S Runtime-mismatch residue (13, not re-measured since the 2026-09-12
+  argument-count slice, which moved `dyn_array_setlength3` and `missing_param1` out of it):
+  `div_by_zero_float`/`_int`, `for_in_subclass`, ….
 - **F7** `[ ]` M Per-suite sweeps, all currently 0 and not formatting-only (verified by substring
   check): InterfacesFail 19, HelpersFail 18, OverloadsFail 14,
   PropertyExpressionsFail 10, SetOfFail 9, GenericsFail 8, JSONConnectorFail 7, LambdaFail 6,
@@ -487,6 +493,25 @@ dynamic arrays`), and the ones needing actual storage are refused on a bare type
 (`Array instance expected`) — `Low` excepted, since it is 0 for every dynamic array, as are a
 static array's bounds. `FailureScripts/ignore_result`, `array_static_methods` and `dyn_array4`
 pass; fixtures 1,054 → 1,057.
+
+**Done (2026-09-12):** DWScript's canonical argument-count vocabulary, the third F5 slice.
+go-dws named the routine and the counts (`function 'Test' expects 2 arguments, got 1`) and
+anchored at the opening parenthesis; upstream says only `More arguments expected`,
+`Too many arguments` or `No arguments expected`, anchored at the name being called, and the last
+of those only when the routine declares no parameters at all. Every call-site arity check —
+plain calls, methods, interface and record methods, helper methods, constructors and `new` —
+now says that, and three rules that follow from it shipped with it. A bare routine name in
+statement position is a call, so `Test;`, `Sin;` and `TTest.Test;` report the missing arguments
+(overload-aware across the class hierarchy, or `meth_overload_hide` would have regressed); the
+array helpers that need an argument report it in the bare member form too; and an indexed
+property named without its indices reads the accessor with nothing. Upstream also type-checks
+the arguments it was handed *before* it counts them, so a short call whose arguments do not fit
+reports the type error alone. Finally, the built-ins DWScript declares as overload sets — `Abs`,
+`Sqr`, `Min`, `Max` — name no count at all: any call they cannot match reports
+`There is no overloaded version of "X" that can be called with these arguments`.
+`FailureScripts/dyn_array_setlength3`, `func_params1`, `method_missing_arg`, `missing_param1`,
+`missing_param1b`, `missing_param2`, `missing_param3`, `property_error10`, `sqr` and
+`InterfacesFail/error_in_method` pass; fixtures 1,057 → 1,067, and InterfacesFail leaves 0.
 
 ✋ `FailureScripts/class_deprecated` stays open on one position convention. Four of its eight
 warnings are emitted with the right text but two columns late: for a *declaration's type

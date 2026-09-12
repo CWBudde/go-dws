@@ -13,15 +13,13 @@ import (
 // Abs takes one numeric argument and returns the same type.
 func (a *Analyzer) analyzeAbs(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
-		a.addError("function 'Abs' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
+		a.addNoOverloadedVersion("Abs", callNamePos(callExpr.Function, callExpr.Token.Pos))
 		return types.INTEGER
 	}
 	argType := a.analyzeExpression(args[0])
 	if argType != nil {
 		if argType != types.INTEGER && argType != types.FLOAT {
-			a.addError("function 'Abs' expects numeric (Integer or Float) argument, got %s at %s",
-				argType.String(), callExpr.Token.Pos.String())
+			a.addNoOverloadedVersion("Abs", callNamePos(callExpr.Function, callExpr.Token.Pos))
 			return types.INTEGER
 		}
 		return argType
@@ -33,8 +31,7 @@ func (a *Analyzer) analyzeAbs(args []ast.Expression, callExpr *ast.CallExpressio
 // Min takes two numeric arguments and returns the smaller value.
 func (a *Analyzer) analyzeMin(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 2 {
-		a.addError("function 'Min' expects 2 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
+		a.addNoOverloadedVersion("Min", callNamePos(callExpr.Function, callExpr.Token.Pos))
 		return types.INTEGER
 	}
 	arg1Type := a.analyzeExpression(args[0])
@@ -47,8 +44,7 @@ func (a *Analyzer) analyzeMin(args []ast.Expression, callExpr *ast.CallExpressio
 		}
 		if (arg1Type != types.INTEGER && arg1Type != types.FLOAT) ||
 			(arg2Type != types.INTEGER && arg2Type != types.FLOAT) {
-			a.addError("function 'Min' expects Integer or Float arguments, got %s and %s at %s",
-				arg1Type.String(), arg2Type.String(), callExpr.Token.Pos.String())
+			a.addNoOverloadedVersion("Min", callNamePos(callExpr.Function, callExpr.Token.Pos))
 			return types.INTEGER
 		}
 		if arg1Type == types.INTEGER && arg2Type == types.INTEGER {
@@ -63,8 +59,7 @@ func (a *Analyzer) analyzeMin(args []ast.Expression, callExpr *ast.CallExpressio
 // Max takes two numeric arguments and returns the larger value.
 func (a *Analyzer) analyzeMax(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 2 {
-		a.addError("function 'Max' expects 2 arguments, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
+		a.addNoOverloadedVersion("Max", callNamePos(callExpr.Function, callExpr.Token.Pos))
 		return types.INTEGER
 	}
 	arg1Type := a.analyzeExpression(args[0])
@@ -77,8 +72,7 @@ func (a *Analyzer) analyzeMax(args []ast.Expression, callExpr *ast.CallExpressio
 		}
 		if (arg1Type != types.INTEGER && arg1Type != types.FLOAT) ||
 			(arg2Type != types.INTEGER && arg2Type != types.FLOAT) {
-			a.addError("function 'Max' expects Integer or Float arguments, got %s and %s at %s",
-				arg1Type.String(), arg2Type.String(), callExpr.Token.Pos.String())
+			a.addNoOverloadedVersion("Max", callNamePos(callExpr.Function, callExpr.Token.Pos))
 			return types.INTEGER
 		}
 		if arg1Type == types.INTEGER && arg2Type == types.INTEGER {
@@ -93,15 +87,13 @@ func (a *Analyzer) analyzeMax(args []ast.Expression, callExpr *ast.CallExpressio
 // Sqr takes one numeric argument and returns x*x, preserving type.
 func (a *Analyzer) analyzeSqr(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
-		a.addError("function 'Sqr' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
+		a.addNoOverloadedVersion("Sqr", callNamePos(callExpr.Function, callExpr.Token.Pos))
 		return types.INTEGER
 	}
 	argType := a.analyzeExpression(args[0])
 	if argType != nil {
 		if argType != types.INTEGER && argType != types.FLOAT {
-			a.addError("function 'Sqr' expects Integer or Float as argument, got %s at %s",
-				argType.String(), callExpr.Token.Pos.String())
+			a.addNoOverloadedVersion("Sqr", callNamePos(callExpr.Function, callExpr.Token.Pos))
 			return types.INTEGER
 		}
 		return argType

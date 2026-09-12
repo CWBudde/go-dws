@@ -65,7 +65,7 @@ begin
 	obj := TExample.Create();
 end;
 `
-	expectError(t, input, "expects 1 arguments, got 0")
+	expectError(t, input, "More arguments expected")
 }
 
 // TestMultipleConstructorsSemantics tests semantic analysis with multiple constructors

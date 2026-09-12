@@ -31,7 +31,7 @@ func TestBuiltinAbs_InvalidType(t *testing.T) {
 	input := `
 		var x := Abs('hello');
 	`
-	expectError(t, input, "numeric")
+	expectError(t, input, `There is no overloaded version of "Abs" that can be called with these arguments`)
 }
 
 // Min/Max function tests

@@ -175,6 +175,11 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 								a.addStructuredError(NewWriteOnlyPropertyError(identifier.Token.Pos, identifier.Value))
 								return nil
 							}
+							// An indexed property named without its indices is a
+							// read of the accessor with no arguments.
+							if !a.inIndexBase && len(a.getIndexedPropertyParamTypes(propInfo, class)) > 0 {
+								a.addMoreArgumentsExpected(identifier.Token.Pos)
+							}
 							return propInfo.Type
 						}
 					}

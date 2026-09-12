@@ -88,7 +88,7 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 	}
 
 	// Analyze the left side (what's being indexed)
-	leftType := a.analyzeExpression(expr.Left)
+	leftType := a.analyzeIndexBase(expr.Left)
 
 	// `Test[Index]` where Test is a parameterless function indexes the call's
 	// result, not the function itself. Member access unwraps the same way.
@@ -614,4 +614,15 @@ func (a *Analyzer) checkIndexedPropertyWriteTarget(target ast.Expression, propIn
 		a.addStructuredError(NewObjectReferenceNeededError(pos))
 	}
 	return false
+}
+
+// analyzeIndexBase analyzes the expression an index list is applied to. It is
+// the ordinary expression analysis with one exception: an indexed property named
+// here *is* followed by its indices, so the arity diagnostic a bare property
+// reference would draw must not fire.
+func (a *Analyzer) analyzeIndexBase(expr ast.Expression) types.Type {
+	previous := a.inIndexBase
+	a.inIndexBase = true
+	defer func() { a.inIndexBase = previous }()
+	return a.analyzeExpression(expr)
 }

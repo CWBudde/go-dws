@@ -191,7 +191,7 @@ begin
 	obj := TExample.Create(42);
 end;
 `
-	expectError(t, input, "expects 2 arguments, got 1")
+	expectError(t, input, "More arguments expected")
 }
 
 // TestConstructorCaseInsensitiveClassName tests case-insensitive class name
@@ -434,7 +434,7 @@ begin
 	obj := TExample.Create();
 end;
 `
-	expectError(t, input, "expects 1 arguments, got 0")
+	expectError(t, input, "More arguments expected")
 }
 
 // ============================================================================
@@ -533,7 +533,7 @@ begin
 end;
 `
 	// Implicit constructor exists with 0 parameters, so error is about argument count mismatch
-	expectError(t, input, "expects 0 arguments, got 1")
+	expectError(t, input, "No arguments expected")
 }
 
 // ============================================================================
