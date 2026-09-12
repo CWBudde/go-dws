@@ -338,16 +338,14 @@ func sortDiagnostics(diags []Diagnostic) {
 		if left.Severity != SeverityError && right.Severity != SeverityError {
 			return false
 		}
-		if left.Severity != SeverityError && right.Severity == SeverityError {
-			if left.Line == right.Line {
-				return true
-			}
-			return false
-		}
-		if left.Severity == SeverityError && right.Severity != SeverityError {
-			if left.Line == right.Line {
-				return false
-			}
+		// A hint or warning is never reordered against an error: upstream emits
+		// both streams as it compiles, so the order they were produced in is the
+		// order it prints them, on a shared line as much as across lines. It
+		// reports the condition's error before the empty-body hint (`array_in1`,
+		// `for_in1`) and the name-resolution hint before the enclosing
+		// expression's error (`use_proc_result1`) for the same reason: inner
+		// first, not leftmost first.
+		if (left.Severity != SeverityError) != (right.Severity != SeverityError) {
 			return false
 		}
 

@@ -681,6 +681,17 @@ func NewCannotIndexTypeError(pos lexer.Position, typeName string) *SemanticError
 	}
 }
 
+// NewEnumerationExpectedError creates DWScript's diagnostic for a for-in loop
+// over a type that is not an enumeration (`for i in Integer do`).
+func NewEnumerationExpectedError(pos lexer.Position) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorTypeMismatch,
+		Message:  "Enumeration expected",
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
 // NewArrayDimensionTypeError creates a structured array dimension type diagnostic.
 func NewArrayDimensionTypeError(pos lexer.Position, dimension int, got string) *SemanticError {
 	got = errors.SimplifyTypeName(got)

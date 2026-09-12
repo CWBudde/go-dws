@@ -32,6 +32,10 @@ type Symbol struct {
 	IsDeprecated          bool
 	ReadOnly              bool
 	SuppressUnusedWarning bool
+	// IsLoopVariable marks a `for` control variable. Writing to one is legal but
+	// draws DWScript's `Assignment to FOR-Loop variable` warning, so the flag has
+	// to survive until the body is analyzed; it is not the same as ReadOnly.
+	IsLoopVariable bool
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
@@ -259,6 +263,7 @@ func (st *SymbolTable) DefineLoopVariable(name string, typ types.Type, pos token
 		DeclPosition:          pos,
 		Usages:                make([]token.Position, 0),
 		SuppressUnusedWarning: true,
+		IsLoopVariable:        true,
 	})
 }
 

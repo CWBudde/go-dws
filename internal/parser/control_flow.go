@@ -735,6 +735,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 	}
 
 	p.cursor = p.cursor.Advance() // move to ':='
+	stmt.AssignPos = p.cursor.Current().Pos
 
 	// Parse the start expression
 	p.cursor = p.cursor.Advance()
@@ -894,6 +895,7 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 	}
 
 	p.cursor = p.cursor.Advance() // move to 'in'
+	stmt.InPos = p.cursor.Current().Pos
 
 	// Parse the collection expression
 	p.cursor = p.cursor.Advance()

@@ -546,7 +546,8 @@ func TestForInWithNonEnumerableType(t *testing.T) {
 		t.Fatal("Expected semantic error for for-in with non-enumerable type, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "not enumerable") {
+	// DWScript's sentence for an expression that is not a container.
+	if !strings.Contains(err.Error(), "Array expected") {
 		t.Errorf("Expected error about non-enumerable type, got: %v", err)
 	}
 }
@@ -569,7 +570,8 @@ func TestForInWithBoolean(t *testing.T) {
 		t.Fatal("Expected semantic error for for-in with boolean type, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "not enumerable") {
+	// DWScript's sentence for an expression that is not a container.
+	if !strings.Contains(err.Error(), "Array expected") {
 		t.Errorf("Expected error about non-enumerable type, got: %v", err)
 	}
 }
