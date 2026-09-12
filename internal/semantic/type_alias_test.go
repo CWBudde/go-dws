@@ -23,10 +23,8 @@ func TestTypeAliasRegistration(t *testing.T) {
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
 				Name: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					},
 					Value: "TUserID",
 				},
@@ -71,10 +69,8 @@ func TestTypeAliasInVariableDeclaration(t *testing.T) {
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
 				Name: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					},
 					Value: "TUserID",
 				},
@@ -87,10 +83,8 @@ func TestTypeAliasInVariableDeclaration(t *testing.T) {
 			&ast.VarDeclStatement{
 				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var"}},
 				Names: []*ast.Identifier{{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "id"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "id"},
 					},
 					Value: "id",
 				}},
@@ -135,10 +129,8 @@ func TestTypeAliasCompatibility(t *testing.T) {
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
 				Name: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					},
 					Value: "TUserID",
 				},
@@ -151,10 +143,8 @@ func TestTypeAliasCompatibility(t *testing.T) {
 			&ast.VarDeclStatement{
 				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var"}},
 				Names: []*ast.Identifier{{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "id"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "id"},
 					},
 					Value: "id",
 				}},
@@ -163,10 +153,8 @@ func TestTypeAliasCompatibility(t *testing.T) {
 					Name:  "TUserID",
 				},
 				Value: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.INT, Literal: "42"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.INT, Literal: "42"},
 					},
 					Value: 42,
 				},
@@ -193,10 +181,8 @@ func TestTypeAliasUndefinedType(t *testing.T) {
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 1, Column: 1}},
 				},
 				Name: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					},
 					Value: "TUserID",
 				},
@@ -241,10 +227,8 @@ func TestTypeAliasNestedAliases(t *testing.T) {
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
 				Name: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "TInt"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TInt"},
 					},
 					Value: "TInt",
 				},
@@ -259,10 +243,8 @@ func TestTypeAliasNestedAliases(t *testing.T) {
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
 				Name: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					},
 					Value: "TUserID",
 				},
@@ -275,10 +257,8 @@ func TestTypeAliasNestedAliases(t *testing.T) {
 			&ast.VarDeclStatement{
 				BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.VAR, Literal: "var"}},
 				Names: []*ast.Identifier{{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "id"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "id"},
 					},
 					Value: "id",
 				}},
@@ -322,10 +302,8 @@ func TestTypeAliasDuplicateDeclaration(t *testing.T) {
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type"},
 				},
 				Name: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					},
 					Value: "TUserID",
 				},
@@ -340,10 +318,8 @@ func TestTypeAliasDuplicateDeclaration(t *testing.T) {
 					Token: lexer.Token{Type: lexer.TYPE, Literal: "type", Pos: lexer.Position{Line: 2, Column: 1}},
 				},
 				Name: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "TUserID"},
 					},
 					Value: "TUserID",
 				},

@@ -33,10 +33,8 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	if !ok {
 		p.noPrefixParseFnError(currentToken)
 		return &ast.InvalidExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: currentToken,
-				},
+			BaseNode: ast.BaseNode{
+				Token: currentToken,
 			},
 			Reason: "expression expected",
 		}
@@ -130,11 +128,9 @@ func (p *Parser) parseNotInIsAs(leftExp ast.Expression) ast.Expression {
 
 	// Wrap in NOT expression
 	notExp := &ast.UnaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  notToken,
-				EndPos: comparisonExp.End(),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  notToken,
+			EndPos: comparisonExp.End(),
 		},
 		Operator: notToken.Literal,
 		Right:    comparisonExp,
@@ -156,11 +152,9 @@ func (p *Parser) parseIdentifier() ast.Expression {
 	if p.looksLikeGenericTypeRef() {
 		mark := p.cursor.Mark()
 		base := &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token:  currentToken,
-					EndPos: p.endPosFromToken(currentToken),
-				},
+			BaseNode: ast.BaseNode{
+				Token:  currentToken,
+				EndPos: p.endPosFromToken(currentToken),
 			},
 			Value: currentToken.Literal,
 		}
@@ -178,11 +172,9 @@ func (p *Parser) parseIdentifier() ast.Expression {
 	}
 
 	return &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  currentToken,
-				EndPos: p.endPosFromToken(currentToken),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  currentToken,
+			EndPos: p.endPosFromToken(currentToken),
 		},
 		Value: currentToken.Literal,
 	}
@@ -232,10 +224,8 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	operatorToken := p.cursor.Current()
 
 	expression := &ast.UnaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: operatorToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: operatorToken,
 		},
 		Operator: operatorToken.Literal,
 	}
@@ -258,10 +248,8 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	operatorToken := p.cursor.Current()
 
 	expression := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: operatorToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: operatorToken,
 		},
 		Operator: operatorToken.Literal,
 		Left:     left,
@@ -393,11 +381,9 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	if nextToken.Type == lexer.RPAREN {
 		p.cursor = p.cursor.Advance() // move to RPAREN
 		return &ast.ArrayLiteralExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token:  lparenToken,
-					EndPos: p.cursor.Current().End(),
-				},
+			BaseNode: ast.BaseNode{
+				Token:  lparenToken,
+				EndPos: p.cursor.Current().End(),
 			},
 			Elements: []ast.Expression{},
 		}
@@ -465,11 +451,9 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 			// Allow trailing comma: (1, 2, )
 			if p.cursor.Current().Type == lexer.RPAREN {
 				return &ast.ArrayLiteralExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token:  lparenToken,
-							EndPos: p.cursor.Current().End(),
-						},
+					BaseNode: ast.BaseNode{
+						Token:  lparenToken,
+						EndPos: p.cursor.Current().End(),
 					},
 					Elements: elements,
 				}
@@ -485,11 +469,9 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 		// Expect closing paren
 		if isInvalidExpression(elements[len(elements)-1]) && p.cursor.Current().Type == lexer.RPAREN {
 			return &ast.ArrayLiteralExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token:  lparenToken,
-						EndPos: p.cursor.Current().End(),
-					},
+				BaseNode: ast.BaseNode{
+					Token:  lparenToken,
+					EndPos: p.cursor.Current().End(),
 				},
 				Elements: elements,
 			}
@@ -502,11 +484,9 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 		p.cursor = p.cursor.Advance() // move to RPAREN
 
 		return &ast.ArrayLiteralExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token:  lparenToken,
-					EndPos: p.cursor.Current().End(),
-				},
+			BaseNode: ast.BaseNode{
+				Token:  lparenToken,
+				EndPos: p.cursor.Current().End(),
 			},
 			Elements: elements,
 		}

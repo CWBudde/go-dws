@@ -12,21 +12,15 @@ func TestEvalWithExpectedType_UsesEvaluatorArrayContext(t *testing.T) {
 	interp := newTestInterpreter()
 
 	arrayLit := &ast.ArrayLiteralExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: token.Token{}},
-		},
+		BaseNode: ast.BaseNode{Token: token.Token{}},
 		Elements: []ast.Expression{
 			&ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: token.Token{}},
-				},
-				Value: 1,
+				BaseNode: ast.BaseNode{Token: token.Token{}},
+				Value:    1,
 			},
 			&ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: token.Token{}},
-				},
-				Value: 2,
+				BaseNode: ast.BaseNode{Token: token.Token{}},
+				Value:    2,
 			},
 		},
 	}

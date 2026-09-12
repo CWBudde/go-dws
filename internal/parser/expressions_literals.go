@@ -16,11 +16,9 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	currentToken := p.cursor.Current()
 
 	lit := &ast.IntegerLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  currentToken,
-				EndPos: p.endPosFromToken(currentToken),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  currentToken,
+			EndPos: p.endPosFromToken(currentToken),
 		},
 	}
 
@@ -64,11 +62,9 @@ func (p *Parser) parseFloatLiteral() ast.Expression {
 	currentToken := p.cursor.Current()
 
 	lit := &ast.FloatLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  currentToken,
-				EndPos: p.endPosFromToken(currentToken),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  currentToken,
+			EndPos: p.endPosFromToken(currentToken),
 		},
 	}
 
@@ -95,11 +91,9 @@ func (p *Parser) parseStringLiteral() ast.Expression {
 	value := currentToken.Literal
 
 	return &ast.StringLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  currentToken,
-				EndPos: p.endPosFromToken(currentToken),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  currentToken,
+			EndPos: p.endPosFromToken(currentToken),
 		},
 		Value: value,
 	}
@@ -110,11 +104,9 @@ func (p *Parser) parseStringLiteral() ast.Expression {
 func (p *Parser) parseBooleanLiteral() ast.Expression {
 	currentToken := p.cursor.Current()
 	return &ast.BooleanLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  currentToken,
-				EndPos: p.endPosFromToken(currentToken),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  currentToken,
+			EndPos: p.endPosFromToken(currentToken),
 		},
 		Value: currentToken.Type == lexer.TRUE,
 	}
@@ -125,11 +117,9 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 // POST: cursor is NIL (unchanged)
 func (p *Parser) parseNilLiteral() ast.Expression {
 	return &ast.NilLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  p.cursor.Current(),
-				EndPos: p.endPosFromToken(p.cursor.Current()),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  p.cursor.Current(),
+			EndPos: p.endPosFromToken(p.cursor.Current()),
 		},
 	}
 }
@@ -141,11 +131,9 @@ func (p *Parser) parseNilLiteral() ast.Expression {
 func (p *Parser) parseNullIdentifier() ast.Expression {
 	tok := p.cursor.Current()
 	return &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  tok,
-				EndPos: p.endPosFromToken(tok),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  tok,
+			EndPos: p.endPosFromToken(tok),
 		},
 		Value: tok.Literal, // "Null" (preserves original casing)
 	}
@@ -158,11 +146,9 @@ func (p *Parser) parseNullIdentifier() ast.Expression {
 func (p *Parser) parseUnassignedIdentifier() ast.Expression {
 	tok := p.cursor.Current()
 	return &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  tok,
-				EndPos: p.endPosFromToken(tok),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  tok,
+			EndPos: p.endPosFromToken(tok),
 		},
 		Value: tok.Literal, // "Unassigned" (preserves original casing)
 	}
@@ -174,11 +160,9 @@ func (p *Parser) parseUnassignedIdentifier() ast.Expression {
 func (p *Parser) parseCharLiteral() ast.Expression {
 	tok := p.cursor.Current()
 	lit := &ast.CharLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  tok,
-				EndPos: p.endPosFromToken(tok),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  tok,
+			EndPos: p.endPosFromToken(tok),
 		},
 	}
 

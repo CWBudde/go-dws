@@ -40,7 +40,7 @@ func TestNodeBuilderFinishStatement(t *testing.T) {
 }
 
 // TestNodeBuilderFinishExpression tests that Finish() correctly sets EndPos
-// on expression nodes (which embed TypedExpressionBase).
+// on expression nodes (which embed BaseNode).
 func TestNodeBuilderFinishExpression(t *testing.T) {
 	input := "3 + 5"
 	p := New(lexer.New(input))
@@ -54,10 +54,8 @@ func TestNodeBuilderFinishExpression(t *testing.T) {
 
 	// Create a binary expression
 	expr := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: builder.StartToken(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: builder.StartToken(),
 		},
 		Operator: "+",
 	}
@@ -86,10 +84,8 @@ func TestNodeBuilderFinishWithNode(t *testing.T) {
 	p.nextToken() // now at y
 
 	childExpr := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: p.cursor.Current(),
 		},
 		Value: "y",
 	}
@@ -197,10 +193,8 @@ func TestNodeBuilderMultipleNodes(t *testing.T) {
 	condToken := p.cursor.Current()
 
 	condition := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: condToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: condToken,
 		},
 		Value: "x",
 	}
@@ -274,10 +268,8 @@ func TestNodeBuilderRealWorldIfStatement(t *testing.T) {
 		p.nextToken()
 	}
 	condition := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: condStart,
-			},
+		BaseNode: ast.BaseNode{
+			Token: condStart,
 		},
 		Value: "x > 5",
 	}
@@ -349,10 +341,8 @@ func TestNodeBuilderWithComplexExpression(t *testing.T) {
 	p.nextToken() // z
 
 	expr := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: outerBuilder.StartToken(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: outerBuilder.StartToken(),
 		},
 		Operator: "+",
 	}

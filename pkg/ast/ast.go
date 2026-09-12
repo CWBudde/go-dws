@@ -92,7 +92,7 @@ func (p *Program) End() token.Position {
 type Identifier struct {
 	Value    string
 	TypeArgs []TypeExpression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (i *Identifier) expressionNode() {}
@@ -114,7 +114,7 @@ func (i *Identifier) End() token.Position {
 
 // IntegerLiteral represents an integer literal value.
 type IntegerLiteral struct {
-	TypedExpressionBase
+	BaseNode
 	Value int64
 }
 
@@ -123,7 +123,7 @@ func (il *IntegerLiteral) String() string  { return il.Token.Literal }
 
 // FloatLiteral represents a floating-point literal value.
 type FloatLiteral struct {
-	TypedExpressionBase
+	BaseNode
 	Value float64
 }
 
@@ -133,7 +133,7 @@ func (fl *FloatLiteral) String() string  { return fl.Token.Literal }
 // StringLiteral represents a string literal value.
 type StringLiteral struct {
 	Value string
-	TypedExpressionBase
+	BaseNode
 }
 
 func (sl *StringLiteral) expressionNode() {}
@@ -141,7 +141,7 @@ func (sl *StringLiteral) String() string  { return "\"" + sl.Value + "\"" }
 
 // BooleanLiteral represents a boolean literal value (true or false).
 type BooleanLiteral struct {
-	TypedExpressionBase
+	BaseNode
 	Value bool
 }
 
@@ -151,7 +151,7 @@ func (bl *BooleanLiteral) String() string  { return bl.Token.Literal }
 // CharLiteral represents a character literal value.
 // Supports three forms: 'H' (single char string), #13 (decimal), #$41 (hex).
 type CharLiteral struct {
-	TypedExpressionBase
+	BaseNode
 	Value rune
 }
 
@@ -163,7 +163,7 @@ type BinaryExpression struct {
 	Left     Expression
 	Right    Expression
 	Operator string
-	TypedExpressionBase
+	BaseNode
 }
 
 func (be *BinaryExpression) expressionNode() {}
@@ -195,7 +195,7 @@ func (be *BinaryExpression) String() string {
 type UnaryExpression struct {
 	Right    Expression
 	Operator string
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ue *UnaryExpression) expressionNode() {}
@@ -232,7 +232,7 @@ func (ue *UnaryExpression) String() string {
 // malformed subexpression but keeps enough structure to continue parsing.
 type InvalidExpression struct {
 	Reason string
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ie *InvalidExpression) expressionNode() {}
@@ -247,7 +247,7 @@ func (ie *InvalidExpression) String() string {
 // GroupedExpression represents an expression wrapped in parentheses.
 type GroupedExpression struct {
 	Expression Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ge *GroupedExpression) expressionNode() {}
@@ -283,7 +283,7 @@ func (ge *GroupedExpression) String() string {
 type RangeExpression struct {
 	Start    Expression
 	RangeEnd Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (re *RangeExpression) expressionNode() {}
@@ -350,7 +350,7 @@ func (es *EmptyStatement) String() string {
 
 // NilLiteral represents a nil literal value.
 type NilLiteral struct {
-	TypedExpressionBase
+	BaseNode
 }
 
 func (nl *NilLiteral) expressionNode() {}
@@ -365,7 +365,7 @@ type IsExpression struct {
 	Left       Expression
 	TargetType TypeExpression
 	Right      Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ie *IsExpression) expressionNode() {}
@@ -409,7 +409,7 @@ func (ie *IsExpression) String() string {
 type AsExpression struct {
 	Left       Expression
 	TargetType TypeExpression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ae *AsExpression) expressionNode() {}
@@ -446,7 +446,7 @@ func (ae *AsExpression) String() string {
 type ImplementsExpression struct {
 	Left       Expression
 	TargetType TypeExpression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ie *ImplementsExpression) expressionNode() {}

@@ -18,19 +18,15 @@ func buildBenchmarkProgram() *ast.Program {
 				},
 				Names: []*ast.Identifier{
 					{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 						},
 						Value: "x",
 					},
 				},
 				Value: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.INT, Literal: "0"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.INT, Literal: "0"},
 					},
 					Value: 0,
 				},
@@ -40,25 +36,19 @@ func buildBenchmarkProgram() *ast.Program {
 					Token: lexer.Token{Type: lexer.WHILE, Literal: "while"},
 				},
 				Condition: &ast.BinaryExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.LESS, Literal: "<"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.LESS, Literal: "<"},
 					},
 					Operator: "<",
 					Left: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 						},
 						Value: "x",
 					},
 					Right: &ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.INT, Literal: "1000"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.INT, Literal: "1000"},
 						},
 						Value: 1000,
 					},
@@ -69,33 +59,25 @@ func buildBenchmarkProgram() *ast.Program {
 					},
 					Operator: lexer.ASSIGN,
 					Target: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 						},
 						Value: "x",
 					},
 					Value: &ast.BinaryExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.PLUS, Literal: "+"},
 						},
 						Operator: "+",
 						Left: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 							},
 							Value: "x",
 						},
 						Right: &ast.IntegerLiteral{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: lexer.Token{Type: lexer.INT, Literal: "1"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.INT, Literal: "1"},
 							},
 							Value: 1,
 						},
@@ -107,10 +89,8 @@ func buildBenchmarkProgram() *ast.Program {
 					Token: lexer.Token{Type: lexer.IDENT, Literal: "Result"},
 				},
 				ReturnValue: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: lexer.Token{Type: lexer.IDENT, Literal: "x"},
 					},
 					Value: "x",
 				},

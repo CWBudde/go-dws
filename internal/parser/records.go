@@ -433,10 +433,8 @@ func (p *Parser) addRecordAutoPropertyBackingField(recordDecl *ast.RecordDecl, p
 	}
 	field := &ast.FieldDecl{
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: property.Name.Token},
-			},
-			Value: backingName,
+			BaseNode: ast.BaseNode{Token: property.Name.Token},
+			Value:    backingName,
 		},
 		Type:       property.Type,
 		Visibility: visibility,
@@ -463,10 +461,8 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	p.cursor = cursor
 
 	propName := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
 		},
 		Value: cursor.Current().Literal,
 	}
@@ -488,10 +484,8 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 				return nil
 			}
 			paramName := &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: cursor.Current()},
-				},
-				Value: cursor.Current().Literal,
+				BaseNode: ast.BaseNode{Token: cursor.Current()},
+				Value:    cursor.Current().Literal,
 			}
 
 			// Expect colon

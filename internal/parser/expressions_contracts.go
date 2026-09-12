@@ -88,20 +88,16 @@ func (p *Parser) parseOldExpression() ast.Expression {
 	identToken := p.cursor.Current()
 
 	identifier := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: identToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: identToken,
 		},
 		Value: identToken.Literal,
 	}
 
 	return &ast.OldExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  currentToken,
-				EndPos: identifier.End(),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  currentToken,
+			EndPos: identifier.End(),
 		},
 		Identifier: identifier,
 	}

@@ -110,7 +110,7 @@ func (nb *NodeBuilder) StartToken() lexer.Token {
 }
 
 // setEndPos sets the EndPos field on an AST node using reflection.
-// It handles both direct BaseNode embedding and TypedExpressionBase embedding.
+// It handles both direct BaseNode embedding and BaseNode embedding.
 //
 // This function uses reflection to avoid needing to know the exact type of the node.
 // While reflection has some overhead, it's only used during parsing (not runtime
@@ -118,13 +118,13 @@ func (nb *NodeBuilder) StartToken() lexer.Token {
 //
 // Expected node structures:
 //   - Statements: Direct BaseNode embedding (e.g., IfStatement, ForStatement)
-//   - Expressions: TypedExpressionBase.BaseNode embedding (e.g., BinaryExpression, Identifier)
+//   - Expressions: BaseNode.BaseNode embedding (e.g., BinaryExpression, Identifier)
 //
 // Silent failure behavior:
 // The function returns silently without setting EndPos when:
 //   - The node is nil
 //   - The node doesn't have a BaseNode field (direct embedding)
-//   - The node doesn't have TypedExpressionBase.BaseNode (expression embedding)
+//   - The node doesn't have BaseNode.BaseNode (expression embedding)
 //   - The BaseNode or EndPos fields are unexported or cannot be set
 //
 // This silent failure is intentional - it allows the NodeBuilder to be used uniformly
@@ -148,9 +148,9 @@ func setEndPos(node ast.Node, pos lexer.Position) {
 	// Try to find BaseNode field directly (used by statements)
 	baseField := v.FieldByName("BaseNode")
 
-	// If not found, try TypedExpressionBase (used by expressions)
+	// If not found, try BaseNode (used by expressions)
 	if !baseField.IsValid() {
-		typedBase := v.FieldByName("TypedExpressionBase")
+		typedBase := v.FieldByName("BaseNode")
 		if typedBase.IsValid() {
 			baseField = typedBase.FieldByName("BaseNode")
 		}

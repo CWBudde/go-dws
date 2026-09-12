@@ -117,7 +117,7 @@ end`,
 					{
 						BaseNode: NewTestBaseNode(lexer.CONST, "const"),
 						Name:     &Identifier{Value: "PI"},
-						Value:    &FloatLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.FLOAT, "3.14159")}, Value: 3.14159},
+						Value:    &FloatLiteral{BaseNode: NewTestBaseNode(lexer.FLOAT, "3.14159"), Value: 3.14159},
 					},
 				},
 				IsRecordHelper: false,

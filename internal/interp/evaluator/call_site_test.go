@@ -13,10 +13,8 @@ func pos(line, column int) token.Position {
 
 func identAt(name string, line, column int) *ast.Identifier {
 	return &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.IDENT, Literal: name, Pos: pos(line, column)},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.IDENT, Literal: name, Pos: pos(line, column)},
 		},
 		Value: name,
 	}

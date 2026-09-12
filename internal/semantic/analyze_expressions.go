@@ -127,9 +127,7 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		if expectedType != nil {
 			if _, ok := types.GetUnderlyingType(expectedType).(*types.ArrayType); ok {
 				arrayLit := &ast.ArrayLiteralExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: e.Token},
-					},
+					BaseNode: ast.BaseNode{Token: e.Token},
 					Elements: e.Elements,
 				}
 				resultType := a.analyzeArrayLiteral(arrayLit, expectedType)
@@ -153,8 +151,8 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 			// the per-element ordinal, element-type and bounds diagnostics.
 			if _, ok := types.GetUnderlyingType(expectedType).(*types.SetType); ok {
 				setLit := &ast.SetLiteral{
-					TypedExpressionBase: e.TypedExpressionBase,
-					Elements:            e.Elements,
+					BaseNode: e.BaseNode,
+					Elements: e.Elements,
 				}
 
 				resultType := a.analyzeSetLiteralWithContext(setLit, expectedType)

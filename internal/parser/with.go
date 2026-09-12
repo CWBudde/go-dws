@@ -92,10 +92,8 @@ func (p *Parser) parseWithDeclaration() *ast.VarDeclStatement {
 		BaseNode: ast.BaseNode{Token: nameToken},
 		Names: []*ast.Identifier{
 			{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: nameToken},
-				},
-				Value: nameToken.Literal,
+				BaseNode: ast.BaseNode{Token: nameToken},
+				Value:    nameToken.Literal,
 			},
 		},
 	}

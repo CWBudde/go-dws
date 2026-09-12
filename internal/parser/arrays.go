@@ -60,10 +60,8 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	lbrackToken := p.cursor.Current() // Save the '[' token for error reporting
 
 	indexExpr := &ast.IndexExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: lbrackToken},
-		},
-		Left: left,
+		BaseNode: ast.BaseNode{Token: lbrackToken},
+		Left:     left,
 	}
 
 	// Move to index expression
@@ -89,11 +87,9 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 
 		// Create a new IndexExpression with the previous result as the Left
 		nextIndex := &ast.IndexExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: lbrackToken},
-			},
-			Left:  result,
-			Index: p.parseExpression(LOWEST),
+			BaseNode: ast.BaseNode{Token: lbrackToken},
+			Left:     result,
+			Index:    p.parseExpression(LOWEST),
 		}
 		result = nextIndex
 	}
@@ -138,11 +134,9 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	if nextToken.Type == lexer.RBRACK {
 		p.cursor = p.cursor.Advance() // move to RBRACK
 		return &ast.ArrayLiteralExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token:  lbrackToken,
-					EndPos: p.cursor.Current().End(),
-				},
+			BaseNode: ast.BaseNode{
+				Token:  lbrackToken,
+				EndPos: p.cursor.Current().End(),
 			},
 			Elements: []ast.Expression{},
 		}
@@ -180,11 +174,9 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 			}
 
 			rangeExpr := &ast.RangeExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token:  rangeToken,
-						EndPos: endExpr.End(),
-					},
+				BaseNode: ast.BaseNode{
+					Token:  rangeToken,
+					EndPos: endExpr.End(),
 				},
 				Start:    elementExpr,
 				RangeEnd: endExpr,
@@ -220,11 +212,9 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	// Determine if this should be treated as a set literal (all elements are identifiers or ranges)
 	if shouldParseAsSetLiteral(elements) {
 		setLit := &ast.SetLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token:  lbrackToken,
-					EndPos: p.cursor.Current().End(),
-				},
+			BaseNode: ast.BaseNode{
+				Token:  lbrackToken,
+				EndPos: p.cursor.Current().End(),
 			},
 			Elements: elements,
 		}
@@ -232,11 +222,9 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	}
 
 	return &ast.ArrayLiteralExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  lbrackToken,
-				EndPos: p.cursor.Current().End(),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  lbrackToken,
+			EndPos: p.cursor.Current().End(),
 		},
 		Elements: elements,
 	}
@@ -351,10 +339,8 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 			dimensions = append(dimensions, dimensionPair{
 				low: lowBound,
 				high: &ast.InvalidExpression{
-					Reason: "missing upper array bound",
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: cursor.Peek(1)},
-					},
+					Reason:   "missing upper array bound",
+					BaseNode: ast.BaseNode{Token: cursor.Peek(1)},
 				},
 			})
 		} else {
@@ -391,10 +377,8 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 				dimensions = append(dimensions, dimensionPair{
 					low: lowBound,
 					high: &ast.InvalidExpression{
-						Reason: "missing upper array bound",
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{Token: cursor.Peek(1)},
-						},
+						Reason:   "missing upper array bound",
+						BaseNode: ast.BaseNode{Token: cursor.Peek(1)},
 					},
 				})
 				break

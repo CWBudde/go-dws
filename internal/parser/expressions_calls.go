@@ -24,9 +24,7 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	lparenToken := p.cursor.Current()
 
 	exp := &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: lparenToken},
-		},
+		BaseNode: ast.BaseNode{Token: lparenToken},
 		Function: function,
 	}
 
@@ -87,10 +85,8 @@ func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
 	rparenToken := p.cursor.Current()
 
 	exp := &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: rparenToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: rparenToken,
 		},
 		Function:  typeName,
 		Arguments: []ast.Expression{},
@@ -107,10 +103,8 @@ func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.Call
 	lparenToken := p.cursor.Current()
 
 	exp := &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: lparenToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: lparenToken,
 		},
 		Function: typeName,
 	}
@@ -146,9 +140,7 @@ func (p *Parser) buildCallExpressionFromFields(typeName *ast.Identifier, items [
 	}
 
 	return &ast.CallExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{Token: p.cursor.Current()},
-		},
+		BaseNode:  ast.BaseNode{Token: p.cursor.Current()},
 		Function:  typeName,
 		Arguments: args,
 	}
@@ -219,11 +211,9 @@ func (p *Parser) parseNamedFieldInitializer() *ast.FieldInitializer {
 	identToken := p.cursor.Current()
 
 	fieldName := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  identToken,
-				EndPos: p.endPosFromToken(identToken),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  identToken,
+			EndPos: p.endPosFromToken(identToken),
 		},
 		Value: identToken.Literal,
 	}

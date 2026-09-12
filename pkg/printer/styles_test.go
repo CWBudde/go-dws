@@ -16,10 +16,8 @@ func Example_compactPrinter() {
 			&ast.VarDeclStatement{
 				Names: []*ast.Identifier{
 					{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: token.Token{Type: token.IDENT, Literal: "x"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: token.Token{Type: token.IDENT, Literal: "x"},
 						},
 						Value: "x",
 					},
@@ -28,10 +26,8 @@ func Example_compactPrinter() {
 					Name: "Integer",
 				},
 				Value: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.INT, Literal: "42"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.INT, Literal: "42"},
 					},
 					Value: 42,
 				},
@@ -55,10 +51,8 @@ func Example_detailedPrinter() {
 		Statements: []ast.Statement{
 			&ast.IfStatement{
 				Condition: &ast.BooleanLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.TRUE, Literal: "true"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.TRUE, Literal: "true"},
 					},
 					Value: true,
 				},
@@ -66,10 +60,8 @@ func Example_detailedPrinter() {
 					Statements: []ast.Statement{
 						&ast.ExpressionStatement{
 							Expression: &ast.IntegerLiteral{
-								TypedExpressionBase: ast.TypedExpressionBase{
-									BaseNode: ast.BaseNode{
-										Token: token.Token{Type: token.INT, Literal: "1"},
-									},
+								BaseNode: ast.BaseNode{
+									Token: token.Token{Type: token.INT, Literal: "1"},
 								},
 								Value: 1,
 							},
@@ -100,19 +92,15 @@ func Example_treePrinter() {
 			&ast.ExpressionStatement{
 				Expression: &ast.BinaryExpression{
 					Left: &ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: token.Token{Type: token.INT, Literal: "10"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: token.Token{Type: token.INT, Literal: "10"},
 						},
 						Value: 10,
 					},
 					Operator: "+",
 					Right: &ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: token.Token{Type: token.INT, Literal: "20"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: token.Token{Type: token.INT, Literal: "20"},
 						},
 						Value: 20,
 					},
@@ -138,10 +126,8 @@ func Example_jsonPrinter() {
 		Statements: []ast.Statement{
 			&ast.ExpressionStatement{
 				Expression: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.INT, Literal: "42"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.INT, Literal: "42"},
 					},
 					Value: 42,
 				},
@@ -173,10 +159,8 @@ func Example_jsonPrinter() {
 func Example_optionsPresets() {
 	// Create a simple expression
 	expr := &ast.IntegerLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.INT, Literal: "100"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.INT, Literal: "100"},
 		},
 		Value: 100,
 	}

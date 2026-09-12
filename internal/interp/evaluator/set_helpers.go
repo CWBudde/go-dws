@@ -267,8 +267,8 @@ func (e *Evaluator) evalBracketLiteralAsSet(
 	ctx *ExecutionContext,
 ) Value {
 	setLit := &ast.SetLiteral{
-		Elements:            lit.Elements,
-		TypedExpressionBase: lit.TypedExpressionBase,
+		Elements: lit.Elements,
+		BaseNode: lit.BaseNode,
 	}
 
 	// Annotate the synthetic node so evalSetLiteralDirect can materialize the

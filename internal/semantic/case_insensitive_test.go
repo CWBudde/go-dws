@@ -181,9 +181,40 @@ end;`
 	}
 }
 
-// NOTE: Functions with var blocks have a pre-existing bug where Result
-// is not accessible. This is unrelated to case-insensitivity.
-// TODO: Fix var block scoping issue (separate bug)
+// TestFactorialWithVarBlock is the counterpart to TestFactorialSimple: the same
+// function written with a local `var` block, and with `Result` and the local
+// spelled in a different case than declared. A note here used to claim `Result`
+// was unreachable from a function with a var block; measured 2026-09-11, it is not.
+func TestFactorialWithVarBlock(t *testing.T) {
+	input := `function FactorialIterative(N: Integer): Integer;
+var
+    Acc, I: Integer;
+begin
+    acc := 1;
+    for i := 2 to n do
+        ACC := acc * i;
+    RESULT := Acc;
+end;
+
+var x: Integer;
+begin
+    x := factorialiterative(5);
+    PrintLn(IntToStr(x));
+end;`
+
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	analyzer := NewAnalyzer()
+	if err := analyzer.Analyze(program); err != nil {
+		t.Errorf("function with a var block should not have semantic errors, got: %v", err)
+	}
+}
 
 // TestSymbolTableCaseInsensitivity tests the symbol table directly
 func TestSymbolTableCaseInsensitivity(t *testing.T) {

@@ -95,9 +95,9 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 		if e.isDefaultNamespaceObject(memberAccess.Object, ctx) {
 			builtinCall := &ast.CallExpression{
-				TypedExpressionBase: node.TypedExpressionBase,
-				Function:            memberAccess.Member,
-				Arguments:           node.Arguments,
+				BaseNode:  node.BaseNode,
+				Function:  memberAccess.Member,
+				Arguments: node.Arguments,
 			}
 			return e.VisitCallExpression(builtinCall, ctx)
 		}
@@ -114,10 +114,8 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 				// Class constructor or static method
 				if e.typeSystem.HasClass(identNode.Value) {
 					mc := &ast.MethodCallExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: node.Token,
-							},
+						BaseNode: ast.BaseNode{
+							Token: node.Token,
 						},
 						Object:    identNode,
 						Method:    memberAccess.Member,
@@ -167,10 +165,8 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		if isRecordInstance || runtime.KindOf(objVal) == runtime.KindInterface || runtime.KindOf(objVal) == runtime.KindObject {
 			// Create synthetic MethodCallExpression for error reporting
 			mc := &ast.MethodCallExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: node.Token,
-					},
+				BaseNode: ast.BaseNode{
+					Token: node.Token,
 				},
 				Object:    memberAccess.Object,
 				Method:    memberAccess.Member,

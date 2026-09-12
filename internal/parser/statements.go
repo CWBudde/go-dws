@@ -546,10 +546,8 @@ func (p *Parser) parseVarIdentifierList() ([]*ast.Identifier, bool) {
 		}
 
 		names = append(names, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: currentToken,
-				},
+			BaseNode: ast.BaseNode{
+				Token: currentToken,
 			},
 			Value: currentToken.Literal,
 		})

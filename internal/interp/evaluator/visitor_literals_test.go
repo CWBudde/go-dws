@@ -31,10 +31,8 @@ func TestVisitIntegerLiteral(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &ast.IntegerLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.INT, Literal: ""},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.INT, Literal: ""},
 				},
 				Value: tt.value,
 			}
@@ -78,10 +76,8 @@ func TestVisitFloatLiteral(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &ast.FloatLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.FLOAT, Literal: ""},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.FLOAT, Literal: ""},
 				},
 				Value: tt.value,
 			}
@@ -123,10 +119,8 @@ func TestVisitStringLiteral(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &ast.StringLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.STRING, Literal: ""},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.STRING, Literal: ""},
 				},
 				Value: tt.value,
 			}
@@ -162,10 +156,8 @@ func TestVisitBooleanLiteral(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &ast.BooleanLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.TRUE, Literal: ""},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.TRUE, Literal: ""},
 				},
 				Value: tt.value,
 			}
@@ -208,10 +200,8 @@ func TestVisitCharLiteral(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			node := &ast.CharLiteral{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.CHAR, Literal: ""},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.CHAR, Literal: ""},
 				},
 				Value: tt.value,
 			}
@@ -236,10 +226,8 @@ func TestVisitNilLiteral(t *testing.T) {
 	ctx := &ExecutionContext{}
 
 	node := &ast.NilLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.NIL, Literal: "nil"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.NIL, Literal: "nil"},
 		},
 	}
 
@@ -262,10 +250,8 @@ func TestVisitNilLiteral_Multiple(t *testing.T) {
 	ctx := &ExecutionContext{}
 
 	node := &ast.NilLiteral{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{Type: token.NIL, Literal: "nil"},
-			},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{Type: token.NIL, Literal: "nil"},
 		},
 	}
 

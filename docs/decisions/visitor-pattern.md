@@ -38,7 +38,7 @@ go generate ./pkg/ast
 Generator features that callers rely on:
 
 - **Type-aware field handling.** Only fields whose type is a `Node` (`Expression`, `Statement`, concrete node pointers, or slices of those) are walked. Primitive fields such as `BinaryExpression.Operator` (a string) are skipped automatically, while `AddressOfExpression.Operator` (an `Expression`) is walked.
-- **Embedded field support.** Fields of embedded base types such as `TypedExpressionBase` are extracted recursively, so every expression gets its `Type *TypeAnnotation` walked without per-node code.
+- **Embedded base types.** A struct is recognised as a node when it embeds `BaseNode`; the embedded base itself holds no walkable children (type annotations live in `SemanticInfo`, not on the node), so it contributes no per-node code.
 - **Helper types.** Non-`Node` helpers (`Parameter`, `CaseBranch`, `ExceptClause`) get their own walk functions, called from the parent node's walker.
 - **Struct tags.** `ast:"skip"` excludes a field; `ast:"order:N"` overrides the default source-order traversal (tags can be combined as `ast:"skip,order:10"`).
 - `TestGeneratedVisitorCompleteness` fails when a node type exists without a generated case, which is the guard against the "forgot to add the field" failure mode of the manual walker.

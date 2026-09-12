@@ -84,11 +84,9 @@ func (p *Parser) parseAnonymousRecordField() *ast.FieldInitializer {
 	}
 
 	fieldName := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token:  nameToken,
-				EndPos: p.endPosFromToken(nameToken),
-			},
+		BaseNode: ast.BaseNode{
+			Token:  nameToken,
+			EndPos: p.endPosFromToken(nameToken),
 		},
 		Value: nameToken.Literal,
 	}

@@ -132,7 +132,7 @@ func (c *Compiler) compileMemberAccess(expr *ast.MemberAccessExpression) error {
 	// Check if this is a helper method/property access on a primitive type
 	// Helper methods on primitives (String, Integer, Float, Boolean) should be
 	// compiled as method calls (OpCallMethod with 0 arguments) instead of property access
-	// inferExpressionType already checks TypedExpression as a fallback
+	// inferExpressionType already falls back to the semantic type table
 	objectType := c.inferExpressionType(expr.Object)
 
 	if objectType != nil && c.isPrimitiveTypeWithHelpers(objectType) {
@@ -210,9 +210,7 @@ func (c *Compiler) compileSetLiteral(expr *ast.SetLiteral) error {
 				// This SetLiteral should be compiled as an array, not a set
 				// Create a temporary ArrayLiteralExpression and delegate to array compilation
 				arrayLit := &ast.ArrayLiteralExpression{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: expr.Token},
-					},
+					BaseNode: ast.BaseNode{Token: expr.Token},
 					Elements: expr.Elements,
 				}
 				// Copy type annotation to array literal so array compiler can use it

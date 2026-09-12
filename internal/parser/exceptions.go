@@ -467,10 +467,8 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	}
 
 	handler.Variable = &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: currentToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: currentToken,
 		},
 		Value: currentToken.Literal,
 	}

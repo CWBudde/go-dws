@@ -599,10 +599,8 @@ func (p *Parser) IdentifierList(config IdentifierListConfig) []*ast.Identifier {
 		curTok := p.cursor.Current()
 
 		identifiers = append(identifiers, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: curTok,
-				},
+			BaseNode: ast.BaseNode{
+				Token: curTok,
 			},
 			Value: curTok.Literal,
 		})

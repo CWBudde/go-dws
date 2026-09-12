@@ -179,13 +179,11 @@ func TestFieldDeclMethods(t *testing.T) {
 	pos := lexer.Position{Line: 5, Column: 10, Offset: 50}
 	fieldDecl := &FieldDecl{
 		Name: &Identifier{
-			TypedExpressionBase: TypedExpressionBase{
-				BaseNode: BaseNode{
-					Token: lexer.Token{
-						Type:    lexer.IDENT,
-						Literal: "X",
-						Pos:     pos,
-					},
+			BaseNode: BaseNode{
+				Token: lexer.Token{
+					Type:    lexer.IDENT,
+					Literal: "X",
+					Pos:     pos,
 				},
 			},
 			Value: "X",
@@ -221,10 +219,8 @@ func TestNewExpressionString(t *testing.T) {
 		{
 			name: "new without arguments",
 			newExpr: &NewExpression{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: NewTestToken(lexer.IDENT, "TPoint"),
-					},
+				BaseNode: BaseNode{
+					Token: NewTestToken(lexer.IDENT, "TPoint"),
 				},
 				ClassName: NewTestIdentifier("TPoint"),
 				Arguments: []Expression{},
@@ -234,10 +230,8 @@ func TestNewExpressionString(t *testing.T) {
 		{
 			name: "new with arguments",
 			newExpr: &NewExpression{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: lexer.Token{Type: lexer.IDENT, Literal: "TPoint"},
-					},
+				BaseNode: BaseNode{
+					Token: lexer.Token{Type: lexer.IDENT, Literal: "TPoint"},
 				},
 				ClassName: NewTestIdentifier("TPoint"),
 				Arguments: []Expression{
@@ -272,10 +266,8 @@ func TestMemberAccessString(t *testing.T) {
 		{
 			name: "simple field access",
 			memAccess: &MemberAccessExpression{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: NewTestToken(lexer.DOT, "."),
-					},
+				BaseNode: BaseNode{
+					Token: NewTestToken(lexer.DOT, "."),
 				},
 				Object: NewTestIdentifier("point"),
 				Member: NewTestIdentifier("X"),
@@ -285,16 +277,12 @@ func TestMemberAccessString(t *testing.T) {
 		{
 			name: "chained member access",
 			memAccess: &MemberAccessExpression{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: NewTestToken(lexer.DOT, "."),
-					},
+				BaseNode: BaseNode{
+					Token: NewTestToken(lexer.DOT, "."),
 				},
 				Object: &MemberAccessExpression{
-					TypedExpressionBase: TypedExpressionBase{
-						BaseNode: BaseNode{
-							Token: NewTestToken(lexer.DOT, "."),
-						},
+					BaseNode: BaseNode{
+						Token: NewTestToken(lexer.DOT, "."),
 					},
 					Object: NewTestIdentifier("obj"),
 					Member: NewTestIdentifier("field1"),
@@ -328,10 +316,8 @@ func TestMethodCallString(t *testing.T) {
 		{
 			name: "method call without arguments",
 			methodCall: &MethodCallExpression{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: NewTestToken(lexer.DOT, "."),
-					},
+				BaseNode: BaseNode{
+					Token: NewTestToken(lexer.DOT, "."),
 				},
 				Object:    NewTestIdentifier("obj"),
 				Method:    NewTestIdentifier("DoSomething"),
@@ -342,10 +328,8 @@ func TestMethodCallString(t *testing.T) {
 		{
 			name: "method call with arguments",
 			methodCall: &MethodCallExpression{
-				TypedExpressionBase: TypedExpressionBase{
-					BaseNode: BaseNode{
-						Token: NewTestToken(lexer.DOT, "."),
-					},
+				BaseNode: BaseNode{
+					Token: NewTestToken(lexer.DOT, "."),
 				},
 				Object: NewTestIdentifier("point"),
 				Method: NewTestIdentifier("MoveTo"),

@@ -11,9 +11,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	if name, ok := expr.Object.(*ast.Identifier); ok {
 		if _, imported := a.unitSymbols[ident.Normalize(name.Value)]; imported {
 			return a.analyzeCallExpression(&ast.CallExpression{
-				TypedExpressionBase: expr.TypedExpressionBase,
-				Function:            &ast.MemberAccessExpression{TypedExpressionBase: expr.TypedExpressionBase, Object: expr.Object, Member: expr.Method},
-				Arguments:           expr.Arguments,
+				BaseNode:  expr.BaseNode,
+				Function:  &ast.MemberAccessExpression{BaseNode: expr.BaseNode, Object: expr.Object, Member: expr.Method},
+				Arguments: expr.Arguments,
 			})
 		}
 	}
@@ -24,9 +24,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 	if a.isDefaultNamespace(expr.Object) {
 		builtinCall := &ast.CallExpression{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: expr.Token},
-			},
+			BaseNode:  ast.BaseNode{Token: expr.Token},
 			Function:  expr.Method,
 			Arguments: expr.Arguments,
 		}
@@ -42,9 +40,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// members. Rewrite to a plain global call and reuse call analysis.
 	if a.isDefaultNamespace(expr.Object) {
 		call := &ast.CallExpression{
-			TypedExpressionBase: expr.TypedExpressionBase,
-			Function:            expr.Method,
-			Arguments:           expr.Arguments,
+			BaseNode:  expr.BaseNode,
+			Function:  expr.Method,
+			Arguments: expr.Arguments,
 		}
 		return a.analyzeCallExpression(call)
 	}

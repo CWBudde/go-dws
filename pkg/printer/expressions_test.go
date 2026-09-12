@@ -22,10 +22,8 @@ func TestPrintRecordLiteral(t *testing.T) {
 					Token: token.Token{Type: token.IDENT, Literal: "TPoint"},
 				},
 				TypeName: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.IDENT, Literal: "TPoint"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.IDENT, Literal: "TPoint"},
 					},
 					Value: "TPoint",
 				},
@@ -35,18 +33,14 @@ func TestPrintRecordLiteral(t *testing.T) {
 							Token: token.Token{Type: token.IDENT, Literal: "X"},
 						},
 						Name: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: token.Token{Type: token.IDENT, Literal: "X"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: token.Token{Type: token.IDENT, Literal: "X"},
 							},
 							Value: "X",
 						},
 						Value: &ast.IntegerLiteral{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: token.Token{Type: token.INT, Literal: "10"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: token.Token{Type: token.INT, Literal: "10"},
 							},
 							Value: 10,
 						},
@@ -56,18 +50,14 @@ func TestPrintRecordLiteral(t *testing.T) {
 							Token: token.Token{Type: token.IDENT, Literal: "Y"},
 						},
 						Name: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: token.Token{Type: token.IDENT, Literal: "Y"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: token.Token{Type: token.IDENT, Literal: "Y"},
 							},
 							Value: "Y",
 						},
 						Value: &ast.IntegerLiteral{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: token.Token{Type: token.INT, Literal: "20"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: token.Token{Type: token.INT, Literal: "20"},
 							},
 							Value: 20,
 						},
@@ -88,10 +78,8 @@ func TestPrintRecordLiteral(t *testing.T) {
 							Token: token.Token{Type: token.INT, Literal: "5"},
 						},
 						Value: &ast.IntegerLiteral{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: token.Token{Type: token.INT, Literal: "5"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: token.Token{Type: token.INT, Literal: "5"},
 							},
 							Value: 5,
 						},
@@ -101,10 +89,8 @@ func TestPrintRecordLiteral(t *testing.T) {
 							Token: token.Token{Type: token.INT, Literal: "15"},
 						},
 						Value: &ast.IntegerLiteral{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: token.Token{Type: token.INT, Literal: "15"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: token.Token{Type: token.INT, Literal: "15"},
 							},
 							Value: 15,
 						},
@@ -139,10 +125,8 @@ func TestPrintLambdaExpression(t *testing.T) {
 		{
 			name: "lambda without parameters",
 			node: &ast.LambdaExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.LAMBDA, Literal: "lambda"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.LAMBDA, Literal: "lambda"},
 				},
 				Parameters: []*ast.Parameter{},
 				Body: &ast.BlockStatement{
@@ -155,10 +139,8 @@ func TestPrintLambdaExpression(t *testing.T) {
 								Token: token.Token{Type: token.INT, Literal: "42"},
 							},
 							Expression: &ast.IntegerLiteral{
-								TypedExpressionBase: ast.TypedExpressionBase{
-									BaseNode: ast.BaseNode{
-										Token: token.Token{Type: token.INT, Literal: "42"},
-									},
+								BaseNode: ast.BaseNode{
+									Token: token.Token{Type: token.INT, Literal: "42"},
 								},
 								Value: 42,
 							},
@@ -171,18 +153,14 @@ func TestPrintLambdaExpression(t *testing.T) {
 		{
 			name: "lambda with single parameter",
 			node: &ast.LambdaExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.LAMBDA, Literal: "lambda"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.LAMBDA, Literal: "lambda"},
 				},
 				Parameters: []*ast.Parameter{
 					{
 						Name: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: token.Token{Type: token.IDENT, Literal: "x"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: token.Token{Type: token.IDENT, Literal: "x"},
 							},
 							Value: "x",
 						},
@@ -199,25 +177,19 @@ func TestPrintLambdaExpression(t *testing.T) {
 								Token: token.Token{Type: token.PLUS, Literal: "+"},
 							},
 							Expression: &ast.BinaryExpression{
-								TypedExpressionBase: ast.TypedExpressionBase{
-									BaseNode: ast.BaseNode{
-										Token: token.Token{Type: token.PLUS, Literal: "+"},
-									},
+								BaseNode: ast.BaseNode{
+									Token: token.Token{Type: token.PLUS, Literal: "+"},
 								},
 								Left: &ast.Identifier{
-									TypedExpressionBase: ast.TypedExpressionBase{
-										BaseNode: ast.BaseNode{
-											Token: token.Token{Type: token.IDENT, Literal: "x"},
-										},
+									BaseNode: ast.BaseNode{
+										Token: token.Token{Type: token.IDENT, Literal: "x"},
 									},
 									Value: "x",
 								},
 								Operator: "+",
 								Right: &ast.IntegerLiteral{
-									TypedExpressionBase: ast.TypedExpressionBase{
-										BaseNode: ast.BaseNode{
-											Token: token.Token{Type: token.INT, Literal: "1"},
-										},
+									BaseNode: ast.BaseNode{
+										Token: token.Token{Type: token.INT, Literal: "1"},
 									},
 									Value: 1,
 								},
@@ -231,18 +203,14 @@ func TestPrintLambdaExpression(t *testing.T) {
 		{
 			name: "lambda with multiple parameters",
 			node: &ast.LambdaExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.LAMBDA, Literal: "lambda"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.LAMBDA, Literal: "lambda"},
 				},
 				Parameters: []*ast.Parameter{
 					{
 						Name: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: token.Token{Type: token.IDENT, Literal: "x"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: token.Token{Type: token.IDENT, Literal: "x"},
 							},
 							Value: "x",
 						},
@@ -250,10 +218,8 @@ func TestPrintLambdaExpression(t *testing.T) {
 					},
 					{
 						Name: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: token.Token{Type: token.IDENT, Literal: "y"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: token.Token{Type: token.IDENT, Literal: "y"},
 							},
 							Value: "y",
 						},
@@ -270,25 +236,19 @@ func TestPrintLambdaExpression(t *testing.T) {
 								Token: token.Token{Type: token.PLUS, Literal: "+"},
 							},
 							Expression: &ast.BinaryExpression{
-								TypedExpressionBase: ast.TypedExpressionBase{
-									BaseNode: ast.BaseNode{
-										Token: token.Token{Type: token.PLUS, Literal: "+"},
-									},
+								BaseNode: ast.BaseNode{
+									Token: token.Token{Type: token.PLUS, Literal: "+"},
 								},
 								Left: &ast.Identifier{
-									TypedExpressionBase: ast.TypedExpressionBase{
-										BaseNode: ast.BaseNode{
-											Token: token.Token{Type: token.IDENT, Literal: "x"},
-										},
+									BaseNode: ast.BaseNode{
+										Token: token.Token{Type: token.IDENT, Literal: "x"},
 									},
 									Value: "x",
 								},
 								Operator: "+",
 								Right: &ast.Identifier{
-									TypedExpressionBase: ast.TypedExpressionBase{
-										BaseNode: ast.BaseNode{
-											Token: token.Token{Type: token.IDENT, Literal: "y"},
-										},
+									BaseNode: ast.BaseNode{
+										Token: token.Token{Type: token.IDENT, Literal: "y"},
 									},
 									Value: "y",
 								},
@@ -325,32 +285,24 @@ func TestPrintIfExpression(t *testing.T) {
 		{
 			name: "simple if expression",
 			node: &ast.IfExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.IF, Literal: "if"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.IF, Literal: "if"},
 				},
 				Condition: &ast.BooleanLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.TRUE, Literal: "true"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.TRUE, Literal: "true"},
 					},
 					Value: true,
 				},
 				Consequence: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.INT, Literal: "1"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.INT, Literal: "1"},
 					},
 					Value: 1,
 				},
 				Alternative: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.INT, Literal: "0"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.INT, Literal: "0"},
 					},
 					Value: 0,
 				},
@@ -360,24 +312,18 @@ func TestPrintIfExpression(t *testing.T) {
 		{
 			name: "if expression without alternative",
 			node: &ast.IfExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.IF, Literal: "if"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.IF, Literal: "if"},
 				},
 				Condition: &ast.BooleanLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.TRUE, Literal: "true"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.TRUE, Literal: "true"},
 					},
 					Value: true,
 				},
 				Consequence: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.INT, Literal: "42"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.INT, Literal: "42"},
 					},
 					Value: 42,
 				},
@@ -450,16 +396,12 @@ func TestPrintOldExpression(t *testing.T) {
 		{
 			name: "old expression",
 			node: &ast.OldExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.OLD, Literal: "old"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.OLD, Literal: "old"},
 				},
 				Identifier: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.IDENT, Literal: "value"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.IDENT, Literal: "value"},
 					},
 					Value: "value",
 				},
@@ -492,16 +434,12 @@ func TestPrintNewExpressionWithArguments(t *testing.T) {
 		{
 			name: "new with no arguments",
 			node: &ast.NewExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.NEW, Literal: "new"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.NEW, Literal: "new"},
 				},
 				ClassName: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.IDENT, Literal: "TObject"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.IDENT, Literal: "TObject"},
 					},
 					Value: "TObject",
 				},
@@ -512,33 +450,25 @@ func TestPrintNewExpressionWithArguments(t *testing.T) {
 		{
 			name: "new with arguments",
 			node: &ast.NewExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.NEW, Literal: "new"},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.NEW, Literal: "new"},
 				},
 				ClassName: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.IDENT, Literal: "TPoint"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.IDENT, Literal: "TPoint"},
 					},
 					Value: "TPoint",
 				},
 				Arguments: []ast.Expression{
 					&ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: token.Token{Type: token.INT, Literal: "10"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: token.Token{Type: token.INT, Literal: "10"},
 						},
 						Value: 10,
 					},
 					&ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: token.Token{Type: token.INT, Literal: "20"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: token.Token{Type: token.INT, Literal: "20"},
 						},
 						Value: 20,
 					},
@@ -572,24 +502,18 @@ func TestPrintMethodCallExpressionEmptyArgs(t *testing.T) {
 		{
 			name: "method call with no arguments",
 			node: &ast.MethodCallExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{Type: token.DOT, Literal: "."},
-					},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{Type: token.DOT, Literal: "."},
 				},
 				Object: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.IDENT, Literal: "obj"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.IDENT, Literal: "obj"},
 					},
 					Value: "obj",
 				},
 				Method: &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.IDENT, Literal: "ToString"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.IDENT, Literal: "ToString"},
 					},
 					Value: "ToString",
 				},

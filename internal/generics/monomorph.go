@@ -303,7 +303,7 @@ func identForMangled(gtr *ast.GenericTypeRef, mangled string) *ast.Identifier {
 		tok = gtr.Base.Token
 	}
 	return &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{Token: tok}},
-		Value:               mangled,
+		BaseNode: ast.BaseNode{Token: tok},
+		Value:    mangled,
 	}
 }

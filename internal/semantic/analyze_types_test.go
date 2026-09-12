@@ -126,32 +126,6 @@ func TestLargeSetForInLoopAnalysis(t *testing.T) {
 	}
 }
 
-// TestLargeSetForInLoopVariableTypeError tests loop variable type checking.
-// TODO: Skipped - semantic analyzer doesn't yet validate loop variable type matches set element type
-// Uncomment when for-in loop variable type checking is implemented
-/*
-func TestLargeSetForInLoopVariableTypeError(t *testing.T) {
-	input := `
-		type TLargeEnum = (E00, E01, E02, E03, E04, E05, E06, E07, E08, E09,
-		                    E10, E11, E12, E13, E14, E15, E16, E17, E18, E19,
-		                    E20, E21, E22, E23, E24, E25, E26, E27, E28, E29,
-		                    E30, E31, E32, E33, E34, E35, E36, E37, E38, E39,
-		                    E40, E41, E42, E43, E44, E45, E46, E47, E48, E49,
-		                    E50, E51, E52, E53, E54, E55, E56, E57, E58, E59,
-		                    E60, E61, E62, E63, E64);
-		type TLargeSet = set of TLargeEnum;
-		var s: TLargeSet;
-		var i: Integer;
-		begin
-			s := [E00, E10];
-			for i in s do
-				PrintLn(i);
-		end.
-	`
-	expectError(t, input, "loop variable")
-}
-*/
-
 // TestLargeSetIncompatibleTypes tests error detection for incompatible large set types.
 func TestLargeSetIncompatibleTypes(t *testing.T) {
 	tests := []struct {
@@ -263,9 +237,6 @@ func TestLargeSetStorageKindIndependence(t *testing.T) {
 }
 
 // TestLargeSetRangeLiterals tests range expressions in large set literals.
-// TODO: This test is skipped because range expression semantic analysis is not yet implemented.
-// Uncomment when range expressions are supported in semantic analyzer.
-/*
 func TestLargeSetRangeLiterals(t *testing.T) {
 	input := `
 		type TLargeEnum = (E00, E01, E02, E03, E04, E05, E06, E07, E08, E09,
@@ -286,7 +257,6 @@ func TestLargeSetRangeLiterals(t *testing.T) {
 
 	expectNoErrors(t, input)
 }
-*/
 
 // ============================================================================
 // Helper Functions

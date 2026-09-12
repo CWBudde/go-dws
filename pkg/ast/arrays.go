@@ -124,7 +124,7 @@ func (ata *ArrayTypeAnnotation) IsStatic() bool {
 //   - ['a', 'b', 'c']  // array of strings
 type ArrayLiteralExpression struct {
 	Elements []Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 // expressionNode implements the Expression interface
@@ -160,7 +160,7 @@ func (al *ArrayLiteralExpression) String() string {
 type IndexExpression struct {
 	Left  Expression
 	Index Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 // expressionNode implements the Expression interface
@@ -205,7 +205,7 @@ func (ie *IndexExpression) String() string {
 type NewArrayExpression struct {
 	ElementTypeName *Identifier
 	Dimensions      []Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 // expressionNode implements the Expression interface

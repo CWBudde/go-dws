@@ -82,10 +82,8 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	cursor = cursor.Advance() // move to identifier
 
 	decl.Binding = &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
 		},
 		Value: cursor.Current().Literal,
 	}
@@ -199,10 +197,8 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 	cursor = cursor.Advance() // move to identifier
 
 	decl.Binding = &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
 		},
 		Value: cursor.Current().Literal,
 	}

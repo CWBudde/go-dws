@@ -2761,3 +2761,67 @@ inputs with no line in common, about 1.6 GB — enough to have the process kille
 about 1,400 reformatted lines) in favour of a whole-file replacement that `buildHunks` renders as a
 single hunk. Distance 0 is special-cased in the backtrack, where the predecessor is the origin
 rather than a trace entry.
+
+## 2026-09-11 — The skipped-test backlog (§3.4)
+
+The last §3.4 bullet listed six places where a test was skipped, commented out, or replaced by a
+note. Each was measured rather than trusted; the outcomes differ.
+
+### Nested functions: a dead escape hatch
+
+`internal/parser/functions_decl_test.go` guarded `TestNestedFunctions` with a conditional
+`t.Skip` citing a "task 5.11" that no longer exists in `PLAN.md`. The branch was dead — nested
+functions parse (`internal/parser/statements.go` accepts `function`/`procedure`/`method` inside
+`parseStatement`) and run (`internal/interp/evaluator/local_functions.go`). The guard is gone and
+the test now asserts what it was only documenting: the nested `Inner` is a `*ast.FunctionDecl` in
+`outerFn.Body.Statements`, with its parameter list intact.
+
+### `cmd/dwscript/sets_test.go`: deleted
+
+`TestLargeSet` and `TestForInSet` skipped with "set runtime support is incomplete (PLAN.md P4
+SetOfPass)". Both halves were false: `SetOfPass` is 25/25, and the tests would have failed on
+their own `t.Fatalf` regardless, because `testdata/sets/` never held the `.out` files they
+compare against. They were also the only tests in the repo that shelled out to `go build -o
+../../bin/dwscript` from inside a test, writing into the working tree. The file and the two
+orphaned `testdata/sets/*.dws` scripts (whose headers still claimed `set of` was unparseable) are
+deleted; `testdata/fixtures/SetOfPass/for_in_set.pas` and `add_set_big.pas` already cover both.
+
+### Two commented-out semantic tests: one kept, one deleted
+
+`TestLargeSetRangeLiterals` — `[E00..E10]` and a range straddling the 64-bit storage boundary —
+passes as written and is now live. `TestLargeSetForInLoopVariableTypeError` does not: `for i in s`
+with an `Integer` loop variable over a `set of TEnum` is accepted silently. The commented block is
+deleted and the gap is recorded as a ✋ note in §3.2 instead of dead code in the tree.
+
+### Const parameters: the assertion was inverted, and so was the premise
+
+`TestConstParameterCannotBeModified` fed `arr[0] := 0` through a `const` open-array parameter and
+called `expectNoErrors`, with a TODO saying it should eventually error. Implementing that check
+turned up the real rule, which is narrower than the test's name: DWScript rejects the write only
+when the const binding is a *value*. `FailureScripts/const_param4` expects the error for `const
+s1: TStat` (a static array), while `FailureScripts/array_of_const` expects **no** error for
+`procedure Test1(const AInts: array of Integer)` — a const open array pins the reference, not the
+elements.
+
+`Analyzer.isReadOnlyArrayIndexTarget` (`internal/semantic/analyze_statements.go`) therefore fires
+only for a static array reached through a pure index chain rooted at a read-only identifier, and
+emits upstream's wording, `Cannot assign a value to the left-side argument`. Member-access roots
+(`obj.Items[0]`) are excluded deliberately: they mutate the referenced object, not the binding.
+`FailureScripts/const_array1` now matches exactly (125 → 126); `array_of_const` is unchanged. The
+test is renamed `TestConstArrayParameterElementAssignment` and pins both halves of the split.
+
+Still divergent, and not addressed here: assigning to a `const` scalar or string parameter emits
+`cannot assign to read-only variable 'v'` where upstream says `Cannot assign a value to the
+left-side argument`, which is why `const_param1` and `const_param4` still fail.
+
+### The var-block Result note
+
+`internal/semantic/case_insensitive_test.go` carried a bare comment claiming functions with a
+local `var` block cannot reach `Result`. It no longer reproduces: a function with a `var` block
+assigning to `Result` compiles and runs, in matched or mismatched case, emitting only the
+case-mismatch hints §5 marks won't-fix. The comment is replaced by `TestFactorialWithVarBlock`,
+the var-block counterpart to the existing `TestFactorialSimple` that the note stood in for.
+
+**Validation:** `go test ./internal/parser/... ./internal/semantic/... ./cmd/...` green;
+`just build` green; fixtures 1043 → 1044 with `SetOfPass` unchanged at 25/25 and no category
+regressing. Baselines ratcheted and `TEST_STATUS.md` regenerated.

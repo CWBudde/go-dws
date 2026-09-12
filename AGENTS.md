@@ -244,7 +244,7 @@ The project follows standard Go project layout with `cmd/`, `internal/`, and `pk
 
 - **Type-aware field handling**: Only walks fields that are Node types (Expression, Statement, etc.). Primitive fields (strings, ints, bools) are automatically skipped. For example, `BinaryExpression.Operator` (string) is skipped, but `AddressOfExpression.Operator` (Expression) is walked.
 
-- **Embedded field support**: Recursively extracts fields from embedded base types like `TypedExpressionBase`. All expressions that embed `TypedExpressionBase` automatically get their `Type *TypeAnnotation` field walked.
+- **Embedded base types**: A struct is recognised as a node when it embeds `BaseNode`. The generator skips embedded fields when collecting walkable children, because `BaseNode` holds no `Node` fields of its own — type information lives in `SemanticInfo`, not on the node — so an embedded base contributes no traversal code.
 
 - **Helper type support**: Non-Node helper types like `Parameter`, `CaseBranch`, `ExceptClause` get their own walk functions that are called by the main walker.
 

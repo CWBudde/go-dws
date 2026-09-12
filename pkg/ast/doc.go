@@ -109,11 +109,11 @@
 //
 // # Type Information
 //
-// Expressions implement the TypedExpression interface, which provides
-// GetType() and SetType() methods for semantic type information:
+// Type information is not stored on AST nodes. The semantic analyzer records
+// it in a side table (SemanticInfo), keyed by node:
 //
-//	expr.GetType()          // Returns *TypeAnnotation
-//	expr.SetType(typeInfo)  // Sets type information
+//	info.GetType(expr)          // Returns *TypeAnnotation
+//	info.SetType(expr, typeInfo) // Records type information
 //
 // # Integration with Parser
 //

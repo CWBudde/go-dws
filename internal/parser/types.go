@@ -637,10 +637,8 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 		return []dimensionPair{{
 			low: lowBound,
 			high: &ast.InvalidExpression{
-				Reason: "missing upper array bound",
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: p.cursor.Peek(1)},
-				},
+				Reason:   "missing upper array bound",
+				BaseNode: ast.BaseNode{Token: p.cursor.Peek(1)},
 			},
 		}}
 	}
@@ -671,10 +669,8 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 			dimensions = append(dimensions, dimensionPair{
 				low: lowBound,
 				high: &ast.InvalidExpression{
-					Reason: "missing upper array bound",
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: p.cursor.Peek(1)},
-					},
+					Reason:   "missing upper array bound",
+					BaseNode: ast.BaseNode{Token: p.cursor.Peek(1)},
 				},
 			})
 			return dimensions

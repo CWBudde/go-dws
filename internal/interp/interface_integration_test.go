@@ -294,10 +294,8 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		iface := NewInterfaceInfo("ITest")
 		iface.Methods[strings.ToLower("DoIt")] = &ast.FunctionDecl{
 			Name: &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{},
-				},
-				Value: "DoIt",
+				BaseNode: ast.BaseNode{},
+				Value:    "DoIt",
 			},
 		}
 
@@ -305,10 +303,8 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		class := NewClassInfo("TTest")
 		class.Methods["doit"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{
 			Name: &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{},
-				},
-				Value: "DoIt",
+				BaseNode: ast.BaseNode{},
+				Value:    "DoIt",
 			},
 		})
 		class.Interfaces = append(class.Interfaces, iface)
@@ -335,7 +331,7 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 		// Create interface and class
 		iface := NewInterfaceInfo("ITest")
 		class := NewClassInfo("TTest")
-		class.GetMethodsMap()["doit"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DoIt"}})
+		class.GetMethodsMap()["doit"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "DoIt"}})
 		// Register field so SetField uses normalized metadata/legacy paths
 		// Note: Skipping field registration since Fields now expects *ast.FieldDecl
 		runtime.AddFieldToClass(class.Metadata, &runtime.FieldMetadata{
@@ -375,12 +371,12 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("InterfaceToInterface_Upcast", func(t *testing.T) {
 		// Create base interface
 		base := NewInterfaceInfo("IBase")
-		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "BaseMethod"}}
+		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "BaseMethod"}}
 
 		// Create derived interface
 		derived := NewInterfaceInfo("IDerived")
 		derived.Parent = base
-		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DerivedMethod"}}
+		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "DerivedMethod"}}
 
 		// Test: IDerived → IBase (upcast)
 		if !interfaceIsCompatible(derived, base) {
@@ -391,12 +387,12 @@ func TestIntegration_InterfaceCastingAllCombinations(t *testing.T) {
 	t.Run("InterfaceToInterface_Downcast", func(t *testing.T) {
 		// Create base interface
 		base := NewInterfaceInfo("IBase")
-		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "BaseMethod"}}
+		base.Methods["basemethod"] = &ast.FunctionDecl{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "BaseMethod"}}
 
 		// Create derived interface
 		derived := NewInterfaceInfo("IDerived")
 		derived.Parent = base
-		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "DerivedMethod"}}
+		derived.Methods["derivedmethod"] = &ast.FunctionDecl{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "DerivedMethod"}}
 
 		// Test: IBase → IDerived (downcast - should fail)
 		if interfaceIsCompatible(base, derived) {
@@ -432,10 +428,10 @@ func TestIntegration_InterfaceLifetimeManagement(t *testing.T) {
 
 		// Create interface and class
 		iface := NewInterfaceInfo("IResource")
-		iface.Methods[strings.ToLower("Release")] = &ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}}
+		iface.Methods[strings.ToLower("Release")] = &ast.FunctionDecl{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "Release"}}
 
 		class := NewClassInfo("TResource")
-		class.Methods["release"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "Release"}})
+		class.Methods["release"] = runtime.MethodMetadataFromAST(&ast.FunctionDecl{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "Release"}})
 
 		interp.typeSystem.RegisterInterface("iresource", iface)
 		interp.typeSystem.RegisterClass("TResource", class)

@@ -166,7 +166,7 @@ func TestCharLiteral(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := &CharLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.CHAR, tt.literal)}, Value: tt.value}
+			node := &CharLiteral{BaseNode: NewTestBaseNode(lexer.CHAR, tt.literal), Value: tt.value}
 
 			if node.TokenLiteral() != tt.literal {
 				t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), tt.literal)
@@ -189,7 +189,7 @@ func TestCharLiteral(t *testing.T) {
 
 // TestNilLiteral tests the NilLiteral node.
 func TestNilLiteral(t *testing.T) {
-	node := &NilLiteral{TypedExpressionBase: TypedExpressionBase{BaseNode: NewTestBaseNode(lexer.NIL, "nil")}}
+	node := &NilLiteral{BaseNode: NewTestBaseNode(lexer.NIL, "nil")}
 
 	if node.TokenLiteral() != "nil" {
 		t.Errorf("TokenLiteral() = %q, want %q", node.TokenLiteral(), "nil")

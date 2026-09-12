@@ -16,10 +16,8 @@ func Example() {
 			&ast.VarDeclStatement{
 				Names: []*ast.Identifier{
 					{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: token.Token{Type: token.IDENT, Literal: "x"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: token.Token{Type: token.IDENT, Literal: "x"},
 						},
 						Value: "x",
 					},
@@ -28,10 +26,8 @@ func Example() {
 					Name: "Integer",
 				},
 				Value: &ast.IntegerLiteral{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: token.Token{Type: token.INT, Literal: "42"},
-						},
+					BaseNode: ast.BaseNode{
+						Token: token.Token{Type: token.INT, Literal: "42"},
 					},
 					Value: 42,
 				},
@@ -52,19 +48,15 @@ func Example_compactStyle() {
 	// Create a simple binary expression: 3 + 5
 	expr := &ast.BinaryExpression{
 		Left: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: token.Token{Type: token.INT, Literal: "3"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: token.Token{Type: token.INT, Literal: "3"},
 			},
 			Value: 3,
 		},
 		Operator: "+",
 		Right: &ast.IntegerLiteral{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: token.Token{Type: token.INT, Literal: "5"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: token.Token{Type: token.INT, Literal: "5"},
 			},
 			Value: 5,
 		},
@@ -99,10 +91,8 @@ func Example_treeFormat() {
 			&ast.VarDeclStatement{
 				Names: []*ast.Identifier{
 					{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: token.Token{Type: token.IDENT, Literal: "result"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: token.Token{Type: token.IDENT, Literal: "result"},
 						},
 						Value: "result",
 					},
@@ -112,19 +102,15 @@ func Example_treeFormat() {
 				},
 				Value: &ast.BinaryExpression{
 					Left: &ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: token.Token{Type: token.INT, Literal: "10"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: token.Token{Type: token.INT, Literal: "10"},
 						},
 						Value: 10,
 					},
 					Operator: "*",
 					Right: &ast.IntegerLiteral{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: token.Token{Type: token.INT, Literal: "20"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: token.Token{Type: token.INT, Literal: "20"},
 						},
 						Value: 20,
 					},

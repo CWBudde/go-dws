@@ -30,10 +30,8 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 		return nil
 	}
 	propName := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: p.cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: p.cursor.Current(),
 		},
 		Value: p.cursor.Current().Literal,
 	}
@@ -164,10 +162,8 @@ parseDirectives:
 			} else if p.isMemberNameToken(p.cursor.Current().Type) {
 				// Simple field/method name (may be a reserved word, e.g. `read Set`)
 				prop.ReadSpec = &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: p.cursor.Current(),
-						},
+					BaseNode: ast.BaseNode{
+						Token: p.cursor.Current(),
 					},
 					Value: p.cursor.Current().Literal,
 				}
@@ -192,10 +188,8 @@ parseDirectives:
 			case p.isMemberNameToken(p.cursor.Current().Type):
 				// Simple field/method name (may be a reserved word, e.g. `write Set`)
 				prop.WriteSpec = &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{
-							Token: p.cursor.Current(),
-						},
+					BaseNode: ast.BaseNode{
+						Token: p.cursor.Current(),
 					},
 					Value: p.cursor.Current().Literal,
 				}
@@ -217,10 +211,8 @@ parseDirectives:
 		// Generate backing field name: F + property name
 		backingFieldName := "F" + propName.Value
 		backingField := &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: propName.Token,
-				},
+			BaseNode: ast.BaseNode{
+				Token: propName.Token,
 			},
 			Value: backingFieldName,
 		}
@@ -322,10 +314,8 @@ func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Tok
 			Target:   lhs,
 			Operator: lexer.ASSIGN,
 			Value: &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: writeToken},
-				},
-				Value: "Value",
+				BaseNode: ast.BaseNode{Token: writeToken},
+				Value:    "Value",
 			},
 		}, nil
 	}
@@ -350,10 +340,8 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 		}
 
 		names = append(names, &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: p.cursor.Current(),
-				},
+			BaseNode: ast.BaseNode{
+				Token: p.cursor.Current(),
 			},
 			Value: p.cursor.Current().Literal,
 		})

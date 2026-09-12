@@ -48,15 +48,13 @@ func TestErrorMessagesIncludeLocation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a node with position information
 			node := &ast.BinaryExpression{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{
-						Token: token.Token{
-							Type:    token.SLASH,
-							Literal: "/",
-							Pos: lexer.Position{
-								Line:   tt.line,
-								Column: tt.column,
-							},
+				BaseNode: ast.BaseNode{
+					Token: token.Token{
+						Type:    token.SLASH,
+						Literal: "/",
+						Pos: lexer.Position{
+							Line:   tt.line,
+							Column: tt.column,
 						},
 					},
 				},
@@ -115,15 +113,13 @@ func TestErrorMessagesWithZeroLineNumber(t *testing.T) {
 
 	// Create a node with zero line number (invalid position)
 	node := &ast.BinaryExpression{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: token.Token{
-					Type:    token.SLASH,
-					Literal: "/",
-					Pos: lexer.Position{
-						Line:   0, // Invalid
-						Column: 0,
-					},
+		BaseNode: ast.BaseNode{
+			Token: token.Token{
+				Type:    token.SLASH,
+				Literal: "/",
+				Pos: lexer.Position{
+					Line:   0, // Invalid
+					Column: 0,
 				},
 			},
 		},

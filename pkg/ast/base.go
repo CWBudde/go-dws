@@ -34,12 +34,3 @@ func (n *BaseNode) End() token.Position {
 	pos.Offset += literalLen
 	return pos
 }
-
-// TypedExpressionBase extends BaseNode and was previously used to store type
-// annotations. Type information is stored separately in
-// SemanticInfo rather than on AST nodes themselves. This type is kept for
-// backward compatibility but is just an alias for BaseNode.
-// TODO: Check if still needed!
-type TypedExpressionBase struct {
-	BaseNode
-}

@@ -157,10 +157,8 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 			cursor = cursor.Advance()
 			p.cursor = cursor
 			fn.HelperName = &ast.Identifier{
-				TypedExpressionBase: ast.TypedExpressionBase{
-					BaseNode: ast.BaseNode{Token: cursor.Current()},
-				},
-				Value: cursor.Current().Literal,
+				BaseNode: ast.BaseNode{Token: cursor.Current()},
+				Value:    cursor.Current().Literal,
 			}
 		}
 
@@ -317,10 +315,8 @@ func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier, 
 	cursor := p.cursor
 
 	firstIdent := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
 		},
 		Value: cursor.Current().Literal,
 	}
@@ -354,10 +350,8 @@ func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier, 
 		className.Value = strings.Join(parts[:len(parts)-1], ".")
 		// Update name to the final identifier
 		name = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: cursor.Current(),
-				},
+			BaseNode: ast.BaseNode{
+				Token: cursor.Current(),
 			},
 			Value: parts[len(parts)-1],
 		}
@@ -672,10 +666,8 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	}
 
 	name := &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
-			},
+		BaseNode: ast.BaseNode{
+			Token: cursor.Current(),
 		},
 		Value: cursor.Current().Literal,
 	}
@@ -693,10 +685,8 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		}
 
 		name = &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: cursor.Current(),
-				},
+			BaseNode: ast.BaseNode{
+				Token: cursor.Current(),
 			},
 			Value: cursor.Current().Literal,
 		}

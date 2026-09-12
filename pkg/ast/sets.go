@@ -53,7 +53,7 @@ func (sd *SetDecl) String() string {
 //   - []                       // empty set
 type SetLiteral struct {
 	Elements []Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 // expressionNode implements the Expression interface

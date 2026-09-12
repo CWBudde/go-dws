@@ -158,10 +158,8 @@ func (p *Parser) parseSingleConstDeclaration(isResourceStringSection bool) *ast.
 		IsResourceString: isResourceString,
 	}
 	stmt.Name = &ast.Identifier{
-		TypedExpressionBase: ast.TypedExpressionBase{
-			BaseNode: ast.BaseNode{
-				Token: currentToken,
-			},
+		BaseNode: ast.BaseNode{
+			Token: currentToken,
 		},
 		Value: currentToken.Literal,
 	}

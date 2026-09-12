@@ -378,10 +378,8 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		case *ast.ClassDecl:
 			if n.EnclosingClass == nil {
 				n.EnclosingClass = &ast.Identifier{
-					TypedExpressionBase: ast.TypedExpressionBase{
-						BaseNode: ast.BaseNode{Token: node.Name.Token},
-					},
-					Value: className,
+					BaseNode: ast.BaseNode{Token: node.Name.Token},
+					Value:    className,
 				}
 			}
 			if result := e.Eval(n, ctx); isError(result) {
@@ -692,10 +690,8 @@ func writeSpecAssignment(writeSpec ast.Expression) ast.Statement {
 		Target:   target,
 		Operator: token.ASSIGN,
 		Value: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{Token: token.Token{Type: token.IDENT, Literal: "Value", Pos: pos}},
-			},
-			Value: "Value",
+			BaseNode: ast.BaseNode{Token: token.Token{Type: token.IDENT, Literal: "Value", Pos: pos}},
+			Value:    "Value",
 		},
 	}
 }

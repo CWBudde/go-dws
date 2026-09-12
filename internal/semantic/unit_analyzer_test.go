@@ -17,10 +17,8 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 	unitDecl := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
 			},
 			Value: "TestUnit",
 		},
@@ -30,20 +28,18 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						},
 						Value: "Add",
 					},
 					Parameters: []*ast.Parameter{
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "a"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "a"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "b"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "b"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 					},
@@ -61,20 +57,18 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						},
 						Value: "Add",
 					},
 					Parameters: []*ast.Parameter{
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "a"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "a"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "b"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "b"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 					},
@@ -83,24 +77,18 @@ func TestAnalyzeUnit_BasicInterfaceAndImplementation(t *testing.T) {
 						Statements: []ast.Statement{
 							&ast.AssignmentStatement{
 								Target: &ast.Identifier{
-									TypedExpressionBase: ast.TypedExpressionBase{
-										BaseNode: ast.BaseNode{},
-									},
-									Value: "Result",
+									BaseNode: ast.BaseNode{},
+									Value:    "Result",
 								},
 								Value: &ast.BinaryExpression{
 									Left: &ast.Identifier{
-										TypedExpressionBase: ast.TypedExpressionBase{
-											BaseNode: ast.BaseNode{},
-										},
-										Value: "a",
+										BaseNode: ast.BaseNode{},
+										Value:    "a",
 									},
 									Operator: "+",
 									Right: &ast.Identifier{
-										TypedExpressionBase: ast.TypedExpressionBase{
-											BaseNode: ast.BaseNode{},
-										},
-										Value: "b",
+										BaseNode: ast.BaseNode{},
+										Value:    "b",
 									},
 								},
 							},
@@ -145,10 +133,8 @@ func TestAnalyzeUnit_MissingImplementation(t *testing.T) {
 	unitDecl := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
 			},
 			Value: "TestUnit",
 		},
@@ -157,10 +143,8 @@ func TestAnalyzeUnit_MissingImplementation(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "DoSomething"},
 						},
 						Value: "DoSomething",
 					},
@@ -196,10 +180,8 @@ func TestAnalyzeUnit_SignatureMismatch(t *testing.T) {
 	unitDecl := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
 			},
 			Value: "TestUnit",
 		},
@@ -208,20 +190,18 @@ func TestAnalyzeUnit_SignatureMismatch(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						},
 						Value: "Add",
 					},
 					Parameters: []*ast.Parameter{
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "a"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "a"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "b"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "b"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 					},
@@ -235,16 +215,14 @@ func TestAnalyzeUnit_SignatureMismatch(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Add"},
 						},
 						Value: "Add",
 					},
 					Parameters: []*ast.Parameter{
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "x"}, // Only one parameter - MISMATCH
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "x"}, // Only one parameter - MISMATCH
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 					},
@@ -282,10 +260,8 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 	mainUnit := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "MainUnit"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "MainUnit"},
 			},
 			Value: "MainUnit",
 		},
@@ -296,10 +272,8 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
 					Units: []*ast.Identifier{
 						{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{},
-							},
-							Value: "Math",
+							BaseNode: ast.BaseNode{},
+							Value:    "Math",
 						},
 					},
 				},
@@ -307,18 +281,16 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{},
-						},
-						Value: "Calculate",
+						BaseNode: ast.BaseNode{},
+						Value:    "Calculate",
 					},
 					Parameters: []*ast.Parameter{
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "x"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "x"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "y"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "y"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 					},
@@ -332,18 +304,16 @@ func TestAnalyzeUnit_WithUsesClause(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{},
-						},
-						Value: "Calculate",
+						BaseNode: ast.BaseNode{},
+						Value:    "Calculate",
 					},
 					Parameters: []*ast.Parameter{
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "x"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "x"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 						{
-							Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "y"},
+							Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "y"},
 							Type: &ast.TypeAnnotation{Name: "Integer"},
 						},
 					},
@@ -401,10 +371,8 @@ func TestAnalyzeUnit_UsesClauseConflict(t *testing.T) {
 	mainUnit := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "MainUnit",
+			BaseNode: ast.BaseNode{},
+			Value:    "MainUnit",
 		},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
@@ -412,16 +380,12 @@ func TestAnalyzeUnit_UsesClauseConflict(t *testing.T) {
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
 					Units: []*ast.Identifier{
 						{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{},
-							},
-							Value: "Math",
+							BaseNode: ast.BaseNode{},
+							Value:    "Math",
 						},
 						{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{},
-							},
-							Value: "Strings",
+							BaseNode: ast.BaseNode{},
+							Value:    "Strings",
 						},
 					},
 				},
@@ -474,10 +438,8 @@ func TestResolveQualifiedSymbol(t *testing.T) {
 	dummyUnit := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "Main",
+			BaseNode: ast.BaseNode{},
+			Value:    "Main",
 		},
 	}
 
@@ -546,10 +508,8 @@ func TestForwardDeclarationsAcrossUnits(t *testing.T) {
 	libUnit := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "MathLib",
+			BaseNode: ast.BaseNode{},
+			Value:    "MathLib",
 		},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
@@ -557,14 +517,12 @@ func TestForwardDeclarationsAcrossUnits(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{},
-						},
-						Value: "Multiply",
+						BaseNode: ast.BaseNode{},
+						Value:    "Multiply",
 					},
 					Parameters: []*ast.Parameter{
-						{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "a"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
-						{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "b"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
+						{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "a"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
+						{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "b"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
 					},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
 					Body:       nil, // No body in interface - forward declaration
@@ -577,14 +535,12 @@ func TestForwardDeclarationsAcrossUnits(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{},
-						},
-						Value: "Multiply",
+						BaseNode: ast.BaseNode{},
+						Value:    "Multiply",
 					},
 					Parameters: []*ast.Parameter{
-						{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "a"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
-						{Name: &ast.Identifier{TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}}, Value: "b"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
+						{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "a"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
+						{Name: &ast.Identifier{BaseNode: ast.BaseNode{}, Value: "b"}, Type: &ast.TypeAnnotation{Name: "Integer"}},
 					},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
 					Body:       &ast.BlockStatement{Statements: []ast.Statement{}},
@@ -628,20 +584,16 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 	baseUnit := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "Base",
+			BaseNode: ast.BaseNode{},
+			Value:    "Base",
 		},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{},
-						},
-						Value: "GetValue",
+						BaseNode: ast.BaseNode{},
+						Value:    "GetValue",
 					},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -654,10 +606,8 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{},
-						},
-						Value: "GetValue",
+						BaseNode: ast.BaseNode{},
+						Value:    "GetValue",
 					},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -684,29 +634,23 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 	dependentUnit := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "Dependent",
+			BaseNode: ast.BaseNode{},
+			Value:    "Dependent",
 		},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
 				&ast.UsesClause{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
 					Units: []*ast.Identifier{{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{},
-						},
-						Value: "Base",
+						BaseNode: ast.BaseNode{},
+						Value:    "Base",
 					}},
 				},
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{},
-						},
-						Value: "ProcessValue",
+						BaseNode: ast.BaseNode{},
+						Value:    "ProcessValue",
 					},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -719,10 +663,8 @@ func TestSemanticAnalysis_ComprehensiveUnitScenario(t *testing.T) {
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.FUNCTION, Literal: "function"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{},
-						},
-						Value: "ProcessValue",
+						BaseNode: ast.BaseNode{},
+						Value:    "ProcessValue",
 					},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
@@ -793,10 +735,8 @@ func TestSemanticAnalysis_NamespaceConflictResolution(t *testing.T) {
 	conflictingUnit := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{},
-			},
-			Value: "Conflicting",
+			BaseNode: ast.BaseNode{},
+			Value:    "Conflicting",
 		},
 		InterfaceSection: &ast.BlockStatement{
 			Statements: []ast.Statement{
@@ -804,16 +744,12 @@ func TestSemanticAnalysis_NamespaceConflictResolution(t *testing.T) {
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.USES, Literal: "uses"}},
 					Units: []*ast.Identifier{
 						{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{},
-							},
-							Value: "Unit1",
+							BaseNode: ast.BaseNode{},
+							Value:    "Unit1",
 						},
 						{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{},
-							},
-							Value: "Unit2",
+							BaseNode: ast.BaseNode{},
+							Value:    "Unit2",
 						},
 					},
 				},
@@ -862,10 +798,8 @@ func TestAnalyzeUnitDeclaration_InitializationAccessesImplementation(t *testing.
 	unitDecl := &ast.UnitDeclaration{
 		BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.UNIT, Literal: "unit"}},
 		Name: &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{
-				BaseNode: ast.BaseNode{
-					Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
-				},
+			BaseNode: ast.BaseNode{
+				Token: lexer.Token{Type: lexer.IDENT, Literal: "TestUnit"},
 			},
 			Value: "TestUnit",
 		},
@@ -876,10 +810,8 @@ func TestAnalyzeUnitDeclaration_InitializationAccessesImplementation(t *testing.
 				&ast.FunctionDecl{
 					BaseNode: ast.BaseNode{Token: lexer.Token{Type: lexer.PROCEDURE, Literal: "procedure"}},
 					Name: &ast.Identifier{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "Foo"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Foo"},
 						},
 						Value: "Foo",
 					},
@@ -896,16 +828,12 @@ func TestAnalyzeUnitDeclaration_InitializationAccessesImplementation(t *testing.
 				// Foo;  // Call the procedure defined in implementation
 				&ast.ExpressionStatement{
 					Expression: &ast.CallExpression{
-						TypedExpressionBase: ast.TypedExpressionBase{
-							BaseNode: ast.BaseNode{
-								Token: lexer.Token{Type: lexer.IDENT, Literal: "Foo"},
-							},
+						BaseNode: ast.BaseNode{
+							Token: lexer.Token{Type: lexer.IDENT, Literal: "Foo"},
 						},
 						Function: &ast.Identifier{
-							TypedExpressionBase: ast.TypedExpressionBase{
-								BaseNode: ast.BaseNode{
-									Token: lexer.Token{Type: lexer.IDENT, Literal: "Foo"},
-								},
+							BaseNode: ast.BaseNode{
+								Token: lexer.Token{Type: lexer.IDENT, Literal: "Foo"},
 							},
 							Value: "Foo",
 						},
@@ -950,8 +878,8 @@ func hasSubstring(s, substr string) bool {
 func TestAnalyzeUnit_ImplementationBodyCallsSameUnitFunction(t *testing.T) {
 	ident := func(name string) *ast.Identifier {
 		return &ast.Identifier{
-			TypedExpressionBase: ast.TypedExpressionBase{BaseNode: ast.BaseNode{}},
-			Value:               name,
+			BaseNode: ast.BaseNode{},
+			Value:    name,
 		}
 	}
 	sigOnly := func(name string) *ast.FunctionDecl {

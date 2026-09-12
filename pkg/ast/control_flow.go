@@ -51,7 +51,7 @@ type IfExpression struct {
 	Condition   Expression
 	Consequence Expression
 	Alternative Expression
-	TypedExpressionBase
+	BaseNode
 }
 
 func (ie *IfExpression) expressionNode() {}
