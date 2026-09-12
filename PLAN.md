@@ -10,7 +10,7 @@
 ## 0. Status snapshot
 
 **Headline (2026-09-12):** Go harness and freshly rebuilt CLI both
-**1,077 / 1,930 scored = 56%**, after §3.2.7 closed conditional compilation and a §3.3 merge
+**1,078 / 1,930 scored = 56%**, after §3.2.7 closed conditional compilation and a §3.3 merge
 train closed these runtime/evaluator items: associative arrays (key coercion, ARC destructor
 timing, nested lvalue vivification, DWScript hash iteration order), record copy-on-assign,
 JSON ownership and number formatting, call-site column precision in stack traces, metaclass
@@ -22,10 +22,10 @@ with the `deprecated` directive family (five fixtures) and a re-measurement that
 missing-validation queue at 58, not the 82 the 2026-03 archive recorded; the constant-instruction
 hint and the array-helper receiver rules closed three more, adopting DWScript's canonical
 argument-count vocabulary closed ten, making the keyword operators case-insensitive closed three,
-the expression-position implicit call closed one, and `Boolean expected` — with an empty `repeat`
-body and two miscopied empty-block hints — closed six. Both use the shared compile pipeline and
-scoring rules.
-`*Fail` error-detection suites **157 / 640 = 25%**.
+the expression-position implicit call closed one, `Boolean expected` — with an empty `repeat`
+body and two miscopied empty-block hints — closed six, and stopping the compiler crashing and
+hanging on malformed input closed one. Both use the shared compile pipeline and scoring rules.
+`*Fail` error-detection suites **158 / 640 = 25%**.
 
 Where the truth lives:
 
@@ -424,7 +424,7 @@ turned into a real check, and const static-array element assignment is now diagn
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 157/640 (FailureScripts 148/529, SetOfFail 5, JSONConnectorFail 2,
+Harness and CLI: 158/640 (FailureScripts 149/529, SetOfFail 5, JSONConnectorFail 2,
 AssociativeFail 1, InterfacesFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
@@ -486,6 +486,30 @@ Work families (from the 2026-03 FailureScripts analysis, now archived at
   (`analyze_function_calls.go` 54, `analyze_statements.go` 49, `analyze_method_calls.go` 17,
   `analyze_classes.go` 10) so message text and ordering are centrally controlled
   (`docs/archive/semantic-legacy-hotspots-5.3.10.md`).
+
+**Done (2026-09-12):** the compiler no longer crashes or hangs on malformed input. Not a message
+slice: nine fixtures segfaulted the compile pipeline and one looped forever, which is worse than a
+wrong sentence — the process dies, or never answers — and both are reachable from the public
+embedding API through `frontend.AnalyzeParsed`, not just the CLI. §3.3's runtime-panic
+re-measurement did not cover these; they are compile-time. The crashes shared one cause: most
+statement and type parsers return a *concrete* node pointer rather than the `ast.Statement` /
+`ast.TypeExpression` interface, so a `return nil` on a parse failure becomes a **typed nil** —
+non-nil as an interface, faulting on any field access — and every `!= nil` guard, `ParseProgram`'s
+own included, waved it through. A malformed routine header left a typed-nil `*ast.FunctionDecl` at
+the top level and the generic monomorphizer faulted walking it, in scripts using no generics at
+all; an unsupported function-pointer return type left a typed-nil element type that faulted inside
+the parser. `statementOrNil` and `typeExpressionOrNil` normalize the two dispatchers, so the
+interface is nil exactly when the parse failed. The hang was pre-existing and separate:
+`synchronize` lists `IDENT` among its safe points, so asked to recover *from* an identifier it
+returns without advancing, and `parseRecordBody` reported the same misplaced field until memory ran
+out — which is what made a whole-corpus in-process sweep unrunnable. Defence in depth, since the
+parser is not the only thing that builds an AST: monomorphization now runs under the same `recover`
+discipline as semantic analysis (it ran outside it), `genericMethodImpl` guards the typed nil its
+type assertion accepts, and `extractUsedUnits` skips nil unit names. Measured over all 2,127
+fixtures: **0 panics and 0 timeouts, against 9 and 1 before**. Closed `record_recursive3`, which
+now matches exactly; the other eight fail on message parity rather than a signal, and
+`ArrayPass/array_of_proc_param` needs `function : procedure` return types — a real feature gap that
+now reports the diagnostic it already had instead of faulting. Fixtures 1,077 → 1,078.
 
 **Done (2026-09-12):** the `deprecated` directive family, the first F5 slice. The parser already
 recorded `deprecated` on classes, routines, constants and enum elements, and the analyzer warned
