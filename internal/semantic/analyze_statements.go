@@ -318,6 +318,9 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 
 	// Add constant to symbol table with its compile-time value
 	a.symbols.DefineConst(stmt.Name.Value, constType, constValue, stmt.Name.Token.Pos)
+	if stmt.IsDeprecated {
+		a.symbols.MarkDeprecated(stmt.Name.Value, stmt.DeprecatedMessage)
+	}
 }
 
 // analyzeAssignment analyzes an assignment statement
@@ -534,6 +537,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					return
 				}
 				if propInfo, found := classType.GetProperty(memberName); found {
+					a.warnDeprecatedPropertyUsage(propInfo, target.Member.Token.Pos)
 					if isCompound && propInfo.ReadKind == types.PropAccessNone {
 						a.addStructuredError(NewWriteOnlyPropertyError(target.Member.Token.Pos, target.Member.Value))
 						return

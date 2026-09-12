@@ -107,6 +107,13 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 			// Use zero position for enum value constants (builtin-like)
 			a.symbols.DefineConst(valueName, enumType, ordinalValue, token.Position{})
 		}
+		// The `deprecated` directive rides on the declaration, not on the
+		// ordinal map, so it is applied in a second pass over the source order.
+		for _, enumValue := range decl.Values {
+			if enumValue.IsDeprecated {
+				a.symbols.MarkDeprecated(enumValue.Name, enumValue.DeprecatedMessage)
+			}
+		}
 	}
 
 	// Register enum type name as an identifier

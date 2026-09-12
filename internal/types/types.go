@@ -427,6 +427,9 @@ type PropertyInfo struct {
 	// ExternalName, when set by an `external 'name'` clause, replaces the
 	// declared name when the object is serialized.
 	ExternalName string
+	// DeprecatedMessage is the text of a `deprecated 'msg'` directive on the
+	// declaration; a bare `deprecated;` leaves it empty and sets IsDeprecated.
+	DeprecatedMessage string
 	// IndexParamNames holds the declared index parameter names of an indexed
 	// property, in order. Expression-based accessors bind these names to the
 	// supplied index values when evaluating the read expression or write
@@ -441,6 +444,7 @@ type PropertyInfo struct {
 	WriteKind       PropAccessKind
 	HasIndexValue   bool
 	IsIndexed       bool
+	IsDeprecated    bool
 	IsDefault       bool
 	IsClassProperty bool
 }
@@ -448,14 +452,19 @@ type PropertyInfo struct {
 // MethodInfo stores metadata about a single method or overload
 // This allows tracking virtual/override/abstract/overload per method signature
 type MethodInfo struct {
-	Signature     *FunctionType
-	IsVirtual     bool
-	IsOverride    bool
-	IsAbstract    bool
-	IsReintroduce bool
-	IsForwarded   bool
-	IsClassMethod bool
-	IsConstructor bool
+	Signature *FunctionType
+	// DeprecatedMessage is the text of a `deprecated 'msg'` directive on the
+	// declaration; it is empty for a bare `deprecated;`, which still sets
+	// IsDeprecated.
+	DeprecatedMessage string
+	IsDeprecated      bool
+	IsVirtual         bool
+	IsOverride        bool
+	IsAbstract        bool
+	IsReintroduce     bool
+	IsForwarded       bool
+	IsClassMethod     bool
+	IsConstructor     bool
 	// IsSynthesized marks compiler-generated members (e.g. the implicit
 	// parameterless constructor) that do not correspond to a source declaration.
 	IsSynthesized        bool

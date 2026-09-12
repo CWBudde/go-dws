@@ -189,6 +189,10 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 		return nil, nil, false
 	}
 
+	if decl.IsDeprecated {
+		a.symbols.MarkDeprecated(decl.Name.Value, decl.DeprecatedMessage)
+	}
+
 	return paramTypes, returnType, true
 }
 

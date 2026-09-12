@@ -240,6 +240,12 @@ parseDirectives:
 		}
 	}
 
+	// Parse optional 'deprecated ['msg'];', which follows the semicolon and may
+	// itself follow 'default;'.
+	if !p.parsePropertyDeprecatedDirective(prop) {
+		return nil
+	}
+
 	decl, _ := builder.Finish(prop).(*ast.PropertyDecl)
 
 	return decl
@@ -382,4 +388,23 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	}
 
 	return params
+}
+
+// parsePropertyDeprecatedDirective parses an optional `deprecated` marker after a
+// property declaration's terminating semicolon, with or without a message. It
+// returns false only when the directive is present but unterminated, which is a
+// parse error the caller must propagate.
+func (p *Parser) parsePropertyDeprecatedDirective(prop *ast.PropertyDecl) bool {
+	if !p.peekTokenIs(lexer.DEPRECATED) {
+		return true
+	}
+	p.nextToken() // move to 'deprecated'
+	prop.IsDeprecated = true
+
+	if p.peekTokenIs(lexer.STRING) {
+		p.nextToken()
+		prop.DeprecatedMessage = p.cursor.Current().Literal
+	}
+
+	return p.expectPeek(lexer.SEMICOLON)
 }

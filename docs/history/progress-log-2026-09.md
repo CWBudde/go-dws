@@ -3062,3 +3062,102 @@ M because of that plumbing, not the builtins.
 
 **Validation:** `go test ./internal/parser` green including two new tests for the section-less
 shape; fixture counts unchanged by the parser fix alone.
+
+## 2026-09-12 — The `deprecated` directive family (§4 / F5)
+
+First slice of §4/F5, the missing-validation sweep.
+
+### The measurement that came first
+
+PLAN.md quoted "82 fixtures where DWScript reports an error and go-dws compiles clean" from the
+2026-03 analysis archived at `docs/archive/failure-scripts-next-phase-plan.md`. Nothing in the
+tree re-measures that number, and `TEST_STATUS.md` only carries category totals, so it had gone
+stale through five months of work. Regenerating it — every `FailureScripts` fixture with an
+expected `.txt` run through `dwscript run --diagnostics=plain --compile-only --hints pedantic`,
+keeping the ones that print nothing — gives **58**, and corrects the example list: `conditionals1-6`
+and `switch_invalid1-3`, named in both PLAN.md and the archive, already emit diagnostics. They are
+directive **message parity** (`internal/lexer/directive_messages.go`) and belong to F7, not F5.
+
+Bucketing the 58 by expected message put the `deprecated` directive first: two fixtures whose
+entire expected output is deprecation warnings, plus three more elsewhere in the corpus.
+
+### What was already there, and what was scaffolding
+
+The parser has recorded `deprecated` on classes, routines, constants and enum values for a long
+time (`internal/parser/classes.go:565`, `functions.go:170`, `declarations.go:218`,
+`enums.go:85`), and the AST carries `IsDeprecated`/`DeprecatedMessage` on each. The analyzer
+consumed exactly one of them: `warnDeprecatedClassUsage` (`analyzer.go`), for class types.
+
+Two pieces looked like support and were not. `Symbol.IsDeprecated` and
+`Symbol.DeprecationMessage` (`internal/semantic/symbol_table.go`) existed but were only ever
+*copied* from one symbol to another — no code path ever set them, and nothing read them.
+`NewDeprecatedWarning` (`internal/semantic/errors.go`) had zero call sites, and its wording
+(`'%s' is deprecated`) does not match the corpus (`"TestProc" has been deprecated: returns 1`)
+anyway. Both were left in place by earlier work as plausible-looking hooks; neither did anything.
+
+### What shipped
+
+One message helper, `Analyzer.warnDeprecated(name, message, pos)`, now renders the wording for
+every declaration kind, and `warnDeprecatedClassUsage` was rewritten to call it. Deprecation is
+carried in three new places, each next to the metadata that already existed for the declaration:
+
+- `Symbol` (already had the fields) — set by `SymbolTable.MarkDeprecated`, called from
+  `registerFunctionSignature` for routines, from the const declaration path, and from enum-value
+  registration. The directive belongs to the *name*, not to one signature, so a forward
+  declaration, its implementation and every overload share it.
+- `types.MethodInfo.IsDeprecated` / `.DeprecatedMessage` — populated where the method info is
+  built. A class-declared `method Meth; deprecated 'x';` implemented out-of-line keeps the
+  directive, because the implementation resolves the forward in place rather than replacing it.
+- `types.PropertyInfo` and `types.RecordPropertyInfo` — new fields, new parsing (below).
+
+Warnings are emitted at every use site, not at the declaration:
+
+| use | hook |
+| --- | --- |
+| bare `TestProc;` | `analyzeIdentifier`, on the resolved symbol |
+| `TestFunc(1)` | `analyzeCallExpression`, on the resolved symbol |
+| `t.Meth` | `analyzeMemberAccessExpression`, walking the hierarchy for the owning `MethodInfo` |
+| `t.Prop` read | `analyzeMemberAccessExpression` |
+| `t.Prop := v` | the member-assignment branch of `analyzeAssignment` |
+| `t.PropArray[i]` | `analyzeIndexedPropertyAccess` |
+| `t[i]` (default property) | `analyzeIndexExpression`, anchored at the bracket |
+| `class(TBase)` | the predeclared-shell branch of `analyzeClassDecl` |
+
+`deprecated` on a **property** was not parsed at all. It is now, for classes
+(`parsePropertyDeprecatedDirective`) and for records, which have a separate property parser —
+there the directive was being mis-read as a field declaration and produced three spurious
+`expected identifier in record field declaration` errors.
+
+### Positions
+
+Upstream anchors these warnings at the identifier in expression position and at the class name
+for `new TOther` (we were pointing at `new`); a default-property access, which never names the
+property, is anchored at the bracket. Inheriting from a deprecated class warns at the parent
+name — the existing `warnDeprecatedClassUsage` call in `resolveParentClass` never fired, because
+two-phase class construction links the parent while predeclaring the shell, so a top-level class
+always reaches `analyzeClassDecl` with `classType.Parent` already set and takes the other branch.
+
+### Not done, deliberately
+
+`FailureScripts/class_deprecated` emits all eight warnings with the right text but four of them
+two columns late. For a *declaration's type annotation* upstream anchors at the colon, not at the
+type name — consistent across all four samples, including one on a tab-free line. Every
+expression-position use is anchored at the identifier instead, which `const_deprecated` and
+`enum_element_deprecated` confirm exactly. But all four samples are written `: T`, so they cannot
+distinguish "the colon" from "the type name minus two", and the reference implementation is not
+checked out to settle it. Implementing the colon reading means threading a colon position through
+nine `warnDeprecatedResolvedType` call sites; guessing a convention at that cost was not worth one
+fixture, so it is recorded in PLAN.md §4 instead.
+
+### Validation
+
+```
+go test ./internal/parser ./internal/semantic ./internal/types ./pkg/ast   # green
+go test ./internal/interp -run TestDWScriptFixtures                        # green
+just fixture-update
+```
+
+Fixtures **1,049 → 1,054** (54% → 55%): `FailureScripts` 126 → 129 (`deprecated`,
+`deprecated_property`, `deprecated_empty`), `SimpleScripts` 354 → 356 (`const_deprecated`,
+`enum_element_deprecated`). `*Fail` suites 134 → 137 of 640. Two new parser tests cover the
+class and record property directives.

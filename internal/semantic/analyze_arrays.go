@@ -103,6 +103,9 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 	// Allow default indexed properties on classes (obj[index] -> obj.DefaultProperty[index])
 	if classType, ok := types.GetUnderlyingType(leftType).(*types.ClassType); ok {
 		if defaultProp := a.getDefaultClassProperty(classType); defaultProp != nil {
+			// Upstream anchors the warning for a default-property access at the
+			// bracket, since the property is never named at the call site.
+			a.warnDeprecatedPropertyUsage(defaultProp, expr.Token.Pos)
 			expectedIndexTypes := a.getIndexedPropertyParamTypes(defaultProp, classType)
 			if len(expectedIndexTypes) > 0 {
 				indexType := a.analyzeExpressionWithExpectedType(expr.Index, expectedIndexTypes[0])
@@ -298,6 +301,7 @@ func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessEx
 				// Not an indexed property – let general indexing rules apply to the property type
 				return nil
 			}
+			a.warnDeprecatedPropertyUsage(propInfo, memberAccess.Member.Token.Pos)
 
 			// Reaching an indexed property through a class name is legal only when the
 			// accessor needs no instance. This mirrors the rule the plain member-access

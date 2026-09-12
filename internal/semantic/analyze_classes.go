@@ -129,7 +129,14 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		return nil
 	}
 
-	a.warnDeprecatedClassUsage(classType, expr.Token.Pos)
+	// The warning is anchored at the class name, not at the expression's first
+	// token: for `new TOther` upstream points at TOther, not at `new`. For the
+	// `TClass.Create(...)` sugar the two positions coincide.
+	deprecationPos := expr.Token.Pos
+	if expr.ClassName != nil {
+		deprecationPos = expr.ClassName.Token.Pos
+	}
+	a.warnDeprecatedClassUsage(classType, deprecationPos)
 
 	// Case-mismatch hints for the class name and (for the "TClass.Create(...)"
 	// sugar) the constructor name against their declarations.
@@ -632,6 +639,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up property (including inherited properties)
 	propInfo, propFound := classType.GetProperty(memberName)
 	if propFound {
+		a.warnDeprecatedPropertyUsage(propInfo, expr.Member.Token.Pos)
 		if propInfo.ReadKind == types.PropAccessNone {
 			a.addStructuredError(NewWriteOnlyPropertyError(expr.Member.Token.Pos, expr.Member.Value))
 			return nil
@@ -711,6 +719,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up method (including inherited methods)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
+		a.warnDeprecatedMethodUsage(classType, memberName, expr.Member.Token.Pos)
 		// A method accessed through a metaclass value must be a class method. Resolve the
 		// class-method flag across the hierarchy so inherited class methods (absent from
 		// this class's own ClassMethodFlags map) are accepted.

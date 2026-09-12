@@ -127,6 +127,9 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
 
+			DeprecatedMessage: prop.DeprecatedMessage,
+			IsDeprecated:      prop.IsDeprecated,
+
 			IndexParamTypes: a.resolveRecordPropertyIndexParamTypes(prop.IndexParams),
 		}
 		switch {

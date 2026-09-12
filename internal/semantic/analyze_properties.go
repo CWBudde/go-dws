@@ -164,14 +164,16 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 
 	// Create PropertyInfo to store in class metadata
 	propInfo := &types.PropertyInfo{
-		Name:            propName,
-		Type:            propType,
-		IsIndexed:       isIndexed,
-		IsDefault:       prop.IsDefault,
-		IsClassProperty: prop.IsClassProperty,
-		ExternalName:    prop.ExternalName,
-		IndexParamNames: propertyIndexParamNames(prop.IndexParams),
-		IndexParamTypes: indexParamTypes,
+		Name:              propName,
+		Type:              propType,
+		IsIndexed:         isIndexed,
+		IsDefault:         prop.IsDefault,
+		IsClassProperty:   prop.IsClassProperty,
+		ExternalName:      prop.ExternalName,
+		DeprecatedMessage: prop.DeprecatedMessage,
+		IsDeprecated:      prop.IsDeprecated,
+		IndexParamNames:   propertyIndexParamNames(prop.IndexParams),
+		IndexParamTypes:   indexParamTypes,
 	}
 	if prop.IndexValue != nil {
 		propInfo.HasIndexValue = true

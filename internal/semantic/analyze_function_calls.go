@@ -150,6 +150,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	}
 
 	sym, ok := a.symbols.Resolve(funcIdent.Value)
+	if ok {
+		a.warnDeprecatedSymbolUsage(sym, funcIdent.Token.Pos)
+	}
 	if !ok {
 		// Check built-in functions. The callee's case-mismatch hint is emitted
 		// before the arguments are analyzed so hints appear in source order.

@@ -138,6 +138,11 @@ type RecordPropertyDecl struct {
 	// the record is serialized (JSON.Stringify).
 	IsExternal   bool
 	ExternalName string
+	// DeprecatedMessage is the text of a `deprecated 'msg'` directive written
+	// after the declaration; a bare `deprecated;` leaves it empty and sets
+	// IsDeprecated alone.
+	DeprecatedMessage string
+	IsDeprecated      bool
 	// IsClassProperty is true for `class property Name: Type ...` declared inside
 	// a record body. A class property is backed by a class var rather than by an
 	// instance field, and is reachable through both the record type and a value.

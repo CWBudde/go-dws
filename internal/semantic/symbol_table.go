@@ -289,6 +289,25 @@ func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType,
 	})
 }
 
+// MarkDeprecated records a `deprecated` directive on an already-defined symbol.
+// It is separate from DefineOverload because the directive belongs to the name,
+// not to one signature: a forward declaration, its implementation and every
+// overload share a single symbol, and a reference to the name is what upstream
+// warns about.
+func (st *SymbolTable) MarkDeprecated(name, message string) {
+	sym, ok := st.symbols.Get(name)
+	if !ok {
+		if st.outer != nil {
+			st.outer.MarkDeprecated(name, message)
+		}
+		return
+	}
+	sym.IsDeprecated = true
+	if message != "" {
+		sym.DeprecationMessage = message
+	}
+}
+
 // DefineOverload defines a new function overload or adds to an existing overload set.
 // Returns error if function exists without overload directive, has duplicate signature,
 // is ambiguous with default parameters, or forward declaration doesn't match implementation.

@@ -175,6 +175,14 @@ func (a *Analyzer) initializeClassType(
 		classType = existingClass
 		parentClass = classType.Parent
 
+		// Inheriting from a deprecated class is a use of it. The warning belongs
+		// here rather than in resolveParentClass: two-phase construction links
+		// the parent while predeclaring the shell, so a top-level class always
+		// arrives with classType.Parent already set and never reaches that path.
+		if decl.Parent != nil {
+			a.warnDeprecatedClassUsage(a.getClassType(decl.Parent.Value), decl.Parent.Token.Pos)
+		}
+
 		// Update parent if specified in a partial declaration.
 		if decl.Parent != nil && parentClass == nil {
 			parentName := decl.Parent.Value
@@ -968,11 +976,13 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 
 	// Create method info and check for duplicate/ambiguous overloads.
 	methodInfo := &types.MethodInfo{
-		Signature:     funcType,
-		IsVirtual:     method.IsVirtual,
-		IsOverride:    method.IsOverride,
-		IsAbstract:    method.IsAbstract,
-		IsReintroduce: method.IsReintroduce,
+		Signature:         funcType,
+		DeprecatedMessage: method.DeprecatedMessage,
+		IsDeprecated:      method.IsDeprecated,
+		IsVirtual:         method.IsVirtual,
+		IsOverride:        method.IsOverride,
+		IsAbstract:        method.IsAbstract,
+		IsReintroduce:     method.IsReintroduce,
 		// An "empty;" method is a complete (no-op) definition, not a forward
 		// declaration, so a later out-of-line body is a duplicate, not an
 		// implementation of a forward.

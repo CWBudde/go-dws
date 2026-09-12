@@ -555,11 +555,80 @@ func (a *Analyzer) warnDeprecatedClassUsage(classType *types.ClassType, pos toke
 		return
 	}
 
-	message := fmt.Sprintf(`"%s" has been deprecated`, classType.Name)
-	if classType.DeprecatedMessage != "" {
-		message += fmt.Sprintf(`: %s`, classType.DeprecatedMessage)
+	a.warnDeprecated(classType.Name, classType.DeprecatedMessage, pos)
+}
+
+// warnDeprecated emits DWScript's deprecation warning for a named entity.
+// The wording is shared by every deprecated declaration kind — class, routine,
+// method and property — because upstream emits one message for all of them:
+// `"Name" has been deprecated`, with `: message` appended when the declaration
+// carried one.
+func (a *Analyzer) warnDeprecated(name, message string, pos token.Position) {
+	text := fmt.Sprintf(`"%s" has been deprecated`, name)
+	if message != "" {
+		text += fmt.Sprintf(`: %s`, message)
 	}
-	a.addWarning("%s [line: %d, column: %d]", message, pos.Line, pos.Column)
+	a.addWarning("%s [line: %d, column: %d]", text, pos.Line, pos.Column)
+}
+
+// warnDeprecatedSymbolUsage warns when a resolved symbol names a deprecated
+// routine. It is deliberately keyed on the symbol rather than the declaration:
+// a forward declaration and its implementation share one symbol, so the
+// directive is recorded once and every later reference finds it.
+func (a *Analyzer) warnDeprecatedSymbolUsage(sym *Symbol, pos token.Position) {
+	if sym == nil || !sym.IsDeprecated {
+		return
+	}
+	a.warnDeprecated(sym.Name, sym.DeprecationMessage, pos)
+}
+
+// warnDeprecatedMethodUsage warns when a method reached on classType — or on any
+// ancestor of it — carries a `deprecated` directive. The warning quotes the
+// declaration's own casing, which is what upstream prints even when the call
+// site spells the name differently.
+func (a *Analyzer) warnDeprecatedMethodUsage(classType *types.ClassType, memberName string, pos token.Position) {
+	normalized := ident.Normalize(memberName)
+	for current := classType; current != nil; current = current.Parent {
+		overloads := current.GetMethodOverloads(normalized)
+		if len(overloads) == 0 {
+			continue
+		}
+		// A deprecated directive belongs to the name, not to one signature, so
+		// any overload carrying it is enough; the fixtures never deprecate a
+		// single member of an overload set.
+		for _, info := range overloads {
+			if info == nil || !info.IsDeprecated {
+				continue
+			}
+			name := a.declaredMethodName(classType, memberName)
+			if name == "" {
+				name = memberName
+			}
+			a.warnDeprecated(name, info.DeprecatedMessage, pos)
+			return
+		}
+		return
+	}
+}
+
+// warnDeprecatedPropertyUsage warns when a property carries a `deprecated`
+// directive. Upstream warns once per access, on both the read and the write
+// side, so callers hook every access path rather than the declaration.
+func (a *Analyzer) warnDeprecatedPropertyUsage(propInfo *types.PropertyInfo, pos token.Position) {
+	if propInfo == nil || !propInfo.IsDeprecated {
+		return
+	}
+	a.warnDeprecated(propInfo.Name, propInfo.DeprecatedMessage, pos)
+}
+
+// warnDeprecatedRecordPropertyUsage is the record counterpart of
+// warnDeprecatedPropertyUsage. Records keep their own property metadata type,
+// so the two cannot share a signature.
+func (a *Analyzer) warnDeprecatedRecordPropertyUsage(propInfo *types.RecordPropertyInfo, pos token.Position) {
+	if propInfo == nil || !propInfo.IsDeprecated {
+		return
+	}
+	a.warnDeprecated(propInfo.Name, propInfo.DeprecatedMessage, pos)
 }
 
 func (a *Analyzer) addCaseMismatchHint(actual, declared string, pos token.Position) {

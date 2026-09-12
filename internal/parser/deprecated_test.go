@@ -356,3 +356,99 @@ func TestForwardDeprecatedFunction(t *testing.T) {
 		t.Error("Expected IsDeprecated to be true")
 	}
 }
+
+// TestClassPropertyDeprecated covers the `deprecated` directive on a class
+// property, including the form that follows a `default;` directive.
+func TestClassPropertyDeprecated(t *testing.T) {
+	input := `type TTest = class
+   function GetItem(i : Integer) : Integer; begin Result := i; end;
+   property Plain : Integer read FPlain write FPlain; deprecated 'no message wanted';
+   property Bare : Integer read FBare; deprecated;
+   property Items[i : Integer] : Integer read GetItem; default; deprecated 'indexed';
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	var classDecl *ast.ClassDecl
+	for _, stmt := range program.Statements {
+		if decl, ok := stmt.(*ast.ClassDecl); ok && decl.Name.Value == "TTest" {
+			classDecl = decl
+			break
+		}
+	}
+	if classDecl == nil {
+		t.Fatalf("class TTest not parsed")
+	}
+
+	props := map[string]*ast.PropertyDecl{}
+	for _, prop := range classDecl.Properties {
+		props[prop.Name.Value] = prop
+	}
+
+	for _, tc := range []struct {
+		name    string
+		message string
+	}{
+		{"Plain", "no message wanted"},
+		{"Bare", ""},
+		{"Items", "indexed"},
+	} {
+		prop, ok := props[tc.name]
+		if !ok {
+			t.Fatalf("property %q not parsed", tc.name)
+		}
+		if !prop.IsDeprecated {
+			t.Errorf("property %q: expected IsDeprecated to be true", tc.name)
+		}
+		if prop.DeprecatedMessage != tc.message {
+			t.Errorf("property %q: expected message %q, got %q", tc.name, tc.message, prop.DeprecatedMessage)
+		}
+	}
+
+	// `default;` and `deprecated;` are independent directives and must both survive.
+	if !props["Items"].IsDefault {
+		t.Error("expected Items to stay the default property alongside deprecated")
+	}
+}
+
+// TestRecordPropertyDeprecated covers the `deprecated` directive on a record
+// property. Records have their own property parser, so class coverage does not
+// imply it; before this was handled the directive was mis-parsed as a field
+// declaration and produced three spurious errors.
+func TestRecordPropertyDeprecated(t *testing.T) {
+	input := `type TRec = record
+   field : Integer;
+   property prop : Integer write field; deprecated "";
+end;`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	var recordDecl *ast.RecordDecl
+	for _, stmt := range program.Statements {
+		if decl, ok := stmt.(*ast.RecordDecl); ok && decl.Name.Value == "TRec" {
+			recordDecl = decl
+			break
+		}
+	}
+	if recordDecl == nil {
+		t.Fatalf("record TRec not parsed")
+	}
+
+	if len(recordDecl.Properties) != 1 {
+		t.Fatalf("expected 1 property, got %d", len(recordDecl.Properties))
+	}
+	prop := recordDecl.Properties[0]
+	if !prop.IsDeprecated {
+		t.Error("expected IsDeprecated to be true")
+	}
+	// An empty message is still a message-less deprecation, not a missing one.
+	if prop.DeprecatedMessage != "" {
+		t.Errorf("expected empty deprecation message, got %q", prop.DeprecatedMessage)
+	}
+}

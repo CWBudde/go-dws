@@ -161,6 +161,10 @@ type RecordPropertyInfo struct {
 	// ExternalName, when set by an `external 'name'` clause, replaces the
 	// declared name when the record is serialized.
 	ExternalName string
+	// DeprecatedMessage is the text of a `deprecated 'msg'` directive on the
+	// declaration; a bare `deprecated;` leaves it empty and sets IsDeprecated.
+	DeprecatedMessage string
+	IsDeprecated      bool
 	// IsClassProperty marks `class property` members, which are backed by the
 	// record type's class vars rather than by a field on each record value.
 	IsClassProperty bool
