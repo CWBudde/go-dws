@@ -4103,3 +4103,45 @@ Validation:
 - The fixture baseline gate, `just fixture-update`, and a freshly built CLI report passed
   with matching counts in every category.
 - `golangci-lint run --new-from-rev=HEAD` passed with zero issues; `git diff --check` passed.
+
+## 2026-09-13 — constructor results as assignment receivers (§3.3)
+
+A bare constructor used as a member-assignment receiver now runs before the field or
+property write: `TItem.Create.Value := 42` matches `TItem.Create().Value := 42`.
+The evaluator previously treated `TItem.Create` as writable storage and failed with
+`cannot access field of CLASS`. Assignment containers now allow class-member reads
+through the existing dispatcher, using the already evaluated class receiver and no
+writeback setter for the computed result. Strict writable-variable resolution remains
+separate; indexed-record initialization and associative-array insertion retain their
+existing storage paths.
+
+Both Memory/obj_fields and SimpleScripts/override_deep now pass. The latter checks
+inherited constructors and a virtual property setter across several subclasses. Harness
+and freshly built CLI agree at **1,123 / 1,966 scored**, with 843 failures and 78 skipped;
+Memory rises 6 → 7/13 and SimpleScripts 371 → 372/443. Baselines and generated status were
+ratcheted with `just fixture-update`. The closed checkbox was removed from PLAN.md;
+Memory's remaining six external-class fixtures still require deferred host setup.
+
+Tests first reproduced the original error through compiled/analyzed AST execution, then
+verified default, inherited, named and case-insensitive constructors, metaclass variables,
+computed metaclass receivers, field storage and property setters. Retained instances and
+counters prove receiver, constructor and setter single evaluation for simple assignment.
+Raised exceptions and runtime error values preserve their messages and skip the write.
+A review also caught an exception-path regression that could expose a nil setter to
+`TryStrToInt`; the early return is now restricted to assignment containers, and a strict
+writable-binding regression test guards that boundary.
+
+Separate pre-existing defects remain open in PLAN.md §3.5: constructor receivers evaluate
+twice in compound assignment and var-argument paths, and a bare free-function receiver is
+still treated as an unresolved variable. This change concerns simple class/metaclass
+constructor receiver assignments; it makes no public API or bytecode changes.
+
+Validation (with writable caches under `/tmp`):
+
+- `GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -timeout=20m ./...` passed.
+- The final constructor, assignment, associative-array and constructor-overload tests passed
+  in both interpreter and evaluator packages after extracting storage helpers for lint.
+- `just fixture-update` passed; a freshly rebuilt CLI report matched the harness in all
+  61 categories, with only the two expected category baseline increases.
+- `golangci-lint run --new-from-rev=HEAD --timeout=5m` passed with zero issues;
+  `git diff --check` passed.

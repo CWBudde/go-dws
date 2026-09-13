@@ -9,7 +9,7 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-13):** Go harness and freshly rebuilt CLI agree at **1,121 / 1,966 scored =
+**Headline (2026-09-13):** Go harness and freshly rebuilt CLI agree at **1,123 / 1,966 scored =
 57%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
@@ -17,7 +17,7 @@
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,121 / 1,747 = 64% in scope**, the number to track against §6. Both are honest;
+same run reads **1,123 / 1,747 = 64% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -29,12 +29,12 @@ Open, in leverage order:
   families were split out — the 68 fixtures one line from passing (F9) and the `Incompatible
   types` sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half of the measurement: 151 in-scope fixtures now fail in the
+- **§3.5** is the other half of the measurement: 149 in-scope fixtures now fail in the
   suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
   ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
   and E8 is a by-reference binding bug E1 turned up.
-- **§3.3** has Memory left (6 of 13 scored), with one constructor-lvalue defect and deferred
-  host setup. Private unit variables and the Memory scoring gap closed 2026-09-13; see the progress log.
+- **§3.3** has only deferred Memory host setup left (7 of 13 scored). Private unit variables,
+  Memory scoring, and constructor assignment receivers closed 2026-09-13; see the progress log.
 - **§1** is closed: T7 scores 36 previously skipped fixtures and T8 classifies failures in
   `fixture-report`.
 - **§3.4** has one item, blocked on the evaluator. **§2** has one, deferred by owner decision.
@@ -57,10 +57,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (845 total, 2026-09-13): **219 host-library** (out of scope),
+- Where the remaining failures are (843 total, 2026-09-13): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **151 in the execution suites** (§3.5:
-  SimpleScripts 72, ArrayPass 19, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 11, a tail
+  HelpersFail 18 each, the rest under 15), and **149 in the execution suites** (§3.5:
+  SimpleScripts 71, ArrayPass 19, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 11, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -90,7 +90,7 @@ T7 closed 2026-09-13: shared missing-expectation scoring and category hint level
   (**T8**) — `fixture-report --classify` buckets every failure by distance, by what kind of line
   differs and by message shape, and `--in-scope` drops the host-library categories. It replaced a
   throwaway shell script, and rebuilding the measurement changed two things: the `*Fail` near-miss
-  counts (see §4) and the discovery that §3 had no item for 151 failing execution-suite fixtures
+  counts (see §4) and the discovery that §3 had no item for the failing execution-suite fixtures
   (now §3.5).
 
 ---
@@ -238,12 +238,9 @@ Every other category this section used to list is closed: FunctionsByteBuffer 19
 [`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md)), FunctionsTime 30/30, FunctionsVariant 10/10,
 FunctionsDebug 3/3, InnerClassesPass 2/2, EncodingLib 12/12.
 
-- `[~]` S **Memory — 6 of 13 scored after T7 (2026-09-13).**
-  - `[ ]` S `obj_fields` is the one real defect this category exposes:
-    `TMyObj2.Create.Field := TMyObj1.Create;` — a constructor call as the **base of an lvalue** —
-    fails with `Runtime Error: cannot access field of CLASS [line: 13, column: 21]`. The
-    construction yields the class rather than the instance in that position; the same assignment
-    through a variable (line 12 of the same fixture) works.
+- ⏸️ **Memory — 7 of 13 scored (2026-09-13).** The constructor assignment receiver fix closed
+  `obj_fields` and SimpleScripts `override_deep`; see
+  [the progress log](docs/history/progress-log-2026-09.md#2026-09-13--constructor-results-as-assignment-receivers-33).
   - ⏸️ The six `external*` fixtures need a **host-registered external class** — upstream's `SetUp`
     registers `TExposedClass` and `TExposedBoomClass` with host-side constructors and an
     `OnCleanUp` hook (`UMemoryTests.pas:86-118`). That is host-integration surface, §5 territory.
@@ -308,8 +305,9 @@ fail**; they were never enumerated because the only measurement that existed cov
 suites. Tables and method:
 [`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
 Regenerate with `just fixture-report --in-scope --classify --list-fails`.
-The current execution-failure count is 151: private variables closed one, then T7 added seven
-previously unscored failures. The classification counts below describe the September 12 audit.
+The current execution-failure count is 149: private variables closed one, T7 added seven
+previously unscored failures, and constructor assignment receivers closed two. The classification
+counts below describe the September 12 audit.
 
 Read the numbers with one caveat: **111 of the 145 are classified `mixed`** (a diagnostic *and* the
 output differ), which for an execution suite is almost always one fault — a spurious compile error
@@ -355,7 +353,13 @@ scores 41.
   (`AsString(a[a.Length])`) is one of the mis-routed binds and upstream reports a real bind one
   column further on. Fix the routing first, then move the anchor; the two fixtures close together.
   Reproduction in `internal/interp/evaluator/index_ops.go`'s `IndexArray` comment.
-- `[ ]` The remainder — `Memory` 7 (triaged in §3.3), `HelpersPass` 5, `OperatorOverloadPass` 3,
+- `[ ]` **Receiver evaluation in compound assignments and var arguments.** Measured while
+  closing §3.3's constructor receiver defect: `T.Create().Value += 2` and
+  `Mutate(T.Create.Value)` (also the explicit-parentheses form) construct twice. A class var
+  retaining `Self` plus a construction counter exposes the duplicate execution and wrong
+  receiver identity. These paths need their own single-evaluation fix; simple `:=` now works.
+  Bare free-function receivers (`Make.Value := 42`) also remain unresolved, while `Make()` works.
+- `[ ]` The remainder — `Memory` 6 (triaged in §3.3), `HelpersPass` 5, `OperatorOverloadPass` 3,
   `LambdaPass`/`OverloadsPass` 2 each, `FunctionsGlobalVars` 1, `BuildScripts`/`FunctionsString`/
   `PropertyExpressionsPass` 1 each — is not yet clustered. Classify per category before opening an
   item: `just fixture-report --category HelpersPass --classify`.

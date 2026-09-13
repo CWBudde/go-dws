@@ -233,6 +233,13 @@ func (e *Evaluator) evaluateLValueIndex(target *ast.IndexExpression, ctx *Execut
 
 // evaluateLValueMember handles object/record field lvalues: obj.field
 func (e *Evaluator) evaluateLValueMember(target *ast.MemberAccessExpression, ctx *ExecutionContext) (Value, AssignFunc, error) {
+	return e.evaluateMemberTarget(target, ctx, false)
+}
+
+// evaluateMemberTarget resolves a member used either as writable storage or as
+// the container of a member assignment. Only the container role permits a
+// computed class member (such as a bare constructor) without a writeback setter.
+func (e *Evaluator) evaluateMemberTarget(target *ast.MemberAccessExpression, ctx *ExecutionContext, allowClassRead bool) (Value, AssignFunc, error) {
 	// Evaluate object ONCE, through the lvalue container resolver so that
 	// `a[k].field := v` vivifies the associative slot rather than writing into
 	// a throwaway zero value.
@@ -242,6 +249,9 @@ func (e *Evaluator) evaluateLValueMember(target *ast.MemberAccessExpression, ctx
 			return nil, nil, fmt.Errorf("failed to evaluate object: %s", errVal.Message)
 		}
 		return nil, nil, fmt.Errorf("failed to evaluate object: unknown error")
+	}
+	if allowClassRead && ctx.Exception() != nil {
+		return &runtime.NilValue{}, nil, nil
 	}
 
 	fieldName := target.Member.Value
@@ -253,6 +263,12 @@ func (e *Evaluator) evaluateLValueMember(target *ast.MemberAccessExpression, ctx
 			return nil, nil, err
 		}
 		objVal = deref
+	}
+
+	if allowClassRead {
+		if classMeta, ok := objVal.(ClassMetaValue); ok {
+			return e.resolveClassMetaMember(objVal, classMeta, fieldName, target, ctx), nil, nil
+		}
 	}
 
 	// JSON member lvalue: v.field. Mirrors the index case above so that a
@@ -273,82 +289,94 @@ func (e *Evaluator) evaluateLValueMember(target *ast.MemberAccessExpression, ctx
 
 	// Handle ObjectValue (class instance)
 	if obj, ok := objVal.(ObjectValue); ok {
-		// Property intermediate (e.g. obj.Prop.field := v): a property has no
-		// backing field slot, so resolve it through the getter. For a
-		// reference-typed property (returning an object/interface) this yields
-		// the live instance, and mutating it is visible through the property.
-		// The assignFunc writes back through the setter for value-typed
-		// properties (records) and is harmless for reference types.
-		if obj.HasProperty(fieldName) {
-			currentVal := obj.ReadProperty(fieldName, func(propInfo any) Value {
-				return e.executePropertyRead(objVal, propInfo, target, ctx)
-			})
-			if errVal, ok := currentVal.(*runtime.ErrorValue); ok {
-				return nil, nil, fmt.Errorf("%s", errVal.Message)
-			}
-			assignFunc := func(value Value) error {
-				res := obj.WriteProperty(fieldName, value, func(propInfo any, val Value) Value {
-					return e.executePropertyWrite(objVal, propInfo, val, target, ctx)
-				})
-				if errVal, ok := res.(*runtime.ErrorValue); ok {
-					return fmt.Errorf("%s", errVal.Message)
-				}
-				return nil
-			}
-			return currentVal, assignFunc, nil
-		}
-
-		currentVal := obj.GetField(fieldName)
-		if currentVal == nil {
-			// A class var reached through an instance (`obj.ClassVar.Field := v`).
-			// It is shared storage on the class, so both the read and the write
-			// back must target the class slot rather than a per-instance field.
-			if classVarValue, found := obj.GetClassVar(fieldName); found {
-				assignFunc := func(value Value) error {
-					if classInfo := e.classInfoForMethodSelf(objVal); classInfo != nil {
-						if e.setClassVarValue(classInfo, fieldName, value) {
-							return nil
-						}
-					}
-					return fmt.Errorf("class var '%s' not found in class '%s'", fieldName, obj.ClassName())
-				}
-				return classVarValue, assignFunc, nil
-			}
-			return nil, nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.ClassName())
-		}
-
-		assignFunc := func(value Value) error {
-			// ObjectValue interface doesn't have SetField, need to use type assertion
-			if setter, ok := objVal.(ObjectFieldSetter); ok {
-				setter.SetField(fieldName, value)
-				return nil
-			}
-			return fmt.Errorf("object does not support field assignment")
-		}
-
-		return currentVal, assignFunc, nil
+		return e.evaluateObjectMemberTarget(target, objVal, obj, ctx)
 	}
 
-	// Handle RecordInstanceValue
 	if rec, ok := objVal.(RecordInstanceValue); ok {
-		currentVal, exists := rec.GetRecordField(fieldName)
-		if !exists {
-			return nil, nil, fmt.Errorf("field '%s' not found in record '%s'", fieldName, rec.GetRecordTypeName())
-		}
-
-		assignFunc := func(value Value) error {
-			// RecordInstanceValue interface doesn't have SetRecordField, need type assertion
-			if setter, ok := objVal.(RecordFieldSetter); ok {
-				setter.SetRecordField(fieldName, value)
-				return nil
-			}
-			return fmt.Errorf("record does not support field assignment")
-		}
-
-		return currentVal, assignFunc, nil
+		return e.evaluateRecordMemberTarget(target, objVal, rec)
 	}
 
 	return nil, nil, fmt.Errorf("cannot access field of %s", objVal.Type())
+}
+
+// evaluateObjectMemberTarget retains the storage setter for an instance field,
+// property or class variable reached through an object.
+func (e *Evaluator) evaluateObjectMemberTarget(target *ast.MemberAccessExpression, objVal Value, obj ObjectValue, ctx *ExecutionContext) (Value, AssignFunc, error) {
+	fieldName := target.Member.Value
+	// Property intermediate (e.g. obj.Prop.field := v): a property has no
+	// backing field slot, so resolve it through the getter. For a
+	// reference-typed property (returning an object/interface) this yields
+	// the live instance, and mutating it is visible through the property.
+	// The assignFunc writes back through the setter for value-typed
+	// properties (records) and is harmless for reference types.
+	if obj.HasProperty(fieldName) {
+		currentVal := obj.ReadProperty(fieldName, func(propInfo any) Value {
+			return e.executePropertyRead(objVal, propInfo, target, ctx)
+		})
+		if errVal, ok := currentVal.(*runtime.ErrorValue); ok {
+			return nil, nil, fmt.Errorf("%s", errVal.Message)
+		}
+		assignFunc := func(value Value) error {
+			res := obj.WriteProperty(fieldName, value, func(propInfo any, val Value) Value {
+				return e.executePropertyWrite(objVal, propInfo, val, target, ctx)
+			})
+			if errVal, ok := res.(*runtime.ErrorValue); ok {
+				return fmt.Errorf("%s", errVal.Message)
+			}
+			return nil
+		}
+		return currentVal, assignFunc, nil
+	}
+
+	currentVal := obj.GetField(fieldName)
+	if currentVal == nil {
+		// A class var reached through an instance (`obj.ClassVar.Field := v`).
+		// It is shared storage on the class, so both the read and the write
+		// back must target the class slot rather than a per-instance field.
+		if classVarValue, found := obj.GetClassVar(fieldName); found {
+			assignFunc := func(value Value) error {
+				if classInfo := e.classInfoForMethodSelf(objVal); classInfo != nil {
+					if e.setClassVarValue(classInfo, fieldName, value) {
+						return nil
+					}
+				}
+				return fmt.Errorf("class var '%s' not found in class '%s'", fieldName, obj.ClassName())
+			}
+			return classVarValue, assignFunc, nil
+		}
+		return nil, nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.ClassName())
+	}
+
+	assignFunc := func(value Value) error {
+		// ObjectValue interface doesn't have SetField, need to use type assertion
+		if setter, ok := objVal.(ObjectFieldSetter); ok {
+			setter.SetField(fieldName, value)
+			return nil
+		}
+		return fmt.Errorf("object does not support field assignment")
+	}
+
+	return currentVal, assignFunc, nil
+}
+
+// evaluateRecordMemberTarget resolves a record field and its storage setter.
+func (e *Evaluator) evaluateRecordMemberTarget(target *ast.MemberAccessExpression, objVal Value, rec RecordInstanceValue) (Value, AssignFunc, error) {
+	fieldName := target.Member.Value
+	currentVal, exists := rec.GetRecordField(fieldName)
+	if !exists {
+		return nil, nil, fmt.Errorf("field '%s' not found in record '%s'", fieldName, rec.GetRecordTypeName())
+	}
+
+	assignFunc := func(value Value) error {
+		// RecordInstanceValue interface doesn't have SetRecordField, need type assertion
+		if setter, ok := objVal.(RecordFieldSetter); ok {
+			setter.SetRecordField(fieldName, value)
+			return nil
+		}
+		return fmt.Errorf("record does not support field assignment")
+	}
+
+	return currentVal, assignFunc, nil
 }
 
 // ReferenceAccessor is an optional interface for reference values.
