@@ -67,7 +67,25 @@ Test [line: 8, column: 4]
  [line: 11, column: 1]
 ```
 
+## Numeric comparison and bits
+
+`CompareNum(a, b)` returns −1 when `a < b`, 0 when `a = b`, and 1 otherwise.
+Integer pairs compare exactly; Float and mixed pairs use floating-point comparison.
+Any comparison involving NaN returns 1, including `CompareNum(NaN, NaN)`.
+The helper form is `a.Compare(b)`.
+
+`TestBit(value, index)` tests one of an Integer's 64 bits and returns False when
+the index is outside 0–63. `PopCount(value)` counts set bits in the full 64-bit
+representation; `PopCount(-1)` is 64. Their helper forms are `value.TestBit(index)`
+and `value.PopCount`.
+
 ## String Functions
+
+### StrArrayPack
+
+`StrArrayPack(values)` removes empty strings from a dynamic String array in place
+and returns that same array. It preserves order and whitespace-only strings.
+Other references to the array observe the mutation. `values.Pack` is the helper form.
 
 ### Format
 

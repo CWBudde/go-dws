@@ -9,7 +9,7 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-13):** Go harness and freshly rebuilt CLI agree at **1,123 / 1,966 scored =
+**Headline (2026-09-13):** Go harness and freshly rebuilt CLI agree at **1,130 / 1,966 scored =
 57%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
@@ -17,7 +17,7 @@
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,123 / 1,747 = 64% in scope**, the number to track against §6. Both are honest;
+same run reads **1,130 / 1,747 = 65% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -29,7 +29,7 @@ Open, in leverage order:
   families were split out — the 68 fixtures one line from passing (F9) and the `Incompatible
   types` sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half of the measurement: 149 in-scope fixtures now fail in the
+- **§3.5** is the other half of the measurement: 142 in-scope fixtures now fail in the
   suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
   ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
   and E8 is a by-reference binding bug E1 turned up.
@@ -57,10 +57,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (843 total, 2026-09-13): **219 host-library** (out of scope),
+- Where the remaining failures are (836 total, 2026-09-13): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **149 in the execution suites** (§3.5:
-  SimpleScripts 71, ArrayPass 19, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 11, a tail
+  HelpersFail 18 each, the rest under 15), and **142 in the execution suites** (§3.5:
+  SimpleScripts 71, ArrayPass 17, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 6, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -305,9 +305,9 @@ fail**; they were never enumerated because the only measurement that existed cov
 suites. Tables and method:
 [`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
 Regenerate with `just fixture-report --in-scope --classify --list-fails`.
-The current execution-failure count is 149: private variables closed one, T7 added seven
-previously unscored failures, and constructor assignment receivers closed two. The classification
-counts below describe the September 12 audit.
+The current execution-failure count is 142: private variables closed one, T7 added seven
+previously unscored failures, constructor assignment receivers closed two, and E4 numeric/array
+helpers closed seven. The classification counts below describe the September 12 audit.
 
 Read the numbers with one caveat: **111 of the 145 are classified `mixed`** (a diagnostic *and* the
 output differ), which for an execution suite is almost always one fault — a spurious compile error
@@ -324,10 +324,6 @@ scores 41.
   spurious. It belongs at the single point where a name resolves to a declaration. ⚠️ Its `sole`
   yield is 5: most of the 28 fixtures need something else as well, so this is a structural fix, not
   a fixture-count win. Size it accordingly.
-- **E4** `[ ]` M **Missing primitive and array helpers** — `FunctionsMath` (10 failing, 6 of them
-  this) and `ArrayPass`. Absent members, named by the spurious diagnostics: `Integer.TestBit`,
-  `Integer.Compare`, `Integer.PopCount`, `Float.Compare`, and on `array of Float` / `array of
-  String`: `Pack`, `Offset`, `Multiply`, `MultiplyAdd`. Mechanical once the first one has a home.
 - **E5** `[ ]` M **`InterfacesPass` (12) — casting and comparison.** The recurring spurious
   diagnostic is `'X' operator requires class instance, got IInterface`; the expected side wants
   `Cannot cast interface of "X" to class "X"`, the interface-to-interface form, and
@@ -363,6 +359,12 @@ scores 41.
   `LambdaPass`/`OverloadsPass` 2 each, `FunctionsGlobalVars` 1, `BuildScripts`/`FunctionsString`/
   `PropertyExpressionsPass` 1 each — is not yet clustered. Classify per category before opening an
   item: `just fixture-report --category HelpersPass --classify`.
+
+**Closed here (2026-09-13):**
+
+- [Numeric and array helpers](docs/history/progress-log-2026-09.md#2026-09-13--numeric-and-array-helpers-e4)
+  (**E4**) — Integer bit helpers, numeric comparison, Float-array transforms and String-array
+  packing. FunctionsMath 29 → 34/40; ArrayPass 96 → 98/115.
 
 **Closed here (2026-09-12):**
 

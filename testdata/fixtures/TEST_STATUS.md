@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1123 |
-| Failed | 843 |
+| Passed | 1130 |
+| Failed | 836 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **57%** (1123/1966) |
+| **Scored pass rate** | **57%** (1130/1966) |
 
 ## Per-category
 
@@ -24,7 +24,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | Category | Total | Pass | Fail | Skip | Pass% |
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
-| ArrayPass | 115 | 96 | 19 | 0 | 83% |
+| ArrayPass | 115 | 98 | 17 | 0 | 85% |
 | AssociativeFail | 4 | 1 | 3 | 0 | 25% |
 | AssociativePass | 27 | 27 | 0 | 0 | 100% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
@@ -45,7 +45,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
 | FunctionsGlobalVars | 16 | 15 | 1 | 0 | 94% |
-| FunctionsMath | 40 | 29 | 11 | 0 | 72% |
+| FunctionsMath | 40 | 34 | 6 | 0 | 85% |
 | FunctionsMath3D | 2 | 0 | 2 | 0 | 0% |
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
 | FunctionsRTTI | 6 | 0 | 6 | 0 | 0% |

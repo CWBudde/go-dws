@@ -4145,3 +4145,63 @@ Validation (with writable caches under `/tmp`):
   61 categories, with only the two expected category baseline increases.
 - `golangci-lint run --new-from-rev=HEAD --timeout=5m` passed with zero issues;
   `git diff --check` passed.
+
+
+## 2026-09-13 — numeric and array helpers (E4)
+
+Integer now exposes `TestBit`, `PopCount`, and `Compare`; Float exposes `Compare`.
+Their shared helper specifications route through the existing builtin registry. `TestBit`
+returns False outside indices 0–63. `CompareNum` compares Integer pairs without conversion
+or subtraction, preserving the full signed 64-bit range; mixed/Float pairs use floating-point
+comparison. Upstream's branch order makes any NaN operand return 1, including NaN/NaN.
+The prior tests that expected range errors or NaN-low ordering were corrected against
+[pinned upstream source](https://github.com/EricGrange/DWScript/blob/5f01a3468452ea75867d4f0e7a0246b107e92332/Source/dwsMathFunctions.pas).
+
+Dynamic Float arrays now expose `Offset`, `Multiply`, `MultiplyAdd`, and `Reciprocal`.
+The last method was absent from E4's original list but is required by `array_funcs`.
+These evaluator-owned operations mutate and return the same array. MultiplyAdd explicitly
+rounds the product before adding; Reciprocal follows IEEE division, including signed
+zero/infinity and NaN. The evaluator resolves the actual selected builtin before skipping
+scalar argument evaluation on an empty array, so user helpers retain their own call behavior.
+Nonempty calls evaluate operands once and propagate exceptions before mutation. Runtime
+receiver and element checks protect calls that bypass semantic analysis, and scalar wrappers
+are replaced so separately held values do not change.
+
+Dynamic String arrays now expose `Pack`. It shares the corrected `StrArrayPack` builtin,
+which stably removes empty strings from the original array and returns that same receiver.
+Whitespace survives, aliases observe mutation, and trailing references are cleared. Existing
+nonempty array-literal calls to the global builtin remain accepted; their runtime metadata
+can describe a static array despite the builtin's dynamic-array signature.
+
+The shared catalog owns names and signatures, with Float-array registration added to both
+bootstrap paths. A bare builtin helper in statement position now gets `More arguments expected`
+when its signature requires operands, including chained and implicitly called receivers.
+Expression-position method references retain their previous interpretation. This check is
+limited to selected builtin helpers: user helper signatures currently omit default-value
+metadata, so extending the check to them would reject valid defaulted calls. Regression controls
+also protect record methods from same-named helper declarations.
+
+Seven fixtures close: FunctionsMath `compare_num`, `sort_nums`, `testbit`, `popcnt`, and
+`array_funcs`; ArrayPass `string_array_pack` and `array_method_indexing2`. The latter is an
+additional gain from Integer.Compare in a sort callback. FunctionsMath rises **29 → 34/40**,
+ArrayPass **96 → 98/115**. No category baseline decreases. E4 is removed from PLAN.md; helper
+and builtin guides document the new methods and observable builtin corrections. No parser,
+public Go API, or bytecode changes were needed.
+
+Fresh CLI and harness reports agree in all **61 categories**: **1,130 / 1,966 scored**, with
+836 failures and 78 skipped among 2,044 fixtures. In scope this is **1,130 / 1,747 = 65%**;
+execution-suite failures fall 149 → 142. The `*Fail` suites remain 166/641. Baselines and generated
+status were refreshed with `just fixture-update`.
+
+Tests were written and observed failing before implementation. Coverage runs through the real
+compile/execute path and includes fixture output, numeric boundaries beyond 2^53, NaNs,
+case-insensitive dispatch, aliases, helper overrides, wrong arity/type, receiver/operand side
+effects and failures, empty-array suppression, array identity, IEEE reciprocal behavior, and
+separate multiply/add rounding. Catalog parity and focused integration checks pass.
+
+Final validation: `go test -timeout=20m ./...` passes, as do the focused numeric/array,
+semantic arity, and helper parity regressions. Changed-code `golangci-lint run
+--new-from-rev=HEAD --timeout=5m` reports **0 issues**. The full run caught four additional
+legacy interpreter expectations for TestBit/NaN behavior; those were updated before the
+successful rerun. Fresh CLI category totals were compared programmatically against generated
+harness status and match in all 61 categories. The two baseline changes are strictly increases.

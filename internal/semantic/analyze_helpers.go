@@ -764,7 +764,7 @@ func (a *Analyzer) initArrayHelpers() {
 }
 
 func (a *Analyzer) initIntrinsicHelpers() {
-	for _, target := range []string{"Integer", "Float", "Boolean", "String", "array of String"} {
+	for _, target := range []string{"Integer", "Float", "Boolean", "String", "array of String", "array of Float"} {
 		key := ident.Normalize(target)
 		a.helpers[key] = append(a.helpers[key], types.NewBuiltinHelper(target))
 	}

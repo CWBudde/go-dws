@@ -440,13 +440,26 @@ func TestTestBit(t *testing.T) {
 				&runtime.IntegerValue{Value: 8},
 				&runtime.IntegerValue{Value: -1},
 			},
-			isError: true,
+			expected: &runtime.BooleanValue{Value: false},
 		},
 		{
 			name: "bit out of range too high",
 			args: []Value{
 				&runtime.IntegerValue{Value: 8},
 				&runtime.IntegerValue{Value: 64},
+			},
+			expected: &runtime.BooleanValue{Value: false},
+		},
+		{
+			name:    "missing bit argument",
+			args:    []Value{&runtime.IntegerValue{Value: 8}},
+			isError: true,
+		},
+		{
+			name: "noninteger bit argument",
+			args: []Value{
+				&runtime.IntegerValue{Value: 8},
+				&runtime.FloatValue{Value: 3},
 			},
 			isError: true,
 		},

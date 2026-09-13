@@ -1,6 +1,6 @@
 {
   "Algorithms": 53,
-  "ArrayPass": 96,
+  "ArrayPass": 98,
   "AssociativeFail": 1,
   "AssociativePass": 27,
   "AttributesFail": 0,
@@ -21,7 +21,7 @@
   "FunctionsDebug": 3,
   "FunctionsFile": 0,
   "FunctionsGlobalVars": 15,
-  "FunctionsMath": 29,
+  "FunctionsMath": 34,
   "FunctionsMath3D": 0,
   "FunctionsMathComplex": 0,
   "FunctionsRTTI": 0,
