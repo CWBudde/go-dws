@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"github.com/cwbudde/go-dws/internal/encoding"
+	"github.com/cwbudde/go-dws/internal/fixtureconfig"
 	"github.com/cwbudde/go-dws/internal/frontend"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -215,13 +215,6 @@ type categoryOutcome struct {
 	skipped   int
 }
 
-// hintsLevelOverrides lists the few categories DWScript does not run under its pedantic
-// hint harness. Everything else defaults to pedantic (matching the reference test runner).
-var hintsLevelOverrides = map[string]semantic.HintsLevel{
-	"Algorithms":      semantic.HintsLevelNormal,
-	"FunctionsString": semantic.HintsLevelNormal,
-}
-
 // categoryDescriptions provides human-readable descriptions for TEST_STATUS.md. Categories
 // without an entry fall back to a generic label; the harness never depends on this map for
 // behavior.
@@ -277,7 +270,7 @@ func discoverFixtureCategories(root string) ([]fixtureCategory, error) {
 			description:  description,
 			pasFiles:     pasFiles,
 			expectErrors: isErrorCategory(name),
-			hintsLevel:   hintsLevelOverrides[name],
+			hintsLevel:   fixtureconfig.HintsLevel(name),
 		})
 	}
 
@@ -541,18 +534,14 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 		return testResultFailed, fmt.Sprintf("failed to read source: %v", err)
 	}
 
-	// A fixture is only scored when it ships an expected .txt; a missing file means the
-	// fixture is intentionally not scored (skipped). Any other read/decode error is a real
-	// problem and must fail rather than masquerade as a skip.
+	// The shared policy also scores missing expectations as silence for output suites.
 	txtFile := strings.TrimSuffix(pasFile, ".pas") + ".txt"
-	expectedContent, err := encoding.DecodeFile(txtFile)
+	expectedContent, scored, err := fixtureconfig.ReadExpected(filepath.Base(filepath.Dir(pasFile)), txtFile)
 	if err != nil {
-		// errors.Is sees through the %w wrapping added by detectAndDecodeFile;
-		// os.IsNotExist would not and would misreport a missing file as failed.
-		if errors.Is(err, os.ErrNotExist) {
-			return testResultSkipped, ""
-		}
 		return testResultFailed, fmt.Sprintf("failed to read expected output: %v", err)
+	}
+	if !scored {
+		return testResultSkipped, ""
 	}
 
 	compileResult := frontend.Compile(source, pasFile, hintsLevel)
@@ -748,11 +737,11 @@ func writeFixtureStatus(outcomes []categoryOutcome, totalPassed, totalFailed, to
 	fmt.Fprintf(&b, "| Fixtures (total) | %d |\n", totalTests)
 	fmt.Fprintf(&b, "| Passed | %d |\n", totalPassed)
 	fmt.Fprintf(&b, "| Failed | %d |\n", totalFailed)
-	fmt.Fprintf(&b, "| Skipped (no expected .txt) | %d |\n", totalSkipped)
+	fmt.Fprintf(&b, "| Skipped (no applicable expectation) | %d |\n", totalSkipped)
 	fmt.Fprintf(&b, "| **Scored pass rate** | **%.0f%%** (%d/%d) |\n\n", pct, totalPassed, scored)
 
 	b.WriteString("## Per-category\n\n")
-	b.WriteString("Pass% is over *scored* fixtures (those with an expected `.txt`).\n\n")
+	b.WriteString("Pass% is over *scored* fixtures: a sibling `.txt`, or an empty expectation for output suites.\nSee [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for exclusions.\n\n")
 	b.WriteString("| Category | Total | Pass | Fail | Skip | Pass% |\n")
 	b.WriteString("|---|---:|---:|---:|---:|---:|\n")
 	for _, o := range outcomes {

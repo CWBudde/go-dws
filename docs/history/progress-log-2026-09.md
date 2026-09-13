@@ -4067,3 +4067,39 @@ Final checks passed (using a writable `GOCACHE` under `/tmp` in this environment
 - `golangci-lint run --new-from-rev=HEAD` — zero new issues.
 - `just fixture-update`, freshly built `fixture-report --build=false`, and an exact diff of
   the CLI's `private_vars` output against its checked-in expectation.
+
+## 2026-09-13 — missing fixture expectations and Memory hints (T7)
+
+The Go harness and CLI report now share `internal/fixtureconfig` for expectation loading and
+category hint levels. A missing `.txt` is scored against silence except in BuildScripts,
+AutoFormat, External, DelegateLib and FailureScripts. Existing expectations remain authoritative
+in every category, and read/decode errors remain failures. Memory joins Algorithms and
+FunctionsString at normal hints; other categories stay pedantic.
+
+The two runners agree at **1,121 / 1,966 scored**, with 845 failures and 78 skipped out of 2,044.
+This adds 36 checks: 29 pass and seven expose existing failures. Memory moves from 1/3 to 6/13.
+The previous estimate of 28 new passes was stale, and its claim that the pass percentage would
+decrease was incorrect. The seven newly scored failures are FunctionsMath/random,
+SimpleScripts/const_block, and Memory/external, external_bidicycle, external_cycle,
+external_selfref and obj_fields. No previously scored fixture was lost. Baselines and generated
+status were refreshed with `just fixture-update`, and T7 plus the Memory scoring subtask were
+removed from PLAN.md.
+
+The bundled upstream runners clarified two qualifications in the fixture README:
+`CompilationFailure` requires nonempty diagnostics when its expectation is absent, so its
+13 missing exact expectations remain skipped; the JSFilterScripts `.pas` files are support
+units checked separately by our discovery, while upstream collects `.dws` scripts.
+
+Regression tests exercise actual harness scoring and a freshly built CLI: silence, unexpected
+output, compile/runtime diagnostics, compile-only mode, every excluded category, existing
+expectations, unreadable files, malformed UTF-16 comparison, failure classification, and
+Memory/obj_local through the discovered category's worker request.
+
+Validation:
+
+- `GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -timeout=20m ./...` passed.
+- `go test ./cmd/fixture-report` passed again after splitting the CLI regression test into
+  focused helpers to satisfy the complexity limit.
+- The fixture baseline gate, `just fixture-update`, and a freshly built CLI report passed
+  with matching counts in every category.
+- `golangci-lint run --new-from-rev=HEAD` passed with zero issues; `git diff --check` passed.

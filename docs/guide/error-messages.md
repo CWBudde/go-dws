@@ -461,6 +461,10 @@ Two further flags exist for test harnesses and imply `--diagnostics=plain`:
   list (hints included at the chosen `--hints` level), which is what the `*Fail` fixture suites expect.
 
 `cmd/fixture-report` uses exactly these flags, so its numbers match the Go harness.
+Both runners use normal hints for Memory, Algorithms and FunctionsString, and pedantic hints
+for other categories. Missing `.txt` expectations mean empty output except for the documented
+[category exclusions](../../testdata/fixtures/README.md#a-missing-txt-means-must-print-nothing-upstream);
+unexpected diagnostics still fail those checks.
 
 ### Example Output
 

@@ -9,16 +9,17 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-13):** Go harness and freshly rebuilt CLI agree at **1,092 / 1,930 scored =
-57%**; `*Fail` error-detection suites **165 / 640 = 26%**. What shipped to get there is in
+**Headline (2026-09-13):** Go harness and freshly rebuilt CLI agree at **1,121 / 1,966 scored =
+57%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
-**What the denominator is.** 2,044 fixtures ship in the tree; 114 have no expected `.txt` and are
-dropped as unscored, leaving 1,930. That denominator still contains the **219 host-library fixtures
-excluded from every target below** (see the scope rule further down) — all 219 currently fail, so
-the headline counts work nobody intends to do. Excluding them, the same run reads **1,092 / 1,711 =
-64% in scope**, and that is the number to track against §6. Both are honest; the lower one is the
-one quoted outward, and T7 will lower it again by scoring the 114.
+**What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
+and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
+silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
+target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
+same run reads **1,121 / 1,747 = 64% in scope**, the number to track against §6. Both are honest;
+the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
+which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
@@ -28,14 +29,14 @@ Open, in leverage order:
   families were split out — the 68 fixtures one line from passing (F9) and the `Incompatible
   types` sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is new and is the other half of the measurement: 145 in-scope fixtures fail in the
+- **§3.5** is the other half of the measurement: 151 in-scope fixtures now fail in the
   suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
   ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
   and E8 is a by-reference binding bug E1 turned up.
-- **§3.3** has Memory left (1 of 3 scored, and mostly a harness gap), broken into subtasks
-  against a 2026-09-12 triage. Private unit variables closed 2026-09-13; see the progress log.
-- **§1** gained T7 and T8 from the same measurement: 36 fixtures upstream scores and go-dws
-  skips, and a classification mode for `fixture-report`.
+- **§3.3** has Memory left (6 of 13 scored), with one constructor-lvalue defect and deferred
+  host setup. Private unit variables and the Memory scoring gap closed 2026-09-13; see the progress log.
+- **§1** is closed: T7 scores 36 previously skipped fixtures and T8 classifies failures in
+  `fixture-report`.
 - **§3.4** has one item, blocked on the evaluator. **§2** has one, deferred by owner decision.
 
 Where the truth lives:
@@ -56,10 +57,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (838 total, 2026-09-13): **219 host-library** (out of scope),
+- Where the remaining failures are (845 total, 2026-09-13): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **144 in the execution suites** (§3.5:
-  SimpleScripts 71, ArrayPass 19, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 10, a tail
+  HelpersFail 18 each, the rest under 15), and **151 in the execution suites** (§3.5:
+  SimpleScripts 72, ArrayPass 19, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 11, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -80,14 +81,9 @@ T1–T6 closed 2026-09-06 (one compile pipeline for CLI and harness, `run
 see [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md). New tooling
 items go here.
 
-- **T7** `[ ]` S Score the `.txt`-less fixtures, and give the harness a per-category hint level.
-  Upstream treats a missing expectation file as **"must print nothing"**; go-dws reports those
-  fixtures as unscored and drops them. Measured 2026-09-12: **36 fixtures across nine categories**,
-  **28 of which already print nothing**, so adopting the rule is +28 passes on +36 scored — which
-  lowers the headline percentage, the honest direction, because the suite grows. Memory
-  additionally needs the compiler's **default** hint level rather than `--hints pedantic`. The
-  rule, the affected categories and the three groups deliberately excluded are documented next to
-  the fixtures: [`testdata/fixtures/README.md`](testdata/fixtures/README.md).
+T7 closed 2026-09-13: shared missing-expectation scoring and category hint levels; see
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-13--missing-fixture-expectations-and-memory-hints-t7).
+
 **Closed here (2026-09-12):**
 
 - [The fixture classifier](docs/history/progress-log-2026-09.md#2026-09-12--the-fixture-classifier-t8)
@@ -239,15 +235,10 @@ point, so they stay here rather than moving to the history log.
 ### 3.3 Runtime / evaluator
 
 Every other category this section used to list is closed: FunctionsByteBuffer 19/19 (see
-[`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md)), FunctionsTime 27/27, FunctionsVariant 9/9,
+[`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md)), FunctionsTime 30/30, FunctionsVariant 10/10,
 FunctionsDebug 3/3, InnerClassesPass 2/2, EncodingLib 12/12.
 
-- `[~]` S **Memory — triaged 2026-09-12, and mostly a harness gap rather than language work.**
-  The category reads 1 of 3 scored with ten fixtures unscored.
-  - `[ ]` S Five of those ten already compile clean and print nothing (`obj_bidicycle`,
-    `obj_cycle`, `obj_selfref`, `simple`, and `obj_local` at the default hint level). Scoring them
-    the way upstream does takes Memory to 6/13 with no language change — that is **T7**, do it
-    there.
+- `[~]` S **Memory — 6 of 13 scored after T7 (2026-09-13).**
   - `[ ]` S `obj_fields` is the one real defect this category exposes:
     `TMyObj2.Create.Field := TMyObj1.Create;` — a constructor call as the **base of an lvalue** —
     fails with `Runtime Error: cannot access field of CLASS [line: 13, column: 21]`. The
@@ -260,7 +251,7 @@ FunctionsDebug 3/3, InnerClassesPass 2/2, EncodingLib 12/12.
     registered nothing.
   - ✋ Upstream's leak assertions (`exec.ObjectCount = 0`, external-object count) do not port: they
     check DWScript's reference counting at a point where Go's GC has not necessarily run. Five of
-    the ten unscored fixtures exist only to make that assertion; "compiles and prints nothing" is
+    the formerly unscored fixtures exist only to make that assertion; "compiles and prints nothing" is
     all of it that is portable.
 - ✋ FunctionsGlobalVars `queue_snapshot`: measured 2026-09-12, the produced output already
   matches the expectation exactly, line for line. The only difference is four
@@ -317,6 +308,8 @@ fail**; they were never enumerated because the only measurement that existed cov
 suites. Tables and method:
 [`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
 Regenerate with `just fixture-report --in-scope --classify --list-fails`.
+The current execution-failure count is 151: private variables closed one, then T7 added seven
+previously unscored failures. The classification counts below describe the September 12 audit.
 
 Read the numbers with one caveat: **111 of the 145 are classified `mixed`** (a diagnostic *and* the
 output differ), which for an execution suite is almost always one fault — a spurious compile error
@@ -362,8 +355,8 @@ scores 41.
   (`AsString(a[a.Length])`) is one of the mis-routed binds and upstream reports a real bind one
   column further on. Fix the routing first, then move the anchor; the two fixtures close together.
   Reproduction in `internal/interp/evaluator/index_ops.go`'s `IndexArray` comment.
-- `[ ]` The remainder — `HelpersPass` 5, `OperatorOverloadPass` 3, `LambdaPass`/`Memory`/
-  `OverloadsPass`/`FunctionsGlobalVars` 2 each, `BuildScripts`/`FunctionsString`/
+- `[ ]` The remainder — `Memory` 7 (triaged in §3.3), `HelpersPass` 5, `OperatorOverloadPass` 3,
+  `LambdaPass`/`OverloadsPass` 2 each, `FunctionsGlobalVars` 1, `BuildScripts`/`FunctionsString`/
   `PropertyExpressionsPass` 1 each — is not yet clustered. Classify per category before opening an
   item: `just fixture-report --category HelpersPass --classify`.
 
@@ -384,8 +377,8 @@ scores 41.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 165/640 (FailureScripts 156/529, SetOfFail 5, JSONConnectorFail 2,
-AssociativeFail 1, InterfacesFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
+Harness and CLI: 166/641 (FailureScripts 156/529, SetOfFail 5, JSONConnectorFail 2,
+AssociativeFail 1, InterfacesFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
 `dwscript run --diagnostics=plain --compile-only --hints pedantic <file>`.

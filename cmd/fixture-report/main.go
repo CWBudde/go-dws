@@ -1,10 +1,11 @@
 // Command fixture-report prints an honest DWScript fixture compatibility report.
 //
 // It runs every testdata/fixtures/*/*.pas through the built dwscript CLI and compares the
-// normalized output to the sibling .txt. It prints a per-category pass/fail table and a
+// normalized output to the sibling .txt, or silence when the shared category policy
+// permits a missing expectation. It prints a per-category pass/fail table and a
 // total. This is the *ground-truth* compatibility metric for the port: unlike the in-repo
-// Go test harness (internal/interp.TestDWScriptFixtures), it does not skip categories and it
-// exercises the real CLI end to end.
+// Go test harness (internal/interp.TestDWScriptFixtures), it exercises the real CLI
+// end to end. Both runners discover the same categories and share the scoring policy.
 //
 // Usage:
 //
@@ -43,7 +44,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cwbudde/go-dws/internal/encoding"
+	"github.com/cwbudde/go-dws/internal/fixtureconfig"
+	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
@@ -61,14 +63,6 @@ const timeoutSentinel = "__TIMEOUT__"
 // the suite runs, so the harness fixes the zone instead. Keep in sync with the
 // constant of the same name in internal/interp/fixture_test.go.
 const fixtureTimeZone = "Europe/Berlin"
-
-// hintsLevelOverrides mirrors internal/interp/fixture_test.go (hintsLevelOverrides): the
-// reference harness runs everything at pedantic except these categories. Keep the two in
-// sync; the harness lives in a _test file and cannot be imported from here.
-var hintsLevelOverrides = map[string]string{
-	"Algorithms":      "normal",
-	"FunctionsString": "normal",
-}
 
 // outOfScopeCategories are the host-library suites excluded from every target in
 // PLAN.md, per docs/decisions/out-of-scope.md: they bind Windows COM, a database, a
@@ -95,8 +89,8 @@ func isErrorCategory(category string) bool {
 
 // hintsLevelFor returns the --hints level the CLI must run a category at.
 func hintsLevelFor(category string) string {
-	if level, ok := hintsLevelOverrides[category]; ok {
-		return level
+	if fixtureconfig.HintsLevel(category) == semantic.HintsLevelNormal {
+		return "normal"
 	}
 	return "pedantic"
 }
@@ -327,8 +321,8 @@ func run() int {
 	return 0
 }
 
-// collectItems builds the work list of fixtures (those with an expected .txt are scored;
-// those without are counted as NoExp).
+// collectItems builds the work list; the shared scoring policy decides which
+// missing expectations are scored as silence and which remain unscored.
 func collectItems(only string, inScope bool) ([]workItem, error) {
 	entries, err := os.ReadDir(fixturesBase)
 	if err != nil {
@@ -407,16 +401,13 @@ func evaluate(cli string, items []workItem, timeout time.Duration, classifyFails
 // evaluateOne scores a single fixture.
 func evaluateOne(cli string, it workItem, timeout time.Duration, classifyFails bool) result {
 	name := strings.TrimSuffix(filepath.Base(it.pasFile), ".pas")
-	expContent, err := encoding.DecodeFile(it.txtFile)
+	expContent, scored, err := fixtureconfig.ReadExpected(it.category, it.txtFile)
 	if err != nil {
-		// Only a missing .txt means "not scored". Any other read/decode error
-		// (e.g. malformed UTF-16) is a real problem and must count as a
-		// failure instead of silently shrinking the scored set.
-		if errors.Is(err, os.ErrNotExist) {
-			return result{category: it.category, name: name, noExp: true}
-		}
 		fmt.Fprintf(os.Stderr, "warning: %s: cannot decode expected output: %v\n", it.txtFile, err)
 		return result{category: it.category, name: name, fail: true}
+	}
+	if !scored {
+		return result{category: it.category, name: name, noExp: true}
 	}
 	expected := normalize(expContent)
 	got := normalize(runOne(cli, it.category, it.pasFile, timeout))
@@ -437,7 +428,7 @@ func evaluateOne(cli string, it workItem, timeout time.Duration, classifyFails b
 
 // printReport writes the per-category table and the total row.
 func printReport(order []string, stats map[string]*categoryStat) {
-	fmt.Printf("%-26s%5s%6s%6s%6s%7s\n", "Category", "Tot", "Pass", "Fail", "NoExp", "Pass%")
+	fmt.Printf("%-26s%5s%6s%6s%6s%7s\n", "Category", "Tot", "Pass", "Fail", "Skip", "Pass%")
 	var tPass, tFail, tNoExp, tTot int
 	for _, cat := range order {
 		st := stats[cat]
