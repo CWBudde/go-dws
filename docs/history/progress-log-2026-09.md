@@ -4205,3 +4205,74 @@ semantic arity, and helper parity regressions. Changed-code `golangci-lint run
 legacy interpreter expectations for TestBit/NaN behavior; those were updated before the
 successful rerun. Fresh CLI category totals were compared programmatically against generated
 harness status and match in all 61 categories. The two baseline changes are strictly increases.
+
+
+## 2026-09-13 — fixture hint configuration (E3a)
+
+E3a closes the configuration audit that precedes case-mismatch hint fixes. The bundled
+upstream runner supplies the evidence July's investigation lacked: `UScriptTests.pas`
+collects SimpleScripts and ArrayPass at lines 73–74, FailureScripts at 76, OverloadsPass at
+88, and HelpersPass at 91. Its setup sets `FCompiler.Config.HintsLevel := hlPedantic` at
+line 111. This is the only hint-level assignment in that runner; the execution and failure
+loops do not override it per fixture. Test variants change compiler options, with optimized
+expectations selected separately; go-dws uses the non-optimized `.txt` expectations.
+
+`UAlgorithmsTests.pas:93–102` constructs its compiler without changing the default normal
+hint level. July's `array_in2`/`hanoi` counterexample therefore crosses runners: lowercase
+`println` should produce case hints in ArrayPass and none in Algorithms. Freshly compiled
+CLI runs match both expected files exactly after the standard whitespace normalization.
+The July progress log remains unchanged as a historical account; its blanket conclusion
+that these settings were unrecoverable is superseded for the categories proven here.
+
+### Configuration and remaining defects
+
+| Representative fixture | Observed CLI result | Classification / follow-up |
+| --- | --- | --- |
+| `ArrayPass/array_in2`, pedantic | Exit 0; exact expectation match, including five `println` hints | Recovered runner configuration |
+| `Algorithms/hanoi`, normal | Exit 0; exact expectation match without case hints | Recovered runner configuration |
+| `FailureScripts/hint_pedantic`, pedantic | Exit 1; unwanted `test` case hint at 5:1 inside `{$HINTS OFF}`; expected hint at 9:1 is present after `{$HINTS pedantic}` | Source-switch handling, E3b |
+| Same `hint_pedantic` run | Unknown `FOOBAR` switch diagnostic at 11:3 appears before the hints; expectation puts it after the 9:1 hint | Separate diagnostic ordering, §4/F1; suppression alone will not close the fixture |
+| `SimpleScripts/inherited_constructor`, pedantic | Exit 0; missing `createElement` / `CreateElement` hint at 17:12; other six expected case hints and runtime output match | Declaration-resolution hint defect, E3c |
+| Same `inherited_constructor` run | Extra `Overloaded method "Create" should be marked with the "overload" directive` hints at 23:3 and 36:3 | Separate overload-hint defect; fixing case hints alone will not close the fixture |
+
+The lexer currently applies `{$HINTS}` toggles to directive messages only
+(`internal/lexer/directive_messages.go`, `setSeveritySwitch`); the analyzer's hint level is
+separate. This explains why a correctly configured pedantic runner can still produce the
+unwanted line-5 hint. No source-switch or resolution implementation changes ship in E3a.
+
+Both entry points already share category settings: `internal/interp/fixture_test.go`
+constructs categories using `fixtureconfig.HintsLevel`, and `cmd/fixture-report/main.go`'s
+`hintsLevelFor` translates that same policy into the CLI flag. The policy itself is unchanged.
+Its pedantic fallback for other categories is not, by itself, evidence of their upstream
+runner configuration.
+
+PLAN.md now marks E3a complete and E3 partially complete. The §5 gate and affected
+OverloadsPass, HelpersPass and FailureScripts references permit E3b/E3c work for the five
+proven E3 categories. Categories without verified runner evidence retain the configuration
+gate. FunctionsGlobalVars `queue_snapshot` remains parked for its unresolved upstream
+resolution behavior: the differing `Join` hint is not evidence that per-test settings are
+missing, and changing `Map`'s inferred return type merely to force a hint match remains
+unjustified. The fixture README records the runner evidence and the distinction between
+configuration, source switches and resolution defects.
+
+### Validation
+
+Built the current CLI into `/tmp`, leaving repository binaries unchanged:
+
+```sh
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go build -o /tmp/go-dws-e3a-cli ./cmd/dwscript
+/tmp/go-dws-e3a-cli run --test-envelope --hints pedantic testdata/fixtures/ArrayPass/array_in2.pas
+/tmp/go-dws-e3a-cli run --test-envelope --hints normal testdata/fixtures/Algorithms/hanoi.pas
+/tmp/go-dws-e3a-cli run --compile-only --hints pedantic testdata/fixtures/FailureScripts/hint_pedantic.pas
+/tmp/go-dws-e3a-cli run --test-envelope --hints pedantic testdata/fixtures/SimpleScripts/inherited_constructor.pas
+```
+
+Compared combined CLI output against each UTF-8 expectation using line-ending normalization,
+right-trimmed lines and trimmed outer whitespace. The two configuration controls pass; the
+other two reproduce the exact remaining differences listed above. No fixture expectation,
+compiler behavior, public API or baseline changes. The last full-suite measurement remains
+1,130/1,966; E3a does not claim new fixture passes.
+
+The existing `TestHintsLevelFor` regression passes with `go test ./cmd/fixture-report
+-run '^TestHintsLevelFor$' -count=1` using the same writable cache settings. Documentation
+links and E3 completion markers were checked; `git diff --check` passes.

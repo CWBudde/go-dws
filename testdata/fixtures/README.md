@@ -292,3 +292,28 @@ Memory, Algorithms and FunctionsString use the compiler's **normal** (default) h
 Other categories use **pedantic**. This lets `Memory/obj_local` match the upstream memory runner
 without suppressing hints in other suites. Missing expectations still detect unexpected output,
 compile diagnostics and runtime errors; they do not mean an automatic pass.
+
+### Evidence for case-mismatch hint settings
+
+The shared `internal/fixtureconfig.HintsLevel` policy supplies both the Go harness's category
+configuration and `fixture-report`'s CLI `--hints` argument. Its default of pedantic is a harness
+policy; evidence for a particular upstream runner must still be checked before diagnosing a
+hint mismatch as a compiler defect.
+
+| Categories checked in E3a | Bundled upstream evidence | Hint level |
+| --- | --- | --- |
+| SimpleScripts, ArrayPass, HelpersPass, OverloadsPass, FailureScripts | [UScriptTests.pas](UScriptTests.pas), category collection at lines 73–92 and compiler setup at line 111 | Pedantic; no per-fixture hint-level assignment |
+| Algorithms | [UAlgorithmsTests.pas](UAlgorithmsTests.pas), setup at lines 93–102 leaves the compiler hint level unchanged | Normal default |
+
+This resolves the old `ArrayPass/array_in2` versus `Algorithms/hanoi` example: both use lowercase
+`println`, but only the pedantic runner expects case hints. Fresh CLI output matches both
+expectations using these settings. go-dws uses the non-optimized `.txt` expectations described
+above; optimization variants do not establish a per-fixture hint-level override.
+
+Runner configuration does not fix source-level switches or declaration resolution.
+`FailureScripts/hint_pedantic` still emits a hint inside `{$HINTS OFF}` and places its parser
+diagnostic before the hints. `SimpleScripts/inherited_constructor` still misses the
+`createElement` case hint and emits two extra overload hints, despite correct runtime output.
+These are separate follow-ups, not reasons to change the category hint policy. See
+[the E3a audit](../../docs/history/progress-log-2026-09.md#2026-09-13--fixture-hint-configuration-e3a)
+for exact positions and validation commands.
