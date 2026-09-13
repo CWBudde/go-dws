@@ -148,6 +148,7 @@ func (i *Interpreter) InitializeUnits() error {
 		// Execute the initialization section if it exists
 		if unit.InitializationSection != nil {
 			// Evaluate the initialization block
+			i.typeSystem.RegisterNodeUnit(unit.InitializationSection, unit.Name)
 			result := i.Eval(unit.InitializationSection)
 
 			// Check if initialization raised an exception
@@ -211,6 +212,7 @@ func (i *Interpreter) FinalizeUnits() error {
 		// Execute the finalization section if it exists
 		if unit.FinalizationSection != nil {
 			// Evaluate the finalization block
+			i.typeSystem.RegisterNodeUnit(unit.FinalizationSection, unit.Name)
 			result := i.Eval(unit.FinalizationSection)
 
 			// Capture errors but continue finalizing other units
@@ -254,15 +256,23 @@ func (i *Interpreter) ImportUnitSymbols(unit *units.Unit) error {
 		return fmt.Errorf("cannot import symbols from nil unit")
 	}
 
+	// Register every source section before evaluating declarations, including
+	// nested callbacks and contract expressions that may execute in another unit.
+	for _, section := range []*ast.BlockStatement{unit.InterfaceSection, unit.ImplementationSection, unit.InitializationSection, unit.FinalizationSection} {
+		if section != nil {
+			i.typeSystem.RegisterNodeUnit(section, unit.Name)
+		}
+	}
+
 	// Process the interface section to extract exported symbols
 	// The interface section contains declarations that should be made available
-	if unit.InterfaceSection == nil {
-		// Unit has no interface section - nothing to import
-		return nil
+	var interfaceStatements []ast.Statement
+	if unit.InterfaceSection != nil {
+		interfaceStatements = unit.InterfaceSection.Statements
 	}
 
 	// First, evaluate interface section declarations (function signatures, types, etc.)
-	for _, stmt := range unit.InterfaceSection.Statements {
+	for _, stmt := range interfaceStatements {
 		// Skip uses clauses - they're handled during unit loading
 		if _, ok := stmt.(*ast.UsesClause); ok {
 			continue

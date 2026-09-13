@@ -141,9 +141,18 @@ func (s *GlobalVarStore) liveLocked(name string) (*globalVarEntry, bool) {
 // expireSeconds sets a lifetime in seconds; zero or negative means the value
 // never expires. Writing always replaces the previous expiration.
 func (s *GlobalVarStore) Write(name string, value GlobalVarValue, expireSeconds float64) {
+	s.WriteWithResult(name, value, expireSeconds)
+}
+
+// WriteWithResult stores value and reports whether name was absent or expired.
+// Checking the old entry and replacing it happen atomically. The new expiration
+// replaces any previous expiration, with zero or negative meaning no expiration.
+func (s *GlobalVarStore) WriteWithResult(name string, value GlobalVarValue, expireSeconds float64) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	_, existed := s.liveLocked(name)
 	s.vars[name] = &globalVarEntry{value: value, expires: s.expiryInstant(expireSeconds)}
+	return !existed
 }
 
 // Read returns the value stored under name and whether it was present.

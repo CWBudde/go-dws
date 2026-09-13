@@ -4015,3 +4015,55 @@ fixtures currently want different columns. Fix the routing and both close togeth
 string index is catchable, and that a re-raise keeps the original message and reports two
 positions. `internal/frontend/result_test.go` pins that both calling-convention hints carry a
 structured position and do not write " at " into their own text.
+
+
+## 2026-09-13 — private unit variables (§3.3)
+
+`FunctionsGlobalVars/private_vars` now passes through both the Go harness and a freshly
+built CLI. FunctionsGlobalVars rises **12 → 13 passing** (13/14 scored; two unit source
+files are unscored), and the full corpus rises **1,091 → 1,092 / 1,930 scored** with no
+category regression. The remaining category failure is the `queue_snapshot` case-hint
+mismatch. The fixture baseline and generated status were ratcheted.
+
+The four builtins are `WritePrivateVar`, `ReadPrivateVar`, `PrivateVarsNames`, and
+`CleanupPrivateVars`. A separate process-wide store partitions simple Variant values by
+normalized unit name, retaining the global store's expiration and mask machinery.
+`WritePrivateVar` returns whether an entry was absent or expired, atomically with the
+write. `ReadPrivateVar` evaluates its optional default only when needed, including when
+an unrelated user overload shares its name. Empty enumeration masks mean all names;
+an explicitly empty cleanup mask matches the empty variable name only. Global cleanup
+and snapshots cannot expose or change private entries.
+
+The declaring unit is lexical, as in the pinned upstream `PrivateVarPrefix` implementation:
+main-defined callbacks still raise `Private variables cannot be referred from main module`
+when invoked by a unit. The type system indexes executable source nodes, the evaluator
+saves/restores `ExecutionContext.CurrentUnit`, and builtin adapters expose that identity.
+Call frames and canonical method metadata retain unit ownership without changing diagnostic
+stack formatting. Generated method wrappers inherit their source ownership while inherited
+contract expressions retain their original owner. This covers free functions, methods,
+properties, nested routines, escaped lambdas, and unit initialization/finalization.
+
+Two additional blockers surfaced after the builtins compiled. Section-less units parsed,
+but their routines were neither exported by semantic analysis nor imported at runtime;
+both now work, and public inline bodies are analyzed after their signatures are registered.
+Explicit implementation sections remain private. Qualified parameterless calls such as
+`unit_private_vars1.PrepareTest` now execute through the existing qualified-call path;
+function-pointer contexts retain the reference reading.
+
+Validation includes the exact fixture run twice through the embedding API, cross-unit
+calls and main rejection, inherited contracts, methods/properties, callbacks, persistence
+across runs and engines, lazy defaults and overload selection, and deterministic storage
+expiration/concurrency tests. Storage and ownership race checks passed. Harness and CLI
+full reports agree at 1,092 passing; the harness still emits an isolated worker stack
+overflow already observed before this change. Full lint has an existing repository-wide
+backlog, including unused interpreter migration helpers and complexity warnings.
+
+Final checks passed (using a writable `GOCACHE` under `/tmp` in this environment):
+
+- `GOFLAGS=-buildvcs=false go test -timeout=20m ./...` — the complete suite; disabling
+  repeated VCS stamping avoids the CLI rebuild overhead that exhausted the first run's
+  ten-minute limit.
+- `go test -race` over the storage, runtime ownership, evaluator, and embedding regressions.
+- `golangci-lint run --new-from-rev=HEAD` — zero new issues.
+- `just fixture-update`, freshly built `fixture-report --build=false`, and an exact diff of
+  the CLI's `private_vars` output against its checked-in expectation.

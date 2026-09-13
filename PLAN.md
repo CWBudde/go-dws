@@ -9,14 +9,14 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-12):** Go harness and freshly rebuilt CLI agree at **1,091 / 1,930 scored =
+**Headline (2026-09-13):** Go harness and freshly rebuilt CLI agree at **1,092 / 1,930 scored =
 57%**; `*Fail` error-detection suites **165 / 640 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 114 have no expected `.txt` and are
 dropped as unscored, leaving 1,930. That denominator still contains the **219 host-library fixtures
 excluded from every target below** (see the scope rule further down) — all 219 currently fail, so
-the headline counts work nobody intends to do. Excluding them, the same run reads **1,091 / 1,711 =
+the headline counts work nobody intends to do. Excluding them, the same run reads **1,092 / 1,711 =
 64% in scope**, and that is the number to track against §6. Both are honest; the lower one is the
 one quoted outward, and T7 will lower it again by scoring the 114.
 
@@ -32,9 +32,8 @@ Open, in leverage order:
   suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
   ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
   and E8 is a by-reference binding bug E1 turned up.
-- **§3.3** has two items left, both now broken into subtasks against a 2026-09-12 triage: Memory
-  (1 of 3 scored, and mostly a harness gap) and the FunctionsGlobalVars `private_vars` remainder
-  (12/16, blocked on unit identity at run time).
+- **§3.3** has Memory left (1 of 3 scored, and mostly a harness gap), broken into subtasks
+  against a 2026-09-12 triage. Private unit variables closed 2026-09-13; see the progress log.
 - **§1** gained T7 and T8 from the same measurement: 36 fixtures upstream scores and go-dws
   skips, and a classification mode for `fixture-report`.
 - **§3.4** has one item, blocked on the evaluator. **§2** has one, deferred by owner decision.
@@ -57,11 +56,12 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (839 total, 2026-09-12): **219 host-library** (out of scope),
+- Where the remaining failures are (838 total, 2026-09-13): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **145 in the execution suites** (§3.5:
+  HelpersFail 18 each, the rest under 15), and **144 in the execution suites** (§3.5:
   SimpleScripts 71, ArrayPass 19, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 10, a tail
-  of ones and twos). Nothing crashes and nothing times out.
+  of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
+  worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
   (T8, closed 2026-09-12). It reports each failure's distance from passing, whether what differs is
   a diagnostic or the program's output, and which message shapes recur — none of which
@@ -262,25 +262,6 @@ FunctionsDebug 3/3, InnerClassesPass 2/2, EncodingLib 12/12.
     check DWScript's reference counting at a point where Go's GC has not necessarily run. Five of
     the ten unscored fixtures exist only to make that assertion; "compiles and prints nothing" is
     all of it that is portable.
-- `[ ]` M FunctionsGlobalVars `private_vars` (12/16, library shipped — see
-  [`docs/guide/global-vars.md`](docs/guide/global-vars.md)). The parser half is done
-  (2026-09-12): a unit written without `interface`/`implementation` sections now parses. What
-  remains is the per-unit `WritePrivateVar`/`ReadPrivateVar`/`PrivateVarsNames`/
-  `CleanupPrivateVars` family, and the blocker is **unit identity at run time**, which nothing
-  currently tracks: neither `runtime.MethodMetadata`/`FunctionMetadata` nor the execution
-  context records which unit a body came from. In order — the first three are the M, the
-  builtins themselves are an S:
-  - `[ ]` Record the declaring unit on callable metadata when `ImportUnitSymbols` installs it
-    (`runtime.MethodMetadata` / `FunctionMetadata` gain a unit field).
-  - `[ ]` Carry it on the call stack, so "which unit is executing" is answerable at any point in
-    a run, not just at the declaration site.
-  - `[ ]` Add `CurrentUnit() string` to `builtins.Context`, the seam the builtins read.
-  - `[ ]` Implement `WritePrivateVar` / `ReadPrivateVar` / `PrivateVarsNames` /
-    `CleanupPrivateVars` over a per-unit store keyed by that name, raising
-    `Private variables cannot be referred from main module` when the caller is the main module.
-  - `[ ]` Acceptance: `FunctionsGlobalVars/private_vars`. The other unit-identity consumers
-    (stack traces, `{$I %FILE%}`) are out of scope here — do not widen the metadata beyond what
-    the four builtins need.
 - ✋ FunctionsGlobalVars `queue_snapshot`: measured 2026-09-12, the produced output already
   matches the expectation exactly, line for line. The only difference is four
   `"join" does not match case of declaration ("Join")` hints, and the discriminator is not

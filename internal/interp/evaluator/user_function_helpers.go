@@ -279,6 +279,8 @@ func (e *Evaluator) ExecuteUserFunction(
 	// to be swapped for the function scope.
 	funcCtx := ctx.Clone()
 	funcCtx.SetEnv(funcEnv)
+	unitName, _ := e.typeSystem.NodeUnit(fn)
+	funcCtx.SetCurrentUnit(unitName)
 
 	// Set return type context for return/exit statements
 	if fn.ReturnType != nil {
@@ -297,7 +299,7 @@ func (e *Evaluator) ExecuteUserFunction(
 	// DWScript's runtime error and stack trace format.
 	pos := callSitePosOf(currentNode(ctx))
 	frameName := qualifiedRoutineName(fn)
-	if err := funcCtx.GetCallStack().Push(frameName, e.SourceFile(), pos); err != nil {
+	if err := funcCtx.GetCallStack().PushWithUnit(frameName, e.SourceFile(), pos, unitName); err != nil {
 		return nil, err
 	}
 	defer funcCtx.GetCallStack().Pop()

@@ -128,6 +128,15 @@ func (e *Evaluator) maybeCallBuiltinOverload(funcName string, overloads []*ast.F
 	if sig.IsVariadic || sig.MaxArgs < 0 || sig.MaxArgs != len(sig.ParamTypes) {
 		return nil, false
 	}
+	// ReadPrivateVar's default must remain unevaluated when the builtin wins.
+	// Use semantic argument types to settle that case before the ordinary
+	// runtime arbitration evaluates the full argument list.
+	if ident.Equal(funcName, "ReadPrivateVar") && e.readPrivateVarBuiltinWins(overloads, node, ctx) {
+		name, ok := node.Function.(*ast.Identifier)
+		if ok {
+			return e.builtinReadPrivateVar(node, name, ctx), true
+		}
+	}
 
 	// Evaluate arguments once and derive their runtime types.
 	args := make([]Value, len(node.Arguments))

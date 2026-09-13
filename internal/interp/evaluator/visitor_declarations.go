@@ -34,7 +34,7 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 		}
 
 		if recordInfoAny := e.typeSystem.LookupRecord(typeName); recordInfoAny != nil {
-			recordInfoAny.RegisterMethodImplementation(node)
+			e.registerRecordMethodImplementation(recordInfoAny, node)
 			return &runtime.NilValue{}
 		}
 

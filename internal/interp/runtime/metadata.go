@@ -74,6 +74,8 @@ type NativeClassMethod func(class IClassInfo, args []Value) (Value, error)
 // callable. It retains the executable AST payload and original declaration for
 // semantic bindings; implementation binding updates this identity in place.
 type MethodMetadata struct {
+	// UnitName is the lexical declaring unit, or empty for the main module.
+	UnitName string
 	// Declaration is the executable AST payload for this canonical runtime callable.
 	Declaration *ast.FunctionDecl
 	// Native implements the method body in Go instead of in AST. It is set only

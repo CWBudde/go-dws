@@ -40,6 +40,7 @@ func (method *MethodMetadata) BindImplementation(decl *ast.FunctionDecl) {
 	updated := MethodMetadataFromAST(&implementation)
 	updated.ID = method.ID
 	updated.Owner = method.Owner
+	updated.UnitName = method.UnitName
 	updated.SourceDeclaration = decl
 	updated.ReturnType = method.ReturnType
 	for index := range updated.Parameters {

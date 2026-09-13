@@ -51,6 +51,10 @@ type Context interface {
 	// This is used for error reporting to provide source location context.
 	CurrentNode() ast.Node
 
+	// CurrentUnit returns the unit containing the executing expression.
+	// An empty name identifies the main module.
+	CurrentUnit() string
+
 	// FS returns the filesystem the host installed for this run, and is the
 	// only route a built-in may take to reach a file. It is never nil: an
 	// engine with no explicit platform uses the platform default (the real

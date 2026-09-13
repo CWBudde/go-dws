@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-09-12
+**Generated**: 2026-09-13
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1091 |
-| Failed | 839 |
+| Passed | 1092 |
+| Failed | 838 |
 | Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **57%** (1091/1930) |
+| **Scored pass rate** | **57%** (1092/1930) |
 
 ## Per-category
 
@@ -43,7 +43,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
-| FunctionsGlobalVars | 16 | 12 | 2 | 2 | 86% |
+| FunctionsGlobalVars | 16 | 13 | 1 | 2 | 93% |
 | FunctionsMath | 40 | 25 | 10 | 5 | 71% |
 | FunctionsMath3D | 2 | 0 | 2 | 0 | 0% |
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
