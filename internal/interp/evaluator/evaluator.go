@@ -409,7 +409,18 @@ func (e *Evaluator) SetVar(ctx *ExecutionContext, name string, value Value) bool
 
 // Eval evaluates an AST node using the visitor pattern.
 func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
+	if program, ok := node.(*ast.Program); ok && program != nil {
+		if _, registered := e.typeSystem.NodeUnit(program); !registered {
+			e.typeSystem.RegisterNodeUnit(program, "")
+		}
+	}
+
 	if ctx != nil {
+		if unit, registered := e.typeSystem.NodeUnit(node); registered {
+			previousUnit := ctx.CurrentUnit()
+			ctx.SetCurrentUnit(unit)
+			defer ctx.SetCurrentUnit(previousUnit)
+		}
 		previousNode := ctx.CurrentNode()
 		ctx.SetCurrentNode(node)
 		defer ctx.SetCurrentNode(previousNode)

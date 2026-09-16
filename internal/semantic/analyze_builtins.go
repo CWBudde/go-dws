@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -83,14 +84,17 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 // builtinDeclarationName returns the canonical casing for a built-in function name.
 // Used for pedantic hinting when the source uses a different case.
 func (a *Analyzer) builtinDeclarationName(name string) string {
-	switch ident.Normalize(name) {
-	case "println":
-		return "PrintLn"
-	case "print":
-		return "Print"
-	default:
-		return name
+	if info, ok := a.builtinRegistry.Get(name); ok {
+		return info.Name
 	}
+	// Var-parameter intrinsics have a separate implementation registry. Its
+	// keys retain declaration spelling just like ordinary FunctionInfo.Name.
+	for declared := range builtins.VarParamFunctions {
+		if ident.Equal(name, declared) {
+			return declared
+		}
+	}
+	return ""
 }
 
 // getBuiltinFunctionPointerType returns the function pointer type for a built-in function

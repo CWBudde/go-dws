@@ -37,7 +37,7 @@ var statelessBuiltins = map[string]bool{
 // `Constant Instruction - has no effect`, anchored at the start of the
 // expression.
 func (a *Analyzer) hintConstantInstruction(expr ast.Expression) {
-	if expr == nil || a.hintsLevel < HintsLevelNormal {
+	if expr == nil || a.hintsLevelAt(constInstructionPos(expr)) < HintsLevelNormal {
 		return
 	}
 	// A failed parse leaves stray expression statements behind — `array_error8`
@@ -51,7 +51,7 @@ func (a *Analyzer) hintConstantInstruction(expr ast.Expression) {
 		return
 	}
 	pos := constInstructionPos(expr)
-	a.addHint("Constant Instruction - has no effect [line: %d, column: %d]", pos.Line, pos.Column)
+	a.addHintAt(pos, "Constant Instruction - has no effect [line: %d, column: %d]", pos.Line, pos.Column)
 }
 
 // constInstructionPos returns the leftmost position of an expression. A binary

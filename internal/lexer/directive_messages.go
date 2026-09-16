@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // directiveNameColumn returns the column DWScript anchors a directive diagnostic to.
@@ -114,10 +115,8 @@ func (l *Lexer) handleMessageDirective(
 }
 
 // handleSwitchToggle implements the plural on/off switches {$HINTS} and {$WARNINGS}.
-// They take ON or OFF; anything else reports "ON/OFF expected" at the closing brace.
-//
-// The switches are accepted and parsed for message parity but do not currently change
-// which diagnostics are reported.
+// HINTS additionally accepts NORMAL, STRICT, and PEDANTIC; ON restores the
+// configured compiler level. Inactive branches leave the setting unchanged.
 func (l *Lexer) handleSwitchToggle(name, content string, parentActive bool, startPos, closePos Position) {
 	if !parentActive {
 		return
@@ -128,6 +127,20 @@ func (l *Lexer) handleSwitchToggle(name, content string, parentActive bool, star
 	switch normalized {
 	case "on", "off", "normal", "strict", "pedantic":
 		l.setSeveritySwitch(name, normalized != "off")
+		if ident.Equal(name, "hints") {
+			switch normalized {
+			case "on":
+				l.hintsLevel = token.HintLevelDefault
+			case "off":
+				l.hintsLevel = token.HintLevelDisabled
+			case "normal":
+				l.hintsLevel = token.HintLevelNormal
+			case "strict":
+				l.hintsLevel = token.HintLevelStrict
+			case "pedantic":
+				l.hintsLevel = token.HintLevelPedantic
+			}
+		}
 		return
 	default:
 		l.addDirectiveDiagnostic("ON/OFF expected",

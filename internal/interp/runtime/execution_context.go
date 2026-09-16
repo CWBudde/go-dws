@@ -129,6 +129,7 @@ func NewPropertyEvalContext() *PropertyEvalContext {
 //
 //nolint:govet // Keep layout stable and readable; alignment optimization is not worth the churn here.
 type ExecutionContext struct {
+	currentUnit               string
 	handlerException          any
 	exception                 any
 	currentNode               ast.Node
@@ -169,6 +170,12 @@ func NewExecutionContextWithMaxDepth(env *Environment, maxDepth int) *ExecutionC
 		oldValuesStack: make([]map[string]any, 0),
 	}
 }
+
+// CurrentUnit returns the lexical unit executing, or an empty string for the main module.
+func (ctx *ExecutionContext) CurrentUnit() string { return ctx.currentUnit }
+
+// SetCurrentUnit updates the lexical execution scope.
+func (ctx *ExecutionContext) SetCurrentUnit(name string) { ctx.currentUnit = name }
 
 // Env returns the current runtime environment.
 func (ctx *ExecutionContext) Env() *Environment {
@@ -394,6 +401,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 	copy(oldValuesStackCopy, ctx.oldValuesStack)
 
 	return &ExecutionContext{
+		currentUnit:               ctx.currentUnit,
 		env:                       ctx.env,
 		envStack:                  envStackCopy,
 		callStack:                 ctx.callStack,
@@ -413,6 +421,7 @@ func (ctx *ExecutionContext) Clone() *ExecutionContext {
 
 // Reset clears the execution context state for reuse.
 func (ctx *ExecutionContext) Reset() {
+	ctx.currentUnit = ""
 	ctx.envStack = make([]*Environment, 0)
 	ctx.callStack.Clear()
 	ctx.controlFlow.Clear()

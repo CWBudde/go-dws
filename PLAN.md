@@ -1,6 +1,7 @@
 # go-dws — Work Plan
 
-> Rewritten 2026-09-06. This file lists **open work only**. Completed work and the reasoning
+> Rewritten 2026-09-06. This file focuses on **open work**, with completed checkpoints retained
+> in §3.5. Detailed completed work and the reasoning
 > behind it live in [`docs/history/progress-log-2026-07.md`](docs/history/progress-log-2026-07.md);
 > the measured audits behind the priorities are
 > [`docs/history/CODEBASE_REVIEW_2026-07.md`](docs/history/CODEBASE_REVIEW_2026-07.md) (July 2026)
@@ -9,16 +10,17 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-12):** Go harness and freshly rebuilt CLI agree at **1,091 / 1,930 scored =
-57%**; `*Fail` error-detection suites **165 / 640 = 26%**. What shipped to get there is in
+**Headline (2026-09-13):** Go harness and freshly rebuilt CLI agree at **1,130 / 1,966 scored =
+57%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
-**What the denominator is.** 2,044 fixtures ship in the tree; 114 have no expected `.txt` and are
-dropped as unscored, leaving 1,930. That denominator still contains the **219 host-library fixtures
-excluded from every target below** (see the scope rule further down) — all 219 currently fail, so
-the headline counts work nobody intends to do. Excluding them, the same run reads **1,091 / 1,711 =
-64% in scope**, and that is the number to track against §6. Both are honest; the lower one is the
-one quoted outward, and T7 will lower it again by scoring the 114.
+**What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
+and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
+silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
+target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
+same run reads **1,130 / 1,747 = 65% in scope**, the number to track against §6. Both are honest;
+the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
+which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
@@ -28,15 +30,14 @@ Open, in leverage order:
   families were split out — the 68 fixtures one line from passing (F9) and the `Incompatible
   types` sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is new and is the other half of the measurement: 145 in-scope fixtures fail in the
+- **§3.5** is the other half of the measurement: 142 in-scope fixtures now fail in the
   suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
   ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
   and E8 is a by-reference binding bug E1 turned up.
-- **§3.3** has two items left, both now broken into subtasks against a 2026-09-12 triage: Memory
-  (1 of 3 scored, and mostly a harness gap) and the FunctionsGlobalVars `private_vars` remainder
-  (12/16, blocked on unit identity at run time).
-- **§1** gained T7 and T8 from the same measurement: 36 fixtures upstream scores and go-dws
-  skips, and a classification mode for `fixture-report`.
+- **§3.3** has only deferred Memory host setup left (7 of 13 scored). Private unit variables,
+  Memory scoring, and constructor assignment receivers closed 2026-09-13; see the progress log.
+- **§1** is closed: T7 scores 36 previously skipped fixtures and T8 classifies failures in
+  `fixture-report`.
 - **§3.4** has one item, blocked on the evaluator. **§2** has one, deferred by owner decision.
 
 Where the truth lives:
@@ -50,24 +51,26 @@ Where the truth lives:
 Rules for this document:
 
 - An item is closed only by a **passing fixture** (or a test that exercises the real user-facing path).
-  Closed items are deleted from this file; their story goes to `docs/history/progress-log-<date>.md`.
+  Closed items are deleted from this file, except for §3.5's requested completion checklist;
+  their story goes to `docs/history/progress-log-<date>.md`.
 - Ratchet `baselines.json` after every improvement (`just fixture-update`).
 - The ~200 fixtures in host-library categories listed in
   [`docs/decisions/out-of-scope.md`](docs/decisions/out-of-scope.md) (DataBaseLib, COMConnector,
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (839 total, 2026-09-12): **219 host-library** (out of scope),
+- Where the remaining failures are (836 total, 2026-09-13): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **145 in the execution suites** (§3.5:
-  SimpleScripts 71, ArrayPass 19, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 10, a tail
-  of ones and twos). Nothing crashes and nothing times out.
+  HelpersFail 18 each, the rest under 15), and **142 in the execution suites** (§3.5:
+  SimpleScripts 71, ArrayPass 17, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 6, a tail
+  of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
+  worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
   (T8, closed 2026-09-12). It reports each failure's distance from passing, whether what differs is
   a diagnostic or the program's output, and which message shapes recur — none of which
   `baselines.json` can see, because it holds pass-count floors.
 
-Legend: `[ ]` open · `[~]` partially done, remainder listed · ⏸️ gated, do not start ·
+Legend: `[ ]` open · `[~]` partially done, remainder listed · `[x]` done · ⏸️ gated, do not start ·
 ✋ won't-fix, with the decision record. Size: S (hours), M (days), L (week+).
 
 ---
@@ -80,21 +83,16 @@ T1–T6 closed 2026-09-06 (one compile pipeline for CLI and harness, `run
 see [`docs/history/progress-log-2026-09.md`](docs/history/progress-log-2026-09.md). New tooling
 items go here.
 
-- **T7** `[ ]` S Score the `.txt`-less fixtures, and give the harness a per-category hint level.
-  Upstream treats a missing expectation file as **"must print nothing"**; go-dws reports those
-  fixtures as unscored and drops them. Measured 2026-09-12: **36 fixtures across nine categories**,
-  **28 of which already print nothing**, so adopting the rule is +28 passes on +36 scored — which
-  lowers the headline percentage, the honest direction, because the suite grows. Memory
-  additionally needs the compiler's **default** hint level rather than `--hints pedantic`. The
-  rule, the affected categories and the three groups deliberately excluded are documented next to
-  the fixtures: [`testdata/fixtures/README.md`](testdata/fixtures/README.md).
+T7 closed 2026-09-13: shared missing-expectation scoring and category hint levels; see
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-13--missing-fixture-expectations-and-memory-hints-t7).
+
 **Closed here (2026-09-12):**
 
 - [The fixture classifier](docs/history/progress-log-2026-09.md#2026-09-12--the-fixture-classifier-t8)
   (**T8**) — `fixture-report --classify` buckets every failure by distance, by what kind of line
   differs and by message shape, and `--in-scope` drops the host-library categories. It replaced a
   throwaway shell script, and rebuilding the measurement changed two things: the `*Fail` near-miss
-  counts (see §4) and the discovery that §3 had no item for 151 failing execution-suite fixtures
+  counts (see §4) and the discovery that §3 had no item for the failing execution-suite fixtures
   (now §3.5).
 
 ---
@@ -175,8 +173,8 @@ implemented pass framework.
 `THelper.Proc(TObject.Create)`, a helper method called with an explicit instance argument, is an
 unimplemented call form.
 
-**Measured and deliberately not done.** Each of these was looked at and left; the reason is the
-point, so they stay here rather than moving to the history log.
+**Measured follow-ups and deliberate exclusions.** Each of these was looked at and left; the
+reason stays explicit. Items reopened by later evidence point to their active work group.
 
 - ✋ Unused-private-field hints when the program also has a compile error: the blanket
   suppression in `internal/semantic/unused_warnings.go` drops every private-member hint for a
@@ -206,8 +204,8 @@ point, so they stay here rather than moving to the history log.
 - ✋ Comparing a function pointer against `nil` (`f = nil`) still reports
   "operator = requires comparable types". Assignment and argument passing work; no fixture
   demands the comparison. Measured 2026-09-09.
-- ✋ The two remaining `OverloadsPass` failures (`overload_ambiguous_delegate`,
-  `overload_class_method`) expect case-mismatch hints and are blocked by the won't-fix in §5;
+- `[ ]` The two remaining `OverloadsPass` failures (`overload_ambiguous_delegate`,
+  `overload_class_method`) expect case-mismatch hints tracked under E3;
   their behavior is otherwise correct. The 14 `OverloadsFail` fixtures need
   `The function X was forward declared but not implemented`, which does not exist anywhere in
   the tree — that is §4 / F7, not this section.
@@ -223,8 +221,8 @@ point, so they stay here rather than moving to the history log.
   Reopen if the reference submodule is ever checked out.
 - ✋ `ConditionalDefined(s)` always folds to `False`; `{$DEFINE}` symbols live in preprocessor
   state the analyzer cannot reach. Argument validation is complete.
-- ✋ `HelpersPass/declared_helper` resolves all four `Declared()` calls but cannot pass: its
-  expectation needs the case-mismatch hints §5 marks won't-fix, and
+- `[ ]` `HelpersPass/declared_helper` resolves all four `Declared()` calls but cannot pass: its
+  expectation needs the case-mismatch hints tracked under E3, and
   `THelper.Proc(TObject.Create)` — a helper method called with an explicit instance argument —
   is an unimplemented call form — the follow-up named above.
 - ✋ `special_funcs4` (needs `Expression expected` for `Inc(i, )`) and `conditionals2.1` (wants
@@ -239,20 +237,12 @@ point, so they stay here rather than moving to the history log.
 ### 3.3 Runtime / evaluator
 
 Every other category this section used to list is closed: FunctionsByteBuffer 19/19 (see
-[`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md)), FunctionsTime 27/27, FunctionsVariant 9/9,
+[`docs/guide/bytebuffer.md`](docs/guide/bytebuffer.md)), FunctionsTime 30/30, FunctionsVariant 10/10,
 FunctionsDebug 3/3, InnerClassesPass 2/2, EncodingLib 12/12.
 
-- `[~]` S **Memory — triaged 2026-09-12, and mostly a harness gap rather than language work.**
-  The category reads 1 of 3 scored with ten fixtures unscored.
-  - `[ ]` S Five of those ten already compile clean and print nothing (`obj_bidicycle`,
-    `obj_cycle`, `obj_selfref`, `simple`, and `obj_local` at the default hint level). Scoring them
-    the way upstream does takes Memory to 6/13 with no language change — that is **T7**, do it
-    there.
-  - `[ ]` S `obj_fields` is the one real defect this category exposes:
-    `TMyObj2.Create.Field := TMyObj1.Create;` — a constructor call as the **base of an lvalue** —
-    fails with `Runtime Error: cannot access field of CLASS [line: 13, column: 21]`. The
-    construction yields the class rather than the instance in that position; the same assignment
-    through a variable (line 12 of the same fixture) works.
+- ⏸️ **Memory — 7 of 13 scored (2026-09-13).** The constructor assignment receiver fix closed
+  `obj_fields` and SimpleScripts `override_deep`; see
+  [the progress log](docs/history/progress-log-2026-09.md#2026-09-13--constructor-results-as-assignment-receivers-33).
   - ⏸️ The six `external*` fixtures need a **host-registered external class** — upstream's `SetUp`
     registers `TExposedClass` and `TExposedBoomClass` with host-side constructors and an
     `OnCleanUp` hook (`UMemoryTests.pas:86-118`). That is host-integration surface, §5 territory.
@@ -260,35 +250,17 @@ FunctionsDebug 3/3, InnerClassesPass 2/2, EncodingLib 12/12.
     registered nothing.
   - ✋ Upstream's leak assertions (`exec.ObjectCount = 0`, external-object count) do not port: they
     check DWScript's reference counting at a point where Go's GC has not necessarily run. Five of
-    the ten unscored fixtures exist only to make that assertion; "compiles and prints nothing" is
+    the formerly unscored fixtures exist only to make that assertion; "compiles and prints nothing" is
     all of it that is portable.
-- `[ ]` M FunctionsGlobalVars `private_vars` (12/16, library shipped — see
-  [`docs/guide/global-vars.md`](docs/guide/global-vars.md)). The parser half is done
-  (2026-09-12): a unit written without `interface`/`implementation` sections now parses. What
-  remains is the per-unit `WritePrivateVar`/`ReadPrivateVar`/`PrivateVarsNames`/
-  `CleanupPrivateVars` family, and the blocker is **unit identity at run time**, which nothing
-  currently tracks: neither `runtime.MethodMetadata`/`FunctionMetadata` nor the execution
-  context records which unit a body came from. In order — the first three are the M, the
-  builtins themselves are an S:
-  - `[ ]` Record the declaring unit on callable metadata when `ImportUnitSymbols` installs it
-    (`runtime.MethodMetadata` / `FunctionMetadata` gain a unit field).
-  - `[ ]` Carry it on the call stack, so "which unit is executing" is answerable at any point in
-    a run, not just at the declaration site.
-  - `[ ]` Add `CurrentUnit() string` to `builtins.Context`, the seam the builtins read.
-  - `[ ]` Implement `WritePrivateVar` / `ReadPrivateVar` / `PrivateVarsNames` /
-    `CleanupPrivateVars` over a per-unit store keyed by that name, raising
-    `Private variables cannot be referred from main module` when the caller is the main module.
-  - `[ ]` Acceptance: `FunctionsGlobalVars/private_vars`. The other unit-identity consumers
-    (stack traces, `{$I %FILE%}`) are out of scope here — do not widen the metadata beyond what
-    the four builtins need.
 - ✋ FunctionsGlobalVars `queue_snapshot`: measured 2026-09-12, the produced output already
   matches the expectation exactly, line for line. The only difference is four
-  `"join" does not match case of declaration ("Join")` hints, and the discriminator is not
-  recoverable: our analyzer types `Map`'s result from the callback's return type, so the
+  `"join" does not match case of declaration ("Join")` hints. The declaration-resolution
+  discriminator remains unproven: our analyzer types `Map`'s result from the callback's return type, so the
   receiver here is `array of String` — the same element type as `ArrayPass/dynamic_array_remove`,
-  where upstream *does* emit the hint. Making these two disagree would mean regressing `Map`'s
-  return-type inference to match a hint quirk. This is the §5 case-mismatch won't-fix, not a
-  GlobalVars gap.
+  where upstream *does* emit the hint. Keep this case parked pending evidence of upstream's
+  resolution behavior; do not regress `Map`'s return-type inference to force a hint match.
+  E3a's recovered runner settings do not resolve this discrepancy, and it is not evidence of
+  missing per-test hint configuration or a GlobalVars runtime gap.
 - ✋ UTF-16 surrogate iteration (`for_in_str`, `for_in_str2`): intentional divergence, see
   [`docs/decisions/string-encoding.md`](docs/decisions/string-encoding.md).
 
@@ -336,6 +308,9 @@ fail**; they were never enumerated because the only measurement that existed cov
 suites. Tables and method:
 [`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
 Regenerate with `just fixture-report --in-scope --classify --list-fails`.
+The current execution-failure count is 142: private variables closed one, T7 added seven
+previously unscored failures, constructor assignment receivers closed two, and E4 numeric/array
+helpers closed seven. The classification counts below describe the September 12 audit.
 
 Read the numbers with one caveat: **111 of the 145 are classified `mixed`** (a diagnostic *and* the
 output differ), which for an execution suite is almost always one fault — a spurious compile error
@@ -343,68 +318,162 @@ stops the program, so its output goes missing too. Fix the error and both lines 
 means distance overstates these: a one-line spurious error on a program printing forty lines
 scores 41.
 
-- **E3** `[ ]` M **The case-mismatch hint, structurally.** `Hint: "X" does not match case of
-  declaration ("X")` is the largest cross-cutting diagnostic family in the whole in-scope set: **28
-  fixtures want it and do not get it, 9 get it where upstream emits none**, spread over
-  `SimpleScripts`, `ArrayPass`, `HelpersPass`, `OverloadsPass` and `FailureScripts`. It exists
-  (`Analyzer.addCaseMismatchHint`) but is called by hand from ~20 separate resolution sites, each
-  deciding independently what the declared name is — which is exactly why it is both missing and
-  spurious. It belongs at the single point where a name resolves to a declaration. ⚠️ Its `sole`
-  yield is 5: most of the 28 fixtures need something else as well, so this is a structural fix, not
-  a fixture-count win. Size it accordingly.
-- **E4** `[ ]` M **Missing primitive and array helpers** — `FunctionsMath` (10 failing, 6 of them
-  this) and `ArrayPass`. Absent members, named by the spurious diagnostics: `Integer.TestBit`,
-  `Integer.Compare`, `Integer.PopCount`, `Float.Compare`, and on `array of Float` / `array of
-  String`: `Pack`, `Offset`, `Multiply`, `MultiplyAdd`. Mechanical once the first one has a home.
-- **E5** `[ ]` M **`InterfacesPass` (12) — casting and comparison.** The recurring spurious
-  diagnostic is `'X' operator requires class instance, got IInterface`; the expected side wants
-  `Cannot cast interface of "X" to class "X"`, the interface-to-interface form, and
-  `Class "X" does not implement interface "X"`. Three fixtures are within two edits.
-- **E6** `[ ]` M **`JSONConnectorPass` (14) — value conversion, not rendering.** Four are one edit
-  out, and they do not share a cause: `global_var` prints `"hello"` where `hello` is wanted (an
-  implicit string conversion keeping its quotes), while `implicit_to_int2` prints `null` for
-  `{"test":1}` — a conversion that lost its value. Measure each before grouping them.
-- **E7** `[ ]` S **Two spurious compile errors that stop a program running.**
-  `SimpleScripts/ignore_result` needs `String.Replace`; `SimpleScripts/assert_variant` needs
-  `Assert` to accept a Variant condition rather than rejecting it as
-  `first argument must be Boolean, got Variant`.
-- **E8** `[ ]` S **A var parameter bound to `a[<expr containing a member access>]` silently
-  degrades to a copy.** Found while closing E1. `prepareArrayElementReference`
-  (`internal/interp/evaluator/visitor_expressions_functions.go:636`) evaluates the index with
-  `e.Eval`, and inside that path `a.High` / `a.Length` evaluate to **NIL** — so
-  `P(a[a.High+1])` bails to the generic by-value path while `P(a[i])` and `P(a[2+2])` bind by
-  reference correctly. Two consequences: writes through the parameter are lost, and the bounds
-  diagnostic comes from the wrong anchor. That second one is why
-  `SimpleScripts/const_array_empty` is still open: it wants the closing bracket (column 17 of
-  `PrintLn(arr[i])`), which is what `indexBracketPos` already gives every *write*, but moving the
-  read path onto that anchor turns `ArrayPass/array_element_byref` red, because its line 65
-  (`AsString(a[a.Length])`) is one of the mis-routed binds and upstream reports a real bind one
-  column further on. Fix the routing first, then move the anchor; the two fixtures close together.
-  Reproduction in `internal/interp/evaluator/index_ops.go`'s `IndexArray` comment.
-- `[ ]` The remainder — `HelpersPass` 5, `OperatorOverloadPass` 3, `LambdaPass`/`Memory`/
-  `OverloadsPass`/`FunctionsGlobalVars` 2 each, `BuildScripts`/`FunctionsString`/
-  `PropertyExpressionsPass` 1 each — is not yet clustered. Classify per category before opening an
-  item: `just fixture-report --category HelpersPass --classify`.
+Each subtask below is separately trackable. Write a failing test through the real compile/run
+path before implementing a fix. Close implementation subtasks with passing fixtures or real-path
+regressions; refresh category baselines and CLI/harness parity when fixtures improve.
 
-**Closed here (2026-09-12):**
+#### E3 — Case-mismatch hints `[~]` M
 
-- [Runtime-message vocabulary and the self-positioned hint](docs/history/progress-log-2026-09.md#2026-09-12--runtime-message-vocabulary-e1-e2)
-  (**E1**, **E2**) — `Division by zero` for both `div` and `mod`, `Lower/Upper bound exceeded!` for
-  a string index (catchable, like the array form), `Unhandled call to external symbol "X" from`,
-  `raise ExceptObject` recognised as a re-raise, and the calling-convention hint shared between
-  methods and free routines so it anchors like every other diagnostic. Six `SimpleScripts` fixtures.
-  Two remainders were split out rather than left implied: `const_array_empty` is now part of **E8**,
-  and `partial_class3` still fails on a spurious `Result is never used` hint and a spurious
-  `class 'TTest' already declared` runtime error — its hint anchor was only one of three faults.
-  Cosmetic, no fixture: `--diagnostics=pretty` prints the position twice for any exception whose
-  message already carries one (arrays and strings alike). The plain and envelope renderers do not.
+The September 12 audit found 28 fixtures missing hints and 9 receiving unwanted hints across
+`SimpleScripts`, `ArrayPass`, `HelpersPass`, `OverloadsPass` and `FailureScripts`. Only five
+fail solely on this family. `Analyzer.addCaseMismatchHint` is called from ~20 resolution sites.
+
+- [x] **E3a — Establish hint configuration.** Completed 2026-09-13: the bundled
+  `UScriptTests.pas` sets pedantic hints for all five E3 categories, with no per-fixture override.
+  Fresh CLI runs match `array_in2` at pedantic and `hanoi` at normal, resolving July's gate example.
+  `hint_pedantic` still needs source suppression and diagnostic ordering; `inherited_constructor`
+  still needs a case hint and removal of two unrelated overload hints. Settings, exact diffs and
+  remaining exclusions are recorded in
+  [the E3a audit](docs/history/progress-log-2026-09.md#2026-09-13--fixture-hint-configuration-e3a).
+- [ ] **E3b — Apply source hint controls consistently.** Carry the applicable hint setting to
+  semantic diagnostics. Test disabled hints and subsequent re-enabling through the shared compile
+  pipeline, using the proven configuration from E3a.
+- [ ] **E3c — Unify declared-name handling.** Make resolved declarations supply their original
+  spelling consistently, and consolidate case-hint emission across the affected resolution paths.
+  Cover missing, unwanted and duplicate hints without changing case-insensitive lookup.
+- [ ] **E3d — Re-measure the affected fixtures.** Compare all five categories for missing and
+  spurious hints; record fixtures that still need another fix and any remaining §5 exclusions.
+
+#### E5 — Interface casting and comparison `[ ]` M
+
+`InterfacesPass` has 12 failures; three were within two edits in the audit. A recurring spurious
+error is `'X' operator requires class instance, got IInterface`.
+
+- [ ] **E5a — Accept valid interface casts.** Separate interface-to-class and
+  interface-to-interface cases, then align semantic acceptance and evaluator dispatch. Check both
+  successful casts and unsupported target types, with DWScript's cast-failure messages.
+- [ ] **E5b — Fix interface comparisons.** Isolate comparisons rejected as class-only operations;
+  cover equal/different instances and nil operands through the real execution path.
+- [ ] **E5c — Verify implementation checks and remaining failures.** Match
+  `Class "X" does not implement interface "X"` where required, run the full category, and
+  identify any failures outside casting/comparison before closing E5.
+
+#### E6 — JSON value conversion `[ ]` M
+
+`JSONConnectorPass` has 14 failures, including four one-edit misses with different causes.
+
+- [ ] **E6a — Fix implicit string extraction.** Trace `global_var` from JSON member lookup to
+  its consumer: it prints `"hello"` instead of `hello`. Correct value conversion while preserving
+  explicit JSON serialization; cover ordinary, empty and escaped strings.
+- [ ] **E6b — Preserve numeric values during conversion.** Trace `implicit_to_int2`, which
+  produces `null` for `{"test":1}`. Add numeric and null controls, then fix the point where lookup
+  or conversion loses the value and require the fixture to pass.
+- [ ] **E6c — Classify the remaining conversion failures.** Run the category classifier, separate
+  lookup/type-resolution defects from conversion defects, and add bounded follow-ups with a
+  representative fixture for each cause.
+
+#### E7 — Two spurious compile errors `[ ]` S
+
+- [ ] **E7a — Implement `String.Replace` helper calls.** Use the shared helper machinery and
+  cover replacement results and calls whose result is ignored. Close with
+  `SimpleScripts/ignore_result` passing.
+- [ ] **E7b — Accept Variant conditions in `Assert`.** Align semantic acceptance with runtime
+  Variant conversion; check true, false and invalid conditions. Close with
+  `SimpleScripts/assert_variant` passing.
+
+#### E8 — Array-element var-argument binding `[ ]` S
+
+`prepareArrayElementReference` evaluates member-based indices such as `a.High`/`a.Length` as
+NIL in the affected path, so `P(a[a.High+1])` falls back to a copy. Simple variable and arithmetic
+indices bind correctly. The routing also causes the wrong bounds-error position; see the
+`IndexArray` comment in `internal/interp/evaluator/index_ops.go`.
+
+- [ ] **E8a — Preserve the array-element reference.** Reproduce a lost write through a var
+  parameter with a member-based index, then correct index evaluation and binding. Keep `a[i]`
+  and `a[2+2]` as working controls; verify the array and index are each evaluated once.
+- [ ] **E8b — Stop binding on evaluation failure.** Cover exceptions and out-of-bounds indices;
+  propagate the failure without silently switching to by-value argument passing or calling the
+  target routine.
+- [ ] **E8c — Correct bounds positions after E8a/E8b.** Distinguish read and var-binding anchors.
+  Require `SimpleScripts/const_array_empty` and `ArrayPass/array_element_byref` to pass together;
+  changing the read anchor alone previously traded one passing fixture for the other.
+
+#### E9 — Single evaluation of assignment and var-argument receivers `[~]`
+
+This ID covers the previously unnumbered receiver follow-up from §3.3. Construction counters
+and a class var retaining `Self` expose duplicate execution and incorrect receiver identity.
+
+- [x] **E9a — Simple constructor assignment receivers.** Explicit and bare constructors run
+  once for `:=`, including inherited constructors and property setters. `Memory/obj_fields` and
+  `SimpleScripts/override_deep` pass. Shipped 2026-09-13;
+  [implementation and validation](docs/history/progress-log-2026-09.md#2026-09-13--constructor-results-as-assignment-receivers-33).
+- [ ] **E9b — Compound assignments.** Make `T.Create().Value += 2` reuse one resolved receiver
+  for the read and write. Extend counter/identity checks to fields, property access and failures
+  that must prevent the write.
+- [ ] **E9c — Var arguments.** Make `Mutate(T.Create.Value)` and the explicit-parentheses form
+  bind storage from one receiver evaluation. Prove that mutation reaches that instance and that
+  receiver exceptions prevent the call.
+- [ ] **E9d — Bare free-function receivers.** Resolve `Make.Value := 42` as the implicit call
+  form of the already working `Make().Value := 42`; check single evaluation and exception handling.
+
+#### E10 — Remaining execution-suite triage `[ ]`
+
+This ID covers the previously unnumbered remainder. Use
+`just fixture-report --category <Category> --classify --list-fails` and record a representative
+fixture and first blocking cause for each new group.
+
+- [ ] **E10a — Reclassify the six remaining FunctionsMath failures.** E4's helper work is
+  complete; identify the separate causes still preventing these fixtures from passing.
+- [ ] **E10b — Group the smaller categories.** Triage `HelpersPass` (5), `OperatorOverloadPass`
+  (3), `LambdaPass`/`OverloadsPass` (2 each), and `FunctionsGlobalVars`, `BuildScripts`,
+  `FunctionsString`, `PropertyExpressionsPass` (1 each). Keep §5 exclusions explicit and link
+  overlap with E3 instead of duplicating work. Memory's six host-setup failures remain gated in §3.3.
+- [ ] **E10c — Separate the remaining `partial_class3` defects.** Its hint position is fixed,
+  but the spurious `Result is never used` hint and `class 'TTest' already declared` runtime error
+  still need independent reproductions and fixes.
+- [ ] **E10d — Remove duplicate positions in pretty runtime diagnostics.** Exceptions whose
+  messages already contain a position currently print it twice under `--diagnostics=pretty`.
+  Add a CLI regression for arrays/strings and retain the plain/envelope rendering behavior.
+
+#### E4 — Numeric and array helpers `[x]` — completed 2026-09-13
+
+- [x] **E4a — Numeric helpers.** Integer `TestBit`, `PopCount`, `Compare` and Float `Compare`,
+  including exact Integer comparison and numeric boundary behavior. FunctionsMath `compare_num`,
+  `sort_nums`, `testbit` and `popcnt` pass.
+- [x] **E4b — Dynamic Float-array transforms.** `Offset`, `Multiply`, `MultiplyAdd`,
+  `Reciprocal` mutate and return the same receiver; empty arrays skip scalar operands.
+  FunctionsMath `array_funcs` passes.
+- [x] **E4c — String-array packing.** `Pack` and `StrArrayPack` stably remove empty strings
+  in place; ArrayPass `string_array_pack` passes.
+- [x] **E4d — Integration and validation.** Helper precedence, arity, operand evaluation and
+  exceptions are covered. ArrayPass `array_method_indexing2` also passes. Full tests and
+  changed-code lint pass; CLI/harness agree at 1,130/1,966. Baselines, guides and
+  [history](docs/history/progress-log-2026-09.md#2026-09-13--numeric-and-array-helpers-e4) are updated.
+
+#### E1 — Runtime-message vocabulary and re-raise behavior `[x]` — completed 2026-09-12
+
+- [x] **E1a — Arithmetic, string bounds and external-call messages.** Match DWScript's
+  vocabulary and preserve catchable bounds failures. SimpleScripts `div_by_zero_int`,
+  `mod_by_zero_int`, `string_bounds2` and `external` pass.
+- [x] **E1b — Re-raise the active exception.** `raise ExceptObject` preserves the original
+  exception and reports the re-raise position; `SimpleScripts/re_raise` passes.
+
+#### E2 — Structured hint positions `[x]` — completed 2026-09-12
+
+- [x] **E2a — Calling-convention hints.** Share structured hint emission between methods and
+  free routines; `SimpleScripts/call_conventions` passes.
+- [x] **E2b — Partial-class hint position.** Remove the position embedded in the hint text and
+  retain structured source coordinates. The fixture's remaining defects are tracked in E10c.
+
+E1/E2 [implementation and validation](docs/history/progress-log-2026-09.md#2026-09-12--runtime-message-vocabulary-e1-e2).
+Array bounds follow-up remains E8; pretty-renderer follow-up is E10d.
 
 ---
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 165/640 (FailureScripts 156/529, SetOfFail 5, JSONConnectorFail 2,
-AssociativeFail 1, InterfacesFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
+Harness and CLI: 166/641 (FailureScripts 156/529, SetOfFail 5, JSONConnectorFail 2,
+AssociativeFail 1, InterfacesFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
 `dwscript run --diagnostics=plain --compile-only --hints pedantic <file>`.
@@ -432,7 +501,9 @@ Work families — IDs from the 2026-03 analysis
   - `[ ]` S Ordering — `infinite_loop` wants **routine bodies before the main body**: `Trap`'s
     warnings at lines 6 and 3, then the main program's at 19, 21, 35. It is a side-effect of
     §3.2.1's deferred body checking, which should stay — re-order on the way out, not the analysis
-    on the way in.
+    on the way in. E3a also confirmed a parser/semantic ordering mismatch in `hint_pedantic`:
+    its line-9 hint must precede the line-11 unknown-switch diagnostic, independently of E3b's
+    source-hint suppression fix.
   - `[ ]` S Hints and warnings that exist nowhere in the tree, lines (fixtures):
     `Unreachable code` 12 (5) · `Constant condition` 8 (5) ·
     `Redundant "begin" in clause of a case..of` (`case_of_else`) ·
@@ -440,8 +511,8 @@ Work families — IDs from the 2026-03 analysis
     `Redundant specifier, visibility is already "X"` (`class_visibility_redundant`) ·
     `"X" parameter is a reference type passed as VAR, but never written to`
     (`hint_reference_var_params`) · `Assigning a to itself` (`self_assign`).
-  - Case-mismatch hints stay excluded (✋ §5); they are only 13 lines over 9 fixtures, smaller than
-    the archive implied.
+  - Case-mismatch hints are tracked under E3, whose runner-configuration gate is resolved for
+    `FailureScripts`; the audit counted 13 lines over 9 fixtures, smaller than the archive implied.
 - **F2** `[ ]` M Array diagnostics: `Array expected`, `Too many indices` (8 lines, all in one
   fixture), bound-exceeded wording, malformed array-type recovery, and
   `Range start and range stop are of incompatible types: "X" and "Y"` 9 (4).
@@ -582,12 +653,16 @@ Gate for everything ⏸️ below: **every non-host-library fixture category ≥ 
 - ⏸️ Sandbox / capabilities model (`AllowFileRead`, `AllowHTTP`, memory/time limits): design only,
   in `docs/decisions/out-of-scope.md`; nothing implemented.
 - ⏸️ Bytecode VM: see A11 and `docs/decisions/bytecode-vm.md`.
-- ✋ Case-mismatch hint parity (`"println" does not match case of declaration ("PrintLn")`): the
-  corpus encodes these hints inconsistently with no signal recoverable from the `.pas` sources
-  (the original test runner set hint levels per test). Evidence and measurements:
-  `docs/history/progress-log-2026-07.md`, "Hint/warning envelope". Do not pursue unless the
-  original per-test configuration is recovered. Non-case hints (empty block, unreachable code,
-  prefer-ToString) remain in scope under F1.
+- ✋ Case-mismatch hint parity where runner configuration remains unverified: recover that
+  configuration before pursuing parity. **E3a satisfies this gate for SimpleScripts, ArrayPass,
+  HelpersPass, OverloadsPass and FailureScripts**: their bundled runner selects pedantic hints,
+  with no per-fixture override. Algorithms uses the normal default, explaining July's
+  `array_in2`/`hanoi` contrast. E3b/E3c are actionable for the five proven categories; source
+  directives and name-resolution defects are separate from runner settings. See
+  [the E3a audit](docs/history/progress-log-2026-09.md#2026-09-13--fixture-hint-configuration-e3a).
+  The July "Hint/warning envelope" account remains historical, not the current blanket gate.
+  `queue_snapshot` stays parked for the specific unresolved resolution behavior in §3.3.
+  Non-case hints (empty block, unreachable code, prefer-ToString) remain under F1.
 - ✋ UTF-16 surrogate iteration: `docs/decisions/string-encoding.md`.
 - ✋ Subrange compile-time bounds: zero fixture yield.
 

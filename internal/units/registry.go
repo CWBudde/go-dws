@@ -133,6 +133,14 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 		return nil, fmt.Errorf("include errors in unit '%s': %v", name, errs)
 	}
 
+	// Preserve fatal directive messages even when {$FATAL} truncates the unit
+	// and the parser consequently reports missing sections.
+	for _, diagnostic := range p.LexerDirectiveDiagnostics() {
+		if diagnostic.Severity == lexer.SeverityError {
+			return nil, fmt.Errorf("compiler directive error in unit %q: %s", name, diagnostic.Error())
+		}
+	}
+
 	// Check for parsing errors
 	if len(p.Errors()) > 0 {
 		errorMessages := make([]string, len(p.Errors()))
@@ -158,6 +166,7 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 	unit := NewUnit(unitDecl.Name.Value, filePath)
 	unit.Declaration = unitDecl
 	unit.Source = string(source)
+	unit.DirectiveDiagnostics = p.LexerDirectiveDiagnostics()
 
 	// Extract sections from the parsed AST
 	unit.InterfaceSection = unitDecl.InterfaceSection

@@ -8,6 +8,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // warnUnitNameFileMismatch emits DWScript's warning when the declared unit
@@ -67,14 +68,29 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	if err := a.importUnitUses(unit.InterfaceSection, normalizedUnits, imported); err != nil {
 		return err
 	}
+	publicSection := unit.InterfaceSection
+	implementationSection := unit.ImplementationSection
+	// The parser places section-less declarations in an implicit implementation
+	// block. These declarations are public, including their executable bodies.
+	// A leading uses clause has its own synthetic interface block; explicit
+	// implementation sections remain private even without an interface section.
+	if (publicSection == nil || publicSection.Token.Type == token.USES) &&
+		implementationSection != nil && implementationSection.Token.Type != token.IMPLEMENTATION {
+		publicSection = implementationSection
+		implementationSection = nil
+		if err := a.importUnitUses(publicSection, normalizedUnits, imported); err != nil {
+			return err
+		}
+	}
 
 	// An enclosed scope separates the public API from builtins and dependencies.
 	a.symbols = NewEnclosedSymbolTable(a.symbols)
 	exports := a.symbols
 	beforeTypes := a.typeRegistry.AllTypes()
 	interfaceFunctions := make(map[string][]*ast.FunctionDecl)
-	if unit.InterfaceSection != nil {
-		for _, stmt := range unit.InterfaceSection.Statements {
+	var bodies []*ast.FunctionDecl
+	if publicSection != nil {
+		for _, stmt := range publicSection.Statements {
 			if decl, ok := stmt.(*ast.FunctionDecl); ok && decl.ClassName == nil {
 				if decl.Name == nil {
 					a.addError("function declaration missing name")
@@ -83,6 +99,9 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 				name := ident.Normalize(decl.Name.Value)
 				interfaceFunctions[name] = append(interfaceFunctions[name], decl)
 				a.registerFunctionSignature(decl)
+				if decl.Body != nil {
+					bodies = append(bodies, decl)
+				}
 			} else {
 				a.analyzeStatement(stmt)
 			}
@@ -104,13 +123,12 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 
 	// Private declarations and implementation-only imports never become exports.
 	a.symbols = NewEnclosedSymbolTable(exports)
-	if err := a.importUnitUses(unit.ImplementationSection, normalizedUnits, imported); err != nil {
+	if err := a.importUnitUses(implementationSection, normalizedUnits, imported); err != nil {
 		return err
 	}
 	implemented := make(map[*ast.FunctionDecl]bool)
-	var bodies []*ast.FunctionDecl
-	if unit.ImplementationSection != nil {
-		for _, stmt := range unit.ImplementationSection.Statements {
+	if implementationSection != nil {
+		for _, stmt := range implementationSection.Statements {
 			decl, ok := stmt.(*ast.FunctionDecl)
 			if !ok || decl.ClassName != nil {
 				a.analyzeStatement(stmt)

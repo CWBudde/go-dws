@@ -83,9 +83,11 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 
 	// Built-in ClassName property
 	if ident.Equal(identifier.Value, "ClassName") && a.currentClass != nil {
-		if identifier.Value != "ClassName" {
-			a.addCaseMismatchHint(identifier.Value, "ClassName", identifier.Token.Pos)
+		declared := a.declaredMethodName(a.currentClass, identifier.Value)
+		if declared == "" {
+			declared = "ClassName"
 		}
+		a.addIdentifierCaseHint(identifier, declared)
 		a.recordSymbolUsage(identifier.Value, identifier.Token.Pos)
 		return types.STRING
 	}
@@ -136,6 +138,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			// (func_ptr_class_meth: `SayHello;` inside a class method).
 			if methodType, found := a.currentClass.GetMethod(identifier.Value); found &&
 				a.isClassMethodInHierarchy(a.currentClass, identifier.Value) {
+				a.addIdentifierCaseHint(identifier, a.declaredMethodName(a.currentClass, identifier.Value))
 				a.recordClassMethodUsage(a.currentClass, identifier.Value)
 				if len(methodType.Parameters) == 0 {
 					if methodType.ReturnType == nil || methodType.ReturnType.TypeKind() == "VOID" {
@@ -188,6 +191,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 				// Check methods in current class
 				methodType, found := a.currentClass.GetMethod(identifier.Value)
 				if found {
+					a.addIdentifierCaseHint(identifier, a.declaredMethodName(a.currentClass, identifier.Value))
 					methodOwner := a.getMethodOwner(a.currentClass, identifier.Value)
 					if methodOwner != nil {
 						visibility, hasVisibility := methodOwner.MethodVisibility[identifier.Value]
@@ -242,6 +246,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		// the registry rather than the isBuiltinFunction list below, which does
 		// not name all of them (UnixTime, UTCDateTime).
 		if resultType, ok := a.parameterlessBuiltinType(identifier.Value); ok {
+			a.addIdentifierCaseHint(identifier, a.builtinDeclarationName(identifier.Value))
 			return resultType
 		}
 
@@ -249,7 +254,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		if a.isBuiltinFunction(identifier.Value) {
 			// Emit casing hint for built-ins when pedantic hints are enabled
 			if declName := a.builtinDeclarationName(identifier.Value); declName != "" && declName != identifier.Value {
-				a.addCaseMismatchHint(identifier.Value, declName, identifier.Token.Pos)
+				a.addIdentifierCaseHint(identifier, declName)
 			}
 			// Check if builtin can be used as a function reference (for Map, Filter, etc.)
 			if funcPtrType := a.getBuiltinFunctionPointerType(identifier.Value); funcPtrType != nil {
@@ -280,7 +285,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 
 	// Emit a hint when the identifier casing doesn't match its declaration.
 	if sym.Name != "" && sym.Name != identifier.Value && ident.Equal(sym.Name, identifier.Value) {
-		a.addCaseMismatchHint(identifier.Value, sym.Name, identifier.Token.Pos)
+		a.addIdentifierCaseHint(identifier, sym.Name)
 	}
 	a.warnDeprecatedSymbolUsage(sym, identifier.Token.Pos)
 	a.recordSymbolUsage(sym.Name, identifier.Token.Pos)

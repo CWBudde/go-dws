@@ -26,7 +26,7 @@ func (a *Analyzer) checkRecordVisibilitySections(sections []ast.RecordVisibility
 			a.addStructuredError(NewGenericError(section.Pos,
 				`Records do not supported "protected" visibility specifier`))
 		case current:
-			a.addHint("Redundant specifier, visibility is already %q [line: %d, column: %d]",
+			a.addHintAt(section.Pos, "Redundant specifier, visibility is already %q [line: %d, column: %d]",
 				section.Specifier, section.Pos.Line, section.Pos.Column)
 		default:
 			current = section.Specifier
@@ -475,7 +475,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	if exists {
 		if declaredName := recordType.FieldNames[lowerFieldName]; declaredName != "" &&
 			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
-			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
+			a.addIdentifierCaseHint(field, declaredName)
 		}
 		if !a.checkRecordMemberVisibility(recordType, lowerFieldName, fieldName, field.Token.Pos) {
 			return nil
@@ -487,7 +487,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	constInfo, constExists := recordType.Constants[lowerFieldName]
 	if constExists {
 		if constInfo.Name != "" && constInfo.Name != fieldName && ident.Equal(constInfo.Name, fieldName) {
-			a.addCaseMismatchHint(fieldName, constInfo.Name, field.Token.Pos)
+			a.addIdentifierCaseHint(field, constInfo.Name)
 		}
 		return constInfo.Type
 	}
@@ -497,7 +497,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	if classVarExists {
 		if declaredName := recordType.ClassVarNames[lowerFieldName]; declaredName != "" &&
 			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
-			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
+			a.addIdentifierCaseHint(field, declaredName)
 		}
 		return classVarType
 	}
@@ -507,7 +507,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	if methodExists {
 		if declaredName := recordType.MethodNames[lowerFieldName]; declaredName != "" &&
 			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
-			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
+			a.addIdentifierCaseHint(field, declaredName)
 		}
 		// If method is parameterless, it will be auto-invoked by the interpreter
 		// Return the method's return type, not the method type itself
@@ -526,7 +526,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	if classMethodExists {
 		if declaredName := recordType.ClassMethodNames[lowerFieldName]; declaredName != "" &&
 			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
-			a.addCaseMismatchHint(fieldName, declaredName, field.Token.Pos)
+			a.addIdentifierCaseHint(field, declaredName)
 		}
 		// Class methods can be accessed on instances
 		// If parameterless, will be auto-invoked
@@ -546,7 +546,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 		if propExists {
 			a.warnDeprecatedRecordPropertyUsage(propInfo, field.Token.Pos)
 			if propInfo.Name != "" && propInfo.Name != fieldName && ident.Equal(propInfo.Name, fieldName) {
-				a.addCaseMismatchHint(fieldName, propInfo.Name, field.Token.Pos)
+				a.addIdentifierCaseHint(field, propInfo.Name)
 			}
 			return propInfo.Type
 		}

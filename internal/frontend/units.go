@@ -54,6 +54,13 @@ func analyzeUnits(analyzer *semantic.Analyzer, result *Result, opts Options) err
 	available := make(map[string]*semantic.SymbolTable)
 	for _, name := range order {
 		unit, _ := registry.GetUnit(name)
+		directives := filterSourceHints(lexerDiagnostics(unit.DirectiveDiagnostics, false), opts.HintsLevel)
+		result.Diagnostics = append(result.Diagnostics, directives...)
+		for _, diagnostic := range directives {
+			if diagnostic.Fatal {
+				return fmt.Errorf("compiler directive error in unit %q", name)
+			}
+		}
 		// Monomorphization must happen on the same nodes later passed to execution.
 		if err := generics.Monomorphize(&ast.Program{Statements: []ast.Statement{unit.Declaration}}); err != nil {
 			return fail(err)

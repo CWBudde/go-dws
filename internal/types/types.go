@@ -1006,12 +1006,13 @@ func NewClassOfType(classType *ClassType) *ClassOfType {
 // InterfaceType represents an interface type in DWScript.
 // Interfaces define a contract of methods that implementing classes must provide.
 type InterfaceType struct {
-	Parent       *InterfaceType
-	Methods      map[string]*FunctionType
-	Properties   map[string]*PropertyInfo
-	Name         string
-	ExternalName string
-	IsExternal   bool
+	MethodDeclNames map[string]string // Original source spelling of interface methods.
+	Parent          *InterfaceType
+	Methods         map[string]*FunctionType
+	Properties      map[string]*PropertyInfo
+	Name            string
+	ExternalName    string
+	IsExternal      bool
 }
 
 // String returns the string representation of the interface type

@@ -660,6 +660,7 @@ type HelperType struct {
 	ParentHelper    *HelperType
 	Methods         map[string]*FunctionType
 	MethodOverloads map[string][]*FunctionType
+	MethodDeclNames map[string]string // Original source spelling, keyed by normalized name.
 	Properties      map[string]*PropertyInfo
 	ClassVars       map[string]Type
 	ClassConsts     map[string]any

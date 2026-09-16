@@ -241,7 +241,8 @@ func PopCount(ctx Context, args []Value) Value {
 }
 
 // TestBit implements the TestBit() built-in function.
-// It tests if a specific bit is set in a number.
+// It tests if a specific bit is set in a number. Positions outside 0-63
+// return false, matching both the global function and Integer helper.
 // TestBit(value: Integer, bit: Integer): Boolean
 func TestBit(ctx Context, args []Value) Value {
 	if len(args) != 2 {
@@ -258,9 +259,9 @@ func TestBit(ctx Context, args []Value) Value {
 	value := valueVal.Value
 	bit := bitVal.Value
 
-	// Validate bit position (0-63 for int64)
+	// Positions outside the 64-bit value never select a set bit.
 	if bit < 0 || bit >= 64 {
-		return ctx.NewError("TestBit() bit position must be in range 0-63, got %d", bit)
+		return &runtime.BooleanValue{Value: false}
 	}
 
 	// Test the bit: (value >> bit) & 1
@@ -346,11 +347,23 @@ func Haversine(ctx Context, args []Value) Value {
 }
 
 // CompareNum implements the CompareNum() built-in function.
-// It compares two numbers and returns -1, 0, or 1.
-// CompareNum(a, b: Float): Integer
+// It compares two numbers and returns -1, 0, or 1. Integer pairs are compared
+// exactly; a Float operand promotes the comparison to Float. As in DWScript,
+// unordered Float comparisons (any NaN operand) return 1.
 func CompareNum(ctx Context, args []Value) Value {
 	if len(args) != 2 {
 		return ctx.NewError("CompareNum() expects exactly 2 arguments, got %d", len(args))
+	}
+	if a, ok := args[0].(*runtime.IntegerValue); ok {
+		if b, ok := args[1].(*runtime.IntegerValue); ok {
+			if a.Value < b.Value {
+				return &runtime.IntegerValue{Value: -1}
+			}
+			if a.Value == b.Value {
+				return &runtime.IntegerValue{Value: 0}
+			}
+			return &runtime.IntegerValue{Value: 1}
+		}
 	}
 
 	// Extract first argument
@@ -375,25 +388,12 @@ func CompareNum(ctx Context, args []Value) Value {
 		return ctx.NewError("CompareNum() expects Float or Integer arguments, got %s", args[1].Type())
 	}
 
-	// Handle NaN: NaN is considered equal to NaN, and less than all other values
-	aIsNaN := math.IsNaN(a)
-	bIsNaN := math.IsNaN(b)
-
-	if aIsNaN && bIsNaN {
-		return &runtime.IntegerValue{Value: 0} // Both NaN, equal
-	}
-	if aIsNaN {
-		return &runtime.IntegerValue{Value: -1} // NaN is less than any number
-	}
-	if bIsNaN {
-		return &runtime.IntegerValue{Value: 1} // Any number is greater than NaN
-	}
-
-	// Regular comparison
+	// Preserve upstream's branch order: NaN makes both tests false.
 	if a < b {
 		return &runtime.IntegerValue{Value: -1}
-	} else if a > b {
-		return &runtime.IntegerValue{Value: 1}
 	}
-	return &runtime.IntegerValue{Value: 0}
+	if a == b {
+		return &runtime.IntegerValue{Value: 0}
+	}
+	return &runtime.IntegerValue{Value: 1}
 }

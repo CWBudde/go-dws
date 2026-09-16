@@ -398,6 +398,6 @@ func (a *Analyzer) addCallConventionHint(decl *ast.FunctionDecl) {
 	if decl == nil || decl.CallingConvention == "" {
 		return
 	}
-	a.addHint("Call convention %q is not supported and ignored [line: %d, column: %d]",
+	a.addHintAt(decl.CallingConventionPos, "Call convention %q is not supported and ignored [line: %d, column: %d]",
 		decl.CallingConvention, decl.CallingConventionPos.Line, decl.CallingConventionPos.Column)
 }

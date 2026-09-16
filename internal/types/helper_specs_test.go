@@ -3,7 +3,7 @@ package types
 import "testing"
 
 func TestBuiltinHelperCatalog(t *testing.T) {
-	for _, target := range []string{"array", "String", "Integer", "Float", "Boolean", "array of String", "enum"} {
+	for _, target := range []string{"array", "String", "Integer", "Float", "Boolean", "array of String", "array of Float", "enum"} {
 		helper := NewBuiltinHelper(target)
 		if helper == nil {
 			t.Fatalf("missing builtin helper for %s", target)

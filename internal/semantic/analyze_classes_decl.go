@@ -41,7 +41,7 @@ func (a *Analyzer) handleExistingClass(
 			return false, false, true
 		}
 	} else if existingClass.IsPartial && !decl.IsPartial && !isForwardDecl {
-		a.addHint("Previous declaration of class was \"partial\" [line: %d, column: %d]",
+		a.addHintAt(decl.Token.Pos, "Previous declaration of class was \"partial\" [line: %d, column: %d]",
 			decl.Token.Pos.Line, decl.Token.Pos.Column)
 		mergingPartialClass = true
 	} else if !existingClass.IsPartial && decl.IsPartial {

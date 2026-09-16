@@ -1149,7 +1149,7 @@ func StrJoin(ctx Context, args []Value) Value {
 }
 
 // StrArrayPack implements the StrArrayPack() built-in function.
-// It removes empty strings from an array.
+// It removes empty strings in place and returns the same array.
 //
 // Signature: StrArrayPack(array) -> array of String
 //
@@ -1167,22 +1167,29 @@ func StrArrayPack(ctx Context, args []Value) Value {
 		return ctx.NewError("StrArrayPack() expects array as argument, got %s", args[0].Type())
 	}
 
-	// Filter out empty strings
-	var packed []Value
+	if arrVal.ArrayType == nil || types.GetUnderlyingType(arrVal.ArrayType.ElementType) != types.STRING {
+		return ctx.NewError("StrArrayPack() expects an array of String")
+	}
+
+	// Validate before changing the receiver, even without semantic analysis.
+	for _, elem := range arrVal.Elements {
+		if _, ok := elem.(*runtime.StringValue); !ok {
+			return ctx.NewError("StrArrayPack() expects array of strings")
+		}
+	}
+	packed := arrVal.Elements[:0]
 	for _, elem := range arrVal.Elements {
 		strElem, ok := elem.(*runtime.StringValue)
 		if !ok {
-			return ctx.NewError("StrArrayPack() expects array of strings, got %s", elem.Type())
+			return ctx.NewError("StrArrayPack() expects array of strings")
 		}
 		if strElem.Value != "" {
 			packed = append(packed, strElem)
 		}
 	}
-
-	return &runtime.ArrayValue{
-		Elements:  packed,
-		ArrayType: types.NewDynamicArrayType(types.STRING),
-	}
+	clear(arrVal.Elements[len(packed):])
+	arrVal.Elements = packed
+	return arrVal
 }
 
 // NOTE: Format() is implemented in system.go and registered there.

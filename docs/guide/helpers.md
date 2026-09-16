@@ -48,6 +48,34 @@ Both syntax variants are functionally equivalent. The `record helper` syntax is 
 
 ## Features
 
+### Built-in numeric and array helpers
+
+Integer values provide `TestBit(index): Boolean`, `PopCount: Integer`, and
+`Compare(other): Integer`. Float values also provide `Compare`. Comparisons return
+−1, 0, or 1; Integer pairs retain all 64 bits of precision, while mixed pairs use
+floating-point comparison. A comparison involving NaN returns 1. `TestBit` returns
+False for indices outside 0–63, and `PopCount` counts all 64 bits, including the sign bit.
+
+Dynamic Float arrays provide `Offset(amount)`, `Multiply(factor)`,
+`MultiplyAdd(factor, offset)`, and `Reciprocal`. These mutate and return the same array:
+
+```pascal
+var values: array of Float := [1, 2, 4];
+values.Offset(1).Multiply(2); // [4, 6, 10]
+values.MultiplyAdd(2, 1);     // [9, 13, 21]
+values.Reciprocal;
+```
+
+`MultiplyAdd` multiplies and then adds, without a fused operation. `Reciprocal`
+uses floating-point division, so signed zero produces signed infinity. Empty
+Float arrays return immediately without evaluating the scalar arguments.
+
+Dynamic String arrays provide `Pack`, which removes empty strings in place while
+preserving the order of the remaining strings. Whitespace-only strings remain.
+It also returns the same array, so `names.Pack.Join(',')` is valid. References to
+an array observe these mutations. Parameterless helpers also accept parentheses,
+for example `value.PopCount()`, `values.Reciprocal()`, and `names.Pack()`.
+
 ### 1. Methods
 
 Helpers can define methods that operate on the target type. The `Self` keyword refers to the instance of the target type.

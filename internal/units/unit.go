@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -33,6 +34,8 @@ import (
 //	  // Cleanup code
 //	end.
 type Unit struct {
+	// DirectiveDiagnostics retains lexer messages for the shared compile frontend.
+	DirectiveDiagnostics []lexer.LexerError
 	// Declaration and Source preserve the exact parsed input for semantic analysis.
 	Declaration *ast.UnitDeclaration
 	Source      string

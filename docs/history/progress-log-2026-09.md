@@ -4015,3 +4015,264 @@ fixtures currently want different columns. Fix the routing and both close togeth
 string index is catchable, and that a re-raise keeps the original message and reports two
 positions. `internal/frontend/result_test.go` pins that both calling-convention hints carry a
 structured position and do not write " at " into their own text.
+
+
+## 2026-09-13 — private unit variables (§3.3)
+
+`FunctionsGlobalVars/private_vars` now passes through both the Go harness and a freshly
+built CLI. FunctionsGlobalVars rises **12 → 13 passing** (13/14 scored; two unit source
+files are unscored), and the full corpus rises **1,091 → 1,092 / 1,930 scored** with no
+category regression. The remaining category failure is the `queue_snapshot` case-hint
+mismatch. The fixture baseline and generated status were ratcheted.
+
+The four builtins are `WritePrivateVar`, `ReadPrivateVar`, `PrivateVarsNames`, and
+`CleanupPrivateVars`. A separate process-wide store partitions simple Variant values by
+normalized unit name, retaining the global store's expiration and mask machinery.
+`WritePrivateVar` returns whether an entry was absent or expired, atomically with the
+write. `ReadPrivateVar` evaluates its optional default only when needed, including when
+an unrelated user overload shares its name. Empty enumeration masks mean all names;
+an explicitly empty cleanup mask matches the empty variable name only. Global cleanup
+and snapshots cannot expose or change private entries.
+
+The declaring unit is lexical, as in the pinned upstream `PrivateVarPrefix` implementation:
+main-defined callbacks still raise `Private variables cannot be referred from main module`
+when invoked by a unit. The type system indexes executable source nodes, the evaluator
+saves/restores `ExecutionContext.CurrentUnit`, and builtin adapters expose that identity.
+Call frames and canonical method metadata retain unit ownership without changing diagnostic
+stack formatting. Generated method wrappers inherit their source ownership while inherited
+contract expressions retain their original owner. This covers free functions, methods,
+properties, nested routines, escaped lambdas, and unit initialization/finalization.
+
+Two additional blockers surfaced after the builtins compiled. Section-less units parsed,
+but their routines were neither exported by semantic analysis nor imported at runtime;
+both now work, and public inline bodies are analyzed after their signatures are registered.
+Explicit implementation sections remain private. Qualified parameterless calls such as
+`unit_private_vars1.PrepareTest` now execute through the existing qualified-call path;
+function-pointer contexts retain the reference reading.
+
+Validation includes the exact fixture run twice through the embedding API, cross-unit
+calls and main rejection, inherited contracts, methods/properties, callbacks, persistence
+across runs and engines, lazy defaults and overload selection, and deterministic storage
+expiration/concurrency tests. Storage and ownership race checks passed. Harness and CLI
+full reports agree at 1,092 passing; the harness still emits an isolated worker stack
+overflow already observed before this change. Full lint has an existing repository-wide
+backlog, including unused interpreter migration helpers and complexity warnings.
+
+Final checks passed (using a writable `GOCACHE` under `/tmp` in this environment):
+
+- `GOFLAGS=-buildvcs=false go test -timeout=20m ./...` — the complete suite; disabling
+  repeated VCS stamping avoids the CLI rebuild overhead that exhausted the first run's
+  ten-minute limit.
+- `go test -race` over the storage, runtime ownership, evaluator, and embedding regressions.
+- `golangci-lint run --new-from-rev=HEAD` — zero new issues.
+- `just fixture-update`, freshly built `fixture-report --build=false`, and an exact diff of
+  the CLI's `private_vars` output against its checked-in expectation.
+
+## 2026-09-13 — missing fixture expectations and Memory hints (T7)
+
+The Go harness and CLI report now share `internal/fixtureconfig` for expectation loading and
+category hint levels. A missing `.txt` is scored against silence except in BuildScripts,
+AutoFormat, External, DelegateLib and FailureScripts. Existing expectations remain authoritative
+in every category, and read/decode errors remain failures. Memory joins Algorithms and
+FunctionsString at normal hints; other categories stay pedantic.
+
+The two runners agree at **1,121 / 1,966 scored**, with 845 failures and 78 skipped out of 2,044.
+This adds 36 checks: 29 pass and seven expose existing failures. Memory moves from 1/3 to 6/13.
+The previous estimate of 28 new passes was stale, and its claim that the pass percentage would
+decrease was incorrect. The seven newly scored failures are FunctionsMath/random,
+SimpleScripts/const_block, and Memory/external, external_bidicycle, external_cycle,
+external_selfref and obj_fields. No previously scored fixture was lost. Baselines and generated
+status were refreshed with `just fixture-update`, and T7 plus the Memory scoring subtask were
+removed from PLAN.md.
+
+The bundled upstream runners clarified two qualifications in the fixture README:
+`CompilationFailure` requires nonempty diagnostics when its expectation is absent, so its
+13 missing exact expectations remain skipped; the JSFilterScripts `.pas` files are support
+units checked separately by our discovery, while upstream collects `.dws` scripts.
+
+Regression tests exercise actual harness scoring and a freshly built CLI: silence, unexpected
+output, compile/runtime diagnostics, compile-only mode, every excluded category, existing
+expectations, unreadable files, malformed UTF-16 comparison, failure classification, and
+Memory/obj_local through the discovered category's worker request.
+
+Validation:
+
+- `GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -timeout=20m ./...` passed.
+- `go test ./cmd/fixture-report` passed again after splitting the CLI regression test into
+  focused helpers to satisfy the complexity limit.
+- The fixture baseline gate, `just fixture-update`, and a freshly built CLI report passed
+  with matching counts in every category.
+- `golangci-lint run --new-from-rev=HEAD` passed with zero issues; `git diff --check` passed.
+
+## 2026-09-13 — constructor results as assignment receivers (§3.3)
+
+A bare constructor used as a member-assignment receiver now runs before the field or
+property write: `TItem.Create.Value := 42` matches `TItem.Create().Value := 42`.
+The evaluator previously treated `TItem.Create` as writable storage and failed with
+`cannot access field of CLASS`. Assignment containers now allow class-member reads
+through the existing dispatcher, using the already evaluated class receiver and no
+writeback setter for the computed result. Strict writable-variable resolution remains
+separate; indexed-record initialization and associative-array insertion retain their
+existing storage paths.
+
+Both Memory/obj_fields and SimpleScripts/override_deep now pass. The latter checks
+inherited constructors and a virtual property setter across several subclasses. Harness
+and freshly built CLI agree at **1,123 / 1,966 scored**, with 843 failures and 78 skipped;
+Memory rises 6 → 7/13 and SimpleScripts 371 → 372/443. Baselines and generated status were
+ratcheted with `just fixture-update`. The closed checkbox was removed from PLAN.md;
+Memory's remaining six external-class fixtures still require deferred host setup.
+
+Tests first reproduced the original error through compiled/analyzed AST execution, then
+verified default, inherited, named and case-insensitive constructors, metaclass variables,
+computed metaclass receivers, field storage and property setters. Retained instances and
+counters prove receiver, constructor and setter single evaluation for simple assignment.
+Raised exceptions and runtime error values preserve their messages and skip the write.
+A review also caught an exception-path regression that could expose a nil setter to
+`TryStrToInt`; the early return is now restricted to assignment containers, and a strict
+writable-binding regression test guards that boundary.
+
+Separate pre-existing defects remain open in PLAN.md §3.5: constructor receivers evaluate
+twice in compound assignment and var-argument paths, and a bare free-function receiver is
+still treated as an unresolved variable. This change concerns simple class/metaclass
+constructor receiver assignments; it makes no public API or bytecode changes.
+
+Validation (with writable caches under `/tmp`):
+
+- `GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -timeout=20m ./...` passed.
+- The final constructor, assignment, associative-array and constructor-overload tests passed
+  in both interpreter and evaluator packages after extracting storage helpers for lint.
+- `just fixture-update` passed; a freshly rebuilt CLI report matched the harness in all
+  61 categories, with only the two expected category baseline increases.
+- `golangci-lint run --new-from-rev=HEAD --timeout=5m` passed with zero issues;
+  `git diff --check` passed.
+
+
+## 2026-09-13 — numeric and array helpers (E4)
+
+Integer now exposes `TestBit`, `PopCount`, and `Compare`; Float exposes `Compare`.
+Their shared helper specifications route through the existing builtin registry. `TestBit`
+returns False outside indices 0–63. `CompareNum` compares Integer pairs without conversion
+or subtraction, preserving the full signed 64-bit range; mixed/Float pairs use floating-point
+comparison. Upstream's branch order makes any NaN operand return 1, including NaN/NaN.
+The prior tests that expected range errors or NaN-low ordering were corrected against
+[pinned upstream source](https://github.com/EricGrange/DWScript/blob/5f01a3468452ea75867d4f0e7a0246b107e92332/Source/dwsMathFunctions.pas).
+
+Dynamic Float arrays now expose `Offset`, `Multiply`, `MultiplyAdd`, and `Reciprocal`.
+The last method was absent from E4's original list but is required by `array_funcs`.
+These evaluator-owned operations mutate and return the same array. MultiplyAdd explicitly
+rounds the product before adding; Reciprocal follows IEEE division, including signed
+zero/infinity and NaN. The evaluator resolves the actual selected builtin before skipping
+scalar argument evaluation on an empty array, so user helpers retain their own call behavior.
+Nonempty calls evaluate operands once and propagate exceptions before mutation. Runtime
+receiver and element checks protect calls that bypass semantic analysis, and scalar wrappers
+are replaced so separately held values do not change.
+
+Dynamic String arrays now expose `Pack`. It shares the corrected `StrArrayPack` builtin,
+which stably removes empty strings from the original array and returns that same receiver.
+Whitespace survives, aliases observe mutation, and trailing references are cleared. Existing
+nonempty array-literal calls to the global builtin remain accepted; their runtime metadata
+can describe a static array despite the builtin's dynamic-array signature.
+
+The shared catalog owns names and signatures, with Float-array registration added to both
+bootstrap paths. A bare builtin helper in statement position now gets `More arguments expected`
+when its signature requires operands, including chained and implicitly called receivers.
+Expression-position method references retain their previous interpretation. This check is
+limited to selected builtin helpers: user helper signatures currently omit default-value
+metadata, so extending the check to them would reject valid defaulted calls. Regression controls
+also protect record methods from same-named helper declarations.
+
+Seven fixtures close: FunctionsMath `compare_num`, `sort_nums`, `testbit`, `popcnt`, and
+`array_funcs`; ArrayPass `string_array_pack` and `array_method_indexing2`. The latter is an
+additional gain from Integer.Compare in a sort callback. FunctionsMath rises **29 → 34/40**,
+ArrayPass **96 → 98/115**. No category baseline decreases. E4 is removed from PLAN.md; helper
+and builtin guides document the new methods and observable builtin corrections. No parser,
+public Go API, or bytecode changes were needed.
+
+Fresh CLI and harness reports agree in all **61 categories**: **1,130 / 1,966 scored**, with
+836 failures and 78 skipped among 2,044 fixtures. In scope this is **1,130 / 1,747 = 65%**;
+execution-suite failures fall 149 → 142. The `*Fail` suites remain 166/641. Baselines and generated
+status were refreshed with `just fixture-update`.
+
+Tests were written and observed failing before implementation. Coverage runs through the real
+compile/execute path and includes fixture output, numeric boundaries beyond 2^53, NaNs,
+case-insensitive dispatch, aliases, helper overrides, wrong arity/type, receiver/operand side
+effects and failures, empty-array suppression, array identity, IEEE reciprocal behavior, and
+separate multiply/add rounding. Catalog parity and focused integration checks pass.
+
+Final validation: `go test -timeout=20m ./...` passes, as do the focused numeric/array,
+semantic arity, and helper parity regressions. Changed-code `golangci-lint run
+--new-from-rev=HEAD --timeout=5m` reports **0 issues**. The full run caught four additional
+legacy interpreter expectations for TestBit/NaN behavior; those were updated before the
+successful rerun. Fresh CLI category totals were compared programmatically against generated
+harness status and match in all 61 categories. The two baseline changes are strictly increases.
+
+
+## 2026-09-13 — fixture hint configuration (E3a)
+
+E3a closes the configuration audit that precedes case-mismatch hint fixes. The bundled
+upstream runner supplies the evidence July's investigation lacked: `UScriptTests.pas`
+collects SimpleScripts and ArrayPass at lines 73–74, FailureScripts at 76, OverloadsPass at
+88, and HelpersPass at 91. Its setup sets `FCompiler.Config.HintsLevel := hlPedantic` at
+line 111. This is the only hint-level assignment in that runner; the execution and failure
+loops do not override it per fixture. Test variants change compiler options, with optimized
+expectations selected separately; go-dws uses the non-optimized `.txt` expectations.
+
+`UAlgorithmsTests.pas:93–102` constructs its compiler without changing the default normal
+hint level. July's `array_in2`/`hanoi` counterexample therefore crosses runners: lowercase
+`println` should produce case hints in ArrayPass and none in Algorithms. Freshly compiled
+CLI runs match both expected files exactly after the standard whitespace normalization.
+The July progress log remains unchanged as a historical account; its blanket conclusion
+that these settings were unrecoverable is superseded for the categories proven here.
+
+### Configuration and remaining defects
+
+| Representative fixture | Observed CLI result | Classification / follow-up |
+| --- | --- | --- |
+| `ArrayPass/array_in2`, pedantic | Exit 0; exact expectation match, including five `println` hints | Recovered runner configuration |
+| `Algorithms/hanoi`, normal | Exit 0; exact expectation match without case hints | Recovered runner configuration |
+| `FailureScripts/hint_pedantic`, pedantic | Exit 1; unwanted `test` case hint at 5:1 inside `{$HINTS OFF}`; expected hint at 9:1 is present after `{$HINTS pedantic}` | Source-switch handling, E3b |
+| Same `hint_pedantic` run | Unknown `FOOBAR` switch diagnostic at 11:3 appears before the hints; expectation puts it after the 9:1 hint | Separate diagnostic ordering, §4/F1; suppression alone will not close the fixture |
+| `SimpleScripts/inherited_constructor`, pedantic | Exit 0; missing `createElement` / `CreateElement` hint at 17:12; other six expected case hints and runtime output match | Declaration-resolution hint defect, E3c |
+| Same `inherited_constructor` run | Extra `Overloaded method "Create" should be marked with the "overload" directive` hints at 23:3 and 36:3 | Separate overload-hint defect; fixing case hints alone will not close the fixture |
+
+The lexer currently applies `{$HINTS}` toggles to directive messages only
+(`internal/lexer/directive_messages.go`, `setSeveritySwitch`); the analyzer's hint level is
+separate. This explains why a correctly configured pedantic runner can still produce the
+unwanted line-5 hint. No source-switch or resolution implementation changes ship in E3a.
+
+Both entry points already share category settings: `internal/interp/fixture_test.go`
+constructs categories using `fixtureconfig.HintsLevel`, and `cmd/fixture-report/main.go`'s
+`hintsLevelFor` translates that same policy into the CLI flag. The policy itself is unchanged.
+Its pedantic fallback for other categories is not, by itself, evidence of their upstream
+runner configuration.
+
+PLAN.md now marks E3a complete and E3 partially complete. The §5 gate and affected
+OverloadsPass, HelpersPass and FailureScripts references permit E3b/E3c work for the five
+proven E3 categories. Categories without verified runner evidence retain the configuration
+gate. FunctionsGlobalVars `queue_snapshot` remains parked for its unresolved upstream
+resolution behavior: the differing `Join` hint is not evidence that per-test settings are
+missing, and changing `Map`'s inferred return type merely to force a hint match remains
+unjustified. The fixture README records the runner evidence and the distinction between
+configuration, source switches and resolution defects.
+
+### Validation
+
+Built the current CLI into `/tmp`, leaving repository binaries unchanged:
+
+```sh
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go build -o /tmp/go-dws-e3a-cli ./cmd/dwscript
+/tmp/go-dws-e3a-cli run --test-envelope --hints pedantic testdata/fixtures/ArrayPass/array_in2.pas
+/tmp/go-dws-e3a-cli run --test-envelope --hints normal testdata/fixtures/Algorithms/hanoi.pas
+/tmp/go-dws-e3a-cli run --compile-only --hints pedantic testdata/fixtures/FailureScripts/hint_pedantic.pas
+/tmp/go-dws-e3a-cli run --test-envelope --hints pedantic testdata/fixtures/SimpleScripts/inherited_constructor.pas
+```
+
+Compared combined CLI output against each UTF-8 expectation using line-ending normalization,
+right-trimmed lines and trimmed outer whitespace. The two configuration controls pass; the
+other two reproduce the exact remaining differences listed above. No fixture expectation,
+compiler behavior, public API or baseline changes. The last full-suite measurement remains
+1,130/1,966; E3a does not claim new fixture passes.
+
+The existing `TestHintsLevelFor` regression passes with `go test ./cmd/fixture-report
+-run '^TestHintsLevelFor$' -count=1` using the same writable cache settings. Documentation
+links and E3 completion markers were checked; `git diff --check` passes.

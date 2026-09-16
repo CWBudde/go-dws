@@ -29,6 +29,13 @@ including the remaining seam decisions recorded in `phase-4.10.2`.
 - `ExecutionContext` is the canonical owner of per-run mutable state. Builtin calls
   receive an invocation-scoped context adapter; the evaluator has no active-context
   or current-node fields. Nested evaluation restores the node on its explicit context.
+- Unit ownership is lexical: the type system indexes executable main/unit source
+  nodes, and evaluation saves/restores the current unit on `ExecutionContext`.
+  Call frames and canonical methods retain their declaring unit; inherited
+  contract expressions retain the unit where the condition was written.
+  Builtins obtain this identity through their invocation context's `CurrentUnit()`.
+  Unit initialization/finalization uses the same evaluation scope without adding
+  diagnostic stack frames.
 - Production bootstrap is centralized in `internal/interp/new.go`.
 - `internal/interp` must not import `internal/interp/evaluator` outside construction and tests.
 - Runtime execution should not bounce through callback-style interpreter bridges.

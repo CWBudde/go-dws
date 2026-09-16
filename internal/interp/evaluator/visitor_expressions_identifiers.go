@@ -433,6 +433,11 @@ func (e *Evaluator) VisitEnumLiteral(node *ast.EnumLiteral, ctx *ExecutionContex
 
 // invokeParameterlessUserFunction invokes a parameterless user function.
 func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node ast.Node, ctx *ExecutionContext) Value {
+	unitName, _ := e.typeSystem.NodeUnit(fn)
+	previousUnit := ctx.CurrentUnit()
+	ctx.SetCurrentUnit(unitName)
+	defer ctx.SetCurrentUnit(previousUnit)
+
 	// 1. Create new enclosed environment (evaluator-native stack pattern)
 	ctx.PushEnv()
 	defer ctx.PopEnv()
@@ -445,7 +450,7 @@ func (e *Evaluator) invokeParameterlessUserFunction(fn *ast.FunctionDecl, node a
 	// 3. Push function name onto call stack for stack traces
 	funcName := fn.Name.Value
 	pos := callSitePos(node)
-	if err := ctx.GetCallStack().Push(funcName, e.SourceFile(), &pos); err != nil {
+	if err := ctx.GetCallStack().PushWithUnit(funcName, e.SourceFile(), &pos, unitName); err != nil {
 		return e.newError(node, "recursion depth exceeded calling '%s'", funcName)
 	}
 	defer ctx.GetCallStack().Pop()

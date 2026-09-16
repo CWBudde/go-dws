@@ -24,7 +24,7 @@ func (i *Interpreter) registerBuiltinHelper(target string) {
 func (i *Interpreter) initArrayHelpers() { i.registerBuiltinHelper("array") }
 
 func (i *Interpreter) initIntrinsicHelpers() {
-	for _, target := range []string{"Integer", "Float", "Boolean", "String", "array of String"} {
+	for _, target := range []string{"Integer", "Float", "Boolean", "String", "array of String", "array of Float"} {
 		i.registerBuiltinHelper(target)
 	}
 }

@@ -55,6 +55,16 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	if identObj, ok := node.Object.(*ast.Identifier); ok {
 		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.UnitRegistry() != nil {
 			if _, exists := e.UnitRegistry().GetUnit(identObj.Value); exists {
+				if overloads := e.typeSystem.LookupQualifiedFunction(identObj.Value, node.Member.Value); len(overloads) > 0 {
+					if !wantMethodPointer {
+						for _, function := range overloads {
+							if allParametersHaveDefaults(function) {
+								return e.executeQualifiedFunctionCall(identObj.Value, node.Member, nil, node, ctx)
+							}
+						}
+					}
+					return createFunctionPointerFromDecl(overloads[0], ctx.Env())
+				}
 				if valRaw, ok := ctx.Env().Get(node.Member.Value); ok {
 					if val, ok := valRaw.(Value); ok {
 						return val

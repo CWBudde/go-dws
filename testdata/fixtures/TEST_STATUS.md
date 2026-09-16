@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-09-12
+**Generated**: 2026-09-16
 
 ## Overall
 
@@ -11,19 +11,20 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1091 |
-| Failed | 839 |
-| Skipped (no expected .txt) | 114 |
-| **Scored pass rate** | **57%** (1091/1930) |
+| Passed | 1137 |
+| Failed | 829 |
+| Skipped (no applicable expectation) | 78 |
+| **Scored pass rate** | **58%** (1137/1966) |
 
 ## Per-category
 
-Pass% is over *scored* fixtures (those with an expected `.txt`).
+Pass% is over *scored* fixtures: a sibling `.txt`, or an empty expectation for output suites.
+See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for exclusions.
 
 | Category | Total | Pass | Fail | Skip | Pass% |
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
-| ArrayPass | 115 | 96 | 19 | 0 | 83% |
+| ArrayPass | 115 | 98 | 17 | 0 | 85% |
 | AssociativeFail | 4 | 1 | 3 | 0 | 25% |
 | AssociativePass | 27 | 27 | 0 | 0 | 100% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
@@ -43,14 +44,14 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
-| FunctionsGlobalVars | 16 | 12 | 2 | 2 | 86% |
-| FunctionsMath | 40 | 25 | 10 | 5 | 71% |
+| FunctionsGlobalVars | 16 | 16 | 0 | 0 | 100% |
+| FunctionsMath | 40 | 35 | 5 | 0 | 88% |
 | FunctionsMath3D | 2 | 0 | 2 | 0 | 0% |
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
 | FunctionsRTTI | 6 | 0 | 6 | 0 | 0% |
 | FunctionsString | 58 | 57 | 1 | 0 | 98% |
-| FunctionsTime | 30 | 27 | 0 | 3 | 100% |
-| FunctionsVariant | 10 | 9 | 0 | 1 | 100% |
+| FunctionsTime | 30 | 30 | 0 | 0 | 100% |
+| FunctionsVariant | 10 | 10 | 0 | 0 | 100% |
 | GenericsFail | 8 | 0 | 8 | 0 | 0% |
 | GenericsPass | 23 | 23 | 0 | 0 | 100% |
 | GraphicsLib | 4 | 0 | 4 | 0 | 0% |
@@ -60,16 +61,16 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
 | InnerClassesPass | 2 | 2 | 0 | 0 | 100% |
 | InterfacesFail | 19 | 1 | 18 | 0 | 5% |
-| InterfacesPass | 33 | 16 | 12 | 5 | 57% |
-| JSFilterScripts | 2 | 0 | 0 | 2 | 0% |
-| JSFilterScriptsFail | 1 | 0 | 0 | 1 | 0% |
+| InterfacesPass | 33 | 21 | 12 | 0 | 64% |
+| JSFilterScripts | 2 | 2 | 0 | 0 | 100% |
+| JSFilterScriptsFail | 1 | 1 | 0 | 0 | 100% |
 | JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
-| JSONConnectorPass | 82 | 68 | 14 | 0 | 83% |
+| JSONConnectorPass | 82 | 69 | 13 | 0 | 84% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
 | LambdaPass | 6 | 4 | 2 | 0 | 67% |
 | Linq | 7 | 0 | 7 | 0 | 0% |
 | LinqJSON | 6 | 0 | 6 | 0 | 0% |
-| Memory | 13 | 1 | 2 | 10 | 33% |
+| Memory | 13 | 7 | 6 | 0 | 54% |
 | OperatorOverloadFail | 6 | 0 | 6 | 0 | 0% |
 | OperatorOverloadPass | 8 | 5 | 3 | 0 | 62% |
 | OverloadsFail | 14 | 0 | 14 | 0 | 0% |
@@ -78,7 +79,7 @@ Pass% is over *scored* fixtures (those with an expected `.txt`).
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
 | SetOfFail | 14 | 5 | 9 | 0 | 36% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 365 | 71 | 7 | 84% |
+| SimpleScripts | 443 | 376 | 67 | 0 | 85% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

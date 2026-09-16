@@ -537,6 +537,8 @@ func (e *Evaluator) elementError(node *ast.ArrayLiteralExpression, idx int, form
 // Returns result or nil if not handled (falls through to adapter).
 func (e *Evaluator) evalArrayHelper(spec string, selfValue Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	switch types.BuiltinHelperOperation(spec) {
+	case types.HelperArrayOffset, types.HelperArrayMultiply, types.HelperArrayMultiplyAdd, types.HelperArrayReciprocal:
+		return e.evalArrayMathHelper(types.BuiltinHelperOperation(spec), selfValue, args, node)
 	case types.HelperArrayLength, types.HelperArrayCount:
 		return e.evalArrayLengthHelper(selfValue, args, node)
 	case types.HelperArrayHigh:
