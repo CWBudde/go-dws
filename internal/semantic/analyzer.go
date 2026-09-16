@@ -72,6 +72,7 @@ const (
 
 // Analyzer performs semantic analysis on a DWScript program.
 type Analyzer struct {
+	caseHintIdentifiers     map[*ast.Identifier]bool
 	currentSelfType         types.Type
 	forwardMethodNames      map[string]string
 	globalOperators         *types.OperatorRegistry
@@ -546,11 +547,31 @@ func (a *Analyzer) SetHintsLevel(level HintsLevel) {
 	a.hintsLevel = level
 }
 
+// hintsLevelAt resolves the source directive without depending on semantic traversal
+// order. Positions retain their setting through parser lookahead, includes, and units.
+func (a *Analyzer) hintsLevelAt(pos token.Position) HintsLevel {
+	switch pos.Hints {
+	case token.HintLevelDisabled:
+		return HintsLevelDisabled
+	case token.HintLevelNormal:
+		return HintsLevelNormal
+	case token.HintLevelStrict:
+		return HintsLevelStrict
+	case token.HintLevelPedantic:
+		return HintsLevelPedantic
+	default:
+		return a.hintsLevel
+	}
+}
+
 func (a *Analyzer) addError(format string, args ...any) {
 	a.errors = append(a.errors, fmt.Sprintf(format, args...))
 }
 
-func (a *Analyzer) addHint(format string, args ...any) {
+func (a *Analyzer) addHintAt(pos token.Position, format string, args ...any) {
+	if a.hintsLevelAt(pos) == HintsLevelDisabled {
+		return
+	}
 	a.errors = append(a.errors, fmt.Sprintf("Hint: "+format, args...))
 }
 
@@ -640,10 +661,13 @@ func (a *Analyzer) warnDeprecatedRecordPropertyUsage(propInfo *types.RecordPrope
 }
 
 func (a *Analyzer) addCaseMismatchHint(actual, declared string, pos token.Position) {
-	if a.hintsLevel < HintsLevelPedantic {
+	if actual == declared || declared == "" || !ident.Equal(actual, declared) {
 		return
 	}
-	a.addHint("\"%s\" does not match case of declaration (\"%s\") [line: %d, column: %d]",
+	if a.hintsLevelAt(pos) < HintsLevelPedantic {
+		return
+	}
+	a.addHintAt(pos, "\"%s\" does not match case of declaration (\"%s\") [line: %d, column: %d]",
 		actual, declared, pos.Line, pos.Column)
 }
 

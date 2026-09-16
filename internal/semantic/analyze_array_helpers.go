@@ -167,7 +167,7 @@ func (a *Analyzer) addArrayHelperCaseHint(method *ast.Identifier) {
 	}
 	canonical := arrayHelperCanonicalName(method.Value)
 	if canonical != method.Value && ident.Equal(canonical, method.Value) {
-		a.addCaseMismatchHint(method.Value, canonical, method.Token.Pos)
+		a.addIdentifierCaseHint(method, canonical)
 	}
 }
 

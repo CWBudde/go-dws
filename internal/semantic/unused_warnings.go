@@ -42,9 +42,6 @@ func (a *Analyzer) emitUnusedWarningsForCurrentScope() {
 	if a == nil || a.symbols == nil {
 		return
 	}
-	if a.hintsLevel < HintsLevelPedantic {
-		return
-	}
 	if a.currentFunction == nil && !a.inLambda {
 		return
 	}
@@ -100,12 +97,15 @@ func (a *Analyzer) emitUnusedWarningsForCurrentScope() {
 	})
 
 	for _, candidate := range candidates {
+		if a.hintsLevelAt(candidate.pos) < HintsLevelPedantic {
+			continue
+		}
 		if ident.Equal(candidate.name, "Result") {
-			a.addHint("Result is never used [line: %d, column: %d]",
+			a.addHintAt(candidate.pos, "Result is never used [line: %d, column: %d]",
 				candidate.pos.Line, candidate.pos.Column)
 			continue
 		}
-		a.addHint("Variable \"%s\" declared but not used [line: %d, column: %d]",
+		a.addHintAt(candidate.pos, "Variable \"%s\" declared but not used [line: %d, column: %d]",
 			candidate.sym.Name, candidate.pos.Line, candidate.pos.Column)
 	}
 }
@@ -148,9 +148,6 @@ func (a *Analyzer) queueUnusedPrivateClassMembers(classType *types.ClassType) {
 
 func (a *Analyzer) collectUnusedPrivateClassMemberWarnings(classType *types.ClassType) []string {
 	if a == nil || classType == nil {
-		return nil
-	}
-	if a.hintsLevel < HintsLevelPedantic {
 		return nil
 	}
 	for _, err := range a.errors {
@@ -222,6 +219,9 @@ func (a *Analyzer) collectUnusedPrivateClassMemberWarnings(classType *types.Clas
 
 	out := make([]string, 0, len(warnings))
 	for _, warning := range warnings {
+		if a.hintsLevelAt(warning.pos) < HintsLevelPedantic {
+			continue
+		}
 		out = append(out, fmt.Sprintf("Hint: %s [line: %d, column: %d]",
 			warning.message, warning.pos.Line, warning.pos.Column))
 	}

@@ -140,7 +140,7 @@ func (a *Analyzer) validateVirtualOverride(method *ast.FunctionDecl, classType *
 		}
 
 		if len(currentOverloads) > 1 && !method.IsOverload {
-			a.addHint("Overloaded method \"%s\" should be marked with the \"overload\" directive [line: %d, column: %d]",
+			a.addHintAt(method.Token.Pos, "Overloaded method \"%s\" should be marked with the \"overload\" directive [line: %d, column: %d]",
 				methodName, method.Token.Pos.Line, method.Token.Pos.Column)
 		}
 	}

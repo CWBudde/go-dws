@@ -293,6 +293,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 
+		a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
+
 		// Record the receiver's static type so runtime helper dispatch honors
 		// alias-specific (strict) helpers over the underlying type's helpers.
 		if a.semanticInfo != nil && expr.Method != nil {
@@ -338,6 +340,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		return helperMethod.ReturnType
 	}
+
+	a.addIdentifierCaseHint(expr.Method, a.declaredClassMemberName(classType, methodName))
 
 	// Handle built-in methods available on all objects (inherited from TObject)
 	if methodName == "ClassName" {

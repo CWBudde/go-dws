@@ -15,7 +15,7 @@ func TestRun_TestEnvelope(t *testing.T) {
 		{
 			name:   "hints and result are framed",
 			source: "var Foo: Integer; foo := 1; PrintLn(foo);",
-			want:   "Errors >>>>\nHint: \"foo\" does not match case of declaration (\"Foo\") [line: 1, column: 37]\nResult >>>>\n1\n",
+			want:   "Errors >>>>\nHint: \"foo\" does not match case of declaration (\"Foo\") [line: 1, column: 19]\nHint: \"foo\" does not match case of declaration (\"Foo\") [line: 1, column: 37]\nResult >>>>\n1\n",
 		},
 		{
 			name:    "runtime error after output is framed",

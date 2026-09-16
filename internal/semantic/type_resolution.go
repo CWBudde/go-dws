@@ -598,6 +598,7 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 		if err != nil {
 			return nil, fmt.Errorf("unknown array index type '%s': %w", indexTypeName, err)
 		}
+		a.addCaseMismatchHint(indexTypeName, indexType.String(), arrayNode.IndexType.Pos())
 
 		// A bounded ordinal index (Boolean, Enum, Subrange) is a dense
 		// enum-indexed static array. Any other index type (Integer, String,

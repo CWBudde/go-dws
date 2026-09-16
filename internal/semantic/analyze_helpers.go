@@ -150,6 +150,7 @@ func (a *Analyzer) analyzeFunctionHelperDecl(decl *ast.FunctionDecl, paramTypes 
 	} else {
 		funcType = types.NewFunctionType(methodParams, returnType)
 	}
+	helperType.MethodDeclNames = map[string]string{ident.Normalize(methodName): methodName}
 	helperType.Methods[ident.Normalize(methodName)] = funcType
 
 	targetTypeName := ident.Normalize(targetType.String())
@@ -281,7 +282,11 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 				if _, exists := a.symbols.Resolve(methodName); exists {
 					continue
 				}
-				a.symbols.DefineFunction(methodName, methodType, token.Position{})
+				declared := cur.MethodDeclNames[methodName]
+				if declared == "" {
+					declared = methodName
+				}
+				a.symbols.DefineFunction(declared, methodType, token.Position{})
 			}
 		}
 	}
@@ -388,6 +393,10 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 	}
 
 	// Add method to helper
+	if helperType.MethodDeclNames == nil {
+		helperType.MethodDeclNames = make(map[string]string)
+	}
+	helperType.MethodDeclNames[methodNameLower] = methodName
 	helperType.Methods[methodNameLower] = funcType
 	helperType.MethodOverloads[methodNameLower] = append(helperType.MethodOverloads[methodNameLower], funcType)
 }

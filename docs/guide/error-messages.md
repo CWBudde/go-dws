@@ -466,6 +466,32 @@ for other categories. Missing `.txt` expectations mean empty output except for t
 [category exclusions](../../testdata/fixtures/README.md#a-missing-txt-means-must-print-nothing-upstream);
 unexpected diagnostics still fail those checks.
 
+### Hint levels and source controls
+
+`run --hints off|normal|strict|pedantic` sets the initial hint level. Case-mismatch
+hints require `pedantic`; name lookup remains case-insensitive at every level. Hints use
+the resolved declaration's spelling, including assignments, routine references and calls,
+class and helper members, and built-in registry names. Repeated analysis of the same
+identifier during overload selection emits its case hint once.
+
+Source directives control hints from that point onward:
+
+| Directive | Effect |
+| --- | --- |
+| `{$HINTS OFF}` | Suppress hints |
+| `{$HINTS ON}` | Restore the compiler's configured initial level |
+| `{$HINTS NORMAL}` | Select normal hints |
+| `{$HINTS STRICT}` | Select strict hints |
+| `{$HINTS PEDANTIC}` | Select pedantic hints, including case mismatches |
+
+These settings apply to semantic hints and explicit `{$HINT 'text'}` messages. An
+include inherits the current setting and can change it for following source; a separately
+compiled unit starts with the configured initial level. Inactive conditional branches do
+not change settings. Case hints retain the setting at the identifier's source location even
+when analysis of a routine body is deferred. Warnings and errors are independent of
+`{$HINTS}`. The CLI's `--hints off` also hides hint/warning output during execution;
+`--compile-only` always prints the resulting diagnostic list.
+
 ### Example Output
 
 ```bash

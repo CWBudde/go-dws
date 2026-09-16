@@ -142,7 +142,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	// sugar) the constructor name against their declarations.
 	if expr.ClassName != nil {
 		if classType.Name != expr.ClassName.Value && ident.Equal(classType.Name, expr.ClassName.Value) {
-			a.addCaseMismatchHint(expr.ClassName.Value, classType.Name, expr.ClassName.Token.Pos)
+			a.addIdentifierCaseHint(expr.ClassName, classType.Name)
 		}
 		if !ident.Equal(expr.Token.Literal, "new") {
 			// The parser folds "TClass.Create(args)" into a NewExpression only
@@ -435,6 +435,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 		// Interface helpers can add both instance methods and helper class members.
 		if helperMethod := a.hasHelperMethod(objectType, memberName); helperMethod != nil {
+			a.addIdentifierCaseHint(expr.Member, a.declaredHelperMethodName(objectType, memberName))
 			if len(helperMethod.Parameters) == 0 {
 				return helperMethod.ReturnType
 			}
@@ -495,6 +496,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 		helperMethod := a.hasHelperMethod(objectType, memberName)
 		if helperMethod != nil {
+			a.addIdentifierCaseHint(expr.Member, a.declaredHelperMethodName(objectType, memberName))
 			// Record the receiver's static type so runtime helper dispatch
 			// honors alias-specific (strict) helpers over the underlying
 			// type's helpers.
@@ -540,6 +542,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		helperLookupType = objectTypeResolved
 	}
 	if helperMethod := a.hasHelperMethod(helperLookupType, memberName); helperMethod != nil {
+		a.addIdentifierCaseHint(expr.Member, a.declaredHelperMethodName(helperLookupType, memberName))
 		// Record the receiver's static class so runtime helper dispatch binds
 		// helpers by the declared type (strict helper semantics).
 		if a.semanticInfo != nil && expr.Member != nil {
@@ -578,18 +581,16 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			}
 			if requiredParamCount(overload.Signature) == 0 {
 				if declared := a.declaredMethodName(classType, memberName); declared != "" && expr.Member.Value != declared {
-					pos := expr.Token.Pos
-					pos.Column++
-					a.addCaseMismatchHint(expr.Member.Value, declared, pos)
+					a.addIdentifierCaseHint(expr.Member, declared)
 				}
 				return overload.Signature.ReturnType
 			}
 		}
-		if expr.Member.Value != "ClassName" {
-			pos := expr.Token.Pos
-			pos.Column++
-			a.addCaseMismatchHint(expr.Member.Value, "ClassName", pos)
+		declared := a.declaredMethodName(classType, memberName)
+		if declared == "" {
+			declared = "ClassName"
 		}
+		a.addIdentifierCaseHint(expr.Member, declared)
 		return types.STRING
 	}
 	if memberName == "classtype" {
@@ -642,6 +643,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up property (including inherited properties)
 	propInfo, propFound := classType.GetProperty(memberName)
 	if propFound {
+		a.addIdentifierCaseHint(expr.Member, propInfo.Name)
 		a.warnDeprecatedPropertyUsage(propInfo, expr.Member.Token.Pos)
 		if propInfo.ReadKind == types.PropAccessNone {
 			a.addStructuredError(NewWriteOnlyPropertyError(expr.Member.Token.Pos, expr.Member.Value))
@@ -680,9 +682,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			declaredCtor = "Create" // built-in TObject constructor
 		}
 		if declaredCtor != "" && expr.Member.Value != declaredCtor {
-			pos := expr.Token.Pos
-			pos.Column++
-			a.addCaseMismatchHint(expr.Member.Value, declaredCtor, pos)
+			a.addIdentifierCaseHint(expr.Member, declaredCtor)
 		}
 		// Check if parameterless (auto-invoked when accessed without parentheses)
 		hasParameterless := false
@@ -722,6 +722,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Look up method (including inherited methods)
 	methodType, found := classType.GetMethod(memberName)
 	if found {
+		a.addIdentifierCaseHint(expr.Member, a.declaredMethodName(classType, memberName))
 		a.warnDeprecatedMethodUsage(classType, memberName, expr.Member.Token.Pos)
 		// A method accessed through a metaclass value must be a class method. Resolve the
 		// class-method flag across the hierarchy so inherited class methods (absent from
@@ -731,9 +732,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			return nil
 		}
 		if memberName == "free" && expr.Member.Value != "Free" {
-			pos := expr.Token.Pos
-			pos.Column++
-			a.addCaseMismatchHint(expr.Member.Value, "Free", pos)
+			a.addIdentifierCaseHint(expr.Member, "Free")
 		}
 		methodOwner := a.getMethodOwner(classType, memberName)
 		if methodOwner != nil {
@@ -758,6 +757,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Check helpers for methods
 	helperMethod := a.hasHelperMethod(objectType, memberName)
 	if helperMethod != nil {
+		a.addIdentifierCaseHint(expr.Member, a.declaredHelperMethodName(objectType, memberName))
 		if len(helperMethod.Parameters) == 0 {
 			return helperMethod.ReturnType
 		}
@@ -961,7 +961,7 @@ func (a *Analyzer) maybeAddUnnamedEnumElementHint(expr ast.Expression, pos token
 		return
 	}
 
-	a.addHint("Enumeration element is unnamed or out of range [line: %d, column: %d]", pos.Line, pos.Column)
+	a.addHintAt(pos, "Enumeration element is unnamed or out of range [line: %d, column: %d]", pos.Line, pos.Column)
 }
 
 // newExpressionNamePos returns the token an argument-count diagnostic on a

@@ -26,6 +26,8 @@ import (
 //   - Error markers may not align visually for wide characters
 //   - But positions are consistent and reproducible across all systems
 type Position struct {
+	// Hints records the source directive in effect at this position.
+	Hints  HintLevel
 	Line   int // Line number (1-indexed)
 	Column int // Column number (1-indexed, rune count not display width or byte offset)
 	Offset int // Byte offset (0-indexed)
@@ -75,6 +77,7 @@ func (t Token) Length() int {
 // Offset uses byte length for correct byte position in the source.
 func (t Token) End() Position {
 	return Position{
+		Hints:  t.Pos.Hints,
 		Line:   t.Pos.Line,
 		Column: t.Pos.Column + utf8.RuneCountInString(t.Literal),
 		Offset: t.Pos.Offset + len(t.Literal),

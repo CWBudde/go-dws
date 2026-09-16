@@ -19,6 +19,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/semantic"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Phase identifies the compilation phase that produced a diagnostic.
@@ -53,6 +54,8 @@ type Diagnostic struct {
 	// BlocksSemantic marks parser diagnostics that should stop semantic analysis
 	// because the recovered AST/result is not trustworthy enough to continue.
 	BlocksSemantic bool
+	// sourceHints preserves a lexer directive setting until compile options are applied.
+	sourceHints token.HintLevel
 }
 
 // Render returns the centralized rendered form of the diagnostic.
@@ -217,6 +220,7 @@ func ParseWithOptions(source string, opts Options) *Result {
 // generic monomorphization and, unless opts.SkipTypeCheck is set, semantic analysis.
 // It returns the same *Result, updated in place.
 func AnalyzeParsed(result *Result, source string, opts Options) *Result {
+	result.Diagnostics = filterSourceHints(result.Diagnostics, opts.HintsLevel)
 	if opts.SkipTypeCheck {
 		if result.Program != nil && !result.HasSemanticBlockingDiagnosticsInPhase(PhaseParsing) {
 			safeMonomorphize(result)
@@ -472,12 +476,13 @@ func lexerDiagnostics(errs []lexer.LexerError, blocksSemantic bool) []Diagnostic
 		severity := lexerSeverity(errs[i].Severity)
 		blocking := severity == SeverityError
 		diags = append(diags, Diagnostic{
-			Message:  errs[i].Message,
-			Rendered: errs[i].Rendered,
-			Phase:    PhaseParsing,
-			Line:     errs[i].Pos.Line,
-			Column:   errs[i].Pos.Column,
-			Severity: severity,
+			sourceHints: errs[i].Pos.Hints,
+			Message:     errs[i].Message,
+			Rendered:    errs[i].Rendered,
+			Phase:       PhaseParsing,
+			Line:        errs[i].Pos.Line,
+			Column:      errs[i].Pos.Column,
+			Severity:    severity,
 			// Only errors abort the compile; {$HINT} and {$WARNING} must let
 			// semantic analysis and execution proceed.
 			Fatal:          blocking,
@@ -485,6 +490,22 @@ func lexerDiagnostics(errs []lexer.LexerError, blocksSemantic bool) []Diagnostic
 		})
 	}
 	return diags
+}
+
+// filterSourceHints applies the compiler default to explicit lexer hints. OFF
+// directives have already been suppressed by the lexer; ON carries Default.
+func filterSourceHints(diags []Diagnostic, level semantic.HintsLevel) []Diagnostic {
+	if level != semantic.HintsLevelDisabled {
+		return diags
+	}
+	filtered := diags[:0]
+	for _, diagnostic := range diags {
+		if diagnostic.Severity == SeverityHint && diagnostic.Phase == PhaseParsing && diagnostic.sourceHints == token.HintLevelDefault {
+			continue
+		}
+		filtered = append(filtered, diagnostic)
+	}
+	return filtered
 }
 
 // lexerSeverity maps a lexer diagnostic severity onto the front-end severity.

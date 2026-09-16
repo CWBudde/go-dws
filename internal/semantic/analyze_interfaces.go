@@ -109,6 +109,10 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 
 	// Add method to interface
 	iface.Methods[methodKey] = funcType
+	if iface.MethodDeclNames == nil {
+		iface.MethodDeclNames = make(map[string]string)
+	}
+	iface.MethodDeclNames[methodKey] = methodName
 }
 
 // analyzeInterfacePropertyDecl analyzes a property declared on an interface and
