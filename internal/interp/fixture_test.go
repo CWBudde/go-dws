@@ -136,9 +136,6 @@ func buildFixtureWorkList(categories []fixtureCategory) []fixtureRequest {
 	var items []fixtureRequest
 	for _, category := range categories {
 		hintsLevel := category.hintsLevel
-		if hintsLevel == 0 {
-			hintsLevel = semantic.HintsLevelPedantic
-		}
 		for _, pf := range category.pasFiles {
 			items = append(items, fixtureRequest{
 				Pas:          pf,

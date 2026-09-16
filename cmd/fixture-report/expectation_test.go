@@ -40,7 +40,7 @@ func TestEvaluateOne_Expectations(t *testing.T) {
 	t.Run("invalid expectation is a failure", func(t *testing.T) {
 		testInvalidFixtureExpectation(t, cli)
 	})
-	t.Run("Memory obj_local is silent at normal hints", func(t *testing.T) {
+	t.Run("Memory obj_local is silent at strict hints", func(t *testing.T) {
 		testMemoryFixtureExpectation(t, cli, root)
 	})
 }
@@ -169,8 +169,8 @@ func testInvalidFixtureExpectation(t *testing.T, cli string) {
 
 func testMemoryFixtureExpectation(t *testing.T, cli string, root string) {
 	t.Helper()
-	if got := hintsLevelFor("Memory"); got != "normal" {
-		t.Fatalf("Memory hint level = %q; want normal", got)
+	if got := hintsLevelFor("Memory"); got != "strict" {
+		t.Fatalf("Memory hint level = %q; want strict", got)
 	}
 	base := filepath.Join(root, fixturesBase, "Memory", "obj_local")
 	item := workItem{category: "Memory", pasFile: base + ".pas", txtFile: base + ".txt"}

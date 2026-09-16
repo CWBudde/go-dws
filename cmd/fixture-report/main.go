@@ -89,10 +89,16 @@ func isErrorCategory(category string) bool {
 
 // hintsLevelFor returns the --hints level the CLI must run a category at.
 func hintsLevelFor(category string) string {
-	if fixtureconfig.HintsLevel(category) == semantic.HintsLevelNormal {
+	switch fixtureconfig.HintsLevel(category) {
+	case semantic.HintsLevelDisabled:
+		return "off"
+	case semantic.HintsLevelNormal:
 		return "normal"
+	case semantic.HintsLevelStrict:
+		return "strict"
+	default:
+		return "pedantic"
 	}
-	return "pedantic"
 }
 
 // buildCLI rebuilds the dwscript binary at path from the current sources.

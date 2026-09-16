@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-09-13
+**Generated**: 2026-09-16
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1130 |
-| Failed | 836 |
+| Passed | 1137 |
+| Failed | 829 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **57%** (1130/1966) |
+| **Scored pass rate** | **58%** (1137/1966) |
 
 ## Per-category
 
@@ -44,8 +44,8 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
-| FunctionsGlobalVars | 16 | 15 | 1 | 0 | 94% |
-| FunctionsMath | 40 | 34 | 6 | 0 | 85% |
+| FunctionsGlobalVars | 16 | 16 | 0 | 0 | 100% |
+| FunctionsMath | 40 | 35 | 5 | 0 | 88% |
 | FunctionsMath3D | 2 | 0 | 2 | 0 | 0% |
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
 | FunctionsRTTI | 6 | 0 | 6 | 0 | 0% |
@@ -65,7 +65,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | JSFilterScripts | 2 | 2 | 0 | 0 | 100% |
 | JSFilterScriptsFail | 1 | 1 | 0 | 0 | 100% |
 | JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
-| JSONConnectorPass | 82 | 68 | 14 | 0 | 83% |
+| JSONConnectorPass | 82 | 69 | 13 | 0 | 84% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
 | LambdaPass | 6 | 4 | 2 | 0 | 67% |
 | Linq | 7 | 0 | 7 | 0 | 0% |
@@ -79,7 +79,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
 | SetOfFail | 14 | 5 | 9 | 0 | 36% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 372 | 71 | 0 | 84% |
+| SimpleScripts | 443 | 376 | 67 | 0 | 85% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |
