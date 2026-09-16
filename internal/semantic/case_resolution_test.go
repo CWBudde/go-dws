@@ -27,6 +27,14 @@ func TestCaseHints_ResolvedDeclarations(t *testing.T) {
 		{"helper method", "type H = helper for Integer procedure Work; begin end; end; var V := 1; V.work;", []string{`"work" does not match case of declaration ("Work")`}},
 		{"property write", "type T = class F: Integer; property Value: Integer read F write F; end; var Obj := T.Create; Obj.value := 1;", []string{`"value" does not match case of declaration ("Value")`}},
 		{"same spelling", "procedure Work; begin end; Work();", nil},
+		{"interface method call", "type I = interface procedure DoWork(X: Integer); end; type T = class(TObject, I) procedure DoWork(X: Integer); begin end; end; var Obj: I := T.Create; Obj.dowork(1);", []string{`"dowork" does not match case of declaration ("DoWork")`}},
+		{"bare interface method", "type I = interface procedure DoWork; end; type T = class(TObject, I) procedure DoWork; begin end; end; var Obj: I := T.Create; Obj.dowork;", []string{`"dowork" does not match case of declaration ("DoWork")`}},
+		{"inherited interface method", "type IBase = interface procedure DoBase; end; type IChild = interface(IBase) procedure DoChild; end; type T = class(TObject, IBase, IChild) procedure DoBase; begin end; procedure DoChild; begin end; end; var Obj: IChild := T.Create; Obj.dobase;", []string{`"dobase" does not match case of declaration ("DoBase")`}},
+		{"record method call", "type R = record procedure Bar(X: Integer); begin end; end; var Rec: R; Rec.bar(1);", []string{`"bar" does not match case of declaration ("Bar")`}},
+		{"record class method call", "type R = record class procedure Baz(X: Integer); begin end; end; R.baz(1);", []string{`"baz" does not match case of declaration ("Baz")`}},
+		{"builtin helper method", "var V: Integer := 3; PrintLn(V.compare(1));", []string{`"compare" does not match case of declaration ("Compare")`}},
+		{"builtin string helper method", "var S := 'abc'; PrintLn(S.toupper);", []string{`"toupper" does not match case of declaration ("ToUpper")`}},
+		{"builtin helper same spelling", "var V: Integer := 3; PrintLn(V.Compare(1));", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

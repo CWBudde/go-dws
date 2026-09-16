@@ -788,6 +788,7 @@ func NewHelperType(name string, targetType Type, isRecordHelper bool) *HelperTyp
 		TargetType:      targetType,
 		Methods:         make(map[string]*FunctionType),
 		MethodOverloads: make(map[string][]*FunctionType),
+		MethodDeclNames: make(map[string]string),
 		Properties:      make(map[string]*PropertyInfo),
 		ClassVars:       make(map[string]Type),
 		ClassConsts:     make(map[string]interface{}),

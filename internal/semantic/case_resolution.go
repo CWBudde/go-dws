@@ -47,9 +47,38 @@ func (a *Analyzer) declaredHelperMethodName(typ types.Type, name string) string 
 	helpers := a.getHelpersForType(typ)
 	key := ident.Normalize(name)
 	for i := len(helpers) - 1; i >= 0; i-- {
-		if _, ok := helpers[i].Methods[key]; ok {
+		// Intrinsic members carry an operation but not always a signature, so
+		// BuiltinMethods is consulted alongside the declared method table.
+		_, isMethod := helpers[i].Methods[key]
+		_, isBuiltin := helpers[i].BuiltinMethods[key]
+		if isMethod || isBuiltin {
 			return helpers[i].MethodDeclNames[key]
 		}
 	}
 	return ""
+}
+
+// declaredInterfaceMethodName returns the source spelling of an interface
+// method, following the parent chain the same way method lookup does.
+func (a *Analyzer) declaredInterfaceMethodName(iface *types.InterfaceType, name string) string {
+	key := ident.Normalize(name)
+	for current := iface; current != nil; current = current.Parent {
+		if declared := current.MethodDeclNames[key]; declared != "" {
+			return declared
+		}
+	}
+	return ""
+}
+
+// declaredRecordMethodName returns the source spelling of a record method,
+// preferring instance methods over class methods as method lookup does.
+func (a *Analyzer) declaredRecordMethodName(recordType *types.RecordType, name string) string {
+	if recordType == nil {
+		return ""
+	}
+	key := ident.Normalize(name)
+	if declared := recordType.MethodNames[key]; declared != "" {
+		return declared
+	}
+	return recordType.ClassMethodNames[key]
 }

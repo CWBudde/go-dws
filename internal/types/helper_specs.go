@@ -329,6 +329,7 @@ func NewBuiltinHelper(target string) *HelperType {
 		key := ident.Normalize(member.Name)
 		if member.Method {
 			helper.BuiltinMethods[key] = string(member.Operation)
+			helper.MethodDeclNames[key] = member.Name
 			if member.Signature != nil {
 				helper.Methods[key] = member.Signature()
 			}

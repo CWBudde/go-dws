@@ -425,6 +425,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	if ifaceType, ok := objectTypeResolved.(*types.InterfaceType); ok {
 		allMethods := types.GetAllInterfaceMethods(ifaceType)
 		if methodType, hasMethod := allMethods[memberName]; hasMethod {
+			a.addIdentifierCaseHint(expr.Member, a.declaredInterfaceMethodName(ifaceType, memberName))
 			return methodType
 		}
 
