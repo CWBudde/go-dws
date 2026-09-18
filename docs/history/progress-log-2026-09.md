@@ -4276,3 +4276,136 @@ compiler behavior, public API or baseline changes. The last full-suite measureme
 The existing `TestHintsLevelFor` regression passes with `go test ./cmd/fixture-report
 -run '^TestHintsLevelFor$' -count=1` using the same writable cache settings. Documentation
 links and E3 completion markers were checked; `git diff --check` passes.
+
+## 2026-09-18 — case-hint controls and residual audit (E3)
+
+Reconciled the E3 checklist with the implementation already present in the shared compile
+pipeline. Source hint controls propagate to semantic diagnostics, including suppression and
+subsequent re-enabling, configured defaults, includes and independently configured units.
+Invalid switches preserve the active setting, and conditional branches that are not compiled
+do not change it. Existing real-path source-hint regressions pass, so E3b is complete; this
+bookkeeping change introduces no additional hint behavior.
+
+Declared-name handling already has regression coverage for assignments, function and method
+calls, properties, interfaces, records and helpers, including repeated resolution of the same
+identifier. E3c remains partially complete because the fresh audit still identifies a bounded
+case-hint defect. The September 13 E3a entry above remains an account of that earlier state;
+its missing-hint and source-suppression findings are superseded by this measurement.
+
+### Case-diagnostic audit
+
+Compared expected and actual case-diagnostic multisets, retaining message text, declaration
+spelling, source positions and multiplicity. Counts below are fixtures with at least one
+missing or extra case hint, not counts of diagnostic lines or full fixture failures.
+
+| Category | Fixtures inspected | Missing case hints | Extra case hints |
+| --- | ---: | ---: | ---: |
+| SimpleScripts | 443 | 2 | 0 |
+| ArrayPass | 115 | 0 | 1 |
+| HelpersPass | 27 | 0 | 1 |
+| OverloadsPass | 39 | 0 | 0 |
+| FailureScripts | 542 | 0 | 1 |
+
+No duplicate case diagnostics were found. `HelpersPass/classname_helper1` timed out during
+execution; its compile-only output has no case hints. This audit establishes diagnostic
+parity or remaining differences, not full runtime success for that fixture or these categories.
+
+The five remaining case-hint differences have distinct prerequisites:
+
+- `SimpleScripts/class_var_dyn2`: missing hints accompany class-variable scope resolution;
+  revisit after the scope defect is fixed.
+- `SimpleScripts/string_builtin_methods`: missing string APIs prevent the expected resolution;
+  revisit with helper/API support, alongside PLAN.md's string-helper work.
+- `ArrayPass/dynamic_anonymous_record`: extra hints follow a parse-error cascade; address parser
+  recovery before adjusting hint emission.
+- `HelpersPass/record_array_helper`: two unwanted `X`/`x` hints at line 23, columns 21 and 35;
+  this is the remaining isolated declaration-spelling defect under E3c.
+- `FailureScripts/block_unfinished4`: an extra hint accompanies parser recovery; retain under
+  the §4/F3 prerequisite.
+
+All 39 `OverloadsPass` fixtures now have case-hint parity, including the two previously named
+in PLAN.md, and `HelpersPass/declared_helper` no longer lacks case hints. Its helper call form
+with an explicit instance argument remains independent work. Source-hint control does not
+resolve the separately tracked `hint_pedantic` parser/semantic diagnostic ordering issue.
+
+E3d is complete; E3c remains open for the record-helper residual and rechecks after the four
+prerequisite fixes. Categories without verified runner settings retain the §5 configuration
+gate. This audit does not infer new fixture passes, change upstream expectations, or alter
+baseline floors.
+
+Validation of the existing E3 implementation passed with:
+
+```sh
+GOCACHE=/tmp/go-dws-agent-hints-cache go test ./internal/lexer ./internal/frontend ./cmd/dwscript/cmd -run 'Hint|SourceHints|SourceHint' -count=1
+GOCACHE=/tmp/go-dws-agent-hints-cache go test ./internal/semantic ./internal/frontend -run 'TestCaseHints|TestBuiltinDeclarationCaseHints|TestCompile_ArrayIndexTypeCaseHints' -count=1
+```
+
+The documentation changes pass `git diff --check`.
+
+
+## 2026-09-18 — interface casts, comparisons and implementation checks (E5)
+
+The shared compile/run path now accepts interface-to-class and interface-to-interface `as`
+casts. Explicit class-to-interface casts defer implementation validation to the actual runtime
+object, so a `TObject` variable holding an implementing subclass can be cast successfully.
+Class-to-class relationship checks, metaclass casts and invalid implicit assignments retain
+separate checks. Incomplete class implementations still fail at compile time.
+
+Evaluator-owned cast handling resolves class/interface aliases to their declaration metadata,
+preserves object identity, returns typed nil interface wrappers and propagates operand
+exceptions before attempting a cast. Interface-to-class failure messages now use the upstream
+double quotes, including in caught exceptions, with the `as` operator's source position.
+The adapted expectation in `testdata/interfaces/interface_cast_to_obj.txt` was corrected to
+match the authoritative upstream fixture; no `testdata/fixtures` expectation was changed.
+
+Interface references can be assigned or explicitly cast to root `IInterface`, including
+aliases. Explicit casts from objects implementing a named interface also reach the root;
+a plain `TObject` with no declared interface still fails that check. Independent review found
+the initial alias and explicit-root inconsistencies, which were reproduced and fixed before
+final validation. Interface-to-interface equality now accepts unrelated declarations and
+compares the wrapped object identity using the existing runtime implementation. Ordering and
+scalar comparisons remain invalid; mixed class/interface equality stays a separate follow-up.
+
+`implements` now accepts class names, metaclass variables and class/interface aliases.
+It retains its explicit-declaration rule over the class hierarchy, independently of the
+interface-inheritance checks used by casts. Nil objects and uninitialized metaclass variables
+return False. Real-path regressions cover these distinctions.
+
+Six fixture regressions pass: `interface_cast_to_obj`, `interface_multiple_cast`,
+`interface_nil_cast_from_intf`, `intf_casts`, `intf_compare`, and `interface_implements_intf`.
+The remaining interface failures are separately tracked: the reserved `Impl` identifier,
+indexed/default properties, delegate assignment, a missing caller location, unused-private
+hints and self-referential interface return types. Nil-object casting is covered by a real-path
+script using `Obj`, without changing the parser-blocked upstream fixture. Direct object-to-
+interface-alias assignment and mixed class/interface comparison are bounded follow-ups.
+
+Tests were written and observed failing before implementation. They compile with semantic
+checking enabled before execution, covering inheritance, aliases, root conversion, nil,
+independent wrappers, identity, single evaluation, exception propagation, exact fixture
+messages and rejected operands/assignments. The interface guide and Phase 3 checklist are
+updated. No public Go API or bytecode changes were made.
+
+
+### Validation and fixture totals
+
+The final full test suite and changed-code lint pass:
+
+```sh
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -timeout=20m ./...
+GOCACHE=/tmp/go-dws-plan-cache GOLANGCI_LINT_CACHE=/tmp/go-dws-e5-lint-cache GOFLAGS=-buildvcs=false golangci-lint run --new-from-rev=HEAD --timeout=5m
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false just fixture-update
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go run ./cmd/fixture-report --cli /tmp/go-dws-e5-final-cli --timeout 60
+```
+
+Lint reports zero issues. The fixture baseline increases only for InterfacesPass,
+**21 → 27/33**; InterfacesFail remains **1/19** and every category preserves its previous floor.
+Generated harness status and the freshly rebuilt CLI agree in all **61 categories**:
+**1,143/1,966 scored**, 823 failures and 78 skipped among 2,044 fixtures. This is six more passes
+than the pre-change generated baseline of 1,137. PLAN.md's older headline of 1,130 was stale;
+the intervening seven passes are not attributed to E5. In-scope execution failures now total
+129, with the error-detection suites unchanged at 166/641.
+
+An initial CLI report run alongside builds and lint reported one fewer Algorithms pass.
+The category rerun passed all 53; the final full CLI report used the harness's 60-second
+per-fixture allowance and matched the harness exactly. No timing-related baseline was lowered.
+`git diff --check` passes.
