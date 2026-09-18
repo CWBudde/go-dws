@@ -4495,3 +4495,33 @@ failures fall **129 → 125**; error-detection and host-library counts are uncha
 `.cache` and `.claude` artifacts and flags generated/worktree files there; those unrelated
 files were left untouched. The explicit temporary directory avoids this sandbox's read-only
 default just runtime directory.
+
+## 2026-09-19 — Deterministic expiration fixture in race-enabled CI
+
+PR #405's [unit-test job](https://github.com/CWBudde/go-dws/actions/runs/35397401803/job/105769266964)
+failed the FunctionsGlobalVars baseline: 15/16 passed because `inc_expire` failed.
+The other jobs, including the CLI fixture report, passed. The script gives globals a 1 ms
+lifetime, performs several statements, then calls `Sleep(10)`. Race instrumentation or host
+scheduling can expire the globals before the expected increments, even though the expiration
+implementation is correct.
+
+The Go fixture harness now gives that fixture an isolated global-variable store and a clock
+advanced by its script-level `Sleep` calls. The override belongs to the fixture interpreter;
+the original store is restored after execution. Other fixtures and normal CLI/runtime behavior
+retain their existing time sources. No upstream scripts, expected outputs, or baselines change.
+
+A real compile/run regression delays the first output by 5 ms to reproduce the CI failure
+without relying on random scheduling. Additional checks cover clock/store isolation and the
+unchanged expiration fixture through the harness. Validation results are recorded below.
+
+The delayed-output regression failed before the clock setup (`beta` and `gamma` incremented
+to 1 instead of 21 and 31) and passes afterwards. The focused race-enabled regression suite
+passes ten repetitions:
+
+```sh
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -race ./internal/interp -run '^TestFixtureClock' -count=10
+```
+
+The complete CI-equivalent `GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false
+go test -v -race ./...` also passes. Diff-scoped lint reports zero issues, changed Go files
+pass `gofmt -l`, and `git diff --check` is clean.
