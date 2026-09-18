@@ -125,6 +125,15 @@ hard-code the +1/+2 offsets in their expected output, while `encode` and `utc` p
 (the same constant, applied to each CLI invocation); keep the two in sync. `TestDWScriptFixtures`
 fails immediately if the host has no zone database.
 
+### Expiration fixture clock
+
+The Go harness runs `FunctionsGlobalVars/inc_expire` with an isolated global-variable store
+and a clock advanced by the script's `Sleep` calls. The fixture sets 1 ms expirations before
+executing several statements, then explicitly sleeps 10 ms. Host scheduling pauses and race
+instrumentation must not consume that first millisecond and change the expected increments.
+The fixture source, expected output and baseline are unchanged. The clock setup is confined
+to this fixture and restored afterwards; normal execution and the CLI use wall-clock time.
+
 ### Run All Tests
 ```bash
 go test -v ./internal/interp -run TestDWScriptFixtures

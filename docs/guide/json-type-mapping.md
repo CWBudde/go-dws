@@ -20,6 +20,68 @@ This document describes how JSON types are mapped to DWScript types when parsing
 
 ## Type Mapping Tables
 
+### JSON Namespace: Global Storage and Associative Arrays
+
+The `JSON.Parse`, `JSON.Stringify`, `JSON.Serialize` and `JSON.PrettyStringify`
+namespace methods provide the DWScript JSON connector API. `JSON.Parse` preserves
+JSON identity inside a Variant, including primitive JSON values. `JSON.Stringify`
+returns JSON text; `JSON.Serialize` returns a JSON value built from the supplied
+DWScript value.
+
+Global-variable storage converts a JSON string to its decoded text. Explicit
+serialization continues to quote and escape that string:
+
+```dws
+var text := JSON.Parse('"hello"');
+WriteGlobalVar('greeting', text);
+PrintLn(ReadGlobalVar('greeting'));  // hello
+PrintLn(JSON.Stringify(text));       // "hello"
+
+WriteGlobalVar('items', JSON.Parse('["hello"]'));
+PrintLn(ReadGlobalVar('items'));     // ["hello"]
+```
+
+The same extraction preserves empty strings and decoded escape characters. Arrays
+and objects stored in globals retain their serialized-text representation.
+
+Associative arrays serialize as JSON objects, including empty maps as `{}`. Keys
+become JSON member names and values are converted recursively:
+
+```dws
+var number : JSONVariant := 1;
+var counts : array [String] of Integer;
+counts['test'] := number;
+PrintLn(JSON.Stringify(counts));      // {"test":1}
+
+var rows : array [String] of array of Integer;
+rows['abc'] := [1, 2, 3];
+PrintLn(JSON.Stringify(rows));        // {"abc":[1,2,3]}
+```
+
+`JSON.Stringify`, `JSON.StringifyUTF8`, `JSON.Serialize` and `JSON.PrettyStringify` use
+the map's existing bucket traversal order, the same order exposed by its `Keys`/`Values` operations.
+They do not alphabetically sort associative keys. Nested records and objects use
+the connector's normal serialization rules, including readable properties and
+custom `Stringify` methods where applicable. Serialization must preserve the
+source map and any JSON nodes stored inside it.
+
+Base scalar keys (String, Integer, Float, Boolean) and Variant keys, including
+aliases, become member names, following DWScript's base-type key check (note
+that `array [Boolean] of T` declares a static array, which serializes as a JSON
+array);
+unsupported record or object keys produce an empty object. Distinct Variant keys
+that convert to the same name currently collapse to one member; this remains a
+compatibility follow-up.
+
+These operations are implemented in `internal/interp/evaluator/json_namespace.go`
+and `json_serialize.go`; global-storage conversion is in
+`internal/builtins/globalvars_funcs.go`. E6 validation and the remaining conversion,
+type-resolution and mutation follow-ups are tracked in `PLAN.md` §3.5.
+
+The following sections also describe the older standalone helpers, such as
+`ParseJSON` and `ToJSON`; their conversion and formatting paths are separate from
+the context-aware `JSON` namespace serializer.
+
 ### JSON → DWScript (Parsing Direction)
 
 When you call `ParseJSON(jsonString)`, the following mappings apply:
@@ -310,7 +372,10 @@ ParseJSON('9999999999999999999')  → FloatValue (exceeds int64, precision loss)
 
 **Parsing**: Insertion order is preserved during parsing (Go's `encoding/json` with `UseNumber()`)
 
-**Serialization**: Keys are sorted **alphabetically** in output (Go's `json.Marshal` default)
+**Standalone `ToJSON` serialization**: Keys are sorted **alphabetically** in output
+(Go's `json.Marshal` default). The `JSON.Stringify` namespace method instead
+preserves JSON object insertion order; associative arrays follow their existing
+bucket traversal order, as described above.
 
 **Example**:
 ```dws
@@ -511,7 +576,8 @@ if JSONHasField(obj, 'a') then
 
 - **No circular reference detection**: Avoid creating circular references (e.g., `obj['self'] := obj`) as they will cause stack overflow during serialization
 - **No NaN/Infinity support**: Use `null` or string constants as workarounds
-- **Alphabetical key ordering**: Serialized JSON keys are sorted alphabetically, not by insertion order
+- **Standalone helper ordering**: `ToJSON` sorts object keys alphabetically;
+  `JSON.Stringify` preserves JSON object insertion order and associative-map bucket order
 
 ---
 
@@ -564,7 +630,7 @@ The JSON implementation in go-dws provides a robust, Go-backed JSON parsing and 
 **Limitations**:
 - No circular reference detection (can crash)
 - No NaN/Infinity support (JSON spec limitation)
-- Alphabetical key ordering in output
+- Standalone `ToJSON` and namespace `JSON.Stringify` use different object key ordering
 - No query language or schema validation
 
 **Best Practices**:

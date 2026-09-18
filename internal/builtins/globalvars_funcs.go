@@ -39,11 +39,13 @@ func optionalMask(ctx Context, fnName string, args []Value) (string, Value) {
 
 // storableArg converts an argument into a storable Variant.
 //
-// JSON values are flattened to their serialized text first: a global only ever
-// holds a simple Variant, and DWScript's JSON serialization already yields a
-// String, so a stored JSON document reads back as its textual form.
+// JSON strings store their decoded content. Other JSON values are flattened to
+// serialized text, so a stored JSON document reads back as a simple String Variant.
 func storableArg(ctx Context, value Value) (GlobalVarValue, Value) {
 	unwrapped := ctx.UnwrapVariant(value)
+	if jsonString, ok := unwrapped.(*runtime.JSONValue); ok && jsonString.IsString() {
+		return GlobalVarValue{Kind: GlobalVarString, Str: jsonString.Value.StringValue()}, nil
+	}
 	if runtime.KindOf(unwrapped) == runtime.KindJSON {
 		text, err := ctx.ValueToJSON(unwrapped, false)
 		if err != nil {

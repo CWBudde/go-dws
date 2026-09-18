@@ -4409,3 +4409,119 @@ An initial CLI report run alongside builds and lint reported one fewer Algorithm
 The category rerun passed all 53; the final full CLI report used the harness's 60-second
 per-fixture allowance and matched the harness exactly. No timing-related baseline was lowered.
 `git diff --check` passes.
+
+## 2026-09-18 — JSON global storage and associative serialization (E6)
+
+The E6 pre-change audit rebuilt the CLI and measured **69/82 passing, 13 failing**
+in `JSONConnectorPass`. The previous E6 text's count of 14 was stale. Classification
+found four one-line misses and seven failures within two line edits: eight output-only,
+four mixed diagnostics/output, and one empty-output failure, with no crashes or timeouts.
+
+```sh
+GOCACHE=/tmp/go-dws-e6-classify-cache GOFLAGS=-buildvcs=false go build -o /tmp/go-dws-e6-classify ./cmd/dwscript
+GOCACHE=/tmp/go-dws-e6-classify-cache GOFLAGS=-buildvcs=false go run ./cmd/fixture-report --cli /tmp/go-dws-e6-classify --category JSONConnectorPass --classify --list-fails
+```
+
+Each failing fixture was also run through the rebuilt CLI with `--diagnostics=plain
+--test-envelope --hints strict` and its source, expected output and actual output inspected.
+This established two implementation targets:
+
+- **E6a: global storage of JSON strings.** `global_var` stores a parsed JSON string through
+  `WriteGlobalVar` and reads it back with serialization quotes. The correction belongs at
+  the shared global-storage conversion boundary: extract decoded string contents, preserving
+  empty and escaped strings. Explicit JSON serialization keeps its quoting; arrays and
+  objects continue to store serialized text.
+- **E6b: associative-array serialization.** `implicit_to_int2` prints `null` because the
+  serializer lacks associative-array handling, not because the observed output proves a
+  numeric assignment failure. `assign_static_to_dynamic` and `associative_array` share this
+  first blocker. The contextual namespace serializer must convert maps to JSON objects in
+  their existing bucket order, recursively retaining values and object/record serialization
+  behavior without mutating the source. Numeric and null controls independently verify the
+  assignment and conversion boundaries.
+
+E6c is complete as a classification task. Nine other fixtures belong to seven bounded
+follow-ups now listed in PLAN.md:
+
+| First blocker | Representative fixtures | Observed difference |
+| --- | --- | --- |
+| JSON associative-key conversion | `implicit_associative_key_cast` | Numeric JSONVariant key 123 cannot be read back using String key `'123'` |
+| JSONVariant parameter conversion | `implicit_from_cast` | `Test(Null)` dispatches `TypeName` on raw NULL after variable-assignment cases succeed |
+| Inline record array type resolution | `const_array`, `stringify_array_of_array` | Unknown static/dynamic inline record array types stop compilation |
+| Coercive comparison and membership | `comparison2`, `in_static` | Numeric/string JSON comparisons and JSON/native or Variant/native membership disagree |
+| Invalid JSON array deletion | `delete_array_index` | An invalid index silently succeeds instead of raising a catchable exception |
+| JSON circular references | `circular_references` | Self and transitive cycles are accepted without the expected exceptions |
+| Immediate JSONVariant mutation dispatch | `write_immediate_prop` | Generic STRING assignment/index errors replace expected JSON mutation diagnostics |
+
+Independent review also identified a serialization limitation outside these nine fixtures:
+Variant-keyed maps can hold both Integer `1` and String `'1'`, but the intermediate JSON
+object collapses their identical textual member names. The inspected upstream
+`dwsJSONScript.pas`, `JSONScript.StringifyAssociativeArray`, loops over occupied buckets and
+calls `WriteName` followed by `StringifySymbol` for each, with no name deduplication. PLAN.md
+tracks preserving duplicate names in JSON text as a separate follow-up, including a real-path
+regression and establishing `JSON.Serialize` behavior before changing the JSON representation.
+
+The JSON type-mapping guide documents the global-storage boundary, associative-array
+serialization and namespace ordering. No fixture expectations are changed by this audit.
+
+**Implementation and validation:** E6a extracts only JSON string content in the shared
+`storableArg` conversion; other JSON kinds retain their existing storage behavior. E6b adds
+evaluator-owned associative serialization and clones JSON nodes before attaching them to
+temporary serialization containers. This prevents moving source children or losing repeated
+references, including inside nested native arrays. Pending getter exceptions stop later map
+entries from being evaluated.
+
+Real compile/run regressions were observed failing before the fixes. They now cover string
+escapes and Unicode, global/queue/compare-exchange consumers, numeric precision and nulls,
+key aliases, unsupported keys, nested containers, properties/custom serialization, all four
+JSON namespace serialization methods, source ownership and getter failures. Exact fixture
+regressions close `global_var`, `implicit_to_int2`, `associative_array` and
+`assign_static_to_dynamic` without changing upstream expectations.
+
+```sh
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -timeout=20m ./...
+GOCACHE=/tmp/go-dws-plan-cache GOLANGCI_LINT_CACHE=/tmp/go-dws-e6-lint-cache GOFLAGS=-buildvcs=false golangci-lint run --new-from-rev=HEAD --timeout=5m
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false just --tempdir /tmp fixture-update
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go run ./cmd/fixture-report --cli /tmp/go-dws-e6-final-cli --timeout 60
+```
+
+Full tests pass and lint reports zero issues. The fixture baseline rises only for
+**JSONConnectorPass, 69 → 73/82**. All 61 CLI category totals/pass/fail/skip counts match the
+generated harness report and baseline floors; no category regressed. Total passing fixtures
+rise **1,143 → 1,147 of 1,966 scored**, with 819 failing and 78 unscored. In-scope execution
+failures fall **129 → 125**; error-detection and host-library counts are unchanged.
+
+`git diff --check` passes. All 1,062 tracked and non-ignored new Go source files pass
+`gofmt -l`. The broad `just --tempdir /tmp check-fmt` sweep also visits existing ignored
+`.cache` and `.claude` artifacts and flags generated/worktree files there; those unrelated
+files were left untouched. The explicit temporary directory avoids this sandbox's read-only
+default just runtime directory.
+
+## 2026-09-19 — Deterministic expiration fixture in race-enabled CI
+
+PR #405's [unit-test job](https://github.com/CWBudde/go-dws/actions/runs/35397401803/job/105769266964)
+failed the FunctionsGlobalVars baseline: 15/16 passed because `inc_expire` failed.
+The other jobs, including the CLI fixture report, passed. The script gives globals a 1 ms
+lifetime, performs several statements, then calls `Sleep(10)`. Race instrumentation or host
+scheduling can expire the globals before the expected increments, even though the expiration
+implementation is correct.
+
+The Go fixture harness now gives that fixture an isolated global-variable store and a clock
+advanced by its script-level `Sleep` calls. The override belongs to the fixture interpreter;
+the original store is restored after execution. Other fixtures and normal CLI/runtime behavior
+retain their existing time sources. No upstream scripts, expected outputs, or baselines change.
+
+A real compile/run regression delays the first output by 5 ms to reproduce the CI failure
+without relying on random scheduling. Additional checks cover clock/store isolation and the
+unchanged expiration fixture through the harness. Validation results are recorded below.
+
+The delayed-output regression failed before the clock setup (`beta` and `gamma` incremented
+to 1 instead of 21 and 31) and passes afterwards. The focused race-enabled regression suite
+passes ten repetitions:
+
+```sh
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -race ./internal/interp -run '^TestFixtureClock' -count=10
+```
+
+The complete CI-equivalent `GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false
+go test -v -race ./...` also passes. Diff-scoped lint reports zero issues, changed Go files
+pass `gofmt -l`, and `git diff --check` is clean.

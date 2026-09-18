@@ -31,6 +31,16 @@ func (e *Evaluator) valueToJSONValue(val Value, node ast.Node, ctx *ExecutionCon
 	}
 
 	switch v := val.(type) {
+	case *runtime.JSONValue:
+		// ObjectSet/ArrayAppend adopt their child. Serialization must not move
+		// live JSON nodes out of the source tree, including nested map values.
+		// A nil node represents JSON undefined, which serializes as null.
+		if v == nil || v.Value == nil {
+			return jsonvalue.NewNull()
+		}
+		return v.Value.Clone()
+	case *runtime.AssociativeArrayValue:
+		return e.associativeArrayToJSON(v, node, ctx)
 	case *runtime.ArrayValue:
 		arr := jsonvalue.NewArray()
 		for _, elem := range v.Elements {
@@ -48,6 +58,30 @@ func (e *Evaluator) valueToJSONValue(val Value, node ast.Node, ctx *ExecutionCon
 		// context-free converter.
 		return ValueToJSONValue(val)
 	}
+}
+
+// associativeArrayToJSON follows JSONScript.StringifyAssociativeArray: base
+// scalar keys become object names in bucket order, while other key types
+// produce an empty object. Values use the contextual converter so nested
+// objects retain property getter and custom Stringify behavior.
+func (e *Evaluator) associativeArrayToJSON(assoc *runtime.AssociativeArrayValue, node ast.Node, ctx *ExecutionContext) *jsonvalue.Value {
+	result := jsonvalue.NewObject()
+	if assoc == nil || assoc.KeyType() == nil || ctx.Exception() != nil {
+		return result
+	}
+	keyType := types.GetUnderlyingType(assoc.KeyType())
+	if !types.IsBasicType(keyType) && keyType.TypeKind() != "VARIANT" {
+		return result
+	}
+	for _, key := range assoc.Keys() {
+		value, _ := assoc.Get(key)
+		jv := e.valueToJSONValue(value, node, ctx)
+		if ctx.Exception() != nil {
+			return result
+		}
+		result.ObjectSet(key.String(), jv)
+	}
+	return result
 }
 
 // jsonMember is a collected (name, value) pair pending ordinal sorting.

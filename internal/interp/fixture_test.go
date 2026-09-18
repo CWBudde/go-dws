@@ -547,7 +547,7 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 	if expectErrors {
 		v = scoreErrorFixture(compileResult, expectedContent)
 	} else {
-		v = scoreSuccessFixture(compileResult, expectedContent)
+		v = scoreSuccessFixture(compileResult, expectedContent, pasFile)
 	}
 	return v.result, v.detail
 }
@@ -565,7 +565,7 @@ func scoreErrorFixture(compileResult *frontend.Result, expectedContent string) f
 }
 
 // scoreSuccessFixture scores a success fixture against its expected program output.
-func scoreSuccessFixture(compileResult *frontend.Result, expectedContent string) fixtureVerdict {
+func scoreSuccessFixture(compileResult *frontend.Result, expectedContent, pasFile string) fixtureVerdict {
 	if compileResult.HasFatalDiagnostics() {
 		return fixtureVerdict{result: testResultFailed,
 			detail: "unexpected compile diagnostics:\n" + strings.Join(compileResult.DiagnosticStrings(), "\n")}
@@ -575,7 +575,7 @@ func scoreSuccessFixture(compileResult *frontend.Result, expectedContent string)
 			detail: "semantic analysis failed:\n" + strings.Join(compileResult.DiagnosticStrings(), "\n")}
 	}
 
-	buf, value := evalFixture(compileResult)
+	buf, value := evalFixture(compileResult, pasFile)
 	if value != nil && value.Type() == "ERROR" {
 		actualOutput := runtimeErrorOutput(compileResult, value, buf, expectedContent)
 		if normalizeOutput(actualOutput) == normalizeOutput(expectedContent) {
@@ -593,9 +593,14 @@ func scoreSuccessFixture(compileResult *frontend.Result, expectedContent string)
 
 // evalFixture compiles-then-evaluates a program in-process, returning the captured output
 // buffer and the resulting value. The worker-subprocess timeout guards against hangs.
-func evalFixture(compileResult *frontend.Result) (*bytes.Buffer, Value) {
+func evalFixture(compileResult *frontend.Result, pasFile string) (*bytes.Buffer, Value) {
 	var buf bytes.Buffer
 	interp := New(&buf)
+	restoreClock, err := configureFixtureClock(interp, pasFile)
+	if err != nil {
+		return &buf, &ErrorValue{Message: err.Error()}
+	}
+	defer restoreClock()
 	if compileResult.SemanticInfo != nil {
 		interp.SetSemanticInfo(compileResult.SemanticInfo)
 	}
