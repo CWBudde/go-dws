@@ -10,7 +10,7 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-18):** Go harness and freshly rebuilt CLI agree at **1,143 / 1,966 scored =
+**Headline (2026-09-18):** Go harness and freshly rebuilt CLI agree at **1,147 / 1,966 scored =
 58%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
@@ -18,7 +18,7 @@
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,143 / 1,747 = 65% in scope**, the number to track against §6. Both are honest;
+same run reads **1,147 / 1,747 = 66% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -30,7 +30,7 @@ Open, in leverage order:
   families were split out — the 68 fixtures one line from passing (F9) and the `Incompatible
   types` sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half of the measurement: 129 in-scope fixtures now fail in the
+- **§3.5** is the other half of the measurement: 125 in-scope fixtures now fail in the
   suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
   ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
   and E8 is a by-reference binding bug E1 turned up.
@@ -59,10 +59,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (823 total, 2026-09-18): **219 host-library** (out of scope),
+- Where the remaining failures are (819 total, 2026-09-18): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **129 in the execution suites** (§3.5:
-  SimpleScripts 67, ArrayPass 17, JSONConnectorPass 13, InterfacesPass 6, FunctionsMath 5, a tail
+  HelpersFail 18 each, the rest under 15), and **125 in the execution suites** (§3.5:
+  SimpleScripts 67, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 5, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -307,9 +307,10 @@ fail**; they were never enumerated because the only measurement that existed cov
 suites. Tables and method:
 [`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
 Regenerate with `just fixture-report --in-scope --classify --list-fails`.
-The September 18 measurement has 129 execution failures. E5 closes six from the immediately
-preceding baseline, taking InterfacesPass from 21/33 to 27/33. Earlier improvements are recorded
-in the progress log; the classification counts below describe the September 12 audit.
+The September 18 measurement has 125 execution failures. E5 closes six, taking InterfacesPass
+from 21/33 to 27/33; E6 closes four, taking JSONConnectorPass from 69/82 to 73/82. Earlier
+improvements are recorded in the progress log; the classification counts below describe the
+September 12 audit.
 
 Read the numbers with one caveat: **111 of the 145 are classified `mixed`** (a diagnostic *and* the
 output differ), which for an execution suite is almost always one fault — a spurious compile error
@@ -384,19 +385,56 @@ silence these failures:
 - [ ] Interface alias assignment: assigning an object directly to an interface alias is
   rejected, while assigning through a variable of the underlying interface type works.
 
-#### E6 — JSON value conversion `[ ]` M
+#### E6 — JSON value conversion `[x]` — completed 2026-09-18
 
-`JSONConnectorPass` has 14 failures, including four one-edit misses with different causes.
+The fresh September 18 pre-change classifier finds **69/82 passing, 13 failing** in
+`JSONConnectorPass`; the earlier count of 14 was stale. Two causes account for four fixtures:
+global-variable string storage and missing associative-array serialization. Both fixes pass,
+taking the category to **73/82**, with no category regressions. The generated baseline and
+status report match the rebuilt CLI across all 61 categories.
 
-- [ ] **E6a — Fix implicit string extraction.** Trace `global_var` from JSON member lookup to
-  its consumer: it prints `"hello"` instead of `hello`. Correct value conversion while preserving
-  explicit JSON serialization; cover ordinary, empty and escaped strings.
-- [ ] **E6b — Preserve numeric values during conversion.** Trace `implicit_to_int2`, which
-  produces `null` for `{"test":1}`. Add numeric and null controls, then fix the point where lookup
-  or conversion loses the value and require the fixture to pass.
-- [ ] **E6c — Classify the remaining conversion failures.** Run the category classifier, separate
-  lookup/type-resolution defects from conversion defects, and add bounded follow-ups with a
-  representative fixture for each cause.
+- [x] **E6a — Extract JSON strings at the global-storage boundary.** `global_var` stores a
+  JSON string as its decoded text, including empty and escaped strings. JSON arrays/objects
+  keep their serialized-text storage behavior; explicit JSON serialization retains quotes.
+  Real-path regressions cover globals, queues and compare-exchange.
+- [x] **E6b — Serialize associative arrays without losing their contents.** The missing map
+  serializer caused `implicit_to_int2` to print `null`; numeric assignment already worked.
+  Maps now serialize as JSON objects in bucket order, recursively preserving numeric/null
+  values and nested content. JSON source nodes remain unchanged and getter exceptions stop
+  subsequent entries. `assign_static_to_dynamic`, `associative_array` and `implicit_to_int2` pass.
+- [x] **E6c — Classify the remaining failures.** The fresh CLI classifier separates the seven
+  groups below. The [September progress log](docs/history/progress-log-2026-09.md#2026-09-18--json-global-storage-and-associative-serialization-e6)
+  records the first blockers, implementation and final validation.
+
+Bounded follow-ups from E6 triage, separate from global storage and map serialization:
+
+- [ ] **JSON associative-key conversion** (`implicit_associative_key_cast`): normalize JSON
+  numeric keys to the declared String key type so a lookup using `'123'` finds a JSONVariant
+  key holding 123.
+- [ ] **JSONVariant parameter conversion** (`implicit_from_cast`): materialize the declared
+  JSONVariant representation for Null, unassigned Variant and primitive arguments before
+  method dispatch; `Test(Null)` currently attempts `TypeName` on raw NULL.
+- [ ] **Inline record array types** (`const_array`, `stringify_array_of_array`): resolve anonymous
+  record element types in static and dynamic arrays; compilation currently stops before JSON
+  serialization runs.
+- [ ] **Coercive comparison and membership** (`comparison2`, `in_static`): reconcile numeric
+  JSON/string comparisons and JSON/native or Variant/native membership, retaining lexical
+  distinctions for string/string comparisons.
+- [ ] **Invalid JSON array deletion** (`delete_array_index`): raise a catchable exception for
+  an invalid index and leave the array unchanged; the failed deletion is currently ignored.
+- [ ] **JSON circular references** (`circular_references`): reject self and transitive cycles
+  before changing ownership in object assignment and array insertion.
+- [ ] **Immediate JSONVariant assignment** (`write_immediate_prop`): route member/index writes
+  through JSON mutation handling so primitive-backed JSONVariants produce the expected
+  catchable `Immediate`/`String` diagnostics.
+
+Additional serialization limitation found during review, outside the nine fixtures above:
+
+- [ ] **Duplicate textual Variant keys:** distinct associative keys such as Integer `1` and
+  String `'1'` coexist, but conversion through a JSON object collapses their identical member
+  names. Upstream `StringifyAssociativeArray` writes each occupied bucket directly, retaining
+  both names. Add a real-path regression and preserve duplicate names when emitting JSON text;
+  establish `JSON.Serialize` behavior separately before changing the JSON value representation.
 
 #### E7 — Two spurious compile errors `[ ]` S
 

@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1143 |
-| Failed | 823 |
+| Passed | 1147 |
+| Failed | 819 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **58%** (1143/1966) |
+| **Scored pass rate** | **58%** (1147/1966) |
 
 ## Per-category
 
@@ -65,7 +65,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | JSFilterScripts | 2 | 2 | 0 | 0 | 100% |
 | JSFilterScriptsFail | 1 | 1 | 0 | 0 | 100% |
 | JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
-| JSONConnectorPass | 82 | 69 | 13 | 0 | 84% |
+| JSONConnectorPass | 82 | 73 | 9 | 0 | 89% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
 | LambdaPass | 6 | 4 | 2 | 0 | 67% |
 | Linq | 7 | 0 | 7 | 0 | 0% |
