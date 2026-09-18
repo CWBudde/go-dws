@@ -170,6 +170,30 @@ are predeclared, so a script never has to spell the numbers out.
 - 20 = varInt64 (what VarType reports for an Integer - DWScript integers are 64-bit)
 - 256 = varString
 
+## Variant conditions in Assert
+
+`Assert` accepts a Boolean or Variant condition, including aliases and function
+results. Variant conditions use the Boolean
+conversion applied to builtin arguments: empty and Null values are false, numeric
+zero is false, and nonzero numbers are true. Strings are trimmed; `true`, `t`, `y`,
+and `yes` (case-insensitive), or a nonzero numeric string, convert to true. Other
+strings convert to false.
+
+```pascal
+var condition: Variant := 1;
+Assert(condition); // Passes
+condition := Null;
+try
+  Assert(condition, 'condition is false');
+except
+  on E: EAssertionFailed do PrintLn(E.Message);
+end;
+```
+
+A false condition raises `EAssertionFailed`, including the call position and the
+optional String message. Direct Integer or String conditions, such as `Assert(1)`,
+remain compile errors; wrap dynamic values in a Variant when conversion is needed.
+
 ## Array of Const Pattern
 
 The Variant type enables the `array of const` pattern for variadic-style functions with heterogeneous arguments.

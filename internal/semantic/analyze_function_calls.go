@@ -334,7 +334,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 		}
 
-		// Assert: Boolean condition with optional String message
+		// Assert: Boolean or Variant condition with optional String message.
+		// The evaluator converts Variant arguments to the Boolean signature.
 		if ident.Equal(funcIdent.Value, "Assert") {
 			if len(expr.Arguments) < 1 || len(expr.Arguments) > 2 {
 				a.addError("function 'Assert' expects 1-2 arguments, got %d at %s",
@@ -342,7 +343,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				return types.VOID
 			}
 			condType := a.analyzeExpression(expr.Arguments[0])
-			if condType != nil && condType != types.BOOLEAN {
+			conditionType := types.GetUnderlyingType(condType)
+			if condType != nil && conditionType != types.BOOLEAN && conditionType != types.VARIANT {
 				a.addError("function 'Assert' first argument must be Boolean, got %s at %s",
 					condType.String(), expr.Token.Pos.String())
 			}

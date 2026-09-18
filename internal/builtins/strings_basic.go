@@ -502,7 +502,7 @@ func Chr(ctx Context, args []Value) Value {
 
 	// Check if the code is in valid range (0-1114111 for Unicode)
 	if code < 0 || code > 0x10FFFF {
-		return ctx.NewError("Chr() code %d out of valid Unicode range (0-1114111)", code)
+		return ctx.NewError("Invalid codepoint: %d", code)
 	}
 
 	// Return UTF-8 encoded character (Go native)
