@@ -80,3 +80,29 @@ PrintLn('passed');`
 		})
 	}
 }
+
+func TestAssertVariant_OrdinalAndNilConditions(t *testing.T) {
+	source := `type TFlag = (Disabled, Enabled);
+type TDigit = 0..9;
+var onFlag: Variant := Enabled;
+Assert(onFlag);
+var digit: TDigit := 3;
+var digitVariant: Variant := digit;
+Assert(digitVariant);
+var offFlag: Variant := Disabled;
+try
+  Assert(offFlag, 'enum');
+except
+  on E: EAssertionFailed do PrintLn(E.Message);
+end;
+function EmptyVariant: Variant;
+begin end;
+try
+  Assert(EmptyVariant(), 'nil');
+except
+  on E: EAssertionFailed do PrintLn(E.Message);
+end;
+PrintLn('passed');`
+	assertOutput(t, runQuickwinScript(t, source),
+		"Assertion failed [line: 10, column: 3] : enum\nAssertion failed [line: 17, column: 3] : nil\npassed\n")
+}

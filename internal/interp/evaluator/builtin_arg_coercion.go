@@ -158,9 +158,13 @@ func coerceToBoolean(arg Value) (Value, Value) {
 		// Publish the unwrapped value even when its type already matches:
 		// the original argument can still be a Variant wrapper.
 		return v, nil
-	case *runtime.UnassignedValue, *runtime.NullValue:
+	case *runtime.UnassignedValue, *runtime.NullValue, *runtime.NilValue:
 		return &runtime.BooleanValue{Value: false}, nil
 	case *runtime.IntegerValue:
+		return &runtime.BooleanValue{Value: v.Value != 0}, nil
+	case *runtime.EnumValue:
+		return &runtime.BooleanValue{Value: v.OrdinalValue != 0}, nil
+	case *runtime.SubrangeValue:
 		return &runtime.BooleanValue{Value: v.Value != 0}, nil
 	case *runtime.FloatValue:
 		return &runtime.BooleanValue{Value: v.Value != 0}, nil
