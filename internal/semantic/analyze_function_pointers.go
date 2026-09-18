@@ -102,6 +102,11 @@ func (a *Analyzer) analyzeAddressOfExpression(expr *ast.AddressOfExpression) typ
 	switch target := expr.Operator.(type) {
 	case *ast.Identifier:
 		// Simple function/procedure reference: @FunctionName
+		if sym, ok := a.symbols.Resolve(target.Value); ok {
+			a.addIdentifierCaseHint(target, sym.Name)
+		} else {
+			a.addIdentifierCaseHint(target, a.builtinDeclarationName(target.Value))
+		}
 		return a.analyzeAddressOfFunction(target.Value, expr)
 
 	case *ast.MemberAccessExpression:

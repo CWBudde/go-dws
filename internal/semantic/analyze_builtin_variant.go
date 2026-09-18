@@ -33,7 +33,7 @@ func (a *Analyzer) analyzeVarType(args []ast.Expression, callExpr *ast.CallExpre
 // dedicated conversion (or no conversion at all) reads better.
 func (a *Analyzer) analyzeVarToStr(args []ast.Expression, callExpr *ast.CallExpression) (types.Type, bool) {
 	result, handled := a.analyzeRegisteredBuiltin("vartostr", args, callExpr)
-	if !handled || len(args) != 1 || a.hintsLevel < HintsLevelNormal {
+	if !handled || len(args) != 1 || a.hintsLevelAt(callExpr.Function.Pos()) < HintsLevelNormal {
 		return result, handled
 	}
 
@@ -44,11 +44,11 @@ func (a *Analyzer) analyzeVarToStr(args []ast.Expression, callExpr *ast.CallExpr
 	pos := callExpr.Function.Pos()
 	switch types.GetUnderlyingType(argType) {
 	case types.INTEGER:
-		a.addHint("Prefer .ToString or IntToStr() [line: %d, column: %d]", pos.Line, pos.Column)
+		a.addHintAt(pos, "Prefer .ToString or IntToStr() [line: %d, column: %d]", pos.Line, pos.Column)
 	case types.FLOAT:
-		a.addHint("Prefer .ToString or FloatToStr() [line: %d, column: %d]", pos.Line, pos.Column)
+		a.addHintAt(pos, "Prefer .ToString or FloatToStr() [line: %d, column: %d]", pos.Line, pos.Column)
 	case types.STRING:
-		a.addHint("Redundant function call [line: %d, column: %d]", pos.Line, pos.Column)
+		a.addHintAt(pos, "Redundant function call [line: %d, column: %d]", pos.Line, pos.Column)
 	}
 	return result, handled
 }

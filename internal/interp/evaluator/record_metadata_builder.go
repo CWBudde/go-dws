@@ -28,6 +28,7 @@ func (e *Evaluator) buildRecordMetadata(
 			return cached
 		}
 		result := runtime.MethodMetadataFromAST(decl, e.metadataTypeResolver(ctx))
+		result.UnitName, _ = e.typeSystem.NodeUnit(decl)
 		callables[decl] = result
 		return result
 	}
@@ -95,7 +96,26 @@ func (e *Evaluator) resolveClassCallableTypes(metadata *runtime.ClassMetadata, d
 	for _, candidate := range candidates {
 		if candidate != nil && (candidate.Declaration == declaration || candidate.SourceDeclaration == declaration) {
 			candidate.ResolveTypes(e.metadataTypeResolver(ctx))
+			candidate.UnitName, _ = e.typeSystem.NodeUnit(declaration)
+			e.typeSystem.RegisterNodeAlias(candidate.Declaration, declaration)
 			return
 		}
+	}
+}
+
+// registerRecordMethodImplementation retains the implementation's lexical unit
+// on the callable shared by the record's name and overload lookups.
+func (e *Evaluator) registerRecordMethodImplementation(record *runtime.RecordTypeValue, declaration *ast.FunctionDecl) {
+	record.RegisterMethodImplementation(declaration)
+	if record.Metadata == nil {
+		return
+	}
+	name := ident.Normalize(declaration.Name.Value)
+	method := record.Metadata.Methods[name]
+	if declaration.IsClassMethod {
+		method = record.Metadata.StaticMethods[name]
+	}
+	if method != nil {
+		method.UnitName, _ = e.typeSystem.NodeUnit(declaration)
 	}
 }

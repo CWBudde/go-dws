@@ -8,11 +8,17 @@ import (
 )
 
 func TestHintsLevelFor(t *testing.T) {
-	if hintsLevelFor("Algorithms") != "normal" || hintsLevelFor("FunctionsString") != "normal" {
-		t.Fatal("Algorithms and FunctionsString run at hints=normal, mirroring internal/interp/fixture_test.go hintsLevelOverrides")
+	// Only upstream's UScriptTests raises the compiler to pedantic hints.
+	for _, c := range []string{"SimpleScripts", "FailureScripts", "ArrayPass", "HelpersPass", "InnerClassesFail"} {
+		if got := hintsLevelFor(c); got != "pedantic" {
+			t.Errorf("%s hint level = %q; want pedantic", c, got)
+		}
 	}
-	if hintsLevelFor("SimpleScripts") != "pedantic" || hintsLevelFor("FailureScripts") != "pedantic" {
-		t.Fatal("every other category runs at hints=pedantic")
+	// Every other runner leaves Config.HintsLevel at its hlStrict default.
+	for _, c := range []string{"Algorithms", "FunctionsString", "FunctionsMath", "Memory", "ClassesLib"} {
+		if got := hintsLevelFor(c); got != "strict" {
+			t.Errorf("%s hint level = %q; want strict", c, got)
+		}
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 // It provides stack overflow detection and comprehensive stack trace support.
 type CallStack struct {
 	frames   errors.StackTrace
+	units    []string
 	maxDepth int
 }
 
@@ -29,12 +30,18 @@ func NewCallStack(maxDepth int) *CallStack {
 // Push adds a new frame to the call stack.
 // Returns an error if the maximum depth is exceeded.
 func (cs *CallStack) Push(functionName string, sourceFile string, pos *lexer.Position) error {
+	return cs.PushWithUnit(functionName, sourceFile, pos, "")
+}
+
+// PushWithUnit adds a frame with its lexical declaring unit. An empty unit identifies the main module.
+func (cs *CallStack) PushWithUnit(functionName string, sourceFile string, pos *lexer.Position, unitName string) error {
 	if len(cs.frames) >= cs.maxDepth {
 		return fmt.Errorf("stack overflow: maximum recursion depth (%d) exceeded in function '%s'", cs.maxDepth, functionName)
 	}
 
 	frame := errors.NewStackFrame(functionName, sourceFile, pos)
 	cs.frames = append(cs.frames, frame)
+	cs.units = append(cs.units, unitName)
 	return nil
 }
 
@@ -43,7 +50,16 @@ func (cs *CallStack) Push(functionName string, sourceFile string, pos *lexer.Pos
 func (cs *CallStack) Pop() {
 	if len(cs.frames) > 0 {
 		cs.frames = cs.frames[:len(cs.frames)-1]
+		cs.units = cs.units[:len(cs.units)-1]
 	}
+}
+
+// CurrentUnit returns the unit of the innermost frame, including an explicit main-module frame.
+func (cs *CallStack) CurrentUnit() string {
+	if len(cs.units) == 0 {
+		return ""
+	}
+	return cs.units[len(cs.units)-1]
 }
 
 // Current returns the current (most recent) stack frame, or nil if the stack is empty.
@@ -92,6 +108,7 @@ func (cs *CallStack) WillOverflow() bool {
 // Clear removes all frames from the call stack.
 func (cs *CallStack) Clear() {
 	cs.frames = errors.NewStackTrace()
+	cs.units = nil
 }
 
 // String returns a string representation of the call stack.
@@ -105,6 +122,7 @@ func (cs *CallStack) Clone() *CallStack {
 	copy(frames, cs.frames)
 	return &CallStack{
 		frames:   frames,
+		units:    append([]string(nil), cs.units...),
 		maxDepth: cs.maxDepth,
 	}
 }

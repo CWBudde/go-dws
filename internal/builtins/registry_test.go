@@ -44,6 +44,8 @@ func (m *mockContext) CurrentNode() ast.Node {
 	return nil
 }
 
+func (m *mockContext) CurrentUnit() string { return "" }
+
 // FS returns the filesystem installed on this mock. Tests that do not exercise
 // file built-ins leave it nil, which is fine because nothing else consults it.
 func (m *mockContext) FS() platform.FileSystem {

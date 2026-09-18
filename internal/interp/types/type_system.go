@@ -19,6 +19,7 @@ import (
 // This design follows the Single Responsibility Principle by separating
 // type management from execution concerns in the Interpreter.
 type TypeSystem struct {
+	nodeUnits            map[ast.Node]string
 	operators            *OperatorRegistry                   // Operator overload registry
 	conversions          *ConversionRegistry                 // Type conversion registry
 	records              *ident.Map[RecordTypeValue]         // Record type registry
@@ -377,12 +378,18 @@ func (ts *TypeSystem) RegisterFunctionOrReplace(name string, fn *ast.FunctionDec
 // RegisterFunctionWithUnit registers a function with an associated unit name.
 // This allows for qualified lookups (UnitName.FunctionName).
 func (ts *TypeSystem) RegisterFunctionWithUnit(unitName, functionName string, fn *ast.FunctionDecl) {
+	if fn != nil {
+		ts.RegisterNodeUnit(fn, unitName)
+	}
 	ts.functionRegistry.RegisterWithUnit(unitName, functionName, fn)
 }
 
 // RegisterFunctionWithUnitOrReplace registers a unit-owned function, replacing
 // a matching declaration-only version when an implementation is imported.
 func (ts *TypeSystem) RegisterFunctionWithUnitOrReplace(unitName, functionName string, fn *ast.FunctionDecl) {
+	if fn != nil {
+		ts.RegisterNodeUnit(fn, unitName)
+	}
 	ts.functionRegistry.RegisterOrReplaceWithUnit(unitName, functionName, fn)
 }
 

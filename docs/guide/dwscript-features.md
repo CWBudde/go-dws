@@ -341,7 +341,14 @@ PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
 - ⏸️ `reintroduce` keyword
 - ⏸️ `published` visibility
 - ⏸️ Virtual constructors
-- ⏸️ Class references (meta-classes)
+- ✅ Constructor calls through class-reference (metaclass) variables
+
+Constructor results can receive a field or property assignment directly:
+`TItem.Create.Value := 42` and `TItem.Create().Value := 42` both construct an
+instance and assign its `Value`. The receiver and constructor run once for this
+simple assignment. Bare inherited and named constructors work too, including
+calls through a metaclass variable. If construction raises an exception, the
+field or property write does not run.
 
 ---
 

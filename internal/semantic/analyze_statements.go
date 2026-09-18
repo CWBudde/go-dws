@@ -448,6 +448,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
+		a.addIdentifierCaseHint(target, sym.Name)
 		a.recordResolvedSymbolFieldUsage(sym)
 
 		if sym.IsLoopVariable {
@@ -543,6 +544,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					return
 				}
 				if propInfo, found := classType.GetProperty(memberName); found {
+					a.addIdentifierCaseHint(target.Member, propInfo.Name)
 					a.warnDeprecatedPropertyUsage(propInfo, target.Member.Token.Pos)
 					if isCompound && propInfo.ReadKind == types.PropAccessNone {
 						a.addStructuredError(NewWriteOnlyPropertyError(target.Member.Token.Pos, target.Member.Value))
@@ -931,7 +933,7 @@ func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
 	_, thenIsEmpty := stmt.Consequence.(*ast.EmptyStatement)
 	if thenIsEmpty {
 		pos := stmt.Consequence.Pos()
-		a.addHint("Empty THEN block [line: %d, column: %d]", pos.Line, pos.Column)
+		a.addHintAt(pos, "Empty THEN block [line: %d, column: %d]", pos.Line, pos.Column)
 	}
 
 	// Analyze consequence
@@ -945,7 +947,7 @@ func (a *Analyzer) analyzeIf(stmt *ast.IfStatement) {
 		// of its own (empty_if_block).
 		if _, isEmpty := stmt.Alternative.(*ast.EmptyStatement); isEmpty && !thenIsEmpty {
 			pos := stmt.Alternative.Pos()
-			a.addHint("Empty ELSE block [line: %d, column: %d]", pos.Line, pos.Column)
+			a.addHintAt(pos, "Empty ELSE block [line: %d, column: %d]", pos.Line, pos.Column)
 		}
 		a.analyzeStatement(stmt.Alternative)
 	}
@@ -1163,7 +1165,7 @@ func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 
 	// Analyze body
 	if empty, ok := stmt.Body.(*ast.EmptyStatement); ok {
-		a.addHint("Empty FOR loop [line: %d, column: %d]",
+		a.addHintAt(empty.Token.Pos, "Empty FOR loop [line: %d, column: %d]",
 			empty.Token.Pos.Line, empty.Token.Pos.Column)
 	}
 	a.analyzeStatement(stmt.Body)
@@ -1308,7 +1310,7 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 	// hint (`SimpleScripts/for_var_in_string`); neither does a loop that was
 	// never built because the collection is not enumerable.
 	if empty, ok := stmt.Body.(*ast.EmptyStatement); ok && enumerable && !iteratesString {
-		a.addHint("Empty FOR loop [line: %d, column: %d]",
+		a.addHintAt(empty.Token.Pos, "Empty FOR loop [line: %d, column: %d]",
 			empty.Token.Pos.Line, empty.Token.Pos.Column)
 	}
 	a.analyzeStatement(stmt.Body)

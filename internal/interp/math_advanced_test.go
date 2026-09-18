@@ -304,9 +304,9 @@ func TestBuiltinTestBit(t *testing.T) {
 		// Edge cases
 		{"bit 0 of 0", "PrintLn(TestBit(0, 0));", "False\n", false},
 
-		// Error cases
-		{"bit position too large", "PrintLn(TestBit(1, 64));", "", true},
-		{"bit position negative", "PrintLn(TestBit(1, -1));", "", true},
+		// Positions outside the Integer's 64 bits are never set.
+		{"bit position too large", "PrintLn(TestBit(1, 64));", "False\n", false},
+		{"bit position negative", "PrintLn(TestBit(1, -1));", "False\n", false},
 	}
 
 	for _, tt := range tests {
@@ -400,9 +400,9 @@ func TestBuiltinCompareNum(t *testing.T) {
 		{"mixed int and float", "PrintLn(CompareNum(5, 5.0));", "0\n", false},
 		{"mixed less", "PrintLn(CompareNum(3, 5.0));", "-1\n", false},
 
-		// NaN handling
-		{"both NaN", "PrintLn(CompareNum(NaN, NaN));", "0\n", false},
-		{"first is NaN", "PrintLn(CompareNum(NaN, 5.0));", "-1\n", false},
+		// Upstream's unordered float comparison falls through to 1.
+		{"both NaN", "PrintLn(CompareNum(NaN, NaN));", "1\n", false},
+		{"first is NaN", "PrintLn(CompareNum(NaN, 5.0));", "1\n", false},
 		{"second is NaN", "PrintLn(CompareNum(5.0, NaN));", "1\n", false},
 
 		// Infinity

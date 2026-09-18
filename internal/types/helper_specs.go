@@ -9,12 +9,16 @@ type BuiltinHelperOperation string
 
 // Builtin helper operations used by the semantic and execution engines.
 const (
+	HelperBuiltinCompareNum      BuiltinHelperOperation = "CompareNum"
 	HelperBuiltinNormalizeString BuiltinHelperOperation = "NormalizeString"
 	HelperBuiltinPadLeft         BuiltinHelperOperation = "PadLeft"
 	HelperBuiltinPadRight        BuiltinHelperOperation = "PadRight"
+	HelperBuiltinPopCount        BuiltinHelperOperation = "PopCount"
+	HelperBuiltinStrArrayPack    BuiltinHelperOperation = "StrArrayPack"
 	HelperBuiltinStrDeleteLeft   BuiltinHelperOperation = "StrDeleteLeft"
 	HelperBuiltinStrDeleteRight  BuiltinHelperOperation = "StrDeleteRight"
 	HelperBuiltinStripAccents    BuiltinHelperOperation = "StripAccents"
+	HelperBuiltinTestBit         BuiltinHelperOperation = "TestBit"
 	HelperArrayAdd               BuiltinHelperOperation = "__array_add"
 	HelperArrayClear             BuiltinHelperOperation = "__array_clear"
 	HelperArrayContains          BuiltinHelperOperation = "__array_contains"
@@ -31,9 +35,13 @@ const (
 	HelperArrayLow               BuiltinHelperOperation = "__array_low"
 	HelperArrayMap               BuiltinHelperOperation = "__array_map"
 	HelperArrayMove              BuiltinHelperOperation = "__array_move"
+	HelperArrayMultiply          BuiltinHelperOperation = "__array_multiply"
+	HelperArrayMultiplyAdd       BuiltinHelperOperation = "__array_multiplyadd"
+	HelperArrayOffset            BuiltinHelperOperation = "__array_offset"
 	HelperArrayPeek              BuiltinHelperOperation = "__array_peek"
 	HelperArrayPop               BuiltinHelperOperation = "__array_pop"
 	HelperArrayPush              BuiltinHelperOperation = "__array_push"
+	HelperArrayReciprocal        BuiltinHelperOperation = "__array_reciprocal"
 	HelperArrayRemove            BuiltinHelperOperation = "__array_remove"
 	HelperArrayReverse           BuiltinHelperOperation = "__array_reverse"
 	HelperArraySetLength         BuiltinHelperOperation = "__array_setlength"
@@ -138,6 +146,9 @@ var builtinHelperMembers = map[string][]BuiltinHelperMember{
 		{Name: "Sort", Operation: HelperArraySort, Method: true},
 	},
 	"integer": {
+		{Name: "TestBit", Operation: HelperBuiltinTestBit, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{INTEGER}, BOOLEAN) }},
+		{Name: "PopCount", Operation: HelperBuiltinPopCount, Method: true, Signature: func() *FunctionType { return NewFunctionType(nil, INTEGER) }},
+		{Name: "Compare", Operation: HelperBuiltinCompareNum, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{FLOAT}, INTEGER) }},
 		{Name: "ToString", Operation: HelperIntegerToString, Method: true, Signature: func() *FunctionType {
 			return NewFunctionTypeWithMetadata(
 				[]Type{INTEGER},
@@ -152,6 +163,7 @@ var builtinHelperMembers = map[string][]BuiltinHelperMember{
 		{Name: "ToHexString", Operation: HelperIntegerToHexString, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{INTEGER}, STRING) }},
 	},
 	"float": {
+		{Name: "Compare", Operation: HelperBuiltinCompareNum, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{FLOAT}, INTEGER) }},
 		{Name: "ToString", Operation: HelperFloatToStringPrec, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{INTEGER}, STRING) }, PropertyType: STRING, PropertyOperation: HelperFloatToStringDefault},
 	},
 	"boolean": {
@@ -263,6 +275,13 @@ var builtinHelperMembers = map[string][]BuiltinHelperMember{
 	},
 	"array of string": {
 		{Name: "Join", Operation: HelperStringArrayJoin, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{STRING}, STRING) }},
+		{Name: "Pack", Operation: HelperBuiltinStrArrayPack, Method: true, Signature: func() *FunctionType { return NewFunctionType(nil, NewDynamicArrayType(STRING)) }},
+	},
+	"array of float": {
+		{Name: "Offset", Operation: HelperArrayOffset, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{FLOAT}, NewDynamicArrayType(FLOAT)) }},
+		{Name: "Multiply", Operation: HelperArrayMultiply, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{FLOAT}, NewDynamicArrayType(FLOAT)) }},
+		{Name: "MultiplyAdd", Operation: HelperArrayMultiplyAdd, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{FLOAT, FLOAT}, NewDynamicArrayType(FLOAT)) }},
+		{Name: "Reciprocal", Operation: HelperArrayReciprocal, Method: true, Signature: func() *FunctionType { return NewFunctionType(nil, NewDynamicArrayType(FLOAT)) }},
 	},
 	"enum": {
 		{Name: "Value", Operation: HelperEnumValue, PropertyType: INTEGER},
@@ -299,6 +318,8 @@ func NewBuiltinHelper(target string) *HelperType {
 		helper = NewHelperType("__TStringIntrinsicHelper", STRING, false)
 	case "array of string":
 		helper = NewHelperType("__TStringDynArrayIntrinsicHelper", NewDynamicArrayType(STRING), true)
+	case "array of float":
+		helper = NewHelperType("__TFloatDynArrayIntrinsicHelper", NewDynamicArrayType(FLOAT), true)
 	case "enum":
 		helper = NewHelperType("__TEnumIntrinsicHelper", nil, false)
 	default:
@@ -308,6 +329,7 @@ func NewBuiltinHelper(target string) *HelperType {
 		key := ident.Normalize(member.Name)
 		if member.Method {
 			helper.BuiltinMethods[key] = string(member.Operation)
+			helper.MethodDeclNames[key] = member.Name
 			if member.Signature != nil {
 				helper.Methods[key] = member.Signature()
 			}

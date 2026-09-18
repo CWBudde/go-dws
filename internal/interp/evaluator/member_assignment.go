@@ -39,9 +39,6 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
-	var objVal Value
-	var objSetter func(Value) error
-
 	// Records have value semantics: storing one into a field, a property or any
 	// other member slot must store an independent copy, so a later mutation of
 	// the source is not observable through the destination. This mirrors the
@@ -50,19 +47,12 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		value = record.Copy()
 	}
 
-	// Try to evaluate as LValue to allow auto-initialization and proper mutation
-	if IsVarTarget(target.Object) {
-		var err error
-		objVal, objSetter, err = e.EvaluateLValue(target.Object, ctx)
-		if err != nil {
-			return e.newError(stmt, "%s", err.Error())
-		}
-	} else {
-		// Not an LValue (e.g. function call), evaluate as RValue
-		objVal = e.Eval(target.Object, ctx)
-		if isError(objVal) {
-			return objVal
-		}
+	objVal, objSetter, err := e.evaluateMemberAssignmentContainer(target.Object, ctx)
+	if err != nil {
+		return e.newError(stmt, "%s", err.Error())
+	}
+	if isError(objVal) {
+		return objVal
 	}
 
 	// Check for exception during evaluation
@@ -358,4 +348,18 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 
 	// Unknown type or unsupported member assignment
 	return e.newError(stmt, "member assignment not supported for type %s", objVal.Type())
+}
+
+// evaluateMemberAssignmentContainer retains storage setters for nested writes,
+// but allows class-member reads to produce temporary instances. In particular,
+// T.Create in T.Create.Field := v invokes the constructor once; it is not itself
+// a writable field or a var-parameter binding.
+func (e *Evaluator) evaluateMemberAssignmentContainer(target ast.Expression, ctx *ExecutionContext) (Value, AssignFunc, error) {
+	if member, ok := target.(*ast.MemberAccessExpression); ok {
+		return e.evaluateMemberTarget(member, ctx, true)
+	}
+	if IsVarTarget(target) {
+		return e.EvaluateLValue(target, ctx)
+	}
+	return e.Eval(target, ctx), nil, nil
 }

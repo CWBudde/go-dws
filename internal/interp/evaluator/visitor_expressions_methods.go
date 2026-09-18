@@ -87,6 +87,9 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	}
 
 	methodName := node.Method.Value
+	if result, handled := e.evalArrayMathCall(obj, node, ctx); handled {
+		return result
+	}
 
 	// Method call on a JSON value receiver: v.TypeName(), v.Add(x), ...
 	if isJSONBoxed(obj) {

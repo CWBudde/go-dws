@@ -38,6 +38,13 @@ func (e *builtinContext) CurrentNode() ast.Node {
 	return currentNode(e.ctx)
 }
 
+func (e *builtinContext) CurrentUnit() string {
+	if e.ctx == nil {
+		return ""
+	}
+	return e.ctx.CurrentUnit()
+}
+
 // formatSettingsClassName is the script-visible name of the static class whose
 // class variables are the only storage for the date/time locale settings.
 const formatSettingsClassName = "FormatSettings"

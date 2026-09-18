@@ -1,8 +1,8 @@
-# Global Variables and Global Queues
+# Global Variables, Private Variables, and Global Queues
 
 **Status**: Implemented (PLAN.md §3.3)
-**Fixtures**: `testdata/fixtures/FunctionsGlobalVars/` — 12 / 16 passing
-**Source**: `internal/builtins/globalvars.go`, `internal/builtins/globalvars_funcs.go`
+**Fixtures**: `testdata/fixtures/FunctionsGlobalVars/` — see the generated [fixture status](../../testdata/fixtures/TEST_STATUS.md)
+**Source**: `internal/builtins/globalvars*.go`, `internal/builtins/privatevars*.go`
 
 ## Overview
 
@@ -133,6 +133,38 @@ records. It is **not** byte-compatible with Delphi DWScript's binary format;
 treat a snapshot as opaque and do not persist it across go-dws versions.
 Queues are not part of a snapshot.
 
+## Private variables
+
+Private variables persist across script runs in the same host process, with a
+separate namespace for each declaring unit. Unit names are case-insensitive;
+variable names and masks follow the global-variable rules above. A unit can use
+the same name as another unit or a global without sharing its value.
+
+| Function | Result | Notes |
+| --- | --- | --- |
+| `WritePrivateVar(name, value [, expirationSeconds])` | `Boolean` | True for a new or expired entry; false when replacing a live entry |
+| `ReadPrivateVar(name [, default])` | `Variant` | Evaluates `default` only when absent or expired; omitted default is `Unassigned` |
+| `PrivateVarsNames(mask)` | `array of String` | Sorted names within the unit; empty mask means all |
+| `CleanupPrivateVars([mask])` | — | Omitted mask means `*`; an explicitly empty mask matches only the empty name |
+
+For example, in a unit body:
+
+```pascal
+CleanupPrivateVars;
+WritePrivateVar('greeting', 'hello');
+PrintLn(ReadPrivateVar('greeting', 'missing'));  // hello
+```
+
+The namespace belongs to the unit containing the call expression. Unit methods,
+nested routines, callbacks, and initialization/finalization code retain that
+ownership even when invoked from another unit or main. All four functions raise
+`Private variables cannot be referred from main module` when the expression is
+defined in main, including a main-defined callback invoked by a unit.
+
+Private values accept the same simple Variants and JSON serialization as global
+values. Expiration uses the same seconds-based lifetime. Global cleanup,
+enumeration, and save/restore operations do not affect private storage.
+
 ## Global queues
 
 A global queue is a double-ended queue of Variants. Push and Insert add;
@@ -195,13 +227,13 @@ clean slate — constructs its own with `builtins.NewGlobalVarStore()`.
 `GlobalVarStore.SetClock(func() time.Time)` replaces the store's time source,
 which is how the expiration tests stay deterministic.
 
+`builtins.DefaultPrivateVars` is the separate process-wide `PrivateVarStore`.
+Storage tests can use `builtins.NewPrivateVarStore()` and its `SetClock` method
+without changing the default instance.
+
 ## Known gaps
 
-- **Private (per-unit) variables.** `WritePrivateVar`, `ReadPrivateVar`,
-  `PrivateVarsNames` and `CleanupPrivateVars` are not implemented. The fixture
-  that covers them (`private_vars`) also depends on a separate parser gap:
-  a unit without `interface`/`implementation` sections fails to parse.
 - **Case hints on array pseudo-methods.** `queue_snapshot` exercises
-  `GlobalQueueSnapshot(...).Map(...).join(',')`. Its output is byte-correct, but
-  the compiler emits a `"join" does not match case of declaration ("Join")` hint
-  that upstream does not emit for this array. Unrelated to the store itself.
+  `GlobalQueueSnapshot(...).Map(...).join(',')`. Its runtime output is correct,
+  but go-dws does not emit the four case-mismatch hints in the expectation.
+  This is unrelated to the store itself.

@@ -49,6 +49,20 @@ func RegisterGlobalVarsFunctions(r *Registry) {
 	B := types.BOOLEAN
 	V := types.VARIANT
 
+	// Private variables use the lexical unit as a process-wide namespace.
+	r.RegisterWithSignature("WritePrivateVar", WritePrivateVar, CategoryGlobalVars,
+		"Stores a unit-private Variant, returning whether the entry was new or expired",
+		SigOptional([]types.Type{S, V, F}, B, 2))
+	r.RegisterWithSignature("ReadPrivateVar", ReadPrivateVar, CategoryGlobalVars,
+		"Reads a unit-private Variant, evaluating the optional default only when absent",
+		SigOptional([]types.Type{S, V}, V, 1))
+	r.RegisterWithSignature("PrivateVarsNames", PrivateVarsNames, CategoryGlobalVars,
+		"Returns the names of private variables matching a wildcard mask",
+		Sig([]types.Type{S}, types.NewDynamicArrayType(S)))
+	r.RegisterWithSignature("CleanupPrivateVars", CleanupPrivateVars, CategoryGlobalVars,
+		"Deletes private variables matching an optional wildcard mask",
+		SigOptional([]types.Type{S}, nil, 0))
+
 	// Global variables
 	r.RegisterWithSignature("WriteGlobalVar", WriteGlobalVar, CategoryGlobalVars,
 		"Stores a Variant in a process-wide global, with an optional expiration in seconds",

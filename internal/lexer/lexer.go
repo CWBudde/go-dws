@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Compiler directive support (defines, conditionals, etc.) is implemented in directives.go
@@ -38,6 +39,7 @@ import (
 //   - "var Δ" → 'Δ' is at column 5 (5 runes, Δ is a single multi-byte rune)
 //   - "// 🚀" → '🚀' is at column 4 (4 runes: /, /, space, 🚀)
 type Lexer struct {
+	hintsLevel         token.HintLevel
 	includeResolver    IncludeResolver
 	decls              *declTracker
 	constValues        map[string]int
@@ -78,6 +80,7 @@ type Lexer struct {
 // It can be saved and restored to enable backtracking during parsing.
 // This allows for efficient save/restore operations during lookahead.
 type LexerState struct {
+	hintsLevel   token.HintLevel
 	decls        *declTracker
 	includedOnce map[string]struct{}
 	// stopped and directiveTruncated are directive side effects. A speculative read
@@ -257,6 +260,7 @@ func (l *Lexer) matchAndConsume(expected rune) bool {
 // currentPos returns the current Position for token creation.
 func (l *Lexer) currentPos() Position {
 	return Position{
+		Hints:  l.hintsLevel,
 		Line:   l.line,
 		Column: l.column,
 		Offset: l.position,
@@ -326,6 +330,7 @@ func (l *Lexer) SaveState() LexerState {
 	}
 
 	return LexerState{
+		hintsLevel:         l.hintsLevel,
 		position:           l.position,
 		readPosition:       l.readPosition,
 		ch:                 l.ch,
@@ -351,6 +356,7 @@ func (l *Lexer) SaveState() LexerState {
 // This is used after lookahead operations or parser backtracking to return to the original position.
 // Restores the tokenBuffer to prevent token duplication or skipping.
 func (l *Lexer) RestoreState(s LexerState) {
+	l.hintsLevel = s.hintsLevel
 	l.position = s.position
 	l.readPosition = s.readPosition
 	l.ch = s.ch

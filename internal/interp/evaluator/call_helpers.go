@@ -107,6 +107,8 @@ func (e *Evaluator) executeLambdaDirect(
 	lambdaEnv := runtime.NewEnclosedEnvironment(closureEnv)
 	lambdaCtx := ctx.Clone()
 	lambdaCtx.SetEnv(lambdaEnv)
+	unitName, _ := e.typeSystem.NodeUnit(lambda)
+	lambdaCtx.SetCurrentUnit(unitName)
 	scope := newBindingScope()
 	defer scope.cleanup(e, lambdaEnv)
 
@@ -114,7 +116,7 @@ func (e *Evaluator) executeLambdaDirect(
 		return e.raiseRecursionExceeded(ctx)
 	}
 
-	if err := lambdaCtx.GetCallStack().Push("<lambda>", e.SourceFile(), nil); err != nil {
+	if err := lambdaCtx.GetCallStack().PushWithUnit("<lambda>", e.SourceFile(), nil, unitName); err != nil {
 		return e.newError(node, "%s", err.Error())
 	}
 	defer lambdaCtx.GetCallStack().Pop()

@@ -151,16 +151,13 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 	sym, ok := a.symbols.Resolve(funcIdent.Value)
 	if ok {
+		a.addIdentifierCaseHint(funcIdent, sym.Name)
 		a.warnDeprecatedSymbolUsage(sym, funcIdent.Token.Pos)
 	}
 	if !ok {
 		// Check built-in functions. The callee's case-mismatch hint is emitted
 		// before the arguments are analyzed so hints appear in source order.
-		if a.isBuiltinFunction(funcIdent.Value) {
-			if declName := a.builtinDeclarationName(funcIdent.Value); declName != "" && declName != funcIdent.Value {
-				a.addCaseMismatchHint(funcIdent.Value, declName, funcIdent.Token.Pos)
-			}
-		}
+		a.addIdentifierCaseHint(funcIdent, a.builtinDeclarationName(funcIdent.Value))
 		if resultType, isBuiltin := a.analyzeBuiltinFunction(funcIdent.Value, expr.Arguments, expr); isBuiltin {
 			return resultType
 		}
@@ -210,6 +207,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					a.addStructuredError(NewClassMethodOrConstructorExpectedError(funcIdent.Token.Pos))
 					return nil
 				}
+				a.addIdentifierCaseHint(funcIdent, a.declaredMethodName(a.currentClass, funcIdent.Value))
 				methodType := selectedMethod.Signature
 
 				// Check visibility (the selected overload's own visibility governs)
@@ -816,6 +814,7 @@ func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
 		return nil
 	}
 
+	a.addIdentifierCaseHint(ident, sym.Name)
 	if funcType.IsProcedure() {
 		return types.VOID
 	}

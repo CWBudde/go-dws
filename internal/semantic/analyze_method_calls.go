@@ -95,6 +95,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				return nil
 			}
 			methodType = helperMethod
+			a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
+		} else {
+			a.addIdentifierCaseHint(expr.Method, a.declaredInterfaceMethodName(interfaceType, methodName))
 		}
 
 		// Validate arguments
@@ -134,6 +137,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check if object is a record type with methods
 		if recordType, isRecord := objectType.(*types.RecordType); isRecord {
+			a.addIdentifierCaseHint(expr.Method, a.declaredRecordMethodName(recordType, methodName))
+
 			// First check for class methods (static methods) with overload support.
 			// On an instance receiver, same-named instance methods join the set.
 			classOverloads := recordType.GetClassMethodOverloads(methodNameLower)
@@ -232,6 +237,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				}
 				// Use the helper method
 				method = helperMethod
+				a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
 			}
 
 			// Validate method arguments (defaulted parameters are optional)
@@ -293,6 +299,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 
+		a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
+
 		// Record the receiver's static type so runtime helper dispatch honors
 		// alias-specific (strict) helpers over the underlying type's helpers.
 		if a.semanticInfo != nil && expr.Method != nil {
@@ -338,6 +346,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		return helperMethod.ReturnType
 	}
+
+	a.addIdentifierCaseHint(expr.Method, a.declaredClassMemberName(classType, methodName))
 
 	// Handle built-in methods available on all objects (inherited from TObject)
 	if methodName == "ClassName" {

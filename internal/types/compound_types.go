@@ -660,6 +660,7 @@ type HelperType struct {
 	ParentHelper    *HelperType
 	Methods         map[string]*FunctionType
 	MethodOverloads map[string][]*FunctionType
+	MethodDeclNames map[string]string // Original source spelling, keyed by normalized name.
 	Properties      map[string]*PropertyInfo
 	ClassVars       map[string]Type
 	ClassConsts     map[string]any
@@ -787,6 +788,7 @@ func NewHelperType(name string, targetType Type, isRecordHelper bool) *HelperTyp
 		TargetType:      targetType,
 		Methods:         make(map[string]*FunctionType),
 		MethodOverloads: make(map[string][]*FunctionType),
+		MethodDeclNames: make(map[string]string),
 		Properties:      make(map[string]*PropertyInfo),
 		ClassVars:       make(map[string]Type),
 		ClassConsts:     make(map[string]interface{}),

@@ -81,20 +81,22 @@ func (a *Analyzer) implicitCallNeedsArguments(identifier *ast.Identifier) (token
 }
 
 // implicitMemberCallNeedsArguments reports `Obj.Method;` where Method requires
-// arguments. Array helpers are excluded: they are magic methods with their own
-// diagnostic anchor, handled in analyzeArrayMemberAccess.
+// arguments. Generic array intrinsics have their own diagnostic anchor, handled
+// in analyzeArrayMemberAccess; type-specific helpers use ordinary signatures.
 func (a *Analyzer) implicitMemberCallNeedsArguments(expr *ast.MemberAccessExpression) (token.Position, bool) {
 	if expr.Member == nil || expr.Object == nil {
 		return token.Position{}, false
 	}
 	pos := expr.Member.Token.Pos
 
-	objectType := a.inferMemberObjectType(expr.Object)
+	objectType := a.implicitMemberReceiverType(expr.Object)
 	if objectType == nil {
 		return pos, false
 	}
 	if _, isArray := types.GetUnderlyingType(objectType).(*types.ArrayType); isArray {
-		return pos, false
+		if _, generic := types.LookupBuiltinHelper("array", expr.Member.Value); generic {
+			return pos, false
+		}
 	}
 	classType := metaExprClassType(objectType)
 	if classType == nil {
@@ -103,7 +105,7 @@ func (a *Analyzer) implicitMemberCallNeedsArguments(expr *ast.MemberAccessExpres
 		}
 	}
 	if classType == nil {
-		return pos, false
+		return pos, a.implicitBuiltinHelperCallNeedsArguments(objectType, expr.Member.Value)
 	}
 	if classType.HasConstructor(expr.Member.Value) {
 		return pos, false
@@ -112,6 +114,42 @@ func (a *Analyzer) implicitMemberCallNeedsArguments(expr *ast.MemberAccessExpres
 		return pos, false
 	}
 	return pos, !classAcceptsNoArguments(classType, expr.Member.Value)
+}
+
+// implicitMemberReceiverType mirrors member analysis's implicit receiver calls
+// using cached types, so a parenless receiver does not need to be analyzed twice.
+func (a *Analyzer) implicitMemberReceiverType(object ast.Expression) types.Type {
+	objectType := a.semanticInfo.GetResolvedType(object)
+	if objectType == nil {
+		objectType = a.inferMemberObjectType(object)
+	}
+	objectType = a.applyImplicitCallType(object, objectType)
+	if implicitType := implicitValueContextType(objectType); implicitType != nil {
+		return implicitType
+	}
+	return objectType
+}
+
+// implicitBuiltinHelperCallNeedsArguments checks the selected helper without analyzing
+// the receiver again or treating an expression-position method reference as a call.
+func (a *Analyzer) implicitBuiltinHelperCallNeedsArguments(objectType types.Type, name string) bool {
+	if a.hasHelperProperty(objectType, name) != nil {
+		return false
+	}
+	helpers := a.getHelpersForType(objectType)
+	key := ident.Normalize(name)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if method := findMethodCaseInsensitive(helper.Methods, name); method != nil {
+			// User helper signatures currently omit default parameter metadata.
+			// Preserve their existing behavior rather than rejecting valid defaults.
+			if _, builtin := helper.BuiltinMethods[key]; !builtin {
+				return false
+			}
+			return requiredParamCount(method) > 0
+		}
+	}
+	return false
 }
 
 // classAcceptsNoArguments reports whether any method of that name in the class
