@@ -71,6 +71,9 @@ func (e *Evaluator) exprIsStaticVariant(expr ast.Expression) bool {
 	if e.SemanticInfo() == nil || expr == nil {
 		return false
 	}
+	if resolved := e.SemanticInfo().GetResolvedType(expr); resolved != nil {
+		return types.GetUnderlyingType(resolved) == types.VARIANT
+	}
 	typeAnnot := e.SemanticInfo().GetType(expr)
 	if typeAnnot == nil {
 		return false
@@ -79,9 +82,9 @@ func (e *Evaluator) exprIsStaticVariant(expr ast.Expression) bool {
 }
 
 // coerceValueToKind converts a basic runtime value to the given type kind.
-// Returns (nil, nil) when no conversion applies (value already matches or the
-// kind is not a basic type). A failed cast raises a catchable exception and
-// returns a non-nil error value.
+// Returns (nil, nil) when no replacement applies. A matching Boolean is still
+// returned to replace a possible Variant wrapper. A failed cast raises a
+// catchable exception and returns a non-nil error value.
 func (e *Evaluator) coerceValueToKind(arg Value, kind string, funcName *ast.Identifier, ctx *ExecutionContext) (Value, Value) {
 	switch kind {
 	case "INTEGER":
@@ -152,7 +155,11 @@ func coerceToString(arg Value) (Value, Value) {
 func coerceToBoolean(arg Value) (Value, Value) {
 	switch v := arg.(type) {
 	case *runtime.BooleanValue:
-		return nil, nil
+		// Publish the unwrapped value even when its type already matches:
+		// the original argument can still be a Variant wrapper.
+		return v, nil
+	case *runtime.UnassignedValue, *runtime.NullValue:
+		return &runtime.BooleanValue{Value: false}, nil
 	case *runtime.IntegerValue:
 		return &runtime.BooleanValue{Value: v.Value != 0}, nil
 	case *runtime.FloatValue:

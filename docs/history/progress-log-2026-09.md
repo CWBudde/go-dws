@@ -4525,3 +4525,61 @@ GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -race ./internal/
 The complete CI-equivalent `GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false
 go test -v -race ./...` also passes. Diff-scoped lint reports zero issues, changed Go files
 pass `gofmt -l`, and `git diff --check` is clean.
+
+## 2026-09-19 — String replacement and Variant assertions (E7)
+
+E7 adds `String.Replace(sub, newSub): String` through the shared helper catalog,
+using the existing `StrReplace` builtin and evaluator dispatch. It replaces all
+nonoverlapping, case-sensitive matches, leaves an empty search string unchanged,
+and returns a new string. The helper accepts exactly two String arguments.
+The upstream mapping is in
+[`dwsStringFunctions.pas`](https://github.com/EricGrange/DWScript/blob/5f01a3468452ea75867d4f0e7a0246b107e92332/Source/dwsStringFunctions.pas#L1546).
+
+`Assert` now accepts a Variant condition during semantic analysis. The existing
+evaluator conversion to its Boolean parameter maps empty and Null Variants to
+false and publishes the unwrapped value for Boolean-backed Variants. Numeric and
+string conversions retain their existing behavior. The empty/Null rule follows
+upstream
+[`VariantToBool`](https://github.com/EricGrange/DWScript/blob/5f01a3468452ea75867d4f0e7a0246b107e92332/Source/dwsUtils.pas#L2556).
+Direct Integer/String conditions and non-String assertion messages remain invalid.
+False conditions retain `EAssertionFailed`, the call position, and optional message.
+
+Real compile/run regressions failed before implementation. Replacement tests cover
+empty strings, overlapping matches, Unicode, chaining, aliases, case-insensitive
+lookup, receiver immutability, and discarded calls evaluating operands once.
+Assertion tests cover Boolean/numeric/string/empty/Null Variants, invalid static
+arguments, and once-only evaluation with exact exception messages and positions.
+The initial semantic-only Assert change exposed the boxed Boolean and empty/Null
+runtime failures before those conversions were corrected.
+
+Variant argument detection now consults canonical resolved semantic types before
+the legacy annotation, so a Variant-returning function receives the same conversion
+as a variable. The once-only condition regression exposed that missing path.
+Semantic condition checks unwrap aliases; review added regressions for Boolean
+and Variant alias chains used as variables and function results.
+
+Once `String.Replace` enabled `SimpleScripts/ignore_result` to compile, its final
+statement exposed an older `Chr(-1)` diagnostic mismatch. Invalid runtime codepoints
+now report `Invalid codepoint: <value>`, retaining catchability and call positions.
+Real-path tests cover negative and above-Unicode values plus valid range boundaries.
+No fixture scripts or expected outputs were changed.
+
+The regenerated harness report and freshly rebuilt CLI agree on totals, passes,
+failures and skips across all 61 categories. Only **SimpleScripts rises, 376 →
+378/443**. Overall results are **1,149/1,966 scored**, 817 failures and 78 unscored;
+in-scope execution failures fall **125 → 123**. Baselines ratchet upward without
+any category decrease. Strict regressions require `ignore_result`, `assert_variant`
+and the existing Boolean `assert` fixture to pass with their configured hint level.
+
+```sh
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go test -v -race ./...
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false just --tempdir /tmp fixture-update
+GOCACHE=/tmp/go-dws-plan-cache GOFLAGS=-buildvcs=false go run ./cmd/fixture-report --cli /tmp/go-dws-e7-cli --timeout 60
+GOCACHE=/tmp/go-dws-plan-cache GOLANGCI_LINT_CACHE=/tmp/go-dws-e7-lint-cache GOFLAGS=-buildvcs=false golangci-lint run --new-from-rev=HEAD --timeout=5m
+```
+
+The full race-enabled suite passes, including a final run after the alias fix and
+baseline update. Diff-scoped lint reports zero issues. An unrestricted lint run
+still reports the repository's existing backlog (1,218 findings); CI likewise
+filters for new issues. All tracked/non-ignored Go files pass `gofmt -l`, and
+`git diff --check` is clean.

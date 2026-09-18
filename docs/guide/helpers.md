@@ -48,6 +48,22 @@ Both syntax variants are functionally equivalent. The `record helper` syntax is 
 
 ## Features
 
+### Built-in string replacement
+
+`String.Replace(sub: String; newSub: String): String` returns a string with all
+nonoverlapping occurrences of `sub` replaced by `newSub`. Matching is case-sensitive;
+an empty `sub` leaves the string unchanged. The receiver is not modified:
+
+```pascal
+var text := 'banana';
+PrintLn(text.Replace('na', 'NA')); // baNANA
+PrintLn(text);                     // banana
+text.Replace('a', 'o');            // Result may be ignored; text is still banana
+```
+
+The helper accepts exactly two arguments. It uses the same replacement behavior as
+the standalone `StrReplace` function with its default replacement count.
+
 ### Built-in numeric and array helpers
 
 Integer values provide `TestBit(index): Boolean`, `PopCount: Integer`, and

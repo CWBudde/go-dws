@@ -17,6 +17,7 @@ const (
 	HelperBuiltinStrArrayPack    BuiltinHelperOperation = "StrArrayPack"
 	HelperBuiltinStrDeleteLeft   BuiltinHelperOperation = "StrDeleteLeft"
 	HelperBuiltinStrDeleteRight  BuiltinHelperOperation = "StrDeleteRight"
+	HelperBuiltinStrReplace      BuiltinHelperOperation = "StrReplace"
 	HelperBuiltinStripAccents    BuiltinHelperOperation = "StripAccents"
 	HelperBuiltinTestBit         BuiltinHelperOperation = "TestBit"
 	HelperArrayAdd               BuiltinHelperOperation = "__array_add"
@@ -197,6 +198,7 @@ var builtinHelperMembers = map[string][]BuiltinHelperMember{
 		}},
 		{Name: "DeleteLeft", Operation: HelperBuiltinStrDeleteLeft, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{INTEGER}, STRING) }},
 		{Name: "DeleteRight", Operation: HelperBuiltinStrDeleteRight, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{INTEGER}, STRING) }},
+		{Name: "Replace", Operation: HelperBuiltinStrReplace, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{STRING, STRING}, STRING) }},
 		{Name: "Normalize", Operation: HelperBuiltinNormalizeString, Method: true, Signature: func() *FunctionType {
 			return NewFunctionTypeWithMetadata(
 				[]Type{STRING},
