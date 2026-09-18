@@ -1,8 +1,8 @@
 # DWScript Interfaces: Implementation and Usage Guide
 
-**Document Version:** 1.0
-**Date:** October 2025
-**Related Task:** 7.155
+**Document Version:** 1.1
+**Date:** September 2026
+**Related Tasks:** 7.155, E5
 
 ## Overview
 
@@ -296,6 +296,13 @@ end;
 - Raises error if class doesn't implement interface
 - Creates wrapper that holds reference to object
 
+An explicit cast checks the object's actual class, so an object stored in a
+`TObject` variable can be cast to an interface implemented by its concrete class.
+Implicit assignment still requires the static type to implement the interface.
+A nil object or nil interface cast to an interface produces a nil reference.
+Interface references can be assigned to the root `IInterface` type; converting
+back to a more specific interface requires an explicit cast.
+
 ### Interface-to-Interface Casting
 
 ```pascal
@@ -361,13 +368,26 @@ end;
 - Must use correct class (or parent class)
 - Enables access to non-interface members
 
-### Type Checking with `is` Operator
+An incompatible cast raises a catchable exception with the position of `as`.
+Object-to-interface failures report `Class "TName" does not implement interface
+"IName"`; interface casts report `Cannot cast interface of "TName" to class
+"TTarget"` or `Cannot cast interface of "TName" to interface "ITarget"`.
+
+### Interface Equality
+
+`=` and `<>` compare the underlying object identity, including when the operands
+have unrelated interface types. Two interface wrappers around the same object
+compare equal; references to different objects compare unequal. Nil interfaces
+compare equal to each other and to `nil` on either side. Ordering comparisons
+such as `<` are invalid.
+
+### Checking Implementations
 
 ```pascal
 var
   obj: TObject;
 begin
-  if obj is IDrawable then
+  if obj implements IDrawable then
   begin
     var drawable: IDrawable := obj as IDrawable;
     drawable.Draw;
@@ -375,10 +395,16 @@ begin
 end;
 ```
 
-**Safe Casting Pattern:**
-1. Use `is` to check if cast is valid
-2. If true, perform `as` cast
-3. Prevents runtime errors
+`implements` accepts an object, a class name, or a metaclass variable:
+
+```pascal
+PrintLn(TCircle implements IDrawable);
+```
+
+It checks explicit interface declarations on the class and its ancestor classes.
+Declaring a derived interface alone does not make `implements` report its parent
+interface, although an explicit `as` cast can use interface inheritance. Nil
+objects and uninitialized metaclass variables return `False`.
 
 ---
 

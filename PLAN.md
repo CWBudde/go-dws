@@ -10,15 +10,15 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-13):** Go harness and freshly rebuilt CLI agree at **1,130 / 1,966 scored =
-57%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
+**Headline (2026-09-18):** Go harness and freshly rebuilt CLI agree at **1,143 / 1,966 scored =
+58%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,130 / 1,747 = 65% in scope**, the number to track against §6. Both are honest;
+same run reads **1,143 / 1,747 = 65% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -30,7 +30,7 @@ Open, in leverage order:
   families were split out — the 68 fixtures one line from passing (F9) and the `Incompatible
   types` sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half of the measurement: 142 in-scope fixtures now fail in the
+- **§3.5** is the other half of the measurement: 129 in-scope fixtures now fail in the
   suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
   ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
   and E8 is a by-reference binding bug E1 turned up.
@@ -59,10 +59,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (836 total, 2026-09-13): **219 host-library** (out of scope),
+- Where the remaining failures are (823 total, 2026-09-18): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **142 in the execution suites** (§3.5:
-  SimpleScripts 71, ArrayPass 17, JSONConnectorPass 14, InterfacesPass 12, FunctionsMath 6, a tail
+  HelpersFail 18 each, the rest under 15), and **129 in the execution suites** (§3.5:
+  SimpleScripts 67, ArrayPass 17, JSONConnectorPass 13, InterfacesPass 6, FunctionsMath 5, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -204,11 +204,10 @@ reason stays explicit. Items reopened by later evidence point to their active wo
 - ✋ Comparing a function pointer against `nil` (`f = nil`) still reports
   "operator = requires comparable types". Assignment and argument passing work; no fixture
   demands the comparison. Measured 2026-09-09.
-- `[ ]` The two remaining `OverloadsPass` failures (`overload_ambiguous_delegate`,
-  `overload_class_method`) expect case-mismatch hints tracked under E3;
-  their behavior is otherwise correct. The 14 `OverloadsFail` fixtures need
-  `The function X was forward declared but not implemented`, which does not exist anywhere in
-  the tree — that is §4 / F7, not this section.
+- The 2026-09-18 E3d audit confirms case-hint parity across all 39 `OverloadsPass` fixtures,
+  including `overload_ambiguous_delegate` and `overload_class_method`. The 14 `OverloadsFail`
+  fixtures need `The function X was forward declared but not implemented`, which does not exist
+  anywhere in the tree — that is §4 / F7, not this section.
 - ✋ The other nine `SetOfFail` fixtures (`bracket_left_missing`, `bracket_right_missing`,
   `for_in_set_missing_do`, `include`, `invalid_method`, `invalid_operand`, `of_missing`,
   `test_non_variable`, `type_missing`) are parser-recovery and message-parity work, not set
@@ -221,10 +220,10 @@ reason stays explicit. Items reopened by later evidence point to their active wo
   Reopen if the reference submodule is ever checked out.
 - ✋ `ConditionalDefined(s)` always folds to `False`; `{$DEFINE}` symbols live in preprocessor
   state the analyzer cannot reach. Argument validation is complete.
-- `[ ]` `HelpersPass/declared_helper` resolves all four `Declared()` calls but cannot pass: its
-  expectation needs the case-mismatch hints tracked under E3, and
-  `THelper.Proc(TObject.Create)` — a helper method called with an explicit instance argument —
-  is an unimplemented call form — the follow-up named above.
+- `[ ]` `HelpersPass/declared_helper` resolves all four `Declared()` calls; the 2026-09-18 E3d
+  audit confirms its case hints match. `THelper.Proc(TObject.Create)` — a helper method called
+  with an explicit instance argument — remains an unimplemented call form, the follow-up named
+  above.
 - ✋ `special_funcs4` (needs `Expression expected` for `Inc(i, )`) and `conditionals2.1` (wants
   the unbalanced report at the directive argument, column 9, where the byte-identical
   `conditionals2` wants it at the name, column 3) stay with §4 / F7.
@@ -308,9 +307,9 @@ fail**; they were never enumerated because the only measurement that existed cov
 suites. Tables and method:
 [`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
 Regenerate with `just fixture-report --in-scope --classify --list-fails`.
-The current execution-failure count is 142: private variables closed one, T7 added seven
-previously unscored failures, constructor assignment receivers closed two, and E4 numeric/array
-helpers closed seven. The classification counts below describe the September 12 audit.
+The September 18 measurement has 129 execution failures. E5 closes six from the immediately
+preceding baseline, taking InterfacesPass from 21/33 to 27/33. Earlier improvements are recorded
+in the progress log; the classification counts below describe the September 12 audit.
 
 Read the numbers with one caveat: **111 of the 145 are classified `mixed`** (a diagnostic *and* the
 output differ), which for an execution suite is almost always one fault — a spurious compile error
@@ -324,39 +323,66 @@ regressions; refresh category baselines and CLI/harness parity when fixtures imp
 
 #### E3 — Case-mismatch hints `[~]` M
 
-The September 12 audit found 28 fixtures missing hints and 9 receiving unwanted hints across
-`SimpleScripts`, `ArrayPass`, `HelpersPass`, `OverloadsPass` and `FailureScripts`. Only five
-fail solely on this family. `Analyzer.addCaseMismatchHint` is called from ~20 resolution sites.
+The September 18 audit supersedes September 12's 28 fixtures missing hints and 9 receiving
+unwanted hints. Across the same five categories, two fixtures still lack hints and three have
+extra hints; no duplicate case diagnostics were found. Only `HelpersPass/record_array_helper`
+is an isolated case-hint residual; the others need scope, API or parser-recovery fixes first.
 
 - [x] **E3a — Establish hint configuration.** Completed 2026-09-13: the bundled
   `UScriptTests.pas` sets pedantic hints for all five E3 categories, with no per-fixture override.
   Fresh CLI runs match `array_in2` at pedantic and `hanoi` at normal, resolving July's gate example.
-  `hint_pedantic` still needs source suppression and diagnostic ordering; `inherited_constructor`
-  still needs a case hint and removal of two unrelated overload hints. Settings, exact diffs and
-  remaining exclusions are recorded in
+  The source-suppression and declaration-resolution findings in this historical audit are
+  superseded by E3b/E3d below; independent diagnostic ordering and overload hints remain separate.
+  Settings and the original exact diffs are recorded in
   [the E3a audit](docs/history/progress-log-2026-09.md#2026-09-13--fixture-hint-configuration-e3a).
-- [ ] **E3b — Apply source hint controls consistently.** Carry the applicable hint setting to
-  semantic diagnostics. Test disabled hints and subsequent re-enabling through the shared compile
-  pipeline, using the proven configuration from E3a.
-- [ ] **E3c — Unify declared-name handling.** Make resolved declarations supply their original
-  spelling consistently, and consolidate case-hint emission across the affected resolution paths.
-  Cover missing, unwanted and duplicate hints without changing case-insensitive lookup.
-- [ ] **E3d — Re-measure the affected fixtures.** Compare all five categories for missing and
-  spurious hints; record fixtures that still need another fix and any remaining §5 exclusions.
+- [x] **E3b — Apply source hint controls consistently.** Existing shared-pipeline regressions
+  verify suppression, re-enabling, configured defaults, includes, units and invalid switches.
+- [~] **E3c — Unify declared-name handling.** Declaration-spelling and duplicate-emission
+  regressions are in place. Remaining isolated work: establish the upstream resolution rule for
+  the two unwanted `X`/`x` hints in `HelpersPass/record_array_helper` at 23:21 and 23:35;
+  do not suppress record-field hints broadly or weaken case-insensitive lookup.
+  Recheck `SimpleScripts/class_var_dyn2` after class-variable scope resolution (§3.2),
+  `string_builtin_methods` after missing string APIs (§3.2 helper support / E7), and
+  `ArrayPass/dynamic_anonymous_record` plus `FailureScripts/block_unfinished4` after parser
+  recovery (§4/F3). These prerequisites must not be hidden with hint suppression.
+- [x] **E3d — Re-measure the affected fixtures.** Compared case-diagnostic multisets across
+  SimpleScripts (443), ArrayPass (115), HelpersPass (27), OverloadsPass (39) and FailureScripts
+  (542). `classname_helper1` timed out during execution; compile-only output has no case hints.
+  The [September 18 audit](docs/history/progress-log-2026-09.md#2026-09-18--case-hint-controls-and-residual-audit-e3)
+  records missing/extra hints and prerequisite defects; §5's unverified-runner gate is unchanged.
 
-#### E5 — Interface casting and comparison `[ ]` M
+#### E5 — Interface casting and comparison `[x]` — completed 2026-09-18
 
-`InterfacesPass` has 12 failures; three were within two edits in the audit. A recurring spurious
-error is `'X' operator requires class instance, got IInterface`.
+Six fixtures close: `interface_cast_to_obj`, `interface_multiple_cast`,
+`interface_nil_cast_from_intf`, `intf_casts`, `intf_compare`, and `interface_implements_intf`.
+`InterfacesPass` rises **21 → 27/33**, with no category baseline decreases.
+Implementation and validation are recorded in
+[the September progress log](docs/history/progress-log-2026-09.md#2026-09-18--interface-casts-comparisons-and-implementation-checks-e5).
 
-- [ ] **E5a — Accept valid interface casts.** Separate interface-to-class and
-  interface-to-interface cases, then align semantic acceptance and evaluator dispatch. Check both
-  successful casts and unsupported target types, with DWScript's cast-failure messages.
-- [ ] **E5b — Fix interface comparisons.** Isolate comparisons rejected as class-only operations;
-  cover equal/different instances and nil operands through the real execution path.
-- [ ] **E5c — Verify implementation checks and remaining failures.** Match
-  `Class "X" does not implement interface "X"` where required, run the full category, and
-  identify any failures outside casting/comparison before closing E5.
+- [x] **E5a — Accept valid interface casts.** Class/interface casts validate the actual object
+  at runtime, with nil, aliases, identity, exceptions and root `IInterface` conversion covered.
+  Invalid implicit assignments and incomplete class implementations remain compile errors.
+- [x] **E5b — Fix interface comparisons.** Unrelated interface types compare underlying object
+  identity with `=`/`<>`; nil operands work, ordering and scalar comparisons remain invalid.
+- [x] **E5c — Verify implementation checks and remaining failures.** Class references and
+  metaclass variables support `implements`; explicit interface declarations remain its rule.
+  Cast failures match fixture messages and positions; the remaining failures are listed below.
+
+Bounded follow-ups identified during E5 triage; do not broaden casting/comparison fixes to
+silence these failures:
+
+- [ ] `interface_nil_cast_from_obj`: `Impl` is tokenized as the reserved `IMPL` token;
+  resolve identifier handling separately and retain a nil-object cast regression using `Obj`.
+- [ ] `interface_properties`: indexed/default interface property semantics.
+- [ ] `intf_delegate`: interface method references assigned to procedure variables.
+- [ ] `intf_in_record`: restore the caller location in the runtime-error trace.
+- [ ] `intf_private`: unwanted unused-private hints for `Hello` and `Unused` (§4/F1).
+- [ ] `intf_self_ref`: resolve self-referential interface method return types.
+- [ ] Mixed class/interface equality: semantic analysis accepts operands that the evaluator
+  rejects; establish compatible reference-comparison behavior separately from interface/interface
+  equality.
+- [ ] Interface alias assignment: assigning an object directly to an interface alias is
+  rejected, while assigning through a variable of the underlying interface type works.
 
 #### E6 — JSON value conversion `[ ]` M
 
@@ -511,8 +537,8 @@ Work families — IDs from the 2026-03 analysis
     `Redundant specifier, visibility is already "X"` (`class_visibility_redundant`) ·
     `"X" parameter is a reference type passed as VAR, but never written to`
     (`hint_reference_var_params`) · `Assigning a to itself` (`self_assign`).
-  - Case-mismatch hints are tracked under E3, whose runner-configuration gate is resolved for
-    `FailureScripts`; the audit counted 13 lines over 9 fixtures, smaller than the archive implied.
+  - Case-mismatch hints are tracked under E3. Its September 18 audit leaves one `FailureScripts`
+    fixture with an extra case hint, `block_unfinished4`, tied to parser recovery (§4/F3).
 - **F2** `[ ]` M Array diagnostics: `Array expected`, `Too many indices` (8 lines, all in one
   fixture), bound-exceeded wording, malformed array-type recovery, and
   `Range start and range stop are of incompatible types: "X" and "Y"` 9 (4).
@@ -657,8 +683,8 @@ Gate for everything ⏸️ below: **every non-host-library fixture category ≥ 
   configuration before pursuing parity. **E3a satisfies this gate for SimpleScripts, ArrayPass,
   HelpersPass, OverloadsPass and FailureScripts**: their bundled runner selects pedantic hints,
   with no per-fixture override. Algorithms uses the normal default, explaining July's
-  `array_in2`/`hanoi` contrast. E3b/E3c are actionable for the five proven categories; source
-  directives and name-resolution defects are separate from runner settings. See
+  `array_in2`/`hanoi` contrast. E3b source controls and the E3d audit are complete; E3c's bounded
+  name-resolution residual remains separate from runner settings. See
   [the E3a audit](docs/history/progress-log-2026-09.md#2026-09-13--fixture-hint-configuration-e3a).
   The July "Hint/warning envelope" account remains historical, not the current blanket gate.
   `queue_snapshot` stays parked for the specific unresolved resolution behavior in §3.3.

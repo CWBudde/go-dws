@@ -787,11 +787,16 @@ func (a *Analyzer) canAssignClass(from, to types.Type) bool {
 
 // canAssignInterface checks interface assignment compatibility.
 func (a *Analyzer) canAssignInterface(from, to types.Type) bool {
-	fromInterface, fromOk := from.(*types.InterfaceType)
-	toInterface, toOk := to.(*types.InterfaceType)
+	fromInterface, fromOk := types.GetUnderlyingType(from).(*types.InterfaceType)
+	toInterface, toOk := types.GetUnderlyingType(to).(*types.InterfaceType)
 
 	if !fromOk || !toOk {
 		return false
+	}
+	// Every interface reference can be stored in the built-in root interface,
+	// even when its declaration has no explicit parent.
+	if ident.Equal(toInterface.Name, "IInterface") {
+		return true
 	}
 	return fromInterface.Equals(toInterface) || fromInterface.InheritsFrom(toInterface)
 }

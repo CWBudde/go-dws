@@ -88,6 +88,9 @@ func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionCont
 	if isError(left) {
 		return left
 	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
 
 	// Get the target type name from the type expression
 	targetTypeName := ""
@@ -138,6 +141,11 @@ func (e *Evaluator) VisitImplementsExpression(node *ast.ImplementsExpression, ct
 	}
 
 	// Use evaluator's checkImplements helper (no adapter)
+	if target, err := e.resolveTypeName(targetInterfaceName, ctx); err == nil {
+		if iface, ok := types.GetUnderlyingType(target).(*types.InterfaceType); ok {
+			targetInterfaceName = iface.Name
+		}
+	}
 	result, err := e.checkImplements(left, targetInterfaceName)
 	if err != nil {
 		return e.newError(node, "%s", err.Error())
@@ -247,6 +255,12 @@ func (e *Evaluator) interfaceInheritsFrom(sourceName string, targetIface runtime
 	if ifaceAny == nil {
 		return false
 	}
+	// All registered interfaces support the built-in root, including declarations
+	// without an explicit parent. The implements operator uses a separate,
+	// explicit-declaration check and does not gain this implicit relationship.
+	if ident.Equal(targetIface.GetName(), "IInterface") {
+		return true
+	}
 
 	var ifaceInfo runtime.IInterfaceInfo = ifaceAny
 
@@ -275,6 +289,14 @@ func (e *Evaluator) checkImplements(obj Value, interfaceName string) (bool, erro
 
 	// Try ObjectValue first (most common case)
 	classMeta = e.getClassMetadataFromValue(obj)
+	// Class aliases are represented by type metadata instead of class values.
+	if alias, ok := obj.(*runtime.TypeMetaValue); ok {
+		if classType, ok := types.GetUnderlyingType(alias.TypeInfo).(*types.ClassType); ok {
+			if classInfo := e.typeSystem.LookupClass(classType.Name); classInfo != nil {
+				classMeta = classInfo.GetMetadata()
+			}
+		}
+	}
 
 	// If that didn't work, check if it's a ClassValue or ClassInfoValue
 	// These types are in internal/interp, so we check by interface
@@ -314,9 +336,6 @@ func (e *Evaluator) checkImplements(obj Value, interfaceName string) (bool, erro
 // This is separate from classImplementsInterface() because:
 // - classImplementsInterface() (for 'is' operator) - WILL check interface inheritance when implemented
 // - classImplementsInterfaceExplicitly() (for 'implements' operator) - will NOT check interface inheritance
-//
-// Currently both are identical because interface inheritance isn't implemented yet.
-// They will diverge when interface inheritance is added.
 func (e *Evaluator) classImplementsInterfaceExplicitly(classMeta *runtime.ClassMetadata, interfaceName string) bool {
 	if classMeta == nil {
 		return false
@@ -351,6 +370,17 @@ func (e *Evaluator) classImplementsInterfaceExplicitly(classMeta *runtime.ClassM
 //
 // Returns (Value, error) - does NOT raise exceptions.
 func (e *Evaluator) castType(obj Value, typeName string, node ast.Node, ctx *ExecutionContext) (Value, error) {
+	// Runtime registries use declaration names, so resolve aliases before lookup.
+	if !e.typeSystem.HasClass(typeName) && !e.typeSystem.HasInterface(typeName) {
+		if resolved, err := e.resolveTypeName(typeName, ctx); err == nil && resolved != nil {
+			switch target := types.GetUnderlyingType(resolved).(type) {
+			case *types.ClassType:
+				typeName = target.Name
+			case *types.InterfaceType:
+				typeName = target.Name
+			}
+		}
+	}
 	targetLower := ident.Normalize(typeName)
 
 	// Handle variant-specific casting to primitive types
@@ -400,6 +430,9 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node, ctx *Exe
 
 	// Handle nil - nil can be cast to any type
 	if _, isNil := obj.(*runtime.NilValue); isNil {
+		if e.typeSystem.HasInterface(typeName) {
+			return e.createInterfaceWrapper(typeName, nil)
+		}
 		return &runtime.NilValue{}, nil
 	}
 
@@ -449,7 +482,7 @@ func (e *Evaluator) castType(obj Value, typeName string, node ast.Node, ctx *Exe
 				return nil, err
 			}
 			if !e.isClassHierarchyCompatible(underlyingClassMeta, targetClassMeta) {
-				return nil, fmt.Errorf("cannot cast interface of '%s' to class '%s'", underlyingClassMeta.Name, typeName)
+				return nil, fmt.Errorf("cannot cast interface of \"%s\" to class \"%s\"", underlyingClassMeta.Name, typeName)
 			}
 
 			// Cast is valid - return the underlying object

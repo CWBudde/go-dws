@@ -611,6 +611,13 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 
 		// For equality, types must be comparable
 		if operator == "=" || operator == "<>" {
+			// Interface equality compares the underlying object identity, even
+			// when neither interface can be assigned to the other.
+			_, leftIsInterface := types.GetUnderlyingType(leftType).(*types.InterfaceType)
+			_, rightIsInterface := types.GetUnderlyingType(rightType).(*types.InterfaceType)
+			if leftIsInterface && rightIsInterface {
+				return types.BOOLEAN
+			}
 			// If either operand is Variant, allow the comparison
 			if !leftIsVariant && !rightIsVariant {
 				// A function-pointer operand is implicitly called before it is
