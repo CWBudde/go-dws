@@ -9,13 +9,13 @@ func TestRun_SourceHintControls(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		level   string
-		compile bool
 		want    string
+		compile bool
 	}{
-		{"pedantic envelope", "pedantic", false, "Errors >>>>\n" + restoredHint + explicitHint + "Result >>>>\n7\n7\n7\n7\n"},
-		{"normal envelope", "normal", false, "Errors >>>>\n" + explicitHint + "Result >>>>\n7\n7\n7\n7\n"},
-		{"pedantic compile only", "pedantic", true, restoredHint + explicitHint},
-		{"normal compile only", "normal", true, explicitHint},
+		{"pedantic envelope", "pedantic", "Errors >>>>\n" + restoredHint + explicitHint + "Result >>>>\n7\n7\n7\n7\n", false},
+		{"normal envelope", "normal", "Errors >>>>\n" + explicitHint + "Result >>>>\n7\n7\n7\n7\n", false},
+		{"pedantic compile only", "pedantic", restoredHint + explicitHint, true},
+		{"normal compile only", "normal", explicitHint, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			out, err := captureRun(t, source, nil, func() {
