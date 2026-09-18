@@ -34,6 +34,10 @@ func (e *Evaluator) valueToJSONValue(val Value, node ast.Node, ctx *ExecutionCon
 	case *runtime.JSONValue:
 		// ObjectSet/ArrayAppend adopt their child. Serialization must not move
 		// live JSON nodes out of the source tree, including nested map values.
+		// A nil node represents JSON undefined, which serializes as null.
+		if v == nil || v.Value == nil {
+			return jsonvalue.NewNull()
+		}
 		return v.Value.Clone()
 	case *runtime.AssociativeArrayValue:
 		return e.associativeArrayToJSON(v, node, ctx)

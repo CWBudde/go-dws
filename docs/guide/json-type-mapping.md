@@ -65,7 +65,10 @@ the connector's normal serialization rules, including readable properties and
 custom `Stringify` methods where applicable. Serialization must preserve the
 source map and any JSON nodes stored inside it.
 
-String, Integer, Float and Variant keys (including aliases) become member names;
+Base scalar keys (String, Integer, Float, Boolean) and Variant keys, including
+aliases, become member names, following DWScript's base-type key check (note
+that `array [Boolean] of T` declares a static array, which serializes as a JSON
+array);
 unsupported record or object keys produce an empty object. Distinct Variant keys
 that convert to the same name currently collapse to one member; this remains a
 compatibility follow-up.
