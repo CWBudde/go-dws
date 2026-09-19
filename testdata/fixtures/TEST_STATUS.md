@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1156 |
-| Failed | 810 |
+| Passed | 1174 |
+| Failed | 792 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **59%** (1156/1966) |
+| **Scored pass rate** | **60%** (1174/1966) |
 
 ## Per-category
 
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 156 | 373 | 13 | 29% |
+| FailureScripts | 542 | 171 | 358 | 13 | 32% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -75,9 +75,9 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | OperatorOverloadPass | 8 | 5 | 3 | 0 | 62% |
 | OverloadsFail | 14 | 0 | 14 | 0 | 0% |
 | OverloadsPass | 39 | 37 | 2 | 0 | 95% |
-| PropertyExpressionsFail | 10 | 0 | 10 | 0 | 0% |
+| PropertyExpressionsFail | 10 | 2 | 8 | 0 | 20% |
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
-| SetOfFail | 14 | 5 | 9 | 0 | 36% |
+| SetOfFail | 14 | 6 | 8 | 0 | 43% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
 | SimpleScripts | 443 | 381 | 62 | 0 | 86% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
