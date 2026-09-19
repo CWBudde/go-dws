@@ -77,8 +77,10 @@ check-tidy:
 # golangci-lint is installed via `go install` (verified through the Go module
 # checksum database) because the release-asset installer failed checksum
 # verification for multiple versions on CI runners (2026-07-04).
+# goimports is pinned to x/tools v0.42.0, the last release supporting Go 1.24
+# (CI runs Go 1.24 with GOTOOLCHAIN=local; v0.43+ require newer Go).
 install-tools:
-    go install golang.org/x/tools/cmd/goimports@latest
+    go install golang.org/x/tools/cmd/goimports@v0.42.0
     go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.1
 
 # Install development dependencies (formatters and linters) - alias for install-tools

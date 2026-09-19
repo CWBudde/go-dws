@@ -19,8 +19,5 @@ jobs:
       - name: Setup just
         uses: extractions/setup-just@v4
 
-      - name: Install formatters and linters
-        run: just setup-deps
-
       - name: Check code formatting
         run: just check-fmt

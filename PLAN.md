@@ -468,7 +468,7 @@ CLI and harness agree across all 61 categories, with no baseline decreases.
 The [September progress log](docs/history/progress-log-2026-09.md#2026-09-19--array-element-var-argument-binding-e8)
 records the reproductions, implementation and validation. E9 remains separately tracked.
 
-#### E9 — Single evaluation of assignment and var-argument receivers `[~]`
+#### E9 — Single evaluation of assignment and var-argument receivers `[x]` — completed 2026-09-19
 
 This ID covers the previously unnumbered receiver follow-up from §3.3. Construction counters
 and a class var retaining `Self` expose duplicate execution and incorrect receiver identity.
@@ -477,14 +477,19 @@ and a class var retaining `Self` expose duplicate execution and incorrect receiv
   once for `:=`, including inherited constructors and property setters. `Memory/obj_fields` and
   `SimpleScripts/override_deep` pass. Shipped 2026-09-13;
   [implementation and validation](docs/history/progress-log-2026-09.md#2026-09-13--constructor-results-as-assignment-receivers-33).
-- [ ] **E9b — Compound assignments.** Make `T.Create().Value += 2` reuse one resolved receiver
-  for the read and write. Extend counter/identity checks to fields, property access and failures
-  that must prevent the write.
-- [ ] **E9c — Var arguments.** Make `Mutate(T.Create.Value)` and the explicit-parentheses form
-  bind storage from one receiver evaluation. Prove that mutation reaches that instance and that
-  receiver exceptions prevent the call.
-- [ ] **E9d — Bare free-function receivers.** Resolve `Make.Value := 42` as the implicit call
-  form of the already working `Make().Value := 42`; check single evaluation and exception handling.
+- [x] **E9b — Compound assignments.** Member reads and writes reuse one captured receiver,
+  including constructor results and properties. Counter/identity regressions cover all four
+  compound operators, receiver replacement by the RHS, and failures that prevent the write.
+- [x] **E9c — Var arguments.** E8 already removed duplicate constructor evaluation; captured
+  object-field references now also observe writes through aliases and later arguments. Real-path
+  tests cover inherited constructors, overloads, methods, receiver identity and exceptions.
+- [x] **E9d — Bare free-function receivers.** `Make.Value := 42` now matches `Make().Value := 42`,
+  including local functions and property setters. Write-only properties use assignment validation;
+  read-only writes and write-only reads remain rejected. Failures preserve the original exception.
+
+The [September progress log](docs/history/progress-log-2026-09.md#2026-09-19--single-evaluation-of-member-receivers-e9)
+records the real-path regressions and validation. Compound index assignment remains a separate
+follow-up: its read and write still resolve the index expression independently.
 
 #### E10 — Remaining execution-suite triage `[ ]`
 

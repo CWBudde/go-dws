@@ -4631,3 +4631,60 @@ GOCACHE=/tmp/go-dws-e8-cache GOLANGCI_LINT_CACHE=/tmp/go-dws-e8-lint-cache GOFLA
 
 Diff-scoped lint reports zero issues. Changed Go files are formatted and
 `git diff --check` is clean. E9 receiver work remains separately tracked.
+
+
+## 2026-09-19 — single evaluation of member receivers (E9)
+
+E9b–d complete the receiver follow-up to the September 13 constructor assignment
+work. Compound member assignments now capture one receiver for the read and
+write. Previously, `T.Create().Value += 2` constructed two objects and read one
+before writing the other. The evaluator shares the existing member read/write
+dispatch with helpers accepting the captured receiver and original AST metadata.
+This preserves property dispatch, inherited members, static casts, interfaces,
+helpers and record copying. Receiver, getter, RHS and operator failures stop the
+remaining stages, including a script exception raised by an overloaded operator.
+
+E8 had already removed duplicate construction from basic member `var` arguments.
+E9c adds dedicated coverage and fixes a remaining snapshot getter: after an alias
+changes a captured field from 10 to 40, reading the `var` parameter now sees 40,
+and incrementing it by two writes 42. The reference retains the original instance
+even when a later argument constructs another. Existing reference chains keep
+their array bounds checks, and property binding behavior is preserved.
+
+Bare free functions now work as assignment receivers: `Make.Value := 42` matches
+`Make().Value := 42`. Existing variable storage, local-variable shadowing and
+function-result aliases retain their behavior. Semantic assignment analysis also
+uses the implicit call's result type before checking properties, allowing a bare
+receiver to assign a write-only property while still rejecting its reads and
+compound assignments. Receiver exceptions retain their original messages.
+
+Real compile/run regressions first reproduced the constructor duplication, stale
+field reads and bare-receiver failures. The tests cover all four compound
+operators, bare/explicit and inherited constructors, getter/setter counts, RHS
+receiver replacement, static field identity, interface/helper properties, routine
+and method overloads, local functions, later-argument effects, and both script
+exceptions and runtime errors. Existing E8 and E9a regressions remain covered.
+
+The changes stay in the evaluator and semantic analyzer; no public API or
+bytecode behavior changes. Compound index assignment still resolves its read and
+write separately and remains a follow-up outside E9's member-receiver scope.
+
+Validation:
+
+```sh
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go test ./...
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go test ./internal/interp ./internal/semantic ./pkg/dwscript -run '^(TestCompoundReceiver_|TestVarReceiver_|TestFunctionReceiverAssignment_|TestBareFunctionReceiver_|TestConstructorAssignment_|TestArrayElementVar_|TestEngine_ArrayElementVar|TestPropertyUseSiteErrors)' -count=1
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false just --tempdir /tmp fixture-update
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go run ./cmd/fixture-report --cli /tmp/go-dws-e9-cli --timeout 60
+GOCACHE=/tmp/go-dws-e8-cache GOLANGCI_LINT_CACHE=/tmp/go-dws-e8-lint-cache GOFLAGS=-buildvcs=false golangci-lint run --new-from-rev=HEAD --timeout=5m
+```
+
+The full suite and focused regressions pass. Harness and freshly rebuilt CLI agree
+at **1,150 / 1,966 scored**, with 816 failures and 78 unscored fixtures. Every
+category retains its baseline; E9 closes with real-path regressions rather than
+new fixture passes. The generated status was refreshed and baseline floors are
+unchanged. Upstream scripts and expectations were not modified.
+
+Diff-scoped lint reports zero issues. Two narrow complexity annotations cover
+existing dispatch bodies extracted into shared helpers; other lint checks remain
+active. Changed Go files are formatted and `git diff --check` is clean.
