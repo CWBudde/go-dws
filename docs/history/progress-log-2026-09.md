@@ -4890,3 +4890,40 @@ Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues). Stacked on the compiler-stop
 slice, CLI and harness agree at **1,184 / 1,966 scored** (+7): OverloadsFail 0 → 3,
 FailureScripts 174 → 177, AssociativeFail 1 → 2. No category dropped.
+
+## 2026-09-19 — string-constant diagnostics (§4 / F9)
+
+Ported from the upstream tokenizer (the DWScript-Language-Server copy of the DWScript source;
+the older standalone checkout predates triple-apostrophe strings). All in
+`internal/lexer/lexer.go` unless noted.
+
+- **Triple-apostrophe strings.** A single-quoted string reaching a line break becomes a
+  triple-apostrophe string running to the next `'''`, checked and de-indented by a port of
+  `AppendTripleToStr`. `Incorrect triple apostrophe string [indentation]` is reported at the
+  opening quote and does not stop compilation; reaching end of file stops it with
+  `End of string constant not found (end of line)` (`triple_apos1`, `triple_apos2`).
+- **Open double-quoted strings** stop with `… (end of file)`, positioned as upstream does after
+  appending a terminator to an already-terminated last line (`heredoc`).
+- **`#'…'` / `#"…"` strings** span lines and lose their common indentation (port of
+  `AppendMultiToStr`), which also passes SimpleScripts `heredoc_indent` and `heredoc_special`.
+- **Char constants above U+10FFFF** stop with `Invalid char constant "…"` (`invalid_ucs2_char`).
+- These go through the directive-diagnostic channel with a new `LexerError.Constant` flag; fatal
+  ones set `stopped` like `{$FATAL}`. Because upstream's tokenizer only reads as far as the
+  parser asks, `reachedLexerDiagnostics` (`internal/frontend/result.go`) drops a constant error
+  that a parser error precedes — an approximation, tracked in PLAN.md §4/F9.
+- **Nameless `var`** (`internal/parser/statements.go`): after `Name expected`, the parser skips
+  to the `;`, removing the spurious `Undefined variable 'Integer'` for `var &… : Integer` and
+  `var 1 : Integer` alike (`reserved_escape_empty`, `reserved_escape_number`).
+- `dwscript fmt` reports fatal lexer errors rather than formatting a truncated program.
+
+Tests: `internal/frontend/string_constant_test.go` (full compile path per diagnostic, the
+lookahead drop, the nameless-var skip); lexer tables `TestIndentedStrings`,
+`TestIndentedStringUnterminated`, `TestInvalidCharConstant`, a rewritten `TestTripleQuoteErrors`
+and upstream `UTokenizerTests` cases in `TestTripleQuoteStrings`. Tests that pinned the old
+behaviour (a single-quoted multi-line string, "unterminated string literal") now expect
+upstream's. `"""`-plus-newline strings remain a go-dws extension.
+
+Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
+`golangci-lint run --new-from-rev=origin/main ./...` (0 issues). Stacked on the overload slice,
+CLI and harness agree at **1,189 / 1,966 scored** (+8): FailureScripts 174 → 180, SimpleScripts
+381 → 383. No category dropped.
