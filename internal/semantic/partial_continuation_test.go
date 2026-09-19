@@ -58,3 +58,21 @@ func TestPartialContinuation_MissingHintPositionFallsBack(t *testing.T) {
 		t.Error("nonpartial continuation closed the partial class")
 	}
 }
+
+func TestPartialContinuation_ConflictingAncestorRejected(t *testing.T) {
+	p := parser.New(lexer.New(`type TA = class end;
+type TB = class end;
+type TTest = partial class(TA) end;
+type TTest = class(TB) end;`))
+	program := p.ParseProgram()
+	if len(p.Errors()) != 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+	analyzer := NewAnalyzer()
+	if err := analyzer.Analyze(program); err == nil {
+		t.Fatal("expected conflicting ancestor error")
+	}
+	if !strings.Contains(strings.Join(analyzer.Errors(), "\n"), "conflicting parent classes") {
+		t.Errorf("missing conflicting parent error in %v", analyzer.Errors())
+	}
+}

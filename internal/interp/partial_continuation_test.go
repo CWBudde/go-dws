@@ -49,3 +49,10 @@ func TestPartialContinuation_OrdinaryDuplicateRejected(t *testing.T) {
 	assertCompileError(t, `type TTest = class end;
 type TTest = class end;`, "already defined")
 }
+
+func TestPartialContinuation_ConflictingAncestorRejected(t *testing.T) {
+	assertCompileError(t, `type TA = class end;
+type TB = class end;
+type TTest = partial class(TA) end;
+type TTest = class(TB) end;`, "conflicting parent classes")
+}

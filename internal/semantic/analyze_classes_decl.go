@@ -41,6 +41,9 @@ func (a *Analyzer) handleExistingClass(
 			return false, false, true
 		}
 	} else if existingClass.IsPartial && !decl.IsPartial && !isForwardDecl {
+		if !a.validatePartialClassParent(existingClass, decl, className) {
+			return false, false, true
+		}
 		pos := decl.PartialHintPos
 		if pos.Line == 0 {
 			pos = decl.Token.Pos

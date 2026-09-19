@@ -302,6 +302,15 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		return parentErr
 	}
 
+	// A partial continuation that names an ancestor must name the one already set.
+	if node.Parent != nil && !classInfo.HasNoParentClass() {
+		if concrete, ok := classInfo.(*runtime.ClassInfo); ok {
+			if existing := concrete.GetParent(); existing != nil && !ident.Equal(existing.GetName(), parentClassName) {
+				return e.newError(node, "partial class '%s' has conflicting parent classes", className)
+			}
+		}
+	}
+
 	// Set parent reference and inherit members
 	if parentClass != nil && classInfo.HasNoParentClass() {
 		classInfo.SetParentClass(parentClass)
