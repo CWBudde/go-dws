@@ -1609,6 +1609,8 @@ func (a *Analyzer) analyzeUnitDeclaration(unit *ast.UnitDeclaration) {
 			a.analyzeStatement(stmt)
 		}
 	}
+
+	a.reportUnimplementedForwards(a.symbols)
 }
 
 // ============================================================================

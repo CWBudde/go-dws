@@ -137,23 +137,30 @@ type FunctionDecl struct {
 	BaseNode
 	CallingConventionPos token.Position
 	StaticPos            token.Position
-	Visibility           Visibility
-	IsConstructor        bool
-	IsDestructor         bool
-	IsVirtual            bool
-	IsOverride           bool
-	IsReintroduce        bool
-	IsAbstract           bool
-	IsStatic             bool
-	IsExternal           bool
-	IsClassMethod        bool
-	IsOverload           bool
-	IsForward            bool
-	IsDefault            bool
-	IsDeprecated         bool
-	IsHelper             bool
-	IsInline             bool // "inline;" directive — advisory only, no code generation
-	IsEmpty              bool // "empty;" directive — routine has no body; call is a no-op
+	// HeaderEndPos is where DWScript anchors diagnostics raised once the
+	// header (signature plus directives) has been read, such as "There is
+	// already a method with name": the header's ';' when no directive follows,
+	// otherwise the first token after the last directive's ';'.
+	HeaderEndPos token.Position
+	// ForwardPos is the position of the `forward` directive, if any.
+	ForwardPos    token.Position
+	Visibility    Visibility
+	IsConstructor bool
+	IsDestructor  bool
+	IsVirtual     bool
+	IsOverride    bool
+	IsReintroduce bool
+	IsAbstract    bool
+	IsStatic      bool
+	IsExternal    bool
+	IsClassMethod bool
+	IsOverload    bool
+	IsForward     bool
+	IsDefault     bool
+	IsDeprecated  bool
+	IsHelper      bool
+	IsInline      bool // "inline;" directive — advisory only, no code generation
+	IsEmpty       bool // "empty;" directive — routine has no body; call is a no-op
 }
 
 func (fd *FunctionDecl) statementNode() {}

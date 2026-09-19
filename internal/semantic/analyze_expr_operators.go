@@ -280,6 +280,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		}
 
 		a.addStructuredError(NewUnknownNameError(identifier.Token.Pos, identifier.Value))
+		a.compileStopped = true
 		return nil
 	}
 

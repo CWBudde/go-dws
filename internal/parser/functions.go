@@ -166,6 +166,7 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 		cursor = cursor.Advance()
 		p.cursor = cursor
 		fn.IsForward = true
+		fn.ForwardPos = cursor.Current().Pos
 
 	case lexer.DEPRECATED:
 		cursor = cursor.Advance()
@@ -434,12 +435,22 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
 	p.cursor = cursor
+	headerSemicolonPos := cursor.Current().Pos
 
 	// Parse directives (static, virtual, override, etc.)
 	if !p.parseFunctionDirectives(fn) {
 		return nil
 	}
 	cursor = p.cursor
+
+	// DWScript checks a routine's name against earlier declarations once the
+	// header is complete: at the header's ';' when no directive follows, and
+	// otherwise at the token after the last directive's ';'.
+	if cursor.Current().Pos == headerSemicolonPos {
+		fn.HeaderEndPos = headerSemicolonPos
+	} else {
+		fn.HeaderEndPos = cursor.Peek(1).Pos
+	}
 
 	// Parse preconditions (require block) if present
 	if cursor.Peek(1).Type == lexer.REQUIRE {

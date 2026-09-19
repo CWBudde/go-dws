@@ -74,32 +74,36 @@ const (
 type Analyzer struct {
 	// mainStatement is the top-level main-program statement being analyzed, if any;
 	// see reportUnconsumedPropertyValue.
-	mainStatement           ast.Statement
-	caseHintIdentifiers     map[*ast.Identifier]bool
-	currentSelfType         types.Type
-	forwardMethodNames      map[string]string
-	globalOperators         *types.OperatorRegistry
-	subranges               map[string]*types.SubrangeType
-	functionPointers        map[string]*types.FunctionPointerType
-	currentFunction         *ast.FunctionDecl
-	currentRecord           *types.RecordType
-	helpers                 map[string][]*types.HelperType
-	currentHelperType       *types.HelperType
-	symbols                 *SymbolTable
-	forwardMethodReported   map[string]bool
-	conversionRegistry      *types.ConversionRegistry
-	builtinRegistry         *builtins.Registry
-	semanticInfo            *ast.SemanticInfo
-	unitSymbols             map[string]*SymbolTable
-	currentNestedTypes      map[string]string
-	nestedTypeAliases       map[string]map[string]string
-	forwardMethodPos        map[string]token.Position
-	currentClass            *types.ClassType
-	typeRegistry            *TypeRegistry
-	currentProperty         string
-	sourceCode              string
-	sourceFile              string
-	pendingClassWarnings    []*types.ClassType
+	mainStatement         ast.Statement
+	caseHintIdentifiers   map[*ast.Identifier]bool
+	currentSelfType       types.Type
+	forwardMethodNames    map[string]string
+	globalOperators       *types.OperatorRegistry
+	subranges             map[string]*types.SubrangeType
+	functionPointers      map[string]*types.FunctionPointerType
+	currentFunction       *ast.FunctionDecl
+	currentRecord         *types.RecordType
+	helpers               map[string][]*types.HelperType
+	currentHelperType     *types.HelperType
+	symbols               *SymbolTable
+	forwardMethodReported map[string]bool
+	conversionRegistry    *types.ConversionRegistry
+	builtinRegistry       *builtins.Registry
+	semanticInfo          *ast.SemanticInfo
+	unitSymbols           map[string]*SymbolTable
+	currentNestedTypes    map[string]string
+	nestedTypeAliases     map[string]map[string]string
+	forwardMethodPos      map[string]token.Position
+	currentClass          *types.ClassType
+	typeRegistry          *TypeRegistry
+	currentProperty       string
+	sourceCode            string
+	sourceFile            string
+	pendingClassWarnings  []*types.ClassType
+	// compileStopped records an error that DWScript raises as a compiler stop
+	// (an unknown name in an expression): upstream abandons the compile there,
+	// so the end-of-program checks such as unimplemented forwards never run.
+	compileStopped          bool
 	predeclaredClassTypes   map[string]bool
 	deferredMethodBodies    []deferredMethodBody
 	retainedScopes          []*SymbolTable
@@ -422,6 +426,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		}
 	}
 
+	a.reportUnimplementedForwards(a.symbols)
 	a.validateForwardDeclarations()
 
 	hasActualErrors := a.hasActualErrors()
@@ -458,6 +463,18 @@ func (a *Analyzer) hasActualErrors() bool {
 		}
 	}
 	return false
+}
+
+// reportUnimplementedForwards reports every routine of scope that was declared
+// forward but never implemented. DWScript runs this check once a program or
+// unit has been read completely, so it follows the other diagnostics.
+func (a *Analyzer) reportUnimplementedForwards(scope *SymbolTable) {
+	if a.compileStopped {
+		return
+	}
+	for _, sym := range scope.UnimplementedForwards() {
+		a.addStructuredError(NewForwardNotImplementedError(sym.DeclPosition, sym.Name))
+	}
 }
 
 // validateForwardDeclarations ensures all forward-declared types have implementations.

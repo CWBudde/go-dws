@@ -388,6 +388,11 @@ func sortDiagnostics(diags []Diagnostic) {
 		if leftBucket != rightBucket {
 			return leftBucket < rightBucket
 		}
+		if leftBucket == forwardNotImplementedBucket {
+			// Already in DWScript's (name-sorted) order; see
+			// SymbolTable.UnimplementedForwards.
+			return false
+		}
 
 		if left.Line == 0 && right.Line != 0 {
 			return false
@@ -469,7 +474,17 @@ func diagnosticStaticClassPriority(diag Diagnostic) (int, bool) {
 	}
 }
 
+// forwardNotImplementedBucket holds "was forward declared but not implemented",
+// which DWScript reports after reading the whole program, ordered by routine
+// name rather than by position.
+const forwardNotImplementedBucket = 2
+
 func diagnosticDeferredBucket(diag Diagnostic) int {
+	if diag.Phase == PhaseSemantic &&
+		strings.HasPrefix(strings.TrimPrefix(diag.Message, "Syntax Error: "), `The function "`) &&
+		strings.HasSuffix(diag.Message, `" was forward declared but not implemented`) {
+		return forwardNotImplementedBucket
+	}
 	if diag.Phase == PhaseSemantic &&
 		((strings.HasPrefix(diag.Message, `Method "`) &&
 			strings.Contains(diag.Message, `" not implemented`)) ||

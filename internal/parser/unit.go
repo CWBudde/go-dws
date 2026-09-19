@@ -245,8 +245,9 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 		stmt := p.parseStatement()
 		if stmt != nil {
 			// Interface-section function declarations have no body: they are
-			// forward declarations implemented in the implementation section.
-			if fn, ok := stmt.(*ast.FunctionDecl); ok && fn.Body == nil {
+			// forward declarations implemented in the implementation section
+			// (an external routine is implemented by the host instead).
+			if fn, ok := stmt.(*ast.FunctionDecl); ok && fn.Body == nil && !fn.IsExternal {
 				fn.IsForward = true
 			}
 			block.Statements = append(block.Statements, stmt)
