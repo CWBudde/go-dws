@@ -29,8 +29,8 @@ Open, in leverage order:
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 116 in-scope execution-suite failures. E1–E11 are closed; what
-  they left open is grouped as E3c and E12–E20.
+- **§3.5** is the other half: 116 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
+  are closed; E3c is still open, and what the closed groups left is grouped as E12–E20.
 - **§3.2** and **§3.4** have one open item each (explicit-instance helper calls; expected-type
   overload resolution, blocked on the evaluator). **§3.3** has only the gated Memory host setup.
 - **§1** and **§3.1** have no open items. **§2** has one, deferred by owner decision.
