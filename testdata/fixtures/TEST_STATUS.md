@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1184 |
-| Failed | 782 |
+| Passed | 1192 |
+| Failed | 774 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **60%** (1184/1966) |
+| **Scored pass rate** | **61%** (1192/1966) |
 
 ## Per-category
 
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 177 | 352 | 13 | 33% |
+| FailureScripts | 542 | 183 | 346 | 13 | 35% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -79,7 +79,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
 | SetOfFail | 14 | 6 | 8 | 0 | 43% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 381 | 62 | 0 | 86% |
+| SimpleScripts | 443 | 383 | 60 | 0 | 86% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |
