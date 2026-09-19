@@ -72,6 +72,9 @@ const (
 
 // Analyzer performs semantic analysis on a DWScript program.
 type Analyzer struct {
+	// mainStatement is the top-level main-program statement being analyzed, if any;
+	// see reportUnconsumedPropertyValue.
+	mainStatement           ast.Statement
 	caseHintIdentifiers     map[*ast.Identifier]bool
 	currentSelfType         types.Type
 	forwardMethodNames      map[string]string
@@ -399,7 +402,9 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 			}
 			continue
 		}
+		a.mainStatement = stmt
 		a.analyzeStatement(stmt)
+		a.mainStatement = nil
 		if i == lastClassDecl {
 			a.drainDeferredMethodBodies()
 		}

@@ -160,7 +160,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	// If there's an initializer, check its type
 	// Note: Parser already validates that multi-name declarations cannot have initializers
 	specialMetaValueInit := false
-	if stmt.Type == nil && stmt.Value != nil && a.isTypeMetaValueExpression(stmt.Value) && !a.isClassNameExpr(stmt.Value) {
+	if stmt.Type == nil && stmt.Value != nil && a.isBareTypeValue(stmt.Value) {
 		// A bare *class* name is a valid metaclass value (`var r := TSubClass`
 		// infers `class of TSubClass`); only non-class type identifiers
 		// (Integer/String/enum/record/…) used as a value are the "(" expected
@@ -183,7 +183,7 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 			}
 		}
 		if initType == nil {
-			if _, invalid := stmt.Value.(*ast.InvalidExpression); invalid {
+			if containsParserRecovery(stmt.Value) {
 				return
 			}
 			if len(a.errors) > errorCountBefore || len(a.structuredErrors) > structuredCountBefore {
@@ -229,6 +229,11 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 
 	// If we still don't have a type, that's an error
 	if varType == nil {
+		if stmt.Type == nil && stmt.Value == nil {
+			// `var s;` / `var i, j = ;` never parse: the parser has already
+			// reported DWScript's `Colon ":" expected`, and upstream says nothing more.
+			return
+		}
 		// Use first name for error message
 		a.addError("variable '%s' must have either a type annotation or an initializer at %s",
 			stmt.Names[0].Value, stmt.Token.Pos.String())
@@ -422,6 +427,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 						// Check if property is writable
 						if propInfo.WriteKind == types.PropAccessNone {
 							a.addStructuredError(NewReadOnlyPropertyError(target.Token.Pos, target.Value))
+							a.reportUnconsumedPropertyValue(stmt)
 							return
 						}
 						valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
@@ -473,6 +479,15 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			} else {
 				a.addError("cannot assign to read-only variable '%s' at %s", target.Value, stmt.Token.Pos.String())
 			}
+			return
+		}
+
+		// A bare non-class type name is not a value: DWScript reads it as the start
+		// of a cast and stops with `"(" expected` right after the name (the same rule
+		// analyzeVarDecl applies to `var v := TEnum;`).
+		if !isCompound && a.isBareTypeValue(stmt.Value) {
+			pos := stmt.Value.End()
+			a.addError("Syntax Error: \"(\" expected [line: %d, column: %d]", pos.Line, pos.Column)
 			return
 		}
 
@@ -559,6 +574,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					}
 					if propInfo.WriteKind == types.PropAccessNone {
 						a.addStructuredError(NewReadOnlyPropertyError(target.Member.Token.Pos, target.Member.Value))
+						a.reportUnconsumedPropertyValue(stmt)
 						return
 					}
 					if isMetaclass && !propInfo.IsClassProperty {

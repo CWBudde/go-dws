@@ -385,6 +385,14 @@ func sortDiagnostics(diags []Diagnostic) {
 		if leftIsStaticClass && rightIsStaticClass && leftStaticClass != rightStaticClass {
 			return leftStaticClass < rightStaticClass
 		}
+		if left.Phase == PhaseParsing && right.Phase == PhaseParsing {
+			// The parser is a single pass, like upstream's compiler: the order it
+			// recorded its own errors in is the order DWScript prints them, even
+			// when a later error sits left of an earlier one on the same line
+			// (`set of ;` reports `Type expected` at the ';' before
+			// `Enumeration expected` at 'of').
+			return false
+		}
 		if left.Column != right.Column {
 			return left.Column < right.Column
 		}

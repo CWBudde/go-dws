@@ -70,6 +70,12 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 	ofToken := p.cursor.Current()
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.IDENT {
+		if nextToken.Type == lexer.SEMICOLON || nextToken.Type == lexer.EOF {
+			// Nothing at all follows 'of': upstream's ReadType first reports the
+			// missing type where it looked for one, then the set rejects the
+			// (absent) base type at 'of'.
+			p.recordError(NewParserError(nextToken.Pos, nextToken.Length(), "Type expected", ErrExpectedType))
+		}
 		err := NewStructuredError(ErrKindMissing).
 			WithCode(ErrExpectedType).
 			WithMessage("Enumeration expected").
