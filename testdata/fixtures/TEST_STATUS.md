@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1177 |
-| Failed | 789 |
+| Passed | 1181 |
+| Failed | 785 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **60%** (1177/1966) |
+| **Scored pass rate** | **60%** (1181/1966) |
 
 ## Per-category
 
@@ -25,7 +25,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
 | ArrayPass | 115 | 98 | 17 | 0 | 85% |
-| AssociativeFail | 4 | 1 | 3 | 0 | 25% |
+| AssociativeFail | 4 | 2 | 2 | 0 | 50% |
 | AssociativePass | 27 | 27 | 0 | 0 | 100% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
 | AutoFormat | 10 | 0 | 0 | 10 | 0% |
@@ -73,7 +73,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | Memory | 13 | 7 | 6 | 0 | 54% |
 | OperatorOverloadFail | 6 | 0 | 6 | 0 | 0% |
 | OperatorOverloadPass | 8 | 5 | 3 | 0 | 62% |
-| OverloadsFail | 14 | 0 | 14 | 0 | 0% |
+| OverloadsFail | 14 | 3 | 11 | 0 | 21% |
 | OverloadsPass | 39 | 37 | 2 | 0 | 95% |
 | PropertyExpressionsFail | 10 | 2 | 8 | 0 | 20% |
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
