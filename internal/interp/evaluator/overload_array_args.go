@@ -16,6 +16,9 @@ type capturedArrayArgument struct {
 	bindContainer func() Value
 	reference     Value
 	index         int
+	// bindReference replaces the dense-array binding for an associative
+	// element, whose key was evaluated once during capture.
+	bindReference func() (Value, error)
 }
 
 func argumentEvaluationError(value Value, ctx *ExecutionContext) error {
@@ -41,7 +44,9 @@ func (e *Evaluator) captureOverloadArrayArgument(arg ast.Expression, ctx *Execut
 		typ = e.resolvedExpressionType(node.Left, ctx)
 	}
 	if typ != nil {
-		if _, ok := types.GetUnderlyingType(typ).(*types.ArrayType); !ok {
+		switch types.GetUnderlyingType(typ).(type) {
+		case *types.ArrayType, *types.AssociativeArrayType:
+		default:
 			return nil, nil, false, nil
 		}
 	} else if base, _ := CollectIndices(node); isMemberRootedBase(base) {
@@ -51,6 +56,9 @@ func (e *Evaluator) captureOverloadArrayArgument(arg ast.Expression, ctx *Execut
 	container, bind, err := e.captureOverloadArrayContainer(node.Left, ctx)
 	if err != nil {
 		return nil, nil, true, err
+	}
+	if assoc, ok := derefAssociative(container); ok {
+		return e.captureOverloadAssociativeArgument(assoc, node, bind, ctx)
 	}
 	arr, ok := container.(*runtime.ArrayValue)
 	if !ok || arr.ArrayType == nil {
@@ -78,6 +86,44 @@ func (e *Evaluator) captureOverloadArrayArgument(arg ast.Expression, ctx *Execut
 		return e.getZeroValueForType(arr.ArrayType.ElementType, ctx), captured, true, nil
 	}
 	return arr.Elements[physical], captured, true, nil
+}
+
+// captureOverloadAssociativeArgument evaluates the key once and reads the slot
+// without inserting it. A selected var overload vivifies that same key rather
+// than evaluating the index expression again.
+func (e *Evaluator) captureOverloadAssociativeArgument(assoc *runtime.AssociativeArrayValue, node *ast.IndexExpression, bindParent func() Value, ctx *ExecutionContext) (Value, *capturedArrayArgument, bool, error) {
+	indexValue := e.Eval(node.Index, ctx)
+	if err := argumentEvaluationError(indexValue, ctx); err != nil {
+		return nil, nil, true, err
+	}
+	key, errValue := e.coerceAssociativeKey(assoc, indexValue, ctx)
+	if errValue != nil {
+		return nil, nil, true, argumentEvaluationError(errValue, ctx)
+	}
+	value, present := assoc.Get(key)
+	if !present {
+		value = e.getZeroValueForType(assoc.ElementType(), ctx)
+	}
+	captured := &capturedArrayArgument{node: node}
+	captured.bindReference = func() (Value, error) {
+		container := bindParent()
+		if err := argumentEvaluationError(container, ctx); err != nil {
+			return nil, err
+		}
+		parent, ok := derefAssociative(container)
+		if !ok {
+			return nil, fmt.Errorf("associative array container changed during argument evaluation")
+		}
+		current := e.vivifyAssociativeSlot(parent, key, ctx)
+		if err := argumentEvaluationError(current, ctx); err != nil {
+			return nil, err
+		}
+		return newAssignedReference(node.String(), current, func(value Value) error {
+			parent.Set(key, cloneIfCopyable(value))
+			return nil
+		}), nil
+	}
+	return value, captured, true, argumentEvaluationError(value, ctx)
 }
 
 // captureOverloadArrayContainer captures nested array/associative index paths

@@ -396,3 +396,22 @@ PrintLn(ints.Length);
 PrintLn(ints['missing'][0]);
 `), "local\n0\n1\n42\n")
 }
+
+func TestArrayElementVar_RuntimeOverloadAssociativeKeyEvaluatedOnce(t *testing.T) {
+	assertOutput(t, runQuickwinScript(t, `
+var a: array [String] of Integer;
+var calls: Integer;
+var discriminator: Variant := 'text';
+function Key: String;
+begin Inc(calls); Result := 'k' + IntToStr(calls); end;
+procedure Mutate(var value: Integer; kind: String); overload;
+begin PrintLn('var'); value := 42; end;
+procedure Mutate(value: Variant; kind: Integer); overload;
+begin PrintLn('value'); end;
+a['k1'] := 1;
+Mutate(a[Key()], discriminator);
+PrintLn(calls);
+PrintLn(a.Length);
+PrintLn(a['k1']);
+`), "var\n1\n1\n42\n")
+}

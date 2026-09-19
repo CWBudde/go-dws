@@ -418,6 +418,9 @@ func (e *Evaluator) evaluateOverloadArgument(expr ast.Expression, allVar, anyVar
 }
 
 func (e *Evaluator) bindCapturedOverloadArray(captured *capturedArrayArgument, ctx *ExecutionContext) (Value, error) {
+	if captured.bindReference != nil {
+		return captured.bindReference()
+	}
 	container := captured.bindContainer()
 	if err := argumentEvaluationError(container, ctx); err != nil {
 		return nil, err

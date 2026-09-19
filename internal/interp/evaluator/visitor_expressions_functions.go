@@ -603,6 +603,12 @@ func (e *Evaluator) prepareByRefArgument(arg ast.Expression, ctx *ExecutionConte
 		return refVal.(Value), nil
 	}
 
+	return newAssignedReference(arg.String(), current, assign), nil
+}
+
+// newAssignedReference wraps an lvalue's current value and write-back callback
+// as a var-parameter reference.
+func newAssignedReference(name string, current Value, assign AssignFunc) Value {
 	currentValue := current
 	var getter runtime.GetterCallback = func() (runtime.Value, error) {
 		if currentValue == nil {
@@ -622,7 +628,7 @@ func (e *Evaluator) prepareByRefArgument(arg ast.Expression, ctx *ExecutionConte
 		return nil
 	}
 
-	return runtime.NewReferenceValue(arg.String(), getter, setter), nil
+	return runtime.NewReferenceValue(name, getter, setter)
 }
 
 // raiseBoundExceededError converts a boundExceededError from a stale array
