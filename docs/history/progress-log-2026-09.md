@@ -4975,4 +4975,4 @@ on other lines.
 Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues), and an old-vs-new binary diff over
 every fixture. Stacked on the string-constant slice, CLI and harness agree at
-**1,197 / 1,966 scored** (+8): FailureScripts 180 → 188. No category dropped.
+**1,200 / 1,966 scored** (+8): FailureScripts 183 → 191. No category dropped.
