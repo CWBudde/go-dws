@@ -8,16 +8,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: "1.24"
           cache: true
 
       - name: Setup just
-        uses: extractions/setup-just@v2
+        uses: extractions/setup-just@v4
 
       - name: Install formatters and linters
         run: just setup-deps
