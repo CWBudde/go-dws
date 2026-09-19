@@ -57,17 +57,15 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		return &runtime.NilValue{}
 	}
 
-	// Dereference ReferenceValue (e.g. function name alias to Result)
-	// This allows `GetValue.N := 70` to work when GetValue is a ReferenceValue pointing to Result
-	if refVal, isRef := objVal.(ReferenceAccessor); isRef {
-		deref, err := refVal.Dereference()
-		if err != nil {
-			if raised, handled := e.raiseBoundExceededError(err, ctx); handled {
-				return raised
-			}
-			return e.newError(stmt, "failed to dereference: %s", err.Error())
-		}
-		objVal = deref
+	// Dereference ReferenceValue (e.g. function name alias to Result, so
+	// `GetValue.N := 70` writes through to Result) and invoke a parameterless
+	// callable receiver, as the read and compound-assignment paths do.
+	objVal = e.normalizeMemberReceiver(objVal, target.Object, stmt, ctx)
+	if isError(objVal) {
+		return objVal
+	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
 	}
 	return e.assignResolvedMember(target, value, stmt, objVal, objSetter, ctx)
 }

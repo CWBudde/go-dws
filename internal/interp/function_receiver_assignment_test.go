@@ -102,3 +102,23 @@ begin Make.Value := 7; PrintLn(Make.Value); end;
 Test;
 `), "42\n7\n")
 }
+
+func TestFunctionReceiverAssignment_FunctionPointerReceiver(t *testing.T) {
+	assertOutput(t, runQuickwinScript(t, `
+type TTarget = class
+  Value: Integer;
+  procedure SetValue(v: Integer); begin Value := v; end;
+  property WriteOnly: Integer write SetValue;
+end;
+type TFactory = function: TTarget;
+var Calls: Integer;
+var Target := TTarget.Create;
+function Make: TTarget; begin Inc(Calls); Result := Target; end;
+var p: TFactory := @Make;
+p.WriteOnly := 40;
+p.Value := p.Value + 1;
+p.Value += 1;
+PrintLn(Calls);
+PrintLn(Target.Value);
+`), "4\n42\n")
+}

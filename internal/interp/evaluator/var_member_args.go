@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // prepareCapturedMemberArgument retains one receiver for a member var argument.
@@ -32,18 +33,28 @@ func (e *Evaluator) prepareCapturedMemberArgument(member *ast.MemberAccessExpres
 	if ref, ok := current.(ReferenceAccessor); ok {
 		return ref, nil
 	}
-	if obj, ok := receiver.(ObjectValue); ok && !obj.HasProperty(member.Member.Value) && obj.GetField(member.Member.Value) != nil {
+	if obj, ok := receiver.(ObjectValue); ok && !obj.HasProperty(member.Member.Value) && objectFieldDeclared(obj, member.Member.Value) {
 		fieldName := member.Member.Value
 		getter := func() (runtime.Value, error) {
-			value := obj.GetField(fieldName)
-			if value == nil {
-				return nil, fmt.Errorf("field '%s' not found in class '%s'", fieldName, obj.ClassName())
+			// A declared field that was never set reads as nil.
+			if value := obj.GetField(fieldName); value != nil {
+				return value, nil
 			}
-			return value, nil
+			return &runtime.NilValue{}, nil
 		}
 		return runtime.NewReferenceValue(member.String(), getter, func(value runtime.Value) error {
 			return assign(value)
 		}), nil
 	}
 	return newAssignedReference(member.String(), current, assign), nil
+}
+
+// objectFieldDeclared reports whether obj has a plain field of the given name,
+// using class metadata so a declared but not yet initialized field counts.
+func objectFieldDeclared(obj ObjectValue, fieldName string) bool {
+	if obj.GetField(fieldName) != nil {
+		return true
+	}
+	inst, ok := obj.(*runtime.ObjectInstance)
+	return ok && inst.Class != nil && inst.Class.FieldExists(ident.Normalize(fieldName))
 }
