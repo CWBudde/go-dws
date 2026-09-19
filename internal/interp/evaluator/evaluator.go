@@ -637,7 +637,7 @@ func (e *Evaluator) cleanupInterfaceReferences(env *runtime.Environment) {
 	// Iterate through all variables in the environment
 	env.Range(func(name string, value Value) bool {
 		// Skip ReferenceValue entries (like function name aliases)
-		if _, isRef := value.(*runtime.ReferenceValue); isRef {
+		if _, isRef := value.(ReferenceAccessor); isRef {
 			return true // continue
 		}
 

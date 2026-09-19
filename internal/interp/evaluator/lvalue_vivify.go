@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -124,11 +125,23 @@ func derefAssociative(v Value) (*runtime.AssociativeArrayValue, bool) {
 // associative array is resolved through the vivifying path like any other
 // container.
 //
-// The object expression is evaluated here and again by the indexed-property
-// path, mirroring what evalIndexAssignmentDirect already does for the write
-// side of the same forms.
+// Analyzer metadata identifies the property without evaluating its receiver.
+// Unchecked callers retain the runtime lookup when no static type is available.
 func (e *Evaluator) memberIsIndexedProperty(ma *ast.MemberAccessExpression, ctx *ExecutionContext) bool {
 	if ma.Object == nil || ma.Member == nil {
+		return true
+	}
+	switch receiverType := types.GetUnderlyingType(e.resolvedSemanticType(ma.Object)).(type) {
+	case *types.ClassType:
+		property, found := receiverType.GetProperty(ma.Member.Value)
+		return found && property.IsIndexed
+	case *types.InterfaceType:
+		property := receiverType.GetProperty(ma.Member.Value)
+		return property != nil && property.IsIndexed
+	case *types.RecordType:
+		// Record indexed reads use the property path for every property.
+		return receiverType.GetProperty(ma.Member.Value) != nil
+	case *types.ClassOfType:
 		return true
 	}
 	objVal := e.Eval(ma.Object, ctx)

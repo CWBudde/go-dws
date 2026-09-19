@@ -85,6 +85,9 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	if isError(obj) {
 		return obj
 	}
+	if ctx.Exception() != nil {
+		return e.nilValue()
+	}
 
 	methodName := node.Method.Value
 	if result, handled := e.evalArrayMathCall(obj, node, ctx); handled {
@@ -117,6 +120,19 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		if result, handled := e.evalAssociativeArrayMethod(assoc, methodName, args, node, ctx); handled {
 			return result
 		}
+	}
+
+	if selected, args, handled, err := e.prepareVarMethodArguments(obj, node, ctx); handled {
+		if ctx.Exception() != nil {
+			return e.nilValue()
+		}
+		if err != nil {
+			return e.newError(node, "%s", err.Error())
+		}
+		if record, ok := obj.(RecordInstanceValue); ok {
+			return e.callRecordMethod(record, selected, args, node, ctx)
+		}
+		return e.DispatchMethodCall(obj, methodName, args, node, ctx)
 	}
 
 	if recordVal, ok := obj.(RecordInstanceValue); ok {

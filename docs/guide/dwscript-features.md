@@ -158,6 +158,12 @@ compiled type information.
 - ⏸️ Array of const (variadic)
 - ✅ Associative arrays (see [Associative Arrays / Dictionaries](#associative-arrays--dictionaries))
 
+Array elements passed to `var` parameters retain live storage. The array receiver
+and index are evaluated once, in argument order, including member-based indices
+such as `a[a.High]`. An exception or invalid index stops argument preparation
+before the routine runs. Resizing the array can invalidate an existing element
+reference; subsequent reads and writes check its current bounds.
+
 ---
 
 #### Records

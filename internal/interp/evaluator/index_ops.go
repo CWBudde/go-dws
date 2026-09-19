@@ -24,12 +24,8 @@ func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node
 	}
 
 	// Convert logical index to physical index.
-	// Read diagnostics point one past the index's closing bracket (DWScript).
-	// ⚠️ SimpleScripts/const_array_empty wants the bracket itself, one column
-	// earlier; ArrayPass/array_element_byref wants what is here. They differ
-	// because upstream reports a by-reference bind one column further on than a
-	// plain read, and go-dws routes `a[a.High+1]` down the read path by mistake
-	// (see PLAN.md §3.5 E8). Fix the routing before moving this anchor.
+	// Reads point at the closing bracket; var-argument binding checks use
+	// their own anchor one column later in bindArrayElementReference.
 	var physicalIndex int
 	if arr.ArrayType.IsStatic() {
 		// Static array: check bounds and adjust for low bound
@@ -37,20 +33,20 @@ func (e *Evaluator) IndexArray(arr *runtime.ArrayValue, index int, node ast.Node
 		highBound := *arr.ArrayType.HighBound
 
 		if index < lowBound {
-			return e.raiseIndexBoundExceededAt(node.End(), index, false, ctx)
+			return e.raiseIndexBoundExceeded(node, index, false, ctx)
 		}
 		if index > highBound {
-			return e.raiseIndexBoundExceededAt(node.End(), index, true, ctx)
+			return e.raiseIndexBoundExceeded(node, index, true, ctx)
 		}
 
 		physicalIndex = index - lowBound
 	} else {
 		// Dynamic array: zero-based indexing
 		if index < 0 {
-			return e.raiseIndexBoundExceededAt(node.End(), index, false, ctx)
+			return e.raiseIndexBoundExceeded(node, index, false, ctx)
 		}
 		if index >= len(arr.Elements) {
-			return e.raiseIndexBoundExceededAt(node.End(), index, true, ctx)
+			return e.raiseIndexBoundExceeded(node, index, true, ctx)
 		}
 
 		physicalIndex = index

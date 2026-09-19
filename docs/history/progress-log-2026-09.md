@@ -4583,3 +4583,51 @@ baseline update. Diff-scoped lint reports zero issues. An unrestricted lint run
 still reports the repository's existing backlog (1,218 findings); CI likewise
 filters for new issues. All tracked/non-ignored Go files pass `gofmt -l`, and
 `git diff --check` is clean.
+
+## 2026-09-19 — Array-element var-argument binding (E8)
+
+Real compile/run regressions against the original revision showed that successful
+member indices already preserved writes. The failure came from reading `var`
+arguments during overload preparation and evaluating them again while binding
+references. Array receiver and index functions ran twice; nested member receivers
+could run five times. An earlier bounds exception also left pending exception
+state that made the second member-index evaluation return nil.
+
+Argument preparation now retains references for reuse. Concrete checked overloads
+with `var` parameters are selected before argument execution; runtime selection
+captures array storage and indices without inserting missing associative entries
+for value arguments. Array binding propagates evaluation and dereference failures
+instead of retrying through the generic lvalue path. Checked nested member access
+uses semantic property metadata instead of evaluating a receiver to inspect it.
+
+Plain array reads now report bounds errors at the closing bracket, while initial
+`var` binding retains the following-column anchor. Existing references keep their
+live bounds checks after resizing. The regression suite requires both
+`ArrayPass/array_element_byref` and `SimpleScripts/const_array_empty`, alongside
+the three array-element resize fixtures, to match their original expectations.
+No upstream fixture scripts or expected outputs were changed.
+
+Explicit methods, implicit `Self` calls and qualified unit routines share the
+same binding rules. Method dispatch retains the selected parameter type rather
+than dereferencing a bound argument again: if a later argument shrinks the array,
+the method still runs and the reference raises its bounds exception on access.
+Variant indices use the ordinary array-index conversion, including propagation
+of invalid string-to-integer casts before later arguments run.
+
+The harness and rebuilt CLI agree across all 61 categories: **1,150/1,966 scored**,
+816 failures and 78 unscored. **SimpleScripts rises 378 → 379/443**; every other
+category is unchanged. In-scope execution failures fall **123 → 122**. Generated
+baselines and fixture status were refreshed without any baseline decrease.
+
+Validation passed:
+
+```sh
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go test ./...
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go test ./internal/interp ./pkg/dwscript -run '^(TestArrayElementVar_|TestEngine_ArrayElementVar)' -count=1
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false just --tempdir /tmp fixture-update
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go run ./cmd/fixture-report --cli /tmp/go-dws-e8-cli --timeout 60
+GOCACHE=/tmp/go-dws-e8-cache GOLANGCI_LINT_CACHE=/tmp/go-dws-e8-lint-cache GOFLAGS=-buildvcs=false golangci-lint run --new-from-rev=HEAD --timeout=5m
+```
+
+Diff-scoped lint reports zero issues. Changed Go files are formatted and
+`git diff --check` is clean. E9 receiver work remains separately tracked.

@@ -10,7 +10,7 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,149 / 1,966 scored =
+**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,150 / 1,966 scored =
 58%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
@@ -18,7 +18,7 @@
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,149 / 1,747 = 66% in scope**, the number to track against §6. Both are honest;
+same run reads **1,150 / 1,747 = 66% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -30,10 +30,10 @@ Open, in leverage order:
   families were split out — the 68 fixtures one line from passing (F9) and the `Incompatible
   types` sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half of the measurement: 123 in-scope fixtures now fail in the
+- **§3.5** is the other half of the measurement: 122 in-scope fixtures now fail in the
   suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
   ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
-  and E8 is a by-reference binding bug E1 turned up.
+  and E8 closed the by-reference binding bug E1 turned up.
 - **§3.3** has only deferred Memory host setup left (7 of 13 scored). Private unit variables,
   Memory scoring, and constructor assignment receivers closed 2026-09-13; see the progress log.
 - **§1** is closed: T7 scores 36 previously skipped fixtures and T8 classifies failures in
@@ -59,10 +59,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (817 total, 2026-09-19): **219 host-library** (out of scope),
+- Where the remaining failures are (816 total, 2026-09-19): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **123 in the execution suites** (§3.5:
-  SimpleScripts 65, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 5, a tail
+  HelpersFail 18 each, the rest under 15), and **122 in the execution suites** (§3.5:
+  SimpleScripts 64, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 5, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -307,9 +307,9 @@ fail**; they were never enumerated because the only measurement that existed cov
 suites. Tables and method:
 [`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
 Regenerate with `just fixture-report --in-scope --classify --list-fails`.
-The September 19 measurement has 123 execution failures. E5 closes six, taking InterfacesPass
+The September 19 measurement has 122 execution failures. E5 closes six, taking InterfacesPass
 from 21/33 to 27/33; E6 closes four, taking JSONConnectorPass from 69/82 to 73/82; E7 closes two,
-taking SimpleScripts from 376/443 to 378/443. Earlier
+taking SimpleScripts from 376/443 to 378/443; E8 closes one more, reaching 379/443. Earlier
 improvements are recorded in the progress log; the classification counts below describe the
 September 12 audit.
 
@@ -451,22 +451,22 @@ The [September progress log](docs/history/progress-log-2026-09.md#2026-09-19--st
 records the TDD regressions, implementation and validation. SimpleScripts rises to **378/443**;
 CLI and harness agree across all 61 categories, with no baseline decreases.
 
-#### E8 — Array-element var-argument binding `[ ]` S
+#### E8 — Array-element var-argument binding `[x]` — completed 2026-09-19
 
-`prepareArrayElementReference` evaluates member-based indices such as `a.High`/`a.Length` as
-NIL in the affected path, so `P(a[a.High+1])` falls back to a copy. Simple variable and arithmetic
-indices bind correctly. The routing also causes the wrong bounds-error position; see the
-`IndexArray` comment in `internal/interp/evaluator/index_ops.go`.
+- [x] **E8a — Preserve the array-element reference.** Real-path tests exposed duplicate
+  receiver/index evaluation during call preparation; successful member indices already wrote
+  through. Arguments now retain their resolved storage across preparation and overload selection,
+  including explicit/implicit methods, local routines and qualified unit calls.
+- [x] **E8b — Stop binding on evaluation failure.** Receiver/index exceptions, failed
+  dereferences and bounds failures stop preparation without retrying the expression, evaluating
+  later arguments or calling the routine. Existing references retain bounds checks after resizing.
+- [x] **E8c — Correct bounds positions.** Reads point at the closing bracket; initial var
+  binding points one column later. `SimpleScripts/const_array_empty` and
+  `ArrayPass/array_element_byref` pass together with exact output, alongside the three
+  array-element resize fixtures.
 
-- [ ] **E8a — Preserve the array-element reference.** Reproduce a lost write through a var
-  parameter with a member-based index, then correct index evaluation and binding. Keep `a[i]`
-  and `a[2+2]` as working controls; verify the array and index are each evaluated once.
-- [ ] **E8b — Stop binding on evaluation failure.** Cover exceptions and out-of-bounds indices;
-  propagate the failure without silently switching to by-value argument passing or calling the
-  target routine.
-- [ ] **E8c — Correct bounds positions after E8a/E8b.** Distinguish read and var-binding anchors.
-  Require `SimpleScripts/const_array_empty` and `ArrayPass/array_element_byref` to pass together;
-  changing the read anchor alone previously traded one passing fixture for the other.
+The [September progress log](docs/history/progress-log-2026-09.md#2026-09-19--array-element-var-argument-binding-e8)
+records the reproductions, implementation and validation. E9 remains separately tracked.
 
 #### E9 — Single evaluation of assignment and var-argument receivers `[~]`
 
@@ -536,7 +536,7 @@ fixture and first blocking cause for each new group.
   retain structured source coordinates. The fixture's remaining defects are tracked in E10c.
 
 E1/E2 [implementation and validation](docs/history/progress-log-2026-09.md#2026-09-12--runtime-message-vocabulary-e1-e2).
-Array bounds follow-up remains E8; pretty-renderer follow-up is E10d.
+Array bounds follow-up E8 is complete; pretty-renderer follow-up is E10d.
 
 ---
 

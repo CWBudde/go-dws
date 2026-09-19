@@ -207,60 +207,15 @@ func (e *Evaluator) executeQualifiedFunctionCall(unitName string, member *ast.Id
 }
 
 func (e *Evaluator) executeImplicitSelfCall(node *ast.CallExpression, funcName *ast.Identifier, ctx *ExecutionContext) Value {
-	selfRaw, ok := ctx.Env().Get("Self")
-	if !ok {
-		return e.newError(node, "no Self context for implicit method call")
-	}
-
-	selfVal, ok := selfRaw.(Value)
-	if !ok {
-		return e.newError(node, "Self has invalid type")
-	}
-
-	args := make([]Value, len(node.Arguments))
-	for i, arg := range node.Arguments {
-		val := e.Eval(arg, ctx)
-		if isError(val) {
-			return val
-		}
-		args[i] = val
-	}
-
-	switch self := selfVal.(type) {
-	case ClassMetaValue:
-		if helperResult := e.FindHelperMethod(selfVal, funcName.Value); helperResult != nil {
-			return e.CallHelperMethod(helperResult, selfVal, args, node, ctx)
-		}
-		// Overload-aware: pick the best class-method overload by argument types.
-		if classInfo := self.GetClassInfo(); classInfo != nil {
-			if overloads := classInfo.GetClassMethodOverloads(funcName.Value); len(overloads) > 1 {
-				return e.dispatchClassMethodOverloaded(self, classInfo, funcName.Value, args, node, ctx)
-			}
-		}
-		return e.callClassMethod(self, funcName.Value, args, node, ctx)
-	case RecordInstanceValue:
-		// Overload-aware record instance dispatch (class + instance methods).
-		if rec, ok := selfVal.(*runtime.RecordValue); ok {
-			if overloads := rec.GetRecordMethodOverloads(funcName.Value); len(overloads) > 1 {
-				if selected, err := e.selectOverload(rec.GetRecordTypeName(), funcName.Value, overloads, args, ctx); err == nil {
-					return e.callRecordMethod(self, selected, args, node, ctx)
-				}
-			}
-		}
-		if methodDecl, found := self.GetRecordMethod(funcName.Value); found {
-			return e.callRecordMethod(self, methodDecl, args, node, ctx)
-		}
-		if helperResult := e.FindHelperMethod(selfVal, funcName.Value); helperResult != nil {
-			return e.CallHelperMethod(helperResult, selfVal, args, node, ctx)
-		}
-		return e.newError(node, "method '%s' not found on Self", funcName.Value)
-	default:
-		return e.DispatchMethodCall(selfVal, funcName.Value, args, &ast.MethodCallExpression{
-			BaseNode: ast.BaseNode{Token: node.Token},
-			Object:   &ast.Identifier{Value: "Self"},
-			Method:   funcName,
-		}, ctx)
-	}
+	return e.VisitMethodCallExpression(&ast.MethodCallExpression{
+		BaseNode: node.BaseNode,
+		Object: &ast.Identifier{
+			BaseNode: node.BaseNode,
+			Value:    "Self",
+		},
+		Method:    funcName,
+		Arguments: node.Arguments,
+	}, ctx)
 }
 
 func (e *Evaluator) executeInheritedCallDirect(self Value, methodName string, args []Value, node ast.Node, ctx *ExecutionContext) Value {

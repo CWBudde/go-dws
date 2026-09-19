@@ -186,12 +186,12 @@ func (e *Evaluator) extractFunctionType(fn *ast.FunctionDecl, ctx *ExecutionCont
 
 // ResolveOverloadFast handles single-overload case efficiently.
 //
-// This method skips evaluation for lazy parameters (they're wrapped later by
-// PrepareUserFunctionArgs). Non-lazy parameters are evaluated and cached to
-// prevent double-evaluation.
+// Arguments are prepared in source order: var parameters capture references,
+// ordinary parameters cache values, and lazy parameters remain unevaluated.
 //
 // Returns the cached argument values where:
-//   - Non-lazy parameters: evaluated Value
+//   - Var parameters: captured ReferenceAccessor
+//   - Ordinary parameters: evaluated Value
 //   - Lazy parameters: nil (to be wrapped as LazyThunk later)
 func (e *Evaluator) ResolveOverloadFast(
 	fn *ast.FunctionDecl,
@@ -201,12 +201,24 @@ func (e *Evaluator) ResolveOverloadFast(
 	argValues := make([]Value, len(argExprs))
 
 	for idx, argExpr := range argExprs {
+		if ctx.Exception() != nil {
+			return nil, fmt.Errorf("argument evaluation raised an exception")
+		}
 		// Check if this parameter is lazy
 		isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
 		if isLazy {
 			// Don't evaluate lazy parameters - mark as nil
 			// PrepareUserFunctionArgs will wrap them later
 			argValues[idx] = nil
+		} else if idx < len(fn.Parameters) && fn.Parameters[idx].ByRef {
+			ref, err := e.prepareByRefArgument(argExpr, ctx)
+			if err != nil {
+				return nil, err
+			}
+			if ctx.Exception() != nil {
+				return nil, fmt.Errorf("argument evaluation raised an exception")
+			}
+			argValues[idx] = ref
 		} else {
 			// Set record type context if argument is anonymous record literal
 			previousRecordType := ctx.RecordTypeContext()
@@ -245,6 +257,9 @@ func (e *Evaluator) ResolveOverloadFast(
 			if isError(val) {
 				return nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)
 			}
+			if ctx.Exception() != nil {
+				return nil, fmt.Errorf("argument evaluation raised an exception")
+			}
 			argValues[idx] = val
 		}
 	}
@@ -252,59 +267,170 @@ func (e *Evaluator) ResolveOverloadFast(
 	return argValues, nil
 }
 
-// ResolveOverloadMultiple resolves which overload to call when multiple exist.
-//
-// This method:
-//  1. Evaluates all arguments to determine their types
-//  2. Builds function type candidates from AST function declarations
-//  3. Calls types.ResolveOverload to find the best match
-//  4. Returns the matching function declaration and cached argument values
-//
-// Returns an error if no overload matches the provided arguments.
-func (e *Evaluator) ResolveOverloadMultiple(
-	funcName string,
-	overloads []*ast.FunctionDecl,
-	argExprs []ast.Expression,
-	ctx *ExecutionContext,
-) (*ast.FunctionDecl, []Value, error) {
-	// 1. Evaluate all arguments to get types
-	argTypes := make([]types.Type, len(argExprs))
-	argValues := make([]Value, len(argExprs))
-
-	// An enclosing array literal/assignment context must not influence the
-	// call's own arguments.
-	prevArrayCtx := ctx.ArrayTypeContext()
-	ctx.ClearArrayTypeContext()
-	for idx, argExpr := range argExprs {
-		// For overload resolution, we need to determine the best matching function
-		// first, but we don't know parameter types yet. We evaluate without context
-		// initially to determine types.
-		val := e.Eval(argExpr, ctx)
-		if isError(val) {
-			ctx.SetArrayTypeContext(prevArrayCtx)
-			return nil, nil, fmt.Errorf("error evaluating argument %d: %v", idx+1, val)
-		}
-		argTypes[idx] = e.getValueType(val)
-		argValues[idx] = val
-	}
-	ctx.SetArrayTypeContext(prevArrayCtx)
-
-	// 2. Build function types from overloads
+// ResolveOverloadMultiple selects an overload and caches each argument once.
+// Concrete checked var calls select first; dynamic calls retain runtime type
+// selection and capture array storage while evaluating arguments in source order.
+func (e *Evaluator) ResolveOverloadMultiple(funcName string, overloads []*ast.FunctionDecl, argExprs []ast.Expression, ctx *ExecutionContext) (*ast.FunctionDecl, []Value, error) {
 	candidates := make([]types.Type, len(overloads))
+	hasVar := false
 	for idx, fn := range overloads {
 		funcType := e.extractFunctionType(fn, ctx)
 		if funcType == nil {
 			return nil, nil, fmt.Errorf("unable to extract function type for overload %d of '%s'", idx+1, funcName)
 		}
 		candidates[idx] = funcType
+		for _, parameter := range fn.Parameters {
+			hasVar = hasVar || parameter.ByRef
+		}
+	}
+	if selected, ok := e.selectStaticVarOverload(candidates, argExprs, hasVar, ctx); ok {
+		fn := overloads[selected]
+		args, err := e.ResolveOverloadFast(fn, argExprs, ctx)
+		return fn, args, err
 	}
 
-	// 3. Use the shared type-system overload resolution
+	argTypes := make([]types.Type, len(argExprs))
+	argValues := make([]Value, len(argExprs))
+	capturedArrays := make([]*capturedArrayArgument, len(argExprs))
+	previousArrayContext := ctx.ArrayTypeContext()
+	ctx.ClearArrayTypeContext()
+	defer ctx.SetArrayTypeContext(previousArrayContext)
+	for idx, expr := range argExprs {
+		allVar, anyVar := e.overloadArgumentModes(candidates, expr, idx, ctx)
+		argument, err := e.evaluateOverloadArgument(expr, allVar, anyVar, ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		argValues[idx], argTypes[idx], capturedArrays[idx] = argument.value, argument.typ, argument.captured
+	}
+	ctx.SetArrayTypeContext(previousArrayContext)
 	selected, err := types.ResolveOverload(candidates, argTypes)
 	if err != nil {
-		return nil, nil, fmt.Errorf("There is no overloaded version of \"%s\" that can be called with these arguments", funcName)
+		return nil, nil, fmt.Errorf("There is no overloaded version of %q that can be called with these arguments", funcName) //nolint:staticcheck // Preserve the DWScript diagnostic capitalization.
 	}
+	fn := overloads[selected]
+	for idx, captured := range capturedArrays {
+		if captured != nil && idx < len(fn.Parameters) && fn.Parameters[idx].ByRef {
+			ref, err := e.bindCapturedOverloadArray(captured, ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			argValues[idx] = ref
+		}
+	}
+	return fn, argValues, nil
+}
 
-	// 4. Return the declaration at the selected candidate index.
-	return overloads[selected], argValues, nil
+// selectStaticVarOverload leaves dynamic Variant/object discrimination on the
+// existing runtime path instead of changing how those overloads are selected.
+func (e *Evaluator) selectStaticVarOverload(candidates []types.Type, args []ast.Expression, hasVar bool, ctx *ExecutionContext) (int, bool) {
+	if !hasVar || e.engineState == nil {
+		return 0, false
+	}
+	staticTypes := make([]types.Type, len(args))
+	for idx, expr := range args {
+		staticTypes[idx] = e.resolvedExpressionType(expr, ctx)
+		if staticTypes[idx] == nil {
+			return 0, false
+		}
+		switch types.GetUnderlyingType(staticTypes[idx]).TypeKind() {
+		case "VARIANT", "CLASS", "INTERFACE":
+			return 0, false
+		}
+	}
+	selected, err := types.ResolveOverload(candidates, staticTypes)
+	return selected, err == nil
+}
+
+// overloadArgumentModes excludes candidates incompatible with a concrete
+// argument type before deciding whether its storage can be bound immediately.
+func (e *Evaluator) overloadArgumentModes(candidates []types.Type, expr ast.Expression, index int, ctx *ExecutionContext) (allVar, anyVar bool) {
+	var staticType types.Type
+	if e.engineState != nil {
+		staticType = e.resolvedExpressionType(expr, ctx)
+	}
+	if staticType != nil {
+		switch types.GetUnderlyingType(staticType).TypeKind() {
+		case "INTEGER", "FLOAT", "STRING", "BOOLEAN", "ARRAY", "RECORD":
+		default:
+			staticType = nil
+		}
+	}
+	allVar, viable := true, false
+	for _, candidate := range candidates {
+		signature, ok := candidate.(*types.FunctionType)
+		if !ok || index >= len(signature.Parameters) {
+			continue
+		}
+		parameter := types.NewFunctionType([]types.Type{signature.Parameters[index]}, nil)
+		if staticType != nil && types.SignatureDistance([]types.Type{staticType}, parameter) < 0 {
+			continue
+		}
+		viable = true
+		byRef := index < len(signature.VarParams) && signature.VarParams[index]
+		allVar = allVar && byRef
+		anyVar = anyVar || byRef
+	}
+	return allVar && viable, anyVar
+}
+
+type evaluatedOverloadArgument struct {
+	value    Value
+	typ      types.Type
+	captured *capturedArrayArgument
+}
+
+func (e *Evaluator) evaluateOverloadArgument(expr ast.Expression, allVar, anyVar bool, ctx *ExecutionContext) (evaluatedOverloadArgument, error) {
+	var argument evaluatedOverloadArgument
+	if allVar {
+		ref, err := e.prepareByRefArgument(expr, ctx)
+		if err != nil {
+			return argument, err
+		}
+		if err := argumentEvaluationError(ref, ctx); err != nil {
+			return argument, err
+		}
+		accessor, ok := ref.(ReferenceAccessor)
+		if !ok {
+			return argument, fmt.Errorf("var argument did not produce a reference")
+		}
+		value, err := accessor.Dereference()
+		if err != nil {
+			e.raiseBoundExceededError(err, ctx)
+			return argument, err
+		}
+		argument.value, argument.typ = ref, e.getValueType(value)
+		return argument, argumentEvaluationError(value, ctx)
+	}
+	handled := false
+	if anyVar {
+		var err error
+		argument.value, argument.captured, handled, err = e.captureOverloadArrayArgument(expr, ctx)
+		if err != nil {
+			return argument, err
+		}
+	}
+	if !handled {
+		argument.value = e.Eval(expr, ctx)
+	}
+	argument.typ = e.getValueType(argument.value)
+	return argument, argumentEvaluationError(argument.value, ctx)
+}
+
+func (e *Evaluator) bindCapturedOverloadArray(captured *capturedArrayArgument, ctx *ExecutionContext) (Value, error) {
+	if captured.bindReference != nil {
+		return captured.bindReference()
+	}
+	container := captured.bindContainer()
+	if err := argumentEvaluationError(container, ctx); err != nil {
+		return nil, err
+	}
+	array, ok := container.(*runtime.ArrayValue)
+	if !ok {
+		return nil, fmt.Errorf("var parameter requires an array element")
+	}
+	if array == captured.array {
+		return captured.reference, nil
+	}
+	return e.bindArrayElementReference(array, captured.index, captured.node, ctx)
 }
