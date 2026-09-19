@@ -485,9 +485,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// A bare non-class type name is not a value: DWScript reads it as the start
 		// of a cast and stops with `"(" expected` right after the name (the same rule
 		// analyzeVarDecl applies to `var v := TEnum;`).
-		if !isCompound && a.isBareTypeValue(stmt.Value) {
-			pos := stmt.Value.End()
-			a.addError("Syntax Error: \"(\" expected [line: %d, column: %d]", pos.Line, pos.Column)
+		if a.rejectBareTypeValue(stmt, isCompound) {
 			return
 		}
 
@@ -584,6 +582,9 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							return
 						case types.PropAccessMethod:
 							if propInfo.WriteSpec != "" && classType.ClassMethodFlags != nil && classType.ClassMethodFlags[ident.Normalize(propInfo.WriteSpec)] {
+								if a.rejectBareTypeValue(stmt, isCompound) {
+									return
+								}
 								valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
 								if valueType == nil {
 									return
@@ -608,6 +609,9 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 						}
 					}
 
+					if a.rejectBareTypeValue(stmt, isCompound) {
+						return
+					}
 					valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
 					if valueType == nil {
 						return
@@ -636,6 +640,9 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			return
 		}
 
+		if a.rejectBareTypeValue(stmt, isCompound) {
+			return
+		}
 		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
 		if valueType == nil {
 			return
@@ -706,6 +713,9 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			}
 		}
 
+		if a.rejectBareTypeValue(stmt, isCompound) {
+			return
+		}
 		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
 		if valueType == nil {
 			return
@@ -730,6 +740,19 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 	default:
 		a.addError("invalid assignment target at %s", stmt.Token.Pos.String())
 	}
+}
+
+// rejectBareTypeValue reports DWScript's `"(" expected` when a plain assignment's value
+// is a bare non-class type name (`v := TEnum`, `obj.F := TEnum`, `a[0] := TEnum`):
+// upstream reads the name as the start of a cast and stops right after it, whatever the
+// target is. It reports whether the error was recorded.
+func (a *Analyzer) rejectBareTypeValue(stmt *ast.AssignmentStatement, isCompound bool) bool {
+	if isCompound || !a.isBareTypeValue(stmt.Value) {
+		return false
+	}
+	pos := stmt.Value.End()
+	a.addError("Syntax Error: \"(\" expected [line: %d, column: %d]", pos.Line, pos.Column)
+	return true
 }
 
 // isReadOnlyArrayIndexTarget reports whether an indexed assignment target such

@@ -36,6 +36,10 @@ type Symbol struct {
 	// draws DWScript's `Assignment to FOR-Loop variable` warning, so the flag has
 	// to survive until the body is analyzed; it is not the same as ReadOnly.
 	IsLoopVariable bool
+	// IsEnumTypeName marks the synthetic symbol an enum declaration registers under
+	// its type name (so High(TEnum) and TEnum.Value resolve). A parameter or local
+	// that shadows the type name is an ordinary value symbol and leaves it false.
+	IsEnumTypeName bool
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.
@@ -212,6 +216,15 @@ func (st *SymbolTable) Define(name string, typ types.Type, pos token.Position) {
 		DeclPosition: pos,
 		Usages:       make([]token.Position, 0),
 	})
+}
+
+// DefineEnumTypeName defines the symbol an enum declaration registers under its
+// type name, marked so it is not mistaken for a value of that enum type.
+func (st *SymbolTable) DefineEnumTypeName(name string, typ types.Type, pos token.Position) {
+	st.Define(name, typ, pos)
+	if sym, ok := st.symbols.Get(name); ok {
+		sym.IsEnumTypeName = true
+	}
 }
 
 // DefineClassField defines a synthesized binding that exposes a class field by

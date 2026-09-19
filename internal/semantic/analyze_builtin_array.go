@@ -332,8 +332,8 @@ func (a *Analyzer) isTypeMetaValueExpression(expr ast.Expression) bool {
 // with `"(" expected`. Class names are excluded: they are valid metaclass values.
 //
 // Enum type names are registered as symbols (so High(TEnum) and TEnum.Value work), which
-// isTypeMetaValueExpression deliberately skips; they are recognised here by the symbol
-// being the enum type itself.
+// isTypeMetaValueExpression deliberately skips; they are recognised here by that
+// synthetic type-name symbol, so a parameter or local shadowing the name stays a value.
 func (a *Analyzer) isBareTypeValue(expr ast.Expression) bool {
 	if a.isClassNameExpr(expr) {
 		return false
@@ -346,9 +346,5 @@ func (a *Analyzer) isBareTypeValue(expr ast.Expression) bool {
 		return false
 	}
 	sym, exists := a.symbols.Resolve(id.Value)
-	if !exists || sym.Type == nil {
-		return false
-	}
-	enumType, isEnum := sym.Type.(*types.EnumType)
-	return isEnum && pkgident.Equal(enumType.Name, id.Value)
+	return exists && sym.IsEnumTypeName
 }

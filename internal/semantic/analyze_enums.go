@@ -119,7 +119,7 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	// Register enum type name as an identifier
 	// This allows the type name to be used as a runtime value in expressions
 	// like High(TColor) or Low(TColor)
-	a.symbols.Define(enumName, enumType, decl.Token.Pos)
+	a.symbols.DefineEnumTypeName(enumName, enumType, decl.Token.Pos)
 
 	// Create implicit helper for scoped enum access (TColor.Red)
 	// This enables accessing enum values via the type name while maintaining

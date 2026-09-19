@@ -403,8 +403,10 @@ Work families — IDs from the 2026-03 analysis
   - Left open by the 2026-09-12 slices: `ifthenelse_expression1` fails on recovery after `if 2=2 1`.
   - `[ ]` Left open by the 2026-09-19 compiler-stop slice: inside `begin…end` the value left
     unconsumed after a read-only property assignment is worded differently upstream (go-dws
-    reports nothing); indexed read-only property writes get no follow-up; the analyzer has no
-    compiler-stop concept, so semantic diagnostics after a parser stop can still appear. The
+    reports nothing); indexed read-only property writes get no follow-up; semantic
+    diagnostics after a parser stop are dropped by position, but the analyzer's own stops
+    (`"(" expected`) do not suppress later diagnostics, and end-of-compilation hints
+    positioned before a parser stop are still reported. The
     `must have either a type annotation` text filter in `internal/frontend/result.go` is now
     mostly dead.
 - **F4** `[ ]` L Class/property/static/override/visibility diagnostics — still the largest family.

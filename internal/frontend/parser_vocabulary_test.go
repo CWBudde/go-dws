@@ -68,6 +68,32 @@ func TestCompile_DWScriptRecoverySentences(t *testing.T) {
 			want:   []string{`Syntax Error: "(" expected [line: 2, column: 15]`},
 		},
 		{
+			name:   "enum type name assigned to a record field",
+			source: "Type TEnum = (name);\ntype TRec = record F : TEnum; end;\nvar r : TRec;\nr.F := TEnum;\n",
+			want:   []string{`Syntax Error: "(" expected [line: 4, column: 13]`},
+		},
+		{
+			name:   "enum type name assigned to an array element",
+			source: "Type TEnum = (name);\nvar a : array [0..1] of TEnum;\na[0] := TEnum;\n",
+			want:   []string{`Syntax Error: "(" expected [line: 3, column: 14]`},
+		},
+		{
+			// A compiler stop abandons the compilation: a semantic error in a later
+			// statement is never reported.
+			name:   "semantic error after a compiler stop",
+			source: "var x : Integer;\nx := (1 + );\nx := 'a';\n",
+			want:   []string{`Syntax Error: Expression expected [line: 2, column: 11]`},
+		},
+		{
+			// Upstream compiles in one pass, so what it reported before the stop stays.
+			name:   "semantic error before a compiler stop",
+			source: "var x : Integer;\nx := 'a';\nx := (1 + );\n",
+			want: []string{
+				`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 2, column: 3]`,
+				`Syntax Error: Expression expected [line: 3, column: 11]`,
+			},
+		},
+		{
 			// Parser errors keep their emission order even when the later one sits
 			// further left on the line.
 			name:   "set of nothing",
@@ -124,6 +150,16 @@ func TestCompile_DWScriptRecoverySentences(t *testing.T) {
 func TestCompile_TypeNamesThatAreValues(t *testing.T) {
 	source := "type TEnum = (a, b);\ntype TFoo = class end;\n" +
 		"var c : TClass;\nc := TFoo;\nvar h := High(TEnum);\nvar e : TEnum;\nfor e in TEnum do PrintLn(Ord(e));\nPrintLn(h);\n"
+	result := Compile(source, "<test>", semantic.HintsLevelPedantic)
+	if got := result.DiagnosticStrings(); len(got) != 0 {
+		t.Fatalf("expected no diagnostics, got %q", got)
+	}
+}
+
+// TestCompile_ValueShadowingEnumTypeName keeps a parameter or local that shadows an
+// enum type name a value: only the type's own name symbol is the `"(" expected` case.
+func TestCompile_ValueShadowingEnumTypeName(t *testing.T) {
+	source := "type TEnum = (a, b);\nprocedure P(tenum : TEnum);\nbegin\n   var x := TEnum;\n   PrintLn(Ord(x));\nend;\nP(b);\n"
 	result := Compile(source, "<test>", semantic.HintsLevelPedantic)
 	if got := result.DiagnosticStrings(); len(got) != 0 {
 		t.Fatalf("expected no diagnostics, got %q", got)

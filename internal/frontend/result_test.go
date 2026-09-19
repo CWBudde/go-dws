@@ -836,7 +836,7 @@ TPoint = record
 end;
 
 var
-broken := ;
+broken;
 p: TPoint;
 a: Integer := p.end;
 `
@@ -1223,7 +1223,7 @@ end;
 
 func TestCompile_CollectsSemanticDiagnosticsAfterRecoverableParserError(t *testing.T) {
 	source := `
-var broken := ;
+var broken;
 var i: Integer;
 begin
 	i := 'oops';
@@ -1240,7 +1240,7 @@ end;
 
 	got := result.DiagnosticStrings()
 	want := []string{
-		`Syntax Error: Expression expected [line: 2, column: 15]`,
+		`Syntax Error: Colon ":" expected [line: 2, column: 11]`,
 		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 5, column: 4]`,
 	}
 
@@ -1286,7 +1286,7 @@ begin
 }
 
 func TestCompile_OrdersSameLineRecoverableParserBeforeSemanticDiagnostics(t *testing.T) {
-	source := `var broken := ; var i: Integer; i := 'oops';`
+	source := `var broken; var i: Integer; i := 'oops';`
 
 	result := Compile(source, "same_line_recoverable_parser_plus_semantic.pas", semantic.HintsLevelPedantic)
 	if result == nil {
@@ -1298,8 +1298,8 @@ func TestCompile_OrdersSameLineRecoverableParserBeforeSemanticDiagnostics(t *tes
 
 	got := result.DiagnosticStrings()
 	want := []string{
-		`Syntax Error: Expression expected [line: 1, column: 15]`,
-		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 1, column: 35]`,
+		`Syntax Error: Colon ":" expected [line: 1, column: 11]`,
+		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 1, column: 31]`,
 	}
 
 	if len(got) != len(want) {

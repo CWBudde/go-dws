@@ -54,6 +54,9 @@ type Diagnostic struct {
 	// BlocksSemantic marks parser diagnostics that should stop semantic analysis
 	// because the recovered AST/result is not trustworthy enough to continue.
 	BlocksSemantic bool
+	// Stop marks a parser compiler stop (DWScript's AddCompilerStop): upstream abandons
+	// the compilation there, so no diagnostic positioned after it is reported.
+	Stop bool
 	// sourceHints preserves a lexer directive setting until compile options are applied.
 	sourceHints token.HintLevel
 }
@@ -286,13 +289,40 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 
 	err := safeAnalyzeWithUnits(analyzer, result, opts)
 	result.SemanticInfo = analyzer.GetSemanticInfo()
-	result.Diagnostics = append(result.Diagnostics, semanticDiagnostics(analyzer)...)
+	result.Diagnostics = dropDiagnosticsAfterStop(append(result.Diagnostics, semanticDiagnostics(analyzer)...))
 	sortDiagnostics(result.Diagnostics)
 	result.Diagnostics = filterDiagnostics(result.Diagnostics)
 	sortDiagnostics(result.Diagnostics)
 	result.SemanticSuccessful = err == nil
 
 	return result
+}
+
+// dropDiagnosticsAfterStop removes the non-parser diagnostics positioned after the
+// first parser compiler stop. Upstream compiles in a single pass and abandons it at
+// AddCompilerStop, so it reports what it found before the stop and nothing after it;
+// the analyzer still walks the recovered AST and would otherwise add later statements'
+// diagnostics.
+func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
+	stopLine, stopColumn, found := 0, 0, false
+	for _, diag := range diags {
+		if diag.Phase == PhaseParsing && diag.Stop {
+			stopLine, stopColumn, found = diag.Line, diag.Column, true
+			break
+		}
+	}
+	if !found {
+		return diags
+	}
+	kept := diags[:0]
+	for _, diag := range diags {
+		after := diag.Line > stopLine || (diag.Line == stopLine && diag.Column > stopColumn)
+		if diag.Phase != PhaseParsing && after {
+			continue
+		}
+		kept = append(kept, diag)
+	}
+	return kept
 }
 
 // safeMonomorphize runs generic specialization and records a failure as a
@@ -545,6 +575,7 @@ func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {
 			Severity:       SeverityError,
 			Fatal:          true,
 			BlocksSemantic: parserDiagnosticBlocksSemantic(err),
+			Stop:           err.Stop,
 		})
 	}
 	return diags

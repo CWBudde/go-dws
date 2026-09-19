@@ -4838,8 +4838,17 @@ output per fixture shape plus negative cases), `internal/parser/compiler_stop_te
 
 Left open (PLAN.md §4/F3): inside a `begin…end` block the unconsumed value is worded
 differently upstream and go-dws reports nothing; indexed read-only property writes get
-no follow-up; the analyzer has no compiler-stop concept, so semantic diagnostics after
-a stop can still appear.
+no follow-up; the analyzer's own stops (`"(" expected`) do not suppress later
+diagnostics, and end-of-compilation hints positioned before a parser stop still appear.
+
+Review follow-up (PR #413): the parser stop now reaches the frontend — `Diagnostic.Stop`
+marks it and `dropDiagnosticsAfterStop` removes semantic diagnostics positioned after the
+first stop, keeping what upstream's single pass reported before it (+3 FailureScripts,
+171 → 174; 1,177 / 1,966). The bare-enum-type check also covers member and index
+assignment targets (`r.F := TEnum`, `a[0] := TEnum`), and it recognises the enum's
+synthetic type-name symbol (`Symbol.IsEnumTypeName`) so a parameter or local shadowing
+the type name stays a value. Frontend tests that used `var broken := ;` as a generic
+recoverable parser error now use `var broken;` (`Colon ":" expected`, not a stop).
 
 Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues). CLI and harness agree at
