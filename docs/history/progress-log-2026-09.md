@@ -4688,3 +4688,61 @@ unchanged. Upstream scripts and expectations were not modified.
 Diff-scoped lint reports zero issues. Two narrow complexity annotations cover
 existing dispatch bodies extracted into shared helpers; other lint checks remain
 active. Changed Go files are formatted and `git diff --check` is clean.
+
+## 2026-09-19 — execution-suite triage and partial-class fixes (E10)
+
+E10a/b classify the remaining selected execution-suite failures into actionable
+follow-ups. The [audit](../architecture/execution-suite-triage-2026-09.md) records
+commands, exact counts, representative blockers and existing E3/F1 ownership.
+FunctionsMath has five failures, not six, and FunctionsGlobalVars already passes
+16/16 under its configured strict hint level. The stale `queue_snapshot` gate is
+removed without changing hint policy or Map inference. BuildScripts currently
+pairs a Pascal unit with its driver's expected output; correcting driver discovery
+and unit resolution remains explicit follow-up work, without changing scoring.
+
+E10c closes three independent defects in `SimpleScripts/partial_class3`. The
+semantic analyzer now counts a value-bearing `Exit` as use of the current
+function's implicit Result. The evaluator reuses an existing partial class for a
+nonpartial continuation, retaining fields, initializers and methods. Semantic
+partial status remains set across subsequent continuations. Finally, the parser
+captures the continuation hint's token after class modifiers and before ancestry:
+the fixture now reports line 6, column 3, instead of the class keyword at 5:14.
+E2 had preserved structured positions, but the old anchor was still incorrect.
+
+`ClassDecl.PartialHintPos` is additive AST position metadata; manually constructed
+ASTs without it retain the original declaration position as fallback. Visitor
+regeneration produced no generated-code changes. Runtime execution stays in the
+evaluator; no embedding API, CLI flag or bytecode behavior changed. The bundled
+fixture now prints its one expected hint followed by `toto` and `test`. Removing
+the false Result hint also closes `SimpleScripts/implies`.
+
+E10d changes only pretty exception presentation. Array/string bounds messages
+already containing their runtime position no longer receive an identical suffix.
+Formatting uses a copy of the exception: script-visible messages and plain/envelope
+rendering are unchanged. Explicitly authored position-like text remains verbatim;
+distinct re-raise positions and stack traces remain visible.
+
+Tests first reproduced the failures through compilation and execution. Regressions
+cover partial continuations, three-part declarations, case-insensitive names,
+inherited fields, hint anchors with modifiers/comments/ancestry, disabled hints,
+and ordinary duplicate-class rejection. CLI tests cover Result use in free, inline,
+out-of-line and nested functions, unused outer results, bare exits and invalid
+exits, plus exact bounds diagnostics in pretty/plain/envelope modes, authored
+exception text, and re-raise positions/stack traces.
+
+Validation:
+
+```sh
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go test ./...
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go test ./cmd/dwscript/cmd -count=1
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go test -p 1 ./internal/parser ./internal/semantic ./internal/interp -run 'TestPartial|TestClassConstruction|TestParseClass|TestEval_UnitDeclarationRunsInitializationAfterDeclarations|TestDWScriptFixtures/(SimpleScripts|InterfacesPass)/partial_class' -count=1
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false just --tempdir /tmp fixture-update
+GOCACHE=/tmp/go-dws-e8-cache GOFLAGS=-buildvcs=false go run ./cmd/fixture-report --cli /tmp/go-dws-e10-cli --timeout 60
+GOCACHE=/tmp/go-dws-e8-cache GOLANGCI_LINT_CACHE=/tmp/go-dws-e8-lint-cache GOFLAGS=-buildvcs=false golangci-lint run --new-from-rev=HEAD --timeout=5m
+```
+
+The full suite passes and changed-code lint reports zero issues. Fresh CLI and
+Go-harness tables match in all 61 categories: **1,152 / 1,966 scored**, with 814
+failures and 78 unscored fixtures. SimpleScripts increases from **379 to 381 of
+443**; all other category floors are unchanged. Generated status and baselines
+are refreshed. Upstream scripts and expected outputs were not modified.

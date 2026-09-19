@@ -87,7 +87,9 @@ Live per-category pass/skip numbers are generated into [TEST_STATUS.md](TEST_STA
 
 ### Codegen Tests (Stage 12)
 
-- **BuildScripts** (54 tests) - Build and compilation tests [requires JS transpilation]
+- **BuildScripts** (54 Pascal files) - Build/unit tests; upstream runs `.dws` drivers with
+  supporting `.pas` units, without requiring JS transpilation. Our `.pas` discovery does not
+  yet reproduce that runner; see the [execution audit](../../docs/architecture/execution-suite-triage-2026-09.md#buildscripts-runner-mismatch).
 - **JSFilterScripts** (59 files) - JavaScript filter scripts [requires JS transpilation]
 - **JSFilterScriptsFail** (6 files) - JavaScript filter error cases [requires JS transpilation]
 - **HTMLFilterScripts** (10 tests) - HTML filter scripts [requires JS transpilation]
@@ -288,7 +290,10 @@ JSFilterScriptsFail still uses compile-only mode and requires empty diagnostics.
 
 Three groups remain **unscored when their `.txt` is missing** (78 fixtures):
 
-- **BuildScripts (53) and AutoFormat (10)** use different upstream runners, not output comparisons.
+- **BuildScripts (53) and AutoFormat (10)** use different upstream runners. BuildScripts
+  compares driver execution output, while our current discovery selects supporting `.pas`
+  units; its existing `const_inline.txt` is therefore paired with the wrong input. These
+  missing-expectation cases remain unscored pending runner parity.
 - **External (1) and DelegateLib (1)** require host setup excluded from this work.
 - **FailureScripts (13)** lack exact diagnostic expectations. Upstream's `CompilationFailure`
   runner (`UScriptTests.pas:344`) requires nonempty diagnostics when a `.txt` is missing; it does

@@ -52,6 +52,7 @@ Status figures are generated, never hand-edited:
 | [`architecture/audit-2026-09.md`](architecture/audit-2026-09.md) | Measured audit behind `PLAN.md` §2: sizes, dead code, import graph, type-system triplication, two compile pipelines, ranked refactoring candidates |
 | [`architecture/fail-suite-audit-2026-09.md`](architecture/fail-suite-audit-2026-09.md) | Measured audit behind `PLAN.md` §4: every `*Fail` fixture diffed against its expectation — distance-to-passing, message-shape inventories, the invented-vocabulary list, the one-line near-misses |
 | [`architecture/pass-suite-audit-2026-09.md`](architecture/pass-suite-audit-2026-09.md) | Measured audit behind `PLAN.md` §3.5: the same for the suites that *run* a program — why 111 of 151 failures are one fault reported twice, and what the execution suites are actually missing |
+| [`architecture/execution-suite-triage-2026-09.md`](architecture/execution-suite-triage-2026-09.md) | E10a/E10b: remaining math and small execution-suite blockers, runner corrections, ownership and exclusions |
 | [`architecture/implicit-self-resolution.md`](architecture/implicit-self-resolution.md) | How identifiers and implicit `Self` resolve inside methods |
 | [`architecture/token-cursor.md`](architecture/token-cursor.md) | Parser token-cursor design |
 | [`architecture/comment-preservation.md`](architecture/comment-preservation.md) | Lexer/AST comment and trivia preservation |

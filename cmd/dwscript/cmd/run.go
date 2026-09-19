@@ -469,7 +469,7 @@ func reportRuntimeOutcome(interpreter *interp.Interpreter, result interp.Value) 
 
 	// Check for unhandled exceptions
 	if exc := interpreter.GetException(); exc != nil {
-		fmt.Fprintln(os.Stderr, formatUnhandledException(exc))
+		fmt.Fprintln(os.Stderr, formatPrettyUnhandledException(exc))
 		// The StackTrace.String() method formats each frame with position info
 		if len(exc.CallStack) > 0 {
 			fmt.Fprint(os.Stderr, exc.CallStack.String())
@@ -786,4 +786,23 @@ func formatUnhandledException(exc *runtime.ExceptionValue) string {
 			className, exc.Message, exc.Position.Line, exc.Position.Column)
 	}
 	return fmt.Sprintf("Runtime Error: %s: %s", className, exc.Message)
+}
+
+// formatPrettyUnhandledException avoids appending a runtime position already in
+// the message. Explicitly raised messages remain verbatim, even when their text
+// resembles a position. Work on a copy so plain diagnostics and script-visible
+// exception state retain their original representation.
+func formatPrettyUnhandledException(exc *runtime.ExceptionValue) string {
+	display := *exc
+	if !exc.UserRaised && exc.Position != nil {
+		position := fmt.Sprintf(" [line: %d, column: %d]", exc.Position.Line, exc.Position.Column)
+		if strings.HasSuffix(exc.Message, position) {
+			display.Position = nil
+		}
+	}
+	message := formatUnhandledException(&display)
+	if exc.ReRaisePos != nil && exc.ReRaisePos.IsValid() {
+		message += fmt.Sprintf(" [line: %d, column: %d]", exc.ReRaisePos.Line, exc.ReRaisePos.Column)
+	}
+	return message
 }

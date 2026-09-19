@@ -103,6 +103,11 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 // POST: cursor is RPAREN if parentheses present; otherwise unchanged
 func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 	cursor := p.cursor
+	// This helper is revisited after modifiers. Preserve the opening parenthesis
+	// once ancestry was parsed; otherwise advance the hint anchor past modifiers.
+	if classDecl.Parent == nil && len(classDecl.Interfaces) == 0 {
+		classDecl.PartialHintPos = cursor.Peek(1).Pos
+	}
 
 	if cursor.Peek(1).Type != lexer.LPAREN {
 		return

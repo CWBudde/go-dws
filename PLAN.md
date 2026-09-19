@@ -10,15 +10,15 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,150 / 1,966 scored =
-58%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
+**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,152 / 1,966 scored =
+59%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,150 / 1,747 = 66% in scope**, the number to track against §6. Both are honest;
+same run reads **1,152 / 1,747 = 66% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -30,7 +30,7 @@ Open, in leverage order:
   families were split out — the 68 fixtures one line from passing (F9) and the `Incompatible
   types` sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half of the measurement: 122 in-scope fixtures now fail in the
+- **§3.5** is the other half of the measurement: 120 in-scope fixtures now fail in the
   suites that *run* a program, and until 2026-09-12 no item covered any of them. The two cheap
   ones (E1, E2) shipped the same day; E3, the case-mismatch hint, is structural and cross-cutting,
   and E8 closed the by-reference binding bug E1 turned up.
@@ -59,10 +59,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (816 total, 2026-09-19): **219 host-library** (out of scope),
+- Where the remaining failures are (814 total, 2026-09-19): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **122 in the execution suites** (§3.5:
-  SimpleScripts 64, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 5, a tail
+  HelpersFail 18 each, the rest under 15), and **120 in the execution suites** (§3.5:
+  SimpleScripts 62, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 5, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -251,15 +251,6 @@ FunctionsDebug 3/3, InnerClassesPass 2/2, EncodingLib 12/12.
     check DWScript's reference counting at a point where Go's GC has not necessarily run. Five of
     the formerly unscored fixtures exist only to make that assertion; "compiles and prints nothing" is
     all of it that is portable.
-- ✋ FunctionsGlobalVars `queue_snapshot`: measured 2026-09-12, the produced output already
-  matches the expectation exactly, line for line. The only difference is four
-  `"join" does not match case of declaration ("Join")` hints. The declaration-resolution
-  discriminator remains unproven: our analyzer types `Map`'s result from the callback's return type, so the
-  receiver here is `array of String` — the same element type as `ArrayPass/dynamic_array_remove`,
-  where upstream *does* emit the hint. Keep this case parked pending evidence of upstream's
-  resolution behavior; do not regress `Map`'s return-type inference to force a hint match.
-  E3a's recovered runner settings do not resolve this discrepancy, and it is not evidence of
-  missing per-test hint configuration or a GlobalVars runtime gap.
 - ✋ UTF-16 surrogate iteration (`for_in_str`, `for_in_str2`): intentional divergence, see
   [`docs/decisions/string-encoding.md`](docs/decisions/string-encoding.md).
 
@@ -307,10 +298,11 @@ fail**; they were never enumerated because the only measurement that existed cov
 suites. Tables and method:
 [`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
 Regenerate with `just fixture-report --in-scope --classify --list-fails`.
-The September 19 measurement has 122 execution failures. E5 closes six, taking InterfacesPass
+The September 19 measurement after E10 has 120 execution failures. E5 closes six, taking InterfacesPass
 from 21/33 to 27/33; E6 closes four, taking JSONConnectorPass from 69/82 to 73/82; E7 closes two,
 taking SimpleScripts from 376/443 to 378/443; E8 closes one more, reaching 379/443. Earlier
-improvements are recorded in the progress log; the classification counts below describe the
+improvements are recorded in the progress log; E10 closes `partial_class3` and `implies`,
+reaching 381/443 in SimpleScripts. The classification counts below describe the
 September 12 audit.
 
 Read the numbers with one caveat: **111 of the 145 are classified `mixed`** (a diagnostic *and* the
@@ -491,24 +483,64 @@ The [September progress log](docs/history/progress-log-2026-09.md#2026-09-19--si
 records the real-path regressions and validation. Compound index assignment remains a separate
 follow-up: its read and write still resolve the index expression independently.
 
-#### E10 — Remaining execution-suite triage `[ ]`
+#### E10 — Remaining execution-suite triage `[x]` — completed 2026-09-19
 
 This ID covers the previously unnumbered remainder. Use
 `just fixture-report --category <Category> --classify --list-fails` and record a representative
 fixture and first blocking cause for each new group.
 
-- [ ] **E10a — Reclassify the six remaining FunctionsMath failures.** E4's helper work is
-  complete; identify the separate causes still preventing these fixtures from passing.
-- [ ] **E10b — Group the smaller categories.** Triage `HelpersPass` (5), `OperatorOverloadPass`
-  (3), `LambdaPass`/`OverloadsPass` (2 each), and `FunctionsGlobalVars`, `BuildScripts`,
-  `FunctionsString`, `PropertyExpressionsPass` (1 each). Keep §5 exclusions explicit and link
-  overlap with E3 instead of duplicating work. Memory's six host-setup failures remain gated in §3.3.
-- [ ] **E10c — Separate the remaining `partial_class3` defects.** Its hint position is fixed,
-  but the spurious `Result is never used` hint and `class 'TTest' already declared` runtime error
-  still need independent reproductions and fixes.
-- [ ] **E10d — Remove duplicate positions in pretty runtime diagnostics.** Exceptions whose
-  messages already contain a position currently print it twice under `--diagnostics=pretty`.
-  Add a CLI regression for arrays/strings and retain the plain/envelope rendering behavior.
+- [x] **E10a — Reclassify FunctionsMath.** Completed 2026-09-19: CLI and Go harness agree at
+  35/40, with five remaining failures, not six. Variant numeric/ordinal arguments, builtin
+  signatures, and seeded RNG/deprecation are separate from E4's completed helper work.
+- [x] **E10b — Group the smaller categories.** Completed 2026-09-19: recorded first blockers
+  for `HelpersPass` (5), `OperatorOverloadPass` (3), `LambdaPass`/`OverloadsPass` (2 each),
+  `BuildScripts`, `FunctionsString`, and `PropertyExpressionsPass` (1 each).
+  `FunctionsGlobalVars` is already 16/16 with its strict runner setting; the old
+  `queue_snapshot` gate is removed. BuildScripts pairs a unit with its driver's expectation;
+  it needs runner/input and unit-resolution work, not an inferred inline-constant fix.
+- [x] **E10c — Resolve the independent `partial_class3` defects.** Partial classes accept
+  nonpartial continuations and retain partial status. The continuation hint uses the token
+  after class modifiers and before ancestry (6:3 in the fixture); E2 had structured the old,
+  incorrect position. Value-bearing `Exit` counts as use of Result, also closing `implies`.
+  Real compile/run regressions cover continuation metadata, hint anchors and Result scope.
+- [x] **E10d — Remove duplicate positions in pretty runtime diagnostics.** Identical runtime
+  position suffixes appear once; authored messages, distinct re-raise positions and stack
+  traces are preserved. CLI regressions retain exact plain/envelope behavior.
+
+The [September progress log](docs/history/progress-log-2026-09.md#2026-09-19--execution-suite-triage-and-partial-class-fixes-e10)
+records implementation and validation. CLI and harness agree at 1,152/1,966; SimpleScripts'
+floor increased from 379 to 381, with all other category floors unchanged.
+
+The [September execution audit](docs/architecture/execution-suite-triage-2026-09.md) records
+commands, exact diagnostics, exclusions and the following open implementation groups. Closing
+the triage checkpoints does not close these defects:
+
+- [ ] **Math signatures and Variant arguments:** support Variant `Abs` and `Inc`/`Dec` deltas,
+  two-argument `Succ`/`Pred`, explicit Haversine radius, and RandG mean/deviation consistently
+  in semantic analysis and the evaluator. Representatives: `abs`, `inc_dec_variant_op`,
+  `haversine`, `random`.
+- [ ] **Seeded RNG compatibility:** establish the upstream sequence/seed contract for
+  `randseed` before changing the generator; its missing deprecated warning belongs to F1.
+- [ ] **Helper dispatch and receivers:** fix same-name `Self.ClassName` recursion
+  (`classname_helper1`), explicit helper-instance calls (`declared_helper`, already §3.2), and
+  class functions through array type aliases (`dyn_array_create`).
+- [ ] **Operator syntax and binding:** parse expression `==`, `!=`, `<<`, `>>`, resolve
+  qualified helper bindings and builtin implicit-operator bindings. Representatives:
+  `c_style`, `operator_overloading2`, `helper_as_overload`, `operator_implicit`.
+- [ ] **Lambda and overload semantics:** recognize Result case-insensitively during lambda
+  inference (`simple_func`), resolve bare callable arguments against value/delegate overloads
+  (`overload_ambiguous_delegate`), and retain class identity for bare `ClassName` inside a class
+  method (`overload_class_method`). `immediate`'s synthetic unused-Result hint belongs to F1.
+- [ ] **Property forwarding and helper error positions:** support property accessor specifiers
+  naming another property (`read_write_other_property`), and anchor `toxml`'s caught exception
+  at the member name rather than the receiver. The latter is separate from E10d rendering.
+- [ ] **BuildScripts runner parity:** select the upstream `.dws` drivers and resolve their
+  `.pas` units without selecting the same-name driver. Reconcile CLI/harness scoring before
+  changing category discovery or the denominator; do not simply mark `const_inline` passing.
+
+`record_array_helper` remains E3c's isolated case-hint residual. The two OverloadsPass failures
+and `declared_helper` already have case-hint parity. Memory's six host-setup failures remain
+gated in §3.3; all §5 host-library, backend and UTF-16 exclusions are unchanged.
 
 #### E4 — Numeric and array helpers `[x]` — completed 2026-09-13
 
@@ -736,7 +768,6 @@ Gate for everything ⏸️ below: **every non-host-library fixture category ≥ 
   name-resolution residual remains separate from runner settings. See
   [the E3a audit](docs/history/progress-log-2026-09.md#2026-09-13--fixture-hint-configuration-e3a).
   The July "Hint/warning envelope" account remains historical, not the current blanket gate.
-  `queue_snapshot` stays parked for the specific unresolved resolution behavior in §3.3.
   Non-case hints (empty block, unreachable code, prefer-ToString) remain under F1.
 - ✋ UTF-16 surrogate iteration: `docs/decisions/string-encoding.md`.
 - ✋ Subrange compile-time bounds: zero fixture yield.

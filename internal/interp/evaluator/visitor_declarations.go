@@ -255,7 +255,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 			// the code below populate its parent, members, and VMT.
 			ci.SetForwardClass(false)
 			classInfo = ci
-		case ci.IsPartialClass() && node.IsPartial:
+		case ci.IsPartialClass():
 			classInfo = ci
 		default:
 			return e.newError(node, "class '%s' already declared", className)

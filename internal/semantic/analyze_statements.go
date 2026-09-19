@@ -1516,6 +1516,8 @@ func (a *Analyzer) analyzeExitStatement(stmt *ast.ExitStatement) {
 			return
 		}
 
+		// Exit(value) supplies the implicit function result without naming Result.
+		a.recordSymbolUsage("Result", stmt.Token.Pos)
 		valueType := a.analyzeExpression(stmt.ReturnValue)
 		if valueType != nil && !a.canAssign(valueType, expectedType) {
 			a.addError("exit value type %s incompatible with function return type %s at %s",
