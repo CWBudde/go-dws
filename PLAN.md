@@ -29,7 +29,7 @@ Open, in leverage order:
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 116 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
+- **§3.5** is the other half: 114 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
   are closed; E3c is still open, and what the closed groups left is grouped as E12–E20.
 - **§3.2** and **§3.4** have one open item each (explicit-instance helper calls; expected-type
   overload resolution, blocked on the evaluator). **§3.3** has only the gated Memory host setup.
@@ -56,8 +56,8 @@ Rules for this document:
   FunctionsMathComplex/3D) are excluded from every target below.
 - Where the remaining failures are (782 total, 2026-09-19): **219 host-library** (out of scope),
   **447 in the `*Fail` error-detection suites** (§4: FailureScripts 352, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **116 in the execution suites** (§3.5:
-  SimpleScripts 62, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
+  HelpersFail 18 each, the rest under 15), and **114 in the execution suites** (§3.5:
+  SimpleScripts 60, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -193,7 +193,7 @@ matching, class-operator inheritance), and the skipped-test backlog.
 
 ### 3.5 Execution-suite failures (E)
 
-116 in-scope execution-suite fixtures fail (2026-09-19). Audits:
+114 in-scope execution-suite fixtures fail (2026-09-19). Audits:
 [pass-suite audit](docs/architecture/pass-suite-audit-2026-09.md) (2026-09-12) and
 [execution-suite triage](docs/architecture/execution-suite-triage-2026-09.md) (2026-09-19, first
 blocker per group). Regenerate with `just fixture-report --in-scope --classify --list-fails`.
@@ -484,15 +484,18 @@ Work families — IDs from the 2026-03 analysis
 - **F9** `[~]` M **The near-miss queue** — the 68 one-line fixtures, listed in the audit. The
   compiler-stop slice (2026-09-19, [log](docs/history/progress-log-2026-09.md)) closed 13 of them
   plus 5 others: the `Unexpected "Integer Literal"`, spurious `expected ')'`, `enums5`/`6`,
-  `var_incomplete`, `case_error3` and `ifthenelse_expression2` lines. Recurring
-  themes, each one change:
-  - `[ ]` S Triple-apostrophe string diagnostics (`triple_apos1`, `triple_apos2`)
+  `var_incomplete`, `case_error3` and `ifthenelse_expression2` lines. The string-constant slice
+  (same day) closed `triple_apos1`/`2`, `heredoc`, `invalid_ucs2_char` and
+  `reserved_escape_empty`/`_number`, plus SimpleScripts `heredoc_indent`/`heredoc_special`.
+  - `[ ]` S Lexer constant errors are dropped when a parser error precedes them in the source
+    (`reachedLexerDiagnostics`, `internal/frontend/result.go`), approximating upstream's lazy
+    tokenizer. Replace with reporting a tokenizer error only when the parser reaches its token;
+    the unit-compile path (`internal/frontend/units.go`) does not apply the drop at all.
+  Recurring themes, each one change:
   - `[ ]` S Spurious `No arguments expected` on an array helper called with none (`dyn_array1`,
     `dyn_array_setlength2`)
   - `[ ]` S `argument N to method 'X' of class 'Y' has type …` →
     `Argument N expects type "X" instead of "Y"` (`method_param_error1`, `method_param_error2`)
-  - `[ ]` S Spurious `Undefined variable 'Integer'` for an escaped reserved word
-    (`reserved_escape_empty`, `reserved_escape_number`)
 - **F10** `[ ]` M `Incompatible types: "X" and "Y"` — 58 lines over 22 fixtures, the largest missing
   *semantic* shape. DWScript uses one sentence wherever two types fail to unify, target first,
   supplied second, both quoted; go-dws invents a bespoke sentence per site, which is why the
