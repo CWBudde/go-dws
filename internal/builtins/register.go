@@ -211,9 +211,9 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("TestBit", TestBit, CategoryMath, "Tests if a specific bit is set",
 		Sig([]types.Type{I, I}, B).WithConstraints(exactParameter, exactParameter))
 	r.RegisterWithSignature("Haversine", Haversine, CategoryMath, "Calculates the haversine distance",
-		Sig([]types.Type{F, F, F, F}, F).WithConstraints(ParameterConstraint{Exact: true, Numeric: true}, ParameterConstraint{Exact: true, Numeric: true}, ParameterConstraint{Exact: true, Numeric: true}, ParameterConstraint{Exact: true, Numeric: true}))
+		SigOptional([]types.Type{F, F, F, F, F}, F, 4).WithConstraints(exactNumericParameter, exactNumericParameter, exactNumericParameter, exactNumericParameter, exactNumericParameter))
 	r.RegisterWithSignature("CompareNum", CompareNum, CategoryMath, "Compares two numbers (-1, 0, 1)",
-		Sig([]types.Type{V, V}, I).WithConstraints(ParameterConstraint{Exact: true, Numeric: true}, ParameterConstraint{Exact: true, Numeric: true}))
+		Sig([]types.Type{V, V}, I).WithConstraints(exactNumericParameter, exactNumericParameter))
 
 	// Exponential and logarithmic functions
 	r.RegisterWithSignature("Exp", Exp, CategoryMath, "Returns e raised to the power of x",
@@ -291,7 +291,7 @@ func RegisterMathFunctions(r *Registry) {
 	r.RegisterWithSignature("RandSeed", RandSeed, CategoryMath, "Returns the current random seed",
 		Sig(nil, I))
 	r.RegisterWithSignature("RandG", RandG, CategoryMath, "Returns a random Gaussian value",
-		Sig(nil, types.FLOAT))
+		SigOptional([]types.Type{F, F}, F, 0).WithArgCounts(0, 2))
 }
 
 // RegisterStringFunctions registers all string manipulation built-in functions.
@@ -640,9 +640,9 @@ func RegisterConversionFunctions(r *Registry) {
 
 	// Ordinal functions
 	r.RegisterWithSignature("Succ", Succ, CategoryConversion, "Returns the successor of an ordinal value",
-		Sig([]types.Type{V}, V))
+		SigOptional([]types.Type{V, types.INTEGER}, V, 1))
 	r.RegisterWithSignature("Pred", Pred, CategoryConversion, "Returns the predecessor of an ordinal value",
-		Sig([]types.Type{V}, V))
+		SigOptional([]types.Type{V, types.INTEGER}, V, 1))
 }
 
 // RegisterEncodingFunctions registers all encoding/escaping built-in functions.

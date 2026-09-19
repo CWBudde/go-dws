@@ -70,7 +70,7 @@ func TestBuiltinSignatures_CorrectedShapes(t *testing.T) {
 	}{
 		{types.STRING, "Trim", []int{1, 3}, []int{0, 2, 4}},
 		{types.STRING, "TrimLeft", []int{1, 2}, []int{0, 3}},
-		{types.FLOAT, "RandG", []int{0}, []int{1, 2}},
+		{types.FLOAT, "RandG", []int{0, 2}, []int{1, 3}},
 		{types.STRING, "StringReplace", []int{3, 4}, []int{0, 2, 5}},
 		{types.STRING, "StrReplace", []int{3, 4}, []int{0, 2, 5}},
 		{types.NewDynamicArrayType(types.STRING), "StrSplit", []int{2}, []int{0, 1, 3}},

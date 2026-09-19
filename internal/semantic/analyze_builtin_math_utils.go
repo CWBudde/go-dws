@@ -34,7 +34,7 @@ func (a *Analyzer) analyzeInc(args []ast.Expression, callExpr *ast.CallExpressio
 	}
 	if len(args) == 2 {
 		deltaType := a.analyzeExpression(args[1])
-		if deltaType != nil && deltaType != types.INTEGER {
+		if !isOrdinalDeltaType(deltaType) {
 			a.addError("function 'Inc' delta must be Integer, got %s at %s",
 				deltaType.String(), callExpr.Token.Pos.String())
 		}
@@ -67,7 +67,7 @@ func (a *Analyzer) analyzeDec(args []ast.Expression, callExpr *ast.CallExpressio
 	}
 	if len(args) == 2 {
 		deltaType := a.analyzeExpression(args[1])
-		if deltaType != nil && deltaType != types.INTEGER {
+		if !isOrdinalDeltaType(deltaType) {
 			a.addError("function 'Dec' delta must be Integer, got %s at %s",
 				deltaType.String(), callExpr.Token.Pos.String())
 		}
@@ -76,47 +76,52 @@ func (a *Analyzer) analyzeDec(args []ast.Expression, callExpr *ast.CallExpressio
 }
 
 // analyzeSucc analyzes the Succ built-in function.
-// Succ takes 1 argument: ordinal value and returns the successor.
+// Succ takes an ordinal value and an optional Integer or Variant delta, and
+// returns the successor.
 func (a *Analyzer) analyzeSucc(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'Succ' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
-		return types.INTEGER
-	}
-	argType := a.analyzeExpression(args[0])
-	if argType != nil {
-		if argType == types.INTEGER {
-			return types.INTEGER
-		}
-		if enumType, isEnum := argType.(*types.EnumType); isEnum {
-			return enumType
-		}
-		a.addError("function 'Succ' expects Integer or Enum, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
-	}
-	return types.INTEGER
+	return a.analyzeOrdinalStep("Succ", args, callExpr)
 }
 
 // analyzePred analyzes the Pred built-in function.
-// Pred takes 1 argument: ordinal value and returns the predecessor.
+// Pred takes an ordinal value and an optional Integer or Variant delta, and
+// returns the predecessor.
 func (a *Analyzer) analyzePred(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
-	if len(args) != 1 {
-		a.addError("function 'Pred' expects 1 argument, got %d at %s",
-			len(args), callExpr.Token.Pos.String())
+	return a.analyzeOrdinalStep("Pred", args, callExpr)
+}
+
+// analyzeOrdinalStep implements the shared Succ/Pred analysis. The result has
+// the ordinal argument's type: Integer or the argument's enumeration.
+func (a *Analyzer) analyzeOrdinalStep(name string, args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) < 1 || len(args) > 2 {
+		a.addError("function '%s' expects 1-2 arguments, got %d at %s",
+			name, len(args), callExpr.Token.Pos.String())
 		return types.INTEGER
 	}
+	result := types.Type(types.INTEGER)
 	argType := a.analyzeExpression(args[0])
 	if argType != nil {
-		if argType == types.INTEGER {
-			return types.INTEGER
-		}
 		if enumType, isEnum := argType.(*types.EnumType); isEnum {
-			return enumType
+			result = enumType
+		} else if argType != types.INTEGER {
+			a.addError("function '%s' expects Integer or Enum, got %s at %s",
+				name, argType.String(), callExpr.Token.Pos.String())
 		}
-		a.addError("function 'Pred' expects Integer or Enum, got %s at %s",
-			argType.String(), callExpr.Token.Pos.String())
 	}
-	return types.INTEGER
+	if len(args) == 2 {
+		deltaType := a.analyzeExpression(args[1])
+		if !isOrdinalDeltaType(deltaType) {
+			a.addError("function '%s' delta must be Integer, got %s at %s",
+				name, deltaType.String(), callExpr.Token.Pos.String())
+		}
+	}
+	return result
+}
+
+// isOrdinalDeltaType reports whether t may be the delta of Inc, Dec, Succ or
+// Pred. A Variant delta is converted to Integer at runtime; an unresolved type
+// has already been reported.
+func isOrdinalDeltaType(t types.Type) bool {
+	return t == nil || t == types.INTEGER || t == types.VARIANT
 }
 
 // analyzeSwap analyzes the Swap built-in function.

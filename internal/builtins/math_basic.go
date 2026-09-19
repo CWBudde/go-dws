@@ -20,6 +20,9 @@ func Abs(ctx Context, args []Value) Value {
 	}
 
 	arg := args[0]
+	if variant, ok := arg.(*runtime.VariantValue); ok {
+		arg = variant.UnwrapVariant()
+	}
 
 	switch v := arg.(type) {
 	case *runtime.IntegerValue:
@@ -30,7 +33,7 @@ func Abs(ctx Context, args []Value) Value {
 	case *runtime.FloatValue:
 		return &runtime.FloatValue{Value: math.Abs(v.Value)}
 	default:
-		return ctx.NewError("Abs() expects Integer or Float, got %s", arg.Type())
+		return ctx.NewError("Abs() expects Integer or Float, got %s", args[0].Type())
 	}
 }
 
@@ -682,12 +685,26 @@ func RandSeed(ctx Context, args []Value) Value {
 }
 
 // RandG implements the RandG() built-in function.
-// It returns a Gaussian (normal) distributed random number with mean=0 and stddev=1.
+// It returns a Gaussian (normal) distributed random number, by default with
+// mean 0 and standard deviation 1.
 // Uses the Box-Muller transform.
 // RandG(): Float
+// RandG(mean, stdDev: Float): Float
 func RandG(ctx Context, args []Value) Value {
-	if len(args) != 0 {
-		return ctx.NewError("RandG() expects no arguments, got %d", len(args))
+	// Standard normal distribution unless mean and standard deviation are given
+	mean, stdDev := 0.0, 1.0
+	switch len(args) {
+	case 0:
+	case 2:
+		var ok bool
+		if mean, ok = ctx.ToFloat64(args[0]); !ok {
+			return ctx.NewError("RandG() expects Float mean, got %s", args[0].Type())
+		}
+		if stdDev, ok = ctx.ToFloat64(args[1]); !ok {
+			return ctx.NewError("RandG() expects Float standard deviation, got %s", args[1].Type())
+		}
+	default:
+		return ctx.NewError("RandG() expects 0 or 2 arguments, got %d", len(args))
 	}
 
 	// Box-Muller transform to generate Gaussian distributed random numbers
@@ -704,5 +721,5 @@ func RandG(ctx Context, args []Value) Value {
 	// Box-Muller transform
 	z0 := math.Sqrt(-2.0*math.Log(u1)) * math.Cos(2.0*math.Pi*u2)
 
-	return &runtime.FloatValue{Value: z0}
+	return &runtime.FloatValue{Value: mean + stdDev*z0}
 }

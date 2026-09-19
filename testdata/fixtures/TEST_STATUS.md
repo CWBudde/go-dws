@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1152 |
-| Failed | 814 |
+| Passed | 1156 |
+| Failed | 810 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **59%** (1152/1966) |
+| **Scored pass rate** | **59%** (1156/1966) |
 
 ## Per-category
 
@@ -45,7 +45,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
 | FunctionsGlobalVars | 16 | 16 | 0 | 0 | 100% |
-| FunctionsMath | 40 | 35 | 5 | 0 | 88% |
+| FunctionsMath | 40 | 39 | 1 | 0 | 98% |
 | FunctionsMath3D | 2 | 0 | 2 | 0 | 0% |
 | FunctionsMathComplex | 6 | 0 | 6 | 0 | 0% |
 | FunctionsRTTI | 6 | 0 | 6 | 0 | 0% |

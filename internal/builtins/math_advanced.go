@@ -271,63 +271,33 @@ func TestBit(ctx Context, args []Value) Value {
 
 // Haversine implements the Haversine() built-in function.
 // It calculates the great-circle distance between two points on a sphere
-// given their latitudes and longitudes in degrees.
-// Result is in kilometers (Earth radius = 6371 km).
-// Haversine(lat1, lon1, lat2, lon2: Float): Float
+// given their latitudes and longitudes in degrees. The optional radius sets
+// the unit of the result; it defaults to Earth's mean radius in kilometers.
+// Haversine(lat1, lon1, lat2, lon2: Float [; radius: Float]): Float
 func Haversine(ctx Context, args []Value) Value {
-	if len(args) != 4 {
-		return ctx.NewError("Haversine() expects exactly 4 arguments, got %d", len(args))
+	if len(args) < 4 || len(args) > 5 {
+		return ctx.NewError("Haversine() expects 4-5 arguments, got %d", len(args))
 	}
 
-	// Extract and convert all arguments to float64
-	var lat1, lon1, lat2, lon2 float64
-
-	// First argument (lat1)
-	switch v := args[0].(type) {
-	case *runtime.FloatValue:
-		lat1 = v.Value
-	case *runtime.IntegerValue:
-		lat1 = float64(v.Value)
-	default:
-		return ctx.NewError("Haversine() expects Float or Integer arguments, got %s", args[0].Type())
-	}
-
-	// Second argument (lon1)
-	switch v := args[1].(type) {
-	case *runtime.FloatValue:
-		lon1 = v.Value
-	case *runtime.IntegerValue:
-		lon1 = float64(v.Value)
-	default:
-		return ctx.NewError("Haversine() expects Float or Integer arguments, got %s", args[1].Type())
-	}
-
-	// Third argument (lat2)
-	switch v := args[2].(type) {
-	case *runtime.FloatValue:
-		lat2 = v.Value
-	case *runtime.IntegerValue:
-		lat2 = float64(v.Value)
-	default:
-		return ctx.NewError("Haversine() expects Float or Integer arguments, got %s", args[2].Type())
-	}
-
-	// Fourth argument (lon2)
-	switch v := args[3].(type) {
-	case *runtime.FloatValue:
-		lon2 = v.Value
-	case *runtime.IntegerValue:
-		lon2 = float64(v.Value)
-	default:
-		return ctx.NewError("Haversine() expects Float or Integer arguments, got %s", args[3].Type())
+	// Earth's mean radius in kilometers
+	params := [5]float64{4: 6371.0}
+	for i, arg := range args {
+		switch v := arg.(type) {
+		case *runtime.FloatValue:
+			params[i] = v.Value
+		case *runtime.IntegerValue:
+			params[i] = float64(v.Value)
+		default:
+			return ctx.NewError("Haversine() expects Float or Integer arguments, got %s", arg.Type())
+		}
 	}
 
 	// Convert degrees to radians
 	const degToRad = math.Pi / 180.0
-	lat1Rad := lat1 * degToRad
-	lon1Rad := lon1 * degToRad
-	lat2Rad := lat2 * degToRad
-	lon2Rad := lon2 * degToRad
+	lat1Rad := params[0] * degToRad
+	lon1Rad := params[1] * degToRad
+	lat2Rad := params[2] * degToRad
+	lon2Rad := params[3] * degToRad
 
 	// Haversine formula
 	dLat := lat2Rad - lat1Rad
@@ -339,11 +309,7 @@ func Haversine(ctx Context, args []Value) Value {
 
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
-	// Earth radius in kilometers
-	const earthRadiusKm = 6371.0
-	distance := earthRadiusKm * c
-
-	return &runtime.FloatValue{Value: distance}
+	return &runtime.FloatValue{Value: params[4] * c}
 }
 
 // CompareNum implements the CompareNum() built-in function.

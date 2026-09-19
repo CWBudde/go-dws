@@ -10,7 +10,7 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,152 / 1,966 scored =
+**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,156 / 1,966 scored =
 59%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
@@ -18,7 +18,7 @@
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,152 / 1,747 = 66% in scope**, the number to track against §6. Both are honest;
+same run reads **1,156 / 1,747 = 66% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -59,10 +59,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (814 total, 2026-09-19): **219 host-library** (out of scope),
+- Where the remaining failures are (810 total, 2026-09-19): **219 host-library** (out of scope),
   **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **120 in the execution suites** (§3.5:
-  SimpleScripts 62, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 5, a tail
+  HelpersFail 18 each, the rest under 15), and **116 in the execution suites** (§3.5:
+  SimpleScripts 62, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -298,7 +298,8 @@ fail**; they were never enumerated because the only measurement that existed cov
 suites. Tables and method:
 [`docs/architecture/pass-suite-audit-2026-09.md`](docs/architecture/pass-suite-audit-2026-09.md).
 Regenerate with `just fixture-report --in-scope --classify --list-fails`.
-The September 19 measurement after E10 has 120 execution failures. E5 closes six, taking InterfacesPass
+The September 19 measurement after E11 has 116 execution failures; E11 closes four, taking
+FunctionsMath from 35/40 to 39/40. E5 closes six, taking InterfacesPass
 from 21/33 to 27/33; E6 closes four, taking JSONConnectorPass from 69/82 to 73/82; E7 closes two,
 taking SimpleScripts from 376/443 to 378/443; E8 closes one more, reaching 379/443. Earlier
 improvements are recorded in the progress log; E10 closes `partial_class3` and `implies`,
@@ -515,10 +516,6 @@ The [September execution audit](docs/architecture/execution-suite-triage-2026-09
 commands, exact diagnostics, exclusions and the following open implementation groups. Closing
 the triage checkpoints does not close these defects:
 
-- [ ] **Math signatures and Variant arguments:** support Variant `Abs` and `Inc`/`Dec` deltas,
-  two-argument `Succ`/`Pred`, explicit Haversine radius, and RandG mean/deviation consistently
-  in semantic analysis and the evaluator. Representatives: `abs`, `inc_dec_variant_op`,
-  `haversine`, `random`.
 - [ ] **Seeded RNG compatibility:** establish the upstream sequence/seed contract for
   `randseed` before changing the generator; its missing deprecated warning belongs to F1.
 - [ ] **Helper dispatch and receivers:** fix same-name `Self.ClassName` recursion
@@ -541,6 +538,29 @@ the triage checkpoints does not close these defects:
 `record_array_helper` remains E3c's isolated case-hint residual. The two OverloadsPass failures
 and `declared_helper` already have case-hint parity. Memory's six host-setup failures remain
 gated in §3.3; all §5 host-library, backend and UTF-16 exclusions are unchanged.
+
+#### E11 — Math signatures and Variant arguments `[x]` — completed 2026-09-19
+
+The first E10 follow-up group. Semantic analysis and the evaluator now accept the same forms.
+
+- [x] **E11a — `Abs(Variant)`.** The result is Variant and resolves to the operand's Integer or
+  Float value at runtime; `FunctionsMath/abs` passes.
+- [x] **E11b — Ordinal deltas.** `Inc`/`Dec` accept Variant deltas, cast like any Integer
+  argument, and `Succ`/`Pred` take an optional Integer or Variant delta, including for
+  enumerations. `FunctionsMath/inc_dec_variant_op` passes.
+- [x] **E11c — `Haversine` radius.** An optional fifth argument sets the radius (default 6371 km);
+  `FunctionsMath/haversine` passes.
+- [x] **E11d — `RandG(mean, stdDev)`.** Accepts zero or two arguments; the bare name is an
+  implicit call. `FunctionsMath/random` passes.
+
+The [September progress log](docs/history/progress-log-2026-09.md#2026-09-19--math-signatures-and-variant-arguments-e11)
+records the regressions and validation. CLI and harness agree at 1,156/1,966; FunctionsMath's floor
+rises from 35 to 39, and all other floors are unchanged. `randseed` remains under "Seeded RNG
+compatibility" above. Found during E11 and still open:
+
+- [ ] **Variant-to-Integer assignment:** `var v : Variant := 2.5; var i : Integer := v;` stores
+  2.5 in `i` instead of casting it. Builtin arguments already round through
+  `coerceToInteger`, so the assignment path is the one that differs.
 
 #### E4 — Numeric and array helpers `[x]` — completed 2026-09-13
 

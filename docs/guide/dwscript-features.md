@@ -793,7 +793,8 @@ an index or a member (`a[0].TEST := 3`, `v.List[0] := 'zero'`), which are always
 - **Trigonometric**: `Sin`, `Cos`, `Tan`, `ArcSin`, `ArcCos`, `ArcTan`, `ArcTan2`
 - **Hyperbolic**: `Sinh`, `Cosh`, `Tanh`
 - **Rounding**: `Round`, `Trunc`, `Ceil`, `Floor`, `Frac` (fractional part), `Int` (integer part)
-- **Random**: `Random`, `RandomInt(max)`, `Randomize`, `RandSeed`
+- **Random**: `Random`, `RandomInt(max)`, `Randomize`, `RandSeed`, `RandG` / `RandG(mean, stdDev)`
+- **Geodesy**: `Haversine(lat1, lon1, lat2, lon2 [, radius])` (default radius 6371 km)
 - **Min/Max**: `Min`, `Max`, `MinInt`, `MaxInt`
 - **Sign**: `Sign` (returns -1/0/1)
 - **Angles**: `DegToRad`, `RadToDeg`
@@ -804,6 +805,7 @@ an index or a member (`a[0].TEST := 3`, `v.List[0] := 'zero'`), which are always
 
 #### go-dws Status
 - ✅ Abs, Sqrt, Sin, Cos, Tan, Ln, Exp, Round, Trunc, Random, Randomize
+- ✅ `Abs` of a Variant; `Succ`/`Pred(x, delta)` and `Inc`/`Dec` with Variant deltas; `Haversine` radius; `RandG(mean, stdDev)`
 - ⏸️ Sqr, Power, Log10, Log2, ArcSin/Cos/Tan
 - ⏸️ Hyperbolic functions
 - ⏸️ Ceil, Floor, Frac, Int

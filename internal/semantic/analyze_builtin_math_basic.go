@@ -10,7 +10,7 @@ import (
 // ============================================================================
 
 // analyzeAbs analyzes the Abs built-in function.
-// Abs takes one numeric argument and returns the same type.
+// Abs takes one numeric or Variant argument and returns the same type.
 func (a *Analyzer) analyzeAbs(args []ast.Expression, callExpr *ast.CallExpression) types.Type {
 	if len(args) != 1 {
 		a.addNoOverloadedVersion("Abs", callNamePos(callExpr.Function, callExpr.Token.Pos))
@@ -18,6 +18,10 @@ func (a *Analyzer) analyzeAbs(args []ast.Expression, callExpr *ast.CallExpressio
 	}
 	argType := a.analyzeExpression(args[0])
 	if argType != nil {
+		// A Variant operand is resolved to Integer or Float at runtime.
+		if argType == types.VARIANT {
+			return types.VARIANT
+		}
 		if argType != types.INTEGER && argType != types.FLOAT {
 			a.addNoOverloadedVersion("Abs", callNamePos(callExpr.Function, callExpr.Token.Pos))
 			return types.INTEGER
