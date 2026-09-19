@@ -41,8 +41,15 @@ func (a *Analyzer) handleExistingClass(
 			return false, false, true
 		}
 	} else if existingClass.IsPartial && !decl.IsPartial && !isForwardDecl {
-		a.addHintAt(decl.Token.Pos, "Previous declaration of class was \"partial\" [line: %d, column: %d]",
-			decl.Token.Pos.Line, decl.Token.Pos.Column)
+		if !a.validatePartialClassParent(existingClass, decl, className) {
+			return false, false, true
+		}
+		pos := decl.PartialHintPos
+		if pos.Line == 0 {
+			pos = decl.Token.Pos
+		}
+		a.addHintAt(pos, "Previous declaration of class was \"partial\" [line: %d, column: %d]",
+			pos.Line, pos.Column)
 		mergingPartialClass = true
 	} else if !existingClass.IsPartial && decl.IsPartial {
 		a.addError("%s", errors.FormatTypeAlreadyDefined(className, "Class", decl.Token.Pos.Line, decl.Token.Pos.Column))
@@ -275,13 +282,11 @@ func (a *Analyzer) setupNestedTypes(decl *ast.ClassDecl, className string) {
 }
 
 // updateClassFlags updates flags for partial, abstract, and external classes.
-func (a *Analyzer) updateClassFlags(classType *types.ClassType, decl *ast.ClassDecl, isForwardDecl bool) {
+func (a *Analyzer) updateClassFlags(classType *types.ClassType, decl *ast.ClassDecl) {
 	classType.IsForward = false
 
 	if decl.IsPartial {
 		classType.IsPartial = true
-	} else if !isForwardDecl {
-		classType.IsPartial = false
 	}
 
 	classType.IsAbstract = decl.IsAbstract || classType.IsAbstract
@@ -422,7 +427,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Setup nested types, flags, and validate inheritance.
 	a.setupNestedTypes(decl, className)
 	defer func() { a.currentNestedTypes = nil }()
-	a.updateClassFlags(classType, decl, isForwardDecl)
+	a.updateClassFlags(classType, decl)
 	classType.IsDeprecated = decl.IsDeprecated
 	classType.DeprecatedMessage = decl.DeprecatedMessage
 	if !a.validateClassInheritance(classType, parentClass, decl, className) {

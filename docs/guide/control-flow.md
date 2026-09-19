@@ -203,6 +203,10 @@ end;
    - Equivalent to setting `Result := value;` then `exit;`
    - More concise syntax for immediate returns
 
+`exit(value)` counts as use of the function's implicit `Result`; it does not
+produce a `Result is never used` hint. In a nested function, it uses that
+function's result, independently of the enclosing function.
+
 ### Notes
 
 - Exit always executes `finally` blocks before returning (see below)

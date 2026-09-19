@@ -77,12 +77,14 @@ type ClassDecl struct {
 	Properties        []*PropertyDecl
 	TypeParams        []string
 	BaseNode
-	IsAbstract    bool
-	IsPartial     bool
-	IsForward     bool
-	IsDeprecated  bool
-	IsStaticClass bool
-	IsExternal    bool
+	// PartialHintPos anchors a continuation hint after modifiers and before ancestry.
+	PartialHintPos token.Position
+	IsAbstract     bool
+	IsPartial      bool
+	IsForward      bool
+	IsDeprecated   bool
+	IsStaticClass  bool
+	IsExternal     bool
 }
 
 func (cd *ClassDecl) statementNode() {}

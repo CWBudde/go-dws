@@ -455,14 +455,17 @@ failed property reads, right-hand sides, and compound operations skip the write.
 
 ### Partial Classes
 
-**Test Evidence**: Test mentions, language docs
+**Test Evidence**: `SimpleScripts/partial_class*.pas`, compile/run continuation regressions
 
 #### DWScript Feature
 - Split class declaration across multiple files/sections
 - `type TFoo = partial class ... end;`
 
 #### go-dws Status
-- ⏸️ Partial classes
+- Partial declarations share fields, initializers and methods in one class.
+- A declaration without `partial` can extend an existing partial class and emits
+  the hint `Previous declaration of class was "partial"`.
+- The class remains partial, so later declarations can continue extending it.
 
 ---
 
@@ -1103,8 +1106,8 @@ an index or a member (`a[0].TEST := 3`, `v.List[0] := 'zero'`), which are always
 - ⏸️ Variant, Currency, pointers, type aliases, subranges
 
 **OOP**: ~75% implemented
-- ✅ Classes, interfaces, inheritance, polymorphism
-- ⏸️ Generics, inner classes, partial classes, helpers, meta-classes
+- ✅ Classes, interfaces, inheritance, polymorphism, partial classes
+- ⏸️ Generics, inner classes, helpers, meta-classes
 
 **Advanced Features**: ~35% implemented
 - ✅ Operator overloading, exceptions, loop control

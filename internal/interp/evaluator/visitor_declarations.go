@@ -255,7 +255,7 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 			// the code below populate its parent, members, and VMT.
 			ci.SetForwardClass(false)
 			classInfo = ci
-		case ci.IsPartialClass() && node.IsPartial:
+		case ci.IsPartialClass():
 			classInfo = ci
 		default:
 			return e.newError(node, "class '%s' already declared", className)
@@ -300,6 +300,15 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	parentClass, parentClassName, parentErr := e.resolveParentClass(node, className, ctx)
 	if parentErr != nil {
 		return parentErr
+	}
+
+	// A partial continuation that names an ancestor must name the one already set.
+	if node.Parent != nil && !classInfo.HasNoParentClass() {
+		if concrete, ok := classInfo.(*runtime.ClassInfo); ok {
+			if existing := concrete.GetParent(); existing != nil && !ident.Equal(existing.GetName(), parentClassName) {
+				return e.newError(node, "partial class '%s' has conflicting parent classes", className)
+			}
+		}
 	}
 
 	// Set parent reference and inherit members

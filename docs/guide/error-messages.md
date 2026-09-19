@@ -449,6 +449,9 @@ diagnostics in one of two styles, selected with `run --diagnostics=pretty|plain`
 1. **pretty** (default): compile errors as `CompilerError` blocks with a source excerpt via
    `errors.FormatErrors()`; runtime errors with source; unhandled exceptions with class, message,
    position and stack trace. ANSI colors are used only on a terminal and never when `NO_COLOR` is set.
+   Runtime-generated messages that already end with the reported position display
+   that position once. User-authored exception messages and distinct re-raise
+   positions are preserved.
 2. **plain**: the DWScript wire format below, one message per line, all severities in the
    compiler's order (`frontend.Result.DiagnosticStrings()`); runtime errors via
    `interp.FormatRuntimeErrorValue`. Exit code 1 on any error, nothing else printed.
