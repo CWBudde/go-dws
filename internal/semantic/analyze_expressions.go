@@ -522,7 +522,7 @@ func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
 	// Analyze consequence expression
 	consequenceType := a.analyzeExpression(expr.Consequence)
 	if consequenceType == nil {
-		if _, recovered := expr.Consequence.(*ast.InvalidExpression); recovered {
+		if containsParserRecovery(expr.Consequence) {
 			// The parser already stopped with "Expression expected" here.
 			return nil
 		}
@@ -549,7 +549,7 @@ func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
 			}
 		}
 		if alternativeType == nil {
-			if _, recovered := expr.Alternative.(*ast.InvalidExpression); recovered {
+			if containsParserRecovery(expr.Alternative) {
 				// The parser already stopped with "Expression expected" here.
 				return nil
 			}

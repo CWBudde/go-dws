@@ -122,6 +122,12 @@ func TestCompile_DWScriptRecoverySentences(t *testing.T) {
 			},
 		},
 		{
+			// A bare enum type name is no value, even when the variable is typed.
+			name:   "bare enum type name in a typed initializer",
+			source: "type TEnum = (a, b);\nvar x: TEnum := TEnum;",
+			want:   []string{`Syntax Error: "(" expected [line: 2, column: 22]`},
+		},
+		{
 			// Inside a block upstream's statement loop words the leftover value
 			// differently; go-dws does not guess at that sentence.
 			name: "read-only property assigned inside a block",

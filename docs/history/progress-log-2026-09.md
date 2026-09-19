@@ -4849,8 +4849,11 @@ assignment targets (`r.F := TEnum`, `a[0] := TEnum`), and it recognises the enum
 synthetic type-name symbol (`Symbol.IsEnumTypeName`) so a parameter or local shadowing
 the type name stays a value. Frontend tests that used `var broken := ;` as a generic
 recoverable parser error now use `var broken;` (`Colon ":" expected`, not a stop).
+A second review round extended the bare-type-name check to explicitly typed initializers
+(`var x: TEnum := TEnum;`) and made the if-expression branches skip their follow-up when
+the parser's recovery placeholder sits anywhere inside the branch.
 
 Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues). CLI and harness agree at
-**1,174 / 1,966 scored** (+18): FailureScripts 156 → 171, PropertyExpressionsFail 0 → 2,
+**1,177 / 1,966 scored** (+21): FailureScripts 156 → 174, PropertyExpressionsFail 0 → 2,
 SetOfFail 5 → 6. No category dropped.
