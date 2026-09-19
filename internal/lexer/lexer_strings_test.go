@@ -42,8 +42,9 @@ func TestStringLiterals(t *testing.T) {
 			expectedLiteral: "hello world",
 		},
 		{
+			// Only double-quoted strings may span lines.
 			name:            "multiline string",
-			input:           "'hello\nworld'",
+			input:           "\"hello\nworld\"",
 			expectedType:    STRING,
 			expectedLiteral: "hello\nworld",
 		},
@@ -151,6 +152,41 @@ func TestCharLiteralStandaloneStillWorks(t *testing.T) {
 			}
 			if l.ch != '#' {
 				t.Errorf("isCharLiteralStandalone() changed ch to %c, expected '#'", l.ch)
+			}
+		})
+	}
+}
+
+// TestInvalidCharConstant covers DWScript's fatal "Invalid char constant" error for
+// character literals beyond U+10FFFF, anchored just past the literal.
+func TestInvalidCharConstant(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		message string
+		column  int
+	}{
+		{name: "standalone hex", input: "#$200000;", message: `Invalid char constant "$200000"`, column: 9},
+		{name: "standalone decimal", input: "#1114112;", message: `Invalid char constant "1114112"`, column: 9},
+		{name: "overflowing hex", input: "#$FFFFFFFFFFFFFFFFFF", message: `Invalid char constant "$FFFFFFFFFFFFFFFFFF"`, column: 21},
+		{name: "in a string sequence", input: "'a'#$110000'b'", message: `Invalid char constant "$110000"`, column: 12},
+		{name: "largest code point is valid", input: "#$10FFFF;"},
+		{name: "supplementary plane is valid", input: "#$10000;"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+			drainTokens(l)
+			diags := l.DirectiveDiagnostics()
+			if tt.message == "" {
+				if len(diags) != 0 {
+					t.Fatalf("unexpected diagnostics: %v", diags)
+				}
+				return
+			}
+			if len(diags) != 1 || diags[0].Message != tt.message || diags[0].Pos.Line != 1 || diags[0].Pos.Column != tt.column {
+				t.Fatalf("got %v, want %q at 1:%d", diags, tt.message, tt.column)
 			}
 		})
 	}

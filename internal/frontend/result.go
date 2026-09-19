@@ -222,7 +222,7 @@ func ParseWithOptions(source string, opts Options) *Result {
 	// malformed conditional directives are surfaced through the same path. Other
 	// lexer errors remain advisory and are not surfaced here.
 	diags := lexerDiagnostics(p.LexerIncludeErrors(), true)
-	diags = append(diags, lexerDiagnostics(p.LexerDirectiveDiagnostics(), false)...)
+	diags = append(diags, lexerDiagnostics(reachedLexerDiagnostics(p.LexerDirectiveDiagnostics(), p.Errors()), false)...)
 	diags = append(diags, parserDiagnostics(p.Errors())...)
 
 	return &Result{
@@ -543,6 +543,35 @@ func diagnosticSpecificityPriority(diag Diagnostic) int {
 	default:
 		return 0
 	}
+}
+
+// reachedLexerDiagnostics drops malformed-constant errors (lexer.LexerError.Constant)
+// that DWScript would not reach. Its tokenizer is pulled lazily by the parser, and a
+// syntax error stops the compile before the tokenizer reads any further, whereas the
+// go-dws lexer runs ahead of the parser through lookahead and error recovery. A
+// constant error that follows a parser error in the source is therefore dropped
+// (FailureScripts/string_error, array_error8).
+func reachedLexerDiagnostics(errs []lexer.LexerError, parseErrs []*parser.ParserError) []lexer.LexerError {
+	first := lexer.Position{}
+	for _, err := range parseErrs {
+		if err == nil {
+			continue
+		}
+		if first.Line == 0 || err.Pos.Line < first.Line || (err.Pos.Line == first.Line && err.Pos.Column < first.Column) {
+			first = err.Pos
+		}
+	}
+	if first.Line == 0 {
+		return errs
+	}
+	kept := make([]lexer.LexerError, 0, len(errs))
+	for _, err := range errs {
+		if err.Constant && (first.Line < err.Pos.Line || (first.Line == err.Pos.Line && first.Column < err.Pos.Column)) {
+			continue
+		}
+		kept = append(kept, err)
+	}
+	return kept
 }
 
 // lexerDiagnostics converts lexer diagnostics into front-end diagnostics.
