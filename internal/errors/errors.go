@@ -327,6 +327,14 @@ func FormatArgumentError(argIndex int, expectedType, gotType string, line, colum
 	return FormatDWScriptError(message, line, column)
 }
 
+// FormatValuelessArgumentError formats DWScript's short argument type error,
+// reported when the argument has no type at all (a procedure call): there is
+// no "instead of" clause because there is nothing to name.
+func FormatValuelessArgumentError(argIndex int, expectedType string, line, column int) string {
+	message := fmt.Sprintf("Argument %d expects type \"%s\"", argIndex, SimplifyTypeName(expectedType))
+	return FormatDWScriptError(message, line, column)
+}
+
 // FormatParameterError formats a parameter type error in DWScript format
 func FormatParameterError(expectedType, gotType string, line, column int) string {
 	message := fmt.Sprintf("Incompatible parameter types - \"%s\" expected (instead of \"%s\")", expectedType, gotType)

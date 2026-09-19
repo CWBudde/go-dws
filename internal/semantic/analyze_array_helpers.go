@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	dwserrors "github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -35,7 +37,10 @@ func semanticTypeNameForDiagnostic(t types.Type) string {
 }
 
 func semanticDeclaredTypeName(typeExpr ast.TypeExpression, resolved types.Type) string {
-	if resolved == types.ARRAY_OF_CONST {
+	// A `const` parameter declared `array of Variant` shares the open-array
+	// type, but DWScript names it as declared: it is a dynamic array, and only
+	// a literal `array of const` is the open array.
+	if resolved == types.ARRAY_OF_CONST && (typeExpr == nil || declaresArrayOfConst(typeExpr)) {
 		return "array of const"
 	}
 	if typeExpr != nil {
@@ -49,6 +54,26 @@ func semanticDeclaredTypeName(typeExpr ast.TypeExpression, resolved types.Type) 
 		}
 	}
 	return semanticTypeNameForDiagnostic(resolved)
+}
+
+// declaresArrayOfConst reports whether a type expression spells the open
+// `array of const` type.
+func declaresArrayOfConst(typeExpr ast.TypeExpression) bool {
+	if annotation, ok := typeExpr.(*ast.TypeAnnotation); ok && annotation != nil && annotation.InlineType != nil {
+		typeExpr = annotation.InlineType
+	}
+	if arrayNode, ok := typeExpr.(*ast.ArrayTypeNode); ok && arrayNode != nil {
+		return arrayNode.IsDynamic() && ident.Equal(getTypeExpressionName(arrayNode.ElementType), "const")
+	}
+	return ident.Equal(strings.Join(strings.Fields(getTypeExpressionName(typeExpr)), " "), "array of const")
+}
+
+// isOpenArrayOfConstParam reports whether parameter index of fn was declared
+// `array of const` (not a `const` parameter of type `array of Variant`, which
+// shares the analyzer's type but is a dynamic array).
+func isOpenArrayOfConstParam(fn *types.FunctionType, index int) bool {
+	return isArrayOfConstType(fn.Parameters[index]) &&
+		semanticFunctionParamTypeName(fn, index, fn.Parameters[index]) == "array of const"
 }
 
 func semanticFunctionParamTypeName(fn *types.FunctionType, index int, fallback types.Type) string {
@@ -188,11 +213,37 @@ func (a *Analyzer) addArrayHelperTooFewArgs(expr ast.Node) {
 }
 
 func (a *Analyzer) addArrayHelperTooManyArgs(expr ast.Node) {
+	if hasUnparsedArgument(expr) {
+		return
+	}
 	a.addArrayHelperError(arrayHelperCallDiagnosticPos(expr), "Too many arguments")
 }
 
 func (a *Analyzer) addArrayHelperNoArgs(expr ast.Node) {
+	if hasUnparsedArgument(expr) {
+		return
+	}
 	a.addArrayHelperError(arrayHelperCallDiagnosticPos(expr), "No arguments expected")
+}
+
+// hasUnparsedArgument reports whether a call's argument list holds the
+// parser's recovery placeholder. The parser has already reported it, and the
+// placeholder makes the argument count meaningless, so no count diagnostic
+// follows (FailureScripts/dyn_array1: `a.Length(;`).
+func hasUnparsedArgument(node ast.Node) bool {
+	var args []ast.Expression
+	switch call := node.(type) {
+	case *ast.MethodCallExpression:
+		args = call.Arguments
+	case *ast.CallExpression:
+		args = call.Arguments
+	}
+	for _, arg := range args {
+		if _, invalid := arg.(*ast.InvalidExpression); invalid || arg == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *Analyzer) addArrayHelperIntegerExpectedAt(pos token.Position) {
@@ -566,7 +617,13 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		if argType != nil && !a.canAssign(argType, callbackType) {
 			if name, fn, namePos, _ := a.namedArrayHelperCallable(arg); fn != nil {
 				if len(fn.Parameters) != 1 || !a.canAssign(arrayType.ElementType, fn.Parameters[0]) {
-					a.addStructuredError(NewNoOverloadMatchError(namePos, name))
+					// The name that is no callback is compiled as a call. Only
+					// one that needs arguments fails that call; a parameterless
+					// one calls fine and just yields no callback
+					// (FailureScripts/foreach_invalid_arg).
+					if len(fn.Parameters) > 0 {
+						a.addStructuredError(NewNoOverloadMatchError(namePos, name))
+					}
 					a.addArrayHelperParamTypeExpectedText(arg.Pos(), semanticFunctionPointerName(callbackType), callbackResultTypeName(fn))
 					return types.VOID
 				}

@@ -307,7 +307,7 @@ func TestHelperMethodParameters(t *testing.T) {
 				end.
 			`,
 			expectError: true,
-			errorMsg:    "has type Integer, expected String",
+			errorMsg:    `Argument 1 expects type "String" instead of "Integer"`,
 		},
 	}
 

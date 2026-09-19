@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -13,6 +15,96 @@ func (a *Analyzer) argumentMatchesParameter(argType, paramType types.Type, stric
 		return types.IsIdentical(argType, paramType)
 	}
 	return a.canAssign(argType, paramType)
+}
+
+// addArgumentTypeError reports an argument that does not fit its parameter in
+// DWScript's words, anchored on the argument. The index is 0-based. A
+// procedure call has no value to name, so it draws the short sentence without
+// "instead of" (FailureScripts/use_proc_result2, assign_untyped).
+func (a *Analyzer) addArgumentTypeError(index int, expected string, got types.Type, pos token.Position) {
+	if _, valueless := got.(*types.VoidType); valueless {
+		a.addError("%s", errors.FormatValuelessArgumentError(index, expected, pos.Line, pos.Column))
+		return
+	}
+	a.addError("%s", errors.FormatArgumentError(index, expected, got.String(), pos.Line, pos.Column))
+}
+
+// analyzeCallArgument analyzes one argument in the context of its parameter
+// and reports a mismatch with addArgumentTypeError. An argument whose own
+// analysis already failed is not checked again.
+func (a *Analyzer) analyzeCallArgument(index int, arg ast.Expression, expected types.Type) {
+	a.analyzeCallArgumentAt(index, arg, expected, arg.Pos())
+}
+
+// analyzeSelfCallArgument is analyzeCallArgument for a record instance method
+// or a helper method, whose receiver DWScript passes as argument 0. The
+// reported index is therefore one past the written one, and DWScript looks the
+// anchor up in the written arguments' positions by that shifted index: the
+// next written argument, or the call when there is none
+// (HelpersFail/function_helper: `('hello').Test2(456)` → Argument 1 at Test2).
+func (a *Analyzer) analyzeSelfCallArgument(index int, args []ast.Expression, expected types.Type, callPos token.Position) {
+	pos := callPos
+	if index+1 < len(args) {
+		pos = args[index+1].Pos()
+	}
+	a.analyzeCallArgumentAt(index+1, args[index], expected, pos)
+}
+
+func (a *Analyzer) analyzeCallArgumentAt(index int, arg ast.Expression, expected types.Type, pos token.Position) {
+	mark := len(a.errors)
+	argType := a.analyzeExpressionWithExpectedType(arg, expected)
+	if argType != nil && expected != nil && !a.errorsSince(mark) && !a.canAssign(argType, expected) {
+		a.addArgumentTypeError(index, semanticTypeNameForDiagnostic(expected), argType, pos)
+	}
+}
+
+// checkArrayOfConstArgument checks a non-literal argument to an
+// ARRAY_OF_CONST parameter; anything that is no array at all is reported at
+// the call. When the parameter was declared `array of const` (open), DWScript's
+// TOpenArraySymbol.IsCompatible admits only static arrays and open arrays, so
+// a dynamic array is reported at the argument (FailureScripts/open_array2). A
+// `const` parameter declared `array of Variant` is a dynamic array and takes
+// one (ArrayPass/array_concat2).
+func (a *Analyzer) checkArrayOfConstArgument(index int, expected string, open bool, arg ast.Expression, argType types.Type, callPos token.Position) {
+	array, isArray := types.GetUnderlyingType(argType).(*types.ArrayType)
+	switch {
+	case !isArray:
+		a.addArgumentTypeError(index, expected, argType, callPos)
+	case open && array.IsDynamic() && !isArrayOfConstType(array):
+		a.addArgumentTypeError(index, expected, argType, arg.Pos())
+	}
+}
+
+// isProcedureCall reports whether an argument is syntactically a call — an
+// explicit call, or a bare name that resolves to a routine and so is an
+// implicit one. Only such an argument is known to be valueless when it types
+// as void.
+func (a *Analyzer) isProcedureCall(arg ast.Expression) bool {
+	switch e := arg.(type) {
+	case *ast.CallExpression, *ast.MethodCallExpression:
+		return true
+	case *ast.Identifier:
+		sym, ok := a.symbols.Resolve(e.Value)
+		if !ok {
+			return false
+		}
+		_, isRoutine := sym.Type.(*types.FunctionType)
+		return isRoutine
+	}
+	return false
+}
+
+// errorsSince reports whether an error (not a hint or warning) was recorded
+// after the first `mark` diagnostics. An argument whose own analysis failed has
+// already been reported; checking its fallback type against the parameter would
+// only repeat the failure (FailureScripts/method_param_error*).
+func (a *Analyzer) errorsSince(mark int) bool {
+	for _, diagnostic := range a.errors[mark:] {
+		if !strings.HasPrefix(diagnostic, "Hint: ") && !strings.HasPrefix(diagnostic, "Warning: ") {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *Analyzer) analyzeArgumentForParameter(arg ast.Expression, paramType types.Type, strict bool) types.Type {
@@ -690,58 +782,41 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				i+1, funcIdent.Value, arg.String(), arg.Pos().String())
 		}
 
+		expectedName := semanticFunctionParamTypeName(funcType, i, expectedType)
+		mark := len(a.errors)
+		argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
 		if isLazy {
-			// Lazy: check type without evaluating
-			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
-			// Handle parameterless functions as implicit calls
+			// Lazy: check type without evaluating; a parameterless function
+			// is an implicit call.
 			if implicitType := a.getImplicitCallType(arg); implicitType != nil {
 				argType = implicitType
 			}
-			if argType != nil && !a.canAssign(argType, expectedType) {
-				pos := arg.Pos()
-				a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
+		}
+		if argType == nil || a.errorsSince(mark) {
+			continue
+		}
+		if isLazy {
+			if !a.canAssign(argType, expectedType) {
+				a.addArgumentTypeError(i, expectedName, argType, arg.Pos())
 			}
-		} else {
-			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
-			if isArrayOfConstType(expectedType) {
-				if _, isLiteral := arg.(*ast.ArrayLiteralExpression); !isLiteral {
-					// Any array value can be passed to an open "array of const"
-					// parameter; only reject non-array arguments.
-					if argType != nil {
-						if _, isArr := types.GetUnderlyingType(argType).(*types.ArrayType); !isArr {
-							pos := expr.Token.Pos
-							a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
-						}
-					}
-					continue
-				}
+			continue
+		}
+		if isArrayOfConstType(expectedType) {
+			if _, isLiteral := arg.(*ast.ArrayLiteralExpression); !isLiteral {
+				a.checkArrayOfConstArgument(i, expectedName, isOpenArrayOfConstParam(funcType, i), arg, argType, expr.Token.Pos)
+				continue
 			}
-			// Allow compatible array types for var parameters
-			if isVar && argType != nil && !a.canAssign(argType, expectedType) {
-				if a.areArrayTypesCompatibleForVarParam(argType, expectedType) {
-					continue
-				}
-			}
-			if argType != nil {
-				if hasOverloads {
-					if !a.canAssign(argType, expectedType) {
-						pos := arg.Pos()
-						a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
-					}
-					continue
-				}
-				if i < len(funcType.StrictParams) && funcType.StrictParams[i] {
-					if !types.IsIdentical(argType, expectedType) {
-						pos := arg.Pos()
-						a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
-					}
-					continue
-				}
-				if !a.canAssign(argType, expectedType) {
-					pos := arg.Pos()
-					a.addError("%s", errors.FormatArgumentError(i, semanticFunctionParamTypeName(funcType, i, expectedType), argType.String(), pos.Line, pos.Column))
-				}
-			}
+		}
+		// Allow compatible array types for var parameters
+		if isVar && !a.canAssign(argType, expectedType) && a.areArrayTypesCompatibleForVarParam(argType, expectedType) {
+			continue
+		}
+		fits := a.canAssign(argType, expectedType)
+		if !hasOverloads && i < len(funcType.StrictParams) && funcType.StrictParams[i] {
+			fits = types.IsIdentical(argType, expectedType)
+		}
+		if !fits {
+			a.addArgumentTypeError(i, expectedName, argType, arg.Pos())
 		}
 	}
 
