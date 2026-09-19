@@ -522,6 +522,10 @@ func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
 	// Analyze consequence expression
 	consequenceType := a.analyzeExpression(expr.Consequence)
 	if consequenceType == nil {
+		if containsParserRecovery(expr.Consequence) {
+			// The parser already stopped with "Expression expected" here.
+			return nil
+		}
 		a.addError("invalid consequence expression in if-then-else at %s", expr.Token.Pos.String())
 		return nil
 	}
@@ -545,6 +549,10 @@ func (a *Analyzer) analyzeIfExpression(expr *ast.IfExpression) types.Type {
 			}
 		}
 		if alternativeType == nil {
+			if containsParserRecovery(expr.Alternative) {
+				// The parser already stopped with "Expression expected" here.
+				return nil
+			}
 			a.addError("invalid alternative expression in if-then-else at %s", expr.Token.Pos.String())
 			return nil
 		}

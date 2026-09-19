@@ -256,7 +256,29 @@ func (p *Parser) recordError(err *ParserError) {
 	if p.l != nil && p.l.StoppedByFatal() && p.atTruncatedEnd() {
 		return
 	}
+	if p.stopped() {
+		return
+	}
 	p.errors = append(p.errors, err)
+}
+
+// recordStop records err as a compiler stop. DWScript's AddCompilerStop raises out of
+// the compiler, so every diagnostic the parser would otherwise produce afterwards is
+// recovery noise that upstream never emits.
+func (p *Parser) recordStop(err *ParserError) {
+	err.Stop = true
+	p.recordError(err)
+}
+
+// stopped reports whether a compiler stop has been recorded. It is derived from the
+// error list so speculative parses that restore an earlier error list also undo it.
+func (p *Parser) stopped() bool {
+	for i := len(p.errors) - 1; i >= 0; i-- {
+		if p.errors[i].Stop {
+			return true
+		}
+	}
+	return false
 }
 
 // atTruncatedEnd reports whether the parser has reached the synthetic end of input.
@@ -301,6 +323,11 @@ func (p *Parser) noPrefixParseFnError(tok lexer.Token) {
 	}
 
 	err := NewParserError(tok.Pos, tok.Length(), msg, code)
+	if msg == "Expression expected" {
+		// ReadTerm's "no expression found" is an AddCompilerStop upstream.
+		p.recordStop(err)
+		return
+	}
 	p.recordError(err)
 }
 

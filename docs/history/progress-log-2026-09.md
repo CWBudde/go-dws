@@ -4797,3 +4797,63 @@ The full suite passes and changed-code lint reports zero issues. CLI and harness
 at **1,156 / 1,966 scored** (810 failures, 78 unscored). FunctionsMath rises from
 **35 to 39 of 40**; `randseed` remains, under seeded RNG compatibility. No other
 category changed. The experimental bytecode VM was not extended.
+
+## 2026-09-19 — parser recovery sentences after compiler stops (§4 / F9)
+
+Thirteen near-miss fixtures from the fail-suite audit printed go-dws's own recovery
+sentence after the one DWScript prints. Most of them came down to one missing concept:
+upstream's `ReadTerm` reports `Expression expected` through `AddCompilerStop`, which
+abandons the compilation, so nothing after it is ever reported.
+
+- **Compiler stop.** `ParserError` carries a `Stop` flag; `Expression expected` sets
+  it and `recordError` drops every later parser error. The stopped state is derived
+  from the error list, so backtracking out of a speculative parse also undoes a stop.
+  This removes `expected ')', got SEMICOLON`, `expected next token to be RPAREN…` and
+  `expected ':' after case value` (`missing_operand1`/`3`, `enums6`, `case_error3`,
+  `PropertyExpressionsFail/invalid_getter`/`2`).
+- **Semantic follow-ups to a parser error.** An if-expression branch that is an
+  `InvalidExpression` no longer adds `invalid alternative expression`
+  (`ifthenelse_expression2`); `cannot infer type` is skipped when the initializer holds
+  a recovery node, and `must have either a type annotation or an initializer` when the
+  parser already reported the missing `:` (`var_incomplete1`/`3`).
+- **`"(" expected` for a bare enum type name used as a value** (`enums5`). Enum type
+  names are registered as symbols, which is why the old check missed them.
+- **`set of ;`** reports `Type expected` at the `;` before `Enumeration expected`
+  (`SetOfFail/type_missing`). `sortDiagnostics` now keeps two parser-phase errors on the
+  same line in emission order rather than sorting by column: the parser is single-pass,
+  as upstream's is.
+- **Read-only property assignment** in a top-level main-program statement adds upstream's
+  `Unexpected "<token>"` at the unconsumed value, with the token named as in
+  `dwsTokenTypes.pas` (`property_error6`, `visibility5`). Values whose first token cannot
+  be identified from the AST get no follow-up.
+- **Constant write specifier** reports `Constant "c" cannot be written to`
+  (`property_write4`).
+
+Also newly passing: `array_params3`, `compare_case1`, `missing_operand2`,
+`missing_param4`. Tests that pinned the invented wording (`error_recovery_test.go`,
+`functions_decl_test.go`) now expect `Expression expected`; the `enum_test.go` case
+asserting `var x := TColor;` compiles cleanly contradicted `enums5` and was replaced by
+`TestEnumTypeNameIsNotAValue`. New: `internal/frontend/parser_vocabulary_test.go` (full
+output per fixture shape plus negative cases), `internal/parser/compiler_stop_test.go`.
+
+Left open (PLAN.md §4/F3): inside a `begin…end` block the unconsumed value is worded
+differently upstream and go-dws reports nothing; indexed read-only property writes get
+no follow-up; the analyzer's own stops (`"(" expected`) do not suppress later
+diagnostics, and end-of-compilation hints positioned before a parser stop still appear.
+
+Review follow-up (PR #413): the parser stop now reaches the frontend — `Diagnostic.Stop`
+marks it and `dropDiagnosticsAfterStop` removes semantic diagnostics positioned after the
+first stop, keeping what upstream's single pass reported before it (+3 FailureScripts,
+171 → 174; 1,177 / 1,966). The bare-enum-type check also covers member and index
+assignment targets (`r.F := TEnum`, `a[0] := TEnum`), and it recognises the enum's
+synthetic type-name symbol (`Symbol.IsEnumTypeName`) so a parameter or local shadowing
+the type name stays a value. Frontend tests that used `var broken := ;` as a generic
+recoverable parser error now use `var broken;` (`Colon ":" expected`, not a stop).
+A second review round extended the bare-type-name check to explicitly typed initializers
+(`var x: TEnum := TEnum;`) and made the if-expression branches skip their follow-up when
+the parser's recovery placeholder sits anywhere inside the branch.
+
+Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
+`golangci-lint run --new-from-rev=origin/main ./...` (0 issues). CLI and harness agree at
+**1,177 / 1,966 scored** (+21): FailureScripts 156 → 174, PropertyExpressionsFail 0 → 2,
+SetOfFail 5 → 6. No category dropped.

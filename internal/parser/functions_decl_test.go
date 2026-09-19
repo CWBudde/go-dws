@@ -1397,7 +1397,7 @@ func TestOptionalParametersErrors(t *testing.T) {
 		{
 			name:          "empty default value",
 			input:         "function Test(x: Integer = ): Integer; begin end;",
-			expectedError: "expected default value expression after '='",
+			expectedError: "Expression expected",
 		},
 	}
 
