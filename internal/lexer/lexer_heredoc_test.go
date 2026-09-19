@@ -188,6 +188,15 @@ func TestTripleQuoteErrors(t *testing.T) {
 			line:    1,
 			column:  6,
 		},
+		{
+			// DWScript buffers only the decoded content (the opening quote is not
+			// kept), so a plain literal crossing a line break is not a triple string.
+			name:    "plain single-quoted literal crossing a line break",
+			input:   "x := 'a''b\n  c\n  ''';",
+			message: "Incorrect triple apostrophe string",
+			line:    1,
+			column:  6,
+		},
 	}
 
 	for _, tt := range tests {
