@@ -4925,5 +4925,5 @@ upstream's. `"""`-plus-newline strings remain a go-dws extension.
 
 Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues). Stacked on the overload slice,
-CLI and harness agree at **1,189 / 1,966 scored** (+8): FailureScripts 174 → 180, SimpleScripts
+CLI and harness agree at **1,192 / 1,966 scored** (+8): FailureScripts 177 → 183, SimpleScripts
 381 → 383. No category dropped.
