@@ -592,6 +592,7 @@ func (e *Evaluator) prepareByRefArgument(arg ast.Expression, ctx *ExecutionConte
 		if ref, handled, err := e.prepareMemberFieldReference(memberExpr, ctx); handled {
 			return ref, err
 		}
+		return e.prepareCapturedMemberArgument(memberExpr, ctx)
 	}
 
 	current, assign, err := e.EvaluateLValue(arg, ctx)
