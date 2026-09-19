@@ -15,10 +15,10 @@ type capturedArrayArgument struct {
 	node          *ast.IndexExpression
 	bindContainer func() Value
 	reference     Value
-	index         int
 	// bindReference replaces the dense-array binding for an associative
 	// element, whose key was evaluated once during capture.
 	bindReference func() (Value, error)
+	index         int
 }
 
 func argumentEvaluationError(value Value, ctx *ExecutionContext) error {
