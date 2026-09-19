@@ -638,6 +638,19 @@ func NewMethodNotImplementedError(pos lexer.Position, methodName, className stri
 	}
 }
 
+// NewForwardNotImplementedError creates DWScript's diagnostic for a routine
+// declared `forward` (or in a unit interface) that is never implemented. DWScript
+// says "function" for procedures too.
+func NewForwardNotImplementedError(pos lexer.Position, name string) *SemanticError {
+	return &SemanticError{
+		Type:         ErrorInvalidOperation,
+		Message:      fmt.Sprintf(`The function "%s" was forward declared but not implemented`, name),
+		Pos:          pos,
+		Severity:     SeverityError,
+		FunctionName: name,
+	}
+}
+
 // NewArrayBoundsError creates a DWScript-style array bound diagnostic.
 func NewArrayBoundsError(pos lexer.Position, message string) *SemanticError {
 	return &SemanticError{

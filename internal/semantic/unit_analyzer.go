@@ -179,6 +179,10 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 			}
 		}
 	}
+	// Interface implementations were matched above rather than through
+	// DefineOverload, so settle the exported symbols' forward state here; the
+	// importing program must not report them as unimplemented forwards.
+	exports.resolveForwards()
 	for _, section := range []*ast.BlockStatement{unit.InitSection, unit.FinalSection} {
 		if section != nil {
 			for _, stmt := range section.Statements {

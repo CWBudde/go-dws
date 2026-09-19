@@ -40,6 +40,11 @@ func semanticDeclaredTypeName(typeExpr ast.TypeExpression, resolved types.Type) 
 	}
 	if typeExpr != nil {
 		if name := getTypeExpressionName(typeExpr); name != "" {
+			// DWScript prints the declared type symbol's own spelling, so a
+			// parameter written `string` is reported as "String".
+			if resolved != nil && ident.Equal(name, resolved.String()) {
+				return resolved.String()
+			}
 			return name
 		}
 	}
@@ -60,8 +65,11 @@ func isArrayOfConstType(t types.Type) bool {
 }
 
 func semanticDiagnosticTypeName(typeName string) string {
-	if typeName == "Void" {
+	switch typeName {
+	case "Void":
 		return "void"
+	case "Nil":
+		return "nil"
 	}
 	if len(typeName) >= len("array[") && typeName[:len("array[")] == "array[" {
 		return "array " + typeName[len("array"):]
