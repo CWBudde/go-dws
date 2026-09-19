@@ -4938,3 +4938,41 @@ raises `ECompileError`, caught only at the top of `TdwsCompiler.Compile`, so ups
 pulled tokenizer never reads past it — every lexer diagnostic positioned after a stop is now
 dropped, a trailing `{$ERROR}` included, while the stop itself and earlier directives are kept.
 Restacked on main after the parser-recovery and overload slices merged; fixture counts unchanged.
+
+## 2026-09-19 — call-argument sentences (§4 / F9)
+
+Rules from upstream `TypeCheckArguments` (`dwsCompilerUtils.pas`), `TOpenArraySymbol.IsCompatible`
+(`dwsSymbols.pas`) and `dwsStrings.pas`.
+
+- **Method calls** (class, interface, constructor, record, helper) use the existing
+  `Argument N expects type "X" instead of "Y"`, anchored at the argument, instead of the invented
+  `argument N to method 'X' of class 'Y' has type …` (`method_param_error1`/`2`). Record instance
+  and helper methods count the receiver as argument 0, as upstream does, so their index shifts by
+  one.
+- **A procedure call passed as an argument** gets the short `Argument N expects type "X"`, for
+  user routines and for builtins when the argument really is a call or routine name
+  (`use_proc_result2`).
+- **No cascades.** An argument whose own analysis already failed is not type-checked again
+  (upstream skips `TErrorValueExpr`), via a new `errorsSince` helper that ignores hints and
+  warnings.
+- **`array of const`** rejects dynamic arrays, while a `const` parameter declared
+  `array of Variant` still accepts them (`open_array2`). go-dws gives both the same type, so the
+  declared name tells them apart — tracked in PLAN.md §4/F9.
+- **`Assigned`** has its own check and reports `Invalid argument type` at the argument; it accepts
+  objects, interfaces, class references, routines, function and method pointers, nil and Variant
+  (`assigned`).
+- **Array helpers** skip argument-count errors when the argument list holds the parser's error
+  placeholder (`dyn_array1`, `dyn_array_setlength2`); `ForEach` reports "no overloaded version"
+  only for callbacks with parameters (`foreach_invalid_arg`).
+
+Tests: `internal/semantic/call_argument_diagnostics_test.go` (every target plus plain-call,
+class-, record- and helper-method mismatches and the kinds `Assigned` accepts). `helpers_test.go`
+pins the new sentence; `function_pointer_test.go` loses a cascaded second error; `Assigned` left
+the registry-signature table in `builtin_registry_migration_test.go`. `enum_byname`,
+`func_ptr_var_param`, `lazy_func_ptr` and `HelpersFail/function_helper` changed but still fail
+on other lines.
+
+Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
+`golangci-lint run --new-from-rev=origin/main ./...` (0 issues), and an old-vs-new binary diff over
+every fixture. Stacked on the string-constant slice, CLI and harness agree at
+**1,197 / 1,966 scored** (+8): FailureScripts 180 → 188. No category dropped.

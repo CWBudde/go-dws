@@ -493,11 +493,23 @@ Work families — IDs from the 2026-03 analysis
     the unit-compile path (`internal/frontend/units.go`) does not apply the drop at all. The
     cutoff after a *compiler stop* in the same function is exact, not an approximation —
     `ECompileError` abandons the compilation, so nothing past it is tokenized.
-  Recurring themes, each one change:
-  - `[ ]` S Spurious `No arguments expected` on an array helper called with none (`dyn_array1`,
-    `dyn_array_setlength2`)
-  - `[ ]` S `argument N to method 'X' of class 'Y' has type …` →
-    `Argument N expects type "X" instead of "Y"` (`method_param_error1`, `method_param_error2`)
+  The call-argument slice (same day) closed `method_param_error1`/`2`, `dyn_array1`,
+  `dyn_array_setlength2`, `open_array2`, `use_proc_result2`, `foreach_invalid_arg`, `assigned`.
+  Left open from it:
+  - `[ ]` S The invented `argument N has type …` sentence survives on paths no fixture pins yet:
+    member calls, implicit-Self calls, record class methods, the implicit helper path and
+    constructors (`analyze_function_calls.go`), `inherited` calls (`analyze_special.go`), two
+    sites in `analyze_classes.go`, set `Include`/`Exclude` (`analyze_method_calls.go`). Move them to
+    `analyzeCallArgument`/`analyzeSelfCallArgument` (F8).
+  - `[ ]` M A `const` parameter of type `array of Variant` is conflated with `array of const`;
+    the analyzer tells them apart by declared type name. Separate the types.
+  - `[ ]` S `internal_unsupported`: `Length`/`Low`/`High` want `Invalid argument type` (reuse the
+    new `Assigned` check) and `Inc` wants `Integer expected`.
+  - `[ ]` S `assign_untyped`: `Assignment's right-side-argument has no return type`, and
+    `Cannot assign a value to the left-side argument` for assigning to a procedure name.
+  - `[ ]` S `enum_byname` wants `String expected` (upstream's dedicated `ByName` check);
+    `func_ptr_var_param` wants the routine-type name `procedure TProc` (F10);
+    `lazy_func_ptr` wants `Lazy parameter cannot be a function pointer`.
 - **F10** `[ ]` M `Incompatible types: "X" and "Y"` — 58 lines over 22 fixtures, the largest missing
   *semantic* shape. DWScript uses one sentence wherever two types fail to unify, target first,
   supplied second, both quoted; go-dws invents a bespoke sentence per site, which is why the
