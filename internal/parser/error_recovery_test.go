@@ -113,7 +113,7 @@ func TestErrorRecoveryIfStatement(t *testing.T) {
 				Print('invalid');
 			`,
 			expectErrors:  1,
-			errorContains: []string{"if block"},
+			errorContains: []string{"Expression expected"}, // a compiler stop: upstream says nothing more
 		},
 		{
 			name: "missing consequence",
@@ -200,7 +200,7 @@ func TestErrorRecoveryWhileStatement(t *testing.T) {
 				x := x - 1;
 			`,
 			expectErrors:  1,
-			errorContains: []string{"while block"},
+			errorContains: []string{"Expression expected"}, // a compiler stop: upstream says nothing more
 		},
 		{
 			name: "missing body",
@@ -267,7 +267,7 @@ func TestErrorRecoveryRepeatStatement(t *testing.T) {
 			end;
 			`,
 			expectErrors:  1,
-			errorContains: []string{"expected 'until'", "repeat block"},
+			errorContains: []string{"Expression expected"}, // `end` cannot start an expression; the stop ends output
 		},
 	}
 

@@ -326,3 +326,29 @@ func (a *Analyzer) isTypeMetaValueExpression(expr ast.Expression) bool {
 
 	return false
 }
+
+// isBareTypeValue reports whether expr is a bare non-class type name used where a value
+// is required (`v := TEnum`). DWScript reads such a name as the start of a cast and stops
+// with `"(" expected`. Class names are excluded: they are valid metaclass values.
+//
+// Enum type names are registered as symbols (so High(TEnum) and TEnum.Value work), which
+// isTypeMetaValueExpression deliberately skips; they are recognised here by the symbol
+// being the enum type itself.
+func (a *Analyzer) isBareTypeValue(expr ast.Expression) bool {
+	if a.isClassNameExpr(expr) {
+		return false
+	}
+	if a.isTypeMetaValueExpression(expr) {
+		return true
+	}
+	id, ok := expr.(*ast.Identifier)
+	if !ok {
+		return false
+	}
+	sym, exists := a.symbols.Resolve(id.Value)
+	if !exists || sym.Type == nil {
+		return false
+	}
+	enumType, isEnum := sym.Type.(*types.EnumType)
+	return isEnum && pkgident.Equal(enumType.Name, id.Value)
+}
