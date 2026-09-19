@@ -48,7 +48,6 @@ func init() {
 		"logn":                   {argumentFormats: []string{"function 'LogN' expects Float or Integer as first argument, got %s at %s", "function 'LogN' expects Float or Integer as second argument, got %s at %s"}},
 		"sign":                   {argumentFormats: []string{"function 'Sign' expects Float or Integer, got %s at %s"}},
 		"intpower":               {argumentFormats: []string{"function 'IntPower' expects Float or Integer as first argument, got %s at %s", "function 'IntPower' expects Integer as second argument, got %s at %s"}},
-		"randg":                  {noArguments: true},
 		"gcd":                    {argumentFormats: []string{"function 'Gcd' expects Integer as first argument, got %s at %s", "function 'Gcd' expects Integer as second argument, got %s at %s"}, analyzeAllFirst: true},
 		"lcm":                    {argumentFormats: []string{"function 'Lcm' expects Integer as first argument, got %s at %s", "function 'Lcm' expects Integer as second argument, got %s at %s"}, analyzeAllFirst: true},
 		"testbit":                {argumentFormats: []string{"function 'TestBit' expects Integer as first argument, got %s at %s", "function 'TestBit' expects Integer as second argument, got %s at %s"}, analyzeAllFirst: true},

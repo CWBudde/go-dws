@@ -421,6 +421,38 @@ func IsVarTarget(node ast.Node) bool {
 // Inc/Dec Built-in Functions
 // ============================================================================
 
+// evalOrdinalDelta evaluates the optional delta of Inc or Dec. A Variant delta
+// is cast to Integer as at any Integer builtin parameter; a failed cast raises
+// a catchable exception on ctx and returns its placeholder as errVal.
+func (e *Evaluator) evalOrdinalDelta(name string, expr ast.Expression, ctx *ExecutionContext) (int64, Value) {
+	deltaVal := e.Eval(expr, ctx)
+	if isError(deltaVal) {
+		return 0, deltaVal
+	}
+	if ctx.Exception() != nil {
+		return 0, e.nilValue()
+	}
+	if e.exprIsStaticVariant(expr) {
+		deltaVal = unwrapVariant(deltaVal)
+		converted, errVal := e.coerceToInteger(deltaVal, nil, ctx)
+		if errVal != nil {
+			return 0, errVal
+		}
+		if converted != nil {
+			deltaVal = converted
+		}
+	}
+	deltaInt, ok := deltaVal.(*runtime.IntegerValue)
+	if !ok {
+		gotType := "nil"
+		if deltaVal != nil {
+			gotType = deltaVal.Type()
+		}
+		return 0, e.newError(nil, "%s() delta must be Integer, got %s", name, gotType)
+	}
+	return deltaInt.Value, nil
+}
+
 // builtinInc implements the Inc() built-in function.
 // It increments a variable in place: Inc(x) or Inc(x, delta)
 // Supports any lvalue: Inc(x), Inc(arr[i]), Inc(obj.field)
@@ -433,15 +465,10 @@ func (e *Evaluator) builtinInc(args []ast.Expression, ctx *ExecutionContext) Val
 	// Get delta (default 1)
 	delta := int64(1)
 	if len(args) == 2 {
-		deltaVal := e.Eval(args[1], ctx)
-		if isError(deltaVal) {
-			return deltaVal
+		var errVal Value
+		if delta, errVal = e.evalOrdinalDelta("Inc", args[1], ctx); errVal != nil {
+			return errVal
 		}
-		deltaInt, ok := deltaVal.(*runtime.IntegerValue)
-		if !ok {
-			return e.newError(nil, "Inc() delta must be Integer, got %s", deltaVal.Type())
-		}
-		delta = deltaInt.Value
 	}
 
 	// Evaluate lvalue once and get both current value and assignment target
@@ -525,15 +552,10 @@ func (e *Evaluator) builtinDec(args []ast.Expression, ctx *ExecutionContext) Val
 	// Get delta (default 1)
 	delta := int64(1)
 	if len(args) == 2 {
-		deltaVal := e.Eval(args[1], ctx)
-		if isError(deltaVal) {
-			return deltaVal
+		var errVal Value
+		if delta, errVal = e.evalOrdinalDelta("Dec", args[1], ctx); errVal != nil {
+			return errVal
 		}
-		deltaInt, ok := deltaVal.(*runtime.IntegerValue)
-		if !ok {
-			return e.newError(nil, "Dec() delta must be Integer, got %s", deltaVal.Type())
-		}
-		delta = deltaInt.Value
 	}
 
 	// Evaluate lvalue once and get both current value and assignment target

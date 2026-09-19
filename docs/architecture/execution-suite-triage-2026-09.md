@@ -56,6 +56,9 @@ not imply all FunctionsMath fixtures pass. No expectations or category floors we
 
 ## FunctionsMath: five failures, three groups
 
+> **Update 2026-09-19:** E11 closed the first two groups (`abs`, `inc_dec_variant_op`,
+> `haversine`, `random`). FunctionsMath is 39/40; only `randseed` remains.
+
 | Group | Fixture and first blocking evidence | Required follow-up |
 | --- | --- | --- |
 | Variant numeric and ordinal arguments | `abs`: `Abs` rejects Variant at 13:9. `inc_dec_variant_op`: Variant deltas rejected by `Inc`/`Dec` at 7:9 and 9:9; two-argument `Succ`/`Pred` rejected at 12:18 and 13:18. | Align semantic signatures and runtime Variant unwrapping; support the optional ordinal delta consistently. The evaluator has independent restrictions, so semantic acceptance alone is insufficient. |

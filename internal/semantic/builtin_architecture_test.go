@@ -97,7 +97,7 @@ func TestBuiltinAnalysis_CorrectedSignatureConsumers(t *testing.T) {
 		name   string
 		params int
 	}{
-		{types.FLOAT, "RandG", 0},
+		{types.FLOAT, "RandG", 2},
 		{types.NewDynamicArrayType(types.STRING), "JSONKeys", 1},
 		{types.NewDynamicArrayType(types.VARIANT), "JSONValues", 1},
 		{types.NewDynamicArrayType(types.STRING), "StrSplit", 2},

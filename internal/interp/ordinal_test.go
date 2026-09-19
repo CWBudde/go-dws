@@ -1193,16 +1193,16 @@ PrintLn(Pred(f));
 		{
 			name: "Succ too many arguments",
 			input: `
-PrintLn(Succ(5, 10));
+PrintLn(Succ(5, 10, 1));
 `,
-			expectedError: "Succ() expects exactly 1 argument, got 2",
+			expectedError: "Succ() expects 1-2 arguments, got 3",
 		},
 		{
 			name: "Pred no arguments",
 			input: `
 PrintLn(Pred());
 `,
-			expectedError: "Pred() expects exactly 1 argument, got 0",
+			expectedError: "Pred() expects 1-2 arguments, got 0",
 		},
 	}
 

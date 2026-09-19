@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -299,6 +300,9 @@ func (a *Analyzer) buildFunctionPointerTypeFromBuiltin(funcName string, sig *bui
 	// count so a call through the pointer keeps every arity the builtin itself
 	// accepts instead of demanding the fully expanded parameter list.
 	funcPtrType.MinArgs = sig.MinArgs
+	// Disjoint arities (Trim's 1 or 3, RandG's 0 or 2) must survive as well,
+	// or a call through the pointer could use a count the builtin rejects.
+	funcPtrType.AllowedArgCounts = slices.Clone(sig.AllowedArgCounts)
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("function pointer to %s", funcName),
 	}
@@ -371,6 +375,10 @@ func (a *Analyzer) analyzeFunctionPointerCallArgs(args []ast.Expression, calleeT
 		// which upstream reaches through a different reader (func_ptr1 calls a
 		// `procedure` pointer with one argument and gets `Too many arguments`).
 		a.addTooManyArguments(pos)
+		return functionPointerCallResult(funcPtr)
+	case !funcPtr.AcceptsArgCount(len(args)):
+		// A gap between disjoint arities always lies below a larger valid one.
+		a.addMoreArgumentsExpected(pos)
 		return functionPointerCallResult(funcPtr)
 	}
 

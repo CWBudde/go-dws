@@ -4746,3 +4746,54 @@ Go-harness tables match in all 61 categories: **1,152 / 1,966 scored**, with 814
 failures and 78 unscored fixtures. SimpleScripts increases from **379 to 381 of
 443**; all other category floors are unchanged. Generated status and baselines
 are refreshed. Upstream scripts and expected outputs were not modified.
+
+## 2026-09-19 — math signatures and Variant arguments (E11)
+
+E11 closes the first follow-up group recorded by the E10 audit: four FunctionsMath
+fixtures stopped on signatures that semantic analysis and the evaluator did not share.
+
+- **`Abs(Variant)`** (`abs`). The analyzer types a Variant operand's result as
+  Variant, like `Min`/`Max`, and the builtin unwraps it before choosing the Integer
+  or Float branch. Non-numeric operands keep the no-overload diagnostic.
+- **Ordinal deltas** (`inc_dec_variant_op`). `Inc`/`Dec` accept an Integer or
+  Variant delta; the evaluator casts a static Variant with the same
+  `coerceToInteger` used for Integer builtin parameters, so a failed cast raises the
+  usual catchable exception. `Succ`/`Pred` take an optional delta through one shared
+  analyzer and runtime path, and step enumerations by it with the existing bounds
+  errors. The unused `builtins.Inc`/`Dec` implementations only supply names to the
+  analyzer and were left unchanged.
+- **`Haversine` radius** (`haversine`). An optional fifth argument sets the radius;
+  four-argument calls keep the 6371 km default. The four duplicated argument
+  switches became one loop.
+- **`RandG(mean, stdDev)`** (`random`). The signature accepts zero or two arguments
+  (`WithArgCounts(0, 2)`), and zero arguments keep the standard normal distribution.
+  A builtin whose parameters are all optional now types its bare name as an implicit
+  call. Such signatures never convert to function pointers, so `var g := RandG`
+  can only mean a call. RandG is the only function this affects; procedures already
+  qualified.
+
+A9 had pinned RandG to the zero-argument runtime form. `TestBuiltinSignatures_CorrectedShapes`,
+`TestBuiltinAnalysis_CorrectedSignatureConsumers` and `TestSuccPredErrors` now pin the
+new arities, and the golden `builtin_analysis_compatibility.json` entries for
+`haversine` and `randg` were regenerated from the analyzer. No other entry changed.
+New real-path regressions in `internal/interp/math_signatures_test.go` compile with
+semantic analysis and run: Variant operands and deltas, Integer and enum deltas,
+default and explicit radius, a zero-deviation RandG, a seeded mean, the bare call, and
+rejection of wrong arities and argument types.
+
+Found during E11 and tracked in PLAN.md: assigning a Variant holding a Float to an
+Integer variable stores the Float unchanged.
+
+Validation:
+
+```sh
+go test ./...
+just fixture-update
+just fixture-report
+golangci-lint run --new-from-rev=HEAD ./...
+```
+
+The full suite passes and changed-code lint reports zero issues. CLI and harness agree
+at **1,156 / 1,966 scored** (810 failures, 78 unscored). FunctionsMath rises from
+**35 to 39 of 40**; `randseed` remains, under seeded RNG compatibility. No other
+category changed. The experimental bytecode VM was not extended.

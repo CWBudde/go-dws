@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -164,28 +165,27 @@ func (a *Analyzer) checkBuiltinArgument(sig *builtins.FunctionSignature, style b
 	a.addError("function '%s' expects %s, got %s at %s", name, expectation, actual.String(), pos)
 }
 
-// parameterlessBuiltinType returns the result type of a builtin that takes no
-// arguments at all, so a bare identifier such as `Random` or `Now` types as an
-// implicit call (`Random*0`, `var t := Now`) instead of falling back to VOID.
+// parameterlessBuiltinType returns the result type of a builtin that can be
+// called without arguments, so a bare identifier such as `Random`, `Now` or
+// `RandG` types as an implicit call (`Random*0`, `var t := Now`) instead of
+// falling back to VOID.
 //
-// Only strictly parameterless functions qualify: a signature with optional or
-// variadic parameters says nothing about whether the bare name means a call or
-// a reference.
-//
-// Procedures are the exception. A procedure has no result, so its bare name can
-// only ever mean a call, never a reference; `CleanupGlobalVars;` is a statement
-// in DWScript exactly like `Randomize;`. Any non-variadic procedure whose
-// parameters are all optional therefore types as VOID here.
+// Every parameter must be optional and the signature non-variadic. A bare name
+// with optional parameters cannot mean a reference instead: such signatures are
+// never expressible as function pointers (registrySignatureAsFunctionPointer),
+// so, as in DWScript, the name is a call with the defaults. Procedures
+// qualify the same way — `CleanupGlobalVars;` is a statement exactly like
+// `Randomize;` — and type as VOID.
 func (a *Analyzer) parameterlessBuiltinType(name string) (types.Type, bool) {
 	sig, ok := a.builtinRegistry.GetSignature(name)
 	if !ok || sig.IsVariadic || sig.MinArgs != 0 {
 		return nil, false
 	}
+	if len(sig.AllowedArgCounts) > 0 && !slices.Contains(sig.AllowedArgCounts, 0) {
+		return nil, false
+	}
 	if sig.ReturnType == nil {
 		return types.VOID, true
-	}
-	if sig.MaxArgs != 0 {
-		return nil, false
 	}
 	return sig.ReturnType, true
 }

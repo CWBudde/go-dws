@@ -148,8 +148,11 @@ func (c ParameterConstraint) accepts(expected, actual types.Type) bool {
 }
 
 var (
-	exactParameter   = ParameterConstraint{Exact: true}
-	numericParameter = ParameterConstraint{Types: []types.Type{types.INTEGER, types.FLOAT}}
+	exactParameter = ParameterConstraint{Exact: true}
+	// exactNumericParameter accepts an Integer or Float argument without Variant
+	// auto-boxing.
+	exactNumericParameter = ParameterConstraint{Exact: true, Numeric: true}
+	numericParameter      = ParameterConstraint{Types: []types.Type{types.INTEGER, types.FLOAT}}
 	// autoBoxedVariantParameter mirrors DWScript, which implicitly boxes any
 	// value into a Variant when a Variant parameter is declared.
 	autoBoxedVariantParameter = ParameterConstraint{Any: true}
