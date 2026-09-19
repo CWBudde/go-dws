@@ -45,18 +45,50 @@ func (a *Analyzer) analyzeRegisteredBuiltin(name string, args []ast.Expression, 
 	if style.analyzeAllFirst {
 		actual := make([]types.Type, len(analyzedArgs))
 		for index, arg := range analyzedArgs {
+			mark := len(a.errors)
 			actual[index] = a.analyzeExpression(arg)
 			a.checkBuiltinVarArgument(sig, diagnosticName, index, arg)
+			if a.checkValuelessBuiltinArgument(sig, index, arg, actual[index], mark) {
+				actual[index] = nil
+			}
 		}
 		a.checkBuiltinArguments(sig, style, diagnosticName, actual, call)
 	} else {
 		for index, arg := range analyzedArgs {
+			mark := len(a.errors)
 			actual := a.analyzeExpression(arg)
 			a.checkBuiltinVarArgument(sig, diagnosticName, index, arg)
+			if a.checkValuelessBuiltinArgument(sig, index, arg, actual, mark) {
+				continue
+			}
 			a.checkBuiltinArgument(sig, style, diagnosticName, index, actual, call)
 		}
 	}
 	return result, true
+}
+
+// checkValuelessBuiltinArgument reports a procedure call passed where a
+// builtin parameter needs a value, in DWScript's short sentence anchored on the
+// argument (FailureScripts/use_proc_result2: `Print(Print(”))`). Even a
+// Variant parameter cannot take the result of a procedure. It reports whether
+// the argument was valueless, so no second diagnostic follows for it.
+//
+// Only a call whose own analysis succeeded counts: the analyzer also types
+// names it cannot resolve as void, and an argument that already failed has
+// been reported (FailureScripts/array_error6).
+func (a *Analyzer) checkValuelessBuiltinArgument(sig *builtins.FunctionSignature, index int, arg ast.Expression, actual types.Type, mark int) bool {
+	if _, valueless := actual.(*types.VoidType); !valueless || !a.isProcedureCall(arg) || a.errorsSince(mark) {
+		return false
+	}
+	paramIndex := index
+	if paramIndex >= len(sig.ParamTypes) && sig.IsVariadic {
+		paramIndex = len(sig.ParamTypes) - 1
+	}
+	if paramIndex < 0 || paramIndex >= len(sig.ParamTypes) {
+		return false
+	}
+	a.addArgumentTypeError(index, semanticTypeNameForDiagnostic(sig.ParamTypes[paramIndex]), actual, arg.Pos())
+	return true
 }
 
 // checkBuiltinVarArgument reports an argument passed to a by-reference builtin

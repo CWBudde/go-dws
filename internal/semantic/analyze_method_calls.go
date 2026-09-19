@@ -109,13 +109,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check argument types
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
-			expectedType := methodType.Parameters[i]
-			if argType != nil && !a.canAssign(argType, expectedType) {
-				a.addError("argument %d to method '%s' has type %s, expected %s at %s",
-					i+1, methodName, argType.String(), expectedType.String(),
-					expr.Token.Pos.String())
-			}
+			a.analyzeCallArgument(i, arg, methodType.Parameters[i])
 		}
 
 		return methodType.ReturnType
@@ -181,13 +175,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 					if i >= len(methodType.Parameters) {
 						break
 					}
-					paramType := methodType.Parameters[i]
-					argType := a.analyzeExpressionWithExpectedType(arg, paramType)
-					if argType != nil && !a.canAssign(argType, paramType) {
-						a.addError("argument %d to class method '%s.%s' has type %s, expected %s at %s",
-							i+1, recordType.Name, methodName, argType.String(), paramType.String(),
-							expr.Token.Pos.String())
-					}
+					a.analyzeCallArgument(i, arg, methodType.Parameters[i])
 				}
 
 				return methodType.ReturnType
@@ -250,14 +238,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 			// Check argument types (in the context of the selected signature,
 			// so literals such as [] or nil adopt the parameter's type)
-			for i, arg := range expr.Arguments {
-				expectedType := method.Parameters[i]
-				argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
-				if argType != nil && !a.canAssign(argType, expectedType) {
-					a.addError("argument %d to record method '%s' has type %s, expected %s at %s",
-						i+1, methodName, argType.String(), expectedType.String(),
-						expr.Token.Pos.String())
-				}
+			for i := range expr.Arguments {
+				a.analyzeSelfCallArgument(i, expr.Arguments, method.Parameters[i], expr.Method.Token.Pos)
 			}
 
 			return method.ReturnType
@@ -330,18 +312,13 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		// Check argument types
-		for i, arg := range expr.Arguments {
+		for i := range expr.Arguments {
 			var expectedType types.Type
 			if helperMethod.Parameters != nil && i < len(helperMethod.Parameters) {
 				expectedType = helperMethod.Parameters[i]
 			}
-			// Use analyzeExpressionWithExpectedType to enable lambda parameter type inference
-			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
-			if expectedType != nil && argType != nil && !a.canAssign(argType, expectedType) {
-				a.addError("argument %d to helper method '%s' has type %s, expected %s at %s",
-					i+1, methodName, argType.String(), expectedType.String(),
-					expr.Token.Pos.String())
-			}
+			// The expected type enables lambda parameter type inference.
+			a.analyzeSelfCallArgument(i, expr.Arguments, expectedType, expr.Method.Token.Pos)
 		}
 
 		return helperMethod.ReturnType
@@ -405,13 +382,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		for i, arg := range expr.Arguments {
-			expectedType := methodType.Parameters[i]
-			argType := a.analyzeExpressionWithExpectedType(arg, expectedType)
-			if argType != nil && !a.canAssign(argType, expectedType) {
-				a.addError("argument %d to constructor '%s' of class '%s' has type %s, expected %s at %s",
-					i+1, methodName, classType.Name, argType.String(), expectedType.String(),
-					expr.Token.Pos.String())
-			}
+			a.analyzeCallArgument(i, arg, methodType.Parameters[i])
 		}
 
 		// Resolved to a same-named class method rather than a constructor.
@@ -557,13 +528,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check argument types
 		for i, arg := range expr.Arguments {
-			argType := a.analyzeExpression(arg)
-			expectedType := methodType.Parameters[i]
-			if argType != nil && !a.canAssign(argType, expectedType) {
-				a.addError("argument %d to method '%s' of class '%s' has type %s, expected %s at %s",
-					i+1, methodName, classType.Name, argType.String(), expectedType.String(),
-					expr.Token.Pos.String())
-			}
+			a.analyzeCallArgument(i, arg, methodType.Parameters[i])
 		}
 	}
 

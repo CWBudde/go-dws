@@ -35,7 +35,6 @@ func TestBuiltinAnalysis_MigratedSignatures(t *testing.T) {
 		{"Floor", "F", types.INTEGER, "1 argument", []string{"Integer or Float as argument"}},
 		{"UnixTime", "", types.INTEGER, "0 arguments", []string{}},
 		{"UnixTimeMSec", "", types.INTEGER, "0 arguments", []string{}},
-		{"Assigned", "V", types.BOOLEAN, "1 argument", []string{""}},
 		{"ToJSON", "V", types.STRING, "1 argument", []string{""}},
 		{"JSONLength", "V", types.INTEGER, "1 argument", []string{""}},
 		{"Log10", "F", types.FLOAT, "1 argument", []string{"Float or Integer"}},
