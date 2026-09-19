@@ -4891,5 +4891,5 @@ Remaining OverloadsFail blockers are listed under PLAN.md §4/F7.
 
 Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues). Stacked on the compiler-stop
-slice, CLI and harness agree at **1,181 / 1,966 scored** (+7): OverloadsFail 0 → 3,
-FailureScripts 171 → 174, AssociativeFail 1 → 2. No category dropped.
+slice, CLI and harness agree at **1,184 / 1,966 scored** (+7): OverloadsFail 0 → 3,
+FailureScripts 174 → 177, AssociativeFail 1 → 2. No category dropped.
