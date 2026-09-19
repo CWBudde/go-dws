@@ -4857,3 +4857,39 @@ Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues). CLI and harness agree at
 **1,177 / 1,966 scored** (+21): FailureScripts 156 → 174, PropertyExpressionsFail 0 → 2,
 SetOfFail 5 → 6. No category dropped.
+
+## 2026-09-19 — overload and forward-declaration sentences (§4 / F7)
+
+- **Capitalization.** `Overload of "X" will be ambiguous…`, `Overloaded procedure/function "X"
+  must be marked…` and `There is already a method with name "X"` now open with a capital. They
+  are a small typed error in `internal/semantic/symbol_table.go` rather than `fmt.Errorf`, which
+  keeps the lowercase-error-string lint rule satisfied. A same-signature redeclaration is anchored
+  where DWScript anchors it: the header's `;`, or the token after the last directive's `;`
+  (new `ast.FunctionDecl.HeaderEndPos`). A missing `overload` directive is reported before
+  default-parameter ambiguity.
+- **`The function "X" was forward declared but not implemented`** (upstream
+  `CPE_ForwardNotImplemented`; always "function"), anchored at the routine name, for program-level
+  forwards and unit-interface declarations. It comes after every other diagnostic, in name order,
+  latest overload first — inferred from the fixtures and consistent with upstream
+  `TFuncSymbol.Initialize` — and has its own bucket in `sortDiagnostics`. External routines are
+  exempt (the parser no longer marks interface-section `external` routines forward); a
+  mismatching implementation still counts as implementing its forward, since DWScript reports the
+  mismatch instead. Interface routines implemented by the unit analyzer are marked resolved.
+  An unknown name in an expression sets an analyzer `compileStopped` flag that skips the check —
+  a narrow approximation of upstream abandoning the compile, needed to keep `property_write3`.
+- **Duplicate forward** (`There is already a forward declaration of this function`) is anchored
+  at the `forward` keyword (new `ast.FunctionDecl.ForwardPos`).
+- **Type spelling.** `nil` is written `"nil"` in incompatible-types messages, and a parameter
+  whose builtin type name is written in another case is reported in the type's own spelling.
+
+Newly passing: `OverloadsFail/default_params`, `forwards`, `overload_func_ptr_param`;
+`FailureScripts/forward_missing1`, `forward_multiple1`, `incorrect_type1`;
+`AssociativeFail/contains`. Tests: `internal/frontend/routine_declaration_diagnostics_test.go`
+(sentences, anchors, forward ordering, duplicate and external forwards, the compile-stop case,
+type spellings, unit-interface forwards); `overload_test.go` pins the capitalized wording.
+Remaining OverloadsFail blockers are listed under PLAN.md §4/F7.
+
+Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
+`golangci-lint run --new-from-rev=origin/main ./...` (0 issues). Stacked on the compiler-stop
+slice, CLI and harness agree at **1,181 / 1,966 scored** (+7): OverloadsFail 0 → 3,
+FailureScripts 171 → 174, AssociativeFail 1 → 2. No category dropped.

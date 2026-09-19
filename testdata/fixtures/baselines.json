@@ -1,7 +1,7 @@
 {
   "Algorithms": 53,
   "ArrayPass": 98,
-  "AssociativeFail": 1,
+  "AssociativeFail": 2,
   "AssociativePass": 27,
   "AttributesFail": 0,
   "AutoFormat": 0,
@@ -49,7 +49,7 @@
   "Memory": 7,
   "OperatorOverloadFail": 0,
   "OperatorOverloadPass": 5,
-  "OverloadsFail": 0,
+  "OverloadsFail": 3,
   "OverloadsPass": 37,
   "PropertyExpressionsFail": 2,
   "PropertyExpressionsPass": 18,
