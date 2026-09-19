@@ -172,6 +172,18 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 				Method:    memberAccess.Member,
 				Arguments: node.Arguments,
 			}
+			if selected, args, handled, err := e.prepareVarMethodArguments(objVal, mc, ctx); handled {
+				if ctx.Exception() != nil {
+					return e.nilValue()
+				}
+				if err != nil {
+					return e.newError(node, "%s", err.Error())
+				}
+				if record, ok := objVal.(RecordInstanceValue); ok {
+					return e.callRecordMethod(record, selected, args, mc, ctx)
+				}
+				return e.DispatchMethodCall(objVal, memberAccess.Member.Value, args, mc, ctx)
+			}
 
 			if recordVal, ok := objVal.(RecordInstanceValue); ok {
 				methodDecl, found := recordVal.GetRecordMethod(memberAccess.Member.Value)
@@ -379,6 +391,20 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 	}
 
+	// Resolve implicit Self methods before evaluating arguments so their var
+	// and lazy parameters use the same preparation as explicit method calls.
+	if _, builtin := builtins.DefaultRegistry.Lookup(funcName.Value); !builtin {
+		if self, exists := ctx.Env().Get("Self"); exists {
+			callableField := false
+			if object, ok := self.(ObjectValue); ok {
+				_, callableField = object.GetField(funcName.Value).(*runtime.FunctionPointerValue)
+			}
+			if !callableField {
+				return e.executeImplicitSelfCall(node, funcName, ctx)
+			}
+		}
+	}
+
 	// Standard built-in functions
 	args := make([]Value, len(node.Arguments))
 	for idx, arg := range node.Arguments {
@@ -482,6 +508,9 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 	args := make([]Value, len(argExprs))
 
 	for idx, arg := range argExprs {
+		if ctx.Exception() != nil {
+			return nil, fmt.Errorf("argument evaluation raised an exception")
+		}
 		isLazy := idx < len(fn.Parameters) && fn.Parameters[idx].IsLazy
 		isByRef := idx < len(fn.Parameters) && fn.Parameters[idx].ByRef
 
@@ -492,6 +521,12 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 			})
 
 		} else if isByRef {
+			if idx < len(cachedArgs) {
+				if _, ok := cachedArgs[idx].(ReferenceAccessor); ok {
+					args[idx] = cachedArgs[idx]
+					continue
+				}
+			}
 			ref, err := e.prepareByRefArgument(arg, ctx)
 			if err != nil {
 				return nil, err
@@ -501,6 +536,9 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 		} else {
 			// Regular parameter: use cached value
 			args[idx] = cachedArgs[idx]
+		}
+		if ctx.Exception() != nil {
+			return nil, fmt.Errorf("argument evaluation raised an exception")
 		}
 	}
 
@@ -640,35 +678,51 @@ func (e *Evaluator) prepareArrayElementReference(idxExpr *ast.IndexExpression, c
 	// `P(a['missing'][0])` vivifies the associative slot instead of handing the
 	// var parameter a throwaway zero array whose writes are lost.
 	arrRaw := e.resolveLValueContainer(idxExpr.Left, ctx)
-	if isError(arrRaw) {
-		return nil, false, nil
+	if err := argumentEvaluationError(arrRaw, ctx); err != nil {
+		return nil, true, err
 	}
 	if ref, isRef := arrRaw.(ReferenceAccessor); isRef {
 		deref, err := ref.Dereference()
 		if err != nil {
-			return nil, false, nil
+			e.raiseBoundExceededError(err, ctx)
+			return nil, true, err
 		}
 		arrRaw = deref
 	}
+	if err := argumentEvaluationError(arrRaw, ctx); err != nil {
+		return nil, true, err
+	}
 	arr, ok := arrRaw.(*runtime.ArrayValue)
-	if !ok || arr.ArrayType == nil {
-		return nil, false, nil
-	}
-
-	idxVal := e.Eval(idxExpr.Index, ctx)
-	if isError(idxVal) {
-		return nil, false, nil
-	}
-	index, ok := ExtractIntegerIndex(idxVal)
 	if !ok {
 		return nil, false, nil
 	}
+	if arr.ArrayType == nil {
+		return nil, true, fmt.Errorf("array has no type information")
+	}
 
+	idxVal := e.Eval(idxExpr.Index, ctx)
+	if err := argumentEvaluationError(idxVal, ctx); err != nil {
+		return nil, true, err
+	}
+	index, ok := e.ExtractIndexWithVariantCast(idxVal, ctx)
+	if !ok {
+		if err := argumentEvaluationError(idxVal, ctx); err != nil {
+			return nil, true, err
+		}
+		return nil, true, fmt.Errorf("array index must be an integer, got %T", idxVal)
+	}
+	ref, err := e.bindArrayElementReference(arr, index, idxExpr, ctx)
+	return ref, true, err
+}
+
+// bindArrayElementReference captures resolved storage without evaluating the
+// argument again. Every later access checks the array's current bounds.
+func (e *Evaluator) bindArrayElementReference(arr *runtime.ArrayValue, index int, idxExpr *ast.IndexExpression, ctx *ExecutionContext) (Value, error) {
 	// Bind-time bounds check raises a catchable exception at the call site.
 	if _, err := arrayElementPhysicalIndex(arr, index); err != nil {
 		low, _ := arrayElementBounds(arr)
 		e.raiseIndexBoundExceededAt(idxExpr.End(), index, index >= low, ctx)
-		return nil, true, err
+		return nil, err
 	}
 
 	getter := func() (runtime.Value, error) {
@@ -691,7 +745,7 @@ func (e *Evaluator) prepareArrayElementReference(idxExpr *ast.IndexExpression, c
 		return nil
 	}
 
-	return runtime.NewReferenceValue(idxExpr.String(), getter, setter), true, nil
+	return runtime.NewReferenceValue(idxExpr.String(), getter, setter), nil
 }
 
 // prepareMemberFieldReference builds a live reference for obj.field byref
@@ -789,6 +843,9 @@ func (e *Evaluator) prepareArgsForParameters(
 
 	args := make([]Value, len(argExprs))
 	for idx, arg := range argExprs {
+		if ctx.Exception() != nil {
+			return nil, fmt.Errorf("argument evaluation raised an exception")
+		}
 		param := parameters[idx]
 		if param.IsLazy {
 			args[idx] = e.wrapLazyArg(arg, ctx, func(expr ast.Expression) Value {
@@ -809,6 +866,9 @@ func (e *Evaluator) prepareArgsForParameters(
 			return nil, fmt.Errorf("%s", val.String())
 		}
 		args[idx] = val
+	}
+	if ctx.Exception() != nil {
+		return nil, fmt.Errorf("argument evaluation raised an exception")
 	}
 	return args, nil
 }

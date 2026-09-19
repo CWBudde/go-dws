@@ -253,6 +253,16 @@ func (e *Evaluator) dispatchInterfaceMethodDirect(intfInst *runtime.InterfaceIns
 
 // runtimeValueType converts a runtime Value to a types.Type for overload resolution.
 func (e *Evaluator) runtimeValueType(val Value) types.Type {
+	if argument, ok := val.(*methodArgumentReference); ok {
+		return argument.argumentType
+	}
+	if reference, ok := val.(ReferenceAccessor); ok {
+		value, err := reference.Dereference()
+		if err != nil {
+			return types.NIL
+		}
+		return e.runtimeValueType(value)
+	}
 	switch v := val.(type) {
 	case *runtime.IntegerValue:
 		return types.INTEGER

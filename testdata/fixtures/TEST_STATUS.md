@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1149 |
-| Failed | 817 |
+| Passed | 1150 |
+| Failed | 816 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **58%** (1149/1966) |
+| **Scored pass rate** | **58%** (1150/1966) |
 
 ## Per-category
 
@@ -79,7 +79,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
 | SetOfFail | 14 | 5 | 9 | 0 | 36% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 378 | 65 | 0 | 85% |
+| SimpleScripts | 443 | 379 | 64 | 0 | 86% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |
