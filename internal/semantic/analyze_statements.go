@@ -526,6 +526,13 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// Check if this is an assignment to a class constant (which is not allowed)
 		objectType := a.analyzeExpression(target.Object)
 		if objectType != nil {
+			// Bare callable receivers have the same member-write rules as an
+			// explicit call. Resolve their result type before inspecting properties,
+			// so a plain assignment does not fall back to validating a property read.
+			objectType = a.applyImplicitCallType(target.Object, objectType)
+			if implicitType := implicitValueContextType(objectType); implicitType != nil {
+				objectType = implicitType
+			}
 			memberName := ident.Normalize(target.Member.Value)
 			objectTypeResolved := types.GetUnderlyingType(objectType)
 			isMetaclass := false

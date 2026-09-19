@@ -75,7 +75,19 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		}
 	}
 
-	obj := e.Eval(node.Object, ctx)
+	obj := e.normalizeMemberReceiver(e.Eval(node.Object, ctx), node.Object, node, ctx)
+	if isError(obj) {
+		return obj
+	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
+	return e.readResolvedMember(node, obj, ctx)
+}
+
+// normalizeMemberReceiver dereferences storage and invokes an implicit callable
+// once, before a member read or a read-modify-write captures the receiver.
+func (e *Evaluator) normalizeMemberReceiver(obj Value, expression ast.Expression, node ast.Node, ctx *ExecutionContext) Value {
 	if isError(obj) {
 		return obj
 	}
@@ -98,7 +110,7 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	// member of what `proc` returns (func_ptr_symbol_field). A nil pointer is
 	// left alone so member access on it keeps its existing diagnostic.
 	if callable, isCallable := obj.(FunctionPointerCallable); isCallable && !callable.IsNil() {
-		invoked := e.autoInvokeValueContext(obj, node.Object, ctx)
+		invoked := e.autoInvokeValueContext(obj, expression, ctx)
 		if isError(invoked) {
 			return invoked
 		}
@@ -107,7 +119,15 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		}
 		obj = invoked
 	}
+	return obj
+}
 
+// readResolvedMember preserves the original expression's static dispatch and
+// source positions while reading from an already evaluated receiver.
+//
+//nolint:gocyclo // Existing member-read dispatch, shared without changing its cases.
+func (e *Evaluator) readResolvedMember(node *ast.MemberAccessExpression, obj Value, ctx *ExecutionContext) Value {
+	wantMethodPointer := e.memberWantsMethodPointer(node, ctx)
 	memberName := node.Member.Value
 
 	// Member access on a JSON value (v.foo, v.length) yields another JSON value.

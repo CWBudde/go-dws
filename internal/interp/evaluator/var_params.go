@@ -244,6 +244,13 @@ func (e *Evaluator) evaluateMemberTarget(target *ast.MemberAccessExpression, ctx
 	// `a[k].field := v` vivifies the associative slot rather than writing into
 	// a throwaway zero value.
 	objVal := e.resolveLValueContainer(target.Object, ctx)
+	return e.evaluateResolvedMemberTarget(target, objVal, ctx, allowClassRead)
+}
+
+// evaluateResolvedMemberTarget binds a member of an already evaluated receiver.
+// Callers probing reference storage can retain the same receiver for fallback
+// property and class-variable handling.
+func (e *Evaluator) evaluateResolvedMemberTarget(target *ast.MemberAccessExpression, objVal Value, ctx *ExecutionContext, allowClassRead bool) (Value, AssignFunc, error) {
 	if isError(objVal) {
 		if errVal, ok := objVal.(*runtime.ErrorValue); ok {
 			return nil, nil, fmt.Errorf("failed to evaluate object: %s", errVal.Message)

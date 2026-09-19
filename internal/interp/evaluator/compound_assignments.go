@@ -23,8 +23,20 @@ func (e *Evaluator) evalCompoundMemberAssignment(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
-	// Read current value via member access
-	currentValue := e.VisitMemberAccessExpression(memberAccess, ctx)
+	// Capture the receiver before the read and RHS. The RHS may replace the
+	// variable holding it, and a constructor must not run again for the write.
+	obj, setter, err := e.evaluateMemberAssignmentContainer(memberAccess.Object, ctx)
+	if err != nil {
+		return e.newError(stmt, "%s", err.Error())
+	}
+	obj = e.normalizeMemberReceiver(obj, memberAccess.Object, memberAccess, ctx)
+	if isError(obj) {
+		return obj
+	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
+	currentValue := e.readResolvedMember(memberAccess, obj, ctx)
 	if isError(currentValue) {
 		return currentValue
 	}
@@ -50,9 +62,15 @@ func (e *Evaluator) evalCompoundMemberAssignment(
 	if isError(result) {
 		return result
 	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
 
-	// Write back via member assignment
-	return e.evalMemberAssignmentDirect(memberAccess, result, stmt, ctx)
+	// Member storage owns its copy of a record result, as in simple assignment.
+	if record, ok := result.(*runtime.RecordValue); ok {
+		result = record.Copy()
+	}
+	return e.assignResolvedMember(memberAccess, result, stmt, obj, setter, ctx)
 }
 
 // evalCompoundIndexAssignment handles compound assignment to indexed access.

@@ -39,14 +39,11 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
-	// Records have value semantics: storing one into a field, a property or any
-	// other member slot must store an independent copy, so a later mutation of
-	// the source is not observable through the destination. This mirrors the
-	// simple-assignment path in evalAssignment.
+	// Snapshot record values before receiver evaluation, which may change the
+	// source record through a side effect.
 	if record, ok := value.(*runtime.RecordValue); ok {
 		value = record.Copy()
 	}
-
 	objVal, objSetter, err := e.evaluateMemberAssignmentContainer(target.Object, ctx)
 	if err != nil {
 		return e.newError(stmt, "%s", err.Error())
@@ -72,7 +69,21 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 		}
 		objVal = deref
 	}
+	return e.assignResolvedMember(target, value, stmt, objVal, objSetter, ctx)
+}
 
+// assignResolvedMember writes into the captured receiver while retaining the
+// original target's static type and any setter needed to initialize its storage.
+//
+//nolint:gocyclo // Existing member-write dispatch, shared without changing its cases.
+func (e *Evaluator) assignResolvedMember(
+	target *ast.MemberAccessExpression,
+	value Value,
+	stmt *ast.AssignmentStatement,
+	objVal Value,
+	objSetter AssignFunc,
+	ctx *ExecutionContext,
+) Value {
 	// JSON member write: v.field := value. The JSON tree is shared by reference,
 	// so mutating it in place is visible through the variable.
 	if isJSONBoxed(objVal) {
@@ -357,6 +368,15 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 func (e *Evaluator) evaluateMemberAssignmentContainer(target ast.Expression, ctx *ExecutionContext) (Value, AssignFunc, error) {
 	if member, ok := target.(*ast.MemberAccessExpression); ok {
 		return e.evaluateMemberTarget(member, ctx, true)
+	}
+	if identifier, ok := target.(*ast.Identifier); ok {
+		// A bare function name is a computed receiver, not writable storage.
+		// Existing variables (including the function-name alias for Result)
+		// retain their storage path. Ordinary evaluation also preserves implicit
+		// Self lookup and local-function dispatch without retrying a failed read.
+		if _, exists := ctx.Env().Get(identifier.Value); !exists {
+			return e.Eval(identifier, ctx), nil, nil
+		}
 	}
 	if IsVarTarget(target) {
 		return e.EvaluateLValue(target, ctx)

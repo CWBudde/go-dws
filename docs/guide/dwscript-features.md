@@ -351,10 +351,16 @@ PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
 
 Constructor results can receive a field or property assignment directly:
 `TItem.Create.Value := 42` and `TItem.Create().Value := 42` both construct an
-instance and assign its `Value`. The receiver and constructor run once for this
-simple assignment. Bare inherited and named constructors work too, including
-calls through a metaclass variable. If construction raises an exception, the
-field or property write does not run.
+instance and assign its `Value`. The receiver and constructor run once for both
+simple and compound member assignments, such as `TItem.Create.Value += 2`.
+Bare inherited and named constructors work too, including calls through a
+metaclass variable. Bare free-function receivers also work: `Make.Value := 42`
+matches `Make().Value := 42`.
+
+A field passed as a `var` argument, such as `Mutate(TItem.Create.Value)`, stays
+bound to the instance created for that argument. Reads observe changes made to
+the field through other aliases. Receiver failures stop the assignment or call;
+failed property reads, right-hand sides, and compound operations skip the write.
 
 ---
 
