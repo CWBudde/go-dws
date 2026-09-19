@@ -508,8 +508,8 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 
 	// Check if it's a constant (constants are read-only, so error if used as write spec)
 	if _, constantFound := a.getConstantType(classType, writeSpecName); constantFound {
-		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
-			"property '"+propName+"' write specifier '"+writeSpecName+"' is a constant and cannot be written to"))
+		a.addStructuredError(NewPropertyDeclarationError(ident.Token.Pos,
+			fmt.Sprintf(`Syntax Error: Constant "%s" cannot be written to`, writeSpecName)))
 		return
 	}
 

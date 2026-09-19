@@ -221,13 +221,6 @@ func TestEnumTypeMetaValues(t *testing.T) {
 		input string
 	}{
 		{
-			name: "enum type name as identifier",
-			input: `
-				type TColor = (Red, Green, Blue);
-				var x := TColor;
-			`,
-		},
-		{
 			name: "enum type name in High()",
 			input: `
 				type TColor = (Red, Green, Blue);
@@ -255,6 +248,34 @@ func TestEnumTypeMetaValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expectNoErrors(t, tt.input)
+		})
+	}
+}
+
+// TestEnumTypeNameIsNotAValue pins that a bare enum type name where a value is
+// required is DWScript's `"(" expected` (FailureScripts/enums5): upstream reads the
+// name as the start of a cast.
+func TestEnumTypeNameIsNotAValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "inferred initializer",
+			input: "type TColor = (Red, Green, Blue);\nvar x := TColor;",
+			want:  `Syntax Error: "(" expected [line: 2, column: 16]`,
+		},
+		{
+			name:  "assignment",
+			input: "type TColor = (Red, Green, Blue);\nvar x : TColor;\nx := TColor;",
+			want:  `Syntax Error: "(" expected [line: 3, column: 12]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectError(t, tt.input, tt.want)
 		})
 	}
 }

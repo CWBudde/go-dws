@@ -12,6 +12,9 @@ type ParserError struct {
 	Code    string
 	Pos     lexer.Position
 	Length  int
+	// Stop marks a compiler stop: DWScript's AddCompilerStop raises and abandons
+	// the compilation, so no diagnostic recorded after it reaches the user.
+	Stop bool
 }
 
 // Error implements the error interface.

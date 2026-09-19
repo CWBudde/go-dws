@@ -10,21 +10,21 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,156 / 1,966 scored =
-59%**; `*Fail` error-detection suites **166 / 641 = 26%**. What shipped to get there is in
+**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,174 / 1,966 scored =
+60%**; `*Fail` error-detection suites **184 / 641 = 29%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,156 / 1,747 = 66% in scope**, the number to track against §6. Both are honest;
+same run reads **1,174 / 1,747 = 67% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 475 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 457 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
@@ -54,8 +54,8 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (810 total, 2026-09-19): **219 host-library** (out of scope),
-  **475 in the `*Fail` error-detection suites** (§4: FailureScripts 373, InterfacesFail and
+- Where the remaining failures are (792 total, 2026-09-19): **219 host-library** (out of scope),
+  **457 in the `*Fail` error-detection suites** (§4: FailureScripts 355, InterfacesFail and
   HelpersFail 18 each, the rest under 15), and **116 in the execution suites** (§3.5:
   SimpleScripts 62, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
@@ -342,7 +342,7 @@ independently; evaluate it once, as E9 does for member receivers.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 166/641 (FailureScripts 156/529, SetOfFail 5, JSONConnectorFail 2,
+Harness and CLI: 184/641 (FailureScripts 171/529, SetOfFail 6, JSONConnectorFail 2, PropertyExpressionsFail 2,
 AssociativeFail 1, InterfacesFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
@@ -351,7 +351,7 @@ no envelope, and nothing is executed. Reproduce one with
 **Measured 2026-09-12**, every `*Fail` fixture diffed line-by-line against its expectation; tables,
 per-shape inventories and the near-miss list are in
 [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-**475 in-scope fixtures fail** (COMConnectorFailure's 8 are host-library). **156 are one edit from
+**457 in-scope fixtures fail** (2026-09-19) (COMConnectorFailure's 8 are host-library). **156 are one edit from
 passing and 281 are within two** (T8's counting; a wrongly worded diagnostic is one edit), so
 working the near-miss queue across families often beats draining one family. Re-derive with
 `just fixture-report --in-scope --classify`.
@@ -401,6 +401,12 @@ Work families — IDs from the 2026-03 analysis
   - `[ ]` `Name expected` 38 (33).
   - `[ ]` `Type expected` 15 (14).
   - Left open by the 2026-09-12 slices: `ifthenelse_expression1` fails on recovery after `if 2=2 1`.
+  - `[ ]` Left open by the 2026-09-19 compiler-stop slice: inside `begin…end` the value left
+    unconsumed after a read-only property assignment is worded differently upstream (go-dws
+    reports nothing); indexed read-only property writes get no follow-up; the analyzer has no
+    compiler-stop concept, so semantic diagnostics after a parser stop can still appear. The
+    `must have either a type annotation` text filter in `internal/frontend/result.go` is now
+    mostly dead.
 - **F4** `[ ]` L Class/property/static/override/visibility diagnostics — still the largest family.
   One subtask per message shape, lines (fixtures):
   - `[ ]` M `Method "X" of class "Y" not implemented` 34 (15)
@@ -426,7 +432,7 @@ Work families — IDs from the 2026-03 analysis
     modifiers, so `@Test` is judged compatible with `procedure(Foo: string)`; and the message needs
     the routine-type renderer in F10.
 - **F7** `[ ]` M Per-suite sweeps. Failing / one line away / two or fewer: HelpersFail 18/5/9 ·
-  InterfacesFail 18/2/8 · OverloadsFail 14/1/5 · PropertyExpressionsFail 10/3/6 · SetOfFail 9/1/7 ·
+  InterfacesFail 18/2/8 · OverloadsFail 14/1/5 · PropertyExpressionsFail 8 · SetOfFail 8 ·
   GenericsFail 8/0/2 · JSONConnectorFail 7/1/2 · LambdaFail 6/2/3 · OperatorOverloadFail 6/0/1 ·
   AssociativeFail 3/0/2 · AttributesFail 2/0/0 · InnerClassesFail 1/0/1.
   - `[ ]` S **Sentence capitalization** — the cheapest item in the section. go-dws lowercases the
@@ -437,10 +443,9 @@ Work families — IDs from the 2026-03 analysis
   - `[ ]` S `The function "X" was forward declared but not implemented` exists nowhere in the tree
     — 8 lines over `OverloadsFail/forwards`, `forwards_unit`, `overload_func_ptr_param` and
     `FailureScripts/forward_missing1`.
-  - `[ ]` S SetOfFail's nine (`bracket_left_missing`, `bracket_right_missing`,
+  - `[ ]` S SetOfFail's eight (`bracket_left_missing`, `bracket_right_missing`,
     `for_in_set_missing_do`, `include`, `invalid_method`, `invalid_operand`, `of_missing`,
-    `test_non_variable`, `type_missing`) are parser recovery and message parity; seven are within
-    two lines, and `type_missing` is one `Type expected` away.
+    `test_non_variable`) are parser recovery and message parity; `type_missing` closed 2026-09-19.
   - `[ ]` GenericsFail 8: includes `implem_mismatch1`'s "T expected but u found" for a mismatched
     out-of-line type-parameter name (substitution is currently positional).
   - `[ ]` S Small parity items from §3.2: `special_funcs4` (`Expression expected` for `Inc(i, )`),
@@ -465,9 +470,11 @@ Work families — IDs from the 2026-03 analysis
     - `[ ]` `analyze_function_calls.go` / `analyze_method_calls.go` sites.
     - `[ ]` `analyze_statements.go` sites.
     - `[ ]` `analyze_classes.go` sites (overlaps F4).
-- **F9** `[ ]` M **The near-miss queue** — the 68 one-line fixtures, listed in the audit. Recurring
+- **F9** `[~]` M **The near-miss queue** — the 68 one-line fixtures, listed in the audit. The
+  compiler-stop slice (2026-09-19, [log](docs/history/progress-log-2026-09.md)) closed 13 of them
+  plus 5 others: the `Unexpected "Integer Literal"`, spurious `expected ')'`, `enums5`/`6`,
+  `var_incomplete`, `case_error3` and `ifthenelse_expression2` lines. Recurring
   themes, each one change:
-  - `[ ]` S `Unexpected "Integer Literal"` (`property_error6`, `visibility5`)
   - `[ ]` S Triple-apostrophe string diagnostics (`triple_apos1`, `triple_apos2`)
   - `[ ]` S Spurious `No arguments expected` on an array helper called with none (`dyn_array1`,
     `dyn_array_setlength2`)
