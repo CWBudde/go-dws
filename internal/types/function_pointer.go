@@ -1,6 +1,7 @@
 package types
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -20,6 +21,12 @@ type FunctionPointerType struct {
 	// parameters, such as @IntToHex, where both IntToHex(5) and
 	// IntToHex(5, 1) are valid through the pointer.
 	MinArgs int
+
+	// AllowedArgCounts lists the only valid arities of a pointer to a builtin
+	// with disjoint overload arities, such as @Trim (1 or 3) or @RandG (0 or
+	// 2). When empty, every count from RequiredParamCount to the full
+	// parameter list is valid.
+	AllowedArgCounts []int
 }
 
 // NewFunctionPointerType creates a new function pointer type with the given parameters and return type.
@@ -41,10 +48,22 @@ func NewProcedurePointerType(params []Type) *FunctionPointerType {
 // RequiredParamCount returns how many arguments a call through this pointer
 // must supply. Parameters beyond it are optional.
 func (f *FunctionPointerType) RequiredParamCount() int {
+	if len(f.AllowedArgCounts) > 0 {
+		return slices.Min(f.AllowedArgCounts)
+	}
 	if f.MinArgs > 0 && f.MinArgs <= len(f.Parameters) {
 		return f.MinArgs
 	}
 	return len(f.Parameters)
+}
+
+// AcceptsArgCount reports whether a call through this pointer may supply n
+// arguments.
+func (f *FunctionPointerType) AcceptsArgCount(n int) bool {
+	if len(f.AllowedArgCounts) > 0 {
+		return slices.Contains(f.AllowedArgCounts, n)
+	}
+	return n >= f.RequiredParamCount() && n <= len(f.Parameters)
 }
 
 // TypeKind returns the type kind identifier for function pointers.

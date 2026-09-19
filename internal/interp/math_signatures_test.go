@@ -39,6 +39,13 @@ for i := 1 to 100 do
 s := s / 100;
 if (s < 95) or (s > 105) then PrintLn('RandG oddity') else PrintLn('ok');`, "ok\n"},
 		{"RandG no arguments", `var g := RandG; if (g > -100) and (g < 100) then PrintLn('ok');`, "ok\n"},
+		{"Abs Variant alias", `type TVar = Variant; var v : TVar := -3; PrintLn(Abs(v));`, "3\n"},
+		{"Abs numeric aliases", `type TInt = Integer; type TFlt = Float; var i : TInt := -2; var f : TFlt := -0.5; PrintLn(Abs(i)); PrintLn(Abs(f));`, "2\n0.5\n"},
+		{"Succ Pred delta aliases", `type TDelta = Integer; type TVar = Variant; var d : TDelta := 2; var v : TVar := 3; PrintLn(Succ(1, d)); PrintLn(Pred(1, v));`, "3\n-2\n"},
+		{"Inc Dec delta aliases", `type TDelta = Integer; type TVar = Variant; var d : TDelta := 2; var v : TVar := 3; var i := 1; Inc(i, d); Dec(i, v); PrintLn(i);`, "0\n"},
+		{"Succ enum alias", `type TE = (a, b, c); type TAlias = TE; var e : TAlias := a; PrintLn(Ord(Succ(e, 2)));`, "2\n"},
+		{"RandG pointer both arities", `var f := @RandG; PrintLn(f(100, 0)); if f() > -100 then PrintLn('ok');`, "100\nok\n"},
+		{"Trim pointer both arities", `var f := @Trim; PrintLn('[' + f(' a ') + ']'); PrintLn('[' + f(' a ', 1, 0) + ']');`, "[a]\n[a ]\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -63,6 +70,10 @@ func TestMathSignaturesRejectInvalidCalls(t *testing.T) {
 		{"Haversine three arguments", `PrintLn(Haversine(1, 2, 3));`},
 		{"RandG one argument", `PrintLn(RandG(1));`},
 		{"RandG string argument", `PrintLn(RandG('a', 1));`},
+		{"RandG pointer one argument", `var f := @RandG; PrintLn(f(1));`},
+		{"Trim pointer two arguments", `var f := @Trim; PrintLn(f(' a ', 1));`},
+		{"Abs String alias", `type TStr = String; var s : TStr := 'x'; PrintLn(Abs(s));`},
+		{"Succ String delta alias", `type TStr = String; var s : TStr := 'x'; PrintLn(Succ(1, s));`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

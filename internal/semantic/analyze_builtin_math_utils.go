@@ -100,9 +100,10 @@ func (a *Analyzer) analyzeOrdinalStep(name string, args []ast.Expression, callEx
 	result := types.Type(types.INTEGER)
 	argType := a.analyzeExpression(args[0])
 	if argType != nil {
-		if enumType, isEnum := argType.(*types.EnumType); isEnum {
-			result = enumType
-		} else if argType != types.INTEGER {
+		underlying := types.GetUnderlyingType(argType)
+		if _, isEnum := underlying.(*types.EnumType); isEnum {
+			result = argType
+		} else if underlying != types.INTEGER {
 			a.addError("function '%s' expects Integer or Enum, got %s at %s",
 				name, argType.String(), callExpr.Token.Pos.String())
 		}
@@ -118,10 +119,14 @@ func (a *Analyzer) analyzeOrdinalStep(name string, args []ast.Expression, callEx
 }
 
 // isOrdinalDeltaType reports whether t may be the delta of Inc, Dec, Succ or
-// Pred. A Variant delta is converted to Integer at runtime; an unresolved type
-// has already been reported.
+// Pred, looking through aliases. A Variant delta is converted to Integer at
+// runtime; an unresolved type has already been reported.
 func isOrdinalDeltaType(t types.Type) bool {
-	return t == nil || t == types.INTEGER || t == types.VARIANT
+	if t == nil {
+		return true
+	}
+	underlying := types.GetUnderlyingType(t)
+	return underlying == types.INTEGER || underlying == types.VARIANT
 }
 
 // analyzeSwap analyzes the Swap built-in function.

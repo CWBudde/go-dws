@@ -18,11 +18,12 @@ func (a *Analyzer) analyzeAbs(args []ast.Expression, callExpr *ast.CallExpressio
 	}
 	argType := a.analyzeExpression(args[0])
 	if argType != nil {
+		underlying := types.GetUnderlyingType(argType)
 		// A Variant operand is resolved to Integer or Float at runtime.
-		if argType == types.VARIANT {
+		if underlying == types.VARIANT {
 			return types.VARIANT
 		}
-		if argType != types.INTEGER && argType != types.FLOAT {
+		if underlying != types.INTEGER && underlying != types.FLOAT {
 			a.addNoOverloadedVersion("Abs", callNamePos(callExpr.Function, callExpr.Token.Pos))
 			return types.INTEGER
 		}
