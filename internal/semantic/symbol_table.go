@@ -968,6 +968,30 @@ func (st *SymbolTable) UnimplementedForwards() []*Symbol {
 		}
 		return true
 	})
+	sortForwards(forwards)
+	return forwards
+}
+
+// resolveForwardAt marks the routine name declared at pos as implemented.
+func (st *SymbolTable) resolveForwardAt(name string, pos token.Position) {
+	sym, ok := st.symbols.Get(name)
+	if !ok {
+		return
+	}
+	if sym.DeclPosition == pos {
+		sym.IsForward = false
+	}
+	for _, overload := range sym.Overloads {
+		if overload.DeclPosition == pos {
+			overload.IsForward = false
+		}
+	}
+}
+
+// sortForwards orders unimplemented forwards as DWScript reports them: by
+// name, case-insensitively, and among the overloads of one name the latest
+// declaration first.
+func sortForwards(forwards []*Symbol) {
 	sort.SliceStable(forwards, func(i, j int) bool {
 		ni, nj := ident.Normalize(forwards[i].Name), ident.Normalize(forwards[j].Name)
 		if ni != nj {
@@ -979,7 +1003,6 @@ func (st *SymbolTable) UnimplementedForwards() []*Symbol {
 		}
 		return pi.Column > pj.Column
 	})
-	return forwards
 }
 
 // diagnosticAnchor names the part of a routine declaration DWScript reports a

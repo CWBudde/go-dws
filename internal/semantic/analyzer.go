@@ -465,14 +465,21 @@ func (a *Analyzer) hasActualErrors() bool {
 	return false
 }
 
-// reportUnimplementedForwards reports every routine of scope that was declared
+// reportUnimplementedForwards reports every routine of the scopes that was declared
 // forward but never implemented. DWScript runs this check once a program or
 // unit has been read completely, so it follows the other diagnostics.
-func (a *Analyzer) reportUnimplementedForwards(scope *SymbolTable) {
+// Forwards of several scopes (a unit's interface and implementation) are
+// reported together in DWScript's order.
+func (a *Analyzer) reportUnimplementedForwards(scopes ...*SymbolTable) {
 	if a.compileStopped {
 		return
 	}
-	for _, sym := range scope.UnimplementedForwards() {
+	var forwards []*Symbol
+	for _, scope := range scopes {
+		forwards = append(forwards, scope.UnimplementedForwards()...)
+	}
+	sortForwards(forwards)
+	for _, sym := range forwards {
 		a.addStructuredError(NewForwardNotImplementedError(sym.DeclPosition, sym.Name))
 	}
 }

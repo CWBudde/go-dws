@@ -172,17 +172,12 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 		}
 		a.analyzeFunctionBody(decl, funcType.Parameters, returnType)
 	}
-	for _, candidates := range interfaceFunctions {
-		for _, decl := range candidates {
-			if !implemented[decl] && !decl.IsExternal && decl.Body == nil {
-				a.addError("interface function '%s' has no implementation", decl.Name.Value)
-			}
-		}
-	}
 	// Interface implementations were matched above rather than through
-	// DefineOverload, so settle the exported symbols' forward state here; the
-	// importing program must not report them as unimplemented forwards.
-	exports.resolveForwards()
+	// DefineOverload, so settle their forward state here; what remains
+	// forward was never implemented.
+	for decl := range implemented {
+		exports.resolveForwardAt(decl.Name.Value, decl.Name.Token.Pos)
+	}
 	for _, section := range []*ast.BlockStatement{unit.InitSection, unit.FinalSection} {
 		if section != nil {
 			for _, stmt := range section.Statements {
@@ -190,6 +185,11 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 			}
 		}
 	}
+	// DWScript checks forwards once the whole unit has been read, so these
+	// follow the unit's other diagnostics.
+	a.reportUnimplementedForwards(exports, a.symbols)
+	// The importing program must not report them again.
+	exports.resolveForwards()
 	if a.hasActualErrors() {
 		return &AnalysisError{Errors: a.errors}
 	}
