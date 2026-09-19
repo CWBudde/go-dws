@@ -150,7 +150,8 @@ func TestAnalyzeUnit_MissingImplementation(t *testing.T) {
 					},
 					Parameters: []*ast.Parameter{},
 					ReturnType: &ast.TypeAnnotation{Name: "Integer"},
-					Body:       nil, // No body in interface
+					Body:       nil,  // No body in interface
+					IsForward:  true, // set by the parser for bodiless interface routines
 				},
 			},
 		},
