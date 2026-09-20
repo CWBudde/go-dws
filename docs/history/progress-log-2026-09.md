@@ -5332,7 +5332,9 @@ old recovery). `internal/semantic/analyze_for_in.go` was split out unchanged whe
 
 Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues), and a per-category diff of the
-old and new binaries over all 2,044 fixtures. CLI and harness agree at **1,264 / 1,966 scored**
-(+64), **1,264 / 1,747 = 72% in scope**, `*Fail` suites **272 / 641 = 42%**. No category dropped:
-FailureScripts 191 → 242, SetOfFail 6 → 9, InterfacesFail 1 → 5, OperatorOverloadFail 0 → 3,
-HelpersFail 0 → 2, GenericsFail 0 → 1.
+old and new binaries over all 2,044 fixtures. CLI and harness agree at **1,267 / 1,966 scored**
+(+64), **1,267 / 1,747 = 73% in scope**, `*Fail` suites **274 / 641 = 43%**. No category dropped:
+FailureScripts 193 → 244, SetOfFail 6 → 9, InterfacesFail 1 → 5, OperatorOverloadFail 0 → 3,
+HelpersFail 0 → 2, GenericsFail 0 → 1. The gain is the same +64 measured on the pre-rebase base;
+the emission-order slice this now sits on contributes its own two FailureScripts fixtures and
+neither change disturbs the other.
