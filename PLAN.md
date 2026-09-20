@@ -423,8 +423,23 @@ Work families — IDs from the 2026-03 analysis
   - `[ ]` S `"X" is not a method of class "Y"` 7 (4)
 - **F5** `[~]` M Missing-validation sweep — DWScript reports something, go-dws compiles **clean**.
   **43 in FailureScripts plus 27 in the other suites**; the per-suite list is in the audit.
-  - `[ ]` HelpersFail 10 is the densest and most coherent pocket: 10 of its 18 failures produce
-    nothing at all, and 5 are one line from passing. Helpers accept far more than they should.
+  - `[~]` HelpersFail was the densest pocket. Closed 2026-09-20
+    ([log](docs/history/progress-log-2026-09.md)): `helper_duplicate_member`,
+    `helper_not_implemented`, `static_class_method_self`, `helper_static`, `helper_error4`,
+    `integer_helper` (0 → 6/18). Left, each measured:
+    - `[ ]` S `mixed_helper` and `helper_of_delegate` need the `for` keyword's position on
+      `ast.HelperDecl` (all six anchors are the `for` token, not the target type name), captured
+      at `internal/parser/helpers.go:103`. `mixed_helper` additionally needs
+      `interface helper for T` to parse at all — `internal/parser/interfaces.go` has no such
+      case — plus an `IsInterfaceHelper` flag. The kind checks themselves are a few lines.
+    - `[ ]` S `helper_overload_error` is rejected at the right anchor but says
+      `Too many arguments` where upstream says `There is no overloaded version of "X" that can be
+      called with these arguments`. `addArgumentCountError`
+      (`internal/semantic/analyze_function_calls.go`) never consults
+      `Symbol.HasOverloadDirective`; preferring the no-overload sentence when it is set closes
+      this generically (F8).
+    - `[ ]` S `helper_explicit` needs DWScript's explicit helper invocation, where the instance
+      is argument 1 (`TDummy.Next(2)`); go-dws types the method as parameterless.
   - `[ ]` InterfacesFail 4 · JSONConnectorFail 3 · LambdaFail 3 · OverloadsFail 3 · GenericsFail 2
     · PropertyExpressionsFail 2.
   - The FailureScripts 43 are almost all single-fixture work. Known sub-blockers:
