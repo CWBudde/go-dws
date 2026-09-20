@@ -74,32 +74,38 @@ const (
 type Analyzer struct {
 	// mainStatement is the top-level main-program statement being analyzed, if any;
 	// see reportUnconsumedPropertyValue.
-	mainStatement           ast.Statement
-	caseHintIdentifiers     map[*ast.Identifier]bool
-	currentSelfType         types.Type
-	forwardMethodNames      map[string]string
-	globalOperators         *types.OperatorRegistry
-	subranges               map[string]*types.SubrangeType
-	functionPointers        map[string]*types.FunctionPointerType
-	currentFunction         *ast.FunctionDecl
-	currentRecord           *types.RecordType
-	helpers                 map[string][]*types.HelperType
-	currentHelperType       *types.HelperType
-	symbols                 *SymbolTable
-	forwardMethodReported   map[string]bool
-	conversionRegistry      *types.ConversionRegistry
-	builtinRegistry         *builtins.Registry
-	semanticInfo            *ast.SemanticInfo
-	unitSymbols             map[string]*SymbolTable
-	currentNestedTypes      map[string]string
-	nestedTypeAliases       map[string]map[string]string
-	forwardMethodPos        map[string]token.Position
-	currentClass            *types.ClassType
-	typeRegistry            *TypeRegistry
-	currentProperty         string
-	sourceCode              string
-	sourceFile              string
-	pendingClassWarnings    []*types.ClassType
+	mainStatement         ast.Statement
+	caseHintIdentifiers   map[*ast.Identifier]bool
+	currentSelfType       types.Type
+	forwardMethodNames    map[string]string
+	globalOperators       *types.OperatorRegistry
+	subranges             map[string]*types.SubrangeType
+	functionPointers      map[string]*types.FunctionPointerType
+	currentFunction       *ast.FunctionDecl
+	currentRecord         *types.RecordType
+	helpers               map[string][]*types.HelperType
+	currentHelperType     *types.HelperType
+	symbols               *SymbolTable
+	forwardMethodReported map[string]bool
+	conversionRegistry    *types.ConversionRegistry
+	builtinRegistry       *builtins.Registry
+	semanticInfo          *ast.SemanticInfo
+	unitSymbols           map[string]*SymbolTable
+	currentNestedTypes    map[string]string
+	nestedTypeAliases     map[string]map[string]string
+	forwardMethodPos      map[string]token.Position
+	currentClass          *types.ClassType
+	typeRegistry          *TypeRegistry
+	currentProperty       string
+	sourceCode            string
+	sourceFile            string
+	pendingClassWarnings  []*types.ClassType
+	// compileStopped records a compiler stop: either an error DWScript raises as
+	// one (an unknown name in an expression) or a parser stop the front end
+	// reports. Upstream abandons the compile there, unwinding past
+	// TSymbolTable.Initialize, so the end-of-program checks such as
+	// unimplemented forwards never run.
+	compileStopped          bool
 	predeclaredClassTypes   map[string]bool
 	deferredMethodBodies    []deferredMethodBody
 	retainedScopes          []*SymbolTable
@@ -422,6 +428,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		}
 	}
 
+	a.reportUnimplementedForwards(a.symbols)
 	a.validateForwardDeclarations()
 
 	hasActualErrors := a.hasActualErrors()
@@ -458,6 +465,25 @@ func (a *Analyzer) hasActualErrors() bool {
 		}
 	}
 	return false
+}
+
+// reportUnimplementedForwards reports every routine of the scopes that was declared
+// forward but never implemented. DWScript runs this check once a program or
+// unit has been read completely, so it follows the other diagnostics.
+// Forwards of several scopes (a unit's interface and implementation) are
+// reported together in DWScript's order.
+func (a *Analyzer) reportUnimplementedForwards(scopes ...*SymbolTable) {
+	if a.compileStopped {
+		return
+	}
+	var forwards []*Symbol
+	for _, scope := range scopes {
+		forwards = append(forwards, scope.UnimplementedForwards()...)
+	}
+	sortForwards(forwards)
+	for _, sym := range forwards {
+		a.addStructuredError(NewForwardNotImplementedError(sym.DeclPosition, sym.Name))
+	}
 }
 
 // validateForwardDeclarations ensures all forward-declared types have implementations.
@@ -545,6 +571,13 @@ func (a *Analyzer) SetSource(source, filename string) {
 // matching DWScript, which stops before them on syntax errors.
 func (a *Analyzer) SetParseHadErrors(had bool) {
 	a.parseHadErrors = had
+}
+
+// SetCompileStopped tells the analyzer the compilation was abandoned at a
+// compiler stop, so the end-of-program checks must not run. The front end sets
+// it for a parser stop, which upstream raises before the analyzer is reached.
+func (a *Analyzer) SetCompileStopped(stopped bool) {
+	a.compileStopped = stopped
 }
 
 // SetHintsLevel configures which hints should be emitted.

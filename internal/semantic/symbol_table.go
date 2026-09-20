@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -356,6 +357,13 @@ func (st *SymbolTable) DefineOverload(
 		return fmt.Errorf("forward declaration for '%s' must come before implementation", name)
 	}
 
+	if !existing.IsOverloadSet && existing.IsForward && isForward {
+		if existingFunc, ok := existing.Type.(*types.FunctionType); ok &&
+			SignaturesEqual(existingFunc, funcType) && existingFunc.ReturnType.Equals(funcType.ReturnType) {
+			return errDuplicateForward()
+		}
+	}
+
 	if err := st.validateOverloadDirectives(name, existing, hasOverloadDirective, isForward); err != nil {
 		return err
 	}
@@ -367,6 +375,13 @@ func (st *SymbolTable) DefineOverload(
 	}
 	if resolved {
 		return nil
+	}
+
+	// A new member of an existing overload set (one that did not implement a
+	// forward above) needs the directive. DWScript reports that before looking
+	// at default-parameter ambiguity (fixture OverloadsFail/forwards).
+	if err := requireOverloadDirective(name, existing, hasOverloadDirective, isForward); err != nil {
+		return err
 	}
 
 	// Check for ambiguous overloads with default parameters
@@ -408,6 +423,11 @@ func (st *SymbolTable) replaceForwardWithImplementation(name string, existing *S
 		return fmt.Errorf("symbol '%s' is not a function type", name)
 	}
 
+	// The implementation binds to the forward even when the headers disagree:
+	// DWScript reports the mismatch, not a second "forward declared but not
+	// implemented" (fixtures FailureScripts/declaration_mismatch1/2).
+	existing.IsForward = false
+
 	// Validate that signatures match (including default parameters)
 	if !SignaturesEqual(existingFunc, funcType) {
 		return fmt.Errorf("implementation signature for '%s' does not match forward declaration", name)
@@ -428,7 +448,6 @@ func (st *SymbolTable) replaceForwardWithImplementation(name string, existing *S
 	// Note: We allow existing.HasOverloadDirective && !hasOverloadDirective (forward has overload, impl doesn't)
 
 	// Replace forward declaration with implementation
-	existing.IsForward = false
 	existing.Type = funcType // Update to implementation's type (in case of minor differences)
 	return nil
 }
@@ -443,8 +462,7 @@ func (st *SymbolTable) validateOverloadDirectives(name string, existing *Symbol,
 					if !ok {
 						return fmt.Errorf("expected function type for overload, but got %T", existing.Overloads[0].Type)
 					}
-					return fmt.Errorf("overloaded %s \"%s\" must be marked with the \"overload\" directive",
-						getFunctionKind(firstFuncType), name)
+					return errOverloadDirectiveMissing(getFunctionKind(firstFuncType), name)
 				}
 			}
 		} else {
@@ -454,8 +472,7 @@ func (st *SymbolTable) validateOverloadDirectives(name string, existing *Symbol,
 				if !ok {
 					return fmt.Errorf("expected function type for existing symbol '%s', but got %T", name, existing.Type)
 				}
-				return fmt.Errorf("overloaded %s \"%s\" must be marked with the \"overload\" directive",
-					getFunctionKind(existingFuncType), name)
+				return errOverloadDirectiveMissing(getFunctionKind(existingFuncType), name)
 			}
 			if !existing.HasOverloadDirective && hasOverloadDirective {
 				// First one didn't have it, but second does - this is also an error
@@ -475,8 +492,7 @@ func (st *SymbolTable) validateOverloadDirectives(name string, existing *Symbol,
 			if !ok {
 				return fmt.Errorf("expected function type for existing symbol '%s', but got %T", name, existing.Type)
 			}
-			return fmt.Errorf("overloaded %s \"%s\" must be marked with the \"overload\" directive",
-				getFunctionKind(existingFuncType), name)
+			return errOverloadDirectiveMissing(getFunctionKind(existingFuncType), name)
 		}
 		if !existing.HasOverloadDirective && hasOverloadDirective {
 			// First one didn't have it, but second does
@@ -523,15 +539,15 @@ func (st *SymbolTable) checkSignaturesAndResolveForward(
 
 					// Check for duplicate forwards
 					if overload.IsForward && isForward {
-						return false, fmt.Errorf("duplicate forward declaration for '%s'", name)
+						return false, errDuplicateForward()
 					}
 
 					if hasDefaults1 && !hasDefaults2 {
-						return false, fmt.Errorf("there is already a method with name \"%s\"", name)
+						return false, errMethodAlreadyExists(name)
 					} else if !hasDefaults1 && hasDefaults2 {
 						continue
 					} else if defaultParametersMatch(existingFunc, funcType) {
-						return false, fmt.Errorf("there is already a method with name \"%s\"", name)
+						return false, errMethodAlreadyExists(name)
 					} else {
 						continue
 					}
@@ -552,12 +568,12 @@ func (st *SymbolTable) checkSignaturesAndResolveForward(
 				hasDefaults2 := hasDefaultParameters(funcType)
 
 				if hasDefaults1 && !hasDefaults2 {
-					return false, fmt.Errorf("there is already a method with name \"%s\"", name)
+					return false, errMethodAlreadyExists(name)
 				} else if !hasDefaults1 && hasDefaults2 {
 					// New adds default parameters - this will be caught by ambiguity check
 				} else {
 					if defaultParametersMatch(existingFunc, funcType) {
-						return false, fmt.Errorf("there is already a method with name \"%s\"", name)
+						return false, errMethodAlreadyExists(name)
 					}
 				}
 			}
@@ -566,19 +582,21 @@ func (st *SymbolTable) checkSignaturesAndResolveForward(
 	return false, nil
 }
 
-func (st *SymbolTable) addOverloadToSet(name string, existing *Symbol, funcType *types.FunctionType, hasOverloadDirective, isForward bool, pos token.Position) error {
-	// Check if we are adding to an existing overload set (and not replacing a forward, which is handled before).
-	// If so, we must have the overload directive.
-	if existing.IsOverloadSet && !isForward && !hasOverloadDirective {
-		// Use the function kind from the FIRST overload in the set
-		firstFuncType, ok := existing.Overloads[0].Type.(*types.FunctionType)
-		if !ok {
-			return fmt.Errorf("expected function type for first overload in set, but got %T", existing.Overloads[0].Type)
-		}
-		return fmt.Errorf("overloaded %s \"%s\" must be marked with the \"overload\" directive",
-			getFunctionKind(firstFuncType), name)
+// requireOverloadDirective rejects an implementation joining an existing
+// overload set without the "overload" directive. The sentence names the kind
+// of the set's first overload.
+func requireOverloadDirective(name string, existing *Symbol, hasOverloadDirective, isForward bool) error {
+	if !existing.IsOverloadSet || isForward || hasOverloadDirective {
+		return nil
 	}
+	firstFuncType, ok := existing.Overloads[0].Type.(*types.FunctionType)
+	if !ok {
+		return fmt.Errorf("expected function type for first overload in set, but got %T", existing.Overloads[0].Type)
+	}
+	return errOverloadDirectiveMissing(getFunctionKind(firstFuncType), name)
+}
 
+func (st *SymbolTable) addOverloadToSet(name string, existing *Symbol, funcType *types.FunctionType, hasOverloadDirective, isForward bool, pos token.Position) error {
 	if existing.IsOverloadSet {
 		// Add to existing overload set
 		existing.Overloads = append(existing.Overloads, &Symbol{
@@ -664,7 +682,7 @@ func (st *SymbolTable) checkAmbiguousOverload(name string, newSig *types.Functio
 	// due to default parameters
 	for _, existingSig := range existingSigs {
 		if isAmbiguous(newSig, existingSig) {
-			return fmt.Errorf("overload of \"%s\" will be ambiguous with a previously declared version", name)
+			return errOverloadAmbiguous(name)
 		}
 	}
 
@@ -919,4 +937,131 @@ func defaultParametersMatch(sig1, sig2 *types.FunctionType) bool {
 		}
 	}
 	return true
+}
+
+// resolveForwards marks every routine of this scope as implemented.
+func (st *SymbolTable) resolveForwards() {
+	st.symbols.Range(func(_ string, sym *Symbol) bool {
+		sym.IsForward = false
+		for _, overload := range sym.Overloads {
+			overload.IsForward = false
+		}
+		return true
+	})
+}
+
+// UnimplementedForwards returns the routines declared `forward` in this scope
+// (not in outer scopes) that never received an implementation, in the order
+// DWScript reports them: by name, case-insensitively, and among the overloads
+// of one name the latest declaration first.
+func (st *SymbolTable) UnimplementedForwards() []*Symbol {
+	var forwards []*Symbol
+	st.symbols.Range(func(_ string, sym *Symbol) bool {
+		if sym.IsOverloadSet {
+			for _, overload := range sym.Overloads {
+				if overload.IsForward {
+					forwards = append(forwards, overload)
+				}
+			}
+		} else if sym.IsForward {
+			forwards = append(forwards, sym)
+		}
+		return true
+	})
+	sortForwards(forwards)
+	return forwards
+}
+
+// resolveForwardAt marks the routine name declared at pos as implemented.
+func (st *SymbolTable) resolveForwardAt(name string, pos token.Position) {
+	sym, ok := st.symbols.Get(name)
+	if !ok {
+		return
+	}
+	if sym.DeclPosition == pos {
+		sym.IsForward = false
+	}
+	for _, overload := range sym.Overloads {
+		if overload.DeclPosition == pos {
+			overload.IsForward = false
+		}
+	}
+}
+
+// sortForwards orders unimplemented forwards as DWScript reports them: by
+// name, case-insensitively, and among the overloads of one name the latest
+// declaration first.
+func sortForwards(forwards []*Symbol) {
+	sort.SliceStable(forwards, func(i, j int) bool {
+		ni, nj := ident.Normalize(forwards[i].Name), ident.Normalize(forwards[j].Name)
+		if ni != nj {
+			return ni < nj
+		}
+		pi, pj := forwards[i].DeclPosition, forwards[j].DeclPosition
+		if pi.Line != pj.Line {
+			return pi.Line > pj.Line
+		}
+		return pi.Column > pj.Column
+	})
+}
+
+// diagnosticAnchor names the part of a routine declaration DWScript reports a
+// declaration diagnostic at.
+type diagnosticAnchor int
+
+const (
+	// anchorDecl is the declaration's first token (`procedure`/`function`).
+	anchorDecl diagnosticAnchor = iota
+	// anchorHeaderEnd is ast.FunctionDecl.HeaderEndPos.
+	anchorHeaderEnd
+	// anchorForward is the `forward` directive.
+	anchorForward
+)
+
+// scriptDiagnostic is an error whose text is a DWScript diagnostic sentence,
+// reproduced verbatim (including its leading capital) because scripts and the
+// fixture suites observe it.
+type scriptDiagnostic struct {
+	msg    string
+	anchor diagnosticAnchor
+}
+
+func (d *scriptDiagnostic) Error() string { return d.msg }
+
+// declarationAnchor returns where err must be reported for a routine
+// declaration; errors that are not script diagnostics use anchorDecl.
+func declarationAnchor(err error) diagnosticAnchor {
+	var d *scriptDiagnostic
+	if errors.As(err, &d) {
+		return d.anchor
+	}
+	return anchorDecl
+}
+
+// errMethodAlreadyExists reports a redeclaration with an identical signature.
+func errMethodAlreadyExists(name string) error {
+	return &scriptDiagnostic{
+		msg:    fmt.Sprintf("There is already a method with name \"%s\"", name),
+		anchor: anchorHeaderEnd,
+	}
+}
+
+// errDuplicateForward reports a second forward declaration of one signature.
+func errDuplicateForward() error {
+	return &scriptDiagnostic{
+		msg:    "There is already a forward declaration of this function",
+		anchor: anchorForward,
+	}
+}
+
+// errOverloadDirectiveMissing reports an overload that lacks the "overload"
+// directive; kind is "procedure" or "function" (of the first overload).
+func errOverloadDirectiveMissing(kind, name string) error {
+	return &scriptDiagnostic{msg: fmt.Sprintf("Overloaded %s \"%s\" must be marked with the \"overload\" directive", kind, name)}
+}
+
+// errOverloadAmbiguous reports an overload whose default parameters make it
+// indistinguishable from an earlier one.
+func errOverloadAmbiguous(name string) error {
+	return &scriptDiagnostic{msg: fmt.Sprintf("Overload of \"%s\" will be ambiguous with a previously declared version", name)}
 }

@@ -93,3 +93,53 @@ func TestCompile_UnitCircularDependency(t *testing.T) {
 		t.Fatalf("expected cycle diagnostic: %v", res.DiagnosticStrings())
 	}
 }
+
+// TestCompile_UsesUnitUnimplementedForwards checks that a unit loaded through
+// a program's uses clause reports its unimplemented interface routines and
+// implementation-section forwards with DWScript's forward sentence, after the
+// unit's other errors, in name order (overloads latest first), exempting
+// externals (fixture BuildScripts/sections_test).
+func TestCompile_UsesUnitUnimplementedForwards(t *testing.T) {
+	dir := t.TempDir()
+	source := `unit Fwd;
+
+interface
+
+procedure Zeta;
+procedure Test; overload;
+procedure Test(s : String); overload;
+function Test(i : Integer) : String; overload;
+function Ext(v : Variant) : Integer; external;
+
+implementation
+
+procedure Hidden; forward;
+
+procedure Test;
+var i : Integer;
+begin
+   i := 'bad';
+end;
+
+end.`
+	if err := os.WriteFile(filepath.Join(dir, "Fwd.pas"), []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	res := Compile(`uses Fwd;`, filepath.Join(dir, "Main.pas"), semantic.HintsLevelDisabled)
+	got := res.DiagnosticStrings()
+	want := []string{
+		`Cannot assign "String" to "Integer"`,
+		`The function "Hidden" was forward declared but not implemented [line: 13, column: 11`,
+		`The function "Test" was forward declared but not implemented [line: 8, column: 10`,
+		`The function "Test" was forward declared but not implemented [line: 7, column: 11`,
+		`The function "Zeta" was forward declared but not implemented [line: 5, column: 11`,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("diagnostics mismatch\n got: %q\nwant: %q", got, want)
+	}
+	for i := range want {
+		if !strings.Contains(got[i], want[i]) {
+			t.Fatalf("diagnostic %d mismatch\n got: %q\nwant: %q", i, got, want)
+		}
+	}
+}

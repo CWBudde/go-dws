@@ -181,8 +181,23 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 	funcType.StrictParams = strictParams
 
 	// Register function/overload with position info for error messages
-	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload, decl.IsForward, decl.Name.Token.Pos); err != nil {
-		a.addError("Syntax Error: %s [line: %d, column: %d]", err.Error(), decl.Token.Pos.Line, decl.Token.Pos.Column)
+	// `forward` is meaningless on an external routine (the host implements it),
+	// so it is not left awaiting an implementation.
+	isForward := decl.IsForward && !decl.IsExternal
+	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload, isForward, decl.Name.Token.Pos); err != nil {
+		pos := decl.Token.Pos
+		switch declarationAnchor(err) {
+		case anchorHeaderEnd:
+			if decl.HeaderEndPos.Line > 0 {
+				pos = decl.HeaderEndPos
+			}
+		case anchorForward:
+			if decl.ForwardPos.Line > 0 {
+				pos = decl.ForwardPos
+			}
+		case anchorDecl:
+		}
+		a.addError("Syntax Error: %s [line: %d, column: %d]", err.Error(), pos.Line, pos.Column)
 		return nil, nil, false
 	}
 
