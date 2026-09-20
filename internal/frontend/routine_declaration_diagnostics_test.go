@@ -1,6 +1,8 @@
 package frontend
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -212,5 +214,55 @@ end.`
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("diagnostics mismatch\n got: %q\nwant: %q", got, want)
+	}
+}
+
+// TestCompile_CompilerStopDropsDeferredForwards pins that a parser compiler stop
+// suppresses the unimplemented-forward check entirely, not just the diagnostics
+// positioned after the stop. Upstream raises ECompileError at AddCompilerStop,
+// which unwinds past TSymbolTable.Initialize, where the check lives.
+func TestCompile_CompilerStopDropsDeferredForwards(t *testing.T) {
+	source := `procedure P; forward;
+x := (1 + );
+`
+	result := Compile(source, "test.dws", semantic.HintsLevelPedantic)
+	got := result.DiagnosticStrings()
+	want := []string{
+		`Syntax Error: Undefined variable 'x' [line: 2, column: 3]`,
+		`Syntax Error: Expression expected [line: 2, column: 11]`,
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("diagnostics mismatch\n got: %q\nwant: %q", got, want)
+	}
+}
+
+// TestCompile_CompilerStopKeepsUnitDiagnostics pins that the main source's stop
+// position is not applied to diagnostics of an imported unit: they belong to
+// another source, so their line and column are not comparable.
+func TestCompile_CompilerStopKeepsUnitDiagnostics(t *testing.T) {
+	dir := t.TempDir()
+	unit := `unit MyUnit;
+interface
+implementation
+procedure Bad;
+begin
+  Undefined1 := 1;
+end;
+end.
+`
+	if err := os.WriteFile(filepath.Join(dir, "MyUnit.pas"), []byte(unit), 0o600); err != nil {
+		t.Fatalf("writing unit: %v", err)
+	}
+	source := `uses MyUnit;
+x := (1 + );
+`
+	result := CompileWithOptions(source, Options{
+		Filename:        filepath.Join(dir, "main.dws"),
+		UnitSearchPaths: []string{dir},
+		HintsLevel:      semantic.HintsLevelPedantic,
+	})
+	got := strings.Join(result.DiagnosticStrings(), "\n")
+	if !strings.Contains(got, `Undefined variable 'Undefined1' [line: 6, column: 14]`) {
+		t.Fatalf("unit diagnostic dropped by the main file's stop position: %q", got)
 	}
 }

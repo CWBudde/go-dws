@@ -134,6 +134,18 @@ func (r *Result) HasSemanticBlockingDiagnosticsInPhase(phase Phase) bool {
 	return false
 }
 
+// HasParserStop reports whether the parser reported a compiler stop. Upstream
+// abandons the whole compilation there, so nothing the analyzer would report
+// afterwards — including the end-of-program checks — is reported.
+func (r *Result) HasParserStop() bool {
+	for _, diag := range r.Diagnostics {
+		if diag.Phase == PhaseParsing && diag.Stop {
+			return true
+		}
+	}
+	return false
+}
+
 // HasDiagnosticsInPhase reports whether any diagnostics were produced in a phase.
 func (r *Result) HasDiagnosticsInPhase(phase Phase) bool {
 	for _, diag := range r.Diagnostics {
@@ -284,12 +296,23 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	analyzer.SetHintsLevel(opts.HintsLevel)
 	analyzer.SetSource(source, opts.Filename)
 	analyzer.SetParseHadErrors(result.HasDiagnosticsInPhase(PhaseParsing))
+	analyzer.SetCompileStopped(result.HasParserStop())
 	result.Analyzer = analyzer
 	result.SemanticAttempted = true
 
+	// Diagnostics of imported units are appended to result during unit analysis.
+	// They belong to other sources, so the main file's stop position must not be
+	// applied to them; keep them apart and merge them back unfiltered.
+	mainDiagnostics := append([]Diagnostic(nil), result.Diagnostics...)
+
 	err := safeAnalyzeWithUnits(analyzer, result, opts)
 	result.SemanticInfo = analyzer.GetSemanticInfo()
-	result.Diagnostics = dropDiagnosticsAfterStop(append(result.Diagnostics, semanticDiagnostics(analyzer)...))
+	unitDiagnostics := result.Diagnostics[len(mainDiagnostics):]
+	mainDiagnostics = dropDiagnosticsAfterStop(append(mainDiagnostics, semanticDiagnostics(analyzer)...))
+	merged := make([]Diagnostic, 0, len(mainDiagnostics)+len(unitDiagnostics))
+	merged = append(merged, mainDiagnostics...)
+	merged = append(merged, unitDiagnostics...)
+	result.Diagnostics = merged
 	sortDiagnostics(result.Diagnostics)
 	result.Diagnostics = filterDiagnostics(result.Diagnostics)
 	sortDiagnostics(result.Diagnostics)
@@ -303,6 +326,11 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 // AddCompilerStop, so it reports what it found before the stop and nothing after it;
 // the analyzer still walks the recovered AST and would otherwise add later statements'
 // diagnostics.
+//
+// Positions are only comparable within one source, so diags must hold the
+// diagnostics of a single file. Diagnostics that are not positional but deferred
+// to the end of the compilation are dropped by SetCompileStopped instead, which
+// keeps the analyzer from emitting them at all.
 func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
 	stopLine, stopColumn, found := 0, 0, false
 	for _, diag := range diags {

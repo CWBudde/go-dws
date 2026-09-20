@@ -100,9 +100,11 @@ type Analyzer struct {
 	sourceCode            string
 	sourceFile            string
 	pendingClassWarnings  []*types.ClassType
-	// compileStopped records an error that DWScript raises as a compiler stop
-	// (an unknown name in an expression): upstream abandons the compile there,
-	// so the end-of-program checks such as unimplemented forwards never run.
+	// compileStopped records a compiler stop: either an error DWScript raises as
+	// one (an unknown name in an expression) or a parser stop the front end
+	// reports. Upstream abandons the compile there, unwinding past
+	// TSymbolTable.Initialize, so the end-of-program checks such as
+	// unimplemented forwards never run.
 	compileStopped          bool
 	predeclaredClassTypes   map[string]bool
 	deferredMethodBodies    []deferredMethodBody
@@ -569,6 +571,13 @@ func (a *Analyzer) SetSource(source, filename string) {
 // matching DWScript, which stops before them on syntax errors.
 func (a *Analyzer) SetParseHadErrors(had bool) {
 	a.parseHadErrors = had
+}
+
+// SetCompileStopped tells the analyzer the compilation was abandoned at a
+// compiler stop, so the end-of-program checks must not run. The front end sets
+// it for a parser stop, which upstream raises before the analyzer is reached.
+func (a *Analyzer) SetCompileStopped(stopped bool) {
+	a.compileStopped = stopped
 }
 
 // SetHintsLevel configures which hints should be emitted.
