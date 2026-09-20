@@ -60,6 +60,13 @@ Rules for this document:
   SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
+- **Upstream source is reachable without the submodule.** `reference/dwscript-original/` is an
+  empty submodule, but the originals fetch from
+  `raw.githubusercontent.com/EricGrange/DWScript/master/Source/*.pas`. Read the emit site before
+  guessing a hint level or an anchor: the 2026-09-20 hint slice found that hint levels are
+  per-diagnostic, not uniform, and that three assumptions taken from the fixtures alone were
+  wrong. Several ✋ items below were parked only because "the reference implementation is not
+  checked out" and are worth revisiting on that basis.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
   (T8). It reports each failure's distance from passing, whether what differs is a diagnostic or
   the program's output, and which message shapes recur — none of which `baselines.json` can see,
@@ -366,8 +373,8 @@ closed outright.
 Work families — IDs from the 2026-03 analysis
 (`docs/archive/failure-scripts-next-phase-plan.md`), counts from the 2026-09-12 re-measurement:
 
-- **F1** `[~]` M Warning/hint emission and ordering. The for-loop and ordering halves are closed;
-  what is left is the hints that do not exist yet.
+- **F1** `[~]` M Warning/hint emission and ordering. The for-loop half, the ordering half and the
+  five missing declaration hints are closed; what is left is the two hints below and the residue.
   - Ordering closed 2026-09-20 ([log](docs/history/progress-log-2026-09.md)): deferred routine
     bodies splice their diagnostics back to the declaration point (`infinite_loop`,
     `ArrayPass/array_of_rec_add_create`), and a compiler-directive diagnostic orders by line
@@ -378,15 +385,17 @@ Work families — IDs from the 2026-03 analysis
     Pre-existing and independent of the splice above: a bare `while True do ;` between two classes
     with inline bodies orders `9, 5, 15` on main and on the ordering branch alike. No fixture covers
     the shape; settle it against upstream's emission before changing the drain.
-  - `[ ]` Hints and warnings that exist nowhere in the tree, lines (fixtures) — one subtask each:
+  - `[~]` Hints and warnings that exist nowhere in the tree, lines (fixtures). Five closed
+    2026-09-20 ([log](docs/history/progress-log-2026-09.md)): `case_of_else`,
+    `virtual_private`, `class_visibility_redundant`, `hint_reference_var_params` and
+    `self_assign`. Left:
     - `[ ]` M `Unreachable code` 12 (5)
     - `[ ]` M `Constant condition` 8 (5) — also needed by `contracts_precondition`
-    - `[ ]` S `Redundant "begin" in clause of a case..of` (`case_of_else`)
-    - `[ ]` S `Private virtual methods cannot be overridden` (`virtual_private`)
-    - `[ ]` S `Redundant specifier, visibility is already "X"` (`class_visibility_redundant`)
-    - `[ ]` S `"X" parameter is a reference type passed as VAR, but never written to`
-      (`hint_reference_var_params`)
-    - `[ ]` S `Assigning a to itself` (`self_assign`)
+  - `[ ]` S `Result := result` is skipped by the self-assignment hint because go-dws binds a
+    routine's implicit `Result` and a local spelled `result` to **one symbol**, where DWScript
+    rejects the redeclaration outright (`internal/interp/lambda_test.go:TestLambdaWithLoop`
+    relies on the current binding). No fixture pins `Result := Result`; close the redeclaration
+    gap and the suppression in `internal/semantic/analyze_hints.go` can go.
   - `[ ]` Unused-symbol ownership: synthetic `Result is never used` on expression lambdas
     (`LambdaPass/immediate`), unused-private hints on interface implementers (E12 `intf_private`),
     missing deprecated warning in `randseed` (2:9).
