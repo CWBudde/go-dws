@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -241,5 +245,106 @@ func TestClassify_MissingBlankLineIsOneEdit(t *testing.T) {
 	c := classify("hello\n\nworld", "hello\nworld")
 	if c.distance != 1 || c.kind != kindOutput {
 		t.Errorf("classify = %+v, want one output edit", c)
+	}
+}
+
+func TestTallyShapes_NamesTheFixturesItBlocks(t *testing.T) {
+	// A fixture that emits one shape twice is still one entry, and the names come
+	// out sorted so the worklist generated from them is stable.
+	classes := []classification{
+		{kind: kindDiagnostics, fixture: "FailureScripts/zeta", missing: []string{
+			`Syntax Error: Shared [line: 1, column: 1]`,
+			`Syntax Error: Shared [line: 2, column: 1]`,
+		}},
+		{kind: kindDiagnostics, fixture: "FailureScripts/alpha", missing: []string{
+			`Syntax Error: Shared [line: 1, column: 1]`,
+		}},
+		// No fixture name: the classification came from somewhere that does not know it.
+		{kind: kindDiagnostics, missing: []string{`Syntax Error: Shared [line: 9, column: 1]`}},
+	}
+	tallies := tallyShapes(classes, func(c classification) []string { return c.missing })
+	if len(tallies) != 1 {
+		t.Fatalf("expected 1 shape, got %d", len(tallies))
+	}
+	if got := strings.Join(tallies[0].names, ","); got != "FailureScripts/alpha,FailureScripts/zeta" {
+		t.Errorf("names = %q, want both fixtures once each, sorted", got)
+	}
+}
+
+// captureStdout runs fn with os.Stdout redirected and returns what it printed.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	saved := os.Stdout
+	os.Stdout = w
+	defer func() { os.Stdout = saved }()
+	fn()
+	if err := w.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	return buf.String()
+}
+
+func TestPrintShapes_TopNAndFixtureNames(t *testing.T) {
+	long := "Syntax Error: " + strings.Repeat("wordy ", 20)
+	tallies := []shapeTally{
+		{shape: long, lines: 2, fixtures: 2, sole: 1, names: []string{"FailureScripts/a", "HelpersFail/b"}},
+		{shape: "Syntax Error: Second", lines: 1, fixtures: 1, names: []string{"FailureScripts/c"}},
+		{shape: "Syntax Error: Third", lines: 1, fixtures: 1, names: []string{"FailureScripts/d"}},
+	}
+
+	head := captureStdout(t, func() { printShapes("T", tallies, 1, false) })
+	if !strings.Contains(head, "top 1 of 3 shapes") {
+		t.Errorf("capped table header = %q", head)
+	}
+	if strings.Contains(head, "Second") {
+		t.Errorf("--shape-top 1 printed more than one shape:\n%s", head)
+	}
+	if !strings.Contains(head, "...") {
+		t.Errorf("the ranked table still truncates an over-long shape:\n%s", head)
+	}
+	if strings.Contains(head, "fixtures:") {
+		t.Errorf("fixture names are opt-in:\n%s", head)
+	}
+
+	all := captureStdout(t, func() { printShapes("T", tallies, 0, true) })
+	if !strings.Contains(all, "all 3 shapes") {
+		t.Errorf("--shape-top 0 header = %q", all)
+	}
+	for _, want := range []string{"Second", "Third", long, "fixtures:  FailureScripts/a, HelpersFail/b"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("missing %q from:\n%s", want, all)
+		}
+	}
+	if strings.Contains(all, "...") {
+		t.Errorf("the worklist mode must print a shape whole:\n%s", all)
+	}
+}
+
+func TestPrintShapes_DefaultTopNIsUnchanged(t *testing.T) {
+	// The default table is quoted by docs/ and by PLAN.md, so --shape-top's default
+	// has to reproduce it exactly.
+	tallies := make([]shapeTally, 0, shapeTopNDefault+5)
+	for i := 0; i < shapeTopNDefault+5; i++ {
+		tallies = append(tallies, shapeTally{
+			shape:    fmt.Sprintf("Syntax Error: Shape %d", i),
+			lines:    1,
+			fixtures: 1,
+			names:    []string{fmt.Sprintf("FailureScripts/f%d", i)},
+		})
+	}
+	out := captureStdout(t, func() { printShapes("T", tallies, shapeTopNDefault, false) })
+	if lines := strings.Count(out, "Syntax Error: Shape"); lines != shapeTopNDefault {
+		t.Errorf("default table printed %d shapes, want %d", lines, shapeTopNDefault)
+	}
+	if !strings.Contains(out, fmt.Sprintf("top %d of %d shapes", shapeTopNDefault, shapeTopNDefault+5)) {
+		t.Errorf("default header changed:\n%s", out)
 	}
 }

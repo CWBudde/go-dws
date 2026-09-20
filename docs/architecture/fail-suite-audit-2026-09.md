@@ -48,6 +48,10 @@ two ways that change the figures below, neither of them a change to the port:
 The execution suites got the same treatment once the tool existed:
 [`pass-suite-audit-2026-09.md`](pass-suite-audit-2026-09.md).
 
+The inventories below list only the head of each table. The **whole** tail, with the fixtures each
+shape blocks and the site that emits each spurious one, is
+[`fail-shape-worklist-2026-09.md`](fail-shape-worklist-2026-09.md) (measured 2026-09-20).
+
 ## Headline
 
 480 in-scope fixtures fail. `COMConnectorFailure`'s 8 are host-library and excluded

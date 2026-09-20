@@ -10,6 +10,7 @@
 // Usage:
 //
 //	go run ./cmd/fixture-report [--category NAME] [--list-fails] [--classify] [--in-scope]
+//	                            [--shape-top N] [--shape-fixtures]
 //	                            [--timeout SECS] [--cli PATH] [--build=false] [--allow-stale]
 //
 // --classify diffs every failing fixture against its expectation and reports how far
@@ -17,6 +18,9 @@
 // across the suite — the measurement baselines.json cannot make, because it holds
 // pass-count floors and so cannot see a fixture swap one wrong line for another.
 // --in-scope drops the host-library categories excluded from every PLAN.md target.
+// --shape-top caps each shape table (0 prints every shape) and --shape-fixtures names
+// the fixtures each shape blocks: together they print the message-shape worklist behind
+// PLAN.md §4/F8 rather than the ranked head of it.
 //
 // The CLI is run in harness mode with the same per-category hint level as
 // TestDWScriptFixtures: `run --diagnostics=plain --test-envelope --hints LEVEL` for
@@ -253,6 +257,8 @@ func run() int {
 	listFails := flag.Bool("list-fails", false, "print failing fixture names")
 	classifyFails := flag.Bool("classify", false, "classify each failure by distance, kind and message shape")
 	inScope := flag.Bool("in-scope", false, "skip the host-library categories excluded from every PLAN.md target")
+	shapeTop := flag.Int("shape-top", shapeTopNDefault, "with --classify, how many message shapes to rank (0 = all of them)")
+	shapeFixtures := flag.Bool("shape-fixtures", false, "with --classify, name the fixtures each message shape blocks")
 	timeoutSecs := flag.Int("timeout", 20, "per-fixture timeout in seconds")
 	cli := flag.String("cli", "./bin/dwscript", "path to the dwscript CLI binary")
 	build := flag.Bool("build", true, "rebuild the CLI binary from the current sources before running")
@@ -322,7 +328,7 @@ func run() int {
 	}
 
 	if *classifyFails {
-		printClassification(failed, *listFails)
+		printClassification(failed, *listFails, *shapeTop, *shapeFixtures)
 	}
 	return 0
 }
@@ -427,6 +433,7 @@ func evaluateOne(cli string, it workItem, timeout time.Duration, classifyFails b
 		// timeout sentinel and a panic's stack both survive normalization, so
 		// classify can still recognise them.
 		c := classify(expected, got)
+		c.fixture = it.category + "/" + name
 		res.class = &c
 	}
 	return res

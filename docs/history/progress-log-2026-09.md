@@ -5238,3 +5238,36 @@ to know where the routine's declaration sits in the list. The splice already com
 that index, so `deferredBodyErrorBounds` now reads it (`beforeDecl` plus the running shift) and
 bounds the body's own diagnostics with the length at body start, instead of carrying its own
 pass-1 boundary. One index, two uses.
+
+## 2026-09-20 — the message-shape worklist (§4 / F8)
+
+F8's first subtask asked for the worklist behind the family: every distinct diagnostic shape
+separating go-dws from DWScript, with the fixtures each one blocks, committed next to the audit
+so the shape-by-shape work can be checked off. It is
+[`docs/architecture/fail-shape-worklist-2026-09.md`](../architecture/fail-shape-worklist-2026-09.md),
+measured against `b7813fbe`.
+
+`cmd/fixture-report` grew two flags, both off by default so the output the harness and the audit
+quote is unchanged (verified by diffing the pre-change tool's output against the new one on
+`SetOfFail` and `FailureScripts`): `--shape-top N` caps each shape table and `0` prints every
+shape, while `--shape-fixtures` names the fixtures each shape blocks.
+
+The numbers the audit could only show the head of: **269 missing shapes** (1,068 lines, 442
+fixtures) and **393 spurious** (1,113 lines, 427 fixtures), out of 433 failing in-scope `*Fail`
+fixtures, 143 of them one edit away.
+
+Each spurious shape is filed under the code that emits it, as a checkbox list, which is what
+turns F8's "batch by origin" into something that can be worked: parser 117 shapes, other
+semantic 121, `analyze_statements.go` 44, `analyze_classes*.go` 12,
+`analyze_function_calls.go`/`analyze_method_calls.go` 8, frontend 6, lexer 6, other (runtime and
+the shared `internal/errors` builders) 62, unlocated 17.
+
+Two limits are stated in the document rather than hidden. A shape whose sentence is DWScript's
+own, emitted from the wrong place, resolves to the shared builder in `internal/errors` rather
+than to the analyzer site that called it, which is why the "other" bucket is larger than it
+looks; and the seventeen unlocated shapes are mostly sentences whose only literal fragment is
+too short to grep. One of them has an **empty message text** with a real position
+(`JSONConnectorPass/implicit_from_cast`, `SimpleScripts/class_operator3`,
+`SimpleScripts/inherited1`) and is worth a look on its own.
+
+Every bullet quotes the fragment that matched, so the search is repeatable.

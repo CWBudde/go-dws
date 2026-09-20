@@ -520,9 +520,15 @@ Work families — IDs from the 2026-03 analysis
   `docs/archive/semantic-legacy-hotspots-5.3.10.md`) — is right, but this is the precondition for
   **265 of the 480 failing fixtures**, not a cleanup, and the parser is in it as much as the
   analyzer.
-  - `[ ]` S Extract the worklist: 291 distinct shapes with the fixtures each one blocks, mechanical
-    from the classification run (see **T8**). Commit it next to the fail-suite audit so the
-    shape-by-shape work below can be checked off.
+  - Worklist extracted 2026-09-20:
+    [`docs/architecture/fail-shape-worklist-2026-09.md`](docs/architecture/fail-shape-worklist-2026-09.md)
+    — every missing and spurious shape with the fixtures it blocks, and each spurious shape's
+    emitting site as a checkbox list grouped by origin. Measured at `b7813fbe`: 269 missing
+    shapes (1,068 lines, 442 fixtures) and 393 spurious (1,113 lines, 427 fixtures). Regenerate
+    with `--shape-top 0 --shape-fixtures`. Spurious shapes by origin, which sizes the batches
+    below: parser 117 · other semantic 121 · `analyze_statements.go` 44 · `analyze_classes*.go`
+    12 · `analyze_function_calls.go`/`analyze_method_calls.go` 8 · frontend 6 · lexer 6 ·
+    other (runtime, shared `internal/errors` builders) 62 · unlocated 17.
   - `[ ]` Work it by shape, largest first, mapping each to the sentence it should be
     (`expected ')' after parameter list` → `")" expected`, `unknown type 'X'` → `Type expected`).
     Anchors must be measured per shape; the sentence is the easy half. Batch by origin:

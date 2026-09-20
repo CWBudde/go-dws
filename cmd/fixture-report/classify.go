@@ -178,6 +178,10 @@ type classification struct {
 	missing  []string
 	spurious []string
 	distance int
+	// fixture is "Category/name", filled in by the caller once the diff is made.
+	// It is what lets a shape table name the fixtures it blocks; the diff itself
+	// does not need it, so classify leaves it empty.
+	fixture string
 }
 
 // classify diffs one failure and buckets it. A fixture that never terminated or that
@@ -250,6 +254,9 @@ type shapeTally struct {
 	// away with the fix. fixtures ranks the work; sole predicts the yield, and the
 	// gap between them is how much else has to be right first.
 	sole int
+	// names lists the fixtures that mention the shape, sorted, one entry each.
+	// Empty unless the classifications carried a fixture name.
+	names []string
 }
 
 // tallyShapes counts diagnostic shapes on one side of a set of diffs. side picks that
@@ -258,6 +265,7 @@ func tallyShapes(classes []classification, side func(classification) []string) [
 	lines := map[string]int{}
 	fixtures := map[string]int{}
 	sole := map[string]int{}
+	names := map[string][]string{}
 	for _, c := range classes {
 		shapes := map[string]bool{}
 		for _, line := range side(c) {
@@ -270,6 +278,9 @@ func tallyShapes(classes []classification, side func(classification) []string) [
 		}
 		for shape := range shapes {
 			fixtures[shape]++
+			if c.fixture != "" {
+				names[shape] = append(names[shape], c.fixture)
+			}
 		}
 		if len(shapes) != 1 || c.kind != kindDiagnostics {
 			continue
@@ -280,8 +291,11 @@ func tallyShapes(classes []classification, side func(classification) []string) [
 	}
 	tallies := make([]shapeTally, 0, len(lines))
 	for shape, count := range lines {
+		blocked := names[shape]
+		sort.Strings(blocked)
 		tallies = append(tallies, shapeTally{
 			shape: shape, lines: count, fixtures: fixtures[shape], sole: sole[shape],
+			names: blocked,
 		})
 	}
 	sort.Slice(tallies, func(i, j int) bool {
@@ -296,14 +310,17 @@ func tallyShapes(classes []classification, side func(classification) []string) [
 	return tallies
 }
 
-// shapeTopN is how many message shapes the report ranks. The tail is a long list of
-// one-offs; the head is where the work is.
-const shapeTopN = 20
+// shapeTopNDefault is how many message shapes the report ranks unless --shape-top
+// says otherwise. The tail is a long list of one-offs; the head is where the work is,
+// and the worklist behind PLAN.md §4/F8 is the whole tail printed with --shape-top 0.
+const shapeTopNDefault = 20
 
 // printClassification renders the classification section: where each category's
 // failures sit, and which message shapes recur across them. perFixture adds the
 // per-fixture distances, which is the list the near-miss queue is built from.
-func printClassification(failed []result, perFixture bool) {
+// shapeTop caps each shape table (0 prints every shape) and shapeFixtures names the
+// fixtures each shape blocks, which is what the F8 worklist is generated from.
+func printClassification(failed []result, perFixture bool, shapeTop int, shapeFixtures bool) {
 	if len(failed) == 0 {
 		fmt.Println("\nClassification: nothing failing.")
 		return
@@ -362,9 +379,11 @@ func printClassification(failed []result, perFixture bool) {
 		totals.kinds[kindEmpty], totals.kinds[kindCrash], totals.kinds[kindTimeout])
 
 	printShapes("Missing diagnostics (expected, never produced)",
-		tallyShapes(classes, func(c classification) []string { return c.missing }))
+		tallyShapes(classes, func(c classification) []string { return c.missing }),
+		shapeTop, shapeFixtures)
 	printShapes("Spurious diagnostics (produced, not expected)",
-		tallyShapes(classes, func(c classification) []string { return c.spurious }))
+		tallyShapes(classes, func(c classification) []string { return c.spurious }),
+		shapeTop, shapeFixtures)
 
 	if perFixture {
 		fmt.Println("\nPer-fixture distance:")
@@ -390,17 +409,33 @@ func printClassification(failed []result, perFixture bool) {
 // printShapes writes one ranked shape table, ranked by fixtures blocked rather than
 // by occurrences: a single fixture emitting one shape twenty times is still one
 // fixture, and it is fixtures that the pass rate counts.
-func printShapes(title string, tallies []shapeTally) {
-	fmt.Printf("\n%s — top %d of %d shapes\n", title, min(shapeTopN, len(tallies)), len(tallies))
+//
+// topN caps the table; 0 (or less) prints every shape. withFixtures adds the fixtures
+// each shape blocks on a continuation line and stops the shape column being truncated:
+// that mode is read by whoever is building a worklist out of the tail, not by someone
+// scanning the head, so a shape has to arrive whole.
+func printShapes(title string, tallies []shapeTally, topN int, withFixtures bool) {
+	limit := topN
+	if limit <= 0 || limit > len(tallies) {
+		limit = len(tallies)
+	}
+	if topN <= 0 {
+		fmt.Printf("\n%s — all %d shapes\n", title, len(tallies))
+	} else {
+		fmt.Printf("\n%s — top %d of %d shapes\n", title, min(topN, len(tallies)), len(tallies))
+	}
 	fmt.Printf("%8s%6s%8s  %s\n", "Fixtures", "Sole", "Lines", "Shape")
 	for i, t := range tallies {
-		if i >= shapeTopN {
+		if i >= limit {
 			break
 		}
 		shape := t.shape
-		if len(shape) > 96 {
+		if !withFixtures && len(shape) > 96 {
 			shape = shape[:93] + "..."
 		}
 		fmt.Printf("%8d%6d%8d  %s\n", t.fixtures, t.sole, t.lines, shape)
+		if withFixtures && len(t.names) > 0 {
+			fmt.Printf("%22s  %s\n", "fixtures:", strings.Join(t.names, ", "))
+		}
 	}
 }
