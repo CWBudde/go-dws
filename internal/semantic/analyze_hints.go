@@ -136,19 +136,35 @@ func (a *Analyzer) checkSelfAssignment(stmt *ast.AssignmentStatement) {
 	if a.parseHadErrors || a.hasActualErrors() {
 		return
 	}
+	pos := stmt.Token.Pos
+	if pos.Line == 0 || pos.Column == 0 {
+		return
+	}
+	sym, name := a.selfAssignedSymbol(stmt)
+	if sym == nil {
+		return
+	}
+	a.addHintAt(pos, "Assigning %s to itself [line: %d, column: %d]",
+		qualifiedSymbolName(sym, name), pos.Line, pos.Column)
+}
+
+// selfAssignedSymbol returns the symbol both sides of an assignment name, and
+// the spelling the left-hand side used, or nil when the two sides are not the
+// same bare identifier.
+func (a *Analyzer) selfAssignedSymbol(stmt *ast.AssignmentStatement) (*Symbol, string) {
 	target, ok := stmt.Target.(*ast.Identifier)
 	if !ok {
-		return
+		return nil, ""
 	}
 	value, ok := stmt.Value.(*ast.Identifier)
 	if !ok || !ident.Equal(target.Value, value.Value) {
-		return
+		return nil, ""
 	}
 	// Assigning to the enclosing routine's own name sets the result; it is a
 	// write to Result, not to the symbol the right-hand side reads.
 	if a.currentFunction != nil && a.currentFunction.Name != nil &&
 		ident.Equal(target.Value, a.currentFunction.Name.Value) {
-		return
+		return nil, ""
 	}
 	// A routine's implicit Result and a local spelled "result" collapse into one
 	// symbol here, where DWScript rejects the redeclaration outright, so a
@@ -156,21 +172,16 @@ func (a *Analyzer) checkSelfAssignment(stmt *ast.AssignmentStatement) {
 	// an assignment to itself. No fixture pins `Result := Result`, so the whole
 	// name is left alone.
 	if ident.Equal(target.Value, "Result") {
-		return
+		return nil, ""
 	}
 	sym, found := a.symbols.Resolve(target.Value)
 	if !found || sym == nil {
-		return
+		return nil, ""
 	}
 	if valueSym, ok := a.symbols.Resolve(value.Value); !ok || valueSym != sym {
-		return
+		return nil, ""
 	}
-	pos := stmt.Token.Pos
-	if pos.Line == 0 || pos.Column == 0 {
-		return
-	}
-	a.addHintAt(pos, "Assigning %s to itself [line: %d, column: %d]",
-		qualifiedSymbolName(sym, target.Value), pos.Line, pos.Column)
+	return sym, target.Value
 }
 
 // qualifiedSymbolName spells a symbol the way DWScript's QualifiedName does: a
@@ -274,32 +285,40 @@ func (a *Analyzer) emitReferenceVarParamHints() {
 	}
 
 	for _, param := range fn.Parameters {
-		if param == nil || !param.ByRef || param.IsConst || param.IsLazy || param.Name == nil {
+		if !a.isUnwrittenReferenceVarParam(param) {
 			continue
 		}
 		pos := param.Name.Token.Pos
-		if pos.Line == 0 || pos.Column == 0 {
-			continue
-		}
-		sym, ok := a.symbols.symbols.Get(param.Name.Value)
-		if !ok || sym == nil || sym.Written {
-			continue
-		}
-		// The scope must be this routine's own: the unused-warning hook this
-		// runs from is deferred twice per body, and the outer run still sees the
-		// inner scope while currentFunction has already been restored.
-		if !samePosition(sym.DeclPosition, pos) {
-			continue
-		}
-		if _, isClass := sym.Type.(*types.ClassType); !isClass {
-			continue
-		}
-		if a.hintsLevelAt(pos) < HintsLevelPedantic {
-			continue
-		}
 		a.addHintAt(pos, "%q parameter is a reference type passed as VAR, but never written to [line: %d, column: %d]",
 			param.Name.Value, pos.Line, pos.Column)
 	}
+}
+
+// isUnwrittenReferenceVarParam reports whether one parameter of the routine
+// being closed is a class-typed `var` parameter its body never wrote to, and the
+// hint level at its declaration admits the hint.
+func (a *Analyzer) isUnwrittenReferenceVarParam(param *ast.Parameter) bool {
+	if param == nil || !param.ByRef || param.IsConst || param.IsLazy || param.Name == nil {
+		return false
+	}
+	pos := param.Name.Token.Pos
+	if pos.Line == 0 || pos.Column == 0 {
+		return false
+	}
+	sym, ok := a.symbols.symbols.Get(param.Name.Value)
+	if !ok || sym == nil || sym.Written {
+		return false
+	}
+	// The scope must be this routine's own: the unused-warning hook this runs
+	// from is deferred twice per body, and the outer run still sees the inner
+	// scope while currentFunction has already been restored.
+	if !samePosition(sym.DeclPosition, pos) {
+		return false
+	}
+	if _, isClass := sym.Type.(*types.ClassType); !isClass {
+		return false
+	}
+	return a.hintsLevelAt(pos) >= HintsLevelPedantic
 }
 
 // ============================================================================
