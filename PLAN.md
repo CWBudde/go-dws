@@ -371,6 +371,12 @@ Work families — IDs from the 2026-03 analysis
     bodies splice their diagnostics back to the declaration point (`infinite_loop`,
     `ArrayPass/array_of_rec_add_create`), and a compiler-directive diagnostic orders by line
     against a semantic hint or warning (`hint_pedantic`).
+  - `[ ]` S Inline class method bodies stay queued until the last top-level class declaration and
+    are then drained as one batch (`drainDeferredMethodBodies`, `class_construction.go:343`), so a
+    statement or routine written *between* two class declarations reports before both class bodies.
+    Pre-existing and independent of the splice above: a bare `while True do ;` between two classes
+    with inline bodies orders `9, 5, 15` on main and on the ordering branch alike. No fixture covers
+    the shape; settle it against upstream's emission before changing the drain.
   - `[ ]` Hints and warnings that exist nowhere in the tree, lines (fixtures) — one subtask each:
     - `[ ]` M `Unreachable code` 12 (5)
     - `[ ]` M `Constant condition` 8 (5) — also needed by `contracts_precondition`
