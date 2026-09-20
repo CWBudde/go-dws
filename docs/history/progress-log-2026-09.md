@@ -5100,3 +5100,66 @@ Anchors were derived from the `.txt` files; `reference/dwscript-original/` is no
 `FailureScripts`, `AssociativeFail`, `GenericsFail`, `HelpersFail`, `OverloadsFail` and
 `InterfacesFail` diffed against the pre-change run. Tests:
 `internal/frontend/fail_setof_test.go` pins all five fixtures.
+
+## 2026-09-20 — helper declaration and access rules (§4 / F5)
+
+`HelpersFail` was the densest silent pocket in the fail suites: ten of its eighteen failures
+produced nothing at all, because helpers accepted far more than DWScript does. **0 → 6/18**,
+with `HelpersPass` unchanged at 22/27 and no other category moving.
+
+### Three of the six were bugs, not missing features
+
+- **`helper_duplicate_member`** is not a parser problem. The duplicate checks in
+  `analyze_helpers.go` looked members up by source spelling while the maps are keyed by
+  `ident.Normalize`, so *every* duplicate slipped through. Normalizing the class-var, class-const
+  and property lookups makes the existing checks fire; they are re-anchored at the member name,
+  where `.Token.Pos` had been the `class`/`const` keyword.
+- **`Hint: Result is never used` never fired in any helper body.**
+  `defer a.emitUnusedWarningsForCurrentScope()` was registered *before* the context-restoring
+  defer, so LIFO ran it after `currentFunction` was already nil and it bailed out. `Result` is
+  also now anchored at `blockEndStart(decl.End())`, as `analyzeMethodDecl` does.
+- **A `class of T` value could not see `helper for TClass`**, because the helper is registered
+  under `tclass` while the receiver stringifies as `class of TObject`. `getHelpersForType` now
+  also collects helpers whose target is a metaclass the value is assignable to.
+
+### Three were rules that did not exist
+
+- **`helper_not_implemented`**: `HelperType.ForwardedMethods`, mirroring `ClassType` — registered
+  for body-less methods, cleared on implementation, reported by `validateForwardHelperMethods()`
+  reusing `NewMethodNotImplementedError`. It is gated exactly like the class check, inside the
+  existing `if !hasActualErrors` block, which the fixture is consistent with.
+- **`static_class_method_self`**: a static helper class method no longer defines or types `Self`,
+  so using it reports `Unknown name "Self"`. The `static` directive is read off the in-helper
+  declaration, since the out-of-line implementation does not carry it.
+- **`helper_static`**, **`helper_error4`** and **`integer_helper`**: `Only non-virtual class
+  methods can be marked as static` now applies to helpers too, anchored at `StaticPos`; and
+  `HelperType.ClassMethods` lets an instance helper method reached through a class reference or a
+  bare type name be rejected with `Class method or constructor expected`. A helper *name*
+  (`TDummy.Two`) is a symbol and is unaffected.
+
+Inline helper method bodies are now compiled where they are written, so they see only the
+overloads declared at or before them, as DWScript does. Measured clean over the whole corpus.
+
+### A test that encoded the old behaviour
+
+`internal/semantic/helpers_test.go` had eight cases declaring helper methods with no body and no
+implementation while asserting *no error* — exactly what `helper_not_implemented` says DWScript
+rejects. Each declaration got a trivial body; no expectation was weakened.
+
+### Left open, measured
+
+- `mixed_helper` and `helper_of_delegate` are blocked on one position: all six anchors are the
+  `for` **keyword**, not the target type name (verified by column arithmetic), and
+  `ast.HelperDecl` carries no FOR position. `mixed_helper` also needs
+  `interface helper for T` to parse at all, which `internal/parser/interfaces.go` has no case for.
+- `helper_overload_error` is now rejected at the right anchor but with the wrong sentence:
+  `addArgumentCountError` never consults `Symbol.HasOverloadDirective`. Fixing that generically
+  closes it (F8).
+- `helper_explicit` needs DWScript's explicit helper invocation, where the instance is argument 1.
+
+### Validation
+
+`go test ./...`, `just fixture-update`, a full `fixture-report` over all 2,044 fixtures diffed
+against `baselines.json` (only `HelpersFail` moved), and `HelpersPass`/`FailureScripts` failing
+lists byte-identical to the pre-change run. Tests: `internal/frontend/fail_helpers_test.go` pins
+the six fixtures plus a six-case negative corpus of valid helper code.

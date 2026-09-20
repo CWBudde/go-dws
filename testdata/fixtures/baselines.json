@@ -31,7 +31,7 @@
   "GenericsFail": 0,
   "GenericsPass": 23,
   "GraphicsLib": 0,
-  "HelpersFail": 0,
+  "HelpersFail": 6,
   "HelpersPass": 22,
   "IniFileLib": 0,
   "InnerClassesFail": 0,

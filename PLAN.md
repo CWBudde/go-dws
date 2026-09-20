@@ -10,21 +10,21 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,207 / 1,966 scored =
-61%**; `*Fail` error-detection suites **214 / 641 = 33%**. What shipped to get there is in
+**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,213 / 1,966 scored =
+62%**; `*Fail` error-detection suites **220 / 641 = 34%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,207 / 1,747 = 69% in scope**, the number to track against §6. Both are honest;
+same run reads **1,213 / 1,747 = 69% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 427 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 421 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
@@ -54,9 +54,9 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (763 total, 2026-09-20): **219 host-library** (out of scope),
-  **427 in the `*Fail` error-detection suites** (§4: FailureScripts 336, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **113 in the execution suites** (§3.5:
+- Where the remaining failures are (753 total, 2026-09-20): **219 host-library** (out of scope),
+  **421 in the `*Fail` error-detection suites** (§4: FailureScripts 336, InterfacesFail 18,
+  HelpersFail 12, the rest under 15), and **113 in the execution suites** (§3.5:
   SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
@@ -342,8 +342,9 @@ independently; evaluate it once, as E9 does for member receivers.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 214/641 (FailureScripts 193/529, SetOfFail 10, OverloadsFail 3, JSONConnectorFail 2,
-PropertyExpressionsFail 2, AssociativeFail 2, InterfacesFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
+Harness and CLI: 220/641 (FailureScripts 193/529, SetOfFail 10, HelpersFail 6, OverloadsFail 3,
+JSONConnectorFail 2, PropertyExpressionsFail 2, AssociativeFail 2, InterfacesFail 1,
+JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
 `dwscript run --diagnostics=plain --compile-only --hints pedantic <file>`.
@@ -416,6 +417,16 @@ Work families — IDs from the 2026-03 analysis
 - **F4** `[ ]` L Class/property/static/override/visibility diagnostics — still the largest family.
   One subtask per message shape, lines (fixtures):
   - `[ ]` M `Method "X" of class "Y" not implemented` 34 (15)
+    - `[ ]` S Forward tracking is keyed by method name, for classes
+      (`ClassType.ForwardedMethods`, `analyze_classes_decl.go:1057`/`:709`) and for helpers alike,
+      so implementing one overload clears the marker for every same-named one. Upstream keys it
+      per symbol: `TStructuredTypeSymbol.CheckMethodsImplemented` walks `FMembers` and tests each
+      `TMethodSymbol`'s own `FExecutable` (dwsSymbols.pas:3115-3132), so an unimplemented overload
+      is still reported. It also sorts the reports by declaration position
+      (`CompareSourceMethSymbolByDeclarePos`), which is what our frontend's deferred bucket already
+      does. Raised on PR #424 and deferred there because fixing helpers alone would make them
+      stricter than classes; do both together, and measure the per-overload wording and anchor
+      before implementing.
   - `[ ]` M `Name "X" already exists` 20 (12)
   - `[ ]` S `Class reference expected` 11 (9)
   - `[ ]` S `Class "X" isn't defined completely` 9 (7) and the `Interface` variant 4 (3)
@@ -423,8 +434,23 @@ Work families — IDs from the 2026-03 analysis
   - `[ ]` S `"X" is not a method of class "Y"` 7 (4)
 - **F5** `[~]` M Missing-validation sweep — DWScript reports something, go-dws compiles **clean**.
   **43 in FailureScripts plus 27 in the other suites**; the per-suite list is in the audit.
-  - `[ ]` HelpersFail 10 is the densest and most coherent pocket: 10 of its 18 failures produce
-    nothing at all, and 5 are one line from passing. Helpers accept far more than they should.
+  - `[~]` HelpersFail was the densest pocket. Closed 2026-09-20
+    ([log](docs/history/progress-log-2026-09.md)): `helper_duplicate_member`,
+    `helper_not_implemented`, `static_class_method_self`, `helper_static`, `helper_error4`,
+    `integer_helper` (0 → 6/18). Left, each measured:
+    - `[ ]` S `mixed_helper` and `helper_of_delegate` need the `for` keyword's position on
+      `ast.HelperDecl` (all six anchors are the `for` token, not the target type name), captured
+      at `internal/parser/helpers.go:103`. `mixed_helper` additionally needs
+      `interface helper for T` to parse at all — `internal/parser/interfaces.go` has no such
+      case — plus an `IsInterfaceHelper` flag. The kind checks themselves are a few lines.
+    - `[ ]` S `helper_overload_error` is rejected at the right anchor but says
+      `Too many arguments` where upstream says `There is no overloaded version of "X" that can be
+      called with these arguments`. `addArgumentCountError`
+      (`internal/semantic/analyze_function_calls.go`) never consults
+      `Symbol.HasOverloadDirective`; preferring the no-overload sentence when it is set closes
+      this generically (F8).
+    - `[ ]` S `helper_explicit` needs DWScript's explicit helper invocation, where the instance
+      is argument 1 (`TDummy.Next(2)`); go-dws types the method as parameterless.
   - `[ ]` InterfacesFail 4 · JSONConnectorFail 3 · LambdaFail 3 · OverloadsFail 3 · GenericsFail 2
     · PropertyExpressionsFail 2.
   - The FailureScripts 43 are almost all single-fixture work. Known sub-blockers:

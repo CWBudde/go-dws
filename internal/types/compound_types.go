@@ -665,10 +665,18 @@ type HelperType struct {
 	ClassVars       map[string]Type
 	ClassConsts     map[string]any
 	BuiltinMethods  map[string]string
-	Name            string
-	IsRecordHelper  bool
-	IsClassHelper   bool
-	IsStrict        bool
+	// ForwardedMethods holds the normalized names of methods declared in the
+	// helper body without a body of their own; an out-of-line implementation
+	// clears the entry. Mirrors ClassType.ForwardedMethods.
+	ForwardedMethods map[string]bool
+	// ClassMethods marks, by normalized name, the methods declared with the
+	// `class` prefix. Only those are reachable through a type name or a class
+	// reference.
+	ClassMethods   map[string]bool
+	Name           string
+	IsRecordHelper bool
+	IsClassHelper  bool
+	IsStrict       bool
 }
 
 // String returns the string representation of the helper type
@@ -784,15 +792,17 @@ func (ht *HelperType) GetClassConst(name string) (interface{}, bool) {
 // NewHelperType creates a new helper type.
 func NewHelperType(name string, targetType Type, isRecordHelper bool) *HelperType {
 	return &HelperType{
-		Name:            name,
-		TargetType:      targetType,
-		Methods:         make(map[string]*FunctionType),
-		MethodOverloads: make(map[string][]*FunctionType),
-		MethodDeclNames: make(map[string]string),
-		Properties:      make(map[string]*PropertyInfo),
-		ClassVars:       make(map[string]Type),
-		ClassConsts:     make(map[string]interface{}),
-		BuiltinMethods:  make(map[string]string),
-		IsRecordHelper:  isRecordHelper,
+		Name:             name,
+		TargetType:       targetType,
+		Methods:          make(map[string]*FunctionType),
+		MethodOverloads:  make(map[string][]*FunctionType),
+		MethodDeclNames:  make(map[string]string),
+		Properties:       make(map[string]*PropertyInfo),
+		ClassVars:        make(map[string]Type),
+		ClassConsts:      make(map[string]interface{}),
+		BuiltinMethods:   make(map[string]string),
+		ForwardedMethods: make(map[string]bool),
+		ClassMethods:     make(map[string]bool),
+		IsRecordHelper:   isRecordHelper,
 	}
 }

@@ -84,6 +84,7 @@ type Analyzer struct {
 	currentFunction       *ast.FunctionDecl
 	currentRecord         *types.RecordType
 	helpers               map[string][]*types.HelperType
+	helperOrder           []*types.HelperType
 	currentHelperType     *types.HelperType
 	symbols               *SymbolTable
 	forwardMethodReported map[string]bool
@@ -123,7 +124,11 @@ type Analyzer struct {
 	inLoop                  bool
 	inLambda                bool
 	inClassMethod           bool
-	inPropertyExpr          bool
+	// inStaticHelperMethod marks the body of a `static` helper class method,
+	// which is invoked with neither an instance nor a class reference and so
+	// has no Self at all.
+	inStaticHelperMethod bool
+	inPropertyExpr       bool
 	// inIndexBase marks analysis of the expression an index list is applied to,
 	// where a bare indexed-property name is complete rather than short of its
 	// index arguments.
@@ -468,6 +473,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	hasActualErrors := a.hasActualErrors()
 	if !hasActualErrors {
 		a.validateForwardMethods()
+		a.validateForwardHelperMethods()
 		hasActualErrors = a.hasActualErrors()
 	}
 
