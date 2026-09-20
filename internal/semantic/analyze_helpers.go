@@ -326,8 +326,44 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 			a.symbols.DefineConst(name, typ, nil, token.Position{})
 		}
 	}
-	// MethodOverloads keys are normalized; recover the declared casing from
-	// the AST so identifier-case hints don't fire on correct usages.
+	a.defineHelperOverloadsInScope(helperType, visibleOverloads)
+	a.defineHelperTargetMembersInScope(helperType, decl.IsClassMethod)
+
+	for _, param := range decl.Parameters {
+		if param.Type == nil {
+			continue
+		}
+		paramType, err := a.resolveTypeExpression(param.Type)
+		if err != nil || paramType == nil {
+			continue
+		}
+		a.symbols.DefineParameter(param.Name.Value, paramType, param.Name.Token.Pos, param.IsConst)
+	}
+
+	returnType := a.helperMethodReturnType(decl)
+	if returnType != types.VOID {
+		// Anchor Result where a class method anchors it (analyzeMethodDecl): at
+		// the body's `end`, which is what DWScript's "Result is never used"
+		// hint points at.
+		resultPos := decl.Name.Token.Pos
+		if decl.End().Line != 0 {
+			resultPos = blockEndStart(decl.End())
+		}
+		a.symbols.Define("Result", returnType, resultPos)
+	}
+
+	defer a.enterHelperMethodContext(decl, helperType, isStatic)()
+	// Registered after the context restore so it runs *before* it (LIFO):
+	// emitUnusedWarningsForCurrentScope bails out when currentFunction is nil.
+	defer a.emitUnusedWarningsForCurrentScope()
+
+	a.analyzeBlock(decl.Body)
+}
+
+// defineHelperOverloadsInScope brings the helper's own methods into scope under their
+// declared casing. MethodOverloads keys are normalized, so the spelling is recovered
+// from the AST to keep identifier-case hints off correct usages.
+func (a *Analyzer) defineHelperOverloadsInScope(helperType *types.HelperType, visibleOverloads map[string][]*types.FunctionType) {
 	declaredNames := make(map[string]string)
 	if helperDecl, ok := helperType.Decl.(*ast.HelperDecl); ok && helperDecl != nil {
 		for _, m := range helperDecl.Methods {
@@ -347,15 +383,21 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 			}
 		}
 	}
+}
 
-	if classType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.ClassType); ok && !decl.IsClassMethod {
+// defineHelperTargetMembersInScope brings the members reachable through the implicit
+// Self into scope: a class's or record's fields, and an interface's methods.
+func (a *Analyzer) defineHelperTargetMembersInScope(helperType *types.HelperType, isClassMethod bool) {
+	underlying := types.GetUnderlyingType(helperType.TargetType)
+
+	if classType, ok := underlying.(*types.ClassType); ok && !isClassMethod {
 		for fieldName, fieldType := range classType.Fields {
 			a.symbols.Define(fieldName, fieldType, token.Position{})
 		}
 	}
 	// Interface helpers can call the target interface's methods on the
 	// implicit Self (e.g. SayIt(...) inside a helper for IMy).
-	if ifaceType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.InterfaceType); ok && !decl.IsClassMethod {
+	if ifaceType, ok := underlying.(*types.InterfaceType); ok && !isClassMethod {
 		for cur := ifaceType; cur != nil; cur = cur.Parent {
 			for methodName, methodType := range cur.Methods {
 				if _, exists := a.symbols.Resolve(methodName); exists {
@@ -369,40 +411,29 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 			}
 		}
 	}
-	if recordType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.RecordType); ok {
+	if recordType, ok := underlying.(*types.RecordType); ok {
 		for fieldName, fieldType := range recordType.Fields {
 			a.symbols.Define(recordType.FieldNames[fieldName], fieldType, token.Position{})
 		}
 	}
+}
 
-	for _, param := range decl.Parameters {
-		if param.Type == nil {
-			continue
-		}
-		paramType, err := a.resolveTypeExpression(param.Type)
-		if err != nil || paramType == nil {
-			continue
-		}
-		a.symbols.DefineParameter(param.Name.Value, paramType, param.Name.Token.Pos, param.IsConst)
+// helperMethodReturnType resolves a helper method's declared return type, falling back
+// to VOID when it is absent or unresolvable.
+func (a *Analyzer) helperMethodReturnType(decl *ast.FunctionDecl) types.Type {
+	if decl.ReturnType == nil {
+		return types.VOID
 	}
+	resolved, err := a.resolveTypeExpression(decl.ReturnType)
+	if err != nil || resolved == nil {
+		return types.VOID
+	}
+	return resolved
+}
 
-	var returnType types.Type = types.VOID
-	if decl.ReturnType != nil {
-		if resolved, err := a.resolveTypeExpression(decl.ReturnType); err == nil && resolved != nil {
-			returnType = resolved
-		}
-	}
-	if returnType != types.VOID {
-		// Anchor Result where a class method anchors it (analyzeMethodDecl): at
-		// the body's `end`, which is what DWScript's "Result is never used"
-		// hint points at.
-		resultPos := decl.Name.Token.Pos
-		if decl.End().Line != 0 {
-			resultPos = blockEndStart(decl.End())
-		}
-		a.symbols.Define("Result", returnType, resultPos)
-	}
-
+// enterHelperMethodContext installs the analyzer context a helper body is analyzed in
+// and returns the function that restores it.
+func (a *Analyzer) enterHelperMethodContext(decl *ast.FunctionDecl, helperType *types.HelperType, isStatic bool) func() {
 	prevFunc := a.currentFunction
 	prevSelf := a.currentSelfType
 	prevHelper := a.currentHelperType
@@ -410,6 +441,7 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 	prevRecord := a.currentRecord
 	prevInClassMethod := a.inClassMethod
 	prevStaticHelper := a.inStaticHelperMethod
+
 	a.currentFunction = decl
 	a.currentSelfType = helperType.TargetType
 	if isStatic {
@@ -418,15 +450,16 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 	a.currentHelperType = helperType
 	a.inClassMethod = decl.IsClassMethod
 	a.inStaticHelperMethod = isStatic
-	if classType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.ClassType); ok {
-		a.currentClass = classType
+	switch target := types.GetUnderlyingType(helperType.TargetType).(type) {
+	case *types.ClassType:
+		a.currentClass = target
 		a.currentRecord = nil
-	}
-	if recordType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.RecordType); ok {
-		a.currentRecord = recordType
+	case *types.RecordType:
+		a.currentRecord = target
 		a.currentClass = nil
 	}
-	defer func() {
+
+	return func() {
 		a.currentFunction = prevFunc
 		a.currentSelfType = prevSelf
 		a.currentHelperType = prevHelper
@@ -434,12 +467,7 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 		a.currentRecord = prevRecord
 		a.inClassMethod = prevInClassMethod
 		a.inStaticHelperMethod = prevStaticHelper
-	}()
-	// Registered after the context restore so it runs *before* it (LIFO):
-	// emitUnusedWarningsForCurrentScope bails out when currentFunction is nil.
-	defer a.emitUnusedWarningsForCurrentScope()
-
-	a.analyzeBlock(decl.Body)
+	}
 }
 
 // analyzeHelperMethod analyzes a method in a helper.
