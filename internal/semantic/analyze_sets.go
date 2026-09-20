@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"sort"
+
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -48,4 +50,26 @@ func (a *Analyzer) analyzeSetDecl(decl *ast.SetDecl) {
 	// Register the set type
 	// Use lowercase key for case-insensitive lookup
 	a.registerTypeWithPos(setName, setType, decl.Token.Pos)
+}
+
+// setTypeDiagnosticName renders a set type the way DWScript names it in a
+// diagnostic: by the symbol the program declared it under, so
+// `type TMySet = set of TMyEnum` is reported as "TMySet" and not by its
+// structure (SetOfFail/invalid_method). An inline set (`var t : set of (a, b)`)
+// has no declared name and keeps the structural spelling.
+func (a *Analyzer) setTypeDiagnosticName(t types.Type) string {
+	if t == nil {
+		return semanticTypeNameForDiagnostic(t)
+	}
+	if _, isSet := types.GetUnderlyingType(t).(*types.SetType); !isSet {
+		return semanticTypeNameForDiagnostic(t)
+	}
+	names := append([]string(nil), a.typeRegistry.TypesByKind("SET")...)
+	sort.Strings(names)
+	for _, name := range names {
+		if declared, found := a.typeRegistry.Resolve(name); found && declared == t {
+			return name
+		}
+	}
+	return semanticTypeNameForDiagnostic(t)
 }

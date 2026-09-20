@@ -268,6 +268,15 @@ func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, cal
 		canonical = "Exclude"
 	}
 
+	if len(args) == 1 {
+		// Upstream reads `Include(set, element)` as one piece of syntax, so a
+		// lone set argument leaves the separator missing, anchored right after
+		// it (SetOfFail/include).
+		pos := args[0].End()
+		a.addError("Syntax Error: \",\" expected [line: %d, column: %d]", pos.Line, pos.Column)
+		return types.VOID
+	}
+
 	if len(args) != 2 {
 		a.addError("function '%s' expects 2 arguments, got %d at %s",
 			canonical, len(args), callExpr.Token.Pos.String())
@@ -279,7 +288,11 @@ func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, cal
 	}
 
 	setArgType := a.analyzeExpression(args[0])
-	elemArgType := a.analyzeExpression(args[1])
+	// A bare parameterless routine name in argument position is called, so the
+	// element's type is what the routine yields — `void` for a procedure
+	// (SetOfFail/invalid_operand). An explicit `@Test` is a reference and is
+	// left alone.
+	elemArgType := a.applyImplicitCallType(args[1], a.analyzeExpression(args[1]))
 
 	if setArgType == nil {
 		return types.VOID
@@ -293,8 +306,10 @@ func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, cal
 	}
 
 	if elemArgType != nil && setType.ElementType != nil && !a.canAssign(elemArgType, setType.ElementType) {
-		a.addError("function '%s' element argument has type %s, expected %s at %s",
-			canonical, elemArgType.String(), setType.ElementType.String(), callExpr.Token.Pos.String())
+		// DWScript words this like any other parameter mismatch and anchors it
+		// at the separator after the set argument, not at the element
+		// (SetOfFail/invalid_operand).
+		a.addParameterTypeExpectedAt(args[0].End(), setType.ElementType, elemArgType)
 	}
 
 	return types.VOID

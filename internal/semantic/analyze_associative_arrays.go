@@ -56,7 +56,7 @@ func (a *Analyzer) analyzeAssociativeArrayMethodCall(expr *ast.MethodCallExpress
 		}
 		if argType := a.analyzeExpressionWithExpectedType(expr.Arguments[0], assoc.KeyType); argType != nil &&
 			!types.GetUnderlyingType(argType).Equals(types.VARIANT) && !a.canAssign(argType, assoc.KeyType) {
-			a.addArrayHelperParamTypeExpectedAt(expr.Arguments[0].Pos(), assoc.KeyType, argType)
+			a.addParameterTypeExpectedAt(expr.Arguments[0].Pos(), assoc.KeyType, argType)
 		}
 		return types.BOOLEAN
 	}

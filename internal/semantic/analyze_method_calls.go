@@ -245,8 +245,21 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return method.ReturnType
 		}
 
+		// A parameterless routine named as the receiver is called first, so
+		// `Test.Exclude(e)` reaches the set the routine returns — as a
+		// temporary, which the mutator check below then rejects
+		// (SetOfFail/test_non_variable).
+		setReceiverType := objectType
+		if _, isSet := types.GetUnderlyingType(setReceiverType).(*types.SetType); !isSet {
+			if implicit := a.applyImplicitCallType(expr.Object, objectType); implicit != nil {
+				if _, isSet := types.GetUnderlyingType(implicit).(*types.SetType); isSet {
+					setReceiverType = implicit
+				}
+			}
+		}
+
 		// Handle set types with built-in methods (Include/Exclude) without helpers
-		if setType, isSet := types.GetUnderlyingType(objectType).(*types.SetType); isSet {
+		if setType, isSet := types.GetUnderlyingType(setReceiverType).(*types.SetType); isSet {
 			switch methodNameLower {
 			case "include", "exclude":
 				// Both mutate the set in place, so the receiver must be a
@@ -269,7 +282,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				}
 				return types.VOID
 			default:
-				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value,
+					a.setTypeDiagnosticName(setReceiverType)))
 				return nil
 			}
 		}
