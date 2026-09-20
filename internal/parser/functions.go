@@ -744,6 +744,11 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 				if len(p.errors) == errorCount {
 					return nil
 				}
+				if typeExpr == nil {
+					// Already reported; keep the parameter so the analyzer sees
+					// a refused type rather than a missing one (class_type).
+					typeExpr = &ast.InvalidTypeExpression{BaseNode: ast.BaseNode{Token: cursor.Peek(1)}}
+				}
 			}
 
 			// Update cursor after type parsing

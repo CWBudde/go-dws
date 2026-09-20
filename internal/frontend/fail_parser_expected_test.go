@@ -288,6 +288,95 @@ func TestCompile_DWScriptExpectedSentences(t *testing.T) {
 			source: "type\n   TClassA = class external 1\n   end;",
 			want:   []string{`Syntax Error: Name expected [line: 2, column: 29]`},
 		},
+		{
+			// FailureScripts/case_error4
+			name:   "case branch without its colon",
+			source: "var i : Integer;\n\ncase i of\n   1 ;",
+			want:   []string{`Syntax Error: Colon ":" expected [line: 4, column: 6]`},
+		},
+		{
+			// FailureScripts/class_error6: the field's colon, then the class body runs
+			// out of input; both anchor at the last token.
+			name:   "class field without its colon at end of input",
+			source: "type TTest = class\n   Field",
+			want: []string{
+				`Syntax Error: Colon ":" expected [line: 2, column: 4]`,
+				`Syntax Error: Name expected [line: 2, column: 4]`,
+			},
+		},
+		{
+			// FailureScripts/const_param3: a routine parameter needs its colon, a stop.
+			name:   "parameter without its colon",
+			source: "procedure Test(const Integer v);\nbegin\n   v:=1;\nend;",
+			want:   []string{`Syntax Error: Colon ":" expected [line: 1, column: 30]`},
+		},
+		{
+			// OperatorOverloadFail/operator_overload4
+			name:   "operator without its result type",
+			source: "operator + (TObject, TObject) ;",
+			want:   []string{`Syntax Error: Colon ":" expected [line: 1, column: 31]`},
+		},
+		{
+			// FailureScripts/const_4 and for_unfinished1: Name expected at the last token.
+			name:   "const with a number for a name",
+			source: "const 4",
+			want:   []string{`Syntax Error: Name expected [line: 1, column: 7]`},
+		},
+		{
+			name:   "for keyword alone",
+			source: "for",
+			want:   []string{`Syntax Error: Name expected [line: 1, column: 1]`},
+		},
+		{
+			// FailureScripts/for_var_error: a stop.
+			name:   "for var without a name",
+			source: "for var :=1 to 2 do ;",
+			want:   []string{`Syntax Error: Name expected [line: 1, column: 9]`},
+		},
+		{
+			// FailureScripts/proc_missing_name: the routines are read on with empty
+			// names; the dotted one is a stop.
+			name:   "routines without names",
+			source: "function (abc : Integer) : Integer;\nbegin\n   Result:=1;\nend;\n\ntype \n   TDummy = class\n      function : Integer;\n   end;\n   \nprocedure TDummy.;\nbegin\nend;",
+			want: []string{
+				`Syntax Error: Name expected [line: 1, column: 10]`,
+				`Syntax Error: Name expected [line: 8, column: 16]`,
+				`Syntax Error: Name expected [line: 11, column: 18]`,
+			},
+		},
+		{
+			// FailureScripts/method_implem3
+			name:   "qualified routine name ending in its dot",
+			source: "procedure TObject. ;\nbegin\n   \nend;\n",
+			want:   []string{`Syntax Error: Name expected [line: 1, column: 20]`},
+		},
+		{
+			// FailureScripts/resourcestring2, last declaration: anchored at the "=".
+			name:   "resourcestring without a name",
+			source: "resourcestring = 'bug';",
+			want:   []string{`Syntax Error: Name expected [line: 1, column: 16]`},
+		},
+		{
+			// FailureScripts/in_operator4: "not" after an operand wants "in", a stop.
+			name:   "not without in",
+			source: "if 1 not [+1, 2] then;",
+			want:   []string{`Syntax Error: IN expected [line: 1, column: 10]`},
+		},
+		{
+			// InterfacesFail/interface_guid: a GUID wants a string, then its bracket.
+			name:   "interface GUIDs",
+			source: "type \n\tIMyIntf = interface \n\t\t['whatever'] // GUID isn't checked\n\tend;\n\ntype \n\tIMyIntf2 = interface \n\t\t[123] // GUID isn't checked but must be string\n\tend;\n\t\ntype \n\tIMyIntf3 = interface \n\t\t['hhhh'\n\tend;\t",
+			want: []string{
+				`Syntax Error: String expected [line: 8, column: 4]`,
+				`Syntax Error: "]" expected [line: 14, column: 2]`,
+			},
+		},
+		{
+			// FailureScripts/const_record4: the constant cut short by the stop is not analysed.
+			name:   "record constant closed with the wrong bracket",
+			source: "type \n   TRec = record\n      x, y : Integer;\n   end;\n\nconst c1 : TRec = (x:1);\nconst c2 : TRec = (x:1];",
+			want:   []string{`Syntax Error: ")" expected [line: 7, column: 23]`},
+		},
 		// ---- "X" expected but "Y" found -----------------------------------------
 		{
 			// FailureScripts/else_unexpected1
