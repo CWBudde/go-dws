@@ -16,7 +16,7 @@ site for each spurious shape.
 
 | | |
 | --- | --- |
-| in-scope fixtures scored | 1,824 — 1,200 pass, 547 fail (77 unscored) |
+| in-scope fixtures | 1,824 — 1,747 scored (1,200 pass, 547 fail), 77 unscored |
 | in-scope `*Fail` failing | **433** — 143 exactly one edit away, 253 within two |
 | all in-scope failing | 547 — 156 one edit away, 284 within two |
 | missing shapes | **269** distinct, 1,068 lines, 442 fixtures |
