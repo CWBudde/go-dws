@@ -38,7 +38,7 @@ func (l *Lexer) addDirectiveDiagnostic(msg string, pos Position, severity Severi
 			return
 		}
 	}
-	diag := LexerError{Message: msg, Pos: pos, Severity: severity, Rendered: rendered}
+	diag := LexerError{Message: msg, Pos: pos, Severity: severity, Rendered: rendered, Directive: true}
 	l.directiveDiags = append(l.directiveDiags, diag)
 	l.errors = append(l.errors, diag)
 }

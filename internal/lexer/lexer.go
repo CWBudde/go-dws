@@ -1674,6 +1674,12 @@ type LexerError struct {
 	// position of its own, so the unit loader must not turn it into a positionless
 	// "compiler directive error" load failure (see units.UnitRegistry.LoadUnit).
 	Constant bool
+	// Directive marks a diagnostic raised by a compiler directive ({$HINT},
+	// {$FATAL}, an unknown switch, an unbalanced {$IFDEF}, ...). DWScript's
+	// tokenizer is pulled lazily by the parser, so upstream emits such a
+	// diagnostic where the compiler reached the directive; the go-dws lexer runs
+	// ahead, so the front end needs the origin to restore that order.
+	Directive bool
 }
 
 func (e *LexerError) Error() string {

@@ -59,6 +59,11 @@ type Diagnostic struct {
 	Stop bool
 	// sourceHints preserves a lexer directive setting until compile options are applied.
 	sourceHints token.HintLevel
+	// lexerDirective marks a diagnostic raised by a compiler directive. The
+	// go-dws lexer runs ahead of the parser, so these arrive before every
+	// semantic diagnostic; sortDiagnostics needs the origin to restore the order
+	// upstream's lazily pulled tokenizer would have produced.
+	lexerDirective bool
 }
 
 // Render returns the centralized rendered form of the diagnostic.
@@ -392,10 +397,42 @@ func safeAnalyze(analyzer *semantic.Analyzer, result *Result) (err error) {
 	return analyzer.Analyze(result.Program)
 }
 
+// directiveAgainstSemanticAdvisory reports whether exactly one of the two
+// diagnostics comes from a compiler directive and the other is a semantic hint
+// or warning. Such a pair is the one case where the appended-first lexer stream
+// misrepresents upstream's emission order; see sortDiagnostics.
+func directiveAgainstSemanticAdvisory(left, right Diagnostic) bool {
+	return isDirectiveDiagnostic(left) && isSemanticAdvisory(right) ||
+		isDirectiveDiagnostic(right) && isSemanticAdvisory(left)
+}
+
+func isDirectiveDiagnostic(diag Diagnostic) bool {
+	return diag.lexerDirective && diag.Line != 0
+}
+
+func isSemanticAdvisory(diag Diagnostic) bool {
+	return diag.Phase == PhaseSemantic && diag.Severity != SeverityError && diag.Line != 0
+}
+
 func sortDiagnostics(diags []Diagnostic) {
 	sort.SliceStable(diags, func(i, j int) bool {
 		left := diags[i]
 		right := diags[j]
+
+		// A compiler-directive diagnostic is produced by the tokenizer, which
+		// upstream pulls lazily as the compiler advances, so it is emitted where
+		// the compiler reached the directive. The go-dws lexer instead runs to
+		// completion first and its diagnostics are appended ahead of every
+		// semantic one, which the rule below would then pin there. Order such a
+		// diagnostic against a semantic hint or warning by source line, the order
+		// a single pass would have emitted them in (`hint_pedantic`: the line-9
+		// case hint precedes the line-11 unknown switch).
+		if directiveAgainstSemanticAdvisory(left, right) {
+			if left.Line != right.Line {
+				return left.Line < right.Line
+			}
+			return false
+		}
 
 		if left.Severity != SeverityError && right.Severity != SeverityError {
 			return false
@@ -598,13 +635,14 @@ func lexerDiagnostics(errs []lexer.LexerError, blocksSemantic bool) []Diagnostic
 		severity := lexerSeverity(errs[i].Severity)
 		blocking := severity == SeverityError
 		diags = append(diags, Diagnostic{
-			sourceHints: errs[i].Pos.Hints,
-			Message:     errs[i].Message,
-			Rendered:    errs[i].Rendered,
-			Phase:       PhaseParsing,
-			Line:        errs[i].Pos.Line,
-			Column:      errs[i].Pos.Column,
-			Severity:    severity,
+			sourceHints:    errs[i].Pos.Hints,
+			lexerDirective: errs[i].Directive,
+			Message:        errs[i].Message,
+			Rendered:       errs[i].Rendered,
+			Phase:          PhaseParsing,
+			Line:           errs[i].Pos.Line,
+			Column:         errs[i].Pos.Column,
+			Severity:       severity,
 			// Only errors abort the compile; {$HINT} and {$WARNING} must let
 			// semantic analysis and execution proceed.
 			Fatal:          blocking,
