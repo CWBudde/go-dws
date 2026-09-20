@@ -5167,10 +5167,10 @@ the six fixtures plus a six-case negative corpus of valid helper code.
 ## 2026-09-20 — five declaration hints, and reading upstream again (§4 / F1)
 
 Five of the seven hints PLAN.md listed as "exist nowhere in the tree" now exist.
-**FailureScripts 191 → 195**: `virtual_private`, `class_visibility_redundant`, `case_of_else`,
-`hint_reference_var_params`. The fifth, `self_assign`, has the right content and anchors and
-needs only the deferred-body ordering shipped in the same batch; with both changes in one tree
-it passes.
+**FailureScripts 193 → 198**: `virtual_private`, `class_visibility_redundant`, `case_of_else`,
+`hint_reference_var_params` and `self_assign`. The fifth needed the deferred-body splice from the
+emission-order slice as well as the hint itself: measured on its own it produced every right line
+in the wrong place, and it closed once this sat on top of that change.
 
 ### The upstream source is reachable, and it overturned three assumptions
 
@@ -5228,5 +5228,13 @@ simplification.
 
 `go test ./...`, `just fixture-update`, per-category reports for every `*Fail` suite plus
 `SimpleScripts`, `OverloadsPass`, `HelpersPass`, `ArrayPass` and `Algorithms` diffed against the
-pre-change run: four gained, none lost. Tests: `internal/frontend/fail_hints_test.go` pins the
+pre-change run: five gained, none lost. Tests: `internal/frontend/fail_hints_test.go` pins the
 fixtures verbatim, every hint at all four hint levels, and twelve negatives.
+
+The self-assignment guard and the emission-order splice met in `Analyzer.Analyze` and were
+merged rather than stacked. Upstream skips the check once an error has been reported, which
+means reported *earlier in the source*; pass 2 runs the routine bodies last, so the guard needs
+to know where the routine's declaration sits in the list. The splice already computes exactly
+that index, so `deferredBodyErrorBounds` now reads it (`beforeDecl` plus the running shift) and
+bounds the body's own diagnostics with the length at body start, instead of carrying its own
+pass-1 boundary. One index, two uses.
