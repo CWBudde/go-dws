@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1200 |
-| Failed | 766 |
+| Passed | 1203 |
+| Failed | 763 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **61%** (1200/1966) |
+| **Scored pass rate** | **61%** (1203/1966) |
 
 ## Per-category
 
@@ -24,7 +24,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | Category | Total | Pass | Fail | Skip | Pass% |
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
-| ArrayPass | 115 | 98 | 17 | 0 | 85% |
+| ArrayPass | 115 | 99 | 16 | 0 | 86% |
 | AssociativeFail | 4 | 2 | 2 | 0 | 50% |
 | AssociativePass | 27 | 27 | 0 | 0 | 100% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 191 | 338 | 13 | 36% |
+| FailureScripts | 542 | 193 | 336 | 13 | 36% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |

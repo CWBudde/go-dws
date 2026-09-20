@@ -4987,3 +4987,57 @@ Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues), and an old-vs-new binary diff over
 every fixture. Stacked on the string-constant slice, CLI and harness agree at
 **1,200 / 1,966 scored** (+8): FailureScripts 183 → 191. No category dropped.
+
+## 2026-09-20 — diagnostic emission order (§4 / F1)
+
+Two fixtures produced every right line in the wrong order, both because go-dws emits a
+diagnostic where it *analyses* the code rather than where upstream's single pass *reaches*
+it. **FailureScripts 191 → 193**, and `ArrayPass/array_of_rec_add_create` came with them
+(98 → 99), which is the same rule confirmed on an execution suite.
+
+### Deferred routine bodies splice back to their declaration
+
+Top-level routine bodies are analysed in a second pass, so mutually recursive routines
+resolve (L-S1b/c). That is right and stays. The cost was that a body's diagnostics landed
+after everything following it in the file: `infinite_loop` wants `Trap`'s warnings at lines
+6 and 3 before the main program's at 19, 21 and 35, and go-dws gave the reverse.
+
+Each deferred body now remembers `len(a.errors)` and `len(a.structuredErrors)` at the point
+it was deferred, and pass 2 splices what the body produced back to that index (`spliceBack`
+in `internal/semantic/analyzer.go`). Both passes walk `program.Statements` in source order,
+so the remembered indices are monotonic and a running shift keeps the later ones correct.
+
+`drainDeferredMethodBodies` was left alone: the same accounting already orders a class
+method body correctly in both directions, each pinned by its own test case.
+
+`ArrayPass/array_of_rec_add_create` fell out of this. Its `Testing` body produces nine
+case-mismatch hints at lines 20-29 and the main program produces one at line 32; go-dws
+reported line 32 fourth, between the body's line-12 and line-20 hints.
+
+### A compiler-directive diagnostic orders by line against a hint
+
+`hint_pedantic` wants its line-9 hint before the line-11 `Compiler switch "FOOBAR" unknown`.
+That switch is a *lexer* diagnostic, collected before semantic analysis runs and carried in
+`PhaseParsing`, so the standing rule that a hint is never reordered against an error pinned
+it first. Upstream's tokenizer reports it when the parser reaches it, which is a position in
+the same stream the analyzer is writing to.
+
+`LexerError` gained a `Directive` origin marker, set in the single funnel
+`addDirectiveDiagnostic` (`internal/lexer/diagnostics.go`) and carried to
+`Diagnostic.lexerDirective`. `sortDiagnostics` gained one rule, ahead of the two advisory
+guards: when exactly one side is a compiler-directive diagnostic and the other a semantic
+hint or warning, order by line. Everything else — two advisories, two errors, parser against
+semantic — is untouched, and malformed *constants* deliberately do not carry the marker
+because they are not directives.
+
+### Validation
+
+`go test ./...`, `just fixture-update`, and per-category reports for every `*Fail` suite plus
+`SimpleScripts`, `OverloadsPass`, `HelpersPass`, `InterfacesPass`, `Algorithms`,
+`FunctionsMath/String/Time/Variant` and `BuildScripts` diffed against the pre-change run: the
+three gains above, nothing lost. The raw output of every `{$HINT}`/`{$WARNING}`/`{$ERROR}`/
+`{$FATAL}` fixture is unchanged. Tests: `internal/frontend/fail_ordering_test.go` pins both
+fixtures verbatim plus the class-method, nested-routine and directive-interleaving cases.
+
+Left open: `SetOfFail/test_non_variable` now has its hint in the right place and fails only
+on one message (`Variable expected` where go-dws names the member), tracked under §4/F7.

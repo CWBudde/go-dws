@@ -382,11 +382,31 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// source order alongside types/consts/vars, existing ordering semantics for
 	// declarations are preserved. Pass 2 then analyzes the deferred bodies, by
 	// which point every top-level function signature is visible.
+	//
+	// Diagnostics are reported in emission order, and DWScript's single-pass
+	// compiler emits a routine body's diagnostics where the routine is declared.
+	// Deferring the body would otherwise report it after everything that follows
+	// it in the file (FailureScripts/infinite_loop), so each deferred body
+	// remembers how many diagnostics existed when it was deferred and pass 2
+	// splices what the body produced back to that point.
+	//
+	// The remembered position cannot account for inline class method bodies,
+	// which stay queued until the last top-level class declaration and are then
+	// drained as one batch. A statement written between two class declarations
+	// therefore precedes both class bodies' diagnostics, whether it is a routine
+	// spliced back here or an ordinary statement reported in pass 1; the batched
+	// drain, not the splice, is what orders them. Splicing the class bodies back
+	// to their own declarations too would need upstream evidence that no fixture
+	// currently provides.
 	type deferredFunc struct {
 		returnType types.Type
 		decl       *ast.FunctionDecl
 		paramTypes []types.Type
 		analyze    bool
+		// errorsAt and structuredAt are the lengths of a.errors and
+		// a.structuredErrors when the body was deferred.
+		errorsAt     int
+		structuredAt int
 	}
 	deferred := make(map[*ast.FunctionDecl]deferredFunc)
 
@@ -401,10 +421,12 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		if fd, ok := stmt.(*ast.FunctionDecl); ok && fd.ClassName == nil && !fd.IsHelper {
 			paramTypes, returnType, regOK := a.registerFunctionSignature(fd)
 			deferred[fd] = deferredFunc{
-				decl:       fd,
-				paramTypes: paramTypes,
-				returnType: returnType,
-				analyze:    regOK && !fd.IsForward,
+				decl:         fd,
+				paramTypes:   paramTypes,
+				returnType:   returnType,
+				analyze:      regOK && !fd.IsForward,
+				errorsAt:     len(a.errors),
+				structuredAt: len(a.structuredErrors),
 			}
 			continue
 		}
@@ -417,15 +439,27 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 	a.drainDeferredMethodBodies()
 
-	// Pass 2: analyze deferred function bodies in source order.
+	// Pass 2: analyze deferred function bodies in source order, splicing each
+	// body's diagnostics back to its declaration position. The remembered
+	// positions grow with source order, so every earlier splice shifts the
+	// later ones by what it inserted.
+	errorsShift, structuredShift := 0, 0
 	for _, stmt := range program.Statements {
 		fd, ok := stmt.(*ast.FunctionDecl)
 		if !ok {
 			continue
 		}
-		if df, tracked := deferred[fd]; tracked && df.analyze {
-			a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
+		df, tracked := deferred[fd]
+		if !tracked || !df.analyze {
+			continue
 		}
+		errorsBefore := len(a.errors)
+		structuredBefore := len(a.structuredErrors)
+		a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
+		a.errors = spliceBack(a.errors, errorsBefore, df.errorsAt+errorsShift)
+		errorsShift += len(a.errors) - errorsBefore
+		a.structuredErrors = spliceBack(a.structuredErrors, structuredBefore, df.structuredAt+structuredShift)
+		structuredShift += len(a.structuredErrors) - structuredBefore
 	}
 
 	a.reportUnimplementedForwards(a.symbols)
@@ -538,6 +572,19 @@ func (a *Analyzer) addForwardMethodNotImplementedIfForwarded(classType *types.Cl
 	}
 	a.addStructuredError(NewMethodNotImplementedError(pos, methodDisplayName, classType.Name))
 	a.forwardMethodReported[key] = true
+}
+
+// spliceBack moves list[from:] to position at (at <= from), keeping the moved
+// elements in order and shifting list[at:from] behind them. It is used to
+// report a deferred body's diagnostics where the body was declared.
+func spliceBack[T any](list []T, from, at int) []T {
+	if at >= from || from >= len(list) {
+		return list
+	}
+	moved := append([]T(nil), list[from:]...)
+	copy(list[at+len(moved):], list[at:from])
+	copy(list[at:], moved)
+	return list
 }
 
 // Errors returns all accumulated semantic errors
