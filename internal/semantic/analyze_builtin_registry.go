@@ -95,7 +95,11 @@ func (a *Analyzer) checkValuelessBuiltinArgument(sig *builtins.FunctionSignature
 // parameter that is not assignable. Its exact type is checked separately by the
 // signature constraint attached alongside the var marker.
 func (a *Analyzer) checkBuiltinVarArgument(sig *builtins.FunctionSignature, name string, index int, arg ast.Expression) {
-	if !sig.IsVarParam(index) || a.isLValue(arg) {
+	if !sig.IsVarParam(index) {
+		return
+	}
+	a.markVarArgumentWritten(arg)
+	if a.isLValue(arg) {
 		return
 	}
 	a.addError("var parameter %d to function '%s' requires a variable (identifier, array element, or field), got %s at %s",

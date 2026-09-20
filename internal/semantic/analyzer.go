@@ -113,17 +113,23 @@ type Analyzer struct {
 	deferredClassChecks     []deferredClassCheck
 	pendingClassMemberDecls map[string]int
 	errors                  []string
-	loopPosStack            []token.Position
-	structuredErrors        []*SemanticError
-	loopExitabilityStack    []LoopExitability
-	loopDepth               int
-	hintsLevel              HintsLevel
-	inUnitDecl              bool
-	deferClassMethodBodies  bool
-	parseHadErrors          bool
-	inLoop                  bool
-	inLambda                bool
-	inClassMethod           bool
+	// deferredBody bounds the diagnostics that precede, in source order, the
+	// top-level routine body pass 2 is currently analyzing. Pass 2 runs the
+	// bodies after every other top-level statement and only splices each one
+	// back once it is finished, so the raw error list is not in source order
+	// while the body is running; see errorsPrecedeCurrentStatement.
+	deferredBody           deferredBodyErrorBounds
+	loopPosStack           []token.Position
+	structuredErrors       []*SemanticError
+	loopExitabilityStack   []LoopExitability
+	loopDepth              int
+	hintsLevel             HintsLevel
+	inUnitDecl             bool
+	deferClassMethodBodies bool
+	parseHadErrors         bool
+	inLoop                 bool
+	inLambda               bool
+	inClassMethod          bool
 	// inStaticHelperMethod marks the body of a `static` helper class method,
 	// which is invoked with neither an instance nor a class reference and so
 	// has no Self at all.
@@ -460,7 +466,16 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		}
 		errorsBefore := len(a.errors)
 		structuredBefore := len(a.structuredErrors)
+		// Every earlier body has already been spliced back, so a.errors is in
+		// source order up to errorsBefore and the routine's own declaration
+		// sits at its remembered index plus what those splices inserted.
+		a.deferredBody = deferredBodyErrorBounds{
+			beforeDecl: df.errorsAt + errorsShift,
+			bodyStart:  errorsBefore,
+			active:     true,
+		}
 		a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
+		a.deferredBody = deferredBodyErrorBounds{}
 		a.errors = spliceBack(a.errors, errorsBefore, df.errorsAt+errorsShift)
 		errorsShift += len(a.errors) - errorsBefore
 		a.structuredErrors = spliceBack(a.structuredErrors, structuredBefore, df.structuredAt+structuredShift)
@@ -499,12 +514,43 @@ func (a *Analyzer) clearPredeclaredClassType(className string) {
 }
 
 func (a *Analyzer) hasActualErrors() bool {
-	for _, err := range a.errors {
+	return containsActualError(a.errors)
+}
+
+func containsActualError(diagnostics []string) bool {
+	for _, err := range diagnostics {
 		if !strings.HasPrefix(err, "Hint:") && !strings.HasPrefix(err, "Warning:") {
 			return true
 		}
 	}
 	return false
+}
+
+// deferredBodyErrorBounds locates the diagnostics that precede a deferred
+// top-level routine body in source order. Pass 2 splices each finished body
+// back to its declaration, so while a body is being analyzed a.errors holds a
+// source-ordered prefix — pass 1's diagnostics with every earlier body already
+// woven in — followed by what this body has reported so far. beforeDecl is the
+// routine's own declaration point inside that prefix; the pass-1 diagnostics
+// after it were raised by statements written below the routine and must not
+// count. bodyStart is where this body's own diagnostics begin, and they do.
+type deferredBodyErrorBounds struct {
+	beforeDecl int
+	bodyStart  int
+	active     bool
+}
+
+// errorsPrecedeCurrentStatement reports whether an actual error had already
+// been raised at the point the statement under analysis occupies in source
+// order. Diagnostics that a later statement will raise do not count, which the
+// raw error list cannot tell apart once pass 2 has moved the routine bodies to
+// the end.
+func (a *Analyzer) errorsPrecedeCurrentStatement() bool {
+	if !a.deferredBody.active {
+		return a.hasActualErrors()
+	}
+	return containsActualError(a.errors[:a.deferredBody.beforeDecl]) ||
+		containsActualError(a.errors[a.deferredBody.bodyStart:])
 }
 
 // reportUnimplementedForwards reports every routine of the scopes that was declared

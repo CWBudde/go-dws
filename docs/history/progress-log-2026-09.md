@@ -5163,3 +5163,78 @@ rejects. Each declaration got a trivial body; no expectation was weakened.
 against `baselines.json` (only `HelpersFail` moved), and `HelpersPass`/`FailureScripts` failing
 lists byte-identical to the pre-change run. Tests: `internal/frontend/fail_helpers_test.go` pins
 the six fixtures plus a six-case negative corpus of valid helper code.
+
+## 2026-09-20 — five declaration hints, and reading upstream again (§4 / F1)
+
+Five of the seven hints PLAN.md listed as "exist nowhere in the tree" now exist.
+**FailureScripts 193 → 198**: `virtual_private`, `class_visibility_redundant`, `case_of_else`,
+`hint_reference_var_params` and `self_assign`. The fifth needed the deferred-body splice from the
+emission-order slice as well as the hint itself: measured on its own it produced every right line
+in the wrong place, and it closed once this sat on top of that change.
+
+### The upstream source is reachable, and it overturned three assumptions
+
+`reference/dwscript-original/` is an empty submodule, which is why several items in `PLAN.md`
+are parked with "the reference implementation is not checked out". The originals fetch from
+`raw.githubusercontent.com/EricGrange/DWScript/master/Source/*.pas`. Reading `dwsCompiler.pas`
+changed four decisions that the fixtures alone had suggested:
+
+- **Hint levels are per-diagnostic, not uniform.** `AddCompilerHint` defaults to `hlNormal`.
+  Private virtual is `hlNormal`, a class's redundant specifier is `hlStrict`, a record's or
+  helper's is `hlNormal`, assigning to itself is `hlNormal`, the redundant `begin` is
+  `hlPedantic` and the unwritten var parameter is `hlPedantic`. Only the last two match the
+  "pedantic-only" assumption this slice started from. Each is implemented at its own level and
+  pinned across all four levels.
+- **The self-assignment anchor is the `:=`**, not the right-hand side: `hotPos := FTok.HotPos`
+  is taken after the assignment token is consumed. Columns 3, 6, 32 and 45 in the fixture are
+  all the `:=`. Upstream also skips the check once any error has been reported, "too sensitive
+  otherwise", which is mirrored.
+- **A class body's first visibility specifier is never redundant** (`firstVisibilityToken`),
+  while a named record or helper body starts at `public`, so an opening `public` there *is*
+  redundant. Assuming a `public` default for classes cost ten fixtures before measurement
+  caught it; upstream then explained why.
+- **`a.Inc;` counts as a write to `a`.** A statement starting with a name is read with
+  `ReadName(isWrite=True)` because it may turn out to be an assignment, and
+  `HintReferenceConstVarParams` reads that flag back out of the symbol dictionary. That
+  optimistic marking is why `SimpleScripts/var_param_parent` expects no hint.
+
+### Shape of the change
+
+All five checkers live in the new `internal/semantic/analyze_hints.go`; every existing function
+gained exactly one call at its head. `ast.FunctionDecl` carries `VirtualPos` and `ast.ClassDecl`
+carries `VisibilitySections` (reusing the record element type, `ast:"skip"`, so the generated
+visitor is unchanged). `Symbol` gained `Written`. `checkRecordVisibilitySections` now delegates
+to the shared redundancy checker, keeping its behaviour.
+
+### One suppression, recorded as an open item
+
+`Result := result` does not draw the hint. go-dws binds a routine's implicit `Result` and a
+local spelled `result` to one symbol — DWScript rejects that redeclaration outright — so the
+assignment is an artifact of the binding rather than a self-assignment.
+`internal/interp/lambda_test.go:TestLambdaWithLoop` depends on the current binding. No fixture
+pins `Result := Result`, so the whole name is skipped, and the underlying redeclaration gap is
+now tracked in `PLAN.md` §4/F1 rather than left in a comment.
+
+### Left open, measured
+
+`var_object`, `self_not_writable` and `OperatorOverloadFail/operator_overload5` now emit their
+var-parameter hints with the right text and anchors but in the trailing position, and each also
+needs unrelated fixes. Qualified self-assignment (`o.F := o.F`), var parameters passed on as
+another routine's var argument, and interface- or array-typed var parameters are all unpinned by
+any fixture; upstream tests `param.Typ.IsClassSymbol`, so class-only is correct rather than a
+simplification.
+
+### Validation
+
+`go test ./...`, `just fixture-update`, per-category reports for every `*Fail` suite plus
+`SimpleScripts`, `OverloadsPass`, `HelpersPass`, `ArrayPass` and `Algorithms` diffed against the
+pre-change run: five gained, none lost. Tests: `internal/frontend/fail_hints_test.go` pins the
+fixtures verbatim, every hint at all four hint levels, and twelve negatives.
+
+The self-assignment guard and the emission-order splice met in `Analyzer.Analyze` and were
+merged rather than stacked. Upstream skips the check once an error has been reported, which
+means reported *earlier in the source*; pass 2 runs the routine bodies last, so the guard needs
+to know where the routine's declaration sits in the list. The splice already computes exactly
+that index, so `deferredBodyErrorBounds` now reads it (`beforeDecl` plus the running shift) and
+bounds the body's own diagnostics with the length at body start, instead of carrying its own
+pass-1 boundary. One index, two uses.

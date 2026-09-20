@@ -143,7 +143,11 @@ type FunctionDecl struct {
 	// otherwise the first token after the last directive's ';'.
 	HeaderEndPos token.Position
 	// ForwardPos is the position of the `forward` directive, if any.
-	ForwardPos    token.Position
+	ForwardPos token.Position
+	// VirtualPos is the position of the `virtual` directive, if any. DWScript
+	// anchors "Private virtual methods cannot be overridden" on the keyword
+	// rather than on the method name.
+	VirtualPos    token.Position
 	Visibility    Visibility
 	IsConstructor bool
 	IsDestructor  bool

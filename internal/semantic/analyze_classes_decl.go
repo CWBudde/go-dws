@@ -386,6 +386,8 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 	}()
 
+	a.checkClassVisibilitySections(decl)
+
 	className := classFullName(decl)
 	isForwardDecl := a.isForwardDeclaration(decl)
 
@@ -879,6 +881,7 @@ func (a *Analyzer) findMatchingOverloadForImplementation(implDecl *ast.FunctionD
 
 // analyzeMethodDecl analyzes a method declaration within a class.
 func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.ClassType) {
+	a.checkPrivateVirtualMethod(method)
 	a.addCallConventionHint(method)
 	if method.IsStatic && !method.IsClassMethod {
 		pos := method.StaticPos

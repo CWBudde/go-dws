@@ -10,21 +10,21 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,213 / 1,966 scored =
-62%**; `*Fail` error-detection suites **220 / 641 = 34%**. What shipped to get there is in
+**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,218 / 1,966 scored =
+62%**; `*Fail` error-detection suites **225 / 641 = 35%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,213 / 1,747 = 69% in scope**, the number to track against §6. Both are honest;
+same run reads **1,218 / 1,747 = 70% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 421 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 416 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
@@ -54,12 +54,19 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (753 total, 2026-09-20): **219 host-library** (out of scope),
-  **421 in the `*Fail` error-detection suites** (§4: FailureScripts 336, InterfacesFail 18,
+- Where the remaining failures are (748 total, 2026-09-20): **219 host-library** (out of scope),
+  **416 in the `*Fail` error-detection suites** (§4: FailureScripts 331, InterfacesFail 18,
   HelpersFail 12, the rest under 15), and **113 in the execution suites** (§3.5:
   SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
+- **Upstream source is reachable without the submodule.** `reference/dwscript-original/` is an
+  empty submodule, but the originals fetch from
+  `raw.githubusercontent.com/EricGrange/DWScript/master/Source/*.pas`. Read the emit site before
+  guessing a hint level or an anchor: the 2026-09-20 hint slice found that hint levels are
+  per-diagnostic, not uniform, and that three assumptions taken from the fixtures alone were
+  wrong. Several ✋ items below were parked only because "the reference implementation is not
+  checked out" and are worth revisiting on that basis.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
   (T8). It reports each failure's distance from passing, whether what differs is a diagnostic or
   the program's output, and which message shapes recur — none of which `baselines.json` can see,
@@ -342,7 +349,7 @@ independently; evaluate it once, as E9 does for member receivers.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 220/641 (FailureScripts 193/529, SetOfFail 10, HelpersFail 6, OverloadsFail 3,
+Harness and CLI: 225/641 (FailureScripts 198/529, SetOfFail 10, HelpersFail 6, OverloadsFail 3,
 JSONConnectorFail 2, PropertyExpressionsFail 2, AssociativeFail 2, InterfacesFail 1,
 JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
@@ -366,8 +373,8 @@ closed outright.
 Work families — IDs from the 2026-03 analysis
 (`docs/archive/failure-scripts-next-phase-plan.md`), counts from the 2026-09-12 re-measurement:
 
-- **F1** `[~]` M Warning/hint emission and ordering. The for-loop and ordering halves are closed;
-  what is left is the hints that do not exist yet.
+- **F1** `[~]` M Warning/hint emission and ordering. The for-loop half, the ordering half and the
+  five missing declaration hints are closed; what is left is the two hints below and the residue.
   - Ordering closed 2026-09-20 ([log](docs/history/progress-log-2026-09.md)): deferred routine
     bodies splice their diagnostics back to the declaration point (`infinite_loop`,
     `ArrayPass/array_of_rec_add_create`), and a compiler-directive diagnostic orders by line
@@ -378,15 +385,17 @@ Work families — IDs from the 2026-03 analysis
     Pre-existing and independent of the splice above: a bare `while True do ;` between two classes
     with inline bodies orders `9, 5, 15` on main and on the ordering branch alike. No fixture covers
     the shape; settle it against upstream's emission before changing the drain.
-  - `[ ]` Hints and warnings that exist nowhere in the tree, lines (fixtures) — one subtask each:
+  - `[~]` Hints and warnings that exist nowhere in the tree, lines (fixtures). Five closed
+    2026-09-20 ([log](docs/history/progress-log-2026-09.md)): `case_of_else`,
+    `virtual_private`, `class_visibility_redundant`, `hint_reference_var_params` and
+    `self_assign`. Left:
     - `[ ]` M `Unreachable code` 12 (5)
     - `[ ]` M `Constant condition` 8 (5) — also needed by `contracts_precondition`
-    - `[ ]` S `Redundant "begin" in clause of a case..of` (`case_of_else`)
-    - `[ ]` S `Private virtual methods cannot be overridden` (`virtual_private`)
-    - `[ ]` S `Redundant specifier, visibility is already "X"` (`class_visibility_redundant`)
-    - `[ ]` S `"X" parameter is a reference type passed as VAR, but never written to`
-      (`hint_reference_var_params`)
-    - `[ ]` S `Assigning a to itself` (`self_assign`)
+  - `[ ]` S `Result := result` is skipped by the self-assignment hint because go-dws binds a
+    routine's implicit `Result` and a local spelled `result` to **one symbol**, where DWScript
+    rejects the redeclaration outright (`internal/interp/lambda_test.go:TestLambdaWithLoop`
+    relies on the current binding). No fixture pins `Result := Result`; close the redeclaration
+    gap and the suppression in `internal/semantic/analyze_hints.go` can go.
   - `[ ]` Unused-symbol ownership: synthetic `Result is never used` on expression lambdas
     (`LambdaPass/immediate`), unused-private hints on interface implementers (E12 `intf_private`),
     missing deprecated warning in `randseed` (2:9).

@@ -203,10 +203,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 				break
 			}
 
-			isVar := len(funcType.VarParams) > i && funcType.VarParams[i]
-			if isVar && !a.isLValue(arg) {
-				a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
-					i+1, arg.String(), arg.Pos().String())
+			if isVar := len(funcType.VarParams) > i && funcType.VarParams[i]; isVar {
+				a.markVarArgumentWritten(arg)
+				if !a.isLValue(arg) {
+					a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
+						i+1, arg.String(), arg.Pos().String())
+				}
 			}
 
 			paramType := funcType.Parameters[i]
@@ -325,10 +327,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 						break
 					}
 
-					isVar := len(methodType.VarParams) > i && methodType.VarParams[i]
-					if isVar && !a.isLValue(arg) {
-						a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
-							i+1, arg.String(), arg.Pos().String())
+					if isVar := len(methodType.VarParams) > i && methodType.VarParams[i]; isVar {
+						a.markVarArgumentWritten(arg)
+						if !a.isLValue(arg) {
+							a.addError("var parameter %d requires a variable (identifier, array element, or field), got %s at %s",
+								i+1, arg.String(), arg.Pos().String())
+						}
 					}
 
 					paramType := methodType.Parameters[i]
@@ -776,10 +780,14 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		isLazy := len(funcType.LazyParams) > i && funcType.LazyParams[i]
 		isVar := len(funcType.VarParams) > i && funcType.VarParams[i]
 
-		// Var parameters must be lvalues
-		if isVar && !a.isLValue(arg) {
-			a.addError("var parameter %d to function '%s' requires a variable (identifier, array element, or field), got %s at %s",
-				i+1, funcIdent.Value, arg.String(), arg.Pos().String())
+		// Var parameters must be lvalues, and the caller's variable counts as
+		// written because the callee may rebind it.
+		if isVar {
+			a.markVarArgumentWritten(arg)
+			if !a.isLValue(arg) {
+				a.addError("var parameter %d to function '%s' requires a variable (identifier, array element, or field), got %s at %s",
+					i+1, funcIdent.Value, arg.String(), arg.Pos().String())
+			}
 		}
 
 		expectedName := semanticFunctionParamTypeName(funcType, i, expectedType)

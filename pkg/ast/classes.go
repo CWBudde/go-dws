@@ -76,6 +76,11 @@ type ClassDecl struct {
 	NestedTypes       []Statement
 	Properties        []*PropertyDecl
 	TypeParams        []string
+	// VisibilitySections records every visibility specifier written in the class
+	// body, in source order, so the analyzer can diagnose a section that repeats
+	// the visibility already in effect. It shares the record body's element type
+	// because the two carry the same information.
+	VisibilitySections []RecordVisibilitySection `ast:"skip"`
 	BaseNode
 	// PartialHintPos anchors a continuation hint after modifiers and before ancestry.
 	PartialHintPos token.Position

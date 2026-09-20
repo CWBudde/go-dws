@@ -19,19 +19,11 @@ import (
 // and `published`, and DWScript hints when a section repeats the visibility
 // that is already in effect.
 func (a *Analyzer) checkRecordVisibilitySections(sections []ast.RecordVisibilitySection) {
-	current := "public"
-	for _, section := range sections {
-		switch section.Specifier {
-		case "protected":
+	a.checkVisibilitySectionRedundancy(sections, visibilityInEffectInRecord, HintsLevelNormal,
+		func(section ast.RecordVisibilitySection) {
 			a.addStructuredError(NewGenericError(section.Pos,
 				`Records do not supported "protected" visibility specifier`))
-		case current:
-			a.addHintAt(section.Pos, "Redundant specifier, visibility is already %q [line: %d, column: %d]",
-				section.Specifier, section.Pos.Line, section.Pos.Column)
-		default:
-			current = section.Specifier
-		}
-	}
+		})
 }
 
 // recordHasNoMembers reports whether a record body declares no members of any

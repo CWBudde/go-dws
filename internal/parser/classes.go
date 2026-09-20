@@ -218,21 +218,30 @@ func isBuiltinClass(name string) bool {
 // PRE: cursor is CLASS
 // POST: cursor is END
 // handleVisibilityKeyword checks for and handles visibility section keywords, returning true if one was found.
-func (p *Parser) handleVisibilityKeyword(cursor *TokenCursor, currentVisibility *ast.Visibility) bool {
-	if cursor.Current().Type == lexer.PRIVATE {
+func (p *Parser) handleVisibilityKeyword(
+	cursor *TokenCursor, currentVisibility *ast.Visibility, classDecl *ast.ClassDecl,
+) bool {
+	switch cursor.Current().Type {
+	case lexer.PRIVATE:
 		*currentVisibility = ast.VisibilityPrivate
-		return true
-	} else if cursor.Current().Type == lexer.PROTECTED {
+	case lexer.PROTECTED:
 		*currentVisibility = ast.VisibilityProtected
-		return true
-	} else if cursor.Current().Type == lexer.PUBLIC {
+	case lexer.PUBLIC, lexer.PUBLISHED:
+		// `published` behaves like `public` for member access; it stays a
+		// distinct specifier only for the redundant-section hint.
 		*currentVisibility = ast.VisibilityPublic
-		return true
-	} else if cursor.Current().Type == lexer.PUBLISHED {
-		*currentVisibility = ast.VisibilityPublic
-		return true
+	default:
+		return false
 	}
-	return false
+
+	if classDecl != nil {
+		classDecl.VisibilitySections = append(classDecl.VisibilitySections,
+			ast.RecordVisibilitySection{
+				Specifier: pkgident.Normalize(cursor.Current().Literal),
+				Pos:       cursor.Current().Pos,
+			})
+	}
+	return true
 }
 
 // parseClassLevelMember parses class-level members (class var/const/property/method/operator).
@@ -481,7 +490,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 		}
 
 		// Check for visibility section keywords
-		if p.handleVisibilityKeyword(cursor, &currentVisibility) {
+		if p.handleVisibilityKeyword(cursor, &currentVisibility, classDecl) {
 			cursor = cursor.Advance()
 			p.cursor = cursor
 			continue
