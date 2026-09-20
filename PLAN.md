@@ -10,21 +10,21 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,203 / 1,966 scored =
-61%**; `*Fail` error-detection suites **210 / 641 = 33%**. What shipped to get there is in
+**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,207 / 1,966 scored =
+61%**; `*Fail` error-detection suites **214 / 641 = 33%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,203 / 1,747 = 69% in scope**, the number to track against §6. Both are honest;
+same run reads **1,207 / 1,747 = 69% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 431 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 427 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
@@ -55,7 +55,7 @@ Rules for this document:
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
 - Where the remaining failures are (763 total, 2026-09-20): **219 host-library** (out of scope),
-  **431 in the `*Fail` error-detection suites** (§4: FailureScripts 336, InterfacesFail and
+  **427 in the `*Fail` error-detection suites** (§4: FailureScripts 336, InterfacesFail and
   HelpersFail 18 each, the rest under 15), and **113 in the execution suites** (§3.5:
   SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
@@ -342,7 +342,7 @@ independently; evaluate it once, as E9 does for member receivers.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 210/641 (FailureScripts 193/529, SetOfFail 6, OverloadsFail 3, JSONConnectorFail 2,
+Harness and CLI: 214/641 (FailureScripts 193/529, SetOfFail 10, OverloadsFail 3, JSONConnectorFail 2,
 PropertyExpressionsFail 2, AssociativeFail 2, InterfacesFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with

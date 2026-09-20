@@ -5044,8 +5044,9 @@ on one message (`Variable expected` where go-dws names the member), tracked unde
 
 ## 2026-09-20 — set-mutator sentences and the declared set-type name (§4 / F7)
 
-**SetOfFail 6 → 9**: `bracket_left_missing`, `include`, `invalid_method`. FailureScripts is
-unchanged and `SetOfPass` stays 25/25.
+**SetOfFail 6 → 10**: `bracket_left_missing`, `include`, `invalid_method` and, once this sits on
+the emission-order slice (§4 / F1), `test_non_variable`. FailureScripts is unchanged and `SetOfPass`
+stays 25/25.
 
 ### The declared name, not the structure
 
@@ -5079,9 +5080,11 @@ rather than naming the member.
 
 ### Left open, measured
 
-- `test_non_variable` is one line from passing: both `Variable expected` sentences and anchors
-  are right, and only the `Result is never used` hint is out of order. That is F1's deferred-body
-  splice; with both changes in a tree the fixture passes.
+- `test_non_variable` needed both halves: this slice supplies both `Variable expected` sentences
+  and their anchors, and the deferred-body splice from the emission-order slice puts the
+  `Result is never used` hint back in front of them. Measured apart, each left the fixture one
+  line short; rebased onto the ordering change it passes, which is where the tenth `SetOfFail`
+  comes from.
 - `invalid_operand` went from distance 6 to 3. Lines 6, 8 and 12 match verbatim. The rest needs
   `unexpected "@"`, which exists nowhere in the tree (`FailureScripts/at_integer`, `dyn_array3`,
   `field_init1` and `func_ptr6` want it too), F10's routine-type renderer for
