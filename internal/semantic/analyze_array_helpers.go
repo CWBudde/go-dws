@@ -250,12 +250,16 @@ func (a *Analyzer) addArrayHelperIntegerExpectedAt(pos token.Position) {
 	a.addArrayHelperError(pos, "Integer expression expected")
 }
 
-func (a *Analyzer) addArrayHelperParamTypeExpectedText(pos token.Position, expected string, got string) {
+// addParameterTypeExpectedText reports DWScript's parameter-mismatch sentence.
+// It is shared by every construct that checks an argument against a declared
+// parameter type — array helpers, associative-array helpers and the set
+// mutators Include/Exclude.
+func (a *Analyzer) addParameterTypeExpectedText(pos token.Position, expected string, got string) {
 	a.addArrayHelperError(pos,
 		`Incompatible parameter types - "`+expected+`" expected (instead of "`+got+`")`)
 }
 
-func (a *Analyzer) addArrayHelperParamTypeExpectedAt(pos token.Position, expected types.Type, got types.Type) {
+func (a *Analyzer) addParameterTypeExpectedAt(pos token.Position, expected types.Type, got types.Type) {
 	a.addArrayHelperError(pos,
 		`Incompatible parameter types - "`+semanticTypeNameForDiagnostic(expected)+`" expected (instead of "`+semanticTypeNameForDiagnostic(got)+`")`)
 }
@@ -451,11 +455,11 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 				if argArrayType.ElementType != nil && elementType != nil && a.canAssign(argArrayType.ElementType, elementType) {
 					continue
 				}
-				a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
+				a.addParameterTypeExpectedAt(arg.Pos(), elementType, argType)
 				continue
 			}
 			if elementType != nil && !a.canAssign(argType, elementType) {
-				a.addArrayHelperParamTypeExpectedAt(arg.Pos(), elementType, argType)
+				a.addParameterTypeExpectedAt(arg.Pos(), elementType, argType)
 			}
 		}
 		return types.VOID
@@ -492,7 +496,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperTooManyArgs(expr)
 		}
 		if argType := a.analyzeExpressionWithExpectedType(expr.Arguments[0], arrayType.ElementType); argType != nil && !a.canAssign(argType, arrayType.ElementType) {
-			a.addArrayHelperParamTypeExpectedAt(expr.Arguments[0].Pos(), arrayType.ElementType, argType)
+			a.addParameterTypeExpectedAt(expr.Arguments[0].Pos(), arrayType.ElementType, argType)
 		}
 		if len(expr.Arguments) > 1 {
 			a.validateArrayIntegerArgAt(expr.Arguments[1], expr.Arguments[0].Pos())
@@ -507,7 +511,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperTooManyArgs(expr)
 		}
 		if argType := a.analyzeExpressionWithExpectedType(expr.Arguments[0], arrayType.ElementType); argType != nil && !a.canAssign(argType, arrayType.ElementType) {
-			a.addArrayHelperParamTypeExpectedAt(expr.Arguments[0].Pos(), arrayType.ElementType, argType)
+			a.addParameterTypeExpectedAt(expr.Arguments[0].Pos(), arrayType.ElementType, argType)
 		}
 		if len(expr.Arguments) > 1 {
 			a.validateArrayIntegerArgAt(expr.Arguments[1], expr.Arguments[0].Pos())
@@ -523,7 +527,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		}
 		a.validateArrayIntegerArg(expr.Arguments[0])
 		if argType := a.analyzeExpressionWithExpectedType(expr.Arguments[1], arrayType.ElementType); argType != nil && !a.canAssign(argType, arrayType.ElementType) {
-			a.addArrayHelperParamTypeExpectedAt(expr.Arguments[1].Pos(), arrayType.ElementType, argType)
+			a.addParameterTypeExpectedAt(expr.Arguments[1].Pos(), arrayType.ElementType, argType)
 		}
 		return types.VOID
 	case types.HelperArrayMove:
@@ -572,7 +576,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			a.addArrayHelperTooManyArgs(expr)
 		}
 		if argType := a.analyzeExpressionWithExpectedType(expr.Arguments[0], arrayType.ElementType); argType != nil && !a.canAssign(argType, arrayType.ElementType) {
-			a.addArrayHelperParamTypeExpectedAt(expr.Arguments[0].Pos(), arrayType.ElementType, argType)
+			a.addParameterTypeExpectedAt(expr.Arguments[0].Pos(), arrayType.ElementType, argType)
 		}
 		return types.BOOLEAN
 	case types.HelperArrayFilter:
@@ -588,7 +592,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 		arg := expr.Arguments[0]
 		argType := a.analyzeArrayHelperCallbackArg(arg, predicateType)
 		if argType != nil && !a.canAssign(argType, predicateType) {
-			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), predicateType, argType)
+			a.addParameterTypeExpectedAt(arg.Pos(), predicateType, argType)
 		}
 		return types.NewDynamicArrayType(arrayType.ElementType)
 	case types.HelperArrayCopy:
@@ -624,15 +628,15 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 					if len(fn.Parameters) > 0 {
 						a.addStructuredError(NewNoOverloadMatchError(namePos, name))
 					}
-					a.addArrayHelperParamTypeExpectedText(arg.Pos(), semanticFunctionPointerName(callbackType), callbackResultTypeName(fn))
+					a.addParameterTypeExpectedText(arg.Pos(), semanticFunctionPointerName(callbackType), callbackResultTypeName(fn))
 					return types.VOID
 				}
-				a.addArrayHelperParamTypeExpectedText(arg.Pos(), semanticFunctionPointerName(callbackType), semanticNamedFunctionPointerName(name, fn))
+				a.addParameterTypeExpectedText(arg.Pos(), semanticFunctionPointerName(callbackType), semanticNamedFunctionPointerName(name, fn))
 				return types.VOID
 			}
 		}
 		if argType != nil && !a.canAssign(argType, callbackType) {
-			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), callbackType, argType)
+			a.addParameterTypeExpectedAt(arg.Pos(), callbackType, argType)
 		}
 		return types.VOID
 	case types.HelperArrayMap:
@@ -659,7 +663,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 				if fnType, ok := sym.Type.(*types.FunctionType); ok && len(fnType.Parameters) == 1 {
 					if fnType.ConstParams != nil && len(fnType.ConstParams) > 0 && fnType.ConstParams[0] {
 						a.addArrayHelperError(identExpr.Token.Pos, `More arguments expected`)
-						a.addArrayHelperParamTypeExpectedText(arg.Pos(),
+						a.addParameterTypeExpectedText(arg.Pos(),
 							"function ("+semanticTypeNameForDiagnostic(arrayType.ElementType)+"): Any Type",
 							semanticNamedFunctionSignature(identExpr.Value, fnType))
 						return types.NewDynamicArrayType(arrayType.ElementType)
@@ -668,7 +672,7 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 			}
 		}
 		if !a.canAssign(argType, expectedType) {
-			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), expectedType, argType)
+			a.addParameterTypeExpectedAt(arg.Pos(), expectedType, argType)
 		}
 		// The mapped array's element type is the callback's return type, whether
 		// the callback is a lambda/function pointer or a named function.
@@ -704,16 +708,16 @@ func (a *Analyzer) analyzeArrayMethodCall(expr *ast.MethodCallExpression, arrayT
 					a.addArrayHelperError(namePos, "More arguments expected")
 					a.addArrayHelperError(arg.Pos(),
 						`Incompatible types: "`+semanticTypeNameForDiagnostic(comparatorType)+`" and "`+semanticNamedFunctionPointerName(name, fn)+`"`)
-					a.addArrayHelperParamTypeExpectedText(arg.Pos(), semanticFunctionPointerName(comparatorType), "nil")
+					a.addParameterTypeExpectedText(arg.Pos(), semanticFunctionPointerName(comparatorType), "nil")
 					return arrayType
 				}
 				a.addArrayHelperError(namePos, "More arguments expected")
-				a.addArrayHelperParamTypeExpectedText(arg.Pos(), semanticFunctionPointerName(comparatorType), callbackResultTypeName(fn))
+				a.addParameterTypeExpectedText(arg.Pos(), semanticFunctionPointerName(comparatorType), callbackResultTypeName(fn))
 				return arrayType
 			}
 			a.addArrayHelperError(arg.Pos(),
 				`Incompatible types: "`+semanticTypeNameForDiagnostic(comparatorType)+`" and "`+semanticTypeNameForDiagnostic(argType)+`"`)
-			a.addArrayHelperParamTypeExpectedAt(arg.Pos(), comparatorType, argType)
+			a.addParameterTypeExpectedAt(arg.Pos(), comparatorType, argType)
 		}
 		return arrayType
 	}

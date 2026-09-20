@@ -532,6 +532,20 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			return nil
 		}
 
+		if _, isSet := objectTypeResolved.(*types.SetType); isSet {
+			// A set's Include and Exclude are calls, not readable members:
+			// upstream reads the name and stops at the missing argument list
+			// (SetOfFail/bracket_left_missing).
+			if ident.Equal(memberName, "include") || ident.Equal(memberName, "exclude") {
+				pos := expr.End()
+				a.addError("Syntax Error: \"(\" expected [line: %d, column: %d]", pos.Line, pos.Column)
+				return types.VOID
+			}
+			a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value,
+				a.setTypeDiagnosticName(objectType)))
+			return nil
+		}
+
 		a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 		return nil
 	}

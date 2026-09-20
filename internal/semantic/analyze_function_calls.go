@@ -876,26 +876,39 @@ func (a *Analyzer) analyzeImplicitHelperCall(methodName string, args []ast.Expre
 // getImplicitCallType returns the return type when a parameterless function
 // identifier is used as a lazy argument (implicit call).
 func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
-	ident, ok := arg.(*ast.Identifier)
-	if !ok {
+	identExpr, declared, implicitType := a.resolveImplicitCall(arg)
+	if identExpr == nil {
 		return nil
 	}
+	a.addIdentifierCaseHint(identExpr, declared)
+	return implicitType
+}
 
-	sym, symOk := a.symbols.Resolve(ident.Value)
+// resolveImplicitCall reports whether arg is a parameterless function
+// identifier and, if so, returns the identifier, the symbol's declared
+// spelling and the type its implicit call yields. It records no diagnostics,
+// so callers can probe an implicit call before committing to it; a nil
+// identifier means no implicit call applies.
+func (a *Analyzer) resolveImplicitCall(arg ast.Expression) (*ast.Identifier, string, types.Type) {
+	identExpr, ok := arg.(*ast.Identifier)
+	if !ok {
+		return nil, "", nil
+	}
+
+	sym, symOk := a.symbols.Resolve(identExpr.Value)
 	if !symOk {
-		return nil
+		return nil, "", nil
 	}
 
 	funcType, isFuncType := sym.Type.(*types.FunctionType)
 	if !isFuncType || len(funcType.Parameters) > 0 {
-		return nil
+		return nil, "", nil
 	}
 
-	a.addIdentifierCaseHint(ident, sym.Name)
 	if funcType.IsProcedure() {
-		return types.VOID
+		return identExpr, sym.Name, types.VOID
 	}
-	return funcType.ReturnType
+	return identExpr, sym.Name, funcType.ReturnType
 }
 
 // applyImplicitCallType unwraps a parameterless function reference into the
@@ -904,9 +917,30 @@ func (a *Analyzer) getImplicitCallType(arg ast.Expression) types.Type {
 // expression that produced typ; typ is returned unchanged when no implicit
 // call applies.
 func (a *Analyzer) applyImplicitCallType(expr ast.Expression, typ types.Type) types.Type {
-	if implicitType := a.getImplicitCallType(expr); implicitType != nil {
+	identExpr, declared, implicitType := a.resolveImplicitCall(expr)
+	if identExpr != nil {
+		a.addIdentifierCaseHint(identExpr, declared)
+	}
+	if implicitType != nil {
 		return implicitType
 	}
+	return a.implicitCallTypeFallback(expr, typ)
+}
+
+// implicitCallTypePreview answers what applyImplicitCallType would yield
+// without its identifier-case-hint side effect, so a caller that only wants to
+// know whether the implicit result has a particular shape leaves no hint
+// behind for receivers it then ignores.
+func (a *Analyzer) implicitCallTypePreview(expr ast.Expression, typ types.Type) types.Type {
+	if _, _, implicitType := a.resolveImplicitCall(expr); implicitType != nil {
+		return implicitType
+	}
+	return a.implicitCallTypeFallback(expr, typ)
+}
+
+// implicitCallTypeFallback covers the implicit calls that a bare identifier
+// lookup does not: a function-typed expression, and an overload set.
+func (a *Analyzer) implicitCallTypeFallback(expr ast.Expression, typ types.Type) types.Type {
 	if implicitType := implicitCallReturnTypeFromType(typ); implicitType != nil {
 		return implicitType
 	}

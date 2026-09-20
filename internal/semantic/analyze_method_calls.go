@@ -50,8 +50,17 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Analyze the object expression
 	objectType := a.analyzeExpression(expr.Object)
 	if objectType == nil {
-		// Error already reported
-		return nil
+		// An overload set deliberately carries no type of its own, so a
+		// routine name used as a receiver reads as nil here. When the set
+		// holds a unique parameterless overload returning a set, the mutator
+		// checks below still apply to that call's temporary result, so
+		// `Make.Exclude(e)` is rejected just like `Test.Exclude(e)`.
+		implicit := a.implicitCallTypePreview(expr.Object, nil)
+		if _, isSet := types.GetUnderlyingType(implicit).(*types.SetType); !isSet {
+			// Error already reported
+			return nil
+		}
+		objectType = a.applyImplicitCallType(expr.Object, nil)
 	}
 
 	// Method call on a JSONVariant receiver: v.TypeName(), v.Add(x), ...
@@ -245,8 +254,23 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return method.ReturnType
 		}
 
+		// A parameterless routine named as the receiver is called first, so
+		// `Test.Exclude(e)` reaches the set the routine returns — as a
+		// temporary, which the mutator check below then rejects
+		// (SetOfFail/test_non_variable).
+		setReceiverType := objectType
+		if _, isSet := types.GetUnderlyingType(setReceiverType).(*types.SetType); !isSet {
+			// Probe without side effects first: applyImplicitCallType records
+			// an identifier-case hint, which must not be left behind for a
+			// receiver whose implicit result is not a set at all.
+			implicit := a.implicitCallTypePreview(expr.Object, objectType)
+			if _, isSet := types.GetUnderlyingType(implicit).(*types.SetType); isSet {
+				setReceiverType = a.applyImplicitCallType(expr.Object, objectType)
+			}
+		}
+
 		// Handle set types with built-in methods (Include/Exclude) without helpers
-		if setType, isSet := types.GetUnderlyingType(objectType).(*types.SetType); isSet {
+		if setType, isSet := types.GetUnderlyingType(setReceiverType).(*types.SetType); isSet {
 			switch methodNameLower {
 			case "include", "exclude":
 				// Both mutate the set in place, so the receiver must be a
@@ -269,7 +293,8 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				}
 				return types.VOID
 			default:
-				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value,
+					a.setTypeDiagnosticName(setReceiverType)))
 				return nil
 			}
 		}

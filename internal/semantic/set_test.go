@@ -2,6 +2,9 @@ package semantic
 
 import (
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
 )
 
 // ============================================================================
@@ -638,4 +641,64 @@ func TestInlineSetEnumScope(t *testing.T) {
 			end;
 		`, "anonymous enumeration is not allowed in a parameter's set type")
 	})
+}
+
+// TestSetDiagnosticNamePrefersUnqualifiedImport pins the spelling of an
+// imported set type in an unknown-member diagnostic. A unit export is
+// registered twice — plain and unit-qualified — so a purely lexicographic
+// scan would name the type after the importing unit whenever that unit's name
+// sorts first ("A.TMySet" before "TMySet"). The program writes `TMySet`, so
+// that is what the diagnostic must say.
+func TestSetDiagnosticNamePrefersUnqualifiedImport(t *testing.T) {
+	unitAnalyzer := NewAnalyzer()
+	unit := parseImplicitUnitTest(t, `unit A;
+interface
+type TMyEnum = (enumOne, enumTwo);
+type TMySet = set of TMyEnum;
+implementation
+end.
+`)
+	if err := unitAnalyzer.AnalyzeUnit(unit); err != nil {
+		t.Fatalf("analyze unit: %v", err)
+	}
+
+	l := lexer.New(`uses A;
+var s : TMySet;
+s.NoSuchMember(enumOne);
+`)
+	p := parser.New(l)
+	program := p.ParseProgram()
+	if perrs := p.Errors(); len(perrs) > 0 {
+		t.Fatalf("parser errors: %v", perrs)
+	}
+
+	analyzer := NewAnalyzer()
+	if err := analyzer.ImportUnitSymbols("A", unitAnalyzer.GetUnitSymbols("A")); err != nil {
+		t.Fatalf("import unit symbols: %v", err)
+	}
+	err := analyzer.Analyze(program)
+	if err == nil {
+		t.Fatal("expected an unknown-member error")
+	}
+	if !ErrorMatches(err.Error(), "TMySet") {
+		t.Fatalf("diagnostic does not mention the set type: %v", err)
+	}
+	if ErrorMatches(err.Error(), "A.TMySet") {
+		t.Fatalf("diagnostic must use the declared spelling, not the qualified one: %v", err)
+	}
+}
+
+// TestSetMutatorOnOverloadedRoutineReceiver pins the receiver check for a
+// routine name that stands for an overload set. Such a symbol carries no type
+// of its own, so the receiver reads as untyped; when the set holds a unique
+// parameterless overload returning a set, the mutator still works on that
+// call's temporary result and must be rejected.
+func TestSetMutatorOnOverloadedRoutineReceiver(t *testing.T) {
+	expectError(t, `
+		type TMyEnum = (enumOne, enumTwo);
+		type TMySet = set of TMyEnum;
+		function Make : TMySet; overload; begin end;
+		function Make(i : Integer) : TMySet; overload; begin end;
+		Make.Exclude(enumTwo);
+	`, "Variable expected")
 }
