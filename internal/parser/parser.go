@@ -307,6 +307,15 @@ func (p *Parser) addStructuredError(structErr *StructuredParserError) {
 	p.recordError(structErr.ToParserError())
 }
 
+// addStructuredStop records a structured error as a compiler stop, the way
+// addStructuredError records an ordinary one.
+func (p *Parser) addStructuredStop(structErr *StructuredParserError) {
+	if structErr.BlockContext == nil {
+		structErr.BlockContext = p.currentBlockContext()
+	}
+	p.recordStop(structErr.ToParserError())
+}
+
 // noPrefixParseFnError adds a localized syntax error for tokens that cannot start an expression.
 func (p *Parser) noPrefixParseFnError(tok lexer.Token) {
 	var msg string

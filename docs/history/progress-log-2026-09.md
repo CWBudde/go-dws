@@ -4914,9 +4914,11 @@ the older standalone checkout predates triple-apostrophe strings). All in
   ones set `stopped` like `{$FATAL}`. Because upstream's tokenizer only reads as far as the
   parser asks, `reachedLexerDiagnostics` (`internal/frontend/result.go`) drops a constant error
   that a parser error precedes — an approximation, tracked in PLAN.md §4/F9.
-- **Nameless `var`** (`internal/parser/statements.go`): after `Name expected`, the parser skips
-  to the `;`, removing the spurious `Undefined variable 'Integer'` for `var &… : Integer` and
-  `var 1 : Integer` alike (`reserved_escape_empty`, `reserved_escape_number`).
+- **Nameless `var`** (`internal/parser/statements.go`): `Name expected` is now recorded as a
+  compiler stop, the way upstream's `ReadNameList` reports it through `AddCompilerStop`. That
+  drops the spurious `Undefined variable 'Integer'` for `var &… : Integer` and `var 1 : Integer`
+  alike (`reserved_escape_empty`, `reserved_escape_number`) without a recovery heuristic, and
+  abandons the rest of the compilation as `ECompileError` does upstream.
 - `dwscript fmt` reports fatal lexer errors rather than formatting a truncated program.
 
 Tests: `internal/frontend/string_constant_test.go` (full compile path per diagnostic, the
@@ -4930,3 +4932,9 @@ Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues). Stacked on the overload slice,
 CLI and harness agree at **1,192 / 1,966 scored** (+8): FailureScripts 177 → 183, SimpleScripts
 381 → 383. No category dropped.
+
+Review follow-up: `reachedLexerDiagnostics` gained a second, stronger cutoff. A compiler stop
+raises `ECompileError`, caught only at the top of `TdwsCompiler.Compile`, so upstream's lazily
+pulled tokenizer never reads past it — every lexer diagnostic positioned after a stop is now
+dropped, a trailing `{$ERROR}` included, while the stop itself and earlier directives are kept.
+Restacked on main after the parser-recovery and overload slices merged; fixture counts unchanged.

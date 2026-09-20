@@ -545,33 +545,53 @@ func diagnosticSpecificityPriority(diag Diagnostic) int {
 	}
 }
 
-// reachedLexerDiagnostics drops malformed-constant errors (lexer.LexerError.Constant)
-// that DWScript would not reach. Its tokenizer is pulled lazily by the parser, and a
-// syntax error stops the compile before the tokenizer reads any further, whereas the
-// go-dws lexer runs ahead of the parser through lookahead and error recovery. A
-// constant error that follows a parser error in the source is therefore dropped
-// (FailureScripts/string_error, array_error8).
+// reachedLexerDiagnostics drops the lexer diagnostics DWScript would not reach. Its
+// tokenizer is pulled lazily by the parser, whereas the go-dws lexer runs ahead of the
+// parser through lookahead and error recovery, so two cutoffs apply.
+//
+// A malformed constant (lexer.LexerError.Constant) is reported by the tokenizer itself,
+// and a syntax error stops the compile before the tokenizer reads any further: a
+// constant error positioned after any parser error is dropped (FailureScripts/
+// string_error, array_error8).
+//
+// A compiler stop is stronger. AddCompilerStop raises ECompileError, which is caught
+// only at the top of TdwsCompiler.Compile, so the compilation is abandoned outright and
+// nothing further is tokenized at all. Every lexer diagnostic positioned after the stop
+// is therefore dropped, message directives such as {$ERROR} included. The stop itself is
+// a parser diagnostic and is unaffected.
 func reachedLexerDiagnostics(errs []lexer.LexerError, parseErrs []*parser.ParserError) []lexer.LexerError {
 	first := lexer.Position{}
+	stop := lexer.Position{}
 	for _, err := range parseErrs {
 		if err == nil {
 			continue
 		}
-		if first.Line == 0 || err.Pos.Line < first.Line || (err.Pos.Line == first.Line && err.Pos.Column < first.Column) {
+		if first.Line == 0 || positionBefore(err.Pos, first) {
 			first = err.Pos
 		}
+		if err.Stop && stop.Line == 0 {
+			stop = err.Pos
+		}
 	}
-	if first.Line == 0 {
+	if first.Line == 0 && stop.Line == 0 {
 		return errs
 	}
 	kept := make([]lexer.LexerError, 0, len(errs))
 	for _, err := range errs {
-		if err.Constant && (first.Line < err.Pos.Line || (first.Line == err.Pos.Line && first.Column < err.Pos.Column)) {
+		if first.Line != 0 && err.Constant && positionBefore(first, err.Pos) {
+			continue
+		}
+		if stop.Line != 0 && positionBefore(stop, err.Pos) {
 			continue
 		}
 		kept = append(kept, err)
 	}
 	return kept
+}
+
+// positionBefore reports whether a precedes b in the same source.
+func positionBefore(a, b lexer.Position) bool {
+	return a.Line < b.Line || (a.Line == b.Line && a.Column < b.Column)
 }
 
 // lexerDiagnostics converts lexer diagnostics into front-end diagnostics.

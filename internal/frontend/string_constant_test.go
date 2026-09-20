@@ -75,9 +75,10 @@ func TestCompile_ReportsStringConstantErrors(t *testing.T) {
 }
 
 // TestCompile_NamelessVarDeclarationReportsOnlyNameExpected checks that a var
-// declaration with a missing or malformed name is skipped after "Name expected", so its
-// type and initializer are not re-parsed as statements
-// (FailureScripts/reserved_escape_empty, reserved_escape_number).
+// declaration with a missing or malformed name reports "Name expected" and nothing
+// else (FailureScripts/reserved_escape_empty, reserved_escape_number). Upstream
+// reports it from ReadNameList via AddCompilerStop, which raises out of the compiler,
+// so neither the declaration's own remainder nor any following statement is compiled.
 func TestCompile_NamelessVarDeclarationReportsOnlyNameExpected(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -100,18 +101,61 @@ func TestCompile_NamelessVarDeclarationReportsOnlyNameExpected(t *testing.T) {
 			want:   []string{`Syntax Error: Name expected [line: 1, column: 5]`},
 		},
 		{
-			name:   "code after the declaration is still compiled",
+			name:   "the stop abandons the code after the declaration",
 			source: "var &1 : Integer := 2;\nPrintLn(Undeclared);",
-			want: []string{
-				`Syntax Error: Name expected [line: 1, column: 5]`,
-				`Syntax Error: Unknown name "Undeclared" [line: 2, column: 9]`,
-			},
+			want:   []string{`Syntax Error: Name expected [line: 1, column: 5]`},
+		},
+		{
+			name:   "the stop abandons a statement on the malformed name's own line",
+			source: "var &\nPrintLn(Undeclared);",
+			want:   []string{`Syntax Error: Name expected [line: 1, column: 5]`},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := Compile(tt.source, "var.pas", semantic.HintsLevelPedantic).DiagnosticStrings()
+			if strings.Join(got, "\n") != strings.Join(tt.want, "\n") {
+				t.Fatalf("diagnostics = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestCompile_CompilerStopDropsLaterLexerDiagnostics checks that a compiler stop also
+// suppresses the lexer's own diagnostics that follow it. Upstream's AddCompilerStop
+// raises ECompileError out of the compiler, so its lazily pulled tokenizer never reads
+// past the stop and a later message directive is never processed. Directives before
+// the stop have already been reached and are kept.
+func TestCompile_CompilerStopDropsLaterLexerDiagnostics(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   []string
+	}{
+		{
+			name:   "directive after the stop is never reached",
+			source: "var x := ;\n{$ERROR 'late'}\n",
+			want:   []string{`Syntax Error: Expression expected [line: 1, column: 10]`},
+		},
+		{
+			name:   "directive before the stop is kept",
+			source: "{$HINT 'early'}\nvar x := ;\n{$ERROR 'late'}\n",
+			want: []string{
+				`Hint: early [line: 1, column: 3]`,
+				`Syntax Error: Expression expected [line: 2, column: 10]`,
+			},
+		},
+		{
+			name:   "without a stop a later directive is still reported",
+			source: "{$ERROR 'late'}\n",
+			want:   []string{`Compile Error: late [line: 1, column: 3]`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Compile(tt.source, "stop.pas", semantic.HintsLevelPedantic).DiagnosticStrings()
 			if strings.Join(got, "\n") != strings.Join(tt.want, "\n") {
 				t.Fatalf("diagnostics = %q, want %q", got, tt.want)
 			}

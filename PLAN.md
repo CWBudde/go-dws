@@ -490,7 +490,9 @@ Work families — IDs from the 2026-03 analysis
   - `[ ]` S Lexer constant errors are dropped when a parser error precedes them in the source
     (`reachedLexerDiagnostics`, `internal/frontend/result.go`), approximating upstream's lazy
     tokenizer. Replace with reporting a tokenizer error only when the parser reaches its token;
-    the unit-compile path (`internal/frontend/units.go`) does not apply the drop at all.
+    the unit-compile path (`internal/frontend/units.go`) does not apply the drop at all. The
+    cutoff after a *compiler stop* in the same function is exact, not an approximation —
+    `ECompileError` abandons the compilation, so nothing past it is tokenized.
   Recurring themes, each one change:
   - `[ ]` S Spurious `No arguments expected` on an array helper called with none (`dyn_array1`,
     `dyn_array_setlength2`)

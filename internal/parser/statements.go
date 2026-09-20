@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"slices"
-
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -613,8 +611,7 @@ func (p *Parser) validateAndAdvanceVarToken(stmt *ast.VarDeclStatement) bool {
 				WithSuggestion("provide a variable name after 'var'").
 				WithParsePhase("variable declaration").
 				Build()
-			p.addStructuredError(err)
-			p.skipNamelessVarDeclaration()
+			p.addStructuredStop(err)
 			return false
 		}
 	} else if !p.isIdentifierToken(currentToken.Type) {
@@ -635,33 +632,6 @@ func (p *Parser) validateAndAdvanceVarToken(stmt *ast.VarDeclStatement) bool {
 		stmt.Token = currentToken
 	}
 	return true
-}
-
-// skipNamelessVarDeclaration recovers from a `var` whose name is missing or malformed
-// (`var & : Integer := 1;`, `var &1 : Integer := 2;`). DWScript reports only "Name
-// expected" for such a declaration; without skipping, its remainder would be re-parsed
-// as statements and `Integer := 1` would add a spurious "Undefined variable" error.
-//
-// PRE: cursor is on the token where the name was expected.
-// POST: cursor is on the `;` ending the declaration, or unchanged when that token
-// already starts something that must be parsed (a keyword, an identifier, `;`).
-func (p *Parser) skipNamelessVarDeclaration() {
-	if isVarRecoveryResumePoint(p.cursor.Current().Type) || p.isIdentifierToken(p.cursor.Current().Type) {
-		return
-	}
-	for !isVarRecoveryResumePoint(p.cursor.Current().Type) {
-		p.cursor = p.cursor.Advance()
-	}
-}
-
-// isVarRecoveryResumePoint reports whether tt ends a malformed declaration being
-// skipped: its terminating `;`, end of input, or a keyword that starts a statement or
-// declaration or closes a block.
-func isVarRecoveryResumePoint(tt lexer.TokenType) bool {
-	if tt == lexer.SEMICOLON || tt == lexer.EOF {
-		return true
-	}
-	return tt != lexer.IDENT && (slices.Contains(statementStarters, tt) || slices.Contains(blockClosers, tt))
 }
 
 func (p *Parser) parseVarType(stmt *ast.VarDeclStatement) {
