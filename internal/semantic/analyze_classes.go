@@ -486,6 +486,15 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			}
 		}
 
+		// A bare type name is not an instance: only class-side helper members are
+		// reachable through it (HelpersFail/integer_helper).
+		if a.isTypeMetaValueExpression(expr.Object) &&
+			a.hasHelperMethod(objectType, memberName) != nil &&
+			!a.isHelperClassMethod(objectType, memberName) {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
+			return nil
+		}
+
 		// Check helpers (prefer properties before methods for property-style access)
 		helperProp := a.hasHelperProperty(objectType, memberName)
 		if helperProp != nil {
@@ -553,10 +562,19 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	// Helpers can override built-in TObject members and can also provide class
 	// members when accessed through a metaclass value (TType.HelperMember).
 	helperLookupType := objectType
-	if isMetaclass {
+	if isMetaclass && !a.hasAnyHelperMember(objectType, memberName) {
+		// A `class of T` value sees helpers declared for the metaclass type
+		// itself (`helper for TClass`) first; otherwise fall back to helpers
+		// declared for the class it references (TType.HelperClassMember).
 		helperLookupType = objectTypeResolved
 	}
 	if helperMethod := a.hasHelperMethod(helperLookupType, memberName); helperMethod != nil {
+		// A helper method reached through a class reference must be a class
+		// method, exactly like a class's own methods (HelpersFail/helper_error4).
+		if isMetaclass && !a.isHelperClassMethod(helperLookupType, memberName) {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Member.Token.Pos))
+			return nil
+		}
 		a.addIdentifierCaseHint(expr.Member, a.declaredHelperMethodName(helperLookupType, memberName))
 		// Record the receiver's static class so runtime helper dispatch binds
 		// helpers by the declared type (strict helper semantics).

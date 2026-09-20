@@ -116,9 +116,41 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 	// so it can be referenced by name (e.g., TStringHelper.PI)
 	a.symbols.Define(helperName, helperType, decl.Token.Pos)
 
-	for _, method := range decl.Methods {
-		a.analyzeHelperMethodBody(method, helperType)
+	// Inline bodies are compiled where they are written: a body sees only the
+	// overloads declared at or before its own declaration, so a call that needs
+	// a later overload is reported as unresolved (HelpersFail/helper_overload_error).
+	for i, method := range decl.Methods {
+		a.analyzeHelperMethodBodyWithOverloads(method, helperType, helperOverloadsDeclaredUpTo(decl, helperType, i))
 	}
+}
+
+// helperOverloadsDeclaredUpTo returns the helper's method overloads restricted to
+// the declarations at index <= upTo, keyed by normalized name. MethodOverloads is
+// appended in declaration order, so the first N entries for a name are the first N
+// declarations of it.
+func helperOverloadsDeclaredUpTo(decl *ast.HelperDecl, helperType *types.HelperType, upTo int) map[string][]*types.FunctionType {
+	counts := make(map[string]int)
+	for i, method := range decl.Methods {
+		if i > upTo {
+			break
+		}
+		if method == nil || method.Name == nil {
+			continue
+		}
+		counts[ident.Normalize(method.Name.Value)]++
+	}
+	visible := make(map[string][]*types.FunctionType, len(counts))
+	for name, overloads := range helperType.MethodOverloads {
+		n := counts[name]
+		if n == 0 {
+			continue
+		}
+		if n > len(overloads) {
+			n = len(overloads)
+		}
+		visible[name] = overloads[:n]
+	}
+	return visible
 }
 
 func (a *Analyzer) analyzeFunctionHelperDecl(decl *ast.FunctionDecl, paramTypes []types.Type, returnType types.Type) {
@@ -180,6 +212,9 @@ func (a *Analyzer) analyzeHelperMethodImplementation(decl *ast.FunctionDecl, hel
 	if !a.helperMethodImplementationMatchesDeclaration(decl, helperType) {
 		a.analyzeHelperMethod(decl, helperType, helperType.Name)
 	}
+	if decl != nil && decl.Name != nil {
+		a.clearHelperForwardMethod(helperType, decl.Name.Value)
+	}
 	a.analyzeHelperMethodBody(decl, helperType)
 }
 
@@ -228,17 +263,61 @@ func (a *Analyzer) helperMethodImplementationMatchesDeclaration(decl *ast.Functi
 	return false
 }
 
+// isStaticHelperMethod reports whether a helper method is a static class method.
+// An out-of-line implementation (`class function THelper.Hello ...`) does not
+// repeat the `static` directive, so the declaration inside the helper body is
+// the authority.
+func (a *Analyzer) isStaticHelperMethod(decl *ast.FunctionDecl, helperType *types.HelperType) bool {
+	if decl == nil {
+		return false
+	}
+	if decl.IsStatic {
+		return decl.IsClassMethod
+	}
+	if !decl.IsClassMethod || helperType == nil {
+		return false
+	}
+	helperDecl, ok := helperType.Decl.(*ast.HelperDecl)
+	if !ok || helperDecl == nil {
+		return false
+	}
+	for _, method := range helperDecl.Methods {
+		if method == nil || method.Name == nil || decl.Name == nil {
+			continue
+		}
+		if ident.Equal(method.Name.Value, decl.Name.Value) && method.IsStatic && method.IsClassMethod {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *types.HelperType) {
+	a.analyzeHelperMethodBodyWithOverloads(decl, helperType, nil)
+}
+
+// analyzeHelperMethodBodyWithOverloads analyzes a helper method body. visibleOverloads
+// restricts which of the helper's method overloads are in scope; nil means all of them
+// (an out-of-line implementation sees the whole helper).
+func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, helperType *types.HelperType, visibleOverloads map[string][]*types.FunctionType) {
 	if decl == nil || decl.Body == nil || helperType == nil {
 		return
+	}
+	if visibleOverloads == nil {
+		visibleOverloads = helperType.MethodOverloads
 	}
 
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
 	defer func() { a.symbols = oldSymbols }()
-	defer a.emitUnusedWarningsForCurrentScope()
 
-	a.symbols.Define("Self", helperType.TargetType, decl.Token.Pos)
+	// A static class method has no Self: it is invoked without an instance and
+	// without a class reference. The `static` directive lives on the in-helper
+	// declaration, not on the out-of-line implementation, so consult both.
+	isStatic := a.isStaticHelperMethod(decl, helperType)
+	if !isStatic {
+		a.symbols.Define("Self", helperType.TargetType, decl.Token.Pos)
+	}
 	for name, varType := range helperType.ClassVars {
 		a.symbols.Define(name, varType, token.Position{})
 	}
@@ -257,7 +336,7 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 			}
 		}
 	}
-	for name, overloads := range helperType.MethodOverloads {
+	for name, overloads := range visibleOverloads {
 		declName := declaredNames[ident.Normalize(name)]
 		if declName == "" {
 			declName = name
@@ -314,7 +393,14 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 		}
 	}
 	if returnType != types.VOID {
-		a.symbols.Define("Result", returnType, decl.Name.Token.Pos)
+		// Anchor Result where a class method anchors it (analyzeMethodDecl): at
+		// the body's `end`, which is what DWScript's "Result is never used"
+		// hint points at.
+		resultPos := decl.Name.Token.Pos
+		if decl.End().Line != 0 {
+			resultPos = blockEndStart(decl.End())
+		}
+		a.symbols.Define("Result", returnType, resultPos)
 	}
 
 	prevFunc := a.currentFunction
@@ -323,10 +409,15 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 	prevClass := a.currentClass
 	prevRecord := a.currentRecord
 	prevInClassMethod := a.inClassMethod
+	prevStaticHelper := a.inStaticHelperMethod
 	a.currentFunction = decl
 	a.currentSelfType = helperType.TargetType
+	if isStatic {
+		a.currentSelfType = nil
+	}
 	a.currentHelperType = helperType
 	a.inClassMethod = decl.IsClassMethod
+	a.inStaticHelperMethod = isStatic
 	if classType, ok := types.GetUnderlyingType(helperType.TargetType).(*types.ClassType); ok {
 		a.currentClass = classType
 		a.currentRecord = nil
@@ -342,7 +433,11 @@ func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *t
 		a.currentClass = prevClass
 		a.currentRecord = prevRecord
 		a.inClassMethod = prevInClassMethod
+		a.inStaticHelperMethod = prevStaticHelper
 	}()
+	// Registered after the context restore so it runs *before* it (LIFO):
+	// emitUnusedWarningsForCurrentScope bails out when currentFunction is nil.
+	defer a.emitUnusedWarningsForCurrentScope()
 
 	a.analyzeBlock(decl.Body)
 }
@@ -355,6 +450,15 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 	}
 
 	methodName := method.Name.Value
+
+	if method.IsStatic && !method.IsClassMethod {
+		pos := method.StaticPos
+		if pos.Line == 0 {
+			pos = method.Token.Pos
+		}
+		a.addError("Syntax Error: Only non-virtual class methods can be marked as static [line: %d, column: %d]",
+			pos.Line, pos.Column)
+	}
 
 	methodNameLower := ident.Normalize(methodName)
 	if _, exists := helperType.Methods[methodNameLower]; exists && !method.IsOverload {
@@ -397,8 +501,72 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 		helperType.MethodDeclNames = make(map[string]string)
 	}
 	helperType.MethodDeclNames[methodNameLower] = methodName
+	if helperType.ClassMethods == nil {
+		helperType.ClassMethods = make(map[string]bool)
+	}
+	if method.IsClassMethod {
+		helperType.ClassMethods[methodNameLower] = true
+	}
 	helperType.Methods[methodNameLower] = funcType
 	helperType.MethodOverloads[methodNameLower] = append(helperType.MethodOverloads[methodNameLower], funcType)
+
+	// A body-less helper method awaits an out-of-line implementation, exactly
+	// like a body-less class method (see analyzeClassMethodDecl).
+	if method.Body == nil && !method.IsEmpty && !method.IsExternal && !method.IsAbstract {
+		if helperType.ForwardedMethods == nil {
+			helperType.ForwardedMethods = make(map[string]bool)
+		}
+		helperType.ForwardedMethods[methodNameLower] = true
+		key := helperForwardMethodKey(helperType, methodNameLower)
+		a.forwardMethodPos[key] = method.Name.Token.Pos
+		a.forwardMethodNames[key] = methodName
+	}
+}
+
+// helperForwardMethodKey builds the a.forwardMethodPos/forwardMethodNames key for
+// a helper method. The "helper " prefix keeps helpers from colliding with a class
+// of the same name.
+func helperForwardMethodKey(helperType *types.HelperType, normalizedMethodName string) string {
+	return "helper " + ident.Normalize(helperType.Name) + "." + normalizedMethodName
+}
+
+// clearHelperForwardMethod marks a forward-declared helper method as implemented.
+func (a *Analyzer) clearHelperForwardMethod(helperType *types.HelperType, methodName string) {
+	if helperType == nil || methodName == "" {
+		return
+	}
+	normalized := ident.Normalize(methodName)
+	delete(helperType.ForwardedMethods, normalized)
+	key := helperForwardMethodKey(helperType, normalized)
+	delete(a.forwardMethodPos, key)
+	delete(a.forwardMethodNames, key)
+}
+
+// validateForwardHelperMethods reports every helper method that was declared in a
+// helper body but never given an implementation. Mirrors validateForwardMethods
+// for classes.
+func (a *Analyzer) validateForwardHelperMethods() {
+	seen := make(map[*types.HelperType]bool)
+	for _, helpers := range a.helpers {
+		for _, helperType := range helpers {
+			if helperType == nil || seen[helperType] {
+				continue
+			}
+			seen[helperType] = true
+			for methodName := range helperType.ForwardedMethods {
+				key := helperForwardMethodKey(helperType, methodName)
+				if a.forwardMethodReported[key] {
+					continue
+				}
+				displayName := a.forwardMethodNames[key]
+				if displayName == "" {
+					displayName = methodName
+				}
+				a.addStructuredError(NewMethodNotImplementedError(a.forwardMethodPos[key], displayName, helperType.Name))
+				a.forwardMethodReported[key] = true
+			}
+		}
+	}
 }
 
 // analyzeHelperProperty analyzes a property in a helper.
@@ -409,9 +577,9 @@ func (a *Analyzer) analyzeHelperProperty(prop *ast.PropertyDecl, helperType *typ
 
 	propName := prop.Name.Value
 
-	// Check for duplicate properties
-	if _, exists := helperType.Properties[propName]; exists {
-		a.addError("%s", errors.FormatNameAlreadyExists(propName, prop.Token.Pos.Line, prop.Token.Pos.Column))
+	// Check for duplicate properties. Properties is keyed by the normalized name.
+	if _, exists := helperType.Properties[ident.Normalize(propName)]; exists {
+		a.addError("%s", errors.FormatNameAlreadyExists(propName, prop.Name.Token.Pos.Line, prop.Name.Token.Pos.Column))
 		return
 	}
 
@@ -470,9 +638,10 @@ func (a *Analyzer) analyzeHelperClassVar(classVar *ast.FieldDecl, helperType *ty
 
 	varName := classVar.Name.Value
 
-	// Check for duplicate class vars
-	if _, exists := helperType.ClassVars[varName]; exists {
-		a.addError("%s", errors.FormatNameAlreadyExists(varName, classVar.Token.Pos.Line, classVar.Token.Pos.Column))
+	// Check for duplicate class vars. ClassVars is keyed by the normalized name,
+	// so the lookup has to normalize too or every duplicate slips through.
+	if _, exists := helperType.ClassVars[ident.Normalize(varName)]; exists {
+		a.addError("%s", errors.FormatNameAlreadyExists(varName, classVar.Name.Token.Pos.Line, classVar.Name.Token.Pos.Column))
 		return
 	}
 
@@ -525,9 +694,10 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 
 	constName := classConst.Name.Value
 
-	// Check for duplicate class consts
-	if _, exists := helperType.ClassConsts[constName]; exists {
-		a.addError("%s", errors.FormatNameAlreadyExists(constName, classConst.Token.Pos.Line, classConst.Token.Pos.Column))
+	// Check for duplicate class consts. ClassConsts is keyed by the normalized
+	// name, so the lookup has to normalize too.
+	if _, exists := helperType.ClassConsts[ident.Normalize(constName)]; exists {
+		a.addError("%s", errors.FormatNameAlreadyExists(constName, classConst.Name.Token.Pos.Line, classConst.Name.Token.Pos.Column))
 		return
 	}
 
@@ -596,6 +766,16 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 		}
 	}
 
+	// A class-reference value also sees helpers declared for a metaclass type
+	// it is assignable to. `helper for TClass` is `helper for class of TObject`,
+	// so it covers every class reference; the helper is registered under the
+	// alias name ("tclass"), which no `class of T` spelling ever matches.
+	if metaclass, isMeta := types.GetUnderlyingType(typ).(*types.ClassOfType); isMeta && metaclass.ClassType != nil {
+		if metaHelpers := a.metaclassHelpersFor(metaclass.ClassType, helpers); len(metaHelpers) > 0 {
+			helpers = append(metaHelpers, helpers...)
+		}
+	}
+
 	// For array types, also include generic array helpers
 	if _, isArray := typ.(*types.ArrayType); isArray {
 		arrayHelpers := a.helpers["array"]
@@ -619,6 +799,87 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 
 // hasHelperMethod checks if any helper for the given type defines the specified method.
 // Returns the method if found (helper type not used by callers).
+// metaclassHelpersFor collects helpers whose target is a metaclass type that a
+// `class of classType` value is assignable to (the target class is classType or
+// one of its ancestors), skipping helpers already present in `have`.
+func (a *Analyzer) metaclassHelpersFor(classType *types.ClassType, have []*types.HelperType) []*types.HelperType {
+	var result []*types.HelperType
+	seen := make(map[*types.HelperType]bool, len(have))
+	for _, helper := range have {
+		seen[helper] = true
+	}
+	for _, helpers := range a.helpers {
+		for _, helper := range helpers {
+			if helper == nil || helper.TargetType == nil || seen[helper] {
+				continue
+			}
+			target, ok := types.GetUnderlyingType(helper.TargetType).(*types.ClassOfType)
+			if !ok || target.ClassType == nil {
+				continue
+			}
+			if !isClassOrAncestor(target.ClassType, classType) {
+				continue
+			}
+			seen[helper] = true
+			result = append(result, helper)
+		}
+	}
+	return result
+}
+
+// isClassOrAncestor reports whether ancestor is candidate or one of its parents.
+func isClassOrAncestor(ancestor, candidate *types.ClassType) bool {
+	for cur := candidate; cur != nil; cur = cur.Parent {
+		if cur == ancestor {
+			return true
+		}
+	}
+	return false
+}
+
+// hasAnyHelperMember reports whether any helper for typ contributes a member
+// with this name (method, property, class var, or class const).
+func (a *Analyzer) hasAnyHelperMember(typ types.Type, memberName string) bool {
+	if a.hasHelperMethod(typ, memberName) != nil {
+		return true
+	}
+	if a.hasHelperProperty(typ, memberName) != nil {
+		return true
+	}
+	if _, classVar := a.hasHelperClassVar(typ, memberName); classVar != nil {
+		return true
+	}
+	if _, classConst := a.hasHelperClassConst(typ, memberName); classConst != nil {
+		return true
+	}
+	return false
+}
+
+// isHelperClassMethod reports whether the helper method that hasHelperMethod
+// would select for typ was declared as a `class` method. Only class methods are
+// reachable through a type name or a class reference; DWScript answers an
+// instance method reached that way with "Class method or constructor expected".
+func (a *Analyzer) isHelperClassMethod(typ types.Type, methodName string) bool {
+	helpers := a.getHelpersForType(typ)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		if helper == nil {
+			continue
+		}
+		if findMethodCaseInsensitive(helper.Methods, methodName) == nil {
+			continue
+		}
+		for owner := helper; owner != nil; owner = owner.ParentHelper {
+			if findMethodCaseInsensitive(owner.Methods, methodName) == nil {
+				continue
+			}
+			return owner.ClassMethods[ident.Normalize(methodName)]
+		}
+		return false
+	}
+	return false
+}
+
 func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) *types.FunctionType {
 	helpers := a.getHelpersForType(typ)
 	if helpers == nil {

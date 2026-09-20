@@ -331,6 +331,13 @@ func (a *Analyzer) analyzeSelfExpression(se *ast.SelfExpression) types.Type {
 		}
 	}
 
+	// A static helper class method has no Self at all: upstream reports the
+	// name as simply unknown (HelpersFail/static_class_method_self).
+	if a.inStaticHelperMethod {
+		a.addStructuredError(NewUnknownNameError(se.Token.Pos, "Self"))
+		return nil
+	}
+
 	// Validate that we're in a method context
 	if a.currentFunction == nil {
 		a.addError("'Self' can only be used inside a method at %s", se.Token.Pos.String())

@@ -20,7 +20,7 @@ func TestHelperDeclaration(t *testing.T) {
 			name: "simple helper for String",
 			input: `
 				type TStringHelper = helper for String
-					function ToUpper: String;
+					function ToUpper: String; begin Result := Self; end;
 				end;
 			`,
 			expectError: false,
@@ -34,7 +34,7 @@ func TestHelperDeclaration(t *testing.T) {
 				end;
 
 				type TPointHelper = record helper for TPoint
-					function Distance: Float;
+					function Distance: Float; begin Result := 0.0; end;
 				end;
 			`,
 			expectError: false,
@@ -54,7 +54,7 @@ func TestHelperDeclaration(t *testing.T) {
 			input: `
 				type TIntHelper = helper for Integer
 					class var DefaultValue: Integer;
-					function IsPositive: Boolean;
+					function IsPositive: Boolean; begin Result := Self > 0; end;
 				end;
 			`,
 			expectError: false,
@@ -64,7 +64,7 @@ func TestHelperDeclaration(t *testing.T) {
 			input: `
 				type TMathHelper = helper for Float
 					class const MYPI = 3.14159;
-					function Round: Integer;
+					function Round: Integer; begin Result := 0; end;
 				end;
 			`,
 			expectError: false,
@@ -112,7 +112,7 @@ func TestHelperMethodResolution(t *testing.T) {
 			name: "call helper method on String",
 			input: `
 				type TStringHelper = helper for String
-					function ToUpper: String;
+					function ToUpper: String; begin Result := Self; end;
 				end;
 
 				var s: String;
@@ -127,7 +127,7 @@ func TestHelperMethodResolution(t *testing.T) {
 			name: "call helper method on Integer",
 			input: `
 				type TIntHelper = helper for Integer
-					function IsEven: Boolean;
+					function IsEven: Boolean; begin Result := True; end;
 				end;
 
 				var n: Integer;
@@ -142,7 +142,7 @@ func TestHelperMethodResolution(t *testing.T) {
 			name: "call non-existent helper method",
 			input: `
 				type TStringHelper = helper for String
-					function ToUpper: String;
+					function ToUpper: String; begin Result := Self; end;
 				end;
 
 				var s: String;
@@ -222,11 +222,11 @@ func TestHelperMethodResolution(t *testing.T) {
 func TestMultipleHelpers(t *testing.T) {
 	input := `
 		type TStringHelper1 = helper for String
-			function ToUpper: String;
+			function ToUpper: String; begin Result := Self; end;
 		end;
 
 		type TStringHelper2 = helper for String
-			function ToLower: String;
+			function ToLower: String; begin Result := Self; end;
 		end;
 
 		var s: String;
@@ -265,7 +265,7 @@ func TestHelperMethodParameters(t *testing.T) {
 			name: "correct parameters",
 			input: `
 				type TStringHelper = helper for String
-					function Contains(s: String): Boolean;
+					function Contains(s: String): Boolean; begin Result := s = Self; end;
 				end;
 
 				var str: String;
@@ -281,7 +281,7 @@ func TestHelperMethodParameters(t *testing.T) {
 			name: "wrong parameter count",
 			input: `
 				type TStringHelper = helper for String
-					function Contains(s: String): Boolean;
+					function Contains(s: String): Boolean; begin Result := s = Self; end;
 				end;
 
 				var str: String;
@@ -297,7 +297,7 @@ func TestHelperMethodParameters(t *testing.T) {
 			name: "wrong parameter type",
 			input: `
 				type TStringHelper = helper for String
-					function Contains(s: String): Boolean;
+					function Contains(s: String): Boolean; begin Result := s = Self; end;
 				end;
 
 				var str: String;
