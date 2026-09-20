@@ -574,6 +574,12 @@ func (a *Analyzer) reportUnimplementedForwards(scopes ...*SymbolTable) {
 
 // validateForwardDeclarations ensures all forward-declared types have implementations.
 func (a *Analyzer) validateForwardDeclarations() {
+	// An abandoned compile never reaches the end-of-program checks. This one
+	// reports without a position, so dropDiagnosticsAfterStop cannot prune it
+	// afterwards — it has to be skipped here.
+	if a.compileStopped {
+		return
+	}
 	for _, t := range a.typeRegistry.AllTypes() {
 		if classType, ok := t.(*types.ClassType); ok {
 			if classType.IsForward {
@@ -589,6 +595,9 @@ func (a *Analyzer) validateForwardDeclarations() {
 }
 
 func (a *Analyzer) validateForwardMethods() {
+	if a.compileStopped {
+		return
+	}
 	for _, t := range a.typeRegistry.AllTypes() {
 		classType, ok := t.(*types.ClassType)
 		if !ok || classType == nil {

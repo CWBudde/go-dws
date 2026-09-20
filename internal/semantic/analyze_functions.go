@@ -96,6 +96,10 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 				param.Name.Value, decl.Name.Value)
 			return nil, nil, false
 		}
+		if isRefusedTypeExpression(param.Type) {
+			// The parser already reported "Type expected" for it.
+			return nil, nil, false
+		}
 		paramType, err := a.resolveTypeExpression(param.Type)
 		if err == nil && paramType == nil {
 			return nil, nil, false
@@ -415,4 +419,11 @@ func (a *Analyzer) addCallConventionHint(decl *ast.FunctionDecl) {
 	}
 	a.addHintAt(decl.CallingConventionPos, "Call convention %q is not supported and ignored [line: %d, column: %d]",
 		decl.CallingConvention, decl.CallingConventionPos.Line, decl.CallingConventionPos.Column)
+}
+
+// isRefusedTypeExpression reports a type expression the parser refused and has
+// already reported ("Type expected"); the analyzer does not report it again.
+func isRefusedTypeExpression(expr ast.TypeExpression) bool {
+	invalid, ok := expr.(*ast.InvalidTypeExpression)
+	return ok && invalid != nil
 }

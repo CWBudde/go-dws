@@ -28,16 +28,7 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 	// Current token is 'set', expect 'of'
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.OF {
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingOf).
-			WithMessage("expected 'of' after 'set' in set declaration").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("'of'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add 'of' after 'set'").
-			WithParsePhase("set declaration").
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.OF)
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to 'of'
@@ -101,16 +92,7 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 	// Expect semicolon
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.SEMICOLON {
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after set declaration").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("';'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ';' after set declaration").
-			WithParsePhase("set declaration").
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to semicolon
@@ -194,7 +176,7 @@ func (p *Parser) parseSetType() *ast.SetTypeNode {
 
 	// Expect 'of' keyword
 	if cursor.Peek(1).Type != lexer.OF {
-		p.addError("expected 'of' after 'set' in set type", ErrMissingOf)
+		p.addExpected(lexer.OF)
 		return nil
 	}
 	cursor = cursor.Advance() // move to OF

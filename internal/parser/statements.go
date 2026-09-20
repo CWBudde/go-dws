@@ -76,6 +76,12 @@ func (p *Parser) parseDestructorStatement() ast.Statement {
 // statements are scope-transparent for declarations, so the enum's members stay
 // visible to everything that follows.
 func (p *Parser) parseStatement() ast.Statement {
+	// After a compiler stop upstream has abandoned the compilation: nothing that
+	// follows is read, so nothing that follows is built.
+	if p.stopped() {
+		return nil
+	}
+
 	outerPending := p.pendingTypeDecls
 	p.pendingTypeDecls = nil
 	startToken := p.cursor.Current()
@@ -366,6 +372,20 @@ func (p *Parser) parseAssignmentOrExpression() ast.Statement {
 // PRE: cursor is on BEGIN token
 // POST: cursor is on END token
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	return p.parseBlockClosedBy(closersEnd)
+}
+
+// parseRoutineBodyBlock parses the begin...end block of a routine body, which
+// DWScript closes with "ensure" or "end" and names both in its diagnostics.
+func (p *Parser) parseRoutineBodyBlock() *ast.BlockStatement {
+	return p.parseBlockClosedBy(closersEnsureEnd)
+}
+
+// parseBlockClosedBy parses a begin...end block whose closers are named in the
+// `"end" expected but "else" found` diagnostic, a compiler stop upstream, raised
+// for a token that cannot begin a statement and for a statement not followed by
+// ";" or a closer.
+func (p *Parser) parseBlockClosedBy(closers closerSet) *ast.BlockStatement {
 	builder := p.StartNode()
 
 	beginToken := p.cursor.Current()
@@ -398,13 +418,23 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 			continue
 		}
 
+		if p.refuseStatementStart(closers) {
+			break
+		}
+
+		errorsBefore := len(p.errors)
 		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
 
 		// Advance to next token
+		lastToken := p.cursor.Current()
 		p.cursor = p.cursor.Advance()
+
+		if p.refuseStatementTail(closers, lastToken, errorsBefore) {
+			break
+		}
 
 		// Skip any semicolons after the statement
 		for p.cursor.Current().Type == lexer.SEMICOLON {
@@ -414,6 +444,14 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 
 	// Check for proper block termination
 	currentToken := p.cursor.Current()
+	if p.stopped() {
+		block.Truncated = true
+		stmt, ok := builder.FinishWithToken(block, currentToken).(*ast.BlockStatement)
+		if !ok {
+			return block
+		}
+		return stmt
+	}
 	if currentToken.Type != lexer.END && currentToken.Type != lexer.ENSURE {
 		p.addParserErrorAt(beginToken.Pos, beginToken.Length(), "expected 'end' to close block", ErrMissingEnd)
 		// Synchronize to recover
@@ -544,16 +582,7 @@ func (p *Parser) parseVarIdentifierList() ([]*ast.Identifier, bool) {
 		currentToken := p.cursor.Current()
 		if !p.isIdentifierToken(currentToken.Type) {
 			// Use structured error
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrExpectedIdent).
-				WithMessage("expected identifier in var declaration").
-				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithExpectedString("variable name").
-				WithActual(currentToken.Type, currentToken.Literal).
-				WithSuggestion("provide a variable name").
-				WithParsePhase("variable declaration").
-				Build()
-			p.addStructuredError(err)
+			p.addExpectedAt(currentToken, lexer.IDENT)
 			return nil, false
 		}
 
@@ -572,16 +601,7 @@ func (p *Parser) parseVarIdentifierList() ([]*ast.Identifier, bool) {
 			currentToken = p.cursor.Current()
 			if !p.isIdentifierToken(currentToken.Type) {
 				// Use structured error
-				err := NewStructuredError(ErrKindMissing).
-					WithCode(ErrExpectedIdent).
-					WithMessage("expected identifier after comma in var declaration").
-					WithPosition(currentToken.Pos, currentToken.Length()).
-					WithExpectedString("variable name").
-					WithActual(currentToken.Type, currentToken.Literal).
-					WithSuggestion("provide a variable name after ','").
-					WithParsePhase("variable declaration").
-					Build()
-				p.addStructuredError(err)
+				p.addExpectedAt(currentToken, lexer.IDENT)
 				return nil, false
 			}
 			continue
@@ -601,32 +621,13 @@ func (p *Parser) validateAndAdvanceVarToken(stmt *ast.VarDeclStatement) bool {
 		p.cursor = p.cursor.Advance()
 		currentToken = p.cursor.Current()
 		if !p.isIdentifierToken(currentToken.Type) {
-			// Use structured error
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrExpectedIdent).
-				WithMessage("expected identifier in var declaration").
-				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithExpectedString("variable name").
-				WithActual(currentToken.Type, currentToken.Literal).
-				WithSuggestion("provide a variable name after 'var'").
-				WithParsePhase("variable declaration").
-				Build()
-			p.addStructuredStop(err)
+			// The malformed name is a compiler stop upstream (reserved_escape_*).
+			p.addExpectedStopAt(currentToken, lexer.IDENT)
 			return false
 		}
 	} else if !p.isIdentifierToken(currentToken.Type) {
 		// Should already be at an identifier
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrExpectedIdent).
-			WithMessage("expected identifier in var declaration").
-			WithPosition(currentToken.Pos, currentToken.Length()).
-			WithExpectedString("variable name").
-			WithActual(currentToken.Type, currentToken.Literal).
-			WithSuggestion("provide a variable name after 'var'").
-			WithParsePhase("variable declaration").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(currentToken, lexer.IDENT)
 		return false
 	} else {
 		stmt.Token = currentToken
@@ -749,18 +750,7 @@ func (p *Parser) expectSemicolon(context string) bool {
 
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.SEMICOLON {
-		// Use structured error
-		currentToken := p.cursor.Current()
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after "+context).
-			WithPosition(currentToken.Pos, currentToken.Length()).
-			WithExpectedString("';'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ';' at the end of the declaration").
-			WithParsePhase(context).
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.SEMICOLON)
 		return false
 	}
 

@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"fmt"
-
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -42,6 +40,11 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	}
 
 	exp.Arguments = p.parseExpressionList()
+	if p.stopped() {
+		// The argument list was cut short by a compiler stop: upstream never
+		// finished reading this call, so its argument checks never ran.
+		return nil
+	}
 	return builder.Finish(exp).(ast.Expression) // cursor is now at RPAREN
 }
 
@@ -59,12 +62,21 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 
 	// Non-identifier first element -> must be function call
 	if nextToken.Type != lexer.IDENT {
-		return p.parseCallWithExpressionList(typeName)
+		if call := p.parseCallWithExpressionList(typeName); call != nil {
+			return call
+		}
+		return nil // a typed nil would not compare equal to nil
 	}
 
 	// We have: TypeName(IDENT ...
 	// Parse arguments/fields and determine type based on whether ALL have colons
 	items, allHaveColons := p.parseArgumentsOrFields(lexer.RPAREN)
+	if p.stopped() {
+		// The list was cut short by a compiler stop: upstream never finished
+		// reading this call, so neither a call nor a record literal is built
+		// from what it did read (parseCallWithExpressionList does the same).
+		return nil
+	}
 
 	if allHaveColons {
 		// All items were field initializers -> record literal
@@ -111,6 +123,11 @@ func (p *Parser) parseCallWithExpressionList(typeName *ast.Identifier) *ast.Call
 
 	// Parse argument list using cursor version
 	exp.Arguments = p.parseExpressionList()
+	if p.stopped() {
+		// The argument list was cut short by a compiler stop: upstream never
+		// finished reading this call, so its argument checks never ran.
+		return nil
+	}
 
 	// Set end position to RPAREN
 	expr, _ := builder.Finish(exp).(*ast.CallExpression)
@@ -312,7 +329,7 @@ func (p *Parser) advanceToNextItem(end lexer.TokenType) (bool, bool) {
 		return false, true
 	}
 
-	// Unexpected token
-	p.addError(fmt.Sprintf("expected ',' or '%s' in argument list, got %s", end, nextToken.Type), ErrUnexpectedToken)
+	// Unexpected token: ReadArguments' missing closer is an AddCompilerStop upstream.
+	p.addExpectedStop(end)
 	return false, false
 }

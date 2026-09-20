@@ -59,6 +59,20 @@ func (c *TokenCursor) Current() token.Token {
 	return c.current
 }
 
+// LastToken returns the last token of the input before EOF, reading the rest of
+// the stream if it has not been buffered yet. An input without tokens yields EOF.
+func (c *TokenCursor) LastToken() token.Token {
+	for c.tokens[len(c.tokens)-1].Type != token.EOF {
+		c.Peek(len(c.tokens) - c.index)
+	}
+	for i := len(c.tokens) - 1; i >= 0; i-- {
+		if c.tokens[i].Type != token.EOF {
+			return c.tokens[i]
+		}
+	}
+	return c.tokens[len(c.tokens)-1]
+}
+
 // Peek returns the token N positions ahead of the current position.
 // Peek(0) returns the current token (same as Current()).
 // Peek(1) returns the next token (replaces old `p.cursor.Peek(1)`).

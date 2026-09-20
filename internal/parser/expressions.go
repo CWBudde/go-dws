@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"fmt"
-
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -116,10 +114,11 @@ func (p *Parser) parseNotInIsAs(leftExp ast.Expression) ast.Expression {
 	p.cursor = p.cursor.Advance()
 	notToken := p.cursor.Current()
 
-	// Check if next token is IN, IS, or AS
+	// Check if next token is IN, IS, or AS. After an operand, "not" can only
+	// begin "not in/is/as": upstream wants "in" there (in_operator4).
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.IN && nextToken.Type != lexer.IS && nextToken.Type != lexer.AS {
-		// Not a "not in/is/as" pattern, backtrack
+		p.addExpectedStop(lexer.IN)
 		p.cursor = p.cursor.ResetTo(mark)
 		return nil
 	}
@@ -320,7 +319,11 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 		if recoveredOnBoundary && p.cursor.Current().Type == lexer.RPAREN {
 			break
 		}
-		if nextToken.Type == lexer.EOF || nextToken.Type == lexer.END {
+		if nextToken.Type == lexer.EOF {
+			p.addExpectedStop(lexer.RPAREN)
+			break
+		}
+		if nextToken.Type == lexer.END {
 			break
 		}
 		if recoveredOnBoundary && p.cursor.Current().Type == lexer.COMMA {
@@ -372,7 +375,8 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 			p.cursor = p.cursor.Advance() // consume terminator
 			break
 		}
-		p.addError(fmt.Sprintf("expected ',' or ')', got %s", nextToken.Type), ErrUnexpectedToken)
+		// ReadArguments' missing ")" is an AddCompilerStop upstream.
+		p.addExpectedStop(lexer.RPAREN)
 		break
 	}
 
@@ -492,7 +496,7 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 			}
 		}
 		if p.cursor.Peek(1).Type != lexer.RPAREN {
-			p.addError(fmt.Sprintf("expected ')', got %s", p.cursor.Peek(1).Type), ErrUnexpectedToken)
+			p.addExpectedStop(lexer.RPAREN)
 			return nil
 		}
 
@@ -512,7 +516,8 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 		return exp
 	}
 	if nextToken.Type != lexer.RPAREN {
-		p.addError(fmt.Sprintf("expected ')', got %s", nextToken.Type), ErrUnexpectedToken)
+		// ReadBracket's missing ")" is an AddCompilerStop upstream.
+		p.addExpectedStop(lexer.RPAREN)
 		return nil
 	}
 

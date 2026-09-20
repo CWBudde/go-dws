@@ -216,16 +216,7 @@ func (p *Parser) parseTryStatement() *ast.TryStatement {
 	currentToken = p.cursor.Current()
 	if currentToken.Type != lexer.END {
 		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingEnd).
-			WithMessage("expected 'end' to close try statement").
-			WithPosition(currentToken.Pos, currentToken.Length()).
-			WithExpectedString("'end'").
-			WithActual(currentToken.Type, currentToken.Literal).
-			WithSuggestion("add 'end' to close the try statement").
-			WithParsePhase("try statement").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(currentToken, lexer.END)
 		return nil
 	}
 
@@ -452,16 +443,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	currentToken := p.cursor.Current()
 	if currentToken.Type != lexer.IDENT {
 		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrExpectedIdent).
-			WithMessage("expected identifier after 'on'").
-			WithPosition(currentToken.Pos, currentToken.Length()).
-			WithExpectedString("exception variable name").
-			WithActual(currentToken.Type, currentToken.Literal).
-			WithSuggestion("provide a variable name to hold the exception object").
-			WithParsePhase("exception handler").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(currentToken, lexer.IDENT)
 		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.FINALLY, lexer.ELSE})
 		return nil
 	}
@@ -477,16 +459,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.COLON {
 		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingColon).
-			WithMessage("expected ':' after exception variable").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("':'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ':' before the exception type").
-			WithParsePhase("exception handler").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(nextToken, lexer.COLON)
 		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.FINALLY, lexer.ELSE})
 		return nil
 	}
@@ -520,16 +493,7 @@ func (p *Parser) parseExceptionHandler() *ast.ExceptionHandler {
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.DO {
 		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingDo).
-			WithMessage("expected 'do' after exception type").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("'do'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add 'do' before the handler statement").
-			WithParsePhase("exception handler").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(nextToken, lexer.DO)
 		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.FINALLY, lexer.ELSE})
 		return nil
 	}

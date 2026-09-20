@@ -197,8 +197,7 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 	// Expect semicolon after directive
 	cursor = p.cursor
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		directiveName := nextTok.Literal
-		p.addError("expected ';' after "+directiveName, ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return false
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -337,7 +336,14 @@ func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier, 
 			typeParams = append(typeParams, params...)
 			cursor = p.cursor
 		}
-		if cursor.Peek(1).Type != lexer.DOT || !p.isMemberNameToken(cursor.Peek(2).Type) {
+		if cursor.Peek(1).Type == lexer.DOT && !p.isMemberNameToken(cursor.Peek(2).Type) {
+			// A qualified name that ends in its dot: "Name expected" at the
+			// token found, a compiler stop (method_implem3).
+			p.cursor = cursor.Advance() // move to '.'
+			p.addExpectedStop(lexer.IDENT)
+			return nil, nil, nil
+		}
+		if cursor.Peek(1).Type != lexer.DOT {
 			break
 		}
 		cursor = cursor.Advance() // move to '.'
@@ -384,15 +390,24 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		},
 	}
 
-	// Parse function name (may be qualified: ClassName.MethodName)
-	cursor = cursor.Advance() // move to name
-	p.cursor = cursor
+	// Parse function name (may be qualified: ClassName.MethodName). A keyword
+	// may serve as a name (`procedure Method;`); a delimiter or literal cannot.
+	if !p.isMemberNameToken(cursor.Peek(1).Type) {
+		// Upstream reports the missing name and reads the routine on with an
+		// empty one (proc_missing_name, constructor_no_name), so the token
+		// found stays where it is.
+		p.addExpected(lexer.IDENT)
+		fn.Name = &ast.Identifier{BaseNode: ast.BaseNode{Token: cursor.Peek(1)}, Value: ""}
+	} else {
+		cursor = cursor.Advance() // move to name
+		p.cursor = cursor
 
-	fn.Name, fn.ClassName, fn.ClassTypeParams = p.parseFunctionQualifiedName()
-	if fn.Name == nil {
-		return nil // malformed generic type-parameter list; error already recorded
+		fn.Name, fn.ClassName, fn.ClassTypeParams = p.parseFunctionQualifiedName()
+		if fn.Name == nil {
+			return nil // malformed generic type-parameter list; error already recorded
+		}
+		cursor = p.cursor // reload cursor after parsing qualified name
 	}
-	cursor = p.cursor // reload cursor after parsing qualified name
 
 	// Parse parameter list (if present)
 	if cursor.Peek(1).Type == lexer.LPAREN {
@@ -403,7 +418,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		cursor = p.cursor
 
 		if cursor.Current().Type != lexer.RPAREN {
-			p.addError("expected ')' after parameter list", ErrMissingRParen)
+			p.addExpectedStop(lexer.RPAREN)
 			return nil
 		}
 	}
@@ -424,8 +439,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 	// Expect semicolon after signature
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		nextToken := cursor.Peek(1)
-		p.addParserErrorAt(nextToken.Pos, nextToken.Length(), "expected ';' after function signature", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		for p.cursor.Current().Type != lexer.SEMICOLON &&
 			p.cursor.Current().Type != lexer.END &&
 			p.cursor.Current().Type != lexer.EOF {
@@ -474,15 +488,19 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	}
 	cursor = p.cursor
 
-	// Parse function body (begin...end block)
+	// Parse function body (begin...end block). Once the input has run out
+	// upstream's loop simply ends (contracts_unfinished4); otherwise the missing
+	// keyword is a compiler stop anchored at the token found (virtual2).
 	if cursor.Peek(1).Type != lexer.BEGIN {
-		p.addError("expected 'begin' for function body", ErrUnexpectedToken)
+		if cursor.Peek(1).Type != lexer.EOF {
+			p.addExpectedStop(lexer.BEGIN)
+		}
 		return nil
 	}
 	cursor = cursor.Advance() // move to BEGIN
 	p.cursor = cursor
 
-	bodyBlock := p.parseBlockStatement()
+	bodyBlock := p.parseRoutineBodyBlock()
 	cursor = p.cursor
 
 	if bodyBlock != nil {
@@ -490,6 +508,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			fn.Body = bodyBlock
 		} else {
 			fn.Body.Statements = append(fn.Body.Statements, bodyBlock.Statements...)
+			fn.Body.Truncated = fn.Body.Truncated || bodyBlock.Truncated
 		}
 	}
 
@@ -522,7 +541,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 	// Expect semicolon after end
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after 'end'", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -599,7 +618,7 @@ func (p *Parser) parseParameterList() []*ast.Parameter {
 
 	// Expect closing parenthesis
 	if cursor.Peek(1).Type != lexer.RPAREN {
-		p.addError("expected ')' after parameter list", ErrMissingRParen)
+		p.addExpectedStop(lexer.RPAREN)
 		return nil
 	}
 	cursor = cursor.Advance() // move to RPAREN
@@ -673,7 +692,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 
 	// First identifier (allow contextual keywords like STEP)
 	if !p.isIdentifierToken(cursor.Current().Type) {
-		p.addError("expected parameter name", ErrExpectedIdent)
+		p.addExpectedCurrent(lexer.IDENT)
 		return nil
 	}
 
@@ -692,7 +711,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		p.cursor = cursor
 
 		if !p.isIdentifierToken(cursor.Current().Type) {
-			p.addError("expected parameter name after ','", ErrExpectedIdent)
+			p.addExpectedCurrent(lexer.IDENT)
 			return nil
 		}
 
@@ -709,19 +728,37 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	var typeExpr ast.TypeExpression
 	if cursor.Peek(1).Type == lexer.COLON {
 		cursor = cursor.Advance() // move to ':'
-		cursor = cursor.Advance() // move past ':' to type expression
 		p.cursor = cursor
+		if !p.canStartTypeExpression(cursor.Peek(1).Type) {
+			// "Type expected" at the token found, which stays where it is so
+			// the parameter list can still close (method_params).
+			p.addTypeExpectedAt(cursor.Peek(1))
+			typeExpr = &ast.InvalidTypeExpression{BaseNode: ast.BaseNode{Token: cursor.Peek(1)}}
+		} else {
+			cursor = cursor.Advance() // move past ':' to type expression
+			p.cursor = cursor
 
-		errorCount := len(p.errors)
-		typeExpr = p.parseTypeExpression()
-		if isInvalidTypeExpression(typeExpr) {
-			if len(p.errors) == errorCount {
-				return nil
+			errorCount := len(p.errors)
+			typeExpr = p.parseTypeExpression()
+			if isInvalidTypeExpression(typeExpr) {
+				if len(p.errors) == errorCount {
+					return nil
+				}
+				if typeExpr == nil {
+					// Already reported; keep the parameter so the analyzer sees
+					// a refused type rather than a missing one (class_type).
+					typeExpr = &ast.InvalidTypeExpression{BaseNode: ast.BaseNode{Token: cursor.Peek(1)}}
+				}
 			}
-		}
 
-		// Update cursor after type parsing
-		cursor = p.cursor
+			// Update cursor after type parsing
+			cursor = p.cursor
+		}
+	} else if !p.parsingLambdaParameters {
+		// A routine's parameter must have its type: a compiler stop upstream
+		// (const_param3).
+		p.addExpectedStop(lexer.COLON)
+		return nil
 	}
 	// If no colon, typeExpr remains nil (valid for lambda parameters)
 
@@ -815,7 +852,7 @@ func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 
 	// Expect closing parenthesis
 	if cursor.Peek(1).Type != lexer.RPAREN {
-		p.addError("expected ')' after parameter list", ErrMissingRParen)
+		p.addExpectedStop(lexer.RPAREN)
 		return nil
 	}
 	cursor = cursor.Advance() // move to RPAREN

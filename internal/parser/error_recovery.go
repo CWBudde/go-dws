@@ -95,8 +95,9 @@ func (er *ErrorRecovery) SynchronizeOnSet(set SynchronizationSet, additionalToke
 	return er.parser.synchronize(allTokens)
 }
 
-// AddExpectError adds an error when an expected token is missing.
-// This is a high-level wrapper around the common "expected X, got Y" error pattern.
+// AddExpectError records DWScript's "X expected" for a missing token, anchored at
+// the token found instead. The context is not part of DWScript's sentence; it is
+// kept for callers that describe the parse phase.
 //
 // Example:
 //
@@ -104,24 +105,8 @@ func (er *ErrorRecovery) SynchronizeOnSet(set SynchronizationSet, additionalToke
 //	    recovery.AddExpectError(lexer.THEN, "after if condition")
 //	    return nil
 //	}
-func (er *ErrorRecovery) AddExpectError(expected lexer.TokenType, context string) {
-	var msg string
-	if context != "" {
-		msg = fmt.Sprintf("expected %s %s, got %s instead",
-			expected, context, er.parser.cursor.Peek(1).Type)
-	} else {
-		msg = fmt.Sprintf("expected %s, got %s instead",
-			expected, er.parser.cursor.Peek(1).Type)
-	}
-
-	code := getErrorCodeForMissingToken(expected)
-	err := NewParserError(
-		er.parser.cursor.Peek(1).Pos,
-		er.parser.cursor.Peek(1).Length(),
-		msg,
-		code,
-	)
-	er.parser.errors = append(er.parser.errors, err)
+func (er *ErrorRecovery) AddExpectError(expected lexer.TokenType, _ string) {
+	er.parser.addExpected(expected)
 }
 
 // AddExpectErrorWithSuggestion adds an expect error with a recovery suggestion.

@@ -67,8 +67,10 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	for _, param := range method.Parameters {
 		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
-			a.addError("unknown parameter type '%s' in interface method '%s' at %s",
-				getTypeExpressionName(param.Type), methodName, method.Token.Pos.String())
+			if !isRefusedTypeExpression(param.Type) {
+				a.addError("unknown parameter type '%s' in interface method '%s' at %s",
+					getTypeExpressionName(param.Type), methodName, method.Token.Pos.String())
+			}
 			return
 		}
 		paramTypes = append(paramTypes, paramType)

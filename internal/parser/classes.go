@@ -61,7 +61,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 
 	// Expect class name identifier
 	if cursor.Peek(1).Type != lexer.IDENT {
-		p.addError("expected identifier for class name", ErrExpectedIdent)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 	cursor = cursor.Advance() // move to IDENT
@@ -76,7 +76,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 
 	// Expect '='
 	if cursor.Peek(1).Type != lexer.EQ {
-		p.addError("expected '=' after class name", ErrUnexpectedToken)
+		p.addExpected(lexer.EQ)
 		return nil
 	}
 	cursor = cursor.Advance() // move to EQ
@@ -121,8 +121,20 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 
 	for {
 		if cursor.Peek(1).Type != lexer.IDENT {
-			p.addError("expected identifier in class inheritance list", ErrExpectedIdent)
-			return
+			// Upstream reports the missing name, skips the offending token and
+			// then wants the closing parenthesis, a compiler stop (class_error2/3).
+			p.addExpected(lexer.IDENT)
+			if cursor.Peek(1).Type != lexer.EOF {
+				cursor = cursor.Advance()
+				p.cursor = cursor
+			}
+			if cursor.Peek(1).Type != lexer.RPAREN {
+				p.addExpectedStop(lexer.RPAREN)
+				return
+			}
+			cursor = cursor.Advance() // move to ')'
+			p.cursor = cursor
+			break
 		}
 		cursor = cursor.Advance() // move to IDENT
 		p.cursor = cursor
@@ -160,7 +172,9 @@ func (p *Parser) parseClassParentAndInterfaces(classDecl *ast.ClassDecl) {
 			p.cursor = cursor
 			break
 		} else {
-			p.addError("expected ',' or ')' in class inheritance list", ErrUnexpectedToken)
+			// Anchored at the ancestor's name, the hot position DWScript took
+			// before reading it (class_error4, partial_declaration3).
+			p.addExpectedStopAt(entry.Token, lexer.RPAREN)
 			return
 		}
 	}
@@ -379,7 +393,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 			}
 		default:
 			// Unexpected identifier in class body - likely a field missing its type declaration
-			p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
+			p.addExpected(lexer.COLON)
 		}
 
 	default:
@@ -432,6 +446,11 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			cursor = cursor.Advance() // move to string
 			p.cursor = cursor
 			classDecl.ExternalName = cursor.Current().Literal
+		} else if cursor.Peek(1).Type == lexer.INT || cursor.Peek(1).Type == lexer.FLOAT {
+			// A number in the name's place is not a name (external1).
+			p.addExpected(lexer.IDENT)
+			cursor = cursor.Advance() // skip it
+			p.cursor = cursor
 		}
 		// Check again for parent/interfaces after external
 		p.parseClassParentAndInterfaces(classDecl)
@@ -509,7 +528,15 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 	// Expect 'end'
 	if cursor.Current().Type != lexer.END {
-		p.addError("expected 'end' to close class declaration", ErrMissingEnd)
+		if cursor.Current().Type == lexer.EOF {
+			// Upstream's member loop wants another member name once the input
+			// has run out (class_error5, empty_body), anchored at the last token.
+			// The code says what really went wrong, for the frontend's filters.
+			anchor := p.anchorFor(cursor.Current())
+			p.recordStop(NewParserError(anchor.Pos, anchor.Length(), expectedSentence(lexer.IDENT), ErrMissingEnd))
+		} else {
+			p.addError("expected 'end' to close class declaration", ErrMissingEnd)
+		}
 		decl, _ := builder.Finish(classDecl).(*ast.ClassDecl)
 		annotateDeclaringClass(decl)
 		return decl
@@ -517,7 +544,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 	// Expect terminating semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after 'end'", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -691,7 +718,7 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 
 	// Expect semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after field declaration", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -779,6 +806,11 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 
 			// Parse arguments - cursor will be at RPAREN after parseExpressionList
 			newExpr.Arguments = p.parseExpressionList()
+			if p.stopped() {
+				// The argument list was cut short by a compiler stop: upstream never
+				// finished reading this call, so its argument checks never ran.
+				return nil
+			}
 
 			expr := builder.Finish(newExpr).(*ast.NewExpression)
 
@@ -799,6 +831,11 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 
 		// Parse arguments - cursor will be at RPAREN after parseExpressionList
 		methodCall.Arguments = p.parseExpressionList()
+		if p.stopped() {
+			// The argument list was cut short by a compiler stop: upstream never
+			// finished reading this call, so its argument checks never ran.
+			return nil
+		}
 
 		expr := builder.Finish(methodCall).(*ast.MethodCallExpression)
 
@@ -835,7 +872,7 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 
 	// Current token should be the constant name identifier
 	if cursor.Current().Type != lexer.IDENT {
-		p.addError("expected identifier for constant name", ErrExpectedIdent)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 
@@ -870,7 +907,7 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 
 	// Expect '=' for the constant value
 	if cursor.Peek(1).Type != lexer.EQ {
-		p.addError("expected '=' after constant name", ErrUnexpectedToken)
+		p.addExpected(lexer.EQ)
 		return nil
 	}
 	cursor = cursor.Advance() // move to '='
@@ -889,7 +926,7 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 
 	// Expect semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after constant value", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON

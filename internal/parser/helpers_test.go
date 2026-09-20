@@ -213,7 +213,7 @@ func TestParseHelperErrors(t *testing.T) {
 		{
 			name:     "missing for keyword",
 			input:    `type THelper = helper String end;`,
-			expected: "expected next token to be FOR",
+			expected: "FOR expected",
 		},
 		{
 			name:     "missing target type",

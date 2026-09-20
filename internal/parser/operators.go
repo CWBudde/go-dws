@@ -45,7 +45,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 
 	// Parse operand type list (enclosed in parentheses)
 	if cursor.Peek(1).Type != lexer.LPAREN {
-		p.addError("expected '(' after operator symbol", ErrUnexpectedToken)
+		p.addExpected(lexer.LPAREN)
 		return nil
 	}
 	cursor = cursor.Advance() // move to '('
@@ -58,25 +58,27 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 		return nil
 	}
 
-	// Optional return type
-	if cursor.Peek(1).Type == lexer.COLON {
-		cursor = cursor.Advance()   // move to ':'
-		p.cursor = cursor.Advance() // move to the return type
-		decl.ReturnType = p.parseTypeExpression()
-		if isInvalidTypeExpression(decl.ReturnType) {
-			return nil
-		}
-		cursor = p.cursor
+	// Return type: upstream requires it, a compiler stop (operator_overload4).
+	if cursor.Peek(1).Type != lexer.COLON {
+		p.addExpectedStop(lexer.COLON)
+		return nil
 	}
+	cursor = cursor.Advance()   // move to ':'
+	p.cursor = cursor.Advance() // move to the return type
+	decl.ReturnType = p.parseTypeExpression()
+	if isInvalidTypeExpression(decl.ReturnType) {
+		return nil
+	}
+	cursor = p.cursor
 
 	// Expect 'uses' clause
 	if cursor.Peek(1).Type != lexer.USES {
-		p.addError("expected 'uses' in operator declaration", ErrUnexpectedToken)
+		p.addExpected(lexer.USES)
 		return nil
 	}
 	cursor = cursor.Advance() // move to 'uses'
 	if cursor.Peek(1).Type != lexer.IDENT {
-		p.addError("expected identifier after 'uses' in operator declaration", ErrExpectedIdent)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 	cursor = cursor.Advance() // move to identifier
@@ -90,7 +92,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 
 	// Expect terminating semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' at end of operator declaration", ErrUnexpectedToken)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to ';'
@@ -186,12 +188,12 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 
 	// Expect 'uses' clause
 	if cursor.Peek(1).Type != lexer.USES {
-		p.addError("expected 'uses' in class operator declaration", ErrUnexpectedToken)
+		p.addExpected(lexer.USES)
 		return nil
 	}
 	cursor = cursor.Advance() // move to 'uses'
 	if cursor.Peek(1).Type != lexer.IDENT {
-		p.addError("expected identifier after 'uses' in class operator declaration", ErrExpectedIdent)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 	cursor = cursor.Advance() // move to identifier
@@ -204,7 +206,7 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 	}
 
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' at end of class operator declaration", ErrUnexpectedToken)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to ';'
@@ -224,6 +226,13 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
 	var operandTypes []ast.TypeExpression
 	p.cursor = p.cursor.Advance()
+	if p.cursor.Current().Type == lexer.EOF {
+		// The input ran out where a type was wanted (operator_overload2): both
+		// diagnostics anchor at the last token.
+		p.addTypeExpectedAt(p.cursor.Current())
+		p.addExpectedStopCurrent(lexer.RPAREN)
+		return operandTypes
+	}
 	for p.cursor.Current().Type != lexer.RPAREN && p.cursor.Current().Type != lexer.EOF {
 		operand := p.parseOperatorOperandType()
 		if isInvalidTypeExpression(operand) {
@@ -236,11 +245,8 @@ func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
 		case lexer.RPAREN:
 			p.cursor = p.cursor.Advance()
 			return operandTypes
-		case lexer.EOF:
-			p.addError("unterminated operator operand list", ErrMissingRParen)
-			return operandTypes
 		default:
-			p.addError("expected ',' or ')' in operator operand list", ErrUnexpectedToken)
+			p.addExpectedStop(lexer.RPAREN)
 			return operandTypes
 		}
 	}

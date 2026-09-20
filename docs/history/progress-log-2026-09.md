@@ -5271,3 +5271,74 @@ too short to grep. One of them has an **empty message text** with a real positio
 `SimpleScripts/inherited1`) and is worth a look on its own.
 
 Every bullet quotes the fragment that matched, so the search is repeatable.
+
+## 2026-09-20 — DWScript's `"X" expected` sentences and anchors (PLAN.md §4 / F3, F8)
+
+The single largest missing message shape. go-dws answered a missing token with its own wording
+(`expected ')', got SEMICOLON`) at its own position, so 64 fixtures differed on a line that was
+otherwise correct. Every sentence and every anchor here was measured from the fixture `.txt`
+files; nothing was guessed, and where two fixtures disagreed the token was parked rather than
+half-implemented.
+
+**Vocabulary.** New `internal/parser/expected.go` owns the rendering: a delimiter is quoted
+(`")" expected`), a name, a type, a colon and a dot have their own sentences (`Name expected`,
+`Type expected`, `Colon ":" expected`, `Dot "." expected`), a keyword is upper-cased
+(`DO expected`), and `USES` is the one keyword DWScript quotes. The two generic generators —
+`parser.peekError` and `ErrorRecovery.AddExpectError` — were converted, the latter now routed
+through `recordError` so it respects compiler stops, and roughly ninety hand-written sites across
+the parser followed.
+
+**Anchors.** DWScript anchors `"X" expected` at the token found *instead of* X, which is
+`FTok.HotPos` at every site upstream. At end of input the anchor is the last real token, the way
+the tokenizer keeps its hot position there. Two shapes anchor elsewhere and were measured
+individually: an ancestor list anchors at the ancestor name (`class_error4`,
+`partial_declaration3`), and `new (T` anchors at its `(` (`new_class6/7`).
+
+**Stops versus ordinary errors** were measured per site rather than assumed. Stops: a
+parenthesised expression, an argument list, an array or set literal's `]`, `new […]`, an enum's
+`(`, a const `=`, a for `:=` and loop variable name, a helper's `for`, ancestor lists, an
+operator's operand list and result `:`, a parameter `:`, a type argument `>`, a type parameter
+name, a qualified routine name ending in a dot, and `not` without `in`. Ordinary errors that
+carry on as if the token were present: `;`, an index `]`, `DO`, `OF`, `THEN`, `TO or DOWNTO`, a
+type parameter `>`, `Name expected`, and `Type expected` in a parameter list.
+
+**Blocks** now say `"end" expected but "X" found` — a stop — for a token that cannot begin a
+statement and for a statement not followed by `;` or a closer; a routine body says
+`"ensure" or "end"`, a repeat says `"until"`, a unit initialization says `"finalization" or "end"`,
+and an identifier renders as `identifier`.
+
+**After a stop** nothing further is built: `parseStatement` stops, a call whose argument list was
+cut short is dropped (its arity checks never ran upstream), a const whose value hit a stop is
+dropped, and the new `ast.BlockStatement.Truncated` marks a block cut short so the analyzer skips
+its scope-exit unused hints and its infinite-loop judgement. `validateForwardMethods` honours
+`compileStopped`. On the frontend, `normalizeParserDiagnosticMessage` shrank to its one surviving
+entry.
+
+Parked with evidence, all now listed under F3 in PLAN.md: the type-directed `"("` / `","` / `")"`
+shapes, property `read`/`write` parentheses, `array_params1/2`, `export`, `OF OBJECT expected`,
+`array of const`, a property description's `String expected`, `attribute_incorrect2`,
+`method_implem6`, `missing_parenthesis1` and the lexer-owned `include_incorrect`.
+
+Tests: new `internal/frontend/fail_parser_expected_test.go` (56 cases mirroring the fixtures
+verbatim, negatives included); pins updated in `parser_test.go`, `helpers_test.go`,
+`error_recovery_test.go`, `declarations_test.go`, `operators_test.go` and the array tests. Three
+older hand-written pins asserted go-dws's invented wording and were corrected against the
+fixtures and upstream: `cmd/dwscript/composite_types_test.go` (now DWScript's `Type expected` /
+`")" expected`, as `OperatorOverloadFail/operator_overload2.txt` pins), `run_diagnostics_test.go`
+(a missing `;` anchors at the token found instead) and `pkg/ast/visitor_test.go` (its sample
+program used `class TMyClass` instead of `type TMyClass = class`, and only limped through on the
+old recovery). `internal/semantic/analyze_for_in.go` was split out unchanged when
+`analyze_statements.go` outgrew the 1,500-line limit.
+
+Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
+`golangci-lint run --new-from-rev=origin/main ./...` (0 issues), and a per-category diff of the
+old and new binaries over all 2,044 fixtures. CLI and harness agree at **1,282 / 1,966 scored**
+(+64), **1,282 / 1,747 = 73% in scope**, `*Fail` suites **289 / 641 = 45%**. No category dropped:
+FailureScripts 198 → 249, SetOfFail 10 → 13, InterfacesFail 1 → 5, OperatorOverloadFail 0 → 3,
+HelpersFail 6 → 8, GenericsFail 0 → 1. The +64 has been the same on all five bases this was
+measured against: the emission-order, set-mutator, helper-rules and declaration-hint slices it
+now sits on contribute their own fixtures (seven FailureScripts, four SetOfFail, six
+HelpersFail) and none of the five disturbs the others. The
+three `SetOfFail` fixtures here are the parser trio — `of_missing`, `for_in_set_missing_do`,
+`bracket_right_missing` — disjoint from the set-mutator slice's semantic ones, which is why the
+suite reaches 13/14.

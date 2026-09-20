@@ -427,11 +427,12 @@ func TestOperatorOverloading(t *testing.T) {
 			skipReason:           "Requires ToString method on Integer",
 		},
 		{
-			name:           "Invalid operator declaration (error test)",
-			scriptFile:     "../../testdata/operators/fail/operator_overload2.dws",
-			isErrorTest:    true,
-			shouldSucceed:  false,
-			wantErrorParts: []string{"operator declaration requires at least one operand type"},
+			name:          "Invalid operator declaration (error test)",
+			scriptFile:    "../../testdata/operators/fail/operator_overload2.dws",
+			isErrorTest:   true,
+			shouldSucceed: false,
+			// DWScript's own wording, pinned by OperatorOverloadFail/operator_overload2.txt.
+			wantErrorParts: []string{"Type expected", `")" expected`},
 		},
 	}
 

@@ -31,22 +31,14 @@ func (p *Parser) parseProgramDeclaration() {
 		return
 	}
 
-	// Expect identifier (program name)
+	// Expect identifier (program name). A missing name is an error, not a stop:
+	// the header's ";" is still checked (program.pas reports both).
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.IDENT {
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrExpectedIdent).
-			WithMessage("expected program name after 'program' keyword").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("program name").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("provide a program name after 'program'").
-			WithParsePhase("program declaration").
-			Build()
-		p.addStructuredError(err)
-		return
+		p.addExpected(lexer.IDENT)
+	} else {
+		p.cursor = p.cursor.Advance() // move to program name
 	}
-	p.cursor = p.cursor.Advance() // move to program name
 
 	// Note: We could store the program name if needed, but DWScript ignores it
 	// programName := p.cursor.Current().Literal
@@ -54,16 +46,7 @@ func (p *Parser) parseProgramDeclaration() {
 	// Expect semicolon
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.SEMICOLON {
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after program name").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("';'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ';' after program name").
-			WithParsePhase("program declaration").
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.SEMICOLON)
 		return
 	}
 	p.cursor = p.cursor.Advance() // move to semicolon
@@ -137,17 +120,7 @@ func (p *Parser) parseSingleConstDeclaration(isResourceStringSection bool) *ast.
 
 	// We should now be at the identifier
 	if !p.isIdentifierToken(currentToken.Type) {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrExpectedIdent).
-			WithMessage("expected identifier in const declaration").
-			WithPosition(currentToken.Pos, currentToken.Length()).
-			WithExpectedString("constant name").
-			WithActual(currentToken.Type, currentToken.Literal).
-			WithSuggestion("provide a constant name after 'const'").
-			WithParsePhase("constant declaration").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedCurrent(lexer.IDENT)
 		return nil
 	}
 
@@ -196,24 +169,20 @@ func (p *Parser) parseSingleConstDeclaration(isResourceStringSection bool) *ast.
 	// Expect '=' or ':=' token
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.EQ && nextToken.Type != lexer.ASSIGN {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingAssign).
-			WithMessage("expected '=' or ':=' after const name").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("'=' or ':='").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add '=' or ':=' before the constant value").
-			WithParsePhase("constant declaration").
-			Build()
-		p.addStructuredError(err)
-		return stmt
+		// A compiler stop upstream (const_array2): the declaration never exists.
+		p.addExpectedStop(lexer.EQ)
+		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to '=' or ':='
 
 	// Parse value expression
 	p.cursor = p.cursor.Advance() // move to value expression
 	stmt.Value = p.parseExpression(ASSIGN)
+	if p.stopped() {
+		// A value cut short by a compiler stop: the declaration never existed
+		// upstream, so it is not analysed (const_record4).
+		return nil
+	}
 
 	// Check for optional 'deprecated' keyword
 	nextToken = p.cursor.Peek(1)

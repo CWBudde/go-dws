@@ -335,12 +335,12 @@ func TestParseArrayLiteralErrors(t *testing.T) {
 		{
 			name:          "MissingCommaBetweenElements",
 			input:         `var arr := [1 2, 3];`,
-			expectedError: "expected ',' or ']'",
+			expectedError: `"]" expected`,
 		},
 		{
 			name:          "UnclosedBracket",
 			input:         `var arr := [1, 2, 3;`,
-			expectedError: "expected ',' or ']'",
+			expectedError: `"]" expected`,
 		},
 	}
 

@@ -796,7 +796,9 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 		paramTypeName := getTypeExpressionName(param.Type)
 		paramType, err := a.resolveType(paramTypeName)
 		if err != nil {
-			a.addError("unknown parameter type '%s' at %s", paramTypeName, param.Token.Pos.String())
+			if !isRefusedTypeExpression(param.Type) {
+				a.addError("unknown parameter type '%s' at %s", paramTypeName, param.Token.Pos.String())
+			}
 			continue
 		}
 		if param.IsConst {
@@ -914,7 +916,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		}
 		paramType, err := a.resolveType(paramTypeName)
 		if err != nil {
-			a.addError("unknown parameter type '%s' in method '%s'", paramTypeName, method.Name.Value)
+			if !isRefusedTypeExpression(param.Type) {
+				a.addError("unknown parameter type '%s' in method '%s'", paramTypeName, method.Name.Value)
+			}
 			return
 		}
 		a.warnDeprecatedResolvedType(param.Type.Pos(), paramType)

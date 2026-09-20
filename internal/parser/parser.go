@@ -97,7 +97,10 @@ type Parser struct {
 	pendingTypeDecls     []ast.Statement
 	parsingInlineEnum    bool
 	parsingParameterList bool
-	parsingPostCondition bool
+	// parsingLambdaParameters is set while a lambda's parameter list is read,
+	// where a parameter may omit its type.
+	parsingLambdaParameters bool
+	parsingPostCondition    bool
 }
 
 // ParserState is a heavyweight snapshot for speculative parsing with full backtracking.
@@ -230,18 +233,10 @@ func (p *Parser) expectIdentifier() bool {
 	return false
 }
 
-// peekError adds an error about an unexpected peek token.
+// peekError records DWScript's "X expected" for a missing peek token, anchored at
+// the token found instead.
 func (p *Parser) peekError(t lexer.TokenType) {
-	peekTok := p.cursor.Peek(1)
-
-	msg := fmt.Sprintf("expected next token to be %s, got %s instead", t, peekTok.Type)
-	err := NewParserError(
-		peekTok.Pos,
-		peekTok.Length(),
-		msg,
-		ErrUnexpectedToken,
-	)
-	p.recordError(err)
+	p.addExpected(t)
 }
 
 // recordError appends a parser diagnostic unless it is an artifact of {$FATAL}

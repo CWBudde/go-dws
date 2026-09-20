@@ -23,7 +23,7 @@ func TestErrorRecoveryBlockStatement(t *testing.T) {
 				var y: String := 'hello'
 			`,
 			expectErrors:  1,
-			errorContains: []string{"expected 'end'", "begin block"},
+			errorContains: []string{"expected 'end'"},
 		},
 		{
 			name: "multiple errors in block",
@@ -191,7 +191,7 @@ func TestErrorRecoveryWhileStatement(t *testing.T) {
 				x := x - 1;
 			`,
 			expectErrors:  1,
-			errorContains: []string{"expected 'do'", "while block"},
+			errorContains: []string{"DO expected"},
 		},
 		{
 			name: "missing condition",
@@ -705,9 +705,7 @@ func TestAddExpectError(t *testing.T) {
 				if !strings.Contains(errMsg, tt.expected.String()) {
 					t.Errorf("error message should contain expected token %s, got: %s", tt.expected, errMsg)
 				}
-				if tt.context != "" && !strings.Contains(errMsg, tt.context) {
-					t.Errorf("error message should contain context '%s', got: %s", tt.context, errMsg)
-				}
+				// DWScript's sentence names the token only; the context is not part of it.
 			}
 		})
 	}

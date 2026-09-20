@@ -486,6 +486,11 @@ type BlockStatement struct {
 	// `var s : set of (a, b)`.
 	SharesEnclosingScope bool
 
+	// Truncated marks a block cut short by a compiler stop: it holds the
+	// statements read before the stop, and its own end — the closing "end" and
+	// the checks made on leaving its scope — was never reached.
+	Truncated bool
+
 	BaseNode
 }
 

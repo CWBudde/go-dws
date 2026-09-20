@@ -10,21 +10,21 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,218 / 1,966 scored =
-62%**; `*Fail` error-detection suites **225 / 641 = 35%**. What shipped to get there is in
+**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,282 / 1,966 scored =
+65%**; `*Fail` error-detection suites **289 / 641 = 45%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,218 / 1,747 = 70% in scope**, the number to track against §6. Both are honest;
+same run reads **1,282 / 1,747 = 73% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 416 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 352 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
@@ -54,9 +54,9 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (748 total, 2026-09-20): **219 host-library** (out of scope),
-  **416 in the `*Fail` error-detection suites** (§4: FailureScripts 331, InterfacesFail 18,
-  HelpersFail 12, the rest under 15), and **113 in the execution suites** (§3.5:
+- Where the remaining failures are (684 total, 2026-09-20): **219 host-library** (out of scope),
+  **352 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 14,
+  OverloadsFail 11, HelpersFail 10, the rest under 10), and **113 in the execution suites** (§3.5:
   SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
@@ -349,9 +349,9 @@ independently; evaluate it once, as E9 does for member receivers.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 225/641 (FailureScripts 198/529, SetOfFail 10, HelpersFail 6, OverloadsFail 3,
-JSONConnectorFail 2, PropertyExpressionsFail 2, AssociativeFail 2, InterfacesFail 1,
-JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
+Harness and CLI: 289/641 (FailureScripts 249/529, SetOfFail 13, HelpersFail 8, InterfacesFail 5,
+OperatorOverloadFail 3, OverloadsFail 3, JSONConnectorFail 2, PropertyExpressionsFail 2,
+AssociativeFail 2, GenericsFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
 `dwscript run --diagnostics=plain --compile-only --hints pedantic <file>`.
@@ -407,14 +407,32 @@ Work families — IDs from the 2026-03 analysis
   - `[ ]` S Bound-exceeded wording.
   - `[ ]` M Malformed array-type recovery.
   - `[ ]` S `Range start and range stop are of incompatible types: "X" and "Y"` 9 (4).
-- **F3** `[ ]` M Parser header/declaration/delimiter recovery. Wide and shallow rather than one
-  deep bug. The blocker is F8: go-dws answers with its own sentence instead
-  (`expected ')', got SEMICOLON`). Split by shape:
-  - `[ ]` `"X" expected` — the largest missing shape, 70 lines over 64 fixtures. By token:
-    `")"` ~23, `";"` ~11, `"]"` ~9, `"("` ~6, `"end"` 4, `">"` 4; work token by token.
-  - `[ ]` `Name expected` 38 (33).
-  - `[ ]` `Type expected` 15 (14).
-  - Left open by the 2026-09-12 slices: `ifthenelse_expression1` fails on recovery after `if 2=2 1`.
+- **F3** `[~]` M Parser header/declaration/delimiter recovery. Wide and shallow rather than one
+  deep bug. The vocabulary and anchors closed 2026-09-20
+  ([log](docs/history/progress-log-2026-09.md)): `"X" expected`, `Name expected`, `Type expected`,
+  `Colon ":" expected`, `Dot "." expected` and `"end" expected but "X" found` are now DWScript's
+  own sentences, anchored at the token found instead (at the last token of the input at EOF), and
+  each site is a measured stop or an ordinary error. `ifthenelse_expression1` closed with them.
+  What is left needs knowledge the parser does not have:
+  - `[ ]` S Type-directed `"("` / `","` / `")"`: a record-typed const (`const_record1`), special
+    functions written without parentheses (`special_funcs1`, `at_integer`), set pseudo-methods
+    (`SetOfFail/bracket_left_missing`, `include`), magic functions (`debugbreak`) and reintroduced
+    properties (`property_reintroduce2`). An ordinary call says `Expression expected` for `f(;`, so
+    these have to be driven from the semantic side.
+  - `[ ]` S Property `read (…)` / `write (…)`: upstream reports every missing `")"` as an ordinary
+    error (`missing_reader_bracket` lists lines 4, 6, 7, 8) where the parenthesised-expression stop
+    hides all but the first; blocked anyway by the missing `Warning: Property writer does nothing`.
+  - `[ ]` S Parser gaps with no site yet: `var`/`const` in property index parameters
+    (`array_params1/2`, `Parameters expected`), the `export` directive, `OF OBJECT expected`
+    (`legacy_proc_of_object`), `array of const` (`open_array`), `String expected` for a property
+    description (`property_description1`), attribute `"]"` anchored at the `[`
+    (`attribute_incorrect2`, blocked by `Dangling attribute declaration`), and
+    `Dot "." expected` where the parser must know `TTest` is a class (`method_implem6`).
+  - `[ ]` S `missing_parenthesis1` wants `Invalid Operands` from inside a call whose argument list
+    hit a stop; such calls are dropped, which is what makes `array_index_bracket_missing1` and
+    `constructor_invalid_param` pass. A per-call truncation marker would give both.
+  - `[ ]` S `include_incorrect` is lexer-owned: it wants `"}" expected` at 3:18, the end of the
+    directive argument, and `directive_messages.go` anchors at 3:13.
   - `[ ]` Left open by the 2026-09-19 compiler-stop slice: inside `begin…end` the value left
     unconsumed after a read-only property assignment is worded differently upstream (go-dws
     reports nothing); indexed read-only property writes get no follow-up; semantic

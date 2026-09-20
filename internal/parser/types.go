@@ -113,7 +113,7 @@ func (p *Parser) parseTypeExpressionInner() ast.TypeExpression {
 		return p.parseClassOfType()
 
 	default:
-		p.addError("expected type expression, got "+currentToken.Literal, ErrExpectedType)
+		p.addTypeExpectedAt(currentToken)
 		return &ast.InvalidTypeExpression{
 			BaseNode: ast.BaseNode{
 				Token: currentToken,
@@ -198,6 +198,18 @@ func (p *Parser) parseTypeArguments() []ast.TypeExpression {
 
 	var args []ast.TypeExpression
 	for {
+		if !p.canStartTypeExpression(p.cursor.Peek(1).Type) {
+			// "Type expected" at the token found. When that token closes the
+			// list the list is simply empty (array1-2); otherwise the ">" it is
+			// not is a compiler stop in a type reference (record_constraint1).
+			p.addTypeExpectedAt(p.cursor.Peek(1))
+			if p.cursor.Peek(1).Type == lexer.GREATER {
+				p.cursor = p.cursor.Advance() // consume '>'
+				return args
+			}
+			p.addExpectedStop(lexer.GREATER)
+			return nil
+		}
 		p.cursor = p.cursor.Advance() // move to first token of the type expression
 		arg := p.parseTypeExpression()
 		if arg == nil {
@@ -218,7 +230,7 @@ func (p *Parser) parseTypeArguments() []ast.TypeExpression {
 			p.cursor.SplitGreaterGreater(1)
 			return args
 		default:
-			p.addPeekTokenError("\">\" expected in generic type argument list", ErrUnexpectedToken)
+			p.addExpectedStop(lexer.GREATER)
 			return nil
 		}
 	}
@@ -335,7 +347,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 
 		// Expect closing parenthesis
 		if cursor.Current().Type != lexer.RPAREN {
-			p.addError("expected ')' after parameter list in function pointer type", ErrMissingRParen)
+			p.addExpectedStop(lexer.RPAREN)
 			return nil
 		}
 
@@ -352,7 +364,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	if isFunction {
 		// Expect colon and return type
 		if cursor.Peek(1).Type != lexer.COLON {
-			p.addError("expected ':' after ')' in function pointer type", ErrMissingColon)
+			p.addExpected(lexer.COLON)
 			return nil
 		}
 		cursor = cursor.Advance() // move to COLON
@@ -715,9 +727,10 @@ func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 
 	classToken := cursor.Current() // The 'class' token
 
-	// Expect 'of' keyword
+	// Expect 'of' keyword. Without it "class" is no type here: upstream reports
+	// "Type expected" at the token after it (class_type).
 	if cursor.Peek(1).Type != lexer.OF {
-		p.addError("expected 'of' after 'class' in metaclass type", ErrMissingOf)
+		p.addTypeExpectedAt(cursor.Peek(1))
 		return nil
 	}
 	cursor = cursor.Advance() // move to OF

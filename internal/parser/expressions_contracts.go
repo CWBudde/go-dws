@@ -132,9 +132,7 @@ func (p *Parser) parsePreConditions() *ast.PreConditions {
 	conditions = append(conditions, condition)
 
 	// Parse additional conditions separated by semicolons
-	for p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken() // consume the semicolon
-
+	for p.expectConditionSemicolon() {
 		// Check if we've reached the end of preconditions (peek at next token)
 		// (beginning of var/const/begin or postconditions or EOF)
 		if p.peekTokenIs(lexer.VAR) || p.peekTokenIs(lexer.CONST) ||
@@ -200,9 +198,7 @@ func (p *Parser) parsePostConditions() *ast.PostConditions {
 	conditions = append(conditions, condition)
 
 	// Parse additional conditions separated by semicolons
-	for p.peekTokenIs(lexer.SEMICOLON) {
-		p.nextToken() // consume the semicolon
-
+	for p.expectConditionSemicolon() {
 		// Check if we've reached the end of postconditions (peek at next token)
 		// (next function/procedure/type/begin/end/etc. or EOF)
 		if p.peekTokenIs(lexer.FUNCTION) || p.peekTokenIs(lexer.PROCEDURE) ||
@@ -297,4 +293,27 @@ func (p *Parser) parseInvariantClause() *ast.InvariantClause {
 	}
 
 	return invariantClause
+}
+
+// expectConditionSemicolon consumes the ";" DWScript requires after every contract
+// condition. A missing one is an ordinary error (contracts_error1,
+// contracts_unfinished4) anchored at the token found; the parser then skips to the
+// next ";" or to whatever follows the conditions. It returns true when a ";" was
+// consumed, so another condition may follow.
+func (p *Parser) expectConditionSemicolon() bool {
+	if p.peekTokenIs(lexer.SEMICOLON) {
+		p.nextToken() // consume the semicolon
+		return true
+	}
+	p.addExpected(lexer.SEMICOLON)
+	for {
+		switch p.cursor.Peek(1).Type {
+		case lexer.SEMICOLON:
+			p.nextToken()
+			return true
+		case lexer.EOF, lexer.BEGIN, lexer.VAR, lexer.CONST, lexer.ENSURE, lexer.REQUIRE, lexer.END:
+			return false
+		}
+		p.nextToken()
+	}
 }

@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1218 |
-| Failed | 748 |
+| Passed | 1282 |
+| Failed | 684 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **62%** (1218/1966) |
+| **Scored pass rate** | **65%** (1282/1966) |
 
 ## Per-category
 
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 198 | 331 | 13 | 37% |
+| FailureScripts | 542 | 249 | 280 | 13 | 47% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -52,15 +52,15 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | FunctionsString | 58 | 57 | 1 | 0 | 98% |
 | FunctionsTime | 30 | 30 | 0 | 0 | 100% |
 | FunctionsVariant | 10 | 10 | 0 | 0 | 100% |
-| GenericsFail | 8 | 0 | 8 | 0 | 0% |
+| GenericsFail | 8 | 1 | 7 | 0 | 12% |
 | GenericsPass | 23 | 23 | 0 | 0 | 100% |
 | GraphicsLib | 4 | 0 | 4 | 0 | 0% |
-| HelpersFail | 18 | 6 | 12 | 0 | 33% |
+| HelpersFail | 18 | 8 | 10 | 0 | 44% |
 | HelpersPass | 27 | 22 | 5 | 0 | 81% |
 | IniFileLib | 2 | 0 | 2 | 0 | 0% |
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
 | InnerClassesPass | 2 | 2 | 0 | 0 | 100% |
-| InterfacesFail | 19 | 1 | 18 | 0 | 5% |
+| InterfacesFail | 19 | 5 | 14 | 0 | 26% |
 | InterfacesPass | 33 | 27 | 6 | 0 | 82% |
 | JSFilterScripts | 2 | 2 | 0 | 0 | 100% |
 | JSFilterScriptsFail | 1 | 1 | 0 | 0 | 100% |
@@ -71,13 +71,13 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | Linq | 7 | 0 | 7 | 0 | 0% |
 | LinqJSON | 6 | 0 | 6 | 0 | 0% |
 | Memory | 13 | 7 | 6 | 0 | 54% |
-| OperatorOverloadFail | 6 | 0 | 6 | 0 | 0% |
+| OperatorOverloadFail | 6 | 3 | 3 | 0 | 50% |
 | OperatorOverloadPass | 8 | 5 | 3 | 0 | 62% |
 | OverloadsFail | 14 | 3 | 11 | 0 | 21% |
 | OverloadsPass | 39 | 37 | 2 | 0 | 95% |
 | PropertyExpressionsFail | 10 | 2 | 8 | 0 | 20% |
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
-| SetOfFail | 14 | 10 | 4 | 0 | 71% |
+| SetOfFail | 14 | 13 | 1 | 0 | 93% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
 | SimpleScripts | 443 | 383 | 60 | 0 | 86% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
