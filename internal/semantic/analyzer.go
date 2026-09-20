@@ -389,6 +389,15 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// it in the file (FailureScripts/infinite_loop), so each deferred body
 	// remembers how many diagnostics existed when it was deferred and pass 2
 	// splices what the body produced back to that point.
+	//
+	// The remembered position cannot account for inline class method bodies,
+	// which stay queued until the last top-level class declaration and are then
+	// drained as one batch. A statement written between two class declarations
+	// therefore precedes both class bodies' diagnostics, whether it is a routine
+	// spliced back here or an ordinary statement reported in pass 1; the batched
+	// drain, not the splice, is what orders them. Splicing the class bodies back
+	// to their own declarations too would need upstream evidence that no fixture
+	// currently provides.
 	type deferredFunc struct {
 		returnType types.Type
 		decl       *ast.FunctionDecl

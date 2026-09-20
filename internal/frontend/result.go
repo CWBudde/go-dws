@@ -401,6 +401,14 @@ func safeAnalyze(analyzer *semantic.Analyzer, result *Result) (err error) {
 // diagnostics comes from a compiler directive and the other is a semantic hint
 // or warning. Such a pair is the one case where the appended-first lexer stream
 // misrepresents upstream's emission order; see sortDiagnostics.
+//
+// The pair may straddle two sources, because an imported unit's directive
+// diagnostics are merged into the same slice. Comparing their lines is then
+// meaningless, but it is never worse than the order it replaces: compileParsedResult
+// appends every unit diagnostic behind the main file's, while upstream compiles the
+// units first, so a unit directive that this rule pulls ahead of a main-file advisory
+// only moves towards upstream's order, and one it leaves behind stays where the merge
+// had already put it.
 func directiveAgainstSemanticAdvisory(left, right Diagnostic) bool {
 	return isDirectiveDiagnostic(left) && isSemanticAdvisory(right) ||
 		isDirectiveDiagnostic(right) && isSemanticAdvisory(left)
