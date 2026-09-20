@@ -58,16 +58,18 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 		return nil
 	}
 
-	// Optional return type
-	if cursor.Peek(1).Type == lexer.COLON {
-		cursor = cursor.Advance()   // move to ':'
-		p.cursor = cursor.Advance() // move to the return type
-		decl.ReturnType = p.parseTypeExpression()
-		if isInvalidTypeExpression(decl.ReturnType) {
-			return nil
-		}
-		cursor = p.cursor
+	// Return type: upstream requires it, a compiler stop (operator_overload4).
+	if cursor.Peek(1).Type != lexer.COLON {
+		p.addExpectedStop(lexer.COLON)
+		return nil
 	}
+	cursor = cursor.Advance()   // move to ':'
+	p.cursor = cursor.Advance() // move to the return type
+	decl.ReturnType = p.parseTypeExpression()
+	if isInvalidTypeExpression(decl.ReturnType) {
+		return nil
+	}
+	cursor = p.cursor
 
 	// Expect 'uses' clause
 	if cursor.Peek(1).Type != lexer.USES {

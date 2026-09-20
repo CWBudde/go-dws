@@ -97,7 +97,10 @@ type Parser struct {
 	pendingTypeDecls     []ast.Statement
 	parsingInlineEnum    bool
 	parsingParameterList bool
-	parsingPostCondition bool
+	// parsingLambdaParameters is set while a lambda's parameter list is read,
+	// where a parameter may omit its type.
+	parsingLambdaParameters bool
+	parsingPostCondition    bool
 }
 
 // ParserState is a heavyweight snapshot for speculative parsing with full backtracking.

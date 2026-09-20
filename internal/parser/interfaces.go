@@ -294,7 +294,7 @@ func (p *Parser) parseTypeParameters() []string {
 	var params []string
 	for {
 		if !p.isIdentifierToken(p.cursor.Peek(1).Type) {
-			p.addPeekTokenError("type parameter name expected", ErrExpectedIdent)
+			p.addExpectedStop(lexer.IDENT)
 			return nil
 		}
 		p.cursor = p.cursor.Advance() // move to parameter identifier

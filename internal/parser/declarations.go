@@ -120,8 +120,7 @@ func (p *Parser) parseSingleConstDeclaration(isResourceStringSection bool) *ast.
 
 	// We should now be at the identifier
 	if !p.isIdentifierToken(currentToken.Type) {
-		// Use structured error
-		p.addExpected(lexer.IDENT)
+		p.addExpectedCurrent(lexer.IDENT)
 		return nil
 	}
 

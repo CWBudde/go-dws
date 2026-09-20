@@ -559,7 +559,7 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 		{
 			name:          "unterminated operand list - EOF after comma",
 			input:         `operator + (Integer,`,
-			expectedError: `"USES" expected`,
+			expectedError: `Colon ":" expected`,
 		},
 	}
 

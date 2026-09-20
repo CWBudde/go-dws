@@ -199,9 +199,14 @@ func (p *Parser) parseTypeArguments() []ast.TypeExpression {
 	var args []ast.TypeExpression
 	for {
 		if !p.canStartTypeExpression(p.cursor.Peek(1).Type) {
-			// "Type expected" at the token found, then the ">" it is not: a
-			// compiler stop in a type reference (record_constraint1).
+			// "Type expected" at the token found. When that token closes the
+			// list the list is simply empty (array1-2); otherwise the ">" it is
+			// not is a compiler stop in a type reference (record_constraint1).
 			p.addTypeExpectedAt(p.cursor.Peek(1))
+			if p.cursor.Peek(1).Type == lexer.GREATER {
+				p.cursor = p.cursor.Advance() // consume '>'
+				return args
+			}
 			p.addExpectedStop(lexer.GREATER)
 			return nil
 		}
@@ -722,9 +727,10 @@ func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 
 	classToken := cursor.Current() // The 'class' token
 
-	// Expect 'of' keyword
+	// Expect 'of' keyword. Without it "class" is no type here: upstream reports
+	// "Type expected" at the token after it (class_type).
 	if cursor.Peek(1).Type != lexer.OF {
-		p.addExpected(lexer.OF)
+		p.addTypeExpectedAt(cursor.Peek(1))
 		return nil
 	}
 	cursor = cursor.Advance() // move to OF

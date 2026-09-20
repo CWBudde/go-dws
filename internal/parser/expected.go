@@ -94,13 +94,16 @@ func (p *Parser) addExpectedStopCurrent(t lexer.TokenType) {
 	p.addExpectedStopAt(p.anchorFor(p.cursor.Current()), t)
 }
 
-// addExpectedAt records the diagnostic at an explicit anchor.
-func (p *Parser) addExpectedAt(anchor lexer.Token, t lexer.TokenType) {
+// addExpectedAt records the diagnostic at an explicit anchor, the token found in
+// place of the expected one; the end-of-input rule applies to it too.
+func (p *Parser) addExpectedAt(found lexer.Token, t lexer.TokenType) {
+	anchor := p.anchorFor(found)
 	p.recordError(NewParserError(anchor.Pos, anchor.Length(), expectedSentence(t), getErrorCodeForMissingToken(t)))
 }
 
 // addExpectedStopAt records the diagnostic at an explicit anchor as a compiler stop.
-func (p *Parser) addExpectedStopAt(anchor lexer.Token, t lexer.TokenType) {
+func (p *Parser) addExpectedStopAt(found lexer.Token, t lexer.TokenType) {
+	anchor := p.anchorFor(found)
 	p.recordStop(NewParserError(anchor.Pos, anchor.Length(), expectedSentence(t), getErrorCodeForMissingToken(t)))
 }
 

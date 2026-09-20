@@ -161,6 +161,9 @@ func (p *Parser) parseLambdaExpression() ast.Expression {
 // POST: cursor is on RPAREN
 func (p *Parser) parseLambdaParameterList() []*ast.Parameter {
 	params := []*ast.Parameter{}
+	prevLambda := p.parsingLambdaParameters
+	p.parsingLambdaParameters = true
+	defer func() { p.parsingLambdaParameters = prevLambda }()
 
 	// Check if empty parameter list
 	nextToken := p.cursor.Peek(1)

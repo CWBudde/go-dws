@@ -393,7 +393,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 			}
 		default:
 			// Unexpected identifier in class body - likely a field missing its type declaration
-			p.addError("expected ':' after field name or method/property declaration keyword", ErrMissingColon)
+			p.addExpected(lexer.COLON)
 		}
 
 	default:

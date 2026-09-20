@@ -645,11 +645,10 @@ func (p *Parser) parseForStatement() ast.Statement {
 		inlineVar = true
 	}
 
-	// Expect loop variable identifier
+	// Expect loop variable identifier: a compiler stop upstream (for_var_error).
 	nextToken = p.cursor.Peek(1)
 	if !p.isIdentifierToken(nextToken.Type) {
-		// Use structured error
-		p.addExpected(lexer.IDENT)
+		p.addExpectedStop(lexer.IDENT)
 		return nil
 	}
 
