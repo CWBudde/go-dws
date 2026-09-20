@@ -5332,13 +5332,13 @@ old recovery). `internal/semantic/analyze_for_in.go` was split out unchanged whe
 
 Validation: `go test ./...`, `just fixture-update`, `just fixture-report`,
 `golangci-lint run --new-from-rev=origin/main ./...` (0 issues), and a per-category diff of the
-old and new binaries over all 2,044 fixtures. CLI and harness agree at **1,277 / 1,966 scored**
-(+64), **1,277 / 1,747 = 73% in scope**, `*Fail` suites **284 / 641 = 44%**. No category dropped:
-FailureScripts 193 → 244, SetOfFail 10 → 13, InterfacesFail 1 → 5, OperatorOverloadFail 0 → 3,
-HelpersFail 6 → 8, GenericsFail 0 → 1. The +64 has been the same on all four bases this was
-measured against: the emission-order, set-mutator and helper-rules slices it now sits on
-contribute their own fixtures (two FailureScripts, four SetOfFail, six HelpersFail) and none of
-the four disturbs the others. The
+old and new binaries over all 2,044 fixtures. CLI and harness agree at **1,282 / 1,966 scored**
+(+64), **1,282 / 1,747 = 73% in scope**, `*Fail` suites **289 / 641 = 45%**. No category dropped:
+FailureScripts 198 → 249, SetOfFail 10 → 13, InterfacesFail 1 → 5, OperatorOverloadFail 0 → 3,
+HelpersFail 6 → 8, GenericsFail 0 → 1. The +64 has been the same on all five bases this was
+measured against: the emission-order, set-mutator, helper-rules and declaration-hint slices it
+now sits on contribute their own fixtures (seven FailureScripts, four SetOfFail, six
+HelpersFail) and none of the five disturbs the others. The
 three `SetOfFail` fixtures here are the parser trio — `of_missing`, `for_in_set_missing_do`,
 `bracket_right_missing` — disjoint from the set-mutator slice's semantic ones, which is why the
 suite reaches 13/14.
