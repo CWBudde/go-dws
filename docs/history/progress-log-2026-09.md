@@ -5041,3 +5041,59 @@ fixtures verbatim plus the class-method, nested-routine and directive-interleavi
 
 Left open: `SetOfFail/test_non_variable` now has its hint in the right place and fails only
 on one message (`Variable expected` where go-dws names the member), tracked under §4/F7.
+
+## 2026-09-20 — set-mutator sentences and the declared set-type name (§4 / F7)
+
+**SetOfFail 6 → 9**: `bracket_left_missing`, `include`, `invalid_method`. FailureScripts is
+unchanged and `SetOfPass` stays 25/25.
+
+### The declared name, not the structure
+
+`invalid_method` wants `There is no accessible member with name "BugBugBug" for type TMySet`.
+go-dws rendered the structural spelling `set of TMyEnum`, because a `*types.SetType` carries no
+name. `setTypeDiagnosticName` (`internal/semantic/analyze_sets.go`) reverse-resolves the type to
+the name it was registered under, so a declared set reads `TMySet` while an inline
+`set of (a, b)` keeps the structural form.
+
+### `Include`/`Exclude` are mutators, and their diagnostics say so
+
+Three sentences replace go-dws's own, each anchored where upstream's scanner sits when it gives
+up — which for all four is the token *after* the offending construct (`args[0].End()` or
+`expr.End()`):
+
+| construct | sentence |
+| --- | --- |
+| `e.Include;` — mutator named without a call | `"(" expected` |
+| `Include(t)` — one argument | `"," expected` |
+| an element of the wrong type | `Incompatible parameter types - "X" expected (instead of "Y")` |
+
+The element argument now goes through `applyImplicitCallType`, so a bare parameterless procedure
+reads `void` rather than its return type. The member-access catch-all gained a set branch placed
+*after* helper lookup, so a real set helper still wins. `addArrayHelperParamTypeExpected*` was
+renamed to `addParameterTypeExpected*`: the sentence is not array-specific. That rename is
+mechanical and closed nothing on its own — the other thirteen fixtures expecting the sentence
+(`AssociativeFail/delete`, ten in `FailureScripts`, two in `GenericsFail`) were already using it.
+
+`Test.Exclude(e)` now reaches the mutable-receiver check, so it reports `Variable expected`
+rather than naming the member.
+
+### Left open, measured
+
+- `test_non_variable` is one line from passing: both `Variable expected` sentences and anchors
+  are right, and only the `Result is never used` hint is out of order. That is F1's deferred-body
+  splice; with both changes in a tree the fixture passes.
+- `invalid_operand` went from distance 6 to 3. Lines 6, 8 and 12 match verbatim. The rest needs
+  `unexpected "@"`, which exists nowhere in the tree (`FailureScripts/at_integer`, `dyn_array3`,
+  `field_init1` and `func_ptr6` want it too), F10's routine-type renderer for
+  `Incompatible types: "TMyEnum" and "procedure Test"`, and an ordering change: the three line-13
+  diagnostics are expected at columns 12, 12, 10, while `sortDiagnostics` orders mixed-phase
+  same-line diagnostics by column.
+
+Anchors were derived from the `.txt` files; `reference/dwscript-original/` is not checked out.
+
+### Validation
+
+`go test ./...`, `just fixture-update`, and per-category reports for `SetOfFail`, `SetOfPass`,
+`FailureScripts`, `AssociativeFail`, `GenericsFail`, `HelpersFail`, `OverloadsFail` and
+`InterfacesFail` diffed against the pre-change run. Tests:
+`internal/frontend/fail_setof_test.go` pins all five fixtures.

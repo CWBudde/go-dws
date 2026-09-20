@@ -458,9 +458,19 @@ Work families — IDs from the 2026-03 analysis
       `default_params2`.
     - The analyzer's compile stop is so far one flag (unknown name in an expression) that skips
       the end-of-program forward check; see the F3 compile-stop note.
-  - `[ ]` S SetOfFail's eight (`bracket_left_missing`, `bracket_right_missing`,
-    `for_in_set_missing_do`, `include`, `invalid_method`, `invalid_operand`, `of_missing`,
-    `test_non_variable`) are parser recovery and message parity; `type_missing` closed 2026-09-19.
+  - `[ ]` S SetOfFail's remaining five. Closed 2026-09-20
+    ([log](docs/history/progress-log-2026-09.md)): `bracket_left_missing`, `include` and
+    `invalid_method` (set-mutator sentences and the declared set-type name); `type_missing`
+    closed 2026-09-19. Still open:
+    - `[ ]` `bracket_right_missing`, `for_in_set_missing_do`, `of_missing` are parser recovery
+      and message parity (F3's `"X" expected` / `OF expected` / `DO expected` sweep).
+    - `[ ]` `test_non_variable` needs only the deferred-body hint ordering (F1); both its
+      `Variable expected` sentences and anchors are in place.
+    - `[ ]` `invalid_operand` is three lines short: `unexpected "@"` exists nowhere in the tree
+      (also wanted by `FailureScripts/at_integer`, `dyn_array3`, `field_init1`, `func_ptr6`),
+      `Incompatible types: "TMyEnum" and "procedure Test"` needs F10's routine-type renderer,
+      and its three line-13 diagnostics are expected at columns 12, 12, 10 — `sortDiagnostics`
+      orders mixed-phase same-line diagnostics by column, so it would print 10 first.
   - `[ ]` GenericsFail 8: includes `implem_mismatch1`'s "T expected but u found" for a mismatched
     out-of-line type-parameter name (substitution is currently positional).
   - `[ ]` S Small parity items from §3.2: `special_funcs4` (`Expression expected` for `Inc(i, )`),

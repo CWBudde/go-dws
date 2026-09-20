@@ -77,7 +77,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | OverloadsPass | 39 | 37 | 2 | 0 | 95% |
 | PropertyExpressionsFail | 10 | 2 | 8 | 0 | 20% |
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
-| SetOfFail | 14 | 6 | 8 | 0 | 43% |
+| SetOfFail | 14 | 9 | 5 | 0 | 64% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
 | SimpleScripts | 443 | 383 | 60 | 0 | 86% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
