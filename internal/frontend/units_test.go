@@ -143,3 +143,45 @@ end.`
 		}
 	}
 }
+
+// TestCompile_UnitConstantErrorKeepsItsPosition checks that a malformed string or char
+// constant in a used unit is reported as the normalized constant diagnostic with its own
+// position, not wrapped in the positionless "compiler directive error" load failure. The
+// lexer surfaces constant errors through the directive channel, so the unit loader has to
+// tell the two apart.
+func TestCompile_UnitConstantErrorKeepsItsPosition(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"BadConst.pas": "unit BadConst;\ninterface\nfunction Foo: String;\nimplementation\nfunction Foo: String;\nbegin\n  Result := 'unterminated;\nend;\nend.\n",
+		"BadDir.pas":   "unit BadDir;\n{$ERROR 'nope'}\ninterface\nimplementation\nend.\n",
+	}
+	for name, source := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tc := range []struct{ name, source, want string }{
+		{
+			name:   "malformed constant is positioned",
+			source: "uses BadConst;\nPrintLn(Foo);",
+			want:   `Syntax Error: End of string constant not found (end of line) [line: 7, column: 13]`,
+		},
+		{
+			// A real directive still fails the load, as {$FATAL} truncation requires.
+			name:   "directive error still fails the load",
+			source: "uses BadDir;\nPrintLn(1);",
+			want:   `compiler directive error in unit "BadDir": nope`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res := Compile(tc.source, filepath.Join(dir, "Main.pas"), semantic.HintsLevelPedantic)
+			got := res.DiagnosticStrings()
+			if len(got) != 1 || got[0] != tc.want {
+				t.Fatalf("diagnostics = %q, want [%q]", got, tc.want)
+			}
+			if !res.HasFatalDiagnostics() {
+				t.Fatalf("expected a fatal diagnostic")
+			}
+		})
+	}
+}

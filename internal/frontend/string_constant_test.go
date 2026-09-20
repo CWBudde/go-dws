@@ -47,9 +47,10 @@ func TestCompile_ReportsStringConstantErrors(t *testing.T) {
 			want:   []string{`Syntax Error: Invalid char constant "$200000" [line: 2, column: 19]`},
 		},
 		{
-			// DWScript's parser stops at the first syntax error, before its lazily
-			// pulled tokenizer reaches the unterminated constant.
-			name:   "constant error after a syntax error is not reached",
+			// The dot's "Name expected" is a compiler stop upstream
+			// (ReadSymbolMemberExpr), so its lazily pulled tokenizer never reaches
+			// the unterminated constant that follows.
+			name:   "constant error after a compiler stop is not reached",
 			source: "const CText = 'foo'''./bar.';",
 			want:   []string{`Syntax Error: Name expected [line: 1, column: 23]`},
 		},
@@ -160,5 +161,19 @@ func TestCompile_CompilerStopDropsLaterLexerDiagnostics(t *testing.T) {
 				t.Fatalf("diagnostics = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestCompile_RecoverableErrorKeepsLaterConstantError checks that only a compiler stop
+// cuts the lexer's constant diagnostics off, not any parser error. DWScript's
+// AddCompilerError leaves the compilation running, so its tokenizer does reach a
+// malformed constant further down and reports it; only AddCompilerStop abandons the
+// compile. `case` without `of` is such a recoverable error.
+func TestCompile_RecoverableErrorKeepsLaterConstantError(t *testing.T) {
+	const source = "var i := 1;\ncase i\n  1: PrintLn('one);\nend;\n"
+	got := Compile(source, "recover.pas", semantic.HintsLevelPedantic).DiagnosticStrings()
+	joined := strings.Join(got, "\n")
+	if !strings.Contains(joined, "End of string constant not found (end of line)") {
+		t.Fatalf("constant diagnostic dropped after a recoverable parser error: %q", got)
 	}
 }

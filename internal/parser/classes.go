@@ -731,7 +731,10 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		memberToken.Type == lexer.LBRACK || memberToken.Type == lexer.RBRACK ||
 		memberToken.Type == lexer.COMMA || memberToken.Type == lexer.SLASH ||
 		memberToken.Type == lexer.EOF {
-		p.addError("Name expected", ErrExpectedIdent)
+		// Upstream reports this from ReadSymbolMemberExpr via AddCompilerStop
+		// (dwsCompiler.pas), which raises ECompileError and abandons the
+		// compilation, so nothing after the dot is compiled or tokenized.
+		p.recordStop(NewParserError(p.cursor.Current().Pos, p.cursor.Current().Length(), "Name expected", ErrExpectedIdent))
 		p.synchronize([]lexer.TokenType{lexer.SEMICOLON, lexer.END, lexer.EOF})
 		return builder.Finish(&ast.InvalidExpression{
 			BaseNode: ast.BaseNode{

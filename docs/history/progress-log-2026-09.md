@@ -4939,6 +4939,17 @@ pulled tokenizer never reads past it — every lexer diagnostic positioned after
 dropped, a trailing `{$ERROR}` included, while the stop itself and earlier directives are kept.
 Restacked on main after the parser-recovery and overload slices merged; fixture counts unchanged.
 
+Second review follow-up (on the call-argument PR, same code): the cutoff is now *only* the
+compiler stop. The earlier first-parser-error cutoff for malformed constants was an
+approximation — `AddCompilerError` does not abort upstream, so a constant further down is still
+tokenized and reported. It survived only because `FailureScripts/string_error`'s `Name expected`
+after a dot was an ordinary error here while upstream raises it from `ReadSymbolMemberExpr` via
+`AddCompilerStop`; recording it as a stop (`internal/parser/classes.go`) made the approximation
+unnecessary. Separately, the unit loader no longer turns a malformed constant in a used unit into
+a positionless `compiler directive error in unit …`: constant errors share the directive channel
+but carry their own position, so `LoadUnit` lets them through to the front end, which renders them
+like any other constant diagnostic. Fixture counts unchanged.
+
 ## 2026-09-19 — call-argument sentences (§4 / F9)
 
 Rules from upstream `TypeCheckArguments` (`dwsCompilerUtils.pas`), `TOpenArraySymbol.IsCompatible`

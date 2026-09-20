@@ -487,12 +487,10 @@ Work families — IDs from the 2026-03 analysis
   `var_incomplete`, `case_error3` and `ifthenelse_expression2` lines. The string-constant slice
   (same day) closed `triple_apos1`/`2`, `heredoc`, `invalid_ucs2_char` and
   `reserved_escape_empty`/`_number`, plus SimpleScripts `heredoc_indent`/`heredoc_special`.
-  - `[ ]` S Lexer constant errors are dropped when a parser error precedes them in the source
-    (`reachedLexerDiagnostics`, `internal/frontend/result.go`), approximating upstream's lazy
-    tokenizer. Replace with reporting a tokenizer error only when the parser reaches its token;
-    the unit-compile path (`internal/frontend/units.go`) does not apply the drop at all. The
-    cutoff after a *compiler stop* in the same function is exact, not an approximation —
-    `ECompileError` abandons the compilation, so nothing past it is tokenized.
+  - `[ ]` S `reachedLexerDiagnostics` (`internal/frontend/result.go`) is now exact for the main
+    source — only a compiler stop cuts lexer diagnostics off, which is what `ECompileError`
+    does upstream — but the unit-compile path (`internal/frontend/units.go`) does not apply the
+    cutoff at all, so a stop inside a unit still lets later directives through.
   The call-argument slice (same day) closed `method_param_error1`/`2`, `dyn_array1`,
   `dyn_array_setlength2`, `open_array2`, `use_proc_result2`, `foreach_invalid_arg`, `assigned`.
   Left open from it:

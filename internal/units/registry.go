@@ -134,9 +134,13 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 	}
 
 	// Preserve fatal directive messages even when {$FATAL} truncates the unit
-	// and the parser consequently reports missing sections.
+	// and the parser consequently reports missing sections. Malformed string and
+	// char constants share this channel but are not directives: they carry a
+	// source position the front end renders like any other constant diagnostic,
+	// so they are left to unit.DirectiveDiagnostics instead of being wrapped in
+	// a positionless load failure here.
 	for _, diagnostic := range p.LexerDirectiveDiagnostics() {
-		if diagnostic.Severity == lexer.SeverityError {
+		if diagnostic.Severity == lexer.SeverityError && !diagnostic.Constant {
 			return nil, fmt.Errorf("compiler directive error in unit %q: %s", name, diagnostic.Error())
 		}
 	}

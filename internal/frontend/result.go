@@ -547,41 +547,33 @@ func diagnosticSpecificityPriority(diag Diagnostic) int {
 
 // reachedLexerDiagnostics drops the lexer diagnostics DWScript would not reach. Its
 // tokenizer is pulled lazily by the parser, whereas the go-dws lexer runs ahead of the
-// parser through lookahead and error recovery, so two cutoffs apply.
+// parser through lookahead and error recovery.
 //
-// A malformed constant (lexer.LexerError.Constant) is reported by the tokenizer itself,
-// and a syntax error stops the compile before the tokenizer reads any further: a
-// constant error positioned after any parser error is dropped (FailureScripts/
-// string_error, array_error8).
+// Only a compiler stop cuts them off. AddCompilerStop raises ECompileError, which is
+// caught only at the top of TdwsCompiler.Compile, so the compilation is abandoned
+// outright and nothing further is tokenized: every lexer diagnostic positioned after the
+// stop is dropped, malformed constants and message directives such as {$ERROR} alike
+// (FailureScripts/string_error, array_error8). The stop itself is a parser diagnostic and
+// is unaffected.
 //
-// A compiler stop is stronger. AddCompilerStop raises ECompileError, which is caught
-// only at the top of TdwsCompiler.Compile, so the compilation is abandoned outright and
-// nothing further is tokenized at all. Every lexer diagnostic positioned after the stop
-// is therefore dropped, message directives such as {$ERROR} included. The stop itself is
-// a parser diagnostic and is unaffected.
+// An ordinary AddCompilerError does not abort the compile upstream, so a diagnostic after
+// one is still reached and kept.
 func reachedLexerDiagnostics(errs []lexer.LexerError, parseErrs []*parser.ParserError) []lexer.LexerError {
-	first := lexer.Position{}
 	stop := lexer.Position{}
 	for _, err := range parseErrs {
-		if err == nil {
+		if err == nil || !err.Stop {
 			continue
 		}
-		if first.Line == 0 || positionBefore(err.Pos, first) {
-			first = err.Pos
-		}
-		if err.Stop && stop.Line == 0 {
+		if stop.Line == 0 || positionBefore(err.Pos, stop) {
 			stop = err.Pos
 		}
 	}
-	if first.Line == 0 && stop.Line == 0 {
+	if stop.Line == 0 {
 		return errs
 	}
 	kept := make([]lexer.LexerError, 0, len(errs))
 	for _, err := range errs {
-		if first.Line != 0 && err.Constant && positionBefore(first, err.Pos) {
-			continue
-		}
-		if stop.Line != 0 && positionBefore(stop, err.Pos) {
+		if positionBefore(stop, err.Pos) {
 			continue
 		}
 		kept = append(kept, err)
