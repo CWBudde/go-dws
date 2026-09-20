@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"sort"
+
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -103,13 +105,10 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 	// Register the helper
 	// Multiple helpers can extend the same type, so we store them in a list
 	targetTypeName = ident.Normalize(targetType.String())
-	if a.helpers[targetTypeName] == nil {
-		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
-	}
-	a.helpers[targetTypeName] = append(a.helpers[targetTypeName], helperType)
+	a.registerHelper(targetTypeName, helperType)
 	declaredTargetName := ident.Normalize(getTypeExpressionName(decl.ForType))
 	if declaredTargetName != "" && declaredTargetName != targetTypeName {
-		a.helpers[declaredTargetName] = append(a.helpers[declaredTargetName], helperType)
+		a.registerHelper(declaredTargetName, helperType)
 	}
 
 	// Also register the helper type itself in the symbol table
@@ -185,11 +184,7 @@ func (a *Analyzer) analyzeFunctionHelperDecl(decl *ast.FunctionDecl, paramTypes 
 	helperType.MethodDeclNames = map[string]string{ident.Normalize(methodName): methodName}
 	helperType.Methods[ident.Normalize(methodName)] = funcType
 
-	targetTypeName := ident.Normalize(targetType.String())
-	if a.helpers[targetTypeName] == nil {
-		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
-	}
-	a.helpers[targetTypeName] = append(a.helpers[targetTypeName], helperType)
+	a.registerHelper(ident.Normalize(targetType.String()), helperType)
 }
 
 func (a *Analyzer) getHelperType(name string) *types.HelperType {
@@ -277,19 +272,89 @@ func (a *Analyzer) isStaticHelperMethod(decl *ast.FunctionDecl, helperType *type
 	if !decl.IsClassMethod || helperType == nil {
 		return false
 	}
+	declared := a.helperMethodDeclarationFor(decl, helperType)
+	return declared != nil && declared.IsStatic && declared.IsClassMethod
+}
+
+// helperMethodDeclarationFor finds the in-helper declaration an out-of-line
+// implementation belongs to. Overloads share a name, so when several
+// declarations carry it the parameter and return types decide; only then can
+// directives that live on the declaration alone (`static`) be read off the
+// right overload.
+func (a *Analyzer) helperMethodDeclarationFor(decl *ast.FunctionDecl, helperType *types.HelperType) *ast.FunctionDecl {
+	if decl == nil || decl.Name == nil || helperType == nil {
+		return nil
+	}
 	helperDecl, ok := helperType.Decl.(*ast.HelperDecl)
 	if !ok || helperDecl == nil {
-		return false
+		return nil
 	}
+
+	var named []*ast.FunctionDecl
 	for _, method := range helperDecl.Methods {
-		if method == nil || method.Name == nil || decl.Name == nil {
+		if method == nil || method.Name == nil {
 			continue
 		}
-		if ident.Equal(method.Name.Value, decl.Name.Value) && method.IsStatic && method.IsClassMethod {
-			return true
+		if ident.Equal(method.Name.Value, decl.Name.Value) {
+			named = append(named, method)
 		}
 	}
-	return false
+	switch len(named) {
+	case 0:
+		return nil
+	case 1:
+		return named[0]
+	}
+
+	for _, method := range named {
+		if a.functionDeclSignaturesMatch(method, decl) {
+			return method
+		}
+	}
+	// No signature matched (an unresolvable type, say): fall back to the first
+	// declaration of that name rather than silently changing its directives.
+	return named[0]
+}
+
+// functionDeclSignaturesMatch reports whether two declarations of the same
+// routine name declare the same parameter and return types.
+func (a *Analyzer) functionDeclSignaturesMatch(left, right *ast.FunctionDecl) bool {
+	if left == nil || right == nil || len(left.Parameters) != len(right.Parameters) {
+		return false
+	}
+	for i := range left.Parameters {
+		leftType, err := a.resolveTypeExpression(left.Parameters[i].Type)
+		if err != nil || leftType == nil {
+			return false
+		}
+		rightType, err := a.resolveTypeExpression(right.Parameters[i].Type)
+		if err != nil || rightType == nil {
+			return false
+		}
+		if !types.IsIdentical(leftType, rightType) {
+			return false
+		}
+	}
+
+	leftReturn := a.declaredReturnType(left)
+	rightReturn := a.declaredReturnType(right)
+	if leftReturn == nil || rightReturn == nil {
+		return false
+	}
+	return types.IsIdentical(leftReturn, rightReturn)
+}
+
+// declaredReturnType resolves a declaration's return type, reporting VOID for a
+// procedure and nil when the type cannot be resolved.
+func (a *Analyzer) declaredReturnType(decl *ast.FunctionDecl) types.Type {
+	if decl == nil || decl.ReturnType == nil {
+		return types.VOID
+	}
+	resolved, err := a.resolveTypeExpression(decl.ReturnType)
+	if err != nil {
+		return nil
+	}
+	return resolved
 }
 
 func (a *Analyzer) analyzeHelperMethodBody(decl *ast.FunctionDecl, helperType *types.HelperType) {
@@ -764,6 +829,21 @@ func (a *Analyzer) analyzeHelperClassConst(classConst *ast.ConstDecl, helperType
 	helperType.ClassConsts[constNameLower] = constType
 }
 
+// registerHelper records helper under key and, the first time the helper is
+// seen, appends it to a.helperOrder. Helper precedence must never depend on
+// Go's randomized map iteration, so every lookup that has to walk all helpers
+// (metaclassHelpersFor) walks helperOrder instead of a.helpers.
+func (a *Analyzer) registerHelper(key string, helper *types.HelperType) {
+	if helper == nil {
+		return
+	}
+	if a.helpers[key] == nil {
+		a.helpers[key] = make([]*types.HelperType, 0, 1)
+	}
+	a.helpers[key] = append(a.helpers[key], helper)
+	a.helperOrder = append(a.helperOrder, helper)
+}
+
 // getHelpersForType returns all helpers that extend the given type.
 func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 	if typ == nil {
@@ -830,39 +910,65 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 // metaclassHelpersFor collects helpers whose target is a metaclass type that a
 // `class of classType` value is assignable to (the target class is classType or
 // one of its ancestors), skipping helpers already present in `have`.
+//
+// The result is ordered least-specific first: a helper for `class of TBase`
+// precedes one for `class of TChild`, and helpers with the same target class
+// keep their declaration order. Callers scan the helper list in reverse (see
+// hasHelperMethod), so the most specific — and, among equals, the last
+// declared — helper wins. Walking a.helperOrder rather than the a.helpers map
+// is what makes that choice reproducible from run to run.
 func (a *Analyzer) metaclassHelpersFor(classType *types.ClassType, have []*types.HelperType) []*types.HelperType {
-	var result []*types.HelperType
+	type candidate struct {
+		helper   *types.HelperType
+		distance int
+	}
+
 	seen := make(map[*types.HelperType]bool, len(have))
 	for _, helper := range have {
 		seen[helper] = true
 	}
-	for _, helpers := range a.helpers {
-		for _, helper := range helpers {
-			if helper == nil || helper.TargetType == nil || seen[helper] {
-				continue
-			}
-			target, ok := types.GetUnderlyingType(helper.TargetType).(*types.ClassOfType)
-			if !ok || target.ClassType == nil {
-				continue
-			}
-			if !isClassOrAncestor(target.ClassType, classType) {
-				continue
-			}
-			seen[helper] = true
-			result = append(result, helper)
+
+	var candidates []candidate
+	for _, helper := range a.helperOrder {
+		if helper == nil || helper.TargetType == nil || seen[helper] {
+			continue
 		}
+		target, ok := types.GetUnderlyingType(helper.TargetType).(*types.ClassOfType)
+		if !ok || target.ClassType == nil {
+			continue
+		}
+		distance := classAncestorDistance(target.ClassType, classType)
+		if distance < 0 {
+			continue
+		}
+		seen[helper] = true
+		candidates = append(candidates, candidate{helper: helper, distance: distance})
+	}
+
+	// Stable, so helpers targeting the same class stay in declaration order.
+	sort.SliceStable(candidates, func(i, j int) bool {
+		return candidates[i].distance > candidates[j].distance
+	})
+
+	result := make([]*types.HelperType, 0, len(candidates))
+	for _, c := range candidates {
+		result = append(result, c.helper)
 	}
 	return result
 }
 
-// isClassOrAncestor reports whether ancestor is candidate or one of its parents.
-func isClassOrAncestor(ancestor, candidate *types.ClassType) bool {
+// classAncestorDistance returns how many inheritance steps separate candidate
+// from ancestor (0 when they are the same class), or -1 when ancestor is not
+// candidate or one of its parents.
+func classAncestorDistance(ancestor, candidate *types.ClassType) int {
+	distance := 0
 	for cur := candidate; cur != nil; cur = cur.Parent {
 		if cur == ancestor {
-			return true
+			return distance
 		}
+		distance++
 	}
-	return false
+	return -1
 }
 
 // hasAnyHelperMember reports whether any helper for typ contributes a member
@@ -1058,16 +1164,16 @@ func (a *Analyzer) hasHelperClassConst(typ types.Type, constName string) (*types
 
 // initArrayHelpers registers built-in helper properties and methods for arrays.
 func (a *Analyzer) initArrayHelpers() {
-	a.helpers["array"] = append(a.helpers["array"], types.NewBuiltinHelper("array"))
+	a.registerHelper("array", types.NewBuiltinHelper("array"))
 }
 
 func (a *Analyzer) initIntrinsicHelpers() {
 	for _, target := range []string{"Integer", "Float", "Boolean", "String", "array of String", "array of Float"} {
 		key := ident.Normalize(target)
-		a.helpers[key] = append(a.helpers[key], types.NewBuiltinHelper(target))
+		a.registerHelper(key, types.NewBuiltinHelper(target))
 	}
 }
 
 func (a *Analyzer) initEnumHelpers() {
-	a.helpers["enum"] = append(a.helpers["enum"], types.NewBuiltinHelper("enum"))
+	a.registerHelper("enum", types.NewBuiltinHelper("enum"))
 }

@@ -79,7 +79,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	// Handle metaclass type (class of T) for constructor calls.
 	// When we have TExample.CreateWith(...), unwrap ClassOfType to ClassType for constructor lookup.
-	if metaclassType, ok := objectType.(*types.ClassOfType); ok {
+	// An alias of a class reference (`type TMeta = class of TObject`) is one too,
+	// which is how analyzeMemberAccessExpression reads it as well.
+	if metaclassType, ok := types.GetUnderlyingType(objectType).(*types.ClassOfType); ok {
 		isMetaclass = true
 		if metaclassType.ClassType != nil {
 			objectType = metaclassType.ClassType
@@ -306,6 +308,14 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 
+		// A bare type name is not an instance: only class-side helper members are
+		// reachable through it, with or without the call parentheses
+		// (HelpersFail/integer_helper spells it without).
+		if a.isTypeMetaValueExpression(expr.Object) && !a.isHelperClassMethod(objectType, methodName) {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
+			return nil
+		}
+
 		a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
 
 		// Record the receiver's static type so runtime helper dispatch honors
@@ -495,11 +505,16 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	} else {
 		// Method not found - check helpers
 		if isMetaclass {
-			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
-			return nil
-		}
-		helperMethod := a.hasHelperMethod(objectType, methodName)
-		if helperMethod != nil {
+			// A class reference still reaches a helper's class methods, the
+			// same way `TObject.Hello` does without the call parentheses; an
+			// instance helper method stays out of reach (HelpersFail/helper_error4).
+			metaHelper := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments)
+			if metaHelper == nil || !a.isHelperClassMethod(objectType, methodName) {
+				a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
+				return nil
+			}
+			methodType = metaHelper
+		} else if helperMethod := a.hasHelperMethod(objectType, methodName); helperMethod != nil {
 			methodType = helperMethod
 		} else if callableType := a.classCallableMemberType(classType, methodName); callableType != nil {
 			// A private/protected proc-typed field or class var must not become

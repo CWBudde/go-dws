@@ -174,9 +174,5 @@ func (a *Analyzer) createEnumScopedAccessHelper(enumName string, enumType *types
 	helper.Methods["byname"] = byNameMethod
 
 	// Register the helper for this enum type
-	targetTypeName := ident.Normalize(enumType.String())
-	if a.helpers[targetTypeName] == nil {
-		a.helpers[targetTypeName] = make([]*types.HelperType, 0)
-	}
-	a.helpers[targetTypeName] = append(a.helpers[targetTypeName], helper)
+	a.registerHelper(ident.Normalize(enumType.String()), helper)
 }

@@ -147,6 +147,136 @@ func TestCompile_HelperDiagnosticsNegative(t *testing.T) {
 	}
 }
 
+// TestCompile_HelperCallParenthesesMatchBareAccess pins that adding call
+// parentheses changes nothing about which helper members a bare type name or a
+// class reference reaches. HelpersFail/integer_helper and .../helper_error4
+// spell the rejected calls without parentheses; the parenthesized spelling goes
+// through analyzeMethodCallExpression instead and must report the same sentence
+// at the same anchor.
+func TestCompile_HelperCallParenthesesMatchBareAccess(t *testing.T) {
+	rejected := []struct {
+		name   string
+		source string
+		want   []string
+	}{
+		{
+			name: "instance helper method called through a type name",
+			source: "type TIntHelper = helper for Integer\n" +
+				"   procedure Test; begin end;\n" +
+				"end;\n" +
+				"Integer.Test();\n",
+			want: []string{`Syntax Error: Class method or constructor expected [line: 4, column: 9]`},
+		},
+		{
+			name: "instance helper method called through an alias of the target type",
+			source: "type TIntHelper = helper for Integer\n" +
+				"   function Next : Integer; begin Result := Self + 1; end;\n" +
+				"end;\n" +
+				"type TMy = Integer;\n" +
+				"TMy.Next();\n",
+			want: []string{`Syntax Error: Class method or constructor expected [line: 5, column: 5]`},
+		},
+		{
+			name: "instance helper method called through a class reference",
+			source: "type THelper = helper for TObject\n" +
+				"   procedure Proc; begin end;\n" +
+				"end;\n" +
+				"TObject.Proc();\n",
+			want: []string{`Syntax Error: Class method or constructor expected [line: 4, column: 9]`},
+		},
+	}
+	for _, tt := range rejected {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Compile(tt.source, "<test>", semantic.HintsLevelPedantic).DiagnosticStrings()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("diagnostics mismatch\n got: %q\nwant: %q", got, tt.want)
+			}
+		})
+	}
+
+	accepted := []struct {
+		name   string
+		source string
+	}{
+		{
+			// The blanket "class method expected" for a metaclass receiver must
+			// not shadow a helper class method that takes arguments.
+			name: "helper class method called with arguments through a class reference",
+			source: "type THelper = helper for TObject\n" +
+				"   class procedure Hello(i : Integer); begin PrintLn(i); end;\n" +
+				"end;\n" +
+				"TObject.Hello(1);\n",
+		},
+		{
+			name: "helper class method called with arguments through a class-reference alias",
+			source: "type THelper = helper for TObject\n" +
+				"   class procedure Hello(i : Integer); begin PrintLn(i); end;\n" +
+				"end;\n" +
+				"type TMeta = class of TObject;\n" +
+				"var c : TMeta := TObject;\n" +
+				"c.Hello(2);\n",
+		},
+	}
+	for _, tt := range accepted {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Compile(tt.source, "<test>", semantic.HintsLevelPedantic).DiagnosticStrings(); len(got) != 0 {
+				t.Fatalf("expected no diagnostics, got %q", got)
+			}
+		})
+	}
+}
+
+// TestCompile_HelperStaticnessFollowsTheOverload pins that `static` is read off
+// the declaration an out-of-line implementation actually belongs to. With one
+// static and one ordinary overload of the same name, the ordinary one still has
+// a Self; only the static one does not.
+func TestCompile_HelperStaticnessFollowsTheOverload(t *testing.T) {
+	source := "type THelper = helper for Integer\n" +
+		"   class function F(a : Integer) : Integer; overload; static;\n" +
+		"   class function F(a : String) : Integer; overload;\n" +
+		"end;\n" +
+		"class function THelper.F(a : Integer) : Integer;\nbegin\n   Result := a;\nend;\n" +
+		"class function THelper.F(a : String) : Integer;\nbegin\n   Result := Self;\nend;\n" +
+		"PrintLn(1);\n"
+	if got := Compile(source, "<test>", semantic.HintsLevelPedantic).DiagnosticStrings(); len(got) != 0 {
+		t.Fatalf("expected no diagnostics, got %q", got)
+	}
+
+	staticSelf := "type THelper = helper for Integer\n" +
+		"   class function F(a : Integer) : Integer; overload; static;\n" +
+		"   class function F(a : String) : Integer; overload;\n" +
+		"end;\n" +
+		"class function THelper.F(a : Integer) : Integer;\nbegin\n   Result := Self;\nend;\n" +
+		"class function THelper.F(a : String) : Integer;\nbegin\n   Result := 0;\nend;\n" +
+		"PrintLn(1);\n"
+	want := []string{`Syntax Error: Unknown name "Self" [line: 7, column: 14]`}
+	if got := Compile(staticSelf, "<test>", semantic.HintsLevelPedantic).DiagnosticStrings(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("diagnostics mismatch\n got: %q\nwant: %q", got, want)
+	}
+}
+
+// TestCompile_MetaclassHelperPrecedenceIsStable pins that two helpers for
+// related class references resolve the same way on every run: the helper for
+// the more specific `class of` wins, and Go's randomized map iteration has no
+// say in it.
+func TestCompile_MetaclassHelperPrecedenceIsStable(t *testing.T) {
+	source := "type TBase = class end;\n" +
+		"type TChild = class(TBase) end;\n" +
+		"type TBaseMeta = class of TBase;\n" +
+		"type TChildMeta = class of TChild;\n" +
+		"type HB = helper for TBaseMeta\n   class function Who : String; begin Result := 'base'; end;\nend;\n" +
+		"type HC = helper for TChildMeta\n   class function Who : Integer; begin Result := 1; end;\nend;\n" +
+		"var c : class of TChild := TChild;\n" +
+		"var s : String := c.Who;\n"
+	want := []string{`Syntax Error: Cannot assign Integer to String variable 's' [line: 12, column: 1]`}
+	for i := 0; i < 25; i++ {
+		got := Compile(source, "<test>", semantic.HintsLevelPedantic).DiagnosticStrings()
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("run %d: diagnostics mismatch\n got: %q\nwant: %q", i, got, want)
+		}
+	}
+}
+
 // TestCompile_HelperInlineBodySeesEarlierOverloadsOnly pins that an inline helper
 // method body is compiled where it is written: HelpersFail/helper_overload_error
 // calls a two-argument overload declared *after* the body, which DWScript rejects

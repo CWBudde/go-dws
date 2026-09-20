@@ -84,6 +84,7 @@ type Analyzer struct {
 	currentFunction       *ast.FunctionDecl
 	currentRecord         *types.RecordType
 	helpers               map[string][]*types.HelperType
+	helperOrder           []*types.HelperType
 	currentHelperType     *types.HelperType
 	symbols               *SymbolTable
 	forwardMethodReported map[string]bool
