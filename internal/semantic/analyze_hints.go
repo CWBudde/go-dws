@@ -119,7 +119,10 @@ func (a *Analyzer) checkVisibilitySectionRedundancy(
 // checkSelfAssignment hints when both sides of a plain `:=` name the same
 // entity. A compound assignment reads the old value before storing, so upstream
 // restricts the check to ttASSIGN, and it skips the check entirely once an error
-// has been reported ("too sensitive otherwise").
+// has been reported ("too sensitive otherwise"). Upstream reads a program in one
+// pass, so "reported" there means reported earlier in the source; this analyzer
+// defers top-level routine bodies to a second pass, and
+// errorsPrecedeCurrentStatement restores that source order.
 //
 // Scope: both sides must be bare identifiers resolving to the same symbol. That
 // covers a local, a parameter, a global and a field reached by implicit Self,
@@ -133,7 +136,7 @@ func (a *Analyzer) checkSelfAssignment(stmt *ast.AssignmentStatement) {
 	if stmt.Operator != lexer.ASSIGN && stmt.Operator != lexer.TokenType(0) {
 		return
 	}
-	if a.parseHadErrors || a.hasActualErrors() {
+	if a.parseHadErrors || a.errorsPrecedeCurrentStatement() {
 		return
 	}
 	pos := stmt.Token.Pos
@@ -212,9 +215,8 @@ func qualifiedSymbolName(sym *Symbol, written string) string {
 // and so do `o.Method;` and `o.Field := …` — SimpleScripts/var_param_parent
 // expects no hint for a `var` parameter whose only use is `a.Inc;`.
 //
-// Not covered: passing the parameter on as another routine's var argument, which
-// upstream also records as a write. That bookkeeping belongs to the call
-// analyzer, so it stays unmeasured here.
+// A variable handed on as another routine's `var` argument is recorded by
+// markVarArgumentWritten instead, from the call analyzer.
 func (a *Analyzer) markStatementLeadingNameWritten(stmt ast.Statement) {
 	if a == nil || a.symbols == nil {
 		return
@@ -229,6 +231,26 @@ func (a *Analyzer) markStatementLeadingNameWritten(stmt ast.Statement) {
 		return
 	}
 	name := leadingIdentifier(leading)
+	if name == nil {
+		return
+	}
+	if sym, ok := a.symbols.Resolve(name.Value); ok && sym != nil {
+		sym.Written = true
+	}
+}
+
+// markVarArgumentWritten records a write against the variable a call passes as
+// another routine's `var` argument.
+//
+// Upstream reads such an argument with ReadName(isWrite=True) as well, because
+// the callee may rebind it, so `Sink(o)` leaves an suWrite entry on `o` exactly
+// as `o := …` would. Without it, forwarding a `var` parameter on would draw the
+// "never written to" hint even though the routine does give up control of it.
+func (a *Analyzer) markVarArgumentWritten(arg ast.Expression) {
+	if a == nil || a.symbols == nil {
+		return
+	}
+	name := leadingIdentifier(arg)
 	if name == nil {
 		return
 	}
@@ -315,7 +337,10 @@ func (a *Analyzer) isUnwrittenReferenceVarParam(param *ast.Parameter) bool {
 	if !samePosition(sym.DeclPosition, pos) {
 		return false
 	}
-	if _, isClass := sym.Type.(*types.ClassType); !isClass {
+	// An alias is transparent, so `type TObjAlias = TObject` is still a class
+	// symbol to upstream's `param.Typ.IsClassSymbol`; resolveType keeps the
+	// *types.TypeAlias wrapper, so unwrap before asking.
+	if _, isClass := types.GetUnderlyingType(sym.Type).(*types.ClassType); !isClass {
 		return false
 	}
 	return a.hintsLevelAt(pos) >= HintsLevelPedantic
