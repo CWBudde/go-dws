@@ -291,10 +291,21 @@ func formatSource(source string, opts printer.Options) (string, error) {
 	p := parser.New(l)
 	program := p.ParseProgram()
 
-	// Check for parse errors
-	if len(p.Errors()) > 0 {
+	// Check for parse errors. Fatal lexer diagnostics (a malformed string constant,
+	// {$FATAL}) stop tokenization early, so formatting would silently drop the rest of
+	// the source; they count as errors too.
+	var lexErrs []lexer.LexerError
+	for _, diag := range p.LexerDirectiveDiagnostics() {
+		if diag.Severity == lexer.SeverityError {
+			lexErrs = append(lexErrs, diag)
+		}
+	}
+	if len(p.Errors()) > 0 || len(lexErrs) > 0 {
 		var errMsg strings.Builder
 		errMsg.WriteString("Parse errors:\n")
+		for _, err := range lexErrs {
+			fmt.Fprintf(&errMsg, "  %s at %d:%d\n", err.Message, err.Pos.Line, err.Pos.Column)
+		}
 		for _, err := range p.Errors() {
 			fmt.Fprintf(&errMsg, "  %s\n", err)
 		}

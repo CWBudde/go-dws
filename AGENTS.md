@@ -315,7 +315,8 @@ idx := ident.Index(items, name)
 
 - Single or double quotes
 - Escape quotes by doubling: `'it''s'` → `it's`
-- Multi-line strings supported
+- Multi-line strings: double-quoted, `'''` triple-apostrophe and `#'...'` strings may span lines
+  (the latter two lose their common indentation); a single-quoted string may not
 
 **Number Literals**:
 

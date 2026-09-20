@@ -1,6 +1,8 @@
 package lexer
 
 import (
+	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -945,62 +947,50 @@ func (l *Lexer) readDecimalNumber(startPos int) (TokenType, string) {
 	return tokenType, l.input[startPos:l.position]
 }
 
-// isTripleQuoteStart reports whether the current position starts a heredoc
-// (triple-quoted) string literal: three identical quote characters followed
-// by a line break (optionally preceded by a carriage return).
-// This distinguishes a heredoc opener from literals like ” (empty string)
-// or ”” (a single escaped quote).
+// isTripleQuoteStart reports whether the current position starts a """ heredoc: three
+// double quotes followed by a line break (optionally preceded by a carriage return).
+// This is a go-dws extension mirroring DWScript's ”' strings; a single-quoted heredoc
+// needs no lookahead because readString switches to triple mode at the line break.
 func (l *Lexer) isTripleQuoteStart(quote rune) bool {
-	if l.ch != quote || l.peekChar() != quote || l.peekCharN(2) != quote {
+	if quote != '"' || l.ch != quote || l.peekChar() != quote || l.peekCharN(2) != quote {
 		return false
 	}
 	next := l.peekCharN(3)
 	return next == '\n' || next == '\r'
 }
 
-// readTripleQuoteString reads a heredoc (triple-quoted) string literal.
-// Syntax (matching DWScript):
-//
-//	'''
-//	   content line(s)
-//	   '''
-//
-// Rules:
-//   - The opening triple quote must be immediately followed by a line break.
-//   - The closing triple quote must be preceded on its line only by whitespace.
-//   - That whitespace defines the indentation stripped from every content line.
-//   - The line break after the opening quotes and the one before the closing
-//     quotes are not part of the string value.
-//   - Content is taken verbatim: quote doubling is not processed inside.
+// readTripleQuoteString reads a """ heredoc. Its first two quotes are an escaped quote,
+// exactly as ”' opens a DWScript triple apostrophe string, so the rest is shared with
+// the single-quoted path.
 func (l *Lexer) readTripleQuoteString(quote rune) string {
 	startPos := l.currentPos()
+	l.readChar()
+	l.readChar()
+	l.readChar()
+	return l.readTripleTail(quote, startPos, string(quote))
+}
 
-	// Consume the three opening quotes.
-	l.readChar()
-	l.readChar()
-	l.readChar()
-
-	// Consume the mandatory line break (allow \r\n).
-	if l.ch == '\r' {
-		l.readChar()
-	}
-	if l.ch != '\n' {
-		l.addError("line break expected after triple-quote", startPos)
-		return ""
-	}
-	l.line++
-	l.column = 0
-	l.readChar()
-
-	// Collect raw content until the closing triple quote.
+// readTripleTail continues a string literal that ran into a line break, following
+// DWScript's tokenizer: the literal becomes a triple apostrophe string whose raw text
+// extends to the next run of three quotes. prefix is the literal's value up to the line
+// break (doubled quotes already collapsed), and l.ch is the line break.
+//
+// Reaching the end of input is a fatal "End of string constant not found (end of line)"
+// error anchored at the opening quote. Otherwise the raw text is validated and dedented
+// by tripleStringValue.
+func (l *Lexer) readTripleTail(quote rune, startPos Position, prefix string) string {
 	var raw strings.Builder
+	raw.WriteString(prefix)
 	for {
 		if l.ch == 0 {
-			l.addError("unterminated triple-quoted string literal", startPos)
+			// DWScript terminates the last line, so end of input is an end of line.
+			l.addFatalConstantError(msgStringEndOfLine, startPos)
 			return ""
 		}
 		if l.ch == quote && l.peekChar() == quote && l.peekCharN(2) == quote {
-			// Closing triple quote found.
+			// DWScript keeps two of the closing quotes in the raw text.
+			raw.WriteRune(quote)
+			raw.WriteRune(quote)
 			l.readChar()
 			l.readChar()
 			l.readChar()
@@ -1014,38 +1004,125 @@ func (l *Lexer) readTripleQuoteString(quote rune) string {
 		l.readChar()
 	}
 
-	// The last raw line (between the final line break and the closing quotes)
-	// defines the indentation; it must contain only whitespace.
-	lines := strings.Split(raw.String(), "\n")
-	indent := lines[len(lines)-1]
-	if strings.TrimLeft(indent, " \t") != "" {
-		l.addError("triple-quote terminator must be preceded only by whitespace", startPos)
-		return ""
+	value, msg := tripleStringValue(raw.String(), quote)
+	if msg != "" {
+		// Not a compiler stop in DWScript: the constant is empty and compilation goes on.
+		l.addConstantError(msg, startPos)
 	}
-	contentLines := lines[:len(lines)-1]
+	return value
+}
 
-	for i, line := range contentLines {
-		line = strings.TrimSuffix(line, "\r")
-		switch {
-		case strings.HasPrefix(line, indent):
-			line = line[len(indent):]
-		case strings.TrimLeft(line, " \t") == "":
-			// Whitespace-only line shorter than the indent becomes empty.
-			line = ""
+// tripleStringValue ports DWScript's TTokenBuffer.AppendTripleToStr. raw is the
+// literal's text as DWScript buffers it: the escaped opening quote, a line break, the
+// content lines, a line break, the terminator's indentation and two quotes.
+//
+//   - The literal must open with ”' directly followed by a line break and close with
+//     ”' ("Incorrect triple apostrophe string" otherwise).
+//   - The closing quotes may be preceded on their line only by blanks and tabs; that
+//     run is the indentation, and every content character inside the indentation
+//     columns must match it ("Incorrect triple apostrophe string indentation").
+//   - The value is the content lines without the indentation; the line breaks after
+//     the opening and before the closing quotes are dropped.
+//
+// On error the returned value is empty and msg is the DWScript message.
+func tripleStringValue(raw string, quote rune) (value, msg string) {
+	s := []rune(raw)
+	n := len(s)
+	if n < 5 || s[0] != quote || (s[1] != '\r' && s[1] != '\n') || s[n-1] != quote || s[n-2] != quote {
+		return "", msgTripleApostrophe
+	}
+
+	indent, end, ok := tripleIndent(s)
+	if !ok {
+		return "", msgTripleApostropheIndent
+	}
+	value, ok = tripleDedent(s[1:end], indent)
+	if !ok {
+		return "", msgTripleApostropheIndent
+	}
+	return value, ""
+}
+
+// tripleIndent walks back from the two closing quotes of a triple apostrophe string's
+// raw text over its indentation to the preceding line break. It returns the
+// indentation and the index of that line break (of its CR for CRLF); ok is false when
+// the closing line holds more than blanks and tabs.
+func tripleIndent(s []rune) (indent []rune, end int, ok bool) {
+	closing := len(s) - 2
+	indentStart := closing
+	for end = closing - 1; ; end-- {
+		switch c := s[end]; c {
+		case ' ', '\t':
+			indentStart = end
+		case '\n', '\r':
+			if c == '\n' && s[end-1] == '\r' {
+				end--
+			}
+			return s[indentStart:closing], end, true
+		default:
+			return nil, 0, false
 		}
-		contentLines[i] = line
 	}
+}
 
-	return strings.Join(contentLines, "\n")
+// tripleDedent builds a triple apostrophe string's value from body, the raw text from
+// the line break after the opening quotes up to the line break before the closing
+// line. That first line break is dropped, and every line must start with indent,
+// which is removed; ok is false otherwise.
+func tripleDedent(body, indent []rune) (value string, ok bool) {
+	var b strings.Builder
+	firstLine := true
+	column := 0
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		if c != '\r' && c != '\n' {
+			if column >= len(indent) {
+				b.WriteRune(c)
+				continue
+			}
+			if c != indent[column] {
+				return "", false
+			}
+			column++
+			continue
+		}
+		lineBreak := string(c)
+		if c == '\r' && i+1 < len(body) && body[i+1] == '\n' {
+			lineBreak = "\r\n"
+			i++
+		}
+		if !firstLine {
+			b.WriteString(lineBreak)
+		}
+		firstLine = false
+		column = 0
+	}
+	return b.String(), true
 }
 
 // readString reads a string literal enclosed in single or double quotes.
-// DWScript uses single quotes by default, with " as escape for a single quote.
-// If the string is unterminated, adds an error and returns the partial string.
+// A doubled quote inside the literal stands for one quote character.
+//
+// Following DWScript, a double-quoted literal may span lines, and one left open is a
+// fatal "End of string constant not found (end of file)" error at the end of input.
+// A single-quoted literal that runs into a line break continues as a triple apostrophe
+// string (see readTripleTail).
 func (l *Lexer) readString(quote rune) string {
-	startPos := l.position
-	startLine := l.line
-	startColumn := l.column
+	return l.readQuoted(quote, false)
+}
+
+// readIndentedString reads a #'...' or #"..." multi-line string, l.ch being the '#'.
+// Either quote may span lines, the common leading indentation is removed as by
+// DWScript's TTokenBuffer.AppendMultiToStr (see multiLineStringValue), and one left
+// open is a fatal "End of string constant not found (end of file)" error.
+func (l *Lexer) readIndentedString() string {
+	l.readChar() // skip '#'
+	return l.readQuoted(l.ch, true)
+}
+
+// readQuoted implements readString and, when indented is set, readIndentedString.
+func (l *Lexer) readQuoted(quote rune, indented bool) string {
+	startPos := l.currentPos()
 	l.readChar() // skip opening quote
 
 	var builder strings.Builder
@@ -1061,7 +1138,14 @@ func (l *Lexer) readString(quote rune) string {
 			}
 			// End of string
 			l.readChar() // skip closing quote
+			if indented {
+				return multiLineStringValue(builder.String())
+			}
 			return builder.String()
+		}
+
+		if !indented && quote == '\'' && (l.ch == '\n' || l.ch == '\r') {
+			return l.readTripleTail(quote, startPos, builder.String())
 		}
 
 		if l.ch == '\n' {
@@ -1073,13 +1157,86 @@ func (l *Lexer) readString(quote rune) string {
 		l.readChar()
 	}
 
-	// Unterminated string - add error and return partial string
-	l.addError("unterminated string literal", Position{
-		Line:   startLine,
-		Column: startColumn,
-		Offset: startPos,
-	})
+	if !indented && quote == '\'' {
+		// DWScript terminates the last line, so end of input is an end of line.
+		l.addFatalConstantError(msgStringEndOfLine, startPos)
+	} else {
+		l.addFatalConstantError(msgStringEndOfFile, l.dwsEndOfFilePos())
+	}
 	return builder.String()
+}
+
+// multiLineStringValue ports DWScript's TTokenBuffer.AppendMultiToStr, which removes
+// the indentation of a #'...' string. The indentation is the smallest number of leading
+// blanks over the lines that end with a line break and hold more than whitespace. When
+// the first line is blank it is dropped entirely; every other line loses up to that
+// many leading blanks.
+func multiLineStringValue(buf string) string {
+	s := []rune(buf)
+	minWhite, firstIsBlank := multiLineIndent(s)
+
+	i := 0
+	if firstIsBlank {
+		for s[i] != '\n' {
+			i++
+		}
+		i++
+	}
+
+	var b strings.Builder
+	leftWhite := minWhite > 0
+	white := 0
+	for ; i < len(s); i++ {
+		switch c := s[i]; c {
+		case ' ':
+			if leftWhite && white < minWhite {
+				white++
+			} else {
+				b.WriteRune(c)
+			}
+		case '\n':
+			leftWhite = minWhite > 0
+			white = 0
+			b.WriteRune(c)
+		default:
+			leftWhite = false
+			b.WriteRune(c)
+		}
+	}
+	return b.String()
+}
+
+// multiLineIndent scans a #'...' string for multiLineStringValue. minWhite is the
+// smallest count of leading blanks over the lines that end with a line break and are
+// not blank (math.MaxInt when there is none, as in DWScript), and firstIsBlank reports
+// whether the first line, up to its line break, holds only blanks and CRs.
+func multiLineIndent(s []rune) (minWhite int, firstIsBlank bool) {
+	minWhite = math.MaxInt
+	leftWhite := true
+	white := 0
+	firstLine := true
+	for _, c := range s {
+		switch c {
+		case ' ':
+			if leftWhite {
+				white++
+			}
+		case '\r':
+		case '\n':
+			if firstLine {
+				firstIsBlank = leftWhite
+				firstLine = false
+			}
+			if !leftWhite {
+				minWhite = min(minWhite, white)
+				leftWhite = true
+			}
+			white = 0
+		default:
+			leftWhite = false
+		}
+	}
+	return minWhite, firstIsBlank
 }
 
 // readCharLiteral reads a character literal starting with #.
@@ -1103,6 +1260,26 @@ func (l *Lexer) readCharLiteral() string {
 	}
 
 	return l.input[startPos:l.position]
+}
+
+// checkCharConstantRange reports DWScript's fatal "Invalid char constant" error when a
+// just-read character literal (#65, #$41) has digits but a value beyond U+10FFFF. The
+// error is anchored just past the literal, where DWScript's tokenizer stands when it
+// converts the constant. It reports whether the error was raised.
+func (l *Lexer) checkCharConstantRange(literal string) bool {
+	digits := strings.TrimPrefix(literal, "#")
+	base := 10
+	if rest, ok := strings.CutPrefix(digits, "$"); ok {
+		digits, base = rest, 16
+	}
+	if digits == "" {
+		return false
+	}
+	if value, err := strconv.ParseUint(digits, base, 64); err == nil && value <= unicode.MaxRune {
+		return false
+	}
+	l.addFatalConstantError(fmt.Sprintf(msgInvalidCharConstantQuote, literal[1:]), l.currentPos())
+	return true
 }
 
 // isCharLiteralStandalone checks if the '#' at the current position starts a standalone
@@ -1177,8 +1354,15 @@ func (l *Lexer) readStringOrCharSequence() string {
 			builder.WriteString(literal)
 
 		case '#':
+			if next := l.peekChar(); next == '\'' || next == '"' {
+				builder.WriteString(l.readIndentedString())
+				break
+			}
 			// Read character literal
 			literal := l.readCharLiteral()
+			if l.checkCharConstantRange(literal) {
+				return builder.String()
+			}
 			r, ok := charLiteralToRune(literal)
 			if !ok {
 				l.addError("invalid character literal: "+literal, pos)
@@ -1311,6 +1495,7 @@ func (l *Lexer) handleHash(pos Position) Token {
 	if l.isCharLiteralStandalone() {
 		// Standalone character literal: emit CHAR token
 		literal := l.readCharLiteral()
+		l.checkCharConstantRange(literal)
 		return NewToken(CHAR, literal, pos)
 	}
 	// Part of string concatenation: 'hello'#13#10 → "hello\r\n"
@@ -1484,6 +1669,11 @@ type LexerError struct {
 	// Rendered, when non-empty, is the exact DWScript-formatted message the front end
 	// must print verbatim instead of applying the default "Syntax Error:" framing.
 	Rendered string
+	// Constant marks a malformed string or char constant. DWScript's tokenizer is
+	// pulled lazily by its parser, so such an error is only reported when parsing
+	// reaches the constant; the lexer, which runs ahead of the parser, cannot know
+	// that, and the front end decides (see frontend.ParseWithOptions).
+	Constant bool
 }
 
 func (e *LexerError) Error() string {

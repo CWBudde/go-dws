@@ -18,13 +18,13 @@ func TestErrorAccumulation(t *testing.T) {
 			name:          "Unterminated string - single quote",
 			input:         `'hello`,
 			expectedCount: 1,
-			errorMessages: []string{"unterminated string literal"},
+			errorMessages: []string{"End of string constant not found"},
 		},
 		{
 			name:          "Unterminated string - double quote",
 			input:         `"hello`,
 			expectedCount: 1,
-			errorMessages: []string{"unterminated string literal"},
+			errorMessages: []string{"End of string constant not found"},
 		},
 		{
 			name:          "Unterminated block comment - brace style",
@@ -254,12 +254,16 @@ var y := 'valid';
 			errorCol:  23,
 		},
 		{
+			// Double-quoted strings may span lines, so DWScript reports them at the
+			// end of file: past the host-terminated last line and the line terminator
+			// its tokenizer appends.
 			name:      "unterminated double-quoted string",
 			input:     `var x := "unterminated`,
-			errorLine: 1,
-			errorCol:  10,
+			errorLine: 3,
+			errorCol:  1,
 		},
 		{
+			// Single-quoted strings end at the line break and report the opening quote.
 			name: "unterminated multiline string",
 			input: `var x := 'line 1
 line 2
@@ -292,8 +296,8 @@ unterminated`,
 			for _, err := range errors {
 				if err.Pos.Line == tt.errorLine && err.Pos.Column == tt.errorCol {
 					found = true
-					if !strings.Contains(strings.ToLower(err.Message), "unterminated") {
-						t.Errorf("error message should contain 'unterminated', got: %s", err.Message)
+					if !strings.Contains(err.Message, "End of string constant not found") {
+						t.Errorf("error message should report the unterminated string constant, got: %s", err.Message)
 					}
 				}
 			}

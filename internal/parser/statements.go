@@ -611,7 +611,7 @@ func (p *Parser) validateAndAdvanceVarToken(stmt *ast.VarDeclStatement) bool {
 				WithSuggestion("provide a variable name after 'var'").
 				WithParsePhase("variable declaration").
 				Build()
-			p.addStructuredError(err)
+			p.addStructuredStop(err)
 			return false
 		}
 	} else if !p.isIdentifierToken(currentToken.Type) {
