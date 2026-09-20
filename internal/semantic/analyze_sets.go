@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -64,12 +65,27 @@ func (a *Analyzer) setTypeDiagnosticName(t types.Type) string {
 	if _, isSet := types.GetUnderlyingType(t).(*types.SetType); !isSet {
 		return semanticTypeNameForDiagnostic(t)
 	}
+	// A unit export is registered twice, plain and unit-qualified, and both
+	// registrations point at the same type. The program spells the receiver's
+	// type unqualified, so prefer that name over `UnitName.TMySet` instead of
+	// letting lexicographic order pick one.
 	names := append([]string(nil), a.typeRegistry.TypesByKind("SET")...)
 	sort.Strings(names)
+	qualified := ""
 	for _, name := range names {
-		if declared, found := a.typeRegistry.Resolve(name); found && declared == t {
+		declared, found := a.typeRegistry.Resolve(name)
+		if !found || declared != t {
+			continue
+		}
+		if !strings.Contains(name, ".") {
 			return name
 		}
+		if qualified == "" {
+			qualified = name
+		}
+	}
+	if qualified != "" {
+		return qualified
 	}
 	return semanticTypeNameForDiagnostic(t)
 }

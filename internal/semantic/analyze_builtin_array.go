@@ -251,8 +251,10 @@ func (a *Analyzer) isMutableSetReceiver(expr ast.Expression, pos token.Position)
 		if sym, found := a.symbols.Resolve(identExpr.Value); found {
 			// A constant, a read-only binding, or a bare function name (whose
 			// value is a call's temporary result) is not something to mutate.
+			// An overload set carries no type of its own but names routines
+			// just the same.
 			_, isFunction := sym.Type.(*types.FunctionType)
-			if sym.IsConst || sym.ReadOnly || isFunction {
+			if sym.IsConst || sym.ReadOnly || isFunction || sym.IsOverloadSet {
 				a.addError("Variable expected at %s", pos.String())
 				return false
 			}

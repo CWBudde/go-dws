@@ -50,8 +50,17 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Analyze the object expression
 	objectType := a.analyzeExpression(expr.Object)
 	if objectType == nil {
-		// Error already reported
-		return nil
+		// An overload set deliberately carries no type of its own, so a
+		// routine name used as a receiver reads as nil here. When the set
+		// holds a unique parameterless overload returning a set, the mutator
+		// checks below still apply to that call's temporary result, so
+		// `Make.Exclude(e)` is rejected just like `Test.Exclude(e)`.
+		implicit := a.implicitCallTypePreview(expr.Object, nil)
+		if _, isSet := types.GetUnderlyingType(implicit).(*types.SetType); !isSet {
+			// Error already reported
+			return nil
+		}
+		objectType = a.applyImplicitCallType(expr.Object, nil)
 	}
 
 	// Method call on a JSONVariant receiver: v.TypeName(), v.Add(x), ...
@@ -251,10 +260,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// (SetOfFail/test_non_variable).
 		setReceiverType := objectType
 		if _, isSet := types.GetUnderlyingType(setReceiverType).(*types.SetType); !isSet {
-			if implicit := a.applyImplicitCallType(expr.Object, objectType); implicit != nil {
-				if _, isSet := types.GetUnderlyingType(implicit).(*types.SetType); isSet {
-					setReceiverType = implicit
-				}
+			// Probe without side effects first: applyImplicitCallType records
+			// an identifier-case hint, which must not be left behind for a
+			// receiver whose implicit result is not a set at all.
+			implicit := a.implicitCallTypePreview(expr.Object, objectType)
+			if _, isSet := types.GetUnderlyingType(implicit).(*types.SetType); isSet {
+				setReceiverType = a.applyImplicitCallType(expr.Object, objectType)
 			}
 		}
 
