@@ -33,6 +33,10 @@ type Symbol struct {
 	IsDeprecated          bool
 	ReadOnly              bool
 	SuppressUnusedWarning bool
+	// Written records that an assignment stored into this symbol. It backs the
+	// "reference type passed as VAR, but never written to" hint; a read alone
+	// leaves it false (see Usages for read-or-write tracking).
+	Written bool
 	// IsLoopVariable marks a `for` control variable. Writing to one is legal but
 	// draws DWScript's `Assignment to FOR-Loop variable` warning, so the flag has
 	// to survive until the body is analyzed; it is not the same as ReadOnly.

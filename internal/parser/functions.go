@@ -101,6 +101,7 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 		cursor = cursor.Advance()
 		p.cursor = cursor
 		fn.IsVirtual = true
+		fn.VirtualPos = cursor.Current().Pos
 
 	case lexer.OVERRIDE:
 		cursor = cursor.Advance()

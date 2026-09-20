@@ -48,6 +48,7 @@ func (a *Analyzer) emitUnusedWarningsForCurrentScope() {
 	if a.currentFunction != nil && a.currentFunction.Body == nil {
 		return
 	}
+	a.emitReferenceVarParamHints()
 
 	candidates := make([]unusedSymbolCandidate, 0)
 	a.symbols.symbols.Range(func(name string, sym *Symbol) bool {

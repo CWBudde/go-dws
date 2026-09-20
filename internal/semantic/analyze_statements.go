@@ -46,6 +46,7 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 	if stmt == nil {
 		return
 	}
+	a.markStatementLeadingNameWritten(stmt)
 
 	switch s := stmt.(type) {
 	case *ast.VarDeclStatement:
@@ -334,6 +335,8 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 
 // analyzeAssignment analyzes an assignment statement
 func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
+	a.checkSelfAssignment(stmt)
+
 	// Determine if this is a compound assignment
 	isCompound := stmt.Operator != lexer.ASSIGN && stmt.Operator != lexer.TokenType(0)
 
@@ -1421,6 +1424,7 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 	if stmt == nil {
 		return
 	}
+	a.checkRedundantCaseElseBegin(stmt)
 	// Analyze the case expression
 	caseType := a.analyzeExpression(stmt.Expression)
 
