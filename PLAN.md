@@ -10,26 +10,26 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,200 / 1,966 scored =
-61%**; `*Fail` error-detection suites **208 / 641 = 32%**. What shipped to get there is in
+**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,203 / 1,966 scored =
+61%**; `*Fail` error-detection suites **210 / 641 = 33%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,200 / 1,747 = 69% in scope**, the number to track against §6. Both are honest;
+same run reads **1,203 / 1,747 = 69% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 433 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 431 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 114 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
+- **§3.5** is the other half: 113 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
   are closed; E3c is still open, and what the closed groups left is grouped as E12–E20.
 - **§3.2** and **§3.4** have one open item each (explicit-instance helper calls; expected-type
   overload resolution, blocked on the evaluator). **§3.3** has only the gated Memory host setup.
@@ -54,10 +54,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (766 total, 2026-09-19): **219 host-library** (out of scope),
-  **433 in the `*Fail` error-detection suites** (§4: FailureScripts 338, InterfacesFail and
-  HelpersFail 18 each, the rest under 15), and **114 in the execution suites** (§3.5:
-  SimpleScripts 60, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
+- Where the remaining failures are (763 total, 2026-09-20): **219 host-library** (out of scope),
+  **431 in the `*Fail` error-detection suites** (§4: FailureScripts 336, InterfacesFail and
+  HelpersFail 18 each, the rest under 15), and **113 in the execution suites** (§3.5:
+  SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - Regenerate that split rather than trusting it: `just fixture-report --in-scope --classify`
@@ -342,7 +342,7 @@ independently; evaluate it once, as E9 does for member receivers.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 208/641 (FailureScripts 191/529, SetOfFail 6, OverloadsFail 3, JSONConnectorFail 2,
+Harness and CLI: 210/641 (FailureScripts 193/529, SetOfFail 6, OverloadsFail 3, JSONConnectorFail 2,
 PropertyExpressionsFail 2, AssociativeFail 2, InterfacesFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
@@ -365,14 +365,12 @@ closed outright.
 Work families — IDs from the 2026-03 analysis
 (`docs/archive/failure-scripts-next-phase-plan.md`), counts from the 2026-09-12 re-measurement:
 
-- **F1** `[~]` M Warning/hint emission and ordering. The for-loop half is closed; what is left is
-  ordering across bodies and the hints that do not exist yet.
-  - `[ ]` S Ordering — `infinite_loop` wants **routine bodies before the main body**: `Trap`'s
-    warnings at lines 6 and 3, then the main program's at 19, 21, 35. It is a side-effect of
-    §3.2.1's deferred body checking, which should stay — re-order on the way out, not the analysis
-    on the way in.
-  - `[ ]` S Ordering — `hint_pedantic`: its line-9 hint must precede the line-11 unknown-switch
-    diagnostic (a parser/semantic ordering mismatch, independent of source-hint suppression).
+- **F1** `[~]` M Warning/hint emission and ordering. The for-loop and ordering halves are closed;
+  what is left is the hints that do not exist yet.
+  - Ordering closed 2026-09-20 ([log](docs/history/progress-log-2026-09.md)): deferred routine
+    bodies splice their diagnostics back to the declaration point (`infinite_loop`,
+    `ArrayPass/array_of_rec_add_create`), and a compiler-directive diagnostic orders by line
+    against a semantic hint or warning (`hint_pedantic`).
   - `[ ]` Hints and warnings that exist nowhere in the tree, lines (fixtures) — one subtask each:
     - `[ ]` M `Unreachable code` 12 (5)
     - `[ ]` M `Constant condition` 8 (5) — also needed by `contracts_precondition`
