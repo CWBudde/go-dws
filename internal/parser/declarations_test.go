@@ -268,7 +268,7 @@ func TestParseConstDeclarationErrors(t *testing.T) {
 	}{
 		{"const PI;", `"=" expected`},
 		{"const PI =;", "Expression expected"},
-		{"const = 3.14;", "expected identifier in const declaration"},
+		{"const = 3.14;", "Name expected"},
 		{"const PI: = 3.14;", "expected type expression"},
 	}
 

@@ -402,7 +402,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		cursor = p.cursor
 
 		if cursor.Current().Type != lexer.RPAREN {
-			p.addError("expected ')' after parameter list", ErrMissingRParen)
+			p.addExpectedStop(lexer.RPAREN)
 			return nil
 		}
 	}
@@ -423,8 +423,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 	// Expect semicolon after signature
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		nextToken := cursor.Peek(1)
-		p.addParserErrorAt(nextToken.Pos, nextToken.Length(), "expected ';' after function signature", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		for p.cursor.Current().Type != lexer.SEMICOLON &&
 			p.cursor.Current().Type != lexer.END &&
 			p.cursor.Current().Type != lexer.EOF {
@@ -526,7 +525,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 	// Expect semicolon after end
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after 'end'", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -603,7 +602,7 @@ func (p *Parser) parseParameterList() []*ast.Parameter {
 
 	// Expect closing parenthesis
 	if cursor.Peek(1).Type != lexer.RPAREN {
-		p.addError("expected ')' after parameter list", ErrMissingRParen)
+		p.addExpectedStop(lexer.RPAREN)
 		return nil
 	}
 	cursor = cursor.Advance() // move to RPAREN
@@ -677,7 +676,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 
 	// First identifier (allow contextual keywords like STEP)
 	if !p.isIdentifierToken(cursor.Current().Type) {
-		p.addError("expected parameter name", ErrExpectedIdent)
+		p.addExpectedCurrent(lexer.IDENT)
 		return nil
 	}
 
@@ -696,7 +695,7 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 		p.cursor = cursor
 
 		if !p.isIdentifierToken(cursor.Current().Type) {
-			p.addError("expected parameter name after ','", ErrExpectedIdent)
+			p.addExpectedCurrent(lexer.IDENT)
 			return nil
 		}
 
@@ -819,7 +818,7 @@ func (p *Parser) parseParameterListAtToken() []*ast.Parameter {
 
 	// Expect closing parenthesis
 	if cursor.Peek(1).Type != lexer.RPAREN {
-		p.addError("expected ')' after parameter list", ErrMissingRParen)
+		p.addExpectedStop(lexer.RPAREN)
 		return nil
 	}
 	cursor = cursor.Advance() // move to RPAREN

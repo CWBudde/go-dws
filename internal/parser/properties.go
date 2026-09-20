@@ -62,7 +62,7 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 			// - ']' : end of parameters
 			// - ';' : more parameter groups follow
 			if !p.peekTokenIs(lexer.RBRACK) && !p.peekTokenIs(lexer.SEMICOLON) {
-				p.addError("expected ']' or ';' after indexed property parameter", ErrUnexpectedToken)
+				p.addExpectedStop(lexer.RBRACK)
 				return nil
 			}
 
@@ -341,7 +341,7 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	for {
 		// Parse parameter name (can be IDENT or keyword used as identifier)
 		if !p.curTokenIs(lexer.IDENT) && !p.curTokenIs(lexer.INDEX) {
-			p.addError("expected parameter name in indexed property", ErrExpectedIdent)
+			p.addExpectedCurrent(lexer.IDENT)
 			return nil
 		}
 

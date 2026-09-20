@@ -73,7 +73,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 				// Allow boolean keywords as enum value names
 				valueName = p.cursor.Current().Literal
 			} else {
-				p.addError("expected enum value name, got "+p.cursor.Current().Type.String(), ErrExpectedIdent)
+				p.addExpectedCurrent(lexer.IDENT)
 				return false
 			}
 
@@ -139,7 +139,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 	// continues after the closing paren (`= []`, `)`, `;`, …).
 	if !p.parsingInlineEnum {
 		if cursor.Peek(1).Type != lexer.SEMICOLON {
-			p.addError("expected ';' after enum declaration", ErrMissingSemicolon)
+			p.addExpected(lexer.SEMICOLON)
 			return nil
 		}
 		cursor = cursor.Advance() // move to SEMICOLON

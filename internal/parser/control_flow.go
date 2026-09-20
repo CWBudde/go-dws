@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -343,17 +342,7 @@ func (p *Parser) parseWhileStatement() *ast.WhileStatement {
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.DO {
 		// Use structured error for missing 'do'
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingDo).
-			WithMessage("expected 'do' after while condition").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpected(lexer.DO).
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add 'do' keyword after the condition").
-			WithNote("DWScript while loops require: while <condition> do <statement>").
-			WithParsePhase("while loop").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(nextToken, lexer.DO)
 		// Synchronize to recover
 		p.synchronize([]lexer.TokenType{lexer.DO, lexer.END})
 		if p.cursor.Current().Type != lexer.DO {
@@ -462,7 +451,7 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 
 	// Expect 'until' keyword
 	if p.cursor.Current().Type != lexer.UNTIL {
-		p.addErrorWithContext(fmt.Sprintf("expected 'until' after repeat body, got %s instead", p.cursor.Current().Type), ErrUnexpectedToken)
+		p.addExpectedCurrent(lexer.UNTIL)
 		// Synchronize to recover
 		p.synchronize([]lexer.TokenType{lexer.UNTIL, lexer.END})
 		if p.cursor.Current().Type != lexer.UNTIL {
@@ -519,16 +508,7 @@ func (p *Parser) parseBreakStatement() *ast.BreakStatement {
 	}
 
 	// Use structured error
-	err := NewStructuredError(ErrKindMissing).
-		WithCode(ErrMissingSemicolon).
-		WithMessage("expected ';' after 'break'").
-		WithPosition(nextToken.Pos, nextToken.Length()).
-		WithExpectedString("';'").
-		WithActual(nextToken.Type, nextToken.Literal).
-		WithSuggestion("add ';' after the break statement").
-		WithParsePhase("break statement").
-		Build()
-	p.addStructuredError(err)
+	p.addExpected(lexer.SEMICOLON)
 	return nil
 }
 
@@ -557,16 +537,7 @@ func (p *Parser) parseContinueStatement() *ast.ContinueStatement {
 	}
 
 	// Use structured error
-	err := NewStructuredError(ErrKindMissing).
-		WithCode(ErrMissingSemicolon).
-		WithMessage("expected ';' after 'continue'").
-		WithPosition(nextToken.Pos, nextToken.Length()).
-		WithExpectedString("';'").
-		WithActual(nextToken.Type, nextToken.Literal).
-		WithSuggestion("add ';' after the continue statement").
-		WithParsePhase("continue statement").
-		Build()
-	p.addStructuredError(err)
+	p.addExpected(lexer.SEMICOLON)
 	return nil
 }
 
@@ -606,16 +577,7 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 		nextToken = p.cursor.Peek(1)
 		if nextToken.Type != lexer.RPAREN {
 			// Use structured error
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrMissingRParen).
-				WithMessage("expected ')' after exit expression").
-				WithPosition(nextToken.Pos, nextToken.Length()).
-				WithExpectedString("')'").
-				WithActual(nextToken.Type, nextToken.Literal).
-				WithSuggestion("add ')' to close the exit expression").
-				WithParsePhase("exit statement").
-				Build()
-			p.addStructuredError(err)
+			p.addExpectedStop(lexer.RPAREN)
 			return nil
 		}
 		p.cursor = p.cursor.Advance() // move to ')'
@@ -656,16 +618,7 @@ func (p *Parser) parseExitStatement() *ast.ExitStatement {
 	}
 
 	// Use structured error
-	err := NewStructuredError(ErrKindMissing).
-		WithCode(ErrMissingSemicolon).
-		WithMessage("expected ';' after 'exit'").
-		WithPosition(nextToken.Pos, nextToken.Length()).
-		WithExpectedString("';'").
-		WithActual(nextToken.Type, nextToken.Literal).
-		WithSuggestion("add ';' after the exit statement").
-		WithParsePhase("exit statement").
-		Build()
-	p.addStructuredError(err)
+	p.addExpected(lexer.SEMICOLON)
 	return nil
 }
 
@@ -696,16 +649,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 	nextToken = p.cursor.Peek(1)
 	if !p.isIdentifierToken(nextToken.Type) {
 		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrExpectedIdent).
-			WithMessage("expected identifier after 'for'").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("loop variable name").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("provide a variable name for the loop").
-			WithParsePhase("for loop").
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 
@@ -866,16 +810,7 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.IN {
 		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingIn).
-			WithMessage("expected 'in' after for loop variable").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("'in'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add 'in' keyword to specify the collection").
-			WithParsePhase("for-in loop").
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.IN)
 		return nil
 	}
 
@@ -1066,16 +1001,7 @@ func (p *Parser) parseCaseBranch() *ast.CaseBranch {
 	// Expect ':' after value(s)
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.COLON {
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingColon).
-			WithMessage("expected ':' after case value").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("':'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ':' before the branch statement").
-			WithParsePhase("case branch").
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.COLON)
 		return nil
 	}
 

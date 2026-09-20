@@ -41,7 +41,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing identifier in var declaration",
 			input:         "var ;",
-			expectedError: "expected identifier in var declaration",
+			expectedError: "Name expected",
 		},
 		{
 			name:          "missing expression in if condition",
@@ -56,7 +56,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing do keyword in while",
 			input:         "while x < 10 x := x + 1;",
-			expectedError: "expected 'do' after while condition",
+			expectedError: "DO expected",
 		},
 		{
 			name:          "missing until keyword in repeat",
@@ -66,7 +66,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing identifier in for loop",
 			input:         "for := 1 to 10 do PrintLn(i);",
-			expectedError: "expected identifier after 'for'",
+			expectedError: "Name expected",
 		},
 		{
 			name:          "missing assign in for loop",
@@ -91,7 +91,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing colon in case branch",
 			input:         "case x of 1 x := 1; end;",
-			expectedError: "expected ':' after case value",
+			expectedError: `Colon ":" expected`,
 		},
 		{
 			name:          "missing end keyword in case",

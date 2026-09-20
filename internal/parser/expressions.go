@@ -114,10 +114,11 @@ func (p *Parser) parseNotInIsAs(leftExp ast.Expression) ast.Expression {
 	p.cursor = p.cursor.Advance()
 	notToken := p.cursor.Current()
 
-	// Check if next token is IN, IS, or AS
+	// Check if next token is IN, IS, or AS. After an operand, "not" can only
+	// begin "not in/is/as": upstream wants "in" there (in_operator4).
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.IN && nextToken.Type != lexer.IS && nextToken.Type != lexer.AS {
-		// Not a "not in/is/as" pattern, backtrack
+		p.addExpectedStop(lexer.IN)
 		p.cursor = p.cursor.ResetTo(mark)
 		return nil
 	}

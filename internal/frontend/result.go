@@ -759,31 +759,8 @@ func normalizeParserDiagnosticMessage(message string) string {
 		return "Not a method"
 	}
 
-	switch message {
-	case "expected 'do' after while condition":
-		return "DO expected"
-	case "expected 'end' to close block":
+	if message == "expected 'end' to close block" {
 		return "End of block expected"
-	case "expected 'do' after exception type":
-		return "DO expected"
-	case "expected ':' after exception variable":
-		return `Colon ":" expected`
-	case "expected identifier after 'on'":
-		return "Name expected"
-	case "expected ']' to close array index":
-		return `"]" expected`
-	case "expected ';' after function signature":
-		return `";" expected`
-	case "expected identifier in var declaration":
-		return "Name expected"
-	case "expected identifier after 'type'":
-		return "Name expected"
-	case "expected '=' after type name":
-		return `"=" expected`
-	case "expected ';' after type declaration":
-		return `";" expected`
-	case "expected ';' after variable declaration":
-		return `";" expected`
 	}
 
 	return message

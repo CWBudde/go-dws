@@ -386,7 +386,7 @@ func (p *Parser) parseDefaultExpression() ast.Expression {
 	// Expect RPAREN
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.RPAREN {
-		p.addError("expected ')' after type name", ErrUnexpectedToken)
+		p.addExpectedStop(lexer.RPAREN)
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to ')'

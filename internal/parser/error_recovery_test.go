@@ -191,7 +191,7 @@ func TestErrorRecoveryWhileStatement(t *testing.T) {
 				x := x - 1;
 			`,
 			expectErrors:  1,
-			errorContains: []string{"expected 'do'", "while block"},
+			errorContains: []string{"DO expected"},
 		},
 		{
 			name: "missing condition",

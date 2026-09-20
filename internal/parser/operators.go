@@ -45,7 +45,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 
 	// Parse operand type list (enclosed in parentheses)
 	if cursor.Peek(1).Type != lexer.LPAREN {
-		p.addError("expected '(' after operator symbol", ErrUnexpectedToken)
+		p.addExpected(lexer.LPAREN)
 		return nil
 	}
 	cursor = cursor.Advance() // move to '('
@@ -71,12 +71,12 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 
 	// Expect 'uses' clause
 	if cursor.Peek(1).Type != lexer.USES {
-		p.addError("expected 'uses' in operator declaration", ErrUnexpectedToken)
+		p.addExpected(lexer.USES)
 		return nil
 	}
 	cursor = cursor.Advance() // move to 'uses'
 	if cursor.Peek(1).Type != lexer.IDENT {
-		p.addError("expected identifier after 'uses' in operator declaration", ErrExpectedIdent)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 	cursor = cursor.Advance() // move to identifier
@@ -90,7 +90,7 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 
 	// Expect terminating semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' at end of operator declaration", ErrUnexpectedToken)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to ';'
@@ -186,12 +186,12 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 
 	// Expect 'uses' clause
 	if cursor.Peek(1).Type != lexer.USES {
-		p.addError("expected 'uses' in class operator declaration", ErrUnexpectedToken)
+		p.addExpected(lexer.USES)
 		return nil
 	}
 	cursor = cursor.Advance() // move to 'uses'
 	if cursor.Peek(1).Type != lexer.IDENT {
-		p.addError("expected identifier after 'uses' in class operator declaration", ErrExpectedIdent)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 	cursor = cursor.Advance() // move to identifier
@@ -204,7 +204,7 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 	}
 
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' at end of class operator declaration", ErrUnexpectedToken)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to ';'

@@ -61,7 +61,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 
 	// Expect class name identifier
 	if cursor.Peek(1).Type != lexer.IDENT {
-		p.addError("expected identifier for class name", ErrExpectedIdent)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 	cursor = cursor.Advance() // move to IDENT
@@ -76,7 +76,7 @@ func (p *Parser) parseClassDeclaration() *ast.ClassDecl {
 
 	// Expect '='
 	if cursor.Peek(1).Type != lexer.EQ {
-		p.addError("expected '=' after class name", ErrUnexpectedToken)
+		p.addExpected(lexer.EQ)
 		return nil
 	}
 	cursor = cursor.Advance() // move to EQ
@@ -544,7 +544,7 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 
 	// Expect terminating semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after 'end'", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -718,7 +718,7 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 
 	// Expect semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after field declaration", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -872,7 +872,7 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 
 	// Current token should be the constant name identifier
 	if cursor.Current().Type != lexer.IDENT {
-		p.addError("expected identifier for constant name", ErrExpectedIdent)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 
@@ -907,7 +907,7 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 
 	// Expect '=' for the constant value
 	if cursor.Peek(1).Type != lexer.EQ {
-		p.addError("expected '=' after constant name", ErrUnexpectedToken)
+		p.addExpected(lexer.EQ)
 		return nil
 	}
 	cursor = cursor.Advance() // move to '='
@@ -926,7 +926,7 @@ func (p *Parser) parseClassConstantDeclaration(visibility ast.Visibility, isClas
 
 	// Expect semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after constant value", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON

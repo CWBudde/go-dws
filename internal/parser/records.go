@@ -52,14 +52,14 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 
 	// Expect 'end' keyword
 	if cursor.Current().Type != lexer.END {
-		p.addError("expected 'end' to close record declaration", ErrMissingEnd)
+		p.addExpectedCurrent(lexer.END)
 		return nil
 	}
 	recordDecl.EndKeywordPos = cursor.Current().Pos
 
 	// Expect semicolon after 'end'
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after 'end'", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -96,7 +96,7 @@ func (p *Parser) parseInlineRecordType() ast.TypeExpression {
 	cursor = p.cursor
 
 	if cursor.Current().Type != lexer.END {
-		p.addError("expected 'end' to close record type", ErrMissingEnd)
+		p.addExpectedCurrent(lexer.END)
 		return &ast.InvalidTypeExpression{
 			BaseNode: ast.BaseNode{Token: recordToken},
 			Reason:   "unterminated record type",
@@ -326,7 +326,7 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		// Explicit type: Name : Type [= Value]
 		// Expect colon
 		if cursor.Peek(1).Type != lexer.COLON {
-			p.addError("expected ':' after field name", ErrUnexpectedToken)
+			p.addExpected(lexer.COLON)
 			return nil
 		}
 		cursor = cursor.Advance() // move to ':'
@@ -350,7 +350,7 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 			p.cursor = cursor
 			return fieldsFromRecordFieldNames(fieldNames, fieldType, initValue, visibility)
 		}
-		p.addError("expected ';' after field declaration", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -488,7 +488,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 
 			// Parse parameter name
 			if cursor.Current().Type != lexer.IDENT {
-				p.addError("expected parameter name in property index", ErrUnexpectedToken)
+				p.addExpectedCurrent(lexer.IDENT)
 				return nil
 			}
 			paramName := &ast.Identifier{
@@ -498,7 +498,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 
 			// Expect colon
 			if cursor.Peek(1).Type != lexer.COLON {
-				p.addError("expected ':' after parameter name", ErrUnexpectedToken)
+				p.addExpected(lexer.COLON)
 				return nil
 			}
 			cursor = cursor.Advance() // move to ':'
@@ -533,7 +533,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 
 		// Expect closing bracket
 		if cursor.Peek(1).Type != lexer.RBRACK {
-			p.addError("expected ']' to close property index", ErrMissingRBracket)
+			p.addExpected(lexer.RBRACK)
 			return nil
 		}
 		cursor = cursor.Advance() // move to ']'
@@ -542,7 +542,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 
 	// Expect colon
 	if cursor.Peek(1).Type != lexer.COLON {
-		p.addError("expected ':' after property name", ErrUnexpectedToken)
+		p.addExpected(lexer.COLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to ':'
@@ -605,7 +605,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 			p.cursor = cursor
 			prop.ReadField = cursor.Current().Literal
 		default:
-			p.addError("expected identifier after 'read'", ErrExpectedIdent)
+			p.addExpected(lexer.IDENT)
 			return nil
 		}
 	}
@@ -626,7 +626,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 			p.cursor = cursor
 			prop.WriteField = cursor.Current().Literal
 		default:
-			p.addError("expected identifier after 'write'", ErrExpectedIdent)
+			p.addExpected(lexer.IDENT)
 			return nil
 		}
 	}
@@ -643,7 +643,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 
 	// Expect semicolon first
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after property declaration", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -656,7 +656,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 		prop.IsDefault = true
 		// Expect another semicolon after 'default'
 		if cursor.Peek(1).Type != lexer.SEMICOLON {
-			p.addError("expected ';' after 'default'", ErrMissingSemicolon)
+			p.addExpected(lexer.SEMICOLON)
 			return nil
 		}
 		cursor = cursor.Advance() // move to SEMICOLON
@@ -675,7 +675,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 			prop.DeprecatedMessage = cursor.Current().Literal
 		}
 		if cursor.Peek(1).Type != lexer.SEMICOLON {
-			p.addError("expected ';' after 'deprecated'", ErrMissingSemicolon)
+			p.addExpected(lexer.SEMICOLON)
 			return nil
 		}
 		cursor = cursor.Advance() // move to SEMICOLON

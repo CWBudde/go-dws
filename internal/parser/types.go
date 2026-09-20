@@ -198,6 +198,13 @@ func (p *Parser) parseTypeArguments() []ast.TypeExpression {
 
 	var args []ast.TypeExpression
 	for {
+		if !p.canStartTypeExpression(p.cursor.Peek(1).Type) {
+			// "Type expected" at the token found, then the ">" it is not: a
+			// compiler stop in a type reference (record_constraint1).
+			p.addTypeExpectedAt(p.cursor.Peek(1))
+			p.addExpectedStop(lexer.GREATER)
+			return nil
+		}
 		p.cursor = p.cursor.Advance() // move to first token of the type expression
 		arg := p.parseTypeExpression()
 		if arg == nil {
@@ -218,7 +225,7 @@ func (p *Parser) parseTypeArguments() []ast.TypeExpression {
 			p.cursor.SplitGreaterGreater(1)
 			return args
 		default:
-			p.addPeekTokenError("\">\" expected in generic type argument list", ErrUnexpectedToken)
+			p.addExpectedStop(lexer.GREATER)
 			return nil
 		}
 	}
@@ -335,7 +342,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 
 		// Expect closing parenthesis
 		if cursor.Current().Type != lexer.RPAREN {
-			p.addError("expected ')' after parameter list in function pointer type", ErrMissingRParen)
+			p.addExpectedStop(lexer.RPAREN)
 			return nil
 		}
 
@@ -352,7 +359,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 	if isFunction {
 		// Expect colon and return type
 		if cursor.Peek(1).Type != lexer.COLON {
-			p.addError("expected ':' after ')' in function pointer type", ErrMissingColon)
+			p.addExpected(lexer.COLON)
 			return nil
 		}
 		cursor = cursor.Advance() // move to COLON
@@ -717,7 +724,7 @@ func (p *Parser) parseClassOfType() *ast.ClassOfTypeNode {
 
 	// Expect 'of' keyword
 	if cursor.Peek(1).Type != lexer.OF {
-		p.addError("expected 'of' after 'class' in metaclass type", ErrMissingOf)
+		p.addExpected(lexer.OF)
 		return nil
 	}
 	cursor = cursor.Advance() // move to OF

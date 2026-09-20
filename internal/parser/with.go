@@ -39,16 +39,7 @@ func (p *Parser) parseWithStatement() *ast.WithStatement {
 
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.DO {
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingDo).
-			WithMessage("expected 'do' after with declarations").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("'do'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add 'do' before the with statement body").
-			WithParsePhase("with statement").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(nextToken, lexer.DO)
 		return nil
 	}
 

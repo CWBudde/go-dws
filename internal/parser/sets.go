@@ -92,16 +92,7 @@ func (p *Parser) parseSetDeclaration(nameIdent *ast.Identifier, typeToken lexer.
 	// Expect semicolon
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.SEMICOLON {
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after set declaration").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("';'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ';' after set declaration").
-			WithParsePhase("set declaration").
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to semicolon

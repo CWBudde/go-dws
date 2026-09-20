@@ -524,7 +524,7 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 		{
 			name:          "missing uses clause",
 			input:         `operator + (String, Integer) : String;`,
-			expectedError: "expected 'uses' in operator declaration",
+			expectedError: `"USES" expected`,
 		},
 		{
 			name:          "invalid operator token",
@@ -534,7 +534,7 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 		{
 			name:          "missing operand types",
 			input:         `operator + : String uses Foo;`,
-			expectedError: "expected '(' after operator symbol",
+			expectedError: `"(" expected`,
 		},
 		{
 			name:          "empty operand list",
@@ -544,7 +544,7 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 		{
 			name:          "missing binding identifier",
 			input:         `operator + (String, Integer) : String uses;`,
-			expectedError: "expected identifier after 'uses' in operator declaration",
+			expectedError: "Name expected",
 		},
 		{
 			name:          "unterminated operand list - no closing paren (CRITICAL BUG FIX)",
@@ -559,7 +559,7 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 		{
 			name:          "unterminated operand list - EOF after comma",
 			input:         `operator + (Integer,`,
-			expectedError: "expected 'uses' in operator declaration",
+			expectedError: `"USES" expected`,
 		},
 	}
 

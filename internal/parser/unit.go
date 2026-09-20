@@ -133,16 +133,7 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 	// Expect at least one unit name
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.IDENT {
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrExpectedIdent).
-			WithMessage("expected unit name after 'uses'").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("unit name").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("provide a unit name after 'uses'").
-			WithParsePhase("uses clause").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(nextToken, lexer.IDENT)
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to first unit name
@@ -166,16 +157,7 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 		currentToken = p.cursor.Current()
 
 		if currentToken.Type != lexer.IDENT {
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrExpectedIdent).
-				WithMessage("expected unit name after comma in uses clause").
-				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithExpectedString("unit name").
-				WithActual(currentToken.Type, currentToken.Literal).
-				WithSuggestion("provide a unit name after comma").
-				WithParsePhase("uses clause").
-				Build()
-			p.addStructuredError(err)
+			p.addExpectedAt(currentToken, lexer.IDENT)
 			return nil
 		}
 
@@ -189,16 +171,7 @@ func (p *Parser) parseUsesClause() *ast.UsesClause {
 	// Expect semicolon
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.SEMICOLON {
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingSemicolon).
-			WithMessage("expected ';' after uses clause").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("';'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ';' after unit names").
-			WithParsePhase("uses clause").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(nextToken, lexer.SEMICOLON)
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to semicolon

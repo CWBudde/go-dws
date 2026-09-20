@@ -579,16 +579,7 @@ func (p *Parser) parseVarIdentifierList() ([]*ast.Identifier, bool) {
 		currentToken := p.cursor.Current()
 		if !p.isIdentifierToken(currentToken.Type) {
 			// Use structured error
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrExpectedIdent).
-				WithMessage("expected identifier in var declaration").
-				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithExpectedString("variable name").
-				WithActual(currentToken.Type, currentToken.Literal).
-				WithSuggestion("provide a variable name").
-				WithParsePhase("variable declaration").
-				Build()
-			p.addStructuredError(err)
+			p.addExpectedAt(currentToken, lexer.IDENT)
 			return nil, false
 		}
 
@@ -607,16 +598,7 @@ func (p *Parser) parseVarIdentifierList() ([]*ast.Identifier, bool) {
 			currentToken = p.cursor.Current()
 			if !p.isIdentifierToken(currentToken.Type) {
 				// Use structured error
-				err := NewStructuredError(ErrKindMissing).
-					WithCode(ErrExpectedIdent).
-					WithMessage("expected identifier after comma in var declaration").
-					WithPosition(currentToken.Pos, currentToken.Length()).
-					WithExpectedString("variable name").
-					WithActual(currentToken.Type, currentToken.Literal).
-					WithSuggestion("provide a variable name after ','").
-					WithParsePhase("variable declaration").
-					Build()
-				p.addStructuredError(err)
+				p.addExpectedAt(currentToken, lexer.IDENT)
 				return nil, false
 			}
 			continue
@@ -636,32 +618,13 @@ func (p *Parser) validateAndAdvanceVarToken(stmt *ast.VarDeclStatement) bool {
 		p.cursor = p.cursor.Advance()
 		currentToken = p.cursor.Current()
 		if !p.isIdentifierToken(currentToken.Type) {
-			// Use structured error
-			err := NewStructuredError(ErrKindMissing).
-				WithCode(ErrExpectedIdent).
-				WithMessage("expected identifier in var declaration").
-				WithPosition(currentToken.Pos, currentToken.Length()).
-				WithExpectedString("variable name").
-				WithActual(currentToken.Type, currentToken.Literal).
-				WithSuggestion("provide a variable name after 'var'").
-				WithParsePhase("variable declaration").
-				Build()
-			p.addStructuredStop(err)
+			// The malformed name is a compiler stop upstream (reserved_escape_*).
+			p.addExpectedStopAt(currentToken, lexer.IDENT)
 			return false
 		}
 	} else if !p.isIdentifierToken(currentToken.Type) {
 		// Should already be at an identifier
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrExpectedIdent).
-			WithMessage("expected identifier in var declaration").
-			WithPosition(currentToken.Pos, currentToken.Length()).
-			WithExpectedString("variable name").
-			WithActual(currentToken.Type, currentToken.Literal).
-			WithSuggestion("provide a variable name after 'var'").
-			WithParsePhase("variable declaration").
-			Build()
-		p.addStructuredError(err)
+		p.addExpectedAt(currentToken, lexer.IDENT)
 		return false
 	} else {
 		stmt.Token = currentToken

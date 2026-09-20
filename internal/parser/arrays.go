@@ -389,7 +389,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 
 		// Expect ']'
 		if cursor.Peek(1).Type != lexer.RBRACK {
-			p.addError("expected ']' after array bounds", ErrUnexpectedToken)
+			p.addExpected(lexer.RBRACK)
 			return nil
 		}
 		cursor = cursor.Advance() // move to ']'
@@ -397,7 +397,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 
 	// Expect 'of'
 	if cursor.Peek(1).Type != lexer.OF {
-		p.addError("expected 'of' after 'array'", ErrUnexpectedToken)
+		p.addExpected(lexer.OF)
 		return nil
 	}
 	cursor = cursor.Advance() // move to 'of'
@@ -465,7 +465,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 
 	// Expect semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after array declaration", ErrUnexpectedToken)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to ';'

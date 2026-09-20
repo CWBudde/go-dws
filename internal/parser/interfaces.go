@@ -121,13 +121,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 
 	// Expect '=' after type name
 	if p.cursor.Peek(1).Type != lexer.EQ {
-		nextToken := p.cursor.Peek(1)
-		p.recordError(NewParserError(
-			nextToken.Pos,
-			nextToken.Length(),
-			"expected '=' after type name",
-			ErrUnexpectedToken,
-		))
+		p.addExpected(lexer.EQ)
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to '='
@@ -151,7 +145,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 
 		// Check for '..' operator
 		if p.cursor.Peek(1).Type != lexer.DOTDOT {
-			p.addError("expected '..' in subrange type", ErrUnexpectedToken)
+			p.addExpected(lexer.DOTDOT)
 			return nil
 		}
 		p.cursor = p.cursor.Advance() // move to DOTDOT
@@ -166,7 +160,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 
 		// Expect semicolon
 		if p.cursor.Peek(1).Type != lexer.SEMICOLON {
-			p.addError("expected ';' after subrange type declaration", ErrMissingSemicolon)
+			p.addExpected(lexer.SEMICOLON)
 			return nil
 		}
 		p.cursor = p.cursor.Advance() // move to SEMICOLON
@@ -195,7 +189,7 @@ func (p *Parser) parseSingleTypeDeclaration(typeToken lexer.Token) ast.Statement
 		if p.cursor.Current().Type == lexer.SEMICOLON {
 			cursor = p.cursor
 		} else if p.cursor.Peek(1).Type != lexer.SEMICOLON {
-			p.addError("expected ';' after type declaration", ErrMissingSemicolon)
+			p.addExpected(lexer.SEMICOLON)
 			return nil
 		} else {
 			cursor = p.cursor.Advance() // move to SEMICOLON
@@ -352,20 +346,14 @@ func (p *Parser) parseTypeNameIdentifier() *ast.Identifier {
 	if cursor.Current().Type == lexer.TYPE {
 		// After 'type' keyword, expect identifier next
 		if !p.isIdentifierToken(cursor.Peek(1).Type) {
-			nextToken := cursor.Peek(1)
-			p.recordError(NewParserError(
-				nextToken.Pos,
-				nextToken.Length(),
-				"expected identifier after 'type'",
-				ErrExpectedIdent,
-			))
+			p.addExpected(lexer.IDENT)
 			return nil
 		}
 		cursor = cursor.Advance() // move to identifier
 		p.cursor = cursor
 	} else if !p.isIdentifierToken(cursor.Current().Type) {
 		// Should already be at an identifier
-		p.addError("expected identifier in type declaration", ErrExpectedIdent)
+		p.addExpectedCurrent(lexer.IDENT)
 		return nil
 	}
 
@@ -397,7 +385,7 @@ func (p *Parser) parseClassTypeKind(nameIdent *ast.Identifier, typeToken lexer.T
 
 		// Expect semicolon
 		if p.cursor.Peek(1).Type != lexer.SEMICOLON {
-			p.addError("expected ';' after class of type", ErrMissingSemicolon)
+			p.addExpected(lexer.SEMICOLON)
 			return nil
 		}
 		p.cursor = p.cursor.Advance() // move to SEMICOLON
@@ -456,7 +444,7 @@ func (p *Parser) parseTypeKind(nameIdent *ast.Identifier, typeToken lexer.Token,
 
 		// Expect CLASS after PARTIAL
 		if cursor.Peek(1).Type != lexer.CLASS {
-			p.addError("expected 'class' after 'partial'", ErrUnexpectedToken)
+			p.addExpectedStop(lexer.CLASS)
 			return nil
 		}
 		cursor = cursor.Advance() // move to CLASS
@@ -473,7 +461,7 @@ func (p *Parser) parseTypeKind(nameIdent *ast.Identifier, typeToken lexer.Token,
 		p.cursor = cursor
 
 		if cursor.Peek(1).Type != lexer.CLASS {
-			p.addError("expected 'class' after 'static'", ErrUnexpectedToken)
+			p.addExpectedStop(lexer.CLASS)
 			return nil
 		}
 		cursor = cursor.Advance() // move to CLASS
@@ -634,7 +622,7 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 
 		// Expect closing parenthesis
 		if !p.curTokenIs(lexer.RPAREN) {
-			p.addError("expected ')' after parameter list in function pointer type", ErrMissingRParen)
+			p.addExpectedStop(lexer.RPAREN)
 			return nil
 		}
 
@@ -826,6 +814,20 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 				interfaceDecl.Properties = append(interfaceDecl.Properties, property)
 			}
 			cursor = p.cursor
+		case lexer.LBRACK:
+			// GUID: ['...']. Upstream wants a string, then the closing bracket
+			// (interface_guid); the GUID itself is not checked.
+			cursor = cursor.Advance() // move to the GUID
+			p.cursor = cursor
+			if cursor.Current().Type != lexer.STRING {
+				p.recordError(NewParserError(cursor.Current().Pos, cursor.Current().Length(), "String expected", ErrUnexpectedToken))
+			}
+			if cursor.Peek(1).Type != lexer.RBRACK {
+				p.addExpected(lexer.RBRACK)
+				continue
+			}
+			cursor = cursor.Advance() // move to ']'
+			p.cursor = cursor
 		default:
 			// Unknown token in interface body, skip it
 			cursor = cursor.Advance()
@@ -845,7 +847,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 
 	// Expect terminating semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after 'end'", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -879,7 +881,7 @@ func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 
 	// Expect method name identifier
 	if cursor.Peek(1).Type != lexer.IDENT {
-		p.addError("expected identifier for method name", ErrExpectedIdent)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 	cursor = cursor.Advance() // move to IDENT
@@ -905,7 +907,7 @@ func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 	if !isProcedure {
 		// Expect ':' for return type
 		if cursor.Peek(1).Type != lexer.COLON {
-			p.addError("expected ':' for function return type", ErrMissingColon)
+			p.addExpected(lexer.COLON)
 			return nil
 		}
 		cursor = cursor.Advance() // move to ':'
@@ -927,7 +929,7 @@ func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 
 	// Expect semicolon (interface methods have no body)
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		p.addError("expected ';' after interface method declaration", ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return nil
 	}
 	cursor = cursor.Advance() // move to SEMICOLON

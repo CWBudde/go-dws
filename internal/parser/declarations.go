@@ -121,16 +121,7 @@ func (p *Parser) parseSingleConstDeclaration(isResourceStringSection bool) *ast.
 	// We should now be at the identifier
 	if !p.isIdentifierToken(currentToken.Type) {
 		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrExpectedIdent).
-			WithMessage("expected identifier in const declaration").
-			WithPosition(currentToken.Pos, currentToken.Length()).
-			WithExpectedString("constant name").
-			WithActual(currentToken.Type, currentToken.Literal).
-			WithSuggestion("provide a constant name after 'const'").
-			WithParsePhase("constant declaration").
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.IDENT)
 		return nil
 	}
 
@@ -188,6 +179,11 @@ func (p *Parser) parseSingleConstDeclaration(isResourceStringSection bool) *ast.
 	// Parse value expression
 	p.cursor = p.cursor.Advance() // move to value expression
 	stmt.Value = p.parseExpression(ASSIGN)
+	if p.stopped() {
+		// A value cut short by a compiler stop: the declaration never existed
+		// upstream, so it is not analysed (const_record4).
+		return nil
+	}
 
 	// Check for optional 'deprecated' keyword
 	nextToken = p.cursor.Peek(1)
