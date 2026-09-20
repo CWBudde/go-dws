@@ -41,7 +41,7 @@ func (p *Parser) parseEnumDeclaration(nameIdent *ast.Identifier, typeToken lexer
 
 	// Expect '('
 	if cursor.Peek(1).Type != lexer.LPAREN {
-		p.addError("expected '(' to start enum declaration", ErrMissingLParen)
+		p.addExpectedStop(lexer.LPAREN)
 		return nil
 	}
 	cursor = cursor.Advance() // move to '('

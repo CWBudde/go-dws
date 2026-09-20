@@ -224,6 +224,13 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
 	var operandTypes []ast.TypeExpression
 	p.cursor = p.cursor.Advance()
+	if p.cursor.Current().Type == lexer.EOF {
+		// The input ran out where a type was wanted (operator_overload2): both
+		// diagnostics anchor at the last token.
+		p.addTypeExpectedAt(p.cursor.Current())
+		p.addExpectedStopCurrent(lexer.RPAREN)
+		return operandTypes
+	}
 	for p.cursor.Current().Type != lexer.RPAREN && p.cursor.Current().Type != lexer.EOF {
 		operand := p.parseOperatorOperandType()
 		if isInvalidTypeExpression(operand) {
@@ -236,11 +243,8 @@ func (p *Parser) parseOperatorOperandTypes() []ast.TypeExpression {
 		case lexer.RPAREN:
 			p.cursor = p.cursor.Advance()
 			return operandTypes
-		case lexer.EOF:
-			p.addError("unterminated operator operand list", ErrMissingRParen)
-			return operandTypes
 		default:
-			p.addError("expected ',' or ')' in operator operand list", ErrUnexpectedToken)
+			p.addExpectedStop(lexer.RPAREN)
 			return operandTypes
 		}
 	}

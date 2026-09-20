@@ -549,12 +549,12 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 		{
 			name:          "unterminated operand list - no closing paren (CRITICAL BUG FIX)",
 			input:         `operator + (`,
-			expectedError: "operator declaration requires at least one operand type",
+			expectedError: "Type expected",
 		},
 		{
 			name:          "unterminated operand list - EOF after type",
 			input:         `operator + (Integer`,
-			expectedError: "unterminated operator operand list",
+			expectedError: `")" expected`,
 		},
 		{
 			name:          "unterminated operand list - EOF after comma",

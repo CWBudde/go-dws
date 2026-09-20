@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"fmt"
-
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -101,19 +99,11 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		return expr
 	}
 	if nextToken.Type != lexer.RBRACK {
-		// Use structured error for missing closing bracket
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingRBracket).
-			WithMessage("expected ']' to close array index").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpected(lexer.RBRACK).
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ']' to close the array index").
-			WithRelatedPosition(lbrackToken.Pos, "opening '[' here").
-			WithParsePhase("array index expression").
-			Build()
-		p.addStructuredError(err)
-		return nil
+		// An index's missing "]" is an ordinary error upstream: the enclosing
+		// declaration goes on and reports its own ";" (array_index_bracket_missing2).
+		p.addExpected(lexer.RBRACK)
+		expr := builder.FinishWithToken(result, p.cursor.Current()).(ast.Expression)
+		return expr
 	}
 
 	// Advance to RBRACK
@@ -204,8 +194,8 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 			break
 		}
 
-		// Unexpected token between elements
-		p.addError(fmt.Sprintf("expected ',' or ']', got %s", nextToken.Type), ErrUnexpectedToken)
+		// Unexpected token between elements: a compiler stop upstream.
+		p.addExpectedStop(lexer.RBRACK)
 		return nil
 	}
 

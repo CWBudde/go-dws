@@ -42,13 +42,13 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 		return nil
 	}
 
-	// Expect semicolon after unit name
-	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
+	// Expect semicolon after unit name. A missing one is an ordinary error
+	// upstream: the sections are still read (end_implementation2).
+	if p.expectPeek(lexer.SEMICOLON) {
+		p.nextToken() // move past semicolon
+	} else {
+		p.nextToken() // move to the token found instead
 	}
-
-	// Move past semicolon
-	p.nextToken()
 
 	// Parse interface section (optional but common)
 	if p.curTokenIs(lexer.INTERFACE) {
@@ -105,7 +105,6 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 
 	// Expect '.' after 'end'
 	if !p.expectPeek(lexer.DOT) {
-		p.addError("expected '.' after 'end' in unit declaration", ErrUnexpectedToken)
 		return nil
 	}
 
@@ -363,11 +362,21 @@ func (p *Parser) parseInitializationSection() *ast.BlockStatement {
 			continue
 		}
 
+		if p.refuseStatementStart(closersFinalizationEnd) {
+			break
+		}
+
+		errorsBefore := len(p.errors)
 		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
+		lastToken := p.cursor.Current()
 		p.nextToken()
+
+		if p.refuseStatementTail(closersFinalizationEnd, lastToken, errorsBefore) {
+			break
+		}
 	}
 
 	return block
@@ -393,11 +402,21 @@ func (p *Parser) parseFinalizationSection() *ast.BlockStatement {
 			continue
 		}
 
+		if p.refuseStatementStart(closersEnd) {
+			break
+		}
+
+		errorsBefore := len(p.errors)
 		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
 		}
+		lastToken := p.cursor.Current()
 		p.nextToken()
+
+		if p.refuseStatementTail(closersEnd, lastToken, errorsBefore) {
+			break
+		}
 	}
 
 	return block

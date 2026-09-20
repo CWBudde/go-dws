@@ -45,7 +45,9 @@ func (a *Analyzer) emitUnusedWarningsForCurrentScope() {
 	if a.currentFunction == nil && !a.inLambda {
 		return
 	}
-	if a.currentFunction != nil && a.currentFunction.Body == nil {
+	if a.currentFunction != nil && (a.currentFunction.Body == nil || a.currentFunction.Body.Truncated) {
+		// A routine whose body was cut short by a compiler stop was never
+		// left upstream, so the hints for its locals were never made.
 		return
 	}
 	a.emitReferenceVarParamHints()

@@ -310,7 +310,12 @@ func (p *Parser) parseTypeParameters() []string {
 		// tokens up to the next ',' or '>' and ignore them.
 		if p.cursor.Peek(1).Type == lexer.COLON {
 			p.cursor = p.cursor.Advance() // consume ':'
-			for {
+			if !p.canStartTypeExpression(p.cursor.Peek(1).Type) {
+				// "Type expected" at the token found; the ">" check then sees
+				// the same token (declaration_params_error1).
+				p.addTypeExpectedAt(p.cursor.Peek(1))
+			}
+			for p.canStartTypeExpression(p.cursor.Peek(1).Type) {
 				nt := p.cursor.Peek(1).Type
 				if nt == lexer.COMMA || nt == lexer.GREATER || nt == lexer.EOF {
 					break
@@ -326,8 +331,10 @@ func (p *Parser) parseTypeParameters() []string {
 			p.cursor = p.cursor.Advance() // consume '>'
 			return params
 		default:
-			p.addPeekTokenError("\">\" expected in generic type parameter list", ErrUnexpectedToken)
-			return nil
+			// An ordinary error upstream (declaration_params_error1): the
+			// declaration is read on from the token found.
+			p.addExpected(lexer.GREATER)
+			return params
 		}
 	}
 }
@@ -541,8 +548,12 @@ func (p *Parser) parseTypeKind(nameIdent *ast.Identifier, typeToken lexer.Token,
 		return p.parseHelperDeclaration(nameIdent, false)
 	}
 
-	// Unknown type declaration
-	p.addError("expected 'class', 'partial', 'interface', 'enum', 'record', 'set', 'array', 'function', 'procedure', 'helper', or '(' after '=' in type declaration", ErrUnexpectedToken)
+	// Nothing that can start a type: "Type expected" at the token found, and the
+	// declaration still wants its ";" (class_error8).
+	p.addTypeExpectedAt(cursor.Peek(1))
+	if cursor.Peek(1).Type != lexer.SEMICOLON {
+		p.addExpected(lexer.SEMICOLON)
+	}
 	return nil
 }
 
@@ -717,17 +728,28 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 		p.cursor = cursor
 
 		if cursor.Peek(1).Type != lexer.IDENT {
-			p.addError("expected identifier for parent interface", ErrExpectedIdent)
+			// As for classes: the missing name is an error, the offending token is
+			// skipped, and the closing parenthesis is then a compiler stop
+			// (partial_declaration2).
+			p.addExpected(lexer.IDENT)
+			if cursor.Peek(1).Type != lexer.EOF {
+				cursor = cursor.Advance()
+				p.cursor = cursor
+			}
+			if cursor.Peek(1).Type != lexer.RPAREN {
+				p.addExpectedStop(lexer.RPAREN)
+			}
 			return nil
 		}
 		cursor = cursor.Advance() // move to IDENT
 		p.cursor = cursor
+		parentToken := cursor.Current()
 
 		interfaceDecl.Parent = &ast.Identifier{
 			BaseNode: ast.BaseNode{
-				Token: cursor.Current(),
+				Token: parentToken,
 			},
-			Value: cursor.Current().Literal,
+			Value: parentToken.Literal,
 		}
 
 		// Generic instantiation as the parent: interface (IBase<T>). Value stays
@@ -744,7 +766,9 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 		}
 
 		if cursor.Peek(1).Type != lexer.RPAREN {
-			p.addError("expected ')' after parent interface", ErrMissingRParen)
+			// DWScript anchors the stop at the ancestor's name, the hot position
+			// it took before reading it (partial_declaration3, class_error4).
+			p.addExpectedStopAt(parentToken, lexer.RPAREN)
 			return nil
 		}
 		cursor = cursor.Advance() // move to ')'
@@ -815,7 +839,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 
 	// Expect 'end'
 	if cursor.Current().Type != lexer.END {
-		p.addError("expected 'end' to close interface declaration", ErrMissingEnd)
+		p.addExpectedCurrent(lexer.END)
 		return nil
 	}
 

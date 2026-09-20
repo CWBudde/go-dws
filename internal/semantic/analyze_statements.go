@@ -893,7 +893,11 @@ func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
 		oldSymbols = a.symbols
 		a.symbols = NewEnclosedSymbolTable(oldSymbols)
 		defer func() { a.symbols = oldSymbols }()
-		defer a.emitUnusedWarningsForCurrentScope()
+		if !stmt.Truncated {
+			// A block cut short by a compiler stop was never left upstream, so
+			// its unused-variable hints were never made.
+			defer a.emitUnusedWarningsForCurrentScope()
+		}
 	}
 
 	// Analyze each statement in the block
@@ -1047,7 +1051,9 @@ func (a *Analyzer) analyzeWhile(stmt *ast.WhileStatement) {
 		isExitable = true
 	}
 
-	if isExitable {
+	if isExitable || isTruncatedBlock(stmt.Body) {
+		// A body cut short by a compiler stop was never read to its end
+		// upstream, so the loop was never judged infinite.
 		a.markLoopExitable(LoopExitBreak)
 	}
 
@@ -1077,7 +1083,11 @@ func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
 		a.leaveLoop() // Check for infinite loop on exit
 	}()
 
-	// Analyze body
+	// Analyze body. One cut short by a compiler stop was never read to its end
+	// upstream, so the loop was never judged infinite.
+	if isTruncatedBlock(stmt.Body) {
+		a.markLoopExitable(LoopExitBreak)
+	}
 	a.analyzeStatement(stmt.Body)
 
 	// Check condition type
@@ -1637,4 +1647,11 @@ func compoundOperatorToSymbol(op lexer.TokenType) string {
 	default:
 		return ""
 	}
+}
+
+// isTruncatedBlock reports whether stmt is a block the parser cut short at a
+// compiler stop.
+func isTruncatedBlock(stmt ast.Statement) bool {
+	block, ok := stmt.(*ast.BlockStatement)
+	return ok && block != nil && block.Truncated
 }

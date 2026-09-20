@@ -897,7 +897,9 @@ func filterDiagnostics(diags []Diagnostic) []Diagnostic {
 			}
 		}
 
-		if diag.Phase == PhaseParsing && diag.Message == "expected 'end' to close class declaration" && hasUnknownName {
+		if diag.Phase == PhaseParsing && hasUnknownName && isClassBodyUnfinished(diag) {
+			// An unknown name is a compiler stop upstream, so the class body
+			// that ran out of input after it is never reported (param_partial3).
 			continue
 		}
 		if diag.Phase == PhaseParsing && diag.Message == "Expression expected" && len(filtered) > 0 {
@@ -978,6 +980,15 @@ func classifyDiagnosticForFilter(diag Diagnostic, filtered []Diagnostic, hasEarl
 	}
 
 	return false, replaceIdx
+}
+
+// isClassBodyUnfinished reports the parser's diagnostic for a class body that was
+// never closed: "Name expected" once the input ran out, the older sentence otherwise.
+func isClassBodyUnfinished(diag Diagnostic) bool {
+	if diag.Message == "expected 'end' to close class declaration" {
+		return true
+	}
+	return diag.Message == "Name expected" && diag.Code == parser.ErrMissingEnd
 }
 
 func unknownTypeName(message string) string {

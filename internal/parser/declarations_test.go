@@ -266,7 +266,7 @@ func TestParseConstDeclarationErrors(t *testing.T) {
 		input         string
 		expectedError string
 	}{
-		{"const PI;", "expected '=' or ':=' after const name"},
+		{"const PI;", `"=" expected`},
 		{"const PI =;", "Expression expected"},
 		{"const = 3.14;", "expected identifier in const declaration"},
 		{"const PI: = 3.14;", "expected type expression"},
@@ -997,12 +997,12 @@ func TestParseProgramDeclarationErrors(t *testing.T) {
 		{
 			name:          "Missing program name",
 			input:         `program;`,
-			expectedError: "expected program name after 'program' keyword",
+			expectedError: "Name expected",
 		},
 		{
 			name:          "Missing semicolon",
 			input:         `program Test`,
-			expectedError: "expected ';' after program name",
+			expectedError: `";" expected`,
 		},
 	}
 

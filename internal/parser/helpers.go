@@ -94,7 +94,7 @@ func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, is
 
 	// Expect 'for' keyword after 'helper' or after ')'
 	if cursor.Peek(1).Type != lexer.FOR {
-		p.addError("expected next token to be FOR", ErrUnexpectedToken)
+		p.addExpectedStop(lexer.FOR)
 		return nil
 	}
 	cursor = cursor.Advance() // move to FOR

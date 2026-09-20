@@ -120,13 +120,14 @@ func (p *Parser) parseIfExpression() ast.Expression {
 		return nil
 	}
 
-	// Expect 'then' keyword
+	// Expect 'then' keyword. A missing one is an ordinary error upstream
+	// (ifthenelse_expression1): the branch is read from the token found.
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.THEN {
-		p.addError("expected 'then' after if condition", ErrUnexpectedToken)
-		return nil
+		p.addExpected(lexer.THEN)
+	} else {
+		p.cursor = p.cursor.Advance() // move to 'then'
 	}
-	p.cursor = p.cursor.Advance() // move to 'then'
 
 	// Parse the consequence (then branch) as an expression
 	p.cursor = p.cursor.Advance() // move past 'then'
@@ -420,12 +421,24 @@ func (p *Parser) parseRepeatStatement() *ast.RepeatStatement {
 			continue
 		}
 
+		if p.refuseStatementStart(closersUntil) {
+			block.Truncated = true
+			return nil
+		}
+
+		errorsBefore := len(p.errors)
 		bodyStmt := p.parseStatement()
 		if bodyStmt != nil {
 			block.Statements = append(block.Statements, bodyStmt)
 		}
 
+		lastToken := p.cursor.Current()
 		p.cursor = p.cursor.Advance()
+
+		if p.refuseStatementTail(closersUntil, lastToken, errorsBefore) {
+			block.Truncated = true
+			return nil
+		}
 
 		// Skip any semicolons after the statement
 		for p.cursor.Current().Type == lexer.SEMICOLON {
@@ -720,17 +733,8 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	// Expect ':=' assignment operator
 	if nextToken.Type != lexer.ASSIGN {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingAssign).
-			WithMessage("expected ':=' after for loop variable").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("':='").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add ':=' to assign the start value").
-			WithParsePhase("for loop").
-			Build()
-		p.addStructuredError(err)
+		// A compiler stop upstream (for_error1): nothing after it is reported.
+		p.addExpectedStop(lexer.ASSIGN)
 		return nil
 	}
 
@@ -757,30 +761,17 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	// Parse direction keyword ('to' or 'downto')
 	nextToken = p.cursor.Peek(1)
+	stmt.Direction = ast.ForTo
 	if nextToken.Type != lexer.TO && nextToken.Type != lexer.DOWNTO {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingTo).
-			WithMessage("expected 'to' or 'downto' in for loop").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("'to' or 'downto'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add 'to' for ascending or 'downto' for descending loop").
-			WithParsePhase("for loop").
-			Build()
-		p.addStructuredError(err)
-		return nil
-	}
-
-	p.cursor = p.cursor.Advance() // Move to TO or DOWNTO
-
-	// Set direction based on token
-	currentToken := p.cursor.Current()
-	switch currentToken.Type {
-	case lexer.TO:
-		stmt.Direction = ast.ForTo
-	case lexer.DOWNTO:
-		stmt.Direction = ast.ForDownto
+		// An ordinary error upstream (for_error2): the loop is read on as if
+		// "to" were present, so the end expression starts at the token found.
+		found := p.foundToken()
+		p.recordError(NewParserError(found.Pos, found.Length(), "TO or DOWNTO expected", ErrMissingTo))
+	} else {
+		p.cursor = p.cursor.Advance() // Move to TO or DOWNTO
+		if p.cursor.Current().Type == lexer.DOWNTO {
+			stmt.Direction = ast.ForDownto
+		}
 	}
 
 	// Parse the end expression
@@ -789,7 +780,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	if stmt.EndValue == nil {
 		// Use structured error
-		currentToken = p.cursor.Current()
+		currentToken := p.cursor.Current()
 		err := NewStructuredError(ErrKindInvalid).
 			WithCode(ErrInvalidExpression).
 			WithMessage("expected end expression in for loop").
@@ -810,7 +801,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 		if stmt.Step == nil {
 			// Use structured error
-			currentToken = p.cursor.Current()
+			currentToken := p.cursor.Current()
 			err := NewStructuredError(ErrKindInvalid).
 				WithCode(ErrInvalidExpression).
 				WithMessage("expected expression after 'step'").
@@ -826,20 +817,14 @@ func (p *Parser) parseForStatement() ast.Statement {
 	// Expect 'do' keyword
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.DO {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingDo).
-			WithMessage("expected 'do' after for loop parameters").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("'do'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add 'do' keyword before the loop body").
-			WithParsePhase("for loop").
-			Build()
-		p.addStructuredError(err)
-		return nil
+		// An ordinary error upstream, and the loop has no body: what follows
+		// is read as the next statement, and no empty-body hint is drawn
+		// (for_error2).
+		p.addExpected(lexer.DO)
+		stmt.Body = &ast.BlockStatement{BaseNode: ast.BaseNode{Token: nextToken}, Statements: []ast.Statement{}}
+		stmt = builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ForStatement)
+		return stmt
 	}
-
 	p.cursor = p.cursor.Advance() // move to 'do'
 
 	// Parse the body statement
@@ -848,7 +833,7 @@ func (p *Parser) parseForStatement() ast.Statement {
 
 	if isNilStatement(stmt.Body) {
 		// Use structured error
-		currentToken = p.cursor.Current()
+		currentToken := p.cursor.Current()
 		err := NewStructuredError(ErrKindInvalid).
 			WithCode(ErrInvalidSyntax).
 			WithMessage("expected statement after 'do'").
@@ -939,20 +924,14 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 	// Expect 'do' keyword
 	nextToken = p.cursor.Peek(1)
 	if nextToken.Type != lexer.DO {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingDo).
-			WithMessage("expected 'do' after for-in collection").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("'do'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add 'do' keyword before the loop body").
-			WithParsePhase("for-in loop").
-			Build()
-		p.addStructuredError(err)
-		return nil
+		// An ordinary error upstream (for_in_set_missing_do reports two), and
+		// the loop has no body: what follows is read as the next statement,
+		// and no empty-body hint is drawn.
+		p.addExpected(lexer.DO)
+		stmt.Body = &ast.BlockStatement{BaseNode: ast.BaseNode{Token: nextToken}, Statements: []ast.Statement{}}
+		stmt = builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ForInStatement)
+		return stmt
 	}
-
 	p.cursor = p.cursor.Advance() // move to 'do'
 
 	// Parse the body statement
@@ -1221,17 +1200,7 @@ func (p *Parser) parseCaseStatement() *ast.CaseStatement {
 	// Expect 'of' keyword
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type != lexer.OF {
-		// Use structured error
-		err := NewStructuredError(ErrKindMissing).
-			WithCode(ErrMissingOf).
-			WithMessage("expected 'of' after case expression").
-			WithPosition(nextToken.Pos, nextToken.Length()).
-			WithExpectedString("'of'").
-			WithActual(nextToken.Type, nextToken.Literal).
-			WithSuggestion("add 'of' keyword before case branches").
-			WithParsePhase("case statement").
-			Build()
-		p.addStructuredError(err)
+		p.addExpected(lexer.OF)
 		return nil
 	}
 

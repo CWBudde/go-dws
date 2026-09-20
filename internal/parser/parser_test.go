@@ -26,12 +26,12 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing semicolon after var declaration",
 			input:         "var x: Integer",
-			expectedError: "expected ';' after variable declaration",
+			expectedError: `";" expected`,
 		},
 		{
 			name:          "unclosed parentheses",
 			input:         "(3 + 5",
-			expectedError: "expected ')', got EOF",
+			expectedError: `")" expected`,
 		},
 		{
 			name:          "invalid prefix operator",
@@ -61,7 +61,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing until keyword in repeat",
 			input:         "repeat x := x + 1 x >= 10;",
-			expectedError: "expected 'until' after repeat body",
+			expectedError: `"until" expected but`,
 		},
 		{
 			name:          "missing identifier in for loop",
@@ -71,12 +71,12 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing assign in for loop",
 			input:         "for i = 1 to 10 do PrintLn(i);",
-			expectedError: "expected ':=' after for loop variable",
+			expectedError: `":=" expected`,
 		},
 		{
 			name:          "missing direction in for loop",
 			input:         "for i := 1 10 do PrintLn(i);",
-			expectedError: "expected 'to' or 'downto'",
+			expectedError: "TO or DOWNTO expected",
 		},
 		{
 			name:          "missing expression after case",
@@ -86,7 +86,7 @@ func TestParserErrors(t *testing.T) {
 		{
 			name:          "missing of keyword in case",
 			input:         "case x 1: x := 1; end;",
-			expectedError: "expected 'of' after case expression",
+			expectedError: "OF expected",
 		},
 		{
 			name:          "missing colon in case branch",

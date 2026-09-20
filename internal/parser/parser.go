@@ -230,18 +230,10 @@ func (p *Parser) expectIdentifier() bool {
 	return false
 }
 
-// peekError adds an error about an unexpected peek token.
+// peekError records DWScript's "X expected" for a missing peek token, anchored at
+// the token found instead.
 func (p *Parser) peekError(t lexer.TokenType) {
-	peekTok := p.cursor.Peek(1)
-
-	msg := fmt.Sprintf("expected next token to be %s, got %s instead", t, peekTok.Type)
-	err := NewParserError(
-		peekTok.Pos,
-		peekTok.Length(),
-		msg,
-		ErrUnexpectedToken,
-	)
-	p.recordError(err)
+	p.addExpected(t)
 }
 
 // recordError appends a parser diagnostic unless it is an artifact of {$FATAL}

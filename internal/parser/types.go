@@ -113,7 +113,7 @@ func (p *Parser) parseTypeExpressionInner() ast.TypeExpression {
 		return p.parseClassOfType()
 
 	default:
-		p.addError("expected type expression, got "+currentToken.Literal, ErrExpectedType)
+		p.addTypeExpectedAt(currentToken)
 		return &ast.InvalidTypeExpression{
 			BaseNode: ast.BaseNode{
 				Token: currentToken,

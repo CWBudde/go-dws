@@ -394,7 +394,7 @@ func TestParseNewArrayExpressionErrors(t *testing.T) {
 		{
 			name:        "Missing closing bracket",
 			input:       `new Integer[16;`,
-			expectedErr: "expected ',' or 'RBRACK'",
+			expectedErr: `"]" expected`,
 		},
 		{
 			name:        "Empty brackets",
@@ -404,7 +404,7 @@ func TestParseNewArrayExpressionErrors(t *testing.T) {
 		{
 			name:        "Missing comma between dimensions",
 			input:       `new Integer[10 20];`,
-			expectedErr: "expected ',' or 'RBRACK'",
+			expectedErr: `"]" expected`,
 		},
 		{
 			name:        "Trailing comma",

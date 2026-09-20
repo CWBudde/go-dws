@@ -589,6 +589,9 @@ func (a *Analyzer) validateForwardDeclarations() {
 }
 
 func (a *Analyzer) validateForwardMethods() {
+	if a.compileStopped {
+		return
+	}
 	for _, t := range a.typeRegistry.AllTypes() {
 		classType, ok := t.(*types.ClassType)
 		if !ok || classType == nil {

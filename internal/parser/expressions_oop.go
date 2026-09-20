@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
@@ -67,6 +66,11 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 
 			// Parse arguments
 			inheritedExpr.Arguments = p.parseExpressionList()
+			if p.stopped() {
+				// The argument list was cut short by a compiler stop: upstream never
+				// finished reading this call, so its argument checks never ran.
+				return nil
+			}
 			// Set end position after closing parenthesis (cursor is now at RPAREN)
 			return builder.Finish(inheritedExpr).(ast.Expression)
 		} else {
@@ -189,6 +193,11 @@ func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Id
 
 	// Parse constructor arguments
 	newExpr.Arguments = p.parseExpressionList()
+	if p.stopped() {
+		// The argument list was cut short by a compiler stop: upstream never
+		// finished reading this call, so its argument checks never ran.
+		return nil
+	}
 
 	// Record the end position (one past the closing parenthesis) so that
 	// End() reflects the whole expression, e.g. for raise-position reporting.
@@ -212,6 +221,7 @@ func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Id
 // POST: cursor is on the last token of the expression
 func (p *Parser) parseNewOperandExpression(newToken lexer.Token) ast.Expression {
 	p.cursor = p.cursor.Advance() // move to '('
+	lparenToken := p.cursor.Current()
 	p.cursor = p.cursor.Advance() // move to first token of the operand expression
 
 	operand := p.parseExpression(LOWEST)
@@ -220,7 +230,8 @@ func (p *Parser) parseNewOperandExpression(newToken lexer.Token) ast.Expression 
 	}
 
 	if p.cursor.Peek(1).Type != lexer.RPAREN {
-		p.addError(fmt.Sprintf("expected ')' after 'new' operand, got %s", p.cursor.Peek(1).Type), ErrMissingRParen)
+		// DWScript anchors this stop at the opening parenthesis (new_class6).
+		p.addExpectedStopAt(lparenToken, lexer.RPAREN)
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to ')'
@@ -237,6 +248,16 @@ func (p *Parser) parseNewOperandExpression(newToken lexer.Token) ast.Expression 
 	if p.cursor.Peek(1).Type == lexer.LPAREN {
 		p.cursor = p.cursor.Advance() // move to '('
 		newExpr.Arguments = p.parseExpressionList()
+		if p.stopped() {
+			// The argument list was cut short by a compiler stop: upstream never
+			// finished reading this call, so its argument checks never ran.
+			return nil
+		}
+		if p.stopped() {
+			// The argument list was cut short by a compiler stop: upstream never
+			// finished reading this call, so its argument checks never ran.
+			return nil
+		}
 	}
 
 	newExpr.EndPos = p.endPosFromToken(p.cursor.Current())
@@ -317,7 +338,7 @@ func (p *Parser) parseArrayDimensions(end lexer.TokenType) ([]ast.Expression, bo
 			return dimensions, true
 
 		default:
-			p.addError(fmt.Sprintf("expected ',' or '%s', got %s", end, nextToken.Type), ErrUnexpectedToken)
+			p.addExpectedStop(end)
 			return dimensions, false
 		}
 	}

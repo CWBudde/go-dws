@@ -197,8 +197,7 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 	// Expect semicolon after directive
 	cursor = p.cursor
 	if cursor.Peek(1).Type != lexer.SEMICOLON {
-		directiveName := nextTok.Literal
-		p.addError("expected ';' after "+directiveName, ErrMissingSemicolon)
+		p.addExpected(lexer.SEMICOLON)
 		return false
 	}
 	cursor = cursor.Advance() // move to SEMICOLON
@@ -474,15 +473,19 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	}
 	cursor = p.cursor
 
-	// Parse function body (begin...end block)
+	// Parse function body (begin...end block). Once the input has run out
+	// upstream's loop simply ends (contracts_unfinished4); otherwise the missing
+	// keyword is a compiler stop anchored at the token found (virtual2).
 	if cursor.Peek(1).Type != lexer.BEGIN {
-		p.addError("expected 'begin' for function body", ErrUnexpectedToken)
+		if cursor.Peek(1).Type != lexer.EOF {
+			p.addExpectedStop(lexer.BEGIN)
+		}
 		return nil
 	}
 	cursor = cursor.Advance() // move to BEGIN
 	p.cursor = cursor
 
-	bodyBlock := p.parseBlockStatement()
+	bodyBlock := p.parseRoutineBodyBlock()
 	cursor = p.cursor
 
 	if bodyBlock != nil {
@@ -490,6 +493,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 			fn.Body = bodyBlock
 		} else {
 			fn.Body.Statements = append(fn.Body.Statements, bodyBlock.Statements...)
+			fn.Body.Truncated = fn.Body.Truncated || bodyBlock.Truncated
 		}
 	}
 
