@@ -416,6 +416,16 @@ Work families — IDs from the 2026-03 analysis
 - **F4** `[ ]` L Class/property/static/override/visibility diagnostics — still the largest family.
   One subtask per message shape, lines (fixtures):
   - `[ ]` M `Method "X" of class "Y" not implemented` 34 (15)
+    - `[ ]` S Forward tracking is keyed by method name, for classes
+      (`ClassType.ForwardedMethods`, `analyze_classes_decl.go:1057`/`:709`) and for helpers alike,
+      so implementing one overload clears the marker for every same-named one. Upstream keys it
+      per symbol: `TStructuredTypeSymbol.CheckMethodsImplemented` walks `FMembers` and tests each
+      `TMethodSymbol`'s own `FExecutable` (dwsSymbols.pas:3115-3132), so an unimplemented overload
+      is still reported. It also sorts the reports by declaration position
+      (`CompareSourceMethSymbolByDeclarePos`), which is what our frontend's deferred bucket already
+      does. Raised on PR #424 and deferred there because fixing helpers alone would make them
+      stricter than classes; do both together, and measure the per-overload wording and anchor
+      before implementing.
   - `[ ]` M `Name "X" already exists` 20 (12)
   - `[ ]` S `Class reference expected` 11 (9)
   - `[ ]` S `Class "X" isn't defined completely` 9 (7) and the `Interface` variant 4 (3)
