@@ -135,7 +135,10 @@ func (p *Parser) canStartTypeExpression(t lexer.TokenType) bool {
 	}
 	switch t {
 	case lexer.ARRAY, lexer.RECORD, lexer.SET, lexer.CLASS, lexer.INTERFACE,
-		lexer.PROCEDURE, lexer.FUNCTION, lexer.CONSTRUCTOR, lexer.LPAREN, lexer.STRING:
+		lexer.PROCEDURE, lexer.FUNCTION, lexer.CONSTRUCTOR, lexer.LPAREN, lexer.STRING,
+		// `type` is the strict-type prefix parseTypeExpressionInner reads before
+		// the type itself (`v : type Float`), so it starts a type expression too.
+		lexer.TYPE:
 		return true
 	}
 	return false

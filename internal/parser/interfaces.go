@@ -305,16 +305,22 @@ func (p *Parser) parseTypeParameters() []string {
 		if p.cursor.Peek(1).Type == lexer.COLON {
 			p.cursor = p.cursor.Advance() // consume ':'
 			if !p.canStartTypeExpression(p.cursor.Peek(1).Type) {
-				// "Type expected" at the token found; the ">" check then sees
-				// the same token (declaration_params_error1).
+				// "Type expected" at the token found, which stays where it is
+				// so the ">" check then sees the same token
+				// (declaration_params_error1).
 				p.addTypeExpectedAt(p.cursor.Peek(1))
-			}
-			for p.canStartTypeExpression(p.cursor.Peek(1).Type) {
-				nt := p.cursor.Peek(1).Type
-				if nt == lexer.COMMA || nt == lexer.GREATER || nt == lexer.EOF {
-					break
+			} else {
+				// A constraint that did start is read to the next ',' or '>'
+				// and dropped. Only its first token has to begin a type: the
+				// rest may be qualified or otherwise compound
+				// (`X: MyUnit.TBase`).
+				for {
+					nt := p.cursor.Peek(1).Type
+					if nt == lexer.COMMA || nt == lexer.GREATER || nt == lexer.EOF {
+						break
+					}
+					p.cursor = p.cursor.Advance()
 				}
-				p.cursor = p.cursor.Advance()
 			}
 		}
 

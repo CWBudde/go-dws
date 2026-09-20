@@ -253,11 +253,6 @@ func (p *Parser) parseNewOperandExpression(newToken lexer.Token) ast.Expression 
 			// finished reading this call, so its argument checks never ran.
 			return nil
 		}
-		if p.stopped() {
-			// The argument list was cut short by a compiler stop: upstream never
-			// finished reading this call, so its argument checks never ran.
-			return nil
-		}
 	}
 
 	newExpr.EndPos = p.endPosFromToken(p.cursor.Current())

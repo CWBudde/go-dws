@@ -71,6 +71,12 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 	// We have: TypeName(IDENT ...
 	// Parse arguments/fields and determine type based on whether ALL have colons
 	items, allHaveColons := p.parseArgumentsOrFields(lexer.RPAREN)
+	if p.stopped() {
+		// The list was cut short by a compiler stop: upstream never finished
+		// reading this call, so neither a call nor a record literal is built
+		// from what it did read (parseCallWithExpressionList does the same).
+		return nil
+	}
 
 	if allHaveColons {
 		// All items were field initializers -> record literal

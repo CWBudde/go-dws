@@ -427,7 +427,38 @@ func TestCompile_DWScriptExpectedSentences(t *testing.T) {
 			source: "unit test;\n\ninterface\n\nimplementation\n\ninitialization\n\ninitialization",
 			want:   []string{`Syntax Error: "finalization" or "end" expected but "initialization" found [line: 9, column: 1]`},
 		},
+		// ---- review findings: the stop must not leak a half-read call ------------
+		{
+			// The identifier-first argument list takes its own path through
+			// parseArgumentsOrFields; its stop has to end the call exactly as
+			// the expression-list path does, or the analyzer sees a call with
+			// the arguments the parser had read when it gave up.
+			name:   "call with identifier arguments missing its closing parenthesis",
+			source: "procedure Test(a, b : Integer); begin end;\nvar x := 1;\nvar y := 2;\nTest(x y);",
+			want:   []string{`Syntax Error: ")" expected [line: 4, column: 8]`},
+		},
+		{
+			// The incomplete-class diagnostic carries no position, so it cannot
+			// be pruned after the fact: an abandoned compile must not reach it.
+			name:   "forward class declaration and a compiler stop",
+			source: "type TFoo = class;\ntype TBar = class\nend;\nvar b := new TBar(1;",
+			want:   []string{`Syntax Error: ")" expected [line: 4, column: 20]`},
+		},
 		// ---- negative cases --------------------------------------------------------
+		{
+			// "Type expected" must not fire on the strict-type prefix, which is
+			// part of the type expression (FailureScripts/strict_parameter_type).
+			name:   "strict type prefix in a parameter list produces nothing",
+			source: "procedure Test(v : type Float); begin end;\nTest(1.5);",
+			want:   nil,
+		},
+		{
+			// Only the first token of a generic constraint has to begin a type;
+			// the rest is read to the ',' or '>' and dropped.
+			name:   "qualified generic constraint produces nothing",
+			source: "type TBox<X: System.TObject> = class end;\ntype TPair<A: System.TObject, B: System.TObject> = class end;",
+			want:   nil,
+		},
 		{
 			name:   "well-formed delimiters produce nothing",
 			source: "var a := (1);\nvar b := [1, 2];\nvar i : Integer;\nfor i := 1 to 2 do PrintLn(i);\ncase i of 1 : ; end;\nPrintLn(a);\nPrintLn(b[0]);",
