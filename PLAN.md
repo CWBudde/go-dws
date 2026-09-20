@@ -407,14 +407,32 @@ Work families — IDs from the 2026-03 analysis
   - `[ ]` S Bound-exceeded wording.
   - `[ ]` M Malformed array-type recovery.
   - `[ ]` S `Range start and range stop are of incompatible types: "X" and "Y"` 9 (4).
-- **F3** `[ ]` M Parser header/declaration/delimiter recovery. Wide and shallow rather than one
-  deep bug. The blocker is F8: go-dws answers with its own sentence instead
-  (`expected ')', got SEMICOLON`). Split by shape:
-  - `[ ]` `"X" expected` — the largest missing shape, 70 lines over 64 fixtures. By token:
-    `")"` ~23, `";"` ~11, `"]"` ~9, `"("` ~6, `"end"` 4, `">"` 4; work token by token.
-  - `[ ]` `Name expected` 38 (33).
-  - `[ ]` `Type expected` 15 (14).
-  - Left open by the 2026-09-12 slices: `ifthenelse_expression1` fails on recovery after `if 2=2 1`.
+- **F3** `[~]` M Parser header/declaration/delimiter recovery. Wide and shallow rather than one
+  deep bug. The vocabulary and anchors closed 2026-09-20
+  ([log](docs/history/progress-log-2026-09.md)): `"X" expected`, `Name expected`, `Type expected`,
+  `Colon ":" expected`, `Dot "." expected` and `"end" expected but "X" found` are now DWScript's
+  own sentences, anchored at the token found instead (at the last token of the input at EOF), and
+  each site is a measured stop or an ordinary error. `ifthenelse_expression1` closed with them.
+  What is left needs knowledge the parser does not have:
+  - `[ ]` S Type-directed `"("` / `","` / `")"`: a record-typed const (`const_record1`), special
+    functions written without parentheses (`special_funcs1`, `at_integer`), set pseudo-methods
+    (`SetOfFail/bracket_left_missing`, `include`), magic functions (`debugbreak`) and reintroduced
+    properties (`property_reintroduce2`). An ordinary call says `Expression expected` for `f(;`, so
+    these have to be driven from the semantic side.
+  - `[ ]` S Property `read (…)` / `write (…)`: upstream reports every missing `")"` as an ordinary
+    error (`missing_reader_bracket` lists lines 4, 6, 7, 8) where the parenthesised-expression stop
+    hides all but the first; blocked anyway by the missing `Warning: Property writer does nothing`.
+  - `[ ]` S Parser gaps with no site yet: `var`/`const` in property index parameters
+    (`array_params1/2`, `Parameters expected`), the `export` directive, `OF OBJECT expected`
+    (`legacy_proc_of_object`), `array of const` (`open_array`), `String expected` for a property
+    description (`property_description1`), attribute `"]"` anchored at the `[`
+    (`attribute_incorrect2`, blocked by `Dangling attribute declaration`), and
+    `Dot "." expected` where the parser must know `TTest` is a class (`method_implem6`).
+  - `[ ]` S `missing_parenthesis1` wants `Invalid Operands` from inside a call whose argument list
+    hit a stop; such calls are dropped, which is what makes `array_index_bracket_missing1` and
+    `constructor_invalid_param` pass. A per-call truncation marker would give both.
+  - `[ ]` S `include_incorrect` is lexer-owned: it wants `"}" expected` at 3:18, the end of the
+    directive argument, and `directive_messages.go` anchors at 3:13.
   - `[ ]` Left open by the 2026-09-19 compiler-stop slice: inside `begin…end` the value left
     unconsumed after a read-only property assignment is worded differently upstream (go-dws
     reports nothing); indexed read-only property writes get no follow-up; semantic

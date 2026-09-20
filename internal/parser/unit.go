@@ -44,11 +44,10 @@ func (p *Parser) parseUnit() *ast.UnitDeclaration {
 
 	// Expect semicolon after unit name. A missing one is an ordinary error
 	// upstream: the sections are still read (end_implementation2).
-	if p.expectPeek(lexer.SEMICOLON) {
-		p.nextToken() // move past semicolon
-	} else {
-		p.nextToken() // move to the token found instead
-	}
+	// expectPeek consumes the semicolon when it is there and records the error
+	// when it is not; either way the next token begins the sections.
+	p.expectPeek(lexer.SEMICOLON)
+	p.nextToken()
 
 	// Parse interface section (optional but common)
 	if p.curTokenIs(lexer.INTERFACE) {

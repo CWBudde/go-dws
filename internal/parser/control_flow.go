@@ -765,8 +765,11 @@ func (p *Parser) parseForStatement() ast.Statement {
 		// (for_error2).
 		p.addExpected(lexer.DO)
 		stmt.Body = &ast.BlockStatement{BaseNode: ast.BaseNode{Token: nextToken}, Statements: []ast.Statement{}}
-		stmt = builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ForStatement)
-		return stmt
+		finished, ok := builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ForStatement)
+		if !ok {
+			return stmt
+		}
+		return finished
 	}
 	p.cursor = p.cursor.Advance() // move to 'do'
 
@@ -863,8 +866,11 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 		// and no empty-body hint is drawn.
 		p.addExpected(lexer.DO)
 		stmt.Body = &ast.BlockStatement{BaseNode: ast.BaseNode{Token: nextToken}, Statements: []ast.Statement{}}
-		stmt = builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ForInStatement)
-		return stmt
+		finished, ok := builder.FinishWithToken(stmt, p.cursor.Current()).(*ast.ForInStatement)
+		if !ok {
+			return stmt
+		}
+		return finished
 	}
 	p.cursor = p.cursor.Advance() // move to 'do'
 

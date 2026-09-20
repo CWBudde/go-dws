@@ -446,7 +446,10 @@ func (p *Parser) parseBlockClosedBy(closers closerSet) *ast.BlockStatement {
 	currentToken := p.cursor.Current()
 	if p.stopped() {
 		block.Truncated = true
-		stmt, _ := builder.FinishWithToken(block, currentToken).(*ast.BlockStatement)
+		stmt, ok := builder.FinishWithToken(block, currentToken).(*ast.BlockStatement)
+		if !ok {
+			return block
+		}
 		return stmt
 	}
 	if currentToken.Type != lexer.END && currentToken.Type != lexer.ENSURE {

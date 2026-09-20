@@ -6,46 +6,37 @@ import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 )
 
+// expectedTokenSentences holds the tokens DWScript spells out in its own way: a
+// delimiter is quoted, and a name, a type or a punctuation mark with a name of its
+// own gets that name. Every other token falls through to the rules in
+// expectedSentence.
+var expectedTokenSentences = map[lexer.TokenType]string{
+	lexer.IDENT:     "Name expected",
+	lexer.COLON:     `Colon ":" expected`,
+	lexer.DOT:       `Dot "." expected`,
+	lexer.LPAREN:    `"(" expected`,
+	lexer.RPAREN:    `")" expected`,
+	lexer.LBRACK:    `"[" expected`,
+	lexer.RBRACK:    `"]" expected`,
+	lexer.LBRACE:    `"{" expected`,
+	lexer.RBRACE:    `"}" expected`,
+	lexer.SEMICOLON: `";" expected`,
+	lexer.COMMA:     `"," expected`,
+	lexer.EQ:        `"=" expected`,
+	lexer.ASSIGN:    `":=" expected`,
+	lexer.LESS:      `"<" expected`,
+	lexer.GREATER:   `">" expected`,
+	lexer.DOTDOT:    `".." expected`,
+	// The one keyword DWScript quotes.
+	lexer.USES: `"USES" expected`,
+}
+
 // expectedSentence returns DWScript's wording for a missing token: a delimiter is
 // quoted (`")" expected`), a name or a type has its own sentence, and a keyword is
 // spelled in upper case (`DO expected`).
 func expectedSentence(t lexer.TokenType) string {
-	switch t {
-	case lexer.IDENT:
-		return "Name expected"
-	case lexer.COLON:
-		return `Colon ":" expected`
-	case lexer.DOT:
-		return `Dot "." expected`
-	case lexer.LPAREN:
-		return `"(" expected`
-	case lexer.RPAREN:
-		return `")" expected`
-	case lexer.LBRACK:
-		return `"[" expected`
-	case lexer.RBRACK:
-		return `"]" expected`
-	case lexer.LBRACE:
-		return `"{" expected`
-	case lexer.RBRACE:
-		return `"}" expected`
-	case lexer.SEMICOLON:
-		return `";" expected`
-	case lexer.COMMA:
-		return `"," expected`
-	case lexer.EQ:
-		return `"=" expected`
-	case lexer.ASSIGN:
-		return `":=" expected`
-	case lexer.LESS:
-		return `"<" expected`
-	case lexer.GREATER:
-		return `">" expected`
-	case lexer.DOTDOT:
-		return `".." expected`
-	case lexer.USES:
-		// The one keyword DWScript quotes.
-		return `"USES" expected`
+	if sentence, ok := expectedTokenSentences[t]; ok {
+		return sentence
 	}
 	if t.IsKeyword() {
 		return strings.ToUpper(t.String()) + " expected"

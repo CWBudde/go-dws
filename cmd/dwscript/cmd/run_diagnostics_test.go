@@ -126,7 +126,9 @@ func TestRun_FatalDirectiveKeepsEarlierErrors(t *testing.T) {
 		t.Fatal("expected a compile failure")
 	}
 
-	if !strings.Contains(out, `";" expected [line: 1, column: 8]`) {
+	// Anchored at the token found instead of the semicolon, as upstream does
+	// (FTok.HotPos at every CPE_SemiExpected site in dwsCompiler.pas).
+	if !strings.Contains(out, `";" expected [line: 2, column: 1]`) {
 		t.Fatalf("earlier syntax error was suppressed: %q", out)
 	}
 	if !strings.Contains(out, "Compile Error: stop [line: 3, column: 3]") {

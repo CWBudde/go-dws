@@ -102,7 +102,10 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		// An index's missing "]" is an ordinary error upstream: the enclosing
 		// declaration goes on and reports its own ";" (array_index_bracket_missing2).
 		p.addExpected(lexer.RBRACK)
-		expr := builder.FinishWithToken(result, p.cursor.Current()).(ast.Expression)
+		expr, ok := builder.FinishWithToken(result, p.cursor.Current()).(ast.Expression)
+		if !ok {
+			return result
+		}
 		return expr
 	}
 

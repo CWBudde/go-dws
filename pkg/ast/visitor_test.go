@@ -192,7 +192,7 @@ func TestWalk_AllNodeTypes(t *testing.T) {
 			Field2: String;
 		end;
 
-		class TMyClass
+		type TMyClass = class
 			FValue: Integer;
 			function GetValue(): Integer;
 		end;
