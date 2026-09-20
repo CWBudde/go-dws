@@ -917,7 +917,9 @@ func TestImplicitFunctionToPointerConversionErrors(t *testing.T) {
 					result := Apply(WrongFunc);
 				end.
 			`,
-			expectedErr: "argument 1 to function",
+			// The unusable argument is reported once; its fallback type is not
+			// checked against the parameter again.
+			expectedErr: "More arguments expected",
 		},
 	}
 

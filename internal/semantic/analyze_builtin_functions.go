@@ -51,6 +51,8 @@ func (a *Analyzer) analyzeBuiltinFunction(name string, args []ast.Expression, ca
 		return a.analyzeDeclared(name, args, callExpr), true
 	case "conditionaldefined":
 		return a.analyzeConditionalDefined(name, args, callExpr), true
+	case "assigned":
+		return a.analyzeAssigned(name, args, callExpr), true
 	case "charat":
 		return a.analyzeCharAt(args, callExpr), true
 
@@ -159,4 +161,28 @@ func (a *Analyzer) getBuiltinReturnType(name string) (types.Type, bool) {
 		return types.VOID, true
 	}
 	return signature.ReturnType, true
+}
+
+// analyzeAssigned checks that Assigned's argument is something that can be
+// unassigned: an object, interface, class reference, routine or nil (a Variant
+// is only known at run time). Anything else is DWScript's `Invalid argument
+// type`, anchored on the argument (FailureScripts/assigned). A call with the
+// wrong argument count keeps the registry's arity diagnostics.
+func (a *Analyzer) analyzeAssigned(name string, args []ast.Expression, callExpr *ast.CallExpression) types.Type {
+	if len(args) != 1 {
+		result, _ := a.analyzeRegisteredBuiltin(name, args, callExpr)
+		return result
+	}
+	mark := len(a.errors)
+	argType := a.analyzeExpression(args[0])
+	if argType == nil || a.errorsSince(mark) {
+		return types.BOOLEAN
+	}
+	switch types.GetUnderlyingType(argType).(type) {
+	case *types.ClassType, *types.InterfaceType, *types.ClassOfType, *types.NilType,
+		*types.FunctionPointerType, *types.MethodPointerType, *types.FunctionType, *types.VariantType:
+	default:
+		a.addError("Invalid argument type at %s", args[0].Pos().String())
+	}
+	return types.BOOLEAN
 }

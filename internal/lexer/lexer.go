@@ -1669,10 +1669,10 @@ type LexerError struct {
 	// Rendered, when non-empty, is the exact DWScript-formatted message the front end
 	// must print verbatim instead of applying the default "Syntax Error:" framing.
 	Rendered string
-	// Constant marks a malformed string or char constant. DWScript's tokenizer is
-	// pulled lazily by its parser, so such an error is only reported when parsing
-	// reaches the constant; the lexer, which runs ahead of the parser, cannot know
-	// that, and the front end decides (see frontend.ParseWithOptions).
+	// Constant marks a malformed string or char constant. Such an error travels the
+	// same channel as compiler directives but is not one: it carries a source
+	// position of its own, so the unit loader must not turn it into a positionless
+	// "compiler directive error" load failure (see units.UnitRegistry.LoadUnit).
 	Constant bool
 }
 

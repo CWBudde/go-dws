@@ -10,21 +10,21 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,192 / 1,966 scored =
-61%**; `*Fail` error-detection suites **200 / 641 = 31%**. What shipped to get there is in
+**Headline (2026-09-19):** Go harness and freshly rebuilt CLI agree at **1,200 / 1,966 scored =
+61%**; `*Fail` error-detection suites **208 / 641 = 32%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,192 / 1,747 = 68% in scope**, the number to track against §6. Both are honest;
+same run reads **1,200 / 1,747 = 69% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 441 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 433 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
@@ -54,8 +54,8 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (774 total, 2026-09-19): **219 host-library** (out of scope),
-  **441 in the `*Fail` error-detection suites** (§4: FailureScripts 346, InterfacesFail and
+- Where the remaining failures are (766 total, 2026-09-19): **219 host-library** (out of scope),
+  **433 in the `*Fail` error-detection suites** (§4: FailureScripts 338, InterfacesFail and
   HelpersFail 18 each, the rest under 15), and **114 in the execution suites** (§3.5:
   SimpleScripts 60, ArrayPass 17, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
@@ -342,7 +342,7 @@ independently; evaluate it once, as E9 does for member receivers.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 200/641 (FailureScripts 183/529, SetOfFail 6, OverloadsFail 3, JSONConnectorFail 2,
+Harness and CLI: 208/641 (FailureScripts 191/529, SetOfFail 6, OverloadsFail 3, JSONConnectorFail 2,
 PropertyExpressionsFail 2, AssociativeFail 2, InterfacesFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with
@@ -351,7 +351,7 @@ no envelope, and nothing is executed. Reproduce one with
 **Measured 2026-09-12**, every `*Fail` fixture diffed line-by-line against its expectation; tables,
 per-shape inventories and the near-miss list are in
 [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-**441 in-scope fixtures fail** (2026-09-19) (COMConnectorFailure's 8 are host-library). **156 are one edit from
+**433 in-scope fixtures fail** (2026-09-19) (COMConnectorFailure's 8 are host-library). **156 are one edit from
 passing and 281 are within two** (T8's counting; a wrongly worded diagnostic is one edit), so
 working the near-miss queue across families often beats draining one family. Re-derive with
 `just fixture-report --in-scope --classify`.
@@ -487,17 +487,27 @@ Work families — IDs from the 2026-03 analysis
   `var_incomplete`, `case_error3` and `ifthenelse_expression2` lines. The string-constant slice
   (same day) closed `triple_apos1`/`2`, `heredoc`, `invalid_ucs2_char` and
   `reserved_escape_empty`/`_number`, plus SimpleScripts `heredoc_indent`/`heredoc_special`.
-  - `[ ]` S Lexer constant errors are dropped when a parser error precedes them in the source
-    (`reachedLexerDiagnostics`, `internal/frontend/result.go`), approximating upstream's lazy
-    tokenizer. Replace with reporting a tokenizer error only when the parser reaches its token;
-    the unit-compile path (`internal/frontend/units.go`) does not apply the drop at all. The
-    cutoff after a *compiler stop* in the same function is exact, not an approximation —
-    `ECompileError` abandons the compilation, so nothing past it is tokenized.
-  Recurring themes, each one change:
-  - `[ ]` S Spurious `No arguments expected` on an array helper called with none (`dyn_array1`,
-    `dyn_array_setlength2`)
-  - `[ ]` S `argument N to method 'X' of class 'Y' has type …` →
-    `Argument N expects type "X" instead of "Y"` (`method_param_error1`, `method_param_error2`)
+  - `[ ]` S `reachedLexerDiagnostics` (`internal/frontend/result.go`) is now exact for the main
+    source — only a compiler stop cuts lexer diagnostics off, which is what `ECompileError`
+    does upstream — but the unit-compile path (`internal/frontend/units.go`) does not apply the
+    cutoff at all, so a stop inside a unit still lets later directives through.
+  The call-argument slice (same day) closed `method_param_error1`/`2`, `dyn_array1`,
+  `dyn_array_setlength2`, `open_array2`, `use_proc_result2`, `foreach_invalid_arg`, `assigned`.
+  Left open from it:
+  - `[ ]` S The invented `argument N has type …` sentence survives on paths no fixture pins yet:
+    member calls, implicit-Self calls, record class methods, the implicit helper path and
+    constructors (`analyze_function_calls.go`), `inherited` calls (`analyze_special.go`), two
+    sites in `analyze_classes.go`, set `Include`/`Exclude` (`analyze_method_calls.go`). Move them to
+    `analyzeCallArgument`/`analyzeSelfCallArgument` (F8).
+  - `[ ]` M A `const` parameter of type `array of Variant` is conflated with `array of const`;
+    the analyzer tells them apart by declared type name. Separate the types.
+  - `[ ]` S `internal_unsupported`: `Length`/`Low`/`High` want `Invalid argument type` (reuse the
+    new `Assigned` check) and `Inc` wants `Integer expected`.
+  - `[ ]` S `assign_untyped`: `Assignment's right-side-argument has no return type`, and
+    `Cannot assign a value to the left-side argument` for assigning to a procedure name.
+  - `[ ]` S `enum_byname` wants `String expected` (upstream's dedicated `ByName` check);
+    `func_ptr_var_param` wants the routine-type name `procedure TProc` (F10);
+    `lazy_func_ptr` wants `Lazy parameter cannot be a function pointer`.
 - **F10** `[ ]` M `Incompatible types: "X" and "Y"` — 58 lines over 22 fixtures, the largest missing
   *semantic* shape. DWScript uses one sentence wherever two types fail to unify, target first,
   supplied second, both quoted; go-dws invents a bespoke sentence per site, which is why the
