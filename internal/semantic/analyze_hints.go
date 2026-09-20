@@ -337,10 +337,12 @@ func (a *Analyzer) isUnwrittenReferenceVarParam(param *ast.Parameter) bool {
 	if !samePosition(sym.DeclPosition, pos) {
 		return false
 	}
-	// An alias is transparent, so `type TObjAlias = TObject` is still a class
-	// symbol to upstream's `param.Typ.IsClassSymbol`; resolveType keeps the
-	// *types.TypeAlias wrapper, so unwrap before asking.
-	if _, isClass := types.GetUnderlyingType(sym.Type).(*types.ClassType); !isClass {
+	// Deliberately not unwrapped. Upstream asks `param.Typ.IsClassSymbol`, and
+	// GetIsClassSymbol is overridden (final) only on TClassSymbol, so the
+	// TAliasSymbol that `type TObjAlias = TObject` installs answers False and the
+	// parameter is skipped. Unwrapping here would emit a hint upstream does not.
+	// (dwsCompiler.pas:13401 HintReferenceConstVarParams, dwsSymbols.pas:1873/5775.)
+	if _, isClass := sym.Type.(*types.ClassType); !isClass {
 		return false
 	}
 	return a.hintsLevelAt(pos) >= HintsLevelPedantic
