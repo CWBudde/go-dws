@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1282 |
-| Failed | 684 |
+| Passed | 1285 |
+| Failed | 681 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **65%** (1282/1966) |
+| **Scored pass rate** | **65%** (1285/1966) |
 
 ## Per-category
 
@@ -55,8 +55,8 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | GenericsFail | 8 | 1 | 7 | 0 | 12% |
 | GenericsPass | 23 | 23 | 0 | 0 | 100% |
 | GraphicsLib | 4 | 0 | 4 | 0 | 0% |
-| HelpersFail | 18 | 8 | 10 | 0 | 44% |
-| HelpersPass | 27 | 22 | 5 | 0 | 81% |
+| HelpersFail | 18 | 9 | 9 | 0 | 50% |
+| HelpersPass | 27 | 24 | 3 | 0 | 89% |
 | IniFileLib | 2 | 0 | 2 | 0 | 0% |
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
 | InnerClassesPass | 2 | 2 | 0 | 0 | 100% |

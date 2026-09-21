@@ -39,6 +39,12 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	if node.Method == nil {
 		return e.newError(node, "method call missing method")
 	}
+	if helper := e.namedHelperReceiver(node.Object, ctx); helper != nil {
+		if result, handled := e.evalExplicitHelperCall(helper, node.Method, node.Arguments, node, ctx); handled {
+			return result
+		}
+		return e.newError(node, "method '%s' not found in helper '%s'", node.Method.Value, helper.Name)
+	}
 
 	// JSON namespace method call: JSON.Parse(s), JSON.Stringify(x), ...
 	if e.isJSONNamespaceObject(node.Object, ctx) {

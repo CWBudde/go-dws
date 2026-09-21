@@ -5342,3 +5342,57 @@ HelpersFail) and none of the five disturbs the others. The
 three `SetOfFail` fixtures here are the parser trio — `of_missing`, `for_in_set_missing_do`,
 `bracket_right_missing` — disjoint from the set-mutator slice's semantic ones, which is why the
 suite reaches 13/14.
+
+## 2026-09-21 — Record-helper fixture expectation restored (PLAN.md §3 / E3c)
+
+`HelpersPass/record_array_helper` already executed correctly and reported DWScript's two
+`X`/`x` case hints at 23:21 and 23:35. The copied expectation omitted those hints and the
+`Errors >>>>` / `Result >>>>` framing. The actual reference gitlink revision,
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`, includes them in its
+[upstream expectation](https://raw.githubusercontent.com/EricGrange/DWScript/1dbf8a90329cc3f2638516e89c0668f916c1ddb9/Test/HelpersPass/record_array_helper.txt).
+The script matches that revision after newline normalization; its compiler also checks
+declared spelling for structured members. Restoring the expectation corrects the earlier
+E3c diagnosis without changing lookup, hint emission, or scoring policy.
+
+`TestRecordHelperCase_Fixture` failed against the old expectation and passes with the
+restored one. `TestRecordHelperCase_DirectFieldAccess` independently checks mixed-case
+record reads and writes, their exact hints, and their output. Validation:
+`go test ./internal/interp -run '^TestRecordHelperCase_' -count=1`.
+
+## 2026-09-21 — Explicit-instance helper calls (PLAN.md §3.2)
+
+Calls through a helper name now resolve that helper and its ancestors and supply the
+written first argument as `Self`: `THelper.Proc(TObject.Create)` and `TDummy.Next(2)`.
+Temporary signature views expose the receiver to ordinary argument validation and typed
+overload selection without modifying parsed declarations or adding public metadata APIs.
+The evaluator invokes the selected helper body with the prepared receiver and arguments,
+preserving evaluation order, variable references, defaults, and lazy arguments.
+
+The pinned upstream source clarified one distinction from the initial plan: non-static
+class helper methods on structured targets need a type receiver; static class methods
+and primitive-target class methods do not. Runtime binding also retains the `static`
+directive when a helper method's body is implemented outside its declaration.
+
+`HelpersPass/declared_helper` now matches its output and both case hints.
+`HelpersFail/helper_explicit` reports only `More arguments expected` at 12:8.
+Direct fixture regressions cover both, alongside tests for helper identity, inheritance,
+overloads, class receivers, case-insensitive names, shadowing, receiver mutations, and
+argument evaluation. The helper guide documents the explicit call form.
+
+CLI and harness agree across all 61 categories at **1,285 / 1,966 scored**: HelpersPass
+**22 → 24/27**, HelpersFail **8 → 9/18**, with no category decreases. Two newly passing
+fixtures come from the call implementation; the third is the E3c expectation correction
+documented above. `just fixture-update` ratcheted both helper baselines and regenerated
+the status report. The known isolated fixture-worker stack overflow remains pre-existing.
+
+The full lint run still reports **1,226 existing findings**. The new files introduce no
+findings; existing dispatch functions remain above the complexity threshold. All changed
+Go files pass the formatting check. The repository-wide formatting check has pre-existing
+failures, including `pkg/dwscript/dwscript.go` and ignored build/worktree artifacts.
+
+Final validation: `go test -json ./...` passed, including all 79 top-level CLI tests;
+`go test ./internal/semantic ./internal/interp/evaluator -count=1` and
+`go test ./internal/interp -run '^TestExplicitHelper' -count=1` passed. The final CLI
+comparison used `go build -o bin/dwscript ./cmd/dwscript` followed by
+`go run ./cmd/fixture-report --build=false`. Go commands used a writable temporary
+`GOCACHE` in this sandbox.

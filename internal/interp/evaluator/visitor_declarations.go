@@ -137,6 +137,11 @@ func (e *Evaluator) registerHelperMethodImplementation(helperInfo *runtime.Mutab
 	overloads := helperInfo.MethodOverloads[methodName]
 	for idx, candidate := range overloads {
 		if helperDeclSignaturesEqual(candidate, node) {
+			// Directives belong to the declaration and need not be repeated on
+			// an out-of-line body. Preserve them without changing the parsed AST.
+			implementation := *node
+			implementation.IsStatic = candidate.IsStatic || node.IsStatic
+			node = &implementation
 			overloads[idx] = node
 			helperInfo.MethodOverloads[methodName] = overloads
 			helperInfo.Methods[methodName] = node
