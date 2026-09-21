@@ -5396,3 +5396,48 @@ Final validation: `go test -json ./...` passed, including all 79 top-level CLI t
 comparison used `go build -o bin/dwscript ./cmd/dwscript` followed by
 `go run ./cmd/fixture-report --build=false`. Go commands used a writable temporary
 `GOCACHE` in this sandbox.
+
+## 2026-09-21 — Interface signatures, delegates, and record caller traces (PLAN.md §3.5 / E12)
+
+Four canonical InterfacesPass fixtures now pass through the shared compile/run pipeline:
+`interface_nil_cast_from_obj`, `intf_self_ref`, `intf_delegate`, and `intf_in_record`.
+
+`Impl` is an ordinary identifier, matching the pinned upstream tokenizer. Removing the
+keyword-map entry fixes its use as a variable, parameter, and member without renumbering the
+public token constants. The existing nil-object cast regression using `Obj` remains in place.
+
+Interface declarations register their canonical type before resolving member signatures, after
+parent and duplicate validation. Return types, parameters, and properties can refer to that
+same interface. Bare parameterless interface functions produce their return value in ordinary
+value contexts; callable contexts capture the method for deferred invocation. Tests cover
+canonical identity, invalid/future names, self-inheritance rejection, exact fixture output,
+and a captured function whose side effect occurs only when called.
+
+Record methods retain a call-stack frame while their body executes and while runtime errors
+are converted to exceptions. Nil interface calls now report both their origin and the record
+method's caller. Regressions exercise bare and parenthesized calls, caught exceptions, stack
+cleanup, and preservation of record field/class-variable mutations before an explicit raise.
+The older duplicate `testdata/interfaces/intf_in_record.txt` expectation now includes the same
+caller line as the unchanged canonical upstream fixture.
+
+`intf_private` stays open with a more precise prerequisite. At pinned revision
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`, the upstream
+[compiler](https://raw.githubusercontent.com/EricGrange/DWScript/1dbf8a90329cc3f2638516e89c0668f916c1ddb9/Source/dwsCompiler.pas)
+requires `coSymbolDictionary` for unused-private hints and exempts methods that implement an
+interface. The vendored `UScriptTests.pas` enables that option for nonoptimized failure tests,
+but not execution tests. Matching this requires diagnostic-option parity across the frontend,
+CLI, and harness; suppressing all private methods on interface implementers would be incorrect.
+
+`just fixture-update` ratcheted InterfacesPass **27 → 31/33**. CLI and harness agree across
+all 61 categories at **1,289 / 1,966 scored = 66%**, **1,289 / 1,747 = 74% in scope**;
+`*Fail` suites remain **290 / 641**. No category decreased. The interface guide and PLAN.md
+now reflect the shipped behavior and remaining work.
+
+Validation: `go test -json ./...` passed (31 packages, four without tests), plus focused
+semantic, lexer/parser/token, interface, and record exception tests. The CLI comparison used
+`go run ./cmd/fixture-report --cli /tmp/go-dws-e12-cli`, which rebuilds the executable before
+measuring. All changed Go files pass `gofmt` and the diff whitespace check.
+
+The full `golangci-lint run` still reports **1,226 existing findings**, matching the starting
+branch. The final interface pointer helper keeps the caller within the complexity limit;
+full semantic and focused interface tests passed again after that extraction.

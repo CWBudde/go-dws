@@ -212,7 +212,7 @@ const (
 	SHL  // shl (shift left)
 	SHR  // shr (shift right)
 	SAR  // sar (arithmetic shift right)
-	IMPL // impl (short for implementation)
+	IMPL // Legacy token retained for compatibility; "impl" is an ordinary identifier.
 
 	// Keywords - Function modifiers
 	INLINE     // inline
@@ -679,15 +679,14 @@ var keywords = map[string]TokenType{
 	"null":       NULL,
 	"unassigned": UNASSIGNED,
 
-	"is":   IS,
-	"as":   AS,
-	"in":   IN,
-	"div":  DIV,
-	"mod":  MOD,
-	"shl":  SHL,
-	"shr":  SHR,
-	"sar":  SAR,
-	"impl": IMPL,
+	"is":  IS,
+	"as":  AS,
+	"in":  IN,
+	"div": DIV,
+	"mod": MOD,
+	"shl": SHL,
+	"shr": SHR,
+	"sar": SAR,
 
 	// Function modifiers
 	"inline":     INLINE,

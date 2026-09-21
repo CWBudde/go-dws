@@ -43,6 +43,11 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 		interfaceType.ExternalName = decl.ExternalName
 	}
 
+	// Member signatures may refer to the interface being declared. Register
+	// its canonical type before resolving those signatures, after validating
+	// the parent so an interface cannot inherit from itself.
+	a.registerTypeWithPos(interfaceName, interfaceType, decl.Token.Pos)
+
 	// Analyze each method in the interface
 	for _, method := range decl.Methods {
 		a.analyzeInterfaceMethodDecl(method, interfaceType)
@@ -52,10 +57,6 @@ func (a *Analyzer) analyzeInterfaceDecl(decl *ast.InterfaceDecl) {
 	for _, property := range decl.Properties {
 		a.analyzeInterfacePropertyDecl(property, interfaceType)
 	}
-
-	// Register interface in the registry
-	// Use lowercase key for case-insensitive lookup
-	a.registerTypeWithPos(interfaceName, interfaceType, decl.Token.Pos)
 }
 
 // analyzeInterfaceMethodDecl analyzes an interface method declaration

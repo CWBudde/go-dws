@@ -10,15 +10,15 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-21):** Go harness and freshly rebuilt CLI agree at **1,285 / 1,966 scored =
-65%**; `*Fail` error-detection suites **290 / 641 = 45%**. What shipped to get there is in
+**Headline (2026-09-21):** Go harness and freshly rebuilt CLI agree at **1,289 / 1,966 scored =
+66%**; `*Fail` error-detection suites **290 / 641 = 45%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,285 / 1,747 = 74% in scope**, the number to track against §6. Both are honest;
+same run reads **1,289 / 1,747 = 74% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -29,7 +29,7 @@ Open, in leverage order:
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 111 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
+- **§3.5** is the other half: 107 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
   are closed; E3c is still open, and what the closed groups left is grouped as E12–E20.
 - **§3.2** has no open items. **§3.4** has expected-type overload resolution, blocked on the
   evaluator. **§3.3** has only the gated Memory host setup.
@@ -54,10 +54,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (681 total, 2026-09-21): **219 host-library** (out of scope),
+- Where the remaining failures are (677 total, 2026-09-21): **219 host-library** (out of scope),
   **351 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 14,
-  OverloadsFail 11, HelpersFail 9, the rest under 10), and **111 in the execution suites** (§3.5:
-  SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
+  OverloadsFail 11, HelpersFail 9, the rest under 10), and **107 in the execution suites** (§3.5:
+  SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 2, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - **Upstream source is reachable without the submodule.** `reference/dwscript-original/` is an
@@ -198,7 +198,7 @@ matching, class-operator inheritance), and the skipped-test backlog.
 
 ### 3.5 Execution-suite failures (E)
 
-111 in-scope execution-suite fixtures fail (2026-09-21). Audits:
+107 in-scope execution-suite fixtures fail (2026-09-21). Audits:
 [pass-suite audit](docs/architecture/pass-suite-audit-2026-09.md) (2026-09-12) and
 [execution-suite triage](docs/architecture/execution-suite-triage-2026-09.md) (2026-09-19, first
 blocker per group). Regenerate with `just fixture-report --in-scope --classify --list-fails`.
@@ -239,17 +239,18 @@ The remaining cases depend on other fixes. None may be hidden with hint suppress
   `ArrayPass/dynamic_anonymous_record` (see E13c) and `FailureScripts/block_unfinished4` after
   parser recovery (§4/F3).
 
-#### E12 — Interface follow-ups (from E5) `[ ]`
+#### E12 — Interface follow-ups (from E5) `[~]`
 
-InterfacesPass 27/33. Do not broaden E5's casting/comparison fixes to silence these.
+InterfacesPass 31/33. `Impl` identifiers, self-referential signatures, interface method
+references, and record-method caller traces closed 2026-09-21; see
+[the September progress log](docs/history/progress-log-2026-09.md). Do not broaden E5's casting/comparison fixes to silence these.
 
-- `[ ]` S `interface_nil_cast_from_obj`: `Impl` is tokenized as the reserved `IMPL` token;
-  resolve identifier handling separately and retain a nil-object cast regression using `Obj`.
 - `[ ]` M `interface_properties`: indexed/default interface property semantics.
-- `[ ]` M `intf_delegate`: interface method references assigned to procedure variables.
-- `[ ]` S `intf_in_record`: restore the caller location in the runtime-error trace.
-- `[ ]` S `intf_private`: unwanted unused-private hints for `Hello` and `Unused` (§4/F1).
-- `[ ]` M `intf_self_ref`: resolve self-referential interface method return types.
+- `[ ]` M `intf_private`: align symbol-dictionary-dependent diagnostics with upstream runner
+  options (§4/F1). Upstream execution suites disable the symbol dictionary, while nonoptimized
+  failure suites enable it; unused-private hints require that dictionary. The implementation of
+  an interface method is also exempt. Preserve the `Unused` hint when dictionary diagnostics are
+  enabled; do not suppress every private method on an interface implementer.
 - `[ ]` Mixed class/interface equality: semantic analysis accepts operands that the evaluator
   rejects; establish compatible reference-comparison behavior separately from interface/interface
   equality.
@@ -302,7 +303,6 @@ FunctionsMath 39/40.
   itself (times out); expected `Helper.TObject`. Add a bounded recursion regression first.
 - `[ ]` S `dyn_array_create`: class functions through an array type alias
   (`TStrings.Create(...)` → `Unknown name "TStrings"`).
-- `declared_helper` is the §3.2 explicit-instance item.
 
 #### E16 — Operator syntax and binding (from E10) `[ ]`
 

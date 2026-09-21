@@ -32,6 +32,14 @@ func (e *Evaluator) callRecordMethod(
 			"wrong number of arguments for method '%s': expected %d, got %d",
 			method.Name.Value, len(method.Parameters), len(args))
 	}
+	// Keep the record call's member-name position on the stack until errors
+	// and exceptions from its body have captured their caller locations.
+	unitName, _ := e.typeSystem.NodeUnit(method)
+	frameName := record.GetRecordTypeName() + "." + method.Name.Value
+	if err := ctx.GetCallStack().PushWithUnit(frameName, e.SourceFile(), callSitePosOf(node), unitName); err != nil {
+		return e.newError(node, "maximum recursion depth exceeded")
+	}
+	defer ctx.GetCallStack().Pop()
 
 	// 2. Create method environment (child of current context)
 	ctx.PushEnv()
@@ -64,12 +72,18 @@ func (e *Evaluator) callRecordMethod(
 
 	// 6. Execute method body in new environment
 	result := e.Eval(method.Body, ctx)
-	if isError(result) {
-		return result
-	}
-
+	// Mutations made before an exception remain visible to its caller.
 	e.syncRecordMethodFields(record, ctx)
 	e.syncRecordMethodClassState(record, ctx)
+
+	if isError(result) && ctx.Exception() == nil {
+		// Record runtime errors keep their original message (without the
+		// class-method "in <routine>" suffix), but carry the same call trace.
+		e.raiseErrorValueAsException(result, "", ctx)
+	}
+	if ctx.Exception() != nil {
+		return e.nilValue()
+	}
 
 	// Exit only leaves the record method body. Clear it before returning to the caller,
 	// matching user-function and lambda call handling.

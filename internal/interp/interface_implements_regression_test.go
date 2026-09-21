@@ -51,6 +51,7 @@ func TestInterfaceCompatibility_Fixtures(t *testing.T) {
 	const category = "InterfacesPass"
 	for _, name := range []string{
 		"interface_cast_to_obj", "interface_multiple_cast", "interface_nil_cast_from_intf",
+		"interface_nil_cast_from_obj",
 		"intf_casts", "intf_compare", "interface_implements_intf",
 	} {
 		t.Run(name, func(t *testing.T) {

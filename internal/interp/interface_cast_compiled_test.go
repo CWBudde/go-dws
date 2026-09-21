@@ -8,7 +8,7 @@ import (
 )
 
 func TestInterfaceAsCast_Fixtures(t *testing.T) {
-	for _, name := range []string{"interface_cast_to_obj", "interface_multiple_cast", "interface_nil_cast_from_intf", "intf_casts"} {
+	for _, name := range []string{"interface_cast_to_obj", "interface_multiple_cast", "interface_nil_cast_from_intf", "interface_nil_cast_from_obj", "intf_casts"} {
 		t.Run(name, func(t *testing.T) {
 			base := filepath.Join("..", "..", "testdata", "fixtures", "InterfacesPass", name)
 			source, err := os.ReadFile(base + ".pas")

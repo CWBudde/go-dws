@@ -431,6 +431,9 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		allMethods := types.GetAllInterfaceMethods(ifaceType)
 		if methodType, hasMethod := allMethods[memberName]; hasMethod {
 			a.addIdentifierCaseHint(expr.Member, a.declaredInterfaceMethodName(ifaceType, memberName))
+			if len(methodType.Parameters) == 0 {
+				return methodType.ReturnType
+			}
 			return methodType
 		}
 
@@ -825,7 +828,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 // context expects a function/method pointer. Unlike the default member-access
 // path it does NOT auto-invoke a parameterless method — it yields a method
 // pointer for deferred invocation (p := a.StaticProc; e := b.Event). It returns
-// (nil, false) when the object is not a class, the member is not a method, or
+// (nil, false) when the object is not a class or interface, the member is not a method, or
 // the reference is invalid (an instance method reached through a metaclass, or a
 // member that is not visible from the current scope); the caller then falls back
 // to normal member analysis, which reports the appropriate diagnostic (and lets
@@ -836,6 +839,9 @@ func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccess
 	objectType := a.analyzeExpression(expr.Object)
 	if objectType == nil {
 		return nil, false
+	}
+	if iface, ok := types.GetUnderlyingType(objectType).(*types.InterfaceType); ok {
+		return a.analyzeInterfaceMethodReference(expr, iface)
 	}
 	isMetaclass := false
 	if metaclass, ok := objectType.(*types.ClassOfType); ok && metaclass.ClassType != nil {
@@ -883,6 +889,17 @@ func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccess
 	ptrType := methodPointerFromFunctionType(methodType)
 	a.annotateMemberPointerType(expr, ptrType)
 	return ptrType, true
+}
+
+func (a *Analyzer) analyzeInterfaceMethodReference(expr *ast.MemberAccessExpression, iface *types.InterfaceType) (types.Type, bool) {
+	method := types.GetAllInterfaceMethods(iface)[ident.Normalize(expr.Member.Value)]
+	if method == nil {
+		return nil, false
+	}
+	a.addIdentifierCaseHint(expr.Member, a.declaredInterfaceMethodName(iface, expr.Member.Value))
+	pointer := methodPointerFromFunctionType(method)
+	a.annotateMemberPointerType(expr, pointer)
+	return pointer, true
 }
 
 // annotateMemberPointerType records that a member access denotes a pointer
