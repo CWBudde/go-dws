@@ -22,8 +22,12 @@ func (e *Evaluator) namedHelperReceiver(object ast.Expression, ctx *ExecutionCon
 			return nil
 		}
 	}
-	if _, exists := ctx.Env().Get(name.Value); exists {
-		return nil
+	// VisitHelperDecl binds the helper name to a TypeMetaValue; only another
+	// binding is a variable shadowing the helper.
+	if value, exists := ctx.Env().Get(name.Value); exists {
+		if _, isTypeMeta := value.(*runtime.TypeMetaValue); !isTypeMeta {
+			return nil
+		}
 	}
 	return e.lookupMutableHelper(name.Value)
 }
