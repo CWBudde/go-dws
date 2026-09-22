@@ -549,15 +549,21 @@ func (e *Evaluator) executeIndexedPropertyClassMethod(
 // unlike an accessor method's signature it is available for expression accessors too.
 // Returns nil when the arity matches.
 func (e *Evaluator) checkIndexedPropertyArity(pInfo *types.PropertyInfo, indexCount int, node ast.Node) Value {
-	declared := len(pInfo.IndexParamTypes)
-	if declared == 0 {
-		declared = len(pInfo.IndexParamNames)
-	}
+	declared := indexedPropertyArity(pInfo)
 	if declared == 0 || declared == indexCount {
 		return nil
 	}
 	return e.newError(node, "indexed property '%s' expects %d index argument(s), got %d",
 		pInfo.Name, declared, indexCount)
+}
+
+// indexedPropertyArity returns the declared index count. Runtime-built metadata
+// (type checking disabled) carries only the index parameter names.
+func indexedPropertyArity(pInfo *types.PropertyInfo) int {
+	if declared := len(pInfo.IndexParamTypes); declared > 0 {
+		return declared
+	}
+	return len(pInfo.IndexParamNames)
 }
 
 // checkIndexedAccessorArity verifies an indexed property accessor takes exactly the

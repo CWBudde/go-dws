@@ -568,10 +568,15 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					}
 					valueType := a.analyzeExpressionWithExpectedType(stmt.Value, prop.Type)
 					if valueType != nil {
+						usesClassOperator := false
 						if isCompound {
-							a.isCompoundOperatorValid(stmt.Operator, prop.Type, valueType, stmt.Token.Pos)
+							valid, classOp := a.isCompoundOperatorValid(stmt.Operator, prop.Type, valueType, stmt.Token.Pos)
+							if !valid {
+								return
+							}
+							usesClassOperator = classOp
 						}
-						if !a.canAssign(valueType, prop.Type) {
+						if !usesClassOperator && !a.canAssign(valueType, prop.Type) {
 							a.addStructuredError(NewPropertyValueTypeMismatchError(target.Pos(), prop.Type.String(), valueType.String()))
 						}
 					}
@@ -690,10 +695,15 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if targetType, handled := a.analyzeInterfaceIndexedProperty(target, true, isCompound); handled {
 			valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
 			if valueType != nil {
+				usesClassOperator := false
 				if isCompound {
-					a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos)
+					valid, classOp := a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos)
+					if !valid {
+						return
+					}
+					usesClassOperator = classOp
 				}
-				if !a.canAssign(valueType, targetType) {
+				if !usesClassOperator && !a.canAssign(valueType, targetType) {
 					a.addStructuredError(NewPropertyValueTypeMismatchError(target.Pos(), targetType.String(), valueType.String()))
 				}
 			}

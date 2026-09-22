@@ -31,7 +31,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	base, indices := CollectIndices(node)
 
 	// Check if this is indexed property access: obj.Property[index1, index2, ...]
-	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok && !e.interfacePropertyResultIndex(node) {
+	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok && !e.interfacePropertyResultIndex(node, ctx) {
 		// Evaluate the object being accessed
 		objVal := e.Eval(memberAccess.Object, ctx)
 		if isError(objVal) {
