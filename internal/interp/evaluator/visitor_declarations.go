@@ -390,6 +390,13 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 	}
 
 	// Process fields and class variables
+	// Register method declarations first: class variable initializers can take
+	// the address of a method written later in the class body.
+	for _, method := range node.Methods {
+		if !classInfo.AddMethodDeclaration(method, className, e.EngineState().MethodRegistry) {
+			return e.newError(method, "failed to add method '%s' to class '%s'", method.Name.Value, className)
+		}
+	}
 	for _, field := range node.Fields {
 		fieldName := field.Name.Value
 		var fieldType types.Type
@@ -443,11 +450,8 @@ func (e *Evaluator) VisitClassDecl(node *ast.ClassDecl, ctx *ExecutionContext) V
 		classInfo.AddFieldDeclaration(field, fieldType)
 	}
 
-	// Add methods (overrides parent methods if same name, supports overloading)
+	// Resolve callable types once field types are available.
 	for _, method := range node.Methods {
-		if !classInfo.AddMethodDeclaration(method, className, e.EngineState().MethodRegistry) {
-			return e.newError(method, "failed to add method '%s' to class '%s'", method.Name.Value, className)
-		}
 		e.resolveClassCallableTypes(classInfo.GetMetadata(), method, ctx)
 	}
 

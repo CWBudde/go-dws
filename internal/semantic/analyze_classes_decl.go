@@ -375,6 +375,30 @@ func (a *Analyzer) collectNestedAliases(aliases map[string]string, stmt ast.Stat
 	}
 }
 
+// analyzeClassMemberInitializer gives an initializer the class members that
+// have already been declared, without leaking those names into the outer scope.
+func (a *Analyzer) analyzeClassMemberInitializer(expr ast.Expression, classType *types.ClassType) types.Type {
+	outer := a.symbols
+	a.symbols = NewEnclosedSymbolTable(outer)
+	defer func() { a.symbols = outer }()
+	for name, typ := range classType.ConstantTypes {
+		if typ != nil {
+			a.symbols.Define(name, typ, token.Position{})
+		}
+	}
+	for name, typ := range classType.ClassVars {
+		if typ != nil {
+			a.symbols.Define(classType.DeclaredClassVarName(name), typ, token.Position{})
+		}
+	}
+	for name, typ := range classType.Methods {
+		if typ != nil && classType.ClassMethodFlags[ident.Normalize(name)] {
+			a.symbols.DefineFunction(a.declaredMethodName(classType, name), typ, token.Position{})
+		}
+	}
+	return a.analyzeExpression(expr)
+}
+
 // analyzeClassDecl analyzes a class declaration.
 func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	// Phase 4 bookkeeping: this declaration no longer contributes members, on
@@ -505,6 +529,15 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 		}
 	}
 
+	// Method bodies are deferred, so register their signatures before class
+	// variable initializers. An initializer may take a later method's address.
+	for _, method := range decl.Methods {
+		a.analyzeMethodDecl(method, classType)
+	}
+	if decl.Constructor != nil {
+		a.analyzeMethodDecl(decl.Constructor, classType)
+	}
+
 	// Analyze fields (instance and class variables).
 	fieldNames := make(map[string]bool)
 	classVarNames := make(map[string]bool)
@@ -537,7 +570,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 				a.warnDeprecatedResolvedType(field.Type.Pos(), resolvedType)
 				fieldType = resolvedType
 			} else if field.InitValue != nil {
-				initType := a.analyzeExpression(field.InitValue)
+				initType := a.analyzeClassMemberInitializer(field.InitValue, classType)
 				if initType == nil {
 					a.addError("cannot infer type for class var '%s' at %s", originalFieldName, field.Token.Pos.String())
 					continue
@@ -549,7 +582,7 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			}
 
 			if field.InitValue != nil && field.Type != nil {
-				initType := a.analyzeExpression(field.InitValue)
+				initType := a.analyzeClassMemberInitializer(field.InitValue, classType)
 				if initType != nil && fieldType != nil && !types.IsAssignableFrom(fieldType, initType) {
 					a.addError("type mismatch for class var '%s' at %s", originalFieldName, field.Token.Pos.String())
 				}
@@ -605,14 +638,6 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			classType.FieldVisibility[normalizedFieldName] = int(field.Visibility)
 			classType.SetFieldDeclPosition(originalFieldName, field.Pos())
 		}
-	}
-
-	// Analyze methods and constructors.
-	for _, method := range decl.Methods {
-		a.analyzeMethodDecl(method, classType)
-	}
-	if decl.Constructor != nil {
-		a.analyzeMethodDecl(decl.Constructor, classType)
 	}
 
 	// Handle constructor inheritance and implicit constructors.

@@ -5573,3 +5573,32 @@ through interface properties validate class operators before the assignability c
 `i.Values += 1` and `i.Rows[0] += 3` append to array-typed properties. An explicit class cast
 compares by the reference it wraps, so `TBoth(Obj) = L` matches the interface's object. No
 fixture counts changed; real compile/run and `WithTypeCheck(false)` regressions cover the paths.
+
+## 2026-09-23 — Declared-name handling (E3c)
+
+Class methods now register their signatures before class variable initializers are checked or
+evaluated. Initializers see prior class variables and constants in a temporary member scope,
+and a bare method address such as `@Hello` binds to the current class. This makes
+`SimpleScripts/class_var_dyn2` run with the expected `test` and `c` spelling hints.
+
+The shared builtin helper catalog now exposes `String.Low`, `High`, and `Length` as both
+properties and zero-argument calls. `Low` is one and `High` is the rune count (zero for an empty
+string), following the existing UTF-8 string decision. Property lookup emits the declared-name
+hint, closing `SimpleScripts/string_builtin_methods` without hint suppression.
+
+Anonymous `record … end` expressions now carry properties and inline methods through parsing,
+the generated AST visitor, semantic type checking, and runtime record metadata. Methods can read
+properties and inferred fields, including arrays produced by parameterless function calls.
+Auto-properties create typed backing fields. Copies retain the declarations and independent
+field values. This closes
+`ArrayPass/dynamic_anonymous_record`. `FailureScripts/block_unfinished4` already matched its
+single expected parser diagnostic when rechecked; the former extra case hint does not occur.
+
+The four E3c fixtures match exactly through the real compile/run path. Added focused tests for
+Unicode and empty-string bounds, anonymous-record property/method access and copying, and AST
+parsing. `go test -p 1 ./...` passed before the final auto-property addition; the affected parser,
+semantic, interpreter, evaluator and AST packages passed again afterward. The fixture baseline
+rose **1,307 → 1,310 / 1,966**:
+SimpleScripts **387 → 389/443**, ArrayPass **100 → 101/115**, with no category drop.
+`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run '^TestDWScriptFixtures$' -count=1`
+ratcheted the floors; a rebuilt CLI report matched the harness in all 61 categories.

@@ -100,6 +100,23 @@ func TestParseAnonymousRecordExpression_FieldNames(t *testing.T) {
 	}
 }
 
+func TestParseAnonymousRecordExpression_PropertiesAndMethods(t *testing.T) {
+	expr := parseSingleRecordExpr(t, `record
+  Value := 2;
+  property Current: Integer read Value;
+  function Twice: Integer;
+  begin
+    Result := Current * 2;
+  end;
+end`)
+	if len(expr.Fields) != 1 || len(expr.Properties) != 1 || len(expr.Methods) != 1 {
+		t.Fatalf("members: fields=%d properties=%d methods=%d", len(expr.Fields), len(expr.Properties), len(expr.Methods))
+	}
+	if expr.Properties[0].ReadField != "Value" || expr.Methods[0].Body == nil {
+		t.Fatalf("property or inline method body lost: %#v %#v", expr.Properties[0], expr.Methods[0])
+	}
+}
+
 func TestParseAnonymousRecordExpression_FieldValuesAreExpressions(t *testing.T) {
 	recordExpr := parseSingleRecordExpr(t, "record a := 1 + 2; b := f(3); end")
 
@@ -150,6 +167,8 @@ func TestParseAnonymousRecordExpression_Errors(t *testing.T) {
 		{name: "missing assign", input: "var r := record a 1; end;"},
 		{name: "missing field name", input: "var r := record := 1; end;"},
 		{name: "colon instead of assign", input: "var r := record a: 1; end;"},
+		{name: "property missing type", input: "var r := record Value := 1; property Current read Value; end;"},
+		{name: "method missing body end", input: "var r := record Value := 1; function Double: Integer; begin Result := Value * 2;"},
 	}
 
 	for _, tt := range tests {

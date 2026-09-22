@@ -452,6 +452,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			return helperMethod
 		}
 		if helperProp := a.hasHelperProperty(objectType, memberName); helperProp != nil {
+			a.addIdentifierCaseHint(expr.Member, helperProp.Name)
 			return helperProp.Type
 		}
 		if _, helperClassVar := a.hasHelperClassVar(objectType, memberName); helperClassVar != nil {
@@ -507,6 +508,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		// Check helpers (prefer properties before methods for property-style access)
 		helperProp := a.hasHelperProperty(objectType, memberName)
 		if helperProp != nil {
+			a.addIdentifierCaseHint(expr.Member, helperProp.Name)
 			if enumType, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
 				a.maybeAddUnnamedEnumElementHint(expr.Object, expr.Member.Token.Pos, enumType, memberName)
 			}

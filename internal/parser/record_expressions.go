@@ -13,6 +13,7 @@ import (
 //	record a := 1; b := 'x'; end
 //	record "i*i" := i * i; "2i" := 2 * i; end
 //	record Field := 123 end
+//	record Value := 1; property Current: Integer read Value; end
 //
 // Field names may be identifiers or string literals; a quoted name is kept
 // verbatim so that names which are not valid identifiers survive into
@@ -43,6 +44,24 @@ func (p *Parser) parseAnonymousRecordExpression() ast.Expression {
 		if current.Type == lexer.EOF {
 			p.addError("expected 'end' to close record expression", ErrMissingEnd)
 			return nil
+		}
+		switch current.Type {
+		case lexer.PROPERTY:
+			property := p.parseRecordPropertyDeclaration()
+			if property == nil {
+				return nil
+			}
+			recordExpr.Properties = append(recordExpr.Properties, *property)
+			p.cursor = p.cursor.Advance()
+			continue
+		case lexer.FUNCTION, lexer.PROCEDURE:
+			method := p.parseFunctionDeclaration()
+			if method == nil {
+				return nil
+			}
+			recordExpr.Methods = append(recordExpr.Methods, method)
+			p.cursor = p.cursor.Advance()
+			continue
 		}
 
 		field := p.parseAnonymousRecordField()

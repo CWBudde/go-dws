@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1307 |
-| Failed | 659 |
+| Passed | 1310 |
+| Failed | 656 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **66%** (1307/1966) |
+| **Scored pass rate** | **67%** (1310/1966) |
 
 ## Per-category
 
@@ -24,7 +24,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | Category | Total | Pass | Fail | Skip | Pass% |
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
-| ArrayPass | 115 | 100 | 15 | 0 | 87% |
+| ArrayPass | 115 | 101 | 14 | 0 | 88% |
 | AssociativeFail | 4 | 2 | 2 | 0 | 50% |
 | AssociativePass | 27 | 27 | 0 | 0 | 100% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
@@ -79,7 +79,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
 | SetOfFail | 14 | 13 | 1 | 0 | 93% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 387 | 56 | 0 | 87% |
+| SimpleScripts | 443 | 389 | 54 | 0 | 88% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

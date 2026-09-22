@@ -22,6 +22,13 @@ func (e *Evaluator) evalStringHelper(spec string, selfValue Value, args []Value,
 		return e.evalStringToLower(selfValue, args, node)
 	case types.HelperStringLength:
 		return e.evalStringLength(selfValue, node)
+	case types.HelperStringLow:
+		if _, ok := selfValue.(*runtime.StringValue); !ok {
+			return e.newError(node, "String.Low requires string receiver")
+		}
+		return &runtime.IntegerValue{Value: 1}
+	case types.HelperStringHigh:
+		return e.evalStringLength(selfValue, node)
 	case types.HelperStringToString:
 		return e.evalStringToString(selfValue, args, node)
 	case types.HelperStringToInteger:

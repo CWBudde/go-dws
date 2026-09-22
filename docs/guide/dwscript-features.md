@@ -226,8 +226,21 @@ PrintLn(JSON.Stringify(record "i*i" := 9; "2i" := 6; end));  // {"2i":6,"i*i":9}
 
 // The trailing ';' before 'end' is optional.
 PrintLn(JSON.Stringify(record Field := 123 end));            // {"Field":123}
+
+// Constructor expressions can also declare record properties and inline methods.
+var counter := record
+  Value := 3;
+  property Current: Integer read Value;
+  function Double: Integer;
+  begin
+    Result := Current * 2;
+  end;
+end;
+PrintLn(counter.Double);  // 6
 ```
 
+Properties without accessors create a typed backing field. Copies keep independent fields and
+the same property and method declarations.
 `JSON.Stringify` emits record members in sorted key order, matching DWScript.
 
 ---
@@ -777,6 +790,9 @@ an index or a member (`a[0].TEST := 3`, `v.List[0] := 'zero'`), which are always
 
 #### go-dws Status
 - ✅ Length, Copy, Concat, Pos, UpperCase, LowerCase
+- ✅ `s.Low`, `s.High`, and `s.Length`, each also callable with `()`; string bounds are
+  one-based, and `High` is zero for an empty string. Length follows go-dws's rune-based
+  [string encoding decision](../decisions/string-encoding.md).
 - ✅ IntToStr, StrToInt, FloatToStr, StrToFloat
 - ✅ Insert, Delete, Trim, TrimLeft, TrimRight, StringReplace, Format
 - ⏸️ Chr/Ord for chars

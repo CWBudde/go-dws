@@ -64,6 +64,8 @@ const (
 	HelperStringEndsWith         BuiltinHelperOperation = "__string_endswith"
 	HelperStringIndexOf          BuiltinHelperOperation = "__string_indexof"
 	HelperStringIsASCII          BuiltinHelperOperation = "__string_isascii"
+	HelperStringLow              BuiltinHelperOperation = "__string_low"
+	HelperStringHigh             BuiltinHelperOperation = "__string_high"
 	HelperStringLength           BuiltinHelperOperation = "__string_length"
 	HelperStringMatches          BuiltinHelperOperation = "__string_matches"
 	HelperStringSplit            BuiltinHelperOperation = "__string_split"
@@ -171,7 +173,9 @@ var builtinHelperMembers = map[string][]BuiltinHelperMember{
 		{Name: "ToString", Operation: HelperBooleanToString, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{}, STRING) }, PropertyType: STRING},
 	},
 	"string": {
-		{Name: "Length", Operation: HelperStringLength, PropertyType: INTEGER},
+		{Name: "Low", Operation: HelperStringLow, Method: true, Signature: func() *FunctionType { return NewFunctionType(nil, INTEGER) }, PropertyType: INTEGER},
+		{Name: "High", Operation: HelperStringHigh, Method: true, Signature: func() *FunctionType { return NewFunctionType(nil, INTEGER) }, PropertyType: INTEGER},
+		{Name: "Length", Operation: HelperStringLength, Method: true, Signature: func() *FunctionType { return NewFunctionType(nil, INTEGER) }, PropertyType: INTEGER},
 		{Name: "ToUpper", Operation: HelperStringToUpper, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{}, STRING) }},
 		{Name: "ToLower", Operation: HelperStringToLower, Method: true, Signature: func() *FunctionType { return NewFunctionType([]Type{}, STRING) }},
 		{Name: "PadLeft", Operation: HelperBuiltinPadLeft, Method: true, Signature: func() *FunctionType {
