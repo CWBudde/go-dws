@@ -5563,3 +5563,13 @@ PR preparation independently reran `go test -p 1 -json ./...` on an isolated E13
 branch, excluding the parallel interface edits. All 31 test-bearing packages passed;
 JSONConnectorPass remained 82/82 and SimpleScripts 387/443. A fresh CLI fixture report
 on that branch also matched the harness across all 61 categories.
+
+## 2026-09-23 — Interface follow-ups after E12
+
+Indexed and default interface properties now also work with type checking disabled: without
+semantic metadata, the index contract comes from the interface instance held by a variable
+receiver, and the declared arity falls back to the index parameter names. Compound assignments
+through interface properties validate class operators before the assignability check, so
+`i.Values += 1` and `i.Rows[0] += 3` append to array-typed properties. An explicit class cast
+compares by the reference it wraps, so `TBoth(Obj) = L` matches the interface's object. No
+fixture counts changed; real compile/run and `WithTypeCheck(false)` regressions cover the paths.

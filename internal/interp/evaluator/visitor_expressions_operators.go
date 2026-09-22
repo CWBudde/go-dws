@@ -104,6 +104,8 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 
 	// Object, interface, class, and nil comparisons (= and <>)
 	case node.Operator == "=" || node.Operator == "<>":
+		// An explicit class cast compares by the reference it wraps.
+		left, right = unwrapTypeCast(left), unwrapTypeCast(right)
 		// Validate type compatibility for equality operators
 		// Reject primitive type mismatches
 		if !areEqualityCompatible(left, right) {
@@ -272,4 +274,12 @@ func (e *Evaluator) addressOfMember(node *ast.AddressOfExpression, operand *ast.
 
 	// Non-object type - cannot create method pointer
 	return e.newError(node, "method pointer requires an object instance, got %s", objectVal.Type())
+}
+
+// unwrapTypeCast returns the reference wrapped by an explicit class cast.
+func unwrapTypeCast(v Value) Value {
+	if cast, ok := v.(TypeCastAccessor); ok {
+		return cast.GetWrappedValue()
+	}
+	return v
 }

@@ -193,3 +193,29 @@ func TestInterfaceProperties_ChildDefaultOverridesParent(t *testing.T) {
  PrintLn(child.BaseItem[1]);`
 	compileAndRunWithHelperTransfer(t, source, "interface_child_default.dws", "21\n11\n11\n")
 }
+
+func TestInterfaceProperties_CompoundArrayAppend(t *testing.T) {
+	const source = `type TInts = array of Integer;
+ type IItems = interface
+ function GetValues: TInts;
+ procedure SetValues(v: TInts);
+ function GetRow(x: Integer): TInts;
+ procedure SetRow(x: Integer; v: TInts);
+ property Values: TInts read GetValues write SetValues;
+ property Rows[x: Integer]: TInts read GetRow write SetRow;
+ end;
+ type TImpl = class(TObject, IItems)
+ data: TInts;
+ function GetValues: TInts; begin Result := data; end;
+ procedure SetValues(v: TInts); begin data := v; end;
+ function GetRow(x: Integer): TInts; begin Result := data; end;
+ procedure SetRow(x: Integer; v: TInts); begin data := v; end;
+ end;
+ var i: IItems := TImpl.Create;
+ i.Values += 1;
+ i.Values += 2;
+ i.Rows[0] += 3;
+ PrintLn(i.Values.Length);
+ PrintLn(i.Values[2]);`
+	compileAndRunWithHelperTransfer(t, source, "interface_compound_append.dws", "3\n3\n")
+}

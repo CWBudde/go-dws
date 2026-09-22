@@ -9,8 +9,8 @@ import (
 // resolveInterfaceIndexedProperty uses the static interface contract to capture
 // a receiver and its index arguments once, including for compound assignments.
 func (e *Evaluator) resolveInterfaceIndexedProperty(node *ast.IndexExpression, ctx *ExecutionContext) (Value, *types.PropertyInfo, []Value, bool, Value) {
-	receiver, prop, indices := e.interfaceIndexedPropertyContract(node)
-	if prop == nil || len(indices) > len(prop.IndexParamTypes) {
+	receiver, prop, indices := e.interfaceIndexedPropertyContract(node, ctx)
+	if prop == nil || len(indices) > indexedPropertyArity(prop) {
 		return nil, nil, nil, false, nil
 	}
 	obj := e.Eval(receiver, ctx)
@@ -28,15 +28,43 @@ func (e *Evaluator) resolveInterfaceIndexedProperty(node *ast.IndexExpression, c
 	return obj, prop, vals, true, nil
 }
 
-func (e *Evaluator) interfaceIndexedPropertyContract(node *ast.IndexExpression) (ast.Expression, *types.PropertyInfo, []ast.Expression) {
-	if e.SemanticInfo() == nil {
-		return nil, nil, nil
+// interfaceProperties is the property lookup shared by the static interface
+// type and the runtime interface metadata used when type checking is disabled.
+type interfaceProperties interface {
+	GetProperty(name string) *types.PropertyInfo
+	GetDefaultProperty() *types.PropertyInfo
+}
+
+// runtimeInterfaceProperties exposes runtime interface metadata as the static
+// property contract recorded in each descriptor.
+type runtimeInterfaceProperties struct {
+	info runtime.IInterfaceInfo
+}
+
+func (r runtimeInterfaceProperties) GetProperty(name string) *types.PropertyInfo {
+	return runtimePropertyImpl(r.info.GetProperty(name))
+}
+
+func (r runtimeInterfaceProperties) GetDefaultProperty() *types.PropertyInfo {
+	return runtimePropertyImpl(r.info.GetDefaultProperty())
+}
+
+func runtimePropertyImpl(prop *runtime.PropertyInfo) *types.PropertyInfo {
+	if prop == nil {
+		return nil
 	}
+	if impl, ok := prop.Impl.(*types.PropertyInfo); ok {
+		return impl
+	}
+	return nil
+}
+
+func (e *Evaluator) interfaceIndexedPropertyContract(node *ast.IndexExpression, ctx *ExecutionContext) (ast.Expression, *types.PropertyInfo, []ast.Expression) {
 	root, indices := CollectIndices(node)
 	receiver := root
 	var prop *types.PropertyInfo
 	if member, ok := root.(*ast.MemberAccessExpression); ok {
-		if iface := e.interfacePropertyReceiverType(member.Object); iface != nil {
+		if iface := e.interfacePropertyReceiver(member.Object, ctx); iface != nil {
 			prop = iface.GetProperty(member.Member.Value)
 			if prop != nil && prop.IsIndexed {
 				receiver = member.Object
@@ -44,7 +72,7 @@ func (e *Evaluator) interfaceIndexedPropertyContract(node *ast.IndexExpression) 
 		}
 	}
 	if prop == nil || !prop.IsIndexed {
-		iface := e.interfacePropertyReceiverType(root)
+		iface := e.interfacePropertyReceiver(root, ctx)
 		if iface == nil {
 			return nil, nil, nil
 		}
@@ -54,6 +82,30 @@ func (e *Evaluator) interfaceIndexedPropertyContract(node *ast.IndexExpression) 
 		return nil, nil, nil
 	}
 	return receiver, prop, indices
+}
+
+// interfacePropertyReceiver resolves the receiver's interface without evaluating
+// it. Without semantic metadata only variable receivers can be resolved, from
+// the interface instance they currently hold.
+func (e *Evaluator) interfacePropertyReceiver(expr ast.Expression, ctx *ExecutionContext) interfaceProperties {
+	if e.SemanticInfo() != nil {
+		if iface := e.interfacePropertyReceiverType(expr); iface != nil {
+			return iface
+		}
+		return nil
+	}
+	id, ok := expr.(*ast.Identifier)
+	if !ok {
+		return nil
+	}
+	val, ok := ctx.Env().Get(id.Value)
+	if !ok {
+		return nil
+	}
+	if iface, ok := val.(*runtime.InterfaceInstance); ok && iface.Interface != nil {
+		return runtimeInterfaceProperties{info: iface.Interface}
+	}
+	return nil
 }
 
 // interfacePropertyReceiverType mirrors the implicit invocation applied by the
@@ -92,9 +144,9 @@ func (e *Evaluator) readInterfaceIndexedProperty(obj Value, prop *types.Property
 
 // interfacePropertyResultIndex distinguishes indexing an accessor's array result
 // from the arguments supplied to the accessor itself.
-func (e *Evaluator) interfacePropertyResultIndex(node *ast.IndexExpression) bool {
-	_, prop, indices := e.interfaceIndexedPropertyContract(node)
-	return prop != nil && len(indices) > len(prop.IndexParamTypes)
+func (e *Evaluator) interfacePropertyResultIndex(node *ast.IndexExpression, ctx *ExecutionContext) bool {
+	_, prop, indices := e.interfaceIndexedPropertyContract(node, ctx)
+	return prop != nil && len(indices) > indexedPropertyArity(prop)
 }
 
 func (e *Evaluator) writeInterfaceIndexedProperty(obj Value, prop *types.PropertyInfo, indices []Value, value Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {

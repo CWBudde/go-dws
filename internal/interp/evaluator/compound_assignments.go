@@ -100,7 +100,7 @@ func (e *Evaluator) evalCompoundIndexAssignment(
 		}
 		return e.writeInterfaceIndexedProperty(obj, prop, indices, result, stmt, ctx)
 	}
-	if e.interfacePropertyResultIndex(indexExpr) {
+	if e.interfacePropertyResultIndex(indexExpr, ctx) {
 		return e.evalCompoundPropertyResultIndex(indexExpr, stmt, ctx)
 	}
 	// Read current value via index access

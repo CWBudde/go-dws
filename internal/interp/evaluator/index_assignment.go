@@ -39,7 +39,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 
 	// If base is a MemberAccessExpression, it's an indexed property: obj.Prop[i] := value
 	// or an indexed array/string field: obj.Field[i] := value.
-	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok && !e.interfacePropertyResultIndex(target) {
+	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok && !e.interfacePropertyResultIndex(target, ctx) {
 		baseObj := e.Eval(memberAccess.Object, ctx)
 		if isError(baseObj) {
 			return baseObj

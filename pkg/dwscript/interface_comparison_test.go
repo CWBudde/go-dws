@@ -132,6 +132,16 @@ PrintLn(L = R); PrintLn(L <> R);`,
 			want: "True\nFalse\n",
 		},
 		{
+			name: "explicit class cast compares by wrapped object",
+			source: `var Obj: TObject := TBoth.Create;
+var Other: TObject := TBoth.Create;
+var L: ILeft := Obj as ILeft;
+PrintLn(TBoth(Obj) = L); PrintLn(L = TBoth(Obj));
+PrintLn(TBoth(Obj) <> L); PrintLn(TBoth(Other) = L);
+PrintLn(TBoth(Obj) = Obj); PrintLn(TBoth(Obj) = TBoth(Other));`,
+			want: "True\nTrue\nFalse\nFalse\nTrue\nFalse\n",
+		},
+		{
 			name: "nil interfaces and nil literal",
 			source: `var L: ILeft;
 var R: IRight;
