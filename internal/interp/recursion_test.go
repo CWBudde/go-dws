@@ -277,3 +277,45 @@ end.
 // Note: Additional tests for record methods, class methods, and forward declarations
 // are omitted as those features are not yet fully implemented. The 6 tests above
 // comprehensively validate recursion limit enforcement for user functions and lambdas.
+
+// TestRecursionInRecordMethod tests that runaway record-method recursion raises
+// EScriptStackOverflow with the standard message, like ordinary routines.
+func TestRecursionInRecordMethod(t *testing.T) {
+	script := `
+type TRec = record
+	X: Integer;
+	procedure Deep;
+end;
+
+procedure TRec.Deep;
+begin
+	Deep;
+end;
+
+var r: TRec;
+var message: String := 'not caught';
+
+begin
+	try
+		r.Deep;
+	except
+		on E: EScriptStackOverflow do
+			message := E.Message;
+	end;
+
+	PrintLn(message);
+end.
+`
+	var output bytes.Buffer
+	interp := New(&output)
+	result := runScript(t, interp, script)
+
+	if isError(result) {
+		t.Fatalf("Script execution failed: %v", result)
+	}
+
+	got := strings.TrimSpace(output.String())
+	if got != "Maximal recursion exceeded (1024)" {
+		t.Errorf("Expected EScriptStackOverflow message, got %q", got)
+	}
+}

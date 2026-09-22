@@ -37,7 +37,7 @@ func (e *Evaluator) callRecordMethod(
 	unitName, _ := e.typeSystem.NodeUnit(method)
 	frameName := record.GetRecordTypeName() + "." + method.Name.Value
 	if err := ctx.GetCallStack().PushWithUnit(frameName, e.SourceFile(), callSitePosOf(node), unitName); err != nil {
-		return e.newError(node, "maximum recursion depth exceeded")
+		return e.raiseRecursionExceeded(ctx)
 	}
 	defer ctx.GetCallStack().Pop()
 
