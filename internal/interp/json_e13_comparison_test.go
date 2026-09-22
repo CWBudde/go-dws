@@ -53,3 +53,18 @@ PrintLn(j in [Next()]);
 PrintLn(calls);
 `), "False\n1\nTrue\n2\n")
 }
+
+// Coercive membership is for scalars; a Variant holding an object must still
+// compare by identity, not by the "TClass instance" text all instances share.
+func TestJSONE13MembershipKeepsObjectIdentity(t *testing.T) {
+	assertOutput(t, runQuickwinScript(t, `
+type TFoo = class end;
+var a := TFoo.Create;
+var b := TFoo.Create;
+var arr: array of TFoo := [b];
+var v: Variant := a;
+var w: Variant := b;
+PrintLn(v in arr); PrintLn(w in arr);
+PrintLn(v in [b]); PrintLn(w in [b]);
+`), "False\nTrue\nFalse\nTrue\n")
+}

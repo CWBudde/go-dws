@@ -98,11 +98,26 @@ func isVariantComparisonValue(value Value) bool {
 	return kind == runtime.KindVariant || kind == runtime.KindJSON
 }
 
+// membershipEqual applies coercive Variant/JSON comparison to scalars only.
+// Reference-typed operands keep ValuesEqual's identity semantics: the Variant
+// comparison fallback would compare their String() forms, which every
+// instance of a class shares.
 func (e *Evaluator) membershipEqual(left, right Value, node ast.Node) Value {
-	if isVariantComparisonValue(left) || isVariantComparisonValue(right) {
+	if (isVariantComparisonValue(left) || isVariantComparisonValue(right)) &&
+		!isReferenceComparisonValue(left) && !isReferenceComparisonValue(right) {
 		return e.evalVariantBinaryOp("=", left, right, node)
 	}
 	return &runtime.BooleanValue{Value: ValuesEqual(left, right)}
+}
+
+func isReferenceComparisonValue(value Value) bool {
+	switch runtime.KindOf(unwrapVariant(value)) {
+	case runtime.KindObject, runtime.KindInterface, runtime.KindClass, runtime.KindClassInfo,
+		runtime.KindRecord, runtime.KindArray, runtime.KindSet,
+		runtime.KindFunctionPointer, runtime.KindMethodPointer, runtime.KindLambda:
+		return true
+	}
+	return false
 }
 
 func (e *Evaluator) membershipRangeBound(op string, left, right Value, node ast.Node) Value {
