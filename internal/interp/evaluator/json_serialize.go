@@ -113,59 +113,10 @@ func (e *Evaluator) objectToJSON(obj *runtime.ObjectInstance, node ast.Node, ctx
 	seen := make(map[string]bool)
 
 	for cur := obj.Class; cur != nil; cur = cur.GetParent() {
-		var members []jsonMember
-		levelSeen := make(map[string]bool)
-
-		add := func(name string, jv *jsonTextValue) {
-			norm := ident.Normalize(name)
-			if seen[norm] || levelSeen[norm] {
-				return
-			}
-			levelSeen[norm] = true
-			members = append(members, jsonMember{name: name, jv: jv})
+		members, ok := e.classLevelJSONMembers(obj, cur, seen, node, ctx)
+		if !ok {
+			return result
 		}
-
-		// Own fields at this class level (public only).
-		if meta := cur.GetMetadata(); meta != nil {
-			for _, fm := range meta.Fields {
-				if fm.Visibility != runtime.FieldVisibilityPublic {
-					continue
-				}
-				fv := obj.GetFieldFromClass(fm.Name, cur.GetName())
-				add(fm.Name, e.valueToJSONValue(fv, node, ctx))
-				if ctx.Exception() != nil {
-					return result
-				}
-			}
-		}
-
-		// Own properties at this class level (non-indexed, readable).
-		for _, prop := range ownProperties(cur) {
-			if prop.IsIndexed {
-				continue
-			}
-			pInfo, ok := unwrapPropertyInfo(prop)
-			if !ok || pInfo.ReadKind == types.PropAccessNone {
-				continue
-			}
-			res := e.executePropertyRead(obj, prop, node, ctx)
-			if ctx.Exception() != nil {
-				return result
-			}
-			if isError(res) {
-				continue
-			}
-			// An `external 'name'` clause renames the property's JSON key.
-			name := prop.Name
-			if pInfo.ExternalName != "" {
-				name = pInfo.ExternalName
-			}
-			add(name, e.valueToJSONValue(res, node, ctx))
-			if ctx.Exception() != nil {
-				return result
-			}
-		}
-
 		sort.Slice(members, func(i, j int) bool { return members[i].name < members[j].name })
 		for _, m := range members {
 			seen[ident.Normalize(m.name)] = true
@@ -174,6 +125,65 @@ func (e *Evaluator) objectToJSON(obj *runtime.ObjectInstance, node ast.Node, ctx
 	}
 
 	return result
+}
+
+// classLevelJSONMembers collects the public fields and non-indexed readable
+// properties declared at one class level, skipping names already emitted by a
+// more-derived level. It reports false when serialization raised an exception.
+func (e *Evaluator) classLevelJSONMembers(obj *runtime.ObjectInstance, cur runtime.IClassInfo, seen map[string]bool, node ast.Node, ctx *ExecutionContext) ([]jsonMember, bool) {
+	var members []jsonMember
+	levelSeen := make(map[string]bool)
+
+	add := func(name string, jv *jsonTextValue) {
+		norm := ident.Normalize(name)
+		if seen[norm] || levelSeen[norm] {
+			return
+		}
+		levelSeen[norm] = true
+		members = append(members, jsonMember{name: name, jv: jv})
+	}
+
+	// Own fields at this class level (public only).
+	if meta := cur.GetMetadata(); meta != nil {
+		for _, fm := range meta.Fields {
+			if fm.Visibility != runtime.FieldVisibilityPublic {
+				continue
+			}
+			fv := obj.GetFieldFromClass(fm.Name, cur.GetName())
+			add(fm.Name, e.valueToJSONValue(fv, node, ctx))
+			if ctx.Exception() != nil {
+				return nil, false
+			}
+		}
+	}
+
+	// Own properties at this class level (non-indexed, readable).
+	for _, prop := range ownProperties(cur) {
+		if prop.IsIndexed {
+			continue
+		}
+		pInfo, ok := unwrapPropertyInfo(prop)
+		if !ok || pInfo.ReadKind == types.PropAccessNone {
+			continue
+		}
+		res := e.executePropertyRead(obj, prop, node, ctx)
+		if ctx.Exception() != nil {
+			return nil, false
+		}
+		if isError(res) {
+			continue
+		}
+		// An `external 'name'` clause renames the property's JSON key.
+		name := prop.Name
+		if pInfo.ExternalName != "" {
+			name = pInfo.ExternalName
+		}
+		add(name, e.valueToJSONValue(res, node, ctx))
+		if ctx.Exception() != nil {
+			return nil, false
+		}
+	}
+	return members, true
 }
 
 // setToJSON serializes a set value to a JSON array, matching DWScript's JSON

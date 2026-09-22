@@ -783,14 +783,6 @@ func mixedInterfaceIdentity(left, right Value) (bool, bool) {
 	return left == iface.GetUnderlyingObjectValue(), true
 }
 
-// unwrapTypeCast returns the reference wrapped by an explicit class cast.
-func unwrapTypeCast(v Value) Value {
-	if cast, ok := v.(TypeCastAccessor); ok {
-		return cast.GetWrappedValue()
-	}
-	return v
-}
-
 // areEqualityCompatible checks if two values can be compared with = or <>
 // Valid comparisons:
 // - Same types (INTEGER=INTEGER, STRING=STRING, etc.)
