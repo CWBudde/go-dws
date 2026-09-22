@@ -118,18 +118,19 @@ type Analyzer struct {
 	// bodies after every other top-level statement and only splices each one
 	// back once it is finished, so the raw error list is not in source order
 	// while the body is running; see errorsPrecedeCurrentStatement.
-	deferredBody           deferredBodyErrorBounds
-	loopPosStack           []token.Position
-	structuredErrors       []*SemanticError
-	loopExitabilityStack   []LoopExitability
-	loopDepth              int
-	hintsLevel             HintsLevel
-	inUnitDecl             bool
-	deferClassMethodBodies bool
-	parseHadErrors         bool
-	inLoop                 bool
-	inLambda               bool
-	inClassMethod          bool
+	deferredBody                       deferredBodyErrorBounds
+	loopPosStack                       []token.Position
+	structuredErrors                   []*SemanticError
+	loopExitabilityStack               []LoopExitability
+	loopDepth                          int
+	hintsLevel                         HintsLevel
+	disableSymbolDictionaryDiagnostics bool
+	inUnitDecl                         bool
+	deferClassMethodBodies             bool
+	parseHadErrors                     bool
+	inLoop                             bool
+	inLambda                           bool
+	inClassMethod                      bool
 	// inStaticHelperMethod marks the body of a `static` helper class method,
 	// which is invoked with neither an instance nor a class reference and so
 	// has no Self at all.
@@ -693,6 +694,17 @@ func (a *Analyzer) SetHintsLevel(level HintsLevel) {
 	a.hintsLevel = level
 }
 
+// SetSymbolDictionaryDiagnostics controls hints that upstream derives from its
+// optional symbol dictionary. Enabled by default for compatibility with callers
+// predating this option; independent source hints remain controlled by HintsLevel.
+func (a *Analyzer) SetSymbolDictionaryDiagnostics(enabled bool) {
+	a.disableSymbolDictionaryDiagnostics = !enabled
+}
+
+func (a *Analyzer) symbolDictionaryDiagnosticsEnabled() bool {
+	return a != nil && !a.disableSymbolDictionaryDiagnostics
+}
+
 // hintsLevelAt resolves the source directive without depending on semantic traversal
 // order. Positions retain their setting through parser lookahead, includes, and units.
 func (a *Analyzer) hintsLevelAt(pos token.Position) HintsLevel {
@@ -914,10 +926,11 @@ func (a *Analyzer) canAssignMetaclass(from, to types.Type) bool {
 
 // canAssignClass checks class type assignment compatibility.
 func (a *Analyzer) canAssignClass(from, to types.Type) bool {
-	fromClass, ok := from.(*types.ClassType)
+	fromClass, ok := types.GetUnderlyingType(from).(*types.ClassType)
 	if !ok {
 		return false
 	}
+	to = types.GetUnderlyingType(to)
 
 	if toMetaclass, ok := to.(*types.ClassOfType); ok {
 		return fromClass.Equals(toMetaclass.ClassType) || a.isDescendantOf(fromClass, toMetaclass.ClassType)

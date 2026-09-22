@@ -8,6 +8,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/encoding"
 	"github.com/cwbudde/go-dws/internal/semantic"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // pedanticCategories are the fixture directories collected by upstream's
@@ -50,6 +51,13 @@ func HintsLevel(category string) semantic.HintsLevel {
 		return semantic.HintsLevelPedantic
 	}
 	return semantic.HintsLevelStrict
+}
+
+// SymbolDictionaryDiagnostics matches the selected upstream runner: UScriptTests
+// executes without coSymbolDictionary, but its nonoptimized failure checks enable
+// it. Other runners retain dictionary diagnostics independently of hint level.
+func SymbolDictionaryDiagnostics(category string) bool {
+	return !pedanticCategories[category] || category == "FailureScripts" || ident.HasSuffix(category, "Fail")
 }
 
 // ReadExpected reads a fixture's expectation with encoding detection. Output

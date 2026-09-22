@@ -68,6 +68,7 @@ func analyzeUnits(analyzer *semantic.Analyzer, result *Result, opts Options) err
 		unitAnalyzer := semantic.NewAnalyzer()
 		unitAnalyzer.SetSemanticInfo(analyzer.GetSemanticInfo())
 		unitAnalyzer.SetHintsLevel(opts.HintsLevel)
+		unitAnalyzer.SetSymbolDictionaryDiagnostics(!opts.DisableSymbolDictionaryDiagnostics)
 		// Upstream initializes the unit symbol tables in the same guarded block as
 		// the program's, so a stop in the main source skips the end-of-compilation
 		// checks of the units too.

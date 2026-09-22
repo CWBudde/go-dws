@@ -541,7 +541,12 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 		return testResultSkipped, ""
 	}
 
-	compileResult := frontend.Compile(source, pasFile, hintsLevel)
+	compileResult := frontend.CompileWithOptions(source, frontend.Options{
+		Filename:                           pasFile,
+		IncludeDir:                         filepath.Dir(pasFile),
+		HintsLevel:                         hintsLevel,
+		DisableSymbolDictionaryDiagnostics: !fixtureconfig.SymbolDictionaryDiagnostics(filepath.Base(filepath.Dir(pasFile))),
+	})
 
 	var v fixtureVerdict
 	if expectErrors {

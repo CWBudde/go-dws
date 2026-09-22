@@ -5441,3 +5441,56 @@ measuring. All changed Go files pass `gofmt` and the diff whitespace check.
 The full `golangci-lint run` still reports **1,226 existing findings**, matching the starting
 branch. The final interface pointer helper keeps the caller within the complexity limit;
 full semantic and focused interface tests passed again after that extraction.
+
+## 2026-09-22 — Complete interface follow-ups (PLAN.md §3.5 / E12)
+
+The remaining E12 interface work covers indexed/default properties, runner-dependent
+diagnostics, mixed class/interface equality, and direct assignment to interface aliases.
+
+Interface properties retain their index signatures and validate accessor types, parameter
+lists, access permissions, and duplicate defaults. Interface declarations accept `method`
+signatures with or without return types. The parser retains the position following a
+`default` directive for the upstream duplicate-default diagnostic. Named and default access
+supports multiple indices, inheritance, interface references stored in class members, and
+implicit parameterless receivers. A child's default takes precedence over its parent's.
+Property-result indexing remains separate from accessor arguments; compound assignments
+capture the receiver, indices and returned container once. Runtime dispatch remains evaluator-owned.
+
+The frontend and CLI now expose symbol-dictionary diagnostic control, enabled by default
+to preserve existing callers. The shared fixture policy disables it for `UScriptTests`
+execution categories and enables it for the nonoptimized failure categories. It gates unused
+locals, unused `Result`, private members and unwritten reference parameters, independently
+of case hints and source directives, including in imported units. Successfully matched
+interface implementations are exempt from unused-private hints, including inherited methods;
+an unrelated private `Unused` method still produces its hint when the setting is enabled.
+`LambdaPass/immediate` also passes with the corrected runner options.
+
+Mixed compatible class/interface equality compares underlying object identity in either
+operand order. Class-to-interface assignment unwraps aliases before checking compatibility,
+and declaration initialization uses the canonical interface type to retain the interface
+wrapper, including for nil values. Regressions use the public compile/run path and cover
+alias chains, aliased class sources, inherited implementations, nil and invalid operands.
+
+CLI and harness agree at **1,296 / 1,966 scored = 66%**, or **1,296 / 1,747 = 74% in scope**.
+The error-detection suites reach **291 / 641**. No category regressed:
+
+| Category | Before | After |
+| --- | ---: | ---: |
+| InterfacesPass | 31/33 | 33/33 |
+| InterfacesFail | 5/19 | 6/19 |
+| ArrayPass | 99/115 | 100/115 |
+| LambdaPass | 4/6 | 5/6 |
+| SimpleScripts | 383/443 | 385/443 |
+
+Validation: `go test -p 1 -json ./...` passed (31 packages, four without tests), and
+the focused interface/dictionary regressions passed again after lint cleanup. The visitor
+was regenerated with no generated-code diff. `just fixture-update` refreshed the status and
+ratcheted all five improved categories; a freshly rebuilt `fixture-report` matched the harness
+in all 61 categories. Full lint reports **1,224 pre-existing findings**, down from **1,226**,
+with no new findings. Changed Go files pass formatting and diff whitespace checks.
+Parser statement coverage increased from **78.2% to 78.3%** (`go test ./internal/parser -cover`).
+
+Validation used two CPUs and sequential build/test/lint batches. The active Go cache and
+subsequent build artifacts were moved to ignored disk-backed `.cache/e12` because `/tmp` is
+RAM-backed in this environment. The separate helper-recursion fixture remains E15 work;
+it is still an isolated failure, and no baseline was lowered to accommodate it.

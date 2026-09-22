@@ -1115,6 +1115,19 @@ func (it *InterfaceType) GetProperty(name string) *PropertyInfo {
 	return it.Parent.GetProperty(name)
 }
 
+// GetDefaultProperty returns the nearest declared default property.
+func (it *InterfaceType) GetDefaultProperty() *PropertyInfo {
+	if it == nil {
+		return nil
+	}
+	for _, prop := range it.Properties {
+		if prop.IsDefault {
+			return prop
+		}
+	}
+	return it.Parent.GetDefaultProperty()
+}
+
 // GetAllInterfaceMethods returns all methods of an interface, including inherited methods.
 func GetAllInterfaceMethods(iface *InterfaceType) map[string]*FunctionType {
 	if iface == nil {

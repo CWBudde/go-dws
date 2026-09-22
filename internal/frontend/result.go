@@ -196,6 +196,10 @@ type Options struct {
 	IncludeDir string
 	// HintsLevel is applied to the analyzer (semantic.HintsLevelDisabled turns hints off).
 	HintsLevel semantic.HintsLevel
+	// DisableSymbolDictionaryDiagnostics disables unused-symbol and unwritten
+	// reference-parameter hints, matching upstream without coSymbolDictionary.
+	// False preserves the historical diagnostics of this frontend.
+	DisableSymbolDictionaryDiagnostics bool
 	// SkipTypeCheck stops after parsing and generic monomorphization; Result.Analyzer
 	// stays nil. The zero value (false) runs the full pipeline.
 	SkipTypeCheck bool
@@ -299,6 +303,7 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 
 	analyzer := semantic.NewAnalyzer()
 	analyzer.SetHintsLevel(opts.HintsLevel)
+	analyzer.SetSymbolDictionaryDiagnostics(!opts.DisableSymbolDictionaryDiagnostics)
 	analyzer.SetSource(source, opts.Filename)
 	analyzer.SetParseHadErrors(result.HasDiagnosticsInPhase(PhaseParsing))
 	analyzer.SetCompileStopped(result.HasParserStop())

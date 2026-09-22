@@ -21,11 +21,17 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		return e.newError(node, "index expression missing base")
 	}
 
+	if obj, prop, indices, handled, err := e.resolveInterfaceIndexedProperty(node, ctx); handled {
+		if err != nil {
+			return err
+		}
+		return e.readInterfaceIndexedProperty(obj, prop, indices, node, ctx)
+	}
 	// Collect indices - flatten for property access, not for regular arrays
 	base, indices := CollectIndices(node)
 
 	// Check if this is indexed property access: obj.Property[index1, index2, ...]
-	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
+	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok && !e.interfacePropertyResultIndex(node) {
 		// Evaluate the object being accessed
 		objVal := e.Eval(memberAccess.Object, ctx)
 		if isError(objVal) {
@@ -150,7 +156,15 @@ func (e *Evaluator) indexResolvedValue(leftVal Value, node *ast.IndexExpression,
 	if isError(indexVal) {
 		return indexVal
 	}
+	if ctx.Exception() != nil {
+		return e.nilValue()
+	}
 
+	return e.readResolvedIndex(leftVal, indexVal, node, ctx)
+}
+
+// readResolvedIndex reads from an already captured container and index.
+func (e *Evaluator) readResolvedIndex(leftVal, indexVal Value, node *ast.IndexExpression, ctx *ExecutionContext) Value {
 	// Unwrap variants for indexing
 	leftVal = unwrapVariant(leftVal)
 

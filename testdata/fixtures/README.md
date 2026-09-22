@@ -306,6 +306,23 @@ The 24 categories collected by `UScriptTests` use **pedantic** hints; every othe
 the compiler's **strict** default. Missing expectations still detect unexpected output,
 compile diagnostics and runtime errors; they do not mean an automatic pass.
 
+### Symbol-dictionary diagnostics
+
+The shared `internal/fixtureconfig.SymbolDictionaryDiagnostics` policy controls
+dictionary-dependent hints in both the Go harness and `fixture-report`, which passes
+`--symbol-dictionary-diagnostics=true|false` to the CLI. In the bundled
+[UScriptTests.pas](UScriptTests.pas), `ExecutionNonOptimized` and `ExecutionOptimized`
+omit `coSymbolDictionary`, while `FailuresNonOptimized` enables it. Accordingly,
+the collected execution categories disable these hints and the nonoptimized failure
+categories enable them. Other runners retain the existing enabled setting.
+
+This controls unused locals, unused `Result`, unused private members, and unwritten
+reference `var` parameter hints. Hint levels still apply independently. Interface
+implementations are exempt from unused-private hints, but unrelated private methods
+are not: `InterfacesPass/intf_private` prints only `hello TTest` under its runner
+policy, while enabling dictionary diagnostics preserves the hint for `Unused`.
+No per-fixture suppression or expectation rewriting is involved.
+
 ### Evidence for case-mismatch hint settings
 
 The shared `internal/fixtureconfig.HintsLevel` policy supplies both the Go harness's category

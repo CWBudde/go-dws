@@ -90,10 +90,13 @@ func (ii *MutableInterfaceInfo) HasProperty(name string) bool {
 
 // GetDefaultProperty returns the declared or inherited default property.
 func (ii *MutableInterfaceInfo) GetDefaultProperty() *PropertyInfo {
-	for _, prop := range ii.AllProperties() {
+	for name, prop := range ii.Properties {
 		if prop.IsDefault {
-			return prop
+			return ii.GetProperty(name)
 		}
+	}
+	if ii.Parent != nil {
+		return ii.Parent.GetDefaultProperty()
 	}
 	return nil
 }

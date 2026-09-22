@@ -141,7 +141,7 @@ func (a *Analyzer) analyzeInterfacePropertyDecl(prop *ast.PropertyDecl, iface *t
 			"property '"+propName+"' missing type annotation in interface '"+iface.Name+"'"))
 		return
 	}
-	propType, err := a.resolveType(getTypeExpressionName(prop.Type))
+	propType, err := a.resolveTypeExpression(prop.Type)
 	if err != nil {
 		a.addStructuredError(NewPropertyDeclarationError(prop.Token.Pos,
 			"unknown type '"+getTypeExpressionName(prop.Type)+"' for property '"+propName+"' in interface '"+iface.Name+"'"))
@@ -190,6 +190,12 @@ func (a *Analyzer) analyzeInterfacePropertyDecl(prop *ast.PropertyDecl, iface *t
 		propInfo.WriteKind = types.PropAccessNone
 	}
 
+	if !a.resolveInterfacePropertyIndices(prop, propInfo) {
+		return
+	}
+	a.validateInterfacePropertyAccessors(prop, propInfo, iface)
+	a.validateInterfaceDefaultProperty(prop, propInfo, iface)
+
 	iface.Properties[propKey] = propInfo
 }
 
@@ -226,6 +232,15 @@ func (a *Analyzer) validateInterfaceImplementation(classType *types.ClassType, d
 				a.addError("method '%s' in class '%s' does not match interface signature from '%s' at %s",
 					methodName, classType.Name, ifaceName, decl.Token.Pos.String())
 			} else {
+				// Interface dispatch references the implementation even when no
+				// class-typed call names it. Credit its declaring owner so an
+				// inherited private implementation is exempt too.
+				for owner := classType; owner != nil; owner = owner.Parent {
+					if _, declared := owner.Methods[ident.Normalize(methodName)]; declared {
+						owner.MarkMethodUsed(methodName)
+						break
+					}
+				}
 				// Clear the forward flag since this method implements the interface
 				// Methods implementing interfaces are complete implementations, not forward declarations
 				forwardKey := ident.Normalize(classType.Name) + "." + ident.Normalize(methodName)

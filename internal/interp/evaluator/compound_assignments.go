@@ -82,6 +82,27 @@ func (e *Evaluator) evalCompoundIndexAssignment(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
+	if obj, prop, indices, handled, err := e.resolveInterfaceIndexedProperty(indexExpr, ctx); handled {
+		if err != nil {
+			return err
+		}
+		current := e.readInterfaceIndexedProperty(obj, prop, indices, indexExpr, ctx)
+		if isError(current) || ctx.Exception() != nil {
+			return current
+		}
+		right := e.Eval(stmt.Value, ctx)
+		if isError(right) || ctx.Exception() != nil {
+			return right
+		}
+		result := e.applyCompoundOperation(stmt.Operator, current, right, stmt, ctx)
+		if isError(result) || ctx.Exception() != nil {
+			return result
+		}
+		return e.writeInterfaceIndexedProperty(obj, prop, indices, result, stmt, ctx)
+	}
+	if e.interfacePropertyResultIndex(indexExpr) {
+		return e.evalCompoundPropertyResultIndex(indexExpr, stmt, ctx)
+	}
 	// Read current value via index access
 	currentValue := e.VisitIndexExpression(indexExpr, ctx)
 	if isError(currentValue) {
@@ -112,4 +133,30 @@ func (e *Evaluator) evalCompoundIndexAssignment(
 
 	// Write back via index assignment
 	return e.evalIndexAssignmentDirect(indexExpr, result, stmt, ctx)
+}
+
+// evalCompoundPropertyResultIndex captures the returned container and final
+// index so the accessor and all index expressions execute only once.
+func (e *Evaluator) evalCompoundPropertyResultIndex(indexExpr *ast.IndexExpression, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {
+	container := e.resolveLValueContainer(indexExpr.Left, ctx)
+	if isError(container) || ctx.Exception() != nil {
+		return container
+	}
+	index := e.Eval(indexExpr.Index, ctx)
+	if isError(index) || ctx.Exception() != nil {
+		return index
+	}
+	current := e.readResolvedIndex(container, index, indexExpr, ctx)
+	if isError(current) || ctx.Exception() != nil {
+		return current
+	}
+	right := e.Eval(stmt.Value, ctx)
+	if isError(right) || ctx.Exception() != nil {
+		return right
+	}
+	result := e.applyCompoundOperation(stmt.Operator, current, right, stmt, ctx)
+	if isError(result) || ctx.Exception() != nil {
+		return result
+	}
+	return e.assignResolvedIndex(container, index, result, stmt, ctx)
 }

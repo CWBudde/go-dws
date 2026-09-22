@@ -27,13 +27,19 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
+	if obj, prop, indices, handled, err := e.resolveInterfaceIndexedProperty(target, ctx); handled {
+		if err != nil {
+			return err
+		}
+		return e.writeInterfaceIndexedProperty(obj, prop, indices, value, stmt, ctx)
+	}
 	// Check if this might be a multi-index property write
 	// We only flatten indices if the base is a MemberAccessExpression (property access)
 	base, indices := CollectIndices(target)
 
 	// If base is a MemberAccessExpression, it's an indexed property: obj.Prop[i] := value
 	// or an indexed array/string field: obj.Field[i] := value.
-	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok {
+	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok && !e.interfacePropertyResultIndex(target) {
 		baseObj := e.Eval(memberAccess.Object, ctx)
 		if isError(baseObj) {
 			return baseObj
@@ -137,6 +143,11 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 		return &runtime.NilValue{}
 	}
 
+	return e.assignResolvedIndex(arrayVal, indexVal, value, stmt, ctx)
+}
+
+// assignResolvedIndex writes into an already captured container and index.
+func (e *Evaluator) assignResolvedIndex(arrayVal, indexVal, value Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {
 	// JSON index write: obj['key'] := value / arr[i] := value.
 	if isJSONBoxed(arrayVal) {
 		return e.assignJSONIndex(jsonValueOf(arrayVal), indexVal, value, stmt, ctx)
@@ -346,6 +357,10 @@ func (e *Evaluator) evalIndexedPropertyAssignmentOnObject(
 		indexValues = append(indexValues, indexVal)
 	}
 
+	return e.evalIndexedPropertyAssignmentValues(baseObj, propName, indexValues, value, stmt, ctx)
+}
+
+func (e *Evaluator) evalIndexedPropertyAssignmentValues(baseObj Value, propName string, indexValues []Value, value Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {
 	// Try to get property descriptor from the object
 	// Different types have different property lookup mechanisms
 	var propDesc *runtime.PropertyDescriptor
@@ -359,6 +374,11 @@ func (e *Evaluator) evalIndexedPropertyAssignmentOnObject(
 		return e.newError(stmt, "property '%s' not found on %s", propName, baseObj.Type())
 	}
 
+	return e.evalIndexedPropertyAssignmentDescriptor(baseObj, propDesc, indexValues, value, stmt, ctx)
+}
+
+func (e *Evaluator) evalIndexedPropertyAssignmentDescriptor(baseObj Value, propDesc *runtime.PropertyDescriptor, indexValues []Value, value Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {
+	propName := propDesc.Name
 	// Check if property is indexed
 	if !propDesc.IsIndexed {
 		return e.newError(stmt, "property '%s' is not an indexed property", propName)

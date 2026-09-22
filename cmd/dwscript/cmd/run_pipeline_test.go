@@ -14,36 +14,40 @@ import (
 func captureRun(t *testing.T, source string, args []string, configure func()) (string, error) {
 	t.Helper()
 	saved := struct {
-		evalExpr        string
-		hintsLevel      string
-		diagnosticsMode string
-		searchPaths     []string
-		maxRecursion    int
-		dumpAST         bool
-		trace           bool
-		typeCheck       bool
-		showUnits       bool
-		bytecode        bool
-		testEnvelope    bool
-		compileOnly     bool
-		verbose         bool
-		silenceUsage    bool
+		evalExpr                    string
+		hintsLevel                  string
+		diagnosticsMode             string
+		searchPaths                 []string
+		maxRecursion                int
+		dumpAST                     bool
+		trace                       bool
+		typeCheck                   bool
+		showUnits                   bool
+		bytecode                    bool
+		testEnvelope                bool
+		compileOnly                 bool
+		symbolDictionaryDiagnostics bool
+		verbose                     bool
+		silenceUsage                bool
 	}{
 		evalExpr: evalExpr, hintsLevel: hintsLevel, diagnosticsMode: diagnosticsMode,
 		searchPaths: unitSearchPaths, maxRecursion: maxRecursion,
 		dumpAST: dumpAST, trace: trace, typeCheck: typeCheck, showUnits: showUnits,
 		bytecode: bytecodeMode, testEnvelope: testEnvelope, compileOnly: compileOnly,
-		verbose: verbose, silenceUsage: runCmd.SilenceUsage,
+		symbolDictionaryDiagnostics: symbolDictionaryDiagnostics,
+		verbose:                     verbose, silenceUsage: runCmd.SilenceUsage,
 	}
 	t.Cleanup(func() {
 		evalExpr, hintsLevel, diagnosticsMode = saved.evalExpr, saved.hintsLevel, saved.diagnosticsMode
 		dumpAST, trace, typeCheck, showUnits, bytecodeMode = saved.dumpAST, saved.trace, saved.typeCheck, saved.showUnits, saved.bytecode
 		testEnvelope, compileOnly, maxRecursion, unitSearchPaths = saved.testEnvelope, saved.compileOnly, saved.maxRecursion, saved.searchPaths
 		verbose, runCmd.SilenceUsage = saved.verbose, saved.silenceUsage
+		symbolDictionaryDiagnostics = saved.symbolDictionaryDiagnostics
 	})
 	evalExpr, hintsLevel, diagnosticsMode = source, "off", "pretty"
 	dumpAST, trace, typeCheck, showUnits, bytecodeMode, testEnvelope, compileOnly, verbose = false, false, true, false, false, false, false, false
 	maxRecursion, unitSearchPaths = 1024, nil
+	symbolDictionaryDiagnostics = true
 	if configure != nil {
 		configure()
 	}

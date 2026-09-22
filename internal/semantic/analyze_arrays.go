@@ -74,6 +74,10 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return nil
 	}
 
+	if typ, handled := a.analyzeInterfaceIndexedProperty(expr, false, false); handled {
+		return typ
+	}
+
 	// Special-case indexed properties: obj.Prop[index]
 	if memberAccess, ok := expr.Left.(*ast.MemberAccessExpression); ok {
 		if propType := a.analyzeIndexedPropertyAccess(memberAccess, expr); propType != nil {

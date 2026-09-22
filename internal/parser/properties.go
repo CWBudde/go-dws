@@ -233,6 +233,7 @@ parseDirectives:
 	if p.peekTokenIs(lexer.DEFAULT) {
 		p.nextToken() // move to 'default'
 		prop.IsDefault = true
+		prop.DefaultPos = p.cursor.Peek(1).Pos
 
 		// Expect another semicolon after 'default'
 		if !p.expectPeek(lexer.SEMICOLON) {

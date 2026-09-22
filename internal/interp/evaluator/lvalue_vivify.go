@@ -40,6 +40,13 @@ func (e *Evaluator) resolveLValueContainer(expr ast.Expression, ctx *ExecutionCo
 		return e.Eval(expr, ctx)
 	}
 
+	if obj, prop, indices, handled, err := e.resolveInterfaceIndexedProperty(idx, ctx); handled {
+		if err != nil {
+			return err
+		}
+		return e.readInterfaceIndexedProperty(obj, prop, indices, idx, ctx)
+	}
+
 	// An index chain rooted at a member (`holder.X[k]`) may be an indexed
 	// property, which VisitIndexExpression handles as a whole because it needs
 	// the flattened index list. Ordinary members — a field or a non-indexed

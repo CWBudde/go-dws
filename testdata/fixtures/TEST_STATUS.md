@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-09-21
+**Generated**: 2026-09-22
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1289 |
-| Failed | 677 |
+| Passed | 1296 |
+| Failed | 670 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **66%** (1289/1966) |
+| **Scored pass rate** | **66%** (1296/1966) |
 
 ## Per-category
 
@@ -24,7 +24,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | Category | Total | Pass | Fail | Skip | Pass% |
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
-| ArrayPass | 115 | 99 | 16 | 0 | 86% |
+| ArrayPass | 115 | 100 | 15 | 0 | 87% |
 | AssociativeFail | 4 | 2 | 2 | 0 | 50% |
 | AssociativePass | 27 | 27 | 0 | 0 | 100% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
@@ -60,14 +60,14 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | IniFileLib | 2 | 0 | 2 | 0 | 0% |
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
 | InnerClassesPass | 2 | 2 | 0 | 0 | 100% |
-| InterfacesFail | 19 | 5 | 14 | 0 | 26% |
-| InterfacesPass | 33 | 31 | 2 | 0 | 94% |
+| InterfacesFail | 19 | 6 | 13 | 0 | 32% |
+| InterfacesPass | 33 | 33 | 0 | 0 | 100% |
 | JSFilterScripts | 2 | 2 | 0 | 0 | 100% |
 | JSFilterScriptsFail | 1 | 1 | 0 | 0 | 100% |
 | JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
 | JSONConnectorPass | 82 | 73 | 9 | 0 | 89% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
-| LambdaPass | 6 | 4 | 2 | 0 | 67% |
+| LambdaPass | 6 | 5 | 1 | 0 | 83% |
 | Linq | 7 | 0 | 7 | 0 | 0% |
 | LinqJSON | 6 | 0 | 6 | 0 | 0% |
 | Memory | 13 | 7 | 6 | 0 | 54% |
@@ -79,7 +79,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
 | SetOfFail | 14 | 13 | 1 | 0 | 93% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 383 | 60 | 0 | 86% |
+| SimpleScripts | 443 | 385 | 58 | 0 | 87% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

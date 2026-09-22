@@ -5,8 +5,16 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/cwbudde/go-dws/internal/fixtureconfig"
 	"github.com/cwbudde/go-dws/internal/semantic"
 )
+
+func TestFixtureInterfacePrivateDictionaryPolicy(t *testing.T) {
+	path := filepath.Join(fixturesRoot, "InterfacesPass", "intf_private.pas")
+	if got, detail := runFixtureTest(path, false, fixtureconfig.HintsLevel("InterfacesPass")); got != testResultPassed {
+		t.Fatalf("intf_private: %v: %s", got, detail)
+	}
+}
 
 func TestFixtureMissingExpectation(t *testing.T) {
 	for _, tt := range []struct {

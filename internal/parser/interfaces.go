@@ -806,7 +806,7 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 		}
 
 		switch cursor.Current().Type {
-		case lexer.PROCEDURE, lexer.FUNCTION:
+		case lexer.PROCEDURE, lexer.FUNCTION, lexer.METHOD:
 			// Parse method declaration (procedure or function)
 			method := p.parseInterfaceMethodDecl()
 			if method != nil {
@@ -884,6 +884,7 @@ func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 
 	// Determine if this is a procedure or function
 	isProcedure := cursor.Current().Type == lexer.PROCEDURE
+	isMethod := cursor.Current().Type == lexer.METHOD
 
 	// Expect method name identifier
 	if cursor.Peek(1).Type != lexer.IDENT {
@@ -910,7 +911,7 @@ func (p *Parser) parseInterfaceMethodDecl() *ast.InterfaceMethodDecl {
 	}
 
 	// Parse return type for functions
-	if !isProcedure {
+	if !isProcedure && (!isMethod || cursor.Peek(1).Type == lexer.COLON) {
 		// Expect ':' for return type
 		if cursor.Peek(1).Type != lexer.COLON {
 			p.addExpected(lexer.COLON)

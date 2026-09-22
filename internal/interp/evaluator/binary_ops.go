@@ -710,6 +710,13 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 		return &runtime.BooleanValue{Value: true}
 	}
 
+	// Mixed object/interface equality compares the represented object reference,
+	// just as two interface views of that object do. Semantic analysis restricts
+	// mixed operands to compatible declared types.
+	if equal, ok := mixedInterfaceIdentity(left, right); ok {
+		return &runtime.BooleanValue{Value: equal == (op == "=")}
+	}
+
 	// Handle InterfaceInstance comparisons
 	if leftType == runtime.KindInterface && rightType == runtime.KindInterface {
 		// Compare underlying objects by identity (pointer equality)
@@ -758,6 +765,22 @@ func (e *Evaluator) evalEqualityComparison(op string, left, right Value, node as
 	// Not a supported equality comparison type - this is an error
 	// (should have been caught by areEqualityCompatible, but safety check)
 	return e.newError(node, "type mismatch: %s %s %s", left.Type(), op, right.Type())
+}
+
+// mixedInterfaceIdentity handles object/interface pairs without changing the
+// separate interface/interface and object/object comparison paths.
+func mixedInterfaceIdentity(left, right Value) (bool, bool) {
+	if runtime.KindOf(left) == runtime.KindInterface {
+		left, right = right, left
+	}
+	if runtime.KindOf(left) != runtime.KindObject {
+		return false, false
+	}
+	iface, ok := right.(InterfaceInstanceValue)
+	if !ok {
+		return false, false
+	}
+	return left == iface.GetUnderlyingObjectValue(), true
 }
 
 // areEqualityCompatible checks if two values can be compared with = or <>

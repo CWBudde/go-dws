@@ -6,6 +6,25 @@ import (
 	"testing"
 )
 
+func TestRun_SymbolDictionaryDiagnostics(t *testing.T) {
+	for _, enabled := range []bool{true, false} {
+		out, err := captureRun(t, "procedure P; var Unused: Integer; begin end; P; PrintLn('ran');", nil, func() {
+			hintsLevel = "pedantic"
+			testEnvelope = true
+			symbolDictionaryDiagnostics = enabled
+		})
+		if err != nil {
+			t.Fatalf("run: %v: %s", err, out)
+		}
+		if strings.Contains(out, `Variable "Unused"`) != enabled {
+			t.Errorf("enabled=%v: %s", enabled, out)
+		}
+		if strings.Contains(out, "Errors >>>>") != enabled || !strings.Contains(out, "ran") {
+			t.Errorf("enabled=%v: envelope/output %s", enabled, out)
+		}
+	}
+}
+
 func TestRun_PlainDiagnosticsAreWireFormat(t *testing.T) {
 	out, err := captureRun(t, "var x: Integer := 'hello';", nil, func() { diagnosticsMode = "plain" })
 	if err == nil {
