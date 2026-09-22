@@ -94,6 +94,21 @@ type
 - Return types required for functions
 - Overloading not supported (each method name must be unique)
 
+### Self-Referential Signatures
+
+An interface can use its own type in method parameters, return types, and properties:
+
+```pascal
+type INode = interface
+  function Next: INode;
+  procedure Link(other: INode);
+  property Child: INode read Next;
+end;
+```
+
+The name refers to the interface being declared, with ordinary case-insensitive lookup.
+This does not permit self-inheritance or references to interfaces declared later.
+
 ### Empty Interfaces
 
 ```pascal
@@ -438,6 +453,13 @@ begin
   PrintLn(animal.MakeSound);  // Calls TCat.MakeSound → "Meow"
 end;
 ```
+
+A parameterless function such as `animal.MakeSound` is invoked when its value is needed.
+When assigning a method to a variable with a compatible function or procedure type, the
+method is captured for a later call.
+
+Runtime errors inside record methods retain the caller location as well as the original
+error location. This includes calls through a nil interface stored in a record field.
 
 **Dispatch Mechanism:**
 1. Interface variable holds `InterfaceInstance` wrapper
@@ -1052,12 +1074,11 @@ end;
 
 ### Compatibility
 
-✅ **100% DWScript Compatible:**
-- All interface syntax supported
-- All casting operations work correctly
-- Method dispatch matches DWScript semantics
-- 33 reference tests ported and passing
+The canonical `InterfacesPass` fixtures exercise the complete compile/run path, including
+diagnostics: **31/33 pass** as of 2026-09-21. Remaining work includes indexed/default interface properties and the upstream
+compiler-option policy for unused-private hints. Mixed class/interface comparisons and direct
+object assignment to interface aliases also need follow-up; see [PLAN.md §3.5/E12](../../PLAN.md).
 
----
-
-**DWScript's interface system provides a powerful, type-safe mechanism for polymorphism and flexible API design. The go-dws implementation maintains full compatibility while leveraging Go's garbage collector for simplified lifetime management.**
+The older tests in `testdata/interfaces/` exercise the interpreter directly and do not measure
+semantic analysis or diagnostic compatibility. See the generated
+[fixture status](../../testdata/fixtures/TEST_STATUS.md) for current compatibility counts.

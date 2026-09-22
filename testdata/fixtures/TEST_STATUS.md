@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-09-20
+**Generated**: 2026-09-21
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1285 |
-| Failed | 681 |
+| Passed | 1289 |
+| Failed | 677 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **65%** (1285/1966) |
+| **Scored pass rate** | **66%** (1289/1966) |
 
 ## Per-category
 
@@ -61,7 +61,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
 | InnerClassesPass | 2 | 2 | 0 | 0 | 100% |
 | InterfacesFail | 19 | 5 | 14 | 0 | 26% |
-| InterfacesPass | 33 | 27 | 6 | 0 | 82% |
+| InterfacesPass | 33 | 31 | 2 | 0 | 94% |
 | JSFilterScripts | 2 | 2 | 0 | 0 | 100% |
 | JSFilterScriptsFail | 1 | 1 | 0 | 0 | 100% |
 | JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |

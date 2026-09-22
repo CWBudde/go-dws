@@ -195,6 +195,9 @@ func TestLexerKeywordIdentifierBoundary(t *testing.T) {
 		{"_begin", IDENT},
 		{"beginEnd", IDENT},
 		{"endif", IDENT}, // Not a DWScript keyword
+		{"impl", IDENT},
+		{"Impl", IDENT},
+		{"IMPL", IDENT},
 
 		// Identifiers that contain keyword substrings
 		{"mybegin", IDENT},
