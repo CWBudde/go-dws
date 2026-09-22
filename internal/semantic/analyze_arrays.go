@@ -39,11 +39,15 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 		return
 	}
 
-	// Resolve the element type using resolveType helper
+	// Resolve the structural annotation so anonymous record elements retain
+	// their fields and nested types.
 	elementTypeName := getTypeExpressionName(arrayType.ElementType)
-	elementType, err := a.resolveType(elementTypeName)
+	elementType, err := a.resolveTypeExpression(arrayType.ElementType)
 	if err != nil {
 		a.addError("unknown type '%s' at %s", elementTypeName, decl.Token.Pos.String())
+		return
+	}
+	if elementType == nil {
 		return
 	}
 

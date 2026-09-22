@@ -95,8 +95,7 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 				if errVal != nil {
 					return errVal
 				}
-				e.storeAssociativeEntry(assoc, key, cloneIfCopyable(value), ctx)
-				return value
+				return e.storeAssociativeEntry(assoc, key, cloneIfCopyable(value), ctx)
 			}
 			index, ok := e.ExtractIndexWithVariantCast(indexVal, ctx)
 			if !ok {
@@ -169,8 +168,7 @@ func (e *Evaluator) assignResolvedIndex(arrayVal, indexVal, value Value, stmt *a
 		if errVal != nil {
 			return errVal
 		}
-		e.storeAssociativeEntry(assoc, key, cloneIfCopyable(value), ctx)
-		return value
+		return e.storeAssociativeEntry(assoc, key, cloneIfCopyable(value), ctx)
 	}
 
 	// Extract integer index (Variant indexes are cast per DWScript rules)
@@ -251,6 +249,10 @@ func (e *Evaluator) evalArrayElementAssignment(
 
 	// Update the array element. Record/static-array elements have value
 	// semantics, so store a snapshot instead of aliasing the source value.
+	value = e.coerceJSONStorageValue(value, arrayType.ElementType, ctx)
+	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
+		return value
+	}
 	arrayValue.Elements[physicalIndex] = cloneIfCopyable(value)
 
 	return value

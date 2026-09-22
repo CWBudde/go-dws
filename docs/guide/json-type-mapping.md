@@ -70,13 +70,35 @@ aliases, become member names, following DWScript's base-type key check (note
 that `array [Boolean] of T` declares a static array, which serializes as a JSON
 array);
 unsupported record or object keys produce an empty object. Distinct Variant keys
-that convert to the same name currently collapse to one member; this remains a
-compatibility follow-up.
+such as Integer `1` and String `'1'` retain both member names in `Stringify`,
+`StringifyUTF8`, and `PrettyStringify`, including nested maps and custom
+`Stringify` results. `JSON.Serialize` parses that text into a JSON object:
+duplicate names keep the last emitted value, in its last occurrence's position.
+`JSON.Parse` applies the same overwrite rule.
 
 These operations are implemented in `internal/interp/evaluator/json_namespace.go`
 and `json_serialize.go`; global-storage conversion is in
-`internal/builtins/globalvars_funcs.go`. E6 validation and the remaining conversion,
-type-resolution and mutation follow-ups are tracked in `PLAN.md` §3.5.
+`internal/builtins/globalvars_funcs.go`. Inline record types work as elements
+of static and dynamic arrays, including nested arrays and named array types.
+
+### JSONVariant Conversion and Comparison
+
+Declared JSONVariant variables and parameters materialize the JSON representation
+for primitive arguments. Null remains JSON Null; an unassigned Variant becomes
+Undefined. JSONVariant aliases behave identically, and existing JSON containers
+keep their identity. Assigning a JSON scalar to a typed scalar slot converts to
+the slot's declared type.
+
+Associative keys convert to their declared key type: a JSON number `123` used
+against `array [String] of T` addresses the same entry as `'123'`, for reads,
+writes, deletion, and membership. Variant-keyed arrays retain distinct key types.
+
+JSON/Variant comparisons and array membership coerce numeric strings when the
+other operand is numeric. Integer comparisons retain Int64 precision before
+falling back to floating point. Two strings compare lexically, so JSON number
+`1` equals JSON string `"01"`, but JSON strings `"1"` and `"01"` differ. A number
+and a nonnumeric string are unequal and unordered: `<>` is true and the other
+five comparisons are false. Membership evaluates each visited operand once.
 
 The following sections also describe the older standalone helpers, such as
 `ParseJSON` and `ToJSON`; their conversion and formatting paths are separate from
@@ -136,6 +158,16 @@ PrintLn(o);  // {"Dati":{"Campo":{"IDValue":5}},"SottoOggetto":{"IDValue":5}}
 The same rule applies to `Add`/`Push`, `a[i] := node`, and `AddFrom` (a move that
 empties the source array). `Extend` and `Clone` insert copies, so the source keeps
 its nodes. `Swap` exchanges two slots in place and reparents nothing.
+
+Self and transitive cycles raise `JSON circular reference` before detaching a
+node, replacing a member, or extending an array. A rejected insertion preserves
+both its source and destination. Multiargument `Add` and `AddFrom` retain any
+successful earlier transfers; self-`AddFrom` leaves the array unchanged.
+
+Deleting an invalid array index raises a catchable bounds exception and preserves
+the array. Deleting an absent object member remains harmless. Writing members or
+indices on primitive-backed JSONVariants raises the connector's `Immediate` or
+scalar-type diagnostic, including when the value came from a typed initializer.
 
 A variable that still references a moved node keeps working — it points at the same
 node, now reachable through its new owner:
@@ -268,7 +300,7 @@ PrintLn(JSONKeys(ParseJSON('{}')).Length);  // 0
 
 **NaN/Infinity**: Not supported by JSON specification. Use `null` or string constants (`"NaN"`, `"Infinity"`) as workarounds.
 
-**Circular References**: Not currently detected. Avoid creating circular references as they will cause stack overflow during serialization.
+**Circular References**: JSON mutations reject direct and transitive cycles with a catchable `JSON circular reference` exception before changing ownership or array size.
 
 ---
 
@@ -574,7 +606,6 @@ if JSONHasField(obj, 'a') then
 
 ## Current Limitations
 
-- **No circular reference detection**: Avoid creating circular references (e.g., `obj['self'] := obj`) as they will cause stack overflow during serialization
 - **No NaN/Infinity support**: Use `null` or string constants as workarounds
 - **Standalone helper ordering**: `ToJSON` sorts object keys alphabetically;
   `JSON.Stringify` preserves JSON object insertion order and associative-map bucket order
@@ -628,7 +659,6 @@ The JSON implementation in go-dws provides a robust, Go-backed JSON parsing and 
 - Pretty-printing support
 
 **Limitations**:
-- No circular reference detection (can crash)
 - No NaN/Infinity support (JSON spec limitation)
 - Standalone `ToJSON` and namespace `JSON.Stringify` use different object key ordering
 - No query language or schema validation
@@ -636,7 +666,7 @@ The JSON implementation in go-dws provides a robust, Go-backed JSON parsing and 
 **Best Practices**:
 1. Always use `JSONHasField()` before accessing object properties
 2. Check `JSONLength()` before iterating arrays
-3. Avoid creating circular references
+3. Catch mutation errors when input may contain invalid indices or ownership cycles
 4. Use `nil` instead of NaN/Infinity
 5. Use `ToJSONFormatted()` for debugging, `ToJSON()` for production
 

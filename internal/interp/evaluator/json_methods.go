@@ -137,7 +137,11 @@ func (e *Evaluator) assignJSONMember(jv *jsonvalue.Value, name string, value Val
 	}
 	switch jv.Kind() {
 	case jsonvalue.KindObject:
-		jv.ObjectSet(name, jsonAssignValue(value))
+		child := jsonAssignValue(value)
+		if !e.validateJSONAdoption(jv, child, ctx) {
+			return &runtime.NilValue{}
+		}
+		jv.ObjectSet(name, child)
 	case jsonvalue.KindArray:
 		e.builtinContext(ctx).RaiseException("Exception", fmt.Sprintf(`Invalid array member "%s"`, name), nil)
 	default:
@@ -156,7 +160,11 @@ func (e *Evaluator) assignJSONIndex(jv *jsonvalue.Value, index Value, value Valu
 	idx := unwrapVariant(index)
 	switch jv.Kind() {
 	case jsonvalue.KindObject:
-		jv.ObjectSet(jsonArgString(idx), jsonAssignValue(value))
+		child := jsonAssignValue(value)
+		if !e.validateJSONAdoption(jv, child, ctx) {
+			return &runtime.NilValue{}
+		}
+		jv.ObjectSet(jsonArgString(idx), child)
 	case jsonvalue.KindArray:
 		i, ok := ExtractIntegerIndex(idx)
 		if !ok || i < 0 {
@@ -165,6 +173,9 @@ func (e *Evaluator) assignJSONIndex(jv *jsonvalue.Value, index Value, value Valu
 		// Reparent before sizing the array: detaching the incoming node from
 		// this very array would otherwise shrink it back under the new index.
 		child := jsonAssignValue(value)
+		if !e.validateJSONAdoption(jv, child, ctx) {
+			return &runtime.NilValue{}
+		}
 		child.Detach()
 		for jv.ArrayLen() <= i {
 			jv.ArrayAppend(jsonvalue.NewNull())
@@ -174,6 +185,16 @@ func (e *Evaluator) assignJSONIndex(jv *jsonvalue.Value, index Value, value Valu
 		e.builtinContext(ctx).RaiseException("Exception", fmt.Sprintf("Cannot set items of %s", jsonTypeName(jv)), nil)
 	}
 	return &runtime.NilValue{}
+}
+
+// validateJSONAdoption raises a catchable exception before any ownership or
+// container mutation when inserting child into parent would create a cycle.
+func (e *Evaluator) validateJSONAdoption(parent, child *jsonvalue.Value, ctx *ExecutionContext) bool {
+	if err := parent.ValidateAdoption(child); err != nil {
+		e.builtinContext(ctx).RaiseException("Exception", err.Error(), nil)
+		return false
+	}
+	return true
 }
 
 // evalJSONValueMember handles member access on a JSON value (v.foo, v.length).
@@ -227,11 +248,11 @@ func (e *Evaluator) evalJSONMethodCall(recv Value, method string, args []Value, 
 	case "add", "push":
 		return e.jsonArrayAdd(jv, args, node, ctx)
 	case "addfrom":
-		return e.jsonArrayAddFrom(jv, args, node)
+		return e.jsonArrayAddFrom(jv, args, node, ctx)
 	case "extend":
 		return e.jsonExtend(jv, args, node)
 	case "delete":
-		return e.jsonDelete(jv, args, node)
+		return e.jsonDelete(jv, args, ctx)
 	case "swap":
 		return e.jsonSwap(jv, args, node)
 	default:
@@ -267,20 +288,30 @@ func (e *Evaluator) jsonArrayAdd(jv *jsonvalue.Value, args []Value, node ast.Nod
 			e.builtinContext(ctx).RaiseException("Exception", "JSON Array Add() unsupported type", nil)
 			return &runtime.NilValue{}
 		}
-		jv.ArrayAppend(ValueToJSONValue(arg))
+		child := ValueToJSONValue(arg)
+		if !e.validateJSONAdoption(jv, child, ctx) {
+			return &runtime.NilValue{}
+		}
+		jv.ArrayAppend(child)
 	}
 	return &runtime.IntegerValue{Value: int64(jv.ArrayLen())}
 }
 
 // jsonArrayAddFrom appends the source array's elements to the receiver and empties
 // the source (a move), matching DWScript's AddFrom semantics.
-func (e *Evaluator) jsonArrayAddFrom(jv *jsonvalue.Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) jsonArrayAddFrom(jv *jsonvalue.Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
 	if jv == nil || jv.Kind() != jsonvalue.KindArray {
 		return e.newError(node, "JSON AddFrom requires an array value")
 	}
 	src := jsonValueOf(argValue(args, 0))
+	if src == jv {
+		return &runtime.NilValue{}
+	}
 	if src != nil && src.Kind() == jsonvalue.KindArray {
 		for _, elem := range src.ArrayElements() {
+			if !e.validateJSONAdoption(jv, elem, ctx) {
+				return &runtime.NilValue{}
+			}
 			jv.ArrayAppend(elem)
 		}
 		src.ClearArray()
@@ -308,7 +339,7 @@ func (e *Evaluator) jsonExtend(jv *jsonvalue.Value, args []Value, node ast.Node)
 	return &runtime.NilValue{}
 }
 
-func (e *Evaluator) jsonDelete(jv *jsonvalue.Value, args []Value, node ast.Node) Value {
+func (e *Evaluator) jsonDelete(jv *jsonvalue.Value, args []Value, ctx *ExecutionContext) Value {
 	if jv == nil {
 		return &runtime.NilValue{}
 	}
@@ -318,7 +349,13 @@ func (e *Evaluator) jsonDelete(jv *jsonvalue.Value, args []Value, node ast.Node)
 		jv.ObjectDelete(jsonArgString(key))
 	case jsonvalue.KindArray:
 		if idx, ok := ExtractIntegerIndex(key); ok {
-			jv.ArrayDelete(idx)
+			if !jv.ArrayDelete(idx) {
+				message := fmt.Sprintf("Array index (%d) out of range (empty array)", idx)
+				if count := jv.ArrayLen(); count > 0 {
+					message = fmt.Sprintf("Array index (%d) out of range [0..%d]", idx, count-1)
+				}
+				e.builtinContext(ctx).RaiseException("Exception", message, nil)
+			}
 		}
 	}
 	return &runtime.NilValue{}

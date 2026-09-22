@@ -76,6 +76,10 @@ func parseObject(dec *json.Decoder) (*Value, error) {
 		if err != nil {
 			return nil, err
 		}
+		// Parsing overwrites duplicates at their last occurrence's position,
+		// matching TdwsJSONObject.MergeDuplicates. Ordinary member assignment
+		// still replaces an existing value in place.
+		obj.ObjectDelete(key)
 		obj.ObjectSet(key, child)
 	}
 	// Consume the closing '}'.

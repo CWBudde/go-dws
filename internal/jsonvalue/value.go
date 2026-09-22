@@ -1,7 +1,13 @@
 // Package jsonvalue provides an internal representation of DWScript JSON values.
 package jsonvalue
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+)
+
+// ErrCircularReference indicates that adopting a value would create a JSON cycle.
+var ErrCircularReference = errors.New("JSON circular reference")
 
 // Kind represents the type of a JSON value. It mirrors the DWScript TdwsJSONValueType.
 type Kind uint8
@@ -62,6 +68,21 @@ func (v *Value) Owner() *Value {
 		return nil
 	}
 	return v.owner
+}
+
+// ValidateAdoption checks whether child can be inserted into v without a cycle.
+// Callers that mutate storage before insertion must check this before detaching
+// child, replacing an existing entry, or extending an array.
+func (v *Value) ValidateAdoption(child *Value) error {
+	if child == nil {
+		return nil
+	}
+	for owner := v; owner != nil; owner = owner.owner {
+		if owner == child {
+			return ErrCircularReference
+		}
+	}
+	return nil
 }
 
 // Detach removes the value from its owning container, mirroring DWScript's
@@ -193,9 +214,13 @@ func (v *Value) ObjectGet(key string) *Value {
 
 // ObjectSet associates key with child within the object. The method preserves
 // insertion order, appending new keys to objKeys. If the key already exists its
-// value is replaced in place.
+// value is replaced in place. An insertion that would create a cycle is ignored;
+// ValidateAdoption lets callers report that failure before mutating other state.
 func (v *Value) ObjectSet(key string, child *Value) {
 	if v == nil || v.kind != KindObject {
+		return
+	}
+	if v.ValidateAdoption(child) != nil {
 		return
 	}
 	// Self-assignment (`o.a := o.a`) keeps the entry exactly where it is.
@@ -271,6 +296,9 @@ func (v *Value) ArraySet(index int, child *Value) bool {
 	if index < 0 || index >= len(v.arrElems) {
 		return false
 	}
+	if v.ValidateAdoption(child) != nil {
+		return false
+	}
 	if child != nil && child.owner == v {
 		// Same-array move: detaching shifts the remaining elements, so the
 		// target slot has to be recomputed against the post-detach layout
@@ -322,9 +350,13 @@ func (v *Value) ArraySwap(i, j int) bool {
 	return true
 }
 
-// ArrayAppend appends an element to the end of the array.
+// ArrayAppend appends an element to the end of the array. An insertion that would
+// create a cycle is ignored; ValidateAdoption lets callers report that failure.
 func (v *Value) ArrayAppend(child *Value) {
 	if v == nil || v.kind != KindArray {
+		return
+	}
+	if v.ValidateAdoption(child) != nil {
 		return
 	}
 	v.adopt(child)

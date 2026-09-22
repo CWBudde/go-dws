@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2044 |
-| Passed | 1296 |
-| Failed | 670 |
+| Passed | 1307 |
+| Failed | 659 |
 | Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **66%** (1296/1966) |
+| **Scored pass rate** | **66%** (1307/1966) |
 
 ## Per-category
 
@@ -65,7 +65,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | JSFilterScripts | 2 | 2 | 0 | 0 | 100% |
 | JSFilterScriptsFail | 1 | 1 | 0 | 0 | 100% |
 | JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
-| JSONConnectorPass | 82 | 73 | 9 | 0 | 89% |
+| JSONConnectorPass | 82 | 82 | 0 | 0 | 100% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
 | LambdaPass | 6 | 5 | 1 | 0 | 83% |
 | Linq | 7 | 0 | 7 | 0 | 0% |
@@ -79,7 +79,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | PropertyExpressionsPass | 19 | 18 | 1 | 0 | 95% |
 | SetOfFail | 14 | 13 | 1 | 0 | 93% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 385 | 58 | 0 | 87% |
+| SimpleScripts | 443 | 387 | 56 | 0 | 87% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

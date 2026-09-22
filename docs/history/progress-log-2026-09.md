@@ -5494,3 +5494,72 @@ Validation used two CPUs and sequential build/test/lint batches. The active Go c
 subsequent build artifacts were moved to ignored disk-backed `.cache/e12` because `/tmp` is
 RAM-backed in this environment. The separate helper-recursion fixture remains E15 work;
 it is still an isolated failure, and no baseline was lowered to accommodate it.
+
+## 2026-09-22 — JSON compatibility follow-ups (PLAN.md §3.5 / E13)
+
+E13a/b/h share the declared-type conversion boundary. JSON keys now convert to a
+String associative key type consistently for lookup, writes, deletion, and membership;
+Variant-keyed maps still distinguish Integer and String keys. JSONVariant initializers,
+parameters, aliases, and aggregate slots materialize the connector representation,
+preserving Undefined versus Null and the identity of existing containers. Typed scalar
+map entries, array elements, and record/object members convert JSON values to their
+declared representation. Primitive-backed member/index writes consequently reach the
+existing catchable JSON diagnostics.
+
+E13c resolves array element annotations structurally, including inline records in named,
+static, dynamic, and nested array types. Both JSON serialization fixtures pass through
+the existing initialization and runtime paths. `ArrayPass/dynamic_anonymous_record`
+instead requires properties/methods in anonymous record expressions; E3c retains that
+separate prerequisite without suppressing diagnostics.
+
+E13d/e share JSON/Variant scalar comparison semantics with array membership. Numeric
+strings compare numerically against numbers, with exact Int64 parsing before float
+fallback; string/string comparisons remain lexical. Invalid numeric strings are unordered.
+JSON Undefined retains empty-Variant equality, and bracket membership evaluates each
+visited expression once while preserving ordinal ranges, including Boolean ranges.
+The comparison contract follows upstream
+[`VarCompareSafe`](https://github.com/EricGrange/DWScript/blob/5f01a3468452ea75867d4f0e7a0246b107e92332/Source/dwsUtils.pas#L2754).
+
+E13f/g reject invalid array deletion with the upstream catchable bounds message and
+reject direct/transitive JSON ownership cycles before detaching, replacing, or extending
+containers. Core mutation methods also guard their ownership invariant. Multiargument
+Add and AddFrom retain successful earlier insertions when a later insertion fails.
+Self-AddFrom is explicitly a no-op to preserve contents and avoid unbounded self-transfer.
+
+E13i serializes through a separate ordered text snapshot rather than a live JSON object.
+Distinct associative keys with identical textual names survive compact, UTF8, and pretty
+serialization, including nested values and custom Stringify output. Source ownership is
+unchanged, and getter exceptions stop traversal. Serialize parses the resulting text,
+keeping the last duplicate value at its last occurrence's position; JSON.Parse follows
+the same overwrite ordering. The live JSON object representation remains unchanged.
+This distinction follows upstream
+[`StringifyAssociativeArray`](https://raw.githubusercontent.com/EricGrange/DWScript/master/Source/dwsJSONScript.pas),
+[`TJSONSerializeMethod`](https://raw.githubusercontent.com/EricGrange/DWScript/master/Source/dwsJSONConnector.pas),
+and [`MergeDuplicates`](https://raw.githubusercontent.com/EricGrange/DWScript/master/Source/dwsJSON.pas).
+
+The complete JSONConnectorPass category reaches **82/82**, up from **73/82**; all nine
+E13 items are closed by the original fixtures or real compile/run regressions. The
+change also improves SimpleScripts **385 → 387/443**. CLI and harness agree across
+all 61 categories at **1,307 / 1,966 scored = 66%**, or **1,307 / 1,747 = 75% in scope**.
+There are **659** failures: 219 excluded host-library fixtures, 350 error-detection
+fixtures, and 90 in-scope execution fixtures. No category baseline decreased.
+
+Validation: `go test -p 1 -json ./...` passed all 31 test-bearing packages (four have no
+tests). Focused JSON conversion, comparison, serialization, mutation, inline-record,
+and ownership regressions passed, including full evaluator and JSON-value package tests.
+`just fixture-update` ratcheted both improved categories; a fresh
+`go run ./cmd/fixture-report --cli .cache/e12/dwscript` matched every harness category.
+The Go source snapshot remained unchanged throughout final validation. Changed Go files
+pass formatting checks and `git diff --check` is clean.
+
+Full `golangci-lint run --concurrency=2` still reports **1,224 repository findings**.
+E13 adds no findings and removes an unused-parameter warning; a parallel interface edit
+adds one unchecked-assertion finding. Those unrelated interface edits were preserved.
+Validation reused the disk-backed cache with two CPUs, sequential broad checks, and a
+512 MiB Go memory target (1,536 MiB for lint). The existing isolated E15 helper-recursion
+failure remains outside this change.
+
+PR preparation independently reran `go test -p 1 -json ./...` on an isolated E13
+branch, excluding the parallel interface edits. All 31 test-bearing packages passed;
+JSONConnectorPass remained 82/82 and SimpleScripts 387/443. A fresh CLI fixture report
+on that branch also matched the harness across all 61 categories.
