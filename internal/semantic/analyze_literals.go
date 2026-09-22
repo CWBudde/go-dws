@@ -559,30 +559,126 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 //
 // Unlike an anonymous RecordLiteralExpression, this form needs no expected type:
 // it is structurally typed, so the field names together with the inferred types
-// of their value expressions fully describe an unnamed record type.
+// of their value expressions establish an unnamed record type. Properties and
+// inline methods add members to that type.
 func (a *Analyzer) analyzeAnonymousRecordExpression(expr *ast.AnonymousRecordExpression) types.Type {
 	if expr == nil {
 		return nil
 	}
 
 	recordType := types.NewRecordType("", nil)
+	memberNames := make(map[string]bool)
 
 	for _, field := range expr.Fields {
 		if field == nil || field.Name == nil {
 			continue
 		}
 
-		if recordType.HasField(field.Name.Value) {
+		key := ident.Normalize(field.Name.Value)
+		if memberNames[key] {
 			a.addError("duplicate field '%s' in record expression", field.Name.Value)
 			return nil
 		}
+		memberNames[key] = true
 
 		fieldType := a.analyzeExpression(field.Value)
 		if fieldType == nil {
 			return nil
 		}
+		fieldType = a.applyImplicitCallType(field.Value, fieldType)
 
 		recordType.AddField(field.Name.Value, fieldType, true)
+	}
+	for _, prop := range expr.Properties {
+		if prop.Name == nil {
+			continue
+		}
+		key := ident.Normalize(prop.Name.Value)
+		if memberNames[key] {
+			a.addStructuredError(NewGenericError(prop.Name.Token.Pos, "duplicate member in record expression: "+prop.Name.Value))
+			return nil
+		}
+		memberNames[key] = true
+		propType, err := a.resolveTypeExpression(prop.Type)
+		if err != nil {
+			a.addError("unknown type for property '%s' in record expression", prop.Name.Value)
+			return nil
+		}
+		if prop.IsAutoProperty && !recordType.HasField(prop.ReadField) {
+			recordType.AddField(prop.ReadField, propType, false)
+			memberNames[ident.Normalize(prop.ReadField)] = true
+		}
+		info := &types.RecordPropertyInfo{
+			Name: prop.Name.Value, Type: propType,
+			ReadField: prop.ReadField, WriteField: prop.WriteField,
+			IsDefault: prop.IsDefault, IsIndexed: len(prop.IndexParams) > 0,
+			IndexParamTypes: a.resolveRecordPropertyIndexParamTypes(prop.IndexParams),
+		}
+		switch {
+		case prop.ReadField != "":
+			info.ReadKind = types.PropAccessField
+		case prop.ReadExpr != nil:
+			info.ReadKind = types.PropAccessExpression
+			info.ReadExpr = prop.ReadExpr
+		}
+		switch {
+		case prop.WriteField != "":
+			info.WriteKind = types.PropAccessField
+		case prop.WriteStmt != nil:
+			info.WriteKind = types.PropAccessExpression
+			info.WriteExpr = prop.WriteStmt
+		}
+		recordType.Properties[key] = info
+	}
+	for _, method := range expr.Methods {
+		if method == nil || method.Name == nil {
+			continue
+		}
+		key := ident.Normalize(method.Name.Value)
+		if memberNames[key] {
+			a.addStructuredError(NewGenericError(method.Name.Token.Pos, "duplicate member in record expression: "+method.Name.Value))
+			return nil
+		}
+		memberNames[key] = true
+		params := make([]types.Type, 0, len(method.Parameters))
+		for _, param := range method.Parameters {
+			paramType, err := a.resolveTypeExpression(param.Type)
+			if err != nil {
+				a.addError("unknown parameter type in record expression method '%s'", method.Name.Value)
+				return nil
+			}
+			params = append(params, paramType)
+		}
+		var result types.Type
+		if method.ReturnType != nil {
+			var err error
+			result, err = a.resolveTypeExpression(method.ReturnType)
+			if err != nil {
+				a.addError("unknown return type in record expression method '%s'", method.Name.Value)
+				return nil
+			}
+		}
+		var signature *types.FunctionType
+		if result == nil {
+			signature = types.NewProcedureType(params)
+		} else {
+			signature = types.NewFunctionType(params, result)
+		}
+		info := &types.MethodInfo{Signature: signature, IsClassMethod: method.IsClassMethod}
+		if method.IsClassMethod {
+			recordType.ClassMethods[key] = signature
+			recordType.ClassMethodNames[key] = method.Name.Value
+			recordType.ClassMethodOverloads[key] = append(recordType.ClassMethodOverloads[key], info)
+		} else {
+			recordType.Methods[key] = signature
+			recordType.MethodNames[key] = method.Name.Value
+			recordType.MethodOverloads[key] = append(recordType.MethodOverloads[key], info)
+		}
+	}
+	for _, method := range expr.Methods {
+		if method != nil && method.Body != nil {
+			a.analyzeRecordMethodBody(method, recordType)
+		}
 	}
 
 	return recordType

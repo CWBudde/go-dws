@@ -189,6 +189,11 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 		funcNameLower := ident.Normalize(operand.Value)
 		overloads := e.FunctionRegistry().Lookup(funcNameLower)
 		if len(overloads) == 0 {
+			if _, classMeta, ok := currentClassMetaValue(ctx); ok {
+				if pointer, found := e.bindClassMethodPointer(classMeta, operand.Value, classMeta, ctx); found {
+					return pointer
+				}
+			}
 			// Check for builtin function
 			if _, ok := builtins.DefaultRegistry.Lookup(operand.Value); ok {
 				var pointerType *types.FunctionPointerType

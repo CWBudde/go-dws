@@ -280,15 +280,17 @@ func (rle *RecordLiteralExpression) String() string {
 //
 // Unlike RecordLiteralExpression, which is written with parentheses and needs an
 // expected record type from its context, this form is structurally typed: the
-// field names and the inferred types of their values fully describe the record,
-// so it can stand alone as an expression (for example as an argument to
-// JSON.Stringify).
+// field names and the inferred types of their values establish its structural
+// type, so it can stand alone as an expression (for example as an argument to
+// JSON.Stringify). Properties and inline methods may also be declared.
 //
 // Field names may be written as identifiers or as string literals; a quoted name
 // is kept verbatim in the Name identifier so that names which are not valid
 // identifiers ("i*i", "2i") survive into serialization.
 type AnonymousRecordExpression struct {
-	Fields []*FieldInitializer
+	Fields     []*FieldInitializer
+	Properties []RecordPropertyDecl
+	Methods    []*FunctionDecl
 	BaseNode
 }
 
@@ -307,6 +309,14 @@ func (are *AnonymousRecordExpression) String() string {
 		if field.Value != nil {
 			out.WriteString(field.Value.String())
 		}
+		out.WriteString("; ")
+	}
+	for _, property := range are.Properties {
+		out.WriteString(property.String())
+		out.WriteString("; ")
+	}
+	for _, method := range are.Methods {
+		out.WriteString(method.String())
 		out.WriteString("; ")
 	}
 	out.WriteString("end")

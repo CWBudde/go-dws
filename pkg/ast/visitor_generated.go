@@ -205,6 +205,14 @@ func walkAnonymousRecordExpression(n *AnonymousRecordExpression, v Visitor) {
 			Walk(v, item)
 		}
 	}
+	for i := range n.Properties {
+		Walk(v, &n.Properties[i])
+	}
+	for _, item := range n.Methods {
+		if item != nil {
+			Walk(v, item)
+		}
+	}
 }
 
 // walkArrayDecl walks an ArrayDecl node

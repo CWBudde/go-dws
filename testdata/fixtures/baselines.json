@@ -1,6 +1,6 @@
 {
   "Algorithms": 53,
-  "ArrayPass": 100,
+  "ArrayPass": 101,
   "AssociativeFail": 2,
   "AssociativePass": 27,
   "AttributesFail": 0,
@@ -55,7 +55,7 @@
   "PropertyExpressionsPass": 18,
   "SetOfFail": 13,
   "SetOfPass": 25,
-  "SimpleScripts": 387,
+  "SimpleScripts": 389,
   "SystemInfoLib": 0,
   "TabularLib": 0,
   "TimeSeriesLib": 0,

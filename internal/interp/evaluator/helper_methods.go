@@ -941,7 +941,7 @@ func (e *Evaluator) evalBuiltinHelperProperty(propSpec string, selfValue Value, 
 	case types.HelperEnumName, types.HelperEnumQualifiedName:
 		return e.evalEnumHelper(propSpec, selfValue, nil, node)
 
-	case types.HelperStringLength:
+	case types.HelperStringLow, types.HelperStringHigh, types.HelperStringLength:
 		if _, ok := selfValue.(StringValue); !ok {
 			return e.newError(node, "String.Length property requires string receiver")
 		}
