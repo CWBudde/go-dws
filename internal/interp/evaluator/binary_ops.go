@@ -845,11 +845,10 @@ func (e *Evaluator) tryBinaryOperator(operator string, left, right Value, leftEx
 // regular set/array membership path (non-string left side, non-bracket right
 // side, or non-string list elements).
 func (e *Evaluator) evalStringInBracketList(left Value, rightExpr ast.Expression, ctx *ExecutionContext) (Value, bool) {
-	strVal, ok := unwrapVariant(left).(*runtime.StringValue)
-	if !ok {
+	_, stringLeft := unwrapVariant(left).(*runtime.StringValue)
+	if !stringLeft && !isVariantComparisonValue(left) {
 		return nil, false
 	}
-
 	var elements []ast.Expression
 	switch lit := rightExpr.(type) {
 	case *ast.SetLiteral:
@@ -859,44 +858,27 @@ func (e *Evaluator) evalStringInBracketList(left Value, rightExpr ast.Expression
 	default:
 		return nil, false
 	}
-
-	s := strVal.Value
-	matched := false
+	// Once evaluation starts, finish here: falling back would evaluate list
+	// elements a second time when a Variant contains a non-string value.
 	for _, elem := range elements {
-		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
-			startVal := e.Eval(rangeExpr.Start, ctx)
-			if isError(startVal) {
-				return startVal, true
-			}
-			endVal := e.Eval(rangeExpr.RangeEnd, ctx)
-			if isError(endVal) {
-				return endVal, true
-			}
-			startStr, ok1 := unwrapVariant(startVal).(*runtime.StringValue)
-			endStr, ok2 := unwrapVariant(endVal).(*runtime.StringValue)
-			if !ok1 || !ok2 {
-				return nil, false
-			}
-			if s >= startStr.Value && s <= endStr.Value {
-				matched = true
-				break
-			}
+		var equal Value
+		if interval, ok := elem.(*ast.RangeExpression); ok {
+			equal = e.membershipRange(left, interval, ctx)
 		} else {
-			elemVal := e.Eval(elem, ctx)
-			if isError(elemVal) {
-				return elemVal, true
+			value := e.Eval(elem, ctx)
+			if isError(value) {
+				return value, true
 			}
-			elemStr, isStr := unwrapVariant(elemVal).(*runtime.StringValue)
-			if !isStr {
-				return nil, false
-			}
-			if s == elemStr.Value {
-				matched = true
-				break
-			}
+			equal = e.membershipEqual(left, value, elem)
+		}
+		if isError(equal) {
+			return equal, true
+		}
+		if VariantToBool(equal) {
+			return equal, true
 		}
 	}
-	return &runtime.BooleanValue{Value: matched}, true
+	return &runtime.BooleanValue{Value: false}, true
 }
 
 // evalInOperator evaluates the 'in' operator for membership testing.
@@ -947,7 +929,11 @@ func (e *Evaluator) evalInOperator(value, container Value, node ast.Node, ctx *E
 		// Search for the value in the array using proper equality comparison
 		// Use ValuesEqual helper for comprehensive equality
 		for _, elem := range arrVal.Elements {
-			if ValuesEqual(value, elem) {
+			equal := e.membershipEqual(value, elem, node)
+			if isError(equal) {
+				return equal
+			}
+			if VariantToBool(equal) {
 				return &runtime.BooleanValue{Value: true}
 			}
 		}
@@ -1165,6 +1151,14 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 	// Unwrap Variant values to get the actual runtime values
 	leftVal := unwrapVariant(left)
 	rightVal := unwrapVariant(right)
+	if isComparisonOperator(op) {
+		// The JSON connector exposes Undefined as an empty Variant, whose
+		// equality includes falsey scalar values (unlike explicit Null).
+		leftUnassignedVariant = leftUnassignedVariant || isUndefinedJSON(leftVal)
+		rightUnassignedVariant = rightUnassignedVariant || isUndefinedJSON(rightVal)
+		leftVal = jsonComparisonScalar(leftVal)
+		rightVal = jsonComparisonScalar(rightVal)
+	}
 
 	// Check for Null/Unassigned/Nil values (after unwrapping)
 	leftIsNullish := isNullish(leftVal)
@@ -1211,6 +1205,12 @@ func (e *Evaluator) evalVariantBinaryOp(op string, left, right Value, node ast.N
 	}
 	if rightIsNullish {
 		return e.newError(node, "cannot perform operation on unassigned Variant")
+	}
+
+	if isComparisonOperator(op) {
+		if order, ordered, handled := compareVariantScalars(leftVal, rightVal); handled {
+			return comparisonResult(op, order, ordered)
+		}
 	}
 
 	leftType := runtime.KindOf(leftVal)

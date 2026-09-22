@@ -1160,42 +1160,51 @@ func (e *Evaluator) evalArrayAdd(selfValue Value, args []Value, node ast.Node, c
 // an array of the receiver's element type is flattened (DWScript's Add/Push
 // accept either an element or an array of elements).
 func (e *Evaluator) appendArrayArgs(arrVal *runtime.ArrayValue, args []Value, ctx *ExecutionContext) {
-	elemKind := ""
-	if arrVal.ArrayType != nil && arrVal.ArrayType.ElementType != nil {
-		elemKind = types.GetUnderlyingType(arrVal.ArrayType.ElementType).TypeKind()
-	}
-	appendOne := func(v Value) bool {
-		// Coerce Variant values to a basic element type (DWScript variant
-		// casts); a failed cast raises a catchable exception.
-		switch elemKind {
-		case "INTEGER", "FLOAT", "STRING", "BOOLEAN":
-			unwrapped := unwrapVariant(v)
-			converted, errVal := e.coerceValueToKind(unwrapped, elemKind, nil, ctx)
-			if errVal != nil {
-				return false
-			}
-			if converted != nil {
-				v = converted
-			} else {
-				v = unwrapped
-			}
-		}
-		arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(v))
-		return true
-	}
 	for _, arg := range args {
 		if arrArg, ok := arg.(*runtime.ArrayValue); ok && e.shouldFlattenArrayArg(arrVal, arrArg) {
 			for _, el := range arrArg.Elements {
-				if !appendOne(el) {
+				if !e.appendArrayElement(arrVal, el, ctx) {
 					return
 				}
 			}
 			continue
 		}
-		if !appendOne(arg) {
+		if !e.appendArrayElement(arrVal, arg, ctx) {
 			return
 		}
 	}
+}
+
+// appendArrayElement converts an element to the array's declared representation
+// and snapshots value types before appending. A failed conversion stops Add/Push.
+func (e *Evaluator) appendArrayElement(arrVal *runtime.ArrayValue, v Value, ctx *ExecutionContext) bool {
+	elemKind := ""
+	if arrVal.ArrayType != nil && arrVal.ArrayType.ElementType != nil {
+		elemKind = types.GetUnderlyingType(arrVal.ArrayType.ElementType).TypeKind()
+	}
+	if arrVal.ArrayType != nil {
+		v = e.coerceJSONStorageValue(v, arrVal.ArrayType.ElementType, ctx)
+		if isError(v) || (ctx != nil && ctx.Exception() != nil) {
+			return false
+		}
+	}
+	// Coerce Variant values to a basic element type (DWScript variant
+	// casts); a failed cast raises a catchable exception.
+	switch elemKind {
+	case "INTEGER", "FLOAT", "STRING", "BOOLEAN":
+		unwrapped := unwrapVariant(v)
+		converted, errVal := e.coerceValueToKind(unwrapped, elemKind, nil, ctx)
+		if errVal != nil {
+			return false
+		}
+		if converted != nil {
+			v = converted
+		} else {
+			v = unwrapped
+		}
+	}
+	arrVal.Elements = append(arrVal.Elements, runtime.CopyValue(v))
+	return true
 }
 
 // shouldFlattenArrayArg reports whether an array argument to Add/Push should be

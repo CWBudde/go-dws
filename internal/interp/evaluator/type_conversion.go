@@ -136,6 +136,14 @@ func (e *Evaluator) ExecuteConversionFunctionSimple(
 //   - (convertedValue, true) if conversion was found and applied
 //   - (original value, false) if no conversion was needed or available
 func (e *Evaluator) TryImplicitConversion(value Value, targetType types.Type, ctx *ExecutionContext) (Value, bool) {
+	// JSONVariant is a declared connector representation, even when the source
+	// is a Variant with a compatible dynamic type. Materialize it at the same
+	// conversion boundary for initializers, parameters and function results.
+	if types.IsJSONVariant(targetType) {
+		converted := coerceToJSONVariant(value)
+		return converted, converted != value
+	}
+
 	// Handle nil value
 	if value == nil {
 		return nil, false
@@ -191,14 +199,18 @@ func (e *Evaluator) TryImplicitConversion(value Value, targetType types.Type, ct
 }
 
 // tryJSONScalarConversion narrows a (possibly variant-boxed) JSON node to a base
-// scalar type. Containers and undefined nodes have no scalar value and are left
-// alone, so the caller's strict handling still applies.
+// scalar type. String conversion uses the JSON connector's textual form;
+// numeric conversion leaves containers and undefined nodes to the caller.
 func tryJSONScalarConversion(value Value, targetType types.Type) (Value, bool) {
 	if !isJSONBoxed(value) {
 		return value, false
 	}
 	jv := jsonValueOf(value)
 	switch {
+	case types.OperatorTypesEqual(targetType, types.STRING):
+		return &runtime.StringValue{Value: unwrapVariant(value).String()}, true
+	case types.OperatorTypesEqual(targetType, types.BOOLEAN):
+		return &runtime.BooleanValue{Value: !jv.IsFalsey()}, true
 	case types.OperatorTypesEqual(targetType, types.FLOAT):
 		if f, ok := jsonScalarFloat(jv); ok {
 			return &runtime.FloatValue{Value: f}, true
@@ -209,6 +221,18 @@ func tryJSONScalarConversion(value Value, targetType types.Type) (Value, bool) {
 		}
 	}
 	return value, false
+}
+
+// coerceJSONStorageValue preserves the declared representation at aggregate
+// storage boundaries, where a value cannot carry the destination's type itself.
+func (e *Evaluator) coerceJSONStorageValue(value Value, targetType types.Type, ctx *ExecutionContext) Value {
+	if targetType == nil || (!isJSONBoxed(value) && !types.IsJSONVariant(targetType)) {
+		return value
+	}
+	if converted, ok := e.TryImplicitConversion(value, targetType, ctx); ok {
+		return converted
+	}
+	return value
 }
 
 // executeConversionEntry executes a single conversion entry (direct conversion).

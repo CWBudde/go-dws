@@ -64,7 +64,8 @@ func (e *Evaluator) VisitBinaryExpression(node *ast.BinaryExpression, ctx *Execu
 
 	// Handle operations based on operand types
 	// Check for Variant FIRST (Variant operations take precedence)
-	if runtime.KindOf(left) == runtime.KindVariant || runtime.KindOf(right) == runtime.KindVariant {
+	if runtime.KindOf(left) == runtime.KindVariant || runtime.KindOf(right) == runtime.KindVariant ||
+		(isComparisonOperator(node.Operator) && (runtime.KindOf(left) == runtime.KindJSON || runtime.KindOf(right) == runtime.KindJSON)) {
 		return e.evalVariantBinaryOp(node.Operator, left, right, node)
 	}
 

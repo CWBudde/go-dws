@@ -112,16 +112,21 @@ func (e *Evaluator) storeAssociativeEntry(
 	key Value,
 	value Value,
 	ctx *ExecutionContext,
-) {
+) Value {
+	value = e.coerceJSONStorageValue(value, assoc.ElementType(), ctx)
+	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
+		return value
+	}
 	e.retainValueForBinding(value, ctx)
 	prev, replaced := assoc.Set(key, value)
 	if replaced {
 		// The key slot already holds a retained copy of the key; only the
 		// displaced value loses a reference.
 		e.releaseValueForBinding(prev)
-		return
+		return value
 	}
 	e.retainValueForBinding(key, ctx)
+	return value
 }
 
 // releaseAssociativeEntry drops the map's references to one removed entry.

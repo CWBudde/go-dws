@@ -556,23 +556,14 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 		return nil, fmt.Errorf("nil array type node")
 	}
 
-	// Resolve element type first
-	var elementType types.Type
-	var err error
-
-	// Check if element type is also an array (nested arrays)
-	if nestedArray, ok := arrayNode.ElementType.(*ast.ArrayTypeNode); ok {
-		elementType, err = a.resolveArrayTypeNode(nestedArray)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Get element type name
-		elementTypeName := getTypeExpressionName(arrayNode.ElementType)
-		elementType, err = a.resolveType(elementTypeName)
-		if err != nil {
-			return nil, fmt.Errorf("unknown element type '%s': %w", elementTypeName, err)
-		}
+	// Preserve structural element types, including anonymous records and nested
+	// arrays, instead of resolving their display names as declared identifiers.
+	elementType, err := a.resolveTypeExpression(arrayNode.ElementType)
+	if err != nil {
+		return nil, fmt.Errorf("unknown element type '%s': %w", getTypeExpressionName(arrayNode.ElementType), err)
+	}
+	if elementType == nil {
+		return nil, nil
 	}
 
 	// Check if dynamic or static array

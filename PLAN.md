@@ -10,7 +10,7 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-22):** Go harness and freshly rebuilt CLI agree at **1,296 / 1,966 scored =
+**Headline (2026-09-22):** Go harness and freshly rebuilt CLI agree at **1,307 / 1,966 scored =
 66%**; `*Fail` error-detection suites **291 / 641 = 45%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
@@ -18,7 +18,7 @@
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,296 / 1,747 = 74% in scope**, the number to track against §6. Both are honest;
+same run reads **1,307 / 1,747 = 75% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -29,8 +29,8 @@ Open, in leverage order:
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 101 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E12
-  are closed; E3c is still open, and what the closed groups left is grouped as E13–E20.
+- **§3.5** is the other half: 90 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E13
+  are closed; E3c is still open, and what the closed groups left is grouped as E14–E20.
 - **§3.2** has no open items. **§3.4** has expected-type overload resolution, blocked on the
   evaluator. **§3.3** has only the gated Memory host setup.
 - **§1** and **§3.1** have no open items. **§2** has one, deferred by owner decision.
@@ -54,10 +54,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (670 total, 2026-09-22): **219 host-library** (out of scope),
+- Where the remaining failures are (659 total, 2026-09-22): **219 host-library** (out of scope),
   **350 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 13,
-  OverloadsFail 11, HelpersFail 9, the rest under 10), and **101 in the execution suites** (§3.5:
-  SimpleScripts 58, ArrayPass 15, JSONConnectorPass 9, FunctionsMath 1, a tail
+  OverloadsFail 11, HelpersFail 9, the rest under 10), and **90 in the execution suites** (§3.5:
+  SimpleScripts 56, ArrayPass 15, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - **Upstream source is reachable without the submodule.** `reference/dwscript-original/` is an
@@ -198,7 +198,7 @@ matching, class-operator inheritance), and the skipped-test backlog.
 
 ### 3.5 Execution-suite failures (E)
 
-101 in-scope execution-suite fixtures fail (2026-09-22). Audits:
+90 in-scope execution-suite fixtures fail (2026-09-22). Audits:
 [pass-suite audit](docs/architecture/pass-suite-audit-2026-09.md) (2026-09-12) and
 [execution-suite triage](docs/architecture/execution-suite-triage-2026-09.md) (2026-09-19, first
 blocker per group). Regenerate with `just fixture-report --in-scope --classify --list-fails`.
@@ -228,6 +228,7 @@ CLI/harness parity when fixtures improve.
 | E10 (09-19) | Triage of the remainder; partial-class continuations; value-bearing `Exit` uses Result; no duplicate positions in pretty runtime diagnostics | `partial_class3`, `implies` (SimpleScripts 381/443) |
 | E11 (09-19) | Variant `Abs`, Variant `Inc`/`Dec` deltas, two-argument `Succ`/`Pred`, Haversine radius, `RandG(mean, stdDev)` | FunctionsMath 35 → 39/40 |
 | E12 (09-22) | Indexed/default interface properties; runner diagnostic options; mixed reference equality; interface alias assignment | InterfacesPass 31 → 33/33, InterfacesFail 5 → 6/19; compile/run regressions |
+| E13 (09-22) | JSON conversion, inline record arrays, comparison/membership, safe mutation, duplicate-key serialization | JSONConnectorPass 73 → 82/82; compile/run and ownership regressions |
 
 #### E3c — Declared-name handling `[~]` M
 
@@ -237,38 +238,9 @@ which includes both case hints; see [the September progress log](docs/history/pr
 The remaining cases depend on other fixes. None may be hidden with hint suppression.
 - `[ ]` Recheck once prerequisites land: `SimpleScripts/class_var_dyn2` after class-variable scope
   resolution; `string_builtin_methods` after the missing string APIs;
-  `ArrayPass/dynamic_anonymous_record` (see E13c) and `FailureScripts/block_unfinished4` after
-  parser recovery (§4/F3).
-
-#### E13 — JSON follow-ups (from E6) `[ ]`
-
-JSONConnectorPass 73/82.
-
-- `[ ]` a **Associative-key conversion** (`implicit_associative_key_cast`): normalize JSON
-  numeric keys to the declared String key type so a lookup using `'123'` finds a JSONVariant
-  key holding 123.
-- `[ ]` b **JSONVariant parameter conversion** (`implicit_from_cast`): materialize the declared
-  JSONVariant representation for Null, unassigned Variant and primitive arguments before
-  method dispatch; `Test(Null)` currently attempts `TypeName` on raw NULL.
-- `[ ]` c **Inline record array types** (`const_array`, `stringify_array_of_array`): resolve anonymous
-  record element types in static and dynamic arrays; compilation currently stops before JSON
-  serialization runs.
-- `[ ]` d **Coercive comparison** (`comparison2`): reconcile numeric JSON/string comparisons,
-  retaining lexical distinctions for string/string comparisons.
-- `[ ]` e **Coercive membership** (`in_static`): JSON/native and Variant/native `in`.
-- `[ ]` f **Invalid array deletion** (`delete_array_index`): raise a catchable exception for
-  an invalid index and leave the array unchanged; the failed deletion is currently ignored.
-- `[ ]` g **Circular references** (`circular_references`): reject self and transitive cycles
-  before changing ownership in object assignment and array insertion.
-- `[ ]` h **Immediate JSONVariant assignment** (`write_immediate_prop`): route member/index writes
-  through JSON mutation handling so primitive-backed JSONVariants produce the expected
-  catchable `Immediate`/`String` diagnostics.
-- `[ ]` i **Duplicate textual Variant keys** (no fixture; found in review): distinct associative
-  keys such as Integer `1` and String `'1'` coexist, but conversion through a JSON object collapses
-  their identical member names. Upstream `StringifyAssociativeArray` writes each occupied bucket
-  directly, retaining both names. Add a real-path regression and preserve duplicate names when
-  emitting JSON text; establish `JSON.Serialize` behavior separately before changing the JSON
-  value representation.
+  `ArrayPass/dynamic_anonymous_record` after support for properties and methods in anonymous
+  record expressions (separate from E13's inline record array types), and
+  `FailureScripts/block_unfinished4` after parser recovery (§4/F3).
 
 #### E14 — Seeded RNG and Variant-to-Integer assignment (from E10, E11) `[ ]`
 

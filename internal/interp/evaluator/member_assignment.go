@@ -39,6 +39,10 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
+	value = e.coerceJSONStorageValue(value, e.resolvedExpressionType(target, ctx), ctx)
+	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
+		return value
+	}
 	// Snapshot record values before receiver evaluation, which may change the
 	// source record through a side effect.
 	if record, ok := value.(*runtime.RecordValue); ok {

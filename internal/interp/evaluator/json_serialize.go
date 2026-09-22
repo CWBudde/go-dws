@@ -11,40 +11,42 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-// valueToJSONValue converts a runtime Value to a jsonvalue.Value with access to
+// valueToJSONValue snapshots a runtime Value for JSON text serialization with access to
 // the evaluator and execution context, so class/record serialization can run
 // property getters and a custom Stringify override. It is the context-aware
 // counterpart of the package-level ValueToJSONValue and is used by the
 // JSON.Stringify/Serialize/PrettyStringify handlers.
-func (e *Evaluator) valueToJSONValue(val Value, node ast.Node, ctx *ExecutionContext) *jsonvalue.Value {
+func (e *Evaluator) valueToJSONValue(val Value, node ast.Node, ctx *ExecutionContext) *jsonTextValue {
 	if val == nil {
-		return jsonvalue.NewNull()
+		return jsonTextFromValue(jsonvalue.NewNull())
 	}
 
 	// Unwrap Variant so a boxed object/record/array is serialized structurally.
 	if wrapper, ok := val.(runtime.VariantWrapper); ok {
 		unwrapped := wrapper.UnwrapVariant()
 		if unwrapped == nil {
-			return jsonvalue.NewNull()
+			return jsonTextFromValue(jsonvalue.NewNull())
 		}
 		val = unwrapped
 	}
 
 	switch v := val.(type) {
 	case *runtime.JSONValue:
-		// ObjectSet/ArrayAppend adopt their child. Serialization must not move
-		// live JSON nodes out of the source tree, including nested map values.
+		// Snapshot live JSON without adopting or moving its children.
 		// A nil node represents JSON undefined, which serializes as null.
 		if v == nil || v.Value == nil {
-			return jsonvalue.NewNull()
+			return jsonTextFromValue(jsonvalue.NewNull())
 		}
-		return v.Value.Clone()
+		return jsonTextFromValue(v.Value)
 	case *runtime.AssociativeArrayValue:
 		return e.associativeArrayToJSON(v, node, ctx)
 	case *runtime.ArrayValue:
-		arr := jsonvalue.NewArray()
+		arr := newJSONTextArray()
 		for _, elem := range v.Elements {
-			arr.ArrayAppend(e.valueToJSONValue(elem, node, ctx))
+			arr.elements = append(arr.elements, e.valueToJSONValue(elem, node, ctx))
+			if ctx.Exception() != nil {
+				break
+			}
 		}
 		return arr
 	case *runtime.RecordValue:
@@ -52,11 +54,11 @@ func (e *Evaluator) valueToJSONValue(val Value, node ast.Node, ctx *ExecutionCon
 	case *runtime.ObjectInstance:
 		return e.objectToJSON(v, node, ctx)
 	case *runtime.SetValue:
-		return setToJSON(v)
+		return jsonTextFromValue(setToJSON(v))
 	default:
 		// Primitives, JSON passthrough, and nil are handled by the
 		// context-free converter.
-		return ValueToJSONValue(val)
+		return jsonTextFromValue(ValueToJSONValue(val))
 	}
 }
 
@@ -64,8 +66,8 @@ func (e *Evaluator) valueToJSONValue(val Value, node ast.Node, ctx *ExecutionCon
 // scalar keys become object names in bucket order, while other key types
 // produce an empty object. Values use the contextual converter so nested
 // objects retain property getter and custom Stringify behavior.
-func (e *Evaluator) associativeArrayToJSON(assoc *runtime.AssociativeArrayValue, node ast.Node, ctx *ExecutionContext) *jsonvalue.Value {
-	result := jsonvalue.NewObject()
+func (e *Evaluator) associativeArrayToJSON(assoc *runtime.AssociativeArrayValue, node ast.Node, ctx *ExecutionContext) *jsonTextValue {
+	result := newJSONTextObject()
 	if assoc == nil || assoc.KeyType() == nil || ctx.Exception() != nil {
 		return result
 	}
@@ -79,14 +81,14 @@ func (e *Evaluator) associativeArrayToJSON(assoc *runtime.AssociativeArrayValue,
 		if ctx.Exception() != nil {
 			return result
 		}
-		result.ObjectSet(key.String(), jv)
+		result.appendMember(key.String(), jv)
 	}
 	return result
 }
 
-// jsonMember is a collected (name, value) pair pending ordinal sorting.
+// jsonMember retains one textual name and serialized value; names may repeat.
 type jsonMember struct {
-	jv   *jsonvalue.Value
+	jv   *jsonTextValue
 	name string
 }
 
@@ -95,71 +97,93 @@ type jsonMember struct {
 // non-indexed readable properties, ordered most-derived class first and
 // ordinally within each class level. A custom parameterless String-returning
 // Stringify method, if present, replaces the composite serialization.
-func (e *Evaluator) objectToJSON(obj *runtime.ObjectInstance, node ast.Node, ctx *ExecutionContext) *jsonvalue.Value {
+func (e *Evaluator) objectToJSON(obj *runtime.ObjectInstance, node ast.Node, ctx *ExecutionContext) *jsonTextValue {
 	if obj == nil || obj.Class == nil || obj.Destroyed {
-		return jsonvalue.NewNull()
+		return jsonTextFromValue(jsonvalue.NewNull())
 	}
 
 	if jv, ok := e.objectCustomStringify(obj, node, ctx); ok {
 		return jv
 	}
 
-	result := jsonvalue.NewObject()
+	result := newJSONTextObject()
+	if ctx.Exception() != nil {
+		return result
+	}
 	seen := make(map[string]bool)
 
 	for cur := obj.Class; cur != nil; cur = cur.GetParent() {
-		var members []jsonMember
-		levelSeen := make(map[string]bool)
-
-		add := func(name string, jv *jsonvalue.Value) {
-			norm := ident.Normalize(name)
-			if seen[norm] || levelSeen[norm] {
-				return
-			}
-			levelSeen[norm] = true
-			members = append(members, jsonMember{name: name, jv: jv})
+		members, ok := e.classLevelJSONMembers(obj, cur, seen, node, ctx)
+		if !ok {
+			return result
 		}
-
-		// Own fields at this class level (public only).
-		if meta := cur.GetMetadata(); meta != nil {
-			for _, fm := range meta.Fields {
-				if fm.Visibility != runtime.FieldVisibilityPublic {
-					continue
-				}
-				fv := obj.GetFieldFromClass(fm.Name, cur.GetName())
-				add(fm.Name, e.valueToJSONValue(fv, node, ctx))
-			}
-		}
-
-		// Own properties at this class level (non-indexed, readable).
-		for _, prop := range ownProperties(cur) {
-			if prop.IsIndexed {
-				continue
-			}
-			pInfo, ok := unwrapPropertyInfo(prop)
-			if !ok || pInfo.ReadKind == types.PropAccessNone {
-				continue
-			}
-			res := e.executePropertyRead(obj, prop, node, ctx)
-			if isError(res) {
-				continue
-			}
-			// An `external 'name'` clause renames the property's JSON key.
-			name := prop.Name
-			if pInfo.ExternalName != "" {
-				name = pInfo.ExternalName
-			}
-			add(name, e.valueToJSONValue(res, node, ctx))
-		}
-
 		sort.Slice(members, func(i, j int) bool { return members[i].name < members[j].name })
 		for _, m := range members {
 			seen[ident.Normalize(m.name)] = true
-			result.ObjectSet(m.name, m.jv)
+			result.appendMember(m.name, m.jv)
 		}
 	}
 
 	return result
+}
+
+// classLevelJSONMembers collects the public fields and non-indexed readable
+// properties declared at one class level, skipping names already emitted by a
+// more-derived level. It reports false when serialization raised an exception.
+func (e *Evaluator) classLevelJSONMembers(obj *runtime.ObjectInstance, cur runtime.IClassInfo, seen map[string]bool, node ast.Node, ctx *ExecutionContext) ([]jsonMember, bool) {
+	var members []jsonMember
+	levelSeen := make(map[string]bool)
+
+	add := func(name string, jv *jsonTextValue) {
+		norm := ident.Normalize(name)
+		if seen[norm] || levelSeen[norm] {
+			return
+		}
+		levelSeen[norm] = true
+		members = append(members, jsonMember{name: name, jv: jv})
+	}
+
+	// Own fields at this class level (public only).
+	if meta := cur.GetMetadata(); meta != nil {
+		for _, fm := range meta.Fields {
+			if fm.Visibility != runtime.FieldVisibilityPublic {
+				continue
+			}
+			fv := obj.GetFieldFromClass(fm.Name, cur.GetName())
+			add(fm.Name, e.valueToJSONValue(fv, node, ctx))
+			if ctx.Exception() != nil {
+				return nil, false
+			}
+		}
+	}
+
+	// Own properties at this class level (non-indexed, readable).
+	for _, prop := range ownProperties(cur) {
+		if prop.IsIndexed {
+			continue
+		}
+		pInfo, ok := unwrapPropertyInfo(prop)
+		if !ok || pInfo.ReadKind == types.PropAccessNone {
+			continue
+		}
+		res := e.executePropertyRead(obj, prop, node, ctx)
+		if ctx.Exception() != nil {
+			return nil, false
+		}
+		if isError(res) {
+			continue
+		}
+		// An `external 'name'` clause renames the property's JSON key.
+		name := prop.Name
+		if pInfo.ExternalName != "" {
+			name = pInfo.ExternalName
+		}
+		add(name, e.valueToJSONValue(res, node, ctx))
+		if ctx.Exception() != nil {
+			return nil, false
+		}
+	}
+	return members, true
 }
 
 // setToJSON serializes a set value to a JSON array, matching DWScript's JSON
@@ -196,7 +220,7 @@ func setToJSON(s *runtime.SetValue) *jsonvalue.Value {
 // override, if it declares a parameterless, non-class, non-constructor method
 // named Stringify returning String. The returned string is treated as raw JSON
 // (re-parsed); on a parse failure it falls back to a JSON string.
-func (e *Evaluator) objectCustomStringify(obj *runtime.ObjectInstance, node ast.Node, ctx *ExecutionContext) (*jsonvalue.Value, bool) {
+func (e *Evaluator) objectCustomStringify(obj *runtime.ObjectInstance, node ast.Node, ctx *ExecutionContext) (*jsonTextValue, bool) {
 	md := obj.Class.LookupMethod("Stringify")
 	if md == nil {
 		return nil, false
@@ -218,10 +242,10 @@ func (e *Evaluator) objectCustomStringify(obj *runtime.ObjectInstance, node ast.
 		return nil, false
 	}
 
-	if jv, err := jsonvalue.Parse(strings.TrimSpace(s)); err == nil {
+	if jv, err := parseJSONText(strings.TrimSpace(s)); err == nil {
 		return jv, true
 	}
-	return jsonvalue.NewString(s), true
+	return jsonTextFromValue(jsonvalue.NewString(s)), true
 }
 
 // jsonResultString extracts a Go string from a runtime string value, unwrapping
@@ -240,13 +264,13 @@ func jsonResultString(val Value) (string, bool) {
 
 // recordToJSON serializes a record value to a JSON object, applying the same
 // visibility, ordering, and getter-execution rules as class serialization.
-func (e *Evaluator) recordToJSON(rec *runtime.RecordValue, node ast.Node, ctx *ExecutionContext) *jsonvalue.Value {
-	result := jsonvalue.NewObject()
+func (e *Evaluator) recordToJSON(rec *runtime.RecordValue, node ast.Node, ctx *ExecutionContext) *jsonTextValue {
+	result := newJSONTextObject()
 
 	var members []jsonMember
 	seen := make(map[string]bool)
 
-	add := func(name string, jv *jsonvalue.Value) {
+	add := func(name string, jv *jsonTextValue) {
 		norm := ident.Normalize(name)
 		if seen[norm] {
 			return
@@ -262,6 +286,9 @@ func (e *Evaluator) recordToJSON(rec *runtime.RecordValue, node ast.Node, ctx *E
 				continue
 			}
 			res := e.executeRecordPropertyRead(rec, prop, node, ctx)
+			if ctx.Exception() != nil {
+				return result
+			}
 			if isError(res) {
 				continue
 			}
@@ -271,6 +298,9 @@ func (e *Evaluator) recordToJSON(rec *runtime.RecordValue, node ast.Node, ctx *E
 				name = prop.ExternalName
 			}
 			add(name, e.valueToJSONValue(res, node, ctx))
+			if ctx.Exception() != nil {
+				return result
+			}
 		}
 	}
 
@@ -280,18 +310,16 @@ func (e *Evaluator) recordToJSON(rec *runtime.RecordValue, node ast.Node, ctx *E
 		if !recordFieldIsPublic(rec.RecordType, fieldKey) {
 			continue
 		}
-		name := fieldKey
-		if rec.RecordType != nil {
-			if orig, ok := rec.RecordType.FieldNames[ident.Normalize(fieldKey)]; ok {
-				name = orig
-			}
-		}
+		name := recordJSONFieldName(rec.RecordType, fieldKey)
 		add(name, e.valueToJSONValue(fieldValue, node, ctx))
+		if ctx.Exception() != nil {
+			return result
+		}
 	}
 
 	sort.Slice(members, func(i, j int) bool { return members[i].name < members[j].name })
 	for _, m := range members {
-		result.ObjectSet(m.name, m.jv)
+		result.appendMember(m.name, m.jv)
 	}
 
 	return result
@@ -325,4 +353,14 @@ func ownProperties(ci runtime.IClassInfo) []*runtime.PropertyInfo {
 		return l.GetOwnProperties()
 	}
 	return nil
+}
+
+// recordJSONFieldName recovers declaration spelling from normalized storage keys.
+func recordJSONFieldName(recordType *types.RecordType, key string) string {
+	if recordType != nil {
+		if name, ok := recordType.FieldNames[ident.Normalize(key)]; ok {
+			return name
+		}
+	}
+	return key
 }
