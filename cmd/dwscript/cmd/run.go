@@ -23,14 +23,15 @@ import (
 )
 
 var (
-	evalExpr     string
-	dumpAST      bool
-	trace        bool
-	typeCheck    bool
-	showUnits    bool
-	maxRecursion int
-	bytecodeMode bool
-	hintsLevel   string
+	evalExpr                    string
+	dumpAST                     bool
+	trace                       bool
+	typeCheck                   bool
+	showUnits                   bool
+	maxRecursion                int
+	bytecodeMode                bool
+	hintsLevel                  string
+	symbolDictionaryDiagnostics bool
 
 	// diagnosticsMode selects "pretty" (default) or "plain" (DWScript wire format).
 	diagnosticsMode string
@@ -94,6 +95,7 @@ func init() {
 	runCmd.Flags().IntVar(&maxRecursion, "max-recursion", 1024, "maximum recursion depth (default: 1024)")
 	runCmd.Flags().BoolVar(&bytecodeMode, "bytecode", false, "execute via bytecode VM instead of AST interpreter (experimental)")
 	runCmd.Flags().StringVar(&hintsLevel, "hints", "off", "print compiler hints/warnings to stderr, non-fatal: off|normal|strict|pedantic (pedantic includes case-mismatch hints)")
+	runCmd.Flags().BoolVar(&symbolDictionaryDiagnostics, "symbol-dictionary-diagnostics", true, "enable unused-symbol and unwritten reference-parameter hints (subject to --hints)")
 	runCmd.Flags().BoolVar(&compileOnly, "compile-only", false, "compile (parse, type-check) and report diagnostics without executing; every message is printed, hints included, in the DWScript wire format (implies --diagnostics=plain)")
 	runCmd.Flags().BoolVar(&testEnvelope, "test-envelope", false, "wrap output in DWScript's test-harness 'Errors >>>>' / 'Result >>>>' framing when there are messages; buffers all program output until exit (implies --diagnostics=plain)")
 	runCmd.Flags().StringVar(&diagnosticsMode, "diagnostics", "pretty", "diagnostic output style: pretty (source excerpt, colors on a terminal) or plain (DWScript wire format, one message per line)")
@@ -263,7 +265,7 @@ func compileRunInput(input, filename string) (cs *compiledScript, done bool, err
 	// {$INCLUDE} resolves relative to the script's directory; inline -e code has no
 	// include root.
 	hintLevel, wantHints := parseHintsLevel(hintsLevel)
-	compileOpts := frontend.Options{Filename: filename, HintsLevel: hintLevel}
+	compileOpts := frontend.Options{Filename: filename, HintsLevel: hintLevel, DisableSymbolDictionaryDiagnostics: !symbolDictionaryDiagnostics}
 	if evalExpr == "" {
 		compileOpts.IncludeDir = filepath.Dir(filename)
 	}

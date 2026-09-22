@@ -39,7 +39,7 @@ func (a *Analyzer) recordSymbolUsage(name string, pos token.Position) {
 // unused locals in the current scope. It intentionally skips parameters,
 // constants, read-only bindings, and injected symbols such as Self.
 func (a *Analyzer) emitUnusedWarningsForCurrentScope() {
-	if a == nil || a.symbols == nil {
+	if !a.symbolDictionaryDiagnosticsEnabled() || a.symbols == nil {
 		return
 	}
 	if a.currentFunction == nil && !a.inLambda {
@@ -150,7 +150,7 @@ func (a *Analyzer) queueUnusedPrivateClassMembers(classType *types.ClassType) {
 }
 
 func (a *Analyzer) collectUnusedPrivateClassMemberWarnings(classType *types.ClassType) []string {
-	if a == nil || classType == nil {
+	if !a.symbolDictionaryDiagnosticsEnabled() || classType == nil {
 		return nil
 	}
 	for _, err := range a.errors {

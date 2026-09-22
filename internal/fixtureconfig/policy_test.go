@@ -50,3 +50,26 @@ func TestHintsLevel_OtherRunnersStayStrict(t *testing.T) {
 		}
 	}
 }
+
+func TestSymbolDictionaryDiagnostics_MatchesBundledUScriptTests(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join("..", "..", "testdata", "fixtures", "UScriptTests.pas"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	matches := regexp.MustCompile(`CollectFiles\(basePath\+'([A-Za-z0-9_]+)'[^\n]+, (FTests|FFailures)\)`).FindAllSubmatch(source, -1)
+	if len(matches) == 0 {
+		t.Fatal("no upstream fixture categories found")
+	}
+	for _, match := range matches {
+		category := string(match[1])
+		want := string(match[2]) == "FFailures"
+		if got := SymbolDictionaryDiagnostics(category); got != want {
+			t.Errorf("%s: got %v, want %v", category, got, want)
+		}
+	}
+	for _, category := range []string{"Memory", "FunctionsMath", "JSONConnectorPass", "Unknown"} {
+		if !SymbolDictionaryDiagnostics(category) {
+			t.Errorf("%s should retain dictionary diagnostics", category)
+		}
+	}
+}

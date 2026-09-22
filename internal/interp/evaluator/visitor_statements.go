@@ -369,15 +369,9 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 			}
 
 			if node.Type != nil {
-				typeName := node.Type.String()
-				if e.typeSystem.HasInterface(typeName) {
-					if runtime.KindOf(value) != runtime.KindInterface {
-						wrapped, err := e.wrapInInterface(value, typeName, node)
-						if err != nil {
-							return e.newError(node, "%v", err)
-						}
-						nameValue = wrapped
-					}
+				nameValue = e.wrapDeclaredInterfaceValue(nameValue, node, ctx)
+				if isError(nameValue) {
+					return nameValue
 				}
 			}
 		} else {
@@ -393,6 +387,27 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 	}
 
 	return lastValue
+}
+
+// wrapDeclaredInterfaceValue preserves interface representation for initializers,
+// including aliases and nil, using the resolved declaration rather than its spelling.
+func (e *Evaluator) wrapDeclaredInterfaceValue(value Value, node *ast.VarDeclStatement, ctx *ExecutionContext) Value {
+	resolved, err := e.ResolveTypeFromAnnotation(node.Type, ctx)
+	if err != nil {
+		return value
+	}
+	ifaceType, ok := types.GetUnderlyingType(resolved).(*types.InterfaceType)
+	if !ok || runtime.KindOf(value) == runtime.KindInterface {
+		return value
+	}
+	if runtime.KindOf(value) == runtime.KindNil {
+		return e.createZeroValueForResolvedType(ifaceType, ctx)
+	}
+	wrapped, err := e.wrapInInterface(value, ifaceType.Name, node)
+	if err != nil {
+		return e.newError(node, "%v", err)
+	}
+	return wrapped
 }
 
 // VisitConstDecl evaluates a constant declaration.

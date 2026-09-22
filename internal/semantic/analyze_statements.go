@@ -561,6 +561,23 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				objectTypeResolved = metaclassType.ClassType
 			}
 
+			if iface, ok := objectTypeResolved.(*types.InterfaceType); ok {
+				if prop := iface.GetProperty(memberName); prop != nil {
+					if !a.checkInterfacePropertyAccess(prop, target.Member, true, isCompound) {
+						return
+					}
+					valueType := a.analyzeExpressionWithExpectedType(stmt.Value, prop.Type)
+					if valueType != nil {
+						if isCompound {
+							a.isCompoundOperatorValid(stmt.Operator, prop.Type, valueType, stmt.Token.Pos)
+						}
+						if !a.canAssign(valueType, prop.Type) {
+							a.addStructuredError(NewPropertyValueTypeMismatchError(target.Pos(), prop.Type.String(), valueType.String()))
+						}
+					}
+					return
+				}
+			}
 			// Check if it's a class constant
 			if classType, ok := objectTypeResolved.(*types.ClassType); ok {
 				if constType := a.findClassConstantWithVisibility(classType, memberName, stmt.Token.Pos.String()); constType != nil {
@@ -670,6 +687,18 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 	case *ast.IndexExpression:
+		if targetType, handled := a.analyzeInterfaceIndexedProperty(target, true, isCompound); handled {
+			valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
+			if valueType != nil {
+				if isCompound {
+					a.isCompoundOperatorValid(stmt.Operator, targetType, valueType, stmt.Token.Pos)
+				}
+				if !a.canAssign(valueType, targetType) {
+					a.addStructuredError(NewPropertyValueTypeMismatchError(target.Pos(), targetType.String(), valueType.String()))
+				}
+			}
+			return
+		}
 		// Array index assignment: arr[i] := value or arr[i] += value
 		// Analyze the target to ensure it's valid. An indexed property is the one
 		// base that must not be analyzed on its own: `TC.Prop` without its index

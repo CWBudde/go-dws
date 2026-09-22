@@ -26,6 +26,75 @@ func TestInterfaceComparison_Identity(t *testing.T) {
 		name, source, want string
 	}{
 		{
+			name: "class and interface identity",
+			source: `var Obj := TBoth.Create;
+var Other := TBoth.Create;
+var L: ILeft := Obj;
+PrintLn(Obj = L); PrintLn(L = Obj);
+PrintLn(Obj <> L); PrintLn(L <> Obj);
+PrintLn(Other = L); PrintLn(L = Other);
+PrintLn(Other <> L); PrintLn(L <> Other);`,
+			want: "True\nTrue\nFalse\nFalse\nFalse\nFalse\nTrue\nTrue\n",
+		},
+		{
+			name: "class and interface nil identity",
+			source: `var Obj: TBoth;
+var L: ILeft;
+PrintLn(Obj = L); PrintLn(L = Obj);
+PrintLn(Obj <> L); PrintLn(L <> Obj);
+Obj := TBoth.Create;
+PrintLn(Obj = L); PrintLn(L = Obj);
+PrintLn(Obj <> L); PrintLn(L <> Obj);
+L := Obj;
+Obj := nil;
+PrintLn(Obj = L); PrintLn(L = Obj);
+PrintLn(Obj <> L); PrintLn(L <> Obj);`,
+			want: "True\nTrue\nFalse\nFalse\nFalse\nFalse\nTrue\nTrue\nFalse\nFalse\nTrue\nTrue\n",
+		},
+		{
+			name: "direct object assignment to interface aliases",
+			source: `type IAliasChain = ILeftAlias;
+type TChild = class(TBoth) end;
+type TChildAlias = TChild;
+var Obj: TChildAlias := TChild.Create;
+var Initialized: IAliasChain := Obj;
+var Assigned: ILeftAlias;
+Assigned := Obj;
+var Underlying: ILeft := Initialized;
+var Copied: ILeftAlias := Underlying;
+PrintLn(Initialized.LeftValue);
+PrintLn(Assigned.LeftValue);
+PrintLn(Copied.LeftValue);
+PrintLn(Initialized); PrintLn(Assigned);
+PrintLn(Obj = Initialized); PrintLn(Initialized = Obj);
+PrintLn(Initialized = Assigned); PrintLn(Initialized <> Copied);
+Assigned := nil;
+PrintLn(Assigned = nil);
+Assigned := Obj;
+PrintLn(Assigned.LeftValue);`,
+			want: "1\n1\n1\nTInterfaceSymbol\nTInterfaceSymbol\nTrue\nTrue\nTrue\nFalse\nTrue\n1\n",
+		},
+		{
+			name: "nil alias initializer preserves interface assignment",
+			source: `var L: ILeftAlias := nil;
+PrintLn(L = nil);
+L := TBoth.Create;
+PrintLn(L.LeftValue);
+PrintLn(L);
+L := nil;
+PrintLn(L = nil);`,
+			want: "True\n1\nTInterfaceSymbol\nTrue\n",
+		},
+		{
+			name: "nil object initializer preserves aliased interface type",
+			source: `var Obj: TBoth;
+var L: ILeftAlias := Obj;
+PrintLn(L = Obj); PrintLn(Obj = L);
+L := TBoth.Create;
+PrintLn(L.LeftValue); PrintLn(L);`,
+			want: "True\nTrue\n1\nTInterfaceSymbol\n",
+		},
+		{
 			name: "unrelated interfaces on same object",
 			source: `var Obj := TBoth.Create;
 var L: ILeft := Obj;
@@ -108,6 +177,11 @@ func TestInterfaceComparison_InvalidOperands(t *testing.T) {
 		{"integer equality", "PrintLn(L = 1);", "cannot compare"},
 		{"string inequality", "PrintLn('value' <> L);", "cannot compare"},
 		{"implicit unrelated assignment", "L := R;", "Incompatible types"},
+		{"incompatible object comparison", "PrintLn(TObject.Create = L);", "cannot compare"},
+		{"mixed reference ordering", "PrintLn(TBoth.Create < L);", "Invalid Operands"},
+		{"incompatible object alias initializer", "var A: ILeftAlias := TObject.Create;", "Cannot assign"},
+		{"incompatible object alias assignment", "var A: ILeftAlias; A := TObject.Create;", "Cannot assign"},
+		{"unrelated interface alias assignment", "var A: ILeftAlias; A := R;", "Incompatible types"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			engine, err := New(WithTypeCheck(true))

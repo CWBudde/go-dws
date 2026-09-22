@@ -496,6 +496,23 @@ when analysis of a routine body is deferred. Warnings and errors are independent
 `{$HINTS}`. The CLI's `--hints off` also hides hint/warning output during execution;
 `--compile-only` always prints the resulting diagnostic list.
 
+### Symbol-dictionary diagnostics
+
+`run --symbol-dictionary-diagnostics=false` disables hints that depend on upstream's
+symbol dictionary: unused locals, unused `Result`, unused private members, and
+reference `var` parameters that are never written. The default is `true`, preserving
+ordinary CLI behavior. This setting also applies to imported units; it does not
+disable case hints, source-message directives, or other diagnostics.
+
+Methods that implement an interface are exempt from unused-private hints, including
+inherited implementations. Other unused private methods still produce hints when
+dictionary diagnostics and the appropriate hint level are enabled.
+
+The fixture harness and CLI report set this option explicitly from the same category
+policy. Execution categories collected by `UScriptTests` disable it; that runner's
+nonoptimized failure categories enable it. Other categories retain their existing
+setting. See [the fixture README](../../testdata/fixtures/README.md#symbol-dictionary-diagnostics).
+
 ### Example Output
 
 ```bash

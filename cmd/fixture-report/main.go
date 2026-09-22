@@ -207,7 +207,8 @@ func runOne(cli, category, pasFile string, timeout time.Duration) string {
 		mode = "--compile-only"
 	}
 	cmd := exec.CommandContext(ctx, cli, "run",
-		"--diagnostics=plain", mode, "--hints", hintsLevelFor(category), pasFile)
+		"--diagnostics=plain", mode, "--hints", hintsLevelFor(category),
+		fmt.Sprintf("--symbol-dictionary-diagnostics=%t", fixtureconfig.SymbolDictionaryDiagnostics(category)), pasFile)
 	cmd.Env = append(os.Environ(), "NO_COLOR=1", "TZ="+fixtureTimeZone)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {

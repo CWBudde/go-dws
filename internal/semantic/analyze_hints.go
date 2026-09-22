@@ -295,7 +295,7 @@ func leadingIdentifier(expr ast.Expression) *ast.Identifier {
 // `param.Typ.IsClassSymbol`. Interfaces and dynamic arrays are reference types
 // too but are not class symbols, so they stay out.
 func (a *Analyzer) emitReferenceVarParamHints() {
-	if a == nil || a.symbols == nil {
+	if !a.symbolDictionaryDiagnosticsEnabled() || a.symbols == nil {
 		return
 	}
 	fn := a.currentFunction

@@ -439,6 +439,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 		// Interface properties resolve to their declared type.
 		if propInfo := ifaceType.GetProperty(memberName); propInfo != nil {
+			a.checkInterfacePropertyAccess(propInfo, expr.Member, false, false)
 			return propInfo.Type
 		}
 

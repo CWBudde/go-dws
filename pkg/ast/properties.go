@@ -3,6 +3,8 @@ package ast
 import (
 	"bytes"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -34,19 +36,21 @@ type PropertyDecl struct {
 	Name        *Identifier
 	IndexParams []*Parameter
 	IndexValue  Expression
-	BaseNode
-	IsDefault bool
-	// IsExternal is true for `property Name: Type external 'JsonKey' ...`.
-	// ExternalName holds the quoted name, which replaces the declared name when
-	// the object is serialized (JSON.Stringify).
-	IsExternal   bool
+	// ExternalName holds the quoted external name, which replaces the declared
+	// name when the object is serialized (JSON.Stringify).
 	ExternalName string
 	// DeprecatedMessage is the text of a `deprecated 'msg'` directive written
 	// after the declaration; a bare `deprecated;` leaves it empty and sets
 	// IsDeprecated alone.
 	DeprecatedMessage string
-	IsDeprecated      bool
-	IsClassProperty   bool
+	BaseNode
+	// DefaultPos is the position immediately following the default directive.
+	DefaultPos token.Position
+	IsDefault  bool
+	// IsExternal is true for `property Name: Type external 'JsonKey' ...`.
+	IsExternal      bool
+	IsDeprecated    bool
+	IsClassProperty bool
 	// IsAutoProperty is true when the property was declared without read/write
 	// specifiers (e.g. `property Alpha: Integer;`). The parser desugars it to
 	// read/write the synthesized backing field `F<Name>` and, while assembling

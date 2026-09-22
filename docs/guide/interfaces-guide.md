@@ -2,7 +2,7 @@
 
 **Document Version:** 1.1
 **Date:** September 2026
-**Related Tasks:** 7.155, E5
+**Related Tasks:** 7.155, E5, E12
 
 ## Overview
 
@@ -33,7 +33,7 @@ Interfaces in DWScript define contracts that classes can implement. An interface
 
 **Key Characteristics:**
 - Define method signatures only (no implementation)
-- Cannot contain fields (methods only)
+- Cannot contain fields; properties use accessor methods
 - Support single inheritance
 - Classes can implement multiple interfaces
 - Type-safe casting via `as` operator
@@ -64,7 +64,7 @@ type
 
 **Rules:**
 - Interface names conventionally start with `I` (e.g., `IDrawable`, `ISerializable`)
-- Only method declarations (no implementation)
+- Method and property declarations only (no implementation)
 - No fields allowed
 - No constructors or destructors
 - Methods are implicitly public
@@ -108,6 +108,42 @@ end;
 
 The name refers to the interface being declared, with ordinary case-insensitive lookup.
 This does not permit self-inheritance or references to interfaces declared later.
+
+### Indexed and Default Properties
+
+Interface properties dispatch their accessor methods on the implementing object:
+
+```pascal
+type IValues = interface
+  function GetValue(key: String): Integer;
+  procedure SetValue(key: String; value: Integer);
+  property Values[key: String]: Integer read GetValue write SetValue; default;
+end;
+```
+
+For an `IValues` reference `values`, `values.Values['count']` and `values['count']`
+access the same property. Both forms support reads and assignments. Properties
+may declare multiple index parameters, and inherited interface properties remain
+available. A child interface's default property takes precedence over its parent's.
+
+The getter takes the declared indices and returns the property type; the setter
+takes those indices followed by the new value. Read-only and write-only restrictions
+are checked during compilation, as are index types and accessor signatures.
+
+### Interface Aliases
+
+An alias preserves the underlying interface's assignment and dispatch behavior:
+
+```pascal
+type IValuesAlias = IValues;
+// TValues declares that it implements IValues.
+var values: IValuesAlias := TValues.Create;
+values['count'] := 3;
+```
+
+Direct initialization and later assignment accept objects whose classes implement
+the interface, including through an ancestor class. Aliases may be chained and may
+hold `nil`; they do not permit assigning an incompatible object.
 
 ### Empty Interfaces
 
@@ -212,7 +248,7 @@ end;
 - List interface after class parent: `class(TParent, IInterface)`
 - Implement ALL interface methods
 - Methods should be `virtual` for polymorphism
-- Visibility must be `public` or `protected`
+- Implementing methods may be private; calls through the interface remain available
 
 ### Implementing Multiple Interfaces
 
@@ -395,6 +431,10 @@ have unrelated interface types. Two interface wrappers around the same object
 compare equal; references to different objects compare unequal. Nil interfaces
 compare equal to each other and to `nil` on either side. Ordering comparisons
 such as `<` are invalid.
+
+A class reference and a compatible interface reference also compare by underlying
+object identity, in either operand order. This does not relax the compiler's type
+compatibility checks for mixed comparisons.
 
 ### Checking Implementations
 
@@ -1075,9 +1115,10 @@ end;
 ### Compatibility
 
 The canonical `InterfacesPass` fixtures exercise the complete compile/run path, including
-diagnostics: **31/33 pass** as of 2026-09-21. Remaining work includes indexed/default interface properties and the upstream
-compiler-option policy for unused-private hints. Mixed class/interface comparisons and direct
-object assignment to interface aliases also need follow-up; see [PLAN.md §3.5/E12](../../PLAN.md).
+diagnostics: **33/33 pass** as of 2026-09-22. Indexed/default properties, upstream runner
+options for dictionary-dependent hints, compatible mixed class/interface comparisons, and
+direct object assignment to interface aliases are covered by fixtures and compile/run regressions.
+See [the September progress log](../history/progress-log-2026-09.md).
 
 The older tests in `testdata/interfaces/` exercise the interpreter directly and do not measure
 semantic analysis or diagnostic compatibility. See the generated

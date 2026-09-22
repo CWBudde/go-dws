@@ -43,6 +43,17 @@ func TestEvaluateOne_Expectations(t *testing.T) {
 	t.Run("Memory obj_local is silent at strict hints", func(t *testing.T) {
 		testMemoryFixtureExpectation(t, cli, root)
 	})
+	t.Run("dictionary diagnostics follow runner options", func(t *testing.T) {
+		base := filepath.Join(root, fixturesBase, "InterfacesPass", "intf_private")
+		item := workItem{category: "InterfacesPass", pasFile: base + ".pas", txtFile: base + ".txt"}
+		assertExpectationVerdict(t, evaluateOne(cli, item, expectationTestTimeout, true), true, false, false)
+		item = writeExpectationFixture(t, "FailureScripts", "procedure P; var Unused: Integer; begin end;")
+		want := "Hint: Variable \"Unused\" declared but not used [line: 1, column: 18]\n"
+		if err := os.WriteFile(item.txtFile, []byte(want), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		assertExpectationVerdict(t, evaluateOne(cli, item, expectationTestTimeout, true), true, false, false)
+	})
 }
 
 const expectationTestTimeout = 10 * time.Second

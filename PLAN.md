@@ -10,27 +10,27 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-21):** Go harness and freshly rebuilt CLI agree at **1,289 / 1,966 scored =
-66%**; `*Fail` error-detection suites **290 / 641 = 45%**. What shipped to get there is in
+**Headline (2026-09-22):** Go harness and freshly rebuilt CLI agree at **1,296 / 1,966 scored =
+66%**; `*Fail` error-detection suites **291 / 641 = 45%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,289 / 1,747 = 74% in scope**, the number to track against §6. Both are honest;
+same run reads **1,296 / 1,747 = 74% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 351 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 350 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 107 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
-  are closed; E3c is still open, and what the closed groups left is grouped as E12–E20.
+- **§3.5** is the other half: 101 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E12
+  are closed; E3c is still open, and what the closed groups left is grouped as E13–E20.
 - **§3.2** has no open items. **§3.4** has expected-type overload resolution, blocked on the
   evaluator. **§3.3** has only the gated Memory host setup.
 - **§1** and **§3.1** have no open items. **§2** has one, deferred by owner decision.
@@ -54,10 +54,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (677 total, 2026-09-21): **219 host-library** (out of scope),
-  **351 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 14,
-  OverloadsFail 11, HelpersFail 9, the rest under 10), and **107 in the execution suites** (§3.5:
-  SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 2, FunctionsMath 1, a tail
+- Where the remaining failures are (670 total, 2026-09-22): **219 host-library** (out of scope),
+  **350 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 13,
+  OverloadsFail 11, HelpersFail 9, the rest under 10), and **101 in the execution suites** (§3.5:
+  SimpleScripts 58, ArrayPass 15, JSONConnectorPass 9, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - **Upstream source is reachable without the submodule.** `reference/dwscript-original/` is an
@@ -198,7 +198,7 @@ matching, class-operator inheritance), and the skipped-test backlog.
 
 ### 3.5 Execution-suite failures (E)
 
-107 in-scope execution-suite fixtures fail (2026-09-21). Audits:
+101 in-scope execution-suite fixtures fail (2026-09-22). Audits:
 [pass-suite audit](docs/architecture/pass-suite-audit-2026-09.md) (2026-09-12) and
 [execution-suite triage](docs/architecture/execution-suite-triage-2026-09.md) (2026-09-19, first
 blocker per group). Regenerate with `just fixture-report --in-scope --classify --list-fails`.
@@ -227,6 +227,7 @@ CLI/harness parity when fixtures improve.
 | E9 (09-13…19) | Single evaluation of assignment, compound-assignment and var-argument receivers | `Memory/obj_fields`, `override_deep` |
 | E10 (09-19) | Triage of the remainder; partial-class continuations; value-bearing `Exit` uses Result; no duplicate positions in pretty runtime diagnostics | `partial_class3`, `implies` (SimpleScripts 381/443) |
 | E11 (09-19) | Variant `Abs`, Variant `Inc`/`Dec` deltas, two-argument `Succ`/`Pred`, Haversine radius, `RandG(mean, stdDev)` | FunctionsMath 35 → 39/40 |
+| E12 (09-22) | Indexed/default interface properties; runner diagnostic options; mixed reference equality; interface alias assignment | InterfacesPass 31 → 33/33, InterfacesFail 5 → 6/19; compile/run regressions |
 
 #### E3c — Declared-name handling `[~]` M
 
@@ -238,24 +239,6 @@ The remaining cases depend on other fixes. None may be hidden with hint suppress
   resolution; `string_builtin_methods` after the missing string APIs;
   `ArrayPass/dynamic_anonymous_record` (see E13c) and `FailureScripts/block_unfinished4` after
   parser recovery (§4/F3).
-
-#### E12 — Interface follow-ups (from E5) `[~]`
-
-InterfacesPass 31/33. `Impl` identifiers, self-referential signatures, interface method
-references, and record-method caller traces closed 2026-09-21; see
-[the September progress log](docs/history/progress-log-2026-09.md). Do not broaden E5's casting/comparison fixes to silence these.
-
-- `[ ]` M `interface_properties`: indexed/default interface property semantics.
-- `[ ]` M `intf_private`: align symbol-dictionary-dependent diagnostics with upstream runner
-  options (§4/F1). Upstream execution suites disable the symbol dictionary, while nonoptimized
-  failure suites enable it; unused-private hints require that dictionary. The implementation of
-  an interface method is also exempt. Preserve the `Unused` hint when dictionary diagnostics are
-  enabled; do not suppress every private method on an interface implementer.
-- `[ ]` Mixed class/interface equality: semantic analysis accepts operands that the evaluator
-  rejects; establish compatible reference-comparison behavior separately from interface/interface
-  equality.
-- `[ ]` Interface alias assignment: assigning an object directly to an interface alias is
-  rejected, while assigning through a variable of the underlying interface type works.
 
 #### E13 — JSON follow-ups (from E6) `[ ]`
 
@@ -319,7 +302,6 @@ FunctionsMath 39/40.
 - `[ ]` M `overload_ambiguous_delegate`: resolve bare callable arguments against value/delegate
   overloads (implicit invocation vs. explicit delegate).
 - `[ ]` S `overload_class_method`: retain class identity for bare `ClassName` inside a class method.
-- `immediate`'s synthetic unused-Result hint belongs to F1.
 
 #### E18 — Property forwarding and helper error positions (from E10) `[ ]`
 
@@ -391,9 +373,8 @@ Work families — IDs from the 2026-03 analysis
     rejects the redeclaration outright (`internal/interp/lambda_test.go:TestLambdaWithLoop`
     relies on the current binding). No fixture pins `Result := Result`; close the redeclaration
     gap and the suppression in `internal/semantic/analyze_hints.go` can go.
-  - `[ ]` Unused-symbol ownership: synthetic `Result is never used` on expression lambdas
-    (`LambdaPass/immediate`), unused-private hints on interface implementers (E12 `intf_private`),
-    missing deprecated warning in `randseed` (2:9).
+  - `[ ]` Missing deprecated warning in `randseed` (2:9; E14). Runner-option parity for
+    `LambdaPass/immediate` and interface implementation hints closed with E12 (09-22).
   - Case-mismatch hints are tracked under E3c; `block_unfinished4`'s extra case hint is tied to
     parser recovery (F3).
 - **F2** `[ ]` M Array diagnostics:
