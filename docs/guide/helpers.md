@@ -117,6 +117,26 @@ begin
 end.
 ```
 
+### Explicit helper calls
+
+Call a particular helper by name and pass the instance as its first argument:
+
+```pascal
+PrintLn(TIntegerHelper.Square(7)); // 49
+```
+
+Any declared method arguments follow the instance. Instance methods always require
+an instance, even when they declare no parameters. A non-static class method in a
+helper for a class takes a class reference instead: `THelper.Method(TObject, args…)`.
+A non-static class method in a record helper takes the record type name in that position.
+Static class methods and class methods on primitive targets take only their declared
+arguments; a parameterless one can be called as `THelper.Method` or `THelper.Method()`.
+
+Naming a helper selects its methods, including inherited methods, independently
+of other helpers for the same target type. Helper and method names remain
+case-insensitive. The instance and ordinary arguments are evaluated once, in source
+order; lazy arguments are evaluated when the method reads them.
+
 ### 2. Properties
 
 Helpers can define properties with getter (and optionally setter) methods.

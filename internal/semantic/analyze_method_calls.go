@@ -49,6 +49,13 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	// Analyze the object expression
 	objectType := a.analyzeExpression(expr.Object)
+	if helper, ok := objectType.(*types.HelperType); ok {
+		if result, handled := a.analyzeExplicitHelperCall(helper, expr.Method, expr.Arguments); handled {
+			return result
+		}
+		a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, helper.Name))
+		return nil
+	}
 	if objectType == nil {
 		// An overload set deliberately carries no type of its own, so a
 		// routine name used as a receiver reads as nil here. When the set

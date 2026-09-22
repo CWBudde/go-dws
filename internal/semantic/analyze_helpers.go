@@ -850,12 +850,13 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 		return nil
 	}
 
-	// If the type itself is a helper type (e.g., TDummy.Hello), use its target type
+	// Naming a helper restricts lookup to that helper and its ancestors.
 	if helperType, ok := typ.(*types.HelperType); ok {
-		if helperType.TargetType == nil {
-			return nil
+		var chain []*types.HelperType
+		for owner := helperType; owner != nil; owner = owner.ParentHelper {
+			chain = append([]*types.HelperType{owner}, chain...)
 		}
-		typ = helperType.TargetType
+		return chain
 	}
 
 	// Look up helpers by the type's string representation

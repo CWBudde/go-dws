@@ -380,6 +380,11 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	}
 
 	objectType := a.analyzeExpression(expr.Object)
+	if helper, ok := objectType.(*types.HelperType); ok {
+		if result, handled := a.analyzeExplicitHelperCall(helper, expr.Member, nil); handled {
+			return result
+		}
+	}
 	if objectType == nil {
 		return nil
 	}

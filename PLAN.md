@@ -10,29 +10,29 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-20):** Go harness and freshly rebuilt CLI agree at **1,282 / 1,966 scored =
-65%**; `*Fail` error-detection suites **289 / 641 = 45%**. What shipped to get there is in
+**Headline (2026-09-21):** Go harness and freshly rebuilt CLI agree at **1,285 / 1,966 scored =
+65%**; `*Fail` error-detection suites **290 / 641 = 45%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,282 / 1,747 = 73% in scope**, the number to track against §6. Both are honest;
+same run reads **1,285 / 1,747 = 74% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 352 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 351 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 113 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
+- **§3.5** is the other half: 111 in-scope execution-suite failures. E1–E2, E3a/b/d and E4–E11
   are closed; E3c is still open, and what the closed groups left is grouped as E12–E20.
-- **§3.2** and **§3.4** have one open item each (explicit-instance helper calls; expected-type
-  overload resolution, blocked on the evaluator). **§3.3** has only the gated Memory host setup.
+- **§3.2** has no open items. **§3.4** has expected-type overload resolution, blocked on the
+  evaluator. **§3.3** has only the gated Memory host setup.
 - **§1** and **§3.1** have no open items. **§2** has one, deferred by owner decision.
 
 Where the truth lives:
@@ -54,9 +54,9 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (684 total, 2026-09-20): **219 host-library** (out of scope),
-  **352 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 14,
-  OverloadsFail 11, HelpersFail 10, the rest under 10), and **113 in the execution suites** (§3.5:
+- Where the remaining failures are (681 total, 2026-09-21): **219 host-library** (out of scope),
+  **351 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 14,
+  OverloadsFail 11, HelpersFail 9, the rest under 10), and **111 in the execution suites** (§3.5:
   SimpleScripts 60, ArrayPass 16, JSONConnectorPass 9, InterfacesPass 6, FunctionsMath 1, a tail
   of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
@@ -136,10 +136,8 @@ method pointers, sets (SetOfPass 100%), conditional compilation; table and write
 abstract-instantiation error, because checking is in source order. The
 [semantic-passes design](docs/architecture/semantic-passes.md) is design input only.
 
-- `[ ]` S **Explicit-instance helper calls.** `THelper.Proc(TObject.Create)` — a helper method
-  called with an explicit instance argument — is an unimplemented call form; it reports
-  `No arguments expected` at 11:10 in `HelpersPass/declared_helper`, whose `Declared()` calls and
-  case hints already match.
+Explicit-instance helper calls closed 2026-09-21 (`declared_helper`, `helper_explicit`); see
+[the September progress log](docs/history/progress-log-2026-09.md). No open items.
 
 Moved out of this section: the error-detection residue (`contracts_precondition`, `GenericsFail`,
 `OverloadsFail`, the other nine `SetOfFail`, `special_funcs4`, `conditionals2.1`) is under §4/F7;
@@ -200,7 +198,7 @@ matching, class-operator inheritance), and the skipped-test backlog.
 
 ### 3.5 Execution-suite failures (E)
 
-114 in-scope execution-suite fixtures fail (2026-09-19). Audits:
+111 in-scope execution-suite fixtures fail (2026-09-21). Audits:
 [pass-suite audit](docs/architecture/pass-suite-audit-2026-09.md) (2026-09-12) and
 [execution-suite triage](docs/architecture/execution-suite-triage-2026-09.md) (2026-09-19, first
 blocker per group). Regenerate with `just fixture-report --in-scope --classify --list-fails`.
@@ -232,13 +230,10 @@ CLI/harness parity when fixtures improve.
 
 #### E3c — Declared-name handling `[~]` M
 
-Declaration-spelling and duplicate-emission regressions are in place. The September 18 audit
-leaves two fixtures lacking hints and three with extra hints; only `record_array_helper` is an
-isolated case-hint residual. None of these may be hidden with hint suppression.
-
-- `[ ]` **`HelpersPass/record_array_helper`**: establish the upstream resolution rule for the two
-  unwanted `X`/`x` hints at 23:21 and 23:35 (output is correct). Do not suppress record-field
-  hints broadly or weaken case-insensitive lookup.
+Declaration-spelling and duplicate-emission regressions are in place. The isolated
+`record_array_helper` residual closed 2026-09-21 by restoring the pinned upstream expectation,
+which includes both case hints; see [the September progress log](docs/history/progress-log-2026-09.md).
+The remaining cases depend on other fixes. None may be hidden with hint suppression.
 - `[ ]` Recheck once prerequisites land: `SimpleScripts/class_var_dyn2` after class-variable scope
   resolution; `string_builtin_methods` after the missing string APIs;
   `ArrayPass/dynamic_anonymous_record` (see E13c) and `FailureScripts/block_unfinished4` after
@@ -349,7 +344,7 @@ independently; evaluate it once, as E9 does for member receivers.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 289/641 (FailureScripts 249/529, SetOfFail 13, HelpersFail 8, InterfacesFail 5,
+Harness and CLI: 290/641 (FailureScripts 249/529, SetOfFail 13, HelpersFail 9, InterfacesFail 5,
 OperatorOverloadFail 3, OverloadsFail 3, JSONConnectorFail 2, PropertyExpressionsFail 2,
 AssociativeFail 2, GenericsFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
@@ -476,8 +471,6 @@ Work families — IDs from the 2026-03 analysis
       (`internal/semantic/analyze_function_calls.go`) never consults
       `Symbol.HasOverloadDirective`; preferring the no-overload sentence when it is set closes
       this generically (F8).
-    - `[ ]` S `helper_explicit` needs DWScript's explicit helper invocation, where the instance
-      is argument 1 (`TDummy.Next(2)`); go-dws types the method as parameterless.
   - `[ ]` InterfacesFail 4 · JSONConnectorFail 3 · LambdaFail 3 · OverloadsFail 3 · GenericsFail 2
     · PropertyExpressionsFail 2.
   - The FailureScripts 43 are almost all single-fixture work. Known sub-blockers:

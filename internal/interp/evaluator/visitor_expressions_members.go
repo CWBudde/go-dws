@@ -39,6 +39,12 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	if node.Member == nil {
 		return e.newError(node, "member access missing member")
 	}
+	if helper := e.namedHelperReceiver(node.Object, ctx); helper != nil {
+		if result, handled := e.evalExplicitHelperCall(helper, node.Member, nil, node, ctx); handled {
+			return result
+		}
+		return e.readExplicitHelperMember(helper, node.Member, node, ctx)
+	}
 
 	wantMethodPointer := e.memberWantsMethodPointer(node, ctx)
 
