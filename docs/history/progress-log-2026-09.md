@@ -5640,3 +5640,22 @@ the warning anchors, `interp.TestVariantToScalarAtDeclaredTypes` the conversion 
 `go test ./...` passes; `golangci-lint run --new-from-rev=HEAD` reports nothing new. The fixture
 baseline rose **1,310 → 1,311 / 1,966**: FunctionsMath **39 → 40/40**, with no category drop, and
 the rebuilt CLI report agrees (1,311; 1,311 / 1,747 in scope).
+
+## 2026-09-23 — Helper dispatch and named array receivers (E15)
+
+The semantic receiver shortcut now honors the active helper-method guard. A helper's
+`ClassName` can read `Self.ClassName` as the underlying object's class name without
+recursively calling itself; a subprocess regression bounds any future recursion.
+
+The parser represents every `Name.Create(...)` call as a constructor expression.
+For a non-class type with a helper class function `Create`, semantic analysis and
+evaluation now route that dotted form through helper dispatch. Named array types
+also bind a runtime type value, so subsequent class functions such as
+`TStrings.Iterate(...)` can use the same receiver and shared helper class state.
+Actual class and record constructors keep their existing paths; `new TStrings(...)`
+does not invoke the helper.
+
+`HelpersPass/classname_helper1` and `HelpersPass/dyn_array_create` now match their
+expected output. The fixture baseline rose **1,311 → 1,313 / 1,966** and HelpersPass
+**24 → 26/27**; `go test ./...` and the focused E15 regressions passed.
+The rebuilt CLI report agrees with the harness at 1,313 passes (1,313 in scope).

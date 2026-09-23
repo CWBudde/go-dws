@@ -1225,6 +1225,23 @@ func (e *Evaluator) VisitNewExpression(node *ast.NewExpression, ctx *ExecutionCo
 				return e.callRecordStaticMethod(recordTypeRaw, "Create", args, node, ctx)
 			}
 		}
+		if node.ConstructorPos.Line > 0 {
+			if receiver, found := ctx.Env().Get(className); found {
+				if meta, ok := receiver.(*runtime.TypeMetaValue); ok {
+					if helper := e.FindHelperMethod(meta, "Create"); helper != nil && helper.Method != nil && helper.Method.IsClassMethod {
+						methodToken := node.ClassName.Token
+						methodToken.Pos = node.ConstructorPos
+						methodToken.Literal = "Create"
+						return e.VisitMethodCallExpression(&ast.MethodCallExpression{
+							BaseNode:  node.BaseNode,
+							Object:    node.ClassName,
+							Method:    &ast.Identifier{BaseNode: ast.BaseNode{Token: methodToken}, Value: "Create"},
+							Arguments: node.Arguments,
+						}, ctx)
+					}
+				}
+			}
+		}
 		return e.newError(node, "class '%s' not found", className)
 	}
 
