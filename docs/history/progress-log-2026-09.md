@@ -5659,3 +5659,38 @@ does not invoke the helper.
 expected output. The fixture baseline rose **1,311 → 1,313 / 1,966** and HelpersPass
 **24 → 26/27**; `go test ./...` and the focused E15 regressions passed.
 The rebuilt CLI report agrees with the harness at 1,313 passes (1,313 in scope).
+
+## 2026-09-23 — Operator, lambda, and property follow-ups (E16–E18)
+
+**E16.** The expression parser now accepts `==`/`!=` at equality precedence and
+`<<`/`>>` at shift precedence, preserving those symbols for overloaded dispatch.
+Global operator declarations can bind `Helper.Method`: semantic analysis selects
+the overload by receiver and remaining operands, and the evaluator invokes it
+with the first operand as `Self`. Conversion operators also accept compatible
+builtin bindings such as `IntToStr`. The AST visitor and DWScript printer carry
+the qualified binding.
+
+**E17.** Lambda return inference recognizes `Result` without regard to case,
+including in conditional branches, and retains the pedantic spelling hint.
+Inferred block lambdas now initialize their runtime Result. Method overload
+resolution prefers the value of a bare parameterless callable when a value
+overload fits; an explicit `@` still selects the delegate. Bare `ClassName` in a
+class method reads the current class even when the method's Result alias has
+the same name. The instance-method dispatch path was kept separate; its
+`reintroduce` regressions remain passing.
+
+**E18.** A property can forward its read and write accessors to a previously
+declared property, including the nearest override in a subclass. Missing read
+or write access is reported at the specifier token with the upstream diagnostic;
+`ReadOnly` is accepted as a contextual property name. Caught `String.ToXML`
+exceptions now point to the `ToXML` member token.
+
+All ten named target fixtures match their expected diagnostics and output:
+OperatorOverloadPass **5 → 8/8**, HelpersPass **26 → 27/27**, LambdaPass **5 →
+6/6**, OverloadsPass **37 → 39/39**, PropertyExpressionsPass **18 → 19/19**,
+PropertyExpressionsFail **2 → 3/10**, and FunctionsString **57 → 58/58**.
+`ArrayPass/array_filter_record` also began passing (**101 → 102/115**) because
+its block lambda uses an inferred Result. The baseline rose **1,313 → 1,324 /
+1,966**, with no category regression. `go test -p 1 ./...` passed; the rebuilt
+CLI report agrees with the harness at **1,324 / 1,747 in scope**.
+`golangci-lint run --new-from-rev=HEAD` reported zero issues.

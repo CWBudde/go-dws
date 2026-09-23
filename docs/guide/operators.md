@@ -1,6 +1,6 @@
-# Operator Overloading Research
+# Operator Overloading
 
-This note consolidates the DWScript operator overloading behavior that we need to mirror in go-dws. It combines observations from the upstream source tree under `reference/dwscript-original/` and community guidance from [StackOverflow: Does DWScript support operator overloading?](https://stackoverflow.com/questions/6203402/does-dwscript-support-operator-overloading).
+This guide describes DWScript operator declarations and expression behavior in go-dws.
 
 ## Primary References
 
@@ -31,7 +31,9 @@ Key characteristics:
 - Token selection uses the operator literal (`+`, `-`, `*`, `IN`, `==`, `!=`, `<<`, `>>`, etc.).
 - Argument lists appear inside parentheses without parameter names.
 - Return type is mandatory.
-- `uses Identifier` associates the operator with an existing function symbol.
+- `uses Identifier` associates the operator with an existing function. Conversion
+  operators may also bind a compatible builtin such as `IntToStr`.
+- `uses HelperName.Method` binds an instance helper method. The first operator operand is `Self`; any remaining operands select the method overload.
 - Multiple overloads for the same token and different operand types are permitted.
 
 ### Symbolic Operator Tokens
@@ -44,6 +46,8 @@ Key characteristics:
 - `IN` for membership tests with overload hooks.
 
 These map back to specific `TokenKind` entries. We must normalize symbolic strings during parsing so overload lookup can key off the existing lexer token representations.
+
+In expressions, `==` and `!=` use equality precedence. `<<` and `>>` use shift precedence. They retain their own operator symbols, so a declaration for `==` does not change the behavior of `=`. A declared overload is selected by operand types.
 
 ### Unary Operators
 

@@ -417,8 +417,9 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ A write specifier that names an lvalue rather than an accessor is shorthand for
   assigning to it: `write (FBase.Prop)` means `write (FBase.Prop := Value)`.
 - ✅ `external 'name'` renames the property's key in JSON serialization
-- ❌ A read/write specifier that names *another property*
-  (`property Mapped: Integer read Prop write Prop`) is rejected at compile time.
+- ✅ A read/write specifier can name another property
+  (`property Mapped: Integer read Prop write Prop`). The referenced property must
+  support the requested access mode.
 
 ---
 
@@ -517,7 +518,7 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - Assignment operators (not directly overloadable, but via properties)
 - Global operator declarations
 - Class operator declarations
-- Operator symbols: `+`, `-`, `*`, `/`, `=`, `<>`, `<`, `>`, `<=`, `>=`, `**`, `in`, `[]`
+- Operator symbols: `+`, `-`, `*`, `/`, `=`, `<>`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `<<`, `>>`, `**`, `in`, `[]`
 
 #### go-dws Status
 - ✅ Binary operators
@@ -526,6 +527,8 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Implicit/explicit conversions
 - ✅ `in` operator
 - ✅ Global and class operators
+- ✅ `==`, `!=`, `<<`, and `>>` expressions with matching operator overloads
+- ✅ Qualified helper bindings (`uses THelper.Method`) and builtin conversion bindings
 - ⏸️ `**` (power) operator
 - ⏸️ `[]` (indexer) operator overloading
 

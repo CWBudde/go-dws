@@ -1336,6 +1336,10 @@ func (p *Printer) printOperatorDecl(od *ast.OperatorDecl) {
 		p.space()
 		p.write("uses")
 		p.space()
+		if od.BindingHelper != nil {
+			p.printDWScript(od.BindingHelper)
+			p.write(".")
+		}
 		p.printDWScript(od.Binding)
 	}
 }

@@ -163,10 +163,14 @@ func (b *ParserBuilder) registerParseFunctions(p *Parser) {
 	p.registerInfix(lexer.SHL, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfix(lexer.SHR, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfix(lexer.SAR, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
+	p.registerInfix(lexer.LESS_LESS, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
+	p.registerInfix(lexer.GREATER_GREATER, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 
 	// Register infix parse functions for comparison operators
 	p.registerInfix(lexer.EQ, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfix(lexer.NOT_EQ, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
+	p.registerInfix(lexer.EQ_EQ, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
+	p.registerInfix(lexer.EXCL_EQ, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfix(lexer.LESS, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfix(lexer.GREATER, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })
 	p.registerInfix(lexer.LESS_EQ, func(left ast.Expression, _ lexer.Token) ast.Expression { return p.parseInfixExpression(left) })

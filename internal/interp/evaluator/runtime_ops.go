@@ -630,6 +630,17 @@ func (e *Evaluator) invokeRuntimeOperatorEntry(entry *runtime.OperatorEntry, ope
 
 // invokeGlobalOperatorEntry invokes a global (non-class) operator from the TypeSystem registry.
 func (e *Evaluator) invokeGlobalOperatorEntry(entry *interptypes.OperatorEntry, operands []Value, node ast.Node, ctx *ExecutionContext) Value {
+	if entry.BindingHelper != "" {
+		helper := e.lookupMutableHelper(entry.BindingHelper)
+		if helper == nil {
+			return e.newError(node, "operator helper '%s' not found", entry.BindingHelper)
+		}
+		overloads, owner, ok := helper.GetMethodOverloads(entry.BindingName)
+		if !ok || entry.BindingOverload >= len(overloads) || len(operands) == 0 {
+			return e.newError(node, "operator helper binding '%s.%s' not found", entry.BindingHelper, entry.BindingName)
+		}
+		return e.CallASTHelperMethod(owner, overloads[entry.BindingOverload], operands[0], operands[1:], node, ctx)
+	}
 	return e.invokeGlobalOperatorByBindingName(entry.BindingName, operands, node, ctx)
 }
 

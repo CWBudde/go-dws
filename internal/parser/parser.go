@@ -46,6 +46,8 @@ var precedences = map[lexer.TokenType]int{
 	lexer.AND:               AND,
 	lexer.EQ:                EQUALS,
 	lexer.NOT_EQ:            EQUALS,
+	lexer.EQ_EQ:             EQUALS,
+	lexer.EXCL_EQ:           EQUALS,
 	lexer.IN:                EQUALS, // Set membership test
 	lexer.IS:                EQUALS, // Type checking: obj is TClass
 	lexer.AS:                EQUALS, // Type casting: obj as IInterface
@@ -59,6 +61,8 @@ var precedences = map[lexer.TokenType]int{
 	lexer.SHL:               SHIFT,
 	lexer.SHR:               SHIFT,
 	lexer.SAR:               SHIFT,
+	lexer.LESS_LESS:         SHIFT,
+	lexer.GREATER_GREATER:   SHIFT,
 	lexer.ASTERISK:          PRODUCT,
 	lexer.SLASH:             PRODUCT,
 	lexer.DIV:               PRODUCT,

@@ -231,6 +231,21 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	// Check if read spec is an identifier (field, constant, or method name)
 	if ident, ok := prop.ReadSpec.(*ast.Identifier); ok {
 		readSpecName := ident.Value
+		if referenced, found := classType.GetProperty(readSpecName); found && referenced != propInfo {
+			if referenced.ReadKind == types.PropAccessNone {
+				a.addStructuredError(NewWriteOnlyPropertyError(ident.Token.Pos, readSpecName))
+				return
+			}
+			if !propType.Equals(referenced.Type) {
+				a.addStructuredError(NewPropertyDeclarationTypeMismatchError(ident.Token.Pos,
+					"property '"+propName+"' read property '"+readSpecName+"' has type "+referenced.Type.String()+", expected "+propType.String()))
+				return
+			}
+			propInfo.ReadKind = referenced.ReadKind
+			propInfo.ReadSpec = referenced.ReadSpec
+			propInfo.ReadExpr = referenced.ReadExpr
+			return
+		}
 
 		// Check class-level members first: class vars, then constants, then instance fields
 
@@ -442,6 +457,21 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	}
 
 	writeSpecName := ident.Value
+	if referenced, found := classType.GetProperty(writeSpecName); found && referenced != propInfo {
+		if referenced.WriteKind == types.PropAccessNone {
+			a.addStructuredError(NewWriteOnlyPropertyError(ident.Token.Pos, writeSpecName))
+			return
+		}
+		if !propType.Equals(referenced.Type) {
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(ident.Token.Pos,
+				"property '"+propName+"' write property '"+writeSpecName+"' has type "+referenced.Type.String()+", expected "+propType.String()))
+			return
+		}
+		propInfo.WriteKind = referenced.WriteKind
+		propInfo.WriteSpec = referenced.WriteSpec
+		propInfo.WriteExpr = referenced.WriteExpr
+		return
+	}
 
 	// Check if it's a field (instance or class field)
 	// For class properties, look in ClassVars; for instance properties, look in Fields

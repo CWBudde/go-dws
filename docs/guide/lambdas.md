@@ -121,7 +121,12 @@ Return types can be inferred from the lambda body:
 var square := lambda(x: Integer) => x * x;  // Return type inferred as Integer
 ```
 
-**Parameter type inference is not yet implemented** - all parameter types must be explicitly specified.
+Assignments to `Result` in a lambda body also determine its return type, including
+assignments in `if` branches. The name is case-insensitive; using a different case
+can still produce a spelling hint under pedantic diagnostics.
+
+An omitted parameter type is inferred when the surrounding assignment or call supplies
+a function-pointer type. A standalone lambda needs explicit parameter types.
 
 ## Closures and Variable Capture
 

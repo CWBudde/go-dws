@@ -455,12 +455,23 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Method is overloaded - resolve based on argument types
 		// Analyze argument types first
 		argTypes := make([]types.Type, len(expr.Arguments))
+		valueTypes := make([]types.Type, len(expr.Arguments))
+		hasImplicitCallable := false
 		for i, arg := range expr.Arguments {
 			argType := a.analyzeOverloadArgument(arg)
 			if argType == nil {
 				return nil // Error already reported
 			}
 			argTypes[i] = argType
+			valueTypes[i] = argType
+			if identifier, ok := arg.(*ast.Identifier); ok {
+				if sym, found := a.symbols.Resolve(identifier.Value); found {
+					if fn, ok := sym.Type.(*types.FunctionType); ok && len(fn.Parameters) == 0 && fn.ReturnType != nil {
+						valueTypes[i] = fn.ReturnType
+						hasImplicitCallable = true
+					}
+				}
+			}
 		}
 
 		// Convert MethodInfo to Symbol for ResolveOverload
@@ -472,7 +483,14 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		// Resolve overload based on argument types
-		selected, err := ResolveOverload(candidates, argTypes)
+		var selected *Symbol
+		var err error
+		if hasImplicitCallable {
+			selected, err = ResolveOverload(candidates, valueTypes)
+		}
+		if !hasImplicitCallable || err != nil {
+			selected, err = ResolveOverload(candidates, argTypes)
+		}
 		if err != nil {
 			a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
 			return nil

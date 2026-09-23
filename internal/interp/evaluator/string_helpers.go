@@ -409,6 +409,13 @@ func (e *Evaluator) evalStringToCSSText(selfValue Value, args []Value, node ast.
 }
 
 func (e *Evaluator) evalStringToXML(selfValue Value, args []Value, node ast.Node) Value {
+	// DWScript points errors from this helper at the member name, even when
+	// the receiver expression starts earlier in the source.
+	if call, ok := node.(*ast.MethodCallExpression); ok && call.Method != nil {
+		node = call.Method
+	} else if member, ok := node.(*ast.MemberAccessExpression); ok && member.Member != nil {
+		node = member.Member
+	}
 	strVal, errVal := e.requireStringHelperReceiver(selfValue, nil, node, "String.ToXML", -1)
 	if errVal != nil {
 		return errVal

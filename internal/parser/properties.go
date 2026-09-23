@@ -26,9 +26,11 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	propToken := p.cursor.Current() // 'property' token
 
 	// Parse property name
-	if !p.expectPeek(lexer.IDENT) {
+	if !p.peekTokenIs(lexer.IDENT) && !p.peekTokenIs(lexer.READONLY) {
+		p.addExpectedStop(lexer.IDENT)
 		return nil
 	}
+	p.nextToken()
 	propName := &ast.Identifier{
 		BaseNode: ast.BaseNode{
 			Token: p.cursor.Current(),
