@@ -97,6 +97,22 @@ func (a *Analyzer) builtinDeclarationName(name string) string {
 	return ""
 }
 
+// deprecatedBuiltins lists the built-ins DWScript registers with
+// iffDeprecated, keyed by normalized name and holding the declared spelling
+// the warning quotes.
+var deprecatedBuiltins = map[string]string{
+	"charat":   "CharAt",
+	"randseed": "RandSeed",
+}
+
+// warnDeprecatedBuiltinUsage emits the deprecation warning for a reference to
+// a deprecated built-in, anchored at the name like any deprecated routine.
+func (a *Analyzer) warnDeprecatedBuiltinUsage(identifier *ast.Identifier) {
+	if declared, ok := deprecatedBuiltins[ident.Normalize(identifier.Value)]; ok {
+		a.warnDeprecated(declared, "", identifier.Token.Pos)
+	}
+}
+
 // getBuiltinFunctionPointerType returns the function pointer type for a built-in function
 // when it's used as a function reference (not called). Returns nil if the builtin
 // doesn't have a known function pointer type or shouldn't be used as a reference.

@@ -183,6 +183,23 @@ func (e *Evaluator) TryImplicitConversion(value Value, targetType types.Type, ct
 		}
 	}
 
+	// Variant → Integer/Float: a Variant stored into a typed numeric location
+	// takes that type (VariantToInt64/VariantToFloat). Content that does not
+	// convert is left as-is.
+	if wrapper, ok := value.(runtime.VariantWrapper); ok {
+		inner := wrapper.UnwrapVariant()
+		switch {
+		case types.OperatorTypesEqual(targetType, types.INTEGER):
+			if n, ok := scalarToInt64(inner); ok {
+				return &runtime.IntegerValue{Value: n}, true
+			}
+		case types.OperatorTypesEqual(targetType, types.FLOAT):
+			if f, ok := scalarToFloat64(inner); ok {
+				return &runtime.FloatValue{Value: f}, true
+			}
+		}
+	}
+
 	// Enum → Integer implicit conversion
 	if enumVal, ok := value.(*runtime.EnumValue); ok && types.OperatorTypesEqual(targetType, types.INTEGER) {
 		return &runtime.IntegerValue{Value: int64(enumVal.OrdinalValue)}, true

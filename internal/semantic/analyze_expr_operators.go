@@ -247,6 +247,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		// not name all of them (UnixTime, UTCDateTime).
 		if resultType, ok := a.parameterlessBuiltinType(identifier.Value); ok {
 			a.addIdentifierCaseHint(identifier, a.builtinDeclarationName(identifier.Value))
+			a.warnDeprecatedBuiltinUsage(identifier)
 			return resultType
 		}
 

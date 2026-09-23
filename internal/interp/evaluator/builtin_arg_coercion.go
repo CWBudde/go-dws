@@ -100,46 +100,72 @@ func (e *Evaluator) coerceValueToKind(arg Value, kind string, funcName *ast.Iden
 }
 
 func (e *Evaluator) coerceToInteger(arg Value, funcName *ast.Identifier, ctx *ExecutionContext) (Value, Value) {
-	switch v := arg.(type) {
-	case *runtime.IntegerValue:
+	if _, ok := arg.(*runtime.IntegerValue); ok {
 		return nil, nil
-	case *runtime.FloatValue:
-		return &runtime.IntegerValue{Value: int64(math.Round(v.Value))}, nil
-	case *runtime.BooleanValue:
-		if v.Value {
-			return &runtime.IntegerValue{Value: 1}, nil
-		}
-		return &runtime.IntegerValue{Value: 0}, nil
-	case *runtime.StringValue:
-		if n, err := strconv.ParseInt(strings.TrimSpace(v.Value), 10, 64); err == nil {
-			return &runtime.IntegerValue{Value: n}, nil
-		}
+	}
+	if n, ok := scalarToInt64(arg); ok {
+		return &runtime.IntegerValue{Value: n}, nil
+	}
+	if _, ok := arg.(*runtime.StringValue); ok {
 		return nil, e.raiseVariantCastException("Could not cast variant from String to Integer", funcName, ctx)
 	}
 	return nil, nil
 }
 
 func (e *Evaluator) coerceToFloat(arg Value, funcName *ast.Identifier, ctx *ExecutionContext) (Value, Value) {
-	switch v := arg.(type) {
-	case *runtime.FloatValue:
+	if _, ok := arg.(*runtime.FloatValue); ok {
 		return nil, nil
-	case *runtime.IntegerValue:
-		// Builtins with a FLOAT/TDateTime signature type-assert *FloatValue,
-		// so a Variant-held Integer must be widened at the call boundary.
-		return &runtime.FloatValue{Value: float64(v.Value)}, nil
-	case *runtime.BooleanValue:
-		if v.Value {
-			return &runtime.FloatValue{Value: 1}, nil
-		}
-		return &runtime.FloatValue{Value: 0}, nil
-	case *runtime.StringValue:
-		if f, err := strconv.ParseFloat(strings.TrimSpace(v.Value), 64); err == nil {
-			return &runtime.FloatValue{Value: f}, nil
-		}
+	}
+	// Builtins with a FLOAT/TDateTime signature type-assert *FloatValue,
+	// so a Variant-held Integer must be widened at the call boundary.
+	if f, ok := scalarToFloat64(arg); ok {
+		return &runtime.FloatValue{Value: f}, nil
+	}
+	if v, ok := arg.(*runtime.StringValue); ok {
 		return nil, e.raiseVariantCastException(
 			fmt.Sprintf("%q is not a valid floating point value", v.Value), funcName, ctx)
 	}
 	return nil, nil
+}
+
+// scalarToInt64 converts a Variant's scalar content to Integer the way
+// DWScript's VariantToInt64 does: Floats round half to even (Delphi's Round),
+// Booleans are 0/1 and Strings must hold a decimal integer.
+func scalarToInt64(v Value) (int64, bool) {
+	switch v := v.(type) {
+	case *runtime.IntegerValue:
+		return v.Value, true
+	case *runtime.FloatValue:
+		return int64(math.RoundToEven(v.Value)), true
+	case *runtime.BooleanValue:
+		if v.Value {
+			return 1, true
+		}
+		return 0, true
+	case *runtime.StringValue:
+		n, err := strconv.ParseInt(strings.TrimSpace(v.Value), 10, 64)
+		return n, err == nil
+	}
+	return 0, false
+}
+
+// scalarToFloat64 converts a Variant's scalar content to Float.
+func scalarToFloat64(v Value) (float64, bool) {
+	switch v := v.(type) {
+	case *runtime.FloatValue:
+		return v.Value, true
+	case *runtime.IntegerValue:
+		return float64(v.Value), true
+	case *runtime.BooleanValue:
+		if v.Value {
+			return 1, true
+		}
+		return 0, true
+	case *runtime.StringValue:
+		f, err := strconv.ParseFloat(strings.TrimSpace(v.Value), 64)
+		return f, err == nil
+	}
+	return 0, false
 }
 
 func coerceToString(arg Value) (Value, Value) {

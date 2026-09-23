@@ -123,8 +123,5 @@ func (a *Analyzer) analyzeCharAt(args []ast.Expression, callExpr *ast.CallExpres
 		a.addError("function 'CharAt' expects integer as second argument, got %s at %s",
 			posType.String(), callExpr.Token.Pos.String())
 	}
-	// Emit deprecation warning to mirror DWScript behavior
-	a.addWarning("\"CharAt\" has been deprecated [line: %d, column: %d]",
-		callExpr.Token.Pos.Line, 9)
 	return types.STRING
 }

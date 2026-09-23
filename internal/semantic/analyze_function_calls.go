@@ -252,6 +252,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Check built-in functions. The callee's case-mismatch hint is emitted
 		// before the arguments are analyzed so hints appear in source order.
 		a.addIdentifierCaseHint(funcIdent, a.builtinDeclarationName(funcIdent.Value))
+		a.warnDeprecatedBuiltinUsage(funcIdent)
 		if resultType, isBuiltin := a.analyzeBuiltinFunction(funcIdent.Value, expr.Arguments, expr); isBuiltin {
 			return resultType
 		}

@@ -1,8 +1,6 @@
 package contracts
 
 import (
-	"math/rand"
-
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/units"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -57,12 +55,11 @@ type EngineState struct {
 	SemanticInfo           *ast.SemanticInfo
 	MethodRegistry         *runtime.MethodRegistry
 	Platform               platform.Platform
-	Random                 *rand.Rand
+	Random                 *runtime.XorShift
 	ExternalFunctionCaller func(funcName string, args []Value) Value
 	SourceCode             string
 	SourceFile             string
 	LoadedUnits            []string
-	RandomSeed             int64
 	MaxRecursionDepth      int
 }
 
