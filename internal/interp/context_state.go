@@ -1,8 +1,6 @@
 package interp
 
 import (
-	"math/rand"
-
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/units"
@@ -52,20 +50,6 @@ func (i *Interpreter) sourceCode() string {
 
 func (i *Interpreter) sourceFile() string {
 	return i.engineState.SourceFile
-}
-
-func (i *Interpreter) randomSource() *rand.Rand {
-	return i.engineState.Random
-}
-
-func (i *Interpreter) randomSeed() int64 {
-	return i.engineState.RandomSeed
-}
-
-func (i *Interpreter) setRandomSeed(seed int64) {
-	i.engineState.RandomSeed = seed
-	source := rand.NewSource(seed)
-	i.engineState.Random = rand.New(source)
 }
 
 func (i *Interpreter) refCountManager() runtime.RefCountManager {

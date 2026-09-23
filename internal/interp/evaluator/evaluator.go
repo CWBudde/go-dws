@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"io"
-	"math/rand"
 
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/contracts"
@@ -215,8 +214,6 @@ func NewEvaluator(
 		config = DefaultConfig()
 	}
 
-	const defaultSeed = int64(1)
-	source := rand.NewSource(defaultSeed)
 	state := &contracts.EngineState{
 		SourceCode:        "",
 		SourceFile:        "",
@@ -226,9 +223,8 @@ func NewEvaluator(
 		SemanticInfo:      semanticInfo,
 		RefCountManager:   refCountMgr,
 		MethodRegistry:    runtime.NewMethodRegistry(),
-		Random:            rand.New(source),
+		Random:            runtime.NewXorShift(),
 		LoadedUnits:       make([]string, 0),
-		RandomSeed:        defaultSeed,
 		MaxRecursionDepth: config.MaxRecursionDepth,
 	}
 
@@ -258,23 +254,6 @@ func (e *Evaluator) Output() io.Writer {
 // SetOutput sets the output writer.
 func (e *Evaluator) SetOutput(w io.Writer) {
 	e.output = w
-}
-
-// Random returns the random number generator.
-func (e *Evaluator) Random() *rand.Rand {
-	return e.engineState.Random
-}
-
-// RandomSeed returns the current random seed.
-func (e *Evaluator) RandomSeed() int64 {
-	return e.engineState.RandomSeed
-}
-
-// SetRandomSeed sets the random seed and reinitializes the generator.
-func (e *Evaluator) SetRandomSeed(seed int64) {
-	e.engineState.RandomSeed = seed
-	source := rand.NewSource(seed)
-	e.engineState.Random = rand.New(source)
 }
 
 // ExternalFunctions returns the external function registry.

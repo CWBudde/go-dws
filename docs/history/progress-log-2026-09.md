@@ -5602,3 +5602,41 @@ rose **1,307 → 1,310 / 1,966**:
 SimpleScripts **387 → 389/443**, ArrayPass **100 → 101/115**, with no category drop.
 `FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run '^TestDWScriptFixtures$' -count=1`
 ratcheted the floors; a rebuilt CLI report matched the harness in all 61 categories.
+
+## 2026-09-23 — Seeded RNG and Variant-to-Integer stores (PLAN.md §3.5 / E14)
+
+**RNG contract.** Read from upstream before touching the generator
+(`dwsSymbols.pas` `TdwsExecution.Random`, `dwsMathFunctions.pas`): each execution owns a
+Marsaglia xorshift64 (13, 17, 5) state; `Random` returns `(state shr 1) * 2^-63`;
+`RandomInt(n)` is `Trunc(Random * n)`; `SetRandSeed(x)` stores `x xor cDefaultRandSeed`
+(`88172645463325252`, which also replaces a zero state) and `RandSeed` returns the state xor-ed
+back; `RandG` is the Marsaglia–Bray polar method; `Randomize` mixes the millisecond clock with a
+chained seed base (`x := (x shl 40) xor x`). A Python port reproduced `randseed.txt` before any
+Go was written. go-dws now has `runtime.XorShift` in the engine state in place of `math/rand`,
+and every random builtin draws from it. One deliberate difference: upstream seeds a new execution
+from the host RNG, go-dws starts in the `SetRandSeed(0)` state so unseeded runs stay reproducible.
+
+`Algorithms/maze_generation.txt` had been overwritten with Go-`math/rand` output in 2025
+(`06d1f1b6`); the original upstream expectation (`bc2d7060`) matches the xorshift generator byte
+for byte and is restored, so Algorithms stays 53/53 on the real expectation.
+
+**Deprecated builtins.** `RandSeed` and `CharAt` are registered `iffDeprecated` upstream. A small
+table in the analyzer now warns at the name, for bare and parenthesised references alike,
+through the shared `warnDeprecated`; the `CharAt` analyzer's hardcoded column 9 is gone.
+
+**Variant → Integer/Float.** `var i : Integer := v` with `v` a Variant holding 2.5 stored 2.5.
+`TryImplicitConversion` — the one boundary for initializers, assignments, parameters and
+results — now converts a boxed Variant to a declared `Integer`/`Float` the way `VariantToInt64`
+does: Floats round half to even (Delphi's `Round`), Booleans are 0/1, numeric strings parse. The
+builtin-argument coercion shares the same helpers, so it now also rounds half to even. The
+function-result case exposed that a non-Variant argument bound to a `Variant` parameter was not
+boxed (a `Variant` variable is); parameter binding now boxes it, so `Result := v` inside such a
+routine converts too. Content that does not convert (a non-numeric string) is still stored
+as-is; raising `EVariantTypeCastError` there needs a node at that boundary and no fixture asks
+for it.
+
+Tests: `runtime.TestXorShift_*` pins the upstream sequence, `frontend.TestCompile_DeprecatedBuiltins`
+the warning anchors, `interp.TestVariantToScalarAtDeclaredTypes` the conversion at each boundary.
+`go test ./...` passes; `golangci-lint run --new-from-rev=HEAD` reports nothing new. The fixture
+baseline rose **1,310 → 1,311 / 1,966**: FunctionsMath **39 → 40/40**, with no category drop, and
+the rebuilt CLI report agrees (1,311; 1,311 / 1,747 in scope).

@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
@@ -597,11 +598,10 @@ func IsInfinite(ctx Context, args []Value) Value {
 
 // =============================================================================
 // Random Number Functions
-// NOTE: These functions require access to the random number generator and seed.
-// The Context interface needs to be extended with:
-//   - RandSource() *rand.Rand (or similar) to access the RNG
-//   - GetRandSeed() int64 to get the current seed
-//   - SetRandSeed(seed int64) to set the seed
+//
+// All of them draw from the execution's runtime.XorShift, so a seeded script
+// reproduces DWScript's sequence exactly. Script-visible seeds are stored
+// xor-ed with runtime.DefaultRandSeed, as upstream does.
 // =============================================================================
 
 // Random implements the Random() built-in function.
@@ -615,21 +615,32 @@ func Random(ctx Context, args []Value) Value {
 	return &runtime.FloatValue{Value: ctx.RandSource().Float64()}
 }
 
+// randomizeSeedBase chains successive Randomize calls, so two calls within the
+// same millisecond still select different states (upstream's vSeedBase).
+var randomizeSeedBase atomic.Uint64
+
 // Randomize implements the Randomize() built-in procedure.
-// It seeds the random number generator with the current time.
+// It reseeds the random number generator from the current time.
 // Randomize() - seeds RNG with current time (no return value)
 func Randomize(ctx Context, args []Value) Value {
 	if len(args) != 0 {
 		return ctx.NewError("Randomize() expects no arguments, got %d", len(args))
 	}
 
-	seed := time.Now().UnixNano()
-	ctx.SetRandSeed(seed)
-	return &runtime.NilValue{}
+	for {
+		base := randomizeSeedBase.Load()
+		x := uint64(time.Now().UnixMilli()) ^ base
+		x ^= x << 40
+		if randomizeSeedBase.CompareAndSwap(base, x) {
+			ctx.RandSource().SetState(x)
+			return &runtime.NilValue{}
+		}
+	}
 }
 
 // RandomInt implements the RandomInt() built-in function.
-// It returns a random integer between 0 (inclusive) and max (exclusive).
+// It returns a random integer between 0 (inclusive) and max (exclusive),
+// computed as Trunc(Random * max) like DWScript.
 // RandomInt(max) - max must be positive
 func RandomInt(ctx Context, args []Value) Value {
 	if len(args) != 1 {
@@ -651,8 +662,7 @@ func RandomInt(ctx Context, args []Value) Value {
 		return ctx.NewError("RandomInt() expects max > 0, got %d", max)
 	}
 
-	randomValue := ctx.RandSource().Intn(int(max))
-	return &runtime.IntegerValue{Value: int64(randomValue)}
+	return &runtime.IntegerValue{Value: int64(ctx.RandSource().Float64() * float64(max))}
 }
 
 // SetRandSeed implements the SetRandSeed() built-in function.
@@ -669,25 +679,25 @@ func SetRandSeed(ctx Context, args []Value) Value {
 		return ctx.NewError("SetRandSeed() expects Integer, got %s", args[0].Type())
 	}
 
-	ctx.SetRandSeed(seedVal.Value)
+	ctx.RandSource().SetState(uint64(seedVal.Value) ^ runtime.DefaultRandSeed)
 	return &runtime.NilValue{}
 }
 
-// RandSeed implements the RandSeed() built-in function.
-// It returns the current random seed value.
+// RandSeed implements the deprecated RandSeed() built-in function.
+// It returns the current generator state in SetRandSeed's terms.
 // RandSeed: Integer
 func RandSeed(ctx Context, args []Value) Value {
 	if len(args) != 0 {
 		return ctx.NewError("RandSeed expects no arguments, got %d", len(args))
 	}
 
-	return &runtime.IntegerValue{Value: ctx.GetRandSeed()}
+	return &runtime.IntegerValue{Value: int64(ctx.RandSource().State() ^ runtime.DefaultRandSeed)}
 }
 
 // RandG implements the RandG() built-in function.
 // It returns a Gaussian (normal) distributed random number, by default with
 // mean 0 and standard deviation 1.
-// Uses the Box-Muller transform.
+// Uses the Marsaglia-Bray polar method.
 // RandG(): Float
 // RandG(mean, stdDev: Float): Float
 func RandG(ctx Context, args []Value) Value {
@@ -707,19 +717,18 @@ func RandG(ctx Context, args []Value) Value {
 		return ctx.NewError("RandG() expects 0 or 2 arguments, got %d", len(args))
 	}
 
-	// Box-Muller transform to generate Gaussian distributed random numbers
-	// Generate two uniform random numbers in (0, 1]
+	// Marsaglia-Bray polar method, drawing pairs until one falls inside the
+	// unit circle, exactly as DWScript does so seeded sequences agree.
 	rng := ctx.RandSource()
-	u1 := rng.Float64()
-	u2 := rng.Float64()
-
-	// Ensure u1 is not zero or near-zero to avoid log(0)
-	if u1 < 1e-10 {
-		u1 = 1e-10
+	var x, n float64
+	for {
+		x = 2*rng.Float64() - 1
+		y := 2*rng.Float64() - 1
+		n = x*x + y*y
+		if n < 1 && n > 0 {
+			break
+		}
 	}
 
-	// Box-Muller transform
-	z0 := math.Sqrt(-2.0*math.Log(u1)) * math.Cos(2.0*math.Pi*u2)
-
-	return &runtime.FloatValue{Value: mean + stdDev*z0}
+	return &runtime.FloatValue{Value: math.Sqrt(-2*math.Log(n)/n)*x*stdDev + mean}
 }

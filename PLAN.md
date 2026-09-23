@@ -10,7 +10,7 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-23):** Go harness and freshly rebuilt CLI agree at **1,310 / 1,966 scored =
+**Headline (2026-09-23):** Go harness and freshly rebuilt CLI agree at **1,311 / 1,966 scored =
 67%**; `*Fail` error-detection suites **291 / 641 = 45%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
@@ -18,7 +18,7 @@
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,310 / 1,747 = 75% in scope**, the number to track against §6. Both are honest;
+same run reads **1,311 / 1,747 = 75% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -29,8 +29,8 @@ Open, in leverage order:
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 87 in-scope execution-suite failures. E1–E13 are closed;
-  what those groups left is grouped as E14–E20.
+- **§3.5** is the other half: 86 in-scope execution-suite failures. E1–E14 are closed;
+  what those groups left is grouped as E15–E20.
 - **§3.2** has no open items. **§3.4** has expected-type overload resolution, blocked on the
   evaluator. **§3.3** has only the gated Memory host setup.
 - **§1** and **§3.1** have no open items. **§2** has one, deferred by owner decision.
@@ -54,11 +54,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (656 total, 2026-09-23): **219 host-library** (out of scope),
+- Where the remaining failures are (655 total, 2026-09-23): **219 host-library** (out of scope),
   **350 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 13,
-  OverloadsFail 11, HelpersFail 9, the rest under 10), and **87 in the execution suites** (§3.5:
-  SimpleScripts 54, ArrayPass 14, FunctionsMath 1, a tail
-  of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
+  OverloadsFail 11, HelpersFail 9, the rest under 10), and **86 in the execution suites** (§3.5:
+  SimpleScripts 54, ArrayPass 14, a tail of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - **Upstream source is reachable without the submodule.** `reference/dwscript-original/` is an
   empty submodule, but the originals fetch from
@@ -198,7 +197,7 @@ matching, class-operator inheritance), and the skipped-test backlog.
 
 ### 3.5 Execution-suite failures (E)
 
-87 in-scope execution-suite fixtures fail (2026-09-23). Audits:
+86 in-scope execution-suite fixtures fail (2026-09-23). Audits:
 [pass-suite audit](docs/architecture/pass-suite-audit-2026-09.md) (2026-09-12) and
 [execution-suite triage](docs/architecture/execution-suite-triage-2026-09.md) (2026-09-19, first
 blocker per group). Regenerate with `just fixture-report --in-scope --classify --list-fails`.
@@ -230,16 +229,7 @@ CLI/harness parity when fixtures improve.
 | E11 (09-19) | Variant `Abs`, Variant `Inc`/`Dec` deltas, two-argument `Succ`/`Pred`, Haversine radius, `RandG(mean, stdDev)` | FunctionsMath 35 → 39/40 |
 | E12 (09-22) | Indexed/default interface properties; runner diagnostic options; mixed reference equality; interface alias assignment | InterfacesPass 31 → 33/33, InterfacesFail 5 → 6/19; compile/run regressions |
 | E13 (09-22) | JSON conversion, inline record arrays, comparison/membership, safe mutation, duplicate-key serialization | JSONConnectorPass 73 → 82/82; compile/run and ownership regressions |
-
-#### E14 — Seeded RNG and Variant-to-Integer assignment (from E10, E11) `[ ]`
-
-FunctionsMath 39/40.
-
-- `[ ]` M Seeded RNG compatibility (`randseed`): establish the upstream sequence/seed contract
-  before changing the generator. Its missing deprecated warning belongs to F1.
-- `[ ]` S Variant-to-Integer assignment (no fixture; found in E11): `var v : Variant := 2.5;
-  var i : Integer := v;` stores 2.5 in `i` instead of casting it. Builtin arguments already round
-  through `coerceToInteger`; the assignment path is the one that differs.
+| E14 (09-23) | Upstream xorshift RNG (`SetRandSeed`/`RandSeed`/`RandomInt`/`RandG`/`Randomize`), deprecated-builtin warning, Variant → Integer/Float at typed stores, boxed Variant parameters | FunctionsMath 39 → 40/40; `maze_generation` expectation restored to upstream |
 
 #### E15 — Helper dispatch and receivers (from E10) `[ ]`
 
@@ -334,8 +324,8 @@ Work families — IDs from the 2026-03 analysis
     rejects the redeclaration outright (`internal/interp/lambda_test.go:TestLambdaWithLoop`
     relies on the current binding). No fixture pins `Result := Result`; close the redeclaration
     gap and the suppression in `internal/semantic/analyze_hints.go` can go.
-  - `[ ]` Missing deprecated warning in `randseed` (2:9; E14). Runner-option parity for
-    `LambdaPass/immediate` and interface implementation hints closed with E12 (09-22).
+  - Closed: the `randseed` deprecated warning (E14, 09-23); runner-option parity for
+    `LambdaPass/immediate` and interface implementation hints (E12, 09-22).
 - **F2** `[ ]` M Array diagnostics:
   - `[ ]` S `Array expected`.
   - `[ ]` S `Too many indices` (8 lines, all in one fixture).

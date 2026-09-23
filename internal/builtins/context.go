@@ -13,8 +13,6 @@
 package builtins
 
 import (
-	"math/rand"
-
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -62,17 +60,9 @@ type Context interface {
 	// call it unconditionally.
 	FS() platform.FileSystem
 
-	// RandSource returns the random number generator for built-in functions
-	// like Random(), RandomInt(), and RandG().
-	RandSource() *rand.Rand
-
-	// GetRandSeed returns the current random number generator seed value.
-	// Used by the RandSeed() built-in function.
-	GetRandSeed() int64
-
-	// SetRandSeed sets the random number generator seed.
-	// Used by the SetRandSeed() and Randomize() built-in functions.
-	SetRandSeed(seed int64)
+	// RandSource returns the per-execution random generator behind Random(),
+	// RandomInt(), RandG(), RandSeed(), SetRandSeed() and Randomize().
+	RandSource() *runtime.XorShift
 
 	// UnwrapVariant returns the underlying value if input is a Variant, otherwise returns input as-is.
 	// This allows built-in functions to work with both direct values and Variant-wrapped values.

@@ -2,7 +2,6 @@ package builtins
 
 import (
 	"fmt"
-	"math/rand"
 	"strconv"
 	"testing"
 
@@ -21,17 +20,15 @@ func (e *mockErrorValue) String() string { return "ERROR: " + e.Message }
 
 // mockContext implements the Context interface for testing
 type mockContext struct {
-	rng              *rand.Rand
+	rng              *runtime.XorShift
 	dateTimeSettings *DateTimeFormatSettings
 	fs               platform.FileSystem
 	lastError        string
-	randSeed         int64
 }
 
 func newMockContext() *mockContext {
 	return &mockContext{
-		randSeed: 0,
-		rng:      rand.New(rand.NewSource(0)),
+		rng: runtime.NewXorShift(),
 	}
 }
 
@@ -52,17 +49,8 @@ func (m *mockContext) FS() platform.FileSystem {
 	return m.fs
 }
 
-func (m *mockContext) RandSource() *rand.Rand {
+func (m *mockContext) RandSource() *runtime.XorShift {
 	return m.rng
-}
-
-func (m *mockContext) GetRandSeed() int64 {
-	return m.randSeed
-}
-
-func (m *mockContext) SetRandSeed(seed int64) {
-	m.randSeed = seed
-	m.rng = rand.New(rand.NewSource(seed))
 }
 
 func (m *mockContext) UnwrapVariant(value Value) Value {

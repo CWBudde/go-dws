@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -178,7 +179,20 @@ type UserFunctionCallbacks struct {
 func (e *Evaluator) defaultUserFunctionCallbacks(ctx *ExecutionContext) *UserFunctionCallbacks {
 	return &UserFunctionCallbacks{
 		ImplicitConversion: func(value Value, targetType ast.TypeExpression) (Value, bool) {
-			return e.TryImplicitConversionFromAnnotation(value, targetType, ctx)
+			target, err := e.ResolveTypeFromAnnotation(targetType, ctx)
+			if err != nil {
+				return value, false
+			}
+			converted, ok := e.TryImplicitConversion(value, target, ctx)
+			// A Variant parameter holds a boxed value, as a Variant variable
+			// does, so a later store into a typed location can tell it apart
+			// from a statically typed value and convert it.
+			if types.GetUnderlyingType(target).TypeKind() == "VARIANT" {
+				if _, boxed := converted.(runtime.VariantWrapper); !boxed && converted != nil {
+					return runtime.BoxVariant(converted), true
+				}
+			}
+			return converted, ok
 		},
 		DefaultValueGetter: func(returnType ast.TypeExpression) Value {
 			return e.createZeroValue(returnType, currentNode(ctx), ctx)

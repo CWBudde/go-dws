@@ -822,10 +822,12 @@ an index or a member (`a[0].TEST := 3`, `v.List[0] := 'zero'`), which are always
 #### go-dws Status
 - ✅ Abs, Sqrt, Sin, Cos, Tan, Ln, Exp, Round, Trunc, Random, Randomize
 - ✅ `Abs` of a Variant; `Succ`/`Pred(x, delta)` and `Inc`/`Dec` with Variant deltas; `Haversine` radius; `RandG(mean, stdDev)`
+- ✅ RandomInt, SetRandSeed, RandSeed (deprecated, warns like upstream): the generator is
+  DWScript's xorshift64, so a seeded script reproduces upstream's sequence exactly. An unseeded
+  run starts from the `SetRandSeed(0)` state rather than a random one, so it is reproducible.
 - ⏸️ Sqr, Power, Log10, Log2, ArcSin/Cos/Tan
 - ⏸️ Hyperbolic functions
 - ⏸️ Ceil, Floor, Frac, Int
-- ⏸️ RandomInt, RandSeed
 - ⏸️ Min/Max, Sign, DegToRad/RadToDeg
 - ⏸️ 3D math, Complex, Statistics, BigInteger
 
@@ -909,7 +911,10 @@ an index or a member (`a[0].TEST := 3`, `v.List[0] := 'zero'`), which are always
 - Variant arrays, Variant records
 
 #### go-dws Status
-- ⏸️ Variant support
+- ✅ A Variant stored into an `Integer` or `Float` variable, parameter or result takes the
+  declared type (DWScript's `VariantToInt64`): Floats round half to even, Booleans become 0/1,
+  numeric strings are parsed. A `Variant` parameter holds a boxed value like a `Variant` variable.
+- ⏸️ Variant support (remainder)
 
 ---
 
