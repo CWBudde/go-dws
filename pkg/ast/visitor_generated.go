@@ -901,6 +901,9 @@ func walkOperatorDecl(n *OperatorDecl, v Visitor) {
 	if n.Binding != nil {
 		Walk(v, n.Binding)
 	}
+	if n.BindingHelper != nil {
+		Walk(v, n.BindingHelper)
+	}
 	for _, item := range n.OperandTypes {
 		if item != nil {
 			Walk(v, item)

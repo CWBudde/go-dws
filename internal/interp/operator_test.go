@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+func TestOperatorBindings_RealPath(t *testing.T) {
+	tests := []struct{ name, source, output string }{
+		{"c-style", `function EqualWithPrint(a,b: Integer): Boolean; begin PrintLn('eq'); Result := a=b; end; operator == (Integer,Integer): Boolean uses EqualWithPrint; PrintLn(1 == 1);`, "eq\nTrue\n"},
+		{"shift", `function Twice(a,b: Integer): Integer; begin Result := a*2+b; end; operator << (Integer,Integer): Integer uses Twice; PrintLn(2 << 3);`, "7\n"},
+		{"builtin-conversion", `operator implicit (Integer): String uses IntToStr; var s: String; s := 123; PrintLn(s);`, "123\n"},
+		{"qualified-helper", `type Vec2 = array [0..1] of Float; type TVec2Helper = helper for Vec2 function Add(const v: Vec2): Vec2; overload; begin Result := [Self[0]+v[0], Self[1]+v[1]]; end; function Add(const f: Float): Vec2; overload; begin Result := [Self[0]+f, Self[1]+f]; end; end; operator + (Vec2,Vec2): Vec2 uses TVec2Helper.Add; operator + (Vec2,Float): Vec2 uses TVec2Helper.Add; var v: Vec2 := [1,2]; v := v + 5.0; PrintLn(v[0]);`, "6\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, output := testEvalWithOutputAndSemantic(t, tt.source)
+			if output != tt.output {
+				t.Fatalf("output %q, want %q", output, tt.output)
+			}
+		})
+	}
+}
+
 func TestGlobalOperatorOverload(t *testing.T) {
 	input := `
 		function StrPlusInt(s: String; i: Integer): String;

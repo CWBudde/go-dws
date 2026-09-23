@@ -89,6 +89,16 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 		},
 		Value: cursor.Current().Literal,
 	}
+	if cursor.Peek(1).Type == lexer.DOT {
+		decl.BindingHelper = decl.Binding
+		cursor = cursor.Advance()
+		if cursor.Peek(1).Type != lexer.IDENT {
+			p.addExpected(lexer.IDENT)
+			return nil
+		}
+		cursor = cursor.Advance()
+		decl.Binding = &ast.Identifier{BaseNode: ast.BaseNode{Token: cursor.Current()}, Value: cursor.Current().Literal}
+	}
 
 	// Expect terminating semicolon
 	if cursor.Peek(1).Type != lexer.SEMICOLON {

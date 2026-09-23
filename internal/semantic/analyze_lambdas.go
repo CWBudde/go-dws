@@ -5,6 +5,7 @@ import (
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	identpkg "github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -387,7 +388,8 @@ func (a *Analyzer) inferReturnTypeFromBody(body *ast.BlockStatement) types.Type 
 		} else if assignStmt, ok := stmt.(*ast.AssignmentStatement); ok {
 			// Check if this is a Result assignment
 			if ident, ok := assignStmt.Target.(*ast.Identifier); ok {
-				if ident.Value == "Result" {
+				if identpkg.Equal(ident.Value, "Result") {
+					a.addIdentifierCaseHint(ident, "Result")
 					// This is a Result assignment - infer type from RHS
 					rhsType := a.analyzeExpression(assignStmt.Value)
 					if rhsType != nil {
@@ -403,7 +405,8 @@ func (a *Analyzer) inferReturnTypeFromBody(body *ast.BlockStatement) types.Type 
 					consequenceType = a.inferReturnTypeFromBody(consequenceBlock)
 				} else if assignStmt, ok := ifStmt.Consequence.(*ast.AssignmentStatement); ok {
 					// Single assignment statement - check if it's Result
-					if ident, ok := assignStmt.Target.(*ast.Identifier); ok && ident.Value == "Result" {
+					if ident, ok := assignStmt.Target.(*ast.Identifier); ok && identpkg.Equal(ident.Value, "Result") {
+						a.addIdentifierCaseHint(ident, "Result")
 						consequenceType = a.analyzeExpression(assignStmt.Value)
 					}
 				}
@@ -417,7 +420,8 @@ func (a *Analyzer) inferReturnTypeFromBody(body *ast.BlockStatement) types.Type 
 					alternativeType = a.inferReturnTypeFromBody(alternativeBlock)
 				} else if assignStmt, ok := ifStmt.Alternative.(*ast.AssignmentStatement); ok {
 					// Single assignment statement - check if it's Result
-					if ident, ok := assignStmt.Target.(*ast.Identifier); ok && ident.Value == "Result" {
+					if ident, ok := assignStmt.Target.(*ast.Identifier); ok && identpkg.Equal(ident.Value, "Result") {
+						a.addIdentifierCaseHint(ident, "Result")
 						alternativeType = a.analyzeExpression(assignStmt.Value)
 					}
 				}
@@ -468,7 +472,7 @@ func (a *Analyzer) analyzeCapturedVariables(body *ast.BlockStatement, lambdaScop
 
 	for _, ident := range identifiers {
 		// Skip special identifiers
-		if ident == "Result" {
+		if identpkg.Equal(ident, "Result") {
 			continue
 		}
 

@@ -44,11 +44,13 @@ func (k OperatorKind) String() string {
 //	operator implicit (Integer) : String uses IntToStr;
 //	class operator += String uses AppendString;
 type OperatorDecl struct {
-	ReturnType     TypeExpression
-	Binding        *Identifier
-	OperatorSymbol string
-	OperandTypes   []TypeExpression
-	OperatorToken  token.Token
+	ReturnType      TypeExpression
+	Binding         *Identifier
+	BindingHelper   *Identifier // Optional qualifier in uses Helper.Method.
+	BindingOverload int         // Selected helper overload in declaration order.
+	OperatorSymbol  string
+	OperandTypes    []TypeExpression
+	OperatorToken   token.Token
 	BaseNode
 	Kind       OperatorKind
 	Arity      int
@@ -104,6 +106,10 @@ func (od *OperatorDecl) String() string {
 	// Render binding
 	if od.Binding != nil {
 		out.WriteString("uses ")
+		if od.BindingHelper != nil {
+			out.WriteString(od.BindingHelper.String())
+			out.WriteString(".")
+		}
 		out.WriteString(od.Binding.String())
 	}
 

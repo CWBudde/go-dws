@@ -4,6 +4,7 @@ package evaluator
 import (
 	"fmt"
 
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	interptypes "github.com/cwbudde/go-dws/internal/interp/types"
 	"github.com/cwbudde/go-dws/internal/types"
@@ -267,7 +268,10 @@ func (e *Evaluator) executeConversionEntry(entry *interptypes.ConversionEntry, v
 	// Look up the conversion function using TypeSystem's FunctionRegistry
 	overloads := e.typeSystem.LookupFunctions(entry.BindingName)
 	if len(overloads) == 0 {
-		// This should not happen if semantic analysis passed
+		if builtin, ok := builtins.DefaultRegistry.Lookup(entry.BindingName); ok {
+			result := builtin(e.builtinContext(ctx), []Value{value})
+			return result, !isErrorValue(result)
+		}
 		return nil, false
 	}
 	fn := overloads[0]

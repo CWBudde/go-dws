@@ -3,6 +3,7 @@ package evaluator
 import (
 	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
+	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
@@ -132,7 +133,11 @@ func (e *Evaluator) executeLambdaDirect(
 		scope.defineOwned(e, lambdaCtx, param.Name.Value, arg)
 	}
 
-	if lambda.ReturnType != nil || lambda.IsShorthand {
+	var inferredReturnType types.Type
+	if signature, ok := types.GetUnderlyingType(e.resolvedSemanticType(lambda)).(*types.FunctionPointerType); ok {
+		inferredReturnType = signature.ReturnType
+	}
+	if lambda.ReturnType != nil || lambda.IsShorthand || inferredReturnType != nil {
 		var resultValue = e.nilValue()
 		if lambda.ReturnType != nil {
 			returnType, err := e.ResolveTypeFromAnnotation(lambda.ReturnType, ctx)
@@ -144,6 +149,8 @@ func (e *Evaluator) executeLambdaDirect(
 			} else {
 				resultValue = e.GetDefaultValue(returnType, ctx)
 			}
+		} else if inferredReturnType != nil {
+			resultValue = e.GetDefaultValue(inferredReturnType, ctx)
 		}
 		scope.defineOwned(e, lambdaCtx, "Result", resultValue)
 	}
@@ -160,7 +167,7 @@ func (e *Evaluator) executeLambdaDirect(
 		lambdaCtx.ControlFlow().Clear()
 	}
 
-	if lambda.ReturnType != nil || lambda.IsShorthand {
+	if lambda.ReturnType != nil || lambda.IsShorthand || inferredReturnType != nil {
 		if resultVal, ok := lambdaEnv.Get("Result"); ok {
 			if value, ok := resultVal.(Value); ok {
 				return e.retainValueForBinding(value, lambdaCtx)

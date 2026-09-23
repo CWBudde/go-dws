@@ -10,27 +10,27 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-23):** Go harness and freshly rebuilt CLI agree at **1,311 / 1,966 scored =
-67%**; `*Fail` error-detection suites **291 / 641 = 45%**. What shipped to get there is in
+**Headline (2026-09-23):** Go harness and freshly rebuilt CLI agree at **1,324 / 1,966 scored =
+67%**; `*Fail` error-detection suites **292 / 641 = 46%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
 and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
 silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,311 / 1,747 = 75% in scope**, the number to track against §6. Both are honest;
+same run reads **1,324 / 1,747 = 76% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 350 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 349 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 86 in-scope execution-suite failures. E1–E14 are closed;
-  what those groups left is grouped as E15–E20.
+- **§3.5** is the other half: 74 in-scope execution-suite failures. E1–E18 are closed;
+  the remaining groups are E19–E20.
 - **§3.2** has no open items. **§3.4** has expected-type overload resolution, blocked on the
   evaluator. **§3.3** has only the gated Memory host setup.
 - **§1** and **§3.1** have no open items. **§2** has one, deferred by owner decision.
@@ -54,10 +54,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (655 total, 2026-09-23): **219 host-library** (out of scope),
-  **350 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 13,
-  OverloadsFail 11, HelpersFail 9, the rest under 10), and **86 in the execution suites** (§3.5:
-  SimpleScripts 54, ArrayPass 14, a tail of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
+- Where the remaining failures are (642 total, 2026-09-23): **219 host-library** (out of scope),
+  **349 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 13,
+  OverloadsFail 11, HelpersFail 9, the rest under 10), and **74 in the execution suites** (§3.5:
+  SimpleScripts 54, ArrayPass 13, a tail of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - **Upstream source is reachable without the submodule.** `reference/dwscript-original/` is an
   empty submodule, but the originals fetch from
@@ -140,7 +140,7 @@ Explicit-instance helper calls closed 2026-09-21 (`declared_helper`, `helper_exp
 
 Moved out of this section: the error-detection residue (`contracts_precondition`, `GenericsFail`,
 `OverloadsFail`, the other nine `SetOfFail`, `special_funcs4`, `conditionals2.1`) is under §4/F7;
-`read_write_other_property` is E18. Until `contracts_precondition` lands, the runtime evaluates
+`read_write_other_property` closed under E18. Until `contracts_precondition` lands, the runtime evaluates
 every `require` in the chain, root-most first.
 
 Deliberate exclusions, each measured; reopen only on new evidence:
@@ -197,7 +197,7 @@ matching, class-operator inheritance), and the skipped-test backlog.
 
 ### 3.5 Execution-suite failures (E)
 
-86 in-scope execution-suite fixtures fail (2026-09-23). Audits:
+74 in-scope execution-suite fixtures fail (2026-09-23). Audits:
 [pass-suite audit](docs/architecture/pass-suite-audit-2026-09.md) (2026-09-12) and
 [execution-suite triage](docs/architecture/execution-suite-triage-2026-09.md) (2026-09-19, first
 blocker per group). Regenerate with `just fixture-report --in-scope --classify --list-fails`.
@@ -231,29 +231,9 @@ CLI/harness parity when fixtures improve.
 | E13 (09-22) | JSON conversion, inline record arrays, comparison/membership, safe mutation, duplicate-key serialization | JSONConnectorPass 73 → 82/82; compile/run and ownership regressions |
 | E14 (09-23) | Upstream xorshift RNG (`SetRandSeed`/`RandSeed`/`RandomInt`/`RandG`/`Randomize`), deprecated-builtin warning, Variant → Integer/Float at typed stores, boxed Variant parameters | FunctionsMath 39 → 40/40; `maze_generation` expectation restored to upstream |
 | E15 (09-23) | Helper `ClassName` self-dispatch; class functions on named array types | `classname_helper1`, `dyn_array_create` |
-
-#### E16 — Operator syntax and binding (from E10) `[ ]`
-
-- `[ ]` M C-style expression operators `==`, `!=` (`c_style`) and `<<`, `>>`
-  (`operator_overloading2`): parse and follow through semantic/operator dispatch.
-- `[ ]` S Qualified helper operator bindings (`helper_as_overload`: `uses TVec2Helper.Add`), with
-  overload selection.
-- `[ ]` S Builtin implicit-operator bindings (`operator_implicit`: binding `IntToStr` not found).
-
-#### E17 — Lambda and overload semantics (from E10) `[ ]`
-
-- `[ ]` S `simple_func`: recognize `Result` case-insensitively (`pkg/ident`) during lambda return
-  inference, including conditional branches.
-- `[ ]` M `overload_ambiguous_delegate`: resolve bare callable arguments against value/delegate
-  overloads (implicit invocation vs. explicit delegate).
-- `[ ]` S `overload_class_method`: retain class identity for bare `ClassName` inside a class method.
-
-#### E18 — Property forwarding and helper error positions (from E10) `[ ]`
-
-- `[ ]` M `read_write_other_property`: property accessor specifiers naming another property
-  (`property Mapped read Prop write Prop`), including access-mode validation.
-- `[ ]` S `toxml`: anchor the caught exception at the member name (`ToXML`, column 12) rather than
-  the receiver.
+| E16 (09-23) | C-style and shift expressions; qualified helper and builtin operator bindings | OperatorOverloadPass 5 → 8/8, HelpersPass 26 → 27/27 |
+| E17 (09-23) | Lambda `Result` inference; bare callable overload selection; class-method `ClassName` | LambdaPass 5 → 6/6, OverloadsPass 37 → 39/39 |
+| E18 (09-23) | Property-to-property accessors and access validation; `ToXML` exception position | PropertyExpressionsPass 18 → 19/19, PropertyExpressionsFail 2 → 3/10, FunctionsString 57 → 58/58 |
 
 #### E19 — BuildScripts runner parity (from E10) `[ ]` M
 
@@ -271,8 +251,8 @@ independently; evaluate it once, as E9 does for member receivers.
 
 ## 4. Error-detection parity (`*Fail` suites, F)
 
-Harness and CLI: 290/641 (FailureScripts 249/529, SetOfFail 13, HelpersFail 9, InterfacesFail 5,
-OperatorOverloadFail 3, OverloadsFail 3, JSONConnectorFail 2, PropertyExpressionsFail 2,
+Harness and CLI: 292/641 (FailureScripts 249/529, SetOfFail 13, HelpersFail 9, InterfacesFail 6,
+OperatorOverloadFail 3, OverloadsFail 3, JSONConnectorFail 2, PropertyExpressionsFail 3,
 AssociativeFail 2, GenericsFail 1, JSFilterScriptsFail 1, every other `*Fail` suite 0). The suites are **compile-only** (like DWScript's
 `CompilationFailure` runner): the expected file is the compiler's message list, hints included,
 no envelope, and nothing is executed. Reproduce one with

@@ -669,6 +669,32 @@ func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl
 		propInfo.WriteKind = types.PropAccessNone
 	}
 
+	// A property may use a previously declared property as its accessor. Carry
+	// the selected accessor through to runtime, where the original property
+	// name would otherwise be mistaken for a field or method.
+	if classInfo != nil {
+		readSource, hasReadSource := propDecl.ReadSpec.(*ast.Identifier)
+		writeSource, hasWriteSource := propDecl.WriteSpec.(*ast.Identifier)
+		readResolved, writeResolved := false, false
+		metadata := classInfo.GetMetadata()
+		for metadata != nil {
+			for name, referenced := range metadata.Properties {
+				if referenced == nil || ident.Equal(name, propInfo.Name) {
+					continue
+				}
+				if hasReadSource && !readResolved && ident.Equal(name, readSource.Value) {
+					propInfo.ReadKind, propInfo.ReadSpec, propInfo.ReadExpr = referenced.ReadKind, referenced.ReadSpec, referenced.ReadExpr
+					readResolved = true
+				}
+				if hasWriteSource && !writeResolved && ident.Equal(name, writeSource.Value) {
+					propInfo.WriteKind, propInfo.WriteSpec, propInfo.WriteExpr = referenced.WriteKind, referenced.WriteSpec, referenced.WriteExpr
+					writeResolved = true
+				}
+			}
+			metadata = metadata.Parent
+		}
+	}
+
 	return propInfo
 }
 
@@ -772,9 +798,13 @@ func (e *Evaluator) VisitOperatorDecl(node *ast.OperatorDecl, ctx *ExecutionCont
 
 	// Register global operator
 	entry := &interptypes.OperatorEntry{
-		Operator:     node.OperatorSymbol,
-		OperandTypes: operandTypes,
-		BindingName:  ident.Normalize(node.Binding.Value),
+		Operator:        node.OperatorSymbol,
+		OperandTypes:    operandTypes,
+		BindingName:     ident.Normalize(node.Binding.Value),
+		BindingOverload: node.BindingOverload,
+	}
+	if node.BindingHelper != nil {
+		entry.BindingHelper = node.BindingHelper.Value
 	}
 
 	if err := e.typeSystem.Operators().Register(entry); err != nil {

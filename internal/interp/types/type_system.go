@@ -567,12 +567,14 @@ type OperatorRegistry struct {
 
 // OperatorEntry represents a registered operator overload.
 type OperatorEntry struct {
-	Class         runtime.IClassInfo
-	Operator      string
-	BindingName   string
-	OperandTypes  []coretypes.Type
-	SelfIndex     int
-	IsClassMethod bool
+	Class           runtime.IClassInfo
+	Operator        string
+	BindingName     string
+	BindingHelper   string
+	BindingOverload int
+	OperandTypes    []coretypes.Type
+	SelfIndex       int
+	IsClassMethod   bool
 }
 
 // NewOperatorRegistry creates a new operator registry.

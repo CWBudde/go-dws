@@ -218,6 +218,44 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 	// Property already registered at the beginning (line 68) for circular reference detection
 }
 
+// forwardedIndexSignatureMatches reports whether a property whose accessor
+// forwards to referenced passes the arguments that accessor expects. The
+// forwarding property's full index signature (index directive plus declared
+// index parameters, as given by indexParamTypes) must match the referenced
+// property's. Expression accessors bind the index parameters by name, so
+// indexed expression forwarding additionally requires identical names.
+func forwardedIndexSignatureMatches(propInfo, referenced *types.PropertyInfo, indexParamTypes []types.Type, kind types.PropAccessKind) bool {
+	referencedTypes := make([]types.Type, 0, len(referenced.IndexParamTypes)+1)
+	if referenced.HasIndexValue {
+		referencedTypes = append(referencedTypes, referenced.IndexValueType)
+	}
+	referencedTypes = append(referencedTypes, referenced.IndexParamTypes...)
+	if len(referencedTypes) != len(indexParamTypes) {
+		return false
+	}
+	for i, paramType := range indexParamTypes {
+		if !paramType.Equals(referencedTypes[i]) {
+			return false
+		}
+	}
+	// The forwarded accessor receives this property's index value, so it
+	// must be the one the referenced property would have passed.
+	if referenced.HasIndexValue && propInfo.IndexValue != referenced.IndexValue {
+		return false
+	}
+	if kind == types.PropAccessExpression {
+		if len(propInfo.IndexParamNames) != len(referenced.IndexParamNames) {
+			return false
+		}
+		for i, name := range propInfo.IndexParamNames {
+			if !pkgident.Equal(name, referenced.IndexParamNames[i]) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // validateReadSpec validates the read specifier of a property.
 // The read specifier can be:
 //   - Field: A field name (identifier) - the field must exist and have matching type
@@ -231,6 +269,28 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	// Check if read spec is an identifier (field, constant, or method name)
 	if ident, ok := prop.ReadSpec.(*ast.Identifier); ok {
 		readSpecName := ident.Value
+		if referenced, found := classType.GetProperty(readSpecName); found && referenced != propInfo {
+			if referenced.ReadKind == types.PropAccessNone {
+				a.addStructuredError(NewWriteOnlyPropertyError(ident.Token.Pos, readSpecName))
+				return
+			}
+			// A getter of a derived type may back a property of a base type
+			// (covariant read access), as for field and expression accessors.
+			if !propType.Equals(referenced.Type) && !a.canAssign(referenced.Type, propType) {
+				a.addStructuredError(NewPropertyDeclarationTypeMismatchError(ident.Token.Pos,
+					"property '"+propName+"' read property '"+readSpecName+"' has type "+referenced.Type.String()+", expected "+propType.String()))
+				return
+			}
+			if !forwardedIndexSignatureMatches(propInfo, referenced, indexParamTypes, referenced.ReadKind) {
+				a.addStructuredError(NewPropertyDeclarationTypeMismatchError(ident.Token.Pos,
+					"property '"+propName+"' read property '"+readSpecName+"' has incompatible index parameters"))
+				return
+			}
+			propInfo.ReadKind = referenced.ReadKind
+			propInfo.ReadSpec = referenced.ReadSpec
+			propInfo.ReadExpr = referenced.ReadExpr
+			return
+		}
 
 		// Check class-level members first: class vars, then constants, then instance fields
 
@@ -442,6 +502,28 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 	}
 
 	writeSpecName := ident.Value
+	if referenced, found := classType.GetProperty(writeSpecName); found && referenced != propInfo {
+		if referenced.WriteKind == types.PropAccessNone {
+			a.addStructuredError(NewWriteOnlyPropertyError(ident.Token.Pos, writeSpecName))
+			return
+		}
+		// Values written through this property must be assignable to the
+		// referenced property's type.
+		if !propType.Equals(referenced.Type) && !a.canAssign(propType, referenced.Type) {
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(ident.Token.Pos,
+				"property '"+propName+"' write property '"+writeSpecName+"' has type "+referenced.Type.String()+", expected "+propType.String()))
+			return
+		}
+		if !forwardedIndexSignatureMatches(propInfo, referenced, indexParamTypes, referenced.WriteKind) {
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(ident.Token.Pos,
+				"property '"+propName+"' write property '"+writeSpecName+"' has incompatible index parameters"))
+			return
+		}
+		propInfo.WriteKind = referenced.WriteKind
+		propInfo.WriteSpec = referenced.WriteSpec
+		propInfo.WriteExpr = referenced.WriteExpr
+		return
+	}
 
 	// Check if it's a field (instance or class field)
 	// For class properties, look in ClassVars; for instance properties, look in Fields

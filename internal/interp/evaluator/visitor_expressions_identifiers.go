@@ -35,6 +35,17 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		return e.callLocalFunctionSet(set, nil, node, ctx)
 	}
 
+	// A class method can have the same name as the intrinsic ClassName. Its
+	// function Result alias occupies the local environment, but bare ClassName
+	// still denotes the current class name inside that method.
+	if ident.Equal(node.Value, "ClassName") {
+		if self, hasSelf := ctx.Env().Get("Self"); !hasSelf || runtime.KindOf(self) != runtime.KindObject {
+			if _, classMeta, ok := currentClassMetaValue(ctx); ok {
+				return &runtime.StringValue{Value: classMeta.GetClassName()}
+			}
+		}
+	}
+
 	// Try to find identifier in current environment (variables, parameters, constants)
 	if valRaw, ok := ctx.Env().Get(node.Value); ok {
 		// Check for nil value (can happen if variable declared but not initialized)
