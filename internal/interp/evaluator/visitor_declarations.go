@@ -1368,6 +1368,7 @@ func (e *Evaluator) VisitArrayDecl(node *ast.ArrayDecl, ctx *ExecutionContext) V
 	}
 
 	e.typeSystem.RegisterArrayType(arrayName, arrayType)
+	ctx.Env().Define(arrayName, &runtime.TypeMetaValue{TypeInfo: arrayType, TypeName: arrayName})
 
 	return &runtime.NilValue{}
 }

@@ -99,6 +99,16 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 			if recordType := a.getRecordType(className); recordType != nil {
 				return a.analyzeRecordStaticMethodCallFromNew(expr, recordType)
 			}
+			// The parser folds every Name.Create(...) into NewExpression, even
+			// when Name is a non-class type with a helper class function Create.
+			// Only the dotted spelling can be a helper call: `new Name(...)`
+			// remains a request to construct a class.
+			if expr.ConstructorPos.Line > 0 {
+				if target, err := a.resolveType(className); err == nil && target != nil &&
+					a.hasHelperMethod(target, "Create") != nil && a.isHelperClassMethod(target, "Create") {
+					return a.analyzeMethodCallExpression(helperCreateMethodCall(expr))
+				}
+			}
 			// A class-reference variable (`var c: TClass; new c`) or an alias to a
 			// class (`type TAlias = TMyClass; new TAlias`): the name resolves to a
 			// metaclass value / class type rather than a registered class name.
@@ -327,6 +337,20 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 	}
 
 	return classType
+}
+
+// helperCreateMethodCall restores the dotted call shape for a non-class type
+// whose helper defines Create. Its member token keeps diagnostics at Create.
+func helperCreateMethodCall(expr *ast.NewExpression) *ast.MethodCallExpression {
+	methodToken := expr.ClassName.Token
+	methodToken.Pos = expr.ConstructorPos
+	methodToken.Literal = "Create"
+	return &ast.MethodCallExpression{
+		BaseNode:  expr.BaseNode,
+		Object:    expr.ClassName,
+		Method:    &ast.Identifier{BaseNode: ast.BaseNode{Token: methodToken}, Value: "Create"},
+		Arguments: expr.Arguments,
+	}
 }
 
 func constructorCallPosition(expr *ast.CallExpression) token.Position {

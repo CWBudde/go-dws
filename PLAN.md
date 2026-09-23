@@ -230,13 +230,7 @@ CLI/harness parity when fixtures improve.
 | E12 (09-22) | Indexed/default interface properties; runner diagnostic options; mixed reference equality; interface alias assignment | InterfacesPass 31 → 33/33, InterfacesFail 5 → 6/19; compile/run regressions |
 | E13 (09-22) | JSON conversion, inline record arrays, comparison/membership, safe mutation, duplicate-key serialization | JSONConnectorPass 73 → 82/82; compile/run and ownership regressions |
 | E14 (09-23) | Upstream xorshift RNG (`SetRandSeed`/`RandSeed`/`RandomInt`/`RandG`/`Randomize`), deprecated-builtin warning, Variant → Integer/Float at typed stores, boxed Variant parameters | FunctionsMath 39 → 40/40; `maze_generation` expectation restored to upstream |
-
-#### E15 — Helper dispatch and receivers (from E10) `[ ]`
-
-- `[ ]` S `classname_helper1`: a helper's `ClassName` calling `Self.ClassName` recursively selects
-  itself (times out); expected `Helper.TObject`. Add a bounded recursion regression first.
-- `[ ]` S `dyn_array_create`: class functions through an array type alias
-  (`TStrings.Create(...)` → `Unknown name "TStrings"`).
+| E15 (09-23) | Helper `ClassName` self-dispatch; class functions on named array types | `classname_helper1`, `dyn_array_create` |
 
 #### E16 — Operator syntax and binding (from E10) `[ ]`
 

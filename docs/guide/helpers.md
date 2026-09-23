@@ -132,6 +132,24 @@ A non-static class method in a record helper takes the record type name in that 
 Static class methods and class methods on primitive targets take only their declared
 arguments; a parameterless one can be called as `THelper.Method` or `THelper.Method()`.
 
+A named array type can also expose a helper class function through its type name:
+
+```pascal
+type TStrings = array of String;
+type TStringsHelper = helper for TStrings
+  class function Create(values: array of String): TStrings; static;
+  begin
+    Result := values;
+  end;
+end;
+
+var items := TStrings.Create(['one', 'two']);
+```
+
+`TStrings.Create(...)` calls the helper. `new TStrings(...)` still denotes class
+construction and does not call the helper. Within a helper method that overrides
+`ClassName`, `Self.ClassName` reads the underlying object's class name.
+
 Naming a helper selects its methods, including inherited methods, independently
 of other helpers for the same target type. Helper and method names remain
 case-insensitive. The instance and ordinary arguments are evaluated once, in source

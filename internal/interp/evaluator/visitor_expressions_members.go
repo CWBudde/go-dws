@@ -157,7 +157,7 @@ func (e *Evaluator) readResolvedMember(node *ast.MemberAccessExpression, obj Val
 	// Alias/static-type helper binding: the analyzer records the receiver's
 	// static type when a helper resolved against it (strict helper semantics
 	// dispatch on the declared type, not the dynamic one).
-	if node.Member != nil && e.SemanticInfo() != nil {
+	if node.Member != nil && e.SemanticInfo() != nil && !isCurrentHelperMethod(ctx, memberName) {
 		if annot := e.SemanticInfo().GetType(node.Member); annot != nil && strings.HasPrefix(annot.Name, "__helper_receiver:") {
 			target := strings.TrimPrefix(annot.Name, "__helper_receiver:")
 			if helpersAny := e.typeSystem.LookupHelpers(ident.Normalize(target)); helpersAny != nil {
