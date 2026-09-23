@@ -52,3 +52,55 @@ PrintLn(TChild.Create.Mapped);`
 		t.Fatalf("output = %q, want %q", got, "2\n")
 	}
 }
+
+func TestE18_PropertyForwardingValidatesIndexSignature(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		decl   string
+		wantOK bool
+	}{
+		{"indexed to plain", "property Q: Integer read P;", false},
+		{"mismatched index type", "property Q[s: String]: Integer read P;", false},
+		{"extra index param", "property Q[i, j: Integer]: Integer read P;", false},
+		{"matching index", "property Q[k: Integer]: Integer read P;", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := `type
+  TTest = class
+    function GetP(i: Integer): Integer; begin Result := i * 2; end;
+    property P[i: Integer]: Integer read GetP;
+    ` + tc.decl + `
+  end;`
+			compiled := frontend.CompileWithOptions(source, frontend.Options{})
+			if compiled.SemanticSuccessful != tc.wantOK {
+				t.Fatalf("SemanticSuccessful = %v, want %v (diagnostics: %v)",
+					compiled.SemanticSuccessful, tc.wantOK, compiled.DiagnosticStrings())
+			}
+		})
+	}
+}
+
+func TestE18_PropertyForwardingAcceptsCovariantGetter(t *testing.T) {
+	source := `type
+  TParent = class end;
+  TChild = class(TParent) end;
+  TTest = class
+    FChild: TChild;
+    property ChildProp: TChild read FChild write FChild;
+    property ParentProp: TParent read ChildProp;
+  end;
+var t := TTest.Create;
+t.ChildProp := TChild.Create;
+PrintLn(t.ParentProp.ClassName);`
+	compiled := frontend.CompileWithOptions(source, frontend.Options{})
+	if !compiled.SemanticSuccessful {
+		t.Fatalf("compile failed: %v", compiled.DiagnosticStrings())
+	}
+	output, value := evalFixture(compiled, "")
+	if value != nil && value.Type() == "ERROR" {
+		t.Fatalf("runtime error: %v", value)
+	}
+	if got := output.String(); got != "TChild\n" {
+		t.Fatalf("output = %q, want %q", got, "TChild\n")
+	}
+}
