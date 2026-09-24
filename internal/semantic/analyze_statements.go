@@ -56,7 +56,10 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 	case *ast.AssignmentStatement:
 		a.analyzeAssignment(s)
 	case *ast.ExpressionStatement:
-		a.analyzeExpression(s.Expression)
+		exprType := a.analyzeExpression(s.Expression)
+		if _, indexed := s.Expression.(*ast.IndexExpression); indexed && exprType == nil {
+			a.addStructuredError(NewInvalidInstructionError(s.Expression.Pos()))
+		}
 		a.checkImplicitCallArity(s.Expression)
 		a.hintConstantInstruction(s.Expression)
 	case *ast.EmptyStatement:
@@ -730,8 +733,15 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				a.indexedWriteTargetMember = target.Left
 				defer func() { a.indexedWriteTargetMember = prevWriteTarget }()
 			}
-		} else {
-			baseType = a.analyzeIndexBase(target.Left)
+		}
+		targetType := a.analyzeExpression(target)
+		if targetType == nil {
+			return
+		}
+		if a.indexedPropertyOfMemberAccess(target.Left) == nil {
+			// The target walk already analyzed its base. Reuse that result so
+			// nested indices cannot emit the same diagnostics twice.
+			baseType = a.semanticInfo.GetResolvedType(target.Left)
 			if isArrayOfConstType(baseType) {
 				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
 				return
@@ -740,10 +750,6 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
 				return
 			}
-		}
-		targetType := a.analyzeExpression(target)
-		if targetType == nil {
-			return
 		}
 		if arrayType, ok := types.GetUnderlyingType(baseType).(*types.ArrayType); ok && arrayType.IsStatic() {
 			if idx, ok := a.constantArrayIndex(target.Index); ok {
@@ -1305,40 +1311,30 @@ func (a *Analyzer) analyzeCase(stmt *ast.CaseStatement) {
 		for _, value := range branch.Values {
 			// Check if this is a range expression
 			if rangeExpr, isRange := value.(*ast.RangeExpression); isRange {
-				// Analyze both start and end of range
-				startType := a.analyzeExpression(rangeExpr.Start)
-				endType := a.analyzeExpression(rangeExpr.RangeEnd)
-
-				// Check start is compatible with case expression
-				if caseType != nil && startType != nil {
+				startType := a.analyzeRangeBound(rangeExpr.Start)
+				endType := a.analyzeRangeBound(rangeExpr.RangeEnd)
+				if startType == nil || endType == nil {
+					continue
+				}
+				if !compatibleRangeTypes(startType, endType, true) {
+					a.addStructuredError(NewRangeTypeMismatchError(rangeExpr.Start.Pos(), startType.String(), endType.String()))
+					continue
+				}
+				if caseType != nil {
 					if !a.canAssign(startType, caseType) {
-						a.addError("case range start type %s incompatible with case expression type %s at %s",
-							startType.String(), caseType.String(), rangeExpr.Start.Pos().String())
+						a.addStructuredError(NewIncompatibleTypesPairError(rangeExpr.Start.Pos(), caseType.String(), startType.String()))
 					}
-				}
-
-				// Check end is compatible with case expression
-				if caseType != nil && endType != nil {
 					if !a.canAssign(endType, caseType) {
-						a.addError("case range end type %s incompatible with case expression type %s at %s",
-							endType.String(), caseType.String(), rangeExpr.RangeEnd.Pos().String())
+						a.addStructuredError(NewIncompatibleTypesPairError(rangeExpr.RangeEnd.Pos(), caseType.String(), endType.String()))
 					}
 				}
-
-				// Check start and end are compatible with each other
-				if startType != nil && endType != nil {
-					if !a.canAssign(startType, endType) && !a.canAssign(endType, startType) {
-						a.addError("case range start type %s and end type %s are incompatible at %s",
-							startType.String(), endType.String(), rangeExpr.Pos().String())
-					}
-				}
+				a.hintReversedCaseRange(rangeExpr)
 			} else {
 				// Regular value (not a range)
 				valueType := a.analyzeExpression(value)
 				if caseType != nil && valueType != nil {
 					if !a.canAssign(valueType, caseType) {
-						a.addError("case value type %s incompatible with case expression type %s",
-							valueType.String(), caseType.String())
+						a.addStructuredError(NewIncompatibleTypesPairError(value.Pos(), caseType.String(), valueType.String()))
 					}
 				}
 			}

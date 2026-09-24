@@ -178,6 +178,15 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	// Move past 'if' and parse the condition
 	p.cursor = p.cursor.Advance()
 	stmt.Condition = p.parseExpression(LOWEST)
+	if p.stopped() && stmt.Condition != nil {
+		// The condition may contain a recovered bracket literal. Preserve it
+		// for semantic diagnostics without parsing a body beyond the stop.
+		result, ok := builder.FinishWithNode(stmt, stmt.Condition).(*ast.IfStatement)
+		if !ok {
+			return stmt
+		}
+		return result
+	}
 
 	if stmt.Condition == nil {
 		// Use structured error for better diagnostics

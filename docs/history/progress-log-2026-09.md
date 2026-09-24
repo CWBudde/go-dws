@@ -5794,3 +5794,51 @@ is clean, and no upstream fixture scripts or expectations were edited.
 The successful full run used a project-local Go cache and serial compilation on
 tmpfs. Earlier attempts encountered `/tmp` quota exhaustion or transient executable
 cleanup errors on the project's FUSE filesystem; the final run completed normally.
+
+## 2026-09-25 — F2 array diagnostics completed
+
+The five original F2 items (now under PLAN.md §4.1) are complete. A fresh CLI
+comparison gains **nine fixtures with no regressions**, increasing FailureScripts
+from **261 to 270** and the stable total from **1,345 to 1,354 / 2,014 scored**.
+The gains are `array_error4`, `array_error7`, `array_index_bracket_missing`,
+`array_index_extra`, `array_method1`, `array_range2`, `case_error5`,
+`case_range_mismatch`, and `in_operator8`.
+
+- Index nodes retain comma positions and report every excess index separately.
+  Assignment analysis reuses the base's resolved type instead of analyzing it
+  twice. Invalid standalone indexed expressions retain their instruction error;
+  missing brackets before assignments recover against the base value.
+- Inline and named array declarations preserve parsed bounds through malformed
+  delimiters. Range-separator positions keep bound diagnostics independent of
+  whitespace. Procedure bounds report `Function expected` before the enclosing
+  ordinal-bound error. Existing non-array and static bound-exceeded fixtures
+  remain exact matches.
+- Array constructors, sets, membership expressions, and case branches share the
+  incompatible-range sentence. Void results are rejected even against another
+  void result; bare `DivMod` uses builtin call validation. Recovery keeps valid
+  elements following an invalid set range without a nil-type panic.
+- Partial bracket literals and their enclosing if conditions survive a compiler
+  stop so earlier semantic errors remain visible. Structured enclosing-expression
+  errors preserve emission order against their children's diagnostics.
+- Primitive reversed case ranges emit the expected hint. Variant case endpoints
+  and descending enumeration ranges preserve their existing behavior, pinned by
+  the complete `case_variant_condition` and `case_range_enum` fixture sources.
+
+The implementation was split among indexing, declaration-recovery, and range
+subagents, then integrated with exact frontend fixture tests and an independent
+before/after CLI comparison. No fixture sources, expectations, or scoring rules
+were changed. The unrelated `const array of Variant` representation task remains
+open in §4.1.
+
+`just fixture-update` regenerates the baseline and status report. The existing
+`BuildScripts/init_order1` nondeterminism can add a tenth apparent gain; it is not
+part of F2 and its stable baseline remains seven. Validation uses a project-local
+Go cache after parallel compilation exhausted the `/tmp` quota.
+
+Final validation: `GOFLAGS=-buildvcs=false go test -p 1 ./...` passed, as did
+the focused parser/semantic/frontend/AST suites and
+`golangci-lint run --new-from-rev=HEAD` (zero issues). The VCS flag avoids repeated
+repository scans in CLI tests that rebuild the executable. The full fixture
+baseline gate, fresh CLI comparison, formatting checks, and `git diff --check`
+also passed. Visitor regeneration produced no changes because the new AST fields
+hold positions rather than child nodes.

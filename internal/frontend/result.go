@@ -64,6 +64,8 @@ type Diagnostic struct {
 	// semantic diagnostic; sortDiagnostics needs the origin to restore the order
 	// upstream's lazily pulled tokenizer would have produced.
 	lexerDirective bool
+	// afterChildren retains semantic emission order for enclosing expressions.
+	afterChildren bool
 }
 
 // Render returns the centralized rendered form of the diagnostic.
@@ -485,6 +487,9 @@ func sortDiagnostics(diags []Diagnostic) {
 		if left.Line != right.Line {
 			return left.Line < right.Line
 		}
+		if left.Phase == PhaseSemantic && right.Phase == PhaseSemantic && (left.afterChildren || right.afterChildren) {
+			return false
+		}
 		if left.Phase == right.Phase && left.Severity != right.Severity {
 			leftNonError := left.Severity != SeverityError
 			rightNonError := right.Severity != SeverityError
@@ -799,14 +804,15 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 			structuredByMessage[errStr] = candidates[1:]
 			message, line, column, rendered := normalizeSemanticDiagnostic(err.Error(), err.Message, err.Pos.Line, err.Pos.Column, severityFromSemantic(err.Severity))
 			diag := Diagnostic{
-				Message:  message,
-				Rendered: rendered,
-				Code:     string(err.Type),
-				Phase:    PhaseSemantic,
-				Line:     line,
-				Column:   column,
-				Severity: severityFromSemantic(err.Severity),
-				Fatal:    err.Severity == semantic.SeverityError,
+				afterChildren: err.AfterChildren,
+				Message:       message,
+				Rendered:      rendered,
+				Code:          string(err.Type),
+				Phase:         PhaseSemantic,
+				Line:          line,
+				Column:        column,
+				Severity:      severityFromSemantic(err.Severity),
+				Fatal:         err.Severity == semantic.SeverityError,
 			}
 			if _, ok := seen[diag.Render()]; ok {
 				continue

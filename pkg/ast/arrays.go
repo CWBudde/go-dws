@@ -58,8 +58,10 @@ type ArrayTypeAnnotation struct {
 	ElementType TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	LowBound    Expression
 	HighBound   Expression
-	Token       token.Token
-	EndPos      token.Position
+	// HighBoundSeparator is the position of the range separator before HighBound.
+	HighBoundSeparator token.Position
+	Token              token.Token
+	EndPos             token.Position
 }
 
 func (ata *ArrayTypeAnnotation) typeExpressionNode() {}
@@ -160,6 +162,9 @@ func (al *ArrayLiteralExpression) String() string {
 type IndexExpression struct {
 	Left  Expression
 	Index Expression
+	// CommaPos is the separating comma for an additional index in one bracket
+	// list. It is zero for the first index and for separately bracketed indices.
+	CommaPos token.Position
 	BaseNode
 }
 

@@ -106,10 +106,11 @@ func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression, ctx *
 		return e.resolveRecordTypeNode(node, ctx)
 	case *ast.ArrayTypeAnnotation:
 		return e.ResolveTypeFromAnnotation(&ast.ArrayTypeNode{
-			ElementType: node.ElementType,
-			LowBound:    node.LowBound,
-			HighBound:   node.HighBound,
-			Token:       node.Token,
+			ElementType:        node.ElementType,
+			LowBound:           node.LowBound,
+			HighBound:          node.HighBound,
+			HighBoundSeparator: node.HighBoundSeparator,
+			Token:              node.Token,
 		}, ctx)
 	case *ast.ArrayTypeNode:
 		if ctx == nil {

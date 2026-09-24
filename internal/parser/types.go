@@ -419,6 +419,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 // dimensionPair represents a single dimension of an array with low and high bounds.
 type dimensionPair struct {
 	low, high ast.Expression
+	separator lexer.Position
 }
 
 // Supports both dynamic and static arrays:
@@ -476,7 +477,7 @@ func (p *Parser) parseArrayType() ast.TypeExpression {
 				if cursor.Peek(1).Type != lexer.RBRACK {
 					p.addPeekTokenError("\"]\" expected", ErrMissingRBracket)
 					p.recoverArrayType()
-					return invalidTypeExpression(arrayToken, "invalid array type")
+					return p.partialArrayType(arrayToken, dimensions, indexType)
 				}
 				cursor = cursor.Advance() // move to ']'
 				p.cursor = cursor
@@ -508,7 +509,7 @@ func (p *Parser) parseArrayType() ast.TypeExpression {
 					Build()
 				p.addStructuredError(err)
 				p.recoverArrayType()
-				return invalidTypeExpression(arrayToken, "invalid array type")
+				return p.partialArrayType(arrayToken, dimensions, indexType)
 			}
 			cursor = cursor.Advance() // move to ']'
 			p.cursor = cursor
@@ -530,7 +531,7 @@ func (p *Parser) parseArrayType() ast.TypeExpression {
 			Build()
 		p.addStructuredError(err)
 		p.recoverArrayType()
-		return invalidTypeExpression(arrayToken, "invalid array type")
+		return p.partialArrayType(arrayToken, dimensions, indexType)
 	}
 	cursor = cursor.Advance() // move to OF
 	p.cursor = cursor
@@ -549,7 +550,7 @@ func (p *Parser) parseArrayType() ast.TypeExpression {
 			WithParsePhase("array element type").
 			Build()
 		p.addStructuredError(err)
-		return invalidTypeExpression(arrayToken, "invalid array type")
+		return p.partialArrayType(arrayToken, dimensions, indexType)
 	}
 
 	errorCount := len(p.errors)
@@ -566,7 +567,7 @@ func (p *Parser) parseArrayType() ast.TypeExpression {
 				Build()
 			p.addStructuredError(err)
 		}
-		return invalidTypeExpression(arrayToken, "invalid array type")
+		return p.partialArrayType(arrayToken, dimensions, indexType)
 	}
 
 	if len(dimensions) > 0 && isOpenArrayConstType(elementType) {
@@ -614,16 +615,36 @@ func (p *Parser) parseArrayType() ast.TypeExpression {
 	for i := len(dimensions) - 1; i >= 0; i-- {
 		dimBuilder := p.StartNode()
 		arrayNode := &ast.ArrayTypeNode{
-			Token:       arrayToken,
-			ElementType: result,
-			LowBound:    dimensions[i].low,
-			HighBound:   dimensions[i].high,
+			Token:              arrayToken,
+			ElementType:        result,
+			LowBound:           dimensions[i].low,
+			HighBound:          dimensions[i].high,
+			HighBoundSeparator: dimensions[i].separator,
 		}
 		// EndPos is after the element type (which could be nested)
 		result = dimBuilder.FinishWithNode(arrayNode, result).(*ast.ArrayTypeNode)
 	}
 
 	return result.(*ast.ArrayTypeNode)
+}
+
+// partialArrayType preserves bounds parsed before a malformed delimiter. Semantic
+// analysis can then report errors in those expressions without resolving a
+// fabricated element type or producing follow-up declaration errors.
+func (p *Parser) partialArrayType(tok lexer.Token, dimensions []dimensionPair, indexType ast.TypeExpression) ast.TypeExpression {
+	var result ast.TypeExpression = invalidTypeExpression(tok, "invalid array type")
+	for i := len(dimensions) - 1; i >= 0; i-- {
+		result = &ast.ArrayTypeNode{
+			Token: tok, ElementType: result,
+			LowBound: dimensions[i].low, HighBound: dimensions[i].high,
+			HighBoundSeparator: dimensions[i].separator,
+			EndPos:             p.cursor.Current().Pos,
+		}
+	}
+	if len(dimensions) == 0 && indexType != nil {
+		result = &ast.ArrayTypeNode{Token: tok, ElementType: result, IndexType: indexType}
+	}
+	return result
 }
 
 // parseInt parses a string as an integer.
@@ -672,6 +693,7 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 		}}
 	}
 	p.nextToken()
+	separator := p.cursor.Current().Pos
 
 	// Parse high bound expression
 	p.nextToken() // move to high bound
@@ -681,7 +703,7 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 		return nil
 	}
 
-	dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+	dimensions = append(dimensions, dimensionPair{low: lowBound, high: highBound, separator: separator})
 
 	// Parse additional dimensions (comma-separated)
 	for p.peekTokenIs(lexer.COMMA) {
@@ -705,6 +727,7 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 			return dimensions
 		}
 		p.nextToken()
+		separator := p.cursor.Current().Pos
 
 		p.nextToken() // move to high bound
 		highBound := p.parseArrayBound()
@@ -713,7 +736,7 @@ func (p *Parser) parseArrayBoundsFromCurrent() []dimensionPair {
 			return nil
 		}
 
-		dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+		dimensions = append(dimensions, dimensionPair{low: lowBound, high: highBound, separator: separator})
 	}
 
 	return dimensions

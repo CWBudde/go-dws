@@ -38,10 +38,11 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (resolvedT
 	}
 	if annotation, ok := typeExpr.(*ast.ArrayTypeAnnotation); ok {
 		return a.resolveTypeExpression(&ast.ArrayTypeNode{
-			ElementType: annotation.ElementType,
-			LowBound:    annotation.LowBound,
-			HighBound:   annotation.HighBound,
-			Token:       annotation.Token,
+			ElementType:        annotation.ElementType,
+			LowBound:           annotation.LowBound,
+			HighBound:          annotation.HighBound,
+			HighBoundSeparator: annotation.HighBoundSeparator,
+			Token:              annotation.Token,
 		})
 	}
 
@@ -556,6 +557,18 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 		return nil, fmt.Errorf("nil array type node")
 	}
 
+	// Bounds precede the element type in source. Keep their diagnostics even
+	// when parser recovery left the element type invalid.
+	var lowBound, highBound int
+	var indexType types.Type
+	if arrayNode.IsStatic() && !arrayNode.IsEnumIndexed() {
+		var ok bool
+		lowBound, highBound, indexType, ok = a.resolveOrdinalArrayBounds(arrayNode.LowBound, arrayNode.HighBound, arrayNode.HighBoundSeparator)
+		if !ok {
+			return nil, nil
+		}
+	}
+
 	// Preserve structural element types, including anonymous records and nested
 	// arrays, instead of resolving their display names as declared identifiers.
 	elementType, err := a.resolveTypeExpression(arrayNode.ElementType)
@@ -572,13 +585,6 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 			return types.ARRAY_OF_CONST, nil
 		}
 		return types.NewDynamicArrayType(elementType), nil
-	}
-
-	if _, invalid := arrayNode.LowBound.(*ast.InvalidExpression); invalid {
-		return nil, nil
-	}
-	if _, invalid := arrayNode.HighBound.(*ast.InvalidExpression); invalid {
-		return nil, nil
 	}
 
 	// Handle enum/ordinal-indexed arrays (extended to all bounded ordinals)
@@ -603,25 +609,28 @@ func (a *Analyzer) resolveArrayTypeNode(arrayNode *ast.ArrayTypeNode) (types.Typ
 		return types.NewStaticArrayTypeWithIndexType(elementType, indexType, lowBound, highBound), nil
 	}
 
-	// Static array - evaluate bounds using evaluateConstantInt
-	lowBound, highBound, indexType, ok := a.resolveOrdinalArrayBounds(arrayNode.LowBound, arrayNode.HighBound)
-	if !ok {
-		return nil, nil
-	}
-
 	if indexType != nil && indexType.TypeKind() != "INTEGER" {
 		return types.NewStaticArrayTypeWithIndexType(elementType, indexType, lowBound, highBound), nil
 	}
 	return types.NewStaticArrayType(elementType, lowBound, highBound), nil
 }
 
-func (a *Analyzer) resolveOrdinalArrayBounds(lowExpr, highExpr ast.Expression) (int, int, types.Type, bool) {
-	lowValue, lowType, ok := a.resolveOrdinalArrayBound(lowExpr, true)
+func (a *Analyzer) resolveOrdinalArrayBounds(lowExpr, highExpr ast.Expression, separator token.Position) (int, int, types.Type, bool) {
+	separatorEnd := token.Position{}
+	if separator.Line != 0 {
+		separatorEnd = separator
+		separatorEnd.Column++
+		separatorEnd.Offset++
+	}
+	if a.rejectPrimitiveArrayBoundType(lowExpr, highExpr, separatorEnd) {
+		return 0, 0, nil, false
+	}
+	lowValue, lowType, ok := a.resolveOrdinalArrayBound(lowExpr, true, token.Position{})
 	if !ok {
 		return 0, 0, nil, false
 	}
 
-	highValue, highType, ok := a.resolveOrdinalArrayBound(highExpr, false)
+	highValue, highType, ok := a.resolveOrdinalArrayBound(highExpr, false, separatorEnd)
 	if !ok {
 		return 0, 0, nil, false
 	}
@@ -648,12 +657,51 @@ func (a *Analyzer) resolveOrdinalArrayBounds(lowExpr, highExpr ast.Expression) (
 	return lowValue, highValue, lowType, true
 }
 
-func (a *Analyzer) resolveOrdinalArrayBound(expr ast.Expression, anchorBefore bool) (int, types.Type, bool) {
+// rejectPrimitiveArrayBoundType handles unbounded primitive type names used
+// where a lower bound value is required. DWScript reports the range separator
+// where it expected a closing bracket; class expressions use normal analysis.
+func (a *Analyzer) rejectPrimitiveArrayBoundType(lowExpr, highExpr ast.Expression, separatorEnd token.Position) bool {
+	name, ok := lowExpr.(*ast.Identifier)
+	if !ok || highExpr == nil {
+		return false
+	}
+	if _, value := a.symbols.Resolve(name.Value); value {
+		return false
+	}
+	typ, err := a.resolveType(name.Value)
+	if err != nil || typ == nil {
+		return false
+	}
+	if typ.TypeKind() != "STRING" && typ.TypeKind() != "FLOAT" {
+		return false
+	}
+	pos := previousColumn(highExpr.Pos())
+	if separatorEnd.Line != 0 {
+		pos = separatorEnd
+	}
+	a.addStructuredError(NewArrayBoundsError(pos, "Bound isn't of an ordinal type"))
+	a.addStructuredError(NewArrayBoundsError(pos, `"]" expected`))
+	return true
+}
+
+func (a *Analyzer) resolveOrdinalArrayBound(expr ast.Expression, anchorBefore bool, separatorEnd token.Position) (int, types.Type, bool) {
 	if expr == nil {
+		return 0, nil, false
+	}
+	if _, invalid := expr.(*ast.InvalidExpression); invalid {
 		return 0, nil, false
 	}
 
 	boundType := a.analyzeExpression(expr)
+	if pointer, ok := types.GetUnderlyingType(boundType).(*types.FunctionPointerType); ok && (pointer.IsProcedure() || pointer.ReturnType.TypeKind() == "VOID") {
+		a.addStructuredError(NewTypeExpectedError(expr.Pos(), "Function"))
+		pos := arrayBoundErrorPos(expr, anchorBefore)
+		if separatorEnd.Line != 0 {
+			pos = separatorEnd
+		}
+		a.addStructuredError(NewArrayBoundsError(pos, "Bound isn't of an ordinal type"))
+		return 0, nil, false
+	}
 	if boundType == nil || !types.IsOrdinalType(boundType) {
 		pos := arrayBoundErrorPos(expr, anchorBefore)
 		a.addStructuredError(NewArrayBoundsError(pos, "Bound isn't of an ordinal type"))
