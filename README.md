@@ -135,7 +135,7 @@ go build -o bin/dwscript ./cmd/dwscript
 > verified performance advantage** over the AST interpreter — earlier "5–6× faster"
 > claims were not backed by a fair benchmark. Use the AST interpreter (the default
 > `run` command) for real work; the bytecode path is retained for development only.
-> See [PLAN.md](PLAN.md) §P3 for the plan to either rebuild it on the shared runtime
+> See [PLAN.md](PLAN.md) Phase 6 for the pending decision to either rebuild it on the shared runtime
 > or remove it.
 
 ```bash
@@ -740,7 +740,7 @@ The platform abstraction layer (`pkg/platform/`) enables DWScript to run seamles
 
 Planned enhancements may include:
 
-- A rebuilt bytecode VM with a verified performance advantage (the current experimental VM does not provide one — see [PLAN.md](PLAN.md) §P3)
+- A rebuilt bytecode VM with a verified performance advantage (the current experimental VM does not provide one — see [PLAN.md](PLAN.md) Phase 6)
 - JIT compilation (if feasible in Go)
 - JavaScript transpilation backend
 - Additional platform targets (mobile, embedded)

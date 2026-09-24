@@ -81,6 +81,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		if !recoveredOnComma {
 			p.cursor = p.cursor.Advance() // consume the comma
 		}
+		commaPos := p.cursor.Current().Pos
 		p.cursor = p.cursor.Advance() // move to next index expression
 
 		// Create a new IndexExpression with the previous result as the Left
@@ -88,6 +89,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 			BaseNode: ast.BaseNode{Token: lbrackToken},
 			Left:     result,
 			Index:    p.parseExpression(LOWEST),
+			CommaPos: commaPos,
 		}
 		result = nextIndex
 	}
@@ -102,6 +104,11 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		// An index's missing "]" is an ordinary error upstream: the enclosing
 		// declaration goes on and reports its own ";" (array_index_bracket_missing2).
 		p.addExpected(lexer.RBRACK)
+		if nextToken.Type == lexer.ASSIGN {
+			// A broken index followed by an assignment resumes from the base,
+			// matching DWScript's assignment recovery (i[2 := 3).
+			return left
+		}
 		expr, ok := builder.FinishWithToken(result, p.cursor.Current()).(ast.Expression)
 		if !ok {
 			return result
@@ -199,7 +206,9 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 
 		// Unexpected token between elements: a compiler stop upstream.
 		p.addExpectedStop(lexer.RBRACK)
-		return nil
+		// Keep completed elements so semantic errors encountered before the
+		// missing bracket remain visible, even though compilation stops here.
+		break
 	}
 
 	// Determine if this should be treated as a set literal (all elements are identifiers or ranges)
@@ -307,9 +316,6 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 	arrayToken := cursor.Current() // Save 'array' token
 
 	// Collect all dimensions (comma-separated)
-	type dimensionPair struct {
-		low, high ast.Expression
-	}
 	var dimensions []dimensionPair
 
 	if cursor.Peek(1).Type == lexer.LBRACK {
@@ -338,6 +344,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 			})
 		} else {
 			cursor = cursor.Advance() // move to '..'
+			separator := cursor.Current().Pos
 
 			// Parse high bound expression
 			cursor = cursor.Advance() // move to start of expression
@@ -349,7 +356,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 				return nil
 			}
 
-			dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+			dimensions = append(dimensions, dimensionPair{low: lowBound, high: highBound, separator: separator})
 		}
 
 		// Parse additional dimensions (comma-separated)
@@ -377,6 +384,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 				break
 			}
 			cursor = cursor.Advance() // move to '..'
+			separator := cursor.Current().Pos
 
 			cursor = cursor.Advance() // move to high bound
 			p.cursor = cursor
@@ -387,21 +395,23 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 				return nil
 			}
 
-			dimensions = append(dimensions, dimensionPair{lowBound, highBound})
+			dimensions = append(dimensions, dimensionPair{low: lowBound, high: highBound, separator: separator})
 		}
 
 		// Expect ']'
 		if cursor.Peek(1).Type != lexer.RBRACK {
+			p.cursor = cursor
 			p.addExpected(lexer.RBRACK)
-			return nil
+			return p.recoverArrayDeclaration(arrayDecl, arrayToken, dimensions)
 		}
 		cursor = cursor.Advance() // move to ']'
 	}
 
 	// Expect 'of'
 	if cursor.Peek(1).Type != lexer.OF {
+		p.cursor = cursor
 		p.addExpected(lexer.OF)
-		return nil
+		return p.recoverArrayDeclaration(arrayDecl, arrayToken, dimensions)
 	}
 	cursor = cursor.Advance() // move to 'of'
 
@@ -412,7 +422,7 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 	cursor = p.cursor // Update cursor after parseTypeExpression
 	if isInvalidTypeExpression(elementTypeExpr) {
 		p.addError("expected type expression after 'array of'", ErrExpectedType)
-		return nil
+		return p.recoverArrayDeclaration(arrayDecl, arrayToken, dimensions)
 	}
 
 	// Retain the original structure alongside the compatibility display name.
@@ -443,10 +453,11 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 		for i := len(dimensions) - 1; i >= 0; i-- {
 			// Create a new array type annotation with the current element type
 			newArrayType := &ast.ArrayTypeAnnotation{
-				Token:       arrayToken,
-				ElementType: currentElementType,
-				LowBound:    dimensions[i].low,
-				HighBound:   dimensions[i].high,
+				Token:              arrayToken,
+				ElementType:        currentElementType,
+				LowBound:           dimensions[i].low,
+				HighBound:          dimensions[i].high,
+				HighBoundSeparator: dimensions[i].separator,
 			}
 
 			// For the next iteration, wrap this array type as a TypeAnnotation
@@ -475,4 +486,21 @@ func (p *Parser) parseArrayDeclaration(nameIdent *ast.Identifier, typeToken lexe
 
 	p.cursor = cursor
 	return arrayDecl
+}
+
+// recoverArrayDeclaration keeps parsed dimensions available to semantic analysis
+// while advancing to the next declaration boundary.
+func (p *Parser) recoverArrayDeclaration(decl *ast.ArrayDecl, tok lexer.Token, dimensions []dimensionPair) *ast.ArrayDecl {
+	p.recoverArrayType()
+	partial := p.partialArrayType(tok, dimensions, nil)
+	if node, ok := partial.(*ast.ArrayTypeNode); ok {
+		decl.ArrayType = &ast.ArrayTypeAnnotation{
+			Token: node.Token, EndPos: node.EndPos, ElementType: node.ElementType,
+			LowBound: node.LowBound, HighBound: node.HighBound,
+			HighBoundSeparator: node.HighBoundSeparator,
+		}
+	} else {
+		decl.ArrayType = &ast.ArrayTypeAnnotation{Token: tok, ElementType: partial}
+	}
+	return decl
 }

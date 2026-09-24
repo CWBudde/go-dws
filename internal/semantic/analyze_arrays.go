@@ -39,6 +39,17 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 		return
 	}
 
+	// Preserve bound diagnostics when recovery left the element type invalid.
+	var lowBound, highBound int
+	var indexType types.Type
+	if !arrayType.IsDynamic() {
+		var ok bool
+		lowBound, highBound, indexType, ok = a.resolveOrdinalArrayBounds(arrayType.LowBound, arrayType.HighBound, arrayType.HighBoundSeparator)
+		if !ok {
+			return
+		}
+	}
+
 	// Resolve the structural annotation so anonymous record elements retain
 	// their fields and nested types.
 	elementTypeName := getTypeExpressionName(arrayType.ElementType)
@@ -56,10 +67,6 @@ func (a *Analyzer) analyzeArrayDecl(decl *ast.ArrayDecl) {
 	if arrayType.IsDynamic() {
 		arrType = types.NewDynamicArrayType(elementType)
 	} else {
-		lowBound, highBound, indexType, ok := a.resolveOrdinalArrayBounds(arrayType.LowBound, arrayType.HighBound)
-		if !ok {
-			return
-		}
 		if indexType != nil && indexType.TypeKind() != "INTEGER" {
 			arrType = types.NewStaticArrayTypeWithIndexType(elementType, indexType, lowBound, highBound)
 		} else {
@@ -201,6 +208,13 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			}
 		}
 
+		if expr.CommaPos.Line != 0 {
+			a.addStructuredError(NewTooManyIndicesError(expr.CommaPos))
+			// Keep the element type while recovering so every further comma in
+			// this bracket list can report its own excess index.
+			a.analyzeExpression(expr.Index)
+			return leftType
+		}
 		a.addStructuredError(NewCannotIndexTypeError(expr.Token.Pos, leftType.String()))
 		return nil
 	}

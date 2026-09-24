@@ -59,7 +59,7 @@ func (a *Analyzer) isBuiltinFunction(name string) bool {
 		"typeof", "typeofclass", "sizeof", "typename", "delete", "strtoint", "strtofloat",
 		"inttostr", "inttobin", "floattostr", "floattostrf", "booltostr", "strtobool",
 		"vartostr", "varisnull", "varisempty", "varisclear", "varisarray", "varisstr", "varisnumeric", "vartype", "varclear",
-		"include", "exclude", "map", "filter", "reduce", "foreach",
+		"include", "exclude", "divmod", "map", "filter", "reduce", "foreach",
 		"maxint", "minint",
 		"now", "date", "time", "utcdatetime", "encodedate", "encodetime",
 		"encodedatetime", "yearof", "monthof", "dayof", "hourof", "minuteof",

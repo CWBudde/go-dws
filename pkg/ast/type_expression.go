@@ -104,9 +104,11 @@ type ArrayTypeNode struct {
 	ElementType TypeExpression
 	LowBound    Expression
 	HighBound   Expression
-	IndexType   TypeExpression // For enum-indexed arrays: array[TEnum] of Type
-	Token       token.Token
-	EndPos      token.Position
+	// HighBoundSeparator is the position of the range separator before HighBound.
+	HighBoundSeparator token.Position
+	IndexType          TypeExpression // For enum-indexed arrays: array[TEnum] of Type
+	Token              token.Token
+	EndPos             token.Position
 }
 
 // String returns a string representation of the array type.

@@ -110,6 +110,9 @@ type SemanticError struct {
 	ClassName    string
 	Pos          lexer.Position
 	Severity     ErrorSeverity
+	// AfterChildren preserves emission order against errors in the expression
+	// this diagnostic describes, even when its display position is earlier.
+	AfterChildren bool
 }
 
 // IsWarning returns true if this is a warning (non-critical issue)
@@ -654,8 +657,21 @@ func NewForwardNotImplementedError(pos lexer.Position, name string) *SemanticErr
 // NewArrayBoundsError creates a DWScript-style array bound diagnostic.
 func NewArrayBoundsError(pos lexer.Position, message string) *SemanticError {
 	return &SemanticError{
-		Type:     ErrorArrayBounds,
-		Message:  "Syntax Error: " + message,
+		AfterChildren: true,
+		Type:          ErrorArrayBounds,
+		Message:       "Syntax Error: " + message,
+		Pos:           pos,
+		Severity:      SeverityError,
+	}
+}
+
+// NewRangeTypeMismatchError reports incompatible range endpoints.
+func NewRangeTypeMismatchError(pos lexer.Position, startType, endType string) *SemanticError {
+	return &SemanticError{
+		AfterChildren: true,
+		Type:          ErrorTypeMismatch,
+		Message: fmt.Sprintf(`Range start and range stop are of incompatible types: "%s" and "%s"`,
+			semanticDiagnosticTypeName(startType), semanticDiagnosticTypeName(endType)),
 		Pos:      pos,
 		Severity: SeverityError,
 	}
@@ -681,6 +697,16 @@ func NewIncompatibleTypesPairError(pos lexer.Position, left, right string) *Sema
 		Pos:      pos,
 		Severity: SeverityError,
 	}
+}
+
+// NewTooManyIndicesError reports an index beyond an array's dimensions.
+func NewTooManyIndicesError(pos lexer.Position) *SemanticError {
+	return &SemanticError{Type: ErrorArrayIndex, Message: "Too many indices", Pos: pos, Severity: SeverityError}
+}
+
+// NewInvalidInstructionError reports an expression that cannot stand alone.
+func NewInvalidInstructionError(pos lexer.Position) *SemanticError {
+	return &SemanticError{Type: ErrorInvalidOperation, Message: "Invalid Instruction - function or assignment expected", Pos: pos, Severity: SeverityError, AfterChildren: true}
 }
 
 // NewCannotIndexTypeError creates a structured non-indexable-type diagnostic.

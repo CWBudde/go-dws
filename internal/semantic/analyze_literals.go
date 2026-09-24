@@ -234,18 +234,13 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 // analyzeArrayRangeElement validates an ordinal range element of an array
 // constructor and returns its element type.
 func (a *Analyzer) analyzeArrayRangeElement(rangeExpr *ast.RangeExpression) types.Type {
-	startType := a.analyzeExpression(rangeExpr.Start)
-	endType := a.analyzeExpression(rangeExpr.RangeEnd)
+	startType := a.analyzeRangeBound(rangeExpr.Start)
+	endType := a.analyzeRangeBound(rangeExpr.RangeEnd)
 	if startType == nil || endType == nil {
 		return nil
 	}
-	if !types.IsOrdinalType(startType) || !types.IsOrdinalType(endType) {
-		a.addError("array constructor range bounds must be ordinal at %s", rangeExpr.Pos().String())
-		return nil
-	}
-	if !startType.Equals(endType) {
-		a.addError("array constructor range bounds must have the same type: got %s and %s at %s",
-			startType.String(), endType.String(), rangeExpr.Pos().String())
+	if !compatibleRangeTypes(startType, endType, false) {
+		a.addStructuredError(NewRangeTypeMismatchError(rangeExpr.RangeEnd.End(), startType.String(), endType.String()))
 		return nil
 	}
 	return startType
@@ -465,31 +460,13 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 
 		// Check if this is a range expression (e.g., 1..10 or 'a'..'z')
 		if rangeExpr, isRange := elem.(*ast.RangeExpression); isRange {
-			// Analyze start and end of range
-			startType := a.analyzeExpression(rangeExpr.Start)
-			endType := a.analyzeExpression(rangeExpr.RangeEnd)
-
+			startType := a.analyzeRangeBound(rangeExpr.Start)
+			endType := a.analyzeRangeBound(rangeExpr.RangeEnd)
 			if startType == nil || endType == nil {
-				// Error already reported
 				continue
 			}
-
-			// Both bounds must be ordinal types
-			if !types.IsOrdinalType(startType) {
-				a.addError("range start must be an ordinal type, got %s at %s",
-					startType.String(), rangeExpr.Start.Pos().String())
-				continue
-			}
-			if !types.IsOrdinalType(endType) {
-				a.addError("range end must be an ordinal type, got %s at %s",
-					endType.String(), rangeExpr.RangeEnd.Pos().String())
-				continue
-			}
-
-			// Both bounds must be the same type
-			if !startType.Equals(endType) {
-				a.addError("range start and end must have the same type: got %s and %s at %s",
-					startType.String(), endType.String(), rangeExpr.Pos().String())
+			if !compatibleRangeTypes(startType, endType, false) {
+				a.addStructuredError(NewRangeTypeMismatchError(rangeExpr.Start.Pos(), startType.String(), endType.String()))
 				continue
 			}
 
@@ -524,7 +501,7 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 		a.checkSetElementBounds(elem, boundsType)
 
 		// First element determines the element type
-		if i == 0 {
+		if elementType == nil {
 			elementType = elemType
 		} else {
 			// All elements must be of the same ordinal type

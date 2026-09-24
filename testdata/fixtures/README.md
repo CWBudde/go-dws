@@ -194,6 +194,31 @@ Error: Trying to create an instance of an abstract class [line: 16, column: 18]
 
 Error messages include precise `[line: X, column: Y]` position information.
 
+## Working on a failing fixture
+
+- **Scope.** The host-library categories listed in
+  [`docs/decisions/out-of-scope.md`](../../docs/decisions/out-of-scope.md) are scored but excluded
+  from every target; `just fixture-report --in-scope` leaves them out. Deliberate per-fixture
+  divergences are in [`docs/decisions/known-divergences.md`](../../docs/decisions/known-divergences.md).
+- **`*Fail` suites are compile-only**, like upstream's `CompilationFailure` runner: the expectation
+  is the compiler's message list, hints included, with no envelope, and nothing is executed.
+  Reproduce one with `dwscript run --diagnostics=plain --compile-only --hints pedantic <file>`.
+- **Find what is closest to passing** with `just fixture-report --in-scope --classify`
+  (add `--category <Cat> --list-fails` to narrow it). It reports each failure's distance in lines,
+  whether a diagnostic or the program's output differs, and which message shapes recur.
+  `baselines.json` cannot show any of this, because it only holds pass-count floors. A wrongly
+  worded diagnostic counts as one edit, so a queue of near misses across families often yields
+  more than draining one family.
+- **`mixed` in an execution suite is usually one fault.** A spurious compile error stops the
+  program, so its output goes missing too; a one-line spurious error in a program that prints forty
+  lines scores a distance of 41.
+- **Read the upstream emit site before guessing** a message, hint level or anchor. Hint levels are
+  per diagnostic, not uniform, and anchors are often not the obvious token. The
+  `reference/dwscript-original` submodule does not carry the compiler sources; fetch them from
+  `https://raw.githubusercontent.com/EricGrange/DWScript/master/Source/<unit>.pas`.
+- **Close work through the real path.** Write the failing test through the real compile/run path
+  first, then fix, then ratchet with `just fixture-update`.
+
 ## Current Implementation Status
 
 See `TEST_STATUS.md` for detailed pass/fail counts per category and known issues.

@@ -43,8 +43,7 @@ func TestRun_PlainRuntimeError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected a runtime failure")
 	}
-	// The message text itself ("division by zero: 1 div 0" vs upstream's "Division by
-	// zero") is a runtime-parity gap tracked in PLAN.md §3.3; here only the wire shape
+	// The message text itself is pinned by the div_by_zero_int fixture; here only the wire shape
 	// matters: one line, "Runtime Error: " prefix, bracketed position, no "ERROR:" noise.
 	line := strings.TrimSpace(out)
 	if strings.Count(line, "\n") != 0 || !strings.HasPrefix(line, "Runtime Error: ") ||

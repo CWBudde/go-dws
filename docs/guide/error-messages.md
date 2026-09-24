@@ -31,6 +31,25 @@ All errors in go-dws follow a consistent format with rich contextual information
 
 ## Error Categories
 
+### Array and range diagnostics
+
+With `--diagnostics=plain`, array diagnostics use DWScript's sentences and
+`[line: N, column: N]` positions. Indexing a non-indexable value reports
+`Array expected`; each excess comma-separated index reports `Too many indices`
+at its comma. Constant indices outside a static array's bounds report
+`Lower bound exceeded! Index N` or `Upper bound exceeded! Index N`.
+
+Incompatible range endpoints report
+`Range start and range stop are of incompatible types: "X" and "Y"` in array
+constructors, sets, membership tests, and case branches. Numeric case ranges may
+mix Integer and Float. A reversed constant case range produces the hint
+`Case range condition lower bound is greater than higher bound`.
+
+Malformed array declarations and unfinished bracket literals retain diagnostics
+from bounds or elements parsed before the error. An error inside an expression
+is reported before the enclosing bound or range error, even when its displayed
+column is later.
+
 ### 1. Syntax Errors (Parser)
 
 **When**: During parsing, when source code doesn't match DWScript grammar

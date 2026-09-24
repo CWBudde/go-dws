@@ -49,15 +49,15 @@ Status figures are generated, never hand-edited:
 | --- | --- |
 | [`architecture/interp-evaluator-steady-state.md`](architecture/interp-evaluator-steady-state.md) | **Canonical.** Package roles for `interp`/`evaluator`/`runtime`/`types`/`contracts`, ownership rules, allowed `interp` responsibilities (appendices A–C) |
 | [`architecture/interp-evaluator-boundary.md`](architecture/interp-evaluator-boundary.md) | The one-way import rule `interp` ↛ `evaluator` and its single exception |
-| [`architecture/audit-2026-09.md`](architecture/audit-2026-09.md) | Measured audit behind `PLAN.md` §2: sizes, dead code, import graph, type-system triplication, two compile pipelines, ranked refactoring candidates |
-| [`architecture/fail-suite-audit-2026-09.md`](architecture/fail-suite-audit-2026-09.md) | Measured audit behind `PLAN.md` §4: every `*Fail` fixture diffed against its expectation — distance-to-passing, message-shape inventories, the invented-vocabulary list, the one-line near-misses |
-| [`architecture/fail-shape-worklist-2026-09.md`](architecture/fail-shape-worklist-2026-09.md) | The whole tail of that audit's inventories: every `*Fail` message shape with the fixtures it blocks, and each spurious shape's emitting site, grouped by origin (§4/F8) |
-| [`architecture/pass-suite-audit-2026-09.md`](architecture/pass-suite-audit-2026-09.md) | Measured audit behind `PLAN.md` §3.5: the same for the suites that *run* a program — why 111 of 151 failures are one fault reported twice, and what the execution suites are actually missing |
+| [`architecture/audit-2026-09.md`](architecture/audit-2026-09.md) | Measured September 2026 architecture audit: sizes, dead code, import graph, type-system triplication, two compile pipelines, ranked refactoring candidates |
+| [`architecture/fail-suite-audit-2026-09.md`](architecture/fail-suite-audit-2026-09.md) | Measured audit of the `*Fail` suites: every `*Fail` fixture diffed against its expectation — distance-to-passing, message-shape inventories, the invented-vocabulary list, the one-line near-misses |
+| [`architecture/fail-shape-worklist-2026-09.md`](architecture/fail-shape-worklist-2026-09.md) | The whole tail of that audit's inventories: every `*Fail` message shape with the fixtures it blocks, and each spurious shape's emitting site, grouped by origin (`PLAN.md` Phase 1) |
+| [`architecture/pass-suite-audit-2026-09.md`](architecture/pass-suite-audit-2026-09.md) | Measured audit of the execution suites: the same for the suites that *run* a program — why 111 of 151 failures are one fault reported twice, and what the execution suites are actually missing |
 | [`architecture/execution-suite-triage-2026-09.md`](architecture/execution-suite-triage-2026-09.md) | E10a/E10b: remaining math and small execution-suite blockers, runner corrections, ownership and exclusions |
 | [`architecture/implicit-self-resolution.md`](architecture/implicit-self-resolution.md) | How identifiers and implicit `Self` resolve inside methods |
 | [`architecture/token-cursor.md`](architecture/token-cursor.md) | Parser token-cursor design |
 | [`architecture/comment-preservation.md`](architecture/comment-preservation.md) | Lexer/AST comment and trivia preservation |
-| [`architecture/semantic-passes.md`](architecture/semantic-passes.md) | **Superseded design**: a multi-pass analyzer that was never implemented; kept as input for `PLAN.md` §3.2 |
+| [`architecture/semantic-passes.md`](architecture/semantic-passes.md) | **Superseded design**: a multi-pass analyzer that was never implemented; kept as design input (see `decisions/known-divergences.md`) |
 | [`architecture/benchmarking.md`](architecture/benchmarking.md) | Running benchmarks and profiling with pprof |
 | [`architecture/ident-migration-guide.md`](architecture/ident-migration-guide.md) | Why and how to use `pkg/ident` for case-insensitive identifiers (see also `../pkg/ident/README.md`) |
 
@@ -66,6 +66,7 @@ Status figures are generated, never hand-edited:
 | File | Decision |
 | --- | --- |
 | [`decisions/out-of-scope.md`](decisions/out-of-scope.md) | What go-dws will not implement (COM, DB, graphics, file I/O, …); defines the excluded fixture categories |
+| [`decisions/known-divergences.md`](decisions/known-divergences.md) | Deliberate per-fixture divergences, measured-and-declined features and refactors, and what would reopen each |
 | [`decisions/string-encoding.md`](decisions/string-encoding.md) | UTF-8-native strings (intentional divergence from UTF-16 upstream) |
 | [`decisions/refcounting-design.md`](decisions/refcounting-design.md) | Reference counting for interface/object lifetimes in the runtime |
 | [`decisions/var-parameters-design.md`](decisions/var-parameters-design.md) | By-reference parameters; appendix on type-alias transparency for arrays |
