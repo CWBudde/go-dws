@@ -124,6 +124,9 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 // analyzeVarDecl analyzes a variable declaration
 func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	for _, name := range stmt.Names {
+		if a.rejectResultDeclaration(name) {
+			return
+		}
 		if a.symbols.IsDeclaredInCurrentScope(name.Value) {
 			a.addError("%s", errors.FormatNameAlreadyExists(name.Value, stmt.Token.Pos.Line, stmt.Token.Pos.Column))
 			return
@@ -920,6 +923,16 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 
 // analyzeBlock analyzes a block statement
 func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
+	a.analyzeBlockWithReachability(stmt, false)
+}
+
+// analyzeRootBlock analyzes an outer routine body, whose unreachable-code
+// warnings use the first token's start, like those of the program root.
+func (a *Analyzer) analyzeRootBlock(stmt *ast.BlockStatement) {
+	a.analyzeBlockWithReachability(stmt, true)
+}
+
+func (a *Analyzer) analyzeBlockWithReachability(stmt *ast.BlockStatement, root bool) {
 	// Check if this block is a declaration section (types/const/var).
 	// Declaration sections should not create a new scope - their symbols
 	// must stay visible to subsequent statements in the enclosing scope.
@@ -940,8 +953,11 @@ func (a *Analyzer) analyzeBlock(stmt *ast.BlockStatement) {
 	}
 
 	// Analyze each statement in the block
+	var reach reachabilityState
 	for _, s := range stmt.Statements {
+		reach.before(a, s, root)
 		a.analyzeStatement(s)
+		reach.after(s)
 	}
 }
 
@@ -1164,6 +1180,9 @@ func (a *Analyzer) analyzeRepeat(stmt *ast.RepeatStatement) {
 // analyzeFor analyzes a for statement
 func (a *Analyzer) analyzeFor(stmt *ast.ForStatement) {
 	if stmt == nil {
+		return
+	}
+	if stmt.InlineVar && a.rejectResultDeclaration(stmt.Variable) {
 		return
 	}
 	// Create a new scope for the loop variable

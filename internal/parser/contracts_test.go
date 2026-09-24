@@ -8,6 +8,25 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
+func TestParseContract_RetainsTestBeforeMissingMessage(t *testing.T) {
+	p := New(lexer.New("procedure Test;\nbegin\nensure\n   true:"))
+	program := p.ParseProgram()
+	if len(p.Errors()) == 0 || !p.Errors()[0].Stop || p.Errors()[0].Pos.Column != 8 {
+		t.Fatalf("expected expression stop at the final colon, got %v", p.Errors())
+	}
+	if len(program.Statements) != 1 {
+		t.Fatalf("expected partial routine, got %d statements", len(program.Statements))
+	}
+	decl, ok := program.Statements[0].(*ast.FunctionDecl)
+	if !ok || decl.PostConditions == nil || len(decl.PostConditions.Conditions) != 1 {
+		t.Fatalf("expected partial routine with one postcondition, got %#v", program.Statements[0])
+	}
+	condition := decl.PostConditions.Conditions[0]
+	if test, ok := condition.Test.(*ast.BooleanLiteral); !ok || !test.Value || condition.Message != nil {
+		t.Fatalf("expected completed true test and missing message, got %#v", condition)
+	}
+}
+
 // TestParsePreconditionsSingle tests parsing a function with a single precondition.
 func TestParsePreconditionsSingle(t *testing.T) {
 	input := `

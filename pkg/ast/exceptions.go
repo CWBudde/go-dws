@@ -244,6 +244,10 @@ func (fc *FinallyClause) String() string {
 //	raise; // re-raise
 type RaiseStatement struct {
 	Exception Expression
+	// ValidationPos is the token following the exception expression (or the
+	// raise keyword for a missing expression at EOF). DWScript checks the
+	// exception type at that scanner position, including intervening space.
+	ValidationPos token.Position
 	BaseNode
 }
 

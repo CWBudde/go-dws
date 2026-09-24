@@ -786,6 +786,7 @@ func (a *Analyzer) analyzeRecordMethodImplementation(decl *ast.FunctionDecl, rec
 
 // analyzeRecordMethodBody analyzes the body of a record method.
 func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *types.RecordType) {
+	defer a.enterResultScope(decl.ReturnType != nil && !decl.IsConstructor)()
 	previousRecord := a.currentRecord
 	a.currentRecord = recordType
 	defer func() { a.currentRecord = previousRecord }()
@@ -860,9 +861,11 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	defer func() { a.currentFunction = previousFunc }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
+	a.checkPreconditions(decl.PreConditions, decl.Name.Value)
 	if decl.Body != nil {
-		a.analyzeBlock(decl.Body)
+		a.analyzeRootBlock(decl.Body)
 	}
+	a.checkPostconditions(decl.PostConditions, decl.Name.Value)
 }
 
 // findMatchingOverloadForImplementation finds the declared overload matching an implementation's signature.
@@ -1124,6 +1127,7 @@ func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
 	paramTypes := deferred.paramTypes
 	returnType := deferred.returnType
 	wasExplicitConstructor := deferred.wasExplicitConstructor
+	defer a.enterResultScope(returnType != nil && returnType != types.VOID && (!method.IsConstructor || !wasExplicitConstructor))()
 
 	previousClass := a.currentClass
 	a.currentClass = classType
@@ -1176,9 +1180,11 @@ func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
 	defer func() { a.inClassMethod = previousInClassMethod }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
+	a.checkPreconditions(method.PreConditions, method.Name.Value)
 	if method.Body != nil {
-		a.analyzeBlock(method.Body)
+		a.analyzeRootBlock(method.Body)
 	}
+	a.checkPostconditions(method.PostConditions, method.Name.Value)
 }
 
 // defineMethodScopeMembers populates the current method scope with the members

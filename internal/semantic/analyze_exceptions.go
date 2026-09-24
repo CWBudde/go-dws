@@ -15,9 +15,13 @@ func (a *Analyzer) analyzeRaiseStatement(stmt *ast.RaiseStatement) {
 	if stmt.Exception == nil {
 		// Bare raise is only valid inside an exception handler
 		if !a.inExceptionHandler {
-			pos := stmt.Token.Pos
-			a.addError("Syntax Error: Bare raise statement is only valid inside an exception handler [line: %d, column: %d]",
-				pos.Line, pos.Column)
+			if stmt.ValidationPos.IsValid() && stmt.ValidationPos == stmt.Token.Pos {
+				// An unfinished raise at EOF has no operand or terminator.
+				pos := stmt.Token.Pos
+				a.addError("Syntax Error: Expression expected [line: %d, column: %d]", pos.Line, pos.Column)
+			} else {
+				a.addError("Bare raise statement is only valid inside an exception handler at %s", stmt.Token.Pos.String())
+			}
 		}
 		return
 	}
@@ -31,7 +35,11 @@ func (a *Analyzer) analyzeRaiseStatement(stmt *ast.RaiseStatement) {
 
 	// Validate that the expression evaluates to an Exception type
 	if !a.isExceptionType(excType) {
-		a.addError("raise statement requires Exception type, got %s", excType.String())
+		pos := stmt.ValidationPos
+		if !pos.IsValid() {
+			pos = stmt.Exception.End()
+		}
+		a.addError("Syntax Error: Exception object expected [line: %d, column: %d]", pos.Line, pos.Column)
 	}
 }
 

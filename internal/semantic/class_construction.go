@@ -310,6 +310,7 @@ func (r *classInheritanceResolver) reaches(start, target *types.ClassType) bool 
 // declaration-site context that the body needs, so draining the queue restores
 // exactly the environment the body was declared in.
 type deferredMethodBody struct {
+	insertion              *diagnosticInsertion
 	method                 *ast.FunctionDecl
 	classType              *types.ClassType
 	outerSymbols           *SymbolTable
@@ -328,6 +329,7 @@ func (a *Analyzer) deferMethodBody(body deferredMethodBody) {
 		a.checkMethodBody(body)
 		return
 	}
+	body.insertion = a.newDiagnosticInsertion()
 	a.deferredMethodBodies = append(a.deferredMethodBodies, body)
 }
 
@@ -335,7 +337,8 @@ func (a *Analyzer) deferMethodBody(body deferredMethodBody) {
 // local class, so the queue is walked by index and re-read on every iteration.
 func (a *Analyzer) runDeferredMethodBodies() {
 	for i := 0; i < len(a.deferredMethodBodies); i++ {
-		a.checkMethodBody(a.deferredMethodBodies[i])
+		body := a.deferredMethodBodies[i]
+		a.analyzeAtDiagnosticInsertion(body.insertion, func() { a.checkMethodBody(body) })
 	}
 	a.deferredMethodBodies = nil
 }
@@ -344,8 +347,8 @@ func (a *Analyzer) runDeferredMethodBodies() {
 // has been queued.
 func (a *Analyzer) drainDeferredMethodBodies() {
 	a.deferClassMethodBodies = false
-	// Phase 4 first: a signature-level diagnostic still precedes the body
-	// diagnostics of the same program.
+	// Complete signature checks before analyzing bodies. Body diagnostics are
+	// restored to their declaration points by runDeferredMethodBodies.
 	a.runDeferredClassChecks()
 	a.runDeferredMethodBodies()
 }
@@ -398,15 +401,15 @@ func statementDeclaresClass(stmt ast.Statement) bool {
 // incomplete ancestor: a class whose own top-level declarations have not all been
 // analyzed yet. When every ancestor is already complete the checks run in place,
 // so their diagnostics keep the position *and the ordering* they have always had.
-// The deferred queue is drained at the same point as the deferred method bodies
-// (right after the last top-level class declaration) and before them, so a
-// signature-level diagnostic still precedes the body diagnostics of the same
-// program.
+// The deferred queue is drained before deferred method bodies, after the last
+// top-level class declaration. Each check retains its declaration insertion
+// point so signature diagnostics precede the corresponding body diagnostics.
 
 // deferredClassCheck is one postponed ancestor-dependent validation. Exactly one
 // of the two shapes is populated: a per-method override validation, or the
 // class-level tail validation of one class declaration.
 type deferredClassCheck struct {
+	insertion   *diagnosticInsertion
 	classType   *types.ClassType
 	method      *ast.FunctionDecl
 	methodType  *types.FunctionType
@@ -472,6 +475,7 @@ func (a *Analyzer) deferOverrideValidation(
 		return
 	}
 	a.deferredClassChecks = append(a.deferredClassChecks, deferredClassCheck{
+		insertion:  a.newDiagnosticInsertion(),
 		classType:  classType,
 		method:     method,
 		methodType: methodType,
@@ -490,6 +494,7 @@ func (a *Analyzer) deferClassTailValidation(
 		return
 	}
 	a.deferredClassChecks = append(a.deferredClassChecks, deferredClassCheck{
+		insertion:   a.newDiagnosticInsertion(),
 		classType:   classType,
 		classDecl:   decl,
 		parentClass: parentClass,
@@ -518,14 +523,16 @@ func (a *Analyzer) runClassTailValidation(
 func (a *Analyzer) runDeferredClassChecks() {
 	for i := 0; i < len(a.deferredClassChecks); i++ {
 		check := a.deferredClassChecks[i]
-		previousClass := a.currentClass
-		a.currentClass = check.classType
-		if check.isClassTail {
-			a.runClassTailValidation(check.classDecl, check.classType, check.parentClass)
-		} else {
-			a.validateVirtualOverride(check.method, check.classType, check.methodType)
-		}
-		a.currentClass = previousClass
+		a.analyzeAtDiagnosticInsertion(check.insertion, func() {
+			previousClass := a.currentClass
+			a.currentClass = check.classType
+			defer func() { a.currentClass = previousClass }()
+			if check.isClassTail {
+				a.runClassTailValidation(check.classDecl, check.classType, check.parentClass)
+			} else {
+				a.validateVirtualOverride(check.method, check.classType, check.methodType)
+			}
+		})
 	}
 	a.deferredClassChecks = nil
 }

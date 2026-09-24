@@ -481,11 +481,11 @@ func TestLambdaWithIfStatement(t *testing.T) {
 func TestLambdaWithLoop(t *testing.T) {
 	input := `
 		var factorial := lambda(n: Integer): Integer begin
-			var result: Integer := 1;
+			var product: Integer := 1;
 			var i: Integer;
 			for i := 1 to n do
-				result := result * i;
-			Result := result;
+				product := product * i;
+			Result := product;
 		end;
 
 		var result := factorial(5);

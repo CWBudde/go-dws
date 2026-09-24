@@ -5724,3 +5724,73 @@ denominator changed from 2,044 to 2,041 because 51 drivers replace 54 support
 units; the scored denominator changed from 1,966 to 2,014. No upstream fixture
 scripts or expectations were edited. Diff-scoped `golangci-lint` reported zero
 issues, and `git diff --check` is clean.
+
+## 2026-09-24 — F1 diagnostic emission and ordering completed
+
+The fixture harness gains **14 passes**, from **1,331 to 1,345 / 2,014 scored**.
+FailureScripts rises **249 → 261** and SimpleScripts **389 → 391**; other category
+floors are unchanged. The updated baselines and status report were generated with
+`just fixture-update`.
+
+Newly passing FailureScripts: `contracts_error1`, `contracts_error3`,
+`contracts_unfinished1`, `contracts_unfinished2`, `contracts_unfinished3`,
+`contracts_warnings`, `for_var_error2`, `for_var_error3`, `raise_error`,
+`result_redefine`, `unreachable`, and `unreachable_case_of`. SimpleScripts gains
+`exceptions2` and `exit`.
+
+### Behavior and implementation
+
+- Statement lists warn once before their first unreachable statement and continue
+  checking it. Flow propagation follows upstream's unoptimized `InterruptsFlow`
+  rules, including the distinction between loop and procedure interruption.
+  Routine/root lists use the first token's start; nested lists use its end.
+- Constant `require` and `ensure` tests warn after test type checking and before
+  message checking, independently of hint level. Routine, class, record and helper
+  methods use the same checks. Parser recovery retains incomplete contract tests
+  so warnings survive a later message or EOF error.
+- Routine bodies, inline method bodies and deferred class checks share mutable
+  diagnostic insertion points. Class member construction still completes before
+  bodies are analyzed; diagnostics are restored to their declaration positions.
+  Self-assignment suppression is finalized after earlier routine errors are known.
+- Local variables named `Result` are rejected throughout a function's nested
+  blocks, including inline loop variables and explicit/contextual/inferred lambdas.
+  Nested procedures establish a new boundary. The previous gap was a child block
+  shadowing the routine's symbol, rather than one semantic symbol for both names.
+  The two success tests using invalid accumulators now use `total` and `product`.
+- `RaiseStatement.ValidationPos` retains the scanner position needed for exception
+  type diagnostics. An incomplete `raise` at EOF reports `Expression expected`;
+  complete bare raises preserve the existing context diagnostic (`raise_syntax`).
+
+Upstream evidence: `dwsCompiler.pas` (`ReadRootBlock`, `ReadBlock`, contract reading,
+`ReadMethodDecl`), `dwsCoreExprs.pas` (`InterruptsFlow`) at commit
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`; `TdwsProcedure.FindLocal` and internal
+`Result` parameters at `5f01a3468452ea75867d4f0e7a0246b107e92332`. The source was
+read remotely because the local reference submodule is empty.
+
+### Measurement and remaining unrelated failures
+
+An independent CLI built from an immutable archive of HEAD
+`e81cbc5a8b72173789372e0e9c50078df198c151` supplied the before/after fixture sets.
+The final CLI comparison has **no regressions** and reproduces all 14 F1 gains.
+One run additionally passed `BuildScripts/init_order1` (1,346 total). Repeated runs
+of both baseline and modified CLIs produced different initialization/finalization
+orders, proving this is pre-existing nondeterminism; its baseline stays at seven
+BuildScripts passes and it is not counted as an F1 gain.
+
+`break_continue` still needs its two outside-loop error sentences; `class_cast`
+still needs the final parser `")" expected` error; `contracts_precondition` still
+needs the root-method-only precondition restriction. Their F1 warnings now match.
+The stale `test_non_variable` F1 dependency was removed from PLAN.md: it already
+passed before this change.
+
+### Validation
+
+`go test -p 1 ./...` passed, as did the full fixture baseline gate and
+`just fixture-update`. A rebuilt CLI report was compared fixture by fixture with
+the isolated HEAD baseline. `golangci-lint run --new-from-rev=HEAD` reports zero
+issues; full repository lint still reports its existing backlog. `git diff --check`
+is clean, and no upstream fixture scripts or expectations were edited.
+
+The successful full run used a project-local Go cache and serial compilation on
+tmpfs. Earlier attempts encountered `/tmp` quota exhaustion or transient executable
+cleanup errors on the project's FUSE filesystem; the final run completed normally.

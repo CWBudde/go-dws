@@ -406,6 +406,7 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 	}
 
 	returnType := a.helperMethodReturnType(decl)
+	defer a.enterResultScope(returnType != types.VOID && !decl.IsConstructor)()
 	if returnType != types.VOID {
 		// Anchor Result where a class method anchors it (analyzeMethodDecl): at
 		// the body's `end`, which is what DWScript's "Result is never used"
@@ -422,7 +423,9 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 	// emitUnusedWarningsForCurrentScope bails out when currentFunction is nil.
 	defer a.emitUnusedWarningsForCurrentScope()
 
-	a.analyzeBlock(decl.Body)
+	a.checkPreconditions(decl.PreConditions, decl.Name.Value)
+	a.analyzeRootBlock(decl.Body)
+	a.checkPostconditions(decl.PostConditions, decl.Name.Value)
 }
 
 // defineHelperOverloadsInScope brings the helper's own methods into scope under their

@@ -119,6 +119,8 @@ type Analyzer struct {
 	// back once it is finished, so the raw error list is not in source order
 	// while the body is running; see errorsPrecedeCurrentStatement.
 	deferredBody                       deferredBodyErrorBounds
+	diagnosticInsertions               []*diagnosticInsertion
+	reservedRoutineResult              bool
 	loopPosStack                       []token.Position
 	structuredErrors                   []*SemanticError
 	loopExitabilityStack               []LoopExitability
@@ -382,6 +384,8 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		return fmt.Errorf("cannot analyze nil program")
 	}
 
+	a.diagnosticInsertions = nil
+	defer func() { a.diagnosticInsertions = nil }()
 	a.predeclareTopLevelClassTypes(program)
 
 	// Two-pass analysis so top-level functions resolve regardless of source order
@@ -402,23 +406,14 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// remembers how many diagnostics existed when it was deferred and pass 2
 	// splices what the body produced back to that point.
 	//
-	// The remembered position cannot account for inline class method bodies,
-	// which stay queued until the last top-level class declaration and are then
-	// drained as one batch. A statement written between two class declarations
-	// therefore precedes both class bodies' diagnostics, whether it is a routine
-	// spliced back here or an ordinary statement reported in pass 1; the batched
-	// drain, not the splice, is what orders them. Splicing the class bodies back
-	// to their own declarations too would need upstream evidence that no fixture
-	// currently provides.
+	// Inline methods use the same insertion points, while their bodies still
+	// wait for all top-level class members to be registered.
 	type deferredFunc struct {
 		returnType types.Type
 		decl       *ast.FunctionDecl
 		paramTypes []types.Type
 		analyze    bool
-		// errorsAt and structuredAt are the lengths of a.errors and
-		// a.structuredErrors when the body was deferred.
-		errorsAt     int
-		structuredAt int
+		insertion  *diagnosticInsertion
 	}
 	deferred := make(map[*ast.FunctionDecl]deferredFunc)
 
@@ -429,21 +424,23 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// order. See class_construction.go.
 	a.deferClassMethodBodies = true
 	lastClassDecl := lastTopLevelClassDeclIndex(program)
+	var reach reachabilityState
 	for i, stmt := range program.Statements {
+		reach.before(a, stmt, true)
 		if fd, ok := stmt.(*ast.FunctionDecl); ok && fd.ClassName == nil && !fd.IsHelper {
 			paramTypes, returnType, regOK := a.registerFunctionSignature(fd)
 			deferred[fd] = deferredFunc{
-				decl:         fd,
-				paramTypes:   paramTypes,
-				returnType:   returnType,
-				analyze:      regOK && !fd.IsForward,
-				errorsAt:     len(a.errors),
-				structuredAt: len(a.structuredErrors),
+				decl:       fd,
+				paramTypes: paramTypes,
+				returnType: returnType,
+				analyze:    regOK && !fd.IsForward,
+				insertion:  a.newDiagnosticInsertion(),
 			}
 			continue
 		}
 		a.mainStatement = stmt
 		a.analyzeStatement(stmt)
+		reach.after(stmt)
 		a.mainStatement = nil
 		if i == lastClassDecl {
 			a.drainDeferredMethodBodies()
@@ -451,11 +448,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	}
 	a.drainDeferredMethodBodies()
 
-	// Pass 2: analyze deferred function bodies in source order, splicing each
-	// body's diagnostics back to its declaration position. The remembered
-	// positions grow with source order, so every earlier splice shifts the
-	// later ones by what it inserted.
-	errorsShift, structuredShift := 0, 0
+	// Pass 2 restores routine diagnostics at their declaration insertion points.
 	for _, stmt := range program.Statements {
 		fd, ok := stmt.(*ast.FunctionDecl)
 		if !ok {
@@ -465,24 +458,12 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		if !tracked || !df.analyze {
 			continue
 		}
-		errorsBefore := len(a.errors)
-		structuredBefore := len(a.structuredErrors)
-		// Every earlier body has already been spliced back, so a.errors is in
-		// source order up to errorsBefore and the routine's own declaration
-		// sits at its remembered index plus what those splices inserted.
-		a.deferredBody = deferredBodyErrorBounds{
-			beforeDecl: df.errorsAt + errorsShift,
-			bodyStart:  errorsBefore,
-			active:     true,
-		}
-		a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
-		a.deferredBody = deferredBodyErrorBounds{}
-		a.errors = spliceBack(a.errors, errorsBefore, df.errorsAt+errorsShift)
-		errorsShift += len(a.errors) - errorsBefore
-		a.structuredErrors = spliceBack(a.structuredErrors, structuredBefore, df.structuredAt+structuredShift)
-		structuredShift += len(a.structuredErrors) - structuredBefore
+		a.analyzeAtDiagnosticInsertion(df.insertion, func() {
+			a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
+		})
 	}
 
+	a.suppressSelfAssignmentAfterErrors()
 	a.reportUnimplementedForwards(a.symbols)
 	a.validateForwardDeclarations()
 

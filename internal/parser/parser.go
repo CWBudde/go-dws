@@ -330,7 +330,8 @@ func (p *Parser) noPrefixParseFnError(tok lexer.Token) {
 		msg = fmt.Sprintf("Expression expected before %s", tok.Type)
 	}
 
-	err := NewParserError(tok.Pos, tok.Length(), msg, code)
+	anchor := p.anchorFor(tok)
+	err := NewParserError(anchor.Pos, anchor.Length(), msg, code)
 	if msg == "Expression expected" {
 		// ReadTerm's "no expression found" is an AddCompilerStop upstream.
 		p.recordStop(err)
