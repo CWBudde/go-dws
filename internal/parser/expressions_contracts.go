@@ -36,9 +36,11 @@ func (p *Parser) parseCondition() *ast.Condition {
 		p.nextToken() // move to the message expression start
 
 		msgExpr := p.parseExpression(LOWEST)
-		if msgExpr == nil {
-			p.addError("expected message expression after ':' in contract condition", ErrUnexpectedToken)
-			return nil
+		if isInvalidExpression(msgExpr) {
+			// Keep the completed test so semantic diagnostics emitted before
+			// the message's compiler stop remain available.
+			builder.FinishWithNode(condition, testExpr)
+			return condition
 		}
 		condition.Message = msgExpr
 

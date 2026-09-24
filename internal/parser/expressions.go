@@ -62,6 +62,14 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 		if nextToken.Type == lexer.SEMICOLON {
 			break
 		}
+		// A literal contract message ends before a following "(". Upstream
+		// then asks for the clause's semicolon at that token rather than
+		// treating the literal as a callable (contracts_error3).
+		if nextToken.Type == lexer.LPAREN && (p.ctx.ParsingPreCondition() || p.ctx.ParsingPostCondition()) {
+			if _, literal := leftExp.(*ast.StringLiteral); literal {
+				break
+			}
+		}
 
 		// Get next token's precedence
 		nextPrec := getPrecedence(nextToken.Type)

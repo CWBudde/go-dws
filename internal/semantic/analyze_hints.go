@@ -1,12 +1,33 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/token"
 )
+
+// suppressSelfAssignmentAfterErrors finishes the error-sensitive hint check once
+// deferred routines and methods have been restored to declaration order. A method
+// may have been analyzed before an earlier routine's error was discovered.
+func (a *Analyzer) suppressSelfAssignmentAfterErrors() {
+	hadError := false
+	kept := a.errors[:0]
+	for _, diagnostic := range a.errors {
+		if hadError && strings.HasPrefix(diagnostic, "Hint: Assigning ") &&
+			strings.Contains(diagnostic, " to itself [line:") {
+			continue
+		}
+		if !strings.HasPrefix(diagnostic, "Hint:") && !strings.HasPrefix(diagnostic, "Warning:") {
+			hadError = true
+		}
+		kept = append(kept, diagnostic)
+	}
+	a.errors = kept
+}
 
 // This file collects the hints DWScript raises about declarations that compile
 // but say nothing: a private method marked virtual, a visibility section that
@@ -167,14 +188,6 @@ func (a *Analyzer) selfAssignedSymbol(stmt *ast.AssignmentStatement) (*Symbol, s
 	// write to Result, not to the symbol the right-hand side reads.
 	if a.currentFunction != nil && a.currentFunction.Name != nil &&
 		ident.Equal(target.Value, a.currentFunction.Name.Value) {
-		return nil, ""
-	}
-	// A routine's implicit Result and a local spelled "result" collapse into one
-	// symbol here, where DWScript rejects the redeclaration outright, so a
-	// `Result := result` between them is an artifact of that binding rather than
-	// an assignment to itself. No fixture pins `Result := Result`, so the whole
-	// name is left alone.
-	if ident.Equal(target.Value, "Result") {
 		return nil, ""
 	}
 	sym, found := a.symbols.Resolve(target.Value)

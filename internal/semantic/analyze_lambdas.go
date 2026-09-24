@@ -78,6 +78,12 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		return nil
 	}
 
+	// Lambdas start a routine boundary even when they return no value.
+	defer a.enterResultScope(expr.ReturnType == nil && lambdaBodyReturnsValue(expr.Body))()
+	if expr.ReturnType == nil {
+		a.checkInferredLambdaResultDeclarations(expr.Body)
+	}
+
 	// Create new scope for lambda body
 	oldSymbols := a.symbols
 	lambdaScope := NewEnclosedSymbolTable(oldSymbols)
@@ -136,10 +142,11 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		}
 	}
 
+	a.reservedRoutineResult = returnType != nil && returnType != types.VOID
 	// Analyze lambda body (only if we had an explicit return type)
 	// If return type was inferred, the body was already analyzed during inference
 	if expr.ReturnType != nil && expr.Body != nil {
-		a.analyzeBlock(expr.Body)
+		a.analyzeRootBlock(expr.Body)
 	}
 
 	// Perform closure capture analysis
@@ -237,6 +244,13 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	// Now we have all parameter types (either inferred or explicit)
 	// Continue with standard lambda analysis
 
+	// Lambdas start a routine boundary even when they return no value.
+	defer a.enterResultScope((expectedFuncType.ReturnType != nil && expectedFuncType.ReturnType != types.VOID) ||
+		(expr.ReturnType == nil && lambdaBodyReturnsValue(expr.Body)))()
+	if expr.ReturnType == nil {
+		a.checkInferredLambdaResultDeclarations(expr.Body)
+	}
+
 	// Create new scope for lambda body
 	oldSymbols := a.symbols
 	lambdaScope := NewEnclosedSymbolTable(oldSymbols)
@@ -325,10 +339,11 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 		return nil
 	}
 
+	a.reservedRoutineResult = returnType != nil && returnType != types.VOID
 	// Analyze lambda body (only if we had an explicit return type)
 	// If return type was inferred, the body was already analyzed during inference
 	if expr.ReturnType != nil && expr.Body != nil {
-		a.analyzeBlock(expr.Body)
+		a.analyzeRootBlock(expr.Body)
 	}
 
 	// Perform closure capture analysis

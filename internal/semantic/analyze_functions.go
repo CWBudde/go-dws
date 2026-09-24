@@ -216,6 +216,7 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 // parameter and return types already resolved by registerFunctionSignature. Callers
 // must skip forward declarations before invoking this.
 func (a *Analyzer) analyzeFunctionBody(decl *ast.FunctionDecl, paramTypes []types.Type, returnType types.Type) {
+	defer a.enterResultScope(returnType != nil && returnType != types.VOID)()
 	// Analyze function body in new scope
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
@@ -254,13 +255,11 @@ func (a *Analyzer) analyzeFunctionBody(decl *ast.FunctionDecl, paramTypes []type
 	defer func() { a.currentFunction = previousFunc }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
-	if decl.Body != nil {
-		a.analyzeBlock(decl.Body)
-	}
-
-	// Analyze contract conditions (require/ensure)
 	if decl.PreConditions != nil {
 		a.checkPreconditions(decl.PreConditions, decl.Name.Value)
+	}
+	if decl.Body != nil {
+		a.analyzeRootBlock(decl.Body)
 	}
 	if decl.PostConditions != nil {
 		a.checkPostconditions(decl.PostConditions, decl.Name.Value)
@@ -334,6 +333,7 @@ func (a *Analyzer) checkPreconditions(preconds *ast.PreConditions, funcName stri
 		if testType != nil && !isBooleanCompatible(testType) {
 			a.addBooleanExpected(cond.Token.Pos)
 		}
+		a.warnConstantCondition(cond)
 
 		// Message must be string (if present)
 		if cond.Message != nil {
@@ -359,6 +359,7 @@ func (a *Analyzer) checkPostconditions(postconds *ast.PostConditions, funcName s
 		if testType != nil && !isBooleanCompatible(testType) {
 			a.addBooleanExpected(cond.Token.Pos)
 		}
+		a.warnConstantCondition(cond)
 
 		// Message must be string (if present)
 		if cond.Message != nil {
@@ -373,6 +374,16 @@ func (a *Analyzer) checkPostconditions(postconds *ast.PostConditions, funcName s
 
 		// Validate 'old' expressions (check undefined identifiers)
 		a.validateOldExpressions(cond.Test, funcName)
+	}
+}
+
+// warnConstantCondition follows DWScript's contract compilation order: the test
+// is type checked first, its constancy is reported next, and its message is
+// checked afterward. Even a constant test of the wrong type receives the warning.
+func (a *Analyzer) warnConstantCondition(cond *ast.Condition) {
+	if a.isConstantInstruction(cond.Test) {
+		pos := cond.Token.Pos
+		a.addWarning("Constant condition [line: %d, column: %d]", pos.Line, pos.Column)
 	}
 }
 

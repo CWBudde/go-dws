@@ -10,8 +10,10 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-23):** Go harness and freshly rebuilt CLI agree at **1,331 / 2,014 scored =
-66%**; `*Fail` error-detection suites **292 / 641 = 46%**. What shipped to get there is in
+**Headline (2026-09-24):** The Go harness reports **1,345 / 2,014 scored =
+67%**; `*Fail` error-detection suites **304 / 641 = 47%**. The rebuilt CLI reproduces
+all 14 F1 gains with no regressions; an existing nondeterministic `BuildScripts/init_order1`
+can add one CLI pass (see the September log). What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
 **What the denominator is.** The scanners select 2,041 fixtures; 27 have no applicable expectation
@@ -19,18 +21,18 @@ and remain unscored, leaving 2,014. This includes 36 missing-`.txt` fixtures che
 silence (T7), and BuildScripts now selects its `.dws` drivers rather than `.pas` support units
 (E19). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,331 / 1,795 = 74% in scope**, the number to track against §6. Both are honest;
+same run reads **1,345 / 1,795 = 75% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
 Open, in leverage order:
 
-- **§4** is where the remaining mass is: 349 in-scope `*Fail` failures. The 2026-09-12
+- **§4** is where the remaining mass is: 337 in-scope `*Fail` failures. The 2026-09-12
   fixture-by-fixture measurement found go-dws's invented message vocabulary (F8) blocking 265 of
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** has 115 in-scope execution-suite failures after correcting BuildScripts discovery;
+- **§3.5** has 113 in-scope execution-suite failures after correcting BuildScripts discovery;
   E1–E20 are closed, so the remaining failures need fresh triage.
 - **§3.2** has no open items. **§3.4** has expected-type overload resolution, blocked on the
   evaluator. **§3.3** has only the gated Memory host setup.
@@ -55,10 +57,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (683 total, 2026-09-23): **219 host-library** (out of scope),
-  **349 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 13,
-  OverloadsFail 11, HelpersFail 9, the rest under 10), and **115 in the execution suites** (§3.5:
-  SimpleScripts 54, BuildScripts 42, ArrayPass 13, six elsewhere). A pre-existing runtime stack overflow still appears in an isolated harness
+- Where the remaining failures are (669 total, 2026-09-24): **219 host-library** (out of scope),
+  **337 in the `*Fail` error-detection suites** (§4: FailureScripts 268, InterfacesFail 13,
+  OverloadsFail 11, HelpersFail 9, the rest under 10), and **113 in the execution suites** (§3.5:
+  SimpleScripts 52, BuildScripts 42, ArrayPass 13, six elsewhere). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - **Upstream source is reachable without the submodule.** `reference/dwscript-original/` is an
   empty submodule, but the originals fetch from
@@ -267,31 +269,9 @@ closed outright.
 Work families — IDs from the 2026-03 analysis
 (`docs/archive/failure-scripts-next-phase-plan.md`), counts from the 2026-09-12 re-measurement:
 
-- **F1** `[~]` M Warning/hint emission and ordering. The for-loop half, the ordering half and the
-  five missing declaration hints are closed; what is left is the two hints below and the residue.
-  - Ordering closed 2026-09-20 ([log](docs/history/progress-log-2026-09.md)): deferred routine
-    bodies splice their diagnostics back to the declaration point (`infinite_loop`,
-    `ArrayPass/array_of_rec_add_create`), and a compiler-directive diagnostic orders by line
-    against a semantic hint or warning (`hint_pedantic`).
-  - `[ ]` S Inline class method bodies stay queued until the last top-level class declaration and
-    are then drained as one batch (`drainDeferredMethodBodies`, `class_construction.go:343`), so a
-    statement or routine written *between* two class declarations reports before both class bodies.
-    Pre-existing and independent of the splice above: a bare `while True do ;` between two classes
-    with inline bodies orders `9, 5, 15` on main and on the ordering branch alike. No fixture covers
-    the shape; settle it against upstream's emission before changing the drain.
-  - `[~]` Hints and warnings that exist nowhere in the tree, lines (fixtures). Five closed
-    2026-09-20 ([log](docs/history/progress-log-2026-09.md)): `case_of_else`,
-    `virtual_private`, `class_visibility_redundant`, `hint_reference_var_params` and
-    `self_assign`. Left:
-    - `[ ]` M `Unreachable code` 12 (5)
-    - `[ ]` M `Constant condition` 8 (5) — also needed by `contracts_precondition`
-  - `[ ]` S `Result := result` is skipped by the self-assignment hint because go-dws binds a
-    routine's implicit `Result` and a local spelled `result` to **one symbol**, where DWScript
-    rejects the redeclaration outright (`internal/interp/lambda_test.go:TestLambdaWithLoop`
-    relies on the current binding). No fixture pins `Result := Result`; close the redeclaration
-    gap and the suppression in `internal/semantic/analyze_hints.go` can go.
-  - Closed: the `randseed` deprecated warning (E14, 09-23); runner-option parity for
-    `LambdaPass/immediate` and interface implementation hints (E12, 09-22).
+- **F1** closed 2026-09-24: unreachable-code and constant-contract warnings,
+  declaration-order diagnostics for inline methods, and local `Result` redeclaration
+  checks (+14 fixtures; [log](docs/history/progress-log-2026-09.md)).
 - **F2** `[ ]` M Array diagnostics:
   - `[ ]` S `Array expected`.
   - `[ ]` S `Too many indices` (8 lines, all in one fixture).
@@ -406,8 +386,6 @@ Work families — IDs from the 2026-03 analysis
     closed 2026-09-19. Still open:
     - `[ ]` `bracket_right_missing`, `for_in_set_missing_do`, `of_missing` are parser recovery
       and message parity (F3's `"X" expected` / `OF expected` / `DO expected` sweep).
-    - `[ ]` `test_non_variable` needs only the deferred-body hint ordering (F1); both its
-      `Variable expected` sentences and anchors are in place.
     - `[ ]` `invalid_operand` is three lines short: `unexpected "@"` exists nowhere in the tree
       (also wanted by `FailureScripts/at_integer`, `dyn_array3`, `field_init1`, `func_ptr6`),
       `Incompatible types: "TMyEnum" and "procedure Test"` needs F10's routine-type renderer,
@@ -529,7 +507,7 @@ Gate for everything ⏸️ below: **every non-host-library fixture category ≥ 
 - ✋ Case-mismatch hint parity where runner configuration remains unverified: recover that
   configuration before pursuing parity. SimpleScripts, ArrayPass, HelpersPass, OverloadsPass and
   FailureScripts are verified (pedantic, [E3a](docs/history/progress-log-2026-09.md#2026-09-13--fixture-hint-configuration-e3a));
-  Algorithms uses the normal default. Non-case hints remain under F1.
+  Algorithms uses the normal default. Other missing diagnostic shapes remain under F8.
 - ✋ UTF-16 surrogate iteration: `docs/decisions/string-encoding.md`.
 - ✋ Subrange compile-time bounds: zero fixture yield.
 

@@ -121,9 +121,24 @@ func TestBareRaiseOutsideHandler(t *testing.T) {
 		t.Fatal("Expected semantic error for bare raise outside handler")
 	}
 
-	errMsg := strings.ToLower(err.Error())
-	if !strings.Contains(errMsg, "bare raise") || !strings.Contains(errMsg, "exception handler") {
-		t.Errorf("Expected error about bare raise context, got: %s", err.Error())
+	if !strings.Contains(err.Error(), "Bare raise statement is only valid inside an exception handler") {
+		t.Errorf("Expected bare raise context error, got: %s", err.Error())
+	}
+}
+
+func TestRaiseDiagnostics_Positions(t *testing.T) {
+	for _, test := range []struct{ source, want string }{
+		{"raise 1;", "Syntax Error: Exception object expected [line: 1, column: 8]"},
+		{"raise 1   ;", "Syntax Error: Exception object expected [line: 1, column: 11]"},
+		{"raise;", "Bare raise statement is only valid inside an exception handler at 1:1"},
+		{"raise", "Syntax Error: Expression expected [line: 1, column: 1]"},
+	} {
+		t.Run(test.source, func(t *testing.T) {
+			a := parseAndAnalyze(t, test.source)
+			if got := a.Errors(); len(got) != 1 || got[0] != test.want {
+				t.Fatalf("got %v, want %q", got, test.want)
+			}
+		})
 	}
 }
 
@@ -310,9 +325,8 @@ func TestBareRaiseOutsideHandlerSemanticError(t *testing.T) {
 		t.Fatal("Expected semantic error for bare raise outside handler")
 	}
 
-	errMsg := strings.ToLower(err.Error())
-	if !strings.Contains(errMsg, "bare raise") || !strings.Contains(errMsg, "exception handler") {
-		t.Errorf("Expected error about bare raise context, got: %s", err.Error())
+	if !strings.Contains(err.Error(), "Bare raise statement is only valid inside an exception handler") {
+		t.Errorf("Expected bare raise context error, got: %s", err.Error())
 	}
 }
 

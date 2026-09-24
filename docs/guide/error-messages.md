@@ -496,6 +496,25 @@ when analysis of a routine body is deferred. Warnings and errors are independent
 `{$HINTS}`. The CLI's `--hints off` also hides hint/warning output during execution;
 `--compile-only` always prints the resulting diagnostic list.
 
+### Flow and contract warnings
+
+`Warning: Unreachable code` identifies the first unreachable statement in a
+statement list after an unconditional `exit`, `raise`, `break`, or `continue`,
+including branches that all interrupt execution. Analysis continues through the
+remaining statements so their errors are still reported. This follows DWScript's
+unoptimized flow rules; an `if True then exit` without an `else` does not make the
+next statement unreachable for this warning.
+
+`Warning: Constant condition` identifies a constant `require` or `ensure` test.
+Both warnings are independent of the hint level. Diagnostics from inline methods
+and deferred routines retain declaration order, including when another statement
+or routine appears between class declarations.
+
+A function's implicit `Result` cannot be redeclared as a local variable, even in
+a nested block. The error points to the redeclared name. A separate procedure or
+global scope may still declare a variable named `result`; identifiers remain case
+insensitive. `Result := Result` receives the ordinary self-assignment hint.
+
 ### Symbol-dictionary diagnostics
 
 `run --symbol-dictionary-diagnostics=false` disables hints that depend on upstream's

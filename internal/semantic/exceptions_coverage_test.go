@@ -279,7 +279,7 @@ func TestIsExceptionTypeCoverage(t *testing.T) {
 		// Should have error - Integer is not an exception type
 		hasError := false
 		for _, errStr := range analyzer.Errors() {
-			if contains(errStr, "requires Exception type") {
+			if contains(errStr, "Exception object expected") {
 				hasError = true
 				break
 			}
@@ -311,7 +311,7 @@ func TestIsExceptionTypeCoverage(t *testing.T) {
 		// Should have error - TNotException is not derived from Exception
 		hasError := false
 		for _, errStr := range analyzer.Errors() {
-			if contains(errStr, "requires Exception type") {
+			if contains(errStr, "Exception object expected") {
 				hasError = true
 				break
 			}

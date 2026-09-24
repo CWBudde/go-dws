@@ -15,6 +15,11 @@ DWScript supports **Design by Contract** (DbC), a programming methodology that a
 
 ## Syntax
 
+The compiler reports `Warning: Constant condition` when a `require` or `ensure`
+test is constant, for example `1 = (1 + 0)` or `true implies true`. This warning
+applies to routines and methods and remains enabled when hints are disabled.
+Precondition diagnostics precede the body; postcondition diagnostics follow it.
+
 ### Preconditions
 
 Preconditions are specified using the `require` keyword after the function signature and before the function body:

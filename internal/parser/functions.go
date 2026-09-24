@@ -521,6 +521,12 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	if cursor.Current().Type == lexer.ENSURE {
 		fn.PostConditions = p.parsePostConditions()
 		cursor = p.cursor
+		if cursor.Current().Type == lexer.EOF {
+			// Preserve completed contract tests when the final message is
+			// incomplete; their warnings precede the expression compiler stop.
+			builder.Finish(fn)
+			return fn
+		}
 
 		// Skip semicolons
 		for cursor.Current().Type == lexer.SEMICOLON {

@@ -291,10 +291,10 @@ func TestFunctionWithLocalVariables(t *testing.T) {
 		function Calculate(n: Integer): Integer;
 		begin
 			var temp: Integer;
-			var result: Integer;
+			var total: Integer;
 			temp := n * 2;
-			result := temp + 10;
-			Result := result;
+			total := temp + 10;
+			Result := total;
 		end;
 
 		var x := Calculate(5);

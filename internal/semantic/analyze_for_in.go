@@ -15,6 +15,9 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 	if stmt == nil {
 		return
 	}
+	if stmt.InlineVar && a.rejectResultDeclaration(stmt.Variable) {
+		return
+	}
 	// Create a new scope for the loop variable
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(oldSymbols)
