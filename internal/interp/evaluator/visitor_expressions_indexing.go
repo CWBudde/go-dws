@@ -453,17 +453,40 @@ func (e *Evaluator) evalClassMetaIndexedProperty(
 	if propDesc == nil || !propDesc.IsIndexed {
 		return nil, false
 	}
-	pInfo, ok := unwrapPropertyInfo(propDesc.Impl)
-	if !ok {
+	if _, ok := unwrapPropertyInfo(propDesc.Impl); !ok {
 		return e.newError(node, "invalid property info type"), true
 	}
-
 	indexVals := make([]Value, len(indices))
 	for i, indexExpr := range indices {
 		indexVals[i] = e.Eval(indexExpr, ctx)
 		if isError(indexVals[i]) {
 			return indexVals[i], true
 		}
+	}
+	return e.evalClassMetaIndexedPropertyValues(obj, classMetaVal, memberName, indexVals, node, ctx)
+}
+
+// evalClassMetaIndexedPropertyValues reads a class indexed property after its
+// index arguments have been captured by the caller.
+func (e *Evaluator) evalClassMetaIndexedPropertyValues(
+	obj Value,
+	classMetaVal ClassMetaValue,
+	memberName string,
+	indexVals []Value,
+	node ast.Node,
+	ctx *ExecutionContext,
+) (Value, bool) {
+	classInfo := classMetaVal.GetClassInfo()
+	if classInfo == nil {
+		return nil, false
+	}
+	propDesc := classInfo.LookupProperty(memberName)
+	if propDesc == nil || !propDesc.IsIndexed {
+		return nil, false
+	}
+	pInfo, ok := unwrapPropertyInfo(propDesc.Impl)
+	if !ok {
+		return e.newError(node, "invalid property info type"), true
 	}
 	if errVal := e.checkIndexedPropertyArity(pInfo, len(indexVals), node); errVal != nil {
 		return errVal, true

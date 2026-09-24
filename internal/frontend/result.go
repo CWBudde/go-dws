@@ -185,6 +185,8 @@ func (r *Result) HintStrings() []string {
 
 // Options configures the shared compile pipeline.
 type Options struct {
+	// Defines are conditional symbols available before {$IFDEF} processing.
+	Defines []string
 	// UnitSearchPaths configures uses resolution. Empty uses the source directory,
 	// or the current directory when Filename is a display name.
 	UnitSearchPaths []string
@@ -217,10 +219,11 @@ func ParseWithFilename(source, filename string) *Result {
 	return ParseWithOptions(source, Options{Filename: filename, IncludeDir: includeDirFor(filename)})
 }
 
-// ParseWithOptions parses source without semantic analysis. Only Options.IncludeDir
-// is consulted at this stage.
+// ParseWithOptions parses source without semantic analysis.
 func ParseWithOptions(source string, opts Options) *Result {
-	l := lexer.New(source, includeOptionsForDir(opts.IncludeDir)...)
+	lexerOptions := includeOptionsForDir(opts.IncludeDir)
+	lexerOptions = append(lexerOptions, lexer.WithDefines(opts.Defines...))
+	l := lexer.New(source, lexerOptions...)
 	p := parser.New(l)
 	program := p.ParseProgram()
 

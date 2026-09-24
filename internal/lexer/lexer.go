@@ -111,6 +111,17 @@ type LexerState struct {
 // Options are applied during lexer creation via New().
 type LexerOption func(*Lexer)
 
+// WithDefines adds compiler conditional symbols before scanning source.
+func WithDefines(names ...string) LexerOption {
+	return func(l *Lexer) {
+		for _, name := range names {
+			if name != "" {
+				l.defines[ident.Normalize(name)] = struct{}{}
+			}
+		}
+	}
+}
+
 // WithPreserveComments enables or disables comment preservation.
 // When enabled, the lexer will return COMMENT tokens instead of skipping comments.
 // This is useful for formatters and documentation tools that need to preserve comments.

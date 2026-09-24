@@ -6,8 +6,8 @@ This directory contains the comprehensive test suite copied from the original DW
 
 Raw file counts (what `find` sees) and scored counts (what the Go harness compares) differ, so keep them apart:
 
-- **Raw contents**: 64 directories, ~2,100 `.pas` scripts, ~2,050 `.txt` expectations, plus `.jstxt`, `.optimized.txt`, `.fpctxt` variants, 123 `.dws` JavaScript filter scripts and support files (`.dll`, `.s3db`, `.ply`, ...).
-- **Scored set**: `internal/interp/fixture_test.go` (`discoverFixtureCategories`) treats every directory directly under `testdata/fixtures/` that contains at least one `.pas` file as a category (61 today; `Data`, `HTMLFilterScripts` and `Model3D` have no `.pas` and are not categories, nested subdirectories are not walked). Each `.pas` is compared against its sibling `.txt` only (`runFixtureTest`). A `.pas` without a `.txt` is scored against empty output except for the category exclusions documented below (36 scored this way, 78 skipped). All other expectation variants are ignored, see [Expected-output variants that are not scored](#expected-output-variants-that-are-not-scored).
+- **Raw contents**: 64 directories, ~2,100 `.pas` scripts, ~2,050 `.txt` expectations, plus `.jstxt`, `.optimized.txt`, `.fpctxt` variants, 123 `.dws` drivers and filter scripts, and support files (`.dll`, `.s3db`, `.ply`, ...).
+- **Scored set**: `internal/interp/fixture_test.go` (`discoverFixtureCategories`) selects `.dws` drivers in BuildScripts and `.pas` files in other categories (61 today; nested subdirectories are not walked). Each selected source is compared against its sibling `.txt` only (`runFixtureTest`). A source without a `.txt` is scored against empty output except for the category exclusions documented below (36 scored this way, 27 skipped). All other expectation variants are ignored, see [Expected-output variants that are not scored](#expected-output-variants-that-are-not-scored).
 
 Live per-category pass/skip numbers are generated into [TEST_STATUS.md](TEST_STATUS.md); do not rely on the counts in this file for scoring.
 
@@ -87,9 +87,10 @@ Live per-category pass/skip numbers are generated into [TEST_STATUS.md](TEST_STA
 
 ### Codegen Tests (Stage 12)
 
-- **BuildScripts** (54 Pascal files) - Build/unit tests; upstream runs `.dws` drivers with
-  supporting `.pas` units, without requiring JS transpilation. Our `.pas` discovery does not
-  yet reproduce that runner; see the [execution audit](../../docs/architecture/execution-suite-triage-2026-09.md#buildscripts-runner-mismatch).
+- **BuildScripts** (51 `.dws` drivers, 54 supporting `.pas` files) - Build/unit tests;
+  the runners execute drivers and load their Pascal units, without JS transpilation.
+  See the [execution audit](../../docs/architecture/execution-suite-triage-2026-09.md#buildscripts-runner-mismatch)
+  for the earlier runner mismatch.
 - **JSFilterScripts** (59 files) - JavaScript filter scripts [requires JS transpilation]
 - **JSFilterScriptsFail** (6 files) - JavaScript filter error cases [requires JS transpilation]
 - **HTMLFilterScripts** (10 tests) - HTML filter scripts [requires JS transpilation]
@@ -283,17 +284,17 @@ See `UScriptTests.pas:238` and `UMemoryTests.pas:254` in this directory.
 **36 imported `.pas` fixtures** are now scored against silence — Memory 10, SimpleScripts 7,
 InterfacesPass 5, FunctionsMath 5, FunctionsTime 3, JSFilterScripts 2, FunctionsGlobalVars 2,
 FunctionsVariant 1 and JSFilterScriptsFail 1. Of these, **29 pass and 7 fail** as of 2026-09-13.
-The scored denominator grows from 1,930 to 1,966; the total pass rate rises slightly.
+This change grew the scored denominator from 1,930 to 1,966. Selecting BuildScripts drivers
+instead of supporting units later grew it to 2,014.
 The JSFilterScripts categories contain supporting Pascal units: upstream's `UJSFilterTests.pas`
 collects `.dws` scripts. Our existing `.pas` discovery checks these units on their own;
 JSFilterScriptsFail still uses compile-only mode and requires empty diagnostics.
 
-Three groups remain **unscored when their `.txt` is missing** (78 fixtures):
+Three groups remain **unscored when their `.txt` is missing** (27 fixtures):
 
-- **BuildScripts (53) and AutoFormat (10)** use different upstream runners. BuildScripts
-  compares driver execution output, while our current discovery selects supporting `.pas`
-  units; its existing `const_inline.txt` is therefore paired with the wrong input. These
-  missing-expectation cases remain unscored pending runner parity.
+- **BuildScripts (2) and AutoFormat (10)** use different upstream runners. BuildScripts
+  compares driver execution output; its two drivers without `.txt` expectations remain
+  unscored in the exact-output metric.
 - **External (1) and DelegateLib (1)** require host setup excluded from this work.
 - **FailureScripts (13)** lack exact diagnostic expectations. Upstream's `CompilationFailure`
   runner (`UScriptTests.pas:344`) requires nonempty diagnostics when a `.txt` is missing; it does

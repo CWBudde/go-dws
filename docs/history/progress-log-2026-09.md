@@ -5694,3 +5694,33 @@ its block lambda uses an inferred Result. The baseline rose **1,313 → 1,324 /
 1,966**, with no category regression. `go test -p 1 ./...` passed; the rebuilt
 CLI report agrees with the harness at **1,324 / 1,747 in scope**.
 `golangci-lint run --new-from-rev=HEAD` reported zero issues.
+
+## 2026-09-23 — BuildScripts runner parity and compound index assignment (E19–E20)
+
+**E19.** Both fixture scanners now select BuildScripts' `.dws` drivers instead of
+their `.pas` support units. Unit lookup excludes the current driver when its name
+also names a unit, while ordinary `.dws`-first unit search remains unchanged.
+The upstream runner's initial `CONDITION` symbol reaches both the script and
+imported units through the repeatable `dwscript run --define` option. Direct CLI
+checks match `const_inline` and `conditionals_main` exactly. The existing
+missing-expectation policy skips the two `.dws` drivers without `.txt` files.
+BuildScripts now scores **7 passed / 42 failed / 2 skipped** out of 51 drivers;
+the remaining failures are visible language or diagnostic work, not a runner
+selection error. The upstream optimizer and context-map variants remain outside
+the project's one-execution-per-fixture metric.
+
+**E20.** Compound index assignments now retain the receiver or container and
+index values from the read through the write. Ordinary, nested, associative,
+named/default, interface and class indexed-property paths keep their existing
+dispatch while avoiding a second evaluation after the RHS. Ten real compile/run
+regressions cover changing indices, receiver replacement, record and string
+fields, getter/setter counts, and an exception before write.
+
+Validation: `go test -p 1 ./...` passed; `just fixture-update` ratcheted
+BuildScripts **0 → 7** without changing any other category. A freshly rebuilt
+CLI fixture report matches the harness in all 61 categories at **1,331 passed /
+683 failed / 27 skipped**, or **1,331 / 2,014 scored**. The selected-fixture
+denominator changed from 2,044 to 2,041 because 51 drivers replace 54 support
+units; the scored denominator changed from 1,966 to 2,014. No upstream fixture
+scripts or expectations were edited. Diff-scoped `golangci-lint` reported zero
+issues, and `git diff --check` is clean.

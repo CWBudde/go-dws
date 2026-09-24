@@ -53,6 +53,22 @@ func HintsLevel(category string) semantic.HintsLevel {
 	return semantic.HintsLevelStrict
 }
 
+// SourceExtension returns the upstream runner's source suffix for a category.
+func SourceExtension(category string) string {
+	if category == "BuildScripts" {
+		return ".dws"
+	}
+	return ".pas"
+}
+
+// InitialDefines returns conditional symbols configured by an upstream runner.
+func InitialDefines(category string) []string {
+	if category == "BuildScripts" {
+		return []string{"CONDITION"}
+	}
+	return nil
+}
+
 // SymbolDictionaryDiagnostics matches the selected upstream runner: UScriptTests
 // executes without coSymbolDictionary, but its nonoptimized failure checks enable
 // it. Other runners retain dictionary diagnostics independently of hint level.

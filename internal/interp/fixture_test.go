@@ -131,14 +131,14 @@ func TestDWScriptFixtures(t *testing.T) {
 	}
 }
 
-// buildFixtureWorkList flattens every category's .pas files into a single ordered work list.
+// buildFixtureWorkList flattens every category's source files into a single ordered work list.
 func buildFixtureWorkList(categories []fixtureCategory) []fixtureRequest {
 	var items []fixtureRequest
 	for _, category := range categories {
 		hintsLevel := category.hintsLevel
-		for _, pf := range category.pasFiles {
+		for _, pf := range category.sourceFiles {
 			items = append(items, fixtureRequest{
-				Pas:          pf,
+				Source:       pf,
 				ExpectErrors: category.expectErrors,
 				Hints:        int(hintsLevel),
 			})
@@ -150,7 +150,7 @@ func buildFixtureWorkList(categories []fixtureCategory) []fixtureRequest {
 // tallyCategory aggregates worker results for one category into a categoryOutcome.
 func tallyCategory(category fixtureCategory, results map[string]fixtureResponse) categoryOutcome {
 	outcome := categoryOutcome{category: category}
-	for _, pf := range category.pasFiles {
+	for _, pf := range category.sourceFiles {
 		outcome.total++
 		switch testResult(results[pf].Result) {
 		case testResultPassed:
@@ -159,7 +159,7 @@ func tallyCategory(category fixtureCategory, results map[string]fixtureResponse)
 			outcome.skipped++
 		default:
 			outcome.failed++
-			outcome.failNames = append(outcome.failNames, strings.TrimSuffix(filepath.Base(pf), ".pas"))
+			outcome.failNames = append(outcome.failNames, strings.TrimSuffix(filepath.Base(pf), filepath.Ext(pf)))
 		}
 	}
 	return outcome
@@ -197,7 +197,7 @@ type fixtureCategory struct {
 	name         string
 	path         string
 	description  string
-	pasFiles     []string
+	sourceFiles  []string
 	hintsLevel   semantic.HintsLevel
 	expectErrors bool
 }
@@ -230,7 +230,7 @@ var categoryDescriptions = map[string]string{
 	"FailureScripts":   "Compilation and runtime error detection",
 }
 
-// discoverFixtureCategories enumerates every directory under root that contains .pas files.
+// discoverFixtureCategories enumerates directories containing their runner's source files.
 // expectErrors is inferred from the category name so error-detection suites are handled
 // correctly without a hand-maintained allow-list.
 func discoverFixtureCategories(root string) ([]fixtureCategory, error) {
@@ -247,14 +247,14 @@ func discoverFixtureCategories(root string) ([]fixtureCategory, error) {
 		name := entry.Name()
 		dir := filepath.Join(root, name)
 
-		pasFiles, err := filepath.Glob(filepath.Join(dir, "*.pas"))
+		sourceFiles, err := filepath.Glob(filepath.Join(dir, "*"+fixtureconfig.SourceExtension(name)))
 		if err != nil {
 			return nil, err
 		}
-		if len(pasFiles) == 0 {
+		if len(sourceFiles) == 0 {
 			continue
 		}
-		sort.Strings(pasFiles)
+		sort.Strings(sourceFiles)
 
 		description := categoryDescriptions[name]
 		if description == "" {
@@ -265,7 +265,7 @@ func discoverFixtureCategories(root string) ([]fixtureCategory, error) {
 			name:         name,
 			path:         dir,
 			description:  description,
-			pasFiles:     pasFiles,
+			sourceFiles:  sourceFiles,
 			expectErrors: isErrorCategory(name),
 			hintsLevel:   fixtureconfig.HintsLevel(name),
 		})
@@ -295,7 +295,7 @@ const (
 
 // fixtureRequest is one unit of work sent from the parent to a worker subprocess.
 type fixtureRequest struct {
-	Pas          string `json:"pas"`
+	Source       string `json:"source"`
 	Hints        int    `json:"hints"`
 	ExpectErrors bool   `json:"expect_errors"`
 }
@@ -324,7 +324,7 @@ func TestFixtureWorkerMain(t *testing.T) {
 			var req fixtureRequest
 			var resp fixtureResponse
 			if jsonErr := json.Unmarshal(line, &req); jsonErr == nil {
-				result, detail := runFixtureTest(req.Pas, req.ExpectErrors, semantic.HintsLevel(req.Hints))
+				result, detail := runFixtureTest(req.Source, req.ExpectErrors, semantic.HintsLevel(req.Hints))
 				resp = fixtureResponse{Result: int(result), Detail: detail}
 			} else {
 				// Emit an explicit failure instead of staying silent, so the parent fails
@@ -372,7 +372,7 @@ func runFixturesInWorkers(t *testing.T, items []fixtureRequest) map[string]fixtu
 			for req := range work {
 				resp := w.run(req)
 				mu.Lock()
-				results[req.Pas] = resp
+				results[req.Source] = resp
 				mu.Unlock()
 			}
 		}()
@@ -386,8 +386,8 @@ func runFixturesInWorkers(t *testing.T, items []fixtureRequest) map[string]fixtu
 
 	// Any request without a recorded result (should not happen) counts as failed.
 	for _, it := range items {
-		if _, ok := results[it.Pas]; !ok {
-			results[it.Pas] = fixtureResponse{Result: int(testResultFailed), Detail: "no worker result"}
+		if _, ok := results[it.Source]; !ok {
+			results[it.Source] = fixtureResponse{Result: int(testResultFailed), Detail: "no worker result"}
 		}
 	}
 	return results
@@ -525,14 +525,14 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 		}
 	}()
 
-	// Read the .pas source file with encoding detection.
+	// Read the source file with encoding detection.
 	source, err := encoding.DecodeFile(pasFile)
 	if err != nil {
 		return testResultFailed, fmt.Sprintf("failed to read source: %v", err)
 	}
 
 	// The shared policy also scores missing expectations as silence for output suites.
-	txtFile := strings.TrimSuffix(pasFile, ".pas") + ".txt"
+	txtFile := strings.TrimSuffix(pasFile, filepath.Ext(pasFile)) + ".txt"
 	expectedContent, scored, err := fixtureconfig.ReadExpected(filepath.Base(filepath.Dir(pasFile)), txtFile)
 	if err != nil {
 		return testResultFailed, fmt.Sprintf("failed to read expected output: %v", err)
@@ -544,6 +544,7 @@ func runFixtureTest(pasFile string, expectErrors bool, hintsLevel semantic.Hints
 	compileResult := frontend.CompileWithOptions(source, frontend.Options{
 		Filename:                           pasFile,
 		IncludeDir:                         filepath.Dir(pasFile),
+		Defines:                            fixtureconfig.InitialDefines(filepath.Base(filepath.Dir(pasFile))),
 		HintsLevel:                         hintsLevel,
 		DisableSymbolDictionaryDiagnostics: !fixtureconfig.SymbolDictionaryDiagnostics(filepath.Base(filepath.Dir(pasFile))),
 	})

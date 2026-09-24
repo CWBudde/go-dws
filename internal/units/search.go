@@ -27,9 +27,14 @@ import (
 //
 //	path, err := FindUnit("MyUnit", []string{".", "./lib", "/usr/share/dwscript"})
 func FindUnit(name string, paths []string) (string, error) {
-	if len(paths) == 0 {
-		paths = []string{"."}
-	}
+	return findUnitExcluding(name, paths, "")
+}
+
+// findUnitExcluding retains the normal search order while skipping the source
+// currently being compiled, which can share a stem with a Pascal unit.
+func findUnitExcluding(name string, paths []string, sourceFile string) (string, error) {
+	sourceFile = absoluteSourcePath(sourceFile)
+	paths = withDefaultPath(paths)
 
 	// Common DWScript file extensions
 	extensions := []string{".dws", ".pas"}
@@ -66,7 +71,7 @@ func FindUnit(name string, paths []string) (string, error) {
 			attempted = append(attempted, fullPath)
 
 			// Check if file exists
-			if fileExists(fullPath) {
+			if fileExistsExcept(fullPath, sourceFile) {
 				return fullPath, nil
 			}
 
@@ -78,7 +83,7 @@ func FindUnit(name string, paths []string) (string, error) {
 					capitalizedFullPath := filepath.Join(absPath, capitalizedFileName)
 					attempted = append(attempted, capitalizedFullPath)
 
-					if fileExists(capitalizedFullPath) {
+					if fileExistsExcept(capitalizedFullPath, sourceFile) {
 						return capitalizedFullPath, nil
 					}
 				}
@@ -91,7 +96,7 @@ func FindUnit(name string, paths []string) (string, error) {
 				lowercaseFullPath := filepath.Join(absPath, lowercaseFileName)
 				attempted = append(attempted, lowercaseFullPath)
 
-				if fileExists(lowercaseFullPath) {
+				if fileExistsExcept(lowercaseFullPath, sourceFile) {
 					return lowercaseFullPath, nil
 				}
 			}
@@ -103,7 +108,7 @@ func FindUnit(name string, paths []string) (string, error) {
 				uppercaseFullPath := filepath.Join(absPath, uppercaseFileName)
 				attempted = append(attempted, uppercaseFullPath)
 
-				if fileExists(uppercaseFullPath) {
+				if fileExistsExcept(uppercaseFullPath, sourceFile) {
 					return uppercaseFullPath, nil
 				}
 			}
@@ -117,6 +122,28 @@ func FindUnit(name string, paths []string) (string, error) {
 		len(attempted),
 		strings.Join(attempted[:min(5, len(attempted))], ", "), // Show first 5 attempts
 	)
+}
+
+func withDefaultPath(paths []string) []string {
+	if len(paths) == 0 {
+		return []string{"."}
+	}
+	return paths
+}
+
+func absoluteSourcePath(path string) string {
+	if path == "" {
+		return ""
+	}
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return absolute
+}
+
+func fileExistsExcept(path, excluded string) bool {
+	return path != excluded && fileExists(path)
 }
 
 // fileExists checks if a file exists and is not a directory.

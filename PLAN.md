@@ -10,15 +10,16 @@
 
 ## 0. Status snapshot
 
-**Headline (2026-09-23):** Go harness and freshly rebuilt CLI agree at **1,324 / 1,966 scored =
-67%**; `*Fail` error-detection suites **292 / 641 = 46%**. What shipped to get there is in
+**Headline (2026-09-23):** Go harness and freshly rebuilt CLI agree at **1,331 / 2,014 scored =
+66%**; `*Fail` error-detection suites **292 / 641 = 46%**. What shipped to get there is in
 [the September progress log](docs/history/progress-log-2026-09.md), not here.
 
-**What the denominator is.** 2,044 fixtures ship in the tree; 78 have no applicable expectation
-and remain unscored, leaving 1,966. This includes 36 missing-`.txt` fixtures now checked against
-silence (T7). The denominator still contains the **219 host-library fixtures excluded from every
+**What the denominator is.** The scanners select 2,041 fixtures; 27 have no applicable expectation
+and remain unscored, leaving 2,014. This includes 36 missing-`.txt` fixtures checked against
+silence (T7), and BuildScripts now selects its `.dws` drivers rather than `.pas` support units
+(E19). The denominator still contains the **219 host-library fixtures excluded from every
 target below** (see the scope rule further down) — all 219 currently fail. Excluding them, the
-same run reads **1,324 / 1,747 = 76% in scope**, the number to track against §6. Both are honest;
+same run reads **1,331 / 1,795 = 74% in scope**, the number to track against §6. Both are honest;
 the lower one is quoted outward. The [fixture README](testdata/fixtures/README.md) documents
 which missing expectations are scored and which remain excluded.
 
@@ -29,8 +30,8 @@ Open, in leverage order:
   the 480 failing then, split out the one-line near misses (F9) and the `Incompatible types`
   sentence (F10). Full tables:
   [`docs/architecture/fail-suite-audit-2026-09.md`](docs/architecture/fail-suite-audit-2026-09.md).
-- **§3.5** is the other half: 74 in-scope execution-suite failures. E1–E18 are closed;
-  the remaining groups are E19–E20.
+- **§3.5** has 115 in-scope execution-suite failures after correcting BuildScripts discovery;
+  E1–E20 are closed, so the remaining failures need fresh triage.
 - **§3.2** has no open items. **§3.4** has expected-type overload resolution, blocked on the
   evaluator. **§3.3** has only the gated Memory host setup.
 - **§1** and **§3.1** have no open items. **§2** has one, deferred by owner decision.
@@ -54,10 +55,10 @@ Rules for this document:
   CryptoLib, GraphicsLib, WebLib, TabularLib, TimeSeriesLib, DOMParser, Linq, LinqJSON, ClassesLib,
   DelegateLib, SystemInfoLib, IniFileLib, FunctionsFile, FunctionsRTTI, BigInteger,
   FunctionsMathComplex/3D) are excluded from every target below.
-- Where the remaining failures are (642 total, 2026-09-23): **219 host-library** (out of scope),
+- Where the remaining failures are (683 total, 2026-09-23): **219 host-library** (out of scope),
   **349 in the `*Fail` error-detection suites** (§4: FailureScripts 280, InterfacesFail 13,
-  OverloadsFail 11, HelpersFail 9, the rest under 10), and **74 in the execution suites** (§3.5:
-  SimpleScripts 54, ArrayPass 13, a tail of ones and twos). A pre-existing runtime stack overflow still appears in an isolated harness
+  OverloadsFail 11, HelpersFail 9, the rest under 10), and **115 in the execution suites** (§3.5:
+  SimpleScripts 54, BuildScripts 42, ArrayPass 13, six elsewhere). A pre-existing runtime stack overflow still appears in an isolated harness
   worker; fixture scoring completes and the category baseline gate passes.
 - **Upstream source is reachable without the submodule.** `reference/dwscript-original/` is an
   empty submodule, but the originals fetch from
@@ -197,7 +198,8 @@ matching, class-operator inheritance), and the skipped-test backlog.
 
 ### 3.5 Execution-suite failures (E)
 
-74 in-scope execution-suite fixtures fail (2026-09-23). Audits:
+115 in-scope execution-suite fixtures fail (2026-09-23, including 42 BuildScripts drivers newly
+scored after E19). Audits:
 [pass-suite audit](docs/architecture/pass-suite-audit-2026-09.md) (2026-09-12) and
 [execution-suite triage](docs/architecture/execution-suite-triage-2026-09.md) (2026-09-19, first
 blocker per group). Regenerate with `just fixture-report --in-scope --classify --list-fails`.
@@ -234,18 +236,8 @@ CLI/harness parity when fixtures improve.
 | E16 (09-23) | C-style and shift expressions; qualified helper and builtin operator bindings | OperatorOverloadPass 5 → 8/8, HelpersPass 26 → 27/27 |
 | E17 (09-23) | Lambda `Result` inference; bare callable overload selection; class-method `ClassName` | LambdaPass 5 → 6/6, OverloadsPass 37 → 39/39 |
 | E18 (09-23) | Property-to-property accessors and access validation; `ToXML` exception position | PropertyExpressionsPass 18 → 19/19, PropertyExpressionsFail 2 → 3/10, FunctionsString 57 → 58/58 |
-
-#### E19 — BuildScripts runner parity (from E10) `[ ]` M
-
-- `[ ]` Select the upstream `.dws` drivers (both scanners enumerate `.pas` today).
-- `[ ]` Resolve their `.pas` units without selecting the same-name driver.
-- Reconcile CLI/harness scoring before changing category discovery or the denominator; do not
-  simply mark `const_inline` passing.
-
-#### E20 — Compound index assignment (from E9) `[ ]` S
-
-The read and write of a compound index assignment still resolve the index expression
-independently; evaluate it once, as E9 does for member receivers.
+| E19 (09-23) | BuildScripts `.dws` driver discovery, same-name `.pas` unit resolution and initial `CONDITION` define; CLI/harness parity | BuildScripts 7/49 scored; 2 unscored |
+| E20 (09-23) | Single evaluation of compound index receivers and indices across read/write paths | Ten compile/run regressions |
 
 ---
 

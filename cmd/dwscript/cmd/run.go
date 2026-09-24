@@ -32,6 +32,7 @@ var (
 	bytecodeMode                bool
 	hintsLevel                  string
 	symbolDictionaryDiagnostics bool
+	predefinedSymbols           []string
 
 	// diagnosticsMode selects "pretty" (default) or "plain" (DWScript wire format).
 	diagnosticsMode string
@@ -96,6 +97,7 @@ func init() {
 	runCmd.Flags().BoolVar(&bytecodeMode, "bytecode", false, "execute via bytecode VM instead of AST interpreter (experimental)")
 	runCmd.Flags().StringVar(&hintsLevel, "hints", "off", "print compiler hints/warnings to stderr, non-fatal: off|normal|strict|pedantic (pedantic includes case-mismatch hints)")
 	runCmd.Flags().BoolVar(&symbolDictionaryDiagnostics, "symbol-dictionary-diagnostics", true, "enable unused-symbol and unwritten reference-parameter hints (subject to --hints)")
+	runCmd.Flags().StringArrayVar(&predefinedSymbols, "define", nil, "predefine a conditional compilation symbol (repeatable)")
 	runCmd.Flags().BoolVar(&compileOnly, "compile-only", false, "compile (parse, type-check) and report diagnostics without executing; every message is printed, hints included, in the DWScript wire format (implies --diagnostics=plain)")
 	runCmd.Flags().BoolVar(&testEnvelope, "test-envelope", false, "wrap output in DWScript's test-harness 'Errors >>>>' / 'Result >>>>' framing when there are messages; buffers all program output until exit (implies --diagnostics=plain)")
 	runCmd.Flags().StringVar(&diagnosticsMode, "diagnostics", "pretty", "diagnostic output style: pretty (source excerpt, colors on a terminal) or plain (DWScript wire format, one message per line)")
@@ -265,7 +267,7 @@ func compileRunInput(input, filename string) (cs *compiledScript, done bool, err
 	// {$INCLUDE} resolves relative to the script's directory; inline -e code has no
 	// include root.
 	hintLevel, wantHints := parseHintsLevel(hintsLevel)
-	compileOpts := frontend.Options{Filename: filename, HintsLevel: hintLevel, DisableSymbolDictionaryDiagnostics: !symbolDictionaryDiagnostics}
+	compileOpts := frontend.Options{Filename: filename, HintsLevel: hintLevel, Defines: predefinedSymbols, DisableSymbolDictionaryDiagnostics: !symbolDictionaryDiagnostics}
 	if evalExpr == "" {
 		compileOpts.IncludeDir = filepath.Dir(filename)
 	}
@@ -288,7 +290,7 @@ func compileRunInput(input, filename string) (cs *compiledScript, done bool, err
 	}
 	// The bytecode program is assembled from the monomorphized AST.
 	if bytecodeMode {
-		cs.compiledProgram, cs.unitRegistry, err = buildBytecodeProgram(cs.program, cs.usedUnits, cs.searchPaths)
+		cs.compiledProgram, cs.unitRegistry, err = buildBytecodeProgram(cs.program, cs.usedUnits, cs.searchPaths, filename, predefinedSymbols)
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to prepare bytecode program: %w", err)
 		}
@@ -682,7 +684,9 @@ func displayUnitAndDependencies(registry *units.UnitRegistry, unitName string, p
 	}
 }
 
-func buildBytecodeProgram(program *ast.Program, usedUnits []string, searchPaths []string) (*ast.Program, *units.UnitRegistry, error) {
+// buildBytecodeProgram splices the used units into program. sourceFile and defines must
+// match the frontend's unit registry so the units reparse as the analyzer saw them.
+func buildBytecodeProgram(program *ast.Program, usedUnits, searchPaths []string, sourceFile string, defines []string) (*ast.Program, *units.UnitRegistry, error) {
 	if program == nil {
 		return nil, nil, fmt.Errorf("bytecode: nil program")
 	}
@@ -696,6 +700,8 @@ func buildBytecodeProgram(program *ast.Program, usedUnits []string, searchPaths 
 	}
 
 	registry := units.NewUnitRegistry(searchPaths)
+	registry.SetSourceFile(sourceFile)
+	registry.SetDefines(defines)
 	for _, unitName := range usedUnits {
 		if _, err := registry.LoadUnit(unitName, searchPaths); err != nil {
 			return nil, nil, fmt.Errorf("failed to load unit '%s': %w", unitName, err)

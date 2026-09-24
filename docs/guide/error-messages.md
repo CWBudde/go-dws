@@ -602,6 +602,8 @@ through the helped type. Bare member names do not resolve: a record field `Dummy
 argument inside `{$IF}` reports `Constant expression expected`.
 
 `Defined('X')` is different and narrower: it asks only whether `X` is a `{$DEFINE}` symbol.
+`dwscript run --define X script.dws` adds that symbol before scanning both the script and
+its imported units; repeat `--define` for additional symbols.
 
 Two limitations: `ConditionalDefined()` always folds to `False` because `{$DEFINE}` symbols are
 not reachable from the analyzer, and inside `{$IF}` the set of declared names comes from a
