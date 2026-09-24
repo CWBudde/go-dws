@@ -111,7 +111,7 @@ func compileScript(_ *cobra.Command, args []string) error {
 
 		// Build bytecode program with units
 		var unitRegistry interface{} // Not actually used for compilation
-		compiledProgram, unitRegistry, err = buildBytecodeProgram(program, usedUnits, searchPaths)
+		compiledProgram, unitRegistry, err = buildBytecodeProgram(program, usedUnits, searchPaths, filename, nil)
 		_ = unitRegistry // Avoid unused variable warning
 		if err != nil {
 			return fmt.Errorf("failed to prepare bytecode program: %w", err)

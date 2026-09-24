@@ -290,7 +290,7 @@ func compileRunInput(input, filename string) (cs *compiledScript, done bool, err
 	}
 	// The bytecode program is assembled from the monomorphized AST.
 	if bytecodeMode {
-		cs.compiledProgram, cs.unitRegistry, err = buildBytecodeProgram(cs.program, cs.usedUnits, cs.searchPaths)
+		cs.compiledProgram, cs.unitRegistry, err = buildBytecodeProgram(cs.program, cs.usedUnits, cs.searchPaths, filename, predefinedSymbols)
 		if err != nil {
 			return nil, false, fmt.Errorf("failed to prepare bytecode program: %w", err)
 		}
@@ -684,7 +684,9 @@ func displayUnitAndDependencies(registry *units.UnitRegistry, unitName string, p
 	}
 }
 
-func buildBytecodeProgram(program *ast.Program, usedUnits []string, searchPaths []string) (*ast.Program, *units.UnitRegistry, error) {
+// buildBytecodeProgram splices the used units into program. sourceFile and defines must
+// match the frontend's unit registry so the units reparse as the analyzer saw them.
+func buildBytecodeProgram(program *ast.Program, usedUnits, searchPaths []string, sourceFile string, defines []string) (*ast.Program, *units.UnitRegistry, error) {
 	if program == nil {
 		return nil, nil, fmt.Errorf("bytecode: nil program")
 	}
@@ -698,6 +700,8 @@ func buildBytecodeProgram(program *ast.Program, usedUnits []string, searchPaths 
 	}
 
 	registry := units.NewUnitRegistry(searchPaths)
+	registry.SetSourceFile(sourceFile)
+	registry.SetDefines(defines)
 	for _, unitName := range usedUnits {
 		if _, err := registry.LoadUnit(unitName, searchPaths); err != nil {
 			return nil, nil, fmt.Errorf("failed to load unit '%s': %w", unitName, err)

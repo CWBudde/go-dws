@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // TestRunWithUnits tests running a program that uses units
@@ -1180,5 +1182,45 @@ PrintLn('Value: ' + IntToStr(GetValue()));`
 
 	if !strings.Contains(output, "Value: 99") {
 		t.Error("Expected 'Value: 99' in output with absolute path")
+	}
+}
+
+// TestBuildBytecodeProgram_UsesFrontendUnitSettings checks that bytecode unit loading
+// skips a same-name driver and sees predefined symbols, as the frontend registry does.
+func TestBuildBytecodeProgram_UsesFrontendUnitSettings(t *testing.T) {
+	dir := t.TempDir()
+	driver := filepath.Join(dir, "Shared.dws")
+	if err := os.WriteFile(driver, []byte("uses Shared;\nPrintLn(Value);\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	unit := `unit Shared;
+interface
+function Value: Integer;
+implementation
+function Value: Integer;
+begin
+{$IFDEF CONDITION}
+  Result := 1;
+{$ELSE}
+  Result := 2;
+{$ENDIF}
+end;
+end.
+`
+	if err := os.WriteFile(filepath.Join(dir, "Shared.pas"), []byte(unit), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, registry, err := buildBytecodeProgram(&ast.Program{}, []string{"Shared"}, []string{dir}, driver, []string{"CONDITION"})
+	if err != nil {
+		t.Fatalf("buildBytecodeProgram: %v", err)
+	}
+	loaded, ok := registry.GetUnit("Shared")
+	if !ok || !strings.HasSuffix(loaded.FilePath, "Shared.pas") {
+		t.Fatalf("loaded unit = %#v, want Shared.pas", loaded)
+	}
+	body := loaded.ImplementationSection.String()
+	if !strings.Contains(body, "1") || strings.Contains(body, "2") {
+		t.Fatalf("implementation = %q, want only the CONDITION branch", body)
 	}
 }
