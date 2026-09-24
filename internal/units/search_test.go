@@ -163,6 +163,27 @@ func TestFindUnit_PrefersDws(t *testing.T) {
 	}
 }
 
+func TestFindUnitExcludingSource(t *testing.T) {
+	dir := t.TempDir()
+	driver := filepath.Join(dir, "Same.dws")
+	unit := filepath.Join(dir, "Same.pas")
+	for _, path := range []string{driver, unit} {
+		if err := os.WriteFile(path, []byte("unit Same; interface implementation end."), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := findUnitExcluding("Same", []string{dir}, driver)
+	if err != nil || got != unit {
+		t.Fatalf("excluded driver: got %q, %v; want %q", got, err, unit)
+	}
+	if err := os.Remove(unit); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := findUnitExcluding("Same", []string{dir}, driver); err == nil {
+		t.Fatal("excluded driver must not be used when no unit remains")
+	}
+}
+
 func TestFindUnit_CaseVariations(t *testing.T) {
 	tempDir := t.TempDir()
 

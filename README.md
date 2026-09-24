@@ -106,6 +106,9 @@ go build -o bin/dwscript ./cmd/dwscript
 # Diagnostics in the DWScript wire format (one message per line, no colors)
 ./bin/dwscript run --diagnostics=plain script.dws
 
+# Predefine a conditional-compilation symbol for the script and imported units
+./bin/dwscript run --define CONDITION script.dws
+
 # Test-harness modes (imply --diagnostics=plain): compile without running, or wrap the
 # output in DWScript's "Errors >>>>" / "Result >>>>" framing
 ./bin/dwscript run --compile-only --hints pedantic script.dws

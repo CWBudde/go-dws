@@ -644,17 +644,41 @@ func (e *Evaluator) evalClassMetaIndexedPropertyWrite(
 	if propDesc == nil || !propDesc.IsIndexed {
 		return nil, false
 	}
-	pInfo, ok := unwrapPropertyInfo(propDesc.Impl)
-	if !ok {
+	if _, ok := unwrapPropertyInfo(propDesc.Impl); !ok {
 		return e.newError(stmt, "invalid property info type"), true
 	}
-
 	indexValues := make([]Value, len(indices))
 	for i, indexExpr := range indices {
 		indexValues[i] = e.Eval(indexExpr, ctx)
 		if isError(indexValues[i]) {
 			return indexValues[i], true
 		}
+	}
+	return e.evalClassMetaIndexedPropertyWriteValues(obj, classMetaVal, memberName, indexValues, value, stmt, ctx)
+}
+
+// evalClassMetaIndexedPropertyWriteValues writes a class indexed property
+// using index arguments captured before the compound assignment's RHS.
+func (e *Evaluator) evalClassMetaIndexedPropertyWriteValues(
+	obj Value,
+	classMetaVal ClassMetaValue,
+	memberName string,
+	indexValues []Value,
+	value Value,
+	stmt ast.Node,
+	ctx *ExecutionContext,
+) (Value, bool) {
+	classInfo := classMetaVal.GetClassInfo()
+	if classInfo == nil {
+		return nil, false
+	}
+	propDesc := classInfo.LookupProperty(memberName)
+	if propDesc == nil || !propDesc.IsIndexed {
+		return nil, false
+	}
+	pInfo, ok := unwrapPropertyInfo(propDesc.Impl)
+	if !ok {
+		return e.newError(stmt, "invalid property info type"), true
 	}
 	if errVal := e.checkIndexedPropertyArity(pInfo, len(indexValues), stmt); errVal != nil {
 		return errVal, true

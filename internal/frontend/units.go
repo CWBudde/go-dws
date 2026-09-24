@@ -37,6 +37,8 @@ func analyzeUnits(analyzer *semantic.Analyzer, result *Result, opts Options) err
 		}
 	}
 	registry := units.NewUnitRegistry(paths)
+	registry.SetSourceFile(opts.Filename)
+	registry.SetDefines(opts.Defines)
 	result.UnitRegistry = registry
 	fail := func(err error) error {
 		result.Diagnostics = append(result.Diagnostics, Diagnostic{Message: err.Error(), Phase: PhaseSemantic, Severity: SeverityError, Fatal: true})

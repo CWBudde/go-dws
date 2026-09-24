@@ -29,6 +29,19 @@ type UnitRegistry struct {
 
 	// searchPaths are directories to search for unit files
 	searchPaths []string
+	// sourceFile is excluded from unit lookup; a driver can share a unit's stem.
+	sourceFile string
+	defines    []string
+}
+
+// SetSourceFile excludes the top-level source from subsequent unit lookup.
+func (r *UnitRegistry) SetSourceFile(path string) {
+	r.sourceFile = path
+}
+
+// SetDefines configures initial conditional symbols for loaded unit sources.
+func (r *UnitRegistry) SetDefines(names []string) {
+	r.defines = append([]string(nil), names...)
 }
 
 // NewUnitRegistry creates a new unit registry with the given search paths.
@@ -113,7 +126,7 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 	}
 
 	// Find the unit file
-	filePath, err := FindUnit(name, paths)
+	filePath, err := findUnitExcluding(name, paths, r.sourceFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load unit '%s': %w", name, err)
 	}
@@ -125,7 +138,7 @@ func (r *UnitRegistry) LoadUnit(name string, searchPaths []string) (*Unit, error
 	}
 
 	// Parse the unit file
-	l := lexer.New(string(source), lexer.WithIncludeResolver(lexer.NewFileIncludeResolver(filepath.Dir(filePath))))
+	l := lexer.New(string(source), lexer.WithIncludeResolver(lexer.NewFileIncludeResolver(filepath.Dir(filePath))), lexer.WithDefines(r.defines...))
 	p := parser.New(l)
 	program := p.ParseProgram()
 
@@ -364,6 +377,8 @@ func (r *UnitRegistry) ComputeInitializationOrder() ([]string, error) {
 // fills FunctionSymbols lazily.
 func (r *UnitRegistry) CloneForExecution() *UnitRegistry {
 	clone := NewUnitRegistry(append([]string(nil), r.searchPaths...))
+	clone.SetSourceFile(r.sourceFile)
+	clone.SetDefines(r.defines)
 	r.units.Range(func(name string, unit *Unit) bool {
 		executionUnit := *unit
 		executionUnit.FunctionSymbols = ident.NewMap[[]*ast.FunctionDecl]()

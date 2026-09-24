@@ -64,6 +64,27 @@ func TestCollectItems_InScopeDropsHostLibrariesButNotANamedOne(t *testing.T) {
 	}
 }
 
+func TestCollectItems_BuildScriptsDrivers(t *testing.T) {
+	dir := t.TempDir()
+	buildDir := filepath.Join(dir, fixturesBase, "BuildScripts")
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"sample.dws", "sample.pas", "sample.txt", "helper.pas"} {
+		if err := os.WriteFile(filepath.Join(buildDir, name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Chdir(dir)
+	items, err := collectItems("BuildScripts", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || filepath.Base(items[0].pasFile) != "sample.dws" || filepath.Base(items[0].txtFile) != "sample.txt" {
+		t.Fatalf("BuildScripts work = %#v, want one driver and its expectation", items)
+	}
+}
+
 func TestIsErrorCategory(t *testing.T) {
 	for _, c := range []string{"FailureScripts", "COMConnectorFailure", "HelpersFail", "InterfacesFail"} {
 		if !isErrorCategory(c) {

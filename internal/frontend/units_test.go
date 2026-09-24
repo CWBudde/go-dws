@@ -78,6 +78,30 @@ func TestCompileWithOptions_UnitSearchPathsAndIncludes(t *testing.T) {
 	}
 }
 
+func TestCompileWithOptions_ExcludesDriverAndPassesDefinesToUnit(t *testing.T) {
+	dir := t.TempDir()
+	driver := filepath.Join(dir, "Same.dws")
+	unit := filepath.Join(dir, "Same.pas")
+	source := "uses Same; {$ifdef CONDITION} PrintLn(Answer); {$else} Missing; {$endif}"
+	unitSource := "unit Same; interface {$ifdef CONDITION} const Answer = 7; {$endif} implementation end."
+	for path, contents := range map[string]string{driver: source, unit: unitSource} {
+		if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result := CompileWithOptions(source, Options{Filename: driver, UnitSearchPaths: []string{dir}, Defines: []string{"CONDITION"}})
+	if result.HasFatalDiagnostics() || !result.SemanticSuccessful {
+		t.Fatalf("driver and Pascal unit did not compile: %v", result.DiagnosticStrings())
+	}
+	loaded, ok := result.UnitRegistry.GetUnit("Same")
+	if !ok || loaded.FilePath != unit {
+		t.Fatalf("loaded unit = %#v, want %s", loaded, unit)
+	}
+	if clone := result.UnitRegistry.CloneForExecution(); clone == nil {
+		t.Fatal("execution registry unavailable")
+	}
+}
+
 func TestCompile_UnitCircularDependency(t *testing.T) {
 	dir := t.TempDir()
 	for name, source := range map[string]string{

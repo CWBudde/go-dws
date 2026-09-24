@@ -58,10 +58,10 @@ func TestFixtureMemoryHintLevel(t *testing.T) {
 			continue
 		}
 		for _, req := range buildFixtureWorkList([]fixtureCategory{category}) {
-			if filepath.Base(req.Pas) != "obj_local.pas" {
+			if filepath.Base(req.Source) != "obj_local.pas" {
 				continue
 			}
-			got, detail := runFixtureTest(req.Pas, req.ExpectErrors, semantic.HintsLevel(req.Hints))
+			got, detail := runFixtureTest(req.Source, req.ExpectErrors, semantic.HintsLevel(req.Hints))
 			if got != testResultPassed {
 				t.Fatalf("Memory/obj_local: %v: %s", got, detail)
 			}
@@ -69,4 +69,32 @@ func TestFixtureMemoryHintLevel(t *testing.T) {
 		}
 	}
 	t.Fatal("Memory/obj_local was not discovered")
+}
+
+func TestFixtureBuildScriptsDrivers(t *testing.T) {
+	categories, err := discoverFixtureCategories(fixturesRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, category := range categories {
+		if category.name != "BuildScripts" {
+			continue
+		}
+		if len(category.sourceFiles) != 51 {
+			t.Fatalf("BuildScripts source count = %d, want 51 drivers", len(category.sourceFiles))
+		}
+		for _, source := range category.sourceFiles {
+			if filepath.Ext(source) != ".dws" {
+				t.Fatalf("support unit selected as driver: %s", source)
+			}
+		}
+		for _, name := range []string{"const_inline", "conditionals_main"} {
+			path := filepath.Join(fixturesRoot, "BuildScripts", name+".dws")
+			if got, detail := runFixtureTest(path, false, fixtureconfig.HintsLevel("BuildScripts")); got != testResultPassed {
+				t.Fatalf("%s driver: %v: %s", name, got, detail)
+			}
+		}
+		return
+	}
+	t.Fatal("BuildScripts category missing")
 }

@@ -1,6 +1,6 @@
 // Command fixture-report prints an honest DWScript fixture compatibility report.
 //
-// It runs every testdata/fixtures/*/*.pas through the built dwscript CLI and compares the
+// It runs each runner-selected source through the built dwscript CLI and compares the
 // normalized output to the sibling .txt, or silence when the shared category policy
 // permits a missing expectation. It prints a per-category pass/fail table and a
 // total. This is the *ground-truth* compatibility metric for the port: unlike the in-repo
@@ -206,9 +206,13 @@ func runOne(cli, category, pasFile string, timeout time.Duration) string {
 	if isErrorCategory(category) {
 		mode = "--compile-only"
 	}
-	cmd := exec.CommandContext(ctx, cli, "run",
-		"--diagnostics=plain", mode, "--hints", hintsLevelFor(category),
-		fmt.Sprintf("--symbol-dictionary-diagnostics=%t", fixtureconfig.SymbolDictionaryDiagnostics(category)), pasFile)
+	args := []string{"run", "--diagnostics=plain", mode, "--hints", hintsLevelFor(category),
+		fmt.Sprintf("--symbol-dictionary-diagnostics=%t", fixtureconfig.SymbolDictionaryDiagnostics(category))}
+	for _, name := range fixtureconfig.InitialDefines(category) {
+		args = append(args, "--define", name)
+	}
+	args = append(args, pasFile)
+	cmd := exec.CommandContext(ctx, cli, args...)
 	cmd.Env = append(os.Environ(), "NO_COLOR=1", "TZ="+fixtureTimeZone)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
@@ -356,7 +360,7 @@ func collectItems(only string, inScope bool) ([]workItem, error) {
 		if inScope && only == "" && outOfScopeCategories[cat] {
 			continue
 		}
-		pasFiles, err := filepath.Glob(filepath.Join(fixturesBase, cat, "*.pas"))
+		pasFiles, err := filepath.Glob(filepath.Join(fixturesBase, cat, "*"+fixtureconfig.SourceExtension(cat)))
 		if err != nil {
 			return nil, err
 		}
@@ -365,7 +369,7 @@ func collectItems(only string, inScope bool) ([]workItem, error) {
 			items = append(items, workItem{
 				category: cat,
 				pasFile:  pf,
-				txtFile:  strings.TrimSuffix(pf, ".pas") + ".txt",
+				txtFile:  strings.TrimSuffix(pf, filepath.Ext(pf)) + ".txt",
 			})
 		}
 	}
@@ -413,7 +417,7 @@ func evaluate(cli string, items []workItem, timeout time.Duration, classifyFails
 
 // evaluateOne scores a single fixture.
 func evaluateOne(cli string, it workItem, timeout time.Duration, classifyFails bool) result {
-	name := strings.TrimSuffix(filepath.Base(it.pasFile), ".pas")
+	name := strings.TrimSuffix(filepath.Base(it.pasFile), filepath.Ext(it.pasFile))
 	expContent, scored, err := fixtureconfig.ReadExpected(it.category, it.txtFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: %s: cannot decode expected output: %v\n", it.txtFile, err)

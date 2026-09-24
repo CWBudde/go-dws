@@ -10,11 +10,11 @@
 | Metric | Value |
 |---|---|
 | Categories | 61 |
-| Fixtures (total) | 2044 |
-| Passed | 1324 |
-| Failed | 642 |
-| Skipped (no applicable expectation) | 78 |
-| **Scored pass rate** | **67%** (1324/1966) |
+| Fixtures (total) | 2041 |
+| Passed | 1331 |
+| Failed | 683 |
+| Skipped (no applicable expectation) | 27 |
+| **Scored pass rate** | **66%** (1331/2014) |
 
 ## Per-category
 
@@ -30,7 +30,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
 | AutoFormat | 10 | 0 | 0 | 10 | 0% |
 | BigInteger | 16 | 0 | 16 | 0 | 0% |
-| BuildScripts | 54 | 0 | 1 | 53 | 0% |
+| BuildScripts | 51 | 7 | 42 | 2 | 14% |
 | COMConnector | 19 | 0 | 19 | 0 | 0% |
 | COMConnectorFailure | 8 | 0 | 8 | 0 | 0% |
 | ClassesLib | 12 | 0 | 12 | 0 | 0% |
