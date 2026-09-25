@@ -181,6 +181,10 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 			paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType,
 		)
 	}
+	funcType.Name = decl.Name.Value
+	funcType.IsClassMethod = decl.IsClassMethod
+	funcType.IsConstructor = decl.IsConstructor
+	funcType.IsDestructor = decl.IsDestructor
 	funcType.ParamTypeNames = paramTypeNames
 	funcType.StrictParams = strictParams
 

@@ -320,7 +320,7 @@ func TestFunctionPointerAssignmentErrors(t *testing.T) {
 					op := @Add;
 				end.
 			`,
-			expectedErr: "cannot assign", // Generic assignment error
+			expectedErr: "incompatible types", // Generic assignment error
 		},
 		{
 			name: "incompatible parameter types",
@@ -336,7 +336,7 @@ func TestFunctionPointerAssignmentErrors(t *testing.T) {
 					f := @ProcessInt;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 		{
 			name: "incompatible return types",
@@ -352,7 +352,7 @@ func TestFunctionPointerAssignmentErrors(t *testing.T) {
 					getter := @GetInt;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 		{
 			name: "function vs procedure mismatch",
@@ -367,7 +367,7 @@ func TestFunctionPointerAssignmentErrors(t *testing.T) {
 					f := @DoNothing;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 	}
 
@@ -844,7 +844,7 @@ func TestImplicitFunctionToPointerConversionErrors(t *testing.T) {
 					op := Add;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 		{
 			name: "incompatible parameter types",
@@ -861,7 +861,7 @@ func TestImplicitFunctionToPointerConversionErrors(t *testing.T) {
 					f := ProcessInt;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 		{
 			name: "incompatible return types",
@@ -878,7 +878,7 @@ func TestImplicitFunctionToPointerConversionErrors(t *testing.T) {
 					f := Double;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 		{
 			name: "function vs procedure mismatch",
@@ -895,7 +895,7 @@ func TestImplicitFunctionToPointerConversionErrors(t *testing.T) {
 					f := DoSomething;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 		{
 			name: "passing wrong function signature as argument",

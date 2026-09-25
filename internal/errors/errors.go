@@ -428,6 +428,18 @@ func SimplifyTypeName(typeName string) string {
 		return "array " + typeName[len("array"):]
 	}
 
+	// Parentheses on routine types delimit parameters, not a parent class.
+	// Accept both the diagnostic spelling ("procedure Test(...)") and the
+	// internal unnamed spelling ("procedure(...)").
+	kind := strings.TrimPrefix(typeName, "class ")
+	if end := strings.IndexAny(kind, " ("); end >= 0 {
+		kind = kind[:end]
+	}
+	switch kind {
+	case "function", "procedure", "constructor", "destructor":
+		return typeName
+	}
+
 	// Remove parent class info: "ClassName(ParentClass)" -> "ClassName"
 	if parenIdx := strings.Index(typeName, "("); parenIdx > 0 {
 		return typeName[:parenIdx]

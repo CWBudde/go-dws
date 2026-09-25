@@ -161,6 +161,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 		funcPtrReturnType = returnType
 	}
 	funcPtrType := types.NewFunctionPointerType(paramTypes, funcPtrReturnType)
+	setPointerParameterModifiers(funcPtrType, expr.Parameters)
 
 	// Set the type annotation on the expression
 	// Create a TypeAnnotation for the AST node
@@ -356,6 +357,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 		funcPtrReturnType = returnType
 	}
 	funcPtrType := types.NewFunctionPointerType(paramTypes, funcPtrReturnType)
+	setPointerParameterModifiers(funcPtrType, expr.Parameters)
 
 	// When the lambda declares fewer parameters than the target function type
 	// (the surplus-arguments-ignored case), it is being adapted to the target.
@@ -364,7 +366,9 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 	// `array.Map` result-element inference) still see the true signature.
 	resultType := types.Type(funcPtrType)
 	if len(expr.Parameters) < len(expectedFuncType.Parameters) {
-		resultType = types.NewFunctionPointerType(expectedFuncType.Parameters, funcPtrReturnType)
+		adapted := *funcPtrType
+		adapted.Parameters = expectedFuncType.Parameters
+		resultType = &adapted
 	}
 
 	// Set the type annotation on the expression

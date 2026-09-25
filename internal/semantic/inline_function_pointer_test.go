@@ -325,7 +325,7 @@ func TestInlineFunctionPointerAssignmentErrors(t *testing.T) {
 					op := @Add;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 		{
 			name: "incompatible parameter types",
@@ -340,7 +340,7 @@ func TestInlineFunctionPointerAssignmentErrors(t *testing.T) {
 					f := @ProcessInt;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 		{
 			name: "incompatible return types",
@@ -355,7 +355,7 @@ func TestInlineFunctionPointerAssignmentErrors(t *testing.T) {
 					getter := @GetInt;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 		{
 			name: "function vs procedure mismatch",
@@ -369,7 +369,7 @@ func TestInlineFunctionPointerAssignmentErrors(t *testing.T) {
 					f := @DoNothing;
 				end.
 			`,
-			expectedErr: "cannot assign",
+			expectedErr: "incompatible types",
 		},
 	}
 

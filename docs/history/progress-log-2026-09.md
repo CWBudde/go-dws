@@ -5842,3 +5842,47 @@ repository scans in CLI tests that rebuild the executable. The full fixture
 baseline gate, fresh CLI comparison, formatting checks, and `git diff --check`
 also passed. Visitor regeneration produced no changes because the new AST fields
 hold positions rather than child nodes.
+
+## 2026-09-26 — Routine-type diagnostics (PLAN 1.1)
+
+Routine pointers retain their declaration names, routine kinds, declared result
+names, and `const`/`var`/`lazy` parameter modes. Signature compatibility now checks
+parameter modes, including inline and named declarations, inferred method
+references, interface methods, and lambdas. Shared conversion preserves the
+metadata when a routine becomes a pointer; declaration identity itself does not
+change structural compatibility.
+
+Diagnostic captions match DWScript: parameterless routines omit `()`, unnamed
+routines retain their separating space, class methods retain `class`, and
+constructors/destructors retain their kind. `ClassType` reports its declared
+`TClass` result while keeping its existing receiver-specific semantic type.
+`SimplifyTypeName` preserves routine parameter lists instead of truncating at
+`(`. Incompatible routine assignments name the target and supplied signatures
+at the supplied expression, after any diagnostics from that expression.
+
+Class-qualified destructor recovery reports `Destructor can only be invoked on
+instance` while retaining the callable type for the following incompatibility.
+A void argument to a `var` parameter reports the expected routine type without
+a second lvalue diagnostic.
+
+Five FailureScripts fixtures now match their complete upstream expectations:
+`func_ptr3`, `func_ptr4`, `func_ptr5`, `func_ptr_mismatch`, and
+`func_ptr_var_param`. An independent CLI built from an archive of HEAD
+`5ae21347` confirms **five gains with no in-scope regressions**. FailureScripts
+rises from **270 to 275** passing fixtures; the full harness rises from
+**1,354 to 1,359 / 2,014 scored**. `just fixture-update` ratchets the baseline
+and regenerates the status report. No fixture sources, expectations, or scoring
+rules changed.
+
+Tests were added before implementation through the shared frontend compile path,
+with unit coverage for caption formatting and modifier compatibility. Parallel
+review found and closed inferred-method and interface conversion gaps introduced
+by stricter compatibility. Upstream evidence is `TFuncSymbol.GetCaption`,
+`TMethodSymbol.GetCaption`, and `TFuncSymbol.DoIsCompatible` in `dwsSymbols.pas`,
+`WrapUpFunctionRead`/`ReadAt` in `dwsCompiler.pas`, and
+`CreateMethodExpr`/`TypeCheckArguments` in `dwsCompilerUtils.pas`.
+
+Final validation: `GOFLAGS=-buildvcs=false go test -p 1 ./...` passed,
+including the ratcheted fixture gate. `golangci-lint run --new-from-rev=HEAD`
+reports zero issues; formatting and `git diff --check` are clean. Validation used
+`GOCACHE=/tmp/go-dws-cache` and a temporary lint cache.

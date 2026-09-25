@@ -785,10 +785,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// written because the callee may rebind it.
 		if isVar {
 			a.markVarArgumentWritten(arg)
-			if !a.isLValue(arg) {
-				a.addError("var parameter %d to function '%s' requires a variable (identifier, array element, or field), got %s at %s",
-					i+1, funcIdent.Value, arg.String(), arg.Pos().String())
-			}
 		}
 
 		expectedName := semanticFunctionParamTypeName(funcType, i, expectedType)
@@ -803,6 +799,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 		if argType == nil || a.errorsSince(mark) {
 			continue
+		}
+		// A procedure call has no value to pass by reference. Its type error
+		// already explains the failure; do not add a second lvalue diagnostic.
+		if isVar && !a.isLValue(arg) && argType != types.VOID {
+			a.addError("var parameter %d to function '%s' requires a variable (identifier, array element, or field), got %s at %s",
+				i+1, funcIdent.Value, arg.String(), arg.Pos().String())
 		}
 		if isLazy {
 			if !a.canAssign(argType, expectedType) {

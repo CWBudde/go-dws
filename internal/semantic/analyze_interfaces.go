@@ -91,6 +91,12 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 
 	// Create function type for this interface method
 	funcType := types.NewFunctionType(paramTypes, returnType)
+	funcType.Name = methodName
+	for i, param := range method.Parameters {
+		funcType.VarParams[i] = param.ByRef
+		funcType.ConstParams[i] = param.IsConst
+		funcType.LazyParams[i] = param.IsLazy
+	}
 
 	// Check for duplicate method (case-insensitive)
 	methodKey := ident.Normalize(methodName)

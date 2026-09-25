@@ -31,6 +31,20 @@ All errors in go-dws follow a consistent format with rich contextual information
 
 ## Error Categories
 
+### Routine signatures
+
+Routine type diagnostics retain the declared name, routine kind, and parameter
+modifiers. Examples include `class function ClassType: TClass`,
+`function IntToHex(Integer, Integer): String`, `destructor Destroy`, and
+`procedure Test(const String)`. Parameterless routines omit parentheses; unnamed
+types retain the space after their kind, as in `procedure (String)`.
+
+Assignments between incompatible routine pointers report both signatures, target
+first, at the supplied expression. Parameter passing modes (`const`, `var`, and
+`lazy`) participate in compatibility. An incompatible reference with required
+parameters can also report `More arguments expected` before the type mismatch,
+matching DWScript's diagnostic recovery.
+
 ### Array and range diagnostics
 
 With `--diagnostics=plain`, array diagnostics use DWScript's sentences and

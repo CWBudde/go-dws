@@ -774,7 +774,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		}
 		// Constructor has parameters - return method pointer for deferred invocation
 		if len(constructorOverloads) == 1 {
-			return types.NewMethodPointerType(constructorOverloads[0].Signature.Parameters, classType)
+			return methodPointerFromFunctionType(constructorOverloads[0].Signature)
 		}
 		return types.NewMethodPointerType([]types.Type{}, classType)
 	}
@@ -819,7 +819,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 			return methodType.ReturnType
 		}
 		// Methods with parameters return method pointer for deferred invocation
-		return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
+		return methodPointerFromFunctionType(methodType)
 	}
 
 	// Check helpers for methods
@@ -914,6 +914,10 @@ func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccess
 	}
 
 	ptrType := methodPointerFromFunctionType(methodType)
+	if name := a.declaredMethodName(classType, memberName); name != "" {
+		ptrType.Name = name
+	}
+	ptrType.IsClassMethod = a.isClassMethodInHierarchy(classType, memberName)
 	a.annotateMemberPointerType(expr, ptrType)
 	return ptrType, true
 }
@@ -925,6 +929,9 @@ func (a *Analyzer) analyzeInterfaceMethodReference(expr *ast.MemberAccessExpress
 	}
 	a.addIdentifierCaseHint(expr.Member, a.declaredInterfaceMethodName(iface, expr.Member.Value))
 	pointer := methodPointerFromFunctionType(method)
+	if name := a.declaredInterfaceMethodName(iface, expr.Member.Value); name != "" {
+		pointer.Name = name
+	}
 	a.annotateMemberPointerType(expr, pointer)
 	return pointer, true
 }
@@ -945,11 +952,7 @@ func (a *Analyzer) annotateMemberPointerType(expr *ast.MemberAccessExpression, p
 // methodPointerFromFunctionType builds a method pointer type from a method
 // signature, mapping a VOID (or nil) return type to a procedure pointer.
 func methodPointerFromFunctionType(ft *types.FunctionType) *types.MethodPointerType {
-	var ret types.Type
-	if ft.ReturnType != nil && ft.ReturnType.TypeKind() != "VOID" {
-		ret = ft.ReturnType
-	}
-	return types.NewMethodPointerType(ft.Parameters, ret)
+	return &types.MethodPointerType{FunctionPointerType: *types.FunctionPointerFromFunctionType(ft), OfObject: true}
 }
 
 // analyzeRecordStaticMethodCallFromNew handles record static method calls that use NewExpression syntax.
