@@ -1011,6 +1011,10 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		funcType = types.NewFunctionTypeWithMetadata(
 			paramTypes, paramNames, defaultValues, lazyParams, varParams, constParams, returnType)
 	}
+	funcType.Name = method.Name.Value
+	funcType.IsClassMethod = method.IsClassMethod
+	funcType.IsConstructor = method.IsConstructor
+	funcType.IsDestructor = method.IsDestructor
 	funcType.ParamTypeNames = paramTypeNames
 
 	// Create method info and check for duplicate/ambiguous overloads.

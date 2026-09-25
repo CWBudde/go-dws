@@ -19,6 +19,13 @@ import (
 // expression for each parameter (nil if required). When a function is called with fewer arguments,
 // the interpreter evaluates the default expressions to fill in missing arguments.
 type FunctionType struct {
+	// Declaration identity is retained when this signature becomes a pointer.
+	// ReturnTypeName preserves the declared result name for diagnostics.
+	ReturnTypeName string
+	Name           string
+	IsClassMethod  bool
+	IsConstructor  bool
+	IsDestructor   bool
 	ReturnType     Type
 	VariadicType   Type
 	Parameters     []Type

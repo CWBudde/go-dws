@@ -12,8 +12,20 @@ import (
 //   - type TComparator = function(a, b: Integer): Integer;
 //   - type TCallback = procedure(msg: String);
 type FunctionPointerType struct {
-	ReturnType Type
-	Parameters []Type
+	// Name and routine-kind flags retain declaration identity for diagnostics.
+	// They do not affect structural signature compatibility.
+	Name string
+	// ReturnTypeName preserves the declared result name when the resolved type is specialized.
+	ReturnTypeName string
+	IsClassMethod  bool
+	IsConstructor  bool
+	IsDestructor   bool
+	// Parameter modifiers are parallel to Parameters; omitted entries mean false.
+	VarParams   []bool
+	ConstParams []bool
+	LazyParams  []bool
+	ReturnType  Type
+	Parameters  []Type
 
 	// MinArgs is the number of leading parameters a call must supply. Zero
 	// means every parameter is required, which is the common case. It is
@@ -34,6 +46,25 @@ func NewFunctionPointerType(params []Type, returnType Type) *FunctionPointerType
 	return &FunctionPointerType{
 		Parameters: params,
 		ReturnType: returnType,
+	}
+}
+
+// FunctionPointerFromFunctionType preserves the declared routine signature when
+// a function or method is used as a pointer. A VOID result denotes a procedure.
+func FunctionPointerFromFunctionType(ft *FunctionType) *FunctionPointerType {
+	if ft == nil {
+		return nil
+	}
+	ret := ft.ReturnType
+	if ret != nil && ret.TypeKind() == "VOID" {
+		ret = nil
+	}
+	return &FunctionPointerType{
+		Name: ft.Name, ReturnTypeName: ft.ReturnTypeName, IsClassMethod: ft.IsClassMethod,
+		IsConstructor: ft.IsConstructor, IsDestructor: ft.IsDestructor,
+		Parameters: ft.Parameters, ReturnType: ret,
+		VarParams: slices.Clone(ft.VarParams), ConstParams: slices.Clone(ft.ConstParams),
+		LazyParams: slices.Clone(ft.LazyParams),
 	}
 }
 
@@ -107,7 +138,7 @@ func (f *FunctionPointerType) String() string {
 }
 
 // Equals checks if two function pointer types are identical.
-// Two function pointer types are equal if they have the same parameter types and return type.
+// Two function pointer types are equal if parameter types, passing modifiers, and return types match.
 func (f *FunctionPointerType) Equals(other Type) bool {
 	// Resolve type aliases
 	other = GetUnderlyingType(other)
@@ -125,7 +156,10 @@ func (f *FunctionPointerType) Equals(other Type) bool {
 
 	// Check each parameter type
 	for i := range f.Parameters {
-		if !f.Parameters[i].Equals(otherFunc.Parameters[i]) {
+		if !f.Parameters[i].Equals(otherFunc.Parameters[i]) ||
+			parameterModifier(f.VarParams, i) != parameterModifier(otherFunc.VarParams, i) ||
+			parameterModifier(f.ConstParams, i) != parameterModifier(otherFunc.ConstParams, i) ||
+			parameterModifier(f.LazyParams, i) != parameterModifier(otherFunc.LazyParams, i) {
 			return false
 		}
 	}
@@ -138,6 +172,10 @@ func (f *FunctionPointerType) Equals(other Type) bool {
 		return false
 	}
 	return f.ReturnType.Equals(otherFunc.ReturnType)
+}
+
+func parameterModifier(modifiers []bool, index int) bool {
+	return index < len(modifiers) && modifiers[index]
 }
 
 // IsProcedure returns true if this is a procedure pointer (no return type).

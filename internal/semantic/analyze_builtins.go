@@ -120,64 +120,34 @@ func (a *Analyzer) warnDeprecatedBuiltinUsage(identifier *ast.Identifier) {
 // This is needed for higher-order functions like Map, Filter, etc. that take
 // function references as arguments.
 func (a *Analyzer) getBuiltinFunctionPointerType(name string) *types.FunctionPointerType {
-	lowerName := ident.Normalize(name)
+	pointer := a.builtinFunctionPointerSignature(name)
+	if pointer != nil {
+		pointer.Name = a.builtinDeclarationName(name)
+	}
+	return pointer
+}
 
-	switch lowerName {
-	// Output procedures usable as procedure(Variant) pointers (func_ptr4).
+// builtinFunctionPointerSignature returns the callable signature of a bare builtin reference.
+func (a *Analyzer) builtinFunctionPointerSignature(name string) *types.FunctionPointerType {
+	switch ident.Normalize(name) {
 	case "print", "println":
 		return types.NewProcedurePointerType([]types.Type{types.VARIANT})
-	// Type conversion functions commonly used with Map
-	case "inttostr":
-		// IntToStr(value: Integer): String
+	case "inttostr", "chr":
 		return types.NewFunctionPointerType([]types.Type{types.INTEGER}, types.STRING)
 	case "floattostr":
-		// FloatToStr(value: Float): String
 		return types.NewFunctionPointerType([]types.Type{types.FLOAT}, types.STRING)
 	case "booltostr":
-		// BoolToStr(value: Boolean): String
 		return types.NewFunctionPointerType([]types.Type{types.BOOLEAN}, types.STRING)
 	case "strtoint":
-		// StrToInt(s: String): Integer
 		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.INTEGER)
 	case "strtofloat":
-		// StrToFloat(s: String): Float
 		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.FLOAT)
-	case "uppercase":
-		// UpperCase(s: String): String
+	case "uppercase", "lowercase", "trim", "trimleft", "trimright", "reversestring":
 		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
-	case "lowercase":
-		// LowerCase(s: String): String
-		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
-	case "trim":
-		// Trim(s: String): String
-		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
-	case "trimleft":
-		// TrimLeft(s: String): String
-		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
-	case "trimright":
-		// TrimRight(s: String): String
-		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
-	case "length":
-		// Length(s: String): Integer (also works with arrays)
+	case "length", "ord":
 		return types.NewFunctionPointerType([]types.Type{types.VARIANT}, types.INTEGER)
-	case "chr":
-		// Chr(code: Integer): String
-		return types.NewFunctionPointerType([]types.Type{types.INTEGER}, types.STRING)
-	case "ord":
-		// Ord(s: String): Integer (also works with chars, enums)
-		return types.NewFunctionPointerType([]types.Type{types.VARIANT}, types.INTEGER)
-	case "abs":
-		// Abs(value: Float): Float
+	case "abs", "sqr", "sqrt":
 		return types.NewFunctionPointerType([]types.Type{types.FLOAT}, types.FLOAT)
-	case "sqr":
-		// Sqr(value: Float): Float
-		return types.NewFunctionPointerType([]types.Type{types.FLOAT}, types.FLOAT)
-	case "sqrt":
-		// Sqrt(value: Float): Float
-		return types.NewFunctionPointerType([]types.Type{types.FLOAT}, types.FLOAT)
-	case "reversestring":
-		// ReverseString(s: String): String
-		return types.NewFunctionPointerType([]types.Type{types.STRING}, types.STRING)
 	}
 
 	// Fall back to the registered signature. Only fixed-arity functions with a

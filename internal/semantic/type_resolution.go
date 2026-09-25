@@ -320,7 +320,7 @@ func (a *Analyzer) resolveInlineFunctionPointerType(signature string) (types.Typ
 	paramsStr := signature[openParen+1 : closeParen]
 
 	// Parse parameters
-	paramTypes, err := a.parseInlineParameters(paramsStr)
+	pointer, err := a.parseInlineParameters(paramsStr)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing parameters in '%s': %w", signature, err)
 	}
@@ -342,20 +342,21 @@ func (a *Analyzer) resolveInlineFunctionPointerType(signature string) (types.Typ
 	}
 
 	// Create function pointer type
+	pointer.ReturnType = returnType
 	if ofObject {
-		return types.NewMethodPointerType(paramTypes, returnType), nil
+		return &types.MethodPointerType{FunctionPointerType: *pointer, OfObject: true}, nil
 	}
-	return types.NewFunctionPointerType(paramTypes, returnType), nil
+	return pointer, nil
 }
 
 // parseInlineParameters parses the parameter list from an inline function pointer signature.
 //
 // Format: "param1: Type1; param2, param3: Type2; ..."
-// Returns a slice of parameter types in order.
-func (a *Analyzer) parseInlineParameters(paramsStr string) ([]types.Type, error) {
+// Returns an unnamed signature with parameter types and passing modifiers in order.
+func (a *Analyzer) parseInlineParameters(paramsStr string) (*types.FunctionPointerType, error) {
 	paramsStr = strings.TrimSpace(paramsStr)
 	if paramsStr == "" {
-		return []types.Type{}, nil
+		return types.NewProcedurePointerType(nil), nil
 	}
 
 	// Detect format by checking for colon
@@ -369,7 +370,7 @@ func (a *Analyzer) parseInlineParameters(paramsStr string) ([]types.Type, error)
 	}
 
 	// Full format with names (existing logic)
-	paramTypes := []types.Type{}
+	pointer := types.NewProcedurePointerType(nil)
 
 	// Split by semicolon to get parameter groups
 	// Each group is "name1, name2, ...: TypeName"
@@ -398,6 +399,9 @@ func (a *Analyzer) parseInlineParameters(paramsStr string) ([]types.Type, error)
 
 		// Count how many parameters have this type (by counting commas + 1)
 		namesStr := strings.TrimSpace(parts[0])
+		isConst := ident.HasPrefix(namesStr, "const ")
+		byRef := ident.HasPrefix(namesStr, "var ")
+		isLazy := ident.HasPrefix(namesStr, "lazy ")
 		// Remove modifiers (const, var, lazy) from count
 		namesStr = strings.TrimPrefix(namesStr, "const ")
 		namesStr = strings.TrimPrefix(namesStr, "var ")
@@ -408,18 +412,21 @@ func (a *Analyzer) parseInlineParameters(paramsStr string) ([]types.Type, error)
 
 		// Add the type for each parameter name
 		for i := 0; i < paramCount; i++ {
-			paramTypes = append(paramTypes, paramType)
+			pointer.Parameters = append(pointer.Parameters, paramType)
+			pointer.ConstParams = append(pointer.ConstParams, isConst)
+			pointer.VarParams = append(pointer.VarParams, byRef)
+			pointer.LazyParams = append(pointer.LazyParams, isLazy)
 		}
 	}
 
-	return paramTypes, nil
+	return pointer, nil
 }
 
 // parseShorthandParameters parses shorthand parameter syntax (types only, no names).
 // Format: "Type1, Type2, ..." or "Type1; Type2; ..."
 // Both comma and semicolon are treated as separators.
-func (a *Analyzer) parseShorthandParameters(paramsStr string) ([]types.Type, error) {
-	paramTypes := []types.Type{}
+func (a *Analyzer) parseShorthandParameters(paramsStr string) (*types.FunctionPointerType, error) {
+	pointer := types.NewProcedurePointerType(nil)
 
 	// Split by both comma and semicolon
 	// Replace semicolons with commas for uniform splitting
@@ -433,6 +440,9 @@ func (a *Analyzer) parseShorthandParameters(paramsStr string) ([]types.Type, err
 			continue
 		}
 
+		isConst := ident.HasPrefix(typeName, "const ")
+		byRef := ident.HasPrefix(typeName, "var ")
+		isLazy := ident.HasPrefix(typeName, "lazy ")
 		// Remove modifiers if present
 		typeName = strings.TrimPrefix(typeName, "const ")
 		typeName = strings.TrimPrefix(typeName, "var ")
@@ -445,10 +455,13 @@ func (a *Analyzer) parseShorthandParameters(paramsStr string) ([]types.Type, err
 			return nil, fmt.Errorf("unknown parameter type '%s'", typeName)
 		}
 
-		paramTypes = append(paramTypes, paramType)
+		pointer.Parameters = append(pointer.Parameters, paramType)
+		pointer.ConstParams = append(pointer.ConstParams, isConst)
+		pointer.VarParams = append(pointer.VarParams, byRef)
+		pointer.LazyParams = append(pointer.LazyParams, isLazy)
 	}
 
-	return paramTypes, nil
+	return pointer, nil
 }
 
 // resolveInlineArrayType parses an inline array type signature.

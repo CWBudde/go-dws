@@ -240,6 +240,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 
 	objectClass.AddConstructorOverload("Create", &types.MethodInfo{
 		Signature: &types.FunctionType{
+			Name: "Create", IsConstructor: true,
 			Parameters: []types.Type{},
 			ReturnType: objectClass,
 		},
@@ -248,6 +249,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 
 	objectClass.AddMethodOverload("Destroy", &types.MethodInfo{
 		Signature: &types.FunctionType{
+			Name: "Destroy", IsDestructor: true,
 			Parameters: []types.Type{},
 			ReturnType: types.VOID,
 		},
@@ -257,6 +259,7 @@ func (a *Analyzer) registerBuiltinExceptionTypes() {
 
 	objectClass.AddMethodOverload("Free", &types.MethodInfo{
 		Signature: &types.FunctionType{
+			Name:       "Free",
 			Parameters: []types.Type{},
 			ReturnType: types.VOID,
 		},

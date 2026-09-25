@@ -770,3 +770,67 @@ func TestFunctionPointerWithComplexTypes(t *testing.T) {
 		}
 	})
 }
+
+func TestFunctionPointerType_ParameterModifiers(t *testing.T) {
+	for _, modifier := range []string{"var", "const", "lazy"} {
+		t.Run(modifier, func(t *testing.T) {
+			plain := NewProcedurePointerType([]Type{INTEGER})
+			modified := NewProcedurePointerType([]Type{INTEGER})
+			switch modifier {
+			case "var":
+				modified.VarParams = []bool{true}
+			case "const":
+				modified.ConstParams = []bool{true}
+			case "lazy":
+				modified.LazyParams = []bool{true}
+			}
+			if plain.Equals(modified) || modified.IsCompatibleWith(plain) {
+				t.Fatal("different parameter passing modes must not be compatible")
+			}
+			method := &MethodPointerType{FunctionPointerType: *modified, OfObject: true}
+			if method.IsCompatibleWith(plain) {
+				t.Fatal("method compatibility lost parameter modifier")
+			}
+			if !method.IsCompatibleWith(modified) {
+				t.Fatal("matching method signature rejected")
+			}
+		})
+	}
+	plain := NewProcedurePointerType([]Type{INTEGER})
+	named := NewProcedurePointerType([]Type{INTEGER})
+	named.Name = "Callback"
+	named.IsClassMethod = true
+	named.VarParams = []bool{false}
+	named.ConstParams = []bool{false}
+	named.LazyParams = []bool{false}
+	if !plain.Equals(named) {
+		t.Fatal("names, routine kind and absent false flags must not change signature equality")
+	}
+}
+
+func TestFunctionPointerFromFunctionType_Metadata(t *testing.T) {
+	fn := NewProcedureType([]Type{INTEGER, STRING, BOOLEAN})
+	fn.Name = "Test"
+	fn.IsClassMethod = true
+	fn.IsDestructor = true
+	fn.ReturnTypeName = "void"
+	fn.VarParams[0] = true
+	fn.ConstParams[1] = true
+	fn.LazyParams[2] = true
+	pointer := FunctionPointerFromFunctionType(fn)
+	if pointer.Name != fn.Name || !pointer.IsClassMethod || !pointer.IsDestructor || pointer.ReturnTypeName != "void" || !pointer.IsProcedure() {
+		t.Fatalf("routine metadata lost: %#v", pointer)
+	}
+	if !pointer.VarParams[0] || !pointer.ConstParams[1] || !pointer.LazyParams[2] {
+		t.Fatalf("parameter modifiers lost: %#v", pointer)
+	}
+	pointer.VarParams[0] = false
+	pointer.ConstParams[1] = false
+	pointer.LazyParams[2] = false
+	if !fn.VarParams[0] || !fn.ConstParams[1] || !fn.LazyParams[2] {
+		t.Fatal("pointer conversion shares mutable modifier slices")
+	}
+	if FunctionPointerFromFunctionType(nil) != nil {
+		t.Fatal("nil signature must remain nil")
+	}
+}

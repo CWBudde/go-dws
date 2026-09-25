@@ -225,6 +225,9 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		} else {
 			// Check that initializer type is compatible with declared type
 			if !a.canAssign(initType, varType) {
+				if a.reportPointerAssignmentMismatch(stmt.Value, varType, initType) {
+					return
+				}
 				a.addStructuredError(NewTypeMismatch(
 					stmt.Token.Pos,
 					firstName, // Variable name
@@ -540,6 +543,9 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, sym.Type) {
+			if a.reportPointerAssignmentMismatch(stmt.Value, sym.Type, valueType) {
+				return
+			}
 			pos := assignmentMismatchPos(stmt.Value, stmt.Token.Pos, sym.Type, valueType)
 			a.addError("%s", errors.FormatCannotAssign(valueType.String(), sym.Type.String(), pos.Line, pos.Column))
 		}

@@ -35,6 +35,10 @@ func (a *Analyzer) inheritParentConstructors(childClass *types.ClassType, parent
 				childClass, // Returns instance of the child class, not parent
 			)
 
+			childCtorType.Name = parentCtor.Signature.Name
+			childCtorType.IsConstructor = true
+			childCtorType.IsClassMethod = parentCtor.Signature.IsClassMethod
+
 			// Create method info for the inherited constructor
 			childCtorInfo := &types.MethodInfo{
 				Signature:            childCtorType,
@@ -85,6 +89,9 @@ func (a *Analyzer) synthesizeDefaultConstructor(classType *types.ClassType) {
 		[]bool{},        // No const params
 		classType,       // Returns instance of the class
 	)
+
+	funcType.Name = constructorName
+	funcType.IsConstructor = true
 
 	// Create method info for the implicit constructor
 	methodInfo := &types.MethodInfo{
@@ -145,6 +152,9 @@ func (a *Analyzer) synthesizeImplicitParameterlessConstructor(classType *types.C
 				[]bool{},        // No const params
 				classType,       // Returns instance of the class
 			)
+
+			funcType.Name = ctorName
+			funcType.IsConstructor = true
 
 			// Create method info for the implicit constructor
 			// Mark it as having overload directive to be consistent with other constructors

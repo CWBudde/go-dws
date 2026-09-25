@@ -1,6 +1,7 @@
 package semantic
 
 import (
+	"slices"
 	"strings"
 
 	dwserrors "github.com/cwbudde/go-dws/internal/errors"
@@ -30,8 +31,11 @@ func semanticTypeNameForDiagnostic(t types.Type) string {
 	if t.Equals(types.VOID) {
 		return "void"
 	}
-	if fn, ok := types.GetUnderlyingType(t).(*types.FunctionPointerType); ok {
+	switch fn := types.GetUnderlyingType(t).(type) {
+	case *types.FunctionPointerType:
 		return semanticFunctionPointerName(fn)
+	case *types.MethodPointerType:
+		return semanticFunctionPointerName(&fn.FunctionPointerType)
 	}
 	return semanticDiagnosticTypeName(dwserrors.SimplifyTypeName(t.String()))
 }
@@ -77,6 +81,9 @@ func isOpenArrayOfConstParam(fn *types.FunctionType, index int) bool {
 }
 
 func semanticFunctionParamTypeName(fn *types.FunctionType, index int, fallback types.Type) string {
+	if types.IsPointerType(fallback) {
+		return semanticTypeNameForDiagnostic(fallback)
+	}
 	if fn != nil && index >= 0 && index < len(fn.ParamTypeNames) {
 		if name := fn.ParamTypeNames[index]; name != "" {
 			return name
@@ -106,22 +113,7 @@ func semanticFunctionPointerName(fn *types.FunctionPointerType) string {
 	if fn == nil {
 		return "nil"
 	}
-	kind := "function"
-	if fn.IsProcedure() {
-		kind = "procedure"
-	}
-	name := kind + " ("
-	for i, param := range fn.Parameters {
-		if i > 0 {
-			name += ", "
-		}
-		name += semanticTypeNameForDiagnostic(param)
-	}
-	name += ")"
-	if fn.IsFunction() && fn.ReturnType != nil {
-		name += ": " + semanticTypeNameForDiagnostic(fn.ReturnType)
-	}
-	return name
+	return semanticNamedFunctionPointerName(fn.Name, fn)
 }
 
 func semanticNamedFunctionPointerName(name string, fn *types.FunctionPointerType) string {
@@ -129,19 +121,42 @@ func semanticNamedFunctionPointerName(name string, fn *types.FunctionPointerType
 		return name
 	}
 	kind := "function"
-	if fn.IsProcedure() {
+	switch {
+	case fn.IsConstructor:
+		kind = "constructor"
+	case fn.IsDestructor:
+		kind = "destructor"
+	case fn.IsProcedure():
 		kind = "procedure"
 	}
-	result := kind + " " + name + "("
-	for i, param := range fn.Parameters {
-		if i > 0 {
-			result += ", "
-		}
-		result += semanticTypeNameForDiagnostic(param)
+	if fn.IsClassMethod {
+		kind = "class " + kind
 	}
-	result += ")"
-	if fn.IsFunction() && fn.ReturnType != nil {
-		result += ": " + semanticTypeNameForDiagnostic(fn.ReturnType)
+	result := kind + " " + name
+	if len(fn.Parameters) > 0 {
+		result += "("
+		for i, param := range fn.Parameters {
+			if i > 0 {
+				result += ", "
+			}
+			switch {
+			case i < len(fn.ConstParams) && fn.ConstParams[i]:
+				result += "const "
+			case i < len(fn.VarParams) && fn.VarParams[i]:
+				result += "var "
+			case i < len(fn.LazyParams) && fn.LazyParams[i]:
+				result += "lazy "
+			}
+			result += semanticTypeNameForDiagnostic(param)
+		}
+		result += ")"
+	}
+	if fn.IsFunction() && !fn.IsConstructor && !fn.IsDestructor {
+		returnName := fn.ReturnTypeName
+		if returnName == "" {
+			returnName = semanticTypeNameForDiagnostic(fn.ReturnType)
+		}
+		result += ": " + returnName
 	}
 	return result
 }
@@ -150,27 +165,7 @@ func semanticNamedFunctionSignature(name string, fn *types.FunctionType) string 
 	if fn == nil {
 		return name
 	}
-	kind := "function"
-	if fn.IsProcedure() {
-		kind = "procedure"
-	}
-	result := kind + " " + name + "("
-	for i, param := range fn.Parameters {
-		if i > 0 {
-			result += ", "
-		}
-		if i < len(fn.ConstParams) && fn.ConstParams[i] {
-			result += "const "
-		} else if i < len(fn.VarParams) && fn.VarParams[i] {
-			result += "var "
-		}
-		result += semanticTypeNameForDiagnostic(param)
-	}
-	result += ")"
-	if fn.IsFunction() && fn.ReturnType != nil {
-		result += ": " + semanticTypeNameForDiagnostic(fn.ReturnType)
-	}
-	return result
+	return semanticNamedFunctionPointerName(name, functionPointerFromFunctionType(fn))
 }
 
 func previousColumn(pos token.Position) token.Position {
@@ -265,14 +260,7 @@ func (a *Analyzer) addParameterTypeExpectedAt(pos token.Position, expected types
 }
 
 func functionPointerFromFunctionType(fn *types.FunctionType) *types.FunctionPointerType {
-	if fn == nil {
-		return nil
-	}
-	var returnType types.Type
-	if fn.ReturnType != nil && !fn.ReturnType.Equals(types.VOID) {
-		returnType = fn.ReturnType
-	}
-	return types.NewFunctionPointerType(fn.Parameters, returnType)
+	return types.FunctionPointerFromFunctionType(fn)
 }
 
 func (a *Analyzer) resolveNamedFunctionPointerType(name string) *types.FunctionPointerType {
@@ -293,7 +281,12 @@ func (a *Analyzer) resolveNamedFunctionPointerType(name string) *types.FunctionP
 			if sig.ReturnType != nil && !sig.ReturnType.Equals(types.VOID) {
 				returnType = sig.ReturnType
 			}
-			return types.NewFunctionPointerType(sig.ParamTypes, returnType)
+			pointer := types.NewFunctionPointerType(sig.ParamTypes, returnType)
+			pointer.Name = a.builtinDeclarationName(name)
+			pointer.VarParams = slices.Clone(sig.VarParams)
+			pointer.MinArgs = sig.MinArgs
+			pointer.AllowedArgCounts = slices.Clone(sig.AllowedArgCounts)
+			return pointer
 		}
 	}
 	return nil

@@ -209,7 +209,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 						return methodType.ReturnType
 					}
 					// Methods with parameters: return method pointer type
-					return types.NewMethodPointerType(methodType.Parameters, methodType.ReturnType)
+					return methodPointerFromFunctionType(methodType)
 				}
 
 				// Sibling constructor invoked by bare name from inside a method
@@ -325,11 +325,9 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			return funcType.ReturnType
 		}
 		// Outside function body: convert to function pointer type
-		returnType := funcType.ReturnType
-		if funcType.IsProcedure() {
-			returnType = nil
-		}
-		return types.NewFunctionPointerType(funcType.Parameters, returnType)
+		pointer := types.FunctionPointerFromFunctionType(funcType)
+		pointer.Name = sym.Name
+		return pointer
 	}
 
 	return sym.Type

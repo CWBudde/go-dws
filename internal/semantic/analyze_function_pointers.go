@@ -62,23 +62,22 @@ func (a *Analyzer) analyzeFunctionPointerTypeDeclaration(decl *ast.TypeDeclarati
 		}
 	}
 
-	// Create the function pointer type
-	var funcPtrType types.Type
+	// Create the signature before wrapping method pointers so metadata is shared.
+	signature := types.NewFunctionPointerType(paramTypes, returnType)
+	signature.Name = decl.Name.Value
+	setPointerParameterModifiers(signature, fpType.Parameters)
+	var funcPtrType types.Type = signature
 	if fpType.OfObject {
-		funcPtrType = types.NewMethodPointerType(paramTypes, returnType)
-	} else {
-		funcPtrType = types.NewFunctionPointerType(paramTypes, returnType)
+		method := &types.MethodPointerType{FunctionPointerType: *signature, OfObject: true}
+		signature = &method.FunctionPointerType
+		funcPtrType = method
 	}
 
 	// Register in the function pointers map
 	if a.functionPointers == nil {
 		a.functionPointers = make(map[string]*types.FunctionPointerType)
 	}
-	if methodPtr, ok := funcPtrType.(*types.MethodPointerType); ok {
-		a.functionPointers[decl.Name.Value] = &methodPtr.FunctionPointerType
-	} else if funcPtr, ok := funcPtrType.(*types.FunctionPointerType); ok {
-		a.functionPointers[decl.Name.Value] = funcPtr
-	}
+	a.functionPointers[decl.Name.Value] = signature
 
 	// Register as a type alias so resolveType can find it
 	typeAlias := &types.TypeAlias{
@@ -156,13 +155,20 @@ func (a *Analyzer) analyzeAddressOfMethod(target *ast.MemberAccessExpression, ex
 		return ptrType
 	}
 
+	classMethodsOnly := isMetaclass
 	if isMetaclass && !a.isClassMethodInHierarchy(classType, ident.Normalize(methodName)) {
-		a.addError("unbound method pointers (@TClass.%s) are not supported at %s",
-			methodName, expr.Token.Pos.String())
-		return nil
+		instanceMethod := a.firstBindableMethodOverload(methodName, classType, false)
+		if instanceMethod != nil && instanceMethod.Signature.IsDestructor {
+			a.addError("Destructor can only be invoked on instance at %s", target.Member.Token.Pos.String())
+			classMethodsOnly = false
+		} else {
+			a.addError("unbound method pointers (@TClass.%s) are not supported at %s",
+				methodName, expr.Token.Pos.String())
+			return nil
+		}
 	}
 
-	method := a.firstBindableMethodOverload(methodName, classType, isMetaclass)
+	method := a.firstBindableMethodOverload(methodName, classType, classMethodsOnly)
 	if method == nil {
 		a.addError("'%s' is not a method of class '%s' at %s",
 			methodName, classType.Name, expr.Token.Pos.String())
@@ -182,12 +188,12 @@ func (a *Analyzer) analyzeAddressOfMethod(target *ast.MemberAccessExpression, ex
 
 	a.recordClassMethodUsage(classType, methodName)
 
-	var returnType types.Type
-	if method.Signature.ReturnType != nil && method.Signature.ReturnType != types.VOID {
-		returnType = method.Signature.ReturnType
+	methodPtrType := methodPointerFromFunctionType(method.Signature)
+	if name := a.declaredMethodName(classType, methodName); name != "" {
+		methodPtrType.Name = name
 	}
-
-	methodPtrType := types.NewMethodPointerType(method.Signature.Parameters, returnType)
+	methodPtrType.IsClassMethod = method.IsClassMethod
+	methodPtrType.IsConstructor = method.IsConstructor
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("method pointer to %s.%s", classType.Name, methodName),
 	}
@@ -285,7 +291,7 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 		return nil
 	}
 
-	return a.buildFunctionPointerType(funcName, funcType, expr)
+	return a.buildFunctionPointerType(sym.Name, funcType, expr)
 }
 
 // buildFunctionPointerTypeFromBuiltin creates a FunctionPointerType from a builtin signature.
@@ -296,6 +302,8 @@ func (a *Analyzer) buildFunctionPointerTypeFromBuiltin(funcName string, sig *bui
 	}
 
 	funcPtrType := types.NewFunctionPointerType(sig.ParamTypes, returnType)
+	funcPtrType.Name = a.builtinDeclarationName(funcName)
+	funcPtrType.VarParams = slices.Clone(sig.VarParams)
 	// Builtins may declare optional trailing parameters. Record the required
 	// count so a call through the pointer keeps every arity the builtin itself
 	// accepts instead of demanding the fully expanded parameter list.
@@ -313,12 +321,8 @@ func (a *Analyzer) buildFunctionPointerTypeFromBuiltin(funcName string, sig *bui
 
 // buildFunctionPointerType creates a FunctionPointerType from a function signature.
 func (a *Analyzer) buildFunctionPointerType(funcName string, funcType *types.FunctionType, expr *ast.AddressOfExpression) types.Type {
-	var returnType types.Type
-	if funcType.ReturnType != nil && funcType.ReturnType != types.VOID {
-		returnType = funcType.ReturnType
-	}
-
-	funcPtrType := types.NewFunctionPointerType(funcType.Parameters, returnType)
+	funcPtrType := types.FunctionPointerFromFunctionType(funcType)
+	funcPtrType.Name = funcName
 	typeAnnotation := &ast.TypeAnnotation{
 		Name: fmt.Sprintf("function pointer to %s", funcName),
 	}
@@ -540,13 +544,21 @@ func (a *Analyzer) intrinsicMemberPointerType(classType *types.ClassType, member
 	if expected != nil && expectedPtr == nil {
 		return nil, false
 	}
-	if expectedPtr == nil {
-		return types.NewFunctionPointerType(nil, naturalType), true
+	if expectedPtr != nil {
+		if expectedPtr.ReturnType == nil || !a.canAssign(naturalType, expectedPtr.ReturnType) {
+			return nil, false
+		}
+		naturalType = expectedPtr.ReturnType
 	}
-	if expectedPtr.ReturnType == nil || !a.canAssign(naturalType, expectedPtr.ReturnType) {
-		return nil, false
+	pointer := types.NewFunctionPointerType(nil, naturalType)
+	pointer.IsClassMethod = true
+	if ident.Equal(memberName, "ClassType") {
+		pointer.Name = "ClassType"
+		pointer.ReturnTypeName = "TClass"
+	} else {
+		pointer.Name = "ClassName"
 	}
-	return types.NewFunctionPointerType(nil, expectedPtr.ReturnType), true
+	return pointer, true
 }
 
 // parameterlessPointerTarget returns the function pointer signature behind a
@@ -569,4 +581,16 @@ func parameterlessPointerTarget(t types.Type) *types.FunctionPointerType {
 		return nil
 	}
 	return ptr
+}
+
+// setPointerParameterModifiers records the parameter passing modes in an AST signature.
+func setPointerParameterModifiers(pointer *types.FunctionPointerType, params []*ast.Parameter) {
+	pointer.VarParams = make([]bool, len(params))
+	pointer.ConstParams = make([]bool, len(params))
+	pointer.LazyParams = make([]bool, len(params))
+	for i, param := range params {
+		pointer.VarParams[i] = param.ByRef
+		pointer.ConstParams[i] = param.IsConst
+		pointer.LazyParams[i] = param.IsLazy
+	}
 }

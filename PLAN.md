@@ -45,23 +45,6 @@ every missing/spurious shape, the fixtures it blocks and the emitting site:
 (regenerate with `--shape-top 0 --shape-fixtures`). Anchors must be measured per shape; the
 sentence is the easy half.
 
-### 1.1 Routine-type rendering — M
-
-DWScript renders routine types as `class function ClassType: TClass`,
-`function IntToHex(Integer, Integer): String`, `destructor Destroy`,
-`procedure Test(const String)`, `procedure (String)`, `procedure TMyProc`: omit `()` when there
-are no parameters; an unnamed type keeps the separating space. Needed by 1.2, 1.3 and several
-Phase 4 items. Unlocks `func_ptr3`, `func_ptr4`, `func_ptr_mismatch`, `func_ptr_var_param`, and
-(with `Destructor can only be invoked on instance`) `func_ptr5`.
-
-- [ ] M Carry name, kind and parameter modifiers on `types.FunctionPointerType`
-  (`internal/types/function_pointer.go`). Today `const` is lost in the
-  `FunctionType` → `FunctionPointerType` conversion, which is also why `func_ptr_mismatch` judges
-  `@Test` compatible with `procedure(Foo: string)`.
-- [ ] S Render them. Extend `semanticNamedFunctionPointerName`
-  (`internal/semantic/analyze_array_helpers.go`, pinned by `internal/frontend/result_test.go`)
-  and stop `errors.SimplifyTypeName` (`internal/errors/errors.go`) truncating at the first `(`.
-
 ### 1.2 `Incompatible types: "X" and "Y"` — M
 
 ~58 lines over 22 fixtures, the largest missing semantic shape. DWScript uses one sentence
@@ -72,8 +55,8 @@ bespoke sentence per site.
 - [ ] S ⚠️ Array-literal anchors: `array_of_proc2` wants column 9 (whitespace after a comma),
   `array_of_proc` wants the `]`. Likely an artifact of upstream's scanner position; confirm from
   the upstream emit site or park.
-- [ ] S Routine-typed cases once 1.1 lands (`SetOfFail/invalid_operand`'s
-  `"TMyEnum" and "procedure Test"`, `func_ptr*`).
+- [ ] S Remaining routine-typed cases (`SetOfFail/invalid_operand`'s
+  `"TMyEnum" and "procedure Test"` and array literals).
 
 ### 1.3 `Cannot assign "X" to "Y"` — M
 
