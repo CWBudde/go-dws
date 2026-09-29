@@ -143,9 +143,14 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	}
 
 	elements := []ast.Expression{}
+	elementPositions := []lexer.Position{}
 
 	// Move to first element
 	p.cursor = p.cursor.Advance()
+	// Upstream tests for the closing bracket before reading the first element,
+	// which scans its first token. Later elements start at the cursor immediately
+	// after the comma, before whitespace has been scanned.
+	elementPos := p.cursor.Current().End()
 
 	for {
 		currentToken := p.cursor.Current()
@@ -185,11 +190,13 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 		}
 
 		elements = append(elements, elem)
+		elementPositions = append(elementPositions, elementPos)
 
 		// Check for comma or closing bracket
 		nextToken = p.cursor.Peek(1)
 		if nextToken.Type == lexer.COMMA {
 			p.cursor = p.cursor.Advance() // move to ','
+			elementPos = p.cursor.Current().End()
 			p.cursor = p.cursor.Advance() // advance to next element or ']'
 
 			// Allow trailing comma: [1, 2, ]
@@ -218,7 +225,8 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 				Token:  lbrackToken,
 				EndPos: p.cursor.Current().End(),
 			},
-			Elements: elements,
+			Elements:         elements,
+			ElementPositions: elementPositions,
 		}
 		return setLit
 	}
@@ -228,7 +236,8 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 			Token:  lbrackToken,
 			EndPos: p.cursor.Current().End(),
 		},
-		Elements: elements,
+		Elements:         elements,
+		ElementPositions: elementPositions,
 	}
 }
 

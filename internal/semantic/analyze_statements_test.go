@@ -367,7 +367,7 @@ func TestCompoundAssignmentConstError(t *testing.T) {
 		const MYPI = 3.14;
 		PI += 1.0;
 	`
-	expectError(t, input, "Cannot assign to constant")
+	expectError(t, input, "Cannot assign a value to the left-side argument")
 }
 
 func TestCompoundAssignmentArrayElement(t *testing.T) {

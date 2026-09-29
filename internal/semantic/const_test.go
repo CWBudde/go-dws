@@ -30,7 +30,7 @@ func TestConstDeclarationWithTypeInference(t *testing.T) {
 
 func TestConstDeclarationTypeMismatch(t *testing.T) {
 	input := `const X: Integer = 'hello';`
-	expectError(t, input, "cannot assign String to Integer")
+	expectError(t, input, `Incompatible types: "Integer" and "String"`)
 }
 
 func TestConstRedeclaration(t *testing.T) {
@@ -55,7 +55,7 @@ func TestAssignmentToConst(t *testing.T) {
 		const MAX = 100;
 		MAX := 200;
 	`
-	expectError(t, input, "Cannot assign to constant")
+	expectError(t, input, "Cannot assign a value to the left-side argument")
 }
 
 func TestConstWithVariableReference(t *testing.T) {
@@ -65,7 +65,7 @@ func TestConstWithVariableReference(t *testing.T) {
 	`
 	// Const values must be compile-time constants
 	// This should error because x is a variable, not a constant
-	expectError(t, input, "identifier 'x' is not a constant")
+	expectError(t, input, "Constant expression expected")
 }
 
 // ============================================================================
@@ -112,7 +112,7 @@ func TestConstWithUnsupportedFunction(t *testing.T) {
 		const VAL = MyFunc();
 	`
 	// User-defined functions are not compile-time evaluable
-	expectError(t, input, "not a compile-time constant")
+	expectError(t, input, "Constant expression expected")
 }
 
 // ============================================================================

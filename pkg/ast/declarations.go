@@ -30,6 +30,8 @@ type ConstDecl struct {
 	// IsResourceString marks a declaration written with the `resourcestring`
 	// keyword. Such constants must have a String value.
 	IsResourceString bool
+	// ValueSeparatorPos is the '=' or ':=' before the constant expression.
+	ValueSeparatorPos token.Position
 }
 
 func (c *ConstDecl) End() token.Position {

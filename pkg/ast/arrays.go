@@ -126,6 +126,9 @@ func (ata *ArrayTypeAnnotation) IsStatic() bool {
 //   - ['a', 'b', 'c']  // array of strings
 type ArrayLiteralExpression struct {
 	Elements []Expression
+	// ElementPositions records the scanner cursor before reading each element.
+	// It may point just after a comma, before intervening whitespace.
+	ElementPositions []token.Position
 	BaseNode
 }
 

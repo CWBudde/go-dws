@@ -5886,3 +5886,61 @@ Final validation: `GOFLAGS=-buildvcs=false go test -p 1 ./...` passed,
 including the ratcheted fixture gate. `golangci-lint run --new-from-rev=HEAD`
 reports zero issues; formatting and `git diff --check` are clean. Validation used
 `GOCACHE=/tmp/go-dws-cache` and a temporary lint cache.
+
+## 2026-09-29 — Incompatible type pairs (PLAN 1.2)
+
+Typed constants and coalesce failures now use DWScript's quoted
+`Incompatible types: "X" and "Y"` sentence. Scalar constant conversions anchor
+at the declaration's `=` token; attempts to write a constant and nonconstant
+initializers use the upstream sentences. Dynamic-array coalescing checks the
+right element type against the left element type, accepting class widening and
+rejecting narrowing. Class operands retain their common ancestor on widening.
+
+Bracket literals retain the scanner cursor before each element: after the first
+element's first token, then immediately after each comma. This reproduces both
+the closing-bracket anchor in `array_of_proc` and the whitespace anchor in
+`array_of_proc2`, including commas before newlines. Identifier-only literals
+retain the same positions when semantic analysis resolves them as arrays.
+Procedure elements whose references do not fit are treated as calls, preserving
+child arity errors before the void type mismatch. Explicit `@Routine` references
+remain callable in inferred arrays. Incompatible static row lengths and void
+elements stop compilation; the frontend keeps diagnostics emitted before the
+stop and omits subsequent semantic and parser errors.
+Imported-unit routine bodies reuse declaration-based diagnostic insertion, so
+earlier body errors survive a later stop and earlier body stops omit later
+declaration errors. The added array coalescing compatibility is limited to class
+inheritance; numeric and Variant-to-Float element conversions remain rejected.
+
+Set mutators supply their element type while analyzing operands. An invalid
+`@Test` reports `unexpected "@"`, the incompatible `procedure Test` signature,
+and the enclosing parameter mismatch against the recovered nil value.
+
+All seven named failure fixtures now match their complete upstream expectations:
+`array_initialization4`, `coalesce_dynarray`, `const_1`, `array_of_proc`,
+`array_of_proc2`, `const_procedure_array`, and `SetOfFail/invalid_operand`.
+`SimpleScripts/coalesce_class_2` and `SimpleScripts/coalesce_dynarray` also pass.
+The harness gains **nine fixtures**, reaching **1,368 / 2,014 scored**:
+FailureScripts **275 → 281**, SetOfFail **13 → 14**, and SimpleScripts
+**391 → 393**. Baselines and `TEST_STATUS.md` are regenerated. No fixture sources,
+expectations, or scoring policies changed.
+
+An independent CLI comparison against an archive of HEAD `754d2702` confirms the
+nine gains and no in-scope regressions. `BuildScripts/init_order5` varied between
+runs and is excluded from this change's gains; its category baseline remains
+seven. Remaining incompatible-type vocabulary in unrelated sites stays queued
+under PLAN §1.5.
+
+Upstream evidence: `ReadArrayConstant`, `ReadConstSymbol`, `ReadAt`,
+`ReadIncludeExclude`, and `ReadExprMult` in `dwsCompiler.pas`;
+`TArrayConstantExpr.AddElementExpr` in `dwsConstExprs.pas`; `TestDelete` and
+`CurrentPos` in `dwsTokenizer.pas`; and dynamic/static array compatibility in
+`dwsSymbols.pas`. Test-first frontend coverage pins complete fixture diagnostics,
+scanner positions, stop recovery, and compatible contexts. Public API tests
+execute procedure/function references stored in inferred arrays.
+
+Final validation: `GOFLAGS=-buildvcs=false go test -p 1 ./...` passed,
+including the ratcheted fixture gate. `golangci-lint run --new-from-rev=HEAD`
+reports zero issues. Formatting and `git diff --check` are clean; regenerating
+the AST visitor produced no changes because the new fields contain positions.
+Independent review identified and closed explicit-reference, array-element
+conversion, and imported-unit diagnostic-order regressions before completion.

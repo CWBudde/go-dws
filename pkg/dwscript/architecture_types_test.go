@@ -121,6 +121,8 @@ func TestEngine_ImplicitCallAndPointerContexts(t *testing.T) {
 		{"implicit no arguments", `procedure Emit; begin PrintLn('called'); end; Emit;`, "called\n"},
 		{"implicit default arguments", `procedure Emit(values: array of Integer = []); begin PrintLn(values.Length); end; Emit; Emit([1]);`, "0\n1\n"},
 		{"explicit pointer context", `type TProc = procedure; procedure Emit; begin PrintLn('called'); end; var callback: TProc := Emit; PrintLn('bound'); callback();`, "bound\ncalled\n"},
+		{"procedure reference array", `procedure Emit; begin PrintLn('called'); end; var callbacks := [@Emit]; PrintLn(callbacks.Length); callbacks[0]();`, "1\ncalled\n"},
+		{"function reference array", `function Value: Integer; begin Result := 42; end; var callbacks := [@Value]; PrintLn(callbacks[0]());`, "42\n"},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

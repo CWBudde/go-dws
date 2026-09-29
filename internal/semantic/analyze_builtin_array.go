@@ -290,12 +290,6 @@ func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, cal
 	}
 
 	setArgType := a.analyzeExpression(args[0])
-	// A bare parameterless routine name in argument position is called, so the
-	// element's type is what the routine yields — `void` for a procedure
-	// (SetOfFail/invalid_operand). An explicit `@Test` is a reference and is
-	// left alone.
-	elemArgType := a.applyImplicitCallType(args[1], a.analyzeExpression(args[1]))
-
 	if setArgType == nil {
 		return types.VOID
 	}
@@ -306,6 +300,9 @@ func (a *Analyzer) analyzeIncludeExclude(name string, args []ast.Expression, cal
 		a.addError("Set expected at %s", args[0].Pos().String())
 		return types.VOID
 	}
+	// The set supplies the expected element type to ReadExpr, including the
+	// diagnostics and nil recovery for an invalid address-of operand.
+	elemArgType := a.applyImplicitCallType(args[1], a.analyzeExpressionWithExpectedType(args[1], setType.ElementType))
 
 	if elemArgType != nil && setType.ElementType != nil && !a.canAssign(elemArgType, setType.ElementType) {
 		// DWScript words this like any other parameter mismatch and anchors it

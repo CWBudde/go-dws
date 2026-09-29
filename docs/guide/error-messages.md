@@ -45,6 +45,29 @@ first, at the supplied expression. Parameter passing modes (`const`, `var`, and
 parameters can also report `More arguments expected` before the type mismatch,
 matching DWScript's diagnostic recovery.
 
+### Incompatible type pairs
+
+Typed constants and incompatible coalesce operands report
+`Incompatible types: "X" and "Y"`, with the declared or left-hand type first.
+Dynamic-array coalescing accepts derived-class elements on the right when the
+left array holds their base class; the reverse direction is rejected.
+
+Array constructors report incompatible row sizes with the current row's type
+first and the previously inferred row's type second. A procedure used as an
+element where its reference does not fit is read as a call: any
+`More arguments expected` diagnostic precedes the `"void" and "nil"` (first
+element) or `"void" and "Integer"` (after an integer) type pair. Explicit
+`@Routine` references remain references when the array's type is inferred.
+
+These constructor errors stop compilation. Their position is the scanner cursor
+before the element is read: after the first element's first token, or immediately
+after a separating comma. Consequently the position may be at the closing `]`,
+in whitespace, or on the previous line. Later diagnostics are omitted.
+
+An explicit `@Routine` passed as a set element reports `unexpected "@"`, the
+incompatible routine signature, and then the enclosing parameter mismatch
+against the recovered `nil` value.
+
 ### Array and range diagnostics
 
 With `--diagnostics=plain`, array diagnostics use DWScript's sentences and

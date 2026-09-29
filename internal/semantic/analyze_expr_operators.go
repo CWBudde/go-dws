@@ -351,15 +351,30 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		if leftType.Equals(rightType) {
 			return leftType
 		}
-
-		// Check if right can be assigned to left
-		if a.canAssign(leftType, rightType) {
+		if a.canAssign(rightType, leftType) {
 			return leftType
 		}
 
-		// Check if left can be assigned to right
-		if a.canAssign(rightType, leftType) {
-			return rightType
+		// DWScript converts the right operand to the left operand's type.
+		// Dynamic arrays use their element's directional compatibility here,
+		// including a derived-class element assigned to its base-class slot.
+		if leftArray, ok := types.GetUnderlyingType(leftType).(*types.ArrayType); ok && leftArray.IsDynamic() {
+			if rightArray, ok := types.GetUnderlyingType(rightType).(*types.ArrayType); ok && rightArray.IsDynamic() {
+				leftClass, leftIsClass := types.GetUnderlyingType(leftArray.ElementType).(*types.ClassType)
+				rightClass, rightIsClass := types.GetUnderlyingType(rightArray.ElementType).(*types.ClassType)
+				if leftIsClass && rightIsClass && a.canAssignClass(rightClass, leftClass) {
+					return leftType
+				}
+			}
+		}
+
+		// Class operands may widen to their nearest common ancestor.
+		if leftClass, ok := types.GetUnderlyingType(leftType).(*types.ClassType); ok {
+			if rightClass, ok := types.GetUnderlyingType(rightType).(*types.ClassType); ok {
+				if common := a.findCommonBaseClass(leftClass, rightClass); common != nil {
+					return common
+				}
+			}
 		}
 
 		// Handle numeric type promotion (Integer ?? Float -> Float)
@@ -367,9 +382,10 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			return types.PromoteTypes(leftType, rightType)
 		}
 
-		a.addError("incompatible types in coalesce operator: %s and %s at %s",
-			leftType.String(), rightType.String(), expr.Token.Pos.String())
-		return nil
+		a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos,
+			semanticTypeNameForDiagnostic(leftType), semanticTypeNameForDiagnostic(rightType)))
+		// Keep the left type so subsequent checks can recover without cascades.
+		return leftType
 	}
 
 	// Special handling for IN operator (allows array-to-set literal conversion)
