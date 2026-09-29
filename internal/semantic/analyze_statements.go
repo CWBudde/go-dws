@@ -345,6 +345,13 @@ func (a *Analyzer) isConstantScalar(expr ast.Expression) bool {
 	case *ast.Identifier:
 		sym, ok := a.symbols.Resolve(e.Value)
 		return ok && sym.IsConst
+	case *ast.GroupedExpression:
+		return a.isConstantScalar(e.Expression)
+	case *ast.UnaryExpression:
+		// Upstream folds constant operator trees into a position-less TConstExpr.
+		return a.isConstantScalar(e.Right)
+	case *ast.BinaryExpression:
+		return a.isConstantScalar(e.Left) && a.isConstantScalar(e.Right)
 	default:
 		return false
 	}

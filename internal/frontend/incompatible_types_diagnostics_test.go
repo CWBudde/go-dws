@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,6 +115,23 @@ func TestCompile_CoalesceArrayElementConversions(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			assertDiagnostics(t, tt.source, "<test>", []string{tt.want})
+		})
+	}
+}
+
+// Folded constant expressions have no script position upstream, so the
+// conversion error is anchored at the const declaration's '=' token.
+func TestCompile_FoldedConstExpressionAnchor(t *testing.T) {
+	for _, tt := range []struct{ name, source string }{
+		{"binary", "const C: String = 1 + 2;"},
+		{"unary", "const C: String = -1;"},
+		{"grouped", "const C: String = (1 + 2) * 3;"},
+		{"const operand", "const A = 1;\nconst C: String = A + 2;"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			line := strings.Count(tt.source, "\n") + 1
+			want := fmt.Sprintf(`Syntax Error: Incompatible types: "String" and "Integer" [line: %d, column: 17]`, line)
+			assertDiagnostics(t, tt.source, "<test>", []string{want})
 		})
 	}
 }
