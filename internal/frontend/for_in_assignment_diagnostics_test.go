@@ -143,3 +143,23 @@ type TChildAlias = TChild;
 		})
 	}
 }
+
+// CLI renderers print only structured errors once any exist, so the narrowing
+// diagnostic must be structured to survive next to another structured error.
+func TestCompile_ForInNarrowingIsStructured(t *testing.T) {
+	const source = `type TBase = class end;
+type TChild = class(TBase) end;
+var a: array of TBase;
+var c: TChild;
+var s: String := 1;
+for c in a do PrintLn(c.ClassName);`
+	result := CompileWithOptions(source, Options{DisableSymbolDictionaryDiagnostics: true})
+	var got []string
+	for _, err := range result.Analyzer.StructuredErrors() {
+		got = append(got, err.Message)
+	}
+	const want = `Syntax Error: Incompatible types: Cannot assign "TBase" to "TChild"`
+	if !slices.Contains(got, want) {
+		t.Fatalf("structured errors missing narrowing diagnostic\n got: %q\nwant: %q", got, want)
+	}
+}

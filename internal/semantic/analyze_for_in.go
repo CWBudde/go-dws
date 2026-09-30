@@ -1,7 +1,6 @@
 package semantic
 
 import (
-	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
@@ -124,10 +123,9 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 				if doPos.Line == 0 {
 					doPos = inPos
 				}
-				a.addError("%s", errors.FormatCannotAssign(
+				a.addStructuredError(NewCannotAssignTypesError(doPos,
 					semanticTypeNameForDiagnostic(elementType),
-					semanticTypeNameForDiagnostic(existingLoopVarType),
-					doPos.Line, doPos.Column))
+					semanticTypeNameForDiagnostic(existingLoopVarType)))
 			} else {
 				a.addStructuredError(NewIncompatibleTypesPairError(inPos,
 					semanticTypeNameForDiagnostic(existingLoopVarType),
