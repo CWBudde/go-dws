@@ -89,6 +89,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	beforeTypes := a.typeRegistry.AllTypes()
 	interfaceFunctions := make(map[string][]*ast.FunctionDecl)
 	var bodies []*ast.FunctionDecl
+	bodyInsertions := make(map[*ast.FunctionDecl]*diagnosticInsertion)
 	if publicSection != nil {
 		for _, stmt := range publicSection.Statements {
 			if decl, ok := stmt.(*ast.FunctionDecl); ok && decl.ClassName == nil {
@@ -101,6 +102,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 				a.registerFunctionSignature(decl)
 				if decl.Body != nil {
 					bodies = append(bodies, decl)
+					bodyInsertions[decl] = a.newDiagnosticInsertion()
 				}
 			} else {
 				a.analyzeStatement(stmt)
@@ -155,22 +157,28 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 				a.registerFunctionSignature(decl)
 			}
 			bodies = append(bodies, decl)
+			bodyInsertions[decl] = a.newDiagnosticInsertion()
 		}
 	}
 	for _, decl := range bodies {
 		if decl.Body == nil {
 			continue
 		}
-		funcType, err := a.buildFunctionType(decl)
-		if err != nil {
-			a.addError("invalid function signature for '%s': %v", decl.Name.Value, err)
-			continue
-		}
-		returnType := funcType.ReturnType
-		if returnType == nil {
-			returnType = types.VOID
-		}
-		a.analyzeFunctionBody(decl, funcType.Parameters, returnType)
+		// Unit bodies are deferred too. Restore their diagnostics at the
+		// declaration so a later compiler stop cannot hide an earlier body
+		// error, and an earlier body stop cuts off later declaration errors.
+		a.analyzeAtDiagnosticInsertion(bodyInsertions[decl], func() {
+			funcType, err := a.buildFunctionType(decl)
+			if err != nil {
+				a.addError("invalid function signature for '%s': %v", decl.Name.Value, err)
+				return
+			}
+			returnType := funcType.ReturnType
+			if returnType == nil {
+				returnType = types.VOID
+			}
+			a.analyzeFunctionBody(decl, funcType.Parameters, returnType)
+		})
 	}
 	// Interface implementations were matched above rather than through
 	// DefineOverload, so settle their forward state here; what remains

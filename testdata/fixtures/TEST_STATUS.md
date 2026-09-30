@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-09-25
+**Generated**: 2026-09-29
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2041 |
-| Passed | 1359 |
-| Failed | 655 |
+| Passed | 1368 |
+| Failed | 646 |
 | Skipped (no applicable expectation) | 27 |
-| **Scored pass rate** | **67%** (1359/2014) |
+| **Scored pass rate** | **68%** (1368/2014) |
 
 ## Per-category
 
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 275 | 254 | 13 | 52% |
+| FailureScripts | 542 | 281 | 248 | 13 | 53% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -77,9 +77,9 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | OverloadsPass | 39 | 39 | 0 | 0 | 100% |
 | PropertyExpressionsFail | 10 | 3 | 7 | 0 | 30% |
 | PropertyExpressionsPass | 19 | 19 | 0 | 0 | 100% |
-| SetOfFail | 14 | 13 | 1 | 0 | 93% |
+| SetOfFail | 14 | 14 | 0 | 0 | 100% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 391 | 52 | 0 | 88% |
+| SimpleScripts | 443 | 393 | 50 | 0 | 89% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

@@ -54,8 +54,8 @@ type Diagnostic struct {
 	// BlocksSemantic marks parser diagnostics that should stop semantic analysis
 	// because the recovered AST/result is not trustworthy enough to continue.
 	BlocksSemantic bool
-	// Stop marks a parser compiler stop (DWScript's AddCompilerStop): upstream abandons
-	// the compilation there, so no diagnostic positioned after it is reported.
+	// Stop marks a compiler stop (DWScript's AddCompilerStop): upstream abandons
+	// the compilation there, so later compilation diagnostics are omitted.
 	Stop bool
 	// sourceHints preserves a lexer directive setting until compile options are applied.
 	sourceHints token.HintLevel
@@ -337,11 +337,11 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	return result
 }
 
-// dropDiagnosticsAfterStop removes the non-parser diagnostics positioned after the
-// first parser compiler stop. Upstream compiles in a single pass and abandons it at
-// AddCompilerStop, so it reports what it found before the stop and nothing after it;
-// the analyzer still walks the recovered AST and would otherwise add later statements'
-// diagnostics.
+// dropDiagnosticsAfterStop applies the earliest compiler stop to diagnostics
+// from the other compilation phase. Parser stops cut off semantic diagnostics by
+// position. Semantic stops already cut off their own diagnostics in emission
+// order, so their child errors survive even when displayed after the stop's
+// scanner cursor; only later parser diagnostics need pruning here.
 //
 // Positions are only comparable within one source, so diags must hold the
 // diagnostics of a single file. Diagnostics that are not positional but deferred
@@ -349,10 +349,10 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 // keeps the analyzer from emitting them at all.
 func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
 	stopLine, stopColumn, found := 0, 0, false
+	var stopPhase Phase
 	for _, diag := range diags {
-		if diag.Phase == PhaseParsing && diag.Stop {
-			stopLine, stopColumn, found = diag.Line, diag.Column, true
-			break
+		if diag.Stop && (!found || diag.Line < stopLine || (diag.Line == stopLine && diag.Column < stopColumn)) {
+			stopLine, stopColumn, found, stopPhase = diag.Line, diag.Column, true, diag.Phase
 		}
 	}
 	if !found {
@@ -361,7 +361,10 @@ func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
 	kept := diags[:0]
 	for _, diag := range diags {
 		after := diag.Line > stopLine || (diag.Line == stopLine && diag.Column > stopColumn)
-		if diag.Phase != PhaseParsing && after {
+		// Semantic diagnostics were already truncated in emission order. A child
+		// may display after its parent's scanner cursor (e.g. array_of_proc2).
+		if after && ((stopPhase == PhaseParsing && diag.Phase != PhaseParsing) ||
+			(stopPhase == PhaseSemantic && diag.Phase == PhaseParsing)) {
 			continue
 		}
 		kept = append(kept, diag)
@@ -483,6 +486,11 @@ func sortDiagnostics(diags []Diagnostic) {
 		}
 		if left.Line != 0 && right.Line == 0 {
 			return true
+		}
+		if left.Phase == PhaseSemantic && right.Phase == PhaseSemantic && (left.Stop || right.Stop) {
+			// A semantic stop follows all child diagnostics even when its scanner
+			// position is on the preceding line (a comma before a newline).
+			return false
 		}
 		if left.Line != right.Line {
 			return left.Line < right.Line
@@ -805,6 +813,7 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 			message, line, column, rendered := normalizeSemanticDiagnostic(err.Error(), err.Message, err.Pos.Line, err.Pos.Column, severityFromSemantic(err.Severity))
 			diag := Diagnostic{
 				afterChildren: err.AfterChildren,
+				Stop:          err.Stop,
 				Message:       message,
 				Rendered:      rendered,
 				Code:          string(err.Type),
@@ -819,6 +828,9 @@ func semanticDiagnostics(analyzer *semantic.Analyzer) []Diagnostic {
 			}
 			seen[diag.Render()] = struct{}{}
 			diags = append(diags, diag)
+			if diag.Stop {
+				break
+			}
 			continue
 		}
 

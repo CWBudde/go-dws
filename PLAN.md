@@ -45,19 +45,6 @@ every missing/spurious shape, the fixtures it blocks and the emitting site:
 (regenerate with `--shape-top 0 --shape-fixtures`). Anchors must be measured per shape; the
 sentence is the easy half.
 
-### 1.2 `Incompatible types: "X" and "Y"` — M
-
-~58 lines over 22 fixtures, the largest missing semantic shape. DWScript uses one sentence
-wherever two types fail to unify (target first, supplied second, both quoted); go-dws has a
-bespoke sentence per site.
-
-- [ ] S Sentence and anchor for `array_initialization4`, `coalesce_dynarray`, `const_1`.
-- [ ] S ⚠️ Array-literal anchors: `array_of_proc2` wants column 9 (whitespace after a comma),
-  `array_of_proc` wants the `]`. Likely an artifact of upstream's scanner position; confirm from
-  the upstream emit site or park.
-- [ ] S Remaining routine-typed cases (`SetOfFail/invalid_operand`'s
-  `"TMyEnum" and "procedure Test"` and array literals).
-
 ### 1.3 `Cannot assign "X" to "Y"` — M
 
 ~37 lines over 17 fixtures, a different sentence from 1.2 but a shared site.
@@ -92,6 +79,8 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
 - [ ] `analyze_statements.go`.
 - [ ] `analyze_classes*.go` (overlaps Phase 3).
 - [ ] Other semantic sites, frontend, lexer, shared `internal/errors` builders.
+  Remaining incompatible-type pairs include `coalesce`, `in_typecheck1`, `params1`,
+  `property_default1`, and `swap1`; the named task 1.2 fixtures are closed.
 
 ---
 

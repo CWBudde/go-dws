@@ -113,6 +113,8 @@ type SemanticError struct {
 	// AfterChildren preserves emission order against errors in the expression
 	// this diagnostic describes, even when its display position is earlier.
 	AfterChildren bool
+	// Stop marks a diagnostic that abandons compilation after its child errors.
+	Stop bool
 }
 
 // IsWarning returns true if this is a warning (non-critical issue)

@@ -5,6 +5,8 @@ package ast
 import (
 	"bytes"
 	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -53,6 +55,9 @@ func (sd *SetDecl) String() string {
 //   - []                       // empty set
 type SetLiteral struct {
 	Elements []Expression
+	// ElementPositions retains scanner positions when this bracket literal is
+	// resolved as an array constructor by semantic analysis.
+	ElementPositions []token.Position
 	BaseNode
 }
 

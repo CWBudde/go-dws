@@ -127,8 +127,9 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		if expectedType != nil {
 			if _, ok := types.GetUnderlyingType(expectedType).(*types.ArrayType); ok {
 				arrayLit := &ast.ArrayLiteralExpression{
-					BaseNode: ast.BaseNode{Token: e.Token},
-					Elements: e.Elements,
+					BaseNode:         e.BaseNode,
+					Elements:         e.Elements,
+					ElementPositions: e.ElementPositions,
 				}
 				resultType := a.analyzeArrayLiteral(arrayLit, expectedType)
 				if resultType != nil {
@@ -220,6 +221,19 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		// pointer type, the call reading stands and a routine with required
 		// parameters is short of arguments. The expected type reaches no other
 		// part of the address-of analysis, which resolves the operand on its own.
+		if expectedType != nil && !types.IsPointerType(expectedType) && !expectedType.Equals(types.VARIANT) {
+			a.addError("unexpected \"@\" at %s", e.Token.Pos.String())
+			resultType := a.analyzeExpression(e)
+			if resultType != nil {
+				err := NewIncompatibleTypesPairError(e.Token.Pos,
+					semanticTypeNameForDiagnostic(expectedType), semanticTypeNameForDiagnostic(resultType))
+				err.AfterChildren = true
+				a.addStructuredError(err)
+			}
+			// ReadAt replaces the invalid operand with a nil constant so the
+			// enclosing argument checker reports its own mismatch and continues.
+			return types.NIL
+		}
 		resultType := a.analyzeExpression(e)
 		a.checkPointerContextArity(e, resultType, expectedType)
 		return resultType

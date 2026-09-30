@@ -174,6 +174,7 @@ func (p *Parser) parseSingleConstDeclaration(isResourceStringSection bool) *ast.
 		return nil
 	}
 	p.cursor = p.cursor.Advance() // move to '=' or ':='
+	stmt.ValueSeparatorPos = p.cursor.Current().Pos
 
 	// Parse value expression
 	p.cursor = p.cursor.Advance() // move to value expression

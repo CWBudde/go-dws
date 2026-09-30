@@ -310,19 +310,16 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	} else {
 		// Check that value type is compatible with declared type
 		if !a.canAssign(valueType, constType) {
-			if isStaticArraySizeMismatch(constType, valueType) {
-				a.addStructuredError(NewIncompatibleTypesPairError(
-					stmt.Value.Pos(),
-					semanticTypeNameForDiagnostic(constType),
-					semanticTypeNameForDiagnostic(valueType),
-				))
-				return
+			pos := stmt.Value.Pos()
+			// Constant scalar expressions have no ScriptPos upstream; the
+			// conversion uses the '=' token saved by ReadConstSymbol instead.
+			if stmt.ValueSeparatorPos.Line > 0 && a.isConstantScalar(stmt.Value) {
+				pos = stmt.ValueSeparatorPos
 			}
-			a.addStructuredError(NewTypeMismatch(
-				stmt.Value.Pos(),
-				"",
-				constType, // Expected type
-				valueType, // Got type
+			a.addStructuredError(NewIncompatibleTypesPairError(
+				pos,
+				semanticTypeNameForDiagnostic(constType),
+				semanticTypeNameForDiagnostic(valueType),
 			))
 			return
 		}
@@ -330,8 +327,7 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 
 	constValue, err := a.evaluateConstant(stmt.Value)
 	if err != nil {
-		a.addError("constant '%s' value must be a compile-time constant at %s: %v",
-			stmt.Name.Value, stmt.Token.Pos.String(), err)
+		a.addError("Constant expression expected at %s", stmt.Value.Pos().String())
 		return
 	}
 
@@ -339,6 +335,25 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	a.symbols.DefineConst(stmt.Name.Value, constType, constValue, stmt.Name.Token.Pos)
 	if stmt.IsDeprecated {
 		a.symbols.MarkDeprecated(stmt.Name.Value, stmt.DeprecatedMessage)
+	}
+}
+
+func (a *Analyzer) isConstantScalar(expr ast.Expression) bool {
+	switch e := expr.(type) {
+	case *ast.IntegerLiteral, *ast.FloatLiteral, *ast.StringLiteral, *ast.BooleanLiteral, *ast.CharLiteral, *ast.NilLiteral:
+		return true
+	case *ast.Identifier:
+		sym, ok := a.symbols.Resolve(e.Value)
+		return ok && sym.IsConst
+	case *ast.GroupedExpression:
+		return a.isConstantScalar(e.Expression)
+	case *ast.UnaryExpression:
+		// Upstream folds constant operator trees into a position-less TConstExpr.
+		return a.isConstantScalar(e.Right)
+	case *ast.BinaryExpression:
+		return a.isConstantScalar(e.Left) && a.isConstantScalar(e.Right)
+	default:
+		return false
 	}
 }
 
@@ -489,7 +504,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		// Check if variable is read-only
 		if sym.ReadOnly {
 			if sym.IsConst {
-				a.addError("Cannot assign to constant '%s' at %s", target.Value, stmt.Token.Pos.String())
+				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
 			} else {
 				a.addError("cannot assign to read-only variable '%s' at %s", target.Value, stmt.Token.Pos.String())
 			}

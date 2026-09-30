@@ -4,6 +4,7 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 func arrayLiteralExpectedElementCount(arrayType *types.ArrayType) int {
@@ -113,7 +114,43 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			continue
 		}
 
+		// Array construction reads a routine as a call unless the expected
+		// element signature accepts its reference. Preserve the arity error,
+		// then use the call's result even when arguments were missing.
+		_, explicitReference := elem.(*ast.AddressOfExpression)
+		if types.IsPointerType(elemType) && (!explicitReference || elementExpected != nil) &&
+			(elementExpected == nil || !a.canAssign(elemType, elementExpected)) {
+			if elementExpected == nil {
+				a.reportImplicitCallArity(elem)
+			}
+			switch pointer := types.GetUnderlyingType(elemType).(type) {
+			case *types.FunctionPointerType:
+				elemType = pointer.ReturnType
+			case *types.MethodPointerType:
+				elemType = pointer.ReturnType
+			}
+			if elemType == nil {
+				elemType = types.VOID
+			}
+		}
+		if elemType.Equals(types.VOID) {
+			previous := inferredElementType
+			if previous == nil {
+				previous = types.NIL
+			}
+			a.stopArrayLiteral(lit, idx, elemType, previous)
+			return nil
+		}
+
 		if expectedArrayType != nil {
+			if inferredElementType == nil {
+				// An Integer remains the constructor's inferred element type even
+				// when its eventual target is array of Float (array_of_proc2).
+				inferredElementType = elemType
+				if _, integer := elem.(*ast.IntegerLiteral); integer {
+					inferredElementType = types.INTEGER
+				}
+			}
 			// This enables heterogeneous arrays like ['string', 123, 3.14] for Format()
 			// Migrated from CONST to VARIANT for proper dynamic typing
 			elemTypeUnderlying := types.GetUnderlyingType(expectedArrayType.ElementType)
@@ -137,6 +174,15 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 
 		underlyingCurrent := types.GetUnderlyingType(elemType)
 		underlyingInferred := types.GetUnderlyingType(inferredElementType)
+		if currentArray, ok := underlyingCurrent.(*types.ArrayType); ok && currentArray.IsStatic() {
+			if inferredArray, ok := underlyingInferred.(*types.ArrayType); ok && inferredArray.IsStatic() &&
+				currentArray.Size() != inferredArray.Size() {
+				// AddElementExpr rejects rows of different sizes immediately, with
+				// the new row first and the previously inferred row second.
+				a.stopArrayLiteral(lit, idx, elemType, inferredElementType)
+				return nil
+			}
+		}
 
 		if underlyingInferred.Equals(underlyingCurrent) {
 			continue
@@ -229,6 +275,23 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	})
 
 	return arrayType
+}
+
+// stopArrayLiteral mirrors AddElementExpr's compiler stop. The parser retains
+// the scanner cursor, which need not be the start of the offending expression.
+func (a *Analyzer) stopArrayLiteral(lit *ast.ArrayLiteralExpression, index int, actual, previous types.Type) {
+	var pos token.Position
+	if index < len(lit.ElementPositions) {
+		pos = lit.ElementPositions[index]
+	} else {
+		pos = lit.Elements[index].Pos()
+	}
+	err := NewIncompatibleTypesPairError(pos,
+		semanticTypeNameForDiagnostic(actual), semanticTypeNameForDiagnostic(previous))
+	err.AfterChildren = true
+	err.Stop = true
+	a.addStructuredError(err)
+	a.compileStopped = true
 }
 
 // analyzeArrayRangeElement validates an ordinal range element of an array
@@ -371,8 +434,9 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 		for _, elem := range lit.Elements {
 			if _, isRange := elem.(*ast.RangeExpression); isRange {
 				arrayLit := &ast.ArrayLiteralExpression{
-					BaseNode: lit.BaseNode,
-					Elements: lit.Elements,
+					BaseNode:         lit.BaseNode,
+					Elements:         lit.Elements,
+					ElementPositions: lit.ElementPositions,
 				}
 				resultType := a.analyzeArrayLiteral(arrayLit, nil)
 				if resultType != nil && a.semanticInfo != nil {
@@ -397,8 +461,9 @@ func (a *Analyzer) analyzeSetLiteralWithContext(lit *ast.SetLiteral, expectedTyp
 
 			if elemType != nil && !types.IsOrdinalType(elemType) {
 				arrayLit := &ast.ArrayLiteralExpression{
-					BaseNode: lit.BaseNode,
-					Elements: lit.Elements,
+					BaseNode:         lit.BaseNode,
+					Elements:         lit.Elements,
+					ElementPositions: lit.ElementPositions,
 				}
 				resultType := a.analyzeArrayLiteral(arrayLit, nil)
 
