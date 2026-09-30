@@ -5944,3 +5944,42 @@ reports zero issues. Formatting and `git diff --check` are clean; regenerating
 the AST visitor produced no changes because the new fields contain positions.
 Independent review identified and closed explicit-reference, array-element
 conversion, and imported-unit diagnostic-order regressions before completion.
+
+## 2026-09-30 — For-in class narrowing diagnostics (PLAN 1.3)
+
+For-in loops over base-class elements now report
+`Incompatible types: Cannot assign "TBase" to "TChild"` when the existing loop
+variable's class descends from the element's class. The element type comes first;
+the diagnostic anchors at `do`, matching `FailureScripts/for_in_subclass` at
+13:12. Other mismatches retain the quoted type-pair sentence at `in`, with the
+loop-variable type first. Widening, same-class assignments, and inline variables
+retain their existing behavior.
+
+The public `ast.ForInStatement` gains `DoPos token.Position`. The parser captures
+that token without changing cursor advancement or missing-`do` recovery. ASTs
+without the new position fall back to `InPos`, then the statement's token. Alias
+unwrapping and the existing class ancestry check distinguish narrowing from
+unrelated or sibling classes; global assignment compatibility is unchanged.
+
+Test-first frontend coverage compares all diagnostics with the unchanged
+`for_in_subclass`, `for_in1`, and `for_error4` expectations. Additional cases pin
+indirect ancestry, aliases, unrelated and sibling classes, widening, same-class
+assignments, inline variables, multiline and `step` headers, hint ordering, and
+legacy AST position fallback. Parser tests cover token positions and missing-`do`
+recovery. The CLI also retains `SimpleScripts/for_in_subclass`'s `TChild` output.
+
+The complete in-scope CLI comparison gains exactly one fixture and loses none:
+**FailureScripts 281 → 282**. A post-change race-test harness run agrees with the CLI in
+all 41 in-scope categories, with **1,369 / 2,014 scored** overall. The fixture
+update's generated snapshot records **1,371** passes because BuildScripts varied
+between 7, 8, and 9 across runs, including before this change. Its existing gate
+remains **7**; the only ratcheted category is FailureScripts. The broader
+`Cannot assign` worklist remains open in PLAN.md.
+
+Validation: affected frontend/parser/semantic package tests, `just test-unit`
+(full race suite), `just build`, `just check-fmt`, and
+`golangci-lint run --new-from-merge-base=origin/main --timeout 10m` (zero issues).
+`just fixture-update` regenerates the status; exact CLI comparisons match all four
+target fixture expectations. AST visitor regeneration produces no diff.
+The final race suite also passes against the ratcheted gate, reporting 1,370
+passes with BuildScripts at 8. Independent review reports no findings.

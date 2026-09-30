@@ -701,6 +701,19 @@ func NewIncompatibleTypesPairError(pos lexer.Position, left, right string) *Sema
 	}
 }
 
+// NewCannotAssignTypesError creates DWScript's directional incompatible-types
+// diagnostic, naming the source type first and the target type second.
+func NewCannotAssignTypesError(pos lexer.Position, from, to string) *SemanticError {
+	from = semanticDiagnosticTypeName(errors.SimplifyTypeName(from))
+	to = semanticDiagnosticTypeName(errors.SimplifyTypeName(to))
+	return &SemanticError{
+		Type:     ErrorTypeMismatch,
+		Message:  fmt.Sprintf("Syntax Error: Incompatible types: Cannot assign \"%s\" to \"%s\"", from, to),
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
 // NewTooManyIndicesError reports an index beyond an array's dimensions.
 func NewTooManyIndicesError(pos lexer.Position) *SemanticError {
 	return &SemanticError{Type: ErrorArrayIndex, Message: "Too many indices", Pos: pos, Severity: SeverityError}

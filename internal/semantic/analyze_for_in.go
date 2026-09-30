@@ -37,8 +37,8 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 		collectionType = implicitType
 	}
 
-	// Every for-in diagnostic is anchored at the `in`, the way `until` anchors a
-	// repeat's condition.
+	// Generic for-in diagnostics anchor at `in`, the way `until` anchors a
+	// repeat's condition. Class-narrowing assignments use `do` instead.
 	inPos := stmt.InPos
 	if inPos.Line == 0 {
 		inPos = stmt.Token.Pos
@@ -116,9 +116,21 @@ func (a *Analyzer) analyzeForIn(stmt *ast.ForInStatement) {
 		// about the loop variable; reporting on it would only cascade.
 		if existingLoopVarType != nil && elementType != nil && !elementType.Equals(types.VOID) &&
 			!a.forInAccepts(elementType, existingLoopVarType) {
-			a.addStructuredError(NewIncompatibleTypesPairError(inPos,
-				semanticTypeNameForDiagnostic(existingLoopVarType),
-				semanticTypeNameForDiagnostic(elementType)))
+			elementClass, elementIsClass := types.GetUnderlyingType(elementType).(*types.ClassType)
+			loopClass, loopIsClass := types.GetUnderlyingType(existingLoopVarType).(*types.ClassType)
+			if elementIsClass && loopIsClass && a.isDescendantOf(loopClass, elementClass) {
+				doPos := stmt.DoPos
+				if doPos.Line == 0 {
+					doPos = inPos
+				}
+				a.addStructuredError(NewCannotAssignTypesError(doPos,
+					semanticTypeNameForDiagnostic(elementType),
+					semanticTypeNameForDiagnostic(existingLoopVarType)))
+			} else {
+				a.addStructuredError(NewIncompatibleTypesPairError(inPos,
+					semanticTypeNameForDiagnostic(existingLoopVarType),
+					semanticTypeNameForDiagnostic(elementType)))
+			}
 		}
 	}
 	a.symbols.DefineLoopVariable(stmt.Variable.Value, elementType, stmt.Variable.Token.Pos)
