@@ -47,13 +47,6 @@ sentence is the easy half.
 
 ### 1.3 `Cannot assign "X" to "Y"` — M
 
-~37 lines over 17 fixtures, a different sentence from 1.2 but a shared site.
-
-- [ ] S ⚠️ Measure the anchor: `for_in_subclass` expects it at column 12 of `for c in a do` —
-  the `do`, not the `in` every other for-in diagnostic uses.
-- [ ] M Split the for-in check: related class types where the assignment narrows get
-  `Cannot assign "TBase" to "TChild"`; unrelated ones keep `Incompatible types` (`for_in1`,
-  `for_error4`).
 - [ ] S Remaining `Cannot assign` sites from the worklist.
 
 ### 1.4 Call-argument and overload sentences — S

@@ -234,9 +234,12 @@ type ForInStatement struct {
 	Step       Expression
 	Variable   *Identifier
 	// InPos is the `in` keyword, which is where DWScript anchors the
-	// `Incompatible types` diagnostic when the loop variable cannot hold the
-	// collection's elements — the same introducer rule as `until` on a repeat.
+	// generic `Incompatible types` diagnostic — the same introducer rule as
+	// `until` on a repeat. Class-narrowing assignments use DoPos instead.
 	InPos token.Position
+	// DoPos is the `do` keyword, where DWScript anchors a for-in assignment
+	// that narrows a base-class element to a derived-class loop variable.
+	DoPos token.Position
 	BaseNode
 	InlineVar bool
 }

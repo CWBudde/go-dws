@@ -52,6 +52,13 @@ Typed constants and incompatible coalesce operands report
 Dynamic-array coalescing accepts derived-class elements on the right when the
 left array holds their base class; the reverse direction is rejected.
 
+For-in loops report class narrowing as
+`Incompatible types: Cannot assign "TBase" to "TChild"`, with the collection's
+element type first and the loop variable's type second, anchored at `do`.
+Other loop-variable type mismatches report `Incompatible types: "X" and "Y"`,
+with the variable's type first, anchored at `in`. Widening and same-class
+assignments remain accepted.
+
 Array constructors report incompatible row sizes with the current row's type
 first and the previously inferred row's type second. A procedure used as an
 element where its reference does not fit is read as a call: any

@@ -882,6 +882,7 @@ func (p *Parser) parseForInLoop(forToken lexer.Token, variable *ast.Identifier, 
 		return finished
 	}
 	p.cursor = p.cursor.Advance() // move to 'do'
+	stmt.DoPos = p.cursor.Current().Pos
 
 	// Parse the body statement
 	p.cursor = p.cursor.Advance()
