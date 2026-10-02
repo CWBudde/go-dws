@@ -89,7 +89,7 @@ func TestCompile_DWScriptRecoverySentences(t *testing.T) {
 			name:   "semantic error before a compiler stop",
 			source: "var x : Integer;\nx := 'a';\nx := (1 + );\n",
 			want: []string{
-				`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 2, column: 3]`,
+				`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 2, column: 6]`,
 				`Syntax Error: Expression expected [line: 3, column: 11]`,
 			},
 		},

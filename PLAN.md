@@ -47,7 +47,13 @@ sentence is the easy half.
 
 ### 1.3 `Cannot assign "X" to "Y"` — M
 
-- [ ] S Remaining `Cannot assign` sites from the worklist.
+- [ ] M Remaining `Cannot assign` sites from the worklist: array constructors and
+  recovery (`array_assign_error3`, `array_const`, `multi_dim_dyn_array1`), compound
+  operators and routine-pointer recovery (`assign_op_incompatible`, `func_ptr1`),
+  class-to-interface wording (`assign_intf_from_intf`), enum binding (`enums9`),
+  casts (`as_error`, `object_relops`), record metatypes (`record_meta`), and anonymous
+  procedure parsing (`JSONConnectorFail/autobox`). Scalar/interface RHS anchors and
+  field-backed property writes are closed; see the October progress log.
 
 ### 1.4 Call-argument and overload sentences — S
 

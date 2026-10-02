@@ -603,7 +603,7 @@ end;
 	want := []string{
 		`Syntax Error: Cannot set a value for a read-only property [line: 19, column: 9]`,
 		`Syntax Error: Cannot read a write only property [line: 20, column: 14]`,
-		`Syntax Error: Argument 0 expects type "Integer" instead of "String" [line: 21, column: 9]`,
+		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 21, column: 18]`,
 		`Syntax Error: Object reference needed to read/write an object field [line: 22, column: 15]`,
 		`Syntax Error: Object reference needed to read/write an object field [line: 23, column: 10]`,
 		`Syntax Error: Argument 0 expects type "Integer" instead of "String" [line: 24, column: 15]`,
@@ -1208,7 +1208,7 @@ end;
 	got := result.DiagnosticStrings()
 	want := []string{
 		`Syntax Error: Object reference needed to read/write an object field [line: 11, column: 8]`,
-		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 12, column: 4]`,
+		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 12, column: 7]`,
 	}
 
 	if len(got) != len(want) {
@@ -1241,7 +1241,7 @@ end;
 	got := result.DiagnosticStrings()
 	want := []string{
 		`Syntax Error: Colon ":" expected [line: 2, column: 11]`,
-		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 5, column: 4]`,
+		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 5, column: 7]`,
 	}
 
 	if len(got) != len(want) {
@@ -1272,7 +1272,7 @@ begin
 	got := result.DiagnosticStrings()
 	want := []string{
 		`Syntax Error: End of block expected [line: 3, column: 1]`,
-		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 4, column: 4]`,
+		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 4, column: 7]`,
 	}
 
 	if len(got) != len(want) {
@@ -1299,7 +1299,7 @@ func TestCompile_OrdersSameLineRecoverableParserBeforeSemanticDiagnostics(t *tes
 	got := result.DiagnosticStrings()
 	want := []string{
 		`Syntax Error: Colon ":" expected [line: 1, column: 11]`,
-		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 1, column: 31]`,
+		`Syntax Error: Incompatible types: Cannot assign "String" to "Integer" [line: 1, column: 34]`,
 	}
 
 	if len(got) != len(want) {

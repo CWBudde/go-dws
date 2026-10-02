@@ -47,6 +47,14 @@ matching DWScript's diagnostic recovery.
 
 ### Incompatible type pairs
 
+Ordinary scalar and interface assignments report
+`Incompatible types: Cannot assign "X" to "Y"` at the right-hand expression.
+Field-backed property writers use the same assignment sentence and position;
+method-backed writers retain their setter-argument diagnostic at the property.
+These rules also apply to inherited fields and implicit `Self` properties.
+Array assignments retain their context-specific positions: array expressions can
+anchor at their operator or literal, while indexed writes anchor at `:=`.
+
 Typed constants and incompatible coalesce operands report
 `Incompatible types: "X" and "Y"`, with the declared or left-hand type first.
 Dynamic-array coalescing accepts derived-class elements on the right when the

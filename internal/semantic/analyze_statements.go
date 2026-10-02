@@ -34,6 +34,13 @@ func assignmentMismatchPos(value ast.Expression, fallback lexer.Position, expect
 	if isStaticArraySizeMismatch(expected, got) && value != nil {
 		return value.Pos()
 	}
+	if value != nil {
+		_, expectedArray := types.GetUnderlyingType(expected).(*types.ArrayType)
+		_, gotArray := types.GetUnderlyingType(got).(*types.ArrayType)
+		if !expectedArray && !gotArray {
+			return value.Pos()
+		}
+	}
 	return fallback
 }
 
@@ -470,7 +477,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							}
 						}
 						if !a.canAssign(valueType, propInfo.Type) {
-							a.addStructuredError(NewPropertyValueTypeMismatchError(target.Token.Pos, propInfo.Type.String(), valueType.String()))
+							a.reportPropertyAssignmentMismatch(stmt.Value, propInfo, valueType, target.Token.Pos)
 						}
 						return
 					}
@@ -681,7 +688,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					}
 
 					if !usesClassOperator && !a.canAssign(valueType, propInfo.Type) {
-						a.addStructuredError(NewPropertyValueTypeMismatchError(target.Member.Token.Pos, propInfo.Type.String(), valueType.String()))
+						a.reportPropertyAssignmentMismatch(stmt.Value, propInfo, valueType, target.Member.Token.Pos)
 					}
 					return
 				}
