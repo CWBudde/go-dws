@@ -30,6 +30,14 @@ func allocationMismatchPos(value ast.Expression, fallback lexer.Position) lexer.
 	return fallback
 }
 
+// isEnumMismatch reports an assignment between two enumeration types, which
+// DWScript anchors at the assignment operator rather than the value.
+func isEnumMismatch(expected, got types.Type) bool {
+	_, expectedEnum := types.GetUnderlyingType(expected).(*types.EnumType)
+	_, gotEnum := types.GetUnderlyingType(got).(*types.EnumType)
+	return expectedEnum && gotEnum
+}
+
 func assignmentMismatchPos(value ast.Expression, fallback lexer.Position, expected, got types.Type) lexer.Position {
 	if pos := allocationMismatchPos(value, fallback); pos != fallback {
 		return pos
@@ -44,7 +52,7 @@ func assignmentMismatchPos(value ast.Expression, fallback lexer.Position, expect
 	if isStaticArraySizeMismatch(expected, got) && value != nil {
 		return value.Pos()
 	}
-	if value != nil {
+	if value != nil && !isEnumMismatch(expected, got) {
 		_, expectedArray := types.GetUnderlyingType(expected).(*types.ArrayType)
 		_, gotArray := types.GetUnderlyingType(got).(*types.ArrayType)
 		if !expectedArray && !gotArray {

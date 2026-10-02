@@ -174,3 +174,11 @@ c.Indirect := 'bad';`
 		}
 	}
 }
+
+// Mismatched enumerations stay anchored at the assignment operator
+// (FailureScripts/enums9 expects the ":=" column).
+func TestCompile_EnumAssignmentAnchor(t *testing.T) {
+	assertDiagnostics(t, "type TEnum1 = (One);\ntype TEnum2 = (Two);\nvar a1: TEnum1;\na1 :=\n  Two;", "<test>", []string{
+		`Syntax Error: Incompatible types: Cannot assign "TEnum2" to "TEnum1" [line: 4, column: 4]`,
+	})
+}
