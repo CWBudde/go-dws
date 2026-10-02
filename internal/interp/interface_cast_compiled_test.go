@@ -140,7 +140,7 @@ func TestInterfaceAsCast_CompileErrors(t *testing.T) {
 		{"scalar target", `var Obj: TObject; var Value := Obj as Integer;`, "requires class or interface type"},
 		{"unknown target", `var Obj: TObject; var Value := Obj as MissingType;`, "cannot resolve target type"},
 		{"unrelated classes", `type TA = class end; type TB = class end; var Obj := TA.Create; var Other := Obj as TB;`, "Incompatible types"},
-		{"implicit class assignment", `type ITest = interface end; var Obj: TObject; var Ref: ITest; Ref := Obj;`, "Cannot assign"},
+		{"implicit class assignment", `type ITest = interface end; var Obj: TObject; var Ref: ITest; Ref := Obj;`, `Class "TObject" does not implement interface "ITest"`},
 		{"implicit interface assignment", `type IA = interface end; type IB = interface end; var A: IA; var B: IB; B := A;`, "Cannot assign"},
 		{"implicit root downcast", `type ITest = interface end; var Root: IInterface; var Ref: ITest; Ref := Root;`, "Cannot assign"},
 		{"implicit alias root downcast", `type ITest = interface end; type IRootAlias = IInterface; var Root: IRootAlias; var Ref: ITest; Ref := Root;`, "Cannot assign"},

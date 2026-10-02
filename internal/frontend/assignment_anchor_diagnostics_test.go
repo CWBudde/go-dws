@@ -17,6 +17,9 @@ func TestCompile_AssignmentAnchorDiagnostics(t *testing.T) {
 		{"FailureScripts", "coalesce_class"},
 		{"InterfacesFail", "assign_obj_from_intf"},
 		{"InterfacesFail", "interface_inheritence2"},
+		{"InterfacesFail", "assign_intf_from_obj"},
+		{"InterfacesFail", "assign_intf_from_intf"},
+		{"FailureScripts", "multi_dim_dyn_array1"},
 		// Array expressions retain their existing expression-specific anchors.
 		{"FailureScripts", "array_concat"},
 		{"FailureScripts", "array_dyn_mismatch"},
@@ -39,6 +42,80 @@ func TestCompile_AssignmentAnchorDiagnostics(t *testing.T) {
 func TestCompile_AssignmentRHSOnNextLine(t *testing.T) {
 	assertDiagnostics(t, "var s: String;\ns :=\n  42;\nPrintLn(s);", "<test>", []string{
 		`Syntax Error: Incompatible types: Cannot assign "Integer" to "String" [line: 3, column: 3]`,
+	})
+}
+
+func TestCompile_ClassToInterfaceAssignment(t *testing.T) {
+	prefix := "type ITest = interface end;\ntype TPlain = class end;\nvar i: ITest;\nvar o: TPlain;\n"
+	assertDiagnostics(t, prefix+"i :=\n  o;", "<test>", []string{
+		`Syntax Error: Class "TPlain" does not implement interface "ITest" [line: 5, column: 3]`,
+	})
+
+	// The declaration's type controls compatibility even if the stored object
+	// implements the interface. Nil and directly implementing classes remain valid.
+	source := `type ITest = interface end;
+type TImpl = class(TObject, ITest) end;
+type TChild = class(TImpl) end;
+type IAlias = ITest;
+var i: IAlias;
+i := nil;
+i := TImpl.Create;
+i := TChild.Create;`
+	assertDiagnostics(t, source, "<test>", nil)
+}
+
+func TestCompile_ClassToInterfacePropertyAssignment(t *testing.T) {
+	assertDiagnostics(t, `type ITest = interface end;
+type TPlain = class end;
+type THolder = class
+  F: ITest;
+  property Direct: ITest write F;
+  procedure SetValue(v: ITest); begin F := v; end;
+  property Indirect: ITest write SetValue;
+end;
+var h: THolder;
+var o: TPlain;
+h.F := o;
+h.Direct := o;
+h.Indirect := o;`, "<test>", []string{
+		`Syntax Error: Class "TPlain" does not implement interface "ITest" [line: 11, column: 5]`,
+		`Syntax Error: Class "TPlain" does not implement interface "ITest" [line: 12, column: 10]`,
+		`Syntax Error: Argument 0 expects type "ITest" instead of "TPlain" [line: 13, column: 3]`,
+	})
+}
+
+func TestCompile_NewArrayAssignmentAnchor(t *testing.T) {
+	for _, tt := range []struct {
+		name, allocation, want string
+	}{
+		{"space", "new String  [2];", `Syntax Error: Incompatible types: Cannot assign "array of String" to "array of array of String" [line: 2, column: 18]`},
+		{"newline", "new String\n  [2];", `Syntax Error: Incompatible types: Cannot assign "array of String" to "array of array of String" [line: 3, column: 3]`},
+		{"comment", "new String{size}[2];", `Syntax Error: Incompatible types: Cannot assign "array of String" to "array of array of String" [line: 2, column: 22]`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assertDiagnostics(t, "var a: array of array of String;\na := "+tt.allocation, "<test>", []string{tt.want})
+		})
+	}
+}
+
+func TestCompile_NewArrayDimensionRecovery(t *testing.T) {
+	assertDiagnostics(t, "var a := new Integer[False, 'bad', 2];\nvar b: array of array of array of Integer;\nb := a;", "<test>", []string{
+		`Syntax Error: Integer expression expected [line: 1, column: 22]`,
+		`Syntax Error: Integer expression expected [line: 1, column: 29]`,
+	})
+}
+
+func TestCompile_NewArrayMemberAssignmentAnchor(t *testing.T) {
+	assertDiagnostics(t, `type TArray = array of array of Integer;
+type THolder = class
+  F: TArray;
+  property Value: TArray write F;
+end;
+var h: THolder;
+h.F := new Integer[2];
+h.Value := new Integer[2];`, "<test>", []string{
+		`Syntax Error: Incompatible types: Cannot assign "array of Integer" to "array of array of Integer" [line: 7, column: 19]`,
+		`Syntax Error: Incompatible types: Cannot assign "array of Integer" to "array of array of Integer" [line: 8, column: 23]`,
 	})
 }
 

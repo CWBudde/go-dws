@@ -272,6 +272,7 @@ func (p *Parser) parseNewOperandExpression(newToken lexer.Token) ast.Expression 
 func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *ast.Identifier) ast.Expression {
 	// Move to '['
 	p.cursor = p.cursor.Advance()
+	lBracketPos := p.cursor.Current().Pos
 
 	// Parse dimension sizes (comma-separated)
 	dimensions, ok := p.parseArrayDimensions(lexer.RBRACK)
@@ -285,6 +286,7 @@ func (p *Parser) parseNewArrayExpression(newToken lexer.Token, elementTypeName *
 		},
 		ElementTypeName: elementTypeName,
 		Dimensions:      dimensions,
+		LBracketPos:     lBracketPos,
 	}
 }
 

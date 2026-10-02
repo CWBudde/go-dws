@@ -366,7 +366,7 @@ func TestInvalidClassToInterfaceAssignment(t *testing.T) {
 		doc := TDocument.Create();
 		printer := doc;
 	`
-	expectError(t, input, "cannot assign")
+	expectError(t, input, `Class "TDocument" does not implement interface "IPrintable"`)
 }
 
 // TestValidInterfaceToInterfaceAssignment tests that compatible interface variables can be assigned

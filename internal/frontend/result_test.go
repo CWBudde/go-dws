@@ -204,7 +204,7 @@ x := x[0];
 	result := Compile(source, "array_bucket.pas", semantic.HintsLevelPedantic)
 	got := result.DiagnosticStrings()
 	want := []string{
-		`Syntax Error: array dimension 1 must be integer, got Float [line: 6, column: 20]`,
+		`Syntax Error: Integer expression expected [line: 6, column: 20]`,
 		`Syntax Error: Array index expected "Integer" but got "String" [line: 8, column: 8]`,
 		`Syntax Error: Array expected [line: 9, column: 7]`,
 	}

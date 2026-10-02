@@ -213,6 +213,8 @@ func (ie *IndexExpression) String() string {
 type NewArrayExpression struct {
 	ElementTypeName *Identifier
 	Dimensions      []Expression
+	// LBracketPos is the allocation expression's diagnostic anchor in DWScript.
+	LBracketPos token.Position
 	BaseNode
 }
 

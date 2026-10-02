@@ -23,7 +23,17 @@ func isStaticArraySizeMismatch(expected, got types.Type) bool {
 	return !expectedArray.Equals(gotArray)
 }
 
+func allocationMismatchPos(value ast.Expression, fallback lexer.Position) lexer.Position {
+	if allocation, ok := value.(*ast.NewArrayExpression); ok && allocation.LBracketPos.Line > 0 {
+		return allocation.LBracketPos
+	}
+	return fallback
+}
+
 func assignmentMismatchPos(value ast.Expression, fallback lexer.Position, expected, got types.Type) lexer.Position {
+	if pos := allocationMismatchPos(value, fallback); pos != fallback {
+		return pos
+	}
 	if value != nil {
 		if _, ok := types.GetUnderlyingType(expected).(*types.ArrayType); ok {
 			if _, ok := types.GetUnderlyingType(got).(*types.ArrayType); ok {
@@ -42,6 +52,25 @@ func assignmentMismatchPos(value ast.Expression, fallback lexer.Position, expect
 		}
 	}
 	return fallback
+}
+
+// reportAssignmentTypeMismatch keeps conversion-specific diagnostics at the
+// assignment operator while ordinary type mismatches use the expression's anchor.
+func (a *Analyzer) reportAssignmentTypeMismatch(valuePos, assignmentPos lexer.Position, from, to types.Type) {
+	if a.reportClassInterfaceAssignmentMismatch(assignmentPos, from, to) {
+		return
+	}
+	a.addError("%s", errors.FormatCannotAssign(from.String(), to.String(), valuePos.Line, valuePos.Column))
+}
+
+func (a *Analyzer) reportClassInterfaceAssignmentMismatch(pos lexer.Position, from, to types.Type) bool {
+	class, fromClass := types.GetUnderlyingType(from).(*types.ClassType)
+	iface, toInterface := types.GetUnderlyingType(to).(*types.InterfaceType)
+	if fromClass && toInterface {
+		a.addStructuredError(NewClassDoesNotImplementInterfaceError(pos, class.Name, iface.Name))
+		return true
+	}
+	return false
 }
 
 // ============================================================================
@@ -403,8 +432,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 			// Check type compatibility
 			if !a.canAssign(valueType, returnType) {
-				pos := stmt.Token.Pos
-				a.addError("%s", errors.FormatCannotAssign(valueType.String(), returnType.String(), pos.Line, pos.Column))
+				pos := allocationMismatchPos(stmt.Value, stmt.Token.Pos)
+				a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, returnType)
 			}
 			return
 		}
@@ -441,7 +470,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				}
 				if !a.canAssign(valueType, fieldType) {
 					pos := assignmentMismatchPos(stmt.Value, stmt.Token.Pos, fieldType, valueType)
-					a.addError("%s", errors.FormatCannotAssign(valueType.String(), fieldType.String(), pos.Line, pos.Column))
+					a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, fieldType)
 				}
 				return
 			}
@@ -477,7 +506,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							}
 						}
 						if !a.canAssign(valueType, propInfo.Type) {
-							a.reportPropertyAssignmentMismatch(stmt.Value, propInfo, valueType, target.Token.Pos)
+							a.reportPropertyAssignmentMismatch(stmt.Value, propInfo, valueType, target.Token.Pos, stmt.Token.Pos)
 						}
 						return
 					}
@@ -569,7 +598,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				return
 			}
 			pos := assignmentMismatchPos(stmt.Value, stmt.Token.Pos, sym.Type, valueType)
-			a.addError("%s", errors.FormatCannotAssign(valueType.String(), sym.Type.String(), pos.Line, pos.Column))
+			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, sym.Type)
 		}
 
 	case *ast.MemberAccessExpression:
@@ -688,7 +717,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					}
 
 					if !usesClassOperator && !a.canAssign(valueType, propInfo.Type) {
-						a.reportPropertyAssignmentMismatch(stmt.Value, propInfo, valueType, target.Member.Token.Pos)
+						a.reportPropertyAssignmentMismatch(stmt.Value, propInfo, valueType, target.Member.Token.Pos, stmt.Token.Pos)
 					}
 					return
 				}
@@ -721,8 +750,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, targetType) {
-			pos := stmt.Value.Pos()
-			a.addError("%s", errors.FormatCannotAssign(valueType.String(), targetType.String(), pos.Line, pos.Column))
+			pos := allocationMismatchPos(stmt.Value, stmt.Value.Pos())
+			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, targetType)
 		}
 
 	case *ast.IndexExpression:
@@ -814,8 +843,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, targetType) {
-			pos := stmt.Token.Pos
-			a.addError("%s", errors.FormatCannotAssign(valueType.String(), targetType.String(), pos.Line, pos.Column))
+			pos := allocationMismatchPos(stmt.Value, stmt.Token.Pos)
+			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, targetType)
 		}
 
 	default:

@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2041 |
-| Passed | 1373 |
-| Failed | 641 |
+| Passed | 1376 |
+| Failed | 638 |
 | Skipped (no applicable expectation) | 27 |
-| **Scored pass rate** | **68%** (1373/2014) |
+| **Scored pass rate** | **68%** (1376/2014) |
 
 ## Per-category
 
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 284 | 245 | 13 | 54% |
+| FailureScripts | 542 | 285 | 244 | 13 | 54% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -60,7 +60,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | IniFileLib | 2 | 0 | 2 | 0 | 0% |
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |
 | InnerClassesPass | 2 | 2 | 0 | 0 | 100% |
-| InterfacesFail | 19 | 8 | 11 | 0 | 42% |
+| InterfacesFail | 19 | 10 | 9 | 0 | 53% |
 | InterfacesPass | 33 | 33 | 0 | 0 | 100% |
 | JSFilterScripts | 2 | 2 | 0 | 0 | 100% |
 | JSFilterScriptsFail | 1 | 1 | 0 | 0 | 100% |

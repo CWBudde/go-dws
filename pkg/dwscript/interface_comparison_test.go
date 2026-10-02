@@ -190,7 +190,7 @@ func TestInterfaceComparison_InvalidOperands(t *testing.T) {
 		{"incompatible object comparison", "PrintLn(TObject.Create = L);", "cannot compare"},
 		{"mixed reference ordering", "PrintLn(TBoth.Create < L);", "Invalid Operands"},
 		{"incompatible object alias initializer", "var A: ILeftAlias := TObject.Create;", "Cannot assign"},
-		{"incompatible object alias assignment", "var A: ILeftAlias; A := TObject.Create;", "Cannot assign"},
+		{"incompatible object alias assignment", "var A: ILeftAlias; A := TObject.Create;", `Class "TObject" does not implement interface "ILeft"`},
 		{"unrelated interface alias assignment", "var A: ILeftAlias; A := R;", "Incompatible types"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
