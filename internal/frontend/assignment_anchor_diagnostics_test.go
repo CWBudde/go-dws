@@ -182,3 +182,35 @@ func TestCompile_EnumAssignmentAnchor(t *testing.T) {
 		`Syntax Error: Incompatible types: Cannot assign "TEnum2" to "TEnum1" [line: 4, column: 4]`,
 	})
 }
+
+// Array constructor mismatches through function names, members and field-backed
+// properties follow the variable rules: dynamic targets at ":=", static targets
+// at the constructor's "[". Indexed slots stay at ":=" (array_item_mismatch1).
+func TestCompile_ArrayConstructorTargetAnchors(t *testing.T) {
+	assertDiagnostics(t, `type THolder = class
+  Values: array of Integer;
+  property P: array of Integer read Values write Values;
+end;
+function F: array [0..1] of Integer;
+begin
+  F := [1, 'bad'];
+end;
+var h: THolder;
+var b: array of array [0..1] of Integer;
+h.Values := [1, 'bad'];
+h.P := [1, 'bad'];
+b[0] := [1, 'bad'];`, "<test>", []string{
+		`Syntax Error: Incompatible types: Cannot assign "array [0..1] of Variant" to "array [0..1] of Integer" [line: 7, column: 8]`,
+		`Syntax Error: Incompatible types: Cannot assign "array [0..1] of Variant" to "array of Integer" [line: 11, column: 10]`,
+		`Syntax Error: Incompatible types: Cannot assign "array [0..1] of Variant" to "array of Integer" [line: 12, column: 5]`,
+		`Syntax Error: Incompatible types: Cannot assign "array [0..1] of Variant" to "array [0..1] of Integer" [line: 13, column: 6]`,
+	})
+}
+
+// nil is not a valid Integer element, whichever position it takes.
+func TestCompile_ArrayAssignmentNilElement(t *testing.T) {
+	assertDiagnostics(t, "var a: array of Integer;\na := [nil, 1];\na := [1, nil];", "<test>", []string{
+		`Syntax Error: array element 1 has type Nil, expected Integer [line: 2, column: 7]`,
+		`Syntax Error: array element 2 has type Nil, expected Integer [line: 3, column: 10]`,
+	})
+}

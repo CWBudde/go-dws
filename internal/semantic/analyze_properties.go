@@ -21,7 +21,7 @@ func (a *Analyzer) reportPropertyAssignmentMismatch(value ast.Expression, prop *
 		if a.reportClassInterfaceAssignmentMismatch(assignmentPos, got, prop.Type) {
 			return
 		}
-		a.addStructuredError(NewCannotAssignTypesError(allocationMismatchPos(value, value.Pos()),
+		a.addStructuredError(NewCannotAssignTypesError(a.assignmentTargetMismatchPos(value, assignmentPos, value.Pos(), prop.Type, got),
 			semanticTypeNameForDiagnostic(got), semanticTypeNameForDiagnostic(prop.Type)))
 		return
 	}

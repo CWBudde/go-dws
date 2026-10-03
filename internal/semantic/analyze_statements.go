@@ -113,6 +113,18 @@ func (a *Analyzer) arrayAssignmentMismatchPos(value ast.Expression, fallback lex
 	return assignmentMismatchPos(value, fallback, expected, got)
 }
 
+// assignmentTargetMismatchPos applies the array anchoring rules of
+// arrayAssignmentMismatchPos to array-to-array mismatches and otherwise keeps
+// the path's own anchor for other mismatches.
+func (a *Analyzer) assignmentTargetMismatchPos(value ast.Expression, assignmentPos, otherPos lexer.Position, expected, got types.Type) lexer.Position {
+	_, expectedArray := types.GetUnderlyingType(expected).(*types.ArrayType)
+	_, gotArray := types.GetUnderlyingType(got).(*types.ArrayType)
+	if value != nil && expectedArray && gotArray {
+		return a.arrayAssignmentMismatchPos(value, assignmentPos, expected, got)
+	}
+	return allocationMismatchPos(value, otherPos)
+}
+
 // ============================================================================
 // Statement Analysis
 // ============================================================================
@@ -477,7 +489,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 			// Check type compatibility
 			if !a.canAssign(valueType, returnType) {
-				pos := allocationMismatchPos(stmt.Value, stmt.Token.Pos)
+				pos := a.assignmentTargetMismatchPos(stmt.Value, stmt.Token.Pos, stmt.Token.Pos, returnType, valueType)
 				a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, returnType)
 			}
 			return
@@ -795,7 +807,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, targetType) {
-			pos := allocationMismatchPos(stmt.Value, stmt.Value.Pos())
+			pos := a.assignmentTargetMismatchPos(stmt.Value, stmt.Token.Pos, stmt.Value.Pos(), targetType, valueType)
 			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, targetType)
 		}
 
@@ -887,6 +899,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, targetType) {
+			// Indexed slots keep constructor mismatches at ":=" (array_item_mismatch1).
 			pos := allocationMismatchPos(stmt.Value, stmt.Token.Pos)
 			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, targetType)
 		}
