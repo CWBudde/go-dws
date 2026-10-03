@@ -475,9 +475,9 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 		cursor = p.cursor
 	}
 
-	// Check if this is a forward declaration (no body)
+	// Forward and external declarations have no body or local declarations.
 	nextTok := cursor.Peek(1)
-	if fn.IsForward || (nextTok.Type != lexer.BEGIN && nextTok.Type != lexer.VAR && nextTok.Type != lexer.CONST && nextTok.Type != lexer.REQUIRE) {
+	if fn.IsForward || fn.IsExternal || (nextTok.Type != lexer.BEGIN && nextTok.Type != lexer.VAR && nextTok.Type != lexer.CONST && nextTok.Type != lexer.REQUIRE) {
 		decl, _ := builder.Finish(fn).(*ast.FunctionDecl)
 		return decl
 	}
@@ -770,19 +770,10 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 
 	// Parse optional default value
 	var defaultValue ast.Expression
+	var defaultValueSeparatorPos lexer.Position
 	if cursor.Peek(1).Type == lexer.EQ {
-		// Validate that optional parameters don't have modifiers (lazy, var, const)
-		if isLazy || byRef || isConst {
-			err := NewStructuredError(ErrKindInvalid).
-				WithCode(ErrInvalidSyntax).
-				WithMessage("optional parameters cannot have lazy, var, or const modifiers").
-				WithPosition(cursor.Current().Pos, cursor.Current().Length()).
-				WithSuggestion("remove the modifier or remove the default value").
-				WithParsePhase("function parameter").
-				Build()
-			p.addStructuredError(err)
-			return nil
-		}
+		defaultValueSeparatorPos = cursor.Peek(1).Pos
+		p.addParameterDefaultModifierError(cursor.Peek(1), isLazy, byRef, isConst)
 
 		cursor = cursor.Advance() // move to '='
 		cursor = cursor.Advance() // move past '='
@@ -808,18 +799,37 @@ func (p *Parser) parseParameterGroup() []*ast.Parameter {
 	// Create parameter nodes for each name
 	for _, name := range names {
 		param := &ast.Parameter{
-			Token:        name.Token,
-			Name:         name,
-			Type:         typeExpr,
-			ByRef:        byRef,
-			IsConst:      isConst,
-			IsLazy:       isLazy,
-			DefaultValue: defaultValue,
+			Token:                    name.Token,
+			Name:                     name,
+			Type:                     typeExpr,
+			ByRef:                    byRef,
+			IsConst:                  isConst,
+			IsLazy:                   isLazy,
+			DefaultValue:             defaultValue,
+			DefaultValueSeparatorPos: defaultValueSeparatorPos,
 		}
 		params = append(params, param)
 	}
 
 	return params
+}
+
+// addParameterDefaultModifierError reports a forbidden default at its equals sign.
+// ReadParams continues parsing the initializer after this ordinary error, keeping
+// the parameter's modifier and expression available for semantic recovery.
+func (p *Parser) addParameterDefaultModifierError(equals lexer.Token, isLazy, byRef, isConst bool) {
+	var message string
+	switch {
+	case isLazy:
+		message = "lazy parameter cannot have a default value"
+	case byRef:
+		message = "var parameter cannot have a default value"
+	case isConst:
+		message = "const parameter cannot have a default value"
+	default:
+		return
+	}
+	p.recordError(NewParserError(equals.Pos, equals.Length(), message, ErrInvalidSyntax))
 }
 
 // positioned at the first parameter token (not at LPAREN).

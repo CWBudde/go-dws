@@ -259,6 +259,13 @@ func (a *Analyzer) firstBindableMethodOverload(
 func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOfExpression) types.Type {
 	sym, ok := a.symbols.Resolve(funcName)
 	if !ok {
+		// Print and PrintLn expose the upstream one-Variant procedure
+		// signature even though direct Go calls accept multiple arguments.
+		if ident.Equal(funcName, "Print") || ident.Equal(funcName, "PrintLn") {
+			pointer := a.getBuiltinFunctionPointerType(funcName)
+			a.semanticInfo.SetType(expr, &ast.TypeAnnotation{Name: pointer.String()})
+			return pointer
+		}
 		// Query builtin registry for function signatures
 		if sig, found := builtins.DefaultRegistry.GetSignature(funcName); found {
 			if sig.IsVariadic {

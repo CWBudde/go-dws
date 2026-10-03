@@ -221,7 +221,7 @@ func TestConstParameterAssignmentError(t *testing.T) {
 			value := 42;
 		end;
 	`
-	expectError(t, input, "cannot assign to read-only variable 'value'")
+	expectError(t, input, "Cannot assign a value to the left-side argument")
 }
 
 func TestConstParameterCompoundAssignmentError(t *testing.T) {
@@ -231,7 +231,7 @@ func TestConstParameterCompoundAssignmentError(t *testing.T) {
 			value += 1;
 		end;
 	`
-	expectError(t, input, "cannot assign to read-only variable 'value'")
+	expectError(t, input, "Cannot assign a value to the left-side argument")
 }
 
 func TestConstParameterMixedWithVarAndRegular(t *testing.T) {
@@ -253,7 +253,7 @@ func TestConstParameterMixedAssignmentErrors(t *testing.T) {
 			dest := 'ok';   // OK: dest is var
 		end;
 	`
-	expectError(t, input, "cannot assign to read-only variable 'src'")
+	expectError(t, input, "Cannot assign a value to the left-side argument")
 }
 
 func TestConstParameterWithArray(t *testing.T) {

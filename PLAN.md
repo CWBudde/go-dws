@@ -132,12 +132,37 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
 (`expected ')' after parameter list` → `")" expected`, `unknown type 'X'` → `Type expected`).
 
 - [ ] Parser shapes (overlaps Phase 2).
+  - [ ] Property accessor names: `Name expected` and the corresponding stop
+    (`property_error3`, `property_error4`).
+  - [ ] Invalid global/class operators: `Overloadable operator expected`, with
+    their distinct recovery and stops (`operator_overload1`, `class_operator3`).
+  - [ ] Helper/class/record headers: `PROCEDURE or FUNCTION expected` and
+    `END expected`; keep unsupported helper-parent syntax separate.
+  - [ ] Audit remaining punctuation and type sentences after the Phase 2 prerequisites.
 - [ ] `analyze_function_calls.go` / `analyze_method_calls.go`.
+  - [ ] Remaining method/inherited arity and constructor overload sentences;
+    preserve each path's ordering and recovery types.
+  - [ ] Var-parameter arguments: distinguish nonvariables from immutable variables,
+    retain parameter names, and measure anchors (`passing_const_var`,
+    `passing_const_var2`, `const_param2`, `self_not_writable`).
+  - [ ] Remaining intrinsic diagnostics (`Assert`, `Inc`/`Dec`, and others);
+    `Swap` zero/excess arguments and delimiter-stop recovery remain open.
+  - [ ] Extend default-expression validation to method/record/helper signatures
+    and audit the other declaration sentences; regular-routine `params1` is closed.
 - [ ] `analyze_statements.go`.
+  - [ ] Unknown types and failed inference: `Type expected` / `Type could not be inferenced`.
+  - [ ] FOR STEP type/positivity sentences and anchors; constant folding is a
+    separate prerequisite (`for_step` and its optimized sibling).
+  - [ ] Break/Continue/Exit sentences, with finally nesting and compile stops
+    kept explicit (`break_continue`, `break_in_finally`, `exit_result6`).
 - [ ] `analyze_classes*.go` (overlaps Phase 3).
 - [ ] Other semantic sites, frontend, lexer, shared `internal/errors` builders.
-  Remaining incompatible-type pairs include `coalesce`, `in_typecheck1`, `params1`,
-  `property_default1`, and `swap1`; the named task 1.2 fixtures are closed.
+  Remaining incompatible-type pairs include `coalesce`, `in_typecheck1`, and
+  `property_default1`; the named task 1.2 fixtures are closed.
+
+The first 1.5 batch shipped regular parameter defaults, `Swap` data-argument/type
+checks, and immutable-assignment vocabulary. Its exact scope and evidence are in
+[`the October progress log`](docs/history/progress-log-2026-10.md).
 
 ---
 
