@@ -89,6 +89,11 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return typ
 	}
 
+	recordPropertyType, recordProperty, leftType, baseAnalyzed := a.analyzeRecordMetaIndex(expr)
+	if recordProperty {
+		return recordPropertyType
+	}
+
 	// Special-case indexed properties: obj.Prop[index]
 	if memberAccess, ok := expr.Left.(*ast.MemberAccessExpression); ok {
 		if propType := a.analyzeIndexedPropertyAccess(memberAccess, expr); propType != nil {
@@ -103,7 +108,9 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 	}
 
 	// Analyze the left side (what's being indexed)
-	leftType := a.analyzeIndexBase(expr.Left)
+	if !baseAnalyzed {
+		leftType = a.analyzeIndexBase(expr.Left)
+	}
 
 	// `Test[Index]` where Test is a parameterless function indexes the call's
 	// result, not the function itself. Member access unwraps the same way.

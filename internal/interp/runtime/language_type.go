@@ -43,6 +43,13 @@ func aggregateLanguageType(value Value) types.Type {
 		if v.ArrayType != nil {
 			return v.ArrayType
 		}
+	case *RecordTypeValue:
+		if v != nil && v.RecordType != nil {
+			if v.SourceType != nil {
+				return types.NewRecordMetaType(v.SourceType)
+			}
+			return types.NewRecordMetaType(v.RecordType)
+		}
 	case *RecordValue:
 		if v.RecordType != nil {
 			return v.RecordType

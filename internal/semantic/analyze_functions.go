@@ -243,7 +243,7 @@ func (a *Analyzer) analyzeFunctionBody(decl *ast.FunctionDecl, paramTypes []type
 		if decl.End().Line != 0 {
 			resultPos = blockEndStart(decl.End())
 		}
-		a.symbols.Define("Result", returnType, resultPos)
+		a.symbols.defineInternal("Result", returnType, resultPos)
 		// Inside a unit, an empty implementation body deliberately leaves
 		// Result at its default; do not hint "Result is never used" for it.
 		// DWScript also skips the hint for overloaded functions with real

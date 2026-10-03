@@ -11,76 +11,6 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
-func isStaticArraySizeMismatch(expected, got types.Type) bool {
-	expectedArray, ok := types.GetUnderlyingType(expected).(*types.ArrayType)
-	if !ok || !expectedArray.IsStatic() {
-		return false
-	}
-	gotArray, ok := types.GetUnderlyingType(got).(*types.ArrayType)
-	if !ok || !gotArray.IsStatic() {
-		return false
-	}
-	return !expectedArray.Equals(gotArray)
-}
-
-func allocationMismatchPos(value ast.Expression, fallback lexer.Position) lexer.Position {
-	if allocation, ok := value.(*ast.NewArrayExpression); ok && allocation.LBracketPos.Line > 0 {
-		return allocation.LBracketPos
-	}
-	return fallback
-}
-
-// isEnumMismatch reports an assignment between two enumeration types, which
-// DWScript anchors at the assignment operator rather than the value.
-func isEnumMismatch(expected, got types.Type) bool {
-	_, expectedEnum := types.GetUnderlyingType(expected).(*types.EnumType)
-	_, gotEnum := types.GetUnderlyingType(got).(*types.EnumType)
-	return expectedEnum && gotEnum
-}
-
-func assignmentMismatchPos(value ast.Expression, fallback lexer.Position, expected, got types.Type) lexer.Position {
-	if pos := allocationMismatchPos(value, fallback); pos != fallback {
-		return pos
-	}
-	if value != nil {
-		if _, ok := types.GetUnderlyingType(expected).(*types.ArrayType); ok {
-			if _, ok := types.GetUnderlyingType(got).(*types.ArrayType); ok {
-				return value.Pos()
-			}
-		}
-	}
-	if isStaticArraySizeMismatch(expected, got) && value != nil {
-		return value.Pos()
-	}
-	if value != nil && !isEnumMismatch(expected, got) {
-		_, expectedArray := types.GetUnderlyingType(expected).(*types.ArrayType)
-		_, gotArray := types.GetUnderlyingType(got).(*types.ArrayType)
-		if !expectedArray && !gotArray {
-			return value.Pos()
-		}
-	}
-	return fallback
-}
-
-// reportAssignmentTypeMismatch keeps conversion-specific diagnostics at the
-// assignment operator while ordinary type mismatches use the expression's anchor.
-func (a *Analyzer) reportAssignmentTypeMismatch(valuePos, assignmentPos lexer.Position, from, to types.Type) {
-	if a.reportClassInterfaceAssignmentMismatch(assignmentPos, from, to) {
-		return
-	}
-	a.addError("%s", errors.FormatCannotAssign(from.String(), to.String(), valuePos.Line, valuePos.Column))
-}
-
-func (a *Analyzer) reportClassInterfaceAssignmentMismatch(pos lexer.Position, from, to types.Type) bool {
-	class, fromClass := types.GetUnderlyingType(from).(*types.ClassType)
-	iface, toInterface := types.GetUnderlyingType(to).(*types.InterfaceType)
-	if fromClass && toInterface {
-		a.addStructuredError(NewClassDoesNotImplementInterfaceError(pos, class.Name, iface.Name))
-		return true
-	}
-	return false
-}
-
 // ============================================================================
 // Statement Analysis
 // ============================================================================
@@ -157,8 +87,10 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 	case *ast.TryStatement:
 		a.analyzeTryStatement(s)
 	case *ast.UsesClause:
-		// Uses clauses are handled at runtime by the interpreter
-		// Semantic analyzer just ignores them
+		// Frontend loading provides metadata; source uses activates visibility.
+		for _, unit := range s.Units {
+			a.activateSourceUnit(unit.Value)
+		}
 		return
 	case *ast.UnitDeclaration:
 		a.analyzeUnitDeclaration(s)
@@ -227,8 +159,13 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	if stmt.Value != nil && !specialMetaValueInit {
 		errorCountBefore := len(a.errors)
 		structuredCountBefore := len(a.structuredErrors)
-		initType := a.analyzeExpressionWithExpectedType(stmt.Value, varType)
-		if varType == nil {
+		var initType types.Type
+		if types.IsPointerType(varType) {
+			initType = a.analyzeAssignmentExpression(stmt.Value, varType, false)
+		} else {
+			initType = a.analyzeCallableValue(stmt.Value, varType, true)
+		}
+		if varType == nil && !a.semanticInfo.IsImplicitCall(stmt.Value) {
 			if implicitType := a.getImplicitCallType(stmt.Value); implicitType != nil {
 				initType = implicitType
 			} else if implicitType := implicitCallReturnTypeFromType(initType); implicitType != nil {
@@ -351,6 +288,11 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	if constType == nil {
 		// Type inference: use value's type
 		constType = valueType
+		if isEmptyBracketLiteral(stmt.Value) {
+			// A constant constructor has a fixed cardinality, including zero.
+			constType = types.NewStaticArrayType(types.VARIANT, 0, -1)
+			a.semanticInfo.SetResolvedType(stmt.Value, constType)
+		}
 	} else {
 		// Check that value type is compatible with declared type
 		if !a.canAssign(valueType, constType) {
@@ -433,14 +375,23 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			}
 
 			// Analyze the value being assigned
-			valueType := a.analyzeExpressionWithExpectedType(stmt.Value, returnType)
+			valueType := a.analyzeAssignmentValue(stmt, returnType)
 			if valueType == nil {
 				return
 			}
 
-			// Check type compatibility
-			if !a.canAssign(valueType, returnType) {
-				pos := allocationMismatchPos(stmt.Value, stmt.Token.Pos)
+			usesClassOperator := false
+			if isCompound {
+				proceed, classOp := a.isCompoundOperatorValid(stmt.Operator, returnType, valueType, stmt.Token.Pos)
+				if !proceed {
+					return
+				}
+				usesClassOperator = classOp
+			}
+
+			// Class operators and array append use their operand signature.
+			if !usesClassOperator && !a.canAssign(valueType, returnType) {
+				pos := a.assignmentTargetMismatchPos(stmt.Value, stmt.Token.Pos, stmt.Token.Pos, returnType, valueType)
 				a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, returnType)
 			}
 			return
@@ -466,7 +417,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					a.recordClassFieldUsage(fieldOwner, target.Value)
 				}
 
-				valueType := a.analyzeExpressionWithExpectedType(stmt.Value, fieldType)
+				valueType := a.analyzeAssignmentValue(stmt, fieldType)
 				if valueType == nil {
 					return
 				}
@@ -477,7 +428,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					}
 				}
 				if !a.canAssign(valueType, fieldType) {
-					pos := assignmentMismatchPos(stmt.Value, stmt.Token.Pos, fieldType, valueType)
+					pos := a.arrayAssignmentMismatchPos(stmt.Value, stmt.Token.Pos, fieldType, valueType)
 					a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, fieldType)
 				}
 				return
@@ -503,7 +454,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							a.reportUnconsumedPropertyValue(stmt)
 							return
 						}
-						valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+						valueType := a.analyzeAssignmentValue(stmt, propInfo.Type)
 						if valueType == nil {
 							return
 						}
@@ -572,22 +523,22 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			if arrayLit, ok := stmt.Value.(*ast.ArrayLiteralExpression); ok && len(arrayLit.Elements) == 0 {
 				// Empty array literal - default to array of Variant (array of const)
 				// This will work with any operator that expects an array type
-				valueType = a.analyzeExpressionWithExpectedType(stmt.Value, types.ARRAY_OF_CONST)
+				valueType = a.analyzeAssignmentValue(stmt, types.ARRAY_OF_CONST)
 			} else if isBracketLiteral(stmt.Value) && isDynamicArrayType(sym.Type) {
 				// Appending a bracket literal to a dynamic array (a += [1, 2]):
 				// analyze against the target type so the literal is typed (and
 				// annotated) as an array of elements rather than a set.
-				valueType = a.analyzeExpressionWithExpectedType(stmt.Value, sym.Type)
+				valueType = a.analyzeAssignmentValue(stmt, sym.Type)
 			} else {
-				// Try to analyze value without expected type for compound assignments
-				// This allows array literals to infer their type naturally
-				valueType = a.analyzeExpression(stmt.Value)
+				// Keep natural literal/class-operator inference, with the same
+				// deliberate call reading and exact RHS arity recovery as assignments.
+				valueType = a.analyzeCompoundAssignmentExpression(stmt.Value, sym.Type)
 			}
 		} else {
 			// For regular assignments, use target type for type inference
-			valueType = a.analyzeExpressionWithExpectedType(stmt.Value, sym.Type)
+			valueType = a.analyzeAssignmentValue(stmt, sym.Type)
 		}
-		if valueType == nil {
+		if valueType == nil || a.reportAssignmentValueRecovery(stmt, sym.Type, valueType) {
 			return
 		}
 
@@ -605,7 +556,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			if a.reportPointerAssignmentMismatch(stmt.Value, sym.Type, valueType) {
 				return
 			}
-			pos := assignmentMismatchPos(stmt.Value, stmt.Token.Pos, sym.Type, valueType)
+			pos := a.arrayAssignmentMismatchPos(stmt.Value, stmt.Token.Pos, sym.Type, valueType)
 			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, sym.Type)
 		}
 
@@ -637,7 +588,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					if !a.checkInterfacePropertyAccess(prop, target.Member, true, isCompound) {
 						return
 					}
-					valueType := a.analyzeExpressionWithExpectedType(stmt.Value, prop.Type)
+					valueType := a.analyzeAssignmentValue(stmt, prop.Type)
 					if valueType != nil {
 						usesClassOperator := false
 						if isCompound {
@@ -683,7 +634,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 								if a.rejectBareTypeValue(stmt, isCompound) {
 									return
 								}
-								valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+								valueType := a.analyzeAssignmentValue(stmt, propInfo.Type)
 								if valueType == nil {
 									return
 								}
@@ -710,7 +661,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					if a.rejectBareTypeValue(stmt, isCompound) {
 						return
 					}
-					valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+					valueType := a.analyzeAssignmentValue(stmt, propInfo.Type)
 					if valueType == nil {
 						return
 					}
@@ -741,7 +692,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if a.rejectBareTypeValue(stmt, isCompound) {
 			return
 		}
-		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
+		valueType := a.analyzeAssignmentValue(stmt, targetType)
 		if valueType == nil {
 			return
 		}
@@ -758,13 +709,13 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, targetType) {
-			pos := allocationMismatchPos(stmt.Value, stmt.Value.Pos())
+			pos := a.assignmentTargetMismatchPos(stmt.Value, stmt.Token.Pos, stmt.Value.Pos(), targetType, valueType)
 			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, targetType)
 		}
 
 	case *ast.IndexExpression:
 		if targetType, handled := a.analyzeInterfaceIndexedProperty(target, true, isCompound); handled {
-			valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
+			valueType := a.analyzeAssignmentValue(stmt, targetType)
 			if valueType != nil {
 				usesClassOperator := false
 				if isCompound {
@@ -813,7 +764,6 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			}
 			if a.isReadOnlyArrayIndexTarget(target, baseType) {
 				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
-				return
 			}
 		}
 		if arrayType, ok := types.GetUnderlyingType(baseType).(*types.ArrayType); ok && arrayType.IsStatic() {
@@ -834,7 +784,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if a.rejectBareTypeValue(stmt, isCompound) {
 			return
 		}
-		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
+		valueType := a.analyzeAssignmentValue(stmt, targetType)
 		if valueType == nil {
 			return
 		}
@@ -851,6 +801,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check type compatibility (skip for class operators - they're method calls)
 		if !usesClassOperator && !a.canAssign(valueType, targetType) {
+			// Indexed slots keep constructor mismatches at ":=" (array_item_mismatch1).
 			pos := allocationMismatchPos(stmt.Value, stmt.Token.Pos)
 			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, targetType)
 		}
@@ -858,57 +809,6 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 	default:
 		a.addError("invalid assignment target at %s", stmt.Token.Pos.String())
 	}
-}
-
-// rejectBareTypeValue reports DWScript's `"(" expected` when a plain assignment's value
-// is a bare non-class type name (`v := TEnum`, `obj.F := TEnum`, `a[0] := TEnum`):
-// upstream reads the name as the start of a cast and stops right after it, whatever the
-// target is. It reports whether the error was recorded.
-func (a *Analyzer) rejectBareTypeValue(stmt *ast.AssignmentStatement, isCompound bool) bool {
-	if isCompound || !a.isBareTypeValue(stmt.Value) {
-		return false
-	}
-	pos := stmt.Value.End()
-	a.addError("Syntax Error: \"(\" expected [line: %d, column: %d]", pos.Line, pos.Column)
-	return true
-}
-
-// isReadOnlyArrayIndexTarget reports whether an indexed assignment target such
-// as `arr[0] := x` writes into a static array bound to a read-only symbol — a
-// `const` parameter or a declared constant.
-//
-// Two cases are deliberately excluded, matching DWScript:
-//   - Open and dynamic arrays. A `const` open-array parameter only pins the
-//     reference, so element assignment is legal (FailureScripts/array_of_const
-//     expects no error for `procedure Test1(const AInts: array of Integer)`).
-//   - Chains rooted at a member access (`obj.Items[0]`), which mutate the
-//     referenced object rather than the const binding itself.
-func (a *Analyzer) isReadOnlyArrayIndexTarget(target *ast.IndexExpression, baseType types.Type) bool {
-	arrayType, ok := types.GetUnderlyingType(baseType).(*types.ArrayType)
-	if !ok || !arrayType.IsStatic() {
-		return false
-	}
-
-	root := ast.Expression(target)
-	for {
-		idx, ok := root.(*ast.IndexExpression)
-		if !ok {
-			break
-		}
-		root = idx.Left
-	}
-
-	rootIdent, ok := root.(*ast.Identifier)
-	if !ok {
-		return false
-	}
-
-	sym, ok := a.symbols.Resolve(rootIdent.Value)
-	if !ok {
-		return false
-	}
-
-	return sym.ReadOnly || sym.IsConst
 }
 
 // isBracketLiteral reports whether the expression is a bracket literal
@@ -927,31 +827,25 @@ func isDynamicArrayType(t types.Type) bool {
 	return ok && arrType.IsDynamic()
 }
 
-// isCompoundOperatorValid checks if a compound operator is valid for the given types.
-// Returns (valid, usesClassOperator) where usesClassOperator is true if a class operator was found.
+// isCompoundOperatorValid validates both operands. Its first result permits
+// continued assignment checking, including recovery after an unsupported built-in
+// pair; its second result skips that check for class operators and array append.
 func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, valueType types.Type, pos lexer.Position) (bool, bool) {
-	// Convert lexer.TokenType to operator symbol string
 	opSymbol := compoundOperatorToSymbol(op)
 	if opSymbol == "" {
 		a.addError("unsupported compound operator %v at %s", op, pos.String())
 		return false, false
 	}
 
-	// Check for class operator overrides first
 	if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
-		return true, true // Valid and uses class operator
+		return true, true
+	}
+	if builtinCompoundOperandsCompatible(op, targetType, valueType) {
+		return true, false
 	}
 
-	// Fall back to built-in type checking
-	switch op {
-	case lexer.PLUS_ASSIGN:
-		// += works with Integer, Float, String (concatenation), Variant
-		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.STRING) || targetType.Equals(types.VARIANT) {
-			return true, false // Valid but doesn't use class operator
-		}
-		// Dynamic arrays support += as append: the value may be a single
-		// element or an array of elements. Report "uses class operator" so
-		// the caller skips the plain assignability check (element += array).
+	// Preserve dynamic array += append and its element compatibility checks.
+	if op == lexer.PLUS_ASSIGN {
 		if arrType, ok := types.GetUnderlyingType(targetType).(*types.ArrayType); ok && arrType.IsDynamic() {
 			if a.canAssign(valueType, targetType) {
 				return true, true
@@ -967,29 +861,36 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 			a.addError("operator += not supported for type %s at %s", targetType.String(), pos.String())
 			return false, false
 		}
-		a.addError("operator += not supported for type %s at %s", targetType.String(), pos.String())
-		return false, false
-
-	case lexer.MINUS_ASSIGN, lexer.TIMES_ASSIGN, lexer.DIVIDE_ASSIGN:
-		// -=, *=, /= work with Integer, Float, Variant
-		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.VARIANT) {
-			return true, false // Valid but doesn't use class operator
-		}
-		opStr := "operator"
-		switch op {
-		case lexer.MINUS_ASSIGN:
-			opStr = "operator -="
-		case lexer.TIMES_ASSIGN:
-			opStr = "operator *="
-		case lexer.DIVIDE_ASSIGN:
-			opStr = "operator /="
-		}
-		a.addError("%s not supported for type %s at %s", opStr, targetType.String(), pos.String())
-		return false, false
-
-	default:
-		return true, false // Valid but doesn't use class operator
 	}
+
+	// Missing class operators stop upstream. Other unsupported pairs fall back
+	// to ordinary assignment, which may report a second RHS type mismatch.
+	err := NewIncompatibleOperandsError(pos)
+	_, classTarget := types.GetUnderlyingType(targetType).(*types.ClassType)
+	if classTarget {
+		err.Stop = true
+		a.compileStopped = true
+	}
+	a.addStructuredError(err)
+	return !classTarget, false
+}
+
+// builtinCompoundOperandsCompatible mirrors the registered upstream operand
+// pairs. Registered built-ins still require RHS-to-target assignment conversion.
+func builtinCompoundOperandsCompatible(op lexer.TokenType, left, right types.Type) bool {
+	left = types.GetUnderlyingType(left)
+	right = types.GetUnderlyingType(right)
+	if left == nil || right == nil {
+		return false
+	}
+	leftNumeric := types.IsNumericType(left) || left.Equals(types.VARIANT)
+	rightNumeric := types.IsNumericType(right) || right.Equals(types.VARIANT)
+	if leftNumeric && rightNumeric {
+		return true
+	}
+	return op == lexer.PLUS_ASSIGN &&
+		((left.Equals(types.STRING) && (right.Equals(types.STRING) || right.Equals(types.VARIANT))) ||
+			(left.Equals(types.VARIANT) && right.Equals(types.STRING)))
 }
 
 // analyzeBlock analyzes a block statement

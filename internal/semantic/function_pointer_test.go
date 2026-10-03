@@ -895,7 +895,7 @@ func TestImplicitFunctionToPointerConversionErrors(t *testing.T) {
 					f := DoSomething;
 				end.
 			`,
-			expectedErr: "incompatible types",
+			expectedErr: "Assignment's right-side-argument has no return type",
 		},
 		{
 			name: "passing wrong function signature as argument",

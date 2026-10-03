@@ -128,7 +128,10 @@ PrintLn(TIntegerHelper.Square(7)); // 49
 Any declared method arguments follow the instance. Instance methods always require
 an instance, even when they declare no parameters. A non-static class method in a
 helper for a class takes a class reference instead: `THelper.Method(TObject, args…)`.
-A non-static class method in a record helper takes the record type name in that position.
+A non-static class method in a record helper takes a record type value in that
+position, including the record type name, an alias, or an inferred value such as
+`var recordType := TRecord`. Its `Self` is that type value. See
+[Records and record type values](records.md).
 Static class methods and class methods on primitive targets take only their declared
 arguments; a parameterless one can be called as `THelper.Method` or `THelper.Method()`.
 

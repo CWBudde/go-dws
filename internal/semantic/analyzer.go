@@ -72,6 +72,8 @@ const (
 
 // Analyzer performs semantic analysis on a DWScript program.
 type Analyzer struct {
+	enumElements map[*types.EnumType]map[string]*Symbol
+
 	// mainStatement is the top-level main-program statement being analyzed, if any;
 	// see reportUnconsumedPropertyValue.
 	mainStatement         ast.Statement
@@ -92,6 +94,7 @@ type Analyzer struct {
 	builtinRegistry       *builtins.Registry
 	semanticInfo          *ast.SemanticInfo
 	unitSymbols           map[string]*SymbolTable
+	availableUnitSymbols  map[string]*SymbolTable
 	currentNestedTypes    map[string]string
 	nestedTypeAliases     map[string]map[string]string
 	forwardMethodPos      map[string]token.Position
@@ -101,6 +104,9 @@ type Analyzer struct {
 	sourceCode            string
 	sourceFile            string
 	pendingClassWarnings  []*types.ClassType
+	// assignmentCallRecovery scopes bad-arity result recovery to the exact RHS call.
+	assignmentCallRecovery *ast.CallExpression
+
 	// compileStopped records a compiler stop: either an error DWScript raises as
 	// one (an unknown name in an expression) or a parser stop the front end
 	// reports. Upstream abandons the compile there, unwinding past
@@ -146,8 +152,11 @@ type Analyzer struct {
 	// intrinsic array helper, which upstream reads through its own reader and so
 	// never subjects to the implicit call.
 	inArrayHelperCallback bool
-	inFinallyBlock        bool
-	inExceptionHandler    bool
+	// inArrayAssignment retains an incompatible constructor's inferred type so
+	// the assignment reports the array mismatch rather than per-element errors.
+	inArrayAssignment  bool
+	inFinallyBlock     bool
+	inExceptionHandler bool
 
 	// indexedWriteTargetMember names the member access currently being analyzed as
 	// the target of a plain `:=` assignment to an indexed property. The read-side
@@ -166,8 +175,10 @@ type Analyzer struct {
 func NewAnalyzer() *Analyzer {
 	a := &Analyzer{
 		symbols:                 NewSymbolTable(),
+		enumElements:            make(map[*types.EnumType]map[string]*Symbol),
 		typeRegistry:            NewTypeRegistry(),
 		unitSymbols:             make(map[string]*SymbolTable),
+		availableUnitSymbols:    make(map[string]*SymbolTable),
 		errors:                  make([]string, 0),
 		structuredErrors:        make([]*SemanticError, 0),
 		subranges:               make(map[string]*types.SubrangeType),
@@ -230,6 +241,14 @@ func NewAnalyzer() *Analyzer {
 	a.symbols.Define(builtins.CallerSourceCodeLocationName, locationType, token.Position{})
 	a.symbols.Define(builtins.CurrentStackTraceName, types.STRING, token.Position{})
 
+	// DWScript registers these three program unit symbols. Their members live
+	// in parent tables, so builtin members never perturb source-local midpoints.
+	builtinSymbols := a.symbols
+	a.symbols = NewSymbolTable()
+	a.symbols.outer = builtinSymbols
+	a.symbols.registerUnitEntry("System")
+	a.symbols.registerUnitEntry("Internal")
+	a.symbols.registerUnitEntry("Default")
 	return a
 }
 
@@ -412,6 +431,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	// Inline methods use the same insertion points, while their bodies still
 	// wait for all top-level class members to be registered.
 	type deferredFunc struct {
+		lookup     sourceScopeSnapshot
 		returnType types.Type
 		decl       *ast.FunctionDecl
 		paramTypes []types.Type
@@ -434,6 +454,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 			paramTypes, returnType, regOK := a.registerFunctionSignature(fd)
 			deferred[fd] = deferredFunc{
 				decl:       fd,
+				lookup:     a.captureSourceScope(a.symbols),
 				paramTypes: paramTypes,
 				returnType: returnType,
 				analyze:    regOK && !fd.IsForward,
@@ -462,6 +483,8 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 			continue
 		}
 		a.analyzeAtDiagnosticInsertion(df.insertion, func() {
+			restore := df.lookup.activate()
+			defer restore()
 			a.analyzeFunctionBody(df.decl, df.paramTypes, df.returnType)
 		})
 	}
@@ -1267,6 +1290,7 @@ func (a *Analyzer) registerType(name string, typ types.Type) {
 
 // registerTypeWithPos registers a type with explicit position information.
 func (a *Analyzer) registerTypeWithPos(name string, typ types.Type, pos token.Position) {
+	a.symbols.registerTypeEntry(name, typ, pos)
 	visibility := 0
 	if err := a.typeRegistry.Register(name, typ, pos, visibility); err != nil {
 		a.addError("failed to register type '%s' at %s: %v", name, pos, err)
@@ -1285,6 +1309,7 @@ func (a *Analyzer) lookupType(name string) (types.Type, bool) {
 }
 
 func (a *Analyzer) hasType(name string) bool {
+	a.symbols.declarations.find(name)
 	return a.typeRegistry.Has(name)
 }
 

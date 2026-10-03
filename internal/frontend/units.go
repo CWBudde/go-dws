@@ -93,7 +93,7 @@ func analyzeUnits(analyzer *semantic.Analyzer, result *Result, opts Options) err
 		available[ident.Normalize(unit.Name)] = unit.Symbols
 	}
 	for _, name := range imports {
-		if err := analyzer.ImportUnitSymbols(name.Value, available[ident.Normalize(name.Value)]); err != nil {
+		if err := analyzer.ProvideUnitSymbols(name.Value, available[ident.Normalize(name.Value)]); err != nil {
 			return fail(err)
 		}
 	}

@@ -131,6 +131,9 @@ func (e *Evaluator) explicitHelperReceiverAnnotation(helper HelperInfo, original
 		}
 	}
 	if original.IsClassMethod {
+		if meta := types.NewRecordMetaType(helper.TargetType); meta != nil {
+			return &recordMetaAnnotation{TypeAnnotation: ast.TypeAnnotation{Name: meta.String()}, meta: meta}
+		}
 		if target, ok := types.GetUnderlyingType(helper.TargetType).(*types.ClassType); ok {
 			receiverType = &ast.ClassOfTypeNode{ClassType: &ast.TypeAnnotation{Name: target.Name}}
 		}
@@ -214,4 +217,11 @@ func explicitHelperObject(node ast.Node) ast.Expression {
 	default:
 		return nil
 	}
+}
+
+// recordMetaAnnotation carries the temporary explicit-helper receiver type.
+// It avoids parsing a display name or mutating the shared SemanticInfo table.
+type recordMetaAnnotation struct {
+	meta *types.RecordMetaType
+	ast.TypeAnnotation
 }

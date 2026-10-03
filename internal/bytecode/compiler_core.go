@@ -36,9 +36,10 @@ type local struct {
 }
 
 type globalVar struct {
-	typ   types.Type
-	name  string
-	index uint16
+	builtin bool
+	typ     types.Type
+	name    string
+	index   uint16
 }
 
 type upvalue struct {
@@ -429,8 +430,9 @@ func (c *Compiler) addBuiltinGlobal(name string) {
 		return
 	}
 	c.globals[key] = globalVar{
-		name:  name,
-		index: c.nextGlobal,
+		name:    name,
+		index:   c.nextGlobal,
+		builtin: true,
 	}
 	c.nextGlobal++
 }

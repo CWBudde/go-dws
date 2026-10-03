@@ -62,6 +62,16 @@ import (
 //
 // ============================================================================
 
+// EnumElementBinding is an immutable compile-time enum constant identity.
+// EnumType is canonical and read-only after analysis; no runtime value is shared.
+type EnumElementBinding struct {
+	EnumType           *types.EnumType
+	Name               string
+	DeprecationMessage string
+	Ordinal            int
+	IsDeprecated       bool
+}
+
 // SemanticInfo holds semantic analysis results for an AST.
 // It maps AST nodes to their inferred types, folded compile-time predicate
 // results, and other semantic information. This separation allows the AST to
@@ -72,9 +82,11 @@ import (
 // writes. Typical usage is single-threaded analysis (writes) followed by
 // concurrent interpretation/compilation (reads).
 type SemanticInfo struct {
+	enumElements     map[Expression]EnumElementBinding
 	resolvedTypes    map[Node]types.Type
 	types            map[Expression]*TypeAnnotation
 	foldedPredicates map[*Identifier]bool
+	implicitCalls    map[Expression]bool
 	mu               sync.RWMutex
 }
 
@@ -83,8 +95,10 @@ type SemanticInfo struct {
 func NewSemanticInfo() *SemanticInfo {
 	return &SemanticInfo{
 		resolvedTypes:    make(map[Node]types.Type),
+		enumElements:     make(map[Expression]EnumElementBinding),
 		types:            make(map[Expression]*TypeAnnotation),
 		foldedPredicates: make(map[*Identifier]bool),
+		implicitCalls:    make(map[Expression]bool),
 	}
 }
 
@@ -206,8 +220,10 @@ func (si *SemanticInfo) Clear() {
 	si.mu.Lock()
 	defer si.mu.Unlock()
 	si.resolvedTypes = make(map[Node]types.Type)
+	si.enumElements = make(map[Expression]EnumElementBinding)
 	si.types = make(map[Expression]*TypeAnnotation)
 	si.foldedPredicates = make(map[*Identifier]bool)
+	si.implicitCalls = make(map[Expression]bool)
 }
 
 // GetResolvedType returns the analyzer's type object for an expression or type
@@ -237,4 +253,39 @@ func (si *SemanticInfo) SetResolvedType(node Node, typ types.Type) {
 			si.resolvedTypes[annot] = typ
 		}
 	}
+}
+
+// SetImplicitCall records a deliberate zero-argument call reading for a bare
+// expression. The evaluator must invoke the original callable once and preserve
+// its result, even when the result is itself callable. Set only during analysis.
+func (si *SemanticInfo) SetImplicitCall(expr Expression) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	si.implicitCalls[expr] = true
+}
+
+// IsImplicitCall reports an analyzed call reading, independently of result type.
+// It is safe for concurrent reads after analysis.
+func (si *SemanticInfo) IsImplicitCall(expr Expression) bool {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	return si.implicitCalls[expr]
+}
+
+// SetEnumElementBinding records a constant selected during source lookup.
+func (si *SemanticInfo) SetEnumElementBinding(expr Expression, binding EnumElementBinding) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	if si.enumElements == nil {
+		si.enumElements = make(map[Expression]EnumElementBinding)
+	}
+	si.enumElements[expr] = binding
+}
+
+// EnumElementBinding returns the selected constant, independently of value type.
+func (si *SemanticInfo) EnumElementBinding(expr Expression) (EnumElementBinding, bool) {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	binding, ok := si.enumElements[expr]
+	return binding, ok
 }

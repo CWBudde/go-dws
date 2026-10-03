@@ -265,7 +265,7 @@ func (e *Evaluator) VisitVarDeclStatement(node *ast.VarDeclStatement, ctx *Execu
 		if node.Type != nil {
 			if resolvedType, err := e.ResolveTypeFromAnnotation(node.Type, ctx); err == nil && resolvedType != nil {
 				if resolvedType.TypeKind() == "FUNCTION_POINTER" || resolvedType.TypeKind() == "METHOD_POINTER" {
-					if memberAccess, ok := node.Value.(*ast.MemberAccessExpression); ok {
+					if memberAccess, ok := node.Value.(*ast.MemberAccessExpression); ok && e.resolvedSemanticType(memberAccess) == nil {
 						value = e.buildMethodPointerFromMemberAccess(memberAccess, ctx)
 						if isError(value) {
 							return value
@@ -508,7 +508,7 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 		}
 
 		var value Value
-		if memberAccess, ok := node.Value.(*ast.MemberAccessExpression); ok {
+		if memberAccess, ok := node.Value.(*ast.MemberAccessExpression); ok && e.resolvedSemanticType(memberAccess) == nil {
 			expectedTypeKind := e.expectedTypeKindForIdentifier(target, ctx)
 			if expectedTypeKind == "FUNCTION_POINTER" || expectedTypeKind == "METHOD_POINTER" {
 				value = e.buildMethodPointerFromMemberAccess(memberAccess, ctx)

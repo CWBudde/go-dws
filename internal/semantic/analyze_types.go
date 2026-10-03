@@ -17,6 +17,9 @@ import (
 // evaluateConstant evaluates a compile-time constant expression.
 // Returns the constant value and an error if the expression is not a constant.
 func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
+	if binding, ok := a.semanticInfo.EnumElementBinding(expr); ok {
+		return binding.Ordinal, nil
+	}
 	if expr == nil {
 		return nil, fmt.Errorf("nil expression")
 	}
@@ -46,6 +49,9 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		}
 		if !sym.IsConst {
 			return nil, fmt.Errorf("identifier '%s' is not a constant", e.Value)
+		}
+		if sym.EnumElement != nil {
+			a.semanticInfo.SetEnumElementBinding(e, *sym.EnumElement)
 		}
 		return sym.Value, nil
 
@@ -218,6 +224,9 @@ func (a *Analyzer) evaluateConstantSetElements(elements []ast.Expression) (inter
 // evaluateConstantInt evaluates a compile-time constant integer expression.
 // Returns the integer value and an error if the expression is not a constant.
 func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
+	if binding, ok := a.semanticInfo.EnumElementBinding(expr); ok {
+		return binding.Ordinal, nil
+	}
 	if expr == nil {
 		return 0, fmt.Errorf("nil expression")
 	}
@@ -245,6 +254,9 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 		intVal, ok := sym.Value.(int)
 		if !ok {
 			return 0, fmt.Errorf("constant '%s' is not an integer", e.Value)
+		}
+		if sym.EnumElement != nil {
+			a.semanticInfo.SetEnumElementBinding(e, *sym.EnumElement)
 		}
 		return intVal, nil
 
@@ -566,6 +578,15 @@ func (a *Analyzer) evaluateConstantOrd(args []ast.Expression) (interface{}, erro
 		return nil, err
 	}
 
+	switch v := val.(type) {
+	case int:
+		return v, nil
+	case bool:
+		if v {
+			return 1, nil
+		}
+		return 0, nil
+	}
 	// Must be a string (character)
 	strVal, ok := val.(string)
 	if !ok {

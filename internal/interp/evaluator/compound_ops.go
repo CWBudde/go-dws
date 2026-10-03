@@ -59,6 +59,23 @@ func (e *Evaluator) applyCompoundOperation(op token.TokenType, left, right Value
 		// No overload found, fall through to standard operations
 	}
 
+	// Upstream converts a Variant RHS to the scalar target type before
+	// executing the selected compound operator, just as for assignment.
+	if _, variant := right.(runtime.VariantWrapper); variant {
+		switch left.(type) {
+		case *runtime.IntegerValue, *runtime.FloatValue:
+			if converted, ok := e.TryImplicitConversion(right, runtime.LanguageType(left), ctx); ok {
+				if isError(converted) {
+					return converted
+				}
+				right = converted
+			}
+			if ctx.Exception() != nil {
+				return &runtime.NilValue{}
+			}
+		}
+	}
+
 	switch op {
 	case token.PLUS_ASSIGN:
 		return e.evalPlusAssign(left, right, node, ctx)

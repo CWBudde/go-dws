@@ -15,10 +15,12 @@ import (
 // TypeDescriptor contains metadata about a registered type.
 // It includes the type itself, its position in source code, and visibility information.
 type TypeDescriptor struct {
-	Type       types.Type     // Actual type instance
-	Name       string         // Canonical type name
-	Position   token.Position // Source location
-	Visibility int            // Access control (0=private, 1=unit, 2=public)
+	// importedFrom gates unit types during deferred source-scope replay.
+	importedFrom string
+	Type         types.Type     // Actual type instance
+	Name         string         // Canonical type name
+	Position     token.Position // Source location
+	Visibility   int            // Access control (0=private, 1=unit, 2=public)
 }
 
 // ============================================================================
@@ -37,6 +39,8 @@ type TypeDescriptor struct {
 // The registry is used during semantic analysis to track all user-defined types
 // and built-in types in the program.
 type TypeRegistry struct {
+	// activeImports is restored alongside the source unit-parent snapshot.
+	activeImports map[string]bool
 	// types is a case-insensitive map of type names to their descriptors.
 	// Uses ident.Map for automatic case normalization and original casing preservation.
 	types *ident.Map[*TypeDescriptor]
@@ -49,8 +53,9 @@ type TypeRegistry struct {
 // NewTypeRegistry creates a new type registry
 func NewTypeRegistry() *TypeRegistry {
 	return &TypeRegistry{
-		types:     ident.NewMap[*TypeDescriptor](),
-		kindIndex: make(map[string][]string),
+		types:         ident.NewMap[*TypeDescriptor](),
+		activeImports: make(map[string]bool),
+		kindIndex:     make(map[string][]string),
 	}
 }
 
@@ -75,7 +80,7 @@ func (r *TypeRegistry) Register(name string, typ types.Type, pos token.Position,
 	}
 
 	// Check for duplicates
-	if existing, exists := r.types.Get(name); exists {
+	if existing, exists := r.types.Get(name); exists && r.visible(existing) {
 		return fmt.Errorf("type '%s' already defined at %s", existing.Name, existing.Position)
 	}
 
@@ -98,7 +103,7 @@ func (r *TypeRegistry) Register(name string, typ types.Type, pos token.Position,
 // Returns the type and true if found, nil and false otherwise.
 func (r *TypeRegistry) Resolve(name string) (types.Type, bool) {
 	descriptor, exists := r.types.Get(name)
-	if !exists {
+	if !exists || !r.visible(descriptor) {
 		return nil, false
 	}
 	return descriptor.Type, true
@@ -108,7 +113,11 @@ func (r *TypeRegistry) Resolve(name string) (types.Type, bool) {
 // Returns the full descriptor and true if found, nil and false otherwise.
 // This is useful when you need position information or visibility.
 func (r *TypeRegistry) ResolveDescriptor(name string) (*TypeDescriptor, bool) {
-	return r.types.Get(name)
+	descriptor, ok := r.types.Get(name)
+	if !ok || !r.visible(descriptor) {
+		return nil, false
+	}
+	return descriptor, true
 }
 
 // MustResolve looks up a type and panics if not found.
@@ -149,6 +158,9 @@ func (r *TypeRegistry) ResolveUnderlying(name string) (types.Type, bool) {
 func (r *TypeRegistry) AllTypes() map[string]types.Type {
 	result := make(map[string]types.Type, r.types.Len())
 	r.types.Range(func(name string, descriptor *TypeDescriptor) bool {
+		if !r.visible(descriptor) {
+			return true
+		}
 		result[name] = descriptor.Type
 		return true
 	})
@@ -161,6 +173,9 @@ func (r *TypeRegistry) AllTypes() map[string]types.Type {
 func (r *TypeRegistry) AllDescriptors() map[string]*TypeDescriptor {
 	result := make(map[string]*TypeDescriptor, r.types.Len())
 	r.types.Range(func(name string, descriptor *TypeDescriptor) bool {
+		if !r.visible(descriptor) {
+			return true
+		}
 		result[name] = descriptor
 		return true
 	})
@@ -185,6 +200,9 @@ func (r *TypeRegistry) TypesByKind(kind string) []string {
 func (r *TypeRegistry) buildKindIndex() {
 	r.kindIndex = make(map[string][]string)
 	r.types.Range(func(name string, descriptor *TypeDescriptor) bool {
+		if !r.visible(descriptor) {
+			return true
+		}
 		kind := descriptor.Type.TypeKind()
 		r.kindIndex[kind] = append(r.kindIndex[kind], name)
 		return true
@@ -313,7 +331,8 @@ func (r *TypeRegistry) Unregister(name string) bool {
 // Has checks if a type with the given name is registered (case-insensitive).
 // This is useful for checking existence without retrieving the type.
 func (r *TypeRegistry) Has(name string) bool {
-	return r.types.Has(name)
+	_, ok := r.Resolve(name)
+	return ok
 }
 
 // RegisterBuiltIn is a convenience method for registering built-in types
@@ -328,4 +347,18 @@ func (r *TypeRegistry) MustRegisterBuiltIn(name string, typ types.Type) {
 	if err := r.RegisterBuiltIn(name, typ); err != nil {
 		panic(fmt.Sprintf("failed to register built-in type '%s': %v", name, err))
 	}
+}
+
+// registerImported marks only unit-owned descriptors for source visibility.
+// Source class shells retain the analyzer's deliberate forward visibility.
+func (r *TypeRegistry) registerImported(name string, typ types.Type, unit string) error {
+	if err := r.Register(name, typ, token.Position{}, 2); err != nil {
+		return err
+	}
+	descriptor, _ := r.types.Get(name)
+	descriptor.importedFrom = ident.Normalize(unit)
+	return nil
+}
+func (r *TypeRegistry) visible(descriptor *TypeDescriptor) bool {
+	return descriptor != nil && (descriptor.importedFrom == "" || r.activeImports[descriptor.importedFrom])
 }

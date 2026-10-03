@@ -63,6 +63,40 @@ the opening `[` even when whitespace or a comment separates it from the type.
 Each invalid allocation dimension reports `Integer expression expected`; analysis
 continues through the remaining dimensions and retains the nested array type.
 
+Incompatible array constructors retain their inferred element type and size in
+assignment diagnostics. A dynamic-array target reports the mismatch at `:=`;
+static-array targets retain the constructor's position. Constant-array values
+also report assignment mismatches at `:=`. A write to a constant array element
+reports `Cannot assign a value to the left-side argument` and still checks the
+supplied value, reporting an incompatible RHS at the same operator.
+
+An untyped empty constant constructor can initialize any dynamic array. Each use
+gets independent storage with the destination's element type. This does not allow
+an ordinary `array of Variant` variable to be assigned to `array of Integer`.
+
+Compound assignments check both operand types. An unsupported scalar pair reports
+`Incompatible operands` at the operator, then checks the RHS assignment and reports
+`Cannot assign` at the supplied expression when needed. Registered operators still
+require RHS assignment compatibility: `Integer += Float` remains invalid. A missing
+class operator stops compilation at the operator. Numeric targets convert a Variant
+RHS before the operation. A raised conversion preserves the target and original
+exception, and runs the converter once.
+
+Routine-pointer assignments preserve compatible bare routine names and pointer
+copies as references. An incompatible bare routine is read as one call, retaining
+its declared result even after a missing-argument error. A procedure result normally
+reports `Assignment's right-side-argument has no return type` at the assignment
+operator, after child diagnostics. General scalar-to-pointer assignments report
+`Incompatible operands` at the operator, followed by `Cannot assign` at the
+supplying expression, using the pointer's canonical diagnostic name. Simple
+dynamic-array slot writes use the element-type mismatch at `:=`, including
+`Cannot assign "void"` for procedure results.
+
+A factory returning a compatible callable runs once; its result is stored for a
+later call. This also applies to typed initializers and var/lazy factory parameters.
+Lazy arguments evaluate on each read. A raising supplier preserves its original
+exception and destination, and coalesce skips its fallback after that raise.
+
 Typed constants and incompatible coalesce operands report
 `Incompatible types: "X" and "Y"`, with the declared or left-hand type first.
 Dynamic-array coalescing accepts derived-class elements on the right when the

@@ -351,7 +351,7 @@ func TestCompoundAssignmentBooleanError(t *testing.T) {
 		var b: Boolean := true;
 		b += false;
 	`
-	expectError(t, input, "operator += not supported for type Boolean")
+	expectError(t, input, "Incompatible operands")
 }
 
 func TestCompoundAssignmentStringMultiplyError(t *testing.T) {
@@ -359,7 +359,7 @@ func TestCompoundAssignmentStringMultiplyError(t *testing.T) {
 		var s: String := 'hello';
 		s *= 2;
 	`
-	expectError(t, input, "operator *= not supported for type String")
+	expectError(t, input, "Incompatible operands")
 }
 
 func TestCompoundAssignmentConstError(t *testing.T) {

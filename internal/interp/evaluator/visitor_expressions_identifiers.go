@@ -15,6 +15,15 @@ import (
 
 // VisitIdentifier evaluates an identifier (variable reference).
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
+	if e.engineState != nil && e.engineState.SemanticInfo != nil {
+		if binding, ok := e.engineState.SemanticInfo.EnumElementBinding(node); ok {
+			return &runtime.EnumValue{EnumType: binding.EnumType, TypeName: binding.EnumType.Name, OrdinalValue: binding.Ordinal, ValueName: binding.Name}
+		}
+	}
+
+	// Assignment analysis records call intent independently of the result type:
+	// a factory may return a pointer that must be stored without another call.
+	implicitCall := e.engineState != nil && e.engineState.SemanticInfo != nil && e.engineState.SemanticInfo.IsImplicitCall(node)
 	// Self keyword refers to current object instance
 	if node.Value == "Self" {
 		val, ok := ctx.Env().Get("Self")
@@ -32,6 +41,16 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// zero-argument overload (DWScript calls parameterless functions without
 	// parentheses).
 	if set := e.lookupLocalFunctions(node.Value, ctx); set != nil {
+		if implicitCall {
+			return e.callLocalFunctionSet(set, nil, node, ctx)
+		}
+		kind := ""
+		if e.engineState != nil {
+			kind = e.resolvedExpressionTypeKind(node, ctx)
+		}
+		if (kind == "FUNCTION_POINTER" || kind == "METHOD_POINTER") && len(set.Decls) > 0 {
+			return createFunctionPointerFromDecl(set.Decls[0], ctx.Env())
+		}
 		return e.callLocalFunctionSet(set, nil, node, ctx)
 	}
 
@@ -61,7 +80,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		// Check if this is a lazy parameter (LazyThunk)
 		// If so, force evaluation - each access re-evaluates the expression
 		if thunk, ok := val.(LazyEvaluator); ok {
-			return thunk.Evaluate()
+			return e.finishImplicitCallableRead(forceLazyArgument(thunk, ctx), node, ctx, implicitCall)
 		}
 
 		// Check if this is a var parameter (ReferenceValue)
@@ -74,12 +93,19 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 				}
 				return e.newError(node, "%s", err.Error())
 			}
-			return actualVal
+			return e.finishImplicitCallableRead(actualVal, node, ctx, implicitCall)
 		}
 
 		// Variable found - return the value directly
 		// All value types (primitives, arrays, objects, records) can be returned as-is
-		return val
+		return e.finishImplicitCallableRead(val, node, ctx, implicitCall)
+	}
+
+	if implicitCall {
+		return e.VisitCallExpression(&ast.CallExpression{
+			BaseNode: node.BaseNode,
+			Function: node,
+		}, ctx)
 	}
 
 	// Check if we're in an instance method context (Self is bound)
@@ -350,6 +376,12 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		}
 	}
 
+	if recordRaw, found := ctx.Env().Get("__CurrentRecord__"); found {
+		if record, ok := recordRaw.(*runtime.RecordTypeValue); ok && record.HasStaticMethod(node.Value) {
+			return e.callRecordStaticMethod(record, node.Value, nil, node, ctx)
+		}
+	}
+
 	// Check if this identifier is a class name (metaclass reference)
 	if e.typeSystem.HasClass(node.Value) {
 		classVal, err := e.typeSystem.CreateClassValue(node.Value)
@@ -374,6 +406,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Only declared type names produce metadata; expression types also describe
 	// builtins and values, which must continue through ordinary lookup.
 	if resolvedType, err := e.resolveTypeName(node.Value, ctx); err == nil && resolvedType != nil {
+		if record, ok := types.GetUnderlyingType(resolvedType).(*types.RecordType); ok {
+			if value := e.typeSystem.LookupRecord(record.Name); value != nil {
+				aliasValue := *value
+				aliasValue.SourceType = resolvedType
+				return &aliasValue
+			}
+		}
 		return &runtime.TypeMetaValue{
 			TypeInfo: resolvedType,
 			TypeName: resolvedType.String(),
@@ -597,4 +636,13 @@ func allParametersHaveDefaults(fn *ast.FunctionDecl) bool {
 		}
 	}
 	return true
+}
+
+// finishImplicitCallableRead invokes the original resolved callable only
+// after normal lazy/reference unwrapping. Its returned callable remains a value.
+func (e *Evaluator) finishImplicitCallableRead(value Value, node ast.Expression, ctx *ExecutionContext, implicitCall bool) Value {
+	if !implicitCall || isError(value) || ctx.Exception() != nil {
+		return value
+	}
+	return e.executeFunctionPointerDirect(value, nil, node, ctx)
 }

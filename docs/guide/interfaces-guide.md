@@ -424,6 +424,29 @@ Object-to-interface failures report `Class "TName" does not implement interface
 "IName"`; interface casts report `Cannot cast interface of "TName" to class
 "TTarget"` or `Cannot cast interface of "TName" to interface "ITarget"`.
 
+### Class Targets and Boolean Checks
+
+Class casts and checks accept class names, metaclass variables and expressions
+whose declared result is a class reference. The declared target type selects the
+check; a target factory is not invoked by `as` or class `is`.
+
+```pascal
+var Obj: TObject;
+var Target: TClass;
+PrintLn(Obj is Target);  // checks TObject; Target is not read
+Obj := Obj as Target;
+```
+
+Boolean `is` compares Boolean values, including a Variant on the left. A bare
+Boolean routine or routine pointer used as its target is called once, just as a
+grouped target is. Qualified targets follow lexical lookup: a local value named
+`System`, `Internal` or an imported unit takes precedence over that namespace.
+
+Invalid cast targets retain their expression and declared result during compiler
+recovery. An assignment supplied by `as` reports its mismatch at `as`; a true
+compiler stop suppresses later diagnostics. Experimental bytecode compilation
+rejects class `is` checks and unsupported implicit callable reads explicitly.
+
 ### Interface Equality
 
 `=` and `<>` compare the underlying object identity, including when the operands

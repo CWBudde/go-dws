@@ -1,6 +1,7 @@
 package bytecode
 
 import (
+	"github.com/cwbudde/go-dws/internal/builtins"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	pkgident "github.com/cwbudde/go-dws/pkg/ident"
@@ -914,27 +915,124 @@ func (c *Compiler) emitDefaultValue(expr *ast.IfExpression, line int) error {
 }
 
 func (c *Compiler) compileIsExpression(expr *ast.IsExpression) error {
-	line := lineOf(expr)
-
-	// Check if this is a boolean value comparison or type check
-	if expr.Right != nil {
-		// Boolean value comparison: left is right
-		// Convert both operands to boolean before comparing to match interpreter behavior
-		if err := c.compileExpression(expr.Left); err != nil {
-			return err
+	// Right also retains class-reference values and factories. Its presence
+	// alone cannot distinguish Boolean comparison from unsupported type checks.
+	right := expr.Right
+	for {
+		grouped, ok := right.(*ast.GroupedExpression)
+		if !ok {
+			break
 		}
-		c.chunk.WriteSimple(OpToBool, line)
-		if err := c.compileExpression(expr.Right); err != nil {
-			return err
-		}
-		c.chunk.WriteSimple(OpToBool, line)
-		c.chunk.WriteSimple(OpEqual, line)
-		return nil
+		right = grouped.Expression
+	}
+	rightType := c.inferIsTargetType(expr.Right)
+	if rightType == nil || !types.GetUnderlyingType(rightType).Equals(types.BOOLEAN) {
+		return c.errorf(expr, "type checking with 'is' operator not yet supported in bytecode mode")
+	}
+	if c.isImplicitIsTarget(right) {
+		return c.errorf(expr, "implicit calls in 'is' operator not yet supported in bytecode mode")
 	}
 
-	// Type checking mode - not yet fully implemented in bytecode
-	// For now, we'll return an error and let the interpreter handle it
-	return c.errorf(expr, "type checking with 'is' operator not yet supported in bytecode mode")
+	line := lineOf(expr)
+	if err := c.compileExpression(expr.Left); err != nil {
+		return err
+	}
+	c.chunk.WriteSimple(OpToBool, line)
+	if err := c.compileExpression(expr.Right); err != nil {
+		return err
+	}
+	c.chunk.WriteSimple(OpToBool, line)
+	c.chunk.WriteSimple(OpEqual, line)
+	return nil
+}
+
+// inferIsTargetType supplies the bounded proof needed by Boolean IS when the
+// frontend was skipped. It does not change general compiler type inference.
+func (c *Compiler) inferIsTargetType(expr ast.Expression) types.Type {
+	if c.semanticInfo != nil {
+		if resolved := c.semanticInfo.GetResolvedType(expr); resolved != nil {
+			return resolved
+		}
+	}
+	switch node := expr.(type) {
+	case *ast.GroupedExpression:
+		return c.inferIsTargetType(node.Expression)
+	case *ast.UnaryExpression:
+		if pkgident.Equal(node.Operator, "not") {
+			return c.inferIsTargetType(node.Right)
+		}
+	case *ast.CallExpression:
+		return c.inferIsCallTargetType(node)
+	}
+	return c.inferExpressionType(expr)
+}
+
+func (c *Compiler) inferIsCallTargetType(node *ast.CallExpression) types.Type {
+	name, ok := node.Function.(*ast.Identifier)
+	if !ok {
+		return nil
+	}
+	if _, ok := c.directCallInfo(name); ok {
+		global, _ := c.resolveGlobal(name.Value)
+		return global.typ
+	}
+	if _, local := c.resolveLocal(name.Value); local || c.hasEnclosingLocal(name.Value) {
+		return nil
+	}
+	global, exists := c.resolveGlobal(name.Value)
+	if exists && !global.builtin {
+		return nil
+	}
+	if exists && pkgident.Equal(name.Value, "Boolean") {
+		return types.BOOLEAN
+	}
+	if exists || c.isBuiltinFunction(name.Value) {
+		if signature, ok := builtins.DefaultRegistry.GetSignature(name.Value); ok {
+			return signature.ReturnType
+		}
+	}
+	return nil
+}
+
+// isImplicitIsTarget protects the VM's load-only identifier/member paths from
+// treating an implicitly called Boolean routine as a truthy callable value.
+func (c *Compiler) isImplicitIsTarget(right ast.Expression) bool {
+	if name, ok := right.(*ast.Identifier); ok {
+		if _, routine := c.directCallInfo(name); routine {
+			return true
+		}
+	}
+	if c.semanticInfo == nil {
+		return false
+	}
+	if c.semanticInfo.IsImplicitCall(right) {
+		return true
+	}
+	member, ok := right.(*ast.MemberAccessExpression)
+	if !ok {
+		return false
+	}
+	receiver := c.semanticInfo.GetResolvedType(member.Object)
+	if classOf, ok := types.GetUnderlyingType(receiver).(*types.ClassOfType); ok {
+		receiver = classOf.ClassType
+	}
+	switch typ := types.GetUnderlyingType(receiver).(type) {
+	case *types.ClassType:
+		if _, field := typ.GetField(member.Member.Value); field {
+			return false
+		}
+		if _, property := typ.GetProperty(member.Member.Value); property {
+			return false
+		}
+		_, method := typ.GetMethod(member.Member.Value)
+		return method
+	case *types.InterfaceType:
+		_, method := typ.GetMethod(member.Member.Value)
+		return method
+	case *types.RecordType:
+		return typ.HasMethod(member.Member.Value)
+	}
+	return false
 }
 
 // compileRecordLiteralExpression compiles a record literal.

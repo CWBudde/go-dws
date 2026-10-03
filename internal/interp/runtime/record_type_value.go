@@ -10,6 +10,8 @@ import (
 // It is a runtime-level "type meta value" to support static member access like TRecord.Foo.
 type RecordTypeValue struct {
 	RecordType *types.RecordType
+	// SourceType retains alias-specific helper ownership; storage stays canonical.
+	SourceType types.Type
 	FieldDecls map[string]*ast.FieldDecl
 	Metadata   *RecordMetadata
 

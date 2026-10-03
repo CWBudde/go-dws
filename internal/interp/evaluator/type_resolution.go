@@ -73,6 +73,8 @@ func (e *Evaluator) ResolveTypeFromAnnotation(typeExpr ast.TypeExpression, ctx *
 	}
 
 	switch node := typeExpr.(type) {
+	case *recordMetaAnnotation:
+		return node.meta, nil
 	case *ast.TypeAnnotation:
 		if node.InlineType != nil {
 			return e.ResolveTypeFromAnnotation(node.InlineType, ctx)

@@ -27,6 +27,12 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
+	if record, prop, indices, handled, err := e.resolveRecordMetaIndexedProperty(target, ctx); handled {
+		if err != nil {
+			return err
+		}
+		return e.recordMetaPropertyWrite(record, prop, indices, value, stmt, ctx)
+	}
 	if obj, prop, indices, handled, err := e.resolveInterfaceIndexedProperty(target, ctx); handled {
 		if err != nil {
 			return err
@@ -50,6 +56,16 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 		if accessor, ok := baseObj.(runtime.PropertyAccessor); ok {
 			if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
 				return e.evalIndexedPropertyAssignmentOnObject(baseObj, memberAccess.Member.Value, indices, value, stmt, ctx)
+			}
+		}
+
+		if record, ok := baseObj.(*runtime.RecordTypeValue); ok {
+			if prop := recordMetaProperty(record, memberAccess.Member.Value); prop != nil && prop.IsIndexed {
+				values, err := e.recordMetaPropertyIndices(indices, ctx)
+				if err != nil {
+					return err
+				}
+				return e.recordMetaPropertyWrite(record, prop, values, value, stmt, ctx)
 			}
 		}
 
@@ -147,6 +163,11 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 
 // assignResolvedIndex writes into an already captured container and index.
 func (e *Evaluator) assignResolvedIndex(arrayVal, indexVal, value Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {
+	if record, ok := arrayVal.(*runtime.RecordTypeValue); ok {
+		if prop := recordMetaProperty(record, ""); prop != nil {
+			return e.recordMetaPropertyWrite(record, prop, []Value{indexVal}, value, stmt, ctx)
+		}
+	}
 	// JSON index write: obj['key'] := value / arr[i] := value.
 	if isJSONBoxed(arrayVal) {
 		return e.assignJSONIndex(jsonValueOf(arrayVal), indexVal, value, stmt, ctx)
@@ -249,7 +270,7 @@ func (e *Evaluator) evalArrayElementAssignment(
 
 	// Update the array element. Record/static-array elements have value
 	// semantics, so store a snapshot instead of aliasing the source value.
-	value = e.coerceJSONStorageValue(value, arrayType.ElementType, ctx)
+	value = e.coerceTypedStorageValue(value, arrayType.ElementType, ctx)
 	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
 		return value
 	}

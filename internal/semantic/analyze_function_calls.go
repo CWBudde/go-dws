@@ -118,7 +118,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
 		if name, ok := memberAccess.Object.(*ast.Identifier); ok {
-			if symbols, imported := a.unitSymbols[ident.Normalize(name.Value)]; imported {
+			if symbols, imported := a.importedUnitNamespace(name.Value); imported {
 				// Reuse regular call checking, including overloads and defaults, in the unit namespace.
 				oldSymbols := a.symbols
 				a.symbols = NewEnclosedSymbolTable(oldSymbols)
@@ -170,8 +170,13 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Static method call on record: TRecord.Method(args)
-		if recordType, isRecordType := objectType.(*types.RecordType); isRecordType {
-			return a.analyzeRecordStaticMethodCall(expr, recordType, memberAccess.Member.Value)
+		if recordType, meta := recordReceiverType(objectType); recordType != nil {
+			if meta && recordType.HasClassMethod(memberAccess.Member.Value) {
+				return a.analyzeRecordStaticMethodCall(expr, recordType, memberAccess.Member.Value)
+			}
+			return a.analyzeMethodCallExpression(&ast.MethodCallExpression{
+				BaseNode: expr.BaseNode, Object: memberAccess.Object, Method: memberAccess.Member, Arguments: expr.Arguments,
+			})
 		}
 
 		// Constructor via metaclass variable: cls.Create(args)
@@ -835,6 +840,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if len(a.errors) == diagnosticsBeforeArgs {
 			a.addArgumentCountError(funcIdent.Token.Pos, len(expr.Arguments),
 				requiredParams, len(funcType.Parameters))
+			if expr == a.assignmentCallRecovery && !hasOverloads {
+				if funcType.ReturnType == nil {
+					return types.VOID
+				}
+				return funcType.ReturnType
+			}
 		}
 		return nil
 	}
@@ -850,6 +861,9 @@ func (a *Analyzer) currentImplicitSelfType() types.Type {
 		return a.currentClass
 	}
 	if a.currentRecord != nil {
+		if a.inClassMethod {
+			return types.NewRecordMetaType(a.currentRecord)
+		}
 		return a.currentRecord
 	}
 	return nil

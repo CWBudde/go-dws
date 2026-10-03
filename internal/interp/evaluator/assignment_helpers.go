@@ -671,7 +671,7 @@ func (e *Evaluator) evalCompoundIdentifierAssignment(
 	}
 
 	result := e.applyCompoundOperation(stmt.Operator, currentVal, rightVal, stmt, ctx)
-	if isError(result) {
+	if isError(result) || ctx.Exception() != nil {
 		return result
 	}
 
@@ -752,9 +752,12 @@ func (e *Evaluator) compoundAssignToField(
 	if isError(rightVal) {
 		return rightVal
 	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
 
 	result := e.applyCompoundOperation(stmt.Operator, fieldValue, rightVal, target, ctx)
-	if isError(result) {
+	if isError(result) || ctx.Exception() != nil {
 		return result
 	}
 
@@ -778,9 +781,12 @@ func (e *Evaluator) compoundAssignToClassVarViaSelf(
 	if isError(rightVal) {
 		return rightVal
 	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
 
 	result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target, ctx)
-	if isError(result) {
+	if isError(result) || ctx.Exception() != nil {
 		return result
 	}
 
@@ -812,7 +818,7 @@ func (e *Evaluator) compoundAssignToProperty(
 	currentPropValue := objVal.ReadProperty(targetName, func(propInfo any) Value {
 		return e.executePropertyRead(selfVal, propInfo, target, ctx)
 	})
-	if isError(currentPropValue) {
+	if isError(currentPropValue) || ctx.Exception() != nil {
 		return currentPropValue
 	}
 
@@ -820,9 +826,12 @@ func (e *Evaluator) compoundAssignToProperty(
 	if isError(rightVal) {
 		return rightVal
 	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
 
 	result := e.applyCompoundOperation(stmt.Operator, currentPropValue, rightVal, target, ctx)
-	if isError(result) {
+	if isError(result) || ctx.Exception() != nil {
 		return result
 	}
 
@@ -853,9 +862,12 @@ func (e *Evaluator) compoundAssignToCurrentClassVar(
 	if isError(rightVal) {
 		return rightVal
 	}
+	if ctx.Exception() != nil {
+		return &runtime.NilValue{}
+	}
 
 	result := e.applyCompoundOperation(stmt.Operator, classVarValue, rightVal, target, ctx)
-	if isError(result) {
+	if isError(result) || ctx.Exception() != nil {
 		return result
 	}
 
@@ -886,7 +898,7 @@ func (e *Evaluator) compoundAssignToReference(
 	}
 
 	result := e.applyCompoundOperation(stmt.Operator, derefVal, rightVal, stmt, ctx)
-	if isError(result) {
+	if isError(result) || ctx.Exception() != nil {
 		return result
 	}
 

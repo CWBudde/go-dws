@@ -360,6 +360,9 @@ func getPrecedence(tokenType lexer.TokenType) int {
 
 // saveState captures full parser state for speculative parsing with backtracking.
 func (p *Parser) saveState() ParserState {
+	// Peek extends the cursor buffer in place. Preserve its length together with
+	// the lexer position, so restoring speculation cannot duplicate tokens.
+	cursorCopy := p.cursor.Clone()
 	errorsCopy := make([]*ParserError, len(p.errors))
 	copy(errorsCopy, p.errors)
 	blockStackCopy := make([]BlockContext, len(p.blockStack))
@@ -374,7 +377,7 @@ func (p *Parser) saveState() ParserState {
 		blockStack:           blockStackCopy,
 		pendingTypeDecls:     pendingCopy,
 		ctx:                  p.ctx.Snapshot(),
-		cursor:               p.cursor,
+		cursor:               cursorCopy,
 	}
 }
 
@@ -386,7 +389,7 @@ func (p *Parser) restoreState(state ParserState) {
 	p.pendingTypeDecls = state.pendingTypeDecls
 	p.l.RestoreState(state.lexerState)
 	p.ctx.Restore(state.ctx)
-	p.cursor = state.cursor
+	p.cursor = state.cursor.Clone()
 }
 
 // pushBlockContext tracks block nesting for better error messages.

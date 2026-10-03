@@ -39,7 +39,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
-	value = e.coerceJSONStorageValue(value, e.resolvedExpressionType(target, ctx), ctx)
+	value = e.coerceTypedStorageValue(value, e.resolvedExpressionType(target, ctx), ctx)
 	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
 		return value
 	}
@@ -289,20 +289,11 @@ func (e *Evaluator) assignResolvedMember(
 		}
 		if recordType.RecordType != nil && recordType.RecordType.Properties != nil {
 			if propInfo, found := recordType.RecordType.Properties[key]; found {
-				writeKey := ident.Normalize(propInfo.WriteField)
-				if propInfo.WriteField == "" {
-					return e.newError(stmt, readOnlyPropertyWriteMessage)
-				}
-				if _, found := recordType.ClassVars[writeKey]; found {
-					recordType.ClassVars[writeKey] = value
-					if recordType.Metadata != nil {
-						recordType.Metadata.ClassVars[writeKey] = value
-					}
-					return value
-				}
-				return e.newError(stmt, "property '%s' write accessor '%s' not found in record type '%s'",
-					fieldName, propInfo.WriteField, recordType.GetRecordTypeName())
+				return e.recordMetaPropertyWrite(recordType, propInfo, nil, value, stmt, ctx)
 			}
+		}
+		if helper, prop := e.FindHelperProperty(objVal, fieldName); prop != nil {
+			return e.executeHelperPropertyWrite(helper, prop, objVal, value, stmt, ctx)
 		}
 		return e.newError(stmt, "record class member '%s' not found in record '%s'", fieldName, recordType.GetRecordTypeName())
 	}

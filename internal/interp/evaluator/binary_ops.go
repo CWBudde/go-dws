@@ -20,7 +20,7 @@ import (
 func (e *Evaluator) evalCoalesceOp(node *ast.BinaryExpression, ctx *ExecutionContext) Value {
 	// Evaluate left operand
 	left := e.Eval(node.Left, ctx)
-	if isError(left) {
+	if isError(left) || ctx.Exception() != nil {
 		return left
 	}
 	if left == nil {
@@ -35,7 +35,7 @@ func (e *Evaluator) evalCoalesceOp(node *ast.BinaryExpression, ctx *ExecutionCon
 
 	// Left is falsey, evaluate and return right operand
 	right := e.Eval(node.Right, ctx)
-	if isError(right) {
+	if isError(right) || ctx.Exception() != nil {
 		return right
 	}
 	if right == nil {

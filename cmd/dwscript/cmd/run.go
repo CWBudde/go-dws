@@ -331,8 +331,9 @@ func executeScript(cs *compiledScript) error {
 			displayUnitDependencyTree(cs.unitRegistry, cs.usedUnits)
 		}
 		return executeBytecodeProgram(cs.compiledProgram, bytecodeExecOptions{
-			filename: cs.filename,
-			trace:    trace,
+			filename:     cs.filename,
+			trace:        trace,
+			semanticInfo: cs.result.SemanticInfo,
 		})
 	}
 
@@ -556,8 +557,9 @@ func runBytecodeFile(filename string) error {
 }
 
 type bytecodeExecOptions struct {
-	filename string
-	trace    bool
+	semanticInfo *ast.SemanticInfo
+	filename     string
+	trace        bool
 }
 
 func executeBytecodeProgram(program *ast.Program, opts bytecodeExecOptions) error {
@@ -570,6 +572,7 @@ func executeBytecodeProgram(program *ast.Program, opts bytecodeExecOptions) erro
 	}
 
 	compiler := bytecode.NewCompiler(opts.filename)
+	compiler.SetSemanticInfo(opts.semanticInfo)
 	chunk, err := compiler.Compile(program)
 	if err != nil {
 		return fmt.Errorf("bytecode compilation failed: %w", err)

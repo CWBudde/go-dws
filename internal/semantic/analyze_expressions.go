@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strings"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
@@ -295,184 +297,199 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 	}
 }
 
-// analyzeIsExpression analyzes the 'is' operator.
-// Example: obj is TMyClass -> Boolean (type check)
-// Example: boolExpr is True -> Boolean (boolean comparison)
-// Returns Boolean type.
-func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
-	// Analyze the left expression
-	leftType := a.analyzeExpression(expr.Left)
-	if leftType == nil {
-		return nil
-	}
-
-	// Check if this is a boolean value comparison (expr.Right is set)
-	// or a type check (expr.TargetType is set)
-	if expr.Right != nil {
-		// Boolean value comparison: left is right
-		// Analyze the right expression
-		rightType := a.analyzeExpression(expr.Right)
-		if rightType == nil {
-			return nil
+// analyzeCastTarget distinguishes a lexical value from a type name. Class names
+// are class references, while variables keep their declared type.
+func (a *Analyzer) analyzeCastTarget(target ast.TypeExpression, right ast.Expression) (result types.Type) {
+	firstDiagnostic := len(a.structuredErrors)
+	defer func() {
+		// Unknown names while reading a cast/check target stop upstream's term
+		// reader. Preserve that stop in both analyzer state and the emitted stream.
+		for _, diagnostic := range a.structuredErrors[firstDiagnostic:] {
+			if diagnostic.Type == ErrorGeneric && strings.HasPrefix(diagnostic.Message, "Unknown name ") {
+				diagnostic.Stop = true
+				a.compileStopped = true
+				break
+			}
 		}
-
-		// Both sides are convertible to boolean via implicit coercion
-		// The interpreter and bytecode VM handle conversion using isTruthy/variantToBool
-
-		// The 'is' operator always returns Boolean
-		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
-			Token: expr.Token,
-			Name:  "Boolean",
-		})
-		return types.BOOLEAN
-	}
-
-	// Type checking mode
-	// Resolve the target type (should be a class type)
-	targetType, err := a.resolveTypeExpression(expr.TargetType)
-	if err != nil || targetType == nil {
-		a.addError("cannot resolve target type in 'is' expression at %s: %v", expr.Token.Pos.String(), err)
-		return nil
-	}
-
-	// Validate that left operand is a class (or nil)
-	if leftType != types.NIL {
-		leftUnderlying := types.GetUnderlyingType(leftType)
-		if _, isClass := leftUnderlying.(*types.ClassType); !isClass {
-			a.addError("'is' operator requires class instance, got %s at %s",
-				leftType.String(), expr.Token.Pos.String())
-			return nil
+		if target != nil {
+			a.semanticInfo.SetResolvedType(target, result)
 		}
+		if right != nil {
+			a.semanticInfo.SetResolvedType(right, result)
+		}
+	}()
+	if right != nil {
+		if target != nil && !a.hasLexicalValueReceiver(right) {
+			if resolved := a.resolveCastTargetType(target); resolved != nil {
+				return resolved
+			}
+		}
+		return a.analyzeCastTargetValue(right)
 	}
-
-	// Validate that target type is a class type
-	targetUnderlying := types.GetUnderlyingType(targetType)
-	if _, isClass := targetUnderlying.(*types.ClassType); !isClass {
-		a.addError("'is' operator requires class type, got %s at %s",
-			targetType.String(), expr.Token.Pos.String())
+	if annotation, ok := target.(*ast.TypeAnnotation); ok {
+		id := &ast.Identifier{BaseNode: ast.BaseNode{Token: annotation.Token}, Value: annotation.Name}
+		if sym, found := a.symbols.resolveIdentity(annotation.Name, true); found && !sym.lookupOnly {
+			return a.analyzeCastTargetValue(id)
+		}
+		if resolved := a.resolveCastTargetType(target); resolved != nil {
+			return resolved
+		}
+		return a.analyzeIdentifier(id)
+	}
+	resolved, err := a.resolveTypeExpression(target)
+	if err != nil {
 		return nil
 	}
-
-	// The 'is' operator always returns Boolean
-	a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
-		Token: expr.Token,
-		Name:  "Boolean",
-	})
-	return types.BOOLEAN
+	return resolved
 }
 
-// analyzeAsExpression analyzes the 'as' type casting operator.
-// Example: obj as IMyInterface or child as TParent
-// Supports class and interface operands, with implementation checked at runtime.
-// Returns the target type.
-func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
-	// Analyze the left expression (the object being cast)
-	leftType := a.analyzeExpression(expr.Left)
-	if leftType == nil {
+// resolveCastTargetType preserves type-name hints and represents class names as
+// class references. An unresolved name falls back to value analysis at its caller.
+func (a *Analyzer) resolveCastTargetType(target ast.TypeExpression) types.Type {
+	resolved, err := a.resolveTypeExpression(target)
+	if err != nil || resolved == nil {
 		return nil
 	}
-
-	// Resolve the target type (should be an interface or class type)
-	targetType, err := a.resolveTypeExpression(expr.TargetType)
-	if err != nil || targetType == nil {
-		a.addError("cannot resolve target type in 'as' expression at %s: %v", expr.Token.Pos.String(), err)
-		return nil
+	if annotation, ok := target.(*ast.TypeAnnotation); ok {
+		if symbol, found := a.symbols.resolveIdentity(annotation.Name, true); found && symbol.lookupOnly {
+			a.addIdentifierCaseHint(&ast.Identifier{BaseNode: ast.BaseNode{Token: annotation.Token}, Value: annotation.Name}, symbol.Name)
+		}
 	}
-
-	// Allow Variant casts to primitive types (and other runtime-resolved targets)
-	// DWScript permits using "as" with Variant to force a runtime conversion,
-	// e.g. VariantValue as Integer/String/Float/Boolean.
-	if leftType.Equals(types.VARIANT) {
-		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
-			Token: expr.Token,
-			Name:  targetType.String(),
-		})
-		return targetType
+	if class, ok := types.GetUnderlyingType(resolved).(*types.ClassType); ok {
+		return types.NewClassOfType(class)
 	}
-
-	// Target type can be an interface, a class, or a metaclass (`class of X`).
-	targetUnderlying := types.GetUnderlyingType(targetType)
-	interfaceType, isInterface := targetUnderlying.(*types.InterfaceType)
-	classTargetType, isClassTarget := targetUnderlying.(*types.ClassType)
-	classOfTarget, isClassOfTarget := targetUnderlying.(*types.ClassOfType)
-
-	if !isInterface && !isClassTarget && !isClassOfTarget {
-		a.addError("'as' operator requires class or interface type, got %s at %s",
-			targetType.String(), expr.Token.Pos.String())
-		return targetType
-	}
-
-	// Metaclass cast: `classRef as TSomeMetaclass` (e.g. `ClassType as TBaseTemplateClass`).
-	// The left operand must be a class reference; the referenced classes must be related.
-	if isClassOfTarget {
-		if leftType != types.NIL {
-			leftClassOf, leftIsClassOf := types.GetUnderlyingType(leftType).(*types.ClassOfType)
-			if !leftIsClassOf {
-				a.addError("'as' operator requires a class reference for a metaclass cast, got %s at %s",
-					leftType.String(), expr.Token.Pos.String())
-				return nil
-			}
-			if classOfTarget.ClassType != nil && leftClassOf.ClassType != nil &&
-				!types.IsClassRelated(leftClassOf.ClassType, classOfTarget.ClassType) {
-				a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, leftClassOf.ClassType.Name, classOfTarget.ClassType.Name))
+	if meta := types.NewRecordMetaType(resolved); meta != nil {
+		if annotation, ok := target.(*ast.TypeAnnotation); ok && !strings.Contains(annotation.Name, ".") {
+			if _, found := a.symbols.resolveIdentity(annotation.Name, true); !found {
 				return nil
 			}
 		}
-		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
-			Token: expr.Token,
-			Name:  targetType.String(),
-		})
-		return classOfTarget
+		return meta
 	}
+	return resolved
+}
 
-	// Classes and interfaces can both be cast to classes or interfaces.
-	leftUnderlying := types.GetUnderlyingType(leftType)
-	classType, isClass := leftUnderlying.(*types.ClassType)
-	_, isInterfaceSource := leftUnderlying.(*types.InterfaceType)
-
-	// Also allow NIL to be cast to any interface or class
-	if leftType == types.NIL {
-		// Set the expression type and return
-		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
-			Token: expr.Token,
-			Name:  targetType.String(), // Use the actual target type name
-		})
-		return targetType
+// hasLexicalValueReceiver prevents qualified values from being read as
+// namespace/type names, including locals shadowing System and imported units.
+func (a *Analyzer) hasLexicalValueReceiver(expr ast.Expression) bool {
+	for {
+		switch node := expr.(type) {
+		case *ast.MemberAccessExpression:
+			expr = node.Object
+		case *ast.GroupedExpression:
+			expr = node.Expression
+		case *ast.Identifier:
+			symbol, found := a.symbols.resolveIdentity(node.Value, true)
+			return found && !symbol.lookupOnly && !symbol.IsEnumTypeName
+		default:
+			return true
+		}
 	}
+}
 
-	if !isClass && !isInterfaceSource {
-		a.addError("'as' operator requires class instance or interface, got %s at %s",
-			leftType.String(), expr.Token.Pos.String())
+// analyzeCastTargetValue uses the shared one-call reading for bare factories.
+// The evaluator discards AS targets, so this metadata never executes the call.
+func (a *Analyzer) analyzeCastTargetValue(expr ast.Expression) types.Type {
+	if grouped, ok := expr.(*ast.GroupedExpression); ok {
+		result := a.analyzeCastTargetValue(grouped.Expression)
+		a.semanticInfo.SetResolvedType(expr, result)
+		return result
+	}
+	if identifier, ok := expr.(*ast.Identifier); ok {
+		if result, called := a.analyzeAssignmentIdentifierCall(identifier, types.NewClassOfType(a.getClassType("TObject")), true); called {
+			return result
+		}
+	}
+	return a.analyzeExpression(expr)
+}
+
+// analyzeIsExpression validates the target category while retaining Boolean recovery.
+func (a *Analyzer) analyzeIsExpression(expr *ast.IsExpression) types.Type {
+	left := a.analyzeExpression(expr.Left)
+	// Boolean value targets execute at runtime. Retain the actual analyzed node
+	// so implicit-call intent, bindings, and usage metadata keep their identity.
+	if expr.Right == nil {
+		if annotation, ok := expr.TargetType.(*ast.TypeAnnotation); ok {
+			expr.Right = &ast.Identifier{BaseNode: ast.BaseNode{Token: annotation.Token, EndPos: annotation.EndPos}, Value: annotation.Name}
+		}
+	}
+	right := a.analyzeCastTarget(expr.TargetType, expr.Right)
+	if left == nil || right == nil {
 		return nil
 	}
+	if (types.GetUnderlyingType(left).Equals(types.BOOLEAN) || types.GetUnderlyingType(left).Equals(types.VARIANT)) && types.GetUnderlyingType(right).Equals(types.BOOLEAN) {
+		return a.annotateCastResult(expr, types.BOOLEAN)
+	}
+	switch types.GetUnderlyingType(left).(type) {
+	case *types.ClassType, *types.InterfaceType:
+	default:
+		if left != types.NIL {
+			a.addError("Object expected at %s", expr.Token.Pos.String())
+			return a.annotateCastResult(expr, types.BOOLEAN)
+		}
+	}
+	switch types.GetUnderlyingType(right).(type) {
+	case *types.ClassOfType, *types.InterfaceType:
+	default:
+		a.addError("Class reference expected at %s", expr.Token.Pos.String())
+	}
+	return a.annotateCastResult(expr, types.BOOLEAN)
+}
 
-	// Handle class-to-class casting
-	if isClassTarget {
-		// For class-to-class casting, we check inheritance relationship
-		// Both upcast (child to parent) and downcast (parent to child) are allowed
-		// Downcast safety is checked at runtime
-		if isClass && !types.IsClassRelated(classType, classTargetType) {
-			a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, classType.Name, classTargetType.Name))
+func (a *Analyzer) annotateCastResult(expr ast.Expression, result types.Type) types.Type {
+	name := result.String()
+	switch target := result.(type) {
+	case *types.ClassType:
+		name = target.Name
+	case *types.InterfaceType:
+		name = target.Name
+	}
+	a.semanticInfo.SetType(expr, &ast.TypeAnnotation{Name: name})
+	a.semanticInfo.SetResolvedType(expr, result)
+	return result
+}
+
+// analyzeAsExpression selects the caster from the source and declared RHS types.
+// Invalid object targets recover TObject; invalid metaclass targets stop compilation.
+func (a *Analyzer) analyzeAsExpression(expr *ast.AsExpression) types.Type {
+	left := a.analyzeExpression(expr.Left)
+	target := a.analyzeCastTarget(expr.TargetType, expr.Right)
+	if left == nil || target == nil {
+		return nil
+	}
+	meta, isMeta := types.GetUnderlyingType(target).(*types.ClassOfType)
+	_, isInterface := types.GetUnderlyingType(target).(*types.InterfaceType)
+	result := target
+	switch source := types.GetUnderlyingType(left).(type) {
+	case *types.ClassType, *types.InterfaceType:
+		if isMeta {
+			result = meta.ClassType
+			if class, ok := source.(*types.ClassType); ok && !types.IsClassRelated(class, meta.ClassType) {
+				a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, class.Name, meta.ClassType.Name))
+			}
+		} else if !isInterface {
+			a.addError("Class reference expected at %s", expr.Token.Pos.String())
+			result = a.getClassType("TObject")
+		}
+	case *types.ClassOfType:
+		if !isMeta {
+			a.addStructuredError(&SemanticError{Type: ErrorInvalidOperation, Message: "Class reference expected", Pos: expr.Token.Pos, Severity: SeverityError, Stop: true})
+			a.compileStopped = true
 			return nil
 		}
-
-		a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
-			Token: expr.Token,
-			Name:  classTargetType.Name,
-		})
-		return classTargetType
+		if !types.IsClassRelated(source.ClassType, meta.ClassType) {
+			a.addStructuredError(NewIncompatibleTypesPairError(expr.Token.Pos, source.ClassType.Name, meta.ClassType.Name))
+		}
+	default:
+		if left == types.NIL {
+			if isMeta {
+				result = meta.ClassType
+			}
+		} else if !left.Equals(types.VARIANT) {
+			a.addError("Cannot cast %q as %q at %s", left.String(), target.String(), expr.Token.Pos.String())
+		}
 	}
-
-	// Explicit interface casts inspect the runtime object's implementation, which
-	// may differ from its static class or interface type. Implicit assignment
-	// compatibility and class implementation declarations are checked separately.
-	// Set the expression type annotation
-	a.semanticInfo.SetType(expr, &ast.TypeAnnotation{
-		Token: expr.Token,
-		Name:  interfaceType.Name,
-	})
-
-	return interfaceType
+	return a.annotateCastResult(expr, result)
 }
 
 // analyzeImplementsExpression analyzes the 'implements' operator.

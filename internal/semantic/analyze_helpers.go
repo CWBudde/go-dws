@@ -381,7 +381,9 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 	// declaration, not on the out-of-line implementation, so consult both.
 	isStatic := a.isStaticHelperMethod(decl, helperType)
 	if !isStatic {
-		a.symbols.Define("Self", helperType.TargetType, decl.Token.Pos)
+		if selfType := helperBodySelfType(helperType.TargetType, decl); selfType != nil {
+			a.symbols.defineInternal("Self", selfType, decl.Token.Pos)
+		}
 	}
 	for name, varType := range helperType.ClassVars {
 		a.symbols.Define(name, varType, token.Position{})
@@ -415,7 +417,7 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 		if decl.End().Line != 0 {
 			resultPos = blockEndStart(decl.End())
 		}
-		a.symbols.Define("Result", returnType, resultPos)
+		a.symbols.defineInternal("Result", returnType, resultPos)
 	}
 
 	defer a.enterHelperMethodContext(decl, helperType, isStatic)()
@@ -480,8 +482,19 @@ func (a *Analyzer) defineHelperTargetMembersInScope(helperType *types.HelperType
 		}
 	}
 	if recordType, ok := underlying.(*types.RecordType); ok {
-		for fieldName, fieldType := range recordType.Fields {
-			a.symbols.Define(recordType.FieldNames[fieldName], fieldType, token.Position{})
+		if !isClassMethod {
+			for fieldName, fieldType := range recordType.Fields {
+				a.symbols.Define(recordType.FieldNames[fieldName], fieldType, token.Position{})
+			}
+		}
+		for name, typ := range recordType.ClassVars {
+			a.symbols.Define(recordType.ClassVarNames[name], typ, token.Position{})
+		}
+		for _, info := range recordType.Constants {
+			a.symbols.DefineConst(info.Name, info.Type, info.Value, token.Position{})
+		}
+		for name, typ := range recordType.ClassMethods {
+			a.symbols.DefineFunction(recordType.ClassMethodNames[name], typ, token.Position{})
 		}
 	}
 }
@@ -511,7 +524,7 @@ func (a *Analyzer) enterHelperMethodContext(decl *ast.FunctionDecl, helperType *
 	prevStaticHelper := a.inStaticHelperMethod
 
 	a.currentFunction = decl
-	a.currentSelfType = helperType.TargetType
+	a.currentSelfType = helperBodySelfType(helperType.TargetType, decl)
 	if isStatic {
 		a.currentSelfType = nil
 	}
@@ -602,6 +615,10 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 	}
 	if method.IsClassMethod {
 		helperType.ClassMethods[methodNameLower] = true
+		if helperType.ClassMethodOverloads == nil {
+			helperType.ClassMethodOverloads = make(map[string][]*types.FunctionType)
+		}
+		helperType.ClassMethodOverloads[methodNameLower] = append(helperType.ClassMethodOverloads[methodNameLower], funcType)
 	}
 	helperType.Methods[methodNameLower] = funcType
 	helperType.MethodOverloads[methodNameLower] = append(helperType.MethodOverloads[methodNameLower], funcType)
@@ -862,6 +879,15 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 		return chain
 	}
 
+	// Metatype ownership is the represented record (or its source alias).
+	_, recordMeta := types.GetUnderlyingType(typ).(*types.RecordMetaType)
+	if meta, ok := types.GetUnderlyingType(typ).(*types.RecordMetaType); ok {
+		typ = meta.SourceType
+		if typ == nil {
+			typ = meta.RecordType
+		}
+	}
+
 	// Look up helpers by the type's string representation
 	typeName := ident.Normalize(typ.String())
 	helpers := a.helpers[typeName]
@@ -906,6 +932,9 @@ func (a *Analyzer) getHelpersForType(typ types.Type) []*types.HelperType {
 		}
 	}
 
+	if recordMeta {
+		return recordMetaHelperOrder(helpers, typ)
+	}
 	return helpers
 }
 
@@ -1019,6 +1048,9 @@ func (a *Analyzer) isHelperClassMethod(typ types.Type, methodName string) bool {
 }
 
 func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) *types.FunctionType {
+	if _, meta := recordReceiverType(typ); meta && !a.isHelperClassMethod(typ, methodName) {
+		return nil
+	}
 	helpers := a.getHelpersForType(typ)
 	if helpers == nil {
 		return nil
@@ -1028,6 +1060,13 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) *types.Fun
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
+			if _, meta := recordReceiverType(typ); meta {
+				methods := helper.ClassMethodOverloads[ident.Normalize(methodName)]
+				if len(methods) == 0 {
+					continue
+				}
+				return methods[len(methods)-1]
+			}
 			// For array types, specialize the method signature if needed
 			// (e.g., Pop() should return the array's element type, not VARIANT)
 			if arrayType, isArray := typ.(*types.ArrayType); isArray {
@@ -1053,6 +1092,9 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) *types.Fun
 }
 
 func (a *Analyzer) resolveHelperMethodForCall(typ types.Type, methodName string, args []ast.Expression) *types.FunctionType {
+	if _, meta := recordReceiverType(typ); meta && !a.isHelperClassMethod(typ, methodName) {
+		return nil
+	}
 	helpers := a.getHelpersForType(typ)
 	if helpers == nil {
 		return nil
@@ -1062,6 +1104,12 @@ func (a *Analyzer) resolveHelperMethodForCall(typ types.Type, methodName string,
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		overloads := helper.MethodOverloads[methodNameLower]
+		if _, meta := recordReceiverType(typ); meta {
+			overloads = helper.ClassMethodOverloads[methodNameLower]
+			if len(overloads) == 0 {
+				continue
+			}
+		}
 		if len(overloads) == 0 {
 			if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
 				return method
@@ -1116,6 +1164,12 @@ func (a *Analyzer) hasHelperProperty(typ types.Type, propName string) *types.Pro
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
 		if prop := findPropertyCaseInsensitive(helper.Properties, propName); prop != nil {
+			if _, meta := recordReceiverType(typ); meta && !prop.IsClassProperty {
+				if (prop.ReadSpec != "" && !helper.ClassMethods[ident.Normalize(prop.ReadSpec)]) ||
+					(prop.WriteSpec != "" && !helper.ClassMethods[ident.Normalize(prop.WriteSpec)]) {
+					return nil
+				}
+			}
 			return prop
 		}
 	}

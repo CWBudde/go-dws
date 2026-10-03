@@ -379,9 +379,11 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 			return nil
 		}
 
-		// Convert type expression to TypeAnnotation
+		// Retain nested callable types as return type expressions.
 		switch rt := returnTypeExpr.(type) {
 		case *ast.TypeAnnotation:
+			funcPtrType.ReturnType = rt
+		case *ast.FunctionPointerTypeNode:
 			funcPtrType.ReturnType = rt
 		default:
 			p.addError("complex return types not yet supported in function pointers", ErrInvalidType)
@@ -391,6 +393,9 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 		// Update cursor after type expression parsing
 		cursor = p.cursor
 	}
+
+	// Callable type nodes store EndPos directly rather than embedding BaseNode.
+	funcPtrType.EndPos = p.endPosFromToken(cursor.Current())
 
 	// Check for "of object" clause (method pointers)
 	if cursor.Peek(1).Type == lexer.OF {
@@ -402,6 +407,7 @@ func (p *Parser) parseFunctionPointerType() *ast.FunctionPointerTypeNode {
 		cursor = cursor.Advance() // move to OBJECT
 		p.cursor = cursor
 		funcPtrType.OfObject = true
+		funcPtrType.EndPos = p.endPosFromToken(cursor.Current())
 		// EndPos is after "object" token
 		result, _ := builder.Finish(funcPtrType).(*ast.FunctionPointerTypeNode)
 		return result

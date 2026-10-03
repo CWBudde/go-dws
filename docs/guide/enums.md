@@ -75,6 +75,26 @@ var color: TColor := TColor.Red;
 
 Both forms are equivalent and can be used interchangeably.
 
+### Repeated element names
+
+Different enums may declare the same unqualified element name. DWScript selects
+the owning enum through its sorted local symbol table; the surrounding
+declarations can affect which duplicate is selected. Use a qualified reference
+such as `TColor.Red` when the owning enum matters. Names remain case-insensitive,
+and repeating an element within a single enum is an error.
+
+Compiled expressions retain their selected enum, ordinal and deprecation
+metadata. Enum expressions in a routine body use the declarations visible when
+that routine was declared, so later enums or `uses` clauses cannot change an
+earlier expression's binding. A unit becomes visible at its `uses` clause; later imports take priority
+over earlier imports, while an implementation's own interface declarations take
+priority over its imported units. Lexical variables, parameters and types can
+shadow a unit qualifier.
+
+Enum variables still read their stored value. These binding rules apply to enum
+constants, including constants used in ordinal expressions, array bounds and
+sets.
+
 ## Built-in Functions
 
 ### Ord()

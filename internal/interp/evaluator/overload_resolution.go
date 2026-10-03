@@ -47,7 +47,7 @@ func (e *Evaluator) getValueType(val Value) types.Type {
 		}
 		return types.NIL
 	case *runtime.RecordTypeValue:
-		return v.GetRecordType()
+		return runtime.LanguageType(v)
 	case *runtime.FunctionPointerValue:
 		return e.functionPointerValueType(v)
 	default:

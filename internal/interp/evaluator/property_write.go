@@ -41,6 +41,13 @@ func (e *Evaluator) executePropertyWrite(obj Value, propInfo any, value Value, n
 		return e.newError(node, readOnlyPropertyWriteMessage)
 	}
 
+	// Property targets may lack an expression annotation, so use their declared
+	// type at this storage boundary as well as the member assignment path.
+	value = e.coerceTypedStorageValue(value, pInfo.Type, ctx)
+	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
+		return value
+	}
+
 	// A class property reached through an instance (`obj.ClassProp := v`) has the
 	// same meaning as through the metaclass: it is backed by class vars and its
 	// accessor expression sees class state, not instance state. Delegate to the

@@ -1,7 +1,8 @@
 # go-dws — Work Plan
 
 Open work only, split into phases → tasks → subtasks. Completed items are deleted; their
-write-up goes to `docs/history/progress-log-<date>.md`. Documentation index:
+write-up goes to `docs/history/progress-log-<date>.md`. Phase 1.3 retains checked
+subitems while the phase is open, so its remaining work is easy to track. Documentation index:
 [`docs/README.md`](docs/README.md).
 
 **Goal (v1.0):**
@@ -25,7 +26,7 @@ write-up goes to `docs/history/progress-log-<date>.md`. Documentation index:
   [`testdata/fixtures/README.md` → "Working on a failing fixture"](testdata/fixtures/README.md#working-on-a-failing-fixture).
   Live numbers: `TEST_STATUS.md` (generated) and `just fixture-report --in-scope --classify`.
 
-**Legend:** `[ ]` open · ⏸️ gated, do not start · ⚠️ measure before implementing.
+**Legend:** `[ ]` open · `[x]` done (retained in §1.3) · ⏸️ gated, do not start · ⚠️ measure before implementing.
 Size: S (hours), M (days), L (week+). Line/fixture counts are sizing hints; regenerate them
 rather than trusting them.
 
@@ -47,14 +48,77 @@ sentence is the easy half.
 
 ### 1.3 `Cannot assign "X" to "Y"` — M
 
-- [ ] M Remaining `Cannot assign` sites from the worklist: array constructors and
-  recovery (`array_assign_error3`, `array_const`), compound
-  operators and routine-pointer recovery (`assign_op_incompatible`, `func_ptr1`),
-  enum binding (`enums9`),
-  casts (`as_error`, `object_relops`), record metatypes (`record_meta`), and anonymous
-  procedure parsing (`JSONConnectorFail/autobox`). Scalar/interface RHS anchors and
-  field-backed property writes, class-to-interface assignment wording, and
-  multidimensional allocation diagnostics are closed; see the October progress log.
+Completed subitems are retained here until this phase closes. Details and validation:
+[`September progress log`](docs/history/progress-log-2026-09.md) and
+[`October progress log`](docs/history/progress-log-2026-10.md).
+
+- [x] For-in assignment diagnostics.
+  - [x] Anchor related-class narrowing at `do` (`for_in_subclass`).
+  - [x] Report `Cannot assign` for narrowing; retain type pairs for unrelated
+    classes (`for_in1`, `for_error4`).
+- [x] Scalar/interface assignment anchors and field-backed properties.
+  - [x] Use RHS positions for ordinary scalar/interface mismatches (`assign_error`,
+    `coalesce_class`, `assign_obj_from_intf`, `interface_inheritence2`).
+  - [x] Treat field-backed writers as assignments; preserve method-backed setter
+    argument diagnostics, including inherited and implicit `Self` paths.
+- [x] Class-to-interface assignment wording (`assign_intf_from_obj`,
+  `assign_intf_from_intf`): conversion sentence at `:=`, using the declared source type.
+- [x] Multidimensional allocation diagnostics (`multi_dim_dyn_array1`).
+  - [x] Check every dimension and retain the nested array type during recovery.
+  - [x] Anchor allocation mismatches at `[`, including after whitespace/comments
+    and through field/property/indexed assignment paths.
+- [x] Array constructors and constant recovery.
+  - [x] Preserve constructor types and assignment anchors (`array_assign_error3`).
+  - [x] Accept empty constant constructors for typed dynamic arrays without
+    weakening element-type invariance or sharing mutable constant storage.
+  - [x] Check RHS types after read-only constant-array writes; preserve bounds and
+    parser recovery (`array_const`).
+- [x] Compound operator diagnostics (`assign_op_incompatible`).
+  - [x] Validate both operand types and report `Incompatible operands` at the operator.
+  - [x] Retain the additional assignment mismatch where recovery requires it.
+  - [x] Preserve RHS assignment conversion for registered operators; stop after
+    missing class operators and retain function-name operator dispatch.
+  - [x] Convert numeric Variant operands before execution; preserve targets and
+    original exceptions when conversion raises, without repeating the converter.
+- [x] Routine-pointer assignment recovery (`func_ptr1`).
+  - [x] Keep accepted references; read rejected bare routines as calls.
+  - [x] Preserve call-result types after arity errors and report valueless RHS assignments.
+  - [x] Report pointer-target operand/type errors in the expected child-first order.
+  - [x] Invoke named and pointer factories once through assignments and typed
+    initializers, including var/lazy parameters; preserve returned references,
+    original exceptions and destinations without caching lazy reads.
+  - [x] Retain dynamic-array slot diagnostics through implicit array factories
+    and preserve compound-call recovery.
+  - [x] Preserve exceptions through forwarded lazy expressions and stop coalesce
+    fallback after a raised supplier.
+- [x] M Enum binding (`enums9`, `enums10`).
+  - [x] Keep enumeration mismatch anchors at `:=` (compile-path regression test).
+  - [x] Match duplicate-preserving, sorted local lookup by midpoint: `enums9`
+    selects `TEnum1.Hello`, while `enums10` selects `TEnum2.Hello`.
+  - [x] Register source types, aliases, routines and unit entries in source order;
+    include the program's `Default`, `Internal` and `System` entries without
+    counting their builtin members or synthetic runtime bindings as local entries.
+  - [x] Record immutable enum-constant bindings per expression, including source
+    scope snapshots for deferred bodies, so runtime lookup cannot change them.
+  - [x] Retain qualified values, element deprecation metadata, case-insensitive
+    duplicates and lexical shadowing in the analyzer and evaluator.
+- [x] M Cast diagnostics and recovery.
+  - [x] Preserve invalid RHS expressions and recover cast result types (`as_error`).
+  - [x] Match object/class-reference checks and metaclass cast types (`object_relops`).
+  - [x] Preserve AS anchors and compiler stops without spurious later diagnostics.
+- [x] M Record metatypes (`record_meta`).
+  - [x] Distinguish record type values and aliases from record instances in semantic typing.
+  - [x] Preserve record static-member/helper dispatch through inferred metatype values.
+  - [x] Canonicalize runtime record aliases and classify metatypes consistently in
+    language-type and overload resolution, with deliberate helper receiver typing.
+  - [x] Reject instance-to-metatype assignments at the supplying expression.
+- [x] M Anonymous routine return types and JSON autoboxing (`JSONConnectorFail/autobox`).
+  - [x] Parse nested callable return types with correct spans and recovery.
+  - [x] Resolve nested signatures recursively from the AST, including parameter
+    modifiers and ownership of nested `of object` suffixes.
+  - [x] Implicitly invoke the outer callable once; preserve compatible references
+    and avoid invoking a callable returned by that call a second time.
+  - [x] Reject routine/class-reference boxing with the expected type names and anchors.
 
 ### 1.4 Call-argument and overload sentences — S
 
@@ -123,6 +187,22 @@ semantic side:
 - [ ] `Warning: Property writer does nothing` (blocks the above).
 
 ### 2.4 Compile-stop model — M
+
+The §1.3 enum lookup refactor must preserve source declaration order and routine-body
+diagnostic insertion points while snapshotting constant bindings. Its symbol-table changes
+must retain the existing compile-stop and forward-check behavior below.
+
+The §1.3 cast recovery work must restore speculative parser errors and stops before
+expression fallback, retain semantic recovery types, and keep true compiler stops
+ahead of later assignment or end-of-program diagnostics.
+
+The §1.3 record-metatype changes must keep record annotations and constants as
+instance types, preserve supplying-expression diagnostics through static/helper
+receivers, and retain these recovery and stop rules when classifying type values.
+
+The §1.3 anonymous-signature work must resolve nested callable types from their
+AST nodes, preserve each node's modifiers and `of object` ownership, and retain
+assignment recovery and implicit-call intent without invoking a returned callable.
 
 - [ ] S Per-call truncation marker: `missing_parenthesis1` wants `Invalid Operands` from inside a
   call whose argument list hit a stop. Such calls are currently dropped, which is what makes
@@ -258,9 +338,14 @@ elsewhere). All previously triaged groups are closed; what remains is untriaged.
 ### 5.2 Fix groups — sized after 5.1
 
 - [ ] BuildScripts drivers.
+  - [ ] Make `init_order2` initialization/finalization ordering deterministic;
+    its varying pass must not raise the stable BuildScripts baseline.
 - [ ] SimpleScripts.
 - [ ] ArrayPass.
 - [ ] Remaining categories.
+  - [ ] Allow direct calls through function-pointer record class variables and
+    properties (`R.Stored()` / `R.Factory()`); capturing the pointer into a
+    compatible variable already works.
 
 ### 5.3 Expected-type overload resolution — M
 

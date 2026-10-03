@@ -86,6 +86,46 @@ Exceptions from invoked callbacks propagate normally, including nil-pointer call
 a skipped callback is never invoked. Assigning a callback to another function
 pointer still preserves the callback without invoking it.
 
+### Callable return types
+
+Callable signatures can contain other callable signatures as parameters or return
+types. Named declarations and inline annotations preserve each level's parameter
+modifiers and `of object` suffix. A suffix belongs to the signature where it is
+written, including a nested returned method pointer.
+
+When an assignment needs a factory's result, it invokes the outer callable once
+and retains the returned callable. A compatible callable reference is copied
+without invocation; `@` captures a reference explicitly:
+
+```pascal
+type TIntCallback = function: Integer;
+type TFactory = function: TIntCallback;
+var outerCalls := 0;
+var innerCalls := 0;
+
+function ReadValue: Integer;
+begin
+  innerCalls += 1;
+  Result := 42;
+end;
+
+function MakeCallback: TIntCallback;
+begin
+  outerCalls += 1;
+  Result := @ReadValue;
+end;
+
+var factory: TFactory := @MakeCallback;
+var callback: TIntCallback := factory;
+PrintLn(outerCalls); // 1
+PrintLn(innerCalls); // 0
+PrintLn(callback()); // 42
+PrintLn(innerCalls); // 1
+```
+
+A returned callable cannot be boxed into a JSONVariant; the diagnostic describes
+that returned type without invoking it again. See [JSON type mapping](json-type-mapping.md).
+
 ### Intrinsic Class Members as Pointers
 
 `ClassName` and `ClassType` are parameterless class members, so they can be captured

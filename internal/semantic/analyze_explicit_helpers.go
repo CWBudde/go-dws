@@ -150,25 +150,15 @@ func explicitHelperReceiverType(target types.Type, method *ast.FunctionDecl) typ
 	case *types.ClassOfType:
 		return target
 	case *types.RecordType:
-		return target
+		return types.NewRecordMetaType(target)
 	default:
 		return nil
 	}
 }
 
-// Record names share their semantic type with instances. The declaration
-// position distinguishes the type's synthesized binding from a shadowing local.
+// Explicit class helpers accept actual metatype values, including inferred copies.
 func (a *Analyzer) isRecordTypeReceiver(expr ast.Expression) bool {
-	name, ok := expr.(*ast.Identifier)
-	if !ok {
-		return false
-	}
-	descriptor, found := a.typeRegistry.ResolveDescriptor(name.Value)
-	if !found {
-		return false
-	}
-	if symbol, found := a.symbols.Resolve(name.Value); found {
-		return symbol.DeclPosition == descriptor.Position
-	}
-	return true
+	typ := a.analyzeExpression(expr)
+	_, meta := recordReceiverType(typ)
+	return meta
 }
