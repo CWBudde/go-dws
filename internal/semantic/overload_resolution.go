@@ -62,6 +62,17 @@ func requiredParamCount(sig *types.FunctionType) int {
 	return required
 }
 
+// mergeStrictParams keeps the strict (`type`) parameter flags of a declaration
+// signature on the implementation signature that replaces it.
+func mergeStrictParams(impl, decl *types.FunctionType) {
+	if decl == nil || impl == nil || len(decl.StrictParams) != len(impl.StrictParams) {
+		return
+	}
+	for i, strict := range decl.StrictParams {
+		impl.StrictParams[i] = impl.StrictParams[i] || strict
+	}
+}
+
 // mergeDefaultValues copies parameter default values from a declaration signature
 // into an implementation signature for parameters where the implementation did not
 // respecify them. DWScript allows (and expects) implementations to omit defaults

@@ -181,6 +181,11 @@ func (a *Analyzer) analyzeFunctionHelperDecl(decl *ast.FunctionDecl, paramTypes 
 	} else {
 		funcType = types.NewFunctionType(methodParams, returnType)
 	}
+	if len(decl.Parameters) == len(paramTypes) {
+		for i, param := range decl.Parameters[1:] {
+			funcType.StrictParams[i] = isStrictTypeAnnotation(param.Type)
+		}
+	}
 	helperType.MethodDeclNames = map[string]string{ident.Normalize(methodName): methodName}
 	helperType.Methods[ident.Normalize(methodName)] = funcType
 
@@ -581,6 +586,7 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 
 	// Create function type for the method
 	var paramTypes []types.Type
+	var strictParams []bool
 	for _, param := range method.Parameters {
 		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
@@ -589,6 +595,7 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 			continue
 		}
 		paramTypes = append(paramTypes, paramType)
+		strictParams = append(strictParams, isStrictTypeAnnotation(param.Type))
 	}
 
 	var returnType types.Type
@@ -608,6 +615,7 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 	} else {
 		funcType = types.NewProcedureType(paramTypes)
 	}
+	funcType.StrictParams = strictParams
 
 	// Add method to helper
 	if helperType.MethodDeclNames == nil {

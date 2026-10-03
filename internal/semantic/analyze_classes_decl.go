@@ -1072,6 +1072,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 				// The implementation may omit parameter defaults declared in the
 				// class declaration ("default not respecified"); keep them.
 				mergeDefaultValues(funcType, existing.Signature)
+				// Likewise a `type` (strict) modifier on the declaration binds
+				// callers even when the implementation spells the plain type.
+				mergeStrictParams(funcType, existing.Signature)
 				existing.Signature = funcType
 				isImplementationOfForward = true
 				break

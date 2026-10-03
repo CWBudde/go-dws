@@ -50,6 +50,24 @@ func TestCompile_CallArgumentDiagnostics(t *testing.T) {
 			want: []string{`Syntax Error: Argument 0 expects type "Float" instead of "Integer" [line: 3, column: 3]`},
 		},
 		{
+			name: "strict forward method with plain implementation",
+			source: "type TTest = class procedure Take(v: type Float); end;\n" +
+				"procedure TTest.Take(v: Float); begin end;\nvar o: TTest;\no.Take(\n  123);",
+			want: []string{`Syntax Error: Argument 0 expects type "Float" instead of "Integer" [line: 5, column: 3]`},
+		},
+		{
+			name: "strict record method",
+			source: "type TRec = record procedure Take(v: type Float); begin end; end;\n" +
+				"var r: TRec;\nr.Take(123);",
+			want: []string{`Syntax Error: Argument 1 expects type "Float" instead of "Integer" [line: 3, column: 3]`},
+		},
+		{
+			name: "strict helper method",
+			source: "type THlp = helper for Integer procedure Take(v: type Float); begin end; end;\n" +
+				"var i := 2;\ni.Take(123);",
+			want: []string{`Syntax Error: Argument 1 expects type "Float" instead of "Integer" [line: 3, column: 3]`},
+		},
+		{
 			name: "convertible implicit method",
 			source: "type TTest = class\n procedure Take(v: Float); begin end;\n" +
 				" procedure Run; begin Take(\n  123); end;\nend;",
