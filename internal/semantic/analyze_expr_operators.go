@@ -623,6 +623,29 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 		leftIsVariant := leftType == types.VARIANT || types.IsJSONVariant(leftType)
 		rightIsVariant := rightType == types.VARIANT || types.IsJSONVariant(rightType)
 
+		if (operator == "=" || operator == "<>") && !leftIsVariant && !rightIsVariant && leftType != types.NIL && rightType != types.NIL {
+			category := func(typ types.Type) string {
+				switch types.GetUnderlyingType(typ).(type) {
+				case *types.ClassType:
+					return "Object"
+				case *types.ClassOfType:
+					return "Class reference"
+				case *types.InterfaceType:
+					return "Interface"
+				default:
+					return ""
+				}
+			}
+			lc, rc := category(leftType), category(rightType)
+			if lc != rc && (lc != "" || rc != "") && !a.canAssign(leftType, rightType) && !a.canAssign(rightType, leftType) {
+				if lc == "" {
+					lc = rc
+				}
+				a.addError("%s expected at %s", lc, expr.Token.Pos.String())
+				return types.BOOLEAN
+			}
+		}
+
 		// For equality, types must be comparable
 		if operator == "=" || operator == "<>" {
 			// Interface equality compares the underlying object identity, even
@@ -661,6 +684,12 @@ func (a *Analyzer) analyzeBinaryExpression(expr *ast.BinaryExpression) types.Typ
 			if !leftIsVariant && !rightIsVariant {
 				if !types.IsOrderedType(leftType) || !types.IsOrderedType(rightType) {
 					a.addOperandMismatchError(expr.Token.Pos, leftType, rightType)
+					for _, operand := range []types.Type{leftType, rightType} {
+						switch types.GetUnderlyingType(operand).(type) {
+						case *types.ClassType, *types.ClassOfType, *types.InterfaceType:
+							return types.BOOLEAN
+						}
+					}
 					return nil
 				}
 				// Types must match (or be compatible)

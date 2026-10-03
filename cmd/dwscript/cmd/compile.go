@@ -106,6 +106,7 @@ func compileScript(_ *cobra.Command, args []string) error {
 
 	// Handle unit loading for bytecode compilation
 	var compiledProgram *ast.Program
+	var semanticInfo *ast.SemanticInfo
 	if hasUnits {
 		searchPaths := resolveUnitSearchPaths(filename)
 
@@ -139,12 +140,14 @@ func compileScript(_ *cobra.Command, args []string) error {
 			fmt.Fprintln(os.Stderr)
 			return fmt.Errorf("semantic analysis failed with %d error(s)", len(analyzer.Errors()))
 		}
+		semanticInfo = analyzer.GetSemanticInfo()
 	} else if compileVerbose && hasUnits {
 		fmt.Fprintf(os.Stderr, "Type checking disabled (program uses units)\n")
 	}
 
 	// Compile to bytecode
 	compiler := bytecode.NewCompiler(filename)
+	compiler.SetSemanticInfo(semanticInfo)
 	chunk, err := compiler.Compile(compiledProgram)
 	if err != nil {
 		return fmt.Errorf("bytecode compilation failed: %w", err)

@@ -1,6 +1,9 @@
 package parser
 
 import (
+	"strings"
+
+	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
@@ -25,8 +28,17 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 	// Save full parser state including errors for clean backtracking
 	state := p.saveState()
 	expression.TargetType = p.parseTypeExpression()
-	if !isInvalidTypeExpression(expression.TargetType) {
-		return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
+	if !isInvalidTypeExpression(expression.TargetType) && !p.peekTokenIs(lexer.LPAREN) && !p.peekTokenIs(lexer.LBRACK) {
+		if annotation, ok := expression.TargetType.(*ast.TypeAnnotation); ok && strings.Contains(annotation.Name, ".") {
+			// A qualified spelling can denote either a type or a value member.
+			// Keep the original expression tokens for lexical classification.
+			p.restoreState(state)
+			expression.Right = p.parseExpression(EQUALS)
+			builder.FinishWithNode(expression, expression.Right)
+			return expression
+		}
+		builder.FinishWithNode(expression, expression.TargetType)
+		return expression
 	}
 
 	// If type parsing failed, restore full state (errors + cursor) and try as boolean expression
@@ -41,7 +53,8 @@ func (p *Parser) parseIsExpression(left ast.Expression) ast.Expression {
 		p.addError("expected expression after 'is' operator", ErrInvalidExpression)
 		return expression
 	}
-	return builder.FinishWithNode(expression, expression.Right).(ast.Expression)
+	builder.FinishWithNode(expression, expression.Right)
+	return expression
 }
 
 // parseAsExpression parses the 'as' type casting operator.
@@ -60,14 +73,29 @@ func (p *Parser) parseAsExpression(left ast.Expression) ast.Expression {
 
 	p.cursor = p.cursor.Advance()
 
-	// Parse the target type (should be an interface type)
+	state := p.saveState()
 	expression.TargetType = p.parseTypeExpression()
-	if isInvalidTypeExpression(expression.TargetType) {
-		p.addError("expected type after 'as' operator", ErrExpectedType)
+	if !isInvalidTypeExpression(expression.TargetType) && !p.peekTokenIs(lexer.LPAREN) && !p.peekTokenIs(lexer.LBRACK) {
+		if annotation, ok := expression.TargetType.(*ast.TypeAnnotation); ok && strings.Contains(annotation.Name, ".") {
+			// A qualified spelling can denote either a type or a value member.
+			// Keep the original expression tokens for lexical classification.
+			p.restoreState(state)
+			expression.Right = p.parseExpression(PRODUCT)
+			builder.FinishWithNode(expression, expression.Right)
+			return expression
+		}
+		builder.FinishWithNode(expression, expression.TargetType)
 		return expression
 	}
-
-	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
+	p.restoreState(state)
+	expression.TargetType = nil
+	// AS consumes one term; postfix calls and members remain part of that term.
+	expression.Right = p.parseExpression(PRODUCT)
+	if expression.Right == nil {
+		return expression
+	}
+	builder.FinishWithNode(expression, expression.Right)
+	return expression
 }
 
 // parseImplementsExpression parses the 'implements' operator.
@@ -93,5 +121,7 @@ func (p *Parser) parseImplementsExpression(left ast.Expression) ast.Expression {
 		return expression
 	}
 
-	return builder.FinishWithNode(expression, expression.TargetType).(ast.Expression)
+	builder.FinishWithNode(expression, expression.TargetType)
+
+	return expression
 }

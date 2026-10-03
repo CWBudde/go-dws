@@ -136,9 +136,9 @@ end;
 
 func TestInterfaceAsCast_CompileErrors(t *testing.T) {
 	for _, tt := range []struct{ name, source, diagnostic string }{
-		{"scalar operand", `type ITest = interface end; var Ref := 1 as ITest;`, "'as' operator requires"},
-		{"scalar target", `var Obj: TObject; var Value := Obj as Integer;`, "requires class or interface type"},
-		{"unknown target", `var Obj: TObject; var Value := Obj as MissingType;`, "cannot resolve target type"},
+		{"scalar operand", `type ITest = interface end; var Ref := 1 as ITest;`, `Cannot cast "Integer" as "ITest" [line: 1, column: 42]`},
+		{"scalar target", `var Obj: TObject; var Value := Obj as Integer;`, "Class reference expected [line: 1, column: 36]"},
+		{"unknown target", `var Obj: TObject; var Value := Obj as MissingType;`, `Unknown name "MissingType" [line: 1, column: 39]`},
 		{"unrelated classes", `type TA = class end; type TB = class end; var Obj := TA.Create; var Other := Obj as TB;`, "Incompatible types"},
 		{"implicit class assignment", `type ITest = interface end; var Obj: TObject; var Ref: ITest; Ref := Obj;`, `Class "TObject" does not implement interface "ITest"`},
 		{"implicit interface assignment", `type IA = interface end; type IB = interface end; var A: IA; var B: IB; B := A;`, "Cannot assign"},

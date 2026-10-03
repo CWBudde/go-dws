@@ -102,10 +102,10 @@ Completed subitems are retained here until this phase closes. Details and valida
     scope snapshots for deferred bodies, so runtime lookup cannot change them.
   - [x] Retain qualified values, element deprecation metadata, case-insensitive
     duplicates and lexical shadowing in the analyzer and evaluator.
-- [ ] M Cast diagnostics and recovery.
-  - [ ] Preserve invalid RHS expressions and recover cast result types (`as_error`).
-  - [ ] Match object/class-reference checks and metaclass cast types (`object_relops`).
-  - [ ] Preserve AS anchors and compiler stops without spurious later diagnostics.
+- [x] M Cast diagnostics and recovery.
+  - [x] Preserve invalid RHS expressions and recover cast result types (`as_error`).
+  - [x] Match object/class-reference checks and metaclass cast types (`object_relops`).
+  - [x] Preserve AS anchors and compiler stops without spurious later diagnostics.
 - [ ] M Record metatypes (`record_meta`).
   - [ ] Distinguish record type values and aliases from record instances in semantic typing.
   - [ ] Preserve record static-member/helper dispatch through inferred metatype values.
@@ -191,6 +191,10 @@ semantic side:
 The §1.3 enum lookup refactor must preserve source declaration order and routine-body
 diagnostic insertion points while snapshotting constant bindings. Its symbol-table changes
 must retain the existing compile-stop and forward-check behavior below.
+
+The §1.3 cast recovery work must restore speculative parser errors and stops before
+expression fallback, retain semantic recovery types, and keep true compiler stops
+ahead of later assignment or end-of-program diagnostics.
 
 - [ ] S Per-call truncation marker: `missing_parenthesis1` wants `Invalid Operands` from inside a
   call whose argument list hit a stop. Such calls are currently dropped, which is what makes

@@ -26,7 +26,25 @@ import (
 func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionContext) Value {
 	// Check if this is a boolean value comparison (expr.Right is set)
 	// or a type check (expr.TargetType is set)
-	if node.Right != nil {
+	rightExpression := node.Right
+	targetName := ""
+	if info := e.SemanticInfo(); info != nil {
+		var resolved types.Type
+		if node.TargetType != nil {
+			resolved = info.GetResolvedType(node.TargetType)
+		} else if node.Right != nil {
+			resolved = info.GetResolvedType(node.Right)
+		}
+		if resolved != nil {
+			switch target := types.GetUnderlyingType(resolved).(type) {
+			case *types.ClassOfType:
+				targetName = target.ClassType.Name
+			case *types.InterfaceType:
+				targetName = target.Name
+			}
+		}
+	}
+	if rightExpression != nil && targetName == "" {
 		// Boolean value comparison: left is right
 		// This is essentially checking if left == right for boolean values
 		left := e.Eval(node.Left, ctx)
@@ -34,7 +52,7 @@ func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionCont
 			return left
 		}
 
-		right := e.Eval(node.Right, ctx)
+		right := e.Eval(rightExpression, ctx)
 		if isError(right) {
 			return right
 		}
@@ -58,16 +76,17 @@ func (e *Evaluator) VisitIsExpression(node *ast.IsExpression, ctx *ExecutionCont
 		return &runtime.BooleanValue{Value: false}
 	}
 
-	// Get the target type name from the type expression
-	targetTypeName := ""
-	if typeAnnotation, ok := node.TargetType.(*ast.TypeAnnotation); ok {
-		targetTypeName = typeAnnotation.Name
-	} else {
-		return e.newError(node, "cannot determine target type")
+	// Like AS, IS checks the declared target class without evaluating its RHS.
+	if targetName == "" {
+		if annotation, ok := node.TargetType.(*ast.TypeAnnotation); ok {
+			targetName = annotation.Name
+		} else {
+			return e.newError(node, "cannot determine target type")
+		}
 	}
 
 	// Migrated from adapter.CheckType() to direct ClassMetadata usage
-	result := e.checkType(left, targetTypeName)
+	result := e.checkType(left, targetName)
 	return &runtime.BooleanValue{Value: result}
 }
 
@@ -92,12 +111,32 @@ func (e *Evaluator) VisitAsExpression(node *ast.AsExpression, ctx *ExecutionCont
 		return &runtime.NilValue{}
 	}
 
-	// Get the target type name from the type expression
+	// Compilation chooses a caster from the declared result type and discards
+	// the RHS expression. A metaclass variable/factory must never execute here.
 	targetTypeName := ""
-	if typeAnnotation, ok := node.TargetType.(*ast.TypeAnnotation); ok {
-		targetTypeName = typeAnnotation.Name
-	} else {
-		return e.newError(node, "cannot determine target type")
+	if info := e.SemanticInfo(); info != nil {
+		if resolved := info.GetResolvedType(node); resolved != nil {
+			switch target := types.GetUnderlyingType(resolved).(type) {
+			case *types.ClassOfType:
+				targetTypeName = target.ClassType.Name
+				if _, alias := resolved.(*types.TypeAlias); alias {
+					targetTypeName = resolved.String()
+				}
+			case *types.ClassType:
+				targetTypeName = target.Name
+			case *types.InterfaceType:
+				targetTypeName = target.Name
+			default:
+				targetTypeName = target.String()
+			}
+		}
+	}
+	if targetTypeName == "" {
+		if annotation, ok := node.TargetType.(*ast.TypeAnnotation); ok {
+			targetTypeName = annotation.Name
+		} else {
+			return e.newError(node, "cannot determine target type")
+		}
 	}
 
 	// Use evaluator's castType helper which handles:

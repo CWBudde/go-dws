@@ -268,6 +268,9 @@ func walkAsExpression(n *AsExpression, v Visitor) {
 	if n.Left != nil {
 		Walk(v, n.Left)
 	}
+	if n.Right != nil {
+		Walk(v, n.Right)
+	}
 	if n.TargetType != nil {
 		Walk(v, n.TargetType)
 	}

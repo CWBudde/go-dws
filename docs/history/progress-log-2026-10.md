@@ -1,5 +1,57 @@
 # Progress log — October 2026
 
+## 2026-10-03 — Cast diagnostics and recovery (PLAN 1.3)
+
+The complete `as_error`, `object_relops` and `as_invalid_right` transcripts now
+match upstream, including positions, child-before-parent order and deliberate
+omissions after compiler stops. AS retains its RHS term in the AST and generated
+visitor. Parser speculation restores cursor, errors and stop state; cloning the
+saved and restored cursor fixes repeated lookahead restoration.
+
+Target classification uses lexical identity and declared types. Invalid object
+or interface targets recover TObject; unsupported scalar casts retain the RHS
+type, including named TClass. Invalid metaclass targets set both structured and
+analyzer stop state. Recovered types reach inferred symbols and parent assignments;
+AS-supplied mismatches anchor at AS through grouping. Object/class-reference
+comparison checks retain Boolean recovery, registered overloads, nil/Variant and
+interface identity behavior.
+
+Class AS and IS select their target from its declared type without evaluating
+metaclass variables, members or factories. Runtime controls verify zero target
+calls and subclass dispatch. Boolean IS preserves Variant/Boolean and alias
+operands, and bare/grouped routine and method pointers invoke exactly once using
+the original analyzed node. Qualified type targets retain usage, casing and
+deprecation metadata; lexical System/Internal/imported-unit values take the
+ordinary member path.
+
+Independent review drove regressions for Variant Boolean checks, callable node
+identity, lexical namespace shadows and bytecode compilation safety. Bytecode
+explicitly rejects class IS and unsupported implicit callable reads, while both
+CLI commands carry existing analyzer metadata. A bounded IS type proof preserves
+six existing Boolean expression forms in all checked/unchecked compile/run paths;
+all 24 combinations also passed on the immutable pre-task CLI. No VM feature or
+opcode was added. Assignment diagnostic helpers moved verbatim into their own
+file to satisfy the unchanged file-size limit; scoped review verified all thirteen
+bodies and the other lint corrections. Additional expectations are derived from
+pinned upstream source, not an upstream executable run.
+
+Final validation: `just test-unit` (`go test -v -race ./...`) passed;
+`golangci-lint run --new-from-merge-base=origin/main --timeout 10m` reported zero
+issues; `go mod tidy -diff`, all 1,187 tracked Go files and diff checks were clean.
+A fresh CLI matched sixteen complete diagnostic transcripts, eight positive cast
+fixtures, callable factory counters, lexical-shadow controls and Boolean bytecode
+preservation cases. Class IS bytecode rejection left no compiled artifact.
+
+The full in-scope CLI comparison gains exactly `as_error`, `as_invalid_right` and
+`object_relops` against the enum commit, with no newly failing fixture. Against
+main, the branch gains eight FailureScripts and `SimpleScripts/enum_bounds`, again
+with no losses. `just fixture-update` ratchets FailureScripts **290 → 293**.
+The generated harness snapshot reports **1,386 / 2,014**; the in-scope CLI has
+1,385 passes. Their known varying BuildScripts counts are eight and seven,
+respectively, so its stable baseline remains seven. Cast parent and all three
+subitems are checked and retained. Record metatypes and anonymous-signature/JSON
+boxing semantics remain open.
+
 ## 2026-10-03 — Source-ordered enum bindings (PLAN 1.3)
 
 Unqualified enum constants now use DWScript's duplicate-preserving sorted local

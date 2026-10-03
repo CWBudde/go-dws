@@ -365,7 +365,7 @@ func constructorCallPosition(expr *ast.CallExpression) token.Position {
 
 // analyzeMemberAccessExpression analyzes member access on classes, records, interfaces, and helpers.
 func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpression) types.Type {
-	if identExpr, ok := expr.Object.(*ast.Identifier); ok {
+	if identExpr, ok := expr.Object.(*ast.Identifier); ok && !a.hasLexicalValueReceiver(expr.Object) {
 		if _, imported := a.importedUnitNamespace(identExpr.Value); imported {
 			if sym, err := a.ResolveQualifiedSymbol(identExpr.Value, expr.Member.Value); err == nil {
 				if sym.EnumElement != nil {

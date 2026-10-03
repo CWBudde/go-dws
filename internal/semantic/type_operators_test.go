@@ -98,7 +98,7 @@ func TestTypeOperator_Is_InvalidLeftOperand(t *testing.T) {
 		var n := 42;
 		var result := n is TBase;
 	`
-	expectError(t, input, "class")
+	expectError(t, input, "Object expected at 6:19")
 }
 
 func TestTypeOperator_Is_InvalidRightOperand(t *testing.T) {
@@ -109,7 +109,7 @@ func TestTypeOperator_Is_InvalidRightOperand(t *testing.T) {
 		var obj := TBase.Create();
 		var result := obj is Integer;
 	`
-	expectError(t, input, "class type")
+	expectError(t, input, "Class reference expected at 6:21")
 }
 
 // 'as' operator tests
@@ -189,7 +189,7 @@ func TestTypeOperator_As_InvalidRightOperand(t *testing.T) {
 		var obj := TBase.Create();
 		var result := obj as Integer;
 	`
-	expectError(t, input, "class or interface")
+	expectError(t, input, "Class reference expected at 6:21")
 }
 
 func TestTypeOperator_As_NilValue(t *testing.T) {

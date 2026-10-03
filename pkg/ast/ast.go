@@ -408,6 +408,7 @@ func (ie *IsExpression) String() string {
 // implements the target interface.
 type AsExpression struct {
 	Left       Expression
+	Right      Expression
 	TargetType TypeExpression
 	BaseNode
 }
@@ -425,6 +426,9 @@ func (ae *AsExpression) End() token.Position {
 	if ae.TargetType != nil {
 		return ae.TargetType.End()
 	}
+	if ae.Right != nil {
+		return ae.Right.End()
+	}
 	return ae.Token.Pos
 }
 
@@ -433,7 +437,11 @@ func (ae *AsExpression) String() string {
 	out.WriteString("(")
 	out.WriteString(ae.Left.String())
 	out.WriteString(" as ")
-	out.WriteString(ae.TargetType.String())
+	if ae.TargetType != nil {
+		out.WriteString(ae.TargetType.String())
+	} else if ae.Right != nil {
+		out.WriteString(ae.Right.String())
+	}
 	out.WriteString(")")
 	return out.String()
 }
