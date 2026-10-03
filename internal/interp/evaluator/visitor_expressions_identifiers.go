@@ -15,6 +15,9 @@ import (
 
 // VisitIdentifier evaluates an identifier (variable reference).
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
+	// Assignment analysis records call intent independently of the result type:
+	// a factory may return a pointer that must be stored without another call.
+	implicitCall := e.engineState != nil && e.engineState.SemanticInfo != nil && e.engineState.SemanticInfo.IsImplicitCall(node)
 	// Self keyword refers to current object instance
 	if node.Value == "Self" {
 		val, ok := ctx.Env().Get("Self")
@@ -32,6 +35,16 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// zero-argument overload (DWScript calls parameterless functions without
 	// parentheses).
 	if set := e.lookupLocalFunctions(node.Value, ctx); set != nil {
+		if implicitCall {
+			return e.callLocalFunctionSet(set, nil, node, ctx)
+		}
+		kind := ""
+		if e.engineState != nil {
+			kind = e.resolvedExpressionTypeKind(node, ctx)
+		}
+		if (kind == "FUNCTION_POINTER" || kind == "METHOD_POINTER") && len(set.Decls) > 0 {
+			return createFunctionPointerFromDecl(set.Decls[0], ctx.Env())
+		}
 		return e.callLocalFunctionSet(set, nil, node, ctx)
 	}
 
@@ -61,7 +74,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		// Check if this is a lazy parameter (LazyThunk)
 		// If so, force evaluation - each access re-evaluates the expression
 		if thunk, ok := val.(LazyEvaluator); ok {
-			return thunk.Evaluate()
+			return e.finishAssignmentIdentifierRead(forceLazyArgument(thunk, ctx), node, ctx, implicitCall)
 		}
 
 		// Check if this is a var parameter (ReferenceValue)
@@ -74,12 +87,19 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 				}
 				return e.newError(node, "%s", err.Error())
 			}
-			return actualVal
+			return e.finishAssignmentIdentifierRead(actualVal, node, ctx, implicitCall)
 		}
 
 		// Variable found - return the value directly
 		// All value types (primitives, arrays, objects, records) can be returned as-is
-		return val
+		return e.finishAssignmentIdentifierRead(val, node, ctx, implicitCall)
+	}
+
+	if implicitCall {
+		return e.VisitCallExpression(&ast.CallExpression{
+			BaseNode: node.BaseNode,
+			Function: node,
+		}, ctx)
 	}
 
 	// Check if we're in an instance method context (Self is bound)
@@ -597,4 +617,13 @@ func allParametersHaveDefaults(fn *ast.FunctionDecl) bool {
 		}
 	}
 	return true
+}
+
+// finishAssignmentIdentifierRead invokes the original resolved callable only
+// after normal lazy/reference unwrapping. Its returned callable remains a value.
+func (e *Evaluator) finishAssignmentIdentifierRead(value Value, node *ast.Identifier, ctx *ExecutionContext, implicitCall bool) Value {
+	if !implicitCall || isError(value) || ctx.Exception() != nil {
+		return value
+	}
+	return e.executeFunctionPointerDirect(value, nil, node, ctx)
 }

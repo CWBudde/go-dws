@@ -80,10 +80,17 @@ Completed subitems are retained here until this phase closes. Details and valida
     missing class operators and retain function-name operator dispatch.
   - [x] Convert numeric Variant operands before execution; preserve targets and
     original exceptions when conversion raises, without repeating the converter.
-- [ ] M Routine-pointer assignment recovery (`func_ptr1`).
-  - [ ] Keep accepted references; read rejected bare routines as calls.
-  - [ ] Preserve call-result types after arity errors and report valueless RHS assignments.
-  - [ ] Report pointer-target operand/type errors in the expected child-first order.
+- [x] Routine-pointer assignment recovery (`func_ptr1`).
+  - [x] Keep accepted references; read rejected bare routines as calls.
+  - [x] Preserve call-result types after arity errors and report valueless RHS assignments.
+  - [x] Report pointer-target operand/type errors in the expected child-first order.
+  - [x] Invoke named and pointer factories once through assignments and typed
+    initializers, including var/lazy parameters; preserve returned references,
+    original exceptions and destinations without caching lazy reads.
+  - [x] Retain dynamic-array slot diagnostics through implicit array factories
+    and preserve compound-call recovery.
+  - [x] Preserve exceptions through forwarded lazy expressions and stop coalesce
+    fallback after a raised supplier.
 - [ ] M Enum binding (`enums9`, `enums10`).
   - [x] Keep enumeration mismatch anchors at `:=` (compile-path regression test).
   - [ ] Match duplicate-preserving, sorted local lookup by midpoint: `enums9`

@@ -75,6 +75,7 @@ type SemanticInfo struct {
 	resolvedTypes    map[Node]types.Type
 	types            map[Expression]*TypeAnnotation
 	foldedPredicates map[*Identifier]bool
+	implicitCalls    map[Expression]bool
 	mu               sync.RWMutex
 }
 
@@ -85,6 +86,7 @@ func NewSemanticInfo() *SemanticInfo {
 		resolvedTypes:    make(map[Node]types.Type),
 		types:            make(map[Expression]*TypeAnnotation),
 		foldedPredicates: make(map[*Identifier]bool),
+		implicitCalls:    make(map[Expression]bool),
 	}
 }
 
@@ -208,6 +210,7 @@ func (si *SemanticInfo) Clear() {
 	si.resolvedTypes = make(map[Node]types.Type)
 	si.types = make(map[Expression]*TypeAnnotation)
 	si.foldedPredicates = make(map[*Identifier]bool)
+	si.implicitCalls = make(map[Expression]bool)
 }
 
 // GetResolvedType returns the analyzer's type object for an expression or type
@@ -237,4 +240,21 @@ func (si *SemanticInfo) SetResolvedType(node Node, typ types.Type) {
 			si.resolvedTypes[annot] = typ
 		}
 	}
+}
+
+// SetImplicitCall records a deliberate zero-argument call reading for a bare
+// expression. The evaluator must invoke the original callable once and preserve
+// its result, even when the result is itself callable. Set only during analysis.
+func (si *SemanticInfo) SetImplicitCall(expr Expression) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	si.implicitCalls[expr] = true
+}
+
+// IsImplicitCall reports an analyzed call reading, independently of result type.
+// It is safe for concurrent reads after analysis.
+func (si *SemanticInfo) IsImplicitCall(expr Expression) bool {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	return si.implicitCalls[expr]
 }

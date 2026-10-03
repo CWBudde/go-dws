@@ -92,11 +92,12 @@ func (a *Analyzer) reportClassInterfaceAssignmentMismatch(pos lexer.Position, fr
 	return false
 }
 
-func (a *Analyzer) analyzeAssignmentValue(value ast.Expression, expected types.Type) types.Type {
-	previous := a.inArrayAssignment
-	a.inArrayAssignment = true
-	defer func() { a.inArrayAssignment = previous }()
-	return a.analyzeExpressionWithExpectedType(value, expected)
+func (a *Analyzer) analyzeAssignmentValue(stmt *ast.AssignmentStatement, expected types.Type) types.Type {
+	valueType := a.analyzeAssignmentExpression(stmt.Value, expected, true)
+	if a.reportAssignmentValueRecovery(stmt, expected, valueType) {
+		return nil
+	}
+	return valueType
 }
 
 func (a *Analyzer) arrayAssignmentMismatchPos(value ast.Expression, fallback lexer.Position, expected, got types.Type) lexer.Position {
@@ -271,7 +272,12 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 	if stmt.Value != nil && !specialMetaValueInit {
 		errorCountBefore := len(a.errors)
 		structuredCountBefore := len(a.structuredErrors)
-		initType := a.analyzeExpressionWithExpectedType(stmt.Value, varType)
+		var initType types.Type
+		if types.IsPointerType(varType) {
+			initType = a.analyzeAssignmentExpression(stmt.Value, varType, false)
+		} else {
+			initType = a.analyzeExpressionWithExpectedType(stmt.Value, varType)
+		}
 		if varType == nil {
 			if implicitType := a.getImplicitCallType(stmt.Value); implicitType != nil {
 				initType = implicitType
@@ -482,7 +488,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			}
 
 			// Analyze the value being assigned
-			valueType := a.analyzeAssignmentValue(stmt.Value, returnType)
+			valueType := a.analyzeAssignmentValue(stmt, returnType)
 			if valueType == nil {
 				return
 			}
@@ -524,7 +530,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					a.recordClassFieldUsage(fieldOwner, target.Value)
 				}
 
-				valueType := a.analyzeAssignmentValue(stmt.Value, fieldType)
+				valueType := a.analyzeAssignmentValue(stmt, fieldType)
 				if valueType == nil {
 					return
 				}
@@ -561,7 +567,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							a.reportUnconsumedPropertyValue(stmt)
 							return
 						}
-						valueType := a.analyzeAssignmentValue(stmt.Value, propInfo.Type)
+						valueType := a.analyzeAssignmentValue(stmt, propInfo.Type)
 						if valueType == nil {
 							return
 						}
@@ -630,22 +636,22 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			if arrayLit, ok := stmt.Value.(*ast.ArrayLiteralExpression); ok && len(arrayLit.Elements) == 0 {
 				// Empty array literal - default to array of Variant (array of const)
 				// This will work with any operator that expects an array type
-				valueType = a.analyzeAssignmentValue(stmt.Value, types.ARRAY_OF_CONST)
+				valueType = a.analyzeAssignmentValue(stmt, types.ARRAY_OF_CONST)
 			} else if isBracketLiteral(stmt.Value) && isDynamicArrayType(sym.Type) {
 				// Appending a bracket literal to a dynamic array (a += [1, 2]):
 				// analyze against the target type so the literal is typed (and
 				// annotated) as an array of elements rather than a set.
-				valueType = a.analyzeAssignmentValue(stmt.Value, sym.Type)
+				valueType = a.analyzeAssignmentValue(stmt, sym.Type)
 			} else {
-				// Try to analyze value without expected type for compound assignments
-				// This allows array literals to infer their type naturally
-				valueType = a.analyzeExpression(stmt.Value)
+				// Keep natural literal/class-operator inference, with the same
+				// deliberate call reading and exact RHS arity recovery as assignments.
+				valueType = a.analyzeCompoundAssignmentExpression(stmt.Value, sym.Type)
 			}
 		} else {
 			// For regular assignments, use target type for type inference
-			valueType = a.analyzeAssignmentValue(stmt.Value, sym.Type)
+			valueType = a.analyzeAssignmentValue(stmt, sym.Type)
 		}
-		if valueType == nil {
+		if valueType == nil || a.reportAssignmentValueRecovery(stmt, sym.Type, valueType) {
 			return
 		}
 
@@ -695,7 +701,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					if !a.checkInterfacePropertyAccess(prop, target.Member, true, isCompound) {
 						return
 					}
-					valueType := a.analyzeAssignmentValue(stmt.Value, prop.Type)
+					valueType := a.analyzeAssignmentValue(stmt, prop.Type)
 					if valueType != nil {
 						usesClassOperator := false
 						if isCompound {
@@ -741,7 +747,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 								if a.rejectBareTypeValue(stmt, isCompound) {
 									return
 								}
-								valueType := a.analyzeAssignmentValue(stmt.Value, propInfo.Type)
+								valueType := a.analyzeAssignmentValue(stmt, propInfo.Type)
 								if valueType == nil {
 									return
 								}
@@ -768,7 +774,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					if a.rejectBareTypeValue(stmt, isCompound) {
 						return
 					}
-					valueType := a.analyzeAssignmentValue(stmt.Value, propInfo.Type)
+					valueType := a.analyzeAssignmentValue(stmt, propInfo.Type)
 					if valueType == nil {
 						return
 					}
@@ -799,7 +805,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if a.rejectBareTypeValue(stmt, isCompound) {
 			return
 		}
-		valueType := a.analyzeAssignmentValue(stmt.Value, targetType)
+		valueType := a.analyzeAssignmentValue(stmt, targetType)
 		if valueType == nil {
 			return
 		}
@@ -822,7 +828,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 	case *ast.IndexExpression:
 		if targetType, handled := a.analyzeInterfaceIndexedProperty(target, true, isCompound); handled {
-			valueType := a.analyzeAssignmentValue(stmt.Value, targetType)
+			valueType := a.analyzeAssignmentValue(stmt, targetType)
 			if valueType != nil {
 				usesClassOperator := false
 				if isCompound {
@@ -891,7 +897,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if a.rejectBareTypeValue(stmt, isCompound) {
 			return
 		}
-		valueType := a.analyzeAssignmentValue(stmt.Value, targetType)
+		valueType := a.analyzeAssignmentValue(stmt, targetType)
 		if valueType == nil {
 			return
 		}

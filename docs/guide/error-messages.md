@@ -82,6 +82,21 @@ class operator stops compilation at the operator. Numeric targets convert a Vari
 RHS before the operation. A raised conversion preserves the target and original
 exception, and runs the converter once.
 
+Routine-pointer assignments preserve compatible bare routine names and pointer
+copies as references. An incompatible bare routine is read as one call, retaining
+its declared result even after a missing-argument error. A procedure result normally
+reports `Assignment's right-side-argument has no return type` at the assignment
+operator, after child diagnostics. General scalar-to-pointer assignments report
+`Incompatible operands` at the operator, followed by `Cannot assign` at the
+supplying expression, using the pointer's canonical diagnostic name. Simple
+dynamic-array slot writes use the element-type mismatch at `:=`, including
+`Cannot assign "void"` for procedure results.
+
+A factory returning a compatible callable runs once; its result is stored for a
+later call. This also applies to typed initializers and var/lazy factory parameters.
+Lazy arguments evaluate on each read. A raising supplier preserves its original
+exception and destination, and coalesce skips its fallback after that raise.
+
 Typed constants and incompatible coalesce operands report
 `Incompatible types: "X" and "Y"`, with the declared or left-hand type first.
 Dynamic-array coalescing accepts derived-class elements on the right when the

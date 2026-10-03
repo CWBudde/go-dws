@@ -1,5 +1,55 @@
 # Progress log — October 2026
 
+## 2026-10-03 — Routine-pointer assignment recovery (PLAN 1.3)
+
+The complete `FailureScripts/func_ptr1` transcript now matches all fifteen upstream
+diagnostics. Compatible bare routines, parameterized references, bound methods,
+local routines, pointer copies and explicit `@` retain reference behavior. Rejected
+bare routine names yield one declared call result; known direct RHS calls retain
+that result after arity errors without relaxing nested argument recovery.
+Valueless assignments report the no-return sentence after child errors. Scalar
+results supplied to pointer targets report operands first, then canonical type
+names at the RHS.
+
+Simple dynamic-array stores retain their separate conversion diagnostic, including
+`Cannot assign "void"` at `:=`. This follows the upstream
+[direct element-store path](https://github.com/EricGrange/DWScript/blob/5f01a3468452ea75867d4f0e7a0246b107e92332/Source/dwsCompiler.pas#L5848),
+which bypasses general assignment construction. Implicit named array factories use
+the same policy without reanalyzing receivers. Compound RHS calls preserve declared
+results and no-return recovery while retaining literal and class-operator inference.
+Existing fixture sources, expectations and scoring remain unchanged.
+
+Separate semantic call intent lets the evaluator invoke a factory once and store
+its returned callable. Compiled tests cover named/pointer factories, assignments,
+typed initializers, explicit calls, local references, bound receivers and var/lazy
+parameters. Lazy suppliers evaluate once per read without memoization; captured
+exceptions reach the consuming context unchanged, including expression forwarding.
+Coalesce stops before fallback after a raise. Tests verify supplier/factory/inner/
+fallback counters, original messages and preserved destinations, plus ordinary
+scalar lazy exceptions. Runtime changes stay in the evaluator; parsed ASTs remain
+immutable. Independent review found these boundary gaps; the final fixes and lint
+refactor passed re-review with no remaining actionable findings.
+
+Controller verification: `just test-unit` (`go test -v -race ./...`) passes;
+`golangci-lint run --new-from-merge-base=origin/main --timeout 10m` reports zero issues.
+`go mod tidy -diff`, tracked Go formatting and diff checks are clean. The rebuilt
+CLI matches eleven complete diagnostic transcripts and both factory counter runs.
+An independent CLI comparison against `77f29b06` confirms exactly one new pass,
+`func_ptr1`, and no newly failing FailureScripts. Against main `34f25e8c`, the PR's
+four gains are `array_assign_error3`, `array_const`, `assign_op_incompatible` and
+`func_ptr1`, with no losses.
+
+`just fixture-update` ratchets FailureScripts **288 → 289**, changing no other
+baseline. Generated status scores **1,380 / 2,014** with BuildScripts at seven;
+the final race run scores **1,381 / 2,014** with BuildScripts at eight. Its known
+varying baseline remains seven. Checks use the task's writable Go/lint caches and
+`GOFLAGS='-buildvcs=false -p=1'`; only that Go cache was cleared between stopped
+builds to avoid exhausting temporary disk quota.
+
+PLAN retains the checked pointer subitems and adds the verified factory and
+store/recovery details. Enum binding, cast recovery, record metatypes and anonymous
+routine/JSON autoboxing remain open.
+
 ## 2026-10-03 — Compound operands and conversion recovery (PLAN 1.3)
 
 Compound assignment checks now validate both operands. Unsupported scalar pairs

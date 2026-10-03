@@ -835,6 +835,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if len(a.errors) == diagnosticsBeforeArgs {
 			a.addArgumentCountError(funcIdent.Token.Pos, len(expr.Arguments),
 				requiredParams, len(funcType.Parameters))
+			if expr == a.assignmentCallRecovery && !hasOverloads {
+				if funcType.ReturnType == nil {
+					return types.VOID
+				}
+				return funcType.ReturnType
+			}
 		}
 		return nil
 	}

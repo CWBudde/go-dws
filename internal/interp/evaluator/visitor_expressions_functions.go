@@ -884,16 +884,24 @@ func (e *Evaluator) prepareArgsForParameters(
 // Reuses existing thunks to avoid self-recursive wrapping.
 func (e *Evaluator) wrapLazyArg(arg ast.Expression, ctx *ExecutionContext, eval func(ast.Expression) Value) Value {
 	capturedArg := arg
-	return runtime.NewLazyThunk(capturedArg, func() runtime.Value {
+	evaluate := func(contextual bool) runtime.Value {
 		if identArg, ok := capturedArg.(*ast.Identifier); ok {
 			if valRaw, ok := ctx.Env().Get(identArg.Value); ok {
 				if lazyVal, ok := valRaw.(LazyEvaluator); ok {
+					if contextual {
+						return forceLazyArgument(lazyVal, ctx)
+					}
 					return lazyVal.Evaluate()
 				}
 			}
 		}
 		return eval(capturedArg)
-	})
+	}
+	return &capturedLazyArgument{
+		LazyThunk:      runtime.NewLazyThunk(capturedArg, func() runtime.Value { return evaluate(false) }),
+		captured:       ctx,
+		contextualEval: func() Value { return evaluate(true) },
+	}
 }
 
 // callExternalFunction prepares runtime arguments for an external Go function,

@@ -101,6 +101,9 @@ type Analyzer struct {
 	sourceCode            string
 	sourceFile            string
 	pendingClassWarnings  []*types.ClassType
+	// assignmentCallRecovery scopes bad-arity result recovery to the exact RHS call.
+	assignmentCallRecovery *ast.CallExpression
+
 	// compileStopped records a compiler stop: either an error DWScript raises as
 	// one (an unknown name in an expression) or a parser stop the front end
 	// reports. Upstream abandons the compile there, unwinding past
