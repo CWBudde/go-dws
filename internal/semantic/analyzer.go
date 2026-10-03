@@ -146,8 +146,11 @@ type Analyzer struct {
 	// intrinsic array helper, which upstream reads through its own reader and so
 	// never subjects to the implicit call.
 	inArrayHelperCallback bool
-	inFinallyBlock        bool
-	inExceptionHandler    bool
+	// inArrayAssignment retains an incompatible constructor's inferred type so
+	// the assignment reports the array mismatch rather than per-element errors.
+	inArrayAssignment  bool
+	inFinallyBlock     bool
+	inExceptionHandler bool
 
 	// indexedWriteTargetMember names the member access currently being analyzed as
 	// the target of a plain `:=` assignment to an indexed property. The read-side

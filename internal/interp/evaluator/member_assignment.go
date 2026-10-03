@@ -39,7 +39,7 @@ func (e *Evaluator) evalMemberAssignmentDirect(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
-	value = e.coerceJSONStorageValue(value, e.resolvedExpressionType(target, ctx), ctx)
+	value = e.coerceTypedStorageValue(value, e.resolvedExpressionType(target, ctx), ctx)
 	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
 		return value
 	}

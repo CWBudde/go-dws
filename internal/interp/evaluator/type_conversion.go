@@ -177,6 +177,20 @@ func (e *Evaluator) TryImplicitConversion(value Value, targetType types.Type, ct
 
 	// Built-in conversions (no registry entry needed)
 
+	// A compatible static array stored in a dynamic location gets its own
+	// element storage and the destination's type metadata. This also handles
+	// empty constants at initializer and var-parameter assignment boundaries.
+	if source, ok := value.(*runtime.ArrayValue); ok && source.ArrayType != nil && source.ArrayType.IsStatic() {
+		if destination, ok := types.GetUnderlyingType(targetType).(*types.ArrayType); ok && destination.IsDynamic() && types.IsCompatible(sourceType, targetType) {
+			converted, ok := source.Copy().(*runtime.ArrayValue)
+			if !ok {
+				return value, false
+			}
+			converted.ArrayType = destination
+			return converted, true
+		}
+	}
+
 	// Integer → Float is always allowed in Pascal/Delphi (automatic widening)
 	if types.OperatorTypesEqual(sourceType, types.INTEGER) && types.OperatorTypesEqual(targetType, types.FLOAT) {
 		if intVal, ok := value.(*runtime.IntegerValue); ok {
@@ -241,10 +255,19 @@ func tryJSONScalarConversion(value Value, targetType types.Type) (Value, bool) {
 	return value, false
 }
 
-// coerceJSONStorageValue preserves the declared representation at aggregate
-// storage boundaries, where a value cannot carry the destination's type itself.
-func (e *Evaluator) coerceJSONStorageValue(value Value, targetType types.Type, ctx *ExecutionContext) Value {
-	if targetType == nil || (!isJSONBoxed(value) && !types.IsJSONVariant(targetType)) {
+// coerceTypedStorageValue preserves JSON representations and materializes static
+// arrays stored in dynamic array slots at aggregate storage boundaries.
+func (e *Evaluator) coerceTypedStorageValue(value Value, targetType types.Type, ctx *ExecutionContext) Value {
+	if targetType == nil {
+		return value
+	}
+	arrayConversion := false
+	if source, ok := value.(*runtime.ArrayValue); ok && source.ArrayType != nil && source.ArrayType.IsStatic() {
+		if destination, ok := types.GetUnderlyingType(targetType).(*types.ArrayType); ok && destination.IsDynamic() {
+			arrayConversion = true
+		}
+	}
+	if !arrayConversion && !isJSONBoxed(value) && !types.IsJSONVariant(targetType) {
 		return value
 	}
 	if converted, ok := e.TryImplicitConversion(value, targetType, ctx); ok {

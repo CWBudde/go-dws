@@ -249,7 +249,7 @@ func (e *Evaluator) evalArrayElementAssignment(
 
 	// Update the array element. Record/static-array elements have value
 	// semantics, so store a snapshot instead of aliasing the source value.
-	value = e.coerceJSONStorageValue(value, arrayType.ElementType, ctx)
+	value = e.coerceTypedStorageValue(value, arrayType.ElementType, ctx)
 	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
 		return value
 	}

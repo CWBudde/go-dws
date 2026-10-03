@@ -102,7 +102,7 @@ func (e *Evaluator) evalArrayLiteralDirect(node *ast.ArrayLiteralExpression, ctx
 	}
 
 	// Coerce elements to target type
-	coercedElements, err := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node)
+	coercedElements, err := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node, ctx)
 	if err != nil {
 		return err
 	}
@@ -366,7 +366,7 @@ func (e *Evaluator) evalArrayLiteralWithType(node *ast.ArrayLiteralExpression, a
 		elementTypes = append(elementTypes, GetValueType(val))
 	}
 
-	coercedElements, errVal := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node)
+	coercedElements, errVal := e.coerceElementsToType(arrayType, evaluatedElements, elementTypes, node, ctx)
 	if errVal != nil {
 		return errVal
 	}
@@ -435,7 +435,7 @@ func (e *Evaluator) inferArrayTypeFromElements(node *ast.ArrayLiteralExpression,
 
 // coerceElementsToType coerces all elements to the target array element type.
 // Handles Integer→Float promotion and Variant boxing.
-func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Value, valueTypes []types.Type, node *ast.ArrayLiteralExpression) ([]Value, Value) {
+func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Value, valueTypes []types.Type, node *ast.ArrayLiteralExpression, ctx *ExecutionContext) ([]Value, Value) {
 	elementType := arrayType.ElementType
 	if elementType == nil {
 		return nil, e.newError(node, "array literal has no element type information")
@@ -444,7 +444,7 @@ func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Va
 
 	coerced := make([]Value, len(values))
 	for idx, val := range values {
-		coercedVal, err := e.coerceSingleElement(val, valueTypes, idx, underlyingElementType, node)
+		coercedVal, err := e.coerceSingleElement(val, valueTypes, idx, underlyingElementType, node, ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -455,7 +455,7 @@ func (e *Evaluator) coerceElementsToType(arrayType *types.ArrayType, values []Va
 }
 
 // coerceSingleElement coerces a single array element to the target type.
-func (e *Evaluator) coerceSingleElement(val Value, valueTypes []types.Type, idx int, targetType types.Type, node *ast.ArrayLiteralExpression) (Value, Value) {
+func (e *Evaluator) coerceSingleElement(val Value, valueTypes []types.Type, idx int, targetType types.Type, node *ast.ArrayLiteralExpression, ctx *ExecutionContext) (Value, Value) {
 	// Handle Variant target type (accepts any value)
 	if targetType.Equals(types.VARIANT) {
 		return runtime.BoxVariant(val), nil
@@ -494,10 +494,8 @@ func (e *Evaluator) coerceSingleElement(val Value, valueTypes []types.Type, idx 
 	}
 
 	// Handle array type compatibility
-	if valType.TypeKind() == "ARRAY" && targetType.TypeKind() == "ARRAY" {
-		if types.IsCompatible(valType, targetType) || types.IsCompatible(targetType, valType) {
-			return val, nil
-		}
+	if converted, errVal, handled := e.coerceCompatibleArrayElement(val, valType, targetType, ctx); handled {
+		return converted, errVal
 	}
 
 	// Handle general type compatibility
@@ -508,6 +506,22 @@ func (e *Evaluator) coerceSingleElement(val Value, valueTypes []types.Type, idx 
 	// Type mismatch error
 	return nil, e.elementError(node, idx, "array element %d has incompatible type (got %s, expected %s)",
 		idx+1, val.Type(), targetType.String())
+}
+
+// coerceCompatibleArrayElement handles the representation change when an array
+// is itself an element of a typed constructor.
+func (e *Evaluator) coerceCompatibleArrayElement(val Value, sourceType, targetType types.Type, ctx *ExecutionContext) (Value, Value, bool) {
+	if sourceType.TypeKind() != "ARRAY" || targetType.TypeKind() != "ARRAY" {
+		return nil, nil, false
+	}
+	if !types.IsCompatible(sourceType, targetType) && !types.IsCompatible(targetType, sourceType) {
+		return nil, nil, false
+	}
+	converted := e.coerceTypedStorageValue(val, targetType, ctx)
+	if isError(converted) || (ctx != nil && ctx.Exception() != nil) {
+		return nil, converted, true
+	}
+	return converted, nil, true
 }
 
 // handleNilElement validates and returns nil values for reference types.
@@ -830,7 +844,14 @@ func (e *Evaluator) evalArrayInsert(selfValue Value, args []Value, node ast.Node
 		return e.raiseArrayBoundExceeded(node, index, true, ctx)
 	}
 
-	value := runtime.CopyValue(args[1])
+	value := args[1]
+	if arrVal.ArrayType != nil {
+		value = e.coerceTypedStorageValue(value, arrVal.ArrayType.ElementType, ctx)
+	}
+	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
+		return value
+	}
+	value = runtime.CopyValue(value)
 	arrVal.Elements = append(arrVal.Elements, nil)
 	copy(arrVal.Elements[index+1:], arrVal.Elements[index:])
 	arrVal.Elements[index] = value
@@ -1183,7 +1204,7 @@ func (e *Evaluator) appendArrayElement(arrVal *runtime.ArrayValue, v Value, ctx 
 		elemKind = types.GetUnderlyingType(arrVal.ArrayType.ElementType).TypeKind()
 	}
 	if arrVal.ArrayType != nil {
-		v = e.coerceJSONStorageValue(v, arrVal.ArrayType.ElementType, ctx)
+		v = e.coerceTypedStorageValue(v, arrVal.ArrayType.ElementType, ctx)
 		if isError(v) || (ctx != nil && ctx.Exception() != nil) {
 			return false
 		}

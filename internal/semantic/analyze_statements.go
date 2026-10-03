@@ -30,6 +30,17 @@ func allocationMismatchPos(value ast.Expression, fallback lexer.Position) lexer.
 	return fallback
 }
 
+func isEmptyBracketLiteral(value ast.Expression) bool {
+	switch literal := value.(type) {
+	case *ast.ArrayLiteralExpression:
+		return len(literal.Elements) == 0
+	case *ast.SetLiteral:
+		return len(literal.Elements) == 0
+	default:
+		return false
+	}
+}
+
 // isEnumMismatch reports an assignment between two enumeration types, which
 // DWScript anchors at the assignment operator rather than the value.
 func isEnumMismatch(expected, got types.Type) bool {
@@ -79,6 +90,27 @@ func (a *Analyzer) reportClassInterfaceAssignmentMismatch(pos lexer.Position, fr
 		return true
 	}
 	return false
+}
+
+func (a *Analyzer) analyzeAssignmentValue(value ast.Expression, expected types.Type) types.Type {
+	previous := a.inArrayAssignment
+	a.inArrayAssignment = true
+	defer func() { a.inArrayAssignment = previous }()
+	return a.analyzeExpressionWithExpectedType(value, expected)
+}
+
+func (a *Analyzer) arrayAssignmentMismatchPos(value ast.Expression, fallback lexer.Position, expected, got types.Type) lexer.Position {
+	if identifier, ok := value.(*ast.Identifier); ok {
+		if symbol, found := a.symbols.Resolve(identifier.Value); found && symbol.IsConst {
+			if _, isArray := types.GetUnderlyingType(got).(*types.ArrayType); isArray {
+				return fallback
+			}
+		}
+	}
+	if array, ok := types.GetUnderlyingType(expected).(*types.ArrayType); ok && array.IsDynamic() && isBracketLiteral(value) {
+		return fallback
+	}
+	return assignmentMismatchPos(value, fallback, expected, got)
 }
 
 // ============================================================================
@@ -351,6 +383,11 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 	if constType == nil {
 		// Type inference: use value's type
 		constType = valueType
+		if isEmptyBracketLiteral(stmt.Value) {
+			// A constant constructor has a fixed cardinality, including zero.
+			constType = types.NewStaticArrayType(types.VARIANT, 0, -1)
+			a.semanticInfo.SetResolvedType(stmt.Value, constType)
+		}
 	} else {
 		// Check that value type is compatible with declared type
 		if !a.canAssign(valueType, constType) {
@@ -433,7 +470,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			}
 
 			// Analyze the value being assigned
-			valueType := a.analyzeExpressionWithExpectedType(stmt.Value, returnType)
+			valueType := a.analyzeAssignmentValue(stmt.Value, returnType)
 			if valueType == nil {
 				return
 			}
@@ -466,7 +503,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					a.recordClassFieldUsage(fieldOwner, target.Value)
 				}
 
-				valueType := a.analyzeExpressionWithExpectedType(stmt.Value, fieldType)
+				valueType := a.analyzeAssignmentValue(stmt.Value, fieldType)
 				if valueType == nil {
 					return
 				}
@@ -477,7 +514,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					}
 				}
 				if !a.canAssign(valueType, fieldType) {
-					pos := assignmentMismatchPos(stmt.Value, stmt.Token.Pos, fieldType, valueType)
+					pos := a.arrayAssignmentMismatchPos(stmt.Value, stmt.Token.Pos, fieldType, valueType)
 					a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, fieldType)
 				}
 				return
@@ -503,7 +540,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 							a.reportUnconsumedPropertyValue(stmt)
 							return
 						}
-						valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+						valueType := a.analyzeAssignmentValue(stmt.Value, propInfo.Type)
 						if valueType == nil {
 							return
 						}
@@ -572,12 +609,12 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			if arrayLit, ok := stmt.Value.(*ast.ArrayLiteralExpression); ok && len(arrayLit.Elements) == 0 {
 				// Empty array literal - default to array of Variant (array of const)
 				// This will work with any operator that expects an array type
-				valueType = a.analyzeExpressionWithExpectedType(stmt.Value, types.ARRAY_OF_CONST)
+				valueType = a.analyzeAssignmentValue(stmt.Value, types.ARRAY_OF_CONST)
 			} else if isBracketLiteral(stmt.Value) && isDynamicArrayType(sym.Type) {
 				// Appending a bracket literal to a dynamic array (a += [1, 2]):
 				// analyze against the target type so the literal is typed (and
 				// annotated) as an array of elements rather than a set.
-				valueType = a.analyzeExpressionWithExpectedType(stmt.Value, sym.Type)
+				valueType = a.analyzeAssignmentValue(stmt.Value, sym.Type)
 			} else {
 				// Try to analyze value without expected type for compound assignments
 				// This allows array literals to infer their type naturally
@@ -585,7 +622,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			}
 		} else {
 			// For regular assignments, use target type for type inference
-			valueType = a.analyzeExpressionWithExpectedType(stmt.Value, sym.Type)
+			valueType = a.analyzeAssignmentValue(stmt.Value, sym.Type)
 		}
 		if valueType == nil {
 			return
@@ -605,7 +642,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			if a.reportPointerAssignmentMismatch(stmt.Value, sym.Type, valueType) {
 				return
 			}
-			pos := assignmentMismatchPos(stmt.Value, stmt.Token.Pos, sym.Type, valueType)
+			pos := a.arrayAssignmentMismatchPos(stmt.Value, stmt.Token.Pos, sym.Type, valueType)
 			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, sym.Type)
 		}
 
@@ -637,7 +674,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					if !a.checkInterfacePropertyAccess(prop, target.Member, true, isCompound) {
 						return
 					}
-					valueType := a.analyzeExpressionWithExpectedType(stmt.Value, prop.Type)
+					valueType := a.analyzeAssignmentValue(stmt.Value, prop.Type)
 					if valueType != nil {
 						usesClassOperator := false
 						if isCompound {
@@ -683,7 +720,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 								if a.rejectBareTypeValue(stmt, isCompound) {
 									return
 								}
-								valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+								valueType := a.analyzeAssignmentValue(stmt.Value, propInfo.Type)
 								if valueType == nil {
 									return
 								}
@@ -710,7 +747,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 					if a.rejectBareTypeValue(stmt, isCompound) {
 						return
 					}
-					valueType := a.analyzeExpressionWithExpectedType(stmt.Value, propInfo.Type)
+					valueType := a.analyzeAssignmentValue(stmt.Value, propInfo.Type)
 					if valueType == nil {
 						return
 					}
@@ -741,7 +778,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if a.rejectBareTypeValue(stmt, isCompound) {
 			return
 		}
-		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
+		valueType := a.analyzeAssignmentValue(stmt.Value, targetType)
 		if valueType == nil {
 			return
 		}
@@ -764,7 +801,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 	case *ast.IndexExpression:
 		if targetType, handled := a.analyzeInterfaceIndexedProperty(target, true, isCompound); handled {
-			valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
+			valueType := a.analyzeAssignmentValue(stmt.Value, targetType)
 			if valueType != nil {
 				usesClassOperator := false
 				if isCompound {
@@ -813,7 +850,6 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			}
 			if a.isReadOnlyArrayIndexTarget(target, baseType) {
 				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
-				return
 			}
 		}
 		if arrayType, ok := types.GetUnderlyingType(baseType).(*types.ArrayType); ok && arrayType.IsStatic() {
@@ -834,7 +870,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		if a.rejectBareTypeValue(stmt, isCompound) {
 			return
 		}
-		valueType := a.analyzeExpressionWithExpectedType(stmt.Value, targetType)
+		valueType := a.analyzeAssignmentValue(stmt.Value, targetType)
 		if valueType == nil {
 			return
 		}

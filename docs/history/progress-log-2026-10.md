@@ -96,3 +96,51 @@ passed. `just check-fmt` could not create its script under the read-only default
 runtime directory; with `XDG_RUNTIME_DIR=/tmp`, it ran but also scanned ignored
 local `.cache/` and `.claude/` scratch files and worktrees, reporting their existing
 formatting differences. Those local artifacts were left untouched.
+
+## 2026-10-03 — Array constructors and nested callable syntax (PLAN 1.3)
+
+Array assignment recovery now retains incompatible constructors' inferred element
+types and cardinality. Dynamic-array targets and constant-array sources use the
+assignment operator's position; static targets retain the constructor position.
+Writes to constant elements still check the RHS after reporting the read-only
+error. The complete `array_assign_error3` and `array_const` expectations now match,
+including bounds checks and parser recovery.
+
+Untyped empty array constants can initialize typed dynamic arrays. Compatible
+static-to-dynamic conversions copy the source storage and apply the destination's
+type metadata, so mutation does not change the constant. Ordinary dynamic arrays
+retain reference sharing and element-type invariance. Runtime regressions cover
+initializers, assignments, `var` parameters, fields, properties, class variables,
+nested and associative slots, `Add`, `Insert`, and nested typed constructors.
+Review exposed storage paths bypassing the initial conversion; failing tests
+drove the shared conversion and the additional typed-storage boundaries.
+
+The parser retains nested callable return types and their complete source spans,
+including `of object`, and recovers a following declaration after malformed nested
+functions. This completes only the parser prerequisite for JSON autoboxing;
+semantic signature resolution, implicit invocation and boxing diagnostics remain
+open. The CLI parses `var p: function: procedure; var tail: Integer;` successfully.
+
+PLAN 1.3 now has explicit subitems and retains checked work while the task is open,
+as requested. Enum binding remains open: a blanket first-binding change fixed
+`enums9` but regressed the previously passing `enums10`. That implementation was
+excluded; the plan now requires measuring and matching both duplicate-name lookup
+expectations before changing analyzer or evaluator registration. The merged enum
+assignment-anchor fix remains intact.
+
+`just fixture-update` raises FailureScripts **285 → 287**. Independent CLI reports
+against a clean snapshot of main (`34f25e8c`) identify exactly the two array gains
+and no newly failing FailureScripts fixtures, agreeing with the harness at
+**287 / 529 scored**. The generated snapshot scores **1,379 / 2,014**, including
+eight BuildScripts passes. That category retains its previously documented
+varying results; its stable baseline remains seven. No fixture source,
+expectation or scoring policy changed.
+
+Validation: `just test-unit` (`go test -v -race ./...`) passed, and
+`golangci-lint run --new-from-merge-base=origin/main --timeout 10m` reported zero
+issues. `go mod tidy -diff` found no dependency changes. The CLI built, matched the
+harness fixture count, and parsed the nested callable example. Independent review
+found no remaining actionable issues after the storage fixes. Tracked and newly
+added Go files are formatted, and `git diff --check` passed. Checks used
+`GOCACHE=/tmp/go-dws-lint-cache`, `GOFLAGS='-buildvcs=false -p=1'`, and a writable
+temporary lint cache. The new branch starts at the merged main commit `34f25e8c`.

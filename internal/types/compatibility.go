@@ -66,6 +66,11 @@ func IsCompatible(from, to Type) bool {
 	fromArray, fromIsArray := from.(*ArrayType)
 	toArray, toIsArray := to.(*ArrayType)
 	if fromIsArray && toIsArray {
+		// An empty constant constructor has no elements to convert. It can
+		// initialize any dynamic array without weakening array invariance.
+		if fromArray.IsStatic() && fromArray.Size() == 0 && toArray.IsDynamic() {
+			return true
+		}
 		// Array types are invariant: element types must match exactly
 		if !fromArray.ElementType.Equals(toArray.ElementType) {
 			return false

@@ -90,6 +90,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 	var inferredElementType types.Type
 	hasErrors := false
 	hasRanges := false
+	hasIncompatibleElements := false
 
 	for idx, elem := range lit.Elements {
 		var elementExpected types.Type
@@ -160,11 +161,17 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			}
 
 			if !a.canAssign(elemType, expectedArrayType.ElementType) {
-				a.addError("array element %d has type %s, expected %s at %s",
-					idx+1, elemType.String(), expectedArrayType.ElementType.String(), elem.Pos().String())
-				hasErrors = true
+				if a.inArrayAssignment {
+					hasIncompatibleElements = true
+				} else {
+					a.addError("array element %d has type %s, expected %s at %s",
+						idx+1, elemType.String(), expectedArrayType.ElementType.String(), elem.Pos().String())
+					hasErrors = true
+				}
 			}
-			continue
+			if !hasIncompatibleElements {
+				continue
+			}
 		}
 
 		if inferredElementType == nil {
@@ -234,7 +241,7 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 		return nil
 	}
 
-	if expectedArrayType != nil {
+	if expectedArrayType != nil && !hasIncompatibleElements {
 		if expectedArrayType.IsStatic() && !hasRanges && len(lit.Elements) != arrayLiteralExpectedElementCount(expectedArrayType) {
 			actualLiteralType := types.NewStaticArrayType(expectedArrayType.ElementType, 0, len(lit.Elements)-1)
 			a.semanticInfo.SetType(lit, &ast.TypeAnnotation{

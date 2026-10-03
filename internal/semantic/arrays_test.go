@@ -38,7 +38,7 @@ func TestArrayLiteralMixedTypesError(t *testing.T) {
 			bad := [1, 'hello'];
 		end.
 	`
-	expectError(t, input, "expected Integer")
+	expectError(t, input, `Cannot assign "array [0..1] of Variant" to "array of Integer"`)
 }
 
 func TestArrayLiteralNestedArrays(t *testing.T) {

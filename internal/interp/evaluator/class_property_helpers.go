@@ -94,6 +94,11 @@ func (e *Evaluator) evalClassPropertyWrite(
 		return e.newError(node, readOnlyPropertyWriteMessage)
 	}
 
+	value = e.coerceTypedStorageValue(value, propInfo.Type, ctx)
+	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
+		return value
+	}
+
 	switch propInfo.WriteKind {
 	case types.PropAccessField:
 		if e.setClassVarValue(classInfo, propInfo.WriteSpec, value) {

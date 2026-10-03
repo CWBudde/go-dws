@@ -113,7 +113,7 @@ func (e *Evaluator) storeAssociativeEntry(
 	value Value,
 	ctx *ExecutionContext,
 ) Value {
-	value = e.coerceJSONStorageValue(value, assoc.ElementType(), ctx)
+	value = e.coerceTypedStorageValue(value, assoc.ElementType(), ctx)
 	if isError(value) || (ctx != nil && ctx.Exception() != nil) {
 		return value
 	}

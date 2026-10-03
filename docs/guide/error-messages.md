@@ -63,6 +63,17 @@ the opening `[` even when whitespace or a comment separates it from the type.
 Each invalid allocation dimension reports `Integer expression expected`; analysis
 continues through the remaining dimensions and retains the nested array type.
 
+Incompatible array constructors retain their inferred element type and size in
+assignment diagnostics. A dynamic-array target reports the mismatch at `:=`;
+static-array targets retain the constructor's position. Constant-array values
+also report assignment mismatches at `:=`. A write to a constant array element
+reports `Cannot assign a value to the left-side argument` and still checks the
+supplied value, reporting an incompatible RHS at the same operator.
+
+An untyped empty constant constructor can initialize any dynamic array. Each use
+gets independent storage with the destination's element type. This does not allow
+an ordinary `array of Variant` variable to be assigned to `array of Integer`.
+
 Typed constants and incompatible coalesce operands report
 `Incompatible types: "X" and "Y"`, with the declared or left-hand type first.
 Dynamic-array coalescing accepts derived-class elements on the right when the
