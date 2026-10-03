@@ -1,5 +1,58 @@
 # Progress log — October 2026
 
+## 2026-10-03 — Recursive callable signatures and JSON boxing (PLAN 1.3)
+
+Callable parameter and return types now resolve recursively from their AST nodes.
+Named declarations share the constructor while retaining their registration and
+naming boundary. Each signature keeps its own parameter modifiers and `of object`
+ownership. The named return parser uses the existing recursive type reader;
+class fields and class/record method signatures also use AST resolution.
+
+Assignments and initializers share one reference-versus-call selector. Compatible
+references and explicit `@` retain their values; a value-context factory read
+commits one call and keeps that call's returned callable uninvoked. Per-node
+intent reaches identifier, member and index reads. Methods that have already
+supplied a callable result are kept distinct from original callable storage.
+Tests cover nested factories, typed/inferred initialization, var/const/lazy
+forwarding, repeated lazy forcing, receiver/index capture and supplier exceptions.
+
+Record class variables and static properties participate in the same selection
+through record names, instances and inferred metatypes. Callable factory receivers
+use ordinary receiver typing, preserving receiver and outer-call counts.
+Independent review exposed and closed these missing storage categories.
+
+The unchanged JSON autobox oracle now reports the returned anonymous `procedure `
+at 8:3 and `class of TObject` at 9:3. Callable/class-reference boxing failures use
+`:=` anchors through variable, field, property and indexed destinations. Scalar,
+Variant, JSONVariant and nil assignments remain accepted; record-metatype,
+AS/allocation, array and enum diagnostic positions retain their own rules.
+
+The formerly malformed array-of-callable parameter source is now legal. Its exact
+source is retained as a clean-compile/no-crash positive, and the malformed row
+uses an incomplete nested return while keeping its diagnostic/no-crash assertion.
+No fixture oracle was changed. The callable and JSON guides explain result
+selection and boxing limits with a factory-counter example.
+
+Final validation: `just test-unit` (`go test -v -race ./...`) passed after clearing
+the task build cache following an environment quota failure. CI diff lint reported
+zero issues; `go mod tidy -diff`, all 1,200 tracked Go formatting and both diff
+checks passed. Fresh CLI verification matched eighteen complete diagnostic
+transcripts, eight record fixtures, eight cast fixtures, three JSON fixtures,
+factory counters, existing Boolean bytecode paths and both guide examples.
+Task, scoped fix and helper-cleanup reviews are clean.
+
+The complete in-scope CLI comparison has no newly failing fixtures. Stable gains
+against the record commit are `JSONConnectorFail/autobox`,
+`ArrayPass/array_of_proc_param` and `FailureScripts/method_params`. The measured
+snapshot also gains `BuildScripts/init_order2`, but a focused rerun with the same
+binary changes its initialization/finalization order and fails its oracle; this
+existing variation is not counted as a language fix. `just fixture-update` raises
+ArrayPass **102 → 103**, FailureScripts **294 → 295**, and JSONConnectorFail **2 → 3**;
+the stable BuildScripts floor stays seven. The generated harness snapshot reports
+**1,390 / 2,014**, and the in-scope CLI reports 1,390 passes, both with BuildScripts
+eight in that snapshot. All §1.3 parents and subitems are checked and retained.
+A final whole-branch review remains before handoff.
+
 ## 2026-10-03 — Record type values and static dispatch (PLAN 1.3)
 
 Record names and aliases used as values now have a distinct nominal `meta of R`

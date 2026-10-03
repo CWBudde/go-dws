@@ -12,7 +12,10 @@ import (
 
 // VisitIndexExpression evaluates an index expression array[index].
 // Handles array, string, property, and JSON indexing with bounds checking.
-func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *ExecutionContext) Value {
+func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *ExecutionContext) (result Value) {
+	if e.SemanticInfo() != nil && e.SemanticInfo().IsImplicitCall(node) {
+		defer func() { result = e.finishImplicitCallableRead(result, node, ctx, true) }()
+	}
 	if node == nil {
 		return e.newError(node, "nil index expression")
 	}
@@ -37,114 +40,11 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	// Collect indices - flatten for property access, not for regular arrays
 	base, indices := CollectIndices(node)
 
-	// Check if this is indexed property access: obj.Property[index1, index2, ...]
+	// Check named properties before normal array/string indexing.
 	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok && !e.interfacePropertyResultIndex(node, ctx) {
-		// Evaluate the object being accessed
-		objVal := e.Eval(memberAccess.Object, ctx)
-		if isError(objVal) {
-			return objVal
+		if value, handled := e.readMemberIndexedProperty(memberAccess, indices, node, ctx); handled {
+			return value
 		}
-
-		if record, ok := objVal.(*runtime.RecordTypeValue); ok {
-			if prop := recordMetaProperty(record, memberAccess.Member.Value); prop != nil && prop.IsIndexed {
-				values, err := e.recordMetaPropertyIndices(indices, ctx)
-				if err != nil {
-					return err
-				}
-				return e.recordMetaPropertyRead(record, prop, values, node, ctx)
-			}
-		}
-
-		// Handle interface indexed property access
-		if intfInst, ok := objVal.(InterfaceInstanceValue); ok {
-			underlying := intfInst.GetUnderlyingObjectValue()
-			if underlying == nil {
-				return e.newError(node, "interface is nil")
-			}
-
-			// Check if interface has the indexed property
-			if accessor, ok := objVal.(PropertyAccessor); ok {
-				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
-					// Evaluate all indices
-					indexVals := make([]Value, len(indices))
-					for idx, indexExpr := range indices {
-						indexVals[idx] = e.Eval(indexExpr, ctx)
-						if isError(indexVals[idx]) {
-							return indexVals[idx]
-						}
-					}
-
-					// Call indexed property getter on underlying object
-					if runtime.KindOf(underlying) == runtime.KindObject {
-						if objVal, ok := underlying.(ObjectValue); ok {
-							return objVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
-								return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
-							})
-						}
-					}
-					return e.newError(node, "interface underlying object is not a class instance")
-				}
-			}
-
-			// Unwrap for further checks
-			objVal = underlying
-		}
-
-		// Handle object indexed property access
-		if runtime.KindOf(objVal) == runtime.KindObject {
-			if accessor, ok := objVal.(PropertyAccessor); ok {
-				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
-					// Evaluate all indices
-					indexVals := make([]Value, len(indices))
-					for idx, indexExpr := range indices {
-						indexVals[idx] = e.Eval(indexExpr, ctx)
-						if isError(indexVals[idx]) {
-							return indexVals[idx]
-						}
-					}
-
-					// Call indexed property getter via ObjectValue interface
-					if ov, ok := objVal.(ObjectValue); ok {
-						return ov.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
-							return e.executeIndexedPropertyRead(objVal, pi, idx, node, ctx)
-						})
-					}
-				}
-			}
-		}
-
-		// Handle record indexed property access
-		if recVal, ok := objVal.(RecordInstanceValue); ok {
-			if accessor, ok := objVal.(PropertyAccessor); ok {
-				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil {
-					// Evaluate all indices
-					indexVals := make([]Value, len(indices))
-					for idx, indexExpr := range indices {
-						indexVals[idx] = e.Eval(indexExpr, ctx)
-						if isError(indexVals[idx]) {
-							return indexVals[idx]
-						}
-					}
-
-					return recVal.ReadIndexedProperty(propDesc.Impl, indexVals, func(pi any, idx []Value) Value {
-						return e.executeRecordIndexedPropertyRead(objVal, pi, idx, node, ctx)
-					})
-				}
-			}
-		}
-
-		// Handle indexed property access through a class name. The property need not
-		// be a `class property`: DWScript allows an ordinary indexed property whose
-		// accessor is a class method to be read through the class, since the accessor
-		// needs no instance.
-		if classMetaVal, ok := objVal.(ClassMetaValue); ok {
-			if result, handled := e.evalClassMetaIndexedProperty(objVal, classMetaVal, memberAccess.Member.Value, indices, node, ctx); handled {
-				return result
-			}
-		}
-
-		// Not an indexed property - fall through to normal member access handling
-		// This will likely error, but let it be handled by the regular logic below
 	}
 
 	// Not a property access - this is regular array/string indexing
@@ -156,6 +56,114 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	}
 
 	return e.indexResolvedValue(leftVal, node, ctx)
+}
+
+// readMemberIndexedProperty preserves the receiver dispatch order of a named
+// indexed property. An unhandled read falls back to ordinary member indexing.
+func (e *Evaluator) readMemberIndexedProperty(member *ast.MemberAccessExpression, indices []ast.Expression, node *ast.IndexExpression, ctx *ExecutionContext) (Value, bool) {
+	obj := e.Eval(member.Object, ctx)
+	if isError(obj) {
+		return obj, true
+	}
+	if record, ok := obj.(*runtime.RecordTypeValue); ok {
+		if prop := recordMetaProperty(record, member.Member.Value); prop != nil && prop.IsIndexed {
+			values, err := e.recordMetaPropertyIndices(indices, ctx)
+			if err != nil {
+				return err, true
+			}
+			return e.recordMetaPropertyRead(record, prop, values, node, ctx), true
+		}
+	}
+	if instance, ok := obj.(InterfaceInstanceValue); ok {
+		underlying, value, handled := e.readInterfaceMemberIndex(instance, member.Member.Value, indices, node, ctx)
+		if handled {
+			return value, true
+		}
+		obj = underlying
+	}
+	if runtime.KindOf(obj) == runtime.KindObject {
+		if value, handled := e.readObjectMemberIndex(obj, member.Member.Value, indices, node, ctx); handled {
+			return value, true
+		}
+	}
+	if record, ok := obj.(RecordInstanceValue); ok {
+		if value, handled := e.readRecordMemberIndex(record, member.Member.Value, indices, node, ctx); handled {
+			return value, true
+		}
+	}
+	// Ordinary properties with class accessors can also be read through a class.
+	if classMeta, ok := obj.(ClassMetaValue); ok {
+		return e.evalClassMetaIndexedProperty(obj, classMeta, member.Member.Value, indices, node, ctx)
+	}
+	return nil, false
+}
+
+// readInterfaceMemberIndex returns the unwrapped receiver when no interface
+// indexed property matches, so subsequent object/record dispatch uses it.
+func (e *Evaluator) readInterfaceMemberIndex(instance InterfaceInstanceValue, name string, indices []ast.Expression, node *ast.IndexExpression, ctx *ExecutionContext) (Value, Value, bool) {
+	underlying := instance.GetUnderlyingObjectValue()
+	if underlying == nil {
+		return nil, e.newError(node, "interface is nil"), true
+	}
+	if accessor, ok := instance.(PropertyAccessor); ok {
+		if prop := accessor.LookupProperty(name); prop != nil && prop.IsIndexed {
+			indexVals := make([]Value, len(indices))
+			for idx, expr := range indices {
+				indexVals[idx] = e.Eval(expr, ctx)
+				if isError(indexVals[idx]) {
+					return nil, indexVals[idx], true
+				}
+			}
+			if runtime.KindOf(underlying) == runtime.KindObject {
+				if obj, ok := underlying.(ObjectValue); ok {
+					value := obj.ReadIndexedProperty(prop.Impl, indexVals, func(pi any, idx []Value) Value {
+						return e.executeIndexedPropertyRead(underlying, pi, idx, node, ctx)
+					})
+					return nil, value, true
+				}
+			}
+			return nil, e.newError(node, "interface underlying object is not a class instance"), true
+		}
+	}
+	return underlying, nil, false
+}
+
+func (e *Evaluator) readObjectMemberIndex(obj Value, name string, indices []ast.Expression, node *ast.IndexExpression, ctx *ExecutionContext) (Value, bool) {
+	if accessor, ok := obj.(PropertyAccessor); ok {
+		if prop := accessor.LookupProperty(name); prop != nil && prop.IsIndexed {
+			indexVals := make([]Value, len(indices))
+			for idx, expr := range indices {
+				indexVals[idx] = e.Eval(expr, ctx)
+				if isError(indexVals[idx]) {
+					return indexVals[idx], true
+				}
+			}
+			if object, ok := obj.(ObjectValue); ok {
+				return object.ReadIndexedProperty(prop.Impl, indexVals, func(pi any, idx []Value) Value {
+					return e.executeIndexedPropertyRead(obj, pi, idx, node, ctx)
+				}), true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (e *Evaluator) readRecordMemberIndex(record RecordInstanceValue, name string, indices []ast.Expression, node *ast.IndexExpression, ctx *ExecutionContext) (Value, bool) {
+	if accessor, ok := record.(PropertyAccessor); ok {
+		if prop := accessor.LookupProperty(name); prop != nil {
+			indexVals := make([]Value, len(indices))
+			for idx, expr := range indices {
+				indexVals[idx] = e.Eval(expr, ctx)
+				if isError(indexVals[idx]) {
+					return indexVals[idx], true
+				}
+			}
+			return record.ReadIndexedProperty(prop.Impl, indexVals, func(pi any, idx []Value) Value {
+				return e.executeRecordIndexedPropertyRead(record, pi, idx, node, ctx)
+			}), true
+		}
+	}
+	return nil, false
 }
 
 // indexResolvedValue applies one level of indexing to an already-evaluated

@@ -17,6 +17,10 @@ import (
 // reportPropertyAssignmentMismatch treats a field-backed writer like a field
 // assignment. Method-backed writers retain their setter-argument diagnostic.
 func (a *Analyzer) reportPropertyAssignmentMismatch(value ast.Expression, prop *types.PropertyInfo, got types.Type, accessorPos, assignmentPos token.Position) {
+	if isJSONReferenceBoxingMismatch(got, prop.Type) {
+		a.reportAssignmentTypeMismatch(assignmentPos, assignmentPos, got, prop.Type)
+		return
+	}
 	if prop.WriteKind == types.PropAccessField && value != nil {
 		if a.reportClassInterfaceAssignmentMismatch(assignmentPos, got, prop.Type) {
 			return

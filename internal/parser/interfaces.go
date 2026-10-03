@@ -642,21 +642,14 @@ func (p *Parser) parseFunctionPointerTypeDeclaration(nameIdent *ast.Identifier, 
 			return nil
 		}
 
-		// Parse return type
-		if !p.expectPeek(lexer.IDENT) {
+		// Use the same recursive type reader as inline signatures. A nested
+		// callable owns its own "of object" suffix and complete source span.
+		p.nextToken()
+		funcPtrType.ReturnType = p.parseTypeExpression()
+		if funcPtrType.ReturnType == nil {
 			return nil
 		}
-
-		retTypeTok := p.cursor.Current()
-
-		returnType := &ast.TypeAnnotation{
-			Token: retTypeTok,
-			Name:  retTypeTok.Literal,
-		}
-		// EndPos is after the type identifier token
-		returnType.EndPos = p.endPosFromToken(retTypeTok)
-		funcPtrType.ReturnType = returnType
-		endToken = retTypeTok
+		endToken = p.cursor.Current()
 	}
 
 	// Check for "of object" clause (method pointers)

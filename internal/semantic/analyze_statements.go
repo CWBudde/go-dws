@@ -163,9 +163,9 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 		if types.IsPointerType(varType) {
 			initType = a.analyzeAssignmentExpression(stmt.Value, varType, false)
 		} else {
-			initType = a.analyzeExpressionWithExpectedType(stmt.Value, varType)
+			initType = a.analyzeCallableValue(stmt.Value, varType, true)
 		}
-		if varType == nil {
+		if varType == nil && !a.semanticInfo.IsImplicitCall(stmt.Value) {
 			if implicitType := a.getImplicitCallType(stmt.Value); implicitType != nil {
 				initType = implicitType
 			} else if implicitType := implicitCallReturnTypeFromType(initType); implicitType != nil {

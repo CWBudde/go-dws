@@ -59,6 +59,9 @@ func (a *Analyzer) resolveTypeExpression(typeExpr ast.TypeExpression) (resolvedT
 	if recordNode, ok := typeExpr.(*ast.RecordTypeNode); ok {
 		return a.resolveRecordTypeNode(recordNode)
 	}
+	if pointerNode, ok := typeExpr.(*ast.FunctionPointerTypeNode); ok {
+		return a.resolveFunctionPointerTypeNode(pointerNode)
+	}
 
 	// Handle ClassOfTypeNode directly (metaclass type resolution)
 	if classOfNode, ok := typeExpr.(*ast.ClassOfTypeNode); ok {

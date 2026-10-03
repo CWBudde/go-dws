@@ -15,7 +15,7 @@ import (
 // killed the process rather than reporting a diagnostic: a malformed routine
 // header left a typed-nil *ast.FunctionDecl at the top level and the generic
 // monomorphizer faulted on it (in scripts using no generics at all), an
-// unsupported function-pointer return type left a typed-nil element type that
+// incomplete function-pointer return type left a typed-nil element type that
 // faulted inside the parser, and an empty `uses` left a nil unit name.
 //
 // The contract this test defends is narrow and absolute: whatever the compiler
@@ -30,7 +30,7 @@ func TestMalformedInputDoesNotCrash(t *testing.T) {
 		{"type before name in const parameter", "procedure Test(const Integer v);\nbegin\n   v:=1;\nend;"},
 		{"unterminated ensure", "procedure Test;\nbegin\nensure"},
 		{"unterminated require", "procedure Test;\nbegin\nrequire"},
-		{"function pointer returning a procedure", "procedure t(const a : Array Of function : procedure);\nbegin\nend;\n"},
+		{"incomplete nested function pointer return", "procedure t(const a : Array Of function : function);\nbegin\nend;\n"},
 		{"operator uses nothing", "operator + (TObject, TObject) : Integer uses ;"},
 		{"uses with a file qualifier", "uses Classes in 'Classes.pas';\n"},
 		{"parameter list runs off the end", "procedure Dummy7(a : Integer"},

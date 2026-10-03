@@ -112,13 +112,13 @@ Completed subitems are retained here until this phase closes. Details and valida
   - [x] Canonicalize runtime record aliases and classify metatypes consistently in
     language-type and overload resolution, with deliberate helper receiver typing.
   - [x] Reject instance-to-metatype assignments at the supplying expression.
-- [ ] M Anonymous routine return types and JSON autoboxing (`JSONConnectorFail/autobox`).
+- [x] M Anonymous routine return types and JSON autoboxing (`JSONConnectorFail/autobox`).
   - [x] Parse nested callable return types with correct spans and recovery.
-  - [ ] Resolve nested signatures recursively from the AST, including parameter
+  - [x] Resolve nested signatures recursively from the AST, including parameter
     modifiers and ownership of nested `of object` suffixes.
-  - [ ] Implicitly invoke the outer callable once; preserve compatible references
+  - [x] Implicitly invoke the outer callable once; preserve compatible references
     and avoid invoking a callable returned by that call a second time.
-  - [ ] Reject routine/class-reference boxing with the expected type names and anchors.
+  - [x] Reject routine/class-reference boxing with the expected type names and anchors.
 
 ### 1.4 Call-argument and overload sentences — S
 
@@ -199,6 +199,10 @@ ahead of later assignment or end-of-program diagnostics.
 The §1.3 record-metatype changes must keep record annotations and constants as
 instance types, preserve supplying-expression diagnostics through static/helper
 receivers, and retain these recovery and stop rules when classifying type values.
+
+The §1.3 anonymous-signature work must resolve nested callable types from their
+AST nodes, preserve each node's modifiers and `of object` ownership, and retain
+assignment recovery and implicit-call intent without invoking a returned callable.
 
 - [ ] S Per-call truncation marker: `missing_parenthesis1` wants `Invalid Operands` from inside a
   call whose argument list hit a stop. Such calls are currently dropped, which is what makes
@@ -334,9 +338,14 @@ elsewhere). All previously triaged groups are closed; what remains is untriaged.
 ### 5.2 Fix groups — sized after 5.1
 
 - [ ] BuildScripts drivers.
+  - [ ] Make `init_order2` initialization/finalization ordering deterministic;
+    its varying pass must not raise the stable BuildScripts baseline.
 - [ ] SimpleScripts.
 - [ ] ArrayPass.
 - [ ] Remaining categories.
+  - [ ] Allow direct calls through function-pointer record class variables and
+    properties (`R.Stored()` / `R.Factory()`); capturing the pointer into a
+    compatible variable already works.
 
 ### 5.3 Expected-type overload resolution — M
 

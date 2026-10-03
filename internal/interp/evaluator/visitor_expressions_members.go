@@ -32,7 +32,10 @@ import (
 // - All lookups are case-insensitive
 // - Inheritance chain searched for class vars/consts/methods
 // - Type helpers can extend any type with properties/methods
-func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
+func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) (result Value) {
+	if e.SemanticInfo() != nil && e.SemanticInfo().IsImplicitCall(node) {
+		defer func() { result = e.finishImplicitCallableRead(result, node, ctx, true) }()
+	}
 	if e.engineState != nil && e.engineState.SemanticInfo != nil {
 		if binding, ok := e.engineState.SemanticInfo.EnumElementBinding(node); ok {
 			return &runtime.EnumValue{EnumType: binding.EnumType, TypeName: binding.EnumType.Name, OrdinalValue: binding.Ordinal, ValueName: binding.Name}
@@ -52,8 +55,6 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return e.readExplicitHelperMember(helper, node.Member, node, ctx)
 	}
 
-	wantMethodPointer := e.memberWantsMethodPointer(node, ctx)
-
 	// JSON namespace bare access (JSON.NewObject / JSON.NewArray, invoked without
 	// parentheses) must be handled before `JSON` is evaluated as an identifier.
 	if e.isJSONNamespaceObject(node.Object, ctx) {
@@ -63,28 +64,8 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return &runtime.FunctionPointerValue{BuiltinName: node.Member.Value}
 	}
 
-	// Unit-qualified access (UnitName.Symbol) should not evaluate the unit identifier.
-	if identObj, ok := node.Object.(*ast.Identifier); ok {
-		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.UnitRegistry() != nil {
-			if _, exists := e.UnitRegistry().GetUnit(identObj.Value); exists {
-				if overloads := e.typeSystem.LookupQualifiedFunction(identObj.Value, node.Member.Value); len(overloads) > 0 {
-					if !wantMethodPointer {
-						for _, function := range overloads {
-							if allParametersHaveDefaults(function) {
-								return e.executeQualifiedFunctionCall(identObj.Value, node.Member, nil, node, ctx)
-							}
-						}
-					}
-					return createFunctionPointerFromDecl(overloads[0], ctx.Env())
-				}
-				if valRaw, ok := ctx.Env().Get(node.Member.Value); ok {
-					if val, ok := valRaw.(Value); ok {
-						return val
-					}
-				}
-				return e.newError(node, "qualified name '%s.%s' cannot be used as a value (functions must be called)", identObj.Value, node.Member.Value)
-			}
-		}
+	if value, handled := e.readUnitQualifiedMember(node, ctx); handled {
+		return value
 	}
 
 	obj := e.normalizeMemberReceiver(e.Eval(node.Object, ctx), node.Object, node, ctx)
@@ -95,6 +76,35 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 		return &runtime.NilValue{}
 	}
 	return e.readResolvedMember(node, obj, ctx)
+}
+
+func (e *Evaluator) readUnitQualifiedMember(node *ast.MemberAccessExpression, ctx *ExecutionContext) (Value, bool) {
+	wantMethodPointer := e.memberWantsMethodPointer(node, ctx)
+	// Unit-qualified access (UnitName.Symbol) should not evaluate the unit identifier.
+	if identObj, ok := node.Object.(*ast.Identifier); ok {
+		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.UnitRegistry() != nil {
+			if _, exists := e.UnitRegistry().GetUnit(identObj.Value); exists {
+				if overloads := e.typeSystem.LookupQualifiedFunction(identObj.Value, node.Member.Value); len(overloads) > 0 {
+					if !wantMethodPointer {
+						for _, function := range overloads {
+							if allParametersHaveDefaults(function) {
+								return e.executeQualifiedFunctionCall(identObj.Value, node.Member, nil, node, ctx), true
+							}
+						}
+					}
+					return createFunctionPointerFromDecl(overloads[0], ctx.Env()), true
+				}
+				if value, ok := ctx.Env().Get(node.Member.Value); ok {
+					if value != nil {
+						return value, true
+					}
+				}
+				return e.newError(node, "qualified name '%s.%s' cannot be used as a value (functions must be called)", identObj.Value, node.Member.Value), true
+			}
+		}
+	}
+
+	return nil, false
 }
 
 // normalizeMemberReceiver dereferences storage and invokes an implicit callable

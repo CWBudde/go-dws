@@ -80,7 +80,7 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		// Check if this is a lazy parameter (LazyThunk)
 		// If so, force evaluation - each access re-evaluates the expression
 		if thunk, ok := val.(LazyEvaluator); ok {
-			return e.finishAssignmentIdentifierRead(forceLazyArgument(thunk, ctx), node, ctx, implicitCall)
+			return e.finishImplicitCallableRead(forceLazyArgument(thunk, ctx), node, ctx, implicitCall)
 		}
 
 		// Check if this is a var parameter (ReferenceValue)
@@ -93,12 +93,12 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 				}
 				return e.newError(node, "%s", err.Error())
 			}
-			return e.finishAssignmentIdentifierRead(actualVal, node, ctx, implicitCall)
+			return e.finishImplicitCallableRead(actualVal, node, ctx, implicitCall)
 		}
 
 		// Variable found - return the value directly
 		// All value types (primitives, arrays, objects, records) can be returned as-is
-		return e.finishAssignmentIdentifierRead(val, node, ctx, implicitCall)
+		return e.finishImplicitCallableRead(val, node, ctx, implicitCall)
 	}
 
 	if implicitCall {
@@ -638,9 +638,9 @@ func allParametersHaveDefaults(fn *ast.FunctionDecl) bool {
 	return true
 }
 
-// finishAssignmentIdentifierRead invokes the original resolved callable only
+// finishImplicitCallableRead invokes the original resolved callable only
 // after normal lazy/reference unwrapping. Its returned callable remains a value.
-func (e *Evaluator) finishAssignmentIdentifierRead(value Value, node *ast.Identifier, ctx *ExecutionContext, implicitCall bool) Value {
+func (e *Evaluator) finishImplicitCallableRead(value Value, node ast.Expression, ctx *ExecutionContext, implicitCall bool) Value {
 	if !implicitCall || isError(value) || ctx.Exception() != nil {
 		return value
 	}

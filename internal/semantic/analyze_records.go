@@ -253,7 +253,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		// Create function type for the method
 		var paramTypes []types.Type
 		for _, param := range method.Parameters {
-			paramType, err := a.resolveType(getTypeExpressionName(param.Type))
+			paramType, err := a.resolveTypeExpression(param.Type)
 			if err != nil {
 				a.addError("unknown type '%s' for parameter '%s' in method '%s' at %s",
 					getTypeExpressionName(param.Type), param.Name.Value, methodName, param.Token.Pos.String())
@@ -264,7 +264,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 		var returnType types.Type
 		if method.ReturnType != nil {
-			rt, err := a.resolveType(getTypeExpressionName(method.ReturnType))
+			rt, err := a.resolveTypeExpression(method.ReturnType)
 			if err != nil {
 				a.addError("unknown return type '%s' for method '%s' at %s",
 					getTypeExpressionName(method.ReturnType), methodName, method.Token.Pos.String())

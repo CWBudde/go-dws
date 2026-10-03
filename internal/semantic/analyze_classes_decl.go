@@ -565,12 +565,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			var fieldType types.Type
 			if field.Type != nil {
 				typeName := getTypeExpressionName(field.Type)
-				resolvedType, err := a.resolveType(typeName)
+				resolvedType, err := a.resolveTypeExpression(field.Type)
 				if err != nil {
 					a.addError("unknown type '%s' for class var '%s' at %s", typeName, originalFieldName, field.Token.Pos.String())
 					continue
 				}
-				a.warnDeprecatedResolvedType(field.Type.Pos(), resolvedType)
 				fieldType = resolvedType
 			} else if field.InitValue != nil {
 				initType := a.analyzeClassMemberInitializer(field.InitValue, classType)
@@ -617,12 +616,11 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 			var fieldType types.Type
 			if field.Type != nil {
 				typeName := getTypeExpressionName(field.Type)
-				resolvedType, err := a.resolveType(typeName)
+				resolvedType, err := a.resolveTypeExpression(field.Type)
 				if err != nil {
 					a.addError("unknown type '%s' for field '%s' at %s", typeName, originalFieldName, field.Token.Pos.String())
 					continue
 				}
-				a.warnDeprecatedResolvedType(field.Type.Pos(), resolvedType)
 				fieldType = resolvedType
 			} else if field.InitValue != nil {
 				initType := a.analyzeExpression(field.InitValue)
@@ -834,7 +832,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	// Bind parameters to scope.
 	for _, param := range decl.Parameters {
 		paramTypeName := getTypeExpressionName(param.Type)
-		paramType, err := a.resolveType(paramTypeName)
+		paramType, err := a.resolveTypeExpression(param.Type)
 		if err != nil {
 			if !isRefusedTypeExpression(param.Type) {
 				a.addError("unknown parameter type '%s' at %s", paramTypeName, param.Token.Pos.String())
@@ -852,7 +850,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	// Bind 'Result' variable for functions. Constructors return Self implicitly
 	// but do not expose a Result variable.
 	if decl.ReturnType != nil && !decl.IsConstructor {
-		returnType, err := a.resolveType(getTypeExpressionName(decl.ReturnType))
+		returnType, err := a.resolveTypeExpression(decl.ReturnType)
 		if err != nil {
 			a.addError("unknown return type at %s", decl.Token.Pos.String())
 		} else {
@@ -956,14 +954,22 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 				paramTypeName = qualified
 			}
 		}
-		paramType, err := a.resolveType(paramTypeName)
+		var paramType types.Type
+		var err error
+		if paramTypeName == getTypeExpressionName(param.Type) {
+			paramType, err = a.resolveTypeExpression(param.Type)
+		} else {
+			paramType, err = a.resolveType(paramTypeName)
+			if err == nil {
+				a.warnDeprecatedResolvedType(param.Type.Pos(), paramType)
+			}
+		}
 		if err != nil {
 			if !isRefusedTypeExpression(param.Type) {
 				a.addError("unknown parameter type '%s' in method '%s'", paramTypeName, method.Name.Value)
 			}
 			return
 		}
-		a.warnDeprecatedResolvedType(param.Type.Pos(), paramType)
 		paramTypes = append(paramTypes, paramType)
 		paramNames = append(paramNames, param.Name.Value)
 		paramTypeNames = append(paramTypeNames, semanticDeclaredTypeName(param.Type, paramType))
@@ -997,12 +1003,11 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	var returnType types.Type
 	if method.ReturnType != nil {
 		var err error
-		returnType, err = a.resolveType(getTypeExpressionName(method.ReturnType))
+		returnType, err = a.resolveTypeExpression(method.ReturnType)
 		if err != nil {
 			a.addError("unknown return type '%s' in method '%s'", getTypeExpressionName(method.ReturnType), method.Name.Value)
 			return
 		}
-		a.warnDeprecatedResolvedType(method.ReturnType.Pos(), returnType)
 	} else if method.IsConstructor {
 		returnType = classType
 	} else {

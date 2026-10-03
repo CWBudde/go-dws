@@ -89,6 +89,12 @@ Undefined. JSONVariant aliases behave identically, and existing JSON containers
 keep their identity. Assigning a JSON scalar to a typed scalar slot converts to
 the slot's declared type.
 
+Routine pointers, method pointers and class references cannot be boxed into a
+JSONVariant. A bare callable in an assignment value context supplies one call's
+result. If that result is another callable, JSON boxing rejects that returned
+value without invoking it again. Assignments to compatible callable slots retain
+the reference instead of calling it.
+
 Associative keys convert to their declared key type: a JSON number `123` used
 against `array [String] of T` addresses the same entry as `'123'`, for reads,
 writes, deletion, and membership. Variant-keyed arrays retain distinct key types.

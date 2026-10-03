@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2041 |
-| Passed | 1387 |
-| Failed | 627 |
+| Passed | 1390 |
+| Failed | 624 |
 | Skipped (no applicable expectation) | 27 |
-| **Scored pass rate** | **69%** (1387/2014) |
+| **Scored pass rate** | **69%** (1390/2014) |
 
 ## Per-category
 
@@ -24,7 +24,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | Category | Total | Pass | Fail | Skip | Pass% |
 |---|---:|---:|---:|---:|---:|
 | Algorithms | 53 | 53 | 0 | 0 | 100% |
-| ArrayPass | 115 | 102 | 13 | 0 | 89% |
+| ArrayPass | 115 | 103 | 12 | 0 | 90% |
 | AssociativeFail | 4 | 2 | 2 | 0 | 50% |
 | AssociativePass | 27 | 27 | 0 | 0 | 100% |
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 294 | 235 | 13 | 56% |
+| FailureScripts | 542 | 295 | 234 | 13 | 56% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -64,7 +64,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | InterfacesPass | 33 | 33 | 0 | 0 | 100% |
 | JSFilterScripts | 2 | 2 | 0 | 0 | 100% |
 | JSFilterScriptsFail | 1 | 1 | 0 | 0 | 100% |
-| JSONConnectorFail | 9 | 2 | 7 | 0 | 22% |
+| JSONConnectorFail | 9 | 3 | 6 | 0 | 33% |
 | JSONConnectorPass | 82 | 82 | 0 | 0 | 100% |
 | LambdaFail | 6 | 0 | 6 | 0 | 0% |
 | LambdaPass | 6 | 6 | 0 | 0 | 100% |

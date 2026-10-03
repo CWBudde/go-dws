@@ -38,40 +38,22 @@ func (a *Analyzer) analyzeFunctionPointerTypeDeclaration(decl *ast.TypeDeclarati
 		paramNames[param.Name.Value] = true
 	}
 
-	// Validate all parameter types exist
-	paramTypes := make([]types.Type, 0, len(fpType.Parameters))
-	for _, param := range fpType.Parameters {
-		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
-		if err != nil {
-			a.addError("unknown parameter type '%s' in function pointer type at %s",
-				getTypeExpressionName(param.Type), param.Type.Pos().String())
-			return
-		}
-		paramTypes = append(paramTypes, paramType)
+	funcPtrType, err := a.resolveTypeExpression(fpType)
+	if err != nil {
+		a.addError("%s", err)
+		return
 	}
-
-	// Validate return type (for functions)
-	var returnType types.Type
-	if fpType.ReturnType != nil {
-		var err error
-		returnType, err = a.resolveType(getTypeExpressionName(fpType.ReturnType))
-		if err != nil {
-			a.addError("unknown return type '%s' in function pointer type at %s",
-				getTypeExpressionName(fpType.ReturnType), fpType.ReturnType.Pos().String())
-			return
-		}
+	var signature *types.FunctionPointerType
+	switch pointer := funcPtrType.(type) {
+	case *types.MethodPointerType:
+		signature = &pointer.FunctionPointerType
+	case *types.FunctionPointerType:
+		signature = pointer
+	default:
+		a.addError("invalid function pointer type at %s", fpType.Pos().String())
+		return
 	}
-
-	// Create the signature before wrapping method pointers so metadata is shared.
-	signature := types.NewFunctionPointerType(paramTypes, returnType)
 	signature.Name = decl.Name.Value
-	setPointerParameterModifiers(signature, fpType.Parameters)
-	var funcPtrType types.Type = signature
-	if fpType.OfObject {
-		method := &types.MethodPointerType{FunctionPointerType: *signature, OfObject: true}
-		signature = &method.FunctionPointerType
-		funcPtrType = method
-	}
 
 	// Register in the function pointers map
 	if a.functionPointers == nil {
@@ -85,6 +67,36 @@ func (a *Analyzer) analyzeFunctionPointerTypeDeclaration(decl *ast.TypeDeclarati
 		AliasedType: funcPtrType,
 	}
 	a.registerTypeWithPos(decl.Name.Value, typeAlias, decl.Token.Pos)
+}
+
+// resolveFunctionPointerTypeNode keeps every nested signature's parameter modes
+// and method ownership on its own AST node. Named declarations add identity and
+// registration only after this shared construction.
+func (a *Analyzer) resolveFunctionPointerTypeNode(node *ast.FunctionPointerTypeNode) (types.Type, error) {
+	params := make([]types.Type, 0, len(node.Parameters))
+	for _, param := range node.Parameters {
+		paramType, err := a.resolveTypeExpression(param.Type)
+		if err != nil {
+			return nil, fmt.Errorf("unknown parameter type '%s' in function pointer type at %s",
+				getTypeExpressionName(param.Type), param.Type.Pos().String())
+		}
+		params = append(params, paramType)
+	}
+	var result types.Type
+	if node.ReturnType != nil {
+		var err error
+		result, err = a.resolveTypeExpression(node.ReturnType)
+		if err != nil {
+			return nil, fmt.Errorf("unknown return type '%s' in function pointer type at %s",
+				getTypeExpressionName(node.ReturnType), node.ReturnType.Pos().String())
+		}
+	}
+	signature := types.NewFunctionPointerType(params, result)
+	setPointerParameterModifiers(signature, node.Parameters)
+	if node.OfObject {
+		return &types.MethodPointerType{FunctionPointerType: *signature, OfObject: true}, nil
+	}
+	return signature, nil
 }
 
 // ============================================================================

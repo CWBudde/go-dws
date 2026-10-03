@@ -84,7 +84,24 @@ func (a *Analyzer) reportAssignmentTypeMismatch(valuePos, assignmentPos lexer.Po
 	if a.reportClassInterfaceAssignmentMismatch(assignmentPos, from, to) {
 		return
 	}
-	a.addError("%s", errors.FormatCannotAssign(from.String(), to.String(), valuePos.Line, valuePos.Column))
+	if isJSONReferenceBoxingMismatch(from, to) {
+		valuePos = assignmentPos
+	}
+	a.addError("%s", errors.FormatCannotAssign(semanticTypeNameForDiagnostic(from), semanticTypeNameForDiagnostic(to), valuePos.Line, valuePos.Column))
+}
+
+// Routine and class references cannot be boxed as JSON values. Preserve other
+// conversion categories' own anchors, including record metatypes and arrays.
+func isJSONReferenceBoxingMismatch(from, to types.Type) bool {
+	if !types.IsJSONVariant(to) {
+		return false
+	}
+	switch types.GetUnderlyingType(from).(type) {
+	case *types.FunctionType, *types.FunctionPointerType, *types.MethodPointerType, *types.ClassOfType:
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *Analyzer) reportClassInterfaceAssignmentMismatch(pos lexer.Position, from, to types.Type) bool {
