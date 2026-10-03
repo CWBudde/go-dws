@@ -6,13 +6,19 @@ import (
 	"sort"
 
 	"github.com/cwbudde/go-dws/internal/types"
+	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // Symbol represents a symbol in the symbol table (variable or function)
 type Symbol struct {
-	Type types.Type
+	// EnumElement marks an enum constant; enum-typed variables leave it nil.
+	EnumElement *ast.EnumElementBinding
+	// lookupOnly marks type/unit identities whose existing APIs own value typing.
+	lookupOnly bool
+	isUnitName bool
+	Type       types.Type
 	// ClassFieldOwner is set only on the synthesized bindings that make a class's
 	// own fields visible by bare name inside a method body or a property
 	// expression accessor. It names the declaring class, so a bare-name reference
@@ -51,8 +57,15 @@ type Symbol struct {
 // Unlike the interpreter's symbol table, this one tracks compile-time
 // type information for variables and functions.
 type SymbolTable struct {
+	declarations       declarationTable
+	parameters         declarationTable
+	internalParameters declarationTable
+	sourceSnapshot     *declarationTable
+	importedParents    []*SymbolTable
+	outerBeforeImports bool
 	// exportedTypes accompanies a unit interface scope when it is imported.
-	exportedTypes map[string]types.Type
+	exportedTypes  map[string]types.Type
+	enumNamespaces map[*types.EnumType]map[string]*Symbol
 	// Current scope's symbols (case-insensitive via ident.Map)
 	symbols *ident.Map[*Symbol]
 
@@ -92,8 +105,10 @@ type ScopedSymbol struct {
 // NewSymbolTable creates a new symbol table
 func NewSymbolTable() *SymbolTable {
 	return &SymbolTable{
-		symbols: ident.NewMap[*Symbol](),
-		outer:   nil,
+		symbols:            ident.NewMap[*Symbol](),
+		parameters:         declarationTable{ordered: true},
+		internalParameters: declarationTable{ordered: true},
+		outer:              nil,
 	}
 }
 
@@ -168,6 +183,15 @@ func (st *SymbolTable) LocalSymbols() []ScopedSymbol {
 		result = append(result, ScopedSymbol{Symbol: sym, Scope: st.scopeName, Depth: st.depth})
 		return true
 	})
+	seen := make(map[*Symbol]bool, len(result))
+	for _, entry := range result {
+		seen[entry.Symbol] = true
+	}
+	for _, sym := range st.declarations.entries {
+		if sym.EnumElement != nil && !seen[sym] {
+			result = append(result, ScopedSymbol{Symbol: sym, Scope: st.scopeName, Depth: st.depth})
+		}
+	}
 	sortScopedSymbols(result)
 	return result
 }
@@ -181,6 +205,9 @@ func (st *SymbolTable) AllSymbolsWithScope() []ScopedSymbol {
 	var result []ScopedSymbol
 	if st.outer != nil {
 		result = st.outer.AllSymbolsWithScope()
+	}
+	for _, parent := range st.importedParents {
+		result = append(result, parent.AllSymbolsWithScope()...)
 	}
 	return append(result, st.LocalSymbols()...)
 }
@@ -213,7 +240,7 @@ func sortScopedSymbols(symbols []ScopedSymbol) {
 // Define defines a new variable symbol in the current scope
 // DWScript is case-insensitive, handled by ident.Map
 func (st *SymbolTable) Define(name string, typ types.Type, pos token.Position) {
-	st.symbols.Set(name, &Symbol{
+	st.put(name, &Symbol{
 		Name:         name, // Keep original case for error messages
 		Type:         typ,
 		ReadOnly:     false,
@@ -235,7 +262,7 @@ func (st *SymbolTable) DefineEnumTypeName(name string, typ types.Type, pos token
 // DefineClassField defines a synthesized binding that exposes a class field by
 // bare name in the current scope, recording the declaring class on the symbol.
 func (st *SymbolTable) DefineClassField(name string, typ types.Type, owner *types.ClassType) {
-	st.symbols.Set(name, &Symbol{
+	st.put(name, &Symbol{
 		Name:            name, // Keep original case for error messages
 		Type:            typ,
 		ClassFieldOwner: owner,
@@ -246,7 +273,7 @@ func (st *SymbolTable) DefineClassField(name string, typ types.Type, owner *type
 
 // DefineReadOnly defines a new read-only variable symbol in the current scope
 func (st *SymbolTable) DefineReadOnly(name string, typ types.Type, pos token.Position) {
-	st.symbols.Set(name, &Symbol{
+	st.put(name, &Symbol{
 		Name:                  name, // Keep original case for error messages
 		Type:                  typ,
 		ReadOnly:              true,
@@ -259,7 +286,7 @@ func (st *SymbolTable) DefineReadOnly(name string, typ types.Type, pos token.Pos
 
 // DefineParameter defines a new parameter symbol in the current scope.
 func (st *SymbolTable) DefineParameter(name string, typ types.Type, pos token.Position, readOnly bool) {
-	st.symbols.Set(name, &Symbol{
+	sym := &Symbol{
 		Name:                  name,
 		Type:                  typ,
 		ReadOnly:              readOnly,
@@ -267,13 +294,15 @@ func (st *SymbolTable) DefineParameter(name string, typ types.Type, pos token.Po
 		DeclPosition:          pos,
 		Usages:                make([]token.Position, 0),
 		SuppressUnusedWarning: true,
-	})
+	}
+	st.symbols.Set(name, sym)
+	st.parameters.add(sym)
 }
 
 // DefineLoopVariable defines a new loop control variable that should not
 // participate in unused-variable warnings.
 func (st *SymbolTable) DefineLoopVariable(name string, typ types.Type, pos token.Position) {
-	st.symbols.Set(name, &Symbol{
+	st.put(name, &Symbol{
 		Name:                  name,
 		Type:                  typ,
 		ReadOnly:              false,
@@ -287,7 +316,7 @@ func (st *SymbolTable) DefineLoopVariable(name string, typ types.Type, pos token
 
 // DefineConst defines a new constant symbol in the current scope
 func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{}, pos token.Position) {
-	st.symbols.Set(name, &Symbol{
+	st.put(name, &Symbol{
 		Name:                  name, // Keep original case for error messages
 		Type:                  typ,
 		ReadOnly:              true,
@@ -301,7 +330,7 @@ func (st *SymbolTable) DefineConst(name string, typ types.Type, value interface{
 
 // DefineFunction defines a new function symbol in the current scope
 func (st *SymbolTable) DefineFunction(name string, funcType *types.FunctionType, pos token.Position) {
-	st.symbols.Set(name, &Symbol{
+	st.put(name, &Symbol{
 		Name:                  name, // Keep original case for error messages
 		Type:                  funcType,
 		ReadOnly:              false, // Functions are not assignable
@@ -341,6 +370,7 @@ func (st *SymbolTable) DefineOverload(
 	isForward bool,
 	pos token.Position,
 ) error {
+	st.declarations.find(name)
 	existing, exists := st.symbols.Get(name)
 
 	if !exists {
@@ -397,7 +427,7 @@ func (st *SymbolTable) DefineOverload(
 }
 
 func (st *SymbolTable) defineNewSymbol(name string, funcType *types.FunctionType, hasOverloadDirective, isForward bool, pos token.Position) {
-	st.symbols.Set(name, &Symbol{
+	st.put(name, &Symbol{
 		Name:                 name,
 		Type:                 funcType,
 		ReadOnly:             false,
@@ -644,9 +674,19 @@ func (st *SymbolTable) addOverloadToSet(name string, existing *Symbol, funcType 
 			DeclPosition:         pos,
 			Usages:               make([]token.Position, 0),
 		}
+		// The map retains its overload-set API; the source table retains each
+		// actual routine declaration. Implementing a forward never reaches here.
+		for i, entry := range st.declarations.entries {
+			if entry == existing {
+				st.declarations.entries[i] = firstOverload
+			}
+		}
 		existing.IsOverloadSet = true
 		existing.Overloads = []*Symbol{firstOverload, secondOverload}
 		existing.Type = nil
+	}
+	if pos.Line > 0 {
+		st.declarations.add(existing.Overloads[len(existing.Overloads)-1])
 	}
 	return nil
 }
@@ -796,38 +836,52 @@ func max(a, b int) int {
 // GetOverloadSet retrieves all overloads for a function name.
 // Returns slice of all overload symbols, single-element slice for non-overloaded functions, or nil.
 func (st *SymbolTable) GetOverloadSet(name string) []*Symbol {
-	sym, ok := st.symbols.Get(name)
+	sym, ok := st.Resolve(name)
 	if !ok {
-		// Check outer scope recursively (like Resolve does)
-		if st.outer != nil {
-			return st.outer.GetOverloadSet(name)
-		}
 		return nil
 	}
-
 	if sym.IsOverloadSet {
 		return sym.Overloads
 	}
-
-	// Non-overloaded function - return as single-element slice
 	return []*Symbol{sym}
 }
 
 // Resolve looks up a symbol by name in the current and outer scopes (case-insensitive).
 func (st *SymbolTable) Resolve(name string) (*Symbol, bool) {
-	sym, ok := st.symbols.Get(name)
-	if ok {
+	return st.resolveIdentity(name, false)
+}
+
+// resolveIdentity can include source type/unit identities for namespace checks.
+// The implementation table prefers its own interface's locals, then imports,
+// then the interface's remaining parents; builtin ancestors are not locals.
+func (st *SymbolTable) resolveIdentity(name string, includeTypes bool) (*Symbol, bool) {
+	find := (*SymbolTable).findLocal
+	if includeTypes {
+		find = (*SymbolTable).findLocalIdentity
+	}
+	if sym, ok := find(st, name); ok {
 		return sym, true
 	}
+	if st.outerBeforeImports && st.outer != nil {
+		if sym, ok := find(st.outer, name); ok {
+			return sym, true
+		}
+	}
+	for _, parent := range st.importedParents {
+		if sym, ok := parent.resolveIdentity(name, includeTypes); ok {
+			return sym, true
+		}
+	}
 	if st.outer != nil {
-		return st.outer.Resolve(name)
+		return st.outer.resolveIdentity(name, includeTypes)
 	}
 	return nil, false
 }
 
 // IsDeclaredInCurrentScope checks if a symbol is declared in the current scope (case-insensitive).
 func (st *SymbolTable) IsDeclaredInCurrentScope(name string) bool {
-	return st.symbols.Has(name)
+	_, ok := st.findLocal(name)
+	return ok
 }
 
 // PushScope creates a new nested scope (managed by Analyzer).
@@ -844,47 +898,57 @@ func (st *SymbolTable) AllSymbols() map[string]*Symbol {
 			result[name] = sym
 		}
 	}
+	for i := len(st.importedParents) - 1; i >= 0; i-- {
+		parent := st.importedParents[i]
+		for name, sym := range parent.AllSymbols() {
+			result[name] = sym
+		}
+	}
+	if st.outerBeforeImports && st.outer != nil {
+		for name, sym := range st.outer.AllSymbols() {
+			result[name] = sym
+		}
+	}
 	st.symbols.Range(func(name string, sym *Symbol) bool {
 		result[ident.Normalize(name)] = sym
 		return true
 	})
+	// Flatten names only after canonical lookup, retaining overload wrappers.
+	for name := range result {
+		if sym, ok := st.Resolve(name); ok {
+			result[name] = sym
+		} else {
+			delete(result, name)
+		}
+	}
 	return result
 }
 
 // RecordUsage records a usage of a symbol at the given position (for LSP find-references).
 func (st *SymbolTable) RecordUsage(name string, pos token.Position) {
-	sym, ok := st.symbols.Get(name)
+	sym, ok := st.Resolve(name)
 	if ok {
 		sym.Usages = append(sym.Usages, pos)
 		return
-	}
-	if st.outer != nil {
-		st.outer.RecordUsage(name, pos)
 	}
 }
 
 // FindDefinition finds the definition of a symbol by name (case-insensitive).
 func (st *SymbolTable) FindDefinition(name string) (*Symbol, token.Position, bool) {
-	sym, ok := st.symbols.Get(name)
+	sym, ok := st.Resolve(name)
 	if ok {
 		return sym, sym.DeclPosition, true
-	}
-	if st.outer != nil {
-		return st.outer.FindDefinition(name)
 	}
 	return nil, token.Position{}, false
 }
 
 // FindReferences returns all usage positions for a given symbol name (case-insensitive).
 func (st *SymbolTable) FindReferences(name string) []token.Position {
-	sym, ok := st.symbols.Get(name)
+	sym, ok := st.Resolve(name)
 	if ok {
 		refs := make([]token.Position, len(sym.Usages))
 		copy(refs, sym.Usages)
 		return refs
-	}
-	if st.outer != nil {
-		return st.outer.FindReferences(name)
 	}
 	return nil
 }

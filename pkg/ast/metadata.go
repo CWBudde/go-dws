@@ -62,6 +62,16 @@ import (
 //
 // ============================================================================
 
+// EnumElementBinding is an immutable compile-time enum constant identity.
+// EnumType is canonical and read-only after analysis; no runtime value is shared.
+type EnumElementBinding struct {
+	EnumType           *types.EnumType
+	Name               string
+	DeprecationMessage string
+	Ordinal            int
+	IsDeprecated       bool
+}
+
 // SemanticInfo holds semantic analysis results for an AST.
 // It maps AST nodes to their inferred types, folded compile-time predicate
 // results, and other semantic information. This separation allows the AST to
@@ -72,6 +82,7 @@ import (
 // writes. Typical usage is single-threaded analysis (writes) followed by
 // concurrent interpretation/compilation (reads).
 type SemanticInfo struct {
+	enumElements     map[Expression]EnumElementBinding
 	resolvedTypes    map[Node]types.Type
 	types            map[Expression]*TypeAnnotation
 	foldedPredicates map[*Identifier]bool
@@ -84,6 +95,7 @@ type SemanticInfo struct {
 func NewSemanticInfo() *SemanticInfo {
 	return &SemanticInfo{
 		resolvedTypes:    make(map[Node]types.Type),
+		enumElements:     make(map[Expression]EnumElementBinding),
 		types:            make(map[Expression]*TypeAnnotation),
 		foldedPredicates: make(map[*Identifier]bool),
 		implicitCalls:    make(map[Expression]bool),
@@ -208,6 +220,7 @@ func (si *SemanticInfo) Clear() {
 	si.mu.Lock()
 	defer si.mu.Unlock()
 	si.resolvedTypes = make(map[Node]types.Type)
+	si.enumElements = make(map[Expression]EnumElementBinding)
 	si.types = make(map[Expression]*TypeAnnotation)
 	si.foldedPredicates = make(map[*Identifier]bool)
 	si.implicitCalls = make(map[Expression]bool)
@@ -257,4 +270,22 @@ func (si *SemanticInfo) IsImplicitCall(expr Expression) bool {
 	si.mu.RLock()
 	defer si.mu.RUnlock()
 	return si.implicitCalls[expr]
+}
+
+// SetEnumElementBinding records a constant selected during source lookup.
+func (si *SemanticInfo) SetEnumElementBinding(expr Expression, binding EnumElementBinding) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	if si.enumElements == nil {
+		si.enumElements = make(map[Expression]EnumElementBinding)
+	}
+	si.enumElements[expr] = binding
+}
+
+// EnumElementBinding returns the selected constant, independently of value type.
+func (si *SemanticInfo) EnumElementBinding(expr Expression) (EnumElementBinding, bool) {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	binding, ok := si.enumElements[expr]
+	return binding, ok
 }

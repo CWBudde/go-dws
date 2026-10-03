@@ -366,8 +366,12 @@ func constructorCallPosition(expr *ast.CallExpression) token.Position {
 // analyzeMemberAccessExpression analyzes member access on classes, records, interfaces, and helpers.
 func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpression) types.Type {
 	if identExpr, ok := expr.Object.(*ast.Identifier); ok {
-		if _, imported := a.unitSymbols[ident.Normalize(identExpr.Value)]; imported {
+		if _, imported := a.importedUnitNamespace(identExpr.Value); imported {
 			if sym, err := a.ResolveQualifiedSymbol(identExpr.Value, expr.Member.Value); err == nil {
+				if sym.EnumElement != nil {
+					a.semanticInfo.SetEnumElementBinding(expr, *sym.EnumElement)
+					a.warnDeprecatedSymbolUsage(sym, expr.Member.Token.Pos)
+				}
 				return sym.Type
 			}
 			a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
@@ -510,6 +514,15 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		if arrayType, isArray := objectTypeResolved.(*types.ArrayType); isArray {
 			if result := a.analyzeArrayMemberAccess(expr, arrayType); result != nil {
 				return result
+			}
+		}
+
+		if enumType, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
+			if sym := a.enumElements[enumType][ident.Normalize(expr.Member.Value)]; sym != nil {
+				a.semanticInfo.SetEnumElementBinding(expr, *sym.EnumElement)
+				a.warnDeprecatedSymbolUsage(sym, expr.Member.Token.Pos)
+				a.addIdentifierCaseHint(expr.Member, sym.Name)
+				return enumType
 			}
 		}
 

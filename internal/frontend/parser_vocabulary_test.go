@@ -167,7 +167,13 @@ func TestCompile_TypeNamesThatAreValues(t *testing.T) {
 func TestCompile_ValueShadowingEnumTypeName(t *testing.T) {
 	source := "type TEnum = (a, b);\nprocedure P(tenum : TEnum);\nbegin\n   var x := TEnum;\n   PrintLn(Ord(x));\nend;\nP(b);\n"
 	result := Compile(source, "<test>", semantic.HintsLevelPedantic)
-	if got := result.DiagnosticStrings(); len(got) != 0 {
-		t.Fatalf("expected no diagnostics, got %q", got)
+	if !result.SemanticSuccessful || result.HasFatalDiagnostics() {
+		t.Fatalf("value shadowing failed: %q", result.DiagnosticStrings())
+	}
+	// The lexical parameter controls spelling too (upstream ReadName calls
+	// CheckMatchingDeclarationCase after symbol resolution).
+	want := []string{`Hint: "TEnum" does not match case of declaration ("tenum") [line: 4, column: 13]`}
+	if got := result.DiagnosticStrings(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %q; want %q", got, want)
 	}
 }

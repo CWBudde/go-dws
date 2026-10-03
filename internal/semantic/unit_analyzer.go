@@ -62,12 +62,9 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	normalizedUnits := make(map[string]*SymbolTable, len(availableUnits))
 	for name, symbols := range availableUnits {
 		normalizedUnits[ident.Normalize(name)] = symbols
-		a.unitSymbols[ident.Normalize(name)] = symbols
+		a.availableUnitSymbols[ident.Normalize(name)] = symbols
 	}
 	imported := make(map[string]string)
-	if err := a.importUnitUses(unit.InterfaceSection, normalizedUnits, imported); err != nil {
-		return err
-	}
 	publicSection := unit.InterfaceSection
 	implementationSection := unit.ImplementationSection
 	// The parser places section-less declarations in an implicit implementation
@@ -76,11 +73,12 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	// implementation sections remain private even without an interface section.
 	if (publicSection == nil || publicSection.Token.Type == token.USES) &&
 		implementationSection != nil && implementationSection.Token.Type != token.IMPLEMENTATION {
-		publicSection = implementationSection
-		implementationSection = nil
+		// The synthetic leading uses block precedes section-less declarations.
 		if err := a.importUnitUses(publicSection, normalizedUnits, imported); err != nil {
 			return err
 		}
+		publicSection = implementationSection
+		implementationSection = nil
 	}
 
 	// An enclosed scope separates the public API from builtins and dependencies.
@@ -90,8 +88,15 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	interfaceFunctions := make(map[string][]*ast.FunctionDecl)
 	var bodies []*ast.FunctionDecl
 	bodyInsertions := make(map[*ast.FunctionDecl]*diagnosticInsertion)
+	bodyLookups := make(map[*ast.FunctionDecl]sourceScopeSnapshot)
 	if publicSection != nil {
 		for _, stmt := range publicSection.Statements {
+			if uses, ok := stmt.(*ast.UsesClause); ok {
+				if err := a.importUnitUses(&ast.BlockStatement{Statements: []ast.Statement{uses}}, normalizedUnits, imported); err != nil {
+					return err
+				}
+				continue
+			}
 			if decl, ok := stmt.(*ast.FunctionDecl); ok && decl.ClassName == nil {
 				if decl.Name == nil {
 					a.addError("function declaration missing name")
@@ -103,6 +108,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 				if decl.Body != nil {
 					bodies = append(bodies, decl)
 					bodyInsertions[decl] = a.newDiagnosticInsertion()
+					bodyLookups[decl] = a.captureSourceScope(a.symbols)
 				}
 			} else {
 				a.analyzeStatement(stmt)
@@ -111,12 +117,16 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	}
 	exports.exportedTypes = make(map[string]types.Type)
 	for name, typ := range a.typeRegistry.AllTypes() {
-		if _, existed := beforeTypes[name]; !existed {
-			exports.exportedTypes[name] = typ
+		if descriptor, ok := a.typeRegistry.ResolveDescriptor(name); ok && descriptor.importedFrom == "" {
+			if _, existed := beforeTypes[name]; !existed {
+				exports.exportedTypes[name] = typ
+			}
 		}
 	}
 	publicSymbols := NewSymbolTable()
 	publicSymbols.exportedTypes = exports.exportedTypes
+	publicSymbols.declarations = exports.declarations.snapshot()
+	publicSymbols.enumNamespaces = exports.enumNamespaces
 	exports.symbols.Range(func(name string, symbol *Symbol) bool {
 		publicSymbols.symbols.Set(name, symbol)
 		return true
@@ -125,12 +135,16 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 
 	// Private declarations and implementation-only imports never become exports.
 	a.symbols = NewEnclosedSymbolTable(exports)
-	if err := a.importUnitUses(implementationSection, normalizedUnits, imported); err != nil {
-		return err
-	}
+	a.symbols.outerBeforeImports = true
 	implemented := make(map[*ast.FunctionDecl]bool)
 	if implementationSection != nil {
 		for _, stmt := range implementationSection.Statements {
+			if uses, ok := stmt.(*ast.UsesClause); ok {
+				if err := a.importUnitUses(&ast.BlockStatement{Statements: []ast.Statement{uses}}, normalizedUnits, imported); err != nil {
+					return err
+				}
+				continue
+			}
 			decl, ok := stmt.(*ast.FunctionDecl)
 			if !ok || decl.ClassName != nil {
 				a.analyzeStatement(stmt)
@@ -158,6 +172,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 			}
 			bodies = append(bodies, decl)
 			bodyInsertions[decl] = a.newDiagnosticInsertion()
+			bodyLookups[decl] = a.captureSourceScope(a.symbols)
 		}
 	}
 	for _, decl := range bodies {
@@ -168,6 +183,8 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 		// declaration so a later compiler stop cannot hide an earlier body
 		// error, and an earlier body stop cuts off later declaration errors.
 		a.analyzeAtDiagnosticInsertion(bodyInsertions[decl], func() {
+			restore := bodyLookups[decl].activate()
+			defer restore()
 			funcType, err := a.buildFunctionType(decl)
 			if err != nil {
 				a.addError("invalid function signature for '%s': %v", decl.Name.Value, err)
@@ -215,14 +232,19 @@ func (a *Analyzer) ResolveQualifiedSymbol(unitName, symbolName string) (*Symbol,
 	// Normalize unit name for case-insensitive lookup
 	normalizedUnitName := ident.Normalize(unitName)
 
+	// Source expression callers check the active unit namespace first. This
+	// public inspection API may also inspect a provided, not-yet-used unit.
 	// Look up the unit's symbol table
 	unitSymbols, found := a.unitSymbols[normalizedUnitName]
+	if !found {
+		unitSymbols, found = a.availableUnitSymbols[normalizedUnitName]
+	}
 	if !found {
 		return nil, fmt.Errorf("unit '%s' not found or not imported", unitName)
 	}
 
 	// Look up the symbol within that unit (case-insensitive via ident.Map)
-	symbol, found := unitSymbols.symbols.Get(symbolName)
+	symbol, found := unitSymbols.Resolve(symbolName)
 	if !found {
 		return nil, fmt.Errorf("symbol '%s' not found in unit '%s'", symbolName, unitName)
 	}

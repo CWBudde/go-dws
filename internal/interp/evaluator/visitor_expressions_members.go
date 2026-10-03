@@ -33,6 +33,12 @@ import (
 // - Inheritance chain searched for class vars/consts/methods
 // - Type helpers can extend any type with properties/methods
 func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
+	if e.engineState != nil && e.engineState.SemanticInfo != nil {
+		if binding, ok := e.engineState.SemanticInfo.EnumElementBinding(node); ok {
+			return &runtime.EnumValue{EnumType: binding.EnumType, TypeName: binding.EnumType.Name, OrdinalValue: binding.Ordinal, ValueName: binding.Name}
+		}
+	}
+
 	if node.Object == nil {
 		return e.newError(node, "member access missing object")
 	}

@@ -68,12 +68,16 @@ func (a *Analyzer) predeclareClassTypesInStatement(stmt ast.Statement) {
 		}
 	case *ast.ClassDecl:
 		className := classFullName(n)
-		if className == "" || n.EnclosingClass != nil || a.hasType(className) {
+		if className == "" || n.EnclosingClass != nil || a.typeRegistry.Has(className) {
 			return
 		}
 		classType := types.NewClassType(className, nil)
 		classType.IsForward = true
-		a.registerTypeWithPos(className, classType, n.Token.Pos)
+		// Predeclaring a class shell grants type visibility, not a source
+		// declaration-table entry. analyzeClassDecl registers that at its source site.
+		if err := a.typeRegistry.Register(className, classType, n.Token.Pos, 0); err != nil {
+			a.addError("failed to register type '%s': %v", className, err)
+		}
 		a.predeclaredClassTypes[ident.Normalize(className)] = true
 	}
 }
@@ -310,6 +314,7 @@ func (r *classInheritanceResolver) reaches(start, target *types.ClassType) bool 
 // declaration-site context that the body needs, so draining the queue restores
 // exactly the environment the body was declared in.
 type deferredMethodBody struct {
+	lookup                 sourceScopeSnapshot
 	insertion              *diagnosticInsertion
 	method                 *ast.FunctionDecl
 	classType              *types.ClassType
@@ -329,6 +334,7 @@ func (a *Analyzer) deferMethodBody(body deferredMethodBody) {
 		a.checkMethodBody(body)
 		return
 	}
+	body.lookup = a.captureSourceScope(body.outerSymbols)
 	body.insertion = a.newDiagnosticInsertion()
 	a.deferredMethodBodies = append(a.deferredMethodBodies, body)
 }
@@ -338,7 +344,7 @@ func (a *Analyzer) deferMethodBody(body deferredMethodBody) {
 func (a *Analyzer) runDeferredMethodBodies() {
 	for i := 0; i < len(a.deferredMethodBodies); i++ {
 		body := a.deferredMethodBodies[i]
-		a.analyzeAtDiagnosticInsertion(body.insertion, func() { a.checkMethodBody(body) })
+		a.analyzeAtDiagnosticInsertion(body.insertion, func() { restore := body.lookup.activate(); defer restore(); a.checkMethodBody(body) })
 	}
 	a.deferredMethodBodies = nil
 }

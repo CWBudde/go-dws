@@ -1,5 +1,61 @@
 # Progress log — October 2026
 
+## 2026-10-03 — Source-ordered enum bindings (PLAN 1.3)
+
+Unqualified enum constants now use DWScript's duplicate-preserving sorted local
+lookup, including its midpoint selection, sorting and equal-name insertion.
+Source types, aliases, overload declarations and actual program unit identities
+contribute entries at their declaration events. Builtin members and synthetic
+Result/Self bindings remain outside that local vector. Both complete enum
+oracles now match: `enums9` selects TEnum1.Hello and `enums10` selects TEnum2.Hello.
+
+Each compiled constant expression retains its canonical enum, ordinal and owning
+deprecation metadata. The evaluator creates a fresh value from that binding;
+ordinary enum variables retain storage lookup. Deferred bodies replay source
+scope roots and declaration/import snapshots, preserving their earlier enum
+selection across later declarations and repeated execution. Qualified values,
+case-insensitive duplicate checks, scoped/flags enums, explicit ordinal folding,
+constant arrays, subrange bounds and sets have compiled execution controls.
+Unchecked evaluation retains its existing environment lookup policy.
+
+Units are compiled for availability and become visible at their source `uses`
+clauses. Imported parents retain duplicate identities and import order; a unit's
+own interface locals precede implementation imports, which precede builtin
+fallback. Parameters, locals, enum types and aliases shadow imported unit
+qualifiers through lexical identity. Symbol inspection returns the same selected
+identity as canonical lookup while preserving overload wrappers. Runtime unit
+controls perform the embedding API's complete import/initialization bootstrap.
+
+Independent review found deferred interface scope-root, lexical namespace,
+flattened duplicate and implementation-import priority gaps. Failing regressions
+drove all four corrections, followed by a clean scoped review. The subsequent
+style corrections received a separate clean review. The old casing test now
+expects the precise pedantic hint for a parameter spelled `tenum` read as
+`TEnum`, following upstream lexical-name checking; no fixture oracle changed.
+Primary-source replay is pinned to upstream revision `5f01a346`; extra runtime
+outcomes are source-derived controls, not claims of running an upstream binary.
+
+Final validation: `just test-unit` (`go test -v -race ./...`) passed;
+`golangci-lint run --new-from-merge-base=origin/main --timeout 10m` reported zero
+issues; `go mod tidy -diff`, Go formatting and diff checks were clean. A fresh CLI
+matched thirteen complete diagnostic transcripts and both callable-factory
+counters. Its ordinary imported Pi control printed 42; an earlier concern was a
+unit-test setup error and is withdrawn. A race attempt failed at compiler output
+due to temporary-disk quota; clearing only the task build cache allowed the fresh
+full run to pass. Checks used writable temporary caches and
+`GOFLAGS='-buildvcs=false -p=1'`.
+
+The full in-scope CLI comparison against the previous commit identifies exactly
+`FailureScripts/enums9` and `SimpleScripts/enum_bounds` as new passes, with no
+newly failing fixtures. Against main, the branch gains those two plus the four
+previously recorded array/compound/pointer failures, again with no new failures.
+`just fixture-update` raises FailureScripts **289 → 290** and SimpleScripts
+**393 → 394**. The generated snapshot scores **1,383 / 2,014** with eight
+BuildScripts passes; the independent CLI scores 1,382 with seven, so that known
+varying category retains its stable baseline of seven. The enum subitems are
+checked and retained in PLAN per the user's request. Cast recovery, record
+metatypes and semantic anonymous-routine/JSON autoboxing remain open.
+
 ## 2026-10-03 — Routine-pointer assignment recovery (PLAN 1.3)
 
 The complete `FailureScripts/func_ptr1` transcript now matches all fifteen upstream

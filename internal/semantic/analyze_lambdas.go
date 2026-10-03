@@ -120,7 +120,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 			if expr.End().Line != 0 {
 				resultPos = blockEndStart(expr.End())
 			}
-			a.symbols.Define("Result", returnType, resultPos)
+			a.symbols.defineInternal("Result", returnType, resultPos)
 		}
 	} else {
 		// No explicit return type - infer from body
@@ -138,7 +138,7 @@ func (a *Analyzer) analyzeLambdaExpression(expr *ast.LambdaExpression) types.Typ
 			if expr.End().Line != 0 {
 				resultPos = blockEndStart(expr.End())
 			}
-			a.symbols.Define("Result", returnType, resultPos)
+			a.symbols.defineInternal("Result", returnType, resultPos)
 		}
 	}
 
@@ -298,7 +298,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 			if expr.End().Line != 0 {
 				resultPos = blockEndStart(expr.End())
 			}
-			a.symbols.Define("Result", returnType, resultPos)
+			a.symbols.defineInternal("Result", returnType, resultPos)
 		}
 	} else {
 		// No explicit return type - infer from body
@@ -325,7 +325,7 @@ func (a *Analyzer) analyzeLambdaExpressionWithContext(expr *ast.LambdaExpression
 			if expr.Body != nil {
 				resultPos = blockEndStart(expr.Body.End())
 			}
-			a.symbols.Define("Result", returnType, resultPos)
+			a.symbols.defineInternal("Result", returnType, resultPos)
 		}
 	}
 

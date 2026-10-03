@@ -202,8 +202,10 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 	case *ast.TryStatement:
 		a.analyzeTryStatement(s)
 	case *ast.UsesClause:
-		// Uses clauses are handled at runtime by the interpreter
-		// Semantic analyzer just ignores them
+		// Frontend loading provides metadata; source uses activates visibility.
+		for _, unit := range s.Units {
+			a.activateSourceUnit(unit.Value)
+		}
 		return
 	case *ast.UnitDeclaration:
 		a.analyzeUnitDeclaration(s)

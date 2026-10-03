@@ -118,7 +118,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
 		if name, ok := memberAccess.Object.(*ast.Identifier); ok {
-			if symbols, imported := a.unitSymbols[ident.Normalize(name.Value)]; imported {
+			if symbols, imported := a.importedUnitNamespace(name.Value); imported {
 				// Reuse regular call checking, including overloads and defaults, in the unit namespace.
 				oldSymbols := a.symbols
 				a.symbols = NewEnclosedSymbolTable(oldSymbols)

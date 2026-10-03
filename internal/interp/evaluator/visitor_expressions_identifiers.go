@@ -15,6 +15,12 @@ import (
 
 // VisitIdentifier evaluates an identifier (variable reference).
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
+	if e.engineState != nil && e.engineState.SemanticInfo != nil {
+		if binding, ok := e.engineState.SemanticInfo.EnumElementBinding(node); ok {
+			return &runtime.EnumValue{EnumType: binding.EnumType, TypeName: binding.EnumType.Name, OrdinalValue: binding.Ordinal, ValueName: binding.Name}
+		}
+	}
+
 	// Assignment analysis records call intent independently of the result type:
 	// a factory may return a pointer that must be stored without another call.
 	implicitCall := e.engineState != nil && e.engineState.SemanticInfo != nil && e.engineState.SemanticInfo.IsImplicitCall(node)

@@ -9,7 +9,7 @@ import (
 // analyzeMethodCallExpression analyzes a method call on an object
 func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) types.Type {
 	if name, ok := expr.Object.(*ast.Identifier); ok {
-		if _, imported := a.unitSymbols[ident.Normalize(name.Value)]; imported {
+		if _, imported := a.importedUnitNamespace(name.Value); imported {
 			return a.analyzeCallExpression(&ast.CallExpression{
 				BaseNode:  expr.BaseNode,
 				Function:  &ast.MemberAccessExpression{BaseNode: expr.BaseNode, Object: expr.Object, Member: expr.Method},

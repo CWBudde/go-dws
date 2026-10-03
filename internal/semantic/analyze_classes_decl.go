@@ -413,6 +413,9 @@ func (a *Analyzer) analyzeClassDecl(decl *ast.ClassDecl) {
 	a.checkClassVisibilitySections(decl)
 
 	className := classFullName(decl)
+	if classType := a.getClassType(className); classType != nil {
+		a.symbols.registerTypeEntry(className, classType, decl.Token.Pos)
+	}
 	isForwardDecl := a.isForwardDeclaration(decl)
 
 	// Handle existing class declarations (forward/partial).
@@ -797,7 +800,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	defer a.emitUnusedWarningsForCurrentScope()
 
 	// Bind 'Self', fields, properties, constants, and methods to scope.
-	a.symbols.Define("Self", recordType, decl.Token.Pos)
+	a.symbols.defineInternal("Self", recordType, decl.Token.Pos)
 	for fieldName, fieldType := range recordType.Fields {
 		a.symbols.Define(recordType.FieldNames[fieldName], fieldType, token.Position{})
 	}
@@ -846,13 +849,13 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 			if decl.End().Line != 0 {
 				resultPos = blockEndStart(decl.End())
 			}
-			a.symbols.Define("Result", returnType, resultPos)
+			a.symbols.defineInternal("Result", returnType, resultPos)
 			// Inside a unit, an empty implementation body deliberately leaves
 			// Result at its default; do not hint "Result is never used" for it.
 			if a.inUnitDecl && decl.Body != nil && len(decl.Body.Statements) == 0 {
 				a.recordSymbolUsage("Result", resultPos)
 			}
-			a.symbols.Define(decl.Name.Value, returnType, decl.Name.Token.Pos)
+			a.symbols.defineInternal(decl.Name.Value, returnType, decl.Name.Token.Pos)
 		}
 	}
 
@@ -1166,13 +1169,13 @@ func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
 		if method.End().Line != 0 {
 			resultPos = blockEndStart(method.End())
 		}
-		a.symbols.Define("Result", returnType, resultPos)
+		a.symbols.defineInternal("Result", returnType, resultPos)
 		// Inside a unit, an empty implementation body deliberately leaves
 		// Result at its default; do not hint "Result is never used" for it.
 		if a.inUnitDecl && method.Body != nil && len(method.Body.Statements) == 0 {
 			a.recordSymbolUsage("Result", resultPos)
 		}
-		a.symbols.Define(method.Name.Value, returnType, method.Name.Token.Pos)
+		a.symbols.defineInternal(method.Name.Value, returnType, method.Name.Token.Pos)
 	}
 
 	// Set context for body analysis.
@@ -1208,7 +1211,7 @@ func (a *Analyzer) defineMethodScopeMembers(method *ast.FunctionDecl, classType 
 	}
 
 	// Instance methods have 'Self' and access to all members.
-	a.symbols.Define("Self", classType, method.Token.Pos)
+	a.symbols.defineInternal("Self", classType, method.Token.Pos)
 	for fieldName, fieldType := range classType.Fields {
 		a.symbols.DefineClassField(fieldName, fieldType, classType)
 	}

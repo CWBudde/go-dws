@@ -66,11 +66,6 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		return types.STRING
 	}
 
-	// This allows enum type names to be used in expressions like High(TColor)
-	if enumType := a.getEnumType(identifier.Value); enumType != nil {
-		return enumType
-	}
-
 	// Handle built-in ExceptObject variable (holds current exception or nil)
 	if identifier.Value == "ExceptObject" {
 		if exceptionClass := a.getClassType("Exception"); exceptionClass != nil {
@@ -288,6 +283,9 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 	// Emit a hint when the identifier casing doesn't match its declaration.
 	if sym.Name != "" && sym.Name != identifier.Value && ident.Equal(sym.Name, identifier.Value) {
 		a.addIdentifierCaseHint(identifier, sym.Name)
+	}
+	if sym.EnumElement != nil {
+		a.semanticInfo.SetEnumElementBinding(identifier, *sym.EnumElement)
 	}
 	a.warnDeprecatedSymbolUsage(sym, identifier.Token.Pos)
 	a.recordSymbolUsage(sym.Name, identifier.Token.Pos)

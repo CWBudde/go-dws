@@ -91,16 +91,16 @@ Completed subitems are retained here until this phase closes. Details and valida
     and preserve compound-call recovery.
   - [x] Preserve exceptions through forwarded lazy expressions and stop coalesce
     fallback after a raised supplier.
-- [ ] M Enum binding (`enums9`, `enums10`).
+- [x] M Enum binding (`enums9`, `enums10`).
   - [x] Keep enumeration mismatch anchors at `:=` (compile-path regression test).
-  - [ ] Match duplicate-preserving, sorted local lookup by midpoint: `enums9`
+  - [x] Match duplicate-preserving, sorted local lookup by midpoint: `enums9`
     selects `TEnum1.Hello`, while `enums10` selects `TEnum2.Hello`.
-  - [ ] Register source types, aliases, routines and unit entries in source order;
+  - [x] Register source types, aliases, routines and unit entries in source order;
     include the program's `Default`, `Internal` and `System` entries without
     counting their builtin members or synthetic runtime bindings as local entries.
-  - [ ] Record immutable enum-constant bindings per expression, including source
+  - [x] Record immutable enum-constant bindings per expression, including source
     scope snapshots for deferred bodies, so runtime lookup cannot change them.
-  - [ ] Retain qualified values, element deprecation metadata, case-insensitive
+  - [x] Retain qualified values, element deprecation metadata, case-insensitive
     duplicates and lexical shadowing in the analyzer and evaluator.
 - [ ] M Cast diagnostics and recovery.
   - [ ] Preserve invalid RHS expressions and recover cast result types (`as_error`).
@@ -187,6 +187,10 @@ semantic side:
 - [ ] `Warning: Property writer does nothing` (blocks the above).
 
 ### 2.4 Compile-stop model — M
+
+The §1.3 enum lookup refactor must preserve source declaration order and routine-body
+diagnostic insertion points while snapshotting constant bindings. Its symbol-table changes
+must retain the existing compile-stop and forward-check behavior below.
 
 - [ ] S Per-call truncation marker: `missing_parenthesis1` wants `Invalid Operands` from inside a
   call whose argument list hit a stop. Such calls are currently dropped, which is what makes

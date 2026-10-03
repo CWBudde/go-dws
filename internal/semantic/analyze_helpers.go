@@ -381,7 +381,7 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 	// declaration, not on the out-of-line implementation, so consult both.
 	isStatic := a.isStaticHelperMethod(decl, helperType)
 	if !isStatic {
-		a.symbols.Define("Self", helperType.TargetType, decl.Token.Pos)
+		a.symbols.defineInternal("Self", helperType.TargetType, decl.Token.Pos)
 	}
 	for name, varType := range helperType.ClassVars {
 		a.symbols.Define(name, varType, token.Position{})
@@ -415,7 +415,7 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 		if decl.End().Line != 0 {
 			resultPos = blockEndStart(decl.End())
 		}
-		a.symbols.Define("Result", returnType, resultPos)
+		a.symbols.defineInternal("Result", returnType, resultPos)
 	}
 
 	defer a.enterHelperMethodContext(decl, helperType, isStatic)()

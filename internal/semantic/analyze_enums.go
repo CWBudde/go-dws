@@ -1,11 +1,12 @@
 package semantic
 
 import (
+	"fmt"
+
 	"github.com/cwbudde/go-dws/internal/errors"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
-	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -42,6 +43,12 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 		Flags:        decl.Flags,
 	}
 
+	elements := make(map[string]*Symbol, len(decl.Values))
+	a.enumElements[enumType] = elements
+	if a.symbols.enumNamespaces == nil {
+		a.symbols.enumNamespaces = make(map[*types.EnumType]map[string]*Symbol)
+	}
+	a.symbols.enumNamespaces[enumType] = elements
 	// Register enum values and calculate ordinal values
 	currentOrdinal := 0
 	flagBitPosition := 0               // For flags enums, track the bit position (2^n)
@@ -51,17 +58,22 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 		valueName := enumValue.Name
 
 		// Check for duplicate value names
-		if usedNames[valueName] {
+		if usedNames[ident.Normalize(valueName)] {
 			a.addError("%s", errors.FormatNameAlreadyExists(valueName, decl.Token.Pos.Line, decl.Token.Pos.Column))
 			continue
 		}
-		usedNames[valueName] = true
+		usedNames[ident.Normalize(valueName)] = true
 
 		// Determine ordinal value (explicit or implicit)
 		var ordinalValue int
-		if enumValue.Value != nil {
-			// Explicit value provided
-			ordinalValue = *enumValue.Value
+		if enumValue.ValueExpr != nil || enumValue.Value != nil {
+			var err error
+			ordinalValue, err = a.enumOrdinalValue(enumValue)
+			if err != nil {
+				a.addError("enum value '%s': %v", valueName, err)
+				continue
+			}
+
 			if decl.Flags {
 				// For flags, update bit position based on explicit value
 				// Find the bit position of the explicit value
@@ -91,30 +103,25 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 		// Register the enum value
 		enumType.Values[valueName] = ordinalValue
 		enumType.OrderedNames = append(enumType.OrderedNames, valueName)
+		// Elements precede their enclosing type and share one identity between
+		// the enum namespace and (for classic enums) the source local table.
+		binding := ast.EnumElementBinding{
+			EnumType: enumType, Name: valueName, Ordinal: ordinalValue,
+			IsDeprecated: enumValue.IsDeprecated, DeprecationMessage: enumValue.DeprecatedMessage,
+		}
+		sym := &Symbol{
+			Name: valueName, Type: enumType, Value: ordinalValue, IsConst: true, ReadOnly: true,
+			SuppressUnusedWarning: true, DeclPosition: decl.Token.Pos, EnumElement: &binding,
+			IsDeprecated: binding.IsDeprecated, DeprecationMessage: binding.DeprecationMessage,
+		}
+		elements[ident.Normalize(valueName)] = sym
+		if !decl.Scoped {
+			a.symbols.put(valueName, sym)
+		}
+
 	}
 
-	// Register the enum type (use lowercase key for case-insensitive lookup)
 	a.registerTypeWithPos(enumName, enumType, decl.Token.Pos)
-
-	// Register each enum value as a constant in the symbol table
-	// For scoped enums (enum/flags keyword), skip global registration -
-	// values are only accessible via qualified access (Type.Value)
-	if !decl.Scoped {
-		for valueName, ordinalValue := range enumType.Values {
-			// Store enum values as constants with the enum type and ordinal value
-			// This allows type checking: var color: TColor := Red;
-			// and const array initialization: const arr = (Red, Green, Blue);
-			// Use zero position for enum value constants (builtin-like)
-			a.symbols.DefineConst(valueName, enumType, ordinalValue, token.Position{})
-		}
-		// The `deprecated` directive rides on the declaration, not on the
-		// ordinal map, so it is applied in a second pass over the source order.
-		for _, enumValue := range decl.Values {
-			if enumValue.IsDeprecated {
-				a.symbols.MarkDeprecated(enumValue.Name, enumValue.DeprecatedMessage)
-			}
-		}
-	}
 
 	// Register enum type name as an identifier
 	// This allows the type name to be used as a runtime value in expressions
@@ -125,6 +132,34 @@ func (a *Analyzer) analyzeEnumDecl(decl *ast.EnumDecl) {
 	// This enables accessing enum values via the type name while maintaining
 	// backward compatibility with unscoped access (Red)
 	a.createEnumScopedAccessHelper(enumName, enumType)
+}
+
+// enumOrdinalValue re-evaluates source expressions against semantic bindings;
+// parser convenience ordinals cannot capture duplicate-preserving lookup.
+func (a *Analyzer) enumOrdinalValue(value ast.EnumValue) (int, error) {
+	if value.ValueExpr == nil {
+		return *value.Value, nil
+	}
+	a.analyzeExpression(value.ValueExpr)
+	constant, err := a.evaluateConstant(value.ValueExpr)
+	if err != nil {
+		return 0, fmt.Errorf("must be constant: %w", err)
+	}
+	switch v := constant.(type) {
+	case int:
+		return v, nil
+	case bool:
+		if v {
+			return 1, nil
+		}
+		return 0, nil
+	case string:
+		runes := []rune(v)
+		if len(runes) == 1 {
+			return int(runes[0]), nil
+		}
+	}
+	return 0, fmt.Errorf("must be ordinal")
 }
 
 // createEnumScopedAccessHelper creates an implicit helper for an enum type
