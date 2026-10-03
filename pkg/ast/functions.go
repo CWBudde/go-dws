@@ -33,9 +33,11 @@ type Parameter struct {
 	Type         TypeExpression // Can be TypeAnnotation, ArrayTypeNode, FunctionPointerTypeNode, etc.
 	Token        token.Token
 	EndPos       token.Position
-	IsLazy       bool
-	ByRef        bool
-	IsConst      bool
+	// DefaultValueSeparatorPos is the '=' before a parameter initializer.
+	DefaultValueSeparatorPos token.Position
+	IsLazy                   bool
+	ByRef                    bool
+	IsConst                  bool
 }
 
 func (p *Parameter) statementNode() {}

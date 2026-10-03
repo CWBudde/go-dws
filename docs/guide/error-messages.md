@@ -68,6 +68,29 @@ Unmarked routines retain `More arguments expected`, `Too many arguments`, or
 `There is already a method with name "X"` at the completed header: its semicolon
 when no directive follows, otherwise the token after the last directive.
 
+### Parameter defaults and Swap
+
+A `lazy`, `var`, or `const` parameter with a default reports
+`lazy/var/const parameter cannot have a default value` at `=`. Parsing continues
+through the initializer and following declarations. The rejected default does
+not make the parameter optional. Regular-routine defaults must be constant;
+`Constant expression expected` uses the cursor after the initializer, while
+incompatible folded scalar constants report their type pair at `=`. Pure calls
+and constant aggregates/casts remain valid defaults. An open `array of const`
+parameter must use the `const` parameter modifier.
+
+`Swap` checks each argument for writable data and reports `Variable expected`
+at the invalid argument. Ordinary variables, array elements, and fields retain
+their storage semantics; getter calls and immutable data are rejected. Type
+mismatches report `Incompatible types: "X" and "Y"` at `Swap`, with the first
+argument's type first. Both types must match, including Variant; invalid
+arguments suppress the enclosing pair. A single argument reports `"," expected`
+at the closing parenthesis. Explicit `@Print` and `@PrintLn` references expose
+DWScript's one-Variant procedure signature.
+
+Assigning to a constant or read-only binding reports
+`Cannot assign a value to the left-side argument` at the assignment operator.
+
 ### Incompatible type pairs
 
 Ordinary scalar and interface assignments report

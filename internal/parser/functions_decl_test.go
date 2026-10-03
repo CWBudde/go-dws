@@ -1382,17 +1382,17 @@ func TestOptionalParametersErrors(t *testing.T) {
 		{
 			name:          "var parameter with default value",
 			input:         "function Test(var x: Integer = 5): Integer; begin end;",
-			expectedError: "optional parameters cannot have lazy, var, or const modifiers",
+			expectedError: "var parameter cannot have a default value",
 		},
 		{
 			name:          "lazy parameter with default value",
 			input:         "function Test(lazy x: Integer = 5): Integer; begin end;",
-			expectedError: "optional parameters cannot have lazy, var, or const modifiers",
+			expectedError: "lazy parameter cannot have a default value",
 		},
 		{
 			name:          "const parameter with default value",
 			input:         "function Test(const x: Integer = 5): Integer; begin end;",
-			expectedError: "optional parameters cannot have lazy, var, or const modifiers",
+			expectedError: "const parameter cannot have a default value",
 		},
 		{
 			name:          "empty default value",

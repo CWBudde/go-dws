@@ -498,11 +498,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 
 		// Check if variable is read-only
 		if sym.ReadOnly {
-			if sym.IsConst {
-				a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
-			} else {
-				a.addError("cannot assign to read-only variable '%s' at %s", target.Value, stmt.Token.Pos.String())
-			}
+			a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
 			return
 		}
 
@@ -608,8 +604,7 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			// Check if it's a class constant
 			if classType, ok := objectTypeResolved.(*types.ClassType); ok {
 				if constType := a.findClassConstantWithVisibility(classType, memberName, stmt.Token.Pos.String()); constType != nil {
-					a.addError("cannot assign to constant '%s' at %s",
-						target.Member.Value, stmt.Token.Pos.String())
+					a.addError("Cannot assign a value to the left-side argument at %s", stmt.Token.Pos.String())
 					return
 				}
 				if propInfo, found := classType.GetProperty(memberName); found {

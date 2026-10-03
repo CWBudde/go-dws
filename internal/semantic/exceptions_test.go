@@ -306,7 +306,7 @@ func TestExceptionVariableReadOnly(t *testing.T) {
 	}
 
 	errMsg := err.Error()
-	if !strings.Contains(errMsg, "read-only") {
+	if !strings.Contains(errMsg, "Cannot assign a value to the left-side argument") {
 		t.Errorf("Expected error about read-only variable, got: %s", errMsg)
 	}
 }

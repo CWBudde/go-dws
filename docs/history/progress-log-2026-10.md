@@ -556,3 +556,58 @@ test, race and coverage runs passed with the normal temporary filesystem.
 The installed linter was built with Go 1.27 and used the matching cached
 toolchain; formatting used the project's Go 1.26 toolchain and
 `XDG_RUNTIME_DIR=/tmp`. The branch starts at main commit `ee236fc7`.
+
+## 2026-10-03 — Parameter defaults, Swap, and immutable assignments (PLAN 1.5, first batch)
+
+Phase 1.5 remains open. Its broad origin groups now have concrete remaining
+subtasks; this batch closes the regular-routine `params1` and `swap1` type-pair
+fixtures and the immutable-assignment sentence sites. Parser investigation and
+implementation ran separately from semantic work, with controller-owned frontend
+acceptance tests and an independent review.
+
+Modified parameter defaults report the exact `lazy`/`var`/`const` sentence at
+`=` and retain the initializer, parameter, and subsequent declarations. External
+routines no longer consume a following global constant as a local declaration.
+Parameter metadata records the default separator through comments and newlines.
+Regular-routine defaults receive constant/type validation and preserve valid nil,
+aggregate, pure-call, and constant-cast expressions. Rejected and modified defaults
+remain required. Folded scalar mismatches use `=`, nonconstant defaults use the
+cursor after the initializer, and their child-first diagnostics remain ahead of
+later calls on the same line. Non-const open `array of const` parameters receive
+the upstream sentence. Method/record/helper default checks remain an explicit
+follow-up.
+
+`Swap` reports `Variable expected` at an invalid data argument, suppresses its
+pair after a child/variable error, and reports unequal types at the intrinsic's
+name using canonical captions. Variant/concrete pairs are rejected. Array elements
+and record/class fields remain usable storage; static-array temporaries,
+immutable roots, constants, and getter calls are rejected. Read-side property
+classification follows upstream: a field reader is data, while a getter method
+is a call result. A single argument receives `"," expected` at `)`. Zero/excess
+argument handling and delimiter stops remain open. `@Print`/`@PrintLn` expose
+DWScript's one-Variant procedure signature. Existing evaluator storage dispatch
+runs valid field/array swaps without runtime changes.
+
+Read-only bindings and class constants now use
+`Cannot assign a value to the left-side argument` at the assignment operator.
+The new compile-path oracle tests cover complete diagnostic lists and valid
+counterexamples. Review findings drove regressions for Variant pairs, immutable
+members, static-array temporaries, aggregate pure calls, constant casts, and
+same-line default diagnostic ordering. All review findings were resolved.
+
+`just fixture-update` raises FailureScripts **296 → 302** (`class_const3`,
+`const_2`, `const_param1`, `const_param4`, `params1`, `swap1`) and SimpleScripts
+**394 → 396** (`default_parameters_expr`, `swap2`). CLI reports using binaries
+built from main and the implementation confirm all eight gains and no newly
+failing in-scope fixtures. The final CLI and Go harness agree on category counts.
+The generated complete snapshot is **1,399 / 2,014**; BuildScripts measured seven
+passes in both comparison runs and retains its documented stable floor of seven.
+Fixture sources, expectations, and scoring policy were not changed.
+
+Validation passed: `go test ./...`, `just test-unit` (race detection),
+`just test-coverage`, `just check-fmt`, `git diff --check`, and
+`go mod tidy -diff`. Regenerating the AST visitor produced no changes.
+`golangci-lint run --new-from-rev=50aac735` reports **zero issues**.
+Full `just ci` still stops at the existing **1,230-issue** lint backlog,
+matching main's measured count; its tests and coverage were run separately.
+Tests used Go 1.26; lint used the installed linter's matching Go 1.27 toolchain.

@@ -3,6 +3,7 @@ package semantic
 import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // ============================================================================
@@ -80,11 +81,6 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 		// Optional parameters must come last, without modifiers
 		if param.DefaultValue != nil {
 			foundOptional = true
-			if param.IsLazy || param.ByRef || param.IsConst {
-				a.addError("optional parameter '%s' cannot have lazy, var, or const modifiers in function '%s' at %s",
-					param.Name.Value, decl.Name.Value, param.Token.Pos.String())
-				return nil, nil, false
-			}
 		} else if foundOptional {
 			a.addError("required parameter '%s' cannot come after optional parameters in function '%s' at %s",
 				param.Name.Value, decl.Name.Value, param.Token.Pos.String())
@@ -115,25 +111,19 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 			}
 		}
 
-		// Validate default value type matches parameter type
-		if param.DefaultValue != nil {
-			defaultType := a.analyzeExpressionWithExpectedType(param.DefaultValue, paramType)
-			if defaultType == nil {
-				a.addError("invalid default value for parameter '%s' in function '%s'",
-					param.Name.Value, decl.Name.Value)
-				return nil, nil, false
+		defaultValue := a.analyzeParameterDefault(param, paramType)
+		if !param.IsConst && declaresArrayOfConst(param.Type) {
+			pos := param.Type.Pos()
+			if array, ok := param.Type.(*ast.ArrayTypeNode); ok {
+				pos = array.ElementType.Pos()
 			}
-			if !paramType.Equals(defaultType) && !defaultType.Equals(paramType) {
-				a.addError("default value type '%s' does not match parameter type '%s' for parameter '%s' in function '%s'",
-					defaultType.String(), paramType.String(), param.Name.Value, decl.Name.Value)
-				return nil, nil, false
-			}
+			a.addError("open array parameter must be const at %s", pos.String())
 		}
 
 		paramTypes = append(paramTypes, paramType)
 		paramNames = append(paramNames, param.Name.Value)
 		paramTypeNames = append(paramTypeNames, semanticDeclaredTypeName(param.Type, paramType))
-		defaultValues = append(defaultValues, param.DefaultValue) // Store AST expression (may be nil)
+		defaultValues = append(defaultValues, defaultValue)
 		lazyParams = append(lazyParams, param.IsLazy)
 		varParams = append(varParams, param.ByRef)
 		constParams = append(constParams, param.IsConst)
@@ -441,4 +431,92 @@ func (a *Analyzer) addCallConventionHint(decl *ast.FunctionDecl) {
 func isRefusedTypeExpression(expr ast.TypeExpression) bool {
 	invalid, ok := expr.(*ast.InvalidTypeExpression)
 	return ok && invalid != nil
+}
+
+// isConstantParameterDefault includes aggregate and nil constants, which do
+// not draw the scalar constant-instruction hint but remain valid defaults.
+func (a *Analyzer) isConstantParameterDefault(value ast.Expression) bool {
+	if a.isConstantScalar(value) || a.isConstantInstruction(value) {
+		return true
+	}
+	switch expr := value.(type) {
+	case *ast.GroupedExpression:
+		return a.isConstantParameterDefault(expr.Expression)
+	case *ast.CallExpression:
+		return a.isConstantParameterDefaultCall(expr)
+	case *ast.ArrayLiteralExpression:
+		for _, element := range expr.Elements {
+			if !a.isConstantParameterDefault(element) {
+				return false
+			}
+		}
+		return true
+	case *ast.RecordLiteralExpression:
+		for _, field := range expr.Fields {
+			if !a.isConstantParameterDefault(field.Value) {
+				return false
+			}
+		}
+		return true
+	}
+	_, err := a.evaluateConstant(value)
+	return err == nil
+}
+
+func (a *Analyzer) isConstantParameterDefaultCall(expr *ast.CallExpression) bool {
+	name, named := expr.Function.(*ast.Identifier)
+	if !named {
+		return false
+	}
+	if symbol, shadowed := a.symbols.Resolve(name.Value); shadowed {
+		switch symbol.Type.(type) {
+		case *types.FunctionType, *types.FunctionPointerType, *types.MethodPointerType:
+			return false
+		}
+	} else if statelessBuiltins[ident.Normalize(name.Value)] {
+		for _, arg := range expr.Arguments {
+			if !a.isConstantParameterDefault(arg) {
+				return false
+			}
+		}
+		return true
+	}
+	if len(expr.Arguments) == 1 {
+		if _, err := a.resolveType(name.Value); err == nil {
+			return a.isConstantParameterDefault(expr.Arguments[0])
+		}
+	}
+	return false
+}
+
+// analyzeParameterDefault validates the retained initializer without making a
+// rejected or modified default optional. Errors remain after child diagnostics
+// and before calls in subsequent declarations/instructions on the same line.
+func (a *Analyzer) analyzeParameterDefault(param *ast.Parameter, paramType types.Type) interface{} {
+	var defaultValue interface{}
+	if param.DefaultValue != nil {
+		mark := len(a.errors)
+		defaultType := a.analyzeExpressionWithExpectedType(param.DefaultValue, paramType)
+		if defaultType != nil && !a.errorsSince(mark) {
+			switch {
+			case !a.isConstantParameterDefault(param.DefaultValue):
+				a.addStructuredError(&SemanticError{
+					Type: ErrorInvalidOperation, Message: "Syntax Error: Constant expression expected",
+					Pos: param.DefaultValue.End(), Severity: SeverityError, AfterChildren: true,
+				})
+			case !a.canAssign(defaultType, paramType):
+				pos := param.DefaultValue.Pos()
+				if param.DefaultValueSeparatorPos.Line > 0 && a.isConstantScalar(param.DefaultValue) {
+					pos = param.DefaultValueSeparatorPos
+				}
+				err := NewIncompatibleTypesPairError(pos,
+					semanticTypeNameForDiagnostic(paramType), semanticTypeNameForDiagnostic(defaultType))
+				err.AfterChildren = true
+				a.addStructuredError(err)
+			case !param.IsLazy && !param.ByRef && !param.IsConst:
+				defaultValue = param.DefaultValue
+			}
+		}
+	}
+	return defaultValue
 }

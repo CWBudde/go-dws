@@ -385,3 +385,17 @@ TStatic.Print;
 `)
 	assertOutput(t, got, "hi\n")
 }
+
+func TestSwapWritableDataArguments(t *testing.T) {
+	for _, tt := range []struct{ name, source, want string }{
+		{"array elements", "var a: array of Integer := [1, 2]; Swap(a[0], a[1]); PrintLn(a[0]); PrintLn(a[1]);", "2\n1\n"},
+		{"record fields", "type TRec = record x, y: Integer; end; var r: TRec; r.x := 1; r.y := 2; Swap(r.x, r.y); PrintLn(r.x); PrintLn(r.y);", "2\n1\n"},
+		{"class fields", "type TObj = class x, y: Integer; end; var o := TObj.Create; o.x := 1; o.y := 2; Swap(o.x, o.y); PrintLn(o.x); PrintLn(o.y);", "2\n1\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) { assertOutput(t, runQuickwinScript(t, tt.source), tt.want) })
+	}
+}
+
+func TestPrintReferenceUsesVariantSignature(t *testing.T) {
+	assertOutput(t, runQuickwinScript(t, "var p: procedure(v: Variant) := @Print; p('hello');"), "hello")
+}

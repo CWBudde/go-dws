@@ -854,21 +854,10 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 
 	// Parse optional default value
 	var defaultValue ast.Expression
+	var defaultValueSeparatorPos lexer.Position
 	if config.AllowDefaults && p.peekTokenIs(lexer.EQ) {
-		// Validate that optional parameters don't have modifiers (lazy, var, const)
-		if isLazy || byRef || isConst {
-			curTok := p.cursor.Current()
-
-			err := NewStructuredError(ErrKindInvalid).
-				WithCode(ErrInvalidSyntax).
-				WithMessage("optional parameters cannot have lazy, var, or const modifiers").
-				WithPosition(curTok.Pos, curTok.Length()).
-				WithSuggestion("remove the modifier or remove the default value").
-				WithParsePhase(config.ErrorContext).
-				Build()
-			p.addStructuredError(err)
-			return nil
-		}
+		defaultValueSeparatorPos = p.cursor.Peek(1).Pos
+		p.addParameterDefaultModifierError(p.cursor.Peek(1), isLazy, byRef, isConst)
 
 		p.nextToken() // move to '='
 		p.nextToken() // move past '='
@@ -891,13 +880,14 @@ func (p *Parser) ParameterGroup(config ParameterGroupConfig) []*ast.Parameter {
 	// Create parameter nodes for each name
 	for _, name := range names {
 		param := &ast.Parameter{
-			Token:        name.Token,
-			Name:         name,
-			Type:         typeExpr,
-			ByRef:        byRef,
-			IsConst:      isConst,
-			IsLazy:       isLazy,
-			DefaultValue: defaultValue,
+			Token:                    name.Token,
+			Name:                     name,
+			Type:                     typeExpr,
+			ByRef:                    byRef,
+			IsConst:                  isConst,
+			IsLazy:                   isLazy,
+			DefaultValue:             defaultValue,
+			DefaultValueSeparatorPos: defaultValueSeparatorPos,
 		}
 		params = append(params, param)
 	}
