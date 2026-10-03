@@ -91,6 +91,26 @@ DWScript's one-Variant procedure signature.
 Assigning to a constant or read-only binding reports
 `Cannot assign a value to the left-side argument` at the assignment operator.
 
+### Class, record and helper member headers
+
+An invalid member after `class` reports `PROCEDURE or FUNCTION expected` at
+the offending token and stops compilation. This also applies to top-level
+`class` routine headers. At EOF, the diagnostic anchors at the final real
+token, including when comments or whitespace follow it.
+
+Unterminated record and helper bodies report `END expected` as compiler
+stops. A helper body also expects `END` where an unsupported member starts.
+Earlier declaration errors and visibility hints remain before the stop;
+later declarations and deferred unimplemented-method checks are suppressed.
+Record fields missing a colon retain Variant recovery types. Duplicate record
+fields report `There is already a field with name "Name"` at the duplicate,
+using the earlier declaration's casing.
+
+Helpers begin with public visibility. Repeated visibility sections produce
+normal-level `Redundant specifier` hints, and `protected` reports
+`Helpers do not supported "protected" visibility specifier` without changing
+the visibility in effect.
+
 ### Property and operator declarations
 
 A missing property `read` or `write` name reports `Name expected` at the token

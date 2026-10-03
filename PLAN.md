@@ -132,8 +132,8 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
 (`expected ')' after parameter list` → `")" expected`, `unknown type 'X'` → `Type expected`).
 
 - [ ] Parser shapes (overlaps Phase 2).
-  - [ ] Helper/class/record headers: `PROCEDURE or FUNCTION expected` and
-    `END expected`; keep unsupported helper-parent syntax separate.
+  - [ ] Unsupported helper-parent syntax:
+    keep its compatibility decision separate from member-header diagnostics.
   - [ ] Audit remaining punctuation and type sentences after the Phase 2 prerequisites.
 - [ ] `analyze_function_calls.go` / `analyze_method_calls.go`.
   - [ ] Remaining method/inherited arity and constructor overload sentences;
@@ -157,8 +157,9 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
   `property_default1`; the named task 1.2 fixtures are closed.
 
 The shipped 1.5 batches cover regular parameter defaults, `Swap` data-argument/type
-checks, immutable assignments, property accessor names/signatures, and invalid
-operator recovery with global operator validation. Their exact scope and evidence are in
+checks, immutable assignments, property accessor names/signatures, invalid
+operator recovery with global operator validation, and helper/class/record
+member-header stops with earlier declaration diagnostics. Their exact scope and evidence are in
 [`the October progress log`](docs/history/progress-log-2026-10.md).
 
 ---

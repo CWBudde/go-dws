@@ -41,6 +41,12 @@ func (a *Analyzer) analyzeHelperDecl(decl *ast.HelperDecl) {
 		return
 	}
 
+	a.checkVisibilitySectionRedundancy(decl.VisibilitySections, visibilityInEffectInRecord, HintsLevelNormal,
+		func(section ast.RecordVisibilitySection) {
+			a.addStructuredError(NewGenericError(section.Pos,
+				`Helpers do not supported "protected" visibility specifier`))
+		})
+
 	helperName := decl.Name.Value
 
 	// Resolve the target type (the type being extended)

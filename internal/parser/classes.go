@@ -305,7 +305,7 @@ func (p *Parser) parseClassLevelMember(cursor *TokenCursor, classDecl *ast.Class
 			classDecl.Methods = append(classDecl.Methods, method)
 		}
 	} else {
-		p.addError("expected 'var', 'const', 'property', 'function', 'procedure', or 'method' after 'class' keyword", ErrUnexpectedToken)
+		p.addProcedureOrFunctionStop(cursor.Current())
 	}
 
 	return p.cursor
@@ -522,6 +522,12 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			cursor = p.parseInstanceLevelMember(cursor, classDecl, currentVisibility)
 		}
 
+		if p.stopped() {
+			builder.Finish(classDecl)
+			annotateDeclaringClass(classDecl)
+			return classDecl
+		}
+
 		cursor = cursor.Advance()
 		p.cursor = cursor
 	}
@@ -690,6 +696,10 @@ func (p *Parser) parseFieldDeclarations(visibility ast.Visibility) []*ast.FieldD
 		fieldType = p.parseTypeExpression()
 		if fieldType == nil {
 			return nil
+		}
+		if p.stopped() {
+			// Keep a partial inline type so its earlier member diagnostics survive.
+			return fieldsFromRecordFieldNames(fieldNames, fieldType, nil, visibility)
 		}
 
 		// Parse optional field initializer after type

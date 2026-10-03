@@ -87,7 +87,7 @@ func TestRecordErrors(t *testing.T) {
 					X: Float;
 				end;
 			`,
-			expectedError: "Name \"X\" already exists",
+			expectedError: "There is already a field with name \"X\"",
 		},
 		{
 			name: "undefined field type",

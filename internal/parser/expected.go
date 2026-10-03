@@ -85,6 +85,13 @@ func (p *Parser) addExpectedStopCurrent(t lexer.TokenType) {
 	p.addExpectedStopAt(p.anchorFor(p.cursor.Current()), t)
 }
 
+// addProcedureOrFunctionStop rejects an invalid class member header at the
+// candidate token, preserving DWScript's last-real-token anchor at EOF.
+func (p *Parser) addProcedureOrFunctionStop(found lexer.Token) {
+	anchor := p.anchorFor(found)
+	p.recordStop(NewParserError(anchor.Pos, anchor.Length(), "PROCEDURE or FUNCTION expected", ErrUnexpectedToken))
+}
+
 // addExpectedAt records the diagnostic at an explicit anchor, the token found in
 // place of the expected one; the end-of-input rule applies to it too.
 func (p *Parser) addExpectedAt(found lexer.Token, t lexer.TokenType) {

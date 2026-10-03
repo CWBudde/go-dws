@@ -665,3 +665,58 @@ Full `just ci` stops at **1,230 existing lint findings**, matching the measured
 main baseline; tests and coverage passed separately. Tests used Go 1.26, lint
 the installed linter's matching Go 1.27 toolchain, and a writable Go cache with
 `TMPDIR=/tmp` and `GOFLAGS='-buildvcs=false -p=1'`.
+
+## 2026-10-03 — Class, record and helper headers (PLAN 1.5, third batch)
+
+This batch closes the Phase 1.5 helper/class/record member-header diagnostic
+item. Unsupported helper-parent syntax remains a separate open item, and
+Phase 1.5's other parser and semantic diagnostics remain open.
+
+Invalid members after `class` now stop compilation with
+`PROCEDURE or FUNCTION expected`, including top-level class routine headers.
+Messages anchor at the offending token, or the final real token at EOF.
+Record and helper bodies missing `end` report `END expected` as stops; a helper
+also expects `END` where an unsupported member begins. Earlier parsed members
+survive the stop, while later declarations cannot add diagnostics.
+
+Record field recovery retains a Variant field after a missing colon, consumes
+its semicolon, and continues to later fields. Duplicate fields now report
+`There is already a field with name "Name"` using the original declaration's
+casing. Helpers retain source visibility sections in additive public AST
+metadata, reuse the existing normal-level redundancy checks, and diagnose
+unsupported protected visibility without changing the visibility in effect.
+Frontend declaration-boundary restoration interleaves visibility diagnostics
+and parser stops within each source before imported-unit diagnostics are merged,
+preserving other diagnostics' relative order. Incomplete inline records retain
+earlier fields and visibility sections for analysis without resolving to a
+usable type; complete inline-record resolution errors keep their existing
+contract. Regenerating the AST visitor changes no traversal.
+
+Tests pin all six complete fixture outputs, compiler-stop flags, EOF and
+comment/newline anchors, earlier mixed-case duplicate recovery, helper hint
+levels, inline-record recovery, ordering against earlier method-body and parser
+errors, and valid class variables, constants, functions and procedures.
+`just fixture-update` raises FailureScripts **305 → 309** (`class_class`,
+`class_error1`, `record_syntax1`, `record_syntax2`) and HelpersFail **10 → 12**
+(`helper_error5`, `helper_scopes1`). The final generated snapshot is
+**1,411 / 2,014**, including an unstable BuildScripts `init_order4` pass.
+Twelve direct runs per binary reproduce differing initialization orders in
+both baseline and final binaries; its documented stable floor remains seven.
+There are no other baseline changes. CLI comparisons against main `db6b8a93`
+confirm all six intended gains and no newly failing in-scope fixtures; the
+additional `init_order4` pass is not counted as a compatibility fix. Fixture
+sources, expectations and scoring were unchanged.
+
+Independent review found two recovery/ordering issues, both fixed with failing
+regressions. The full semantic suite also verified the complete inline-record
+resolution-error contract; the new partial recovery is limited to incomplete
+nodes. No review findings remain open in this batch.
+
+Validation passed: `go test ./...`, `just test-unit` (race detection),
+`just test-coverage`, `just check-fmt`, `git diff --check`, and
+`go mod tidy -diff`. `go generate ./pkg/ast` produced no visitor changes.
+`golangci-lint run --new-from-rev=db6b8a93` reports **zero issues**.
+Full `just ci` stops at **1,230 inherited lint findings**, identical to the
+measured baseline; tests and coverage passed separately. Tests used Go 1.26,
+lint the matching Go 1.27 toolchain, and a writable Go cache with
+`TMPDIR=/tmp` and `GOFLAGS='-buildvcs=false -p=1'`.

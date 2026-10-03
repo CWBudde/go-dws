@@ -45,7 +45,7 @@ func (p *Parser) parseClassStatement() ast.Statement {
 		}
 		return fn
 	}
-	p.addError("expected 'function', 'procedure', or 'method' after 'class'", ErrUnexpectedToken)
+	p.addProcedureOrFunctionStop(nextToken)
 	return nil
 }
 
@@ -776,6 +776,12 @@ func (p *Parser) parseSingleVarDeclaration() *ast.VarDeclStatement {
 	}
 
 	p.parseVarType(stmt)
+	if p.stopped() {
+		// Keep a partial inline type so its earlier member diagnostics survive,
+		// without parsing an initializer or further declaration clauses.
+		builder.Finish(stmt)
+		return stmt
+	}
 	p.parseVarValue(stmt)
 	p.parseVarExternalClause(stmt)
 

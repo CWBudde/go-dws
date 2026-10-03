@@ -50,10 +50,16 @@ func (p *Parser) parseRecordOrHelperDeclaration(nameIdent *ast.Identifier, typeT
 	p.parseRecordBody(recordDecl, currentVisibility)
 	cursor = p.cursor
 
+	if p.stopped() {
+		builder.Finish(recordDecl)
+		return recordDecl
+	}
+
 	// Expect 'end' keyword
 	if cursor.Current().Type != lexer.END {
-		p.addExpectedCurrent(lexer.END)
-		return nil
+		p.addExpectedStopCurrent(lexer.END)
+		builder.Finish(recordDecl)
+		return recordDecl
 	}
 	recordDecl.EndKeywordPos = cursor.Current().Pos
 
@@ -96,11 +102,7 @@ func (p *Parser) parseInlineRecordType() ast.TypeExpression {
 	cursor = p.cursor
 
 	if cursor.Current().Type != lexer.END {
-		p.addExpectedCurrent(lexer.END)
-		return &ast.InvalidTypeExpression{
-			BaseNode: ast.BaseNode{Token: recordToken},
-			Reason:   "unterminated record type",
-		}
+		p.addExpectedStopCurrent(lexer.END)
 	}
 
 	return &ast.RecordTypeNode{
@@ -112,6 +114,7 @@ func (p *Parser) parseInlineRecordType() ast.TypeExpression {
 		Constants:          recordDecl.Constants,
 		ClassVars:          recordDecl.ClassVars,
 		VisibilitySections: recordDecl.VisibilitySections,
+		Incomplete:         p.stopped(),
 	}
 }
 
@@ -212,10 +215,8 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 				p.cursor = cursor
 				continue
 			} else {
-				p.addError("expected 'var', 'const', 'function', 'procedure' or 'property' after 'class' keyword in record", ErrUnexpectedToken)
-				cursor = cursor.Advance()
-				p.cursor = cursor
-				continue
+				p.addProcedureOrFunctionStop(cursor.Current())
+				return currentVisibility
 			}
 		}
 
@@ -327,7 +328,13 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		// Expect colon
 		if cursor.Peek(1).Type != lexer.COLON {
 			p.addExpected(lexer.COLON)
-			return nil
+			// Upstream keeps an untyped field as Variant and leaves the token
+			// found in place of the colon for the next member iteration.
+			fieldType = &ast.TypeAnnotation{Token: cursor.Current(), Name: "Variant"}
+			if cursor.Peek(1).Type == lexer.SEMICOLON {
+				p.cursor = cursor.Advance()
+			}
+			return fieldsFromRecordFieldNames(fieldNames, fieldType, nil, visibility)
 		}
 		cursor = cursor.Advance() // move to ':'
 		cursor = cursor.Advance() // move to type
@@ -337,6 +344,10 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		fieldType = p.parseTypeExpression()
 		if fieldType == nil {
 			return nil
+		}
+		if p.stopped() {
+			// Keep a partial inline type so its earlier member diagnostics survive.
+			return fieldsFromRecordFieldNames(fieldNames, fieldType, nil, visibility)
 		}
 
 		// Parse optional field initializer

@@ -59,6 +59,9 @@ type HelperDecl struct {
 	ClassConsts    []*ConstDecl
 	PrivateMembers []Statement
 	PublicMembers  []Statement
+	// VisibilitySections retains source visibility specifiers for diagnostics,
+	// including those parsed before an unterminated helper body.
+	VisibilitySections []RecordVisibilitySection `ast:"skip"`
 	BaseNode
 	IsRecordHelper bool
 	IsClassHelper  bool

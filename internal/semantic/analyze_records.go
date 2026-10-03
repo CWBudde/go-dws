@@ -81,7 +81,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 	// Validate field declarations
 	// Track field names to detect duplicates
-	fieldNames := make(map[string]bool)
+	fieldNames := make(map[string]string)
 
 	for _, field := range decl.Fields {
 		fieldName := field.Name.Value
@@ -89,11 +89,12 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		lowerFieldName := ident.Normalize(fieldName)
 
 		// Check for duplicate field names (case-insensitive)
-		if fieldNames[lowerFieldName] {
-			a.addError("%s", errors.FormatNameAlreadyExists(fieldName, field.Token.Pos.Line, field.Token.Pos.Column))
+		if previous, exists := fieldNames[lowerFieldName]; exists {
+			a.addStructuredError(NewGenericError(field.Token.Pos,
+				fmt.Sprintf("There is already a field with name %q", previous)))
 			continue
 		}
-		fieldNames[lowerFieldName] = true
+		fieldNames[lowerFieldName] = fieldName
 
 		var fieldType types.Type
 		var err error

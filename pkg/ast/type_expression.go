@@ -62,6 +62,9 @@ type RecordTypeNode struct {
 
 	Token  token.Token
 	EndPos token.Position
+	// Incomplete retains parsed members for diagnostics after a compiler stop;
+	// the enclosing declaration must not use this record as a resolved type.
+	Incomplete bool `ast:"skip"`
 }
 
 func (rt *RecordTypeNode) String() string {

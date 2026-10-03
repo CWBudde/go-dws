@@ -325,6 +325,8 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	unitDiagnostics := result.Diagnostics[len(mainDiagnostics):]
 	mainDiagnostics = dropDiagnosticsAfterStop(append(mainDiagnostics, semanticDiagnostics(analyzer)...))
 	restoreStatementWarningOrder(mainDiagnostics)
+	sortDiagnostics(mainDiagnostics)
+	restoreDeclarationDiagnosticOrder(mainDiagnostics)
 	merged := make([]Diagnostic, 0, len(mainDiagnostics)+len(unitDiagnostics))
 	merged = append(merged, mainDiagnostics...)
 	merged = append(merged, unitDiagnostics...)
