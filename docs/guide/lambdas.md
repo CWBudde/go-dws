@@ -126,6 +126,11 @@ PrintLn(innerCalls); // 1
 A returned callable cannot be boxed into a JSONVariant; the diagnostic describes
 that returned type without invoking it again. See [JSON type mapping](json-type-mapping.md).
 
+The same selection applies to a routine qualified by its imported unit name.
+Reading a factory from an indexed array member evaluates the receiver and each
+index once, before invoking the selected factory. Compatible reference copies
+retain the reference without invoking that factory.
+
 ### Intrinsic Class Members as Pointers
 
 `ClassName` and `ClassType` are parameterless class members, so they can be captured

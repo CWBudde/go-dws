@@ -42,9 +42,7 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 
 	// Check named properties before normal array/string indexing.
 	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok && !e.interfacePropertyResultIndex(node, ctx) {
-		if value, handled := e.readMemberIndexedProperty(memberAccess, indices, node, ctx); handled {
-			return value
-		}
+		return e.readMemberRootedIndex(memberAccess, indices, node, ctx)
 	}
 
 	// Not a property access - this is regular array/string indexing
@@ -58,13 +56,68 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 	return e.indexResolvedValue(leftVal, node, ctx)
 }
 
+// readMemberRootedIndex retains the captured receiver if property lookup falls
+// back to an ordinary member. Each original index node keeps its own call intent.
+func (e *Evaluator) readMemberRootedIndex(member *ast.MemberAccessExpression, indices []ast.Expression, node *ast.IndexExpression, ctx *ExecutionContext) Value {
+	value, handled := e.captureMemberReceiver(member, ctx)
+	if !handled {
+		if result, indexed := e.readMemberIndexedProperty(value, member, indices, node, ctx); indexed {
+			return result
+		}
+		value = e.readResolvedMember(member, value, ctx)
+	}
+	if e.SemanticInfo() != nil && e.SemanticInfo().IsImplicitCall(member) {
+		value = e.finishImplicitCallableRead(value, member, ctx, true)
+	}
+	return e.indexCapturedMemberValue(value, node, ctx)
+}
+
+// indexCapturedMemberValue keeps bracket groups intact while advancing through
+// the original index nodes, without evaluating the member receiver again.
+func (e *Evaluator) indexCapturedMemberValue(value Value, node *ast.IndexExpression, ctx *ExecutionContext) Value {
+	remaining := collectIndexNodes(node)
+	for len(remaining) > 0 {
+		if isError(value) || ctx.Exception() != nil {
+			return value
+		}
+		var consumed int
+		value, consumed = e.indexCapturedBracket(value, remaining, ctx)
+		index := remaining[consumed-1]
+		remaining = remaining[consumed:]
+		// VisitIndexExpression finishes the outer node; inner nodes would
+		// normally finish in their own visitor before the next index is read.
+		if index != node && e.SemanticInfo() != nil && e.SemanticInfo().IsImplicitCall(index) {
+			value = e.finishImplicitCallableRead(value, index, ctx, true)
+		}
+	}
+	return value
+}
+
+// indexCapturedBracket gives a record default property its complete comma
+// argument list. Other containers retain ordinary one-index-at-a-time reads.
+func (e *Evaluator) indexCapturedBracket(value Value, nodes []*ast.IndexExpression, ctx *ExecutionContext) (Value, int) {
+	record, ok := unwrapVariant(value).(*runtime.RecordTypeValue)
+	if !ok {
+		return e.indexResolvedValue(value, nodes[0], ctx), 1
+	}
+	prop := recordMetaProperty(record, "")
+	if prop == nil || !prop.IsIndexed {
+		return e.indexResolvedValue(value, nodes[0], ctx), 1
+	}
+	expressions := []ast.Expression{nodes[0].Index}
+	for n := 1; n < len(nodes) && nodes[n].CommaPos.Line != 0; n++ {
+		expressions = append(expressions, nodes[n].Index)
+	}
+	indices, err := e.recordMetaPropertyIndices(expressions, ctx)
+	if err != nil {
+		return err, len(expressions)
+	}
+	return e.recordMetaPropertyRead(record, prop, indices, nodes[len(expressions)-1], ctx), len(expressions)
+}
+
 // readMemberIndexedProperty preserves the receiver dispatch order of a named
 // indexed property. An unhandled read falls back to ordinary member indexing.
-func (e *Evaluator) readMemberIndexedProperty(member *ast.MemberAccessExpression, indices []ast.Expression, node *ast.IndexExpression, ctx *ExecutionContext) (Value, bool) {
-	obj := e.Eval(member.Object, ctx)
-	if isError(obj) {
-		return obj, true
-	}
+func (e *Evaluator) readMemberIndexedProperty(obj Value, member *ast.MemberAccessExpression, indices []ast.Expression, node *ast.IndexExpression, ctx *ExecutionContext) (Value, bool) {
 	if record, ok := obj.(*runtime.RecordTypeValue); ok {
 		if prop := recordMetaProperty(record, member.Member.Value); prop != nil && prop.IsIndexed {
 			values, err := e.recordMetaPropertyIndices(indices, ctx)

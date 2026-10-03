@@ -36,50 +36,65 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	if e.SemanticInfo() != nil && e.SemanticInfo().IsImplicitCall(node) {
 		defer func() { result = e.finishImplicitCallableRead(result, node, ctx, true) }()
 	}
+	obj, handled := e.captureMemberReceiver(node, ctx)
+	if handled {
+		return obj
+	}
+	return e.readResolvedMember(node, obj, ctx)
+}
+
+// captureMemberReceiver resolves namespace/helper reads directly, or captures
+// the normalized receiver once for ordinary member and indexed-property reads.
+func (e *Evaluator) captureMemberReceiver(node *ast.MemberAccessExpression, ctx *ExecutionContext) (Value, bool) {
 	if e.engineState != nil && e.engineState.SemanticInfo != nil {
 		if binding, ok := e.engineState.SemanticInfo.EnumElementBinding(node); ok {
-			return &runtime.EnumValue{EnumType: binding.EnumType, TypeName: binding.EnumType.Name, OrdinalValue: binding.Ordinal, ValueName: binding.Name}
+			return &runtime.EnumValue{EnumType: binding.EnumType, TypeName: binding.EnumType.Name, OrdinalValue: binding.Ordinal, ValueName: binding.Name}, true
 		}
 	}
 
 	if node.Object == nil {
-		return e.newError(node, "member access missing object")
+		return e.newError(node, "member access missing object"), true
 	}
 	if node.Member == nil {
-		return e.newError(node, "member access missing member")
+		return e.newError(node, "member access missing member"), true
 	}
 	if helper := e.namedHelperReceiver(node.Object, ctx); helper != nil {
 		if result, handled := e.evalExplicitHelperCall(helper, node.Member, nil, node, ctx); handled {
-			return result
+			return result, true
 		}
-		return e.readExplicitHelperMember(helper, node.Member, node, ctx)
+		return e.readExplicitHelperMember(helper, node.Member, node, ctx), true
 	}
 
 	// JSON namespace bare access (JSON.NewObject / JSON.NewArray, invoked without
 	// parentheses) must be handled before `JSON` is evaluated as an identifier.
 	if e.isJSONNamespaceObject(node.Object, ctx) {
-		return e.evalJSONNamespaceCall(node.Member.Value, nil, node, ctx)
+		return e.evalJSONNamespaceCall(node.Member.Value, nil, node, ctx), true
 	}
 	if e.isDefaultNamespaceObject(node.Object, ctx) {
-		return &runtime.FunctionPointerValue{BuiltinName: node.Member.Value}
+		return &runtime.FunctionPointerValue{BuiltinName: node.Member.Value}, true
 	}
 
 	if value, handled := e.readUnitQualifiedMember(node, ctx); handled {
-		return value
+		return value, true
 	}
 
 	obj := e.normalizeMemberReceiver(e.Eval(node.Object, ctx), node.Object, node, ctx)
 	if isError(obj) {
-		return obj
+		return obj, true
 	}
 	if ctx.Exception() != nil {
-		return &runtime.NilValue{}
+		return &runtime.NilValue{}, true
 	}
-	return e.readResolvedMember(node, obj, ctx)
+	return obj, false
 }
 
 func (e *Evaluator) readUnitQualifiedMember(node *ast.MemberAccessExpression, ctx *ExecutionContext) (Value, bool) {
 	wantMethodPointer := e.memberWantsMethodPointer(node, ctx)
+	// An assignment-selected call is performed by the member visitor's tail.
+	// Return the original routine here, even when its result is a scalar.
+	if e.SemanticInfo() != nil && e.SemanticInfo().IsImplicitCall(node) {
+		wantMethodPointer = true
+	}
 	// Unit-qualified access (UnitName.Symbol) should not evaluate the unit identifier.
 	if identObj, ok := node.Object.(*ast.Identifier); ok {
 		if _, exists := ctx.Env().Get(identObj.Value); !exists && e.UnitRegistry() != nil {

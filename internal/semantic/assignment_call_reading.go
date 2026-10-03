@@ -30,6 +30,11 @@ func (a *Analyzer) analyzeAssignmentExpression(value ast.Expression, expected ty
 // analyzeCallableValue selects a reference or one call without changing the
 // enclosing context's literal inference or explicit-call recovery policy.
 func (a *Analyzer) analyzeCallableValue(value ast.Expression, expected types.Type, readRejectedReference bool) types.Type {
+	if member, ok := value.(*ast.MemberAccessExpression); ok {
+		if result, handled := a.analyzeAssignmentUnitMember(member, expected, readRejectedReference); handled {
+			return result
+		}
+	}
 	if identifier, ok := value.(*ast.Identifier); ok {
 		if result, readAsCall := a.analyzeAssignmentIdentifierCall(identifier, expected, readRejectedReference); readAsCall {
 			return result
@@ -45,6 +50,35 @@ func (a *Analyzer) analyzeCallableValue(value ast.Expression, expected types.Typ
 		}
 	}
 	return actual
+}
+
+// analyzeAssignmentUnitMember resolves an active namespace before method
+// probing can mistake its name for a value. Named routines use the same
+// reference-versus-result selection as unqualified identifiers.
+func (a *Analyzer) analyzeAssignmentUnitMember(member *ast.MemberAccessExpression, expected types.Type, readRejectedReference bool) (types.Type, bool) {
+	name, ok := member.Object.(*ast.Identifier)
+	if !ok || a.hasLexicalValueReceiver(member.Object) {
+		return nil, false
+	}
+	unit, active := a.importedUnitNamespace(name.Value)
+	if !active {
+		return nil, false
+	}
+	actual := a.analyzeExpression(member)
+	symbol, found := unit.Resolve(member.Member.Value)
+	if !found || symbol.IsOverloadSet {
+		return actual, true
+	}
+	result, required, call := a.assignmentCallableResult(actual, expected, readRejectedReference)
+	if routine, ok := types.GetUnderlyingType(actual).(*types.FunctionType); ok {
+		actual = types.FunctionPointerFromFunctionType(routine)
+		a.annotateMemberPointerType(member, actual)
+	}
+	if call {
+		a.recordAssignmentCall(member, result, required)
+		return result, true
+	}
+	return actual, true
 }
 
 func (a *Analyzer) analyzeAssignmentIdentifierCall(identifier *ast.Identifier, expected types.Type, readRejectedReference bool) (types.Type, bool) {

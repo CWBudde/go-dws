@@ -119,6 +119,12 @@ Completed subitems are retained here until this phase closes. Details and valida
   - [x] Implicitly invoke the outer callable once; preserve compatible references
     and avoid invoking a callable returned by that call a second time.
   - [x] Reject routine/class-reference boxing with the expected type names and anchors.
+- [x] Final callable integration review.
+  - [x] Apply the same factory/reference selection to active unit-qualified
+    routines, preserving lexical shadows and returned-type JSON diagnostics.
+  - [x] Capture receivers once when member-array indexing falls back from
+    indexed-property lookup, including nested arrays and supplier exceptions;
+    retain grouped indices for intermediate record default properties.
 
 ### 1.4 Call-argument and overload sentences — S
 
