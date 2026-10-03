@@ -974,7 +974,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		paramTypes = append(paramTypes, paramType)
 		paramNames = append(paramNames, param.Name.Value)
 		paramTypeNames = append(paramTypeNames, semanticDeclaredTypeName(param.Type, paramType))
-		defaultValues = append(defaultValues, param.DefaultValue)
+		defaultValues = append(defaultValues, a.analyzeParameterDefault(param, paramType))
 		lazyParams = append(lazyParams, param.IsLazy)
 		varParams = append(varParams, param.ByRef)
 		constParams = append(constParams, param.IsConst)

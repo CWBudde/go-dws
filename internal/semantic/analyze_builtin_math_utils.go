@@ -195,7 +195,9 @@ func (a *Analyzer) isSwapDataArgument(arg ast.Expression, argType types.Type) bo
 			return a.isSwapDataArgument(expr.Left, baseType)
 		}
 		if types.GetUnderlyingType(baseType) == types.STRING {
-			return a.isSwapDataArgument(expr.Left, baseType)
+			// Upstream reads a string character through TStringArrayOpExpr,
+			// which is no data expression, so it cannot be swapped.
+			return false
 		}
 		return true
 	case *ast.MemberAccessExpression:

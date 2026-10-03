@@ -45,6 +45,41 @@ func TestCompile_ModifiedDefaultsRemainRequired(t *testing.T) {
 	}
 }
 
+func TestCompile_ModifiedMethodDefaultsRemainRequired(t *testing.T) {
+	for _, modifier := range []string{"lazy", "var", "const"} {
+		source := "type T = class procedure P(" + modifier + " v: Integer = 1); begin end; end;\n" +
+			"var o: T := T.Create;\no.P();"
+		got := Compile(source, "<test>", 0).DiagnosticStrings()
+		if len(got) != 2 || got[1] != `Syntax Error: More arguments expected [line: 3, column: 3]` {
+			t.Fatalf("%s diagnostics: %q", modifier, got)
+		}
+	}
+}
+
+func TestCompile_ValidMethodDefaults(t *testing.T) {
+	for _, source := range []string{
+		"type T = class procedure P(x: Integer = 1); begin end; end;\nvar o: T := T.Create;\no.P();",
+		"type T = class procedure P(x: Integer = 1; y: Integer = 2); begin end; end;\nvar o: T := T.Create;\no.P(2);",
+		"type T = class\nprocedure P(x: Integer = 1);\nend;\nprocedure T.P(x: Integer); begin end;\nvar o: T := T.Create;\no.P();",
+	} {
+		t.Run(source, func(t *testing.T) { assertDiagnostics(t, source, "<test>", nil) })
+	}
+}
+
+func TestCompile_RejectedDefaultKeepsParameterRequired(t *testing.T) {
+	source := "procedure P(a: Integer = Random; b: Integer); external;\nP(1, 2);"
+	assertDiagnostics(t, source, "<test>", []string{
+		`Syntax Error: Constant expression expected [line: 1, column: 32]`,
+	})
+}
+
+func TestCompile_SwapRejectsStringCharacters(t *testing.T) {
+	assertDiagnostics(t, "var s := 'ab';\nSwap(s[1], s[2]);", "<test>", []string{
+		`Syntax Error: Variable expected [line: 2, column: 6]`,
+		`Syntax Error: Variable expected [line: 2, column: 12]`,
+	})
+}
+
 func TestCompile_SwapReadOnlyAndPoisonedArguments(t *testing.T) {
 	for _, tt := range []struct {
 		source string

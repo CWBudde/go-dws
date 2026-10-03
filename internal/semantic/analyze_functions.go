@@ -78,10 +78,9 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 			return nil, nil, false
 		}
 
-		// Optional parameters must come last, without modifiers
-		if param.DefaultValue != nil {
-			foundOptional = true
-		} else if foundOptional {
+		// Optional parameters must come last, without modifiers. A parameter
+		// whose default was rejected stays required (see below).
+		if param.DefaultValue == nil && foundOptional {
 			a.addError("required parameter '%s' cannot come after optional parameters in function '%s' at %s",
 				param.Name.Value, decl.Name.Value, param.Token.Pos.String())
 			return nil, nil, false
@@ -112,6 +111,9 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 		}
 
 		defaultValue := a.analyzeParameterDefault(param, paramType)
+		if defaultValue != nil {
+			foundOptional = true
+		}
 		if !param.IsConst && declaresArrayOfConst(param.Type) {
 			pos := param.Type.Pos()
 			if array, ok := param.Type.(*ast.ArrayTypeNode); ok {

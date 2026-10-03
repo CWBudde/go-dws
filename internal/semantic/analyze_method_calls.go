@@ -581,10 +581,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 	// For non-overloaded methods, check argument types (overloaded methods already validated by ResolveOverload)
 	if len(overloads) <= 1 {
-		// Check argument count
-		if len(expr.Arguments) != len(methodType.Parameters) {
+		// Check argument count (defaulted parameters are optional)
+		if len(expr.Arguments) > len(methodType.Parameters) ||
+			len(expr.Arguments) < requiredParamCount(methodType) {
 			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
-				len(methodType.Parameters), len(methodType.Parameters))
+				requiredParamCount(methodType), len(methodType.Parameters))
 			return methodType.ReturnType
 		}
 
