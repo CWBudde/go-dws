@@ -1,5 +1,43 @@
 # Progress log — October 2026
 
+## 2026-10-03 — Qualified factories and captured indexed receivers (PLAN 1.3)
+
+Imported unit-qualified routines now use the same reference-versus-call selection
+as unqualified routines. Typed initialization and assignment invoke a factory
+once and retain its returned callable; compatible references remain uninvoked.
+Lexical unit-name shadows, captured closures and scalar results retain their
+normal behavior. JSON boxing diagnostics report the supplied result type at the
+assignment operator without falsely diagnosing the unit name as unknown.
+
+Member-array indexing now captures the receiver once and carries it into
+ordinary indexing when indexed-property lookup does not apply. Original AST
+nodes retain their call intent, source positions and exception ordering. Nested
+arrays, array-returning properties and callable receivers preserve evaluation
+order and leave destinations intact when suppliers raise.
+
+The final scoped review exposed a regression in intermediate multi-index record
+default properties returning arrays. Captured indexing now consumes each bracket's
+comma-owned arguments through existing record-property dispatch. The previously
+accepted expression `holder.Values[0][1,2][0]` again produces 12. Compiled traces
+verify one receiver read and each index in order; the supported interface-property
+path has matching coverage.
+
+Validation on the amended source: `just test-unit` (`go test -v -race ./...`),
+CI diff lint (zero issues), `go mod tidy -diff`, all 1,202 tracked Go formatting
+and diff checks pass. Focused compiled RED/GREEN tests cover qualified factories,
+reference capture, lexical shadows, JSON recovery, receiver counts, property
+accessors, grouped record/interface indices and exceptions. Fresh CLI checks
+match the eighteen prior diagnostic transcripts, runtime/Boolean controls and
+both guide examples, plus the new integration reproductions.
+
+The whole in-scope CLI report has **1,389 / 1,821** passes, with no stable gains
+or losses against merged PR #446. Its only differing result is the documented
+variable `BuildScripts/init_order2`; the existing floor of seven remains valid.
+All thirteen stable fixture gains from the earlier §1.3 work remain. No fixture
+oracle or baseline was changed for this follow-up. All §1.3 parents and subitems
+are checked and retained. The callable guide describes qualified selection and
+once-only indexed reads. This follow-up is based on main after PR #446 merged.
+
 ## 2026-10-03 — Recursive callable signatures and JSON boxing (PLAN 1.3)
 
 Callable parameter and return types now resolve recursively from their AST nodes.
@@ -51,7 +89,8 @@ ArrayPass **102 → 103**, FailureScripts **294 → 295**, and JSONConnectorFail
 the stable BuildScripts floor stays seven. The generated harness snapshot reports
 **1,390 / 2,014**, and the in-scope CLI reports 1,390 passes, both with BuildScripts
 eight in that snapshot. All §1.3 parents and subitems are checked and retained.
-A final whole-branch review remains before handoff.
+The final whole-branch review identified callable integration gaps, closed by
+the follow-up recorded above.
 
 ## 2026-10-03 — Record type values and static dispatch (PLAN 1.3)
 
