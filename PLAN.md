@@ -132,10 +132,6 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
 (`expected ')' after parameter list` → `")" expected`, `unknown type 'X'` → `Type expected`).
 
 - [ ] Parser shapes (overlaps Phase 2).
-  - [ ] Property accessor names: `Name expected` and the corresponding stop
-    (`property_error3`, `property_error4`).
-  - [ ] Invalid global/class operators: `Overloadable operator expected`, with
-    their distinct recovery and stops (`operator_overload1`, `class_operator3`).
   - [ ] Helper/class/record headers: `PROCEDURE or FUNCTION expected` and
     `END expected`; keep unsupported helper-parent syntax separate.
   - [ ] Audit remaining punctuation and type sentences after the Phase 2 prerequisites.
@@ -160,8 +156,9 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
   Remaining incompatible-type pairs include `coalesce`, `in_typecheck1`, and
   `property_default1`; the named task 1.2 fixtures are closed.
 
-The first 1.5 batch shipped regular parameter defaults, `Swap` data-argument/type
-checks, and immutable-assignment vocabulary. Its exact scope and evidence are in
+The shipped 1.5 batches cover regular parameter defaults, `Swap` data-argument/type
+checks, immutable assignments, property accessor names/signatures, and invalid
+operator recovery with global operator validation. Their exact scope and evidence are in
 [`the October progress log`](docs/history/progress-log-2026-10.md).
 
 ---

@@ -529,7 +529,7 @@ func TestParseOperatorDeclaration_Errors(t *testing.T) {
 		{
 			name:          "invalid operator token",
 			input:         `operator xyz (String) : String uses Foo;`,
-			expectedError: "expected operator symbol after 'operator'",
+			expectedError: "Overloadable operator expected",
 		},
 		{
 			name:          "missing operand types",

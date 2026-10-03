@@ -91,6 +91,32 @@ DWScript's one-Variant procedure signature.
 Assigning to a constant or read-only binding reports
 `Cannot assign a value to the left-side argument` at the assignment operator.
 
+### Property and operator declarations
+
+A missing property `read` or `write` name reports `Name expected` at the token
+found instead (the final real token at EOF) and stops compilation. Earlier
+accessor errors survive the stop; later declarations and unimplemented-method
+checks do not add diagnostics.
+
+Named accessor validation anchors at the accessor name, using the member's
+**declared casing** in messages. A getter's result type is checked before its
+parameters. A function used as a setter reports `Procedure expected` first.
+Index type mismatches report `Parameter N - Type "X" expected (instead of "Y")`
+with a zero-based index, followed by `Method "Name" has incompatible parameters`.
+Getter type errors use `Field/method "Name" has an incompatible type`; writer
+field type errors use `Symbol "Name" has an incompatible type`.
+
+An invalid class operator reports `Overloadable operator expected` at its symbol
+and stops immediately. An invalid global operator reports the same ordinary
+error, then attempts the operand list: `operator dummy ;` also reports
+`"(" expected` at `dummy` and stops.
+
+Global operator operand-count errors anchor at the closing parenthesis. Binding
+validation checks result type, parameter count, then parameter types at the
+binding name. An earlier rejected binding still participates in duplicate
+checks in its local scope, but never becomes an executable overload. Existing
+unary-minus overloads remain supported.
+
 ### Incompatible type pairs
 
 Ordinary scalar and interface assignments report

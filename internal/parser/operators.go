@@ -30,13 +30,15 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 
 	// Advance to the operator symbol/keyword (e.g., '+', 'in', 'implicit')
 	cursor = cursor.Advance()
-	if !isOperatorSymbolToken(cursor.Current().Type) {
-		p.addError("expected operator symbol after 'operator'", ErrExpectedOperator)
-		return nil
+	p.cursor = cursor
+	validOperator := isOperatorSymbolToken(cursor.Current().Type)
+	if !validOperator {
+		anchor := p.anchorFor(cursor.Current())
+		p.recordError(NewParserError(anchor.Pos, anchor.Length(), "Overloadable operator expected", ErrExpectedOperator))
+	} else {
+		decl.OperatorToken = cursor.Current()
+		decl.OperatorSymbol = normalizeOperatorSymbol(cursor.Current())
 	}
-
-	decl.OperatorToken = cursor.Current()
-	decl.OperatorSymbol = normalizeOperatorSymbol(cursor.Current())
 
 	// Conversion operators use the IMPLICIT / EXPLICIT keywords
 	if cursor.Current().Type == lexer.IMPLICIT || cursor.Current().Type == lexer.EXPLICIT {
@@ -44,15 +46,21 @@ func (p *Parser) parseOperatorDeclaration() *ast.OperatorDecl {
 	}
 
 	// Parse operand type list (enclosed in parentheses)
-	if cursor.Peek(1).Type != lexer.LPAREN {
-		p.addExpected(lexer.LPAREN)
+	if validOperator {
+		if cursor.Peek(1).Type != lexer.LPAREN {
+			p.addExpectedStop(lexer.LPAREN)
+			return nil
+		}
+		cursor = cursor.Advance() // move to '('
+	} else if cursor.Current().Type != lexer.LPAREN {
+		p.addExpectedStopCurrent(lexer.LPAREN)
 		return nil
 	}
-	cursor = cursor.Advance() // move to '('
 	p.cursor = cursor
 	decl.OperandTypes = p.parseOperatorOperandTypes()
 	cursor = p.cursor // Update cursor after helper
 	decl.Arity = len(decl.OperandTypes)
+	decl.OperandValidationPos = p.anchorFor(cursor.Current()).Pos
 	if decl.Arity == 0 {
 		p.addError("operator declaration requires at least one operand type", ErrInvalidSyntax)
 		return nil
@@ -142,8 +150,10 @@ func (p *Parser) parseClassOperatorDeclaration(classToken lexer.Token, visibilit
 
 	// Advance to operator symbol
 	cursor = cursor.Advance()
+	p.cursor = cursor
 	if !isOperatorSymbolToken(cursor.Current().Type) {
-		p.addError("expected operator symbol after 'class operator'", ErrExpectedOperator)
+		anchor := p.anchorFor(cursor.Current())
+		p.recordStop(NewParserError(anchor.Pos, anchor.Length(), "Overloadable operator expected", ErrExpectedOperator))
 		return nil
 	}
 
