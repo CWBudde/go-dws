@@ -73,31 +73,44 @@ Completed subitems are retained here until this phase closes. Details and valida
     weakening element-type invariance or sharing mutable constant storage.
   - [x] Check RHS types after read-only constant-array writes; preserve bounds and
     parser recovery (`array_const`).
-- [ ] S Compound operator diagnostics (`assign_op_incompatible`).
-  - [ ] Validate both operand types and report `Incompatible operands` at the operator.
-  - [ ] Retain the additional assignment mismatch where recovery requires it.
+- [x] Compound operator diagnostics (`assign_op_incompatible`).
+  - [x] Validate both operand types and report `Incompatible operands` at the operator.
+  - [x] Retain the additional assignment mismatch where recovery requires it.
+  - [x] Preserve RHS assignment conversion for registered operators; stop after
+    missing class operators and retain function-name operator dispatch.
+  - [x] Convert numeric Variant operands before execution; preserve targets and
+    original exceptions when conversion raises, without repeating the converter.
 - [ ] M Routine-pointer assignment recovery (`func_ptr1`).
   - [ ] Keep accepted references; read rejected bare routines as calls.
   - [ ] Preserve call-result types after arity errors and report valueless RHS assignments.
   - [ ] Report pointer-target operand/type errors in the expected child-first order.
 - [ ] M Enum binding (`enums9`, `enums10`).
   - [x] Keep enumeration mismatch anchors at `:=` (compile-path regression test).
-  - [ ] Match DWScript's duplicate-name lookup: `enums9` selects `TEnum1.Hello`,
-    while `enums10` selects `TEnum2.Hello`. A blanket first-binding rule regresses
-    the latter; measure both fixtures before changing registration.
-  - [ ] Keep analyzer and evaluator bindings consistent with that lookup, retaining
-    qualified values, deprecation metadata and lexical shadowing.
+  - [ ] Match duplicate-preserving, sorted local lookup by midpoint: `enums9`
+    selects `TEnum1.Hello`, while `enums10` selects `TEnum2.Hello`.
+  - [ ] Register source types, aliases, routines and unit entries in source order;
+    include the program's `Default`, `Internal` and `System` entries without
+    counting their builtin members or synthetic runtime bindings as local entries.
+  - [ ] Record immutable enum-constant bindings per expression, including source
+    scope snapshots for deferred bodies, so runtime lookup cannot change them.
+  - [ ] Retain qualified values, element deprecation metadata, case-insensitive
+    duplicates and lexical shadowing in the analyzer and evaluator.
 - [ ] M Cast diagnostics and recovery.
   - [ ] Preserve invalid RHS expressions and recover cast result types (`as_error`).
   - [ ] Match object/class-reference checks and metaclass cast types (`object_relops`).
   - [ ] Preserve AS anchors and compiler stops without spurious later diagnostics.
 - [ ] M Record metatypes (`record_meta`).
-  - [ ] Distinguish record type values from record instances in semantic typing.
-  - [ ] Preserve record static-member/helper dispatch and runtime type classification.
+  - [ ] Distinguish record type values and aliases from record instances in semantic typing.
+  - [ ] Preserve record static-member/helper dispatch through inferred metatype values.
+  - [ ] Canonicalize runtime record aliases and classify metatypes consistently in
+    language-type and overload resolution, with deliberate helper receiver typing.
   - [ ] Reject instance-to-metatype assignments at the supplying expression.
 - [ ] M Anonymous routine return types and JSON autoboxing (`JSONConnectorFail/autobox`).
   - [x] Parse nested callable return types with correct spans and recovery.
-  - [ ] Resolve nested signatures and implicitly invoke the outer callable once.
+  - [ ] Resolve nested signatures recursively from the AST, including parameter
+    modifiers and ownership of nested `of object` suffixes.
+  - [ ] Implicitly invoke the outer callable once; preserve compatible references
+    and avoid invoking a callable returned by that call a second time.
   - [ ] Reject routine/class-reference boxing with the expected type names and anchors.
 
 ### 1.4 Call-argument and overload sentences — S

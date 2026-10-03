@@ -487,8 +487,17 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 				return
 			}
 
-			// Check type compatibility
-			if !a.canAssign(valueType, returnType) {
+			usesClassOperator := false
+			if isCompound {
+				proceed, classOp := a.isCompoundOperatorValid(stmt.Operator, returnType, valueType, stmt.Token.Pos)
+				if !proceed {
+					return
+				}
+				usesClassOperator = classOp
+			}
+
+			// Class operators and array append use their operand signature.
+			if !usesClassOperator && !a.canAssign(valueType, returnType) {
 				pos := a.assignmentTargetMismatchPos(stmt.Value, stmt.Token.Pos, stmt.Token.Pos, returnType, valueType)
 				a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, returnType)
 			}
@@ -976,31 +985,25 @@ func isDynamicArrayType(t types.Type) bool {
 	return ok && arrType.IsDynamic()
 }
 
-// isCompoundOperatorValid checks if a compound operator is valid for the given types.
-// Returns (valid, usesClassOperator) where usesClassOperator is true if a class operator was found.
+// isCompoundOperatorValid validates both operands. Its first result permits
+// continued assignment checking, including recovery after an unsupported built-in
+// pair; its second result skips that check for class operators and array append.
 func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, valueType types.Type, pos lexer.Position) (bool, bool) {
-	// Convert lexer.TokenType to operator symbol string
 	opSymbol := compoundOperatorToSymbol(op)
 	if opSymbol == "" {
 		a.addError("unsupported compound operator %v at %s", op, pos.String())
 		return false, false
 	}
 
-	// Check for class operator overrides first
 	if _, ok := a.resolveBinaryOperator(opSymbol, targetType, valueType); ok {
-		return true, true // Valid and uses class operator
+		return true, true
+	}
+	if builtinCompoundOperandsCompatible(op, targetType, valueType) {
+		return true, false
 	}
 
-	// Fall back to built-in type checking
-	switch op {
-	case lexer.PLUS_ASSIGN:
-		// += works with Integer, Float, String (concatenation), Variant
-		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.STRING) || targetType.Equals(types.VARIANT) {
-			return true, false // Valid but doesn't use class operator
-		}
-		// Dynamic arrays support += as append: the value may be a single
-		// element or an array of elements. Report "uses class operator" so
-		// the caller skips the plain assignability check (element += array).
+	// Preserve dynamic array += append and its element compatibility checks.
+	if op == lexer.PLUS_ASSIGN {
 		if arrType, ok := types.GetUnderlyingType(targetType).(*types.ArrayType); ok && arrType.IsDynamic() {
 			if a.canAssign(valueType, targetType) {
 				return true, true
@@ -1016,29 +1019,36 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 			a.addError("operator += not supported for type %s at %s", targetType.String(), pos.String())
 			return false, false
 		}
-		a.addError("operator += not supported for type %s at %s", targetType.String(), pos.String())
-		return false, false
-
-	case lexer.MINUS_ASSIGN, lexer.TIMES_ASSIGN, lexer.DIVIDE_ASSIGN:
-		// -=, *=, /= work with Integer, Float, Variant
-		if targetType.Equals(types.INTEGER) || targetType.Equals(types.FLOAT) || targetType.Equals(types.VARIANT) {
-			return true, false // Valid but doesn't use class operator
-		}
-		opStr := "operator"
-		switch op {
-		case lexer.MINUS_ASSIGN:
-			opStr = "operator -="
-		case lexer.TIMES_ASSIGN:
-			opStr = "operator *="
-		case lexer.DIVIDE_ASSIGN:
-			opStr = "operator /="
-		}
-		a.addError("%s not supported for type %s at %s", opStr, targetType.String(), pos.String())
-		return false, false
-
-	default:
-		return true, false // Valid but doesn't use class operator
 	}
+
+	// Missing class operators stop upstream. Other unsupported pairs fall back
+	// to ordinary assignment, which may report a second RHS type mismatch.
+	err := NewIncompatibleOperandsError(pos)
+	_, classTarget := types.GetUnderlyingType(targetType).(*types.ClassType)
+	if classTarget {
+		err.Stop = true
+		a.compileStopped = true
+	}
+	a.addStructuredError(err)
+	return !classTarget, false
+}
+
+// builtinCompoundOperandsCompatible mirrors the registered upstream operand
+// pairs. Registered built-ins still require RHS-to-target assignment conversion.
+func builtinCompoundOperandsCompatible(op lexer.TokenType, left, right types.Type) bool {
+	left = types.GetUnderlyingType(left)
+	right = types.GetUnderlyingType(right)
+	if left == nil || right == nil {
+		return false
+	}
+	leftNumeric := types.IsNumericType(left) || left.Equals(types.VARIANT)
+	rightNumeric := types.IsNumericType(right) || right.Equals(types.VARIANT)
+	if leftNumeric && rightNumeric {
+		return true
+	}
+	return op == lexer.PLUS_ASSIGN &&
+		((left.Equals(types.STRING) && (right.Equals(types.STRING) || right.Equals(types.VARIANT))) ||
+			(left.Equals(types.VARIANT) && right.Equals(types.STRING)))
 }
 
 // analyzeBlock analyzes a block statement

@@ -37,3 +37,20 @@ func TestCompile_EmptyArrayConstantAssignment(t *testing.T) {
 		`Syntax Error: Incompatible types: Cannot assign "array of Variant" to "array of Integer" [line: 3, column: 13]`,
 	})
 }
+
+func TestCompile_ArrayInitializerNilElementRecovery(t *testing.T) {
+	assertDiagnostics(t, "var first: array of Integer := [nil, 1];\nvar second: array of Integer := [1, nil];", "<test>", []string{
+		`Syntax Error: array element 1 has type Nil, expected Integer [line: 1, column: 33]`,
+		`Syntax Error: array element 2 has type Nil, expected Integer [line: 2, column: 37]`,
+	})
+}
+
+func TestCompile_ArrayConstructorNilReferenceElements(t *testing.T) {
+	assertDiagnostics(t, `type IItem = interface end;
+var item: IItem;
+var interfaces: array of IItem := [nil, item];
+interfaces := [item, nil];
+var objects: array of TObject := [nil, TObject.Create];
+objects := [TObject.Create, nil];
+PrintLn(Length(interfaces) + Length(objects));`, "<test>", nil)
+}

@@ -74,6 +74,14 @@ An untyped empty constant constructor can initialize any dynamic array. Each use
 gets independent storage with the destination's element type. This does not allow
 an ordinary `array of Variant` variable to be assigned to `array of Integer`.
 
+Compound assignments check both operand types. An unsupported scalar pair reports
+`Incompatible operands` at the operator, then checks the RHS assignment and reports
+`Cannot assign` at the supplied expression when needed. Registered operators still
+require RHS assignment compatibility: `Integer += Float` remains invalid. A missing
+class operator stops compilation at the operator. Numeric targets convert a Variant
+RHS before the operation. A raised conversion preserves the target and original
+exception, and runs the converter once.
+
 Typed constants and incompatible coalesce operands report
 `Incompatible types: "X" and "Y"`, with the declared or left-hand type first.
 Dynamic-array coalescing accepts derived-class elements on the right when the

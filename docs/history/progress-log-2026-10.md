@@ -1,5 +1,68 @@
 # Progress log — October 2026
 
+## 2026-10-03 — Compound operands and conversion recovery (PLAN 1.3)
+
+Compound assignment checks now validate both operands. Unsupported scalar pairs
+report `Incompatible operands` at the operator and retain the ordinary RHS
+assignment mismatch when needed. The complete `assign_op_incompatible` fixture
+now matches all five upstream diagnostics. Missing class operators stop
+compilation; class-operator and dynamic-array append dispatch remain supported,
+including assignment through a function-name result.
+
+Registered builtin operators still check assignment compatibility. In particular,
+`Integer += Float` remains rejected. Upstream `TAssignExpr.TypeCheckAssign` checks
+the original RHS against the target after operator lookup; registrations alone
+do not establish whether the assignment is valid. This was verified in
+[compiler utilities](https://github.com/EricGrange/DWScript/blob/master/Source/dwsCompilerUtils.pas),
+[core expressions](https://github.com/EricGrange/DWScript/blob/master/Source/dwsCoreExprs.pas)
+and [conversion expressions](https://github.com/EricGrange/DWScript/blob/master/Source/dwsConvExprs.pas).
+
+Numeric compound assignments convert a Variant RHS before the operation using
+the shared conversion path. For example, Integer `10 *= Variant(2.4)` produces
+20 while retaining the RHS value. A conversion that raises preserves the target
+and original exception. Pending exceptions prevent conversion fallback retries
+and writeback through variables, var parameters, implicit fields, properties and
+class variables. Runtime tests also retain single receiver/index evaluation,
+one property getter read and no setter write after a failed conversion.
+
+Tests were written before each fix. Exact frontend diagnostics cover the complete
+fixture, invalid operand recovery, valid numeric/string/Variant pairs, class
+operator stops, function-name dispatch and array append. Runtime regressions cover
+all four numeric operators, integer/float/string Variant contents, fractional
+conversion, builtin conversion failure and eight custom raising-converter
+boundaries. Additional array tests cover typed initializer nil rejection and
+accepted nil class/interface elements, verifying the existing PR review fixes.
+Independent review found the raised-conversion writeback gap; the fix passed
+re-review with no remaining actionable findings.
+
+`just fixture-update` ratchets FailureScripts **287 → 288**. An independent CLI
+comparison against an immutable snapshot of `68ff7e9f` confirms exactly one newly
+passing fixture, `assign_op_incompatible`, and no newly failing fixtures. The
+generated status scores **1,380 / 2,014**, with BuildScripts at eight. The full
+race run scores **1,379 / 2,014**, with BuildScripts at seven; its previously
+documented varying count remains outside this change, and its stable baseline
+stays seven. Fixture sources, expectations and scoring remain unchanged.
+
+Validation: `just test-unit` (`go test -v -race ./...`) passed on the final source.
+`golangci-lint run --new-from-merge-base=origin/main --timeout 10m` reported zero
+issues; `go mod tidy -diff`, tracked/new Go formatting and `git diff --check` are
+clean. The rebuilt CLI matches the compound fixture and the three array recovery
+fixtures exactly; a function-name class-operator run prints the expected `1` and
+retains its returned object. An earlier race run exhausted temporary disk quota; clearing
+only the task's Go cache and running race tests and lint sequentially resolved
+it. Checks use `GOCACHE=/tmp/go-dws-lint-cache`,
+`GOLANGCI_LINT_CACHE=/tmp/go-dws-golangci-cache` and
+`GOFLAGS='-buildvcs=false -p=1'`.
+
+PLAN 1.3 retains checked compound subitems and expands the open enum, record and
+anonymous callable tasks with their measured dependencies. Enum investigation
+now explains both `enums9` and `enums10` through duplicate-preserving sorted local
+midpoint lookup, including the program's Default/Internal/System unit entries;
+the original [sorting change](https://github.com/EricGrange/DWScript/commit/260d65f9629648b9ab88b7134773f89a818691bb)
+updated both fixture oracles. That lookup, immutable runtime enum bindings,
+routine-pointer recovery, cast recovery, record metatypes and JSON autoboxing
+remain open.
+
 ## 2026-10-03 — Assignment anchors and field-backed properties (PLAN 1.3)
 
 Ordinary scalar and interface assignment failures now anchor at their right-hand

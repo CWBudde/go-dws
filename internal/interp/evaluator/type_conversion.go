@@ -162,6 +162,11 @@ func (e *Evaluator) TryImplicitConversion(value Value, targetType types.Type, ct
 		if ok {
 			return result, true
 		}
+		// A raised conversion is final: preserve the exception and do not
+		// execute the same converter again through a fallback chain.
+		if ctx != nil && ctx.Exception() != nil {
+			return value, false
+		}
 		// If conversion function execution failed, continue to try other methods
 	}
 
@@ -172,6 +177,9 @@ func (e *Evaluator) TryImplicitConversion(value Value, targetType types.Type, ct
 		result, ok := e.executeConversionChain(path, value, ctx)
 		if ok {
 			return result, true
+		}
+		if ctx != nil && ctx.Exception() != nil {
+			return value, false
 		}
 	}
 
