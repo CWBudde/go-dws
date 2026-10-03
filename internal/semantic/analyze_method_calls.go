@@ -107,7 +107,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		if !found {
-			helperMethod := a.hasHelperMethod(objectType, methodName)
+			helperMethod := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments)
 			if helperMethod == nil {
 				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 				return nil
@@ -148,15 +148,16 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		// Check if object is a record type with methods
-		if recordType, isRecord := objectType.(*types.RecordType); isRecord {
+		if recordType, isMeta := recordReceiverType(objectType); recordType != nil {
 			a.addIdentifierCaseHint(expr.Method, a.declaredRecordMethodName(recordType, methodName))
 
 			// First check for class methods (static methods) with overload support.
 			// On an instance receiver, same-named instance methods join the set.
 			classOverloads := recordType.GetClassMethodOverloads(methodNameLower)
 			if len(classOverloads) > 0 {
-				classOverloads = append(append([]*types.MethodInfo{}, classOverloads...),
-					recordType.GetMethodOverloads(methodNameLower)...)
+				if !isMeta {
+					classOverloads = append(append([]*types.MethodInfo{}, classOverloads...), recordType.GetMethodOverloads(methodNameLower)...)
+				}
 				// This is a static method call - resolve overload based on arguments
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
@@ -201,7 +202,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 			// Check for instance methods (overload-aware)
 			var method *types.FunctionType
-			if instanceOverloads := recordType.GetMethodOverloads(methodNameLower); len(instanceOverloads) > 1 {
+			if instanceOverloads := recordType.GetMethodOverloads(methodNameLower); !isMeta && len(instanceOverloads) > 1 {
 				argTypes := make([]types.Type, len(expr.Arguments))
 				for i, arg := range expr.Arguments {
 					argType := a.analyzeOverloadArgument(arg)
@@ -220,12 +221,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 					return nil
 				}
 				method = selected.Type.(*types.FunctionType)
-			} else {
+			} else if !isMeta {
 				method = recordType.GetMethod(methodNameLower)
 			}
 			if method == nil {
 				// A proc-typed record field is directly callable: rec.Proc1(x).
-				if fieldType := recordType.GetFieldType(methodNameLower); fieldType != nil && isFunctionPointerType(fieldType) {
+				if fieldType := recordType.GetFieldType(methodNameLower); !isMeta && fieldType != nil && isFunctionPointerType(fieldType) {
 					if a.semanticInfo != nil && expr.Method != nil {
 						a.semanticInfo.SetType(expr.Method, &ast.TypeAnnotation{
 							Token: expr.Method.Token,
@@ -236,7 +237,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 					return a.analyzeFunctionPointerCallArgs(expr.Arguments, fieldType, expr.Token.Pos)
 				}
 				// Method not found in record, check if a helper provides it
-				helperMethod := a.hasHelperMethod(objectType, methodName)
+				helperMethod := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments)
 				if helperMethod == nil {
 					a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 					return nil
@@ -539,7 +540,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				return nil
 			}
 			methodType = metaHelper
-		} else if helperMethod := a.hasHelperMethod(objectType, methodName); helperMethod != nil {
+		} else if helperMethod := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments); helperMethod != nil {
 			methodType = helperMethod
 		} else if callableType := a.classCallableMemberType(classType, methodName); callableType != nil {
 			// A private/protected proc-typed field or class var must not become

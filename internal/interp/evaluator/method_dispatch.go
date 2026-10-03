@@ -161,7 +161,13 @@ func (e *Evaluator) DispatchMethodCall(obj Value, methodName string, args []Valu
 	normalizedMethod := ident.Normalize(methodName)
 
 	if recordType, ok := obj.(*RecordTypeValue); ok {
-		return e.callRecordStaticMethod(recordType, methodName, args, node, ctx)
+		if recordType.HasStaticMethod(methodName) {
+			return e.callRecordStaticMethod(recordType, methodName, args, node, ctx)
+		}
+		if helper := e.FindHelperMethod(obj, methodName); helper != nil && helper.Method != nil && helper.Method.IsClassMethod {
+			return e.CallHelperMethod(helper, obj, args, node, ctx)
+		}
+		return e.newError(node, "static method '%s' not found in record type '%s'", methodName, recordType.GetRecordTypeName())
 	}
 
 	if recordVal, ok := obj.(RecordInstanceValue); ok {

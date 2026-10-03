@@ -110,7 +110,16 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			return interfaceType
 		}
 		if resolvedType, err := a.resolveType(identifier.Value); err == nil && resolvedType != nil {
-			return resolvedType
+			if meta := types.NewRecordMetaType(resolvedType); meta != nil {
+				if identity, found := a.symbols.resolveIdentity(identifier.Value, true); found {
+					a.addIdentifierCaseHint(identifier, identity.Name)
+					a.warnDeprecatedSymbolUsage(identity, identifier.Token.Pos)
+					a.recordSymbolUsage(identity.Name, identifier.Token.Pos)
+					return meta
+				}
+			} else {
+				return resolvedType
+			}
 		}
 		if a.currentClass != nil {
 			if a.inClassMethod {

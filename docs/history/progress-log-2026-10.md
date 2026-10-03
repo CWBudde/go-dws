@@ -1,5 +1,54 @@
 # Progress log — October 2026
 
+## 2026-10-03 — Record type values and static dispatch (PLAN 1.3)
+
+Record names and aliases used as values now have a distinct nominal `meta of R`
+type. Instance annotations retain the record type, and assignments cannot confuse
+an instance with its metatype or an independently declared record. The unchanged
+`record_meta` transcript now rejects the supplied `TSiteData` instance at 16:35.
+Qualified aliases and deferred bodies use lexical identities and source snapshots,
+including source `uses` activation and value shadows. AS/IS target terms retain
+consistent record-name and alias categories without adding record cast support.
+
+Runtime alias views share the canonical record's class storage and metadata while
+retaining their alias helper identity. Language typing and both overload classifiers
+preserve the metatype category. Inferred and copied type values expose class
+variables, constants, methods and legal class-side properties. Nonstatic record
+class helpers receive metatype Self; instance helpers receive instance Self;
+static helpers and ordinary record class methods have no Self. Mixed helper
+overloads and helper precedence agree with runtime dispatch.
+
+Named and default indexed properties retain the actual receiver and complete
+bracket argument list. Independent review caught multi-index argument loss and
+array-carried receiver loss; compiled regressions now assert both results and the
+ordered receiver/index/getter/RHS/setter trace for reads, writes and compound
+assignments. Supported grouped reads are covered; no parser grammar was expanded.
+Record/helper expression accessors share class storage by reference, and repeated
+runs of one compiled public Program retain independent static state.
+
+Declaration visitor helpers moved into a dedicated sibling file to satisfy the
+unchanged file-size limit. The three neighboring helper bodies and signatures
+match the pre-task source verbatim. Record semantics remain evaluator-owned;
+semantic metatypes contain identity and no mutable runtime storage. The new
+[records guide](../guide/records.md) explains instance/type values and helpers.
+
+Final validation: `just test-unit` (`go test -v -race ./...`) passed; CI diff
+lint reported zero issues; `go mod tidy -diff`, all 1,197 tracked Go formatting
+and staged/unstaged diff checks passed. A fresh CLI matched the complete record
+failure transcript, eight positive record fixtures, sixteen earlier diagnostics,
+eight cast fixtures, factory counters and all preserved Boolean bytecode paths.
+The new guide examples print 3, 3, 3. Task review and scoped fix/style reviews are
+clean.
+
+The entire in-scope CLI gains exactly `FailureScripts/record_meta` against the
+cast commit, with no losses. Against main the branch gains nine FailureScripts
+and `SimpleScripts/enum_bounds`, again with no losses. `just fixture-update`
+ratchets FailureScripts **293 → 294**. The CLI reports **1,386** passes; the
+harness snapshot reports **1,387 / 2,014**, with the known varying BuildScripts
+count eight versus seven in the CLI. Its stable baseline stays seven. The record
+parent and all four subitems are checked and retained. Anonymous routine signature
+resolution and JSON boxing remain open.
+
 ## 2026-10-03 — Cast diagnostics and recovery (PLAN 1.3)
 
 The complete `as_error`, `object_relops` and `as_invalid_right` transcripts now

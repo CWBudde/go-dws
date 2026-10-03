@@ -376,6 +376,12 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 		}
 	}
 
+	if recordRaw, found := ctx.Env().Get("__CurrentRecord__"); found {
+		if record, ok := recordRaw.(*runtime.RecordTypeValue); ok && record.HasStaticMethod(node.Value) {
+			return e.callRecordStaticMethod(record, node.Value, nil, node, ctx)
+		}
+	}
+
 	// Check if this identifier is a class name (metaclass reference)
 	if e.typeSystem.HasClass(node.Value) {
 		classVal, err := e.typeSystem.CreateClassValue(node.Value)
@@ -400,6 +406,13 @@ func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext)
 	// Only declared type names produce metadata; expression types also describe
 	// builtins and values, which must continue through ordinary lookup.
 	if resolvedType, err := e.resolveTypeName(node.Value, ctx); err == nil && resolvedType != nil {
+		if record, ok := types.GetUnderlyingType(resolvedType).(*types.RecordType); ok {
+			if value := e.typeSystem.LookupRecord(record.Name); value != nil {
+				aliasValue := *value
+				aliasValue.SourceType = resolvedType
+				return &aliasValue
+			}
+		}
 		return &runtime.TypeMetaValue{
 			TypeInfo: resolvedType,
 			TypeName: resolvedType.String(),

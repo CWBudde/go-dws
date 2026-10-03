@@ -51,6 +51,8 @@ type Symbol struct {
 	// its type name (so High(TEnum) and TEnum.Value resolve). A parameter or local
 	// that shadows the type name is an ordinary value symbol and leaves it false.
 	IsEnumTypeName bool
+	// IsRecordTypeName identifies the declaration value in deferred source snapshots.
+	IsRecordTypeName bool
 }
 
 // SymbolTable manages symbols and scopes during semantic analysis.

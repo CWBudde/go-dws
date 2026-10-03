@@ -358,6 +358,14 @@ func (a *Analyzer) resolveCastTargetType(target ast.TypeExpression) types.Type {
 	if class, ok := types.GetUnderlyingType(resolved).(*types.ClassType); ok {
 		return types.NewClassOfType(class)
 	}
+	if meta := types.NewRecordMetaType(resolved); meta != nil {
+		if annotation, ok := target.(*ast.TypeAnnotation); ok && !strings.Contains(annotation.Name, ".") {
+			if _, found := a.symbols.resolveIdentity(annotation.Name, true); !found {
+				return nil
+			}
+		}
+		return meta
+	}
 	return resolved
 }
 

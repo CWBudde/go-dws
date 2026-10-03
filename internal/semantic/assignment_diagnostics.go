@@ -49,6 +49,12 @@ func assignmentMismatchPos(value ast.Expression, fallback lexer.Position, expect
 	if pos, ok := castAssignmentPos(value); ok {
 		return pos
 	}
+	if _, expectedMeta := types.GetUnderlyingType(expected).(*types.RecordMetaType); expectedMeta {
+		return assignmentSupplierPos(value, fallback)
+	}
+	if _, gotMeta := types.GetUnderlyingType(got).(*types.RecordMetaType); gotMeta {
+		return assignmentSupplierPos(value, fallback)
+	}
 	if pos := allocationMismatchPos(value, fallback); pos != fallback {
 		return pos
 	}
@@ -191,4 +197,23 @@ func castAssignmentPos(value ast.Expression) (lexer.Position, bool) {
 			return lexer.Position{}, false
 		}
 	}
+}
+
+// assignmentSupplierPos identifies the member producing a value, rather than
+// its receiver, while retaining the expression anchor for other suppliers.
+func assignmentSupplierPos(value ast.Expression, fallback lexer.Position) lexer.Position {
+	switch expr := value.(type) {
+	case *ast.GroupedExpression:
+		return assignmentSupplierPos(expr.Expression, fallback)
+	case *ast.MethodCallExpression:
+		return expr.Method.Pos()
+	case *ast.MemberAccessExpression:
+		return expr.Member.Pos()
+	case *ast.CallExpression:
+		return assignmentSupplierPos(expr.Function, fallback)
+	}
+	if value != nil {
+		return value.Pos()
+	}
+	return fallback
 }

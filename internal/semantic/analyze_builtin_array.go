@@ -353,6 +353,13 @@ func (a *Analyzer) isBareTypeValue(expr ast.Expression) bool {
 		return false
 	}
 	if a.isTypeMetaValueExpression(expr) {
+		if id, ok := expr.(*ast.Identifier); ok {
+			if typ, err := a.resolveType(id.Value); err == nil {
+				if record, _ := recordReceiverType(typ); record != nil {
+					return false
+				}
+			}
+		}
 		return true
 	}
 	id, ok := expr.(*ast.Identifier)

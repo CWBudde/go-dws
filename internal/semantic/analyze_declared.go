@@ -163,6 +163,22 @@ func (a *Analyzer) declaredMemberType(typ types.Type, member string) (types.Type
 		return classMemberType(owner.ClassType, member)
 	case *types.RecordType:
 		return recordMemberType(owner, member)
+	case *types.RecordMetaType:
+		record := owner.RecordType
+		key := ident.Normalize(member)
+		if typ, found := record.ClassVars[key]; found {
+			return typ, true
+		}
+		if typ := record.GetClassMethod(member); typ != nil {
+			return typ, true
+		}
+		if prop := record.GetProperty(member); prop != nil && recordPropertyIsStatic(record, prop) {
+			return prop.Type, true
+		}
+		if info := record.Constants[key]; info != nil {
+			return info.Type, true
+		}
+		return nil, false
 	case *types.InterfaceType:
 		if method, ok := owner.GetMethod(member); ok {
 			return method, true

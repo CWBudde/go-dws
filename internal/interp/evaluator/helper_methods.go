@@ -241,6 +241,12 @@ func (e *Evaluator) getHelpersForValue(val Value) []HelperInfo {
 		typeName = v.GetClassName()
 	case *runtime.InterfaceInstance:
 		typeName = v.InterfaceName()
+	case *runtime.RecordTypeValue:
+		helpers := e.typeSystem.LookupHelpers(v.GetRecordTypeName())
+		if v.SourceType != nil && !ident.Equal(v.SourceType.String(), v.GetRecordTypeName()) {
+			helpers = append(append([]HelperInfo(nil), e.typeSystem.LookupHelpers(v.SourceType.String())...), helpers...)
+		}
+		return helpers
 	case RecordInstanceValue:
 		typeName = v.GetRecordTypeName()
 	case *runtime.IntegerValue:
@@ -284,6 +290,18 @@ func (e *Evaluator) FindHelperMethod(val Value, methodName string) *HelperMethod
 	for _, helper := range orderedHelpersForLookup(helpers) {
 
 		if overloads, ownerHelperAny, ok := helper.GetMethodOverloads(methodName); ok && len(overloads) > 0 {
+			if _, meta := val.(*runtime.RecordTypeValue); meta {
+				var classOverloads []*ast.FunctionDecl
+				for _, method := range overloads {
+					if method.IsClassMethod {
+						classOverloads = append(classOverloads, method)
+					}
+				}
+				overloads = classOverloads
+				if len(overloads) == 0 {
+					continue
+				}
+			}
 			ownerHelper := ownerHelperAny
 			if ownerHelper == nil {
 				ownerHelper = helper
@@ -396,6 +414,14 @@ func (e *Evaluator) CallHelperMethod(
 	// If it's an AST method, execute it with proper Self binding
 	if result.Method != nil {
 		if len(result.Overloads) > 1 {
+			_, meta := selfValue.(*runtime.RecordTypeValue)
+			_, record := selfValue.(RecordInstanceValue)
+			if meta || record {
+				if selected := e.resolveRecordMethodOverload(result.Overloads, args, ctx); selected != nil {
+					return e.CallASTHelperMethod(result.OwnerHelper, selected, selfValue, args, node, ctx)
+				}
+				return e.newError(node, "no matching record helper overload for '%s'", result.Method.Name.Value)
+			}
 			for _, candidate := range result.Overloads {
 				expected := len(candidate.Parameters)
 				if candidate.IsHelper {
@@ -501,12 +527,25 @@ func (e *Evaluator) CallASTHelperMethod(
 	scope := newBindingScope()
 	defer scope.cleanup(e, ctx.Env())
 
-	// Bind Self to the target value (the value being extended)
-	scope.defineExposed(ctx, "Self", selfValue)
+	// Class helpers on a record instance receive the record's metatype.
+	if method.IsClassMethod {
+		if instance, ok := selfValue.(RecordInstanceValue); ok {
+			if record := e.typeSystem.LookupRecord(instance.GetRecordTypeName()); record != nil {
+				selfValue = record
+			}
+		}
+	}
+	if !method.IsStatic {
+		scope.defineExposed(ctx, "Self", selfValue)
+	}
 	scope.defineExposed(ctx, "__CurrentHelperMethod__", &runtime.StringValue{Value: method.Name.Value})
 	scope.defineExposed(ctx, "__CurrentHelperName__", &runtime.StringValue{Value: helper.GetName()})
 	if method.IsHelper && len(method.Parameters) > 0 {
 		scope.defineExposed(ctx, method.Parameters[0].Name.Value, selfValue)
+	}
+
+	if record, ok := selfValue.(*runtime.RecordTypeValue); ok {
+		e.bindRecordMetaMembers(record, ctx, scope)
 	}
 
 	// Bind helper class vars and consts from entire inheritance chain.
@@ -775,6 +814,13 @@ func (e *Evaluator) executeHelperPropertyExpressionRead(
 	node ast.Node,
 	ctx *ExecutionContext,
 ) Value {
+	if record, ok := selfValue.(*runtime.RecordTypeValue); ok {
+		expr, valid := propInfo.ReadExpr.(ast.Expression)
+		if !valid {
+			return e.newError(node, "invalid record helper property read expression")
+		}
+		return e.evalRecordMetaPropertyExpression(record, expr, nil, nil, ctx)
+	}
 	if propInfo.IsClassProperty {
 		if classInfo := e.helperReceiverClassInfo(selfValue); classInfo != nil {
 			return e.evalClassPropertyExpressionRead(classInfo, propInfo, node, ctx)
@@ -860,6 +906,13 @@ func (e *Evaluator) executeHelperPropertyExpressionWrite(
 	node ast.Node,
 	ctx *ExecutionContext,
 ) Value {
+	if record, ok := selfValue.(*runtime.RecordTypeValue); ok {
+		stmt, valid := propInfo.WriteExpr.(ast.Statement)
+		if !valid {
+			return e.newError(node, "invalid record helper property write expression")
+		}
+		return e.evalRecordMetaPropertyExpression(record, nil, stmt, value, ctx)
+	}
 	if propInfo.IsClassProperty {
 		if classInfo := e.helperReceiverClassInfo(selfValue); classInfo != nil {
 			return e.evalClassPropertyExpressionWrite(classInfo, propInfo, value, node, ctx)

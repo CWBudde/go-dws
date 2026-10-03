@@ -655,16 +655,18 @@ func NewScopedEnumType(name string, values map[string]int, orderedNames []string
 //	  function ToLower: String;
 //	end;
 type HelperType struct {
-	TargetType      Type
-	Decl            any
-	ParentHelper    *HelperType
-	Methods         map[string]*FunctionType
-	MethodOverloads map[string][]*FunctionType
-	MethodDeclNames map[string]string // Original source spelling, keyed by normalized name.
-	Properties      map[string]*PropertyInfo
-	ClassVars       map[string]Type
-	ClassConsts     map[string]any
-	BuiltinMethods  map[string]string
+	// ClassMethodOverloads retains receiver ownership for each overload.
+	ClassMethodOverloads map[string][]*FunctionType
+	TargetType           Type
+	Decl                 any
+	ParentHelper         *HelperType
+	Methods              map[string]*FunctionType
+	MethodOverloads      map[string][]*FunctionType
+	MethodDeclNames      map[string]string // Original source spelling, keyed by normalized name.
+	Properties           map[string]*PropertyInfo
+	ClassVars            map[string]Type
+	ClassConsts          map[string]any
+	BuiltinMethods       map[string]string
 	// ForwardedMethods holds the normalized names of methods declared in the
 	// helper body without a body of their own; an out-of-line implementation
 	// clears the entry. Mirrors ClassType.ForwardedMethods.
@@ -792,17 +794,18 @@ func (ht *HelperType) GetClassConst(name string) (interface{}, bool) {
 // NewHelperType creates a new helper type.
 func NewHelperType(name string, targetType Type, isRecordHelper bool) *HelperType {
 	return &HelperType{
-		Name:             name,
-		TargetType:       targetType,
-		Methods:          make(map[string]*FunctionType),
-		MethodOverloads:  make(map[string][]*FunctionType),
-		MethodDeclNames:  make(map[string]string),
-		Properties:       make(map[string]*PropertyInfo),
-		ClassVars:        make(map[string]Type),
-		ClassConsts:      make(map[string]interface{}),
-		BuiltinMethods:   make(map[string]string),
-		ForwardedMethods: make(map[string]bool),
-		ClassMethods:     make(map[string]bool),
-		IsRecordHelper:   isRecordHelper,
+		Name:                 name,
+		TargetType:           targetType,
+		Methods:              make(map[string]*FunctionType),
+		MethodOverloads:      make(map[string][]*FunctionType),
+		ClassMethodOverloads: make(map[string][]*FunctionType),
+		MethodDeclNames:      make(map[string]string),
+		Properties:           make(map[string]*PropertyInfo),
+		ClassVars:            make(map[string]Type),
+		ClassConsts:          make(map[string]interface{}),
+		BuiltinMethods:       make(map[string]string),
+		ForwardedMethods:     make(map[string]bool),
+		ClassMethods:         make(map[string]bool),
+		IsRecordHelper:       isRecordHelper,
 	}
 }

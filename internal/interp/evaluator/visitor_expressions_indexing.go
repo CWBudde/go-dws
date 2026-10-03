@@ -21,6 +21,13 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		return e.newError(node, "index expression missing base")
 	}
 
+	if record, prop, indices, handled, err := e.resolveRecordMetaIndexedProperty(node, ctx); handled {
+		if err != nil {
+			return err
+		}
+		return e.recordMetaPropertyRead(record, prop, indices, node, ctx)
+	}
+
 	if obj, prop, indices, handled, err := e.resolveInterfaceIndexedProperty(node, ctx); handled {
 		if err != nil {
 			return err
@@ -36,6 +43,16 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		objVal := e.Eval(memberAccess.Object, ctx)
 		if isError(objVal) {
 			return objVal
+		}
+
+		if record, ok := objVal.(*runtime.RecordTypeValue); ok {
+			if prop := recordMetaProperty(record, memberAccess.Member.Value); prop != nil && prop.IsIndexed {
+				values, err := e.recordMetaPropertyIndices(indices, ctx)
+				if err != nil {
+					return err
+				}
+				return e.recordMetaPropertyRead(record, prop, values, node, ctx)
+			}
 		}
 
 		// Handle interface indexed property access
@@ -167,6 +184,12 @@ func (e *Evaluator) indexResolvedValue(leftVal Value, node *ast.IndexExpression,
 func (e *Evaluator) readResolvedIndex(leftVal, indexVal Value, node *ast.IndexExpression, ctx *ExecutionContext) Value {
 	// Unwrap variants for indexing
 	leftVal = unwrapVariant(leftVal)
+
+	if record, ok := leftVal.(*runtime.RecordTypeValue); ok {
+		if prop := recordMetaProperty(record, ""); prop != nil {
+			return e.recordMetaPropertyRead(record, prop, []Value{indexVal}, node, ctx)
+		}
+	}
 
 	// Handle JSON indexing
 	if runtime.KindOf(leftVal) == runtime.KindJSON {

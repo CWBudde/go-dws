@@ -295,6 +295,8 @@ func (e *Evaluator) runtimeValueType(val Value) types.Type {
 			return e.buildClassTypeWithHierarchy(v.Class.GetName())
 		}
 		return types.NIL
+	case *runtime.RecordTypeValue:
+		return runtime.LanguageType(v)
 	case *runtime.RecordValue:
 		if v.RecordType != nil {
 			return v.RecordType

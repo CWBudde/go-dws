@@ -31,6 +31,7 @@ Status figures are generated, never hand-edited:
 | [`guide/exceptions.md`](guide/exceptions.md) | `try`/`except`/`finally`, `raise`, exception classes |
 | [`guide/contracts.md`](guide/contracts.md) | `require`/`ensure`/`old` design-by-contract |
 | [`guide/enums.md`](guide/enums.md) | Enumerated types, ordinals, scoped enums |
+| [`guide/records.md`](guide/records.md) | Record instances, record type values, class members and helpers |
 | [`guide/variant.md`](guide/variant.md) | Variant type semantics and `VarType` codes |
 | [`guide/global-vars.md`](guide/global-vars.md) | Process-wide global variables and global queues |
 | [`guide/helpers.md`](guide/helpers.md) | Type helpers (`helper for`) |

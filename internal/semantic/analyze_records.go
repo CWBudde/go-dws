@@ -74,7 +74,10 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 	// Register the record before resolving fields so recursive field types like
 	// `array of TRecord` can resolve to this in-progress type.
 	a.registerTypeWithPos(recordName, recordType, decl.Token.Pos)
-	a.symbols.Define(recordName, recordType, decl.Token.Pos)
+	a.symbols.DefineReadOnly(recordName, types.NewRecordMetaType(recordType), decl.Token.Pos)
+	if symbol, found := a.symbols.Resolve(recordName); found {
+		symbol.IsRecordTypeName = true
+	}
 
 	// Validate field declarations
 	// Track field names to detect duplicates
@@ -453,8 +456,8 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	objType = types.GetUnderlyingType(a.applyImplicitCallType(obj, objType))
 
 	// Check if the type is a record type
-	recordType, ok := objType.(*types.RecordType)
-	if !ok {
+	recordType, isMeta := recordReceiverType(objType)
+	if recordType == nil {
 		a.addError("%s has no fields", objType.String())
 		return nil
 	}
@@ -464,7 +467,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 
 	// Check if the field exists
 	fieldType, exists := recordType.Fields[lowerFieldName]
-	if exists {
+	if exists && !isMeta {
 		if declaredName := recordType.FieldNames[lowerFieldName]; declaredName != "" &&
 			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
 			a.addIdentifierCaseHint(field, declaredName)
@@ -496,7 +499,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 
 	// Check if it's an instance method of the record
 	methodType, methodExists := recordType.Methods[lowerFieldName]
-	if methodExists {
+	if methodExists && !isMeta {
 		if declaredName := recordType.MethodNames[lowerFieldName]; declaredName != "" &&
 			declaredName != fieldName && ident.Equal(declaredName, fieldName) {
 			a.addIdentifierCaseHint(field, declaredName)
@@ -535,7 +538,7 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	// Check if it's a property of the record
 	if recordType.Properties != nil {
 		propInfo, propExists := recordType.Properties[lowerFieldName]
-		if propExists {
+		if propExists && (!isMeta || recordPropertyIsStatic(recordType, propInfo)) {
 			a.warnDeprecatedRecordPropertyUsage(propInfo, field.Token.Pos)
 			if propInfo.Name != "" && propInfo.Name != fieldName && ident.Equal(propInfo.Name, fieldName) {
 				a.addIdentifierCaseHint(field, propInfo.Name)

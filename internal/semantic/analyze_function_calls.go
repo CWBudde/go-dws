@@ -170,8 +170,13 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 
 		// Static method call on record: TRecord.Method(args)
-		if recordType, isRecordType := objectType.(*types.RecordType); isRecordType {
-			return a.analyzeRecordStaticMethodCall(expr, recordType, memberAccess.Member.Value)
+		if recordType, meta := recordReceiverType(objectType); recordType != nil {
+			if meta && recordType.HasClassMethod(memberAccess.Member.Value) {
+				return a.analyzeRecordStaticMethodCall(expr, recordType, memberAccess.Member.Value)
+			}
+			return a.analyzeMethodCallExpression(&ast.MethodCallExpression{
+				BaseNode: expr.BaseNode, Object: memberAccess.Object, Method: memberAccess.Member, Arguments: expr.Arguments,
+			})
 		}
 
 		// Constructor via metaclass variable: cls.Create(args)
@@ -856,6 +861,9 @@ func (a *Analyzer) currentImplicitSelfType() types.Type {
 		return a.currentClass
 	}
 	if a.currentRecord != nil {
+		if a.inClassMethod {
+			return types.NewRecordMetaType(a.currentRecord)
+		}
 		return a.currentRecord
 	}
 	return nil

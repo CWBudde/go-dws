@@ -540,10 +540,7 @@ func (e *Evaluator) readResolvedMember(node *ast.MemberAccessExpression, obj Val
 
 		if recTypeVal.RecordType != nil && recTypeVal.RecordType.Properties != nil {
 			if propInfo, found := recTypeVal.RecordType.Properties[normalizedMember]; found {
-				if value, ok := readRecordTypePropertyValue(recTypeVal, propInfo); ok {
-					return value
-				}
-				return e.newError(node, "property '%s' has no readable record type accessor", memberName)
+				return e.recordMetaPropertyRead(recTypeVal, propInfo, nil, node, ctx)
 			}
 		}
 
@@ -561,7 +558,7 @@ func (e *Evaluator) readResolvedMember(node *ast.MemberAccessExpression, obj Val
 		}
 
 		// Helper class consts/vars/methods declared for the record type
-		if helpersAny := e.typeSystem.LookupHelpers(ident.Normalize(recTypeVal.GetRecordTypeName())); helpersAny != nil {
+		if helpersAny := e.getHelpersForValue(obj); helpersAny != nil {
 			for _, helper := range orderedHelpersForLookup(helpersAny) {
 				for name, v := range helper.GetClassConsts() {
 					if ident.Equal(name, memberName) {
@@ -574,7 +571,7 @@ func (e *Evaluator) readResolvedMember(node *ast.MemberAccessExpression, obj Val
 					}
 				}
 				if helperResult := e.findHelperMethodInHelper(helper, memberName); helperResult != nil {
-					if zeroArg := zeroArgHelperOverload(helperResult); zeroArg != nil && helperResult.BuiltinSpec == "" {
+					if zeroArg := zeroArgHelperOverload(helperResult); zeroArg != nil && zeroArg.IsClassMethod && helperResult.BuiltinSpec == "" {
 						callResult := *helperResult
 						callResult.Method = zeroArg
 						return e.CallHelperMethod(&callResult, obj, []Value{}, node, ctx)
@@ -583,6 +580,9 @@ func (e *Evaluator) readResolvedMember(node *ast.MemberAccessExpression, obj Val
 			}
 		}
 
+		if helper, prop := e.FindHelperProperty(obj, memberName); prop != nil {
+			return e.executeHelperPropertyRead(helper, prop, obj, node, ctx)
+		}
 		return e.newError(node, "member '%s' not found in record type '%s'", memberName, recTypeVal.GetRecordTypeName())
 
 	case runtime.KindTypeCast:

@@ -82,6 +82,12 @@ func (e *Evaluator) evalCompoundIndexAssignment(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
+	if record, prop, indices, handled, err := e.resolveRecordMetaIndexedProperty(indexExpr, ctx); handled {
+		if err != nil {
+			return err
+		}
+		return e.compoundRecordMetaProperty(record, prop, indices, indexExpr, stmt, ctx)
+	}
 	if obj, prop, indices, handled, err := e.resolveInterfaceIndexedProperty(indexExpr, ctx); handled {
 		if err != nil {
 			return err
@@ -151,6 +157,16 @@ func (e *Evaluator) evalCompoundMemberRootedIndex(member *ast.MemberAccessExpres
 }
 
 func (e *Evaluator) evalCompoundMemberIndexedProperty(obj Value, member *ast.MemberAccessExpression, indexExpr *ast.IndexExpression, stmt *ast.AssignmentStatement, ctx *ExecutionContext) (Value, bool) {
+	if record, ok := obj.(*runtime.RecordTypeValue); ok {
+		if prop := recordMetaProperty(record, member.Member.Value); prop != nil && prop.IsIndexed {
+			_, expressions := CollectIndices(indexExpr)
+			indices, err := e.recordMetaPropertyIndices(expressions, ctx)
+			if err != nil {
+				return err, true
+			}
+			return e.compoundRecordMetaProperty(record, prop, indices, indexExpr, stmt, ctx), true
+		}
+	}
 	if accessor, ok := obj.(runtime.PropertyAccessor); ok {
 		if prop := accessor.LookupProperty(member.Member.Value); prop != nil {
 			_, isRecord := obj.(RecordInstanceValue)

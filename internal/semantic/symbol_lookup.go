@@ -188,7 +188,7 @@ func (st *SymbolTable) findLocalIdentity(name string) (*Symbol, bool) {
 	}
 	sym, ok := st.symbols.Get(name)
 	// Source constants absent from a deferred body's snapshot are not visible.
-	if ok && st.sourceSnapshot != nil && sym.EnumElement != nil {
+	if ok && st.sourceSnapshot != nil && (sym.EnumElement != nil || sym.IsRecordTypeName) {
 		return nil, false
 	}
 	return sym, ok

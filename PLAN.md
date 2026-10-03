@@ -106,12 +106,12 @@ Completed subitems are retained here until this phase closes. Details and valida
   - [x] Preserve invalid RHS expressions and recover cast result types (`as_error`).
   - [x] Match object/class-reference checks and metaclass cast types (`object_relops`).
   - [x] Preserve AS anchors and compiler stops without spurious later diagnostics.
-- [ ] M Record metatypes (`record_meta`).
-  - [ ] Distinguish record type values and aliases from record instances in semantic typing.
-  - [ ] Preserve record static-member/helper dispatch through inferred metatype values.
-  - [ ] Canonicalize runtime record aliases and classify metatypes consistently in
+- [x] M Record metatypes (`record_meta`).
+  - [x] Distinguish record type values and aliases from record instances in semantic typing.
+  - [x] Preserve record static-member/helper dispatch through inferred metatype values.
+  - [x] Canonicalize runtime record aliases and classify metatypes consistently in
     language-type and overload resolution, with deliberate helper receiver typing.
-  - [ ] Reject instance-to-metatype assignments at the supplying expression.
+  - [x] Reject instance-to-metatype assignments at the supplying expression.
 - [ ] M Anonymous routine return types and JSON autoboxing (`JSONConnectorFail/autobox`).
   - [x] Parse nested callable return types with correct spans and recovery.
   - [ ] Resolve nested signatures recursively from the AST, including parameter
@@ -195,6 +195,10 @@ must retain the existing compile-stop and forward-check behavior below.
 The §1.3 cast recovery work must restore speculative parser errors and stops before
 expression fallback, retain semantic recovery types, and keep true compiler stops
 ahead of later assignment or end-of-program diagnostics.
+
+The §1.3 record-metatype changes must keep record annotations and constants as
+instance types, preserve supplying-expression diagnostics through static/helper
+receivers, and retain these recovery and stop rules when classifying type values.
 
 - [ ] S Per-call truncation marker: `missing_parenthesis1` wants `Invalid Operands` from inside a
   call whose argument list hit a stop. Such calls are currently dropped, which is what makes

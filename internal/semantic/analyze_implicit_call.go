@@ -178,6 +178,12 @@ func classAcceptsNoArguments(classType *types.ClassType, name string) bool {
 // diagnostic it produced.
 func (a *Analyzer) inferMemberObjectType(object ast.Expression) types.Type {
 	if _, isSelf := object.(*ast.SelfExpression); isSelf {
+		if a.currentSelfType != nil {
+			return a.currentSelfType
+		}
+		if a.currentRecord != nil && !a.inClassMethod {
+			return a.currentRecord
+		}
 		if a.currentClass == nil {
 			return nil
 		}
@@ -195,6 +201,9 @@ func (a *Analyzer) inferMemberObjectType(object ast.Expression) types.Type {
 	}
 	if classType := a.getClassType(objIdent.Value); classType != nil {
 		return types.NewClassOfType(classType)
+	}
+	if typ, err := a.resolveType(objIdent.Value); err == nil {
+		return recordTypeValueType(typ)
 	}
 	return nil
 }

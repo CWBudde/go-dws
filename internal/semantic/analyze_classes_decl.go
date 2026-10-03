@@ -799,12 +799,20 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 	defer func() { a.symbols = oldSymbols }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
-	// Bind 'Self', fields, properties, constants, and methods to scope.
-	a.symbols.defineInternal("Self", recordType, decl.Token.Pos)
-	for fieldName, fieldType := range recordType.Fields {
-		a.symbols.Define(recordType.FieldNames[fieldName], fieldType, token.Position{})
+	// Record class methods have no Self; only class-side members are in scope.
+	previousClassMethod := a.inClassMethod
+	a.inClassMethod = decl.IsClassMethod
+	defer func() { a.inClassMethod = previousClassMethod }()
+	if !decl.IsClassMethod {
+		a.symbols.defineInternal("Self", recordType, decl.Token.Pos)
+		for fieldName, fieldType := range recordType.Fields {
+			a.symbols.Define(recordType.FieldNames[fieldName], fieldType, token.Position{})
+		}
 	}
 	for _, propInfo := range recordType.Properties {
+		if decl.IsClassMethod && !recordPropertyIsStatic(recordType, propInfo) {
+			continue
+		}
 		a.symbols.Define(propInfo.Name, propInfo.Type, token.Position{})
 	}
 	for _, constInfo := range recordType.Constants {
@@ -814,6 +822,9 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 		a.symbols.Define(recordType.ClassVarNames[varName], varType, token.Position{})
 	}
 	for methodName, methodType := range recordType.Methods {
+		if decl.IsClassMethod {
+			continue
+		}
 		a.symbols.DefineFunction(recordType.MethodNames[methodName], methodType, token.Position{})
 	}
 	for methodName, methodType := range recordType.ClassMethods {
