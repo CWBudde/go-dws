@@ -322,12 +322,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		}
 
 		paramType := selectedSignature.Parameters[i]
-		argType := a.analyzeExpressionWithExpectedType(arg, paramType)
-		if argType != nil && !a.canAssign(argType, paramType) {
-			a.addError("argument %d to constructor of '%s' has type %s, expected %s at %s",
-				i+1, className, argType.String(), paramType.String(),
-				expr.Token.Pos.String())
-		}
+		a.analyzeCallArgument(i, arg, paramType, i < len(selectedSignature.StrictParams) && selectedSignature.StrictParams[i])
 	}
 
 	// "TClass.Create(args)" resolved to a same-named class method, not a
@@ -1020,12 +1015,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCallFromNew(expr *ast.NewExpression,
 		}
 
 		paramType := funcType.Parameters[i]
-		argType := a.analyzeExpressionWithExpectedType(arg, paramType)
-		if argType != nil && !a.canAssign(argType, paramType) {
-			a.addError("argument %d to '%s.%s' has type %s, expected %s at %s",
-				i+1, recordType.Name, methodName, argType.String(), paramType.String(),
-				expr.Token.Pos.String())
-		}
+		a.analyzeCallArgument(i, arg, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i])
 	}
 
 	return funcType.ReturnType

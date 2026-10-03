@@ -431,24 +431,28 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 }
 
 // defineHelperOverloadsInScope brings the helper's own methods into scope under their
-// declared casing. MethodOverloads keys are normalized, so the spelling is recovered
-// from the AST to keep identifier-case hints off correct usages.
+// declared casing and overload directives. Signatures and declarations are in
+// source order, so a later directive cannot affect an earlier inline body.
 func (a *Analyzer) defineHelperOverloadsInScope(helperType *types.HelperType, visibleOverloads map[string][]*types.FunctionType) {
-	declaredNames := make(map[string]string)
+	declaredMethods := make(map[string][]*ast.FunctionDecl)
 	if helperDecl, ok := helperType.Decl.(*ast.HelperDecl); ok && helperDecl != nil {
 		for _, m := range helperDecl.Methods {
 			if m != nil && m.Name != nil {
-				declaredNames[ident.Normalize(m.Name.Value)] = m.Name.Value
+				key := ident.Normalize(m.Name.Value)
+				declaredMethods[key] = append(declaredMethods[key], m)
 			}
 		}
 	}
 	for name, overloads := range visibleOverloads {
-		declName := declaredNames[ident.Normalize(name)]
-		if declName == "" {
-			declName = name
-		}
-		for _, methodType := range overloads {
-			if err := a.symbols.DefineOverload(declName, methodType, true, false, token.Position{}); err != nil {
+		methods := declaredMethods[ident.Normalize(name)]
+		for i, methodType := range overloads {
+			declName := name
+			hasOverloadDirective := false
+			if i < len(methods) {
+				declName = methods[i].Name.Value
+				hasOverloadDirective = methods[i].IsOverload
+			}
+			if err := a.symbols.DefineOverload(declName, methodType, hasOverloadDirective, false, token.Position{}); err != nil {
 				a.symbols.DefineFunction(declName, methodType, token.Position{})
 			}
 		}

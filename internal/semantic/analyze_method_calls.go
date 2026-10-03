@@ -127,7 +127,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check argument types
 		for i, arg := range expr.Arguments {
-			a.analyzeCallArgument(i, arg, methodType.Parameters[i])
+			a.analyzeCallArgument(i, arg, methodType.Parameters[i], i < len(methodType.StrictParams) && methodType.StrictParams[i])
 		}
 
 		return methodType.ReturnType
@@ -194,7 +194,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 					if i >= len(methodType.Parameters) {
 						break
 					}
-					a.analyzeCallArgument(i, arg, methodType.Parameters[i])
+					a.analyzeCallArgument(i, arg, methodType.Parameters[i], i < len(methodType.StrictParams) && methodType.StrictParams[i])
 				}
 
 				return methodType.ReturnType
@@ -258,7 +258,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			// Check argument types (in the context of the selected signature,
 			// so literals such as [] or nil adopt the parameter's type)
 			for i := range expr.Arguments {
-				a.analyzeSelfCallArgument(i, expr.Arguments, method.Parameters[i], expr.Method.Token.Pos)
+				a.analyzeSelfCallArgument(i, expr.Arguments, method.Parameters[i], expr.Method.Token.Pos, i < len(method.StrictParams) && method.StrictParams[i])
 			}
 
 			return method.ReturnType
@@ -296,11 +296,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				}
 
 				expectedElemType := setType.ElementType
-				argType := a.analyzeExpressionWithExpectedType(expr.Arguments[0], expectedElemType)
-				if argType != nil && expectedElemType != nil && !a.canAssign(argType, expectedElemType) {
-					a.addError("argument 1 to set method '%s' has type %s, expected %s at %s",
-						methodName, argType.String(), expectedElemType.String(), expr.Token.Pos.String())
-				}
+				a.analyzeCallArgument(0, expr.Arguments[0], expectedElemType)
 				return types.VOID
 			default:
 				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value,
@@ -361,7 +357,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				expectedType = helperMethod.Parameters[i]
 			}
 			// The expected type enables lambda parameter type inference.
-			a.analyzeSelfCallArgument(i, expr.Arguments, expectedType, expr.Method.Token.Pos)
+			a.analyzeSelfCallArgument(i, expr.Arguments, expectedType, expr.Method.Token.Pos, i < len(helperMethod.StrictParams) && helperMethod.StrictParams[i])
 		}
 
 		return helperMethod.ReturnType
@@ -425,7 +421,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		for i, arg := range expr.Arguments {
-			a.analyzeCallArgument(i, arg, methodType.Parameters[i])
+			a.analyzeCallArgument(i, arg, methodType.Parameters[i], i < len(methodType.StrictParams) && methodType.StrictParams[i])
 		}
 
 		// Resolved to a same-named class method rather than a constructor.
@@ -594,7 +590,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 
 		// Check argument types
 		for i, arg := range expr.Arguments {
-			a.analyzeCallArgument(i, arg, methodType.Parameters[i])
+			a.analyzeCallArgument(i, arg, methodType.Parameters[i], i < len(methodType.StrictParams) && methodType.StrictParams[i])
 		}
 	}
 

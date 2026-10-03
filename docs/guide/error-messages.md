@@ -45,6 +45,29 @@ first, at the supplied expression. Parameter passing modes (`const`, `var`, and
 parameters can also report `More arguments expected` before the type mismatch,
 matching DWScript's diagnostic recovery.
 
+### Call arguments and duplicate methods
+
+Call argument mismatches report `Argument N expects type "X" instead of "Y"`
+at the supplied expression, with zero-based numbering. A procedure call has no
+value, so its diagnostic ends after the expected type. An argument with its own
+error does not receive an additional type-mismatch diagnostic. Strict parameters
+declared with `type` reject implicit conversions, including in class methods and
+constructors; ordinary parameters retain expected-type inference and conversions.
+
+Record instance and helper methods reserve argument zero for their receiver.
+Their first written argument is numbered one, and the shifted index selects the
+next written argument's position, or the method name when none remains. Methods on classes,
+record class methods, constructors, and set `Include`/`Exclude` use ordinary
+argument numbering.
+
+A named routine marked `overload` reports
+`There is no overloaded version of "X" that can be called with these arguments`
+for an argument-count mismatch, even if only one overload is currently visible.
+Unmarked routines retain `More arguments expected`, `Too many arguments`, or
+`No arguments expected`. A duplicate class-method signature reports
+`There is already a method with name "X"` at the completed header: its semicolon
+when no directive follows, otherwise the token after the last directive.
+
 ### Incompatible type pairs
 
 Ordinary scalar and interface assignments report

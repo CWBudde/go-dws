@@ -74,7 +74,7 @@ type
 procedure TTest.Proc;
 begin
 end;
-`, "duplicate method")
+`, `There is already a method with name "Proc"`)
 }
 
 // TestResourcestringRejectsNonStringValue covers that a resourcestring must have

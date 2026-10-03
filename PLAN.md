@@ -126,19 +126,6 @@ Completed subitems are retained here until this phase closes. Details and valida
     indexed-property lookup, including nested arrays and supplier exceptions;
     retain grouped indices for intermediate record default properties.
 
-### 1.4 Call-argument and overload sentences — S
-
-- [ ] S Move the remaining invented `argument N has type …` sites to
-  `analyzeCallArgument`/`analyzeSelfCallArgument`: member calls, implicit-Self calls, record
-  class methods, the implicit helper path and constructors (`analyze_function_calls.go`),
-  `inherited` calls (`analyze_special.go`), two sites in `analyze_classes.go`, set
-  `Include`/`Exclude` (`analyze_method_calls.go`).
-- [ ] S `addArgumentCountError` (`analyze_function_calls.go`) should prefer
-  `There is no overloaded version of "X" that can be called with these arguments` when
-  `Symbol.HasOverloadDirective` is set (`HelpersFail/helper_overload_error`).
-- [ ] S Class-method path says `duplicate method signature` where DWScript says
-  `There is already a method with name "X"` (`empty_body`, `member_duplicates`, `method_implem`).
-
 ### 1.5 Remaining shapes by origin — L
 
 Work each batch largest shape first, mapping every invented sentence to DWScript's

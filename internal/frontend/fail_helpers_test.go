@@ -280,14 +280,14 @@ func TestCompile_MetaclassHelperPrecedenceIsStable(t *testing.T) {
 // TestCompile_HelperInlineBodySeesEarlierOverloadsOnly pins that an inline helper
 // method body is compiled where it is written: HelpersFail/helper_overload_error
 // calls a two-argument overload declared *after* the body, which DWScript rejects
-// at the call name. go-dws now rejects it too; the exact sentence still reads
-// "Too many arguments" because the wording is chosen by the shared argument-count
-// path in analyze_function_calls.go, so only the anchor is pinned here.
+// at the call name, using the overload sentence even when only one declaration
+// is visible. Compare the complete diagnostic, not just its position.
 func TestCompile_HelperInlineBodySeesEarlierOverloadsOnly(t *testing.T) {
 	source := readHelperFixture(t, "helper_overload_error")
 	got := Compile(source, "<test>", semantic.HintsLevelPedantic).DiagnosticStrings()
-	if len(got) != 1 || !strings.Contains(got[0], "[line: 2, column: 50]") {
-		t.Fatalf("expected one diagnostic anchored at line 2, column 50, got %q", got)
+	want := `Syntax Error: There is no overloaded version of "Hello" that can be called with these arguments [line: 2, column: 50]`
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("diagnostics = %q, want [%q]", got, want)
 	}
 }
 

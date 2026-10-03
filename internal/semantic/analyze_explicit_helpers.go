@@ -96,7 +96,7 @@ func (a *Analyzer) analyzeExplicitHelperCall(helper *types.HelperType, member *a
 					i+1, member.Value, arg.String(), arg.Pos().String())
 			}
 		}
-		a.analyzeCallArgument(i, arg, signature.Parameters[i])
+		a.analyzeCallArgument(i, arg, signature.Parameters[i], i < len(signature.StrictParams) && signature.StrictParams[i])
 	}
 	return signature.ReturnType, true
 }
