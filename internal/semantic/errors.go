@@ -714,6 +714,16 @@ func NewCannotAssignTypesError(pos lexer.Position, from, to string) *SemanticErr
 	}
 }
 
+// NewClassDoesNotImplementInterfaceError reports an invalid class-to-interface conversion.
+func NewClassDoesNotImplementInterfaceError(pos lexer.Position, className, interfaceName string) *SemanticError {
+	return &SemanticError{
+		Type:     ErrorTypeMismatch,
+		Message:  fmt.Sprintf(`Class "%s" does not implement interface "%s"`, className, interfaceName),
+		Pos:      pos,
+		Severity: SeverityError,
+	}
+}
+
 // NewTooManyIndicesError reports an index beyond an array's dimensions.
 func NewTooManyIndicesError(pos lexer.Position) *SemanticError {
 	return &SemanticError{Type: ErrorArrayIndex, Message: "Too many indices", Pos: pos, Severity: SeverityError}
@@ -751,7 +761,7 @@ func NewArrayDimensionTypeError(pos lexer.Position, dimension int, got string) *
 	got = errors.SimplifyTypeName(got)
 	return &SemanticError{
 		Type:     ErrorArrayIndex,
-		Message:  fmt.Sprintf("array dimension %d must be integer, got %s", dimension, got),
+		Message:  "Integer expression expected",
 		Pos:      pos,
 		Severity: SeverityError,
 		TypeName: got,

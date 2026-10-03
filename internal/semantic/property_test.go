@@ -1001,7 +1001,7 @@ begin
 	o.Value := 'bad';
 end;
 `,
-			expectedError: `Argument 0 expects type "Integer" instead of "String"`,
+			expectedError: `Incompatible types: Cannot assign "String" to "Integer"`,
 		},
 		{
 			name: "metaclass property read needs object reference",

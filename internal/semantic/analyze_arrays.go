@@ -525,7 +525,6 @@ func (a *Analyzer) analyzeNewArrayExpression(expr *ast.NewArrayExpression) types
 		// Dimension must be integer
 		if !dimType.Equals(types.INTEGER) {
 			a.addStructuredError(NewArrayDimensionTypeError(dimExpr.Pos(), i+1, dimType.String()))
-			return nil
 		}
 	}
 

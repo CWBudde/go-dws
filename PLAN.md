@@ -47,7 +47,14 @@ sentence is the easy half.
 
 ### 1.3 `Cannot assign "X" to "Y"` — M
 
-- [ ] S Remaining `Cannot assign` sites from the worklist.
+- [ ] M Remaining `Cannot assign` sites from the worklist: array constructors and
+  recovery (`array_assign_error3`, `array_const`), compound
+  operators and routine-pointer recovery (`assign_op_incompatible`, `func_ptr1`),
+  enum binding (`enums9`),
+  casts (`as_error`, `object_relops`), record metatypes (`record_meta`), and anonymous
+  procedure parsing (`JSONConnectorFail/autobox`). Scalar/interface RHS anchors and
+  field-backed property writes, class-to-interface assignment wording, and
+  multidimensional allocation diagnostics are closed; see the October progress log.
 
 ### 1.4 Call-argument and overload sentences — S
 
@@ -224,7 +231,9 @@ single-fixture work; the per-suite list is in
 Take each suite to zero after Phases 1–3 have landed, one-line near misses first
 (`just fixture-report --in-scope --classify --category <Cat> --list-fails`).
 
-- [ ] InterfacesFail.
+- [ ] InterfacesFail, including explicit class-to-interface implementation checks
+  (`interface_inheritence1`: implementing a derived interface does not implicitly
+  declare its base interface on the class).
 - [ ] OverloadsFail.
 - [ ] GenericsFail — includes `implem_mismatch1`'s `T expected but u found` for a mismatched
   out-of-line type-parameter name (substitution is positional today).

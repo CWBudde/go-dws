@@ -14,6 +14,20 @@ import (
 // Property Semantic Analysis
 // ============================================================================
 
+// reportPropertyAssignmentMismatch treats a field-backed writer like a field
+// assignment. Method-backed writers retain their setter-argument diagnostic.
+func (a *Analyzer) reportPropertyAssignmentMismatch(value ast.Expression, prop *types.PropertyInfo, got types.Type, accessorPos, assignmentPos token.Position) {
+	if prop.WriteKind == types.PropAccessField && value != nil {
+		if a.reportClassInterfaceAssignmentMismatch(assignmentPos, got, prop.Type) {
+			return
+		}
+		a.addStructuredError(NewCannotAssignTypesError(allocationMismatchPos(value, value.Pos()),
+			semanticTypeNameForDiagnostic(got), semanticTypeNameForDiagnostic(prop.Type)))
+		return
+	}
+	a.addStructuredError(NewPropertyValueTypeMismatchError(accessorPos, prop.Type.String(), got.String()))
+}
+
 // pluralizeParam returns "parameter" or "parameters" based on count.
 func pluralizeParam(count int) string {
 	if count == 1 {

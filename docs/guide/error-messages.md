@@ -47,6 +47,22 @@ matching DWScript's diagnostic recovery.
 
 ### Incompatible type pairs
 
+Ordinary scalar and interface assignments report
+`Incompatible types: Cannot assign "X" to "Y"` at the right-hand expression.
+Field-backed property writers use the same assignment sentence and position;
+method-backed writers retain their setter-argument diagnostic at the property.
+These rules also apply to inherited fields and implicit `Self` properties.
+An assignment from a class that does not implement the destination interface
+reports `Class "X" does not implement interface "Y"` at `:=`. Compatibility uses
+the source's declared type, including when its current object implements the
+interface. Method-backed property writers retain the setter-argument diagnostic.
+Array assignments retain their context-specific positions: array expressions can
+anchor at their operator or literal, while indexed writes normally anchor at `:=`.
+For an allocation expression (`new T[...]`), an assignment mismatch anchors at
+the opening `[` even when whitespace or a comment separates it from the type.
+Each invalid allocation dimension reports `Integer expression expected`; analysis
+continues through the remaining dimensions and retains the nested array type.
+
 Typed constants and incompatible coalesce operands report
 `Incompatible types: "X" and "Y"`, with the declared or left-hand type first.
 Dynamic-array coalescing accepts derived-class elements on the right when the

@@ -567,14 +567,14 @@ func TestNewArrayExpressionErrors(t *testing.T) {
 			input: `
 				var arr := new Integer[3.14];
 			`,
-			expectedError: "array dimension 1 must be integer, got Float",
+			expectedError: "Integer expression expected",
 		},
 		{
 			name: "non-integer dimension (string)",
 			input: `
 				var arr := new Integer['hello'];
 			`,
-			expectedError: "array dimension 1 must be integer, got String",
+			expectedError: "Integer expression expected",
 		},
 		{
 			name: "non-integer dimension (boolean)",
@@ -582,21 +582,21 @@ func TestNewArrayExpressionErrors(t *testing.T) {
 				var b: Boolean;
 				var arr := new Integer[b];
 			`,
-			expectedError: "array dimension 1 must be integer, got Boolean",
+			expectedError: "Integer expression expected",
 		},
 		{
 			name: "non-integer dimension in 2D array (first dimension)",
 			input: `
 				var arr := new Integer[3.14, 20];
 			`,
-			expectedError: "array dimension 1 must be integer, got Float",
+			expectedError: "Integer expression expected",
 		},
 		{
 			name: "non-integer dimension in 2D array (second dimension)",
 			input: `
 				var arr := new Integer[10, 'hello'];
 			`,
-			expectedError: "array dimension 2 must be integer, got String",
+			expectedError: "Integer expression expected",
 		},
 		{
 			name: "undefined element type",
