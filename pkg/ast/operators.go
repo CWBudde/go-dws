@@ -52,9 +52,12 @@ type OperatorDecl struct {
 	OperandTypes    []TypeExpression
 	OperatorToken   token.Token
 	BaseNode
-	Kind       OperatorKind
-	Arity      int
-	Visibility Visibility
+	// OperandValidationPos identifies the closing token of the operand list,
+	// where DWScript reports an incorrect number of declared operands.
+	OperandValidationPos token.Position
+	Kind                 OperatorKind
+	Arity                int
+	Visibility           Visibility
 }
 
 func (od *OperatorDecl) statementNode() {}

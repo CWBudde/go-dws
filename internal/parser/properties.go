@@ -170,7 +170,7 @@ parseDirectives:
 					Value: p.cursor.Current().Literal,
 				}
 			} else {
-				p.addError("expected identifier or expression after 'read'", ErrExpectedIdent)
+				p.addExpectedStopCurrent(lexer.IDENT)
 				return nil
 			}
 		case p.peekTokenIs(lexer.WRITE):
@@ -196,7 +196,7 @@ parseDirectives:
 					Value: p.cursor.Current().Literal,
 				}
 			default:
-				p.addError("expected identifier or expression after 'write'", ErrExpectedIdent)
+				p.addExpectedStopCurrent(lexer.IDENT)
 				return nil
 			}
 		default:

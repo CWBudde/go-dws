@@ -556,8 +556,8 @@ type
 	result := Compile(source, "property_decl_signature.pas", semantic.HintsLevelPedantic)
 	got := result.DiagnosticStrings()
 	want := []string{
-		`Syntax Error: property 'Count' getter method 'GetCount' returns String, expected Integer [line: 6, column: 3]`,
-		`Syntax Error: property 'Count' setter method 'SetCount' value parameter has type String, expected Integer [line: 6, column: 3]`,
+		`Syntax Error: Field/method "GetCount" has an incompatible type [line: 6, column: 32]`,
+		`Syntax Error: Method "SetCount" has incompatible parameters [line: 6, column: 47]`,
 	}
 
 	if len(got) != len(want) {

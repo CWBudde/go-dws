@@ -611,3 +611,57 @@ Validation passed: `go test ./...`, `just test-unit` (race detection),
 Full `just ci` still stops at the existing **1,230-issue** lint backlog,
 matching main's measured count; its tests and coverage were run separately.
 Tests used Go 1.26; lint used the installed linter's matching Go 1.27 toolchain.
+
+## 2026-10-03 — Property accessors and operator declarations (PLAN 1.5, second batch)
+
+This batch closes Phase 1.5's property-accessor-name and invalid-operator parser
+items, including the semantic prerequisites for their four complete fixture
+outputs. Phase 1.5 remains open for the other diagnostic origins.
+
+Missing `read`/`write` accessor names now report `Name expected` as compiler
+stops. Invalid class operators stop immediately with `Overloadable operator
+expected`; invalid global operators report that ordinary error and then attempt
+the operand list, producing the expected `"(" expected` stop for an identifier.
+Earlier class members survive parser recovery, preserving their diagnostics.
+
+Property signature validation checks getter result types and setter procedure
+kind before parameter compatibility. Explicit index mismatches retain the
+zero-based type detail followed by the method summary. Type/signature messages
+anchor at the accessor name and use declaration casing, including inherited
+members and constants. These measured anchors replace the initial plan's
+following-token assumption; no property AST metadata was needed.
+
+Global operator diagnostics check declared operand count at the closing
+parenthesis and binding result, count, then parameter types at the binding name.
+The public `ast.OperatorDecl.OperandValidationPos` records that closing token;
+its primitive field does not change generated visitor traversal. A separate
+source-local declaration ledger preserves rejected bindings for later duplicate
+checks without registering them as executable overloads. Ordinary, helper, and
+built-in conversion paths reject invalid registrations. Existing unary-minus
+and valid helper/conversion forms remain supported.
+
+Tests cover exact fixture output, compiler stops and earlier-member recovery,
+EOF and comment/newline anchors, casing and validation precedence, numeric and
+array signature rejection, Variant indices, var-binding parameters, rejected
+binding duplicates, local-scope isolation, and valid properties/operators.
+Independent review found five issues in signature compatibility, registration
+and constant casing; all were fixed with regression tests. An additional array
+result test prevents using runtime array compatibility for binding signatures.
+
+`just fixture-update` raises FailureScripts **302 → 305** (`property_error3`,
+`property_error4`, `class_operator3`) and OperatorOverloadFail **3 → 4**
+(`operator_overload1`). The generated snapshot is **1,404 / 2,014**, with no other
+baseline changes. Fixture sources, expectations and scoring remain unchanged.
+CLI comparisons against main `27ba61db` show all four gains and one fluctuating
+BuildScripts `init_order2` difference. Twelve direct runs per binary reproduce
+multiple initialization/finalization orders in both revisions; the stable
+BuildScripts floor remains seven. No other in-scope fixture newly fails.
+
+Validation passed: `go test ./...`, `just test-unit` (race detection),
+`just test-coverage`, `just check-fmt`, `git diff --check`, and
+`go mod tidy -diff`. `go generate ./pkg/ast` produced no visitor changes.
+`golangci-lint run --new-from-rev=27ba61db` reports **zero issues**.
+Full `just ci` stops at **1,230 existing lint findings**, matching the measured
+main baseline; tests and coverage passed separately. Tests used Go 1.26, lint
+the installed linter's matching Go 1.27 toolchain, and a writable Go cache with
+`TMPDIR=/tmp` and `GOFLAGS='-buildvcs=false -p=1'`.

@@ -76,11 +76,14 @@ type Analyzer struct {
 
 	// mainStatement is the top-level main-program statement being analyzed, if any;
 	// see reportUnconsumedPropertyValue.
-	mainStatement         ast.Statement
-	caseHintIdentifiers   map[*ast.Identifier]bool
-	currentSelfType       types.Type
-	forwardMethodNames    map[string]string
-	globalOperators       *types.OperatorRegistry
+	mainStatement       ast.Statement
+	caseHintIdentifiers map[*ast.Identifier]bool
+	currentSelfType     types.Type
+	forwardMethodNames  map[string]string
+	globalOperators     *types.OperatorRegistry
+	// operatorDeclarations retains source-local signatures even when a binding
+	// fails validation. Only valid bindings enter globalOperators.
+	operatorDeclarations  map[*SymbolTable][]*types.OperatorSignature
 	subranges             map[string]*types.SubrangeType
 	functionPointers      map[string]*types.FunctionPointerType
 	currentFunction       *ast.FunctionDecl

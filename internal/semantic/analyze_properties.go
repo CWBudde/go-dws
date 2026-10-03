@@ -328,8 +328,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			// Only class properties can read from class variables
 			if propInfo.IsClassProperty {
 				if !propType.Equals(fieldType) {
-					a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-						"property '"+propName+"' read class variable '"+readSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
+					a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
 					return
 				}
 				a.recordClassFieldUsage(classType, readSpecName)
@@ -343,8 +342,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		// 2. Check if it's a constant
 		if constantType, constantFound := a.getConstantType(classType, readSpecName); constantFound {
 			if !propType.Equals(constantType) {
-				a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-					"property '"+propName+"' read constant '"+readSpecName+"' has type "+constantType.String()+", expected "+propType.String()))
+				a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
 				return
 			}
 			propInfo.ReadKind = types.PropAccessField // Constants are treated like fields
@@ -368,8 +366,7 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				// A field of a derived class may back a property of a base
 				// class type (covariant read access).
 				if !propType.Equals(fieldType) && !a.canAssign(fieldType, propType) {
-					a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-						"property '"+propName+"' read field '"+readSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
+					a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
 					return
 				}
 				// The backing field is referenced by this accessor; mark it used
@@ -412,34 +409,16 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			// method (the accessor is invoked on the class), so no class-method
 			// rejection is applied here.
 
-			// Getter signature: for indexed properties, method must accept index parameters
-			// and return property type. For non-indexed, method must take no parameters
-			// and return property type.
-
-			expectedParamCount := len(indexParamTypes)
-			if len(methodType.Parameters) != expectedParamCount {
-				a.addStructuredError(NewPropertyDeclarationArgumentCountError(prop.Token.Pos,
-					"property '"+propName+"' getter method '"+readSpecName+"' has "+
-						formatInt(len(methodType.Parameters))+" "+pluralizeParam(len(methodType.Parameters))+
-						", expected "+formatInt(expectedParamCount)+" "+pluralizeParam(expectedParamCount)))
+			pos := propertyAccessorDiagnosticPos(prop, false)
+			name := a.propertyAccessorDeclaredName(classType, readSpecName)
+			// Upstream checks the result before the index signature.
+			if methodType.ReturnType == nil || !methodType.ReturnType.Equals(propType) {
+				a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
 				return
 			}
-
-			// Verify getter signature includes index parameters
-			for i, paramType := range indexParamTypes {
-				if !methodType.Parameters[i].Equals(paramType) {
-					a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-						"property '"+propName+"' getter method '"+readSpecName+"' parameter "+
-							formatInt(i+1)+" has type "+methodType.Parameters[i].String()+", expected "+paramType.String()))
-					return
-				}
-			}
-
-			// Verify return type matches property type
-			if !methodType.ReturnType.Equals(propType) {
-				a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-					"property '"+propName+"' getter method '"+readSpecName+"' returns "+
-						methodType.ReturnType.String()+", expected "+propType.String()))
+			if !a.checkPropertyAccessorParameters(prop, methodType, indexParamTypes, nil, pos) {
+				a.addStructuredError(NewPropertyDeclarationArgumentCountError(pos,
+					fmt.Sprintf(`Method "%s" has incompatible parameters`, name)))
 				return
 			}
 
@@ -564,8 +543,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			}
 		}
 		if found && !propType.Equals(fieldType) {
-			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-				"class property '"+propName+"' write field '"+writeSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
+			a.reportPropertyAccessorTypeMismatch(prop, classType, writeSpecName, true)
 			return
 		}
 	} else {
@@ -583,8 +561,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			}
 		}
 		if found && !propType.Equals(fieldType) {
-			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-				"property '"+propName+"' write field '"+writeSpecName+"' has type "+fieldType.String()+", expected "+propType.String()))
+			a.reportPropertyAccessorTypeMismatch(prop, classType, writeSpecName, true)
 			return
 		}
 	}
@@ -624,42 +601,16 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			}
 		}
 
-		// Setter signature: for indexed properties, method must accept index parameters
-		// plus the property value. For non-indexed, method must take only the value parameter.
-		// Setter must return void.
-
-		expectedParamCount := len(indexParamTypes) + 1 // index params + value param
-		if len(methodType.Parameters) != expectedParamCount {
-			a.addStructuredError(NewPropertyDeclarationArgumentCountError(prop.Token.Pos,
-				"property '"+propName+"' setter method '"+writeSpecName+"' has "+
-					formatInt(len(methodType.Parameters))+" "+pluralizeParam(len(methodType.Parameters))+
-					", expected "+formatInt(expectedParamCount)+" "+pluralizeParam(expectedParamCount)))
+		pos := propertyAccessorDiagnosticPos(prop, true)
+		name := a.propertyAccessorDeclaredName(classType, writeSpecName)
+		// A function cannot supply a writer, regardless of its parameters.
+		if methodType.ReturnType != nil && !methodType.ReturnType.Equals(types.VOID) {
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos, "Procedure expected"))
 			return
 		}
-
-		// Verify setter signature includes index parameters
-		for i, paramType := range indexParamTypes {
-			if !methodType.Parameters[i].Equals(paramType) {
-				a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-					"property '"+propName+"' setter method '"+writeSpecName+"' parameter "+
-						formatInt(i+1)+" has type "+methodType.Parameters[i].String()+", expected "+paramType.String()))
-				return
-			}
-		}
-
-		// Verify last parameter is the property value with matching type
-		valueParamIndex := len(indexParamTypes)
-		if !methodType.Parameters[valueParamIndex].Equals(propType) {
-			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-				"property '"+propName+"' setter method '"+writeSpecName+"' value parameter has type "+
-					methodType.Parameters[valueParamIndex].String()+", expected "+propType.String()))
-			return
-		}
-
-		// Verify return type is void
-		if methodType.ReturnType != types.VOID {
-			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(prop.Token.Pos,
-				"property '"+propName+"' setter method '"+writeSpecName+"' must return void, not "+methodType.ReturnType.String()))
+		if !a.checkPropertyAccessorParameters(prop, methodType, indexParamTypes, propType, pos) {
+			a.addStructuredError(NewPropertyDeclarationArgumentCountError(pos,
+				fmt.Sprintf(`Method "%s" has incompatible parameters`, name)))
 			return
 		}
 

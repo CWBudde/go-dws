@@ -173,7 +173,7 @@ type TTest = class
 	FValue: String;
 	property Count: Integer read FValue;
 end;`,
-			expectedError: "read field 'FValue' has type String, expected Integer",
+			expectedError: `Field/method "FValue" has an incompatible type`,
 		},
 		{
 			name: "write field type mismatch",
@@ -182,7 +182,7 @@ type TTest = class
 	FValue: String;
 	property Count: Integer write FValue;
 end;`,
-			expectedError: "write field 'FValue' has type String, expected Integer",
+			expectedError: `Symbol "FValue" has an incompatible type`,
 		},
 		{
 			name: "getter wrong return type",
@@ -191,7 +191,7 @@ type TTest = class
 	function GetCount: String; begin Result := ''; end;
 	property Count: Integer read GetCount;
 end;`,
-			expectedError: "getter method 'GetCount' returns String, expected Integer",
+			expectedError: `Field/method "GetCount" has an incompatible type`,
 		},
 		{
 			name: "setter wrong parameter type",
@@ -200,7 +200,7 @@ type TTest = class
 	procedure SetCount(value: String); begin end;
 	property Count: Integer write SetCount;
 end;`,
-			expectedError: "setter method 'SetCount' value parameter has type String, expected Integer",
+			expectedError: `Method "SetCount" has incompatible parameters`,
 		},
 		{
 			name: "setter not void",
@@ -209,7 +209,7 @@ type TTest = class
 	function SetCount(value: Integer): Boolean; begin Result := true; end;
 	property Count: Integer write SetCount;
 end;`,
-			expectedError: "setter method 'SetCount' must return void",
+			expectedError: `Procedure expected`,
 		},
 		{
 			name: "getter has parameters for non-indexed property",
@@ -218,7 +218,7 @@ type TTest = class
 	function GetValue(x: Integer): Integer; begin Result := 0; end;
 	property Value: Integer read GetValue;
 end;`,
-			expectedError: "getter method 'GetValue' has 1 parameter, expected 0",
+			expectedError: `Method "GetValue" has incompatible parameters`,
 		},
 		{
 			name: "setter missing value parameter for non-indexed property",
@@ -227,7 +227,7 @@ type TTest = class
 	procedure SetValue; begin end;
 	property Value: Integer write SetValue;
 end;`,
-			expectedError: "setter method 'SetValue' has 0 parameters, expected 1 parameter",
+			expectedError: `Method "SetValue" has incompatible parameters`,
 		},
 		{
 			name: "default property not indexed",
@@ -256,7 +256,7 @@ type TTest = class
 	function GetItem: String; begin Result := ''; end;
 	property Items[index: Integer]: String read GetItem;
 end;`,
-			expectedError: "getter method 'GetItem' has 0 parameters, expected 1 parameter",
+			expectedError: `Method "GetItem" has incompatible parameters`,
 		},
 		{
 			name: "indexed property setter missing index parameter",
@@ -265,7 +265,7 @@ type TTest = class
 	procedure SetItem(value: String); begin end;
 	property Items[index: Integer]: String write SetItem;
 end;`,
-			expectedError: "setter method 'SetItem' has 1 parameter, expected 2 parameters",
+			expectedError: `Method "SetItem" has incompatible parameters`,
 		},
 		{
 			name: "indexed property getter wrong index type",
@@ -274,7 +274,7 @@ type TTest = class
 	function GetItem(i: String): Integer; begin Result := 0; end;
 	property Items[i: Integer]: Integer read GetItem;
 end;`,
-			expectedError: "getter method 'GetItem' parameter 1 has type String, expected Integer",
+			expectedError: `Parameter 0 - Type "Integer" expected (instead of "String")`,
 		},
 		{
 			name: "indexed property setter wrong index type",
@@ -283,7 +283,7 @@ type TTest = class
 	procedure SetItem(i: String; value: Integer); begin end;
 	property Items[i: Integer]: Integer write SetItem;
 end;`,
-			expectedError: "setter method 'SetItem' parameter 1 has type String, expected Integer",
+			expectedError: `Parameter 0 - Type "Integer" expected (instead of "String")`,
 		},
 		{
 			name: "property with unknown type",
@@ -309,7 +309,7 @@ type TTest = class
 	function GetItem: String; begin Result := ''; end;
 	property First: String index 0 read GetItem;
 end;`,
-			expectedError: "getter method 'GetItem' has 0 parameters, expected 1 parameter",
+			expectedError: `Method "GetItem" has incompatible parameters`,
 		},
 		{
 			name: "index directive must be integer",

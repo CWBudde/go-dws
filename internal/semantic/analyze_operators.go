@@ -1,11 +1,12 @@
 package semantic
 
 import (
-	"strings"
+	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -32,6 +33,23 @@ func (a *Analyzer) analyzeOperatorDecl(decl *ast.OperatorDecl) {
 		operandTypes[i] = typ
 	}
 
+	expectedCount := 2
+	if decl.Kind == ast.OperatorKindConversion || (decl.OperatorSymbol == "-" && len(operandTypes) == 1) {
+		expectedCount = 1
+	}
+	validCount := len(operandTypes) == expectedCount
+	if !validCount {
+		pos := decl.OperandValidationPos
+		if pos.Line == 0 {
+			pos = decl.Pos()
+		}
+		a.reportOperatorDeclarationError(pos, fmt.Sprintf("Expected %d parameters (instead of %d)", expectedCount, len(operandTypes)))
+	}
+	duplicate := false
+	if validCount && decl.OperatorSymbol != "" && decl.Kind == ast.OperatorKindGlobal {
+		duplicate = a.recordOperatorDeclaration(decl.OperatorSymbol, operandTypes)
+	}
+
 	var resultType types.Type = types.VOID
 	if decl.ReturnType != nil {
 		var err error
@@ -47,7 +65,9 @@ func (a *Analyzer) analyzeOperatorDecl(decl *ast.OperatorDecl) {
 		return
 	}
 	if decl.BindingHelper != nil {
-		a.analyzeHelperOperatorBinding(decl, operandTypes, resultType)
+		if validCount && decl.OperatorSymbol != "" {
+			a.analyzeHelperOperatorBinding(decl, operandTypes, resultType, duplicate)
+		}
 		return
 	}
 
@@ -65,6 +85,9 @@ func (a *Analyzer) analyzeOperatorDecl(decl *ast.OperatorDecl) {
 			}
 			if matching {
 				if decl.Kind == ast.OperatorKindConversion {
+					if !validCount {
+						return
+					}
 					kind := types.ConversionExplicit
 					if ident.Equal(decl.OperatorSymbol, "implicit") {
 						kind = types.ConversionImplicit
@@ -86,18 +109,37 @@ func (a *Analyzer) analyzeOperatorDecl(decl *ast.OperatorDecl) {
 		return
 	}
 
-	if len(funcType.Parameters) != len(operandTypes) {
-		a.addError("binding '%s' for operator '%s' expects %d parameters, got %d at %s",
-			decl.Binding.Value, decl.OperatorSymbol, len(operandTypes), len(funcType.Parameters), decl.Token.Pos.String())
+	pos := decl.Binding.Pos()
+	// DWScript validates result type before binding parameters. Its expected
+	// parameter count comes from the operator, even after operand-count errors.
+	if funcType.ReturnType == nil || !operatorBindingTypesCompatible(funcType.ReturnType, resultType) {
+		a.reportOperatorDeclarationError(pos, fmt.Sprintf(`Result type should be "%s"`, semanticTypeNameForDiagnostic(resultType)))
 		return
 	}
-
+	if len(funcType.Parameters) != expectedCount {
+		a.reportOperatorDeclarationError(pos, fmt.Sprintf("Expected %d parameters (instead of %d)", expectedCount, len(funcType.Parameters)))
+		return
+	}
 	for i, paramType := range funcType.Parameters {
-		if !paramType.Equals(operandTypes[i]) {
-			a.addError("binding '%s' parameter %d type %s does not match operator operand type %s at %s",
-				decl.Binding.Value, i+1, paramType.String(), operandTypes[i].String(), decl.Token.Pos.String())
+		if i >= len(operandTypes) {
+			break
+		}
+		if !operatorBindingTypesCompatible(paramType, operandTypes[i]) {
+			a.reportOperatorDeclarationError(pos, fmt.Sprintf(`Parameter %d - Type "%s" expected (instead of "%s")`,
+				i, semanticTypeNameForDiagnostic(operandTypes[i]), semanticTypeNameForDiagnostic(paramType)))
 			return
 		}
+		if i < len(funcType.VarParams) && funcType.VarParams[i] {
+			a.reportOperatorDeclarationError(pos, fmt.Sprintf("Parameter %d - Var-parameter forbidden", i))
+			return
+		}
+	}
+	if !validCount || decl.OperatorSymbol == "" {
+		return
+	}
+	if duplicate {
+		a.reportOperatorDeclarationError(decl.Pos(), "An overload already exists for this operator and types")
+		return
 	}
 
 	if decl.Kind == ast.OperatorKindConversion {
@@ -136,16 +178,64 @@ func (a *Analyzer) analyzeOperatorDecl(decl *ast.OperatorDecl) {
 	}
 
 	if err := a.globalOperators.Register(sig); err != nil {
-		opSignatures := make([]string, len(operandTypes))
-		for i, typ := range operandTypes {
-			opSignatures[i] = typ.String()
-		}
-		a.addError("operator '%s' already defined for operand types (%s) at %s",
-			decl.OperatorSymbol, strings.Join(opSignatures, ", "), decl.Token.Pos.String())
+		a.reportOperatorDeclarationError(decl.Pos(), "An overload already exists for this operator and types")
 	}
 }
 
-func (a *Analyzer) analyzeHelperOperatorBinding(decl *ast.OperatorDecl, operands []types.Type, result types.Type) {
+// operatorBindingTypesCompatible is a signature relation, not an assignment:
+// primitive coercions (notably Integer to Float/Variant) are forbidden, while
+// aliases, class ancestry, and interface ancestry retain their type identity.
+func operatorBindingTypesCompatible(actual, expected types.Type) bool {
+	if types.OperatorTypesEqual(actual, expected) {
+		return true
+	}
+	actual, expected = types.GetUnderlyingType(actual), types.GetUnderlyingType(expected)
+	if actual == nil || expected == nil {
+		return false
+	}
+	switch actual := actual.(type) {
+	case *types.ClassType:
+		_, sameKind := expected.(*types.ClassType)
+		return sameKind && types.IsCompatible(actual, expected)
+	case *types.InterfaceType:
+		_, sameKind := expected.(*types.InterfaceType)
+		return sameKind && types.IsCompatible(actual, expected)
+	case *types.ClassOfType:
+		_, sameKind := expected.(*types.ClassOfType)
+		return sameKind && types.IsCompatible(actual, expected)
+	case *types.ArrayType:
+		right, sameKind := expected.(*types.ArrayType)
+		return sameKind && actual.IsDynamic() && right.IsDynamic() && operatorBindingTypesCompatible(right.ElementType, actual.ElementType)
+	}
+	return false
+}
+
+func (a *Analyzer) reportOperatorDeclarationError(pos token.Position, message string) {
+	a.addStructuredError(&SemanticError{Type: ErrorInvalidOperation, Pos: pos, Message: message, Severity: SeverityError})
+}
+
+// recordOperatorDeclaration tracks source declarations separately from executable
+// overloads. Upstream's duplicate check includes earlier rejected bindings in
+// the same local symbol table, compares unaliased operand types, and only checks
+// binary declarations.
+func (a *Analyzer) recordOperatorDeclaration(operator string, operands []types.Type) bool {
+	if a.operatorDeclarations == nil {
+		a.operatorDeclarations = make(map[*SymbolTable][]*types.OperatorSignature)
+	}
+	duplicate := false
+	if len(operands) == 2 {
+		for _, previous := range a.operatorDeclarations[a.symbols] {
+			if ident.Equal(previous.Operator, operator) && types.OperatorOperandsEqual(previous.OperandTypes, operands) {
+				duplicate = true
+				break
+			}
+		}
+	}
+	a.operatorDeclarations[a.symbols] = append(a.operatorDeclarations[a.symbols], &types.OperatorSignature{Operator: operator, OperandTypes: operands})
+	return duplicate
+}
+
+func (a *Analyzer) analyzeHelperOperatorBinding(decl *ast.OperatorDecl, operands []types.Type, result types.Type, duplicate bool) {
 	sym, found := a.symbols.Resolve(decl.BindingHelper.Value)
 	if !found {
 		a.addError("binding '%s.%s' for operator '%s' not found at %s", decl.BindingHelper.Value, decl.Binding.Value, decl.OperatorSymbol, decl.Token.Pos.String())
@@ -172,6 +262,10 @@ func (a *Analyzer) analyzeHelperOperatorBinding(decl *ast.OperatorDecl, operands
 			continue
 		}
 		decl.BindingOverload = idx
+		if duplicate {
+			a.reportOperatorDeclarationError(decl.Pos(), "An overload already exists for this operator and types")
+			return
+		}
 		if err := a.globalOperators.Register(&types.OperatorSignature{Operator: decl.OperatorSymbol, OperandTypes: operands, ResultType: result, Binding: decl.BindingHelper.Value + "." + decl.Binding.Value}); err != nil {
 			a.addError("operator '%s' already defined for operand types (%s) at %s", decl.OperatorSymbol, types.FormatTypeList(operands), decl.Token.Pos.String())
 		}
