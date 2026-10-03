@@ -138,9 +138,13 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
 - [ ] `analyze_function_calls.go` / `analyze_method_calls.go`.
   - [ ] Remaining method/inherited arity and constructor overload sentences;
     preserve each path's ordering and recovery types.
-  - [ ] Var-parameter arguments: distinguish nonvariables from immutable variables,
-    retain parameter names, and measure anchors (`passing_const_var`,
-    `passing_const_var2`, `const_param2`, `self_not_writable`).
+  - [ ] Extend var-argument checks to remaining method/inherited/constructor,
+    helper and function-pointer call paths; measure receiver-shifted anchors
+    and retain read-only signature bindings. The named regular-call fixture
+    set is closed.
+  - [ ] Callable var-argument temporaries: investigate upstream writable
+    routine-reference data and runtime storage; existing `@Routine` rejection
+    remains until temporary reference slots are supported.
   - [ ] Remaining intrinsic diagnostics (`Assert`, `Inc`/`Dec`, and others);
     `Swap` zero/excess arguments and delimiter-stop recovery remain open.
   - [ ] Extend default-expression validation to method/record/helper signatures
@@ -158,8 +162,10 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
 
 The shipped 1.5 batches cover regular parameter defaults, `Swap` data-argument/type
 checks, immutable assignments, property accessor names/signatures, invalid
-operator recovery with global operator validation, and helper/class/record
-member-header stops with earlier declaration diagnostics. Their exact scope and evidence are in
+operator recovery with global operator validation, helper/class/record
+member-header stops with earlier declaration diagnostics, and regular var-argument
+checks with `Inc`/`Dec` first-argument validation and object `Self` recovery.
+Their exact scope and evidence are in
 [`the October progress log`](docs/history/progress-log-2026-10.md).
 
 ---

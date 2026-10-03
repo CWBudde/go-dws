@@ -279,7 +279,7 @@ func (p *Parser) parseAssignmentStatement(builder *NodeBuilder, left ast.Express
 
 	// Determine what kind of assignment this is
 	switch leftExpr := left.(type) {
-	case *ast.Identifier, *ast.MemberAccessExpression, *ast.IndexExpression:
+	case *ast.Identifier, *ast.MemberAccessExpression, *ast.IndexExpression, *ast.SelfExpression:
 		// Valid assignment targets
 		stmt := &ast.AssignmentStatement{
 			BaseNode: ast.BaseNode{Token: p.cursor.Current()},

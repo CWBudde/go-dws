@@ -221,8 +221,8 @@ func (a *Analyzer) analyzeFunctionBody(decl *ast.FunctionDecl, paramTypes []type
 
 	// Add parameters to function scope
 	for i, param := range decl.Parameters {
-		// Const parameters are read-only
-		if param.IsConst {
+		// Const and lazy parameters cannot provide writable storage.
+		if param.IsConst || param.IsLazy {
 			a.symbols.DefineParameter(param.Name.Value, paramTypes[i], param.Name.Token.Pos, true)
 		} else {
 			a.symbols.DefineParameter(param.Name.Value, paramTypes[i], param.Name.Token.Pos, false)
