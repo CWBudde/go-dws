@@ -161,7 +161,10 @@ func (a *Analyzer) analyzeArrayLiteral(lit *ast.ArrayLiteralExpression, expected
 			}
 
 			if !a.canAssign(elemType, expectedArrayType.ElementType) {
-				if a.inArrayAssignment {
+				// nil would otherwise defer to the other elements' type and let
+				// the constructor pass the assignment check.
+				_, elemIsNil := types.GetUnderlyingType(elemType).(*types.NilType)
+				if a.inArrayAssignment && !elemIsNil {
 					hasIncompatibleElements = true
 				} else {
 					a.addError("array element %d has type %s, expected %s at %s",
