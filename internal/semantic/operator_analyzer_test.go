@@ -248,3 +248,21 @@ func TestInvalidBuiltinConversionDoesNotRegister(t *testing.T) {
 		t.Fatalf("errors = %v", analyzer.Errors())
 	}
 }
+
+// Upstream TDynamicArraySymbol.DoIsOfType compares element types in reverse
+// (typSym.Typ.DoIsOfType(Typ)), so a binding returning an ancestor element
+// array satisfies a descendant element array result, but not vice versa.
+func TestGlobalOperatorArrayResultMirrorsUpstreamElementDirection(t *testing.T) {
+	decls := "type TBase = class end; type TChild = class(TBase) end;\n" +
+		"type TBaseArr = array of TBase; type TChildArr = array of TChild;\n" +
+		"function MakeBase(a, b: Integer): TBaseArr; begin end;\n" +
+		"function MakeChild(a, b: Integer): TChildArr; begin end;\n"
+
+	if _, err := analyzeSource(t, decls+"operator + (Integer, Integer): TChildArr uses MakeBase;"); err != nil {
+		t.Fatalf("ancestor element result rejected: %v", err)
+	}
+	if _, err := analyzeSource(t, decls+"operator + (Integer, Integer): TBaseArr uses MakeChild;"); err == nil ||
+		!strings.Contains(err.Error(), "Result type should be") {
+		t.Fatalf("descendant element result accepted or wrong error: %v", err)
+	}
+}

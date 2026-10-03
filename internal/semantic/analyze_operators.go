@@ -204,6 +204,8 @@ func operatorBindingTypesCompatible(actual, expected types.Type) bool {
 		_, sameKind := expected.(*types.ClassOfType)
 		return sameKind && types.IsCompatible(actual, expected)
 	case *types.ArrayType:
+		// Deliberately reversed: upstream TDynamicArraySymbol.DoIsOfType checks
+		// typSym.Typ.DoIsOfType(Typ), i.e. the expected element against the actual one.
 		right, sameKind := expected.(*types.ArrayType)
 		return sameKind && actual.IsDynamic() && right.IsDynamic() && operatorBindingTypesCompatible(right.ElementType, actual.ElementType)
 	}
