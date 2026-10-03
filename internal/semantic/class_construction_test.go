@@ -650,7 +650,7 @@ end;
 type TA = class
 end;`,
 			wantErr:       true,
-			errorContains: "duplicate method signature",
+			errorContains: `There is already a method with name "Go"`,
 		},
 		{
 			name: "declared but unimplemented method stays diagnosed (parent last)",

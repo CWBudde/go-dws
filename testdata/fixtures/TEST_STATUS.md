@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2041 |
-| Passed | 1390 |
-| Failed | 624 |
+| Passed | 1392 |
+| Failed | 622 |
 | Skipped (no applicable expectation) | 27 |
-| **Scored pass rate** | **69%** (1390/2014) |
+| **Scored pass rate** | **69%** (1392/2014) |
 
 ## Per-category
 
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 295 | 234 | 13 | 56% |
+| FailureScripts | 542 | 296 | 233 | 13 | 56% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -55,7 +55,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | GenericsFail | 8 | 1 | 7 | 0 | 12% |
 | GenericsPass | 23 | 23 | 0 | 0 | 100% |
 | GraphicsLib | 4 | 0 | 4 | 0 | 0% |
-| HelpersFail | 18 | 9 | 9 | 0 | 50% |
+| HelpersFail | 18 | 10 | 8 | 0 | 56% |
 | HelpersPass | 27 | 27 | 0 | 0 | 100% |
 | IniFileLib | 2 | 0 | 2 | 0 | 0% |
 | InnerClassesFail | 1 | 0 | 1 | 0 | 0% |

@@ -942,6 +942,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	lazyParams := make([]bool, 0, len(method.Parameters))
 	varParams := make([]bool, 0, len(method.Parameters))
 	constParams := make([]bool, 0, len(method.Parameters))
+	strictParams := make([]bool, 0, len(method.Parameters))
 
 	for _, param := range method.Parameters {
 		if param.Type == nil {
@@ -977,6 +978,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		lazyParams = append(lazyParams, param.IsLazy)
 		varParams = append(varParams, param.ByRef)
 		constParams = append(constParams, param.IsConst)
+		strictParams = append(strictParams, isStrictTypeAnnotation(param.Type))
 	}
 
 	// Auto-detect constructors and validate signatures.
@@ -1035,6 +1037,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	funcType.IsConstructor = method.IsConstructor
 	funcType.IsDestructor = method.IsDestructor
 	funcType.ParamTypeNames = paramTypeNames
+	funcType.StrictParams = strictParams
 
 	// Create method info and check for duplicate/ambiguous overloads.
 	methodInfo := &types.MethodInfo{
@@ -1069,11 +1072,18 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 				// The implementation may omit parameter defaults declared in the
 				// class declaration ("default not respecified"); keep them.
 				mergeDefaultValues(funcType, existing.Signature)
+				// Likewise a `type` (strict) modifier on the declaration binds
+				// callers even when the implementation spells the plain type.
+				mergeStrictParams(funcType, existing.Signature)
 				existing.Signature = funcType
 				isImplementationOfForward = true
 				break
 			}
-			a.addError("duplicate method signature for '%s' at %s", method.Name.Value, method.Token.Pos.String())
+			pos := method.HeaderEndPos
+			if pos.Line == 0 {
+				pos = method.Token.Pos
+			}
+			a.addError(`There is already a method with name "%s" at %s`, method.Name.Value, pos.String())
 			return
 		}
 		if a.parametersMatch(funcType, existing.Signature) && !funcType.ReturnType.Equals(existing.Signature.ReturnType) {

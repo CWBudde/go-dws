@@ -181,6 +181,11 @@ func (a *Analyzer) analyzeFunctionHelperDecl(decl *ast.FunctionDecl, paramTypes 
 	} else {
 		funcType = types.NewFunctionType(methodParams, returnType)
 	}
+	if len(decl.Parameters) == len(paramTypes) {
+		for i, param := range decl.Parameters[1:] {
+			funcType.StrictParams[i] = isStrictTypeAnnotation(param.Type)
+		}
+	}
 	helperType.MethodDeclNames = map[string]string{ident.Normalize(methodName): methodName}
 	helperType.Methods[ident.Normalize(methodName)] = funcType
 
@@ -431,24 +436,28 @@ func (a *Analyzer) analyzeHelperMethodBodyWithOverloads(decl *ast.FunctionDecl, 
 }
 
 // defineHelperOverloadsInScope brings the helper's own methods into scope under their
-// declared casing. MethodOverloads keys are normalized, so the spelling is recovered
-// from the AST to keep identifier-case hints off correct usages.
+// declared casing and overload directives. Signatures and declarations are in
+// source order, so a later directive cannot affect an earlier inline body.
 func (a *Analyzer) defineHelperOverloadsInScope(helperType *types.HelperType, visibleOverloads map[string][]*types.FunctionType) {
-	declaredNames := make(map[string]string)
+	declaredMethods := make(map[string][]*ast.FunctionDecl)
 	if helperDecl, ok := helperType.Decl.(*ast.HelperDecl); ok && helperDecl != nil {
 		for _, m := range helperDecl.Methods {
 			if m != nil && m.Name != nil {
-				declaredNames[ident.Normalize(m.Name.Value)] = m.Name.Value
+				key := ident.Normalize(m.Name.Value)
+				declaredMethods[key] = append(declaredMethods[key], m)
 			}
 		}
 	}
 	for name, overloads := range visibleOverloads {
-		declName := declaredNames[ident.Normalize(name)]
-		if declName == "" {
-			declName = name
-		}
-		for _, methodType := range overloads {
-			if err := a.symbols.DefineOverload(declName, methodType, true, false, token.Position{}); err != nil {
+		methods := declaredMethods[ident.Normalize(name)]
+		for i, methodType := range overloads {
+			declName := name
+			hasOverloadDirective := false
+			if i < len(methods) {
+				declName = methods[i].Name.Value
+				hasOverloadDirective = methods[i].IsOverload
+			}
+			if err := a.symbols.DefineOverload(declName, methodType, hasOverloadDirective, false, token.Position{}); err != nil {
 				a.symbols.DefineFunction(declName, methodType, token.Position{})
 			}
 		}
@@ -577,6 +586,7 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 
 	// Create function type for the method
 	var paramTypes []types.Type
+	var strictParams []bool
 	for _, param := range method.Parameters {
 		paramType, err := a.resolveType(getTypeExpressionName(param.Type))
 		if err != nil {
@@ -585,6 +595,7 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 			continue
 		}
 		paramTypes = append(paramTypes, paramType)
+		strictParams = append(strictParams, isStrictTypeAnnotation(param.Type))
 	}
 
 	var returnType types.Type
@@ -604,6 +615,7 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 	} else {
 		funcType = types.NewProcedureType(paramTypes)
 	}
+	funcType.StrictParams = strictParams
 
 	// Add method to helper
 	if helperType.MethodDeclNames == nil {

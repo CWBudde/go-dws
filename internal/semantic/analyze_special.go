@@ -96,16 +96,7 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 			// signature, so literals such as [] or nil adopt the parameter's type)
 			for idx, arg := range ie.Arguments {
 				paramType := ctorType.Parameters[idx]
-				argType := a.analyzeExpressionWithExpectedType(arg, paramType)
-				if argType == nil {
-					// Error already reported
-					continue
-				}
-				// Check type compatibility
-				if !a.canAssign(argType, paramType) {
-					a.addError("argument %d to inherited constructor '%s' has type %s, expected %s at %s",
-						idx+1, memberName, argType.String(), paramType.String(), ie.Token.Pos.String())
-				}
+				a.analyzeCallArgument(idx, arg, paramType, idx < len(ctorType.StrictParams) && ctorType.StrictParams[idx])
 			}
 
 			// Constructors don't have explicit return types in expressions
@@ -138,18 +129,8 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 
 			// Type check each argument
 			for idx, arg := range ie.Arguments {
-				argType := a.analyzeExpression(arg)
-				if argType == nil {
-					// Error already reported
-					continue
-				}
-
 				paramType := methodType.Parameters[idx]
-				// Check type compatibility (allow implicit conversions via canAssign)
-				if !a.canAssign(argType, paramType) {
-					a.addError("argument %d to inherited method '%s' has type %s, expected %s at %s",
-						idx+1, memberName, argType.String(), paramType.String(), ie.Token.Pos.String())
-				}
+				a.analyzeCallArgument(idx, arg, paramType, idx < len(methodType.StrictParams) && methodType.StrictParams[idx])
 			}
 
 			// Return the method's return type
@@ -224,12 +205,13 @@ func (a *Analyzer) analyzeHelperInheritedExpression(ie *ast.InheritedExpression,
 					memberName, len(methodType.Parameters), len(ie.Arguments), ie.Token.Pos.String())
 				return nil
 			}
-			for idx, arg := range ie.Arguments {
-				argType := a.analyzeExpression(arg)
-				if argType != nil && !a.canAssign(argType, methodType.Parameters[idx]) {
-					a.addError("argument %d to inherited helper method '%s' has type %s, expected %s at %s",
-						idx+1, memberName, argType.String(), methodType.Parameters[idx].String(), ie.Token.Pos.String())
-				}
+			callPos := ie.Token.Pos
+			if ie.Method != nil {
+				callPos = ie.Method.Token.Pos
+			}
+			for idx := range ie.Arguments {
+				a.analyzeSelfCallArgument(idx, ie.Arguments, methodType.Parameters[idx], callPos,
+					idx < len(methodType.StrictParams) && methodType.StrictParams[idx])
 			}
 			if methodType.ReturnType != nil {
 				return methodType.ReturnType

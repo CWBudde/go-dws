@@ -30,12 +30,13 @@ func (a *Analyzer) explicitHelperSignatures(helper *types.HelperType, name strin
 			var params []types.Type
 			var names []string
 			var defaults []interface{}
-			var lazy, byRef, constant []bool
+			var lazy, byRef, constant, strict []bool
 			if receiver := explicitHelperReceiverType(owner.TargetType, method); receiver != nil && !method.IsHelper {
 				params = append(params, receiver)
 				names = append(names, "Self")
 				defaults = append(defaults, nil)
 				lazy, byRef, constant = append(lazy, false), append(byRef, false), append(constant, false)
+				strict = append(strict, false)
 			}
 			for _, param := range method.Parameters {
 				paramType, err := a.resolveTypeExpression(param.Type)
@@ -50,12 +51,12 @@ func (a *Analyzer) explicitHelperSignatures(helper *types.HelperType, name strin
 				}
 				defaults = append(defaults, defaultValue)
 				lazy, byRef, constant = append(lazy, param.IsLazy), append(byRef, param.ByRef), append(constant, param.IsConst)
+				strict = append(strict, isStrictTypeAnnotation(param.Type))
 			}
-			signatures = append(signatures, explicitHelperSignature{
-				typ: types.NewFunctionTypeWithMetadata(params, names, defaults,
-					lazy, byRef, constant, a.helperMethodReturnType(method)),
-				method: method,
-			})
+			typ := types.NewFunctionTypeWithMetadata(params, names, defaults,
+				lazy, byRef, constant, a.helperMethodReturnType(method))
+			typ.StrictParams = strict
+			signatures = append(signatures, explicitHelperSignature{typ: typ, method: method})
 		}
 		if len(signatures) != 0 {
 			return signatures, declaredName
@@ -96,7 +97,7 @@ func (a *Analyzer) analyzeExplicitHelperCall(helper *types.HelperType, member *a
 					i+1, member.Value, arg.String(), arg.Pos().String())
 			}
 		}
-		a.analyzeCallArgument(i, arg, signature.Parameters[i])
+		a.analyzeCallArgument(i, arg, signature.Parameters[i], i < len(signature.StrictParams) && signature.StrictParams[i])
 	}
 	return signature.ReturnType, true
 }

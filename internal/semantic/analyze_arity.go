@@ -35,6 +35,8 @@ func (a *Analyzer) addNoArgumentsExpected(pos token.Position) {
 }
 
 // addArgumentCountError picks the wording upstream uses for the given counts.
+// A named routine marked overload uses the overload sentence even when it is
+// the only declaration visible at this call site.
 //
 // It is used by the call sites that name a routine — plain calls, class,
 // interface, record and helper methods, constructors and `new`. The
@@ -43,7 +45,11 @@ func (a *Analyzer) addNoArgumentsExpected(pos token.Position) {
 // calls still describe their own counts; converting those is a separate,
 // separately measurable change, since each carries its own per-built-in
 // diagnostic policy.
-func (a *Analyzer) addArgumentCountError(pos token.Position, got, minWanted, maxWanted int) {
+func (a *Analyzer) addArgumentCountError(pos token.Position, got, minWanted, maxWanted int, routine ...*Symbol) {
+	if len(routine) > 0 && routine[0] != nil && routine[0].HasOverloadDirective {
+		a.addNoOverloadedVersion(routine[0].Name, pos)
+		return
+	}
 	switch {
 	case got < minWanted:
 		a.addMoreArgumentsExpected(pos)

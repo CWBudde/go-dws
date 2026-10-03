@@ -506,3 +506,53 @@ found no remaining actionable issues after the storage fixes. Tracked and newly
 added Go files are formatted, and `git diff --check` passed. Checks used
 `GOCACHE=/tmp/go-dws-lint-cache`, `GOFLAGS='-buildvcs=false -p=1'`, and a writable
 temporary lint cache. The new branch starts at the merged main commit `34f25e8c`.
+
+## 2026-10-03 — Call arguments and overload diagnostics (PLAN 1.4)
+
+Remaining call-argument type checks now use the shared DWScript diagnostic
+helpers for member and implicit-Self calls, record class methods, constructors,
+inherited calls, and set `Include`/`Exclude`. Diagnostics use zero-based
+argument numbers and expression positions, with receiver shifts for record
+instance and helper methods. Valueless arguments retain the short expected-type
+sentence, and arguments with existing errors do not receive cascading mismatches.
+Expected-type inference and ordinary conversions remain available.
+
+Class signature construction now retains declared strict-parameter metadata,
+and explicit and implicit call checks honor it. Frontend regressions distinguish
+strict rejection from ordinary Integer-to-Float conversion. Named routines
+marked `overload` use the overload sentence for count mismatches even when
+only one declaration is visible. Helper scope bindings retain each declaration's
+actual directive and source-order visibility. Independent review exposed a later
+directive affecting an earlier inline body; a failing regression drove the fix.
+
+Duplicate class-method signatures now report
+`There is already a method with name "X"` at the completed method header.
+Forward implementations and distinct overloads remain valid. The completed
+Phase 1.4 item was removed from PLAN.md, and the error-message guide was updated.
+Broader `member_duplicates` collision tracking and `method_implem` body recovery
+remain in the existing follow-up phases, as scoped for this change. Inherited
+constructor overload-candidate policy is unchanged.
+
+`just fixture-update` raises FailureScripts **295 → 296** (`empty_body`) and
+HelpersFail **9 → 10** (`helper_overload_error`). The independent CLI
+`just fixture-report --in-scope` agrees on both category counts, with no
+category below its previous baseline. The generated snapshot scores
+**1,392 / 2,014**. BuildScripts measured eight passes; its previously documented
+stable baseline remains seven because results vary between seven and eight.
+Fixture sources, expectations and scoring policy were not changed.
+
+Validation: `go test ./...`, `just test-unit` (race detection),
+`just test-coverage`, `just check-fmt`, `git diff --check`, and
+`go mod tidy -diff` passed. CI's lint command,
+`golangci-lint run --new-from-merge-base=origin/main --timeout 10m`, reported
+zero issues. Plain `just ci` stops at the existing full-repository lint backlog
+(1,230 findings); coverage was verified separately. Independent review's one
+actionable finding was fixed and covered by a regression.
+
+Checks used Go 1.26, `GOFLAGS='-buildvcs=false -p=1'`, a task-owned build
+cache in the worktree, and `TMPDIR=/tmp`. A disk-backed temporary directory
+triggered existing fixture-report test cleanup failures; the final complete
+test, race and coverage runs passed with the normal temporary filesystem.
+The installed linter was built with Go 1.27 and used the matching cached
+toolchain; formatting used the project's Go 1.26 toolchain and
+`XDG_RUNTIME_DIR=/tmp`. The branch starts at main commit `ee236fc7`.

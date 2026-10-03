@@ -32,8 +32,8 @@ func (a *Analyzer) addArgumentTypeError(index int, expected string, got types.Ty
 // analyzeCallArgument analyzes one argument in the context of its parameter
 // and reports a mismatch with addArgumentTypeError. An argument whose own
 // analysis already failed is not checked again.
-func (a *Analyzer) analyzeCallArgument(index int, arg ast.Expression, expected types.Type) {
-	a.analyzeCallArgumentAt(index, arg, expected, arg.Pos())
+func (a *Analyzer) analyzeCallArgument(index int, arg ast.Expression, expected types.Type, strict ...bool) {
+	a.analyzeCallArgumentAt(index, arg, expected, arg.Pos(), len(strict) > 0 && strict[0])
 }
 
 // analyzeSelfCallArgument is analyzeCallArgument for a record instance method
@@ -42,18 +42,18 @@ func (a *Analyzer) analyzeCallArgument(index int, arg ast.Expression, expected t
 // anchor up in the written arguments' positions by that shifted index: the
 // next written argument, or the call when there is none
 // (HelpersFail/function_helper: `('hello').Test2(456)` → Argument 1 at Test2).
-func (a *Analyzer) analyzeSelfCallArgument(index int, args []ast.Expression, expected types.Type, callPos token.Position) {
+func (a *Analyzer) analyzeSelfCallArgument(index int, args []ast.Expression, expected types.Type, callPos token.Position, strict ...bool) {
 	pos := callPos
 	if index+1 < len(args) {
 		pos = args[index+1].Pos()
 	}
-	a.analyzeCallArgumentAt(index+1, args[index], expected, pos)
+	a.analyzeCallArgumentAt(index+1, args[index], expected, pos, len(strict) > 0 && strict[0])
 }
 
-func (a *Analyzer) analyzeCallArgumentAt(index int, arg ast.Expression, expected types.Type, pos token.Position) {
+func (a *Analyzer) analyzeCallArgumentAt(index int, arg ast.Expression, expected types.Type, pos token.Position, strict bool) {
 	mark := len(a.errors)
-	argType := a.analyzeExpressionWithExpectedType(arg, expected)
-	if argType != nil && expected != nil && !a.errorsSince(mark) && !a.canAssign(argType, expected) {
+	argType := a.analyzeArgumentForParameter(arg, expected, strict)
+	if argType != nil && expected != nil && !a.errorsSince(mark) && !a.argumentMatchesParameter(argType, expected, strict) {
 		a.addArgumentTypeError(index, semanticTypeNameForDiagnostic(expected), argType, pos)
 	}
 }
@@ -217,12 +217,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 
 			paramType := funcType.Parameters[i]
-			argType := a.analyzeArgumentForParameter(arg, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i])
-			if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i]) {
-				a.addError("argument %d has type %s, expected %s at %s",
-					i+1, argType.String(), paramType.String(),
-					expr.Token.Pos.String())
-			}
+			a.analyzeCallArgument(i, arg, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i])
 		}
 
 		return funcType.ReturnType
@@ -262,7 +257,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return resultType
 		}
 
-		if resultType, handled := a.analyzeImplicitHelperCall(funcIdent.Value, expr.Arguments, expr.Token.Pos); handled {
+		if resultType, handled := a.analyzeImplicitHelperCall(funcIdent.Value, expr.Arguments, funcIdent.Token.Pos); handled {
 			return resultType
 		}
 
@@ -342,12 +337,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					}
 
 					paramType := methodType.Parameters[i]
-					argType := a.analyzeArgumentForParameter(arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
-					if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i]) {
-						a.addError("argument %d has type %s, expected %s at %s",
-							i+1, argType.String(), paramType.String(),
-							expr.Token.Pos.String())
-					}
+					a.analyzeCallArgument(i, arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
 				}
 
 				return methodType.ReturnType
@@ -425,12 +415,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 						break
 					}
 					paramType := methodType.Parameters[i]
-					argType := a.analyzeArgumentForParameter(arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
-					if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i]) {
-						a.addError("argument %d to class method '%s' has type %s, expected %s at %s",
-							i+1, funcIdent.Value, argType.String(), paramType.String(),
-							expr.Token.Pos.String())
-					}
+					a.analyzeCallArgument(i, arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
 				}
 				return methodType.ReturnType
 			}
@@ -620,12 +605,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					return methodType.ReturnType
 				}
 				for i, arg := range expr.Arguments {
-					argType := a.analyzeExpression(arg)
 					expectedType := methodType.Parameters[i]
-					if argType != nil && !a.canAssign(argType, expectedType) {
-						a.addError("argument %d to method '%s' has type %s, expected %s at %s",
-							i+1, funcIdent.Value, argType.String(), expectedType.String(), expr.Token.Pos.String())
-					}
+					a.analyzeCallArgument(i, arg, expectedType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
 				}
 				return methodType.ReturnType
 			}
@@ -839,7 +820,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	if argCountMismatch {
 		if len(a.errors) == diagnosticsBeforeArgs {
 			a.addArgumentCountError(funcIdent.Token.Pos, len(expr.Arguments),
-				requiredParams, len(funcType.Parameters))
+				requiredParams, len(funcType.Parameters), sym)
 			if expr == a.assignmentCallRecovery && !hasOverloads {
 				if funcType.ReturnType == nil {
 					return types.VOID
@@ -886,13 +867,9 @@ func (a *Analyzer) analyzeImplicitHelperCall(methodName string, args []ast.Expre
 		return methodType.ReturnType, true
 	}
 
-	for i, arg := range args {
+	for i := range args {
 		paramType := methodType.Parameters[i]
-		argType := a.analyzeArgumentForParameter(arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
-		if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i]) {
-			a.addError("argument %d to method '%s' has type %s, expected %s at %s",
-				i+1, methodName, argType.String(), paramType.String(), pos.String())
-		}
+		a.analyzeSelfCallArgument(i, args, paramType, pos, i < len(methodType.StrictParams) && methodType.StrictParams[i])
 	}
 
 	return methodType.ReturnType, true
@@ -1123,12 +1100,7 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 			break
 		}
 		paramType := selectedSignature.Parameters[i]
-		argType := a.analyzeArgumentForParameter(arg, paramType, i < len(selectedSignature.StrictParams) && selectedSignature.StrictParams[i])
-		if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(selectedSignature.StrictParams) && selectedSignature.StrictParams[i]) {
-			a.addError("argument %d to constructor '%s' has type %s, expected %s at %s",
-				i+1, constructorName, argType.String(), paramType.String(),
-				expr.Token.Pos.String())
-		}
+		a.analyzeCallArgument(i, arg, paramType, i < len(selectedSignature.StrictParams) && selectedSignature.StrictParams[i])
 	}
 
 	if classType.IsAbstract {
@@ -1408,12 +1380,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 			break
 		}
 		paramType := funcType.Parameters[i]
-		argType := a.analyzeArgumentForParameter(arg, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i])
-		if argType != nil && !a.argumentMatchesParameter(argType, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i]) {
-			a.addError("argument %d to '%s.%s' has type %s, expected %s at %s",
-				i+1, recordType.Name, methodName, argType.String(), paramType.String(),
-				expr.Token.Pos.String())
-		}
+		a.analyzeCallArgument(i, arg, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i])
 	}
 
 	return funcType.ReturnType

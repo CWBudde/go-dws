@@ -252,6 +252,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 		// Create function type for the method
 		var paramTypes []types.Type
+		var strictParams []bool
 		for _, param := range method.Parameters {
 			paramType, err := a.resolveTypeExpression(param.Type)
 			if err != nil {
@@ -260,6 +261,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 				continue
 			}
 			paramTypes = append(paramTypes, paramType)
+			strictParams = append(strictParams, isStrictTypeAnnotation(param.Type))
 		}
 
 		var returnType types.Type
@@ -279,6 +281,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		} else {
 			funcType = types.NewProcedureType(paramTypes)
 		}
+		funcType.StrictParams = strictParams
 
 		// Create MethodInfo for overload tracking
 		methodInfo := &types.MethodInfo{
