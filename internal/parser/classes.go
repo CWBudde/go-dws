@@ -305,7 +305,7 @@ func (p *Parser) parseClassLevelMember(cursor *TokenCursor, classDecl *ast.Class
 			classDecl.Methods = append(classDecl.Methods, method)
 		}
 	} else {
-		p.addError("expected 'var', 'const', 'property', 'function', 'procedure', or 'method' after 'class' keyword", ErrUnexpectedToken)
+		p.addProcedureOrFunctionStop(cursor.Current())
 	}
 
 	return p.cursor
@@ -520,6 +520,12 @@ func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.Class
 			cursor = p.parseClassLevelMember(cursor, classDecl, currentVisibility)
 		} else {
 			cursor = p.parseInstanceLevelMember(cursor, classDecl, currentVisibility)
+		}
+
+		if p.stopped() {
+			builder.Finish(classDecl)
+			annotateDeclaringClass(classDecl)
+			return classDecl
 		}
 
 		cursor = cursor.Advance()

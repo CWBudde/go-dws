@@ -223,7 +223,7 @@ func TestParseHelperErrors(t *testing.T) {
 		{
 			name:     "missing end keyword",
 			input:    `type THelper = helper for String function Test: Boolean;`,
-			expected: "expected 'end'",
+			expected: "END expected",
 		},
 	}
 

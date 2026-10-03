@@ -3,6 +3,7 @@ package parser
 import (
 	"github.com/cwbudde/go-dws/internal/lexer"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
 // parseHelperDeclaration parses a helper type declaration (dispatcher).
@@ -134,8 +135,13 @@ func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, is
 	}
 
 	// Parse helper body until 'end'
-	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF {
+	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF && !p.stopped() {
 		// Check for visibility modifiers
+		switch cursor.Current().Type {
+		case lexer.PRIVATE, lexer.PUBLIC, lexer.PUBLISHED, lexer.PROTECTED:
+			helperDecl.VisibilitySections = append(helperDecl.VisibilitySections,
+				ast.RecordVisibilitySection{Specifier: ident.Normalize(cursor.Current().Literal), Pos: cursor.Current().Pos})
+		}
 		if cursor.Current().Type == lexer.PRIVATE {
 			currentVisibility = ast.VisibilityPrivate
 			currentSection = &helperDecl.PrivateMembers
@@ -152,6 +158,12 @@ func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, is
 			// Published is treated as public for helpers
 			currentVisibility = ast.VisibilityPublic
 			currentSection = &helperDecl.PublicMembers
+			cursor = cursor.Advance()
+			p.cursor = cursor
+			continue
+		} else if cursor.Current().Type == lexer.PROTECTED {
+			// Retain the unsupported specifier for semantic diagnostics without
+			// changing the visibility in effect.
 			cursor = cursor.Advance()
 			p.cursor = cursor
 			continue
@@ -206,10 +218,9 @@ func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, is
 				p.cursor = cursor
 				continue
 			default:
-				p.addError("expected 'var', 'const', 'function' or 'procedure' after 'class' keyword in helper", ErrUnexpectedToken)
-				cursor = cursor.Advance()
-				p.cursor = cursor
-				continue
+				p.addProcedureOrFunctionStop(cursor.Current())
+				builder.Finish(helperDecl)
+				return helperDecl
 			}
 		}
 
@@ -250,16 +261,21 @@ func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, is
 			continue
 		}
 
-		// Unknown token - skip it
-		p.addError("unexpected token in helper body: "+cursor.Current().Literal, ErrUnexpectedToken)
-		cursor = cursor.Advance()
-		p.cursor = cursor
+		// Helpers cannot have ordinary fields. Upstream ends the member loop
+		// here and expects END at this token.
+		break
+	}
+
+	if p.stopped() {
+		builder.Finish(helperDecl)
+		return helperDecl
 	}
 
 	// Expect 'end' keyword
 	if cursor.Current().Type != lexer.END {
-		p.addError("expected 'end' to close helper declaration", ErrMissingEnd)
-		return nil
+		p.addExpectedStopCurrent(lexer.END)
+		builder.Finish(helperDecl)
+		return helperDecl
 	}
 
 	// Expect semicolon after 'end'

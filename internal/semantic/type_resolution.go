@@ -96,7 +96,12 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 		fieldName := field.Name.Value
 		fieldKey := ident.Normalize(fieldName)
 		if _, exists := recordType.Fields[fieldKey]; exists {
-			return nil, fmt.Errorf("%s", errors.FormatNameAlreadyExists(fieldName, field.Token.Pos.Line, field.Token.Pos.Column))
+			if !recordNode.Incomplete {
+				return nil, fmt.Errorf("%s", errors.FormatNameAlreadyExists(fieldName, field.Token.Pos.Line, field.Token.Pos.Column))
+			}
+			a.addStructuredError(NewGenericError(field.Token.Pos,
+				fmt.Sprintf("There is already a field with name %q", recordType.FieldNames[fieldKey])))
+			continue
 		}
 
 		var fieldType types.Type
@@ -115,6 +120,10 @@ func (a *Analyzer) resolveRecordTypeNode(recordNode *ast.RecordTypeNode) (types.
 
 		recordType.AddField(fieldName, fieldType, field.InitValue != nil)
 		recordType.SetFieldVisibility(fieldName, int(field.Visibility))
+	}
+
+	if recordNode.Incomplete {
+		return nil, nil
 	}
 
 	for _, prop := range recordNode.Properties {
