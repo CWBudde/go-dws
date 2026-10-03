@@ -19,19 +19,18 @@ func (a *Analyzer) analyzeInc(args []ast.Expression, callExpr *ast.CallExpressio
 			len(args), callExpr.Token.Pos.String())
 		return types.VOID
 	}
-	if !a.isLValue(args[0]) {
-		a.addError("function 'Inc' first argument must be a variable (identifier, array element, or field) at %s",
-			callExpr.Token.Pos.String())
-		return types.VOID
-	}
-
+	mark := len(a.errors)
 	varType := a.analyzeExpression(args[0])
-	if varType != nil {
-		if varType != types.INTEGER {
-			if _, isEnum := varType.(*types.EnumType); !isEnum {
-				a.addError("function 'Inc' expects Integer or Enum variable, got %s at %s",
-					varType.String(), callExpr.Token.Pos.String())
-			}
+	if varType == nil || a.errorsSince(mark) {
+		return types.INTEGER
+	}
+	if !a.checkVarArgument(0, "a", args[0], varType, args[0].Pos()) {
+		return types.INTEGER
+	}
+	if varType != types.INTEGER {
+		if _, isEnum := varType.(*types.EnumType); !isEnum {
+			a.addError("function 'Inc' expects Integer or Enum variable, got %s at %s",
+				varType.String(), callExpr.Token.Pos.String())
 		}
 	}
 	if len(args) == 2 {
@@ -53,18 +52,18 @@ func (a *Analyzer) analyzeDec(args []ast.Expression, callExpr *ast.CallExpressio
 			len(args), callExpr.Token.Pos.String())
 		return types.VOID
 	}
-	if !a.isLValue(args[0]) {
-		a.addError("function 'Dec' first argument must be a variable (identifier, array element, or field) at %s",
-			callExpr.Token.Pos.String())
-	} else {
-		varType := a.analyzeExpression(args[0])
-		if varType != nil {
-			if varType != types.INTEGER {
-				if _, isEnum := varType.(*types.EnumType); !isEnum {
-					a.addError("function 'Dec' expects Integer or Enum variable, got %s at %s",
-						varType.String(), callExpr.Token.Pos.String())
-				}
-			}
+	mark := len(a.errors)
+	varType := a.analyzeExpression(args[0])
+	if varType == nil || a.errorsSince(mark) {
+		return types.INTEGER
+	}
+	if !a.checkVarArgument(0, "a", args[0], varType, args[0].Pos()) {
+		return types.INTEGER
+	}
+	if varType != types.INTEGER {
+		if _, isEnum := varType.(*types.EnumType); !isEnum {
+			a.addError("function 'Dec' expects Integer or Enum variable, got %s at %s",
+				varType.String(), callExpr.Token.Pos.String())
 		}
 	}
 	if len(args) == 2 {

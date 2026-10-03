@@ -60,6 +60,24 @@ next written argument's position, or the method name when none remains. Methods 
 record class methods, constructors, and set `Include`/`Exclude` use ordinary
 argument numbering.
 
+Regular named routines reject nonvariables and immutable storage with
+`Argument N (name) cannot be passed as Var-parameter`, using the parameter's
+declared casing, a zero-based index, and the written argument's position.
+Constants, `const` and `lazy` parameters, and object `Self` cannot supply a
+writable slot. Record `Self` fields, mutable array elements, JSON members,
+helper class variables and field-backed properties retain their storage semantics. A
+type mismatch or an error inside the argument suppresses an additional
+reference diagnostic; array compatibility recovery still checks storage.
+
+`Inc` and `Dec` use the same reference sentence for their first argument,
+with index zero and parameter name `a`. Assignments to object `Self` report
+`Cannot assign a value to the left-side argument` at the assignment operator
+and continue semantic analysis, preserving surrounding diagnostics and hints.
+Broader method/constructor/helper/indirect-call reference checks remain under
+audit. Explicit `@Routine` var arguments retain their existing rejection:
+upstream permits writable routine-reference data, but Go-dws still needs
+runtime support for those temporary reference slots.
+
 A named routine marked `overload` reports
 `There is no overloaded version of "X" that can be called with these arguments`
 for an argument-count mismatch, even if only one overload is currently visible.
