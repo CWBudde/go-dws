@@ -345,6 +345,10 @@ func (p *Parser) parseRecordFieldDeclarations(visibility ast.Visibility) []*ast.
 		if fieldType == nil {
 			return nil
 		}
+		if p.stopped() {
+			// Keep a partial inline type so its earlier member diagnostics survive.
+			return fieldsFromRecordFieldNames(fieldNames, fieldType, nil, visibility)
+		}
 
 		// Parse optional field initializer
 		initValue = p.parseFieldInitializer(fieldNames)

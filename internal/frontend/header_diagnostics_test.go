@@ -126,6 +126,18 @@ func TestCompile_EarlierInlineRecordDiagnostics(t *testing.T) {
 			"Syntax Error: Records do not supported \"protected\" visibility specifier [line: 2, column: 2]",
 			"Syntax Error: END expected [line: 3, column: 12]",
 		}},
+		{"record field visibility", "type T = record\n F: record\n  protected\n  X: Integer;", []string{
+			"Syntax Error: Records do not supported \"protected\" visibility specifier [line: 3, column: 3]",
+			"Syntax Error: END expected [line: 4, column: 13]",
+		}},
+		{"record field duplicate", "type T = record\n F: record\n  MiXeD, mixed: Integer;\n  class bug;\n end;\nend;", []string{
+			"Syntax Error: There is already a field with name \"MiXeD\" [line: 3, column: 10]",
+			"Syntax Error: PROCEDURE or FUNCTION expected [line: 4, column: 9]",
+		}},
+		{"class field visibility", "type T = class\n F: record\n  protected\n  X: Integer;", []string{
+			"Syntax Error: Records do not supported \"protected\" visibility specifier [line: 3, column: 3]",
+			"Syntax Error: END expected [line: 4, column: 13]",
+		}},
 	} {
 		t.Run(tt.name, func(t *testing.T) { assertDiagnostics(t, tt.source, "<test>", tt.want) })
 	}
