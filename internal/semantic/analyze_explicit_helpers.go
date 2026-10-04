@@ -7,8 +7,7 @@ import (
 )
 
 type explicitHelperSignature struct {
-	typ    *types.FunctionType
-	method *ast.FunctionDecl
+	typ *types.FunctionType
 }
 
 // explicitHelperSignatures describes the written arguments of a call through a
@@ -36,7 +35,10 @@ func (a *Analyzer) explicitHelperSignatures(helper *types.HelperType, name strin
 				names = append(names, "Self")
 				defaults = append(defaults, nil)
 				lazy, byRef, constant = append(lazy, false), append(byRef, false), append(constant, false)
-				strict = append(strict, false)
+				// A record class receiver must be the actual matching metatype;
+				// the general Variant conversion policy cannot supply this role.
+				_, recordMeta := receiver.(*types.RecordMetaType)
+				strict = append(strict, recordMeta)
 			}
 			for _, param := range method.Parameters {
 				paramType, err := a.resolveTypeExpression(param.Type)
@@ -56,7 +58,7 @@ func (a *Analyzer) explicitHelperSignatures(helper *types.HelperType, name strin
 			typ := types.NewFunctionTypeWithMetadata(params, names, defaults,
 				lazy, byRef, constant, a.helperMethodReturnType(method))
 			typ.StrictParams = strict
-			signatures = append(signatures, explicitHelperSignature{typ: typ, method: method})
+			signatures = append(signatures, explicitHelperSignature{typ: typ})
 		}
 		if len(signatures) != 0 {
 			return signatures, declaredName
@@ -76,17 +78,10 @@ func (a *Analyzer) analyzeExplicitHelperCall(helper *types.HelperType, member *a
 		return nil, true
 	}
 	signature := signatures[selected].typ
-	required := 0
-	for _, defaultValue := range signature.DefaultValues {
-		if defaultValue == nil {
-			required++
-		}
-	}
-	if len(args) < required || len(args) > len(signature.Parameters) {
-		a.addArgumentCountError(member.Token.Pos, len(args), required, len(signature.Parameters))
-		return signature.ReturnType, true
-	}
-	if !a.validateExplicitHelperReceiver(helper, signatures[selected].method, args) {
+	// Self is a written argument through a helper name, so its index and
+	// position participate in the ordinary argument list without a shift.
+	a.analyzeMemberCallArguments(signature, args, member.Token.Pos, false)
+	if len(args) < requiredParamCount(signature) || len(args) > len(signature.Parameters) {
 		return signature.ReturnType, true
 	}
 	for i, arg := range args {
@@ -97,19 +92,8 @@ func (a *Analyzer) analyzeExplicitHelperCall(helper *types.HelperType, member *a
 					i+1, member.Value, arg.String(), arg.Pos().String())
 			}
 		}
-		a.analyzeCallArgument(i, arg, signature.Parameters[i], i < len(signature.StrictParams) && signature.StrictParams[i])
 	}
 	return signature.ReturnType, true
-}
-
-func (a *Analyzer) validateExplicitHelperReceiver(helper *types.HelperType, method *ast.FunctionDecl, args []ast.Expression) bool {
-	if method.IsClassMethod && !method.IsStatic && len(args) > 0 {
-		if _, record := types.GetUnderlyingType(helper.TargetType).(*types.RecordType); record && !a.isRecordTypeReceiver(args[0]) {
-			a.addError("record type expected at %s", args[0].Pos().String())
-			return false
-		}
-	}
-	return true
 }
 
 func (a *Analyzer) selectExplicitHelperOverload(signatures []explicitHelperSignature, member *ast.Identifier, args []ast.Expression) (int, bool) {
@@ -155,11 +139,4 @@ func explicitHelperReceiverType(target types.Type, method *ast.FunctionDecl) typ
 	default:
 		return nil
 	}
-}
-
-// Explicit class helpers accept actual metatype values, including inferred copies.
-func (a *Analyzer) isRecordTypeReceiver(expr ast.Expression) bool {
-	typ := a.analyzeExpression(expr)
-	_, meta := recordReceiverType(typ)
-	return meta
 }

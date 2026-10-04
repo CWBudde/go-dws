@@ -648,6 +648,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 	overloadSet := a.symbols.GetOverloadSet(funcIdent.Value)
 	hasOverloads := sym.IsOverloadSet || len(overloadSet) > 1
+	// A lone overload-marked binding retains the existing candidate policy;
+	// the helper overload-selection audit is separate from signature checking.
+	if a.isBoundHelperMethod(funcIdent.Value, funcType) && (!sym.HasOverloadDirective || hasOverloads) {
+		a.analyzeHelperCallArguments(a.currentHelperType.TargetType, funcIdent.Value, funcType, expr.Arguments, funcIdent.Token.Pos)
+		return funcType.ReturnType
+	}
 
 	// Check argument count (handles optional parameters). requiredParamCount
 	// treats absent default-value metadata as "all parameters required", which a
