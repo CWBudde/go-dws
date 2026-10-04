@@ -32,6 +32,10 @@ type ConstDecl struct {
 	IsResourceString bool
 	// ValueSeparatorPos is the '=' or ':=' before the constant expression.
 	ValueSeparatorPos token.Position
+	// ValueStartPos and ValueStartsWithParen preserve the first initializer token,
+	// even when expression recovery discards the value before its type is known.
+	ValueStartPos        token.Position
+	ValueStartsWithParen bool
 }
 
 func (c *ConstDecl) End() token.Position {
@@ -56,8 +60,12 @@ func (cd *ConstDecl) String() string {
 		out.WriteString(cd.Type.String())
 	}
 
-	out.WriteString(" = ")
-	out.WriteString(cd.Value.String())
+	// Value is nil when parser recovery kept a typed constant whose
+	// initializer was cut short by a compiler stop.
+	if cd.Value != nil {
+		out.WriteString(" = ")
+		out.WriteString(cd.Value.String())
+	}
 
 	return out.String()
 }

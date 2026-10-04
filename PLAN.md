@@ -145,11 +145,12 @@ stays open until all its subtasks pass. Update its checkbox and this table in th
 same PR; retain checked siblings until the subphase closes. Detailed evidence:
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
-**Next ungated batch:** 1.6's mixed/inherited helper overload candidate ownership:
-measure receiver roles and child analysis before changing candidate collection.
-Work through the remaining 1.6 call tasks, then 1.7 defaults/storage; take 1.5's
-remaining declaration checks when needed by defaults. Phase 2/3 prerequisites
-continue to gate their overlapping 1.8 sweeps.
+**Current user-selected track:** 2.1's type-directed punctuation, after the record-constant
+and bare Low/High/address-of batch. Next: measure and implement `DebugBreak` punctuation
+with valid execution controls; other special-function forms and reintroduced properties
+remain open below. The earlier 1.6 mixed/inherited helper candidate measurement remains
+open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
+overlapping 1.8 sweeps.
 
 ### 1.5 Declaration and intrinsic diagnostics — M remaining
 
@@ -307,8 +308,17 @@ does not have, or a precise model of where compilation stops.
 An ordinary call says `Expression expected` for `f(;`, so these must be driven from the
 semantic side:
 
-- [ ] Record-typed const (`const_record1`).
-- [ ] Special functions written without parentheses (`special_funcs1`, `at_integer`).
+- [x] Record-typed const (`const_record1`, [#463](https://github.com/CWBudde/go-dws/pull/463)).
+  - [x] Require `(` after resolving record types and aliases, at the first initializer token.
+  - [x] Preserve scalar/ordinary-call recovery, earlier diagnostics, local constants,
+    and interrupted parenthesized record initializers (`const_record4`).
+- [ ] Special functions written without parentheses.
+  - [x] Require `(` for bare builtin Low/High (`special_funcs1`, [#463](https://github.com/CWBudde/go-dws/pull/463)), after casing hints;
+    preserve lexical/member shadows and lookahead positions through comments/newlines/EOF.
+  - [x] Match `at_integer` ([#463](https://github.com/CWBudde/go-dws/pull/463)): report the type's missing `(` before `unexpected "@"`;
+    reject scalar-variable addresses while preserving valid routine references.
+  - [ ] Measure the other special-function names and qualified/address-of forms;
+    distinguish required parentheses from ordinary callable references and Default's fallback.
 - [ ] Magic functions (`debugbreak`).
 - [ ] Reintroduced properties (`property_reintroduce2`).
 
@@ -325,8 +335,8 @@ semantic side:
 - [ ] `interface helper for T` (needed by `HelpersFail/mixed_helper`, see 4.3).
 - [ ] SetOfFail parser parity: `bracket_right_missing`, `for_in_set_missing_do`, `of_missing`
   (`"X" expected` / `OF expected` / `DO expected`).
-- [ ] `unexpected "@"` exists nowhere in the tree (`SetOfFail/invalid_operand`,
-  `FailureScripts/at_integer`, `dyn_array3`, `field_init1`, `func_ptr6`).
+- [ ] Extend `unexpected "@"` beyond the type/scalar cases shipped in 2.1
+  (`SetOfFail/invalid_operand`, `dyn_array3`, `field_init1`, `func_ptr6`).
 
 ### 2.3 Property accessor recovery — S
 

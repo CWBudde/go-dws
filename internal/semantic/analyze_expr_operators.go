@@ -261,6 +261,10 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			if declName := a.builtinDeclarationName(identifier.Value); declName != "" && declName != identifier.Value {
 				a.addIdentifierCaseHint(identifier, declName)
 			}
+			if ident.Equal(identifier.Value, "Low") || ident.Equal(identifier.Value, "High") {
+				a.addPunctuationStop(identifierLookaheadPos(identifier), `"(" expected`)
+				return nil
+			}
 			// Check if builtin can be used as a function reference (for Map, Filter, etc.)
 			if funcPtrType := a.getBuiltinFunctionPointerType(identifier.Value); funcPtrType != nil {
 				// Store the function pointer type in semantic info so the evaluator knows

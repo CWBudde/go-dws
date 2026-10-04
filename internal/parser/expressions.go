@@ -198,7 +198,8 @@ func (p *Parser) parseIdentifier() ast.Expression {
 			Token:  currentToken,
 			EndPos: p.endPosFromToken(currentToken),
 		},
-		Value: currentToken.Literal,
+		Value:        currentToken.Literal,
+		NextTokenPos: p.anchorFor(p.cursor.Peek(1)).Pos,
 	}
 }
 

@@ -205,6 +205,29 @@ DWScript's one-Variant procedure signature.
 Assigning to a constant or read-only binding reports
 `Cannot assign a value to the left-side argument` at the assignment operator.
 
+### Type-directed punctuation
+
+Ordinary and routine-local record-typed constants require parenthesized field
+initializers. Missing `(`
+reports `"(" expected` at the first initializer token and stops compilation,
+including through record aliases and local constants. Scalar constants and ordinary
+calls such as `F(;` retain `Expression expected`. An initializer interrupted after
+its opening parenthesis retains the parser's own stop. Retained scalar initializer
+fragments do not acquire additional declaration checks.
+
+Bare builtin `Low` and `High` require `(`. A casing hint precedes the punctuation
+error, whose anchor is the next token after whitespace/comments, or the last real
+token at EOF. Lexical values and routines, implicit members, and parenthesized
+calls retain their existing resolution. At a semantic compiler stop, later parser
+punctuation checks at that token are suppressed.
+
+Taking the address of a bare scalar type reports its missing `(` first, followed
+by `unexpected "@"` at the address operator. Scalar variables report the latter
+sentence alone. These errors allow subsequent statements to be checked; declared
+routines, ordinary builtin references, and callable variables remain valid.
+Other special-function forms, `DebugBreak`, and reintroduced properties remain
+under measurement in Phase 2.1.
+
 ### Class, record and helper member headers
 
 An invalid member after `class` reports `PROCEDURE or FUNCTION expected` at

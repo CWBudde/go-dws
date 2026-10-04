@@ -1,5 +1,74 @@
 # Progress log — October 2026
 
+## 2026-10-05 — Type-directed punctuation (PLAN 2.1)
+
+This user-selected Phase 2 batch closes `const_record1`, `special_funcs1`, and
+`at_integer` through the shared frontend and CLI compile path. The record-constant
+task and two special-function subtasks are checked in `PLAN.md`; the broader
+special-function task and Phase 2.1 remain open. The next selected batch is
+`DebugBreak` punctuation with valid execution controls.
+
+Ordinary and routine-local record-typed constants require an opening `(` at the
+first initializer token, including aliases, numeric values, and expressions.
+The parser retains only initializer syntax when a typed nonparenthesized value
+is interrupted. Semantic analysis resolves the record type and replaces the
+matching generic parser stop with `"(" expected`. Parenthesized interrupted
+record initializers retain their existing stop (`const_record4`), and scalar
+fragments stay outside declaration checks and registration. Earlier diagnostics
+survive; later diagnostics are cut off at the semantic stop. Class-member record
+constants and deeper record-field validation were not expanded by this batch.
+
+Bare builtin Low/High report their casing hint before `"(" expected` and stop.
+Identifiers retain the parser's next-token anchor through comments, whitespace,
+newlines, includes and EOF, rather than estimating it from the identifier's end.
+Lexical and implicit-member shadows retain their existing resolution. Addressing
+bare scalar types reports the type's missing `(` before `unexpected "@"` at the
+operator; scalar variables report only the latter sentence. These address errors
+continue compilation. Ordinary builtin and declared routine references, including
+callable-variable identity, remain accepted.
+
+Two read-only reconnaissance agents separated the parser/type boundary from
+property and magic-function prerequisites. An independent reviewer reproduced
+an introduced extra duplicate-name diagnostic for interrupted scalar constants;
+a failing frontend regression pinned it before the syntax-carrier guard was
+corrected. The reviewer rechecked the fix and unit/include controls and approved
+the bounded batch. Pinned upstream compiler source (commit
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`) confirms record initialization's
+opening delimiter, special-function compiler stops, and child-first address
+recovery. Preserving the prior interrupted scalar declaration recovery is a
+bounded choice, not a claim of complete upstream declaration recovery parity.
+
+Acceptance coverage comprises four exact fixture transcripts (three newly
+passing), 17 recovery cases, and seven valid compile controls. TDD logs show the
+original wrong/missing sentences and the review regression before their fixes.
+Fresh CLI checks matched all four complete fixture diagnostics with exit 1;
+valid record constants, builtin references and Low/High calls executed with the
+expected output. Existing address-rejection tests now assert DWScript's wording.
+The AST visitor was regenerated with no output change.
+
+`just fixture-update` raised the stable FailureScripts baseline from 313 to 316;
+no expectation files were changed. The generated status snapshot also counted
+one variable BuildScripts pass (8 versus its stable floor of 7). Repeated runs
+of `init_order1` through `init_order4` with pre-change and updated CLI binaries
+confirmed the existing initialization/finalization nondeterminism tracked in
+Phase 5.2. The BuildScripts floor remains 7; that varying pass is not a gain
+claimed by this batch.
+
+Validation passed: the full baseline retry and final
+`go test -race -coverprofile=.cache/results/coverage-verified.out ./...`,
+frontend/parser/semantic/AST package tests, three repeated punctuation runs,
+CI diff lint (zero findings), `go mod tidy -diff`, the fixture update and gate,
+formatting, fresh CLI builds, and `git diff --check`. Lexer coverage remains
+86.2% and parser coverage remains 79.5%, matching the pre-change baseline.
+An initial temporary-build quota failure was resolved before implementation;
+the baseline was rerun successfully with dedicated build directories.
+
+Remaining: other special-function names and qualified/address-of forms,
+Default's ordinary-name fallback, `DebugBreak`, reintroduced properties, and
+broader record/class address and typed-reference compatibility. Phase 1.6's
+mixed/inherited helper candidate work is still open. Bytecode semantics were
+not changed.
+
 ## 2026-10-04 — Helper overload selected execution (PLAN 1.6)
 
 Checked receiver, explicit helper-name, and helper-body calls now execute the

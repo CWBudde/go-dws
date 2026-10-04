@@ -119,6 +119,11 @@ func (a *Analyzer) analyzeAddressOfExpression(expr *ast.AddressOfExpression) typ
 		} else {
 			a.addIdentifierCaseHint(target, a.builtinDeclarationName(target.Value))
 		}
+		if a.isBareTypeValue(target) {
+			a.addStructuredError(NewGenericError(identifierLookaheadPos(target), `"(" expected`))
+			a.addUnexpectedAddressOf(expr.Token.Pos)
+			return nil
+		}
 		return a.analyzeAddressOfFunction(target.Value, expr)
 
 	case *ast.MemberAccessExpression:
@@ -305,8 +310,8 @@ func (a *Analyzer) analyzeAddressOfFunction(funcName string, expr *ast.AddressOf
 	// The symbol must be a function type
 	funcType, ok := sym.Type.(*types.FunctionType)
 	if !ok {
-		a.addError("'%s' is not a function or procedure (got %s) at %s",
-			funcName, sym.Type.String(), expr.Token.Pos.String())
+		a.recordSymbolUsage(funcName, expr.Token.Pos)
+		a.addUnexpectedAddressOf(expr.Token.Pos)
 		return nil
 	}
 

@@ -213,7 +213,7 @@ func TestAddressOfExpressionErrors(t *testing.T) {
 					f := @x;
 				end.
 			`,
-			expectedErr: "not a function",
+			expectedErr: `unexpected "@"`,
 		},
 	}
 
@@ -1167,12 +1167,12 @@ func TestAddressOfNonCallableStillRejected(t *testing.T) {
 	}
 	found := false
 	for _, errMsg := range analyzer.Errors() {
-		if containsString(errMsg, "is not a function or procedure") {
+		if containsString(errMsg, `unexpected "@"`) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected a 'not a function or procedure' error, got: %v", analyzer.Errors())
+		t.Errorf("Expected an unexpected '@' error, got: %v", analyzer.Errors())
 	}
 }
