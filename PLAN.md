@@ -134,7 +134,14 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
 - [ ] Parser shapes (overlaps Phase 2).
   - [ ] Audit remaining punctuation and type sentences after the Phase 2 prerequisites.
 - [ ] `analyze_function_calls.go` / `analyze_method_calls.go`.
-  - [ ] Remaining helper arity sentences and receiver-shifted anchors.
+  - [ ] Remaining helper call diagnostics: explicit helper-name calls, bare
+    invocation/reference contexts and calls bound in helper-body scope; audit
+    overload selection independently from the selected-signature argument check.
+  - [ ] Audit imported-helper availability in the receiving analyzer and
+    parenthesized lookup for helpers targeting metaclass types; receiver
+    unwrapping currently hides those helper targets.
+  - [ ] Preserve helper declaration defaults in receiver-call signatures and
+    execute omitted arguments, including function helpers and inherited helpers.
   - [ ] Preserve interface declaration defaults in signatures and execute omitted
     arguments using the interface's declaration, including inherited signatures.
   - [ ] Audit bare record/interface-member invocation versus routine-reference
@@ -176,7 +183,8 @@ member-header stops with earlier declaration diagnostics, and regular var-argume
 checks with `Inc`/`Dec` first-argument validation and object `Self` recovery,
 class-member/constructor call diagnostics, and parenthesized native record calls
 with omitted-default execution, and direct parenthesized native interface-call
-argument diagnostics.
+argument diagnostics, and parenthesized receiver-helper calls with selected
+instance/class/static receiver roles and implicit Self fallback.
 Their exact scope and evidence are in
 [`the October progress log`](docs/history/progress-log-2026-10.md).
 

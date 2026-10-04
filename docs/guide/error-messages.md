@@ -54,7 +54,7 @@ error does not receive an additional type-mismatch diagnostic. Strict parameters
 declared with `type` reject implicit conversions, including in class methods and
 constructors; ordinary parameters retain expected-type inference and conversions.
 
-Record instance and helper methods reserve argument zero for their receiver.
+Record instance methods and helper instance methods reserve argument zero for their receiver.
 Their first written argument is numbered one, and the shifted index selects the
 next written argument's position, or the method name when none remains. Methods on classes,
 record class methods, constructors, and set `Include`/`Exclude` use ordinary
@@ -123,9 +123,22 @@ errors anchor at the supplied expression. All supplied children are read before
 count validation, and supplied type mismatches suppress count errors. The method's
 return type remains available for subsequent assignment checks.
 
-Helper calls, interface declaration defaults, bare record/interface-member
-invocation versus routine-reference contexts (including grouped member callees),
-and bare inherited-call arity remain under audit.
+Parenthesized helper calls through a receiver use the same child-before-count
+and supplied-type-before-count policy. Count errors anchor at the member name
+and parameterless helpers use `Too many arguments`. Instance helpers, including
+function helpers, reserve argument 0 for Self; nonstatic class helpers for
+records/classes do so too. Their type errors use the shifted position described
+above. Static helper methods and class helpers for primitive/interface targets
+have no Self argument and use ordinary indices and supplied-expression anchors.
+Receiver ownership follows the selected overload, even when instance and static
+methods share a name. Implicit Self helper fallback uses the same policy.
+
+Explicit helper-name calls, calls bound in helper-body scope, helper overload
+selection, helper/interface declaration defaults, bare member invocation versus
+routine-reference contexts (including grouped member callees), and bare
+inherited-call arity remain under audit. Imported-helper and metaclass-target
+lookup also remain open. Specialized intrinsic helpers retain
+their own argument policies.
 
 ### Parameter defaults and Swap
 

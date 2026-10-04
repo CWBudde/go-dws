@@ -118,22 +118,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			a.addIdentifierCaseHint(expr.Method, a.declaredInterfaceMethodName(interfaceType, methodName))
 			// Native interface methods keep Self outside the written arguments,
 			// like class methods. Read children and check supplied types before
-			// reporting a count error; retain the helper fallback's own policy.
+			// reporting a count error.
 			a.analyzeMemberCallArguments(methodType, expr.Arguments, expr.Method.Token.Pos, false)
 			return methodType.ReturnType
 		}
 
-		// Validate arguments
-		if len(expr.Arguments) != len(methodType.Parameters) {
-			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
-				len(methodType.Parameters), len(methodType.Parameters))
-			return methodType.ReturnType
-		}
-
-		// Check argument types
-		for i, arg := range expr.Arguments {
-			a.analyzeCallArgument(i, arg, methodType.Parameters[i], i < len(methodType.StrictParams) && methodType.StrictParams[i])
-		}
+		a.analyzeHelperCallArguments(objectType, methodName, methodType, expr.Arguments, expr.Method.Token.Pos)
 
 		return methodType.ReturnType
 	}
@@ -189,19 +179,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
 			}
 
-			// Validate method arguments (defaulted parameters are optional)
-			if len(expr.Arguments) > len(method.Parameters) ||
-				len(expr.Arguments) < requiredParamCount(method) {
-				a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
-					requiredParamCount(method), len(method.Parameters))
-				return method.ReturnType
-			}
-
-			// Check argument types (in the context of the selected signature,
-			// so literals such as [] or nil adopt the parameter's type)
-			for i := range expr.Arguments {
-				a.analyzeSelfCallArgument(i, expr.Arguments, method.Parameters[i], expr.Method.Token.Pos, i < len(method.StrictParams) && method.StrictParams[i])
-			}
+			a.analyzeHelperCallArguments(objectType, methodName, method, expr.Arguments, expr.Method.Token.Pos)
 
 			return method.ReturnType
 		}
@@ -273,34 +251,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			})
 		}
 
-		// Validate helper method arguments (support optional parameters)
-		// Count required parameters (those without defaults)
-		requiredParams := len(helperMethod.Parameters)
-		if helperMethod.DefaultValues != nil {
-			requiredParams = 0
-			for _, defaultVal := range helperMethod.DefaultValues {
-				if defaultVal == nil {
-					requiredParams++
-				}
-			}
-		}
-
-		// Check argument count is within valid range
-		if len(expr.Arguments) < requiredParams || len(expr.Arguments) > len(helperMethod.Parameters) {
-			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
-				requiredParams, len(helperMethod.Parameters))
-			return helperMethod.ReturnType
-		}
-
-		// Check argument types
-		for i := range expr.Arguments {
-			var expectedType types.Type
-			if helperMethod.Parameters != nil && i < len(helperMethod.Parameters) {
-				expectedType = helperMethod.Parameters[i]
-			}
-			// The expected type enables lambda parameter type inference.
-			a.analyzeSelfCallArgument(i, expr.Arguments, expectedType, expr.Method.Token.Pos, i < len(helperMethod.StrictParams) && helperMethod.StrictParams[i])
-		}
+		a.analyzeHelperCallArguments(objectType, methodName, helperMethod, expr.Arguments, expr.Method.Token.Pos)
 
 		return helperMethod.ReturnType
 	}
@@ -482,16 +433,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 
 	if len(overloads) == 0 {
-		// Helper fallback retains its separately tracked argument policy.
-		if len(expr.Arguments) > len(methodType.Parameters) ||
-			len(expr.Arguments) < requiredParamCount(methodType) {
-			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
-				requiredParamCount(methodType), len(methodType.Parameters))
-			return methodType.ReturnType
-		}
-		for i, arg := range expr.Arguments {
-			a.analyzeCallArgument(i, arg, methodType.Parameters[i], i < len(methodType.StrictParams) && methodType.StrictParams[i])
-		}
+		a.analyzeHelperCallArguments(objectType, methodName, methodType, expr.Arguments, expr.Method.Token.Pos)
 	} else {
 		a.analyzeClassCallArguments(methodType, expr.Arguments, expr.Method.Token.Pos)
 	}
