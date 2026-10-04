@@ -116,6 +116,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
 		} else {
 			a.addIdentifierCaseHint(expr.Method, a.declaredInterfaceMethodName(interfaceType, methodName))
+			// Native interface methods keep Self outside the written arguments,
+			// like class methods. Read children and check supplied types before
+			// reporting a count error; retain the helper fallback's own policy.
+			a.analyzeMemberCallArguments(methodType, expr.Arguments, expr.Method.Token.Pos, false)
+			return methodType.ReturnType
 		}
 
 		// Validate arguments
