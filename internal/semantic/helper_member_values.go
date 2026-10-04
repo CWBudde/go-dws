@@ -43,6 +43,62 @@ func (a *Analyzer) helperSignatureDeclaration(receiver types.Type, name string, 
 	return nil, nil
 }
 
+// dispatchHelperReference selects a referenced user helper method as runtime
+// dispatch does: the first declared helper declaring the name wins, unless a
+// later helper inherits from it. Only overloads assignable to expected qualify.
+func (a *Analyzer) dispatchHelperReference(receiver types.Type, name string, expected types.Type) (*types.HelperType, *types.FunctionType) {
+	key := ident.Normalize(name)
+	var winner *types.HelperType
+	for _, helper := range a.getHelpersForType(receiver) {
+		if !helperChainDeclares(helper, key) {
+			continue
+		}
+		if winner == nil || helperInherits(helper, winner) {
+			winner = helper
+		}
+	}
+	for owner := winner; owner != nil; owner = owner.ParentHelper {
+		if owner.BuiltinMethods[key] != "" {
+			continue
+		}
+		for _, candidate := range helperOwnOverloads(owner, key) {
+			pointer := types.FunctionPointerFromFunctionType(candidate)
+			if a.canAssign(pointer, expected) {
+				return owner, candidate
+			}
+		}
+	}
+	return nil, nil
+}
+
+func helperChainDeclares(helper *types.HelperType, key string) bool {
+	for owner := helper; owner != nil; owner = owner.ParentHelper {
+		if owner.BuiltinMethods[key] == "" && len(helperOwnOverloads(owner, key)) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func helperOwnOverloads(owner *types.HelperType, key string) []*types.FunctionType {
+	if overloads := owner.MethodOverloads[key]; len(overloads) > 0 {
+		return overloads
+	}
+	if method := owner.Methods[key]; method != nil {
+		return []*types.FunctionType{method}
+	}
+	return nil
+}
+
+func helperInherits(helper, ancestor *types.HelperType) bool {
+	for owner := helper.ParentHelper; owner != nil; owner = owner.ParentHelper {
+		if owner == ancestor {
+			return true
+		}
+	}
+	return false
+}
+
 // analyzeBareHelperMethod selects a compatible reference or one implicit call.
 // Builtin helpers keep their specialized argument readers and existing policy.
 func (a *Analyzer) analyzeBareHelperMethod(expr *ast.MemberAccessExpression, receiver types.Type, signature *types.FunctionType, expected types.Type) types.Type {
@@ -53,12 +109,21 @@ func (a *Analyzer) analyzeBareHelperMethod(expr *ast.MemberAccessExpression, rec
 		}
 		return signature
 	}
-	pointer := types.FunctionPointerFromFunctionType(signature)
-	pointer.Name = a.declaredHelperMethodName(receiver, expr.Member.Value)
-	if expected != nil && types.IsPointerType(expected) && a.canAssign(pointer, expected) {
-		a.annotateMemberPointerType(expr, pointer)
-		a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{Token: expr.Member.Token, Name: helperMemberAnnotation(owner, expr.Member.Value, signature)})
-		return pointer
+	if expected != nil && types.IsPointerType(expected) {
+		if dispatchOwner, reference := a.dispatchHelperReference(receiver, expr.Member.Value, expected); reference != nil {
+			pointer := types.FunctionPointerFromFunctionType(reference)
+			pointer.Name = a.declaredHelperMethodName(receiver, expr.Member.Value)
+			a.annotateMemberPointerType(expr, pointer)
+			a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{Token: expr.Member.Token, Name: helperMemberAnnotation(dispatchOwner, expr.Member.Value, reference)})
+			return pointer
+		}
+		pointer := types.FunctionPointerFromFunctionType(signature)
+		pointer.Name = a.declaredHelperMethodName(receiver, expr.Member.Value)
+		if a.canAssign(pointer, expected) {
+			a.annotateMemberPointerType(expr, pointer)
+			a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{Token: expr.Member.Token, Name: helperMemberAnnotation(owner, expr.Member.Value, signature)})
+			return pointer
+		}
 	}
 	for _, candidate := range owner.MethodOverloads[ident.Normalize(expr.Member.Value)] {
 		if len(candidate.Parameters) == 0 {

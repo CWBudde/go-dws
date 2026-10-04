@@ -154,7 +154,7 @@ func (e *Evaluator) IsAssigned(value Value) bool {
 	}
 
 	// A nil function/method pointer (unbound proc-typed var or field) is unassigned.
-	if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok {
+	if funcPtr, ok := functionPointerOf(value); ok {
 		return !funcPtr.IsNil()
 	}
 

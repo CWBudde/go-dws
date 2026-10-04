@@ -105,6 +105,19 @@ var n := 0;
 function Count: Integer; begin n += 1; Result := n; end;
 var p: function(s: Integer; lazy v: Integer): Integer := H.Take;
 PrintLn(p(5, Count())); PrintLn(n);`, "3\n2\n"},
+		{"reference retains receiver", `type T = class Name: String; destructor Destroy; override; end;
+destructor T.Destroy; begin PrintLn('destroyed'); inherited; end;
+type H = helper for T function Take: String; begin Result := Self.Name; end; end;
+var obj := T.Create; obj.Name := 'kept';
+var p: function: String := obj.Take;
+obj := nil; PrintLn('cleared'); PrintLn(p());`, "cleared\nkept\n"},
+		{"reference uses dispatch-order helper", `type T = class end;
+type H1 = helper for T function Name: String; begin Result := 'H1'; end; end;
+type H2 = helper for T function Name: String; begin Result := 'H2'; end; end;
+var item := T.Create;
+var p: function: String := item.Name; PrintLn(item.Name); PrintLn(p());`, "H1\nH1\n"},
+		{"grouped constant", `const A = 1; const B = (A); const C = (A) + 1;
+var arr: array [0..(B)] of Integer; PrintLn(B); PrintLn(C); PrintLn(High(arr));`, "1\n2\n1\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) { compileAndRunWithHelperTransfer(t, tt.source, "helper_review.dws", tt.output) })
 	}

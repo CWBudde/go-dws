@@ -18,6 +18,18 @@ type helperMethodPointer struct {
 	explicit bool
 }
 
+// functionPointerOf also exposes the pointer embedded in a helper method pointer,
+// so binding retention and assignment checks treat both alike.
+func functionPointerOf(value Value) (*runtime.FunctionPointerValue, bool) {
+	switch pointer := value.(type) {
+	case *runtime.FunctionPointerValue:
+		return pointer, true
+	case *helperMethodPointer:
+		return &pointer.FunctionPointerValue, true
+	}
+	return nil, false
+}
+
 func (e *Evaluator) captureHelperMember(node *ast.MemberAccessExpression, ctx *ExecutionContext) (Value, bool) {
 	if e.engineState == nil {
 		return nil, false
