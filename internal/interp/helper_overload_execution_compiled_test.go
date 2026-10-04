@@ -23,6 +23,31 @@ PrintLn(item.Pick(1)); PrintLn(item.Pick('x')); PrintLn(J.Pick(item, 1));`)
 	}
 }
 
+func TestHelperOverloadExecution_UncheckedRuntimeTypes(t *testing.T) {
+	var output bytes.Buffer
+	engine := New(&output)
+	result := interpret(engine, `type TColor = (Red, Green);
+type TColors = set of TColor;
+type IThing = interface end;
+type TThing = class(TObject, IThing) end;
+type H = helper for Integer
+function Pick(v: TColor): String; overload; begin Result := 'enum'; end;
+function Pick(v: TColors): String; overload; begin Result := 'set'; end;
+function Pick(v: array [String] of Integer): String; overload; begin Result := 'map'; end;
+function Pick(v: IThing): String; overload; begin Result := 'interface'; end;
+function Pick(v: String): String; overload; begin Result := 'string'; end;
+end;
+var item: Integer; var s: TColors; var m: array [String] of Integer; var i: IThing := TThing.Create;
+PrintLn(item.Pick(Green)); PrintLn(item.Pick(s)); PrintLn(item.Pick(m));
+PrintLn(item.Pick(i)); PrintLn(item.Pick('x'));`)
+	if isError(result) {
+		t.Fatalf("evaluation failed: %s", result.String())
+	}
+	if got, want := output.String(), "enum\nset\nmap\ninterface\nstring\n"; got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
 func TestHelperOverloadExecution_CompiledSelection(t *testing.T) {
 	for _, target := range []struct{ name, declaration, helperTarget, setup string }{
 		{"primitive", "Integer", "Integer", "var item: T := 5;"},

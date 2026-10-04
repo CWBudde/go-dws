@@ -51,6 +51,11 @@ func (e *Evaluator) getValueType(val Value) types.Type {
 	case *runtime.FunctionPointerValue:
 		return e.functionPointerValueType(v)
 	default:
+		// Enums, sets, associative arrays, interfaces and the remaining
+		// typed values carry their language type themselves.
+		if languageType := runtime.LanguageType(val); languageType != nil {
+			return languageType
+		}
 		// For ObjectInstance - use helper method (was e.adapter.GetClassMetadataFromValue)
 		if metadata := e.getClassMetadataFromValue(val); metadata != nil {
 			return e.classTypeFromMetadata(metadata)
