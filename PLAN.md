@@ -1,8 +1,9 @@
 # go-dws — Work Plan
 
-Open work only, split into phases → tasks → subtasks. Completed items are deleted; their
-write-up goes to `docs/history/progress-log-<date>.md`. Phase 1.3 retains checked
-subitems while the phase is open, so its remaining work is easy to track. Documentation index:
+Work is split into phases → tasks → subtasks. Keep completed tasks checked while their
+subphase is open, so progress stays visible. When the whole subphase closes, remove its
+checklist and retain the write-up in `docs/history/progress-log-<date>.md`. The completed
+1.3 checklist is retained as a Phase 1 milestone checkpoint. Documentation index:
 [`docs/README.md`](docs/README.md).
 
 **Goal (v1.0):**
@@ -26,7 +27,7 @@ subitems while the phase is open, so its remaining work is easy to track. Docume
   [`testdata/fixtures/README.md` → "Working on a failing fixture"](testdata/fixtures/README.md#working-on-a-failing-fixture).
   Live numbers: `TEST_STATUS.md` (generated) and `just fixture-report --in-scope --classify`.
 
-**Legend:** `[ ]` open · `[x]` done (retained in §1.3) · ⏸️ gated, do not start · ⚠️ measure before implementing.
+**Legend:** `[ ]` open · `[x]` done (retained while the subphase is open) · ⏸️ gated, do not start · ⚠️ measure before implementing.
 Size: S (hours), M (days), L (week+). Line/fixture counts are sizing hints; regenerate them
 rather than trusting them.
 
@@ -48,7 +49,7 @@ sentence is the easy half.
 
 ### 1.3 `Cannot assign "X" to "Y"` — M
 
-Completed subitems are retained here until this phase closes. Details and validation:
+This completed checklist is retained as a Phase 1 milestone checkpoint. Details and validation:
 [`September progress log`](docs/history/progress-log-2026-09.md) and
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
@@ -126,67 +127,153 @@ Completed subitems are retained here until this phase closes. Details and valida
     indexed-property lookup, including nested arrays and supplier exceptions;
     retain grouped indices for intermediate record default properties.
 
-### 1.5 Remaining shapes by origin — L
+### Diagnostic progress: former Phase 1.5
 
-Work each batch largest shape first, mapping every invented sentence to DWScript's
+The former origin-based backlog is split into 1.5–1.8 below. Eight merged batches
+(PRs #449–#456) shipped work that is now checked under its owning subphase. Earlier history entries
+keep their original “Phase 1.5” labels; their scope and validation remain the evidence.
+
+| Subphase | Scope | Completed tasks | Remaining tasks |
+| --- | --- | ---: | ---: |
+| 1.5 | Declarations and intrinsic diagnostics | 4 | 2 |
+| 1.6 | Member and helper call diagnostics | 4 | 9 |
+| 1.7 | Default arguments and writable storage | 3 | 4 |
+| 1.8 | Statements and remaining vocabulary | 0 | 6 |
+
+Counts are top-level checkboxes, not subtasks or estimates of effort. A parent
+stays open until all its subtasks pass. Update its checkbox and this table in the
+same PR; retain checked siblings until the subphase closes. Detailed evidence:
+[`October progress log`](docs/history/progress-log-2026-10.md).
+
+**Next ungated batch:** 1.6's explicit helper-name and helper-body call diagnostics.
+Work through the remaining 1.6 call tasks, then 1.7 defaults/storage; take 1.5's
+remaining declaration checks when needed by defaults. Phase 2/3 prerequisites
+continue to gate their overlapping 1.8 sweeps.
+
+### 1.5 Declaration and intrinsic diagnostics — M remaining
+
+Owners: parser declaration recovery, `internal/semantic/analyze_classes*.go`,
+default-expression validation, and intrinsic argument checkers.
+
+- [x] `Swap` data-argument and type diagnostics ([#449](https://github.com/CWBudde/go-dws/pull/449)).
+  - [x] Validate writable data arguments, canonical type pairs, and one-argument punctuation.
+  - [x] Preserve valid field/array storage and reject immutable/temporary storage (`swap1`, `swap2`).
+- [x] Immutable assignment diagnostics ([#449](https://github.com/CWBudde/go-dws/pull/449)).
+  - [x] Use the left-side assignment sentence for read-only bindings and class constants.
+- [x] Property accessors and operator declarations ([#450](https://github.com/CWBudde/go-dws/pull/450)).
+  - [x] Match missing accessor names, getter/setter signatures, and measured anchors.
+  - [x] Preserve invalid operator recovery and validate global operator bindings.
+- [x] Class, record, and helper member headers ([#451](https://github.com/CWBudde/go-dws/pull/451)).
+  - [x] Match header/END compiler stops and retain earlier declaration diagnostics.
+  - [x] Preserve record field recovery and helper visibility diagnostic ordering.
+- [ ] Remaining intrinsic argument diagnostics.
+  - [ ] Measure and implement `Assert` and remaining `Inc`/`Dec` sentences and anchors;
+    first-argument var validation is already done in 1.7.
+  - [ ] Close `Swap` zero/excess-argument and delimiter-stop recovery gaps.
+  - [ ] Inventory other intrinsic shapes and split each measured failure into a follow-up.
+- [ ] Default-expression declaration validation beyond regular routines.
+  - [ ] Validate method/record/helper defaults for constantness, types, and modifiers.
+  - [ ] Audit other parameter-declaration sentences; regular-routine `params1` is closed.
+
+### 1.6 Member and helper call diagnostics — M per remaining batch
+
+Owners: `internal/semantic/analyze_function_calls.go`, `analyze_method_calls.go`,
+`analyze_helpers.go`, shared member argument checking, and frontend acceptance tests.
+Pin complete diagnostic lists through `frontend.Compile`, including recovery types.
+
+- [x] Class-member and constructor calls ([#453](https://github.com/CWBudde/go-dws/pull/453)).
+  - [x] Match explicit/implicit Self and named inherited count/overload diagnostics.
+  - [x] Check supplied types before count and preserve child errors, anchors, and recovery.
+- [x] Parenthesized native record calls ([#454](https://github.com/CWBudde/go-dws/pull/454)).
+  - [x] Cover instance/class/metatype receivers, implicit Self, and recursive Result aliases.
+  - [x] Preserve receiver-shifted numbering, overload policy, and all supplied child errors.
+- [x] Direct parenthesized native interface calls ([#455](https://github.com/CWBudde/go-dws/pull/455)).
+  - [x] Match count/type ordering and anchors for inherited and expression receivers.
+  - [x] Preserve contextual nil/[] arguments and result types during recovery (21 cases).
+- [x] Parenthesized receiver-helper calls ([#456](https://github.com/CWBudde/go-dws/pull/456)).
+  - [x] Cover primitive/record/class/interface targets and implicit Self fallback.
+  - [x] Preserve selected instance/class/static receiver roles and diagnostic ordering (70 cases).
+- [ ] Remaining helper call contexts.
+  - [ ] Match explicit helper-name calls and helper-body bound routine calls.
+  - [ ] Distinguish bare invocation from routine references, including grouped helper callees.
+- [ ] Helper overload selection.
+  - [ ] Measure candidate selection independently from selected-signature argument checking.
+  - [ ] Pin child analysis and receiver ownership across mixed/inherited overload sets.
+- [ ] Helper availability and target lookup.
+  - [ ] Audit imported-helper availability in the receiving analyzer across a unit boundary.
+  - [ ] Preserve metaclass helper targets during parenthesized receiver lookup and unwrapping.
+- [ ] Bare record/interface member contexts.
+  - [ ] Distinguish implicit invocation from a compatible routine reference.
+  - [ ] Measure grouped member callees, where the member is read before the outer call.
+- [ ] Noncallable record-name shadow fallback.
+  - [ ] Pin lexical noncallable shadows separately from recursive function Result aliases.
+  - [ ] Correct the fallback without changing the shipped Result-alias behavior.
+- [ ] Multiline child/type diagnostic ordering.
+  - [ ] Measure argument-child diagnostics versus supplied-type errors across lines.
+  - [ ] Preserve the expected ordering alongside count/overload recovery.
+- [ ] Excess bare-callable arguments.
+  - [ ] Analyze implicit calls beyond the member's declared parameter list.
+  - [ ] Retain the excess callable's own arity diagnostics before the outer call error.
+- [ ] Bare inherited-call arity and recovery.
+  - [ ] Measure unnamed inherited calls independently from shipped named calls.
+  - [ ] Match arity, anchors, and result recovery for each measured form.
+- [ ] Synthetic parameterless constructor ambiguity.
+  - [ ] Measure competition with inherited constructors whose parameters all have defaults.
+  - [ ] Resolve ambiguity while preserving upstream constructor candidate policy.
+
+### 1.7 Default arguments and writable storage — M per remaining batch
+
+Owners: semantic signatures, helper/interface declarations, and runtime call/storage
+handling in `internal/interp/evaluator`. Runtime defaults must use declaration scope.
+Declaration-validation prerequisites live in 1.5; call diagnostic context lives in 1.6.
+
+- [x] Regular-routine default declarations ([#449](https://github.com/CWBudde/go-dws/pull/449)).
+  - [x] Validate default modifiers, constantness, type compatibility, and anchors (`params1`).
+  - [x] Preserve valid aggregate/pure-call defaults and required rejected parameters.
+- [x] Native record omitted-default execution ([#454](https://github.com/CWBudde/go-dws/pull/454)).
+  - [x] Retain defaults through inline/out-of-line and overloaded record signatures.
+  - [x] Resolve lexical/record constants at declaration scope and evaluate supplied arguments once.
+- [x] Regular var arguments and Self recovery ([#452](https://github.com/CWBudde/go-dws/pull/452)).
+  - [x] Close `passing_const_var`, `passing_const_var2`, `const_param2`, and `self_not_writable`.
+  - [x] Validate `Inc`/`Dec` argument zero and retain mutable field/array/property/JSON storage.
+- [ ] Helper default signatures and execution.
+  - [ ] Preserve declaration defaults in receiver-call signatures.
+  - [ ] Execute omitted defaults for ordinary, function, and inherited helpers.
+- [ ] Interface default signatures and execution.
+  - [ ] Preserve defaults in interface signatures, including inherited signatures.
+  - [ ] Execute omitted arguments using the interface declaration's defaults.
+- [ ] Var checks on remaining call paths.
+  - [ ] Extend checks to method/inherited/constructor calls and measure receiver-shifted anchors.
+  - [ ] Extend checks to helper/function-pointer calls and retain read-only signature bindings.
+- [ ] Writable callable-reference temporaries.
+  - [ ] Measure upstream writable routine-reference data and required runtime slots.
+  - [ ] Support temporary reference storage before changing the existing `@Routine` rejection.
+
+### 1.8 Statements and remaining diagnostic vocabulary — S per measured shape
+
+Work each batch largest shape first, mapping invented sentences to DWScript's
 (`expected ')' after parameter list` → `")" expected`, `unknown type 'X'` → `Type expected`).
+Owners: `analyze_statements.go`, remaining class semantic sites, frontend, lexer,
+and shared `internal/errors` builders. Remeasure the shape worklist before each sweep.
 
-- [ ] Parser shapes (overlaps Phase 2).
-  - [ ] Audit remaining punctuation and type sentences after the Phase 2 prerequisites.
-- [ ] `analyze_function_calls.go` / `analyze_method_calls.go`.
-  - [ ] Remaining helper call diagnostics: explicit helper-name calls, bare
-    invocation/reference contexts and calls bound in helper-body scope; audit
-    overload selection independently from the selected-signature argument check.
-  - [ ] Audit imported-helper availability in the receiving analyzer and
-    parenthesized lookup for helpers targeting metaclass types; receiver
-    unwrapping currently hides those helper targets.
-  - [ ] Preserve helper declaration defaults in receiver-call signatures and
-    execute omitted arguments, including function helpers and inherited helpers.
-  - [ ] Preserve interface declaration defaults in signatures and execute omitted
-    arguments using the interface's declaration, including inherited signatures.
-  - [ ] Audit bare record/interface-member invocation versus routine-reference
-    contexts, including grouped member callees.
-  - [ ] Audit the existing noncallable record-name shadow fallback separately
-    from recursive function Result aliases.
-  - [ ] Audit multiline argument-child diagnostics versus supplied-type error ordering.
-  - [ ] Audit implicit invocation of bare callable arguments beyond a member's
-    declared parameter list; their own arity diagnostics are currently skipped.
-  - [ ] Audit bare inherited-call arity and recovery separately from named calls.
-  - [ ] Resolve synthetic parameterless constructor ambiguity with inherited
-    constructors whose parameters all have defaults; preserve candidate policy.
-  - [ ] Extend var-argument checks to remaining method/inherited/constructor,
-    helper and function-pointer call paths; measure receiver-shifted anchors
-    and retain read-only signature bindings. The named regular-call fixture
-    set is closed.
-  - [ ] Callable var-argument temporaries: investigate upstream writable
-    routine-reference data and runtime storage; existing `@Routine` rejection
-    remains until temporary reference slots are supported.
-  - [ ] Remaining intrinsic diagnostics (`Assert`, `Inc`/`Dec`, and others);
-    `Swap` zero/excess arguments and delimiter-stop recovery remain open.
-  - [ ] Extend default-expression validation to method/record/helper signatures
-    and audit the other declaration sentences; regular-routine `params1` is closed.
-- [ ] `analyze_statements.go`.
-  - [ ] Unknown types and failed inference: `Type expected` / `Type could not be inferenced`.
-  - [ ] FOR STEP type/positivity sentences and anchors; constant folding is a
-    separate prerequisite (`for_step` and its optimized sibling).
-  - [ ] Break/Continue/Exit sentences, with finally nesting and compile stops
-    kept explicit (`break_continue`, `break_in_finally`, `exit_result6`).
-- [ ] `analyze_classes*.go` (overlaps Phase 3).
-- [ ] Other semantic sites, frontend, lexer, shared `internal/errors` builders.
-  Remaining incompatible-type pairs include `coalesce`, `in_typecheck1`, and
-  `property_default1`; the named task 1.2 fixtures are closed.
-
-The shipped 1.5 batches cover regular parameter defaults, `Swap` data-argument/type
-checks, immutable assignments, property accessor names/signatures, invalid
-operator recovery with global operator validation, helper/class/record
-member-header stops with earlier declaration diagnostics, and regular var-argument
-checks with `Inc`/`Dec` first-argument validation and object `Self` recovery,
-class-member/constructor call diagnostics, and parenthesized native record calls
-with omitted-default execution, and direct parenthesized native interface-call
-argument diagnostics, and parenthesized receiver-helper calls with selected
-instance/class/static receiver roles and implicit Self fallback.
-Their exact scope and evidence are in
-[`the October progress log`](docs/history/progress-log-2026-10.md).
+- [ ] ⏸️ Remaining parser shapes — after the relevant Phase 2 prerequisites.
+  - [ ] Audit remaining punctuation and type sentences; coordinate overlapping Phase 2 work.
+- [ ] Unknown statement types and failed inference.
+  - [ ] Match `Type expected` for unknown types.
+  - [ ] Match `Type could not be inferenced` for failed inference.
+- [ ] FOR STEP diagnostics.
+  - [ ] Establish constant-folding prerequisites for `for_step` and its optimized sibling.
+  - [ ] Match type/positivity sentences and anchors after folding is available.
+- [ ] Break/Continue/Exit diagnostics.
+  - [ ] Match `break_continue` and `break_in_finally` with finally nesting explicit.
+  - [ ] Match `exit_result6` while preserving compiler-stop behavior.
+- [ ] Remaining class declaration vocabulary — coordinate with Phase 3.
+  - [ ] Map emitting sites in `analyze_classes*.go` to the Phase 3 declaration/forward tasks.
+  - [ ] Close measured leftover sentence/anchor gaps without duplicating Phase 3 ownership.
+- [ ] Other semantic, frontend, lexer, and shared error-builder sites.
+  - [ ] Close incompatible-type pairs in `coalesce`, `in_typecheck1`, and `property_default1`;
+    the named former task 1.2 fixtures are closed.
+  - [ ] Inventory remaining invented sentences and split each measured shape into a task.
 
 ---
 

@@ -116,5 +116,7 @@ Status figures are generated, never hand-edited:
 
 - A doc in `guide/`, `architecture/`, or `decisions/` must describe the code as it is. If it stops
   being true, fix it or move it to `archive/` with a banner.
-- Completed work is written up once, in `history/progress-log-<date>.md`, and then removed from `PLAN.md`.
+- Completed work is written up once in `history/progress-log-<date>.md`. Keep its
+  checked task in `PLAN.md` while the subphase is open; remove the checklist when
+  the whole subphase closes. The completed 1.3 milestone remains as a checkpoint.
 - Do not hand-edit status numbers anywhere; link to the generated files instead.

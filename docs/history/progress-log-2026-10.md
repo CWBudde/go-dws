@@ -1019,3 +1019,24 @@ and grouped-callee contexts; helper overload selection; declaration defaults and
 omitted-default execution; var-storage validation; and imported-helper and
 metaclass-target lookup. The error-message guide describes the shipped receiver
 policy and its remaining scope limits.
+
+## 2026-10-04 — Diagnostic roadmap progress tracking
+
+Split the former broad Phase 1.5 backlog into four subphases in [PLAN.md](../../PLAN.md):
+1.5 declarations/intrinsics, 1.6 member/helper calls, 1.7 defaults/writable storage,
+and 1.8 statements/remaining vocabulary. The eight merged batches from PRs
+#449–#456 now appear as checked tasks under their owning subphases, with links
+to the corresponding PRs. Historical entries retain their original phase labels.
+
+Every former remaining item is retained as an open task or subtask. The new table
+counts completed and remaining top-level tasks, rather than estimating effort or
+fixture compatibility. Explicit helper-name/helper-body calls are the next ungated
+batch; Phase 2/3 dependencies remain explicit. No diagnostic compatibility work
+was closed by this documentation change.
+
+Completed task checkboxes now stay visible while their subphase is open. Update
+the checkbox and summary table with each implementation PR, and remove the
+checklist only when the whole subphase closes. The completed 1.3 milestone remains
+as an explicit checkpoint exception. The documentation index records the same convention. Validation checks task counts, relative links, preservation
+of the old backlog, and whitespace; runtime tests are not needed for this
+documentation-only change.
