@@ -36,6 +36,9 @@ func (a *Analyzer) analyzeCallableValue(value ast.Expression, expected types.Typ
 		}
 	}
 	if identifier, ok := value.(*ast.Identifier); ok {
+		if result, handled := a.analyzeBareBoundHelper(identifier, expected); handled {
+			return result
+		}
 		if result, readAsCall := a.analyzeAssignmentIdentifierCall(identifier, expected, readRejectedReference); readAsCall {
 			return result
 		}

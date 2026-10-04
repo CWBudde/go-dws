@@ -237,7 +237,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	// pointer and is called immediately (MyPrint(True)('x'), o.GetProc1()('get')).
 	// Evaluate it and, if it is a pointer/lambda, invoke it.
 	switch node.Function.(type) {
-	case *ast.CallExpression, *ast.MethodCallExpression, *ast.IndexExpression:
+	case *ast.CallExpression, *ast.MethodCallExpression, *ast.IndexExpression, *ast.GroupedExpression:
 		calleeVal := e.Eval(node.Function, ctx)
 		if isError(calleeVal) {
 			return calleeVal

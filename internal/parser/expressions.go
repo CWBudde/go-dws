@@ -532,7 +532,14 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	// Advance to RPAREN
 	p.cursor = p.cursor.Advance()
 
-	// Return the expression directly, not wrapped
-	// This avoids double parentheses in the string representation
+	// Named callees must retain grouping: the inner name is read before an
+	// outer argument list, independently of that call or a pointer context.
+	switch exp.(type) {
+	case *ast.Identifier, *ast.MemberAccessExpression, *ast.GroupedExpression:
+		return &ast.GroupedExpression{
+			BaseNode:   ast.BaseNode{Token: lparenToken, EndPos: p.cursor.Current().End()},
+			Expression: exp,
+		}
+	}
 	return exp
 }

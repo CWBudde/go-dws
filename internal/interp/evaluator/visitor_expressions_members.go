@@ -36,6 +36,9 @@ func (e *Evaluator) VisitMemberAccessExpression(node *ast.MemberAccessExpression
 	if e.SemanticInfo() != nil && e.SemanticInfo().IsImplicitCall(node) {
 		defer func() { result = e.finishImplicitCallableRead(result, node, ctx, true) }()
 	}
+	if value, handled := e.captureHelperMember(node, ctx); handled {
+		return value
+	}
 	obj, handled := e.captureMemberReceiver(node, ctx)
 	if handled {
 		return obj

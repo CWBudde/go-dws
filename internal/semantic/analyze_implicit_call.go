@@ -21,10 +21,12 @@ func (a *Analyzer) checkImplicitCallArity(expr ast.Expression) {
 	// about the source; upstream stops at the syntax error and never reaches the
 	// implicit call. The constant-instruction hint is suppressed for the same
 	// reason.
-	if expr == nil || a.parseHadErrors {
+	if expr == nil || a.parseHadErrors || a.semanticInfo.IsImplicitCall(expr) {
 		return
 	}
 	switch e := expr.(type) {
+	case *ast.GroupedExpression:
+		a.checkImplicitCallArity(e.Expression)
 	case *ast.Identifier:
 		if pos, missing := a.implicitCallNeedsArguments(e); missing {
 			if overloadedBuiltins[ident.Normalize(e.Value)] {

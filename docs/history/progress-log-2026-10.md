@@ -1090,3 +1090,57 @@ reports zero issues; full baseline lint reports the 1,229 inherited findings.
 Verification used Go 1.24.13 with writable compiler/cache paths and tmpfs test
 storage: worktree test directories hit recurring empty-directory cleanup errors
 on both the unchanged baseline and the branch; rerunning on tmpfs passed.
+
+
+## 2026-10-04 — Bare helper invocation, references, and grouped callees (PLAN 1.6)
+
+Bare user-helper members now read as calls unless a compatible callable context
+requires a reference. Missing arguments report at the member and retain the result
+type for recovery. Compatible references capture helper ownership and the receiver
+once, and defer execution until called. Explicit helper-name and helper-body
+references preserve their selected declaration and written argument modifiers.
+
+The parser retains member/name grouping so grouped helper callees read their
+inner member before the outer call. Scalar results stop compilation with
+`Not a method` at the outer opening parenthesis, preserving earlier child errors
+and suppressing later arguments and diagnostics. Callable results execute once;
+the outer call uses the shared supplied-type/child/count argument policy. Grouped
+ordinary routine references retain their existing expected-type behavior.
+
+Acceptance covers 66 complete compile-path diagnostic lists and 13 compiled-run
+cases across primitive, record, class, and interface targets, explicit/helper-body
+bindings, function helpers, inherited ownership, lexical shadows, casing, receiver
+side effects, returned callables, and references. The initial 48-case matrix had
+44 failures. Independent review reproduced four regressions: grouped explicit
+helper discrimination, grouped ordinary references, selected explicit overload
+identity, and explicit lazy-argument alignment. Each gained a regression test
+before its fix; the final grouping tests retain the existing initializer-checker
+vocabulary, whose independent audit remains open.
+
+Pinned upstream evidence comes from `WrapUpFunctionRead`, `ReadTypeHelper`,
+`ReadTerm`, `ReadBracket`, `ReadSymbol`, and `CPE_NoMethodExpected` at DWScript
+commit `1dbf8a90329cc3f2638516e89c0668f916c1ddb9`.
+Existing helper declaration-order lookup, static alias/field/property bindings,
+parameterless overload reads, native Self.ClassName escape, and nested property
+writers remain covered by the fixture harness.
+
+PLAN.md now checks both remaining helper-context subtasks and their parent;
+Phase 1.6 shows five complete and eight open tasks. Helper overload-candidate
+measurement comes next. Defaults, var-storage checks, imported availability,
+metaclass-target lookup, and bare native record/interface reads retain separate
+open tasks. The error-message guide describes this batch's behavior.
+
+Validation passes with Go 1.24.13: full
+`go test -race -coverprofile=.cache/results/coverage-final.out ./...`, coverage HTML
+creation, `just fixture-check`, `just check-fmt`, `go mod tidy -diff`, CLI build and
+reference/diagnostic probes, and `git diff --check`. The CI lint gate
+(`golangci-lint run --new-from-merge-base=origin/main --timeout 10m`) reports zero
+new issues. Final independent review has no remaining findings in this batch.
+
+`just fixture-update` passed but proposed only a BuildScripts floor increase from
+7 to 8, within the already documented initialization-order variation. Generated
+status/baseline changes were discarded; no deterministic fixture gain is claimed.
+The earlier full-run attempt exposed an unchecked evaluator setup without engine
+state; the helper metadata lookup now guards it and the existing test passes.
+Another verification attempt hit the runner's `/tmp` quota; moving the task's lint
+cache into its worktree allowed the final checks to pass with tmpfs test storage.

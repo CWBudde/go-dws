@@ -454,6 +454,11 @@ func (a *Analyzer) checkRecordMemberVisibility(
 
 // analyzeRecordFieldAccess analyzes access to a record field.
 func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Identifier) types.Type {
+	return a.analyzeRecordFieldAccessWithExpectedType(obj, field, nil, nil)
+}
+
+//nolint:gocyclo // Existing record member resolver; helper value policy is delegated.
+func (a *Analyzer) analyzeRecordFieldAccessWithExpectedType(obj ast.Expression, field *ast.Identifier, member *ast.MemberAccessExpression, expected types.Type) types.Type {
 	if field == nil {
 		return nil
 	}
@@ -562,14 +567,10 @@ func (a *Analyzer) analyzeRecordFieldAccess(obj ast.Expression, field *ast.Ident
 	// Check if a helper provides this member
 	helperMethod := a.hasHelperMethod(objType, fieldName)
 	if helperMethod != nil {
-		// Parameterless helper methods auto-invoke on member access
-		if len(helperMethod.Parameters) == 0 {
-			if helperMethod.ReturnType != nil {
-				return helperMethod.ReturnType
-			}
-			return types.VOID
+		if member == nil {
+			member = &ast.MemberAccessExpression{BaseNode: ast.BaseNode{Token: field.Token}, Object: obj, Member: field}
 		}
-		return helperMethod
+		return a.analyzeBareHelperMethod(member, objType, helperMethod, expected)
 	}
 
 	helperProp := a.hasHelperProperty(objType, fieldName)

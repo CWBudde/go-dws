@@ -9,6 +9,12 @@ import (
 )
 
 func (e *Evaluator) executeFunctionPointerDirect(funcPtr Value, args []Value, node ast.Node, ctx *ExecutionContext) Value {
+	if pointer, ok := funcPtr.(*helperMethodPointer); ok {
+		if pointer.explicit {
+			return e.callExplicitHelperMethod(pointer.helper, pointer.method, args, node, ctx)
+		}
+		return e.CallASTHelperMethod(pointer.helper, pointer.method, pointer.SelfObject, args, node, ctx)
+	}
 	callable, ok := funcPtr.(FunctionPointerCallable)
 	if !ok {
 		return e.newError(node, "invalid function pointer type: got %T", funcPtr)
