@@ -384,13 +384,13 @@ When implementing new stages/tasks:
 - Add comprehensive tests
 - Update CLI if applicable
 - Record what shipped in `docs/history/progress-log-<date>.md` and update the relevant `docs/guide/` page
-- Remove the closed item from `PLAN.md`
+- Check the closed task in `PLAN.md`; remove the checklist once its whole subphase closes
 
-Before large refactors, update `PLAN.md` §2 with the affected items. When an item is closed by a passing fixture, delete it from `PLAN.md` and record what shipped in `docs/history/progress-log-<date>.md`; ratchet `testdata/fixtures/baselines.json` with `just fixture-update`.
+Before large refactors, update `PLAN.md` §2 with the affected items. When an item is closed by a passing fixture, record what shipped in `docs/history/progress-log-<date>.md` and check it in `PLAN.md` (with a link to the PR); checked tasks stay visible while their subphase is open and are deleted when the whole subphase closes; ratchet `testdata/fixtures/baselines.json` with `just fixture-update`.
 
 ## Important Files
 
-- `PLAN.md`: Open work only, ordered by leverage (measurement, architecture, language, diagnostics)
+- `PLAN.md`: Open work (open subphases keep their checked tasks for progress tracking), ordered by leverage (measurement, architecture, language, diagnostics)
 - `goal.md`: Detailed strategy and rationale for the port
 - `README.md`: User-facing documentation
 - `CONTRIBUTING.md`: Contribution guidelines
