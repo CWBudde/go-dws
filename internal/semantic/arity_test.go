@@ -197,18 +197,16 @@ func TestBareStatelessBuiltinIsConstantInstruction(t *testing.T) {
 	}
 }
 
-// The count a constructor call is measured against comes from the whole overload
-// set, not from whichever signature happens to be declared first: a class with
-// both `Create` and `Create(Integer)` accepts 0..1 arguments, so two is over the
-// top rather than short of the parameterless one.
-func TestConstructorArityBoundsSpanTheOverloadSet(t *testing.T) {
+// A default constructor marked overload is resolved against the complete set;
+// two arguments match neither Create nor Create(Integer).
+func TestConstructorArityFailureUsesTheOverloadSet(t *testing.T) {
 	input := "type T = class\n   constructor Create;\n   constructor Create(i : Integer); overload;\nend;\n" +
 		"constructor T.Create;\nbegin\nend;\n" +
 		"constructor T.Create(i : Integer);\nbegin\nend;\n\n" +
 		"var x := new T(1, 2);"
 	got := analyzeWithHints(t, input, HintsLevelPedantic)
-	if !hasDiagnosticContaining(got, "Too many arguments") {
-		t.Errorf("expected the count to be measured against the whole set, got %v", got)
+	if !hasDiagnosticContaining(got, `There is no overloaded version of "Create"`) {
+		t.Errorf("expected the call to be matched against the whole set, got %v", got)
 	}
 }
 

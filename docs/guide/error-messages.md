@@ -86,6 +86,26 @@ Unmarked routines retain `More arguments expected`, `Too many arguments`, or
 `There is already a method with name "X"` at the completed header: its semicolon
 when no directive follows, otherwise the token after the last directive.
 
+Class member calls, including implicit `Self`, named `inherited` calls, and
+constructors, use `More arguments expected` or `Too many arguments` for unmarked
+signatures. Parameterless class members use `Too many arguments`; specialized
+helper and regular-routine policies are separate. A marked class-member or
+constructor set uses the overload sentence above, even for a sole marked method.
+
+These class calls read all written arguments before validating types and count.
+A supplied parameter's type mismatch suppresses the count error. An error inside
+an argument is reported first and can still be followed by the count error, even
+when the argument is on a later line. Omitted default parameters remain optional
+and execute normally. Constructor dispatch respects an unmarked constructor's
+hiding of same-named ancestor constructors. Inherited constructor sets can still
+be ambiguous when a synthetic parameterless constructor competes with an
+all-optional signature; that candidate-policy issue remains open in PLAN.md.
+
+Count and overload diagnostics anchor at the method or constructor name,
+including the name following `inherited`. For `new T(...)`, the anchor is `T`
+(or the written metaclass expression). Existing result-type recovery is retained.
+Record, interface, helper, and bare inherited-call arity remain under audit.
+
 ### Parameter defaults and Swap
 
 A `lazy`, `var`, or `const` parameter with a default reports

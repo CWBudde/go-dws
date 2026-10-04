@@ -45,6 +45,11 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 		memberName = a.currentFunction.Name.Value
 	}
 
+	callPos := ie.Token.Pos
+	if ie.Method != nil {
+		callPos = ie.Method.Token.Pos
+	}
+
 	// Check if we're calling a constructor from within a constructor
 	// If we're in a constructor and the member is a constructor in the parent, handle it specially
 	if a.currentFunction != nil && a.currentFunction.IsConstructor {
@@ -58,46 +63,11 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 				}
 			}
 
-			var ctorType *types.FunctionType
-			if len(ctorOverloads) > 1 {
-				argTypes := make([]types.Type, len(ie.Arguments))
-				for idx, arg := range ie.Arguments {
-					argType := a.analyzeOverloadArgument(arg)
-					if argType == nil {
-						return types.VOID
-					}
-					argTypes[idx] = argType
-				}
-				candidates := make([]*Symbol, len(ctorOverloads))
-				for idx, overload := range ctorOverloads {
-					candidates[idx] = &Symbol{Type: overload.Signature}
-				}
-				selected, err := ResolveOverload(candidates, argTypes)
-				if err != nil {
-					a.addStructuredError(NewNoOverloadMatchError(ie.Token.Pos, memberName))
-					return types.VOID
-				}
-				ctorType = selected.Type.(*types.FunctionType)
-			} else if len(ctorOverloads) == 1 {
-				ctorType = ctorOverloads[0].Signature
-			} else {
-				ctorType, _ = parentClass.GetConstructor(memberName)
+			selected := a.selectClassCallOverload(ctorOverloads, ie.Arguments, memberName, callPos)
+			if selected == nil {
+				return types.VOID
 			}
-
-			// Check argument count (defaulted parameters are optional)
-			actualArgs := len(ie.Arguments)
-			if actualArgs > len(ctorType.Parameters) || actualArgs < requiredParamCount(ctorType) {
-				a.addError("wrong number of arguments for inherited constructor '%s': expected %d, got %d at %s",
-					memberName, len(ctorType.Parameters), actualArgs, ie.Token.Pos.String())
-				return nil
-			}
-
-			// Type check each argument (in the context of the selected
-			// signature, so literals such as [] or nil adopt the parameter's type)
-			for idx, arg := range ie.Arguments {
-				paramType := ctorType.Parameters[idx]
-				a.analyzeCallArgument(idx, arg, paramType, idx < len(ctorType.StrictParams) && ctorType.StrictParams[idx])
-			}
+			a.analyzeClassCallArguments(selected.Signature, ie.Arguments, callPos)
 
 			// Constructors don't have explicit return types in expressions
 			return types.VOID
@@ -118,20 +88,13 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 		}
 
 		if isMethodCall {
-			// Check argument count
-			expectedParams := len(methodType.Parameters)
-			actualArgs := len(ie.Arguments)
-			if actualArgs != expectedParams {
-				a.addError("wrong number of arguments for inherited method '%s': expected %d, got %d at %s",
-					memberName, expectedParams, actualArgs, ie.Token.Pos.String())
+			overloads := a.getMethodOverloadsInHierarchy(memberName, parentClass)
+			selected := a.selectClassCallOverload(overloads, ie.Arguments, memberName, callPos)
+			if selected == nil {
 				return nil
 			}
-
-			// Type check each argument
-			for idx, arg := range ie.Arguments {
-				paramType := methodType.Parameters[idx]
-				a.analyzeCallArgument(idx, arg, paramType, idx < len(methodType.StrictParams) && methodType.StrictParams[idx])
-			}
+			methodType = selected.Signature
+			a.analyzeClassCallArguments(methodType, ie.Arguments, callPos)
 
 			// Return the method's return type
 			if methodType.ReturnType != nil {

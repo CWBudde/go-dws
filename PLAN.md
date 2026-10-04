@@ -132,12 +132,13 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
 (`expected ')' after parameter list` → `")" expected`, `unknown type 'X'` → `Type expected`).
 
 - [ ] Parser shapes (overlaps Phase 2).
-  - [ ] Unsupported helper-parent syntax:
-    keep its compatibility decision separate from member-header diagnostics.
   - [ ] Audit remaining punctuation and type sentences after the Phase 2 prerequisites.
 - [ ] `analyze_function_calls.go` / `analyze_method_calls.go`.
-  - [ ] Remaining method/inherited arity and constructor overload sentences;
-    preserve each path's ordering and recovery types.
+  - [ ] Remaining record/interface/helper arity sentences and receiver-shifted anchors.
+  - [ ] Audit multiline argument-child diagnostics versus supplied-type error ordering.
+  - [ ] Audit bare inherited-call arity and recovery separately from named calls.
+  - [ ] Resolve synthetic parameterless constructor ambiguity with inherited
+    constructors whose parameters all have defaults; preserve candidate policy.
   - [ ] Extend var-argument checks to remaining method/inherited/constructor,
     helper and function-pointer call paths; measure receiver-shifted anchors
     and retain read-only signature bindings. The named regular-call fixture

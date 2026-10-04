@@ -223,79 +223,41 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		validConstructors = constructorOverloads
 	}
 
-	// Select constructor based on argument count first
 	var selectedConstructor *types.MethodInfo
-	var selectedSignature *types.FunctionType
-
-	// Find constructors with matching argument count (params with default
-	// values are optional).
-	matchingCountConstructors := make([]*types.MethodInfo, 0)
+	marked := false
 	for _, ctor := range validConstructors {
-		if len(expr.Arguments) > len(ctor.Signature.Parameters) {
-			continue
+		marked = marked || ctor.HasOverloadDirective
+	}
+	if marked {
+		selectedConstructor = a.selectClassCallOverload(validConstructors, expr.Arguments, constructorName, newExpressionNamePos(expr))
+	} else {
+		matching := make([]*types.MethodInfo, 0, len(validConstructors))
+		for _, ctor := range validConstructors {
+			if len(expr.Arguments) >= requiredParamCount(ctor.Signature) &&
+				len(expr.Arguments) <= len(ctor.Signature.Parameters) {
+				matching = append(matching, ctor)
+			}
 		}
-		if len(expr.Arguments) >= requiredParamCount(ctor.Signature) {
-			matchingCountConstructors = append(matchingCountConstructors, ctor)
+		switch len(matching) {
+		case 0:
+			// An unmarked signature still checks its supplied arguments before
+			// reporting a short or excessive call.
+			if len(validConstructors) == 1 {
+				selectedConstructor = validConstructors[0]
+			} else {
+				minWanted, maxWanted := constructorArityBounds(validConstructors)
+				a.addArgumentCountError(newExpressionNamePos(expr), len(expr.Arguments), minWanted, maxWanted)
+			}
+		case 1:
+			selectedConstructor = matching[0]
+		default:
+			selectedConstructor = a.selectClassCallOverload(matching, expr.Arguments, constructorName, newExpressionNamePos(expr))
 		}
 	}
-
-	if len(matchingCountConstructors) == 0 {
-		if len(validConstructors) > 0 {
-			// The bounds come from the whole set, not from whichever overload was
-			// declared first: a class with both `Create` and `Create(Integer)`
-			// accepts nothing outside 0..1, and `new T(1, 2)` is over that, not
-			// short of the first signature.
-			minWanted, maxWanted := constructorArityBounds(validConstructors)
-			a.addArgumentCountError(newExpressionNamePos(expr), len(expr.Arguments), minWanted, maxWanted)
-		} else {
-			a.addError("class '%s' has no constructor that accepts %d arguments at %s",
-				className, len(expr.Arguments), expr.Token.Pos.String())
-		}
+	if selectedConstructor == nil {
 		return classType
 	}
-
-	// Now select the best match based on argument types
-	if len(matchingCountConstructors) == 1 {
-		selectedConstructor = matchingCountConstructors[0]
-		selectedSignature = selectedConstructor.Signature
-	} else {
-		// Multiple constructors with same count - resolve by type
-		argTypes := make([]types.Type, len(expr.Arguments))
-		for i, arg := range expr.Arguments {
-			argType := a.analyzeOverloadArgument(arg)
-			if argType == nil {
-				return classType
-			}
-			argTypes[i] = argType
-		}
-
-		candidates := make([]*Symbol, len(matchingCountConstructors))
-		for i, overload := range matchingCountConstructors {
-			candidates[i] = &Symbol{
-				Type: overload.Signature,
-			}
-		}
-
-		selected, err := ResolveOverload(candidates, argTypes)
-		if err != nil {
-			a.addError("there is no constructor for class '%s' that matches these argument types at %s",
-				className, expr.Token.Pos.String())
-			return classType
-		}
-
-		var ok bool
-		selectedSignature, ok = selected.Type.(*types.FunctionType)
-		if !ok {
-			a.addError("internal error: expected function type for selected constructor, but got %T", selected.Type)
-			return classType
-		}
-		for _, overload := range matchingCountConstructors {
-			if overload.Signature == selectedSignature {
-				selectedConstructor = overload
-				break
-			}
-		}
-	}
+	selectedSignature := selectedConstructor.Signature
 
 	// Check constructor visibility
 	var ownerClass *types.ClassType
@@ -315,15 +277,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		}
 	}
 
-	// Validate argument types
-	for i, arg := range expr.Arguments {
-		if i >= len(selectedSignature.Parameters) {
-			break
-		}
-
-		paramType := selectedSignature.Parameters[i]
-		a.analyzeCallArgument(i, arg, paramType, i < len(selectedSignature.StrictParams) && selectedSignature.StrictParams[i])
-	}
+	a.analyzeClassCallArguments(selectedSignature, expr.Arguments, newExpressionNamePos(expr))
 
 	// "TClass.Create(args)" resolved to a same-named class method, not a
 	// constructor: the expression's type is the method's return type.
@@ -1060,10 +1014,12 @@ func (a *Analyzer) maybeAddUnnamedEnumElementHint(expr ast.Expression, pos token
 }
 
 // newExpressionNamePos returns the token an argument-count diagnostic on a
-// `new` expression is anchored at: the class name, or the operand expression
-// for the parenthesized `new (Type)(...)` forms.
+// construction expression is anchored at: the explicit constructor name,
+// class name, or operand expression for parenthesized `new (Type)(...)` forms.
 func newExpressionNamePos(expr *ast.NewExpression) token.Position {
 	switch {
+	case expr.ConstructorPos.Line > 0:
+		return expr.ConstructorPos
 	case expr.ClassName != nil:
 		return expr.ClassName.Token.Pos
 	case expr.Operand != nil:

@@ -15,6 +15,17 @@ libraries, COM, databases, …) are in [`out-of-scope.md`](out-of-scope.md); the
 | `FailureScripts/static_methods` | Upstream's expectation omits the `Compile Error` line although `{$FATAL}` is present. The only difference from the three cases that do report it is that its `{$FATAL}` is not at column 1 — a 5/5 correlation with no plausible mechanism, so it is not encoded. | The upstream emit site explains it. |
 | `FailureScripts/class_deprecated` (4 of 8 warnings) | For a declaration's type annotation (`FField : TBase`, `property O : TOther`, …) upstream anchors the deprecation warning two columns before the type name; every expression-position use anchors at the identifier. All samples are written `: T`, so "the colon" and "type name minus two" are indistinguishable. Implementing the colon reading threads a colon position through nine `warnDeprecatedResolvedType` call sites. | The upstream emit site settles which reading is right. |
 
+## Supported extensions
+
+- **Helper inheritance.** `helper(ParentHelper) for T` and
+  `record helper(ParentHelper) for T` remain supported as deliberate extensions.
+  Existing parser and runtime tests cover inherited methods, overrides, properties,
+  and multilevel inheritance. Removing this syntax would break existing go-dws
+  programs; its unsupported upstream shape is therefore excluded from diagnostic
+  parity work. See [Helpers](../guide/helpers.md#helper-inheritance).
+  Reopen only if the compatibility policy changes or new compatibility requirements
+  require a separate strict mode.
+
 ## Behaviour without a fixture that demands it
 
 Each was measured against the corpus and has zero fixture yield. Reopen only on new evidence (a

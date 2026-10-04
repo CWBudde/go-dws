@@ -127,11 +127,11 @@ func TestCompile_ReceiverCallArgumentDiagnostics(t *testing.T) {
 		},
 		{
 			// Constructor candidates include an implicit parameterless overload.
-			// Keep the existing resolution failure rather than changing selection.
+			// The resolution failure is anchored at the inherited member name.
 			name: "inherited constructor overload failure",
 			source: "type TBase = class constructor Build(v: Integer); begin end; end;\n" +
 				"type TChild = class(TBase) constructor Build; begin inherited Build(\n  'bad'); end; end;",
-			want: []string{`Syntax Error: There is no overloaded version of "Build" that can be called with these arguments [line: 2, column: 53]`},
+			want: []string{`Syntax Error: There is no overloaded version of "Build" that can be called with these arguments [line: 2, column: 63]`},
 		},
 		{
 			name: "inherited helper receiver",

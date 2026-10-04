@@ -123,8 +123,7 @@ func (e *Evaluator) executeConstructorForObject(obj *runtime.ObjectInstance, con
 		return fmt.Errorf("object has no class information")
 	}
 
-	// Collect overloads from the class hierarchy
-	overloads := classInfo.GetConstructorOverloads(constructorName)
+	overloads := visibleConstructorOverloads(classInfo, constructorName)
 
 	var constructor *runtime.MethodMetadata
 	if len(overloads) == 1 {
@@ -156,6 +155,35 @@ func (e *Evaluator) executeConstructorForObject(obj *runtime.ObjectInstance, con
 		return fmt.Errorf("%s", result.String())
 	}
 	return nil
+}
+
+// visibleConstructorOverloads applies the same constructor hiding rule as the
+// analyzer: an unmarked constructor set hides same-named ancestor constructors.
+// Otherwise an inherited parameterless constructor can win over a local
+// constructor whose parameters all have defaults.
+func visibleConstructorOverloads(classInfo runtime.IClassInfo, name string) []*runtime.MethodMetadata {
+	overloads := classInfo.GetConstructorOverloads(name)
+	var visible []*runtime.MethodMetadata
+	seen := make(map[*runtime.MethodMetadata]bool)
+	for current := classInfo; current != nil; current = current.GetParent() {
+		local := false
+		marked := false
+		for _, constructor := range overloads {
+			if constructor.Owner != current || seen[constructor] {
+				continue
+			}
+			seen[constructor] = true
+			visible = append(visible, constructor)
+			local = true
+			if constructor.Declaration != nil && constructor.Declaration.IsOverload {
+				marked = true
+			}
+		}
+		if local && !marked {
+			return visible
+		}
+	}
+	return visible
 }
 
 // ============================================================================

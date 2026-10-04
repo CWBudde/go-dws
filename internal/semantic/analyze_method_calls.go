@@ -375,54 +375,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// The hierarchy lookup merges constructors with same-named class methods,
 	// so the resolved overload decides whether this call is a construction.
 	if constructorOverloads := a.getMethodOverloadsInHierarchy(methodName, classType); len(constructorOverloads) > 0 && classType.HasConstructor(methodName) {
-		selectedInfo := constructorOverloads[0]
-
-		if len(constructorOverloads) > 1 {
-			argTypes := make([]types.Type, len(expr.Arguments))
-			for i, arg := range expr.Arguments {
-				argType := a.analyzeOverloadArgument(arg)
-				if argType == nil {
-					return classType
-				}
-				argTypes[i] = argType
-			}
-
-			candidates := make([]*Symbol, len(constructorOverloads))
-			for i, overload := range constructorOverloads {
-				candidates[i] = &Symbol{Type: overload.Signature}
-			}
-
-			selected, err := ResolveOverload(candidates, argTypes)
-			if err != nil {
-				a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
-				return classType
-			}
-
-			selectedInfo = nil
-			for i := range candidates {
-				if candidates[i] == selected {
-					selectedInfo = constructorOverloads[i]
-					break
-				}
-			}
-			if selectedInfo == nil {
-				a.addError("internal error: resolved constructor overload not found in candidate list")
-				return classType
-			}
-		}
-
-		methodType := selectedInfo.Signature
-
-		if len(expr.Arguments) > len(methodType.Parameters) ||
-			len(expr.Arguments) < requiredParamCount(methodType) {
-			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
-				requiredParamCount(methodType), len(methodType.Parameters))
+		selectedInfo := a.selectClassCallOverload(constructorOverloads, expr.Arguments, methodName, expr.Method.Token.Pos)
+		if selectedInfo == nil {
 			return classType
 		}
-
-		for i, arg := range expr.Arguments {
-			a.analyzeCallArgument(i, arg, methodType.Parameters[i], i < len(methodType.StrictParams) && methodType.StrictParams[i])
-		}
+		methodType := selectedInfo.Signature
+		a.analyzeClassCallArguments(methodType, expr.Arguments, expr.Method.Token.Pos)
 
 		// Resolved to a same-named class method rather than a constructor.
 		if !selectedInfo.IsConstructor {
@@ -448,16 +406,18 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	methodOwner := a.getMethodOwner(classType, methodName)
 	overloads := a.getMethodOverloadsInHierarchy(methodName, classType)
 
-	if len(overloads) > 1 {
+	switch {
+	case len(overloads) > 1 || (len(overloads) == 1 && overloads[0].HasOverloadDirective):
 		// Method is overloaded - resolve based on argument types
 		// Analyze argument types first
 		argTypes := make([]types.Type, len(expr.Arguments))
 		valueTypes := make([]types.Type, len(expr.Arguments))
 		hasImplicitCallable := false
+		failed := false
 		for i, arg := range expr.Arguments {
 			argType := a.analyzeOverloadArgument(arg)
 			if argType == nil {
-				return nil // Error already reported
+				failed = true
 			}
 			argTypes[i] = argType
 			valueTypes[i] = argType
@@ -469,6 +429,10 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 					}
 				}
 			}
+		}
+
+		if failed {
+			return nil
 		}
 
 		// Convert MethodInfo to Symbol for ResolveOverload
@@ -489,7 +453,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			selected, err = ResolveOverload(candidates, argTypes)
 		}
 		if err != nil {
-			a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
+			diagnostic := NewNoOverloadMatchError(expr.Method.Token.Pos, methodName)
+			diagnostic.AfterChildren = true
+			a.addStructuredError(diagnostic)
 			return nil
 		}
 
@@ -505,17 +471,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				break
 			}
 		}
-
-		// Re-analyze arguments against the selected signature so literals get
-		// their contextual type annotations (e.g. [o] becomes an array literal
-		// of the parameter's element type instead of a set literal).
-		for i, arg := range expr.Arguments {
-			if i >= len(methodType.Parameters) {
-				break
-			}
-			a.analyzeExpressionWithExpectedType(arg, methodType.Parameters[i])
+		if isMetaclass && selectedOverload != nil && !selectedOverload.IsClassMethod {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
+			return nil
 		}
-	} else if len(overloads) == 1 {
+	case len(overloads) == 1:
 		// Single method (not overloaded). A method reached through a metaclass value must
 		// be a class method or constructor. Use the resolved overload's flag so inherited
 		// class methods (not present in this class's own ClassMethodFlags map) are accepted.
@@ -524,7 +484,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 		methodType = overloads[0].Signature
-	} else {
+	default:
 		// Method not found - check helpers
 		if isMetaclass {
 			// A class reference still reaches a helper's class methods, the
@@ -579,20 +539,19 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 	}
 
-	// For non-overloaded methods, check argument types (overloaded methods already validated by ResolveOverload)
-	if len(overloads) <= 1 {
-		// Check argument count (defaulted parameters are optional)
+	if len(overloads) == 0 {
+		// Helper fallback retains its separately tracked argument policy.
 		if len(expr.Arguments) > len(methodType.Parameters) ||
 			len(expr.Arguments) < requiredParamCount(methodType) {
 			a.addArgumentCountError(expr.Method.Token.Pos, len(expr.Arguments),
 				requiredParamCount(methodType), len(methodType.Parameters))
 			return methodType.ReturnType
 		}
-
-		// Check argument types
 		for i, arg := range expr.Arguments {
 			a.analyzeCallArgument(i, arg, methodType.Parameters[i], i < len(methodType.StrictParams) && methodType.StrictParams[i])
 		}
+	} else {
+		a.analyzeClassCallArguments(methodType, expr.Arguments, expr.Method.Token.Pos)
 	}
 
 	if classType.HasConstructor(methodName) {
