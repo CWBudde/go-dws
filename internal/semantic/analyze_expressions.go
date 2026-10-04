@@ -36,6 +36,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) (resolvedType types.Ty
 	case *ast.NilLiteral:
 		return types.NIL
 	case *ast.Identifier:
+		if result, handled := a.analyzeBareBoundHelper(e, nil); handled {
+			return result
+		}
 		return a.analyzeIdentifier(e)
 	case *ast.BinaryExpression:
 		return a.analyzeBinaryExpression(e)
@@ -216,7 +219,7 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 				}
 			}
 		}
-		return a.analyzeExpression(expr)
+		return a.analyzeMemberAccessWithExpectedType(e, expectedType)
 	case *ast.AddressOfExpression:
 		// `@Test` is a routine reference like a bare name, and upstream subjects
 		// it to the same rule: where the reference does not fit the expected
@@ -251,7 +254,18 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		// analyzer's chosen overload in ast.SemanticInfo for the evaluator to
 		// reuse — has to come first.
 		return a.analyzeCallExpression(e)
+	case *ast.GroupedExpression:
+		result := a.analyzeExpression(e.Expression)
+		// Grouped helper reads lose the outer expected type in DWScript. Other
+		// routine references retain the behavior from before grouping was preserved.
+		if result != nil && expectedType != nil && types.IsPointerType(expectedType) && !a.isGroupedHelperValue(e) {
+			return a.analyzeExpressionWithExpectedType(e.Expression, expectedType)
+		}
+		return result
 	case *ast.Identifier:
+		if result, handled := a.analyzeBareBoundHelper(e, expectedType); handled {
+			return result
+		}
 		// In contexts like `x := GetValue;`, DWScript auto-invokes a
 		// parameterless function when the expected type matches its return type.
 		// Keep function-pointer assignment behavior when the expected type is

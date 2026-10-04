@@ -15,6 +15,9 @@ import (
 
 // VisitIdentifier evaluates an identifier (variable reference).
 func (e *Evaluator) VisitIdentifier(node *ast.Identifier, ctx *ExecutionContext) Value {
+	if value, handled := e.captureHelperIdentifier(node, ctx); handled {
+		return value
+	}
 	if e.engineState != nil && e.engineState.SemanticInfo != nil {
 		if binding, ok := e.engineState.SemanticInfo.EnumElementBinding(node); ok {
 			return &runtime.EnumValue{EnumType: binding.EnumType, TypeName: binding.EnumType.Name, OrdinalValue: binding.Ordinal, ValueName: binding.Name}

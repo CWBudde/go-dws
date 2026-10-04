@@ -230,10 +230,16 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if calleeType == nil {
 			return nil
 		}
+		if result, handled := a.analyzeGroupedHelperValueCall(expr, calleeType); handled {
+			return result
+		}
 		if funcPtrType := a.analyzeFunctionPointerCall(expr, calleeType); funcPtrType != nil {
 			return funcPtrType
 		}
-		a.addError("Not a method at %s", expr.Token.Pos.String())
+		diagnostic := NewGenericError(expr.Token.Pos, "Not a method")
+		diagnostic.Stop = true
+		a.compileStopped = true
+		a.addStructuredError(diagnostic)
 		return nil
 	}
 

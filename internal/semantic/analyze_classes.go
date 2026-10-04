@@ -1,6 +1,8 @@
 package semantic
 
 import (
+	"strconv"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -314,6 +316,11 @@ func constructorCallPosition(expr *ast.CallExpression) token.Position {
 
 // analyzeMemberAccessExpression analyzes member access on classes, records, interfaces, and helpers.
 func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpression) types.Type {
+	return a.analyzeMemberAccessWithExpectedType(expr, nil)
+}
+
+//nolint:gocyclo // Existing multi-kind member resolver; helper value policy is delegated.
+func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExpression, expected types.Type) types.Type {
 	if identExpr, ok := expr.Object.(*ast.Identifier); ok && !a.hasLexicalValueReceiver(expr.Object) {
 		if unit, imported := a.importedUnitNamespace(identExpr.Value); imported {
 			if identity, found := unit.resolveIdentity(expr.Member.Value, true); found && identity.lookupOnly {
@@ -365,6 +372,18 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 	objectType := a.analyzeExpression(expr.Object)
 	if helper, ok := objectType.(*types.HelperType); ok {
+		if expected != nil && types.IsPointerType(expected) {
+			signatures, name := a.explicitHelperSignatures(helper, expr.Member.Value)
+			for _, signature := range signatures {
+				pointer := types.FunctionPointerFromFunctionType(signature.typ)
+				pointer.Name = name
+				if a.canAssign(pointer, expected) {
+					a.annotateMemberPointerType(expr, pointer)
+					a.semanticInfo.SetType(expr.Member, &ast.TypeAnnotation{Token: expr.Member.Token, Name: "__helper_member:" + signature.owner + ":" + strconv.Itoa(signature.index)})
+					return pointer
+				}
+			}
+		}
 		if result, handled := a.analyzeExplicitHelperCall(helper, expr.Member, nil); handled {
 			return result
 		}
@@ -407,7 +426,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				return classMethod
 			}
 		}
-		return a.analyzeRecordFieldAccess(expr.Object, expr.Member)
+		return a.analyzeRecordFieldAccessWithExpectedType(expr.Object, expr.Member, expr, expected)
 	}
 
 	// Handle interface type method access
@@ -430,10 +449,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 		// Interface helpers can add both instance methods and helper class members.
 		if helperMethod := a.hasHelperMethod(objectType, memberName); helperMethod != nil {
 			a.addIdentifierCaseHint(expr.Member, a.declaredHelperMethodName(objectType, memberName))
-			if len(helperMethod.Parameters) == 0 {
-				return helperMethod.ReturnType
-			}
-			return helperMethod
+			return a.analyzeBareHelperMethod(expr, objectType, helperMethod, expected)
 		}
 		if helperProp := a.hasHelperProperty(objectType, memberName); helperProp != nil {
 			a.addIdentifierCaseHint(expr.Member, helperProp.Name)
@@ -520,10 +536,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 					Name:  "__helper_receiver:" + objectType.String(),
 				})
 			}
-			if len(helperMethod.Parameters) == 0 {
-				return helperMethod.ReturnType
-			}
-			return helperMethod
+			return a.analyzeBareHelperMethod(expr, objectType, helperMethod, expected)
 		}
 
 		_, helperClassVar := a.hasHelperClassVar(objectType, memberName)
@@ -588,10 +601,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 				Name:  "__helper_receiver:" + helperLookupType.String(),
 			})
 		}
-		if len(helperMethod.Parameters) == 0 {
-			return helperMethod.ReturnType
-		}
-		return helperMethod
+		return a.analyzeBareHelperMethod(expr, helperLookupType, helperMethod, expected)
 	}
 	if helperProp := a.hasHelperProperty(helperLookupType, memberName); helperProp != nil {
 		return helperProp.Type
@@ -795,10 +805,7 @@ func (a *Analyzer) analyzeMemberAccessExpression(expr *ast.MemberAccessExpressio
 	helperMethod := a.hasHelperMethod(objectType, memberName)
 	if helperMethod != nil {
 		a.addIdentifierCaseHint(expr.Member, a.declaredHelperMethodName(objectType, memberName))
-		if len(helperMethod.Parameters) == 0 {
-			return helperMethod.ReturnType
-		}
-		return helperMethod
+		return a.analyzeBareHelperMethod(expr, objectType, helperMethod, expected)
 	}
 
 	// Check helpers for properties
@@ -838,6 +845,17 @@ func (a *Analyzer) analyzeMethodReferenceInPointerContext(expr *ast.MemberAccess
 	}
 	if iface, ok := types.GetUnderlyingType(objectType).(*types.InterfaceType); ok {
 		return a.analyzeInterfaceMethodReference(expr, iface)
+	}
+	// Helper members retain the ordinary member reader's precedence over
+	// class methods and TObject intrinsics in reference contexts too.
+	lookupType := objectType
+	if meta, ok := types.GetUnderlyingType(objectType).(*types.ClassOfType); ok && !a.hasAnyHelperMember(objectType, expr.Member.Value) {
+		lookupType = meta.ClassType
+	}
+	if signature := a.hasHelperMethod(lookupType, expr.Member.Value); signature != nil {
+		if _, declaration := a.helperSignatureDeclaration(lookupType, expr.Member.Value, signature); declaration != nil {
+			return nil, false
+		}
 	}
 	isMetaclass := false
 	if metaclass, ok := objectType.(*types.ClassOfType); ok && metaclass.ClassType != nil {

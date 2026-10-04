@@ -289,6 +289,13 @@ func (p *Parser) parsePropertyWriteClause(prop *ast.PropertyDecl) bool {
 //   - plain lvalue (FSub.Field)            -> normalized to `lvalue := Value`
 //   - identifier   (Field)                 -> a plain field/method write spec
 func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Token) (ast.Statement, ast.Expression) {
+	for {
+		group, ok := lhs.(*ast.GroupedExpression)
+		if !ok {
+			break
+		}
+		lhs = group.Expression
+	}
 	if p.peekTokenIs(lexer.ASSIGN) {
 		p.nextToken() // move to ':='
 		assignOp := p.cursor.Current().Type

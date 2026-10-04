@@ -468,7 +468,7 @@ func (e *Evaluator) prepareValueForAssignment(
 
 	// Increment ref count for method pointer's SelfObject
 	if runtime.KindOf(value) == runtime.KindMethodPointer {
-		if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok && funcPtr.SelfObject != nil {
+		if funcPtr, ok := functionPointerOf(value); ok && funcPtr.SelfObject != nil {
 			ctx.RefCountManager().IncrementRef(funcPtr.SelfObject)
 		}
 	}
@@ -507,7 +507,7 @@ func (e *Evaluator) retainValueForBinding(value Value, ctx *ExecutionContext) Va
 		return value
 	}
 
-	if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok && funcPtr.SelfObject != nil {
+	if funcPtr, ok := functionPointerOf(value); ok && funcPtr.SelfObject != nil {
 		ctx.RefCountManager().IncrementRef(funcPtr.SelfObject)
 	}
 
@@ -536,7 +536,7 @@ func (e *Evaluator) releaseValueForBinding(value Value) {
 		return
 	}
 
-	if funcPtr, ok := value.(*runtime.FunctionPointerValue); ok {
+	if funcPtr, ok := functionPointerOf(value); ok {
 		if objInst, isObj := funcPtr.SelfObject.(*runtime.ObjectInstance); isObj {
 			e.engineState.RefCountManager.ReleaseObject(objInst)
 		}

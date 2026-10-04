@@ -143,9 +143,21 @@ implicit receiver role, including class/static methods and out-of-line bodies.
 Local bindings that shadow the member keep their own call diagnostics. The
 existing overload-candidate policy and inline declaration visibility are retained.
 
-Helper overload selection, helper/interface declaration defaults, bare member invocation versus
-routine-reference contexts (including grouped member callees), and bare
-inherited-call arity remain under audit. Imported-helper and metaclass-target
+Bare user-helper members are invocations unless a compatible callable type is
+expected. Missing required arguments report `More arguments expected` at the
+member name while retaining the result type. Compatible references capture the
+receiver and helper owner and defer execution; helper-name references include
+written Self, while references inside helper bodies bind it implicitly.
+
+Grouping reads the inner helper name as a value before the outer call. A scalar
+result reports `Not a method` at the outer opening parenthesis as a compiler stop;
+the outer arguments and later diagnostics are suppressed. A callable result is
+invoked once by the outer call, with supplied types and children checked before
+argument count. A returned callable stored in a variable is retained as a value.
+
+Helper overload selection, helper/interface declaration defaults, bare native
+record/interface member reference contexts, and bare inherited-call arity remain
+under audit. Imported-helper and metaclass-target
 lookup also remain open. Specialized intrinsic helpers retain
 their own argument policies.
 

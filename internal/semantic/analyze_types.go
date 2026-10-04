@@ -25,6 +25,10 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 	}
 
 	switch e := expr.(type) {
+	case *ast.GroupedExpression:
+		// The parser keeps grouping around names, e.g. const B = (A);
+		return a.evaluateConstant(e.Expression)
+
 	case *ast.IntegerLiteral:
 		return int(e.Value), nil
 
@@ -232,6 +236,9 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 	}
 
 	switch e := expr.(type) {
+	case *ast.GroupedExpression:
+		return a.evaluateConstantInt(e.Expression)
+
 	case *ast.IntegerLiteral:
 		// Direct integer literal
 		return int(e.Value), nil

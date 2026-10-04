@@ -7,7 +7,9 @@ import (
 )
 
 type explicitHelperSignature struct {
-	typ *types.FunctionType
+	typ   *types.FunctionType
+	owner string
+	index int
 }
 
 // explicitHelperSignatures describes the written arguments of a call through a
@@ -58,7 +60,7 @@ func (a *Analyzer) explicitHelperSignatures(helper *types.HelperType, name strin
 			typ := types.NewFunctionTypeWithMetadata(params, names, defaults,
 				lazy, byRef, constant, a.helperMethodReturnType(method))
 			typ.StrictParams = strict
-			signatures = append(signatures, explicitHelperSignature{typ: typ})
+			signatures = append(signatures, explicitHelperSignature{typ: typ, owner: owner.Name, index: len(signatures)})
 		}
 		if len(signatures) != 0 {
 			return signatures, declaredName
