@@ -308,14 +308,14 @@ does not have, or a precise model of where compilation stops.
 An ordinary call says `Expression expected` for `f(;`, so these must be driven from the
 semantic side:
 
-- [x] Record-typed const (`const_record1`).
+- [x] Record-typed const (`const_record1`, [#463](https://github.com/CWBudde/go-dws/pull/463)).
   - [x] Require `(` after resolving record types and aliases, at the first initializer token.
   - [x] Preserve scalar/ordinary-call recovery, earlier diagnostics, local constants,
     and interrupted parenthesized record initializers (`const_record4`).
 - [ ] Special functions written without parentheses.
-  - [x] Require `(` for bare builtin Low/High (`special_funcs1`), after casing hints;
+  - [x] Require `(` for bare builtin Low/High (`special_funcs1`, [#463](https://github.com/CWBudde/go-dws/pull/463)), after casing hints;
     preserve lexical/member shadows and lookahead positions through comments/newlines/EOF.
-  - [x] Match `at_integer`: report the type's missing `(` before `unexpected "@"`;
+  - [x] Match `at_integer` ([#463](https://github.com/CWBudde/go-dws/pull/463)): report the type's missing `(` before `unexpected "@"`;
     reject scalar-variable addresses while preserving valid routine references.
   - [ ] Measure the other special-function names and qualified/address-of forms;
     distinguish required parentheses from ordinary callable references and Default's fallback.
