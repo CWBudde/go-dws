@@ -107,9 +107,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		if !found {
-			helperMethod := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments)
-			if helperMethod == nil {
+			helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
+			if !found {
 				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+				return nil
+			}
+			if helperMethod == nil {
 				return nil
 			}
 			methodType = helperMethod
@@ -169,9 +172,12 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 					return a.analyzeFunctionPointerCallArgs(expr.Arguments, fieldType, expr.Token.Pos)
 				}
 				// Method not found in record, check if a helper provides it
-				helperMethod := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments)
-				if helperMethod == nil {
+				helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
+				if !found {
 					a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+					return nil
+				}
+				if helperMethod == nil {
 					return nil
 				}
 				// Use the helper method
@@ -225,18 +231,26 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			}
 		}
 
+		// Receiver eligibility is established before overload selection upstream.
+		a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
+		invalidHelperReceiver := a.isTypeMetaValueExpression(expr.Object) &&
+			a.hasHelperMethod(objectType, methodName) != nil && !a.isHelperClassMethod(objectType, methodName)
+		if invalidHelperReceiver {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
+		}
+
 		// Check if helpers provide this method for non-class, non-record types
-		helperMethod := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments)
-		if helperMethod == nil {
+		helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
+		if !found {
 			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return nil
 		}
 
-		// A bare type name is not an instance: only class-side helper members are
-		// reachable through it, with or without the call parentheses
-		// (HelpersFail/integer_helper spells it without).
-		if a.isTypeMetaValueExpression(expr.Object) && !a.isHelperClassMethod(objectType, methodName) {
-			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
+		if helperMethod == nil {
+			return nil
+		}
+
+		if invalidHelperReceiver {
 			return nil
 		}
 
@@ -379,17 +393,24 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		methodType = overloads[0].Signature
 	default:
 		// Method not found - check helpers
+		a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
+		invalidHelperReceiver := isMetaclass && a.hasHelperMethod(objectType, methodName) != nil &&
+			!a.isHelperClassMethod(objectType, methodName)
+		if invalidHelperReceiver {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
+		}
+		helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
+		if invalidHelperReceiver || (found && helperMethod == nil) {
+			return nil
+		}
 		if isMetaclass {
-			// A class reference still reaches a helper's class methods, the
-			// same way `TObject.Hello` does without the call parentheses; an
-			// instance helper method stays out of reach (HelpersFail/helper_error4).
-			metaHelper := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments)
-			if metaHelper == nil || !a.isHelperClassMethod(objectType, methodName) {
+			// Metaclass target availability remains a separate lookup audit.
+			if !found || !a.isHelperClassMethod(objectType, methodName) {
 				a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
 				return nil
 			}
-			methodType = metaHelper
-		} else if helperMethod := a.resolveHelperMethodForCall(objectType, methodName, expr.Arguments); helperMethod != nil {
+			methodType = helperMethod
+		} else if found {
 			methodType = helperMethod
 		} else if callableType := a.classCallableMemberType(classType, methodName); callableType != nil {
 			// A private/protected proc-typed field or class var must not become

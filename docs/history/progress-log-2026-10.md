@@ -1144,3 +1144,58 @@ The earlier full-run attempt exposed an unchecked evaluator setup without engine
 state; the helper metadata lookup now guards it and the existing test passes.
 Another verification attempt hit the runner's `/tmp` quota; moving the task's lint
 cache into its worktree allowed the final checks to pass with tmpfs test storage.
+
+
+## 2026-10-04 — Helper overload candidate failures (PLAN 1.6)
+
+Measured helper selection separately from selected-signature argument checking,
+using pinned DWScript `1dbf8a90329cc3f2638516e89c0668f916c1ddb9`. The verified
+compiler blob is `cffe42f756f8f0a44eeae0e045d6bb2bbe7878b4`; an older scratch
+compiler copy differs and was excluded. The
+[measurement note](../architecture/helper-overload-measurement-2026-10.md)
+records source links, receiver roles, ranking caveats and executable follow-ups.
+
+Receiver calls, explicit helper-name calls and lexical helper-body calls now
+honor a sole marked overload. Failed matching reports the overload sentence at
+the member, using the declaration's spelling. A found member with no matching
+candidate owns the diagnostic; it no longer falls back to an inaccessible member
+or an unknown implicit name. Recoverable child calls are analyzed before the
+outer no-match, without passing nil recovery types into the shared resolver.
+Unmarked calls retain their existing type/count checker and source-order helper
+body visibility remains intact.
+
+The test-first compile matrix reproduced singleton count/type errors, invalid
+zero-argument anchors, spurious member fallback and nested-child ordering before
+the implementation. An existing mixed record/static case now correctly expects
+no-match for its marked declaration. Independent review found two new regressions:
+failed ranking hid instance-through-type receiver errors and lost pedantic member
+case hints. Both were reproduced with failing compile tests before correction;
+receiver eligibility and case checking now precede selection. The final matrix
+has 63 compile cases and four compiled-run singleton controls, each exercising
+receiver, explicit-name and helper-body numeric widening. The full frontend
+normalizer deduplicates repeated selected-child diagnostics; these cases pin
+rendered diagnostics, not a promise of one internal analysis visit.
+
+`PLAN.md` checks the measurement and two diagnostic subtasks while leaving the
+parent open. The top-level Phase 1.6 count remains 5 complete / 8 open. Its next
+batch is runtime declaration agreement: a freshly built CLI confirms receiver
+Integer/String overloads can execute the wrong same-arity declaration, and empty
+child helpers lose inherited overload sets. Both scripts and current outputs are
+in the measurement note. Mixed/inherited ownership, tie/Variant ranking, defaults,
+imports, metaclass targets and writable storage remain open. The parent-helper
+grammar is a port extension and is not claimed as supported by this upstream pin.
+
+Validation: full `go test -race -coverprofile=.cache/results/coverage-final.out ./...`
+passes on the final source; coverage HTML was generated. The CI diff lint gate
+reports zero new issues. `just fixture-check`, `just check-fmt`, `go mod tidy -diff`,
+CLI build/recovery probes and `git diff --check` pass. Full frontend/semantic
+checks and independent final review have no remaining blocking findings.
+
+`just fixture-update` passed and proposed only a BuildScripts floor increase
+from 7 to 9. A repeat reached 8 and failed that proposed floor, demonstrating the
+already documented initialization-order variation. The generated baseline/status
+changes were discarded, and the stable fixture gate then passed; no deterministic
+fixture gain is claimed. Initial runtime controls were corrected to instantiate
+an interface receiver and use the primitive helper's actual target; alias-specific
+implicit Self lookup remains a documented runtime follow-up. Lint's sole initial
+finding was test import grouping, fixed before final lint and race verification.

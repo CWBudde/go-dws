@@ -7,9 +7,10 @@ import (
 )
 
 type explicitHelperSignature struct {
-	typ   *types.FunctionType
-	owner string
-	index int
+	typ    *types.FunctionType
+	owner  string
+	index  int
+	marked bool
 }
 
 // explicitHelperSignatures describes the written arguments of a call through a
@@ -60,7 +61,7 @@ func (a *Analyzer) explicitHelperSignatures(helper *types.HelperType, name strin
 			typ := types.NewFunctionTypeWithMetadata(params, names, defaults,
 				lazy, byRef, constant, a.helperMethodReturnType(method))
 			typ.StrictParams = strict
-			signatures = append(signatures, explicitHelperSignature{typ: typ, owner: owner.Name, index: len(signatures)})
+			signatures = append(signatures, explicitHelperSignature{typ: typ, owner: owner.Name, index: len(signatures), marked: method.IsOverload})
 		}
 		if len(signatures) != 0 {
 			return signatures, declaredName
@@ -75,7 +76,7 @@ func (a *Analyzer) analyzeExplicitHelperCall(helper *types.HelperType, member *a
 		return nil, false
 	}
 	a.addIdentifierCaseHint(member, declaredName)
-	selected, ok := a.selectExplicitHelperOverload(signatures, member, args)
+	selected, ok := a.selectExplicitHelperOverload(signatures, member, args, declaredName)
 	if !ok {
 		return nil, true
 	}
@@ -98,28 +99,13 @@ func (a *Analyzer) analyzeExplicitHelperCall(helper *types.HelperType, member *a
 	return signature.ReturnType, true
 }
 
-func (a *Analyzer) selectExplicitHelperOverload(signatures []explicitHelperSignature, member *ast.Identifier, args []ast.Expression) (int, bool) {
-	selected := 0
-	if len(signatures) > 1 {
-		candidates := make([]types.Type, len(signatures))
-		for i, signature := range signatures {
-			candidates[i] = signature.typ
-		}
-		argTypes := make([]types.Type, len(args))
-		for i, arg := range args {
-			argTypes[i] = a.analyzeOverloadArgument(arg)
-			if argTypes[i] == nil {
-				return 0, false
-			}
-		}
-		var err error
-		selected, err = types.ResolveOverload(candidates, argTypes)
-		if err != nil {
-			a.addStructuredError(NewNoOverloadMatchError(member.Token.Pos, member.Value))
-			return 0, false
-		}
+func (a *Analyzer) selectExplicitHelperOverload(signatures []explicitHelperSignature, member *ast.Identifier, args []ast.Expression, declaredName string) (int, bool) {
+	candidates := make([]*types.FunctionType, len(signatures))
+	for i, signature := range signatures {
+		candidates[i] = signature.typ
 	}
-	return selected, true
+	selected := a.selectHelperCallOverload(candidates, signatures[len(signatures)-1].marked, args, member.Token.Pos, declaredName)
+	return selected, selected >= 0
 }
 
 // DWScript's CreateSelfParameter uses the target's metaclass for a nonstatic
