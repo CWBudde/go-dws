@@ -414,23 +414,10 @@ func (e *Evaluator) CallHelperMethod(
 	// If it's an AST method, execute it with proper Self binding
 	if result.Method != nil {
 		if len(result.Overloads) > 1 {
-			_, meta := selfValue.(*runtime.RecordTypeValue)
-			_, record := selfValue.(RecordInstanceValue)
-			if meta || record {
-				if selected := e.resolveRecordMethodOverload(result.Overloads, args, ctx); selected != nil {
-					return e.CallASTHelperMethod(result.OwnerHelper, selected, selfValue, args, node, ctx)
-				}
-				return e.newError(node, "no matching record helper overload for '%s'", result.Method.Name.Value)
+			if selected := e.resolveHelperOverload(result.Overloads, args, ctx); selected != nil {
+				return e.CallASTHelperMethod(result.OwnerHelper, selected, selfValue, args, node, ctx)
 			}
-			for _, candidate := range result.Overloads {
-				expected := len(candidate.Parameters)
-				if candidate.IsHelper {
-					expected--
-				}
-				if expected == len(args) {
-					return e.CallASTHelperMethod(result.OwnerHelper, candidate, selfValue, args, node, ctx)
-				}
-			}
+			return e.newError(node, "no matching helper overload for '%s'", result.Method.Name.Value)
 		}
 		return e.CallASTHelperMethod(result.OwnerHelper, result.Method, selfValue, args, node, ctx)
 	}

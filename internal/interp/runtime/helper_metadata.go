@@ -78,8 +78,13 @@ func (h *MutableHelperInfo) GetMethodOverloads(name string) ([]*ast.FunctionDecl
 			return overloads, h, true
 		}
 	}
-	if method, owner, found := h.GetMethod(name); found {
-		return []*ast.FunctionDecl{method}, owner, true
+	for key, method := range h.Methods {
+		if ident.Equal(key, name) {
+			return []*ast.FunctionDecl{method}, h, true
+		}
+	}
+	if h.ParentHelper != nil {
+		return h.ParentHelper.GetMethodOverloads(name)
 	}
 	return nil, nil, false
 }

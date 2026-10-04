@@ -145,8 +145,8 @@ stays open until all its subtasks pass. Update its checkbox and this table in th
 same PR; retain checked siblings until the subphase closes. Detailed evidence:
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
-**Next ungated batch:** 1.6's helper overload execution: retain the selected declaration
-and inherited candidate sets, using the measured runtime reproductions below.
+**Next ungated batch:** 1.6's mixed/inherited helper overload candidate ownership:
+measure receiver roles and child analysis before changing candidate collection.
 Work through the remaining 1.6 call tasks, then 1.7 defaults/storage; take 1.5's
 remaining declaration checks when needed by defaults. Phase 2/3 prerequisites
 continue to gate their overlapping 1.8 sweeps.
@@ -206,8 +206,14 @@ Pin complete diagnostic lists through `frontend.Compile`, including recovery typ
     a found helper owns its failure, without an inaccessible-member fallback.
   - [x] Retain recoverable child diagnostics before outer no-match errors, declaration-case
     hints, and independent receiver eligibility errors (63 compile cases, 4 run controls).
-  - [ ] Keep runtime execution on the selected declaration; stop non-record dispatch
-    choosing by arity and preserve inherited overload sets (measured reproductions in the audit).
+  - [x] Keep checked runtime execution on the selected declaration through receiver,
+    explicit-name, and helper-body calls; unchecked dispatch ranks signatures instead of arity.
+  - [x] Prepare arguments using the selected declaration's lazy/var flags, preserving
+    static Variant selection and once-only receiver/ordinary-argument evaluation.
+  - [x] Preserve empty child/grandchild helpers' inherited overload sets and declaring
+    storage owner; retain local-name hiding for the parent-helper extension.
+  - [x] Capture lexical helper-body and function-helper declaration identity, including
+    shared helper labels and strict aliases; retain first-helper precedence within a target.
   - [ ] Pin child analysis and receiver ownership across mixed/inherited overload sets;
     distinguish target-class inheritance from the port's parent-helper syntax.
   - [ ] Match measured ambiguity/tie and Variant conversion ranking; preserve contextual

@@ -141,8 +141,7 @@ weights and reports unresolved ties as errors. These require further measurement
 [Source: Variant ranking](https://github.com/EricGrange/DWScript/blob/1dbf8a90329cc3f2638516e89c0668f916c1ddb9/Source/dwsCompiler.pas#L7375-L7385),
 [source: boxing and ties](https://github.com/EricGrange/DWScript/blob/1dbf8a90329cc3f2638516e89c0668f916c1ddb9/Source/dwsCompiler.pas#L7449-L7495).
 
-Further work includes mixed instance/class/static sets, runtime dispatch agreeing
-with the selected declaration, metaclass helper targets, imported-helper
+Further work includes mixed instance/class/static sets, metaclass helper targets, imported-helper
 availability, and contextual arguments across multiple differing signatures.
 Go's `helper(ParentHelper)` syntax also needs its own extension contract: the
 pinned `ReadHelperDecl` requires `for` immediately and does not parse a parent
@@ -150,10 +149,13 @@ helper. Helpers applicable through target-class inheritance can be measured
 against this pin; parent-helper syntax cannot be presented as pinned support.
 [Source: helper declaration grammar](https://github.com/EricGrange/DWScript/blob/1dbf8a90329cc3f2638516e89c0668f916c1ddb9/Source/dwsCompiler.pas#L10429-L10441).
 
-## Current-source runtime reproductions left open
+## Runtime execution follow-up
 
-The source-built CLI confirms two execution defects, independent of the newly
-checked compiler-failure cases. These are follow-ups, not accepted language behavior.
+The candidate-measurement batch recorded these two execution defects. The execution
+follow-up fixes both, with compiled acceptance tests in
+[helper_overload_execution_compiled_test.go](../../internal/interp/helper_overload_execution_compiled_test.go)
+and inherited metadata checks in
+[helper_metadata_test.go](../../internal/interp/runtime/helper_metadata_test.go).
 
 ```pascal
 type H = helper for Integer
@@ -161,18 +163,20 @@ type H = helper for Integer
  function Pick(v: String): String; overload; begin Result := 'string'; end;
 end;
 var item: Integer;
-PrintLn(item.Pick('x'));       // currently integer; selected signature is String
+PrintLn(item.Pick('x'));       // string; previously integer
 PrintLn(H.Pick(item, 'x'));    // string
 ```
 
-Non-record `CallHelperMethod` chooses the first candidate of matching arity in
-`internal/interp/evaluator/helper_methods.go`. The explicit helper-name path uses
-signature ranking. Runtime execution should retain the compiler's selected
-declaration and owner, including lazy and statically typed Variant arguments,
-rather than independently selecting from evaluated values.
+Checked receiver, explicit-name and helper-body calls now retain the compiler's
+declaring helper and original overload slot. Out-of-line implementations replace
+that slot in place. Argument preparation uses that declaration's flags before any
+argument evaluation; static Variant selection and lazy forcing are preserved.
+Calls without compiler metadata rank signatures from runtime types instead of
+choosing the first matching arity. This fallback does not establish unchecked lazy
+call parity or revise the shared overload-ranking policy.
 
-The port's parent-helper extension also collapses an inherited runtime overload
-set to the parent's primary (last) method when the child has no own set:
+The port's parent-helper extension previously collapsed an inherited runtime
+overload set to the parent's primary (last) method when the child had no own set:
 
 ```pascal
 type H = helper for Integer
@@ -181,14 +185,32 @@ type H = helper for Integer
 end;
 type J = helper(H) for Integer end;
 var item: Integer;
-PrintLn(item.Pick(1));       // currently 12
-PrintLn(J.Pick(item, 1));    // currently 12
+PrintLn(item.Pick(1));       // 11; previously 12
+PrintLn(J.Pick(item, 1));    // 11; previously 12
 PrintLn(H.Pick(item, 1));    // 11
 ```
 
-`internal/interp/runtime/helper_metadata.go` falls back through `GetMethod` rather
-than preserving the parent's complete set and owner. Agreement on the Integer
+`internal/interp/runtime/helper_metadata.go` now recurses through
+`GetMethodOverloads`, preserving the parent's complete set and owner. Tests cover
+an empty grandchild, local-name hiding, and inherited methods mutating parent
+storage when a child has a same-named class variable. Agreement on the Integer
 candidate is a port-extension correctness requirement; it is not evidence of
-upstream parent-helper syntax support. Unrelated-helper precedence, helper-body
-owner capture, and alias-specific implicit Self calls require their own runtime
-acceptance cases as that follow-up proceeds.
+upstream parent-helper syntax support.
+
+Direct call analysis now retains the established first-declared helper precedence
+within one target tier; descendants can hide ancestors and alias-specific tiers
+retain priority. The existing `HelpersPass/helper_precedence` fixture and compiled
+controls pin that behavior. A failed match stays with that candidate owner. Bound
+body calls retain their lexical owner and visible signatures, even when another
+helper supplies the same member. Function helpers with a shared label retain their
+source declaration identity, since their synthetic names alone are not unique.
+Receiver eligibility checks use the same owner as candidate selection.
+
+The runtime matrix has 23 compiled cases spanning primitive, record, class and
+interface receivers in both declaration orders; explicit-name and bound calls;
+static Variant, lazy/var arguments, receiver/argument side effects, class/static
+roles, inline visibility, out-of-line bodies, strict aliases, and owner collisions.
+One unchecked execution control and two compile diagnostic cases pin fallback and
+ownership rejection. General mixed/inherited candidate collection, target-class
+inheritance, ambiguity/tie policy, common contextual routine arguments, defaults,
+and imported/metaclass helper availability remain open in their owning PLAN tasks.

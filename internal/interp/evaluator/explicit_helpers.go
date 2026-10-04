@@ -56,8 +56,14 @@ func (e *Evaluator) readExplicitHelperMember(helper HelperInfo, member *ast.Iden
 // preparation sees the receiver exactly where it was written. Parsed ASTs and
 // helper declaration signatures remain unchanged.
 func (e *Evaluator) evalExplicitHelperCall(helper HelperInfo, member *ast.Identifier, expressions []ast.Expression, node ast.Node, ctx *ExecutionContext) (Value, bool) {
-	method := e.findHelperMethodInHelper(helper, member.Value)
+	method, bound := e.selectedHelperCall(member)
+	if !bound {
+		method = e.findHelperMethodInHelper(helper, member.Value)
+	}
 	if method == nil || method.Method == nil {
+		if bound {
+			return e.newError(node, "selected helper method not implemented"), true
+		}
 		return nil, false
 	}
 	helper = method.OwnerHelper

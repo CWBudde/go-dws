@@ -1,5 +1,54 @@
 # Progress log — October 2026
 
+## 2026-10-04 — Helper overload selected execution (PLAN 1.6)
+
+Checked receiver, explicit helper-name, and helper-body calls now execute the
+compiler-selected declaration with its declaring helper. Previously non-record
+receiver calls chose the first matching arity, and helper-body execution reopened
+global lookup. Calls now retain the declaring owner and original overload slot;
+out-of-line implementations replace that slot in place. Function helpers retain
+source declaration identity as well, since distinct functions sharing a helper
+label can have the same synthetic owner name.
+
+Selected argument preparation preserves lazy forcing and var storage without
+eager evaluation during ranking. Static Variant arguments keep their compiled
+selection. Function helpers omit the injected receiver when preparing written
+arguments. Receiver and ordinary argument suppliers run once. Calls without
+compiler metadata rank signatures from runtime types instead of arity; unchecked
+lazy parity and general ranking changes remain separate work.
+
+Empty child and grandchild helpers retain the parent's complete overload set
+and declaring storage owner. Local member names continue to hide the parent set.
+This is the port's parent-helper extension contract, not a claim of upstream
+parent-helper syntax. Direct call analysis retains the established first-helper
+precedence within a target tier, including the selected result type and receiver
+eligibility; strict aliases keep their lookup priority. Inline body calls keep
+their lexical owner and the signatures visible at their declaration.
+
+TDD reproductions cover wrong same-arity dispatch, inherited-set collapse, lazy
+evaluation, var mutation, lexical visibility and strict-alias fallback. Independent
+review found two introduced ownership regressions: receiver eligibility still
+consulted the later helper, and function-helper labels collided during runtime
+owner lookup. Both were reproduced before fixing them and re-reviewed clean.
+The broader suite also exposed generic intrinsic helpers with no concrete target;
+their specialized fallback is preserved.
+
+Acceptance has 23 compiled execution cases, one unchecked control, two complete
+compile diagnostic cases, and inherited metadata identity/hiding checks. All
+execution cases pass 20 repeated runs, including the nondeterministic owner-name
+collision reproduction; three fresh CLI controls match the expected output.
+Four runtime subtasks are checked in `PLAN.md`. The overload parent remains open
+for mixed/inherited candidate collection, ambiguity/ties, Variant conversion
+ranking and common contextual routine arguments. The next batch starts with
+receiver-role measurement; defaults and availability remain in their own tasks.
+
+Validation: full `go test -race -coverprofile=.cache/results/coverage-final.out
+./...` passed, as did CI diff lint (zero issues), `go mod tidy -diff`, the fixture
+gate, and the fresh CLI build. `just fixture-update` produced no tracked baseline
+or status changes; no new fixture pass count is claimed. Formatting was checked
+after the race build completed, since the earlier recursive check encountered
+temporary generated Go build files. No fixture oracle or parser/AST node changed.
+
 ## 2026-10-03 — Qualified factories and captured indexed receivers (PLAN 1.3)
 
 Imported unit-qualified routines now use the same reference-versus-call selection
