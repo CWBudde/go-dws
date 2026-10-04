@@ -145,10 +145,11 @@ stays open until all its subtasks pass. Update its checkbox and this table in th
 same PR; retain checked siblings until the subphase closes. Detailed evidence:
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
-**Current user-selected track:** 2.1's type-directed punctuation, after the record-constant
-and bare Low/High/address-of batch. Next: measure and implement `DebugBreak` punctuation
-with valid execution controls; other special-function forms and reintroduced properties
-remain open below. The earlier 1.6 mixed/inherited helper candidate measurement remains
+**Current user-selected track:** 2.1's type-directed punctuation, after the record-constant,
+bare Low/High/address-of, and `DebugBreak` punctuation/execution batches. Next: measure
+the remaining special-function names and qualified/address-of forms. Reintroduced properties
+remain open below; nested stopped-call intrinsic hints need 2.4's truncation model.
+The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
 overlapping 1.8 sweeps.
 
@@ -305,8 +306,9 @@ does not have, or a precise model of where compilation stops.
 
 ### 2.1 Type-directed punctuation — S
 
-An ordinary call says `Expression expected` for `f(;`, so these must be driven from the
-semantic side:
+An ordinary call says `Expression expected` for `f(;`, so record/type-directed
+punctuation must follow semantic resolution. Reserved magic names can enforce their
+punctuation in the parser before reading arguments.
 
 - [x] Record-typed const (`const_record1`, [#463](https://github.com/CWBudde/go-dws/pull/463)).
   - [x] Require `(` after resolving record types and aliases, at the first initializer token.
@@ -320,6 +322,15 @@ semantic side:
   - [ ] Measure the other special-function names and qualified/address-of forms;
     distinguish required parentheses from ordinary callable references and Default's fallback.
 - [ ] Magic functions (`debugbreak`).
+  - [x] Accept bare/empty-parentheses DebugBreak and stop at the first non-`)` token,
+    before reading arguments (`debugbreak`); preserve direct-call casing hints and
+    comment/newline/EOF anchors. PR link pending publication.
+  - [x] Execute valid calls as a no-op in the evaluator, including checked/unchecked
+    procedure and loop bodies; preserve ordinary qualified member calls.
+  - [x] Reject value/grouped/address use; retain null-constant recovery and later
+    name resolution through direct, unary, and binary constant initializers.
+  - [ ] Preserve intrinsic casing hints inside discarded stopped parent calls
+    (`PrintLn(debugbreak(;`); requires 2.4's per-call truncation carrier.
 - [ ] Reintroduced properties (`property_reintroduce2`).
 
 ### 2.2 Parser gaps — S each
@@ -406,6 +417,8 @@ message shape; counts are lines (fixtures).
 ### 3.2 Declaration shapes — S each
 
 - [ ] `Name "X" already exists` 20 (12).
+- [ ] `Name "X" is reserved` for special-function declaration names, including
+  DebugBreak variables, parameters, and global routines; preserve allowed dotted methods.
 - [ ] `Class reference expected` 11 (9).
 - [ ] `Class "X" isn't defined completely` 9 (7), and the `Interface` variant 4 (3).
 - [ ] `There is already a field with name "X"` 8 (4).

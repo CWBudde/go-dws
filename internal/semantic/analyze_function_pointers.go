@@ -112,6 +112,13 @@ func (a *Analyzer) analyzeAddressOfExpression(expr *ast.AddressOfExpression) typ
 
 	// The operator should be an identifier or member access expression
 	switch target := expr.Operator.(type) {
+	case *ast.DebugBreakExpression:
+		a.analyzeDebugBreak(target, false)
+		if target.Incomplete {
+			return types.VARIANT
+		}
+		a.addUnexpectedAddressOf(expr.Token.Pos)
+		return nil
 	case *ast.Identifier:
 		// Simple function/procedure reference: @FunctionName
 		if sym, ok := a.symbols.Resolve(target.Value); ok {

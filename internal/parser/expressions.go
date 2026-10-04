@@ -53,6 +53,9 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 		}
 	}
 	leftExp := prefixFn(currentToken)
+	if debugBreak, ok := leftExp.(*ast.DebugBreakExpression); ok && debugBreak.Incomplete {
+		return leftExp
+	}
 
 	// 2. Main precedence climbing loop
 	for {
@@ -164,9 +167,14 @@ func (p *Parser) parseNotInIsAs(leftExp ast.Expression) ast.Expression {
 // parseIdentifier parses an identifier.
 // POST: cursor is IDENT (unchanged), or the closing '>' of a generic type
 // reference such as `TTest<Integer>` when the generic-instantiation pattern is
-// recognized.
+// recognized, or DebugBreak's optional ')' (or '(' on a compiler stop).
 func (p *Parser) parseIdentifier() ast.Expression {
 	currentToken := p.cursor.Current()
+	// ReadName recognizes this special keyword before symbol lookup upstream.
+	// Member names and declaration names have separate parsing paths.
+	if ident.Equal(currentToken.Literal, "DebugBreak") {
+		return p.parseDebugBreak()
+	}
 
 	// Generic type reference in expression position: `TTest<Integer>.Method(...)`.
 	// Recognized only when a balanced `<...>` type-argument list is immediately
@@ -535,8 +543,9 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 
 	// Named callees must retain grouping: the inner name is read before an
 	// outer argument list, independently of that call or a pointer context.
+	// Grouping DebugBreak also forces a value context, even in a statement.
 	switch exp.(type) {
-	case *ast.Identifier, *ast.MemberAccessExpression, *ast.GroupedExpression:
+	case *ast.Identifier, *ast.MemberAccessExpression, *ast.GroupedExpression, *ast.DebugBreakExpression:
 		return &ast.GroupedExpression{
 			BaseNode:   ast.BaseNode{Token: lparenToken, EndPos: p.cursor.Current().End()},
 			Expression: exp,

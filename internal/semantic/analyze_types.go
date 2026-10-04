@@ -17,6 +17,11 @@ import (
 // evaluateConstant evaluates a compile-time constant expression.
 // Returns the constant value and an error if the expression is not a constant.
 func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
+	if _, debugBreak := expr.(*ast.DebugBreakExpression); debugBreak {
+		// ReadTerm substitutes a null constant after reporting the valueless
+		// intrinsic. Preserve that recovery without a second constant error.
+		return nil, nil
+	}
 	if binding, ok := a.semanticInfo.EnumElementBinding(expr); ok {
 		return binding.Ordinal, nil
 	}
@@ -62,6 +67,14 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 	case *ast.UnaryExpression:
 		// Delegate to evaluateConstantInt for integer unary ops
 		if e.Operator == "-" || e.Operator == "+" {
+			operand, err := a.evaluateConstant(e.Right)
+			if err != nil {
+				return nil, err
+			}
+			if operand == nil {
+				// A bogus null constant remains constant under an operator.
+				return nil, nil
+			}
 			val, err := a.evaluateConstantInt(expr)
 			if err != nil {
 				return nil, err
@@ -79,6 +92,11 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		rightVal, err := a.evaluateConstant(e.Right)
 		if err != nil {
 			return nil, err
+		}
+		if leftVal == nil || rightVal == nil {
+			// Preserve the null constant substituted for a valueless term;
+			// its expression error was already reported during analysis.
+			return nil, nil
 		}
 
 		// Check if either operand is a string and operator is '+'

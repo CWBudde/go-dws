@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2041 |
-| Passed | 1418 |
-| Failed | 596 |
+| Passed | 1419 |
+| Failed | 595 |
 | Skipped (no applicable expectation) | 27 |
-| **Scored pass rate** | **70%** (1418/2014) |
+| **Scored pass rate** | **70%** (1419/2014) |
 
 ## Per-category
 
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 316 | 213 | 13 | 60% |
+| FailureScripts | 542 | 317 | 212 | 13 | 60% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |

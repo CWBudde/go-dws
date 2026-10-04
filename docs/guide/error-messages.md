@@ -225,8 +225,21 @@ Taking the address of a bare scalar type reports its missing `(` first, followed
 by `unexpected "@"` at the address operator. Scalar variables report the latter
 sentence alone. These errors allow subsequent statements to be checked; declared
 routines, ordinary builtin references, and callable variables remain valid.
-Other special-function forms, `DebugBreak`, and reintroduced properties remain
-under measurement in Phase 2.1.
+
+`DebugBreak` is a reserved, valueless intrinsic. Both `DebugBreak;` and
+`DebugBreak()` execute as a no-op. If `(` is present, the next token must be `)`;
+otherwise compilation stops with `")" expected` at that token before reading an
+argument. Comments/newlines do not change this rule; EOF uses the opening `(`.
+A direct malformed call retains its earlier pedantic casing hint. Ordinary
+qualified member calls such as `obj.DebugBreak(1)` retain method lookup.
+
+Value and grouped uses report `Expression expected` at the following token.
+Taking its address reports that child error before `unexpected "@"`; it does not
+create a callback. Constant recovery substitutes null and keeps the declared name
+available to later checks, including through unary/binary constant operators.
+Nested malformed-call casing hints remain gated by Phase 2.4's stopped-call AST
+recovery; reserved declaration-name validation remains in Phase 3. Other
+special-function forms and reintroduced properties remain open in Phase 2.1.
 
 ### Class, record and helper member headers
 

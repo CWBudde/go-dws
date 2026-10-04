@@ -430,6 +430,8 @@ func (e *Evaluator) Eval(node ast.Node, ctx *ExecutionContext) Value {
 		return e.VisitCharLiteral(n, ctx)
 	case *ast.NilLiteral:
 		return e.VisitNilLiteral(n, ctx)
+	case *ast.DebugBreakExpression:
+		return e.VisitDebugBreakExpression(n, ctx)
 
 	// Identifiers
 	case *ast.Identifier:

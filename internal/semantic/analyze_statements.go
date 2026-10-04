@@ -30,6 +30,10 @@ func (a *Analyzer) analyzeStatement(stmt ast.Statement) {
 	case *ast.AssignmentStatement:
 		a.analyzeAssignment(s)
 	case *ast.ExpressionStatement:
+		if debugBreak, ok := s.Expression.(*ast.DebugBreakExpression); ok {
+			a.analyzeDebugBreak(debugBreak, true)
+			return
+		}
 		exprType := a.analyzeExpression(s.Expression)
 		if _, indexed := s.Expression.(*ast.IndexExpression); indexed && exprType == nil {
 			a.addStructuredError(NewInvalidInstructionError(s.Expression.Pos()))
