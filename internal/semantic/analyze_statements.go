@@ -801,6 +801,8 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 			a.reportAssignmentTypeMismatch(pos, stmt.Token.Pos, valueType, targetType)
 		}
 
+	case *ast.SelfExpression:
+		a.addStructuredError(NewGenericError(stmt.Token.Pos, "Cannot assign a value to the left-side argument"))
 	default:
 		a.addError("invalid assignment target at %s", stmt.Token.Pos.String())
 	}

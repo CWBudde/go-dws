@@ -720,3 +720,62 @@ Full `just ci` stops at **1,230 inherited lint findings**, identical to the
 measured baseline; tests and coverage passed separately. Tests used Go 1.26,
 lint the matching Go 1.27 toolchain, and a writable Go cache with
 `TMPDIR=/tmp` and `GOFLAGS='-buildvcs=false -p=1'`.
+
+## 2026-10-03 — Regular var arguments and Self recovery (PLAN 1.5, fourth batch)
+
+This batch closes the named Phase 1.5 regular var-argument fixture set:
+`passing_const_var`, `passing_const_var2`, `const_param2`, and
+`self_not_writable`. Broader method/inherited/constructor/helper/function-pointer
+call-path validation, intrinsic arity/type punctuation, helper-parent syntax,
+and writable callable-reference temporaries remain open in `PLAN.md`.
+
+Regular named routines now report `Argument N (name) cannot be passed as
+Var-parameter`, retaining the declared parameter casing, zero-based index,
+and written argument position. Literals, call results, constants, const/lazy
+bindings and object Self cannot supply a writable slot. Type errors and failed
+child expressions suppress a second reference diagnostic, while existing
+array compatibility recovery still validates storage. Record method scopes
+retain constant bindings as immutable symbols.
+
+A dedicated recursive storage check preserves record Self fields and static
+array fields, mutable array elements, const object/dynamic-array member
+storage, helper class variables and field-backed properties, record static
+backing fields, and dynamically writable JSON members. Constant-backed
+property readers remain immutable. `Inc` and `Dec` use the same reference
+sentence for argument zero with parameter name `a`; broader intrinsic
+sentences remain separate work. Parser-accepted Self assignment targets now
+reach semantic analysis, where object Self reports `Cannot assign a value to
+the left-side argument` at the assignment operator, preserving surrounding
+errors and declaration/body hints.
+
+Independent review found five storage/recovery issues, all reproduced by
+failing regressions and fixed: array fallback validation, record Self fields,
+helper/static-property storage, record constants, and routine addresses that
+compiled but lacked runtime by-reference storage. Controller runtime comparison
+also caught JSON member storage rejection and verified restored execution
+(printing `3`). Explicit `@Routine` var arguments retain their prior rejection.
+Pinned upstream treats routine-reference data as writable; implementing its
+temporary reference slots needs a separate runtime compatibility change.
+Enabling assignment to record Self and ordinal alias typing remain existing
+work outside this batch.
+
+`just fixture-update` raises FailureScripts **309 → 313**, with no other
+baseline changes. The generated snapshot is **1,414 / 2,014**. CLI comparisons
+against main `4315b9eb` confirm the four deterministic gains and no new in-scope
+failures. An intermediate CLI snapshot also had a fluctuating BuildScripts `init_order1`
+pass: twelve runs per binary produce four distinct output orders before and
+three afterward. Its stable floor remains seven, and this fluctuation is not
+counted as a compatibility fix. Fixture sources, expectations and scoring are
+unchanged.
+
+Validation passed on the final source: `go test ./...`, `just test-unit`
+(race detection), `just test-coverage`, the exact frontend acceptance set,
+`just fixture-update`, the final fixture gate, `just check-fmt`,
+`go mod tidy -diff`, and `git diff --check`. The staged
+`golangci-lint run --new-from-rev=4315b9eb` reports **zero issues**.
+Full `just ci` stops at **1,230 inherited lint findings**, identical to the
+measured baseline; tests and coverage passed separately. Final verification
+used Go 1.26, lint the matching Go 1.27 toolchain, a writable shared Go cache,
+`GOFLAGS='-buildvcs=false -p=1'`, and a task-specific `/tmp/phase15d-build`
+directory. Heavy checks ran sequentially after the initial shared temporary
+storage quota failure, and the final runs passed.

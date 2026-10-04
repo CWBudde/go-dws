@@ -786,12 +786,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if argType == nil || a.errorsSince(mark) {
 			continue
 		}
-		// A procedure call has no value to pass by reference. Its type error
-		// already explains the failure; do not add a second lvalue diagnostic.
-		if isVar && !a.isLValue(arg) && argType != types.VOID {
-			a.addError("var parameter %d to function '%s' requires a variable (identifier, array element, or field), got %s at %s",
-				i+1, funcIdent.Value, arg.String(), arg.Pos().String())
-		}
 		if isLazy {
 			if !a.canAssign(argType, expectedType) {
 				a.addArgumentTypeError(i, expectedName, argType, arg.Pos())
@@ -806,6 +800,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 		// Allow compatible array types for var parameters
 		if isVar && !a.canAssign(argType, expectedType) && a.areArrayTypesCompatibleForVarParam(argType, expectedType) {
+			a.checkVarArgument(i, functionParameterName(funcType, i), arg, argType, arg.Pos())
 			continue
 		}
 		fits := a.canAssign(argType, expectedType)
@@ -814,6 +809,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		}
 		if !fits {
 			a.addArgumentTypeError(i, expectedName, argType, arg.Pos())
+		} else if isVar {
+			a.checkVarArgument(i, functionParameterName(funcType, i), arg, argType, arg.Pos())
 		}
 	}
 

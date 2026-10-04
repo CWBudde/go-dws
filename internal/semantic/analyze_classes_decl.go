@@ -814,7 +814,7 @@ func (a *Analyzer) analyzeRecordMethodBody(decl *ast.FunctionDecl, recordType *t
 		a.symbols.Define(propInfo.Name, propInfo.Type, token.Position{})
 	}
 	for _, constInfo := range recordType.Constants {
-		a.symbols.Define(constInfo.Name, constInfo.Type, token.Position{})
+		a.symbols.DefineConst(constInfo.Name, constInfo.Type, constInfo.Value, token.Position{})
 	}
 	for varName, varType := range recordType.ClassVars {
 		a.symbols.Define(recordType.ClassVarNames[varName], varType, token.Position{})

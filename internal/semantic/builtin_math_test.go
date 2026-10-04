@@ -347,7 +347,7 @@ func TestBuiltinInc_NotVariable(t *testing.T) {
 	input := `
 		Inc(5);
 	`
-	expectError(t, input, "variable")
+	expectError(t, input, "Argument 0 (a) cannot be passed as Var-parameter")
 }
 
 // Succ/Pred function tests
