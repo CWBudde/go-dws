@@ -50,3 +50,20 @@ var third := cls.Create();
 
 `, "class_arity_selection.dws", "1\ns\n2\nt\n9\n3\n9\n")
 }
+
+func TestClassArity_HiddenVarConstructorThroughExpressionReceiver(t *testing.T) {
+	compileAndRunWithHelperTransfer(t, `
+type P = class
+  constructor Create(var i: Integer); begin i := 42; PrintLn('parent'); end;
+end;
+type C = class(P)
+  constructor Create(v: Float); begin PrintLn('child'); end;
+end;
+type CC = class of C;
+function GetCls: CC;
+begin Result := C; end;
+var n := 1;
+var o := GetCls().Create(n);
+PrintLn(n);
+`, "class_arity_hidden_var_constructor.dws", "child\n1\n")
+}
