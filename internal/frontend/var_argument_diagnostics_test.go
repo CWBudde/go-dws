@@ -110,3 +110,22 @@ func TestCompile_WritableVarArguments(t *testing.T) {
 		})
 	}
 }
+
+func TestCompile_UnitQualifiedVarArguments(t *testing.T) {
+	dir := t.TempDir()
+	unit := "unit U; interface var Value: Integer; const Fixed = 1; implementation end."
+	if err := os.WriteFile(filepath.Join(dir, "U.pas"), []byte(unit), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	main := filepath.Join(dir, "Main.pas")
+	prefix := "uses U;\nprocedure Take(var v: Integer); begin end;\n"
+
+	if got := Compile(prefix+"Take(U.Value); Inc(U.Value);", main, semantic.HintsLevelDisabled).DiagnosticStrings(); len(got) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", got)
+	}
+	got := Compile(prefix+"Take(U.Fixed);", main, semantic.HintsLevelDisabled).DiagnosticStrings()
+	want := "Syntax Error: Argument 0 (v) cannot be passed as Var-parameter [line: 3, column: 6]"
+	if len(got) != 1 || !strings.HasPrefix(got[0], want) {
+		t.Fatalf("got %v; want %q", got, want)
+	}
+}

@@ -33,11 +33,7 @@ func (a *Analyzer) isWritableVarArgument(arg ast.Expression, argType types.Type)
 		return record && !a.inClassMethod
 	case *ast.Identifier:
 		sym, found := a.symbols.Resolve(expr.Value)
-		if !found || sym.ReadOnly || sym.IsConst {
-			return false
-		}
-		_, routine := sym.Type.(*types.FunctionType)
-		return !routine
+		return found && isWritableVarSymbol(sym)
 	case *ast.IndexExpression:
 		baseType := types.GetUnderlyingType(a.semanticInfo.GetResolvedType(expr.Left))
 		if array, ok := baseType.(*types.ArrayType); ok && array.IsStatic() {
@@ -53,7 +49,25 @@ func (a *Analyzer) isWritableVarArgument(arg ast.Expression, argType types.Type)
 	}
 }
 
+// isWritableVarSymbol reports whether a resolved variable binding provides
+// writable storage; constants, read-only bindings and routines do not.
+func isWritableVarSymbol(sym *Symbol) bool {
+	if sym.ReadOnly || sym.IsConst {
+		return false
+	}
+	_, routine := sym.Type.(*types.FunctionType)
+	return !routine
+}
+
 func (a *Analyzer) isWritableVarMember(expr *ast.MemberAccessExpression) bool {
+	// Unit-qualified members resolve from the unit's symbol table and carry no
+	// receiver type, so classify the qualified symbol itself.
+	if unitName, ok := expr.Object.(*ast.Identifier); ok && !a.hasLexicalValueReceiver(expr.Object) {
+		if _, imported := a.importedUnitNamespace(unitName.Value); imported {
+			sym, err := a.ResolveQualifiedSymbol(unitName.Value, expr.Member.Value)
+			return err == nil && sym != nil && isWritableVarSymbol(sym)
+		}
+	}
 	objectType := a.semanticInfo.GetResolvedType(expr.Object)
 	baseType := types.GetUnderlyingType(objectType)
 	if types.IsJSONVariant(baseType) {
