@@ -116,7 +116,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				return nil
 			}
 			methodType = helperMethod
-			a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
+			a.addIdentifierCaseHint(expr.Method, a.declaredHelperCallName(objectType, methodName))
 		} else {
 			a.addIdentifierCaseHint(expr.Method, a.declaredInterfaceMethodName(interfaceType, methodName))
 			// Native interface methods keep Self outside the written arguments,
@@ -182,7 +182,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				}
 				// Use the helper method
 				method = helperMethod
-				a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
+				a.addIdentifierCaseHint(expr.Method, a.declaredHelperCallName(objectType, methodName))
 			}
 
 			a.analyzeHelperCallArguments(objectType, methodName, method, expr.Arguments, expr.Method.Token.Pos)
@@ -232,9 +232,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 
 		// Receiver eligibility is established before overload selection upstream.
-		a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
+		a.addIdentifierCaseHint(expr.Method, a.declaredHelperCallName(objectType, methodName))
 		invalidHelperReceiver := a.isTypeMetaValueExpression(expr.Object) &&
-			a.hasHelperMethod(objectType, methodName) != nil && !a.isHelperClassMethod(objectType, methodName)
+			a.helperCallOwner(objectType, methodName) != nil && !a.isHelperCallClassMethod(objectType, methodName)
 		if invalidHelperReceiver {
 			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
 		}
@@ -254,11 +254,11 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 
-		a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
+		a.addIdentifierCaseHint(expr.Method, a.declaredHelperCallName(objectType, methodName))
 
 		// Record the receiver's static type so runtime helper dispatch honors
 		// alias-specific (strict) helpers over the underlying type's helpers.
-		if a.semanticInfo != nil && expr.Method != nil {
+		if a.semanticInfo != nil && expr.Method != nil && !a.hasHelperCallBinding(expr.Method) {
 			a.semanticInfo.SetType(expr.Method, &ast.TypeAnnotation{
 				Token: expr.Method.Token,
 				Name:  "__helper_receiver:" + objectType.String(),
@@ -393,9 +393,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		methodType = overloads[0].Signature
 	default:
 		// Method not found - check helpers
-		a.addIdentifierCaseHint(expr.Method, a.declaredHelperMethodName(objectType, methodName))
-		invalidHelperReceiver := isMetaclass && a.hasHelperMethod(objectType, methodName) != nil &&
-			!a.isHelperClassMethod(objectType, methodName)
+		a.addIdentifierCaseHint(expr.Method, a.declaredHelperCallName(objectType, methodName))
+		invalidHelperReceiver := isMetaclass && a.helperCallOwner(objectType, methodName) != nil &&
+			!a.isHelperCallClassMethod(objectType, methodName)
 		if invalidHelperReceiver {
 			a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
 		}
@@ -405,7 +405,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 		if isMetaclass {
 			// Metaclass target availability remains a separate lookup audit.
-			if !found || !a.isHelperClassMethod(objectType, methodName) {
+			if !found || !a.isHelperCallClassMethod(objectType, methodName) {
 				a.addStructuredError(NewClassMethodOrConstructorExpectedError(expr.Method.Token.Pos))
 				return nil
 			}

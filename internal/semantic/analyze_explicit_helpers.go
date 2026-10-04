@@ -81,6 +81,7 @@ func (a *Analyzer) analyzeExplicitHelperCall(helper *types.HelperType, member *a
 		return nil, true
 	}
 	signature := signatures[selected].typ
+	a.annotateExplicitHelperCall(member, signatures[selected])
 	// Self is a written argument through a helper name, so its index and
 	// position participate in the ordinary argument list without a shift.
 	a.analyzeMemberCallArguments(signature, args, member.Token.Pos, false)

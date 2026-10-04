@@ -1159,25 +1159,21 @@ func (a *Analyzer) resolveHelperMethodForCall(typ types.Type, member *ast.Identi
 	if _, meta := recordReceiverType(typ); meta && !a.isHelperClassMethod(typ, methodName) {
 		return nil, false
 	}
-	helpers := a.getHelpersForType(typ)
 	key := ident.Normalize(methodName)
-	for idx := len(helpers) - 1; idx >= 0; idx-- {
-		helper := helpers[idx]
+	if helper := a.helperCallOwner(typ, methodName); helper != nil {
 		overloads := helper.MethodOverloads[key]
 		if _, meta := recordReceiverType(typ); meta {
 			overloads = helper.ClassMethodOverloads[key]
-			if len(overloads) == 0 {
-				continue
-			}
 		}
 		if len(overloads) == 0 {
 			if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
-				a.addIdentifierCaseHint(member, a.declaredHelperMethodName(typ, methodName))
+				a.addIdentifierCaseHint(member, a.declaredHelperCallName(typ, methodName))
+				a.annotateHelperCall(helper, member, method)
 				return method, true
 			}
-			continue
+			return nil, false
 		}
-		declared := a.declaredHelperMethodName(typ, methodName)
+		declared := a.declaredHelperCallName(typ, methodName)
 		a.addIdentifierCaseHint(member, declared)
 		_, declaration := a.helperSignatureDeclaration(typ, methodName, overloads[len(overloads)-1])
 		marked := declaration != nil && declaration.IsOverload
@@ -1185,6 +1181,7 @@ func (a *Analyzer) resolveHelperMethodForCall(typ types.Type, member *ast.Identi
 		if selected < 0 {
 			return nil, true
 		}
+		a.annotateHelperCall(helper, member, overloads[selected])
 		return overloads[selected], true
 	}
 	return nil, false

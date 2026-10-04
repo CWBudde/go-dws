@@ -20,6 +20,11 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 	if node.Function == nil {
 		return e.newError(node, "call expression missing function")
 	}
+	if member, ok := node.Function.(*ast.Identifier); ok {
+		if result, bound := e.evalSelectedBoundHelperCall(member, node.Arguments, node, ctx); bound {
+			return result
+		}
+	}
 
 	// Nested (scoped) function declarations hide all same-named outer
 	// functions and methods for the duration of the enclosing call.

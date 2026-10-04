@@ -149,9 +149,19 @@ helper's failed match does not add an inaccessible-member error. Recoverable
 child errors precede the enclosing no-match; declaration-case hints and independent
 instance-versus-type receiver errors remain visible before ranking.
 
-Successful selection proceeds to ordinary argument checking. General mixed/inherited
-candidate ownership, ambiguity/Variant ranking, and runtime dispatch among multiple
-helper declarations remain under audit; details and reproductions are in the
+Successful selection proceeds to ordinary argument checking and execution of that
+same declaration and declaring helper. Lazy arguments remain deferred, var arguments
+retain their caller's storage, and a statically typed Variant does not choose a new
+overload from its contained value. Receiver and ordinary arguments are evaluated once.
+Inline helper-body calls retain the declarations visible where the body was written.
+For unrelated helpers on the same target, the first declaring helper supplies the
+candidate set; a failed match does not try a later helper. Alias-specific lookup
+retains precedence. The port's parent-helper extension preserves the complete
+inherited overload set and its declaring storage owner when a child has no local
+member of that name; a local declaration hides the parent set.
+
+General mixed/inherited candidate collection and ambiguity/Variant ranking remain
+under audit; details and bounded runtime acceptance evidence are in the
 [helper overload measurement](../architecture/helper-overload-measurement-2026-10.md).
 
 Bare user-helper members are invocations unless a compatible callable type is

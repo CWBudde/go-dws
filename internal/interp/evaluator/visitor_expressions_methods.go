@@ -94,6 +94,13 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 	if ctx.Exception() != nil {
 		return e.nilValue()
 	}
+	if selected, bound := e.selectedHelperCall(node.Method); bound {
+		obj = e.normalizeMemberReceiver(obj, node.Object, node, ctx)
+		if isError(obj) || ctx.Exception() != nil {
+			return obj
+		}
+		return e.evalSelectedHelperCall(selected, obj, node.Arguments, node, ctx)
+	}
 
 	methodName := node.Method.Value
 	if result, handled := e.evalArrayMathCall(obj, node, ctx); handled {
