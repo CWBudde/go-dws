@@ -145,7 +145,7 @@ stays open until all its subtasks pass. Update its checkbox and this table in th
 same PR; retain checked siblings until the subphase closes. Detailed evidence:
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
-**Next ungated batch:** 1.6's explicit helper-name and helper-body call diagnostics.
+**Next ungated batch:** 1.6's bare helper invocation/reference and grouped-callee contexts.
 Work through the remaining 1.6 call tasks, then 1.7 defaults/storage; take 1.5's
 remaining declaration checks when needed by defaults. Phase 2/3 prerequisites
 continue to gate their overlapping 1.8 sweeps.
@@ -193,8 +193,9 @@ Pin complete diagnostic lists through `frontend.Compile`, including recovery typ
 - [x] Parenthesized receiver-helper calls ([#456](https://github.com/CWBudde/go-dws/pull/456)).
   - [x] Cover primitive/record/class/interface targets and implicit Self fallback.
   - [x] Preserve selected instance/class/static receiver roles and diagnostic ordering (70 cases).
-- [ ] Remaining helper call contexts.
-  - [ ] Match explicit helper-name calls and helper-body bound routine calls.
+- [ ] Remaining helper call contexts (1 of 2 subtasks complete).
+  - [x] Match explicit helper-name calls and helper-body bound routine calls;
+    preserve the existing overload-candidate policy (see the October progress log).
   - [ ] Distinguish bare invocation from routine references, including grouped helper callees.
 - [ ] Helper overload selection.
   - [ ] Measure candidate selection independently from selected-signature argument checking.

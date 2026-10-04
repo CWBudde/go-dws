@@ -1040,3 +1040,53 @@ checklist only when the whole subphase closes. The completed 1.3 milestone remai
 as an explicit checkpoint exception. The documentation index records the same convention. Validation checks task counts, relative links, preservation
 of the old backlog, and whitespace; runtime tests are not needed for this
 documentation-only change.
+
+## 2026-10-04 — Explicit and body-bound helper calls (PLAN 1.6)
+
+Explicit helper-name calls now analyze every supplied argument before checking
+its type and the argument count. A type mismatch suppresses the count diagnostic;
+child errors remain before a missing/excess-argument error. The written Self
+argument uses ordinary indices and expression positions. Parameterless methods
+use `Too many arguments`, and result types survive count recovery.
+
+Calls bound to the helper's own methods inside inline and out-of-line bodies now
+use the selected helper signature's receiver role. Instance and structured class
+methods retain the implicit Self index/position shift; primitive/interface class
+methods and static methods use ordinary positions. Binding identity preserves
+parameter shadows and declaration-order visibility. The existing overload
+candidate policy remains unchanged, including lone overload-marked bindings;
+its independent audit is still open.
+
+The shared checker replaces the duplicate record class receiver guard. Record
+class receivers require a matching metatype, including aliases and inferred
+metatype copies. A fresh review caught Variant conversion bypassing this role;
+a failing compile-path regression was added, then the synthesized metatype
+receiver was made strict. The canonical argument-type diagnostic now rejects
+that receiver during compilation without the old duplicate `record type expected`.
+The review found no other issues.
+
+Acceptance pins 117 complete `frontend.Compile` diagnostic lists across primitive,
+record, class, and interface targets, including class/static roles, child/type/count
+ordering, multiline anchors, contextual nil/empty arrays, out-of-line calls,
+case-insensitive lookup, lexical parameter shadows, and result recovery. The
+initial 96-case matrix reproduced 44 failures before the implementation.
+Upstream evidence is `TypeCheckArguments`, `CreateMethodCall`, `ReadTypeHelper`,
+`ReadSelfMethod`, and `TStructuredTypeMetaSymbol.DoIsCompatible` at DWScript commit
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`.
+
+PLAN.md checks the explicit/body-bound helper subtask and leaves its parent open
+at one of two subtasks complete. Bare invocation/reference and grouped helper
+callees are next. Helper overload selection, defaults, var storage, imported
+helper availability, and metaclass-target lookup retain their separate open tasks.
+The error-message guide describes the shipped contexts and receiver policy.
+
+Validation passes: frontend/semantic/type suites; full
+`go test -race -coverprofile=coverage-final.out ./...`; coverage HTML generation;
+`just fixture-update` and `just fixture-check`; source formatting;
+`go mod tidy -diff`; CLI build/probe; and `git diff --check`.
+Fixture baseline/status regeneration produced no changes. CI's new-findings lint
+gate (`golangci-lint run --new-from-merge-base=origin/main --timeout 10m`)
+reports zero issues; full baseline lint reports the 1,229 inherited findings.
+Verification used Go 1.24.13 with writable compiler/cache paths and tmpfs test
+storage: worktree test directories hit recurring empty-directory cleanup errors
+on both the unchanged baseline and the branch; rerunning on tmpfs passed.

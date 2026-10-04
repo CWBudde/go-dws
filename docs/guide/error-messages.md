@@ -133,8 +133,17 @@ have no Self argument and use ordinary indices and supplied-expression anchors.
 Receiver ownership follows the selected overload, even when instance and static
 methods share a name. Implicit Self helper fallback uses the same policy.
 
-Explicit helper-name calls, calls bound in helper-body scope, helper overload
-selection, helper/interface declaration defaults, bare member invocation versus
+Explicit helper-name calls use the same child-before-count and type-before-count
+policy. An explicitly supplied Self uses its written argument index and position.
+Record class helpers require the matching record metatype, including aliases and
+inferred metatype copies; a Variant cannot supply that receiver.
+
+Calls bound to a helper member inside its body use the selected signature's
+implicit receiver role, including class/static methods and out-of-line bodies.
+Local bindings that shadow the member keep their own call diagnostics. The
+existing overload-candidate policy and inline declaration visibility are retained.
+
+Helper overload selection, helper/interface declaration defaults, bare member invocation versus
 routine-reference contexts (including grouped member callees), and bare
 inherited-call arity remain under audit. Imported-helper and metaclass-target
 lookup also remain open. Specialized intrinsic helpers retain

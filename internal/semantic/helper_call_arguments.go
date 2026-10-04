@@ -9,6 +9,19 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
+// isBoundHelperMethod recognizes the signature installed in a helper body.
+// Comparing the resolved binding, rather than just its name, preserves local
+// routines and parameters that shadow a helper member and source-order lookup.
+func (a *Analyzer) isBoundHelperMethod(name string, signature *types.FunctionType) bool {
+	key := ident.Normalize(name)
+	for owner := a.currentHelperType; owner != nil; owner = owner.ParentHelper {
+		if slices.Contains(owner.MethodOverloads[key], signature) {
+			return true
+		}
+	}
+	return false
+}
+
 // analyzeHelperCallArguments preserves the selected signature's receiver role.
 // Instance helpers (including function helpers) and nonstatic class helpers for
 // structured targets pass Self as argument zero upstream. Static methods and
