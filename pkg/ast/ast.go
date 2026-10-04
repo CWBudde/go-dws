@@ -93,6 +93,9 @@ type Identifier struct {
 	Value    string
 	TypeArgs []TypeExpression
 	BaseNode
+	// NextTokenPos is the parser's lookahead anchor for symbol-directed punctuation.
+	// At EOF it points to the last real token. Programmatically built nodes may omit it.
+	NextTokenPos token.Position
 }
 
 func (i *Identifier) expressionNode() {}

@@ -178,8 +178,17 @@ func (p *Parser) parseSingleConstDeclaration(isResourceStringSection bool) *ast.
 
 	// Parse value expression
 	p.cursor = p.cursor.Advance() // move to value expression
+	stmt.ValueStartPos = p.anchorFor(p.cursor.Current()).Pos
+	stmt.ValueStartsWithParen = p.cursor.Current().Type == lexer.LPAREN
 	stmt.Value = p.parseExpression(ASSIGN)
 	if p.stopped() {
+		// A typed initializer without '(' may be a record constant. Keep only
+		// its syntax for the analyzer to choose the punctuation diagnostic;
+		// no interrupted expression is analyzed or registered as a constant.
+		if stmt.Type != nil && !stmt.ValueStartsWithParen {
+			stmt.Value = nil
+			return stmt
+		}
 		// A value cut short by a compiler stop: the declaration never existed
 		// upstream, so it is not analysed (const_record4).
 		return nil

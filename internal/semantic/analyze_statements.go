@@ -245,13 +245,25 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 
 // analyzeConstDecl analyzes a const declaration statement
 func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
+	// An interrupted initializer retained by the parser is only a syntax
+	// carrier. It must not take part in declaration checks or registration.
+	if stmt.Value == nil && stmt.ValueStartPos.IsValid() {
+		if stmt.Type != nil {
+			declared, err := a.resolveTypeExpression(stmt.Type)
+			if err != nil {
+				return
+			}
+			if _, record := types.GetUnderlyingType(declared).(*types.RecordType); record && !stmt.ValueStartsWithParen {
+				a.addPunctuationStop(stmt.ValueStartPos, `"(" expected`)
+			}
+		}
+		return
+	}
 	// Check if constant is already declared in current scope
 	if a.symbols.IsDeclaredInCurrentScope(stmt.Name.Value) {
 		a.addError("%s", errors.FormatNameAlreadyExists(stmt.Name.Value, stmt.Token.Pos.Line, stmt.Token.Pos.Column))
 		return
 	}
-
-	// Constants must have a value
 	if stmt.Value == nil {
 		a.addError("constant '%s' must have a value at %s", stmt.Name.Value, stmt.Token.Pos.String())
 		return
@@ -270,7 +282,12 @@ func (a *Analyzer) analyzeConstDecl(stmt *ast.ConstDecl) {
 			return
 		}
 	}
-
+	if stmt.ValueStartPos.IsValid() && !stmt.ValueStartsWithParen {
+		if _, record := types.GetUnderlyingType(constType).(*types.RecordType); record {
+			a.addPunctuationStop(stmt.ValueStartPos, `"(" expected`)
+			return
+		}
+	}
 	// Analyze the value expression
 	var valueType = a.analyzeExpressionWithExpectedType(stmt.Value, constType)
 	if valueType == nil {

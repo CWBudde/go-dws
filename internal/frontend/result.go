@@ -323,7 +323,8 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	err := safeAnalyzeWithUnits(analyzer, result, opts)
 	result.SemanticInfo = analyzer.GetSemanticInfo()
 	unitDiagnostics := result.Diagnostics[len(mainDiagnostics):]
-	mainDiagnostics = dropDiagnosticsAfterStop(append(mainDiagnostics, semanticDiagnostics(analyzer)...))
+	mainDiagnostics = refineTypePunctuationDiagnostics(append(mainDiagnostics, semanticDiagnostics(analyzer)...))
+	mainDiagnostics = dropDiagnosticsAfterStop(mainDiagnostics)
 	restoreStatementWarningOrder(mainDiagnostics)
 	sortDiagnostics(mainDiagnostics)
 	restoreDeclarationDiagnosticOrder(mainDiagnostics)
@@ -365,8 +366,9 @@ func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
 		after := diag.Line > stopLine || (diag.Line == stopLine && diag.Column > stopColumn)
 		// Semantic diagnostics were already truncated in emission order. A child
 		// may display after its parent's scanner cursor (e.g. array_of_proc2).
-		if after && ((stopPhase == PhaseParsing && diag.Phase != PhaseParsing) ||
-			(stopPhase == PhaseSemantic && diag.Phase == PhaseParsing)) {
+		atStop := diag.Line == stopLine && diag.Column == stopColumn
+		if (after && stopPhase == PhaseParsing && diag.Phase != PhaseParsing) ||
+			((after || atStop) && stopPhase == PhaseSemantic && diag.Phase == PhaseParsing) {
 			continue
 		}
 		kept = append(kept, diag)
