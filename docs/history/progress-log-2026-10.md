@@ -911,3 +911,51 @@ in `/tmp`. Earlier full test/race attempts hit shared disk quota, including fixt
 executable copies and sandbox startup. Reclaiming four GiB of old generated Go
 cache files restored verification; no source workaround was added. A concurrent
 lint attempt was rejected by the lint runner's lock and was rerun serially.
+
+### Phase 1.5 — Direct native interface-call argument diagnostics (2026-10-04)
+
+Direct parenthesized interface method calls now read every supplied argument
+before reporting count errors, including inherited methods and expression
+receivers. Supplied type mismatches suppress count errors; errors inside children
+remain and can precede the outer count error. Parameterless methods reject excess
+arguments with `Too many arguments`. Count errors anchor at the method name;
+interface receivers stay outside the argument list, so type diagnostics use
+zero-based indices and the supplied expression's position. Return types survive
+arity recovery for subsequent assignment validation.
+
+The native interface branch reuses the existing member argument checker, leaving
+helper fallback, runtime dispatch, signatures, and parser behavior unchanged.
+Pinned upstream evidence is `TypeCheckArguments`, `WrapUpFunctionRead`, and
+`TMethodExpr.Create` at DWScript commit
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`.
+
+Acceptance uses 21 exact `frontend.Compile` cases; ten failed before the change.
+They cover short/excess/parameterless calls, supplied types before counts,
+multiline anchors and child errors, case-insensitive lookup, inherited signatures,
+result recovery, expression/grouped receivers, and contextual `[]`/`nil` arguments.
+The frontend and semantic suites pass, as do `just fixture-update` and
+`just fixture-check`. The fixture updater leaves both baseline/status files
+unchanged. The CLI fixture report has no deterministic changes versus the prior
+batch; its sole snapshot improvement is `BuildScripts/init_order4`, whose repeated
+runs produce varying initialization/finalization orders with both binaries.
+No baseline floor was raised for that nondeterminism. The new-findings lint gate
+(`golangci-lint run --new-from-rev=a95420db --timeout 10m`) reports zero issues;
+full `just ci` stops at the same 1,229 inherited lint findings before and after.
+The clean main baseline `go test ./...` passes.
+
+The fresh review found no code issues. Its history-entry note was addressed by
+this already planned record. Remaining work stays in PLAN.md: helper argument
+policy, interface declaration defaults and omitted-default execution, var-storage
+checks, multiline child/type ordering, bare member/reference contexts, and the
+existing excess bare-callable argument gap discovered during review. Grouped
+member callees such as `(item.Take)(...)` belong to the bare-context audit:
+upstream reads the member inside parentheses before the outer call.
+
+Verification uses CI's Go 1.24.13, `GOFLAGS='-buildvcs=false -p=1'`, and a shared
+generated Go cache. Initial baseline attempts exceeded temporary-filesystem quota;
+compiler temporaries were moved into the worktree cache after reclaiming four GiB
+of stale generated Go cache files. No source workaround was added. Full
+`go test -race -coverprofile=coverage.out ./...`, HTML coverage generation,
+`just check-fmt`, `go mod tidy -diff`, and `git diff --check` pass. The whole-tree
+formatter initially traversed active generated build files; its final run passes
+after those compiler temporaries are gone.

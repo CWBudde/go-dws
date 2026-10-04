@@ -116,8 +116,16 @@ that shifted index to look up the written argument positions: the next written
 argument, or the method name when no next argument exists. Record class methods
 have no receiver argument and report ordinary indices and argument positions.
 
-Interface/helper calls, bare record-member invocation versus routine-reference
-contexts, and bare inherited-call arity remain under audit.
+Direct parenthesized native interface calls, including inherited methods, use
+`More arguments expected` or `Too many arguments` at the method name. Their
+receiver stays outside the argument list: argument indices start at 0 and type
+errors anchor at the supplied expression. All supplied children are read before
+count validation, and supplied type mismatches suppress count errors. The method's
+return type remains available for subsequent assignment checks.
+
+Helper calls, interface declaration defaults, bare record/interface-member
+invocation versus routine-reference contexts (including grouped member callees),
+and bare inherited-call arity remain under audit.
 
 ### Parameter defaults and Swap
 
