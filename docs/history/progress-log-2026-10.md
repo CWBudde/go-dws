@@ -1,5 +1,76 @@
 # Progress log — October 2026
 
+## 2026-10-05 — DebugBreak punctuation and execution (PLAN 2.1)
+
+This batch ([#464](https://github.com/CWBudde/go-dws/pull/464)) closes the
+`FailureScripts/debugbreak` fixture and checks three
+subtasks under Phase 2.1's magic-functions item. The parent stays open: casing
+hints inside a discarded stopped parent call still need Phase 2.4's per-call
+truncation carrier. Other special functions and reintroduced properties remain
+open. Reserved declaration-name validation is recorded separately in Phase 3.2.
+
+Unqualified DebugBreak is a reserved intrinsic, read before ordinary name lookup.
+It accepts a bare name or empty parentheses. An opening parenthesis requires an
+immediate closing parenthesis; any other token produces a compiler stop before
+reading an argument. The anchor follows comments/newlines and uses the last real
+token at EOF. An incomplete intrinsic node preserves a direct-call casing hint
+before the stop and prevents earlier-anchored initializer inference cascades.
+Qualified methods named DebugBreak retain ordinary member dispatch.
+
+The dedicated AST node records the following token and whether its optional
+parentheses were interrupted. Generated visitor traversal includes the new leaf.
+The evaluator performs the same empty operation as upstream
+`TDebugBreakExpr.EvalNoResult`, including without type checking. No ordinary
+builtin or callback signature is registered. Grouping and value contexts report
+`Expression expected` at the following token. Address use reports that child
+error before `unexpected "@"`. Constant recovery substitutes null and propagates
+it through constant unary/binary operators after checking their children, so
+later references to the recovered constant do not become unknown names.
+
+Two read-only reconnaissance agents investigated original parsing/runtime
+semantics and the Go execution path. An independent review found grouping and
+constant-recovery gaps. Failing frontend tests reproduced each before its fix,
+including extra constant/unknown-name errors under unary/binary operators. The
+reviewer rechecked direct, grouped, and composite recovery, ordinary negative
+constant folding, rejection of nonconstant function calls on either operand,
+qualified methods, and generated traversal, then approved the bounded batch.
+Compiler evidence comes from `ReadName`, `ReadSpecialFunction`, `ReadTerm`, and
+`ReadAt`; expected transcripts are source-derived, not runs of a Pascal oracle.
+
+Acceptance includes 27 frontend cases, seven parser AST/position cases, the exact
+fixture transcript, a separate
+pedantic hint-before-stop case, and public API execution with type checking on
+and off. Runtime controls print before/after markers, execute procedure and loop
+bodies, and call a qualified method with a real argument. Package-local parser
+tests cover grouping and syntax-only nodes; frontend integration coverage alone
+does not count toward the parser package's coverage floor. The CLI matched the
+complete fixture diagnostic with exit 1 and executed valid calls with exit 0.
+
+`just fixture-update` raises the stable FailureScripts baseline from 316 to 317.
+No expectation files changed. The final status snapshot counts 1,419 passes,
+including BuildScripts at 8; the preceding update counted 1,418 with BuildScripts
+at 7. Its known Phase 5.2 initialization-order variability remains open. The
+BuildScripts floor stays 7, and only the one stable FailureScripts gain is
+attributed to this batch.
+
+The initial baseline build hit temporary-directory quota limits; workspace build
+directories and a writable lint cache resolved them. Pre-change failures after
+adding the new tests were confined to DebugBreak acceptance cases; the existing
+race suite with those cases excluded passed. Review red/green logs and final
+verification output are retained in the worktree's ignored `.cache/results/`.
+
+Final validation passed: `go test -race ./...`, the full race/coverage run,
+frontend/parser/semantic/AST/public API package tests, three repeated DebugBreak
+runs, CI diff lint (zero findings), `go mod tidy -diff`, fixture update and gate,
+formatting after build cleanup, visitor regeneration, fresh CLI builds, and
+`git diff --check`. Parser coverage increased from 79.5% to 79.6%; lexer coverage
+remained 86.2%. The formatter's earlier findings were generated active build
+files; authored code passed once those builds finished. A test complexity finding
+was resolved by comparing the source-span tuple directly.
+
+Nested stopped-call casing hints and reserved declaration checks remain open in
+the plan. Experimental bytecode support was not expanded.
+
 ## 2026-10-05 — Type-directed punctuation (PLAN 2.1)
 
 This user-selected Phase 2 batch closes `const_record1`, `special_funcs1`, and

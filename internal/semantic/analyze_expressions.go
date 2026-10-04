@@ -22,6 +22,8 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) (resolvedType types.Ty
 	switch e := expr.(type) {
 	case *ast.InvalidExpression:
 		return nil
+	case *ast.DebugBreakExpression:
+		return a.analyzeDebugBreak(e, false)
 	case *ast.IntegerLiteral:
 		return types.INTEGER
 	case *ast.FloatLiteral:

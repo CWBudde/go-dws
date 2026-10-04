@@ -58,6 +58,8 @@ func Walk(v Visitor, node Node) {
 		walkConstDecl(n, v)
 	case *ContinueStatement:
 		walkContinueStatement(n, v)
+	case *DebugBreakExpression:
+		walkDebugBreakExpression(n, v)
 	case *EmptyStatement:
 		walkEmptyStatement(n, v)
 	case *EnumDecl:
@@ -445,6 +447,11 @@ func walkConstDecl(n *ConstDecl, v Visitor) {
 
 // walkContinueStatement walks a ContinueStatement node
 func walkContinueStatement(n *ContinueStatement, v Visitor) {
+	// No children to walk
+}
+
+// walkDebugBreakExpression walks a DebugBreakExpression node
+func walkDebugBreakExpression(n *DebugBreakExpression, v Visitor) {
 	// No children to walk
 }
 
