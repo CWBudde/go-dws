@@ -77,6 +77,22 @@ func TestConstDeclTyped(t *testing.T) {
 	}
 }
 
+// TestConstDeclWithoutValue tests that a recovered ConstDecl without a value
+// (an initializer cut short by a compiler stop) stringifies without panicking.
+func TestConstDeclWithoutValue(t *testing.T) {
+	// const C: Integer = ;
+	constDecl := &ConstDecl{
+		BaseNode: NewTestConstDeclBaseNode(1, 1),
+		Name:     NewTestIdentifier("C"),
+		Type:     NewTestTypeAnnotation("Integer"),
+	}
+
+	expectedString := "const C: Integer"
+	if constDecl.String() != expectedString {
+		t.Errorf("String() wrong. expected=%q, got=%q", expectedString, constDecl.String())
+	}
+}
+
 // ============================================================================
 // TypeDeclaration Tests
 // ============================================================================

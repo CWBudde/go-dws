@@ -60,8 +60,12 @@ func (cd *ConstDecl) String() string {
 		out.WriteString(cd.Type.String())
 	}
 
-	out.WriteString(" = ")
-	out.WriteString(cd.Value.String())
+	// Value is nil when parser recovery kept a typed constant whose
+	// initializer was cut short by a compiler stop.
+	if cd.Value != nil {
+		out.WriteString(" = ")
+		out.WriteString(cd.Value.String())
+	}
 
 	return out.String()
 }

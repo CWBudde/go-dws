@@ -52,3 +52,17 @@ func TestParser_CompilerStopIsUndoneByBacktracking(t *testing.T) {
 		t.Fatalf("errors = %q, want only the post-restore error", got)
 	}
 }
+
+// TestParser_RecoveredTypedConstStringifies checks that a typed constant whose
+// initializer is cut short by a compiler stop is kept without a value, and that
+// the recovered AST still stringifies.
+func TestParser_RecoveredTypedConstStringifies(t *testing.T) {
+	p := testParser("const C: Integer = ;")
+	program := p.ParseProgram()
+	if !p.stopped() {
+		t.Fatalf("expected the missing initializer to be a compiler stop")
+	}
+	if got, want := program.String(), "const C: Integer"; got != want {
+		t.Fatalf("program.String() = %q, want %q", got, want)
+	}
+}
