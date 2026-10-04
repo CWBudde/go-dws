@@ -207,7 +207,8 @@ Pin complete diagnostic lists through `frontend.Compile`, including recovery typ
   - [x] Retain recoverable child diagnostics before outer no-match errors, declaration-case
     hints, and independent receiver eligibility errors (63 compile cases, 4 run controls).
   - [x] Keep checked runtime execution on the selected declaration through receiver,
-    explicit-name, and helper-body calls; unchecked dispatch ranks signatures instead of arity.
+    explicit-name, and helper-body calls; unchecked dispatch ranks signatures instead of arity
+    ([#462](https://github.com/CWBudde/go-dws/pull/462)).
   - [x] Prepare arguments using the selected declaration's lazy/var flags, preserving
     static Variant selection and once-only receiver/ordinary-argument evaluation.
   - [x] Preserve empty child/grandchild helpers' inherited overload sets and declaring
