@@ -145,7 +145,8 @@ stays open until all its subtasks pass. Update its checkbox and this table in th
 same PR; retain checked siblings until the subphase closes. Detailed evidence:
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
-**Next ungated batch:** 1.6's helper overload selection, beginning with candidate measurement.
+**Next ungated batch:** 1.6's helper overload execution: retain the selected declaration
+and inherited candidate sets, using the measured runtime reproductions below.
 Work through the remaining 1.6 call tasks, then 1.7 defaults/storage; take 1.5's
 remaining declaration checks when needed by defaults. Phase 2/3 prerequisites
 continue to gate their overlapping 1.8 sweeps.
@@ -199,8 +200,18 @@ Pin complete diagnostic lists through `frontend.Compile`, including recovery typ
   - [x] Distinguish bare invocation from routine references, including grouped helper callees;
     preserve receiver capture and selected reference declarations (66 compile cases, 13 run cases).
 - [ ] Helper overload selection.
-  - [ ] Measure candidate selection independently from selected-signature argument checking.
-  - [ ] Pin child analysis and receiver ownership across mixed/inherited overload sets.
+  - [x] Measure candidate selection independently from selected-signature argument checking
+    ([pinned-source audit](docs/architecture/helper-overload-measurement-2026-10.md)).
+  - [x] Honor a lone `overload` declaration and anchor failed matches at the member;
+    a found helper owns its failure, without an inaccessible-member fallback.
+  - [x] Retain recoverable child diagnostics before outer no-match errors, declaration-case
+    hints, and independent receiver eligibility errors (63 compile cases, 4 run controls).
+  - [ ] Keep runtime execution on the selected declaration; stop non-record dispatch
+    choosing by arity and preserve inherited overload sets (measured reproductions in the audit).
+  - [ ] Pin child analysis and receiver ownership across mixed/inherited overload sets;
+    distinguish target-class inheritance from the port's parent-helper syntax.
+  - [ ] Match measured ambiguity/tie and Variant conversion ranking; preserve contextual
+    routine arguments when multiple candidate signatures provide a common expectation.
 - [ ] Helper availability and target lookup.
   - [ ] Audit imported-helper availability in the receiving analyzer across a unit boundary.
   - [ ] Preserve metaclass helper targets during parenthesized receiver lookup and unwrapping.

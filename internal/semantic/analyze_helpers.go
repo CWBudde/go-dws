@@ -1112,65 +1112,43 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) *types.Fun
 	return nil
 }
 
-func (a *Analyzer) resolveHelperMethodForCall(typ types.Type, methodName string, args []ast.Expression) *types.FunctionType {
+// resolveHelperMethodForCall distinguishes an absent member from a found
+// member whose overload set cannot accept the call. The latter owns its error.
+func (a *Analyzer) resolveHelperMethodForCall(typ types.Type, member *ast.Identifier, args []ast.Expression) (*types.FunctionType, bool) {
+	methodName := member.Value
+	pos := member.Token.Pos
 	if _, meta := recordReceiverType(typ); meta && !a.isHelperClassMethod(typ, methodName) {
-		return nil
+		return nil, false
 	}
 	helpers := a.getHelpersForType(typ)
-	if helpers == nil {
-		return nil
-	}
-
-	methodNameLower := ident.Normalize(methodName)
+	key := ident.Normalize(methodName)
 	for idx := len(helpers) - 1; idx >= 0; idx-- {
 		helper := helpers[idx]
-		overloads := helper.MethodOverloads[methodNameLower]
+		overloads := helper.MethodOverloads[key]
 		if _, meta := recordReceiverType(typ); meta {
-			overloads = helper.ClassMethodOverloads[methodNameLower]
+			overloads = helper.ClassMethodOverloads[key]
 			if len(overloads) == 0 {
 				continue
 			}
 		}
 		if len(overloads) == 0 {
 			if method := findMethodCaseInsensitive(helper.Methods, methodName); method != nil {
-				return method
+				a.addIdentifierCaseHint(member, a.declaredHelperMethodName(typ, methodName))
+				return method, true
 			}
 			continue
 		}
-		if len(overloads) == 1 {
-			return overloads[0]
+		declared := a.declaredHelperMethodName(typ, methodName)
+		a.addIdentifierCaseHint(member, declared)
+		_, declaration := a.helperSignatureDeclaration(typ, methodName, overloads[len(overloads)-1])
+		marked := declaration != nil && declaration.IsOverload
+		selected := a.selectHelperCallOverload(overloads, marked, args, pos, declared)
+		if selected < 0 {
+			return nil, true
 		}
-
-		argTypes := make([]types.Type, len(args))
-		for i, arg := range args {
-			argType := a.analyzeExpression(arg)
-			if argType == nil {
-				return nil
-			}
-			argTypes[i] = argType
-		}
-		candidates := make([]*Symbol, len(overloads))
-		for i, overload := range overloads {
-			candidates[i] = &Symbol{Type: overload}
-		}
-		selected, err := ResolveOverload(candidates, argTypes)
-		if err != nil {
-			a.addStructuredError(NewNoOverloadMatchError(argsPositionFallback(args), methodName))
-			return nil
-		}
-		if methodType, ok := selected.Type.(*types.FunctionType); ok {
-			return methodType
-		}
+		return overloads[selected], true
 	}
-
-	return nil
-}
-
-func argsPositionFallback(args []ast.Expression) token.Position {
-	if len(args) > 0 {
-		return args[0].Pos()
-	}
-	return token.Position{}
+	return nil, false
 }
 
 // hasHelperProperty checks if any helper for the given type defines the specified property.

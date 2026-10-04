@@ -123,7 +123,7 @@ errors anchor at the supplied expression. All supplied children are read before
 count validation, and supplied type mismatches suppress count errors. The method's
 return type remains available for subsequent assignment checks.
 
-Parenthesized helper calls through a receiver use the same child-before-count
+Unmarked parenthesized helper calls through a receiver use the same child-before-count
 and supplied-type-before-count policy. Count errors anchor at the member name
 and parameterless helpers use `Too many arguments`. Instance helpers, including
 function helpers, reserve argument 0 for Self; nonstatic class helpers for
@@ -140,8 +140,19 @@ inferred metatype copies; a Variant cannot supply that receiver.
 
 Calls bound to a helper member inside its body use the selected signature's
 implicit receiver role, including class/static methods and out-of-line bodies.
-Local bindings that shadow the member keep their own call diagnostics. The
-existing overload-candidate policy and inline declaration visibility are retained.
+Local bindings that shadow the member keep their own call diagnostics.
+Inline declaration visibility is retained. A marked helper declaration uses overload
+selection even when it is the only visible candidate. Failed receiver, explicit-name,
+and bound-body matches report `There is no overloaded version of "X" that can be
+called with these arguments` at the member, using its declared name. A found
+helper's failed match does not add an inaccessible-member error. Recoverable
+child errors precede the enclosing no-match; declaration-case hints and independent
+instance-versus-type receiver errors remain visible before ranking.
+
+Successful selection proceeds to ordinary argument checking. General mixed/inherited
+candidate ownership, ambiguity/Variant ranking, and runtime dispatch among multiple
+helper declarations remain under audit; details and reproductions are in the
+[helper overload measurement](../architecture/helper-overload-measurement-2026-10.md).
 
 Bare user-helper members are invocations unless a compatible callable type is
 expected. Missing required arguments report `More arguments expected` at the

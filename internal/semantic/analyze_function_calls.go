@@ -273,7 +273,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return resultType
 		}
 
-		if resultType, handled := a.analyzeImplicitHelperCall(funcIdent.Value, expr.Arguments, funcIdent.Token.Pos); handled {
+		if resultType, handled := a.analyzeImplicitHelperCall(funcIdent, expr.Arguments); handled {
 			return resultType
 		}
 
@@ -587,6 +587,12 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// The call references the resolved symbol (marks nested/local functions as used).
 	a.recordSymbolUsage(sym.Name, funcIdent.Token.Pos)
 
+	// Bound helper calls retain declaration-order visibility from their symbol
+	// bindings, while sharing candidate diagnostics with receiver/name calls.
+	if result, handled := a.analyzeBoundHelperCall(funcIdent, expr.Arguments, sym); handled {
+		return result
+	}
+
 	// Resolve overloaded functions
 	var funcType *types.FunctionType
 	if sym.IsOverloadSet {
@@ -654,12 +660,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 
 	overloadSet := a.symbols.GetOverloadSet(funcIdent.Value)
 	hasOverloads := sym.IsOverloadSet || len(overloadSet) > 1
-	// A lone overload-marked binding retains the existing candidate policy;
-	// the helper overload-selection audit is separate from signature checking.
-	if a.isBoundHelperMethod(funcIdent.Value, funcType) && (!sym.HasOverloadDirective || hasOverloads) {
-		a.analyzeHelperCallArguments(a.currentHelperType.TargetType, funcIdent.Value, funcType, expr.Arguments, funcIdent.Token.Pos)
-		return funcType.ReturnType
-	}
 
 	// Check argument count (handles optional parameters). requiredParamCount
 	// treats absent default-value metadata as "all parameters required", which a
@@ -765,18 +765,18 @@ func (a *Analyzer) currentImplicitSelfType() types.Type {
 	return nil
 }
 
-func (a *Analyzer) analyzeImplicitHelperCall(methodName string, args []ast.Expression, pos token.Position) (types.Type, bool) {
+func (a *Analyzer) analyzeImplicitHelperCall(member *ast.Identifier, args []ast.Expression) (types.Type, bool) {
 	selfType := a.currentImplicitSelfType()
 	if selfType == nil {
 		return nil, false
 	}
 
-	methodType := a.resolveHelperMethodForCall(selfType, methodName, args)
+	methodType, found := a.resolveHelperMethodForCall(selfType, member, args)
 	if methodType == nil {
-		return nil, false
+		return nil, found
 	}
 
-	a.analyzeHelperCallArguments(selfType, methodName, methodType, args, pos)
+	a.analyzeHelperCallArguments(selfType, member.Value, methodType, args, member.Token.Pos)
 
 	return methodType.ReturnType, true
 }
