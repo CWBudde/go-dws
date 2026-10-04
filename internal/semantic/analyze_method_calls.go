@@ -151,79 +151,16 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		if recordType, isMeta := recordReceiverType(objectType); recordType != nil {
 			a.addIdentifierCaseHint(expr.Method, a.declaredRecordMethodName(recordType, methodName))
 
-			// First check for class methods (static methods) with overload support.
-			// On an instance receiver, same-named instance methods join the set.
-			classOverloads := recordType.GetClassMethodOverloads(methodNameLower)
-			if len(classOverloads) > 0 {
-				if !isMeta {
-					classOverloads = append(append([]*types.MethodInfo{}, classOverloads...), recordType.GetMethodOverloads(methodNameLower)...)
-				}
-				// This is a static method call - resolve overload based on arguments
-				argTypes := make([]types.Type, len(expr.Arguments))
-				for i, arg := range expr.Arguments {
-					argType := a.analyzeOverloadArgument(arg)
-					if argType == nil {
-						return nil
-					}
-					argTypes[i] = argType
-				}
-
-				// Convert MethodInfo to Symbol for ResolveOverload
-				candidates := make([]*Symbol, len(classOverloads))
-				for i, overload := range classOverloads {
-					candidates[i] = &Symbol{
-						Type: overload.Signature,
-					}
-				}
-
-				// Resolve overload
-				selected, err := ResolveOverload(candidates, argTypes)
-				if err != nil {
-					a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
-					return nil
-				}
-
-				methodType, ok := selected.Type.(*types.FunctionType)
-				if !ok {
-					a.addError("internal error: expected function type for selected record static method, but got %T", selected.Type)
-					return nil
-				}
-
-				// Validate argument types (for better error messages)
-				for i, arg := range expr.Arguments {
-					if i >= len(methodType.Parameters) {
-						break
-					}
-					a.analyzeCallArgument(i, arg, methodType.Parameters[i], i < len(methodType.StrictParams) && methodType.StrictParams[i])
-				}
-
-				return methodType.ReturnType
+			// Class-side methods can be called through either a record meta value
+			// or an instance; instance methods only join the latter's candidate set.
+			overloads := recordType.GetClassMethodOverloads(methodNameLower)
+			if !isMeta {
+				overloads = append(append([]*types.MethodInfo{}, overloads...), recordType.GetMethodOverloads(methodNameLower)...)
 			}
-
-			// Check for instance methods (overload-aware)
+			if len(overloads) > 0 {
+				return a.analyzeRecordCall(overloads, expr.Arguments, methodName, expr.Method.Token.Pos)
+			}
 			var method *types.FunctionType
-			if instanceOverloads := recordType.GetMethodOverloads(methodNameLower); !isMeta && len(instanceOverloads) > 1 {
-				argTypes := make([]types.Type, len(expr.Arguments))
-				for i, arg := range expr.Arguments {
-					argType := a.analyzeOverloadArgument(arg)
-					if argType == nil {
-						return nil
-					}
-					argTypes[i] = argType
-				}
-				candidates := make([]*Symbol, len(instanceOverloads))
-				for i, overload := range instanceOverloads {
-					candidates[i] = &Symbol{Type: overload.Signature}
-				}
-				selected, err := ResolveOverload(candidates, argTypes)
-				if err != nil {
-					a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
-					return nil
-				}
-				method = selected.Type.(*types.FunctionType)
-			} else if !isMeta {
-				method = recordType.GetMethod(methodNameLower)
-			}
 			if method == nil {
 				// A proc-typed record field is directly callable: rec.Proc1(x).
 				if fieldType := recordType.GetFieldType(methodNameLower); !isMeta && fieldType != nil && isFunctionPointerType(fieldType) {
@@ -375,7 +312,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// The hierarchy lookup merges constructors with same-named class methods,
 	// so the resolved overload decides whether this call is a construction.
 	if constructorOverloads := a.getMethodOverloadsInHierarchy(methodName, classType); len(constructorOverloads) > 0 && classType.HasConstructor(methodName) {
-		selectedInfo := a.selectClassCallOverload(constructorOverloads, expr.Arguments, methodName, expr.Method.Token.Pos)
+		selectedInfo := a.selectMemberCallOverload(constructorOverloads, expr.Arguments, methodName, expr.Method.Token.Pos)
 		if selectedInfo == nil {
 			return classType
 		}

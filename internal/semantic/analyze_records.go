@@ -283,6 +283,14 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			funcType = types.NewProcedureType(paramTypes)
 		}
 		funcType.StrictParams = strictParams
+		// Retain optional-parameter presence for call arity and overload selection.
+		// Declaration-time default-expression validation remains a separate audit.
+		funcType.DefaultValues = make([]interface{}, len(method.Parameters))
+		for i, param := range method.Parameters {
+			if param.DefaultValue != nil {
+				funcType.DefaultValues[i] = param.DefaultValue
+			}
+		}
 
 		// Create MethodInfo for overload tracking
 		methodInfo := &types.MethodInfo{

@@ -134,7 +134,10 @@ Work each batch largest shape first, mapping every invented sentence to DWScript
 - [ ] Parser shapes (overlaps Phase 2).
   - [ ] Audit remaining punctuation and type sentences after the Phase 2 prerequisites.
 - [ ] `analyze_function_calls.go` / `analyze_method_calls.go`.
-  - [ ] Remaining record/interface/helper arity sentences and receiver-shifted anchors.
+  - [ ] Remaining interface/helper arity sentences and receiver-shifted anchors.
+  - [ ] Audit bare record-member invocation versus routine-reference contexts.
+  - [ ] Audit the existing noncallable record-name shadow fallback separately
+    from recursive function Result aliases.
   - [ ] Audit multiline argument-child diagnostics versus supplied-type error ordering.
   - [ ] Audit bare inherited-call arity and recovery separately from named calls.
   - [ ] Resolve synthetic parameterless constructor ambiguity with inherited
@@ -165,7 +168,9 @@ The shipped 1.5 batches cover regular parameter defaults, `Swap` data-argument/t
 checks, immutable assignments, property accessor names/signatures, invalid
 operator recovery with global operator validation, helper/class/record
 member-header stops with earlier declaration diagnostics, and regular var-argument
-checks with `Inc`/`Dec` first-argument validation and object `Self` recovery.
+checks with `Inc`/`Dec` first-argument validation and object `Self` recovery,
+class-member/constructor call diagnostics, and parenthesized native record calls
+with omitted-default execution.
 Their exact scope and evidence are in
 [`the October progress log`](docs/history/progress-log-2026-10.md).
 

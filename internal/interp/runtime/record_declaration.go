@@ -12,6 +12,20 @@ func (r *RecordTypeValue) RegisterMethodImplementation(fn *ast.FunctionDecl) {
 	}
 
 	normalizedMethodName := ident.Normalize(fn.Name.Value)
+	// Bind the executable body to its declared signature on a copied payload,
+	// retaining defaults and modifiers without changing the caller's AST.
+	declarations := r.MethodOverloads[normalizedMethodName]
+	if fn.IsClassMethod {
+		declarations = r.ClassMethodOverloads[normalizedMethodName]
+	}
+	for _, declaration := range declarations {
+		if parametersMatchAST(declaration.Parameters, fn.Parameters) {
+			binding := MethodMetadataFromAST(declaration)
+			binding.BindImplementation(fn)
+			fn = MethodDeclaration(binding)
+			break
+		}
+	}
 	methodMeta := MethodMetadataFromAST(fn)
 
 	if fn.IsClassMethod {

@@ -104,7 +104,20 @@ all-optional signature; that candidate-policy issue remains open in PLAN.md.
 Count and overload diagnostics anchor at the method or constructor name,
 including the name following `inherited`. For `new T(...)`, the anchor is `T`
 (or the written metaclass expression). Existing result-type recovery is retained.
-Record, interface, helper, and bare inherited-call arity remain under audit.
+Parenthesized native record calls follow the same type-before-count policy,
+including implicit `Self` calls and class methods. Unmarked record signatures
+use the count sentences; marked overloads use the overload sentence even when
+only one declaration exists. These calls read every supplied argument, retain
+defaulted parameters, and anchor count/overload errors at the method name.
+
+A record instance method's receiver is argument 0 in DWScript, so its first
+written parameter is reported as argument 1. For a type error, DWScript uses
+that shifted index to look up the written argument positions: the next written
+argument, or the method name when no next argument exists. Record class methods
+have no receiver argument and report ordinary indices and argument positions.
+
+Interface/helper calls, bare record-member invocation versus routine-reference
+contexts, and bare inherited-call arity remain under audit.
 
 ### Parameter defaults and Swap
 

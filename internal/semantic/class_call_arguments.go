@@ -6,9 +6,9 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
-// selectClassCallOverload keeps overload directives meaningful even when only
+// selectMemberCallOverload keeps overload directives meaningful even when only
 // one declaration is visible. Unmarked single signatures defer to type checking.
-func (a *Analyzer) selectClassCallOverload(overloads []*types.MethodInfo, args []ast.Expression, name string, pos token.Position) *types.MethodInfo {
+func (a *Analyzer) selectMemberCallOverload(overloads []*types.MethodInfo, args []ast.Expression, name string, pos token.Position) *types.MethodInfo {
 	if len(overloads) == 1 && !overloads[0].HasOverloadDirective {
 		return overloads[0]
 	}
@@ -46,6 +46,13 @@ func (a *Analyzer) selectClassCallOverload(overloads []*types.MethodInfo, args [
 // signature. Upstream records child errors while reading arguments, then checks
 // types and finally counts; only errors from that type check suppress arity.
 func (a *Analyzer) analyzeClassCallArguments(signature *types.FunctionType, args []ast.Expression, pos token.Position) {
+	a.analyzeMemberCallArguments(signature, args, pos, false)
+}
+
+// analyzeMemberCallArguments also handles record methods, whose implicit Self
+// occupies argument 0 upstream. It shifts both diagnostic indices and the lookup
+// into written argument positions; the final argument falls back to the method.
+func (a *Analyzer) analyzeMemberCallArguments(signature *types.FunctionType, args []ast.Expression, pos token.Position, hasSelfArgument bool) {
 	argTypes := make([]types.Type, len(args))
 	failed := make([]bool, len(args))
 	for i, arg := range args {
@@ -66,17 +73,25 @@ func (a *Analyzer) analyzeClassCallArguments(signature *types.FunctionType, args
 		}
 		strict := i < len(signature.StrictParams) && signature.StrictParams[i]
 		if !failed[i] && !a.argumentMatchesParameter(argType, signature.Parameters[i], strict) {
-			a.addArgumentTypeError(i, semanticTypeNameForDiagnostic(signature.Parameters[i]), argType, args[i].Pos())
+			index, argPos := i, args[i].Pos()
+			if hasSelfArgument {
+				index++
+				argPos = pos
+				if index < len(args) {
+					argPos = args[index].Pos()
+				}
+			}
+			a.addArgumentTypeError(index, semanticTypeNameForDiagnostic(signature.Parameters[i]), argType, argPos)
 		}
 	}
 	if !a.errorsSince(mark) {
-		a.addClassCallCountError(signature, len(args), pos)
+		a.addMemberCallCountError(signature, len(args), pos)
 	}
 }
 
-// addClassCallCountError is for ordinary named class members. Unlike specialized
+// addMemberCallCountError is for ordinary named members. Unlike specialized
 // array helpers, upstream uses Too many arguments even for parameterless methods.
-func (a *Analyzer) addClassCallCountError(signature *types.FunctionType, count int, pos token.Position) {
+func (a *Analyzer) addMemberCallCountError(signature *types.FunctionType, count int, pos token.Position) {
 	var message string
 	switch {
 	case count < requiredParamCount(signature):
