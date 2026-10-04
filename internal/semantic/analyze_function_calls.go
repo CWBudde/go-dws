@@ -172,7 +172,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		// Static method call on record: TRecord.Method(args)
 		if recordType, meta := recordReceiverType(objectType); recordType != nil {
 			if meta && recordType.HasClassMethod(memberAccess.Member.Value) {
-				return a.analyzeRecordStaticMethodCall(expr, recordType, memberAccess.Member.Value)
+				return a.analyzeRecordStaticMethodCall(expr, recordType, memberAccess.Member)
 			}
 			return a.analyzeMethodCallExpression(&ast.MethodCallExpression{
 				BaseNode: expr.BaseNode, Object: memberAccess.Object, Method: memberAccess.Member, Arguments: expr.Arguments,
@@ -247,6 +247,16 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	if ok {
 		a.addIdentifierCaseHint(funcIdent, sym.Name)
 		a.warnDeprecatedSymbolUsage(sym, funcIdent.Token.Pos)
+	}
+	// Record method signatures are placed in the body scope as functions. Keep
+	// that binding check so parameters and local routines can still shadow them.
+	if ok && a.currentRecord != nil {
+		name := ident.Normalize(funcIdent.Value)
+		if sym.Type == a.currentRecord.Methods[name] || sym.Type == a.currentRecord.ClassMethods[name] {
+			if overloads := a.implicitRecordCallOverloads(name); len(overloads) > 0 {
+				return a.analyzeRecordCall(overloads, expr.Arguments, funcIdent.Value, funcIdent.Token.Pos)
+			}
+		}
 	}
 	if !ok {
 		// Check built-in functions. The callee's case-mismatch hint is emitted
@@ -344,80 +354,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			}
 		}
 
-		// Check implicit Self record method call
 		if a.currentRecord != nil {
-			methodNameLower := ident.Normalize(funcIdent.Value)
-			overloads := a.currentRecord.GetMethodOverloads(methodNameLower)
-			if len(overloads) > 0 {
-				argTypes := make([]types.Type, len(expr.Arguments))
-				for i, arg := range expr.Arguments {
-					argType := a.analyzeOverloadArgument(arg)
-					if argType == nil {
-						return nil
-					}
-					argTypes[i] = argType
-				}
-
-				candidates := make([]*Symbol, len(overloads))
-				for i, overload := range overloads {
-					candidates[i] = &Symbol{Type: overload.Signature}
-				}
-
-				selected, err := ResolveOverload(candidates, argTypes)
-				if err != nil {
-					a.addStructuredError(NewNoOverloadMatchError(funcIdent.Token.Pos, funcIdent.Value))
-					return nil
-				}
-
-				if selected == nil || selected.Type == nil {
-					return nil
-				}
-				funcType, ok := selected.Type.(*types.FunctionType)
-				if !ok {
-					return nil
-				}
-				return funcType.ReturnType
-			}
-		}
-
-		// Check implicit Self record class method call
-		if a.currentRecord != nil {
-			methodNameLower := ident.Normalize(funcIdent.Value)
-			overloads := a.currentRecord.GetClassMethodOverloads(methodNameLower)
-			if len(overloads) > 0 {
-				argTypes := make([]types.Type, len(expr.Arguments))
-				for i, arg := range expr.Arguments {
-					argType := a.analyzeOverloadArgument(arg)
-					if argType == nil {
-						return nil
-					}
-					argTypes[i] = argType
-				}
-
-				candidates := make([]*Symbol, len(overloads))
-				for i, overload := range overloads {
-					candidates[i] = &Symbol{Type: overload.Signature}
-				}
-
-				selected, err := ResolveOverload(candidates, argTypes)
-				if err != nil {
-					a.addStructuredError(NewNoOverloadMatchError(funcIdent.Token.Pos, funcIdent.Value))
-					return nil
-				}
-
-				methodType, ok := selected.Type.(*types.FunctionType)
-				if !ok {
-					a.addError("internal error: expected function type for selected record class method, but got %T", selected.Type)
-					return nil
-				}
-				for i, arg := range expr.Arguments {
-					if i >= len(methodType.Parameters) {
-						break
-					}
-					paramType := methodType.Parameters[i]
-					a.analyzeCallArgument(i, arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
-				}
-				return methodType.ReturnType
+			if overloads := a.implicitRecordCallOverloads(funcIdent.Value); len(overloads) > 0 {
+				return a.analyzeRecordCall(overloads, expr.Arguments, funcIdent.Value, funcIdent.Token.Pos)
 			}
 		}
 
@@ -689,41 +628,10 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		var ok bool
 		funcType, ok = sym.Type.(*types.FunctionType)
 		if !ok {
-			// Check record method overloads (handles shadowed symbols like Result alias)
+			// A recursive record function's name is also its Result alias.
 			if a.currentRecord != nil {
-				resolveRecordOverloads := func(overloads []*types.MethodInfo) *types.FunctionType {
-					if len(overloads) == 0 {
-						return nil
-					}
-					argTypes := make([]types.Type, len(expr.Arguments))
-					for i, arg := range expr.Arguments {
-						argType := a.analyzeOverloadArgument(arg)
-						if argType == nil {
-							return nil
-						}
-						argTypes[i] = argType
-					}
-					candidates := make([]*Symbol, len(overloads))
-					for i, overload := range overloads {
-						candidates[i] = &Symbol{Type: overload.Signature}
-					}
-					selected, err := ResolveOverload(candidates, argTypes)
-					if err != nil || selected == nil || selected.Type == nil {
-						return nil
-					}
-					if ft, ok := selected.Type.(*types.FunctionType); ok {
-						return ft
-					}
-					return nil
-				}
-
-				methodNameLower := ident.Normalize(funcIdent.Value)
-				if ft := resolveRecordOverloads(a.currentRecord.GetMethodOverloads(methodNameLower)); ft != nil {
-					funcType = ft
-					ok = true
-				} else if ft := resolveRecordOverloads(a.currentRecord.GetClassMethodOverloads(methodNameLower)); ft != nil {
-					funcType = ft
-					ok = true
+				if overloads := a.implicitRecordCallOverloads(funcIdent.Value); len(overloads) > 0 {
+					return a.analyzeRecordCall(overloads, expr.Arguments, funcIdent.Value, funcIdent.Token.Pos)
 				}
 			}
 
@@ -751,10 +659,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 	// argument and stays silent about the missing second one. Only a call whose
 	// supplied arguments all fit draws the count diagnostic.
 	//
-	// Only the plain-call path does this. The method, record, helper and
-	// constructor paths still report the count first; `func_params1` is the only
-	// fixture that pins the ordering, so the others were left as they were rather
-	// than changed without a fixture to measure against.
+	// Native class/record calls share this type-before-count policy. Helper
+	// and function-pointer paths retain their separately tracked policies.
 	argCountMismatch := len(expr.Arguments) < requiredParams || len(expr.Arguments) > len(funcType.Parameters)
 	diagnosticsBeforeArgs := len(a.errors)
 
@@ -1022,7 +928,7 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 		return classType
 	}
 
-	selectedConstructor := a.selectClassCallOverload(constructorOverloads, expr.Arguments,
+	selectedConstructor := a.selectMemberCallOverload(constructorOverloads, expr.Arguments,
 		constructorName, callNamePos(expr.Function, expr.Token.Pos))
 	if selectedConstructor == nil {
 		return classType
@@ -1284,51 +1190,12 @@ func (a *Analyzer) isNumericType(t types.Type) bool {
 }
 
 // analyzeRecordStaticMethodCall analyzes static method calls like TRecord.Method(args).
-func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recordType *types.RecordType, methodName string) types.Type {
-	lowerMethodName := ident.Normalize(methodName)
-	overloads := recordType.GetClassMethodOverloads(lowerMethodName)
+func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recordType *types.RecordType, member *ast.Identifier) types.Type {
+	methodName := member.Value
+	overloads := recordType.GetClassMethodOverloads(ident.Normalize(methodName))
 	if len(overloads) == 0 {
-		a.addError("record type '%s' has no class method '%s' at %s",
-			recordType.Name, methodName, expr.Token.Pos.String())
+		a.addStructuredError(NewAccessibleMemberError(member.Token.Pos, methodName, recordType.Name))
 		return nil
 	}
-
-	// Resolve overload
-	argTypes := make([]types.Type, len(expr.Arguments))
-	for i, arg := range expr.Arguments {
-		argType := a.analyzeOverloadArgument(arg)
-		if argType == nil {
-			return nil
-		}
-		argTypes[i] = argType
-	}
-
-	// Find matching overload
-	candidates := make([]*Symbol, len(overloads))
-	for i, overload := range overloads {
-		candidates[i] = &Symbol{Type: overload.Signature}
-	}
-
-	selected, err := ResolveOverload(candidates, argTypes)
-	if err != nil {
-		a.addStructuredError(NewNoOverloadMatchError(expr.Token.Pos, methodName))
-		return nil
-	}
-
-	funcType, ok := selected.Type.(*types.FunctionType)
-	if !ok {
-		a.addError("internal error: expected function type for selected record static method, but got %T", selected.Type)
-		return nil
-	}
-
-	// Validate argument types
-	for i, arg := range expr.Arguments {
-		if i >= len(funcType.Parameters) {
-			break
-		}
-		paramType := funcType.Parameters[i]
-		a.analyzeCallArgument(i, arg, paramType, i < len(funcType.StrictParams) && funcType.StrictParams[i])
-	}
-
-	return funcType.ReturnType
+	return a.analyzeRecordCall(overloads, expr.Arguments, methodName, member.Token.Pos)
 }

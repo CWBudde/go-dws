@@ -838,3 +838,76 @@ Final formatting and diff checks passed after temporary compiler files were remo
 The staged `golangci-lint run --new-from-rev=6138517b --timeout 10m` reports zero
 new issues. Full `just ci` still stops at 1,229 lint backlog findings (the measured
 unchanged baseline had 1,230); tests and coverage passed separately.
+
+## 2026-10-04 — Phase 1.5 native record call arity and defaults
+
+Base: `a9ef113d`. Branch: `fix/phase15-record-arity-diagnostics`.
+
+Closed parenthesized native record-call diagnostics for explicit instance,
+class-side, metatype-value, implicit Self, and recursive Result-alias calls.
+Unmarked signatures use `More arguments expected` / `Too many arguments`,
+including parameterless methods. Marked or multiple declarations use the
+canonical overload sentence at the written method name. Every supplied child is
+read before validating parameter types and count; supplied type mismatches
+suppress count errors, while child errors can precede count/overload errors
+across lines. Existing declared-return recovery remains available.
+
+Record instance methods retain upstream's receiver numbering and positions:
+Self occupies argument zero, and a supplied type error's shifted index selects
+the next written argument position, falling back to the method name. Record
+class methods have no implicit receiver argument. Class and record calls share
+the argument-validation and overload-selection helpers, while helper fallback
+policies remain separate.
+
+Default parameter presence is retained in record signatures. Runtime fills
+omitted defaults from the record declaration's lexical constant scope, preserving
+both record-owned and outer constants against caller-local shadowing. Out-of-line
+bodies reuse the runtime callable binding logic to retain declared defaults on
+copied executable signatures. Mixed instance/class overload sets are selected
+consistently during semantic analysis and runtime dispatch; supplied argument
+values are cached so dispatch does not evaluate them twice.
+
+The frontend tests cover 25 exact arity/type/anchor/recovery cases and six full-child
+and multiline overload-ordering controls. Runtime tests cover inline and
+out-of-line defaults, overloaded implementations, lexical/record constant scope,
+implicit and explicit mixed overload selection, expression receivers, and supplied
+argument evaluation exactly once. A fresh whole-branch review identified four
+Important issues in these runtime/candidate paths; six failing runtime cases were
+added first, then all four findings were fixed. There were no deferred minor
+findings. Source evidence used DWScript revision
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`, especially `ReadMethod`,
+`ReadArguments`, `TypeCheckArguments`, `TRecordSymbol.CreateSelfParameter`,
+`TRecordMethodExpr.Create`, and `ReadParams.GenerateParam`.
+
+The final CLI fixture comparison found no deterministic gains or new failures.
+Snapshots were 1,415 before and 1,414 after out of 1,821 in-scope fixtures; their
+sole failure-set difference was the existing nondeterministic
+`BuildScripts/init_order2`. Eight direct runs of each final/baseline binary yielded
+three and four output orders, respectively. FailureScripts stayed 313,
+HelpersFail 12, and OverloadsFail 3. `just fixture-update` was run after the fixes;
+all stable baseline floors remain unchanged. An earlier generated BuildScripts
+7-to-8 fluctuation was discarded after reproducing its nondeterminism.
+Fixture sources, expectations, and scoring were not changed.
+
+Phase 1.5 remains open for interface/helper arity, bare record-member invocation
+versus routine-reference contexts, the pre-existing noncallable record-name
+shadow fallback, declaration-time default-expression validation, broader
+multiline child-versus-type ordering, and the other call/intrinsic/storage audits
+in [PLAN.md](../../PLAN.md). Updated guides:
+[records](../guide/records.md) and [error messages](../guide/error-messages.md).
+
+Final validation passed: `go test -race -coverprofile=coverage.out ./...`, HTML
+coverage generation, the focused frontend/runtime acceptance set,
+`just fixture-update`, `just fixture-check`, `just check-fmt`,
+`go mod tidy -diff`, and `git diff --check`. The final new-findings lint gate
+(`golangci-lint run --new-from-rev=a9ef113d --timeout 10m`) reports zero issues.
+Full `just ci` stops at 1,229 inherited lint findings, the same total measured
+before the batch; tests and coverage were run separately. The clean baseline
+`go test ./...` also passed before implementation.
+
+Tests used CI's Go 1.24.13 with `GOFLAGS='-buildvcs=false -p=1'`, a shared generated
+Go cache, compiler temporaries in the worktree cache, and runtime test directories
+in `/tmp`. Earlier full test/race attempts hit shared disk quota, including fixture
+executable copies and sandbox startup. Reclaiming four GiB of old generated Go
+cache files restored verification; no source workaround was added. A concurrent
+lint attempt was rejected by the lint runner's lock and was rerun serially.

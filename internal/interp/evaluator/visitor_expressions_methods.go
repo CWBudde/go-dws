@@ -128,6 +128,10 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		}
 	}
 
+	if result, handled := e.tryMixedRecordCall(obj, methodName, node.Arguments, node, ctx); handled {
+		return result
+	}
+
 	if selected, args, handled, err := e.prepareVarMethodArguments(obj, node, ctx); handled {
 		if ctx.Exception() != nil {
 			return e.nilValue()
@@ -160,7 +164,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 			}
 		}
 		if methodDecl, found := recordVal.GetRecordMethod(methodName); found {
-			args, err := e.prepareArgsForParameters(methodDecl.Parameters, node.Arguments, ctx)
+			args, err := e.prepareRecordArgs(methodDecl.Parameters, node.Arguments, ctx)
 			if err != nil {
 				return e.newError(node, "%s", err.Error())
 			}

@@ -26,12 +26,13 @@ func (e *Evaluator) callRecordMethod(
 	node ast.Node,
 	ctx *ExecutionContext,
 ) Value {
-	// 1. Validate parameter count
-	if len(args) != len(method.Parameters) {
-		return e.newError(node,
-			"wrong number of arguments for method '%s': expected %d, got %d",
-			method.Name.Value, len(method.Parameters), len(args))
+	// Fill omitted defaults before entering the method's local scope, using
+	// the same default evaluation policy as ordinary user functions.
+	args, err := e.evaluateRecordDefaults(e.recordTypeValueOf(record, ctx), method, args, ctx)
+	if err != nil {
+		return e.newError(node, "%s", err.Error())
 	}
+
 	// Keep the record call's member-name position on the stack until errors
 	// and exceptions from its body have captured their caller locations.
 	unitName, _ := e.typeSystem.NodeUnit(method)
@@ -117,6 +118,16 @@ func (e *Evaluator) callRecordStaticMethod(
 		return errVal
 	}
 
+	return e.executeRecordStaticMethod(recordType, method, args, node, ctx)
+}
+
+// executeRecordStaticMethod retains the already-selected signature and arguments.
+func (e *Evaluator) executeRecordStaticMethod(recordType *RecordTypeValue, method *ast.FunctionDecl, args []Value, node ast.Node, ctx *ExecutionContext) Value {
+	args, err := e.evaluateRecordDefaults(recordType, method, args, ctx)
+	if err != nil {
+		return e.newError(node, "%s", err.Error())
+	}
+
 	ctx.PushEnv()
 	defer ctx.PopEnv()
 	scope := newBindingScope()
@@ -190,7 +201,7 @@ func (e *Evaluator) resolveRecordStaticMethod(
 
 	if len(overloads) == 1 {
 		candidate := overloads[0]
-		if len(candidate.Parameters) == len(args) {
+		if recordMethodAcceptsArgCount(candidate, len(args)) {
 			return candidate, nil
 		}
 	} else if candidate := e.resolveRecordMethodOverload(overloads, args, ctx); candidate != nil {
@@ -210,7 +221,7 @@ func (e *Evaluator) resolveRecordMethodOverload(overloads []*ast.FunctionDecl, a
 	candidates := make([]types.Type, 0, len(overloads))
 	candidateDecls := make([]*ast.FunctionDecl, 0, len(overloads))
 	for _, overload := range overloads {
-		if len(overload.Parameters) != len(args) {
+		if !recordMethodAcceptsArgCount(overload, len(args)) {
 			continue
 		}
 		funcType := e.extractFunctionType(overload, ctx)
@@ -229,6 +240,70 @@ func (e *Evaluator) resolveRecordMethodOverload(overloads []*ast.FunctionDecl, a
 		return nil
 	}
 	return candidateDecls[selected]
+}
+
+// tryMixedRecordCall selects from the same instance/class candidate set used by
+// semantic analysis. Cached supplied arguments are passed to the selected body.
+func (e *Evaluator) tryMixedRecordCall(obj Value, name string, expressions []ast.Expression, node ast.Node, ctx *ExecutionContext) (Value, bool) {
+	record, ok := obj.(*runtime.RecordValue)
+	if !ok {
+		return nil, false
+	}
+	instance := record.GetRecordMethodOverloads(name)
+	recordType := e.recordTypeValueOf(record, ctx)
+	if recordType == nil || len(instance) == 0 {
+		return nil, false
+	}
+	class := recordType.ClassMethodOverloads[ident.Normalize(name)]
+	if len(class) == 0 {
+		return nil, false
+	}
+	candidates := append(append([]*ast.FunctionDecl{}, class...), instance...)
+	selected, cached, err := e.ResolveOverloadMultiple(name, candidates, expressions, ctx)
+	if err != nil {
+		return e.newError(node, "%s", err.Error()), true
+	}
+	args, err := e.PrepareUserFunctionArgs(selected, expressions, cached, ctx, node)
+	if err != nil {
+		return e.newError(node, "%s", err.Error()), true
+	}
+	if selected.IsClassMethod {
+		return e.executeRecordStaticMethod(recordType, selected, args, node, ctx), true
+	}
+	return e.callRecordMethod(record, selected, args, node, ctx), true
+}
+
+// evaluateRecordDefaults uses the record declaration's lexical constant scope.
+// Older unchecked metadata without a scope retains ordinary-function fallback.
+func (e *Evaluator) evaluateRecordDefaults(recordType *RecordTypeValue, method *ast.FunctionDecl, args []Value, ctx *ExecutionContext) ([]Value, error) {
+	if len(args) < len(method.Parameters) && recordType != nil && recordType.Metadata != nil && recordType.Metadata.DeclarationEnv != nil {
+		callerEnv := ctx.Env()
+		ctx.SetEnv(recordType.Metadata.DeclarationEnv)
+		defer ctx.SetEnv(callerEnv)
+	}
+	return e.EvaluateDefaultParameters(method, args, ctx)
+}
+
+// recordMethodAcceptsArgCount checks that every omitted parameter has a default.
+func recordMethodAcceptsArgCount(method *ast.FunctionDecl, count int) bool {
+	if count > len(method.Parameters) {
+		return false
+	}
+	for _, parameter := range method.Parameters[count:] {
+		if parameter.DefaultValue == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// prepareRecordArgs preserves supplied var/lazy argument bindings; the record
+// invocation fills omitted defaults after selecting the signature.
+func (e *Evaluator) prepareRecordArgs(parameters []*ast.Parameter, args []ast.Expression, ctx *ExecutionContext) ([]Value, error) {
+	if len(args) <= len(parameters) {
+		parameters = parameters[:len(args)]
+	}
+	return e.prepareArgsForParameters(parameters, args, ctx)
 }
 
 func (e *Evaluator) defaultReturnValue(returnType types.Type, ctx *ExecutionContext) Value {

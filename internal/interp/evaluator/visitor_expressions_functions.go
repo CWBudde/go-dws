@@ -172,6 +172,10 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 				Method:    memberAccess.Member,
 				Arguments: node.Arguments,
 			}
+			if result, handled := e.tryMixedRecordCall(objVal, memberAccess.Member.Value, node.Arguments, mc, ctx); handled {
+				return result
+			}
+
 			if selected, args, handled, err := e.prepareVarMethodArguments(objVal, mc, ctx); handled {
 				if ctx.Exception() != nil {
 					return e.nilValue()
@@ -205,7 +209,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 					}
 				}
 				if found {
-					args, err := e.prepareArgsForParameters(methodDecl.Parameters, node.Arguments, ctx)
+					args, err := e.prepareRecordArgs(methodDecl.Parameters, node.Arguments, ctx)
 					if err != nil {
 						return e.newError(node, "%s", err.Error())
 					}
@@ -295,6 +299,14 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 		}
 
 		return e.ExecuteUserFunctionDirect(fn, args, ctx)
+	}
+
+	// Inside an instance record method, a same-named class method joins Self's
+	// overload set instead of taking priority over every instance signature.
+	if selfRaw, exists := ctx.Env().Get("Self"); exists {
+		if result, handled := e.tryMixedRecordCall(selfRaw, funcName.Value, node.Arguments, node, ctx); handled {
+			return result
+		}
 	}
 
 	// Record static method calls (when inside record method context)

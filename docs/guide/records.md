@@ -35,6 +35,44 @@ properties with class-side accessors. Instance fields and instance methods
 require a record instance. Named and default indexed properties retain their
 read/write behavior through inferred type values, including compound assignment.
 
+## Method calls and defaults
+
+Native instance and class methods accept omitted default parameters, including
+calls by bare method name inside another record method:
+
+```pascal
+type TPrinter = record
+  procedure WriteValue(value: Integer = 7);
+  begin
+    PrintLn(value);
+  end;
+  class procedure WriteStatic(value: Integer = 8);
+  begin
+    PrintLn(value);
+  end;
+  procedure Run;
+  begin
+    WriteValue();
+    WriteStatic();
+  end;
+end;
+var printer: TPrinter;
+printer.Run();       // 7, then 8
+TPrinter.WriteStatic(); // 8
+```
+
+Defaults use the record declaration's constant scope, so a caller-local variable
+with the same name cannot replace a constant default. Out-of-line implementations
+retain defaults from their declarations.
+
+Declare `overload` to select among same-named signatures by argument types and
+available defaults. An instance context can select either an instance or class
+method from the same set; a class context selects class methods. Parenthesized
+implicit calls use those signatures too.
+Count and overload diagnostics identify the written method name. Instance
+method type diagnostics count the implicit receiver as argument 0; see
+[Error messages](error-messages.md) for their positions.
+
 ## Helpers
 
 A nonstatic class method in a record helper receives a record type value as

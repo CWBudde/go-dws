@@ -229,7 +229,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		marked = marked || ctor.HasOverloadDirective
 	}
 	if marked {
-		selectedConstructor = a.selectClassCallOverload(validConstructors, expr.Arguments, constructorName, newExpressionNamePos(expr))
+		selectedConstructor = a.selectMemberCallOverload(validConstructors, expr.Arguments, constructorName, newExpressionNamePos(expr))
 	} else {
 		matching := make([]*types.MethodInfo, 0, len(validConstructors))
 		for _, ctor := range validConstructors {
@@ -251,7 +251,7 @@ func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
 		case 1:
 			selectedConstructor = matching[0]
 		default:
-			selectedConstructor = a.selectClassCallOverload(matching, expr.Arguments, constructorName, newExpressionNamePos(expr))
+			selectedConstructor = a.selectMemberCallOverload(matching, expr.Arguments, constructorName, newExpressionNamePos(expr))
 		}
 	}
 	if selectedConstructor == nil {

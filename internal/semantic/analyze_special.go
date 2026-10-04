@@ -63,7 +63,7 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 				}
 			}
 
-			selected := a.selectClassCallOverload(ctorOverloads, ie.Arguments, memberName, callPos)
+			selected := a.selectMemberCallOverload(ctorOverloads, ie.Arguments, memberName, callPos)
 			if selected == nil {
 				return types.VOID
 			}
@@ -89,7 +89,7 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 
 		if isMethodCall {
 			overloads := a.getMethodOverloadsInHierarchy(memberName, parentClass)
-			selected := a.selectClassCallOverload(overloads, ie.Arguments, memberName, callPos)
+			selected := a.selectMemberCallOverload(overloads, ie.Arguments, memberName, callPos)
 			if selected == nil {
 				return nil
 			}

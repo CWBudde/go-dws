@@ -240,6 +240,9 @@ func NewClassMetadata(name string) *ClassMetadata {
 //   - All methods stored as MethodMetadata
 //   - All fields stored as FieldMetadata
 type RecordMetadata struct {
+	// DeclarationEnv retains the lexical scope, including record constants, for
+	// evaluating omitted method defaults without caller-local shadowing.
+	DeclarationEnv        *Environment
 	RecordType            interface{}                  // Underlying type information
 	Fields                map[string]*FieldMetadata    // Record fields
 	Methods               map[string]*MethodMetadata   // Instance methods
