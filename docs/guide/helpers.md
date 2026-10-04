@@ -158,6 +158,26 @@ of other helpers for the same target type. Helper and method names remain
 case-insensitive. The instance and ordinary arguments are evaluated once, in source
 order; lazy arguments are evaluated when the method reads them.
 
+### Helper inheritance
+
+Helper inheritance is a supported go-dws extension:
+
+```pascal
+type TBase = helper for Integer
+  function Twice: Integer; begin Result := Self * 2; end;
+end;
+type TChild = helper(TBase) for Integer
+  function FourTimes: Integer; begin Result := Twice * 2; end;
+end;
+
+PrintLn(TChild.FourTimes(3)); // 12
+```
+
+The child inherits methods and properties and can override methods. Multiple
+inheritance levels and `record helper(ParentHelper) for T` are also supported.
+This syntax is preserved for existing programs; it is not an upstream diagnostic
+compatibility claim. See [Known divergences](../decisions/known-divergences.md#supported-extensions).
+
 ### 2. Properties
 
 Helpers can define properties with getter (and optionally setter) methods.
@@ -435,7 +455,7 @@ Helpers are registered at runtime in the interpreter and at compile-time in the 
 
 Potential future improvements:
 - Indexed properties in helpers
-- Helper inheritance/composition
+- Helper composition
 - Conditional helper compilation
 - Performance optimizations for helper method dispatch
 

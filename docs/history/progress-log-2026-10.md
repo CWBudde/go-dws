@@ -779,3 +779,62 @@ used Go 1.26, lint the matching Go 1.27 toolchain, a writable shared Go cache,
 `GOFLAGS='-buildvcs=false -p=1'`, and a task-specific `/tmp/phase15d-build`
 directory. Heavy checks ran sequentially after the initial shared temporary
 storage quota failure, and the final runs passed.
+
+## 2026-10-04 — Phase 1.5 class-member and constructor arity
+
+Base: `6138517b`. Branch: `fix/phase15-method-arity-diagnostics`.
+
+Closed the class-member portion of the remaining call shapes:
+
+- Explicit receivers, class methods, and implicit `Self` calls now use DWScript's
+  count and overload sentences. A sole marked overload retains overload resolution.
+- Named inherited methods select from the ancestor overload set, preserve defaults,
+  and anchor diagnostics at the written method or constructor name.
+- Constructors through `new`, dotted calls, and metaclass receivers validate supplied
+  arguments before ordinary arity. Parameterless class members report
+  `Too many arguments`. Marked constructor groups use the overload sentence.
+- Child errors precede enclosing count diagnostics across lines; supplied parameter
+  type errors suppress an additional count error. Existing result-type recovery,
+  visibility checks, and metaclass receiver restrictions are retained.
+- Runtime constructor dispatch respects unmarked constructor hiding. Previously an
+  inherited parameterless constructor could win over a local constructor with
+  omitted defaults and silently skip its body.
+- Helper-parent syntax remains a documented go-dws extension, as requested. Existing
+  inheritance tests cover this policy; no parser rejection was added.
+
+Exact frontend regressions and compile-to-runtime tests cover these paths, including
+defaults, overload selection, and constructor hiding. Source comparisons used upstream
+DWScript revision `1dbf8a90329cc3f2638516e89c0668f916c1ddb9`
+(`ReadArguments`, `TypeCheckArguments`, `ReadInherited`, `ReadNew`, and
+`FindDefaultConstructor`). An old test expecting ordinary arity for a marked
+constructor group was corrected to the upstream overload sentence.
+
+The final CLI comparison found no deterministic fixture gains or new failures.
+The scored snapshots were 1,415 versus 1,414 passes out of 1,821 fixtures, with the
+sole difference `BuildScripts/init_order2`. Eight direct runs of each final and
+baseline binary produced two output orders, in counts 2 and 6 for both binaries;
+its stable category floor remains 7. FailureScripts remained 313, HelpersFail 12,
+and OverloadsFail 3. `just fixture-update` changed only the report date; all baseline
+floors stayed unchanged. Fixture sources, expectations, and scoring are unchanged.
+
+Phase 1.5 stays open for record/interface/helper arity, bare inherited calls,
+synthetic parameterless/inherited-default constructor ambiguity, remaining
+var-argument checks, callable temporaries, intrinsic diagnostics, and
+method/record/helper default-expression declaration validation. See
+[PLAN.md](../../PLAN.md), [error messages](../guide/error-messages.md),
+[helpers](../guide/helpers.md), and
+[known divergences](../decisions/known-divergences.md).
+
+Validation passed: `go test ./...`, `just test-unit`, `just test-coverage`, and,
+after the final lint style changes, `go test -race -coverprofile=coverage.out ./...`
+plus HTML coverage generation. The exact frontend regressions, fixture update and
+gate, and `go mod tidy -diff` also passed. Final tests used the CI-compatible
+Go 1.24.13 toolchain, `GOFLAGS='-buildvcs=false -p=1'`, compiler temporary files in
+the worktree cache, and runtime test directories in `/tmp`. Earlier Go 1.26 runs
+hit the shared temporary quota and FUSE executable-cleanup failures; no repository
+code was changed to accommodate that environment.
+
+Final formatting and diff checks passed after temporary compiler files were removed.
+The staged `golangci-lint run --new-from-rev=6138517b --timeout 10m` reports zero
+new issues. Full `just ci` still stops at 1,229 lint backlog findings (the measured
+unchanged baseline had 1,230); tests and coverage passed separately.

@@ -90,7 +90,9 @@ func (e *Evaluator) methodArgumentDeclarations(obj Value, node *ast.MethodCallEx
 		}
 	case ClassMetaValue:
 		if class := receiver.GetClassInfo(); class != nil {
-			methods = append(methods, class.GetConstructorOverloads(name)...)
+			// Use the constructor set execution selects from, so preparation
+			// cannot bind references for a hidden ancestor constructor.
+			methods = append(methods, visibleConstructorOverloads(class, name)...)
 			methods = append(methods, class.GetClassMethodOverloads(name)...)
 		}
 	}

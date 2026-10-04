@@ -285,7 +285,7 @@ begin
 	obj := TExample.Create(3.14);
 end;
 `
-	expectError(t, input, "no constructor")
+	expectError(t, input, `There is no overloaded version of "Create"`)
 }
 
 // TestConstructorInheritanceCallParent tests calling parent constructor
@@ -533,7 +533,7 @@ begin
 end;
 `
 	// Implicit constructor exists with 0 parameters, so error is about argument count mismatch
-	expectError(t, input, "No arguments expected")
+	expectError(t, input, "Too many arguments")
 }
 
 // ============================================================================

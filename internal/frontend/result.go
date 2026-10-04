@@ -494,6 +494,13 @@ func sortDiagnostics(diags []Diagnostic) {
 			// position is on the preceding line (a comma before a newline).
 			return false
 		}
+		if left.Phase == PhaseSemantic && right.Phase == PhaseSemantic &&
+			((left.afterChildren && left.Code == string(semantic.ErrorArgumentCount)) ||
+				(right.afterChildren && right.Code == string(semantic.ErrorArgumentCount))) {
+			// Arity follows the argument reader even when a child appears on
+			// a later line than the displayed callee position.
+			return false
+		}
 		if left.Line != right.Line {
 			return left.Line < right.Line
 		}

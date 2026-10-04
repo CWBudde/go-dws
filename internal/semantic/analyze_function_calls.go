@@ -267,16 +267,21 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			overloads := a.getMethodOverloadsInHierarchy(methodNameLower, a.currentClass)
 			if len(overloads) > 0 {
 				var selectedMethod *types.MethodInfo
-				if len(overloads) == 1 {
+				if len(overloads) == 1 && !overloads[0].HasOverloadDirective {
 					selectedMethod = overloads[0]
 				} else {
 					argTypes := make([]types.Type, len(expr.Arguments))
+					failed := false
 					for i, arg := range expr.Arguments {
 						argType := a.analyzeOverloadArgument(arg)
 						if argType == nil {
-							return nil
+							failed = true
 						}
 						argTypes[i] = argType
+					}
+
+					if failed {
+						return nil
 					}
 
 					candidates := make([]*Symbol, len(overloads))
@@ -285,7 +290,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					}
 					selected, err := ResolveOverload(candidates, argTypes)
 					if err != nil {
-						a.addStructuredError(NewNoOverloadMatchError(funcIdent.Token.Pos, funcIdent.Value))
+						diagnostic := NewNoOverloadMatchError(funcIdent.Token.Pos, funcIdent.Value)
+						diagnostic.AfterChildren = true
+						a.addStructuredError(diagnostic)
 						return nil
 					}
 					for i, candidate := range candidates {
@@ -318,11 +325,6 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					a.recordClassMethodUsage(methodOwner, funcIdent.Value)
 				}
 
-				if len(expr.Arguments) != len(methodType.Parameters) {
-					a.addError("method '%s' expects %d argument(s), got %d at %s",
-						funcIdent.Value, len(methodType.Parameters), len(expr.Arguments), expr.Token.Pos.String())
-				}
-
 				for i, arg := range expr.Arguments {
 					if i >= len(methodType.Parameters) {
 						break
@@ -335,11 +337,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 								i+1, arg.String(), arg.Pos().String())
 						}
 					}
-
-					paramType := methodType.Parameters[i]
-					a.analyzeCallArgument(i, arg, paramType, i < len(methodType.StrictParams) && methodType.StrictParams[i])
 				}
 
+				a.analyzeClassCallArguments(methodType, expr.Arguments, funcIdent.Token.Pos)
 				return methodType.ReturnType
 			}
 		}
@@ -1022,48 +1022,12 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 		return classType
 	}
 
-	// Resolve overload
-	var selectedConstructor *types.MethodInfo
-	var selectedSignature *types.FunctionType
-
-	if len(constructorOverloads) == 1 {
-		selectedConstructor = constructorOverloads[0]
-		selectedSignature = selectedConstructor.Signature
-	} else {
-		argTypes := make([]types.Type, len(expr.Arguments))
-		for i, arg := range expr.Arguments {
-			argType := a.analyzeOverloadArgument(arg)
-			if argType == nil {
-				return classType
-			}
-			argTypes[i] = argType
-		}
-
-		candidates := make([]*Symbol, len(constructorOverloads))
-		for i, overload := range constructorOverloads {
-			candidates[i] = &Symbol{Type: overload.Signature}
-		}
-
-		selected, err := ResolveOverload(candidates, argTypes)
-		if err != nil {
-			a.addError("there is no overloaded constructor '%s' that can be called with these arguments at %s",
-				constructorName, expr.Token.Pos.String())
-			return classType
-		}
-
-		var ok bool
-		selectedSignature, ok = selected.Type.(*types.FunctionType)
-		if !ok {
-			a.addError("internal error: expected function type for selected constructor, but got %T", selected.Type)
-			return classType
-		}
-		for _, overload := range constructorOverloads {
-			if overload.Signature == selectedSignature {
-				selectedConstructor = overload
-				break
-			}
-		}
+	selectedConstructor := a.selectClassCallOverload(constructorOverloads, expr.Arguments,
+		constructorName, callNamePos(expr.Function, expr.Token.Pos))
+	if selectedConstructor == nil {
+		return classType
 	}
+	selectedSignature := selectedConstructor.Signature
 
 	// Check visibility
 	var ownerClass *types.ClassType
@@ -1084,21 +1048,7 @@ func (a *Analyzer) analyzeConstructorCall(expr *ast.CallExpression, classType *t
 		a.recordClassMethodUsage(ownerClass, constructorName)
 	}
 
-	// Validate argument count
-	if len(expr.Arguments) != len(selectedSignature.Parameters) {
-		a.addArgumentCountError(callNamePos(expr.Function, expr.Token.Pos), len(expr.Arguments),
-			len(selectedSignature.Parameters), len(selectedSignature.Parameters))
-		return classType
-	}
-
-	// Validate argument types
-	for i, arg := range expr.Arguments {
-		if i >= len(selectedSignature.Parameters) {
-			break
-		}
-		paramType := selectedSignature.Parameters[i]
-		a.analyzeCallArgument(i, arg, paramType, i < len(selectedSignature.StrictParams) && selectedSignature.StrictParams[i])
-	}
+	a.analyzeClassCallArguments(selectedSignature, expr.Arguments, callNamePos(expr.Function, expr.Token.Pos))
 
 	if classType.IsAbstract {
 		a.addStructuredError(NewAbstractInstantiationError(expr.Token.Pos))
