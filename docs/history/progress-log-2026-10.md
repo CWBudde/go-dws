@@ -2,7 +2,8 @@
 
 ## 2026-10-05 — DebugBreak punctuation and execution (PLAN 2.1)
 
-This batch closes the `FailureScripts/debugbreak` fixture and checks three
+This batch ([#464](https://github.com/CWBudde/go-dws/pull/464)) closes the
+`FailureScripts/debugbreak` fixture and checks three
 subtasks under Phase 2.1's magic-functions item. The parent stays open: casing
 hints inside a discarded stopped parent call still need Phase 2.4's per-call
 truncation carrier. Other special functions and reintroduced properties remain

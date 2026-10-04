@@ -324,11 +324,13 @@ punctuation in the parser before reading arguments.
 - [ ] Magic functions (`debugbreak`).
   - [x] Accept bare/empty-parentheses DebugBreak and stop at the first non-`)` token,
     before reading arguments (`debugbreak`); preserve direct-call casing hints and
-    comment/newline/EOF anchors. PR link pending publication.
+    comment/newline/EOF anchors ([#464](https://github.com/CWBudde/go-dws/pull/464)).
   - [x] Execute valid calls as a no-op in the evaluator, including checked/unchecked
-    procedure and loop bodies; preserve ordinary qualified member calls.
+    procedure and loop bodies; preserve ordinary qualified member calls
+    ([#464](https://github.com/CWBudde/go-dws/pull/464)).
   - [x] Reject value/grouped/address use; retain null-constant recovery and later
-    name resolution through direct, unary, and binary constant initializers.
+    name resolution through direct, unary, and binary constant initializers
+    ([#464](https://github.com/CWBudde/go-dws/pull/464)).
   - [ ] Preserve intrinsic casing hints inside discarded stopped parent calls
     (`PrintLn(debugbreak(;`); requires 2.4's per-call truncation carrier.
 - [ ] Reintroduced properties (`property_reintroduce2`).
