@@ -237,7 +237,7 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		// evaluator resolves in this order, and disagreeing here would type the
 		// identifier differently from the value produced at runtime.
 		if selfType := a.currentImplicitSelfType(); selfType != nil {
-			if methodType, _ := a.resolveHelperMethodForCall(selfType, identifier, nil); methodType != nil && len(methodType.Parameters) == 0 {
+			if methodType := a.parameterlessHelperMethod(selfType, identifier); methodType != nil {
 				if methodType.ReturnType == nil {
 					return types.VOID
 				}

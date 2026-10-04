@@ -1112,6 +1112,45 @@ func (a *Analyzer) hasHelperMethod(typ types.Type, methodName string) *types.Fun
 	return nil
 }
 
+// parameterlessHelperMethod probes for the helper method a bare identifier on
+// the implicit Self would invoke. Unlike resolveHelperMethodForCall it emits no
+// overload diagnostics: a member without a parameterless overload leaves the
+// identifier to the builtin and other fallbacks.
+func (a *Analyzer) parameterlessHelperMethod(typ types.Type, member *ast.Identifier) *types.FunctionType {
+	methodName := member.Value
+	_, meta := recordReceiverType(typ)
+	if meta && !a.isHelperClassMethod(typ, methodName) {
+		return nil
+	}
+	helpers := a.getHelpersForType(typ)
+	key := ident.Normalize(methodName)
+	for idx := len(helpers) - 1; idx >= 0; idx-- {
+		helper := helpers[idx]
+		overloads := helper.MethodOverloads[key]
+		if meta {
+			overloads = helper.ClassMethodOverloads[key]
+			if len(overloads) == 0 {
+				continue
+			}
+		}
+		if len(overloads) == 0 {
+			method := findMethodCaseInsensitive(helper.Methods, methodName)
+			if method == nil {
+				continue
+			}
+			overloads = []*types.FunctionType{method}
+		}
+		for _, overload := range overloads {
+			if len(overload.Parameters) == 0 {
+				a.addIdentifierCaseHint(member, a.declaredHelperMethodName(typ, methodName))
+				return overload
+			}
+		}
+		return nil
+	}
+	return nil
+}
+
 // resolveHelperMethodForCall distinguishes an absent member from a found
 // member whose overload set cannot accept the call. The latter owns its error.
 func (a *Analyzer) resolveHelperMethodForCall(typ types.Type, member *ast.Identifier, args []ast.Expression) (*types.FunctionType, bool) {

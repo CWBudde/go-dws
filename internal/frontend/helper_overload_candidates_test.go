@@ -132,3 +132,20 @@ func TestCompile_HelperOverloadFailedCaseHint(t *testing.T) {
 		}
 	}
 }
+
+// A bare identifier on the implicit Self only probes for a parameterless helper
+// method; a helper overload set without one must not claim the name, so the
+// parameterless builtin stays reachable.
+func TestCompile_HelperOverloadBareIdentifierProbe(t *testing.T) {
+	for _, tt := range []struct{ name, members string }{
+		{"marked", "procedure UnixTime(v: Integer); overload; begin end;"},
+		{"multiple", "procedure UnixTime(v: Integer); overload; begin end; procedure UnixTime(v: String); overload; begin end;"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			source := "type T = class procedure Run; end;\n" +
+				"type H = helper for T " + tt.members + " end;\n" +
+				"procedure T.Run; var x: Integer; begin x := UnixTime; end;"
+			assertHelperCallDiagnostics(t, source, nil)
+		})
+	}
+}
