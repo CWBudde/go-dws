@@ -655,6 +655,9 @@ func NewScopedEnumType(name string, values map[string]int, orderedNames []string
 //	  function ToLower: String;
 //	end;
 type HelperType struct {
+	// StaticMethods retains the absence of Self for each selected overload.
+	StaticMethods map[*FunctionType]bool
+
 	// ClassMethodOverloads retains receiver ownership for each overload.
 	ClassMethodOverloads map[string][]*FunctionType
 	TargetType           Type
@@ -799,6 +802,7 @@ func NewHelperType(name string, targetType Type, isRecordHelper bool) *HelperTyp
 		Methods:              make(map[string]*FunctionType),
 		MethodOverloads:      make(map[string][]*FunctionType),
 		ClassMethodOverloads: make(map[string][]*FunctionType),
+		StaticMethods:        make(map[*FunctionType]bool),
 		MethodDeclNames:      make(map[string]string),
 		Properties:           make(map[string]*PropertyInfo),
 		ClassVars:            make(map[string]Type),

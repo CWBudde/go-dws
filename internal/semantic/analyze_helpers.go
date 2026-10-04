@@ -637,6 +637,9 @@ func (a *Analyzer) analyzeHelperMethod(method *ast.FunctionDecl, helperType *typ
 			helperType.ClassMethodOverloads = make(map[string][]*types.FunctionType)
 		}
 		helperType.ClassMethodOverloads[methodNameLower] = append(helperType.ClassMethodOverloads[methodNameLower], funcType)
+		if method.IsStatic {
+			helperType.StaticMethods[funcType] = true
+		}
 	}
 	helperType.Methods[methodNameLower] = funcType
 	helperType.MethodOverloads[methodNameLower] = append(helperType.MethodOverloads[methodNameLower], funcType)

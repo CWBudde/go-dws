@@ -764,16 +764,7 @@ func (a *Analyzer) analyzeImplicitHelperCall(methodName string, args []ast.Expre
 		return nil, false
 	}
 
-	if len(args) != len(methodType.Parameters) {
-		a.addError("method '%s' expects %d argument(s), got %d at %s",
-			methodName, len(methodType.Parameters), len(args), pos.String())
-		return methodType.ReturnType, true
-	}
-
-	for i := range args {
-		paramType := methodType.Parameters[i]
-		a.analyzeSelfCallArgument(i, args, paramType, pos, i < len(methodType.StrictParams) && methodType.StrictParams[i])
-	}
+	a.analyzeHelperCallArguments(selfType, methodName, methodType, args, pos)
 
 	return methodType.ReturnType, true
 }

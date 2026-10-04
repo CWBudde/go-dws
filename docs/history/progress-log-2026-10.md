@@ -959,3 +959,63 @@ of stale generated Go cache files. No source workaround was added. Full
 `just check-fmt`, `go mod tidy -diff`, and `git diff --check` pass. The whole-tree
 formatter initially traversed active generated build files; its final run passes
 after those compiler temporaries are gone.
+
+
+### Phase 1.5 — Receiver-helper call argument diagnostics (2026-10-04)
+
+Parenthesized helper calls through primitive, record, class, and interface
+receivers now read every supplied argument before checking types and count.
+A supplied type mismatch suppresses the count error; errors inside children
+remain and can precede the outer count error across lines. Parameterless helpers
+use `Too many arguments`. Count diagnostics anchor at the helper member name,
+and return types remain available for subsequent assignment checks. Implicit
+Self helper fallback uses the same selected-signature checker.
+
+Receiver ownership follows the selected overload. Instance helpers and function
+helpers reserve argument 0 for Self, as do nonstatic class helpers for structured
+record/class targets. Their type errors use the shifted written-argument index
+and position, falling back to the method name for the final argument. Static
+helper methods and class helpers for primitive/interface targets have no receiver
+argument and use ordinary indices and supplied-expression anchors. Static flags
+are retained per helper signature; helper candidate selection, runtime dispatch,
+and specialized intrinsic policies are unchanged. The implementation reuses the
+existing member argument checker instead of separate count-first loops.
+Upstream evidence is `CreateMethodCall`, `TypeCheckArguments`, and
+`THelperMethodExpr.Create` at DWScript commit
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`.
+
+Acceptance uses 70 exact `frontend.Compile` cases; 37 failed before implementation.
+They cover the four receiver families, instance/class/static ownership, mixed
+instance/static names, short/excess/parameterless calls, supplied types before
+count errors, shifted multiline anchors, every excess child, case-insensitive
+lookup, contextual `[]`/`nil`, inherited helpers, function helpers, implicit Self,
+and result-type recovery. Frontend, semantic, and type suites pass. A fresh
+read-only review found no blocking issues; additional CLI probes passed inherited
+static, alias, class-reference, strict-parameter, and combined child/type cases.
+Permanent tests for those additional probes remain a deferred minor.
+
+The CLI fixture reports have no deterministic changes: `HelpersFail` remains
+12/18. `function_helper` now has the expected excess-argument sentences but still
+fails on its existing header and bare-call gaps. The sole CLI snapshot difference
+is `BuildScripts/init_order3`; eight runs per binary produce three output orders
+on both base and changed binaries. `just fixture-update` passed but proposed only
+a BuildScripts floor increase from 7 to 10. The next fixture check returned to 7
+and failed that proposed floor; clean-main repeats also returned 7, 7, and 8.
+Both generated baseline/status changes were discarded. The final fixture gate
+passes against the stable floor, with no new deterministic fixture gain claimed.
+
+Full `go test -race -coverprofile=coverage.out ./...`, HTML coverage generation,
+`just fixture-check`, `just check-fmt`, `go mod tidy -diff`, CLI build/report,
+and `git diff --check` pass. The new-findings lint gate
+(`golangci-lint run --new-from-rev=ddca9d03 --timeout 10m`) reports zero issues.
+Full `just ci` stops at the same 1,229 inherited lint findings before and after;
+tests and coverage were run separately. A simultaneous lint attempt encountered
+the runner's lock and was rerun serially. Verification used CI's Go 1.24.13,
+`GOFLAGS='-buildvcs=false -p=1'`, a shared Go cache, and compiler temporaries in
+the worktree cache. Clean baseline `go test ./...` passed before production edits.
+
+PLAN.md retains explicit helper-name, helper-body bound routine, bare/reference
+and grouped-callee contexts; helper overload selection; declaration defaults and
+omitted-default execution; var-storage validation; and imported-helper and
+metaclass-target lookup. The error-message guide describes the shipped receiver
+policy and its remaining scope limits.
