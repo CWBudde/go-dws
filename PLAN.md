@@ -321,14 +321,14 @@ punctuation in the parser before reading arguments.
   - [x] Match `at_integer` ([#463](https://github.com/CWBudde/go-dws/pull/463)): report the type's missing `(` before `unexpected "@"`;
     reject scalar-variable addresses while preserving valid routine references.
   - [x] Measure the 17 required-parentheses names, Default's ordinary-name fallback,
-    and qualified member/unit lookup separately from unqualified specials (this batch).
+    and qualified member/unit lookup separately from unqualified specials ([#465](https://github.com/CWBudde/go-dws/pull/465)).
   - [x] Require `(` for the remaining bare special names in value/statement/callback,
     grouped-callee, range-bound and unresolved assignment-target contexts; retain
     casing hints, scanner anchors, ordinary references and lexical/member shadows
-    (this batch).
+    ([#465](https://github.com/CWBudde/go-dws/pull/465)).
   - [x] Read bare/grouped/indexed special address operands before pointer capture or
     index analysis; preserve child stops and scalar-context pre-child address errors
-    (this batch).
+    ([#465](https://github.com/CWBudde/go-dws/pull/465)).
   - [ ] Establish actual qualified namespace symbol availability and callable forms;
     the special pseudo-symbol table alone does not prove `Default.Low` exists upstream.
   - [ ] Match qualified Default namespace binding through compilation and execution;

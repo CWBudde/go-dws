@@ -2,7 +2,8 @@
 
 ## 2026-10-05 — Bare special-function punctuation (PLAN 2.1)
 
-This batch checks three more subtasks under Phase 2.1's special-functions item:
+This batch ([#465](https://github.com/CWBudde/go-dws/pull/465)) checks three more subtasks
+under Phase 2.1's special-functions item:
 the canonical-name/Default/member lookup measurement, bare-name punctuation, and
 bare-address punctuation. The parent remains open for actual qualified namespace
 availability and Default namespace binding. Reintroduced properties, stopped-call
