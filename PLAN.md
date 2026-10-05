@@ -290,7 +290,8 @@ and shared `internal/errors` builders. Remeasure the shape worklist before each 
 - [ ] Unknown statement types and failed inference.
   - [ ] Match `Type expected` for unknown types.
   - [x] Reject valueless variable initializers with the ordinary no-return diagnostic;
-    preserve inferred scanner lookahead and typed declaration-name anchors (2.1 prerequisite).
+    preserve inferred scanner lookahead, typed declaration-name anchors and declaration
+    recovery (2.1 prerequisite; [#466](https://github.com/CWBudde/go-dws/pull/466)).
   - [ ] Match `Type could not be inferenced` for failed inference.
 - [ ] FOR STEP diagnostics.
   - [ ] Establish constant-folding prerequisites for `for_step` and its optimized sibling.
@@ -339,10 +340,12 @@ punctuation in the parser before reading arguments.
     ([#465](https://github.com/CWBudde/go-dws/pull/465)).
   - [x] Establish actual qualified namespace availability and callable forms: standard
     Default contains only Print/PrintLn; System and Internal use their own local tables.
-    Special pseudo-symbols are not namespace members.
+    Special pseudo-symbols are not namespace members
+    ([#466](https://github.com/CWBudde/go-dws/pull/466)).
   - [x] Bind qualified Default output calls/references to the result unit through execution,
     including lexical output-name shadows and caller Default receivers; reject unavailable
-    members with a stop at their token and preserve qualifier-only casing hints.
+    members with a stop at their token and preserve qualifier-only casing hints
+    ([#466](https://github.com/CWBudde/go-dws/pull/466)).
   - [ ] Retain qualified callee names when malformed argument parsing discards the call
     (`Default.Low(;`); requires 2.4's per-call truncation carrier.
 - [ ] Magic functions (`debugbreak`).

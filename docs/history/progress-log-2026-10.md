@@ -276,7 +276,7 @@ passes against the raised baselines.
 
 ## 2026-10-05 — Default result namespace binding (PLAN 2.1)
 
-This batch checks the qualified namespace measurement and Default compile/run
+This batch ([#466](https://github.com/CWBudde/go-dws/pull/466)) checks the qualified namespace measurement and Default compile/run
 binding subtasks. The special-functions parent remains open for discarded
 qualified callees (`Default.Low(;`), which need Phase 2.4's per-call truncation
 carrier. Reintroduced properties remain the next ungated Phase 2.1 item.
