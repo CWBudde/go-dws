@@ -42,23 +42,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			Function:  expr.Method,
 			Arguments: expr.Arguments,
 		}
-		if resultType, isBuiltin := a.analyzeBuiltinFunction(expr.Method.Value, expr.Arguments, builtinCall); isBuiltin {
-			return resultType
-		}
-		a.addStructuredError(NewUnknownNameError(expr.Method.Token.Pos, "Default."+expr.Method.Value))
-		return nil
-	}
-
-	// Default namespace: `Default.PrintLn(x)` resolves the member against the
-	// global scope (builtins / top-level routines), bypassing local/class
-	// members. Rewrite to a plain global call and reuse call analysis.
-	if a.isDefaultNamespace(expr.Object) {
-		call := &ast.CallExpression{
-			BaseNode:  expr.BaseNode,
-			Function:  expr.Method,
-			Arguments: expr.Arguments,
-		}
-		return a.analyzeCallExpression(call)
+		return a.analyzeDefaultNamespaceCall(expr.Object, expr.Method, builtinCall)
 	}
 
 	// Analyze the object expression

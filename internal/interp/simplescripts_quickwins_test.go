@@ -228,9 +228,9 @@ func TestDefaultNamespaceBuiltinCalls(t *testing.T) {
 	got := runQuickwinScript(t, `
 Default.Print('a');
 Default.PrintLn('b');
-PrintLn(Default.Length('xyz'));
+Default.PrintLn('xyz');
 `)
-	assertOutput(t, got, "ab\n3\n")
+	assertOutput(t, got, "ab\nxyz\n")
 }
 
 func TestDefaultNamespaceBuiltinPointer(t *testing.T) {

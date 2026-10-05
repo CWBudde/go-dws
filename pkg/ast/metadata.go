@@ -91,6 +91,7 @@ type SemanticInfo struct {
 	inheritedPropertyReads map[*InheritedExpression]*InheritedPropertyReadBinding
 	indexedPropertyReads   map[*IndexExpression]*IndexedPropertyReadBinding
 	implicitCalls          map[Expression]bool
+	defaultNamespace       map[Expression]bool
 	mu                     sync.RWMutex
 }
 
@@ -107,6 +108,7 @@ func NewSemanticInfo() *SemanticInfo {
 		inheritedPropertyReads: make(map[*InheritedExpression]*InheritedPropertyReadBinding),
 		indexedPropertyReads:   make(map[*IndexExpression]*IndexedPropertyReadBinding),
 		implicitCalls:          make(map[Expression]bool),
+		defaultNamespace:       make(map[Expression]bool),
 	}
 }
 
@@ -236,6 +238,7 @@ func (si *SemanticInfo) Clear() {
 	si.inheritedPropertyReads = make(map[*InheritedExpression]*InheritedPropertyReadBinding)
 	si.indexedPropertyReads = make(map[*IndexExpression]*IndexedPropertyReadBinding)
 	si.implicitCalls = make(map[Expression]bool)
+	si.defaultNamespace = make(map[Expression]bool)
 }
 
 // GetResolvedType returns the analyzer's type object for an expression or type
@@ -282,6 +285,25 @@ func (si *SemanticInfo) IsImplicitCall(expr Expression) bool {
 	si.mu.RLock()
 	defer si.mu.RUnlock()
 	return si.implicitCalls[expr]
+}
+
+// SetDefaultNamespace records a receiver bound to the standard result unit.
+// Its lexical identity must survive caller environments during execution.
+func (si *SemanticInfo) SetDefaultNamespace(expr Expression) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	if si.defaultNamespace == nil {
+		si.defaultNamespace = make(map[Expression]bool)
+	}
+	si.defaultNamespace[expr] = true
+}
+
+// IsDefaultNamespace reports a compile-time result-unit receiver binding.
+// It is safe for concurrent reads after analysis.
+func (si *SemanticInfo) IsDefaultNamespace(expr Expression) bool {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	return si.defaultNamespace[expr]
 }
 
 // SetEnumElementBinding records a constant selected during source lookup.

@@ -355,17 +355,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 			}
 		case "default":
 			if a.isDefaultNamespace(expr.Object) {
-				if ptrType := a.getBuiltinFunctionPointerType(expr.Member.Value); ptrType != nil {
-					return ptrType
-				}
-				if _, isBuiltin := a.analyzeBuiltinFunction(expr.Member.Value, nil, &ast.CallExpression{
-					BaseNode: ast.BaseNode{Token: expr.Token},
-					Function: expr.Member,
-				}); isBuiltin {
-					return types.VOID
-				}
-				a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, "Default."+expr.Member.Value))
-				return nil
+				return a.analyzeDefaultNamespaceMember(expr, expected, false)
 			}
 		}
 	}

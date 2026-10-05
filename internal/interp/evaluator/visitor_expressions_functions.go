@@ -104,12 +104,7 @@ func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *Execution
 			return e.evalJSONNamespaceCall(memberAccess.Member.Value, node.Arguments, node, ctx)
 		}
 		if e.isDefaultNamespaceObject(memberAccess.Object, ctx) {
-			builtinCall := &ast.CallExpression{
-				BaseNode:  node.BaseNode,
-				Function:  memberAccess.Member,
-				Arguments: node.Arguments,
-			}
-			return e.VisitCallExpression(builtinCall, ctx)
+			return e.evalDefaultNamespaceCall(memberAccess.Member, node.Arguments, node, ctx)
 		}
 
 		if identNode, ok := memberAccess.Object.(*ast.Identifier); ok {

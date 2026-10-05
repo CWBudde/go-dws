@@ -11,6 +11,9 @@ import (
 )
 
 func (a *Analyzer) argumentMatchesParameter(argType, paramType types.Type, strict bool) bool {
+	if _, valueless := types.GetUnderlyingType(argType).(*types.VoidType); valueless {
+		return false
+	}
 	if strict {
 		return types.IsIdentical(argType, paramType)
 	}
@@ -80,7 +83,12 @@ func (a *Analyzer) checkArrayOfConstArgument(index int, expected string, open bo
 // implicit one. Only such an argument is known to be valueless when it types
 // as void.
 func (a *Analyzer) isProcedureCall(arg ast.Expression) bool {
+	if a.semanticInfo.IsImplicitCall(arg) {
+		return true
+	}
 	switch e := arg.(type) {
+	case *ast.GroupedExpression:
+		return a.isProcedureCall(e.Expression)
 	case *ast.CallExpression, *ast.MethodCallExpression:
 		return true
 	case *ast.Identifier:
@@ -143,11 +151,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		if a.isDefaultNamespace(memberAccess.Object) {
 			builtinCall := *expr
 			builtinCall.Function = memberAccess.Member
-			if resultType, isBuiltin := a.analyzeBuiltinFunction(memberAccess.Member.Value, expr.Arguments, &builtinCall); isBuiltin {
-				return resultType
-			}
-			a.addStructuredError(NewUnknownNameError(memberAccess.Member.Token.Pos, "Default."+memberAccess.Member.Value))
-			return nil
+			return a.analyzeDefaultNamespaceCall(memberAccess.Object, memberAccess.Member, &builtinCall)
 		}
 
 		objectType := a.analyzeExpression(memberAccess.Object)
@@ -709,7 +713,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			continue
 		}
 		if isLazy {
-			if !a.canAssign(argType, expectedType) {
+			if !a.argumentMatchesParameter(argType, expectedType, false) {
 				a.addArgumentTypeError(i, expectedName, argType, arg.Pos())
 			}
 			continue
@@ -725,10 +729,8 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			a.checkVarArgument(i, functionParameterName(funcType, i), arg, argType, arg.Pos())
 			continue
 		}
-		fits := a.canAssign(argType, expectedType)
-		if !hasOverloads && i < len(funcType.StrictParams) && funcType.StrictParams[i] {
-			fits = types.IsIdentical(argType, expectedType)
-		}
+		strict := !hasOverloads && i < len(funcType.StrictParams) && funcType.StrictParams[i]
+		fits := a.argumentMatchesParameter(argType, expectedType, strict)
 		if !fits {
 			a.addArgumentTypeError(i, expectedName, argType, arg.Pos())
 		} else if isVar {

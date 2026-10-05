@@ -19,15 +19,22 @@ func (a *Analyzer) isJSONNamespace(obj ast.Expression) bool {
 }
 
 // isDefaultNamespace reports whether obj is the built-in `Default` namespace
-// used to qualify global built-ins (Default.Print, Default.Length, ...), unless
-// a user symbol shadows it.
+// containing the standard result procedures, unless a user symbol shadows it.
 func (a *Analyzer) isDefaultNamespace(obj ast.Expression) bool {
 	identExpr, ok := obj.(*ast.Identifier)
 	if !ok || !ident.Equal(identExpr.Value, "Default") {
 		return false
 	}
-	_, resolved := a.symbols.Resolve(identExpr.Value)
-	return !resolved
+	selected, found := a.symbols.resolveIdentity(identExpr.Value, true)
+	if !found || !selected.isUnitName || a.specialFunctionHasShadow(identExpr.Value) {
+		return false
+	}
+	if record := a.currentRecord; record != nil {
+		if record.Methods[ident.Normalize(identExpr.Value)] != nil || record.ClassMethods[ident.Normalize(identExpr.Value)] != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // jsonNamespaceMemberType returns the result type of a JSON static method /

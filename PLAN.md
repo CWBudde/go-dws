@@ -147,7 +147,7 @@ same PR; retain checked siblings until the subphase closes. Detailed evidence:
 
 **Current user-selected track:** 2.1's type-directed punctuation, after the record-constant,
 bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batches.
-Default namespace availability/binding is implemented in pending [#466](https://github.com/CWBudde/go-dws/pull/466).
+The standard Default namespace availability and binding batch is closed in [#466](https://github.com/CWBudde/go-dws/pull/466).
 Explicit scalar reintroduced-property empty reads and statement-boundary recovery shipped
 in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty scalar reads
 in class methods shipped in [#468](https://github.com/CWBudde/go-dws/pull/468). Named inherited empty/bare scalar reads and parent accessor ownership are implemented in [#469](https://github.com/CWBudde/go-dws/pull/469).
@@ -289,6 +289,8 @@ and shared `internal/errors` builders. Remeasure the shape worklist before each 
   - [ ] Audit remaining punctuation and type sentences; coordinate overlapping Phase 2 work.
 - [ ] Unknown statement types and failed inference.
   - [ ] Match `Type expected` for unknown types.
+  - [x] Reject valueless variable initializers with the ordinary no-return diagnostic;
+    preserve inferred scanner lookahead and typed declaration-name anchors (2.1 prerequisite).
   - [ ] Match `Type could not be inferenced` for failed inference.
 - [ ] FOR STEP diagnostics.
   - [ ] Establish constant-folding prerequisites for `for_step` and its optimized sibling.
@@ -335,10 +337,14 @@ punctuation in the parser before reading arguments.
   - [x] Read bare/grouped/indexed special address operands before pointer capture or
     index analysis; preserve child stops and scalar-context pre-child address errors
     ([#465](https://github.com/CWBudde/go-dws/pull/465)).
-  - [ ] Establish actual qualified namespace symbol availability and callable forms;
-    the special pseudo-symbol table alone does not prove `Default.Low` exists upstream.
-  - [ ] Match qualified Default namespace binding through compilation and execution;
-    a global Low shadow currently changes execution of `Default.Low(Integer)`.
+  - [x] Establish actual qualified namespace availability and callable forms: standard
+    Default contains only Print/PrintLn; System and Internal use their own local tables.
+    Special pseudo-symbols are not namespace members.
+  - [x] Bind qualified Default output calls/references to the result unit through execution,
+    including lexical output-name shadows and caller Default receivers; reject unavailable
+    members with a stop at their token and preserve qualifier-only casing hints.
+  - [ ] Retain qualified callee names when malformed argument parsing discards the call
+    (`Default.Low(;`); requires 2.4's per-call truncation carrier.
 - [ ] Magic functions (`debugbreak`).
   - [x] Accept bare/empty-parentheses DebugBreak and stop at the first non-`)` token,
     before reading arguments (`debugbreak`); preserve direct-call casing hints and

@@ -23,11 +23,21 @@ func (e *Evaluator) isJSONNamespaceObject(obj ast.Expression, ctx *ExecutionCont
 }
 
 // isDefaultNamespaceObject reports whether obj is the built-in Default
-// namespace qualifier for global built-ins (Default.Print, Default.Length, ...).
+// namespace qualifier for the standard result procedures.
 func (e *Evaluator) isDefaultNamespaceObject(obj ast.Expression, ctx *ExecutionContext) bool {
 	identObj, ok := obj.(*ast.Identifier)
 	if !ok || !ident.Equal(identObj.Value, "Default") {
 		return false
+	}
+	// A checked ordinary receiver keeps its selected type even when the name
+	// is also a built-in namespace (including an implicit Self field).
+	if info := e.SemanticInfo(); info != nil {
+		if info.IsDefaultNamespace(obj) {
+			return true
+		}
+		if info.GetResolvedType(obj) != nil {
+			return false
+		}
 	}
 	_, exists := ctx.Env().Get(identObj.Value)
 	return !exists

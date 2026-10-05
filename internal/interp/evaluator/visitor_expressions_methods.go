@@ -59,24 +59,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 		return e.evalJSONNamespaceCall(node.Method.Value, node.Arguments, node, ctx)
 	}
 	if e.isDefaultNamespaceObject(node.Object, ctx) {
-		builtinCall := &ast.CallExpression{
-			BaseNode:  node.BaseNode,
-			Function:  node.Method,
-			Arguments: node.Arguments,
-		}
-		return e.VisitCallExpression(builtinCall, ctx)
-	}
-
-	// Default namespace: `Default.PrintLn(x)` resolves against the global scope
-	// (builtins / top-level routines), bypassing local/class members. Dispatch it
-	// as a plain global call.
-	if e.isDefaultNamespaceObject(node.Object, ctx) {
-		call := &ast.CallExpression{
-			BaseNode:  node.BaseNode,
-			Function:  node.Method,
-			Arguments: node.Arguments,
-		}
-		return e.Eval(call, ctx)
+		return e.evalDefaultNamespaceCall(node.Method, node.Arguments, node, ctx)
 	}
 
 	if identObj, ok := node.Object.(*ast.Identifier); ok {

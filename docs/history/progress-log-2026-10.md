@@ -274,6 +274,72 @@ stable floor. The earlier eight-pass snapshot explains why the overall count
 increases by two while this batch adds three stable passes. The fixture gate
 passes against the raised baselines.
 
+## 2026-10-05 — Default result namespace binding (PLAN 2.1)
+
+This batch checks the qualified namespace measurement and Default compile/run
+binding subtasks. The special-functions parent remains open for discarded
+qualified callees (`Default.Low(;`), which need Phase 2.4's per-call truncation
+carrier. Reintroduced properties remain the next ungated Phase 2.1 item.
+
+Pinned upstream revision `1dbf8a90329cc3f2638516e89c0668f916c1ddb9` establishes
+that the standard result unit registers only Print and PrintLn: dwsComp's
+AddUnitSymbols calls ResultType.AddResultSymbols, dwsExprs calls
+RegisterStandardResultFunctions, and dwsResultFunctions registers those two
+procedures. ReadName uses the unit's FindLocal; the lazy special pseudo-symbol
+table does not populate namespaces. System and Internal have separate symbol
+registration. The expectations are source-derived; no Pascal oracle ran.
+
+Default.Low, Default.Length and other unavailable members now stop at their
+member token before argument/later diagnostics. The qualifier receives its
+ordinary casing hint; qualified member spelling does not receive an intrinsic
+hint. Qualified Print/PrintLn dispatch directly to the result procedures, while
+argument expressions retain value-context reading, conversion and exception
+handling. User routines and callback variables named PrintLn cannot intercept
+that dispatch. Existing duplicate, unreachable namespace branches were removed.
+
+Bare output procedures are zero-argument calls unless a compatible callback
+context captures them. Inferred and typed address forms capture procedure
+references with signature metadata. Receiver identity joins the existing
+SemanticInfo bindings so a caller's local Default object or helper cannot rebind a
+namespace reference inside a definition body. Ordinary lexical/type/implicit
+receivers preserve their resolved types. No AST node schema, visitor generation,
+CLI flag, dependency, or interpreter-shell execution path changes.
+
+Reading the bare procedure exposed a prerequisite: variable initializers accepted
+void results. They now report the ordinary no-return diagnostic. Existing
+identifier lookahead metadata supplies inferred-declaration scanner anchors;
+typed declarations use the declared name, following ReadNamedVarsDecl and
+CreateNamedVarDeclExpr/CreateAssignExpr. The formerly provisional grouped helper
+void-initializer expectation now uses that source-backed diagnostic.
+Invalid initializers retain the declaration and its explicit type, falling back
+to Variant for inferred declarations. Bare procedure arguments are rejected in
+builtin and ordinary routine calls, including through grouping.
+
+Two read-only subagents investigated upstream and the Go paths independently.
+TDD acceptance covers 69 unavailable-member contexts, nine hint/recovery cases,
+eight valueless initializer cases, and 23 checked public API execution controls.
+Additional RED tests reproduced caller-induced binding changes and typed
+initializer anchor differences before their fixes. The affected frontend,
+semantic, evaluator, public API and AST packages were exercised. An independent
+fresh-context review found three important gaps: declaration recovery, caller
+helper rebinding and bare procedure arguments. Nine additional failing cases
+pinned those gaps before the fixes.
+All 86 frontend and 23 public API cases also pass through a fresh CLI build,
+with exact diagnostics/output and exit statuses. Final verification passes
+`go test -race -coverprofile=.cache/results/coverage-final.out ./...`, the
+affected-package suite, diff lint, `go mod tidy -diff`, CLI build, fixture
+update/gate, formatting and `git diff --check`. Lexer and parser coverage remain
+unchanged at 86.2% and 79.6%, respectively.
+
+Baseline checks first encountered sandbox temporary-storage quota and cleanup
+failures. The full race/coverage baseline passed with native execution and
+workspace build storage: lexer 86.2%, parser 79.6%. Fixture update records
+1,419 passes, 595 failures and 27 skips; BuildScripts remains subject to the
+known seven/eight-pass initialization-order variation. No stable category floor
+or fixture expectation changes were justified by this batch. The updater's
+eight-pass BuildScripts ratchet was returned to its existing stable seven-pass
+floor after both counts appeared during this batch.
+
 ## 2026-10-05 — Bare special-function punctuation (PLAN 2.1)
 
 This batch ([#465](https://github.com/CWBudde/go-dws/pull/465)) checks three more subtasks

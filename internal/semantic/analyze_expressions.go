@@ -207,9 +207,7 @@ func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expect
 		return types.FLOAT
 	case *ast.MemberAccessExpression:
 		if a.isDefaultNamespace(e.Object) {
-			if ptrType := a.getBuiltinFunctionPointerType(e.Member.Value); ptrType != nil {
-				return ptrType
-			}
+			return a.analyzeDefaultNamespaceMember(e, expectedType, false)
 		}
 		// In a function-pointer target context, a method reference `obj.Method`
 		// becomes a bound method pointer rather than an auto-invoked call.

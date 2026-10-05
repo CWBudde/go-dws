@@ -242,6 +242,9 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 // may be an object instance (a bound method pointer), or a class reference (a
 // class-method pointer, or one of TObject's intrinsic parameterless members).
 func (e *Evaluator) addressOfMember(node *ast.AddressOfExpression, operand *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
+	if e.isDefaultNamespaceObject(operand.Object, ctx) {
+		return e.defaultNamespacePointer(operand.Member, node)
+	}
 	objectVal := e.Eval(operand.Object, ctx)
 	if isError(objectVal) {
 		return objectVal
