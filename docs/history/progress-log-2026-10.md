@@ -1,5 +1,81 @@
 # Progress log — October 2026
 
+## 2026-10-05 — Bare special-function punctuation (PLAN 2.1)
+
+This batch ([#465](https://github.com/CWBudde/go-dws/pull/465)) checks three more subtasks
+under Phase 2.1's special-functions item:
+the canonical-name/Default/member lookup measurement, bare-name punctuation, and
+bare-address punctuation. The parent remains open for actual qualified namespace
+availability and Default namespace binding. Reintroduced properties, stopped-call
+hint carriers, declaration reservation, and completed-call addresses retain their
+own open tasks. No public API, AST, visitor, evaluator, or CLI interface changed.
+
+The shared semantic classification covers Assert, Assigned, High, Length, Low,
+Ord, SizeOf, Defined, Declared, Inc, Dec, Succ, Pred, Include, Exclude, Swap, and
+ConditionalDefined. An unresolved bare use emits its canonical casing hint and
+then `"(" expected` at the recorded scanner lookahead. This extends Low/High's
+shipped rule across the remaining names in value, statement, typed callback,
+grouped callee, range-bound, and unresolved assignment-target contexts. Comments,
+newlines and EOF retain scanner anchors. A special name cannot become an ordinary
+registered callback merely by appearing bare.
+
+Address analysis checks shadows without reading the name again or duplicating
+hints. An unshadowed bare/grouped/indexed special operand stops at its missing
+opening delimiter before pointer construction or index analysis. Completed call
+operands retain the existing generic address path. A scalar expected type retains
+ReadAt's earlier `unexpected "@"` diagnostic before the child stop; inferred or
+callable contexts report the child stop alone. Lexical routines/variables,
+implicit class/record/helper members, qualified methods and ordinary builtin
+references keep their existing lookup paths. Bare Default falls back to ordinary
+lookup without an intrinsic casing hint; its current parenthesized/namespace
+forms are controls, not a claim of complete Default parity.
+
+Two read-only planning investigations examined the current Go paths and the
+pinned upstream special-keyword table/compiler. An implementation-side audit
+identified the separate class metadata checks needed for address shadows. The
+independent review found a shadowed range-bound regression and an assignment-LHS
+lookup gap. Failing frontend/public API tests pinned the range issue before the
+shared implicit-value conversion was restored. Further failing tests pinned the
+assignment gap and indexed-address punctuation before the fixes. The indexed
+address decision stays within the required-opening-delimiter rule; it does not
+expand generic completed-call address support.
+
+Acceptance includes a 102-case matrix for 17 names across canonical/lowercase
+value, statement and address contexts; 27 recovery cases; 18 valid compile
+controls; two pedantic controls; and 14 checked public API execution controls.
+The latter prove explicit calls, ordinary/qualified references, lexical and
+member shadows, writable shadow assignments, Default lookup, and shadowed case
+and array ranges. Fifteen fresh CLI checks verify exact diagnostics with exit 1
+and successful execution/output with exit 0. Expected diagnostics come from
+upstream ReadName, ReadSpecialFunction, ReadAt, and the canonical keyword table
+at pinned commit `1dbf8a90329cc3f2638516e89c0668f916c1ddb9`; no Pascal oracle ran.
+
+Fixture update found no stable new pass: FailureScripts stays at 317. Snapshots
+varied between 1,418/596 and 1,419/595 passes/failures because BuildScripts still
+varies between seven and eight passes under the known Phase 5.2 initialization
+ordering issue. The existing stable BuildScripts floor remains seven; all other
+floors and fixture expectation files are unchanged. The generated final status
+snapshot matches the previous eight-pass snapshot. The updater's temporary
+ratchet to eight caused a gate/race-run failure; restoring the stable floor and
+rerunning against frozen baselines resolved it.
+
+The first worktree baseline overlapped source edits and was invalidated. A full
+race/coverage baseline rerun against untouched main passed. Review red/green
+logs and CLI output remain in the worktree's ignored `.cache/results/`.
+
+Final validation passed: `go test -race -coverprofile=.cache/results/coverage-shipped.out ./...`,
+three repeated frontend/public API runs, CI diff lint (zero findings),
+`go mod tidy -diff`, fresh CLI build/acceptance, fixture update/gate, and diff checks.
+`just --tempdir /tmp/phase21-special-tests check-fmt` also passed after build cleanup;
+the default just temporary-directory location is read-only in this environment.
+Lexer coverage remains 86.2% and parser coverage remains 79.6%. Production source
+was unchanged during the final full race run.
+
+Measured follow-ups include parenthesized SizeOf support and Default type/alias/
+case validation, plus namespace availability and qualified runtime binding. A
+record method named Ord also exposed an existing evaluator builtin-precedence
+gap; this batch preserves its compilation and records execution separately.
+
 ## 2026-10-05 — DebugBreak punctuation and execution (PLAN 2.1)
 
 This batch ([#464](https://github.com/CWBudde/go-dws/pull/464)) closes the

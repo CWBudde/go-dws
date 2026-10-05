@@ -9,7 +9,9 @@ import (
 // endpoint is a call result, never a function reference.
 func (a *Analyzer) analyzeRangeBound(expr ast.Expression) types.Type {
 	if id, ok := expr.(*ast.Identifier); ok {
-		if _, declared := a.symbols.Resolve(id.Value); !declared && a.isBuiltinFunction(id.Value) {
+		// Specials reach normal name analysis before any ordinary bare-call rewrite;
+		// shadowed routines still need the implicit-value conversion below.
+		if _, declared := a.symbols.Resolve(id.Value); !declared && specialFunctionName(id.Value) == "" && a.isBuiltinFunction(id.Value) {
 			call := &ast.CallExpression{BaseNode: id.BaseNode, Function: id}
 			if result, handled := a.analyzeBuiltinFunction(id.Value, nil, call); handled {
 				return result

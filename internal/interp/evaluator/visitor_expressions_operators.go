@@ -189,6 +189,9 @@ func (e *Evaluator) VisitAddressOfExpression(node *ast.AddressOfExpression, ctx 
 		funcNameLower := ident.Normalize(operand.Value)
 		overloads := e.FunctionRegistry().Lookup(funcNameLower)
 		if len(overloads) == 0 {
+			if pointer, found := e.addressOfImplicitSelfMember(node, operand, ctx); found {
+				return pointer
+			}
 			if _, classMeta, ok := currentClassMetaValue(ctx); ok {
 				if pointer, found := e.bindClassMethodPointer(classMeta, operand.Value, classMeta, ctx); found {
 					return pointer
@@ -243,7 +246,37 @@ func (e *Evaluator) addressOfMember(node *ast.AddressOfExpression, operand *ast.
 	if isError(objectVal) {
 		return objectVal
 	}
-	methodName := operand.Member.Value
+	return e.addressOfReceiverMember(node, objectVal, operand.Member.Value, ctx)
+}
+
+// addressOfImplicitSelfMember resolves `@Name` against the object Self inside
+// a method body, ahead of builtins of the same name. A method binds to Self, and
+// a field or property already holding a routine pointer is the identity.
+func (e *Evaluator) addressOfImplicitSelfMember(node *ast.AddressOfExpression, operand *ast.Identifier, ctx *ExecutionContext) (Value, bool) {
+	selfRaw, ok := ctx.Env().Get("Self")
+	if !ok {
+		return nil, false
+	}
+	self, ok := selfRaw.(ObjectValue)
+	if !ok {
+		return nil, false
+	}
+	name := operand.Value
+	if self.HasMethod(name) || self.GetClassMethodDecl(name) != nil {
+		return e.addressOfReceiverMember(node, self, name, ctx), true
+	}
+	if self.GetField(name) == nil && !self.HasProperty(name) {
+		return nil, false
+	}
+	switch value := unwrapVariant(e.Eval(operand, ctx)).(type) {
+	case *runtime.FunctionPointerValue, *runtime.NilValue:
+		return value, true
+	}
+	return nil, false
+}
+
+// addressOfReceiverMember binds methodName on an evaluated receiver.
+func (e *Evaluator) addressOfReceiverMember(node *ast.AddressOfExpression, objectVal Value, methodName string, ctx *ExecutionContext) Value {
 
 	bindDecl := func(methodDecl *runtime.MethodMetadata) Value {
 		return e.createFunctionPointerFromDecl(methodDecl, objectVal, ctx)

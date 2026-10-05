@@ -215,11 +215,23 @@ calls such as `F(;` retain `Expression expected`. An initializer interrupted aft
 its opening parenthesis retains the parser's own stop. Retained scalar initializer
 fragments do not acquire additional declaration checks.
 
-Bare builtin `Low` and `High` require `(`. A casing hint precedes the punctuation
-error, whose anchor is the next token after whitespace/comments, or the last real
-token at EOF. Lexical values and routines, implicit members, and parenthesized
-calls retain their existing resolution. At a semantic compiler stop, later parser
-punctuation checks at that token are suppressed.
+Unqualified special functions require `(`: `Assert`, `Assigned`, `High`,
+`Length`, `Low`, `Ord`, `SizeOf`, `Defined`, `Declared`, `Inc`, `Dec`, `Succ`,
+`Pred`, `Include`, `Exclude`, `Swap`, and `ConditionalDefined`. A casing hint
+precedes the punctuation stop, anchored at the next token after comments or
+whitespace, or at the last real token at EOF. This applies in value, statement,
+callback, grouped-callee, range-bound, and unresolved assignment-target contexts.
+Existing lexical values/routines and implicit members keep their lookup priority;
+qualified user members and explicit calls retain their existing resolution.
+Later parser punctuation at the semantic stop is suppressed.
+
+Taking the address of an unshadowed bare special name reads that child's opening
+parenthesis first. `@Length` stops with `"(" expected` before creating a callback
+or reporting a result-level address error. Grouped/indexed operands preserve this
+reading and stop before reading indices. A scalar expected type can emit
+`unexpected "@"` before the child is read, as upstream does. Bare `Default`
+follows ordinary name lookup without an intrinsic casing hint; its parenthesized
+intrinsic and namespace forms retain their existing behavior.
 
 Taking the address of a bare scalar type reports its missing `(` first, followed
 by `unexpected "@"` at the address operator. Scalar variables report the latter
@@ -239,7 +251,8 @@ create a callback. Constant recovery substitutes null and keeps the declared nam
 available to later checks, including through unary/binary constant operators.
 Nested malformed-call casing hints remain gated by Phase 2.4's stopped-call AST
 recovery; reserved declaration-name validation remains in Phase 3. Other
-special-function forms and reintroduced properties remain open in Phase 2.1.
+qualified namespace forms, Default resolution, and reintroduced properties
+remain open in Phase 2.1; completed-call address recovery remains in Phase 2.2.
 
 ### Class, record and helper member headers
 
