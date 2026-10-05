@@ -146,9 +146,10 @@ same PR; retain checked siblings until the subphase closes. Detailed evidence:
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
 **Current user-selected track:** 2.1's type-directed punctuation, after the record-constant,
-bare Low/High/address-of, and `DebugBreak` punctuation/execution batches. Next: measure
-the remaining special-function names and qualified/address-of forms. Reintroduced properties
-remain open below; nested stopped-call intrinsic hints need 2.4's truncation model.
+bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batches.
+Next: measure actual qualified namespace availability and Default namespace binding.
+Default type/alias checks are recorded in 4.2. Reintroduced properties remain open below;
+nested stopped-call intrinsic hints need 2.4's truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
 overlapping 1.8 sweeps.
@@ -319,8 +320,19 @@ punctuation in the parser before reading arguments.
     preserve lexical/member shadows and lookahead positions through comments/newlines/EOF.
   - [x] Match `at_integer` ([#463](https://github.com/CWBudde/go-dws/pull/463)): report the type's missing `(` before `unexpected "@"`;
     reject scalar-variable addresses while preserving valid routine references.
-  - [ ] Measure the other special-function names and qualified/address-of forms;
-    distinguish required parentheses from ordinary callable references and Default's fallback.
+  - [x] Measure the 17 required-parentheses names, Default's ordinary-name fallback,
+    and qualified member/unit lookup separately from unqualified specials (this batch).
+  - [x] Require `(` for the remaining bare special names in value/statement/callback,
+    grouped-callee, range-bound and unresolved assignment-target contexts; retain
+    casing hints, scanner anchors, ordinary references and lexical/member shadows
+    (this batch).
+  - [x] Read bare/grouped/indexed special address operands before pointer capture or
+    index analysis; preserve child stops and scalar-context pre-child address errors
+    (this batch).
+  - [ ] Establish actual qualified namespace symbol availability and callable forms;
+    the special pseudo-symbol table alone does not prove `Default.Low` exists upstream.
+  - [ ] Match qualified Default namespace binding through compilation and execution;
+    a global Low shadow currently changes execution of `Default.Low(Integer)`.
 - [ ] Magic functions (`debugbreak`).
   - [x] Accept bare/empty-parentheses DebugBreak and stop at the first non-`)` token,
     before reading arguments (`debugbreak`); preserve direct-call casing hints and
@@ -465,6 +477,10 @@ single-fixture work; the per-suite list is in
   `enum_byname` also wants `String expected`.
 - [ ] `lazy_func_ptr`: `Lazy parameter cannot be a function pointer`.
 - [ ] `contracts_error2`: builtins must resolve inside a `require` clause.
+- [ ] Measure parenthesized `SizeOf` forms and supply the missing call support;
+  `SizeOf(Integer)` currently reports unknown name, while bare punctuation is closed in 2.1.
+- [ ] Validate Default type/alias, case-insensitive type-name, and value-argument forms;
+  aliases/lowercase types currently fail, and `Default(I)` returns nil for an Integer value.
 
 ### 4.3 HelpersFail — S
 
@@ -520,6 +536,8 @@ elsewhere). All previously triaged groups are closed; what remains is untriaged.
   - [ ] Allow direct calls through function-pointer record class variables and
     properties (`R.Stored()` / `R.Factory()`); capturing the pointer into a
     compatible variable already works.
+  - [ ] Preserve record member shadows of builtin names during bare-body execution;
+    `Ord` inside another record method compiles but invokes the ordinary builtin.
 
 ### 5.3 Expected-type overload resolution — M
 

@@ -245,6 +245,10 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			}
 		}
 
+		if a.stopBareSpecialFunction(identifier) {
+			return nil
+		}
+
 		// A strictly parameterless builtin used as a bare identifier is an
 		// implicit call, so it carries the function's result type. Checked from
 		// the registry rather than the isBuiltinFunction list below, which does
@@ -260,10 +264,6 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			// Emit casing hint for built-ins when pedantic hints are enabled
 			if declName := a.builtinDeclarationName(identifier.Value); declName != "" && declName != identifier.Value {
 				a.addIdentifierCaseHint(identifier, declName)
-			}
-			if ident.Equal(identifier.Value, "Low") || ident.Equal(identifier.Value, "High") {
-				a.addPunctuationStop(identifierLookaheadPos(identifier), `"(" expected`)
-				return nil
 			}
 			// Check if builtin can be used as a function reference (for Map, Filter, etc.)
 			if funcPtrType := a.getBuiltinFunctionPointerType(identifier.Value); funcPtrType != nil {

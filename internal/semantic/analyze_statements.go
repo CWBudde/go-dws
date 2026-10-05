@@ -495,6 +495,9 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 		if !ok {
+			if !a.specialFunctionHasShadow(target.Value) && a.stopBareSpecialFunction(target) {
+				return
+			}
 			a.addStructuredError(NewUndefinedVariable(stmt.Token.Pos, target.Value))
 			return
 		}

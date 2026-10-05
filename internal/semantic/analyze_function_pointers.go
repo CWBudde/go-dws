@@ -110,6 +110,11 @@ func (a *Analyzer) analyzeAddressOfExpression(expr *ast.AddressOfExpression) typ
 		return nil
 	}
 
+	// Read a special child before attempting to expose it as a routine pointer.
+	if a.stopSpecialFunctionAddress(expr.Operator) {
+		return nil
+	}
+
 	// The operator should be an identifier or member access expression
 	switch target := expr.Operator.(type) {
 	case *ast.DebugBreakExpression:
