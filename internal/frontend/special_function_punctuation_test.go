@@ -90,6 +90,9 @@ func TestCompile_SpecialFunctionPunctuationRecovery(t *testing.T) {
 		{"address stop suppresses later errors", "var X := @Low;\nUnknown;", `Syntax Error: "(" expected [line: 1, column: 14]`},
 		{"earlier error retained", "var I: Integer; I := 'x';\nvar X := Length;", "Syntax Error: Incompatible types: Cannot assign \"String\" to \"Integer\" [line: 1, column: 22]\nSyntax Error: \"(\" expected [line: 2, column: 16]"},
 		{"Default has no intrinsic hint or parenthesis requirement", "var X := default;", `Syntax Error: Unknown name "default" [line: 1, column: 10]`},
+		{"instance method address from class method", "type T = class function Length: Integer; begin Result := 7; end; class procedure Test; begin var P := @Length; end; end;", `Syntax Error: Class method or constructor expected [line: 1, column: 104]`},
+		{"field address from class method", "type T = class High: Integer; class procedure Test; begin var P := @High; end; end;", `Syntax Error: Object reference needed to read/write an object field [line: 1, column: 69]`},
+		{"class constant address", "type T = class const Length = 3; class procedure Test; begin var P := @Length; end; end;", `Syntax Error: unexpected "@" [line: 1, column: 71]`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -113,6 +116,7 @@ func TestCompile_SpecialFunctionPunctuationControls(t *testing.T) {
 		"type T = class function Length: Integer; begin Result := 7; end; function Test: Integer; begin Result := Length; end; end; var O := T.Create; PrintLn(O.Test());",
 		"type H = helper for Integer function Succ: Integer; begin Result := Self+1; end; function Test: Integer; begin Result := Succ; end; end; PrintLn(7.Test());",
 		"type T = class function Length: Integer; begin Result := 7; end; procedure Test; begin var P := @Length; end; end;",
+		"type F = function: Integer of object; type T = class function Length: Integer; begin Result := 7; end; procedure Test; begin var P: F := @Length; end; end;",
 		"type F = function(X: Integer): Integer; function Length(X: Integer): Integer; begin Result := X+1; end; var P: F := @Length; PrintLn(P(7));",
 		"var P := @Abs; PrintLn(P(-3)); var F := IntToStr; PrintLn(F(4));",
 		"function Default: Integer; begin Result := 7; end; PrintLn(Default);",

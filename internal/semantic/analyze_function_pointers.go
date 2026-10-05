@@ -125,6 +125,11 @@ func (a *Analyzer) analyzeAddressOfExpression(expr *ast.AddressOfExpression) typ
 		a.addUnexpectedAddressOf(expr.Token.Pos)
 		return nil
 	case *ast.Identifier:
+		// A member of the implicit Self shadows routines of the same name,
+		// including builtins such as Length.
+		if ptr, handled := a.analyzeAddressOfImplicitMember(target, expr); handled {
+			return ptr
+		}
 		// Simple function/procedure reference: @FunctionName
 		if sym, ok := a.symbols.Resolve(target.Value); ok {
 			a.addIdentifierCaseHint(target, sym.Name)
@@ -204,13 +209,67 @@ func (a *Analyzer) analyzeAddressOfMethod(target *ast.MemberAccessExpression, ex
 		return nil
 	}
 
+	return a.bindMethodAddress(classType, method, target.Member, expr)
+}
+
+// analyzeAddressOfImplicitMember resolves `@Name` against the members of the
+// implicit Self inside a class method body. handled is false when Name is not
+// such a member, leaving it to routine and builtin lookup.
+func (a *Analyzer) analyzeAddressOfImplicitMember(target *ast.Identifier, expr *ast.AddressOfExpression) (types.Type, bool) {
+	classType := a.currentClass
+	if classType == nil {
+		return nil, false
+	}
+	if _, found := a.symbols.Resolve(target.Value); found {
+		return nil, false
+	}
+
+	if method := a.firstBindableMethodOverload(target.Value, classType, false); method != nil {
+		if a.inClassMethod && !method.IsClassMethod {
+			a.addStructuredError(NewClassMethodOrConstructorExpectedError(target.Token.Pos))
+			return nil, true
+		}
+		a.addIdentifierCaseHint(target, a.declaredMethodName(classType, target.Value))
+		return a.bindMethodAddress(classType, method, target, expr), true
+	}
+
+	if !a.specialFunctionHasShadow(target.Value) || a.currentImplicitSelfType() != types.Type(classType) {
+		return nil, false
+	}
+	// A member that is not a symbol here (class constants, or fields and
+	// properties seen from a class method): reading it reports the member's own
+	// diagnostics, and a value that already is a routine pointer is the identity.
+	memberType := a.analyzeIdentifier(target)
+	if memberType == nil {
+		return nil, true
+	}
+	if funcPtrType, ok := types.GetUnderlyingType(memberType).(*types.FunctionPointerType); ok {
+		return funcPtrType, true
+	}
+	if methodPtrType, ok := types.GetUnderlyingType(memberType).(*types.MethodPointerType); ok {
+		return methodPtrType, true
+	}
+	a.addUnexpectedAddressOf(expr.Token.Pos)
+	return nil, true
+}
+
+// bindMethodAddress produces the method pointer for a resolved method of
+// classType, named by member.
+func (a *Analyzer) bindMethodAddress(
+	classType *types.ClassType,
+	method *types.MethodInfo,
+	member *ast.Identifier,
+	expr *ast.AddressOfExpression,
+) types.Type {
+	methodName := member.Value
+
 	// Taking a method's address is a member access and obeys the same visibility
 	// rules: @obj.PrivateMethod must be rejected wherever obj.PrivateMethod() is.
 	methodOwner := a.getMethodOwner(classType, methodName)
 	if methodOwner != nil {
 		visibility, hasVisibility := methodOwner.MethodVisibility[ident.Normalize(methodName)]
 		if hasVisibility && !a.checkVisibility(methodOwner, visibility, methodName, "method") {
-			a.addStructuredError(NewVisibilityScopeError(target.Member.Token.Pos, target.Member.Value))
+			a.addStructuredError(NewVisibilityScopeError(member.Token.Pos, member.Value))
 			return nil
 		}
 	}

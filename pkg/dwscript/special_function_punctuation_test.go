@@ -16,6 +16,8 @@ func TestSpecialFunctionPunctuation_ExecutionControls(t *testing.T) {
 		{"parameter", "procedure P(Ord: Integer); begin PrintLn(Ord); end; P(5);", "5\n"},
 		{"shadowed routine address", "type F = function(X: Integer): Integer; function Length(X: Integer): Integer; begin Result := X+1; end; var P: F := @Length; PrintLn(P(7));", "8\n"},
 		{"implicit class member", "type T = class function Length: Integer; begin Result := 7; end; function Test: Integer; begin Result := Length; end; end; var O := T.Create; PrintLn(O.Test()); PrintLn(O.Length());", "7\n7\n"},
+		{"implicit method address", "type F = function: Integer of object; type T = class function Length: Integer; begin Result := 7; end; function Test: Integer; begin var P: F := @Length; var Q := @Length; Result := P() + Q(); end; end; PrintLn(T.Create.Test());", "14\n"},
+		{"implicit class method address", "type T = class class function Ord: Integer; begin Result := 5; end; class function Test: Integer; begin var P := @Ord; Result := P(); end; end; PrintLn(T.Test());", "5\n"},
 		{"qualified method address", "type F = function(X: Integer): Integer of object; type T = class function Length(X: Integer): Integer; begin Result := X+1; end; end; var O := T.Create; var P: F := @O.Length; PrintLn(P(7));", "8\n"},
 		{"helper body", "type H = helper for Integer function Succ: Integer; begin Result := Self+1; end; function Test: Integer; begin Result := Succ; end; end; PrintLn(7.Test());", "8\n"},
 		{"ordinary references", "var P := @Abs; PrintLn(P(-3)); var F := IntToStr; PrintLn(F(4));", "3\n4\n"},
