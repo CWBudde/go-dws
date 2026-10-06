@@ -352,12 +352,13 @@ punctuation in the parser before reading arguments.
     read explicit scalar class properties through `()` with a normal-level compatibility
     hint and pedantic declaration-case hint. Checked execution preserves getter and receiver
     side effects, aliases/implicit routine receivers, inherited descriptors, class properties,
-    helper precedence, descendant method shadows, and source-printer round trips.
+    helper precedence, descendant method shadows, and source-printer round trips
+    ([#467](https://github.com/CWBudde/go-dws/pull/467)).
   - [x] Recover at `;` after the opening `(` with `")" expected` while retaining the
     initializer's property type and later semantic diagnostics (`property_reintroduce2`).
     Stop ordinary scalar property calls at `(` with `Not a method` (`property_reintroduce1`);
     preserve ordinary method/helper/namespace punctuation, parser-only errors and nested-call
-    stop anchors, and skip incomplete argument checks.
+    stop anchors, and skip incomplete argument checks ([#467](https://github.com/CWBudde/go-dws/pull/467)).
   - [ ] Preserve upstream token consumption and recovery for nonempty compatibility brackets,
     EOF/end boundaries, lexer-directive reach after recovery and discarded enclosing calls; coordinate with 2.4's full truncation carrier.
   - [ ] Extend compatibility brackets to unqualified/explicit inherited reads, indexed/default

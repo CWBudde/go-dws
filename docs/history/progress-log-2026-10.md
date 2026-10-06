@@ -2,7 +2,8 @@
 
 ## 2026-10-06 — Explicit reintroduced-property reads (PLAN 2.1)
 
-This batch accepts `reintroduce` before a class-property declaration's semicolon
+This batch ([#467](https://github.com/CWBudde/go-dws/pull/467)) accepts `reintroduce` before
+a class-property declaration's semicolon
 and supports explicit scalar empty-bracket reads. It closes two new subtasks
 under the still-open Phase 2.1 property item. Missing `)` at a semicolon reports
 a recoverable error rather than a compiler stop; the inferred variable keeps
