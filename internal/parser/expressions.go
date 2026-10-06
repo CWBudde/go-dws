@@ -307,6 +307,7 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 // PRE: cursor is before the list (at opening delimiter)
 // POST: cursor is at terminator (RPAREN)
 func (p *Parser) parseExpressionList() []ast.Expression {
+	errorStart := len(p.errors)
 	list := []ast.Expression{}
 
 	// Check for empty list
@@ -323,6 +324,10 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 	expr := p.parseExpression(LOWEST)
 	if expr != nil {
 		list = append(list, expr)
+	}
+
+	if p.confirmDeferredCallStops(errorStart) {
+		return list
 	}
 
 	// Parse remaining expressions (separated by commas)
@@ -356,6 +361,9 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 			if expr != nil {
 				list = append(list, expr)
 			}
+			if p.confirmDeferredCallStops(errorStart) {
+				return list
+			}
 			continue
 		}
 
@@ -383,6 +391,9 @@ func (p *Parser) parseExpressionList() []ast.Expression {
 			expr = p.parseExpression(LOWEST)
 			if expr != nil {
 				list = append(list, expr)
+			}
+			if p.confirmDeferredCallStops(errorStart) {
+				return list
 			}
 			continue
 		}

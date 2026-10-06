@@ -8,8 +8,16 @@ import (
 
 // analyzeMethodCallExpression analyzes a method call on an object
 func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) types.Type {
+	if expr.Incomplete {
+		if name, ok := expr.Object.(*ast.Identifier); ok && !a.specialFunctionHasShadow(name.Value) {
+			return a.analyzeIncompleteMemberCall(expr)
+		}
+	}
 	if name, ok := expr.Object.(*ast.Identifier); ok {
 		if _, imported := a.importedUnitNamespace(name.Value); imported {
+			if expr.Incomplete {
+				return a.analyzeIncompleteMemberCall(expr)
+			}
 			return a.analyzeCallExpression(&ast.CallExpression{
 				BaseNode:  expr.BaseNode,
 				Function:  &ast.MemberAccessExpression{BaseNode: expr.BaseNode, Object: expr.Object, Member: expr.Method},
@@ -20,9 +28,15 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// JSON namespace method call: JSON.Parse(s), JSON.Stringify(x). Recognized
 	// before `JSON` is analyzed as an ordinary (undefined) identifier.
 	if a.isJSONNamespace(expr.Object) {
+		if expr.Incomplete {
+			return a.analyzeIncompleteMemberCall(expr)
+		}
 		return a.analyzeJSONNamespaceResult(expr.Method.Value, expr.Arguments)
 	}
 	if a.isDefaultNamespace(expr.Object) {
+		if expr.Incomplete {
+			return a.analyzeIncompleteMemberCall(expr)
+		}
 		builtinCall := &ast.CallExpression{
 			BaseNode:  ast.BaseNode{Token: expr.Token},
 			Function:  expr.Method,
@@ -50,6 +64,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	// Analyze the object expression
 	objectType := a.analyzeExpression(expr.Object)
 	if helper, ok := objectType.(*types.HelperType); ok {
+		if expr.Incomplete {
+			return a.analyzeIncompleteMemberCall(expr)
+		}
 		if result, handled := a.analyzeExplicitHelperCall(helper, expr.Method, expr.Arguments); handled {
 			return result
 		}
@@ -68,6 +85,28 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			return nil
 		}
 		objectType = a.applyImplicitCallType(expr.Object, nil)
+	}
+
+	// Probe ordinary implicit receivers and aliases before classifying property
+	// punctuation. The equivalent member read records any implicit invocation.
+	propertyReceiver := a.implicitCallTypePreview(expr.Object, objectType)
+	if propertyReceiver == nil {
+		propertyReceiver = objectType
+	}
+	var propertyClass *types.ClassType
+	if class, ok := types.GetUnderlyingType(propertyReceiver).(*types.ClassType); ok {
+		propertyClass = class
+	}
+	if meta, ok := types.GetUnderlyingType(propertyReceiver).(*types.ClassOfType); ok {
+		propertyClass = meta.ClassType
+	}
+	if propertyClass != nil && a.hasHelperMethod(propertyReceiver, expr.Method.Value) == nil {
+		if result, handled := a.analyzePropertyCompatibilityRead(expr, propertyClass); handled {
+			return result
+		}
+	}
+	if expr.Incomplete {
+		return a.analyzeIncompleteMemberCall(expr)
 	}
 
 	// Method call on a JSONVariant receiver: v.TypeName(), v.Add(x), ...

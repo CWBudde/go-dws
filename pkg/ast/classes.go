@@ -395,9 +395,14 @@ func (ma *MemberAccessExpression) String() string {
 //	obj.MethodName(arg1, arg2)
 //	obj.MethodName()
 type MethodCallExpression struct {
-	Object    Expression
-	Method    *Identifier
-	Arguments []Expression
+	// ParenPos and FirstArgumentToken retain punctuation before type resolution.
+	ParenPos           token.Position
+	FirstArgumentToken token.Token
+	// Incomplete retains a call cut short while reading its arguments.
+	Incomplete bool
+	Object     Expression
+	Method     *Identifier
+	Arguments  []Expression
 	BaseNode
 }
 

@@ -61,6 +61,8 @@ type PropertyDecl struct {
 	// subclass, which promotes an inherited property (inheriting its type and
 	// accessors) under the subclass's current visibility.
 	IsPromotion bool
+	// IsReintroduce accepts a legacy empty () pair immediately after this property.
+	IsReintroduce bool
 }
 
 func (pd *PropertyDecl) statementNode() {}
@@ -115,6 +117,9 @@ func (pd *PropertyDecl) String() string {
 		out.WriteString(")")
 	}
 
+	if pd.IsReintroduce {
+		out.WriteString(" reintroduce")
+	}
 	out.WriteString(";")
 
 	// Default keyword

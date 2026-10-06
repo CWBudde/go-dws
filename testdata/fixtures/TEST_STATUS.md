@@ -3,7 +3,7 @@
 > **Generated file — do not edit by hand.**
 > Regenerate with `just fixture-update` (`FIXTURE_UPDATE_BASELINE=1 go test ./internal/interp -run TestDWScriptFixtures`).
 
-**Generated**: 2026-10-04
+**Generated**: 2026-10-06
 
 ## Overall
 
@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2041 |
-| Passed | 1419 |
-| Failed | 595 |
+| Passed | 1421 |
+| Failed | 593 |
 | Skipped (no applicable expectation) | 27 |
-| **Scored pass rate** | **70%** (1419/2014) |
+| **Scored pass rate** | **71%** (1421/2014) |
 
 ## Per-category
 
@@ -30,7 +30,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
 | AutoFormat | 10 | 0 | 0 | 10 | 0% |
 | BigInteger | 16 | 0 | 16 | 0 | 0% |
-| BuildScripts | 51 | 8 | 41 | 2 | 16% |
+| BuildScripts | 51 | 7 | 42 | 2 | 14% |
 | COMConnector | 19 | 0 | 19 | 0 | 0% |
 | COMConnectorFailure | 8 | 0 | 8 | 0 | 0% |
 | ClassesLib | 12 | 0 | 12 | 0 | 0% |
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 317 | 212 | 13 | 60% |
+| FailureScripts | 542 | 319 | 210 | 13 | 60% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |
@@ -79,7 +79,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | PropertyExpressionsPass | 19 | 19 | 0 | 0 | 100% |
 | SetOfFail | 14 | 14 | 0 | 0 | 100% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 397 | 46 | 0 | 90% |
+| SimpleScripts | 443 | 398 | 45 | 0 | 90% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

@@ -168,6 +168,7 @@ func (p *Parser) buildCallExpressionFromFields(typeName *ast.Identifier, items [
 // PRE: cursor is on LPAREN
 // POST: cursor is on end token
 func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitializer, bool) {
+	errorStart := len(p.errors)
 	var items []*ast.FieldInitializer
 	allHaveColons := true
 
@@ -184,6 +185,9 @@ func (p *Parser) parseArgumentsOrFields(end lexer.TokenType) ([]*ast.FieldInitia
 	for {
 		// Parse either a field initializer (name: value) or plain expression
 		item, hasColon := p.parseSingleArgumentOrField()
+		if p.confirmDeferredCallStops(errorStart) {
+			return items, false
+		}
 		if item == nil {
 			return items, false
 		}

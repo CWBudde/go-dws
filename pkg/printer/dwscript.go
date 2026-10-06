@@ -936,6 +936,11 @@ func (p *Printer) printPropertyDecl(pd *ast.PropertyDecl) {
 		p.printDWScript(pd.WriteSpec)
 	}
 
+	if pd.IsReintroduce {
+		p.space()
+		p.write("reintroduce")
+	}
+
 	if pd.IsDefault {
 		p.write(";")
 		p.space()

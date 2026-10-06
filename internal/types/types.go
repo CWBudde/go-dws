@@ -447,6 +447,8 @@ type PropertyInfo struct {
 	IsDeprecated    bool
 	IsDefault       bool
 	IsClassProperty bool
+	// IsReintroduce allows legacy empty brackets before reading this property.
+	IsReintroduce bool
 }
 
 // MethodInfo stores metadata about a single method or overload

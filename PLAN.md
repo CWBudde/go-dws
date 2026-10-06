@@ -147,9 +147,11 @@ same PR; retain checked siblings until the subphase closes. Detailed evidence:
 
 **Current user-selected track:** 2.1's type-directed punctuation, after the record-constant,
 bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batches.
-Next: measure actual qualified namespace availability and Default namespace binding.
-Default type/alias checks are recorded in 4.2. Reintroduced properties remain open below;
-nested stopped-call intrinsic hints need 2.4's truncation model.
+Default namespace availability/binding is implemented in pending [#466](https://github.com/CWBudde/go-dws/pull/466).
+This batch closes explicit scalar reintroduced-property empty reads and statement-boundary
+recovery below. Next: reintroduced-property nonempty/discarded-parent recovery and remaining
+access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
+need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
 overlapping 1.8 sweeps.
@@ -345,7 +347,25 @@ punctuation in the parser before reading arguments.
     ([#464](https://github.com/CWBudde/go-dws/pull/464)).
   - [ ] Preserve intrinsic casing hints inside discarded stopped parent calls
     (`PrintLn(debugbreak(;`); requires 2.4's per-call truncation carrier.
-- [ ] Reintroduced properties (`property_reintroduce2`).
+- [ ] Reintroduced properties.
+  - [x] Accept the declaration marker before `;` without requiring an ancestor method;
+    read explicit scalar class properties through `()` with a normal-level compatibility
+    hint and pedantic declaration-case hint. Checked execution preserves getter and receiver
+    side effects, aliases/implicit routine receivers, inherited descriptors, class properties,
+    helper precedence, descendant method shadows, and source-printer round trips.
+  - [x] Recover at `;` after the opening `(` with `")" expected` while retaining the
+    initializer's property type and later semantic diagnostics (`property_reintroduce2`).
+    Stop ordinary scalar property calls at `(` with `Not a method` (`property_reintroduce1`);
+    preserve ordinary method/helper/namespace punctuation, parser-only errors and nested-call
+    stop anchors, and skip incomplete argument checks.
+  - [ ] Preserve upstream token consumption and recovery for nonempty compatibility brackets,
+    EOF/end boundaries, lexer-directive reach after recovery and discarded enclosing calls; coordinate with 2.4's full truncation carrier.
+  - [ ] Extend compatibility brackets to unqualified/explicit inherited reads, indexed/default
+    properties, writes, function-valued properties, and unchecked execution. Measure visibility
+    promotions/generic specializations separately: upstream does not copy the flag there.
+  - [ ] Align private-property access validation and ordinary static/write-only property-call
+    diagnostic ordering with upstream. The private-access gap predates this batch; derive
+    the invalid-call sequence before changing scalar postfix checks.
 
 ### 2.2 Parser gaps — S each
 
@@ -391,6 +411,8 @@ assignment recovery and implicit-call intent without invoking a returned callabl
 - [ ] S Per-call truncation marker: `missing_parenthesis1` wants `Invalid Operands` from inside a
   call whose argument list hit a stop. Such calls are currently dropped, which is what makes
   `array_index_bracket_missing1` and `constructor_invalid_param` pass — the marker must keep both.
+  Explicit method calls now retain opening/first-token metadata and incomplete fragments for
+  scalar property resolution; the broader nested/ordinary call recovery remains open.
 - [ ] S Analyzer stops (`"(" expected`) must suppress later diagnostics the way parser stops do.
 - [ ] S End-of-compilation hints positioned before a parser stop are still reported; drop them.
 - [ ] S The analyzer's compile stop is one flag (unknown name in an expression) that skips the

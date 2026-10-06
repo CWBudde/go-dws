@@ -618,6 +618,7 @@ func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl
 		IsIndexed:       len(propDecl.IndexParams) > 0,
 		IsDefault:       propDecl.IsDefault,
 		IsClassProperty: propDecl.IsClassProperty,
+		IsReintroduce:   propDecl.IsReintroduce,
 		ExternalName:    propDecl.ExternalName,
 		IndexParamNames: indexParamNames(propDecl.IndexParams),
 	}
