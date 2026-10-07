@@ -45,3 +45,19 @@ func TestCompile_StaticReintroducedProperty(t *testing.T) {
 		t.Fatalf("got %q; want %q", got, want)
 	}
 }
+
+// A descendant class constant hides an ancestor's reintroduced property, so the
+// empty pair must not be consumed as a compatibility read of the property.
+func TestCompile_ReintroducedPropertyShadowedByConstant(t *testing.T) {
+	for _, constName := range []string{"Prop", "pRoP"} {
+		t.Run(constName, func(t *testing.T) {
+			source := "type TBase = class Field: Integer; property Prop: Integer read Field reintroduce; end;\n" +
+				"type TChild = class(TBase)\n const " + constName + " = 5;\n function Read: Integer; begin Result := Prop(); end;\nend;"
+			result := CompileWithOptions(source, Options{Filename: "<test>", HintsLevel: semantic.HintsLevelNormal, DisableSymbolDictionaryDiagnostics: true})
+			got := strings.Join(result.DiagnosticStrings(), "\n")
+			if strings.Contains(got, "reintroduced a method") || !strings.Contains(got, "Error") {
+				t.Fatalf("constant must shadow the ancestor property; got %q", got)
+			}
+		})
+	}
+}

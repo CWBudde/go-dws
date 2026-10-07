@@ -7,7 +7,8 @@ import (
 	"github.com/cwbudde/go-dws/pkg/token"
 )
 
-// propertyForCompatibilityCall respects a descendant's ordinary member shadow.
+// propertyForCompatibilityCall respects a descendant's ordinary member shadow,
+// including class constants (keyed by declared spelling, hence ident.Equal).
 func propertyForCompatibilityCall(class *types.ClassType, name string) *types.PropertyInfo {
 	key := ident.Normalize(name)
 	for current := class; current != nil; current = current.Parent {
@@ -24,6 +25,11 @@ func propertyForCompatibilityCall(class *types.ClassType, name string) *types.Pr
 		}
 		if _, exists := current.ClassVars[key]; exists {
 			return nil
+		}
+		for constName := range current.Constants {
+			if ident.Equal(constName, name) {
+				return nil
+			}
 		}
 	}
 	return nil

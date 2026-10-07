@@ -59,6 +59,12 @@ was retained and the fresh fixture gate passed. All other floors remain unchange
 is no stable fixture-count gain claimed for this API acceptance batch. Test/build temporary
 files use `/var/tmp` to avoid the existing tmpfs quota and repository-filesystem cleanup issues.
 
+Review follow-up: a descendant class constant now hides an ancestor's reintroduced
+property like fields, class variables and methods do, so `Prop()` is no longer bound to
+the ancestor property (frontend regression test, own spelling and case variant). The
+diagnostic for calling a class constant itself (`Unknown name` here, `Not a method` at
+the parenthesis upstream via `ReadSymbol`) is a pre-existing divergence left open.
+
 ## 2026-10-06 — Explicit reintroduced-property reads (PLAN 2.1)
 
 This batch ([#467](https://github.com/CWBudde/go-dws/pull/467)) accepts `reintroduce` before
