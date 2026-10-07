@@ -387,6 +387,12 @@ func hasVarOrLazyParams(decl *ast.FunctionDecl) bool {
 //
 // See comprehensive documentation in visitor_expressions.go for full details.
 func (e *Evaluator) VisitInheritedExpression(node *ast.InheritedExpression, ctx *ExecutionContext) Value {
+	if info := e.SemanticInfo(); info != nil {
+		if read := info.InheritedPropertyRead(node); read != nil {
+			return e.evalInheritedPropertyRead(read, ctx)
+		}
+	}
+
 	// Get Self from environment - must be in a method context
 	selfVal, exists := ctx.Env().Get("Self")
 	if !exists {

@@ -1,0 +1,12 @@
+type TBase = class
+ function Get: Integer; virtual; begin Result := 11; end;
+ property Prop: Integer read Get reintroduce;
+end;
+type TMid = class(TBase)
+ function Get: Integer; override; begin Result := 22; end;
+end;
+type TChild = class(TMid)
+ function Get: Integer; reintroduce; virtual; begin Result := 33; end;
+ function Probe: Integer; begin Result := inherited Prop + inherited Prop(); end;
+end;
+var Obj := new TChild; PrintLn(Obj.Probe());

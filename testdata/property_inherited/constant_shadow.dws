@@ -1,0 +1,9 @@
+type TBase = class
+ const Value = 11;
+ property Prop: Integer read Value reintroduce;
+end;
+type TChild = class(TBase)
+ const Value = 22;
+ function Probe: Integer; begin Result := inherited Prop + inherited Prop(); end;
+end;
+var Obj := new TChild; PrintLn(Obj.Probe());

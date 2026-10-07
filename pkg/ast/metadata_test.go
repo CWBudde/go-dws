@@ -396,3 +396,23 @@ func TestSemanticInfo_ResolvedTypeLifetime(t *testing.T) {
 		t.Fatal("Clear retained an annotation type")
 	}
 }
+
+// Binding one implicit-Self expression kind must not erase another kind, even
+// when a caller uses a zero-value SemanticInfo before clearing/reusing it.
+func TestSemanticInfo_PropertyBindingsIndependent(t *testing.T) {
+	for _, info := range []*SemanticInfo{{}, NewSemanticInfo()} {
+		inherited := &InheritedExpression{}
+		call := &CallExpression{}
+		binding := &ImplicitPropertyReadBinding{Owner: "TBase"}
+		inheritedBinding := &InheritedPropertyReadBinding{Owner: "TBase"}
+		info.SetInheritedPropertyRead(inherited, inheritedBinding)
+		info.SetImplicitPropertyRead(call, binding)
+		if info.InheritedPropertyRead(inherited) != inheritedBinding || info.ImplicitPropertyRead(call) != binding {
+			t.Fatal("binding one expression kind erased another")
+		}
+		info.Clear()
+		if info.InheritedPropertyRead(inherited) != nil || info.ImplicitPropertyRead(call) != nil {
+			t.Fatal("Clear retained a property binding")
+		}
+	}
+}

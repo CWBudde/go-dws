@@ -82,27 +82,29 @@ type EnumElementBinding struct {
 // writes. Typical usage is single-threaded analysis (writes) followed by
 // concurrent interpretation/compilation (reads).
 type SemanticInfo struct {
-	enumElements          map[Expression]EnumElementBinding
-	resolvedTypes         map[Node]types.Type
-	types                 map[Expression]*TypeAnnotation
-	foldedPredicates      map[*Identifier]bool
-	propertyReads         map[*MethodCallExpression]*MemberAccessExpression
-	implicitPropertyReads map[*CallExpression]*ImplicitPropertyReadBinding
-	implicitCalls         map[Expression]bool
-	mu                    sync.RWMutex
+	enumElements           map[Expression]EnumElementBinding
+	resolvedTypes          map[Node]types.Type
+	types                  map[Expression]*TypeAnnotation
+	foldedPredicates       map[*Identifier]bool
+	propertyReads          map[*MethodCallExpression]*MemberAccessExpression
+	implicitPropertyReads  map[*CallExpression]*ImplicitPropertyReadBinding
+	inheritedPropertyReads map[*InheritedExpression]*InheritedPropertyReadBinding
+	implicitCalls          map[Expression]bool
+	mu                     sync.RWMutex
 }
 
 // NewSemanticInfo creates a new empty semantic metadata table.
 // Each semantic analysis should create its own SemanticInfo instance.
 func NewSemanticInfo() *SemanticInfo {
 	return &SemanticInfo{
-		resolvedTypes:         make(map[Node]types.Type),
-		enumElements:          make(map[Expression]EnumElementBinding),
-		types:                 make(map[Expression]*TypeAnnotation),
-		foldedPredicates:      make(map[*Identifier]bool),
-		propertyReads:         make(map[*MethodCallExpression]*MemberAccessExpression),
-		implicitPropertyReads: make(map[*CallExpression]*ImplicitPropertyReadBinding),
-		implicitCalls:         make(map[Expression]bool),
+		resolvedTypes:          make(map[Node]types.Type),
+		enumElements:           make(map[Expression]EnumElementBinding),
+		types:                  make(map[Expression]*TypeAnnotation),
+		foldedPredicates:       make(map[*Identifier]bool),
+		propertyReads:          make(map[*MethodCallExpression]*MemberAccessExpression),
+		implicitPropertyReads:  make(map[*CallExpression]*ImplicitPropertyReadBinding),
+		inheritedPropertyReads: make(map[*InheritedExpression]*InheritedPropertyReadBinding),
+		implicitCalls:          make(map[Expression]bool),
 	}
 }
 
@@ -229,6 +231,7 @@ func (si *SemanticInfo) Clear() {
 	si.foldedPredicates = make(map[*Identifier]bool)
 	si.propertyReads = make(map[*MethodCallExpression]*MemberAccessExpression)
 	si.implicitPropertyReads = make(map[*CallExpression]*ImplicitPropertyReadBinding)
+	si.inheritedPropertyReads = make(map[*InheritedExpression]*InheritedPropertyReadBinding)
 	si.implicitCalls = make(map[Expression]bool)
 }
 
@@ -340,4 +343,30 @@ func (si *SemanticInfo) ImplicitPropertyRead(call *CallExpression) *ImplicitProp
 	si.mu.RLock()
 	defer si.mu.RUnlock()
 	return si.implicitPropertyReads[call]
+}
+
+// InheritedPropertyReadBinding retains the selected property and its resolved
+// accessor identity, independently from dynamic Self used for virtual dispatch.
+type InheritedPropertyReadBinding struct {
+	Read     *MemberAccessExpression
+	Property *types.PropertyInfo
+	Owner    string
+}
+
+// SetInheritedPropertyRead binds a named inherited scalar read to its parent descriptor.
+// The binding retains implicit Self so a virtual accessor keeps dynamic dispatch.
+func (si *SemanticInfo) SetInheritedPropertyRead(expr *InheritedExpression, read *InheritedPropertyReadBinding) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	if si.inheritedPropertyReads == nil {
+		si.inheritedPropertyReads = make(map[*InheritedExpression]*InheritedPropertyReadBinding)
+	}
+	si.inheritedPropertyReads[expr] = read
+}
+
+// InheritedPropertyRead returns the selected parent property read, if any.
+func (si *SemanticInfo) InheritedPropertyRead(expr *InheritedExpression) *InheritedPropertyReadBinding {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	return si.inheritedPropertyReads[expr]
 }

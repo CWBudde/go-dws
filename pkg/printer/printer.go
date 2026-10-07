@@ -400,6 +400,16 @@ func (p *Printer) printInheritedExpression(n *ast.InheritedExpression) {
 		p.space()
 		p.printDWScript(n.Method)
 	}
+	if n.IsCall || len(n.Arguments) > 0 {
+		p.write("(")
+		for i, arg := range n.Arguments {
+			if i > 0 {
+				p.write(", ")
+			}
+			p.printDWScript(arg)
+		}
+		p.write(")")
+	}
 }
 
 // printAddressOfExpression prints an address-of expression.

@@ -1,0 +1,12 @@
+type TGrandBase = class
+ Field: Integer := 10;
+ property Original: Integer read Field;
+end;
+type TBase = class(TGrandBase)
+ Field: Integer := 20;
+ property Prop: Integer read Original reintroduce;
+end;
+type TChild = class(TBase)
+ function Probe: Integer; begin Result := inherited Prop + inherited Prop(); end;
+end;
+var Obj := new TChild; PrintLn(Obj.Probe());

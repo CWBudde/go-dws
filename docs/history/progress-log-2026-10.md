@@ -1,5 +1,82 @@
 # Progress log — October 2026
 
+## 2026-10-07 — Inherited scalar property reads (PLAN 2.1)
+
+This batch repairs checked named `inherited Prop` reads and accepts empty
+`inherited Prop()` when the selected parent descriptor has `reintroduce`.
+The parent is relative to the lexical method owner, including on grandchild
+receivers. Parent fields, class variables and constants retain their storage;
+nonvirtual accessors remain selected, while virtual instance/class getters
+retain their original chain and dynamic Self. A read accessor declared on an
+ancestor is now accepted for a class-property declaration.
+
+Read-only subagent research used pinned upstream
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`: compiler `ReadInherited` (4738–4812),
+`ReadPropertyExpr` (5421–5435), `ReadPropertyReadExpr` (5446–5479),
+`ReadPropertyArrayAccessor` (5624–5641), getter symbol resolution (9974–9980),
+and compiler-utils `CreateMethodExpr` (502–516). This is source-derived evidence;
+no Pascal oracle was executed. Named inherited members bypass the pedantic
+case hint; deprecation warnings precede the opening-parenthesis compatibility
+hint. Write-only read anchors follow upstream's consumed token/lookahead.
+
+The parser preserves the opening parenthesis and already-read member lookahead.
+A separate typed SemanticInfo map binds inherited scalar reads to their parent
+owner and implicit Self. The evaluator executes that descriptor's accessor,
+uses the existing virtual-chain resolver, and retains getter circular-reference
+tracking and exception propagation. The source AST and engine shell stay intact.
+
+TDD first reproduced property-call rejection, ordinary-call continuation,
+method-only bare-read failure and a farther ancestor method winning over the
+nearer parent property. Additional RED cases caught constant and field/method
+storage shadows, write-only positions/order and zero-value metadata map
+interference. Frontend acceptance has fourteen exact diagnostic cases plus a selected-accessor
+declaration rejection; twenty-six scripts exercise
+the public Engine API, covering fields, constants, class storage, descriptors,
+virtual/nonvirtual and restarted virtual chains, getter effects/exceptions,
+nested accessor reads, lexical parameter shadows and scalar index directives.
+The source printer preserves both empty inherited brackets and ordinary inherited
+arguments. A separate metadata lifecycle test proves independent binding maps
+on zero-value tables and after Clear.
+
+One fresh whole-branch agent review found seven Important issues and no
+Critical/Minor findings. Ten runtime subcases plus one selected-getter declaration
+case reproduced all findings before the fix pass. Typed property reader metadata
+now carries the resolved accessor owner and storage kind, including forwarding.
+Inherited bindings retain the analyzed property rather than reconstructing its
+reader by name. Expression readers use lexical field/class-variable bindings
+while retaining dynamic Self. Getter selection accepts class methods independently
+of the property's declaration syntax, checks the selected accessor's own class
+flags, and walks original virtual slots past restarted chains. Nonvirtual nil
+receivers use a static execution context; virtual and field reads still require
+an object. All eight affected package suites and the regressions pass.
+
+Only the inherited scalar-read child is checked. Nonempty recovery, indexed and
+function-valued properties, writes, unchecked/bytecode execution, private visibility
+and source-undefined static inherited paths remain separate. An adjacent named
+inherited class-method control still dispatches against the dynamic parent;
+it is recorded as open under 1.6 and is excluded from property acceptance.
+
+The final fixture comparison against clean main records no losses and closes
+`SimpleScripts/inherited1` (bare inherited properties) and
+`FailureScripts/inherited5` (ordinary write-only inherited diagnostic). The
+updater ratchets SimpleScripts 398→399 and FailureScripts 319→320, retaining all
+other original floors, including the stable BuildScripts floor of seven.
+The checked inherited-read child now has three visible completed subtasks;
+indexed/default reads, writes and function-valued properties have separate open
+children. Final verification passed on frozen source with Go 1.24.13:
+`go test -race -coverprofile=.cache/inherited-properties/after.out ./...`, all
+eight affected package suites, lint against `origin/main` (0 issues),
+`go mod tidy -diff` (empty), visitor generation (no generated diff), formatting,
+fresh CLI build and all 42 CLI checks. The latter cover all 26 successful scripts,
+14 exact diagnostic sequences and the selected-getter declaration error, plus
+an execution/compatibility-hint source-printer round trip. Both `just fixture-update`
+and a fresh `just fixture-check` passed. The report records 1423 passes,
+591 failures and 27 skips. Lexer coverage remains 1241/1440 (86.1806%); parser
+coverage rises from 4628/5809 (79.6695%) to 4630/5811 (79.6765%). Build/test
+scratch uses `/var/tmp` to avoid the existing tmpfs quota and repository-filesystem
+cleanup limitations. The work is published as a public unmerged PR; its link is
+added on publication.
+
 ## 2026-10-07 — Unqualified reintroduced-property reads (PLAN 2.1)
 
 This batch ([#468](https://github.com/CWBudde/go-dws/pull/468)) adds checked unqualified empty scalar property calls

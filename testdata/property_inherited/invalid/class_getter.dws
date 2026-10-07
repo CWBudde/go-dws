@@ -1,0 +1,11 @@
+type TGrandBase = class
+ class function Get(X: Integer): Integer; begin Result := X; end;
+end;
+type TBase = class(TGrandBase)
+ function Get: Integer; overload; begin Result := 10; end;
+ class property Prop: Integer read Get reintroduce;
+end;
+type TChild = class(TBase)
+ class function Probe: Integer; begin Result := inherited Prop(); end;
+end;
+PrintLn(TChild.Probe());

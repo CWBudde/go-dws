@@ -74,6 +74,12 @@ func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types
 		}
 	}
 
+	// Named scalar property reads select the nearest parent member before
+	// the method-only inherited path searches farther up the hierarchy.
+	if result, handled := a.analyzeInheritedPropertyRead(ie, parentClass); handled {
+		return result
+	}
+
 	// Try to find as a method first
 	methodType, methodFound := parentClass.GetMethod(memberName)
 	if methodFound {
