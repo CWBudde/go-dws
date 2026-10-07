@@ -2,7 +2,7 @@
 
 ## 2026-10-07 — Inherited scalar property reads (PLAN 2.1)
 
-This batch repairs checked named `inherited Prop` reads and accepts empty
+This batch ([#469](https://github.com/CWBudde/go-dws/pull/469)) repairs checked named `inherited Prop` reads and accepts empty
 `inherited Prop()` when the selected parent descriptor has `reintroduce`.
 The parent is relative to the lexical method owner, including on grandchild
 receivers. Parent fields, class variables and constants retain their storage;
@@ -74,8 +74,8 @@ and a fresh `just fixture-check` passed. The report records 1423 passes,
 591 failures and 27 skips. Lexer coverage remains 1241/1440 (86.1806%); parser
 coverage rises from 4628/5809 (79.6695%) to 4630/5811 (79.6765%). Build/test
 scratch uses `/var/tmp` to avoid the existing tmpfs quota and repository-filesystem
-cleanup limitations. The work is published as a public unmerged PR; its link is
-added on publication.
+cleanup limitations. The work is published in public, unmerged
+[#469](https://github.com/CWBudde/go-dws/pull/469).
 
 ## 2026-10-07 — Unqualified reintroduced-property reads (PLAN 2.1)
 

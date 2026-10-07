@@ -150,7 +150,7 @@ bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batc
 Default namespace availability/binding is implemented in pending [#466](https://github.com/CWBudde/go-dws/pull/466).
 Explicit scalar reintroduced-property empty reads and statement-boundary recovery shipped
 in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty scalar reads
-in class methods shipped in [#468](https://github.com/CWBudde/go-dws/pull/468). This batch adds named inherited empty/bare scalar reads and parent accessor ownership.
+in class methods shipped in [#468](https://github.com/CWBudde/go-dws/pull/468). Named inherited empty/bare scalar reads and parent accessor ownership are implemented in [#469](https://github.com/CWBudde/go-dws/pull/469).
 Next: reintroduced-property nonempty/discarded-parent recovery and indexed/write contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
@@ -371,7 +371,7 @@ punctuation in the parser before reading arguments.
       over global routines, ancestor descriptors, descendant method shadows, helper precedence,
       virtual getters, once-only getter effects, original exceptions, nested accessor reads,
       selected descriptor/storage ownership and flagged static-method stops ([#468](https://github.com/CWBudde/go-dws/pull/468)).
-    - [x] Support named inherited empty/bare scalar reads (this batch; PR link added on publication).
+    - [x] Support named inherited empty/bare scalar reads ([#469](https://github.com/CWBudde/go-dws/pull/469)).
       - [x] Preserve the parent descriptor and resolved accessor/storage identity through
         forwarding, field/class-variable/constant shadows and ancestor class getters.
       - [x] Retain lexical expression-getter storage, class getters backing ordinary
