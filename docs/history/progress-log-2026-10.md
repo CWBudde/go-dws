@@ -340,6 +340,19 @@ or fixture expectation changes were justified by this batch. The updater's
 eight-pass BuildScripts ratchet was returned to its existing stable seven-pass
 floor after both counts appeared during this batch.
 
+A follow-up commit on the same PR closes a gap that the availability
+measurement had recorded but not yet enforced. `System.<special>` and
+`Internal.<special>` calls and statements fell through to an invented
+`Dot "." expected` at the qualifier, followed by cascading unknown-name errors.
+All 19 pinned special keywords behind either unit now stop with
+`Unknown name "<Unit>.<name>"` at the member, which matches ReadName's
+FindLocal miss. Bare value forms now stop as well, instead of continuing.
+Lexical, imported-unit and type-qualified receivers keep ordinary member lookup.
+Acceptance: 114 qualifier × name × form cases (statement, argument, value),
+three spelling/anchor cases, and three controls. Qualified builtin calls such as
+`Internal.Abs(-3)` still report `Dot "." expected`. That gap is recorded
+separately in PLAN 2.1.
+
 ## 2026-10-05 — Bare special-function punctuation (PLAN 2.1)
 
 This batch ([#465](https://github.com/CWBudde/go-dws/pull/465)) checks three more subtasks

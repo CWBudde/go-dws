@@ -12,6 +12,15 @@ func specialFunctionName(name string) string {
 	return requiredSpecialFunctionNames[ident.Normalize(name)]
 }
 
+// isSpecialKeywordName reports membership in the complete pinned special-keyword
+// table (cSpecialKeywords), including Default and DebugBreak.
+func isSpecialKeywordName(name string) bool {
+	if specialFunctionName(name) != "" {
+		return true
+	}
+	return ident.Equal(name, "Default") || ident.Equal(name, "DebugBreak")
+}
+
 var requiredSpecialFunctionNames = map[string]string{
 	"assert":             "Assert",
 	"assigned":           "Assigned",

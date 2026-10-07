@@ -44,6 +44,9 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		}
 		return a.analyzeDefaultNamespaceCall(expr.Object, expr.Method, builtinCall)
 	}
+	if a.stopUnitQualifiedSpecialName(expr.Object, expr.Method) {
+		return nil
+	}
 
 	// Analyze the object expression
 	objectType := a.analyzeProbedReceiver(expr.Object)

@@ -283,6 +283,12 @@ The declaration remains available after that error, retaining an explicit type
 or recovering as Variant when inferred. Procedure calls, including bare output
 procedures, cannot supply a value argument to another call.
 
+`System` and `Internal` hold no special function either. `System.Low(Integer)`,
+`Internal.High(…)` and the bare `System.Low` stop with
+`Unknown name "System.Low"` (etc.) at the member token, before any argument is
+read, and later diagnostics are suppressed. Qualified builtin calls such as
+`Internal.Abs(-3)` remain open in Phase 2.1.
+
 ### Class, record and helper member headers
 
 An invalid member after `class` reports `PROCEDURE or FUNCTION expected` at

@@ -340,7 +340,8 @@ punctuation in the parser before reading arguments.
     ([#465](https://github.com/CWBudde/go-dws/pull/465)).
   - [x] Establish actual qualified namespace availability and callable forms: standard
     Default contains only Print/PrintLn; System and Internal use their own local tables.
-    Special pseudo-symbols are not namespace members
+    Special pseudo-symbols are not namespace members; `System.`/`Internal.` specials
+    stop with `Unknown name "<Unit>.<name>"` at the member
     ([#466](https://github.com/CWBudde/go-dws/pull/466)).
   - [x] Bind qualified Default output calls/references to the result unit through execution,
     including lexical output-name shadows and caller Default receivers; reject unavailable
@@ -348,6 +349,9 @@ punctuation in the parser before reading arguments.
     ([#466](https://github.com/CWBudde/go-dws/pull/466)).
   - [ ] Retain qualified callee names when malformed argument parsing discards the call
     (`Default.Low(;`); requires 2.4's per-call truncation carrier.
+  - [ ] Resolve qualified builtin calls through the Internal table (`Internal.Abs(-3)`,
+    `Internal.Sin(0)`); method-call syntax on `System`/`Internal` still reports
+    `Dot "." expected` at the qualifier.
 - [ ] Magic functions (`debugbreak`).
   - [x] Accept bare/empty-parentheses DebugBreak and stop at the first non-`)` token,
     before reading arguments (`debugbreak`); preserve direct-call casing hints and

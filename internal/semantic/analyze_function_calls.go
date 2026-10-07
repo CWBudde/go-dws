@@ -153,6 +153,9 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			builtinCall.Function = memberAccess.Member
 			return a.analyzeDefaultNamespaceCall(memberAccess.Object, memberAccess.Member, &builtinCall)
 		}
+		if a.stopUnitQualifiedSpecialName(memberAccess.Object, memberAccess.Member) {
+			return nil
+		}
 
 		objectType := a.analyzeExpression(memberAccess.Object)
 		if objectType == nil {

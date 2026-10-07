@@ -342,6 +342,9 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 		}
 		switch ident.Normalize(identExpr.Value) {
 		case "system", "internal":
+			if a.stopUnitQualifiedSpecialName(expr.Object, expr.Member) {
+				return nil
+			}
 			if sym, err := a.ResolveQualifiedSymbol(identExpr.Value, expr.Member.Value); err == nil && sym != nil {
 				return sym.Type
 			}

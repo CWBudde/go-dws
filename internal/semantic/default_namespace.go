@@ -43,3 +43,31 @@ func (a *Analyzer) analyzeDefaultNamespaceMember(member *ast.MemberAccessExpress
 	a.semanticInfo.SetImplicitCall(member)
 	return types.VOID
 }
+
+// stopUnitQualifiedSpecialName stops System.<special> and Internal.<special>.
+// Upstream identifies special keywords only for an unqualified name, and a
+// unit prefix looks the member up in that unit's own table, which holds none,
+// so the lookup fails at the member with CPE_UnknownNameDotName.
+func (a *Analyzer) stopUnitQualifiedSpecialName(object ast.Expression, member *ast.Identifier) bool {
+	qualifier, ok := object.(*ast.Identifier)
+	if !ok || member == nil || !isSpecialKeywordName(member.Value) {
+		return false
+	}
+	var unit string
+	switch ident.Normalize(qualifier.Value) {
+	case "system":
+		unit = "System"
+	case "internal":
+		unit = "Internal"
+	default:
+		return false
+	}
+	if _, resolved := a.symbols.Resolve(qualifier.Value); resolved || a.hasLexicalValueReceiver(object) {
+		return false
+	}
+	if _, imported := a.importedUnitNamespace(qualifier.Value); imported {
+		return false
+	}
+	a.addPunctuationStop(member.Pos(), fmt.Sprintf(`Unknown name "%s.%s"`, unit, member.Value))
+	return true
+}
