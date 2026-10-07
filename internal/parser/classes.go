@@ -834,17 +834,30 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 			BaseNode: ast.BaseNode{
 				Token: dotToken,
 			},
-			Object:    left,
-			Method:    memberName,
-			Arguments: []ast.Expression{},
+			ParenPos:           p.cursor.Current().Pos,
+			FirstArgumentToken: p.cursor.Peek(1),
+			Object:             left,
+			Method:             memberName,
+			Arguments:          []ast.Expression{},
 		}
 
-		// Parse arguments - cursor will be at RPAREN after parseExpressionList
+		// At a statement boundary, retain the unresolved call and let semantic
+		// resolution choose property recovery or an ordinary expression stop.
+		// No argument token is consumed, so a property can continue after ';'.
+		first := methodCall.FirstArgumentToken.Type
+		if first == lexer.SEMICOLON || first == lexer.END || first == lexer.EOF {
+			methodCall.Incomplete = true
+			anchor := p.anchorFor(methodCall.FirstArgumentToken)
+			err := NewParserError(anchor.Pos, anchor.Length(), "Expression expected", ErrInvalidExpression)
+			err.Stop = true
+			err.DeferredCall = methodCall
+			p.recordError(err)
+			builder.Finish(methodCall)
+			return methodCall
+		}
 		methodCall.Arguments = p.parseExpressionList()
 		if p.stopped() {
-			// The argument list was cut short by a compiler stop: upstream never
-			// finished reading this call, so its argument checks never ran.
-			return nil
+			methodCall.Incomplete = true
 		}
 
 		expr := builder.Finish(methodCall).(*ast.MethodCallExpression)

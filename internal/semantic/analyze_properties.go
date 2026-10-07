@@ -187,6 +187,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		IsIndexed:         isIndexed,
 		IsDefault:         prop.IsDefault,
 		IsClassProperty:   prop.IsClassProperty,
+		IsReintroduce:     prop.IsReintroduce,
 		ExternalName:      prop.ExternalName,
 		DeprecatedMessage: prop.DeprecatedMessage,
 		IsDeprecated:      prop.IsDeprecated,

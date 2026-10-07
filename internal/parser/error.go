@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/pkg/ast"
 )
 
 // ParserError represents a structured parsing error with position information.
@@ -15,6 +16,9 @@ type ParserError struct {
 	// Stop marks a compiler stop: DWScript's AddCompilerStop raises and abandons
 	// the compilation, so no diagnostic recorded after it reaches the user.
 	Stop bool
+	// DeferredCall retains a parser-only stop whose punctuation depends on
+	// semantic property resolution. An enclosing stopped call confirms it.
+	DeferredCall *ast.MethodCallExpression
 }
 
 // Error implements the error interface.

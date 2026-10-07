@@ -33,6 +33,14 @@ import (
 //
 // See method_dispatch.go for comprehensive documentation of dispatch architecture.
 func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ctx *ExecutionContext) Value {
+	if e.SemanticInfo() != nil {
+		if read := e.SemanticInfo().PropertyRead(node); read != nil {
+			return e.Eval(read, ctx)
+		}
+	}
+	if node.Incomplete {
+		return e.newError(node, "incomplete member call")
+	}
 	if node.Object == nil {
 		return e.newError(node, "method call missing object")
 	}

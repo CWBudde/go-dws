@@ -66,6 +66,8 @@ type Diagnostic struct {
 	lexerDirective bool
 	// afterChildren retains semantic emission order for enclosing expressions.
 	afterChildren bool
+	// deferredCall identifies provisional parser punctuation resolved by analysis.
+	deferredCall *ast.MethodCallExpression
 }
 
 // Render returns the centralized rendered form of the diagnostic.
@@ -146,7 +148,7 @@ func (r *Result) HasSemanticBlockingDiagnosticsInPhase(phase Phase) bool {
 // afterwards — including the end-of-program checks — is reported.
 func (r *Result) HasParserStop() bool {
 	for _, diag := range r.Diagnostics {
-		if diag.Phase == PhaseParsing && diag.Stop {
+		if diag.Phase == PhaseParsing && diag.Stop && diag.deferredCall == nil {
 			return true
 		}
 	}
@@ -324,6 +326,7 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	result.SemanticInfo = analyzer.GetSemanticInfo()
 	unitDiagnostics := result.Diagnostics[len(mainDiagnostics):]
 	mainDiagnostics = refineTypePunctuationDiagnostics(append(mainDiagnostics, semanticDiagnostics(analyzer)...))
+	mainDiagnostics = refineDeferredPropertyCallDiagnostics(mainDiagnostics, result.SemanticInfo)
 	mainDiagnostics = dropDiagnosticsAfterStop(mainDiagnostics)
 	restoreStatementWarningOrder(mainDiagnostics)
 	sortDiagnostics(mainDiagnostics)
@@ -739,6 +742,7 @@ func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {
 			Fatal:          true,
 			BlocksSemantic: parserDiagnosticBlocksSemantic(err),
 			Stop:           err.Stop,
+			deferredCall:   err.DeferredCall,
 		})
 	}
 	return diags

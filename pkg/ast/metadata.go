@@ -86,6 +86,7 @@ type SemanticInfo struct {
 	resolvedTypes    map[Node]types.Type
 	types            map[Expression]*TypeAnnotation
 	foldedPredicates map[*Identifier]bool
+	propertyReads    map[*MethodCallExpression]*MemberAccessExpression
 	implicitCalls    map[Expression]bool
 	mu               sync.RWMutex
 }
@@ -98,6 +99,7 @@ func NewSemanticInfo() *SemanticInfo {
 		enumElements:     make(map[Expression]EnumElementBinding),
 		types:            make(map[Expression]*TypeAnnotation),
 		foldedPredicates: make(map[*Identifier]bool),
+		propertyReads:    make(map[*MethodCallExpression]*MemberAccessExpression),
 		implicitCalls:    make(map[Expression]bool),
 	}
 }
@@ -223,6 +225,7 @@ func (si *SemanticInfo) Clear() {
 	si.enumElements = make(map[Expression]EnumElementBinding)
 	si.types = make(map[Expression]*TypeAnnotation)
 	si.foldedPredicates = make(map[*Identifier]bool)
+	si.propertyReads = make(map[*MethodCallExpression]*MemberAccessExpression)
 	si.implicitCalls = make(map[Expression]bool)
 }
 
@@ -288,4 +291,23 @@ func (si *SemanticInfo) EnumElementBinding(expr Expression) (EnumElementBinding,
 	defer si.mu.RUnlock()
 	binding, ok := si.enumElements[expr]
 	return binding, ok
+}
+
+// SetPropertyRead binds an empty legacy property call to its resolved read.
+// The read and its receiver are immutable after semantic analysis.
+func (si *SemanticInfo) SetPropertyRead(call *MethodCallExpression, read *MemberAccessExpression) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	if si.propertyReads == nil {
+		si.propertyReads = make(map[*MethodCallExpression]*MemberAccessExpression)
+	}
+	si.propertyReads[call] = read
+}
+
+// PropertyRead returns the property read bound to a legacy empty call, if any.
+// It is safe for concurrent reads.
+func (si *SemanticInfo) PropertyRead(call *MethodCallExpression) *MemberAccessExpression {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	return si.propertyReads[call]
 }

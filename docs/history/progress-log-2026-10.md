@@ -1,5 +1,80 @@
 # Progress log — October 2026
 
+## 2026-10-06 — Explicit reintroduced-property reads (PLAN 2.1)
+
+This batch ([#467](https://github.com/CWBudde/go-dws/pull/467)) accepts `reintroduce` before
+a class-property declaration's semicolon
+and supports explicit scalar empty-bracket reads. It closes two new subtasks
+under the still-open Phase 2.1 property item. Missing `)` at a semicolon reports
+a recoverable error rather than a compiler stop; the inferred variable keeps
+its property type and later diagnostics remain visible. Ordinary scalar
+property calls stop with `Not a method` before checking arguments.
+
+A read-only source investigation followed `ReadPropertyDecl` (9871–9875),
+`ReadPropertyExpr` (5421–5435), and scalar postfix-call rejection (5748–5761) in
+upstream revision `1dbf8a90329cc3f2638516e89c0668f916c1ddb9`. The property marker
+needs no ancestor method. The compatibility hint uses normal hint level,
+declaration casing, and the opening-parenthesis position; its missing-closer
+error uses the next token. This is source-derived evidence, not an executed
+Pascal oracle. A separate read-only agent audited Go parser/semantic/runtime paths.
+
+The AST retains the marker and explicit method-call punctuation/incompleteness.
+SemanticInfo binds accepted calls to immutable member-read expressions;
+evaluator execution follows its existing property-read path. Getter and receiver
+side effects occur once. Checked explicit inherited-descriptor and class-property
+reads work, while a descendant method still shadows an inherited property.
+The source printer preserves the marker through parse–print–compile round trips.
+This adds property-read binding accessors and scalar fields to the public AST;
+regenerating the visitor produces no diff. Evaluator code owns all new execution
+semantics; the engine shell and experimental bytecode backend are untouched.
+
+Malformed boundary calls keep a provisional parser diagnostic tied to the exact
+method-call node. Parser-only clients retain `Expression expected`; a confirmed
+property read removes its own provisional stop. An enclosing unfinished argument
+list confirms the original stop and anchor. Ordinary method/helper/namespace calls
+retain their parser diagnostics and skip argument-count checks. This is limited
+per-call support, not closure of the full Phase 2.4 truncation model.
+
+The fresh-context review found five Important issues: dynamic/explicit helper
+calls bypassing incomplete guards, helper precedence, alias/implicit routine
+receivers, ordinary nested-stop anchors, and parser-only malformed input. Eleven
+failing acceptance cases reproduced all five before one fix pass; all affected
+packages then passed. Parser diagnostics remain authoritative for ordinary calls,
+helper lookup precedes property interception, and receiver probing preserves
+once-only invocation. Private property visibility remains the existing bare-read
+gap; exact ordinary static/write-only call diagnostic ordering needs a separate
+source-derived sequence. The reviewer reported no Critical or Minor findings.
+
+Acceptance passes 22 frontend cases (including both failure fixtures), three
+parser-only API cases, nine checked public API execution controls, one printer
+round-trip case, and 36 fresh CLI diagnostic/output/exit-status cases. All affected
+packages and the clean main baseline pass.
+A final printer acceptance test first reproduced marker loss as `Not a method`;
+preserving the marker restored the expected compatibility hint.
+Nonempty token consumption, EOF/end, lexer-directive reach after recovery and
+discarded parent recovery, indexed/default and writable/implicit contexts,
+function-valued compatibility properties, and unchecked execution remain
+explicit follow-ups.
+PR #466 is preserved open; this branch starts independently from main.
+
+Final verification on frozen production source passed:
+`go test -race -coverprofile=.cache/property-reintroduce/results/coverage-shipped.out ./...`,
+seven affected package suites, CI diff lint (zero issues), `go mod tidy -diff`,
+`go generate ./pkg/ast` (no generated diff), a fresh CLI build and all 36 CLI
+checks, formatting, and `git diff --check`. Lexer coverage remains
+86.1806% (1241/1440); parser coverage rises from 79.5985% (4600/5779) to
+79.6660% (4627/5808). Tests used Go 1.24.13 and ext4 temporary directories:
+`/tmp` quota and repository fuseblk TempDir cleanup errors were environment
+failures; only clean native reruns count as verification.
+
+`just fixture-update` raises FailureScripts from 317 to 319 (both reintroduced-
+property failures) and SimpleScripts from 397 to 398 (`property_reintroduce`).
+No expectation files change. The generated snapshot records 1,421 passed,
+593 failed and 27 skipped; its BuildScripts count is seven, matching the known
+stable floor. The earlier eight-pass snapshot explains why the overall count
+increases by two while this batch adds three stable passes. The fixture gate
+passes against the raised baselines.
+
 ## 2026-10-05 — Bare special-function punctuation (PLAN 2.1)
 
 This batch ([#465](https://github.com/CWBudde/go-dws/pull/465)) checks three more subtasks

@@ -273,7 +273,7 @@ func (p *Parser) recordStop(err *ParserError) {
 // error list so speculative parses that restore an earlier error list also undo it.
 func (p *Parser) stopped() bool {
 	for i := len(p.errors) - 1; i >= 0; i-- {
-		if p.errors[i].Stop {
+		if p.errors[i].Stop && p.errors[i].DeferredCall == nil {
 			return true
 		}
 	}
@@ -639,4 +639,17 @@ func (p *Parser) parseFieldInitializer(fieldNames []*ast.Identifier) ast.Express
 		return nil
 	}
 	return initValue
+}
+
+// confirmDeferredCallStops makes a boundary error authoritative when its call
+// was nested in an unfinished argument list. Keep the original token anchor.
+func (p *Parser) confirmDeferredCallStops(start int) bool {
+	confirmed := false
+	for _, err := range p.errors[start:] {
+		if err.DeferredCall != nil {
+			err.DeferredCall = nil
+			confirmed = true
+		}
+	}
+	return confirmed
 }

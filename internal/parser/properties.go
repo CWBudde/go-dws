@@ -225,6 +225,12 @@ parseDirectives:
 		prop.IsAutoProperty = true
 	}
 
+	// The compatibility marker belongs before the declaration semicolon.
+	if p.peekTokenIs(lexer.REINTRODUCE) {
+		p.nextToken()
+		prop.IsReintroduce = true
+	}
+
 	// Expect semicolon
 	if !p.expectPeek(lexer.SEMICOLON) {
 		return nil

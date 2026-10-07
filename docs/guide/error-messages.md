@@ -251,7 +251,7 @@ create a callback. Constant recovery substitutes null and keeps the declared nam
 available to later checks, including through unary/binary constant operators.
 Nested malformed-call casing hints remain gated by Phase 2.4's stopped-call AST
 recovery; reserved declaration-name validation remains in Phase 3. Other
-qualified namespace forms, Default resolution, and reintroduced properties
+qualified namespace forms, Default resolution, and remaining reintroduced-property contexts
 remain open in Phase 2.1; completed-call address recovery remains in Phase 2.2.
 
 ### Class, record and helper member headers
@@ -273,6 +273,34 @@ Helpers begin with public visibility. Repeated visibility sections produce
 normal-level `Redundant specifier` hints, and `protected` reports
 `Helpers do not supported "protected" visibility specifier` without changing
 the visibility in effect.
+
+### Reintroduced property reads
+
+A scalar class property declared with `reintroduce` accepts an empty `()` pair
+immediately after its name. The explicit read `obj.Prop()` returns the same value
+as `obj.Prop`; at normal hint level it reports
+`Property "Prop" reintroduced a method, you should remove empty brackets ()`
+at the opening `(`. Bare reads have no compatibility hint. Pedantic hints report
+wrong member casing before the compatibility hint, using declaration casing.
+`{$HINTS OFF}` and disabled hints suppress the hint.
+
+For `var A := obj.Prop(;`, `")" expected` is a recoverable error at `;`.
+The declaration retains the property's type, and compilation can report later
+semantic errors. Comments/newlines preserve the next-token anchor. An ordinary scalar
+property called with `()` instead stops with `Not a method` at `(` before reading
+arguments. Actual methods and ordinary function-valued properties retain their
+existing call paths.
+
+This batch covers checked explicit scalar class-property reads, including
+aliases/implicit routine receivers, inherited descriptors and class properties.
+The source printer preserves the declaration marker. Nonempty compatibility-token recovery,
+EOF/end boundaries, lexer-directive reach after recovery, discarded enclosing calls,
+unqualified/explicit inherited syntax,
+indexed/default properties, writes, flagged function-valued properties and unchecked
+execution remain open in PLAN.md. These need their own parsing/dispatch acceptance;
+passing the scalar fixtures does not close the full property item. Parser-only
+clients retain the provisional `Expression expected` stop for a malformed boundary
+call until semantic analysis resolves its property identity.
 
 ### Property and operator declarations
 
