@@ -149,8 +149,8 @@ same PR; retain checked siblings until the subphase closes. Detailed evidence:
 bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batches.
 Default namespace availability/binding is implemented in pending [#466](https://github.com/CWBudde/go-dws/pull/466).
 Explicit scalar reintroduced-property empty reads and statement-boundary recovery shipped
-in [#467](https://github.com/CWBudde/go-dws/pull/467). This batch adds checked unqualified
-empty scalar reads in class methods. Next: reintroduced-property nonempty/discarded-parent
+in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty scalar reads
+in class methods ship in [#468](https://github.com/CWBudde/go-dws/pull/468). Next: reintroduced-property nonempty/discarded-parent
 recovery and explicit inherited/indexed/write contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
@@ -367,7 +367,7 @@ punctuation in the parser before reading arguments.
       normal/pedantic hints, local callable and parameter shadows, class-member precedence
       over global routines, ancestor descriptors, descendant method shadows, helper precedence,
       virtual getters, once-only getter effects, original exceptions, nested accessor reads,
-      selected descriptor/storage ownership and flagged static-method stops (PR link pending).
+      selected descriptor/storage ownership and flagged static-method stops ([#468](https://github.com/CWBudde/go-dws/pull/468)).
     - [ ] Support explicit inherited reads; select the parent descriptor while retaining
       virtual getter dispatch. Bare inherited property execution also needs repair.
     - [ ] Support indexed/default properties, writes and function-valued properties.

@@ -2,7 +2,7 @@
 
 ## 2026-10-07 — Unqualified reintroduced-property reads (PLAN 2.1)
 
-This batch (PR link pending) adds checked unqualified empty scalar property calls
+This batch ([#468](https://github.com/CWBudde/go-dws/pull/468)) adds checked unqualified empty scalar property calls
 inside instance and class methods. The normal compatibility hint uses the opening
 parenthesis; a pedantic case hint precedes it. Ordinary scalar empty calls stop
 with `Not a method` there. Class methods reject instance properties, and write-only
