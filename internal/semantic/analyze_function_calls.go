@@ -249,6 +249,10 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 		return nil
 	}
 
+	if result, handled := a.analyzeImplicitPropertyCompatibilityRead(expr, funcIdent); handled {
+		return result
+	}
+
 	sym, ok := a.symbols.Resolve(funcIdent.Value)
 	if ok {
 		a.addIdentifierCaseHint(funcIdent, sym.Name)

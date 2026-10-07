@@ -117,6 +117,8 @@ func (as *AssignmentStatement) String() string {
 //	Add(3, 5)
 //	Foo()
 type CallExpression struct {
+	// ParenPos retains the opening position of a direct empty call.
+	ParenPos  token.Position
 	Function  Expression
 	Arguments []Expression
 	BaseNode

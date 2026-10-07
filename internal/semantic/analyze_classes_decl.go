@@ -1175,10 +1175,17 @@ func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
 	// Analyze method body in a new scope.
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(deferred.outerSymbols)
+	a.symbols.classMethodOwner = classType
+	a.symbols.classMethodStatic = method.IsStatic
 	defer func() { a.symbols = oldSymbols }()
 	defer a.emitUnusedWarningsForCurrentScope()
 
 	a.defineMethodScopeMembers(method, classType)
+	// Mark these exact synthetic bindings before parameters/locals replace them.
+	a.symbols.symbols.Range(func(_ string, sym *Symbol) bool {
+		sym.methodScopeMember = true
+		return true
+	})
 
 	// Add parameters and 'Result' variable to scope.
 	for i, param := range method.Parameters {

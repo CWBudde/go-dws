@@ -17,8 +17,10 @@ type Symbol struct {
 	EnumElement *ast.EnumElementBinding
 	// lookupOnly marks type/unit identities whose existing APIs own value typing.
 	lookupOnly bool
-	isUnitName bool
-	Type       types.Type
+	// methodScopeMember identifies a synthesized member, rather than a lexical local.
+	methodScopeMember bool
+	isUnitName        bool
+	Type              types.Type
 	// ClassFieldOwner is set only on the synthesized bindings that make a class's
 	// own fields visible by bare name inside a method body or a property
 	// expression accessor. It names the declaring class, so a bare-name reference
@@ -59,6 +61,9 @@ type Symbol struct {
 // Unlike the interpreter's symbol table, this one tracks compile-time
 // type information for variables and functions.
 type SymbolTable struct {
+	// classMethodOwner marks the boundary between method locals and outer names.
+	classMethodOwner   *types.ClassType
+	classMethodStatic  bool
 	declarations       declarationTable
 	parameters         declarationTable
 	internalParameters declarationTable

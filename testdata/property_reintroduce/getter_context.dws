@@ -1,0 +1,8 @@
+type TTest = class
+ Field: Integer;
+ property Prop: Integer read Field reintroduce;
+ function GetOuter: Integer; begin Result := Prop(); end;
+ property Outer: Integer read GetOuter;
+end;
+var Obj := new TTest; Obj.Field := 23;
+PrintLn(Obj.Outer);

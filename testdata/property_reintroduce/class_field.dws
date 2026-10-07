@@ -1,0 +1,6 @@
+type TTest = class
+ class var Field: Integer;
+ class property Prop: Integer read Field reintroduce;
+ class function Read: Integer; begin Result := Prop(); end;
+end;
+TTest.Field := 23; PrintLn(TTest.Read());

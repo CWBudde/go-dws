@@ -148,9 +148,10 @@ same PR; retain checked siblings until the subphase closes. Detailed evidence:
 **Current user-selected track:** 2.1's type-directed punctuation, after the record-constant,
 bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batches.
 Default namespace availability/binding is implemented in pending [#466](https://github.com/CWBudde/go-dws/pull/466).
-This batch closes explicit scalar reintroduced-property empty reads and statement-boundary
-recovery below. Next: reintroduced-property nonempty/discarded-parent recovery and remaining
-access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
+Explicit scalar reintroduced-property empty reads and statement-boundary recovery shipped
+in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty scalar reads
+in class methods ship in [#468](https://github.com/CWBudde/go-dws/pull/468). Next: reintroduced-property nonempty/discarded-parent
+recovery and explicit inherited/indexed/write contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
@@ -361,9 +362,20 @@ punctuation in the parser before reading arguments.
     stop anchors, and skip incomplete argument checks ([#467](https://github.com/CWBudde/go-dws/pull/467)).
   - [ ] Preserve upstream token consumption and recovery for nonempty compatibility brackets,
     EOF/end boundaries, lexer-directive reach after recovery and discarded enclosing calls; coordinate with 2.4's full truncation carrier.
-  - [ ] Extend compatibility brackets to unqualified/explicit inherited reads, indexed/default
-    properties, writes, function-valued properties, and unchecked execution. Measure visibility
-    promotions/generic specializations separately: upstream does not copy the flag there.
+  - [ ] Extend compatibility brackets to the remaining access contexts.
+    - [x] Read unqualified empty scalar properties inside instance/class methods; preserve
+      normal/pedantic hints, local callable and parameter shadows, class-member precedence
+      over global routines, ancestor descriptors, descendant method shadows, helper precedence,
+      virtual getters, once-only getter effects, original exceptions, nested accessor reads,
+      selected descriptor/storage ownership and flagged static-method stops ([#468](https://github.com/CWBudde/go-dws/pull/468)).
+    - [ ] Support explicit inherited reads; select the parent descriptor while retaining
+      virtual getter dispatch. Bare inherited property execution also needs repair.
+    - [ ] Support indexed/default properties, writes and function-valued properties.
+    - [ ] Support unchecked execution and malformed/nonempty unqualified calls.
+    - [ ] Measure visibility promotions/generic specializations separately: upstream does
+      not copy the flag there.
+    - [ ] Measure helper-property precedence and deprecated-property warning ordering/anchors
+      on unqualified compatibility calls; helper-method controls are covered above.
   - [ ] Align private-property access validation and ordinary static/write-only property-call
     diagnostic ordering with upstream. The private-access gap predates this batch; derive
     the invalid-call sequence before changing scalar postfix checks.

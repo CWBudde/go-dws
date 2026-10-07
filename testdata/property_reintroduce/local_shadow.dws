@@ -1,0 +1,9 @@
+type TFunc = function: Integer;
+function Answer: Integer; begin Result := 31; end;
+type TTest = class
+ Field: Integer;
+ property Prop: Integer read Field reintroduce;
+ function Read: Integer;
+ begin var Prop: TFunc := Answer; Result := Prop(); end;
+end;
+PrintLn(TTest.Create.Read());

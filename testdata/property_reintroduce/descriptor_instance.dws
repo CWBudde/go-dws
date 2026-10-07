@@ -1,0 +1,11 @@
+type TBase = class
+ BaseField: Integer;
+ property Prop: Integer read BaseField reintroduce;
+ function Read: Integer; begin Result := Prop(); end;
+end;
+type TChild = class(TBase)
+ ChildField: Integer;
+ property Prop: Integer read ChildField reintroduce;
+end;
+var Obj := new TChild; Obj.BaseField := 11; Obj.ChildField := 22;
+PrintLn(Obj.Read());

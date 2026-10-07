@@ -1,0 +1,7 @@
+type TBase = class class var Prop: Integer; end;
+type TChild = class(TBase)
+ class var Field: Integer;
+ class property Prop: Integer read Field reintroduce;
+ class function Read: Integer; begin Result := Prop(); end;
+end;
+TChild.Field := 73; PrintLn(TChild.Read());

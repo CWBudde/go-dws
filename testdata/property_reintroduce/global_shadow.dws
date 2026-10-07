@@ -1,0 +1,7 @@
+function Prop: Integer; begin Result := 99; end;
+type TTest = class
+ Field: Integer;
+ property Prop: Integer read Field reintroduce;
+ function Read: Integer; begin Result := Prop(); end;
+end;
+var Obj := new TTest; Obj.Field := 29; PrintLn(Obj.Read()); PrintLn(Prop());
