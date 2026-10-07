@@ -1,0 +1,10 @@
+type TTest = class
+ Reads: Integer;
+ function GetProp: Integer;
+ begin Inc(Reads); raise Exception.Create('getter'); end;
+ property Prop: Integer read GetProp reintroduce;
+ function Read: Integer; begin Result := Prop(); end;
+end;
+var Obj := new TTest;
+try PrintLn(Obj.Read()); except on E: Exception do PrintLn(E.Message); end;
+PrintLn(Obj.Reads);

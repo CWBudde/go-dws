@@ -92,6 +92,7 @@ func (p *Parser) parseCallOrRecordLiteral(typeName *ast.Identifier) ast.Expressi
 // POST: cursor is at RPAREN
 func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
 	builder := p.StartNode()
+	lparenPos := p.cursor.Current().Pos
 	// Advance to RPAREN
 	p.cursor = p.cursor.Advance()
 	rparenToken := p.cursor.Current()
@@ -100,6 +101,7 @@ func (p *Parser) parseEmptyCall(typeName *ast.Identifier) *ast.CallExpression {
 		BaseNode: ast.BaseNode{
 			Token: rparenToken,
 		},
+		ParenPos:  lparenPos,
 		Function:  typeName,
 		Arguments: []ast.Expression{},
 	}

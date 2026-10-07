@@ -82,25 +82,27 @@ type EnumElementBinding struct {
 // writes. Typical usage is single-threaded analysis (writes) followed by
 // concurrent interpretation/compilation (reads).
 type SemanticInfo struct {
-	enumElements     map[Expression]EnumElementBinding
-	resolvedTypes    map[Node]types.Type
-	types            map[Expression]*TypeAnnotation
-	foldedPredicates map[*Identifier]bool
-	propertyReads    map[*MethodCallExpression]*MemberAccessExpression
-	implicitCalls    map[Expression]bool
-	mu               sync.RWMutex
+	enumElements          map[Expression]EnumElementBinding
+	resolvedTypes         map[Node]types.Type
+	types                 map[Expression]*TypeAnnotation
+	foldedPredicates      map[*Identifier]bool
+	propertyReads         map[*MethodCallExpression]*MemberAccessExpression
+	implicitPropertyReads map[*CallExpression]*ImplicitPropertyReadBinding
+	implicitCalls         map[Expression]bool
+	mu                    sync.RWMutex
 }
 
 // NewSemanticInfo creates a new empty semantic metadata table.
 // Each semantic analysis should create its own SemanticInfo instance.
 func NewSemanticInfo() *SemanticInfo {
 	return &SemanticInfo{
-		resolvedTypes:    make(map[Node]types.Type),
-		enumElements:     make(map[Expression]EnumElementBinding),
-		types:            make(map[Expression]*TypeAnnotation),
-		foldedPredicates: make(map[*Identifier]bool),
-		propertyReads:    make(map[*MethodCallExpression]*MemberAccessExpression),
-		implicitCalls:    make(map[Expression]bool),
+		resolvedTypes:         make(map[Node]types.Type),
+		enumElements:          make(map[Expression]EnumElementBinding),
+		types:                 make(map[Expression]*TypeAnnotation),
+		foldedPredicates:      make(map[*Identifier]bool),
+		propertyReads:         make(map[*MethodCallExpression]*MemberAccessExpression),
+		implicitPropertyReads: make(map[*CallExpression]*ImplicitPropertyReadBinding),
+		implicitCalls:         make(map[Expression]bool),
 	}
 }
 
@@ -226,6 +228,7 @@ func (si *SemanticInfo) Clear() {
 	si.types = make(map[Expression]*TypeAnnotation)
 	si.foldedPredicates = make(map[*Identifier]bool)
 	si.propertyReads = make(map[*MethodCallExpression]*MemberAccessExpression)
+	si.implicitPropertyReads = make(map[*CallExpression]*ImplicitPropertyReadBinding)
 	si.implicitCalls = make(map[Expression]bool)
 }
 
@@ -310,4 +313,31 @@ func (si *SemanticInfo) PropertyRead(call *MethodCallExpression) *MemberAccessEx
 	si.mu.RLock()
 	defer si.mu.RUnlock()
 	return si.propertyReads[call]
+}
+
+// ImplicitPropertyReadBinding preserves the declaring property owner and the
+// receiver for a checked unqualified compatibility call. Owner selects the
+// descriptor; the receiver retains virtual getter dispatch.
+type ImplicitPropertyReadBinding struct {
+	Read  *MemberAccessExpression
+	Owner string
+}
+
+// SetImplicitPropertyRead binds a direct empty property call to its implicit-Self read.
+// The read is immutable after semantic analysis.
+func (si *SemanticInfo) SetImplicitPropertyRead(call *CallExpression, read *ImplicitPropertyReadBinding) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	if si.implicitPropertyReads == nil {
+		si.implicitPropertyReads = make(map[*CallExpression]*ImplicitPropertyReadBinding)
+	}
+	si.implicitPropertyReads[call] = read
+}
+
+// ImplicitPropertyRead returns the bound implicit-Self property read, if any.
+// It is safe for concurrent reads.
+func (si *SemanticInfo) ImplicitPropertyRead(call *CallExpression) *ImplicitPropertyReadBinding {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	return si.implicitPropertyReads[call]
 }

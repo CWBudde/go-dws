@@ -278,7 +278,9 @@ the visibility in effect.
 
 A scalar class property declared with `reintroduce` accepts an empty `()` pair
 immediately after its name. The explicit read `obj.Prop()` returns the same value
-as `obj.Prop`; at normal hint level it reports
+as `obj.Prop`. Within instance and class methods, a directly written `Prop()`
+also reads the scalar property, including class properties in class methods.
+At normal hint level it reports
 `Property "Prop" reintroduced a method, you should remove empty brackets ()`
 at the opening `(`. Bare reads have no compatibility hint. Pedantic hints report
 wrong member casing before the compatibility hint, using declaration casing.
@@ -291,11 +293,19 @@ property called with `()` instead stops with `Not a method` at `(` before readin
 arguments. Actual methods and ordinary function-valued properties retain their
 existing call paths.
 
-This batch covers checked explicit scalar class-property reads, including
-aliases/implicit routine receivers, inherited descriptors and class properties.
+Checked scalar reads cover explicit receivers and unqualified empty calls in
+class methods, including aliases/implicit routine receivers, inherited descriptors
+and class properties. Local callable variables and parameters hide unqualified
+properties; class members take priority over same-named global routines. Descendant
+methods and helper methods retain their call paths. Getters execute once; virtual
+instance/class getters keep dynamic dispatch and original exceptions. Unqualified
+compatibility calls preserve the declaring descriptor when descendants redeclare
+the property; reads also work inside another getter/setter. Static class methods
+have no implicit receiver and stop before a compatibility hint. Deprecated
+property warning order/anchors remain a diagnostic follow-up.
 The source printer preserves the declaration marker. Nonempty compatibility-token recovery,
 EOF/end boundaries, lexer-directive reach after recovery, discarded enclosing calls,
-unqualified/explicit inherited syntax,
+malformed/nonempty unqualified calls and explicit inherited syntax,
 indexed/default properties, writes, flagged function-valued properties and unchecked
 execution remain open in PLAN.md. These need their own parsing/dispatch acceptance;
 passing the scalar fixtures does not close the full property item. Parser-only

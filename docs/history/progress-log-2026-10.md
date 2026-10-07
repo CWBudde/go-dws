@@ -1,5 +1,64 @@
 # Progress log — October 2026
 
+## 2026-10-07 — Unqualified reintroduced-property reads (PLAN 2.1)
+
+This batch (PR link pending) adds checked unqualified empty scalar property calls
+inside instance and class methods. The normal compatibility hint uses the opening
+parenthesis; a pedantic case hint precedes it. Ordinary scalar empty calls stop
+with `Not a method` there. Class methods reject instance properties, and write-only
+properties retain their read diagnostic.
+
+Read-only agent research followed the pinned upstream revision
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`: compiler `ReadName` (4906–5036) and
+`ReadPropertyExpr` (5421–5435), method parameter inheritance in `dwsSymbols.pas`
+(4694), and method-body parent ordering in `dwsExprs.pas` (3213). This is source-derived
+evidence, without an executed Pascal oracle. Locals/parameters precede class members;
+class members precede enclosing/global names.
+
+Empty calls retain their opening position without changing their existing token or
+ordinary-call diagnostics. A method-scope boundary keeps lexical shadows intact.
+Separate typed SemanticInfo bindings preserve the declaring property owner and
+runtime Self. The evaluator reads that runtime descriptor directly, including
+inside accessors, and uses the dynamic metaclass for virtual class getters.
+Field/class-variable storage uses the declaring owner, preserving shadowed slots.
+The source AST remains immutable.
+
+Tests were written first: implicit calls failed with unknown names, and global-routine
+and ancestor-method shadows returned incorrect values. Ten frontend cases cover
+hint levels/directives, case/order/anchors, ordinary/grouped/bare controls and write-only
+reads and static-method compile stops. Twenty data-driven public API cases cover
+own/ancestor descriptors, class
+properties, getter counts, local callable/parameter/global/helper/method shadows,
+virtual class/instance getters and original exceptions. A whole-branch agent review
+found four Important issues: descriptor loss, synthesized ancestor members mistaken
+for lexical locals, failed nested accessor reads, and flagged calls accepted in static
+methods. Seven failing acceptance subcases (six runtime and one static diagnostic)
+reproduced these issues before the fix pass, including backing-field slot shadows.
+All ten frontend/twenty API cases and all seven affected packages now pass.
+The review had no Critical issues and one deferred Minor: deprecated properties
+still report their warning after the compatibility hint, at the name rather than
+the opening parenthesis.
+
+The access-context checklist is split into visible children; only this verified child
+is checked. Explicit inherited reads remain separate because even bare inherited property
+execution has a pre-existing method-only dispatch gap. Nonempty/malformed recovery,
+indexed/default/write/function-valued contexts, unchecked execution, private visibility
+and invalid ordinary-call ordering remain open. The Default namespace PR #466 is untouched.
+
+Final verification passed with Go 1.24.13: full `go test -race -coverprofile=.cache/property-contexts/after.out ./...`,
+all seven affected package suites, lint against `origin/main` (0 issues), `go mod tidy -diff`
+(empty), visitor generation (no generated diff), fresh CLI build, formatting and fixture gate.
+All 31 fresh CLI checks passed, covering the twenty runtime scripts, ten diagnostic/exit
+controls and source-printer round trip. Lexer coverage stays 1241/1440 (86.1806%);
+parser coverage rises from 4627/5808 (79.6660%) to 4628/5809 (79.6695%).
+
+`just fixture-update` generated 1422 passes, 592 failures and 27 skips, including eight
+BuildScripts passes. The subsequent gate measured seven; the documented Phase 5.2
+initialization-order fluctuation remains. The original stable BuildScripts floor of seven
+was retained and the fresh fixture gate passed. All other floors remain unchanged; there
+is no stable fixture-count gain claimed for this API acceptance batch. Test/build temporary
+files use `/var/tmp` to avoid the existing tmpfs quota and repository-filesystem cleanup issues.
+
 ## 2026-10-06 — Explicit reintroduced-property reads (PLAN 2.1)
 
 This batch ([#467](https://github.com/CWBudde/go-dws/pull/467)) accepts `reintroduce` before

@@ -1,0 +1,9 @@
+type TBase = class
+ class function GetProp: Integer; virtual; begin Result := 53; end;
+ class property Prop: Integer read GetProp reintroduce;
+ class function Read: Integer; begin Result := Prop(); end;
+end;
+type TChild = class(TBase)
+ class function GetProp: Integer; override; begin Result := 59; end;
+end;
+PrintLn(TBase.Read()); PrintLn(TChild.Read());

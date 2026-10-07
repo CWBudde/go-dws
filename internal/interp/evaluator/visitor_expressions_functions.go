@@ -17,6 +17,11 @@ import (
 // built-in functions, type casts, implicit self methods, and record static methods.
 // Supports lazy parameters (Jensen's Device) and var parameters (pass-by-reference).
 func (e *Evaluator) VisitCallExpression(node *ast.CallExpression, ctx *ExecutionContext) Value {
+	if info := e.SemanticInfo(); info != nil {
+		if read := info.ImplicitPropertyRead(node); read != nil {
+			return e.evalImplicitPropertyRead(read, ctx)
+		}
+	}
 	if node.Function == nil {
 		return e.newError(node, "call expression missing function")
 	}

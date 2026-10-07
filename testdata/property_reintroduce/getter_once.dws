@@ -1,0 +1,7 @@
+type TTest = class
+ Reads: Integer;
+ function GetProp: Integer; begin Inc(Reads); Result := Reads; end;
+ property Prop: Integer read GetProp reintroduce;
+ function Read: Integer; begin Result := Prop(); end;
+end;
+var Obj := new TTest; PrintLn(Obj.Read()); PrintLn(Obj.Reads);

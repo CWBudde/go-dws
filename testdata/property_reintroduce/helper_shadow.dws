@@ -1,0 +1,11 @@
+type TTest = class
+ Field: Integer;
+ property Prop: Integer read Field reintroduce;
+ function Read: Integer;
+end;
+type H = helper for TTest
+ function Prop: Integer; begin Result := 47; end;
+end;
+function TTest.Read: Integer;
+begin Result := Prop(); end;
+PrintLn(TTest.Create.Read());
