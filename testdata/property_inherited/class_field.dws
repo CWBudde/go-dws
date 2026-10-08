@@ -1,0 +1,10 @@
+type TBase = class
+ class var Field: Integer := 41;
+ class property Prop: Integer read Field reintroduce;
+end;
+type TChild = class(TBase)
+ class var Field: Integer := 42;
+ class property Prop: Integer read Field;
+ class procedure Probe; begin PrintLn(inherited Prop); PrintLn(inherited Prop()); end;
+end;
+TChild.Probe(); PrintLn(TChild.Prop);

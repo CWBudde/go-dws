@@ -1,0 +1,5 @@
+type TBase = class Field: Integer := 17; property Prop: Integer read Field; end;
+type TChild = class(TBase)
+ function Probe: Integer; begin Result := inherited Prop; end;
+end;
+var Obj := new TChild; PrintLn(Obj.Probe());

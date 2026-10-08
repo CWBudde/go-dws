@@ -1,0 +1,12 @@
+type TGrandBase = class
+ function Get: Integer; begin Result := 11; end;
+ property Original: Integer read Get;
+end;
+type TBase = class(TGrandBase)
+ function Get: Integer; begin Result := 22; end;
+ property Prop: Integer read Original reintroduce;
+end;
+type TChild = class(TBase)
+ function Probe: Integer; begin Result := inherited Prop + inherited Prop(); end;
+end;
+var Obj := new TChild; PrintLn(Obj.Probe());

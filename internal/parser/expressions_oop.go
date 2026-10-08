@@ -60,8 +60,10 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 
 		// Check if there's a call (parentheses)
 		nextToken = p.cursor.Peek(1)
+		inheritedExpr.AfterNamePos = nextToken.Pos
 		if nextToken.Type == lexer.LPAREN {
 			p.cursor = p.cursor.Advance() // move to '('
+			inheritedExpr.ParenPos = p.cursor.Current().Pos
 			inheritedExpr.IsCall = true
 
 			// Parse arguments

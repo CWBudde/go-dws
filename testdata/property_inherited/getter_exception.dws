@@ -1,0 +1,11 @@
+type TBase = class
+ Reads: Integer;
+ function Get: Integer; begin Inc(Reads); raise Exception.Create('getter'); end;
+ property Prop: Integer read Get reintroduce;
+end;
+type TChild = class(TBase)
+ function Probe: Integer; begin Result := inherited Prop(); end;
+end;
+var Obj := new TChild;
+try PrintLn(Obj.Probe()); except on E: Exception do PrintLn(E.Message); end;
+PrintLn(Obj.Reads);

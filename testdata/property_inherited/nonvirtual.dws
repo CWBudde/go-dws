@@ -1,0 +1,8 @@
+type TGrandBase = class function Get: Integer; begin Result := 10; end; end;
+type TBase = class(TGrandBase) property Prop: Integer read Get reintroduce; end;
+type TChild = class(TBase)
+ function Get: Integer; begin Result := 20; end;
+ property Prop: Integer read Get;
+ procedure Probe; begin PrintLn(inherited Prop); PrintLn(inherited Prop()); end;
+end;
+var Obj := new TChild; Obj.Probe(); PrintLn(Obj.Prop);

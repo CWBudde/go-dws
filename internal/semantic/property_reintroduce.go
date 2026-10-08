@@ -133,3 +133,65 @@ func compatibilityPropertyOwner(class *types.ClassType, prop *types.PropertyInfo
 	}
 	return ""
 }
+
+// analyzeInheritedPropertyRead binds only named scalar reads. Nonempty calls and
+// indexed/function-valued properties retain their separate analysis paths.
+func (a *Analyzer) analyzeInheritedPropertyRead(expr *ast.InheritedExpression, parent *types.ClassType) (types.Type, bool) {
+	if expr.Method == nil || len(expr.Arguments) != 0 {
+		return nil, false
+	}
+	prop := propertyForCompatibilityCall(parent, expr.Method.Value)
+	if prop == nil || prop.IsIndexed || isFunctionPointerType(prop.Type) {
+		return nil, false
+	}
+	a.warnDeprecatedPropertyUsage(prop, expr.Method.Token.Pos)
+	if expr.IsCall {
+		if !prop.IsReintroduce {
+			if prop.ReadKind == types.PropAccessNone {
+				a.addStructuredError(NewWriteOnlyPropertyError(expr.Method.Token.Pos, prop.Name))
+			}
+			a.addPunctuationStop(expr.ParenPos, "Not a method")
+			return nil, true
+		}
+		a.addHintAt(expr.ParenPos, "Property %q reintroduced a method, you should remove empty brackets () [line: %d, column: %d]", prop.Name, expr.ParenPos.Line, expr.ParenPos.Column)
+	}
+	if prop.ReadKind == types.PropAccessNone {
+		pos := expr.Method.Token.Pos
+		if prop.IsReintroduce {
+			pos = expr.AfterNamePos
+			if expr.IsCall {
+				pos = expr.End()
+				pos.Column-- // End is exclusive; upstream anchors at the consumed ')'.
+				pos.Offset--
+			}
+		}
+		a.addStructuredError(NewWriteOnlyPropertyError(pos, prop.Name))
+		return prop.Type, true
+	}
+	if a.inClassMethod && !a.inheritedPropertyHasClassReader(prop) {
+		a.addStructuredError(NewObjectReferenceNeededError(expr.Method.Token.Pos))
+		return prop.Type, true
+	}
+	read := &ast.MemberAccessExpression{BaseNode: expr.BaseNode, Object: &ast.SelfExpression{BaseNode: expr.BaseNode}, Member: expr.Method}
+	a.semanticInfo.SetInheritedPropertyRead(expr, &ast.InheritedPropertyReadBinding{
+		Owner: compatibilityPropertyOwner(parent, prop), Read: read, Property: prop,
+	})
+	return prop.Type, true
+}
+
+func (a *Analyzer) inheritedPropertyHasClassReader(prop *types.PropertyInfo) bool {
+	if prop.ReadStorage == types.PropStorageConstant || prop.ReadStorage == types.PropStorageClassVar {
+		return true
+	}
+	if prop.ReadKind == types.PropAccessExpression {
+		return prop.IsClassProperty
+	}
+	if prop.ReadKind == types.PropAccessMethod {
+		for current := a.currentClass; current != nil; current = current.Parent {
+			if ident.Equal(current.Name, prop.ReadOwner) {
+				return current.ClassMethodFlags[ident.Normalize(prop.ReadSpec)]
+			}
+		}
+	}
+	return false
+}

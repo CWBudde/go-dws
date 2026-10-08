@@ -1,0 +1,16 @@
+var Calls := 0;
+type TBase = class
+ function Get: Integer; virtual; begin Result := 10; end;
+ property Prop: Integer read Get reintroduce;
+end;
+type TChild = class(TBase)
+ function Get: Integer; override; begin Inc(Calls); Result := 20; end;
+ function Shadow: Integer; begin Result := 99; end;
+ property Prop: Integer read Shadow;
+ procedure Probe;
+ begin PrintLn(inherited Prop); PrintLn(inherited pRoP()); PrintLn(inherited Get()); end;
+end;
+type TGrandChild = class(TChild)
+ function Get: Integer; override; begin Inc(Calls); Result := 30; end;
+end;
+var Obj := new TGrandChild; Obj.Probe(); PrintLn(Obj.Prop); PrintLn(Calls);

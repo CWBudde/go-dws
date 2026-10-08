@@ -150,8 +150,8 @@ bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batc
 Default namespace availability/binding is implemented in pending [#466](https://github.com/CWBudde/go-dws/pull/466).
 Explicit scalar reintroduced-property empty reads and statement-boundary recovery shipped
 in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty scalar reads
-in class methods ship in [#468](https://github.com/CWBudde/go-dws/pull/468). Next: reintroduced-property nonempty/discarded-parent
-recovery and explicit inherited/indexed/write contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
+in class methods shipped in [#468](https://github.com/CWBudde/go-dws/pull/468). Named inherited empty/bare scalar reads and parent accessor ownership are implemented in [#469](https://github.com/CWBudde/go-dws/pull/469).
+Next: reintroduced-property nonempty/discarded-parent recovery and indexed/write contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
@@ -240,8 +240,11 @@ Pin complete diagnostic lists through `frontend.Compile`, including recovery typ
 - [ ] Excess bare-callable arguments.
   - [ ] Analyze implicit calls beyond the member's declared parameter list.
   - [ ] Retain the excess callable's own arity diagnostics before the outer call error.
-- [ ] Bare inherited-call arity and recovery.
+- [ ] Inherited-call arity, recovery and class-method execution.
   - [ ] Measure unnamed inherited calls independently from shipped named calls.
+  - [ ] Repair named inherited class-method execution: a method body inherited by a
+    grandchild currently calls the dynamic parent's method instead of the lexical
+    method owner's parent (discovered during the 2.1 inherited-property batch).
   - [ ] Match arity, anchors, and result recovery for each measured form.
 - [ ] Synthetic parameterless constructor ambiguity.
   - [ ] Measure competition with inherited constructors whose parameters all have defaults.
@@ -368,9 +371,18 @@ punctuation in the parser before reading arguments.
       over global routines, ancestor descriptors, descendant method shadows, helper precedence,
       virtual getters, once-only getter effects, original exceptions, nested accessor reads,
       selected descriptor/storage ownership and flagged static-method stops ([#468](https://github.com/CWBudde/go-dws/pull/468)).
-    - [ ] Support explicit inherited reads; select the parent descriptor while retaining
-      virtual getter dispatch. Bare inherited property execution also needs repair.
-    - [ ] Support indexed/default properties, writes and function-valued properties.
+    - [x] Support named inherited empty/bare scalar reads ([#469](https://github.com/CWBudde/go-dws/pull/469)).
+      - [x] Preserve the parent descriptor and resolved accessor/storage identity through
+        forwarding, field/class-variable/constant shadows and ancestor class getters.
+      - [x] Retain lexical expression-getter storage, class getters backing ordinary
+        properties, nonvirtual nil receivers, original virtual chains and intermediate
+        overrides; preserve index directives, getter effects/exceptions and nested reads.
+      - [x] Match inherited hint levels/casing, deprecation ordering and write-only
+        anchors; preserve empty and argument-bearing inherited calls in printed source.
+        Close `SimpleScripts/inherited1` and `FailureScripts/inherited5`.
+    - [ ] Support indexed/default property reads.
+    - [ ] Support property writes through compatibility brackets.
+    - [ ] Support function-valued properties and distinguish property reads from invocation.
     - [ ] Support unchecked execution and malformed/nonempty unqualified calls.
     - [ ] Measure visibility promotions/generic specializations separately: upstream does
       not copy the flag there.

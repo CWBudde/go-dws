@@ -1,0 +1,9 @@
+type TBase = class
+ const Value = 11;
+ property Prop: Integer read vAlUe;
+end;
+type TChild = class(TBase)
+ function Probe: Integer; begin Result := inherited Prop; end;
+end;
+PrintLn(TBase.Create.Prop);
+PrintLn(TChild.Create.Probe);

@@ -440,8 +440,12 @@ func (mc *MethodCallExpression) String() string {
 //	inherited MethodName
 //	inherited
 type InheritedExpression struct {
-	Method    *Identifier
-	Arguments []Expression
+	// ParenPos retains the opening position of an explicit inherited call.
+	ParenPos token.Position
+	// AfterNamePos retains the lookahead after a named inherited member.
+	AfterNamePos token.Position
+	Method       *Identifier
+	Arguments    []Expression
 	BaseNode
 	IsCall   bool
 	IsMember bool

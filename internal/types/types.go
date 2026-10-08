@@ -412,6 +412,22 @@ const (
 	PropAccessBuiltin                          // Built-in property implemented in Go (e.g., array .Length, .High, .Low)
 )
 
+// PropertyStorageKind identifies the resolved storage behind a property reader.
+// This prevents an inherited or forwarded read from selecting another member
+// category with the same name in an ancestor or descendant class.
+type PropertyStorageKind int
+
+const (
+	// PropStorageNone denotes a method/expression reader or unresolved storage.
+	PropStorageNone PropertyStorageKind = iota
+	// PropStorageField denotes an instance field slot.
+	PropStorageField
+	// PropStorageClassVar denotes a class variable slot.
+	PropStorageClassVar
+	// PropStorageConstant denotes a class constant.
+	PropStorageConstant
+)
+
 // PropertyInfo represents property metadata for a class.
 // Fields: Name, Type, ReadSpec, WriteSpec, IsIndexed, IsDefault
 // Properties provide syntactic sugar for getter/setter access.
@@ -421,9 +437,11 @@ type PropertyInfo struct {
 	WriteExpr      any
 	IndexValueType Type
 	Type           Type
-	ReadSpec       string
-	WriteSpec      string
-	Name           string
+	// ReadOwner names the class that declares the resolved reader, including forwarding.
+	ReadOwner string
+	ReadSpec  string
+	WriteSpec string
+	Name      string
 	// ExternalName, when set by an `external 'name'` clause, replaces the
 	// declared name when the object is serialized.
 	ExternalName string
@@ -440,6 +458,7 @@ type PropertyInfo struct {
 	// the authoritative arity for an indexed property: unlike the accessor
 	// method's signature, it is available for expression-based accessors too.
 	IndexParamTypes []Type
+	ReadStorage     PropertyStorageKind
 	ReadKind        PropAccessKind
 	WriteKind       PropAccessKind
 	HasIndexValue   bool

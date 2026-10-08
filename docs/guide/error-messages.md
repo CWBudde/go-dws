@@ -286,6 +286,26 @@ at the opening `(`. Bare reads have no compatibility hint. Pedantic hints report
 wrong member casing before the compatibility hint, using declaration casing.
 `{$HINTS OFF}` and disabled hints suppress the hint.
 
+Inside a method, `inherited Prop` reads the property selected from that method
+owner's parent. If that descriptor has `reintroduce`, `inherited Prop()` is also
+accepted with the same compatibility hint at `(`. Named inherited reads do not
+emit a pedantic member-casing hint. They keep the parent descriptor and backing
+storage when descendants shadow names. Nonvirtual getters stay bound to the
+selected accessor; virtual instance/class getters dispatch on dynamic Self,
+including when a grandchild inherits the method containing the read. A restarted
+same-named virtual chain keeps the original chain's intermediate overrides.
+Forwarded accessors and expression getters retain their lexical storage owner.
+An ordinary property backed by a class getter or constant can be read inside a
+class method. Nonvirtual getters may execute on nil Self when their body does
+not dereference it; field reads and virtual dispatch require an instance. Scalar
+properties with an `index` directive pass its constant argument to the getter.
+
+For inherited write-only reads, a flagged empty call reports its read error at
+`)`, after the compatibility hint. A flagged bare read uses the following token;
+an ordinary property uses its name. An ordinary write-only empty call reports
+that read error before the `Not a method` stop at `(`. A deprecated inherited
+property reports its warning at the member name before the compatibility hint.
+
 For `var A := obj.Prop(;`, `")" expected` is a recoverable error at `;`.
 The declaration retains the property's type, and compilation can report later
 semantic errors. Comments/newlines preserve the next-token anchor. An ordinary scalar
@@ -305,7 +325,7 @@ have no implicit receiver and stop before a compatibility hint. Deprecated
 property warning order/anchors remain a diagnostic follow-up.
 The source printer preserves the declaration marker. Nonempty compatibility-token recovery,
 EOF/end boundaries, lexer-directive reach after recovery, discarded enclosing calls,
-malformed/nonempty unqualified calls and explicit inherited syntax,
+malformed/nonempty unqualified/inherited calls, static inherited property contexts,
 indexed/default properties, writes, flagged function-valued properties and unchecked
 execution remain open in PLAN.md. These need their own parsing/dispatch acceptance;
 passing the scalar fixtures does not close the full property item. Parser-only

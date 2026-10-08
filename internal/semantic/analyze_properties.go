@@ -183,6 +183,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 	// Create PropertyInfo to store in class metadata
 	propInfo := &types.PropertyInfo{
 		Name:              propName,
+		ReadOwner:         classType.Name,
 		Type:              propType,
 		IsIndexed:         isIndexed,
 		IsDefault:         prop.IsDefault,
@@ -308,6 +309,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 			propInfo.ReadKind = referenced.ReadKind
 			propInfo.ReadSpec = referenced.ReadSpec
 			propInfo.ReadExpr = referenced.ReadExpr
+			propInfo.ReadOwner = referenced.ReadOwner
+			propInfo.ReadStorage = referenced.ReadStorage
 			return
 		}
 
@@ -333,6 +336,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 					return
 				}
 				a.recordClassFieldUsage(classType, readSpecName)
+				propInfo.ReadOwner = fieldOwner.Name
+				propInfo.ReadStorage = types.PropStorageClassVar
 				propInfo.ReadKind = types.PropAccessField
 				propInfo.ReadSpec = readSpecName
 				return
@@ -346,6 +351,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
 				return
 			}
+			propInfo.ReadOwner = a.getConstantOwner(classType, readSpecName).Name
+			propInfo.ReadStorage = types.PropStorageConstant
 			propInfo.ReadKind = types.PropAccessField // Constants are treated like fields
 			propInfo.ReadSpec = readSpecName
 			return
@@ -373,6 +380,8 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				// The backing field is referenced by this accessor; mark it used
 				// so it is not flagged as an unused private field.
 				a.recordClassFieldUsage(fieldOwner, readSpecName)
+				propInfo.ReadOwner = fieldOwner.Name
+				propInfo.ReadStorage = types.PropStorageField
 				propInfo.ReadKind = types.PropAccessField
 				propInfo.ReadSpec = readSpecName
 				return
@@ -398,9 +407,11 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 
 		// If method, verify method exists with correct signature
 		if methodType, found := classType.GetMethod(pkgident.Normalize(readSpecName)); found {
-			// For class properties, verify the method is a class method
+			// Validate the selected signature, not a different same-named overload.
+			owner := propertyReadMethodOwner(classType, readSpecName, methodType)
+			propInfo.ReadOwner = owner.Name
 			if propInfo.IsClassProperty {
-				isClassMethod := classType.ClassMethodFlags != nil && classType.ClassMethodFlags[pkgident.Normalize(readSpecName)]
+				isClassMethod := owner.ClassMethodFlags[pkgident.Normalize(readSpecName)]
 				if !isClassMethod {
 					a.addStructuredError(NewClassMethodOrConstructorExpectedError(ident.Token.Pos))
 					return
@@ -728,4 +739,15 @@ func (a *Analyzer) getConstantType(classType *types.ClassType, constantName stri
 	}
 
 	return nil, false
+}
+
+// propertyReadMethodOwner locates the class whose method signature was selected
+// by GetMethod. Other surviving overloads must not contribute its class flags.
+func propertyReadMethodOwner(class *types.ClassType, name string, signature *types.FunctionType) *types.ClassType {
+	for current := class; current != nil; current = current.Parent {
+		if current.Methods[pkgident.Normalize(name)] == signature {
+			return current
+		}
+	}
+	return class
 }

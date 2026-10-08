@@ -1,0 +1,6 @@
+type TBase = class Field: Integer := 61; property Prop: Integer read Field reintroduce; end;
+type TChild = class(TBase)
+ function GetOther: Integer; begin Result := inherited Prop + inherited Prop(); end;
+ property Other: Integer read GetOther;
+end;
+PrintLn(new TChild.Other);
