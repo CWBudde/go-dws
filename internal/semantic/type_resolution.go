@@ -1310,9 +1310,12 @@ func (a *Analyzer) getConstantOwner(class *types.ClassType, constantName string)
 		return nil
 	}
 
-	// Check if this class declares the constant
-	if _, found := class.Constants[constantName]; found {
-		return class
+	// Check if this class declares the constant. Constants are keyed by their
+	// declared spelling, so compare case-insensitively.
+	for existingName := range class.Constants {
+		if ident.Equal(existingName, constantName) {
+			return class
+		}
 	}
 
 	// Check parent classes
