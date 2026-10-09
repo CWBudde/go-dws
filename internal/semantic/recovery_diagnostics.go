@@ -22,6 +22,8 @@ func containsParserRecovery(expr ast.Expression) bool {
 			found = node.Truncated
 		case *ast.MethodCallExpression:
 			found = node.Truncated
+		case *ast.InheritedExpression:
+			found = node.Truncated
 		}
 		return !found
 	})

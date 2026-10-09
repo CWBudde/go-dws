@@ -57,6 +57,9 @@ func (a *Analyzer) analyzeExpression(expr ast.Expression) (resolvedType types.Ty
 	case *ast.MemberAccessExpression:
 		return a.analyzeMemberAccessExpression(e)
 	case *ast.MethodCallExpression:
+		if e.StopDeferred {
+			return a.analyzeStopDeferredCall(e)
+		}
 		return a.analyzeMethodCallExpression(e)
 	case *ast.ArrayLiteralExpression:
 		return a.analyzeArrayLiteral(e, nil)

@@ -66,8 +66,9 @@ type Diagnostic struct {
 	lexerDirective bool
 	// afterChildren retains semantic emission order for enclosing expressions.
 	afterChildren bool
-	// deferredCall identifies provisional parser punctuation resolved by analysis.
-	deferredCall *ast.MethodCallExpression
+	// provisional marks a parser stop that semantic analysis decides and
+	// reports itself (parser.ParserError.Provisional).
+	provisional bool
 }
 
 // Render returns the centralized rendered form of the diagnostic.
@@ -148,7 +149,7 @@ func (r *Result) HasSemanticBlockingDiagnosticsInPhase(phase Phase) bool {
 // afterwards — including the end-of-program checks — is reported.
 func (r *Result) HasParserStop() bool {
 	for _, diag := range r.Diagnostics {
-		if diag.Phase == PhaseParsing && diag.Stop && diag.deferredCall == nil {
+		if diag.Phase == PhaseParsing && diag.Stop && !diag.provisional {
 			return true
 		}
 	}
@@ -325,9 +326,7 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	err := safeAnalyzeWithUnits(analyzer, result, opts)
 	result.SemanticInfo = analyzer.GetSemanticInfo()
 	unitDiagnostics := result.Diagnostics[len(mainDiagnostics):]
-	mainDiagnostics = refineTypePunctuationDiagnostics(append(mainDiagnostics, semanticDiagnostics(analyzer)...))
-	mainDiagnostics = refineDeferredPropertyCallDiagnostics(mainDiagnostics, result.SemanticInfo)
-	mainDiagnostics = dropDiagnosticsAfterStop(mainDiagnostics)
+	mainDiagnostics = dropDiagnosticsAfterStop(append(dropProvisional(mainDiagnostics), semanticDiagnostics(analyzer)...))
 	restoreStatementWarningOrder(mainDiagnostics)
 	sortDiagnostics(mainDiagnostics)
 	restoreDeclarationDiagnosticOrder(mainDiagnostics)
@@ -343,11 +342,28 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	return result
 }
 
+// dropProvisional removes the parser stops that the analyzer, having run,
+// decided and reported itself.
+func dropProvisional(diags []Diagnostic) []Diagnostic {
+	kept := diags[:0]
+	for _, diag := range diags {
+		if !diag.provisional {
+			kept = append(kept, diag)
+		}
+	}
+	return kept
+}
+
 // dropDiagnosticsAfterStop applies the earliest compiler stop to diagnostics
 // from the other compilation phase. Parser stops cut off semantic diagnostics by
 // position. Semantic stops already cut off their own diagnostics in emission
 // order, so their child errors survive even when displayed after the stop's
 // scanner cursor; only later parser diagnostics need pruning here.
+//
+// At a tie the semantic stop wins. The analyzer only reaches the token of a
+// parser stop through a carrier the parser left for it to decide, such as an
+// interrupted typed constant initializer, which upstream reads as a record
+// constant (`"(" expected`) where the parser saw a missing expression.
 //
 // Positions are only comparable within one source, so diags must hold the
 // diagnostics of a single file. Diagnostics that are not positional but deferred
@@ -357,7 +373,9 @@ func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
 	stopLine, stopColumn, found := 0, 0, false
 	var stopPhase Phase
 	for _, diag := range diags {
-		if diag.Stop && (!found || diag.Line < stopLine || (diag.Line == stopLine && diag.Column < stopColumn)) {
+		earlier := diag.Line < stopLine || (diag.Line == stopLine && diag.Column < stopColumn)
+		tie := diag.Line == stopLine && diag.Column == stopColumn && diag.Phase == PhaseSemantic
+		if diag.Stop && (!found || earlier || tie) {
 			stopLine, stopColumn, found, stopPhase = diag.Line, diag.Column, true, diag.Phase
 		}
 	}
@@ -742,7 +760,7 @@ func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {
 			Fatal:          true,
 			BlocksSemantic: parserDiagnosticBlocksSemantic(err),
 			Stop:           err.Stop,
-			deferredCall:   err.DeferredCall,
+			provisional:    err.Provisional,
 		})
 	}
 	return diags

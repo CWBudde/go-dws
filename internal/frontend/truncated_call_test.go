@@ -52,6 +52,15 @@ func TestCompile_TruncatedCallKeepsCompletedArguments(t *testing.T) {
 			},
 		},
 		{
+			name: "inherited call",
+			source: "type TA = class procedure Foo(a: Integer); end;\ntype TB = class(TA) procedure Foo(a: Integer); end;\n" +
+				"procedure TA.Foo(a: Integer); begin end;\nprocedure TB.Foo(a: Integer); begin inherited Foo(12+'x' 1);\nend;",
+			want: []string{
+				`Syntax Error: Invalid Operands [line: 4, column: 53]`,
+				`Syntax Error: ")" expected [line: 4, column: 58]`,
+			},
+		},
+		{
 			// FailureScripts/array_index_bracket_missing1: the stopped argument is not
 			// completed, so neither it nor the call is checked.
 			name:   "argument cut short by its own stop",

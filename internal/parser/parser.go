@@ -273,7 +273,7 @@ func (p *Parser) recordStop(err *ParserError) {
 // error list so speculative parses that restore an earlier error list also undo it.
 func (p *Parser) stopped() bool {
 	for i := len(p.errors) - 1; i >= 0; i-- {
-		if p.errors[i].Stop && p.errors[i].DeferredCall == nil {
+		if p.errors[i].Stop && !p.errors[i].Provisional {
 			return true
 		}
 	}
@@ -284,7 +284,7 @@ func (p *Parser) stopped() bool {
 // error-list mark (a len(p.errors) taken earlier).
 func (p *Parser) stoppedSince(mark int) bool {
 	for i := len(p.errors) - 1; i >= mark && i >= 0; i-- {
-		if p.errors[i].Stop && p.errors[i].DeferredCall == nil {
+		if p.errors[i].Stop && !p.errors[i].Provisional {
 			return true
 		}
 	}
@@ -324,6 +324,8 @@ func isTruncatedCall(expr ast.Expression) bool {
 	case *ast.NewExpression:
 		return call.Truncated
 	case *ast.MethodCallExpression:
+		return call.Truncated
+	case *ast.InheritedExpression:
 		return call.Truncated
 	}
 	return false
@@ -695,8 +697,8 @@ func (p *Parser) parseFieldInitializer(fieldNames []*ast.Identifier) ast.Express
 func (p *Parser) confirmDeferredCallStops(start int) bool {
 	confirmed := false
 	for _, err := range p.errors[start:] {
-		if err.DeferredCall != nil {
-			err.DeferredCall = nil
+		if err.Provisional {
+			err.Provisional = false
 			confirmed = true
 		}
 	}

@@ -67,12 +67,7 @@ func (p *Parser) parseInheritedExpression() ast.Expression {
 			inheritedExpr.IsCall = true
 
 			// Parse arguments
-			inheritedExpr.Arguments = p.parseExpressionList()
-			if p.stopped() {
-				// The argument list was cut short by a compiler stop: upstream never
-				// finished reading this call, so its argument checks never ran.
-				return nil
-			}
+			inheritedExpr.Arguments, inheritedExpr.Truncated = p.parseCallArguments()
 			// Set end position after closing parenthesis (cursor is now at RPAREN)
 			return builder.Finish(inheritedExpr).(ast.Expression)
 		} else {

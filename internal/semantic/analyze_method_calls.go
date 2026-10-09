@@ -4,7 +4,25 @@ import (
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
+
+// analyzeStopDeferredCall analyzes a call the parser cut at a statement
+// boundary without deciding whether that is a stop (ast.MethodCallExpression.
+// StopDeferred): upstream's ReadPropertyExpr recovers a reintroduced property
+// read there and goes on, while ReadArguments stops with "Expression expected".
+// Decide it now that the member is resolved.
+func (a *Analyzer) analyzeStopDeferredCall(expr *ast.MethodCallExpression) types.Type {
+	result := a.analyzeMethodCallExpression(expr)
+	if a.semanticInfo.PropertyRead(expr) == nil {
+		pos := expr.FirstArgumentToken.Pos
+		if expr.FirstArgumentToken.Type == token.EOF {
+			pos = expr.ParenPos // a stop at EOF is anchored on the last token
+		}
+		a.addCompilerStop(NewGenericError(pos, "Expression expected"))
+	}
+	return result
+}
 
 // analyzeMethodCallExpression analyzes a method call on an object
 func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) types.Type {

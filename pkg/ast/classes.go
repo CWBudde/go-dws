@@ -406,9 +406,13 @@ type MethodCallExpression struct {
 	// stop. Arguments then holds only the arguments completed before the stop;
 	// the call itself is never resolved (see Parser.parseCallArguments).
 	Truncated bool
-	Object    Expression
-	Method    *Identifier
-	Arguments []Expression
+	// StopDeferred marks a truncated call cut at a statement boundary right
+	// after its '(' (`obj.M(;`). Whether that is a compiler stop depends on
+	// what M resolves to, so the analyzer decides and reports it.
+	StopDeferred bool
+	Object       Expression
+	Method       *Identifier
+	Arguments    []Expression
 	BaseNode
 }
 
@@ -455,6 +459,10 @@ type InheritedExpression struct {
 	BaseNode
 	IsCall   bool
 	IsMember bool
+	// Truncated marks a call whose argument list was cut short by a compiler
+	// stop. Arguments then holds only the arguments completed before the stop;
+	// the call itself is never resolved (see Parser.parseCallArguments).
+	Truncated bool
 }
 
 func (ie *InheritedExpression) expressionNode() {}

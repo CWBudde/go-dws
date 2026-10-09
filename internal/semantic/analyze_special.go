@@ -12,6 +12,9 @@ import (
 
 // analyzeInheritedExpression analyzes an inherited expression and returns its type.
 func (a *Analyzer) analyzeInheritedExpression(ie *ast.InheritedExpression) types.Type {
+	if ie.Truncated {
+		return a.analyzeTruncatedCall(ie.Arguments)
+	}
 	if a.currentHelperType != nil {
 		return a.analyzeHelperInheritedExpression(ie, a.currentHelperType)
 	}

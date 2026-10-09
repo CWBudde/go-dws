@@ -839,14 +839,17 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		// At a statement boundary, retain the unresolved call and let semantic
 		// resolution choose property recovery or an ordinary expression stop.
 		// No argument token is consumed, so a property can continue after ';'.
+		// The provisional stop stands only where no analysis decides it.
 		first := methodCall.FirstArgumentToken.Type
 		if first == lexer.SEMICOLON || first == lexer.END || first == lexer.EOF {
 			methodCall.Truncated = true
 			anchor := p.anchorFor(methodCall.FirstArgumentToken)
 			err := NewParserError(anchor.Pos, anchor.Length(), "Expression expected", ErrInvalidExpression)
 			err.Stop = true
-			err.DeferredCall = methodCall
+			err.Provisional = true
 			p.recordError(err)
+			// At the end of a source cut by {$FATAL} the directive is the stop.
+			methodCall.StopDeferred = p.l == nil || !p.l.StoppedByFatal() || !p.atTruncatedEnd()
 			builder.Finish(methodCall)
 			return methodCall
 		}
