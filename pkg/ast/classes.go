@@ -283,6 +283,10 @@ type NewExpression struct {
 	// form, in which case ClassName is used. When Operand is set, ClassName is nil.
 	Operand   Expression
 	Arguments []Expression
+	// Truncated marks a call whose argument list was cut short by a compiler
+	// stop. Arguments then holds only the arguments completed before the stop;
+	// the call itself is never resolved (see Parser.parseCallArguments).
+	Truncated bool
 	// TypeArgs holds the generic type arguments for `new TTest<Integer>(...)`.
 	// Nil for non-generic instantiations. When ClassName refers to a collected
 	// generic template, monomorphization rewrites ClassName to the mangled
@@ -398,11 +402,13 @@ type MethodCallExpression struct {
 	// ParenPos and FirstArgumentToken retain punctuation before type resolution.
 	ParenPos           token.Position
 	FirstArgumentToken token.Token
-	// Incomplete retains a call cut short while reading its arguments.
-	Incomplete bool
-	Object     Expression
-	Method     *Identifier
-	Arguments  []Expression
+	// Truncated marks a call whose argument list was cut short by a compiler
+	// stop. Arguments then holds only the arguments completed before the stop;
+	// the call itself is never resolved (see Parser.parseCallArguments).
+	Truncated bool
+	Object    Expression
+	Method    *Identifier
+	Arguments []Expression
 	BaseNode
 }
 

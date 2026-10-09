@@ -194,12 +194,7 @@ func (p *Parser) parseNewClassExpression(newToken lexer.Token, className *ast.Id
 	p.cursor = p.cursor.Advance()
 
 	// Parse constructor arguments
-	newExpr.Arguments = p.parseExpressionList()
-	if p.stopped() {
-		// The argument list was cut short by a compiler stop: upstream never
-		// finished reading this call, so its argument checks never ran.
-		return nil
-	}
+	newExpr.Arguments, newExpr.Truncated = p.parseCallArguments()
 
 	// Record the end position (one past the closing parenthesis) so that
 	// End() reflects the whole expression, e.g. for raise-position reporting.
@@ -249,12 +244,7 @@ func (p *Parser) parseNewOperandExpression(newToken lexer.Token) ast.Expression 
 	// Optional trailing constructor arguments: new (operand)(args)
 	if p.cursor.Peek(1).Type == lexer.LPAREN {
 		p.cursor = p.cursor.Advance() // move to '('
-		newExpr.Arguments = p.parseExpressionList()
-		if p.stopped() {
-			// The argument list was cut short by a compiler stop: upstream never
-			// finished reading this call, so its argument checks never ran.
-			return nil
-		}
+		newExpr.Arguments, newExpr.Truncated = p.parseCallArguments()
 	}
 
 	newExpr.EndPos = p.endPosFromToken(p.cursor.Current())
