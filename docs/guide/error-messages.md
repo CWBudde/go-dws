@@ -474,10 +474,13 @@ reports the original pending-forward diagnostic. EXPORT on a genuinely new
 member is reached normally; EXPORT on a matched implementation owns the existing
 BEGIN stop and suppresses the terminal forward check.
 
-This selection uses the existing return/mode/symmetric-default-presence checks.
-Exact parameter names, default data, directional omission and broader ambiguity
-parity remain open. Return-only new overloads and omitted-default nonmatches
-retain Go's existing policy; they do not establish source-exact matching.
+Explicit-overload selection permits omission of an original default, and rejects
+the reverse addition as a match. Successful binding retains the original scalar
+defaults for actual omitted calls; EXPORT uses the same directional selection.
+Parameter types, modes and returns retain their existing checks. Exact parameter
+names/default data, remaining kind/options/level criteria, wider default-expression
+binding and ambiguity parity remain open. Return-only new overloads retain Go's
+existing policy; they do not establish source-exact matching.
 Ordinary nonexplicit forwards retain their name-bound mismatch diagnostics.
 Unit-local lexer cutoff and the broader unknown-expression stop policy remain
 separate work.

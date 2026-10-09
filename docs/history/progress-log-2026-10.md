@@ -1,3 +1,66 @@
+## 2026-10-09 — Directional forward defaults (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) lets an
+explicitly overloaded forward's implementation omit original parameter defaults.
+Singleton and genuine overload-set binding share that directional selection with
+EXPORT reach. Reverse default addition does not consume the original forward.
+Ordinary nonexplicit name-bound mismatches retain their existing policy.
+
+The original signature/default AST identities and source headers remain intact.
+A typed declaration-time snapshot of evaluable scalar defaults survives overload
+conversion and reaches only a successfully selected implementation. The evaluator
+registers a runtime declaration view that fills omitted defaults, preserving the
+implementation body and source printing. Actual omitted/supplied calls cover
+Integer/Boolean/String/Float values, zero/false/empty defaults, mixed slots, local
+forwards, caller constant shadows, genuine sets and repeated execution. Snapshot
+metadata contains immutable expressions rather than cached runtime Values.
+
+Pinned DWScript `1dbf8a90329cc3f2638516e89c0668f916c1ddb9` SameParam permits a
+new plain parameter to match an original default-valued parameter. That source
+rule supports directional selection; no Pascal oracle was run. Exact parameter
+names/default data, remaining kind/options/level criteria and source ambiguity
+checks remain doable open work. Remaining non-scalar/builtin and unsupported
+scalar default binding is also open; this child does not close the whole matcher
+or constant evaluator. PLAN checks only the measured directional-default child.
+
+Public tests first reproduced the wrong EXPORT list, then accepted Compile with
+missing runtime defaults, and then original constants rebound by caller shadows.
+Independent review found integer snapshots rounded beyond 2^53. The bounded
+constant-evaluator prerequisite now shares exact integer +, -, *, div and mod
+value arithmetic with its existing integer consumer. Scoped review caught a new
+operand-domain narrowing from rewalking mixed operand syntax; using already
+folded values restored composed constant acceptance. A separate direct/forward
+probe showed Float modulo snapshots losing fractional/sign/zero data. Float MOD
+now uses the existing runtime math.Mod operation and positive-zero normalization,
+while retaining compile-time zero errors. Real division, mixed DIV rejection and
+other type/unary contracts were not expanded. Boundary, source Type/Value,
+original constant/caller-shadow and actual direct/forward Run controls cover
+these corrections. Signed wrapping controls measure retained Go behavior.
+
+Task review and scoped fix reviews have no open blocking findings. Root lint
+found two complex test functions and one table layout issue; test-only helper
+extraction and field reordering preserve every assertion, all 32 table values and
+execution order. Independent scoped review approved that correction. Final
+validation passes with Go 1.24.13:
+
+- `go test -race -count=1 -coverprofile=.cache/phase33-final-coverage.out ./...`:
+  all packages pass, with no races.
+- `golangci-lint run --new-from-merge-base=origin/main --timeout 10m`: zero issues.
+- Tracked Go formatting, `go mod tidy`, `go generate ./pkg/ast` and diff hygiene:
+  dependencies and the 87-node, 26,331-byte generated visitor remain unchanged.
+- Fresh CLI acceptance covers previous batches and new default dispatch,
+  declaration meaning, exact integer/Float MOD and complete EXPORT cutoff lists.
+  Full fixture failure-name sets remain exactly 1,432 pass / 582 fail / 27 skip
+  versus the prior CLI, with no gains or regressions.
+- Fixture regeneration passes at 1,432/582/27, BuildScripts 7; all complete category
+  failure-name rows/counts match CLI exactly. The following stable-baseline gate
+  passes at 1,433/581/27, BuildScripts 8, differing only on documented init_order4.
+  All other rows/counts match. Every baseline byte remains unchanged, including
+  FailureScripts 328, SimpleScripts 400 and BuildScripts 7; no varying floor was
+  proposed or ratcheted. Generated status retains regeneration's actual snapshot.
+- Parser coverage remains 4,845/5,912 = 81.9520%; lexer remains
+  1,386/1,570 = 88.2803%.
+
 ## 2026-10-09 — Explicit singleton overload forward selection (PLAN 2.2)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) selects

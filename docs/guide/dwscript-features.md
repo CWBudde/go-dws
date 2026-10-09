@@ -75,8 +75,12 @@ bodyless declarations retain their own contexts.
 A lone explicitly overloaded forward can coexist with a new overload whose
 parameter types differ. The new overload can use `export`; a later implementation
 of the original signature needs no repeated `overload`. Only the selected forward
-is consumed. Exact parameter-name/default-value matching, directional default
-omission and broader ambiguity parity remain incomplete.
+is consumed. Its matching implementation may omit declared defaults: omitted calls
+retain the original scalar values, while supplied arguments override them. Constants
+in the covered defaults retain their declaration meaning through caller shadows;
+source printing keeps the implementation's omitted defaults. Exact parameter-name
+and default-value matching, broader default-expression binding and ambiguity parity
+remain incomplete.
 
 ---
 

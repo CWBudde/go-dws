@@ -514,9 +514,17 @@ punctuation in the parser before reading arguments.
     matching implementation without repeating `overload`, and share EXPORT reach
     ([#472](https://github.com/CWBudde/go-dws/pull/472)). Ordinary nonexplicit forwards
     retain their existing name-bound mismatch behavior.
-  - [ ] Match exact parameter names, default data and directional default omission,
-    plus remaining routine-kind/options/level criteria. The completed child uses
-    existing return/mode/symmetric-default-presence predicates only.
+  - [x] Match directional default omission for explicit-overload singleton and set
+    candidates; retain original scalar defaults through actual calls and shared
+    EXPORT reach without changing source headers
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)). Declaration-scope constants,
+    exact integer arithmetic and Float modulo data are covered.
+  - [ ] Match exact parameter names and default data, plus remaining
+    routine-kind/options/level criteria. Completed children otherwise use the
+    existing parameter-type/mode/return criteria.
+  - [ ] Complete remaining non-scalar/builtin and unsupported scalar default
+    binding at declaration scope; the measured scalar snapshot is not a complete
+    constant/default evaluator.
   - [ ] Complete source ambiguity checks for same-type name/mode/default/return
     differences; the existing Go return-only overload extension remains a separate
     policy until this measured follow-up is implemented.
