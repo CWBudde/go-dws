@@ -84,7 +84,7 @@ func (a *Analyzer) checkPropertyAccessorParameters(prop *ast.PropertyDecl, metho
 			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos,
 				fmt.Sprintf(`Parameter %d - Type "%s" expected (instead of "%s")`, i, semanticTypeNameForDiagnostic(expected), semanticTypeNameForDiagnostic(actual))))
 			compatible = false
-			continue // A type mismatch suppresses this index's mode mismatch.
+			continue // A type mismatch suppresses this index's mode/default mismatches.
 		}
 		if i >= len(prop.IndexParams) {
 			continue // A pure index directive has no declared index parameters.
@@ -96,6 +96,14 @@ func (a *Analyzer) checkPropertyAccessorParameters(prop *ast.PropertyDecl, metho
 		if mode != "" {
 			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos,
 				fmt.Sprintf("Parameter %d (%s) - %s-parameter expected", i, param.Name.Value, mode)))
+			compatible = false
+			continue // A mode mismatch suppresses this index's default mismatch.
+		}
+		// Property indices cannot declare defaults. Only explicit indices are
+		// compared; the index directive and setter Value keep their exemptions.
+		if i+offset < len(method.DefaultValues) && method.DefaultValues[i+offset] != nil {
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos,
+				fmt.Sprintf("Parameter %d (%s) - default value at implementation does not match declaration or forward", i, param.Name.Value)))
 			compatible = false
 		}
 	}
