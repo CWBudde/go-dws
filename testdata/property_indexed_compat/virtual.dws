@@ -1,0 +1,9 @@
+type TBase = class
+ function Get(I: Integer): Integer; virtual; begin Result := 10+I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+type TChild = class(TBase)
+ function Get(I: Integer): Integer; override; begin Result := 20+I; end;
+end;
+var Obj: TBase := new TChild;
+PrintLn(Obj.Prop()[3]);

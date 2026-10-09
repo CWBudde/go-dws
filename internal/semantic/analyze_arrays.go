@@ -85,6 +85,10 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return nil
 	}
 
+	if typ, handled := a.analyzeIndexedCompatibilityRead(expr); handled {
+		return typ
+	}
+
 	if typ, handled := a.analyzeInterfaceIndexedProperty(expr, false, false); handled {
 		return typ
 	}

@@ -1,0 +1,11 @@
+type TBase = class
+ class function Get(I: Integer): String; virtual; begin Result := ClassName+':'+IntToStr(I); end;
+ property Prop[I: Integer]: String read Get reintroduce;
+ class property ClassProp[I: Integer]: String read Get reintroduce;
+end;
+type TChild = class(TBase) end;
+var Meta: class of TBase := TChild;
+PrintLn(Meta.Prop()[2]);
+PrintLn(Meta.ClassProp()[3]);
+var Obj := new TChild;
+PrintLn(Obj.Prop()[4]);

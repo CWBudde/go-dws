@@ -62,13 +62,6 @@ func (p *Printer) printArrayLiteral(al *ast.ArrayLiteralExpression) {
 	p.write("]")
 }
 
-func (p *Printer) printIndexExpression(ie *ast.IndexExpression) {
-	p.printDWScript(ie.Left)
-	p.write("[")
-	p.printDWScript(ie.Index)
-	p.write("]")
-}
-
 func (p *Printer) printNewArrayExpression(nae *ast.NewArrayExpression) {
 	p.write("new")
 	p.space()
@@ -911,40 +904,6 @@ func (p *Printer) printFieldDecl(fd *ast.FieldDecl) {
 		p.write(":=")
 		p.space()
 		p.printDWScript(fd.InitValue)
-	}
-}
-
-func (p *Printer) printPropertyDecl(pd *ast.PropertyDecl) {
-	p.write("property")
-	p.space()
-	p.printDWScript(pd.Name)
-	p.write(":")
-	p.space()
-	p.printDWScript(pd.Type)
-
-	if pd.ReadSpec != nil {
-		p.space()
-		p.write("read")
-		p.space()
-		p.printDWScript(pd.ReadSpec)
-	}
-
-	if pd.WriteSpec != nil {
-		p.space()
-		p.write("write")
-		p.space()
-		p.printDWScript(pd.WriteSpec)
-	}
-
-	if pd.IsReintroduce {
-		p.space()
-		p.write("reintroduce")
-	}
-
-	if pd.IsDefault {
-		p.write(";")
-		p.space()
-		p.write("default")
 	}
 }
 

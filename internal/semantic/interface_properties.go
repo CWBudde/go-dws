@@ -167,6 +167,22 @@ func interfacePropertyIndexChain(expr *ast.IndexExpression) (ast.Expression, []a
 		indices = append(indices, idx.Index)
 		root = idx.Left
 	}
+	// An empty member call can be compatibility punctuation. Preserve the
+	// current bracket group so its inner property read is analyzed with its
+	// own indices before probing a subsequent array/default-property index.
+	if call, ok := root.(*ast.MethodCallExpression); ok && len(call.Arguments) == 0 {
+		indices = []ast.Expression{expr.Index}
+		first := expr
+		for first.CommaPos.Line != 0 {
+			inner, ok := first.Left.(*ast.IndexExpression)
+			if !ok {
+				break
+			}
+			indices = append(indices, inner.Index)
+			first = inner
+		}
+		root = first.Left
+	}
 	for i, j := 0, len(indices)-1; i < j; i, j = i+1, j-1 {
 		indices[i], indices[j] = indices[j], indices[i]
 	}
