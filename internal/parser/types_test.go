@@ -59,7 +59,7 @@ func TestParseTypeExpression_SimpleType(t *testing.T) {
 				t.Fatal("parseTypeExpression returned nil")
 			}
 
-			if typeExpr.String() != tt.expected {
+			if typeStringForAssertion(typeExpr) != tt.expected {
 				t.Errorf("expected type %q, got %q", tt.expected, typeExpr.String())
 			}
 		})
@@ -142,7 +142,7 @@ func TestParseTypeExpression_FunctionPointer(t *testing.T) {
 				t.Fatal("parseTypeExpression returned nil")
 			}
 
-			if typeExpr.String() != tt.expected {
+			if typeStringForAssertion(typeExpr) != tt.expected {
 				t.Errorf("expected type %q, got %q", tt.expected, typeExpr.String())
 			}
 		})
@@ -265,7 +265,7 @@ func TestParseTypeExpression_ArrayType(t *testing.T) {
 				t.Fatal("parseTypeExpression returned nil")
 			}
 
-			if typeExpr.String() != tt.expected {
+			if typeStringForAssertion(typeExpr) != tt.expected {
 				t.Errorf("expected type %q, got %q", tt.expected, typeExpr.String())
 			}
 		})
@@ -454,7 +454,7 @@ func TestFunctionPointerSyntaxDetection(t *testing.T) {
 				t.Fatal("parseTypeExpression returned nil")
 			}
 
-			if typeExpr.String() != tt.expected {
+			if typeStringForAssertion(typeExpr) != tt.expected {
 				t.Errorf("expected type %q, got %q", tt.expected, typeExpr.String())
 			}
 		})

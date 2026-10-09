@@ -552,15 +552,11 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	// Advance to RPAREN
 	p.cursor = p.cursor.Advance()
 
-	// Named callees must retain grouping: the inner name is read before an
-	// outer argument list, independently of that call or a pointer context.
-	// Grouping DebugBreak also forces a value context, even in a statement.
-	switch exp.(type) {
-	case *ast.Identifier, *ast.MemberAccessExpression, *ast.GroupedExpression, *ast.DebugBreakExpression:
-		return &ast.GroupedExpression{
-			BaseNode:   ast.BaseNode{Token: lparenToken, EndPos: p.cursor.Current().End()},
-			Expression: exp,
-		}
+	// Preserve the successful single-expression bracket as a term barrier.
+	// Arrays and malformed/missing-close recovery returned above keep their shapes.
+	return &ast.GroupedExpression{
+		BaseNode:   ast.BaseNode{Token: lparenToken, EndPos: p.cursor.Current().End()},
+		Expression: exp,
 	}
-	return exp
+
 }

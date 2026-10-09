@@ -93,6 +93,7 @@ func (a *Analyzer) analyzeInterfaceMethodDecl(method *ast.InterfaceMethodDecl, i
 	funcType := types.NewFunctionType(paramTypes, returnType)
 	funcType.Name = methodName
 	for i, param := range method.Parameters {
+		funcType.ParamNames[i] = param.Name.Value
 		funcType.VarParams[i] = param.ByRef
 		funcType.ConstParams[i] = param.IsConst
 		funcType.LazyParams[i] = param.IsLazy

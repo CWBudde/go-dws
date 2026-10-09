@@ -94,6 +94,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		inherited := *parentProp // copy the inherited PropertyInfo into this class
 		inherited.Name = propName
 		classType.Properties[propName] = &inherited
+		a.copyPropertyWriterSignature(&inherited, parentProp)
 		return
 	}
 
@@ -362,6 +363,10 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 					a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
 					return
 				}
+				if propInfo.IsIndexed {
+					a.addStructuredError(NewGenericError(ident.Token.Pos, "Function expected"))
+					return
+				}
 				a.recordClassFieldUsage(classType, readSpecName)
 				propInfo.ReadOwner = fieldOwner.Name
 				propInfo.ReadStorage = types.PropStorageClassVar
@@ -376,6 +381,10 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		if constantType, constantFound := a.getConstantType(classType, readSpecName); constantFound {
 			if !propType.Equals(constantType) {
 				a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
+				return
+			}
+			if propInfo.IsIndexed {
+				a.addStructuredError(NewGenericError(ident.Token.Pos, "Function expected"))
 				return
 			}
 			propInfo.ReadOwner = a.getConstantOwner(classType, readSpecName).Name
@@ -406,6 +415,10 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				}
 				// The backing field is referenced by this accessor; mark it used
 				// so it is not flagged as an unused private field.
+				if propInfo.IsIndexed {
+					a.addStructuredError(NewGenericError(ident.Token.Pos, "Function expected"))
+					return
+				}
 				a.recordClassFieldUsage(fieldOwner, readSpecName)
 				propInfo.ReadOwner = fieldOwner.Name
 				propInfo.ReadStorage = types.PropStorageField
@@ -455,6 +468,9 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
 				return
 			}
+			// Ordinary signature errors keep the selected reader for recovery.
+			propInfo.ReadKind = types.PropAccessMethod
+			propInfo.ReadSpec = readSpecName
 			if !a.checkPropertyAccessorParameters(prop, methodType, indexParamTypes, nil, pos) {
 				a.addStructuredError(NewPropertyDeclarationArgumentCountError(pos,
 					fmt.Sprintf(`Method "%s" has incompatible parameters`, name)))
@@ -558,6 +574,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		propInfo.WriteKind = referenced.WriteKind
 		propInfo.WriteSpec = referenced.WriteSpec
 		propInfo.WriteExpr = referenced.WriteExpr
+		a.copyPropertyWriterSignature(propInfo, referenced)
 		return
 	}
 
@@ -647,6 +664,12 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos, "Procedure expected"))
 			return
 		}
+		propInfo.WriteKind = types.PropAccessMethod
+		propInfo.WriteSpec = writeSpecName
+		if a.propertyWriterSignatures == nil {
+			a.propertyWriterSignatures = make(map[*types.PropertyInfo]*types.FunctionType)
+		}
+		a.propertyWriterSignatures[propInfo] = methodType
 		if !a.checkPropertyAccessorParameters(prop, methodType, indexParamTypes, propType, pos) {
 			a.addStructuredError(NewPropertyDeclarationArgumentCountError(pos,
 				fmt.Sprintf(`Method "%s" has incompatible parameters`, name)))

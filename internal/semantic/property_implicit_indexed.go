@@ -39,7 +39,9 @@ func (a *Analyzer) analyzeImplicitIndexedCompatibilityRead(expr *ast.IndexExpres
 		return prop.Type, true
 	}
 	indices := indexedPropertyArguments(nodes)
-	a.checkIndexedCompatibilityArguments(a.currentClass, prop, indices, pos, a.inClassMethod, expr)
+	if !a.checkIndexedCompatibilityArguments(a.currentClass, prop, indices, pos, a.inClassMethod, expr) {
+		return nil, true
+	}
 	read := &ast.MemberAccessExpression{
 		BaseNode: call.BaseNode, Member: name,
 		Object: &ast.SelfExpression{BaseNode: name.BaseNode},

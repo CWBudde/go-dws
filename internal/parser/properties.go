@@ -293,12 +293,13 @@ func (p *Parser) parsePropertyWriteClause(prop *ast.PropertyDecl) bool {
 }
 
 // buildPropertyWriteSpec turns a parsed parenthesized write specifier into either
-// a write statement or a field/method write spec. Called with the cursor on the
+// a write statement. Parentheses always create an expression accessor, including
+// a single field name. Called with the cursor on the
 // last token of the left-hand expression. Handles three shapes:
 //   - assignment  (target := expr)         -> the assignment statement
 //   - call/other  (SetField(Value div 2))  -> an expression statement
 //   - plain lvalue (FSub.Field)            -> normalized to `lvalue := Value`
-//   - identifier   (Field)                 -> a plain field/method write spec
+//   - identifier   (Field)                 -> normalized to `Field := Value`
 func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Token) (ast.Statement, ast.Expression) {
 	for {
 		group, ok := lhs.(*ast.GroupedExpression)
@@ -325,9 +326,6 @@ func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Tok
 	}
 
 	switch lhs.(type) {
-	case *ast.Identifier:
-		// Single identifier lvalue: behaves like `write Field`.
-		return nil, lhs
 	case *ast.CallExpression:
 		// A call such as SetField(Value) executes directly.
 		return &ast.ExpressionStatement{

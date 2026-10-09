@@ -288,7 +288,11 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			return nil
 		}
 
-		a.addStructuredError(NewUnknownNameError(identifier.Token.Pos, identifier.Value))
+		diagnostic := NewUnknownNameError(identifier.Token.Pos, identifier.Value)
+		if a.propertyTermMark != nil {
+			diagnostic.Stop = true
+		}
+		a.addStructuredError(diagnostic)
 		a.compileStopped = true
 		return nil
 	}

@@ -1,8 +1,6 @@
 package semantic
 
 import (
-	"fmt"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -57,7 +55,9 @@ func (a *Analyzer) analyzeIndexedCompatibilityRead(expr *ast.IndexExpression) (t
 		return prop.Type, true
 	}
 	indices := indexedPropertyArguments(nodes)
-	a.checkIndexedCompatibilityArguments(class, prop, indices, pos, metaclass, expr)
+	if !a.checkIndexedCompatibilityArguments(class, prop, indices, pos, metaclass, expr) {
+		return nil, true
+	}
 	read := &ast.MemberAccessExpression{BaseNode: call.BaseNode, Object: call.Object, Member: call.Method}
 	a.semanticInfo.SetIndexedPropertyRead(expr, &ast.IndexedPropertyReadBinding{
 		Read: &ast.InheritedPropertyReadBinding{Read: read, Property: prop, Owner: compatibilityPropertyOwner(class, prop)}, Indices: indices,
@@ -154,12 +154,10 @@ func (a *Analyzer) analyzeProbedReceiver(object ast.Expression) types.Type {
 	return a.analyzeExpression(object)
 }
 
-func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, prop *types.PropertyInfo, indices []ast.Expression, pos token.Position, metaclass bool, list *ast.IndexExpression) {
-	expected := a.getIndexedPropertyParamTypes(prop, class)
-	argTypes, failed := a.analyzeIndexedCompatibilityArguments(indices, expected)
-	if list != nil && list.MissingClosePos.IsValid() {
-		a.addPunctuationStop(list.MissingClosePos, `")" expected`)
-		return
+func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, prop *types.PropertyInfo, indices []ast.Expression, pos token.Position, metaclass bool, list *ast.IndexExpression) bool {
+	args, stopped := a.readPropertyIndexArguments(prop, indices, list)
+	if stopped {
+		return false
 	}
 	if metaclass && !indexedCompatibilityClassReader(class, prop) {
 		readerError := NewPropertyReadShouldBeStaticMethodError(pos)
@@ -169,38 +167,6 @@ func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, pr
 		classError.AfterChildren = true
 		a.addStructuredError(classError)
 	}
-	mark := len(a.errors)
-	for i, typ := range argTypes {
-		if i >= len(expected) {
-			break
-		}
-		if failed[i] || a.argumentMatchesParameter(typ, expected[i], false) {
-			continue
-		}
-		message := fmt.Sprintf("Argument %d expects type %q instead of %q", i, semanticTypeNameForDiagnostic(expected[i]), semanticTypeNameForDiagnostic(typ))
-		if _, void := typ.(*types.VoidType); void {
-			message = fmt.Sprintf("Argument %d expects type %q", i, semanticTypeNameForDiagnostic(expected[i]))
-		}
-		diagnostic := NewGenericError(pos, message)
-		diagnostic.AfterChildren = true
-		a.addStructuredError(diagnostic)
-	}
-	if !a.errorsSince(mark) {
-		a.addMemberCallCountError(&types.FunctionType{Parameters: expected}, len(indices), pos)
-	}
-}
-
-func (a *Analyzer) analyzeIndexedCompatibilityArguments(indices []ast.Expression, expected []types.Type) ([]types.Type, []bool) {
-	argTypes := make([]types.Type, len(indices))
-	failed := make([]bool, len(indices))
-	for i, index := range indices {
-		mark := len(a.errors)
-		if i < len(expected) {
-			argTypes[i] = a.analyzeArgumentForParameter(index, expected[i], false)
-		} else {
-			argTypes[i] = a.analyzeExpression(index)
-		}
-		failed[i] = argTypes[i] == nil || a.errorsSince(mark)
-	}
-	return argTypes, failed
+	a.checkPropertyReadArguments(prop, args, a.propertyClassAccessor(class, prop, false), pos)
+	return true
 }

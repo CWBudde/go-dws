@@ -73,6 +73,8 @@ func constInstructionPos(expr ast.Expression) token.Position {
 // would raise.
 func (a *Analyzer) isConstantInstruction(expr ast.Expression) bool {
 	switch e := expr.(type) {
+	case *ast.GroupedExpression:
+		return a.isConstantInstruction(e.Expression)
 	case *ast.IntegerLiteral, *ast.FloatLiteral, *ast.StringLiteral,
 		*ast.BooleanLiteral, *ast.CharLiteral:
 		return true

@@ -55,7 +55,9 @@ func (a *Analyzer) analyzeInheritedIndexedPropertyRead(expr *ast.IndexExpression
 		return a.analyzeIndexExpression(expr), true
 	}
 	indices := indexedPropertyArguments(nodes)
-	a.checkIndexedCompatibilityArguments(parent, prop, indices, pos, a.inClassMethod, expr)
+	if !a.checkIndexedCompatibilityArguments(parent, prop, indices, pos, a.inClassMethod, expr) {
+		return nil, true
+	}
 	read := &ast.MemberAccessExpression{
 		BaseNode: inherited.BaseNode, Member: inherited.Method,
 		Object: &ast.SelfExpression{BaseNode: inherited.BaseNode},

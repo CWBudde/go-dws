@@ -172,7 +172,7 @@ func TestOperatorPrecedence(t *testing.T) {
 			program := p.ParseProgram()
 			checkParserErrors(t, p)
 
-			actual := program.String()
+			actual := precedenceStringForAssertion(program)
 			if actual != tt.expected {
 				t.Errorf("expected=%q, got=%q", tt.expected, actual)
 			}
@@ -198,7 +198,7 @@ func TestGroupedExpressions(t *testing.T) {
 			program := p.ParseProgram()
 			checkParserErrors(t, p)
 
-			actual := program.String()
+			actual := precedenceStringForAssertion(program)
 			if actual != tt.expected {
 				t.Errorf("expected=%q, got=%q", tt.expected, actual)
 			}
@@ -243,7 +243,7 @@ func TestNotInOperator(t *testing.T) {
 			program := p.ParseProgram()
 			checkParserErrors(t, p)
 
-			actual := program.String()
+			actual := precedenceStringForAssertion(program)
 			if actual != tt.expected {
 				t.Errorf("expected=%q, got=%q", tt.expected, actual)
 			}
@@ -277,7 +277,7 @@ func TestNotIsOperator(t *testing.T) {
 			program := p.ParseProgram()
 			checkParserErrors(t, p)
 
-			actual := program.String()
+			actual := precedenceStringForAssertion(program)
 			if actual != tt.expected {
 				t.Errorf("expected=%q, got=%q", tt.expected, actual)
 			}
@@ -311,7 +311,7 @@ func TestNotAsOperator(t *testing.T) {
 			program := p.ParseProgram()
 			checkParserErrors(t, p)
 
-			actual := program.String()
+			actual := precedenceStringForAssertion(program)
 			if actual != tt.expected {
 				t.Errorf("expected=%q, got=%q", tt.expected, actual)
 			}
@@ -364,7 +364,7 @@ func TestIsOperatorWithBooleans(t *testing.T) {
 			program := p.ParseProgram()
 			checkParserErrors(t, p)
 
-			actual := program.String()
+			actual := precedenceStringForAssertion(program)
 			if actual != tt.expected {
 				t.Errorf("expected=%q, got=%q", tt.expected, actual)
 			}
@@ -401,7 +401,7 @@ func TestIsOperatorPrecedence(t *testing.T) {
 			program := p.ParseProgram()
 			checkParserErrors(t, p)
 
-			actual := program.String()
+			actual := precedenceStringForAssertion(program)
 			if actual != tt.expected {
 				t.Errorf("expected=%q, got=%q", tt.expected, actual)
 			}

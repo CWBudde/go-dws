@@ -115,15 +115,17 @@ type Analyzer struct {
 	// reports. Upstream abandons the compile there, unwinding past
 	// TSymbolTable.Initialize, so the end-of-program checks such as
 	// unimplemented forwards never run.
-	compileStopped          bool
-	deferredIndexStops      []*ast.IndexExpression
-	deferredIndexForwards   []*Symbol
-	predeclaredClassTypes   map[string]bool
-	deferredMethodBodies    []deferredMethodBody
-	retainedScopes          []*SymbolTable
-	deferredClassChecks     []deferredClassCheck
-	pendingClassMemberDecls map[string]int
-	errors                  []string
+	compileStopped           bool
+	propertyTermMark         *int
+	propertyWriterSignatures map[*types.PropertyInfo]*types.FunctionType
+	deferredIndexStops       []*ast.IndexExpression
+	deferredIndexForwards    []*Symbol
+	predeclaredClassTypes    map[string]bool
+	deferredMethodBodies     []deferredMethodBody
+	retainedScopes           []*SymbolTable
+	deferredClassChecks      []deferredClassCheck
+	pendingClassMemberDecls  map[string]int
+	errors                   []string
 	// deferredBody bounds the diagnostics that precede, in source order, the
 	// top-level routine body pass 2 is currently analyzing. Pass 2 runs the
 	// bodies after every other top-level statement and only splices each one

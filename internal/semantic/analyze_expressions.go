@@ -14,6 +14,9 @@ import (
 // analyzeExpression analyzes an expression and returns its type.
 // Returns nil if the expression is invalid.
 func (a *Analyzer) analyzeExpression(expr ast.Expression) (resolvedType types.Type) {
+	if a.propertyTermMark != nil && a.propertyArgumentsStopped(*a.propertyTermMark) {
+		return nil
+	}
 	defer func() { a.semanticInfo.SetResolvedType(expr, resolvedType) }()
 	if expr == nil {
 		return nil
@@ -121,6 +124,9 @@ func isBooleanCompatible(t types.Type) bool {
 // - Integer (float when context expects Float), Call (overload resolution)
 // For other types, falls back to analyzeExpression() without context.
 func (a *Analyzer) analyzeExpressionWithExpectedType(expr ast.Expression, expectedType types.Type) (resolvedType types.Type) {
+	if a.propertyTermMark != nil && a.propertyArgumentsStopped(*a.propertyTermMark) {
+		return nil
+	}
 	defer func() { a.semanticInfo.SetResolvedType(expr, resolvedType) }()
 	if expr == nil {
 		return nil

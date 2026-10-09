@@ -515,7 +515,7 @@ func TestParenthesizedArrayLiteralEdgeCases(t *testing.T) {
 			input: `var x := (42);`,
 			checkStmt: func(t *testing.T, stmt ast.Statement) {
 				varDecl := asVarDecl(t, stmt)
-				intLit := asIntegerLiteral(t, varDecl.Value)
+				intLit := asIntegerLiteral(t, ungroupForAssertion(varDecl.Value))
 				if intLit.Value != 42 {
 					t.Fatalf("value = %d, want 42", intLit.Value)
 				}

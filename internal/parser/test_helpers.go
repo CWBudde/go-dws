@@ -109,6 +109,13 @@ func testBooleanLiteral(t *testing.T, exp ast.Expression, value bool) bool {
 
 // Helper function to test infix expressions
 func testInfixExpression(t *testing.T, exp ast.Expression, left any, operator string, right any) bool {
+	for {
+		group, ok := exp.(*ast.GroupedExpression)
+		if !ok {
+			break
+		}
+		exp = group.Expression
+	}
 	opExp, ok := exp.(*ast.BinaryExpression)
 	if !ok {
 		t.Errorf("exp is not ast.BinaryExpression. got=%T(%s)", exp, exp)

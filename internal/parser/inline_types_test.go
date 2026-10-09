@@ -386,7 +386,7 @@ func TestArrayReturnTypes(t *testing.T) {
 				t.Fatal("expected return type annotation")
 			}
 
-			if fnDecl.ReturnType.String() != tt.expectedReturn {
+			if typeStringForAssertion(fnDecl.ReturnType) != tt.expectedReturn {
 				t.Errorf("expected return type %q, got %q", tt.expectedReturn, fnDecl.ReturnType.String())
 			}
 		})
@@ -458,7 +458,7 @@ func TestComplexReturnTypes(t *testing.T) {
 				t.Fatal("expected return type annotation")
 			}
 
-			if fnDecl.ReturnType.String() != tt.expectedReturn {
+			if typeStringForAssertion(fnDecl.ReturnType) != tt.expectedReturn {
 				t.Errorf("expected return type %q, got %q", tt.expectedReturn, fnDecl.ReturnType.String())
 			}
 		})

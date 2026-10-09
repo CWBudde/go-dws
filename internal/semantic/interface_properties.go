@@ -51,48 +51,74 @@ func (a *Analyzer) validateInterfacePropertyAccessors(decl *ast.PropertyDecl, pr
 
 // interfaceIndexedProperty resolves the whole index chain without treating its
 // property name as a read. Assignments use this path for write-only properties.
-func (a *Analyzer) interfaceIndexedProperty(expr *ast.IndexExpression) (*types.PropertyInfo, []ast.Expression, bool) {
+func (a *Analyzer) interfaceIndexedProperty(expr *ast.IndexExpression) (*types.PropertyInfo, *types.InterfaceType, []ast.Expression, bool) {
 	root, indices := interfacePropertyIndexChain(expr)
 	if a.isNonInterfaceIndexVariable(root) {
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 	var prop *types.PropertyInfo
+	var contract *types.InterfaceType
 	if member, ok := root.(*ast.MemberAccessExpression); ok {
-		receiver := a.analyzeExpression(member.Object)
-		receiver = a.interfacePropertyReceiverType(member.Object, receiver)
-		if iface, ok := types.GetUnderlyingType(receiver).(*types.InterfaceType); ok {
-			prop = iface.GetProperty(member.Member.Value)
-		} else if class, ok := types.GetUnderlyingType(receiver).(*types.ClassType); ok {
-			// A class indexed property must retain the class analysis path;
-			// its bare member would incorrectly report missing arguments here.
-			if property, found := class.GetProperty(member.Member.Value); found && property.IsIndexed {
-				return nil, nil, false
-			}
+		var classProperty bool
+		prop, contract, classProperty = a.namedInterfaceIndexProperty(member)
+		if classProperty {
+			return nil, nil, nil, false
 		}
 	}
+
 	if prop == nil || !prop.IsIndexed {
 		receiver := a.analyzeIndexBase(root)
 		receiver = a.interfacePropertyReceiverType(root, receiver)
 		if iface, ok := types.GetUnderlyingType(receiver).(*types.InterfaceType); ok {
 			prop = iface.GetDefaultProperty()
+			contract = iface
 		} else {
-			return nil, nil, false
+			return nil, nil, nil, false
 		}
 	}
 	if prop == nil || !prop.IsIndexed {
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
-	return prop, indices, true
+	return prop, contract, indices, true
 }
 
-func (a *Analyzer) analyzeInterfaceIndexedProperty(expr *ast.IndexExpression, write, compound bool) (types.Type, bool) {
-	prop, indices, found := a.interfaceIndexedProperty(expr)
+func (a *Analyzer) namedInterfaceIndexProperty(member *ast.MemberAccessExpression) (*types.PropertyInfo, *types.InterfaceType, bool) {
+	if class, _ := propertyIndexClassReceiver(a.inferMemberObjectType(member.Object)); class != nil {
+		if property, found := class.GetProperty(member.Member.Value); found && property.IsIndexed {
+			return nil, nil, true
+		}
+	}
+	receiver := a.analyzeExpression(member.Object)
+	receiver = a.interfacePropertyReceiverType(member.Object, receiver)
+	if iface, ok := types.GetUnderlyingType(receiver).(*types.InterfaceType); ok {
+		return iface.GetProperty(member.Member.Value), iface, false
+	} else if class, _ := propertyIndexClassReceiver(receiver); class != nil {
+		// Dynamic receivers already read here are consumed by the named class path.
+		if property, found := class.GetProperty(member.Member.Value); found && property.IsIndexed {
+			if propertyHasVarIndices(property) {
+				if a.probedReceivers == nil {
+					a.probedReceivers = make(map[ast.Expression]types.Type)
+				}
+				a.probedReceivers[member.Object] = receiver
+			}
+			return nil, nil, true
+		}
+	}
+	return nil, nil, false
+}
+
+func (a *Analyzer) analyzeInterfaceIndexedProperty(expr *ast.IndexExpression, write, compound bool, stmt *ast.AssignmentStatement) (types.Type, bool) {
+	prop, contract, indices, found := a.interfaceIndexedProperty(expr)
 	if !found {
 		return nil, false
 	}
 	if len(indices) > len(prop.IndexParamTypes) {
 		return nil, false
 	}
+	if propertyHasVarIndices(prop) {
+		return a.analyzeVarInterfacePropertyArguments(expr, prop, contract, indices, write, compound, stmt), true
+	}
+
 	if !a.checkInterfacePropertyAccess(prop, expr, write, compound) {
 		return prop.Type, true
 	}
@@ -109,6 +135,41 @@ func (a *Analyzer) analyzeInterfaceIndexedProperty(expr *ast.IndexExpression, wr
 	return prop.Type, true
 }
 
+func (a *Analyzer) analyzeVarInterfacePropertyArguments(expr *ast.IndexExpression, prop *types.PropertyInfo, contract *types.InterfaceType, indices []ast.Expression, write, compound bool, stmt *ast.AssignmentStatement) types.Type {
+	pos := expr.Token.Pos
+	root, _ := interfacePropertyIndexChain(expr)
+	if member, ok := root.(*ast.MemberAccessExpression); ok {
+		pos = member.Member.Token.Pos
+	}
+	if !write && prop.ReadKind == types.PropAccessNone {
+		a.addStructuredError(NewWriteOnlyPropertyError(pos, prop.Name))
+		a.addStructuredError(NewGenericError(expr.Token.Pos, "Array expected"))
+		return prop.Type
+	}
+	args, stopped := a.readPropertyIndexArguments(prop, indices, expr)
+	if stopped {
+		return nil
+	}
+	if !a.checkInterfacePropertyAccess(prop, expr, write, compound) {
+		return nil
+	}
+	name := prop.ReadSpec
+	if write {
+		name = prop.WriteSpec
+	}
+	signature := types.GetAllInterfaceMethods(contract)[ident.Normalize(name)]
+	if write && stmt != nil {
+		value, stopped := a.readPropertyAssignmentValue(stmt, prop.Type)
+		if stopped {
+			return nil
+		}
+		a.checkPropertyWriteArguments(stmt, prop, args, value, signature, pos)
+		return nil
+	}
+	a.checkPropertyReadArguments(prop, args, signature, pos)
+	return prop.Type
+}
+
 func (a *Analyzer) checkInterfacePropertyAccess(prop *types.PropertyInfo, node ast.Node, write, compound bool) bool {
 	if write && prop.WriteKind == types.PropAccessNone {
 		a.addStructuredError(NewReadOnlyPropertyError(node.Pos(), prop.Name))
@@ -122,6 +183,7 @@ func (a *Analyzer) checkInterfacePropertyAccess(prop *types.PropertyInfo, node a
 }
 
 func (a *Analyzer) resolveInterfacePropertyIndices(prop *ast.PropertyDecl, propInfo *types.PropertyInfo) bool {
+	propInfo.IndexParamModes = propertyIndexParamModes(prop.IndexParams)
 	for _, param := range prop.IndexParams {
 		paramType, err := a.resolveTypeExpression(param.Type)
 		if err != nil {
