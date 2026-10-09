@@ -1,3 +1,90 @@
+## 2026-10-09 — Property accessor recovery and null writers (PLAN 2.3)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) separates
+class accessor-owned outer delimiters from genuine inner expression/call/name
+stops. Missing outer closes retain reached declarations and accessor bodies.
+The complete seven-line `missing_reader_bracket` expectation now passes;
+`null_read_expression` keeps its genuine inner stop, and `null_write_expression`
+compiles with the opening-anchored warning alone. Numeric null instruction
+starters remain unconsumed for the following punctuation/member diagnostics.
+
+Empty/comment-only writers stay writable without backing storage. The shared
+class/record parser routes tested compound assignment, block, conditional, loop,
+case and try writers through existing statement dispatch. Class/record/helper
+syntactic null writers share the warning producer. Class resolved literal/named
+constants preserve source instructions and use the existing executable
+PropertyInfo.WriteExpr no-op view; explicit readonly assignments stay invalid.
+Scoped property-term stop ownership prevents reached child errors from leaking
+later outer punctuation, directives, private collectors or forward checks.
+
+Typed class/record WriteSourceExpression aliases preserve successfully grouped
+source lost by normalized assignments. Their ast skip tags avoid duplicate
+visitor traversal. The generated visitor adds only two skip comments. Record
+printing now shares the accessor-preserving path instead of dropping expression
+accessors and fabricating auto-properties on reparse. Checked/unchecked Compile,
+Run, source identity, printer/reparse and eight selected pass fixtures cover this
+behavior. No evaluator, engine-shell, registry schema, CLI or bytecode owner changed.
+
+Initial full frontend/public Compile tests reproduced all three wrong fixture
+contracts before production edits. Additional concrete REDs established child-stop
+retention, record/helper warning omissions, grouped-source loss and record printer
+behavior. Test-only expectation/build mistakes were corrected separately from
+product failures. Independent task review approved; root lint then found two
+complex test functions and one table layout. Test-only helper extraction/reorder
+preserved every assertion/case; the original reviewer's scoped re-review approved.
+
+Validation on the final reviewed source:
+
+- `go test -race -count=1 -coverprofile=.cache/phase34-final-coverage.out ./...` passes
+  across all packages without races; final diff lint reports zero issues.
+- Tracked formatting, `go mod tidy`, `go generate ./pkg/ast` and diff hygiene pass.
+  Dependencies stay unchanged; regeneration matches the reviewed 87-node visitor.
+- Parser coverage rises from 4,845/5,912 (81.9520%) to 4,873/5,937 (82.0785%);
+  lexer remains 1,386/1,570 (88.2803%).
+- Complete CLI lists and the full fixture failure-name set show exactly three
+  gains, no regressions: 1,435 pass / 579 fail / 27 skip. PropertyExpressionsFail
+  rises from 3 to 6; its stable baseline is the only ratchet. Other floors,
+  including BuildScripts 7, stay unchanged; no restoration was needed.
+- Fixture regeneration passes at 1,435/579/27, BuildScripts 7, with every complete
+  category failure-name row and count matching CLI. The following gate passes at
+  1,436/578/27, BuildScripts 8, differing only on documented init_order2; all other
+  rows/counts match. The generated status retains the actual regeneration result.
+
+Pinned-source expectations use DWScript revision
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`; no Pascal oracle was run.
+PLAN checks only completed children. Malformed record reader/numeric-writer
+retention, record/helper resolved constants/body scopes and remaining instruction
+optimizer parity remain doable open work, alongside the broader call/stop model.
+
+The mixed-phase ordering prerequisite remains concrete with pedantic hints:
+
+```pascal
+procedure Prefix;
+begin var Local: Integer; end;
+type T = class
+ F: Integer;
+ property P: Integer read (F;
+ property Q: Integer write (2);
+end;
+Missing;
+```
+
+The complete observed list is:
+
+```text
+Syntax Error: ")" expected [line: 5, column: 29]
+Hint: Variable "Local" declared but not used [line: 2, column: 11]
+Warning: Property writer does nothing [line: 6, column: 28]
+Syntax Error: ")" expected [line: 6, column: 29]
+Syntax Error: ";" expected [line: 6, column: 29]
+Syntax Error: Name expected [line: 6, column: 29]
+```
+
+The source-derived intended order swaps the first two entries. Null-warning and
+punctuation ordering, membership and tail cutoff are already correct. This full
+Compile RED is retained for PLAN 2.4 rather than hidden by a global column sort
+or message suppression. The whole Phase 2 goal remains open.
+
 ## 2026-10-09 — Directional forward defaults (PLAN 2.2)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) lets an

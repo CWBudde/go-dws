@@ -550,10 +550,21 @@ punctuation in the parser before reading arguments.
 
 ### 2.3 Property accessor recovery — S
 
-- [ ] `read (…)` / `write (…)`: upstream reports every missing `")"` as an ordinary error
-  (`missing_reader_bracket` lists lines 4, 6, 7, 8); go-dws's parenthesised-expression stop hides
-  all but the first.
-- [ ] `Warning: Property writer does nothing` (blocks the above).
+- [x] Class accessor-owned outer `read (…)` / `write (…)` delimiter recovery;
+  retain reached declarations and genuine inner stops. The complete seven-line
+  `missing_reader_bracket` list passes ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+- [x] Null-writer warnings for class/record/helper syntactic empty writers and
+  measured class literal/named-constant instructions; preserve opening anchors,
+  writable no-op execution and source grouping. `null_write_expression` and
+  `null_read_expression` pass ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+- [ ] Complete record-specific malformed outer-reader recovery and numeric-writer
+  declaration retention beyond the shared successful writer wrapper.
+- [ ] Complete record/helper resolved-constant null classification and expression
+  body semantic scopes; syntactic empty writers are covered above.
+- [ ] Complete remaining instruction grammar/optimizer parity, including arbitrary
+  constant operator trees and optimized empty compounds. Tested compound assignment,
+  block, conditional, loop, case and try writers are supported. These remaining
+  owner/optimizer contexts are doable follow-ups, not impossible deferrals.
 
 ### 2.4 Compile-stop model — M
 
@@ -584,6 +595,9 @@ assignment recovery and implicit-call intent without invoking a returned callabl
 - [ ] S Preserve completed-routine hints before later ordinary declaration errors
   in the mixed-phase diagnostic merge. Existing missing-property-semicolon recovery
   and property descriptions share this ordering gap; hint membership is preserved.
+  A completed Prefix Local hint also follows an earlier ordinary property reader-close
+  error before a later null-writer stop; the exact reproducer is recorded in the
+  October progress log.
 - [ ] S The analyzer's compile stop is one flag (unknown name in an expression) that skips the
   end-of-program forward check; generalise it.
 - [ ] S Apply the lexer-diagnostic cutoff (`reachedLexerDiagnostics`,

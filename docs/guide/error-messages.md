@@ -560,6 +560,18 @@ accessor kind and grouped expressions. Explicit indexed field/class-variable/
 constant readers report `Function expected` after earlier accessor type checks;
 auto-field shorthand retains its separate behavior.
 
+Class expression accessors own their outer parentheses. Missing outer closes
+report ordinary punctuation errors and retain reached declarations; genuine inner
+group, call, empty-reader and name errors still stop at their reached boundary.
+An empty/comment-only writer remains writable and does nothing, without a backing
+field. `Warning: Property writer does nothing` anchors at the opening `(` before
+subsequent outer punctuation errors. Class literal/named-constant instruction
+forms retain their source syntax; explicit readonly assignments remain errors.
+Record/helper syntactic empty writers share the warning. Their resolved-constant
+classification and malformed record boundaries remain open. Printing preserves
+successful writer grouping, including record expression accessors after reparse.
+Broader completed-routine hint ordering is still an open compile-stop task.
+
 A property `description` directive requires a string literal. If it is missing,
 `String expected` anchors at the next token and leaves that token available for
 ordinary semicolon and class-member recovery. A reached property retains its

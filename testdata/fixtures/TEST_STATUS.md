@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2041 |
-| Passed | 1432 |
-| Failed | 582 |
+| Passed | 1435 |
+| Failed | 579 |
 | Skipped (no applicable expectation) | 27 |
-| **Scored pass rate** | **71%** (1432/2014) |
+| **Scored pass rate** | **71%** (1435/2014) |
 
 ## Per-category
 
@@ -75,7 +75,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | OperatorOverloadPass | 8 | 8 | 0 | 0 | 100% |
 | OverloadsFail | 14 | 3 | 11 | 0 | 21% |
 | OverloadsPass | 39 | 39 | 0 | 0 | 100% |
-| PropertyExpressionsFail | 10 | 3 | 7 | 0 | 30% |
+| PropertyExpressionsFail | 10 | 6 | 4 | 0 | 60% |
 | PropertyExpressionsPass | 19 | 19 | 0 | 0 | 100% |
 | SetOfFail | 14 | 14 | 0 | 0 | 100% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |

@@ -51,7 +51,7 @@
   "OperatorOverloadPass": 8,
   "OverloadsFail": 3,
   "OverloadsPass": 39,
-  "PropertyExpressionsFail": 3,
+  "PropertyExpressionsFail": 6,
   "PropertyExpressionsPass": 19,
   "SetOfFail": 14,
   "SetOfPass": 25,

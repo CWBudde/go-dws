@@ -476,6 +476,11 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Expression-based getters and setters, on plain and indexed properties.
   An indexed accessor expression sees the index parameters by name:
   `property Arr[i: Integer]: Integer read (F[i]) write (F[i]);`
+- ✅ Tested expression writers support compound assignments, blocks, conditionals,
+  loops, case and try instructions. Empty writers remain writable no-ops without
+  backing storage. Class/record writer grouping survives printing and execution.
+  Remaining instruction optimization, record/helper constant classification and
+  malformed record recovery are open.
 - ✅ Class properties, reachable through the metaclass and through an instance.
   They are not virtual: `TBase(sub).ClassProp` reads `TBase`'s declaration.
 - ✅ An indexed property whose accessor is a `class function` / `class procedure` is
