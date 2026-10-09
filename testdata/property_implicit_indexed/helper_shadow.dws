@@ -1,0 +1,11 @@
+type TInts = array of Integer;
+type TTest = class
+ function Get(I: Integer): Integer; begin Result := I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+ function Read: Integer;
+end;
+type H = helper for TTest
+ function Prop: TInts; begin Result := [41, 47]; end;
+end;
+function TTest.Read: Integer; begin Result := Prop()[1]; end;
+PrintLn(TTest.Create.Read);

@@ -170,7 +170,14 @@ func interfacePropertyIndexChain(expr *ast.IndexExpression) (ast.Expression, []a
 	// An empty member call can be compatibility punctuation. Preserve the
 	// current bracket group so its inner property read is analyzed with its
 	// own indices before probing a subsequent array/default-property index.
-	if call, ok := root.(*ast.MethodCallExpression); ok && len(call.Arguments) == 0 {
+	emptyCall := false
+	switch call := root.(type) {
+	case *ast.MethodCallExpression:
+		emptyCall = len(call.Arguments) == 0
+	case *ast.CallExpression:
+		emptyCall = len(call.Arguments) == 0
+	}
+	if emptyCall {
 		indices = []ast.Expression{expr.Index}
 		first := expr
 		for first.CommaPos.Line != 0 {

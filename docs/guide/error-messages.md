@@ -351,9 +351,21 @@ the remaining indices and getter. Virtual getters retain dynamic dispatch;
 indexed getters may recurse with different arguments. A subsequent bracket group
 indexes the returned value, so `obj.Prop()[i][j]` also works with array results.
 
+Inside an instance or class method, directly named indexed reads also accept
+`Prop()[i, j]`. Lookup keeps the lexical declaring class's descriptor while
+virtual getters dispatch on dynamic Self. Local callable variables, parameters,
+ordinary member shadows and helper methods retain their call behavior. Class
+methods may read properties backed by class getters, including ordinary properties;
+static methods have no Self and stop at the property name before the compatibility
+hint or index expressions. This applies to both inline and out-of-line method
+bodies. A deprecated property warns at its name before the compatibility hint.
+Flagged write-only indexed reads report the read error at `)`, then
+`Array expected` at `[`, without analyzing the indices.
+
 Indexed argument type and count errors use the closing compatibility `)` as
-their anchor. Diagnostics from index expressions precede accessor argument checks; a type
-error suppresses the count error. An ordinary indexed property called with
+their anchor. Diagnostics from index expressions precede class-getter eligibility
+and accessor argument checks; a type error suppresses the count error. An ordinary
+indexed property called with
 `()` reports `More arguments expected` at the member name, then stops with
 `Not a method` at `(` without reading the bracket arguments. The source printer
 preserves class-property declarations, declared index parameters, and comma
@@ -374,12 +386,14 @@ methods and helper methods retain their call paths. Getters execute once; virtua
 instance/class getters keep dynamic dispatch and original exceptions. Unqualified
 compatibility calls preserve the declaring descriptor when descendants redeclare
 the property; reads also work inside another getter/setter. Static class methods
-have no implicit receiver and stop before a compatibility hint. Deprecated
-property warning order/anchors remain a diagnostic follow-up.
+have no implicit receiver and stop before a compatibility hint. Remaining scalar
+deprecated-property warning order/anchors are a diagnostic follow-up; the checked
+indexed cases above preserve their order.
 The source printer preserves the declaration marker. Nonempty compatibility-token recovery,
 EOF/end boundaries, lexer-directive reach after recovery, discarded enclosing calls,
 malformed/nonempty unqualified/inherited calls, static inherited property contexts,
-unqualified/inherited indexed reads, remaining default-property call contexts,
+named inherited indexed reads, ordinary bare unqualified `Prop[i]` reads,
+remaining default-property call contexts,
 combined index parameters and `index` directives, writes, flagged function-valued
 properties and unchecked execution remain open in PLAN.md. These need their own parsing/dispatch acceptance;
 passing the scalar fixtures does not close the full property item. Parser-only

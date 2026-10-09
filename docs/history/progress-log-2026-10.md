@@ -1,5 +1,60 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Unqualified indexed property reads (PLAN 2.1)
+
+This batch ([#471](https://github.com/CWBudde/go-dws/pull/471)) accepts checked
+directly named `Prop()[i, j]` reads inside instance and class methods for indexed properties declared with
+`reintroduce`, including named default properties. It reuses the resolved
+indexed-property binding and evaluator: lexical descriptor/accessor ownership
+survives descendant shadows while virtual getters retain dynamic Self. Local
+callables, parameters, helpers and ordinary member shadows retain their
+established lookup behavior; class members take priority over global routines. Indices and getters execute
+once in order; exceptions stop later work. Recursive getters, nonvirtual nil
+receivers and a subsequent array-result bracket group are covered.
+
+Read-only subagent research used upstream revision
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`: compiler lexical lookup
+(4907–4927, 5018–5036), compatibility token consumption (5421–5487),
+getter eligibility (5633–5641), and compiler-utils argument checking (604–743).
+These are source-derived expectations; no Pascal oracle was executed.
+
+The frontend preserves normal/pedantic/disabled hints, comments/newlines,
+casing before deprecation before compatibility hints, closing-parenthesis
+argument anchors, and ordinary indexed-call stops before index children.
+Static callers stop at the property name before compatibility hints or index
+analysis. A RED case exposed loss of the class declaration's `static` directive
+in out-of-line implementations; typed per-overload method metadata now carries
+that flag into deferred body scopes. Inline static and mixed caller-overload
+controls also pass. A second RED case exposed index-child diagnostics appearing
+after class-getter eligibility errors; the shared checker now orders children
+first for both explicit and unqualified indexed reads.
+
+Acceptance comprises 17 literal frontend diagnostic cases, 15 scripts through
+the public Engine API, four parse/print/compile/run round trips, and 25 exact
+fresh-CLI stdout/stderr/exit comparisons. The initial RED suite reproduced
+unknown property calls, wrong global routine selection and printer compile
+rejection. Final independent review found no Critical or Important issues.
+Mixed class/instance getter-overload eligibility errors also occur in the
+explicit baseline; the pinned getter resolves by name, so this remains separate
+accessor-selection research rather than a verified contract closed here.
+
+Only the unqualified indexed-read child and its verified subtasks close.
+Named inherited indexed reads, remaining default-property call contexts,
+writes, function-valued properties, unchecked execution and full malformed-call
+recovery remain open. Existing bare unqualified `Prop[i]` rejection is recorded
+as a separate follow-up, along with the older scalar static/write-only anchors.
+The error-message guide documents the shipped indexed contexts.
+
+Final validation passed the full `go test -race -coverprofile=<file> ./...`,
+the frontend/semantic/Engine/printer package suites, CI diff lint against
+`origin/main` (zero new issues), formatting, dependency tidiness, visitor
+regeneration without a diff, and a fresh CLI build. The frozen verification copy
+matches all 6,336 staged source/module/testdata blobs and the worktree. Both
+`just fixture-update` and `just fixture-check` pass; the fresh CLI report remains
+1,423 passes, 591 failures and 27 skips. Fixture baselines/status are unchanged;
+no fixture gain is claimed. Lexer/parser coverage remains 86.1806%/79.6765%,
+respectively, and coverage HTML was generated. The public PR is left unmerged.
+
 ## 2026-10-09 — Explicitly named indexed property reads (PLAN 2.1)
 
 This batch ([#470](https://github.com/CWBudde/go-dws/pull/470)) accepts checked `Obj.Prop()[i, j]` reads of explicitly

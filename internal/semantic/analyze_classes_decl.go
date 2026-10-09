@@ -1053,6 +1053,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		// implementation of a forward.
 		IsForwarded:          method.Body == nil && !method.IsEmpty,
 		IsClassMethod:        method.IsClassMethod,
+		IsStatic:             method.IsStatic,
 		IsConstructor:        method.IsConstructor,
 		HasOverloadDirective: method.IsOverload,
 		Visibility:           int(method.Visibility),
@@ -1069,6 +1070,8 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 			// This is an implementation for a forward declaration.
 			if existing.IsForwarded && method.Body != nil {
 				existing.IsForwarded = false
+				// A static implementation normally omits the declaration directive.
+				methodInfo.IsStatic = methodInfo.IsStatic || existing.IsStatic
 				// The implementation may omit parameter defaults declared in the
 				// class declaration ("default not respecified"); keep them.
 				mergeDefaultValues(funcType, existing.Signature)
@@ -1147,6 +1150,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 		paramTypes:             paramTypes,
 		returnType:             returnType,
 		inUnitDecl:             a.inUnitDecl,
+		isStatic:               methodInfo.IsStatic,
 		wasExplicitConstructor: wasExplicitConstructor,
 	})
 }
@@ -1176,7 +1180,7 @@ func (a *Analyzer) checkMethodBody(deferred deferredMethodBody) {
 	oldSymbols := a.symbols
 	a.symbols = NewEnclosedSymbolTable(deferred.outerSymbols)
 	a.symbols.classMethodOwner = classType
-	a.symbols.classMethodStatic = method.IsStatic
+	a.symbols.classMethodStatic = deferred.isStatic
 	defer func() { a.symbols = oldSymbols }()
 	defer a.emitUnusedWarningsForCurrentScope()
 

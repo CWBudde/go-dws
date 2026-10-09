@@ -485,7 +485,9 @@ type MethodInfo struct {
 	IsReintroduce     bool
 	IsForwarded       bool
 	IsClassMethod     bool
-	IsConstructor     bool
+	// IsStatic retains the declaration's absent-Self flag across implementations.
+	IsStatic      bool
+	IsConstructor bool
 	// IsSynthesized marks compiler-generated members (e.g. the implicit
 	// parameterless constructor) that do not correspond to a source declaration.
 	IsSynthesized        bool

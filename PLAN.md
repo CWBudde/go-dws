@@ -403,8 +403,19 @@ punctuation in the parser before reading arguments.
           indexed getters, and array-result indexing through complex receivers.
         - [x] Retain class-property declarations, index parameters and comma groups
           in source-printer round trips; preserve ordinary/default read controls.
-      - [ ] Extend indexed compatibility reads to unqualified and named inherited
-        contexts, retaining their lexical descriptor/accessor and diagnostic rules.
+      - [x] Read checked unqualified indexed properties through `Prop()[i, j]`
+        inside instance/class methods ([#471](https://github.com/CWBudde/go-dws/pull/471)).
+        - [x] Preserve lexical descriptors/accessors, dynamic virtual Self, local
+          callable/parameter/helper shadows and member precedence over global routines.
+        - [x] Preserve hint levels/casing/deprecation order, ordinary-call stops,
+          closing-parenthesis type/count anchors and child-before-class-reader errors;
+          retain static declaration flags across out-of-line implementations per overload.
+        - [x] Preserve ordered once-only index/getter effects, original exceptions,
+          recursion, nonvirtual nil readers, array-result indexing and printer round trips.
+      - [ ] Extend indexed compatibility reads to named inherited contexts,
+        retaining their lexical descriptor/accessor and diagnostic rules.
+      - [ ] Support ordinary bare unqualified indexed reads (`Prop[i]`); these
+        already fail with `Array expected` before the compatibility-read batch.
       - [ ] Align remaining default-property postfix/call contexts; reject `Obj()[i]`
         before default-property lookup with the upstream punctuation diagnostic.
       - [ ] Allow declared index parameters combined with an `index` directive;
@@ -420,7 +431,9 @@ punctuation in the parser before reading arguments.
       on unqualified compatibility calls; helper-method controls are covered above.
   - [ ] Align private-property access validation and ordinary static/write-only property-call
     diagnostic ordering with upstream. The private-access gap predates this batch; derive
-    the invalid-call sequence before changing scalar postfix checks.
+    the invalid-call sequence before changing scalar postfix checks. Include the
+    existing flagged scalar static-name and write-only closing-parenthesis anchors;
+    the checked indexed-read cases use the pinned anchors.
 
 ### 2.2 Parser gaps — S each
 
