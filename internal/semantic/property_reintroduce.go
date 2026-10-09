@@ -59,7 +59,7 @@ func (a *Analyzer) analyzePropertyCompatibilityRead(expr *ast.MethodCallExpressi
 func (a *Analyzer) analyzeIncompleteMemberCall(_ *ast.MethodCallExpression) types.Type {
 	// The parser retains the authoritative stop, including through enclosing
 	// unfinished calls. Never validate a truncated argument list or run end checks.
-	a.compileStopped = true
+	a.skipEndOfProgramChecks = true
 	return nil
 }
 

@@ -244,9 +244,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return funcPtrType
 		}
 		diagnostic := NewGenericError(expr.Token.Pos, "Not a method")
-		diagnostic.Stop = true
-		a.compileStopped = true
-		a.addStructuredError(diagnostic)
+		a.addCompilerStop(diagnostic)
 		return nil
 	}
 
@@ -1206,7 +1204,7 @@ func (a *Analyzer) analyzeRecordStaticMethodCall(expr *ast.CallExpression, recor
 	methodName := member.Value
 	overloads := recordType.GetClassMethodOverloads(ident.Normalize(methodName))
 	if len(overloads) == 0 {
-		a.addStructuredError(NewAccessibleMemberError(member.Token.Pos, methodName, recordType.Name))
+		a.addCompilerStop(NewAccessibleMemberError(member.Token.Pos, methodName, recordType.Name))
 		return nil
 	}
 	return a.analyzeRecordCall(overloads, expr.Arguments, methodName, member.Token.Pos)

@@ -19,7 +19,15 @@ func (a *Analyzer) newDiagnosticInsertion() *diagnosticInsertion {
 	return point
 }
 
+// analyzeAtDiagnosticInsertion runs deferred work and splices its diagnostics
+// back to point, its declaration in emission order.
+//
+// Work declared after a compiler stop is skipped, and a stop raised by analyze
+// ends at the splice: the diagnostics up to the stop are restored to point.
 func (a *Analyzer) analyzeAtDiagnosticInsertion(point *diagnosticInsertion, analyze func()) {
+	if !a.insertionPrecedesStop(point) {
+		return
+	}
 	errorsBefore, structuredBefore := len(a.errors), len(a.structuredErrors)
 	previousBounds := a.deferredBody
 	a.deferredBody = deferredBodyErrorBounds{
@@ -27,7 +35,7 @@ func (a *Analyzer) analyzeAtDiagnosticInsertion(point *diagnosticInsertion, anal
 		bodyStart:  errorsBefore,
 		active:     true,
 	}
-	analyze()
+	a.analyzeUntilStop(analyze)
 	a.deferredBody = previousBounds
 	errorsAdded := len(a.errors) - errorsBefore
 	structuredAdded := len(a.structuredErrors) - structuredBefore
