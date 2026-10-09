@@ -89,23 +89,55 @@ func indexedCompatibilityClassReader(class *types.ClassType, prop *types.Propert
 	return false
 }
 
+// indexedCompatibilityReceiver must analyze the receiver to classify the
+// member. When the member is no compatibility candidate, the analyzed type is
+// handed to the ordinary method-call path instead of being analyzed again.
 func (a *Analyzer) indexedCompatibilityReceiver(call *ast.MethodCallExpression) (*types.ClassType, *types.PropertyInfo, bool, bool) {
-	objectType := a.analyzeExpression(call.Object)
-	objectType = a.applyImplicitCallType(call.Object, objectType)
+	if a.isNamespaceReceiver(call.Object) {
+		return nil, nil, false, false
+	}
+	analyzed := a.analyzeExpression(call.Object)
+	objectType := a.implicitCallTypePreview(call.Object, analyzed)
 	resolved := types.GetUnderlyingType(objectType)
 	class, ok := resolved.(*types.ClassType)
 	metaclass := false
 	if meta, isMeta := resolved.(*types.ClassOfType); isMeta {
 		class, ok, metaclass = meta.ClassType, true, true
 	}
-	if !ok || a.hasHelperMethod(objectType, call.Method.Value) != nil {
-		return nil, nil, false, false
+	var prop *types.PropertyInfo
+	if ok && a.hasHelperMethod(objectType, call.Method.Value) == nil {
+		prop = propertyForCompatibilityCall(class, call.Method.Value)
 	}
-	prop := propertyForCompatibilityCall(class, call.Method.Value)
 	if prop == nil || !prop.IsIndexed || isFunctionPointerType(prop.Type) {
+		if a.probedReceivers == nil {
+			a.probedReceivers = make(map[ast.Expression]types.Type)
+		}
+		a.probedReceivers[call.Object] = analyzed
 		return nil, nil, false, false
 	}
+	a.applyImplicitCallType(call.Object, analyzed)
 	return class, prop, metaclass, true
+}
+
+// isNamespaceReceiver mirrors the receivers analyzeMethodCallExpression
+// resolves as namespaces before analyzing them as expressions.
+func (a *Analyzer) isNamespaceReceiver(object ast.Expression) bool {
+	if name, ok := object.(*ast.Identifier); ok {
+		if _, imported := a.importedUnitNamespace(name.Value); imported {
+			return true
+		}
+	}
+	return a.isJSONNamespace(object) || a.isDefaultNamespace(object)
+}
+
+// analyzeProbedReceiver consumes a receiver type a speculative probe already
+// analyzed, and otherwise analyzes the receiver.
+func (a *Analyzer) analyzeProbedReceiver(object ast.Expression) types.Type {
+	if typ, ok := a.probedReceivers[object]; ok {
+		delete(a.probedReceivers, object)
+		return typ
+	}
+	return a.analyzeExpression(object)
 }
 
 func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, prop *types.PropertyInfo, indices []ast.Expression, pos token.Position, metaclass bool) {
