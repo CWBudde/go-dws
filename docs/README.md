@@ -55,6 +55,7 @@ Status figures are generated, never hand-edited:
 | [`architecture/fail-shape-worklist-2026-09.md`](architecture/fail-shape-worklist-2026-09.md) | The whole tail of that audit's inventories: every `*Fail` message shape with the fixtures it blocks, and each spurious shape's emitting site, grouped by origin (`PLAN.md` Phase 1) |
 | [`architecture/pass-suite-audit-2026-09.md`](architecture/pass-suite-audit-2026-09.md) | Measured audit of the execution suites: the same for the suites that *run* a program — why 111 of 151 failures are one fault reported twice, and what the execution suites are actually missing |
 | [`architecture/execution-suite-triage-2026-09.md`](architecture/execution-suite-triage-2026-09.md) | E10a/E10b: remaining math and small execution-suite blockers, runner corrections, ownership and exclusions |
+| [`architecture/compile-stops.md`](architecture/compile-stops.md) | Compile stops: upstream's `AddCompilerStop` → `ECompileError` model, go-dws's five current stop mechanisms, the PLAN §2.1 target model and its invariants |
 | [`architecture/implicit-self-resolution.md`](architecture/implicit-self-resolution.md) | How identifiers and implicit `Self` resolve inside methods |
 | [`architecture/token-cursor.md`](architecture/token-cursor.md) | Parser token-cursor design |
 | [`architecture/comment-preservation.md`](architecture/comment-preservation.md) | Lexer/AST comment and trivia preservation |
