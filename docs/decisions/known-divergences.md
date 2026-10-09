@@ -38,6 +38,19 @@ fixture, a user report, or an upstream test).
 - Function-pointer `= nil` comparison still reports "operator = requires comparable types".
 - A for-in loop variable is not checked against a set's element type.
 - Subrange bounds are not checked at compile time; no fixture declares a subrange type.
+- Reintroduced-property compatibility brackets (`Prop()`) beyond the shipped read contexts.
+  - Shipped: explicit, unqualified and named-inherited scalar reads; named and unqualified
+    indexed reads. Named inherited indexed reads are in open PR #472 and remain parked until
+    it merges.
+  - Only three fixtures use `property … reintroduce` (`property_reintroduce1`/`2`,
+    `SimpleScripts/property_reintroduce`), and all three pass.
+  - Parked: bare `Prop[i]`; `Obj()[i]` and other default-property postfixes; `index` directive
+    combined with index parameters; `F.Prop()[i]`; writes; function-valued properties;
+    unchecked execution; visibility promotions and generic specialisations; helper-property
+    precedence and deprecation ordering; private-access/static/write-only call ordering.
+  - Reopen only after the property-resolver consolidation (PLAN 2.2).
+- Qualified builtin calls through `Internal`/`System` (`Internal.Abs(-3)`), and method-call
+  syntax on those qualifiers.
 - `ConditionalDefined(s)` always folds to `False`: `{$DEFINE}` symbols live in preprocessor state
   the analyzer cannot reach. Argument validation is complete.
 
