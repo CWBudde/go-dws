@@ -18,12 +18,9 @@ func (e *Evaluator) resolveInterfaceIndexedProperty(node *ast.IndexExpression, c
 	if isError(obj) || ctx.Exception() != nil {
 		return nil, nil, nil, true, obj
 	}
-	vals := make([]Value, len(indices))
-	for n, index := range indices {
-		vals[n] = e.Eval(index, ctx)
-		if isError(vals[n]) || ctx.Exception() != nil {
-			return nil, nil, nil, true, vals[n]
-		}
+	vals, err := e.preparePropertyIndices(prop, indices, node, ctx)
+	if err != nil || ctx.Exception() != nil {
+		return nil, nil, nil, true, err
 	}
 	return obj, prop, vals, true, nil
 }

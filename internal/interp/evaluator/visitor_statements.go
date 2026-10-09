@@ -566,7 +566,7 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			// Pattern: Read current value → apply operation → write back
 			return e.evalCompoundIndexAssignment(target, node, ctx)
 		}
-		write, captureErr := e.captureIndexedClassPropertyTarget(target, node, ctx)
+		write, captureErr := e.captureIndexedPropertyTarget(target, node, ctx)
 		if isError(captureErr) || ctx.Exception() != nil {
 			return captureErr
 		}

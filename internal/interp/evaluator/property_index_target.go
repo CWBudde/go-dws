@@ -108,6 +108,20 @@ func (e *Evaluator) uncheckedIndexedPropertyReceiverKnown(receiver ast.Expressio
 	return false
 }
 
+// captureIndexedPropertyTarget retains the static interface contract, receiver,
+// and original index storage before evaluating a property assignment's RHS.
+func (e *Evaluator) captureIndexedPropertyTarget(target *ast.IndexExpression, stmt *ast.AssignmentStatement, ctx *ExecutionContext) (func(Value) Value, Value) {
+	if obj, prop, indices, handled, err := e.resolveInterfaceIndexedProperty(target, ctx); handled {
+		if err != nil || ctx.Exception() != nil {
+			return nil, err
+		}
+		return func(value Value) Value {
+			return e.writeInterfaceIndexedProperty(obj, prop, indices, value, stmt, ctx)
+		}, nil
+	}
+	return e.captureIndexedClassPropertyTarget(target, stmt, ctx)
+}
+
 // captureIndexedClassPropertyTarget retains the selected descriptor and caller
 // storage through RHS evaluation. Unsupported targets remain on the old path.
 func (e *Evaluator) captureIndexedClassPropertyTarget(target *ast.IndexExpression, stmt *ast.AssignmentStatement, ctx *ExecutionContext) (func(Value) Value, Value) {
