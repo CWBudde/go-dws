@@ -194,6 +194,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		IsDeprecated:      prop.IsDeprecated,
 		IndexParamNames:   propertyIndexParamNames(prop.IndexParams),
 		IndexParamTypes:   indexParamTypes,
+		IndexParamModes:   propertyIndexParamModes(prop.IndexParams),
 	}
 	if prop.IndexValue != nil {
 		propInfo.HasIndexValue = true
@@ -245,6 +246,14 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 // property's. Expression accessors bind the index parameters by name, so
 // indexed expression forwarding additionally requires identical names.
 func forwardedIndexSignatureMatches(propInfo, referenced *types.PropertyInfo, indexParamTypes []types.Type, kind types.PropAccessKind) bool {
+	if len(propInfo.IndexParamNames) != len(referenced.IndexParamNames) {
+		return false
+	}
+	for i := range propInfo.IndexParamNames {
+		if propInfo.IndexMode(i) != referenced.IndexMode(i) {
+			return false
+		}
+	}
 	referencedTypes := make([]types.Type, 0, len(referenced.IndexParamTypes)+1)
 	if referenced.HasIndexValue {
 		referencedTypes = append(referencedTypes, referenced.IndexValueType)
@@ -274,6 +283,24 @@ func forwardedIndexSignatureMatches(propInfo, referenced *types.PropertyInfo, in
 		}
 	}
 	return true
+}
+
+func propertyIndexParamModes(params []*ast.Parameter) []types.PropertyIndexMode {
+	if len(params) == 0 {
+		return nil
+	}
+	modes := make([]types.PropertyIndexMode, len(params))
+	for i, param := range params {
+		if param == nil {
+			continue
+		}
+		if param.ByRef {
+			modes[i] = types.PropertyIndexVar
+		} else if param.IsConst {
+			modes[i] = types.PropertyIndexConst
+		}
+	}
+	return modes
 }
 
 // validateReadSpec validates the read specifier of a property.

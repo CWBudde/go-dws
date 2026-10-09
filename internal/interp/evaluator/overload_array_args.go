@@ -21,9 +21,15 @@ type capturedArrayArgument struct {
 	index         int
 }
 
+// argumentValueError retains the original runtime error while preserving the
+// textual error contract consumed by existing argument preparation callers.
+type argumentValueError struct{ value Value }
+
+func (err *argumentValueError) Error() string { return err.value.String() }
+
 func argumentEvaluationError(value Value, ctx *ExecutionContext) error {
 	if isError(value) {
-		return fmt.Errorf("%s", value.String())
+		return &argumentValueError{value: value}
 	}
 	if ctx.Exception() != nil {
 		return fmt.Errorf("argument evaluation raised an exception")

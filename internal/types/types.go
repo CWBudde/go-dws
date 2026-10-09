@@ -458,6 +458,9 @@ type PropertyInfo struct {
 	// the authoritative arity for an indexed property: unlike the accessor
 	// method's signature, it is available for expression-based accessors too.
 	IndexParamTypes []Type
+	// IndexParamModes parallels the declared indices and is immutable after registration.
+	// A missing slice on legacy metadata denotes value parameters.
+	IndexParamModes []PropertyIndexMode
 	ReadStorage     PropertyStorageKind
 	ReadKind        PropAccessKind
 	WriteKind       PropAccessKind

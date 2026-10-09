@@ -413,14 +413,7 @@ func (e *Evaluator) readResolvedMember(node *ast.MemberAccessExpression, obj Val
 
 			// Try parameterless auto-invoke first
 			result, invoked := objVal.InvokeParameterlessMethod(memberName, func(_ *runtime.MethodMetadata) Value {
-				// Create synthetic method call
-				methodCall := &ast.MethodCallExpression{
-					BaseNode:  ast.BaseNode{Token: node.Token},
-					Object:    node.Object,
-					Method:    node.Member,
-					Arguments: []ast.Expression{},
-				}
-				return e.VisitMethodCallExpression(methodCall, ctx)
+				return e.executeCapturedParameterlessMember(obj, node, ctx)
 			})
 			if invoked {
 				return result
@@ -442,20 +435,14 @@ func (e *Evaluator) readResolvedMember(node *ast.MemberAccessExpression, obj Val
 			// A class method observes Self as the metaclass, not the instance it was
 			// reached through. Bind the receiver's class value so a class method using
 			// Self (e.g. Self.Create or returning Self) behaves the same as the
-			// TClass.Method() path. The zero-parameter auto-invoke below already routes
-			// through VisitMethodCallExpression, which resolves the class value itself.
+			// TClass.Method() path. The zero-parameter auto-invoke below uses the
+			// existing method dispatch policy on the captured receiver.
 			classSelf := e.classSelfForInstance(objVal, obj)
 			if wantMethodPointer {
 				return e.createFunctionPointerFromDecl(classMethodDecl, classSelf, ctx)
 			}
 			if len(classMethodDecl.Parameters) == 0 {
-				methodCall := &ast.MethodCallExpression{
-					BaseNode:  ast.BaseNode{Token: node.Token},
-					Object:    node.Object,
-					Method:    node.Member,
-					Arguments: []ast.Expression{},
-				}
-				return e.VisitMethodCallExpression(methodCall, ctx)
+				return e.executeCapturedParameterlessMember(obj, node, ctx)
 			}
 			return e.createFunctionPointerFromDecl(classMethodDecl, classSelf, ctx)
 		}
@@ -1149,4 +1136,17 @@ func (e *Evaluator) classSelfForInstance(objVal ObjectValue, obj Value) Value {
 		}
 	}
 	return obj
+}
+
+// executeCapturedParameterlessMember uses ordinary method dispatch on an already
+// captured receiver. The callable probe does not select the final overload; the
+// dispatch owner retains overload/default/class precedence and lifecycle guards.
+// The call node carries source/static-owner information without receiver Eval.
+func (e *Evaluator) executeCapturedParameterlessMember(obj Value, member *ast.MemberAccessExpression, ctx *ExecutionContext) Value {
+	call := &ast.MethodCallExpression{
+		BaseNode: ast.BaseNode{Token: member.Token},
+		Object:   member.Object,
+		Method:   member.Member,
+	}
+	return e.DispatchMethodCall(obj, member.Member.Value, nil, call, ctx)
 }

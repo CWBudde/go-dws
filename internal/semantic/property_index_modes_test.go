@@ -3,7 +3,67 @@ package semantic
 import (
 	"strings"
 	"testing"
+
+	"github.com/cwbudde/go-dws/internal/lexer"
+	"github.com/cwbudde/go-dws/internal/parser"
+	"github.com/cwbudde/go-dws/internal/types"
 )
+
+func TestPropertyIndexModes_Metadata(t *testing.T) {
+	input := `type T = class
+ function Get(var A, B: Integer; const C: Integer; D: Integer): Integer;
+ begin Result := A + B + C + D; end;
+ property P[var A, B: Integer; const C: Integer; D: Integer]: Integer read Get;
+ property Q[var A, B: Integer; const C: Integer; D: Integer]: Integer read P;
+end;
+type U = class(T) property P; end;`
+	p := parser.New(lexer.New(input))
+	program := p.ParseProgram()
+	if len(p.Errors()) != 0 {
+		t.Fatal(p.Errors())
+	}
+	a := NewAnalyzer()
+	if err := a.Analyze(program); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"t", "u"} {
+		for _, property := range []string{"P", "Q"} {
+			prop, found := a.GetClasses()[name].GetProperty(property)
+			if !found {
+				t.Fatalf("%s.%s missing", name, property)
+			}
+			want := []types.PropertyIndexMode{types.PropertyIndexVar, types.PropertyIndexVar, types.PropertyIndexConst, types.PropertyIndexValue}
+			if len(prop.IndexParamModes) != len(want) {
+				t.Fatalf("mode count = %d, want %d", len(prop.IndexParamModes), len(want))
+			}
+			for i, mode := range want {
+				if prop.IndexMode(i) != mode {
+					t.Errorf("%s.%s mode %d = %d, want %d", name, property, i, prop.IndexMode(i), mode)
+				}
+			}
+		}
+	}
+}
+
+func TestPropertyIndexModes_ForwardingMismatch(t *testing.T) {
+	for _, mode := range []string{"", "const "} {
+		input := `type T = class
+ function Get(var I: Integer): Integer; begin Result := I; end;
+ procedure SetIt(var I: Integer; V: Integer); begin I := V; end;
+ property P[var I: Integer]: Integer read Get write SetIt;
+ property Q[` + mode + `I: Integer]: Integer read P write P;
+end;`
+		p := parser.New(lexer.New(input))
+		program := p.ParseProgram()
+		if len(p.Errors()) != 0 {
+			t.Fatal(p.Errors())
+		}
+		a := NewAnalyzer()
+		if err := a.Analyze(program); err == nil {
+			t.Fatal("forwarding mismatched property index modes must reject")
+		}
+	}
+}
 
 func TestPropertyIndexModes_InterfaceAccessorMatrix(t *testing.T) {
 	modes := []string{"", "var ", "const "}

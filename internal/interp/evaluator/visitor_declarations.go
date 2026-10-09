@@ -621,6 +621,7 @@ func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl
 		IsReintroduce:   propDecl.IsReintroduce,
 		ExternalName:    propDecl.ExternalName,
 		IndexParamNames: indexParamNames(propDecl.IndexParams),
+		IndexParamModes: indexParamModes(propDecl.IndexParams),
 	}
 
 	// Extract index value if present
@@ -697,6 +698,24 @@ func (e *Evaluator) convertPropertyDecl(classInfo classDeclarationInfo, propDecl
 	}
 
 	return propInfo
+}
+
+func indexParamModes(params []*ast.Parameter) []types.PropertyIndexMode {
+	if len(params) == 0 {
+		return nil
+	}
+	modes := make([]types.PropertyIndexMode, len(params))
+	for i, param := range params {
+		if param == nil {
+			continue
+		}
+		if param.ByRef {
+			modes[i] = types.PropertyIndexVar
+		} else if param.IsConst {
+			modes[i] = types.PropertyIndexConst
+		}
+	}
+	return modes
 }
 
 // writeSpecAssignment turns an lvalue write specifier into the assignment it is
