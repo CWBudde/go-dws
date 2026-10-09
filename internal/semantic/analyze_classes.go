@@ -340,7 +340,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 				}
 				return sym.Type
 			}
-			a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
+			a.addCompilerStop(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
 			return nil
 		}
 		switch ident.Normalize(identExpr.Value) {
@@ -351,7 +351,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 			if sym, err := a.ResolveQualifiedSymbol(identExpr.Value, expr.Member.Value); err == nil && sym != nil {
 				return sym.Type
 			}
-			a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
+			a.addCompilerStop(NewUnknownNameError(expr.Member.Token.Pos, identExpr.Value+"."+expr.Member.Value))
 			return nil
 		case "json":
 			// Bare JSON namespace access (JSON.NewObject / JSON.NewArray invoked
