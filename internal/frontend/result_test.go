@@ -872,7 +872,8 @@ Foo();
 	result := Compile(source, "unknown_name.pas", semantic.HintsLevelPedantic)
 	got := result.DiagnosticStrings()
 	want := []string{
-		`Syntax Error: Unknown name "Foo" [line: 2, column: 5]`,
+		// ReadName anchors the name, not the call's parenthesis (FailureScripts/except_error4).
+		`Syntax Error: Unknown name "Foo" [line: 2, column: 1]`,
 	}
 
 	if len(got) != len(want) {

@@ -288,13 +288,8 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 			return nil
 		}
 
-		// ReadName raises this with AddCompilerStopFmt, but the fixture-pinned
-		// call diagnostics after it (the *ReadAllChildren tests) show the
-		// enclosing reads still report, so it does not unwind the statement
-		// yet; only the end-of-program checks are abandoned.
-		a.addStructuredError(NewUnknownNameError(identifier.Token.Pos, identifier.Value))
-		a.skipEndOfProgramChecks = true
-		return nil
+		// ReadName raises this with AddCompilerStopFmt (dwsCompiler.pas:4910).
+		a.addCompilerStop(NewUnknownNameError(identifier.Token.Pos, identifier.Value))
 	}
 
 	// Emit a hint when the identifier casing doesn't match its declaration.

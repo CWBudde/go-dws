@@ -26,11 +26,9 @@ func TestCompile_ClassArityDiagnostics(t *testing.T) {
 		}},
 		{"explicit child before count", "type T = class procedure Take(v: Integer; w: String); begin end; end;\nvar obj: T;\nobj.Take(\n  Missing);", []string{
 			"Syntax Error: Unknown name \"Missing\" [line: 4, column: 3]",
-			"Syntax Error: More arguments expected [line: 3, column: 5]",
 		}},
 		{"explicit excess child", "type T = class procedure Take(v: Integer); begin end; end;\nvar obj: T;\nobj.Take(1,\n  Missing);", []string{
 			"Syntax Error: Unknown name \"Missing\" [line: 4, column: 3]",
-			"Syntax Error: Too many arguments [line: 3, column: 5]",
 		}},
 		{"sole marked method", "type T = class procedure Take(v: Integer); overload; begin end; end;\nvar obj: T;\nobj.Take();", []string{
 			"Syntax Error: There is no overloaded version of \"Take\" that can be called with these arguments [line: 3, column: 5]",
@@ -141,7 +139,7 @@ func TestCompile_ConstructorArityDiagnostics(t *testing.T) {
 	}
 }
 
-func TestCompile_ClassOverloadsReadAllChildren(t *testing.T) {
+func TestCompile_ClassOverloadsStopAtUnknownChild(t *testing.T) {
 	for _, tt := range []struct{ name, source string }{
 		{"explicit", "type T = class procedure Take(v: Integer); overload; begin end; end;\nvar obj: T;\nobj.Take(\n  Missing1,\n  Missing2);"},
 		{"implicit", "type T = class procedure Take(v: Integer); overload; begin end;\nprocedure Run; begin\n  Take(\n  Missing1,\n  Missing2);\nend; end;"},
@@ -153,7 +151,6 @@ func TestCompile_ClassOverloadsReadAllChildren(t *testing.T) {
 			got := Compile(tt.source, "<test>", semantic.HintsLevelDisabled).DiagnosticStrings()
 			want := []string{
 				"Syntax Error: Unknown name \"Missing1\" [line: 4, column: 3]",
-				"Syntax Error: Unknown name \"Missing2\" [line: 5, column: 3]",
 			}
 			if !slices.Equal(got, want) {
 				t.Fatalf("diagnostics:\n got %q\nwant %q", got, want)

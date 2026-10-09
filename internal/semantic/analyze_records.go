@@ -132,7 +132,7 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			if field.Type != nil {
 				pos = field.Type.End()
 			}
-			a.addStructuredError(NewGenericError(pos, fmt.Sprintf(`Record type "%s" is not fully defined`, recordName)))
+			a.addCompilerStop(NewGenericError(pos, fmt.Sprintf(`Record type "%s" is not fully defined`, recordName)))
 		}
 
 		recordType.AddField(fieldName, fieldType, field.InitValue != nil)

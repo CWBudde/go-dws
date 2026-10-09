@@ -150,7 +150,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 					a.symbols.symbols.Set(memberAccess.Member.Value, symbol)
 				} else {
 					a.symbols = oldSymbols
-					a.addStructuredError(NewUnknownNameError(memberAccess.Member.Token.Pos, name.Value+"."+memberAccess.Member.Value))
+					a.addCompilerStop(NewUnknownNameError(memberAccess.Member.Token.Pos, name.Value+"."+memberAccess.Member.Value))
 					return nil
 				}
 				defer func() { a.symbols = oldSymbols }()
@@ -605,7 +605,7 @@ func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
 			return castType
 		}
 
-		a.addStructuredError(NewUnknownNameError(expr.Token.Pos, funcIdent.Value))
+		a.addCompilerStop(NewUnknownNameError(funcIdent.Token.Pos, funcIdent.Value))
 		return nil
 	}
 

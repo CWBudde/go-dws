@@ -18,8 +18,8 @@ func TestCompile_RecordArityDiagnostics(t *testing.T) {
 		{"instance shifted type anchor", "type R = record procedure Take(v: Integer; w: String); begin end; end;\nvar item: R;\nitem.Take(true,\n  'ok');", []string{"Syntax Error: Argument 1 expects type \"Integer\" instead of \"Boolean\" [line: 4, column: 3]"}},
 		{"instance last type anchor", "type R = record procedure Take(v: Integer; w: String); begin end; end;\nvar item: R;\nitem.Take(1, true);", []string{"Syntax Error: Argument 2 expects type \"String\" instead of \"Boolean\" [line: 3, column: 6]"}},
 		{"instance excess type", "type R = record procedure Take(v: Integer); begin end; end;\nvar item: R;\nitem.Take(true,\n  1);", []string{"Syntax Error: Argument 1 expects type \"Integer\" instead of \"Boolean\" [line: 4, column: 3]"}},
-		{"instance child before short", "type R = record procedure Take(v: Integer; w: String); begin end; end;\nvar item: R;\nitem.Take(\n  Missing);", []string{"Syntax Error: Unknown name \"Missing\" [line: 4, column: 3]", "Syntax Error: More arguments expected [line: 3, column: 6]"}},
-		{"instance excess children", "type R = record procedure Take; begin end; end;\nvar item: R;\nitem.Take(\n  Missing, Other);", []string{"Syntax Error: Unknown name \"Missing\" [line: 4, column: 3]", "Syntax Error: Unknown name \"Other\" [line: 4, column: 12]", "Syntax Error: Too many arguments [line: 3, column: 6]"}},
+		{"instance child before short", "type R = record procedure Take(v: Integer; w: String); begin end; end;\nvar item: R;\nitem.Take(\n  Missing);", []string{"Syntax Error: Unknown name \"Missing\" [line: 4, column: 3]"}},
+		{"instance excess children", "type R = record procedure Take; begin end; end;\nvar item: R;\nitem.Take(\n  Missing, Other);", []string{"Syntax Error: Unknown name \"Missing\" [line: 4, column: 3]"}},
 		{"instance marked", "type R = record procedure Take(v: Integer); overload; begin end; end;\nvar item: R;\nitem.Take();", []string{"Syntax Error: There is no overloaded version of \"Take\" that can be called with these arguments [line: 3, column: 6]"}},
 		{"instance overloaded", "type R = record procedure Take(v: Integer); overload; begin end; procedure Take(v: String); overload; begin end; end;\nvar item: R;\nitem.\n  Take(true);", []string{"Syntax Error: There is no overloaded version of \"Take\" that can be called with these arguments [line: 4, column: 3]"}},
 		{"class short", "type R = record class procedure Take(v: Integer); begin end; end;\nR.Take();", []string{"Syntax Error: More arguments expected [line: 2, column: 3]"}},
@@ -47,7 +47,7 @@ func TestCompile_RecordArityDiagnostics(t *testing.T) {
 	}
 }
 
-func TestCompile_RecordOverloadsReadAllChildren(t *testing.T) {
+func TestCompile_RecordOverloadsStopAtUnknownChild(t *testing.T) {
 	for _, tt := range []struct{ name, source string }{
 		{"instance", "type R = record procedure Take(v: Integer); overload; begin end; end;\nvar item: R;\nitem.Take(\n  Missing1,\n  Missing2);"},
 		{"class", "type R = record class procedure Take(v: Integer); overload; begin end; end;\nvar meta := R;\nmeta.Take(\n  Missing1,\n  Missing2);"},
@@ -58,7 +58,6 @@ func TestCompile_RecordOverloadsReadAllChildren(t *testing.T) {
 			got := Compile(tt.source, "<test>", semantic.HintsLevelDisabled).DiagnosticStrings()
 			want := []string{
 				"Syntax Error: Unknown name \"Missing1\" [line: 4, column: 3]",
-				"Syntax Error: Unknown name \"Missing2\" [line: 5, column: 3]",
 			}
 			if !slices.Equal(got, want) {
 				t.Fatalf("diagnostics:\n got %q\nwant %q", got, want)

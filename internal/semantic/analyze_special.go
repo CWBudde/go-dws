@@ -288,7 +288,7 @@ func (a *Analyzer) analyzeSelfExpression(se *ast.SelfExpression) types.Type {
 	// A static helper class method has no Self at all: upstream reports the
 	// name as simply unknown (HelpersFail/static_class_method_self).
 	if a.inStaticHelperMethod {
-		a.addStructuredError(NewUnknownNameError(se.Token.Pos, "Self"))
+		a.addCompilerStop(NewUnknownNameError(se.Token.Pos, "Self"))
 		return nil
 	}
 
@@ -309,7 +309,7 @@ func (a *Analyzer) analyzeSelfExpression(se *ast.SelfExpression) types.Type {
 		}
 		// Ordinary record class methods are static and have no Self.
 		if a.inClassMethod {
-			a.addStructuredError(NewUnknownNameError(se.Token.Pos, "Self"))
+			a.addCompilerStop(NewUnknownNameError(se.Token.Pos, "Self"))
 			return nil
 		}
 		return a.currentRecord

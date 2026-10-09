@@ -63,7 +63,7 @@ PrintLn(Undefined);
 			name: "routine bodies before the stop keep their diagnostics",
 			source: `procedure P;
 begin
-  PrintLn(Undefined);
+  PrintLn(1 as String);
 end;
 var s : String;
 PrintLn(s.Hello);
@@ -73,9 +73,59 @@ begin
 end;
 `,
 			want: []string{
-				`Syntax Error: Unknown name "Undefined" [line: 3, column: 11]`,
+				`Syntax Error: Cannot cast "Integer" as "String" [line: 3, column: 13]`,
 				`Syntax Error: There is no accessible member with name "Hello" for type String [line: 6, column: 11]`,
 			},
+		},
+		{
+			// ReadName raises CPE_UnknownName as a stop (dwsCompiler.pas:4910),
+			// so neither the second argument nor the call's arity is checked.
+			name: "unknown name in an argument stops the call",
+			source: `procedure Take(v: Integer);
+begin
+end;
+Take(Missing1, Missing2);
+PrintLn(Undefined);
+`,
+			want: []string{
+				`Syntax Error: Unknown name "Missing1" [line: 4, column: 6]`,
+			},
+		},
+		{
+			// ReadName (dwsCompiler.pas:4910) for the callee of a call.
+			name:   "unknown routine name stops",
+			source: "Missing(1);\nPrintLn(Undefined);\n",
+			want:   []string{`Syntax Error: Unknown name "Missing" [line: 1, column: 1]`},
+		},
+		{
+			// ReadAt reads its operand through ReadName.
+			name:   "unknown address-of operand stops",
+			source: "var p := @Missing;\nPrintLn(Undefined);\n",
+			want:   []string{`Syntax Error: Unknown name "Missing" [line: 1, column: 10]`},
+		},
+		{
+			// ReadName on a unit prefix: CPE_UnknownNameDotName (dwsCompiler.pas:4941).
+			name:   "unknown unit member stops",
+			source: "PrintLn(System.Missing);\nPrintLn(Undefined);\n",
+			want:   []string{`Syntax Error: Unknown name "System.Missing" [line: 1, column: 16]`},
+		},
+		{
+			// ReadForIn: CPE_ArrayExpected (dwsCompiler.pas:6526).
+			name:   "for-in over a non-container stops",
+			source: "var i : Integer;\nfor i in 5 do ;\nPrintLn(Undefined);\n",
+			want:   []string{`Syntax Error: Array expected [line: 2, column: 7]`},
+		},
+		{
+			// CPE_NoDefaultProperty (dwsCompiler.pas:5704).
+			name:   "indexing a class without default property stops",
+			source: "type TObj = class end;\nvar o := TObj.Create;\nPrintLn(o[1]);\nPrintLn(Undefined);\n",
+			want:   []string{`Syntax Error: Class "TObj" has no default property [line: 3, column: 10]`},
+		},
+		{
+			// CPE_RecordTypeNotFullyDefined (dwsCompiler.pas:7962).
+			name:   "record containing itself stops",
+			source: "type R = record\n  Inner : R;\nend;\nPrintLn(Undefined);\n",
+			want:   []string{`Syntax Error: Record type "R" is not fully defined [line: 2, column: 12]`},
 		},
 		{
 			name: "a stop in a routine body cuts the later main program",
