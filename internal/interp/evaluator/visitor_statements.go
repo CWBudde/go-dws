@@ -566,6 +566,10 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			// Pattern: Read current value → apply operation → write back
 			return e.evalCompoundIndexAssignment(target, node, ctx)
 		}
+		write, captureErr := e.captureIndexedPropertyTarget(target, node, ctx)
+		if isError(captureErr) || ctx.Exception() != nil {
+			return captureErr
+		}
 
 		value := e.Eval(node.Value, ctx)
 		if isError(value) {
@@ -576,6 +580,9 @@ func (e *Evaluator) VisitAssignmentStatement(node *ast.AssignmentStatement, ctx 
 			return &runtime.NilValue{}
 		}
 
+		if write != nil {
+			return write(value)
+		}
 		return e.evalIndexAssignmentDirect(target, value, node, ctx)
 
 	default:
@@ -1410,6 +1417,9 @@ func (e *Evaluator) createZeroValue(typeExpr ast.TypeExpression, node ast.Node, 
 
 	resolved, err := e.ResolveTypeFromAnnotation(typeExpr, ctx)
 	if err != nil {
+		if _, isRecord := typeExpr.(*ast.RecordTypeNode); isRecord {
+			return e.newError(node, "%s", err)
+		}
 		return &runtime.NilValue{}
 	}
 	return e.createZeroValueForResolvedType(resolved, ctx)

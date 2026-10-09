@@ -325,6 +325,10 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 
 	// Process properties if any
 	for _, prop := range decl.Properties {
+		indexTypes := a.resolveRecordPropertyIndexParamTypes(prop.IndexParams)
+		if prop.Type == nil {
+			continue
+		} // The parser retained only reached index declarations.
 		propName := prop.Name.Value
 		lowerPropName := ident.Normalize(propName)
 
@@ -348,7 +352,9 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 			DeprecatedMessage: prop.DeprecatedMessage,
 			IsDeprecated:      prop.IsDeprecated,
 
-			IndexParamTypes: a.resolveRecordPropertyIndexParamTypes(prop.IndexParams),
+			IndexParamTypes: indexTypes,
+			IndexParamNames: propertyIndexParamNames(prop.IndexParams),
+			IndexParamModes: propertyIndexParamModes(prop.IndexParams),
 			IsClassProperty: prop.IsClassProperty,
 			ExternalName:    prop.ExternalName,
 		}
@@ -367,6 +373,9 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		case prop.WriteField != "":
 			propInfo.WriteKind = types.PropAccessField
 		case prop.WriteStmt != nil:
+			if _, null := prop.WriteStmt.(*ast.EmptyStatement); null {
+				a.warnNullPropertyWriter(prop.WriteStmt)
+			}
 			propInfo.WriteKind = types.PropAccessExpression
 			propInfo.WriteExpr = prop.WriteStmt
 		default:
@@ -376,6 +385,8 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		// Store with lowercase key for case-insensitive lookup
 		recordType.Properties[lowerPropName] = propInfo
 	}
+
+	a.validateRecordPropertyDeclarations(recordType, decl.Properties, decl.Methods)
 
 	// Record type already registered above (after fields, before methods)
 }
@@ -594,24 +605,42 @@ func (a *Analyzer) analyzeRecordFieldAccessWithExpectedType(obj ast.Expression, 
 // resolveRecordPropertyIndexParamTypes resolves the declared index parameter
 // types of a record property (`property Items[i : Integer] : String`).
 //
-// It returns nil when the property is not indexed or when any index parameter
-// lacks a resolvable type annotation, so that callers fall back to the accessor
-// method signature instead of validating against a partial list. Diagnostics for
-// unresolvable index parameter types are left to the declaration checks.
+// Unknown named types retain ReadType's Variant recovery signature after emitting
+// their ordinary diagnostic. Other unresolved annotations never produce a partial list.
 func (a *Analyzer) resolveRecordPropertyIndexParamTypes(params []*ast.Parameter) []types.Type {
 	if len(params) == 0 {
 		return nil
 	}
 	resolved := make([]types.Type, 0, len(params))
+	// Grouped names share a single type read, and therefore one diagnostic.
+	cache := make(map[ast.TypeExpression]types.Type)
 	for _, param := range params {
 		if param == nil || param.Type == nil {
 			return nil
 		}
-		paramType, err := a.resolveTypeExpression(param.Type)
-		if err != nil || paramType == nil {
+		paramType, found := cache[param.Type]
+		if !found {
+			paramType = a.resolveRecordPropertyIndexParamType(param)
+			cache[param.Type] = paramType
+		}
+		if paramType == nil {
 			return nil
 		}
 		resolved = append(resolved, paramType)
 	}
 	return resolved
+}
+
+func (a *Analyzer) resolveRecordPropertyIndexParamType(param *ast.Parameter) types.Type {
+	paramType, err := a.resolveTypeExpression(param.Type)
+	if err == nil {
+		return paramType
+	}
+	if annotation, ok := param.Type.(*ast.TypeAnnotation); ok && annotation.InlineType == nil && len(annotation.TypeArgs) == 0 {
+		a.addStructuredError(NewUnknownNameError(annotation.End(), annotation.Name))
+		a.semanticInfo.SetResolvedType(annotation, types.VARIANT)
+		return types.VARIANT // ReadType keeps compiling after an unknown named type.
+	}
+	a.addStructuredError(NewGenericError(param.Type.Pos(), fmt.Sprintf("unknown type '%s' for record property index parameter '%s'", getTypeExpressionName(param.Type), param.Name.Value)))
+	return nil
 }

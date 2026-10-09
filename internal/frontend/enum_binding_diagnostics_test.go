@@ -143,7 +143,9 @@ func TestCompile_EnumBindingUnitUsesVisibility(t *testing.T) {
 		{"body after unit uses", `uses Imported; procedure Early; begin PrintLn(Ord(Bare)); end;`, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			source := "unit Consumer; interface " + tt.body + " implementation end."
+			// Keep the bodies in their legal section. The deferred body lookup
+			// must still reflect imports reached before its declaration.
+			source := "unit Consumer; interface implementation " + tt.body + " end."
 			if err := os.WriteFile(filepath.Join(dir, "Consumer.pas"), []byte(source), 0600); err != nil {
 				t.Fatal(err)
 			}

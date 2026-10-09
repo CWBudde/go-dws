@@ -89,7 +89,7 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		return typ
 	}
 
-	if typ, handled := a.analyzeInterfaceIndexedProperty(expr, false, false); handled {
+	if typ, handled := a.analyzeInterfaceIndexedProperty(expr, false, false, nil); handled {
 		return typ
 	}
 
@@ -100,7 +100,7 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 
 	// Special-case indexed properties: obj.Prop[index]
 	if memberAccess, ok := expr.Left.(*ast.MemberAccessExpression); ok {
-		if propType := a.analyzeIndexedPropertyAccess(memberAccess, expr); propType != nil {
+		if propType, handled := a.analyzeIndexedPropertyAccess(memberAccess, expr); handled {
 			return propType
 		}
 	}
@@ -131,6 +131,9 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 		if defaultProp := a.getDefaultClassProperty(classType); defaultProp != nil {
 			// Upstream anchors the warning for a default-property access at the
 			// bracket, since the property is never named at the call site.
+			if propertyHasVarIndices(defaultProp) {
+				return a.analyzeVarClassPropertyArguments(expr, defaultProp, classType, []ast.Expression{expr.Index}, nil, false, nil)
+			}
 			a.warnDeprecatedPropertyUsage(defaultProp, expr.Token.Pos)
 			expectedIndexTypes := a.getIndexedPropertyParamTypes(defaultProp, classType)
 			if len(expectedIndexTypes) > 0 {
@@ -145,6 +148,12 @@ func (a *Analyzer) analyzeIndexExpression(expr *ast.IndexExpression) types.Type 
 			return defaultProp.Type
 		}
 		a.addStructuredError(NewNoDefaultPropertyError(expr.Token.Pos, classType.Name))
+		return nil
+	}
+
+	// A provisional unread invalid RHS can belong to an ordinary array. Read
+	// its genuinely reached prefix, then retain the original parser stop.
+	if a.analyzeDeferredIndexPrefix(expr) {
 		return nil
 	}
 
@@ -311,11 +320,11 @@ func (a *Analyzer) constantArrayIndex(expr ast.Expression) (int, bool) {
 
 // analyzeIndexedPropertyAccess handles expressions like obj.Prop[index]
 // by validating the index type against the property's signature and returning the property type.
-func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessExpression, expr *ast.IndexExpression) types.Type {
+func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessExpression, expr *ast.IndexExpression) (types.Type, bool) {
 	// Determine the object type for the member access
-	objectType := a.analyzeExpression(memberAccess.Object)
+	objectType := a.analyzeProbedReceiver(memberAccess.Object)
 	if objectType == nil {
-		return nil
+		return nil, false
 	}
 
 	objectResolved := types.GetUnderlyingType(objectType)
@@ -332,7 +341,10 @@ func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessEx
 		if propInfo, found := classType.GetProperty(memberName); found {
 			if !propInfo.IsIndexed {
 				// Not an indexed property – let general indexing rules apply to the property type
-				return nil
+				return nil, false
+			}
+			if propertyHasVarIndices(propInfo) {
+				return a.analyzeVarClassPropertyArguments(expr, propInfo, classType, []ast.Expression{expr.Index}, memberAccess, isMetaclass, nil), true
 			}
 			a.warnDeprecatedPropertyUsage(propInfo, memberAccess.Member.Token.Pos)
 
@@ -341,7 +353,7 @@ func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessEx
 			// path applies in analyzeClassMemberAccess; without it, semantic analysis
 			// accepted what the evaluator could not execute.
 			if isMetaclass && !a.checkIndexedPropertyMetaclassAccess(classType, propInfo, memberAccess) {
-				return nil
+				return nil, false
 			}
 
 			expectedIndexTypes := a.getIndexedPropertyParamTypes(propInfo, classType)
@@ -349,17 +361,17 @@ func (a *Analyzer) analyzeIndexedPropertyAccess(memberAccess *ast.MemberAccessEx
 				indexType := a.analyzeExpressionWithExpectedType(expr.Index, expectedIndexTypes[0])
 				if indexType != nil && !a.canAssign(indexType, expectedIndexTypes[0]) {
 					a.addStructuredError(NewArrayIndexError(expr.Index.Pos(), expectedIndexTypes[0].String(), indexType.String()))
-					return propInfo.Type
+					return propInfo.Type, true
 				}
 			} else {
 				a.analyzeExpression(expr.Index)
 			}
-			return propInfo.Type
+			return propInfo.Type, true
 		}
 	}
 
 	// Not an indexed property access
-	return nil
+	return nil, false
 }
 
 // analyzeMultiIndexPropertyAccess resolves an indexed property that takes more
@@ -376,6 +388,12 @@ func (a *Analyzer) analyzeMultiIndexPropertyAccess(expr *ast.IndexExpression) (t
 		if !ok {
 			break
 		}
+		// A completed interface property group is the current receiver's
+		// returned value. The legacy class probe must not flatten across it
+		// and analyze its original receiver again.
+		if a.semanticInfo.IsResolvedIndexedProperty(inner) {
+			return nil, false
+		}
 		indices = append(indices, inner.Index)
 		root = inner.Left
 	}
@@ -386,24 +404,8 @@ func (a *Analyzer) analyzeMultiIndexPropertyAccess(expr *ast.IndexExpression) (t
 		indices[i], indices[j] = indices[j], indices[i]
 	}
 
-	memberAccess, ok := root.(*ast.MemberAccessExpression)
-	if !ok {
-		return nil, false
-	}
-	objectType := a.analyzeExpression(memberAccess.Object)
-	if objectType == nil {
-		return nil, false
-	}
-	objectResolved := types.GetUnderlyingType(objectType)
-	if metaclassType, ok := objectResolved.(*types.ClassOfType); ok {
-		objectResolved = metaclassType.ClassType
-	}
-	classType, ok := objectResolved.(*types.ClassType)
-	if !ok {
-		return nil, false
-	}
-	propInfo, found := classType.GetProperty(ident.Normalize(memberAccess.Member.Value))
-	if !found || !propInfo.IsIndexed {
+	memberAccess, propInfo, classType, metaclass, found := a.multiIndexedClassProperty(root, expr.CommaPos.IsValid())
+	if !found {
 		return nil, false
 	}
 
@@ -414,6 +416,9 @@ func (a *Analyzer) analyzeMultiIndexPropertyAccess(expr *ast.IndexExpression) (t
 		return nil, false
 	}
 
+	if propertyHasVarIndices(propInfo) {
+		return a.analyzeVarClassPropertyArguments(expr, propInfo, classType, indices, memberAccess, metaclass, nil), true
+	}
 	for i, indexExpr := range indices {
 		indexType := a.analyzeExpressionWithExpectedType(indexExpr, expectedIndexTypes[i])
 		if indexType != nil && !a.canAssign(indexType, expectedIndexTypes[i]) {
@@ -422,6 +427,37 @@ func (a *Analyzer) analyzeMultiIndexPropertyAccess(expr *ast.IndexExpression) (t
 		}
 	}
 	return propInfo.Type, true
+}
+
+func (a *Analyzer) multiIndexedClassProperty(root ast.Expression, allowDefault bool) (*ast.MemberAccessExpression, *types.PropertyInfo, *types.ClassType, bool, bool) {
+	memberAccess, named := root.(*ast.MemberAccessExpression)
+	if !named && !allowDefault {
+		return nil, nil, nil, false, false
+	}
+	var objectType types.Type
+	if named {
+		objectType = a.analyzeProbedReceiver(memberAccess.Object)
+	} else {
+		objectType = a.analyzeIndexBase(root)
+	}
+	if objectType == nil {
+		return nil, nil, nil, false, false
+	}
+	classType, metaclass := propertyIndexClassReceiver(objectType)
+	if classType == nil {
+		return nil, nil, nil, false, false
+	}
+	var propInfo *types.PropertyInfo
+	if named {
+		propInfo, _ = classType.GetProperty(ident.Normalize(memberAccess.Member.Value))
+	} else {
+		propInfo = a.getDefaultClassProperty(classType)
+	}
+	if propInfo == nil || !propInfo.IsIndexed || !named && !propertyHasVarIndices(propInfo) {
+		return nil, nil, nil, false, false
+	}
+
+	return memberAccess, propInfo, classType, metaclass, true
 }
 
 // getDefaultClassProperty walks the class hierarchy to find a default property, if any.
@@ -653,6 +689,13 @@ func (a *Analyzer) checkIndexedPropertyWriteTarget(target ast.Expression, propIn
 // here *is* followed by its indices, so the arity diagnostic a bare property
 // reference would draw must not fire.
 func (a *Analyzer) analyzeIndexBase(expr ast.Expression) types.Type {
+	if typ, ok := a.probedReceivers[expr]; ok {
+		delete(a.probedReceivers, expr)
+		return typ
+	}
+	if recovery := a.inheritedIndexRecovery; recovery != nil && recovery.expression == expr {
+		return recovery.result
+	}
 	// Only a bare name can be the property this index list belongs to. Anything
 	// larger has its own structure, and setting the flag across it would also
 	// silence a property named inside it — `Box(Val)[0]` indexes Box's result,

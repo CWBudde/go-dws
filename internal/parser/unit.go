@@ -213,7 +213,7 @@ func (p *Parser) parseInterfaceSection() *ast.BlockStatement {
 			continue
 		}
 
-		stmt := p.parseStatement()
+		stmt := p.parseStatementInContext(unitInterfaceRoutineDeclaration)
 		if stmt != nil {
 			// Interface-section function declarations have no body: they are
 			// forward declarations implemented in the implementation section

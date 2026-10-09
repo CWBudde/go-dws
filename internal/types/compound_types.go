@@ -156,6 +156,9 @@ type RecordPropertyInfo struct {
 	// non-indexed properties and for declarations whose index parameter types
 	// could not be resolved.
 	IndexParamTypes []Type
+	// IndexParamNames and IndexParamModes preserve the immutable declaration signature.
+	IndexParamNames []string
+	IndexParamModes []PropertyIndexMode
 	IsDefault       bool
 	IsIndexed       bool
 	// ExternalName, when set by an `external 'name'` clause, replaces the

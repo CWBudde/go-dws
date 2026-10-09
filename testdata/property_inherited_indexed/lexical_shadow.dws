@@ -1,0 +1,13 @@
+type TBase = class
+ function Get(I: Integer): Integer; begin Result := I+10; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+type TChild = class(TBase)
+ property Prop[I: Integer]: Integer read (I+90) reintroduce;
+ function Read(Prop: Integer): Integer;
+ begin Result := inherited Prop()[Prop]; end;
+end;
+type TGrandchild = class(TChild)
+ function Get(I: Integer): Integer; reintroduce; begin Result := I+80; end;
+end;
+PrintLn(TGrandchild.Create.Read(3));

@@ -122,6 +122,8 @@ func (e *Evaluator) findOldExpressions(expr ast.Expression, ctx *ExecutionContex
 	}
 
 	switch node := expr.(type) {
+	case *ast.GroupedExpression:
+		e.findOldExpressions(node.Expression, ctx, oldValues)
 	case *ast.OldExpression:
 		// Capture the value of this identifier
 		identName := node.Identifier.Value

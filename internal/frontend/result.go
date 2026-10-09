@@ -67,7 +67,10 @@ type Diagnostic struct {
 	// afterChildren retains semantic emission order for enclosing expressions.
 	afterChildren bool
 	// deferredCall identifies provisional parser punctuation resolved by analysis.
-	deferredCall *ast.MethodCallExpression
+	deferredCall  *ast.MethodCallExpression
+	deferredIndex *ast.IndexExpression
+	// deferredLexer marks lookahead messages retained until an index stop resolves.
+	deferredLexer bool
 }
 
 // Render returns the centralized rendered form of the diagnostic.
@@ -92,13 +95,15 @@ func (d Diagnostic) String() string {
 // Result is the shared front-end compile result for parser and semantic diagnostics.
 type Result struct {
 	// UnitRegistry retains the analyzed unit ASTs for execution.
-	UnitRegistry       *units.UnitRegistry
-	Program            *ast.Program
-	Analyzer           *semantic.Analyzer
-	SemanticInfo       *ast.SemanticInfo
-	Diagnostics        []Diagnostic
-	SemanticAttempted  bool
-	SemanticSuccessful bool
+	UnitRegistry             *units.UnitRegistry
+	Program                  *ast.Program
+	Analyzer                 *semantic.Analyzer
+	SemanticInfo             *ast.SemanticInfo
+	Diagnostics              []Diagnostic
+	SemanticAttempted        bool
+	SemanticSuccessful       bool
+	deferredLexerDiagnostics []Diagnostic
+	deferredUnitForwards     []deferredUnitForwardCheck
 }
 
 // HasFatalDiagnostics reports whether compilation produced fatal front-end diagnostics.
@@ -148,7 +153,7 @@ func (r *Result) HasSemanticBlockingDiagnosticsInPhase(phase Phase) bool {
 // afterwards — including the end-of-program checks — is reported.
 func (r *Result) HasParserStop() bool {
 	for _, diag := range r.Diagnostics {
-		if diag.Phase == PhaseParsing && diag.Stop && diag.deferredCall == nil {
+		if diag.Phase == PhaseParsing && diag.Stop && diag.deferredCall == nil && diag.deferredIndex == nil {
 			return true
 		}
 	}
@@ -240,10 +245,15 @@ func ParseWithOptions(source string, opts Options) *Result {
 	diags := lexerDiagnostics(p.LexerIncludeErrors(), true)
 	diags = append(diags, lexerDiagnostics(reachedLexerDiagnostics(p.LexerDirectiveDiagnostics(), p.Errors()), false)...)
 	diags = append(diags, parserDiagnostics(p.Errors())...)
+	deferredLexer := lexerDiagnostics(deferredIndexLexerDiagnostics(p.LexerDirectiveDiagnostics(), p.Errors()), false)
+	for i := range deferredLexer {
+		deferredLexer[i].deferredLexer = true
+	}
 
 	return &Result{
-		Program:     program,
-		Diagnostics: filterDiagnostics(diags),
+		Program:                  program,
+		Diagnostics:              filterDiagnostics(diags),
+		deferredLexerDiagnostics: deferredLexer,
 	}
 }
 
@@ -258,6 +268,8 @@ func AnalyzeParsed(result *Result, source string, opts Options) *Result {
 		}
 		return result
 	}
+	result.Diagnostics = append(result.Diagnostics, filterSourceHints(result.deferredLexerDiagnostics, opts.HintsLevel)...)
+	result.deferredLexerDiagnostics = nil
 	return compileParsedResult(result, source, opts)
 }
 
@@ -314,6 +326,7 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	analyzer.SetSource(source, opts.Filename)
 	analyzer.SetParseHadErrors(result.HasDiagnosticsInPhase(PhaseParsing))
 	analyzer.SetCompileStopped(result.HasParserStop())
+	analyzer.SetDeferredIndexStops(result.deferredIndexStops())
 	result.Analyzer = analyzer
 	result.SemanticAttempted = true
 
@@ -328,6 +341,8 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	mainDiagnostics = refineTypePunctuationDiagnostics(append(mainDiagnostics, semanticDiagnostics(analyzer)...))
 	mainDiagnostics = refineDeferredPropertyCallDiagnostics(mainDiagnostics, result.SemanticInfo)
 	mainDiagnostics = dropDiagnosticsAfterStop(mainDiagnostics)
+	deferredUnitDiagnostics := completeDeferredUnitIndexForwards(result, mainDiagnostics)
+	unitDiagnostics = append(unitDiagnostics, deferredUnitDiagnostics...)
 	restoreStatementWarningOrder(mainDiagnostics)
 	sortDiagnostics(mainDiagnostics)
 	restoreDeclarationDiagnosticOrder(mainDiagnostics)
@@ -338,7 +353,7 @@ func compileParsedResult(result *Result, source string, opts Options) *Result {
 	sortDiagnostics(result.Diagnostics)
 	result.Diagnostics = filterDiagnostics(result.Diagnostics)
 	sortDiagnostics(result.Diagnostics)
-	result.SemanticSuccessful = err == nil
+	result.SemanticSuccessful = err == nil && len(deferredUnitDiagnostics) == 0
 
 	return result
 }
@@ -357,7 +372,11 @@ func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
 	stopLine, stopColumn, found := 0, 0, false
 	var stopPhase Phase
 	for _, diag := range diags {
-		if diag.Stop && (!found || diag.Line < stopLine || (diag.Line == stopLine && diag.Column < stopColumn)) {
+		// At one position, semantic resolution knows the declaration branch
+		// that precedes speculative parser punctuation at that same boundary.
+		samePosition := diag.Line == stopLine && diag.Column == stopColumn
+		if diag.Stop && (!found || diag.Line < stopLine || (diag.Line == stopLine && diag.Column < stopColumn) ||
+			(samePosition && diag.Phase == PhaseSemantic && stopPhase == PhaseParsing)) {
 			stopLine, stopColumn, found, stopPhase = diag.Line, diag.Column, true, diag.Phase
 		}
 	}
@@ -370,7 +389,8 @@ func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
 		// Semantic diagnostics were already truncated in emission order. A child
 		// may display after its parent's scanner cursor (e.g. array_of_proc2).
 		atStop := diag.Line == stopLine && diag.Column == stopColumn
-		if (after && stopPhase == PhaseParsing && diag.Phase != PhaseParsing) ||
+		if (after && diag.deferredLexer) ||
+			(after && stopPhase == PhaseParsing && diag.Phase != PhaseParsing) ||
 			((after || atStop) && stopPhase == PhaseSemantic && diag.Phase == PhaseParsing) {
 			continue
 		}
@@ -662,6 +682,35 @@ func reachedLexerDiagnostics(errs []lexer.LexerError, parseErrs []*parser.Parser
 	return kept
 }
 
+// deferredIndexLexerDiagnostics retains only messages after a provisional index
+// stop and before any definite parser stop. Parse-only results keep their cutoff;
+// checked compilation restores these messages until the exact index is resolved.
+func deferredIndexLexerDiagnostics(errs []lexer.LexerError, parseErrs []*parser.ParserError) []lexer.LexerError {
+	provisional, definite := lexer.Position{}, lexer.Position{}
+	for _, err := range parseErrs {
+		if err == nil || !err.Stop {
+			continue
+		}
+		stop := &definite
+		if err.DeferredIndex != nil {
+			stop = &provisional
+		}
+		if stop.Line == 0 || positionBefore(err.Pos, *stop) {
+			*stop = err.Pos
+		}
+	}
+	if provisional.Line == 0 || (definite.Line != 0 && !positionBefore(provisional, definite)) {
+		return nil
+	}
+	var kept []lexer.LexerError
+	for _, err := range errs {
+		if positionBefore(provisional, err.Pos) && (definite.Line == 0 || !positionBefore(definite, err.Pos)) {
+			kept = append(kept, err)
+		}
+	}
+	return kept
+}
+
 // positionBefore reports whether a precedes b in the same source.
 func positionBefore(a, b lexer.Position) bool {
 	return a.Line < b.Line || (a.Line == b.Line && a.Column < b.Column)
@@ -743,6 +792,7 @@ func parserDiagnostics(errors []*parser.ParserError) []Diagnostic {
 			BlocksSemantic: parserDiagnosticBlocksSemantic(err),
 			Stop:           err.Stop,
 			deferredCall:   err.DeferredCall,
+			deferredIndex:  err.DeferredIndex,
 		})
 	}
 	return diags
@@ -951,8 +1001,7 @@ func classifyDiagnosticForFilter(diag Diagnostic, filtered []Diagnostic, hasEarl
 		return true, -1
 	}
 	if colonExpectedByLine[diag.Line] &&
-		(strings.Contains(diag.Message, "variable declaration requires a type or initializer") ||
-			strings.Contains(diag.Message, "must have either a type annotation or an initializer")) {
+		strings.Contains(diag.Message, "variable declaration requires a type or initializer") {
 		return true, -1
 	}
 	if dotExpectedByLine[diag.Line] && strings.Contains(diag.Message, "already declared") {

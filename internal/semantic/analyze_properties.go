@@ -94,6 +94,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		inherited := *parentProp // copy the inherited PropertyInfo into this class
 		inherited.Name = propName
 		classType.Properties[propName] = &inherited
+		a.copyPropertyWriterSignature(&inherited, parentProp)
 		return
 	}
 
@@ -194,6 +195,7 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 		IsDeprecated:      prop.IsDeprecated,
 		IndexParamNames:   propertyIndexParamNames(prop.IndexParams),
 		IndexParamTypes:   indexParamTypes,
+		IndexParamModes:   propertyIndexParamModes(prop.IndexParams),
 	}
 	if prop.IndexValue != nil {
 		propInfo.HasIndexValue = true
@@ -245,6 +247,14 @@ func (a *Analyzer) analyzePropertyDecl(prop *ast.PropertyDecl, classType *types.
 // property's. Expression accessors bind the index parameters by name, so
 // indexed expression forwarding additionally requires identical names.
 func forwardedIndexSignatureMatches(propInfo, referenced *types.PropertyInfo, indexParamTypes []types.Type, kind types.PropAccessKind) bool {
+	if len(propInfo.IndexParamNames) != len(referenced.IndexParamNames) {
+		return false
+	}
+	for i := range propInfo.IndexParamNames {
+		if propInfo.IndexMode(i) != referenced.IndexMode(i) {
+			return false
+		}
+	}
 	referencedTypes := make([]types.Type, 0, len(referenced.IndexParamTypes)+1)
 	if referenced.HasIndexValue {
 		referencedTypes = append(referencedTypes, referenced.IndexValueType)
@@ -274,6 +284,24 @@ func forwardedIndexSignatureMatches(propInfo, referenced *types.PropertyInfo, in
 		}
 	}
 	return true
+}
+
+func propertyIndexParamModes(params []*ast.Parameter) []types.PropertyIndexMode {
+	if len(params) == 0 {
+		return nil
+	}
+	modes := make([]types.PropertyIndexMode, len(params))
+	for i, param := range params {
+		if param == nil {
+			continue
+		}
+		if param.ByRef {
+			modes[i] = types.PropertyIndexVar
+		} else if param.IsConst {
+			modes[i] = types.PropertyIndexConst
+		}
+	}
+	return modes
 }
 
 // validateReadSpec validates the read specifier of a property.
@@ -335,6 +363,10 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 					a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
 					return
 				}
+				if propInfo.IsIndexed {
+					a.addStructuredError(NewGenericError(ident.Token.Pos, "Function expected"))
+					return
+				}
 				a.recordClassFieldUsage(classType, readSpecName)
 				propInfo.ReadOwner = fieldOwner.Name
 				propInfo.ReadStorage = types.PropStorageClassVar
@@ -349,6 +381,10 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 		if constantType, constantFound := a.getConstantType(classType, readSpecName); constantFound {
 			if !propType.Equals(constantType) {
 				a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
+				return
+			}
+			if propInfo.IsIndexed {
+				a.addStructuredError(NewGenericError(ident.Token.Pos, "Function expected"))
 				return
 			}
 			propInfo.ReadOwner = a.getConstantOwner(classType, readSpecName).Name
@@ -379,6 +415,10 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				}
 				// The backing field is referenced by this accessor; mark it used
 				// so it is not flagged as an unused private field.
+				if propInfo.IsIndexed {
+					a.addStructuredError(NewGenericError(ident.Token.Pos, "Function expected"))
+					return
+				}
 				a.recordClassFieldUsage(fieldOwner, readSpecName)
 				propInfo.ReadOwner = fieldOwner.Name
 				propInfo.ReadStorage = types.PropStorageField
@@ -428,6 +468,9 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 				a.reportPropertyAccessorTypeMismatch(prop, classType, readSpecName, false)
 				return
 			}
+			// Ordinary signature errors keep the selected reader for recovery.
+			propInfo.ReadKind = types.PropAccessMethod
+			propInfo.ReadSpec = readSpecName
 			if !a.checkPropertyAccessorParameters(prop, methodType, indexParamTypes, nil, pos) {
 				a.addStructuredError(NewPropertyDeclarationArgumentCountError(pos,
 					fmt.Sprintf(`Method "%s" has incompatible parameters`, name)))
@@ -480,7 +523,11 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	propInfo.ReadExpr = prop.ReadSpec // Store AST node for interpreter
 
 	// Analyze the expression with implicit self context
+	mark := len(a.structuredErrors)
+	previousMark := a.propertyTermMark
+	a.propertyTermMark = &mark
 	exprType := a.analyzeExpression(prop.ReadSpec)
+	a.propertyTermMark = previousMark
 	if exprType == nil {
 		// Error already reported by analyzeExpression
 		return
@@ -531,6 +578,7 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 		propInfo.WriteKind = referenced.WriteKind
 		propInfo.WriteSpec = referenced.WriteSpec
 		propInfo.WriteExpr = referenced.WriteExpr
+		a.copyPropertyWriterSignature(propInfo, referenced)
 		return
 	}
 
@@ -620,6 +668,12 @@ func (a *Analyzer) validateWriteSpec(prop *ast.PropertyDecl, classType *types.Cl
 			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos, "Procedure expected"))
 			return
 		}
+		propInfo.WriteKind = types.PropAccessMethod
+		propInfo.WriteSpec = writeSpecName
+		if a.propertyWriterSignatures == nil {
+			a.propertyWriterSignatures = make(map[*types.PropertyInfo]*types.FunctionType)
+		}
+		a.propertyWriterSignatures[propInfo] = methodType
 		if !a.checkPropertyAccessorParameters(prop, methodType, indexParamTypes, propType, pos) {
 			a.addStructuredError(NewPropertyDeclarationArgumentCountError(pos,
 				fmt.Sprintf(`Method "%s" has incompatible parameters`, name)))
@@ -667,10 +721,40 @@ func (a *Analyzer) validateWriteExprSpec(prop *ast.PropertyDecl, classType *type
 	// Bind the implicit `Value` parameter (the value being assigned).
 	a.symbols.DefineParameter("Value", propInfo.Type, prop.Token.Pos, false)
 
+	// A bare named constant instruction is parsed before name resolution. It
+	// is not an assignment, unlike an explicit K := Value instruction.
+	if assignment, ok := prop.WriteStmt.(*ast.AssignmentStatement); ok && assignment.Token.Type == token.LPAREN {
+		if name, named := assignment.Target.(*ast.Identifier); named {
+			if symbol, found := a.symbols.Resolve(name.Value); found && symbol.IsConst {
+				expression := assignment.Target
+				if prop.WriteSourceExpression != nil {
+					expression = prop.WriteSourceExpression
+				}
+				prop.WriteStmt = &ast.ExpressionStatement{BaseNode: assignment.BaseNode, Expression: expression}
+			}
+		}
+	}
+	mark := len(a.structuredErrors)
+	previousMark := a.propertyTermMark
+	a.propertyTermMark = &mark
 	a.analyzeStatement(prop.WriteStmt)
+	a.propertyTermMark = previousMark
+	_, null := prop.WriteStmt.(*ast.EmptyStatement)
+	if expression, ok := prop.WriteStmt.(*ast.ExpressionStatement); ok {
+		_, call := expression.Expression.(*ast.CallExpression)
+		null = !call && a.isConstantInstruction(expression.Expression)
+	}
+	if null {
+		a.warnNullPropertyWriter(prop.WriteStmt)
+	}
 
 	propInfo.WriteKind = types.PropAccessExpression
 	propInfo.WriteExpr = prop.WriteStmt
+	if expression, ok := prop.WriteStmt.(*ast.ExpressionStatement); ok && null {
+		// Keep the source instruction and successful inner brackets in the AST;
+		// only the executable declaration view is a null instruction.
+		propInfo.WriteExpr = &ast.EmptyStatement{BaseNode: expression.BaseNode}
+	}
 }
 
 // bindPropertyIndexParams binds an indexed property's index parameters into the
@@ -750,4 +834,11 @@ func propertyReadMethodOwner(class *types.ClassType, name string, signature *typ
 		}
 	}
 	return class
+}
+
+// warnNullPropertyWriter reports only an instruction classified as null. Its
+// statement token carries the accessor's opening parenthesis, before comments.
+func (a *Analyzer) warnNullPropertyWriter(stmt ast.Statement) {
+	pos := stmt.Pos()
+	a.addWarning("Property writer does nothing [line: %d, column: %d]", pos.Line, pos.Column)
 }

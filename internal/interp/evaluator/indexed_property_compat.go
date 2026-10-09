@@ -7,12 +7,9 @@ func (e *Evaluator) evalIndexedCompatibilityRead(binding *ast.IndexedPropertyRea
 	if isError(receiver) || ctx.Exception() != nil {
 		return receiver
 	}
-	indices := make([]Value, len(binding.Indices))
-	for i, index := range binding.Indices {
-		indices[i] = e.Eval(index, ctx)
-		if isError(indices[i]) || ctx.Exception() != nil {
-			return indices[i]
-		}
+	indices, err := e.preparePropertyIndices(binding.Read.Property, binding.Indices, binding.Read.Read, ctx)
+	if err != nil || ctx.Exception() != nil {
+		return err
 	}
 	return e.evalResolvedPropertyRead(binding.Read, receiver, indices, ctx)
 }

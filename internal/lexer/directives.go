@@ -18,12 +18,13 @@ type conditionalFrame struct {
 	active       bool
 	parentActive bool
 	elseSeen     bool
-	// fromIf marks a frame opened by {$IF} rather than {$IFDEF}/{$IFNDEF}. DWScript
-	// anchors an unbalanced-conditional report on the {$ELSE} of an {$IF}, but on the
-	// opening directive of an {$IFDEF} (FailureScripts/conditionals_else3 vs
-	// FailureScripts/invalid_switch).
-	fromIf   bool
-	startPos Position
+	startPos     Position
+	// skipPos is the argument's last token initially, then the most recently
+	// encountered switch name while scanning an inactive branch. An EOF after
+	// ordinary tokens reports this position; an EOF immediately after a switch
+	// is reported by the caller at startPos instead.
+	skipPos      Position
+	skipHasToken bool
 }
 
 // ifTokenType represents token types for $if expression evaluation.
@@ -148,6 +149,9 @@ func (l *Lexer) processDirective() {
 
 	parts := strings.Fields(content)
 	name := strings.ToLower(parts[0])
+	if _, known := knownSwitches[name]; known {
+		l.noteSkippedDirective(startPos)
+	}
 	arg := ""
 	if len(parts) > 1 {
 		arg = parts[1]
@@ -162,14 +166,18 @@ func (l *Lexer) processDirective() {
 		l.handleUndef(arg, parentActive, startPos)
 	case "ifdef", "ifndef":
 		l.handleIfDef(name, arg, parentActive, startPos)
+		if arg != "" {
+			l.condStack[len(l.condStack)-1].skipPos = directiveArgPosition(content, startPos, closePos)
+		}
 	case "else":
 		l.handleElse(startPos)
 	case "endif", "ifend":
 		l.handleEndIf(startPos)
 	case "if":
 		l.handleIf(content, parts[0], parentActive, startPos)
+		l.condStack[len(l.condStack)-1].skipPos = conditionalArgumentEnd(content, startPos)
 	case "include", "i", "include_once":
-		l.handleInclude(name, content, parentActive, startPos)
+		l.handleInclude(name, content, parentActive, startPos, closePos)
 	case "hint":
 		l.handleMessageDirective(content, parentActive, startPos, closePos, SeverityHint, "Hint", false)
 	case "warning":
@@ -213,6 +221,9 @@ func (l *Lexer) readDirectiveContent(startPos Position) (string, Position) {
 	}
 
 	if l.ch == 0 {
+		if l.handleIncludeMacro(builder.String(), startPos, false) {
+			return "", l.currentPos()
+		}
 		l.reportUnterminatedDirective(builder.String(), startPos)
 		return "", l.currentPos()
 	}
@@ -223,6 +234,9 @@ func (l *Lexer) readDirectiveContent(startPos Position) (string, Position) {
 
 	// consume closing '}'
 	l.readChar()
+	if l.handleIncludeMacro(builder.String(), startPos, true) {
+		return "", closePos
+	}
 
 	content := strings.TrimSpace(builder.String())
 	if content == "" {
@@ -288,11 +302,13 @@ func (l *Lexer) handleElse(startPos Position) {
 		return
 	}
 	top.elseSeen = true
-	if top.fromIf {
-		top.startPos = startPos
-	}
 	if top.parentActive {
 		top.active = !top.cond
+		if !top.active {
+			top.startPos = startPos
+			top.skipPos = directiveNameColumn(startPos)
+			top.skipHasToken = false
+		}
 	} else {
 		top.active = false
 	}
@@ -322,7 +338,6 @@ func (l *Lexer) handleIf(content, firstPart string, parentActive bool, startPos 
 		parentActive: parentActive,
 		active:       parentActive && cond,
 		startPos:     startPos,
-		fromIf:       true,
 	}
 	l.condStack = append(l.condStack, frame)
 }
@@ -465,6 +480,9 @@ func (l *Lexer) evalIfExpression(expr string, base Position, active bool) bool {
 		case ifTokIdent:
 			name := tok.val
 			advance()
+			if ident.Equal(name, "true") || ident.Equal(name, "false") {
+				return ifValue{kind: ifValBool, boolVal: ident.Equal(name, "true")}
+			}
 			if tok.typ == ifTokLParen {
 				advance()
 				arg := tok

@@ -539,6 +539,9 @@ func (c *Compiler) inferExpressionType(expr ast.Expression) types.Type {
 	if expr == nil {
 		return nil
 	}
+	if group, ok := expr.(*ast.GroupedExpression); ok {
+		return c.inferExpressionType(group.Expression)
+	}
 
 	// Check concrete types first before falling back to the semantic type table,
 	// because many expressions have no recorded type annotation.

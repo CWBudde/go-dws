@@ -118,6 +118,15 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 		rightFloat, rightIsFloat := rightVal.(float64)
 		leftInt, leftIsInt := leftVal.(int)
 		rightInt, rightIsInt := rightVal.(int)
+		if leftIsInt && rightIsInt {
+			// Preserve integer precision before the mixed numeric path converts
+			// operands to float64. Use the already evaluated values so mixed
+			// expressions producing integers retain their accepted operand domain.
+			switch e.Operator {
+			case "+", "-", "*", "div", "mod":
+				return evaluateIntegerConstantBinary(e.Operator, leftInt, rightInt)
+			}
+		}
 
 		// Convert to common type
 		var left, right float64
@@ -163,7 +172,12 @@ func (a *Analyzer) evaluateConstant(expr ast.Expression) (interface{}, error) {
 			if right == 0 {
 				return nil, fmt.Errorf("modulo by zero")
 			}
-			return int(left) % int(right), nil
+			// Integer operands were handled above. Float modulo retains Float
+			// data and normalizes negative zero, matching runtime arithmetic.
+			result = math.Mod(left, right)
+			if result == 0 {
+				result = 0
+			}
 		default:
 			return nil, fmt.Errorf("non-constant binary operator '%s'", e.Operator)
 		}
@@ -329,27 +343,7 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 			return 0, err
 		}
 
-		// Evaluate based on operator
-		switch e.Operator {
-		case "+":
-			return left + right, nil
-		case "-":
-			return left - right, nil
-		case "*":
-			return left * right, nil
-		case "div":
-			if right == 0 {
-				return 0, fmt.Errorf("division by zero")
-			}
-			return left / right, nil
-		case "mod":
-			if right == 0 {
-				return 0, fmt.Errorf("modulo by zero")
-			}
-			return left % right, nil
-		default:
-			return 0, fmt.Errorf("non-constant binary operator '%s'", e.Operator)
-		}
+		return evaluateIntegerConstantBinary(e.Operator, left, right)
 
 	case *ast.CallExpression:
 
@@ -369,6 +363,31 @@ func (a *Analyzer) evaluateConstantInt(expr ast.Expression) (int, error) {
 
 	default:
 		return 0, fmt.Errorf("expression is not a compile-time constant integer")
+	}
+}
+
+// evaluateIntegerConstantBinary shares exact value arithmetic without narrowing
+// either caller's accepted expression syntax or changing its operand evaluation.
+func evaluateIntegerConstantBinary(operator string, left, right int) (int, error) {
+	switch operator {
+	case "+":
+		return left + right, nil
+	case "-":
+		return left - right, nil
+	case "*":
+		return left * right, nil
+	case "div":
+		if right == 0 {
+			return 0, fmt.Errorf("division by zero")
+		}
+		return left / right, nil
+	case "mod":
+		if right == 0 {
+			return 0, fmt.Errorf("modulo by zero")
+		}
+		return left % right, nil
+	default:
+		return 0, fmt.Errorf("non-constant binary operator '%s'", operator)
 	}
 }
 

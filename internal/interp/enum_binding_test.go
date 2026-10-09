@@ -149,7 +149,7 @@ func TestEnumBindingImportedParentOrder(t *testing.T) {
 
 func TestEnumBindingReviewedUnitScopes(t *testing.T) {
 	for _, tt := range []struct{ name, consumer, main, want string }{
-		{"interface body excludes private enum", `unit Consumer; interface type TPublic=(Hello=1); procedure Early; begin var x:TPublic:=Hello; PrintLn(Ord(x)); end; implementation type TPrivate=(Hello=2); end.`, `uses Consumer;`, ""},
+		{"interface body excludes private enum", `unit Consumer; interface type TPublic=(Hello=1); type TReader=class procedure Early; begin var x:TPublic:=Hello; PrintLn(Ord(x)); end; end; implementation type TPrivate=(Hello=2); end.`, `uses Consumer;`, ""},
 		{"implementation body excludes later enum", `unit Consumer; interface type TPublic=(Hello=1); procedure Early; implementation procedure Early; begin PrintLn(Ord(Hello)); end; type TPrivate=(Hello=2); end.`, `uses Consumer; Early();`, "1\n"},
 		{"implementation import precedes builtin", `unit Consumer; interface procedure P; implementation uses A; procedure P; begin var x:TImported:=Pi; PrintLn(Ord(x)); end; end.`, `uses Consumer; P();`, "42\n"},
 		{"own interface precedes implementation import", `unit Consumer; interface type TOwn=(Pi=1); procedure P; implementation uses A; procedure P; begin var x:TOwn:=Pi; PrintLn(Ord(x)); end; end.`, `uses Consumer; P();`, "1\n"},

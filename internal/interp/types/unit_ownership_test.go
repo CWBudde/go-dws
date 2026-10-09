@@ -10,8 +10,9 @@ import (
 
 func TestTypeSystem_LexicalUnitOwnership(t *testing.T) {
 	p := parser.New(lexer.New(`function Outer: Integer;
+ begin
  function Nested: Integer; begin Result := 1 end;
- begin var callback := lambda => Nested(); Result := callback() end;`))
+ var callback := lambda => Nested(); Result := callback() end;`))
 	program := p.ParseProgram()
 	if len(p.Errors()) > 0 {
 		t.Fatal(p.Errors())

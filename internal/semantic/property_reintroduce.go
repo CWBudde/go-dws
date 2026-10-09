@@ -134,15 +134,18 @@ func compatibilityPropertyOwner(class *types.ClassType, prop *types.PropertyInfo
 	return ""
 }
 
-// analyzeInheritedPropertyRead binds only named scalar reads. Nonempty calls and
-// indexed/function-valued properties retain their separate analysis paths.
+// analyzeInheritedPropertyRead binds named scalar reads and delegates an indexed
+// read's omitted argument group. Nonempty/function-valued calls remain separate.
 func (a *Analyzer) analyzeInheritedPropertyRead(expr *ast.InheritedExpression, parent *types.ClassType) (types.Type, bool) {
 	if expr.Method == nil || len(expr.Arguments) != 0 {
 		return nil, false
 	}
 	prop := propertyForCompatibilityCall(parent, expr.Method.Value)
-	if prop == nil || prop.IsIndexed || isFunctionPointerType(prop.Type) {
+	if prop == nil || isFunctionPointerType(prop.Type) {
 		return nil, false
+	}
+	if prop.IsIndexed {
+		return a.analyzeInheritedIndexedPropertyRead(nil, expr, nil)
 	}
 	a.warnDeprecatedPropertyUsage(prop, expr.Method.Token.Pos)
 	if expr.IsCall {

@@ -563,6 +563,13 @@ func (e *Evaluator) PrepareUserFunctionArgs(
 }
 
 func (e *Evaluator) prepareByRefArgument(arg ast.Expression, ctx *ExecutionContext) (Value, error) {
+	for {
+		group, ok := arg.(*ast.GroupedExpression)
+		if !ok {
+			break
+		}
+		arg = group.Expression
+	}
 	if argIdent, ok := arg.(*ast.Identifier); ok {
 		varName := argIdent.Value
 		capturedEnv := ctx.Env()

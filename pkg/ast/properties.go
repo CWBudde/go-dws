@@ -31,11 +31,15 @@ type PropertyDecl struct {
 	// or a parenthesized lvalue write, e.g. write (FSub.Field), which the
 	// parser normalizes to the assignment statement `FSub.Field := Value`.
 	// When WriteStmt is non-nil, WriteSpec is nil.
-	WriteStmt   Statement
-	Type        TypeExpression
-	Name        *Identifier
-	IndexParams []*Parameter
-	IndexValue  Expression
+	// WriteSourceExpression retains the source term before writer lowering.
+	// It aliases nodes in WriteStmt and is syntax provenance only, never an
+	// accessor-kind or writability authority.
+	WriteSourceExpression Expression `ast:"skip"`
+	WriteStmt             Statement
+	Type                  TypeExpression
+	Name                  *Identifier
+	IndexParams           []*Parameter
+	IndexValue            Expression
 	// ExternalName holds the quoted external name, which replaces the declared
 	// name when the object is serialized (JSON.Stringify).
 	ExternalName string
@@ -43,6 +47,10 @@ type PropertyDecl struct {
 	// after the declaration; a bare `deprecated;` leaves it empty and sets
 	// IsDeprecated alone.
 	DeprecatedMessage string
+	// Description is the decoded literal text of the description directive.
+	Description string
+	// HasDescription distinguishes an empty description from an absent directive.
+	HasDescription bool
 	BaseNode
 	// DefaultPos is the position immediately following the default directive.
 	DefaultPos token.Position
@@ -83,9 +91,9 @@ func (pd *PropertyDecl) String() string {
 		out.WriteString("[")
 		params := make([]string, len(pd.IndexParams))
 		for i, param := range pd.IndexParams {
-			params[i] = param.Name.String() + ": " + param.Type.String()
+			params[i] = param.String()
 		}
-		out.WriteString(strings.Join(params, ", "))
+		out.WriteString(strings.Join(params, "; "))
 		out.WriteString("]")
 	}
 
@@ -113,10 +121,19 @@ func (pd *PropertyDecl) String() string {
 		out.WriteString(pd.WriteSpec.String())
 	} else if pd.WriteStmt != nil {
 		out.WriteString(" write (")
-		out.WriteString(pd.WriteStmt.String())
+		if pd.WriteSourceExpression != nil {
+			out.WriteString(pd.WriteSourceExpression.String())
+		} else {
+			out.WriteString(pd.WriteStmt.String())
+		}
 		out.WriteString(")")
 	}
 
+	if pd.HasDescription {
+		out.WriteString(" description \"")
+		out.WriteString(strings.ReplaceAll(pd.Description, "\"", "\"\""))
+		out.WriteString("\"")
+	}
 	if pd.IsReintroduce {
 		out.WriteString(" reintroduce")
 	}

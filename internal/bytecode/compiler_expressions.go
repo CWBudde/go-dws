@@ -13,6 +13,8 @@ func (c *Compiler) compileExpression(expr ast.Expression) error {
 	}
 
 	switch node := expr.(type) {
+	case *ast.GroupedExpression:
+		return c.compileExpression(node.Expression)
 	case *ast.IntegerLiteral:
 		return c.emitLoadConstant(IntValue(node.Value), lineOf(node))
 	case *ast.FloatLiteral:

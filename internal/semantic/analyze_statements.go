@@ -749,7 +749,16 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 	case *ast.IndexExpression:
-		if targetType, handled := a.analyzeInterfaceIndexedProperty(target, true, isCompound); handled {
+		if !isCompound && a.analyzeVarIndexedClassAssignment(target, stmt) {
+			return
+		}
+		previousTarget := a.indexedAssignmentTarget
+		a.indexedAssignmentTarget = target
+		defer func() { a.indexedAssignmentTarget = previousTarget }()
+		if targetType, handled := a.analyzeInterfaceIndexedProperty(target, true, isCompound, stmt); handled {
+			if targetType == nil {
+				return
+			}
 			valueType := a.analyzeAssignmentValue(stmt, targetType)
 			if valueType != nil {
 				usesClassOperator := false

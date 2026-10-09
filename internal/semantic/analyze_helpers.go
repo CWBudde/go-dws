@@ -757,6 +757,9 @@ func (a *Analyzer) analyzeHelperProperty(prop *ast.PropertyDecl, helperType *typ
 			propInfo.WriteSpec = prop.WriteSpec.String()
 		}
 	case prop.WriteStmt != nil:
+		if _, null := prop.WriteStmt.(*ast.EmptyStatement); null {
+			a.warnNullPropertyWriter(prop.WriteStmt)
+		}
 		propInfo.WriteKind = types.PropAccessExpression
 	}
 

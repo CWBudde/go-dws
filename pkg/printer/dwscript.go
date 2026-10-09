@@ -2,6 +2,7 @@ package printer
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -623,6 +624,46 @@ func (p *Printer) printMethodModifiers(fd *ast.FunctionDecl) {
 
 // printFunctionDirectives prints function directives like calling convention, deprecated, forward, external.
 func (p *Printer) printFunctionDirectives(fd *ast.FunctionDecl) bool {
+	if fd.IsExport {
+		// Export follows linkage directives and precedes calling qualifiers,
+		// inline and deprecated, including declarations that have no body.
+		if fd.IsExternal {
+			p.write("; external")
+			if fd.ExternalName != "" {
+				p.requiredSpace()
+				p.printExportName(fd.ExternalName)
+			}
+		}
+		if fd.IsForward {
+			p.write("; forward")
+		}
+		p.write("; export")
+		if fd.HasExportName {
+			p.requiredSpace()
+			p.printExportName(fd.ExternalName)
+		}
+		if fd.IsHelper {
+			p.write("; helper")
+			if fd.HelperName != nil {
+				p.requiredSpace()
+				p.printDWScript(fd.HelperName)
+			}
+		}
+		if fd.CallingConvention != "" {
+			p.write("; " + fd.CallingConvention)
+		}
+		if fd.IsInline {
+			p.write("; inline")
+		}
+		if fd.IsDeprecated {
+			p.write("; deprecated")
+			if fd.DeprecatedMessage != "" {
+				p.requiredSpace()
+				p.printExportName(fd.DeprecatedMessage)
+			}
+		}
+		return fd.IsForward || fd.IsExternal
+	}
 	// Print calling convention
 	if fd.CallingConvention != "" {
 		p.write(";")
@@ -660,6 +701,14 @@ func (p *Printer) printFunctionDirectives(fd *ast.FunctionDecl) bool {
 	}
 
 	return false // has body
+}
+
+func (p *Printer) printExportName(name string) {
+	if strings.ContainsAny(name, "\r\n") {
+		p.write("\"" + strings.ReplaceAll(name, "\"", "\"\"") + "\"")
+		return
+	}
+	p.write("'" + strings.ReplaceAll(name, "'", "''") + "'")
 }
 
 func (p *Printer) printFunctionDecl(fd *ast.FunctionDecl) {
@@ -720,6 +769,11 @@ func (p *Printer) printFunctionDecl(fd *ast.FunctionDecl) {
 
 	// Print function directives (calling convention, deprecated, forward, external)
 	hasBody := !p.printFunctionDirectives(fd)
+	if fd.IsExport && !hasBody {
+		// A final bodyless exported declaration still needs its directive's
+		// terminator when the surrounding program omits its last separator.
+		p.write(";")
+	}
 
 	// Print body
 	if hasBody && fd.Body != nil {
@@ -970,27 +1024,10 @@ func (p *Printer) printRecordDecl(rd *ast.RecordDecl) {
 		p.newline()
 	}
 
-	// Print properties
-	for _, property := range rd.Properties {
+	// Print properties through the common accessor-preserving owner.
+	for i := range rd.Properties {
 		p.writeIndent()
-		p.write("property")
-		p.space()
-		p.printDWScript(property.Name)
-		p.write(":")
-		p.space()
-		p.printDWScript(property.Type)
-		if property.ReadField != "" {
-			p.space()
-			p.write("read")
-			p.space()
-			p.write(property.ReadField)
-		}
-		if property.WriteField != "" {
-			p.space()
-			p.write("write")
-			p.space()
-			p.write(property.WriteField)
-		}
+		p.printRecordPropertyDecl(&rd.Properties[i])
 		p.write(";")
 		p.newline()
 	}
@@ -1321,6 +1358,11 @@ func (p *Printer) printRecordPropertyDecl(rpd *ast.RecordPropertyDecl) {
 		p.write("read")
 		p.space()
 		p.write(rpd.ReadField)
+	} else if rpd.ReadExpr != nil {
+		p.space()
+		p.write("read")
+		p.space()
+		p.printDWScript(rpd.ReadExpr)
 	}
 
 	if rpd.WriteField != "" {
@@ -1328,6 +1370,15 @@ func (p *Printer) printRecordPropertyDecl(rpd *ast.RecordPropertyDecl) {
 		p.write("write")
 		p.space()
 		p.write(rpd.WriteField)
+	} else if rpd.WriteStmt != nil {
+		p.space()
+		p.write("write (")
+		if rpd.WriteSourceExpression != nil {
+			p.printDWScript(rpd.WriteSourceExpression)
+		} else {
+			p.printDWScript(rpd.WriteStmt)
+		}
+		p.write(")")
 	}
 }
 

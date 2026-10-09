@@ -1,0 +1,15 @@
+type TBase = class
+ function Get(I: Integer): Integer; virtual; begin Result := 10+I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+type TMid = class(TBase)
+ function Get(I: Integer): Integer; override; begin Result := 20+I; end;
+end;
+type TChild = class(TMid)
+ function Get(I: Integer): Integer; reintroduce; virtual; begin Result := 30+I; end;
+ function Read: Integer; begin Result := inherited Prop()[3]+inherited Prop[4]; end;
+end;
+type TGrand = class(TChild)
+ function Get(I: Integer): Integer; override; begin Result := 40+I; end;
+end;
+PrintLn(TGrand.Create.Read);

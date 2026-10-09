@@ -1,8 +1,6 @@
 package semantic
 
 import (
-	"fmt"
-
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
@@ -22,6 +20,9 @@ func (a *Analyzer) analyzeIndexedCompatibilityRead(expr *ast.IndexExpression) (t
 		}
 		nodes = append(nodes, inner)
 		root = inner.Left
+	}
+	if inherited, ok := root.(*ast.InheritedExpression); ok {
+		return a.analyzeInheritedIndexedPropertyRead(expr, inherited, nodes)
 	}
 	if call, ok := root.(*ast.CallExpression); ok {
 		return a.analyzeImplicitIndexedCompatibilityRead(expr, call, nodes)
@@ -53,16 +54,26 @@ func (a *Analyzer) analyzeIndexedCompatibilityRead(expr *ast.IndexExpression) (t
 		a.addStructuredError(NewGenericError(nodes[len(nodes)-1].Token.Pos, "Array expected"))
 		return prop.Type, true
 	}
-	indices := make([]ast.Expression, len(nodes))
-	for i, node := range nodes {
-		indices[len(nodes)-1-i] = node.Index
+	indices := indexedPropertyArguments(nodes)
+	if !a.checkIndexedCompatibilityArguments(class, prop, indices, pos, metaclass, expr) {
+		return nil, true
 	}
-	a.checkIndexedCompatibilityArguments(class, prop, indices, pos, metaclass)
 	read := &ast.MemberAccessExpression{BaseNode: call.BaseNode, Object: call.Object, Member: call.Method}
 	a.semanticInfo.SetIndexedPropertyRead(expr, &ast.IndexedPropertyReadBinding{
 		Read: &ast.InheritedPropertyReadBinding{Read: read, Property: prop, Owner: compatibilityPropertyOwner(class, prop)}, Indices: indices,
 	})
 	return prop.Type, true
+}
+
+func indexedPropertyArguments(nodes []*ast.IndexExpression) []ast.Expression {
+	if len(nodes) == 1 && nodes[0].Empty {
+		return nil
+	}
+	indices := make([]ast.Expression, len(nodes))
+	for i, node := range nodes {
+		indices[len(nodes)-1-i] = node.Index
+	}
+	return indices
 }
 
 func (a *Analyzer) addPropertyBracketHint(prop *types.PropertyInfo, pos token.Position) {
@@ -143,18 +154,10 @@ func (a *Analyzer) analyzeProbedReceiver(object ast.Expression) types.Type {
 	return a.analyzeExpression(object)
 }
 
-func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, prop *types.PropertyInfo, indices []ast.Expression, pos token.Position, metaclass bool) {
-	expected := a.getIndexedPropertyParamTypes(prop, class)
-	argTypes := make([]types.Type, len(indices))
-	failed := make([]bool, len(indices))
-	for i, index := range indices {
-		mark := len(a.errors)
-		if i < len(expected) {
-			argTypes[i] = a.analyzeArgumentForParameter(index, expected[i], false)
-		} else {
-			argTypes[i] = a.analyzeExpression(index)
-		}
-		failed[i] = argTypes[i] == nil || a.errorsSince(mark)
+func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, prop *types.PropertyInfo, indices []ast.Expression, pos token.Position, metaclass bool, list *ast.IndexExpression) bool {
+	args, stopped := a.readPropertyIndexArguments(prop, indices, list)
+	if stopped {
+		return false
 	}
 	if metaclass && !indexedCompatibilityClassReader(class, prop) {
 		readerError := NewPropertyReadShouldBeStaticMethodError(pos)
@@ -164,23 +167,6 @@ func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, pr
 		classError.AfterChildren = true
 		a.addStructuredError(classError)
 	}
-	mark := len(a.errors)
-	for i, typ := range argTypes {
-		if i >= len(expected) {
-			break
-		}
-		if failed[i] || a.argumentMatchesParameter(typ, expected[i], false) {
-			continue
-		}
-		message := fmt.Sprintf("Argument %d expects type %q instead of %q", i, semanticTypeNameForDiagnostic(expected[i]), semanticTypeNameForDiagnostic(typ))
-		if _, void := typ.(*types.VoidType); void {
-			message = fmt.Sprintf("Argument %d expects type %q", i, semanticTypeNameForDiagnostic(expected[i]))
-		}
-		diagnostic := NewGenericError(pos, message)
-		diagnostic.AfterChildren = true
-		a.addStructuredError(diagnostic)
-	}
-	if !a.errorsSince(mark) {
-		a.addMemberCallCountError(&types.FunctionType{Parameters: expected}, len(indices), pos)
-	}
+	a.checkPropertyReadArguments(prop, args, a.propertyClassAccessor(class, prop, false), pos)
+	return true
 }

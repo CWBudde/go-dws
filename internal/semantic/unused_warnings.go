@@ -150,7 +150,10 @@ func (a *Analyzer) queueUnusedPrivateClassMembers(classType *types.ClassType) {
 }
 
 func (a *Analyzer) collectUnusedPrivateClassMemberWarnings(classType *types.ClassType) []string {
-	if !a.symbolDictionaryDiagnosticsEnabled() || classType == nil {
+	// Unlike routine-local hints, private member hints are collected only after
+	// the whole compilation completes. Deferred index stops are settled before
+	// this collector runs, so a recovered property read can still reach it.
+	if a.compileStopped || !a.symbolDictionaryDiagnosticsEnabled() || classType == nil {
 		return nil
 	}
 	for _, err := range a.errors {

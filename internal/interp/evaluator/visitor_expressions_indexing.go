@@ -190,12 +190,13 @@ func (e *Evaluator) readInterfaceMemberIndex(instance InterfaceInstanceValue, na
 func (e *Evaluator) readObjectMemberIndex(obj Value, name string, indices []ast.Expression, node *ast.IndexExpression, ctx *ExecutionContext) (Value, bool) {
 	if accessor, ok := obj.(PropertyAccessor); ok {
 		if prop := accessor.LookupProperty(name); prop != nil && prop.IsIndexed {
-			indexVals := make([]Value, len(indices))
-			for idx, expr := range indices {
-				indexVals[idx] = e.Eval(expr, ctx)
-				if isError(indexVals[idx]) {
-					return indexVals[idx], true
-				}
+			pInfo, valid := unwrapPropertyInfo(prop.Impl)
+			if !valid {
+				return e.newError(node, "invalid property info type"), true
+			}
+			indexVals, err := e.preparePropertyIndices(pInfo, indices, node, ctx)
+			if err != nil {
+				return err, true
 			}
 			if object, ok := obj.(ObjectValue); ok {
 				return object.ReadIndexedProperty(prop.Impl, indexVals, func(pi any, idx []Value) Value {
@@ -233,6 +234,21 @@ func (e *Evaluator) readRecordMemberIndex(record RecordInstanceValue, name strin
 func (e *Evaluator) indexResolvedValue(leftVal Value, node *ast.IndexExpression, ctx *ExecutionContext) Value {
 	if node.Index == nil {
 		return e.newError(node, "index expression missing index")
+	}
+
+	// Default class properties need the original index expression to capture storage.
+	if runtime.KindOf(leftVal) == runtime.KindObject {
+		if accessor, ok := leftVal.(PropertyAccessor); ok {
+			if prop := accessor.GetDefaultProperty(); prop != nil && prop.IsIndexed {
+				if info, valid := unwrapPropertyInfo(prop.Impl); valid {
+					indices, err := e.preparePropertyIndices(info, []ast.Expression{node.Index}, node, ctx)
+					if err != nil {
+						return err
+					}
+					return e.executeIndexedPropertyRead(leftVal, info, indices, node, ctx)
+				}
+			}
+		}
 	}
 
 	// Evaluate the index for this level only
@@ -543,15 +559,13 @@ func (e *Evaluator) evalClassMetaIndexedProperty(
 	if propDesc == nil || !propDesc.IsIndexed {
 		return nil, false
 	}
-	if _, ok := unwrapPropertyInfo(propDesc.Impl); !ok {
+	pInfo, ok := unwrapPropertyInfo(propDesc.Impl)
+	if !ok {
 		return e.newError(node, "invalid property info type"), true
 	}
-	indexVals := make([]Value, len(indices))
-	for i, indexExpr := range indices {
-		indexVals[i] = e.Eval(indexExpr, ctx)
-		if isError(indexVals[i]) {
-			return indexVals[i], true
-		}
+	indexVals, err := e.preparePropertyIndices(pInfo, indices, node, ctx)
+	if err != nil {
+		return err, true
 	}
 	return e.evalClassMetaIndexedPropertyValues(obj, classMetaVal, memberName, indexVals, node, ctx)
 }

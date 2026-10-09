@@ -31,6 +31,6 @@ func TestInterfaceProperties_IndexArity(t *testing.T) {
  var i: IItems;
  `
 	for _, source := range []string{`PrintLn(i[1]);`, `PrintLn(i.Items[1]);`} {
-		expectError(t, prefix+source, "expects 2 index arguments, got 1")
+		expectError(t, prefix+source, "More arguments expected")
 	}
 }

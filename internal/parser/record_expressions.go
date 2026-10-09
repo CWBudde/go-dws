@@ -36,7 +36,7 @@ func (p *Parser) parseAnonymousRecordExpression() ast.Expression {
 	// Move past 'record' to the first field name (or straight to 'end')
 	p.cursor = p.cursor.Advance()
 
-	for {
+	for !p.stopped() {
 		current := p.cursor.Current()
 		if current.Type == lexer.END {
 			break
@@ -55,7 +55,7 @@ func (p *Parser) parseAnonymousRecordExpression() ast.Expression {
 			p.cursor = p.cursor.Advance()
 			continue
 		case lexer.FUNCTION, lexer.PROCEDURE:
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 			if method == nil {
 				return nil
 			}

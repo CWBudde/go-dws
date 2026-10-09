@@ -12,6 +12,38 @@ import (
 	"github.com/cwbudde/go-dws/pkg/ident"
 )
 
+type deferredUnitForwardCheck struct {
+	analyzer        *semantic.Analyzer
+	diagnosticCount int
+}
+
+func (r *Result) deferredIndexStops() []*ast.IndexExpression {
+	var indices []*ast.IndexExpression
+	for _, diag := range r.Diagnostics {
+		if diag.Stop && diag.deferredIndex != nil {
+			indices = append(indices, diag.deferredIndex)
+		}
+	}
+	return indices
+}
+
+// completeDeferredUnitIndexForwards applies the resolved main-file stop state
+// only to the held unit end checks. Their diagnostics retain unit source ownership.
+func completeDeferredUnitIndexForwards(result *Result, mainDiagnostics []Diagnostic) []Diagnostic {
+	mainStopped := false
+	for _, diag := range mainDiagnostics {
+		mainStopped = mainStopped || diag.Stop
+	}
+	var diags []Diagnostic
+	for _, pending := range result.deferredUnitForwards {
+		pending.analyzer.CompleteDeferredIndexForwardChecks(mainStopped)
+		updated := semanticDiagnostics(pending.analyzer)
+		diags = append(diags, updated[pending.diagnosticCount:]...)
+	}
+	result.deferredUnitForwards = nil
+	return diags
+}
+
 func safeAnalyzeWithUnits(analyzer *semantic.Analyzer, result *Result, opts Options) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -75,9 +107,14 @@ func analyzeUnits(analyzer *semantic.Analyzer, result *Result, opts Options) err
 		// the program's, so a stop in the main source skips the end-of-compilation
 		// checks of the units too.
 		unitAnalyzer.SetCompileStopped(result.HasParserStop())
+		indexStops := result.deferredIndexStops()
+		unitAnalyzer.SetDeferredIndexStops(indexStops)
 		unitAnalyzer.SetSource(unit.Source, unit.FilePath)
 		err := unitAnalyzer.AnalyzeUnitWithDependencies(unit.Declaration, available)
 		diagnostics := semanticDiagnostics(unitAnalyzer)
+		if len(indexStops) != 0 {
+			result.deferredUnitForwards = append(result.deferredUnitForwards, deferredUnitForwardCheck{analyzer: unitAnalyzer, diagnosticCount: len(diagnostics)})
+		}
 		result.Diagnostics = append(result.Diagnostics, diagnostics...)
 		if err != nil {
 			fatal := false

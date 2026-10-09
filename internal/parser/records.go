@@ -129,7 +129,7 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 	seenMethod := false
 
 	// Parse record body until 'end'
-	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF {
+	for cursor.Current().Type != lexer.END && cursor.Current().Type != lexer.EOF && !p.stopped() {
 		// Check for visibility modifiers. `protected` is not a legal record
 		// section, but it is consumed here so the analyzer can report it and
 		// the rest of the body still parses.
@@ -195,7 +195,7 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 				continue
 			} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
 				// Class method
-				method := p.parseFunctionDeclaration()
+				method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 				if method != nil {
 					method.IsClassMethod = true
 					recordDecl.Methods = append(recordDecl.Methods, method)
@@ -223,15 +223,14 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 		// Check for method declarations (instance methods)
 		if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
 			errorCount := len(p.errors)
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 			if method != nil {
 				recordDecl.Methods = append(recordDecl.Methods, method)
 				seenMethod = true
 			}
 			if len(p.errors) > errorCount && method != nil && method.Body == nil {
 				firstErr := p.errors[errorCount]
-				p.addParserErrorAt(firstErr.Pos, firstErr.Length, "Record fields must be declared before record methods", ErrUnexpectedToken)
-				p.synchronize([]lexer.TokenType{lexer.END, lexer.EOF})
+				p.recordStop(NewParserError(firstErr.Pos, firstErr.Length, "Record fields must be declared before record methods", ErrUnexpectedToken))
 				return currentVisibility
 			}
 			cursor = p.cursor.Advance()
@@ -253,18 +252,10 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 
 		// Parse field declaration(s)
 		if seenMethod && cursor.Current().Type == lexer.IDENT {
-			p.addError("Record fields must be declared before record methods", ErrUnexpectedToken)
-			// Scan to the record's end rather than calling synchronize, which
-			// lists IDENT among its safe points: asked to recover from an
-			// identifier it returns without moving, and this loop then reports
-			// the same token forever. The record is already unparseable from
-			// here, and upstream reports the misplaced field once
-			// (record_recursive3), so skip the remainder outright.
-			for p.cursor.Current().Type != lexer.END && p.cursor.Current().Type != lexer.EOF {
-				p.cursor = p.cursor.Advance()
-			}
-			cursor = p.cursor
-			continue
+			// ReadRecordDecl refuses fields after a method with AddCompilerStop.
+			// Preserve reached members without reading any recovery tail.
+			p.recordStop(NewParserError(cursor.Current().Pos, cursor.Current().Length(), "Record fields must be declared before record methods", ErrUnexpectedToken))
+			return currentVisibility
 		}
 
 		fields := p.parseRecordFieldDeclarations(currentVisibility)
@@ -399,21 +390,13 @@ func fieldsFromRecordFieldNames(
 // PRE: cursor is LPAREN
 // POST: cursor is RPAREN
 func (p *Parser) parseRecordPropertyWriteClause(prop *ast.RecordPropertyDecl) bool {
-	writeToken := p.cursor.Current()
-
-	p.nextToken() // move into parentheses, to the lvalue start
-	lhs := p.parseExpression(LOWEST)
-	if lhs == nil {
-		return false
-	}
-
-	writeStmt, writeSpec := p.buildPropertyWriteSpec(lhs, writeToken)
+	writeStmt, writeSpec, source := p.parsePropertyWriteInstruction()
 	prop.WriteStmt = writeStmt
+	prop.WriteSourceExpression = source
 	if identExpr, ok := writeSpec.(*ast.Identifier); ok {
 		prop.WriteField = identExpr.Value
 	}
-
-	return p.expectPeek(lexer.RPAREN)
+	return !p.stopped()
 }
 
 // parseRecordPropertyDeclaration parses a record property declaration (dispatcher).
@@ -489,66 +472,12 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 	// Parse optional index parameters for array properties
 	var indexParams []*ast.Parameter
 	if cursor.Peek(1).Type == lexer.LBRACK {
-		cursor = cursor.Advance() // move to '['
-		p.cursor = cursor
-
-		// Parse parameter list
-		for cursor.Peek(1).Type != lexer.RBRACK && cursor.Peek(1).Type != lexer.EOF {
-			cursor = cursor.Advance() // move to parameter name
-			p.cursor = cursor
-
-			// Parse parameter name
-			if cursor.Current().Type != lexer.IDENT {
-				p.addExpectedCurrent(lexer.IDENT)
-				return nil
-			}
-			paramName := &ast.Identifier{
-				BaseNode: ast.BaseNode{Token: cursor.Current()},
-				Value:    cursor.Current().Literal,
-			}
-
-			// Expect colon
-			if cursor.Peek(1).Type != lexer.COLON {
-				p.addExpected(lexer.COLON)
-				return nil
-			}
-			cursor = cursor.Advance() // move to ':'
-			cursor = cursor.Advance() // move to type
-			p.cursor = cursor
-
-			// Parse type
-			paramType := p.parseTypeExpression()
-			if paramType == nil {
-				return nil
-			}
-
-			cursor = p.cursor // Update cursor after parseTypeExpression
-
-			param := &ast.Parameter{
-				Token: paramName.Token,
-				Name:  paramName,
-				Type:  paramType,
-			}
-			indexParams = append(indexParams, param)
-
-			// Check for more parameters (separated by semicolon or comma)
-			if cursor.Peek(1).Type == lexer.SEMICOLON || cursor.Peek(1).Type == lexer.COMMA {
-				cursor = cursor.Advance() // move to separator
-				p.cursor = cursor
-				continue
-			}
-
-			// No more parameters - expect closing bracket
-			break
+		var ok bool
+		indexParams, ok = p.parsePropertyIndexParameters(true)
+		if !ok {
+			return &ast.RecordPropertyDecl{BaseNode: ast.BaseNode{Token: propToken}, Name: propName, IndexParams: indexParams}
 		}
-
-		// Expect closing bracket
-		if cursor.Peek(1).Type != lexer.RBRACK {
-			p.addExpected(lexer.RBRACK)
-			return nil
-		}
-		cursor = cursor.Advance() // move to ']'
-		p.cursor = cursor
+		cursor = p.cursor
 	}
 
 	// Expect colon
@@ -615,6 +544,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 			cursor = cursor.Advance() // move to identifier
 			p.cursor = cursor
 			prop.ReadField = cursor.Current().Literal
+			prop.ReadAccessorPos = cursor.Current().End()
 		default:
 			p.addExpected(lexer.IDENT)
 			return nil
@@ -629,13 +559,14 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 			cursor = cursor.Advance() // move to '('
 			p.cursor = cursor
 			if !p.parseRecordPropertyWriteClause(prop) {
-				return nil
+				return prop
 			}
 			cursor = p.cursor
 		case lexer.IDENT:
 			cursor = cursor.Advance() // move to identifier
 			p.cursor = cursor
 			prop.WriteField = cursor.Current().Literal
+			prop.WriteAccessorPos = cursor.Current().End()
 		default:
 			p.addExpected(lexer.IDENT)
 			return nil

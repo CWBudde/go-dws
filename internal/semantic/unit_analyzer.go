@@ -156,12 +156,21 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 			}
 			candidates := interfaceFunctions[ident.Normalize(decl.Name.Value)]
 			matched := false
+			repeatedExport := false
 			for _, candidate := range candidates {
 				if a.validateFunctionSignatureMatch(candidate, decl) == nil {
+					if decl.IsExport && candidate.IsForward && !candidate.IsExternal {
+						a.addPunctuationStop(decl.ExportPos, "BEGIN expected")
+						repeatedExport = true
+						break
+					}
 					implemented[candidate] = true
 					matched = true
 					break
 				}
+			}
+			if repeatedExport {
+				continue
 			}
 			if len(candidates) > 0 && !matched {
 				a.addError("implementation of '%s' doesn't match interface: %v", decl.Name.Value, a.validateFunctionSignatureMatch(candidates[0], decl))

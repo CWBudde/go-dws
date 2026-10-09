@@ -115,13 +115,17 @@ type Analyzer struct {
 	// reports. Upstream abandons the compile there, unwinding past
 	// TSymbolTable.Initialize, so the end-of-program checks such as
 	// unimplemented forwards never run.
-	compileStopped          bool
-	predeclaredClassTypes   map[string]bool
-	deferredMethodBodies    []deferredMethodBody
-	retainedScopes          []*SymbolTable
-	deferredClassChecks     []deferredClassCheck
-	pendingClassMemberDecls map[string]int
-	errors                  []string
+	compileStopped           bool
+	propertyTermMark         *int
+	propertyWriterSignatures map[*types.PropertyInfo]*types.FunctionType
+	deferredIndexStops       []*ast.IndexExpression
+	deferredIndexForwards    []*Symbol
+	predeclaredClassTypes    map[string]bool
+	deferredMethodBodies     []deferredMethodBody
+	retainedScopes           []*SymbolTable
+	deferredClassChecks      []deferredClassCheck
+	pendingClassMemberDecls  map[string]int
+	errors                   []string
 	// deferredBody bounds the diagnostics that precede, in source order, the
 	// top-level routine body pass 2 is currently analyzing. Pass 2 runs the
 	// bodies after every other top-level statement and only splices each one
@@ -167,6 +171,12 @@ type Analyzer struct {
 	// whose getter needs an instance, is still legally writable. Compound assignments
 	// leave it nil, since they do read the property.
 	indexedWriteTargetMember ast.Expression
+	// indexedAssignmentTarget bounds the target chain, so inherited read binding
+	// cannot make an unsupported property writer appear to be an array write.
+	indexedAssignmentTarget *ast.IndexExpression
+	// inheritedIndexRecovery supplies the unreadable property's result to the
+	// ordinary index path; upstream has not consumed its declared indices yet.
+	inheritedIndexRecovery *inheritedIndexRecovery
 
 	// reportedInlineRecordVisibility tracks the inline record type nodes whose
 	// visibility sections have already been diagnosed, so a node resolved more
@@ -497,6 +507,7 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 		})
 	}
 
+	a.promoteUnresolvedIndexStops()
 	a.suppressSelfAssignmentAfterErrors()
 	a.reportUnimplementedForwards(a.symbols)
 	a.validateForwardDeclarations()
@@ -583,6 +594,12 @@ func (a *Analyzer) reportUnimplementedForwards(scopes ...*SymbolTable) {
 		forwards = append(forwards, scope.UnimplementedForwards()...)
 	}
 	sortForwards(forwards)
+	if a.hasUnresolvedIndexStop() {
+		// Imported units finish before the main file's index types resolve.
+		// Keep typed symbols before export forward state is settled by the unit.
+		a.deferredIndexForwards = append(a.deferredIndexForwards, forwards...)
+		return
+	}
 	for _, sym := range forwards {
 		a.addStructuredError(NewForwardNotImplementedError(sym.DeclPosition, sym.Name))
 	}
@@ -702,6 +719,41 @@ func (a *Analyzer) SetParseHadErrors(had bool) {
 // it for a parser stop, which upstream raises before the analyzer is reached.
 func (a *Analyzer) SetCompileStopped(stopped bool) {
 	a.compileStopped = stopped
+}
+
+// SetDeferredIndexStops supplies provisional parser stops whose exact index
+// nodes may instead resolve as recoverable indexed property argument lists.
+func (a *Analyzer) SetDeferredIndexStops(indices []*ast.IndexExpression) {
+	a.deferredIndexStops = indices
+}
+
+// promoteUnresolvedIndexStops runs after type resolution and before end checks.
+// An ordinary empty index retains its parser stop even when recovery discarded
+// the enclosing expression and the analyzer never visited the index node.
+func (a *Analyzer) promoteUnresolvedIndexStops() {
+	if a.hasUnresolvedIndexStop() {
+		a.compileStopped = true
+	}
+}
+
+func (a *Analyzer) hasUnresolvedIndexStop() bool {
+	for _, index := range a.deferredIndexStops {
+		if a.semanticInfo.IndexedPropertyRead(index) == nil && !a.semanticInfo.IsResolvedIndexedProperty(index) {
+			return true
+		}
+	}
+	return false
+}
+
+// CompleteDeferredIndexForwardChecks settles only imported-unit forwards held
+// while a main-source index stop was provisional. Unit body errors are unchanged.
+func (a *Analyzer) CompleteDeferredIndexForwardChecks(mainStopped bool) {
+	if !mainStopped && !a.compileStopped && !a.hasUnresolvedIndexStop() {
+		for _, sym := range a.deferredIndexForwards {
+			a.addStructuredError(NewForwardNotImplementedError(sym.DeclPosition, sym.Name))
+		}
+	}
+	a.deferredIndexForwards = nil
 }
 
 // SetHintsLevel configures which hints should be emitted.

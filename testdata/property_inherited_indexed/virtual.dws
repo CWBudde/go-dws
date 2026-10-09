@@ -1,0 +1,11 @@
+type TBase = class
+ function Get(I: Integer): Integer; virtual; begin Result := 10+I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+type TLexical = class(TBase)
+ function Read: Integer; begin Result := inherited Prop()[3]; end;
+end;
+type TChild = class(TLexical)
+ function Get(I: Integer): Integer; override; begin Result := 20+I; end;
+end;
+PrintLn(TChild.Create.Read);

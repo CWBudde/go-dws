@@ -46,38 +46,52 @@ func (e *Evaluator) evalIndexAssignmentDirect(
 	// If base is a MemberAccessExpression, it's an indexed property: obj.Prop[i] := value
 	// or an indexed array/string field: obj.Field[i] := value.
 	if memberAccess, ok := base.(*ast.MemberAccessExpression); ok && !e.interfacePropertyResultIndex(target, ctx) {
-		baseObj := e.Eval(memberAccess.Object, ctx)
+		// Preserve the member visitor's helper/namespace capture and implicit-call
+		// tail while retaining its receiver for the generic container read.
+		memberVal, handled := e.captureHelperMember(memberAccess, ctx)
+		var baseObj Value
+		if !handled {
+			baseObj, handled = e.captureMemberReceiver(memberAccess, ctx)
+			if handled {
+				memberVal = baseObj
+			}
+		}
 		if isError(baseObj) {
 			return baseObj
 		}
 		if ctx.Exception() != nil {
-			return &runtime.NilValue{}
+			return e.nilValue()
 		}
-		if accessor, ok := baseObj.(runtime.PropertyAccessor); ok {
-			if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
-				return e.evalIndexedPropertyAssignmentOnObject(baseObj, memberAccess.Member.Value, indices, value, stmt, ctx)
-			}
-		}
-
-		if record, ok := baseObj.(*runtime.RecordTypeValue); ok {
-			if prop := recordMetaProperty(record, memberAccess.Member.Value); prop != nil && prop.IsIndexed {
-				values, err := e.recordMetaPropertyIndices(indices, ctx)
-				if err != nil {
-					return err
+		if !handled {
+			if accessor, ok := baseObj.(runtime.PropertyAccessor); ok {
+				if propDesc := accessor.LookupProperty(memberAccess.Member.Value); propDesc != nil && propDesc.IsIndexed {
+					return e.evalIndexedPropertyAssignmentOnObject(baseObj, memberAccess.Member.Value, indices, value, stmt, ctx)
 				}
-				return e.recordMetaPropertyWrite(record, prop, values, value, stmt, ctx)
 			}
-		}
 
-		// Indexed property written through a class name, the write counterpart of
-		// evalClassMetaIndexedProperty.
-		if classMetaVal, ok := baseObj.(ClassMetaValue); ok {
-			if result, handled := e.evalClassMetaIndexedPropertyWrite(baseObj, classMetaVal, memberAccess.Member.Value, indices, value, stmt, ctx); handled {
-				return result
+			if record, ok := baseObj.(*runtime.RecordTypeValue); ok {
+				if prop := recordMetaProperty(record, memberAccess.Member.Value); prop != nil && prop.IsIndexed {
+					values, err := e.recordMetaPropertyIndices(indices, ctx)
+					if err != nil {
+						return err
+					}
+					return e.recordMetaPropertyWrite(record, prop, values, value, stmt, ctx)
+				}
 			}
-		}
 
-		memberVal := e.Eval(memberAccess, ctx)
+			// Indexed property written through a class name, the write counterpart of
+			// evalClassMetaIndexedProperty.
+			if classMetaVal, ok := baseObj.(ClassMetaValue); ok {
+				if result, handled := e.evalClassMetaIndexedPropertyWrite(baseObj, classMetaVal, memberAccess.Member.Value, indices, value, stmt, ctx); handled {
+					return result
+				}
+			}
+
+			memberVal = e.readResolvedMember(memberAccess, baseObj, ctx)
+		}
+		if e.SemanticInfo() != nil && e.SemanticInfo().IsImplicitCall(memberAccess) {
+			memberVal = e.finishImplicitCallableRead(memberVal, memberAccess, ctx, true)
+		}
 		if isError(memberVal) {
 			return memberVal
 		}
@@ -367,6 +381,17 @@ func (e *Evaluator) evalIndexedPropertyAssignmentOnObject(
 	stmt *ast.AssignmentStatement,
 	ctx *ExecutionContext,
 ) Value {
+	if accessor, ok := baseObj.(PropertyAccessor); ok {
+		if descriptor := accessor.LookupProperty(propName); descriptor != nil {
+			if prop, valid := unwrapPropertyInfo(descriptor.Impl); valid && capturableIndexedProperty(prop) {
+				prepared, err := e.preparePropertyIndices(prop, indices, stmt, ctx)
+				if err != nil {
+					return err
+				}
+				return e.evalIndexedPropertyAssignmentDescriptor(baseObj, descriptor, prepared, value, stmt, ctx)
+			}
+		}
+	}
 	// Evaluate all indices
 	indexValues := make([]Value, 0, len(indices))
 	for _, indexExpr := range indices {
@@ -697,6 +722,11 @@ func (e *Evaluator) evalClassMetaIndexedPropertyWriteValues(
 	if propDesc == nil || !propDesc.IsIndexed {
 		return nil, false
 	}
+	return e.evalClassMetaIndexedPropertyWriteDescriptor(obj, classMetaVal, propDesc, indexValues, value, stmt, ctx)
+}
+
+func (e *Evaluator) evalClassMetaIndexedPropertyWriteDescriptor(obj Value, classMetaVal ClassMetaValue, propDesc *runtime.PropertyInfo, indexValues []Value, value Value, stmt ast.Node, ctx *ExecutionContext) (Value, bool) {
+	classInfo := classMetaVal.GetClassInfo()
 	pInfo, ok := unwrapPropertyInfo(propDesc.Impl)
 	if !ok {
 		return e.newError(stmt, "invalid property info type"), true

@@ -19,6 +19,9 @@ type ParserError struct {
 	// DeferredCall retains a parser-only stop whose punctuation depends on
 	// semantic property resolution. An enclosing stopped call confirms it.
 	DeferredCall *ast.MethodCallExpression
+	// DeferredIndex retains punctuation whose meaning depends on whether the
+	// bracket group supplies declared property arguments or indexes a value.
+	DeferredIndex *ast.IndexExpression
 }
 
 // Error implements the error interface.

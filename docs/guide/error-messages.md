@@ -225,6 +225,10 @@ Existing lexical values/routines and implicit members keep their lookup priority
 qualified user members and explicit calls retain their existing resolution.
 Later parser punctuation at the semantic stop is suppressed.
 
+Compiler stops skip program-end unused private field and method hints, even
+when the member's declaration precedes the stop. Hints from an earlier completed
+routine remain visible. A provisional index stop is resolved before these end checks.
+
 Taking the address of an unshadowed bare special name reads that child's opening
 parenthesis first. `@Length` stops with `"(" expected` before creating a callback
 or reporting a result-level address error. Grouped/indexed operands preserve this
@@ -362,6 +366,23 @@ bodies. A deprecated property warns at its name before the compatibility hint.
 Flagged write-only indexed reads report the read error at `)`, then
 `Array expected` at `[`, without analyzing the indices.
 
+Named inherited indexed reads accept both `inherited Prop()[i, j]` and
+`inherited Prop[i, j]`. They select the lexical method owner's parent descriptor,
+retain the accessor's storage owner and dispatch virtual getters on dynamic Self.
+They bypass member-casing hints; deprecation precedes the compatibility hint.
+Static inherited callers retain their existing unsupported behavior; their upstream
+contract remains a separate investigation.
+
+A missing or empty declared index group reports `More arguments expected` at the
+consumed compatibility `)`. An unfinished group keeps child-expression diagnostics
+then stops with `")" expected` at the unexpected token, before getter eligibility
+or argument checks. Ordinary array indexing retains its own `"]" expected`
+recovery. Parser-only clients keep provisional errors until semantic analysis
+resolves the particular index node as a property read. Checked compilation retains
+later directive messages after a recoverable empty property group. An ordinary
+empty array group remains a compiler stop and suppresses end-of-compilation
+forward checks, including imported-unit forward obligations.
+
 Indexed argument type and count errors use the closing compatibility `)` as
 their anchor. Diagnostics from index expressions precede class-getter eligibility
 and accessor argument checks; a type error suppresses the count error. An ordinary
@@ -392,7 +413,7 @@ indexed cases above preserve their order.
 The source printer preserves the declaration marker. Nonempty compatibility-token recovery,
 EOF/end boundaries, lexer-directive reach after recovery, discarded enclosing calls,
 malformed/nonempty unqualified/inherited calls, static inherited property contexts,
-named inherited indexed reads, ordinary bare unqualified `Prop[i]` reads,
+ordinary bare unqualified `Prop[i]` reads,
 remaining default-property call contexts,
 combined index parameters and `index` directives, writes, flagged function-valued
 properties and unchecked execution remain open in PLAN.md. These need their own parsing/dispatch acceptance;
@@ -400,7 +421,164 @@ passing the scalar fixtures does not close the full property item. Parser-only
 clients retain the provisional `Expression expected` stop for a malformed boundary
 call until semantic analysis resolves its property identity.
 
+### Routine export declarations
+
+An ordinary procedure or function may have one `export` directive with an
+optional string name. An invalid name token stays unread: the ordinary
+`";" expected` error precedes a genuine `BEGIN expected` compiler stop at that
+token. A missing directive semicolon leaves a valid `begin` available to the
+routine body. An exported routine also requires a body at EOF, anchored at the
+last real token, except when external linkage, forwarding or the unit-interface
+context already makes it bodyless.
+
+Earlier reached diagnostics survive the stop; later statements, lexer messages
+and program-end forward checks do not add messages. Unit-interface context passes
+through the common statement boundary, preserving stop checks and synthesized
+type declarations. Export flags are separate from external linkage.
+
+A routine implementing an existing local forward declaration cannot repeat
+`export`: compilation stops with `BEGIN expected` at the directive, including
+when the implementation has an invalid export name or ends before its body.
+Earlier header/signature diagnostics remain. Genuine overload sets match the
+forward signature; a new exported overload and a nested local shadow retain
+their own declaration context. A matching unit-interface implementation follows
+the same rule. A semantic stop wins a parser-stop tie at the same position;
+an earlier parser stop still wins.
+
+Ordinary body-required routines consume reached directive phases once: overload,
+linkage, export/helper, one calling qualifier, inline, then deprecated. A late or repeated
+clause stops at its keyword with `BEGIN expected`. A rejected `forward` instead
+reports `There is already a forward declaration of this function` as a compiler
+stop. Reached calling-convention hints remain before the stop; unreached qualifiers
+do not add hints.
+
+Missing-body recovery retains the reached header and local/contract prefix. An
+earlier unknown identifier in that retained prefix owns the stop and suppresses
+the provisional `BEGIN expected`. Completed contract clauses and valid locals at
+EOF require a body, anchored at the last real token. The established unfinished
+contract missing its condition semicolon keeps its existing semicolon-only error;
+exported routines still require a body.
+
+Interface method readers accept their header without ordinary routine directives;
+forbidden export, inline or overload clauses produce an enclosing `END expected`
+stop. Member, forward, external and unit-interface bodyless declarations retain
+their own contexts. Recovered qualified class implementations bind their validated
+prototype and preserve genuine duplicate/signature errors; existing class STATIC
+handling remains distinct.
+
+A lone explicitly overloaded forward now selects a matching signature before
+replacement. A new differing-parameter-type overload preserves the original
+forward; missing its `overload` directive also leaves that forward available for
+its later implementation. Reaching program end without that implementation
+reports the original pending-forward diagnostic. EXPORT on a genuinely new
+member is reached normally; EXPORT on a matched implementation owns the existing
+BEGIN stop and suppresses the terminal forward check.
+
+Explicit-overload selection permits omission of an original default, and rejects
+the reverse addition as a match. Successful binding retains the original scalar
+defaults for actual omitted calls; EXPORT uses the same directional selection.
+Parameter types, modes and returns retain their existing checks. Exact parameter
+names/default data, remaining kind/options/level criteria, wider default-expression
+binding and ambiguity parity remain open. Return-only new overloads retain Go's
+existing policy; they do not establish source-exact matching.
+Ordinary nonexplicit forwards retain their name-bound mismatch diagnostics.
+Unit-local lexer cutoff and the broader unknown-expression stop policy remain
+separate work.
+
 ### Property and operator declarations
+
+Class/interface/record property indices accept semicolon-separated value, `var` and
+`const` groups. A modifier applies to every comma-separated name in its group.
+Empty brackets report ordinary `Parameters expected` at `]` and retain the
+property for later validation. Missing names, colons and closing brackets are
+compiler stops with last-real-token EOF anchors; earlier completed members and
+accessor errors survive, while later statements and end checks are skipped.
+
+Accessor index types are checked before passing modes. A mismatch reports
+`Parameter N (Name) - Var-parameter expected`, `Const-parameter expected` or
+`Value-parameter expected`, then one incompatible-method summary at the accessor.
+The detail uses the property's parameter spelling and a zero-based index.
+Count, getter result and writer value/kind checks retain their earlier priority.
+Class/record accessor index defaults are checked after type/mode agreement; the setter's
+assigned Value is excluded from index mode/default equality. Class checks also exempt
+the implicit index directive and retain the selected lexical accessor signature.
+Interface signatures still need default metadata before this check can apply to
+their declared defaults.
+Record missing index types report
+ordinary `Type expected`; unknown named index types report ordinary `Unknown name`
+at the consumed type's end. Variant recovery preserves later reached checks.
+Stopped record lists retain reached index annotations and earlier completed-member
+diagnostics while skipping unread property types/accessors. Complete-inline and
+anonymous completed-property type failures still have separate recovery gaps.
+AST and source printing preserve the groups and modes. Ordinary class indexed
+access retains live caller storage for `var` indices and original index errors.
+Eligible method/expression setters capture receiver and indices before the RHS;
+an index exception skips the RHS and setter. Interface named/default calls also
+retain original index storage and use the static interface accessor contract. Eligible
+interface setters capture before the RHS, and existing Go compound callers reuse the
+prepared indices. Checked inherited/compatibility reads keep lexical accessor modes
+and ownership. Original runtime errors and exception state survive preparation.
+
+Checked default interface calls also accept already typed expression and aggregate
+receivers. In `Receivers[slot][i, j][resultSlot]`, the middle group supplies the
+property arguments; earlier receiver and later result brackets stay separate.
+A later bracket cannot supply a missing property argument, and an extra comma
+operand remains an extra argument. Default count errors report `More arguments
+expected` or `Too many arguments` at the current property's opening `[`, after
+reached operands and selected-signature type/storage checks. Mismatched value/const
+groups use these count checks; matching-count validation keeps its existing policy.
+Recognized empty groups keep ordinary count recovery and later diagnostics, while
+ordinary arrays and genuine child/enclosing stops retain their cutoff. Declined
+receiver probes do not repeat diagnostics or symbol usages.
+
+Class-object element coercion into typed interface arrays remains incomplete;
+storing already interface-typed elements works. Opaque unchecked receivers, indexed
+field writers, record execution/helper paths and remaining compound/inherited writes
+remain open.
+
+A `var` index reads one term. An ungrouped outer operator reports `")" expected`
+at the first unread operator, including in square brackets, and skips later
+indices and the setter RHS. Parentheses consume a full expression: `(i)` retains
+variable storage, while `(i + 1)` reaches the later `Argument N (name) cannot be
+passed as Var-parameter` check. Operators inside a reached call or array index
+belong to that child's expression. A genuine reached child stop skips subsequent
+children; ordinary child errors survive before the later accessor diagnostic.
+
+After the indices are complete, setters read the RHS before checking arguments.
+Selected getter/setter types, modes and parameter names own the late checks,
+including after recoverable accessor parameter errors. Expression accessors use property
+parameter names. Supplied argument errors suppress the count error from that
+checking pass; earlier declaration or RHS child errors do not. Numeric conversion
+direction matters: Integer to Float produces a nonwritable converted value for
+a var parameter; Float to Integer reports the type mismatch. General Variant and
+user conversion policy remains a separate follow-up.
+
+Field writers read the index terms but bypass method argument checks. A
+parenthesized `write (F)` is an expression setter with method argument checks;
+plain `write F` keeps the field assignment path. Source printing preserves this
+accessor kind and grouped expressions. Explicit indexed field/class-variable/
+constant readers report `Function expected` after earlier accessor type checks;
+auto-field shorthand retains its separate behavior.
+
+Class expression accessors own their outer parentheses. Missing outer closes
+report ordinary punctuation errors and retain reached declarations; genuine inner
+group, call, empty-reader and name errors still stop at their reached boundary.
+An empty/comment-only writer remains writable and does nothing, without a backing
+field. `Warning: Property writer does nothing` anchors at the opening `(` before
+subsequent outer punctuation errors. Class literal/named-constant instruction
+forms retain their source syntax; explicit readonly assignments remain errors.
+Record/helper syntactic empty writers share the warning. Their resolved-constant
+classification and malformed record boundaries remain open. Printing preserves
+successful writer grouping, including record expression accessors after reparse.
+Broader completed-routine hint ordering is still an open compile-stop task.
+
+A property `description` directive requires a string literal. If it is missing,
+`String expected` anchors at the next token and leaves that token available for
+ordinary semicolon and class-member recovery. A reached property retains its
+metadata when its semicolon is missing. An unmatched root `end` reports the
+ordinary `Unexpected END`; a prior compiler stop prevents that later diagnostic.
+Record fields after methods produce a genuine compiler stop, retaining earlier
+header diagnostics while skipping later statements and end checks.
 
 A missing property `read` or `write` name reports `Name expected` at the token
 found instead (the final real token at EOF) and stops compilation. Earlier
@@ -1100,6 +1278,23 @@ closing brace otherwise. A directive inside an inactive `{$IF}`/`{$IFDEF}` branc
 `{$R}`/`{$RESOURCE}` require a quoted string. An unrecognized switch reports
 `Compiler switch "NAME" unknown`, and a directive missing its closing brace reports
 `"}" expected`.
+
+Expression includes such as `{$I %LINE%}` substitute a literal token: LINE, TIME
+and DATE produce strings, while LINENUM and TIMESTAMP produce integers. A malformed
+macro reports `Include item expected`; an unknown name reports
+`Include item "NAME" unknown`, then recovers as an empty string. A missing closing
+brace stops compilation at the next token, or the last consumed token at EOF.
+FILE, MAINFILE, FUNCTION and EXEVERSION retain their existing unsupported value
+behavior because the lexer does not yet receive the required source, routine or
+executable context.
+
+An inactive conditional reaching EOF after skipped tokens reports the condition's
+argument position, updated to the last encountered known switch in a nested scan.
+Immediate EOF, or whitespace/comments only, uses the opening switch name instead.
+Active branches use their directive provenance. This explains the different
+columns in `conditionals2` and `conditionals2.1`; the latter contains a skipped
+statement. Boolean IF literals and active/inactive ELSE branches retain these
+distinctions.
 
 Unlike a failed `{$INCLUDE}`, these do not block semantic analysis: the source before a
 `{$FATAL}` parsed correctly, so its errors are still reported alongside the fatal.

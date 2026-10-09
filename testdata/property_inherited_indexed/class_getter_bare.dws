@@ -1,0 +1,14 @@
+type TBase = class
+ class function Get(I: Integer): String; virtual; begin Result := ClassName+':'+IntToStr(I); end;
+ property Prop[I: Integer]: String read Get reintroduce;
+ class property ClassProp[I: Integer]: String read Get reintroduce;
+end;
+type TLexical = class(TBase)
+ class function Read: String; begin Result := inherited Prop[2]; end;
+ class function ReadClass: String; begin Result := inherited ClassProp[3]; end;
+end;
+type TChild = class(TLexical)
+ class function Get(I: Integer): String; override; begin Result := ClassName+':'+IntToStr(I+10); end;
+end;
+PrintLn(TLexical.Read); PrintLn(TChild.Read);
+PrintLn(TLexical.ReadClass); PrintLn(TChild.ReadClass);

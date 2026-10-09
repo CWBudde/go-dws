@@ -64,9 +64,27 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 
 	// Move to index expression
 	p.cursor = p.cursor.Advance()
+	if p.cursor.Current().Type == lexer.RBRACK {
+		indexExpr.Empty = true
+		indexExpr.Index = &ast.InvalidExpression{
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, Reason: "expression expected",
+		}
+		anchor := p.anchorFor(p.cursor.Current())
+		err := NewParserError(anchor.Pos, anchor.Length(), "Expression expected", ErrInvalidExpression)
+		err.Stop = true
+		err.DeferredIndex = indexExpr
+		p.recordError(err)
+		expr, ok := builder.FinishWithToken(indexExpr, p.cursor.Current()).(ast.Expression)
+		if !ok {
+			return indexExpr
+		}
+		return expr
+	}
 
 	// Parse the first index expression
+	errorMark := len(p.errors)
 	indexExpr.Index = p.parseExpression(LOWEST)
+	p.deferUnreadIndexRHSStop(indexExpr, errorMark)
 
 	// Handle comma-separated indices: arr[i, j, k]
 	// Desugar to nested IndexExpression nodes: ((arr[i])[j])[k]
@@ -84,6 +102,7 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		commaPos := p.cursor.Current().Pos
 		p.cursor = p.cursor.Advance() // move to next index expression
 
+		errorMark = len(p.errors)
 		// Create a new IndexExpression with the previous result as the Left
 		nextIndex := &ast.IndexExpression{
 			BaseNode: ast.BaseNode{Token: lbrackToken},
@@ -91,19 +110,24 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 			Index:    p.parseExpression(LOWEST),
 			CommaPos: commaPos,
 		}
+		p.deferUnreadIndexRHSStop(nextIndex, errorMark)
 		result = nextIndex
 	}
 
 	// Expect ']'
 	nextToken := p.cursor.Peek(1)
-	if isInvalidExpression(result.Index) && p.cursor.Current().Type == lexer.RBRACK {
+	if (isInvalidExpression(result.Index) || deferredInvalidIndexRHS(result)) && p.cursor.Current().Type == lexer.RBRACK {
 		expr := builder.FinishWithToken(result, p.cursor.Current()).(ast.Expression)
 		return expr
 	}
 	if nextToken.Type != lexer.RBRACK {
 		// An index's missing "]" is an ordinary error upstream: the enclosing
 		// declaration goes on and reports its own ";" (array_index_bracket_missing2).
-		p.addExpected(lexer.RBRACK)
+		anchor := p.anchorFor(nextToken)
+		result.MissingClosePos = anchor.Pos
+		err := NewParserError(anchor.Pos, anchor.Length(), expectedSentence(lexer.RBRACK), ErrMissingRBracket)
+		err.DeferredIndex = result
+		p.recordError(err)
 		if nextToken.Type == lexer.ASSIGN {
 			// A broken index followed by an assignment resumes from the base,
 			// matching DWScript's assignment recovery (i[2 := 3).
@@ -239,6 +263,34 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 		Elements:         elements,
 		ElementPositions: elementPositions,
 	}
+}
+
+// deferUnreadIndexRHSStop keeps a demonstrated surface binary prefix available
+// for property ReadTerm resolution. Reached grouped/call errors and missing comma
+// children remain definite parser stops.
+func (p *Parser) deferUnreadIndexRHSStop(index *ast.IndexExpression, mark int) {
+	binary, ok := index.Index.(*ast.BinaryExpression)
+	if !ok {
+		return
+	}
+	invalid, ok := binary.Right.(*ast.InvalidExpression)
+	if !ok || invalid.Token.Type != lexer.RBRACK {
+		return
+	}
+	for _, err := range p.errors[mark:] {
+		if err.Stop && err.Code == ErrInvalidExpression && err.Pos == invalid.Pos() {
+			err.DeferredIndex = index
+		}
+	}
+}
+
+func deferredInvalidIndexRHS(index *ast.IndexExpression) bool {
+	binary, ok := index.Index.(*ast.BinaryExpression)
+	if !ok {
+		return false
+	}
+	invalid, ok := binary.Right.(*ast.InvalidExpression)
+	return ok && invalid.Token.Type == lexer.RBRACK
 }
 
 // parseArrayLiteral parses an array literal expression.

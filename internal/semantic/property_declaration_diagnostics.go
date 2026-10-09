@@ -84,6 +84,27 @@ func (a *Analyzer) checkPropertyAccessorParameters(prop *ast.PropertyDecl, metho
 			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos,
 				fmt.Sprintf(`Parameter %d - Type "%s" expected (instead of "%s")`, i, semanticTypeNameForDiagnostic(expected), semanticTypeNameForDiagnostic(actual))))
 			compatible = false
+			continue // A type mismatch suppresses this index's mode/default mismatches.
+		}
+		if i >= len(prop.IndexParams) {
+			continue // A pure index directive has no declared index parameters.
+		}
+		param := prop.IndexParams[i]
+		actualVar := i+offset < len(method.VarParams) && method.VarParams[i+offset]
+		actualConst := i+offset < len(method.ConstParams) && method.ConstParams[i+offset]
+		mode := propertyParameterModeMismatch(param, actualVar, actualConst)
+		if mode != "" {
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos,
+				fmt.Sprintf("Parameter %d (%s) - %s-parameter expected", i, param.Name.Value, mode)))
+			compatible = false
+			continue // A mode mismatch suppresses this index's default mismatch.
+		}
+		// Property indices cannot declare defaults. Only explicit indices are
+		// compared; the index directive and setter Value keep their exemptions.
+		if i+offset < len(method.DefaultValues) && method.DefaultValues[i+offset] != nil {
+			a.addStructuredError(NewPropertyDeclarationTypeMismatchError(pos,
+				fmt.Sprintf("Parameter %d (%s) - default value at implementation does not match declaration or forward", i, param.Name.Value)))
+			compatible = false
 		}
 	}
 	return compatible
@@ -108,4 +129,19 @@ func propertyIndexTypesCompatible(expected, actual types.Type) bool {
 		return true
 	}
 	return operatorBindingTypesCompatible(expected, actual)
+}
+
+// propertyParameterModeMismatch preserves CheckParams' var/value/const priority.
+func propertyParameterModeMismatch(param *ast.Parameter, actualVar, actualConst bool) string {
+	switch {
+	case param.ByRef && !actualVar:
+		return "Var"
+	case !param.ByRef && actualVar:
+		return "Value"
+	case param.IsConst && !actualConst:
+		return "Const"
+	case !param.IsConst && actualConst:
+		return "Value"
+	}
+	return ""
 }

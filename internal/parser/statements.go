@@ -39,7 +39,7 @@ func (p *Parser) parseClassStatement() ast.Statement {
 	nextToken := p.cursor.Peek(1)
 	if nextToken.Type == lexer.FUNCTION || nextToken.Type == lexer.PROCEDURE || nextToken.Type == lexer.METHOD {
 		p.cursor = p.cursor.Advance() // move to function/procedure/method token
-		fn := p.parseFunctionDeclaration()
+		fn := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 		if fn != nil {
 			fn.IsClassMethod = true
 		}
@@ -76,6 +76,12 @@ func (p *Parser) parseDestructorStatement() ast.Statement {
 // statements are scope-transparent for declarations, so the enum's members stay
 // visible to everything that follows.
 func (p *Parser) parseStatement() ast.Statement {
+	return p.parseStatementInContext(ordinaryRoutineDeclaration)
+}
+
+// parseStatementInContext supplies a routine declaration context while retaining
+// the common compiler-stop, nil normalization and implicit-type hoisting boundary.
+func (p *Parser) parseStatementInContext(context routineDeclarationContext) ast.Statement {
 	// After a compiler stop upstream has abandoned the compilation: nothing that
 	// follows is read, so nothing that follows is built.
 	if p.stopped() {
@@ -86,7 +92,13 @@ func (p *Parser) parseStatement() ast.Statement {
 	p.pendingTypeDecls = nil
 	startToken := p.cursor.Current()
 
-	stmt := p.parseStatementInner()
+	var stmt ast.Statement
+	if context == unitInterfaceRoutineDeclaration &&
+		(startToken.Type == lexer.FUNCTION || startToken.Type == lexer.PROCEDURE) {
+		stmt = p.parseFunctionDeclarationInContext(context)
+	} else {
+		stmt = p.parseStatementInner()
+	}
 
 	// Most statement parsers return a concrete node pointer rather than the
 	// ast.Statement interface, so a nil one arrives here as a *typed nil*:

@@ -43,7 +43,8 @@ func isStatementBoundaryWarning(diag Diagnostic) bool {
 	}
 	rendered := diag.Render()
 	return strings.HasPrefix(rendered, "Warning: Constant condition [") ||
-		strings.HasPrefix(rendered, "Warning: Unreachable code [")
+		strings.HasPrefix(rendered, "Warning: Unreachable code [") ||
+		strings.HasPrefix(rendered, "Warning: Property writer does nothing [")
 }
 
 // parserBoundaryIndex finds the first parser token not yet reached when the

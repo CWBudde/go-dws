@@ -45,6 +45,45 @@ This document catalogs ALL features found in the original DWScript implementatio
 
 ---
 
+### Routine export directives
+
+Standalone procedures and functions accept `export;` or `export 'Name';` after
+their headers. They keep their normal script bodies and are called by their
+script names:
+
+```pascal
+function Answer: Integer; export 'PublicAnswer';
+begin
+  Result := 42;
+end;
+PrintLn(Answer());
+```
+
+The export name is declaration metadata. Empty, escaped and multiline names
+survive AST and source-printer round trips, including helper aliases and routine
+directive flags. Exported unit-interface routines retain implicit forwarding to
+their implementations; implementations do not repeat `export`. Combined linkage
+prints in `external; forward; export` order. Member declarations keep their existing directive rules.
+
+Ordinary body-required routines read calling qualifiers before `inline` and
+`deprecated`; a late/repeated clause stops at the required-body boundary. Reached
+local/contract prefixes and hints survive recovery, and completed prefixes at EOF
+still require a body. Interface method headers reject ordinary routine directives
+with an enclosing `END expected` stop; member, forward, external and unit-interface
+bodyless declarations retain their own contexts.
+
+A lone explicitly overloaded forward can coexist with a new overload whose
+parameter types differ. The new overload can use `export`; a later implementation
+of the original signature needs no repeated `overload`. Only the selected forward
+is consumed. Its matching implementation may omit declared defaults: omitted calls
+retain the original scalar values, while supplied arguments override them. Constants
+in the covered defaults retain their declaration meaning through caller shadows;
+source printing keeps the implementation's omitted defaults. Exact parameter-name
+and default-value matching, broader default-expression binding and ambiguity parity
+remain incomplete.
+
+---
+
 ### Control Flow
 
 **Test Evidence**: `SimpleScripts/`, Core test files
@@ -394,6 +433,7 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - Expression-based setters: `property Half: Integer write (FValue := Value * 2);`
 - Class properties (static): `class property Count: Integer read FCount;`
 - External names (JSON key): `property Test: Integer external 'test' read FTest;`
+- Descriptions: `property Value: Integer read FValue description 'The current value';`
 - Property arrays
 - Property overriding in inheritance
 
@@ -403,10 +443,44 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Auto-properties (a bare `property Alpha: Integer;` gets a synthesized `FAlpha`)
 - ✅ Property inheritance
 - ✅ Indexed properties, including multi-index `Data[x, y: Integer]`
+- ✅ Class/interface/record index declarations preserve grouped `var`/`const` modes,
+  validate accessor mode agreement and round-trip through source printing.
+- ✅ Named, inline and anonymous record index declarations retain names, types,
+  modes and class/default flags. Record accessor checks preserve type, mode,
+  default-value and count priority, including forwarded accessor signatures.
+- ✅ Class accessor index defaults must match the property declaration after
+  type/mode agreement; setter Value and implicit index defaults remain exempt.
+  Selected inherited/forwarded signatures own these checks. Interface declaration
+  default metadata remains incomplete.
+- ✅ Ordinary class named/default `var` indices retain live caller storage. Eligible
+  method/expression setters capture their receiver and indices before the RHS;
+  later container rebinding keeps the captured slot and index exceptions skip the RHS.
+  Opaque unchecked default receivers, cast-index dispatch and indexed field writers
+  remain open. Record index execution and helper dispatch are incomplete.
+- ✅ Interface named/default indices retain live caller storage, using the static
+  interface accessor contract. Eligible writes capture receiver and indices before
+  the RHS; existing Go compound paths reuse those references. Checked inherited and
+  compatibility reads retain lexical accessor ownership and original errors.
+- ✅ Checked default interface indexing after typed expressions and array elements
+  keeps one declared comma group and separate receiver/result brackets. Static
+  accessor selection and original slots survive later receiver/container rebinding.
+  Empty groups retain ordinary count recovery; declined probes record receivers once.
+  Class-element interface-array coercion, opaque unchecked receivers, remaining
+  ordinary class compound behavior and compatibility/inherited writers remain open.
+- ✅ Class/default/interface and inherited compatibility index checking retains
+  parentheses and reports the first unread operator for a `var` index. Use `(i)`
+  to retain variable storage; `(i + 1)` consumes the expression but cannot supply
+  writable storage. Late type, mode, parameter-name and count checks use the
+  selected accessor. Field writers keep their separate assignment rules.
 - ✅ Default properties (`obj[i]` for read and write)
 - ✅ Expression-based getters and setters, on plain and indexed properties.
   An indexed accessor expression sees the index parameters by name:
   `property Arr[i: Integer]: Integer read (F[i]) write (F[i]);`
+- ✅ Tested expression writers support compound assignments, blocks, conditionals,
+  loops, case and try instructions. Empty writers remain writable no-ops without
+  backing storage. Class/record writer grouping survives printing and execution.
+  Remaining instruction optimization, record/helper constant classification and
+  malformed record recovery are open.
 - ✅ Class properties, reachable through the metaclass and through an instance.
   They are not virtual: `TBase(sub).ClassProp` reads `TBase`'s declaration.
 - ✅ An indexed property whose accessor is a `class function` / `class procedure` is
@@ -417,6 +491,9 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ A write specifier that names an lvalue rather than an accessor is shorthand for
   assigning to it: `write (FBase.Prop)` means `write (FBase.Prop := Value)`.
 - ✅ `external 'name'` renames the property's key in JSON serialization
+- ✅ Literal property descriptions, including empty text, quotes and line breaks.
+  The description precedes `reintroduce` and the declaration semicolon; source
+  printing preserves its text and presence.
 - ✅ A read/write specifier can name another property
   (`property Mapped: Integer read Prop write Prop`). The referenced property must
   support the requested access mode.
@@ -445,7 +522,9 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Interface inheritance
 - ✅ Multiple implementation
 - ✅ as/is operators
-- ⏸️ Interface properties
+- ✅ Named/default indexed interface properties, including checked typed
+  expression/aggregate receivers and caller references
+- ⏸️ Remaining interface property contexts
 - ⏸️ GUIDs
 - ⏸️ `implements` (delegation)
 - ⏸️ Method resolution clauses

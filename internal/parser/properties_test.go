@@ -220,7 +220,7 @@ func TestPropertyExpressionRead(t *testing.T) {
 	}
 
 	// Should be a BinaryExpression (FValue * 2)
-	_, isBinary := prop.ReadSpec.(*ast.BinaryExpression)
+	_, isBinary := ungroupForAssertion(prop.ReadSpec).(*ast.BinaryExpression)
 	if !isBinary {
 		t.Errorf("ReadSpec should be BinaryExpression for (FValue * 2), got=%T", prop.ReadSpec)
 	}

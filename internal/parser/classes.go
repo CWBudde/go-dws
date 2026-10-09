@@ -298,7 +298,7 @@ func (p *Parser) parseClassLevelMember(cursor *TokenCursor, classDecl *ast.Class
 		}
 	} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
 		// Class method: class function/procedure/method ...
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 		if method != nil {
 			method.IsClassMethod = true // Mark as class method
 			method.Visibility = currentVisibility
@@ -327,7 +327,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 
 	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
 		// Regular instance method declaration
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 		if method != nil {
 			method.Visibility = currentVisibility
 			classDecl.Methods = append(classDecl.Methods, method)
@@ -335,7 +335,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 
 	case lexer.CONSTRUCTOR:
 		// Constructor declaration
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 		if method != nil {
 			method.IsConstructor = true
 			method.Visibility = currentVisibility
@@ -344,7 +344,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 
 	case lexer.DESTRUCTOR:
 		// Destructor declaration
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 		if method != nil {
 			method.IsDestructor = true
 			method.Visibility = currentVisibility
@@ -386,6 +386,10 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 			// Regular instance field declaration (may be comma-separated)
 			// Supports: FieldName: Type; or FieldName := Value; or FieldName: Type := Value;
 			fields := p.parseFieldDeclarations(currentVisibility)
+			if fields != nil && p.curTokenIs(lexer.SEMICOLON) {
+				p.parseClassFieldQualifiers()
+			}
+
 			for _, field := range fields {
 				if field != nil {
 					classDecl.Fields = append(classDecl.Fields, field)
@@ -397,10 +401,31 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 		}
 
 	default:
-		// Unknown tokens in class body are silently skipped (handled by caller's advance)
+		// ReadFieldsDecl enters ReadNameList for other member starts. A token
+		// that cannot name a field stops compilation instead of being skipped.
+		p.addExpectedStopCurrent(lexer.IDENT)
 	}
 
 	return p.cursor
+}
+
+// parseClassFieldQualifiers owns the directives after a successfully terminated
+// class instance field. Shared helper/class-var readers have separate grammar.
+func (p *Parser) parseClassFieldQualifiers() {
+	if p.peekTokenIs(lexer.EXTERNAL) {
+		p.nextToken()
+		if p.peekTokenIs(lexer.STRING) {
+			p.nextToken()
+		} else {
+			anchor := p.foundToken()
+			p.recordError(NewParserError(anchor.Pos, anchor.Length(), "String expected", ErrUnexpectedToken))
+		}
+		p.expectPeek(lexer.SEMICOLON)
+	}
+	// Without its following semicolon, readonly can be a member name.
+	if p.peekTokenIs(lexer.READONLY) && p.cursor.Peek(2).Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.AdvanceN(2)
+	}
 }
 
 func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {

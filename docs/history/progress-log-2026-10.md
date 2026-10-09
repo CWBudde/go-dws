@@ -1,4 +1,788 @@
+## 2026-10-09 — Property accessor recovery and null writers (PLAN 2.3)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) separates
+class accessor-owned outer delimiters from genuine inner expression/call/name
+stops. Missing outer closes retain reached declarations and accessor bodies.
+The complete seven-line `missing_reader_bracket` expectation now passes;
+`null_read_expression` keeps its genuine inner stop, and `null_write_expression`
+compiles with the opening-anchored warning alone. Numeric null instruction
+starters remain unconsumed for the following punctuation/member diagnostics.
+
+Empty/comment-only writers stay writable without backing storage. The shared
+class/record parser routes tested compound assignment, block, conditional, loop,
+case and try writers through existing statement dispatch. Class/record/helper
+syntactic null writers share the warning producer. Class resolved literal/named
+constants preserve source instructions and use the existing executable
+PropertyInfo.WriteExpr no-op view; explicit readonly assignments stay invalid.
+Scoped property-term stop ownership prevents reached child errors from leaking
+later outer punctuation, directives, private collectors or forward checks.
+
+Typed class/record WriteSourceExpression aliases preserve successfully grouped
+source lost by normalized assignments. Their ast skip tags avoid duplicate
+visitor traversal. The generated visitor adds only two skip comments. Record
+printing now shares the accessor-preserving path instead of dropping expression
+accessors and fabricating auto-properties on reparse. Checked/unchecked Compile,
+Run, source identity, printer/reparse and eight selected pass fixtures cover this
+behavior. No evaluator, engine-shell, registry schema, CLI or bytecode owner changed.
+
+Initial full frontend/public Compile tests reproduced all three wrong fixture
+contracts before production edits. Additional concrete REDs established child-stop
+retention, record/helper warning omissions, grouped-source loss and record printer
+behavior. Test-only expectation/build mistakes were corrected separately from
+product failures. Independent task review approved; root lint then found two
+complex test functions and one table layout. Test-only helper extraction/reorder
+preserved every assertion/case; the original reviewer's scoped re-review approved.
+
+Validation on the final reviewed source:
+
+- `go test -race -count=1 -coverprofile=.cache/phase34-final-coverage.out ./...` passes
+  across all packages without races; final diff lint reports zero issues.
+- Tracked formatting, `go mod tidy`, `go generate ./pkg/ast` and diff hygiene pass.
+  Dependencies stay unchanged; regeneration matches the reviewed 87-node visitor.
+- Parser coverage rises from 4,845/5,912 (81.9520%) to 4,873/5,937 (82.0785%);
+  lexer remains 1,386/1,570 (88.2803%).
+- Complete CLI lists and the full fixture failure-name set show exactly three
+  gains, no regressions: 1,435 pass / 579 fail / 27 skip. PropertyExpressionsFail
+  rises from 3 to 6; its stable baseline is the only ratchet. Other floors,
+  including BuildScripts 7, stay unchanged; no restoration was needed.
+- Fixture regeneration passes at 1,435/579/27, BuildScripts 7, with every complete
+  category failure-name row and count matching CLI. The following gate passes at
+  1,436/578/27, BuildScripts 8, differing only on documented init_order2; all other
+  rows/counts match. The generated status retains the actual regeneration result.
+
+Pinned-source expectations use DWScript revision
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`; no Pascal oracle was run.
+PLAN checks only completed children. Malformed record reader/numeric-writer
+retention, record/helper resolved constants/body scopes and remaining instruction
+optimizer parity remain doable open work, alongside the broader call/stop model.
+
+The mixed-phase ordering prerequisite remains concrete with pedantic hints:
+
+```pascal
+procedure Prefix;
+begin var Local: Integer; end;
+type T = class
+ F: Integer;
+ property P: Integer read (F;
+ property Q: Integer write (2);
+end;
+Missing;
+```
+
+The complete observed list is:
+
+```text
+Syntax Error: ")" expected [line: 5, column: 29]
+Hint: Variable "Local" declared but not used [line: 2, column: 11]
+Warning: Property writer does nothing [line: 6, column: 28]
+Syntax Error: ")" expected [line: 6, column: 29]
+Syntax Error: ";" expected [line: 6, column: 29]
+Syntax Error: Name expected [line: 6, column: 29]
+```
+
+The source-derived intended order swaps the first two entries. Null-warning and
+punctuation ordering, membership and tail cutoff are already correct. This full
+Compile RED is retained for PLAN 2.4 rather than hidden by a global column sort
+or message suppression. The whole Phase 2 goal remains open.
+
+## 2026-10-09 — Directional forward defaults (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) lets an
+explicitly overloaded forward's implementation omit original parameter defaults.
+Singleton and genuine overload-set binding share that directional selection with
+EXPORT reach. Reverse default addition does not consume the original forward.
+Ordinary nonexplicit name-bound mismatches retain their existing policy.
+
+The original signature/default AST identities and source headers remain intact.
+A typed declaration-time snapshot of evaluable scalar defaults survives overload
+conversion and reaches only a successfully selected implementation. The evaluator
+registers a runtime declaration view that fills omitted defaults, preserving the
+implementation body and source printing. Actual omitted/supplied calls cover
+Integer/Boolean/String/Float values, zero/false/empty defaults, mixed slots, local
+forwards, caller constant shadows, genuine sets and repeated execution. Snapshot
+metadata contains immutable expressions rather than cached runtime Values.
+
+Pinned DWScript `1dbf8a90329cc3f2638516e89c0668f916c1ddb9` SameParam permits a
+new plain parameter to match an original default-valued parameter. That source
+rule supports directional selection; no Pascal oracle was run. Exact parameter
+names/default data, remaining kind/options/level criteria and source ambiguity
+checks remain doable open work. Remaining non-scalar/builtin and unsupported
+scalar default binding is also open; this child does not close the whole matcher
+or constant evaluator. PLAN checks only the measured directional-default child.
+
+Public tests first reproduced the wrong EXPORT list, then accepted Compile with
+missing runtime defaults, and then original constants rebound by caller shadows.
+Independent review found integer snapshots rounded beyond 2^53. The bounded
+constant-evaluator prerequisite now shares exact integer +, -, *, div and mod
+value arithmetic with its existing integer consumer. Scoped review caught a new
+operand-domain narrowing from rewalking mixed operand syntax; using already
+folded values restored composed constant acceptance. A separate direct/forward
+probe showed Float modulo snapshots losing fractional/sign/zero data. Float MOD
+now uses the existing runtime math.Mod operation and positive-zero normalization,
+while retaining compile-time zero errors. Real division, mixed DIV rejection and
+other type/unary contracts were not expanded. Boundary, source Type/Value,
+original constant/caller-shadow and actual direct/forward Run controls cover
+these corrections. Signed wrapping controls measure retained Go behavior.
+
+Task review and scoped fix reviews have no open blocking findings. Root lint
+found two complex test functions and one table layout issue; test-only helper
+extraction and field reordering preserve every assertion, all 32 table values and
+execution order. Independent scoped review approved that correction. Final
+validation passes with Go 1.24.13:
+
+- `go test -race -count=1 -coverprofile=.cache/phase33-final-coverage.out ./...`:
+  all packages pass, with no races.
+- `golangci-lint run --new-from-merge-base=origin/main --timeout 10m`: zero issues.
+- Tracked Go formatting, `go mod tidy`, `go generate ./pkg/ast` and diff hygiene:
+  dependencies and the 87-node, 26,331-byte generated visitor remain unchanged.
+- Fresh CLI acceptance covers previous batches and new default dispatch,
+  declaration meaning, exact integer/Float MOD and complete EXPORT cutoff lists.
+  Full fixture failure-name sets remain exactly 1,432 pass / 582 fail / 27 skip
+  versus the prior CLI, with no gains or regressions.
+- Fixture regeneration passes at 1,432/582/27, BuildScripts 7; all complete category
+  failure-name rows/counts match CLI exactly. The following stable-baseline gate
+  passes at 1,433/581/27, BuildScripts 8, differing only on documented init_order4.
+  All other rows/counts match. Every baseline byte remains unchanged, including
+  FailureScripts 328, SimpleScripts 400 and BuildScripts 7; no varying floor was
+  proposed or ratcheted. Generated status retains regeneration's actual snapshot.
+- Parser coverage remains 4,845/5,912 = 81.9520%; lexer remains
+  1,386/1,570 = 88.2803%.
+
+## 2026-10-09 — Explicit singleton overload forward selection (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) selects
+an explicitly overloaded singleton's matching signature before consuming its
+forward state. A legal differing-parameter-type member registers independently,
+including with EXPORT; the original remains pending until its own implementation,
+which may omit the repeated OVERLOAD directive. Rejected new directives/conflicts
+preserve it, and only the selected candidate is cleared. Ordinary nonexplicit
+forwards retain their existing name-bound mismatch policy.
+
+Registration and EXPORT reach share the existing parameter/return/mode and
+symmetric-default-presence predicate. Matching EXPORT keeps its typed stop and
+unreached qualifier/body/lexer/end-check cutoff; a new member retains reached
+calling hints. Exact parameter names/default data, directional default omission,
+remaining kind/options/level criteria and wider source ambiguity parity remain
+doable open follow-ups. Return-only overloads and omitted-default characterization
+rows explicitly retain Go policy rather than claiming source parity. PLAN checks
+only the differing-type child and leaves its matching parent open.
+
+Actual public Compile/Run tests first reproduced the false mismatch followed by
+missing OVERLOAD at the later original implementation, with and without EXPORT.
+State tests verify pending preservation and selected-only clearing. Full public
+lists, nil rejected Programs, legal procedure/function dispatch, case-only names,
+nested shadows inside Outer BEGIN, genuine sets, default-conflict rejection and
+normal/pedantic typed-stop/hint ordering are covered. Initial pre-code RED excerpts
+remain distinct from the later full baseline-mutation RED validation. Three stale
+frontend characterization rows were updated after their concrete covering failure,
+with source-derived differing-type behavior distinguished from retained Go policy.
+
+Independent task review approved the child. Root lint then found one unchecked
+FunctionType assertion; a two-line checked assertion/guard correction passed
+fresh three-package tests and scoped independent review. No matcher/policy owner
+was added for this correction. Final validation passes with Go 1.24.13:
+
+- `go test -race -count=1 -coverprofile=.cache/phase32-final-coverage.out ./...`;
+  no races or failed packages.
+- `golangci-lint run --new-from-merge-base=origin/main --timeout 10m`: zero issues.
+- Tracked Go formatting, `go mod tidy`, `go generate ./pkg/ast` and diff hygiene;
+  dependencies and the 87-node generated visitor are unchanged.
+- Fresh CLI acceptance covers previous batches and new forward registration,
+  dispatch, pending errors and complete cutoff lists. Full fixture failure rows
+  remain exactly 1,432 pass / 582 fail / 27 skip versus the prior CLI, with no gains
+  or regressions.
+- Fixture regeneration and the following stable-baseline gate both pass. Each Go
+  run reports 1,434/580/27, BuildScripts 9: regeneration differs from CLI only on
+  `init_order1` and `init_order4`, while the following gate differs only on
+  `init_order1` and `init_order5`. All other complete category failure-name rows
+  and counts match. These are the documented Phase 5 initialization-order variants;
+  the updater's proposed floor of nine was restored to the original seven before
+  the following gate. Baseline bytes stay unchanged at FailureScripts 328,
+  SimpleScripts 400 and BuildScripts 7; generated status retains its actual snapshot.
+- Parser coverage remains 4,845/5,912 = 81.9520%; lexer remains
+  1,386/1,570 = 88.2803%.
+
+## 2026-10-09 — Routine directive and body recovery (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) makes
+ordinary body-required procedure/function readers respect reached directive phases.
+A late/repeated qualifier or misplaced export stops at the rejected keyword with
+BEGIN expected. FORWARD at that boundary keeps its specific already-forward
+sentence. Calling-convention hints survive only when their phase was reached,
+including hints from earlier completed routines; repeated-forward registration
+carries a typed stopping diagnostic before an unreached qualifier hint.
+
+Interface methods accept their header without routine directives; a forbidden
+export, inline or overload is rejected by the enclosing END reader. Malformed
+GUID recovery remains local to its bracket owner. Member, forward, external and
+unit-interface bodyless contexts remain distinct. Qualified class implementations
+bind their already declared prototype even when a recovered header lacks a body;
+existing class STATIC handling and genuine duplicate/mismatch checks remain.
+
+Missing-BEGIN recovery retains the reached header/local/contract prefix. An
+explicit scalar AST marker lets an earlier unknown-name identifier in that
+retained prefix own the true Stop instead of leaking the provisional body error.
+Ordinary complete-body unknown-name handling is unchanged. EOF errors use the
+last real token; the existing unfinished-contract EOF exception remains.
+
+Public Compile tests require nil rejected Programs and complete ordered lists;
+frontend/parser/semantic controls also assert typed stops, retained AST/cursors,
+reached hints, real scopes and legal controls. Existing invalid pre-BEGIN nested
+routine and inline unit-interface test sources moved into actual body/implementation
+contexts while retaining their warning-order and import-visibility assertions.
+
+Pinned expectations derive from revision
+1dbf8a90329cc3f2638516e89c0668f916c1ddb9, without a Pascal executable oracle.
+Singleton explicitly overloaded-forward signature selection, broader unknown-name
+stops, unit lexer cutoff and remaining Phase 2 parents stay open. This slice does
+not add export metadata or full FASTCALL/REFERENCE language parity.
+
+Independent review found the completed-contract EOF exemption too broad; fix
+round 1 narrowed it and added actual public nil-Program/full-list and parser/
+frontend marker controls. Fix round 2 removed an always-true private helper result
+and moved two further ownership tests into supported contexts: a class method body
+in unit INTERFACE and a nested function inside Outer BEGIN. Enum identity/ordinal
+and all-node/lambda/main/generated ownership assertions remain. Both scoped
+re-reviews approved their corrections with no residual findings.
+
+Fresh full race/coverage, CI lint (zero issues), CLI acceptance and the complete
+CLI failure-set comparison pass on the reviewed tree. Tracked formatting,
+`go mod tidy`, `go generate ./pkg/ast` and diff checks pass; dependencies and the
+87-node visitor are unchanged. Parser coverage is 4,845/5,912 = 81.9520%, up from
+4,826/5,894 = 81.8799%; lexer remains 1,386/1,570 = 88.2803%.
+
+CLI remains 1,432 pass / 582 fail / 27 skip, with no new gains or regressions.
+Status generation produced Go 1,433/581/27 with BuildScripts 8; comparison of
+complete failure-name rows identifies only init_order1 as the extra pass. The
+following stable-baseline gate passes at 1,432/582/27 and matches every CLI category
+count and failure-name row. The updater's temporary BuildScripts floor of eight
+was restored to the established seven; the earlier check against that temporary
+floor failed and was rerun after restoration. Stable floors remain FailureScripts
+328, SimpleScripts 400 and BuildScripts 7. The existing Phase 5 ordering item now
+records init_order1 alongside the previously observed 2/4/5 variation, without
+ratcheting a varying gain.
+
 # Progress log — October 2026
+
+## 2026-10-09 — Checked interface default receiver groups (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) selects
+the default property from an already typed interface receiver after expression or
+aggregate indexing. One comma-separated bracket group supplies the declared
+property arguments; earlier receiver brackets and later result brackets remain
+separate. A variable aggregate that previously failed Compile with Array expected,
+and an array-returning call that compiled but failed Run with Get-2/got-1, now
+Compile and Run through the public API with exact output 6/6/RJGK.
+
+The selected static interface accessor survives a different dynamic class P and
+default Q. Reads and eligible writes retain the original receiver and var storage
+before later indices/RHS rebind them. Existing Go compound paths reuse one prepared
+list; their execution controls do not claim upstream compound legality. Receiver,
+index and RHS failures skip later effects and retain original ErrorValue and
+execution-context exception identity. Nil dispatch retains its existing order.
+
+Few, extra and empty default groups report accessor argument counts at the current
+opening bracket. Extra operands are reached before late checking; type/storage errors
+suppress count. Mismatched value/const groups use that same selected-signature
+checker while matching-count behavior retains its existing policy. Split brackets
+cannot borrow missing property arguments; only their source-pinned primary is
+asserted, without inventing a full later-bracket Pascal recovery cascade.
+
+A neutral exact-node semantic marker resolves provisional empty-group parser stops
+for actually selected properties. Ordinary arrays, declined/unvisited groups and
+true child/enclosing stops retain cutoff; later directives and terminal forwards
+remain reachable after a recovered property group. The original compatibility
+binding is unchanged. Probe results are consumed once, including nil and absent
+default properties; distinct source occurrences remain distinct. No runtime values
+enter immutable metadata and shared CollectIndices is unchanged.
+
+Nine checked public receiver shapes, capture/access/failure/nil/grouping and
+recovery controls pass, supplemented by reached-use/Stop/AfterChildren assertions
+and metadata reset/concurrent-read checks. Initial self-review reproduced and fixed
+a declined no-default receiver visited twice. Fresh independent task review approves
+the eleven-file implementation with no findings. Root's combined recovered-empty plus
+later index-child Stop probe asserts nil Program and both full positioned errors,
+with the later lexer directive and Pending forward excluded.
+
+The initial broader check exposed two semantic tests that expressly expected a
+preexisting duplicate receiver diagnostic. An immutable old/new CLI comparison
+confirmed identical public lists and acceptance. The tests now require exactly
+one raw diagnostic, with paired public accepted/non-nil and rejected/nil controls.
+A test-only identity assertion helper retains all twelve original failure cases
+and resolves lint complexity/type-declaration findings. Scoped correction review
+approves all three findings without new breakage.
+
+Final validation passes: full `go test -race -count=1 -coverprofile=.cache/phase30-final-coverage.out ./...`,
+exact CI lint with zero issues, fresh CLI acceptance and complete failure-set comparison,
+tracked formatting, `go mod tidy`, deterministic visitor generation, fixture regeneration
+and the following fixture gate. CLI and both Go fixture runs report 1,432 passes,
+582 failures and 27 skips; the Go category failure-name rows/counts agree with the
+CLI, and no CLI gain or regression occurs against the prior class-default child.
+Baselines remain unchanged at FailureScripts 328, SimpleScripts 400 and BuildScripts 7.
+Coverage remains parser 4,826/5,894 = 81.8799% and lexer 1,386/1,570 = 88.2803%;
+dependencies and generated visitor code are unchanged.
+
+Only the measured checked receiver/group child closes; the parent stays open.
+A named-target immutable baseline confirms Receivers := [Second] still fails runtime
+class-element-to-interface array coercion. That remains a separately doable
+prerequisite; capture controls store already interface-typed O via [O]. Opaque
+unchecked receivers, cast/static-owner and bare-factory typing, record/helper paths,
+field writers, combined indices/index directives and compatibility/inherited writes
+remain open. Pinned source revision is 1dbf8a90329cc3f2638516e89c0668f916c1ddb9;
+no Pascal executable oracle ran.
+
+## 2026-10-09 — Class property accessor index defaults (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) rejects
+accessor-only defaults on explicit class property indices. The existing shared
+parameter checker reports the property's index name, then the incompatible-method
+summary. Type errors precede mode errors, which precede default mismatch; later
+indices remain reachable. Count, getter result and setter Value type checks retain
+their earlier priority. Value modes/defaults and implicit index directives keep
+their declaration exemptions. Selected inherited/forwarded signatures own the
+checks, without inspecting unrelated descendant override defaults.
+
+Twenty-eight actual public Compile controls assert non-nil accepted Programs or
+nil rejected Programs and complete ordered severity/message/position lists.
+They cover reader/writer and zero defaults, alias/case/name differences, multi-index
+and read-before-write order, inherited/forward declarations, lexical forwarding,
+reached later names and priority/exemption controls. Independent task review
+approves the two-file change with no findings or correction rounds.
+
+Final validation passes: full `go test -race -count=1 -coverprofile=.cache/phase29-final-coverage.out ./...`,
+exact CI lint with zero issues, fresh CLI acceptance and full fixture failure-set
+comparison, tracked formatting, `go mod tidy`, deterministic visitor generation,
+fixture regeneration and the following fixture gate. CLI remains exactly
+1,432 passes, 582 failures and 27 skips; no gains/regressions occur against the
+record declaration slice. Regenerated Go status is 1,433/581/27 with BuildScripts 8,
+whose sole extra pass versus CLI is init_order4. The following gate is 1,432/582/27
+with BuildScripts 7. Initialization-order variation is recorded in Phase 5;
+no stable gain is claimed. Baselines remain unchanged at FailureScripts 328,
+SimpleScripts 400 and BuildScripts 7. Coverage remains parser 4,826/5,894 = 81.8799%
+and lexer 1,386/1,570 = 88.2803%; dependencies and generated code are unchanged.
+
+Only the measured class-default child closes; the parent remains open.
+The shared helper applies to retained metadata without a class-only gate, but the
+existing interface producer omits default expressions. An isolated public probe
+accepts an interface accessor default; that remains the separately doable PLAN 1.7
+signature-metadata prerequisite, not a compatibility acceptance contract. No
+producer or default-argument execution expansion occurred. Source expectations
+use pinned revision 1dbf8a90329cc3f2638516e89c0668f916c1ddb9; no Pascal oracle ran.
+
+## 2026-10-09 — Record property index declarations (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) shares
+semicolon-separated value/var/const index grammar with record declarations while
+preserving their composite type annotations. Named, inline and anonymous records
+retain immutable index names, types, modes and class/default flags through all six
+semantic/evaluator builders. Legacy metadata without modes still means value.
+Record property printing, traversal and generic cloning retain modifiers and
+positions; partial property printing safely handles an unread type.
+
+Record-owned accessor validation follows the selected underlying method through
+forwarding. Getter result/kind checks precede parameter checks; index type precedes
+mode, then default presence. Count and setter Value checks retain their earlier
+priority, with Value modes/defaults excluded from index equality. Declaration names
+own parameter detail diagnostics even when accessor names differ. No record-to-class
+conversion or extra implicit Self offset was introduced.
+
+Missing index types recover ordinarily as Variant without consuming the delimiter.
+Unknown named index types report at the consumed type end and keep Variant recovery
+for later checks. Genuine stopped lists retain reached partial indices and completed
+members while skipping unread types/accessors. Incomplete inline records preserve
+earlier accessor/body diagnostics and local sibling method scope, including when a
+completed property type fails. Their incomplete descriptor is never registered.
+Unchecked direct inline record annotations propagate index-type construction errors
+instead of silently substituting nil; other zero-value fallback policy is unchanged.
+
+Actual public Compile controls assert accepted Programs or nil rejected Programs
+and complete ordered lists across all three forms. Checked/unchecked metadata tests
+mutate the original AST after registration to verify signature independence.
+Unknown-type unchecked controls Compile successfully and fail at Run as required;
+valid inline zero values remain runnable. Getter subtype, method/expression forwarding,
+mode/default/type/count priority, partial AST cloning and reached Stop controls pass.
+Independent task review plus three scoped correction reviews approve the final slice.
+MissingBody multi-error controls preserve existing Go behavior; they are not Pascal
+parity, because the pinned original stops at that expression's unknown name.
+
+Final validation passes: `go test -race -count=1 -coverprofile=.cache/phase28-final-coverage.out ./...`,
+exact CI lint with zero issues, fresh CLI acceptance and full fixture failure-set
+comparison, tracked formatting, `go mod tidy`, deterministic visitor generation,
+fixture regeneration and the subsequent fixture gate, and diff hygiene. CLI results
+exactly match the prior 1,432 passes, 582 failures and 27 skips across 2,041 fixtures.
+Regenerated Go status records 1,434/580/27 with BuildScripts 9; the subsequent gate
+records 1,433/581/27 with BuildScripts 8. Its extra pass versus the CLI is init_order2,
+already tracked for nondeterministic initialization order. The earlier CLI run also
+varied at init_order5. These are not stable gains: baselines remain unchanged at
+FailureScripts 328, SimpleScripts 400 and BuildScripts 7. Parser coverage is
+4,826/5,894 = 81.8799%, above the prior 4,776/5,902; lexer stays 1,386/1,570 = 88.2803%.
+Dependencies and generated visitor code remain unchanged.
+
+Only the record declaration/metadata child closes; the parent remains open.
+Record index execution, caller references, expression accessors, forwarding and
+receiver capture remain doable follow-ups. PLAN also retains measured class accessor
+index-default validation, common malformed array-element recovery, and completed
+property type-error recovery for complete-inline/anonymous records. Global unknown-
+expression Stop policy is separate. No Pascal executable oracle ran; source contracts
+use pinned revision 1dbf8a90329cc3f2638516e89c0668f916c1ddb9.
+
+## 2026-10-09 — Interface and resolved property index references (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) reuses
+original-AST index preparation for interface properties and checked resolved
+inherited/compatibility reads. Var indices retain caller storage; value and const
+indices keep their existing behavior. Interface writes capture the static contract,
+receiver and index references before the RHS. Existing interface compound callers
+prepare once and reuse the same references through getter and setter. Resolved
+reads retain the lexical property descriptor and existing virtual accessor chain.
+
+Public Compile/Run controls cover named/default interface mutation (6/6/9), aliases,
+differing declaration/accessor names, static contracts despite a differently declared
+dynamic class property, mixed modes, checked factories, grouped local/forwarded/member
+storage, original slots and receivers across rebinding, and separate result brackets.
+Distinct receiver state and exact traces verify capture order and once-only effects.
+Checked inherited and implicit/explicit compatibility reads retain caller mutation
+and lexical ownership. Receiver/index/RHS failures skip the appropriate later effects.
+Eight amended-entry controls assert original ErrorValue and execution-context exception
+pointer identity, alongside script exception and nil-dispatch controls. Independent
+task review approves the bounded implementation with no findings.
+
+Validation passes: full `go test -race -count=1 -coverprofile=.cache/phase27-final-coverage.out ./...`,
+CI lint with zero issues, fresh CLI storage/order/diagnostic controls and complete
+fixture failure-set comparison, `just fixture-update`, `just fixture-check`, tracked
+formatting, `go mod tidy`, deterministic visitor generation and diff hygiene.
+The CLI remains 1,432 passes, 582 failures and 27 skips across 2,041 fixtures, with
+no gains or regressions against the prior semantic slice. Regenerated Go status
+now matches these totals; the earlier BuildScripts score of 8 remains a known
+initialization-order variation, with the stable floor retained at 7. Other floors
+remain FailureScripts 328 and SimpleScripts 400. Parser coverage stays
+4,776/5,902 = 80.9217%; lexer stays 1,386/1,570 = 88.2803%. Dependencies and generated
+visitor files remain unchanged.
+
+PLAN checks only interface reference calls and checked resolved reads; the parent
+stays open. A measured aggregate-default interface receiver still fails Compile
+with `Array expected` before execution, while its named-property counterpart passes.
+Record/helper paths, opaque unchecked receivers, selected-static cast-index dispatch,
+field writers, new ordinary class compound support and compatibility/inherited writes
+remain doable follow-ups. No Pascal executable oracle ran; source expectations use
+pinned revision 1dbf8a90329cc3f2638516e89c0668f916c1ddb9.
+
+## 2026-10-09 — Property index terms and selected accessor checks (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) separates
+reading property indices from checking the selected accessor. Declaration modes
+choose term versus expression reading. A var index stops at the first unread outer
+operator with `")" expected`, preserving reached child errors and skipping later
+indices and setter RHS. Grouping consumes a full expression; nested call/index
+children retain their own expression grammar. Genuine child stops also skip later
+symbol usages and successful property bindings, without changing global unknown-name
+recovery or value/const property gates.
+
+Late checks use the selected accessor's types, modes, names and full argument count.
+Setters read the RHS first, then check indices, an existing typed index directive
+and the assigned value in one pass. Declaration and RHS child errors do not hide
+later count errors; errors in the late pass suppress its count diagnostic. Getter
+and setter signatures survive ordinary parameter mismatch recovery. Named writers
+retain declaration-selected signatures through inheritance, forwarding and bare
+promotion, so an override cannot change the diagnostic parameter name. Expression
+accessors use property index names; legal field writers bypass method argument checks.
+
+Successful single-expression parentheses now remain in the AST. Parenthesized
+`write (F)` retains expression-setter kind, and the printer emits its WriteStmt.
+Grouped var operands preserve original storage. A bounded malformed binary RHS
+retains its index/call fragment through the existing deferred-index contract, while
+ordinary arrays and reached grouped/call errors keep their cutoff. Constant checks,
+bytecode expression dispatch/type inference and evaluator old-value capture traverse
+groups transparently, preserving existing bitwise/Boolean and nested-contract behavior;
+no VM opcode or contract policy was added.
+
+Complete frontend and public Engine lists cover operator precedence, prefix/infix
+not, grouping, child stops, setter order, interface and lexical accessor names,
+numeric/alias conversion, class var type/storage ordering, field writer behavior
+and declaration-recovery type/count checks. Rejected Engine compiles retain nil
+Programs. Checked/unchecked execution verifies grouped local, forwarded, array and
+member references, once-only effects, printed setters and nested old-value capture.
+Independent task review and three scoped correction reviews approve the slice.
+
+Validation passes: full `go test -race -count=1 -coverprofile=.cache/phase26-final-coverage.out ./...`,
+then fresh affected public race checks after a test-helper-only lint cleanup; the
+exact CI lint gate reports zero issues. Fresh CLI acceptance verifies live var
+storage, RAIVS ordering, grouped storage and full selected-accessor recovery lists.
+The complete CLI fixture comparison gains only `SimpleScripts/enum_to_integer`, with
+no regressions: 1,432 passes, 582 failures and 27 skips across 2,041 fixtures.
+`just fixture-update` generated 1,433 passes because BuildScripts scored 8 instead
+of the CLI's 7, its documented initialization-order variation. `just fixture-check` passes after preserving the variable floor. Only the stable
+SimpleScripts floor is ratcheted, from 399 to 400; FailureScripts stays 328 and
+BuildScripts stays 7. Tracked formatting, dependency tidying and visitor generation
+pass with dependency/generated files unchanged. Parser coverage is
+4,776/5,902 = 80.9217%, above 4,746/5,882; lexer remains 1,386/1,570 = 88.2803%.
+
+PLAN checks only the measured semantic child. Interface/resolved runtime references,
+opaque/default receivers, cast-index dispatch, field writers, record/helper paths,
+new compound support and inherited writes remain open. Other malformed shapes and
+Variant/user conversion policy retain measured follow-ups. Expectations use pinned
+DWScript revision 1dbf8a90329cc3f2638516e89c0668f916c1ddb9; no Pascal oracle ran.
+
+## 2026-10-09 — Ordinary class property index references (PLAN 2.2, runtime slice)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) stores
+value/const/var modes in one immutable typed property signature. Checked class
+and independent runtime class/interface construction preserve grouped modes;
+promotion and forwarding retain the signature, and checked forwarding rejects
+mode mismatches. Missing legacy metadata keeps value semantics; an explicitly
+partial mode signature is rejected before arguments execute.
+
+Ordinary class named/default and class-meta named reads prepare original index
+expressions sequentially. A var index captures caller storage through the existing
+reference machinery; value/const indices execute once. Eligible method/expression
+setters retain their receiver, descriptor and index references before evaluating
+the RHS, then append the assigned value once. Later container rebinding preserves
+the captured slot. Original index errors and script exception state survive;
+failing capture skips later indices, RHS and setter.
+
+Ordinary class array-field and method-result assignment retain RHS-first ordering
+and capture their receiver once. Parameterless instance/class methods use the
+existing dispatcher with that captured object, preserving lexical/virtual dispatch,
+merged overload/default precedence, metaclass Self and lifecycle guards. Helper and
+namespace handling and the implicit-call completion tail remain intact. A receiver
+that supplies different objects on successive calls proves first-object storage
+identity, in addition to trace order. Bare and explicit controls preserve existing
+class-only function-pointer and checked overloaded-call boundaries.
+
+Tests through public Engine cover checked/unchecked var mutation (6/6/9), value
+copy (6/5/5), const controls, forwarded/local references, mixed modes, array/field
+capture, class/virtual/expression getters, receiver/index/RHS ordering (RAIVS/8),
+container rebinding and original exceptions. Declaration mode matrices and complete
+array_params1/2/3 compile expectations remain alongside the runtime tests. Independent
+task review and three scoped correction reviews approve the bounded implementation.
+
+The parent remains open. Semantic writable/type/term checks, interface and resolved
+inherited/compatibility references, record/helper paths and new compound var-index
+support are separate work. Opaque unchecked default receivers still lose original
+var operands on fallback. Selected-static-owner cast-index dispatch, bare factory
+receiver typing and indexed field writers are measured prerequisites, not closed
+by eligible target capture. Setter ordering is not universal for dynamic receiver
+forms. Source expectations use pinned compiler revision
+1dbf8a90329cc3f2638516e89c0668f916c1ddb9; no Pascal oracle ran.
+
+Final verification passes: `go test -race -coverprofile=.cache/phase25-final-coverage.out ./...`,
+CI lint with zero issues, fresh CLI mutation/order acceptance, complete fixture failure-set
+comparison, `just fixture-update`, `just fixture-check`, tracked Go formatting,
+`go mod tidy`, deterministic `go generate ./pkg/ast` and `git diff --check`.
+Both final reports score 1,431 passes, 583 failures and 27 skips across 2,041 fixtures;
+no CLI gains or regressions against the declaration slice. Generated Go status now
+matches the CLI's BuildScripts score of 7; the existing variable score of 8 was
+never ratcheted. Floors remain FailureScripts 328, SimpleScripts 399 and BuildScripts 7.
+Parser coverage stays 4,746/5,882 = 80.6868%; lexer stays 1,386/1,570 = 88.2803%.
+Dependency and generated visitor files remain unchanged. PLAN checks only the
+eligible ordinary runtime child and keeps broader receiver/writer prerequisites open.
+
+## 2026-10-09 — Property index declaration modes (PLAN 2.2, first slice)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) accepts
+semicolon-separated value, var and const property index groups, applies each mode
+to every grouped name and resets it between groups. Empty brackets produce the
+ordinary `Parameters expected` at the closing bracket and retain the property.
+Missing names, colons and brackets use genuine compiler stops and real EOF anchors.
+Existing partial-class retention keeps earlier methods/properties available for
+semantic validation without new class-parser recovery.
+
+Class and interface accessors share index type/mode checking. Count, writer value,
+index-directive, result and method-kind checks retain priority. Per-index type
+mismatches suppress mode mismatches for that index; mode details use the property
+parameter's spelling and zero-based index, followed by one method summary at the
+accessor anchor. All value/var/const pairs, inherited accessor selection, multiple
+indices, malformed lists, earlier errors and later cutoff have complete-list tests.
+Both `array_params1` and `array_params2` match their full expectations;
+`array_params3` retains its existing one-message expectation.
+
+AST.String and the class source printer preserve parameter modes using valid
+semicolon-separated declarations. Independent reparsing inspects every index;
+legal const and value-copy sources execute through public Engine before and after
+serialization. Independent task review approves the bounded declaration slice.
+
+The parent var/const item remains open. Typed property mode metadata, live caller
+references, storage/type/term-boundary validation and receiver/index-before-RHS
+setter capture are next. Default, interface and resolved inherited/compatibility
+calls need reference preparation; record grammar, composite index types and indexed
+helper dispatch retain their independent boundaries. No var mutation runtime parity
+is claimed by this declaration change.
+
+Final CLI totals are 1,431 passes, 583 failures and 27 skips across 2,041 fixtures:
+only the two declaration fixtures gain passes, with no regressions. FailureScripts
+ratchets 326 to 328; SimpleScripts remains 399. Generated Go status scored 1,432
+with the existing variable BuildScripts gain; CLI scored 7 in that category and
+its established floor remains 7. Parser coverage rises from 80.5073% to
+4,746/5,882 = 80.6868%; lexer remains 1,386/1,570 = 88.2803%.
+
+Source-derived expectations use pinned compiler revision
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`, especially ReadArrayParams,
+CheckPropertyFuncParams and CheckParams. No Pascal oracle ran. Final verification
+passes: `go test -race -coverprofile=.cache/phase24-final-coverage.out ./...`,
+CI lint with zero issues, fresh CLI complete-list/const/value checks and full
+fixture comparison, `just fixture-update`, `just fixture-check`, tracked Go
+formatting, `go mod tidy`, deterministic `go generate ./pkg/ast`, and
+`git diff --check`. Dependency and visitor files are unchanged. Guides and PLAN
+record this completed subtask and its remaining runtime prerequisites.
+
+## 2026-10-09 — Routine export directives (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) accepts one
+ordinary procedure/function `export` directive and an optional decoded string name.
+AST metadata distinguishes absent and explicit empty names. Empty, escaped and
+multiline names, helper aliases, linkage and qualifier flags survive AST/source
+printer round trips. Script bodies remain runnable under their script names;
+export metadata does not enable external linkage. Combined directives print in
+source order: external, forward, export, helper, then calling qualifiers.
+
+Declaration context distinguishes ordinary, member and unit-interface routines.
+Unit-interface exports retain implicit forwarding through the common statement
+boundary, preserving stop checks and synthesized declarations. Invalid name tokens
+stay unread for the ordinary semicolon error and subsequent genuine BEGIN stop;
+exported routines without a body also stop at EOF. Earlier reached errors remain,
+while later parser/semantic/lexer messages and program-end forward checks are skipped.
+The complete two-message `FailureScripts/export` expectation now passes.
+
+A matching forward implementation cannot repeat export. Local binding is captured
+before registration changes its forward state; non-overloaded forwards preserve
+header mismatches before the keyword stop, while explicit overloads use the existing
+signature/return/default match. Local shadows and genuine new overload-set members
+remain legal. Matched unit-interface implementations follow the same rule. Reached
+export headers survive missing-body recovery so malformed/EOF implementations still
+select that branch. Semantic stops win equal-position parser ties; earlier positions
+retain priority. Convention hints wait for export binding and are omitted when their
+post-export qualifier was never reached. Public compile failures return nil Programs.
+
+Independent task review and three correction reviews covered helper metadata,
+linkage order, forward context, malformed-header retention and unreached qualifier
+hints. Tests verify complete frontend/public Engine diagnostic lists, actual stop
+metadata, AST/printer declaration state, runnable ordinary/exported/helper bodies,
+once-only effects, overloads, units and lexical shadows. Expectations are source-derived
+from pinned compiler revision `1dbf8a90329cc3f2638516e89c0668f916c1ddb9`; no Pascal oracle ran.
+
+The final CLI report has 1,429 passes, 585 failures and 27 skips across 2,041 fixtures:
+only `FailureScripts/export` gains a pass, with no regressions. FailureScripts ratchets
+325 to 326; SimpleScripts remains 399 and BuildScripts retains its established floor
+of 7. Earlier transient BuildScripts gains reproduced on both immutable old/new CLIs
+and remain attributed to existing initialization-order variation. Parser coverage is
+4,729/5,874 = 80.5073%, above 80.0513%; lexer remains 1,386/1,570 = 88.2803%.
+
+PLAN.md checks the export item and leaves all remaining Phase 2 work open. Property
+index declaration modes, live references and setter capture order are the next ordered
+slices. General late-directive BEGIN recovery, forbidden interface-method directives,
+lone explicitly overloaded forward registration and unmatched unit signatures retain
+separate measured boundaries. Unit-local lexer cutoff still needs the broader stop model.
+
+Final verification passes with Go 1.24.13 and native test storage:
+`go test -race -coverprofile=.cache/phase23-final-coverage.out ./...`, the CI lint gate
+(zero issues), fresh CLI build/complete-list execution checks/full fixture comparison,
+`just fixture-update`, `just fixture-check`, tracked Go formatting, `go mod tidy`,
+deterministic `go generate ./pkg/ast` and `git diff --check`. Visitor and dependency
+files are unchanged. Both guides record the new behavior and remaining boundaries.
+
+## 2026-10-09 — Property descriptions and compiler-stop end hints (PLAN 2.2, 2.4)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) accepts
+literal property descriptions before `reintroduce` and the declaration semicolon.
+AST metadata distinguishes absent from explicit empty descriptions. Source printing
+preserves empty, escaped and multiline text, accessor behavior and default/reintroduce
+flags through public Engine compile/run round trips.
+
+The complete four-message `property_description1` expectation now passes. Invalid
+literal tokens stay available to semicolon/class recovery; a reached property survives
+its missing semicolon. Root `END` reports the ordinary `Unexpected END`, while prior
+compiler stops suppress unreached root tokens and nested statement recovery stays scoped.
+Class instance field readers own trailing external/readonly qualifiers. Record fields
+after methods raise genuine parser stops, retaining earlier header errors and skipping
+later statements, lexer messages and forward checks. This also closes
+`FailureScripts/end_implementation1`; `readonly_field`, `record_method_missing_begin`
+and `record_recursive3` retain their exact fixture behavior.
+
+Program-end private field/method hints are skipped after resolved compiler stops,
+including provisional ordinary-index stops. Hints from earlier completed routines remain;
+resolved property reads retain their legitimate completion path. The obsolete frontend
+annotation-sentence filter is removed while the separate parser cascade suppression remains.
+Direct analyzer/filter controls and complete frontend/public Engine lists verify these
+lifecycle changes. Independent task reviews, a fix review and an integrated review pass.
+
+The full CLI comparison reports 1,428 passes, 586 failures and 27 skips across 2,041
+fixtures: two additional diagnostic-fixture passes and no regressions. FailureScripts
+ratchets from 323 to 325; SimpleScripts remains 399. BuildScripts retains its established
+floor of 7: the CLI scored 7 while the generated Go status scored 8 on its existing
+variable initialization-order case. Parser coverage rises from 79.8352% to 80.0513%; lexer
+coverage remains 88.2803%.
+
+Remaining Phase 2 items stay open. `export` is next. Unit-local lexer cutoff needs typed
+parser-stop/message retention past registry loading. Existing ordinary declaration-error
+versus completed-routine hint ordering, successful-unit private hints and ordinary semantic
+error suppression require separate lifecycle work. Expectations are source-derived from
+pinned compiler revision `1dbf8a90329cc3f2638516e89c0668f916c1ddb9`; Pascal was not executed.
+
+Validation on the final source: full `go test -race -coverprofile=.cache/phase22-final-coverage.out ./...`,
+CI-configured lint (zero issues), `just fixture-check`, tracked Go formatting,
+`go mod tidy`, deterministic visitor generation and CLI build all pass. Fresh CLI
+assertions match complete property/record failure lists and all four legal description
+scripts; the final lint correction preserves the finished property's pointer and span.
+
+## 2026-10-09 — Inherited indexed reads and lexer anchors (PLAN 2.1, 2.5)
+
+This batch ([#472](https://github.com/CWBudde/go-dws/pull/472)) accepts checked `inherited Prop()[i, j]` and
+`inherited Prop[i, j]` reads. Lookup retains the lexical method owner's parent
+descriptor and accessor storage owner; virtual instance/class getters dispatch
+on dynamic Self. It reuses the evaluator's resolved indexed-property binding.
+Acceptance includes 63 literal frontend diagnostic lists, 23 public Engine
+scripts, four structured public Compile failures and six printer round trips.
+Tests cover parent/grandchild shadows, class and expression getters, ordered
+once-only effects, original exceptions, recursion, nil nonvirtual readers,
+array-result indexing and printer round trips. Unsupported writes and nonempty
+calls keep their existing rejection; static inherited callers retain existing
+unsupported behavior pending separate upstream investigation.
+
+Source-derived diagnostics retain deprecation before compatibility hints and
+omit inherited member-casing hints. Missing/empty declared index groups report
+missing arguments; unfinished groups preserve child diagnostics then stop before
+argument checks and class-reader eligibility. Per-index AST identity distinguishes
+these from ordinary arrays. Independent review caught omitted/empty/unfinished
+recovery gaps, inactive include braces, failed include lookahead positions, and
+cross-package empty-index stop/cutoff regressions; exact compile-path regressions
+were added before their fixes. Unresolved ordinary empty indices suppress program
+and imported-unit forward checks; recoverable property groups retain later
+messages and legitimate unit forward obligations. General ordinary-call truncation remains open.
+
+Lexer-owned include and conditional anchors now match complete fixture lists.
+Inactive conditional EOF distinguishes real skipped tokens from immediate or
+comment-only EOF; the conditionals2 fixtures were never byte-identical.
+Expression includes substitute LINE, LINENUM, TIME, DATE and TIMESTAMP, preserving
+failed-lookahead current-token anchors, last-consumed EOF positions, inactive
+brace checks and valid adjacent switch/percent syntax. Contextual FILE, MAINFILE,
+FUNCTION and EXEVERSION values remain unsupported follow-ups.
+
+Pinned upstream commit `1dbf8a90329cc3f2638516e89c0668f916c1ddb9` supplies the
+compiler control-flow expectations: raw CRLF compiler blob
+`cffe42f756f8f0a44eeae0e045d6bb2bbe7878b4`, LF-normalized blob
+`ac94044ce6961ddb483a82e82d3d085e0e6e642a`; tokenizer rules blob
+`984125564a34605bd1ec356fea89bc6ce4b8c988`. No Pascal oracle was executed.
+
+The stale SetOfFail parser trio and invalid_operand checklist portions were
+already shipped in September and were independently reverified through complete
+frontend diagnostic lists. Those entries are reconciled without claiming new
+implementation. Only the inherited-read child and lexer-anchor subphase close;
+remaining Phase 2 work stays visible.
+
+Final validation passed `go test -race -coverprofile=<file> ./...`, CI diff
+lint against `origin/main`, formatting, dependency tidiness, unchanged generated
+visitor output and a fresh CLI build. Direct lexer/parser contract tests added
+for the coverage guard also pass their package race runs and scoped lint. Their
+coverage profiles supplement the full-suite profile: lexer 88.2803% versus its
+86.1806% baseline, parser 79.8352% versus 79.6765%.
+
+Both `just fixture-update` and `just fixture-check` pass. The fresh CLI report
+and individual fixture failure-set comparison show exactly three gains:
+`FailureScripts/conditionals2.1`, `include_expr` and `include_incorrect`, with
+no regressions. The FailureScripts floor ratchets 320 to 323; BuildScripts stays
+at 7. Generated status totals 1,426 passes, 588 failures and 27 skips across
+2,041 fixtures. The progress guide and checklist reflect this bounded scope;
+the public PR is left unmerged.
 
 ## 2026-10-09 — Unqualified indexed property reads (PLAN 2.1)
 

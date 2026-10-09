@@ -145,13 +145,24 @@ stays open until all its subtasks pass. Update its checkbox and this table in th
 same PR; retain checked siblings until the subphase closes. Detailed evidence:
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
-**Current user-selected track:** 2.1's type-directed punctuation, after the record-constant,
+**Current user-selected track:** all doable Phase 2 items, one coherent item at a time;
+independent work can run in parallel. Type-directed punctuation follows the record-constant,
 bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batches.
 The standard Default namespace availability and binding batch is closed in [#466](https://github.com/CWBudde/go-dws/pull/466).
 Explicit scalar reintroduced-property empty reads and statement-boundary recovery shipped
 in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty scalar reads
 in class methods shipped in [#468](https://github.com/CWBudde/go-dws/pull/468). Named inherited empty/bare scalar reads and parent accessor ownership are implemented in [#469](https://github.com/CWBudde/go-dws/pull/469).
-Next: reintroduced-property nonempty/discarded-parent recovery and indexed/write contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
+Property descriptions and program-end hint suppression are implemented in [#472](https://github.com/CWBudde/go-dws/pull/472).
+The `export` directive is implemented in [#472](https://github.com/CWBudde/go-dws/pull/472).
+Property index declaration parsing, validation and source preservation are implemented
+in [#472](https://github.com/CWBudde/go-dws/pull/472); the parent item stays open.
+Eligible ordinary class property index references and setter capture order are implemented
+in [#472](https://github.com/CWBudde/go-dws/pull/472). Measured property index use-site
+checks and grouping preservation are also implemented there. Interface reference calls and
+checked resolved inherited/compatibility reads retain caller storage and capture order there.
+Checked interface default receiver groups after typed expressions and aggregates are implemented
+there, with receiver/result brackets kept separate.
+Next: remaining record runtime contexts and Phase 2 recovery/access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
@@ -412,8 +423,14 @@ punctuation in the parser before reading arguments.
           retain static declaration flags across out-of-line implementations per overload.
         - [x] Preserve ordered once-only index/getter effects, original exceptions,
           recursion, nonvirtual nil readers, array-result indexing and printer round trips.
-      - [ ] Extend indexed compatibility reads to named inherited contexts,
-        retaining their lexical descriptor/accessor and diagnostic rules.
+      - [x] Read named inherited indexed properties through `inherited Prop()[i, j]`
+        and `inherited Prop[i, j]` ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+        - [x] Preserve lexical parent descriptors/accessors, dynamic virtual Self,
+          ordered once-only indices/getters, exceptions, recursion and array results.
+        - [x] Preserve hint/deprecation ordering, missing/empty argument counts and
+          unfinished-list stops; keep ordinary array recovery and static caller controls.
+        - [x] Resolve per-index provisional stops before directive cutoff and program/unit
+          forward checks; retain parser-only behavior and source-printer round trips.
       - [ ] Support ordinary bare unqualified indexed reads (`Prop[i]`); these
         already fail with `Array expected` before the compatibility-read batch.
       - [ ] Align remaining default-property postfix/call contexts; reject `Obj()[i]`
@@ -438,25 +455,116 @@ punctuation in the parser before reading arguments.
 ### 2.2 Parser gaps — S each
 
 - [ ] `var`/`const` in property index parameters (`array_params1`/`2`, `Parameters expected`).
-- [ ] The `export` directive.
+  - [x] Declaration grammar/recovery, accessor passing-mode validation and AST/printer
+    preservation; both complete fixture diagnostic lists pass
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  - [x] Typed passing-mode metadata and live caller references through eligible ordinary
+    class named/default properties; retain receiver/indices before the setter RHS
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  - [ ] Complete capture for opaque unchecked/default receivers and legal indexed
+    field writers; preserve their accessor-specific index and RHS behavior.
+  - [ ] Add selected-static-owner cast-index dispatch and bare factory receiver
+    typing; these existing receiver prerequisites are separate from reference capture.
+  - [x] Measured class/default/interface and inherited/compatibility semantic index
+    term, storage and type checks; retain grouping, expression-writer kind, selected
+    accessor signatures and child/RHS order
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  - [x] Interface named/default reference reads and writes, plus checked resolved
+    inherited/compatibility reads, retaining original indices, selected accessors,
+    capture order and exceptions ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  - [x] Checked expression/aggregate default interface receivers retain one declared
+    comma group, static accessor selection, capture order and separate result indices
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  - [ ] Coerce class-object elements into typed interface arrays. Existing named
+    aggregate writes after `Receivers := [Second]` still fail at runtime with
+    `got OBJECT, expected I`; already interface-typed elements work.
+  - [ ] Complete remaining ordinary class compound property behavior;
+    compatibility/inherited writers remain open in 2.1.
+  - [ ] Measure Variant/user conversion policy and remaining malformed index-tail
+    recovery shapes beyond the retained direct binary RHS.
+  - [ ] Complete the independent record declaration/runtime paths.
+    - [x] Shared record index grammar, accessor signatures and immutable metadata
+      across named, inline and anonymous declarations; preserve reached members
+      before a stopped index list ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+    - [ ] Complete record index execution, reference capture, expression accessors
+      and forwarding; indexed helper dispatch and inherited writes remain open.
+    - [ ] Retain earlier completed-member diagnostics when a complete inline or
+      anonymous record's completed property type cannot resolve. Their existing
+      early returns still hide earlier accessor/body errors.
+  - [x] Reject matched class accessor index defaults after type/mode agreement;
+    preserve selected lexical signatures and Value/index-directive exemptions
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+- [ ] Recover missing composite array element types with ordinary `Type expected`
+  and a Variant element, leaving the delimiter unread. Existing `array of ]`
+  recovery still produces a partial type and a later bracket stop.
+- [x] The `export` directive ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  Preserve optional names, helper/linkage metadata and runnable bodies; reject repeated
+  export on matching forward implementations with a genuine stop at the keyword,
+  including malformed/EOF headers and unreached qualifier hints.
+- [x] Measured routine directive/context recovery
+  ([#472](https://github.com/CWBudde/go-dws/pull/472)): ordinary body-required
+  readers preserve reached phases, headers/local/contract prefixes and hints;
+  late directives stop with `BEGIN expected`, late `forward` keeps its specific
+  stopping sentence, and interface-method directives stop at enclosing `END`.
+  Completed contract prefixes at EOF require a body; retain the existing
+  unfinished-contract exception and legal member/forward/external/unit contexts.
+- [ ] Complete source-exact matching for explicitly overloaded forwards.
+  - [x] Select a differing-parameter-type singleton before name-bound replacement;
+    preserve its pending original through a new or rejected overload, allow the
+    matching implementation without repeating `overload`, and share EXPORT reach
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)). Ordinary nonexplicit forwards
+    retain their existing name-bound mismatch behavior.
+  - [x] Match directional default omission for explicit-overload singleton and set
+    candidates; retain original scalar defaults through actual calls and shared
+    EXPORT reach without changing source headers
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)). Declaration-scope constants,
+    exact integer arithmetic and Float modulo data are covered.
+  - [ ] Match exact parameter names and default data, plus remaining
+    routine-kind/options/level criteria. Completed children otherwise use the
+    existing parameter-type/mode/return criteria.
+  - [ ] Complete remaining non-scalar/builtin and unsupported scalar default
+    binding at declaration scope; the measured scalar snapshot is not a complete
+    constant/default evaluator.
+  - [ ] Complete source ambiguity checks for same-type name/mode/default/return
+    differences; the existing Go return-only overload extension remains a separate
+    policy until this measured follow-up is implemented.
 - [ ] `OF OBJECT expected` (`legacy_proc_of_object`).
 - [ ] `array of const` (`open_array`).
-- [ ] `String expected` for a property description (`property_description1`).
+- [x] `String expected` for a property description (`property_description1`,
+  [#472](https://github.com/CWBudde/go-dws/pull/472)). Preserve literal/empty/escaped/multiline
+  metadata and printer round trips, ordinary semicolon/root-END recovery, class field
+  qualifier ownership, and genuine record fields-after-methods stops.
 - [ ] Attribute `"]"` anchored at the `[` (`attribute_incorrect2`; also needs
   `Dangling attribute declaration`).
 - [ ] `Dot "." expected` where the parser must know `TTest` is a class (`method_implem6`).
 - [ ] `interface helper for T` (needed by `HelpersFail/mixed_helper`, see 4.3).
-- [ ] SetOfFail parser parity: `bracket_right_missing`, `for_in_set_missing_do`, `of_missing`
-  (`"X" expected` / `OF expected` / `DO expected`).
+- [x] SetOfFail parser parity: `bracket_right_missing`, `for_in_set_missing_do`, `of_missing`
+  (`"X" expected` / `OF expected` / `DO expected`). Already shipped on September 20;
+  reverified complete compile-path diagnostic lists while reconciling this stale entry
+  ([#472](https://github.com/CWBudde/go-dws/pull/472)).
 - [ ] Extend `unexpected "@"` beyond the type/scalar cases shipped in 2.1
   (`SetOfFail/invalid_operand`, `dyn_array3`, `field_init1`, `func_ptr6`).
+  - [x] `SetOfFail/invalid_operand`: already shipped on September 29;
+    reverified its complete six-line compile-path expectation ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  - [ ] Complete the remaining `dyn_array3`, `field_init1`, and `func_ptr6` contexts.
 
 ### 2.3 Property accessor recovery — S
 
-- [ ] `read (…)` / `write (…)`: upstream reports every missing `")"` as an ordinary error
-  (`missing_reader_bracket` lists lines 4, 6, 7, 8); go-dws's parenthesised-expression stop hides
-  all but the first.
-- [ ] `Warning: Property writer does nothing` (blocks the above).
+- [x] Class accessor-owned outer `read (…)` / `write (…)` delimiter recovery;
+  retain reached declarations and genuine inner stops. The complete seven-line
+  `missing_reader_bracket` list passes ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+- [x] Null-writer warnings for class/record/helper syntactic empty writers and
+  measured class literal/named-constant instructions; preserve opening anchors,
+  writable no-op execution and source grouping. `null_write_expression` and
+  `null_read_expression` pass ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+- [ ] Complete record-specific malformed outer-reader recovery and numeric-writer
+  declaration retention beyond the shared successful writer wrapper.
+- [ ] Complete record/helper resolved-constant null classification and expression
+  body semantic scopes; syntactic empty writers are covered above.
+- [ ] Complete remaining instruction grammar/optimizer parity, including arbitrary
+  constant operator trees and optimized empty compounds. Tested compound assignment,
+  block, conditional, loop, case and try writers are supported. These remaining
+  owner/optimizer contexts are doable follow-ups, not impossible deferrals.
 
 ### 2.4 Compile-stop model — M
 
@@ -482,23 +590,38 @@ assignment recovery and implicit-call intent without invoking a returned callabl
   Explicit method calls now retain opening/first-token metadata and incomplete fragments for
   scalar property resolution; the broader nested/ordinary call recovery remains open.
 - [ ] S Analyzer stops (`"(" expected`) must suppress later diagnostics the way parser stops do.
-- [ ] S End-of-compilation hints positioned before a parser stop are still reported; drop them.
+- [x] S Skip program-end private field/method hints after resolved compiler stops;
+  preserve hints from earlier completed routines ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+- [ ] S Preserve completed-routine hints before later ordinary declaration errors
+  in the mixed-phase diagnostic merge. Existing missing-property-semicolon recovery
+  and property descriptions share this ordering gap; hint membership is preserved.
+  A completed Prefix Local hint also follows an earlier ordinary property reader-close
+  error before a later null-writer stop; the exact reproducer is recorded in the
+  October progress log.
 - [ ] S The analyzer's compile stop is one flag (unknown name in an expression) that skips the
   end-of-program forward check; generalise it.
 - [ ] S Apply the lexer-diagnostic cutoff (`reachedLexerDiagnostics`,
   `internal/frontend/result.go`) on the unit-compile path (`internal/frontend/units.go`) too.
-- [ ] S Delete the now mostly dead `must have either a type annotation` text filter in
-  `internal/frontend/result.go`.
+  Carry typed unit parser-stop metadata and lexer messages past registry loading;
+  resolve reach within the unit's source before merging its diagnostics.
+- [x] S Delete the obsolete `must have either a type annotation` text filter in
+  `internal/frontend/result.go`; preserve the separate parser cascade suppression
+  ([#472](https://github.com/CWBudde/go-dws/pull/472)).
 - [ ] S Inside `begin…end`, the value left unconsumed after a read-only property assignment gets
   a follow-up diagnostic upstream (go-dws reports nothing); indexed read-only property writes get
   none either.
 
-### 2.5 Lexer-owned anchors — S
+### 2.5 Lexer-owned anchors — complete
 
-- [ ] `include_incorrect` wants `"}" expected` at 3:18 (end of the directive argument);
-  `directive_messages.go` anchors at 3:13.
-- [ ] `conditionals2.1` reports an unbalanced conditional at the directive argument (column 9),
-  where the byte-identical `conditionals2` wants the name (column 3).
+Include-expression delimiter anchors (`include_incorrect`, `include_expr`) and
+conditional EOF provenance (`conditionals2`, `conditionals2.1`) now pass their
+complete compile-path expectations and recovery controls ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+The completed checklist is recorded in the [October progress log](docs/history/progress-log-2026-10.md).
+The conditional fixtures differ: one ends at the directive, the other has skipped tokens.
+
+Include substitutions support LINE, LINENUM, TIME, DATE and TIMESTAMP.
+FILE/MAINFILE/FUNCTION/EXEVERSION still require source, routine or executable
+context; their existing unsupported value behavior remains a separate follow-up.
 
 ---
 
@@ -618,8 +741,8 @@ elsewhere). All previously triaged groups are closed; what remains is untriaged.
 ### 5.2 Fix groups — sized after 5.1
 
 - [ ] BuildScripts drivers.
-  - [ ] Make `init_order2` initialization/finalization ordering deterministic;
-    its varying pass must not raise the stable BuildScripts baseline.
+  - [ ] Make `init_order1`/`init_order2`/`init_order4`/`init_order5` initialization/finalization ordering deterministic;
+    their varying passes must not raise the stable BuildScripts baseline.
 - [ ] SimpleScripts.
 - [ ] ArrayPass.
 - [ ] Remaining categories.

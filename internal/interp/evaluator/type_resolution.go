@@ -190,6 +190,10 @@ func (e *Evaluator) resolveRecordTypeNode(recordNode *ast.RecordTypeNode, ctx *E
 		if err != nil {
 			return nil, err
 		}
+		indexTypes, err := e.resolveRecordPropertyIndexParamTypes(prop.IndexParams, ctx)
+		if err != nil {
+			return nil, err
+		}
 		propKey := ident.Normalize(prop.Name.Value)
 		recordType.Properties[propKey] = &types.RecordPropertyInfo{
 			Name:       prop.Name.Value,
@@ -199,7 +203,10 @@ func (e *Evaluator) resolveRecordTypeNode(recordNode *ast.RecordTypeNode, ctx *E
 			IsDefault:  prop.IsDefault,
 			IsIndexed:  len(prop.IndexParams) > 0,
 
-			IndexParamTypes: e.resolveRecordPropertyIndexParamTypes(prop.IndexParams, ctx),
+			IndexParamTypes: indexTypes,
+			IndexParamNames: indexParamNames(prop.IndexParams),
+			IndexParamModes: indexParamModes(prop.IndexParams),
+			IsClassProperty: prop.IsClassProperty,
 		}
 	}
 
@@ -275,23 +282,22 @@ func (e *Evaluator) recordTypeFromAnnotation(annotation ast.TypeExpression, ctx 
 // resolveRecordPropertyIndexParamTypes resolves the declared index parameter
 // types of a record property (`property Items[i : Integer] : String`).
 //
-// It returns nil when the property is not indexed or when any index parameter
-// lacks a resolvable type annotation, matching the semantic analyzer so that
-// runtime and compile-time record metadata agree.
-func (e *Evaluator) resolveRecordPropertyIndexParamTypes(params []*ast.Parameter, ctx *ExecutionContext) []types.Type {
+// Non-indexed properties return nil. Unresolved annotations return an error so
+// unchecked builders cannot silently register an incomplete index signature.
+func (e *Evaluator) resolveRecordPropertyIndexParamTypes(params []*ast.Parameter, ctx *ExecutionContext) ([]types.Type, error) {
 	if len(params) == 0 {
-		return nil
+		return nil, nil
 	}
 	resolved := make([]types.Type, 0, len(params))
 	for _, param := range params {
 		if param == nil || param.Type == nil {
-			return nil
+			return nil, fmt.Errorf("record property index parameter requires a type")
 		}
 		paramType, err := e.ResolveTypeFromAnnotation(param.Type, ctx)
 		if err != nil || paramType == nil {
-			return nil
+			return nil, fmt.Errorf("unknown type for record property index parameter '%s'", param.Name.Value)
 		}
 		resolved = append(resolved, paramType)
 	}
-	return resolved
+	return resolved, nil
 }

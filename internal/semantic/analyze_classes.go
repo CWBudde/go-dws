@@ -363,7 +363,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 		}
 	}
 
-	objectType := a.analyzeExpression(expr.Object)
+	objectType := a.analyzeProbedReceiver(expr.Object)
 	if helper, ok := objectType.(*types.HelperType); ok {
 		if expected != nil && types.IsPointerType(expected) {
 			signatures, name := a.explicitHelperSignatures(helper, expr.Member.Value)

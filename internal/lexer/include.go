@@ -79,20 +79,24 @@ func NewFileIncludeResolver(baseDir string) IncludeResolver {
 // handleInclude processes an {$INCLUDE}/{$I}/{$INCLUDE_ONCE} directive. content is
 // the full directive body (e.g. `include 'foo.inc'`); name is the lower-cased
 // directive keyword.
-func (l *Lexer) handleInclude(name, content string, parentActive bool, startPos Position) {
+func (l *Lexer) handleInclude(name, content string, parentActive bool, startPos, closePos Position) {
 	if !parentActive {
 		return
 	}
 
 	filename := extractIncludeArg(content)
 	if filename == "" {
-		l.addIncludeError("file name expected after $"+name, startPos)
+		l.addDirectiveDiagnostic("Name of include file expected", closePos, SeverityError, "")
+		// A statement boundary at the missing argument preserves the parser's
+		// Expression expected stop inside a call, while a standalone include
+		// retains just its missing-file-name diagnostic.
+		tok := NewToken(SEMICOLON, ";", closePos)
+		l.directiveToken = &tok
 		return
 	}
 
-	// {$I %FILE%}, {$I %LINE%}, ... are compile-time value substitutions, not file
-	// inclusions. They are not supported yet; leave them untouched rather than
-	// treating the token as a file path.
+	// Expression macros for {$I}/{$INCLUDE} are processed before this file path.
+	// Other include variants retain their previous handling of percent arguments.
 	if strings.HasPrefix(filename, "%") {
 		return
 	}

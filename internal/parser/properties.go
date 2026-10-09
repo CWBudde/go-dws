@@ -41,45 +41,9 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	// Check for indexed property parameters: property Items[index: Integer]
 	var indexParams []*ast.Parameter
 	if p.peekTokenIs(lexer.LBRACK) {
-		p.nextToken() // move to '['
-
-		// Check for empty brackets (not allowed)
-		if p.peekTokenIs(lexer.RBRACK) {
-			p.addError("indexed property cannot have empty parameter list", ErrInvalidSyntax)
-			return nil
-		}
-
-		p.nextToken() // move to first parameter name
-
-		// Parse indexed property parameters (similar to function parameters but with brackets)
-		for {
-			// Parse parameter group (may have multiple names with same type)
-			groupParams := p.parseIndexedPropertyParameterGroup()
-			if groupParams == nil {
-				return nil
-			}
-			indexParams = append(indexParams, groupParams...)
-
-			// After parsing a parameter group, check what comes next:
-			// - ']' : end of parameters
-			// - ';' : more parameter groups follow
-			if !p.peekTokenIs(lexer.RBRACK) && !p.peekTokenIs(lexer.SEMICOLON) {
-				p.addExpectedStop(lexer.RBRACK)
-				return nil
-			}
-
-			if p.peekTokenIs(lexer.SEMICOLON) {
-				p.nextToken() // move to ';'
-				p.nextToken() // move past ';' to next parameter name
-				continue
-			}
-
-			// Must be at ']', exit loop
-			break
-		}
-
-		// Expect closing bracket
-		if !p.expectPeek(lexer.RBRACK) {
+		var ok bool
+		indexParams, ok = p.parsePropertyIndexParameters(false)
+		if !ok {
 			return nil
 		}
 	}
@@ -103,9 +67,11 @@ func (p *Parser) parsePropertyDeclaration() *ast.PropertyDecl {
 	}
 
 	// Expect colon before type
-	if !p.expectPeek(lexer.COLON) {
+	if !p.peekTokenIs(lexer.COLON) {
+		p.addExpectedStop(lexer.COLON)
 		return nil
 	}
+	p.nextToken()
 
 	// Parse property type via the shared type parser so composite types
 	// (e.g. `array of String`) are supported, not just a bare identifier.
@@ -158,9 +124,13 @@ parseDirectives:
 
 			// Check if read spec is an expression in parentheses
 			if p.curTokenIs(lexer.LPAREN) {
-				// Parse expression-based read spec
-				readExpr := p.parseExpression(LOWEST)
-				prop.ReadSpec = readExpr
+				// The accessor owns its outer parentheses. Inner groups still use
+				// ReadBracket's stopping expression grammar.
+				prop.ReadSpec = p.parsePropertyReadExpression()
+				if p.stopped() {
+					builder.Finish(prop)
+					return prop
+				}
 			} else if p.isMemberNameToken(p.cursor.Current().Type) {
 				// Simple field/method name (may be a reserved word, e.g. `read Set`)
 				prop.ReadSpec = &ast.Identifier{
@@ -185,7 +155,8 @@ parseDirectives:
 			switch {
 			case p.curTokenIs(lexer.LPAREN):
 				if !p.parsePropertyWriteClause(prop) {
-					return nil
+					builder.Finish(prop)
+					return prop
 				}
 			case p.isMemberNameToken(p.cursor.Current().Type):
 				// Simple field/method name (may be a reserved word, e.g. `write Set`)
@@ -225,15 +196,31 @@ parseDirectives:
 		prop.IsAutoProperty = true
 	}
 
+	// ReadPropertyDecl accepts a literal description before reintroduce. Leave
+	// an invalid value untouched for semicolon and class-member recovery.
+	if p.peekTokenIs(lexer.DESCRIPTION) {
+		p.nextToken()
+		if p.peekTokenIs(lexer.STRING) {
+			p.nextToken()
+			prop.Description = p.cursor.Current().Literal
+			prop.HasDescription = true
+		} else {
+			anchor := p.foundToken()
+			p.recordError(NewParserError(anchor.Pos, anchor.Length(), "String expected", ErrUnexpectedToken))
+		}
+	}
+
 	// The compatibility marker belongs before the declaration semicolon.
 	if p.peekTokenIs(lexer.REINTRODUCE) {
 		p.nextToken()
 		prop.IsReintroduce = true
 	}
 
-	// Expect semicolon
+	// A missing semicolon is recoverable: the property has already been
+	// declared, and the next token still belongs to the class member loop.
 	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
+		builder.Finish(prop)
+		return prop
 	}
 
 	// Parse optional 'default;' keyword
@@ -260,41 +247,78 @@ parseDirectives:
 	return decl
 }
 
-// parsePropertyWriteClause parses a parenthesized property write specifier.
-// Two forms are supported:
-//   - lvalue:     write (FSub.Field)      -> normalized to `FSub.Field := Value`
-//   - assignment: write (Field := Value)  -> stored as-is
-//
-// A single-identifier lvalue (write (Field)) is stored as an ordinary field/method
-// write specifier so it flows through the existing field-backed write path.
-//
-// The special identifier `Value` refers to the value being assigned.
-//
-// PRE: cursor is LPAREN
-// POST: cursor is RPAREN
-func (p *Parser) parsePropertyWriteClause(prop *ast.PropertyDecl) bool {
-	writeToken := p.cursor.Current()
-
-	p.nextToken() // move into parentheses, to the lvalue start
-	lhs := p.parseExpression(LOWEST)
-	if lhs == nil {
-		return false
+// parsePropertyReadExpression reads an accessor's declaration parentheses,
+// retaining the expression barrier even after an ordinary missing close.
+func (p *Parser) parsePropertyReadExpression() ast.Expression {
+	opening := p.cursor.Current()
+	p.nextToken()
+	expr := p.parseExpression(LOWEST)
+	if p.stopped() || expr == nil {
+		return expr
 	}
+	p.expectPeek(lexer.RPAREN)
+	return &ast.GroupedExpression{
+		BaseNode:   ast.BaseNode{Token: opening, EndPos: p.cursor.Current().End()},
+		Expression: expr,
+	}
+}
 
-	prop.WriteStmt, prop.WriteSpec = p.buildPropertyWriteSpec(lhs, writeToken)
+// parsePropertyWriteClause retains one instruction as an expression accessor.
+// A missing declaration close is ordinary recovery; a child stop stays stopping.
+func (p *Parser) parsePropertyWriteClause(prop *ast.PropertyDecl) bool {
+	prop.WriteStmt, prop.WriteSpec, prop.WriteSourceExpression = p.parsePropertyWriteInstruction()
+	return !p.stopped()
+}
 
-	// Expect closing parenthesis
-	return p.expectPeek(lexer.RPAREN)
+// parsePropertyWriteInstruction leaves an unrecognized instruction starter
+// untouched, matching ReadInstr's null instruction. Empty writers remain
+// writable and carry the opening token for their diagnostic anchor.
+func (p *Parser) parsePropertyWriteInstruction() (ast.Statement, ast.Expression, ast.Expression) {
+	opening := p.cursor.Current()
+	var stmt ast.Statement
+	var spec, source ast.Expression
+	switch p.cursor.Peek(1).Type {
+	case lexer.BEGIN, lexer.IF, lexer.WHILE, lexer.REPEAT, lexer.FOR,
+		lexer.CASE, lexer.TRY, lexer.RAISE, lexer.BREAK, lexer.CONTINUE,
+		lexer.EXIT, lexer.WITH:
+		p.nextToken()
+		stmt = p.parseStatement()
+	case lexer.SEMICOLON:
+		p.nextToken()
+		stmt = &ast.EmptyStatement{BaseNode: ast.BaseNode{Token: opening}}
+	default:
+		if p.isMemberNameToken(p.cursor.Peek(1).Type) || p.peekTokenIs(lexer.LPAREN) {
+			p.nextToken()
+			lhs := p.parseExpression(LOWEST)
+			if p.stopped() || lhs == nil {
+				return nil, nil, nil
+			}
+			stmt, spec = p.buildPropertyWriteSpec(lhs, opening)
+			if assignment, ok := stmt.(*ast.AssignmentStatement); ok && assignment.Token.Type == lexer.LPAREN {
+				source = lhs
+			} else if expression, ok := stmt.(*ast.ExpressionStatement); ok && expression.Expression != lhs {
+				source = lhs
+			}
+		} else {
+			stmt = &ast.EmptyStatement{BaseNode: ast.BaseNode{Token: opening}}
+		}
+	}
+	if !p.stopped() {
+		p.expectPeek(lexer.RPAREN)
+	}
+	return stmt, spec, source
 }
 
 // buildPropertyWriteSpec turns a parsed parenthesized write specifier into either
-// a write statement or a field/method write spec. Called with the cursor on the
+// a write statement. Parentheses always create an expression accessor, including
+// a single field name. Called with the cursor on the
 // last token of the left-hand expression. Handles three shapes:
 //   - assignment  (target := expr)         -> the assignment statement
 //   - call/other  (SetField(Value div 2))  -> an expression statement
 //   - plain lvalue (FSub.Field)            -> normalized to `lvalue := Value`
-//   - identifier   (Field)                 -> a plain field/method write spec
+//   - identifier   (Field)                 -> normalized to `Field := Value`
 func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Token) (ast.Statement, ast.Expression) {
+	instruction := lhs
 	for {
 		group, ok := lhs.(*ast.GroupedExpression)
 		if !ok {
@@ -302,7 +326,7 @@ func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Tok
 		}
 		lhs = group.Expression
 	}
-	if p.peekTokenIs(lexer.ASSIGN) {
+	if isAssignmentOperator(p.cursor.Peek(1).Type) {
 		p.nextToken() // move to ':='
 		assignOp := p.cursor.Current().Type
 		assignToken := p.cursor.Current()
@@ -320,9 +344,10 @@ func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Tok
 	}
 
 	switch lhs.(type) {
-	case *ast.Identifier:
-		// Single identifier lvalue: behaves like `write Field`.
-		return nil, lhs
+	case *ast.IntegerLiteral, *ast.FloatLiteral, *ast.StringLiteral, *ast.BooleanLiteral, *ast.CharLiteral:
+		// A literal reached through an inner bracket is a real instruction;
+		// retain its source term for semantic constant/null classification.
+		return &ast.ExpressionStatement{BaseNode: ast.BaseNode{Token: writeToken}, Expression: instruction}, nil
 	case *ast.CallExpression:
 		// A call such as SetField(Value) executes directly.
 		return &ast.ExpressionStatement{
@@ -344,12 +369,16 @@ func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Tok
 }
 
 // parseIndexedPropertyParameterGroup parses a group of indexed property parameters with the same type.
-// Syntax: name: Type  or  name1, name2: Type
-// Similar to parseParameterGroup but without 'var' keyword support.
-// PRE: cursor is parameter name IDENT
+// Syntax: [var | const] name1, name2: Type. Each group resets the modifier.
+// Defaults, lazy parameters and const(ref) belong to routine parameter grammar.
+// PRE: cursor is parameter name IDENT, VAR or CONST
 // POST: cursor is type IDENT
-func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
+func (p *Parser) parseIndexedPropertyParameterGroup(composite bool) []*ast.Parameter {
 	params := []*ast.Parameter{}
+	byRef, isConst := p.curTokenIs(lexer.VAR), p.curTokenIs(lexer.CONST)
+	if byRef || isConst {
+		p.nextToken()
+	}
 
 	// Collect parameter names separated by commas
 	names := []*ast.Identifier{}
@@ -357,7 +386,7 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	for {
 		// Parse parameter name (can be IDENT or keyword used as identifier)
 		if !p.curTokenIs(lexer.IDENT) && !p.curTokenIs(lexer.INDEX) {
-			p.addExpectedCurrent(lexer.IDENT)
+			p.addExpectedStopCurrent(lexer.IDENT)
 			return nil
 		}
 
@@ -379,26 +408,25 @@ func (p *Parser) parseIndexedPropertyParameterGroup() []*ast.Parameter {
 	}
 
 	// Expect colon before type
-	if !p.expectPeek(lexer.COLON) {
+	if !p.peekTokenIs(lexer.COLON) {
+		p.addExpectedStop(lexer.COLON)
 		return nil
 	}
+	p.nextToken()
 
-	// Parse type annotation
-	if !p.expectPeek(lexer.IDENT) {
+	paramType := p.parsePropertyIndexParameterType(composite)
+	if paramType == nil {
 		return nil
-	}
-
-	paramType := &ast.TypeAnnotation{
-		Token: p.cursor.Current(),
-		Name:  p.cursor.Current().Literal,
 	}
 
 	// Create parameter for each name
 	for _, name := range names {
 		param := &ast.Parameter{
-			Token: name.Token,
-			Name:  name,
-			Type:  paramType,
+			Token:   name.Token,
+			Name:    name,
+			Type:    paramType,
+			ByRef:   byRef,
+			IsConst: isConst,
 		}
 		params = append(params, param)
 	}
@@ -423,4 +451,55 @@ func (p *Parser) parsePropertyDeprecatedDirective(prop *ast.PropertyDecl) bool {
 	}
 
 	return p.expectPeek(lexer.SEMICOLON)
+}
+
+// parsePropertyIndexParameters shares the declaration list grammar. Records retain
+// their existing composite type annotations; classes use their named type grammar.
+func (p *Parser) parsePropertyIndexParameters(composite bool) ([]*ast.Parameter, bool) {
+	p.nextToken() // '['
+	if p.peekTokenIs(lexer.RBRACK) {
+		p.nextToken()
+		tok := p.cursor.Current()
+		p.recordError(NewParserError(tok.Pos, tok.Length(), "Parameters expected", ErrInvalidSyntax))
+		return []*ast.Parameter{}, true
+	}
+	p.nextToken()
+	var params []*ast.Parameter
+	for {
+		group := p.parseIndexedPropertyParameterGroup(composite)
+		if group == nil {
+			return params, false
+		}
+		params = append(params, group...)
+		if p.peekTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+			p.nextToken()
+			continue
+		}
+		if !p.peekTokenIs(lexer.RBRACK) {
+			p.addExpectedStop(lexer.RBRACK)
+			return params, false
+		}
+		p.nextToken()
+		return params, true
+	}
+}
+
+// parsePropertyIndexParameterType retains the record reader's composite grammar
+// and ReadType's ordinary missing-type recovery without consuming the separator.
+func (p *Parser) parsePropertyIndexParameterType(composite bool) ast.TypeExpression {
+	if composite && !isTypeExpressionStartToken(p.cursor.Peek(1).Type) && !p.peekTokenIs(lexer.TYPE) {
+		tok := p.cursor.Peek(1)
+		p.addTypeExpectedAt(tok)
+		return &ast.TypeAnnotation{Token: tok, Name: "Variant"}
+	}
+	p.nextToken()
+	if composite {
+		return p.parseTypeExpression()
+	}
+	if !p.curTokenIs(lexer.IDENT) {
+		p.addExpectedStopCurrent(lexer.IDENT)
+		return nil
+	}
+	return &ast.TypeAnnotation{Token: p.cursor.Current(), Name: p.cursor.Current().Literal}
 }

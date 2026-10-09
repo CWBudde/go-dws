@@ -127,10 +127,15 @@ type RecordPropertyDecl struct {
 	// ReadExpr holds an expression-based read specifier: read (2*Field).
 	// When set, ReadField is empty.
 	ReadExpr Expression
-	// WriteStmt holds an expression-based write specifier: write (Field := Value)
-	// or a normalized parenthesized lvalue write. When set, WriteField is empty.
-	WriteStmt   Statement
-	IndexParams []*Parameter
+	// ReadAccessorPos and WriteAccessorPos retain the scanner anchor after a named accessor.
+	ReadAccessorPos  token.Position
+	WriteAccessorPos token.Position
+	// WriteStmt holds a normalized expression-based write specifier.
+	// WriteSourceExpression retains the original term of a lowered writer.
+	// It aliases WriteStmt nodes and is syntax provenance, not writability.
+	WriteSourceExpression Expression `ast:"skip"`
+	WriteStmt             Statement
+	IndexParams           []*Parameter
 	BaseNode
 	IsDefault bool
 	// IsExternal is true for `property Name: Type external 'JsonKey' ...`.
@@ -158,6 +163,9 @@ type RecordPropertyDecl struct {
 func (pd RecordPropertyDecl) String() string {
 	var out bytes.Buffer
 
+	if pd.IsClassProperty {
+		out.WriteString("class ")
+	}
 	out.WriteString("property ")
 	out.WriteString(pd.Name.String())
 
@@ -173,6 +181,9 @@ func (pd RecordPropertyDecl) String() string {
 		out.WriteString("]")
 	}
 
+	if pd.Type == nil {
+		return out.String()
+	}
 	out.WriteString(": ")
 	out.WriteString(pd.Type.String())
 
@@ -190,7 +201,11 @@ func (pd RecordPropertyDecl) String() string {
 		out.WriteString(pd.WriteField)
 	} else if pd.WriteStmt != nil {
 		out.WriteString(" write (")
-		out.WriteString(pd.WriteStmt.String())
+		if pd.WriteSourceExpression != nil {
+			out.WriteString(pd.WriteSourceExpression.String())
+		} else {
+			out.WriteString(pd.WriteStmt.String())
+		}
 		out.WriteString(")")
 	}
 

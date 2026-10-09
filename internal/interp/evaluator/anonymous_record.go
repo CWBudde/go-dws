@@ -56,8 +56,16 @@ func (e *Evaluator) VisitAnonymousRecordExpression(node *ast.AnonymousRecordExpr
 			if prop.IsAutoProperty && !recordType.HasField(prop.ReadField) {
 				recordType.AddField(prop.ReadField, propType, false)
 			}
+			indexTypes, err := e.resolveRecordPropertyIndexParamTypes(prop.IndexParams, ctx)
+			if err != nil {
+				return e.newError(node, "%s", err)
+			}
 			info := &types.RecordPropertyInfo{Name: prop.Name.Value, Type: propType,
-				ReadField: prop.ReadField, WriteField: prop.WriteField}
+				ReadField: prop.ReadField, WriteField: prop.WriteField,
+				IsIndexed: len(prop.IndexParams) > 0, IsDefault: prop.IsDefault, IsClassProperty: prop.IsClassProperty,
+				IndexParamTypes: indexTypes,
+				IndexParamNames: indexParamNames(prop.IndexParams),
+				IndexParamModes: indexParamModes(prop.IndexParams)}
 			if prop.ReadField != "" {
 				info.ReadKind = types.PropAccessField
 			} else if prop.ReadExpr != nil {

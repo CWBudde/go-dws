@@ -273,7 +273,7 @@ func (p *Parser) recordStop(err *ParserError) {
 // error list so speculative parses that restore an earlier error list also undo it.
 func (p *Parser) stopped() bool {
 	for i := len(p.errors) - 1; i >= 0; i-- {
-		if p.errors[i].Stop && p.errors[i].DeferredCall == nil {
+		if p.errors[i].Stop && p.errors[i].DeferredCall == nil && p.errors[i].DeferredIndex == nil {
 			return true
 		}
 	}
@@ -578,6 +578,17 @@ func (p *Parser) ParseProgram() *ast.Program {
 	// Otherwise, parse as a regular program
 	for !p.curTokenIs(lexer.EOF) {
 		if p.curTokenIs(lexer.SEMICOLON) {
+			p.nextToken()
+			continue
+		}
+
+		// Block readers consume their own END. At the root, ReadRootStatement
+		// reports it as an ordinary error and continues with later statements.
+		if p.curTokenIs(lexer.END) {
+			if !p.stopped() {
+				tok := p.cursor.Current()
+				p.recordError(NewParserError(tok.Pos, tok.Length(), "Unexpected END", ErrUnexpectedToken))
+			}
 			p.nextToken()
 			continue
 		}
