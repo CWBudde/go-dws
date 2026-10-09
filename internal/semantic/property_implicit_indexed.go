@@ -38,11 +38,8 @@ func (a *Analyzer) analyzeImplicitIndexedCompatibilityRead(expr *ast.IndexExpres
 		a.addStructuredError(NewGenericError(nodes[len(nodes)-1].Token.Pos, "Array expected"))
 		return prop.Type, true
 	}
-	indices := make([]ast.Expression, len(nodes))
-	for i, node := range nodes {
-		indices[len(nodes)-1-i] = node.Index
-	}
-	a.checkIndexedCompatibilityArguments(a.currentClass, prop, indices, pos, a.inClassMethod)
+	indices := indexedPropertyArguments(nodes)
+	a.checkIndexedCompatibilityArguments(a.currentClass, prop, indices, pos, a.inClassMethod, expr)
 	read := &ast.MemberAccessExpression{
 		BaseNode: call.BaseNode, Member: name,
 		Object: &ast.SelfExpression{BaseNode: name.BaseNode},

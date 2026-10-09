@@ -176,6 +176,8 @@ func interfacePropertyIndexChain(expr *ast.IndexExpression) (ast.Expression, []a
 		emptyCall = len(call.Arguments) == 0
 	case *ast.CallExpression:
 		emptyCall = len(call.Arguments) == 0
+	case *ast.InheritedExpression:
+		emptyCall = call.Method != nil && len(call.Arguments) == 0
 	}
 	if emptyCall {
 		indices = []ast.Expression{expr.Index}

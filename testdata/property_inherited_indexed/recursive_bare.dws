@@ -1,0 +1,10 @@
+type TBase = class
+ function Get(I: Integer): Integer; virtual; begin Result := I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+type TChild = class(TBase)
+ function Get(I: Integer): Integer; override;
+ begin if I=0 then Result := 1 else Result := inherited Prop[I-1]+1; end;
+ function Read: Integer; begin Result := inherited Prop[3]; end;
+end;
+PrintLn(TChild.Create.Read);

@@ -1,0 +1,8 @@
+type TTest = class
+ function Get(I, J: Integer): Integer; begin Result := I*10+J; end;
+ property Prop[I, J: Integer]: Integer read Get reintroduce;
+end;
+type TLexical = class(TTest)
+ function Read: Integer; begin Result := inherited Prop()[2, 7]; end;
+end;
+PrintLn(TLexical.Create.Read);

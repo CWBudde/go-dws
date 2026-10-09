@@ -273,7 +273,7 @@ func (p *Parser) recordStop(err *ParserError) {
 // error list so speculative parses that restore an earlier error list also undo it.
 func (p *Parser) stopped() bool {
 	for i := len(p.errors) - 1; i >= 0; i-- {
-		if p.errors[i].Stop && p.errors[i].DeferredCall == nil {
+		if p.errors[i].Stop && p.errors[i].DeferredCall == nil && p.errors[i].DeferredIndex == nil {
 			return true
 		}
 	}

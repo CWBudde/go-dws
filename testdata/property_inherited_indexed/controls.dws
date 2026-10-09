@@ -1,0 +1,12 @@
+type TBase = class
+ Values: array of Integer;
+ property Prop: array of Integer read Values reintroduce;
+ function Get(I: Integer): Integer; begin Result := I+10; end;
+end;
+type TChild = class(TBase)
+ function Read: Integer;
+ begin Result := inherited Prop()[1]+inherited Get(3); end;
+end;
+var Obj := TChild.Create;
+Obj.Values := [20, 30];
+PrintLn(Obj.Read);

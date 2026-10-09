@@ -23,6 +23,9 @@ func (a *Analyzer) analyzeIndexedCompatibilityRead(expr *ast.IndexExpression) (t
 		nodes = append(nodes, inner)
 		root = inner.Left
 	}
+	if inherited, ok := root.(*ast.InheritedExpression); ok {
+		return a.analyzeInheritedIndexedPropertyRead(expr, inherited, nodes)
+	}
 	if call, ok := root.(*ast.CallExpression); ok {
 		return a.analyzeImplicitIndexedCompatibilityRead(expr, call, nodes)
 	}
@@ -53,16 +56,24 @@ func (a *Analyzer) analyzeIndexedCompatibilityRead(expr *ast.IndexExpression) (t
 		a.addStructuredError(NewGenericError(nodes[len(nodes)-1].Token.Pos, "Array expected"))
 		return prop.Type, true
 	}
-	indices := make([]ast.Expression, len(nodes))
-	for i, node := range nodes {
-		indices[len(nodes)-1-i] = node.Index
-	}
-	a.checkIndexedCompatibilityArguments(class, prop, indices, pos, metaclass)
+	indices := indexedPropertyArguments(nodes)
+	a.checkIndexedCompatibilityArguments(class, prop, indices, pos, metaclass, expr)
 	read := &ast.MemberAccessExpression{BaseNode: call.BaseNode, Object: call.Object, Member: call.Method}
 	a.semanticInfo.SetIndexedPropertyRead(expr, &ast.IndexedPropertyReadBinding{
 		Read: &ast.InheritedPropertyReadBinding{Read: read, Property: prop, Owner: compatibilityPropertyOwner(class, prop)}, Indices: indices,
 	})
 	return prop.Type, true
+}
+
+func indexedPropertyArguments(nodes []*ast.IndexExpression) []ast.Expression {
+	if len(nodes) == 1 && nodes[0].Empty {
+		return nil
+	}
+	indices := make([]ast.Expression, len(nodes))
+	for i, node := range nodes {
+		indices[len(nodes)-1-i] = node.Index
+	}
+	return indices
 }
 
 func (a *Analyzer) addPropertyBracketHint(prop *types.PropertyInfo, pos token.Position) {
@@ -143,18 +154,12 @@ func (a *Analyzer) analyzeProbedReceiver(object ast.Expression) types.Type {
 	return a.analyzeExpression(object)
 }
 
-func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, prop *types.PropertyInfo, indices []ast.Expression, pos token.Position, metaclass bool) {
+func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, prop *types.PropertyInfo, indices []ast.Expression, pos token.Position, metaclass bool, list *ast.IndexExpression) {
 	expected := a.getIndexedPropertyParamTypes(prop, class)
-	argTypes := make([]types.Type, len(indices))
-	failed := make([]bool, len(indices))
-	for i, index := range indices {
-		mark := len(a.errors)
-		if i < len(expected) {
-			argTypes[i] = a.analyzeArgumentForParameter(index, expected[i], false)
-		} else {
-			argTypes[i] = a.analyzeExpression(index)
-		}
-		failed[i] = argTypes[i] == nil || a.errorsSince(mark)
+	argTypes, failed := a.analyzeIndexedCompatibilityArguments(indices, expected)
+	if list != nil && list.MissingClosePos.IsValid() {
+		a.addPunctuationStop(list.MissingClosePos, `")" expected`)
+		return
 	}
 	if metaclass && !indexedCompatibilityClassReader(class, prop) {
 		readerError := NewPropertyReadShouldBeStaticMethodError(pos)
@@ -183,4 +188,19 @@ func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, pr
 	if !a.errorsSince(mark) {
 		a.addMemberCallCountError(&types.FunctionType{Parameters: expected}, len(indices), pos)
 	}
+}
+
+func (a *Analyzer) analyzeIndexedCompatibilityArguments(indices []ast.Expression, expected []types.Type) ([]types.Type, []bool) {
+	argTypes := make([]types.Type, len(indices))
+	failed := make([]bool, len(indices))
+	for i, index := range indices {
+		mark := len(a.errors)
+		if i < len(expected) {
+			argTypes[i] = a.analyzeArgumentForParameter(index, expected[i], false)
+		} else {
+			argTypes[i] = a.analyzeExpression(index)
+		}
+		failed[i] = argTypes[i] == nil || a.errorsSince(mark)
+	}
+	return argTypes, failed
 }

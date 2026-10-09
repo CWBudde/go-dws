@@ -653,6 +653,9 @@ func (a *Analyzer) checkIndexedPropertyWriteTarget(target ast.Expression, propIn
 // here *is* followed by its indices, so the arity diagnostic a bare property
 // reference would draw must not fire.
 func (a *Analyzer) analyzeIndexBase(expr ast.Expression) types.Type {
+	if recovery := a.inheritedIndexRecovery; recovery != nil && recovery.expression == expr {
+		return recovery.result
+	}
 	// Only a bare name can be the property this index list belongs to. Anything
 	// larger has its own structure, and setting the flag across it would also
 	// silence a property named inside it — `Box(Val)[0]` indexes Box's result,

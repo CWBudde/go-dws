@@ -1,0 +1,13 @@
+type TInts = array of Integer;
+var Values: TInts := [0, 0];
+var Calls: Integer;
+type TBase = class
+ function Get(I: Integer): Integer; begin Inc(Calls); Result := I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+type TChild = class(TBase)
+ procedure Update;
+ begin Values[inherited Prop()[1]] := inherited Prop()[7]; end;
+end;
+TChild.Create.Update;
+PrintLn(Values[1]); PrintLn(Calls);

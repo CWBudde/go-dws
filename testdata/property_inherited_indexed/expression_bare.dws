@@ -1,0 +1,15 @@
+type TBase = class
+ Offset: Integer;
+ property Prop[I, J: Integer]: Integer read (Offset+I*10+J) reintroduce;
+end;
+type TChild = class(TBase)
+ function Read: Integer; begin Result := inherited Prop[2, 7]; end;
+end;
+type TGrandchild = class(TChild)
+ Offset: Integer;
+ property Prop[I, J: Integer]: Integer read (90+I+J) reintroduce;
+end;
+var Obj := TGrandchild.Create;
+TBase(Obj).Offset := 100;
+Obj.Offset := 900;
+PrintLn(Obj.Read);

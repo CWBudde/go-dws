@@ -1,0 +1,13 @@
+type TBase = class
+ function Get(I: Integer): Integer; begin Result := 10+I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+type TLexical = class(TBase)
+ function Read: Integer; begin Result := inherited Prop()[3]; end;
+end;
+type TChild = class(TLexical)
+ function Get(I: Integer): Integer; reintroduce; begin Result := 90+I; end;
+ function Other(I: Integer): Integer; begin Result := 80+I; end;
+ property Prop[I: Integer]: Integer read Other reintroduce;
+end;
+PrintLn(TChild.Create.Read);

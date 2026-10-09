@@ -749,6 +749,9 @@ func (a *Analyzer) analyzeAssignment(stmt *ast.AssignmentStatement) {
 		}
 
 	case *ast.IndexExpression:
+		previousTarget := a.indexedAssignmentTarget
+		a.indexedAssignmentTarget = target
+		defer func() { a.indexedAssignmentTarget = previousTarget }()
 		if targetType, handled := a.analyzeInterfaceIndexedProperty(target, true, isCompound); handled {
 			valueType := a.analyzeAssignmentValue(stmt, targetType)
 			if valueType != nil {

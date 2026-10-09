@@ -168,6 +168,10 @@ type IndexExpression struct {
 	// CommaPos is the separating comma for an additional index in one bracket
 	// list. It is zero for the first index and for separately bracketed indices.
 	CommaPos token.Position
+	// Empty preserves an explicitly written empty bracket argument group.
+	Empty bool
+	// MissingClosePos identifies the unexpected token ending an unfinished list.
+	MissingClosePos token.Position
 	BaseNode
 }
 

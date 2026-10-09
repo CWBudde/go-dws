@@ -64,6 +64,22 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 
 	// Move to index expression
 	p.cursor = p.cursor.Advance()
+	if p.cursor.Current().Type == lexer.RBRACK {
+		indexExpr.Empty = true
+		indexExpr.Index = &ast.InvalidExpression{
+			BaseNode: ast.BaseNode{Token: p.cursor.Current()}, Reason: "expression expected",
+		}
+		anchor := p.anchorFor(p.cursor.Current())
+		err := NewParserError(anchor.Pos, anchor.Length(), "Expression expected", ErrInvalidExpression)
+		err.Stop = true
+		err.DeferredIndex = indexExpr
+		p.recordError(err)
+		expr, ok := builder.FinishWithToken(indexExpr, p.cursor.Current()).(ast.Expression)
+		if !ok {
+			return indexExpr
+		}
+		return expr
+	}
 
 	// Parse the first index expression
 	indexExpr.Index = p.parseExpression(LOWEST)
@@ -103,7 +119,11 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	if nextToken.Type != lexer.RBRACK {
 		// An index's missing "]" is an ordinary error upstream: the enclosing
 		// declaration goes on and reports its own ";" (array_index_bracket_missing2).
-		p.addExpected(lexer.RBRACK)
+		anchor := p.anchorFor(nextToken)
+		result.MissingClosePos = anchor.Pos
+		err := NewParserError(anchor.Pos, anchor.Length(), expectedSentence(lexer.RBRACK), ErrMissingRBracket)
+		err.DeferredIndex = result
+		p.recordError(err)
 		if nextToken.Type == lexer.ASSIGN {
 			// A broken index followed by an assignment resumes from the base,
 			// matching DWScript's assignment recovery (i[2 := 3).
