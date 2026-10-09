@@ -131,8 +131,11 @@ type RecordPropertyDecl struct {
 	ReadAccessorPos  token.Position
 	WriteAccessorPos token.Position
 	// WriteStmt holds a normalized expression-based write specifier.
-	WriteStmt   Statement
-	IndexParams []*Parameter
+	// WriteSourceExpression retains the original term of a lowered writer.
+	// It aliases WriteStmt nodes and is syntax provenance, not writability.
+	WriteSourceExpression Expression `ast:"skip"`
+	WriteStmt             Statement
+	IndexParams           []*Parameter
 	BaseNode
 	IsDefault bool
 	// IsExternal is true for `property Name: Type external 'JsonKey' ...`.
@@ -198,7 +201,11 @@ func (pd RecordPropertyDecl) String() string {
 		out.WriteString(pd.WriteField)
 	} else if pd.WriteStmt != nil {
 		out.WriteString(" write (")
-		out.WriteString(pd.WriteStmt.String())
+		if pd.WriteSourceExpression != nil {
+			out.WriteString(pd.WriteSourceExpression.String())
+		} else {
+			out.WriteString(pd.WriteStmt.String())
+		}
 		out.WriteString(")")
 	}
 

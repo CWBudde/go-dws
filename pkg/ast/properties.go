@@ -31,11 +31,15 @@ type PropertyDecl struct {
 	// or a parenthesized lvalue write, e.g. write (FSub.Field), which the
 	// parser normalizes to the assignment statement `FSub.Field := Value`.
 	// When WriteStmt is non-nil, WriteSpec is nil.
-	WriteStmt   Statement
-	Type        TypeExpression
-	Name        *Identifier
-	IndexParams []*Parameter
-	IndexValue  Expression
+	// WriteSourceExpression retains the source term before writer lowering.
+	// It aliases nodes in WriteStmt and is syntax provenance only, never an
+	// accessor-kind or writability authority.
+	WriteSourceExpression Expression `ast:"skip"`
+	WriteStmt             Statement
+	Type                  TypeExpression
+	Name                  *Identifier
+	IndexParams           []*Parameter
+	IndexValue            Expression
 	// ExternalName holds the quoted external name, which replaces the declared
 	// name when the object is serialized (JSON.Stringify).
 	ExternalName string
@@ -117,7 +121,11 @@ func (pd *PropertyDecl) String() string {
 		out.WriteString(pd.WriteSpec.String())
 	} else if pd.WriteStmt != nil {
 		out.WriteString(" write (")
-		out.WriteString(pd.WriteStmt.String())
+		if pd.WriteSourceExpression != nil {
+			out.WriteString(pd.WriteSourceExpression.String())
+		} else {
+			out.WriteString(pd.WriteStmt.String())
+		}
 		out.WriteString(")")
 	}
 

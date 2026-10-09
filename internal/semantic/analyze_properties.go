@@ -523,7 +523,11 @@ func (a *Analyzer) validateReadSpec(prop *ast.PropertyDecl, classType *types.Cla
 	propInfo.ReadExpr = prop.ReadSpec // Store AST node for interpreter
 
 	// Analyze the expression with implicit self context
+	mark := len(a.structuredErrors)
+	previousMark := a.propertyTermMark
+	a.propertyTermMark = &mark
 	exprType := a.analyzeExpression(prop.ReadSpec)
+	a.propertyTermMark = previousMark
 	if exprType == nil {
 		// Error already reported by analyzeExpression
 		return
@@ -717,10 +721,40 @@ func (a *Analyzer) validateWriteExprSpec(prop *ast.PropertyDecl, classType *type
 	// Bind the implicit `Value` parameter (the value being assigned).
 	a.symbols.DefineParameter("Value", propInfo.Type, prop.Token.Pos, false)
 
+	// A bare named constant instruction is parsed before name resolution. It
+	// is not an assignment, unlike an explicit K := Value instruction.
+	if assignment, ok := prop.WriteStmt.(*ast.AssignmentStatement); ok && assignment.Token.Type == token.LPAREN {
+		if name, named := assignment.Target.(*ast.Identifier); named {
+			if symbol, found := a.symbols.Resolve(name.Value); found && symbol.IsConst {
+				expression := assignment.Target
+				if prop.WriteSourceExpression != nil {
+					expression = prop.WriteSourceExpression
+				}
+				prop.WriteStmt = &ast.ExpressionStatement{BaseNode: assignment.BaseNode, Expression: expression}
+			}
+		}
+	}
+	mark := len(a.structuredErrors)
+	previousMark := a.propertyTermMark
+	a.propertyTermMark = &mark
 	a.analyzeStatement(prop.WriteStmt)
+	a.propertyTermMark = previousMark
+	_, null := prop.WriteStmt.(*ast.EmptyStatement)
+	if expression, ok := prop.WriteStmt.(*ast.ExpressionStatement); ok {
+		_, call := expression.Expression.(*ast.CallExpression)
+		null = !call && a.isConstantInstruction(expression.Expression)
+	}
+	if null {
+		a.warnNullPropertyWriter(prop.WriteStmt)
+	}
 
 	propInfo.WriteKind = types.PropAccessExpression
 	propInfo.WriteExpr = prop.WriteStmt
+	if expression, ok := prop.WriteStmt.(*ast.ExpressionStatement); ok && null {
+		// Keep the source instruction and successful inner brackets in the AST;
+		// only the executable declaration view is a null instruction.
+		propInfo.WriteExpr = &ast.EmptyStatement{BaseNode: expression.BaseNode}
+	}
 }
 
 // bindPropertyIndexParams binds an indexed property's index parameters into the
@@ -800,4 +834,11 @@ func propertyReadMethodOwner(class *types.ClassType, name string, signature *typ
 		}
 	}
 	return class
+}
+
+// warnNullPropertyWriter reports only an instruction classified as null. Its
+// statement token carries the accessor's opening parenthesis, before comments.
+func (a *Analyzer) warnNullPropertyWriter(stmt ast.Statement) {
+	pos := stmt.Pos()
+	a.addWarning("Property writer does nothing [line: %d, column: %d]", pos.Line, pos.Column)
 }

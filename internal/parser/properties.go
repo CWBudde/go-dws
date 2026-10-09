@@ -124,9 +124,13 @@ parseDirectives:
 
 			// Check if read spec is an expression in parentheses
 			if p.curTokenIs(lexer.LPAREN) {
-				// Parse expression-based read spec
-				readExpr := p.parseExpression(LOWEST)
-				prop.ReadSpec = readExpr
+				// The accessor owns its outer parentheses. Inner groups still use
+				// ReadBracket's stopping expression grammar.
+				prop.ReadSpec = p.parsePropertyReadExpression()
+				if p.stopped() {
+					builder.Finish(prop)
+					return prop
+				}
 			} else if p.isMemberNameToken(p.cursor.Current().Type) {
 				// Simple field/method name (may be a reserved word, e.g. `read Set`)
 				prop.ReadSpec = &ast.Identifier{
@@ -151,7 +155,8 @@ parseDirectives:
 			switch {
 			case p.curTokenIs(lexer.LPAREN):
 				if !p.parsePropertyWriteClause(prop) {
-					return nil
+					builder.Finish(prop)
+					return prop
 				}
 			case p.isMemberNameToken(p.cursor.Current().Type):
 				// Simple field/method name (may be a reserved word, e.g. `write Set`)
@@ -242,31 +247,66 @@ parseDirectives:
 	return decl
 }
 
-// parsePropertyWriteClause parses a parenthesized property write specifier.
-// Two forms are supported:
-//   - lvalue:     write (FSub.Field)      -> normalized to `FSub.Field := Value`
-//   - assignment: write (Field := Value)  -> stored as-is
-//
-// A single-identifier lvalue (write (Field)) is stored as an ordinary field/method
-// write specifier so it flows through the existing field-backed write path.
-//
-// The special identifier `Value` refers to the value being assigned.
-//
-// PRE: cursor is LPAREN
-// POST: cursor is RPAREN
-func (p *Parser) parsePropertyWriteClause(prop *ast.PropertyDecl) bool {
-	writeToken := p.cursor.Current()
-
-	p.nextToken() // move into parentheses, to the lvalue start
-	lhs := p.parseExpression(LOWEST)
-	if lhs == nil {
-		return false
+// parsePropertyReadExpression reads an accessor's declaration parentheses,
+// retaining the expression barrier even after an ordinary missing close.
+func (p *Parser) parsePropertyReadExpression() ast.Expression {
+	opening := p.cursor.Current()
+	p.nextToken()
+	expr := p.parseExpression(LOWEST)
+	if p.stopped() || expr == nil {
+		return expr
 	}
+	p.expectPeek(lexer.RPAREN)
+	return &ast.GroupedExpression{
+		BaseNode:   ast.BaseNode{Token: opening, EndPos: p.cursor.Current().End()},
+		Expression: expr,
+	}
+}
 
-	prop.WriteStmt, prop.WriteSpec = p.buildPropertyWriteSpec(lhs, writeToken)
+// parsePropertyWriteClause retains one instruction as an expression accessor.
+// A missing declaration close is ordinary recovery; a child stop stays stopping.
+func (p *Parser) parsePropertyWriteClause(prop *ast.PropertyDecl) bool {
+	prop.WriteStmt, prop.WriteSpec, prop.WriteSourceExpression = p.parsePropertyWriteInstruction()
+	return !p.stopped()
+}
 
-	// Expect closing parenthesis
-	return p.expectPeek(lexer.RPAREN)
+// parsePropertyWriteInstruction leaves an unrecognized instruction starter
+// untouched, matching ReadInstr's null instruction. Empty writers remain
+// writable and carry the opening token for their diagnostic anchor.
+func (p *Parser) parsePropertyWriteInstruction() (ast.Statement, ast.Expression, ast.Expression) {
+	opening := p.cursor.Current()
+	var stmt ast.Statement
+	var spec, source ast.Expression
+	switch p.cursor.Peek(1).Type {
+	case lexer.BEGIN, lexer.IF, lexer.WHILE, lexer.REPEAT, lexer.FOR,
+		lexer.CASE, lexer.TRY, lexer.RAISE, lexer.BREAK, lexer.CONTINUE,
+		lexer.EXIT, lexer.WITH:
+		p.nextToken()
+		stmt = p.parseStatement()
+	case lexer.SEMICOLON:
+		p.nextToken()
+		stmt = &ast.EmptyStatement{BaseNode: ast.BaseNode{Token: opening}}
+	default:
+		if p.isMemberNameToken(p.cursor.Peek(1).Type) || p.peekTokenIs(lexer.LPAREN) {
+			p.nextToken()
+			lhs := p.parseExpression(LOWEST)
+			if p.stopped() || lhs == nil {
+				return nil, nil, nil
+			}
+			stmt, spec = p.buildPropertyWriteSpec(lhs, opening)
+			if assignment, ok := stmt.(*ast.AssignmentStatement); ok && assignment.Token.Type == lexer.LPAREN {
+				source = lhs
+			} else if expression, ok := stmt.(*ast.ExpressionStatement); ok && expression.Expression != lhs {
+				source = lhs
+			}
+		} else {
+			stmt = &ast.EmptyStatement{BaseNode: ast.BaseNode{Token: opening}}
+		}
+	}
+	if !p.stopped() {
+		p.expectPeek(lexer.RPAREN)
+	}
+	return stmt, spec, source
 }
 
 // buildPropertyWriteSpec turns a parsed parenthesized write specifier into either
@@ -278,6 +318,7 @@ func (p *Parser) parsePropertyWriteClause(prop *ast.PropertyDecl) bool {
 //   - plain lvalue (FSub.Field)            -> normalized to `lvalue := Value`
 //   - identifier   (Field)                 -> normalized to `Field := Value`
 func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Token) (ast.Statement, ast.Expression) {
+	instruction := lhs
 	for {
 		group, ok := lhs.(*ast.GroupedExpression)
 		if !ok {
@@ -285,7 +326,7 @@ func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Tok
 		}
 		lhs = group.Expression
 	}
-	if p.peekTokenIs(lexer.ASSIGN) {
+	if isAssignmentOperator(p.cursor.Peek(1).Type) {
 		p.nextToken() // move to ':='
 		assignOp := p.cursor.Current().Type
 		assignToken := p.cursor.Current()
@@ -303,6 +344,10 @@ func (p *Parser) buildPropertyWriteSpec(lhs ast.Expression, writeToken lexer.Tok
 	}
 
 	switch lhs.(type) {
+	case *ast.IntegerLiteral, *ast.FloatLiteral, *ast.StringLiteral, *ast.BooleanLiteral, *ast.CharLiteral:
+		// A literal reached through an inner bracket is a real instruction;
+		// retain its source term for semantic constant/null classification.
+		return &ast.ExpressionStatement{BaseNode: ast.BaseNode{Token: writeToken}, Expression: instruction}, nil
 	case *ast.CallExpression:
 		// A call such as SetField(Value) executes directly.
 		return &ast.ExpressionStatement{

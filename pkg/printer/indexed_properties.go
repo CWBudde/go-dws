@@ -69,7 +69,11 @@ func (p *Printer) printPropertyDecl(pd *ast.PropertyDecl) {
 		p.write("write")
 		p.space()
 		p.write("(")
-		p.printDWScript(pd.WriteStmt)
+		if pd.WriteSourceExpression != nil {
+			p.printDWScript(pd.WriteSourceExpression)
+		} else {
+			p.printDWScript(pd.WriteStmt)
+		}
 		p.write(")")
 	}
 

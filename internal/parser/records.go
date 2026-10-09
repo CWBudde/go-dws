@@ -390,21 +390,13 @@ func fieldsFromRecordFieldNames(
 // PRE: cursor is LPAREN
 // POST: cursor is RPAREN
 func (p *Parser) parseRecordPropertyWriteClause(prop *ast.RecordPropertyDecl) bool {
-	writeToken := p.cursor.Current()
-
-	p.nextToken() // move into parentheses, to the lvalue start
-	lhs := p.parseExpression(LOWEST)
-	if lhs == nil {
-		return false
-	}
-
-	writeStmt, writeSpec := p.buildPropertyWriteSpec(lhs, writeToken)
+	writeStmt, writeSpec, source := p.parsePropertyWriteInstruction()
 	prop.WriteStmt = writeStmt
+	prop.WriteSourceExpression = source
 	if identExpr, ok := writeSpec.(*ast.Identifier); ok {
 		prop.WriteField = identExpr.Value
 	}
-
-	return p.expectPeek(lexer.RPAREN)
+	return !p.stopped()
 }
 
 // parseRecordPropertyDeclaration parses a record property declaration (dispatcher).
@@ -567,7 +559,7 @@ func (p *Parser) parseRecordPropertyDeclaration() *ast.RecordPropertyDecl {
 			cursor = cursor.Advance() // move to '('
 			p.cursor = cursor
 			if !p.parseRecordPropertyWriteClause(prop) {
-				return nil
+				return prop
 			}
 			cursor = p.cursor
 		case lexer.IDENT:

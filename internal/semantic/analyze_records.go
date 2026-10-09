@@ -373,6 +373,9 @@ func (a *Analyzer) analyzeRecordDecl(decl *ast.RecordDecl) {
 		case prop.WriteField != "":
 			propInfo.WriteKind = types.PropAccessField
 		case prop.WriteStmt != nil:
+			if _, null := prop.WriteStmt.(*ast.EmptyStatement); null {
+				a.warnNullPropertyWriter(prop.WriteStmt)
+			}
 			propInfo.WriteKind = types.PropAccessExpression
 			propInfo.WriteExpr = prop.WriteStmt
 		default:

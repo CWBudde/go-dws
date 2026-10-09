@@ -969,6 +969,7 @@ func walkPropertyDecl(n *PropertyDecl, v Visitor) {
 	if n.WriteSpec != nil {
 		Walk(v, n.WriteSpec)
 	}
+	// WriteSourceExpression skipped (ast:"skip" tag)
 	if n.WriteStmt != nil {
 		Walk(v, n.WriteStmt)
 	}
@@ -1058,6 +1059,7 @@ func walkRecordPropertyDecl(n *RecordPropertyDecl, v Visitor) {
 	if n.ReadExpr != nil {
 		Walk(v, n.ReadExpr)
 	}
+	// WriteSourceExpression skipped (ast:"skip" tag)
 	if n.WriteStmt != nil {
 		Walk(v, n.WriteStmt)
 	}

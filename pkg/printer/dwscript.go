@@ -1024,27 +1024,10 @@ func (p *Printer) printRecordDecl(rd *ast.RecordDecl) {
 		p.newline()
 	}
 
-	// Print properties
-	for _, property := range rd.Properties {
+	// Print properties through the common accessor-preserving owner.
+	for i := range rd.Properties {
 		p.writeIndent()
-		p.write("property")
-		p.space()
-		p.printDWScript(property.Name)
-		p.write(":")
-		p.space()
-		p.printDWScript(property.Type)
-		if property.ReadField != "" {
-			p.space()
-			p.write("read")
-			p.space()
-			p.write(property.ReadField)
-		}
-		if property.WriteField != "" {
-			p.space()
-			p.write("write")
-			p.space()
-			p.write(property.WriteField)
-		}
+		p.printRecordPropertyDecl(&rd.Properties[i])
 		p.write(";")
 		p.newline()
 	}
@@ -1375,6 +1358,11 @@ func (p *Printer) printRecordPropertyDecl(rpd *ast.RecordPropertyDecl) {
 		p.write("read")
 		p.space()
 		p.write(rpd.ReadField)
+	} else if rpd.ReadExpr != nil {
+		p.space()
+		p.write("read")
+		p.space()
+		p.printDWScript(rpd.ReadExpr)
 	}
 
 	if rpd.WriteField != "" {
@@ -1382,6 +1370,15 @@ func (p *Printer) printRecordPropertyDecl(rpd *ast.RecordPropertyDecl) {
 		p.write("write")
 		p.space()
 		p.write(rpd.WriteField)
+	} else if rpd.WriteStmt != nil {
+		p.space()
+		p.write("write (")
+		if rpd.WriteSourceExpression != nil {
+			p.printDWScript(rpd.WriteSourceExpression)
+		} else {
+			p.printDWScript(rpd.WriteStmt)
+		}
+		p.write(")")
 	}
 }
 
