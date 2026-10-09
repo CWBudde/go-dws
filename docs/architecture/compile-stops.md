@@ -1,7 +1,7 @@
 # Compile stops
 
-How a compiler stop ends compilation in upstream DWScript, how go-dws approximates it today,
-and the model `PLAN.md` §2.1 replaces it with. Line references are as of branch
+How a compiler stop ends compilation in upstream DWScript, how go-dws implements it today,
+and the remaining steps of the model `PLAN.md` §2.1 moves towards. Line references are as of branch
 `feat/compile-stop-model` (October 2026). Upstream references are to
 `DWScript-Language-Server/DWScript/Source`.
 
@@ -63,121 +63,131 @@ interleave with compiler messages. Malformed constants and invalid characters ar
 `ReadInstrSwitch` (`dwsCompiler.pas:12767`). `{$ERROR}`, `{$WARNING}` and `{$HINT}` are ordinary
 messages (`:12764-12766`). A directive after an earlier stop is never read.
 
-## 2. go-dws today: five mechanisms
+## 2. go-dws today
 
 go-dws runs lexer, parser and analyzer as separate passes. The lexer also runs ahead of the
-parser. Each pass approximates "nothing after the stop" in its own way, and the frontend
-reconciles the results afterwards.
+parser. The parser marks what a stop cut short, the analyzer genuinely halts at its own stops,
+and the frontend makes a position cut per source file before ordering the result.
 
 ### 2.1 Parser `stopped()`
 
-- `ParserError.Stop` (`internal/parser/error.go:18`) marks a stop. `recordStop`
-  (`parser.go:267`) and `addStructuredStop` (`:311`) set it, as do the `addExpectedStop*`
-  helpers (`expected.go:73-103`). There are 62 stop-recording calls outside the definitions.
-- `stopped()` (`parser.go:274`) scans the error list for a stop that has no `DeferredCall`. It
-  derives the flag from the list rather than storing it, so restoring a speculative parse also
-  undoes the stop.
+- `ParserError.Stop` (`internal/parser/error.go`) marks a stop. `recordStop`, `addStructuredStop`
+  and the `addExpectedStop*` helpers (`expected.go`) set it.
+- `stopped()` (`parser.go:274`) scans the error list for a stop that is not `Provisional`
+  (§2.2). It derives the flag from the list rather than storing it, so restoring a speculative
+  parse also undoes the stop.
 - `recordError` (`parser.go:254`) drops every error once `stopped()` is true. It also drops
-  `{$FATAL}` truncation artifacts at the synthetic end of input (`lexer.StoppedByFatal`,
-  `internal/lexer/lexer.go:310`).
-- `p.stopped()` is called at **22 sites in 10 files**: `classes.go` ×4, `records.go` ×3,
-  `statements.go` ×3, `expressions_calls.go` ×3, `expressions_oop.go` ×3, `helpers.go` ×2, and
-  one each in `control_flow.go`, `declarations.go`, `expected.go` and `parser.go`. These sites
-  bail out of loops, so the parser does not keep building nodes after a stop.
+  `{$FATAL}` truncation artifacts at the synthetic end of input (`lexer.StoppedByFatal`).
+- `p.stopped()` is called at 16 sites in 9 files (`classes.go`, `records.go`, `statements.go`,
+  `parser.go`, `control_flow.go`, `declarations.go`, `expected.go`, `expressions_calls.go`,
+  `helpers.go`). These sites bail out of loops, so the parser does not keep building nodes
+  after a stop.
+- A block cut short by a missing `END` is kept with `BlockStatement.Truncated`
+  (`pkg/ast/ast.go`); the analyzer then skips the block's completion hints
+  (`isTruncatedBlock`, `analyze_statements.go:1513`; `unused_warnings.go`).
 
-### 2.2 Truncated calls, handled three ways
+### 2.2 Truncated calls: one carrier
 
-1. **Dropped (`nil`).** A call whose argument list hit a stop returns `nil`, so the analyzer
-   never sees the call or the arguments it did read:
-   - `expressions_calls.go:43` (non-identifier callee), `:74` (call or record literal),
-     `:128` (`parseCallWithExpressionList`);
-   - `expressions_oop.go:71` (`inherited X(…)`), `:198` (`new T(…)`), `:253` (`new (op)(…)`);
-   - `classes.go:819` (`TClass.Create(…)` as a `NewExpression`).
+Every call form keeps its node when a stop cuts its argument list short: `CallExpression`,
+`NewExpression`, `MethodCallExpression` and `InheritedExpression` carry `Truncated bool`.
+`parseCallArguments` (`parser.go:301`) returns the completed arguments plus the flag;
+`completedArgument` (`:309`) keeps an argument only if no stop cut it, or if it is itself a
+truncated call. A record-literal-or-call list becomes a truncated `CallExpression`
+(`buildTruncatedCallFromFields`, `expressions_calls.go`).
 
-   This is why `array_index_bracket_missing1` and `constructor_invalid_param` pass, and why
-   `missing_parenthesis1` loses its `Invalid Operands`.
-2. **`Incomplete` on `MethodCallExpression`** (`pkg/ast/classes.go:401`). It is set at
-   `classes.go:849` and `:860`. The analyzer's `analyzeIncompleteMemberCall`
-   (`internal/semantic/property_reintroduce.go:59`) skips the call and sets `compileStopped`.
-   `DebugBreakExpression.Incomplete` (`pkg/ast/debugbreak.go:14`) and
-   `RecordTypeNode.Incomplete` (`pkg/ast/type_expression.go:67`, set at `records.go:117`) are separate retain-for-diagnostics
-   flags.
-3. **`DeferredCall` provisional stop** (`error.go:21`). A `obj.M(` that runs into `;`, `end`
-   or EOF records `Expression expected` with `Stop` and `DeferredCall` set (`classes.go:844-858`).
-   `stopped()` ignores this error, so parsing continues past it. If an enclosing argument list is
-   then cut short, `confirmDeferredCallStops` (`parser.go:646`, called from
-   `expressions.go:329/364/395` and `expressions_calls.go:190`) makes the stop real. Otherwise
-   the frontend removes it when the analyzer resolved the call as a property read (§2.4).
+The analyzer's `analyzeTruncatedCall` (`analyze_function_calls.go:130`) analyzes the
+completed arguments only and never resolves the call: no arity, overload or argument-type
+checks, and no end-of-program checks. `containsParserRecovery`
+(`recovery_diagnostics.go:10`) treats a truncated call like an `InvalidExpression`.
+`DebugBreakExpression.Incomplete` and `RecordTypeNode.Incomplete` are separate
+retain-for-diagnostics flags.
 
-### 2.3 Analyzer `compileStopped`
+**Statement-boundary calls.** `obj.M(` directly followed by `;`, `end` or EOF is a stop only
+if `M` is not a reintroduced property: upstream's `ReadPropertyExpr` recovers such a read with
+a hint and an ordinary `")" expected` and goes on. The parser cannot tell, so
+(`classes.go:840-856`):
 
-- `Analyzer.compileStopped` (`internal/semantic/analyzer.go:118`) is a plain flag. It is set to
-  true at 8 sites:
-  - `analyze_expressions.go:324` (unknown name in a cast target) and `:491` (`Class reference
-    expected`);
-  - `analyze_expr_operators.go:292` (unknown name in an expression);
-  - `analyze_function_calls.go:248`, `analyze_literals.go:304`, `analyze_statements.go:909`;
-  - `property_reintroduce.go:62` (incomplete member call);
-  - `type_punctuation.go:18` (`addPunctuationStop`).
+- it marks the node `Truncated` and `StopDeferred` (`pkg/ast/classes.go:412`), and keeps
+  parsing after the `;`;
+- it records `Expression expected` as a `Provisional` stop, which `stopped()` ignores. That
+  error is what parse-only callers (`ParseWithOptions`, `SkipTypeCheck`, analysis blocked by
+  parser errors) see;
+- if an enclosing argument list is then cut short, `confirmDeferredCallStops`
+  (`parser.go:697`) turns the provisional stop into a real one;
+- at the end of a source cut by `{$FATAL}`, `StopDeferred` stays false: the directive is the
+  stop.
 
-  `SetCompileStopped` (`:703`) also sets it from the frontend when the parser stopped.
-- It is read at only 3 sites, all of them end-of-program checks: `reportUnimplementedForwards`
-  (`:578`), `validateForwardDeclarations` (`:596`) and `validateForwardMethods` (`:614`).
-  **Analysis itself continues after the stop.**
-- Separately, `SemanticError.Stop` (`errors.go:117`) is set at 6 sites, the 8 above minus
-  `analyze_expr_operators.go:292` and `property_reintroduce.go:62`.
-  `frontend.semanticDiagnostics` (`internal/frontend/result.go:806`) stops collecting at the
-  first such diagnostic (`:847`). That `break` is the only thing that truncates the analyzer's
-  own output.
-- `pendingClassWarnings` (`analyzer.go:511`) is emitted regardless of `compileStopped`.
-- Several upstream stops have no stop counterpart in go-dws. One example is
-  `ReportNoMemberForType` (`dwsCompiler.pas:13386`, `CPE_UnknownMemberForType`), which go-dws
-  reports as an ordinary error (`errors.go:459`). That is why `HelpersFail/strict` still prints
-  the parser errors from line 11.
+`analyzeStopDeferredCall` (`analyze_method_calls.go:15`) decides a `StopDeferred` call once
+the member is resolved: unless it recorded a property read, it raises `Expression expected` as
+an analyzer stop at the parser's anchor. Once analysis has run, the frontend drops the
+provisional parser stops (`dropProvisional`, `result.go:347`).
 
-### 2.4 Frontend reconciliation (`internal/frontend/result.go`)
+### 2.3 Analyzer stops
 
-`compileParsedResult` (`:302`) runs analysis, then post-processes in this order (`:328-340`):
+- `addCompilerStop` (`internal/semantic/compile_stop.go`) records the diagnostic with `Stop`
+  and raises the `compileStopSignal` sentinel panic. `analyzeUntilStop` recovers it at the
+  units of work the analyzer runs in source order (top-level statements of a program or unit
+  section, deferred routine and method bodies, signature registration), restoring the analysis
+  context the unwinding skipped. `recoverCompileStop` ends an entry point. Deferred bodies
+  declared before the stop still run (`insertionPrecedesStop`), because upstream compiled them
+  first.
+- 31 sites raise a stop, among them `"(" expected`, `Not a method`, `Class reference expected`,
+  member-not-found (`NewAccessibleMemberError`, `CPE_UnknownMemberForType`), cast targets and
+  the deferred boundary call above (all through `addCompilerStop` / `addPunctuationStop`).
+- `compileStopped()` is true after a raised stop or when `skipEndOfProgramChecks` is set. It
+  guards the end-of-program checks: `reportUnimplementedForwards` (`analyzer.go:593`),
+  `validateForwardDeclarations` (`:608`) and `validateForwardMethods` (`:629`).
+  `skipEndOfProgramChecks` is set by `SetCompileStopped` (`:719`, from the frontend when the
+  parser stopped, for the program and every unit), by `analyzeTruncatedCall`, and by the
+  unknown name in an expression (`analyze_expr_operators.go:296`). The unknown name is still
+  not a raised stop: fixture-pinned diagnostics of the enclosing reads follow it.
+- `frontend.semanticDiagnostics` (`result.go:824`) still stops collecting at the first stop
+  diagnostic (`:864`). Deferred bodies run after a top-level stop is raised, so their
+  diagnostics are emitted after it; the `break` removes them.
 
-1. `refineTypePunctuationDiagnostics` (`type_punctuation.go:9`) drops a parser
-   `Expression expected` stop when an analyzer `"(" expected` stop sits at the same position.
-   It decides this by matching **message text**.
-2. `refineDeferredPropertyCallDiagnostics` (`type_punctuation.go:30`) drops a `DeferredCall`
-   stop whose call the analyzer resolved as a property read.
-3. `dropDiagnosticsAfterStop` (`:356`) finds the earliest stop by position:
+### 2.4 Frontend (`internal/frontend/result.go`)
+
+`compileParsedResult` (`:303`) runs analysis, then for the main file:
+
+1. `dropProvisional` removes the provisional parser stops of §2.2.
+2. `dropDiagnosticsAfterStop` (`:372`) is the one position cut. It finds the earliest stop of
+   either phase; at a tie the analyzer's stop wins, because the analyzer only reaches a parser
+   stop's token through a carrier the parser left it to decide (an interrupted typed constant
+   initializer, `const C: R = ;`, is a record constant's `"(" expected` upstream, not the
+   parser's `Expression expected`).
    - a parser stop cuts the semantic diagnostics after it;
-   - a semantic stop cuts the parser diagnostics at or after it.
-
-   Main-file diagnostics only; unit diagnostics are merged back unfiltered.
-4. `restoreStatementWarningOrder` (`diagnostic_boundary.go:10`) moves the semantic prefix ahead
+   - an analyzer stop cuts the parser diagnostics, including directive diagnostics, at or
+     after it.
+3. `restoreStatementWarningOrder` (`diagnostic_boundary.go:10`) moves the semantic prefix ahead
    of the parser boundary for statement-boundary warnings.
-5. `sortDiagnostics` (`:446`) is a stable sort with roughly ten rules: directive vs. advisory,
+4. `sortDiagnostics` (`:464`), a stable sort with roughly ten rules: directive vs. advisory,
    errors vs. hints, the deferred forward bucket, after-children stops, arity and static-class
    priority, parser order, phase, and specificity. `restoreDeclarationDiagnosticOrder`
    (`declaration_diagnostics.go:12`) runs between the two sorts.
-6. A merge with unit diagnostics, then `sortDiagnostics`, then `filterDiagnostics` (`:876`),
-   then `sortDiagnostics` again. `filterDiagnostics` is a set of **text filters**:
-   - `Name expected` dedup within 8 columns;
-   - `Expression expected before COLON`;
-   - the `must have either a type annotation` / `variable declaration requires a type` filter
-     (`:953-956`);
-   - `already declared` after `Dot "." expected`;
-   - unknown-type relocation onto `";" expected`;
-   - unfinished-class-body suppression after `Unknown name`;
-   - visible/accessible member dedup;
-   - `expected 'end' to close unit declaration` after a fatal.
+5. A merge with unit diagnostics, then `sortDiagnostics`, `filterDiagnostics` (`:894`) and
+   `sortDiagnostics` again. `filterDiagnostics` is a set of **text filters**: `Name expected`
+   dedup within 8 columns; `Expression expected before COLON`; the `must have either a type
+   annotation` / `variable declaration requires a type` filter; `already declared` after
+   `Dot "." expected`; unknown-type relocation onto `";" expected`; unfinished-class-body
+   suppression after `Unknown name` (still needed by `param_partial3`, because the unknown name
+   is not a raised stop); visible/accessible member dedup; `expected 'end' to close unit
+   declaration` after a fatal.
 
-### 2.5 Lexer cutoff
+### 2.5 Lexer cutoff and units
 
-`reachedLexerDiagnostics` (`result.go:642`) drops directive diagnostics positioned after the
-earliest **parser** stop. That approximates the lazy tokenizer in `ParseWithOptions` (`:241`).
-The unit path, `analyzeUnits` (`internal/frontend/units.go:59`), appends
-`unit.DirectiveDiagnostics` without this cutoff.
+`reachedLexerDiagnostics` (`result.go:660`) drops directive diagnostics positioned after the
+earliest **parser** stop, approximating the lazy tokenizer in `ParseWithOptions`. Analyzer
+stops cut directive diagnostics in `dropDiagnosticsAfterStop`.
 
-`{$FATAL}` is not a frontend stop. `lexerDiagnostics` (`:676`) never sets `Stop`. Instead the
-lexer ends tokenization (`directives.go:179`, `StoppedByFatal`), and the parser suppresses the
-truncation noise (§2.1). Semantic diagnostics positioned after a `{$FATAL}` are not cut by
-position.
+A unit that fails to parse fails to load (`internal/units/registry.go`), so a loaded unit's
+stops come from its analyzer. `analyzeUnits` (`internal/frontend/units.go`) passes the unit's
+directive diagnostics and its semantic diagnostics through `dropDiagnosticsAfterStop` together,
+so the same cut applies per unit. A fatal unit directive still aborts before the unit is
+analyzed.
+
+`{$FATAL}` is not a frontend stop. `lexerDiagnostics` never sets `Stop`. The lexer ends
+tokenization instead (`StoppedByFatal`), and the parser suppresses the truncation noise
+(§2.1). Semantic diagnostics positioned after a `{$FATAL}` are not cut by position.
 
 ## 3. Target model (PLAN §2.1)
 
@@ -204,6 +214,19 @@ position.
    analyzer streams into single-pass order. `refineTypePunctuationDiagnostics`,
    `refineDeferredPropertyCallDiagnostics`, `dropDiagnosticsAfterStop` and the stop-related text
    filters in `filterDiagnostics` are deleted. `reachedLexerDiagnostics` folds into the one cut.
+
+**Status.** Steps 1 and 2 are in place for the call forms and the sites listed in §2.2–§2.3;
+`refineTypePunctuationDiagnostics` and `refineDeferredPropertyCallDiagnostics` are deleted.
+Still open:
+
+- The unknown name in an expression sets `skipEndOfProgramChecks` but does not unwind, so the
+  `semanticDiagnostics` `break` and the class-body text filter stay.
+- The statement-boundary call keeps a provisional parser error as the parse-only fallback,
+  and `confirmDeferredCallStops` for nested lists.
+- `{$FATAL}` and malformed constants are not stops in the cut, and the cut is still by display
+  position; the completion-point rule (step 3) covers only blocks cut by a missing `END`.
+- `dropDiagnosticsAfterStop` and `reachedLexerDiagnostics` remain as two halves of the cut;
+  the text filters in `filterDiagnostics` remain.
 
 ## 4. Invariants
 
@@ -233,11 +256,12 @@ preserve them.
 
 | Fixture | Role | Today |
 |---|---|---|
-| `FailureScripts/missing_parenthesis1` | Target (carrier, §3.1) | Missing `Invalid Operands` [1:30]; the call is dropped |
-| `HelpersFail/strict` | Target (analyzer stop, §3.2) | Four extra parser errors on line 11 after the 9:11 member stop |
-| `FailureScripts/block_unfinished2` | Target (completion point, §3.3) | Extra `Variable "i" declared but not used` [2:5] |
+| `FailureScripts/missing_parenthesis1` | Target (carrier, §3.1) | Passes |
+| `HelpersFail/strict` | Target (analyzer stop, §3.2) | Passes |
+| `FailureScripts/block_unfinished2` | Target (completion point, §3.3) | Passes |
 | `FailureScripts/array_index_bracket_missing1` | Must keep passing | Passes: the truncated `[…]` is never analyzed |
 | `FailureScripts/constructor_invalid_param` | Must keep passing | Passes: no arity check on the truncated `new TMyClass(1 1` |
+| `FailureScripts/param_partial3` | Must keep passing | Passes through the class-body text filter (§2.4) |
 | `FailureScripts/static_methods` | Known divergence, not a target | Upstream omits its own `{$FATAL}` line (`docs/decisions/known-divergences.md`) |
 
 Run `--classify` after each step, and move the newly isolated first-diagnostic gaps into
