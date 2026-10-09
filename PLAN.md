@@ -381,6 +381,23 @@ punctuation in the parser before reading arguments.
         anchors; preserve empty and argument-bearing inherited calls in printed source.
         Close `SimpleScripts/inherited1` and `FailureScripts/inherited5`.
     - [ ] Support indexed/default property reads.
+      - [x] Read checked explicitly named indexed class properties through
+        `Obj.Prop()[i, j]`, including named default properties ([#470](https://github.com/CWBudde/go-dws/pull/470)).
+        - [x] Preserve normal/pedantic/disabled hints, casing, argument type/count
+          anchors and ordering, and ordinary-call stops before bracket arguments.
+        - [x] Preserve selected descriptor/accessor identity, virtual dispatch,
+          once-only receiver/index/getter effects, original exceptions, recursive
+          indexed getters, and array-result indexing through complex receivers.
+        - [x] Retain class-property declarations, index parameters and comma groups
+          in source-printer round trips; preserve ordinary/default read controls.
+      - [ ] Extend indexed compatibility reads to unqualified and named inherited
+        contexts, retaining their lexical descriptor/accessor and diagnostic rules.
+      - [ ] Align remaining default-property postfix/call contexts; reject `Obj()[i]`
+        before default-property lookup with the upstream punctuation diagnostic.
+      - [ ] Allow declared index parameters combined with an `index` directive;
+        align getter/writer declaration validation, argument layout and printer output.
+      - [ ] Preserve implicit function-pointer receivers for ordinary and compatibility
+        property reads (`F.Prop[i]` / `F.Prop()[i]`); ordinary reads already fail.
     - [ ] Support property writes through compatibility brackets.
     - [ ] Support function-valued properties and distinguish property reads from invocation.
     - [ ] Support unchecked execution and malformed/nonempty unqualified calls.

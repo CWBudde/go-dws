@@ -1,5 +1,62 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Explicitly named indexed property reads (PLAN 2.1)
+
+This batch ([#470](https://github.com/CWBudde/go-dws/pull/470)) accepts checked `Obj.Prop()[i, j]` reads of explicitly
+named indexed class properties declared with `reintroduce`, including a named
+property marked `default`. The empty pair precedes the declared bracket group.
+Normal/pedantic hint levels, declaration casing and disabled/directive controls
+match the scalar compatibility contract. Type/count diagnostics use the consumed
+closing `)`; child diagnostics precede argument checking, and argument type errors
+suppress count errors. Ordinary indexed property calls report the missing arguments
+at the member name and stop at `(` before reading bracket arguments.
+
+Read-only subagent research used upstream revision
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`: compiler `ReadPropertyExpr`
+(5421–5434), `ReadPropertyReadExpr` (5476–5479), `ReadPropertyArrayAccessor`
+(5646–5660), compiler-utils argument checking (645–739), and property/getter
+parameter layout in `dwsSymbols.pas` (5976–5983). These are source-derived
+expectations; no Pascal oracle was executed.
+
+Typed SemanticInfo bindings retain the selected descriptor, accessor owner and
+one bracket group's arguments. Evaluator execution evaluates the receiver and
+indices once in order, propagates original exceptions, and shares the resolved
+scalar-reader dispatch machinery. Nonvirtual readers retain their selected owner;
+virtual instance/class readers retain dynamic Self. Explicit Self, class/metaclass,
+nil nonvirtual and descendant method/property-shadow controls are covered. Later
+bracket groups index the returned value. The source printer retains class-property
+markers, index declarations and comma groups; CLI source output now preserves
+`[i, j]` separately from `[i][j]`, while ordinary arrays execute equivalently.
+
+TDD acceptance contains eighteen exact frontend diagnostic cases, thirteen scripts
+through the public Engine API, and four parse/print/compile/run round trips.
+One fresh whole-branch agent review found two Important issues and no Critical/Minor
+findings: array-result indexing through complex receivers and finite indexed-getter
+recursion. Both were reproduced in RED before fixing speculative bracket-chain
+probing and removing the scalar descriptor-cycle guard from indexed reads. Grouped,
+cast, function-result and member receivers and recursive Self reads now pass.
+The full suite also caught an older CLI test assuming comma-group desugaring in
+source output; it now checks exact preserved syntax and both ordinary array forms
+against a literal output expectation.
+
+Only the explicitly named checked indexed-read child closes. Unqualified/named
+inherited indexed reads, remaining default-property call contexts, writes,
+function-valued properties, unchecked execution, private validation and full
+malformed-call recovery stay open. Existing declaration rejection of combined
+index parameters plus an `index` directive and implicit function-pointer receiver
+limitations are recorded as follow-ups rather than widened into this batch.
+
+Final verification with Go 1.24.13 passed `go test -race -coverprofile=<file> ./...`
+on an exact frozen source copy, the focused frontend/Engine/printer suites, the CLI
+comma/bracket suite, CI lint against `origin/main` (zero new issues), formatting,
+dependency tidiness, visitor regeneration with no diff, a fresh CLI build, and
+thirty-one exact CLI output/diagnostic/exit checks. Fresh `just fixture-update` and
+`just fixture-check` passed; the Go harness and CLI fixture report agree on 1423
+passes, 591 failures and 27 skips. Existing category baselines are unchanged;
+the generated status file only refreshes its date. Lexer and parser coverage remain
+86.1806% and 79.6765%, respectively. Frozen sources and ext4 build/test caches avoid
+repeated builds on the repository filesystem. The public PR is left unmerged.
+
 ## 2026-10-07 — Inherited scalar property reads (PLAN 2.1)
 
 This batch ([#469](https://github.com/CWBudde/go-dws/pull/469)) repairs checked named `inherited Prop` reads and accepts empty
