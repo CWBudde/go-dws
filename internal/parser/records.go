@@ -195,7 +195,7 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 				continue
 			} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
 				// Class method
-				method := p.parseFunctionDeclaration()
+				method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 				if method != nil {
 					method.IsClassMethod = true
 					recordDecl.Methods = append(recordDecl.Methods, method)
@@ -223,7 +223,7 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 		// Check for method declarations (instance methods)
 		if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
 			errorCount := len(p.errors)
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 			if method != nil {
 				recordDecl.Methods = append(recordDecl.Methods, method)
 				seenMethod = true

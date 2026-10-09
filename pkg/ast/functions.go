@@ -146,6 +146,8 @@ type FunctionDecl struct {
 	HeaderEndPos token.Position
 	// ForwardPos is the position of the `forward` directive, if any.
 	ForwardPos token.Position
+	// ExportPos is the keyword anchor when a forward implementation repeats export.
+	ExportPos token.Position
 	// VirtualPos is the position of the `virtual` directive, if any. DWScript
 	// anchors "Private virtual methods cannot be overridden" on the keyword
 	// rather than on the method name.
@@ -159,6 +161,8 @@ type FunctionDecl struct {
 	IsAbstract    bool
 	IsStatic      bool
 	IsExternal    bool
+	IsExport      bool // "export;" retains the ordinary routine body
+	HasExportName bool // distinguishes an explicit empty export name from no name
 	IsClassMethod bool
 	IsOverload    bool
 	IsForward     bool
@@ -234,18 +238,49 @@ func (fd *FunctionDecl) String() string {
 		modifiers = append(modifiers, "overload")
 	}
 	if fd.IsExternal {
-		modifiers = append(modifiers, "external")
+		external := "external"
+		if fd.IsExport && fd.ExternalName != "" {
+			external += " " + quoteExportName(fd.ExternalName)
+		}
+		modifiers = append(modifiers, external)
 	}
 	if fd.IsForward {
 		modifiers = append(modifiers, "forward")
 	}
+	if fd.IsExport {
+		export := "export"
+		if fd.HasExportName {
+			export += " " + quoteExportName(fd.ExternalName)
+		}
+		modifiers = append(modifiers, export)
+		if fd.IsHelper {
+			helper := "helper"
+			if fd.HelperName != nil {
+				helper += " " + fd.HelperName.Value
+			}
+			modifiers = append(modifiers, helper)
+		}
+		if fd.CallingConvention != "" {
+			modifiers = append(modifiers, fd.CallingConvention)
+		}
+		if fd.IsInline {
+			modifiers = append(modifiers, "inline")
+		}
+	}
 	if fd.IsDeprecated {
-		modifiers = append(modifiers, "deprecated")
+		deprecated := "deprecated"
+		if fd.IsExport && fd.DeprecatedMessage != "" {
+			deprecated += " " + quoteExportName(fd.DeprecatedMessage)
+		}
+		modifiers = append(modifiers, deprecated)
 	}
 
 	if len(modifiers) > 0 {
 		result.WriteString("; ")
 		result.WriteString(strings.Join(modifiers, "; "))
+		if fd.IsExport {
+			result.WriteString(";")
+		}
 	}
 
 	// Add preconditions if present
@@ -269,6 +304,15 @@ func (fd *FunctionDecl) String() string {
 	}
 
 	return result.String()
+}
+
+// quoteExportName preserves decoded names, including names whose newlines
+// require DWScript's multiline double-quoted string syntax.
+func quoteExportName(name string) string {
+	if strings.ContainsAny(name, "\r\n") {
+		return "\"" + strings.ReplaceAll(name, "\"", "\"\"") + "\""
+	}
+	return "'" + strings.ReplaceAll(name, "'", "''") + "'"
 }
 
 // ReturnStatement represents a return statement in a function.

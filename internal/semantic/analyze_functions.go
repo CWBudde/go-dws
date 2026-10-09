@@ -46,8 +46,17 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 // declaration was a helper function that is fully analyzed by analyzeFunctionHelperDecl;
 // in both cases the caller must not run a body pass.
 func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes []types.Type, returnType types.Type, ok bool) {
-	// Check for unsupported calling conventions and emit hints
-	a.addCallConventionHint(decl)
+	// Export qualifiers are reached only after forward binding allows EXPORT.
+	// Preserve convention hints on ordinary routines and early header failures.
+	conventionHintPending := decl.IsExport
+	if !conventionHintPending {
+		a.addCallConventionHint(decl)
+	}
+	defer func() {
+		if conventionHintPending {
+			a.addCallConventionHint(decl)
+		}
+	}()
 
 	// Regular function (not method): resolve parameter and return types
 	paramTypes = make([]types.Type, 0, len(decl.Parameters))
@@ -145,13 +154,6 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 		returnType = types.VOID
 	}
 
-	if decl.IsHelper {
-		// Helper functions are fully analyzed here (signature + body); there is no
-		// separate body pass for them.
-		a.analyzeFunctionHelperDecl(decl, paramTypes, returnType)
-		return nil, nil, false
-	}
-
 	// Create function type with metadata (handles lazy, var, const, defaults)
 	var funcType *types.FunctionType
 	if len(paramTypes) > 0 {
@@ -184,6 +186,19 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 	// `forward` is meaningless on an external routine (the host implements it),
 	// so it is not left awaiting an implementation.
 	isForward := decl.IsForward && !decl.IsExternal
+	repeatedExport := decl.IsExport && !isForward && a.symbols.exportImplementsForward(decl.Name.Value, funcType)
+	if conventionHintPending {
+		conventionHintPending = false
+		if !repeatedExport {
+			a.addCallConventionHint(decl)
+		}
+	}
+	if decl.IsHelper && !repeatedExport {
+		// Helper functions are fully analyzed here (signature + body); there is no
+		// separate body pass for them.
+		a.analyzeFunctionHelperDecl(decl, paramTypes, returnType)
+		return nil, nil, false
+	}
 	if err := a.symbols.DefineOverload(decl.Name.Value, funcType, decl.IsOverload, isForward, decl.Name.Token.Pos); err != nil {
 		pos := decl.Token.Pos
 		switch declarationAnchor(err) {
@@ -198,6 +213,13 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 		case anchorDecl:
 		}
 		a.addError("Syntax Error: %s [line: %d, column: %d]", err.Error(), pos.Line, pos.Column)
+		if repeatedExport {
+			a.addPunctuationStop(decl.ExportPos, "BEGIN expected")
+		}
+		return nil, nil, false
+	}
+	if repeatedExport {
+		a.addPunctuationStop(decl.ExportPos, "BEGIN expected")
 		return nil, nil, false
 	}
 

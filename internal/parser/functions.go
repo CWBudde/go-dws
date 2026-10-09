@@ -87,8 +87,17 @@ func (p *Parser) parseFunctionLocalDeclarations(fn *ast.FunctionDecl) bool {
 // Returns true if a directive was parsed, false if no more directives.
 //
 //nolint:gocyclo // Switch-based directive dispatcher has inherent complexity
-func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token) bool {
+func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token, allowExport bool) bool {
 	cursor := p.cursor
+	// Once export has been read, the remaining declaration phases are helper,
+	// calling qualifiers, inline and deprecated. Linkage and overload precede it.
+	if fn.IsExport {
+		switch nextTok.Type {
+		case lexer.HELPER, lexer.IDENT, lexer.INLINE, lexer.DEPRECATED:
+		default:
+			return false
+		}
+	}
 
 	switch nextTok.Type {
 	case lexer.STATIC:
@@ -134,6 +143,20 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 			p.cursor = cursor
 			fn.ExternalName = cursor.Current().Literal
 		}
+
+	case lexer.EXPORT:
+		if !allowExport || fn.IsExport || fn.IsHelper || fn.CallingConvention != "" || fn.IsInline || fn.IsDeprecated {
+			return false
+		}
+		cursor = cursor.Advance()
+		fn.IsExport = true
+		fn.ExportPos = cursor.Current().Pos
+		if cursor.Peek(1).Type == lexer.STRING {
+			cursor = cursor.Advance()
+			fn.HasExportName = true
+			fn.ExternalName = cursor.Current().Literal
+		}
+		p.cursor = cursor
 
 	case lexer.OVERLOAD:
 		cursor = cursor.Advance()
@@ -209,10 +232,10 @@ func (p *Parser) parseSingleDirective(fn *ast.FunctionDecl, nextTok lexer.Token)
 // parseFunctionDirectives parses function/procedure directives (static, virtual, override, etc.).
 // PRE: cursor is at semicolon after function signature
 // POST: cursor is at last semicolon after last directive
-func (p *Parser) parseFunctionDirectives(fn *ast.FunctionDecl) bool {
+func (p *Parser) parseFunctionDirectives(fn *ast.FunctionDecl, allowExport bool) bool {
 	for {
 		nextTok := p.cursor.Peek(1)
-		if !p.parseSingleDirective(fn, nextTok) {
+		if !p.parseSingleDirective(fn, nextTok, allowExport) {
 			break
 		}
 	}
@@ -378,9 +401,24 @@ func (p *Parser) parseFunctionQualifiedName() (name, className *ast.Identifier, 
 //
 // PRE: cursor is FUNCTION or PROCEDURE
 // POST: cursor is END or SEMICOLON (forward declaration) or last token of body
+func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
+	return p.parseFunctionDeclarationInContext(ordinaryRoutineDeclaration)
+}
+
+type routineDeclarationContext uint8
+
+const (
+	ordinaryRoutineDeclaration routineDeclarationContext = iota
+	memberRoutineDeclaration
+	unitInterfaceRoutineDeclaration
+)
+
+// parseFunctionDeclarationInContext keeps ordinary routine directives separate
+// from member declarations, whose class markers are assigned by their callers.
+// PRE/POST: same cursor contract as parseFunctionDeclaration.
 //
 //nolint:gocyclo // Function declaration parser with multiple optional clauses
-func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
+func (p *Parser) parseFunctionDeclarationInContext(context routineDeclarationContext) *ast.FunctionDecl {
 	cursor := p.cursor
 	builder := p.StartNode()
 
@@ -453,10 +491,17 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	headerSemicolonPos := cursor.Current().Pos
 
 	// Parse directives (static, virtual, override, etc.)
-	if !p.parseFunctionDirectives(fn) {
+	allowExport := context != memberRoutineDeclaration && fn.ClassName == nil &&
+		(fn.Token.Type == lexer.PROCEDURE || fn.Token.Type == lexer.FUNCTION)
+	if !p.parseFunctionDirectives(fn, allowExport) {
 		return nil
 	}
 	cursor = p.cursor
+	// Unit interface exports are implicitly forwarded. Other interface forms
+	// retain the section reader's existing body/forward handling.
+	if fn.IsExport && context == unitInterfaceRoutineDeclaration && !fn.IsExternal {
+		fn.IsForward = true
+	}
 
 	// DWScript checks a routine's name against earlier declarations once the
 	// header is complete: at the header's ';' when no directive follows, and
@@ -477,7 +522,7 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 
 	// Forward and external declarations have no body or local declarations.
 	nextTok := cursor.Peek(1)
-	if fn.IsForward || fn.IsExternal || (nextTok.Type != lexer.BEGIN && nextTok.Type != lexer.VAR && nextTok.Type != lexer.CONST && nextTok.Type != lexer.REQUIRE) {
+	if fn.IsForward || fn.IsExternal || (!fn.IsExport && nextTok.Type != lexer.BEGIN && nextTok.Type != lexer.VAR && nextTok.Type != lexer.CONST && nextTok.Type != lexer.REQUIRE) {
 		decl, _ := builder.Finish(fn).(*ast.FunctionDecl)
 		return decl
 	}
@@ -488,12 +533,18 @@ func (p *Parser) parseFunctionDeclaration() *ast.FunctionDecl {
 	}
 	cursor = p.cursor
 
-	// Parse function body (begin...end block). Once the input has run out
-	// upstream's loop simply ends (contracts_unfinished4); otherwise the missing
-	// keyword is a compiler stop anchored at the token found (virtual2).
+	// Parse function body (begin...end block). Exported ordinary routines require
+	// a body even at EOF; retain the existing unfinished-contract EOF behavior
+	// for other routines (contracts_unfinished4).
 	if cursor.Peek(1).Type != lexer.BEGIN {
-		if cursor.Peek(1).Type != lexer.EOF {
+		if fn.IsExport || cursor.Peek(1).Type != lexer.EOF {
 			p.addExpectedStop(lexer.BEGIN)
+		}
+		if fn.IsExport {
+			// A reached export header must remain available for forward binding:
+			// that declaration context can stop at EXPORT before this body error.
+			builder.Finish(fn)
+			return fn
 		}
 		return nil
 	}

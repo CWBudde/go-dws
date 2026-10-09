@@ -372,7 +372,11 @@ func dropDiagnosticsAfterStop(diags []Diagnostic) []Diagnostic {
 	stopLine, stopColumn, found := 0, 0, false
 	var stopPhase Phase
 	for _, diag := range diags {
-		if diag.Stop && (!found || diag.Line < stopLine || (diag.Line == stopLine && diag.Column < stopColumn)) {
+		// At one position, semantic resolution knows the declaration branch
+		// that precedes speculative parser punctuation at that same boundary.
+		samePosition := diag.Line == stopLine && diag.Column == stopColumn
+		if diag.Stop && (!found || diag.Line < stopLine || (diag.Line == stopLine && diag.Column < stopColumn) ||
+			(samePosition && diag.Phase == PhaseSemantic && stopPhase == PhaseParsing)) {
 			stopLine, stopColumn, found, stopPhase = diag.Line, diag.Column, true, diag.Phase
 		}
 	}

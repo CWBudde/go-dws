@@ -298,7 +298,7 @@ func (p *Parser) parseClassLevelMember(cursor *TokenCursor, classDecl *ast.Class
 		}
 	} else if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE || cursor.Current().Type == lexer.METHOD {
 		// Class method: class function/procedure/method ...
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 		if method != nil {
 			method.IsClassMethod = true // Mark as class method
 			method.Visibility = currentVisibility
@@ -327,7 +327,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 
 	case lexer.FUNCTION, lexer.PROCEDURE, lexer.METHOD:
 		// Regular instance method declaration
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 		if method != nil {
 			method.Visibility = currentVisibility
 			classDecl.Methods = append(classDecl.Methods, method)
@@ -335,7 +335,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 
 	case lexer.CONSTRUCTOR:
 		// Constructor declaration
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 		if method != nil {
 			method.IsConstructor = true
 			method.Visibility = currentVisibility
@@ -344,7 +344,7 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 
 	case lexer.DESTRUCTOR:
 		// Destructor declaration
-		method := p.parseFunctionDeclaration()
+		method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 		if method != nil {
 			method.IsDestructor = true
 			method.Visibility = currentVisibility

@@ -2,6 +2,7 @@ package printer
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/token"
@@ -623,6 +624,46 @@ func (p *Printer) printMethodModifiers(fd *ast.FunctionDecl) {
 
 // printFunctionDirectives prints function directives like calling convention, deprecated, forward, external.
 func (p *Printer) printFunctionDirectives(fd *ast.FunctionDecl) bool {
+	if fd.IsExport {
+		// Export follows linkage directives and precedes calling qualifiers,
+		// inline and deprecated, including declarations that have no body.
+		if fd.IsExternal {
+			p.write("; external")
+			if fd.ExternalName != "" {
+				p.requiredSpace()
+				p.printExportName(fd.ExternalName)
+			}
+		}
+		if fd.IsForward {
+			p.write("; forward")
+		}
+		p.write("; export")
+		if fd.HasExportName {
+			p.requiredSpace()
+			p.printExportName(fd.ExternalName)
+		}
+		if fd.IsHelper {
+			p.write("; helper")
+			if fd.HelperName != nil {
+				p.requiredSpace()
+				p.printDWScript(fd.HelperName)
+			}
+		}
+		if fd.CallingConvention != "" {
+			p.write("; " + fd.CallingConvention)
+		}
+		if fd.IsInline {
+			p.write("; inline")
+		}
+		if fd.IsDeprecated {
+			p.write("; deprecated")
+			if fd.DeprecatedMessage != "" {
+				p.requiredSpace()
+				p.printExportName(fd.DeprecatedMessage)
+			}
+		}
+		return fd.IsForward || fd.IsExternal
+	}
 	// Print calling convention
 	if fd.CallingConvention != "" {
 		p.write(";")
@@ -660,6 +701,14 @@ func (p *Printer) printFunctionDirectives(fd *ast.FunctionDecl) bool {
 	}
 
 	return false // has body
+}
+
+func (p *Printer) printExportName(name string) {
+	if strings.ContainsAny(name, "\r\n") {
+		p.write("\"" + strings.ReplaceAll(name, "\"", "\"\"") + "\"")
+		return
+	}
+	p.write("'" + strings.ReplaceAll(name, "'", "''") + "'")
 }
 
 func (p *Printer) printFunctionDecl(fd *ast.FunctionDecl) {
@@ -720,6 +769,11 @@ func (p *Printer) printFunctionDecl(fd *ast.FunctionDecl) {
 
 	// Print function directives (calling convention, deprecated, forward, external)
 	hasBody := !p.printFunctionDirectives(fd)
+	if fd.IsExport && !hasBody {
+		// A final bodyless exported declaration still needs its directive's
+		// terminator when the surrounding program omits its last separator.
+		p.write(";")
+	}
 
 	// Print body
 	if hasBody && fd.Body != nil {

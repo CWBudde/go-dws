@@ -197,7 +197,7 @@ func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, is
 				p.cursor = cursor
 				continue
 			case lexer.FUNCTION, lexer.PROCEDURE:
-				method := p.parseFunctionDeclaration()
+				method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 				if method != nil {
 					method.IsClassMethod = true
 					helperDecl.Methods = append(helperDecl.Methods, method)
@@ -235,7 +235,7 @@ func (p *Parser) parseHelperDeclarationWithOptions(nameIdent *ast.Identifier, is
 
 		// Check for method declarations (function/procedure)
 		if cursor.Current().Type == lexer.FUNCTION || cursor.Current().Type == lexer.PROCEDURE {
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 			if method != nil {
 				helperDecl.Methods = append(helperDecl.Methods, method)
 				if currentSection != nil {

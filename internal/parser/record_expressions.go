@@ -55,7 +55,7 @@ func (p *Parser) parseAnonymousRecordExpression() ast.Expression {
 			p.cursor = p.cursor.Advance()
 			continue
 		case lexer.FUNCTION, lexer.PROCEDURE:
-			method := p.parseFunctionDeclaration()
+			method := p.parseFunctionDeclarationInContext(memberRoutineDeclaration)
 			if method == nil {
 				return nil
 			}
