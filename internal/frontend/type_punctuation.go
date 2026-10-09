@@ -33,7 +33,7 @@ func refineDeferredPropertyCallDiagnostics(diags []Diagnostic, info *ast.Semanti
 		if diag.deferredCall != nil && info != nil && info.PropertyRead(diag.deferredCall) != nil {
 			continue
 		}
-		if diag.deferredIndex != nil && info != nil && info.IndexedPropertyRead(diag.deferredIndex) != nil {
+		if diag.deferredIndex != nil && info != nil && (info.IndexedPropertyRead(diag.deferredIndex) != nil || info.IsResolvedIndexedProperty(diag.deferredIndex)) {
 			continue
 		}
 		kept = append(kept, diag)

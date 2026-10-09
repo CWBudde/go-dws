@@ -49,7 +49,7 @@ func (a *Analyzer) validateInterfacePropertyAccessors(decl *ast.PropertyDecl, pr
 	}
 }
 
-// interfaceIndexedProperty resolves the whole index chain without treating its
+// interfaceIndexedProperty resolves one bracket group without treating its
 // property name as a read. Assignments use this path for write-only properties.
 func (a *Analyzer) interfaceIndexedProperty(expr *ast.IndexExpression) (*types.PropertyInfo, *types.InterfaceType, []ast.Expression, bool) {
 	root, indices := interfacePropertyIndexChain(expr)
@@ -72,7 +72,19 @@ func (a *Analyzer) interfaceIndexedProperty(expr *ast.IndexExpression) (*types.P
 		if iface, ok := types.GetUnderlyingType(receiver).(*types.InterfaceType); ok {
 			prop = iface.GetDefaultProperty()
 			contract = iface
+			if prop == nil || !prop.IsIndexed {
+				if a.probedReceivers == nil {
+					a.probedReceivers = make(map[ast.Expression]types.Type)
+				}
+				a.probedReceivers[root] = receiver
+			}
 		} else {
+			// The ordinary index path must reuse this declined probe, including
+			// its nil result, rather than reading the receiver a second time.
+			if a.probedReceivers == nil {
+				a.probedReceivers = make(map[ast.Expression]types.Type)
+			}
+			a.probedReceivers[root] = receiver
 			return nil, nil, nil, false
 		}
 	}
@@ -83,47 +95,62 @@ func (a *Analyzer) interfaceIndexedProperty(expr *ast.IndexExpression) (*types.P
 }
 
 func (a *Analyzer) namedInterfaceIndexProperty(member *ast.MemberAccessExpression) (*types.PropertyInfo, *types.InterfaceType, bool) {
-	if class, _ := propertyIndexClassReceiver(a.inferMemberObjectType(member.Object)); class != nil {
+	inferred := a.inferMemberObjectType(member.Object)
+	if class, _ := propertyIndexClassReceiver(inferred); class != nil {
 		if property, found := class.GetProperty(member.Member.Value); found && property.IsIndexed {
 			return nil, nil, true
 		}
 	}
-	receiver := a.analyzeExpression(member.Object)
-	receiver = a.interfacePropertyReceiverType(member.Object, receiver)
+	if inferred != nil {
+		if _, iface := types.GetUnderlyingType(a.interfacePropertyReceiverType(member.Object, inferred)).(*types.InterfaceType); !iface {
+			return nil, nil, false
+		}
+	}
+	analyzed := a.analyzeProbedReceiver(member.Object)
+	receiver := a.interfacePropertyReceiverType(member.Object, analyzed)
 	if iface, ok := types.GetUnderlyingType(receiver).(*types.InterfaceType); ok {
-		return iface.GetProperty(member.Member.Value), iface, false
+		if prop := iface.GetProperty(member.Member.Value); prop != nil && prop.IsIndexed {
+			return prop, iface, false
+		}
 	} else if class, _ := propertyIndexClassReceiver(receiver); class != nil {
 		// Dynamic receivers already read here are consumed by the named class path.
 		if property, found := class.GetProperty(member.Member.Value); found && property.IsIndexed {
-			if propertyHasVarIndices(property) {
-				if a.probedReceivers == nil {
-					a.probedReceivers = make(map[ast.Expression]types.Type)
-				}
-				a.probedReceivers[member.Object] = receiver
+			if a.probedReceivers == nil {
+				a.probedReceivers = make(map[ast.Expression]types.Type)
 			}
+			a.probedReceivers[member.Object] = analyzed
 			return nil, nil, true
 		}
 	}
+	if a.probedReceivers == nil {
+		a.probedReceivers = make(map[ast.Expression]types.Type)
+	}
+	a.probedReceivers[member.Object] = analyzed
 	return nil, nil, false
 }
 
 func (a *Analyzer) analyzeInterfaceIndexedProperty(expr *ast.IndexExpression, write, compound bool, stmt *ast.AssignmentStatement) (types.Type, bool) {
+	mark := len(a.structuredErrors)
 	prop, contract, indices, found := a.interfaceIndexedProperty(expr)
 	if !found {
+		if a.propertyArgumentsStopped(mark) {
+			return nil, true
+		}
+		root, _ := interfacePropertyIndexChain(expr)
+		if receiver, analyzed := a.probedReceivers[root]; analyzed && receiver == nil {
+			// A failed receiver read has no type for another index owner to
+			// probe. Keep its original diagnostics and leave operands unread.
+			delete(a.probedReceivers, root)
+			return nil, true
+		}
 		return nil, false
 	}
-	if len(indices) > len(prop.IndexParamTypes) {
-		return nil, false
-	}
-	if propertyHasVarIndices(prop) {
-		return a.analyzeVarInterfacePropertyArguments(expr, prop, contract, indices, write, compound, stmt), true
+	a.semanticInfo.MarkResolvedIndexedProperty(expr)
+	if propertyHasVarIndices(prop) || len(indices) != len(prop.IndexParamTypes) {
+		return a.analyzeInterfacePropertyArguments(expr, prop, contract, indices, write, compound, stmt), true
 	}
 
 	if !a.checkInterfacePropertyAccess(prop, expr, write, compound) {
-		return prop.Type, true
-	}
-	if len(indices) != len(prop.IndexParamTypes) {
-		a.addStructuredError(NewPropertyDeclarationArgumentCountError(expr.Pos(), "property '"+prop.Name+"' expects "+formatInt(len(prop.IndexParamTypes))+" index arguments, got "+formatInt(len(indices))))
 		return prop.Type, true
 	}
 	for n, index := range indices {
@@ -135,9 +162,17 @@ func (a *Analyzer) analyzeInterfaceIndexedProperty(expr *ast.IndexExpression, wr
 	return prop.Type, true
 }
 
-func (a *Analyzer) analyzeVarInterfacePropertyArguments(expr *ast.IndexExpression, prop *types.PropertyInfo, contract *types.InterfaceType, indices []ast.Expression, write, compound bool, stmt *ast.AssignmentStatement) types.Type {
-	pos := expr.Token.Pos
+func (a *Analyzer) analyzeInterfacePropertyArguments(expr *ast.IndexExpression, prop *types.PropertyInfo, contract *types.InterfaceType, indices []ast.Expression, write, compound bool, stmt *ast.AssignmentStatement) types.Type {
 	root, _ := interfacePropertyIndexChain(expr)
+	first := expr
+	for first.CommaPos.IsValid() {
+		inner, ok := first.Left.(*ast.IndexExpression)
+		if !ok {
+			break
+		}
+		first = inner
+	}
+	pos := first.Token.Pos
 	if member, ok := root.(*ast.MemberAccessExpression); ok {
 		pos = member.Member.Token.Pos
 	}
@@ -209,45 +244,17 @@ func (a *Analyzer) validateInterfaceDefaultProperty(prop *ast.PropertyDecl, prop
 }
 
 func interfacePropertyIndexChain(expr *ast.IndexExpression) (ast.Expression, []ast.Expression) {
-	var indices []ast.Expression
-	var root ast.Expression = expr
-	for {
-		idx, ok := root.(*ast.IndexExpression)
+	nodes := []*ast.IndexExpression{expr}
+	root := expr.Left
+	for nodes[len(nodes)-1].CommaPos.IsValid() {
+		inner, ok := root.(*ast.IndexExpression)
 		if !ok {
 			break
 		}
-		indices = append(indices, idx.Index)
-		root = idx.Left
+		nodes = append(nodes, inner)
+		root = inner.Left
 	}
-	// An empty member call can be compatibility punctuation. Preserve the
-	// current bracket group so its inner property read is analyzed with its
-	// own indices before probing a subsequent array/default-property index.
-	emptyCall := false
-	switch call := root.(type) {
-	case *ast.MethodCallExpression:
-		emptyCall = len(call.Arguments) == 0
-	case *ast.CallExpression:
-		emptyCall = len(call.Arguments) == 0
-	case *ast.InheritedExpression:
-		emptyCall = call.Method != nil && len(call.Arguments) == 0
-	}
-	if emptyCall {
-		indices = []ast.Expression{expr.Index}
-		first := expr
-		for first.CommaPos.Line != 0 {
-			inner, ok := first.Left.(*ast.IndexExpression)
-			if !ok {
-				break
-			}
-			indices = append(indices, inner.Index)
-			first = inner
-		}
-		root = first.Left
-	}
-	for i, j := 0, len(indices)-1; i < j; i, j = i+1, j-1 {
-		indices[i], indices[j] = indices[j], indices[i]
-	}
-	return root, indices
+	return root, indexedPropertyArguments(nodes)
 }
 
 func (a *Analyzer) isNonInterfaceIndexVariable(root ast.Expression) bool {

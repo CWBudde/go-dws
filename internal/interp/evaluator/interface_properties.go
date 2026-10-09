@@ -10,7 +10,7 @@ import (
 // a receiver and its index arguments once, including for compound assignments.
 func (e *Evaluator) resolveInterfaceIndexedProperty(node *ast.IndexExpression, ctx *ExecutionContext) (Value, *types.PropertyInfo, []Value, bool, Value) {
 	receiver, prop, indices := e.interfaceIndexedPropertyContract(node, ctx)
-	if prop == nil || len(indices) > indexedPropertyArity(prop) {
+	if prop == nil {
 		return nil, nil, nil, false, nil
 	}
 	obj := e.Eval(receiver, ctx)
@@ -57,7 +57,7 @@ func runtimePropertyImpl(prop *runtime.PropertyInfo) *types.PropertyInfo {
 }
 
 func (e *Evaluator) interfaceIndexedPropertyContract(node *ast.IndexExpression, ctx *ExecutionContext) (ast.Expression, *types.PropertyInfo, []ast.Expression) {
-	root, indices := CollectIndices(node)
+	root, indices := interfacePropertyIndexGroup(node)
 	receiver := root
 	var prop *types.PropertyInfo
 	if member, ok := root.(*ast.MemberAccessExpression); ok {
@@ -142,8 +142,39 @@ func (e *Evaluator) readInterfaceIndexedProperty(obj Value, prop *types.Property
 // interfacePropertyResultIndex distinguishes indexing an accessor's array result
 // from the arguments supplied to the accessor itself.
 func (e *Evaluator) interfacePropertyResultIndex(node *ast.IndexExpression, ctx *ExecutionContext) bool {
-	_, prop, indices := e.interfaceIndexedPropertyContract(node, ctx)
-	return prop != nil && len(indices) > indexedPropertyArity(prop)
+	root, _ := interfacePropertyIndexGroup(node)
+	for {
+		inner, ok := root.(*ast.IndexExpression)
+		if !ok {
+			return false
+		}
+		if _, prop, _ := e.interfaceIndexedPropertyContract(inner, ctx); prop != nil {
+			return true
+		}
+		root, _ = interfacePropertyIndexGroup(inner)
+	}
+}
+
+// interfacePropertyIndexGroup retains just the comma-separated operands in the
+// current brackets. Earlier brackets belong to the receiver expression.
+func interfacePropertyIndexGroup(node *ast.IndexExpression) (ast.Expression, []ast.Expression) {
+	if node.Empty {
+		return node.Left, nil
+	}
+	indices := []ast.Expression{node.Index}
+	first := node
+	for first.CommaPos.IsValid() {
+		inner, ok := first.Left.(*ast.IndexExpression)
+		if !ok {
+			break
+		}
+		indices = append(indices, inner.Index)
+		first = inner
+	}
+	for i, j := 0, len(indices)-1; i < j; i, j = i+1, j-1 {
+		indices[i], indices[j] = indices[j], indices[i]
+	}
+	return first.Left, indices
 }
 
 func (e *Evaluator) writeInterfaceIndexedProperty(obj Value, prop *types.PropertyInfo, indices []Value, value Value, stmt *ast.AssignmentStatement, ctx *ExecutionContext) Value {

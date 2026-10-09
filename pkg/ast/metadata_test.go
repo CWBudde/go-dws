@@ -24,6 +24,29 @@ func TestNewSemanticInfo(t *testing.T) {
 	}
 }
 
+func TestSemanticInfo_ResolvedIndexedProperty(t *testing.T) {
+	info := NewSemanticInfo()
+	selected, ordinary := &IndexExpression{}, &IndexExpression{}
+	info.MarkResolvedIndexedProperty(selected)
+	var readers sync.WaitGroup
+	for range 8 {
+		readers.Add(1)
+		go func() {
+			defer readers.Done()
+			for range 20 {
+				if !info.IsResolvedIndexedProperty(selected) || info.IsResolvedIndexedProperty(ordinary) {
+					t.Error("resolved property group identity lost")
+				}
+			}
+		}()
+	}
+	readers.Wait()
+	info.Clear()
+	if info.IsResolvedIndexedProperty(selected) {
+		t.Fatal("Clear retained resolved group")
+	}
+}
+
 func TestSemanticInfo_TypeOperations(t *testing.T) {
 	si := NewSemanticInfo()
 

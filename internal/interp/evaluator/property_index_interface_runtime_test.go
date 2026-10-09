@@ -6,12 +6,13 @@ import (
 	"github.com/cwbudde/go-dws/internal/interp/runtime"
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // These tests observe the entry points themselves, so converting an original
 // ErrorValue or replacing ctx.Exception with a new wrapper cannot go unnoticed.
 func TestPropertyIndexRuntime_OriginalFailures(t *testing.T) {
-	for _, path := range []string{"interface", "resolved"} {
+	for _, path := range []string{"interface", "interfaceAggregate", "resolved"} {
 		for _, kind := range []string{"receiver", "varIndex", "constIndex", "exception"} {
 			t.Run(path+"/"+kind, func(t *testing.T) {
 				e, ctx := createTestEvaluator(), createTestContext()
@@ -37,16 +38,30 @@ func TestPropertyIndexRuntime_OriginalFailures(t *testing.T) {
 					indices[1] = &ast.CallExpression{Function: &ast.Identifier{Value: "Fail"}}
 				}
 				var result Value
-				if path == "interface" {
+				if path == "interface" || path == "interfaceAggregate" {
 					iface := types.NewInterfaceType("I")
 					iface.Properties["p"] = prop
+					var actualReceiver ast.Expression = receiver
+					if path == "interfaceAggregate" {
+						prop.IsDefault = true
+						actualReceiver = &ast.IndexExpression{Left: receiver, Index: &ast.IntegerLiteral{Value: 0}}
+						if kind != "receiver" {
+							ctx.Env().Define("Receiver", &runtime.ArrayValue{ArrayType: types.NewDynamicArrayType(iface), Elements: []Value{&runtime.IntegerValue{Value: 1}}})
+						}
+					}
 					info := ast.NewSemanticInfo()
-					info.SetResolvedType(receiver, iface)
+					info.SetResolvedType(actualReceiver, iface)
 					e.SetSemanticInfo(info)
-					member := &ast.MemberAccessExpression{Object: receiver, Member: &ast.Identifier{Value: "P"}}
-					var node ast.Expression = member
-					for _, index := range indices {
-						node = &ast.IndexExpression{Left: node, Index: index}
+					node := actualReceiver
+					if path == "interface" {
+						node = &ast.MemberAccessExpression{Object: receiver, Member: &ast.Identifier{Value: "P"}}
+					}
+					for n, index := range indices {
+						group := &ast.IndexExpression{Left: node, Index: index}
+						if n > 0 {
+							group.CommaPos = token.Position{Line: 1, Column: n + 1}
+						}
+						node = group
 					}
 					_, _, _, handled, err := e.resolveInterfaceIndexedProperty(node.(*ast.IndexExpression), ctx)
 					if !handled {
@@ -57,17 +72,22 @@ func TestPropertyIndexRuntime_OriginalFailures(t *testing.T) {
 					read := &ast.InheritedPropertyReadBinding{Read: &ast.MemberAccessExpression{Object: receiver, Member: &ast.Identifier{Value: "P"}}, Property: prop, Owner: "Lexical"}
 					result = e.evalIndexedCompatibilityRead(&ast.IndexedPropertyReadBinding{Read: read, Indices: indices}, ctx)
 				}
-				if kind == "exception" {
-					if ctx.Exception() != exception {
-						t.Fatalf("exception identity lost: %#v", ctx.Exception())
-					}
-					if isError(result) {
-						t.Fatalf("exception replaced by error: %v", result)
-					}
-				} else if result != original {
-					t.Fatalf("ErrorValue identity lost: got %v, want original %v", result, original)
-				}
+				assertPropertyIndexFailureIdentity(t, ctx, kind, result, original, exception)
 			})
 		}
+	}
+}
+
+func assertPropertyIndexFailureIdentity(t *testing.T, ctx *ExecutionContext, kind string, result Value, original *runtime.ErrorValue, exception *runtime.ExceptionValue) {
+	t.Helper()
+	if kind == "exception" {
+		if ctx.Exception() != exception {
+			t.Fatalf("exception identity lost: %#v", ctx.Exception())
+		}
+		if isError(result) {
+			t.Fatalf("exception replaced by error: %v", result)
+		}
+	} else if result != original {
+		t.Fatalf("ErrorValue identity lost: got %v, want original %v", result, original)
 	}
 }

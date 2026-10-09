@@ -388,6 +388,12 @@ func (a *Analyzer) analyzeMultiIndexPropertyAccess(expr *ast.IndexExpression) (t
 		if !ok {
 			break
 		}
+		// A completed interface property group is the current receiver's
+		// returned value. The legacy class probe must not flatten across it
+		// and analyze its original receiver again.
+		if a.semanticInfo.IsResolvedIndexedProperty(inner) {
+			return nil, false
+		}
 		indices = append(indices, inner.Index)
 		root = inner.Left
 	}
@@ -683,6 +689,10 @@ func (a *Analyzer) checkIndexedPropertyWriteTarget(target ast.Expression, propIn
 // here *is* followed by its indices, so the arity diagnostic a bare property
 // reference would draw must not fire.
 func (a *Analyzer) analyzeIndexBase(expr ast.Expression) types.Type {
+	if typ, ok := a.probedReceivers[expr]; ok {
+		delete(a.probedReceivers, expr)
+		return typ
+	}
 	if recovery := a.inheritedIndexRecovery; recovery != nil && recovery.expression == expr {
 		return recovery.result
 	}

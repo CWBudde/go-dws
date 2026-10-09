@@ -82,33 +82,35 @@ type EnumElementBinding struct {
 // writes. Typical usage is single-threaded analysis (writes) followed by
 // concurrent interpretation/compilation (reads).
 type SemanticInfo struct {
-	enumElements           map[Expression]EnumElementBinding
-	resolvedTypes          map[Node]types.Type
-	types                  map[Expression]*TypeAnnotation
-	foldedPredicates       map[*Identifier]bool
-	propertyReads          map[*MethodCallExpression]*MemberAccessExpression
-	implicitPropertyReads  map[*CallExpression]*ImplicitPropertyReadBinding
-	inheritedPropertyReads map[*InheritedExpression]*InheritedPropertyReadBinding
-	indexedPropertyReads   map[*IndexExpression]*IndexedPropertyReadBinding
-	implicitCalls          map[Expression]bool
-	defaultNamespace       map[Expression]bool
-	mu                     sync.RWMutex
+	enumElements              map[Expression]EnumElementBinding
+	resolvedTypes             map[Node]types.Type
+	types                     map[Expression]*TypeAnnotation
+	foldedPredicates          map[*Identifier]bool
+	propertyReads             map[*MethodCallExpression]*MemberAccessExpression
+	implicitPropertyReads     map[*CallExpression]*ImplicitPropertyReadBinding
+	inheritedPropertyReads    map[*InheritedExpression]*InheritedPropertyReadBinding
+	indexedPropertyReads      map[*IndexExpression]*IndexedPropertyReadBinding
+	resolvedIndexedProperties map[*IndexExpression]bool
+	implicitCalls             map[Expression]bool
+	defaultNamespace          map[Expression]bool
+	mu                        sync.RWMutex
 }
 
 // NewSemanticInfo creates a new empty semantic metadata table.
 // Each semantic analysis should create its own SemanticInfo instance.
 func NewSemanticInfo() *SemanticInfo {
 	return &SemanticInfo{
-		resolvedTypes:          make(map[Node]types.Type),
-		enumElements:           make(map[Expression]EnumElementBinding),
-		types:                  make(map[Expression]*TypeAnnotation),
-		foldedPredicates:       make(map[*Identifier]bool),
-		propertyReads:          make(map[*MethodCallExpression]*MemberAccessExpression),
-		implicitPropertyReads:  make(map[*CallExpression]*ImplicitPropertyReadBinding),
-		inheritedPropertyReads: make(map[*InheritedExpression]*InheritedPropertyReadBinding),
-		indexedPropertyReads:   make(map[*IndexExpression]*IndexedPropertyReadBinding),
-		implicitCalls:          make(map[Expression]bool),
-		defaultNamespace:       make(map[Expression]bool),
+		resolvedTypes:             make(map[Node]types.Type),
+		enumElements:              make(map[Expression]EnumElementBinding),
+		types:                     make(map[Expression]*TypeAnnotation),
+		foldedPredicates:          make(map[*Identifier]bool),
+		propertyReads:             make(map[*MethodCallExpression]*MemberAccessExpression),
+		implicitPropertyReads:     make(map[*CallExpression]*ImplicitPropertyReadBinding),
+		inheritedPropertyReads:    make(map[*InheritedExpression]*InheritedPropertyReadBinding),
+		indexedPropertyReads:      make(map[*IndexExpression]*IndexedPropertyReadBinding),
+		resolvedIndexedProperties: make(map[*IndexExpression]bool),
+		implicitCalls:             make(map[Expression]bool),
+		defaultNamespace:          make(map[Expression]bool),
 	}
 }
 
@@ -237,6 +239,7 @@ func (si *SemanticInfo) Clear() {
 	si.implicitPropertyReads = make(map[*CallExpression]*ImplicitPropertyReadBinding)
 	si.inheritedPropertyReads = make(map[*InheritedExpression]*InheritedPropertyReadBinding)
 	si.indexedPropertyReads = make(map[*IndexExpression]*IndexedPropertyReadBinding)
+	si.resolvedIndexedProperties = make(map[*IndexExpression]bool)
 	si.implicitCalls = make(map[Expression]bool)
 	si.defaultNamespace = make(map[Expression]bool)
 }
@@ -420,4 +423,24 @@ func (si *SemanticInfo) IndexedPropertyRead(expr *IndexExpression) *IndexedPrope
 	si.mu.RLock()
 	defer si.mu.RUnlock()
 	return si.indexedPropertyReads[expr]
+}
+
+// MarkResolvedIndexedProperty records that analysis actually selected an indexed
+// property for this exact bracket group. The marker holds no execution state and
+// is immutable after analysis; it settles provisional parser index diagnostics.
+func (si *SemanticInfo) MarkResolvedIndexedProperty(expr *IndexExpression) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	if si.resolvedIndexedProperties == nil {
+		si.resolvedIndexedProperties = make(map[*IndexExpression]bool)
+	}
+	si.resolvedIndexedProperties[expr] = true
+}
+
+// IsResolvedIndexedProperty reports a group marked by actual property selection.
+// Concurrent reads are safe.
+func (si *SemanticInfo) IsResolvedIndexedProperty(expr *IndexExpression) bool {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	return si.resolvedIndexedProperties[expr]
 }

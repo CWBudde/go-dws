@@ -738,7 +738,7 @@ func (a *Analyzer) promoteUnresolvedIndexStops() {
 
 func (a *Analyzer) hasUnresolvedIndexStop() bool {
 	for _, index := range a.deferredIndexStops {
-		if a.semanticInfo.IndexedPropertyRead(index) == nil {
+		if a.semanticInfo.IndexedPropertyRead(index) == nil && !a.semanticInfo.IsResolvedIndexedProperty(index) {
 			return true
 		}
 	}
