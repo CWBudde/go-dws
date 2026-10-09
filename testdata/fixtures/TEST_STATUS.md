@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2041 |
-| Passed | 1431 |
-| Failed | 583 |
+| Passed | 1433 |
+| Failed | 581 |
 | Skipped (no applicable expectation) | 27 |
-| **Scored pass rate** | **71%** (1431/2014) |
+| **Scored pass rate** | **71%** (1433/2014) |
 
 ## Per-category
 
@@ -30,7 +30,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
 | AutoFormat | 10 | 0 | 0 | 10 | 0% |
 | BigInteger | 16 | 0 | 16 | 0 | 0% |
-| BuildScripts | 51 | 7 | 42 | 2 | 14% |
+| BuildScripts | 51 | 8 | 41 | 2 | 16% |
 | COMConnector | 19 | 0 | 19 | 0 | 0% |
 | COMConnectorFailure | 8 | 0 | 8 | 0 | 0% |
 | ClassesLib | 12 | 0 | 12 | 0 | 0% |
@@ -79,7 +79,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | PropertyExpressionsPass | 19 | 19 | 0 | 0 | 100% |
 | SetOfFail | 14 | 14 | 0 | 0 | 100% |
 | SetOfPass | 25 | 25 | 0 | 0 | 100% |
-| SimpleScripts | 443 | 399 | 44 | 0 | 90% |
+| SimpleScripts | 443 | 400 | 43 | 0 | 90% |
 | SystemInfoLib | 3 | 0 | 3 | 0 | 0% |
 | TabularLib | 16 | 0 | 16 | 0 | 0% |
 | TimeSeriesLib | 5 | 0 | 5 | 0 | 0% |

@@ -157,8 +157,9 @@ The `export` directive is implemented in [#472](https://github.com/CWBudde/go-dw
 Property index declaration parsing, validation and source preservation are implemented
 in [#472](https://github.com/CWBudde/go-dws/pull/472); the parent item stays open.
 Eligible ordinary class property index references and setter capture order are implemented
-in [#472](https://github.com/CWBudde/go-dws/pull/472). Next: property index use-site checks and
-remaining runtime contexts, then remaining Phase 2 recovery and access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
+in [#472](https://github.com/CWBudde/go-dws/pull/472). Measured property index use-site
+checks and grouping preservation are also implemented there. Next: interface/resolved
+runtime references and remaining runtime contexts, then remaining Phase 2 recovery and access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
@@ -461,8 +462,14 @@ punctuation in the parser before reading arguments.
     field writers; preserve their accessor-specific index and RHS behavior.
   - [ ] Add selected-static-owner cast-index dispatch and bare factory receiver
     typing; these existing receiver prerequisites are separate from reference capture.
-  - [ ] Writable/type/term-boundary checks and interface/inherited/compatibility reads,
-    retaining selected accessor ownership, argument order and exceptions.
+  - [x] Measured class/default/interface and inherited/compatibility semantic index
+    term, storage and type checks; retain grouping, expression-writer kind, selected
+    accessor signatures and child/RHS order
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  - [ ] Complete interface and resolved inherited/compatibility runtime reference
+    calls, retaining original indices, selected accessors, capture order and exceptions.
+  - [ ] Measure Variant/user conversion policy and remaining malformed index-tail
+    recovery shapes beyond the retained direct binary RHS.
   - [ ] Measure and complete the independent record declaration/runtime paths;
     keep unsupported indexed helper dispatch and inherited writes explicitly open.
 - [x] The `export` directive ([#472](https://github.com/CWBudde/go-dws/pull/472)).

@@ -1,5 +1,61 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Property index terms and selected accessor checks (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) separates
+reading property indices from checking the selected accessor. Declaration modes
+choose term versus expression reading. A var index stops at the first unread outer
+operator with `")" expected`, preserving reached child errors and skipping later
+indices and setter RHS. Grouping consumes a full expression; nested call/index
+children retain their own expression grammar. Genuine child stops also skip later
+symbol usages and successful property bindings, without changing global unknown-name
+recovery or value/const property gates.
+
+Late checks use the selected accessor's types, modes, names and full argument count.
+Setters read the RHS first, then check indices, an existing typed index directive
+and the assigned value in one pass. Declaration and RHS child errors do not hide
+later count errors; errors in the late pass suppress its count diagnostic. Getter
+and setter signatures survive ordinary parameter mismatch recovery. Named writers
+retain declaration-selected signatures through inheritance, forwarding and bare
+promotion, so an override cannot change the diagnostic parameter name. Expression
+accessors use property index names; legal field writers bypass method argument checks.
+
+Successful single-expression parentheses now remain in the AST. Parenthesized
+`write (F)` retains expression-setter kind, and the printer emits its WriteStmt.
+Grouped var operands preserve original storage. A bounded malformed binary RHS
+retains its index/call fragment through the existing deferred-index contract, while
+ordinary arrays and reached grouped/call errors keep their cutoff. Constant checks,
+bytecode expression dispatch/type inference and evaluator old-value capture traverse
+groups transparently, preserving existing bitwise/Boolean and nested-contract behavior;
+no VM opcode or contract policy was added.
+
+Complete frontend and public Engine lists cover operator precedence, prefix/infix
+not, grouping, child stops, setter order, interface and lexical accessor names,
+numeric/alias conversion, class var type/storage ordering, field writer behavior
+and declaration-recovery type/count checks. Rejected Engine compiles retain nil
+Programs. Checked/unchecked execution verifies grouped local, forwarded, array and
+member references, once-only effects, printed setters and nested old-value capture.
+Independent task review and three scoped correction reviews approve the slice.
+
+Validation passes: full `go test -race -count=1 -coverprofile=.cache/phase26-final-coverage.out ./...`,
+then fresh affected public race checks after a test-helper-only lint cleanup; the
+exact CI lint gate reports zero issues. Fresh CLI acceptance verifies live var
+storage, RAIVS ordering, grouped storage and full selected-accessor recovery lists.
+The complete CLI fixture comparison gains only `SimpleScripts/enum_to_integer`, with
+no regressions: 1,432 passes, 582 failures and 27 skips across 2,041 fixtures.
+`just fixture-update` generated 1,433 passes because BuildScripts scored 8 instead
+of the CLI's 7, its documented initialization-order variation. `just fixture-check` passes after preserving the variable floor. Only the stable
+SimpleScripts floor is ratcheted, from 399 to 400; FailureScripts stays 328 and
+BuildScripts stays 7. Tracked formatting, dependency tidying and visitor generation
+pass with dependency/generated files unchanged. Parser coverage is
+4,776/5,902 = 80.9217%, above 4,746/5,882; lexer remains 1,386/1,570 = 88.2803%.
+
+PLAN checks only the measured semantic child. Interface/resolved runtime references,
+opaque/default receivers, cast-index dispatch, field writers, record/helper paths,
+new compound support and inherited writes remain open. Other malformed shapes and
+Variant/user conversion policy retain measured follow-ups. Expectations use pinned
+DWScript revision 1dbf8a90329cc3f2638516e89c0668f916c1ddb9; no Pascal oracle ran.
+
 ## 2026-10-09 — Ordinary class property index references (PLAN 2.2, runtime slice)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) stores

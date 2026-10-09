@@ -470,9 +470,32 @@ Count, getter result and writer value/kind checks retain their earlier priority.
 AST and source printing preserve the groups and modes. Ordinary class indexed
 access retains live caller storage for `var` indices and original index errors.
 Eligible method/expression setters capture receiver and indices before the RHS;
-an index exception skips the RHS and setter. Semantic use-site storage/type/term
-checks, interface/resolved reference dispatch and broader receiver/writer paths
-remain open; declaration validation alone does not cover those checks.
+an index exception skips the RHS and setter. Interface/resolved reference dispatch
+and broader receiver/writer paths remain open.
+
+A `var` index reads one term. An ungrouped outer operator reports `")" expected`
+at the first unread operator, including in square brackets, and skips later
+indices and the setter RHS. Parentheses consume a full expression: `(i)` retains
+variable storage, while `(i + 1)` reaches the later `Argument N (name) cannot be
+passed as Var-parameter` check. Operators inside a reached call or array index
+belong to that child's expression. A genuine reached child stop skips subsequent
+children; ordinary child errors survive before the later accessor diagnostic.
+
+After the indices are complete, setters read the RHS before checking arguments.
+Selected getter/setter types, modes and parameter names own the late checks,
+including after recoverable accessor parameter errors. Expression accessors use property
+parameter names. Supplied argument errors suppress the count error from that
+checking pass; earlier declaration or RHS child errors do not. Numeric conversion
+direction matters: Integer to Float produces a nonwritable converted value for
+a var parameter; Float to Integer reports the type mismatch. General Variant and
+user conversion policy remains a separate follow-up.
+
+Field writers read the index terms but bypass method argument checks. A
+parenthesized `write (F)` is an expression setter with method argument checks;
+plain `write F` keeps the field assignment path. Source printing preserves this
+accessor kind and grouped expressions. Explicit indexed field/class-variable/
+constant readers report `Function expected` after earlier accessor type checks;
+auto-field shorthand retains its separate behavior.
 
 A property `description` directive requires a string literal. If it is missing,
 `String expected` anchors at the next token and leaves that token available for
