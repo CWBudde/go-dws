@@ -466,9 +466,21 @@ their own contexts. Recovered qualified class implementations bind their validat
 prototype and preserve genuine duplicate/signature errors; existing class STATIC
 handling remains distinct.
 
-The singleton explicit-overload forward registration can still reject a differing
-new signature by name; that matching gap remains open. Unit-local lexer cutoff
-and the broader unknown-expression stop policy remain separate work.
+A lone explicitly overloaded forward now selects a matching signature before
+replacement. A new differing-parameter-type overload preserves the original
+forward; missing its `overload` directive also leaves that forward available for
+its later implementation. Reaching program end without that implementation
+reports the original pending-forward diagnostic. EXPORT on a genuinely new
+member is reached normally; EXPORT on a matched implementation owns the existing
+BEGIN stop and suppresses the terminal forward check.
+
+This selection uses the existing return/mode/symmetric-default-presence checks.
+Exact parameter names, default data, directional omission and broader ambiguity
+parity remain open. Return-only new overloads and omitted-default nonmatches
+retain Go's existing policy; they do not establish source-exact matching.
+Ordinary nonexplicit forwards retain their name-bound mismatch diagnostics.
+Unit-local lexer cutoff and the broader unknown-expression stop policy remain
+separate work.
 
 ### Property and operator declarations
 

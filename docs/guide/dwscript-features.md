@@ -72,6 +72,12 @@ still require a body. Interface method headers reject ordinary routine directive
 with an enclosing `END expected` stop; member, forward, external and unit-interface
 bodyless declarations retain their own contexts.
 
+A lone explicitly overloaded forward can coexist with a new overload whose
+parameter types differ. The new overload can use `export`; a later implementation
+of the original signature needs no repeated `overload`. Only the selected forward
+is consumed. Exact parameter-name/default-value matching, directional default
+omission and broader ambiguity parity remain incomplete.
+
 ---
 
 ### Control Flow

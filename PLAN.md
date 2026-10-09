@@ -508,10 +508,18 @@ punctuation in the parser before reading arguments.
   stopping sentence, and interface-method directives stop at enclosing `END`.
   Completed contract prefixes at EOF require a body; retain the existing
   unfinished-contract exception and legal member/forward/external/unit contexts.
-- [ ] Preserve signature matching for a lone explicitly overloaded forward before
-  registering a differing new overload; existing single-forward replacement
-  still matches by name. Reuse exact return/default matching without changing
-  the legal new-overload-set behavior.
+- [ ] Complete source-exact matching for explicitly overloaded forwards.
+  - [x] Select a differing-parameter-type singleton before name-bound replacement;
+    preserve its pending original through a new or rejected overload, allow the
+    matching implementation without repeating `overload`, and share EXPORT reach
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)). Ordinary nonexplicit forwards
+    retain their existing name-bound mismatch behavior.
+  - [ ] Match exact parameter names, default data and directional default omission,
+    plus remaining routine-kind/options/level criteria. The completed child uses
+    existing return/mode/symmetric-default-presence predicates only.
+  - [ ] Complete source ambiguity checks for same-type name/mode/default/return
+    differences; the existing Go return-only overload extension remains a separate
+    policy until this measured follow-up is implemented.
 - [ ] `OF OBJECT expected` (`legacy_proc_of_object`).
 - [ ] `array of const` (`open_array`).
 - [x] `String expected` for a property description (`property_description1`,

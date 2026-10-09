@@ -1,3 +1,57 @@
+## 2026-10-09 — Explicit singleton overload forward selection (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) selects
+an explicitly overloaded singleton's matching signature before consuming its
+forward state. A legal differing-parameter-type member registers independently,
+including with EXPORT; the original remains pending until its own implementation,
+which may omit the repeated OVERLOAD directive. Rejected new directives/conflicts
+preserve it, and only the selected candidate is cleared. Ordinary nonexplicit
+forwards retain their existing name-bound mismatch policy.
+
+Registration and EXPORT reach share the existing parameter/return/mode and
+symmetric-default-presence predicate. Matching EXPORT keeps its typed stop and
+unreached qualifier/body/lexer/end-check cutoff; a new member retains reached
+calling hints. Exact parameter names/default data, directional default omission,
+remaining kind/options/level criteria and wider source ambiguity parity remain
+doable open follow-ups. Return-only overloads and omitted-default characterization
+rows explicitly retain Go policy rather than claiming source parity. PLAN checks
+only the differing-type child and leaves its matching parent open.
+
+Actual public Compile/Run tests first reproduced the false mismatch followed by
+missing OVERLOAD at the later original implementation, with and without EXPORT.
+State tests verify pending preservation and selected-only clearing. Full public
+lists, nil rejected Programs, legal procedure/function dispatch, case-only names,
+nested shadows inside Outer BEGIN, genuine sets, default-conflict rejection and
+normal/pedantic typed-stop/hint ordering are covered. Initial pre-code RED excerpts
+remain distinct from the later full baseline-mutation RED validation. Three stale
+frontend characterization rows were updated after their concrete covering failure,
+with source-derived differing-type behavior distinguished from retained Go policy.
+
+Independent task review approved the child. Root lint then found one unchecked
+FunctionType assertion; a two-line checked assertion/guard correction passed
+fresh three-package tests and scoped independent review. No matcher/policy owner
+was added for this correction. Final validation passes with Go 1.24.13:
+
+- `go test -race -count=1 -coverprofile=.cache/phase32-final-coverage.out ./...`;
+  no races or failed packages.
+- `golangci-lint run --new-from-merge-base=origin/main --timeout 10m`: zero issues.
+- Tracked Go formatting, `go mod tidy`, `go generate ./pkg/ast` and diff hygiene;
+  dependencies and the 87-node generated visitor are unchanged.
+- Fresh CLI acceptance covers previous batches and new forward registration,
+  dispatch, pending errors and complete cutoff lists. Full fixture failure rows
+  remain exactly 1,432 pass / 582 fail / 27 skip versus the prior CLI, with no gains
+  or regressions.
+- Fixture regeneration and the following stable-baseline gate both pass. Each Go
+  run reports 1,434/580/27, BuildScripts 9: regeneration differs from CLI only on
+  `init_order1` and `init_order4`, while the following gate differs only on
+  `init_order1` and `init_order5`. All other complete category failure-name rows
+  and counts match. These are the documented Phase 5 initialization-order variants;
+  the updater's proposed floor of nine was restored to the original seven before
+  the following gate. Baseline bytes stay unchanged at FailureScripts 328,
+  SimpleScripts 400 and BuildScripts 7; generated status retains its actual snapshot.
+- Parser coverage remains 4,845/5,912 = 81.9520%; lexer remains
+  1,386/1,570 = 88.2803%.
+
 ## 2026-10-09 — Routine directive and body recovery (PLAN 2.2)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) makes
