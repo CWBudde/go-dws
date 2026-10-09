@@ -431,9 +431,14 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Ordinary class named/default `var` indices retain live caller storage. Eligible
   method/expression setters capture their receiver and indices before the RHS;
   later container rebinding keeps the captured slot and index exceptions skip the RHS.
-  Interface and resolved inherited/compatibility reference calls, opaque unchecked
-  default receivers, cast-index dispatch and indexed field writers remain open.
-  Independent record index parsing and helper dispatch are incomplete.
+  Opaque unchecked default receivers, cast-index dispatch and indexed field writers
+  remain open. Independent record index parsing and helper dispatch are incomplete.
+- ✅ Interface named/default indices retain live caller storage, using the static
+  interface accessor contract. Eligible writes capture receiver and indices before
+  the RHS; existing compound paths reuse those references. Checked inherited and
+  compatibility reads retain lexical accessor ownership and original errors.
+  Aggregate/default interface receiver typing, new ordinary class compound support
+  and compatibility/inherited writers remain open.
 - ✅ Class/default/interface and inherited compatibility index checking retains
   parentheses and reports the first unread operator for a `var` index. Use `(i)`
   to retain variable storage; `(i + 1)` consumes the expression but cannot supply

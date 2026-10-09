@@ -470,8 +470,13 @@ Count, getter result and writer value/kind checks retain their earlier priority.
 AST and source printing preserve the groups and modes. Ordinary class indexed
 access retains live caller storage for `var` indices and original index errors.
 Eligible method/expression setters capture receiver and indices before the RHS;
-an index exception skips the RHS and setter. Interface/resolved reference dispatch
-and broader receiver/writer paths remain open.
+an index exception skips the RHS and setter. Interface named/default calls also
+retain original index storage and use the static interface accessor contract. Eligible
+interface setters capture before the RHS, and existing compound callers reuse the
+prepared indices. Checked inherited/compatibility reads keep lexical accessor modes
+and ownership. Original runtime errors and exception state survive preparation.
+Aggregate/default interface receiver typing, opaque unchecked receivers, indexed
+field writers, record/helper paths and new compound/inherited writers remain open.
 
 A `var` index reads one term. An ungrouped outer operator reports `")" expected`
 at the first unread operator, including in square brackets, and skips later

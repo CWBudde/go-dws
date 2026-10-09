@@ -158,8 +158,9 @@ Property index declaration parsing, validation and source preservation are imple
 in [#472](https://github.com/CWBudde/go-dws/pull/472); the parent item stays open.
 Eligible ordinary class property index references and setter capture order are implemented
 in [#472](https://github.com/CWBudde/go-dws/pull/472). Measured property index use-site
-checks and grouping preservation are also implemented there. Next: interface/resolved
-runtime references and remaining runtime contexts, then remaining Phase 2 recovery and access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
+checks and grouping preservation are also implemented there. Interface reference calls and
+checked resolved inherited/compatibility reads retain caller storage and capture order there.
+Next: independent record declarations, remaining runtime contexts and Phase 2 recovery/access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
@@ -466,8 +467,11 @@ punctuation in the parser before reading arguments.
     term, storage and type checks; retain grouping, expression-writer kind, selected
     accessor signatures and child/RHS order
     ([#472](https://github.com/CWBudde/go-dws/pull/472)).
-  - [ ] Complete interface and resolved inherited/compatibility runtime reference
-    calls, retaining original indices, selected accessors, capture order and exceptions.
+  - [x] Interface named/default reference reads and writes, plus checked resolved
+    inherited/compatibility reads, retaining original indices, selected accessors,
+    capture order and exceptions ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+  - [ ] Complete aggregate/default interface receiver typing and new ordinary class
+    compound var-index support; compatibility/inherited writers remain open in 2.1.
   - [ ] Measure Variant/user conversion policy and remaining malformed index-tail
     recovery shapes beyond the retained direct binary RHS.
   - [ ] Measure and complete the independent record declaration/runtime paths;

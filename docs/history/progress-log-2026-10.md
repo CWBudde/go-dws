@@ -1,5 +1,46 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Interface and resolved property index references (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) reuses
+original-AST index preparation for interface properties and checked resolved
+inherited/compatibility reads. Var indices retain caller storage; value and const
+indices keep their existing behavior. Interface writes capture the static contract,
+receiver and index references before the RHS. Existing interface compound callers
+prepare once and reuse the same references through getter and setter. Resolved
+reads retain the lexical property descriptor and existing virtual accessor chain.
+
+Public Compile/Run controls cover named/default interface mutation (6/6/9), aliases,
+differing declaration/accessor names, static contracts despite a differently declared
+dynamic class property, mixed modes, checked factories, grouped local/forwarded/member
+storage, original slots and receivers across rebinding, and separate result brackets.
+Distinct receiver state and exact traces verify capture order and once-only effects.
+Checked inherited and implicit/explicit compatibility reads retain caller mutation
+and lexical ownership. Receiver/index/RHS failures skip the appropriate later effects.
+Eight amended-entry controls assert original ErrorValue and execution-context exception
+pointer identity, alongside script exception and nil-dispatch controls. Independent
+task review approves the bounded implementation with no findings.
+
+Validation passes: full `go test -race -count=1 -coverprofile=.cache/phase27-final-coverage.out ./...`,
+CI lint with zero issues, fresh CLI storage/order/diagnostic controls and complete
+fixture failure-set comparison, `just fixture-update`, `just fixture-check`, tracked
+formatting, `go mod tidy`, deterministic visitor generation and diff hygiene.
+The CLI remains 1,432 passes, 582 failures and 27 skips across 2,041 fixtures, with
+no gains or regressions against the prior semantic slice. Regenerated Go status
+now matches these totals; the earlier BuildScripts score of 8 remains a known
+initialization-order variation, with the stable floor retained at 7. Other floors
+remain FailureScripts 328 and SimpleScripts 400. Parser coverage stays
+4,776/5,902 = 80.9217%; lexer stays 1,386/1,570 = 88.2803%. Dependencies and generated
+visitor files remain unchanged.
+
+PLAN checks only interface reference calls and checked resolved reads; the parent
+stays open. A measured aggregate-default interface receiver still fails Compile
+with `Array expected` before execution, while its named-property counterpart passes.
+Record/helper paths, opaque unchecked receivers, selected-static cast-index dispatch,
+field writers, new ordinary class compound support and compatibility/inherited writes
+remain doable follow-ups. No Pascal executable oracle ran; source expectations use
+pinned revision 1dbf8a90329cc3f2638516e89c0668f916c1ddb9.
+
 ## 2026-10-09 — Property index terms and selected accessor checks (PLAN 2.2)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) separates
