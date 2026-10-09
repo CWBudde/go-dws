@@ -362,6 +362,23 @@ bodies. A deprecated property warns at its name before the compatibility hint.
 Flagged write-only indexed reads report the read error at `)`, then
 `Array expected` at `[`, without analyzing the indices.
 
+Named inherited indexed reads accept both `inherited Prop()[i, j]` and
+`inherited Prop[i, j]`. They select the lexical method owner's parent descriptor,
+retain the accessor's storage owner and dispatch virtual getters on dynamic Self.
+They bypass member-casing hints; deprecation precedes the compatibility hint.
+Static inherited callers retain their existing unsupported behavior; their upstream
+contract remains a separate investigation.
+
+A missing or empty declared index group reports `More arguments expected` at the
+consumed compatibility `)`. An unfinished group keeps child-expression diagnostics
+then stops with `")" expected` at the unexpected token, before getter eligibility
+or argument checks. Ordinary array indexing retains its own `"]" expected`
+recovery. Parser-only clients keep provisional errors until semantic analysis
+resolves the particular index node as a property read. Checked compilation retains
+later directive messages after a recoverable empty property group. An ordinary
+empty array group remains a compiler stop and suppresses end-of-compilation
+forward checks, including imported-unit forward obligations.
+
 Indexed argument type and count errors use the closing compatibility `)` as
 their anchor. Diagnostics from index expressions precede class-getter eligibility
 and accessor argument checks; a type error suppresses the count error. An ordinary
@@ -392,7 +409,7 @@ indexed cases above preserve their order.
 The source printer preserves the declaration marker. Nonempty compatibility-token recovery,
 EOF/end boundaries, lexer-directive reach after recovery, discarded enclosing calls,
 malformed/nonempty unqualified/inherited calls, static inherited property contexts,
-named inherited indexed reads, ordinary bare unqualified `Prop[i]` reads,
+ordinary bare unqualified `Prop[i]` reads,
 remaining default-property call contexts,
 combined index parameters and `index` directives, writes, flagged function-valued
 properties and unchecked execution remain open in PLAN.md. These need their own parsing/dispatch acceptance;
@@ -1100,6 +1117,23 @@ closing brace otherwise. A directive inside an inactive `{$IF}`/`{$IFDEF}` branc
 `{$R}`/`{$RESOURCE}` require a quoted string. An unrecognized switch reports
 `Compiler switch "NAME" unknown`, and a directive missing its closing brace reports
 `"}" expected`.
+
+Expression includes such as `{$I %LINE%}` substitute a literal token: LINE, TIME
+and DATE produce strings, while LINENUM and TIMESTAMP produce integers. A malformed
+macro reports `Include item expected`; an unknown name reports
+`Include item "NAME" unknown`, then recovers as an empty string. A missing closing
+brace stops compilation at the next token, or the last consumed token at EOF.
+FILE, MAINFILE, FUNCTION and EXEVERSION retain their existing unsupported value
+behavior because the lexer does not yet receive the required source, routine or
+executable context.
+
+An inactive conditional reaching EOF after skipped tokens reports the condition's
+argument position, updated to the last encountered known switch in a nested scan.
+Immediate EOF, or whitespace/comments only, uses the opening switch name instead.
+Active branches use their directive provenance. This explains the different
+columns in `conditionals2` and `conditionals2.1`; the latter contains a skipped
+statement. Boolean IF literals and active/inactive ELSE branches retain these
+distinctions.
 
 Unlike a failed `{$INCLUDE}`, these do not block semantic analysis: the source before a
 `{$FATAL}` parsed correctly, so its errors are still reported alongside the fatal.

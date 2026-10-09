@@ -412,8 +412,14 @@ punctuation in the parser before reading arguments.
           retain static declaration flags across out-of-line implementations per overload.
         - [x] Preserve ordered once-only index/getter effects, original exceptions,
           recursion, nonvirtual nil readers, array-result indexing and printer round trips.
-      - [ ] Extend indexed compatibility reads to named inherited contexts,
-        retaining their lexical descriptor/accessor and diagnostic rules.
+      - [x] Read named inherited indexed properties through `inherited Prop()[i, j]`
+        and `inherited Prop[i, j]` (PR pending).
+        - [x] Preserve lexical parent descriptors/accessors, dynamic virtual Self,
+          ordered once-only indices/getters, exceptions, recursion and array results.
+        - [x] Preserve hint/deprecation ordering, missing/empty argument counts and
+          unfinished-list stops; keep ordinary array recovery and static caller controls.
+        - [x] Resolve per-index provisional stops before directive cutoff and program/unit
+          forward checks; retain parser-only behavior and source-printer round trips.
       - [ ] Support ordinary bare unqualified indexed reads (`Prop[i]`); these
         already fail with `Array expected` before the compatibility-read batch.
       - [ ] Align remaining default-property postfix/call contexts; reject `Obj()[i]`
@@ -446,10 +452,15 @@ punctuation in the parser before reading arguments.
   `Dangling attribute declaration`).
 - [ ] `Dot "." expected` where the parser must know `TTest` is a class (`method_implem6`).
 - [ ] `interface helper for T` (needed by `HelpersFail/mixed_helper`, see 4.3).
-- [ ] SetOfFail parser parity: `bracket_right_missing`, `for_in_set_missing_do`, `of_missing`
-  (`"X" expected` / `OF expected` / `DO expected`).
+- [x] SetOfFail parser parity: `bracket_right_missing`, `for_in_set_missing_do`, `of_missing`
+  (`"X" expected` / `OF expected` / `DO expected`). Already shipped on September 20;
+  reverified complete compile-path diagnostic lists while reconciling this stale entry
+  (PR pending).
 - [ ] Extend `unexpected "@"` beyond the type/scalar cases shipped in 2.1
   (`SetOfFail/invalid_operand`, `dyn_array3`, `field_init1`, `func_ptr6`).
+  - [x] `SetOfFail/invalid_operand`: already shipped on September 29;
+    reverified its complete six-line compile-path expectation (PR pending).
+  - [ ] Complete the remaining `dyn_array3`, `field_init1`, and `func_ptr6` contexts.
 
 ### 2.3 Property accessor recovery — S
 
@@ -493,12 +504,17 @@ assignment recovery and implicit-call intent without invoking a returned callabl
   a follow-up diagnostic upstream (go-dws reports nothing); indexed read-only property writes get
   none either.
 
-### 2.5 Lexer-owned anchors — S
+### 2.5 Lexer-owned anchors — complete
 
-- [ ] `include_incorrect` wants `"}" expected` at 3:18 (end of the directive argument);
-  `directive_messages.go` anchors at 3:13.
-- [ ] `conditionals2.1` reports an unbalanced conditional at the directive argument (column 9),
-  where the byte-identical `conditionals2` wants the name (column 3).
+Include-expression delimiter anchors (`include_incorrect`, `include_expr`) and
+conditional EOF provenance (`conditionals2`, `conditionals2.1`) now pass their
+complete compile-path expectations and recovery controls (PR pending).
+The completed checklist is recorded in the [October progress log](docs/history/progress-log-2026-10.md).
+The conditional fixtures differ: one ends at the directive, the other has skipped tokens.
+
+Include substitutions support LINE, LINENUM, TIME, DATE and TIMESTAMP.
+FILE/MAINFILE/FUNCTION/EXEVERSION still require source, routine or executable
+context; their existing unsupported value behavior remains a separate follow-up.
 
 ---
 

@@ -1,5 +1,65 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Inherited indexed reads and lexer anchors (PLAN 2.1, 2.5)
+
+This batch (PR pending) accepts checked `inherited Prop()[i, j]` and
+`inherited Prop[i, j]` reads. Lookup retains the lexical method owner's parent
+descriptor and accessor storage owner; virtual instance/class getters dispatch
+on dynamic Self. It reuses the evaluator's resolved indexed-property binding.
+Acceptance includes 63 literal frontend diagnostic lists, 23 public Engine
+scripts, four structured public Compile failures and six printer round trips.
+Tests cover parent/grandchild shadows, class and expression getters, ordered
+once-only effects, original exceptions, recursion, nil nonvirtual readers,
+array-result indexing and printer round trips. Unsupported writes and nonempty
+calls keep their existing rejection; static inherited callers retain existing
+unsupported behavior pending separate upstream investigation.
+
+Source-derived diagnostics retain deprecation before compatibility hints and
+omit inherited member-casing hints. Missing/empty declared index groups report
+missing arguments; unfinished groups preserve child diagnostics then stop before
+argument checks and class-reader eligibility. Per-index AST identity distinguishes
+these from ordinary arrays. Independent review caught omitted/empty/unfinished
+recovery gaps, inactive include braces, failed include lookahead positions, and
+cross-package empty-index stop/cutoff regressions; exact compile-path regressions
+were added before their fixes. Unresolved ordinary empty indices suppress program
+and imported-unit forward checks; recoverable property groups retain later
+messages and legitimate unit forward obligations. General ordinary-call truncation remains open.
+
+Lexer-owned include and conditional anchors now match complete fixture lists.
+Inactive conditional EOF distinguishes real skipped tokens from immediate or
+comment-only EOF; the conditionals2 fixtures were never byte-identical.
+Expression includes substitute LINE, LINENUM, TIME, DATE and TIMESTAMP, preserving
+failed-lookahead current-token anchors, last-consumed EOF positions, inactive
+brace checks and valid adjacent switch/percent syntax. Contextual FILE, MAINFILE,
+FUNCTION and EXEVERSION values remain unsupported follow-ups.
+
+Pinned upstream commit `1dbf8a90329cc3f2638516e89c0668f916c1ddb9` supplies the
+compiler control-flow expectations: raw CRLF compiler blob
+`cffe42f756f8f0a44eeae0e045d6bb2bbe7878b4`, LF-normalized blob
+`ac94044ce6961ddb483a82e82d3d085e0e6e642a`; tokenizer rules blob
+`984125564a34605bd1ec356fea89bc6ce4b8c988`. No Pascal oracle was executed.
+
+The stale SetOfFail parser trio and invalid_operand checklist portions were
+already shipped in September and were independently reverified through complete
+frontend diagnostic lists. Those entries are reconciled without claiming new
+implementation. Only the inherited-read child and lexer-anchor subphase close;
+remaining Phase 2 work stays visible.
+
+Final validation passed `go test -race -coverprofile=<file> ./...`, CI diff
+lint against `origin/main`, formatting, dependency tidiness, unchanged generated
+visitor output and a fresh CLI build. Direct lexer/parser contract tests added
+for the coverage guard also pass their package race runs and scoped lint. Their
+coverage profiles supplement the full-suite profile: lexer 88.2803% versus its
+86.1806% baseline, parser 79.8352% versus 79.6765%.
+
+Both `just fixture-update` and `just fixture-check` pass. The fresh CLI report
+and individual fixture failure-set comparison show exactly three gains:
+`FailureScripts/conditionals2.1`, `include_expr` and `include_incorrect`, with
+no regressions. The FailureScripts floor ratchets 320 to 323; BuildScripts stays
+at 7. Generated status totals 1,426 passes, 588 failures and 27 skips across
+2,041 fixtures. The progress guide and checklist reflect this bounded scope;
+the public PR is left unmerged.
+
 ## 2026-10-09 — Unqualified indexed property reads (PLAN 2.1)
 
 This batch ([#471](https://github.com/CWBudde/go-dws/pull/471)) accepts checked
