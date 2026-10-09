@@ -250,16 +250,26 @@ func (l *Lexer) reportUnterminatedDirective(raw string, startPos Position) {
 }
 
 // reportUnbalancedConditionals reports conditional directives still open at end of input.
-// The diagnostic is anchored at the most recent directive of the innermost open frame,
-// so {$if} ... {$else} <eof> points at the {$else} rather than the {$if}.
+// Active branches retain their opening directive. Inactive scans use the last
+// switch or condition token only when real skipped tokens followed it.
 func (l *Lexer) reportUnbalancedConditionals() {
 	if len(l.condStack) == 0 || l.directiveTruncated {
 		l.condStack = nil
 		return
 	}
 	frame := l.condStack[len(l.condStack)-1]
+	pos := directiveNameColumn(frame.startPos)
+	if inactive := l.inactiveConditional(); inactive != nil {
+		pos = directiveNameColumn(inactive.startPos)
+		if inactive.skipHasToken && inactive.skipPos.Line != 0 {
+			pos = inactive.skipPos
+		}
+		// Upstream's inactive-branch EOF is AddCompilerStop, so the parser must
+		// not diagnose the enclosing constructs truncated by that stop.
+		l.stopped = true
+	}
 	l.addDirectiveDiagnostic("Unbalanced conditional directive",
-		directiveNameColumn(frame.startPos), SeverityError, "")
+		pos, SeverityError, "")
 	l.condStack = nil
 }
 

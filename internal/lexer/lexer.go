@@ -52,6 +52,7 @@ type Lexer struct {
 	currentIncludePath string
 	includeErrors      []LexerError
 	directiveDiags     []LexerError
+	directiveToken     *Token
 	includeStack       []includeFrame
 	condStack          []conditionalFrame
 	errors             []LexerError
@@ -64,8 +65,8 @@ type Lexer struct {
 	ch                 rune
 	preserveComments   bool
 	tracing            bool
-	// stopped is set by {$FATAL}: tokenization ends immediately, so nothing after
-	// the directive is compiled.
+	// stopped is set by {$FATAL} and compiler stops in directive processing:
+	// tokenization ends immediately, so nothing after the stop is compiled.
 	stopped bool
 	// directiveTruncated records that a directive was left unterminated, which
 	// suppresses the follow-on unbalanced-conditional report.
@@ -99,6 +100,7 @@ type LexerState struct {
 	includeStack       []includeFrame
 	condStack          []conditionalFrame
 	tokenBuffer        []Token
+	directiveToken     *Token
 	includeCount       int
 	position           int
 	readPosition       int
@@ -303,7 +305,8 @@ func (l *Lexer) IncludeErrors() []LexerError {
 	return l.includeErrors
 }
 
-// StoppedByFatal reports whether tokenization was ended early by a {$FATAL} directive.
+// StoppedByFatal reports whether tokenization ended early at a directive compiler
+// stop, including {$FATAL}, malformed expression includes and inactive-branch EOF.
 // The parser uses this to tell a real end of input from a truncated one: diagnostics it
 // would raise at the synthetic EOF are artifacts of the truncation, not defects in the
 // source, and DWScript does not report them.
@@ -350,6 +353,7 @@ func (l *Lexer) SaveState() LexerState {
 		line:               l.line,
 		column:             l.column,
 		tokenBuffer:        bufferCopy,
+		directiveToken:     l.directiveToken,
 		defines:            definesCopy,
 		condStack:          stackCopy,
 		input:              l.input,
@@ -376,6 +380,7 @@ func (l *Lexer) RestoreState(s LexerState) {
 	l.line = s.line
 	l.column = s.column
 	l.tokenBuffer = s.tokenBuffer
+	l.directiveToken = s.directiveToken
 	l.defines = s.defines
 	l.condStack = s.condStack
 	l.input = s.input
@@ -1596,6 +1601,11 @@ func (l *Lexer) nextTokenInternal() Token {
 
 		if l.ch == '{' && l.peekChar() == '$' {
 			l.processDirective()
+			if l.directiveToken != nil {
+				tok := *l.directiveToken
+				l.directiveToken = nil
+				return tok
+			}
 			continue
 		}
 
@@ -1604,7 +1614,17 @@ func (l *Lexer) nextTokenInternal() Token {
 				l.reportUnbalancedConditionals()
 				return NewToken(EOF, "", pos)
 			}
-			l.readChar()
+			if l.skipInactiveComment() {
+				continue
+			}
+			l.inactiveConditional().skipHasToken = true
+			if l.ch == '\'' || l.ch == '"' {
+				// A directive-looking sequence inside a string is an ordinary
+				// skipped token, not a conditional switch.
+				l.readStringOrCharSequence()
+			} else {
+				l.readChar()
+			}
 			continue
 		}
 
