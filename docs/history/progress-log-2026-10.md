@@ -2,7 +2,7 @@
 
 ## 2026-10-09 — Inherited indexed reads and lexer anchors (PLAN 2.1, 2.5)
 
-This batch (PR pending) accepts checked `inherited Prop()[i, j]` and
+This batch ([#472](https://github.com/CWBudde/go-dws/pull/472)) accepts checked `inherited Prop()[i, j]` and
 `inherited Prop[i, j]` reads. Lookup retains the lexical method owner's parent
 descriptor and accessor storage owner; virtual instance/class getters dispatch
 on dynamic Self. It reuses the evaluator's resolved indexed-property binding.

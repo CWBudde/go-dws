@@ -413,7 +413,7 @@ punctuation in the parser before reading arguments.
         - [x] Preserve ordered once-only index/getter effects, original exceptions,
           recursion, nonvirtual nil readers, array-result indexing and printer round trips.
       - [x] Read named inherited indexed properties through `inherited Prop()[i, j]`
-        and `inherited Prop[i, j]` (PR pending).
+        and `inherited Prop[i, j]` ([#472](https://github.com/CWBudde/go-dws/pull/472)).
         - [x] Preserve lexical parent descriptors/accessors, dynamic virtual Self,
           ordered once-only indices/getters, exceptions, recursion and array results.
         - [x] Preserve hint/deprecation ordering, missing/empty argument counts and
@@ -455,11 +455,11 @@ punctuation in the parser before reading arguments.
 - [x] SetOfFail parser parity: `bracket_right_missing`, `for_in_set_missing_do`, `of_missing`
   (`"X" expected` / `OF expected` / `DO expected`). Already shipped on September 20;
   reverified complete compile-path diagnostic lists while reconciling this stale entry
-  (PR pending).
+  ([#472](https://github.com/CWBudde/go-dws/pull/472)).
 - [ ] Extend `unexpected "@"` beyond the type/scalar cases shipped in 2.1
   (`SetOfFail/invalid_operand`, `dyn_array3`, `field_init1`, `func_ptr6`).
   - [x] `SetOfFail/invalid_operand`: already shipped on September 29;
-    reverified its complete six-line compile-path expectation (PR pending).
+    reverified its complete six-line compile-path expectation ([#472](https://github.com/CWBudde/go-dws/pull/472)).
   - [ ] Complete the remaining `dyn_array3`, `field_init1`, and `func_ptr6` contexts.
 
 ### 2.3 Property accessor recovery — S
@@ -508,7 +508,7 @@ assignment recovery and implicit-call intent without invoking a returned callabl
 
 Include-expression delimiter anchors (`include_incorrect`, `include_expr`) and
 conditional EOF provenance (`conditionals2`, `conditionals2.1`) now pass their
-complete compile-path expectations and recovery controls (PR pending).
+complete compile-path expectations and recovery controls ([#472](https://github.com/CWBudde/go-dws/pull/472)).
 The completed checklist is recorded in the [October progress log](docs/history/progress-log-2026-10.md).
 The conditional fixtures differ: one ends at the directive, the other has skipped tokens.
 
