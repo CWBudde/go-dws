@@ -1,6 +1,10 @@
 package printer
 
-import "github.com/cwbudde/go-dws/pkg/ast"
+import (
+	"strings"
+
+	"github.com/cwbudde/go-dws/pkg/ast"
+)
 
 func (p *Printer) printIndexExpression(ie *ast.IndexExpression) {
 	indices := []ast.Expression{ie.Index}
@@ -63,6 +67,13 @@ func (p *Printer) printPropertyDecl(pd *ast.PropertyDecl) {
 		p.write("write")
 		p.space()
 		p.printDWScript(pd.WriteSpec)
+	}
+
+	if pd.HasDescription {
+		p.space()
+		p.write("description \"")
+		p.write(strings.ReplaceAll(pd.Description, "\"", "\"\""))
+		p.write("\"")
 	}
 
 	if pd.IsReintroduce {

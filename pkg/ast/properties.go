@@ -43,6 +43,10 @@ type PropertyDecl struct {
 	// after the declaration; a bare `deprecated;` leaves it empty and sets
 	// IsDeprecated alone.
 	DeprecatedMessage string
+	// Description is the decoded literal text of the description directive.
+	Description string
+	// HasDescription distinguishes an empty description from an absent directive.
+	HasDescription bool
 	BaseNode
 	// DefaultPos is the position immediately following the default directive.
 	DefaultPos token.Position
@@ -117,6 +121,11 @@ func (pd *PropertyDecl) String() string {
 		out.WriteString(")")
 	}
 
+	if pd.HasDescription {
+		out.WriteString(" description \"")
+		out.WriteString(strings.ReplaceAll(pd.Description, "\"", "\"\""))
+		out.WriteString("\"")
+	}
 	if pd.IsReintroduce {
 		out.WriteString(" reintroduce")
 	}

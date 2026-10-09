@@ -230,8 +230,7 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 			}
 			if len(p.errors) > errorCount && method != nil && method.Body == nil {
 				firstErr := p.errors[errorCount]
-				p.addParserErrorAt(firstErr.Pos, firstErr.Length, "Record fields must be declared before record methods", ErrUnexpectedToken)
-				p.synchronize([]lexer.TokenType{lexer.END, lexer.EOF})
+				p.recordStop(NewParserError(firstErr.Pos, firstErr.Length, "Record fields must be declared before record methods", ErrUnexpectedToken))
 				return currentVisibility
 			}
 			cursor = p.cursor.Advance()
@@ -253,18 +252,10 @@ func (p *Parser) parseRecordBody(recordDecl *ast.RecordDecl, currentVisibility a
 
 		// Parse field declaration(s)
 		if seenMethod && cursor.Current().Type == lexer.IDENT {
-			p.addError("Record fields must be declared before record methods", ErrUnexpectedToken)
-			// Scan to the record's end rather than calling synchronize, which
-			// lists IDENT among its safe points: asked to recover from an
-			// identifier it returns without moving, and this loop then reports
-			// the same token forever. The record is already unparseable from
-			// here, and upstream reports the misplaced field once
-			// (record_recursive3), so skip the remainder outright.
-			for p.cursor.Current().Type != lexer.END && p.cursor.Current().Type != lexer.EOF {
-				p.cursor = p.cursor.Advance()
-			}
-			cursor = p.cursor
-			continue
+			// ReadRecordDecl refuses fields after a method with AddCompilerStop.
+			// Preserve reached members without reading any recovery tail.
+			p.recordStop(NewParserError(cursor.Current().Pos, cursor.Current().Length(), "Record fields must be declared before record methods", ErrUnexpectedToken))
+			return currentVisibility
 		}
 
 		fields := p.parseRecordFieldDeclarations(currentVisibility)

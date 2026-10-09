@@ -582,6 +582,17 @@ func (p *Parser) ParseProgram() *ast.Program {
 			continue
 		}
 
+		// Block readers consume their own END. At the root, ReadRootStatement
+		// reports it as an ordinary error and continues with later statements.
+		if p.curTokenIs(lexer.END) {
+			if !p.stopped() {
+				tok := p.cursor.Current()
+				p.recordError(NewParserError(tok.Pos, tok.Length(), "Unexpected END", ErrUnexpectedToken))
+			}
+			p.nextToken()
+			continue
+		}
+
 		// A DOT after the main program block terminates parsing
 		if p.curTokenIs(lexer.DOT) {
 			p.nextToken()

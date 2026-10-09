@@ -1,0 +1,12 @@
+type T = class
+ F: Integer;
+ property P: Integer read F write F description '';
+ property Compat: Integer read F description '' reintroduce;
+ function GetItem(I: Integer): Integer; begin Result := F+I; end;
+ property Items[I: Integer]: Integer read GetItem description ''; default;
+end;
+var O := new T;
+O.P := 7;
+PrintLn(O.P);
+PrintLn(O.Compat());
+PrintLn(O[3]);

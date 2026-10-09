@@ -225,15 +225,31 @@ parseDirectives:
 		prop.IsAutoProperty = true
 	}
 
+	// ReadPropertyDecl accepts a literal description before reintroduce. Leave
+	// an invalid value untouched for semicolon and class-member recovery.
+	if p.peekTokenIs(lexer.DESCRIPTION) {
+		p.nextToken()
+		if p.peekTokenIs(lexer.STRING) {
+			p.nextToken()
+			prop.Description = p.cursor.Current().Literal
+			prop.HasDescription = true
+		} else {
+			anchor := p.foundToken()
+			p.recordError(NewParserError(anchor.Pos, anchor.Length(), "String expected", ErrUnexpectedToken))
+		}
+	}
+
 	// The compatibility marker belongs before the declaration semicolon.
 	if p.peekTokenIs(lexer.REINTRODUCE) {
 		p.nextToken()
 		prop.IsReintroduce = true
 	}
 
-	// Expect semicolon
+	// A missing semicolon is recoverable: the property has already been
+	// declared, and the next token still belongs to the class member loop.
 	if !p.expectPeek(lexer.SEMICOLON) {
-		return nil
+		builder.Finish(prop)
+		return prop
 	}
 
 	// Parse optional 'default;' keyword

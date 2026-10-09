@@ -386,6 +386,10 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 			// Regular instance field declaration (may be comma-separated)
 			// Supports: FieldName: Type; or FieldName := Value; or FieldName: Type := Value;
 			fields := p.parseFieldDeclarations(currentVisibility)
+			if fields != nil && p.curTokenIs(lexer.SEMICOLON) {
+				p.parseClassFieldQualifiers()
+			}
+
 			for _, field := range fields {
 				if field != nil {
 					classDecl.Fields = append(classDecl.Fields, field)
@@ -397,10 +401,31 @@ func (p *Parser) parseInstanceLevelMember(cursor *TokenCursor, classDecl *ast.Cl
 		}
 
 	default:
-		// Unknown tokens in class body are silently skipped (handled by caller's advance)
+		// ReadFieldsDecl enters ReadNameList for other member starts. A token
+		// that cannot name a field stops compilation instead of being skipped.
+		p.addExpectedStopCurrent(lexer.IDENT)
 	}
 
 	return p.cursor
+}
+
+// parseClassFieldQualifiers owns the directives after a successfully terminated
+// class instance field. Shared helper/class-var readers have separate grammar.
+func (p *Parser) parseClassFieldQualifiers() {
+	if p.peekTokenIs(lexer.EXTERNAL) {
+		p.nextToken()
+		if p.peekTokenIs(lexer.STRING) {
+			p.nextToken()
+		} else {
+			anchor := p.foundToken()
+			p.recordError(NewParserError(anchor.Pos, anchor.Length(), "String expected", ErrUnexpectedToken))
+		}
+		p.expectPeek(lexer.SEMICOLON)
+	}
+	// Without its following semicolon, readonly can be a member name.
+	if p.peekTokenIs(lexer.READONLY) && p.cursor.Peek(2).Type == lexer.SEMICOLON {
+		p.cursor = p.cursor.AdvanceN(2)
+	}
 }
 
 func (p *Parser) parseClassDeclarationBody(nameIdent *ast.Identifier) *ast.ClassDecl {
