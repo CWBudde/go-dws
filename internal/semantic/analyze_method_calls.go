@@ -57,7 +57,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		if result, handled := a.analyzeExplicitHelperCall(helper, expr.Method, expr.Arguments); handled {
 			return result
 		}
-		a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, helper.Name))
+		a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, helper.Name))
 		return nil
 	}
 	if objectType == nil {
@@ -135,7 +135,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		if !found {
 			helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
 			if !found {
-				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+				a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 				return nil
 			}
 			if helperMethod == nil {
@@ -200,7 +200,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				// Method not found in record, check if a helper provides it
 				helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
 				if !found {
-					a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+					a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 					return nil
 				}
 				if helperMethod == nil {
@@ -251,7 +251,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 				a.analyzeCallArgument(0, expr.Arguments[0], expectedElemType)
 				return types.VOID
 			default:
-				a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value,
+				a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value,
 					a.setTypeDiagnosticName(setReceiverType)))
 				return nil
 			}
@@ -268,7 +268,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 		// Check if helpers provide this method for non-class, non-record types
 		helperMethod, found := a.resolveHelperMethodForCall(objectType, expr.Method, expr.Arguments)
 		if !found {
-			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+			a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return nil
 		}
 
@@ -456,7 +456,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 			}
 			return a.analyzeFunctionPointerCallArgs(expr.Arguments, callableType, expr.Token.Pos)
 		} else {
-			a.addStructuredError(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
+			a.addCompilerStop(NewAccessibleMemberError(expr.Method.Token.Pos, expr.Method.Value, objectType.String()))
 			return nil
 		}
 	}

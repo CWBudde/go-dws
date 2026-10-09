@@ -49,10 +49,11 @@ func (a *Analyzer) AnalyzeUnit(unit *ast.UnitDeclaration) error {
 //  5. Types are valid and consistent
 //
 // The analyzed unit's exported symbols (and imported symbols) are added to the analyzer's symbol table.
-func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availableUnits map[string]*SymbolTable) error {
+func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availableUnits map[string]*SymbolTable) (err error) {
 	if unit == nil {
 		return fmt.Errorf("cannot analyze nil unit")
 	}
+	defer a.recoverCompileStop(&err)
 
 	a.warnUnitNameFileMismatch(unit)
 	previousInUnit := a.inUnitDecl
@@ -91,6 +92,9 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	bodyLookups := make(map[*ast.FunctionDecl]sourceScopeSnapshot)
 	if publicSection != nil {
 		for _, stmt := range publicSection.Statements {
+			if a.stopped {
+				break
+			}
 			if uses, ok := stmt.(*ast.UsesClause); ok {
 				if err := a.importUnitUses(&ast.BlockStatement{Statements: []ast.Statement{uses}}, normalizedUnits, imported); err != nil {
 					return err
@@ -111,7 +115,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 					bodyLookups[decl] = a.captureSourceScope(a.symbols)
 				}
 			} else {
-				a.analyzeStatement(stmt)
+				a.analyzeTopLevelStatement(stmt)
 			}
 		}
 	}
@@ -139,6 +143,9 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	implemented := make(map[*ast.FunctionDecl]bool)
 	if implementationSection != nil {
 		for _, stmt := range implementationSection.Statements {
+			if a.stopped {
+				break
+			}
 			if uses, ok := stmt.(*ast.UsesClause); ok {
 				if err := a.importUnitUses(&ast.BlockStatement{Statements: []ast.Statement{uses}}, normalizedUnits, imported); err != nil {
 					return err
@@ -147,7 +154,7 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 			}
 			decl, ok := stmt.(*ast.FunctionDecl)
 			if !ok || decl.ClassName != nil {
-				a.analyzeStatement(stmt)
+				a.analyzeTopLevelStatement(stmt)
 				continue
 			}
 			if decl.Name == nil {
@@ -206,7 +213,9 @@ func (a *Analyzer) AnalyzeUnitWithDependencies(unit *ast.UnitDeclaration, availa
 	for _, section := range []*ast.BlockStatement{unit.InitSection, unit.FinalSection} {
 		if section != nil {
 			for _, stmt := range section.Statements {
-				a.analyzeStatement(stmt)
+				if a.stopped || a.analyzeTopLevelStatement(stmt) {
+					break
+				}
 			}
 		}
 	}

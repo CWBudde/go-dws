@@ -299,9 +299,7 @@ func (a *Analyzer) stopArrayLiteral(lit *ast.ArrayLiteralExpression, index int, 
 	err := NewIncompatibleTypesPairError(pos,
 		semanticTypeNameForDiagnostic(actual), semanticTypeNameForDiagnostic(previous))
 	err.AfterChildren = true
-	err.Stop = true
-	a.addStructuredError(err)
-	a.compileStopped = true
+	a.addCompilerStop(err)
 }
 
 // analyzeArrayRangeElement validates an ordinal range element of an array

@@ -455,7 +455,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 			return objectType
 		}
 
-		a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
+		a.addCompilerStop(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 		return nil
 	}
 
@@ -547,7 +547,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 
 		if _, isEnum := objectTypeResolved.(*types.EnumType); isEnum {
 			pos := expr.Member.Token.Pos
-			a.addStructuredError(NewAccessibleMemberError(pos, expr.Member.Value, objectType.String()))
+			a.addCompilerStop(NewAccessibleMemberError(pos, expr.Member.Value, objectType.String()))
 			return nil
 		}
 
@@ -560,12 +560,12 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 				a.addError("Syntax Error: \"(\" expected [line: %d, column: %d]", pos.Line, pos.Column)
 				return types.VOID
 			}
-			a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value,
+			a.addCompilerStop(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value,
 				a.setTypeDiagnosticName(objectType)))
 			return nil
 		}
 
-		a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
+		a.addCompilerStop(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 		return nil
 	}
 
@@ -815,7 +815,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 		return constType
 	}
 
-	a.addStructuredError(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
+	a.addCompilerStop(NewAccessibleMemberError(expr.Member.Token.Pos, expr.Member.Value, objectType.String()))
 	return nil
 }
 

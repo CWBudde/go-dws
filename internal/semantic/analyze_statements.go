@@ -905,8 +905,7 @@ func (a *Analyzer) isCompoundOperatorValid(op lexer.TokenType, targetType, value
 	err := NewIncompatibleOperandsError(pos)
 	_, classTarget := types.GetUnderlyingType(targetType).(*types.ClassType)
 	if classTarget {
-		err.Stop = true
-		a.compileStopped = true
+		a.addCompilerStop(err)
 	}
 	a.addStructuredError(err)
 	return !classTarget, false

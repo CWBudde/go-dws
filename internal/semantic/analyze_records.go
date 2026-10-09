@@ -587,7 +587,7 @@ func (a *Analyzer) analyzeRecordFieldAccessWithExpectedType(obj ast.Expression, 
 		return varType
 	}
 
-	a.addStructuredError(NewAccessibleMemberError(field.Token.Pos, fieldName, recordType.Name))
+	a.addCompilerStop(NewAccessibleMemberError(field.Token.Pos, fieldName, recordType.Name))
 	return nil
 }
 

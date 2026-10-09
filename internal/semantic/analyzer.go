@@ -110,12 +110,14 @@ type Analyzer struct {
 	// assignmentCallRecovery scopes bad-arity result recovery to the exact RHS call.
 	assignmentCallRecovery *ast.CallExpression
 
-	// compileStopped records a compiler stop: either an error DWScript raises as
-	// one (an unknown name in an expression) or a parser stop the front end
-	// reports. Upstream abandons the compile there, unwinding past
+	// stopped records that the analyzer raised a compiler stop (see
+	// compile_stop.go). skipEndOfProgramChecks records a stop the analyzer does
+	// not unwind for: a parser stop the front end reports, a truncated call, or
+	// an unknown name. Upstream abandons the compile at a stop, unwinding past
 	// TSymbolTable.Initialize, so the end-of-program checks such as
-	// unimplemented forwards never run.
-	compileStopped          bool
+	// unimplemented forwards never run after either.
+	stopped                 bool
+	skipEndOfProgramChecks  bool
 	predeclaredClassTypes   map[string]bool
 	deferredMethodBodies    []deferredMethodBody
 	retainedScopes          []*SymbolTable
@@ -409,10 +411,11 @@ func (a *Analyzer) registerBuiltinInterfaces() {
 }
 
 // Analyze performs semantic analysis on a program.
-func (a *Analyzer) Analyze(program *ast.Program) error {
+func (a *Analyzer) Analyze(program *ast.Program) (err error) {
 	if program == nil {
 		return fmt.Errorf("cannot analyze nil program")
 	}
+	defer a.recoverCompileStop(&err)
 
 	a.diagnosticInsertions = nil
 	defer func() { a.diagnosticInsertions = nil }()
@@ -456,10 +459,20 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 	a.deferClassMethodBodies = true
 	lastClassDecl := lastTopLevelClassDeclIndex(program)
 	var reach reachabilityState
+	// A compiler stop abandons the rest of the program; the bodies deferred
+	// before it still run below, as upstream compiled them before the stop.
 	for i, stmt := range program.Statements {
+		if a.stopped {
+			break
+		}
 		reach.before(a, stmt, true)
 		if fd, ok := stmt.(*ast.FunctionDecl); ok && fd.ClassName == nil && !fd.IsHelper {
-			paramTypes, returnType, regOK := a.registerFunctionSignature(fd)
+			var paramTypes []types.Type
+			var returnType types.Type
+			var regOK bool
+			if a.analyzeUntilStop(func() { paramTypes, returnType, regOK = a.registerFunctionSignature(fd) }) {
+				break
+			}
 			deferred[fd] = deferredFunc{
 				decl:       fd,
 				lookup:     a.captureSourceScope(a.symbols),
@@ -471,9 +484,12 @@ func (a *Analyzer) Analyze(program *ast.Program) error {
 			continue
 		}
 		a.mainStatement = stmt
-		a.analyzeStatement(stmt)
-		reach.after(stmt)
+		stopped := a.analyzeTopLevelStatement(stmt)
 		a.mainStatement = nil
+		if stopped {
+			break
+		}
+		reach.after(stmt)
 		if i == lastClassDecl {
 			a.drainDeferredMethodBodies()
 		}
@@ -575,7 +591,7 @@ func (a *Analyzer) errorsPrecedeCurrentStatement() bool {
 // Forwards of several scopes (a unit's interface and implementation) are
 // reported together in DWScript's order.
 func (a *Analyzer) reportUnimplementedForwards(scopes ...*SymbolTable) {
-	if a.compileStopped {
+	if a.compileStopped() {
 		return
 	}
 	var forwards []*Symbol
@@ -593,7 +609,7 @@ func (a *Analyzer) validateForwardDeclarations() {
 	// An abandoned compile never reaches the end-of-program checks. This one
 	// reports without a position, so dropDiagnosticsAfterStop cannot prune it
 	// afterwards — it has to be skipped here.
-	if a.compileStopped {
+	if a.compileStopped() {
 		return
 	}
 	for _, t := range a.typeRegistry.AllTypes() {
@@ -611,7 +627,7 @@ func (a *Analyzer) validateForwardDeclarations() {
 }
 
 func (a *Analyzer) validateForwardMethods() {
-	if a.compileStopped {
+	if a.compileStopped() {
 		return
 	}
 	for _, t := range a.typeRegistry.AllTypes() {
@@ -701,7 +717,7 @@ func (a *Analyzer) SetParseHadErrors(had bool) {
 // compiler stop, so the end-of-program checks must not run. The front end sets
 // it for a parser stop, which upstream raises before the analyzer is reached.
 func (a *Analyzer) SetCompileStopped(stopped bool) {
-	a.compileStopped = stopped
+	a.skipEndOfProgramChecks = stopped
 }
 
 // SetHintsLevel configures which hints should be emitted.
