@@ -26,7 +26,7 @@ func TestCompile_IndexedPropertyCompatibility(t *testing.T) {
 		{"type", "var A := Obj.Prop()[True];", "Hint: Property \"Prop\" reintroduced a method, you should remove empty brackets () [line: 7, column: 18]\nSyntax Error: Argument 0 expects type \"Integer\" instead of \"Boolean\" [line: 7, column: 19]", semantic.HintsLevelNormal},
 		{"extra", "var A := Obj.Prop()[1, 2];", "Hint: Property \"Prop\" reintroduced a method, you should remove empty brackets () [line: 7, column: 18]\nSyntax Error: Too many arguments [line: 7, column: 19]", semantic.HintsLevelNormal},
 		{"type before count", "var A := Obj.Prop()[True, 2];", "Hint: Property \"Prop\" reintroduced a method, you should remove empty brackets () [line: 7, column: 18]\nSyntax Error: Argument 0 expects type \"Integer\" instead of \"Boolean\" [line: 7, column: 19]", semantic.HintsLevelNormal},
-		{"child before count", "var A := Obj.Prop()[1, Missing];", "Hint: Property \"Prop\" reintroduced a method, you should remove empty brackets () [line: 7, column: 18]\nSyntax Error: Unknown name \"Missing\" [line: 7, column: 24]\nSyntax Error: Too many arguments [line: 7, column: 19]", semantic.HintsLevelNormal},
+		{"child before count", "var A := Obj.Prop()[1, Missing];", "Hint: Property \"Prop\" reintroduced a method, you should remove empty brackets () [line: 7, column: 18]\nSyntax Error: Unknown name \"Missing\" [line: 7, column: 24]", semantic.HintsLevelNormal},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

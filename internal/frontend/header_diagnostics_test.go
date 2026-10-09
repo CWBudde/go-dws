@@ -149,8 +149,10 @@ func TestCompile_DeclarationVisibilityOrder(t *testing.T) {
 		"Hint: Redundant specifier, visibility is already \"public\" [line: 3, column: 2]",
 		"Syntax Error: PROCEDURE or FUNCTION expected [line: 4, column: 8]",
 	})
-	assertDiagnostics(t, "type T = helper for Integer\n procedure P; begin Missing; end;\n public\n class bug;\nend;", "<test>", []string{
-		"Syntax Error: Unknown name \"Missing\" [line: 2, column: 21]",
+	// The body error must not be a compiler stop (an unknown name is one), or
+	// upstream would never read the later declarations.
+	assertDiagnostics(t, "type T = helper for Integer\n procedure P; begin PrintLn(1 as String); end;\n public\n class bug;\nend;", "<test>", []string{
+		"Syntax Error: Cannot cast \"Integer\" as \"String\" [line: 2, column: 31]",
 		"Hint: Redundant specifier, visibility is already \"public\" [line: 3, column: 2]",
 		"Syntax Error: PROCEDURE or FUNCTION expected [line: 4, column: 8]",
 	})

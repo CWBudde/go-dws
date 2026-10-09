@@ -63,7 +63,7 @@ PrintLn(Undefined);
 			name: "routine bodies before the stop keep their diagnostics",
 			source: `procedure P;
 begin
-  PrintLn(Undefined);
+  PrintLn(1 as String);
 end;
 var s : String;
 PrintLn(s.Hello);
@@ -73,8 +73,22 @@ begin
 end;
 `,
 			want: []string{
-				`Syntax Error: Unknown name "Undefined" [line: 3, column: 11]`,
+				`Syntax Error: Cannot cast "Integer" as "String" [line: 3, column: 13]`,
 				`Syntax Error: There is no accessible member with name "Hello" for type String [line: 6, column: 11]`,
+			},
+		},
+		{
+			// ReadName raises CPE_UnknownName as a stop (dwsCompiler.pas:4910),
+			// so neither the second argument nor the call's arity is checked.
+			name: "unknown name in an argument stops the call",
+			source: `procedure Take(v: Integer);
+begin
+end;
+Take(Missing1, Missing2);
+PrintLn(Undefined);
+`,
+			want: []string{
+				`Syntax Error: Unknown name "Missing1" [line: 4, column: 6]`,
 			},
 		},
 		{

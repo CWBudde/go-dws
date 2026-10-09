@@ -78,11 +78,11 @@ func captureRun(t *testing.T, source string, args []string, configure func()) (s
 // A recoverable parse error followed by a semantic error must report both, like the
 // harness does (frontend keeps analyzing after non-blocking parse diagnostics).
 func TestRun_ReportsParseAndSemanticDiagnosticsTogether(t *testing.T) {
-	out, err := captureRun(t, "var x: Integer := y;\nwhile true PrintLn(1);", nil, nil)
+	out, err := captureRun(t, "PrintLn(1 as String);\nwhile true PrintLn(1);", nil, nil)
 	if err == nil {
 		t.Fatal("expected a compile failure")
 	}
-	if !strings.Contains(out, "Unknown name \"y\"") || !strings.Contains(out, "DO expected") {
+	if !strings.Contains(out, "Cannot cast") || !strings.Contains(out, "DO expected") {
 		t.Fatalf("expected both diagnostics, got:\n%s", out)
 	}
 }
