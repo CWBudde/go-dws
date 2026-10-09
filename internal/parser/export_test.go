@@ -109,7 +109,11 @@ func TestParse_ExportDirectivePhaseStopsAtRejectedToken(t *testing.T) {
 			p := New(lexer.New("procedure P; " + tt.directives + "; begin end; Later;"))
 			_ = p.parseFunctionDeclaration()
 			errs := p.Errors()
-			if len(errs) != 1 || errs[0].Message != "BEGIN expected" || !errs[0].Stop || errs[0].Pos.Line != 1 || errs[0].Pos.Column != tt.column {
+			message := "BEGIN expected"
+			if tt.rejected == "forward" {
+				message = "There is already a forward declaration of this function"
+			}
+			if len(errs) != 1 || errs[0].Message != message || !errs[0].Stop || errs[0].Pos.Line != 1 || errs[0].Pos.Column != tt.column {
 				t.Fatalf("directive phase errors: %v", errs)
 			}
 			if got := p.cursor.Peek(1).Literal; got != tt.rejected {
@@ -127,8 +131,8 @@ func TestParse_ExportAfterLaterPhaseIsNotDirective(t *testing.T) {
 			if fn == nil || fn.IsExport || fn.HasExportName {
 				t.Fatalf("misplaced export was accepted as a directive: %+v", fn)
 			}
-			if errs := p.Errors(); len(errs) != 0 {
-				t.Fatalf("ordinary bodyless header recovery changed: %v", errs)
+			if errs := p.Errors(); len(errs) != 1 || !errs[0].Stop || errs[0].Message != "BEGIN expected" {
+				t.Fatalf("late export body stop: %v", errs)
 			}
 			if p.cursor.Peek(1).Type != lexer.EXPORT {
 				t.Fatalf("misplaced EXPORT consumed: %v", p.cursor.Peek(1))
@@ -214,13 +218,12 @@ func TestParse_ExportUnitInterfaceHoistsImplicitEnum(t *testing.T) {
 	}
 }
 
-// The separate interface-method parser already discards unknown directives.
-// Keep its method signature instead of introducing ordinary export metadata.
+// The interface reader retains the reached method signature before its END stop.
 func TestParse_ExportInterfaceMethodPreservesSignature(t *testing.T) {
 	p := New(lexer.New("type T = interface procedure P; export; end;"))
 	program := p.ParseProgram()
-	if errs := p.Errors(); len(errs) != 0 {
-		t.Fatalf("preexisting interface recovery changed: %v", errs)
+	if errs := p.Errors(); len(errs) != 1 || !errs[0].Stop || errs[0].Message != "END expected" {
+		t.Fatalf("interface directive stop: %v", errs)
 	}
 	iface := program.Statements[0].(*ast.InterfaceDecl)
 	if len(iface.Methods) != 1 || iface.Methods[0].String() != "procedure P" {

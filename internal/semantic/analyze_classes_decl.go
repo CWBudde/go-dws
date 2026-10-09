@@ -1068,7 +1068,9 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	for _, existing := range existingOverloads {
 		if a.methodSignaturesMatch(funcType, existing.Signature) {
 			// This is an implementation for a forward declaration.
-			if existing.IsForwarded && method.Body != nil {
+			if existing.IsForwarded && (method.Body != nil || method.ClassName != nil) {
+				// A qualified implementation binds its declared prototype even
+				// when recovery retained only the header before a body stop.
 				existing.IsForwarded = false
 				// A static implementation normally omits the declaration directive.
 				methodInfo.IsStatic = methodInfo.IsStatic || existing.IsStatic
@@ -1123,7 +1125,7 @@ func (a *Analyzer) analyzeMethodDecl(method *ast.FunctionDecl, classType *types.
 	// A body-less method of an external class is implemented by the host, not
 	// by the script, so it is not a forward declaration awaiting an
 	// implementation.
-	if method.Body == nil && !method.IsEmpty && !classType.IsExternal && !method.IsExternal {
+	if !isImplementationOfForward && method.Body == nil && !method.IsEmpty && !classType.IsExternal && !method.IsExternal {
 		forwardKey := ident.Normalize(classType.Name) + "." + ident.Normalize(method.Name.Value)
 		classType.ForwardedMethods[ident.Normalize(method.Name.Value)] = true
 		a.forwardMethodPos[forwardKey] = method.Name.Token.Pos

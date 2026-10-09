@@ -153,18 +153,18 @@ func TestCompile_DiagnosticsKeepSourceEmissionOrder(t *testing.T) {
 				"end;\n" +
 				"\n" +
 				"procedure Outer;\n" +
+				"begin\n" +
 				"   procedure Inner;\n" +
 				"   begin\n" +
 				"      while True do ;\n" +
-				"   end;\n" +
-				"begin\n" +
+				"   end; Inner;\n" +
 				"   while True do ;\n" +
 				"end;\n" +
 				"\n" +
 				"while True do ;\n",
 			want: []string{
 				`Warning: Infinite loop [line: 4, column: 7]`,
-				`Warning: Infinite loop [line: 11, column: 7]`,
+				`Warning: Infinite loop [line: 12, column: 7]`,
 				`Warning: Infinite loop [line: 14, column: 4]`,
 				`Warning: Infinite loop [line: 17, column: 1]`,
 			},

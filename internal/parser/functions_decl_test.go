@@ -913,8 +913,8 @@ func TestOverloadDirective(t *testing.T) {
 			},
 		},
 		{
-			name:  "function with virtual and overload directives",
-			input: "function DoWork(): Integer; virtual; overload; begin end;",
+			name:  "class member with virtual and overload directives",
+			input: "type T = class function DoWork(): Integer; virtual; overload; begin end; end;",
 			expected: func(t *testing.T, fn *ast.FunctionDecl) {
 				if fn.Name.Value != "DoWork" {
 					t.Errorf("function name = %q, want 'DoWork'", fn.Name.Value)
@@ -931,8 +931,8 @@ func TestOverloadDirective(t *testing.T) {
 			},
 		},
 		{
-			name:  "function with overload only (no body - forward declaration)",
-			input: "function Helper(s: String): Boolean; overload;",
+			name:  "function with overload and explicit forward directive",
+			input: "function Helper(s: String): Boolean; overload; forward;",
 			expected: func(t *testing.T, fn *ast.FunctionDecl) {
 				if fn.Name.Value != "Helper" {
 					t.Errorf("function name = %q, want 'Helper'", fn.Name.Value)
@@ -958,8 +958,11 @@ func TestOverloadDirective(t *testing.T) {
 			}
 
 			fn, ok := program.Statements[0].(*ast.FunctionDecl)
+			if class, member := program.Statements[0].(*ast.ClassDecl); member && len(class.Methods) == 1 {
+				fn, ok = class.Methods[0], true
+			}
 			if !ok {
-				t.Fatalf("statement is not *ast.FunctionDecl, got %T", program.Statements[0])
+				t.Fatalf("statement has no routine, got %T", program.Statements[0])
 			}
 
 			tt.expected(t, fn)
@@ -1132,8 +1135,8 @@ function Test(s: String): String; overload; begin end;`,
 		},
 		{
 			name: "forward declaration with overload",
-			input: `function Helper(x: Integer): String; overload;
-function Helper(x: Float): String; overload;`,
+			input: `function Helper(x: Integer): String; overload; forward;
+function Helper(x: Float): String; overload; forward;`,
 			expected: func(t *testing.T, node ast.Node) {
 				prog, ok := node.(*ast.Program)
 				if !ok {

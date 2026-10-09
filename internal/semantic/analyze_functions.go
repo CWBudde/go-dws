@@ -48,13 +48,23 @@ func (a *Analyzer) analyzeFunctionDecl(decl *ast.FunctionDecl) {
 func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes []types.Type, returnType types.Type, ok bool) {
 	// Export qualifiers are reached only after forward binding allows EXPORT.
 	// Preserve convention hints on ordinary routines and early header failures.
-	conventionHintPending := decl.IsExport
+	conventionHintPending := decl.IsExport || decl.IsForward
+	var forwardHintInsertion *diagnosticInsertion
+	if decl.IsForward {
+		// Binding may stop at FORWARD before its calling qualifier is reached.
+		// Keep a reached hint at its original emission point on other branches.
+		forwardHintInsertion = a.newDiagnosticInsertion()
+	}
 	if !conventionHintPending {
 		a.addCallConventionHint(decl)
 	}
 	defer func() {
 		if conventionHintPending {
-			a.addCallConventionHint(decl)
+			if forwardHintInsertion != nil {
+				a.analyzeAtDiagnosticInsertion(forwardHintInsertion, func() { a.addCallConventionHint(decl) })
+			} else {
+				a.addCallConventionHint(decl)
+			}
 		}
 	}()
 
@@ -187,7 +197,7 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 	// so it is not left awaiting an implementation.
 	isForward := decl.IsForward && !decl.IsExternal
 	repeatedExport := decl.IsExport && !isForward && a.symbols.exportImplementsForward(decl.Name.Value, funcType)
-	if conventionHintPending {
+	if conventionHintPending && !decl.IsForward {
 		conventionHintPending = false
 		if !repeatedExport {
 			a.addCallConventionHint(decl)
@@ -212,7 +222,12 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 			}
 		case anchorDecl:
 		}
-		a.addError("Syntax Error: %s [line: %d, column: %d]", err.Error(), pos.Line, pos.Column)
+		if declarationStopsCompilation(err) {
+			conventionHintPending = false
+			a.addPunctuationStop(pos, err.Error())
+		} else {
+			a.addError("Syntax Error: %s [line: %d, column: %d]", err.Error(), pos.Line, pos.Column)
+		}
 		if repeatedExport {
 			a.addPunctuationStop(decl.ExportPos, "BEGIN expected")
 		}

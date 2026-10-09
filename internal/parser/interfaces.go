@@ -823,25 +823,35 @@ func (p *Parser) parseInterfaceDeclarationBody(nameIdent *ast.Identifier) *ast.I
 			}
 			if cursor.Peek(1).Type != lexer.RBRACK {
 				p.addExpected(lexer.RBRACK)
+				// The GUID value was read; leave its following token for the
+				// enclosing member/END reader rather than visiting it again.
+				cursor = cursor.Advance()
+				p.cursor = cursor
 				continue
 			}
 			cursor = cursor.Advance() // move to ']'
 			p.cursor = cursor
 		default:
-			// Unknown token in interface body, skip it
-			cursor = cursor.Advance()
-			p.cursor = cursor
-			continue
+			// Interface methods have no directive phase. The enclosing reader
+			// requires END at the first token it cannot read as a member.
+			p.addExpectedStopAt(cursor.Current(), lexer.END)
+			builder.Finish(interfaceDecl)
+			return interfaceDecl
 		}
 
+		if p.stopped() {
+			builder.Finish(interfaceDecl)
+			return interfaceDecl
+		}
 		cursor = cursor.Advance()
 		p.cursor = cursor
 	}
 
 	// Expect 'end'
 	if cursor.Current().Type != lexer.END {
-		p.addExpectedCurrent(lexer.END)
-		return nil
+		p.addExpectedStopAt(cursor.Current(), lexer.END)
+		builder.Finish(interfaceDecl)
+		return interfaceDecl
 	}
 
 	// Expect terminating semicolon

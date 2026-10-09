@@ -289,7 +289,9 @@ func (a *Analyzer) analyzeIdentifier(identifier *ast.Identifier) types.Type {
 		}
 
 		diagnostic := NewUnknownNameError(identifier.Token.Pos, identifier.Value)
-		if a.propertyTermMark != nil {
+		if a.propertyTermMark != nil || (a.currentFunction != nil && a.currentFunction.BodyMissingBegin) {
+			// A missing-BEGIN carrier contains only the reached local/contract
+			// prefix. Its unknown-name child stops before the body check.
 			diagnostic.Stop = true
 		}
 		a.addStructuredError(diagnostic)

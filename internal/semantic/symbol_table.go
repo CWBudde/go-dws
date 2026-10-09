@@ -1099,6 +1099,7 @@ const (
 type scriptDiagnostic struct {
 	msg    string
 	anchor diagnosticAnchor
+	stop   bool
 }
 
 func (d *scriptDiagnostic) Error() string { return d.msg }
@@ -1111,6 +1112,13 @@ func declarationAnchor(err error) diagnosticAnchor {
 		return d.anchor
 	}
 	return anchorDecl
+}
+
+// declarationStopsCompilation identifies declaration branches that abandon
+// compilation, independently of their diagnostic sentence.
+func declarationStopsCompilation(err error) bool {
+	var d *scriptDiagnostic
+	return errors.As(err, &d) && d.stop
 }
 
 // errMethodAlreadyExists reports a redeclaration with an identical signature.
@@ -1126,6 +1134,7 @@ func errDuplicateForward() error {
 	return &scriptDiagnostic{
 		msg:    "There is already a forward declaration of this function",
 		anchor: anchorForward,
+		stop:   true,
 	}
 }
 

@@ -171,6 +171,10 @@ type FunctionDecl struct {
 	IsHelper      bool
 	IsInline      bool // "inline;" directive — advisory only, no code generation
 	IsEmpty       bool // "empty;" directive — routine has no body; call is a no-op
+	// BodyMissingBegin marks a recovered header/local/contract prefix whose
+	// required BEGIN was not reached. Body contains only the reached locals;
+	// semantic child stops in this prefix precede the provisional body error.
+	BodyMissingBegin bool
 }
 
 func (fd *FunctionDecl) statementNode() {}
