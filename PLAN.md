@@ -154,7 +154,9 @@ in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty
 in class methods shipped in [#468](https://github.com/CWBudde/go-dws/pull/468). Named inherited empty/bare scalar reads and parent accessor ownership are implemented in [#469](https://github.com/CWBudde/go-dws/pull/469).
 Property descriptions and program-end hint suppression are implemented in [#472](https://github.com/CWBudde/go-dws/pull/472).
 The `export` directive is implemented in [#472](https://github.com/CWBudde/go-dws/pull/472).
-Next: property index parameter modes and live references, then remaining Phase 2
+Property index declaration parsing, validation and source preservation are implemented
+in [#472](https://github.com/CWBudde/go-dws/pull/472); the parent item stays open.
+Next: live property index references and setter capture order, then remaining Phase 2
 recovery and access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
@@ -448,8 +450,9 @@ punctuation in the parser before reading arguments.
 ### 2.2 Parser gaps — S each
 
 - [ ] `var`/`const` in property index parameters (`array_params1`/`2`, `Parameters expected`).
-  - [ ] Declaration grammar/recovery, accessor passing-mode validation and AST/printer
-    preservation; compare both complete fixture diagnostic lists.
+  - [x] Declaration grammar/recovery, accessor passing-mode validation and AST/printer
+    preservation; both complete fixture diagnostic lists pass
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)).
   - [ ] Typed passing-mode metadata and live caller references through ordinary
     named/default property access; capture setter receiver/indices before its RHS.
   - [ ] Writable/type/term-boundary checks and interface/inherited/compatibility reads,

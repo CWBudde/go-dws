@@ -455,6 +455,22 @@ cutoff remains part of the broader compile-stop work.
 
 ### Property and operator declarations
 
+Class/interface property indices accept semicolon-separated value, `var` and
+`const` groups. A modifier applies to every comma-separated name in its group.
+Empty brackets report ordinary `Parameters expected` at `]` and retain the
+property for later validation. Missing names, colons and closing brackets are
+compiler stops with last-real-token EOF anchors; earlier completed members and
+accessor errors survive, while later statements and end checks are skipped.
+
+Accessor index types are checked before passing modes. A mismatch reports
+`Parameter N (Name) - Var-parameter expected`, `Const-parameter expected` or
+`Value-parameter expected`, then one incompatible-method summary at the accessor.
+The detail uses the property's parameter spelling and a zero-based index.
+Count, getter result and writer value/kind checks retain their earlier priority.
+AST and source printing preserve the groups and modes. Declaration support does
+not yet provide live caller references for `var` indices; the parent runtime
+and use-site validation work remains open.
+
 A property `description` directive requires a string literal. If it is missing,
 `String expected` anchors at the next token and leaves that token available for
 ordinary semicolon and class-member recovery. A reached property retains its

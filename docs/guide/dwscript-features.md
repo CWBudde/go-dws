@@ -426,6 +426,10 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Auto-properties (a bare `property Alpha: Integer;` gets a synthesized `FAlpha`)
 - ✅ Property inheritance
 - ✅ Indexed properties, including multi-index `Data[x, y: Integer]`
+- ✅ Class/interface index declarations preserve grouped `var`/`const` modes,
+  validate accessor mode agreement and round-trip through source printing.
+  Live caller references for `var` indices and their use-site checks remain open;
+  independent record index parsing and helper dispatch are also incomplete.
 - ✅ Default properties (`obj[i]` for read and write)
 - ✅ Expression-based getters and setters, on plain and indexed properties.
   An indexed accessor expression sees the index parameters by name:

@@ -1,5 +1,53 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Property index declaration modes (PLAN 2.2, first slice)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) accepts
+semicolon-separated value, var and const property index groups, applies each mode
+to every grouped name and resets it between groups. Empty brackets produce the
+ordinary `Parameters expected` at the closing bracket and retain the property.
+Missing names, colons and brackets use genuine compiler stops and real EOF anchors.
+Existing partial-class retention keeps earlier methods/properties available for
+semantic validation without new class-parser recovery.
+
+Class and interface accessors share index type/mode checking. Count, writer value,
+index-directive, result and method-kind checks retain priority. Per-index type
+mismatches suppress mode mismatches for that index; mode details use the property
+parameter's spelling and zero-based index, followed by one method summary at the
+accessor anchor. All value/var/const pairs, inherited accessor selection, multiple
+indices, malformed lists, earlier errors and later cutoff have complete-list tests.
+Both `array_params1` and `array_params2` match their full expectations;
+`array_params3` retains its existing one-message expectation.
+
+AST.String and the class source printer preserve parameter modes using valid
+semicolon-separated declarations. Independent reparsing inspects every index;
+legal const and value-copy sources execute through public Engine before and after
+serialization. Independent task review approves the bounded declaration slice.
+
+The parent var/const item remains open. Typed property mode metadata, live caller
+references, storage/type/term-boundary validation and receiver/index-before-RHS
+setter capture are next. Default, interface and resolved inherited/compatibility
+calls need reference preparation; record grammar, composite index types and indexed
+helper dispatch retain their independent boundaries. No var mutation runtime parity
+is claimed by this declaration change.
+
+Final CLI totals are 1,431 passes, 583 failures and 27 skips across 2,041 fixtures:
+only the two declaration fixtures gain passes, with no regressions. FailureScripts
+ratchets 326 to 328; SimpleScripts remains 399. Generated Go status scored 1,432
+with the existing variable BuildScripts gain; CLI scored 7 in that category and
+its established floor remains 7. Parser coverage rises from 80.5073% to
+4,746/5,882 = 80.6868%; lexer remains 1,386/1,570 = 88.2803%.
+
+Source-derived expectations use pinned compiler revision
+`1dbf8a90329cc3f2638516e89c0668f916c1ddb9`, especially ReadArrayParams,
+CheckPropertyFuncParams and CheckParams. No Pascal oracle ran. Final verification
+passes: `go test -race -coverprofile=.cache/phase24-final-coverage.out ./...`,
+CI lint with zero issues, fresh CLI complete-list/const/value checks and full
+fixture comparison, `just fixture-update`, `just fixture-check`, tracked Go
+formatting, `go mod tidy`, deterministic `go generate ./pkg/ast`, and
+`git diff --check`. Dependency and visitor files are unchanged. Guides and PLAN
+record this completed subtask and its remaining runtime prerequisites.
+
 ## 2026-10-09 — Routine export directives (PLAN 2.2)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) accepts one
