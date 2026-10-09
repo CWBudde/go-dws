@@ -467,9 +467,12 @@ Accessor index types are checked before passing modes. A mismatch reports
 `Value-parameter expected`, then one incompatible-method summary at the accessor.
 The detail uses the property's parameter spelling and a zero-based index.
 Count, getter result and writer value/kind checks retain their earlier priority.
-Record accessor index defaults are checked after type/mode agreement; the setter's
-assigned Value is excluded from index mode/default equality. The corresponding
-class accessor-default check remains open. Record missing index types report
+Class/record accessor index defaults are checked after type/mode agreement; the setter's
+assigned Value is excluded from index mode/default equality. Class checks also exempt
+the implicit index directive and retain the selected lexical accessor signature.
+Interface signatures still need default metadata before this check can apply to
+their declared defaults.
+Record missing index types report
 ordinary `Type expected`; unknown named index types report ordinary `Unknown name`
 at the consumed type's end. Variant recovery preserves later reached checks.
 Stopped record lists retain reached index annotations and earlier completed-member

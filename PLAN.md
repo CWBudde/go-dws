@@ -483,8 +483,9 @@ punctuation in the parser before reading arguments.
     - [ ] Retain earlier completed-member diagnostics when a complete inline or
       anonymous record's completed property type cannot resolve. Their existing
       early returns still hide earlier accessor/body errors.
-  - [ ] Reject matched class accessor index defaults after type/mode agreement;
-    the record checker covers this case, but the class checker still accepts it.
+  - [x] Reject matched class accessor index defaults after type/mode agreement;
+    preserve selected lexical signatures and Value/index-directive exemptions
+    ([#472](https://github.com/CWBudde/go-dws/pull/472)).
 - [ ] Recover missing composite array element types with ordinary `Type expected`
   and a Variant element, leaving the delimiter unread. Existing `array of ]`
   recovery still produces a partial type and a later bracket stop.
@@ -699,7 +700,7 @@ elsewhere). All previously triaged groups are closed; what remains is untriaged.
 ### 5.2 Fix groups — sized after 5.1
 
 - [ ] BuildScripts drivers.
-  - [ ] Make `init_order2` initialization/finalization ordering deterministic;
+  - [ ] Make `init_order2`/`init_order4`/`init_order5` initialization/finalization ordering deterministic;
     its varying pass must not raise the stable BuildScripts baseline.
 - [ ] SimpleScripts.
 - [ ] ArrayPass.

@@ -431,6 +431,10 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ Named, inline and anonymous record index declarations retain names, types,
   modes and class/default flags. Record accessor checks preserve type, mode,
   default-value and count priority, including forwarded accessor signatures.
+- ✅ Class accessor index defaults must match the property declaration after
+  type/mode agreement; setter Value and implicit index defaults remain exempt.
+  Selected inherited/forwarded signatures own these checks. Interface declaration
+  default metadata remains incomplete.
 - ✅ Ordinary class named/default `var` indices retain live caller storage. Eligible
   method/expression setters capture their receiver and indices before the RHS;
   later container rebinding keeps the captured slot and index exceptions skip the RHS.

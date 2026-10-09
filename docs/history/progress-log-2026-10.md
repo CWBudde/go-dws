@@ -1,5 +1,43 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Class property accessor index defaults (PLAN 2.2)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) rejects
+accessor-only defaults on explicit class property indices. The existing shared
+parameter checker reports the property's index name, then the incompatible-method
+summary. Type errors precede mode errors, which precede default mismatch; later
+indices remain reachable. Count, getter result and setter Value type checks retain
+their earlier priority. Value modes/defaults and implicit index directives keep
+their declaration exemptions. Selected inherited/forwarded signatures own the
+checks, without inspecting unrelated descendant override defaults.
+
+Twenty-eight actual public Compile controls assert non-nil accepted Programs or
+nil rejected Programs and complete ordered severity/message/position lists.
+They cover reader/writer and zero defaults, alias/case/name differences, multi-index
+and read-before-write order, inherited/forward declarations, lexical forwarding,
+reached later names and priority/exemption controls. Independent task review
+approves the two-file change with no findings or correction rounds.
+
+Final validation passes: full `go test -race -count=1 -coverprofile=.cache/phase29-final-coverage.out ./...`,
+exact CI lint with zero issues, fresh CLI acceptance and full fixture failure-set
+comparison, tracked formatting, `go mod tidy`, deterministic visitor generation,
+fixture regeneration and the following fixture gate. CLI remains exactly
+1,432 passes, 582 failures and 27 skips; no gains/regressions occur against the
+record declaration slice. Regenerated Go status is 1,433/581/27 with BuildScripts 8,
+whose sole extra pass versus CLI is init_order4. The following gate is 1,432/582/27
+with BuildScripts 7. Initialization-order variation is recorded in Phase 5;
+no stable gain is claimed. Baselines remain unchanged at FailureScripts 328,
+SimpleScripts 400 and BuildScripts 7. Coverage remains parser 4,826/5,894 = 81.8799%
+and lexer 1,386/1,570 = 88.2803%; dependencies and generated code are unchanged.
+
+Only the measured class-default child closes; the parent remains open.
+The shared helper applies to retained metadata without a class-only gate, but the
+existing interface producer omits default expressions. An isolated public probe
+accepts an interface accessor default; that remains the separately doable PLAN 1.7
+signature-metadata prerequisite, not a compatibility acceptance contract. No
+producer or default-argument execution expansion occurred. Source expectations
+use pinned revision 1dbf8a90329cc3f2638516e89c0668f916c1ddb9; no Pascal oracle ran.
+
 ## 2026-10-09 — Record property index declarations (PLAN 2.2)
 
 This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) shares
