@@ -52,6 +52,7 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 	if node.IsHelper {
 		return e.registerFunctionHelper(node, ctx)
 	}
+	node = e.forwardDefaultRuntimeView(node)
 
 	// Nested function declaration (executing inside another function's body):
 	// keep it scoped to the enclosing call instead of leaking it into the
@@ -66,6 +67,38 @@ func (e *Evaluator) VisitFunctionDecl(node *ast.FunctionDecl, ctx *ExecutionCont
 	e.typeSystem.RegisterFunctionOrReplace(node.Name.Value, node)
 
 	return &runtime.NilValue{}
+}
+
+// forwardDefaultRuntimeView restores defaults from the selected explicit forward
+// without changing the source declaration, its parameters or its printed header.
+func (e *Evaluator) forwardDefaultRuntimeView(node *ast.FunctionDecl) *ast.FunctionDecl {
+	info := e.SemanticInfo()
+	if info == nil {
+		return node
+	}
+	signature, ok := info.GetResolvedType(node).(*types.FunctionType)
+	if !ok || len(signature.DefaultValues) != len(node.Parameters) {
+		return node
+	}
+	var view *ast.FunctionDecl
+	for i, parameter := range node.Parameters {
+		defaultValue, expression := signature.DefaultValues[i].(ast.Expression)
+		if parameter.DefaultValue != nil || !expression || defaultValue == nil {
+			continue
+		}
+		if view == nil {
+			copyDecl := *node
+			copyDecl.Parameters = append([]*ast.Parameter(nil), node.Parameters...)
+			view = &copyDecl
+		}
+		copyParameter := *parameter
+		copyParameter.DefaultValue = defaultValue
+		view.Parameters[i] = &copyParameter
+	}
+	if view != nil {
+		return view
+	}
+	return node
 }
 
 func (e *Evaluator) lookupMutableHelper(name string) *runtime.MutableHelperInfo {

@@ -1,9 +1,12 @@
 package semantic
 
 import (
+	"strconv"
+
 	"github.com/cwbudde/go-dws/internal/types"
 	"github.com/cwbudde/go-dws/pkg/ast"
 	"github.com/cwbudde/go-dws/pkg/ident"
+	"github.com/cwbudde/go-dws/pkg/token"
 )
 
 // ============================================================================
@@ -196,6 +199,10 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 	// `forward` is meaningless on an external routine (the host implements it),
 	// so it is not left awaiting an implementation.
 	isForward := decl.IsForward && !decl.IsExternal
+	var matchedForward *Symbol
+	if !isForward {
+		matchedForward = a.symbols.matchingExplicitForward(decl.Name.Value, funcType)
+	}
 	repeatedExport := decl.IsExport && !isForward && a.symbols.exportImplementsForward(decl.Name.Value, funcType)
 	if conventionHintPending && !decl.IsForward {
 		conventionHintPending = false
@@ -237,12 +244,62 @@ func (a *Analyzer) registerFunctionSignature(decl *ast.FunctionDecl) (paramTypes
 		a.addPunctuationStop(decl.ExportPos, "BEGIN expected")
 		return nil, nil, false
 	}
+	if matchedForward != nil {
+		// Keep the source header unchanged. Runtime registration uses a separate
+		// view of this successfully bound declaration with the original defaults.
+		if matchedForward.forwardDefaultSignature != nil {
+			a.semanticInfo.SetResolvedType(decl, matchedForward.forwardDefaultSignature)
+		}
+	}
+	if isForward && decl.IsOverload {
+		if forward := a.symbols.matchingExplicitForward(decl.Name.Value, funcType); forward != nil {
+			forward.forwardDefaultSignature = a.bindForwardDefaultSignature(funcType)
+		}
+	}
 
 	if decl.IsDeprecated {
 		a.symbols.MarkDeprecated(decl.Name.Value, decl.DeprecatedMessage)
 	}
 
 	return paramTypes, returnType, true
+}
+
+// bindForwardDefaultSignature captures scalar defaults at their declaration,
+// rather than allowing a caller's local names to rebind constant references.
+// The symbol's original signature and the source expressions stay unchanged.
+func (a *Analyzer) bindForwardDefaultSignature(signature *types.FunctionType) *types.FunctionType {
+	bound := *signature
+	bound.DefaultValues = append([]interface{}(nil), signature.DefaultValues...)
+	for i, value := range signature.DefaultValues {
+		expression, ok := value.(ast.Expression)
+		if !ok || expression == nil {
+			continue
+		}
+		constant, err := a.evaluateConstant(expression)
+		if err != nil {
+			continue
+		}
+		position := expression.Pos()
+		switch value := constant.(type) {
+		case int:
+			bound.DefaultValues[i] = &ast.IntegerLiteral{Value: int64(value),
+				BaseNode: ast.BaseNode{Token: token.NewToken(token.INT, strconv.Itoa(value), position)}}
+		case bool:
+			kind := token.FALSE
+			if value {
+				kind = token.TRUE
+			}
+			bound.DefaultValues[i] = &ast.BooleanLiteral{Value: value,
+				BaseNode: ast.BaseNode{Token: token.NewToken(kind, strconv.FormatBool(value), position)}}
+		case string:
+			bound.DefaultValues[i] = &ast.StringLiteral{Value: value,
+				BaseNode: ast.BaseNode{Token: token.NewToken(token.STRING, value, position)}}
+		case float64:
+			bound.DefaultValues[i] = &ast.FloatLiteral{Value: value,
+				BaseNode: ast.BaseNode{Token: token.NewToken(token.FLOAT, strconv.FormatFloat(value, 'g', -1, 64), position)}}
+		}
+	}
+	return &bound
 }
 
 // analyzeFunctionBody analyzes a regular function's body in a fresh scope, using the

@@ -13,6 +13,9 @@ import (
 
 // Symbol represents a symbol in the symbol table (variable or function)
 type Symbol struct {
+	// forwardDefaultSignature captures scalar default expressions in the original
+	// declaration scope. It is immutable after successful forward registration.
+	forwardDefaultSignature *types.FunctionType
 	// EnumElement marks an enum constant; enum-typed variables leave it nil.
 	EnumElement *ast.EnumElementBinding
 	// lookupOnly marks type/unit identities whose existing APIs own value typing.
@@ -438,12 +441,21 @@ func (st *SymbolTable) DefineOverload(
 	return st.addOverloadToSet(name, existing, funcType, hasOverloadDirective, isForward, pos)
 }
 
-// forwardSignaturesMatch uses the existing declaration matching criteria:
-// parameter types/modes, return type and symmetric default presence. Parameter
-// names, default data and directional default omission are not compared here.
+// forwardSignaturesMatch selects an explicitly overloaded forward using the
+// existing parameter/mode and return criteria. An implementation can omit a
+// declared default, but cannot add one. Names and default data remain unchecked.
 func forwardSignaturesMatch(forward, implementation *types.FunctionType) bool {
-	return SignaturesEqual(forward, implementation) &&
-		forward.ReturnType.Equals(implementation.ReturnType) && defaultParametersMatch(forward, implementation)
+	if !SignaturesEqual(forward, implementation) || !forward.ReturnType.Equals(implementation.ReturnType) {
+		return false
+	}
+	for i := range implementation.Parameters {
+		hasForward := i < len(forward.DefaultValues) && forward.DefaultValues[i] != nil
+		hasImplementation := i < len(implementation.DefaultValues) && implementation.DefaultValues[i] != nil
+		if hasImplementation && !hasForward {
+			return false
+		}
+	}
+	return true
 }
 
 func (st *SymbolTable) defineNewSymbol(name string, funcType *types.FunctionType, hasOverloadDirective, isForward bool, pos token.Position) {
@@ -489,7 +501,7 @@ func (st *SymbolTable) replaceForwardWithImplementation(name string, existing *S
 	if !existingFunc.ReturnType.Equals(funcType.ReturnType) {
 		return fmt.Errorf("implementation return type for '%s' does not match forward declaration", name)
 	}
-	if !defaultParametersMatch(existingFunc, funcType) {
+	if !existing.HasOverloadDirective && !defaultParametersMatch(existingFunc, funcType) {
 		return fmt.Errorf("implementation signature for '%s' does not match forward declaration", name)
 	}
 
@@ -502,7 +514,10 @@ func (st *SymbolTable) replaceForwardWithImplementation(name string, existing *S
 	// Note: We allow existing.HasOverloadDirective && !hasOverloadDirective (forward has overload, impl doesn't)
 
 	// Replace forward declaration with implementation
-	existing.Type = funcType // Update to implementation's type (in case of minor differences)
+	if !existing.HasOverloadDirective {
+		existing.Type = funcType // Ordinary forwards retain their name-bound policy.
+	}
+	// Explicit overloads retain the original signature and declared defaults.
 	return nil
 }
 
@@ -579,7 +594,8 @@ func (st *SymbolTable) checkSignaturesAndResolveForward(
 
 					// Forward + implementation pair: check if default parameters match
 					if overload.IsForward && !isForward {
-						if !defaultParametersMatch(existingFunc, funcType) {
+						if overload.HasOverloadDirective && !forwardSignaturesMatch(existingFunc, funcType) ||
+							!overload.HasOverloadDirective && !defaultParametersMatch(existingFunc, funcType) {
 							continue
 						}
 						// Forward can have 'overload'; implementation can omit it
@@ -587,7 +603,9 @@ func (st *SymbolTable) checkSignaturesAndResolveForward(
 							return false, fmt.Errorf("implementation has 'overload' directive but forward declaration does not for '%s'", name)
 						}
 						existing.Overloads[i].IsForward = false
-						existing.Overloads[i].Type = funcType
+						if !overload.HasOverloadDirective {
+							existing.Overloads[i].Type = funcType
+						}
 						return true, nil
 					}
 
@@ -668,19 +686,20 @@ func (st *SymbolTable) addOverloadToSet(name string, existing *Symbol, funcType 
 	} else {
 		// Convert to overload set
 		firstOverload := &Symbol{
-			Name:                 existing.Name,
-			Type:                 existing.Type,
-			ReadOnly:             false,
-			IsConst:              false,
-			IsOverloadSet:        false,
-			Overloads:            nil,
-			HasOverloadDirective: existing.HasOverloadDirective,
-			IsForward:            existing.IsForward,
-			DeclPosition:         existing.DeclPosition,
-			Usages:               existing.Usages,
-			Documentation:        existing.Documentation,
-			IsDeprecated:         existing.IsDeprecated,
-			DeprecationMessage:   existing.DeprecationMessage,
+			forwardDefaultSignature: existing.forwardDefaultSignature,
+			Name:                    existing.Name,
+			Type:                    existing.Type,
+			ReadOnly:                false,
+			IsConst:                 false,
+			IsOverloadSet:           false,
+			Overloads:               nil,
+			HasOverloadDirective:    existing.HasOverloadDirective,
+			IsForward:               existing.IsForward,
+			DeclPosition:            existing.DeclPosition,
+			Usages:                  existing.Usages,
+			Documentation:           existing.Documentation,
+			IsDeprecated:            existing.IsDeprecated,
+			DeprecationMessage:      existing.DeprecationMessage,
 		}
 		secondOverload := &Symbol{
 			Name:                 name,
@@ -1011,8 +1030,8 @@ func hasDefaultParameters(sig *types.FunctionType) bool {
 	return false
 }
 
-// defaultParametersMatch checks if two function signatures have matching default parameters.
-// Used for forward declaration matching - forwards and implementations must match exactly.
+// defaultParametersMatch compares symmetric default presence for ordinary forward
+// binding and the existing duplicate-signature policy.
 func defaultParametersMatch(sig1, sig2 *types.FunctionType) bool {
 	if len(sig1.Parameters) != len(sig2.Parameters) {
 		return false

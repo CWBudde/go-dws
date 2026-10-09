@@ -20,9 +20,34 @@ func (st *SymbolTable) exportImplementsForward(name string, signature *types.Fun
 	}
 	for _, overload := range candidates {
 		forward, function := overload.Type.(*types.FunctionType)
-		if overload.IsForward && function && forwardSignaturesMatch(forward, signature) {
+		if !overload.IsForward || !function {
+			continue
+		}
+		if overload.HasOverloadDirective && forwardSignaturesMatch(forward, signature) ||
+			!overload.HasOverloadDirective && SignaturesEqual(forward, signature) &&
+				forward.ReturnType.Equals(signature.ReturnType) && defaultParametersMatch(forward, signature) {
 			return true
 		}
 	}
 	return false
+}
+
+// matchingExplicitForward returns the selected declaration before binding
+// consumes its forward state, including its original default signature snapshot.
+func (st *SymbolTable) matchingExplicitForward(name string, signature *types.FunctionType) *Symbol {
+	existing, ok := st.symbols.Get(name)
+	if !ok {
+		return nil
+	}
+	candidates := existing.Overloads
+	if !existing.IsOverloadSet {
+		candidates = []*Symbol{existing}
+	}
+	for _, overload := range candidates {
+		forward, function := overload.Type.(*types.FunctionType)
+		if overload.IsForward && overload.HasOverloadDirective && function && forwardSignaturesMatch(forward, signature) {
+			return overload
+		}
+	}
+	return nil
 }
