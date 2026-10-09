@@ -249,10 +249,9 @@ Value and grouped uses report `Expression expected` at the following token.
 Taking its address reports that child error before `unexpected "@"`; it does not
 create a callback. Constant recovery substitutes null and keeps the declared name
 available to later checks, including through unary/binary constant operators.
-Nested malformed-call casing hints remain gated by Phase 2.4's stopped-call AST
-recovery; reserved declaration-name validation remains in Phase 3. Other
-discarded qualified callee names and remaining reintroduced-property contexts remain
-open in Phase 2.1; completed-call address recovery remains in Phase 2.2. Default type/alias
+Nested malformed-call casing hints are still to be measured against the truncated-call
+carrier (Phase 2.1). Reserved declaration-name validation remains in Phase 3. The remaining
+reintroduced-property contexts are parked (Phase 2.4). Default type/alias
 validation is tracked separately in Phase 4.2.
 
 ### Default result namespace
@@ -263,8 +262,9 @@ and special functions do not become its members: `Default.Low(Integer)` and
 `Unknown name "Default.Length"`, anchored at the member token. Later argument
 and statement diagnostics are suppressed. A pedantic casing hint checks the
 qualifier (`default` versus `Default`); qualified member spelling has no separate
-casing hint. A malformed call whose parser recovery discards its callee still
-needs Phase 2.4's truncation carrier.
+casing hint. Truncated calls now keep their callee (see
+[compile stops](../architecture/compile-stops.md)). Whether `Default.Low(;` matches upstream
+is still to be measured (Phase 2.1).
 
 Qualified output bypasses routines and callback variables named `Print` or
 `PrintLn`. Compilation records the namespace receiver so a caller's local
