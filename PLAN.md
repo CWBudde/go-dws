@@ -19,6 +19,20 @@ checklist and retain the write-up in `docs/history/progress-log-<date>.md`. The 
 
 - A task closes only with a **passing fixture** or a test through the real user-facing
   compile/run path. Write that test first.
+- **Definition of done: scope comes from fixtures.**
+  - Every open task names its target fixture(s), or a measured `--classify` shape count, when
+    it is opened.
+  - Work with no fixture is a ⚠️ measure item. If no fixture turns up, it moves to
+    [`known-divergences.md`](docs/decisions/known-divergences.md#behaviour-without-a-fixture-that-demands-it).
+  - Real-path tests are regression controls for fixture-backed work. They are not a closing
+    criterion on their own, except for refactors whose acceptance is "nothing regresses, the
+    named code is deleted".
+  - Once a task's fixtures pass, check it off. Contexts discovered along the way are not new
+    sub-items; they are parked.
+  - A checked item is one line plus its PR link. "Preserve X, Y, Z" lists belong in the tests
+    and the progress log.
+- Before adding a per-context file to a layer that already has one per context, consolidate
+  first (see 2.2).
 - Ratchet baselines after every improvement: `just fixture-update`.
 - Host-library categories ([`out-of-scope.md`](docs/decisions/out-of-scope.md)) are excluded from
   every target. Declined work and deliberate divergences are in
@@ -35,6 +49,14 @@ rather than trusting them.
 and build on each other: vocabulary first, because most other diagnostic work only passes once
 the sentence is right. Phase 5 (execution suites) is independent and can run in parallel.
 Phase 6 is gated.
+
+**Measured on 2026-10-09:**
+- In scope: 1,423 pass / 372 fail. FailureScripts is at 320/529 (60 %, 157 short of 90 %) and
+  BuildScripts at 7/49.
+- Of the 268 failing `*Fail` fixtures:
+  - 107 still print a go-native sentence (1.8);
+  - 96 are at distance 1;
+  - only about 4 are blocked purely by compile stops (2.1).
 
 ---
 
@@ -145,17 +167,14 @@ stays open until all its subtasks pass. Update its checkbox and this table in th
 same PR; retain checked siblings until the subphase closes. Detailed evidence:
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
-**Current user-selected track:** 2.1's type-directed punctuation, after the record-constant,
-bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batches.
-The standard Default namespace availability and binding batch is closed in [#466](https://github.com/CWBudde/go-dws/pull/466).
-Explicit scalar reintroduced-property empty reads and statement-boundary recovery shipped
-in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty scalar reads
-in class methods shipped in [#468](https://github.com/CWBudde/go-dws/pull/468). Named inherited empty/bare scalar reads and parent accessor ownership are implemented in [#469](https://github.com/CWBudde/go-dws/pull/469).
-Next: reintroduced-property nonempty/discarded-parent recovery and indexed/write contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
-need 2.4's full truncation model.
-The earlier 1.6 mixed/inherited helper candidate measurement remains
-open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
-overlapping 1.8 sweeps.
+**Current track (after the 2026-10-09 Phase 2 review):**
+1. Phase 2.1, the compile-stop model.
+2. The 1.8 go-native sentence sweep, which has the largest measured yield.
+3. 2.3's fixture-backed parser gaps, in parallel.
+
+Do not extend reintroduced-property contexts (parked in 2.4). Default type/alias checks remain in
+4.2. The 1.6 mixed/inherited helper candidate measurement and 1.7 defaults/storage stay open,
+but they gained no fixtures in #458–#462, so each needs a named fixture before more work.
 
 ### 1.5 Declaration and intrinsic diagnostics — M remaining
 
@@ -306,199 +325,182 @@ and shared `internal/errors` builders. Remeasure the shape worklist before each 
   - [ ] Close incompatible-type pairs in `coalesce`, `in_typecheck1`, and `property_default1`;
     the named former task 1.2 fixtures are closed.
   - [ ] Inventory remaining invented sentences and split each measured shape into a task.
+- [ ] Go-native sentence sweep, largest shape first. 107 failing `*Fail` fixtures still print a
+  go-native sentence; in 66 of them it is the only difference.
+  - Top shapes (2026-10-09):
+    - `implementation signature … does not match forward declaration` (10);
+    - `method X not declared in class` (7);
+    - `unary - requires numeric operand` (6);
+    - `circular inheritance detected` (4).
+  - Regenerate the list with `just fixture-report --in-scope --classify --shape-fixtures --shape-top 0`.
 
 ---
 
-## Phase 2 — Parser recovery and compile stops
+## Phase 2 — Frontend structure: compile stops and property resolution
 
-DWScript's parser sentences and anchors are in place; what is left needs knowledge the parser
-does not have, or a precise model of where compilation stops.
+**Why this phase was restructured (2026-10-09 review).** The former 2.1 started as four
+fixture-backed items (`const_record1`, `special_funcs1`/`at_integer`, `debugbreak`,
+`property_reintroduce1`/`2`). All of them pass, along with `const_record4`, `special_funcs5`,
+`SimpleScripts/property_reintroduce`, `inherited1` and `inherited5`. Even so, the subphase grew
+from 4 open items to 20, because each PR added context sub-items that no fixture asks for. Nine
+PRs (#463–#471) gained 9 fixtures in total, and five of them gained none. A review from four
+angles (architecture, fixture leverage, history, docs) found three structural causes:
 
-### 2.1 Type-directed punctuation — S
+1. **One feature, one code path per AST shape.** Upstream handles compatibility brackets in a
+   single function, `ReadPropertyExpr` (`dwsCompiler.pas`), which consumes `()` only after it
+   knows the symbol is a property. That one function serves five callers: inherited,
+   unqualified name, property-program, member and helper access.
+   - In go-dws the parser fixes the node shape first. Every shape then needs its own pieces:
+     five analyzer entry points (`property_reintroduce.go`, `property_indexed_compat.go`,
+     `property_implicit_indexed.go`), four `SemanticInfo` maps (`pkg/ast/metadata.go`) and
+     three evaluator executors.
+   - So every new context costs a PR across four layers.
+2. **Compile stops are spread over five mechanisms:**
+   - the parser's `stopped()` checks;
+   - three different ways of handling truncated calls (`nil` / `Incomplete` / `DeferredCall`);
+   - the analyzer's `compileStopped` flag, which only skips end-of-program checks;
+   - a frontend chain that matches message strings, cuts by position and re-sorts
+     (`internal/frontend/result.go`);
+   - the lexer cutoff.
 
-An ordinary call says `Expression expected` for `f(;`, so record/type-directed
-punctuation must follow semantic resolution. Reserved magic names can enforce their
-punctuation in the parser before reading arguments.
+   Upstream raises `ECompileError` and unwinds. Hard cases were deferred to "2.4's carrier",
+   which was never built.
+3. **No definition of done.** The "or a test through the real path" rule let contexts with no
+   fixture behind them become closable tasks. See the definition of done under **Rules**.
 
-- [x] Record-typed const (`const_record1`, [#463](https://github.com/CWBudde/go-dws/pull/463)).
-  - [x] Require `(` after resolving record types and aliases, at the first initializer token.
-  - [x] Preserve scalar/ordinary-call recovery, earlier diagnostics, local constants,
-    and interrupted parenthesized record initializers (`const_record4`).
-- [ ] Special functions written without parentheses.
-  - [x] Require `(` for bare builtin Low/High (`special_funcs1`, [#463](https://github.com/CWBudde/go-dws/pull/463)), after casing hints;
-    preserve lexical/member shadows and lookahead positions through comments/newlines/EOF.
-  - [x] Match `at_integer` ([#463](https://github.com/CWBudde/go-dws/pull/463)): report the type's missing `(` before `unexpected "@"`;
-    reject scalar-variable addresses while preserving valid routine references.
-  - [x] Measure the 17 required-parentheses names, Default's ordinary-name fallback,
-    and qualified member/unit lookup separately from unqualified specials ([#465](https://github.com/CWBudde/go-dws/pull/465)).
-  - [x] Require `(` for the remaining bare special names in value/statement/callback,
-    grouped-callee, range-bound and unresolved assignment-target contexts; retain
-    casing hints, scanner anchors, ordinary references and lexical/member shadows
-    ([#465](https://github.com/CWBudde/go-dws/pull/465)).
-  - [x] Read bare/grouped/indexed special address operands before pointer capture or
-    index analysis; preserve child stops and scalar-context pre-child address errors
-    ([#465](https://github.com/CWBudde/go-dws/pull/465)).
-  - [x] Establish actual qualified namespace availability and callable forms: standard
-    Default contains only Print/PrintLn; System and Internal use their own local tables.
-    Special pseudo-symbols are not namespace members; `System.`/`Internal.` specials
-    stop with `Unknown name "<Unit>.<name>"` at the member
-    ([#466](https://github.com/CWBudde/go-dws/pull/466)).
-  - [x] Bind qualified Default output calls/references to the result unit through execution,
-    including lexical output-name shadows and caller Default receivers; reject unavailable
-    members with a stop at their token and preserve qualifier-only casing hints
-    ([#466](https://github.com/CWBudde/go-dws/pull/466)).
-  - [ ] Retain qualified callee names when malformed argument parsing discards the call
-    (`Default.Low(;`); requires 2.4's per-call truncation carrier.
-  - [ ] Resolve qualified builtin calls through the Internal table (`Internal.Abs(-3)`,
-    `Internal.Sin(0)`); method-call syntax on `System`/`Internal` still reports
-    `Dot "." expected` at the qualifier.
-- [ ] Magic functions (`debugbreak`).
-  - [x] Accept bare/empty-parentheses DebugBreak and stop at the first non-`)` token,
-    before reading arguments (`debugbreak`); preserve direct-call casing hints and
-    comment/newline/EOF anchors ([#464](https://github.com/CWBudde/go-dws/pull/464)).
-  - [x] Execute valid calls as a no-op in the evaluator, including checked/unchecked
-    procedure and loop bodies; preserve ordinary qualified member calls
-    ([#464](https://github.com/CWBudde/go-dws/pull/464)).
-  - [x] Reject value/grouped/address use; retain null-constant recovery and later
-    name resolution through direct, unary, and binary constant initializers
-    ([#464](https://github.com/CWBudde/go-dws/pull/464)).
-  - [ ] Preserve intrinsic casing hints inside discarded stopped parent calls
-    (`PrintLn(debugbreak(;`); requires 2.4's per-call truncation carrier.
-- [ ] Reintroduced properties.
-  - [x] Accept the declaration marker before `;` without requiring an ancestor method;
-    read explicit scalar class properties through `()` with a normal-level compatibility
-    hint and pedantic declaration-case hint. Checked execution preserves getter and receiver
-    side effects, aliases/implicit routine receivers, inherited descriptors, class properties,
-    helper precedence, descendant method shadows, and source-printer round trips
-    ([#467](https://github.com/CWBudde/go-dws/pull/467)).
-  - [x] Recover at `;` after the opening `(` with `")" expected` while retaining the
-    initializer's property type and later semantic diagnostics (`property_reintroduce2`).
-    Stop ordinary scalar property calls at `(` with `Not a method` (`property_reintroduce1`);
-    preserve ordinary method/helper/namespace punctuation, parser-only errors and nested-call
-    stop anchors, and skip incomplete argument checks ([#467](https://github.com/CWBudde/go-dws/pull/467)).
-  - [ ] Preserve upstream token consumption and recovery for nonempty compatibility brackets,
-    EOF/end boundaries, lexer-directive reach after recovery and discarded enclosing calls; coordinate with 2.4's full truncation carrier.
-  - [ ] Extend compatibility brackets to the remaining access contexts.
-    - [x] Read unqualified empty scalar properties inside instance/class methods; preserve
-      normal/pedantic hints, local callable and parameter shadows, class-member precedence
-      over global routines, ancestor descriptors, descendant method shadows, helper precedence,
-      virtual getters, once-only getter effects, original exceptions, nested accessor reads,
-      selected descriptor/storage ownership and flagged static-method stops ([#468](https://github.com/CWBudde/go-dws/pull/468)).
-    - [x] Support named inherited empty/bare scalar reads ([#469](https://github.com/CWBudde/go-dws/pull/469)).
-      - [x] Preserve the parent descriptor and resolved accessor/storage identity through
-        forwarding, field/class-variable/constant shadows and ancestor class getters.
-      - [x] Retain lexical expression-getter storage, class getters backing ordinary
-        properties, nonvirtual nil receivers, original virtual chains and intermediate
-        overrides; preserve index directives, getter effects/exceptions and nested reads.
-      - [x] Match inherited hint levels/casing, deprecation ordering and write-only
-        anchors; preserve empty and argument-bearing inherited calls in printed source.
-        Close `SimpleScripts/inherited1` and `FailureScripts/inherited5`.
-    - [ ] Support indexed/default property reads.
-      - [x] Read checked explicitly named indexed class properties through
-        `Obj.Prop()[i, j]`, including named default properties ([#470](https://github.com/CWBudde/go-dws/pull/470)).
-        - [x] Preserve normal/pedantic/disabled hints, casing, argument type/count
-          anchors and ordering, and ordinary-call stops before bracket arguments.
-        - [x] Preserve selected descriptor/accessor identity, virtual dispatch,
-          once-only receiver/index/getter effects, original exceptions, recursive
-          indexed getters, and array-result indexing through complex receivers.
-        - [x] Retain class-property declarations, index parameters and comma groups
-          in source-printer round trips; preserve ordinary/default read controls.
-      - [x] Read checked unqualified indexed properties through `Prop()[i, j]`
-        inside instance/class methods ([#471](https://github.com/CWBudde/go-dws/pull/471)).
-        - [x] Preserve lexical descriptors/accessors, dynamic virtual Self, local
-          callable/parameter/helper shadows and member precedence over global routines.
-        - [x] Preserve hint levels/casing/deprecation order, ordinary-call stops,
-          closing-parenthesis type/count anchors and child-before-class-reader errors;
-          retain static declaration flags across out-of-line implementations per overload.
-        - [x] Preserve ordered once-only index/getter effects, original exceptions,
-          recursion, nonvirtual nil readers, array-result indexing and printer round trips.
-      - [ ] Extend indexed compatibility reads to named inherited contexts,
-        retaining their lexical descriptor/accessor and diagnostic rules.
-      - [ ] Support ordinary bare unqualified indexed reads (`Prop[i]`); these
-        already fail with `Array expected` before the compatibility-read batch.
-      - [ ] Align remaining default-property postfix/call contexts; reject `Obj()[i]`
-        before default-property lookup with the upstream punctuation diagnostic.
-      - [ ] Allow declared index parameters combined with an `index` directive;
-        align getter/writer declaration validation, argument layout and printer output.
-      - [ ] Preserve implicit function-pointer receivers for ordinary and compatibility
-        property reads (`F.Prop[i]` / `F.Prop()[i]`); ordinary reads already fail.
-    - [ ] Support property writes through compatibility brackets.
-    - [ ] Support function-valued properties and distinguish property reads from invocation.
-    - [ ] Support unchecked execution and malformed/nonempty unqualified calls.
-    - [ ] Measure visibility promotions/generic specializations separately: upstream does
-      not copy the flag there.
-    - [ ] Measure helper-property precedence and deprecated-property warning ordering/anchors
-      on unqualified compatibility calls; helper-method controls are covered above.
-  - [ ] Align private-property access validation and ordinary static/write-only property-call
-    diagnostic ordering with upstream. The private-access gap predates this batch; derive
-    the invalid-call sequence before changing scalar postfix checks. Include the
-    existing flagged scalar static-name and write-only closing-parenthesis anchors;
-    the checked indexed-read cases use the pinned anchors.
+**Ordering.** 2.1 is the only part with direct fixture yield and the best leverage on the
+remaining distance-1 `*Fail` fixtures, so do it first. Do 2.2 before any further property-access
+work. 2.3 is independent: its items are S-sized one-offs that can run in parallel. 2.4 is not
+work, it is the parking list.
 
-### 2.2 Parser gaps — S each
+### 2.1 Compile-stop model — M
 
-- [ ] `var`/`const` in property index parameters (`array_params1`/`2`, `Parameters expected`).
-- [ ] The `export` directive.
-- [ ] `OF OBJECT expected` (`legacy_proc_of_object`).
-- [ ] `array of const` (`open_array`).
-- [ ] `String expected` for a property description (`property_description1`).
-- [ ] Attribute `"]"` anchored at the `[` (`attribute_incorrect2`; also needs
-  `Dangling attribute declaration`).
-- [ ] `Dot "." expected` where the parser must know `TTest` is a class (`method_implem6`).
-- [ ] `interface helper for T` (needed by `HelpersFail/mixed_helper`, see 4.3).
-- [ ] SetOfFail parser parity: `bracket_right_missing`, `for_in_set_missing_do`, `of_missing`
-  (`"X" expected` / `OF expected` / `DO expected`).
-- [ ] Extend `unexpected "@"` beyond the type/scalar cases shipped in 2.1
-  (`SetOfFail/invalid_operand`, `dyn_array3`, `field_init1`, `func_ptr6`).
+Replace the five mechanisms with one model: the parser marks a truncated call, the analyzer
+genuinely stops, and the frontend makes one position cut.
 
-### 2.3 Property accessor recovery — S
+Measured yield:
+- About 4 fixtures pass outright: `missing_parenthesis1`, `static_methods`, `HelpersFail/strict`
+  and `block_unfinished2`.
+- About 24 more drop to distance 1, where the remaining line is a missing or wrong first stop
+  diagnostic. Examples: `case_error6`, `for_var_usage3`/`4`, `func_ptr2`, `invalid_cast3`,
+  `member_of_void1`, `method2`, `property_write5`, `const_3`.
 
-- [ ] `read (…)` / `write (…)`: upstream reports every missing `")"` as an ordinary error
-  (`missing_reader_bracket` lists lines 4, 6, 7, 8); go-dws's parenthesised-expression stop hides
-  all but the first.
-- [ ] `Warning: Property writer does nothing` (blocks the above).
+Re-run `--classify` after each step and move the newly isolated first-diagnostic gaps into
+Phase 1/4.
 
-### 2.4 Compile-stop model — M
+- [ ] S Write `docs/architecture/compile-stops.md`. It should cover:
+  - The current mechanisms (sites listed above).
+  - Upstream's model: `AddCompilerStop` → `ECompileError`, with emission in pass order at
+    `FTok.HotPos`.
+  - The target design.
+  - The invariants formerly listed under 2.4. The §1.3 enum, cast, record-metatype and
+    anonymous-signature work must preserve source declaration order, routine-body insertion
+    points, speculative parser-error restoration, semantic recovery types, and true stops
+    ahead of later assignment or end-of-program diagnostics.
+- [ ] M Parser: one truncated-call carrier for every call form (`CallExpression`,
+  `NewExpression`, `MethodCallExpression`, statement-boundary calls), replacing the current
+  `nil`/`Incomplete`/`DeferredCall` split.
+  - Target fixture: `missing_parenthesis1` (`Invalid Operands` from inside a stopped call).
+  - Keep `array_index_bracket_missing1` and `constructor_invalid_param` passing.
+  - Also covers the deferred former-2.1 tails: `Default.Low(;`, intrinsic casing hints inside
+    `PrintLn(debugbreak(;`, and nonempty/EOF recovery after reintroduced-property brackets.
+- [ ] M Analyzer: real stops. Emit a stop as a sentinel recovered in `safeAnalyze`, replacing
+  the single `compileStopped` flag.
+  - Analyzer `"(" expected` stops suppress later diagnostics the way parser stops do.
+  - The end-of-program forward check follows the same rule.
+  - Target fixtures: `static_methods`, `HelpersFail/strict`.
+- [ ] S Frontend: reduce `compileParsedResult` to one stop-position cut.
+  - Delete `refineTypePunctuationDiagnostics` (message-string matching) and
+    `refineDeferredPropertyCallDiagnostics` once the carrier exists.
+  - Apply the `reachedLexerDiagnostics` cutoff on the unit-compile path
+    (`internal/frontend/units.go`) as well.
+  - The remaining `sortDiagnostics` heuristics should only order parser vs. analyzer output.
+- [ ] S Drop end-of-compilation hints positioned before a stop (`block_unfinished2`).
+  [#472](https://github.com/CWBudde/go-dws/pull/472) ships the private field/method part.
+- [ ] S Inside `begin…end`, upstream reports a follow-up diagnostic for the value left
+  unconsumed after a read-only property assignment. Indexed read-only property writes get none
+  either. Measure against `PropertyExpressionsFail/expr_write_readonly_property` first.
 
-The §1.3 enum lookup refactor must preserve source declaration order and routine-body
-diagnostic insertion points while snapshotting constant bindings. Its symbol-table changes
-must retain the existing compile-stop and forward-check behavior below.
+### 2.2 Property-access consolidation — M (refactor, no new behaviour)
 
-The §1.3 cast recovery work must restore speculative parser errors and stops before
-expression fallback, retain semantic recovery types, and keep true compiler stops
-ahead of later assignment or end-of-program diagnostics.
+Prerequisite for any further property-access work, including the parked contexts in 2.4 and
+#472's open property-index children. **No new per-context file in `internal/semantic` or
+`internal/interp/evaluator` until this lands.**
 
-The §1.3 record-metatype changes must keep record annotations and constants as
-instance types, preserve supplying-expression diagnostics through static/helper
-receivers, and retain these recovery and stop rules when classifying type values.
+Acceptance for both tasks: every fixture and existing test is unchanged, and the listed
+per-context code is deleted.
 
-The §1.3 anonymous-signature work must resolve nested callable types from their
-AST nodes, preserve each node's modifiers and `of object` ownership, and retain
-assignment recovery and implicit-call intent without invoking a returned callable.
+- [ ] M One analyzer property resolver: a direct port of `ReadPropertyExpr`, for example
+  `resolveProperty(receiver, prop, ctx, postfix)`.
+  - It works on a normalised postfix view: an optional paren group with positions, the bracket
+    groups, and read vs. write.
+  - Thin adapters at the five shape entry points feed it: method call, call, inherited, and the
+    two index-over-call shapes.
+  - The duplicated sequence (case hint, `Not a method` stop, compatibility hint, write-only
+    check, object-reference check) lives only in the resolver.
+- [ ] M One resolved-member binding: `SemanticInfo` records `{Kind, Descriptor, AccessorOwner,
+  Receiver, Indices, SelectedDecl}` per node.
+  - It replaces the four per-shape maps.
+  - One evaluator executor consumes it. Delete `implicit_property_read.go`,
+    `inherited_property_read.go`, `indexed_property_compat.go` and the
+    `"__helper_receiver:"+T` type-name channel.
+  - The runtime-kind lookup remains only as the unchecked-mode fallback.
+  - Order: property reads, then writes. Overload selection (5.3) and record member shadows
+    (5.2 `Ord`) reuse the same binding afterwards.
 
-- [ ] S Per-call truncation marker: `missing_parenthesis1` wants `Invalid Operands` from inside a
-  call whose argument list hit a stop. Such calls are currently dropped, which is what makes
-  `array_index_bracket_missing1` and `constructor_invalid_param` pass — the marker must keep both.
-  Explicit method calls now retain opening/first-token metadata and incomplete fragments for
-  scalar property resolution; the broader nested/ordinary call recovery remains open.
-- [ ] S Analyzer stops (`"(" expected`) must suppress later diagnostics the way parser stops do.
-- [ ] S End-of-compilation hints positioned before a parser stop are still reported; drop them.
-- [ ] S The analyzer's compile stop is one flag (unknown name in an expression) that skips the
-  end-of-program forward check; generalise it.
-- [ ] S Apply the lexer-diagnostic cutoff (`reachedLexerDiagnostics`,
-  `internal/frontend/result.go`) on the unit-compile path (`internal/frontend/units.go`) too.
-- [ ] S Delete the now mostly dead `must have either a type annotation` text filter in
-  `internal/frontend/result.go`.
-- [ ] S Inside `begin…end`, the value left unconsumed after a read-only property assignment gets
-  a follow-up diagnostic upstream (go-dws reports nothing); indexed read-only property writes get
-  none either.
+### 2.3 Fixture-backed parser gaps — S each
 
-### 2.5 Lexer-owned anchors — S
+Each item names its fixture; the measured distance is in parentheses. Remeasure first and work
+nearest-first.
 
-- [ ] `include_incorrect` wants `"}" expected` at 3:18 (end of the directive argument);
-  `directive_messages.go` anchors at 3:13.
-- [ ] `conditionals2.1` reports an unbalanced conditional at the directive argument (column 9),
-  where the byte-identical `conditionals2` wants the name (column 3).
+**Open:**
+- [ ] `var`/`const` in property index parameters (`array_params1` 4, `array_params2` 8,
+  `Parameters expected`). [#472](https://github.com/CWBudde/go-dws/pull/472) is in progress on
+  this. Its non-fixture children follow the definition of done.
+- [ ] `Invalid Operands` for a bare-special operand (`special_funcs2`, 1).
+- [ ] `array of const` (`open_array`, 2).
+- [ ] `Dot "." expected` where the parser must know `TTest` is a class (`method_implem6`, 2).
+- [ ] `unexpected "@"` in the remaining contexts (`dyn_array3`, `field_init1`, `func_ptr6`, 2
+  each). `SetOfFail/invalid_operand` already passes.
+- [ ] `Field has already been set` (`const_record2`, 3) and `Constant expression expected`
+  (`const_record3`, 3) in record constants.
+- [ ] Attribute `"]"` anchored at the `[`, plus `Dangling attribute declaration`
+  (`attribute_incorrect2`, 3).
+- [ ] `interface helper for T` (`HelpersFail/mixed_helper`, 3; together with 4.3).
+- [ ] `OF OBJECT expected` and legacy hints (`legacy_proc_of_object`, 9).
+
+**Landing in [#472](https://github.com/CWBudde/go-dws/pull/472)** (remove after merge):
+- `export` directive;
+- `property_description1`;
+- `missing_reader_bracket`;
+- `null_read_expression`/`null_write_expression`;
+- `include_incorrect`;
+- `conditionals2.1`.
+
+**Owned elsewhere:**
+- `special_funcs3` (`Name "X" is reserved`) is in 3.2.
+- `special_funcs4` (`Inc(i, )`) is in 4.2.
+
+### 2.4 Parked: no fixture demands it
+
+These are moved to [`known-divergences.md`](docs/decisions/known-divergences.md#behaviour-without-a-fixture-that-demands-it).
+Each reopens only with new evidence (a fixture, a user report, or an upstream test), and only
+after 2.2:
+
+- Reintroduced-property compatibility-bracket contexts beyond the explicit/unqualified/
+  inherited scalar and named/unqualified/inherited indexed reads that shipped:
+  - bare `Prop[i]`;
+  - `Obj()[i]` and other default-property postfixes;
+  - `index` directive combined with index parameters;
+  - `F.Prop()[i]` function-pointer receivers;
+  - writes;
+  - function-valued properties;
+  - unchecked execution;
+  - visibility promotions and generic specialisations;
+  - helper-property precedence and deprecation ordering;
+  - private-access/static/write-only call-ordering alignment.
+- Qualified builtin calls through `Internal`/`System` (`Internal.Abs(-3)`) and method-call
+  syntax on those qualifiers.
 
 ---
 
@@ -568,7 +570,7 @@ single-fixture work; the per-suite list is in
 - [ ] `lazy_func_ptr`: `Lazy parameter cannot be a function pointer`.
 - [ ] `contracts_error2`: builtins must resolve inside a `require` clause.
 - [ ] Measure parenthesized `SizeOf` forms and supply the missing call support;
-  `SizeOf(Integer)` currently reports unknown name, while bare punctuation is closed in 2.1.
+  `SizeOf(Integer)` currently reports unknown name, while bare punctuation is closed in the former 2.1.
 - [ ] Validate Default type/alias, case-insensitive type-name, and value-argument forms;
   aliases/lowercase types currently fail, and `Default(I)` returns nil for an Integer value.
 
@@ -576,7 +578,7 @@ single-fixture work; the per-suite list is in
 
 - [ ] Record the `for` keyword's position on `ast.HelperDecl` (`internal/parser/helpers.go`); all
   six anchors of `mixed_helper` and `helper_of_delegate` are the `for` token.
-- [ ] Add an `IsInterfaceHelper` flag and the helper-kind checks (`mixed_helper`; needs 2.2's
+- [ ] Add an `IsInterfaceHelper` flag and the helper-kind checks (`mixed_helper`; needs 2.3's
   `interface helper for T`).
 
 ### 4.4 Other FailureScripts validations — S each

@@ -1,5 +1,44 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Phase 2 restructured (PLAN review)
+
+This entry records no code change. It records a review of Phase 2 from four angles:
+architecture, fixture leverage, PR history and docs.
+
+**Findings:**
+- **Low fixture yield.** PRs #463–#471 gained 9 fixtures on about 2.1k production lines.
+  Five of them gained none.
+- **The checklist outgrew its fixtures.** All four fixtures that originally defined 2.1 pass,
+  yet its open items grew from 4 to 20.
+- **The property sub-items have no fixture behind them.** Only three fixtures use
+  `property … reintroduce`, and none of the open compatibility-bracket contexts is required by
+  a fixture.
+
+**Structural causes:**
+- **A code path per AST shape.** Upstream handles compatibility brackets in one function,
+  `ReadPropertyExpr`, which serves five callers. go-dws needs a separate analyzer entry point,
+  `SemanticInfo` map and evaluator executor for each AST shape.
+- **No single compile-stop model.** Stops are spread over five mechanisms: parser stops, three
+  ways of handling truncated calls, the analyzer flag, the frontend's text-matching filter chain,
+  and the lexer cutoff.
+
+**Measured leverage:**
+- 107 of the 268 failing `*Fail` fixtures still print a go-native sentence.
+- About 4 are blocked purely by compile stops.
+
+**PLAN changes:**
+- Phase 2 is now:
+  - 2.1 compile-stop model;
+  - 2.2 property-access consolidation (one resolver and one resolved-member binding, no new
+    behaviour);
+  - 2.3 fixture-backed parser gaps;
+  - 2.4 parked contexts.
+- The parked contexts move to `known-divergences.md`.
+- A definition of done under PLAN's **Rules** now requires a named fixture or a measured shape
+  count before work starts.
+- 1.8 gains the go-native sentence sweep.
+- The former 2.1 checklist is closed. What it shipped is recorded in the entries below, #463–#471.
+
 ## 2026-10-09 — Unqualified indexed property reads (PLAN 2.1)
 
 This batch ([#471](https://github.com/CWBudde/go-dws/pull/471)) accepts checked
