@@ -11,10 +11,10 @@
 |---|---|
 | Categories | 61 |
 | Fixtures (total) | 2041 |
-| Passed | 1426 |
-| Failed | 588 |
+| Passed | 1429 |
+| Failed | 585 |
 | Skipped (no applicable expectation) | 27 |
-| **Scored pass rate** | **71%** (1426/2014) |
+| **Scored pass rate** | **71%** (1429/2014) |
 
 ## Per-category
 
@@ -30,7 +30,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | AttributesFail | 2 | 0 | 2 | 0 | 0% |
 | AutoFormat | 10 | 0 | 0 | 10 | 0% |
 | BigInteger | 16 | 0 | 16 | 0 | 0% |
-| BuildScripts | 51 | 7 | 42 | 2 | 14% |
+| BuildScripts | 51 | 8 | 41 | 2 | 16% |
 | COMConnector | 19 | 0 | 19 | 0 | 0% |
 | COMConnectorFailure | 8 | 0 | 8 | 0 | 0% |
 | ClassesLib | 12 | 0 | 12 | 0 | 0% |
@@ -40,7 +40,7 @@ See [README.md](README.md#a-missing-txt-means-must-print-nothing-upstream) for e
 | DelegateLib | 14 | 0 | 13 | 1 | 0% |
 | EncodingLib | 12 | 12 | 0 | 0 | 100% |
 | External | 1 | 0 | 0 | 1 | 0% |
-| FailureScripts | 542 | 323 | 206 | 13 | 61% |
+| FailureScripts | 542 | 325 | 204 | 13 | 61% |
 | FunctionsByteBuffer | 19 | 19 | 0 | 0 | 100% |
 | FunctionsDebug | 3 | 3 | 0 | 0 | 100% |
 | FunctionsFile | 15 | 0 | 15 | 0 | 0% |

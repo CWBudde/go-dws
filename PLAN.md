@@ -145,13 +145,15 @@ stays open until all its subtasks pass. Update its checkbox and this table in th
 same PR; retain checked siblings until the subphase closes. Detailed evidence:
 [`October progress log`](docs/history/progress-log-2026-10.md).
 
-**Current user-selected track:** 2.1's type-directed punctuation, after the record-constant,
+**Current user-selected track:** all doable Phase 2 items, one coherent item at a time;
+independent work can run in parallel. Type-directed punctuation follows the record-constant,
 bare Low/High/address-of, `DebugBreak`, and remaining bare special-function batches.
 The standard Default namespace availability and binding batch is closed in [#466](https://github.com/CWBudde/go-dws/pull/466).
 Explicit scalar reintroduced-property empty reads and statement-boundary recovery shipped
 in [#467](https://github.com/CWBudde/go-dws/pull/467). Checked unqualified empty scalar reads
 in class methods shipped in [#468](https://github.com/CWBudde/go-dws/pull/468). Named inherited empty/bare scalar reads and parent accessor ownership are implemented in [#469](https://github.com/CWBudde/go-dws/pull/469).
-Next: reintroduced-property nonempty/discarded-parent recovery and indexed/write contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
+Property descriptions and program-end hint suppression are implemented in [#472](https://github.com/CWBudde/go-dws/pull/472).
+Next: the `export` parser gap, then remaining Phase 2 recovery and access contexts. Default type/alias checks remain in 4.2; nested stopped-call intrinsic hints
 need 2.4's full truncation model.
 The earlier 1.6 mixed/inherited helper candidate measurement remains
 open, followed by 1.7 defaults/storage. Phase 2/3 prerequisites continue to gate the
@@ -447,7 +449,10 @@ punctuation in the parser before reading arguments.
 - [ ] The `export` directive.
 - [ ] `OF OBJECT expected` (`legacy_proc_of_object`).
 - [ ] `array of const` (`open_array`).
-- [ ] `String expected` for a property description (`property_description1`).
+- [x] `String expected` for a property description (`property_description1`,
+  [#472](https://github.com/CWBudde/go-dws/pull/472)). Preserve literal/empty/escaped/multiline
+  metadata and printer round trips, ordinary semicolon/root-END recovery, class field
+  qualifier ownership, and genuine record fields-after-methods stops.
 - [ ] Attribute `"]"` anchored at the `[` (`attribute_incorrect2`; also needs
   `Dangling attribute declaration`).
 - [ ] `Dot "." expected` where the parser must know `TTest` is a class (`method_implem6`).
@@ -493,13 +498,20 @@ assignment recovery and implicit-call intent without invoking a returned callabl
   Explicit method calls now retain opening/first-token metadata and incomplete fragments for
   scalar property resolution; the broader nested/ordinary call recovery remains open.
 - [ ] S Analyzer stops (`"(" expected`) must suppress later diagnostics the way parser stops do.
-- [ ] S End-of-compilation hints positioned before a parser stop are still reported; drop them.
+- [x] S Skip program-end private field/method hints after resolved compiler stops;
+  preserve hints from earlier completed routines ([#472](https://github.com/CWBudde/go-dws/pull/472)).
+- [ ] S Preserve completed-routine hints before later ordinary declaration errors
+  in the mixed-phase diagnostic merge. Existing missing-property-semicolon recovery
+  and property descriptions share this ordering gap; hint membership is preserved.
 - [ ] S The analyzer's compile stop is one flag (unknown name in an expression) that skips the
   end-of-program forward check; generalise it.
 - [ ] S Apply the lexer-diagnostic cutoff (`reachedLexerDiagnostics`,
   `internal/frontend/result.go`) on the unit-compile path (`internal/frontend/units.go`) too.
-- [ ] S Delete the now mostly dead `must have either a type annotation` text filter in
-  `internal/frontend/result.go`.
+  Carry typed unit parser-stop metadata and lexer messages past registry loading;
+  resolve reach within the unit's source before merging its diagnostics.
+- [x] S Delete the obsolete `must have either a type annotation` text filter in
+  `internal/frontend/result.go`; preserve the separate parser cascade suppression
+  ([#472](https://github.com/CWBudde/go-dws/pull/472)).
 - [ ] S Inside `begin…end`, the value left unconsumed after a read-only property assignment gets
   a follow-up diagnostic upstream (go-dws reports nothing); indexed read-only property writes get
   none either.

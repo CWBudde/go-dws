@@ -394,6 +394,7 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - Expression-based setters: `property Half: Integer write (FValue := Value * 2);`
 - Class properties (static): `class property Count: Integer read FCount;`
 - External names (JSON key): `property Test: Integer external 'test' read FTest;`
+- Descriptions: `property Value: Integer read FValue description 'The current value';`
 - Property arrays
 - Property overriding in inheritance
 
@@ -417,6 +418,9 @@ failed property reads, right-hand sides, and compound operations skip the write.
 - ✅ A write specifier that names an lvalue rather than an accessor is shorthand for
   assigning to it: `write (FBase.Prop)` means `write (FBase.Prop := Value)`.
 - ✅ `external 'name'` renames the property's key in JSON serialization
+- ✅ Literal property descriptions, including empty text, quotes and line breaks.
+  The description precedes `reintroduce` and the declaration semicolon; source
+  printing preserves its text and presence.
 - ✅ A read/write specifier can name another property
   (`property Mapped: Integer read Prop write Prop`). The referenced property must
   support the requested access mode.

@@ -225,6 +225,10 @@ Existing lexical values/routines and implicit members keep their lookup priority
 qualified user members and explicit calls retain their existing resolution.
 Later parser punctuation at the semantic stop is suppressed.
 
+Compiler stops skip program-end unused private field and method hints, even
+when the member's declaration precedes the stop. Hints from an earlier completed
+routine remain visible. A provisional index stop is resolved before these end checks.
+
 Taking the address of an unshadowed bare special name reads that child's opening
 parenthesis first. `@Length` stops with `"(" expected` before creating a callback
 or reporting a result-level address error. Grouped/indexed operands preserve this
@@ -418,6 +422,14 @@ clients retain the provisional `Expression expected` stop for a malformed bounda
 call until semantic analysis resolves its property identity.
 
 ### Property and operator declarations
+
+A property `description` directive requires a string literal. If it is missing,
+`String expected` anchors at the next token and leaves that token available for
+ordinary semicolon and class-member recovery. A reached property retains its
+metadata when its semicolon is missing. An unmatched root `end` reports the
+ordinary `Unexpected END`; a prior compiler stop prevents that later diagnostic.
+Record fields after methods produce a genuine compiler stop, retaining earlier
+header diagnostics while skipping later statements and end checks.
 
 A missing property `read` or `write` name reports `Name expected` at the token
 found instead (the final real token at EOF) and stops compilation. Earlier

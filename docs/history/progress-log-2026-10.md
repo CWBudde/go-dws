@@ -1,5 +1,49 @@
 # Progress log — October 2026
 
+## 2026-10-09 — Property descriptions and compiler-stop end hints (PLAN 2.2, 2.4)
+
+This continuation of [#472](https://github.com/CWBudde/go-dws/pull/472) accepts
+literal property descriptions before `reintroduce` and the declaration semicolon.
+AST metadata distinguishes absent from explicit empty descriptions. Source printing
+preserves empty, escaped and multiline text, accessor behavior and default/reintroduce
+flags through public Engine compile/run round trips.
+
+The complete four-message `property_description1` expectation now passes. Invalid
+literal tokens stay available to semicolon/class recovery; a reached property survives
+its missing semicolon. Root `END` reports the ordinary `Unexpected END`, while prior
+compiler stops suppress unreached root tokens and nested statement recovery stays scoped.
+Class instance field readers own trailing external/readonly qualifiers. Record fields
+after methods raise genuine parser stops, retaining earlier header errors and skipping
+later statements, lexer messages and forward checks. This also closes
+`FailureScripts/end_implementation1`; `readonly_field`, `record_method_missing_begin`
+and `record_recursive3` retain their exact fixture behavior.
+
+Program-end private field/method hints are skipped after resolved compiler stops,
+including provisional ordinary-index stops. Hints from earlier completed routines remain;
+resolved property reads retain their legitimate completion path. The obsolete frontend
+annotation-sentence filter is removed while the separate parser cascade suppression remains.
+Direct analyzer/filter controls and complete frontend/public Engine lists verify these
+lifecycle changes. Independent task reviews, a fix review and an integrated review pass.
+
+The full CLI comparison reports 1,428 passes, 586 failures and 27 skips across 2,041
+fixtures: two additional diagnostic-fixture passes and no regressions. FailureScripts
+ratchets from 323 to 325; SimpleScripts remains 399. BuildScripts retains its established
+floor of 7: the CLI scored 7 while the generated Go status scored 8 on its existing
+variable initialization-order case. Parser coverage rises from 79.8352% to 80.0513%; lexer
+coverage remains 88.2803%.
+
+Remaining Phase 2 items stay open. `export` is next. Unit-local lexer cutoff needs typed
+parser-stop/message retention past registry loading. Existing ordinary declaration-error
+versus completed-routine hint ordering, successful-unit private hints and ordinary semantic
+error suppression require separate lifecycle work. Expectations are source-derived from
+pinned compiler revision `1dbf8a90329cc3f2638516e89c0668f916c1ddb9`; Pascal was not executed.
+
+Validation on the final source: full `go test -race -coverprofile=.cache/phase22-final-coverage.out ./...`,
+CI-configured lint (zero issues), `just fixture-check`, tracked Go formatting,
+`go mod tidy`, deterministic visitor generation and CLI build all pass. Fresh CLI
+assertions match complete property/record failure lists and all four legal description
+scripts; the final lint correction preserves the finished property's pointer and span.
+
 ## 2026-10-09 — Inherited indexed reads and lexer anchors (PLAN 2.1, 2.5)
 
 This batch ([#472](https://github.com/CWBudde/go-dws/pull/472)) accepts checked `inherited Prop()[i, j]` and
