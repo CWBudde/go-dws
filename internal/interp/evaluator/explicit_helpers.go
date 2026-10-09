@@ -15,6 +15,9 @@ func (e *Evaluator) namedHelperReceiver(object ast.Expression, ctx *ExecutionCon
 		return nil
 	}
 	if info := e.SemanticInfo(); info != nil {
+		if info.IsDefaultNamespace(object) {
+			return nil
+		}
 		if resolved := info.GetResolvedType(object); resolved != nil {
 			if helper, ok := resolved.(*types.HelperType); ok {
 				return e.lookupMutableHelper(helper.Name)

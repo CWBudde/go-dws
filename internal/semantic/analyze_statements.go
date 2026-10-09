@@ -198,6 +198,22 @@ func (a *Analyzer) analyzeVarDecl(stmt *ast.VarDeclStatement) {
 			return
 		}
 
+		if types.GetUnderlyingType(initType).TypeKind() == "VOID" {
+			pos := stmt.Names[0].Pos()
+			if stmt.Type == nil {
+				pos = identifierLookaheadPos(stmt.Names[0])
+			}
+			diagnostic := NewGenericError(pos, "Assignment's right-side-argument has no return type")
+			diagnostic.AfterChildren = true
+			a.addStructuredError(diagnostic)
+			// Keep the declaration available to later statements after rejecting
+			// its valueless initializer. Inferred declarations recover as Variant.
+			initType = varType
+			if initType == nil {
+				initType = types.VARIANT
+			}
+		}
+
 		if varType == nil {
 			underlying := types.GetUnderlyingType(initType)
 			if _, isNil := underlying.(*types.NilType); isNil {

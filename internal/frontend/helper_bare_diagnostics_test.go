@@ -76,8 +76,8 @@ func TestCompile_HelperGroupedReturnedCallable(t *testing.T) {
 }
 
 // Grouped helper names lose reference context; preserve the initializer checker
-// diagnostics here (its vocabulary is a separate declaration/assignment audit).
+// diagnostics here, including the ordinary valueless initializer diagnostic.
 func TestCompile_HelperGroupedExplicitReferenceContext(t *testing.T) {
 	assertHelperCallDiagnostics(t, "type P = function: Integer;\ntype H = helper for Integer class function F: Integer; begin Result := 7; end; end;\nvar p: P := (H.F);", []string{`Syntax Error: Cannot assign Integer to function P: Integer variable 'p' [line: 3, column: 1]`})
-	assertHelperCallDiagnostics(t, "type P = procedure;\ntype H = helper for Integer class procedure F; begin end; end;\nvar p: P := (H.F);", []string{`Syntax Error: Cannot assign void to procedure P variable 'p' [line: 3, column: 1]`})
+	assertHelperCallDiagnostics(t, "type P = procedure;\ntype H = helper for Integer class procedure F; begin end; end;\nvar p: P := (H.F);", []string{`Syntax Error: Assignment's right-side-argument has no return type [line: 3, column: 5]`})
 }

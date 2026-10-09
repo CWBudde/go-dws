@@ -144,6 +144,9 @@ func (a *Analyzer) analyzeAddressOfExpression(expr *ast.AddressOfExpression) typ
 		return a.analyzeAddressOfFunction(target.Value, expr)
 
 	case *ast.MemberAccessExpression:
+		if a.isDefaultNamespace(target.Object) {
+			return a.analyzeDefaultNamespaceMember(target, nil, true)
+		}
 		// Bound method reference: @instance.MethodName
 		return a.analyzeAddressOfMethod(target, expr)
 

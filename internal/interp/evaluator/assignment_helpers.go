@@ -139,7 +139,7 @@ func (e *Evaluator) buildMethodPointerFromMemberAccess(expr *ast.MemberAccessExp
 	}
 
 	if e.isDefaultNamespaceObject(expr.Object, ctx) {
-		return &runtime.FunctionPointerValue{BuiltinName: expr.Member.Value}
+		return e.defaultNamespacePointer(expr.Member, expr)
 	}
 
 	objVal := e.Eval(expr.Object, ctx)

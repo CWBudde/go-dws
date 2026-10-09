@@ -230,8 +230,8 @@ parenthesis first. `@Length` stops with `"(" expected` before creating a callbac
 or reporting a result-level address error. Grouped/indexed operands preserve this
 reading and stop before reading indices. A scalar expected type can emit
 `unexpected "@"` before the child is read, as upstream does. Bare `Default`
-follows ordinary name lookup without an intrinsic casing hint; its parenthesized
-intrinsic and namespace forms retain their existing behavior.
+follows ordinary name lookup without an intrinsic casing hint. Its parenthesized
+intrinsic retains its existing behavior.
 
 Taking the address of a bare scalar type reports its missing `(` first, followed
 by `unexpected "@"` at the address operator. Scalar variables report the latter
@@ -251,8 +251,43 @@ create a callback. Constant recovery substitutes null and keeps the declared nam
 available to later checks, including through unary/binary constant operators.
 Nested malformed-call casing hints remain gated by Phase 2.4's stopped-call AST
 recovery; reserved declaration-name validation remains in Phase 3. Other
-qualified namespace forms, Default resolution, and remaining reintroduced-property contexts
-remain open in Phase 2.1; completed-call address recovery remains in Phase 2.2.
+discarded qualified callee names and remaining reintroduced-property contexts remain
+open in Phase 2.1; completed-call address recovery remains in Phase 2.2. Default type/alias
+validation is tracked separately in Phase 4.2.
+
+### Default result namespace
+
+The standard `Default` namespace contains `Print` and `PrintLn`. Other globals
+and special functions do not become its members: `Default.Low(Integer)` and
+`Default.Length('abc')` stop with `Unknown name "Default.Low"` or
+`Unknown name "Default.Length"`, anchored at the member token. Later argument
+and statement diagnostics are suppressed. A pedantic casing hint checks the
+qualifier (`default` versus `Default`); qualified member spelling has no separate
+casing hint. A malformed call whose parser recovery discards its callee still
+needs Phase 2.4's truncation carrier.
+
+Qualified output bypasses routines and callback variables named `Print` or
+`PrintLn`. Compilation records the namespace receiver so a caller's local
+`Default` cannot change the binding inside a routine or method. Ordinary local
+receivers, parameters, types and implicit members named `Default` keep their
+own member resolution.
+
+`Default.PrintLn;` and `Default.PrintLn()` print an empty line. A compatible
+`procedure(V: Variant)` context captures `Default.PrintLn` as a callback;
+`@Default.PrintLn` also captures a reference. Without that context, the bare
+procedure is a call: `var P := Default.PrintLn;` reports
+`Assignment's right-side-argument has no return type`. Inferred valueless
+initializers anchor at the scanner token following the variable name; typed
+initializers anchor at the variable name.
+The declaration remains available after that error, retaining an explicit type
+or recovering as Variant when inferred. Procedure calls, including bare output
+procedures, cannot supply a value argument to another call.
+
+`System` and `Internal` hold no special function either. `System.Low(Integer)`,
+`Internal.High(…)` and the bare `System.Low` stop with
+`Unknown name "System.Low"` (etc.) at the member token, before any argument is
+read, and later diagnostics are suppressed. Qualified builtin calls such as
+`Internal.Abs(-3)` remain open in Phase 2.1.
 
 ### Class, record and helper member headers
 

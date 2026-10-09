@@ -590,7 +590,8 @@ func (p *Parser) parseVarIdentifierList() ([]*ast.Identifier, bool) {
 			BaseNode: ast.BaseNode{
 				Token: currentToken,
 			},
-			Value: currentToken.Literal,
+			Value:        currentToken.Literal,
+			NextTokenPos: p.anchorFor(p.cursor.Peek(1)).Pos,
 		})
 
 		// Check if there are more names (comma-separated)

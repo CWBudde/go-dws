@@ -74,7 +74,7 @@ func (e *Evaluator) captureMemberReceiver(node *ast.MemberAccessExpression, ctx 
 		return e.evalJSONNamespaceCall(node.Member.Value, nil, node, ctx), true
 	}
 	if e.isDefaultNamespaceObject(node.Object, ctx) {
-		return &runtime.FunctionPointerValue{BuiltinName: node.Member.Value}, true
+		return e.defaultNamespacePointer(node.Member, node), true
 	}
 
 	if value, handled := e.readUnitQualifiedMember(node, ctx); handled {

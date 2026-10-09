@@ -342,6 +342,9 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 		}
 		switch ident.Normalize(identExpr.Value) {
 		case "system", "internal":
+			if a.stopUnitQualifiedSpecialName(expr.Object, expr.Member) {
+				return nil
+			}
 			if sym, err := a.ResolveQualifiedSymbol(identExpr.Value, expr.Member.Value); err == nil && sym != nil {
 				return sym.Type
 			}
@@ -355,17 +358,7 @@ func (a *Analyzer) analyzeMemberAccessWithExpectedType(expr *ast.MemberAccessExp
 			}
 		case "default":
 			if a.isDefaultNamespace(expr.Object) {
-				if ptrType := a.getBuiltinFunctionPointerType(expr.Member.Value); ptrType != nil {
-					return ptrType
-				}
-				if _, isBuiltin := a.analyzeBuiltinFunction(expr.Member.Value, nil, &ast.CallExpression{
-					BaseNode: ast.BaseNode{Token: expr.Token},
-					Function: expr.Member,
-				}); isBuiltin {
-					return types.VOID
-				}
-				a.addStructuredError(NewUnknownNameError(expr.Member.Token.Pos, "Default."+expr.Member.Value))
-				return nil
+				return a.analyzeDefaultNamespaceMember(expr, expected, false)
 			}
 		}
 	}
