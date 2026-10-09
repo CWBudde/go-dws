@@ -815,12 +815,7 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 			}
 
 			// Parse arguments - cursor will be at RPAREN after parseExpressionList
-			newExpr.Arguments = p.parseExpressionList()
-			if p.stopped() {
-				// The argument list was cut short by a compiler stop: upstream never
-				// finished reading this call, so its argument checks never ran.
-				return nil
-			}
+			newExpr.Arguments, newExpr.Truncated = p.parseCallArguments()
 
 			expr := builder.Finish(newExpr).(*ast.NewExpression)
 
@@ -846,7 +841,7 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 		// No argument token is consumed, so a property can continue after ';'.
 		first := methodCall.FirstArgumentToken.Type
 		if first == lexer.SEMICOLON || first == lexer.END || first == lexer.EOF {
-			methodCall.Incomplete = true
+			methodCall.Truncated = true
 			anchor := p.anchorFor(methodCall.FirstArgumentToken)
 			err := NewParserError(anchor.Pos, anchor.Length(), "Expression expected", ErrInvalidExpression)
 			err.Stop = true
@@ -855,10 +850,7 @@ func (p *Parser) parseMemberAccess(left ast.Expression) ast.Expression {
 			builder.Finish(methodCall)
 			return methodCall
 		}
-		methodCall.Arguments = p.parseExpressionList()
-		if p.stopped() {
-			methodCall.Incomplete = true
-		}
+		methodCall.Arguments, methodCall.Truncated = p.parseCallArguments()
 
 		expr := builder.Finish(methodCall).(*ast.MethodCallExpression)
 

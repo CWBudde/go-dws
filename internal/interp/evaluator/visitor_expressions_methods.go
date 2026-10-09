@@ -38,7 +38,7 @@ func (e *Evaluator) VisitMethodCallExpression(node *ast.MethodCallExpression, ct
 			return e.Eval(read, ctx)
 		}
 	}
-	if node.Incomplete {
+	if node.Truncated {
 		return e.newError(node, "incomplete member call")
 	}
 	if node.Object == nil {

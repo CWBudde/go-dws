@@ -122,7 +122,23 @@ func (a *Analyzer) analyzeArgumentForParameter(arg ast.Expression, paramType typ
 	return a.analyzeExpressionWithExpectedType(arg, paramType)
 }
 
+// analyzeTruncatedCall handles any call form the parser marked as truncated: a
+// compiler stop cut its argument list short. Upstream's ReadArguments compiles
+// each argument as it reads it, so the completed arguments the parser kept are
+// analyzed, but the call is never resolved: no argument-count, argument-type or
+// end-of-program checks run. The parser retains the authoritative stop.
+func (a *Analyzer) analyzeTruncatedCall(args []ast.Expression) types.Type {
+	a.skipEndOfProgramChecks = true
+	for _, arg := range args {
+		a.analyzeExpression(arg)
+	}
+	return nil
+}
+
 func (a *Analyzer) analyzeCallExpression(expr *ast.CallExpression) types.Type {
+	if expr.Truncated {
+		return a.analyzeTruncatedCall(expr.Arguments)
+	}
 	// Handle member access expressions (method calls like obj.Method())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
 		if name, ok := memberAccess.Object.(*ast.Identifier); ok {

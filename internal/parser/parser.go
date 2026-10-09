@@ -280,6 +280,55 @@ func (p *Parser) stopped() bool {
 	return false
 }
 
+// stoppedSince reports whether a compiler stop was recorded at or after the
+// error-list mark (a len(p.errors) taken earlier).
+func (p *Parser) stoppedSince(mark int) bool {
+	for i := len(p.errors) - 1; i >= mark && i >= 0; i-- {
+		if p.errors[i].Stop && p.errors[i].DeferredCall == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// parseCallArguments reads the argument list of any call form. When a compiler
+// stop cuts the list short, upstream's ReadArguments has already compiled the
+// arguments it finished, so their diagnostics stand, but the call itself is never
+// resolved. truncated reports that case; args then holds only the completed
+// arguments (see parseExpressionList).
+// PRE: cursor is LPAREN
+// POST: cursor is RPAREN, or where the stop left it
+func (p *Parser) parseCallArguments() (args []ast.Expression, truncated bool) {
+	args = p.parseExpressionList()
+	return args, p.stopped()
+}
+
+// completedArgument reports whether an argument parsed since mark may be kept in
+// its call: either no stop cut it short, or it is itself a truncated call, which
+// carries only its own completed arguments.
+func (p *Parser) completedArgument(arg ast.Expression, mark int) bool {
+	if arg == nil {
+		return false
+	}
+	if !p.stoppedSince(mark) {
+		return true
+	}
+	return isTruncatedCall(arg)
+}
+
+// isTruncatedCall reports whether expr is a call node carrying the truncation marker.
+func isTruncatedCall(expr ast.Expression) bool {
+	switch call := expr.(type) {
+	case *ast.CallExpression:
+		return call.Truncated
+	case *ast.NewExpression:
+		return call.Truncated
+	case *ast.MethodCallExpression:
+		return call.Truncated
+	}
+	return false
+}
+
 // atTruncatedEnd reports whether the parser has reached the synthetic end of input.
 func (p *Parser) atTruncatedEnd() bool {
 	return p.cursor.Current().Type == lexer.EOF || p.cursor.Peek(1).Type == lexer.EOF

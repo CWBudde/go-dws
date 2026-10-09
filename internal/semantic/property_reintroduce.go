@@ -56,13 +56,6 @@ func (a *Analyzer) analyzePropertyCompatibilityRead(expr *ast.MethodCallExpressi
 	return result, true
 }
 
-func (a *Analyzer) analyzeIncompleteMemberCall(_ *ast.MethodCallExpression) types.Type {
-	// The parser retains the authoritative stop, including through enclosing
-	// unfinished calls. Never validate a truncated argument list or run end checks.
-	a.skipEndOfProgramChecks = true
-	return nil
-}
-
 // analyzeImplicitPropertyCompatibilityRead handles only a directly written empty
 // pair. Nonempty lists and malformed boundaries need separate parser recovery.
 func (a *Analyzer) analyzeImplicitPropertyCompatibilityRead(call *ast.CallExpression, name *ast.Identifier) (types.Type, bool) {

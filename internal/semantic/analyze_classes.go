@@ -58,6 +58,9 @@ func (a *Analyzer) classTypeFromNewOperand(name *ast.Identifier) *types.ClassTyp
 // analyzeNewExpression analyzes object creation (new TClass(args) or TClass.Create(args))
 // with constructor overload resolution and visibility checking.
 func (a *Analyzer) analyzeNewExpression(expr *ast.NewExpression) types.Type {
+	if expr.Truncated {
+		return a.analyzeTruncatedCall(expr.Arguments)
+	}
 	var classType *types.ClassType
 	var className string
 

@@ -3,7 +3,8 @@ package semantic
 import "github.com/cwbudde/go-dws/pkg/ast"
 
 // containsParserRecovery reports whether expr holds an *ast.InvalidExpression, the
-// placeholder the parser leaves where it reported "Expression expected". DWScript stops
+// placeholder the parser leaves where it reported "Expression expected", or a call
+// carrying the parser's truncation marker (a stop cut its arguments short). DWScript stops
 // compiling at that point, so no semantic diagnostic about the enclosing expression
 // may follow it.
 func containsParserRecovery(expr ast.Expression) bool {
@@ -12,8 +13,15 @@ func containsParserRecovery(expr ast.Expression) bool {
 	}
 	found := false
 	ast.Inspect(expr, func(n ast.Node) bool {
-		if _, ok := n.(*ast.InvalidExpression); ok {
+		switch node := n.(type) {
+		case *ast.InvalidExpression:
 			found = true
+		case *ast.CallExpression:
+			found = node.Truncated
+		case *ast.NewExpression:
+			found = node.Truncated
+		case *ast.MethodCallExpression:
+			found = node.Truncated
 		}
 		return !found
 	})
