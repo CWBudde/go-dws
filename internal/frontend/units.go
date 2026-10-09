@@ -57,9 +57,9 @@ func analyzeUnits(analyzer *semantic.Analyzer, result *Result, opts Options) err
 	for _, name := range order {
 		unit, _ := registry.GetUnit(name)
 		directives := filterSourceHints(lexerDiagnostics(unit.DirectiveDiagnostics, false), opts.HintsLevel)
-		result.Diagnostics = append(result.Diagnostics, directives...)
 		for _, diagnostic := range directives {
 			if diagnostic.Fatal {
+				result.Diagnostics = append(result.Diagnostics, directives...)
 				return fmt.Errorf("compiler directive error in unit %q", name)
 			}
 		}
@@ -78,7 +78,10 @@ func analyzeUnits(analyzer *semantic.Analyzer, result *Result, opts Options) err
 		unitAnalyzer.SetSource(unit.Source, unit.FilePath)
 		err := unitAnalyzer.AnalyzeUnitWithDependencies(unit.Declaration, available)
 		diagnostics := semanticDiagnostics(unitAnalyzer)
-		result.Diagnostics = append(result.Diagnostics, diagnostics...)
+		// A unit that loaded has no parser errors, so its stops come from the
+		// analyzer. Cut the unit's own directive diagnostics at the earliest one,
+		// as reachedLexerDiagnostics does for the main file's parser stops.
+		result.Diagnostics = append(result.Diagnostics, dropDiagnosticsAfterStop(append(directives, diagnostics...))...)
 		if err != nil {
 			fatal := false
 			for _, diagnostic := range diagnostics {
