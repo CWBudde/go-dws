@@ -323,6 +323,7 @@ type deferredMethodBody struct {
 	returnType             types.Type
 	paramTypes             []types.Type
 	inUnitDecl             bool
+	isStatic               bool
 	wasExplicitConstructor bool
 }
 

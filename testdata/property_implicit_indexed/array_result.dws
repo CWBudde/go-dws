@@ -1,0 +1,8 @@
+type TInts = array of Integer;
+var Calls: Integer;
+type TTest = class
+ function Get(I, J: Integer): TInts; begin Inc(Calls); Result := [I+J, I*J]; end;
+ property Prop[I, J: Integer]: TInts read Get reintroduce;
+ function Read: Integer; begin Result := Prop()[2, 3][1]; end;
+end;
+PrintLn(TTest.Create.Read); PrintLn(Calls);

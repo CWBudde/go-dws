@@ -1,0 +1,12 @@
+type TInts = array of Integer;
+type TFunc = function: TInts;
+function Answer: TInts; begin Result := [31, 37]; end;
+type TTest = class
+ function Get(I: Integer): Integer; begin Result := I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+ function ReadLocal: Integer;
+ begin var Prop: TFunc := Answer; Result := Prop()[1]; end;
+ function ReadParameter(Prop: TFunc): Integer; begin Result := Prop()[1]; end;
+end;
+var Obj := new TTest;
+PrintLn(Obj.ReadLocal); PrintLn(Obj.ReadParameter(Answer));

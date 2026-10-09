@@ -1,0 +1,6 @@
+type TTest = class
+ function Get(I, J: Integer): Integer; begin Result := I*10+J; end;
+ property Prop[I, J: Integer]: Integer read Get reintroduce;
+ function Read: Integer; begin Result := Prop()[2, 7]; end;
+end;
+PrintLn(TTest.Create.Read);

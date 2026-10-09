@@ -23,6 +23,9 @@ func (a *Analyzer) analyzeIndexedCompatibilityRead(expr *ast.IndexExpression) (t
 		nodes = append(nodes, inner)
 		root = inner.Left
 	}
+	if call, ok := root.(*ast.CallExpression); ok {
+		return a.analyzeImplicitIndexedCompatibilityRead(expr, call, nodes)
+	}
 	call, ok := root.(*ast.MethodCallExpression)
 	if !ok || call.Incomplete || len(call.Arguments) != 0 {
 		return nil, false
@@ -154,8 +157,12 @@ func (a *Analyzer) checkIndexedCompatibilityArguments(class *types.ClassType, pr
 		failed[i] = argTypes[i] == nil || a.errorsSince(mark)
 	}
 	if metaclass && !indexedCompatibilityClassReader(class, prop) {
-		a.addStructuredError(NewPropertyReadShouldBeStaticMethodError(pos))
-		a.addStructuredError(NewClassMethodOrConstructorExpectedError(pos))
+		readerError := NewPropertyReadShouldBeStaticMethodError(pos)
+		readerError.AfterChildren = true
+		a.addStructuredError(readerError)
+		classError := NewClassMethodOrConstructorExpectedError(pos)
+		classError.AfterChildren = true
+		a.addStructuredError(classError)
 	}
 	mark := len(a.errors)
 	for i, typ := range argTypes {

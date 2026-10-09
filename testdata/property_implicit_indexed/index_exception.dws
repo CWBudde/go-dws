@@ -1,0 +1,8 @@
+type TTest = class
+ function Get(I, J: Integer): Integer; begin PrintLn('unexpected getter'); Result := I+J; end;
+ property Prop[I, J: Integer]: Integer read Get reintroduce;
+ function First: Integer; begin raise Exception.Create('index'); end;
+ function Second: Integer; begin PrintLn('unexpected second'); Result := 7; end;
+ function Read: Integer; begin Result := Prop()[First, Second]; end;
+end;
+try PrintLn(TTest.Create.Read); except on E: Exception do PrintLn(E.Message); end;
