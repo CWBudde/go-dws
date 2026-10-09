@@ -1,0 +1,9 @@
+type TBase = class
+ function Get(I: Integer): Integer; begin Result := I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+type TChild = class(TBase)
+ function Prop: array of Integer; begin Result := [8, 9]; end;
+end;
+var Obj := new TChild;
+PrintLn(Obj.Prop()[1]);

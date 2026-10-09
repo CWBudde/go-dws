@@ -1,0 +1,6 @@
+type TTest = class
+ function Get(I, J: Integer): Integer; begin Result := I*10+J; end;
+ property Prop[I, J: Integer]: Integer read Get reintroduce;
+end;
+var Obj := new TTest;
+PrintLn(Obj.Prop()[2, 7]);

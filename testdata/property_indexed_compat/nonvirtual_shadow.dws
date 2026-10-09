@@ -1,0 +1,11 @@
+type TBase = class
+ function Get(I: Integer): Integer; begin Result := 10+I; end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+type TChild = class(TBase)
+ function Get(I: Integer): Integer; reintroduce; begin Result := 90+I; end;
+ function Other(I: Integer): Integer; begin Result := 80+I; end;
+ property Prop[I: Integer]: Integer read Other reintroduce;
+end;
+var Obj: TBase := new TChild;
+PrintLn(Obj.Prop()[3]);

@@ -24,17 +24,15 @@ func TestMultiIndexCommaSyntax(t *testing.T) {
 			t.Fatalf("Failed to parse multi_index_comma.dws: %v\nOutput: %s", err, string(output))
 		}
 
-		// Check that the output contains desugared nested index expressions
+		// Source output keeps comma groups distinct from successive brackets.
 		outputStr := string(output)
 
-		// Verify 2D comma syntax is desugared: arr[i, j] -> arr[i][j]
-		if !strings.Contains(outputStr, "matrix[0][0]") {
-			t.Errorf("Expected desugared 2D index expression like 'matrix[0][0]' but not found in output")
+		if !strings.Contains(outputStr, "value := matrix[0, 0];") {
+			t.Errorf("Expected preserved 2D comma index in output: %s", outputStr)
 		}
 
-		// Verify 3D comma syntax is desugared: arr[i, j, k] -> arr[i][j][k]
-		if !strings.Contains(outputStr, "cube[0][0][0]") {
-			t.Errorf("Expected desugared 3D index expression like 'cube[0][0][0]' but not found in output")
+		if !strings.Contains(outputStr, "str := cube[0, 0, 0];") {
+			t.Errorf("Expected preserved 3D comma index in output: %s", outputStr)
 		}
 	})
 
@@ -52,9 +50,8 @@ func TestMultiIndexCommaSyntax(t *testing.T) {
 			t.Errorf("Yin_and_yang.dws should parse without errors, but got: %s", outputStr)
 		}
 
-		// Should contain desugared comma syntax (Pix[x, y] -> Pix[x][y])
-		if !strings.Contains(outputStr, "Pix[") && !strings.Contains(outputStr, "[y]") {
-			t.Errorf("Expected desugared index expression for Pix array but not found")
+		if !strings.Contains(outputStr, "Pix[x, y]") {
+			t.Errorf("Expected preserved comma index for Pix array but not found")
 		}
 	})
 
@@ -72,36 +69,33 @@ func TestMultiIndexCommaSyntax(t *testing.T) {
 			t.Errorf("Levenshtein_distance.dws should parse without errors, but got: %s", outputStr)
 		}
 
-		// Should contain desugared comma syntax for d array (d[i, j] -> d[i][j])
-		if !strings.Contains(outputStr, "d[") {
-			t.Errorf("Expected desugared index expression for d array but not found")
+		if !strings.Contains(outputStr, "d[i, j]") {
+			t.Errorf("Expected preserved comma index for d array but not found")
 		}
 	})
 
-	t.Run("Equivalence of comma and bracket syntax", func(t *testing.T) {
-		// Test that arr[i, j] and arr[i][j] produce equivalent AST
-
-		// Parse with comma syntax
-		cmd1 := exec.Command(binary, "parse", "-e", "arr[i, j];")
-		output1, err := cmd1.CombinedOutput()
-		if err != nil {
-			t.Fatalf("Failed to parse comma syntax: %v\nOutput: %s", err, string(output1))
+	t.Run("Preserve comma and bracket syntax", func(t *testing.T) {
+		for _, want := range []string{"arr[i, j]", "arr[i][j]", "arr[i, j][k]"} {
+			output, err := exec.Command(binary, "parse", "-e", want+";").CombinedOutput()
+			if err != nil {
+				t.Fatalf("parse %s: %v\n%s", want, err, output)
+			}
+			if got := strings.TrimSpace(string(output)); got != want {
+				t.Errorf("printed %q; want %q", got, want)
+			}
 		}
+	})
 
-		// Parse with nested bracket syntax
-		cmd2 := exec.Command(binary, "parse", "-e", "arr[i][j];")
-		output2, err := cmd2.CombinedOutput()
-		if err != nil {
-			t.Fatalf("Failed to parse bracket syntax: %v\nOutput: %s", err, string(output2))
-		}
-
-		// Both should produce the same desugared output
-		output1Str := strings.TrimSpace(string(output1))
-		output2Str := strings.TrimSpace(string(output2))
-
-		if output1Str != output2Str {
-			t.Errorf("Comma syntax and bracket syntax should produce equivalent AST\nComma: %s\nBracket: %s",
-				output1Str, output2Str)
+	t.Run("Equivalent array execution", func(t *testing.T) {
+		const prefix = "var arr: array of array of Integer := [[1, 2], [3, 4]]; "
+		for _, index := range []string{"arr[1, 0]", "arr[1][0]"} {
+			output, err := exec.Command(binary, "run", "-e", prefix+"PrintLn("+index+");").CombinedOutput()
+			if err != nil {
+				t.Fatalf("run %s: %v\n%s", index, err, output)
+			}
+			if got := string(output); got != "3\n" {
+				t.Errorf("run %s: output %q; want 3", index, got)
+			}
 		}
 	})
 }

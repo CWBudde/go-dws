@@ -1,0 +1,7 @@
+type TTest = class
+ function Get(I: Integer): Integer; begin raise Exception.Create('getter'); end;
+ property Prop[I: Integer]: Integer read Get reintroduce;
+end;
+var Obj := new TTest;
+try PrintLn(Obj.Prop()[2]); except on E: Exception do PrintLn(E.Message); end;
+PrintLn('after');

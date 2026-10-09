@@ -172,6 +172,11 @@ type Analyzer struct {
 	// visibility sections have already been diagnosed, so a node resolved more
 	// than once does not report the same diagnostic twice.
 	reportedInlineRecordVisibility map[*ast.RecordTypeNode]bool
+
+	// probedReceivers hands a receiver type analyzed by a speculative probe to
+	// the fallback path that analyzes the same node, so its diagnostics are
+	// reported once; see analyzeProbedReceiver.
+	probedReceivers map[ast.Expression]types.Type
 }
 
 // NewAnalyzer creates a new semantic analyzer

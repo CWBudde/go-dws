@@ -13,18 +13,22 @@ import (
 // evalInheritedPropertyRead retains the resolved accessor identity independently
 // from both the property descriptor's owner and dynamic Self.
 func (e *Evaluator) evalInheritedPropertyRead(binding *ast.InheritedPropertyReadBinding, ctx *ExecutionContext) Value {
+	receiver := e.Eval(binding.Read.Object, ctx)
+	if isError(receiver) || ctx.Exception() != nil {
+		return receiver
+	}
+	return e.evalResolvedPropertyRead(binding, receiver, nil, ctx)
+}
+
+func (e *Evaluator) evalResolvedPropertyRead(binding *ast.InheritedPropertyReadBinding, receiver Value, indices []Value, ctx *ExecutionContext) Value {
 	prop := binding.Property
 	owner := e.typeSystem.LookupClass(prop.ReadOwner)
 	if owner == nil {
 		return e.newError(binding.Read, "property accessor owner '%s' not found", prop.ReadOwner)
 	}
-	receiver := e.Eval(binding.Read.Object, ctx)
-	if isError(receiver) {
-		return receiver
-	}
 	if prop.ReadKind == types.PropAccessExpression {
-		return e.withInheritedPropertyContext(prop, binding.Read, ctx, func() Value {
-			return e.evalInheritedPropertyExpression(receiver, owner, prop, binding.Read, ctx)
+		return e.withResolvedPropertyContext(prop, binding.Read, ctx, func() Value {
+			return e.evalInheritedPropertyExpression(receiver, owner, prop, binding.Read, indices, ctx)
 		})
 	}
 	if prop.ReadStorage != types.PropStorageNone {
@@ -48,8 +52,8 @@ func (e *Evaluator) evalInheritedPropertyRead(binding *ast.InheritedPropertyRead
 		}
 	}
 	method = inheritedPropertyGetter(owner, dynamicClass, method)
-	return e.withInheritedPropertyContext(prop, binding.Read, ctx, func() Value {
-		return e.executeInheritedPropertyGetter(receiver, dynamicClass, method, prop, binding.Read, ctx)
+	return e.withResolvedPropertyContext(prop, binding.Read, ctx, func() Value {
+		return e.executeInheritedPropertyGetter(receiver, dynamicClass, method, prop, binding.Read, indices, ctx)
 	})
 }
 
@@ -94,6 +98,19 @@ func inheritedPropertyGetter(owner, dynamicClass runtime.IClassInfo, method *run
 	return method
 }
 
+// Indexed getters can recurse with different indices or receivers. Preserve
+// their ordinary getter flag without scalar descriptor-cycle rejection.
+func (e *Evaluator) withResolvedPropertyContext(prop *types.PropertyInfo, node ast.Node, ctx *ExecutionContext, read func() Value) Value {
+	if !prop.IsIndexed {
+		return e.withInheritedPropertyContext(prop, node, ctx, read)
+	}
+	propCtx := ctx.PropContext()
+	saved := propCtx.InPropertyGetter
+	propCtx.InPropertyGetter = true
+	defer func() { propCtx.InPropertyGetter = saved }()
+	return read()
+}
+
 func (e *Evaluator) withInheritedPropertyContext(prop *types.PropertyInfo, node ast.Node, ctx *ExecutionContext, read func() Value) Value {
 	propCtx := ctx.PropContext()
 	key := fmt.Sprintf("%p", prop)
@@ -112,11 +129,12 @@ func (e *Evaluator) withInheritedPropertyContext(prop *types.PropertyInfo, node 
 	return read()
 }
 
-func (e *Evaluator) executeInheritedPropertyGetter(receiver Value, class runtime.IClassInfo, method *runtime.MethodMetadata, prop *types.PropertyInfo, node ast.Node, ctx *ExecutionContext) Value {
-	args, err := e.buildIndexDirectiveArgs(prop)
+func (e *Evaluator) executeInheritedPropertyGetter(receiver Value, class runtime.IClassInfo, method *runtime.MethodMetadata, prop *types.PropertyInfo, node ast.Node, indices []Value, ctx *ExecutionContext) Value {
+	indexArgs, err := e.buildIndexDirectiveArgs(prop)
 	if err != nil {
 		return e.newError(node, "%s", err)
 	}
+	args := append(append([]Value(nil), indices...), indexArgs...)
 	if method.IsClassMethod {
 		value, err := e.typeSystem.CreateClassValue(class.GetName())
 		if err != nil {
@@ -130,7 +148,7 @@ func (e *Evaluator) executeInheritedPropertyGetter(receiver Value, class runtime
 	return e.executeMethodWithClassInfo(receiver, class, method, args, ctx)
 }
 
-func (e *Evaluator) evalInheritedPropertyExpression(receiver Value, owner runtime.IClassInfo, prop *types.PropertyInfo, node ast.Node, ctx *ExecutionContext) Value {
+func (e *Evaluator) evalInheritedPropertyExpression(receiver Value, owner runtime.IClassInfo, prop *types.PropertyInfo, node ast.Node, indices []Value, ctx *ExecutionContext) Value {
 	expression, ok := prop.ReadExpr.(ast.Expression)
 	if !ok {
 		return e.newError(node, "invalid property expression")
@@ -152,6 +170,11 @@ func (e *Evaluator) evalInheritedPropertyExpression(receiver Value, owner runtim
 					}
 				}
 			}
+		}
+	}
+	if prop.IsIndexed {
+		if err := e.bindIndexedPropertyParams(prop.IndexParamNames, indices, ctx); err != nil {
+			return err
 		}
 	}
 	return e.Eval(expression, ctx)

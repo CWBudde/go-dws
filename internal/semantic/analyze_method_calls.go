@@ -62,7 +62,7 @@ func (a *Analyzer) analyzeMethodCallExpression(expr *ast.MethodCallExpression) t
 	}
 
 	// Analyze the object expression
-	objectType := a.analyzeExpression(expr.Object)
+	objectType := a.analyzeProbedReceiver(expr.Object)
 	if helper, ok := objectType.(*types.HelperType); ok {
 		if expr.Incomplete {
 			return a.analyzeIncompleteMemberCall(expr)

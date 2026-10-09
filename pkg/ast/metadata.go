@@ -89,6 +89,7 @@ type SemanticInfo struct {
 	propertyReads          map[*MethodCallExpression]*MemberAccessExpression
 	implicitPropertyReads  map[*CallExpression]*ImplicitPropertyReadBinding
 	inheritedPropertyReads map[*InheritedExpression]*InheritedPropertyReadBinding
+	indexedPropertyReads   map[*IndexExpression]*IndexedPropertyReadBinding
 	implicitCalls          map[Expression]bool
 	mu                     sync.RWMutex
 }
@@ -104,6 +105,7 @@ func NewSemanticInfo() *SemanticInfo {
 		propertyReads:          make(map[*MethodCallExpression]*MemberAccessExpression),
 		implicitPropertyReads:  make(map[*CallExpression]*ImplicitPropertyReadBinding),
 		inheritedPropertyReads: make(map[*InheritedExpression]*InheritedPropertyReadBinding),
+		indexedPropertyReads:   make(map[*IndexExpression]*IndexedPropertyReadBinding),
 		implicitCalls:          make(map[Expression]bool),
 	}
 }
@@ -232,6 +234,7 @@ func (si *SemanticInfo) Clear() {
 	si.propertyReads = make(map[*MethodCallExpression]*MemberAccessExpression)
 	si.implicitPropertyReads = make(map[*CallExpression]*ImplicitPropertyReadBinding)
 	si.inheritedPropertyReads = make(map[*InheritedExpression]*InheritedPropertyReadBinding)
+	si.indexedPropertyReads = make(map[*IndexExpression]*IndexedPropertyReadBinding)
 	si.implicitCalls = make(map[Expression]bool)
 }
 
@@ -369,4 +372,30 @@ func (si *SemanticInfo) InheritedPropertyRead(expr *InheritedExpression) *Inheri
 	si.mu.RLock()
 	defer si.mu.RUnlock()
 	return si.inheritedPropertyReads[expr]
+}
+
+// IndexedPropertyReadBinding retains the selected descriptor and one declared
+// bracket group's arguments for a checked compatibility read.
+type IndexedPropertyReadBinding struct {
+	Read    *InheritedPropertyReadBinding
+	Indices []Expression
+}
+
+// SetIndexedPropertyRead binds an explicitly named indexed compatibility read.
+// The binding and its expressions are immutable after analysis.
+func (si *SemanticInfo) SetIndexedPropertyRead(expr *IndexExpression, read *IndexedPropertyReadBinding) {
+	si.mu.Lock()
+	defer si.mu.Unlock()
+	if si.indexedPropertyReads == nil {
+		si.indexedPropertyReads = make(map[*IndexExpression]*IndexedPropertyReadBinding)
+	}
+	si.indexedPropertyReads[expr] = read
+}
+
+// IndexedPropertyRead returns a bound indexed compatibility read, if any.
+// It is safe for concurrent reads.
+func (si *SemanticInfo) IndexedPropertyRead(expr *IndexExpression) *IndexedPropertyReadBinding {
+	si.mu.RLock()
+	defer si.mu.RUnlock()
+	return si.indexedPropertyReads[expr]
 }

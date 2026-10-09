@@ -306,6 +306,24 @@ an ordinary property uses its name. An ordinary write-only empty call reports
 that read error before the `Not a method` stop at `(`. A deprecated inherited
 property reports its warning at the member name before the compatibility hint.
 
+An explicitly named indexed class property accepts `obj.Prop()[i, j]` when its
+declaration has `reintroduce`, including a named property marked `default`.
+The empty pair precedes the declared indices; ordinary `obj.Prop[i, j]` and
+default `obj[i, j]` reads have no compatibility hint. Explicit Self, instance,
+class and metaclass receivers retain the selected descriptor and accessor.
+The receiver and indices execute once, from left to right, and exceptions stop
+the remaining indices and getter. Virtual getters retain dynamic dispatch;
+indexed getters may recurse with different arguments. A subsequent bracket group
+indexes the returned value, so `obj.Prop()[i][j]` also works with array results.
+
+Indexed argument type and count errors use the closing compatibility `)` as
+their anchor. Diagnostics from index expressions precede accessor argument checks; a type
+error suppresses the count error. An ordinary indexed property called with
+`()` reports `More arguments expected` at the member name, then stops with
+`Not a method` at `(` without reading the bracket arguments. The source printer
+preserves class-property declarations, declared index parameters, and comma
+groups separately from successive bracket groups.
+
 For `var A := obj.Prop(;`, `")" expected` is a recoverable error at `;`.
 The declaration retains the property's type, and compilation can report later
 semantic errors. Comments/newlines preserve the next-token anchor. An ordinary scalar
@@ -326,8 +344,9 @@ property warning order/anchors remain a diagnostic follow-up.
 The source printer preserves the declaration marker. Nonempty compatibility-token recovery,
 EOF/end boundaries, lexer-directive reach after recovery, discarded enclosing calls,
 malformed/nonempty unqualified/inherited calls, static inherited property contexts,
-indexed/default properties, writes, flagged function-valued properties and unchecked
-execution remain open in PLAN.md. These need their own parsing/dispatch acceptance;
+unqualified/inherited indexed reads, remaining default-property call contexts,
+combined index parameters and `index` directives, writes, flagged function-valued
+properties and unchecked execution remain open in PLAN.md. These need their own parsing/dispatch acceptance;
 passing the scalar fixtures does not close the full property item. Parser-only
 clients retain the provisional `Expression expected` stop for a malformed boundary
 call until semantic analysis resolves its property identity.

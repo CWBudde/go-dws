@@ -24,6 +24,12 @@ func (e *Evaluator) VisitIndexExpression(node *ast.IndexExpression, ctx *Executi
 		return e.newError(node, "index expression missing base")
 	}
 
+	if info := e.SemanticInfo(); info != nil {
+		if read := info.IndexedPropertyRead(node); read != nil {
+			return e.evalIndexedCompatibilityRead(read, ctx)
+		}
+	}
+
 	if record, prop, indices, handled, err := e.resolveRecordMetaIndexedProperty(node, ctx); handled {
 		if err != nil {
 			return err

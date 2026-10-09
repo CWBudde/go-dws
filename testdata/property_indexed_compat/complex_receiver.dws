@@ -1,0 +1,15 @@
+type TInts = array of Integer;
+var Receivers: Integer;
+type TTest = class
+ function Get(I: Integer): TInts; begin Result := [I, I+1]; end;
+ property Prop[I: Integer]: TInts read Get reintroduce;
+end;
+type TBox = class Value: TTest; end;
+var Obj := new TTest;
+var Box := new TBox; Box.Value := Obj;
+function Make: TTest; begin Inc(Receivers); Result := Obj; end;
+PrintLn(Make().Prop()[3][1]);
+PrintLn(Box.Value.Prop()[5][1]);
+PrintLn((Obj).Prop()[7][1]);
+PrintLn((TTest(Obj)).Prop()[9][1]);
+PrintLn(Receivers);
